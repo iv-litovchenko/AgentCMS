@@ -26,7 +26,7 @@ function getCmsConfigAbsolute(agentRoot) {
 }
 
 function getTypeDomainAbsolute(projectRoot, domain) {
-  return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, AWN_DATA_REL, domain, "types");
+  return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, AWN_DATA_REL, domain);
 }
 
 function getTypeCatalogRootAbsolute(projectRoot) {

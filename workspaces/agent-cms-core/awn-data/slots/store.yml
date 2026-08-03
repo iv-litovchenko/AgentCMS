@@ -1,0 +1,66 @@
+version: 1
+kind: collection
+id: slots
+name: Слоты
+description: Слоты хранения топика (awn.slot.*)
+extends: ../_base/store.yml
+
+record:
+  id-mode: slug
+  file: "{id}.md"
+
+fields:
+  title:
+    type: awn.string
+    title: Название
+    required: true
+  typeId:
+    type: awn.string
+    title: ID типа
+    required: true
+  slot-category:
+    type: awn.enum
+    title: Категория
+    enum: [memory, files, single-file, records, communication]
+    default: memory
+  storage-driver:
+    type: awn.enum
+    title: Драйвер памяти
+    enum: [internal, external, tabular]
+    default: external
+  path:
+    type: awn.string
+    title: Путь
+    description: "Подпапка в topic/awn-storage/ (например inbox/)"
+    required: true
+  allowed-content:
+    type: awn.string
+    title: Разрешённый контент
+    description: Список awn.content.* — в frontmatter или в теле записи
+  accept-files:
+    type: awn.string
+    title: Принимаемые файлы
+    description: "Шаблоны расширений (*, .md, .png) — в frontmatter или в теле"
+  slot-order:
+    type: awn.integer
+    title: Порядок
+    description: Сортировка внутри категории
+  slot-tier:
+    type: awn.enum
+    title: Уровень
+    enum: [user, system]
+    default: user
+  kind:
+    type: awn.string
+    title: Kind
+  domain:
+    type: awn.string
+    title: Domain
+  status:
+    type: awn.enum
+    title: Статус
+    enum: [active, draft, deprecated, inactive]
+    default: active
+  extends:
+    type: awn.string
+    title: Extends

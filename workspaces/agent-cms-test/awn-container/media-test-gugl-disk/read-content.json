@@ -1,6 +1,7 @@
 {
   "paths": [
     "main/00.md",
+    "main/09.md",
     "main/awn-container/media-test-gugl-disk/awn-storage/manifest.md",
     "media/312321",
     "media/312321.md",
@@ -12,5 +13,5 @@
     "media/razdel-1/manifest.md",
     "topic-index-generated/awn-container/media-test-gugl-disk/awn-storage/index.md"
   ],
-  "updatedAt": "2026-08-03T19:15:38.443Z"
+  "updatedAt": "2026-08-03T21:12:33.424Z"
 }

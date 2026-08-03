@@ -12,7 +12,7 @@ const { serializeCsv, getCsvColumnsFromSchema, writeCsvFromRecords } = require("
 
 const CORE = getAgentCmsCoreAbsolute(process.cwd());
 const TAXONOMIES = path.join(CORE, "awn-data", "taxonomies");
-const SCHEMA_FILE = "configuration-schema.yml";
+const SCHEMA_FILE = "store.yml";
 
 function splitFrontmatter(content) {
   const text = String(content || "");

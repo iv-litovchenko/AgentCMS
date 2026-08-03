@@ -39,9 +39,13 @@ function normalizeAgentSystemRelPath(relPath) {
     const domain = rest.split("/")[0];
     const store = DOMAIN_TYPE_STORES[domain];
     if (store) {
-      normalized = `awn-data/${store}/types/${rest.slice(domain.length + 1)}`.replace(/\.ya?ml$/i, ".md");
+      normalized = `awn-data/${store}/${rest.slice(domain.length + 1)}`.replace(/\.ya?ml$/i, ".md");
     }
   }
+  normalized = normalized.replace(
+    /^awn-data\/(pages|content|slots|base|mixins|settings)\/types\//,
+    "awn-data/$1/"
+  );
   return normalized;
 }
 
@@ -50,7 +54,8 @@ function isAgentSystemRelPath(relPath) {
   return (
     normalized === CMS_CONFIG_REL ||
     normalized.startsWith(`${CMS_CONFIG_REL}/`) ||
-    (normalized.startsWith(`${AWN_DATA_REL}/`) && /\/types\//.test(normalized))
+    (normalized.startsWith(`${AWN_DATA_REL}/`) &&
+      /^awn-data\/(pages|content|slots|base|mixins|settings)\/.+\.md$/i.test(normalized))
   );
 }
 
@@ -118,7 +123,7 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
       title: domainMeta.label || SYSTEM_DOMAIN_LABELS[domain] || domain,
       domain,
       domainKind: domainMeta.kind || null,
-      folderPath: storeFolder ? `awn-data/${storeFolder}/types` : `${CMS_CONFIG_REL}/${domain}`,
+      folderPath: storeFolder ? `awn-data/${storeFolder}` : `${CMS_CONFIG_REL}/${domain}`,
       items: domainItems.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru")),
       subGroups: []
     });

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Migrate awn-system/types/*.yml → awn-data/{domain}/types/*.md
+ * Migrate awn-system/types/*.yml → awn-data/{domain}/*.md
  * and awn-system root config → awn-data/cms-config/
  *
  *   node scripts/migrate-awn-system-to-awn-data.js
@@ -131,38 +131,23 @@ function convertYamlToMd(yamlRel, yamlAbs) {
 
 function ensureStoreScaffold(awnDataRoot, storeId, meta) {
   const storeRoot = path.join(awnDataRoot, storeId);
-  const typesRoot = path.join(storeRoot, "types");
-  fs.mkdirSync(typesRoot, { recursive: true });
+  fs.mkdirSync(storeRoot, { recursive: true });
 
-  const groupSchema = path.join(storeRoot, "configuration-schema.yml");
-  if (!fs.existsSync(groupSchema)) {
+  const storeSchema = path.join(storeRoot, "store.yml");
+  if (!fs.existsSync(storeSchema)) {
     fs.writeFileSync(
-      groupSchema,
-      `version: 1\nkind: group\nid: ${storeId}\nname: ${meta.name}\ndescription: ${meta.description}\n`,
+      storeSchema,
+      `version: 1\nkind: collection\nid: ${storeId}\nname: ${meta.name}\ndescription: ${meta.description}\nextends: ../_base/store.yml\n\nrecord:\n  id-mode: slug\n  file: "{id}.md"\n\nfields:\n  title:\n    type: awn.string\n    title: Название\n    required: true\n  typeId:\n    type: awn.string\n    title: ID типа\n    required: true\n  kind:\n    type: awn.string\n    title: Kind\n  domain:\n    type: awn.string\n    title: Domain\n  status:\n    type: awn.enum\n    title: Статус\n    enum: [active, draft, deprecated, inactive]\n    default: active\n  extends:\n    type: awn.string\n    title: Extends\n`,
       "utf-8"
     );
   }
 
-  const groupManifest = path.join(storeRoot, "manifest.md");
-  if (!fs.existsSync(groupManifest)) {
-    fs.writeFileSync(groupManifest, `# ${meta.name}\n\n${meta.description}\n`, "utf-8");
+  const storeManifest = path.join(storeRoot, "manifest.md");
+  if (!fs.existsSync(storeManifest)) {
+    fs.writeFileSync(storeManifest, `# ${meta.name}\n\n${meta.description}\n`, "utf-8");
   }
 
-  const typesSchema = path.join(typesRoot, "configuration-schema.yml");
-  if (!fs.existsSync(typesSchema)) {
-    fs.writeFileSync(
-      typesSchema,
-      `version: 1\nkind: collection\nid: ${storeId}.types\nname: Типы\nextends: ../../_base/configuration-schema.yml\n\nrecord:\n  id-mode: slug\n  file: "{id}.md"\n\nfields:\n  title:\n    type: awn.string\n    title: Название\n    required: true\n  typeId:\n    type: awn.string\n    title: ID типа\n    required: true\n  kind:\n    type: awn.string\n    title: Kind\n  domain:\n    type: awn.string\n    title: Domain\n  status:\n    type: awn.enum\n    title: Статус\n    enum: [active, draft, deprecated, inactive]\n    default: active\n  extends:\n    type: awn.string\n    title: Extends\n`,
-      "utf-8"
-    );
-  }
-
-  const typesManifest = path.join(typesRoot, "manifest.md");
-  if (!fs.existsSync(typesManifest)) {
-    fs.writeFileSync(typesManifest, `# Типы\n\nЗаписи типов CMS (${storeId}).\n`, "utf-8");
-  }
-
-  return typesRoot;
+  return storeRoot;
 }
 
 function migrateTypesDomain(awnDataRoot, domain, sourceDir) {
@@ -186,7 +171,7 @@ function migrateCmsConfig(awnDataRoot, systemRoot) {
   const configRoot = path.join(awnDataRoot, CMS_CONFIG_STORE);
   fs.mkdirSync(configRoot, { recursive: true });
 
-  const configSchema = path.join(configRoot, "configuration-schema.yml");
+  const configSchema = path.join(configRoot, "store.yml");
   if (!fs.existsSync(configSchema)) {
     fs.writeFileSync(
       configSchema,
@@ -197,9 +182,7 @@ function migrateCmsConfig(awnDataRoot, systemRoot) {
 
   const copyNames = [
     "registry.yml",
-    "slots-bindings.yml",
-    "slot-categories.yml",
-    "configuration-schema.yml",
+    "store.yml",
     "MAP.md",
     "TYPES-GUIDE.md",
     "manifest.md",
@@ -211,7 +194,7 @@ function migrateCmsConfig(awnDataRoot, systemRoot) {
     const src = path.join(systemRoot, name);
     if (!fs.existsSync(src)) continue;
     const dest = path.join(configRoot, name);
-    if (name === "configuration-schema.yml" && fs.existsSync(dest)) continue;
+    if (name === "store.yml" && fs.existsSync(dest)) continue;
     fs.copyFileSync(src, dest);
     copied += 1;
   }
@@ -262,7 +245,7 @@ function main() {
   for (const domain of Object.keys(DOMAIN_TYPE_STORES)) {
     const sourceDir = path.join(typesRoot, domain);
     const count = migrateTypesDomain(awnDataRoot, domain, sourceDir);
-    if (count) console.log(`${domain}: ${count} types → awn-data/${DOMAIN_TYPE_STORES[domain]}/types/`);
+    if (count) console.log(`${domain}: ${count} types → awn-data/${DOMAIN_TYPE_STORES[domain]}/`);
     totalTypes += count;
   }
 

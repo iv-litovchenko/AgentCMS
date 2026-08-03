@@ -1,46 +1,49 @@
-const path = require("path");
-const { getSlotTypesFromCatalog, readSlotsBindings } = require("./awn-canonical-model");
+const { getSlotTypesFromCatalog, slotTypeIdToKey } = require("./awn-canonical-model");
 const { loadTypeCatalog, mergeTypeSchema, resolveCanonicalTypeId } = require("./type-catalog-loader");
 
 const INTERNAL_SLOT_KEYS = new Set(["main-single", "main-single-csv", "todo-single", "todo", "log-single"]);
 
-function slotKeyToBindingKey(slotKey) {
+const SLOT_KEY_TYPE_IDS = {
+  scripts: ["awn.slot.script"],
+  script: ["awn.slot.script"],
+  note: ["awn.slot.note"],
+  dialogs: ["awn.slot.dialogs"],
+  thread: ["awn.slot.dialogs"]
+};
+
+function findSlotTypeForKey(slotTypes, slotKey) {
   const key = String(slotKey || "").trim();
-  if (key === "note") return "note";
-  if (key === "script") return "scripts";
-  return key;
+  if (!key) return null;
+
+  const explicitIds = SLOT_KEY_TYPE_IDS[key] || [];
+  for (const id of [`awn.slot.${key}`, ...explicitIds]) {
+    const hit = slotTypes.find((row) => row.id === id);
+    if (hit) return hit;
+  }
+
+  return slotTypes.find((row) => slotTypeIdToKey(row.id) === key) || null;
 }
 
-function buildSlotEntry(slotKey, catalog, bindingsDoc) {
-  const bindingKey = slotKeyToBindingKey(slotKey);
-  const binding = bindingsDoc.bindings?.[bindingKey] || bindingsDoc.bindings?.[slotKey];
-  const slotTypes = getSlotTypesFromCatalog(catalog.projectRoot || process.cwd(), catalog.agentRoot || "");
-  const slotType =
-    slotTypes.find((row) => row.id === `awn.slot.${slotKey}`) ||
-    slotTypes.find((row) => row.id.endsWith(`.${slotKey}`)) ||
-    null;
+function buildSlotEntry(slotKey, projectRoot, agentRoot) {
+  const slotTypes = getSlotTypesFromCatalog(projectRoot, agentRoot);
+  const slotType = findSlotTypeForKey(slotTypes, slotKey);
 
   const driver =
     slotType?.storageDriver ||
-    (INTERNAL_SLOT_KEYS.has(slotKey) || INTERNAL_SLOT_KEYS.has(bindingKey) ? "internal" : "external");
+    (INTERNAL_SLOT_KEYS.has(slotKey) ? "internal" : "external");
 
   return {
     slot: slotKey,
     driver,
-    path: binding?.path || slotType?.path || (driver === "internal" ? `${slotKey}` : `${slotKey}/`),
-    allowedContent: binding?.content || slotType?.allowedContent || [],
-    acceptFiles: binding?.files || []
+    path: slotType?.path || (driver === "internal" ? `${slotKey}` : `${slotKey}/`),
+    allowedContent: slotType?.allowedContent || [],
+    acceptFiles: slotType?.acceptFiles || []
   };
 }
 
 function getPageSlotsPayload(projectRoot, agentRoot, storageSlotKeys = []) {
-  const catalog = loadTypeCatalog(projectRoot, agentRoot);
-  catalog.projectRoot = projectRoot;
-  catalog.agentRoot = agentRoot;
-  const bindingsDoc = readSlotsBindings(agentRoot);
-
   const keys = [...new Set((storageSlotKeys || []).map((key) => String(key || "").trim()).filter(Boolean))];
-  const slots = keys.map((slotKey) => buildSlotEntry(slotKey, catalog, bindingsDoc));
+  const slots = keys.map((slotKey) => buildSlotEntry(slotKey, projectRoot, agentRoot));
 
   return {
     slots,
@@ -63,5 +66,6 @@ module.exports = {
   INTERNAL_SLOT_KEYS,
   getPageSlotsPayload,
   resolveStorageSlotsForManifest,
-  buildSlotEntry
+  buildSlotEntry,
+  findSlotTypeForKey
 };

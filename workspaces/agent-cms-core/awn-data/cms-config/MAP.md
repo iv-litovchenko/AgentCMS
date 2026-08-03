@@ -13,13 +13,14 @@ workspaces/agent-cms-test/
 ├── manifest.md                 ← awn.page.ws (корень агента)
 ├── AGENTS.md                   ← этот файл
 ├── awn-data/                   ← ★ CMS-МОДЕЛЬ (накопители типов + конфиг)
-│   ├── cms-config/             ← registry, slots-bindings, MAP.md
-│   ├── pages/types/            ← awn.page.*
-│   ├── content/types/          ← awn.content.*
-│   ├── slots/types/            ← awn.slot.*
-│   ├── mixins/types/           ← awn.mixin.*
+│   ├── cms-config/             ← registry, MAP.md, TYPES-GUIDE.md
+│   ├── slots/                  ← awn.slot.* (path, allowed-content, accept-files)
+│   ├── pages/                  ← awn.page.*
+│   ├── content/                ← awn.content.*
+│   ├── mixins/                 ← awn.mixin.*
 │   ├── editing-fields/         ← awn.field.*
-│   └── markdown-blocks/        ← awn.block.*
+│   ├── markdown-blocks/        ← awn.block.*
+│   └── taxonomies/             ← справочники (tags, slot-categories, …)
 │
 ├── awn-container/              ← ★ КОНТЕНТ (дерево слева)
 │   └── {area}/manifest.md      ← awn.page.area
@@ -72,13 +73,14 @@ workspaces/agent-cms-test/
 
 ### Slots → content (главное правило)
 
-**Слот = WHERE, content = WHAT.** См. `awn-system/slots-bindings.yml`.  
-**Категории слотов:** `awn-system/slot-categories.yml` — Память, Файлы, Однофайловая, Записи, Общение.
+**Слот = WHERE, content = WHAT.** Каждый `awn.slot.*` — запись в **`awn-data/slots/`** (`path`, `allowed-content`, `accept-files`, `storage-driver`, `slot-category`).
+
+**Категории слотов** (группы в каталоге): `awn-data/taxonomies/slot-categories/main.csv` — Память, Файлы, Однофайловая, Записи, Общение.
 
 ```
-main/      → awn.content.record, awn.content.category
-inbox/     → awn.content.record
-thread/    → awn.content.dialog
+main/      → awn.content.record, awn.content.category  (см. slots/multi-file/multi-file-main.md)
+inbox/     → awn.content.record                         (см. slots/multi-file/inbox.md)
+thread/    → awn.content.dialog                         (см. slots/multi-file/system/dialogs.md)
 media/     → sidecar + бинарники
 comments/  → awn.content.comment
 ```

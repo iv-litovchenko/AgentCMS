@@ -1,0 +1,32 @@
+version: 1
+kind: collection
+id: agent-registry.agents
+name: Агенты
+extends: ../../_base/store.yml
+description: Workspace-агенты платформы — пути, окружение, default/orchestrator
+
+record:
+  id-mode: slug
+  file: "{id}.md"
+
+fields:
+  title:
+    type: awn.string
+    title: Название
+  path:
+    type: awn.string
+    title: Путь workspace
+    required: true
+  environment:
+    type: awn.enum
+    title: Окружение
+    enum: [local, staging, production]
+    default: local
+  default:
+    type: awn.boolean
+    title: Агент по умолчанию
+    default: false
+  orchestrator:
+    type: awn.boolean
+    title: Оркестратор
+    default: false

@@ -1,5 +1,0 @@
-version: 1
-kind: group
-id: base
-name: Базовые
-description: Базовые сущности CMS (awn.entity, awn.page.base)

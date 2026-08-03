@@ -3445,7 +3445,7 @@
       <div class="modal-card awn-data-modal-card">
         <div class="modal-message" id="awn-data-create-modal-title">Новый накопитель</div>
         <p class="agents-registry-hint" id="awn-data-create-modal-hint">
-          Папка в <code>awn-data/</code> с <code>configuration-schema.yml</code>.
+          Папка в <code>awn-data/</code> с <code>store.yml</code>.
         </p>
         <label class="agents-registry-field agents-registry-create-field">
           <span>Название</span>
@@ -3471,52 +3471,126 @@
       </div>
     </div>
 
-    <div id="awn-data-view-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-      <div class="modal-card awn-data-modal-card awn-data-view-modal-card">
-        <div class="awn-data-view-header">
-          <div class="awn-data-view-header-main">
-            <div class="awn-data-view-title-row">
-              <h2 class="awn-data-view-title" id="awn-data-view-modal-title">Накопитель</h2>
-              <span class="awn-data-view-kind-badge hidden" id="awn-data-view-modal-kind"></span>
+    <template id="awn-data-view-template">
+      <div class="awn-data-view-hub folder-browse-hub">
+        <header class="folder-browse-hero-card awn-data-view-page-header">
+          <div class="folder-browse-hero-main">
+            <div class="folder-browse-hero-body">
+              <div class="folder-browse-hero-title-row">
+                <h1 class="folder-browse-hero-title awn-data-view-title">Накопитель</h1>
+                <span class="awn-data-view-kind-badge hidden"></span>
+              </div>
+              <div class="awn-data-view-path hidden"></div>
             </div>
-            <div class="awn-data-view-path hidden" id="awn-data-view-modal-path"></div>
           </div>
-          <button id="awn-data-view-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
-        </div>
-        <div class="awn-data-view-manifest hidden" id="awn-data-view-manifest"></div>
-        <div class="awn-data-view-section-panel hidden" id="awn-data-view-section-wrap">
-          <div class="awn-data-view-section-label">Разделы</div>
-          <div class="awn-data-view-section-tree" id="awn-data-view-section-tree" role="tree"></div>
-        </div>
-        <div class="awn-data-view-toolbar">
-          <div class="awn-data-view-search-wrap">
+        </header>
+        <div class="awn-data-view-page-body">
+          <div class="awn-data-view-manifest hidden"></div>
+          <details class="awn-data-view-schema-panel hidden">
+            <summary class="awn-data-view-schema-summary">
+              <span class="awn-data-view-schema-summary-label">Схема накопителя</span>
+              <code class="awn-data-view-schema-file">store.yml</code>
+            </summary>
+            <div class="awn-data-view-schema-body">
+              <div class="awn-data-view-schema-head">
+                <div class="awn-data-view-schema-actions">
+                  <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="edit-store">
+                    Редактировать store.yml
+                  </button>
+                  <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="open-store">
+                    Открыть файл
+                  </button>
+                  <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="edit-manifest">
+                    manifest.md
+                  </button>
+                </div>
+              </div>
+              <div class="awn-data-view-schema-read">
+                <p class="awn-data-view-schema-hint"></p>
+                <div class="awn-data-view-schema-meta"></div>
+                <div class="awn-data-view-schema-fields-wrap hidden">
+                  <div class="awn-data-view-schema-fields-label">Поля записей</div>
+                  <div class="awn-data-view-schema-table-wrap">
+                    <table class="awn-data-view-schema-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Ключ</th>
+                          <th scope="col">Название</th>
+                          <th scope="col">Тип</th>
+                          <th scope="col">Обяз.</th>
+                          <th scope="col">По умолч.</th>
+                        </tr>
+                      </thead>
+                      <tbody class="awn-data-view-schema-tbody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <div class="awn-data-view-schema-edit hidden">
+                <textarea
+                  class="awn-data-view-schema-textarea"
+                  spellcheck="false"
+                  autocomplete="off"
+                  aria-label="store.yml"
+                ></textarea>
+                <div class="awn-data-view-schema-edit-actions">
+                  <button type="button" class="awn-data-view-schema-btn is-primary" data-awn-data-action="save-schema">
+                    Сохранить
+                  </button>
+                  <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="cancel-schema">
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            </div>
+          </details>
+          <div class="awn-data-view-section-panel hidden">
+            <div class="awn-data-view-section-label">Разделы</div>
+            <div class="awn-data-view-section-tree" role="tree"></div>
+          </div>
+          <div class="awn-data-view-toolbar">
+            <div class="awn-data-view-search-wrap">
             <input
-              id="awn-data-view-search-input"
               type="search"
               class="awn-data-view-search-input"
               placeholder="Поиск по id, названию, родителю…"
               spellcheck="false"
               autocomplete="off"
             />
-            <span id="awn-data-view-count" class="awn-data-view-count" aria-live="polite"></span>
+            <span class="awn-data-view-count" aria-live="polite"></span>
+            </div>
+            <div class="awn-data-view-layout-toggle" role="group" aria-label="Вид списка записей">
+              <button type="button" class="awn-data-view-layout-btn is-active" data-awn-data-layout="table" title="Горизонтально — таблица" aria-label="Горизонтально — таблица">☰</button>
+              <button type="button" class="awn-data-view-layout-btn" data-awn-data-layout="cards" title="Вертикально — карточки" aria-label="Вертикально — карточки">▦</button>
+            </div>
+          </div>
+          <div class="awn-data-view-store-panel">
+          <div class="awn-data-view-table-wrap">
+            <div class="awn-data-view-records"></div>
+          </div>
+          </div>
+          <div class="awn-data-view-record-panel hidden">
+            <div class="awn-data-view-record-toolbar">
+              <button type="button" class="awn-data-view-record-back-btn" data-awn-data-action="back-store">← К списку</button>
+              <button type="button" class="awn-data-view-record-edit-btn" data-awn-data-action="edit-record">Редактировать</button>
+            </div>
+            <div class="awn-data-view-record-fields"></div>
+            <div class="awn-data-view-record-body file-content-preview"></div>
+          </div>
+          <div class="awn-data-view-actions hidden">
+            <label class="agents-registry-field">
+              <span>Новая запись</span>
+              <input class="awn-data-add-title-input" type="text" placeholder="Название" spellcheck="false" />
+            </label>
+            <label class="agents-registry-field">
+              <span>Родитель (id, опционально)</span>
+              <input class="awn-data-add-parent-input" type="text" placeholder="1" spellcheck="false" />
+            </label>
+            <button class="external-create-section-btn awn-data-add-record-btn" type="button">Добавить запись</button>
           </div>
         </div>
-        <div class="awn-data-view-table-wrap">
-          <div id="awn-data-view-records" class="awn-data-view-records"></div>
-        </div>
-        <div class="awn-data-view-actions hidden" id="awn-data-view-add-wrap">
-          <label class="agents-registry-field">
-            <span>Новая запись</span>
-            <input id="awn-data-add-title-input" type="text" placeholder="Название" spellcheck="false" />
-          </label>
-          <label class="agents-registry-field">
-            <span>Родитель (id, опционально)</span>
-            <input id="awn-data-add-parent-input" type="text" placeholder="1" spellcheck="false" />
-          </label>
-          <button id="awn-data-add-record-btn" class="external-create-section-btn" type="button">Добавить запись</button>
-        </div>
       </div>
-    </div>
+    </template>
 
     <div id="confirm-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
       <div class="modal-card confirm-modal-card is-danger">

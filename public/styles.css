@@ -23970,7 +23970,8 @@ button.node-navigation-hub-rail-slot-summary {
   font-size: 11px;
 }
 
-.node-overview.is-folder-browse {
+.node-overview.is-folder-browse,
+.node-overview.is-awn-data-view {
   overflow-x: clip;
   --folder-browse-bg: #ffffff;
   --folder-browse-bg-soft: #ffffff;
@@ -23981,14 +23982,16 @@ button.node-navigation-hub-rail-slot-summary {
   background: var(--folder-browse-bg);
 }
 
-.node-overview.is-folder-browse .node-overview-content {
+.node-overview.is-folder-browse .node-overview-content,
+.node-overview.is-awn-data-view .node-overview-content {
   background: #ffffff;
   border-radius: 0;
   min-height: 100%;
 }
 
 .node-overview.is-folder-browse .node-navigation-hub,
-.node-overview.is-folder-browse .folder-browse-hub {
+.node-overview.is-folder-browse .folder-browse-hub,
+.node-overview.is-awn-data-view .awn-data-view-hub {
   padding-top: 0;
   color: var(--folder-browse-ink);
 }
@@ -24054,17 +24057,22 @@ button.node-navigation-hub-rail-slot-summary {
 }
 
 .doc-slab-content:has(> .doc-slab-main > .node-overview.is-folder-browse:not(.hidden)),
-.doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-folder-browse:not(.hidden)) {
+.doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-folder-browse:not(.hidden)),
+.doc-slab-content:has(> .doc-slab-main > .node-overview.is-awn-data-view:not(.hidden)),
+.doc-slab-content:has(> .doc-slab-main > .workspace-scroll-host > .node-overview.is-awn-data-view:not(.hidden)) {
   padding: 8px var(--doc-content-gutter, 16px);
   background: #ffffff;
 }
 
 .doc-slab-main:has(> .node-overview.is-folder-browse:not(.hidden)),
-.doc-slab-main:has(> .workspace-scroll-host > .node-overview.is-folder-browse:not(.hidden)) {
+.doc-slab-main:has(> .workspace-scroll-host > .node-overview.is-folder-browse:not(.hidden)),
+.doc-slab-main:has(> .node-overview.is-awn-data-view:not(.hidden)),
+.doc-slab-main:has(> .workspace-scroll-host > .node-overview.is-awn-data-view:not(.hidden)) {
   background: #ffffff;
 }
 
-.workspace-scroll-host:has(> .node-overview.is-folder-browse:not(.hidden)) {
+.workspace-scroll-host:has(> .node-overview.is-folder-browse:not(.hidden)),
+.workspace-scroll-host:has(> .node-overview.is-awn-data-view:not(.hidden)) {
   background: #ffffff;
 }
 
@@ -45874,6 +45882,17 @@ body.is-discuss-resizing .discuss-aside-resizer {
   color: #b91c1c;
 }
 
+.menu-awn-data-store--platform-note {
+  color: #7c3aed;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem 0.05rem;
+  cursor: default;
+  background: transparent;
+}
+
 .menu-awn-data-toolbar {
   display: flex;
   flex-wrap: nowrap;
@@ -45916,19 +45935,258 @@ body.is-discuss-resizing .discuss-aside-resizer {
   max-width: 28rem;
 }
 
-.awn-data-view-modal-card {
-  max-width: 52rem;
-  width: min(96vw, 52rem);
+.awn-data-view-hub {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
+}
+
+.awn-data-view-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.awn-data-view-page-header .awn-data-view-path {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.node-overview.is-awn-data-view .node-overview-content {
+  display: block;
+  overflow: visible;
+}
+
+.node-overview.is-awn-data-view .awn-data-view-hub {
+  min-height: 0;
+}
+
+.awn-data-view-schema-panel {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+}
+
+.awn-data-view-schema-panel.hidden {
+  display: none;
+}
+
+.awn-data-view-schema-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.awn-data-view-schema-summary::-webkit-details-marker {
+  display: none;
+}
+
+.awn-data-view-schema-summary::before {
+  content: "▸";
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1;
+}
+
+.awn-data-view-schema-panel[open] > .awn-data-view-schema-summary::before {
+  content: "▾";
+}
+
+.awn-data-view-schema-summary-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.awn-data-view-schema-body {
+  margin-top: 0.45rem;
 }
 
 .awn-data-view-toolbar {
-  margin-bottom: 0.6rem;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.55rem;
 }
 
 .awn-data-view-section-panel {
-  margin-bottom: 0.6rem;
+  flex: 0 0 auto;
+  margin-bottom: 0;
+}
+
+.awn-data-view-schema-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.45rem;
+}
+
+.awn-data-view-schema-read.hidden,
+.awn-data-view-schema-edit.hidden {
+  display: none;
+}
+
+.awn-data-view-schema-file {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.awn-data-view-schema-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.awn-data-view-schema-btn {
+  padding: 0.28rem 0.55rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.35rem;
+  background: #fff;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.awn-data-view-schema-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.awn-data-view-schema-btn.is-primary {
+  background: #4f46e5;
+  border-color: #4338ca;
+  color: #fff;
+}
+
+.awn-data-view-schema-btn.is-primary:hover {
+  background: #4338ca;
+  border-color: #3730a3;
+}
+
+.awn-data-view-schema-textarea {
+  display: block;
+  width: 100%;
+  min-height: 9rem;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.4rem;
+  background: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #0f172a;
+}
+
+.awn-data-view-schema-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.awn-data-view-schema-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.awn-data-view-schema-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.55rem;
+}
+
+.awn-data-view-schema-meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.awn-data-view-schema-meta-label {
+  min-width: 6.5rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.awn-data-view-schema-meta-value {
+  font-size: 0.8125rem;
+  color: #1e293b;
+  word-break: break-word;
+}
+
+.awn-data-view-schema-fields-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.awn-data-view-schema-fields-wrap.hidden {
+  display: none;
+}
+
+.awn-data-view-schema-table-wrap {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+  background: #fff;
+  overflow-x: auto;
+}
+
+.awn-data-view-schema-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.awn-data-view-schema-table th,
+.awn-data-view-schema-table td {
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.awn-data-view-schema-table th {
+  background: #f8fafc;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.awn-data-view-schema-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  color: #5b21b6;
+  white-space: nowrap;
 }
 
 .awn-data-view-section-panel.hidden {
@@ -45948,8 +46206,6 @@ body.is-discuss-resizing .discuss-aside-resizer {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
-  max-height: 9.5rem;
-  overflow: auto;
   padding: 0.35rem;
   border: 1px solid #e2e8f0;
   border-radius: 0.45rem;
@@ -46048,12 +46304,10 @@ body.is-discuss-resizing .discuss-aside-resizer {
   border-radius: 0.5rem;
   background: #fff;
   overflow-x: auto;
-  overflow-y: hidden;
 }
 
 .awn-data-view-records {
-  max-height: 18rem;
-  overflow: auto;
+  overflow: visible;
 }
 
 .awn-data-view-empty {
@@ -46192,7 +46446,215 @@ body.is-discuss-resizing .discuss-aside-resizer {
   background: #f5f3ff;
 }
 
+.awn-data-view-layout-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.45rem;
+  overflow: hidden;
+  background: #fff;
+}
+
+.awn-data-view-layout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-right: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.awn-data-view-layout-btn:last-child {
+  border-right: none;
+}
+
+.awn-data-view-layout-btn:hover {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.awn-data-view-layout-btn.is-active {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.awn-data-view-record-row {
+  cursor: pointer;
+}
+
+.awn-data-view-record-row:hover td {
+  background: #f8fafc;
+}
+
+.awn-data-view-record-row:focus-visible {
+  outline: 2px solid #7c3aed;
+  outline-offset: -2px;
+}
+
+.awn-data-view-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.65rem;
+  padding: 0.65rem;
+}
+
+.awn-data-view-record-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.awn-data-view-record-card:hover,
+.awn-data-view-record-card:focus-visible {
+  border-color: #c4b5fd;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.12);
+  outline: none;
+}
+
+.awn-data-view-record-card.is-system {
+  background: #fafafa;
+}
+
+.awn-data-view-record-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.awn-data-view-record-card-title {
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.awn-data-view-record-card-fields {
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.awn-data-view-record-card-field {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 35%) 1fr;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+}
+
+.awn-data-view-record-card-field dt {
+  margin: 0;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.awn-data-view-record-card-field dd {
+  margin: 0;
+  color: #334155;
+  word-break: break-word;
+}
+
+.awn-data-view-record-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.awn-data-view-record-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.awn-data-view-record-back-btn,
+.awn-data-view-record-edit-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.45rem;
+  background: #fff;
+  color: #334155;
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+}
+
+.awn-data-view-record-edit-btn {
+  border-color: #7c3aed;
+  background: #f5f3ff;
+  color: #5b21b6;
+}
+
+.awn-data-view-record-back-btn:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.awn-data-view-record-edit-btn:hover {
+  background: #ede9fe;
+}
+
+.awn-data-view-record-fields-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+}
+
+.awn-data-view-record-field-row {
+  display: grid;
+  grid-template-columns: minmax(5rem, 12rem) 1fr;
+  gap: 0.65rem;
+  font-size: 0.8125rem;
+}
+
+.awn-data-view-record-field-row dt {
+  margin: 0;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.awn-data-view-record-field-row dd {
+  margin: 0;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.awn-data-view-record-body {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.85rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.menu-awn-data-store.is-active {
+  background: rgba(124, 58, 237, 0.08);
+  color: #5b21b6;
+}
+
+.menu-awn-data-store.is-active .menu-awn-data-store-name {
+  font-weight: 600;
+}
+
 .awn-data-view-header {
+  flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -46270,18 +46732,20 @@ body.is-discuss-resizing .discuss-aside-resizer {
   color: #64748b;
 }
 
+.awn-data-view-actions {
+  flex: 0 0 auto;
+}
+
 .awn-data-view-manifest {
   width: 100%;
   max-width: none;
   align-self: stretch;
   box-sizing: border-box;
-  margin: 0 0 0.75rem;
+  margin: 0;
   padding: 0.55rem 0.65rem;
   border-radius: 0.45rem;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  max-height: none;
-  overflow: visible;
   font-size: 0.8125rem;
   line-height: 1.45;
   color: #334155;

@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { parseTypeYaml } = require("./awn-yaml-utils");
+const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 const {
   getRecordStorage,
   getCsvFileName,
@@ -11,7 +12,10 @@ const {
 } = require("./awn-data-csv");
 
 const AWN_DATA_DIR = "awn-data";
-const SCHEMA_FILE = "configuration-schema.yml";
+const STORE_FILE = "store.yml";
+/** @deprecated use STORE_FILE */
+const SCHEMA_FILE = STORE_FILE;
+const LEGACY_STORE_FILE = "configuration-schema.yml";
 const COLLECTION_MANIFEST = "manifest.md";
 const SINGLETON_RECORD = "main.md";
 const SKIP_DIRS = new Set(["_base", ".awn-cache", "history"]);
@@ -125,13 +129,33 @@ function listRecordFiles(dirPath, kind, relPrefix = "", acc = []) {
   return acc;
 }
 
+function mergeRecordBodyFields(frontmatter, body) {
+  const merged = { ...(frontmatter || {}) };
+  const text = String(body || "").trim();
+  if (!text) return merged;
+  let bodyData = {};
+  try {
+    bodyData = parseTypeYaml(text) || {};
+  } catch {
+    return merged;
+  }
+  for (const [key, value] of Object.entries(bodyData)) {
+    if (key === "properties") continue;
+    const existing = merged[key];
+    if (existing !== undefined && existing !== null && String(existing).trim() !== "") continue;
+    merged[key] = value;
+  }
+  return merged;
+}
+
 function parseRecordFile(fileEntry, storeRel) {
   const raw = fs.readFileSync(fileEntry.absPath, "utf-8");
   const { frontmatter, body } = splitFrontmatter(raw);
+  const mergedFrontmatter = mergeRecordBodyFields(frontmatter, body);
   const id =
-    String(frontmatter.id || "").trim() ||
+    String(mergedFrontmatter.id || frontmatter.id || "").trim() ||
     path.basename(fileEntry.fileName, path.extname(fileEntry.fileName));
-  const parent = String(frontmatter.parent || "").trim();
+  const parent = String(mergedFrontmatter.parent || frontmatter.parent || "").trim();
   const pathParent = path.dirname(fileEntry.relPath);
   const inferredParent =
     pathParent && pathParent !== "." ? path.basename(pathParent) : "";
@@ -141,9 +165,11 @@ function parseRecordFile(fileEntry, storeRel) {
     parent: parent || inferredParent || null,
     relPath: `${storeRel}/${fileEntry.relPath}`.replace(/\\/g, "/"),
     fileName: fileEntry.fileName,
-    frontmatter,
+    frontmatter: mergedFrontmatter,
     body,
-    title: String(frontmatter.title || frontmatter.label || frontmatter.name || id).trim()
+    title: String(
+      mergedFrontmatter.title || mergedFrontmatter.label || mergedFrontmatter.name || id
+    ).trim()
   };
 }
 
@@ -169,9 +195,17 @@ function buildRecordTree(records) {
   return roots.map(strip);
 }
 
+function resolveStoreSchemaPath(storeAbs) {
+  const storePath = path.join(storeAbs, STORE_FILE);
+  if (fs.existsSync(storePath)) return storePath;
+  const legacyPath = path.join(storeAbs, LEGACY_STORE_FILE);
+  if (fs.existsSync(legacyPath)) return legacyPath;
+  return storePath;
+}
+
 function discoverStoreDirs(dataRoot, acc = [], rel = "") {
   if (!dataRoot || !fs.existsSync(dataRoot)) return acc;
-  const schemaPath = path.join(dataRoot, SCHEMA_FILE);
+  const schemaPath = resolveStoreSchemaPath(dataRoot);
   if (fs.existsSync(schemaPath)) {
     acc.push({ absPath: dataRoot, relPath: rel.replace(/\\/g, "/") || path.basename(dataRoot) });
   }
@@ -186,7 +220,7 @@ function discoverStoreDirs(dataRoot, acc = [], rel = "") {
 function loadStore(dataRoot, storeEntry) {
   const storeAbs = storeEntry.absPath;
   const storeRel = storeEntry.relPath;
-  const schema = readSchemaFile(path.join(storeAbs, SCHEMA_FILE));
+  const schema = readSchemaFile(resolveStoreSchemaPath(storeAbs));
   if (!schema) return null;
 
   const kind = String(schema.kind || "collection").trim();
@@ -346,16 +380,62 @@ function findAwnDataStore(stores, filter) {
   return walk(stores);
 }
 
-function getAwnDataPayload(agentRoot, projectRoot = process.cwd(), storeId = "") {
-  const payload = loadAwnDataStores(agentRoot, projectRoot);
-  const filter = String(storeId || "").trim();
-  if (!filter) return payload;
-
-  const store = findAwnDataStore(payload.stores, filter);
-  if (!store) {
-    return { ...payload, store: null, error: "store not found" };
+function resolveAwnDataReadRoot(agentRoot, projectRoot = process.cwd()) {
+  const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
+  if (!agentRootAbs) {
+    return { readRoot: "", source: "agent", sourceAgentId: "", payload: { stores: [], storeCount: 0 } };
   }
-  return { ...payload, store };
+
+  const agentPayload = loadAwnDataStores(agentRootAbs, projectRoot);
+  if (agentPayload.storeCount > 0) {
+    return {
+      readRoot: agentRootAbs,
+      source: "agent",
+      sourceAgentId: path.basename(agentRootAbs),
+      payload: agentPayload
+    };
+  }
+
+  const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
+  if (coreRoot && path.resolve(coreRoot) !== path.resolve(agentRootAbs)) {
+    const corePayload = loadAwnDataStores(coreRoot, projectRoot);
+    if (corePayload.storeCount > 0) {
+      return {
+        readRoot: coreRoot,
+        source: "platform",
+        sourceAgentId: path.basename(coreRoot),
+        payload: corePayload
+      };
+    }
+  }
+
+  return {
+    readRoot: agentRootAbs,
+    source: "agent",
+    sourceAgentId: path.basename(agentRootAbs),
+    payload: agentPayload
+  };
+}
+
+function getAwnDataPayload(agentRoot, projectRoot = process.cwd(), storeId = "") {
+  const resolved = resolveAwnDataReadRoot(agentRoot, projectRoot);
+  const payload = resolved.payload || loadAwnDataStores(resolved.readRoot || agentRoot, projectRoot);
+  const filter = String(storeId || "").trim();
+
+  const enriched = {
+    ...payload,
+    source: resolved.source,
+    sourceAgentId: resolved.sourceAgentId,
+    readRoot: String(resolved.readRoot || "").replace(/\\/g, "/")
+  };
+
+  if (!filter) return enriched;
+
+  const store = findAwnDataStore(enriched.stores, filter);
+  if (!store) {
+    return { ...enriched, store: null, error: "store not found" };
+  }
+  return { ...enriched, store };
 }
 
 const BASE_SCHEMA_TEMPLATE = `version: 1
@@ -419,7 +499,7 @@ function ensureAwnDataBase(agentRoot, projectRoot = process.cwd()) {
   fs.mkdirSync(dataRoot, { recursive: true });
   const baseDir = path.join(dataRoot, "_base");
   fs.mkdirSync(baseDir, { recursive: true });
-  const baseSchemaPath = path.join(baseDir, SCHEMA_FILE);
+  const baseSchemaPath = path.join(baseDir, STORE_FILE);
   if (!fs.existsSync(baseSchemaPath)) {
     fs.writeFileSync(baseSchemaPath, BASE_SCHEMA_TEMPLATE, "utf-8");
   }
@@ -436,7 +516,7 @@ function getStoreAbsolutePath(dataRoot, storeRel) {
 
 function storeSchemaExists(dataRoot, storeRel) {
   const abs = getStoreAbsolutePath(dataRoot, storeRel);
-  return Boolean(abs && fs.existsSync(path.join(abs, SCHEMA_FILE)));
+  return Boolean(abs && fs.existsSync(resolveStoreSchemaPath(abs)));
 }
 
 function appendGroupSortEntry(dataRoot, groupRel, childSlug) {
@@ -477,7 +557,7 @@ function appendRootSortEntry(dataRoot, storeRel) {
 
 function buildCollectionSchemaContent({ slug, name, description, hierarchy = true }) {
   const extendsPath =
-    slug.includes("/") ? "../".repeat(slug.split("/").length) + "_base/configuration-schema.yml" : "../_base/configuration-schema.yml";
+    slug.includes("/") ? "../".repeat(slug.split("/").length) + "_base/store.yml" : "../_base/store.yml";
   const desc = String(description || name || slug).trim();
   return `version: 1
 kind: collection
@@ -511,7 +591,7 @@ fields:
 
 function buildTaxonomyCollectionSchemaContent({ slug, name, description }) {
   const depth = slug.split("/").length;
-  const extendsPath = `${ "../".repeat(depth) }_base/configuration-schema.yml`;
+  const extendsPath = `${ "../".repeat(depth) }_base/store.yml`;
   const id = slug.replace(/\//g, ".");
   const shortName = name || slug.split("/").pop();
   const desc = String(description || shortName).trim();
@@ -552,7 +632,7 @@ fields:
 
 function buildSingletonSchemaContent({ slug, name, description }) {
   const extendsPath =
-    slug.includes("/") ? "../".repeat(slug.split("/").length) + "_base/configuration-schema.yml" : "../_base/configuration-schema.yml";
+    slug.includes("/") ? "../".repeat(slug.split("/").length) + "_base/store.yml" : "../_base/store.yml";
   return `version: 1
 kind: singleton
 id: ${slug.replace(/\//g, ".")}
@@ -609,7 +689,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
     const manifestText = description.trim() || `Коллекция \`${slug}\`.`;
     fs.writeFileSync(path.join(storeAbs, COLLECTION_MANIFEST), `# ${name}\n\n${manifestText}\n`, "utf-8");
     fs.writeFileSync(
-      path.join(storeAbs, SCHEMA_FILE),
+      path.join(storeAbs, STORE_FILE),
       isTaxonomy
         ? buildTaxonomyCollectionSchemaContent({ slug, name, description })
         : buildCollectionSchemaContent({ slug, name, description, hierarchy: options.hierarchy !== false }),
@@ -630,7 +710,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
     const manifestText = description.trim() || `Одиночка \`${slug}\` — одна запись в \`main.md\`.`;
     fs.writeFileSync(path.join(storeAbs, COLLECTION_MANIFEST), `# ${name}\n\n${manifestText}\n`, "utf-8");
     fs.writeFileSync(
-      path.join(storeAbs, SCHEMA_FILE),
+      path.join(storeAbs, STORE_FILE),
       buildSingletonSchemaContent({ slug, name, description }),
       "utf-8"
     );
@@ -668,11 +748,11 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
 
   const dataRoot = getAwnDataRoot(agentRoot, projectRoot);
   const storeAbs = getStoreAbsolutePath(dataRoot, storeRel);
-  if (!storeAbs || !fs.existsSync(path.join(storeAbs, SCHEMA_FILE))) {
+  if (!storeAbs || !fs.existsSync(resolveStoreSchemaPath(storeAbs))) {
     throw new Error("Store not found");
   }
 
-  const schema = readSchemaFile(path.join(storeAbs, SCHEMA_FILE));
+  const schema = readSchemaFile(resolveStoreSchemaPath(storeAbs));
   const kind = String(schema?.kind || "collection").trim();
   if (kind === "singleton") throw new Error("Cannot add records to singleton (edit main.md)");
 
@@ -733,11 +813,13 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
 
 module.exports = {
   AWN_DATA_DIR,
+  STORE_FILE,
   SCHEMA_FILE,
   SINGLETON_RECORD,
   getAwnDataRoot,
   loadAwnDataStores,
   getAwnDataPayload,
+  resolveAwnDataReadRoot,
   buildRecordTree,
   normalizeStoreSlug,
   slugifyStoreName,

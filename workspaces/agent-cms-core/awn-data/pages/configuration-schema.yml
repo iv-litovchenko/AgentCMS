@@ -1,5 +1,0 @@
-version: 1
-kind: group
-id: pages
-name: Страницы
-description: Типы узлов дерева (awn.page.*)

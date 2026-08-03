@@ -89,15 +89,20 @@ function normalizeLegacyCatalogPath(catalogPath) {
     const rest = normalized.slice("awn-system/types/".length).replace(/\.ya?ml$/i, ".md");
     const domain = rest.split("/")[0];
     const store = DOMAIN_TYPE_STORES[domain];
-    if (store) return `awn-data/${store}/types/${rest.slice(domain.length + 1)}`;
+    if (store) return `awn-data/${store}/${rest.slice(domain.length + 1)}`;
   }
+
+  normalized = normalized.replace(
+    /^awn-data\/(pages|content|slots|base|mixins|settings)\/types\//,
+    "awn-data/$1/"
+  );
 
   const legacyPlatform = normalized.match(
     /^types\/([^/]+)\/awn-storage\/configuration\/types\/(.+)\.ya?ml$/i
   );
   if (legacyPlatform) {
     const store = DOMAIN_TYPE_STORES[legacyPlatform[1]];
-    if (store) return `awn-data/${store}/types/${legacyPlatform[2]}.md`;
+    if (store) return `awn-data/${store}/${legacyPlatform[2]}.md`;
   }
 
   return normalized;
@@ -346,7 +351,7 @@ function toTypeBrowseEntry(entry, byId, pageRoot) {
     fileName: entry.fileName,
     catalogFile:
       entry.catalogFile ||
-      `awn-data/${DOMAIN_TYPE_STORES[entry.domain] || entry.domain}/types/${entry.relPath || entry.fileName}.md`,
+      `awn-data/${DOMAIN_TYPE_STORES[entry.domain] || entry.domain}/${entry.relPath || entry.fileName}.md`,
     source: entry.source || "platform",
     kind: entry.kind || entry.schema?.kind || null,
     status: entry.status,

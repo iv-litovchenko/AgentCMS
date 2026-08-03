@@ -107,7 +107,7 @@ function writeMd(filePath, frontmatter, body = "") {
 function ensureGroupScaffold() {
   fs.mkdirSync(GROUP_ROOT, { recursive: true });
   fs.writeFileSync(
-    path.join(GROUP_ROOT, "configuration-schema.yml"),
+    path.join(GROUP_ROOT, "store.yml"),
     `version: 1
 kind: group
 id: markdown-blocks
@@ -137,12 +137,12 @@ description: Группа накопителей палитры блоков р�
 function ensureGroupsStoreSchema() {
   fs.mkdirSync(GROUPS_DIR, { recursive: true });
   fs.writeFileSync(
-    path.join(GROUPS_DIR, "configuration-schema.yml"),
+    path.join(GROUPS_DIR, "store.yml"),
     `version: 1
 kind: collection
 id: markdown-blocks.groups
 name: MD-Группы блоков
-extends: ../../_base/configuration-schema.yml
+extends: ../../_base/store.yml
 description: Группы палитры блоков редактора (structure, text, lists…)
 
 record:
@@ -181,12 +181,12 @@ fields:
 function ensureBlocksStoreSchema() {
   fs.mkdirSync(BLOCKS_DIR, { recursive: true });
   fs.writeFileSync(
-    path.join(BLOCKS_DIR, "configuration-schema.yml"),
+    path.join(BLOCKS_DIR, "store.yml"),
     `version: 1
 kind: collection
 id: markdown-blocks.blocks
 name: MD-Блоки
-extends: ../../_base/configuration-schema.yml
+extends: ../../_base/store.yml
 description: Блоки палитры редактора — awn.block.* с шаблоном в теле записи
 
 record:

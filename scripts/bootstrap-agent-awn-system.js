@@ -13,12 +13,10 @@ const { DOMAIN_TYPE_STORES } = require("../awn-data-types-bridge");
 const TYPE_STORES = Object.values(DOMAIN_TYPE_STORES);
 const CMS_CONFIG_FILES = [
   "registry.yml",
-  "slots-bindings.yml",
-  "slot-categories.yml",
   "MAP.md",
   "TYPES-GUIDE.md",
   "manifest.md",
-  "configuration-schema.yml"
+  "store.yml"
 ];
 
 function copyDir(src, dest) {

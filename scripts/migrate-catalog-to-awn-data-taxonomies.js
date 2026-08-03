@@ -16,7 +16,7 @@ const CORE = getAgentCmsCoreAbsolute(process.cwd());
 const CATALOG = path.join(CORE, "catalog");
 const AWN_DATA = path.join(CORE, "awn-data");
 const TAXONOMIES = path.join(AWN_DATA, "taxonomies");
-const SCHEMA_FILE = "configuration-schema.yml";
+const SCHEMA_FILE = "store.yml";
 
 const STATUS_COLORS = {
   open: "#22c55e",
@@ -37,7 +37,7 @@ const TAGS_SCHEMA = `version: 1
 kind: collection
 id: taxonomies.tags
 name: Теги
-extends: ../../_base/configuration-schema.yml
+extends: ../../_base/store.yml
 description: Справочник тегов для awn-tags
 
 record:
@@ -66,7 +66,7 @@ function buildCollectionSchema({ id, name, description }) {
 kind: collection
 id: taxonomies.${id}
 name: ${name}
-extends: ../../_base/configuration-schema.yml
+extends: ../../_base/store.yml
 description: ${description}
 
 record:

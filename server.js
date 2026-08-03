@@ -9306,10 +9306,9 @@ async function readAgentSystemContext(agentRoot) {
     docs: {
       map: await readText("MAP.md"),
       registry: await readText("registry.yml"),
-      slotsBindings: await readText("slots-bindings.yml"),
       manifest: await readText("manifest.md")
     },
-    hint: "CMS-модель агента: awn-data/cms-config/ и awn-data/{pages,content,slots}/"
+    hint: "CMS-модель агента: awn-data/{pages,content,slots}/ и awn-data/taxonomies/slot-categories/"
   };
 }
 
@@ -16049,7 +16048,7 @@ async function handleApiForAgent(req, res, url) {
       const content = String(payload?.content ?? "");
 
       // Validate YAML types before saving
-      const isTypeFile = /^awn-data\/(pages|content|slots|base|mixins|settings)\/types\/[^/]+\.md$/i.test(
+      const isTypeFile = /^awn-data\/(pages|content|slots|base|mixins|settings)\/.+\.md$/i.test(
         relPath.replace(/\\/g, "/")
       );
       if (isTypeFile && content.trim()) {

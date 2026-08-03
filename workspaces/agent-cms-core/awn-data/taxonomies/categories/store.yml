@@ -1,0 +1,32 @@
+version: 1
+kind: collection
+id: taxonomies.categories
+name: Категории
+extends: ../../_base/store.yml
+description: Справочник категорий для awn-category
+
+record:
+  storage: csv
+  file: main.csv
+  id-mode: slug
+  hierarchy: false
+
+fields:
+  code:
+    type: awn.string
+    title: Код
+    required: true
+  label:
+    type: awn.string
+    title: Подпись
+    required: true
+  emoji:
+    type: awn.string
+    title: Эмодзи
+  color:
+    type: awn.color
+    title: Цвет
+  sort:
+    type: awn.integer
+    title: Порядок
+    default: 0

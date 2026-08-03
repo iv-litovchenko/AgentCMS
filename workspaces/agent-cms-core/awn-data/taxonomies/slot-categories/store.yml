@@ -1,0 +1,29 @@
+version: 1
+kind: collection
+id: taxonomies.slot-categories
+name: Категории слотов
+extends: ../../_base/store.yml
+description: Группы слотов в каталоге типов (Память, Файлы, …). Поле слота — slot-category.
+
+record:
+  storage: csv
+  file: main.csv
+  id-mode: slug
+  hierarchy: false
+
+fields:
+  code:
+    type: awn.string
+    title: Код (id)
+    required: true
+  label:
+    type: awn.string
+    title: Название
+    required: true
+  sort:
+    type: awn.integer
+    title: Порядок
+    default: 0
+  description:
+    type: awn.string
+    title: Описание

@@ -1,0 +1,24 @@
+version: 1
+kind: singleton
+id: settings-global
+name: Глобальные настройки
+extends: ../_base/store.yml
+description: Одиночка — одна запись в main.md (настройки агента)
+
+record:
+  file: main.md
+
+fields:
+  site-name:
+    type: awn.string
+    title: Название сайта
+    default: Agent CMS
+  maintenance-mode:
+    type: awn.boolean
+    title: Режим обслуживания
+    default: false
+  default-locale:
+    type: awn.enum
+    title: Язык
+    enum: [ru, en]
+    default: ru

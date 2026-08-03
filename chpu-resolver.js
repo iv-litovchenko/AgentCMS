@@ -264,6 +264,38 @@ async function tryMarkdownFile(agentRoot, relPath) {
   return { mdRel, absolute };
 }
 
+async function resolveAwnDataPath(agentRoot, chpuPath) {
+  const normalized = String(chpuPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!/^awn-data(?:\/|$)/i.test(normalized)) return null;
+
+  const segments = normalized.split("/").filter(Boolean);
+  for (let len = segments.length; len >= 1; len -= 1) {
+    const dirRel = segments.slice(0, len).join("/");
+    const storeYmlAbs = path.join(agentRoot, dirRel, "store.yml");
+    if (!storeYmlAbs.startsWith(agentRoot) || !(await fileExists(storeYmlAbs))) continue;
+
+    const tail = segments.slice(len);
+    const recordId = tail.length ? tail.join("/").replace(/\.md$/i, "") : null;
+    const storeRel = dirRel.replace(/^awn-data\/?/i, "");
+    const workspacePath = recordId ? `${dirRel}/${recordId}` : dirRel;
+    return {
+      kind: "awnDataStore",
+      storeRel,
+      recordId,
+      workspacePath
+    };
+  }
+
+  const rootAbs = path.join(agentRoot, "awn-data");
+  if (normalized === "awn-data" && (await isDirectory(rootAbs))) {
+    return { kind: "awnDataRoot", workspacePath: "awn-data" };
+  }
+
+  return null;
+}
+
 async function resolveStorageRecord(agentRoot, topicDir, slotFolder, resourcePath) {
   const topicManifestRel = `${topicDir}/${MANIFEST_FILE}`.replace(/\\/g, "/");
   const topicManifestAbs = path.join(agentRoot, topicManifestRel);
@@ -391,6 +423,9 @@ async function resolveChpuPath(agentRoot, rawPath) {
       return attachChpuViews(storageResolved, views);
     }
   }
+
+  const awnDataResolved = await resolveAwnDataPath(agentRootResolved, chpuPath);
+  if (awnDataResolved) return attachChpuViews(awnDataResolved, views);
 
   const manifestRel = `${chpuPath}/${MANIFEST_FILE}`.replace(/\\/g, "/");
   const manifestAbs = path.join(agentRootResolved, manifestRel);

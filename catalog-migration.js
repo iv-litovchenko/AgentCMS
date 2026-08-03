@@ -121,7 +121,7 @@ async function writeAwnDataTaxonomyItems(projectRoot, preset, items) {
   if (!storeRel) throw new Error(`Unsupported preset: ${preset}`);
   const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
   const storeAbs = path.join(coreRoot, "awn-data", ...storeRel.split("/"));
-  const schemaPath = path.join(storeAbs, "configuration-schema.yml");
+  const schemaPath = path.join(storeAbs, "store.yml");
   const schemaRaw = await fs.readFile(schemaPath, "utf-8");
   const schema = parseTypeYaml(schemaRaw);
   const records = items.map((item, index) => ({

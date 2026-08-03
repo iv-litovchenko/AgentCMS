@@ -31,7 +31,7 @@ function resolveAgentRootAbsolute(agentRoot, projectRoot) {
 function getTypeStoreRel(domain) {
   const store = DOMAIN_TYPE_STORES[domain];
   if (!store) return "";
-  return `${store}/types`;
+  return store;
 }
 
 function isTypeRecordActive(record) {
@@ -65,7 +65,16 @@ function recordToTypeSchema(record) {
     extends: String(fm.extends || bodySchema.extends || "").trim() || undefined
   };
 
-  for (const key of ["slot-category", "storage-driver", "slot-order", "path", "allow-children"]) {
+  for (const key of [
+    "slot-category",
+    "storage-driver",
+    "slot-order",
+    "slot-tier",
+    "path",
+    "allow-children",
+    "allowed-content",
+    "accept-files"
+  ]) {
     const fmKey = key.replace(/-/g, "_");
     const value = fm[key] ?? fm[fmKey] ?? bodySchema[key];
     if (value !== undefined && value !== null && value !== "") schema[key] = value;

@@ -714,7 +714,7 @@ module.exports = {
           description: "Канон v1: page types (ws/area/topic), slot content types (record/record.category/sidecar), slot bindings.",
           query: [],
           body: null,
-          response: "{ version, model, pageTypes[], slotContentTypes[], rules, slotTypes[], slotBindings[] }"
+          response: "{ version, model, pageTypes[], slotContentTypes[], rules, slotTypes[], slotBindings[] (derived from awn-data/slots/) }"
         },
         {
           method: "GET",

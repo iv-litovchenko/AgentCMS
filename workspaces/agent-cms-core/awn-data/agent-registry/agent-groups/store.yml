@@ -1,0 +1,34 @@
+version: 1
+kind: collection
+id: agent-registry.groups
+name: Группы агентов
+extends: ../../_base/store.yml
+description: UI-группировка агентов на landing
+
+record:
+  id-mode: slug
+  file: "{id}.md"
+
+fields:
+  title:
+    type: awn.string
+    title: Название
+    required: true
+  agentIds:
+    type: awn.string
+    title: Агенты
+    description: id агентов через запятую
+  background:
+    type: awn.string
+    title: Фон (путь к изображению)
+    description: "awn-storage/assets/attachments/{id}.png"
+  appearance:
+    type: awn.enum
+    title: Тема
+    enum: [light, dark]
+    default: light
+  system:
+    type: awn.boolean
+    title: Системная запись
+    description: "_ungrouped — настройки агентов без группы"
+    default: false

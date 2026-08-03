@@ -1,0 +1,26 @@
+version: 1
+kind: collection
+id: taxonomies.tags
+name: Теги
+extends: ../../_base/store.yml
+description: Справочник тегов для awn-tags
+
+record:
+  storage: csv
+  file: main.csv
+  id-mode: slug
+  hierarchy: false
+
+fields:
+  code:
+    type: awn.string
+    title: Код (slug)
+    required: true
+  label:
+    type: awn.string
+    title: Подпись
+    required: true
+  sort:
+    type: awn.integer
+    title: Порядок
+    default: 0
