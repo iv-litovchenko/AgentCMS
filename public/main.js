@@ -69773,6 +69773,15 @@ async function renderNodeOverviewViewSelector(nodePath) {
 
 // ── Type creation helpers ────────────────────────────────────────────────────
 
+const AWN_DATA_TYPE_STORE = {
+  base: "base",
+  pages: "pages",
+  content: "content",
+  slots: "slots",
+  mixins: "mixins",
+  settings: "settings"
+};
+
 const AGENT_SYSTEM_DOMAIN_KIND = {
   base: "base",
   pages: "type",
@@ -69821,59 +69830,67 @@ function slugifyTypeName(name) {
 function buildNewTypeYaml(domain, slug, displayName, domainKind = null) {
   const kind = domainKind || AGENT_SYSTEM_DOMAIN_KIND[domain] || "type";
   const prefix = AGENT_SYSTEM_DOMAIN_PREFIX[domain] || "awn";
-  const id = `${prefix}.${slug}`;
+  const typeId = `${prefix}.${slug}`;
   const ext = AGENT_SYSTEM_DOMAIN_EXTENDS[domain];
-  const lines = [
-    `id: ${id}`,
-    `name: ${displayName}`,
+  const now = new Date().toISOString();
+  const fm = [
+    "---",
+    `id: ${slug}`,
+    `created: ${JSON.stringify(now)}`,
+    `updated: ${JSON.stringify(now)}`,
+    `typeId: ${typeId}`,
+    `title: ${JSON.stringify(displayName)}`,
     `kind: ${kind}`,
     `domain: ${domain}`,
     `status: active`
   ];
-  if (ext) lines.push(`extends: ${ext}`);
-  lines.push(`description: ""`);
+  if (ext) fm.push(`extends: ${ext}`);
+  fm.push("---", "");
+
+  const body = [];
+  body.push(`description: ""`);
 
   // Домен-специфичные обязательные ключи, чтобы новый тип сразу «жил»,
   // а не создавался мёртвым (проверяется get_type_health).
   if (domain === "pages" || domain === "content") {
-    lines.push(`fields:`);
-    lines.push(`  # добавьте поля: my-field: { type: awn.field.string, title: Моё поле }`);
+    body.push(`fields:`);
+    body.push(`  # добавьте поля: my-field: { type: awn.field.string, title: Моё поле }`);
   }
   if (domain === "slots") {
-    lines.push(`# storage-driver: internal (Однофайловая) | external (Многофайловая) | tabular (Табличная)`);
-    lines.push(`storage-driver: external`);
-    lines.push(`path: ${slug}/`);
-    lines.push(`allowed-content: [awn.content.record]`);
-    lines.push(`accept-files: [".md"]`);
+    body.push(`# storage-driver: internal (Однофайловая) | external (Многофайловая) | tabular (Табличная)`);
+    body.push(`storage-driver: external`);
+    body.push(`path: ${slug}/`);
+    body.push(`allowed-content: [awn.content.record]`);
+    body.push(`accept-files: [".md"]`);
   }
   if (domain === "fields") {
-    lines.push(`# widget: input | textarea | select | checkbox | number | date | color | url | file | link`);
-    lines.push(`widget: input`);
-    lines.push(`storage: string`);
-    lines.push(`settings: [hint, required, default]`);
+    body.push(`# widget: input | textarea | select | checkbox | number | date | color | url | file | link`);
+    body.push(`widget: input`);
+    body.push(`storage: string`);
+    body.push(`settings: [hint, required, default]`);
   }
   if (domain === "md-blocks") {
-    lines.push(`group: misc`);
-    lines.push(`sort: 99`);
-    lines.push(`icon: "📌"`);
-    lines.push(`# render: template — вставляет template как есть (по умолчанию)`);
-    lines.push(`# render: fence + fence-tag/renderer — JS-рендер (см. TYPES-GUIDE)`);
-    lines.push(`render: template`);
-    lines.push(`template: |`);
-    lines.push(`  ## ${displayName}`);
-    lines.push(``);
-    lines.push(`  Текст блока.`);
+    body.push(`group: misc`);
+    body.push(`sort: 99`);
+    body.push(`icon: "📌"`);
+    body.push(`# render: template — вставляет template как есть (по умолчанию)`);
+    body.push(`# render: fence + fence-tag/renderer — JS-рендер (см. TYPES-GUIDE)`);
+    body.push(`render: template`);
+    body.push(`template: |`);
+    body.push(`  ## ${displayName}`);
+    body.push(``);
+    body.push(`  Текст блока.`);
   }
   if (domain === "taxonomies") {
-    lines.push(`# props-field — ключ во frontmatter записи; data-path — CSV справочника`);
-    lines.push(`props-field: awn-${slug}`);
-    lines.push(`data-path: awn-agent-kit/taxonomies/${slug}/main.csv`);
-    lines.push(`create-node-group: taxonomy`);
-    lines.push(`create-node-label: ${displayName}`);
-    lines.push(`# create-node-preset: tags | categories | statuses | priorities | colors`);
-    lines.push(`create-node-preset: tags`);
+    body.push(`# props-field — ключ во frontmatter записи; data-path — CSV справочника`);
+    body.push(`props-field: awn-${slug}`);
+    body.push(`data-path: awn-agent-kit/taxonomies/${slug}/main.csv`);
+    body.push(`create-node-group: taxonomy`);
+    body.push(`create-node-label: ${displayName}`);
+    body.push(`# create-node-preset: tags | categories | statuses | priorities | colors`);
+    body.push(`create-node-preset: tags`);
   }
-  return lines.join("\n") + "\n";
+  return `${fm.join("\n")}${body.join("\n")}\n`;
 }
 
 async function createStarterRenderer(relPath, title) {
@@ -69986,7 +70003,11 @@ function showNewTypeInlineForm(domain, triggerBtn, domainKind = null) {
     }
     confirmBtn.disabled = true;
     confirmBtn.textContent = "…";
-    const filePath = `awn-system/types/${domain}/${slug}.yml`;
+    const store = AWN_DATA_TYPE_STORE[domain] || domain;
+    const filePath =
+      domain === "fields"
+        ? `awn-data/editing-fields/fields/${slug}.md`
+        : `awn-data/${store}/types/${slug}.md`;
     const content = buildNewTypeYaml(domain, slug, displayName, domainKind);
     try {
       const resp = await fetch(buildApiUrl("/api/agent-system/file"), {
@@ -77904,7 +77925,7 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
   } catch {}
 
   if (!allTypesData?.types?.length) {
-    renderListEmptyMessage(containerNode, "Типы не найдены. Проверьте awn-system/types/.");
+    renderListEmptyMessage(containerNode, "Типы не найдены. Проверьте awn-data/pages/, content/, slots/.");
     return;
   }
 

@@ -218,7 +218,7 @@ function createServer() {
     client.get("/api/awn-types")
   );
 
-  reg("get_type_health", "Validate agent type model in awn-system/types/.", z.object({}), () =>
+  reg("get_type_health", "Validate agent type model in awn-data/.", z.object({}), () =>
     client.get("/api/agent/type-health")
   );
 

@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getManifestContainerDirRel, isAreaManifestRelPath, isManifestMdRelPath } = require("./manifest-paths");
-const { AGENT_SYSTEM_REL } = require("./platform-sources");
+const { CMS_CONFIG_REL } = require("./platform-sources");
 const { parseTypeYaml } = require("./awn-yaml-utils");
 const {
   normalizeAwnSchema,
@@ -12,7 +12,7 @@ const {
 } = require("./awn-types-loader");
 
 const CONFIGURATION_SCHEMA_FILE = "configuration-schema.yml";
-const CORE_CONFIGURATION_SCHEMA_REL = `${AGENT_SYSTEM_REL}/${CONFIGURATION_SCHEMA_FILE}`;
+const CORE_CONFIGURATION_SCHEMA_REL = `${CMS_CONFIG_REL}/${CONFIGURATION_SCHEMA_FILE}`;
 const WORKSPACE_CONFIGURATION_SCHEMA_REL = CONFIGURATION_SCHEMA_FILE;
 
 function resolveAgentRootAbsolute(agentRoot) {

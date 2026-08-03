@@ -1,216 +1,42 @@
 #!/usr/bin/env node
 /**
- * Copy platform types from agent-cms-core/awn-system/types into {agent}/awn-system/types/
- * and add agent-specific types (dialog, comment, mixins).
+ * Copy platform CMS model from agent-cms-core/awn-data into {agent}/awn-data/
+ * (type stores + cms-config). Agent-specific extras are already in platform core.
  *
  *   node scripts/bootstrap-agent-awn-system.js agent-cms-test
  */
 const fs = require("fs");
 const path = require("path");
-const { loadYamlFileSync } = require("../awn-yaml-utils");
-const {
-  getAgentCmsCoreAbsolute,
-  AGENT_SYSTEM_REL
-} = require("../platform-sources");
+const { getAgentCmsCoreAbsolute, CMS_CONFIG_REL, AWN_DATA_REL } = require("../platform-sources");
+const { DOMAIN_TYPE_STORES } = require("../awn-data-types-bridge");
 
-const AGENT_EXTRA_DOMAINS = ["mixins"];
-/** Поля — platform awn-data/editing-fields/, не копируем legacy YAML. */
-const SKIP_BOOTSTRAP_DOMAINS = new Set(["fields"]);
+const TYPE_STORES = Object.values(DOMAIN_TYPE_STORES);
+const CMS_CONFIG_FILES = [
+  "registry.yml",
+  "slots-bindings.yml",
+  "slot-categories.yml",
+  "MAP.md",
+  "TYPES-GUIDE.md",
+  "manifest.md",
+  "configuration-schema.yml"
+];
 
-const AGENT_EXTRA_TYPES = {
-  "content/dialog.yml": `id: awn.content.dialog
-name: Сообщение диалога
-kind: type
-domain: content
-status: active
-extends: awn.page.base
-description: Одно сообщение в слоте thread/ — диалог с агентом
-slot: dialogs
-fields:
-  awn-role:
-    type: awn.enum
-    name: Роль
-    enum:
-      - key: user
-        name: Пользователь
-      - key: assistant
-        name: Ассистент
-      - key: system
-        name: Система
-`,
-  "content/comment.yml": `id: awn.content.comment
-name: Комментарий
-kind: type
-domain: content
-status: active
-extends: awn.page.base
-description: Комментарий к узлу — слот comments/
-slot: comments
-fields:
-  awn-target:
-    type: awn.link
-    name: К чему привязан
-    description: manifest.md или запись в awn-storage
-`,
-  "slots/multi-file/comments.yml": `id: awn.slot.comments
-name: Comments
-kind: slot
-domain: slots
-status: active
-extends: awn.slot
-path: comments/
-allowed-content:
-  - awn.content.comment
-accept-files:
-  - ".md"
-description: Комментарии к узлам
-`,
-  "slots/multi-file/assets.yml": `id: awn.slot.assets
-name: Assets
-kind: slot
-domain: slots
-status: active
-extends: awn.slot
-path: assets/
-allowed-content:
-  - awn.content.sidecar
-accept-files:
-  - ".png"
-  - ".jpg"
-  - ".jpeg"
-  - ".gif"
-  - ".webp"
-  - ".pdf"
-description: Вложения и вставки — pasted/, attachments/
-`,
-  "mixins/preview.yml": `id: awn.mixin.preview
-name: Превью
-kind: mixin
-domain: mixins
-status: active
-description: Поле превью-изображения
-fields:
-  awn-preview:
-    type: awn.url
-    name: Превью
-`,
-  "mixins/web-url.yml": `id: awn.mixin.web-url
-name: Веб-источник
-kind: mixin
-domain: mixins
-status: active
-description: Ссылка на оригинал в интернете
-fields:
-  awn-web-url:
-    type: awn.field.url
-    title: Веб-источник
-    description: URL оригинала в интернете (https://…)
-    group: content
-`,
-  "mixins/runtime.yml": `id: awn.mixin.runtime
-name: Runtime
-kind: mixin
-domain: mixins
-status: active
-description: Загрузка в контекст агента, cron, heartbeat
-fields:
-  awn-runtime-load-always:
-    type: awn.boolean
-    name: В контексте всегда
-    description: Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)
-    default: false
-  awn-runtime-cron:
-    type: awn.boolean
-    name: Cron
-  awn-runtime-cron-schedule:
-    type: awn.string
-    name: Расписание cron
-  awn-runtime-heartbeat:
-    type: awn.boolean
-    name: Heartbeat
-  awn-runtime-commands:
-    type: awn.boolean
-    name: Выполнение команд
-    description: В инструкции темы есть команды для выполнения (визуальный маркер)
-    default: false
-`,
-  "mixins/attachments.yml": `id: awn.mixin.attachments
-name: Вложения
-kind: mixin
-domain: mixins
-status: active
-description: Прикреплённые файлы
-fields:
-  awn-attachments:
-    type: awn.array
-    name: Вложения
-    items: awn.file
-    widget: attachments
-`
-};
-
-function listPlatformTypeFiles(coreRoot, domain) {
-  const dir = path.join(coreRoot, AGENT_SYSTEM_REL, "types", domain);
-  if (!fs.existsSync(dir)) return [];
-  const result = [];
-  function walk(currentDir) {
-    let entries;
-    try {
-      entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-      if (entry.isFile() && /\.ya?ml$/i.test(entry.name)) {
-        result.push(fullPath);
-      } else if (entry.isDirectory() && !entry.name.startsWith(".")) {
-        walk(fullPath);
-      }
+function copyDir(src, dest) {
+  if (!fs.existsSync(src)) return 0;
+  fs.mkdirSync(dest, { recursive: true });
+  let count = 0;
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    if (entry.name.startsWith(".")) continue;
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      count += copyDir(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+      count += 1;
     }
   }
-  walk(dir);
-  return result;
-}
-
-function enrichSlotYaml(content, fileName) {
-  const slotKey = fileName.replace(/\.ya?ml$/i, "");
-  if (slotKey.startsWith("_")) return content;
-
-  const slotBindings = {
-    main: {
-      path: "main/",
-      allowed: ["awn.content.record", "awn.content.category"],
-      files: [".md"]
-    },
-    inbox: { path: "inbox/", allowed: ["awn.content.record"], files: [".md", ".txt"] },
-    thread: { path: "thread/", allowed: ["awn.content.dialog"], files: [".md"] },
-    media: {
-      path: "media/",
-      allowed: ["awn.content.sidecar", "awn.content.category"],
-      files: [".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".sidecar.md"]
-    },
-    references: { path: "references/", allowed: ["awn.content.record"], files: [".md"] },
-    artefacts: { path: "artefacts/", allowed: ["awn.content.record"], files: [".md"] },
-    scripts: { path: "scripts/", allowed: ["awn.content.record"], files: [".md", ".sh", ".js"] },
-    repository: { path: "repository/", allowed: ["awn.file"], files: ["*"] }
-  };
-
-  const binding = slotBindings[slotKey];
-  if (!binding) return content;
-
-  const lines = [];
-  if (!/\npath:/.test(content)) lines.push(`path: ${binding.path}`);
-  if (!/\nallowed-content:/.test(content)) {
-    lines.push("allowed-content:");
-    for (const item of binding.allowed) lines.push(`  - ${item}`);
-  }
-  if (!/\naccept-files:/.test(content)) {
-    lines.push("accept-files:");
-    for (const item of binding.files) lines.push(`  - "${item}"`);
-  }
-  if (!lines.length) return content;
-  return `${content.trim()}\n${lines.join("\n")}\n`;
+  return count;
 }
 
 function main() {
@@ -218,71 +44,35 @@ function main() {
   const repoRoot = path.join(__dirname, "..");
   const agentRoot = path.join(repoRoot, "workspaces", agentId);
   const coreRoot = getAgentCmsCoreAbsolute(repoRoot);
-  const systemRoot = path.join(agentRoot, AGENT_SYSTEM_REL);
-  const typesRoot = path.join(systemRoot, "types");
+  const coreDataRoot = path.join(coreRoot, AWN_DATA_REL);
+  const agentDataRoot = path.join(agentRoot, AWN_DATA_REL);
 
   if (!fs.existsSync(agentRoot)) {
     console.error(`Agent workspace not found: ${agentRoot}`);
     process.exit(1);
   }
 
-  const platformTypesRoot = path.join(coreRoot, AGENT_SYSTEM_REL, "types");
-  const platformDomains = fs.existsSync(platformTypesRoot)
-    ? fs
-        .readdirSync(platformTypesRoot, { withFileTypes: true })
-        .filter((e) => e.isDirectory())
-        .map((e) => e.name)
-    : [];
-
-  const domains = [...new Set([...platformDomains, ...AGENT_EXTRA_DOMAINS])];
   let copied = 0;
-
-  for (const domain of domains) {
-    if (SKIP_BOOTSTRAP_DOMAINS.has(domain)) continue;
-    const destDir = path.join(typesRoot, domain);
-    fs.mkdirSync(destDir, { recursive: true });
-
-    const domainSrcDir = path.join(platformTypesRoot, domain);
-    for (const srcPath of listPlatformTypeFiles(coreRoot, domain)) {
-      const rel = path.relative(domainSrcDir, srcPath);
-      const fileName = path.basename(srcPath);
-      let raw = fs.readFileSync(srcPath, "utf-8");
-      if (domain === "slots") raw = enrichSlotYaml(raw, fileName);
-      const dest = path.join(destDir, rel);
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.writeFileSync(dest, raw, "utf-8");
-      copied += 1;
-    }
+  for (const store of TYPE_STORES) {
+    copied += copyDir(path.join(coreDataRoot, store), path.join(agentDataRoot, store));
   }
 
-  for (const [rel, body] of Object.entries(AGENT_EXTRA_TYPES)) {
-    const dest = path.join(typesRoot, rel);
-    fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.writeFileSync(dest, body, "utf-8");
-    copied += 1;
-  }
-
-  for (const rel of ["slots-bindings.yml", "slot-categories.yml"]) {
-    const src = path.join(coreRoot, AGENT_SYSTEM_REL, rel);
+  const coreConfig = path.join(coreDataRoot, "cms-config");
+  const agentConfig = path.join(agentDataRoot, "cms-config");
+  fs.mkdirSync(agentConfig, { recursive: true });
+  for (const name of CMS_CONFIG_FILES) {
+    const src = path.join(coreConfig, name);
     if (!fs.existsSync(src)) continue;
-    const dest = path.join(systemRoot, rel);
-    fs.copyFileSync(src, dest);
+    const dest = path.join(agentConfig, name);
+    let content = fs.readFileSync(src, "utf-8");
+    if (name === "registry.yml") {
+      content = content.replace(/^agent: .*/m, `agent: ${agentId}`);
+    }
+    fs.writeFileSync(dest, content, "utf-8");
     copied += 1;
   }
 
-  const registry = `version: 1
-mode: agent-owned
-agent: ${agentId}
-description: CMS-модель агента — типы, слоты, поля. Runtime читает awn-system/types/
-domains:
-${domains.map((d) => `  - ${d}`).join("\n")}
-docs:
-  map: awn-system/MAP.md
-  agents: AGENTS.md
-`;
-  fs.writeFileSync(path.join(systemRoot, "registry.yml"), registry, "utf-8");
-
-  console.log(`Bootstrap OK: ${copied} type files → ${typesRoot}`);
+  console.log(`Bootstrap OK: ${copied} files → ${agentDataRoot}`);
 }
 
 main();

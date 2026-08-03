@@ -1,12 +1,12 @@
 const fs = require("fs");
 const path = require("path");
 const { loadYamlFileSync } = require("./awn-yaml-utils");
-const { AGENT_SYSTEM_REL } = require("./platform-sources");
+const { CMS_CONFIG_REL, AWN_DATA_REL } = require("./platform-sources");
 const {
   getTypeCatalogPayload,
-  getTypeDetailByCatalogPath,
   resolveAgentDomainManifest
 } = require("./type-catalog-loader");
+const { cmsConfigExists, DOMAIN_TYPE_STORES } = require("./awn-data-types-bridge");
 
 const SYSTEM_DOMAIN_LABELS = {
   base: "Base",
@@ -17,183 +17,111 @@ const SYSTEM_DOMAIN_LABELS = {
   "md-blocks": "Markdown blocks",
   taxonomies: "Taxonomies",
   views: "Views",
-  mixins: "Mixins"
+  mixins: "Mixins",
+  settings: "Settings"
 };
 
 function getAgentSystemRoot(agentRoot) {
-  return path.join(String(agentRoot || "").trim(), AGENT_SYSTEM_REL);
+  return path.join(String(agentRoot || "").trim(), CMS_CONFIG_REL);
 }
 
 function agentSystemExists(agentRoot) {
-  const root = getAgentSystemRoot(agentRoot);
-  return fs.existsSync(path.join(root, "registry.yml")) || fs.existsSync(path.join(root, "types"));
+  return cmsConfigExists(agentRoot);
+}
+
+function normalizeAgentSystemRelPath(relPath) {
+  let normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (normalized === "awn-system" || normalized.startsWith("awn-system/")) {
+    normalized = normalized.replace(/^awn-system/, CMS_CONFIG_REL);
+  }
+  if (normalized.startsWith("awn-system/types/")) {
+    const rest = normalized.slice("awn-system/types/".length);
+    const domain = rest.split("/")[0];
+    const store = DOMAIN_TYPE_STORES[domain];
+    if (store) {
+      normalized = `awn-data/${store}/types/${rest.slice(domain.length + 1)}`.replace(/\.ya?ml$/i, ".md");
+    }
+  }
+  return normalized;
 }
 
 function isAgentSystemRelPath(relPath) {
-  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  return normalized === AGENT_SYSTEM_REL || normalized.startsWith(`${AGENT_SYSTEM_REL}/`);
+  const normalized = normalizeAgentSystemRelPath(relPath);
+  return (
+    normalized === CMS_CONFIG_REL ||
+    normalized.startsWith(`${CMS_CONFIG_REL}/`) ||
+    (normalized.startsWith(`${AWN_DATA_REL}/`) && /\/types\//.test(normalized))
+  );
 }
 
 function resolveAgentSystemAbsolute(agentRoot, relPath) {
-  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const normalized = normalizeAgentSystemRelPath(relPath);
   if (!isAgentSystemRelPath(normalized)) return null;
   const absolute = path.join(String(agentRoot || "").trim(), normalized);
-  const systemRoot = getAgentSystemRoot(agentRoot);
-  if (!absolute.startsWith(systemRoot)) return null;
+  const dataRoot = path.join(String(agentRoot || "").trim(), AWN_DATA_REL);
+  if (!absolute.startsWith(dataRoot)) return null;
   return absolute;
-}
-
-function listYamlFiles(dirPath) {
-  if (!fs.existsSync(dirPath)) return [];
-  return fs
-    .readdirSync(dirPath, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && /\.ya?ml$/i.test(entry.name))
-    .map((entry) => entry.name)
-    .sort((a, b) => a.localeCompare(b, "ru"));
-}
-
-function readTypeYamlMeta(filePath) {
-  try {
-    const parsed = loadYamlFileSync(filePath, { idKey: "id", nameKey: "name" });
-    return {
-      id: parsed?.id ? String(parsed.id) : path.basename(filePath).replace(/\.ya?ml$/i, ""),
-      name: parsed?.name ? String(parsed.name) : path.basename(filePath, path.extname(filePath)),
-      kind: parsed?.kind ? String(parsed.kind) : "",
-      extends: parsed?.extends ? String(parsed.extends) : ""
-    };
-  } catch {
-    return {
-      id: path.basename(filePath).replace(/\.ya?ml$/i, ""),
-      name: path.basename(filePath).replace(/\.ya?ml$/i, ""),
-      kind: "",
-      extends: ""
-    };
-  }
 }
 
 async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process.cwd()) {
   const agentRoot = String(agentRootAbsolute || "").trim();
   if (!agentRoot || !agentSystemExists(agentRoot)) return null;
 
-  const systemRoot = getAgentSystemRoot(agentRoot);
-  const manifestPath = path.join(systemRoot, "manifest.md");
-  const indexPath = fs.existsSync(manifestPath) ? `${AGENT_SYSTEM_REL}/manifest.md` : null;
+  const configRoot = getAgentSystemRoot(agentRoot);
+  const indexPath = fs.existsSync(path.join(configRoot, "manifest.md"))
+    ? `${CMS_CONFIG_REL}/manifest.md`
+    : null;
 
   const items = [];
-  // Все top-level документы/конфиги системной модели (кроме manifest.md — он indexPath).
   let topFiles = [];
   try {
     topFiles = fs
-      .readdirSync(systemRoot, { withFileTypes: true })
+      .readdirSync(configRoot, { withFileTypes: true })
       .filter((e) => e.isFile() && !e.name.startsWith("."))
       .map((e) => e.name)
-      .filter((name) => /\.(md|ya?ml)$/i.test(name) && name !== "manifest.md")
+      .filter((name) => /\.(md|ya?ml|json)$/i.test(name) && name !== "manifest.md")
       .sort((a, b) => a.localeCompare(b, "ru"));
   } catch {}
   for (const name of topFiles) {
     items.push({
       label: name,
-      path: `${AGENT_SYSTEM_REL}/${name}`.replace(/\\/g, "/"),
+      path: `${CMS_CONFIG_REL}/${name}`.replace(/\\/g, "/"),
       systemFile: true
     });
   }
 
-  // Единый источник правды: встроенные домены + объявленные в registry.yml.
-  // Добавил домен в registry.yml и завёл папку — он появится в дереве (с ярлыком
-  // и кнопкой создания) и в каталоге типов.
-  const domainManifest = resolveAgentDomainManifest(systemRoot);
-
+  const domainManifest = resolveAgentDomainManifest(configRoot);
+  const payload = getTypeCatalogPayload(projectRoot, agentRoot);
   const sections = [];
-  const metaItems = []; // kind: meta (конфиги вроде awn.block.groups) — отдельной секцией
-  const typesRoot = path.join(systemRoot, "types");
-  if (fs.existsSync(typesRoot)) {
-    for (const domainMeta of domainManifest) {
-      const domain = domainMeta.id;
-      const domainDir = path.join(typesRoot, domain);
-      if (!fs.existsSync(domainDir)) continue;
 
-      function collectItems(dir, relPrefix) {
-        const result = [];
-        for (const fileName of listYamlFiles(dir)) {
-          const rel = `${relPrefix}/${fileName}`.replace(/\\/g, "/");
-          const meta = readTypeYamlMeta(path.join(dir, fileName));
-          const isFoundation = fileName === "_base.yml" || meta.kind === "entity" || meta.kind === "base";
-          result.push({
-            label: isFoundation ? `${meta.name || meta.id} (база)` : meta.name || meta.id,
-            path: rel,
-            systemFile: true,
-            typeId: meta.id,
-            typeKind: meta.kind,
-            typeExtends: meta.extends,
-            isFoundation
-          });
-        }
-        return result;
-      }
+  for (const domainMeta of domainManifest) {
+    const domain = domainMeta.id;
+    const domainEntries = (payload.domains?.[domain] || []).filter((entry) => entry && !entry.aliasOf);
+    if (!domainEntries.length) continue;
 
-      const domainRelPrefix = `${AGENT_SYSTEM_REL}/types/${domain}`;
-      const allDomainItems = collectItems(domainDir, domainRelPrefix);
-      // Конфиги (kind: meta) — не типы; уносим их в отдельную секцию «Конфиги».
-      const domainItems = [];
-      for (const item of allDomainItems) {
-        if (item.typeKind === "meta") {
-          const domLabel = domainMeta.label || SYSTEM_DOMAIN_LABELS[domain] || domain;
-          metaItems.push({ ...item, label: `${item.label} · ${domLabel}` });
-        } else {
-          domainItems.push(item);
-        }
-      }
+    const domainItems = domainEntries.map((entry) => {
+      const schema = entry.schema || {};
+      const isFoundation = schema.kind === "entity" || schema.kind === "base" || /\/_base$/i.test(entry.relPath || "");
+      return {
+        label: isFoundation ? `${schema.name || entry.id} (база)` : schema.name || entry.id,
+        path: entry.catalogFile || `${CMS_CONFIG_REL}/${domain}/${entry.fileName}.md`,
+        systemFile: true,
+        typeId: entry.id,
+        typeKind: schema.kind || entry.kind || "",
+        typeExtends: schema.extends || entry.extends || "",
+        isFoundation
+      };
+    });
 
-      // Scan subdirectories and add as sub-groups
-      const subGroups = [];
-      let subdirs = [];
-      try {
-        subdirs = fs.readdirSync(domainDir, { withFileTypes: true })
-          .filter((e) => e.isDirectory() && !e.name.startsWith(".") && !e.name.startsWith("_"))
-          .map((e) => e.name)
-          .sort((a, b) => a.localeCompare(b, "ru"));
-      } catch {}
-
-      for (const subName of subdirs) {
-        const subDir = path.join(domainDir, subName);
-        const subRelPrefix = `${domainRelPrefix}/${subName}`;
-        const subItems = collectItems(subDir, subRelPrefix);
-        if (subItems.length) {
-          subGroups.push({
-            title: subName,
-            folderPath: subRelPrefix,
-            items: subItems
-          });
-        }
-      }
-
-      if (!domainItems.length && !subGroups.length) continue;
-      sections.push({
-        title: domainMeta.label || SYSTEM_DOMAIN_LABELS[domain] || domain,
-        domain,
-        domainKind: domainMeta.kind || null,
-        folderPath: domainRelPrefix,
-        items: domainItems,
-        subGroups
-      });
-    }
-  }
-
-  // Секция «Конфиги» (kind: meta) — после всех доменов, сразу после Mixins.
-  if (metaItems.length) {
+    const storeFolder = DOMAIN_TYPE_STORES[domain];
     sections.push({
-      title: "Конфиги",
-      items: metaItems.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru")),
+      title: domainMeta.label || SYSTEM_DOMAIN_LABELS[domain] || domain,
+      domain,
+      domainKind: domainMeta.kind || null,
+      folderPath: storeFolder ? `awn-data/${storeFolder}/types` : `${CMS_CONFIG_REL}/${domain}`,
+      items: domainItems.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru")),
       subGroups: []
     });
-  }
-
-  let typeCount = 0;
-  try {
-    const payload = getTypeCatalogPayload(projectRoot, agentRoot);
-    typeCount = Array.isArray(payload?.browseTypes) ? payload.browseTypes.length : 0;
-  } catch {
-    typeCount = sections.reduce((acc, section) => acc + (section.items?.length || 0), 0);
   }
 
   return {
@@ -201,8 +129,8 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
     indexPath,
     sections,
     items,
-    typeCount,
-    systemRoot: AGENT_SYSTEM_REL
+    typeCount: Array.isArray(payload?.browseTypes) ? payload.browseTypes.length : 0,
+    systemRoot: CMS_CONFIG_REL
   };
 }
 
@@ -217,7 +145,7 @@ async function readAgentSystemFile(agentRoot, relPath) {
   }
   const content = await fs.promises.readFile(absolute, "utf-8");
   return {
-    path: String(relPath || "").replace(/\\/g, "/"),
+    path: normalizeAgentSystemRelPath(relPath),
     exists: true,
     content,
     ext: path.extname(absolute).toLowerCase()
@@ -230,13 +158,9 @@ async function writeAgentSystemFile(agentRoot, relPath, content) {
     throw new Error("Invalid agent-system path");
   }
   const ext = path.extname(absolute).toLowerCase();
-  const inRenderers = absolute.replace(/\\/g, "/").includes("/renderers/");
-  const allowed = [".yml", ".yaml", ".md"];
-  // JS-рендеры блоков живут в awn-system/renderers/ — их пишет агент.
-  if (ext === ".js" && inRenderers) {
-    // ok
-  } else if (!allowed.includes(ext)) {
-    throw new Error("Only .yml, .yaml, .md (and .js in renderers/) files are editable in agent-system");
+  const allowed = [".yml", ".yaml", ".md", ".json"];
+  if (!allowed.includes(ext)) {
+    throw new Error("Only .yml, .yaml, .md and .json files are editable in cms-config/types stores");
   }
   await fs.promises.mkdir(path.dirname(absolute), { recursive: true });
   const normalized = String(content ?? "");
@@ -248,12 +172,12 @@ async function writeAgentSystemFile(agentRoot, relPath, content) {
 function getAgentSystemStatus(agentRoot, projectRoot = process.cwd()) {
   const exists = agentSystemExists(agentRoot);
   if (!exists) {
-    return { exists: false, root: AGENT_SYSTEM_REL };
+    return { exists: false, root: CMS_CONFIG_REL };
   }
   const payload = getTypeCatalogPayload(projectRoot, agentRoot);
   return {
     exists: true,
-    root: AGENT_SYSTEM_REL,
+    root: CMS_CONFIG_REL,
     sources: payload.sources || [],
     typeCount: Array.isArray(payload.browseTypes) ? payload.browseTypes.length : 0,
     domains: Object.keys(payload.domains || {}),
@@ -262,12 +186,13 @@ function getAgentSystemStatus(agentRoot, projectRoot = process.cwd()) {
 }
 
 module.exports = {
-  AGENT_SYSTEM_REL,
+  AGENT_SYSTEM_REL: CMS_CONFIG_REL,
   SYSTEM_DOMAIN_LABELS,
   getAgentSystemRoot,
   agentSystemExists,
   isAgentSystemRelPath,
   resolveAgentSystemAbsolute,
+  normalizeAgentSystemRelPath,
   buildAgentSystemMenuTree,
   readAgentSystemFile,
   writeAgentSystemFile,

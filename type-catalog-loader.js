@@ -3,16 +3,20 @@ const path = require("path");
 const { loadYamlFileSync } = require("./awn-yaml-utils");
 const {
   getAgentCmsCoreAbsolute,
-  getAgentSystemAbsolute,
-  getAgentSystemTypesDir,
+  getCmsConfigAbsolute,
   TYPE_DOMAINS,
   AGENT_TYPE_DOMAINS,
-  AGENT_SYSTEM_REL
+  CMS_CONFIG_REL
 } = require("./platform-sources");
 const {
   editingFieldsStoreHasRecords,
   ingestFieldsIntoCatalog
 } = require("./awn-data-fields-bridge");
+const {
+  DOMAIN_TYPE_STORES,
+  ingestDomainTypesFromAwnData,
+  cmsConfigExists
+} = require("./awn-data-types-bridge");
 
 const WORKSPACE_STATUS_ACTIVE = "🟢 Открыта";
 
@@ -77,81 +81,32 @@ const TYPE_ID_ALIASES = {
   "awn.slot.quick-notes": "awn.slot.note"
 };
 
-function listTypeFiles(typesDir) {
-  if (!typesDir || !fs.existsSync(typesDir)) return [];
-  const result = [];
-  function walk(dir) {
-    let entries;
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-    for (const e of entries) {
-      if (e.isFile() && /\.ya?ml$/i.test(e.name)) {
-        result.push(path.join(dir, e.name));
-      } else if (e.isDirectory() && !e.name.startsWith(".")) {
-        walk(path.join(dir, e.name));
-      }
-    }
-  }
-  walk(typesDir);
-  return result;
-}
+function normalizeLegacyCatalogPath(catalogPath) {
+  let normalized = String(catalogPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "";
 
-function loadTypeFile(filePath, domain, source = "platform", domainDir = "") {
-  try {
-    const parsed = loadYamlFileSync(filePath, { idKey: "id", nameKey: "name" });
-    if (!parsed?.id) return null;
-    const fileName = path.basename(filePath).replace(/\.ya?ml$/i, "");
-    // Compute relative path from domain dir (supports subdirectories)
-    let relFromDomain = fileName;
-    if (domainDir) {
-      try {
-        relFromDomain = path.relative(domainDir, filePath).replace(/\\/g, "/").replace(/\.ya?ml$/i, "");
-      } catch { relFromDomain = fileName; }
-    }
-    const catalogFile = `${AGENT_SYSTEM_REL}/types/${domain}/${relFromDomain}.yml`;
-    return {
-      id: String(parsed.id).trim(),
-      domain,
-      fileName,
-      filePath,
-      relPath: `${domain}/${relFromDomain}`,
-      catalogFile,
-      source,
-      schema: parsed,
-      status: String(parsed.status || "active").trim(),
-      kind: String(parsed.kind || "").trim(),
-      extends: parsed.extends ? String(parsed.extends).trim() : null
-    };
-  } catch {
-    return null;
+  if (normalized.startsWith("awn-system/types/")) {
+    const rest = normalized.slice("awn-system/types/".length).replace(/\.ya?ml$/i, ".md");
+    const domain = rest.split("/")[0];
+    const store = DOMAIN_TYPE_STORES[domain];
+    if (store) return `awn-data/${store}/types/${rest.slice(domain.length + 1)}`;
   }
-}
 
-function getPlatformTypesDir(coreRoot, domain) {
-  return path.join(coreRoot, AGENT_SYSTEM_REL, "types", domain);
+  const legacyPlatform = normalized.match(
+    /^types\/([^/]+)\/awn-storage\/configuration\/types\/(.+)\.ya?ml$/i
+  );
+  if (legacyPlatform) {
+    const store = DOMAIN_TYPE_STORES[legacyPlatform[1]];
+    if (store) return `awn-data/${store}/types/${legacyPlatform[2]}.md`;
+  }
+
+  return normalized;
 }
 
 function resolveAgentRootAbsolute(agentRoot, projectRoot) {
   const raw = String(agentRoot || "").trim();
   if (!raw) return "";
   return path.isAbsolute(raw) ? raw : path.join(projectRoot || process.cwd(), raw);
-}
-
-function ingestDomainTypes(typesDir, domain, source, byId, byDomain) {
-  if (!typesDir || !fs.existsSync(typesDir)) return;
-  if (!byDomain[domain]) byDomain[domain] = [];
-  const indexById = new Map(byDomain[domain].map((entry, idx) => [entry.id, idx]));
-
-  for (const filePath of listTypeFiles(typesDir)) {
-    const entry = loadTypeFile(filePath, domain, source, typesDir);
-    if (!entry) continue;
-    byId.set(entry.id, entry);
-    if (indexById.has(entry.id)) {
-      byDomain[domain][indexById.get(entry.id)] = entry;
-    } else {
-      byDomain[domain].push(entry);
-      indexById.set(entry.id, byDomain[domain].length - 1);
-    }
-  }
 }
 
 // Метаданные встроенных доменов (label + kind нового типа). registry.yml может
@@ -192,15 +147,15 @@ function normalizeDomainEntry(raw) {
  * новые домены-«пакеты» и переопределять label/kind встроенных.
  * Формат domains: список строк ["base", ...] ИЛИ объектов {id,label,kind,icon}.
  */
-function resolveAgentDomainManifest(agentSystemRoot) {
+function resolveAgentDomainManifest(cmsConfigRoot) {
   const map = new Map();
   for (const id of AGENT_TYPE_DOMAINS) {
     const meta = BUILTIN_DOMAIN_META[id] || {};
     map.set(id, { id, label: meta.label || id, kind: meta.kind || "type", builtin: true });
   }
-  if (agentSystemRoot) {
+  if (cmsConfigRoot) {
     try {
-      const registry = loadYamlFileSync(path.join(agentSystemRoot, "registry.yml"), {});
+      const registry = loadYamlFileSync(path.join(cmsConfigRoot, "registry.yml"), {});
       const declared = Array.isArray(registry?.domains) ? registry.domains : [];
       for (const raw of declared) {
         const entry = normalizeDomainEntry(raw);
@@ -229,35 +184,39 @@ function resolveAgentDomainManifest(agentSystemRoot) {
   return [...map.values()];
 }
 
-function resolveAgentDomainIds(agentSystemRoot) {
-  return resolveAgentDomainManifest(agentSystemRoot).map((d) => d.id);
+function resolveAgentDomainIds(cmsConfigRoot) {
+  return resolveAgentDomainManifest(cmsConfigRoot).map((d) => d.id);
 }
 
 function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
   const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
-  const coreSystemRoot = path.join(coreRoot, AGENT_SYSTEM_REL);
-  const agentSystemRoot = agentRootAbs ? getAgentSystemAbsolute(agentRootAbs) : "";
+  const coreConfigRoot = path.join(coreRoot, CMS_CONFIG_REL);
+  const agentConfigRoot = agentRootAbs ? getCmsConfigAbsolute(agentRootAbs) : "";
   const byId = new Map();
   const byDomain = {};
-  const sources = ["platform:agent-cms-core/awn-system/types"];
+  const sources = ["platform:agent-cms-core/awn-data"];
   const useAwnDataFields = editingFieldsStoreHasRecords(projectRoot);
 
   for (const domain of TYPE_DOMAINS) {
     if (domain === "fields" && useAwnDataFields) continue;
-    ingestDomainTypes(getPlatformTypesDir(coreRoot, domain), domain, "platform", byId, byDomain);
+    ingestDomainTypesFromAwnData(projectRoot, domain, "platform", byId, byDomain, coreRoot);
+  }
+
+  for (const domain of ["mixins", "settings"]) {
+    ingestDomainTypesFromAwnData(projectRoot, domain, "platform", byId, byDomain, coreRoot);
   }
 
   const isCoreAgent =
-    agentSystemRoot &&
-    fs.existsSync(agentSystemRoot) &&
-    path.resolve(agentSystemRoot) !== path.resolve(coreSystemRoot);
+    agentConfigRoot &&
+    cmsConfigExists(agentRootAbs, projectRoot) &&
+    path.resolve(agentConfigRoot) !== path.resolve(coreConfigRoot);
 
   if (isCoreAgent) {
-    sources.push(`${AGENT_SYSTEM_REL}:agent`);
-    for (const domain of resolveAgentDomainIds(agentSystemRoot)) {
+    sources.push(`${CMS_CONFIG_REL}:agent`);
+    for (const domain of resolveAgentDomainIds(agentConfigRoot)) {
       if (domain === "fields" && useAwnDataFields) continue;
-      ingestDomainTypes(getAgentSystemTypesDir(agentRootAbs, domain), domain, "agent", byId, byDomain);
+      ingestDomainTypesFromAwnData(projectRoot, domain, "agent", byId, byDomain, agentRootAbs);
     }
   }
 
@@ -271,7 +230,7 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   return {
     coreRoot,
     agentRoot: agentRootAbs,
-    agentSystemRoot,
+    agentSystemRoot: agentConfigRoot || coreConfigRoot,
     sources,
     byId,
     byDomain
@@ -387,7 +346,7 @@ function toTypeBrowseEntry(entry, byId, pageRoot) {
     fileName: entry.fileName,
     catalogFile:
       entry.catalogFile ||
-      `${AGENT_SYSTEM_REL}/types/${entry.domain}/${entry.fileName}.yml`,
+      `awn-data/${DOMAIN_TYPE_STORES[entry.domain] || entry.domain}/types/${entry.relPath || entry.fileName}.md`,
     source: entry.source || "platform",
     kind: entry.kind || entry.schema?.kind || null,
     status: entry.status,
@@ -474,15 +433,10 @@ function collectFoundationTypes(byId, pageRoot) {
 }
 
 function findTypeEntryByCatalogPath(byId, catalogPath) {
-  const normalized = String(catalogPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const normalized = normalizeLegacyCatalogPath(catalogPath);
   if (!normalized) return null;
   for (const entry of byId.values()) {
     if (entry.catalogFile === normalized) return entry;
-    const agentRel = `${AGENT_SYSTEM_REL}/types/${entry.domain}/${entry.fileName}.yml`;
-    if (agentRel === normalized) return entry;
-    // Legacy: platform types/ tree (removed)
-    const legacyRel = `types/${entry.domain}/awn-storage/configuration/types/${entry.fileName}.yml`;
-    if (legacyRel === normalized) return entry;
   }
   return null;
 }

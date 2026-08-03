@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { loadYamlFileSync } = require("./awn-yaml-utils");
-const { getAgentSystemAbsolute, AGENT_SYSTEM_REL } = require("./platform-sources");
+const { getAgentSystemAbsolute, CMS_CONFIG_REL } = require("./platform-sources");
 const {
   loadTypeCatalog,
   mergeTypeSchema,
@@ -201,8 +201,8 @@ function getCanonicalModelPayload(projectRoot = process.cwd(), agentRoot = "") {
     slotCategories: categoriesDoc.categories,
     slotTypesByCategory: groupSlotTypesByCategory(slotTypes, categoriesDoc.categories),
     slotBindings: bindingEntries,
-    slotBindingsFile: `${AGENT_SYSTEM_REL}/slots-bindings.yml`,
-    slotCategoriesFile: `${AGENT_SYSTEM_REL}/slot-categories.yml`,
+    slotBindingsFile: `${CMS_CONFIG_REL}/slots-bindings.yml`,
+    slotCategoriesFile: `${CMS_CONFIG_REL}/slot-categories.yml`,
     systemOnlyFolders: bindingsDoc.systemOnly || []
   };
 }

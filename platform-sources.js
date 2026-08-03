@@ -5,22 +5,28 @@ const AGENT_CMS_CORE_REL = "workspaces/agent-cms-core";
 
 const COMPONENTS_REL = path.join(AGENT_CMS_CORE_REL, "components");
 
+const AWN_DATA_REL = "awn-data";
+const CMS_CONFIG_REL = path.join(AWN_DATA_REL, "cms-config");
+
 const TYPE_DOMAINS = ["base", "pages", "content", "slots", "fields"];
-/** Встроенная CMS-модель агента (flat YAML: awn-system/types/{domain}/*.yml) */
-const AGENT_SYSTEM_REL = "awn-system";
-/** Platform baseline types — workspaces/agent-cms-core/awn-system/types/{domain}/ */
-const PLATFORM_TYPES_REL = path.join(AGENT_SYSTEM_REL, "types");
+/** CMS-модель агента — конфиг и registry в awn-data/cms-config/ */
+const AGENT_SYSTEM_REL = CMS_CONFIG_REL;
 const AGENT_TYPE_DOMAINS = [
   ...TYPE_DOMAINS,
-  "mixins"
+  "mixins",
+  "settings"
 ];
 
-function getTypeDomainAbsolute(projectRoot, domain) {
-  return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, PLATFORM_TYPES_REL, domain);
+function getAwnDataAbsolute(agentRoot) {
+  return path.join(String(agentRoot || "").trim(), AWN_DATA_REL);
 }
 
-function getPlatformTypesDomainAbsolute(projectRoot, domain) {
-  return getTypeDomainAbsolute(projectRoot, domain);
+function getCmsConfigAbsolute(agentRoot) {
+  return path.join(String(agentRoot || "").trim(), CMS_CONFIG_REL);
+}
+
+function getTypeDomainAbsolute(projectRoot, domain) {
+  return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, AWN_DATA_REL, domain, "types");
 }
 
 function getTypeCatalogRootAbsolute(projectRoot) {
@@ -28,11 +34,7 @@ function getTypeCatalogRootAbsolute(projectRoot) {
 }
 
 function getAgentSystemAbsolute(agentRoot) {
-  return path.join(String(agentRoot || "").trim(), AGENT_SYSTEM_REL);
-}
-
-function getAgentSystemTypesDir(agentRoot, domain) {
-  return path.join(getAgentSystemAbsolute(agentRoot), "types", domain);
+  return getCmsConfigAbsolute(agentRoot);
 }
 
 const AWN_DATA_TAXONOMIES_REL = path.join(AGENT_CMS_CORE_REL, "awn-data", "taxonomies");
@@ -141,12 +143,14 @@ function toAgentsGroupsBackgroundRel(fileName) {
 module.exports = {
   AGENT_CMS_CORE_REL,
   COMPONENTS_REL,
-  PLATFORM_TYPES_REL,
+  AWN_DATA_REL,
+  CMS_CONFIG_REL,
   TYPE_DOMAINS,
   AGENT_SYSTEM_REL,
   AGENT_TYPE_DOMAINS,
+  getAwnDataAbsolute,
+  getCmsConfigAbsolute,
   getAgentSystemAbsolute,
-  getAgentSystemTypesDir,
   AWN_DATA_TAXONOMIES_REL,
   AGENT_REGISTRY_GROUPS_REL,
   AGENT_GROUPS_ATTACHMENTS_REL,
@@ -159,7 +163,6 @@ module.exports = {
   getPlatformAgentRootAbsolute,
   getComponentsAbsolute,
   getTypeDomainAbsolute,
-  getPlatformTypesDomainAbsolute,
   getTypeCatalogRootAbsolute,
   getAwnDataTaxonomiesAbsolute,
   getAgentsGroupsAssetsAbsolute,

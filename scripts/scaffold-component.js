@@ -4,7 +4,7 @@
  *
  *   node scripts/scaffold-component.js agent my-agent
  *
- * Поля — awn-data/editing-fields/fields/; страницы — awn-system/types/pages/; блоки — awn-data/markdown-blocks/.
+ * Поля — awn-data/editing-fields/fields/; страницы — awn-data/pages/types/; блоки — awn-data/markdown-blocks/.
  * После создания: awn-status: "🟢 Открыта" → появится в runtime
  */
 const fs = require("fs");

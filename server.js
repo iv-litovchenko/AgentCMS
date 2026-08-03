@@ -9272,14 +9272,15 @@ async function readWorkspaceManifestContent(relPath) {
 }
 
 async function readAgentSystemContext(agentRoot) {
-  const systemRoot = path.join(agentRoot, "awn-system");
+  const { CMS_CONFIG_REL } = require("./platform-sources");
+  const systemRoot = path.join(agentRoot, CMS_CONFIG_REL);
   const readText = async (rel) => {
     const abs = path.join(systemRoot, rel);
     try {
       const content = await fs.readFile(abs, "utf-8");
-      return { path: `awn-system/${rel}`.replace(/\\/g, "/"), exists: true, content };
+      return { path: `${CMS_CONFIG_REL}/${rel}`.replace(/\\/g, "/"), exists: true, content };
     } catch {
-      return { path: `awn-system/${rel}`.replace(/\\/g, "/"), exists: false, content: null };
+      return { path: `${CMS_CONFIG_REL}/${rel}`.replace(/\\/g, "/"), exists: false, content: null };
     }
   };
 
@@ -9300,7 +9301,7 @@ async function readAgentSystemContext(agentRoot) {
 
   return {
     exists: fsSync.existsSync(systemRoot),
-    root: "awn-system",
+    root: CMS_CONFIG_REL,
     typeSummary,
     docs: {
       map: await readText("MAP.md"),
@@ -9308,7 +9309,7 @@ async function readAgentSystemContext(agentRoot) {
       slotsBindings: await readText("slots-bindings.yml"),
       manifest: await readText("manifest.md")
     },
-    hint: "CMS-модель агента: awn-system/MAP.md и awn-system/types/"
+    hint: "CMS-модель агента: awn-data/cms-config/ и awn-data/{pages,content,slots}/"
   };
 }
 
@@ -16048,12 +16049,20 @@ async function handleApiForAgent(req, res, url) {
       const content = String(payload?.content ?? "");
 
       // Validate YAML types before saving
-      const isTypeFile = /^awn-system\/types\/[^/]+\/[^/]+\.ya?ml$/i.test(relPath.replace(/\\/g, "/"));
+      const isTypeFile = /^awn-data\/(pages|content|slots|base|mixins|settings)\/types\/[^/]+\.md$/i.test(
+        relPath.replace(/\\/g, "/")
+      );
       if (isTypeFile && content.trim()) {
         const { parseTypeYaml } = require("./awn-yaml-utils");
         let parsed;
         try {
-          parsed = parseTypeYaml(content);
+          const bodyMatch = content.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)([\s\S]*)$/);
+          parsed = parseTypeYaml(bodyMatch ? bodyMatch[1] : content);
+          const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+          if (fmMatch) {
+            const fm = parseTypeYaml(fmMatch[1]);
+            if (fm?.typeId) parsed = { ...parsed, id: fm.typeId, kind: fm.kind || parsed?.kind, name: fm.title || parsed?.name };
+          }
         } catch (parseErr) {
           return sendJson(res, 400, {
             error: "Invalid YAML",
