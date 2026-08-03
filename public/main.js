@@ -9233,6 +9233,7 @@ function renderAppLandingHub(focusItems = getLandingHubOrbitTopicItems()) {
     const { grouped, ungrouped } = buildLandingGroupsLayout(rest, landingAgentsGroupsCache);
 
     for (const group of grouped) {
+      if (!group.agents?.length) continue;
       const section = document.createElement("section");
       section.className = "app-landing-hub-section";
       const title = document.createElement("h3");
@@ -10596,6 +10597,7 @@ async function renderAppLandingAgents() {
       const { grouped, ungrouped } = buildLandingGroupsLayout(rest, landingAgentsGroupsCache);
 
       for (const group of grouped) {
+        if (!group.agents?.length) continue;
         appLandingAgentsNode.appendChild(renderAppLandingGroupSection(group, { editable: false }));
       }
 
