@@ -1,7 +1,0 @@
-id: awn.slot.inbox
-name: Inbox
-kind: slot
-domain: slots
-status: active
-extends: awn.slot
-description: Входящие заметки и черновики

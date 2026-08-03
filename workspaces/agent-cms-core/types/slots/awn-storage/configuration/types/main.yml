@@ -1,7 +1,0 @@
-id: awn.slot.main
-name: Main
-kind: slot
-domain: slots
-status: active
-extends: awn.slot
-description: Основное тело топика — markdown, CSV, конфиг
