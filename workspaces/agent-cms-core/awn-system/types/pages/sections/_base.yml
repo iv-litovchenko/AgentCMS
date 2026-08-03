@@ -1,0 +1,16 @@
+id: awn.page.section
+name: Секция
+kind: type
+domain: pages
+status: active
+extends: awn.page.base
+description: Секция workspace — прямой потомок ws; контейнер для тем (agent-kit, shared, container, …)
+manifest-pattern: "{slug}/manifest.md"
+storage-slots: []
+
+fields:
+  awn-section-role:
+    type: awn.field.string
+    title: Роль секции
+    description: agent-kit, shared, container или произвольная
+    group: nav

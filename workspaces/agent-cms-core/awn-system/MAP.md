@@ -55,26 +55,26 @@ workspaces/agent-cms-test/
 | `awn.page.ws` | area, kit | `manifest.md` (корень) |
 | `awn.page.area` | topics | `awn-container/{area}/manifest.md` |
 | `awn.page.topic` | **нет** (данные в слотах) | `…/{topic}/manifest.md` |
-| `awn.page.service-doc` | **нет** | `awn-agent-kit/agent`, `user`, `agent.voice.*` |
-| `awn.page.catalog` | **нет** | legacy; данные в `awn-data/taxonomies/*` |
+| `awn.page.topic.agent-kit.*` | **нет** | `awn-agent-kit/agent`, `user`, `rules`, `voice-*` |
 
 ### Content (в слотах)
 
 | id | Где |
 |----|-----|
 | `awn.content.record` | `main/`, `inbox/`, `references/` … `.md` |
-| `awn.content.record.category` | `main/{cat}/manifest.md` |
+| `awn.content.category` | `{slot}/{cat}/manifest.md` — категория в любом слоте |
 | `awn.content.sidecar` | `media/*.sidecar.md`, `assets/*.sidecar.md` |
-| `awn.content.media.category` | `media/{cat}/manifest.md` |
+| `awn.content.media.category` | *(alias → `awn.content.category`)* |
 | `awn.content.dialog` | `thread/*.md` — диалог с агентом |
 | `awn.content.comment` | `comments/*.md` |
 
 ### Slots → content (главное правило)
 
-**Слот = WHERE, content = WHAT.** См. `awn-system/slots-bindings.yml`.
+**Слот = WHERE, content = WHAT.** См. `awn-system/slots-bindings.yml`.  
+**Категории слотов:** `awn-system/slot-categories.yml` — Память, Файлы, Однофайловая, Записи, Общение.
 
 ```
-main/      → awn.content.record, awn.content.record.category
+main/      → awn.content.record, awn.content.category
 inbox/     → awn.content.record
 thread/    → awn.content.dialog
 media/     → sidecar + бинарники
@@ -152,15 +152,15 @@ awn_schema:
 | Область | `awn.page.area` |
 | Тема | `awn.page.topic` |
 | Запись | `awn.content.record` |
-| Категория записи | `awn.content.record.category` |
+| Категория | `awn.content.category` |
 | Sidecar | `awn.content.sidecar` |
 | Категория медиа | `awn.content.media.category` |
 | Диалог | `awn.content.dialog` |
 | Комментарий | `awn.content.comment` |
-| Служебный док (agent-kit) | `awn.page.service-doc` |
-| Справочник (tags, statuses) | `awn.page.catalog` |
+| Служебный док (agent-kit) | `awn.page.topic.agent-kit.*` |
+| Справочники (tags, statuses) | `awn-data/taxonomies/*` (не page-type) |
 
-Старые `awn.topic`, `awn.record`, `service-doc`, `catalog`, … в этом агенте **больше не используются**.
+Старые `awn.topic`, `awn.record`, `service-doc`, `catalog`, `taxonomy`, … в этом агенте **больше не используются**.
 
 ---
 
@@ -172,7 +172,7 @@ awn_schema:
 | Запись | `awn-container/php/awn-storage/main/….md` |
 | Диалог | `awn-agent-kit/agent/awn-storage/thread/….md` |
 | Тип record | `awn-system/types/content/record.yml` |
-| Слот main | `awn-system/types/slots/main.yml` |
+| Слот main | `awn-system/types/slots/multi-file/main.yml` |
 
 ---
 

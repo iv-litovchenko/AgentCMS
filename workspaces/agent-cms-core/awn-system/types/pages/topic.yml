@@ -18,6 +18,7 @@ storage-slots:
   - repository
   - scripts
   - todo-single
+  - log-single
 manifest-pattern: "{slug}/manifest.md"
 
 fields:

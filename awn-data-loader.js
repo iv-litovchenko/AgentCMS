@@ -18,6 +18,36 @@ const SKIP_DIRS = new Set(["_base", ".awn-cache", "history"]);
 
 const STORE_KINDS = new Set(["collection", "singleton", "group"]);
 
+/** Порядок в sidebar «Накопители»: группы → коллекции → одиночки. */
+const AWN_DATA_STORE_KIND_ORDER = { group: 0, collection: 1, singleton: 2 };
+
+function awnDataStoreKindRank(kind) {
+  return Object.prototype.hasOwnProperty.call(AWN_DATA_STORE_KIND_ORDER, kind)
+    ? AWN_DATA_STORE_KIND_ORDER[kind]
+    : 1;
+}
+
+function compareAwnDataStoresTopLevel(a, b, rootSort = null) {
+  const kindDiff = awnDataStoreKindRank(a.kind) - awnDataStoreKindRank(b.kind);
+  if (kindDiff !== 0) return kindDiff;
+
+  if (rootSort?.length) {
+    const aKey = a.relPath.split("/")[0];
+    const bKey = b.relPath.split("/")[0];
+    const ai = rootSort.indexOf(aKey);
+    const bi = rootSort.indexOf(bKey);
+    if (ai !== -1 || bi !== -1) {
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      if (ai !== bi) return ai - bi;
+    }
+  }
+
+  const aName = String(a.name || a.relPath);
+  const bName = String(b.name || b.relPath);
+  return aName.localeCompare(bName, "ru", { sensitivity: "base" });
+}
+
 function splitFrontmatter(content) {
   const text = String(content || "");
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/);
@@ -272,20 +302,7 @@ function organizeAwnDataStores(stores, dataRoot) {
   }
 
   const rootSort = readSortJson(dataRoot);
-  if (rootSort?.length) {
-    topLevel.sort((a, b) => {
-      const aKey = a.relPath.split("/")[0];
-      const bKey = b.relPath.split("/")[0];
-      const ai = rootSort.indexOf(aKey);
-      const bi = rootSort.indexOf(bKey);
-      if (ai === -1 && bi === -1) return a.relPath.localeCompare(b.relPath, "ru");
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
-    });
-  } else {
-    topLevel.sort((a, b) => a.relPath.localeCompare(b.relPath, "ru"));
-  }
+  topLevel.sort((a, b) => compareAwnDataStoresTopLevel(a, b, rootSort));
 
   return topLevel;
 }

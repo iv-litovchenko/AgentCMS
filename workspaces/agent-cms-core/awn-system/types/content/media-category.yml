@@ -1,8 +1,0 @@
-id: awn.content.media.category
-name: Категория медиа
-kind: type
-domain: content
-status: active
-extends: awn.base
-description: Папка-категория в слоте media/
-slot: media

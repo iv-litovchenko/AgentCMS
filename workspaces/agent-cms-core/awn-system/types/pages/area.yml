@@ -2,9 +2,9 @@ id: awn.page.area
 name: Область
 kind: type
 domain: pages
-status: active
-extends: awn.page.base
-description: Область (категория) — папка с manifest.md
+status: deprecated
+extends: awn.page.section
+description: "Legacy — используйте awn.page.section.* (agent-kit, shared, container)"
 fields:
   awn-color:
     type: awn.field.color

@@ -5,9 +5,11 @@
 
 const LEGACY_AWN_TYPE_MAP = {
   "awn.record": "awn.content.record",
-  "awn.record.category": "awn.content.record.category",
+  "awn.record.category": "awn.content.category",
+  "awn.content.record.category": "awn.content.category",
   "awn.sidecar": "awn.content.sidecar",
-  "awn.media.category": "awn.content.record.category"
+  "awn.media.category": "awn.content.category",
+  "awn.content.media.category": "awn.content.category"
 };
 
 function normalizeAwnType(typeName) {
@@ -24,6 +26,7 @@ function isSlotContentType(awnType) {
   const t = normalizeAwnType(awnType);
   return (
     t === "awn.content.record" ||
+    t === "awn.content.category" ||
     t === "awn.content.record.category" ||
     t === "awn.content.sidecar"
   );
@@ -81,8 +84,8 @@ function buildFocusFromLegacy(raw) {
   ) {
     const contentType =
       awnType ||
-      (raw.contentType === "record.category"
-        ? "awn.content.record.category"
+      (raw.contentType === "record.category" || raw.contentType === "category"
+        ? "awn.content.category"
         : raw.contentType === "sidecar"
           ? "awn.content.sidecar"
           : "awn.content.record");

@@ -91,6 +91,7 @@ const {
   BUNDLE_CONFIG_FILE,
   LEGACY_BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
+  BUNDLE_LOG_FILE,
   ROOT_SYSTEM_TODO_FILE,
   ROOT_SYSTEM_NOTE_FILE,
   normalizeSystemFileRequestName,
@@ -115,6 +116,7 @@ const {
   STORAGE_SUBFOLDER_PREVIEW,
   STORAGE_SUBFOLDER_HISTORY,
   STORAGE_SUBFOLDER_COMMENTS,
+  STORAGE_SUBFOLDER_VOLUME,
   STORAGE_SUBFOLDER_BY_MODE,
   HISTORY_VERSION_SUFFIX,
   STORAGE_SLOT_LAYER_FOLDERS,
@@ -1248,6 +1250,7 @@ function inferWorkspaceActivityFileKind(relPath) {
   if (normalized.endsWith("/manifest.md") || normalized.endsWith("_registration.md")) return "manifest";
   if (normalized.endsWith("/main.md") || normalized.includes("/main/")) return "memory";
   if (normalized.endsWith("/todo.md")) return "todo";
+  if (normalized.endsWith("/log.md")) return "log";
   if (normalized.endsWith("/schema.yml") || normalized.endsWith("schema.yml")) return "schema";
   if (normalized.endsWith("/config.yml") || normalized.endsWith("configuration.yml")) return "schema";
   if (normalized.endsWith("configuration.yml")) return "config";
@@ -1595,9 +1598,22 @@ function toTodoFilePath(relNodePath) {
   return namedStorageBundleRel(relNodePath, BUNDLE_TODO_FILE);
 }
 
+function toLogFilePath(relNodePath) {
+  const partBase = resolvePartFolderSidecarBaseRel(relNodePath);
+  if (partBase) return `${partBase}.log.md`;
+  return namedStorageBundleRel(relNodePath, BUNDLE_LOG_FILE);
+}
+
 async function writeTodoFiles(relNodePath, content) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
   const bundleRelPath = toTodoFilePath(resolvedRelPath);
+  await writeWorkspaceTextFileWithHistory(resolvedRelPath, bundleRelPath, content);
+  return bundleRelPath;
+}
+
+async function writeLogFiles(relNodePath, content) {
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relNodePath);
+  const bundleRelPath = toLogFilePath(resolvedRelPath);
   await writeWorkspaceTextFileWithHistory(resolvedRelPath, bundleRelPath, content);
   return bundleRelPath;
 }
@@ -3378,6 +3394,22 @@ async function readTodoContent(relPath) {
   }
 
   return { path: todoRelPath, content: "", exists: false };
+}
+
+async function readLogContent(relPath) {
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
+  const logRelPath = toLogFilePath(resolvedRelPath);
+  const logAbsolute = normalizeWorkspacePath(logRelPath);
+  if (!logAbsolute) return { path: logRelPath, content: "", exists: false };
+
+  try {
+    const content = await fs.readFile(logAbsolute, "utf-8");
+    return { path: logRelPath, content, exists: true };
+  } catch (error) {
+    if (!error || error.code !== "ENOENT") throw error;
+  }
+
+  return { path: logRelPath, content: "", exists: false };
 }
 
 async function readTabularMemoryContent(relPath) {
@@ -5300,7 +5332,7 @@ function resolveStorageCreateParentRel(rawParent, { layer = STORAGE_SUBFOLDER_CO
   return normalizeStorageSlotParentRel(rawParent, { layer, manifestRelPath });
 }
 
-function buildStorageSectionReadmeContent(title, awnType = "awn.content.record.category", folderSlug = "") {
+function buildStorageSectionReadmeContent(title, awnType = "awn.content.category", folderSlug = "") {
   const segment =
     String(folderSlug || "").trim() || String(title || "Раздел").trim() || "Раздел";
   let frontmatter = awnType ? `awn-type: ${awnType}` : "";
@@ -5317,7 +5349,7 @@ function resolveAwnSchemaTargetForSectionType(awnType, slotKey = null) {
   }
   // Legacy fallback when slot is unknown
   if (awnType === "awn.content.media.category" || awnType === "awn.media.category") return "slot_media_category";
-  if (awnType === "awn.content.record.category" || awnType === "awn.record.category") return "slot_memory_category";
+  if (awnType === "awn.content.category" || awnType === "awn.record.category") return "slot_memory_category";
   return null;
 }
 
@@ -5710,7 +5742,7 @@ async function createStorageRecordFile({
 async function writeStorageSectionReadme(
   sectionAbsolute,
   title,
-  awnType = "awn.content.record.category",
+  awnType = "awn.content.category",
   manifestRel = null,
   slotKey = null,
   options = {}
@@ -5822,7 +5854,7 @@ async function renameMemorySectionRecord(manifestRelPath, scopeType, storageFold
   const readmeAbsolute = path.join(sectionAbsolute, AREA_MANIFEST_FILE);
   const raw =
     (await readMemorySectionReadmeContent(readmeAbsolute)) ||
-    buildStorageSectionReadmeContent(display, "awn.content.record.category", nextSlug);
+    buildStorageSectionReadmeContent(display, "awn.content.category", nextSlug);
   const { frontmatter, body } = splitNodeFrontmatter(raw);
   const nextFrontmatter = applyAwnNameToFrontmatter(frontmatter, display, nextSlug);
   await writeMemorySectionReadmeContent(readmeAbsolute, joinNodeFrontmatter(nextFrontmatter, body));
@@ -7759,7 +7791,6 @@ function shouldSkipRecordPartsPackageDirectory(name) {
 }
 
 const TREE_MENU_TYPES = new Set(["workspace", "area", "topic"]);
-const SERVICE_MENU_LEAF_TYPES = new Set(["service-doc", "catalog", "taxonomy"]);
 
 async function readManifestMenuMeta(manifestRel, options = null) {
   if (options) return readManifestMenuMetaCached(manifestRel, options);
@@ -7779,7 +7810,7 @@ async function shouldRenderMenuChildAsTopicItem(child, options = {}) {
   if (child.containerTree) return false;
   if (isSystemReferenceManifestRel(manifestRel)) return true;
   const { type } = await readManifestMenuMetaCached(manifestRel, options);
-  if (type === "topic" || SERVICE_MENU_LEAF_TYPES.has(type)) return true;
+  if (type === "topic") return true;
   return false;
 }
 
@@ -7791,7 +7822,6 @@ async function isTreeMenuManifestRel(manifestRel, options = {}) {
   if (kind === "service") return false;
   if (kind === "tree") return true;
   if (TREE_MENU_TYPES.has(type)) return true;
-  if (SERVICE_MENU_LEAF_TYPES.has(type)) return true;
   if (type === "service") return true;
   return !type;
 }
@@ -8148,6 +8178,7 @@ const STORAGE_SLOT_LAYER_FILES = [
   BUNDLE_TABULAR_FILE,
   BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
+  BUNDLE_LOG_FILE,
   ".env",
   ...PREVIEW_FILE_NAMES
 ];
@@ -8271,6 +8302,7 @@ const STORAGE_FOLDER_SLOT_KEY_BY_CANONICAL = (() => {
   }
   map.set(STORAGE_SUBFOLDER_HISTORY, "history");
   map.set(STORAGE_SUBFOLDER_COMMENTS, "comments");
+  map.set(STORAGE_SUBFOLDER_VOLUME, "volume");
   return map;
 })();
 
@@ -8288,6 +8320,7 @@ function isStorageRootBundleLooseFile(fileName) {
       ...listBundleFileNameCandidates(BUNDLE_CONTENT_FILE),
       ...listBundleFileNameCandidates(BUNDLE_TABULAR_FILE),
       ...listBundleFileNameCandidates(BUNDLE_TODO_FILE),
+      ...listBundleFileNameCandidates(BUNDLE_LOG_FILE),
       ...listBundleFileNameCandidates(BUNDLE_CONFIG_FILE),
       ...listBundleFileNameCandidates(ROOT_SYSTEM_TODO_FILE),
       BUNDLE_BODY_FILE,
@@ -8301,7 +8334,8 @@ async function scanStorageRootBundleSlots(storageRootAbs) {
   const specs = [
     { slotKey: "main-single", fileName: BUNDLE_CONTENT_FILE },
     { slotKey: "main-single-csv", fileName: BUNDLE_TABULAR_FILE },
-    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE }
+    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE },
+    { slotKey: "log-single", fileName: BUNDLE_LOG_FILE }
   ];
   const bundleSlots = {};
   if (!storageRootAbs) {
@@ -12633,6 +12667,12 @@ async function classifySearchResult(relPath) {
     return { nodePath, mode: "todo", source: "TODO", canonicalPath: toTodoFilePath(nodePath) };
   }
 
+  if (base.toLowerCase() === BUNDLE_LOG_FILE.toLowerCase() && dirAbsolute) {
+    const nodePath = await findNodePathInDirectory(dirAbsolute);
+    if (!nodePath) return null;
+    return { nodePath, mode: "log", source: "Журнал", canonicalPath: toLogFilePath(nodePath) };
+  }
+
   const storageExternal = await classifyStoragePathForMode(
     normalized,
     "external",
@@ -14132,6 +14172,7 @@ function getExistsApi() {
       resolveApiManifestAbsolute,
       readInternalMemoryContent,
       readTodoContent,
+      readLogContent,
       readTabularMemoryContent,
       resolveExternalFileOpContext,
       resolveStorageFileAbsolute,
@@ -16964,7 +17005,7 @@ async function handleApiForAgent(req, res, url) {
       await writeStorageSectionReadme(
         sectionAbsolute,
         title,
-        "awn.content.record.category",
+        "awn.content.category",
         relPath,
         "memory",
         { contentWorkspaceRel }
@@ -17033,7 +17074,7 @@ async function handleApiForAgent(req, res, url) {
       await writeStorageSectionReadme(
         sectionAbsolute,
         title,
-        "awn.content.record.category",
+        "awn.content.category",
         relPath,
         slotKey,
         { contentWorkspaceRel }
@@ -17114,7 +17155,7 @@ async function handleApiForAgent(req, res, url) {
       await writeStorageSectionReadme(
         sectionAbsolute,
         title,
-        "awn.content.record.category",
+        "awn.content.category",
         relPath,
         slotKey,
         { contentWorkspaceRel }
@@ -18162,6 +18203,51 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, { path: todoRelPath, content, exists: true });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save TODO", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/log") {
+    const relPath = url.searchParams.get("path");
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+
+    const manifestRel = resolveNodeManifestRelForScopedApi(relPath);
+    if (!manifestRel) {
+      return sendJson(res, 400, {
+        error: "Invalid file path",
+        details: "Нужен манифест (*.md, _registration.md) или файл log (*/log.md)"
+      });
+    }
+
+    try {
+      const log = await readLogContent(manifestRel);
+      return sendJson(res, 200, log);
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to read log", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/log") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const content = typeof payload.content === "string" ? payload.content : null;
+      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
+      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+
+      const manifestRel = resolveNodeManifestRelForScopedApi(relPath);
+      if (!manifestRel) {
+        return sendJson(res, 400, {
+          error: "Invalid file path",
+          details: "Нужен манифест (*.md, _registration.md) или файл log (*/log.md)"
+        });
+      }
+
+      const resolvedManifest = await resolveExistingWorkspaceRelPath(manifestRel);
+      const logRelPath = await writeLogFiles(resolvedManifest, content);
+
+      return sendJson(res, 200, { path: logRelPath, content, exists: true });
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to save log", details: String(error.message || error) });
     }
   }
 

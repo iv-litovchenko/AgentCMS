@@ -16,7 +16,7 @@
   function buildTopicSchemaSlotSpecsModule() {
     const CONTENT_KIND_TYPE_NAMES = {
       record: "awn.content.record",
-      category: "awn.content.record.category",
+      category: "awn.content.category",
       sidecar: "awn.content.sidecar"
     };
 
@@ -175,10 +175,21 @@
           category: { id: "slot_todo_single_category" },
           sidecar: { id: "slot_todo_single_sidecar" }
         }
+      },
+      {
+        slotKey: "log-single",
+        label: "Журнал",
+        tabGroup: "journal",
+        defaultKind: "record",
+        targets: {
+          record: { id: "slot_log_single" },
+          category: { id: "slot_log_single_category" },
+          sidecar: { id: "slot_log_single_sidecar" }
+        }
       }
     ];
 
-    const TOPIC_SCHEMA_TAB_GROUP_ORDER = ["memory", "workspace", "files", "todo"];
+    const TOPIC_SCHEMA_TAB_GROUP_ORDER = ["memory", "workspace", "files", "todo", "journal"];
 
     function getTopicSchemaSlotSchemaLabel(slot) {
       return slot.schemaLabel || slot.label;
@@ -310,8 +321,8 @@
       const normalized = String(typeName || "").trim();
       const aliases = {
         "awn.record": "awn.content.record",
-        "awn.media.category": "awn.content.record.category",
-        "awn.record.category": "awn.content.record.category",
+        "awn.media.category": "awn.content.category",
+        "awn.record.category": "awn.content.category",
         "awn.sidecar": "awn.content.sidecar"
       };
       return aliases[normalized] || normalized;
@@ -322,7 +333,7 @@
       if (normalized === "awn.content.sidecar") {
         return resolveTopicSchemaTargetId(slotKey, { contentKind: "sidecar" });
       }
-      if (normalized === "awn.content.record.category") {
+      if (normalized === "awn.content.category") {
         return resolveTopicSchemaTargetId(slotKey, { contentKind: "category" });
       }
       if (normalized === "awn.content.record") {

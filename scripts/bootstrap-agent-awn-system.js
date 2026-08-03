@@ -25,7 +25,7 @@ domain: content
 status: active
 extends: awn.page.base
 description: Одно сообщение в слоте thread/ — диалог с агентом
-slot: thread
+slot: dialogs
 fields:
   awn-role:
     type: awn.enum
@@ -52,29 +52,7 @@ fields:
     name: К чему привязан
     description: manifest.md или запись в awn-storage
 `,
-  "content/media-category.yml": `id: awn.content.media.category
-name: Категория медиа
-kind: type
-domain: content
-status: active
-extends: awn.page.base
-description: Папка-категория в слоте media/
-slot: media
-`,
-  "slots/quick-notes.yml": `id: awn.slot.quick-notes
-name: Quick notes
-kind: slot
-domain: slots
-status: active
-extends: awn.slot
-path: quick-notes/
-allowed-content:
-  - awn.content.record
-accept-files:
-  - ".md"
-description: Быстрые заметки
-`,
-  "slots/comments.yml": `id: awn.slot.comments
+  "slots/multi-file/comments.yml": `id: awn.slot.comments
 name: Comments
 kind: slot
 domain: slots
@@ -87,7 +65,7 @@ accept-files:
   - ".md"
 description: Комментарии к узлам
 `,
-  "slots/assets.yml": `id: awn.slot.assets
+  "slots/multi-file/assets.yml": `id: awn.slot.assets
 name: Assets
 kind: slot
 domain: slots
@@ -202,14 +180,14 @@ function enrichSlotYaml(content, fileName) {
   const slotBindings = {
     main: {
       path: "main/",
-      allowed: ["awn.content.record", "awn.content.record.category"],
+      allowed: ["awn.content.record", "awn.content.category"],
       files: [".md"]
     },
     inbox: { path: "inbox/", allowed: ["awn.content.record"], files: [".md", ".txt"] },
     thread: { path: "thread/", allowed: ["awn.content.dialog"], files: [".md"] },
     media: {
       path: "media/",
-      allowed: ["awn.content.sidecar", "awn.content.media.category"],
+      allowed: ["awn.content.sidecar", "awn.content.category"],
       files: [".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".sidecar.md"]
     },
     references: { path: "references/", allowed: ["awn.content.record"], files: [".md"] },
@@ -281,6 +259,14 @@ function main() {
     const dest = path.join(typesRoot, rel);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.writeFileSync(dest, body, "utf-8");
+    copied += 1;
+  }
+
+  for (const rel of ["slots-bindings.yml", "slot-categories.yml"]) {
+    const src = path.join(coreRoot, AGENT_SYSTEM_REL, rel);
+    if (!fs.existsSync(src)) continue;
+    const dest = path.join(systemRoot, rel);
+    fs.copyFileSync(src, dest);
     copied += 1;
   }
 

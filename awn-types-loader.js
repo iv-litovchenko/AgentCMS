@@ -259,23 +259,23 @@ function loadAgentTypes(agentRoot, projectRoot) {
   if (types["awn.content.sidecar"] && !types["awn.sidecar"]) {
     types["awn.sidecar"] = types["awn.content.sidecar"];
   }
-  if (types["awn.content.record.category"] && !types["awn.record.category"]) {
-    types["awn.record.category"] = types["awn.content.record.category"];
+  if (types["awn.content.category"] && !types["awn.record.category"]) {
+    types["awn.record.category"] = types["awn.content.category"];
   }
-  if (types["awn.content.media.category"] && !types["awn.media.category"]) {
-    types["awn.media.category"] = types["awn.content.media.category"];
+  if (types["awn.content.category"] && !types["awn.content.record.category"]) {
+    types["awn.content.record.category"] = types["awn.content.category"];
+  }
+  if (types["awn.content.category"] && !types["awn.media.category"]) {
+    types["awn.media.category"] = types["awn.content.category"];
+  }
+  if (types["awn.content.category"] && !types["awn.content.media.category"]) {
+    types["awn.content.media.category"] = types["awn.content.category"];
   }
   if (types["awn.content.dialog"] && !types["awn.dialog"]) {
     types["awn.dialog"] = types["awn.content.dialog"];
   }
   if (types["awn.content.comment"] && !types["awn.comment"]) {
     types["awn.comment"] = types["awn.content.comment"];
-  }
-  if (types["awn.page.service-doc"] && !types["service-doc"]) {
-    types["service-doc"] = types["awn.page.service-doc"];
-  }
-  if (types["awn.page.catalog"] && !types["catalog"]) {
-    types["catalog"] = types["awn.page.catalog"];
   }
   if (types["awn.page.base"] && !types["awn.base"]) {
     types["awn.base"] = types["awn.page.base"];

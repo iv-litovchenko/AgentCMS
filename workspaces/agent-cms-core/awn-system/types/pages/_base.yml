@@ -4,7 +4,7 @@ kind: base
 domain: pages
 status: active
 extends: awn.base
-description: Узел дерева (ws/area/topic) — база awn.base плюс навигация и runtime
+description: Узел дерева (ws/section/topic) — база awn.base плюс навигация и runtime
 mixins: [awn.mixin.preview, awn.mixin.runtime]
 
 # Полный список групп для узлов дерева. Наследники awn.base (записи) видят

@@ -2,7 +2,7 @@ const path = require("path");
 const { getSlotTypesFromCatalog, readSlotsBindings } = require("./awn-canonical-model");
 const { loadTypeCatalog, mergeTypeSchema, resolveCanonicalTypeId } = require("./type-catalog-loader");
 
-const INTERNAL_SLOT_KEYS = new Set(["main-single", "main-single-csv", "todo-single", "todo"]);
+const INTERNAL_SLOT_KEYS = new Set(["main-single", "main-single-csv", "todo-single", "todo", "log-single"]);
 
 function slotKeyToBindingKey(slotKey) {
   const key = String(slotKey || "").trim();

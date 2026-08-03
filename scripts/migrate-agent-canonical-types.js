@@ -20,20 +20,24 @@ const TEXT_EXTENSIONS = new Set([
 
 /** Longest match first */
 const AWN_TYPE_REPLACEMENTS = [
-  ["awn-type: awn.record.category", "awn-type: awn.content.record.category"],
-  ["awn-type: awn.media.category", "awn-type: awn.content.media.category"],
+  ["awn-type: awn.content.record.category", "awn-type: awn.content.category"],
+  ["awn-type: awn.content.media.category", "awn-type: awn.content.category"],
+  ["awn-type: awn.record.category", "awn-type: awn.content.category"],
+  ["awn-type: awn.media.category", "awn-type: awn.content.category"],
   ["awn-type: awn.workspace", "awn-type: awn.page.ws"],
   ["awn-type: awn.record", "awn-type: awn.content.record"],
   ["awn-type: awn.sidecar", "awn-type: awn.content.sidecar"],
   ["awn-type: awn.area", "awn-type: awn.page.area"],
   ["awn-type: awn.topic", "awn-type: awn.page.topic"],
-  ["awn-type: service-doc", "awn-type: awn.page.service-doc"],
-  ["awn-type: catalog", "awn-type: awn.page.catalog"]
+  ["awn-type: awn.page.service-doc", "awn-type: awn.page.topic.agent-kit.agent"],
+  ["awn-type: service-doc", "awn-type: awn.page.topic.agent-kit.agent"]
 ];
 
 const DOC_REPLACEMENTS = [
-  ["| `awn.record.category` |", "| `awn.content.record.category` |"],
-  ["| `awn.media.category` |", "| `awn.content.media.category` |"],
+  ["| `awn.content.record.category` |", "| `awn.content.category` |"],
+  ["| `awn.content.media.category` |", "| `awn.content.category` |"],
+  ["| `awn.record.category` |", "| `awn.content.category` |"],
+  ["| `awn.media.category` |", "| `awn.content.category` |"],
   ["| `awn.workspace` |", "| `awn.page.ws` |"],
   ["| `awn.area` |", "| `awn.page.area` |"],
   ["| `awn.topic` |", "| `awn.page.topic` |"],

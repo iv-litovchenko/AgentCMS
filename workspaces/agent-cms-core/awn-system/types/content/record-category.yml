@@ -1,7 +1,0 @@
-id: awn.content.record.category
-name: Категория записи
-kind: type
-domain: content
-status: active
-extends: awn.base
-description: Справочная категория для группировки записей в слоте main

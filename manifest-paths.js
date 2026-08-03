@@ -80,6 +80,7 @@ const BUNDLE_CONTENT_FILE = BUNDLE_MAIN_FILE;
 const BUNDLE_CONFIG_FILE = "config.yml";
 const LEGACY_BUNDLE_CONFIG_FILE = "configuration.yml";
 const BUNDLE_TODO_FILE = "todo.md";
+const BUNDLE_LOG_FILE = "log.md";
 const BUNDLE_ENV_FILE = ".env";
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
 const ROOT_SYSTEM_NOTE_FILE = "NOTE.md";
@@ -93,6 +94,7 @@ const WORKSPACE_MENU_EXCLUDED_MD = new Set([
   "note.md",
   "notes.md",
   "todo.md",
+  "log.md",
   "main.md",
   "main.csv",
   "config.yml",
@@ -125,6 +127,7 @@ const STORAGE_SUBFOLDER_PASTED = "pasted";
 const STORAGE_SUBFOLDER_TEMP = "temp";
 const STORAGE_SUBFOLDER_HISTORY = "history";
 const STORAGE_SUBFOLDER_COMMENTS = "comments";
+const STORAGE_SUBFOLDER_VOLUME = "volume";
 const HISTORY_VERSION_SUFFIX = ".mdback";
 const COMMENT_FILE_SUFFIX = ".md";
 
@@ -141,7 +144,8 @@ const STORAGE_SLOT_LAYER_FOLDERS = [
   STORAGE_SUBFOLDER_ARTEFACTS,
   STORAGE_SUBFOLDER_REPOSITORY,
   STORAGE_SUBFOLDER_CONFIGURATION,
-  STORAGE_SUBFOLDER_TEMP
+  STORAGE_SUBFOLDER_TEMP,
+  STORAGE_SUBFOLDER_VOLUME
 ];
 
 /** Slots where agents may read arbitrary text files via /api/storage/file */
@@ -191,6 +195,10 @@ const STORAGE_SUBFOLDER_BY_MODE = {
   assets: STORAGE_SUBFOLDER_ASSETS,
   repository: STORAGE_SUBFOLDER_REPOSITORY,
   temp: STORAGE_SUBFOLDER_TEMP,
+  volume: STORAGE_SUBFOLDER_VOLUME,
+  history: STORAGE_SUBFOLDER_HISTORY,
+  comments: STORAGE_SUBFOLDER_COMMENTS,
+  dialogs: STORAGE_SUBFOLDER_THREAD,
   configs: STORAGE_SUBFOLDER_CONFIGURATION
 };
 
@@ -319,6 +327,9 @@ function listBundleFileNameCandidates(bundleFileName) {
     lower === ROOT_SYSTEM_TODO_FILE.toLowerCase()
   ) {
     return [BUNDLE_TODO_FILE, ROOT_SYSTEM_TODO_FILE];
+  }
+  if (lower === BUNDLE_LOG_FILE.toLowerCase()) {
+    return [BUNDLE_LOG_FILE];
   }
   return [canonical];
 }
@@ -667,6 +678,7 @@ function resolveBundleFileMode(fileNameLower) {
   if (fileNameLower === LEGACY_BUNDLE_CONFIG_FILE.toLowerCase()) return "configs";
   if (fileNameLower === BUNDLE_TODO_FILE.toLowerCase()) return "todo";
   if (fileNameLower === ROOT_SYSTEM_TODO_FILE.toLowerCase()) return "todo";
+  if (fileNameLower === BUNDLE_LOG_FILE.toLowerCase()) return "log";
   if (fileNameLower === BUNDLE_ENV_FILE.toLowerCase()) return "env";
   if (fileNameLower.startsWith(`${PREVIEW_FILE_BASENAME.toLowerCase()}.`)) return "node-preview";
   return null;
@@ -977,10 +989,10 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   const lower = fileName.toLowerCase();
 
   if (lower.endsWith(".sidecar.md")) return canonicalAwnType("awn.content.sidecar");
-  if (isMediaCategoryContentRelPath(normalized)) return canonicalAwnType("awn.content.record.category");
-  if (isRecordCategoryContentRelPath(normalized)) return canonicalAwnType("awn.content.record.category");
-  if (isExternalSectionReadmeRelPath(normalized)) return canonicalAwnType("awn.content.record.category");
-  if (isMediaSectionReadmeRelPath(normalized)) return canonicalAwnType("awn.content.record.category");
+  if (isMediaCategoryContentRelPath(normalized)) return canonicalAwnType("awn.content.category");
+  if (isRecordCategoryContentRelPath(normalized)) return canonicalAwnType("awn.content.category");
+  if (isExternalSectionReadmeRelPath(normalized)) return canonicalAwnType("awn.content.category");
+  if (isMediaSectionReadmeRelPath(normalized)) return canonicalAwnType("awn.content.category");
 
   const isStorageContentFile =
     options.contentMode === "external" ||
@@ -1344,6 +1356,7 @@ module.exports = {
   BUNDLE_CONFIG_FILE,
   LEGACY_BUNDLE_CONFIG_FILE,
   BUNDLE_TODO_FILE,
+  BUNDLE_LOG_FILE,
   BUNDLE_ENV_FILE,
   ROOT_SYSTEM_TODO_FILE,
   ROOT_SYSTEM_NOTE_FILE,
@@ -1376,6 +1389,7 @@ module.exports = {
   STORAGE_ASSETS_INLINE_SUBFOLDERS,
   STORAGE_SUBFOLDER_HISTORY,
   STORAGE_SUBFOLDER_COMMENTS,
+  STORAGE_SUBFOLDER_VOLUME,
   HISTORY_VERSION_SUFFIX,
   COMMENT_FILE_SUFFIX,
   STORAGE_SLOT_LAYER_FOLDERS,

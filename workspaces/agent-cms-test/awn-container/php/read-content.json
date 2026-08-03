@@ -6,6 +6,7 @@
     "main/Безопасность/manifest.md",
     "main/Безопасность/SQL Injection.md",
     "main/Безопасность/XSS.md",
+    "main/Веб/HTTP и формы.md",
     "main/Объекты.md",
     "main/Синтаксис/manifest.md",
     "main/Типы данных",
@@ -21,5 +22,5 @@
     "todo/todo.md",
     "topic-index-generated/awn-container/php/awn-storage/index.md"
   ],
-  "updatedAt": "2026-08-02T11:18:31.316Z"
+  "updatedAt": "2026-08-03T19:12:10.333Z"
 }

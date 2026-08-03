@@ -1,0 +1,8 @@
+id: awn.content.category
+name: Категория
+kind: type
+domain: content
+status: active
+extends: awn.base
+description: Папка-категория для группировки контента в любом слоте
+allow-children: true

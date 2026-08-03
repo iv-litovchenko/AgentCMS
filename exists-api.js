@@ -32,6 +32,7 @@ function createExistsApi(deps) {
     resolveApiManifestAbsolute,
     readInternalMemoryContent,
     readTodoContent,
+    readLogContent,
     readTabularMemoryContent,
     resolveExternalFileOpContext,
     resolveStorageFileAbsolute,
@@ -70,6 +71,8 @@ function createExistsApi(deps) {
         payload = await readTabularMemoryContent(relPath);
       } else if (slotKey === "todo-single" || slotKey === "todo") {
         payload = await readTodoContent(relPath);
+      } else if (slotKey === "log-single") {
+        payload = await readLogContent(relPath);
       } else {
         payload = await readInternalMemoryContent(relPath);
       }

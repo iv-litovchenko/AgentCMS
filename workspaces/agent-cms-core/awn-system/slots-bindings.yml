@@ -4,70 +4,84 @@ version: 1
 bindings:
   main:
     path: main/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
   main-single:
     path: main.md
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: [".md"]
   main-single-csv:
     path: main.csv
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: [".csv"]
   inbox:
     path: inbox/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
   note:
     path: notes/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
   references:
     path: references/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
   artefacts:
     path: artefacts/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
   repository:
     path: repository/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
   media:
     path: media/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
   scripts:
     path: scripts/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
   todo-single:
     path: todo.md
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
+    files: [".md"]
+  log-single:
+    path: log.md
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: [".md"]
   todo:
     path: todo.md
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: [".md"]
-  quick-notes:
-    path: quick-notes/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: ["*"]
   assets:
     path: assets/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
   thread:
     path: thread/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
-    files: ["*"]
+    content: [awn.content.dialog, awn.content.record, awn.content.sidecar]
+    files: [".md"]
+  dialogs:
+    path: thread/
+    content: [awn.content.dialog, awn.content.record, awn.content.sidecar]
+    files: [".md"]
   comments:
     path: comments/
-    content: [awn.content.record, awn.content.record.category, awn.content.sidecar]
+    content: [awn.content.comment, awn.content.record, awn.content.sidecar]
+    files: [".md"]
+  history:
+    path: history/
+    content: [awn.content.record, awn.content.sidecar]
     files: ["*"]
+  temp:
+    path: temp/
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
+    files: ["*"]
+  volume:
+    path: volume/
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
+    files: [".md"]
 
 system-only:
-  - history/
-  - temp/
   - preview/

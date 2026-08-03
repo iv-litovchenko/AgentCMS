@@ -26,17 +26,24 @@ const TYPE_ID_ALIASES = {
   "awn.workspace": "awn.page.ws",
   "awn.area": "awn.page.area",
   "awn.topic": "awn.page.topic",
+  // Legacy page ids → section / agent-kit topics
+  "awn.page.area": "awn.page.section",
+  "awn.page.topic.agent": "awn.page.topic.agent-kit.agent",
+  "awn.page.topic.user": "awn.page.topic.agent-kit.user",
+  "awn.page.topic.users": "awn.page.topic.agent-kit.users",
+  "awn.page.topic.rules": "awn.page.topic.agent-kit.rules",
+  "awn.page.topic.voice-tts": "awn.page.topic.agent-kit.voice-tts",
+  "awn.page.topic.voice-sst": "awn.page.topic.agent-kit.voice-sst",
   "awn.record": "awn.content.record",
   "awn.sidecar": "awn.content.sidecar",
-  "awn.record.category": "awn.content.record.category",
-  "awn.media.category": "awn.content.media.category",
+  "awn.record.category": "awn.content.category",
+  "awn.content.record.category": "awn.content.category",
+  "awn.media.category": "awn.content.category",
+  "awn.content.media.category": "awn.content.category",
   "awn.dialog": "awn.content.dialog",
   "awn.comment": "awn.content.comment",
-  "service-doc": "awn.page.service-doc",
-  "catalog": "awn.page.catalog",
-  "taxonomy": "awn.page.taxonomy",
-  "awn.page.catalog": "awn.page.taxonomy",
-  // Taxonomy aliases (awn.taxonomy.* → agent.taxonomy.*)
+  "awn.page.service-doc": "awn.page.topic",
+  // Taxonomy field aliases (awn.taxonomy.* → agent.taxonomy.*)
   "awn.taxonomy.categories": "agent.taxonomy.categories",
   "awn.taxonomy.colors": "agent.taxonomy.colors",
   "awn.taxonomy.priorities": "agent.taxonomy.priorities",
@@ -65,7 +72,10 @@ const TYPE_ID_ALIASES = {
   "awn.null": "awn.field.base",
   // Slot aliases
   "awn.slot.scripts": "awn.slot.script",
-  "awn.slot.todo": "awn.slot.todo-single"
+  "awn.slot.todo": "awn.slot.todo-single",
+  "awn.slot.log": "awn.slot.log-single",
+  "awn.slot.thread": "awn.slot.dialogs",
+  "awn.slot.quick-notes": "awn.slot.note"
 };
 
 function listTypeFiles(typesDir) {

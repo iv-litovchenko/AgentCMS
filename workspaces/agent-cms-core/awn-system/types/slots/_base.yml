@@ -26,3 +26,15 @@ properties:
     title: Принимаемые файлы
     type: list
     description: Расширения файлов, допустимые в слоте (.md, .png…)
+  slot-category:
+    title: Категория
+    description: Группа слота в каталоге (см. awn-system/slot-categories.yml)
+    enum: [memory, files, single-file, records, communication]
+  slot-order:
+    title: Порядок
+    type: integer
+    description: Сортировка внутри категории
+  slot-tier:
+    title: Уровень
+    description: system — служебный слот, управляется runtime
+    enum: [user, system]

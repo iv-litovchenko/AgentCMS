@@ -25,8 +25,12 @@ export function registerTypeListTools({ reg, client }) {
       const model = await client.get("/api/agent/canonical-model");
       return {
         contentTypes: model.slotContentTypes || [],
+        slotCategories: model.slotCategories || [],
+        slotTypesByCategory: model.slotTypesByCategory || [],
         slotTypes: (model.slotTypes || []).map((row) => ({
           id: row.id,
+          name: row.name,
+          slotCategory: row.slotCategory,
           allowedContent: row.allowedContent
         }))
       };

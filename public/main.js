@@ -2475,7 +2475,7 @@ function resolveActivePageSlotFromState() {
 function canonicalContentTypeFromAwnType(awnType) {
   const normalized = normalizeAwnTypeName(awnType);
   if (normalized === "awn.content.record") return "record";
-  if (normalized === "awn.content.record.category") return "record.category";
+  if (normalized === "awn.content.category") return "record.category";
   if (normalized === "awn.content.sidecar") return "sidecar";
   if (normalized.startsWith("awn.page.")) return "page";
   return null;
@@ -35773,7 +35773,7 @@ function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
     typeof TopicSchemaSlotSpecs !== "undefined"
       ? TopicSchemaSlotSpecs.normalizeAwnContentTypeName(typeName)
       : typeName;
-  if (normalized === "awn.content.record.category" || typeName === "awn.media.category") {
+  if (normalized === "awn.content.category" || typeName === "awn.media.category") {
     return resolvedSlotKey === "media" ? "slot_media_category" : "slot_memory_category";
   }
   if (normalized === "awn.content.record" || typeName === "awn.record") {
@@ -35796,7 +35796,7 @@ function resolveAwnSchemaTargetForContext(nodePath = getResolvedNodePath(activeP
     if (bySlot) return bySlot;
   }
   if (typeName === "awn.media.category") return "slot_media_category";
-  if (typeName === "awn.record.category" || typeName === "awn.content.record.category") {
+  if (typeName === "awn.record.category" || typeName === "awn.content.category") {
     return slotKey === "media" ? "slot_media_category" : "slot_memory_category";
   }
   if (slotKey) {
@@ -37486,9 +37486,9 @@ function normalizeAwnTypeName(typeName) {
   const normalized = /^awn\./i.test(raw) ? raw : shortAliases[raw.toLowerCase()] || raw;
   const legacyToCanonical = {
     "awn.record": "awn.content.record",
-    "awn.record.category": "awn.content.record.category",
+    "awn.record.category": "awn.content.category",
     "awn.sidecar": "awn.content.sidecar",
-    "awn.media.category": "awn.content.record.category",
+    "awn.media.category": "awn.content.category",
     "awn.topic": "awn.page.topic",
     "awn.area": "awn.page.area",
     "awn.workspace": "awn.page.ws"
@@ -37575,13 +37575,13 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   const lower = fileName.toLowerCase();
 
   if (lower.endsWith(".sidecar.md")) return normalizeAwnTypeName("awn.content.sidecar");
-  if (isMediaCategoryContentPath(normalized)) return normalizeAwnTypeName("awn.content.record.category");
-  if (isRecordCategoryContentPath(normalized)) return normalizeAwnTypeName("awn.content.record.category");
+  if (isMediaCategoryContentPath(normalized)) return normalizeAwnTypeName("awn.content.category");
+  if (isRecordCategoryContentPath(normalized)) return normalizeAwnTypeName("awn.content.category");
   if (isSectionReadmePath(normalized) && /\/media\//i.test(normalized)) {
-    return normalizeAwnTypeName("awn.content.record.category");
+    return normalizeAwnTypeName("awn.content.category");
   }
   if (isSectionReadmePath(normalized) && /\/content\//i.test(normalized)) {
-    return normalizeAwnTypeName("awn.content.record.category");
+    return normalizeAwnTypeName("awn.content.category");
   }
 
   const flatStorageModes = ["inbox", "note", "references"];
@@ -37589,7 +37589,7 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     flatStorageModes.includes(options.contentMode) ||
     flatStorageModes.some((mode) => new RegExp(`/(?:awn-storage|storage)/${mode}/`, "i").test(normalized));
   if (isFlatStorageContentFile && !isNodeManifestPath(normalized)) {
-    if (isSectionReadmePath(normalized)) return normalizeAwnTypeName("awn.content.record.category");
+    if (isSectionReadmePath(normalized)) return normalizeAwnTypeName("awn.content.category");
     return normalizeAwnTypeName("awn.content.record");
   }
 

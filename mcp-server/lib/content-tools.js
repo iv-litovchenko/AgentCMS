@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-const INTERNAL_SLOTS = new Set(["main-single", "main-single-csv", "todo-single", "todo"]);
+const INTERNAL_SLOTS = new Set(["main-single", "main-single-csv", "todo-single", "todo", "log-single"]);
 
 const contentSlot = z
   .string()
   .min(1)
   .describe(
-    "Storage slot key: main, inbox, notes, references, artefacts, repository, scripts, media, assets, main-single, main-single-csv, todo-single"
+    "Storage slot key: main, inbox, notes, references, artefacts, repository, scripts, media, assets, main-single, main-single-csv, todo-single, log-single"
   );
 
 const contentRef = z
@@ -71,12 +71,14 @@ function mergeMarkdownFrontmatter(properties, description) {
 async function readInternalContent(client, pagePath, slot, file) {
   if (slot === "main-single-csv") return client.get("/api/memory/tabular", { path: pagePath, file });
   if (slot === "todo-single" || slot === "todo") return client.get("/api/todo", { path: pagePath });
+  if (slot === "log-single") return client.get("/api/log", { path: pagePath });
   return client.get("/api/memory/internal", { path: pagePath });
 }
 
 async function writeInternalContent(client, pagePath, slot, content, file) {
   if (slot === "main-single-csv") return client.post("/api/memory/tabular", { path: pagePath, content, file });
   if (slot === "todo-single" || slot === "todo") return client.post("/api/todo", { path: pagePath, content });
+  if (slot === "log-single") return client.post("/api/log", { path: pagePath, content });
   return client.post("/api/memory/internal", { path: pagePath, content });
 }
 
@@ -208,14 +210,14 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "create_content",
-    "Create typed content: awn.content.record or awn.content.record.category. Use awnType awn.content.record.category for sections.",
+    "Create typed content: awn.content.record or awn.content.category. Use awnType awn.content.category for section folders.",
     z.object({
       path: pagePath,
       slot: contentSlot,
       awnType: z
-        .enum(["awn.content.record", "awn.content.record.category"])
+        .enum(["awn.content.record", "awn.content.category"])
         .optional()
-        .describe("Default awn.content.record. Use awn.content.record.category for section folders."),
+        .describe("Default awn.content.record. Use awn.content.category for section folders."),
       title: z.string().optional(),
       displayName: z.string().optional(),
       slug: z.string().optional(),
@@ -232,7 +234,7 @@ export function registerContentTools({ reg, client, pagePath }) {
         throw new Error(`Cannot create_content in internal slot "${slot}". Use write_content_body.`);
       }
       const folder = slotToFolder(slot);
-      const isCategory = awnType === "awn.content.record.category";
+      const isCategory = awnType === "awn.content.category" || awnType === "awn.content.record.category";
       if (isCategory) {
         return client.post("/api/storage/section/create", {
           path,
