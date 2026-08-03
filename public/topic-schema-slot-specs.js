@@ -322,6 +322,7 @@
       const aliases = {
         "awn.record": "awn.content.record",
         "awn.media.category": "awn.content.category",
+        "awn.content.media.category": "awn.content.category",
         "awn.record.category": "awn.content.category",
         "awn.sidecar": "awn.content.sidecar"
       };

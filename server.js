@@ -5348,7 +5348,7 @@ function resolveAwnSchemaTargetForSectionType(awnType, slotKey = null) {
     if (resolved) return resolved;
   }
   // Legacy fallback when slot is unknown
-  if (awnType === "awn.content.media.category" || awnType === "awn.media.category") return "slot_media_category";
+  if (awnType === "awn.media.category") return "slot_media_category";
   if (awnType === "awn.content.category" || awnType === "awn.record.category") return "slot_memory_category";
   return null;
 }

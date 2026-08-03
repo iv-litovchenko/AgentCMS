@@ -39,7 +39,6 @@ const TYPE_ID_ALIASES = {
   "awn.record.category": "awn.content.category",
   "awn.content.record.category": "awn.content.category",
   "awn.media.category": "awn.content.category",
-  "awn.content.media.category": "awn.content.category",
   "awn.dialog": "awn.content.dialog",
   "awn.comment": "awn.content.comment",
   "awn.page.service-doc": "awn.page.topic",

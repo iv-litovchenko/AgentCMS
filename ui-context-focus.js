@@ -8,8 +8,7 @@ const LEGACY_AWN_TYPE_MAP = {
   "awn.record.category": "awn.content.category",
   "awn.content.record.category": "awn.content.category",
   "awn.sidecar": "awn.content.sidecar",
-  "awn.media.category": "awn.content.category",
-  "awn.content.media.category": "awn.content.category"
+  "awn.media.category": "awn.content.category"
 };
 
 function normalizeAwnType(typeName) {

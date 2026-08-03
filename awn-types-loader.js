@@ -268,9 +268,6 @@ function loadAgentTypes(agentRoot, projectRoot) {
   if (types["awn.content.category"] && !types["awn.media.category"]) {
     types["awn.media.category"] = types["awn.content.category"];
   }
-  if (types["awn.content.category"] && !types["awn.content.media.category"]) {
-    types["awn.content.media.category"] = types["awn.content.category"];
-  }
   if (types["awn.content.dialog"] && !types["awn.dialog"]) {
     types["awn.dialog"] = types["awn.content.dialog"];
   }
