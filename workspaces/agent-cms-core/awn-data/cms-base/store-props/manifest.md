@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: cms-base.store-props
 awn-name: Store props
-awn-extends: cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/record-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"

@@ -202,11 +202,15 @@ function findAwnDataRootFromStoreAbs(storeAbs) {
   return "";
 }
 
+function findAgentRootFromStoreAbs(storeAbs) {
+  const dataRoot = findAwnDataRootFromStoreAbs(storeAbs);
+  return dataRoot ? path.dirname(dataRoot) : "";
+}
+
 function normalizeExtendsRef(ref) {
   let normalized = String(ref || "")
     .trim()
     .replace(/\\/g, "/")
-    .replace(/^awn-data\//i, "")
     .replace(/\/store\.yml$/i, "/manifest.md")
     .replace(/(^|\/)_store\.yml$/i, "$1manifest.md")
     .replace(/(^|\/)_store\.md$/i, "$1manifest.md")
@@ -219,20 +223,39 @@ function normalizeExtendsRef(ref) {
     normalized = parts.join("/");
   }
 
-  return normalized.replace(/^\/+/, "");
+  normalized = normalized.replace(/^\/+/, "");
+
+  if (
+    normalized &&
+    !normalized.startsWith(`${AWN_DATA_DIR}/`) &&
+    !normalized.startsWith(".") &&
+    !path.isAbsolute(normalized)
+  ) {
+    normalized = `${AWN_DATA_DIR}/${normalized}`;
+  }
+
+  return normalized;
 }
 
-function resolveExtendsSchemaAbs(storeAbs, extendsRef, dataRoot = "") {
+function resolveExtendsSchemaAbs(storeAbs, extendsRef, agentRoot = "") {
   const ref = normalizeExtendsRef(extendsRef);
   if (!ref) return "";
-  const root = dataRoot || findAwnDataRootFromStoreAbs(storeAbs);
+  const projectRoot = agentRoot || findAgentRootFromStoreAbs(storeAbs);
+  const dataRoot = findAwnDataRootFromStoreAbs(storeAbs);
   const candidates = [];
 
-  if (!ref.startsWith(".") && !path.isAbsolute(ref) && root) {
+  if (!ref.startsWith(".") && projectRoot) {
     if (ref.endsWith(".md") || ref.endsWith(".yml")) {
-      candidates.push(path.join(root, ref));
+      candidates.push(path.join(projectRoot, ref));
     } else {
-      candidates.push(path.join(root, `${ref}.md`), path.join(root, `${ref}.yml`));
+      candidates.push(path.join(projectRoot, `${ref}.md`), path.join(projectRoot, `${ref}.yml`));
+    }
+  }
+
+  if (dataRoot && ref.startsWith(`${AWN_DATA_DIR}/`)) {
+    const withinData = ref.slice(`${AWN_DATA_DIR}/`.length);
+    if (withinData.endsWith(".md") || withinData.endsWith(".yml")) {
+      candidates.push(path.join(dataRoot, withinData));
     }
   }
 
@@ -429,14 +452,14 @@ function loadMergedStoreSchema(storeAbs, dataRoot = "") {
   const leaf = readRawStoreSchemaAt(storeAbs);
   if (!leaf) return null;
 
-  const root = dataRoot || findAwnDataRootFromStoreAbs(storeAbs);
+  const agentRoot = dataRoot ? path.dirname(dataRoot) : findAgentRootFromStoreAbs(storeAbs);
   const chain = [leaf];
   let dir = storeAbs;
   let extendsRef = leaf.schema.extends;
   const visited = new Set([leaf.schemaPath]);
 
   while (extendsRef) {
-    const parentPath = resolveExtendsSchemaAbs(dir, extendsRef, root);
+    const parentPath = resolveExtendsSchemaAbs(dir, extendsRef, agentRoot);
     if (!parentPath || visited.has(parentPath)) break;
     visited.add(parentPath);
     const parent = readRawStoreSchemaAt(path.dirname(parentPath), parentPath);
@@ -1036,7 +1059,7 @@ function buildCollectionManifestBody({ name, description }) {
 }
 
 function recordBaseExtendsPath() {
-  return `${RECORD_BASE_REL}/manifest.md`;
+  return `${AWN_DATA_DIR}/${RECORD_BASE_REL}/manifest.md`;
 }
 
 function buildCollectionSchemaContent({ slug, name, description, hierarchy = true }) {

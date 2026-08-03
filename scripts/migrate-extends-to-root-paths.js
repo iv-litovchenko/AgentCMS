@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Normalize awn-extends in store manifest.md to root-relative paths (from awn-data/).
+ * Normalize awn-extends to project-root paths: awn-data/.../manifest.md
  */
 const fs = require("fs");
 const path = require("path");
@@ -8,7 +8,7 @@ const { parseTypeYaml } = require("../awn-yaml-utils");
 const { normalizeExtendsRef } = require("../awn-data-loader");
 
 const ROOT = path.join(__dirname, "../workspaces/agent-cms-core/awn-data");
-const RECORD_BASE = "cms-base/record-base/manifest.md";
+const RECORD_BASE = "awn-data/cms-base/record-base/manifest.md";
 
 function walk(dir, acc = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -21,12 +21,7 @@ function walk(dir, acc = []) {
 }
 
 function normalizeExtendsValue(value) {
-  const ref = normalizeExtendsRef(String(value || "").trim());
-  if (!ref) return ref;
-  if (ref.endsWith("record-base/manifest.md") || ref === "record-base/manifest.md") {
-    return RECORD_BASE;
-  }
-  return ref;
+  return normalizeExtendsRef(String(value || "").trim());
 }
 
 function patchManifest(filePath) {
@@ -58,10 +53,11 @@ function main() {
   for (const filePath of walk(ROOT)) {
     if (patchManifest(filePath)) {
       updated += 1;
-      console.log("updated", path.relative(ROOT, filePath), "→", normalizeExtendsValue(parseTypeYaml(fs.readFileSync(filePath, "utf-8").match(/^---\r?\n([\s\S]*?)\r?\n---/)[1])["awn-extends"]));
+      const fm = parseTypeYaml(fs.readFileSync(filePath, "utf-8").match(/^---\r?\n([\s\S]*?)\r?\n---/)[1]);
+      console.log("updated", path.relative(ROOT, filePath), "→", fm["awn-extends"] || fm.extends);
     }
   }
-  console.log(`Done: ${updated} manifests`);
+  console.log(`Done: ${updated} manifests (target: ${RECORD_BASE})`);
 }
 
 main();

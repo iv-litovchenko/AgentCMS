@@ -2,7 +2,7 @@
 awn-type: awn.data.single
 awn-id: editing-fields.field-def
 awn-name: Мета-схема поля
-awn-extends: cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/record-base/manifest.md
 awn-record:
   storage: md
   file: main.md
@@ -25,7 +25,7 @@ awn-fields:
     type: awn.string
     title: ID типа
     default: awn.field.base
-awn-extends: cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/record-base/manifest.md
     type: awn.string
     title: Extends
     default: awn.entity

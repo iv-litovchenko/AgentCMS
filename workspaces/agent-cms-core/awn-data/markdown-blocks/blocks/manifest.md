@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: markdown-blocks.blocks
 awn-name: MD-Блоки
-awn-extends: cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/record-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"
@@ -59,7 +59,7 @@ awn-fields:
   awn-renderer:
     type: awn.string
     title: JS-рендер
-awn-extends: cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/record-base/manifest.md
     type: awn.string
     title: Extends
     default: awn.block.base

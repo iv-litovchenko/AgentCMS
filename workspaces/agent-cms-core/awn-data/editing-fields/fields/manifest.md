@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: editing-fields.fields
 awn-name: Поля
-awn-extends: cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/record-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"
@@ -48,7 +48,7 @@ awn-fields:
   awn-format:
     type: awn.string
     title: Формат
-awn-extends: cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/record-base/manifest.md
     type: awn.string
     title: Extends
     default: awn.field.base

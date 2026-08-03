@@ -2,7 +2,7 @@
 awn-type: awn.data.single
 awn-id: settings-global
 awn-name: Глобальные настройки
-awn-extends: cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/record-base/manifest.md
 awn-record:
   file: main.md
 awn-fields:
