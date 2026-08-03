@@ -3486,30 +3486,56 @@
         </header>
         <div class="awn-data-view-page-body">
           <div class="awn-data-view-manifest hidden"></div>
-          <details class="awn-data-view-schema-panel hidden">
-            <summary class="awn-data-view-schema-summary">
-              <span class="awn-data-view-schema-summary-label">Схема накопителя</span>
-              <code class="awn-data-view-schema-file">store.yml</code>
-            </summary>
-            <div class="awn-data-view-schema-body">
-              <div class="awn-data-view-schema-head">
-                <div class="awn-data-view-schema-actions">
-                  <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="edit-store">
-                    Редактировать store.yml
-                  </button>
-                  <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="open-store">
-                    Открыть файл
-                  </button>
-                  <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="edit-manifest">
-                    manifest.md
-                  </button>
+          <section class="awn-data-view-schema-panel hidden" aria-label="Схема накопителя">
+            <div class="awn-data-view-schema-settings">
+              <div class="awn-data-view-schema-block">
+                <div class="awn-data-view-schema-block-head">
+                  <div class="awn-data-view-schema-block-title-wrap">
+                    <h2 class="awn-data-view-schema-section-title">Настройки накопителя</h2>
+                    <code class="awn-data-view-schema-file">store.yml</code>
+                  </div>
+                  <div class="awn-data-view-schema-actions">
+                    <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="edit-store">
+                      Редактировать
+                    </button>
+                    <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="open-store">
+                      Открыть файл
+                    </button>
+                    <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="edit-manifest">
+                      manifest.md
+                    </button>
+                  </div>
+                </div>
+                <div class="awn-data-view-schema-read">
+                  <p class="awn-data-view-schema-hint"></p>
+                  <dl class="awn-data-view-schema-meta"></dl>
+                </div>
+                <div class="awn-data-view-schema-edit hidden">
+                  <textarea
+                    class="awn-data-view-schema-textarea"
+                    spellcheck="false"
+                    autocomplete="off"
+                    aria-label="store.yml"
+                  ></textarea>
+                  <div class="awn-data-view-schema-edit-actions">
+                    <button type="button" class="awn-data-view-schema-btn is-primary" data-awn-data-action="save-schema">
+                      Сохранить
+                    </button>
+                    <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="cancel-schema">
+                      Отмена
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div class="awn-data-view-schema-read">
-                <p class="awn-data-view-schema-hint"></p>
-                <div class="awn-data-view-schema-meta"></div>
+            </div>
+            <div class="awn-data-view-schema-fields-section hidden">
+              <div class="awn-data-view-schema-block">
+                <div class="awn-data-view-schema-block-head">
+                  <h2 class="awn-data-view-schema-section-title">Поля записей</h2>
+                  <span class="awn-data-view-schema-fields-count" aria-live="polite"></span>
+                </div>
+                <p class="awn-data-view-schema-fields-hint"></p>
                 <div class="awn-data-view-schema-fields-wrap hidden">
-                  <div class="awn-data-view-schema-fields-label">Поля записей</div>
                   <div class="awn-data-view-schema-table-wrap">
                     <table class="awn-data-view-schema-table">
                       <thead>
@@ -3526,24 +3552,8 @@
                   </div>
                 </div>
               </div>
-              <div class="awn-data-view-schema-edit hidden">
-                <textarea
-                  class="awn-data-view-schema-textarea"
-                  spellcheck="false"
-                  autocomplete="off"
-                  aria-label="store.yml"
-                ></textarea>
-                <div class="awn-data-view-schema-edit-actions">
-                  <button type="button" class="awn-data-view-schema-btn is-primary" data-awn-data-action="save-schema">
-                    Сохранить
-                  </button>
-                  <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="cancel-schema">
-                    Отмена
-                  </button>
-                </div>
-              </div>
             </div>
-          </details>
+          </section>
           <div class="awn-data-view-section-panel hidden">
             <div class="awn-data-view-section-label">Разделы</div>
             <div class="awn-data-view-section-tree" role="tree"></div>
@@ -3560,8 +3570,8 @@
             <span class="awn-data-view-count" aria-live="polite"></span>
             </div>
             <div class="awn-data-view-layout-toggle" role="group" aria-label="Вид списка записей">
-              <button type="button" class="awn-data-view-layout-btn is-active" data-awn-data-layout="table" title="Горизонтально — таблица" aria-label="Горизонтально — таблица">☰</button>
-              <button type="button" class="awn-data-view-layout-btn" data-awn-data-layout="cards" title="Вертикально — карточки" aria-label="Вертикально — карточки">▦</button>
+              <button type="button" class="awn-data-view-layout-btn is-active" data-awn-data-layout="table" title="Список — запись в строке" aria-label="Список — запись в строке">☰</button>
+              <button type="button" class="awn-data-view-layout-btn" data-awn-data-layout="cards" title="Вертикально — поля строками" aria-label="Вертикально — поля строками">▦</button>
             </div>
           </div>
           <div class="awn-data-view-store-panel">

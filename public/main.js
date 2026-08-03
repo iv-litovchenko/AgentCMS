@@ -60,9 +60,12 @@ let awnDataViewSchemaReadNode = null;
 let awnDataViewSchemaEditNode = null;
 let awnDataViewSchemaTextareaNode = null;
 let awnDataViewSchemaHintNode = null;
+let awnDataViewSchemaFieldsHintNode = null;
+let awnDataViewSchemaFieldsSectionNode = null;
 let awnDataViewSchemaMetaNode = null;
 let awnDataViewSchemaFieldsWrapNode = null;
 let awnDataViewSchemaTbodyNode = null;
+let awnDataViewSchemaFieldsCountNode = null;
 let awnDataViewEditStoreBtn = null;
 let awnDataViewRecordsNode = null;
 let awnDataViewSearchInputNode = null;
@@ -81540,6 +81543,78 @@ function formatAwnDataSchemaDefault(field) {
   return String(field.default);
 }
 
+const AWN_DATA_SCHEMA_META_LABELS = {
+  kind: "Тип",
+  id: "ID",
+  name: "Название",
+  extends: "Наследует",
+  description: "Описание",
+  "record.id-mode": "ID записи",
+  "record.file": "Шаблон файла",
+  "файл записи": "Файл записи",
+  хранилище: "Хранилище"
+};
+
+function formatAwnDataSchemaMetaLabel(key) {
+  return AWN_DATA_SCHEMA_META_LABELS[key] || key;
+}
+
+function formatAwnDataSchemaFieldsCount(count) {
+  const n = Number(count) || 0;
+  if (n <= 0) return "";
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  let word = "полей";
+  if (mod100 < 11 || mod100 > 14) {
+    if (mod10 === 1) word = "поле";
+    else if (mod10 >= 2 && mod10 <= 4) word = "поля";
+  }
+  return `${n} ${word}`;
+}
+
+function createAwnDataSchemaKindBadge(kind, viewStore) {
+  const badge = document.createElement("span");
+  badge.className = "awn-data-view-kind-badge";
+  const isSingleton = kind === "singleton";
+  const isGroup = kind === "group";
+  const recordStorage = viewStore ? resolveAwnDataRecordStorage(viewStore) : "md";
+  let kindLabel = isGroup ? "Группа" : isSingleton ? "Одиночка" : "Коллекция";
+  if (!isGroup) {
+    kindLabel = `${kindLabel} · ${recordStorage.toUpperCase()}`;
+  }
+  badge.textContent = kindLabel;
+  badge.classList.toggle("is-singleton", isSingleton);
+  badge.classList.toggle("is-collection", !isSingleton && !isGroup);
+  badge.classList.toggle("is-group", isGroup);
+  badge.classList.toggle("is-storage-csv", !isGroup && recordStorage === "csv");
+  badge.classList.toggle("is-storage-md", !isGroup && recordStorage === "md");
+  return badge;
+}
+
+function createAwnDataSchemaMetaValueNode(key, value, { kind, viewStore } = {}) {
+  if (key === "kind") {
+    return createAwnDataSchemaKindBadge(String(value || kind || "collection"), viewStore);
+  }
+  const valueNode = document.createElement("dd");
+  valueNode.className = "awn-data-view-schema-meta-value";
+  if (key === "extends" || key === "record.file" || key === "файл записи" || key === "хранилище") {
+    const code = document.createElement("code");
+    code.textContent = String(value ?? "—");
+    valueNode.appendChild(code);
+  } else if (key === "description") {
+    valueNode.classList.add("is-description");
+    valueNode.textContent = String(value ?? "—");
+  } else if (key === "id") {
+    const code = document.createElement("code");
+    code.className = "awn-data-view-schema-meta-id";
+    code.textContent = String(value ?? "—");
+    valueNode.appendChild(code);
+  } else {
+    valueNode.textContent = String(value ?? "—");
+  }
+  return valueNode;
+}
+
 function syncAwnDataViewDomRefs(root) {
   awnDataViewRoot = root || null;
   if (!root) {
@@ -81552,9 +81627,12 @@ function syncAwnDataViewDomRefs(root) {
     awnDataViewSchemaEditNode = null;
     awnDataViewSchemaTextareaNode = null;
     awnDataViewSchemaHintNode = null;
+    awnDataViewSchemaFieldsHintNode = null;
+    awnDataViewSchemaFieldsSectionNode = null;
     awnDataViewSchemaMetaNode = null;
     awnDataViewSchemaFieldsWrapNode = null;
     awnDataViewSchemaTbodyNode = null;
+    awnDataViewSchemaFieldsCountNode = null;
     awnDataViewEditStoreBtn = null;
     awnDataViewRecordsNode = null;
     awnDataViewSearchInputNode = null;
@@ -81582,9 +81660,12 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewSchemaEditNode = root.querySelector(".awn-data-view-schema-edit");
   awnDataViewSchemaTextareaNode = root.querySelector(".awn-data-view-schema-textarea");
   awnDataViewSchemaHintNode = root.querySelector(".awn-data-view-schema-hint");
+  awnDataViewSchemaFieldsHintNode = root.querySelector(".awn-data-view-schema-fields-hint");
+  awnDataViewSchemaFieldsSectionNode = root.querySelector(".awn-data-view-schema-fields-section");
   awnDataViewSchemaMetaNode = root.querySelector(".awn-data-view-schema-meta");
   awnDataViewSchemaFieldsWrapNode = root.querySelector(".awn-data-view-schema-fields-wrap");
   awnDataViewSchemaTbodyNode = root.querySelector(".awn-data-view-schema-tbody");
+  awnDataViewSchemaFieldsCountNode = root.querySelector(".awn-data-view-schema-fields-count");
   awnDataViewEditStoreBtn = root.querySelector('[data-awn-data-action="edit-store"]');
   awnDataViewRecordsNode = root.querySelector(".awn-data-view-records");
   awnDataViewSearchInputNode = root.querySelector(".awn-data-view-search-input");
@@ -81970,9 +82051,12 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
     setAwnDataViewSchemaEditMode(false);
     awnDataViewSchemaWrapNode.classList.add("hidden");
     awnDataViewSchemaHintNode && (awnDataViewSchemaHintNode.textContent = "");
+    awnDataViewSchemaFieldsHintNode && (awnDataViewSchemaFieldsHintNode.textContent = "");
+    awnDataViewSchemaFieldsSectionNode?.classList.add("hidden");
     awnDataViewSchemaMetaNode?.replaceChildren();
     awnDataViewSchemaFieldsWrapNode?.classList.add("hidden");
     awnDataViewSchemaTbodyNode?.replaceChildren();
+    if (awnDataViewSchemaFieldsCountNode) awnDataViewSchemaFieldsCountNode.textContent = "";
     return;
   }
 
@@ -81989,10 +82073,23 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
       awnDataViewSchemaHintNode.textContent =
         "Группа — контейнер для дочерних накопителей. Поля записей задаются в store.yml каждой коллекции внутри группы.";
     } else {
-      awnDataViewSchemaHintNode.textContent =
+      awnDataViewSchemaHintNode.textContent = "";
+    }
+    awnDataViewSchemaHintNode.classList.toggle("hidden", !isGroup);
+  }
+
+  if (awnDataViewSchemaFieldsHintNode) {
+    if (isGroup) {
+      awnDataViewSchemaFieldsHintNode.textContent = "";
+      awnDataViewSchemaFieldsHintNode.classList.add("hidden");
+    } else {
+      awnDataViewSchemaFieldsHintNode.textContent =
         "Эти поля описывают frontmatter каждой записи (.md). Базовые id, created, updated наследуются из awn-data/_base/store.yml.";
+      awnDataViewSchemaFieldsHintNode.classList.remove("hidden");
     }
   }
+
+  awnDataViewSchemaFieldsSectionNode?.classList.toggle("hidden", isGroup);
 
   if (awnDataViewSchemaMetaNode) {
     awnDataViewSchemaMetaNode.replaceChildren();
@@ -82019,21 +82116,24 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
     }
 
     for (const [label, value] of metaItems) {
-      const row = document.createElement("div");
-      row.className = "awn-data-view-schema-meta-row";
-      const labelNode = document.createElement("span");
-      labelNode.className = "awn-data-view-schema-meta-label";
-      labelNode.textContent = label;
-      const valueNode = document.createElement("code");
-      valueNode.className = "awn-data-view-schema-meta-value";
-      valueNode.textContent = String(value ?? "—");
-      row.append(labelNode, valueNode);
-      awnDataViewSchemaMetaNode.appendChild(row);
+      const term = document.createElement("dt");
+      term.className = "awn-data-view-schema-meta-label";
+      term.textContent = formatAwnDataSchemaMetaLabel(label);
+      const definition = createAwnDataSchemaMetaValueNode(label, value, { kind, viewStore });
+      awnDataViewSchemaMetaNode.append(term, definition);
     }
   }
 
   const schemaFields = schema.fields && typeof schema.fields === "object" ? schema.fields : {};
   const fieldKeys = Object.keys(schemaFields);
+
+  if (awnDataViewSchemaFieldsCountNode) {
+    if (isGroup || !fieldKeys.length) {
+      awnDataViewSchemaFieldsCountNode.textContent = "";
+    } else {
+      awnDataViewSchemaFieldsCountNode.textContent = formatAwnDataSchemaFieldsCount(fieldKeys.length);
+    }
+  }
 
   if (awnDataViewSchemaFieldsWrapNode && awnDataViewSchemaTbodyNode) {
     awnDataViewSchemaTbodyNode.replaceChildren();
@@ -82045,16 +82145,16 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
         const field = schemaFields[key] || {};
         const row = document.createElement("tr");
         const cells = [
-          key,
-          String(field.title || key).trim() || key,
-          formatAwnDataSchemaFieldType(field),
-          field.required ? "да" : "—",
-          formatAwnDataSchemaDefault(field)
+          { text: key, className: "awn-data-view-schema-key" },
+          { text: String(field.title || key).trim() || key },
+          { text: formatAwnDataSchemaFieldType(field), className: "awn-data-view-schema-type" },
+          { text: field.required ? "да" : "—", className: field.required ? "is-required" : "is-optional" },
+          { text: formatAwnDataSchemaDefault(field), className: "awn-data-view-schema-default" }
         ];
-        for (const [index, text] of cells.entries()) {
+        for (const cellSpec of cells) {
           const cell = document.createElement("td");
-          if (index === 0) cell.className = "awn-data-view-schema-key";
-          cell.textContent = text;
+          if (cellSpec.className) cell.className = cellSpec.className;
+          cell.textContent = cellSpec.text;
           row.appendChild(cell);
         }
         awnDataViewSchemaTbodyNode.appendChild(row);
@@ -82084,12 +82184,7 @@ function setAwnDataViewSchemaEditMode(enabled) {
   awnDataViewSchemaReadNode?.classList.toggle("hidden", awnDataViewSchemaEditing);
   awnDataViewSchemaEditNode?.classList.toggle("hidden", !awnDataViewSchemaEditing);
   if (awnDataViewEditStoreBtn) {
-    awnDataViewEditStoreBtn.textContent = awnDataViewSchemaEditing
-      ? "Только просмотр"
-      : "Редактировать store.yml";
-  }
-  if (awnDataViewSchemaEditing && awnDataViewSchemaWrapNode instanceof HTMLDetailsElement) {
-    awnDataViewSchemaWrapNode.open = true;
+    awnDataViewEditStoreBtn.textContent = awnDataViewSchemaEditing ? "Только просмотр" : "Редактировать";
   }
 }
 
@@ -82580,6 +82675,130 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
   }
 }
 
+function wireAwnDataViewRecordOpen(rowOrCell, record, viewStore) {
+  rowOrCell.title = record.relPath || record.id || "";
+  rowOrCell.tabIndex = 0;
+  rowOrCell.setAttribute("role", "link");
+  const open = () => {
+    void openAwnDataRecordViewPage(
+      viewStore.relPath,
+      record.id,
+      awnDataViewCatalogAgentId || activeAgentId
+    );
+  };
+  rowOrCell.addEventListener("click", (event) => {
+    if (event.target.closest(".awn-data-view-edit-btn")) return;
+    void open();
+  });
+  rowOrCell.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.target.closest(".awn-data-view-edit-btn")) return;
+    event.preventDefault();
+    void open();
+  });
+}
+
+function renderAwnDataViewTransposedRecords(records, viewStore, columns) {
+  const table = document.createElement("table");
+  table.className = "awn-data-view-table awn-data-view-table--transposed";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+
+  const cornerHead = document.createElement("th");
+  cornerHead.scope = "col";
+  cornerHead.className = "awn-data-view-transposed-corner";
+  cornerHead.textContent = "Поле";
+  headRow.appendChild(cornerHead);
+
+  for (const record of records) {
+    const th = document.createElement("th");
+    th.scope = "col";
+    th.className = "awn-data-view-transposed-record-head";
+    if (isAwnDataSystemRecord(record)) th.classList.add("is-system");
+    const idLabel = formatAwnDataViewCellValue(record, { kind: "id", key: "__id__" });
+    const titleLabel = formatAwnDataViewCellValue(record, { key: "title" });
+    th.textContent = titleLabel !== "—" && titleLabel !== idLabel ? `${titleLabel} · ${idLabel}` : idLabel;
+    th.title = record.relPath || idLabel;
+    wireAwnDataViewRecordOpen(th, record, viewStore);
+    headRow.appendChild(th);
+  }
+
+  const actionsHead = document.createElement("th");
+  actionsHead.scope = "col";
+  actionsHead.className = "awn-data-view-transposed-actions-head";
+  actionsHead.setAttribute("aria-label", "Действия");
+  headRow.appendChild(actionsHead);
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  const isCsvStore = resolveAwnDataRecordStorage(viewStore) === "csv";
+
+  for (const column of columns) {
+    const row = document.createElement("tr");
+    row.className = "awn-data-view-transposed-field-row";
+
+    const labelCell = document.createElement("th");
+    labelCell.scope = "row";
+    labelCell.className = "awn-data-view-transposed-field-label";
+    labelCell.textContent = column.label;
+    row.appendChild(labelCell);
+
+    for (const record of records) {
+      const cell = document.createElement("td");
+      const value = formatAwnDataViewCellValue(record, column);
+      cell.className = "awn-data-view-transposed-field-value";
+      if (column.kind === "id") cell.classList.add("awn-data-view-record-id");
+      cell.textContent = value;
+      if (value !== "—") cell.title = value;
+      if (isAwnDataSystemRecord(record)) cell.classList.add("is-system");
+      wireAwnDataViewRecordOpen(cell, record, viewStore);
+      row.appendChild(cell);
+    }
+
+    const actionsCell = document.createElement("td");
+    actionsCell.className = "awn-data-view-transposed-actions-spacer";
+    actionsCell.setAttribute("aria-hidden", "true");
+    row.appendChild(actionsCell);
+    tbody.appendChild(row);
+  }
+
+  const actionsRow = document.createElement("tr");
+  actionsRow.className = "awn-data-view-transposed-actions-row";
+  const actionsLabel = document.createElement("th");
+  actionsLabel.scope = "row";
+  actionsLabel.className = "awn-data-view-transposed-field-label";
+  actionsLabel.textContent = "Действия";
+  actionsRow.appendChild(actionsLabel);
+
+  for (const record of records) {
+    const cell = document.createElement("td");
+    cell.className = "awn-data-view-record-actions";
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "awn-data-view-edit-btn";
+    editBtn.title = isCsvStore ? "Открыть main.csv" : "Редактировать";
+    editBtn.setAttribute("aria-label", editBtn.title);
+    editBtn.append(createOverviewEditManifestIcon());
+    editBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      void openAwnDataRecordEditor(record, viewStore);
+    });
+    cell.appendChild(editBtn);
+    actionsRow.appendChild(cell);
+  }
+
+  const actionsTail = document.createElement("td");
+  actionsTail.className = "awn-data-view-transposed-actions-spacer";
+  actionsTail.setAttribute("aria-hidden", "true");
+  actionsRow.appendChild(actionsTail);
+  tbody.appendChild(actionsRow);
+
+  table.appendChild(tbody);
+  return table;
+}
+
 function renderAwnDataViewRecords(store) {
   if (!awnDataViewRecordsNode) return;
   awnDataViewRecordsNode.replaceChildren();
@@ -82617,12 +82836,7 @@ function renderAwnDataViewRecords(store) {
   const columns = getAwnDataViewColumns(viewStore);
 
   if (awnDataViewRecordsLayout === "cards") {
-    const list = document.createElement("div");
-    list.className = "awn-data-view-cards";
-    for (const record of records) {
-      list.appendChild(createAwnDataViewRecordCard(record, viewStore, columns));
-    }
-    awnDataViewRecordsNode.appendChild(list);
+    awnDataViewRecordsNode.appendChild(renderAwnDataViewTransposedRecords(records, viewStore, columns));
     return;
   }
 
