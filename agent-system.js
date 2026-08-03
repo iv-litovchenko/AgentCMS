@@ -46,7 +46,27 @@ function normalizeAgentSystemRelPath(relPath) {
     /^awn-data\/(pages|content|slots|base|mixins|settings)\/types\//,
     "awn-data/$1/"
   );
+  normalized = normalized.replace(/^awn-data\/base\//, "awn-data/cms-base/entities/");
+  normalized = normalized.replace(/^awn-data\/mixins\//, "awn-data/cms-base/mixins/");
   return normalized;
+}
+
+function isAwnDataStoreContractPath(normalized) {
+  return /^awn-data\/.+\/manifest\.store\.md$/i.test(normalized);
+}
+
+function isAwnDataTypeRecordPath(normalized) {
+  if (!normalized.startsWith(`${AWN_DATA_REL}/`) || !/\.md$/i.test(normalized)) return false;
+  if (isAwnDataStoreContractPath(normalized)) return false;
+  const prefixes = [
+    "awn-data/pages/",
+    "awn-data/content/",
+    "awn-data/slots/",
+    "awn-data/settings/",
+    "awn-data/cms-base/entities/",
+    "awn-data/cms-base/mixins/"
+  ];
+  return prefixes.some((prefix) => normalized.startsWith(prefix));
 }
 
 function isAgentSystemRelPath(relPath) {
@@ -54,8 +74,8 @@ function isAgentSystemRelPath(relPath) {
   return (
     normalized === CMS_CONFIG_REL ||
     normalized.startsWith(`${CMS_CONFIG_REL}/`) ||
-    (normalized.startsWith(`${AWN_DATA_REL}/`) &&
-      /^awn-data\/(pages|content|slots|base|mixins|settings)\/.+\.md$/i.test(normalized))
+    isAwnDataStoreContractPath(normalized) ||
+    isAwnDataTypeRecordPath(normalized)
   );
 }
 
@@ -165,7 +185,7 @@ async function writeAgentSystemFile(agentRoot, relPath, content) {
   const ext = path.extname(absolute).toLowerCase();
   const allowed = [".yml", ".yaml", ".md", ".json"];
   if (!allowed.includes(ext)) {
-    throw new Error("Only .yml, .yaml, .md and .json files are editable in cms-config/types stores");
+    throw new Error("Only .yml, .yaml, .md and .json files are editable in cms-base/types stores");
   }
   await fs.promises.mkdir(path.dirname(absolute), { recursive: true });
   const normalized = String(content ?? "");

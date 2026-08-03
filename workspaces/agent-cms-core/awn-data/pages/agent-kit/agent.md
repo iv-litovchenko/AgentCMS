@@ -1,13 +1,13 @@
 ---
-id: agent
-created: "2026-08-03T20:03:50.510Z"
-updated: "2026-08-03T20:03:50.510Z"
-typeId: awn.page.topic.agent-kit.agent
-title: "Агент"
-kind: type
-domain: pages
-status: active
-extends: awn.page.topic
+awn-id: agent
+awn-created: "2026-08-03T20:03:50.510Z"
+awn-updated: "2026-08-03T20:03:50.510Z"
+awn-typeId: awn.page.topic.agent-kit.agent
+awn-title: Агент
+awn-kind: type
+awn-domain: pages
+awn-status: active
+awn-extends: awn.page.topic
 ---
 description: "Описание агента — персона, роль, цели, ограничения"
 storage-slots:

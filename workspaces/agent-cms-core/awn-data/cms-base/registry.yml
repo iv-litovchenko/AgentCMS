@@ -1,0 +1,31 @@
+version: 1
+mode: agent-owned
+agent: agent-cms-test
+description: CMS-модель агента — типы, слоты, поля. Runtime читает awn-data/{pages,content,slots}/types/
+
+# domains — источник правды по доменам («какие бывают компоненты»).
+# Встроенные домены известны рантайму по умолчанию. Здесь можно:
+#   • переопределить их label/kind;
+#   • ДОБАВИТЬ новый домен-«пакет» — заведи awn-data/<domain>/types/ и запись ниже.
+# Формат записи: строка "id" ИЛИ объект:
+#   - id: settings
+#     label: Настройки
+#     kind: type
+#     icon: "⚙"
+domains:
+  - base
+  - content
+  - fields
+  - pages
+  - slots
+  - mixins
+  - id: settings
+    label: Настройки
+    kind: type
+    icon: "⚙"
+docs:
+  map: awn-data/cms-base/MAP.md
+  agents: AGENTS.md
+
+canonical-types: migrated
+migration-date: "2026-08-03"

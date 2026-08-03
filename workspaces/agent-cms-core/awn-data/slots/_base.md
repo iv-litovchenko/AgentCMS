@@ -1,13 +1,13 @@
 ---
-id: _base
-created: "2026-08-03T20:03:50.542Z"
-updated: "2026-08-03T20:03:50.542Z"
-typeId: awn.slot
-title: "Слот памяти"
-kind: slot
-domain: slots
-status: active
-extends: awn.entity
+awn-id: _base
+awn-created: "2026-08-03T20:03:50.542Z"
+awn-updated: "2026-08-03T20:03:50.542Z"
+awn-typeId: awn.slot
+awn-title: Слот памяти
+awn-kind: slot
+awn-domain: slots
+awn-status: active
+awn-extends: awn.entity
 ---
 description: Базовый тип слоя памяти у топика
 properties:

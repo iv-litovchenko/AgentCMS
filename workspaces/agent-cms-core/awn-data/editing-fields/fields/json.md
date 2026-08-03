@@ -1,17 +1,17 @@
 ---
-id: json
-created: "2026-08-03T00:00:00.000Z"
-updated: "2026-08-03T00:00:00.000Z"
-title: JSON
-fieldId: awn.field.json
-group: structure
-sort: 1
-widget: json
-storage: string
-mdbase: text
-extends: awn.field.base
-settings: hint, required, locked, default
-status: active
+awn-id: json
+awn-created: "2026-08-03T00:00:00.000Z"
+awn-updated: "2026-08-03T00:00:00.000Z"
+awn-title: JSON
+awn-fieldId: awn.field.json
+awn-group: structure
+awn-sort: 1
+awn-widget: json
+awn-storage: string
+awn-mdbase: text
+awn-extends: awn.field.base
+awn-settings: hint, required, locked, default
+awn-status: active
 ---
 
 Структурированные данные в формате JSON (редактор с подсветкой)

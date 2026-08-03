@@ -1,13 +1,13 @@
 ---
-id: _base
-created: "2026-08-03T20:03:50.508Z"
-updated: "2026-08-03T20:03:50.508Z"
-typeId: awn.page.base
-title: "База страницы"
-kind: base
-domain: pages
-status: active
-extends: awn.base
+awn-id: _base
+awn-created: "2026-08-03T20:03:50.508Z"
+awn-updated: "2026-08-03T20:03:50.508Z"
+awn-typeId: awn.page.base
+awn-title: База страницы
+awn-kind: base
+awn-domain: pages
+awn-status: active
+awn-extends: awn.base
 ---
 description: Узел дерева (ws/section/topic) — база awn.base плюс навигация и runtime
 mixins:

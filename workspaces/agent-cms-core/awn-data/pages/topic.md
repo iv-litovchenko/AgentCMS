@@ -1,13 +1,13 @@
 ---
-id: topic
-created: "2026-08-03T20:03:50.533Z"
-updated: "2026-08-03T20:03:50.533Z"
-typeId: awn.page.topic
-title: "Тема"
-kind: type
-domain: pages
-status: active
-extends: awn.page.base
+awn-id: topic
+awn-created: "2026-08-03T20:03:50.533Z"
+awn-updated: "2026-08-03T20:03:50.533Z"
+awn-typeId: awn.page.topic
+awn-title: Тема
+awn-kind: type
+awn-domain: pages
+awn-status: active
+awn-extends: awn.page.base
 ---
 description: Тема — manifest.md + слоты памяти
 storage-slots:

@@ -1,22 +1,25 @@
 #!/usr/bin/env node
 /**
  * Copy platform CMS model from agent-cms-core/awn-data into {agent}/awn-data/
- * (type stores + cms-config). Agent-specific extras are already in platform core.
+ * (type stores + cms-base). Agent-specific extras are already in platform core.
  *
  *   node scripts/bootstrap-agent-awn-system.js agent-cms-test
  */
 const fs = require("fs");
 const path = require("path");
-const { getAgentCmsCoreAbsolute, CMS_CONFIG_REL, AWN_DATA_REL } = require("../platform-sources");
-const { DOMAIN_TYPE_STORES } = require("../awn-data-types-bridge");
+const { getAgentCmsCoreAbsolute, CMS_BASE_REL, AWN_DATA_REL } = require("../platform-sources");
+const { DOMAIN_TYPE_STORES, CMS_BASE_STORE } = require("../awn-data-types-bridge");
 
-const TYPE_STORES = Object.values(DOMAIN_TYPE_STORES);
-const CMS_CONFIG_FILES = [
+const TOP_LEVEL_STORES = [...new Set(
+  Object.values(DOMAIN_TYPE_STORES).filter((store) => !store.startsWith(`${CMS_BASE_STORE}/`))
+)];
+const CMS_BASE_FILES = [
   "registry.yml",
   "MAP.md",
   "TYPES-GUIDE.md",
   "manifest.md",
-  "store.yml"
+  "manifest.store.md",
+  "sort.json"
 ];
 
 function copyDir(src, dest) {
@@ -51,14 +54,16 @@ function main() {
   }
 
   let copied = 0;
-  for (const store of TYPE_STORES) {
+  for (const store of TOP_LEVEL_STORES) {
     copied += copyDir(path.join(coreDataRoot, store), path.join(agentDataRoot, store));
   }
 
-  const coreConfig = path.join(coreDataRoot, "cms-config");
-  const agentConfig = path.join(agentDataRoot, "cms-config");
+  copied += copyDir(path.join(coreDataRoot, CMS_BASE_STORE), path.join(agentDataRoot, CMS_BASE_STORE));
+
+  const coreConfig = path.join(coreDataRoot, CMS_BASE_STORE);
+  const agentConfig = path.join(agentDataRoot, CMS_BASE_STORE);
   fs.mkdirSync(agentConfig, { recursive: true });
-  for (const name of CMS_CONFIG_FILES) {
+  for (const name of CMS_BASE_FILES) {
     const src = path.join(coreConfig, name);
     if (!fs.existsSync(src)) continue;
     const dest = path.join(agentConfig, name);

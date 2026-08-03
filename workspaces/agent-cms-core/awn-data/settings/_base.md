@@ -1,13 +1,13 @@
 ---
-id: _base
-created: "2026-08-03T20:03:50.572Z"
-updated: "2026-08-03T20:03:50.572Z"
-typeId: awn.settings.base
-title: "База настройки"
-kind: base
-domain: settings
-status: active
-extends: awn.entity
+awn-id: _base
+awn-created: "2026-08-03T20:03:50.572Z"
+awn-updated: "2026-08-03T20:03:50.572Z"
+awn-typeId: awn.settings.base
+awn-title: База настройки
+awn-kind: base
+awn-domain: settings
+awn-status: active
+awn-extends: awn.entity
 ---
 description:
 properties:

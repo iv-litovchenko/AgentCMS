@@ -46010,10 +46010,18 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .awn-data-view-schema-block-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.awn-data-view-schema-block-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .awn-data-view-schema-block-title-wrap {
@@ -46162,6 +46170,63 @@ body.is-discuss-resizing .discuss-aside-resizer {
   display: none;
 }
 
+.awn-data-view-schema-meta-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.awn-data-view-schema-meta-group {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #e8edf3;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.awn-data-view-schema-meta-group-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.awn-data-view-schema-store-doc {
+  margin-top: 0.15rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #e8edf3;
+  border-radius: 0.5rem;
+  background: #fff;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.awn-data-view-schema-store-doc.hidden {
+  display: none;
+}
+
+.awn-data-view-schema-store-doc :is(h1, h2, h3, p) {
+  margin: 0 0 0.45rem;
+}
+
+.awn-data-view-schema-store-doc :is(h1, h2, h3) {
+  font-size: 0.875rem;
+  color: #1e293b;
+}
+
+.awn-data-view-schema-table tbody tr.is-inherited td {
+  opacity: 0.72;
+}
+
+.awn-data-view-schema-table tbody tr.is-inherited .awn-data-view-schema-key::after {
+  content: " ↑";
+  font-size: 0.625rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
 .awn-data-view-schema-meta {
   display: grid;
   grid-template-columns: minmax(7rem, 9.5rem) minmax(0, 1fr);
@@ -46254,6 +46319,13 @@ body.is-discuss-resizing .discuss-aside-resizer {
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.awn-data-view-schema-meta-label {
+  width: 38%;
+  font-weight: 600;
+  color: #475569;
   white-space: nowrap;
 }
 

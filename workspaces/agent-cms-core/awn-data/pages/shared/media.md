@@ -1,13 +1,13 @@
 ---
-id: media
-created: "2026-08-03T20:03:50.529Z"
-updated: "2026-08-03T20:03:50.529Z"
-typeId: awn.page.topic.shared.media
-title: "Медиа"
-kind: type
-domain: pages
-status: active
-extends: awn.page.topic
+awn-id: media
+awn-created: "2026-08-03T20:03:50.529Z"
+awn-updated: "2026-08-03T20:03:50.529Z"
+awn-typeId: awn.page.topic.shared.media
+awn-title: Медиа
+awn-kind: type
+awn-domain: pages
+awn-status: active
+awn-extends: awn.page.topic
 ---
 description: Общее медиа-хранилище
 storage-slots:

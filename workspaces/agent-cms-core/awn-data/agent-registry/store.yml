@@ -1,5 +1,0 @@
-version: 1
-kind: group
-id: agent-registry
-name: Реестр агентов
-description: Workspace-агенты платформы и UI-группы на landing

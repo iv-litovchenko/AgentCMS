@@ -1,10 +1,10 @@
 ---
-id: test2
-created: "2026-08-02T21:00"
-updated: "2026-08-02T21:00"
-title: test2
-path: workspaces/test2
-environment: local
+awn-id: test2
+awn-created: "2026-08-02T21:00"
+awn-updated: "2026-08-02T21:00"
+awn-title: test2
+awn-path: workspaces/test2
+awn-environment: local
 ---
 
 Workspace **test2** · `workspaces/test2`

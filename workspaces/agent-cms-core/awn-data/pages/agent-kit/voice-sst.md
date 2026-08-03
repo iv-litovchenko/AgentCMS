@@ -1,13 +1,13 @@
 ---
-id: voice-sst
-created: "2026-08-03T20:03:50.522Z"
-updated: "2026-08-03T20:03:50.522Z"
-typeId: awn.page.topic.agent-kit.voice-sst
-title: "Голос STT"
-kind: type
-domain: pages
-status: active
-extends: awn.page.topic
+awn-id: voice-sst
+awn-created: "2026-08-03T20:03:50.522Z"
+awn-updated: "2026-08-03T20:03:50.522Z"
+awn-typeId: awn.page.topic.agent-kit.voice-sst
+awn-title: Голос STT
+awn-kind: type
+awn-domain: pages
+awn-status: active
+awn-extends: awn.page.topic
 ---
 description: Настройки распознавания речи (Speech-to-Text)
 storage-slots: []

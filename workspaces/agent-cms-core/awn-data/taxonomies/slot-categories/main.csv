@@ -1,4 +1,4 @@
-code,label,sort,description
+awn-code,awn-label,awn-sort,awn-description
 memory,Память,1,Рабочая память темы — записи, входящие, заметки, источники
 files,Файлы,2,"Медиа, активы, скрипты, артефакты, репозитории"
 single-file,Однофайловая,3,"Один файл на слот — main.md, todo.md, log.md, CSV"

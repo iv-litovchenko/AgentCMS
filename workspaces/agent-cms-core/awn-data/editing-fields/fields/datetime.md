@@ -1,18 +1,18 @@
 ---
-id: datetime
-created: "2026-08-03T00:00:00.000Z"
-updated: "2026-08-03T00:00:00.000Z"
-title: Дата и время
-fieldId: awn.field.datetime
-group: datetime
-sort: 2
-widget: datetime
-storage: string
-mdbase: datetime
-format: ISO-8601
-extends: awn.field.base
-settings: hint, required, locked, default, format
-status: active
+awn-id: datetime
+awn-created: "2026-08-03T00:00:00.000Z"
+awn-updated: "2026-08-03T00:00:00.000Z"
+awn-title: Дата и время
+awn-fieldId: awn.field.datetime
+awn-group: datetime
+awn-sort: 2
+awn-widget: datetime
+awn-storage: string
+awn-mdbase: datetime
+awn-format: ISO-8601
+awn-extends: awn.field.base
+awn-settings: hint, required, locked, default, format
+awn-status: active
 ---
 
 Дата и время (ISO 8601)

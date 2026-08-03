@@ -1,13 +1,13 @@
 ---
-id: voice-tts
-created: "2026-08-03T20:03:50.522Z"
-updated: "2026-08-03T20:03:50.522Z"
-typeId: awn.page.topic.agent-kit.voice-tts
-title: "Голос TTS"
-kind: type
-domain: pages
-status: active
-extends: awn.page.topic
+awn-id: voice-tts
+awn-created: "2026-08-03T20:03:50.522Z"
+awn-updated: "2026-08-03T20:03:50.522Z"
+awn-typeId: awn.page.topic.agent-kit.voice-tts
+awn-title: Голос TTS
+awn-kind: type
+awn-domain: pages
+awn-status: active
+awn-extends: awn.page.topic
 ---
 description: Настройки синтеза речи (Text-to-Speech)
 storage-slots: []

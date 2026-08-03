@@ -1,13 +1,13 @@
 ---
-id: references
-created: "2026-08-03T20:03:50.531Z"
-updated: "2026-08-03T20:03:50.531Z"
-typeId: awn.page.topic.shared.references
-title: "Источники"
-kind: type
-domain: pages
-status: active
-extends: awn.page.topic
+awn-id: references
+awn-created: "2026-08-03T20:03:50.531Z"
+awn-updated: "2026-08-03T20:03:50.531Z"
+awn-typeId: awn.page.topic.shared.references
+awn-title: Источники
+awn-kind: type
+awn-domain: pages
+awn-status: active
+awn-extends: awn.page.topic
 ---
 description: Общие ссылки и референсы
 storage-slots:

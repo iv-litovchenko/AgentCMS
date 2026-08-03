@@ -1,17 +1,17 @@
 ---
-id: multi-file-main
-created: "2026-08-03T20:03:50.546Z"
-updated: "2026-08-03T20:03:50.546Z"
-typeId: awn.slot.main
-title: "Память (многофайловая)"
-kind: slot
-domain: slots
-status: active
-extends: awn.slot
-slot-category: memory
-storage-driver: external
-slot-order: 1
-path: main/
+awn-id: multi-file-main
+awn-created: "2026-08-03T20:03:50.546Z"
+awn-updated: "2026-08-03T20:03:50.546Z"
+awn-typeId: awn.slot.main
+awn-title: Память (многофайловая)
+awn-kind: slot
+awn-domain: slots
+awn-status: active
+awn-extends: awn.slot
+awn-slot-category: memory
+awn-storage-driver: external
+awn-slot-order: 1
+awn-path: main/
 ---
 description: Многофайловая память топика — папка main/
 allowed-content:

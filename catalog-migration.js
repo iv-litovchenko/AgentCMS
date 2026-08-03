@@ -11,7 +11,7 @@ const {
 } = require("./awn-data-taxonomies-bridge");
 const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 const { writeCsvFromRecords } = require("./awn-data-csv");
-const { parseTypeYaml } = require("./awn-yaml-utils");
+const { loadMergedStoreSchema } = require("./awn-data-loader");
 
 const MIGRATABLE_PRESETS = ["tags", "categories", "statuses", "users", "priorities"];
 
@@ -121,17 +121,16 @@ async function writeAwnDataTaxonomyItems(projectRoot, preset, items) {
   if (!storeRel) throw new Error(`Unsupported preset: ${preset}`);
   const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
   const storeAbs = path.join(coreRoot, "awn-data", ...storeRel.split("/"));
-  const schemaPath = path.join(storeAbs, "store.yml");
-  const schemaRaw = await fs.readFile(schemaPath, "utf-8");
-  const schema = parseTypeYaml(schemaRaw);
+  const schema = loadMergedStoreSchema(storeAbs);
+  if (!schema) throw new Error(`Store schema not found: ${storeRel}`);
   const records = items.map((item, index) => ({
     id: item.id,
     frontmatter: {
-      code: item.id,
-      label: item.label || item.id,
-      color: item.color || "",
-      email: item.email || "",
-      sort: (index + 1) * 10
+      "awn-code": item.id,
+      "awn-label": item.label || item.id,
+      "awn-color": item.color || "",
+      "awn-email": item.email || "",
+      "awn-sort": (index + 1) * 10
     }
   }));
   writeCsvFromRecords(storeAbs, schema, records);

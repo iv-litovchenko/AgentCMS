@@ -1,10 +1,10 @@
 ---
-id: structure
-created: "2026-08-03T00:00:00.000Z"
-updated: "2026-08-03T00:00:00.000Z"
-title: Структура
-sort: 1
-status: active
+awn-id: structure
+awn-created: "2026-08-03T00:00:00.000Z"
+awn-updated: "2026-08-03T00:00:00.000Z"
+awn-title: Структура
+awn-sort: 1
+awn-status: active
 ---
 
 Группа палитры **Структура**.

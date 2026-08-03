@@ -60,7 +60,7 @@ function recordToCatalogItem(record) {
 function taxonomyStoreExists(projectRoot, preset) {
   const storeRel = getTaxonomyStoreRel(preset);
   if (!storeRel) return false;
-  const schemaPath = path.join(getPlatformAwnDataRoot(projectRoot), ...storeRel.split("/"), "store.yml");
+  const schemaPath = path.join(getPlatformAwnDataRoot(projectRoot), ...storeRel.split("/"), "manifest.store.md");
   return fs.existsSync(schemaPath);
 }
 

@@ -1,13 +1,13 @@
 ---
-id: _base
-created: "2026-08-03T20:03:50.525Z"
-updated: "2026-08-03T20:03:50.525Z"
-typeId: awn.page.section
-title: "Секция"
-kind: type
-domain: pages
-status: active
-extends: awn.page.base
+awn-id: _base
+awn-created: "2026-08-03T20:03:50.525Z"
+awn-updated: "2026-08-03T20:03:50.525Z"
+awn-typeId: awn.page.section
+awn-title: Секция
+awn-kind: type
+awn-domain: pages
+awn-status: active
+awn-extends: awn.page.base
 ---
 description: "Секция workspace — прямой потомок ws; контейнер для тем (agent-kit, shared, container, …)"
 manifest-pattern: "{slug}/manifest.md"

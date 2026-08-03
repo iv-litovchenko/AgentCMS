@@ -1,12 +1,12 @@
 ---
-id: skill
-created: "2026-08-03T00:00:00.000Z"
-updated: "2026-08-03T00:00:00.000Z"
-title: Cursor Skill — SKILL.md
-target-file: SKILL.md
-hint-title: Cursor Skill — инструкция для агента
-hint-text: "Служебный <code>SKILL.md</code> workspace: краткий скилл для Cursor/агента — как работать с этим Agent CMS через MCP. Frontmatter <code>name</code> и <code>description</code> — только в режиме «Исходник»; в визуальном редакторе меняется только основной текст."
-status: open
+awn-id: skill
+awn-created: "2026-08-03T00:00:00.000Z"
+awn-updated: "2026-08-03T00:00:00.000Z"
+awn-title: Cursor Skill — SKILL.md
+awn-target-file: SKILL.md
+awn-hint-title: Cursor Skill — инструкция для агента
+awn-hint-text: "Служебный <code>SKILL.md</code> workspace: краткий скилл для Cursor/агента — как работать с этим Agent CMS через MCP. Frontmatter <code>name</code> и <code>description</code> — только в режиме «Исходник»; в визуальном редакторе меняется только основной текст."
+awn-status: open
 ---
 
 ---

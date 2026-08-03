@@ -62,19 +62,30 @@ function getCsvFileName(schema) {
   return String(schema?.record?.file || DEFAULT_CSV_FILE).trim() || DEFAULT_CSV_FILE;
 }
 
+const RESERVED_FIELD_KEYS = new Set([
+  "id",
+  "created",
+  "updated",
+  "awn-id",
+  "awn-created",
+  "awn-updated"
+]);
+
 function getCsvColumnsFromSchema(schema) {
   const fields = schema?.fields || {};
   const columns = [];
   for (const key of Object.keys(fields)) {
-    if (key === "id" || key === "created" || key === "updated") continue;
+    if (RESERVED_FIELD_KEYS.has(key)) continue;
     columns.push(key);
   }
-  if (!columns.length) return ["code", "label"];
+  if (!columns.length) return ["awn-code", "awn-label"];
   return columns;
 }
 
 function resolveCsvId(rowObj, columns, idMode) {
-  const code = String(rowObj.code || rowObj.id || rowObj.tag || "").trim();
+  const code = String(
+    rowObj["awn-code"] || rowObj.code || rowObj["awn-id"] || rowObj.id || rowObj.tag || ""
+  ).trim();
   if (code) return code;
   const firstCol = columns[0];
   if (firstCol && rowObj[firstCol]) return String(rowObj[firstCol]).trim();
@@ -102,9 +113,15 @@ function loadCsvRecords(storeAbs, storeRel, schema) {
       }
       const id = resolveCsvId(frontmatter, normalizedCols, idMode);
       if (!id) return null;
+      frontmatter["awn-code"] = frontmatter["awn-code"] || frontmatter.code || id;
       frontmatter.code = frontmatter.code || id;
       const title = String(
-        frontmatter.label || frontmatter.title || frontmatter.name || id
+        frontmatter["awn-label"] ||
+          frontmatter.label ||
+          frontmatter["awn-title"] ||
+          frontmatter.title ||
+          frontmatter.name ||
+          id
       ).trim();
       return {
         id,
@@ -137,9 +154,15 @@ function appendCsvRecord(storeAbs, schema, recordData) {
 
   const row = header.map((col) => {
     const key = String(col).trim();
-    if (key === "code") return String(recordData.code || recordData.id || "").trim();
+    if (key === "awn-code" || key === "code") {
+      return String(recordData["awn-code"] || recordData.code || recordData["awn-id"] || recordData.id || "").trim();
+    }
     if (recordData[key] !== undefined) return String(recordData[key] ?? "").trim();
-    if (key === "label") return String(recordData.label || recordData.title || recordData.id || "").trim();
+    if (key === "awn-label" || key === "label") {
+      return String(
+        recordData["awn-label"] || recordData.label || recordData["awn-title"] || recordData.title || recordData.id || ""
+      ).trim();
+    }
     return "";
   });
 

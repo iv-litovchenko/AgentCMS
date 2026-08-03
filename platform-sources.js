@@ -6,10 +6,12 @@ const AGENT_CMS_CORE_REL = "workspaces/agent-cms-core";
 const COMPONENTS_REL = path.join(AGENT_CMS_CORE_REL, "components");
 
 const AWN_DATA_REL = "awn-data";
-const CMS_CONFIG_REL = path.join(AWN_DATA_REL, "cms-config");
+const CMS_BASE_REL = path.join(AWN_DATA_REL, "cms-base");
+/** @deprecated use CMS_BASE_REL */
+const CMS_CONFIG_REL = CMS_BASE_REL;
 
 const TYPE_DOMAINS = ["base", "pages", "content", "slots", "fields"];
-/** CMS-модель агента — конфиг и registry в awn-data/cms-config/ */
+/** CMS-модель агента — конфиг и registry в awn-data/cms-base/ */
 const AGENT_SYSTEM_REL = CMS_CONFIG_REL;
 const AGENT_TYPE_DOMAINS = [
   ...TYPE_DOMAINS,
@@ -144,6 +146,7 @@ module.exports = {
   AGENT_CMS_CORE_REL,
   COMPONENTS_REL,
   AWN_DATA_REL,
+  CMS_BASE_REL,
   CMS_CONFIG_REL,
   TYPE_DOMAINS,
   AGENT_SYSTEM_REL,

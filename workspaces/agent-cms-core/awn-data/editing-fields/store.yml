@@ -1,5 +1,0 @@
-version: 1
-kind: group
-id: editing-fields
-name: Поля редактирования
-description: Типы полей frontmatter — группы и определения awn.field.*

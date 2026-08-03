@@ -1,13 +1,13 @@
 ---
-id: container
-created: "2026-08-03T20:03:50.526Z"
-updated: "2026-08-03T20:03:50.526Z"
-typeId: awn.page.section.container
-title: "Контейнер контента"
-kind: type
-domain: pages
-status: active
-extends: awn.page.section
+awn-id: container
+awn-created: "2026-08-03T20:03:50.526Z"
+awn-updated: "2026-08-03T20:03:50.526Z"
+awn-typeId: awn.page.section.container
+awn-title: Контейнер контента
+awn-kind: type
+awn-domain: pages
+awn-status: active
+awn-extends: awn.page.section
 ---
 description: Пользовательский контент — awn-container/ (опционально)
 create-node-group: section

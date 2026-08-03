@@ -1,17 +1,17 @@
 ---
-id: url
-created: "2026-08-03T00:00:00.000Z"
-updated: "2026-08-03T00:00:00.000Z"
-title: URL
-fieldId: awn.field.url
-group: structure
-sort: 4
-widget: url
-storage: string
-mdbase: url
-extends: awn.field.base
-settings: hint, required, locked, default
-status: active
+awn-id: url
+awn-created: "2026-08-03T00:00:00.000Z"
+awn-updated: "2026-08-03T00:00:00.000Z"
+awn-title: URL
+awn-fieldId: awn.field.url
+awn-group: structure
+awn-sort: 4
+awn-widget: url
+awn-storage: string
+awn-mdbase: url
+awn-extends: awn.field.base
+awn-settings: hint, required, locked, default
+awn-status: active
 ---
 
 Внешняя ссылка (https://...)

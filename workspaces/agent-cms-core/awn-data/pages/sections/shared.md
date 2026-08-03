@@ -1,13 +1,13 @@
 ---
-id: shared
-created: "2026-08-03T20:03:50.527Z"
-updated: "2026-08-03T20:03:50.527Z"
-typeId: awn.page.section.shared
-title: "Общие темы и ресурсы"
-kind: type
-domain: pages
-status: active
-extends: awn.page.section
+awn-id: shared
+awn-created: "2026-08-03T20:03:50.527Z"
+awn-updated: "2026-08-03T20:03:50.527Z"
+awn-typeId: awn.page.section.shared
+awn-title: Общие темы и ресурсы
+awn-kind: type
+awn-domain: pages
+awn-status: active
+awn-extends: awn.page.section
 ---
 description: "Cross-topic ресурсы — awn-shared/ (inbox, media, …)"
 create-node-group: section

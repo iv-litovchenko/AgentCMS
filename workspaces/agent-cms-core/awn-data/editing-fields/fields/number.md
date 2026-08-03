@@ -1,17 +1,17 @@
 ---
-id: number
-created: "2026-08-03T00:00:00.000Z"
-updated: "2026-08-03T00:00:00.000Z"
-title: Число
-fieldId: awn.field.number
-group: numbers
-sort: 2
-widget: number
-storage: number
-mdbase: number
-extends: awn.field.base
-settings: hint, required, locked, default, format
-status: active
+awn-id: number
+awn-created: "2026-08-03T00:00:00.000Z"
+awn-updated: "2026-08-03T00:00:00.000Z"
+awn-title: Число
+awn-fieldId: awn.field.number
+awn-group: numbers
+awn-sort: 2
+awn-widget: number
+awn-storage: number
+awn-mdbase: number
+awn-extends: awn.field.base
+awn-settings: hint, required, locked, default, format
+awn-status: active
 ---
 
 Число с дробной частью (float)

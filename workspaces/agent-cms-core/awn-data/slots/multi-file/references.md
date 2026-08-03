@@ -1,17 +1,17 @@
 ---
-id: references
-created: "2026-08-03T20:03:50.550Z"
-updated: "2026-08-03T20:03:50.550Z"
-typeId: awn.slot.references
-title: "Источники"
-kind: slot
-domain: slots
-status: active
-extends: awn.slot
-slot-category: memory
-storage-driver: external
-slot-order: 6
-path: references/
+awn-id: references
+awn-created: "2026-08-03T20:03:50.550Z"
+awn-updated: "2026-08-03T20:03:50.550Z"
+awn-typeId: awn.slot.references
+awn-title: Источники
+awn-kind: slot
+awn-domain: slots
+awn-status: active
+awn-extends: awn.slot
+awn-slot-category: memory
+awn-storage-driver: external
+awn-slot-order: 6
+awn-path: references/
 ---
 description: Ссылки и источники
 allowed-content:

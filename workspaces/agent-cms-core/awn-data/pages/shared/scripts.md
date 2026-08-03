@@ -1,13 +1,13 @@
 ---
-id: scripts
-created: "2026-08-03T20:03:50.532Z"
-updated: "2026-08-03T20:03:50.532Z"
-typeId: awn.page.topic.shared.scripts
-title: "Скрипты"
-kind: type
-domain: pages
-status: active
-extends: awn.page.topic
+awn-id: scripts
+awn-created: "2026-08-03T20:03:50.532Z"
+awn-updated: "2026-08-03T20:03:50.532Z"
+awn-typeId: awn.page.topic.shared.scripts
+awn-title: Скрипты
+awn-kind: type
+awn-domain: pages
+awn-status: active
+awn-extends: awn.page.topic
 ---
 description: Общие скрипты и автоматизации
 storage-slots:

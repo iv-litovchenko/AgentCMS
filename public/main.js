@@ -59,10 +59,8 @@ let awnDataViewSchemaWrapNode = null;
 let awnDataViewSchemaReadNode = null;
 let awnDataViewSchemaEditNode = null;
 let awnDataViewSchemaTextareaNode = null;
-let awnDataViewSchemaHintNode = null;
-let awnDataViewSchemaFieldsHintNode = null;
+let awnDataViewSchemaMetaTbodyNode = null;
 let awnDataViewSchemaFieldsSectionNode = null;
-let awnDataViewSchemaMetaNode = null;
 let awnDataViewSchemaFieldsWrapNode = null;
 let awnDataViewSchemaTbodyNode = null;
 let awnDataViewSchemaFieldsCountNode = null;
@@ -81483,8 +81481,8 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
     } else {
       awnDataCreateModalHintNode.innerHTML =
         awnDataCreateKind === "singleton"
-          ? "Папка в <code>awn-data/</code> с <code>store.yml</code> и одним <code>main.md</code>."
-          : "Папка в <code>awn-data/</code> с <code>store.yml</code>, <code>manifest.md</code> и записями <code>{id}.md</code>.";
+          ? "Папка в <code>awn-data/</code> с <code>manifest.store.md</code> и одним <code>main.md</code>."
+          : "Папка в <code>awn-data/</code> с <code>manifest.store.md</code>, <code>manifest.md</code> и записями <code>{id}.md</code>.";
     }
   }
   awnDataCreateSampleWrapNode?.classList.toggle(
@@ -81551,6 +81549,8 @@ const AWN_DATA_SCHEMA_META_LABELS = {
   description: "Описание",
   "record.id-mode": "ID записи",
   "record.file": "Шаблон файла",
+  "record.storage": "Драйвер",
+  "record.hierarchy": "Иерархия",
   "файл записи": "Файл записи",
   хранилище: "Хранилище"
 };
@@ -81591,28 +81591,75 @@ function createAwnDataSchemaKindBadge(kind, viewStore) {
   return badge;
 }
 
-function createAwnDataSchemaMetaValueNode(key, value, { kind, viewStore } = {}) {
+function fillAwnDataSchemaMetaValueCell(cell, key, value, { kind, viewStore } = {}) {
+  cell.replaceChildren();
+  cell.className = "awn-data-view-schema-meta-value";
   if (key === "kind") {
-    return createAwnDataSchemaKindBadge(String(value || kind || "collection"), viewStore);
+    cell.appendChild(createAwnDataSchemaKindBadge(String(value || kind || "collection"), viewStore));
+    return;
   }
-  const valueNode = document.createElement("dd");
-  valueNode.className = "awn-data-view-schema-meta-value";
   if (key === "extends" || key === "record.file" || key === "файл записи" || key === "хранилище") {
     const code = document.createElement("code");
     code.textContent = String(value ?? "—");
-    valueNode.appendChild(code);
-  } else if (key === "description") {
-    valueNode.classList.add("is-description");
-    valueNode.textContent = String(value ?? "—");
-  } else if (key === "id") {
+    cell.appendChild(code);
+    return;
+  }
+  if (key === "description") {
+    cell.classList.add("is-description");
+    cell.textContent = String(value ?? "—");
+    return;
+  }
+  if (key === "id") {
     const code = document.createElement("code");
     code.className = "awn-data-view-schema-meta-id";
     code.textContent = String(value ?? "—");
-    valueNode.appendChild(code);
-  } else {
-    valueNode.textContent = String(value ?? "—");
+    cell.appendChild(code);
+    return;
   }
-  return valueNode;
+  cell.textContent = String(value ?? "—");
+}
+
+function appendAwnDataSchemaMetaRow(tbody, key, value, context) {
+  if (!tbody) return;
+  const row = document.createElement("tr");
+  const labelCell = document.createElement("td");
+  labelCell.className = "awn-data-view-schema-meta-label";
+  labelCell.textContent = formatAwnDataSchemaMetaLabel(key);
+  const valueCell = document.createElement("td");
+  fillAwnDataSchemaMetaValueCell(valueCell, key, value, context);
+  row.append(labelCell, valueCell);
+  tbody.appendChild(row);
+}
+
+function collectAwnDataSchemaMetaRows(viewStore, schema, kind, isGroup) {
+  const rows = [
+    ["kind", kind],
+    ["id", schema.id || viewStore.id || "—"],
+    ["name", schema.name || viewStore.name || "—"]
+  ];
+  if (schema.extends) rows.push(["extends", schema.extends]);
+  if (!isGroup && schema.record) {
+    const record = schema.record;
+    rows.push(["record.id-mode", record["id-mode"] || record.idMode || "—"]);
+    rows.push(["record.file", record.file || "—"]);
+    if (record.hierarchy === true || record.hierarchy === "true") {
+      rows.push(["record.hierarchy", "да"]);
+    }
+    if (record.storage) rows.push(["record.storage", record.storage]);
+  }
+  if (viewStore.kind === "singleton") {
+    rows.push(["файл записи", viewStore.recordFile || "main.md"]);
+  }
+  if (viewStore.recordStorage === "csv") {
+    rows.push(["хранилище", `CSV · ${viewStore.recordFile || "main.csv"}`]);
+  }
+  const descriptionText = String(schema.description || viewStore.description || "").trim();
+  if (descriptionText) rows.push(["description", descriptionText]);
+  return rows;
+}
+
+function resolveAwnDataStoreSchemaFileName() {
+  return String(awnDataViewStoreCache?.schemaFile || "manifest.store.md").trim() || "manifest.store.md";
 }
 
 function syncAwnDataViewDomRefs(root) {
@@ -81626,10 +81673,8 @@ function syncAwnDataViewDomRefs(root) {
     awnDataViewSchemaReadNode = null;
     awnDataViewSchemaEditNode = null;
     awnDataViewSchemaTextareaNode = null;
-    awnDataViewSchemaHintNode = null;
-    awnDataViewSchemaFieldsHintNode = null;
+    awnDataViewSchemaMetaTbodyNode = null;
     awnDataViewSchemaFieldsSectionNode = null;
-    awnDataViewSchemaMetaNode = null;
     awnDataViewSchemaFieldsWrapNode = null;
     awnDataViewSchemaTbodyNode = null;
     awnDataViewSchemaFieldsCountNode = null;
@@ -81659,10 +81704,8 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewSchemaReadNode = root.querySelector(".awn-data-view-schema-read");
   awnDataViewSchemaEditNode = root.querySelector(".awn-data-view-schema-edit");
   awnDataViewSchemaTextareaNode = root.querySelector(".awn-data-view-schema-textarea");
-  awnDataViewSchemaHintNode = root.querySelector(".awn-data-view-schema-hint");
-  awnDataViewSchemaFieldsHintNode = root.querySelector(".awn-data-view-schema-fields-hint");
+  awnDataViewSchemaMetaTbodyNode = root.querySelector(".awn-data-view-schema-meta-tbody");
   awnDataViewSchemaFieldsSectionNode = root.querySelector(".awn-data-view-schema-fields-section");
-  awnDataViewSchemaMetaNode = root.querySelector(".awn-data-view-schema-meta");
   awnDataViewSchemaFieldsWrapNode = root.querySelector(".awn-data-view-schema-fields-wrap");
   awnDataViewSchemaTbodyNode = root.querySelector(".awn-data-view-schema-tbody");
   awnDataViewSchemaFieldsCountNode = root.querySelector(".awn-data-view-schema-fields-count");
@@ -81792,14 +81835,6 @@ function wireAwnDataViewPageEvents(hub) {
         return;
       }
       void beginAwnDataViewSchemaEdit();
-      return;
-    }
-    if (action === "open-store") {
-      void openAwnDataStoreFile("store.yml", "Схема накопителя · store.yml");
-      return;
-    }
-    if (action === "edit-manifest") {
-      void openAwnDataStoreFile("manifest.md");
       return;
     }
     if (action === "save-schema") {
@@ -82050,10 +82085,8 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
   if (loading || error || !store) {
     setAwnDataViewSchemaEditMode(false);
     awnDataViewSchemaWrapNode.classList.add("hidden");
-    awnDataViewSchemaHintNode && (awnDataViewSchemaHintNode.textContent = "");
-    awnDataViewSchemaFieldsHintNode && (awnDataViewSchemaFieldsHintNode.textContent = "");
     awnDataViewSchemaFieldsSectionNode?.classList.add("hidden");
-    awnDataViewSchemaMetaNode?.replaceChildren();
+    awnDataViewSchemaMetaTbodyNode?.replaceChildren();
     awnDataViewSchemaFieldsWrapNode?.classList.add("hidden");
     awnDataViewSchemaTbodyNode?.replaceChildren();
     if (awnDataViewSchemaFieldsCountNode) awnDataViewSchemaFieldsCountNode.textContent = "";
@@ -82068,63 +82101,25 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
   awnDataViewSchemaWrapNode.classList.remove("hidden");
   setAwnDataViewSchemaEditMode(false);
 
-  if (awnDataViewSchemaHintNode) {
-    if (isGroup) {
-      awnDataViewSchemaHintNode.textContent =
-        "Группа — контейнер для дочерних накопителей. Поля записей задаются в store.yml каждой коллекции внутри группы.";
-    } else {
-      awnDataViewSchemaHintNode.textContent = "";
-    }
-    awnDataViewSchemaHintNode.classList.toggle("hidden", !isGroup);
-  }
-
-  if (awnDataViewSchemaFieldsHintNode) {
-    if (isGroup) {
-      awnDataViewSchemaFieldsHintNode.textContent = "";
-      awnDataViewSchemaFieldsHintNode.classList.add("hidden");
-    } else {
-      awnDataViewSchemaFieldsHintNode.textContent =
-        "Эти поля описывают frontmatter каждой записи (.md). Базовые id, created, updated наследуются из awn-data/_base/store.yml.";
-      awnDataViewSchemaFieldsHintNode.classList.remove("hidden");
-    }
-  }
-
   awnDataViewSchemaFieldsSectionNode?.classList.toggle("hidden", isGroup);
 
-  if (awnDataViewSchemaMetaNode) {
-    awnDataViewSchemaMetaNode.replaceChildren();
-    const metaItems = [
-      ["kind", kind],
-      ["id", schema.id || viewStore.id || "—"],
-      ["name", schema.name || viewStore.name || "—"]
-    ];
-    if (schema.extends) metaItems.push(["extends", schema.extends]);
-    if (schema.description || viewStore.description) {
-      metaItems.push(["description", schema.description || viewStore.description]);
+  if (awnDataViewSchemaMetaTbodyNode) {
+    awnDataViewSchemaMetaTbodyNode.replaceChildren();
+    const metaContext = { kind, viewStore };
+    for (const [key, value] of collectAwnDataSchemaMetaRows(viewStore, schema, kind, isGroup)) {
+      appendAwnDataSchemaMetaRow(awnDataViewSchemaMetaTbodyNode, key, value, metaContext);
     }
-    if (!isGroup && schema.record) {
-      const record = schema.record;
-      const idMode = record["id-mode"] || record.idMode || "—";
-      const filePattern = record.file || "—";
-      metaItems.push(["record.id-mode", idMode], ["record.file", filePattern]);
-    }
-    if (viewStore.kind === "singleton") {
-      metaItems.push(["файл записи", viewStore.recordFile || "main.md"]);
-    }
-    if (viewStore.recordStorage === "csv") {
-      metaItems.push(["хранилище", `CSV · ${viewStore.recordFile || "main.csv"}`]);
-    }
+  }
 
-    for (const [label, value] of metaItems) {
-      const term = document.createElement("dt");
-      term.className = "awn-data-view-schema-meta-label";
-      term.textContent = formatAwnDataSchemaMetaLabel(label);
-      const definition = createAwnDataSchemaMetaValueNode(label, value, { kind, viewStore });
-      awnDataViewSchemaMetaNode.append(term, definition);
-    }
+  const schemaFileNode = awnDataViewRoot?.querySelector(".awn-data-view-schema-file");
+  if (schemaFileNode) {
+    schemaFileNode.textContent = resolveAwnDataStoreSchemaFileName();
   }
 
   const schemaFields = schema.fields && typeof schema.fields === "object" ? schema.fields : {};
+  const localFieldKeys = new Set(
+    Object.keys(schema.fieldsLocal && typeof schema.fieldsLocal === "object" ? schema.fieldsLocal : schemaFields)
+  );
   const fieldKeys = Object.keys(schemaFields);
 
   if (awnDataViewSchemaFieldsCountNode) {
@@ -82151,6 +82146,7 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
           { text: field.required ? "да" : "—", className: field.required ? "is-required" : "is-optional" },
           { text: formatAwnDataSchemaDefault(field), className: "awn-data-view-schema-default" }
         ];
+        if (!localFieldKeys.has(key)) row.classList.add("is-inherited");
         for (const cellSpec of cells) {
           const cell = document.createElement("td");
           if (cellSpec.className) cell.className = cellSpec.className;
@@ -82170,12 +82166,13 @@ function resolveAwnDataCatalogAgentId(payload, fallbackAgentId = activeAgentId) 
   return String(fallbackAgentId || activeAgentId || "").trim();
 }
 
-function resolveAwnDataStoreFileRel(fileName = "store.yml") {
+function resolveAwnDataStoreFileRel(fileName = "") {
   const storeRel = String(awnDataViewStoreRel || awnDataViewStoreCache?.relPath || "")
     .replace(/\\/g, "/")
     .replace(/^\/+/, "");
   if (!storeRel) return "";
-  return `awn-data/${storeRel}/${fileName}`.replace(/\\/g, "/");
+  const resolvedName = String(fileName || resolveAwnDataStoreSchemaFileName()).trim() || "manifest.store.md";
+  return `awn-data/${storeRel}/${resolvedName}`.replace(/\\/g, "/");
 }
 
 function setAwnDataViewSchemaEditMode(enabled) {
@@ -82189,7 +82186,7 @@ function setAwnDataViewSchemaEditMode(enabled) {
 }
 
 async function beginAwnDataViewSchemaEdit() {
-  const fileRel = resolveAwnDataStoreFileRel("store.yml");
+  const fileRel = resolveAwnDataStoreFileRel();
   if (!fileRel) return;
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
   try {
@@ -82215,7 +82212,7 @@ function cancelAwnDataViewSchemaEdit() {
 }
 
 async function saveAwnDataViewSchemaEdit() {
-  const fileRel = resolveAwnDataStoreFileRel("store.yml");
+  const fileRel = resolveAwnDataStoreFileRel();
   if (!fileRel || !awnDataViewSchemaTextareaNode) return;
   const content = awnDataViewSchemaTextareaNode.value;
   const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
@@ -82232,7 +82229,7 @@ async function saveAwnDataViewSchemaEdit() {
     if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
     awnDataViewSchemaDraft = content;
     setAwnDataViewSchemaEditMode(false);
-    showToast("store.yml сохранён", "success");
+    showToast("manifest.store.md сохранён", "success");
     invalidateTypeCatalogCache(catalogAgentId);
     await refreshMenuAwnDataStores(catalogAgentId);
     if (storeRel) {

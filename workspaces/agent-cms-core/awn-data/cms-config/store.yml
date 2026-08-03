@@ -1,5 +1,0 @@
-version: 1
-kind: group
-id: cms-config
-name: CMS-модель
-description: Registry, bindings слотов, категории слотов

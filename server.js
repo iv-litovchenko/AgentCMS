@@ -16048,9 +16048,11 @@ async function handleApiForAgent(req, res, url) {
       const content = String(payload?.content ?? "");
 
       // Validate YAML types before saving
-      const isTypeFile = /^awn-data\/(pages|content|slots|base|mixins|settings)\/.+\.md$/i.test(
-        relPath.replace(/\\/g, "/")
-      );
+      const normPath = relPath.replace(/\\/g, "/");
+      const isStoreContract = /\/manifest\.store\.md$/i.test(normPath);
+      const isTypeFile =
+        !isStoreContract &&
+        /^awn-data\/(pages|content|slots|settings|cms-base\/(entities|mixins))\/.+\.md$/i.test(normPath);
       if (isTypeFile && content.trim()) {
         const { parseTypeYaml } = require("./awn-yaml-utils");
         let parsed;

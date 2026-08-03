@@ -1,12 +1,12 @@
 ---
-id: env
-created: "2026-08-03T00:00:00.000Z"
-updated: "2026-08-03T00:00:00.000Z"
-title: Переменные окружения — .env
-target-file: .env
-hint-title: Переменные окружения workspace
-hint-text: "Секреты, токены и ключи API — только здесь или в <code>.env</code> слота темы. Не храните пароли в markdown, frontmatter и памяти агента."
-status: open
+awn-id: env
+awn-created: "2026-08-03T00:00:00.000Z"
+awn-updated: "2026-08-03T00:00:00.000Z"
+awn-title: Переменные окружения — .env
+awn-target-file: .env
+awn-hint-title: Переменные окружения workspace
+awn-hint-text: Секреты, токены и ключи API — только здесь или в <code>.env</code> слота темы. Не храните пароли в markdown, frontmatter и памяти агента.
+awn-status: open
 ---
 
 # KEY=value — без кавычек, по одной переменной на строку

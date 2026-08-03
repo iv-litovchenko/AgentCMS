@@ -1,17 +1,17 @@
 ---
-id: comments
-created: "2026-08-03T20:03:50.552Z"
-updated: "2026-08-03T20:03:50.552Z"
-typeId: awn.slot.comments
-title: "Комментарии"
-kind: slot
-domain: slots
-status: active
-extends: awn.slot
-slot-category: communication
-storage-driver: external
-slot-order: 94
-path: comments/
+awn-id: comments
+awn-created: "2026-08-03T20:03:50.552Z"
+awn-updated: "2026-08-03T20:03:50.552Z"
+awn-typeId: awn.slot.comments
+awn-title: Комментарии
+awn-kind: slot
+awn-domain: slots
+awn-status: active
+awn-extends: awn.slot
+awn-slot-category: communication
+awn-storage-driver: external
+awn-slot-order: 94
+awn-path: comments/
 ---
 description: Комментарии к узлам — comments/
 slot-tier: system

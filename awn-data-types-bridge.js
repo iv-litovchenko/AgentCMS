@@ -8,15 +8,17 @@ const ACTIVE_STATUS = new Set(["active", "deprecated"]);
 
 /** domain id → awn-data store folder (without /types suffix) */
 const DOMAIN_TYPE_STORES = {
-  base: "base",
+  base: "cms-base/entities",
   pages: "pages",
   content: "content",
   slots: "slots",
-  mixins: "mixins",
+  mixins: "cms-base/mixins",
   settings: "settings"
 };
 
-const CMS_CONFIG_STORE = "cms-config";
+const CMS_BASE_STORE = "cms-base";
+/** @deprecated use CMS_BASE_STORE */
+const CMS_CONFIG_STORE = CMS_BASE_STORE;
 
 function getPlatformAgentRoot(projectRoot) {
   return getAgentCmsCoreAbsolute(projectRoot);
@@ -35,14 +37,15 @@ function getTypeStoreRel(domain) {
 }
 
 function isTypeRecordActive(record) {
-  const status = String(record?.frontmatter?.status || "active").trim().toLowerCase();
+  const fm = record?.frontmatter || {};
+  const status = String(fm["awn-status"] || fm.status || "active").trim().toLowerCase();
   return ACTIVE_STATUS.has(status);
 }
 
 function recordToTypeSchema(record) {
   if (!record || !isTypeRecordActive(record)) return null;
   const fm = record.frontmatter || {};
-  const typeId = String(fm.typeId || fm.id || "").trim();
+  const typeId = String(fm["awn-typeId"] || fm.typeId || fm["awn-id"] || fm.id || "").trim();
   if (!typeId || !typeId.includes(".")) return null;
 
   let bodySchema = {};
@@ -58,11 +61,11 @@ function recordToTypeSchema(record) {
   const schema = {
     ...bodySchema,
     id: typeId,
-    name: String(fm.title || record.title || typeId).trim(),
-    kind: String(fm.kind || bodySchema.kind || "type").trim(),
-    domain: String(fm.domain || bodySchema.domain || "").trim(),
-    status: String(fm.status || bodySchema.status || "active").trim(),
-    extends: String(fm.extends || bodySchema.extends || "").trim() || undefined
+    name: String(fm["awn-title"] || fm.title || record.title || typeId).trim(),
+    kind: String(fm["awn-kind"] || fm.kind || bodySchema.kind || "type").trim(),
+    domain: String(fm["awn-domain"] || fm.domain || bodySchema.domain || "").trim(),
+    status: String(fm["awn-status"] || fm.status || bodySchema.status || "active").trim(),
+    extends: String(fm["awn-extends"] || fm.extends || bodySchema.extends || "").trim() || undefined
   };
 
   for (const key of [
@@ -189,6 +192,7 @@ function cmsConfigExists(agentRoot, projectRoot = process.cwd()) {
 
 module.exports = {
   DOMAIN_TYPE_STORES,
+  CMS_BASE_STORE,
   CMS_CONFIG_STORE,
   getTypeStoreRel,
   domainStoreHasRecords,

@@ -1,13 +1,13 @@
 ---
-id: area
-created: "2026-08-03T20:03:50.523Z"
-updated: "2026-08-03T20:03:50.523Z"
-typeId: awn.page.area
-title: "Область"
-kind: type
-domain: pages
-status: deprecated
-extends: awn.page.section
+awn-id: area
+awn-created: "2026-08-03T20:03:50.523Z"
+awn-updated: "2026-08-03T20:03:50.523Z"
+awn-typeId: awn.page.area
+awn-title: Область
+awn-kind: type
+awn-domain: pages
+awn-status: deprecated
+awn-extends: awn.page.section
 ---
 description: "Legacy — используйте awn.page.section.* (agent-kit, shared, container)"
 fields:
