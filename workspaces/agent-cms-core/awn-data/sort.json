@@ -1,4 +1,11 @@
 [
+  "cms-config",
+  "pages",
+  "content",
+  "slots",
+  "base",
+  "mixins",
+  "settings",
   "agent-registry",
   "taxonomies",
   "markdown-blocks",

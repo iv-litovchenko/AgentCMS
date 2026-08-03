@@ -1,0 +1,5 @@
+version: 1
+kind: group
+id: content
+name: Контент
+description: Типы записей в слотах (awn.content.*)

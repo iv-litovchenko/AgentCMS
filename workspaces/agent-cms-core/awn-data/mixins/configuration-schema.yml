@@ -1,0 +1,5 @@
+version: 1
+kind: group
+id: mixins
+name: Mixins
+description: Примеси для страниц и контента (awn.mixin.*)

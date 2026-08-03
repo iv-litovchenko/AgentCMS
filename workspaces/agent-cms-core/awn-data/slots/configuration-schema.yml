@@ -1,0 +1,5 @@
+version: 1
+kind: group
+id: slots
+name: Слоты
+description: Слоты хранения топика (awn.slot.*)

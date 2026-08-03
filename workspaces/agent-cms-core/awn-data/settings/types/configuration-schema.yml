@@ -1,0 +1,33 @@
+version: 1
+kind: collection
+id: settings.types
+name: Типы
+extends: ../../_base/configuration-schema.yml
+
+record:
+  id-mode: slug
+  file: "{id}.md"
+
+fields:
+  title:
+    type: awn.string
+    title: Название
+    required: true
+  typeId:
+    type: awn.string
+    title: ID типа
+    required: true
+  kind:
+    type: awn.string
+    title: Kind
+  domain:
+    type: awn.string
+    title: Domain
+  status:
+    type: awn.enum
+    title: Статус
+    enum: [active, draft, deprecated, inactive]
+    default: active
+  extends:
+    type: awn.string
+    title: Extends

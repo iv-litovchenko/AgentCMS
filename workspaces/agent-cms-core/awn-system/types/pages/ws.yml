@@ -1,7 +1,0 @@
-id: awn.page.ws
-name: Workspace
-kind: type
-domain: pages
-status: active
-extends: awn.page.base
-description: Корневой манифест агента — папка workspace (manifest.md в корне)
