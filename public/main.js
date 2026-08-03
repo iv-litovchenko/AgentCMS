@@ -8844,6 +8844,7 @@ function syncLandingAgentsViewUi() {
   appLandingPaneNode?.classList.toggle("app-landing-pane--hub", isHub);
   appLandingPaneNode?.classList.toggle("app-landing-pane--grid", isGrid);
   appLandingPaneNode?.classList.toggle("app-landing-pane--flow", isFlow);
+  appLandingPaneNode?.classList.toggle("app-landing-pane--settings", isSettings);
 
   appLandingHubNode?.classList.toggle("hidden", !isHub);
   appLandingHubNode?.setAttribute("aria-hidden", isHub ? "false" : "true");
@@ -9236,7 +9237,7 @@ function renderAppLandingHub(focusItems = getLandingHubOrbitTopicItems()) {
       section.className = "app-landing-hub-section";
       const title = document.createElement("h3");
       title.className = "app-landing-hub-section-title";
-      title.textContent = group.name || "Группа";
+      title.textContent = group.title || "Группа";
       section.appendChild(title);
       appendAppLandingHubAgents(section, group.agents, focusByAgent);
       appLandingHubNode.appendChild(section);
@@ -9247,7 +9248,7 @@ function renderAppLandingHub(focusItems = getLandingHubOrbitTopicItems()) {
       section.className = "app-landing-hub-section";
       const title = document.createElement("h3");
       title.className = "app-landing-hub-section-title";
-      title.textContent = landingAgentsUngroupedCache.name || "Без группы";
+      title.textContent = landingAgentsUngroupedCache.title || "Без группы";
       section.appendChild(title);
       appendAppLandingHubAgents(section, ungrouped, focusByAgent);
       appLandingHubNode.appendChild(section);

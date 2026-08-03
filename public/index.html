@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.601" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.602" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -1025,6 +1025,16 @@
               <p class="app-landing-intro-tagline">Тема за темой, задача за задачей.</p>
             </div>
 
+            <div id="app-landing-groups" class="app-landing-groups hidden" aria-hidden="true">
+              <div class="app-landing-groups-toolbar">
+                <p class="app-landing-groups-note">Группы хранятся в <code>awn-data/agent-registry/agent-groups/</code> агента <code>agent-cms-core</code>. Перетащите за ⠿ группы и агентов внутри группы.</p>
+                <button id="app-landing-groups-create-btn" class="app-landing-groups-create-btn" type="button">
+                  + Создать группу
+                </button>
+              </div>
+              <div id="app-landing-groups-content" class="app-landing-groups-content"></div>
+            </div>
+
             <div id="app-landing-focus-toolbar" class="app-landing-focus-toolbar app-landing-focus-toolbar--dock hidden" aria-hidden="true">
               <span id="app-landing-focus-filter-count" class="app-landing-focus-toolbar-count"></span>
               <span id="app-landing-focus-count" class="app-landing-focus-count hidden" aria-hidden="true"></span>
@@ -1173,19 +1183,11 @@
               <div id="app-landing-focus-list" class="app-landing-focus-grid"></div>
             </section>
 
-            <div id="app-landing-groups" class="app-landing-groups hidden" aria-hidden="true">
-              <div class="app-landing-groups-toolbar">
-                <p class="app-landing-groups-note">Группы хранятся в <code>awn-agents-groups.json</code>. Перетащите за ⠿ группы и агентов внутри группы.</p>
-                <button id="app-landing-groups-create-btn" class="app-landing-groups-create-btn" type="button">
-                  + Создать группу
-                </button>
-              </div>
-              <div id="app-landing-groups-content" class="app-landing-groups-content"></div>
-            </div>
+
             <div id="app-landing-groups-create-modal" class="modal-overlay hidden">
               <div class="modal-card agents-registry-create-card app-landing-group-create-card">
                 <div class="modal-message">Создать группу</div>
-                <p class="agents-registry-hint">Группа сохранится в <code>awn-agents-groups.json</code>. Агентов можно добавить после создания.</p>
+                <p class="agents-registry-hint">Группа сохранится в <code>awn-data/agent-registry/agent-groups/</code> (<code>agent-cms-core</code>). Агентов можно добавить после создания.</p>
                 <label class="agents-registry-field agents-registry-create-field">
                   <span>Название группы</span>
                   <input
@@ -3725,7 +3727,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.237"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.601"></script>
+    <script src="/main.js?v=0.5.602"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
