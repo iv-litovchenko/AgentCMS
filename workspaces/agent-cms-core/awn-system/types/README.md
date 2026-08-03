@@ -1,6 +1,6 @@
-# types/
+# awn-system/types/
 
-YAML-типы CMS этого агента. Loader: `type-catalog-loader.js` (agent override поверх platform).
+YAML-типы CMS platform core и агента. Loader: `type-catalog-loader.js`.
 
 | Папка | Префикс id | Пример |
 |-------|------------|--------|

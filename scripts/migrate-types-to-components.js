@@ -160,7 +160,7 @@ function main() {
     return;
   }
   migrateBlocks();
-  console.log("Migration complete (blocks only). Fields/frames: use types/ and awn-system/types/.");
+  console.log("Migration complete (blocks only). Fields/frames: use awn-system/types/ and awn-data/.");
 }
 
 main();

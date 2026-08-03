@@ -5,18 +5,22 @@ const AGENT_CMS_CORE_REL = "workspaces/agent-cms-core";
 
 const COMPONENTS_REL = path.join(AGENT_CMS_CORE_REL, "components");
 
-/** Домены каталога типов platform core (под areas/types/) */
-const TYPE_CATALOG_REL = "types";
 const TYPE_DOMAINS = ["base", "pages", "content", "slots", "fields"];
 /** Встроенная CMS-модель агента (flat YAML: awn-system/types/{domain}/*.yml) */
 const AGENT_SYSTEM_REL = "awn-system";
+/** Platform baseline types — workspaces/agent-cms-core/awn-system/types/{domain}/ */
+const PLATFORM_TYPES_REL = path.join(AGENT_SYSTEM_REL, "types");
 const AGENT_TYPE_DOMAINS = [
   ...TYPE_DOMAINS,
   "mixins"
 ];
 
 function getTypeDomainAbsolute(projectRoot, domain) {
-  return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, TYPE_CATALOG_REL, domain);
+  return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, PLATFORM_TYPES_REL, domain);
+}
+
+function getPlatformTypesDomainAbsolute(projectRoot, domain) {
+  return getTypeDomainAbsolute(projectRoot, domain);
 }
 
 function getTypeCatalogRootAbsolute(projectRoot) {
@@ -137,7 +141,7 @@ function toAgentsGroupsBackgroundRel(fileName) {
 module.exports = {
   AGENT_CMS_CORE_REL,
   COMPONENTS_REL,
-  TYPE_CATALOG_REL,
+  PLATFORM_TYPES_REL,
   TYPE_DOMAINS,
   AGENT_SYSTEM_REL,
   AGENT_TYPE_DOMAINS,
@@ -155,6 +159,7 @@ module.exports = {
   getPlatformAgentRootAbsolute,
   getComponentsAbsolute,
   getTypeDomainAbsolute,
+  getPlatformTypesDomainAbsolute,
   getTypeCatalogRootAbsolute,
   getAwnDataTaxonomiesAbsolute,
   getAgentsGroupsAssetsAbsolute,

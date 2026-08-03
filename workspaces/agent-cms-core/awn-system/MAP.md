@@ -187,4 +187,4 @@ awn_schema:
 node scripts/bootstrap-agent-awn-system.js agent-cms-test
 ```
 
-(agent-типы поверх platform; свои файлы в `types/` сохраняй отдельно)
+(agent-типы поверх platform; свои файлы в `awn-system/types/` сохраняй отдельно)

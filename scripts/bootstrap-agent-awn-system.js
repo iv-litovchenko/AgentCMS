@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Copy platform types into {agent}/awn-system/types/{domain}/*.yml (flat layout)
+ * Copy platform types from agent-cms-core/awn-system/types into {agent}/awn-system/types/
  * and add agent-specific types (dialog, comment, mixins).
  *
  *   node scripts/bootstrap-agent-awn-system.js agent-cms-test
@@ -10,11 +10,8 @@ const path = require("path");
 const { loadYamlFileSync } = require("../awn-yaml-utils");
 const {
   getAgentCmsCoreAbsolute,
-  TYPE_CATALOG_REL,
   AGENT_SYSTEM_REL
 } = require("../platform-sources");
-
-const TYPES_DIR_SEGMENTS = ["awn-storage", "configuration", "types"];
 
 const AGENT_EXTRA_DOMAINS = ["mixins"];
 /** Поля — platform awn-data/editing-fields/, не копируем legacy YAML. */
@@ -175,12 +172,27 @@ fields:
 };
 
 function listPlatformTypeFiles(coreRoot, domain) {
-  const dir = path.join(coreRoot, TYPE_CATALOG_REL, domain, ...TYPES_DIR_SEGMENTS);
+  const dir = path.join(coreRoot, AGENT_SYSTEM_REL, "types", domain);
   if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((name) => /\.ya?ml$/i.test(name))
-    .map((name) => path.join(dir, name));
+  const result = [];
+  function walk(currentDir) {
+    let entries;
+    try {
+      entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+      if (entry.isFile() && /\.ya?ml$/i.test(entry.name)) {
+        result.push(fullPath);
+      } else if (entry.isDirectory() && !entry.name.startsWith(".")) {
+        walk(fullPath);
+      }
+    }
+  }
+  walk(dir);
+  return result;
 }
 
 function enrichSlotYaml(content, fileName) {
@@ -236,10 +248,13 @@ function main() {
     process.exit(1);
   }
 
-  const platformDomains = fs
-    .readdirSync(path.join(coreRoot, TYPE_CATALOG_REL), { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name);
+  const platformTypesRoot = path.join(coreRoot, AGENT_SYSTEM_REL, "types");
+  const platformDomains = fs.existsSync(platformTypesRoot)
+    ? fs
+        .readdirSync(platformTypesRoot, { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name)
+    : [];
 
   const domains = [...new Set([...platformDomains, ...AGENT_EXTRA_DOMAINS])];
   let copied = 0;
@@ -249,11 +264,15 @@ function main() {
     const destDir = path.join(typesRoot, domain);
     fs.mkdirSync(destDir, { recursive: true });
 
+    const domainSrcDir = path.join(platformTypesRoot, domain);
     for (const srcPath of listPlatformTypeFiles(coreRoot, domain)) {
+      const rel = path.relative(domainSrcDir, srcPath);
       const fileName = path.basename(srcPath);
       let raw = fs.readFileSync(srcPath, "utf-8");
       if (domain === "slots") raw = enrichSlotYaml(raw, fileName);
-      fs.writeFileSync(path.join(destDir, fileName), raw, "utf-8");
+      const dest = path.join(destDir, rel);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest, raw, "utf-8");
       copied += 1;
     }
   }
