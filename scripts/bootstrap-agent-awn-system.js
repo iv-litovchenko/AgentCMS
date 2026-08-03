@@ -18,7 +18,6 @@ const CMS_BASE_FILES = [
   "MAP.md",
   "TYPES-GUIDE.md",
   "manifest.md",
-  "manifest.store.md",
   "sort.json"
 ];
 

@@ -1,6 +1,6 @@
 ---
 awn-id: description
-awn-title: awn-prop-description
-awn-key: awn-prop-description
-awn-description: "Краткое описание назначения накопителя"
+awn-title: Описание (body)
+awn-key: (markdown body)
+awn-description: "Текстовое описание накопителя — markdown после frontmatter в manifest.md"
 ---

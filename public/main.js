@@ -81481,8 +81481,8 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
     } else {
       awnDataCreateModalHintNode.innerHTML =
         awnDataCreateKind === "singleton"
-          ? "Папка в <code>awn-data/</code> с <code>manifest.store.md</code> и одним <code>main.md</code>."
-          : "Папка в <code>awn-data/</code> с <code>manifest.store.md</code>, <code>manifest.md</code> и записями <code>{id}.md</code>.";
+          ? "Папка в <code>awn-data/</code> с <code>manifest.md</code> и одним <code>main.md</code>."
+          : "Папка в <code>awn-data/</code> с <code>manifest.md</code> и записями <code>{id}.md</code>.";
     }
   }
   awnDataCreateSampleWrapNode?.classList.toggle(
@@ -81659,7 +81659,7 @@ function collectAwnDataSchemaMetaRows(viewStore, schema, kind, isGroup) {
 }
 
 function resolveAwnDataStoreSchemaFileName() {
-  return String(awnDataViewStoreCache?.schemaFile || "manifest.store.md").trim() || "manifest.store.md";
+  return String(awnDataViewStoreCache?.schemaFile || "manifest.md").trim() || "manifest.md";
 }
 
 function syncAwnDataViewDomRefs(root) {
@@ -82171,7 +82171,7 @@ function resolveAwnDataStoreFileRel(fileName = "") {
     .replace(/\\/g, "/")
     .replace(/^\/+/, "");
   if (!storeRel) return "";
-  const resolvedName = String(fileName || resolveAwnDataStoreSchemaFileName()).trim() || "manifest.store.md";
+  const resolvedName = String(fileName || resolveAwnDataStoreSchemaFileName()).trim() || "manifest.md";
   return `awn-data/${storeRel}/${resolvedName}`.replace(/\\/g, "/");
 }
 
@@ -82229,7 +82229,7 @@ async function saveAwnDataViewSchemaEdit() {
     if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
     awnDataViewSchemaDraft = content;
     setAwnDataViewSchemaEditMode(false);
-    showToast("manifest.store.md сохранён", "success");
+    showToast("manifest.md сохранён", "success");
     invalidateTypeCatalogCache(catalogAgentId);
     await refreshMenuAwnDataStores(catalogAgentId);
     if (storeRel) {

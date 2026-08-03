@@ -13,16 +13,17 @@ const {
 
 const AWN_DATA_DIR = "awn-data";
 const RECORD_BASE_REL = "cms-base/record-base";
+const COLLECTION_MANIFEST = "manifest.md";
+/** @deprecated legacy split contract */
 const STORE_CONTRACT_FILE = "manifest.store.md";
 /** @deprecated legacy */
 const STORE_MD_FILE = "_store.md";
 const STORE_CONTRACT_SUFFIX = ".store.md";
 /** @deprecated legacy */
 const STORE_FILE = "store.yml";
-/** @deprecated use STORE_CONTRACT_FILE */
-const SCHEMA_FILE = STORE_CONTRACT_FILE;
+/** @deprecated */
+const SCHEMA_FILE = COLLECTION_MANIFEST;
 const LEGACY_STORE_FILE = "configuration-schema.yml";
-const COLLECTION_MANIFEST = "manifest.md";
 const SINGLETON_RECORD = "main.md";
 const DISCOVER_SKIP_DIRS = new Set([".awn-cache", "history"]);
 const RECORD_WALK_SKIP_DIRS = new Set(["record-base", "_base", ".awn-cache", "history"]);
@@ -177,14 +178,28 @@ function readStoreMdParts(storeMdPath) {
   }
 }
 
+function isStoreManifestFrontmatter(raw) {
+  if (!raw || typeof raw !== "object") return false;
+  return Boolean(
+    raw["awn-type"] ||
+      raw["awn-prop-type"] ||
+      raw.kind ||
+      raw["awn-fields"] ||
+      raw.fields ||
+      raw["awn-record"] ||
+      raw["awn-prop-record"]
+  );
+}
+
 function normalizeExtendsRef(ref) {
   return String(ref || "")
     .trim()
     .replace(/\\/g, "/")
-    .replace(/\/store\.yml$/i, "/manifest.store.md")
-    .replace(/(^|\/)_store\.yml$/i, "$1manifest.store.md")
-    .replace(/(^|\/)_store\.md$/i, "$1manifest.store.md")
-    .replace(/(^|\/)_store$/i, "$1/manifest.store.md");
+    .replace(/\/store\.yml$/i, "/manifest.md")
+    .replace(/(^|\/)_store\.yml$/i, "$1manifest.md")
+    .replace(/(^|\/)_store\.md$/i, "$1manifest.md")
+    .replace(/manifest\.store\.md$/i, "manifest.md")
+    .replace(/(^|\/)_store$/i, "$1/manifest.md");
 }
 
 function readPlainManifestBody(storeAbs) {
@@ -210,38 +225,33 @@ function extractDescriptionFromBody(body) {
 function normalizeRawStoreSchema(raw, body = "") {
   if (!raw || typeof raw !== "object") return null;
 
-  const hasModernProps =
-    raw["awn-prop-type"] ||
-    raw["awn-prop-name"] ||
-    raw["awn-prop-id"] ||
-    raw["awn-fields"];
-
-  const hasLegacyAwnKeys =
+  const hasAwnKeys =
     raw["awn-type"] ||
     raw["awn-name"] ||
+    raw["awn-id"] ||
+    raw["awn-fields"] ||
     raw["awn-record"] ||
-    raw["awn-extends"] ||
-    raw["awn-description"];
+    raw["awn-extends"];
 
-  if (!hasModernProps && !hasLegacyAwnKeys && raw.kind) {
+  const hasLegacyPropKeys = raw["awn-prop-type"] || raw["awn-prop-name"] || raw["awn-prop-id"];
+
+  if (!hasAwnKeys && !hasLegacyPropKeys && raw.kind) {
     return {
       version: raw.version || 1,
       kind: String(raw.kind || "collection").trim(),
       id: String(raw.id || "").trim(),
       name: String(raw.name || raw.id || "").trim(),
-      description: String(raw.description || extractDescriptionFromBody(body) || "").trim(),
+      description: String(extractDescriptionFromBody(body) || raw.description || "").trim(),
       extends: normalizeExtendsRef(raw.extends || ""),
-      layer: String(raw.layer || raw["awn-prop-layer"] || "").trim(),
+      layer: String(raw.layer || raw["awn-layer"] || raw["awn-prop-layer"] || "").trim(),
       record: raw.record && typeof raw.record === "object" ? { ...raw.record } : {},
       fields: normalizeAwnFieldsMap(raw.fields),
       storeBody: body
     };
   }
 
-  const propType = readStoreProp(raw, ["awn-prop-type", "awn-type", "awnType"], "");
-  const kind = raw.kind
-    ? String(raw.kind).trim()
-    : normalizeAwnPropTypeToKind(propType, "collection");
+  const awnType = readStoreProp(raw, ["awn-type", "awnType", "awn-prop-type"], "");
+  const kind = raw.kind ? String(raw.kind).trim() : normalizeAwnPropTypeToKind(awnType, "collection");
 
   const rawFields =
     (raw["awn-fields"] && typeof raw["awn-fields"] === "object" ? raw["awn-fields"] : null) ||
@@ -251,24 +261,16 @@ function normalizeRawStoreSchema(raw, body = "") {
   return {
     version: raw.version || 1,
     kind,
-    id: String(readStoreProp(raw, ["awn-prop-id", "id", "awn-id"], "")).trim(),
-    name: String(
-      readStoreProp(raw, ["awn-prop-name", "awn-name", "name", "title"], "")
-    ).trim(),
-    description: String(
-      readStoreProp(raw, ["awn-prop-description", "awn-description", "description"], "") ||
-        extractDescriptionFromBody(body) ||
-        ""
-    ).trim(),
+    id: String(readStoreProp(raw, ["awn-id", "id", "awn-prop-id"], "")).trim(),
+    name: String(readStoreProp(raw, ["awn-name", "name", "title", "awn-prop-name"], "")).trim(),
+    description: String(extractDescriptionFromBody(body) || readStoreProp(raw, ["description", "awn-description", "awn-prop-description"], "")).trim(),
     extends: normalizeExtendsRef(
-      readStoreProp(raw, ["awn-prop-extends", "awn-extends", "extends"], "")
+      readStoreProp(raw, ["awn-extends", "extends", "awn-prop-extends"], "")
     ),
-    layer: String(readStoreProp(raw, ["awn-prop-layer", "layer"], "")).trim(),
+    layer: String(readStoreProp(raw, ["awn-layer", "layer", "awn-prop-layer"], "")).trim(),
     record:
-      (raw["awn-prop-record"] && typeof raw["awn-prop-record"] === "object"
-        ? raw["awn-prop-record"]
-        : null) ||
       (raw["awn-record"] && typeof raw["awn-record"] === "object" ? raw["awn-record"] : null) ||
+      (raw["awn-prop-record"] && typeof raw["awn-prop-record"] === "object" ? raw["awn-prop-record"] : null) ||
       (raw.record && typeof raw.record === "object" ? raw.record : {}) ||
       {},
     fields: normalizeAwnFieldsMap(rawFields),
@@ -313,6 +315,22 @@ function readRawStoreSchemaAt(storeAbs, explicitPath = "") {
       schemaPath: explicitPath,
       schemaFile: path.basename(explicitPath)
     };
+  }
+
+  const manifestPath = path.join(storeAbs, COLLECTION_MANIFEST);
+  if (fs.existsSync(manifestPath)) {
+    const parts = readStoreMdParts(manifestPath);
+    if (parts && isStoreManifestFrontmatter(parts.frontmatter)) {
+      const schema = normalizeRawStoreSchema(parts.frontmatter, parts.body);
+      if (schema) {
+        return {
+          schema,
+          body: parts.body,
+          schemaPath: manifestPath,
+          schemaFile: COLLECTION_MANIFEST
+        };
+      }
+    }
   }
 
   const storeMdPath = path.join(storeAbs, STORE_CONTRACT_FILE);
@@ -535,6 +553,11 @@ function buildRecordTree(records) {
 }
 
 function resolveStoreSchemaPath(storeAbs) {
+  const manifestPath = path.join(storeAbs, COLLECTION_MANIFEST);
+  if (fs.existsSync(manifestPath)) {
+    const parts = readStoreMdParts(manifestPath);
+    if (parts && isStoreManifestFrontmatter(parts.frontmatter)) return manifestPath;
+  }
   const contractPath = path.join(storeAbs, STORE_CONTRACT_FILE);
   if (fs.existsSync(contractPath)) return contractPath;
   const legacyMdPath = path.join(storeAbs, STORE_MD_FILE);
@@ -579,9 +602,9 @@ function loadStore(dataRoot, storeEntry) {
   }
   const manifestDescription = manifestMarkdown.split("\n")[0]?.replace(/^#\s*/, "").trim() || "";
 
-  const schemaFile = String(schema.schemaFile || STORE_CONTRACT_FILE).trim() || STORE_CONTRACT_FILE;
+  const schemaFile = String(schema.schemaFile || COLLECTION_MANIFEST).trim() || COLLECTION_MANIFEST;
   const schemaRelPath = `${storeRel}/${schemaFile}`.replace(/\\/g, "/");
-  const manifestRelPath = `${storeRel}/${COLLECTION_MANIFEST}`.replace(/\\/g, "/");
+  const manifestRelPath = schemaRelPath;
 
   const recordStorage = kind === "collection" ? getRecordStorage(schema) : "md";
   let records = [];
@@ -785,9 +808,8 @@ function getAwnDataPayload(agentRoot, projectRoot = process.cwd(), storeId = "")
 }
 
 const BASE_SCHEMA_TEMPLATE = `---
-awn-prop-type: awn.data.base
-awn-prop-layer: awn-data-base
-awn-prop-description: Базовые поля каждой записи в awn-data (наследуются всеми накопителями)
+awn-type: awn.data.base
+awn-layer: awn-data-base
 awn-fields:
   awn-id:
     type: awn.string
@@ -801,6 +823,8 @@ awn-fields:
     type: awn.datetime
     title: Обновлено
 ---
+
+Базовые поля каждой записи в awn-data (наследуются всеми накопителями).
 `;
 
 function yamlQuote(value) {
@@ -837,17 +861,16 @@ function dumpYamlBlock(obj, indent = 0) {
   return lines;
 }
 
-function buildStoreMdContent(schema) {
+function buildStoreManifestContent(schema, body = "") {
   const kind = String(schema.kind || "collection").trim();
   const lines = ["---"];
-  lines.push(`awn-prop-type: ${KIND_TO_AWN_PROP_TYPE[kind] || "awn.data.collection"}`);
-  if (schema.id) lines.push(`awn-prop-id: ${schema.id}`);
-  if (schema.layer) lines.push(`awn-prop-layer: ${schema.layer}`);
-  if (schema.name) lines.push(`awn-prop-name: ${yamlQuote(schema.name)}`);
-  if (schema.description) lines.push(`awn-prop-description: ${yamlQuote(schema.description)}`);
-  if (schema.extends) lines.push(`awn-prop-extends: ${normalizeExtendsRef(schema.extends)}`);
+  lines.push(`awn-type: ${KIND_TO_AWN_PROP_TYPE[kind] || "awn.data.collection"}`);
+  if (schema.id) lines.push(`awn-id: ${schema.id}`);
+  if (schema.layer) lines.push(`awn-layer: ${schema.layer}`);
+  if (schema.name) lines.push(`awn-name: ${yamlQuote(schema.name)}`);
+  if (schema.extends) lines.push(`awn-extends: ${normalizeExtendsRef(schema.extends)}`);
   if (schema.record && Object.keys(schema.record).length) {
-    lines.push("awn-prop-record:");
+    lines.push("awn-record:");
     lines.push(...dumpYamlBlock(schema.record, 1));
   }
   if (schema.fields && Object.keys(schema.fields).length) {
@@ -855,7 +878,15 @@ function buildStoreMdContent(schema) {
     lines.push(...dumpYamlBlock(normalizeAwnFieldsMap(schema.fields), 1));
   }
   lines.push("---", "");
-  return `${lines.join("\n")}\n`;
+  const manifestBody =
+    String(body || "").trim() ||
+    buildPlainManifestContent(schema.name, schema.description).trim();
+  return `${lines.join("\n")}${manifestBody}\n`;
+}
+
+/** @deprecated use buildStoreManifestContent */
+function buildStoreMdContent(schema) {
+  return buildStoreManifestContent(schema, schema.description ? `# ${schema.name || schema.id}\n\n${schema.description}` : "");
 }
 
 function buildPlainManifestContent(name, body = "") {
@@ -910,7 +941,7 @@ function ensureAwnDataBase(agentRoot, projectRoot = process.cwd()) {
   fs.mkdirSync(dataRoot, { recursive: true });
   const baseDir = path.join(dataRoot, RECORD_BASE_REL);
   fs.mkdirSync(baseDir, { recursive: true });
-  const baseSchemaPath = path.join(baseDir, STORE_CONTRACT_FILE);
+  const baseSchemaPath = path.join(baseDir, COLLECTION_MANIFEST);
   if (!fs.existsSync(baseSchemaPath)) {
     fs.writeFileSync(baseSchemaPath, BASE_SCHEMA_TEMPLATE, "utf-8");
   }
@@ -974,7 +1005,7 @@ function buildCollectionManifestBody({ name, description }) {
 
 function recordBaseExtendsPath(slug) {
   const depth = Math.max(1, slug.split("/").length);
-  return `${ "../".repeat(depth) }${RECORD_BASE_REL}/manifest.store.md`;
+  return `${ "../".repeat(depth) }${RECORD_BASE_REL}/manifest.md`;
 }
 
 function buildCollectionSchemaContent({ slug, name, description, hierarchy = true }) {
@@ -1074,13 +1105,17 @@ function buildGroupSchemaContent({ slug, name, description }) {
   };
 }
 
-function writeStoreContractBundle(storeAbs, schema, manifestBody = "") {
-  fs.writeFileSync(path.join(storeAbs, STORE_CONTRACT_FILE), buildStoreMdContent(schema), "utf-8");
+function writeStoreManifest(storeAbs, schema, manifestBody = "") {
   fs.writeFileSync(
     path.join(storeAbs, COLLECTION_MANIFEST),
-    buildPlainManifestContent(schema.name, manifestBody || schema.description),
+    buildStoreManifestContent(schema, manifestBody),
     "utf-8"
   );
+}
+
+/** @deprecated use writeStoreManifest */
+function writeStoreContractBundle(storeAbs, schema, manifestBody = "") {
+  writeStoreManifest(storeAbs, schema, manifestBody);
 }
 
 function buildRecordMarkdown({ id, title, parent, extra = {} }) {
@@ -1123,7 +1158,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
     const bundle = isTaxonomy
       ? buildTaxonomyCollectionSchemaContent({ slug, name, description })
       : buildCollectionSchemaContent({ slug, name, description, hierarchy: options.hierarchy !== false });
-    writeStoreContractBundle(storeAbs, bundle.schema, bundle.manifestBody);
+    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody);
     fs.writeFileSync(path.join(storeAbs, "sort.json"), "[]\n", "utf-8");
     if (isTaxonomy) {
       const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs));
@@ -1135,11 +1170,11 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
     }
   } else if (kind === "group") {
     const bundle = buildGroupSchemaContent({ slug, name, description });
-    writeStoreContractBundle(storeAbs, bundle.schema, bundle.manifestBody);
+    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody);
     fs.writeFileSync(path.join(storeAbs, "sort.json"), "[]\n", "utf-8");
   } else {
     const bundle = buildSingletonSchemaContent({ slug, name, description });
-    writeStoreContractBundle(storeAbs, bundle.schema, bundle.manifestBody);
+    writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody);
     const recordContent = buildRecordMarkdown({
       id: slug.replace(/\//g, "."),
       title: name,
@@ -1255,8 +1290,10 @@ module.exports = {
   ensureAwnDataBase,
   createAwnDataStore,
   createAwnDataRecord,
+  buildStoreManifestContent,
   buildStoreMdContent,
   buildPlainManifestContent,
+  writeStoreManifest,
   writeStoreContractBundle,
   loadMergedStoreSchema,
   normalizeExtendsRef,

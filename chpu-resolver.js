@@ -273,10 +273,12 @@ async function resolveAwnDataPath(agentRoot, chpuPath) {
   const segments = normalized.split("/").filter(Boolean);
   for (let len = segments.length; len >= 1; len -= 1) {
     const dirRel = segments.slice(0, len).join("/");
-    const storeContractAbs = path.join(agentRoot, dirRel, "manifest.store.md");
+    const storeManifestAbs = path.join(agentRoot, dirRel, "manifest.md");
+    const legacyStoreContractAbs = path.join(agentRoot, dirRel, "manifest.store.md");
     const legacyStoreAbs = path.join(agentRoot, dirRel, "_store.md");
     const hasStore =
-      (storeContractAbs.startsWith(agentRoot) && (await fileExists(storeContractAbs))) ||
+      (storeManifestAbs.startsWith(agentRoot) && (await fileExists(storeManifestAbs))) ||
+      (legacyStoreContractAbs.startsWith(agentRoot) && (await fileExists(legacyStoreContractAbs))) ||
       (legacyStoreAbs.startsWith(agentRoot) && (await fileExists(legacyStoreAbs)));
     if (!hasStore) continue;
 

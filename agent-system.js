@@ -51,13 +51,18 @@ function normalizeAgentSystemRelPath(relPath) {
   return normalized;
 }
 
+function isAwnDataStoreManifestPath(normalized) {
+  return /^awn-data\/.+\/manifest\.md$/i.test(normalized);
+}
+
+/** @deprecated */
 function isAwnDataStoreContractPath(normalized) {
-  return /^awn-data\/.+\/manifest\.store\.md$/i.test(normalized);
+  return isAwnDataStoreManifestPath(normalized) || /^awn-data\/.+\/manifest\.store\.md$/i.test(normalized);
 }
 
 function isAwnDataTypeRecordPath(normalized) {
   if (!normalized.startsWith(`${AWN_DATA_REL}/`) || !/\.md$/i.test(normalized)) return false;
-  if (isAwnDataStoreContractPath(normalized)) return false;
+  if (/\/manifest\.md$/i.test(normalized) || /\/manifest\.store\.md$/i.test(normalized)) return false;
   const prefixes = [
     "awn-data/pages/",
     "awn-data/content/",
@@ -74,7 +79,7 @@ function isAgentSystemRelPath(relPath) {
   return (
     normalized === CMS_CONFIG_REL ||
     normalized.startsWith(`${CMS_CONFIG_REL}/`) ||
-    isAwnDataStoreContractPath(normalized) ||
+    isAwnDataStoreManifestPath(normalized) ||
     isAwnDataTypeRecordPath(normalized)
   );
 }
