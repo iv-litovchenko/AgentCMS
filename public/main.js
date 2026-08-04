@@ -81669,6 +81669,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewRoot = root || null;
   if (!root) {
     awnDataViewIblockLayoutNode = null;
+    awnDataViewIblockDescriptionBlockNode = null;
     awnDataViewIblockDescriptionNode = null;
     awnDataViewModalTitleNode = null;
     awnDataViewModalKindNode = null;
@@ -81703,6 +81704,7 @@ function syncAwnDataViewDomRefs(root) {
 
   awnDataViewModalTitleNode = root.querySelector(".awn-data-view-title");
   awnDataViewIblockLayoutNode = root.querySelector(".awn-data-view-iblock-layout");
+  awnDataViewIblockDescriptionBlockNode = root.querySelector(".awn-data-view-iblock-description-block");
   awnDataViewIblockDescriptionNode = root.querySelector(".awn-data-view-iblock-description");
   awnDataViewModalKindNode = root.querySelector(".awn-data-view-kind-badge");
   awnDataViewModalPathNode = root.querySelector(".awn-data-view-path");
@@ -81764,9 +81766,7 @@ function syncAwnDataViewLayoutToggleUi() {
 
 function syncAwnDataViewScreenMode() {
   const isRecord = Boolean(awnDataViewRecordId);
-  const isGroup = awnDataViewStoreCache?.kind === "group";
   awnDataViewIblockLayoutNode?.classList.toggle("is-record-mode", isRecord);
-  awnDataViewIblockLayoutNode?.classList.toggle("is-group-mode", isGroup && !isRecord);
   awnDataViewStorePanelNode?.classList.toggle("hidden", isRecord);
   awnDataViewRecordPanelNode?.classList.toggle("hidden", !isRecord);
   if (isRecord) {
@@ -81775,30 +81775,30 @@ function syncAwnDataViewScreenMode() {
   }
 }
 
-function syncAwnDataViewIblockLayout(store) {
-  if (!awnDataViewIblockLayoutNode) return;
-  const kind = String(store?.kind || "").trim();
-  awnDataViewIblockLayoutNode.classList.toggle("is-group-mode", kind === "group");
+function syncAwnDataViewIblockLayout(_store) {
+  // single-column layout — no-op
 }
 
 function renderAwnDataIblockDescription(store) {
-  if (!awnDataViewIblockDescriptionNode) return;
+  const blockNode = awnDataViewIblockDescriptionBlockNode;
+  const descNode = awnDataViewIblockDescriptionNode;
+  if (!descNode) return;
+
   const markdown = String(store?.manifestMarkdown || "").trim();
   if (!markdown) {
-    awnDataViewIblockDescriptionNode.classList.add("hidden");
-    awnDataViewIblockDescriptionNode.textContent = "";
+    blockNode?.classList.add("hidden");
+    descNode.replaceChildren();
     return;
   }
-  const lines = markdown.split("\n").filter((line) => line.trim());
-  const bodyLines = lines.filter((line) => !line.startsWith("#"));
-  const text = bodyLines.join(" ").trim() || lines.slice(1).join(" ").replace(/^#+\s*/, "").trim();
-  if (!text) {
-    awnDataViewIblockDescriptionNode.classList.add("hidden");
-    awnDataViewIblockDescriptionNode.textContent = "";
-    return;
+
+  blockNode?.classList.remove("hidden");
+  const manifestPath =
+    store?.manifestRelPath || (store?.relPath ? `awn-data/${store.relPath}/manifest.md` : "");
+  if (typeof renderMarkdownToHtml === "function") {
+    descNode.innerHTML = renderMarkdownToHtml(markdown, { nodePath: manifestPath });
+  } else {
+    descNode.textContent = markdown;
   }
-  awnDataViewIblockDescriptionNode.textContent = text;
-  awnDataViewIblockDescriptionNode.classList.remove("hidden");
 }
 
 function rootQueryAwnDataToolbar() {
@@ -82360,20 +82360,8 @@ function renderAwnDataViewHeader(store, { loading = false, error = false } = {})
   }
 
   if (awnDataViewManifestNode) {
-    const manifestMarkdown = String(viewStore?.manifestMarkdown || "").trim();
-    if (!manifestMarkdown || loading || error) {
-      awnDataViewManifestNode.classList.add("hidden");
-      awnDataViewManifestNode.replaceChildren();
-    } else {
-      awnDataViewManifestNode.classList.remove("hidden");
-      if (typeof renderMarkdownToHtml === "function") {
-        awnDataViewManifestNode.innerHTML = renderMarkdownToHtml(manifestMarkdown, {
-          nodePath: viewStore.manifestRelPath || `awn-data/${viewStore.relPath}/manifest.md`
-        });
-      } else {
-        awnDataViewManifestNode.textContent = manifestMarkdown;
-      }
-    }
+    awnDataViewManifestNode.classList.add("hidden");
+    awnDataViewManifestNode.replaceChildren();
   }
 
   renderAwnDataViewSchema(store, { loading, error });

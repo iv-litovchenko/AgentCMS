@@ -46056,6 +46056,7 @@ body.is-discuss-resizing .discuss-aside-resizer {
   border: none;
   border-radius: 0;
   background: transparent;
+  width: 100%;
 }
 
 .awn-data-view-schema-panel.hidden {
