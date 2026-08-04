@@ -42,6 +42,22 @@ function isTypeRecordActive(record) {
   return ACTIVE_STATUS.has(status);
 }
 
+function normalizeTypeBodySchema(bodySchema) {
+  const src = bodySchema && typeof bodySchema === "object" ? { ...bodySchema } : {};
+  const awnFields = src["awn-fields"];
+  if (awnFields && typeof awnFields === "object") {
+    src.fields = { ...(src.fields || {}), ...awnFields };
+    delete src["awn-fields"];
+  }
+  if (src.properties && typeof src.properties === "object") {
+    if (!src.fields || !Object.keys(src.fields).length) {
+      src.fields = { ...(src.fields || {}), ...src.properties };
+    }
+    delete src.properties;
+  }
+  return src;
+}
+
 function recordToTypeSchema(record) {
   if (!record || !isTypeRecordActive(record)) return null;
   const fm = record.frontmatter || {};
@@ -52,7 +68,7 @@ function recordToTypeSchema(record) {
   const body = String(record.body || "").trim();
   if (body) {
     try {
-      bodySchema = parseTypeYaml(body) || {};
+      bodySchema = normalizeTypeBodySchema(parseTypeYaml(body) || {});
     } catch {
       bodySchema = {};
     }

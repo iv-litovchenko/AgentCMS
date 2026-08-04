@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: tasks
 awn-name: Задачи
-awn-extends: awn-data/cms-base/table-base/manifest.md
+awn-extends: awn-data/cms-base/entities/table-base/manifest.md
 awn-record:
   id-mode: numeric
   file: "{id}.md"

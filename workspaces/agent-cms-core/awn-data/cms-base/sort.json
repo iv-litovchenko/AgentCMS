@@ -1,7 +1,4 @@
 [
-  "row-base",
-  "table-base",
-  "store-props",
   "entities",
   "mixins"
 ]

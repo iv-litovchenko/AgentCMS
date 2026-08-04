@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: zagotovki-shablonov
 awn-name: Заготовки шаблонов
-awn-extends: awn-data/cms-base/table-base/manifest.md
+awn-extends: awn-data/cms-base/entities/table-base/manifest.md
 awn-record:
   storage: md
   id-mode: slug

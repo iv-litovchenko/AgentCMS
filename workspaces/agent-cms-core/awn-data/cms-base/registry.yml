@@ -1,7 +1,7 @@
 version: 1
 mode: agent-owned
 agent: agent-cms-test
-description: CMS-модель агента — типы, слоты, поля. Runtime читает awn-data/{pages,content,slots}/types/
+description: CMS-модель агента — типы в awn-data/{pages,content,slots,cms-base/entities}
 
 # domains — источник правды по доменам («какие бывают компоненты»).
 # Встроенные домены известны рантайму по умолчанию. Здесь можно:

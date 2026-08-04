@@ -25,7 +25,7 @@ storage-slots:
   - todo-single
   - log-single
 manifest-pattern: "{slug}/manifest.md"
-fields:
+awn-fields:
   awn-slots-disabled:
     type: awn.field.boolean
     title: Общий слот (lite)

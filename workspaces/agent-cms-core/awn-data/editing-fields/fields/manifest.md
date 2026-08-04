@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: editing-fields.fields
 awn-name: Поля
-awn-extends: awn-data/cms-base/table-base/manifest.md
+awn-extends: awn-data/cms-base/entities/table-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"

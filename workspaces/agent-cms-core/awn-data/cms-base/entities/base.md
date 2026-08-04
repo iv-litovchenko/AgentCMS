@@ -9,7 +9,7 @@ awn-domain: base
 awn-status: active
 ---
 description: Корень — имя и описание любой сущности в системе
-fields:
+awn-fields:
   awn-name:
     type: awn.field.string
     title: Имя

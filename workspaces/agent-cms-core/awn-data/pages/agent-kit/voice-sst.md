@@ -15,7 +15,7 @@ create-node-group: agent
 create-node-label: Голос STT
 create-node-slug: voice-sst
 create-node-order: 4
-fields:
+awn-fields:
   awn-stt-provider:
     type: awn.field.string
     title: Провайдер STT

@@ -11,17 +11,17 @@ awn-extends: awn.row.base
 ---
 description: Одно сообщение в слоте thread/ (awn.slot.dialogs) — диалог с агентом
 slot: dialogs
-fields:
+awn-fields:
   awn-role:
     type: awn.field.enum
-    name: Роль
+    title: Роль
     enum:
       -
         key: user
-        name: Пользователь
+        title: Пользователь
       -
         key: assistant
-        name: Ассистент
+        title: Ассистент
       -
         key: system
-        name: Система
+        title: Система

@@ -9,9 +9,9 @@ awn-domain: mixins
 awn-status: active
 ---
 description: Прикреплённые файлы
-fields:
+awn-fields:
   awn-attachments:
     type: awn.field.array
-    name: Вложения
+    title: Вложения
     items: awn.field.file
     widget: attachments

@@ -277,17 +277,23 @@ function mergeTypeSchema(entry, byId, visited = new Set()) {
   }
 
   const schema = entry.schema && typeof entry.schema === "object" ? { ...entry.schema } : {};
-  if (schema.fields && typeof schema.fields === "object") {
-    merged.fields = { ...(merged.fields || {}), ...schema.fields };
+  const schemaFields =
+    (schema.fields && typeof schema.fields === "object" ? schema.fields : null) ||
+    (schema["awn-fields"] && typeof schema["awn-fields"] === "object" ? schema["awn-fields"] : null);
+  if (schemaFields) {
+    merged.fields = { ...(merged.fields || {}), ...schemaFields };
   }
   if (schema.properties && typeof schema.properties === "object") {
     merged.properties = { ...(merged.properties || {}), ...schema.properties };
+    if (!merged.fields || !Object.keys(merged.fields).length) {
+      merged.fields = { ...(merged.fields || {}), ...schema.properties };
+    }
   }
   if (Array.isArray(schema.mixins)) {
     merged.mixins = [...new Set([...(merged.mixins || []), ...schema.mixins])];
   }
   for (const [key, value] of Object.entries(schema)) {
-    if (["fields", "properties", "mixins", "extends", "status"].includes(key)) continue;
+    if (["fields", "awn-fields", "properties", "mixins", "extends", "status"].includes(key)) continue;
     merged[key] = value;
   }
   return merged;

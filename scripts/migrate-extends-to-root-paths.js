@@ -8,8 +8,9 @@ const { parseTypeYaml } = require("../awn-yaml-utils");
 const { normalizeExtendsRef } = require("../awn-data-loader");
 
 const ROOT = path.join(__dirname, "../workspaces/agent-cms-core/awn-data");
-const TABLE_BASE = "awn-data/cms-base/table-base/manifest.md";
-const ROW_BASE = "awn-data/cms-base/row-base/manifest.md";
+const TABLE_BASE = "awn-data/cms-base/entities/table-base/manifest.md";
+/** @deprecated */
+const ROW_BASE = TABLE_BASE;
 /** @deprecated */
 const RECORD_BASE = TABLE_BASE;
 

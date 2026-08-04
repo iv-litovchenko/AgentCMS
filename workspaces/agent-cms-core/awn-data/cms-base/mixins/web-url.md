@@ -9,7 +9,7 @@ awn-domain: mixins
 awn-status: active
 ---
 description: Ссылка на оригинал в интернете
-fields:
+awn-fields:
   awn-web-url:
     type: awn.field.url
     title: Веб-источник

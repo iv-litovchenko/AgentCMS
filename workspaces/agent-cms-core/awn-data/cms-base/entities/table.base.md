@@ -10,13 +10,11 @@ awn-status: active
 awn-extends: awn.base
 ---
 description: Шаблон накопителя (таблицы) в awn-data — от него наследуют tasks, taxonomies, agents…
-properties:
-  type:
-    title: Тип накопителя
-    description: "awn.data.collection | awn.data.single | awn.data.group"
-  record:
-    title: Правила записи
-    description: storage, id-mode, file, hierarchy
-  fields:
-    title: Схема строк
-    description: awn-fields — локальные поля записей таблицы
+
+Технический `awn-extends`: `entities/table-base/manifest.md`
+
+Ключи контракта накопителя (`manifest.md`):
+
+- **awn-type** — collection | single | group
+- **awn-record** — storage, id-mode, file, hierarchy
+- **awn-fields** — локальная схема строк таблицы

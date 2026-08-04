@@ -12,7 +12,7 @@ awn-extends: awn.page.base
 description: "Секция workspace — прямой потомок ws; контейнер для тем (agent-kit, shared, container, …)"
 manifest-pattern: "{slug}/manifest.md"
 storage-slots: []
-fields:
+awn-fields:
   awn-section-role:
     type: awn.field.string
     title: Роль секции

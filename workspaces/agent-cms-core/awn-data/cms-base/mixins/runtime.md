@@ -9,29 +9,29 @@ awn-domain: mixins
 awn-status: active
 ---
 description: "Загрузка в контекст агента, cron, heartbeat, команды"
-fields:
+awn-fields:
   awn-runtime-load-always:
     type: awn.field.boolean
-    name: Всегда в контексте
+    title: Всегда в контексте
     group: runtime
     description: Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)
     default: false
   awn-runtime-cron:
     type: awn.field.boolean
-    name: Выполнение по расписанию
+    title: Выполнение по расписанию
     group: runtime
   awn-runtime-cron-schedule:
     type: awn.field.string
-    name: ""
+    title: Расписание cron
     group: runtime
     description: "День и время, шаблон или своё cron-выражение"
   awn-runtime-heartbeat:
     type: awn.field.boolean
-    name: Heartbeat
+    title: Heartbeat
     group: runtime
   awn-runtime-commands:
     type: awn.field.boolean
-    name: Выполнение команд
+    title: Выполнение команд
     group: runtime
     description: В инструкции темы есть команды для выполнения (визуальный маркер)
     default: false

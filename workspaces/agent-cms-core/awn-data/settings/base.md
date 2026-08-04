@@ -9,9 +9,10 @@ awn-domain: settings
 awn-status: active
 awn-extends: awn.row.base
 ---
-description:
-properties:
-  scope:
+description: Базовый тип настройки
+awn-fields:
+  awn-scope:
+    type: awn.field.enum
     title: Область
     description: К чему относится настройка
     enum:
@@ -19,11 +20,10 @@ properties:
       - workspace
       - ui
     default: agent
-  value:
+  awn-value:
+    type: awn.field.string
     title: Значение
-    description: Значение настройки (строка / число / флаг)
-  enabled:
+  awn-enabled:
+    type: awn.field.boolean
     title: Включено
-    description: Активна ли настройка
-    widget: checkbox
     default: true

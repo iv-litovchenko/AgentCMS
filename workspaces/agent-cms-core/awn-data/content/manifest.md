@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: content
 awn-name: Контент
-awn-extends: awn-data/cms-base/table-base/manifest.md
+awn-extends: awn-data/cms-base/entities/table-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"

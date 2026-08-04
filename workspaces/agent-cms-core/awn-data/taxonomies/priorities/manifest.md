@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: taxonomies.priorities
 awn-name: Приоритеты
-awn-extends: awn-data/cms-base/table-base/manifest.md
+awn-extends: awn-data/cms-base/entities/table-base/manifest.md
 awn-record:
   storage: csv
   file: main.csv

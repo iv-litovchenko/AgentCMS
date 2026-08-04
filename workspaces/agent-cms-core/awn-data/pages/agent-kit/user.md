@@ -16,7 +16,7 @@ create-node-group: agent
 create-node-label: Пользователь
 create-node-slug: user
 create-node-order: 5
-fields:
+awn-fields:
   awn-user-role:
     type: awn.field.string
     title: Роль

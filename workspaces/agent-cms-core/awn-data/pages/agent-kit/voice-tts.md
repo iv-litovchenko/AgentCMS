@@ -15,7 +15,7 @@ create-node-group: agent
 create-node-label: Голос TTS
 create-node-slug: voice-tts
 create-node-order: 3
-fields:
+awn-fields:
   awn-tts-provider:
     type: awn.field.string
     title: Провайдер TTS

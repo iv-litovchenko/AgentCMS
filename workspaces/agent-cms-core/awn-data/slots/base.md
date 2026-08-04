@@ -10,44 +10,46 @@ awn-status: active
 awn-extends: awn.row.base
 ---
 description: Базовый тип слоя памяти у топика
-properties:
-  storage-driver:
+awn-fields:
+  awn-storage-driver:
+    type: awn.field.enum
     title: Драйвер памяти
-    description:
-      узла: internal — Однофайловая (один .md на слот); external — Многофайловая
+    description: internal — однофайловая; external — многофайловая; tabular — таблица
     enum:
       - internal
       - external
       - tabular
     default: external
-  path:
+  awn-path:
+    type: awn.field.string
     title: Путь
-    description: "Подпапка узла, куда складывается контент слота (например inbox/)"
+    description: "Подпапка узла (например inbox/)"
     required: true
-  allowed-content:
+  awn-allowed-content:
+    type: awn.field.array
     title: Разрешённый контент
-    type: list
-    description: Какие content-типы можно класть в слот (awn.content.record…)
-  accept-files:
+    description: Какие content-типы можно класть в слот
+    items: awn.field.string
+  awn-accept-files:
+    type: awn.field.array
     title: Принимаемые файлы
-    type: list
-    description: "Расширения файлов, допустимые в слоте (.md, .png…)"
-  slot-category:
+    description: "Расширения (.md, .png…)"
+    items: awn.field.string
+  awn-slot-category:
+    type: awn.field.enum
     title: Категория
-    description: Группа слота в каталоге (значения — enum в store.yml накопителя «Слоты»)
     enum:
       - memory
       - files
       - single-file
       - records
       - communication
-  slot-order:
+  awn-slot-order:
+    type: awn.field.integer
     title: Порядок
-    type: integer
-    description: Сортировка внутри категории
-  slot-tier:
+  awn-slot-tier:
+    type: awn.field.enum
     title: Уровень
-    description: "system — служебный слот, управляется runtime"
     enum:
       - user
       - system

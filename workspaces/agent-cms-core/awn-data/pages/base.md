@@ -34,7 +34,7 @@ field-groups:
     name: Системные
     description: "Заполняется автоматически, только чтение"
     collapsed: true
-fields:
+awn-fields:
   awn-main:
     type: awn.field.boolean
     title: На главной

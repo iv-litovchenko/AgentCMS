@@ -11,8 +11,8 @@ awn-extends: awn.row.base
 ---
 description: Комментарий к узлу — слот comments/
 slot: comments
-fields:
+awn-fields:
   awn-target:
     type: awn.field.link
-    name: К чему привязан
+    title: К чему привязан
     description: manifest.md или запись в awn-storage

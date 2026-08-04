@@ -10,7 +10,7 @@ awn-status: active
 awn-extends: awn.base
 ---
 description: Шаблон записи (строки) — от него наследуют pages, slots, content…
-fields:
+awn-fields:
   awn-id:
     type: awn.field.string
     title: ID

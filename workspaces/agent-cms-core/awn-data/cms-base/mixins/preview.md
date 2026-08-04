@@ -9,8 +9,8 @@ awn-domain: mixins
 awn-status: active
 ---
 description: Поле превью-изображения
-fields:
+awn-fields:
   awn-preview:
     type: awn.field.url
-    name: Превью
+    title: Превью
     group: content

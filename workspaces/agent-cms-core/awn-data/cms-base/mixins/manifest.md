@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: cms-base.mixins
 awn-name: Mixins
-awn-extends: awn-data/cms-base/table-base/manifest.md
+awn-extends: awn-data/cms-base/entities/table-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"
@@ -36,4 +36,7 @@ awn-fields:
 ---
 # Mixins
 
-Примеси для страниц и контента (awn.mixin.*)
+Примеси для страниц и контента (`awn.mixin.*`).
+
+- **manifest `awn-fields`** — метаданные записи mixin (title, typeId, kind…)
+- **body `awn-fields`** — поля, которые mixin добавляет к типам через `mixins:`

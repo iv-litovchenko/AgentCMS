@@ -10,7 +10,7 @@ awn-status: active
 awn-extends: awn.row.base
 ---
 description: "Метаданные медиафайла (*.sidecar.md)"
-fields:
+awn-fields:
   awn-mime:
     type: awn.field.string
     title: MIME-тип

@@ -10,7 +10,7 @@ awn-status: deprecated
 awn-extends: awn.page.section
 ---
 description: "Legacy — используйте awn.page.section.* (agent-kit, shared, container)"
-fields:
+awn-fields:
   awn-color:
     type: awn.field.color
     title: Цвет

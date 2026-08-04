@@ -12,8 +12,11 @@ const { buildStoreManifestContent } = require("../awn-data-loader");
 
 const AGENT_ROOT = path.join(process.cwd(), "workspaces/agent-cms-core");
 const AWN_DATA = path.join(AGENT_ROOT, "awn-data");
-const RECORD_BASE_EXTENDS = "awn-data/cms-base/table-base/manifest.md";
-const ROW_BASE_EXTENDS = "awn-data/cms-base/row-base/manifest.md";
+const TABLE_BASE_EXTENDS = "awn-data/cms-base/entities/table-base/manifest.md";
+/** @deprecated */
+const RECORD_BASE_EXTENDS = TABLE_BASE_EXTENDS;
+/** @deprecated */
+const ROW_BASE_EXTENDS = TABLE_BASE_EXTENDS;
 const BASE_FIELD_KEYS = new Set(["awn-id", "awn-created", "awn-updated"]);
 
 /** Stores whose records carry type-inheritance field awn-extends (type id string). */
