@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: taxonomies.statuses
 awn-name: Статусы
-awn-extends: awn-data/cms-base/entities/table-base/manifest.md
+awn-extends: awn-data/cms-base/entities/row.base.md
 awn-record:
   storage: csv
   file: main.csv

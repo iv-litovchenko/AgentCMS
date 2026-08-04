@@ -1,30 +1,31 @@
 # CMS Base — типы
 
+## Иерархия в «Сущностях»
+
+```
+base.md (awn.base)
+ ├── table.base.md (awn.table.base)  ← накопители (entities, pages, content…)
+ └── row.base.md (awn.row.base)      ← строки данных (tasks, taxonomies…)
+
+mixins → base.md (awn.base)
+```
+
+| Файл | typeId | `awn-extends` store | body `awn-fields` |
+|------|--------|---------------------|-------------------|
+| `base.md` | `awn.base` | — | name, description |
+| `table.base.md` | `awn.table.base` | `awn.base` (type) + chain → `row.base.md` | поля каталога типов |
+| `row.base.md` | `awn.row.base` | `awn.base` (type) | id, created, updated |
+
 ## Два уровня `awn-fields`
 
 | Где | Что описывает |
 |-----|----------------|
-| **`manifest.md` → `awn-fields`** | Схема **строки каталога** (frontmatter записи: title, typeId, status…) |
-| **Тело типа → `awn-fields`** | Схема **полей типа** (что mixin/page/content добавляет в форму) |
+| **`manifest.md`** | локальные поля накопителя (+ наследование через `awn-extends:`) |
+| **body типа** | поля runtime-типа (forms, mixins) |
 
-Пример mixin `preview.md`:
-- frontmatter: `awn-title`, `awn-typeId` — из `mixins/manifest.md`
-- body: `awn-fields: { awn-preview: … }` — поля, которые mixin подмешивает к page/content
-
-## Три базовых типа (Сущности)
-
-| typeId | Файл | Роль |
-|--------|------|------|
-| `awn.base` | `base.md` | `awn-name`, `awn-description` |
-| `awn.table.base` | `table.base.md` | шаблон накопителя |
-| `awn.row.base` | `row.base.md` | шаблон записи |
-
-```
-awn.base
- ├── awn.table.base  → tasks, taxonomies…
- └── awn.row.base    → pages, slots, content…
-```
-
-**entities/table-base/manifest.md** — технический `awn-extends` для накопителей (поля строки).
+Накопители:
+- **типовые** (pages, content…) → `awn-extends: …/table.base.md`
+- **данные** (tasks, taxonomies…) → `awn-extends: …/row.base.md`
+- **mixins** → `awn-extends: …/base.md`
 
 Карта workspace — [MAP.md](./MAP.md).

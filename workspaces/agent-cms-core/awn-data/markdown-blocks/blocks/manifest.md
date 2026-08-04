@@ -2,15 +2,11 @@
 awn-type: awn.data.collection
 awn-id: markdown-blocks.blocks
 awn-name: MD-Блоки
-awn-extends: awn-data/cms-base/entities/table-base/manifest.md
+awn-extends: awn-data/cms-base/entities/table.base.md
 awn-record:
   id-mode: slug
   file: "{id}.md"
 awn-fields:
-  awn-title:
-    type: awn.string
-    title: Название
-    required: true
   awn-blockId:
     type: awn.string
     title: ID типа

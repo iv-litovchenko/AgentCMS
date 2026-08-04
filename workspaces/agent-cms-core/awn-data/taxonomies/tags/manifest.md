@@ -2,7 +2,7 @@
 awn-type: awn.data.collection
 awn-id: taxonomies.tags
 awn-name: Теги
-awn-extends: awn-data/cms-base/entities/table-base/manifest.md
+awn-extends: awn-data/cms-base/entities/row.base.md
 awn-record:
   storage: csv
   file: main.csv

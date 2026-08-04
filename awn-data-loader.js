@@ -12,11 +12,11 @@ const {
 } = require("./awn-data-csv");
 
 const AWN_DATA_DIR = "awn-data";
-const TABLE_BASE_REL = "cms-base/entities/table-base";
-/** @deprecated use TABLE_BASE_REL */
-const RECORD_BASE_REL = TABLE_BASE_REL;
-/** @deprecated */
-const ROW_BASE_REL = TABLE_BASE_REL;
+const TABLE_BASE_EXTENDS = `${AWN_DATA_DIR}/cms-base/entities/table.base.md`;
+const ROW_BASE_EXTENDS = `${AWN_DATA_DIR}/cms-base/entities/row.base.md`;
+const ENTITY_BASE_EXTENDS = `${AWN_DATA_DIR}/cms-base/entities/base.md`;
+/** @deprecated use TABLE_BASE_EXTENDS */
+const TABLE_BASE_REL = "cms-base/entities/table.base.md";
 const COLLECTION_MANIFEST = "manifest.md";
 /** @deprecated legacy split contract */
 const STORE_CONTRACT_FILE = "manifest.store.md";
@@ -182,6 +182,75 @@ function readStoreMdParts(storeMdPath) {
   }
 }
 
+const ENTITY_TYPE_PATHS = {
+  "awn.base": "cms-base/entities/base.md",
+  "awn.table.base": "cms-base/entities/table.base.md",
+  "awn.row.base": "cms-base/entities/row.base.md"
+};
+
+function isEntityTypeRecordFrontmatter(raw) {
+  if (!raw || typeof raw !== "object") return false;
+  if (raw["awn-type"] || raw["awn-prop-type"]) return false;
+  return Boolean(raw["awn-typeId"] || raw.typeId);
+}
+
+function normalizeEntityFieldType(type) {
+  const raw = String(type || "").trim();
+  if (raw.startsWith("awn.field.")) return `awn.${raw.slice("awn.field.".length)}`;
+  return raw;
+}
+
+function normalizeEntityFieldsToStore(fields) {
+  const src = fields && typeof fields === "object" ? fields : {};
+  const out = {};
+  for (const [key, value] of Object.entries(src)) {
+    const field = value && typeof value === "object" ? { ...value } : { type: value };
+    if (field.type) field.type = normalizeEntityFieldType(field.type);
+    out[toAwnFieldKey(key)] = field;
+  }
+  return out;
+}
+
+function resolveEntityTypeIdToPath(typeId, dataRoot = "") {
+  const id = String(typeId || "").trim();
+  if (!id) return "";
+  const rel = ENTITY_TYPE_PATHS[id];
+  if (!rel) return "";
+  return `${AWN_DATA_DIR}/${rel}`;
+}
+
+function readEntityTypeAsStoreSchema(absPath, parts) {
+  let bodySchema = {};
+  const body = String(parts.body || "").trim();
+  if (body) {
+    try {
+      bodySchema = parseTypeYaml(body) || {};
+    } catch {
+      bodySchema = {};
+    }
+  }
+
+  const bodyFields = normalizeEntityFieldsToStore(bodySchema["awn-fields"] || bodySchema.fields || {});
+  const fm = parts.frontmatter || {};
+  const storeExtends = String(bodySchema["awn-store-extends"] || "").trim();
+  const typeExtends = String(fm["awn-extends"] || fm.extends || "").trim();
+  const extendsRef = storeExtends || resolveEntityTypeIdToPath(typeExtends) || "";
+
+  return {
+    schema: {
+      kind: "collection",
+      id: String(fm["awn-id"] || path.basename(absPath, ".md")).trim(),
+      name: String(fm["awn-title"] || fm["awn-name"] || "").trim(),
+      description: String(bodySchema.description || fm.description || "").trim(),
+      extends: normalizeExtendsRef(extendsRef),
+      fields: bodyFields
+    },
+    body,
+    schemaPath: absPath,
+    schemaFile: path.basename(absPath)
+  };
+}
+
 function isStoreManifestFrontmatter(raw) {
   if (!raw || typeof raw !== "object") return false;
   return Boolean(
@@ -227,9 +296,10 @@ function normalizeExtendsRef(ref) {
     normalized = parts.join("/");
   }
 
-  normalized = normalized.replace(/\/record-base\//g, "/entities/table-base/");
-  normalized = normalized.replace(/\/row-base\//g, "/entities/table-base/");
-  normalized = normalized.replace(/cms-base\/table-base\//g, "cms-base/entities/table-base/");
+  normalized = normalized.replace(/\/record-base\//g, "/entities/row.base.md");
+  normalized = normalized.replace(/\/row-base\//g, "/entities/row.base.md");
+  normalized = normalized.replace(/cms-base\/entities\/table-base\/manifest\.md/g, "cms-base/entities/table.base.md");
+  normalized = normalized.replace(/cms-base\/table-base\/manifest\.md/g, "cms-base/entities/table.base.md");
   normalized = normalized.replace(/^\/+/, "");
 
   if (
@@ -364,6 +434,9 @@ function readRawStoreSchemaAt(storeAbs, explicitPath = "") {
     if (lower.endsWith(".md")) {
       const parts = readStoreMdParts(explicitPath);
       if (!parts) return null;
+      if (isEntityTypeRecordFrontmatter(parts.frontmatter)) {
+        return readEntityTypeAsStoreSchema(explicitPath, parts);
+      }
       const schema = normalizeRawStoreSchema(parts.frontmatter, parts.body);
       if (!schema) return null;
       return { schema, body: parts.body, schemaPath: explicitPath, schemaFile: path.basename(explicitPath) };
@@ -1066,16 +1139,19 @@ function buildCollectionManifestBody({ name, description }) {
 }
 
 function tableBaseExtendsPath() {
-  return `${AWN_DATA_DIR}/${TABLE_BASE_REL}/manifest.md`;
+  return TABLE_BASE_EXTENDS;
+}
+
+function rowBaseExtendsPath() {
+  return ROW_BASE_EXTENDS;
+}
+
+function entityBaseExtendsPath() {
+  return ENTITY_BASE_EXTENDS;
 }
 
 /** @deprecated use tableBaseExtendsPath */
 function recordBaseExtendsPath() {
-  return tableBaseExtendsPath();
-}
-
-/** @deprecated use tableBaseExtendsPath */
-function rowBaseExtendsPath() {
   return tableBaseExtendsPath();
 }
 

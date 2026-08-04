@@ -2,7 +2,7 @@
 awn-type: awn.data.single
 awn-id: editing-fields.field-def
 awn-name: Мета-схема поля
-awn-extends: awn-data/cms-base/entities/table-base/manifest.md
+awn-extends: awn-data/cms-base/entities/row.base.md
 awn-record:
   storage: md
   file: main.md

@@ -12,7 +12,7 @@ const { buildStoreManifestContent } = require("../awn-data-loader");
 
 const AGENT_ROOT = path.join(process.cwd(), "workspaces/agent-cms-core");
 const AWN_DATA = path.join(AGENT_ROOT, "awn-data");
-const TABLE_BASE_EXTENDS = "awn-data/cms-base/entities/table-base/manifest.md";
+const TABLE_BASE_EXTENDS = "awn-data/cms-base/entities/table.base.md";
 /** @deprecated */
 const RECORD_BASE_EXTENDS = TABLE_BASE_EXTENDS;
 /** @deprecated */

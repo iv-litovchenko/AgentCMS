@@ -9,12 +9,32 @@ awn-domain: base
 awn-status: active
 awn-extends: awn.base
 ---
-description: Шаблон накопителя (таблицы) в awn-data — от него наследуют tasks, taxonomies, agents…
-
-Технический `awn-extends`: `entities/table-base/manifest.md`
-
-Ключи контракта накопителя (`manifest.md`):
-
-- **awn-type** — collection | single | group
-- **awn-record** — storage, id-mode, file, hierarchy
-- **awn-fields** — локальная схема строк таблицы
+description: Шаблон накопителя (таблицы) — от него наследуют entities, pages, content, slots…
+awn-store-extends: awn-data/cms-base/entities/row.base.md
+awn-fields:
+  awn-title:
+    type: awn.field.string
+    title: Название
+    required: true
+  awn-typeId:
+    type: awn.field.string
+    title: ID типа
+    required: true
+  awn-kind:
+    type: awn.field.string
+    title: Kind
+  awn-domain:
+    type: awn.field.string
+    title: Domain
+  awn-status:
+    type: awn.field.enum
+    title: Статус
+    enum:
+      - active
+      - draft
+      - deprecated
+      - inactive
+    default: active
+  awn-extends:
+    type: awn.field.string
+    title: Extends
