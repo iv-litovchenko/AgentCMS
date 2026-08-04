@@ -3,18 +3,18 @@ awn-id: row.base
 awn-created: "2026-08-03T20:03:50.484Z"
 awn-updated: "2026-08-03T20:03:50.484Z"
 awn-typeId: awn.row.base
-awn-title: База строки
-awn-kind: row
+awn-title: Элемент
+awn-kind: element
 awn-domain: base
 awn-status: active
 awn-extends: awn.base
 ---
-description: Шаблон записи (строки) — от него наследуют pages, slots, content…
+description: Базовый тип «элемент» — одна запись в инфоблоке (файл .md или строка CSV)
 awn-fields:
   awn-id:
     type: awn.field.string
     title: ID
-    description: Идентификатор записи (= имя файла без .md)
+    description: Идентификатор элемента (= имя файла без .md)
     locked: true
     group: system
   awn-created:

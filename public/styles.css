@@ -12763,6 +12763,13 @@ body.app-locked {
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
+a.header-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .header-tool-btn:hover {
   border-color: var(--accent);
   background: var(--panel);
@@ -45947,6 +45954,83 @@ body.is-discuss-resizing .discuss-aside-resizer {
   gap: 0.55rem;
 }
 
+.awn-data-view-iblock-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: 0;
+}
+
+.awn-data-view-iblock-layout.is-record-mode .awn-data-view-schema-panel,
+.awn-data-view-iblock-layout.is-record-mode .awn-data-view-elements-main {
+  display: none;
+}
+
+.awn-data-view-iblock-description-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.awn-data-view-iblock-description-block.hidden {
+  display: none;
+}
+
+.awn-data-view-iblock-description {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #334155;
+  padding: 0.75rem 0.95rem;
+  border-radius: 0.65rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+}
+
+.awn-data-view-iblock-description.hidden {
+  display: none;
+}
+
+.awn-data-view-iblock-description :is(p, ul, ol) {
+  margin: 0 0 0.5rem;
+}
+
+.awn-data-view-iblock-description :is(p, ul, ol):last-child {
+  margin-bottom: 0;
+}
+
+.awn-data-view-elements-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.awn-data-view-elements-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.awn-data-view-elements-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.awn-data-view-elements-head .awn-data-view-toolbar {
+  margin: 0;
+}
+
+@media (max-width: 960px) {
+  .awn-data-view-elements-head {
+    gap: 0.35rem;
+  }
+}
+
 .awn-data-view-page-header .awn-data-view-path {
   margin-top: 0.25rem;
   font-size: 0.8125rem;
@@ -46799,6 +46883,105 @@ body.is-discuss-resizing .discuss-aside-resizer {
   margin: 0;
   color: #334155;
   word-break: break-word;
+}
+
+.awn-data-view-property-catalog,
+.awn-data-view-entity-types {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.awn-data-view-property-table td,
+.awn-data-view-property-table th {
+  vertical-align: top;
+}
+
+.awn-data-view-property-desc {
+  color: #475569;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.awn-data-view-property-row {
+  cursor: pointer;
+}
+
+.awn-data-view-property-row:hover td {
+  background: #f8fafc;
+}
+
+.awn-data-view-entity-type {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.65rem;
+  background: #fff;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+}
+
+.awn-data-view-entity-type:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.awn-data-view-entity-type-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.awn-data-view-entity-type-title-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.awn-data-view-entity-type-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.awn-data-view-entity-type-id {
+  font-size: 0.75rem;
+  color: #64748b;
+  background: #f1f5f9;
+  border-radius: 0.35rem;
+  padding: 0.1rem 0.4rem;
+}
+
+.awn-data-view-entity-type-desc {
+  margin: 0 0 0.65rem;
+  color: #64748b;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.awn-data-view-entity-type-empty {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.8125rem;
+}
+
+.awn-data-view-record-fields-subtitle {
+  margin: 0.75rem 0 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.awn-data-view-record-field-row.is-body-field dt {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
 }
 
 .awn-data-view-record-panel {

@@ -1,7 +1,7 @@
 ---
 awn-type: awn.data.collection
 awn-id: cms-base.entities
-awn-name: Сущности
+awn-name: Базовые типы
 awn-extends: awn-data/cms-base/entities/table.base.md
 awn-record:
   id-mode: slug
@@ -9,4 +9,7 @@ awn-record:
 ---
 # Базовые типы
 
-Три фундамента: `awn.base`, `awn.table.base`, `awn.row.base`
+Канон двух сущностей модели «инфоблок + элемент»:
+
+- `table.base` — **инфоблок** (store, коллекция)
+- `row.base` — **элемент** (строка, запись)

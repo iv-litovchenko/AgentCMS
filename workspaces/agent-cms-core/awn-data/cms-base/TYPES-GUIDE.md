@@ -1,31 +1,27 @@
-# CMS Base — типы
+# CMS Base — типы (инфоблок / элемент)
 
-## Иерархия в «Сущностях»
+## Базовые сущности (`entities/`)
 
 ```
 base.md (awn.base)
- ├── table.base.md (awn.table.base)  ← накопители (entities, pages, content…)
- └── row.base.md (awn.row.base)      ← строки данных (tasks, taxonomies…)
+ ├── table.base.md (awn.table.base)   ← ИНФОБЛОК
+ └── row.base.md (awn.row.base)       ← ЭЛЕМЕНТ
 
-mixins → base.md (awn.base)
+mixins → base.md
 ```
 
-| Файл | typeId | `awn-extends` store | body `awn-fields` |
-|------|--------|---------------------|-------------------|
-| `base.md` | `awn.base` | — | name, description |
-| `table.base.md` | `awn.table.base` | `awn.base` (type) + chain → `row.base.md` | поля каталога типов |
-| `row.base.md` | `awn.row.base` | `awn.base` (type) | id, created, updated |
+| Файл | typeId | Роль |
+|------|--------|------|
+| `base.md` | `awn.base` | корень: name, description |
+| `table.base.md` | `awn.table.base` | шаблон инфоблока + ключи manifest |
+| `row.base.md` | `awn.row.base` | шаблон элемента: id, created, updated |
 
-## Два уровня `awn-fields`
+## Накопители
 
-| Где | Что описывает |
-|-----|----------------|
-| **`manifest.md`** | локальные поля накопителя (+ наследование через `awn-extends:`) |
-| **body типа** | поля runtime-типа (forms, mixins) |
+| Режим | extends | Примеры | Элемент = |
+|-------|---------|---------|-----------|
+| Каталог типов | `table.base.md` | pages, slots, content | описание типа |
+| Данные | `row.base.md` | tasks, taxonomies | строка данных |
+| Mixins | `base.md` | cms-base/mixins | примесь |
 
-Накопители:
-- **типовые** (pages, content…) → `awn-extends: …/table.base.md`
-- **данные** (tasks, taxonomies…) → `awn-extends: …/row.base.md`
-- **mixins** → `awn-extends: …/base.md`
-
-Карта workspace — [MAP.md](./MAP.md).
+Полная карта — [IBLOCK-MODEL.md](./IBLOCK-MODEL.md).

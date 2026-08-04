@@ -609,6 +609,23 @@ function listRecordFiles(dirPath, kind, relPrefix = "", acc = []) {
   return acc;
 }
 
+function parseRecordBodyFields(body) {
+  const text = String(body || "").trim();
+  if (!text) return {};
+  let bodyData = {};
+  try {
+    bodyData = parseTypeYaml(text) || {};
+  } catch {
+    return {};
+  }
+  const raw =
+    bodyData["awn-fields"] ||
+    bodyData.fields ||
+    bodyData.properties ||
+    {};
+  return normalizeEntityFieldsToStore(raw);
+}
+
 function mergeRecordBodyFields(frontmatter, body) {
   const merged = { ...(frontmatter || {}) };
   const text = String(body || "").trim();
@@ -661,7 +678,8 @@ function parseRecordFile(fileEntry, storeRel) {
         mergedFrontmatter.name ||
         mergedFrontmatter["awn-name"] ||
         id
-    ).trim()
+    ).trim(),
+    bodyFields: parseRecordBodyFields(body)
   };
 }
 

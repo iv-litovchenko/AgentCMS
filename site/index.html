@@ -41,6 +41,9 @@
         </label>
 
         <nav class="nav" aria-label="Основная навигация">
+          <a href="#ecosystem">Экосистема</a>
+          <a href="#structure">Структура</a>
+          <a href="#prompt">Промпт</a>
           <a href="#features">Возможности</a>
           <a href="#products">Продукты</a>
           <a href="#how">Архитектура</a>
@@ -160,6 +163,207 @@
               <h3>Workspace агента</h3>
               <p>Файловая структура на диске: память, медиа, схема — всё у агента под рукой.</p>
             </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="ecosystem" class="section-light ecosystem">
+        <div class="container">
+          <span class="section-label section-label--light">Экосистема</span>
+          <h2 class="section-title section-title--light">Один агент — все ваши устройства</h2>
+          <p class="section-lead section-lead--light">
+            MacBook, телефон и умные гаджеты вокруг — Agent CMS связывает их в одну
+            файловую базу. Агент видит контекст, память и медиа, где бы вы ни работали.
+          </p>
+
+          <div class="ecosystem-stage" aria-hidden="true">
+            <svg class="ecosystem-lines" viewBox="0 0 900 520" fill="none">
+              <path class="eco-line" d="M450 200 L450 280" />
+              <path class="eco-line" d="M450 280 L320 320" />
+              <path class="eco-line" d="M450 280 L580 320" />
+              <path class="eco-line" d="M450 200 L180 140" />
+              <path class="eco-line" d="M450 200 L720 140" />
+              <path class="eco-line" d="M450 200 L120 300" />
+              <path class="eco-line" d="M450 200 L780 300" />
+              <path class="eco-line" d="M450 280 L450 420" />
+              <path class="eco-line" d="M450 280 L260 420" />
+              <path class="eco-line" d="M450 280 L640 420" />
+            </svg>
+
+            <div class="eco-agent-cloud">
+              <span class="eco-agent-icon" aria-hidden="true">☁️</span>
+              <strong>Agent</strong>
+              <span>облако контекста</span>
+            </div>
+
+            <div class="eco-device eco-device--macbook">
+              <div class="eco-macbook-lid">
+                <div class="eco-macbook-screen"></div>
+              </div>
+              <div class="eco-macbook-base"></div>
+              <span class="eco-device-label">MacBook</span>
+            </div>
+
+            <div class="eco-device eco-device--iphone">
+              <div class="eco-iphone-screen"></div>
+              <span class="eco-device-label">iPhone</span>
+            </div>
+
+            <div class="eco-gadget eco-gadget--glasses">
+              <span aria-hidden="true">👓</span>
+              <small>Очки</small>
+            </div>
+            <div class="eco-gadget eco-gadget--headphones">
+              <span aria-hidden="true">🎧</span>
+              <small>Наушники</small>
+            </div>
+            <div class="eco-gadget eco-gadget--speaker">
+              <span aria-hidden="true">🔊</span>
+              <small>Колонка</small>
+            </div>
+            <div class="eco-gadget eco-gadget--camera">
+              <span aria-hidden="true">📷</span>
+              <small>Камера</small>
+            </div>
+            <div class="eco-gadget eco-gadget--server">
+              <span aria-hidden="true">🖥️</span>
+              <small>Сервер</small>
+            </div>
+            <div class="eco-gadget eco-gadget--robot">
+              <span aria-hidden="true">🤖</span>
+              <small>Lego-робот</small>
+            </div>
+            <div class="eco-gadget eco-gadget--watch">
+              <span aria-hidden="true">⌚</span>
+              <small>Watch</small>
+            </div>
+            <div class="eco-gadget eco-gadget--home">
+              <span aria-hidden="true">🏠</span>
+              <small>Smart Home</small>
+            </div>
+          </div>
+
+          <ul class="ecosystem-tags">
+            <li>Cursor · MCP</li>
+            <li>Agent Shell · голос</li>
+            <li>Desktop · Web UI</li>
+            <li>Git-friendly workspace</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="structure" class="section-light structure">
+        <div class="container">
+          <div class="structure-head">
+            <div>
+              <span class="section-label section-label--light">Архитектура</span>
+              <h2 class="section-title section-title--light">
+                1 + 1 <span class="structure-gte">≥</span> 2
+              </h2>
+              <p class="section-lead section-lead--light section-lead--tight">
+                Синергия человека и ИИ-агента: вы задаёте смысл — агент держит структуру,
+                память и файлы на диске.
+              </p>
+            </div>
+            <div class="structure-badge">
+              <span>Human</span>
+              <span class="structure-badge-plus">+</span>
+              <span>Agent</span>
+              <span class="structure-badge-eq">→ workspace</span>
+            </div>
+          </div>
+
+          <div class="structure-columns">
+            <article class="structure-tree">
+              <h3>Дерево страниц</h3>
+              <pre class="structure-code"><code><span class="s-root">Workspace</span>
+<span class="s-tree">└──</span> <span class="s-node">section</span>
+    <span class="s-tree">└──</span> <span class="s-node">area</span>
+        <span class="s-tree">└──</span> <span class="s-node">topic</span>
+            <span class="s-tree">└──</span> <span class="s-node">slot</span>
+                <span class="s-slot">main · inbox · note · media</span>
+                <span class="s-slot">artefacts · scripts · assets</span>
+                <span class="s-tree">    └──</span> <span class="s-leaf">record | category | comment</span>
+                <span class="s-tree">    └──</span> <span class="s-leaf">sidecar | plain</span>
+                <span class="s-tree">    └──</span> <span class="s-storage">s-&lt;storage&gt;</span> <span class="s-comment"># доп. материалы для record</span></code></pre>
+            </article>
+
+            <article class="structure-tree">
+              <h3>Данные (awn-data)</h3>
+              <pre class="structure-code"><code><span class="s-root">Workspace</span>
+<span class="s-tree">└──</span> <span class="s-node">data</span>
+    <span class="s-tree">└──</span> <span class="s-node">инфоблок</span> <span class="s-tag">новый тип</span>
+        <span class="s-tree">└──</span> <span class="s-leaf">записи</span>
+
+<span class="s-comment"># таблицы, справочники, коллекции</span>
+<span class="s-comment"># без SQL — файлы на диске</span></code></pre>
+            </article>
+          </div>
+
+          <div class="structure-flow">
+            <div class="structure-flow-item">
+              <strong>Вы</strong>
+              <span>темы, цели, решения</span>
+            </div>
+            <div class="structure-flow-arrow" aria-hidden="true">↔</div>
+            <div class="structure-flow-item structure-flow-item--agent">
+              <strong>Агент</strong>
+              <span>структура, слоты, MCP</span>
+            </div>
+            <div class="structure-flow-arrow" aria-hidden="true">→</div>
+            <div class="structure-flow-item">
+              <strong>Workspace</strong>
+              <span>файлы · YAML · MD</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="prompt" class="section-light prompt-section">
+        <div class="container prompt-grid">
+          <div class="prompt-copy">
+            <span class="section-label section-label--light">Стартовый промпт</span>
+            <h2 class="section-title section-title--light">Первый разговор с агентом</h2>
+            <p class="section-lead section-lead--light section-lead--tight">
+              Так может начаться настройка вашего workspace — агент помогает собрать
+              области, темы и подключить внешние сервисы.
+            </p>
+            <ul class="prompt-steps">
+              <li>Обсудить темы, которые вас интересуют</li>
+              <li>Создать первые области и темы</li>
+              <li>Выбрать интеграции из внешних сервисов</li>
+            </ul>
+          </div>
+
+          <div class="prompt-card">
+            <div class="prompt-card-bar">
+              <span class="prompt-card-dot"></span>
+              <span class="prompt-card-dot"></span>
+              <span class="prompt-card-dot"></span>
+              <span class="prompt-card-title">Cursor · новый агент</span>
+              <button class="prompt-copy-btn" type="button" data-copy="Ты мой цифровой спутник — организуй мне стартовую базу для ведения моей жизни.&#10;&#10;Давай обсудим темы которые меня интересуют — и создадим первые области и темы всего что мне интересно. Также обсудим что было бы здорово подключить в нашу экосистему из внешних сервисов.">Копировать</button>
+            </div>
+            <div class="prompt-card-body">
+              <div class="prompt-message prompt-message--user">
+                <span class="prompt-role">Вы</span>
+                <p>
+                  Ты мой цифровой спутник — организуй мне стартовую базу для ведения моей жизни.
+                </p>
+                <p>
+                  Давай обсудим темы которые меня интересуют — и создадим первые области и темы
+                  всего что мне интересно. Также обсудим что было бы здорово подключить в нашу
+                  экосистему из внешних сервисов.
+                </p>
+              </div>
+              <div class="prompt-message prompt-message--agent">
+                <span class="prompt-role">Agent</span>
+                <p>
+                  Отлично. Начнём с ваших интересов: работа, здоровье, финансы, хобби?
+                  Для каждой области создам <code>area</code> и первые <code>topic</code> со слотами
+                  <code>main</code>, <code>inbox</code> и <code>media</code>.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -449,7 +653,7 @@
     </footer>
 
     <script>
-      document.querySelectorAll("[data-copy]").forEach((btn) => {
+      document.querySelectorAll(".prompt-copy-btn[data-copy], .code-copy[data-copy]").forEach((btn) => {
         btn.addEventListener("click", async () => {
           const text = btn.dataset.copy.replace(/&#10;/g, "\n");
           try {
