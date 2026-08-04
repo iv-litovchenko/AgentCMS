@@ -1,5 +1,5 @@
 ---
-awn-id: _base
+awn-id: base
 awn-created: "2026-08-03T20:03:50.525Z"
 awn-updated: "2026-08-03T20:03:50.525Z"
 awn-typeId: awn.page.section

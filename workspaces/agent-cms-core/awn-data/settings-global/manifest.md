@@ -2,21 +2,10 @@
 awn-type: awn.data.single
 awn-id: settings-global
 awn-name: Глобальные настройки
-awn-extends: awn-data/cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/table-base/manifest.md
 awn-record:
   file: main.md
 awn-fields:
-  awn-id:
-    type: awn.string
-    title: ID
-    description: Идентификатор записи (= имя файла без .md)
-    locked: true
-  awn-created:
-    type: awn.datetime
-    title: Создано
-  awn-updated:
-    type: awn.datetime
-    title: Обновлено
   awn-site-name:
     type: awn.string
     title: Название сайта
@@ -29,14 +18,12 @@ awn-fields:
     type: awn.enum
     title: Язык
     enum:
-      - "ru"
-      - "en"
+      - ru
+      - en
     default: ru
 ---
-
 # Глобальные настройки
 
 Одиночка — ровно одна запись в `main.md` (настройки агента).
 
 Схема накопителя — в `store.yml`.
-

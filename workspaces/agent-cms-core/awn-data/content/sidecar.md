@@ -7,7 +7,7 @@ awn-title: Sidecar
 awn-kind: type
 awn-domain: content
 awn-status: active
-awn-extends: awn.base
+awn-extends: awn.row.base
 ---
 description: "Метаданные медиафайла (*.sidecar.md)"
 fields:

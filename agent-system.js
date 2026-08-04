@@ -131,7 +131,7 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
 
     const domainItems = domainEntries.map((entry) => {
       const schema = entry.schema || {};
-      const isFoundation = schema.kind === "entity" || schema.kind === "base" || /\/_base$/i.test(entry.relPath || "");
+      const isFoundation = schema.kind === "entity" || schema.kind === "base" || schema.kind === "table" || schema.kind === "row" || /\/(base|table\.base|row\.base|_base|entity)$/i.test(entry.relPath || "");
       return {
         label: isFoundation ? `${schema.name || entry.id} (база)` : schema.name || entry.id,
         path: entry.catalogFile || `${CMS_CONFIG_REL}/${domain}/${entry.fileName}.md`,

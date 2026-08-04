@@ -2,22 +2,11 @@
 awn-type: awn.data.collection
 awn-id: markdown-blocks.blocks
 awn-name: MD-Блоки
-awn-extends: awn-data/cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/table-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"
 awn-fields:
-  awn-id:
-    type: awn.string
-    title: ID
-    description: Идентификатор записи (= имя файла без .md)
-    locked: true
-  awn-created:
-    type: awn.datetime
-    title: Создано
-  awn-updated:
-    type: awn.datetime
-    title: Обновлено
   awn-title:
     type: awn.string
     title: Название
@@ -42,16 +31,16 @@ awn-fields:
     type: awn.enum
     title: Статус
     enum:
-      - "active"
-      - "draft"
-      - "inactive"
+      - active
+      - draft
+      - inactive
     default: active
   awn-render:
     type: awn.enum
     title: Рендер
     enum:
-      - "template"
-      - "fence"
+      - template
+      - fence
     default: template
   awn-fenceTag:
     type: awn.string
@@ -59,12 +48,11 @@ awn-fields:
   awn-renderer:
     type: awn.string
     title: JS-рендер
-awn-extends: awn-data/cms-base/record-base/manifest.md
+  awn-extends:
     type: awn.string
     title: Extends
     default: awn.block.base
 ---
-
 # MD-Блоки
 
 Каждая запись — один блок палитры редактора.
@@ -73,4 +61,3 @@ awn-extends: awn-data/cms-base/record-base/manifest.md
 - **group** — секция палитры (structure, text, …)
 - **template** — текст вставки в теле .md (после frontmatter)
 - **status: active** — блок показывается в палитре
-

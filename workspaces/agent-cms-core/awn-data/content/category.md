@@ -7,7 +7,7 @@ awn-title: Категория
 awn-kind: type
 awn-domain: content
 awn-status: active
-awn-extends: awn.base
+awn-extends: awn.row.base
 awn-allow-children: true
 ---
 description: Папка-категория для группировки контента в любом слоте

@@ -1,5 +1,5 @@
 ---
-awn-id: _base
+awn-id: base
 awn-created: "2026-08-03T20:03:50.508Z"
 awn-updated: "2026-08-03T20:03:50.508Z"
 awn-typeId: awn.page.base
@@ -7,9 +7,9 @@ awn-title: База страницы
 awn-kind: base
 awn-domain: pages
 awn-status: active
-awn-extends: awn.base
+awn-extends: awn.row.base
 ---
-description: Узел дерева (ws/section/topic) — база awn.base плюс навигация и runtime
+description: Узел дерева (ws/section/topic) — база awn.row.base плюс навигация и runtime
 mixins:
   - awn.mixin.preview
   - awn.mixin.runtime

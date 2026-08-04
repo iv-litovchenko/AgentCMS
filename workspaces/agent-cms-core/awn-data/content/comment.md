@@ -7,7 +7,7 @@ awn-title: Комментарий
 awn-kind: type
 awn-domain: content
 awn-status: active
-awn-extends: awn.base
+awn-extends: awn.row.base
 ---
 description: Комментарий к узлу — слот comments/
 slot: comments

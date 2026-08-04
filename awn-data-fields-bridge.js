@@ -238,14 +238,14 @@ function buildFieldBaseCatalogEntry(projectRoot) {
       name: fieldDef.name || "База поля",
       kind: "base",
       domain: "fields",
-      extends: "awn.entity",
+      extends: "awn.table.base",
       description: fieldDef.description || "",
       properties: fieldDef.properties,
       status: "active"
     },
     status: "active",
     kind: "base",
-    extends: "awn.entity"
+    extends: "awn.table.base"
   };
 }
 

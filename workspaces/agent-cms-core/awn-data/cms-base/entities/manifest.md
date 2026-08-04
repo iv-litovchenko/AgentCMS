@@ -2,22 +2,11 @@
 awn-type: awn.data.collection
 awn-id: cms-base.entities
 awn-name: Сущности
-awn-extends: awn-data/cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/table-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"
 awn-fields:
-  awn-id:
-    type: awn.string
-    title: ID
-    description: Идентификатор записи (= имя файла без .md)
-    locked: true
-  awn-created:
-    type: awn.datetime
-    title: Создано
-  awn-updated:
-    type: awn.datetime
-    title: Обновлено
   awn-title:
     type: awn.string
     title: Название
@@ -36,17 +25,15 @@ awn-fields:
     type: awn.enum
     title: Статус
     enum:
-      - "active"
-      - "draft"
-      - "deprecated"
-      - "inactive"
+      - active
+      - draft
+      - deprecated
+      - inactive
     default: active
-awn-extends: awn-data/cms-base/record-base/manifest.md
+  awn-extends:
     type: awn.string
     title: Extends
 ---
-
 # Базовые типы
 
-Базовые сущности CMS (awn.entity, awn.page.base)
-
+Три фундамента: `awn.base`, `awn.table.base`, `awn.row.base`

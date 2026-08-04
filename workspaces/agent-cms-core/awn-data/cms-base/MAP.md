@@ -13,7 +13,7 @@ workspaces/agent-cms-test/
 ├── manifest.md                 ← awn.page.ws (корень агента)
 ├── AGENTS.md                   ← этот файл
 ├── awn-data/                   ← ★ CMS-МОДЕЛЬ (накопители типов + конфиг)
-│   ├── cms-base/               ← registry, record-base, entities, mixins, store-props
+│   ├── cms-base/               ← row-base, table-base, entities, mixins, store-props
 │   ├── slots/                  ← awn.slot.* (path, allowed-content, accept-files)
 │   ├── pages/                  ← awn.page.*
 │   ├── content/                ← awn.content.*
@@ -40,7 +40,9 @@ workspaces/agent-cms-test/
 
 | Домен | id-префикс | Что это |
 |-------|------------|---------|
-| **base** | `awn.entity` | суперкласс всего |
+| **base** | `awn.base` | корень: name + description |
+| | `awn.table.base` | база накопителя (таблицы) |
+| | `awn.row.base` | база записи (строки) |
 | **pages** | `awn.page.*` | узлы **меню слева** |
 | **content** | `awn.content.*` | сущности **внутри слотов** |
 | **slots** | `awn.slot.*` | **папки** в `topic/awn-storage/` |

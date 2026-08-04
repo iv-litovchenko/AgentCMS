@@ -8,7 +8,10 @@ const { parseTypeYaml } = require("../awn-yaml-utils");
 const { normalizeExtendsRef } = require("../awn-data-loader");
 
 const ROOT = path.join(__dirname, "../workspaces/agent-cms-core/awn-data");
-const RECORD_BASE = "awn-data/cms-base/record-base/manifest.md";
+const TABLE_BASE = "awn-data/cms-base/table-base/manifest.md";
+const ROW_BASE = "awn-data/cms-base/row-base/manifest.md";
+/** @deprecated */
+const RECORD_BASE = TABLE_BASE;
 
 function walk(dir, acc = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

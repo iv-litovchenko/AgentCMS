@@ -1,5 +1,5 @@
 ---
-awn-id: _base
+awn-id: base
 awn-created: "2026-08-03T20:03:50.572Z"
 awn-updated: "2026-08-03T20:03:50.572Z"
 awn-typeId: awn.settings.base
@@ -7,7 +7,7 @@ awn-title: База настройки
 awn-kind: base
 awn-domain: settings
 awn-status: active
-awn-extends: awn.entity
+awn-extends: awn.row.base
 ---
 description:
 properties:

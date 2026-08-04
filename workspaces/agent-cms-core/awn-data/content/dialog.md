@@ -7,7 +7,7 @@ awn-title: Сообщение диалога
 awn-kind: type
 awn-domain: content
 awn-status: active
-awn-extends: awn.base
+awn-extends: awn.row.base
 ---
 description: Одно сообщение в слоте thread/ (awn.slot.dialogs) — диалог с агентом
 slot: dialogs

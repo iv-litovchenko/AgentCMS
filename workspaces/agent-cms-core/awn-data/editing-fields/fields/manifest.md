@@ -2,22 +2,11 @@
 awn-type: awn.data.collection
 awn-id: editing-fields.fields
 awn-name: Поля
-awn-extends: awn-data/cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/table-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"
 awn-fields:
-  awn-id:
-    type: awn.string
-    title: ID
-    description: Идентификатор записи (= имя файла без .md)
-    locked: true
-  awn-created:
-    type: awn.datetime
-    title: Создано
-  awn-updated:
-    type: awn.datetime
-    title: Обновлено
   awn-title:
     type: awn.string
     title: Название
@@ -48,7 +37,7 @@ awn-fields:
   awn-format:
     type: awn.string
     title: Формат
-awn-extends: awn-data/cms-base/record-base/manifest.md
+  awn-extends:
     type: awn.string
     title: Extends
     default: awn.field.base
@@ -60,13 +49,11 @@ awn-extends: awn-data/cms-base/record-base/manifest.md
     type: awn.enum
     title: Статус
     enum:
-      - "active"
-      - "draft"
-      - "inactive"
+      - active
+      - draft
+      - inactive
     default: active
 ---
-
 # Поля
 
 Типы полей `awn.field.*` для схем frontmatter и форм.
-

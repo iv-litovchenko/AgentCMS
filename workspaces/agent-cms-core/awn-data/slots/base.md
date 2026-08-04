@@ -1,5 +1,5 @@
 ---
-awn-id: _base
+awn-id: base
 awn-created: "2026-08-03T20:03:50.542Z"
 awn-updated: "2026-08-03T20:03:50.542Z"
 awn-typeId: awn.slot
@@ -7,7 +7,7 @@ awn-title: Слот памяти
 awn-kind: slot
 awn-domain: slots
 awn-status: active
-awn-extends: awn.entity
+awn-extends: awn.row.base
 ---
 description: Базовый тип слоя памяти у топика
 properties:

@@ -12,7 +12,10 @@ const {
 } = require("./awn-data-csv");
 
 const AWN_DATA_DIR = "awn-data";
-const RECORD_BASE_REL = "cms-base/record-base";
+const ROW_BASE_REL = "cms-base/row-base";
+const TABLE_BASE_REL = "cms-base/table-base";
+/** @deprecated use ROW_BASE_REL */
+const RECORD_BASE_REL = ROW_BASE_REL;
 const COLLECTION_MANIFEST = "manifest.md";
 /** @deprecated legacy split contract */
 const STORE_CONTRACT_FILE = "manifest.store.md";
@@ -26,7 +29,7 @@ const SCHEMA_FILE = COLLECTION_MANIFEST;
 const LEGACY_STORE_FILE = "configuration-schema.yml";
 const SINGLETON_RECORD = "main.md";
 const DISCOVER_SKIP_DIRS = new Set([".awn-cache", "history"]);
-const RECORD_WALK_SKIP_DIRS = new Set(["record-base", "_base", ".awn-cache", "history"]);
+const RECORD_WALK_SKIP_DIRS = new Set(["row-base", "table-base", "record-base", "_base", ".awn-cache", "history"]);
 
 function isSystemStoreFile(name) {
   const lower = String(name || "").toLowerCase();
@@ -223,6 +226,7 @@ function normalizeExtendsRef(ref) {
     normalized = parts.join("/");
   }
 
+  normalized = normalized.replace(/\/record-base\//g, "/table-base/");
   normalized = normalized.replace(/^\/+/, "");
 
   if (
@@ -1058,8 +1062,17 @@ function buildCollectionManifestBody({ name, description }) {
   return `# ${title}\n\n${desc}`;
 }
 
+function rowBaseExtendsPath() {
+  return `${AWN_DATA_DIR}/${ROW_BASE_REL}/manifest.md`;
+}
+
+function tableBaseExtendsPath() {
+  return `${AWN_DATA_DIR}/${TABLE_BASE_REL}/manifest.md`;
+}
+
+/** @deprecated use rowBaseExtendsPath */
 function recordBaseExtendsPath() {
-  return `${AWN_DATA_DIR}/${RECORD_BASE_REL}/manifest.md`;
+  return tableBaseExtendsPath();
 }
 
 function buildCollectionSchemaContent({ slug, name, description, hierarchy = true }) {

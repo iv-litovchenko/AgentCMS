@@ -2,24 +2,13 @@
 awn-type: awn.data.collection
 awn-id: taxonomies.slot-categories
 awn-name: Категории слотов
-awn-extends: awn-data/cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/table-base/manifest.md
 awn-record:
   storage: csv
   file: main.csv
   id-mode: slug
   hierarchy: false
 awn-fields:
-  awn-id:
-    type: awn.string
-    title: ID
-    description: Идентификатор записи (= имя файла без .md)
-    locked: true
-  awn-created:
-    type: awn.datetime
-    title: Создано
-  awn-updated:
-    type: awn.datetime
-    title: Обновлено
   awn-code:
     type: awn.string
     title: Код (id)
@@ -36,8 +25,6 @@ awn-fields:
     type: awn.string
     title: Описание
 ---
-
 # Категории слотов
 
 Группы для поля `slot-category` у типов `awn.slot.*`. Данные — `main.csv`.
-

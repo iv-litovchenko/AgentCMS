@@ -1,5 +1,6 @@
 [
-  "record-base",
+  "row-base",
+  "table-base",
   "store-props",
   "entities",
   "mixins"

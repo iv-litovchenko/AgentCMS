@@ -7,7 +7,7 @@ awn-title: Запись
 awn-kind: type
 awn-domain: content
 awn-status: active
-awn-extends: awn.base
+awn-extends: awn.row.base
 ---
 description: "Запись в слоте памяти (main, inbox, references…)"
 mixins:

@@ -2,22 +2,11 @@
 awn-type: awn.data.collection
 awn-id: slots
 awn-name: Слоты
-awn-extends: awn-data/cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/table-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"
 awn-fields:
-  awn-id:
-    type: awn.string
-    title: ID
-    description: Идентификатор записи (= имя файла без .md)
-    locked: true
-  awn-created:
-    type: awn.datetime
-    title: Создано
-  awn-updated:
-    type: awn.datetime
-    title: Обновлено
   awn-title:
     type: awn.string
     title: Название
@@ -30,19 +19,19 @@ awn-fields:
     type: awn.enum
     title: Категория
     enum:
-      - "memory"
-      - "files"
-      - "single-file"
-      - "records"
-      - "communication"
+      - memory
+      - files
+      - single-file
+      - records
+      - communication
     default: memory
   awn-storage-driver:
     type: awn.enum
     title: Драйвер памяти
     enum:
-      - "internal"
-      - "external"
-      - "tabular"
+      - internal
+      - external
+      - tabular
     default: external
   awn-path:
     type: awn.string
@@ -65,8 +54,8 @@ awn-fields:
     type: awn.enum
     title: Уровень
     enum:
-      - "user"
-      - "system"
+      - user
+      - system
     default: user
   awn-kind:
     type: awn.string
@@ -78,17 +67,15 @@ awn-fields:
     type: awn.enum
     title: Статус
     enum:
-      - "active"
-      - "draft"
-      - "deprecated"
-      - "inactive"
+      - active
+      - draft
+      - deprecated
+      - inactive
     default: active
-awn-extends: awn-data/cms-base/record-base/manifest.md
+  awn-extends:
     type: awn.string
     title: Extends
 ---
-
 # Слоты
 
 Слоты хранения топика — `awn.slot.*`.
-

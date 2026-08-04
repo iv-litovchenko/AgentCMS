@@ -26,7 +26,7 @@ const ACTIVE_STATUS = new Set(["active", "deprecated"]);
 const TYPE_ID_ALIASES = {
   // Page aliases
   "awn.page": "awn.page.base",
-  "awn.base": "awn.page.base",
+  "awn.entity": "awn.table.base",
   "awn.workspace": "awn.page.ws",
   "awn.area": "awn.page.area",
   "awn.topic": "awn.page.topic",
@@ -300,9 +300,9 @@ function isTypeActive(entry) {
 
 function isCatalogType(entry) {
   if (!entry || !isTypeActive(entry)) return false;
-  const baseNames = new Set(["_base", "base"]);
+  const baseNames = new Set(["_base", "base", "table.base", "row.base"]);
   if (baseNames.has(entry.fileName)) return false;
-  if (entry.kind === "entity" || entry.kind === "base" || entry.kind === "component") return false;
+  if (entry.kind === "entity" || entry.kind === "base" || entry.kind === "table" || entry.kind === "row" || entry.kind === "component") return false;
   return true;
 }
 
@@ -320,9 +320,9 @@ function inheritsFrom(typeId, ancestorId, byId) {
 
 function getPageTreeRootId(byId) {
   if (byId.has("awn.page.base")) return "awn.page.base";
+  if (byId.has("awn.row.base")) return "awn.row.base";
   if (byId.has("awn.base")) return "awn.base";
   if (byId.has("awn.page")) return "awn.page";
-  if (byId.has("awn.entity")) return "awn.entity";
   return null;
 }
 
@@ -416,8 +416,8 @@ function getTypeCatalogPayload(projectRoot = process.cwd(), agentRoot = "") {
 
 function isFoundationType(entry) {
   if (!entry || !isTypeActive(entry)) return false;
-  if (entry.kind === "entity" || entry.kind === "base") return true;
-  const baseNames = new Set(["_base", "base"]);
+  if (entry.kind === "entity" || entry.kind === "base" || entry.kind === "table" || entry.kind === "row") return true;
+  const baseNames = new Set(["_base", "base", "table.base", "row.base"]);
   return baseNames.has(entry.fileName);
 }
 

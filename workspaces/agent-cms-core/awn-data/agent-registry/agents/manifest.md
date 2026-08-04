@@ -2,22 +2,11 @@
 awn-type: awn.data.collection
 awn-id: agent-registry.agents
 awn-name: Агенты
-awn-extends: awn-data/cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/table-base/manifest.md
 awn-record:
   id-mode: slug
   file: "{id}.md"
 awn-fields:
-  awn-id:
-    type: awn.string
-    title: ID
-    description: Идентификатор записи (= имя файла без .md)
-    locked: true
-  awn-created:
-    type: awn.datetime
-    title: Создано
-  awn-updated:
-    type: awn.datetime
-    title: Обновлено
   awn-title:
     type: awn.string
     title: Название
@@ -29,9 +18,9 @@ awn-fields:
     type: awn.enum
     title: Окружение
     enum:
-      - "local"
-      - "staging"
-      - "production"
+      - local
+      - staging
+      - production
     default: local
   awn-default:
     type: awn.boolean
@@ -42,7 +31,6 @@ awn-fields:
     title: Оркестратор
     default: false
 ---
-
 # Агенты
 
 Коллекция workspace-агентов платформы. Каждая запись — один агент.
@@ -55,4 +43,3 @@ awn-fields:
 Display-метаданные (имя, emoji, preview) — в `manifest.md` workspace.
 
 Legacy fallback: `awn-agents.json` в корне проекта.
-

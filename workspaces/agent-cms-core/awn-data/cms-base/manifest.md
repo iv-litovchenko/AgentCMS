@@ -6,5 +6,5 @@ awn-name: CMS Base
 
 # CMS Base
 
-Фундамент CMS: поля записей, свойства накопителей, сущности, mixins и registry.
+Фундамент CMS: base / table.base / row.base, mixins, store-props и registry.
 

@@ -2,24 +2,13 @@
 awn-type: awn.data.collection
 awn-id: zagotovki-shablonov
 awn-name: Заготовки шаблонов
-awn-extends: awn-data/cms-base/record-base/manifest.md
+awn-extends: awn-data/cms-base/table-base/manifest.md
 awn-record:
   storage: md
   id-mode: slug
   file: "{id}.md"
   hierarchy: true
 awn-fields:
-  awn-id:
-    type: awn.string
-    title: ID
-    description: Идентификатор записи (= имя файла без .md)
-    locked: true
-  awn-created:
-    type: awn.datetime
-    title: Создано
-  awn-updated:
-    type: awn.datetime
-    title: Обновлено
   awn-title:
     type: awn.string
     title: Название
@@ -44,11 +33,10 @@ awn-fields:
     type: awn.enum
     title: Статус
     enum:
-      - "open"
-      - "done"
+      - open
+      - done
     default: open
 ---
-
 # Заготовки шаблонов
 
 Коллекция `zagotovki-shablonov` в `awn-data/templates/`.
@@ -57,4 +45,3 @@ awn-fields:
 - `target-file` — имя системного файла (`.env`, `SKILL.md`, …)
 - `hint-title` / `hint-text` — подсказка и кнопка «Вставить шаблон» в редакторе
 - тело файла — содержимое шаблона для вставки
-

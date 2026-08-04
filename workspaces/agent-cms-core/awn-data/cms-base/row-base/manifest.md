@@ -1,6 +1,6 @@
 ---
-awn-type: awn.data.collection
-awn-layer: awn-data-base
+awn-type: awn.data.base
+awn-layer: awn-data-row
 awn-fields:
   awn-id:
     type: awn.string
@@ -15,7 +15,6 @@ awn-fields:
     title: Обновлено
 ---
 
-# _base
+# row.base
 
-Базовые поля каждой записи в awn-data (наследуются всеми накопителями)
-
+Базовые поля строки в awn-data. Канон — `cms-base/entities/row.base.md` (`awn.row.base`).
