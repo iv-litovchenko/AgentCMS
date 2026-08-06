@@ -9,6 +9,7 @@
 - можно создать коллекцию в любой точке дерева;
 - всё переносится простым копированием папки;
 - система одновременно является CMS, базой знаний и памятью для ИИ —
+- Тип можно описать в awn-data и **использовать за её пределами** (пример pages content slots)
 
 **я не встречал**.
 
@@ -87,14 +88,6 @@ awn-schema:
 
 | -> Описание
 
-**Основные элементы:**
-
-- Группа `awn.base.data.object.table.container`
-- Коллекция (много разных md) — **awn.base.data.object.table.collection** — инфоблок коллекция записей — плоская / иерархичная
-- Коллекция c main.csv — **awn.base.data.object.table.collection** (awn-разное)
-- Одиночка main.md — **awn.base.data.object.table.single** — инфоблок одиночка — 1 запись только — обычно для настроек
-- **awn.base.data.object.table.mixins** — заготовка для свойств инфоблока
-
 ### 1-3) Базовый тип «запись» — awn.item.base
 
 Наследуется от **awn.object.base**. От него наследуются любые типы элементов (аналог записи в инфоблоке).
@@ -117,9 +110,36 @@ awn-sort: false
 awn-slots-disabled: true
 awn-web-url: ""
 awn-attachments: []
+Описание
 ```
 
-Описание
+
+
+Зполнение данными
+
+```
+cms-base Контейнеры (которые могут содержать данные)
+
+- Группа `awn.base.data.object.table.container`
+- Коллекция (много разных md) — **awn.base.data.object.table.collection** — инфоблок коллекция записей — плоская / иерархичная
+- Коллекция c main.csv — **awn.base.data.object.table.collection** (awn-разное)
+- Одиночка main.md — **awn.base.data.object.table.single** — инфоблок одиночка — 1 запись только — обычно для настроек
+- **awn.base.data.object.table.mixins** — заготовка для свойств инфоблока
+
+Страницы awn.pages.base extens.conainer.base awn.page.arex exends .base
+Содержимое awn.content extends from content.item.base
+Слоты
+Таксономии
+Шаблоны 
+Задачи (заглушка пример)
+Настройки глобальные (single)
+Настройки локальные (signle)
+Маркдаун bloks
+fields (поля редакирования)
+Реестр агентов (группа + агент)
+```
+	
+
 
 ---
 
