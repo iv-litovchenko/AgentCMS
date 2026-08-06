@@ -1,39 +1,40 @@
 ---
-awn-type: awn.data.collection
-awn-id: tasks
+awn-supertype: awn-data/cms-base/data-containers/collection.md
 awn-name: Задачи
-awn-extends: awn-data/cms-base/entities/row.base.md
-awn-record:
-  id-mode: numeric
-  file: "{id}.md"
-  hierarchy: true
-awn-fields:
-  awn-title:
-    type: awn.string
-    title: Название
-    required: true
-  awn-parent:
-    type: awn.string
-    title: Родитель
-    description: id родительской задачи (иерархия)
-  awn-status:
-    type: awn.enum
-    title: Статус
-    enum:
-      - open
-      - in_progress
-      - done
-      - cancelled
-    default: open
-  awn-priority:
-    type: awn.enum
-    title: Приоритет
-    enum:
-      - low
-      - normal
-      - high
-    default: normal
+
+awn-record-id-mode: numeric
+awn-record-file: "{id}.md"
+awn-record-hierarchy: true
+
+awn-data-elements-schema-extends: awn-data/cms-base/data-elements/default.md
+awn-data-elements-schema-mixins: []
+awn-data-elements-schema:
+  fields:
+    awn-title:
+      type: awn.string
+      title: Название
+      required: true
+      tab: main
+    awn-parent:
+      type: awn.string
+      title: Родитель
+      description: id родительской задачи
+      tab: main
+    awn-status:
+      type: awn.enum
+      title: Статус
+      enum: [open, in_progress, done, cancelled]
+      default: open
+      tab: main
+    awn-priority:
+      type: awn.enum
+      title: Приоритет
+      enum: [low, normal, high]
+      default: normal
+      tab: main
+  tabs:
+    main: Задача
 ---
 # Задачи
 
-Коллекция задач агента — плоский список без привязки к дереву тем.
+Store id = **`awn-data/tasks`**.

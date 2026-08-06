@@ -1,14 +1,18 @@
 ---
-awn-type: awn.data.group
-awn-id: cms-base
+awn-supertype: awn-data/cms-base/data-containers/group.md
 awn-name: CMS Base
 ---
 
 # CMS Base
 
-Фундамент CMS по модели **инфоблок + элемент** (аналог Битрикс).
+**ID = путь.** Структура manifest → из `awn-supertype`.
 
-- **entities/** — базовые типы: инфоблок (`table.base`) и элемент (`row.base`)
-- **mixins/** — примеси полей для типов
+```
+cms-base/
+├── base
+├── data-containers/     ← базовые типы контейнеров
+├── data-elements/       ← базовые типы элементов
+└── mixins/              ← каталог примесей
+```
 
-Карта: [SPEC_NEW/IBLOCK-MODEL.md](../../SPEC_NEW/IBLOCK-MODEL.md) · [SPEC_NEW/TYPES-GUIDE.md](../../SPEC_NEW/TYPES-GUIDE.md) · [SPEC_NEW/SPEC.md](../../SPEC_NEW/SPEC.md)
+Spec: [SPEC_NEW/_SPEC_2026_itogovaya.md](../../SPEC_NEW/_SPEC_2026_itogovaya.md)

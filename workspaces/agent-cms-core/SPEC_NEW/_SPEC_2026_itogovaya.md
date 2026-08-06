@@ -1,193 +1,113 @@
 # Спецификация 2026 (итоговая, черновик)
 
-ВАЖНО - на данном этапе мы пытаемся сформулировать правильное расположение и определине файлов (типов схем свойвт) в папке awn-data - по которым в дальнейшем будет жить система и подцеплять нужное
+> **Фокус этапа:** расположение и определение файлов в `awn-data/` — откуда система подцепляет типы и схемы.  
+> **ID = путь.** Отдельных `awn-id` / `awn-type-id` нет.
 
-Система, где
-
-- всё лежит в Markdown;
-- всё является объектом;
-- всё описывается схемами;
-- схемы наследуются;
-- можно создать коллекцию в любой точке дерева;
-- всё переносится простым копированием папки;
-- система одновременно является CMS, базой знаний и памятью для ИИ;
-- тип можно описать в `awn-data` и **использовать за её пределами** (пример: pages, content, slots).
-
-**я не встречал**.
+Система, где всё в Markdown, схемы наследуются, co-location, тип в `awn-data/` → экземпляр снаружи.
 
 ---
 
-## 1) Все это обычные md-файлы
+## 1) Все md-файлы — один механизм
 
-- ==Фактически все md-файлы должны жить по одним принципам подгрузки! Это всё одно и то же==
-- Все является объектом
-- Объект без `awn-*` свойств считается обычным md-файлом
-- Объекты бывают те, которые **хранят данные** (container), и те, которые **сами являются данными** (item)
+- Объект без `awn-*` — plain markdown
+- **ID = путь к файлу / папке store**
 
 ---
 
-### 1-1) Базовый тип — `awn.object.base`
+## 2) Ключи
 
-От него идёт наследование всего.
+| Ключ | Где | Смысл |
+|------|-----|-------|
+| `awn-super-type` | базовый тип (`collection.md`) | **кто я** — id = путь этого файла |
+| `awn-supertype` | store manifest, запись | **от кого наследую** — путь базового типа или store; **заменяет `awn-extends`** |
+| `awn-data-elements-schema` | базовый тип collection | какие ключи у manifest collection-store |
+| `awn-data-elements-schema-extends` | store manifest | базовая схема **записей** |
+| `awn-data-elements-schema-mixins` | store manifest | примеси для записей |
+| `awn-data-elements-schema` | store manifest | fields + tabs **записей** |
+| `awn-fields` | store (каталог типов) | поля item-описания типа (pages/topic.md) |
 
-```
---- 
-// **Как формировать id-типа и нужно ли нам три поля kind / type / role — пока не понятно!!!**
-
-awn-kind: ???          # object | container | item  ???
-awn-type: ???          # awn.page.topic ???
-awn-role: ???          # локальная схема, опционально
-awn-status: ""
-awn-created:
-awn-updated:
-awn-runtime-commands: false
-awn-runtime-cron: false
-awn-runtime-cron-schedule: false
-awn-runtime-heartbeat: false
-awn-runtime-load-always: false
-awn-name: Тема без слотов
-awn-description: ""
-awn-version: 3
-awn-owner: ""
----
-- Описание это базовый тип от которого наследуются инфоблоки
-```
+> **`awn-extends`**, **`awn-type`**, дубль **`awn-fields`** — не нужны: структуру manifest и допустимые ключи задаёт **`awn-supertype`** (файл базового типа).
 
 ---
 
-### 1-2) Базовый тип «контейнер» — `awn.container.base`
-
-Наследуется от **awn.object.base**. В нём могут размещаться элементы (аналог инфоблока ==(новый тип)==). это чертёж как тут всё устроено — держит структуру — может содержать другие элементы (записи)==
-
-Структура md-файла (обычно `manifest.md` в папке):
-```
----
-// Заполненные свойства
-
-- awn-extends — тип, от которого наследуемся
-  -  awn-mixins: [] - перечиселния - что подмешать
-- awn-какие-ты там еще делал для них
-
-- awn-поле  которое разрешает хранить записи не только в awn-data (например страницы у нас хранятся за пределами awn-data)
-
-// ключевое поле, которое определяет поля для записей
-// Таким образом мы можем в любом месте делать override этой схемы (дополняя её override — как правда удалить поле и нужно ли его удалять пока не понятно)
-awn-schema:
-  
-  fields:
-    awn-field-1: (свойства)
-      awn-field-2: (свойства)
-  tabs:   # группировка на вкладки форм редактирования
-    awn-tab-1:
-    awn-tab-2:
----
--> Описание
-```
-
-
-### 1-3) Базовый тип «запись» — `awn.item.base`
-
-Наследуется от **awn.object.base**. От него наследуются любые типы элементов (аналог записи в инфоблоке).
-
-Базовые свойства «Запись» — сами записи это instance, он **не поддерживает наследование**:
-
-• ⁃ ==Синонимы для записи в инфоблоке (row record post item entry object instance материал) — всё это реальные объекты — это сами данные — конечная штука — данные)==
-
-Структура md-файла:
+## 3) `cms-base/` — фундамент
 
 ```
----
-awn-preview: ""
-awn-emoji: ""
-awn-main: false
-awn-category: ""
-awn-priority: []
-awn-tags: ""
-awn-color: NaN
-awn-sort: false
-awn-slots-disabled: true
-awn-web-url: ""
-awn-attachments: []
-
-# данные по схеме container (черновик)
-attr_author: "..."
-attr_score: 98.5
-# или блок attributes: { ... }
----
-
-Описание
+cms-base/
+├── base
+├── data-containers/              store id: awn-data/cms-base/data-containers
+│   ├── manifest.md               supertype → collection.md
+│   ├── collection.md             id: …/data-containers/collection.md
+│   ├── group.md
+│   ├── single.md
+│   └── mixin.md
+├── data-elements/                store id: awn-data/cms-base/data-elements
+│   ├── manifest.md
+│   └── default.md                id: …/data-elements/default.md
+└── mixins/                       каталог примесей
 ```
 
-
-### 1-4) Заполнение данными — домены `awn-data`
-
-Типы описываются в `awn-data/`, экземпляры — в workspace / topic / слотах.
-
-```
-cms-base/          — контейнеры базовых типов (entities, mixins)
-1) Типы инфоблоков
-| Группа        | `awn.base.data.object.table.container`         | папка-группа                      |
-| ------------- | ---------------------------------------------- | --------------------------------- |
-| Коллекция     | `awn.base.data.object.table.collection`        | N × `*.md`, плоская / иерархичная |
-| Коллекция CSV | `awn.base.data.object.table.collection` + mode | `main.csv` (awn-разное)           |
-| Одиночка      | `awn.base.data.object.table.single`            | 1 × `main.md`, обычно настройки   |
-| Mixin         | `awn.base.data.object.table.mixins`            | заготовка свойств инфоблока       |
-
-> collection и collection+csv — пока один type id, различать через `awn-record` / mode
-
-2) Миксины
-   - Аттачи
-     - runtime
-       - web-url
-    - preview
-
-
-
-Страницы           — awn.pages.base extends container.base → awn.page.area, awn.page.topic …
-Содержимое         — awn.content extends item.base → awn.content.record …
-Слоты              — awn.slot.*
-Таксономии         — справочники (collection + csv)
-Шаблоны
-Задачи             — заглушка / пример
-Настройки глобальные (single)
-Настройки локальные (single)
-Маркдаун blocks
-fields             — поля редактирования (awn.field.*)
-Реестр агентов     — группа + агент
-```
-
-**Правило:** `awn-data/pages/topic.md` — **описание типа** (item в каталоге).  
-`awn-container/…/manifest.md` — **живая тема** (item того же типа, но за пределами awn-data).
+`collection.md` → **шаблон manifest** (ключи `awn-record-id-mode`, `awn-data-elements-schema`, …).  
+Store заполняет только своё поверх supertype.
 
 ---
 
-## 2) `awn-id`
+## 4) Пример: tasks
 
-`awn-id` свойства у нас не будет — id нужно вставлять в имя / slug файла md.
+```
+data-containers/collection.md     ← базовый тип + шаблон manifest
+data-elements/default.md          ← базовая схема записи
+
+tasks/manifest.md
+  awn-supertype: …/data-containers/collection.md
+  awn-record-id-mode: numeric
+  awn-data-elements-schema-extends: …/data-elements/default.md
+  awn-data-elements-schema: { fields задачи }
+
+tasks/1.md
+  awn-supertype: awn-data/tasks
+  id = awn-data/tasks/1.md
+```
 
 ---
 
-## 3) Где что живёт
-
-| Место | Что там | Роль |
-|-------|---------|------|
-| `awn-data/` | container + item-описания типов | Platform, каталог |
-| `{agent}/manifest.md` | item ws | корень агента |
-| `awn-container/…/` | item area / topic | живое дерево |
-| `topic/awn-storage/` | item content | слоты (файлы) |
-| `topic/_data_*/` | container + items | structured-data (идея) |
-
-**Co-location:** схема (`manifest.md`) лежит **в той же папке**, что и записи. Перенос = копирование папки.
-
-**Pipeline (черновик):**
+## 5) Пример: pages (каталог типов)
 
 ```
-.md → есть awn-*?
-  нет  → plain markdown
-  да   → kind: container | item
-       → загрузить type + awn-schema (+ override по дереву)
-       → форма / индекс / рендер
+awn-data/pages/manifest.md
+  awn-supertype: …/data-containers/collection.md
+  awn-fields: …                             ← поля описания типа
+
+awn-data/pages/topic.md                     ← item: чертёж awn.page.topic
+awn-container/…/manifest.md                 ← item: живая тема (за пределами awn-data)
 ```
+
+---
+
+## 6) `awn-data/` — остальные домены
+
+```
+awn-data/
+├── sort.json
+├── cms-base/          ← §3
+├── pages/             collection → каталог типов
+├── content/           collection → каталог типов
+├── slots/             collection → каталог слотов
+├── settings/          collection
+├── settings-global/   single
+├── taxonomies/        group → внутри collection+csv
+├── tasks/             collection → данные (§4)
+├── templates/         collection → данные
+├── markdown-blocks/   group
+├── editing-fields/    group
+└── agent-registry/    group
+```
+
+---
+
+## 7) Co-location
+
+`manifest.md` в той же папке, что и записи. Перенос = копирование папки.
 
 ---
 
@@ -206,16 +126,3 @@ fields             — поля редактирования (awn.field.*)
 - - ⁃ Появилась идея что тема может содержать такой тип слота как «Структурированные данные» — пример (по идее мы можем создать инфоблок (новый тип) в **любом месте**, а не только в awn-data)
 
 - Шаблон agent-kit-например для user???
-
----
-
-## Соответствие коду (сейчас)
-
-| Spec (target) | Код (сейчас) |
-|---------------|--------------|
-| `awn.object.base` | `awn.base` |
-| `awn.container.base` | `awn.table.base` |
-| `awn.item.base` | `awn.row.base` |
-| `awn-schema` | `awn-fields` |
-| id из slug | `awn-id` в frontmatter ⚠️ |
-| structured-data в topic | не реализовано ❌ |
