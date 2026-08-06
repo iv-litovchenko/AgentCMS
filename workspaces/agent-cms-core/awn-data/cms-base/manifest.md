@@ -11,4 +11,4 @@ awn-name: CMS Base
 - **entities/** — базовые типы: инфоблок (`table.base`) и элемент (`row.base`)
 - **mixins/** — примеси полей для типов
 
-Карта: [IBLOCK-MODEL.md](./IBLOCK-MODEL.md) · [TYPES-GUIDE.md](./TYPES-GUIDE.md)
+Карта: [SPEC_NEW/IBLOCK-MODEL.md](../../SPEC_NEW/IBLOCK-MODEL.md) · [SPEC_NEW/TYPES-GUIDE.md](../../SPEC_NEW/TYPES-GUIDE.md) · [SPEC_NEW/SPEC.md](../../SPEC_NEW/SPEC.md)

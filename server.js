@@ -9283,6 +9283,15 @@ async function readAgentSystemContext(agentRoot) {
       return { path: `${CMS_CONFIG_REL}/${rel}`.replace(/\\/g, "/"), exists: false, content: null };
     }
   };
+  const readAgentDoc = async (rel) => {
+    const abs = path.join(agentRoot, rel);
+    try {
+      const content = await fs.readFile(abs, "utf-8");
+      return { path: rel.replace(/\\/g, "/"), exists: true, content };
+    } catch {
+      return { path: rel.replace(/\\/g, "/"), exists: false, content: null };
+    }
+  };
 
   let typeSummary = null;
   if (fsSync.existsSync(systemRoot)) {
@@ -9304,7 +9313,7 @@ async function readAgentSystemContext(agentRoot) {
     root: CMS_CONFIG_REL,
     typeSummary,
     docs: {
-      map: await readText("MAP.md"),
+      map: await readAgentDoc("SPEC_NEW/MAP.md"),
       registry: await readText("registry.yml"),
       manifest: await readText("manifest.md")
     },

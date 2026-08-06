@@ -183,8 +183,6 @@ function migrateCmsConfig(awnDataRoot, systemRoot) {
   const copyNames = [
     "registry.yml",
     "store.yml",
-    "MAP.md",
-    "TYPES-GUIDE.md",
     "manifest.md",
     "read.json"
   ];

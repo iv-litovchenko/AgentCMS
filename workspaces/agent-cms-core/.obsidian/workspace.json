@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "TODO.md",
-                "mode": "source",
+                "file": "SPEC_NEW/SPEC.md",
+                "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "TODO"
+              "title": "SPEC"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "TODO.md",
+                "file": "SPEC_NEW/SPEC.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Обратные ссылки для TODO"
+              "title": "Обратные ссылки для SPEC"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "TODO.md",
+                "file": "SPEC_NEW/SPEC.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Исходящие ссылки из TODO"
+              "title": "Исходящие ссылки из SPEC"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "TODO.md",
+                "file": "SPEC_NEW/SPEC.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Структура TODO"
+              "title": "Структура SPEC"
             }
           }
         ]
@@ -185,9 +185,20 @@
   },
   "active": "405da914a80a02f6",
   "lastOpenFiles": [
+    "SPEC_NEW/MAP.md",
+    "SPEC_NEW/TYPES-GUIDE.md",
+    "SPEC_NEW/IBLOCK-MODEL.md",
+    "awn-data/cms-base/MAP.md",
+    "SPEC_NEW/SPEC.md",
+    "awn-data/cms-base/IBLOCK-MODEL.md",
+    "SPEC_NEW/Формируем вопросы.md",
+    "manifest.md",
+    "SPEC_NEW/REZ_COPY.md",
+    "TODO.md",
+    "SPEC.md",
+    "SPEC_NEW",
     "SKILL.md",
     "REZ_COPY.md",
-    "manifest.md",
     "NOTE.md",
     "Формируем вопросы.md"
   ]

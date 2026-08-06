@@ -1,5 +1,7 @@
 # CMS Base — типы (инфоблок / элемент)
 
+> Полная спецификация: [SPEC.md](./SPEC.md)
+
 ## Базовые сущности (`entities/`)
 
 ```
@@ -24,4 +26,5 @@ mixins → base.md
 | Данные | `row.base.md` | tasks, taxonomies | строка данных |
 | Mixins | `base.md` | cms-base/mixins | примесь |
 
-Полная карта — [IBLOCK-MODEL.md](./IBLOCK-MODEL.md).
+Полная карта — [IBLOCK-MODEL.md](./IBLOCK-MODEL.md).  
+Спецификация и gap vs код — [SPEC.md](./SPEC.md) §15–16.

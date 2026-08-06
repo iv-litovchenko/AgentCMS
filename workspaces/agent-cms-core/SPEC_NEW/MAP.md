@@ -1,7 +1,8 @@
 # Карта Agent CMS — `[Agent CMS] Test`
 
 > **Агент = CMS.** Схема типов — в `awn-data/` (Страницы, Контент, Слоты, … + `cms-base/`).  
-> Контент — в `awn-container/`. Служебное — в `awn-agent-kit/`.
+> Контент — в `awn-container/`. Служебное — в `awn-agent-kit/`.  
+> Итоговая спецификация модели: [SPEC.md](./SPEC.md)
 
 ---
 

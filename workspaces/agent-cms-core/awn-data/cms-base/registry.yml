@@ -24,7 +24,7 @@ domains:
     kind: type
     icon: "⚙"
 docs:
-  map: awn-data/cms-base/MAP.md
+  map: SPEC_NEW/MAP.md
   agents: AGENTS.md
 
 canonical-types: migrated

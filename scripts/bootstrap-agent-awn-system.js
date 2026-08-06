@@ -15,8 +15,6 @@ const TOP_LEVEL_STORES = [...new Set(
 )];
 const CMS_BASE_FILES = [
   "registry.yml",
-  "MAP.md",
-  "TYPES-GUIDE.md",
   "manifest.md",
   "sort.json"
 ];
