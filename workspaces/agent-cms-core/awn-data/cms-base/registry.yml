@@ -24,7 +24,7 @@ domains:
     kind: type
     icon: "⚙"
 docs:
-  map: SPEC_NEW/MAP.md
+  map: Resources/MAP.md
   agents: AGENTS.md
 
 canonical-types: migrated

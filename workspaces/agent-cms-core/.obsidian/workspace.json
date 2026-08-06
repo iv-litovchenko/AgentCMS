@@ -11,14 +11,10 @@
             "id": "405da914a80a02f6",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "SPEC_NEW/_SPEC_2026_itogovaya.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "_SPEC_2026_itogovaya"
+              "title": "Новая вкладка"
             }
           }
         ]
@@ -94,7 +90,6 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "SPEC_NEW/_SPEC_2026_itogovaya.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +99,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Обратные ссылки для _SPEC_2026_itogovaya"
+              "title": "Обратные ссылки"
             }
           },
           {
@@ -113,12 +108,11 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "SPEC_NEW/_SPEC_2026_itogovaya.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Исходящие ссылки из _SPEC_2026_itogovaya"
+              "title": "Исходящие ссылки"
             }
           },
           {
@@ -156,13 +150,12 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "SPEC_NEW/_SPEC_2026_itogovaya.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Структура _SPEC_2026_itogovaya"
+              "title": "Структура"
             }
           }
         ]
@@ -185,41 +178,41 @@
   },
   "active": "405da914a80a02f6",
   "lastOpenFiles": [
+    "awn-agent-kit/voice-tts",
+    "awn-agent-kit/rules/manifest.md",
+    "awn-agent-kit/rules",
+    "awn-agent-kit/agent/awn-storage",
+    "awn-agent-kit/agent/manifest.md",
+    "awn-agent-kit/agent",
+    "awn-agent-kit/sort.json",
+    "awn-data/cms-base/read.json",
+    "awn-agent-kit/awn-storage",
+    "awn-agent-kit/manifest.md",
+    "awn-agent-kit",
+    "oblast/2tema/read.json",
+    "oblast/2tema/awn-storage",
+    "oblast/2tema/manifest.md",
+    "oblast/2tema",
+    "oblast/tema/manifest.md",
+    "oblast/manifest.md",
+    "SPEC_NEW/_SPEC_2026_itogovaya.md",
+    "Resources/Формируем вопросы.md",
+    "Resources/_SPEC_2026_itogovaya.md",
+    "Resources/TYPES-GUIDE.md",
+    "Resources/SPEC.md",
+    "Resources/REZ_COPY.md",
+    "Resources/MAP.md",
+    "Resources/IBLOCK-MODEL.md",
     "awn-data/tasks/6.md",
     "awn-data/cms-base/mixins/mixin.md",
-    "awn-data/cms-base/data-containers/sort.json",
     "awn-data/cms-base/data-containers/single.md",
     "awn-data/cms-base/data-containers/mixin.md",
     "awn-data/cms-base/data-containers/group.md",
     "awn-data/cms-base/data-containers/manifest.md",
     "awn-data/cms-base/data-containers/collection.md",
-    "awn-data/cms-base/data-containers",
     "awn-data/cms-base/data-elements/manifest.md",
-    "awn-data/cms-base/data-elements/sort.json",
     "awn-data/cms-base/data-elements/default.md",
-    "awn-data/cms-base/data-elements",
-    "awn-data/cms-base/containers/sort.json",
     "awn-data/cms-base/containers/single.md",
-    "awn-data/cms-base/containers/mixin.md",
-    "awn-data/cms-base/containers/manifest.md",
-    "awn-data/cms-base/containers/group.md",
-    "awn-data/cms-base/containers/collection.md",
-    "awn-data/cms-base/containers",
-    "awn-data/cms-base/elements/sort.json",
-    "awn-data/cms-base/elements/manifest.md",
-    "awn-data/cms-base/elements/default.md",
-    "awn-data/cms-base/elements",
-    "awn-data/cms-base/items/sort.json",
-    "awn-data/cms-base/container/mixin.md",
-    "awn-data/cms-base/container/group.md",
-    "awn-data/cms-base/container/single.md",
-    "awn-data/cms-base/container/row.base.md",
-    "awn-data/cms-base/items/manifest.md",
-    "awn-data/cms-base/base.md",
-    "awn-data/cms-base/container/collection.md",
-    "awn-data/cms-base/items/default.md",
-    "awn-data/cms-base/items/default",
-    "SPEC_NEW/TYPES-GUIDE.md",
-    "SPEC_NEW/SPEC.md"
+    "awn-data/cms-base/containers/mixin.md"
   ]
 }

@@ -9313,7 +9313,7 @@ async function readAgentSystemContext(agentRoot) {
     root: CMS_CONFIG_REL,
     typeSummary,
     docs: {
-      map: await readAgentDoc("SPEC_NEW/MAP.md"),
+      map: await readAgentDoc("Resources/MAP.md"),
       registry: await readText("registry.yml"),
       manifest: await readText("manifest.md")
     },

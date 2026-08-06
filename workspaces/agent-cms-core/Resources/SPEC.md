@@ -324,7 +324,7 @@ topic «Поток 1» (topic.md)
 
 ```
 agent-cms-core/
-├── SPEC_NEW/                       ← спецификация и карты
+├── Resources/                      ← спецификация и карты
 │   ├── SPEC.md
 │   ├── IBLOCK-MODEL.md
 │   ├── TYPES-GUIDE.md

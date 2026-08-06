@@ -43144,6 +43144,20 @@ button.node-navigation-memory-title:focus-visible {
   margin-top: 8px;
 }
 
+.create-node-actions.create-node-actions--static-stubs {
+  margin-top: 8px;
+}
+
+.create-node-actions.create-node-actions--static-stubs .create-node-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.create-node-actions.create-node-actions--static-stubs .create-node-action-btn:disabled:hover {
+  border-color: var(--border);
+  background: var(--bg);
+}
+
 @media (max-width: 520px) {
   .create-node-catalog-actions,
   .create-node-service-docs-actions,
