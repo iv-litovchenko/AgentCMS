@@ -30,4 +30,4 @@ git --git-dir=.gitfiles commit -m "My commit"
 3. Agent.md.premisiions
 4. user.md permissions
 5. users.md permissions
-6. Общая по Id-записи папки media FAL
+6. Общая по Id-записи папки media FAL **Типа file fileadmin uploads как в typo3**
