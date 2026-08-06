@@ -38,3 +38,7 @@ awn-data-elements-schema:
 # Задачи
 
 Store id = **`awn-data/tasks`**.
+
+`awn-supertype` → collection.md (поля manifest).  
+`awn-data-elements-schema-*` → поля записей.  
+Записи: `awn-supertype: awn-data/tasks/manifest.md`.

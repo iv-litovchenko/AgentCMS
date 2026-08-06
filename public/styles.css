@@ -45624,6 +45624,7 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .menu-static-section--storage-schemes {
   border: 1px solid #c4b5fd;
   background: #f5f3ff;
+  overflow: visible;
 }
 
 .menu-awn-data-stores {
@@ -45633,6 +45634,10 @@ body.is-discuss-resizing .discuss-aside-resizer {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  max-height: min(42vh, 360px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 .menu-awn-data-store {

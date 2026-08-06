@@ -81546,6 +81546,7 @@ function formatAwnDataSchemaDefault(field) {
 
 const AWN_DATA_SCHEMA_META_LABELS = {
   kind: "Тип",
+  supertype: "Supertype",
   id: "ID",
   name: "Название",
   extends: "Наследует",
@@ -81601,7 +81602,7 @@ function fillAwnDataSchemaMetaValueCell(cell, key, value, { kind, viewStore } = 
     cell.appendChild(createAwnDataSchemaKindBadge(String(value || kind || "collection"), viewStore));
     return;
   }
-  if (key === "extends" || key === "record.file" || key === "файл записи" || key === "хранилище") {
+  if (key === "extends" || key === "supertype" || key === "record.file" || key === "файл записи" || key === "хранилище") {
     const code = document.createElement("code");
     code.textContent = String(value ?? "—");
     cell.appendChild(code);
@@ -81637,6 +81638,7 @@ function appendAwnDataSchemaMetaRow(tbody, key, value, context) {
 function collectAwnDataSchemaMetaRows(viewStore, schema, kind, isGroup) {
   const rows = [
     ["kind", kind],
+    ["supertype", schema.supertype || "—"],
     ["id", schema.id || viewStore.id || "—"],
     ["name", schema.name || viewStore.name || "—"]
   ];
@@ -83596,27 +83598,44 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
   }
 }
 
+function isLegacyOnlyAwnDataPayload(payload) {
+  const stores = Array.isArray(payload?.stores) ? payload.stores : [];
+  if (!stores.length) return true;
+  if (stores.length !== 1) return false;
+  const only = stores[0];
+  const rel = String(only?.relPath || only?.id || "").trim();
+  return rel === "_base";
+}
+
 async function refreshMenuAwnDataStores(agentId = activeAgentId) {
   if (!menuAwnDataStoresNode) return;
-  if (!agentId) {
-    renderMenuAwnDataStores({ stores: [], emptyHint: "select-agent" });
-    return;
-  }
 
   const seq = ++menuAwnDataStoresLoadSeq;
   renderMenuAwnDataStores(null, { loading: true });
 
-  try {
-    const response = await fetch(buildApiUrl("/api/awn-data", {}, agentId));
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    if (seq !== menuAwnDataStoresLoadSeq) return;
-    awnDataCatalogAgentId = resolveAwnDataCatalogAgentId(data, agentId);
-    renderMenuAwnDataStores(data);
-  } catch {
-    if (seq !== menuAwnDataStoresLoadSeq) return;
-    renderMenuAwnDataStores(null, { error: true });
+  const platformAgentId = DOCUMENTATION_AGENT_ID || "agent-cms-core";
+  const candidates = [];
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (resolvedAgent) candidates.push(resolvedAgent);
+  if (!candidates.includes(platformAgentId)) candidates.push(platformAgentId);
+
+  for (const fetchAgentId of candidates) {
+    try {
+      const response = await fetch(buildApiUrl("/api/awn-data", {}, fetchAgentId));
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (isLegacyOnlyAwnDataPayload(data) && fetchAgentId !== platformAgentId) continue;
+      if (seq !== menuAwnDataStoresLoadSeq) return;
+      awnDataCatalogAgentId = resolveAwnDataCatalogAgentId(data, fetchAgentId);
+      renderMenuAwnDataStores(data);
+      return;
+    } catch {
+      // try next candidate
+    }
   }
+
+  if (seq !== menuAwnDataStoresLoadSeq) return;
+  renderMenuAwnDataStores(null, { error: true });
 }
 
 async function refreshMenuGoogleDriveStats(agentId = activeAgentId) {

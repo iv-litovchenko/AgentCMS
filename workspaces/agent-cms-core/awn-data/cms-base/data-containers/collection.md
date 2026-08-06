@@ -1,51 +1,45 @@
 ---
-awn-super-type: awn-data/cms-base/data-containers/manifest.md
-awn-name: Инфobлок-коллекция
+awn-supertype: awn-data/cms-base/data-elements/default.md
+awn-name: Коллекция
 awn-description: manifest + N записей (*.md или main.csv)
 
-# шаблон manifest collection-store
-awn-data-elements-schema:
-  awn-supertype:
-    description: путь → awn-data/cms-base/data-containers/collection.md
-  awn-name:
-    description: название store
-  awn-record-id-mode:
-    description: slug | numeric
-  awn-record-file:
-    description: "{id}.md"
-  awn-record-hierarchy:
-    description: true | false
-  awn-data-elements-schema-extends:
-    description: путь → awn-data/cms-base/data-elements/default.md
-  awn-data-elements-schema-mixins:
-    description: примеси
-  awn-data-elements-schema:
-    description: fields + tabs для записей store
+awn-record-id-mode: slug
+awn-record-file: "{id}.md"
+awn-record-hierarchy: false
 
-# когда collection = каталог типов (pages, content)
-awn-fields:
-  awn-title:
-    type: awn.field.string
-    title: Название
-    required: true
-  awn-typeId:
-    type: awn.field.string
-    title: ID типа
-    required: true
-  awn-kind:
-    type: awn.field.string
-    title: Kind
-  awn-domain:
-    type: awn.field.string
-    title: Domain
-  awn-status:
-    type: awn.field.enum
-    title: Статус
-    enum: [active, draft, deprecated, inactive]
-    default: active
+awn-data-elements-schema-extends: awn-data/cms-base/data-elements/default.md
+awn-data-elements-schema-mixins: []
+awn-data-elements-schema:
+  fields:
+    awn-title:
+      type: awn.field.string
+      title: Название
+      required: true
+      tab: main
+    awn-typeId:
+      type: awn.field.string
+      title: ID типа
+      required: true
+      tab: main
+    awn-kind:
+      type: awn.field.string
+      title: Kind
+      tab: main
+    awn-domain:
+      type: awn.field.string
+      title: Domain
+      tab: main
+    awn-status:
+      type: awn.field.enum
+      title: Статус
+      enum: [active, draft, deprecated, inactive]
+      default: active
+      tab: main
+  tabs:
+    main: Основное
 ---
 # data-containers.collection
 
 Type id = **`awn-data/cms-base/data-containers/collection.md`**
 
-Item в store `data-containers/` — описывает базовый тип «коллекция».
+При создании коллекции новый `manifest.md` получает `awn-supertype` → этот файл.

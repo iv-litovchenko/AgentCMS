@@ -63,6 +63,14 @@ const KIND_TO_AWN_PROP_TYPE = {
   group: "awn.data.group"
 };
 
+const DATA_CONTAINERS_PREFIX = `${AWN_DATA_DIR}/cms-base/data-containers/`;
+const CONTAINER_SUPERTYPE = {
+  collection: `${DATA_CONTAINERS_PREFIX}collection.md`,
+  group: `${DATA_CONTAINERS_PREFIX}group.md`,
+  singleton: `${DATA_CONTAINERS_PREFIX}single.md`
+};
+const DEFAULT_ELEMENT_SCHEMA = `${AWN_DATA_DIR}/cms-base/data-elements/default.md`;
+
 function toAwnFieldKey(key) {
   const name = String(key || "").trim();
   if (!name || name.startsWith("awn-")) return name;
@@ -254,13 +262,19 @@ function readEntityTypeAsStoreSchema(absPath, parts) {
 function isStoreManifestFrontmatter(raw) {
   if (!raw || typeof raw !== "object") return false;
   return Boolean(
-    raw["awn-type"] ||
+    raw["awn-supertype"] ||
+      raw["awn-super-type"] ||
+      raw["awn-type"] ||
       raw["awn-prop-type"] ||
       raw.kind ||
       raw["awn-fields"] ||
       raw.fields ||
       raw["awn-record"] ||
-      raw["awn-prop-record"]
+      raw["awn-prop-record"] ||
+      raw["awn-record-id-mode"] ||
+      raw["awn-record-file"] ||
+      raw["awn-data-elements-schema"] ||
+      raw["awn-data-elements-schema-extends"]
   );
 }
 
@@ -312,6 +326,38 @@ function normalizeExtendsRef(ref) {
   }
 
   return normalized;
+}
+
+function resolveKindFromSupertype(supertype) {
+  const ref = normalizeExtendsRef(supertype).toLowerCase();
+  if (!ref.startsWith(DATA_CONTAINERS_PREFIX)) return "";
+  const base = path.basename(ref, ".md");
+  if (base === "collection") return "collection";
+  if (base === "group") return "group";
+  if (base === "single") return "singleton";
+  return "";
+}
+
+function extractElementSchemaBlock(raw) {
+  const block = raw["awn-data-elements-schema"];
+  if (!block || typeof block !== "object") return { fields: {}, tabs: {} };
+  return {
+    fields: normalizeAwnFieldsMap(block.fields || {}),
+    tabs: block.tabs && typeof block.tabs === "object" ? { ...block.tabs } : {}
+  };
+}
+
+function extractFlatRecordProps(raw) {
+  const record = {};
+  const idMode = readStoreProp(raw, ["awn-record-id-mode"], "");
+  const file = readStoreProp(raw, ["awn-record-file"], "");
+  const hierarchy = raw["awn-record-hierarchy"];
+  if (idMode) record["id-mode"] = idMode;
+  if (file) record.file = file;
+  if (hierarchy !== undefined && hierarchy !== null && String(hierarchy).trim() !== "") {
+    record.hierarchy = hierarchy === true || String(hierarchy).trim().toLowerCase() === "true";
+  }
+  return record;
 }
 
 function resolveExtendsSchemaAbs(storeAbs, extendsRef, agentRoot = "") {
@@ -376,12 +422,16 @@ function normalizeRawStoreSchema(raw, body = "") {
   if (!raw || typeof raw !== "object") return null;
 
   const hasAwnKeys =
+    raw["awn-supertype"] ||
+    raw["awn-super-type"] ||
     raw["awn-type"] ||
     raw["awn-name"] ||
     raw["awn-id"] ||
     raw["awn-fields"] ||
     raw["awn-record"] ||
-    raw["awn-extends"];
+    raw["awn-extends"] ||
+    raw["awn-data-elements-schema"] ||
+    raw["awn-data-elements-schema-extends"];
 
   const hasLegacyPropKeys = raw["awn-prop-type"] || raw["awn-prop-name"] || raw["awn-prop-id"];
 
@@ -400,30 +450,44 @@ function normalizeRawStoreSchema(raw, body = "") {
     };
   }
 
+  const supertype = normalizeExtendsRef(readStoreProp(raw, ["awn-supertype", "awn-super-type"], ""));
   const awnType = readStoreProp(raw, ["awn-type", "awnType", "awn-prop-type"], "");
-  const kind = raw.kind ? String(raw.kind).trim() : normalizeAwnPropTypeToKind(awnType, "collection");
+  const kindFromSuper = resolveKindFromSupertype(supertype);
+  const kind = raw.kind
+    ? String(raw.kind).trim()
+    : kindFromSuper || normalizeAwnPropTypeToKind(awnType, "collection");
 
+  const elementBlock = extractElementSchemaBlock(raw);
   const rawFields =
+    (Object.keys(elementBlock.fields).length ? elementBlock.fields : null) ||
     (raw["awn-fields"] && typeof raw["awn-fields"] === "object" ? raw["awn-fields"] : null) ||
     (raw.fields && typeof raw.fields === "object" ? raw.fields : {}) ||
     {};
 
+  const recordFromObject =
+    (raw["awn-record"] && typeof raw["awn-record"] === "object" ? raw["awn-record"] : null) ||
+    (raw["awn-prop-record"] && typeof raw["awn-prop-record"] === "object" ? raw["awn-prop-record"] : null) ||
+    (raw.record && typeof raw.record === "object" ? raw.record : {}) ||
+    {};
+
+  const elementExtends = normalizeExtendsRef(readStoreProp(raw, ["awn-data-elements-schema-extends"], ""));
+  const legacyExtends = normalizeExtendsRef(readStoreProp(raw, ["awn-extends", "extends", "awn-prop-extends"], ""));
+
   return {
     version: raw.version || 1,
     kind,
+    supertype,
     id: String(readStoreProp(raw, ["awn-id", "id", "awn-prop-id"], "")).trim(),
     name: String(readStoreProp(raw, ["awn-name", "name", "title", "awn-prop-name"], "")).trim(),
     description: String(extractDescriptionFromBody(body) || readStoreProp(raw, ["description", "awn-description", "awn-prop-description"], "")).trim(),
-    extends: normalizeExtendsRef(
-      readStoreProp(raw, ["awn-extends", "extends", "awn-prop-extends"], "")
-    ),
+    extends: elementExtends || legacyExtends,
     layer: String(readStoreProp(raw, ["awn-layer", "layer", "awn-prop-layer"], "")).trim(),
-    record:
-      (raw["awn-record"] && typeof raw["awn-record"] === "object" ? raw["awn-record"] : null) ||
-      (raw["awn-prop-record"] && typeof raw["awn-prop-record"] === "object" ? raw["awn-prop-record"] : null) ||
-      (raw.record && typeof raw.record === "object" ? raw.record : {}) ||
-      {},
+    record: { ...recordFromObject, ...extractFlatRecordProps(raw) },
     fields: normalizeAwnFieldsMap(rawFields),
+    elementSchemaTabs: elementBlock.tabs,
+    elementSchemaMixins: Array.isArray(raw["awn-data-elements-schema-mixins"])
+      ? raw["awn-data-elements-schema-mixins"]
+      : [],
     storeBody: body
   };
 }
@@ -562,7 +626,8 @@ function loadMergedStoreSchema(storeAbs, dataRoot = "") {
     fieldsLocal,
     storeBody: leaf.body || leaf.schema.storeBody || "",
     schemaFile: leaf.schemaFile,
-    extendsChain: chain.map((item) => item.schema.extends).filter(Boolean)
+    extendsChain: chain.map((item) => item.schema.extends).filter(Boolean),
+    supertype: leaf.schema.supertype || ""
   };
   delete merged.storeBody;
   merged._storeBody = leaf.body || leaf.schema.storeBody || "";
@@ -902,6 +967,14 @@ function findAwnDataStore(stores, filter) {
   return walk(stores);
 }
 
+function isLegacyOnlyAwnDataStores(stores) {
+  const list = Array.isArray(stores) ? stores : [];
+  if (!list.length) return true;
+  if (list.length !== 1) return false;
+  const rel = String(list[0]?.relPath || list[0]?.id || "").trim();
+  return rel === "_base";
+}
+
 function resolveAwnDataReadRoot(agentRoot, projectRoot = process.cwd()) {
   const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
   if (!agentRootAbs) {
@@ -909,7 +982,9 @@ function resolveAwnDataReadRoot(agentRoot, projectRoot = process.cwd()) {
   }
 
   const agentPayload = loadAwnDataStores(agentRootAbs, projectRoot);
-  if (agentPayload.storeCount > 0) {
+  const agentHasRealStores =
+    agentPayload.storeCount > 0 && !isLegacyOnlyAwnDataStores(agentPayload.stores);
+  if (agentHasRealStores) {
     return {
       readRoot: agentRootAbs,
       source: "agent",
@@ -1017,18 +1092,42 @@ function dumpYamlBlock(obj, indent = 0) {
 function buildStoreManifestContent(schema, body = "") {
   const kind = String(schema.kind || "collection").trim();
   const lines = ["---"];
-  lines.push(`awn-type: ${KIND_TO_AWN_PROP_TYPE[kind] || "awn.data.collection"}`);
-  if (schema.id) lines.push(`awn-id: ${schema.id}`);
-  if (schema.layer) lines.push(`awn-layer: ${schema.layer}`);
-  if (schema.name) lines.push(`awn-name: ${yamlQuote(schema.name)}`);
-  if (schema.extends) lines.push(`awn-extends: ${normalizeExtendsRef(schema.extends)}`);
-  if (schema.record && Object.keys(schema.record).length) {
-    lines.push("awn-record:");
-    lines.push(...dumpYamlBlock(schema.record, 1));
-  }
-  if (schema.fields && Object.keys(schema.fields).length) {
-    lines.push("awn-fields:");
-    lines.push(...dumpYamlBlock(normalizeAwnFieldsMap(schema.fields), 1));
+  const supertype = schema.supertype || CONTAINER_SUPERTYPE[kind] || "";
+  if (supertype) {
+    lines.push(`awn-supertype: ${normalizeExtendsRef(supertype)}`);
+    if (schema.name) lines.push(`awn-name: ${yamlQuote(schema.name)}`);
+    const record = schema.record && typeof schema.record === "object" ? schema.record : {};
+    if (record["id-mode"]) lines.push(`awn-record-id-mode: ${record["id-mode"]}`);
+    if (record.file) lines.push(`awn-record-file: ${yamlQuote(record.file)}`);
+    if (record.hierarchy !== undefined) lines.push(`awn-record-hierarchy: ${record.hierarchy ? "true" : "false"}`);
+    lines.push(
+      `awn-data-elements-schema-extends: ${normalizeExtendsRef(schema.extends || DEFAULT_ELEMENT_SCHEMA)}`
+    );
+    lines.push("awn-data-elements-schema-mixins: []");
+    lines.push("awn-data-elements-schema:");
+    lines.push("  fields:");
+    if (schema.fields && Object.keys(schema.fields).length) {
+      lines.push(...dumpYamlBlock(normalizeAwnFieldsMap(schema.fields), 2));
+    }
+    const tabs = schema.elementSchemaTabs || {};
+    if (Object.keys(tabs).length) {
+      lines.push("  tabs:");
+      lines.push(...dumpYamlBlock(tabs, 2));
+    }
+  } else {
+    lines.push(`awn-type: ${KIND_TO_AWN_PROP_TYPE[kind] || "awn.data.collection"}`);
+    if (schema.id) lines.push(`awn-id: ${schema.id}`);
+    if (schema.layer) lines.push(`awn-layer: ${schema.layer}`);
+    if (schema.name) lines.push(`awn-name: ${yamlQuote(schema.name)}`);
+    if (schema.extends) lines.push(`awn-extends: ${normalizeExtendsRef(schema.extends)}`);
+    if (schema.record && Object.keys(schema.record).length) {
+      lines.push("awn-record:");
+      lines.push(...dumpYamlBlock(schema.record, 1));
+    }
+    if (schema.fields && Object.keys(schema.fields).length) {
+      lines.push("awn-fields:");
+      lines.push(...dumpYamlBlock(normalizeAwnFieldsMap(schema.fields), 1));
+    }
   }
   lines.push("---", "");
   const manifestBody =
@@ -1174,15 +1273,14 @@ function recordBaseExtendsPath() {
 }
 
 function buildCollectionSchemaContent({ slug, name, description, hierarchy = true }) {
-  const extendsPath = recordBaseExtendsPath(slug);
   const desc = String(description || name || slug).trim();
   return {
     schema: {
       kind: "collection",
-      id: slug.replace(/\//g, "."),
+      supertype: CONTAINER_SUPERTYPE.collection,
       name: name || slug,
       description: desc,
-      extends: extendsPath,
+      extends: DEFAULT_ELEMENT_SCHEMA,
       record: {
         storage: "md",
         "id-mode": hierarchy ? "numeric" : "slug",
@@ -1190,19 +1288,22 @@ function buildCollectionSchemaContent({ slug, name, description, hierarchy = tru
         hierarchy: hierarchy ? true : false
       },
       fields: {
-        title: { type: "awn.string", title: "Название", required: true },
-        parent: {
+        "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" },
+        "awn-parent": {
           type: "awn.string",
           title: "Родитель",
-          description: "id родительской записи"
+          description: "id родительской записи",
+          tab: "main"
         },
-        status: {
+        "awn-status": {
           type: "awn.enum",
           title: "Статус",
           enum: ["open", "done"],
-          default: "open"
+          default: "open",
+          tab: "main"
         }
-      }
+      },
+      elementSchemaTabs: { main: "Основное" }
     },
     manifestBody: buildCollectionManifestBody({ name: name || slug, description: desc })
   };
@@ -1239,19 +1340,19 @@ function buildTaxonomyCollectionSchemaContent({ slug, name, description }) {
 }
 
 function buildSingletonSchemaContent({ slug, name, description }) {
-  const extendsPath = recordBaseExtendsPath(slug);
   const desc = String(description || name || slug).trim();
   return {
     schema: {
       kind: "singleton",
-      id: slug.replace(/\//g, "."),
+      supertype: CONTAINER_SUPERTYPE.singleton,
       name: name || slug,
       description: desc,
-      extends: extendsPath,
+      extends: DEFAULT_ELEMENT_SCHEMA,
       record: { file: "main.md" },
       fields: {
-        note: { type: "awn.string", title: "Заметка" }
-      }
+        "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" }
+      },
+      elementSchemaTabs: { main: "Основное" }
     },
     manifestBody: `# ${name || slug}\n\n${desc}`
   };
@@ -1262,7 +1363,7 @@ function buildGroupSchemaContent({ slug, name, description }) {
   return {
     schema: {
       kind: "group",
-      id: slug.replace(/\//g, "."),
+      supertype: CONTAINER_SUPERTYPE.group,
       name: name || slug,
       description: desc
     },
@@ -1283,15 +1384,33 @@ function writeStoreContractBundle(storeAbs, schema, manifestBody = "") {
   writeStoreManifest(storeAbs, schema, manifestBody);
 }
 
-function buildRecordMarkdown({ id, title, parent, extra = {} }) {
-  const lines = ["---", `awn-id: "${id}"`];
-  if (parent) lines.push(`awn-parent: "${parent}"`);
+function buildRecordMarkdown({ id, title, parent, storeRel = "", extra = {} }) {
+  const lines = ["---"];
+  const store = String(storeRel || "").trim().replace(/^\/+|\/+$/g, "");
+  if (store) lines.push(`awn-supertype: ${AWN_DATA_DIR}/${store}/manifest.md`);
   const ts = nowIsoMinute();
   lines.push(`awn-created: "${ts}"`, `awn-updated: "${ts}"`);
   if (title) lines.push(`awn-title: ${title}`);
+  if (parent) lines.push(`awn-parent: "${parent}"`);
   for (const [key, value] of Object.entries(extra)) {
     const awnKey = toAwnFieldKey(key);
-    if (["awn-id", "awn-parent", "awn-created", "awn-updated", "awn-title", "id", "parent", "created", "updated", "title"].includes(awnKey)) continue;
+    if (
+      [
+        "awn-id",
+        "awn-parent",
+        "awn-created",
+        "awn-updated",
+        "awn-title",
+        "awn-supertype",
+        "id",
+        "parent",
+        "created",
+        "updated",
+        "title"
+      ].includes(awnKey)
+    ) {
+      continue;
+    }
     lines.push(`${awnKey}: ${value}`);
   }
   lines.push("---", "", title ? `${title}.` : "");
@@ -1329,7 +1448,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs, dataRoot));
       fs.writeFileSync(path.join(storeAbs, "main.csv"), serializeCsv(columns, []), "utf-8");
     } else if (withSample) {
-      const recordContent = buildRecordMarkdown({ id: "1", title: "Первая запись" });
+      const recordContent = buildRecordMarkdown({ id: "1", title: "Первая запись", storeRel: slug });
       fs.writeFileSync(path.join(storeAbs, "1.md"), recordContent, "utf-8");
       fs.writeFileSync(path.join(storeAbs, "sort.json"), `${JSON.stringify(["1"], null, 2)}\n`, "utf-8");
     }
@@ -1343,6 +1462,7 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
     const recordContent = buildRecordMarkdown({
       id: slug.replace(/\//g, "."),
       title: name,
+      storeRel: slug,
       extra: { note: "" }
     });
     fs.writeFileSync(path.join(storeAbs, SINGLETON_RECORD), recordContent, "utf-8");
@@ -1418,7 +1538,7 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
 
   if (fs.existsSync(absFile)) throw new Error(`Record already exists: ${id}`);
 
-  const content = buildRecordMarkdown({ id, title, parent: parent || null });
+  const content = buildRecordMarkdown({ id, title, parent: parent || null, storeRel });
   fs.writeFileSync(absFile, content, "utf-8");
 
   const sortPath = path.join(storeAbs, "sort.json");
@@ -1462,6 +1582,8 @@ module.exports = {
   writeStoreContractBundle,
   loadMergedStoreSchema,
   normalizeExtendsRef,
+  resolveKindFromSupertype,
+  CONTAINER_SUPERTYPE,
   toAwnFieldKey,
   KIND_TO_AWN_PROP_TYPE
 };

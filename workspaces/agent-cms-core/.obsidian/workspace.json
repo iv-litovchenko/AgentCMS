@@ -185,6 +185,7 @@
   },
   "active": "405da914a80a02f6",
   "lastOpenFiles": [
+    "awn-data/tasks/6.md",
     "awn-data/cms-base/mixins/mixin.md",
     "awn-data/cms-base/data-containers/sort.json",
     "awn-data/cms-base/data-containers/single.md",
@@ -219,7 +220,6 @@
     "awn-data/cms-base/items/default.md",
     "awn-data/cms-base/items/default",
     "SPEC_NEW/TYPES-GUIDE.md",
-    "SPEC_NEW/SPEC.md",
-    "SPEC_NEW/MAP.md"
+    "SPEC_NEW/SPEC.md"
   ]
 }

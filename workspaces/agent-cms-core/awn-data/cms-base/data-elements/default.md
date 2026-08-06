@@ -1,8 +1,9 @@
 ---
-awn-super-type: awn-data/cms-base/data-elements/manifest.md
-awn-name: Element default
+awn-supertype: awn-data/cms-base/data-elements/default.md
+awn-name: default
 awn-description: Базовая схема полей для любой записи
 
+awn-data-elements-schema-mixins: []
 awn-data-elements-schema:
   fields:
     awn-created:

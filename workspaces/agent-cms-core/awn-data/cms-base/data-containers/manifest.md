@@ -1,20 +1,18 @@
 ---
 awn-supertype: awn-data/cms-base/data-containers/collection.md
-awn-name: Базовые типы (контейнеры)
+awn-name: Контейнеры
 
 awn-record-id-mode: slug
 awn-record-file: "{id}.md"
-
-awn-data-elements-schema-extends: awn-data/cms-base/data-elements/default.md
-awn-data-elements-schema-mixins: []
 ---
-# Базовые типы — контейнеры
+# Контейнеры
 
 Store id = **`awn-data/cms-base/data-containers`**
 
-| Файл | Type id |
-|------|---------|
-| collection.md | awn-data/cms-base/data-containers/collection.md |
-| group.md | awn-data/cms-base/data-containers/group.md |
-| single.md | awn-data/cms-base/data-containers/single.md |
-| mixin.md | awn-data/cms-base/data-containers/mixin.md |
+Каталог базовых типов контейнеров. Кнопки UI: **+ Группа**, **+ Коллекция**, **+ Одиночка**.
+
+| Файл | Type id | supertype для нового store |
+|------|---------|----------------------------|
+| group.md | awn-data/cms-base/data-containers/group.md | группа |
+| collection.md | awn-data/cms-base/data-containers/collection.md | коллекция |
+| single.md | awn-data/cms-base/data-containers/single.md | одиночка |
