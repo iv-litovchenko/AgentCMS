@@ -1,4 +1,6 @@
 {
-  "paths": [],
-  "updatedAt": "2026-08-07T19:41:28.573Z"
+  "paths": [
+    "tabular/main.csv"
+  ],
+  "updatedAt": "2026-08-07T20:13:36.530Z"
 }

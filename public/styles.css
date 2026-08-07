@@ -48307,11 +48307,21 @@ body.is-discuss-resizing .discuss-aside-resizer {
 }
 
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-status,
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link > .nav-book-toc-status,
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-label > .nav-book-toc-status {
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link-text .nav-book-toc-status,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-text .nav-book-toc-status {
   flex-shrink: 0;
   margin-right: 2px;
-  align-self: center;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-text .nav-book-toc-status.menu-tree-status,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link-text .nav-book-toc-status.menu-tree-status {
+  display: inline;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  font-size: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
 }
 
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-icon {

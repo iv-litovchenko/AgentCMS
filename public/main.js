@@ -50258,7 +50258,7 @@ function createNavigationMemoryPanel(modeId, title, contentNode, dataForBadge = 
       viewModeId: modeId,
       badgeText,
       badgeModeId: modeId,
-      imageColumnsToggle: modeId === "media"
+      imageColumnsToggle: modeId === "media" || modeId === "assets"
     }),
     body
   );
@@ -51424,7 +51424,7 @@ function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {})
 function appendNavBookTocEntryMarkers(link, item, nodePath, handlers = {}) {
   const { icon, status, preview } = buildNavBookTocEntryMarkers(item, nodePath, handlers);
   if (icon) link.appendChild(icon);
-  if (status) link.appendChild(status);
+  if (status && handlers.statusPlacement !== "inline-text") link.appendChild(status);
   if (preview) link.appendChild(preview);
   const gdriveBadge = createGoogleDriveSyncedBadge(item);
   if (gdriveBadge) link.appendChild(gdriveBadge);
@@ -51955,7 +51955,8 @@ function populateNavBookTocFolderLabel(
     folderDescriptions,
     sectionManifestByFolder,
     readManifestPath = getActiveNodeApiPath(),
-    readMemoryKind = "external"
+    readMemoryKind = "external",
+    treeStyle = ""
   } = {}
 ) {
   const label = folderNode.label || folderNode.folderPath.split("/").pop() || folderNode.folderPath;
@@ -51981,9 +51982,14 @@ function populateNavBookTocFolderLabel(
   const folderText = document.createElement("span");
   folderText.className = "nav-book-toc-folder-text";
   appendNavBookTocTitleText(folderText, label, description);
-  const statusBadge = createNavBookTocStatusBadge(folderStatus);
+  if (treeStyle === "classic") {
+    appendNavBookTocStatusBadge(folderText, folderStatus);
+  }
   folderLabel.appendChild(folderIcon);
-  if (statusBadge) folderLabel.appendChild(statusBadge);
+  if (treeStyle !== "classic") {
+    const statusBadge = createNavBookTocStatusBadge(folderStatus);
+    if (statusBadge) folderLabel.appendChild(statusBadge);
+  }
   folderLabel.appendChild(folderText);
   if (folderStatus) {
     const leaders = document.createElement("span");
@@ -57697,7 +57703,8 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       folderDescriptions,
       sectionManifestByFolder,
       readManifestPath: handlers.readManifestPath,
-      readMemoryKind: handlers.readMemoryKind
+      readMemoryKind: handlers.readMemoryKind,
+      treeStyle: handlers.treeStyle
     });
     const { forceExpand, folderIsCurrent } = getNavigationHubRailTocActiveState(
       handlers,
@@ -57781,6 +57788,9 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     text.className = "nav-book-toc-link-text";
     appendNavBookTocTitleText(text, item.title, itemDescription);
     appendNavBookTocWebUrlLink(text, getNavigationItemWebUrl(item));
+    if (handlers.treeStyle === "classic") {
+      appendNavBookTocStatusBadge(text, resolveNavigationItemStatus(item));
+    }
 
     const leaders = document.createElement("span");
     leaders.className = "nav-book-toc-leaders";
@@ -57789,7 +57799,10 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       attachmentPaths: getNavigationItemAttachmentPaths(item)
     });
 
-    appendNavBookTocEntryMarkers(link, item, nodePath, handlers);
+    appendNavBookTocEntryMarkers(link, item, nodePath, {
+      ...handlers,
+      statusPlacement: handlers.treeStyle === "classic" ? "inline-text" : handlers.statusPlacement
+    });
     appendNavUnreadBadgeForContent(
       text,
       handlers.readManifestPath || getActiveNodeApiPath(),
@@ -62820,7 +62833,8 @@ async function refreshNavigationMediaImagesView() {
   }
   if (
     activeContentMode === NODE_ENTRY_OVERVIEW_MODE &&
-    activeEntryOverviewContext?.memoryKind === "media"
+    (activeEntryOverviewContext?.memoryKind === "media" ||
+      activeEntryOverviewContext?.memoryKind === "assets")
   ) {
     await renderEntryOverview();
   }
@@ -64925,7 +64939,7 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
 
   const handlers = getNavigationHubRailTocHandlers(memoryKind);
   const nav = document.createElement("nav");
-  nav.className = "node-navigation-book-toc nav-book-toc-tree--guide nav-book-toc-tree--rail";
+  nav.className = "node-navigation-book-toc nav-book-toc-tree--classic nav-book-toc-tree--rail";
   nav.setAttribute("aria-label", getEntryOverviewTocTitle(memoryKind));
 
   const list = document.createElement("ul");
@@ -64939,7 +64953,7 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
     folderStatuses,
     sectionManifestByFolder,
     nodePath,
-    treeStyle: "guide",
+    treeStyle: "classic",
     collapseDepthThreshold: 99,
     activeContext: activeCtx,
     resourceContextMenuMemoryKind: memoryKind,
@@ -64957,19 +64971,24 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
       ...tocHandlers,
       linkLeadingMode: "media",
       showFileTypeLeading: false,
-      showBranchLeading: false,
-      treeStyle: "guide"
+      showBranchLeading: false
+    });
+  } else if (isFlatEntryOverviewMemoryKind(memoryKind)) {
+    appendNavigationBookTocList(list, tree, 0, {
+      ...tocHandlers,
+      showFileTypeLeading: true,
+      showBranchLeading: false
     });
   } else {
     appendNavigationBookTocList(list, tree, 0, {
       ...tocHandlers,
-      showFileTypeLeading: true,
-      showBranchLeading: false,
-      treeStyle: "guide"
+      showFileTypeLeading: false,
+      showBranchLeading: false
     });
   }
 
   nav.appendChild(list);
+  refreshClassicNavBookTocTreeLines(nav);
   return nav;
 }
 
