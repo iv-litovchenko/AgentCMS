@@ -14,6 +14,31 @@
 
 ---
 
+## Реестры
+
+Индексы workspace — **без** полного обхода дерева вручную. Старт: `get_session_context` уже отдаёт `topicRegistry` + `alwaysContext`.
+
+| Tool | Что внутри | Тела файлов? |
+|------|------------|--------------|
+| `get_topic_registry` | Все темы: name, path, description (skill-карта) | нет |
+| `get_always_context` | Что всегда в контексте: `awn-runtime-load-always` + `AGENTS.md` / `SKILL.md` / `README.md` / `MCP_DOC.md` | **да** |
+| `get_cron_registry` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
+| `get_heartbeat_registry` | Темы/записи с `awn-runtime-heartbeat` | нет |
+| `get_runtime_registry` | Полный runtime: флаги sync/cron/heartbeat (фильтры) | нет |
+| `get_runtime_map` | Карта sync для синхронизации агента | нет |
+| `get_site_map` | Карта сайта: области + темы + `awn-type` | нет |
+| `get_workspace_table` | Плоская таблица тем | нет |
+
+Флаги на теме/записи (frontmatter):
+
+- `awn-runtime-load-always` — полный текст в always-context  
+- `awn-runtime-cron` / `awn-runtime-cron-schedule` — расписание  
+- `awn-runtime-heartbeat` — периодическая проверка  
+
+Сначала реестр → потом точечно `read_page_*` / `read_content_*` по path.
+
+---
+
 ## Страницы
 
 Узел дерева меню (`manifest.md`).
