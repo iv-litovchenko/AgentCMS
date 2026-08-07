@@ -1,0 +1,9 @@
+{
+  "order": [
+    "awn-agent-kit",
+    "agent",
+    "rules",
+    "voice-tts",
+    "user"
+  ]
+}
