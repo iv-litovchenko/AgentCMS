@@ -35561,8 +35561,21 @@ function resolveTopicSchemaBaseType(target, cache = getTopicSchemaCache()) {
   return fromCache || null;
 }
 
+function getTopicSchemaCustomFieldsSource(cache) {
+  if (!cache) return null;
+  if (cache.contentPath) {
+    return cache.effectiveAwnSchema || cache.awnSchema || null;
+  }
+  return cache.awnSchema || null;
+}
+
+function getTopicSchemaCustomFieldsForTarget(target, cache) {
+  const source = getTopicSchemaCustomFieldsSource(cache);
+  return source?.[target]?.fields || {};
+}
+
 function resolveTopicSchemaMergedType(target, cache = getTopicSchemaCache()) {
-  const customFields = cache?.awnSchema?.[target]?.fields || {};
+  const customFields = getTopicSchemaCustomFieldsForTarget(target, cache);
   const base = resolveTopicSchemaBaseType(target, cache);
   if (base) {
     return {
@@ -35581,11 +35594,15 @@ function resolveTopicSchemaMergedType(target, cache = getTopicSchemaCache()) {
 function enrichTopicSchemaCacheFromTypes(cache) {
   if (!cache || !awnTypesCache?.types) return cache;
   cache.baseTypes = { ...(cache.baseTypes || {}) };
-  cache.merged = { ...(cache.merged || {}) };
+  const preserveMerged = Boolean(cache.contentPath && cache.merged && Object.keys(cache.merged).length);
+  if (!preserveMerged) {
+    cache.merged = { ...(cache.merged || {}) };
+  }
   const targets = [...getTopicSchemaTargetSpecs(), { id: "sidecar" }];
   for (const { id } of targets) {
     const base = resolveTopicSchemaBaseType(id, cache);
     if (base) cache.baseTypes[id] = base;
+    if (preserveMerged && cache.merged[id]) continue;
     const merged = resolveTopicSchemaMergedType(id, cache);
     if (merged) cache.merged[id] = merged;
   }
@@ -37240,8 +37257,9 @@ async function loadSectionSchemaForEntry(context, options = {}) {
 function invalidateTopicSchemaCacheForSection(params) {
   if (!params?.manifestPath || !params.sectionPath) return;
   const marker = buildStorageLayerRef(params.manifestPath, params.layer, params.sectionPath);
+  if (!marker) return;
   for (const key of topicSchemaCacheByManifest.keys()) {
-    const [, contentPath = ""] = String(key).split("::");
+    const contentPath = key.includes("\0") ? key.split("\0").slice(1).join("\0") : "";
     if (contentPath && (contentPath === marker || contentPath.startsWith(`${marker}/`))) {
       topicSchemaCacheByManifest.delete(key);
     }
@@ -37284,6 +37302,9 @@ async function saveSectionSchemaFromPanel(panel) {
   panel._sectionSchemaDirty = false;
   panel.querySelector(".section-schema-save-btn")?.classList.remove("is-dirty");
   renderSectionSchemaEditor(panel, cache);
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
+    void renderEntryOverview();
+  }
   return data;
 }
 
