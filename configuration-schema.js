@@ -255,6 +255,109 @@ function getWorkspaceSchemaPayloadFull(agentRoot, projectRoot) {
   };
 }
 
+/** Strip empty target blocks — only blocks with custom fields. */
+function compactAwnSchema(awnSchema) {
+  const normalized = normalizeAwnSchema(awnSchema);
+  const result = {};
+  for (const target of AWN_SCHEMA_TARGETS) {
+    const fields = normalized[target]?.fields || {};
+    if (Object.keys(fields).length > 0) {
+      result[target] = { fields: { ...fields } };
+    }
+  }
+  return result;
+}
+
+function collectLayeredCustomFields(layers, target) {
+  let fields = {};
+  for (const layerName of ["workspace", "area", "topic", "section"]) {
+    const layerFields = layers?.[layerName]?.[target]?.fields;
+    if (layerFields && typeof layerFields === "object") {
+      fields = { ...fields, ...layerFields };
+    }
+  }
+  return fields;
+}
+
+/** Per-page response: schema-mod layers only. Base types live in awn-system / get_page_type. */
+function buildLayeredTopicSchemaResponse(meta, payload) {
+  const layers = {
+    workspace: compactAwnSchema(payload?.workspaceAwnSchema),
+    area: compactAwnSchema(payload?.areaAwnSchema),
+    topic: compactAwnSchema(payload?.topicAwnSchema)
+  };
+  if (payload?.sectionAwnSchema) {
+    layers.section = compactAwnSchema(payload.sectionAwnSchema);
+  }
+  const result = {
+    path: meta?.path || null,
+    contentPath: meta?.contentPath || null,
+    schemaPath: meta?.schemaPath || null,
+    schemaExists: Boolean(meta?.schemaExists),
+    mode: "layers",
+    layers
+  };
+  if (Array.isArray(payload?.sectionChain) && payload.sectionChain.length) {
+    result.sectionChain = payload.sectionChain;
+  }
+  return result;
+}
+
+function buildLayeredTopicSchemaWriteResponse(manifestRel, writeResult, schemaPayload) {
+  return {
+    ok: true,
+    ...buildLayeredTopicSchemaResponse(
+      {
+        path: manifestRel,
+        schemaPath: writeResult?.schemaRel || null,
+        schemaExists: writeResult?.exists
+      },
+      schemaPayload
+    ),
+    content: writeResult?.content || ""
+  };
+}
+
+function buildLayeredWorkspaceSchemaResponse(meta, workspaceAwnSchema) {
+  return {
+    path: meta?.path || null,
+    schemaPath: meta?.schemaPath || null,
+    schemaExists: Boolean(meta?.schemaExists),
+    mode: "layers",
+    layers: {
+      workspace: compactAwnSchema(workspaceAwnSchema)
+    }
+  };
+}
+
+/** layers | overlay (alias) = compact layers; full = legacy UI dump with baseTypes/merged/fieldRegistry. */
+function slimTopicSchemaResponse(payload, options = {}) {
+  const mode = String(options.mode || "layers").trim().toLowerCase();
+  if (mode === "full") return payload;
+
+  const result = buildLayeredTopicSchemaResponse(
+    {
+      path: payload?.path,
+      contentPath: payload?.contentPath,
+      schemaPath: payload?.schemaPath,
+      schemaExists: payload?.schemaExists
+    },
+    payload
+  );
+
+  const target = String(options.target || "").trim();
+  if (target) {
+    result.target = target;
+    result.fields = collectLayeredCustomFields(result.layers, target);
+  }
+
+  return result;
+}
+
+function slimTopicSchemaWriteResponse(manifestRel, writeResult, schemaPayload) {
+  return buildLayeredTopicSchemaWriteResponse(manifestRel, writeResult, schemaPayload);
+}
+
 async function writeWorkspaceConfigurationSchema(awnSchema, writeFileFn, removeFileFn) {
   const content = composeWorkspaceConfigurationSchemaYaml(awnSchema);
   const schemaRel = WORKSPACE_CONFIGURATION_SCHEMA_REL;
@@ -311,6 +414,12 @@ module.exports = {
   topicSchemaHasFields,
   getEffectiveTopicSchemaPayload,
   getWorkspaceSchemaPayloadFull,
+  compactAwnSchema,
+  buildLayeredTopicSchemaResponse,
+  buildLayeredTopicSchemaWriteResponse,
+  buildLayeredWorkspaceSchemaResponse,
+  slimTopicSchemaResponse,
+  slimTopicSchemaWriteResponse,
   writeTopicConfigurationSchema,
   writeWorkspaceConfigurationSchema,
   readNodeHasOwnSchemaLayer

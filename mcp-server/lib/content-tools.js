@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { z } from "zod";
+import { mergeFrontmatterBlocks } from "./yaml-frontmatter.js";
 
 const require = createRequire(import.meta.url);
 const {
@@ -187,7 +188,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "write_content_properties",
-    "Save YAML frontmatter of a .md content item. Body on disk is preserved.",
+    "Patch YAML frontmatter of a .md content item. Send only keys to change — existing keys are merged from disk; body preserved.",
     z.object({
       path: pagePath,
       slot: contentSlot,
@@ -197,14 +198,16 @@ export function registerContentTools({ reg, client, pagePath }) {
     async ({ path, slot, ref, content }) => {
       if (isInternalBundleSlot(slot)) {
         const payload = await readInternalContent(client, path, slot);
-        const { description } = splitMarkdownFrontmatter(payload?.content || "");
-        const merged = mergeMarkdownFrontmatter(content, description);
+        const { properties, description } = splitMarkdownFrontmatter(payload?.content || "");
+        const mergedProps = mergeFrontmatterBlocks(properties, content);
+        const merged = mergeMarkdownFrontmatter(mergedProps, description);
         return writeInternalContent(client, path, slot, merged);
       }
       if (!ref) throw new Error("ref is required for external slots");
       const existing = await readMarkdownFull(client, path, slot, ref);
-      const { description } = splitMarkdownFrontmatter(existing.content || "");
-      const merged = mergeMarkdownFrontmatter(content, description);
+      const { properties, description } = splitMarkdownFrontmatter(existing.content || "");
+      const mergedProps = mergeFrontmatterBlocks(properties, content);
+      const merged = mergeMarkdownFrontmatter(mergedProps, description);
       return writeMarkdownFull(client, path, slot, ref, merged);
     }
   );

@@ -38,23 +38,38 @@ export function registerPageTools({ reg, client, pagePath }) {
 
   reg(
     "write_page_properties",
-    "Save YAML frontmatter to manifest.md.",
+    "Patch YAML frontmatter on manifest.md. Send only keys to change — existing keys on disk are preserved (awn-create/update/version auto-stamped by server).",
     z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/properties", { path, content })
   );
 
   reg(
     "read_page_schema",
-    "Read page field schema from schema-mod.yml (layer awn_schema). Bound to page type and slot targets.",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/file/page-schema", { path })
+    "Read schema-mod.yml layers (workspace / area / topic — non-empty blocks only). Base type fields: get_page_type.",
+    z.object({
+      path: pagePath,
+      target: z
+        .string()
+        .optional()
+        .describe("Optional schema block id, e.g. topic, slot_memory — returns merged custom fields for one target"),
+      mode: z
+        .enum(["layers", "overlay", "full"])
+        .optional()
+        .describe("layers (default) = schema-mod layers only; full = legacy dump with baseTypes/merged")
+    }),
+    ({ path, target, mode }) =>
+      client.get("/api/file/page-schema", {
+        path,
+        mode: mode || "layers",
+        ...(target ? { target } : {})
+      })
   );
 
   reg(
     "write_page_schema",
-    "Save page field schema to schema-mod.yml. Pass content as YAML with an awn_schema: block (slot_memory, slot_inbox, sidecar, topic, …).",
+    "Save schema-mod.yml override. Pass YAML with awn_schema: { topic: { fields: … } } — only blocks you change. Response is slim (written blocks only).",
     z.object({ path: pagePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/file/page-schema", { path, content })
+    ({ path, content }) => client.post("/api/file/page-schema", { path, content, responseMode: "layers" })
   );
 
   reg(

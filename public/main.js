@@ -35613,7 +35613,9 @@ function getTopicSchemaCustomFieldsForTarget(target, cache) {
 }
 
 function resolveTopicSchemaMergedType(target, cache = getTopicSchemaCache()) {
-  const customFields = getTopicSchemaCustomFieldsForTarget(target, cache);
+  const customFields =
+    cache?.effectiveAwnSchema?.[target]?.fields ||
+    getTopicSchemaCustomFieldsForTarget(target, cache);
   const base = resolveTopicSchemaBaseType(target, cache);
   if (base) {
     return {
@@ -35631,16 +35633,12 @@ function resolveTopicSchemaMergedType(target, cache = getTopicSchemaCache()) {
 
 function enrichTopicSchemaCacheFromTypes(cache) {
   if (!cache || !awnTypesCache?.types) return cache;
-  cache.baseTypes = { ...(cache.baseTypes || {}) };
-  const preserveMerged = Boolean(cache.contentPath && cache.merged && Object.keys(cache.merged).length);
-  if (!preserveMerged) {
-    cache.merged = { ...(cache.merged || {}) };
-  }
+  cache.baseTypes = {};
+  cache.merged = {};
   const targets = [...getTopicSchemaTargetSpecs(), { id: "sidecar" }];
   for (const { id } of targets) {
     const base = resolveTopicSchemaBaseType(id, cache);
     if (base) cache.baseTypes[id] = base;
-    if (preserveMerged && cache.merged[id]) continue;
     const merged = resolveTopicSchemaMergedType(id, cache);
     if (merged) cache.merged[id] = merged;
   }
@@ -35673,6 +35671,54 @@ function toggleTopicSchemaFieldExpanded(target, key) {
   }
   topicSchemaExpandedKeys.add(token);
   return true;
+}
+
+function mergeTopicSchemaLayersClient(...layers) {
+  const result = emptyTopicSchemaState();
+  for (const layer of layers) {
+    if (!layer) continue;
+    const normalized = normalizeTopicSchemaState(layer);
+    for (const { id } of getTopicSchemaTargetSpecs()) {
+      const fields = normalized[id]?.fields;
+      if (fields && Object.keys(fields).length) {
+        result[id].fields = { ...result[id].fields, ...fields };
+      }
+    }
+    migrateLegacyTopicSchemaTargets(normalized, result);
+  }
+  return result;
+}
+
+function parseTopicSchemaLayersFromApi(data) {
+  if (data?.mode === "layers" && data.layers) {
+    const workspaceAwnSchema = normalizeTopicSchemaState(data.layers.workspace || {});
+    const areaAwnSchema = normalizeTopicSchemaState(data.layers.area || {});
+    const topicAwnSchema = normalizeTopicSchemaState(data.layers.topic || {});
+    const sectionAwnSchema = data.layers.section
+      ? normalizeTopicSchemaState(data.layers.section)
+      : null;
+    return {
+      workspaceAwnSchema,
+      areaAwnSchema,
+      topicAwnSchema,
+      sectionAwnSchema,
+      effectiveAwnSchema: mergeTopicSchemaLayersClient(
+        workspaceAwnSchema,
+        areaAwnSchema,
+        topicAwnSchema,
+        sectionAwnSchema
+      ),
+      sectionChain: Array.isArray(data.sectionChain) ? data.sectionChain : []
+    };
+  }
+  return {
+    workspaceAwnSchema: normalizeTopicSchemaState(data?.workspaceAwnSchema ?? {}),
+    areaAwnSchema: normalizeTopicSchemaState(data?.areaAwnSchema ?? {}),
+    topicAwnSchema: normalizeTopicSchemaState(data?.topicAwnSchema ?? {}),
+    sectionAwnSchema: data?.sectionAwnSchema ? normalizeTopicSchemaState(data.sectionAwnSchema) : null,
+    effectiveAwnSchema: normalizeTopicSchemaState(data?.awnSchema ?? {}),
+    sectionChain: Array.isArray(data?.sectionChain) ? data.sectionChain : []
+  };
 }
 
 function emptyTopicSchemaState() {
@@ -36270,19 +36316,17 @@ async function loadWorkspaceSchemaForAgentRoot(nodePath, options = {}) {
     if (cached) return cached;
   }
 
-  const response = await fetch(buildApiUrl("/api/file/workspace-schema", { path: manifestPath }));
+  const response = await fetch(buildApiUrl("/api/file/workspace-schema", { path: manifestPath, mode: "layers" }));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
   if (!awnTypesCache?.types) {
     await loadAwnTypes(activeAgentId);
   }
-  let fieldRegistry = data.fieldRegistry || awnTypesCache?.fieldRegistry || {};
-  const canonicalFieldTypes = Object.keys(fieldRegistry).filter((id) => id.startsWith("awn.")).length;
-  if (canonicalFieldTypes < 2) {
-    await loadAwnTypes(activeAgentId);
-    fieldRegistry = awnTypesCache?.fieldRegistry || fieldRegistry;
-  }
-  const workspaceAwnSchema = normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema);
+  const fieldRegistry = awnTypesCache?.fieldRegistry || {};
+  const parsedLayers = parseTopicSchemaLayersFromApi(data);
+  const workspaceAwnSchema =
+    parsedLayers.workspaceAwnSchema ||
+    normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema);
   const payload = {
     manifestPath,
     contentPath: "",
@@ -36294,10 +36338,12 @@ async function loadWorkspaceSchemaForAgentRoot(nodePath, options = {}) {
     awnSchema: workspaceAwnSchema,
     workspaceAwnSchema,
     topicAwnSchema: emptyTopicSchemaState(),
+    areaAwnSchema: emptyTopicSchemaState(),
+    effectiveAwnSchema: workspaceAwnSchema,
     sectionAwnSchema: null,
     sectionChain: [],
-    baseTypes: data.baseTypes || {},
-    merged: data.merged || {},
+    baseTypes: {},
+    merged: {},
     fieldRegistry
   };
   enrichTopicSchemaCacheFromTypes(payload);
@@ -36331,7 +36377,7 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
     if (cached) return cached;
   }
 
-  const query = { path: manifestPath };
+  const query = { path: manifestPath, mode: "layers" };
   if (contentPath) query.contentPath = contentPath;
   const response = await fetch(buildApiUrl("/api/file/topic-schema", query));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
@@ -36339,24 +36385,16 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
   if (!awnTypesCache?.types) {
     await loadAwnTypes(activeAgentId);
   }
-  let fieldRegistry = data.fieldRegistry || awnTypesCache?.fieldRegistry || {};
-  const canonicalFieldTypes = Object.keys(fieldRegistry).filter((id) => id.startsWith("awn.")).length;
-  if (canonicalFieldTypes < 2) {
-    await loadAwnTypes(activeAgentId);
-    fieldRegistry = awnTypesCache?.fieldRegistry || fieldRegistry;
-  }
-  const topicAwnSchema = normalizeTopicSchemaState(
-    isAreaSchemaContext(manifestPath)
-      ? emptyTopicSchemaState()
-      : data.topicAwnSchema ?? emptyTopicSchemaState()
-  );
-  const areaAwnSchema = normalizeTopicSchemaState(
-    isAreaSchemaContext(manifestPath)
-      ? data.areaAwnSchema ?? data.topicAwnSchema ?? emptyTopicSchemaState()
-      : data.areaAwnSchema ?? emptyTopicSchemaState()
-  );
+  const fieldRegistry = awnTypesCache?.fieldRegistry || {};
+  const parsedLayers = parseTopicSchemaLayersFromApi(data);
+  const topicAwnSchema = isAreaSchemaContext(manifestPath)
+    ? emptyTopicSchemaState()
+    : parsedLayers.topicAwnSchema;
+  const areaAwnSchema = isAreaSchemaContext(manifestPath)
+    ? parsedLayers.areaAwnSchema || parsedLayers.topicAwnSchema
+    : parsedLayers.areaAwnSchema;
   const editableSchema = isAreaSchemaContext(manifestPath) ? areaAwnSchema : topicAwnSchema;
-  const effectiveAwnSchema = normalizeTopicSchemaState(data.awnSchema);
+  const effectiveAwnSchema = parsedLayers.effectiveAwnSchema;
   const payload = {
     manifestPath,
     contentPath: contentPath || "",
@@ -36366,11 +36404,11 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
     effectiveAwnSchema,
     topicAwnSchema,
     areaAwnSchema,
-    workspaceAwnSchema: normalizeTopicSchemaState(data.workspaceAwnSchema ?? emptyTopicSchemaState()),
-    sectionAwnSchema: data.sectionAwnSchema ? normalizeTopicSchemaState(data.sectionAwnSchema) : null,
-    sectionChain: Array.isArray(data.sectionChain) ? data.sectionChain : [],
-    baseTypes: data.baseTypes || {},
-    merged: data.merged || {},
+    workspaceAwnSchema: parsedLayers.workspaceAwnSchema,
+    sectionAwnSchema: parsedLayers.sectionAwnSchema,
+    sectionChain: parsedLayers.sectionChain,
+    baseTypes: {},
+    merged: {},
     fieldRegistry
   };
   enrichTopicSchemaCacheFromTypes(payload);
@@ -37057,12 +37095,14 @@ async function saveWorkspaceSchemaContent() {
   }
 
   const data = await response.json();
-  const workspaceAwnSchema = normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema);
+  const parsedLayers = parseTopicSchemaLayersFromApi(data);
+  const workspaceAwnSchema =
+    parsedLayers.workspaceAwnSchema ||
+    normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema);
   cache.awnSchema = workspaceAwnSchema;
   cache.workspaceAwnSchema = workspaceAwnSchema;
-  cache.baseTypes = data.baseTypes || cache.baseTypes;
-  cache.merged = data.merged || cache.merged;
-  cache.schemaExists = Boolean(data.exists);
+  cache.effectiveAwnSchema = workspaceAwnSchema;
+  cache.schemaExists = Boolean(data.exists ?? data.schemaExists);
   cache.schemaPath = data.schemaPath || cache.schemaPath;
   enrichTopicSchemaCacheFromTypes(cache);
   renderTopicSchemaEditor();
@@ -37105,14 +37145,13 @@ async function saveTopicSchemaContent() {
   }
 
   const data = await response.json();
-  const topicAwnSchema = normalizeTopicSchemaState(
-    isAreaSchemaContext(manifestPath) ? emptyTopicSchemaState() : data.topicAwnSchema ?? data.awnSchema
-  );
-  const areaAwnSchema = normalizeTopicSchemaState(
-    isAreaSchemaContext(manifestPath)
-      ? data.areaAwnSchema ?? data.awnSchema
-      : data.areaAwnSchema ?? cache.areaAwnSchema
-  );
+  const parsedLayers = parseTopicSchemaLayersFromApi(data);
+  const topicAwnSchema = isAreaSchemaContext(manifestPath)
+    ? emptyTopicSchemaState()
+    : parsedLayers.topicAwnSchema;
+  const areaAwnSchema = isAreaSchemaContext(manifestPath)
+    ? parsedLayers.areaAwnSchema || parsedLayers.topicAwnSchema
+    : parsedLayers.areaAwnSchema;
   cache.awnSchema = isAreaSchemaContext(manifestPath)
     ? areaAwnSchema
     : topicSchemaStateHasCustomFields(topicAwnSchema)
@@ -37120,17 +37159,15 @@ async function saveTopicSchemaContent() {
       : awnSchemaToSave;
   cache.topicAwnSchema = topicAwnSchema;
   cache.areaAwnSchema = areaAwnSchema;
-  cache.effectiveAwnSchema = normalizeTopicSchemaState(data.awnSchema);
-  cache.workspaceAwnSchema = normalizeTopicSchemaState(data.workspaceAwnSchema ?? cache.workspaceAwnSchema);
-  cache.baseTypes = data.baseTypes || cache.baseTypes;
-  cache.merged = data.merged || cache.merged;
+  cache.effectiveAwnSchema = parsedLayers.effectiveAwnSchema;
+  cache.workspaceAwnSchema = parsedLayers.workspaceAwnSchema || cache.workspaceAwnSchema;
   enrichTopicSchemaCacheFromTypes(cache);
   cache.configExists = Boolean(data.exists ?? data.schemaExists);
   cache.configPath = data.schemaPath || data.configPath || cache.configPath;
   const settingsCache = nodeSettingsCacheByManifest.get(manifestPath);
   if (settingsCache) {
     settingsCache.settingsFields = mergeTopicSchemaSettingsFields(
-      normalizeTopicSchemaState(data.awnSchema)?.settings?.fields || {}
+      parsedLayers.effectiveAwnSchema?.settings?.fields || {}
     );
     settingsCache.entries = buildNodeSettingsEntriesFromSchema(
       settingsCache.entries,
@@ -49116,7 +49153,7 @@ function resolveStorageSlotSpecFromCounterSlot(slot) {
   if (slot?.spec) return slot.spec;
   const slotKey = String(slot?.id || slot?.modeId || "").trim();
   if (!slotKey) return null;
-  return DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === slotKey) || null;
+  return resolveStorageSlotSpecByCounterKey(slotKey);
 }
 
 function isStorageSlotIndexFileName(fileName) {
@@ -49415,7 +49452,8 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
   );
   const assetsPrepared = prepareNavigationMediaItems(
     assetsOverview?.groups || {},
-    assetsOverview?.sectionManifests || []
+    assetsOverview?.sectionManifests || [],
+    { memoryKind: "assets" }
   );
 
   return NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS.map((spec) => {
@@ -51757,7 +51795,9 @@ function prepareNavigationExternalItems(files, folders = []) {
   };
 }
 
-function prepareNavigationMediaItems(groups, sectionManifests = []) {
+function prepareNavigationMediaItems(groups, sectionManifests = [], options = {}) {
+  const memoryKind = String(options.memoryKind || "").trim();
+  const isAssetsSlot = memoryKind === "assets";
   const folderLabels = new Map();
   const folderStatuses = new Map();
   const sectionManifestByFolder = new Map();
@@ -51791,7 +51831,7 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
 
       if (isSectionReadmePath(path)) {
         const folderKey = path.slice(0, path.length - AREA_MANIFEST_FILE.length).replace(/\/$/, "");
-        if (isMemorySectionInfrastructureFolderPath(folderKey)) continue;
+        if (!isAssetsSlot && isMemorySectionInfrastructureFolderPath(folderKey)) continue;
         const segment = folderKey.split("/").pop() || folderKey;
         const title = String(item.displayName || "").trim();
         const status = resolveNavigationItemStatus(item);
@@ -51804,7 +51844,7 @@ function prepareNavigationMediaItems(groups, sectionManifests = []) {
       }
 
       if (path.toLowerCase().endsWith(".sidecar.md")) continue;
-      if (isMemorySectionInfrastructureFilePath(path)) continue;
+      if (!isAssetsSlot && isMemorySectionInfrastructureFilePath(path)) continue;
       if (isSlotNavigationServiceFilePath(path)) continue;
 
       const baseName = item.name || path.split("/").pop() || path;
@@ -54077,7 +54117,9 @@ async function fetchEntryOverviewNavigationIndex(context, topicPath) {
         context.memoryKind === "assets"
           ? await fetchMediaLibraryOverview(topicPath, "assets")
           : await fetchMediaOverview(topicPath);
-      return prepareNavigationMediaItems(data?.groups || {}, data?.sectionManifests || []);
+      return prepareNavigationMediaItems(data?.groups || {}, data?.sectionManifests || [], {
+        memoryKind: context.memoryKind
+      });
     }
     if (isFlatEntryOverviewMemoryKind(context.memoryKind)) {
       const slotKey = getDataStorageSlotForMode(context.memoryKind)?.key || context.memoryKind;
@@ -54569,7 +54611,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     todoData,
     internalData,
     tabularData,
-    assetsPreviewFilled,
+    assetsPreview,
     storageScan,
     flatNavigationIndexes
   ] = await Promise.all([
@@ -54579,10 +54621,11 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     fetchTodoForOverview(topicPath).catch(() => null),
     fetchInternalMemoryForNavigation(topicPath).catch(() => null),
     fetchTabularMemoryForNavigation(topicPath).catch(() => null),
-    resolveNavigationAssetsPreviewFilled(topicPath).catch(() => false),
+    fetchNodeOverviewPreview(topicPath).catch(() => null),
     fetchStorageRootScan(manifestPath).catch(() => null),
     fetchNavigationHubRailFlatIndexes(topicPath).catch(() => ({}))
   ]);
+  const assetsPreviewFilled = Boolean(assetsPreview?.imageUrl && !assetsPreview?.broken);
 
   const externalPrepared = prepareNavigationExternalItems(
     combineNavigationStorageFileLists(
@@ -54597,7 +54640,8 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
   );
   const assetsPrepared = prepareNavigationMediaItems(
     assetsData?.groups || {},
-    assetsData?.sectionManifests || []
+    assetsData?.sectionManifests || [],
+    { memoryKind: "assets" }
   );
   const prefetchedIndex = { externalFiles: externalData.files || [] };
 
@@ -54658,7 +54702,9 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
       display: bundleMetrics?.display || "count",
       tone,
       title,
-      hasIndex: false
+      hasIndex: false,
+      assetsPreview: spec.key === "assets" && assetsPreviewFilled ? assetsPreview : null,
+      assetsPreviewFilled: spec.key === "assets" ? assetsPreviewFilled : false
     };
   });
 
@@ -64610,7 +64656,8 @@ function prepareNavigationHubRailSlotIndex(slotKey, nodePath, prefetched = {}) {
   } else if (memoryKind === "assets") {
     navigationIndex = prepareNavigationMediaItems(
       prefetched.assetsData?.groups || {},
-      prefetched.assetsData?.sectionManifests || []
+      prefetched.assetsData?.sectionManifests || [],
+      { memoryKind: "assets" }
     );
   } else if (isFlatEntryOverviewMemoryKind(memoryKind)) {
     navigationIndex =
@@ -64693,6 +64740,52 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
   nav.appendChild(list);
   refreshClassicNavBookTocTreeLines(nav);
   return nav;
+}
+
+function appendNavigationHubRailAssetsPreview(host, preview, nodePath = activePath) {
+  if (!preview?.imageUrl || preview.broken) return false;
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-navigation-hub-rail-assets-preview";
+
+  const item = document.createElement("button");
+  item.type = "button";
+  item.className = "node-navigation-rail-link node-navigation-hub-rail-assets-preview-item";
+  item.title = "Превью темы";
+
+  const thumb = document.createElement("span");
+  thumb.className = "node-navigation-hub-rail-assets-preview-thumb";
+  const img = document.createElement("img");
+  img.className = "node-navigation-hub-rail-assets-preview-image";
+  img.src = preview.imageUrl;
+  img.alt = "Превью темы";
+  img.loading = "lazy";
+  img.draggable = false;
+  thumb.appendChild(img);
+
+  const label = document.createElement("span");
+  label.className = "node-navigation-rail-link-label";
+  label.textContent = "Превью темы";
+
+  item.append(thumb, label);
+  item.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openDescriptionFromOverview();
+  });
+
+  wrap.appendChild(item);
+
+  const previewPath = String(preview.previewPath || "").trim();
+  if (previewPath) {
+    const hint = document.createElement("p");
+    hint.className = "node-navigation-hub-rail-bundle-hint";
+    hint.textContent = previewPath;
+    wrap.appendChild(hint);
+  }
+
+  host.appendChild(wrap);
+  return true;
 }
 
 function refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, activeCtx, prefetched) {

@@ -105,17 +105,15 @@
 - создать / переименовать / сдвинуть: `create_page`, `rename_page`, `move_page`, `delete_page`
 - типы: `list_page_types` → `get_page_type` **по `id`** (`awn.page.topic`)
 
-### Запись свойств / схем — полная перезапись
+### Запись свойств — patch (одно поле ок)
 
-`write_page_properties` **заменяет весь frontmatter**. Сначала `read_page_properties`, потом в `write_*` подавай **полный** YAML — иначе потеряешь авто-поля (`awn-update`, `awn-version`, …). Это особенность метода, не баг.
+`write_page_properties` / `write_content_properties` — **merge**: шли только изменённые ключи, остальное остаётся с диска. Auto-поля (`awn-update`, `awn-version`, `awn-create`) дописывает сервер.
 
-Аналогично:
-
-| Метод | Что перезаписывает | Как безопасно |
-|-------|-------------------|---------------|
-| `write_page_properties` | весь frontmatter страницы | `read` → правишь → полный YAML в `write` |
-| `write_content_properties` | весь frontmatter записи в слоте | то же |
-| `write_data_store_schema` | весь `schema-mod.yml` накопителя | то же (или полный `fields`/`content`) |
+| Метод | Что шлёшь | Исключение |
+|-------|----------|------------|
+| `write_page_properties` | patch YAML (`awn-status: closed`) | — |
+| `write_content_properties` | patch YAML | — |
+| `write_data_store_schema` | **полный** YAML/`fields` накопителя | без полного read потеряешь поля |
 
 Тело (`write_page_body` / `write_content_body`) frontmatter **не трогает**.
 
@@ -132,11 +130,11 @@
 | Поля записей накопителя | `schema-mod.yml` в awn-data | `read_data_store_schema` / `write_data_store_schema` | Схема awn-data |
 | Канон типа | awn-system | `get_page_type` / `get_content_type` / `get_agent_system_type` | Смотреть базовые fields |
 
-- свойства (`*_properties`) — **значения** frontmatter (write = полная замена блока)  
+- свойства (`*_properties`) — **значения** frontmatter; **patch**: шли только изменённые ключи, остальное merge с диском  
 - схема (`*_schema`) — **описание** полей формы  
 - тип (`get_*_type`) — база из awn-system; `schema-mod.yml` — локальный override поверх типа  
 
-`read_page_schema` отдаёт большой объект. При записи — YAML только с нужным блоком (`topic`, `slot_memory`, `slot_inbox`…), не гоняй весь dump обратно. Для `write_data_store_schema` — наоборот полный актуальный набор fields/content.
+**Схема для агента:** базовые поля типа — один раз `get_page_type(id)`. Локальные дополнения — `read_page_schema` (**`mode=layers`**, default): три слоя `workspace` / `area` / `topic`, только непустые блоки (нет 44× пустых, нет baseTypes/merged/fieldRegistry). **Запись:** YAML только с нужным блоком; ответ — те же layers. Legacy UI dump: `mode=full`. `write_data_store_schema` — полный актуальный YAML/`fields`.
 
 ---
 
@@ -213,7 +211,7 @@
 - создать: `create_content` (md/record), `upload_content` (файл), `import_content_from_url`
 - типы: `list_content_types` → `get_content_type` **по `id`**
 
-`write_content_properties` — полная замена frontmatter (как у страницы): `read` → полный YAML → `write`.
+`write_content_properties` — patch frontmatter (одно поле ок); тело сохраняется.
 
 ---
 
@@ -286,6 +284,6 @@
 5. Уведомление в 🔔 CMS → `notify_user`; сообщение в Shell → `shell_post_message`.
 6. В `slot` — канонические ключи: `notes`, `scripts`, `dialogs` (не устаревшие `note` / `script` / `thread`).
 7. Комментарии / thread / inbox-intake — свои tools; не через произвольный `create_content`.
-8. `write_page_schema` — точечный YAML-блок, не весь ответ `read_page_schema`.
-9. `write_*_properties` / `write_data_store_schema` — полная перезапись: не шли частичный YAML, иначе сотрёшь авто-поля.
+8. `read_page_schema` — default `mode=layers` (workspace/area/topic); не `mode=full` без нужды.
+9. `write_data_store_schema` — полная замена: сначала `read`, потом полный YAML.
 10. `media` ≠ `assets`: медиатека темы vs ресурсы записей (preview / pasted / attachments).

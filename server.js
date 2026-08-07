@@ -175,6 +175,9 @@ const {
 const {
   getEffectiveTopicSchemaPayload,
   getWorkspaceSchemaPayloadFull,
+  slimTopicSchemaResponse,
+  slimTopicSchemaWriteResponse,
+  buildLayeredWorkspaceSchemaResponse,
   writeTopicConfigurationSchema,
   writeWorkspaceConfigurationSchema,
   readWorkspaceLayerAwnSchema,
@@ -16330,7 +16333,8 @@ async function handleApiForAgent(req, res, url) {
 
       const raw = (await readNodeManifestRaw(nodeAbsolute)) ?? "";
       const { frontmatter: diskFrontmatter, body } = splitNodeFrontmatter(raw);
-      const stampedFrontmatter = applyAwnTimestampsToFrontmatter(content, { diskFrontmatter });
+      const mergedFrontmatter = mergeFrontmatterBlocks(diskFrontmatter, content);
+      const stampedFrontmatter = applyAwnTimestampsToFrontmatter(mergedFrontmatter, { diskFrontmatter });
       const nextContent = joinNodeFrontmatter(stampedFrontmatter, body);
       await fs.mkdir(path.dirname(nodeAbsolute), { recursive: true });
       await fs.writeFile(nodeAbsolute, nextContent, "utf-8");
@@ -16389,23 +16393,32 @@ async function handleApiForAgent(req, res, url) {
             getProjectRoot(),
             configFile.content
           );
-      return sendJson(res, 200, {
+      const schemaMode = String(url.searchParams.get("mode") || "layers").trim().toLowerCase();
+      const schemaTarget = String(url.searchParams.get("target") || "").trim();
+      const fullResponse = {
         path: manifestCtx.rel,
         contentPath: contentPath || null,
         schemaPath: schemaRel || null,
         schemaExists,
         configPath: schemaRel || null,
         configExists: schemaExists,
-        awnSchema: payload.awnSchema,
         topicAwnSchema: payload.topicAwnSchema || payload.awnSchema,
         areaAwnSchema: payload.areaAwnSchema || null,
         workspaceAwnSchema: payload.workspaceAwnSchema || null,
         sectionAwnSchema: payload.sectionAwnSchema || null,
         sectionChain: payload.sectionChain || [],
+        awnSchema: payload.awnSchema,
         baseTypes: payload.baseTypes,
         merged: payload.merged,
         fieldRegistry: getAwnTypesPayload(getAgentRoot(), getProjectRoot()).fieldRegistry
-      });
+      };
+      return sendJson(
+        res,
+        200,
+        schemaMode === "full"
+          ? fullResponse
+          : slimTopicSchemaResponse(fullResponse, { mode: schemaMode, target: schemaTarget })
+      );
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read topic schema",
@@ -16452,18 +16465,24 @@ async function handleApiForAgent(req, res, url) {
         getProjectRoot(),
         configFile.content
       );
-      return sendJson(res, 200, {
-        path: manifestCtx.rel,
-        configPath: writeResult.schemaRel,
-        schemaPath: writeResult.schemaRel,
-        content: writeResult.content,
-        exists: writeResult.exists,
-        awnSchema: schemaPayload.awnSchema,
-        topicAwnSchema: schemaPayload.topicAwnSchema || schemaPayload.awnSchema,
-        workspaceAwnSchema: schemaPayload.workspaceAwnSchema || null,
-        baseTypes: schemaPayload.baseTypes,
-        merged: schemaPayload.merged
-      });
+      const responseMode = String(payload.responseMode || payload.mode || "layers").trim().toLowerCase();
+      const slimWrite = slimTopicSchemaWriteResponse(manifestCtx.rel, writeResult, schemaPayload);
+      if (responseMode === "full") {
+        return sendJson(res, 200, {
+          path: manifestCtx.rel,
+          configPath: writeResult.schemaRel,
+          schemaPath: writeResult.schemaRel,
+          content: writeResult.content,
+          exists: writeResult.exists,
+          topicAwnSchema: schemaPayload.topicAwnSchema || schemaPayload.awnSchema,
+          areaAwnSchema: schemaPayload.areaAwnSchema || null,
+          workspaceAwnSchema: schemaPayload.workspaceAwnSchema || null,
+          awnSchema: schemaPayload.awnSchema,
+          baseTypes: schemaPayload.baseTypes,
+          merged: schemaPayload.merged
+        });
+      }
+      return sendJson(res, 200, slimWrite);
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to save topic schema",
@@ -16484,17 +16503,32 @@ async function handleApiForAgent(req, res, url) {
 
     try {
       const payload = getWorkspaceSchemaPayloadFull(getAgentRoot(), getProjectRoot());
+      const schemaMode = String(url.searchParams.get("mode") || "layers").trim().toLowerCase();
       const workspaceAwnSchema = payload.workspaceAwnSchema || payload.awnSchema;
-      return sendJson(res, 200, {
-        path: manifestCtx.rel,
-        schemaPath: WORKSPACE_CONFIGURATION_SCHEMA_REL,
-        schemaExists: Boolean(readWorkspaceLayerAwnSchema(getAgentRoot())),
-        awnSchema: workspaceAwnSchema,
-        workspaceAwnSchema,
-        baseTypes: payload.baseTypes,
-        merged: payload.merged,
-        fieldRegistry: getAwnTypesPayload(getAgentRoot(), getProjectRoot()).fieldRegistry
-      });
+      if (schemaMode === "full") {
+        return sendJson(res, 200, {
+          path: manifestCtx.rel,
+          schemaPath: WORKSPACE_CONFIGURATION_SCHEMA_REL,
+          schemaExists: Boolean(readWorkspaceLayerAwnSchema(getAgentRoot())),
+          awnSchema: workspaceAwnSchema,
+          workspaceAwnSchema,
+          baseTypes: payload.baseTypes,
+          merged: payload.merged,
+          fieldRegistry: getAwnTypesPayload(getAgentRoot(), getProjectRoot()).fieldRegistry
+        });
+      }
+      return sendJson(
+        res,
+        200,
+        buildLayeredWorkspaceSchemaResponse(
+          {
+            path: manifestCtx.rel,
+            schemaPath: WORKSPACE_CONFIGURATION_SCHEMA_REL,
+            schemaExists: Boolean(readWorkspaceLayerAwnSchema(getAgentRoot()))
+          },
+          workspaceAwnSchema
+        )
+      );
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace schema",
@@ -16535,16 +16569,35 @@ async function handleApiForAgent(req, res, url) {
       );
 
       const schemaPayload = getWorkspaceSchemaPayloadFull(getAgentRoot(), getProjectRoot());
-      return sendJson(res, 200, {
-        path: manifestCtx.rel,
-        schemaPath: writeResult.schemaRel,
-        content: writeResult.content,
-        exists: writeResult.exists,
-        awnSchema: schemaPayload.awnSchema,
-        workspaceAwnSchema: schemaPayload.workspaceAwnSchema || schemaPayload.awnSchema,
-        baseTypes: schemaPayload.baseTypes,
-        merged: schemaPayload.merged
-      });
+      const responseMode = String(payload.responseMode || payload.mode || "layers").trim().toLowerCase();
+      if (responseMode === "full") {
+        return sendJson(res, 200, {
+          path: manifestCtx.rel,
+          schemaPath: writeResult.schemaRel,
+          content: writeResult.content,
+          exists: writeResult.exists,
+          awnSchema: schemaPayload.awnSchema,
+          workspaceAwnSchema: schemaPayload.workspaceAwnSchema || schemaPayload.awnSchema,
+          baseTypes: schemaPayload.baseTypes,
+          merged: schemaPayload.merged
+        });
+      }
+      return sendJson(
+        res,
+        200,
+        {
+          ok: true,
+          ...buildLayeredWorkspaceSchemaResponse(
+            {
+              path: manifestCtx.rel,
+              schemaPath: writeResult.schemaRel,
+              schemaExists: writeResult.exists
+            },
+            schemaPayload.workspaceAwnSchema || schemaPayload.awnSchema
+          ),
+          content: writeResult.content
+        }
+      );
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to save workspace schema",
