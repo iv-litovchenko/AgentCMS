@@ -13934,6 +13934,7 @@ function getDataStorageSlotKeyForEntryView(mode = activeContentMode) {
     if (memoryKind === "tabular") return "main-single-csv";
     if (memoryKind === "todo") return "todo-single";
     if (memoryKind === "media") return "media";
+    if (memoryKind === "assets") return "assets";
     if (isFlatEntryOverviewMemoryKind(memoryKind)) return memoryKind;
     return null;
   }
@@ -18204,6 +18205,9 @@ async function refreshNavigationHubRailSlotTreeForMemoryKind(memoryKind) {
     prefetched.mediaData = await fetchMediaOverview(nodePath).catch(() => null);
   } else if (memoryKind === "assets") {
     prefetched.assetsData = await fetchMediaLibraryOverview(nodePath, "assets").catch(() => null);
+    if (!prefetched.assetsPreview) {
+      prefetched.assetsPreview = await fetchNodeOverviewPreview(nodePath).catch(() => null);
+    }
   } else if (isFlatEntryOverviewMemoryKind(memoryKind)) {
     prefetched.flatNavigationIndexes = {
       ...(prefetched.flatNavigationIndexes || {}),
@@ -18215,7 +18219,8 @@ async function refreshNavigationHubRailSlotTreeForMemoryKind(memoryKind) {
   const slot = {
     id: slotKey,
     filled: true,
-    label: resolveDataStorageSlotDisplayLabel(slotKey)
+    label: resolveDataStorageSlotDisplayLabel(slotKey),
+    assetsPreview: prefetched.assetsPreview || null
   };
   refreshNavigationHubRailSlotTreeBody(
     body,
@@ -23883,6 +23888,22 @@ const STORAGE_SUBFOLDER_ASSETS = "assets";
 const PASTED_ASSETS_SUBDIR = "pasted";
 const PREVIEW_ASSETS_SUBDIR = "preview";
 const ATTACHMENTS_ASSETS_SUBDIR = "attachments";
+const ASSETS_NAVIGATION_FOLDER_LABELS = {
+  [PREVIEW_ASSETS_SUBDIR]: "Превью",
+  [PASTED_ASSETS_SUBDIR]: "Вставленные",
+  [ATTACHMENTS_ASSETS_SUBDIR]: "Вложения",
+  slider: "Слайдер"
+};
+
+function resolveAssetsNavigationFolderLabel(segment) {
+  const key = String(segment || "").trim().toLowerCase();
+  return ASSETS_NAVIGATION_FOLDER_LABELS[key] || resolveNodeDisplayName("", segment) || segment;
+}
+
+function shouldHideNavigationInfrastructureFolder(folderPath, memoryKind = null) {
+  if (memoryKind === "assets") return false;
+  return isMemorySectionInfrastructureFolderPath(folderPath);
+}
 const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "parts-";
 const RECORD_MATERIALS_UI_LABEL = "Доп. материалы записи";
 const RECORD_MATERIALS_ICON_HTML =
@@ -26308,7 +26329,10 @@ function resolveMediaAssetContextPath(nodePath = activePath) {
   const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
 
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
-    if (activeEntryOverviewContext.memoryKind === "media") {
+    if (
+      activeEntryOverviewContext.memoryKind === "media" ||
+      activeEntryOverviewContext.memoryKind === "assets"
+    ) {
       return manifestPath;
     }
     if (!isEntryOverviewMemoryTocRoot(activeEntryOverviewContext)) {
@@ -26324,11 +26348,20 @@ function resolveMediaAssetContextPath(nodePath = activePath) {
 function buildMediaAssetUrl(filePath, nodePath = activePath, options = {}) {
   if (!nodePath || !filePath) return "";
   const manifestBase = getResolvedNodePath(nodePath);
+  const memoryKind =
+    options.memoryKind ||
+    (activeEntryOverviewContext?.memoryKind === "assets"
+      ? "assets"
+      : activeContentMode === "assets"
+        ? "assets"
+        : "media");
   const params = {
     path: resolveManifestPathForNodeApi(manifestBase),
     contextPath: resolveMediaAssetContextPath(nodePath),
     file: normalizeMarkdownImageFileRef(filePath)
   };
+  const libraryFolder = getMediaLibraryStorageSubfolder(memoryKind);
+  if (libraryFolder !== STORAGE_SUBFOLDER_MEDIA) params.folder = libraryFolder;
   if (options.thumb) {
     params.thumb = "1";
     params.max = String(options.max ?? MEDIA_THUMB_MAX_DEFAULT);
@@ -49361,11 +49394,11 @@ function openStorageSlotIndexOverview(topicPath, spec) {
   }
   if (memoryKind === "media" || memoryKind === "assets") {
     void openEntryOverviewFromNavigation({
-      relPath: getMediaItemContextPath(relativePath, topicPath),
+      relPath: getMediaLibraryItemContextPath(relativePath, memoryKind, topicPath),
       memoryKind,
       relativePath,
       title,
-      entryKind: inferAwnTypeFromRelPath(getMediaItemContextPath(relativePath, topicPath), {
+      entryKind: inferAwnTypeFromRelPath(getMediaLibraryItemContextPath(relativePath, memoryKind, topicPath), {
         contentMode: memoryKind
       })
     });
@@ -50876,7 +50909,7 @@ function renderNavigationInternalPart(internalData, { areaMode = false, nodePath
   return card;
 }
 
-function collectNavigationFolderAncestors(filePath) {
+function collectNavigationFolderAncestors(filePath, memoryKind = null) {
   const segments = String(filePath || "").split("/").filter(Boolean);
   if (segments.length <= 1) return [];
   segments.pop();
@@ -50884,7 +50917,7 @@ function collectNavigationFolderAncestors(filePath) {
   let built = "";
   for (const segment of segments) {
     built = built ? `${built}/${segment}` : segment;
-    if (!isMemorySectionInfrastructureFolderPath(built)) paths.push(built);
+    if (!shouldHideNavigationInfrastructureFolder(built, memoryKind)) paths.push(built);
   }
   return paths;
 }
@@ -50893,7 +50926,7 @@ function isNavigationFolderRegistered(folderPath, folderLabels) {
   return folderLabels.has(String(folderPath || "").replace(/\/$/, ""));
 }
 
-function buildNavigationPathTree(items, folderLabels = new Map()) {
+function buildNavigationPathTree(items, folderLabels = new Map(), memoryKind = null) {
   const root = { label: "", folderPath: "", folders: new Map(), files: [] };
   for (const item of items) {
     const segments = String(item.path || "").split("/").filter(Boolean);
@@ -50903,7 +50936,7 @@ function buildNavigationPathTree(items, folderLabels = new Map()) {
     let builtPath = "";
     for (const segment of segments) {
       builtPath = builtPath ? `${builtPath}/${segment}` : segment;
-      if (isMemorySectionInfrastructureFolderPath(builtPath)) continue;
+      if (shouldHideNavigationInfrastructureFolder(builtPath, memoryKind)) continue;
       if (!cursor.folders.has(segment)) {
         cursor.folders.set(segment, {
           label: folderLabels.get(builtPath) || segment,
@@ -51826,6 +51859,10 @@ function prepareNavigationMediaItems(groups, sectionManifests = [], options = {}
       if (item.isFolder) {
         const folderPath = path.replace(/\/$/, "");
         addMemorySectionFolderPath(folderPaths, folderPath);
+        if (isAssetsSlot && !folderLabels.has(folderPath)) {
+          const segment = folderPath.split("/").pop() || folderPath;
+          folderLabels.set(folderPath, resolveAssetsNavigationFolderLabel(segment));
+        }
         continue;
       }
 
@@ -51863,7 +51900,7 @@ function prepareNavigationMediaItems(groups, sectionManifests = [], options = {}
         gdriveSynced: Boolean(item.gdriveSynced),
         gdriveBlob: String(item.gdriveBlob || "")
       });
-      for (const ancestor of collectNavigationFolderAncestors(path)) {
+      for (const ancestor of collectNavigationFolderAncestors(path, isAssetsSlot ? "assets" : null)) {
         addMemorySectionFolderPath(folderPaths, ancestor);
       }
     }
@@ -51872,9 +51909,9 @@ function prepareNavigationMediaItems(groups, sectionManifests = [], options = {}
   return { contentFiles, folderLabels, folderStatuses, sectionManifestByFolder, folderPaths };
 }
 
-function ensureNavigationTreeFolders(root, folderPaths, folderLabels) {
+function ensureNavigationTreeFolders(root, folderPaths, folderLabels, memoryKind = null) {
   for (const folderPath of folderPaths) {
-    if (isMemorySectionInfrastructureFolderPath(folderPath)) continue;
+    if (shouldHideNavigationInfrastructureFolder(folderPath, memoryKind)) continue;
     const segments = String(folderPath || "").split("/").filter(Boolean);
     if (!segments.length) continue;
     let cursor = root;
@@ -51960,11 +51997,16 @@ function populateNavBookTocFolderLabel(
   );
 }
 
-function getMediaItemContextPath(relativePath, nodePath = activePath) {
+function getMediaLibraryItemContextPath(relativePath, memoryKind = "media", nodePath = activePath) {
   const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const subfolder = getMediaLibraryStorageSubfolder(memoryKind);
   const base = getResolvedNodePath(nodePath);
-  if (!rel) return getNodeStorageSubfolderPath(base, "media");
-  return `${getNodeStorageSubfolderPath(base, "media")}/${rel}`.replace(/\/+/g, "/");
+  if (!rel) return getNodeStorageSubfolderPath(base, subfolder);
+  return `${getNodeStorageSubfolderPath(base, subfolder)}/${rel}`.replace(/\/+/g, "/");
+}
+
+function getMediaItemContextPath(relativePath, nodePath = activePath) {
+  return getMediaLibraryItemContextPath(relativePath, "media", nodePath);
 }
 
 function isFlatEntryOverviewMemoryKind(kind) {
@@ -51979,6 +52021,7 @@ function isDataEntryOverviewMemoryKind(kind) {
   return (
     kind === "external" ||
     kind === "media" ||
+    kind === "assets" ||
     isBundleEntryOverviewMemoryKind(kind) ||
     isFlatEntryOverviewMemoryKind(kind)
   );
@@ -51986,6 +52029,7 @@ function isDataEntryOverviewMemoryKind(kind) {
 
 function getEntryOverviewTocRootEntryKind(memoryKind) {
   if (memoryKind === "media") return "awn.media.memory.toc.root";
+  if (memoryKind === "assets") return "awn.assets.toc.root";
   if (isFlatEntryOverviewMemoryKind(memoryKind)) return `awn.${memoryKind}.toc.root`;
   return "awn.memory.toc.root";
 }
@@ -51993,6 +52037,7 @@ function getEntryOverviewTocRootEntryKind(memoryKind) {
 function getEntryOverviewTocTitle(memoryKind) {
   if (memoryKind === "external") return "Оглавление многофайловой памяти";
   if (memoryKind === "media") return "Оглавление медиа";
+  if (memoryKind === "assets") return "Оглавление активов";
   if (memoryKind === "internal") return "Память (однофайловая)";
   if (memoryKind === "tabular") return "Память (табличная)";
   if (memoryKind === "todo") return "TODO";
@@ -52020,7 +52065,9 @@ function getFlatStorageItemContextPath(relativePath, mode, nodePath = activePath
 }
 
 function getEntryOverviewItemContextPath(relativePath, memoryKind, nodePath = activePath) {
-  if (memoryKind === "media") return getMediaItemContextPath(relativePath, nodePath);
+  if (memoryKind === "media" || memoryKind === "assets") {
+    return getMediaLibraryItemContextPath(relativePath, memoryKind, nodePath);
+  }
   if (isFlatEntryOverviewMemoryKind(memoryKind)) {
     return getFlatStorageItemContextPath(relativePath, memoryKind, nodePath);
   }
@@ -52106,7 +52153,7 @@ function resolveNavigationSlotFileCount(spec, { storageScan, prepared } = {}) {
   return countMultiFileStorageSlotItems(prepared);
 }
 
-function buildNavigationSlotCounterTitle(spec, count, { intake = null, assetsPreviewFilled = false } = {}) {
+function buildNavigationSlotCounterTitle(spec, count, { intake = null } = {}) {
   const label = spec?.label || spec?.id || "";
   const normalizedCount = Number(count) || 0;
   const slotKey = spec?.key || spec?.id || "";
@@ -52119,10 +52166,6 @@ function buildNavigationSlotCounterTitle(spec, count, { intake = null, assetsPre
         : `${label}: ${pending} необработ.`;
     }
     return normalizedCount > 0 ? `${label}: ${normalizedCount}` : `${label}: пусто`;
-  }
-
-  if (slotKey === "assets" && assetsPreviewFilled && normalizedCount === 1) {
-    return `${label}: превью`;
   }
 
   if (slotKey === "repository") {
@@ -52258,8 +52301,11 @@ function getNavigationHubRailTocHandlers(memoryKind) {
 function getEntryOverviewNavigationHandlers(memoryKind) {
   if (memoryKind === "media" || memoryKind === "assets") {
     return {
-      onFolderClick: openMediaCategoryOverviewFromNavigation,
-      onFileClick: openMediaEntryOverviewFromNavigation
+      onFolderClick: (folderPath) =>
+        memoryKind === "assets"
+          ? openMediaLibraryAssetsFolderFromNavigation(folderPath)
+          : openMediaLibraryCategoryOverviewFromNavigation(folderPath, memoryKind),
+      onFileClick: (item) => openMediaLibraryEntryOverviewFromNavigation(item, memoryKind)
     };
   }
   if (memoryKind === "external") {
@@ -52890,16 +52936,16 @@ function openExternalCategoryOverviewFromNavigation(folderPath) {
   });
 }
 
-function openMediaEntryOverviewFromNavigation(item) {
+function openMediaLibraryEntryOverviewFromNavigation(item, memoryKind = "media") {
   const rel = String(item?.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!rel) return;
-  const relPath = getMediaItemContextPath(rel);
+  const relPath = getMediaLibraryItemContextPath(rel, memoryKind);
   const isMarkdown = /\.md$/i.test(rel);
-  let entryKind = inferAwnTypeFromRelPath(relPath, { contentMode: "media" });
+  let entryKind = inferAwnTypeFromRelPath(relPath, { contentMode: memoryKind });
   if (!isMarkdown) entryKind = "awn.media.asset";
   void openEntryOverviewFromNavigation({
     relPath,
-    memoryKind: "media",
+    memoryKind,
     relativePath: rel,
     title: item.displayName || item.title || item.name || rel.split("/").pop() || rel,
     entryKind,
@@ -52907,18 +52953,43 @@ function openMediaEntryOverviewFromNavigation(item) {
   });
 }
 
-function openMediaCategoryOverviewFromNavigation(folderPath) {
+function openMediaEntryOverviewFromNavigation(item) {
+  openMediaLibraryEntryOverviewFromNavigation(item, "media");
+}
+
+function openMediaLibraryCategoryOverviewFromNavigation(folderPath, memoryKind = "media") {
   const folder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
   if (!folder) return;
   const relativePath = `${folder}/manifest.md`;
-  const relPath = getMediaItemContextPath(relativePath);
+  const relPath = getMediaLibraryItemContextPath(relativePath, memoryKind);
   void openEntryOverviewFromNavigation({
     relPath,
-    memoryKind: "media",
+    memoryKind,
     relativePath,
     title: resolveMemorySectionFolderLabel(folder),
     entryKind: "awn.media.category"
   });
+}
+
+function openMediaLibraryAssetsFolderFromNavigation(folderPath) {
+  const folder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
+  const topicPath = getResolvedNodePath(activePath) || getActiveNodeApiPath() || "";
+  if (!topicPath) return;
+  if (!folder) {
+    openEntryOverviewMemoryTocFromNavigation("assets");
+    return;
+  }
+  void openEntryOverviewFromNavigation({
+    relPath: topicPath,
+    memoryKind: "assets",
+    relativePath: folder,
+    title: resolveAssetsNavigationFolderLabel(folder.split("/").pop()) || folder.split("/").pop() || folder,
+    entryKind: "awn.assets.folder"
+  });
+}
+
+function openMediaCategoryOverviewFromNavigation(folderPath) {
+  openMediaLibraryCategoryOverviewFromNavigation(folderPath, "media");
 }
 
 async function fetchEntryOverviewProperties(relPath, context = null) {
@@ -52936,21 +53007,23 @@ async function fetchEntryOverviewProperties(relPath, context = null) {
         return normalizePropsEntries(parsePropsYaml(splitFrontmatter(data.content || "").frontmatter));
       }
     }
-    if (context?.memoryKind === "media" && context.relativePath) {
+    if (context?.memoryKind === "media" || context?.memoryKind === "assets") {
+      const libraryParams = buildMediaLibraryApiParams(
+        { path: topicApiPath, file: context.relativePath },
+        context.memoryKind
+      );
       if (/\.md$/i.test(String(context.relativePath || ""))) {
-        const response = await fetch(
-          buildApiUrl("/api/media/markdown", {
-            path: topicApiPath,
-            file: context.relativePath
-          })
-        );
+        const response = await fetch(buildApiUrl("/api/media/markdown", libraryParams));
         if (response.ok) {
           const data = await response.json();
           return normalizePropsEntries(parsePropsYaml(splitFrontmatter(data.content || "").frontmatter));
         }
       } else {
         const response = await fetch(
-          buildApiUrl("/api/media/sidecar", buildTopicMediaSidecarApiParams(context.relativePath))
+          buildApiUrl("/api/media/sidecar", {
+            ...buildTopicMediaSidecarApiParams(context.relativePath),
+            ...(context.memoryKind === "assets" ? { folder: STORAGE_SUBFOLDER_ASSETS } : {})
+          })
         );
         if (response.ok) {
           const data = await response.json();
@@ -53056,16 +53129,17 @@ async function fetchEntryOverviewBodyResult(context) {
       const data = await response.json();
       return { content: String(data.content || ""), ok: true };
     }
-    if (context.memoryKind === "media" && /\.md$/i.test(context.relativePath)) {
-      const response = await fetch(
-        buildApiUrl("/api/media/markdown", {
-          path: getActiveNodeApiPath(),
-          file: context.relativePath
-        })
+    if (context.memoryKind === "media" || context.memoryKind === "assets") {
+      const libraryParams = buildMediaLibraryApiParams(
+        { path: getActiveNodeApiPath(), file: context.relativePath },
+        context.memoryKind
       );
-      if (!response.ok) return { content: "", ok: false };
-      const data = await response.json();
-      return { content: String(data.content || ""), ok: true };
+      if (/\.md$/i.test(String(context.relativePath || ""))) {
+        const response = await fetch(buildApiUrl("/api/media/markdown", libraryParams));
+        if (!response.ok) return { content: "", ok: false };
+        const data = await response.json();
+        return { content: String(data.content || ""), ok: true };
+      }
     }
     if (isBundleStorageSlotIndexContext(context)) {
       const filePath =
@@ -54318,7 +54392,7 @@ function createEntryOverviewBrowseToolbar(context, { slotFolderMissing = false }
   const searchBar = slotFolderMissing ? null : createEntryOverviewSearchBar(context);
   const actions = createEntryOverviewBrowseActions(context, { slotFolderMissing });
   const mediaCols =
-    !slotFolderMissing && context?.memoryKind === "media"
+    !slotFolderMissing && (context?.memoryKind === "media" || context?.memoryKind === "assets")
       ? createNavigationMediaImagesLayoutToggle()
       : null;
   if (!searchBar && !actions && !mediaCols) return null;
@@ -54377,7 +54451,10 @@ function filterEntryOverviewNavigationIndex(navigationIndex, queryLower) {
     }
   }
   for (const file of matchingFiles) {
-    for (const ancestor of collectNavigationFolderAncestors(file.path)) {
+    for (const ancestor of collectNavigationFolderAncestors(
+      file.path,
+      activeEntryOverviewContext?.memoryKind === "assets" ? "assets" : null
+    )) {
       addMemorySectionFolderPath(folderPaths, ancestor);
     }
   }
@@ -54437,20 +54514,20 @@ function getEntryOverviewBrowsePanelMountAnchor(hub, { isMemoryTocRoot = false }
   return getEntryOverviewSectionListMountAnchor(hub);
 }
 
-function renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot = false } = {}) {
+function renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot = false, topicPreview = null } = {}) {
   const filteredIndex = getEntryOverviewFilteredNavigationIndex(navigationIndex);
   if (isMemoryTocRoot) {
-    return renderEntryOverviewFullMemoryToc(context, filteredIndex);
+    return renderEntryOverviewFullMemoryToc(context, filteredIndex, { topicPreview });
   }
   return renderEntryOverviewSectionList(context, filteredIndex);
 }
 
-function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocRoot = false, slotFolderMissing = false } = {}) {
+function createEntryOverviewBrowsePanel(context, navigationIndex, { isMemoryTocRoot = false, slotFolderMissing = false, topicPreview = null } = {}) {
   const showSearch = !slotFolderMissing && (isMemoryTocRoot || shouldShowEntryOverviewSectionSearch(context));
   const showActions = shouldShowEntryOverviewBrowseActions(context);
   const listBlock = slotFolderMissing
     ? createEntryOverviewSlotFolderMissingNotice(context)
-    : renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot });
+    : renderEntryOverviewBrowseListBlock(context, navigationIndex, { isMemoryTocRoot, topicPreview });
   if (!showSearch && !showActions && !listBlock) return null;
 
   const panel = document.createElement("div");
@@ -54511,11 +54588,12 @@ function appendEntryOverviewBrowsePanel(
   hub,
   context,
   navigationIndex,
-  { isMemoryTocRoot = false, slotFolderMissing = null, browseNavOptions = null } = {}
+  { isMemoryTocRoot = false, slotFolderMissing = null, browseNavOptions = null, topicPreview = null } = {}
 ) {
   const panel = createEntryOverviewBrowsePanel(context, navigationIndex, {
     isMemoryTocRoot,
-    slotFolderMissing: Boolean(slotFolderMissing)
+    slotFolderMissing: Boolean(slotFolderMissing),
+    topicPreview
   });
   if (!panel) return null;
   const mounted = mountEntryOverviewBrowsePanelElement(hub, panel, { isMemoryTocRoot });
@@ -54573,16 +54651,6 @@ function getEntryOverviewTopicTitle() {
     getLabelFromPath(activePath) ||
     "Тема"
   );
-}
-
-async function resolveNavigationAssetsPreviewFilled(topicPath) {
-  if (!topicPath) return false;
-  try {
-    const preview = await fetchNodeOverviewPreview(topicPath);
-    return Boolean(preview?.imageUrl && !preview?.broken);
-  } catch {
-    return false;
-  }
 }
 
 async function buildEntryOverviewDataSlotCounters(topicPath) {
@@ -54673,11 +54741,18 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
       }
 
       count = resolveNavigationSlotFileCount(spec, { storageScan, prepared });
-      filled = count > 0 || hasNavigationExternalPreparedContent(prepared);
-
-      if (spec.key === "assets" && assetsPreviewFilled && count === 0) {
-        count = 1;
-        filled = true;
+      if (spec.key === "media") {
+        filled =
+          count > 0 ||
+          hasNavigationExternalPreparedContent(prepared) ||
+          Boolean(mediaData?.exists);
+      } else if (spec.key === "assets") {
+        filled =
+          count > 0 ||
+          hasNavigationExternalPreparedContent(prepared) ||
+          Boolean(assetsData?.exists);
+      } else {
+        filled = count > 0 || hasNavigationExternalPreparedContent(prepared);
       }
 
       if (spec.key === "inbox") {
@@ -54686,7 +54761,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
         filled = filled || Number(intake?.inbox?.total) > 0;
       }
 
-      title = buildNavigationSlotCounterTitle(spec, count, { intake, assetsPreviewFilled });
+      title = buildNavigationSlotCounterTitle(spec, count, { intake });
     }
 
     let folderExists = resolveStorageSlotFolderExistsFromScan(spec, storageScan);
@@ -54703,8 +54778,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
       tone,
       title,
       hasIndex: false,
-      assetsPreview: spec.key === "assets" && assetsPreviewFilled ? assetsPreview : null,
-      assetsPreviewFilled: spec.key === "assets" ? assetsPreviewFilled : false
+      assetsPreview: spec.key === "assets" && assetsPreviewFilled ? assetsPreview : null
     };
   });
 
@@ -55404,6 +55478,9 @@ function renderEntryOverviewMemoryTrail(context, navigationIndex, title, topicTi
 
 function getEntryOverviewSectionFolderPath(context) {
   const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (context.memoryKind === "assets" && context.entryKind === "awn.assets.folder") {
+    return relativePath.replace(/\/$/, "") || null;
+  }
   const isCategory =
     context.entryKind === "awn.record.category" ||
     context.entryKind === "awn.media.category" ||
@@ -55433,7 +55510,8 @@ function getEntryOverviewSiblingFiles(context, navigationIndex) {
   return (navigationIndex.contentFiles || [])
     .filter((item) => {
       const path = String(item.path || "").replace(/\\/g, "/");
-      if (!path || isSectionReadmePath(path) || isMemorySectionInfrastructureFilePath(path)) {
+      if (!path || isSectionReadmePath(path)) return false;
+      if (context.memoryKind !== "assets" && isMemorySectionInfrastructureFilePath(path)) {
         return false;
       }
       if (parentFolder) {
@@ -55579,14 +55657,14 @@ function findNavigationTreeFolderNode(root, folderPath) {
   return cursor;
 }
 
-function buildEntryOverviewSectionTree(navigationIndex, folderPath) {
+function buildEntryOverviewSectionTree(navigationIndex, folderPath, memoryKind = null) {
   if (!navigationIndex) return null;
 
   const { contentFiles, folderLabels, folderStatuses, folderPaths } = navigationIndex;
   const normalizedFolder = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
 
-  const fullTree = buildNavigationPathTree(contentFiles || [], folderLabels);
-  ensureNavigationTreeFolders(fullTree, folderPaths, folderLabels);
+  const fullTree = buildNavigationPathTree(contentFiles || [], folderLabels, memoryKind);
+  ensureNavigationTreeFolders(fullTree, folderPaths, folderLabels, memoryKind);
 
   let tree = fullTree;
   if (normalizedFolder) {
@@ -55614,7 +55692,7 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
   const folderPath = getEntryOverviewSectionFolderPath(context);
   if (folderPath === null || !navigationIndex) return null;
 
-  const built = buildEntryOverviewSectionTree(navigationIndex, folderPath);
+  const built = buildEntryOverviewSectionTree(navigationIndex, folderPath, context.memoryKind);
   if (!built) return null;
 
   const { tree, folderLabels, folderDescriptions, folderStatuses, sectionManifestByFolder } = built;
@@ -55650,12 +55728,12 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
     showBranchLeading: false,
     treeStyle: "guide",
     collapseDepthThreshold: 99,
-    linkLeadingMode: context.memoryKind === "media" ? "media" : undefined,
+    linkLeadingMode: context.memoryKind === "media" || context.memoryKind === "assets" ? "media" : undefined,
     readManifestPath: getOverviewNodeApiPath(activePath),
     readMemoryKind: context.memoryKind
   });
 
-  if (context.memoryKind === "media") {
+  if (context.memoryKind === "media" || context.memoryKind === "assets") {
     appendEntryOverviewMediaBookTocList(list, tree, 0, listHandlers);
   } else {
     appendNavigationBookTocList(list, tree, 0, listHandlers);
@@ -56592,16 +56670,77 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
   }
 }
 
-function renderEntryOverviewMediaMemoryToc(context, navigationIndex) {
-  if (!navigationIndex) return null;
+function renderEntryOverviewTopicPreviewMediaSection(context, preview) {
+  if (!preview?.imageUrl || preview.broken) return null;
+
+  const section = document.createElement("section");
+  section.className = "node-entry-overview-memory-toc node-entry-overview-media-toc";
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-entry-overview-media-grid-wrap";
+  const grid = document.createElement("div");
+  grid.className = `folder-browse-images-grid folder-browse-images-grid--cols-${navigationMediaImagesLayout}`;
+  grid.setAttribute("role", "list");
+  grid.setAttribute("aria-label", "Превью темы");
+
+  const card = document.createElement("article");
+  card.className = "folder-browse-image-card navigation-media-image-card";
+  card.title = "Превью темы";
+
+  const open = document.createElement("div");
+  open.className = "folder-browse-image-open";
+  const imgWrap = document.createElement("div");
+  imgWrap.className = "folder-browse-image-thumb";
+  const img = document.createElement("img");
+  img.alt = "Превью темы";
+  img.loading = "lazy";
+  img.draggable = false;
+  img.src = preview.imageUrl;
+  imgWrap.appendChild(img);
+  open.appendChild(imgWrap);
+  appendFolderBrowseImageFooter(open, { name: "Превью темы" });
+  card.appendChild(open);
+  card.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openDescriptionFromOverview();
+  });
+  grid.appendChild(card);
+  wrap.appendChild(grid);
+  section.appendChild(wrap);
+
+  const previewPath = String(preview.previewPath || "").trim();
+  if (previewPath) {
+    const hint = document.createElement("p");
+    hint.className = "node-navigation-hub-rail-bundle-hint";
+    hint.textContent = previewPath;
+    section.appendChild(hint);
+  }
+
+  return section;
+}
+
+function renderEntryOverviewMediaMemoryToc(context, navigationIndex, { topicPreview = null } = {}) {
+  if (!navigationIndex) {
+    if (context.memoryKind === "assets" && topicPreview?.imageUrl && !topicPreview.broken) {
+      return renderEntryOverviewTopicPreviewMediaSection(context, topicPreview);
+    }
+    return null;
+  }
 
   const { contentFiles, folderLabels, folderDescriptions, folderStatuses, sectionManifestByFolder, folderPaths } =
     navigationIndex;
   const mdItems = [...(contentFiles || [])].sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
 
-  if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) return null;
+  if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) {
+    if (context.memoryKind === "assets" && topicPreview?.imageUrl && !topicPreview.broken) {
+      return renderEntryOverviewTopicPreviewMediaSection(context, topicPreview);
+    }
+    return null;
+  }
 
   const nodePath = getResolvedNodePath(activePath);
+  const memoryKind = context.memoryKind || "media";
   const handlers = buildEntryOverviewBookTocHandlers(context, {
     folderLabels,
     folderDescriptions,
@@ -56611,9 +56750,7 @@ function renderEntryOverviewMediaMemoryToc(context, navigationIndex) {
     treeStyle: "guide",
     collapseDepthThreshold: 99,
     readManifestPath: getOverviewNodeApiPath(activePath),
-    readMemoryKind: context.memoryKind,
-    onFolderClick: openMediaCategoryOverviewFromNavigation,
-    onFileClick: openMediaEntryOverviewFromNavigation
+    readMemoryKind: memoryKind
   });
 
   const section = document.createElement("section");
@@ -56621,23 +56758,28 @@ function renderEntryOverviewMediaMemoryToc(context, navigationIndex) {
 
   const nav = document.createElement("nav");
   nav.className = "node-navigation-book-toc node-entry-overview-memory-toc-nav nav-book-toc-tree--guide";
-  nav.setAttribute("aria-label", "Оглавление медиа");
+  nav.setAttribute("aria-label", getEntryOverviewTocTitle(memoryKind));
 
   const list = document.createElement("ul");
   list.className = "nav-book-toc-list nav-book-toc-list--root";
-  const tree = buildNavigationPathTree(mdItems, folderLabels);
-  ensureNavigationTreeFolders(tree, folderPaths, folderLabels);
+  const tree = buildNavigationPathTree(mdItems, folderLabels, memoryKind);
+  ensureNavigationTreeFolders(tree, folderPaths, folderLabels, memoryKind);
   appendEntryOverviewMediaBookTocList(list, tree, 0, handlers);
   nav.appendChild(list);
   section.appendChild(nav);
   return section;
 }
 
-function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
-  if (!navigationIndex) return null;
+function renderEntryOverviewFullMemoryToc(context, navigationIndex, { topicPreview = null } = {}) {
+  if (!navigationIndex) {
+    if (context.memoryKind === "assets" && topicPreview?.imageUrl && !topicPreview.broken) {
+      return renderEntryOverviewTopicPreviewMediaSection(context, topicPreview);
+    }
+    return null;
+  }
 
-  if (context.memoryKind === "media") {
-    return renderEntryOverviewMediaMemoryToc(context, navigationIndex);
+  if (context.memoryKind === "media" || context.memoryKind === "assets") {
+    return renderEntryOverviewMediaMemoryToc(context, navigationIndex, { topicPreview });
   }
 
   const { contentFiles, folderLabels, folderDescriptions, folderStatuses, sectionManifestByFolder, folderPaths } =
@@ -56655,8 +56797,8 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex) {
 
   const list = document.createElement("ul");
   list.className = "nav-book-toc-list nav-book-toc-list--root";
-  const tree = buildNavigationPathTree(mdItems, folderLabels);
-  ensureNavigationTreeFolders(tree, folderPaths, folderLabels);
+  const tree = buildNavigationPathTree(mdItems, folderLabels, context.memoryKind);
+  ensureNavigationTreeFolders(tree, folderPaths, folderLabels, context.memoryKind);
   const listHandlers = buildEntryOverviewBookTocHandlers(context, {
     folderLabels,
     folderDescriptions,
@@ -56745,10 +56887,16 @@ async function renderEntryOverview() {
       slotFolderMissing = !slotFolderExists;
     }
     const slotTocNav = buildEntryOverviewSlotTocNavOptions(context, topicPath);
+    const topicPreview =
+      context.memoryKind === "assets"
+        ? await fetchNodeOverviewPreview(topicPath).catch(() => null)
+        : null;
+    if (isStale()) return;
     appendEntryOverviewBrowsePanel(hubMain, context, navigationIndex, {
       isMemoryTocRoot: true,
       slotFolderMissing,
-      browseNavOptions: slotTocNav
+      browseNavOptions: slotTocNav,
+      topicPreview
     });
 
     if (!isArea) {
@@ -58026,11 +58174,12 @@ function appendNavigationMediaImageStrip(parent, items, nodePath) {
   parent.appendChild(strip);
 }
 
-function renderNavigationMediaPart(mediaData) {
+function renderNavigationMediaPart(mediaData, { memoryKind = "media", label = "Медиа" } = {}) {
   const groups = mediaData?.groups && typeof mediaData.groups === "object" ? mediaData.groups : {};
   const { contentFiles, folderLabels, folderStatuses, sectionManifestByFolder, folderPaths } = prepareNavigationMediaItems(
     groups,
-    mediaData?.sectionManifests || []
+    mediaData?.sectionManifests || [],
+    memoryKind === "assets" ? { memoryKind: "assets" } : {}
   );
 
   if (!contentFiles.length && folderPaths.size === 0) {
@@ -58038,7 +58187,7 @@ function renderNavigationMediaPart(mediaData) {
   }
 
   const body = document.createElement("div");
-  body.className = "node-navigation-media";
+  body.className = memoryKind === "assets" ? "node-navigation-media node-navigation-assets" : "node-navigation-media";
   const nodePath = getResolvedNodePath(activePath);
 
   const imageItems = collectNavigationMediaImageItems(groups, contentFiles);
@@ -58051,7 +58200,7 @@ function renderNavigationMediaPart(mediaData) {
       const gridWrap = renderNavigationMediaImagesGrid(
         imageItems,
         nodePath,
-        openMediaEntryOverviewFromNavigation
+        (item) => openMediaLibraryEntryOverviewFromNavigation(item, memoryKind)
       );
       if (gridWrap) preview.appendChild(gridWrap);
     }
@@ -58060,12 +58209,12 @@ function renderNavigationMediaPart(mediaData) {
 
   const nav = document.createElement("nav");
   nav.className = "node-navigation-book-toc nav-book-toc-tree--guide";
-  nav.setAttribute("aria-label", "Оглавление медиа");
+  nav.setAttribute("aria-label", getEntryOverviewTocTitle(memoryKind));
 
   const list = document.createElement("ul");
   list.className = "nav-book-toc-list nav-book-toc-list--root";
-  const tree = buildNavigationPathTree(contentFiles, folderLabels);
-  ensureNavigationTreeFolders(tree, folderPaths, folderLabels);
+  const tree = buildNavigationPathTree(contentFiles, folderLabels, memoryKind);
+  ensureNavigationTreeFolders(tree, folderPaths, folderLabels, memoryKind);
   appendNavigationBookTocList(list, tree, 0, {
     folderLabels,
     folderStatuses,
@@ -58073,15 +58222,19 @@ function renderNavigationMediaPart(mediaData) {
     nodePath,
     linkLeadingMode: "media",
     treeStyle: "guide",
-    resourceContextMenuMemoryKind: "media",
+    resourceContextMenuMemoryKind: memoryKind,
     readManifestPath: getActiveNodeApiPath(),
-    readMemoryKind: "media",
-    onFolderClick: openMediaCategoryOverviewFromNavigation,
-    onFileClick: openMediaEntryOverviewFromNavigation
+    readMemoryKind: memoryKind,
+    onFolderClick: (folderPath) => openMediaLibraryCategoryOverviewFromNavigation(folderPath, memoryKind),
+    onFileClick: (item) => openMediaLibraryEntryOverviewFromNavigation(item, memoryKind)
   });
   nav.appendChild(list);
   body.appendChild(nav);
-  return createNavigationMemoryPanel("media", "Медиа", body, mediaData);
+  return createNavigationMemoryPanel(memoryKind, label, body, mediaData);
+}
+
+function renderNavigationAssetsPart(assetsData) {
+  return renderNavigationMediaPart(assetsData, { memoryKind: "assets", label: "Активы" });
 }
 
 let navigationManifestCachedPath = "";
@@ -58908,22 +59061,103 @@ function patchMenuNodeRuntimeCommandsFromProps(manifestPath, propEntries) {
   );
 }
 
+function runtimeRegistryRowKey(row) {
+  return `${row.manifestPath || ""}\0${row.slot || ""}\0${row.ref || ""}`;
+}
+
+function mergeRuntimeRegistryItems(alwaysItems, cronItems, heartbeatItems) {
+  const map = new Map();
+  const upsert = (item, patch) => {
+    const key = runtimeRegistryRowKey(item);
+    const prev = map.get(key);
+    map.set(key, prev ? { ...prev, ...patch } : { ...item, ...patch });
+  };
+
+  for (const item of alwaysItems) {
+    upsert(item, {
+      runtimeLoadAlways: true,
+      runtimeLoadLabel: item.runtimeLoadLabel || item.label || "Всегда в контексте"
+    });
+  }
+  for (const item of cronItems) {
+    upsert(item, {
+      runtimeCron: true,
+      runtimeCronSchedule: item.runtimeCronSchedule || ""
+    });
+  }
+  for (const item of heartbeatItems) {
+    upsert(item, { runtimeHeartbeat: true });
+  }
+
+  return Array.from(map.values()).sort((a, b) => {
+    const pathA = a.displayPath || a.label || a.manifestPath || "";
+    const pathB = b.displayPath || b.label || b.manifestPath || "";
+    return pathA.localeCompare(pathB, "ru");
+  });
+}
+
+async function fetchRuntimeRegistrySources(agentId = activeAgentId) {
+  const [alwaysRes, cronRes, heartbeatRes] = await Promise.all([
+    fetch(buildApiUrl("/api/agent/always-context", {}, agentId)),
+    fetch(buildApiUrl("/api/agent/cron-registry", {}, agentId)),
+    fetch(buildApiUrl("/api/agent/heartbeat-registry", {}, agentId))
+  ]);
+  const alwaysData = alwaysRes.ok ? await alwaysRes.json() : { items: [] };
+  const cronData = cronRes.ok ? await cronRes.json() : { items: [] };
+  const heartbeatData = heartbeatRes.ok ? await heartbeatRes.json() : { items: [] };
+  return {
+    alwaysItems: Array.isArray(alwaysData.items) ? alwaysData.items : [],
+    cronItems: Array.isArray(cronData.items) ? cronData.items : [],
+    heartbeatItems: Array.isArray(heartbeatData.items) ? heartbeatData.items : []
+  };
+}
+
+function buildMergedRuntimeRegistryPayload(rows) {
+  let sessionStartCount = 0;
+  let cronCount = 0;
+  let heartbeatCount = 0;
+  let syncCount = 0;
+  for (const row of rows) {
+    if (row.runtimeLoadAlways) sessionStartCount += 1;
+    if (row.runtimeCron) cronCount += 1;
+    if (row.runtimeHeartbeat) heartbeatCount += 1;
+    if (row.runtimeCron || row.runtimeHeartbeat) syncCount += 1;
+  }
+  return {
+    rows,
+    itemCount: rows.length,
+    topicCount: rows.filter((row) => row.entityKind === "topic").length,
+    contentCount: rows.filter((row) => row.entityKind === "content").length,
+    sessionStartCount,
+    cronCount,
+    heartbeatCount,
+    totalSyncCount: syncCount
+  };
+}
+
 async function refreshMenuRuntimeFlagsCache(agentId = activeAgentId) {
   try {
-    const response = await fetch(buildApiUrl("/api/agent/runtime-registry", {}, agentId));
-    if (!response.ok) return;
-    const data = await response.json();
+    const { alwaysItems, cronItems, heartbeatItems } = await fetchRuntimeRegistrySources(agentId);
+    const rows = mergeRuntimeRegistryItems(alwaysItems, cronItems, heartbeatItems);
     const map = new Map();
-    for (const row of data.rows || []) {
+    for (const row of rows) {
       const path = normalizeMenuNodePath(row.manifestPath || "");
       if (!path) continue;
+      const prev = map.get(path) || {
+        runtimeLoadAlways: false,
+        runtimeCron: false,
+        runtimeCronSchedule: "",
+        runtimeHeartbeat: false,
+        runtimeCronSelf: false,
+        runtimeHeartbeatSelf: false
+      };
       map.set(path, {
-        runtimeLoadAlways: Boolean(row.runtimeLoadAlways),
-        runtimeCron: Boolean(row.runtimeCron),
-        runtimeCronSchedule: String(row.runtimeCronSchedule || "").trim(),
-        runtimeHeartbeat: Boolean(row.runtimeHeartbeat),
-        runtimeCronSelf: Boolean(row.runtimeCron),
-        runtimeHeartbeatSelf: Boolean(row.runtimeHeartbeat)
+        runtimeLoadAlways: prev.runtimeLoadAlways || Boolean(row.runtimeLoadAlways),
+        runtimeCron: prev.runtimeCron || Boolean(row.runtimeCron),
+        runtimeCronSchedule: prev.runtimeCronSchedule || String(row.runtimeCronSchedule || "").trim(),
+        runtimeHeartbeat: prev.runtimeHeartbeat || Boolean(row.runtimeHeartbeat),
+        runtimeCronSelf: prev.runtimeCronSelf || Boolean(row.runtimeCron),
+        runtimeHeartbeatSelf: prev.runtimeHeartbeatSelf || Boolean(row.runtimeHeartbeat)
       });
     }
     menuRuntimeFlagsByAgent.set(agentId, map);
@@ -64694,8 +64928,8 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
 
   const list = document.createElement("ul");
   list.className = "nav-book-toc-list nav-book-toc-list--root";
-  const tree = buildNavigationPathTree(mdItems, folderLabels);
-  ensureNavigationTreeFolders(tree, folderPaths, folderLabels);
+  const tree = buildNavigationPathTree(mdItems, folderLabels, memoryKind);
+  ensureNavigationTreeFolders(tree, folderPaths, folderLabels, memoryKind);
 
   const tocHandlers = {
     folderLabels,
@@ -64743,48 +64977,9 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
 }
 
 function appendNavigationHubRailAssetsPreview(host, preview, nodePath = activePath) {
-  if (!preview?.imageUrl || preview.broken) return false;
-
-  const wrap = document.createElement("div");
-  wrap.className = "node-navigation-hub-rail-assets-preview";
-
-  const item = document.createElement("button");
-  item.type = "button";
-  item.className = "node-navigation-rail-link node-navigation-hub-rail-assets-preview-item";
-  item.title = "Превью темы";
-
-  const thumb = document.createElement("span");
-  thumb.className = "node-navigation-hub-rail-assets-preview-thumb";
-  const img = document.createElement("img");
-  img.className = "node-navigation-hub-rail-assets-preview-image";
-  img.src = preview.imageUrl;
-  img.alt = "Превью темы";
-  img.loading = "lazy";
-  img.draggable = false;
-  thumb.appendChild(img);
-
-  const label = document.createElement("span");
-  label.className = "node-navigation-rail-link-label";
-  label.textContent = "Превью темы";
-
-  item.append(thumb, label);
-  item.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    openDescriptionFromOverview();
-  });
-
-  wrap.appendChild(item);
-
-  const previewPath = String(preview.previewPath || "").trim();
-  if (previewPath) {
-    const hint = document.createElement("p");
-    hint.className = "node-navigation-hub-rail-bundle-hint";
-    hint.textContent = previewPath;
-    wrap.appendChild(hint);
-  }
-
-  host.appendChild(wrap);
+  const section = renderEntryOverviewTopicPreviewMediaSection({ memoryKind: "assets" }, preview);
+  if (!section) return false;
+  host.appendChild(section);
   return true;
 }
 
@@ -64805,6 +65000,12 @@ function refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, a
       treeHost.dataset.railMemoryKind = slotIndex.memoryKind || "";
       treeHost.appendChild(nav);
       mountNavigationHubRailSlotTreeDragDrop(treeHost);
+    } else if (slotIndex.memoryKind === "assets") {
+      appendNavigationHubRailAssetsPreview(
+        treeHost,
+        slot.assetsPreview || prefetched.assetsPreview,
+        nodePath
+      );
     }
     return;
   }
@@ -64859,7 +65060,11 @@ function mountNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, act
       });
     }
 
-    return Boolean(treeHost.childElementCount) || Boolean(slot.filled && isFlatEntryOverviewMemoryKind(slotIndex.memoryKind));
+    const treeHasContent = Boolean(treeHost.childElementCount);
+
+    return (
+      treeHasContent || Boolean(slot.filled && isFlatEntryOverviewMemoryKind(slotIndex.memoryKind))
+    );
   }
 
   if (slotIndex.kind === "bundle") {
@@ -65181,9 +65386,21 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
     slotsWrap.className = "node-navigation-hub-rail-slots";
 
     for (const slot of topicSlotCounters) {
-      const slotIndex = prepareNavigationHubRailSlotIndex(slot.id, nodePath, prefetched);
+      const slotIndex = prepareNavigationHubRailSlotIndex(slot.id, nodePath, {
+        ...prefetched,
+        assetsPreview: slot.assetsPreview || prefetched.assetsPreview || null
+      });
       slotsWrap.appendChild(
-        renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePath, activeCtx)
+        renderNavigationHubRailSlotSection(
+          slot,
+          slotIndex,
+          {
+            ...prefetched,
+            assetsPreview: slot.assetsPreview || prefetched.assetsPreview || null
+          },
+          nodePath,
+          activeCtx
+        )
       );
     }
 
@@ -65206,6 +65423,7 @@ function buildNodeNavigationMemoryPanelsWrap({
   internalData,
   tabularData,
   mediaData,
+  assetsData,
   todoData
 }) {
   const panelsWrap = document.createElement("div");
@@ -65216,7 +65434,8 @@ function buildNodeNavigationMemoryPanelsWrap({
       renderNavigationExternalPart(externalData, { slotsDisabled }),
       renderNavigationInternalPart(internalData, { nodePath }),
       renderNavigationTabularPart(tabularData),
-      slotsDisabled ? null : renderNavigationMediaPart(mediaData)
+      slotsDisabled ? null : renderNavigationMediaPart(mediaData),
+      slotsDisabled ? null : renderNavigationAssetsPart(assetsData)
     ].filter(Boolean);
     for (const panel of panels) {
       panelsWrap.appendChild(panel);
@@ -65298,6 +65517,8 @@ async function appendNodeNavigationSplitRail(
     const flatNavigationIndexes = await fetchNavigationHubRailFlatIndexes(nodePath);
     if (isStale()) return false;
 
+    const assetsSlotPreview = topicSlotCounters.find((slot) => slot.id === "assets")?.assetsPreview || null;
+
     const rail = renderNavigationHubRail(
       topicSlotCounters.map((slot) => ({
         ...slot,
@@ -65305,7 +65526,13 @@ async function appendNodeNavigationSplitRail(
       })),
       childEntries,
       nodePath,
-      { ...prefetched, assetsData, flatNavigationIndexes, _flatIndexTopicPath: nodePath },
+      {
+        ...prefetched,
+        assetsData,
+        assetsPreview: assetsSlotPreview,
+        flatNavigationIndexes,
+        _flatIndexTopicPath: nodePath
+      },
       { documentMarkdown }
     );
     if (isStale()) return false;
@@ -65383,6 +65610,8 @@ async function renderNodeNavigation() {
         ]
   );
   const mediaData = isInlineNavHub || slotsDisabled ? null : await fetchMediaOverview(nodePath);
+  const assetsData =
+    isInlineNavHub || slotsDisabled ? null : await fetchMediaLibraryOverview(nodePath, "assets").catch(() => null);
   if (isStale()) return;
 
   const slotStripGroups = buildNodeSlotStripGroups({
@@ -65463,6 +65692,7 @@ async function renderNodeNavigation() {
     internalData,
     tabularData,
     mediaData,
+    assetsData,
     todoData
   });
 
@@ -76911,7 +77141,7 @@ const RUNTIME_REGISTRY_MODES = {
     title: "Все runtime-флаги",
     description:
       "Обзор всех тем и записей с любыми awn-runtime-* флагами — always, cron, heartbeat в одной таблице.",
-    mcp: "MCP: get_runtime_registry",
+    mcp: "MCP: get_always_context, get_cron_registry, get_heartbeat_registry",
     emptyTitle: "Runtime-флаги не используются",
     emptyLead: "В workspace пока нет тем или записей с полями awn-runtime-*.",
     emptySteps: [
@@ -76962,7 +77192,7 @@ function runtimeRegistryEndpointForMode(filterMode = agentRuntimeRegistryFilterM
   if (filterMode === "always") return "/api/agent/always-context";
   if (filterMode === "cron") return "/api/agent/cron-registry";
   if (filterMode === "heartbeat") return "/api/agent/heartbeat-registry";
-  return "/api/agent/runtime-registry";
+  return null;
 }
 
 function normalizeRuntimeRegistryPayload(data, filterMode = agentRuntimeRegistryFilterMode) {
@@ -76993,6 +77223,11 @@ function normalizeRuntimeRegistryPayload(data, filterMode = agentRuntimeRegistry
 }
 
 async function fetchAgentRuntimeRegistry(filterMode = agentRuntimeRegistryFilterMode) {
+  if (filterMode === "all") {
+    const { alwaysItems, cronItems, heartbeatItems } = await fetchRuntimeRegistrySources();
+    const rows = mergeRuntimeRegistryItems(alwaysItems, cronItems, heartbeatItems);
+    return buildMergedRuntimeRegistryPayload(rows);
+  }
   const endpoint = runtimeRegistryEndpointForMode(filterMode);
   const response = await fetch(buildApiUrl(endpoint));
   if (!response.ok) {

@@ -72,8 +72,6 @@
 | `get_always_context` | `awn-runtime-load-always` + `AGENTS.md` / `SKILL.md` / `README.md` + глобальный `GLOBAL_MCP_DOC.md` | **да** |
 | `get_cron_registry` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `get_heartbeat_registry` | Темы/записи с `awn-runtime-heartbeat` | нет |
-| `get_runtime_registry` | Полный runtime: флаги sync/cron/heartbeat (фильтры) | нет |
-| `get_runtime_map` | Упрощённая карта для sync cron/heartbeat (когда надо «что синкать») | нет |
 | `get_site_map` | Карта сайта: области + темы + `awn-type` | нет |
 | `get_workspace_table` | Плоская таблица тем | нет |
 

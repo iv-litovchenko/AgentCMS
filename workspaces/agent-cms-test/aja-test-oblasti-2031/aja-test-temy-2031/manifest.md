@@ -1,37 +1,40 @@
 ---
-awn-name: "Ая тест темы 2031"
-awn-emoji: "📄"
+- "значение-1"
+  - "значение-2"
+  - "значение-3"
+awn-name: Ая тест темы 2031
+awn-emoji: 📄
 awn-status: closed
 awn-description: "Тестовая тема в области «Ая тест области 2031» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном."
 awn-tags:
   - test
   - topic
 awn-type: awn.page.topic
-awn-create: 2026-08-07T18:35:53.714Z
-awn-update: 2026-08-07T18:37:58.560Z
-awn-version: 3
-awn-preview: "https://bipbap.ru/wp-content/uploads/2017/04/000f_7290754.jpg"
+awn-create: "2026-08-07T18:35:53.714Z"
+awn-update: 2026-08-07T18:58:44.542Z
+awn-version: 5
+awn-preview: awn-storage/assets/preview/20260807185844.png
 awn-web-url: ""
 awn-main: false
 awn-category: ""
 awn-owner: ""
 awn-priority: ""
 awn-color: ""
-awn-sort: ""
+awn-sort: 
 awn-runtime-load-always: false
-awn-runtime-cron: ""
+awn-runtime-cron: false
 awn-runtime-cron-schedule: ""
-awn-runtime-heartbeat: ""
+awn-runtime-heartbeat: false
 awn-runtime-commands: false
 awn-slots-disabled: false
 aya-t-custom-text: "Значение строки: тест кастомного поля (анекдот: Если бы программисты строили дома, первый аист разнёс бы их)"
 aya-t-custom-number: 2031
 aya-t-custom-boolean: true
-aya-t-custom-date: "2026-08-07"
+aya-t-custom-date: 2026-08-07
 aya-t-custom-array:
-  - "значение-1"
-  - "значение-2"
-  - "значение-3"
+  - значение-1
+  - значение-2
+  - значение-3
 ---
 
 # Инструкция темы «Ая тест темы 2031»

@@ -32,28 +32,6 @@ function toolError(message) {
   return { content: [{ type: "text", text: message }], isError: true };
 }
 
-const runtimeFilterSchema = z.object({
-  sync: z
-    .boolean()
-    .optional()
-    .describe("If true: topics with cron OR heartbeat (same as runtime-map default)."),
-  cron: z.boolean().optional().describe("Include topics with awn-runtime-cron: true."),
-  heartbeat: z.boolean().optional().describe("Include topics with awn-runtime-heartbeat: true."),
-  mode: z
-    .enum(["any", "all"])
-    .optional()
-    .describe("any = cron OR heartbeat; all = cron AND heartbeat (when both flags enabled).")
-});
-
-function runtimeFilterQuery(args) {
-  const params = {};
-  if (args.sync === true) params.sync = "true";
-  if (args.cron !== undefined) params.cron = String(args.cron);
-  if (args.heartbeat !== undefined) params.heartbeat = String(args.heartbeat);
-  if (args.mode) params.mode = args.mode;
-  return params;
-}
-
 function wrap(handler) {
   return async (args) => {
     try {
@@ -92,10 +70,6 @@ function createServer() {
 
   reg("get_mcp_docs", "MCP tools reference JSON (docs/mcp-0.0.2.js).", z.object({}), () =>
     client.get("/api/mcp-docs", { version: "0.0.2" }, { agentScope: false })
-  );
-
-  reg("get_api_reference", "HTTP API docs JSON (version 0.0.2).", z.object({}), () =>
-    client.get("/api/docs", { version: "0.0.2" }, { agentScope: false })
   );
 
   // ── Navigation ─────────────────────────────────────────────────────────────
@@ -154,13 +128,6 @@ function createServer() {
   );
 
   reg(
-    "get_runtime_registry",
-    "Full runtime registry: topics + content records with awn-runtime-* flags. Filter: sync, cron, heartbeat, mode.",
-    runtimeFilterSchema,
-    (args) => client.get("/api/agent/runtime-registry", runtimeFilterQuery(args))
-  );
-
-  reg(
     "get_topic_registry",
     "Brief topic catalog (name, path, description) — workspace skill/оглавление.",
     z.object({}),
@@ -186,13 +153,6 @@ function createServer() {
     "Heartbeat registry: topics and records with awn-runtime-heartbeat.",
     z.object({}),
     () => client.get("/api/agent/heartbeat-registry")
-  );
-
-  reg(
-    "get_runtime_map",
-    "Runtime sync map — topics/records with cron and/or heartbeat.",
-    runtimeFilterSchema,
-    (args) => client.get("/api/agent/runtime-map", runtimeFilterQuery(args))
   );
 
   reg("get_storage_layout", "awn-storage slot layout for all containers.", z.object({}), () =>

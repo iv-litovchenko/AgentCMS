@@ -694,22 +694,6 @@ module.exports = {
         },
         {
           method: "GET",
-          path: "/api/agent/runtime-registry",
-          description: "Реестр тем с полями awn-runtime-load, cron, heartbeat. Фильтр: ?sync=true или ?cron=&heartbeat=&mode=any|all.",
-          query: ["sync?", "cron?", "heartbeat?", "mode?"],
-          body: null,
-          response: "{ rows[], topicCount, sessionStartCount, cronCount, heartbeatCount, syncCount, filter?, totalTopicCount }"
-        },
-        {
-          method: "GET",
-          path: "/api/agent/runtime-map",
-          description: "Карта тем с cron и/или heartbeat — для синхронизации агента (аналог site-map для automation).",
-          query: ["sync?", "cron?", "heartbeat?", "mode?"],
-          body: null,
-          response: "{ version, model, filter, topics[], topicCount, cronCount, heartbeatCount, bothCount }"
-        },
-        {
-          method: "GET",
           path: "/api/agent/canonical-model",
           description: "Канон v1: page types (ws/area/topic), slot content types (record/record.category/sidecar), slot bindings.",
           query: [],

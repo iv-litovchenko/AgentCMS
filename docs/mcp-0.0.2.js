@@ -10,7 +10,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 (по умолчанию). 0.0.1 и 0.0.0 — предыдущие снимки.",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
     "path → manifest.md страницы; slot → main|inbox|media|main-single|…; ref → путь внутри слота.",
-    "92 tools — полный список ниже.",
+    "91 tools — полный список ниже.",
     "awn-mask-file — read_page_config; create_content slot=main подхватывает маску.",
     "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
@@ -77,12 +77,6 @@ module.exports = {
           description: "Справка по MCP tools (этот документ).",
           parameters: "—",
           http: "GET /api/mcp-docs?version=0.0.2"
-        },
-        {
-          name: "get_api_reference",
-          description: "Справка HTTP API JSON.",
-          parameters: "—",
-          http: "GET /api/docs?version=0.0.2"
         }
       ]
     },
@@ -127,19 +121,6 @@ module.exports = {
           parameters:
             "query, scope?: all|content|filename|description|tags, fileType?: all|markdown|sidecar|pdf|office|spreadsheet|video|audio|image|archive|config|other, match?: relaxed|strict, limit?: 1..100",
           http: "GET /api/search?q=&scope=&fileType=&match=&limit="
-        },
-        {
-          name: "get_runtime_registry",
-          description:
-            "Полный runtime-реестр: темы + записи в слотах с awn-runtime-* флагами. Фильтр: sync, cron, heartbeat, mode.",
-          parameters: "sync?: bool, cron?: bool, heartbeat?: bool, mode?: any|all",
-          http: "GET /api/agent/runtime-registry"
-        },
-        {
-          name: "get_runtime_map",
-          description: "Карта sync: темы и записи с cron/heartbeat для синхронизации агента.",
-          parameters: "sync?: bool, cron?: bool, heartbeat?: bool, mode?: any|all",
-          http: "GET /api/agent/runtime-map"
         },
         {
           name: "get_storage_layout",

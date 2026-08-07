@@ -8775,49 +8775,6 @@ async function buildAgentSiteMap() {
   };
 }
 
-function parseRuntimeFilterSearchParam(raw) {
-  if (raw === "false" || raw === "0" || raw === "no") return false;
-  if (raw === "true" || raw === "1" || raw === "yes") return true;
-  return null;
-}
-
-function parseRuntimeFilterFromSearchParams(searchParams) {
-  const syncRaw = searchParams?.get?.("sync");
-  if (syncRaw === "true" || syncRaw === "1" || syncRaw === "yes") {
-    return { cron: true, heartbeat: true, mode: "any" };
-  }
-
-  const cronRaw = parseRuntimeFilterSearchParam(searchParams?.get?.("cron"));
-  const heartbeatRaw = parseRuntimeFilterSearchParam(searchParams?.get?.("heartbeat"));
-  const modeRaw = String(searchParams?.get?.("mode") || "").trim().toLowerCase();
-
-  if (cronRaw === null && heartbeatRaw === null && !modeRaw) return null;
-
-  return {
-    cron: cronRaw ?? true,
-    heartbeat: heartbeatRaw ?? true,
-    mode: modeRaw === "all" ? "all" : "any"
-  };
-}
-
-function matchesRuntimeFilter(row, filter) {
-  if (!filter) return true;
-
-  const hasCron = Boolean(row?.runtimeCron);
-  const hasHeartbeat = Boolean(row?.runtimeHeartbeat);
-
-  if (filter.mode === "all") {
-    if (filter.cron && !hasCron) return false;
-    if (filter.heartbeat && !hasHeartbeat) return false;
-    return hasCron || hasHeartbeat;
-  }
-
-  let match = false;
-  if (filter.cron && hasCron) match = true;
-  if (filter.heartbeat && hasHeartbeat) match = true;
-  return match;
-}
-
 const RUNTIME_CONTENT_SCAN_SLOTS = [
   { folder: STORAGE_SUBFOLDER_CONTENT, slot: "main" },
   { folder: STORAGE_SUBFOLDER_MAIN, slot: "main" },
@@ -8959,26 +8916,6 @@ async function collectAllRuntimeEntities() {
     buildRuntimeEntityDisplayPath(a).localeCompare(buildRuntimeEntityDisplayPath(b), "ru")
   );
   return entities;
-}
-
-function countRuntimeRegistryRows(rows) {
-  let sessionStartCount = 0;
-  let cronCount = 0;
-  let heartbeatCount = 0;
-  let syncCount = 0;
-  let topicCount = 0;
-  let contentCount = 0;
-
-  for (const row of rows) {
-    if (row.entityKind === "content") contentCount += 1;
-    else topicCount += 1;
-    if (row.runtimeLoadAlways) sessionStartCount += 1;
-    if (row.runtimeCron) cronCount += 1;
-    if (row.runtimeHeartbeat) heartbeatCount += 1;
-    if (row.runtimeCron || row.runtimeHeartbeat) syncCount += 1;
-  }
-
-  return { sessionStartCount, cronCount, heartbeatCount, syncCount, topicCount, contentCount };
 }
 
 async function buildAgentTopicRegistry() {
@@ -9146,136 +9083,16 @@ async function buildAgentHeartbeatRegistry() {
   };
 }
 
-async function buildAgentRuntimeRegistry(filter = null) {
-  const allEntities = await collectAllRuntimeEntities();
-  const allCounts = countRuntimeRegistryRows(allEntities);
-  const visibleRows = filter ? allEntities.filter((row) => matchesRuntimeFilter(row, filter)) : allEntities;
-  const visibleCounts = filter ? countRuntimeRegistryRows(visibleRows) : allCounts;
-
-  return {
-    version: 2,
-    model: "runtime-registry",
-    rows: visibleRows,
-    itemCount: visibleRows.length,
-    topicCount: visibleCounts.topicCount,
-    contentCount: visibleCounts.contentCount,
-    sessionStartCount: visibleCounts.sessionStartCount,
-    cronCount: visibleCounts.cronCount,
-    heartbeatCount: visibleCounts.heartbeatCount,
-    syncCount: visibleCounts.syncCount,
-    filter: filter || null,
-    totalItemCount: allEntities.length,
-    totalTopicCount: allCounts.topicCount,
-    totalContentCount: allCounts.contentCount,
-    totalCronCount: allCounts.cronCount,
-    totalHeartbeatCount: allCounts.heartbeatCount,
-    totalSyncCount: allCounts.syncCount
-  };
-}
-
-async function buildManifestAreaLookup(menu) {
-  const areaByManifest = new Map();
-
-  async function walkTree(tree, parentArea = null) {
-    if (!tree) return;
-    let currentArea = parentArea;
-    if (tree.indexPath) {
-      const normalized = String(tree.indexPath).replace(/\\/g, "/");
-      currentArea = {
-        areaPath: normalized,
-        areaTitle: String(tree.title || "").trim() || normalized
-      };
-    }
-    for (const item of tree.items || []) {
-      if (!item?.path) continue;
-      const manifestPath = String(item.path).replace(/\\/g, "/");
-      areaByManifest.set(manifestPath, {
-        areaPath: currentArea?.areaPath || null,
-        areaTitle: currentArea?.areaTitle || null
-      });
-    }
-    for (const section of tree.sections || []) {
-      await walkTree(section, currentArea);
-    }
-  }
-
-  await walkTree(menu, null);
-  if (menu?.containerTree) await walkTree(menu.containerTree, null);
-  if (menu?.sharedTree) await walkTree(menu.sharedTree, null);
-  if (menu?.serviceTree) await walkTree(menu.serviceTree, null);
-
-  return areaByManifest;
-}
-
-const DEFAULT_RUNTIME_SYNC_FILTER = { cron: true, heartbeat: true, mode: "any" };
-
-async function buildAgentRuntimeMap(filter = DEFAULT_RUNTIME_SYNC_FILTER) {
-  const menu = await buildAgentMenu(getAgentRoot());
-  const registry = await buildAgentRuntimeRegistry();
-  const areaByManifest = await buildManifestAreaLookup(menu);
-  const topics = [];
-
-  for (const row of registry.rows) {
-    if (!matchesRuntimeFilter(row, filter)) continue;
-
-    const area = areaByManifest.get(row.manifestPath) || {};
-    const syncKinds = [];
-    if (row.runtimeCron) syncKinds.push("cron");
-    if (row.runtimeHeartbeat) syncKinds.push("heartbeat");
-
-    topics.push({
-      entityKind: row.entityKind || "topic",
-      manifestPath: row.manifestPath,
-      slot: row.slot || null,
-      ref: row.ref || null,
-      title: row.label,
-      label: row.label,
-      displayPath: buildRuntimeEntityDisplayPath(row),
-      areaPath: area.areaPath || null,
-      areaTitle: area.areaTitle || null,
-      runtimeLoadAlways: row.runtimeLoadAlways,
-      runtimeLoadLabel: row.runtimeLoadLabel,
-      runtimeCron: row.runtimeCron,
-      runtimeCronSchedule: row.runtimeCronSchedule,
-      runtimeHeartbeat: row.runtimeHeartbeat,
-      syncKinds,
-      syncKind: syncKinds.join("+") || null
-    });
-  }
-
-  topics.sort((a, b) => a.displayPath.localeCompare(b.displayPath, "ru"));
-
-  const cronCount = topics.filter((topic) => topic.runtimeCron).length;
-  const heartbeatCount = topics.filter((topic) => topic.runtimeHeartbeat).length;
-  const bothCount = topics.filter((topic) => topic.runtimeCron && topic.runtimeHeartbeat).length;
-
-  return {
-    version: 1,
-    model: "runtime-map",
-    filter,
-    hint: "Темы с awn-runtime-cron и/или awn-runtime-heartbeat — для синхронизации агента (cron/сердцебиение).",
-    topics,
-    topicCount: topics.length,
-    cronCount,
-    heartbeatCount,
-    bothCount,
-    totalTopicCount: registry.totalTopicCount,
-    totalSyncCount: registry.totalSyncCount
-  };
-}
-
 const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   menu: "GET /api/menu — дерево тем (manifest.md)",
   activePage: "GET /api/agent/active-context — текущий фокус UI (PAGE→SLOT→CONTENT + mcp hints)",
   activeContext: "GET /api/agent/active-context — alias active-page",
   search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&match=relaxed|strict&limit=",
-  runtimeRegistry: "GET /api/agent/runtime-registry — реестр awn-runtime-* (?sync=true | ?cron=&heartbeat=&mode=any|all)",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
   heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
-  runtimeMap: "GET /api/agent/runtime-map — карта тем с cron/heartbeat для синхронизации агента",
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
   workspaceTable: "GET /api/agent/workspace-table — таблица тем",
   canonicalModel: "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
@@ -14554,32 +14371,6 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read site map",
-        details: String(error.message || error)
-      });
-    }
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/agent/runtime-map") {
-    try {
-      const filter = parseRuntimeFilterFromSearchParams(url.searchParams) || DEFAULT_RUNTIME_SYNC_FILTER;
-      const payload = await buildAgentRuntimeMap(filter);
-      return sendJson(res, 200, payload);
-    } catch (error) {
-      return sendJson(res, 500, {
-        error: "Failed to read runtime map",
-        details: String(error.message || error)
-      });
-    }
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/agent/runtime-registry") {
-    try {
-      const filter = parseRuntimeFilterFromSearchParams(url.searchParams);
-      const registry = await buildAgentRuntimeRegistry(filter);
-      return sendJson(res, 200, registry);
-    } catch (error) {
-      return sendJson(res, 500, {
-        error: "Failed to read runtime registry",
         details: String(error.message || error)
       });
     }

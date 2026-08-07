@@ -22699,6 +22699,44 @@ button.node-navigation-hub-rail-slot-summary {
   color: #94a3b8;
 }
 
+.node-navigation-hub-rail-assets-preview {
+  margin: 6px 0 2px;
+}
+
+.node-navigation-hub-rail-assets-preview-item {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  text-align: left;
+}
+
+.node-navigation-hub-rail-assets-preview-item:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.node-navigation-hub-rail-assets-preview-thumb {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f1f5f9;
+}
+
+.node-navigation-hub-rail-assets-preview-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .node-navigation-hub-rail-bundle-preview {
   min-width: 0;
   overflow: hidden;
