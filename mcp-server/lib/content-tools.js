@@ -158,13 +158,13 @@ export function registerContentTools({ reg, client, pagePath }) {
         return writeInternalContent(client, path, slot, content);
       }
       if (!ref) throw new Error("ref is required for external slots");
-      const existing = await readMarkdownFull(client, pagePath, slot, ref);
+      const existing = await readMarkdownFull(client, path, slot, ref);
       if (!ref.toLowerCase().endsWith(".md")) {
-        return writeMarkdownFull(client, pagePath, slot, ref, content);
+        return writeMarkdownFull(client, path, slot, ref, content);
       }
       const { properties } = splitMarkdownFrontmatter(existing.content);
       const merged = mergeMarkdownFrontmatter(properties, content);
-      return writeMarkdownFull(client, pagePath, slot, ref, merged);
+      return writeMarkdownFull(client, path, slot, ref, merged);
     }
   );
 
@@ -179,7 +179,7 @@ export function registerContentTools({ reg, client, pagePath }) {
         return { slot, content: properties };
       }
       if (!ref) throw new Error("ref is required for external slots");
-      const payload = await readMarkdownFull(client, pagePath, slot, ref);
+      const payload = await readMarkdownFull(client, path, slot, ref);
       const { properties } = splitMarkdownFrontmatter(payload.content || "");
       return { file: payload.file, content: properties };
     }
@@ -202,10 +202,10 @@ export function registerContentTools({ reg, client, pagePath }) {
         return writeInternalContent(client, path, slot, merged);
       }
       if (!ref) throw new Error("ref is required for external slots");
-      const existing = await readMarkdownFull(client, pagePath, slot, ref);
+      const existing = await readMarkdownFull(client, path, slot, ref);
       const { description } = splitMarkdownFrontmatter(existing.content || "");
       const merged = mergeMarkdownFrontmatter(content, description);
-      return writeMarkdownFull(client, pagePath, slot, ref, merged);
+      return writeMarkdownFull(client, path, slot, ref, merged);
     }
   );
 

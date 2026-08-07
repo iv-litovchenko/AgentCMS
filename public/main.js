@@ -4573,7 +4573,7 @@ const NODE_OVERVIEW_SLOT_MEMORY_SPECS = [
 
 const NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS = [
   { id: "inbox", label: "Входящие", modeId: "inbox" },
-  { id: "note", label: "Заметки", modeId: "note" },
+  { id: "notes", label: "Заметки", modeId: "notes" },
   { id: "references", label: "Источники", modeId: "references" },
   { id: "artefacts", label: "Артефакты", modeId: "artefacts" },
   { id: "assets", label: "Активы", modeId: "assets" },
@@ -12305,6 +12305,7 @@ const ENTRY_OVERVIEW_KIND_LABELS = {
 const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
   "inbox",
   "note",
+  "notes",
   "references",
   "artefacts",
   "assets",
@@ -12316,6 +12317,7 @@ const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "media",
   "inbox",
   "note",
+  "notes",
   "references",
   "artefacts",
   "assets",
@@ -12350,6 +12352,7 @@ const NODE_VIEW_SURFACE = {
   external: "browser",
   inbox: "browser",
   note: "browser",
+  notes: "browser",
   thread: "thread",
   "quick-notes": "browser",
   references: "browser",
@@ -12711,11 +12714,11 @@ const DATA_STORAGE_SLOT_SPECS = [
     treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
   },
   {
-    key: "note",
+    key: "notes",
     label: "Заметки",
     icon: "📒",
-    modes: new Set(["note"]),
-    defaultMode: "note",
+    modes: new Set(["notes", "note"]),
+    defaultMode: "notes",
     sectionKind: "flat",
     treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER
   },
@@ -14318,11 +14321,27 @@ async function fetchStorageRootScan(manifestPath = getActiveNodeApiPath(), { for
   return promise;
 }
 
+function normalizeStorageSlotCounterKey(slotKey) {
+  const key = String(slotKey || "").trim();
+  if (key === "note") return "notes";
+  return key;
+}
+
+function resolveStorageSlotSpecByCounterKey(slotKey) {
+  const normalized = normalizeStorageSlotCounterKey(slotKey);
+  return (
+    DATA_STORAGE_SLOT_SPECS.find((item) => item.key === normalized) ||
+    DATA_STORAGE_SLOT_SPECS.find((item) => item.key === slotKey) ||
+    null
+  );
+}
+
 function getStorageFolderNamesForSlotKey(slotKey) {
+  const key = normalizeStorageSlotCounterKey(slotKey);
   const namesByKey = {
     memory: ["main", "content", "memory"],
     inbox: ["inbox"],
-    note: ["notes", "note", "quick-notes"],
+    notes: ["notes", "note"],
     references: ["references"],
     artefacts: ["artefacts"],
     assets: ["assets"],
@@ -14335,7 +14354,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
     history: ["history"],
     comments: ["comments"]
   };
-  return namesByKey[slotKey] || [];
+  return namesByKey[key] || [];
 }
 
 const HIDDEN_STORAGE_SLOT_TREE_KEYS = new Set(["quick-notes"]);
@@ -19651,6 +19670,7 @@ async function applyNodeWorkspaceDomainChange(domain) {
       nodeMemoryViewActive = Boolean(
         isDataStorageSlotActive("memory") ||
           isDataStorageSlotActive("inbox") ||
+          isDataStorageSlotActive("notes") ||
           isDataStorageSlotActive("note") ||
           isDataStorageSlotActive("quick-notes") ||
           isDataStorageSlotActive("references") ||
@@ -19715,7 +19735,10 @@ function applyNodeWorkspaceViewUi() {
   const navigationDomain =
     workspaceDomain === NODE_WORKSPACE_DOMAIN_NAVIGATION && activeContentMode !== FOLDER_BROWSE_MODE;
   const inboxSlotActive = isDataStorageSlotActive("inbox");
-  const noteSlotActive = isDataStorageSlotActive("note") || isDataStorageSlotActive("quick-notes");
+  const noteSlotActive =
+    isDataStorageSlotActive("notes") ||
+    isDataStorageSlotActive("note") ||
+    isDataStorageSlotActive("quick-notes");
   const mainSingleSlotActive = isDataStorageSlotActive("main-single");
   const tabularSlotActive = isDataStorageSlotActive("main-single-csv");
   const todoSingleSlotActive = isDataStorageSlotActive("todo-single");
@@ -24071,6 +24094,7 @@ const STORAGE_SUBFOLDER_BY_MODE = {
   inbox: STORAGE_SUBFOLDER_INBOX,
   thread: STORAGE_SUBFOLDER_THREAD,
   note: STORAGE_SUBFOLDER_NOTE,
+  notes: STORAGE_SUBFOLDER_NOTE,
   "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
   references: STORAGE_SUBFOLDER_REFERENCES,
   media: STORAGE_SUBFOLDER_MEDIA,
@@ -49377,11 +49401,12 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
   }
 
   const threadUnread = getThreadUnreadCount(manifestPath, intake);
-  const flatCounterModes = ["note", "references", "artefacts", "repository", "scripts"];
-  const [todoData, mediaOverview, assetsOverview, flatNavigationIndexes] = await Promise.all([
+  const flatCounterModes = ["notes", "references", "artefacts", "repository", "scripts"];
+  const [todoData, mediaOverview, assetsOverview, storageScan, flatNavigationIndexes] = await Promise.all([
     fetchTodoForOverview(nodePath).catch(() => null),
     fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
     fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
+    fetchStorageRootScan(manifestPath).catch(() => null),
     fetchNavigationHubRailFlatIndexes(nodePath).catch(() => ({}))
   ]);
   const mediaPrepared = prepareNavigationMediaItems(
@@ -49400,18 +49425,15 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
     let title = spec.label;
 
     if (spec.id === "inbox") {
+      const slotSpec = resolveStorageSlotSpecByCounterKey("inbox");
+      const prepared = flatNavigationIndexes.inbox;
+      count = resolveNavigationSlotFileCount(slotSpec, { storageScan, prepared });
+      filled = count > 0 || Number(intake?.inbox?.total) > 0;
       const pending = Number(intake?.inbox?.pending) || 0;
-      const total = Number(intake?.inbox?.total) || 0;
-      count = pending > 0 ? pending : total;
-      filled = total > 0;
-      if (pending > 0) {
-        tone = "pending";
-        title = `${spec.label}: ${pending} необработ., всего ${total}`;
-      } else if (total > 0) {
-        title = `${spec.label}: ${total}`;
-      } else {
-        title = `${spec.label}: пусто`;
-      }
+      if (pending > 0) tone = "pending";
+      title = buildNavigationSlotCounterTitle(slotSpec || { key: "inbox", label: spec.label }, count, {
+        intake
+      });
     } else if (spec.id === "todo-single") {
       const todoLines = String(todoData?.content || "")
         .split("\n")
@@ -49432,24 +49454,22 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
         title = `${spec.label}: пусто`;
       }
     } else if (spec.id === "media") {
-      count = countMultiFileStorageSlotItems(mediaPrepared);
-      filled = hasNavigationExternalPreparedContent(mediaPrepared) || Boolean(mediaOverview?.exists);
-      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
+      const slotSpec = resolveStorageSlotSpecByCounterKey("media");
+      count = resolveNavigationSlotFileCount(slotSpec, { storageScan, prepared: mediaPrepared });
+      filled = count > 0 || hasNavigationExternalPreparedContent(mediaPrepared) || Boolean(mediaOverview?.exists);
+      title = buildNavigationSlotCounterTitle(slotSpec || { key: "media", label: spec.label }, count);
     } else if (spec.id === "assets") {
-      count = countMultiFileStorageSlotItems(assetsPrepared);
-      filled = hasNavigationExternalPreparedContent(assetsPrepared) || Boolean(assetsOverview?.exists);
-      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
+      const slotSpec = resolveStorageSlotSpecByCounterKey("assets");
+      count = resolveNavigationSlotFileCount(slotSpec, { storageScan, prepared: assetsPrepared });
+      filled = count > 0 || hasNavigationExternalPreparedContent(assetsPrepared) || Boolean(assetsOverview?.exists);
+      title = buildNavigationSlotCounterTitle(slotSpec || { key: "assets", label: spec.label }, count);
     } else if (flatCounterModes.includes(spec.id)) {
-      const slotSpec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === spec.id);
+      const slotSpec = resolveStorageSlotSpecByCounterKey(spec.id);
       const memoryKind = getEntryOverviewMemoryKindForSlot(slotSpec);
       const prepared = memoryKind ? flatNavigationIndexes[memoryKind] : null;
-      count = countMultiFileStorageSlotItems(prepared);
-      filled = hasNavigationExternalPreparedContent(prepared);
-      if (spec.id === "repository") {
-        title = getRepositorySlotCounterTitle(spec.label, count);
-      } else {
-        title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
-      }
+      count = resolveNavigationSlotFileCount(slotSpec, { storageScan, prepared });
+      filled = count > 0 || hasNavigationExternalPreparedContent(prepared);
+      title = buildNavigationSlotCounterTitle(slotSpec || { key: spec.id, label: spec.label }, count);
     } else {
       count = 0;
       filled = false;
@@ -52030,6 +52050,48 @@ function resolveNavigationPreparedItemCount(prepared) {
   return countMultiFileStorageSlotItems(prepared);
 }
 
+function resolveNavigationSlotFileCount(spec, { storageScan, prepared } = {}) {
+  if (!spec) return 0;
+
+  const folder = findScanFolderForSlotKey(spec.key, storageScan?.folders || []);
+  if (folder) {
+    if (spec.key === "repository") {
+      return getRepositoryStorageSlotScanCount(folder);
+    }
+    const scanCount = getDataStorageSlotCountForScan(spec, folder);
+    if (scanCount !== null) return scanCount;
+    return Number(folder.entryCount) || 0;
+  }
+
+  return countMultiFileStorageSlotItems(prepared);
+}
+
+function buildNavigationSlotCounterTitle(spec, count, { intake = null, assetsPreviewFilled = false } = {}) {
+  const label = spec?.label || spec?.id || "";
+  const normalizedCount = Number(count) || 0;
+  const slotKey = spec?.key || spec?.id || "";
+
+  if (slotKey === "inbox") {
+    const pending = Number(intake?.inbox?.pending) || 0;
+    if (pending > 0) {
+      return normalizedCount > 0
+        ? `${label}: ${normalizedCount} файл(ов), ${pending} необработ.`
+        : `${label}: ${pending} необработ.`;
+    }
+    return normalizedCount > 0 ? `${label}: ${normalizedCount}` : `${label}: пусто`;
+  }
+
+  if (slotKey === "assets" && assetsPreviewFilled && normalizedCount === 1) {
+    return `${label}: превью`;
+  }
+
+  if (slotKey === "repository") {
+    return getRepositorySlotCounterTitle(label, normalizedCount);
+  }
+
+  return normalizedCount > 0 ? `${label}: ${normalizedCount}` : `${label}: пусто`;
+}
+
 async function fetchFlatStorageFolderContent(manifestPath, folder, agentId = activeAgentId) {
   if (!manifestPath || !folder) return { exists: false, content: "" };
   try {
@@ -54545,6 +54607,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     let tone = "";
     let title = spec.label;
     let bundleMetrics = null;
+    let prepared = null;
 
     if (spec.sectionKind === "bundle") {
       bundleMetrics = getBundleMemoryCounterMetrics(spec, { internalData, tabularData, todoData });
@@ -54553,50 +54616,33 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
         filled = bundleMetrics.filled;
         title = bundleMetrics.title;
       }
-    } else if (spec.key === "memory") {
-      count = countMultiFileStorageSlotItems(externalPrepared);
-      filled = hasNavigationExternalPreparedContent(externalPrepared);
-      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
-    } else if (spec.key === "media") {
-      count = countMultiFileStorageSlotItems(mediaPrepared);
-      filled = hasNavigationExternalPreparedContent(mediaPrepared);
-      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
-    } else if (spec.key === "assets") {
-      count = countMultiFileStorageSlotItems(assetsPrepared);
-      filled = hasNavigationExternalPreparedContent(assetsPrepared) || assetsPreviewFilled;
-      if (assetsPreviewFilled && count === 0) {
-        count = 1;
-        title = `${spec.label}: превью`;
-      } else {
-        title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
-      }
-    } else if (spec.key === "inbox") {
-      const pending = Number(intake?.inbox?.pending) || 0;
-      const total = Number(intake?.inbox?.total) || 0;
-      count = pending > 0 ? pending : total;
-      filled = total > 0;
-      if (pending > 0) {
-        tone = "pending";
-        title = `${spec.label}: ${pending} необработ., всего ${total}`;
-      } else if (total > 0) {
-        title = `${spec.label}: ${total}`;
-      } else {
-        title = `${spec.label}: пусто`;
-      }
-    } else if (spec.sectionKind === "flat") {
-      const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
-      const prepared = memoryKind ? flatNavigationIndexes[memoryKind] : null;
-      count = countMultiFileStorageSlotItems(prepared);
-      filled = hasNavigationExternalPreparedContent(prepared);
-      if (spec.key === "repository") {
-        title = getRepositorySlotCounterTitle(spec.label, count);
-      } else {
-        title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
-      }
     } else {
-      count = 0;
-      filled = false;
-      title = `${spec.label}: пусто`;
+      if (spec.key === "memory") {
+        prepared = externalPrepared;
+      } else if (spec.key === "media") {
+        prepared = mediaPrepared;
+      } else if (spec.key === "assets") {
+        prepared = assetsPrepared;
+      } else if (spec.sectionKind === "flat") {
+        const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
+        prepared = memoryKind ? flatNavigationIndexes[memoryKind] : null;
+      }
+
+      count = resolveNavigationSlotFileCount(spec, { storageScan, prepared });
+      filled = count > 0 || hasNavigationExternalPreparedContent(prepared);
+
+      if (spec.key === "assets" && assetsPreviewFilled && count === 0) {
+        count = 1;
+        filled = true;
+      }
+
+      if (spec.key === "inbox") {
+        const pending = Number(intake?.inbox?.pending) || 0;
+        if (pending > 0) tone = "pending";
+        filled = filled || Number(intake?.inbox?.total) > 0;
+      }
+
+      title = buildNavigationSlotCounterTitle(spec, count, { intake, assetsPreviewFilled });
     }
 
     let folderExists = resolveStorageSlotFolderExistsFromScan(spec, storageScan);
@@ -74293,12 +74339,13 @@ async function selectFile(label, filePath) {
 }
 
 async function resolveFlatStorageSectionFolderName(mode) {
-  const normalizedMode = mode === "quick-notes" ? "note" : mode;
+  const normalizedMode =
+    mode === "quick-notes" ? "notes" : mode === "note" ? "notes" : mode;
   const primary = getFlatStorageSectionFolderName(normalizedMode);
-  if (normalizedMode !== "note") return primary;
+  if (normalizedMode !== "notes") return primary;
   const manifestPath = getActiveNodeApiPath();
   if (!manifestPath) return primary;
-  for (const folder of getStorageFolderNamesForSlotKey("note")) {
+  for (const folder of getStorageFolderNamesForSlotKey("notes")) {
     const summary = await fetchFolderViewSummary(manifestPath, folder);
     if (summary.exists) return folder;
   }

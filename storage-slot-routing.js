@@ -18,7 +18,7 @@ const STORAGE_SLOT_ROUTING = [
     sectionKind: "external"
   },
   { slotKey: "inbox", storageFolder: "inbox", sectionKind: "flat" },
-  { slotKey: "note", aliases: ["notes"], storageFolder: "notes", sectionKind: "flat" },
+  { slotKey: "notes", aliases: ["note"], storageFolder: "notes", sectionKind: "flat" },
   { slotKey: "references", storageFolder: "references", sectionKind: "flat" },
   { slotKey: "artefacts", storageFolder: "artefacts", sectionKind: "flat" },
   { slotKey: "media", storageFolder: "media", sectionKind: "media" },
@@ -31,7 +31,7 @@ const STORAGE_SLOT_ROUTING = [
   { slotKey: "todo-single", storageFolder: "todo", sectionKind: "bundle" },
   { slotKey: "todo", storageFolder: "todo", sectionKind: "bundle" },
   { slotKey: "log-single", storageFolder: "log", sectionKind: "bundle" },
-  { slotKey: "thread", storageFolder: "thread", sectionKind: null },
+  { slotKey: "dialogs", aliases: ["thread"], storageFolder: "thread", sectionKind: null },
   { slotKey: "temp", storageFolder: "temp", sectionKind: null },
   { slotKey: "volume", storageFolder: "volume", sectionKind: null },
   { slotKey: "history", storageFolder: "history", sectionKind: null },

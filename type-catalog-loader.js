@@ -78,6 +78,7 @@ const TYPE_ID_ALIASES = {
   "awn.array-select-multiple": "awn.field.array",
   "awn.null": "awn.field.base",
   // Slot aliases
+  "awn.slot.notes": "awn.slot.note",
   "awn.slot.scripts": "awn.slot.script",
   "awn.slot.todo": "awn.slot.todo-single",
   "awn.slot.log": "awn.slot.log-single",

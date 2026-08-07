@@ -117,7 +117,7 @@ const CHPU_LEGACY_UI_ALIASES = {
 const APP_ROUTE_VIEW_IDS = new Set([...CHPU_UI_VIEW_IDS, ...Object.keys(CHPU_LEGACY_UI_ALIASES)]);
 
 function normalizeChpuViewCandidate(candidate) {
-  const raw = candidate === "quick-notes" ? "note" : candidate;
+  const raw = candidate === "quick-notes" ? "notes" : candidate;
   if (CHPU_LEGACY_UI_ALIASES[raw] === null) return raw;
   const aliased = CHPU_LEGACY_UI_ALIASES[raw] ?? raw;
   if (CHPU_UI_VIEW_IDS.has(aliased)) return aliased;

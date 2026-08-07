@@ -1,11 +1,10 @@
 const path = require("path");
 const { MANIFEST_FILE, isManifestMdRelPath } = require("./manifest-paths");
 const { INTERNAL_SLOT_KEYS } = require("./page-slots-api");
+const { slotKeyToStorageFolder } = require("./storage-slot-routing");
 
 function slotToFolder(slot) {
-  if (slot === "note") return "notes";
-  if (slot === "script") return "scripts";
-  return slot;
+  return slotKeyToStorageFolder(slot);
 }
 
 function isInternalSlot(slot) {

@@ -3826,13 +3826,13 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   if (mode === "inbox") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_INBOX);
   }
-  if (mode === "thread") {
+  if (mode === "thread" || mode === "dialogs") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_THREAD);
   }
   if (mode === "quick-notes") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_QUICK_NOTES);
   }
-  if (mode === "note") {
+  if (mode === "note" || mode === "notes") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_NOTE);
   }
   if (mode === "references") {
@@ -5943,7 +5943,8 @@ async function moveMemorySectionRecord(manifestRelPath, scopeType, storageFolder
 }
 
 function resolveSlotTransferScope(slotKey) {
-  const key = String(slotKey || "").trim();
+  const { normalizeStorageSlotKey } = require("./storage-slot-routing");
+  const key = normalizeStorageSlotKey(String(slotKey || "").trim());
   if (!key) return null;
   if (key === "external" || key === "memory") {
     return { scopeType: "external", storageFolder: "", slotKey: "external" };
@@ -7133,7 +7134,7 @@ function findSharedThemePreset(slug) {
 
 const SHARED_MOUNT_SPECS = [
   { slotKey: "inbox", themeSlug: "inbox", label: "Входящие", mode: "inbox" },
-  { slotKey: "note", themeSlug: "notes", label: "Заметки", mode: "note" },
+  { slotKey: "notes", themeSlug: "notes", label: "Заметки", mode: "notes" },
   { slotKey: "references", themeSlug: "references", label: "Источники", mode: "references" },
   { slotKey: "artefacts", themeSlug: "artefacts", label: "Артефакты", mode: "artefacts" },
   { slotKey: "scripts", themeSlug: "scripts", label: "Скрипты", mode: "scripts" },
@@ -7213,7 +7214,7 @@ async function resolveSharedMountSubfolderAbsolute(topicNodeAbsolute, subfolderN
 
 async function countSharedMountEntries(mount, themeNodeAbsolute) {
   if (!mount || !themeNodeAbsolute) return 0;
-  const folderNames = mount.slotKey === "note" ? ["notes", "note"] : [mount.themeSlug, mount.slotKey];
+  const folderNames = mount.slotKey === "notes" ? ["notes", "note"] : [mount.themeSlug, mount.slotKey];
   let total = 0;
   for (const folderName of folderNames) {
     const folderAbsolute = await getNodeStorageSubfolderAbsolute(themeNodeAbsolute, folderName);
@@ -8342,7 +8343,7 @@ const STORAGE_FOLDER_SLOT_KEY_BY_CANONICAL = (() => {
 function resolveSlotKeyFromStorageFolderName(rawName) {
   const canonical = normalizeStorageSubfolderName(rawName);
   if (!canonical) return null;
-  if (canonical === STORAGE_SUBFOLDER_QUICK_NOTES) return "note";
+  if (canonical === STORAGE_SUBFOLDER_QUICK_NOTES) return "quick-notes";
   return STORAGE_FOLDER_SLOT_KEY_BY_CANONICAL.get(canonical) || null;
 }
 
@@ -8819,7 +8820,7 @@ const RUNTIME_CONTENT_SCAN_SLOTS = [
   { folder: STORAGE_SUBFOLDER_MAIN, slot: "main" },
   { folder: STORAGE_SUBFOLDER_INBOX, slot: "inbox" },
   { folder: STORAGE_SUBFOLDER_QUICK_NOTES, slot: "notes" },
-  { folder: STORAGE_SUBFOLDER_NOTE, slot: "note" },
+  { folder: STORAGE_SUBFOLDER_NOTE, slot: "notes" },
   { folder: STORAGE_SUBFOLDER_REFERENCES, slot: "references" },
   { folder: STORAGE_SUBFOLDER_ARTEFACTS, slot: "artefacts" },
   { folder: STORAGE_SUBFOLDER_SCRIPTS, slot: "scripts" },
@@ -9698,7 +9699,7 @@ const TIMELINE_SLOT_FOLDER_TRACKS = [
   { subfolder: STORAGE_SUBFOLDER_MAIN, fileKind: "external", label: "Main" },
   { subfolder: STORAGE_SUBFOLDER_SCRIPTS, fileKind: "scripts", label: "Скрипты" },
   { subfolder: STORAGE_SUBFOLDER_INBOX, fileKind: "inbox", label: "Входящие" },
-  { subfolder: STORAGE_SUBFOLDER_NOTE, fileKind: "note", label: "Заметки" },
+  { subfolder: STORAGE_SUBFOLDER_NOTE, fileKind: "notes", label: "Заметки" },
   { subfolder: STORAGE_SUBFOLDER_ARTEFACTS, fileKind: "artefacts", label: "Артефакты" },
   { subfolder: STORAGE_SUBFOLDER_REPOSITORY, fileKind: "repository", label: "Репозиторий" },
   { subfolder: STORAGE_SUBFOLDER_QUICK_NOTES, fileKind: "quick-notes", label: "Быстрые заметки" },
@@ -12980,6 +12981,7 @@ const SEARCH_FILE_TYPE_IDS = new Set([
 const SEARCH_FLAT_STORAGE_MODES = new Set([
   "scripts",
   "inbox",
+  "notes",
   "note",
   "quick-notes",
   "references",

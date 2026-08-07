@@ -91,7 +91,7 @@
         }
       },
       {
-        slotKey: "note",
+        slotKey: "notes",
         label: "Заметки",
         tabGroup: "workspace",
         defaultKind: "record",

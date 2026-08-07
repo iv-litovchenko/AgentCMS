@@ -15,7 +15,7 @@ storage-slots:
   - main-single
   - main-single-csv
   - inbox
-  - note
+  - notes
   - references
   - artefacts
   - assets

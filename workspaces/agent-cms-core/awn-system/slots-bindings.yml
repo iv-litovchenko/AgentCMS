@@ -22,6 +22,10 @@ bindings:
     path: notes/
     content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
+  notes:
+    path: notes/
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
+    files: ["*"]
   references:
     path: references/
     content: [awn.content.record, awn.content.category, awn.content.sidecar]

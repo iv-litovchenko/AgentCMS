@@ -12,7 +12,7 @@ awn-extends: awn.page.topic
 description: Общие быстрые заметки
 storage-slots:
   - main
-  - note
+  - notes
 create-node-group: shared
 create-node-label: Заметки
 create-node-slug: notes

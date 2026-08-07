@@ -29654,9 +29654,10 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-tree--guide .nav-book-toc-folder-head .nav-book-toc-folder-label {
-  flex: 1 1 auto;
+  /* Shrink-wrap to title; do not stretch across the whole row */
+  flex: 0 1 auto;
   min-width: 0;
-  width: auto;
+  width: max-content;
   max-width: 100%;
   overflow: hidden;
 }
