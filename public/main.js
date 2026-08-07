@@ -55024,8 +55024,7 @@ function createFreeMemoryStaticCounterItem() {
   return createStaticWorkspaceCounterStubItem({
     itemClass: "node-navigation-workspace-counter-item--free-memory",
     cardClass: "node-navigation-workspace-counter-card--free-memory",
-    title: "Свободная память (free)",
-    hint: "Откроется просмотр свободной памяти",
+    title: "Свободная память",
     tooltip: `${FREE_MEMORY_LABEL} (static) — просмотр свободной памяти`
   });
 }
@@ -55035,7 +55034,6 @@ function createOutsideSlotsStaticCounterItem() {
     itemClass: "node-navigation-workspace-counter-item--outside-slots",
     cardClass: "node-navigation-workspace-counter-card--outside-slots",
     title: "Вне слотов",
-    hint: "Если элемент вне слотов — он появится здесь и как веточка в основном дереве слева",
     tooltip:
       "Вне слотов (static): если элемент вне слотов — он появится здесь и как веточка в основном дереве слева"
   });
@@ -55045,8 +55043,7 @@ function createStructuredDataStaticCounterItem() {
   return createStaticWorkspaceCounterStubItem({
     itemClass: "node-navigation-workspace-counter-item--structured-data",
     cardClass: "node-navigation-workspace-counter-card--structured-data",
-    title: "Структурированные данные",
-    hint: "Накопители данных внутренние",
+    title: "Струк. данные",
     staticMarkText: "Слот (static)",
     tooltip: "Структурированные данные (static) — накопители данных внутренние"
   });
@@ -81574,6 +81571,12 @@ let awnDataViewRecordCache = null;
 let awnDataViewSectionId = "__all__";
 let awnDataViewSchemaEditing = false;
 let awnDataViewSchemaDraft = "";
+let awnDataViewSchemeModEditing = false;
+let awnDataViewSchemeModDraft = "";
+let awnDataViewSchemeModTextareaNode = null;
+let awnDataViewSchemeModReadNode = null;
+let awnDataViewSchemeModEditNode = null;
+let awnDataViewEditSchemeModBtn = null;
 const AWN_DATA_VIEW_LAYOUT_STORAGE_KEY = "yamlcms.awnDataViewRecordsLayout";
 let awnDataViewRecordsLayout = "table";
 
@@ -81839,11 +81842,14 @@ function slugifyAwnDataStoreName(name) {
 
 function openAwnDataCreateModal(kind = "collection", options = {}) {
   if (!awnDataCreateModalNode) return;
-  awnDataCreateKind = kind === "singleton" ? "singleton" : "collection";
+  awnDataCreateKind =
+    kind === "singleton" ? "singleton" : kind === "group" ? "group" : "collection";
   awnDataCreateParentGroup = String(options.parentGroup || "").trim().replace(/\/+$/, "");
   const isTaxonomy = awnDataCreateParentGroup === "taxonomies";
   if (awnDataCreateModalTitleNode) {
-    if (isTaxonomy) {
+    if (awnDataCreateKind === "group") {
+      awnDataCreateModalTitleNode.textContent = "Новая группа";
+    } else if (isTaxonomy) {
       awnDataCreateModalTitleNode.textContent = "Новый справочник";
     } else {
       awnDataCreateModalTitleNode.textContent =
@@ -81851,14 +81857,17 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
     }
   }
   if (awnDataCreateModalHintNode) {
-    if (isTaxonomy) {
+    if (awnDataCreateKind === "group") {
+      awnDataCreateModalHintNode.innerHTML =
+        "Папка в <code>awn-data/{slug}/</code> с <code>manifest.md</code> — контейнер для коллекций и одиночек, без записей.";
+    } else if (isTaxonomy) {
       awnDataCreateModalHintNode.innerHTML =
         "Поднакопитель в <code>awn-data/taxonomies/{slug}/</code> — enum-справочник с полями code, label, emoji, color.";
     } else {
       awnDataCreateModalHintNode.innerHTML =
         awnDataCreateKind === "singleton"
-          ? "Папка в <code>awn-data/</code> с <code>manifest.md</code> и одним <code>main.md</code>."
-          : "Папка в <code>awn-data/</code> с <code>manifest.md</code> и записями <code>{id}.md</code>.";
+          ? "Папка в <code>awn-data/</code> с <code>manifest.md</code>, <code>scheme-mod.yml</code> и одним <code>main.md</code>."
+          : "Папка в <code>awn-data/</code> с <code>manifest.md</code>, <code>scheme-mod.yml</code> и записями <code>{id}.md</code>.";
     }
   }
   awnDataCreateSampleWrapNode?.classList.toggle(
@@ -82036,6 +82045,110 @@ function collectAwnDataSchemaMetaRows(viewStore, schema, kind, isGroup) {
   return rows;
 }
 
+function resolveAwnDataStoreSchemeModRel() {
+  const storeRel = String(awnDataViewStoreRel || awnDataViewStoreCache?.relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  if (!storeRel) return "";
+  return `awn-data/${storeRel}/scheme-mod.yml`.replace(/\\/g, "/");
+}
+
+function setAwnDataViewSchemeModEditMode(enabled) {
+  awnDataViewSchemeModEditing = Boolean(enabled);
+  awnDataViewSchemeModReadNode?.classList.toggle("hidden", awnDataViewSchemeModEditing);
+  awnDataViewSchemeModEditNode?.classList.toggle("hidden", !awnDataViewSchemeModEditing);
+  if (awnDataViewEditSchemeModBtn) {
+    awnDataViewEditSchemeModBtn.textContent = awnDataViewSchemeModEditing
+      ? "Только просмотр"
+      : "Редактировать";
+  }
+}
+
+async function beginAwnDataViewSchemeModEdit() {
+  const fileRel = resolveAwnDataStoreSchemeModRel();
+  if (!fileRel) return;
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+  try {
+    if (awnDataViewEditSchemeModBtn) awnDataViewEditSchemeModBtn.disabled = true;
+    const response = await fetch(buildApiUrl("/api/agent-system/file", { path: fileRel }, catalogAgentId));
+    let content = "";
+    if (response.ok) {
+      const data = await response.json();
+      content = String(data.content ?? "");
+    } else if (response.status === 404) {
+      content = [
+        "version: 1",
+        "layer: awn-data-store",
+        "",
+        "awn_schema:",
+        "  record:",
+        "    fields: {}",
+        ""
+      ].join("\n");
+    } else {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || data.details || `HTTP ${response.status}`);
+    }
+    awnDataViewSchemeModDraft = content;
+    if (awnDataViewSchemeModTextareaNode) awnDataViewSchemeModTextareaNode.value = content;
+    setAwnDataViewSchemeModEditMode(true);
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  } finally {
+    if (awnDataViewEditSchemeModBtn) awnDataViewEditSchemeModBtn.disabled = false;
+  }
+}
+
+function cancelAwnDataViewSchemeModEdit() {
+  if (awnDataViewSchemeModTextareaNode) {
+    awnDataViewSchemeModTextareaNode.value = awnDataViewSchemeModDraft;
+  }
+  setAwnDataViewSchemeModEditMode(false);
+}
+
+async function saveAwnDataViewSchemeModEdit() {
+  const fileRel = resolveAwnDataStoreSchemeModRel();
+  if (!fileRel || !awnDataViewSchemeModTextareaNode) return;
+  const content = awnDataViewSchemeModTextareaNode.value;
+  const catalogAgentId = awnDataViewCatalogAgentId || awnDataCatalogAgentId || activeAgentId;
+  const storeRel = awnDataViewStoreRel;
+  const saveBtn = awnDataViewRoot?.querySelector('[data-awn-data-action="save-scheme-mod"]');
+  try {
+    if (saveBtn) saveBtn.disabled = true;
+    const response = await fetch(buildApiUrl("/api/agent-system/file", {}, catalogAgentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: fileRel, content })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
+    awnDataViewSchemeModDraft = content;
+    setAwnDataViewSchemeModEditMode(false);
+    showToast("scheme-mod.yml сохранён", "success");
+    invalidateTypeCatalogCache(catalogAgentId);
+    await refreshMenuAwnDataStores(catalogAgentId);
+    if (storeRel) {
+      const reloadResponse = await fetch(
+        buildApiUrl("/api/awn-data", { store: storeRel }, catalogAgentId)
+      );
+      if (reloadResponse.ok) {
+        const reloadData = await reloadResponse.json();
+        const store = normalizeAwnDataStoreView(reloadData.store);
+        if (store) {
+          awnDataViewStoreCache = store;
+          renderAwnDataViewHeader(store);
+          renderAwnDataViewSchema(store);
+          if (store.kind !== "group") renderAwnDataViewRecords(store);
+        }
+      }
+    }
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
 function resolveAwnDataStoreSchemaFileName() {
   return String(awnDataViewStoreCache?.schemaFile || "manifest.md").trim() || "manifest.md";
 }
@@ -82094,6 +82207,10 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewSchemaTbodyNode = root.querySelector(".awn-data-view-schema-tbody");
   awnDataViewSchemaFieldsCountNode = root.querySelector(".awn-data-view-schema-fields-count");
   awnDataViewEditStoreBtn = root.querySelector('[data-awn-data-action="edit-store"]');
+  awnDataViewSchemeModReadNode = root.querySelector(".awn-data-view-scheme-mod-read");
+  awnDataViewSchemeModEditNode = root.querySelector(".awn-data-view-scheme-mod-edit");
+  awnDataViewSchemeModTextareaNode = root.querySelector(".awn-data-view-scheme-mod-textarea");
+  awnDataViewEditSchemeModBtn = root.querySelector('[data-awn-data-action="edit-scheme-mod"]');
   awnDataViewRecordsNode = root.querySelector(".awn-data-view-records");
   awnDataViewSearchInputNode = root.querySelector(".awn-data-view-search-input");
   awnDataViewCountNode = root.querySelector(".awn-data-view-count");
@@ -82253,6 +82370,22 @@ function wireAwnDataViewPageEvents(hub) {
     }
     if (action === "cancel-schema") {
       cancelAwnDataViewSchemaEdit();
+      return;
+    }
+    if (action === "edit-scheme-mod") {
+      if (awnDataViewSchemeModEditing) {
+        cancelAwnDataViewSchemeModEdit();
+        return;
+      }
+      void beginAwnDataViewSchemeModEdit();
+      return;
+    }
+    if (action === "save-scheme-mod") {
+      void saveAwnDataViewSchemeModEdit();
+      return;
+    }
+    if (action === "cancel-scheme-mod") {
+      cancelAwnDataViewSchemeModEdit();
       return;
     }
     if (action === "back-store") {
@@ -82496,6 +82629,7 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
 
   if (loading || error || !store) {
     setAwnDataViewSchemaEditMode(false);
+    setAwnDataViewSchemeModEditMode(false);
     awnDataViewSchemaWrapNode.classList.add("hidden");
     awnDataViewSchemaFieldsSectionNode?.classList.add("hidden");
     awnDataViewSchemaMetaTbodyNode?.replaceChildren();
@@ -82534,6 +82668,12 @@ function renderAwnDataViewSchema(store, { loading = false, error = false } = {})
   if (schemaFileNode) {
     schemaFileNode.textContent = resolveAwnDataStoreSchemaFileName();
   }
+  const schemeModFileNode = awnDataViewRoot?.querySelector(".awn-data-view-scheme-mod-file");
+  if (schemeModFileNode) {
+    schemeModFileNode.textContent = viewStore.schemeModFile || "scheme-mod.yml";
+  }
+
+  setAwnDataViewSchemeModEditMode(false);
 
   const schemaFields = schema.fields && typeof schema.fields === "object" ? schema.fields : {};
   const localFieldKeys = new Set(
@@ -83684,9 +83824,7 @@ function setupAwnDataStoresUi() {
 
   menuAwnDataCreateCollectionBtn?.addEventListener("click", () => openAwnDataCreateModal("collection"));
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("singleton"));
-  menuAwnDataCreateGroupBtn?.addEventListener("click", () =>
-    openAwnDataCreateModal("collection", { parentGroup: "taxonomies" })
-  );
+  menuAwnDataCreateGroupBtn?.addEventListener("click", () => openAwnDataCreateModal("group"));
   wireMenuStaticSummaryRefreshButton(menuGoogleDriveRefreshBtn, handleMenuGoogleDriveRefreshClick);
   wireMenuStaticSummaryRefreshButton(menuAwnDataRefreshBtn, handleMenuAwnDataRefreshClick);
   awnDataCreateCancelBtn?.addEventListener("click", closeAwnDataCreateModal);

@@ -18,6 +18,7 @@ const ENTITY_BASE_EXTENDS = `${AWN_DATA_DIR}/cms-base/entities/base.md`;
 /** @deprecated use TABLE_BASE_EXTENDS */
 const TABLE_BASE_REL = "cms-base/entities/table.base.md";
 const COLLECTION_MANIFEST = "manifest.md";
+const SCHEME_MOD_FILE = "scheme-mod.yml";
 /** @deprecated legacy split contract */
 const STORE_CONTRACT_FILE = "manifest.store.md";
 /** @deprecated legacy */
@@ -592,6 +593,59 @@ function readRawStoreSchemaAt(storeAbs, explicitPath = "") {
   return null;
 }
 
+function readStoreSchemeModOverlay(storeAbs) {
+  const schemePath = path.join(storeAbs, SCHEME_MOD_FILE);
+  if (!fs.existsSync(schemePath)) return null;
+  try {
+    const parsed = parseTypeYaml(fs.readFileSync(schemePath, "utf-8"));
+    const awnSchema = parsed?.awn_schema;
+    if (!awnSchema || typeof awnSchema !== "object") {
+      return { fields: {}, tabs: {}, schemePath, exists: true };
+    }
+    const block = awnSchema.record || awnSchema.store || awnSchema.element || null;
+    const rawFields =
+      (block && typeof block === "object" ? block.fields : null) ||
+      awnSchema.record?.fields ||
+      awnSchema.fields ||
+      {};
+    return {
+      fields: normalizeAwnFieldsMap(rawFields),
+      tabs: block?.tabs && typeof block.tabs === "object" ? { ...block.tabs } : {},
+      schemePath,
+      exists: true
+    };
+  } catch {
+    return null;
+  }
+}
+
+function composeAwnDataStoreSchemeModYaml(schema = {}) {
+  const fields = normalizeAwnFieldsMap(schema.fields || {});
+  const tabs = schema.elementSchemaTabs || schema.tabs || {};
+  const lines = ["version: 1", "layer: awn-data-store", "", "awn_schema:", "  record:", "    fields:"];
+  if (Object.keys(fields).length) {
+    lines.push(...dumpYamlBlock(fields, 3));
+  }
+  if (tabs && Object.keys(tabs).length) {
+    lines.push("    tabs:");
+    lines.push(...dumpYamlBlock(tabs, 3));
+  }
+  lines.push("");
+  return `${lines.join("\n")}`;
+}
+
+function writeStoreSchemeMod(storeAbs, schema = {}) {
+  const fields = schema.fields || {};
+  const tabs = schema.elementSchemaTabs || schema.tabs || {};
+  if (!Object.keys(fields).length && !Object.keys(tabs).length) return false;
+  fs.writeFileSync(
+    path.join(storeAbs, SCHEME_MOD_FILE),
+    composeAwnDataStoreSchemeModYaml({ fields, elementSchemaTabs: tabs }),
+    "utf-8"
+  );
+  return true;
+}
+
 function loadMergedStoreSchema(storeAbs, dataRoot = "") {
   const leaf = readRawStoreSchemaAt(storeAbs);
   if (!leaf) return null;
@@ -614,18 +668,29 @@ function loadMergedStoreSchema(storeAbs, dataRoot = "") {
   }
 
   let fields = {};
-  let fieldsLocal = {};
   for (const item of chain) {
     fields = { ...fields, ...(item.schema.fields || {}) };
   }
-  fieldsLocal = { ...(leaf.schema.fields || {}) };
+
+  const schemeOverlay = readStoreSchemeModOverlay(storeAbs);
+  let fieldsLocal = { ...(leaf.schema.fields || {}) };
+  if (schemeOverlay) {
+    fieldsLocal = { ...schemeOverlay.fields };
+    fields = { ...fields, ...schemeOverlay.fields };
+  }
 
   const merged = {
     ...leaf.schema,
     fields,
     fieldsLocal,
+    fieldsInSchemeMod: Boolean(schemeOverlay?.exists),
+    elementSchemaTabs: {
+      ...(leaf.schema.elementSchemaTabs || {}),
+      ...(schemeOverlay?.tabs || {})
+    },
     storeBody: leaf.body || leaf.schema.storeBody || "",
     schemaFile: leaf.schemaFile,
+    schemeModFile: schemeOverlay?.exists ? SCHEME_MOD_FILE : "",
     extendsChain: chain.map((item) => item.schema.extends).filter(Boolean),
     supertype: leaf.schema.supertype || ""
   };
@@ -823,6 +888,9 @@ function loadStore(dataRoot, storeEntry) {
   const schemaFile = String(schema.schemaFile || COLLECTION_MANIFEST).trim() || COLLECTION_MANIFEST;
   const schemaRelPath = `${storeRel}/${schemaFile}`.replace(/\\/g, "/");
   const manifestRelPath = schemaRelPath;
+  const schemeModRelPath = schema.schemeModFile
+    ? `${storeRel}/${schema.schemeModFile}`.replace(/\\/g, "/")
+    : "";
 
   const recordStorage = kind === "collection" ? getRecordStorage(schema) : "md";
   let records = [];
@@ -844,6 +912,8 @@ function loadStore(dataRoot, storeEntry) {
     manifestMarkdown,
     manifestRelPath,
     schemaRelPath,
+    schemeModRelPath,
+    schemeModFile: schema.schemeModFile || "",
     schemaFile,
     schema,
     sortOrder,
@@ -1080,15 +1150,20 @@ function buildStoreManifestContent(schema, body = "") {
       `awn-data-elements-schema-extends: ${normalizeExtendsRef(schema.extends || DEFAULT_ELEMENT_SCHEMA)}`
     );
     lines.push("awn-data-elements-schema-mixins: []");
-    lines.push("awn-data-elements-schema:");
-    lines.push("  fields:");
-    if (schema.fields && Object.keys(schema.fields).length) {
-      lines.push(...dumpYamlBlock(normalizeAwnFieldsMap(schema.fields), 2));
-    }
-    const tabs = schema.elementSchemaTabs || {};
-    if (Object.keys(tabs).length) {
-      lines.push("  tabs:");
-      lines.push(...dumpYamlBlock(tabs, 2));
+    if (schema.fieldsInSchemeMod) {
+      lines.push("awn-data-elements-schema:");
+      lines.push("  fields: {}");
+    } else {
+      lines.push("awn-data-elements-schema:");
+      lines.push("  fields:");
+      if (schema.fields && Object.keys(schema.fields).length) {
+        lines.push(...dumpYamlBlock(normalizeAwnFieldsMap(schema.fields), 2));
+      }
+      const tabs = schema.elementSchemaTabs || {};
+      if (Object.keys(tabs).length) {
+        lines.push("  tabs:");
+        lines.push(...dumpYamlBlock(tabs, 2));
+      }
     }
   } else {
     lines.push(`awn-type: ${KIND_TO_AWN_PROP_TYPE[kind] || "awn.data.collection"}`);
@@ -1167,12 +1242,6 @@ function ensureAwnDataBase(agentRoot, projectRoot = process.cwd()) {
   const dataRoot = getAwnDataRoot(agentRoot, projectRoot);
   if (!dataRoot) throw new Error("Agent root not set");
   fs.mkdirSync(dataRoot, { recursive: true });
-  const baseDir = path.join(dataRoot, RECORD_BASE_REL);
-  fs.mkdirSync(baseDir, { recursive: true });
-  const baseSchemaPath = path.join(baseDir, COLLECTION_MANIFEST);
-  if (!fs.existsSync(baseSchemaPath)) {
-    fs.writeFileSync(baseSchemaPath, BASE_SCHEMA_TEMPLATE, "utf-8");
-  }
   return dataRoot;
 }
 
@@ -1250,6 +1319,22 @@ function recordBaseExtendsPath() {
 
 function buildCollectionSchemaContent({ slug, name, description, hierarchy = true }) {
   const desc = String(description || name || slug).trim();
+  const recordFields = {
+    "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" },
+    "awn-parent": {
+      type: "awn.string",
+      title: "Родитель",
+      description: "id родительской записи",
+      tab: "main"
+    },
+    "awn-status": {
+      type: "awn.enum",
+      title: "Статус",
+      enum: ["open", "done"],
+      default: "open",
+      tab: "main"
+    }
+  };
   return {
     schema: {
       kind: "collection",
@@ -1257,30 +1342,18 @@ function buildCollectionSchemaContent({ slug, name, description, hierarchy = tru
       name: name || slug,
       description: desc,
       extends: DEFAULT_ELEMENT_SCHEMA,
+      fieldsInSchemeMod: true,
       record: {
         storage: "md",
         "id-mode": hierarchy ? "numeric" : "slug",
         file: "{id}.md",
         hierarchy: hierarchy ? true : false
       },
-      fields: {
-        "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" },
-        "awn-parent": {
-          type: "awn.string",
-          title: "Родитель",
-          description: "id родительской записи",
-          tab: "main"
-        },
-        "awn-status": {
-          type: "awn.enum",
-          title: "Статус",
-          enum: ["open", "done"],
-          default: "open",
-          tab: "main"
-        }
-      },
+      fields: recordFields,
       elementSchemaTabs: { main: "Основное" }
     },
+    schemeModFields: recordFields,
+    schemeModTabs: { main: "Основное" },
     manifestBody: buildCollectionManifestBody({ name: name || slug, description: desc })
   };
 }
@@ -1317,6 +1390,9 @@ function buildTaxonomyCollectionSchemaContent({ slug, name, description }) {
 
 function buildSingletonSchemaContent({ slug, name, description }) {
   const desc = String(description || name || slug).trim();
+  const recordFields = {
+    "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" }
+  };
   return {
     schema: {
       kind: "singleton",
@@ -1324,12 +1400,13 @@ function buildSingletonSchemaContent({ slug, name, description }) {
       name: name || slug,
       description: desc,
       extends: DEFAULT_ELEMENT_SCHEMA,
+      fieldsInSchemeMod: true,
       record: { file: "main.md" },
-      fields: {
-        "awn-title": { type: "awn.string", title: "Название", required: true, tab: "main" }
-      },
+      fields: recordFields,
       elementSchemaTabs: { main: "Основное" }
     },
+    schemeModFields: recordFields,
+    schemeModTabs: { main: "Основное" },
     manifestBody: `# ${name || slug}\n\n${desc}`
   };
 }
@@ -1419,6 +1496,12 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
       ? buildTaxonomyCollectionSchemaContent({ slug, name, description })
       : buildCollectionSchemaContent({ slug, name, description, hierarchy: options.hierarchy !== false });
     writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody);
+    if (bundle.schemeModFields) {
+      writeStoreSchemeMod(storeAbs, {
+        fields: bundle.schemeModFields,
+        elementSchemaTabs: bundle.schemeModTabs || {}
+      });
+    }
     fs.writeFileSync(path.join(storeAbs, "sort.json"), "[]\n", "utf-8");
     if (isTaxonomy) {
       const columns = getCsvColumnsFromSchema(loadMergedStoreSchema(storeAbs, dataRoot));
@@ -1435,6 +1518,12 @@ function createAwnDataStore(agentRoot, projectRoot, options = {}) {
   } else {
     const bundle = buildSingletonSchemaContent({ slug, name, description });
     writeStoreManifest(storeAbs, bundle.schema, bundle.manifestBody);
+    if (bundle.schemeModFields) {
+      writeStoreSchemeMod(storeAbs, {
+        fields: bundle.schemeModFields,
+        elementSchemaTabs: bundle.schemeModTabs || {}
+      });
+    }
     const recordContent = buildRecordMarkdown({
       id: slug.replace(/\//g, "."),
       title: name,
@@ -1541,6 +1630,7 @@ module.exports = {
   SCHEMA_FILE,
   SINGLETON_RECORD,
   COLLECTION_MANIFEST,
+  SCHEME_MOD_FILE,
   getAwnDataRoot,
   loadAwnDataStores,
   getAwnDataPayload,
@@ -1555,7 +1645,10 @@ module.exports = {
   buildStoreMdContent,
   buildPlainManifestContent,
   writeStoreManifest,
+  writeStoreSchemeMod,
   writeStoreContractBundle,
+  composeAwnDataStoreSchemeModYaml,
+  readStoreSchemeModOverlay,
   loadMergedStoreSchema,
   normalizeExtendsRef,
   resolveKindFromSupertype,

@@ -27787,7 +27787,8 @@ button.node-navigation-hub-rail-slot-summary {
 
 .node-navigation-workspace-counter-list.has-workspace-static-slots,
 .node-navigation-workspace-counter-list.has-outside-slots-static {
-  grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(128px, 0.95fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(88px, 0.7fr);
+  row-gap: 5px;
 }
 
 .node-navigation-workspace-counter-item--free-memory {
@@ -27810,6 +27811,7 @@ button.node-navigation-hub-rail-slot-summary {
 .node-navigation-workspace-counter-card--structured-data,
 .node-navigation-workspace-counter-card--static-stub {
   height: auto;
+  border-radius: 8px;
 }
 
 .node-navigation-workspace-counter-card--free-memory .node-navigation-workspace-counter,
@@ -27818,7 +27820,8 @@ button.node-navigation-hub-rail-slot-summary {
 .node-navigation-workspace-counter-card--static-stub .node-navigation-workspace-counter {
   min-height: 0;
   height: auto;
-  padding: 8px 6px 6px;
+  gap: 1px;
+  padding: 4px 4px 3px;
   cursor: default;
   pointer-events: none;
 }
@@ -27842,10 +27845,20 @@ button.node-navigation-hub-rail-slot-summary {
   line-height: 1.25;
 }
 
+.node-navigation-workspace-counter-card--static-stub .node-navigation-workspace-counter-label--stacked {
+  gap: 1px;
+  line-height: 1.15;
+}
+
 .node-navigation-workspace-counter-label-main {
   font-size: 10px;
   font-weight: 700;
   color: #334155;
+}
+
+.node-navigation-workspace-counter-card--static-stub .node-navigation-workspace-counter-label-main {
+  font-size: 9px;
+  line-height: 1.15;
 }
 
 .node-navigation-workspace-counter-label-hint {
@@ -27854,14 +27867,22 @@ button.node-navigation-hub-rail-slot-summary {
   color: #64748b;
 }
 
-.node-navigation-workspace-counter-card--outside-slots .stub-static-mark,
-.node-navigation-workspace-counter-card--structured-data .stub-static-mark {
-  font-size: 9px;
+.node-navigation-workspace-counter-card--static-stub .node-navigation-workspace-counter-label-hint {
+  display: none;
 }
 
+.node-navigation-workspace-counter-card--static-stub .stub-static-mark,
+.node-navigation-workspace-counter-card--outside-slots .stub-static-mark,
+.node-navigation-workspace-counter-card--structured-data .stub-static-mark {
+  font-size: 8px;
+  line-height: 1.1;
+}
+
+.node-navigation-workspace-counter-card--static-stub .node-navigation-workspace-counter-value,
 .node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter-value,
 .node-navigation-workspace-counter-card--structured-data .node-navigation-workspace-counter-value {
-  font-size: 18px;
+  font-size: 13px;
+  line-height: 1;
   color: #94a3b8;
 }
 

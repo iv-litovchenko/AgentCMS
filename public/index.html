@@ -757,7 +757,7 @@
                       id="menu-awn-data-create-group-btn"
                       type="button"
                       class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--group"
-                      title="Создать справочник в группе taxonomies/"
+                      title="Создать группу (manifest.md, без записей)"
                     >
                       + Группа
                     </button>
@@ -3549,23 +3549,46 @@
               <div class="awn-data-view-schema-fields-section hidden">
                 <div class="awn-data-view-schema-block">
                   <div class="awn-data-view-schema-block-head">
-                    <h2 class="awn-data-view-schema-section-title">Свойства элементов</h2>
+                    <h2 class="awn-data-view-schema-section-title">Схема полей записей</h2>
+                    <div class="awn-data-view-schema-block-head-right">
+                      <code class="awn-data-view-scheme-mod-file">scheme-mod.yml</code>
+                      <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="edit-scheme-mod">
+                        Редактировать
+                      </button>
+                    </div>
                     <span class="awn-data-view-schema-fields-count" aria-live="polite"></span>
                   </div>
-                  <div class="awn-data-view-schema-fields-wrap hidden">
-                    <div class="awn-data-view-schema-table-wrap">
-                      <table class="awn-data-view-schema-table">
-                        <thead>
-                          <tr>
-                            <th scope="col">Ключ</th>
-                            <th scope="col">Название</th>
-                            <th scope="col">Тип</th>
-                            <th scope="col">Обяз.</th>
-                            <th scope="col">По умолч.</th>
-                          </tr>
-                        </thead>
-                        <tbody class="awn-data-view-schema-tbody"></tbody>
-                      </table>
+                  <div class="awn-data-view-scheme-mod-read">
+                    <div class="awn-data-view-schema-fields-wrap hidden">
+                      <div class="awn-data-view-schema-table-wrap">
+                        <table class="awn-data-view-schema-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">Ключ</th>
+                              <th scope="col">Название</th>
+                              <th scope="col">Тип</th>
+                              <th scope="col">Обяз.</th>
+                              <th scope="col">По умолч.</th>
+                            </tr>
+                          </thead>
+                          <tbody class="awn-data-view-schema-tbody"></tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="awn-data-view-scheme-mod-edit hidden">
+                    <textarea
+                      class="awn-data-view-schema-textarea awn-data-view-scheme-mod-textarea"
+                      spellcheck="false"
+                      rows="14"
+                    ></textarea>
+                    <div class="awn-data-view-schema-edit-actions">
+                      <button type="button" class="awn-data-view-schema-btn is-primary" data-awn-data-action="save-scheme-mod">
+                        Сохранить scheme-mod.yml
+                      </button>
+                      <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="cancel-scheme-mod">
+                        Отмена
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -3834,7 +3857,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.238"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.617"></script>
+    <script src="/main.js?v=0.5.618"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>
