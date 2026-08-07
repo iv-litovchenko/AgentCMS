@@ -256,12 +256,12 @@
 
 | Задача | Tools | Не делать |
 |--------|-------|-----------|
-| Intake / входящие | `list_inbox`, `create_inbox_item`, `triage_inbox_item` | Не подменять triage обычным `create_content` в `inbox`, если нужен triage-поток |
+| Intake / входящие | `list_inbox`, `triage_inbox_item`, `create_content` (`slot: inbox`, `status: new`) | Не писать в `inbox/` в обход triage, если нужен intake-поток |
 | Диалог темы | `read_thread`, `append_thread` | Не писать в `thread/` через `create_content` |
 | Комментарии к узлу/файлу | `list_comments`, `append_comment`, `toggle_comment_reaction` | Не `create_content` + `awn.content.comment` |
 | Сводка | `get_topic_intake` | — |
 
-`create_content` в `slot: inbox` — просто файл в слоте; **intake-заметка** — `create_inbox_item`.  
+Новая intake-заметка — `create_content` в `slot: inbox` с `status: new` (или через UI «Во входящие»).  
 Комментарии ≠ записи в `main`.
 
 ---
@@ -281,7 +281,7 @@
 4. `awn-data` ≠ слот страницы.
 5. Уведомление в 🔔 CMS → `notify_user`; сообщение в Shell → `shell_post_message`.
 6. В `slot` — канонические ключи: `notes`, `scripts`, `dialogs` (не устаревшие `note` / `script` / `thread`).
-7. Комментарии / thread / inbox-intake — свои tools; не через произвольный `create_content`.
+7. Комментарии / thread — свои tools; inbox создавать через `create_content` (`slot: inbox`), triage — `triage_inbox_item`.
 8. `read_page_schema` — default `mode=layers` (workspace/area/topic); не `mode=full` без нужды.
 9. `write_data_store_schema` — полная замена: сначала `read`, потом полный YAML.
 10. `media` ≠ `assets`: медиатека темы vs ресурсы записей (preview / pasted / attachments).

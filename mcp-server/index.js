@@ -313,20 +313,6 @@ function createServer() {
   );
 
   reg(
-    "create_inbox_item",
-    "Create inbox intake note.",
-    z.object({
-      path: pagePath,
-      title: z.string().optional(),
-      body: z.string().optional(),
-      source: z.string().optional(),
-      author: z.string().optional()
-    }),
-    ({ path, title, body, source, author }) =>
-      client.post("/api/inbox/create", { path, title, body, source, author })
-  );
-
-  reg(
     "read_thread",
     "Read topic dialogue thread.",
     z.object({

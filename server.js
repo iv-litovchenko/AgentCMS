@@ -12152,7 +12152,9 @@ async function serveIndexHtml(res) {
   const content = await fs.readFile(indexPath);
   res.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
-    "Cache-Control": "no-store"
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0"
   });
   res.end(content);
 }
@@ -12178,7 +12180,9 @@ async function serveStatic(reqPath, res) {
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
     res.writeHead(200, {
       "Content-Type": contentType,
-      "Cache-Control": "no-store"
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0"
     });
     res.end(content);
   } catch {
@@ -15536,26 +15540,6 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to triage inbox item",
-        details: String(error && error.message ? error.message : error)
-      });
-    }
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/inbox/create") {
-    try {
-      const payload = await readJsonBody(req);
-      const manifestRelPath = payload.path || "";
-      const title = String(payload.title || payload.name || "").trim();
-      const body = String(payload.body || "").trim();
-      const source = String(payload.source || "ui").trim();
-      const author = String(payload.author || "").trim();
-      if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path" });
-
-      const item = await createInboxItem({ manifestRelPath, title, body, source, author });
-      return sendJson(res, 200, { path: manifestRelPath, item });
-    } catch (error) {
-      return sendJson(res, 500, {
-        error: "Failed to create inbox item",
         details: String(error && error.message ? error.message : error)
       });
     }

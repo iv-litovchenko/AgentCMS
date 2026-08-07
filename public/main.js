@@ -16509,6 +16509,23 @@ function createMenuTreeStatusBadge(status) {
   return badge;
 }
 
+function populateMenuContextStatusButton(btn, optionKey, optionName) {
+  if (!btn) return;
+  btn.replaceChildren();
+  const badge = createMenuTreeStatusBadge(optionKey);
+  const labelText = String(optionName || "")
+    .replace(/^\p{Extended_Pictographic}\s*/u, "")
+    .trim();
+  if (badge) {
+    badge.setAttribute("aria-hidden", "true");
+    btn.appendChild(badge);
+  }
+  const label = document.createElement("span");
+  label.className = "menu-context-menu-status-text";
+  label.textContent = labelText || String(optionName || "").trim();
+  btn.appendChild(label);
+}
+
 function createHeroTitleRow(title, statusRaw = "", options = {}) {
   const row = document.createElement("div");
   row.className = options.rowClass || "node-navigation-hero-title-row";
@@ -17305,7 +17322,7 @@ function appendMenuContextMenuStatusSection(nodePath, currentStatus, agentId = a
     btn.type = "button";
     btn.className = "menu-context-menu-status-btn";
     btn.dataset.status = optionKey;
-    btn.textContent = optionName;
+    populateMenuContextStatusButton(btn, optionKey, optionName);
     btn.setAttribute("role", "menuitemradio");
     const isActive = optionKey === activeStatus;
     btn.classList.toggle("is-active", isActive);
@@ -18290,7 +18307,7 @@ function appendResourceContextMenuStatusSection(currentStatus = "") {
     btn.type = "button";
     btn.className = "menu-context-menu-status-btn";
     btn.dataset.status = optionKey;
-    btn.textContent = optionName;
+    populateMenuContextStatusButton(btn, optionKey, optionName);
     btn.setAttribute("role", "menuitemradio");
     const isActive = optionKey === activeStatus;
     btn.classList.toggle("is-active", isActive);
@@ -51434,7 +51451,7 @@ function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {})
 function appendNavBookTocEntryMarkers(link, item, nodePath, handlers = {}) {
   const { icon, status, preview } = buildNavBookTocEntryMarkers(item, nodePath, handlers);
   if (icon) link.appendChild(icon);
-  if (status && handlers.statusPlacement !== "inline-text") link.appendChild(status);
+  if (status) link.appendChild(status);
   if (preview) link.appendChild(preview);
   const gdriveBadge = createGoogleDriveSyncedBadge(item);
   if (gdriveBadge) link.appendChild(gdriveBadge);
@@ -51965,8 +51982,7 @@ function populateNavBookTocFolderLabel(
     folderDescriptions,
     sectionManifestByFolder,
     readManifestPath = getActiveNodeApiPath(),
-    readMemoryKind = "external",
-    treeStyle = ""
+    readMemoryKind = "external"
   } = {}
 ) {
   const label = folderNode.label || folderNode.folderPath.split("/").pop() || folderNode.folderPath;
@@ -51992,14 +52008,9 @@ function populateNavBookTocFolderLabel(
   const folderText = document.createElement("span");
   folderText.className = "nav-book-toc-folder-text";
   appendNavBookTocTitleText(folderText, label, description);
-  if (treeStyle === "classic") {
-    appendNavBookTocStatusBadge(folderText, folderStatus);
-  }
+  const statusBadge = createNavBookTocStatusBadge(folderStatus);
   folderLabel.appendChild(folderIcon);
-  if (treeStyle !== "classic") {
-    const statusBadge = createNavBookTocStatusBadge(folderStatus);
-    if (statusBadge) folderLabel.appendChild(statusBadge);
-  }
+  if (statusBadge) folderLabel.appendChild(statusBadge);
   folderLabel.appendChild(folderText);
   if (folderStatus) {
     const leaders = document.createElement("span");
@@ -57713,8 +57724,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       folderDescriptions,
       sectionManifestByFolder,
       readManifestPath: handlers.readManifestPath,
-      readMemoryKind: handlers.readMemoryKind,
-      treeStyle: handlers.treeStyle
+      readMemoryKind: handlers.readMemoryKind
     });
     const { forceExpand, folderIsCurrent } = getNavigationHubRailTocActiveState(
       handlers,
@@ -57798,9 +57808,6 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     text.className = "nav-book-toc-link-text";
     appendNavBookTocTitleText(text, item.title, itemDescription);
     appendNavBookTocWebUrlLink(text, getNavigationItemWebUrl(item));
-    if (handlers.treeStyle === "classic") {
-      appendNavBookTocStatusBadge(text, resolveNavigationItemStatus(item));
-    }
 
     const leaders = document.createElement("span");
     leaders.className = "nav-book-toc-leaders";
@@ -57809,10 +57816,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
       attachmentPaths: getNavigationItemAttachmentPaths(item)
     });
 
-    appendNavBookTocEntryMarkers(link, item, nodePath, {
-      ...handlers,
-      statusPlacement: handlers.treeStyle === "classic" ? "inline-text" : handlers.statusPlacement
-    });
+    appendNavBookTocEntryMarkers(link, item, nodePath, handlers);
     appendNavUnreadBadgeForContent(
       text,
       handlers.readManifestPath || getActiveNodeApiPath(),
@@ -61713,15 +61717,19 @@ function getThreadUnreadCount(manifestPath, intake) {
 }
 
 async function postInboxCreate(manifestPath, payload = {}, agentId = activeAgentId) {
-  const response = await fetch(buildApiUrl("/api/inbox/create", {}, agentId), {
+  const title = String(payload.title || "Входящее").trim() || "Входящее";
+  const body = String(payload.body || "").trim() || `# ${title}\n`;
+  const response = await fetch(buildApiUrl("/api/storage/file/create", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       path: manifestPath,
-      title: payload.title || "",
-      body: payload.body || "",
+      folder: STORAGE_SUBFOLDER_INBOX,
+      title,
+      body,
       source: payload.source || "ui",
-      author: payload.author || resolveDialogAuthor()
+      author: payload.author || resolveDialogAuthor(),
+      status: "new"
     })
   });
   if (!response.ok) {

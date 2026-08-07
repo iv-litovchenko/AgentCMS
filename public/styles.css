@@ -17523,7 +17523,9 @@ a.header-tool-btn {
 }
 
 .menu-context-menu-status-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   width: 100%;
   padding: 8px 10px;
   border: 0;
@@ -17536,6 +17538,15 @@ a.header-tool-btn {
   line-height: 1.35;
   text-align: left;
   cursor: pointer;
+}
+
+.menu-context-menu-status-btn .menu-tree-status {
+  flex-shrink: 0;
+  opacity: 1;
+}
+
+.menu-context-menu-status-text {
+  min-width: 0;
 }
 
 .menu-context-menu-status-btn.is-active {
@@ -19175,7 +19186,7 @@ a.header-tool-btn {
   align-self: center;
   width: 14px;
   height: 14px;
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1;
   cursor: help;
   opacity: 0.75;
@@ -19206,8 +19217,8 @@ a.header-tool-btn {
 
 .menu-tree-type-icon--agent,
 .menu-tree-type-icon--container {
-  width: auto;
-  font-size: 14px;
+  width: 14px;
+  font-size: 10px;
   line-height: 1;
 }
 
@@ -45496,11 +45507,12 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-tree-type-icon--agent,
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-tree-type-icon--container {
-  width: auto;
-  font-size: 14px;
-  line-height: 1;
-  min-width: 0;
+  width: 14px;
+  min-width: 14px;
+  height: 16px;
   min-height: 16px;
+  font-size: 10px;
+  line-height: 1;
 }
 
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-folder-name,
@@ -45513,6 +45525,7 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-tree-status {
   width: 14px;
   height: 16px;
+  font-size: 10px;
   align-self: center;
 }
 
@@ -47733,6 +47746,17 @@ body.is-discuss-resizing .discuss-aside-resizer {
   flex-wrap: wrap;
 }
 
+.menu-static-title > span[aria-hidden="true"] {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  min-width: 14px;
+  font-size: 10px;
+  line-height: 1;
+}
+
 .menu-static-summary > .menu-static-title {
   flex: 1 1 auto;
   min-width: 0;
@@ -48307,24 +48331,11 @@ body.is-discuss-resizing .discuss-aside-resizer {
 }
 
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-status,
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link-text .nav-book-toc-status,
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-text .nav-book-toc-status,
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-label > .nav-book-toc-status,
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link > .nav-book-toc-status {
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-link > .nav-book-toc-status,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-label > .nav-book-toc-status {
   flex-shrink: 0;
   margin-right: 2px;
-}
-
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .menu-tree-status {
-  display: inline;
-  width: auto;
-  height: auto;
-  min-width: 0;
-  flex: 0 0 auto;
-  align-self: auto;
-  font-size: 10px;
-  line-height: 1;
-  vertical-align: baseline;
+  align-self: center;
 }
 
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-icon {
