@@ -302,7 +302,7 @@ function extractFileBaseName(relPath) {
   return fileName;
 }
 
-function normalizeAwnTypeName(typeName) {
+function normalizeAwnTypeName(typeName, options = {}) {
   const raw = String(typeName || "").trim();
   if (!raw) return "";
   const shortAliases = {
@@ -311,9 +311,10 @@ function normalizeAwnTypeName(typeName) {
     workspace: "awn.page.ws",
     ws: "awn.page.ws",
     record: "awn.content.record",
-    service: "service"
+    service: "awn.page.area"
   };
   const normalized = /^awn\./i.test(raw) ? raw : shortAliases[raw.toLowerCase()] || raw;
+  if (options.skipCanonical) return normalized;
   return resolveCanonicalTypeId(normalized, new Map());
 }
 
@@ -323,9 +324,10 @@ function buildDefaultFrontmatter(typeName, options = {}) {
     types = null,
     projectRoot = null,
     agentRoot = null,
-    typeDef: typeDefOverride = null
+    typeDef: typeDefOverride = null,
+    skipCanonical = false
   } = options;
-  const resolvedTypeName = normalizeAwnTypeName(typeName);
+  const resolvedTypeName = normalizeAwnTypeName(typeName, { skipCanonical });
   const resolvedProjectRoot = projectRoot || process.cwd();
   const resolvedAgentRoot = agentRoot || "";
   const typesMap = types || loadAgentTypes(resolvedAgentRoot, resolvedProjectRoot);

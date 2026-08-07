@@ -764,17 +764,9 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
   }
 ];
 const AGENT_FOLDER_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/;
-const AGENT_KIT_TOPIC_TYPE_BY_PRESET = {
-  agent: "awn.page.topic.agent-kit.agent",
-  user: "awn.page.topic.agent-kit.user",
-  users: "awn.page.topic.agent-kit.users",
-  "agent-rules": "awn.page.topic.agent-kit.rules",
-  "agent-voice-tts": "awn.page.topic.agent-kit.voice-tts",
-  "agent-voice-stt": "awn.page.topic.agent-kit.voice-sst"
-};
 
-function resolveAgentKitTopicType(preset) {
-  return AGENT_KIT_TOPIC_TYPE_BY_PRESET[String(preset || "").trim().toLowerCase()] || "awn.page.topic";
+function resolveAgentKitTopicType(_preset) {
+  return "awn.page.topic";
 }
 
 const SKIP_SCAN_DIRS = new Set([

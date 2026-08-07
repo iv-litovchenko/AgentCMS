@@ -5,14 +5,14 @@ description: ""
 extends: ""
 status: ""
 kind: ""
-awn-name: "Служебные темы и компоненты"
+awn-name: "Медиа"
 awn-emoji: ""
 awn-status: open
 awn-description: ""
 awn-tags: ""
-awn-type: awn.page.area
-awn-create: 2026-08-07T10:33:03.587Z
-awn-update: 2026-08-07T10:33:03.587Z
+awn-type: awn.page.topic
+awn-create: 2026-08-07T10:34:00.473Z
+awn-update: 2026-08-07T10:34:00.473Z
 awn-version: 1
 awn-preview: ""
 awn-web-url: ""
@@ -27,5 +27,9 @@ awn-runtime-cron: ""
 awn-runtime-cron-schedule: ""
 awn-runtime-heartbeat: ""
 awn-runtime-commands: false
-awn-section-role: ""
+awn-slots-disabled: false
 ---
+
+# Медиа
+
+Общие ресурсы: медиа.

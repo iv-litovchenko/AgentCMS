@@ -1481,16 +1481,26 @@ function hasNodeCreateIdentity(payload = {}, type = "") {
 }
 
 function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, options = {}) {
-  const typeName =
-    options.awnType || (nodeKind === "topic" ? "topic" : nodeKind === "area" ? "area" : String(nodeKind || "topic"));
+  const isArea = nodeKind === "area";
+  const isTopic = nodeKind === "topic";
+  let typeName =
+    options.awnType ||
+    (isTopic ? "topic" : isArea ? "awn.page.area" : String(nodeKind || "topic"));
+  if (isTopic && /^awn\.page\.topic\.agent-kit\./i.test(String(typeName).trim())) {
+    typeName = "awn.page.topic";
+  }
   const title =
     String(displayName || "").trim() ||
     stripTopicPrefix(String(folderSlug || "").trim()) ||
-    (nodeKind === "topic" ? "Тема" : "Область");
+    (isTopic ? "Тема" : "Область");
   let frontmatter = buildDefaultFrontmatter(typeName, {
     name: title,
     agentRoot: getAgentRoot(),
-    projectRoot: getProjectRoot()
+    projectRoot: getProjectRoot(),
+    skipCanonical:
+      isArea ||
+      String(typeName).trim() === "awn.page.area" ||
+      String(typeName).trim() === "awn.page.topic"
   });
   return upsertYamlScalarLine(frontmatter, "awn-name", title);
 }
@@ -19387,7 +19397,6 @@ async function handleApiForAgent(req, res, url) {
             ? getAgentSharedFolder()
             : getAgentContainerFolder();
         const areaName = isKit ? SERVICE_AREA_NAME : isShared ? SHARED_AREA_NAME : CONTAINER_AREA_NAME;
-        const areaType = isKit ? "service" : "area";
 
         if (!folderName) {
           return sendJson(res, 400, {
@@ -19427,11 +19436,7 @@ async function handleApiForAgent(req, res, url) {
 
         await fs.mkdir(folderAbsolute, { recursive: false });
         const manifestAbsolute = path.join(folderAbsolute, AREA_MANIFEST_FILE);
-        const manifestFrontmatter = buildDefaultFrontmatter(areaType, {
-          name: areaName,
-          agentRoot: getAgentRoot(),
-          projectRoot: getProjectRoot()
-        });
+        const manifestFrontmatter = buildManifestCreateFrontmatter("area", areaName, folderName);
         await fs.writeFile(
           manifestAbsolute,
           joinNodeFrontmatter(manifestFrontmatter, ""),

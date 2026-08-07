@@ -22070,6 +22070,15 @@ const SERVICE_DOC_PRESET_LABELS = {
   "agent-voice-tts": "Голос · TTS",
   "agent-voice-stt": "Голос · STT"
 };
+/** create-node-slug из каталога → preset service-doc (agent-registry) */
+const AGENT_KIT_CREATE_SLUG_TO_SERVICE_DOC_PRESET = {
+  agent: "agent",
+  user: "user",
+  users: "users",
+  rules: "agent-rules",
+  "voice-tts": "agent-voice-tts",
+  "voice-sst": "agent-voice-stt"
+};
 
 function getCreateModalMenuData(agentId = getCreateModalAgentId()) {
   if (!agentId) return null;
@@ -22772,23 +22781,51 @@ async function loadAndRenderCreateNodeDynamicTypes() {
   }
 }
 
+function resolveAgentKitServiceDocPreset(type = {}) {
+  const slug = String(type.slug || "").trim().toLowerCase();
+  if (slug && AGENT_KIT_CREATE_SLUG_TO_SERVICE_DOC_PRESET[slug]) {
+    return AGENT_KIT_CREATE_SLUG_TO_SERVICE_DOC_PRESET[slug];
+  }
+  const typeId = String(type.id || "").trim().toLowerCase();
+  const suffix = typeId.replace(/^awn\.page\.topic\.agent-kit\./i, "");
+  if (suffix && suffix !== typeId) {
+    return AGENT_KIT_CREATE_SLUG_TO_SERVICE_DOC_PRESET[suffix] || "";
+  }
+  return "";
+}
+
 function renderCreateNodeDynamicTypes(data) {
   if (!data?.groups?.length) return;
 
-  // "agent" group → "Агентские темы и ресурсы" section
+  // "agent" group → «Агентские темы и ресурсы»: пресеты service-doc с awn.page.topic
   const agentGroup = data.groups.find((g) => g.id === "agent");
   if (agentGroup?.types?.length && createNodeServiceDocsWrapNode) {
     const actionsNode = createNodeServiceDocsWrapNode.querySelector(".create-node-service-docs-actions");
     if (actionsNode) {
       actionsNode.replaceChildren();
       for (const type of agentGroup.types) {
+        const preset = resolveAgentKitServiceDocPreset(type);
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "create-node-action-btn create-node-service-doc-btn create-node-dynamic-type-btn";
-        btn.dataset.awnType = type.id;
+        if (preset) {
+          btn.dataset.serviceDocPreset = preset;
+        } else {
+          btn.dataset.awnType = type.id;
+        }
         btn.textContent = type.name;
         btn.title = type.description || type.id;
         btn.addEventListener("click", () => {
+          if (preset) {
+            if (isServiceDocPresetPresent(getCreateModalAgentId(), preset)) {
+              const label = SERVICE_DOC_PRESET_LABELS[preset] || type.name || preset;
+              showToast(`«${label}» уже создан`, "error");
+              syncCreateNodeServicePresetsUi();
+              return;
+            }
+            void createNode("service-doc", { preset });
+            return;
+          }
           createNodeWithPreset(type.id, type.name, type.slug || "");
         });
         actionsNode.appendChild(btn);
