@@ -197,9 +197,21 @@ module.exports = {
         },
         {
           name: "create_data_store",
-          description: "Создать накопитель (collection / singleton). taxonomies/* → CSV main.csv.",
+          description: "Создать накопитель (group / collection / singleton). taxonomies/* → CSV main.csv.",
           parameters: "slug, kind?, name?, description?, hierarchy?, withSampleRecord?",
           http: "POST /api/awn-data/stores"
+        },
+        {
+          name: "read_data_store_schema",
+          description: "Схема полей записей накопителя (scheme-mod.yml, awn_schema.record).",
+          parameters: "store",
+          http: "GET /api/awn-data/store-schema?store="
+        },
+        {
+          name: "write_data_store_schema",
+          description: "Сохранить scheme-mod.yml накопителя (content YAML или fields/tabs).",
+          parameters: "store, content? | fields?, tabs?",
+          http: "POST /api/awn-data/store-schema"
         },
         {
           name: "create_data_record",

@@ -199,7 +199,13 @@ const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
-const { getAwnDataPayload, createAwnDataStore, createAwnDataRecord } = require("./awn-data-loader");
+const {
+  getAwnDataPayload,
+  createAwnDataStore,
+  createAwnDataRecord,
+  readAwnDataStoreSchemaPayload,
+  writeAwnDataStoreSchema
+} = require("./awn-data-loader");
 const { loadSystemFileTemplatesFromAwnData } = require("./awn-data-templates-bridge");
 const {
   AGENT_SYSTEM_REL,
@@ -9239,6 +9245,8 @@ const SESSION_CONTEXT_API_MAP = {
   dataStores: "GET /api/awn-data — накопители awn-data; ?store= для одного",
   dataStoreCreate: "POST /api/awn-data/stores — создать накопитель",
   dataRecordCreate: "POST /api/awn-data/records — добавить запись",
+  dataStoreSchemaRead: "GET /api/awn-data/store-schema?store= — scheme-mod.yml полей записей",
+  dataStoreSchemaWrite: "POST /api/awn-data/store-schema — сохранить scheme-mod.yml",
   platformCatalogs: "GET /api/platform/catalogs — legacy справочники",
   agentCatalogs: "GET /api/agent/catalogs — legacy справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
@@ -15935,6 +15943,45 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 400, {
         error: "Failed to create awn-data record",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/awn-data/store-schema") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const storeRel = String(url.searchParams.get("store") || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
+      const payload = readAwnDataStoreSchemaPayload(agentRoot, getProjectRoot(), storeRel);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to read awn-data store schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-data/store-schema") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      const result = writeAwnDataStoreSchema(agentRoot, getProjectRoot(), storeRel, {
+        content: payload?.content,
+        awnSchema: payload?.awnSchema,
+        fields: payload?.fields,
+        tabs: payload?.tabs,
+        elementSchemaTabs: payload?.elementSchemaTabs
+      });
+      return sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to save awn-data store schema",
         details: String(error.message || error)
       });
     }

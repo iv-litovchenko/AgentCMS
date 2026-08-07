@@ -242,9 +242,12 @@ function createServer() {
 
   reg(
     "create_data_store",
-    "Create awn-data store: collection (MD or CSV for taxonomies/), singleton, or nested under a group.",
+    "Create awn-data store: group, collection (MD or CSV for taxonomies/), or singleton.",
     z.object({
-      kind: z.enum(["collection", "singleton"]).optional().describe("Default: collection"),
+      kind: z
+        .enum(["group", "collection", "singleton"])
+        .optional()
+        .describe("Default: collection. group = folder container (taxonomies/, agents/)."),
       slug: z
         .string()
         .min(1)
@@ -261,6 +264,34 @@ function createServer() {
         .describe("MD collection: create sample 1.md (default true for non-taxonomy collections)")
     }),
     (payload) => client.post("/api/awn-data/stores", payload)
+  );
+
+  reg(
+    "read_data_store_schema",
+    "Read record field schema from awn-data store scheme-mod.yml (awn_schema.record.fields). Returns mergedFields from manifest + extends + scheme-mod.",
+    z.object({
+      store: z.string().min(1).describe("Store relPath, e.g. tasks, taxonomies/statuses")
+    }),
+    ({ store }) => client.get("/api/awn-data/store-schema", { store })
+  );
+
+  reg(
+    "write_data_store_schema",
+    "Save record field schema to scheme-mod.yml. Pass content as YAML with awn_schema.record.fields, or fields/tabs object.",
+    z.object({
+      store: z.string().min(1).describe("Store relPath, e.g. tasks"),
+      content: z
+        .string()
+        .optional()
+        .describe("Full scheme-mod.yml YAML body with awn_schema.record block"),
+      fields: z
+        .record(z.any())
+        .optional()
+        .describe("Record fields map (alternative to content)"),
+      tabs: z.record(z.any()).optional().describe("Record schema tabs (optional)")
+    }),
+    ({ store, content, fields, tabs }) =>
+      client.post("/api/awn-data/store-schema", { store, content, fields, tabs })
   );
 
   reg(

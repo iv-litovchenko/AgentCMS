@@ -1622,6 +1622,113 @@ function createAwnDataRecord(agentRoot, projectRoot, options = {}) {
   return getAwnDataPayload(agentRoot, projectRoot, storeRel).store;
 }
 
+function resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel) {
+  const filter = String(storeRel || "").trim();
+  if (!filter) throw new Error("Missing store path");
+
+  const payload = getAwnDataPayload(agentRoot, projectRoot);
+  const store = findAwnDataStore(payload.stores, filter);
+  if (!store) throw new Error(`Store not found: ${filter}`);
+
+  const dataRoot = getAwnDataRoot(agentRoot, projectRoot);
+  const storeAbs = getStoreAbsolutePath(dataRoot, store.relPath);
+  if (!storeAbs || !fs.existsSync(storeAbs)) {
+    throw new Error(`Store folder not found: ${store.relPath}`);
+  }
+
+  return {
+    store,
+    dataRoot,
+    storeAbs,
+    storeRel: store.relPath
+  };
+}
+
+function extractRecordSchemaFromSchemeModContent(content) {
+  const parsed = parseTypeYaml(String(content || ""));
+  const awnSchema = parsed?.awn_schema;
+  if (!awnSchema || typeof awnSchema !== "object") {
+    return { fields: {}, tabs: {} };
+  }
+  const block = awnSchema.record || awnSchema.store || awnSchema.element || null;
+  const rawFields =
+    (block && typeof block === "object" ? block.fields : null) ||
+    awnSchema.record?.fields ||
+    awnSchema.fields ||
+    {};
+  const tabs =
+    (block && typeof block === "object" && block.tabs && typeof block.tabs === "object" ? block.tabs : null) ||
+    {};
+  return {
+    fields: normalizeAwnFieldsMap(rawFields),
+    tabs: { ...tabs }
+  };
+}
+
+function readAwnDataStoreSchemaPayload(agentRoot, projectRoot, storeRel) {
+  const { store, dataRoot, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(
+    agentRoot,
+    projectRoot,
+    storeRel
+  );
+  const schemeModRelPath = `${rel}/${SCHEME_MOD_FILE}`.replace(/\\/g, "/");
+  const schemePath = path.join(storeAbs, SCHEME_MOD_FILE);
+  const overlay = readStoreSchemeModOverlay(storeAbs);
+  const merged = loadMergedStoreSchema(storeAbs, dataRoot);
+  let content = "";
+  if (fs.existsSync(schemePath)) {
+    content = fs.readFileSync(schemePath, "utf-8");
+  }
+
+  return {
+    store: rel,
+    kind: store.kind,
+    schemeModRelPath,
+    schemeModExists: Boolean(overlay?.exists || fs.existsSync(schemePath)),
+    content,
+    awnSchema: {
+      record: {
+        fields: overlay?.fields || {},
+        tabs: overlay?.tabs || {}
+      }
+    },
+    mergedFields: merged?.fields || {},
+    fieldsLocal: merged?.fieldsLocal || {},
+    fieldsInSchemeMod: Boolean(merged?.fieldsInSchemeMod)
+  };
+}
+
+function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {}) {
+  const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  if (store.kind === "group") {
+    throw new Error("Record field schema is not supported for group stores");
+  }
+
+  const schemePath = path.join(storeAbs, SCHEME_MOD_FILE);
+  let nextContent = "";
+
+  if (typeof options.content === "string" && options.content.trim()) {
+    nextContent = String(options.content).replace(/\r\n/g, "\n");
+    extractRecordSchemaFromSchemeModContent(nextContent);
+  } else {
+    const awnSchema = options.awnSchema && typeof options.awnSchema === "object" ? options.awnSchema : null;
+    const block = awnSchema?.record || awnSchema?.store || awnSchema?.element || null;
+    const fields = normalizeAwnFieldsMap(
+      options.fields || (block && block.fields) || awnSchema?.record?.fields || awnSchema?.fields || {}
+    );
+    const tabs =
+      options.tabs ||
+      options.elementSchemaTabs ||
+      (block && block.tabs) ||
+      awnSchema?.record?.tabs ||
+      {};
+    nextContent = composeAwnDataStoreSchemeModYaml({ fields, elementSchemaTabs: tabs });
+  }
+
+  fs.writeFileSync(schemePath, nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`, "utf-8");
+  return readAwnDataStoreSchemaPayload(agentRoot, projectRoot, rel);
+}
+
 module.exports = {
   AWN_DATA_DIR,
   STORE_CONTRACT_FILE,
@@ -1650,6 +1757,9 @@ module.exports = {
   composeAwnDataStoreSchemeModYaml,
   readStoreSchemeModOverlay,
   loadMergedStoreSchema,
+  resolveAwnDataStoreContext,
+  readAwnDataStoreSchemaPayload,
+  writeAwnDataStoreSchema,
   normalizeExtendsRef,
   resolveKindFromSupertype,
   CONTAINER_SUPERTYPE,
