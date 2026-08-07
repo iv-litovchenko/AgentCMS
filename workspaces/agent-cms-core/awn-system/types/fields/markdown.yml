@@ -1,0 +1,11 @@
+id: awn.field.markdown
+name: Markdown
+kind: field
+domain: fields
+extends: awn.field.base
+widget: markdown
+storage: string
+mdbase: text
+description: Форматированный текст в формате Markdown с превью
+settings: [hint, required, locked, default]
+status: active

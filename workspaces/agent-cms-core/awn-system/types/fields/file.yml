@@ -1,0 +1,11 @@
+id: awn.field.file
+name: Файл
+kind: field
+domain: fields
+extends: awn.field.base
+widget: file
+storage: string
+mdbase: file
+description: Ссылка на файл или список файлов (вложения)
+settings: [hint, required, locked, default, multiple, accept, upload, insertInText, scope]
+status: active

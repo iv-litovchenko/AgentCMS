@@ -1,0 +1,11 @@
+id: awn.field.image
+name: Изображение
+kind: field
+domain: fields
+extends: awn.field.base
+widget: image
+storage: string
+mdbase: image
+description: Изображение — загружается или выбирается из медиатеки
+settings: [hint, required, locked, default, multiple, accept, upload]
+status: active

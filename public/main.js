@@ -1216,7 +1216,7 @@ function findStorageRootMarkerIndex(relPath) {
 }
 const TOPIC_MANIFEST_RE = /^manifest\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
-const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "main.md", "main.csv", "config.yml", "configuration.yml", "STRUCTURE.md"]);
+const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "main.md", "main.csv", "config.yml", "configuration.yml", "scheme-mod.yml", "STRUCTURE.md"]);
 const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
 const STORAGE_FOLDER_REGEX = "(?:awn-storage|storage)/[^/]+";
 const STORAGE_SLOT_REGEX = "(?:awn-storage|storage)/([^/]+)";
@@ -1224,6 +1224,7 @@ const BUNDLE_CONTENT_FILE = "main.md";
 const BUNDLE_TABULAR_FILE = "main.csv";
 const BUNDLE_CONFIG_FILE = "config.yml";
 const LEGACY_BUNDLE_CONFIG_FILE = "configuration.yml";
+const SCHEMA_MOD_FILE = "scheme-mod.yml";
 const BUNDLE_TODO_FILE = "todo.md";
 const BUNDLE_LOG_FILE = "log.md";
 const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
@@ -17008,6 +17009,17 @@ function upsertAwnStatusInPropsYaml(content, nextStatus) {
   return stringifyPropsYaml(entries);
 }
 
+function upsertAwnStatusInMarkdownContent(content, nextStatus) {
+  const { frontmatter, body } = splitFrontmatter(content || "");
+  const nextFrontmatter = upsertAwnStatusInPropsYaml(frontmatter, nextStatus);
+  return joinFrontmatter(nextFrontmatter, body);
+}
+
+function readAwnStatusFromMarkdownContent(content) {
+  const { frontmatter } = splitFrontmatter(content || "");
+  return String(getPropsEntryValueByKey(parsePropsYaml(frontmatter), "awn-status") || "").trim();
+}
+
 function upsertAwnNameInPropsYaml(content, nextAwnName) {
   const entries = parsePropsYaml(content || "");
   const normalizedKey = "awn-name";
@@ -17968,6 +17980,146 @@ async function updateMemorySectionStatusApi(sectionFolder, nextStatus, state = r
   return response.json();
 }
 
+async function fetchResourceFileStatus(state) {
+  if (!state?.filePath) return String(state?.status || "").trim();
+
+  const cached = String(state.status || "").trim();
+  if (cached) return cached;
+
+  const manifestPath = getActiveNodeApiPath();
+  const filePath = String(state.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!manifestPath || !filePath) return "";
+
+  try {
+    if (state.kind === "externalFile") {
+      const response = await fetch(buildApiUrl("/api/external/file", { path: manifestPath, file: filePath }));
+      if (!response.ok) return "";
+      const data = await response.json();
+      return readAwnStatusFromMarkdownContent(data.content || "");
+    }
+    if (state.kind === "flatStorageFile" && state.mode) {
+      const folder = getFlatStorageSectionFolderName(state.mode);
+      if (!folder) return "";
+      const response = await fetch(
+        buildApiUrl("/api/storage/markdown", { path: manifestPath, folder, file: filePath })
+      );
+      if (!response.ok) return "";
+      const data = await response.json();
+      return readAwnStatusFromMarkdownContent(data.content || "");
+    }
+    if (state.kind === "mediaFile") {
+      const response = await fetch(buildApiUrl("/api/media/markdown", { path: manifestPath, file: filePath }));
+      if (!response.ok) return "";
+      const data = await response.json();
+      return readAwnStatusFromMarkdownContent(data.content || "");
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+async function updateResourceFileStatusApi(state, nextStatus) {
+  if (!state?.filePath) throw new Error("Не удалось определить файл");
+
+  const manifestPath = getActiveNodeApiPath();
+  const filePath = String(state.filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!manifestPath || !filePath) throw new Error("Не удалось определить файл");
+
+  if (state.kind === "externalFile") {
+    const getResponse = await fetch(buildApiUrl("/api/external/file", { path: manifestPath, file: filePath }));
+    if (!getResponse.ok) {
+      const errorData = await getResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${getResponse.status}`);
+    }
+    const current = await getResponse.json();
+    const nextContent = upsertAwnStatusInMarkdownContent(current.content || "", nextStatus);
+    const saveResponse = await fetch(buildApiUrl("/api/external/file"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: manifestPath, file: filePath, content: nextContent })
+    });
+    if (!saveResponse.ok) {
+      const errorData = await saveResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${saveResponse.status}`);
+    }
+    return saveResponse.json();
+  }
+
+  if (state.kind === "flatStorageFile" && state.mode) {
+    const folder = getFlatStorageSectionFolderName(state.mode);
+    if (!folder) throw new Error("Не удалось определить слот");
+    const getResponse = await fetch(
+      buildApiUrl("/api/storage/markdown", { path: manifestPath, folder, file: filePath })
+    );
+    if (!getResponse.ok) {
+      const errorData = await getResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${getResponse.status}`);
+    }
+    const current = await getResponse.json();
+    const nextContent = upsertAwnStatusInMarkdownContent(current.content || "", nextStatus);
+    const saveResponse = await fetch(buildApiUrl("/api/storage/markdown"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: manifestPath, folder, file: filePath, content: nextContent })
+    });
+    if (!saveResponse.ok) {
+      const errorData = await saveResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${saveResponse.status}`);
+    }
+    return saveResponse.json();
+  }
+
+  if (state.kind === "mediaFile") {
+    const getResponse = await fetch(buildApiUrl("/api/media/markdown", { path: manifestPath, file: filePath }));
+    if (!getResponse.ok) {
+      const errorData = await getResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${getResponse.status}`);
+    }
+    const current = await getResponse.json();
+    const nextContent = upsertAwnStatusInMarkdownContent(current.content || "", nextStatus);
+    const saveResponse = await fetch(buildApiUrl("/api/media/markdown"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: manifestPath, file: filePath, content: nextContent })
+    });
+    if (!saveResponse.ok) {
+      const errorData = await saveResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed with ${saveResponse.status}`);
+    }
+    return saveResponse.json();
+  }
+
+  throw new Error("Статус для этого типа элементов пока не поддерживается");
+}
+
+async function refreshResourceFileViews(state = resourceContextMenuState) {
+  invalidateStorageRootScanCache();
+  if (state?.kind === "externalFile") {
+    await refreshExternalMemoryCaches();
+    rerenderExternalListViewBody();
+    if (state.railSlotMemoryKind) {
+      await refreshNavigationHubRailSlotTreeForMemoryKind(state.railSlotMemoryKind);
+    }
+    return;
+  }
+  if (state?.kind === "flatStorageFile" && state.mode) {
+    await reloadFlatStorageFolderMode(state.mode);
+    rerenderFlatStorageListViewBody(state.mode);
+    if (state.railSlotMemoryKind) {
+      await refreshNavigationHubRailSlotTreeForMemoryKind(state.railSlotMemoryKind);
+    }
+    return;
+  }
+  if (state?.kind === "mediaFile") {
+    await refreshMediaCache();
+    renderListViewContent();
+    if (state.railSlotMemoryKind) {
+      await refreshNavigationHubRailSlotTreeForMemoryKind(state.railSlotMemoryKind || "media");
+    }
+  }
+}
+
 async function refreshMemorySectionViews(state = resourceContextMenuState) {
   invalidateStorageRootScanCache();
   if (state?.storageMode) {
@@ -18145,6 +18297,11 @@ function openResourceContextMenu(event, state) {
     let currentStatus = state.status || "";
     if (state.kind === "memorySection" && state.sectionFolder) {
       currentStatus = await fetchMemorySectionStatus(state.sectionFolder, state);
+    } else if (
+      state.filePath &&
+      (state.kind === "externalFile" || state.kind === "flatStorageFile" || state.kind === "mediaFile")
+    ) {
+      currentStatus = await fetchResourceFileStatus(state);
     }
 
     resourceContextMenuState = { ...state, status: currentStatus };
@@ -18168,6 +18325,12 @@ async function handleResourceContextMenuStatusAction(nextStatus) {
     if (state.kind === "memorySection" && state.sectionFolder) {
       await updateMemorySectionStatusApi(state.sectionFolder, normalizedStatus, state);
       await refreshMemorySectionViews(state);
+    } else if (
+      state.filePath &&
+      (state.kind === "externalFile" || state.kind === "flatStorageFile" || state.kind === "mediaFile")
+    ) {
+      await updateResourceFileStatusApi(state, normalizedStatus);
+      await refreshResourceFileViews(state);
     } else {
       showToast("Статус для этого типа элементов пока не поддерживается", "error");
       return;
@@ -30711,7 +30874,9 @@ function renderExternalTableView(container, mdItems) {
       openResourceContextMenu(event, {
         kind: "externalFile",
         filePath: item.path,
-        label: getExternalListItemDisplayTitle(item)
+        label: getExternalListItemDisplayTitle(item),
+        status: item.status || "",
+        externalMode: true
       });
     });
     row.addEventListener("keydown", (event) => {
@@ -31996,7 +32161,9 @@ function renderExternalViewContent(container, mdItems) {
       openResourceContextMenu(event, {
         kind: "externalFile",
         filePath: item.path,
-        label: getExternalListItemDisplayTitle(item)
+        label: getExternalListItemDisplayTitle(item),
+        status: item.status || "",
+        externalMode: true
       });
     });
 
@@ -32347,7 +32514,8 @@ function renderFlatStorageListItems(container, items, mode = activeContentMode) 
         kind: "flatStorageFile",
         mode,
         filePath: normalized.path,
-        label: String(normalized.path || "").split("/").pop() || normalized.path
+        label: String(normalized.path || "").split("/").pop() || normalized.path,
+        status: normalized.status || ""
       });
     });
 
@@ -33894,7 +34062,7 @@ async function reloadActiveNodeManifestFromDisk() {
 
   const schemaManifestPath = getTopicSchemaManifestPath(activePath);
   if (schemaManifestPath) {
-    topicSchemaCacheByManifest.delete(schemaManifestPath);
+    invalidateTopicSchemaCacheForManifest(schemaManifestPath);
   }
 }
 
@@ -35502,6 +35670,23 @@ function normalizeTopicSchemaState(raw) {
   return result;
 }
 
+function topicSchemaStateHasCustomFields(state) {
+  if (!state || typeof state !== "object") return false;
+  return Object.values(state).some(
+    (block) => block?.fields && typeof block.fields === "object" && Object.keys(block.fields).length > 0
+  );
+}
+
+function invalidateTopicSchemaCacheForManifest(manifestPath) {
+  const manifest = String(manifestPath || "").replace(/\\/g, "/");
+  if (!manifest) return;
+  for (const key of [...topicSchemaCacheByManifest.keys()]) {
+    if (key === manifest || key.startsWith(`${manifest}\0`)) {
+      topicSchemaCacheByManifest.delete(key);
+    }
+  }
+}
+
 function mergeTopicSchemaSettingsFields(fields = {}) {
   return ExternalFileMask.mergeBuiltinSettingsSchemaFields(fields);
 }
@@ -35645,7 +35830,7 @@ function parseNodeSettingsState(content) {
     headerComment: headerComment || NODE_CONFIG_HEADER.trim(),
     entries: NodeConfigBundle.settingsObjectToEntries(bundle.awn_settings),
     defaultLandingMode: mode && isValidNodeDefaultLandingMode(mode) ? mode : null,
-    awnSchemaYaml: extractAwnSchemaYamlFromConfig(content)
+    awnSchemaYaml: ""
   };
 }
 
@@ -35654,7 +35839,7 @@ function buildNodeConfigYamlFromState(state) {
     headerComment: state?.headerComment,
     awn_ui: state?.defaultLandingMode ? { default_landing_mode: state.defaultLandingMode } : {},
     awn_settings: NodeConfigBundle.settingsEntriesToObject(state?.entries || []),
-    awn_schemaYaml: state?.awnSchemaYaml || ""
+    awn_schemaYaml: ""
   });
 }
 
@@ -35957,8 +36142,18 @@ function getSchemaContentPathForContext(nodePath = activePath) {
   return "";
 }
 
-function getTopicSchemaCache(manifestPath = getTopicSchemaManifestPath(), contentPath = "") {
-  const schemaContentPath = contentPath || getSchemaContentPathForContext();
+function resolveTopicSchemaCacheContentPath(contentPath = undefined) {
+  if (contentPath !== undefined) {
+    return String(contentPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  }
+  if (activeContentMode === "topic-schema") {
+    return "";
+  }
+  return getSchemaContentPathForContext();
+}
+
+function getTopicSchemaCache(manifestPath = getTopicSchemaManifestPath(), contentPath = undefined) {
+  const schemaContentPath = resolveTopicSchemaCacheContentPath(contentPath);
   const cacheKey = getTopicSchemaCacheKey(manifestPath, schemaContentPath);
   if (!cacheKey) return null;
   return topicSchemaCacheByManifest.get(cacheKey) || null;
@@ -35994,9 +36189,9 @@ async function loadWorkspaceSchemaForAgentRoot(nodePath, options = {}) {
   const payload = {
     manifestPath,
     contentPath: "",
-    configPath: data.schemaPath || "configuration-schema.yml",
+    configPath: data.schemaPath || SCHEMA_MOD_FILE,
     configExists: Boolean(data.schemaExists),
-    schemaPath: data.schemaPath || "configuration-schema.yml",
+    schemaPath: data.schemaPath || SCHEMA_MOD_FILE,
     schemaExists: Boolean(data.schemaExists),
     isWorkspaceSchema: true,
     awnSchema: workspaceAwnSchema,
@@ -36068,8 +36263,8 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
   const payload = {
     manifestPath,
     contentPath: contentPath || "",
-    configPath: data.configPath || "",
-    configExists: Boolean(data.configExists),
+    configPath: data.schemaPath || data.configPath || "",
+    configExists: Boolean(data.schemaExists ?? data.configExists),
     awnSchema: editableSchema,
     effectiveAwnSchema,
     topicAwnSchema,
@@ -36095,26 +36290,71 @@ function getTopicSchemaRegistryEntries(cache = getTopicSchemaCache()) {
 }
 
 const FIELD_TYPE_SELECT_GROUPS = [
-  { label: "Текст", types: ["awn.string", "awn.text", "awn.url"] },
+  { label: "Текст", types: ["awn.string", "awn.text", "awn.url", "awn.email", "awn.markdown", "awn.slug"] },
   { label: "Числа", types: ["awn.integer", "awn.number"] },
   { label: "Дата и время", types: ["awn.date", "awn.datetime"] },
   {
     label: "Выбор значений",
-    types: ["awn.boolean", "awn.enum", "awn.array"]
+    types: ["awn.boolean", "awn.enum", "awn.array", "awn.tags"]
   },
-  { label: "Связи и файлы", types: ["awn.link", "awn.file"] },
-  { label: "Другое", types: ["awn.color", "awn.null"] }
+  { label: "Связи и файлы", types: ["awn.link", "awn.file", "awn.relation", "awn.image"] },
+  { label: "Другое", types: ["awn.color", "awn.json", "awn.null"] }
 ];
+
+function resolveFieldRegistryEntryId(typeId, byId) {
+  const candidates = [];
+  const push = (value) => {
+    const id = String(value || "").trim();
+    if (!id || candidates.includes(id)) return;
+    candidates.push(id);
+  };
+
+  push(resolveFieldTypeId(typeId));
+  push(normalizeCanonicalFieldTypeId(typeId));
+  for (const id of [...candidates]) {
+    if (id.startsWith("awn.") && !id.startsWith("awn.field.")) {
+      push(`awn.field.${id.slice("awn.".length)}`);
+    }
+    if (id.startsWith("awn.field.")) {
+      push(`awn.${id.slice("awn.field.".length)}`);
+    }
+  }
+
+  for (const id of candidates) {
+    if (byId.has(id)) return id;
+  }
+  return candidates[0] || resolveFieldTypeId(typeId);
+}
 
 function getFieldTypeSelectGroups(registryEntries = []) {
   const byId = new Map(registryEntries.map((entry) => [entry.id, entry]));
   const used = new Set();
+  const apiGroups = awnTypesCache?.fieldGroups;
+  if (Array.isArray(apiGroups) && apiGroups.length) {
+    const groups = [];
+    for (const group of apiGroups) {
+      const entries = [];
+      for (const field of group.fields || []) {
+        const resolved = resolveFieldRegistryEntryId(field.id, byId);
+        if (!byId.has(resolved) || used.has(resolved)) continue;
+        entries.push(byId.get(resolved));
+        used.add(resolved);
+      }
+      if (entries.length) {
+        groups.push({ label: group.title || group.id, entries });
+      }
+    }
+    const rest = registryEntries.filter((entry) => !used.has(entry.id));
+    if (rest.length) groups.push({ label: "Другие", entries: rest });
+    return groups;
+  }
+
   const groups = [];
 
   for (const spec of FIELD_TYPE_SELECT_GROUPS) {
     const entries = [];
     for (const typeId of spec.types) {
-      const resolved = resolveFieldTypeId(typeId);
+      const resolved = resolveFieldRegistryEntryId(typeId, byId);
       if (!byId.has(resolved) || used.has(resolved)) continue;
       entries.push(byId.get(resolved));
       used.add(resolved);
@@ -36131,6 +36371,7 @@ function getFieldTypeSelectGroups(registryEntries = []) {
 function populateFieldTypeSelect(select, registryEntries, selectedTypeId = "awn.string") {
   if (!select) return;
   select.replaceChildren();
+  const byId = new Map(registryEntries.map((entry) => [entry.id, entry]));
 
   for (const group of getFieldTypeSelectGroups(registryEntries)) {
     const optgroup = document.createElement("optgroup");
@@ -36144,12 +36385,12 @@ function populateFieldTypeSelect(select, registryEntries, selectedTypeId = "awn.
     select.appendChild(optgroup);
   }
 
-  const resolved = resolveFieldTypeId(selectedTypeId || "awn.string");
+  const resolved = resolveFieldRegistryEntryId(selectedTypeId || "awn.string", byId);
   select.value = resolved;
   if (select.value !== resolved && resolved) {
     const legacy = document.createElement("option");
     legacy.value = resolved;
-    legacy.textContent = getFieldTypeOptionLabel(resolved, resolved);
+    legacy.textContent = getFieldTypeOptionLabel(resolved, byId.get(resolved)?.name || resolved);
     legacy.selected = true;
     select.prepend(legacy);
   }
@@ -36538,17 +36779,17 @@ function renderTopicSchemaEditor() {
   if (leadNode) {
     if (isWorkspaceSchemaContext()) {
       leadNode.innerHTML =
-        'Дополнительные поля workspace (<code>ws-*</code>) сохраняются в <code>configuration-schema.yml</code> в корне агента. ' +
+        `Дополнительные поля workspace (<code>ws-*</code>) сохраняются в <code>${SCHEMA_MOD_FILE}</code> в корне агента. ` +
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
         '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
     } else if (isAreaSchemaContext()) {
       leadNode.innerHTML =
-        'Дополнительные поля области (<code>area-*</code>) сохраняются в <code>configuration-schema.yml</code> рядом с manifest области. ' +
+        `Дополнительные поля области (<code>area-*</code>) сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest области. ` +
         "Наследуются поля workspace (<code>ws-*</code>) и ядра AWN. " +
         '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
     } else {
       leadNode.innerHTML =
-        "Дополнительные поля сохраняются в <code>configuration.yml</code> → <code>awn_schema</code> или <code>configuration-schema.yml</code> темы. " +
+        `Дополнительные поля сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest темы. ` +
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
         '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
     }
@@ -36695,7 +36936,7 @@ async function saveWorkspaceSchemaContent() {
   if (!manifestPath || !isWorkspaceSchemaContext(manifestPath)) {
     throw new Error("Схема workspace доступна только в корне агента");
   }
-  const cache = getTopicSchemaCache(manifestPath);
+  const cache = getTopicSchemaCache(manifestPath, "");
   if (!cache) throw new Error("Схема не загружена");
 
   topicSchemaFieldsNode?.querySelectorAll(".topic-schema-field-row").forEach((row) => {
@@ -36737,7 +36978,7 @@ async function saveTopicSchemaContent() {
   }
   const manifestPath = getTopicSchemaManifestPath();
   if (!manifestPath) throw new Error("Схема полей недоступна для этого узла");
-  const cache = getTopicSchemaCache(manifestPath);
+  const cache = getTopicSchemaCache(manifestPath, "");
   if (!cache) throw new Error("Схема не загружена");
 
   topicSchemaFieldsNode?.querySelectorAll(".topic-schema-field-row").forEach((row) => {
@@ -36775,7 +37016,11 @@ async function saveTopicSchemaContent() {
       ? data.areaAwnSchema ?? data.awnSchema
       : data.areaAwnSchema ?? cache.areaAwnSchema
   );
-  cache.awnSchema = isAreaSchemaContext(manifestPath) ? areaAwnSchema : topicAwnSchema;
+  cache.awnSchema = isAreaSchemaContext(manifestPath)
+    ? areaAwnSchema
+    : topicSchemaStateHasCustomFields(topicAwnSchema)
+      ? topicAwnSchema
+      : awnSchemaToSave;
   cache.topicAwnSchema = topicAwnSchema;
   cache.areaAwnSchema = areaAwnSchema;
   cache.effectiveAwnSchema = normalizeTopicSchemaState(data.awnSchema);
@@ -36783,29 +37028,18 @@ async function saveTopicSchemaContent() {
   cache.baseTypes = data.baseTypes || cache.baseTypes;
   cache.merged = data.merged || cache.merged;
   enrichTopicSchemaCacheFromTypes(cache);
-  cache.configExists = Boolean(data.exists);
-  cache.configPath = data.configPath || cache.configPath;
-  if (typeof data.content === "string") {
-    setCachedNodeConfig(manifestPath, {
-      path: data.configPath || cache.configPath,
-      content: data.content,
-      exists: Boolean(data.exists),
-      defaultLandingMode: NodeConfigBundle.extractDefaultLandingModeFromNodeConfig(data.content)
-    });
-    const settingsCache = nodeSettingsCacheByManifest.get(manifestPath);
-    if (settingsCache) {
-      const nextState = parseNodeSettingsState(data.content);
-      settingsCache.awnSchemaYaml = nextState.awnSchemaYaml;
-      settingsCache.defaultLandingMode = nextState.defaultLandingMode;
-      settingsCache.settingsFields = mergeTopicSchemaSettingsFields(
-        normalizeTopicSchemaState(data.awnSchema)?.settings?.fields || {}
-      );
-      settingsCache.entries = buildNodeSettingsEntriesFromSchema(
-        nextState.entries,
-        settingsCache.settingsFields
-      );
-      if (activeContentMode === "configs") renderNodeSettingsEditor(settingsCache);
-    }
+  cache.configExists = Boolean(data.exists ?? data.schemaExists);
+  cache.configPath = data.schemaPath || data.configPath || cache.configPath;
+  const settingsCache = nodeSettingsCacheByManifest.get(manifestPath);
+  if (settingsCache) {
+    settingsCache.settingsFields = mergeTopicSchemaSettingsFields(
+      normalizeTopicSchemaState(data.awnSchema)?.settings?.fields || {}
+    );
+    settingsCache.entries = buildNodeSettingsEntriesFromSchema(
+      settingsCache.entries,
+      settingsCache.settingsFields
+    );
+    if (activeContentMode === "configs") renderNodeSettingsEditor(settingsCache);
   }
   renderTopicSchemaEditor();
   return data;
@@ -36866,15 +37100,19 @@ function getSectionSchemaSlotKeyForContext(context) {
 
 function getSectionSchemaTargetsForContext(context) {
   const slotKey = getSectionSchemaSlotKeyForContext(context);
+  const kindOrder =
+    typeof TopicSchemaSlotSpecs !== "undefined" && TopicSchemaSlotSpecs.TOPIC_SCHEMA_SLOT_CONTENT_KIND_ORDER
+      ? TopicSchemaSlotSpecs.TOPIC_SCHEMA_SLOT_CONTENT_KIND_ORDER
+      : ["category", "record", "sidecar"];
   if (typeof TopicSchemaSlotSpecs !== "undefined") {
-    return ["record", "category", "sidecar"]
+    return kindOrder
       .map((kind) => TopicSchemaSlotSpecs.resolveTopicSchemaTargetId(slotKey, { contentKind: kind }))
       .filter(Boolean);
   }
   if (context?.entryKind === "awn.media.category" || context?.memoryKind === "media") {
-    return ["slot_media_record", "slot_media_category", "slot_media"];
+    return ["slot_media_category", "slot_media_record", "slot_media"];
   }
-  return ["slot_memory", "slot_memory_category", "slot_memory_sidecar"];
+  return ["slot_memory_category", "slot_memory", "slot_memory_sidecar"];
 }
 
 function getSectionSchemaTargetTabLabel(targetId) {
@@ -37327,7 +37565,7 @@ function bindSectionSchemaPanelEvents(panel, cache, context) {
     saveBtn.textContent = "Сохраняю…";
     void saveSectionSchemaFromPanel(panel)
       .then(() => {
-        showToast(`Схема раздела сохранена в ${BUNDLE_CONFIG_FILE}`, "success");
+        showToast(`Схема раздела сохранена в ${SCHEMA_MOD_FILE}`, "success");
       })
       .catch((error) => {
         showToast(`Ошибка сохранения схемы: ${error.message}`, "error");
@@ -37346,7 +37584,7 @@ function renderSectionSchemaEditor(panel, cache) {
   renderSectionSchemaCustomFields(panel, cache);
   const pathNode = panel.querySelector(".section-schema-path");
   if (pathNode) {
-    pathNode.textContent = cache.configPath || `${cache.sectionPath}/${BUNDLE_CONFIG_FILE}`;
+    pathNode.textContent = cache.configPath || `${cache.sectionPath}/${SCHEMA_MOD_FILE}`;
   }
   const chainNode = panel.querySelector(".section-schema-chain");
   if (chainNode) {
@@ -37384,7 +37622,7 @@ function createEntryOverviewSectionSchemaPanel(context) {
           Дополнительные поля для записей и подразделов внутри «${escapeHtml(
             context.title || getSectionFolderFromCategoryContext(context)
           )}».
-          <span class="topic-schema-lead-hint">Сохраняется в <code>${BUNDLE_CONFIG_FILE}</code> рядом с manifest раздела.</span>
+          <span class="topic-schema-lead-hint">Сохраняется в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest раздела.</span>
         </p>
         <p class="section-schema-meta">
           <span class="section-schema-meta-label">Файл:</span>
@@ -37917,7 +38155,7 @@ const AWN_TYPE_USAGE_HINTS = {
   "awn.workspace": "Корневой манифест workspace — manifest.md в корне агента",
   "awn.area": "Область (категория) — папка с manifest.md",
   "awn.topic": "Тема — standalone *.md манифест",
-  "awn.record": "Запись в awn-storage/*/main/ (расширяется в configuration.yml темы)",
+  "awn.record": "Запись в awn-storage/*/main/ (расширяется в scheme-mod.yml темы)",
   "awn.record.category": "Категория записей — справочник для awn-category в content",
   "awn.media.category": "Категория медиа — справочник для группировки файлов в media",
   "awn.sidecar": "Метаданные медиа — *.sidecar.md рядом с файлом"
@@ -37957,7 +38195,14 @@ const FIELD_TYPE_ICONS = {
   "awn.color": "🎨",
   "awn.integer": "🔢",
   "awn.number": "📊",
-  "awn.url": "🌐"
+  "awn.url": "🌐",
+  "awn.email": "✉️",
+  "awn.markdown": "📋",
+  "awn.slug": "🔖",
+  "awn.image": "🖼️",
+  "awn.json": "🧩",
+  "awn.relation": "↔️",
+  "awn.tags": "🏷️"
 };
 
 const PROPS_FIELD_ICONS = {
@@ -38156,10 +38401,14 @@ function getFieldDefDisplayName(fieldDef, fallbackKey = "") {
 function getFieldTypeOptionLabel(typeId, name = "") {
   const id = resolveFieldTypeId(typeId);
   const registry = awnTypesCache?.fieldRegistry || {};
-  const entry = registry[id];
+  const canonicalId = normalizeCanonicalFieldTypeId(id);
+  const entry =
+    registry[id] ||
+    registry[canonicalId] ||
+    registry[`awn.field.${canonicalId.replace(/^awn\./, "")}`];
   const rawLabel = String(name || entry?.name || entry?.description || id).trim();
   const label = rawLabel === id && entry?.description ? entry.description : rawLabel;
-  const icon = FIELD_TYPE_ICONS[id];
+  const icon = entry?.icon || entry?.emoji || resolveFieldLabelIcon(id);
   return icon ? `${icon} ${label}` : label;
 }
 
@@ -40235,14 +40484,15 @@ function getDocAsideMiniDocSpec() {
         items: [
           `Файл: ${formatMiniDocPathHint(BUNDLE_CONFIG_FILE)}`,
           "Параметры для агента: <code>study_level</code>, <code>locale</code> и др.",
-          "<code>awn_schema</code> и <code>default_landing_mode</code> редактируются в других разделах"
+          `Схема полей: ${formatMiniDocPathHint(SCHEMA_MOD_FILE)}`,
+          "<code>default_landing_mode</code> — в разделе «Настройки» (<code>config.yml</code>)"
         ]
       };
     case "topic-schema":
       return {
         title: "Схема полей",
         items: [
-          `Файл: ${formatMiniDocPathHint(BUNDLE_CONFIG_FILE)} → <code>awn_schema</code>`,
+          `Файл: ${formatMiniDocPathHint(SCHEMA_MOD_FILE)}`,
           `Вкладки: тема, записи ${STORAGE_SUBFOLDER_CONTENT}/, sidecar`,
           "Базовые <code>awn-*</code> поля наследуются и не редактируются",
           "<code>awn.link</code> — связь с темой/записью; <code>awn.file</code> — путь к файлу"
@@ -48413,8 +48663,14 @@ function filterManifestBodyDiffPayload(diffPayload) {
 const NODE_SLOT_SETTINGS_ROW_TITLE = "Настройки:";
 const NODE_SLOT_MEMORY_ROW_TITLE = "Информация:";
 
-function configHasTopicSchemaFields(configText = "") {
-  return /awn_schema:\s*\n\s+\w+:\s*\n\s+fields:\s*\n\s+\w+:/im.test(String(configText));
+function configHasTopicSchemaFields(_configText = "") {
+  const schemaCache = getTopicSchemaCache(getTopicSchemaManifestPath());
+  return Boolean(
+    schemaCache &&
+      Object.values(schemaCache.awnSchema || {}).some(
+        (block) => Object.keys(block?.fields || {}).length > 0
+      )
+  );
 }
 
 function buildNodeSettingsSlotStatuses({
@@ -48426,15 +48682,7 @@ function buildNodeSettingsSlotStatuses({
   const configCache = getCachedNodeConfig(nodePath);
   const configText = configContent ?? configCache?.content ?? modeContentCache.configs ?? "";
   const hasConfigs = Boolean(String(configText).trim());
-  const schemaCache = getTopicSchemaCache(getTopicSchemaManifestPath(nodePath));
-  const hasTopicSchemaFilled =
-    configHasTopicSchemaFields(configText) ||
-    Boolean(
-      schemaCache &&
-        Object.values(schemaCache.awnSchema || {}).some(
-          (block) => Object.keys(block?.fields || {}).length > 0
-        )
-    );
+  const hasTopicSchemaFilled = configHasTopicSchemaFields();
 
   const slots = [
     { id: "description", label: "Инструкция для агента", filled: hasDescription, modeId: "description" }
@@ -51906,6 +52154,7 @@ function buildNavigationHubRailFileContextMenuState(memoryKind, item) {
     filePath,
     label,
     status,
+    externalMode: true,
     railSlotMemoryKind: memoryKind
   };
 }
@@ -54659,7 +54908,8 @@ function createStaticWorkspaceCounterStubItem({
   cardClass,
   title,
   hint,
-  tooltip
+  tooltip,
+  staticMarkText = "(static)"
 }) {
   const item = document.createElement("li");
   item.className = `node-navigation-workspace-counter-item ${itemClass}`;
@@ -54693,7 +54943,7 @@ function createStaticWorkspaceCounterStubItem({
 
   const staticMark = document.createElement("span");
   staticMark.className = "stub-static-mark";
-  staticMark.textContent = "(static)";
+  staticMark.textContent = staticMarkText;
   label.appendChild(staticMark);
 
   body.append(value, label);
@@ -54723,11 +54973,23 @@ function createOutsideSlotsStaticCounterItem() {
   });
 }
 
+function createStructuredDataStaticCounterItem() {
+  return createStaticWorkspaceCounterStubItem({
+    itemClass: "node-navigation-workspace-counter-item--structured-data",
+    cardClass: "node-navigation-workspace-counter-card--structured-data",
+    title: "Структурированные данные",
+    hint: "Накопители данных внутренние",
+    staticMarkText: "Слот (static)",
+    tooltip: "Структурированные данные (static) — накопители данных внутренние"
+  });
+}
+
 function appendWorkspaceStaticCounterItems(list, { layout = "grid" } = {}) {
   if (!list || layout === "area-single") return;
   list.classList.add("has-workspace-static-slots");
   list.appendChild(createFreeMemoryStaticCounterItem());
   list.appendChild(createOutsideSlotsStaticCounterItem());
+  list.appendChild(createStructuredDataStaticCounterItem());
 }
 
 function createWorkspaceCounterIndexButton(slot, topicPath) {
@@ -65576,7 +65838,10 @@ function applyModeUi() {
     hideEditorViewToggle && showTabularSourceEditor
   );
   topicSchemaPanelNode?.classList.toggle("hidden", !topicSchemaMode);
-  if (topicSchemaMode) renderTopicSchemaEditor();
+  if (topicSchemaMode) {
+    syncNodeSettingsModeSelect();
+    renderTopicSchemaEditor();
+  }
   nodeConfigPanelNode?.classList.toggle("hidden", !configsMode);
   if (configsMode) renderNodeSettingsEditor();
   editorSurfaceNode?.classList.toggle(
@@ -73860,7 +74125,7 @@ async function selectFile(label, filePath) {
         await loadTopicSchemaForManifest(activePath);
       } catch {
         const manifestPath = getTopicSchemaManifestPath(activePath);
-        if (manifestPath) topicSchemaCacheByManifest.delete(manifestPath);
+        if (manifestPath) invalidateTopicSchemaCacheForManifest(manifestPath);
       }
     }
     applyNodeManifestBody(modeContentCache.description || "");
@@ -74558,7 +74823,7 @@ async function saveContent() {
     try {
       await saveTopicSchemaContent();
       saveSucceeded = true;
-      showToast(`Схема полей сохранена в ${BUNDLE_CONFIG_FILE}`, "success");
+      showToast(`Схема полей сохранена в ${SCHEMA_MOD_FILE}`, "success");
     } catch (error) {
       showToast(`Ошибка сохранения: ${error.message}`, "error");
     } finally {
@@ -83650,29 +83915,24 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId) {
   const seq = ++menuAwnDataStoresLoadSeq;
   renderMenuAwnDataStores(null, { loading: true });
 
-  const platformAgentId = DOCUMENTATION_AGENT_ID || "agent-cms-core";
-  const candidates = [];
   const resolvedAgent = String(agentId || activeAgentId || "").trim();
-  if (resolvedAgent) candidates.push(resolvedAgent);
-  if (!candidates.includes(platformAgentId)) candidates.push(platformAgentId);
-
-  for (const fetchAgentId of candidates) {
-    try {
-      const response = await fetch(buildApiUrl("/api/awn-data", {}, fetchAgentId));
-      if (!response.ok) continue;
-      const data = await response.json();
-      if (isLegacyOnlyAwnDataPayload(data) && fetchAgentId !== platformAgentId) continue;
-      if (seq !== menuAwnDataStoresLoadSeq) return;
-      awnDataCatalogAgentId = resolveAwnDataCatalogAgentId(data, fetchAgentId);
-      renderMenuAwnDataStores(data);
-      return;
-    } catch {
-      // try next candidate
-    }
+  if (!resolvedAgent) {
+    if (seq !== menuAwnDataStoresLoadSeq) return;
+    renderMenuAwnDataStores({ stores: [], emptyHint: "select-agent" });
+    return;
   }
 
-  if (seq !== menuAwnDataStoresLoadSeq) return;
-  renderMenuAwnDataStores(null, { error: true });
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-data", {}, resolvedAgent));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (seq !== menuAwnDataStoresLoadSeq) return;
+    awnDataCatalogAgentId = resolveAwnDataCatalogAgentId(data, resolvedAgent);
+    renderMenuAwnDataStores(data);
+  } catch {
+    if (seq !== menuAwnDataStoresLoadSeq) return;
+    renderMenuAwnDataStores(null, { error: true });
+  }
 }
 
 async function refreshMenuGoogleDriveStats(agentId = activeAgentId) {

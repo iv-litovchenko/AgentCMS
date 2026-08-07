@@ -8,7 +8,11 @@ const {
   pickManifestRelFromStorageLayerRef,
   MANIFEST_FILE
 } = require("./manifest-paths");
-const { mergeAwnSchemaLayers } = require("./configuration-schema");
+const {
+  mergeAwnSchemaLayers,
+  SCHEMA_MOD_FILE,
+  extractAwnSchemaFromConfigurationSchemaContent
+} = require("./configuration-schema");
 const {
   extractAwnSchemaFromConfig,
   getTopicSchemaPayload,
@@ -34,19 +38,49 @@ function listSectionFolderPrefixes(relativePathInSlot) {
   return prefixes;
 }
 
-function toSectionConfigRelPath(manifestRel, layer, sectionPrefix) {
+function toSectionSchemaRelPath(manifestRel, layer, sectionPrefix) {
   const prefix = String(sectionPrefix || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
   if (!prefix) return "";
-  return buildStorageLayerRef(manifestRel, layer, `${prefix}/${BUNDLE_CONFIG_FILE}`);
+  return buildStorageLayerRef(manifestRel, layer, `${prefix}/${SCHEMA_MOD_FILE}`);
+}
+
+/** @deprecated alias — schema is stored in scheme-mod.yml */
+function toSectionConfigRelPath(manifestRel, layer, sectionPrefix) {
+  return toSectionSchemaRelPath(manifestRel, layer, sectionPrefix);
 }
 
 function listSectionConfigRelPaths(manifestRel, layer, relativePathInSlot) {
   return listSectionFolderPrefixes(relativePathInSlot)
     .map((prefix) => ({
       sectionPrefix: prefix,
-      configRelPath: toSectionConfigRelPath(manifestRel, layer, prefix)
+      configRelPath: toSectionSchemaRelPath(manifestRel, layer, prefix)
     }))
     .filter((item) => item.configRelPath);
+}
+
+function sectionSchemaHasFields(awnSchema) {
+  return AWN_SCHEMA_TARGETS.some((target) => Object.keys(awnSchema?.[target]?.fields || {}).length > 0);
+}
+
+function readSectionSchemaFromRelPaths(item, agentRootAbs) {
+  const schemaCandidates = [
+    item.configRelPath,
+    item.configRelPath.replace(/scheme-mod\.yml$/i, "shemamod.yml"),
+    item.configRelPath.replace(/scheme-mod\.yml$/i, "configuration-schema.yml")
+  ];
+  for (const relPath of schemaCandidates) {
+    const schemaContent = readSectionConfigContentSync(relPath, agentRootAbs);
+    if (!schemaContent.trim()) continue;
+    const schema = extractAwnSchemaFromConfigurationSchemaContent(schemaContent);
+    if (schema && sectionSchemaHasFields(schema)) {
+      return {
+        sectionPrefix: item.sectionPrefix,
+        configRelPath: item.configRelPath,
+        awnSchema: schema
+      };
+    }
+  }
+  return null;
 }
 
 function readTextFileSync(absolute) {
@@ -68,17 +102,8 @@ function readSectionConfigContentSync(configRelPath, agentRootAbs) {
 function readSectionSchemaLayersSync(manifestRel, layer, relativePathInSlot, agentRootAbs) {
   const chain = [];
   for (const item of listSectionConfigRelPaths(manifestRel, layer, relativePathInSlot)) {
-    const content = readSectionConfigContentSync(item.configRelPath, agentRootAbs);
-    const schema = extractAwnSchemaFromConfig(content);
-    const hasFields = AWN_SCHEMA_TARGETS.some(
-      (target) => Object.keys(schema?.[target]?.fields || {}).length > 0
-    );
-    if (!hasFields) continue;
-    chain.push({
-      sectionPrefix: item.sectionPrefix,
-      configRelPath: item.configRelPath,
-      awnSchema: schema
-    });
+    const layerEntry = readSectionSchemaFromRelPaths(item, agentRootAbs);
+    if (layerEntry) chain.push(layerEntry);
   }
   return chain;
 }
@@ -178,13 +203,16 @@ function resolveSectionConfigRelPath(contentWorkspaceRel) {
   const prefixes = listSectionFolderPrefixes(parsed.relativePath);
   const sectionPrefix = prefixes[prefixes.length - 1] || "";
   if (!sectionPrefix) return "";
-  return toSectionConfigRelPath(manifestRel, parsed.layer, sectionPrefix);
+  return toSectionSchemaRelPath(manifestRel, parsed.layer, sectionPrefix);
 }
 
 function isSectionConfigRelPath(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return false;
   const base = normalized.split("/").pop() || "";
+  if (base.toLowerCase() === SCHEMA_MOD_FILE.toLowerCase()) {
+    return /\/awn-storage\/[^/]+\/.+\/scheme-mod\.yml$/i.test(normalized);
+  }
   return (
     (base.toLowerCase() === BUNDLE_CONFIG_FILE.toLowerCase() ||
       base.toLowerCase() === LEGACY_BUNDLE_CONFIG_FILE.toLowerCase()) &&
@@ -193,7 +221,9 @@ function isSectionConfigRelPath(relPath) {
 }
 
 module.exports = {
+  SCHEMA_MOD_FILE,
   listSectionFolderPrefixes,
+  toSectionSchemaRelPath,
   toSectionConfigRelPath,
   listSectionConfigRelPaths,
   readSectionSchemaLayersSync,

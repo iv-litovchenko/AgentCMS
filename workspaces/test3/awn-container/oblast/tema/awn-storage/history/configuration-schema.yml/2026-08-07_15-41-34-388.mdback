@@ -1,0 +1,16 @@
+version: 1
+layer: area
+
+awn_schema:
+  topic:
+    fields:
+      field_1:
+        type: awn.string
+  slot_inbox:
+    fields:
+      field_1:
+        type: awn.string
+        name: ауц
+      field_2:
+        type: awn.string
+        name: ауц

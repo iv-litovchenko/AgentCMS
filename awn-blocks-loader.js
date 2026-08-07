@@ -3,6 +3,15 @@ const {
   loadMdBlockGroupsMetaFromAwnData,
   mdBlocksStoreHasRecords
 } = require("./awn-data-md-blocks-bridge");
+const {
+  loadBlocksFromCatalog,
+  loadBlockGroupsFromCatalog
+} = require("./type-catalog-loader");
+const {
+  getAgentCmsCoreAbsolute,
+  agentSystemDirExists,
+  resolveAgentRootAbsolute
+} = require("./platform-sources");
 
 const FALLBACK_BLOCK_GROUPS = [
   {
@@ -72,8 +81,25 @@ function buildBlockGroups(blocksById, meta) {
   }));
 }
 
+function shouldPreferCatalogBlocks(projectRoot, agentRoot) {
+  const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
+  const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
+  return agentSystemDirExists(coreRoot) || Boolean(agentRootAbs && agentSystemDirExists(agentRootAbs));
+}
+
 function loadAgentBlocks(agentRoot = "", projectRoot = process.cwd()) {
-  const { projectRoot: root } = resolveBlocksContext(agentRoot, projectRoot);
+  const { projectRoot: root, agentRoot: agent } = resolveBlocksContext(agentRoot, projectRoot);
+
+  if (shouldPreferCatalogBlocks(root, agent)) {
+    const blocksById = loadBlocksFromCatalog(root, agent);
+    if (blocksById && Object.keys(blocksById).length) {
+      const meta = loadBlockGroupsFromCatalog(root, agent) || { groupOrder: [], groupNames: {} };
+      return {
+        blockRegistry: blocksById,
+        blockGroups: buildBlockGroups(blocksById, meta)
+      };
+    }
+  }
 
   if (mdBlocksStoreHasRecords(root)) {
     const blocksById = loadMdBlocksFromAwnData(root);

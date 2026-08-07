@@ -1,0 +1,16 @@
+version: 1
+layer: topic
+
+awn_schema:
+  slot_memory:
+    fields:
+      field_1:
+        type: awn.field.string
+      field_2:
+        type: awn.field.string
+  slot_memory_category:
+    fields:
+      field_1:
+        type: awn.field.string
+      field_2:
+        type: awn.field.string

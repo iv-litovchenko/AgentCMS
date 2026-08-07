@@ -1,0 +1,12 @@
+version: 1
+layer: area
+
+awn_schema:
+  slot_memory:
+    fields:
+      field_1:
+        type: awn.string
+  slot_inbox:
+    fields:
+      field_1:
+        type: awn.string

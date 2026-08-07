@@ -1,0 +1,28 @@
+version: 1
+layer: topic
+
+awn_schema:
+  slot_memory:
+    fields:
+      field_2:
+        type: awn.field.string
+      field_mnogof_2:
+        type: awn.field.string
+        name: field_mnogof2
+      field_mnogof:
+        type: awn.field.string
+        name: field_mnogof
+  slot_memory_category:
+    fields:
+      field_1:
+        type: awn.field.string
+      field_2:
+        type: awn.field.string
+  slot_memory_sidecar:
+    fields:
+      field_1:
+        type: awn.field.string
+      field_2:
+        type: awn.field.string
+      field_3:
+        type: awn.field.string

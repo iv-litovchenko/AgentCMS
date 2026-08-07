@@ -1,6 +1,6 @@
 /**
  * Канонические цели topic-schema (awn_schema) по слотам топика.
- * Каждый слот: запись (record), раздел (category), sidecar.
+ * Каждый слот: раздел (category), запись (record), sidecar.
  * Используется в браузере (window.TopicSchemaSlotSpecs) и на сервере (require).
  */
 (function initTopicSchemaSlotSpecs(global, factory) {
@@ -31,6 +31,8 @@
       category: "Раздел",
       sidecar: "Sidecar"
     };
+
+    const TOPIC_SCHEMA_SLOT_CONTENT_KIND_ORDER = ["category", "record", "sidecar"];
 
     const TOPIC_SCHEMA_TAB_GROUP_LABELS = {
       memory: "Память",
@@ -199,7 +201,7 @@
       const specs = [];
       for (const slot of TOPIC_SCHEMA_SLOT_DEFINITIONS) {
         const baseLabel = getTopicSchemaSlotSchemaLabel(slot);
-        for (const kind of ["record", "category", "sidecar"]) {
+        for (const kind of TOPIC_SCHEMA_SLOT_CONTENT_KIND_ORDER) {
           const target = slot.targets?.[kind];
           if (!target?.id) continue;
           specs.push({
@@ -242,7 +244,7 @@
           slots: slots.map((slot) => ({
             slotKey: slot.slotKey,
             label: slot.label,
-            tabs: ["record", "category", "sidecar"]
+            tabs: TOPIC_SCHEMA_SLOT_CONTENT_KIND_ORDER
               .map((kind) => {
                 const target = slot.targets?.[kind];
                 if (!target?.id) return null;
@@ -281,7 +283,7 @@
     function buildTopicSchemaLegacyTargetMigrations() {
       const migrations = [];
       for (const slot of TOPIC_SCHEMA_SLOT_DEFINITIONS) {
-        for (const kind of ["record", "category", "sidecar"]) {
+        for (const kind of TOPIC_SCHEMA_SLOT_CONTENT_KIND_ORDER) {
           const target = slot.targets?.[kind];
           if (!target?.legacyIds?.length) continue;
           for (const legacyId of target.legacyIds) {

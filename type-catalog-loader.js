@@ -193,6 +193,11 @@ function resolveAgentDomainManifest(cmsConfigRoot) {
   return [...map.values()];
 }
 
+function ingestLegacyPlatformYamlTypes(coreRoot, domain, byId, byDomain) {
+  const legacyDir = path.join(coreRoot, "types", domain, "awn-storage", "configuration", "types");
+  return ingestYamlDomainTypes(legacyDir, domain, "platform", byId, byDomain);
+}
+
 function resolveAgentDomainIds(cmsConfigRoot) {
   return resolveAgentDomainManifest(cmsConfigRoot).map((d) => d.id);
 }
@@ -208,22 +213,27 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const sources = coreUsesYaml
     ? ["platform:agent-cms-core/awn-system/types"]
     : ["platform:agent-cms-core/awn-data"];
-  const useAwnDataFields = editingFieldsStoreHasRecords(projectRoot);
+  const useAwnDataFields = editingFieldsStoreHasRecords(projectRoot) && !coreUsesYaml;
+  const platformExtraDomains = ["mixins", "settings", "md-blocks"];
 
   if (coreUsesYaml) {
     for (const domain of TYPE_DOMAINS) {
       if (domain === "fields" && useAwnDataFields) continue;
       ingestYamlDomainTypes(path.join(coreSystemRoot, "types", domain), domain, "platform", byId, byDomain);
     }
-    for (const domain of ["mixins", "settings"]) {
+    for (const domain of platformExtraDomains) {
       ingestYamlDomainTypes(path.join(coreSystemRoot, "types", domain), domain, "platform", byId, byDomain);
+    }
+    for (const domain of ["fields", "md-blocks"]) {
+      if ((byDomain[domain] || []).length) continue;
+      ingestLegacyPlatformYamlTypes(coreRoot, domain, byId, byDomain);
     }
   } else {
     for (const domain of TYPE_DOMAINS) {
       if (domain === "fields" && useAwnDataFields) continue;
       ingestDomainTypesFromAwnData(projectRoot, domain, "platform", byId, byDomain, coreRoot);
     }
-    for (const domain of ["mixins", "settings"]) {
+    for (const domain of platformExtraDomains) {
       ingestDomainTypesFromAwnData(projectRoot, domain, "platform", byId, byDomain, coreRoot);
     }
   }
@@ -717,6 +727,8 @@ function loadFieldTypesFromCatalog(projectRoot, agentRoot = "") {
       id: entry.id,
       name: merged.name || entry.id,
       kind: "field",
+      group: merged.group || null,
+      sort: Number(merged.sort) || 0,
       storage: merged.storage || "string",
       mdbase: merged.mdbase || entry.id.replace(/^awn\./, ""),
       widget: merged.widget || "input",

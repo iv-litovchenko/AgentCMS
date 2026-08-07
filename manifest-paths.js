@@ -419,6 +419,35 @@ function isAreaManifestRelPath(relPath) {
   return isManifestFileName(path.posix.basename(String(relPath || "").replace(/\\/g, "/")));
 }
 
+function isWorkspaceRootManifestRelPath(relPath) {
+  const normalized = normalizeManifestRelPath(relPath);
+  const parts = normalized.split("/").filter(Boolean);
+  if (parts.length !== 1) return false;
+  return isManifestFileName(parts[0]);
+}
+
+/** Area-level manifest (Space/kit root), not a topic manifest under an area. */
+function isAreaLevelManifestRelPath(relPath, options = {}) {
+  const normalized = normalizeManifestRelPath(relPath);
+  const fileName = path.posix.basename(normalized);
+  if (!isManifestFileName(fileName)) return false;
+  if (options.isAgentRoot || isWorkspaceRootManifestRelPath(normalized)) return false;
+  if (options.isContainerRoot) return true;
+
+  const declared = normalizeDeclaredManifestTreeType(
+    options.declaredTreeType || options.explicitType
+  );
+  if (declared === "topic") return false;
+  if (declared === "area") return true;
+
+  const containerFolder = options.containerFolder || "awn-container";
+  const folderDepth = countManifestFolderDepthUnderContainer(normalized, containerFolder);
+  if (folderDepth !== null) {
+    return folderDepth < 2;
+  }
+  return countManifestFolderDepthFromWorkspaceRoot(normalized) < 2;
+}
+
 function isManifestMdRelPath(relPath) {
   return isAreaManifestRelPath(relPath);
 }
@@ -1428,6 +1457,8 @@ module.exports = {
   isTopicManifestFileName,
   isTopicManifestRelPath,
   isAreaManifestRelPath,
+  isAreaLevelManifestRelPath,
+  isWorkspaceRootManifestRelPath,
   isManifestMdRelPath,
   isRecordCategoryContentRelPath,
   isExternalSectionReadmeRelPath,

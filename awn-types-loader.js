@@ -6,7 +6,7 @@ const {
   fieldDefDefaultValue,
   sortPropsEntries
 } = require("./awn-field-registry");
-const { loadAgentFields } = require("./awn-fields-loader");
+const { loadAgentFields, getFieldGroups } = require("./awn-fields-loader");
 const { getBlockGroups, getBlockRegistry } = require("./awn-blocks-loader");
 const {
   parseTypeYaml,
@@ -484,6 +484,7 @@ function getAwnTypesPayload(agentRoot, projectRoot) {
     typeCatalog: getTypeCatalogPayload(projectRoot, agentRoot),
     components: getComponentsPayload(projectRoot, agentRoot),
     fieldRegistry: getFieldRegistry(agentRoot, projectRoot),
+    fieldGroups: getFieldGroups(agentRoot, projectRoot),
     baseFieldOrder: getBaseFieldOrder(agentRoot, projectRoot),
     fieldDefSchema: fieldDefSchema || null,
     blockRegistry: getBlockRegistry(agentRoot, projectRoot),

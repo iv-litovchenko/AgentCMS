@@ -275,13 +275,13 @@ module.exports = {
         },
         {
           name: "read_page_schema",
-          description: "Схема полей страницы (schema.yml, awn_schema) — привязана к типу страницы и слотам.",
+          description: "Схема полей страницы (scheme-mod.yml, awn_schema) — привязана к типу страницы и слотам.",
           parameters: "path",
           http: "GET /api/file/page-schema"
         },
         {
           name: "write_page_schema",
-          description: "Сохранить схему полей (content = YAML с awn_schema:).",
+          description: "Сохранить схему в scheme-mod.yml (content = YAML с awn_schema:).",
           parameters: "path, content",
           http: "POST /api/file/page-schema"
         },

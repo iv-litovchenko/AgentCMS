@@ -1,0 +1,8 @@
+version: 1
+layer: area
+
+awn_schema:
+  area:
+    fields:
+      area-field_1:
+        type: awn.field.datetime

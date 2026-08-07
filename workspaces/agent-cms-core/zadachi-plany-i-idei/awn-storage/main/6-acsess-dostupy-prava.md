@@ -1,13 +1,13 @@
 ---
-awn-name: 6 Acsess - доступы - права
+awn-name: 6 Acsess - доступы - права AUTH.md
 awn-emoji: ""
 awn-status: open
 awn-description: ""
 awn-tags: []
 awn-type: awn.content.record
 awn-create: "2026-08-01T21:51"
-awn-update: 2026-08-01T19:35:00.108Z
-awn-version: 6
+awn-update: 2026-08-07T13:04:25.265Z
+awn-version: 7
 awn-preview: ""
 awn-web-url: ""
 awn-attachments: []
@@ -26,3 +26,12 @@ awn-blocked-lock (настройи доступа владельцем)
 * редактироване только создателем RWD
 
 Ограничение - редактировать и дитеть только свои записи которые ты создавал
+
+
+## Вторая часть 
+
+1. AUTH.MD
+2. Идея права  агента (agent.md) - мы даем права пользователям - а как быть разрешать права агенту - читать почту - ответить - что и кем это  (он) может быть) как - как это реализовать? Как это может быть?
+3. Agent.md.premisiions
+4. user.md permissions
+5. users.md permissions

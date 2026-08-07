@@ -982,30 +982,6 @@ function resolveAwnDataReadRoot(agentRoot, projectRoot = process.cwd()) {
   }
 
   const agentPayload = loadAwnDataStores(agentRootAbs, projectRoot);
-  const agentHasRealStores =
-    agentPayload.storeCount > 0 && !isLegacyOnlyAwnDataStores(agentPayload.stores);
-  if (agentHasRealStores) {
-    return {
-      readRoot: agentRootAbs,
-      source: "agent",
-      sourceAgentId: path.basename(agentRootAbs),
-      payload: agentPayload
-    };
-  }
-
-  const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
-  if (coreRoot && path.resolve(coreRoot) !== path.resolve(agentRootAbs)) {
-    const corePayload = loadAwnDataStores(coreRoot, projectRoot);
-    if (corePayload.storeCount > 0) {
-      return {
-        readRoot: coreRoot,
-        source: "platform",
-        sourceAgentId: path.basename(coreRoot),
-        payload: corePayload
-      };
-    }
-  }
-
   return {
     readRoot: agentRootAbs,
     source: "agent",

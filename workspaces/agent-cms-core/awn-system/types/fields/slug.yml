@@ -1,0 +1,11 @@
+id: awn.field.slug
+name: Слаг
+kind: field
+domain: fields
+extends: awn.field.base
+widget: slug
+storage: string
+mdbase: string
+description: URL-слаг — строчные буквы, цифры и дефисы (напр. my-topic-name)
+settings: [hint, required, locked, default]
+status: active

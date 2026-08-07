@@ -1,0 +1,11 @@
+id: awn.field.tags
+name: Теги
+kind: field
+domain: fields
+extends: awn.field.base
+widget: tags
+storage: array
+mdbase: list
+description: Свободные теги — вводятся произвольно, не из фиксированного списка
+settings: [hint, required, locked, default]
+status: active

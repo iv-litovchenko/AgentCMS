@@ -1,0 +1,11 @@
+id: awn.field.string
+name: Строка
+kind: field
+domain: fields
+extends: awn.field.base
+widget: input
+storage: string
+mdbase: string
+description: Короткая строка (одна строка текста)
+settings: [hint, required, locked, default, format]
+status: active

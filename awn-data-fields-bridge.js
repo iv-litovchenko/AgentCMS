@@ -30,32 +30,52 @@ function parseSettingsList(raw) {
     .filter(Boolean);
 }
 
+function pickFieldFrontmatterValue(fm, ...keys) {
+  if (!fm || typeof fm !== "object") return "";
+  for (const key of keys) {
+    const value = fm[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return "";
+}
+
 function isFieldRecordActive(record) {
-  const status = String(record?.frontmatter?.status || "active").trim().toLowerCase();
+  const status = String(
+    pickFieldFrontmatterValue(record?.frontmatter || {}, "status", "awn-status") || "active"
+  )
+    .trim()
+    .toLowerCase();
   return ACTIVE_STATUS.has(status);
 }
 
 function recordToFieldDef(record) {
   if (!record || !isFieldRecordActive(record)) return null;
   const fm = record.frontmatter || {};
-  const fieldId = String(fm.fieldId || "").trim();
+  const fieldId = String(pickFieldFrontmatterValue(fm, "fieldId", "awn-fieldId")).trim();
   if (!fieldId) return null;
 
-  const settings = parseSettingsList(fm.settings);
+  const settings = parseSettingsList(pickFieldFrontmatterValue(fm, "settings", "awn-settings"));
   const field = {
     id: fieldId,
-    name: String(fm.title || record.title || fieldId).trim(),
+    name: String(
+      pickFieldFrontmatterValue(fm, "title", "awn-title") || record.title || fieldId
+    ).trim(),
     kind: "field",
-    group: String(fm.group || "misc").trim(),
-    sort: Number(fm.sort) || 0,
-    storage: String(fm.storage || "string").trim(),
-    mdbase: String(fm.mdbase || fieldId.replace(/^awn\.field\./, "")).trim(),
-    widget: String(fm.widget || "input").trim(),
-    description: String(record.body || fm.description || "").trim(),
-    extends: String(fm.extends || "awn.field.base").trim(),
+    group: String(pickFieldFrontmatterValue(fm, "group", "awn-group") || "misc").trim(),
+    sort: Number(pickFieldFrontmatterValue(fm, "sort", "awn-sort")) || 0,
+    storage: String(pickFieldFrontmatterValue(fm, "storage", "awn-storage") || "string").trim(),
+    mdbase: String(
+      pickFieldFrontmatterValue(fm, "mdbase", "awn-mdbase") || fieldId.replace(/^awn\.field\./, "")
+    ).trim(),
+    widget: String(pickFieldFrontmatterValue(fm, "widget", "awn-widget") || "input").trim(),
+    description: String(record.body || pickFieldFrontmatterValue(fm, "description", "awn-description") || "").trim(),
+    extends: String(pickFieldFrontmatterValue(fm, "extends", "awn-extends") || "awn.field.base").trim(),
     storeRel: `${FIELDS_STORE_REL}/${record.fileName || `${record.id}.md`}`.replace(/\\/g, "/")
   };
-  if (fm.format) field.format = String(fm.format).trim();
+  const format = pickFieldFrontmatterValue(fm, "format", "awn-format");
+  if (format) field.format = String(format).trim();
   if (settings?.length) field.settings = settings;
   return field;
 }
@@ -94,8 +114,12 @@ function loadFieldGroupsMetaFromAwnData(projectRoot) {
     if (!ACTIVE_STATUS.has(status)) continue;
     byId.set(id, {
       id,
-      title: String(record.frontmatter?.title || record.title || id).trim(),
-      sort: Number(record.frontmatter?.sort) || 0
+      title: String(
+        pickFieldFrontmatterValue(record.frontmatter || {}, "title", "awn-title") ||
+          record.title ||
+          id
+      ).trim(),
+      sort: Number(pickFieldFrontmatterValue(record.frontmatter || {}, "sort", "awn-sort")) || 0
     });
   }
 

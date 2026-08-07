@@ -180,6 +180,10 @@ const {
   readWorkspaceLayerAwnSchema,
   readNodeHasOwnSchemaLayer,
   topicSchemaHasFields,
+  composeSectionConfigurationSchemaYaml,
+  extractAwnSchemaFromConfigurationSchemaContent,
+  SCHEMA_MOD_FILE,
+  toTopicConfigurationSchemaRel,
   WORKSPACE_CONFIGURATION_SCHEMA_REL
 } = require("./configuration-schema");
 const { rewriteAgentMarkdownLinks } = require("./markdown-link-rewriter");
@@ -16274,6 +16278,17 @@ async function handleApiForAgent(req, res, url) {
 
     try {
       const configFile = await readNodeConfigFile(manifestCtx.rel);
+      const schemaRel = toTopicConfigurationSchemaRel(manifestCtx.rel);
+      const schemaAbsolute = schemaRel ? normalizeWorkspacePath(schemaRel) : null;
+      let schemaExists = false;
+      if (schemaAbsolute) {
+        try {
+          await fs.access(schemaAbsolute);
+          schemaExists = true;
+        } catch {
+          schemaExists = false;
+        }
+      }
       const payload = contentPath
         ? getEffectiveSchemaPayloadForContentPath(
             configFile.content,
@@ -16290,8 +16305,10 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, {
         path: manifestCtx.rel,
         contentPath: contentPath || null,
-        configPath: configFile.path,
-        configExists: configFile.exists,
+        schemaPath: schemaRel || null,
+        schemaExists,
+        configPath: schemaRel || null,
+        configExists: schemaExists,
         awnSchema: payload.awnSchema,
         topicAwnSchema: payload.topicAwnSchema || payload.awnSchema,
         areaAwnSchema: payload.areaAwnSchema || null,
@@ -16316,7 +16333,7 @@ async function handleApiForAgent(req, res, url) {
       const relPath = payload.path;
       // Accept both shapes:
       //   { awnSchema: {...} }  — from UI (correct)
-      //   { content: "yaml..." } — from MCP agent (legacy, parse YAML → extract awn_schema)
+      //   { content: "yaml..." } — from MCP agent (legacy YAML body → extract awn_schema)
       let awnSchema;
       if (payload.awnSchema && typeof payload.awnSchema === "object") {
         awnSchema = normalizeAwnSchema(payload.awnSchema);
@@ -16490,7 +16507,7 @@ async function handleApiForAgent(req, res, url) {
         getAgentRoot(),
         getProjectRoot()
       );
-      const sectionOnlySchema = extractAwnSchemaFromConfig(content);
+      let sectionOnlySchema = extractAwnSchemaFromConfigurationSchemaContent(content);
       return sendJson(res, 200, {
         manifestPath: manifestCtx.rel,
         sectionPath,
@@ -16539,10 +16556,9 @@ async function handleApiForAgent(req, res, url) {
       const configRelPath = toSectionConfigRelPath(manifestCtx.rel, layer, sectionPath);
       if (!configRelPath) return sendJson(res, 400, { error: "Invalid section path" });
       const configAbsolute = normalizeWorkspacePath(configRelPath);
-      if (!configAbsolute) return sendJson(res, 400, { error: "Invalid section config path" });
+      if (!configAbsolute) return sendJson(res, 400, { error: "Invalid section schema path" });
 
-      const existingContent = (await fs.readFile(configAbsolute, "utf-8").catch(() => "")) || "";
-      const nextContent = applyAwnSchemaToConfig(existingContent, awnSchema);
+      const nextContent = composeSectionConfigurationSchemaYaml(awnSchema);
       await fs.mkdir(path.dirname(configAbsolute), { recursive: true });
       if (!String(nextContent).trim()) {
         await removeIfExists(configAbsolute);
@@ -16634,32 +16650,20 @@ async function handleApiForAgent(req, res, url) {
         });
       }
 
-      // Merge-safe: if incoming content has no awn_schema block, preserve existing one from disk.
-      // This prevents agents from accidentally wiping awn_schema by sending partial config.
-      let finalContent = content;
-      const incomingBundle = NodeConfigBundle.parseNodeConfigBundle(content);
-      const incomingHasSchema = Boolean(incomingBundle.awn_schema && Object.keys(incomingBundle.awn_schema).length);
-      if (!incomingHasSchema) {
-        const existingFile = await readNodeConfigFile(manifestCtx.rel);
-        if (existingFile.exists && existingFile.content) {
-          const existingBundle = NodeConfigBundle.parseNodeConfigBundle(existingFile.content);
-          if (existingBundle.awn_schema && Object.keys(existingBundle.awn_schema).length) {
-            incomingBundle.awn_schema = existingBundle.awn_schema;
-            incomingBundle.awn_schemaYaml = NodeConfigBundle.extractSectionYamlText(existingFile.content, "awn_schema");
-            finalContent = NodeConfigBundle.composeNodeConfigBundle(incomingBundle);
-          }
-        }
-      }
-
-      const normalizedContent = finalContent.endsWith("\n") ? finalContent : `${finalContent}\n`;
-      await writeWorkspaceTextFileWithHistory(manifestCtx.rel, configRelPath, normalizedContent);
-      const defaultLandingMode = extractDefaultLandingModeFromNodeConfig(finalContent);
+      const normalizedContent = trimmed.endsWith("\n") ? trimmed : `${trimmed}\n`;
+      // Field schema lives in scheme-mod.yml — never persist awn_schema inside config.yml.
+      const bundleWithoutSchema = NodeConfigBundle.parseNodeConfigBundle(normalizedContent);
+      bundleWithoutSchema.awn_schema = null;
+      bundleWithoutSchema.awn_schemaYaml = "";
+      const configOnlyContent = NodeConfigBundle.composeNodeConfigBundle(bundleWithoutSchema);
+      const contentToWrite = configOnlyContent.endsWith("\n") ? configOnlyContent : `${configOnlyContent}\n`;
+      await writeWorkspaceTextFileWithHistory(manifestCtx.rel, configRelPath, contentToWrite);
+      const defaultLandingMode = extractDefaultLandingModeFromNodeConfig(contentToWrite);
       return sendJson(res, 200, {
         path: configRelPath,
-        content: normalizedContent,
+        content: contentToWrite,
         exists: true,
-        defaultLandingMode,
-        schemaMerged: !incomingHasSchema
+        defaultLandingMode
       });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save node config", details: String(error.message || error) });

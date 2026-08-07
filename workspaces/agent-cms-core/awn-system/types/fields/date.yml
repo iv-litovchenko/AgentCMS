@@ -1,0 +1,12 @@
+id: awn.field.date
+name: Дата
+kind: field
+domain: fields
+extends: awn.field.base
+widget: date
+storage: string
+mdbase: date
+format: YYYY-MM-DD
+description: Дата без времени (YYYY-MM-DD)
+settings: [hint, required, locked, default, format]
+status: active
