@@ -77,13 +77,6 @@ function createServer() {
   );
 
   reg(
-    "get_active_context",
-    "Deprecated → get_user_active_context_now.",
-    z.object({}),
-    () => client.get("/api/agent/active-context")
-  );
-
-  reg(
     "search_workspace",
     "Search workspace (UI header search). scope=all by default. match=relaxed|strict.",
     z.object({
@@ -135,27 +128,6 @@ function createServer() {
   reg(
     "list_workspace_heartbeat",
     "Heartbeat index: topics and records with awn-runtime-heartbeat. No query — fixed runtime filter.",
-    z.object({}),
-    () => client.get("/api/agent/heartbeat-registry")
-  );
-
-  reg(
-    "get_always_context",
-    "Deprecated → list_workspace_always_context.",
-    z.object({}),
-    () => client.get("/api/agent/always-context")
-  );
-
-  reg(
-    "get_cron_registry",
-    "Deprecated → list_workspace_cron.",
-    z.object({}),
-    () => client.get("/api/agent/cron-registry")
-  );
-
-  reg(
-    "get_heartbeat_registry",
-    "Deprecated → list_workspace_heartbeat.",
     z.object({}),
     () => client.get("/api/agent/heartbeat-registry")
   );

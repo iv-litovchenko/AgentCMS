@@ -10,7 +10,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 (по умолчанию). 0.0.1 и 0.0.0 — предыдущие снимки.",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
     "path → manifest.md страницы; slot → main|inbox|media|main-single|…; ref → путь внутри слота.",
-    "94 tools — полный список ниже (8 deprecated aliases).",
+    "86 tools — полный список ниже.",
     "awn-mask-file — read_page_config; create_content slot=main подхватывает маску.",
     "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
@@ -48,12 +48,6 @@ module.exports = {
           http: "GET /api/agent/session-context"
         },
         {
-          name: "get_topic_registry",
-          description: "Deprecated → get_page_map.",
-          parameters: "—",
-          http: "GET /api/agent/page-map"
-        },
-        {
           name: "list_workspace_always_context",
           description:
             "Всегда в контексте: полное содержимое тем/записей с awn-runtime-load-always + AGENTS.md/SKILL.md/README.md + GLOBAL_MCP_DOC.md. Без query — фиксированный runtime-индекс.",
@@ -71,24 +65,6 @@ module.exports = {
           name: "list_workspace_heartbeat",
           description:
             "Индекс heartbeat: темы и записи с awn-runtime-heartbeat. Без query. Команда: «возьми реестр сердцебиения».",
-          parameters: "—",
-          http: "GET /api/agent/heartbeat-registry"
-        },
-        {
-          name: "get_always_context",
-          description: "Deprecated → list_workspace_always_context.",
-          parameters: "—",
-          http: "GET /api/agent/always-context"
-        },
-        {
-          name: "get_cron_registry",
-          description: "Deprecated → list_workspace_cron.",
-          parameters: "—",
-          http: "GET /api/agent/cron-registry"
-        },
-        {
-          name: "get_heartbeat_registry",
-          description: "Deprecated → list_workspace_heartbeat.",
           parameters: "—",
           http: "GET /api/agent/heartbeat-registry"
         },
@@ -138,12 +114,6 @@ module.exports = {
           http: "GET /api/agent/active-context"
         },
         {
-          name: "get_active_context",
-          description: "Deprecated → get_user_active_context_now.",
-          parameters: "—",
-          http: "GET /api/agent/active-context"
-        },
-        {
           name: "search_workspace",
           description: "Поиск по workspace (как в шапке UI). По умолчанию scope=all — имя, мета темы и текст файлов. match=relaxed|strict, маски * и ?.",
           parameters:
@@ -157,22 +127,10 @@ module.exports = {
           http: "GET /api/agent/storage-layout"
         },
         {
-          name: "get_workspace_table",
-          description: "Deprecated → get_page_map.",
-          parameters: "—",
-          http: "GET /api/agent/page-map"
-        },
-        {
           name: "get_canonical_model",
           description: "Канон v1: page types (ws/area/topic), slot content (record/record.category/sidecar), bindings.",
           parameters: "—",
           http: "GET /api/agent/canonical-model"
-        },
-        {
-          name: "get_site_map",
-          description: "Deprecated → get_page_map.",
-          parameters: "—",
-          http: "GET /api/agent/page-map"
         },
         {
           name: "list_awn_types",
@@ -185,18 +143,6 @@ module.exports = {
           description: "Проверка целостности типов awn-system.",
           parameters: "—",
           http: "GET /api/agent/type-health"
-        },
-        {
-          name: "get_menu",
-          description: "Deprecated → get_page_map. HTTP /api/menu остаётся для UI.",
-          parameters: "—",
-          http: "GET /api/agent/page-map"
-        },
-        {
-          name: "get_topic_registry",
-          description: "Deprecated → get_page_map.",
-          parameters: "—",
-          http: "GET /api/agent/page-map"
         }
       ]
     },

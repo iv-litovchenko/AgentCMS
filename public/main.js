@@ -77133,7 +77133,7 @@ const RUNTIME_REGISTRY_MODES = {
     title: "Всегда в контексте",
     description:
       "Файлы, которые агент читает целиком при команде «загрузи контекст». Это стартовый набор знаний — не нужно искать их вручную.",
-    mcp: "MCP: get_session_context · get_always_context",
+    mcp: "MCP: get_session_context · list_workspace_always_context",
     emptyTitle: "Пока ничего не загружается автоматически",
     emptyLead: "Агент не знает, какие файлы держать в памяти при старте.",
     emptySteps: [
@@ -77147,7 +77147,7 @@ const RUNTIME_REGISTRY_MODES = {
     title: "По расписанию",
     description:
       "Задачи с cron — агент запускает их по расписанию. Скажите «обнови расписание задач», чтобы получить актуальный список.",
-    mcp: "MCP: get_cron_registry",
+    mcp: "MCP: list_workspace_cron",
     emptyTitle: "Нет задач по расписанию",
     emptyLead: "Ни одна тема или запись не помечена для cron-запуска.",
     emptySteps: [
@@ -77161,7 +77161,7 @@ const RUNTIME_REGISTRY_MODES = {
     title: "Сердцебиение",
     description:
       "Темы и записи, которые агент проверяет периодически — «пульс» workspace. Скажите «возьми реестр сердцебиения».",
-    mcp: "MCP: get_heartbeat_registry",
+    mcp: "MCP: list_workspace_heartbeat",
     emptyTitle: "Нет сердцебиения",
     emptyLead: "Ни одна тема или запись не помечена для периодической проверки.",
     emptySteps: [
@@ -77175,7 +77175,7 @@ const RUNTIME_REGISTRY_MODES = {
     title: "Все runtime-флаги",
     description:
       "Обзор всех тем и записей с любыми awn-runtime-* флагами — always, cron, heartbeat в одной таблице.",
-    mcp: "MCP: get_always_context, get_cron_registry, get_heartbeat_registry",
+    mcp: "MCP: list_workspace_always_context, list_workspace_cron, list_workspace_heartbeat",
     emptyTitle: "Runtime-флаги не используются",
     emptyLead: "В workspace пока нет тем или записей с полями awn-runtime-*.",
     emptySteps: [

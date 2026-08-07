@@ -30,32 +30,4 @@ export function registerMapTools(reg, client, pagePath) {
         ...(slot ? { slot } : {})
       })
   );
-
-  reg(
-    "get_menu",
-    "Deprecated → get_page_map (flat meta map, not UI tree). HTTP /api/menu remains for UI.",
-    z.object({}),
-    () => client.get("/api/agent/page-map")
-  );
-
-  reg(
-    "get_workspace_table",
-    "Deprecated → get_page_map (pages include slot summaries).",
-    z.object({}),
-    () => client.get("/api/agent/page-map")
-  );
-
-  reg(
-    "get_topic_registry",
-    "Deprecated → get_page_map.",
-    z.object({}),
-    () => client.get("/api/agent/page-map")
-  );
-
-  reg(
-    "get_site_map",
-    "Deprecated → get_page_map.",
-    z.object({}),
-    () => client.get("/api/agent/page-map")
-  );
 }

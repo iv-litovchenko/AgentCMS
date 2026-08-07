@@ -73,10 +73,6 @@
 | `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
-| `get_site_map` | Legacy — используй `get_page_map` | нет |
-| `get_workspace_table` | Legacy — используй `get_page_map` | нет |
-
-Устаревшие MCP-алиасы: `get_always_context`, `get_cron_registry`, `get_heartbeat_registry`, `get_active_context`, `get_menu`, `get_topic_registry`, `get_site_map`, `get_workspace_table`.
 
 Флаги на теме/записи (frontmatter):
 
