@@ -17137,14 +17137,8 @@ async function handleApiForAgent(req, res, url) {
       if (!isAllowedStorageSubfolderName(storageFolder)) {
         return sendJson(res, 400, { error: "Invalid storage folder" });
       }
-      if (
-        storageFolder !== STORAGE_SUBFOLDER_SCRIPTS &&
-        storageFolder !== STORAGE_SUBFOLDER_INBOX &&
-        storageFolder !== STORAGE_SUBFOLDER_QUICK_NOTES &&
-        storageFolder !== STORAGE_SUBFOLDER_NOTE &&
-        storageFolder !== STORAGE_SUBFOLDER_REFERENCES &&
-        storageFolder !== STORAGE_SUBFOLDER_ARTEFACTS
-      ) {
+      const { isStorageFlatSectionFolder } = require("./storage-slot-routing");
+      if (!isStorageFlatSectionFolder(storageFolder)) {
         return sendJson(res, 400, { error: "Sections are not supported for this folder" });
       }
 

@@ -1,12 +1,21 @@
+import { createRequire } from "node:module";
 import { z } from "zod";
 
-const INTERNAL_SLOTS = new Set(["main-single", "main-single-csv", "todo-single", "todo", "log-single"]);
+const require = createRequire(import.meta.url);
+const {
+  slotKeyToStorageFolder,
+  isExternalMemorySlot,
+  isMediaSlotKey,
+  isInternalBundleSlot,
+  buildSectionCreateRequest,
+  listSectionCapableSlotKeys
+} = require("../../storage-slot-routing.js");
 
 const contentSlot = z
   .string()
   .min(1)
   .describe(
-    "Storage slot key: main, inbox, notes, references, artefacts, repository, scripts, media, assets, main-single, main-single-csv, todo-single, log-single"
+    `Storage slot key: ${listSectionCapableSlotKeys().join(", ")}, repository, main-single, main-single-csv, todo-single, log-single`
   );
 
 const contentRef = z
@@ -16,25 +25,15 @@ const contentRef = z
   .describe("Relative path inside the slot (required for external/collection slots). Omit for internal single-file slots.");
 
 function slotToFolder(slot) {
-  if (slot === "note") return "notes";
-  if (slot === "script") return "scripts";
-  return slot;
-}
-
-function isInternalSlot(slot) {
-  return INTERNAL_SLOTS.has(String(slot || "").trim());
-}
-
-function isMediaSlot(slot) {
-  return slot === "media" || slot === "assets";
+  return slotKeyToStorageFolder(slot);
 }
 
 async function readMarkdownFull(client, pagePath, slot, ref) {
   const folder = slotToFolder(slot);
-  if (slot === "main") {
+  if (isExternalMemorySlot(slot)) {
     return client.get("/api/external/file", { path: pagePath, file: ref });
   }
-  if (isMediaSlot(slot) && ref.endsWith(".sidecar.md")) {
+  if (isMediaSlotKey(slot) && ref.endsWith(".sidecar.md")) {
     return client.get("/api/media/sidecar", { path: pagePath, file: ref });
   }
   return client.get("/api/storage/markdown", { path: pagePath, folder, file: ref });
@@ -42,10 +41,10 @@ async function readMarkdownFull(client, pagePath, slot, ref) {
 
 async function writeMarkdownFull(client, pagePath, slot, ref, content) {
   const folder = slotToFolder(slot);
-  if (slot === "main") {
+  if (isExternalMemorySlot(slot)) {
     return client.post("/api/external/file", { path: pagePath, file: ref, content });
   }
-  if (isMediaSlot(slot) && ref.endsWith(".sidecar.md")) {
+  if (isMediaSlotKey(slot) && ref.endsWith(".sidecar.md")) {
     return client.post("/api/media/sidecar", { path: pagePath, file: ref.replace(/\.sidecar\.md$/i, ""), content });
   }
   return client.post("/api/storage/markdown", { path: pagePath, folder, file: ref, content });
@@ -88,11 +87,11 @@ export function registerContentTools({ reg, client, pagePath }) {
     "List content items in a page slot. Works for external (folder) slots only.",
     z.object({ path: pagePath, slot: contentSlot }),
     async ({ path, slot }) => {
-      if (isInternalSlot(slot)) {
+      if (isInternalBundleSlot(slot)) {
         throw new Error(`Slot "${slot}" is single-file (internal). Use read_content_body instead of list_content.`);
       }
-      if (slot === "main") return client.get("/api/external/files", { path });
-      if (isMediaSlot(slot)) return client.get("/api/media", { path, folder: slotToFolder(slot) });
+      if (isExternalMemorySlot(slot)) return client.get("/api/external/files", { path });
+      if (isMediaSlotKey(slot)) return client.get("/api/media", { path, folder: slotToFolder(slot) });
       return client.get("/api/folder/view", { path, folder: slotToFolder(slot) });
     }
   );
@@ -102,7 +101,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     "Content item metadata: path, slot, ref, driver, file.",
     z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
     async ({ path, slot, ref }) => {
-      if (isInternalSlot(slot)) {
+      if (isInternalBundleSlot(slot)) {
         const payload = await readInternalContent(client, path, slot);
         return { path, slot, driver: "internal", ref: null, file: null, payload };
       }
@@ -131,7 +130,7 @@ export function registerContentTools({ reg, client, pagePath }) {
     "Read content body. For .md: markdown below frontmatter. For internal slots: full file content.",
     z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
     async ({ path, slot, ref }) => {
-      if (isInternalSlot(slot)) {
+      if (isInternalBundleSlot(slot)) {
         const payload = await readInternalContent(client, path, slot);
         return { slot, content: payload?.content ?? "" };
       }
@@ -153,17 +152,17 @@ export function registerContentTools({ reg, client, pagePath }) {
       content: z.string()
     }),
     async ({ path, slot, ref, content }) => {
-      if (isInternalSlot(slot)) {
+      if (isInternalBundleSlot(slot)) {
         return writeInternalContent(client, path, slot, content);
       }
       if (!ref) throw new Error("ref is required for external slots");
-      const existing = await readMarkdownFull(client, path, slot, ref);
+      const existing = await readMarkdownFull(client, pagePath, slot, ref);
       if (!ref.toLowerCase().endsWith(".md")) {
-        return writeMarkdownFull(client, path, slot, ref, content);
+        return writeMarkdownFull(client, pagePath, slot, ref, content);
       }
       const { properties } = splitMarkdownFrontmatter(existing.content);
       const merged = mergeMarkdownFrontmatter(properties, content);
-      return writeMarkdownFull(client, path, slot, ref, merged);
+      return writeMarkdownFull(client, pagePath, slot, ref, merged);
     }
   );
 
@@ -172,13 +171,13 @@ export function registerContentTools({ reg, client, pagePath }) {
     "Read YAML frontmatter of a .md content item.",
     z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
     async ({ path, slot, ref }) => {
-      if (isInternalSlot(slot)) {
+      if (isInternalBundleSlot(slot)) {
         const payload = await readInternalContent(client, path, slot);
         const { properties } = splitMarkdownFrontmatter(payload?.content || "");
         return { slot, content: properties };
       }
       if (!ref) throw new Error("ref is required for external slots");
-      const payload = await readMarkdownFull(client, path, slot, ref);
+      const payload = await readMarkdownFull(client, pagePath, slot, ref);
       const { properties } = splitMarkdownFrontmatter(payload.content || "");
       return { file: payload.file, content: properties };
     }
@@ -194,23 +193,23 @@ export function registerContentTools({ reg, client, pagePath }) {
       content: z.string()
     }),
     async ({ path, slot, ref, content }) => {
-      if (isInternalSlot(slot)) {
+      if (isInternalBundleSlot(slot)) {
         const payload = await readInternalContent(client, path, slot);
         const { description } = splitMarkdownFrontmatter(payload?.content || "");
         const merged = mergeMarkdownFrontmatter(content, description);
         return writeInternalContent(client, path, slot, merged);
       }
       if (!ref) throw new Error("ref is required for external slots");
-      const existing = await readMarkdownFull(client, path, slot, ref);
+      const existing = await readMarkdownFull(client, pagePath, slot, ref);
       const { description } = splitMarkdownFrontmatter(existing.content || "");
       const merged = mergeMarkdownFrontmatter(content, description);
-      return writeMarkdownFull(client, path, slot, ref, merged);
+      return writeMarkdownFull(client, pagePath, slot, ref, merged);
     }
   );
 
   reg(
     "create_content",
-    "Create typed content: awn.content.record or awn.content.category. Use awnType awn.content.category for section folders.",
+    "Create typed content: awn.content.record or awn.content.category. Categories are subfolders with manifest.md; endpoint is chosen by slot (memory→external API, media/assets→media API, flat slots→storage API).",
     z.object({
       path: pagePath,
       slot: contentSlot,
@@ -230,20 +229,20 @@ export function registerContentTools({ reg, client, pagePath }) {
       status: z.string().optional()
     }),
     async ({ path, slot, awnType, title, displayName, slug, parent, body, fileMask, fields, source, author, status }) => {
-      if (isInternalSlot(slot)) {
+      if (isInternalBundleSlot(slot)) {
         throw new Error(`Cannot create_content in internal slot "${slot}". Use write_content_body.`);
       }
       const folder = slotToFolder(slot);
       const isCategory = awnType === "awn.content.category" || awnType === "awn.content.record.category";
       if (isCategory) {
-        return client.post("/api/storage/section/create", {
+        const { endpoint, body: requestBody } = buildSectionCreateRequest(slot, {
           path,
-          folder,
           title: title || displayName,
           displayName: displayName || title,
           slug,
           parent
         });
+        return client.post(endpoint, requestBody);
       }
       return client.post("/api/storage/file/create", {
         path,
@@ -276,7 +275,7 @@ export function registerContentTools({ reg, client, pagePath }) {
       createSubdir: z.boolean().optional()
     }),
     async ({ path, slot, fileName, data, mimeType, parent, createSubdir }) => {
-      if (isInternalSlot(slot)) {
+      if (isInternalBundleSlot(slot)) {
         throw new Error(`Cannot upload_content to internal slot "${slot}". Use write_content_body.`);
       }
       return client.post("/api/media/file", {
@@ -305,7 +304,7 @@ export function registerContentTools({ reg, client, pagePath }) {
       createSubdir: z.boolean().optional()
     }),
     async ({ path, slot, url, fileName, mimeType, parent, createSubdir }) => {
-      if (isInternalSlot(slot)) {
+      if (isInternalBundleSlot(slot)) {
         throw new Error(
           `Cannot import_content_from_url to internal slot "${slot}". Use write_content_body for text slots.`
         );
@@ -330,11 +329,11 @@ export function registerContentTools({ reg, client, pagePath }) {
     "Read a file from an external slot. Text files return content; media returns previewUrl for binary.",
     z.object({ path: pagePath, slot: contentSlot, ref: z.string().min(1) }),
     async ({ path, slot, ref }) => {
-      if (isInternalSlot(slot)) {
+      if (isInternalBundleSlot(slot)) {
         throw new Error("read_content_file is for external slot files. Use read_content_body for internal slots.");
       }
       const folder = slotToFolder(slot);
-      if (isMediaSlot(slot)) {
+      if (isMediaSlotKey(slot)) {
         const base = client.buildUrl("/api/media/file", { path, file: ref }).toString();
         return { path, slot, ref, previewUrl: base, binary: true };
       }
@@ -353,13 +352,13 @@ export function registerContentTools({ reg, client, pagePath }) {
       title: z.string().min(1).optional()
     }),
     async ({ path, slot, ref, displayName, title }) => {
-      if (isInternalSlot(slot)) throw new Error("rename_content is not supported for internal slots.");
+      if (isInternalBundleSlot(slot)) throw new Error("rename_content is not supported for internal slots.");
       const name = displayName || title;
       if (!name) throw new Error("displayName or title is required");
-      if (slot === "main") {
+      if (isExternalMemorySlot(slot)) {
         return client.post("/api/external/file/rename", { path, file: ref, title: name });
       }
-      if (isMediaSlot(slot)) {
+      if (isMediaSlotKey(slot)) {
         return client.post("/api/media/file/rename", { path, file: ref, title: name });
       }
       return client.post("/api/storage/file/rename", {
@@ -383,8 +382,8 @@ export function registerContentTools({ reg, client, pagePath }) {
       targetParent: z.string().optional()
     }),
     async ({ path, slot, ref, targetPath, targetRef, targetParent }) => {
-      if (isInternalSlot(slot)) throw new Error("move_content is not supported for internal slots.");
-      if (slot === "main") {
+      if (isInternalBundleSlot(slot)) throw new Error("move_content is not supported for internal slots.");
+      if (isExternalMemorySlot(slot)) {
         return client.post("/api/external/file/move", {
           path,
           file: ref,
@@ -392,7 +391,7 @@ export function registerContentTools({ reg, client, pagePath }) {
           targetFile: targetRef || targetParent
         });
       }
-      if (isMediaSlot(slot)) {
+      if (isMediaSlotKey(slot)) {
         return client.post("/api/media/file/move", {
           path,
           file: ref,
@@ -400,7 +399,7 @@ export function registerContentTools({ reg, client, pagePath }) {
           targetFile: targetRef
         });
       }
-      throw new Error(`move_content for slot "${slot}" is not supported yet. Supported: main, media, assets.`);
+      throw new Error(`move_content for slot "${slot}" is not supported yet. Supported: memory/main, media, assets.`);
     }
   );
 
@@ -409,9 +408,9 @@ export function registerContentTools({ reg, client, pagePath }) {
     "Delete content from an external slot (main, inbox, media, repository, scripts, …). Internal single-file slots are not supported.",
     z.object({ path: pagePath, slot: contentSlot, ref: z.string().min(1) }),
     async ({ path, slot, ref }) => {
-      if (isInternalSlot(slot)) throw new Error("delete_content is not supported for internal slots.");
-      if (slot === "main") return client.delete("/api/external/file", { path, file: ref });
-      if (isMediaSlot(slot)) return client.delete("/api/media/file", { path, file: ref });
+      if (isInternalBundleSlot(slot)) throw new Error("delete_content is not supported for internal slots.");
+      if (isExternalMemorySlot(slot)) return client.delete("/api/external/file", { path, file: ref });
+      if (isMediaSlotKey(slot)) return client.delete("/api/media/file", { path, file: ref });
       return client.delete("/api/storage/file", { path, folder: slotToFolder(slot), file: ref });
     }
   );
