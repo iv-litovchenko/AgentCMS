@@ -268,7 +268,7 @@ function createServer() {
 
   reg(
     "read_data_store_schema",
-    "Read record field schema from awn-data store scheme-mod.yml (awn_schema.record.fields). Returns mergedFields from manifest + extends + scheme-mod.",
+    "Read record field schema from awn-data store schema-mod.yml (awn_schema.record.fields). Returns mergedFields from manifest + extends + schema-mod.",
     z.object({
       store: z.string().min(1).describe("Store relPath, e.g. tasks, taxonomies/statuses")
     }),
@@ -277,13 +277,13 @@ function createServer() {
 
   reg(
     "write_data_store_schema",
-    "Save record field schema to scheme-mod.yml. Pass content as YAML with awn_schema.record.fields, or fields/tabs object.",
+    "Save record field schema to schema-mod.yml. Pass content as YAML with awn_schema.record.fields, or fields/tabs object.",
     z.object({
       store: z.string().min(1).describe("Store relPath, e.g. tasks"),
       content: z
         .string()
         .optional()
-        .describe("Full scheme-mod.yml YAML body with awn_schema.record block"),
+        .describe("Full schema-mod.yml YAML body with awn_schema.record block"),
       fields: z
         .record(z.any())
         .optional()

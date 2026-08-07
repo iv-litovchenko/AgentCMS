@@ -186,6 +186,7 @@ const {
   toTopicConfigurationSchemaRel,
   WORKSPACE_CONFIGURATION_SCHEMA_REL
 } = require("./configuration-schema");
+const { isSchemaModFileName } = require("./schema-mod-paths");
 const { rewriteAgentMarkdownLinks } = require("./markdown-link-rewriter");
 const { buildAgentBrokenLinksReport } = require("./broken-links-scanner");
 const { getMergedCatalogsPayload, getCatalogLookupMaps, resolveCatalogPropValue, resolveCatalogTagsList } = require("./catalog-loader");
@@ -4046,6 +4047,7 @@ async function collectNonMarkdownFiles(folderAbsolute, prefix = "", options = {}
     }
 
     if (entry.isFile() && !entry.name.toLowerCase().endsWith(".md")) {
+      if (isSchemaModFileName(entry.name)) continue;
       files.push({
         name: entry.name,
         relativePath: relative.replace(/\\/g, "/")
@@ -4054,6 +4056,7 @@ async function collectNonMarkdownFiles(folderAbsolute, prefix = "", options = {}
     }
 
     if (entry.isSymbolicLink() && !entry.name.toLowerCase().endsWith(".md")) {
+      if (isSchemaModFileName(entry.name)) continue;
       try {
         const stat = await fs.stat(absolute);
         if (stat.isFile()) {
@@ -9245,8 +9248,8 @@ const SESSION_CONTEXT_API_MAP = {
   dataStores: "GET /api/awn-data — накопители awn-data; ?store= для одного",
   dataStoreCreate: "POST /api/awn-data/stores — создать накопитель",
   dataRecordCreate: "POST /api/awn-data/records — добавить запись",
-  dataStoreSchemaRead: "GET /api/awn-data/store-schema?store= — scheme-mod.yml полей записей",
-  dataStoreSchemaWrite: "POST /api/awn-data/store-schema — сохранить scheme-mod.yml",
+  dataStoreSchemaRead: "GET /api/awn-data/store-schema?store= — schema-mod.yml полей записей",
+  dataStoreSchemaWrite: "POST /api/awn-data/store-schema — сохранить schema-mod.yml",
   platformCatalogs: "GET /api/platform/catalogs — legacy справочники",
   agentCatalogs: "GET /api/agent/catalogs — legacy справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
@@ -16698,7 +16701,7 @@ async function handleApiForAgent(req, res, url) {
       }
 
       const normalizedContent = trimmed.endsWith("\n") ? trimmed : `${trimmed}\n`;
-      // Field schema lives in scheme-mod.yml — never persist awn_schema inside config.yml.
+      // Field schema lives in schema-mod.yml — never persist awn_schema inside config.yml.
       const bundleWithoutSchema = NodeConfigBundle.parseNodeConfigBundle(normalizedContent);
       bundleWithoutSchema.awn_schema = null;
       bundleWithoutSchema.awn_schemaYaml = "";

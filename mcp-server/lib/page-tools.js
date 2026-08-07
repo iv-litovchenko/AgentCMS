@@ -45,21 +45,21 @@ export function registerPageTools({ reg, client, pagePath }) {
 
   reg(
     "read_page_schema",
-    "Read page field schema from scheme-mod.yml (layer awn_schema). Bound to page type and slot targets.",
+    "Read page field schema from schema-mod.yml (layer awn_schema). Bound to page type and slot targets.",
     z.object({ path: pagePath }),
     ({ path }) => client.get("/api/file/page-schema", { path })
   );
 
   reg(
     "write_page_schema",
-    "Save page field schema to scheme-mod.yml. Pass content as YAML with an awn_schema: block (slot_memory, slot_inbox, sidecar, topic, …).",
+    "Save page field schema to schema-mod.yml. Pass content as YAML with an awn_schema: block (slot_memory, slot_inbox, sidecar, topic, …).",
     z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/page-schema", { path, content })
   );
 
   reg(
     "read_page_config",
-    "Read page config.yml (awn_ui, awn_settings). Field schema is in scheme-mod.yml — use read_page_schema.",
+    "Read page config.yml (awn_ui, awn_settings). Field schema is in schema-mod.yml — use read_page_schema.",
     z.object({ path: pagePath }),
     ({ path }) => client.get("/api/file/page-config", { path })
   );

@@ -44,7 +44,7 @@ function toSectionSchemaRelPath(manifestRel, layer, sectionPrefix) {
   return buildStorageLayerRef(manifestRel, layer, `${prefix}/${SCHEMA_MOD_FILE}`);
 }
 
-/** @deprecated alias — schema is stored in scheme-mod.yml */
+/** @deprecated alias — schema is stored in schema-mod.yml */
 function toSectionConfigRelPath(manifestRel, layer, sectionPrefix) {
   return toSectionSchemaRelPath(manifestRel, layer, sectionPrefix);
 }
@@ -65,8 +65,9 @@ function sectionSchemaHasFields(awnSchema) {
 function readSectionSchemaFromRelPaths(item, agentRootAbs) {
   const schemaCandidates = [
     item.configRelPath,
-    item.configRelPath.replace(/scheme-mod\.yml$/i, "shemamod.yml"),
-    item.configRelPath.replace(/scheme-mod\.yml$/i, "configuration-schema.yml")
+    item.configRelPath.replace(/schema-mod\.yml$/i, "scheme-mod.yml"),
+    item.configRelPath.replace(/schema-mod\.yml$/i, "shemamod.yml"),
+    item.configRelPath.replace(/schema-mod\.yml$/i, "configuration-schema.yml")
   ];
   for (const relPath of schemaCandidates) {
     const schemaContent = readSectionConfigContentSync(relPath, agentRootAbs);
@@ -211,7 +212,7 @@ function isSectionConfigRelPath(relPath) {
   if (!normalized || normalized.includes("..")) return false;
   const base = normalized.split("/").pop() || "";
   if (base.toLowerCase() === SCHEMA_MOD_FILE.toLowerCase()) {
-    return /\/awn-storage\/[^/]+\/.+\/scheme-mod\.yml$/i.test(normalized);
+    return /\/awn-storage\/[^/]+\/.+\/(schema-mod|scheme-mod)\.yml$/i.test(normalized);
   }
   return (
     (base.toLowerCase() === BUNDLE_CONFIG_FILE.toLowerCase() ||

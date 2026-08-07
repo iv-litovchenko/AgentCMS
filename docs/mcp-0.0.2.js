@@ -203,13 +203,13 @@ module.exports = {
         },
         {
           name: "read_data_store_schema",
-          description: "Схема полей записей накопителя (scheme-mod.yml, awn_schema.record).",
+          description: "Схема полей записей накопителя (schema-mod.yml, awn_schema.record).",
           parameters: "store",
           http: "GET /api/awn-data/store-schema?store="
         },
         {
           name: "write_data_store_schema",
-          description: "Сохранить scheme-mod.yml накопителя (content YAML или fields/tabs).",
+          description: "Сохранить schema-mod.yml накопителя (content YAML или fields/tabs).",
           parameters: "store, content? | fields?, tabs?",
           http: "POST /api/awn-data/store-schema"
         },
@@ -287,13 +287,13 @@ module.exports = {
         },
         {
           name: "read_page_schema",
-          description: "Схема полей страницы (scheme-mod.yml, awn_schema) — привязана к типу страницы и слотам.",
+          description: "Схема полей страницы (schema-mod.yml, awn_schema) — привязана к типу страницы и слотам.",
           parameters: "path",
           http: "GET /api/file/page-schema"
         },
         {
           name: "write_page_schema",
-          description: "Сохранить схему в scheme-mod.yml (content = YAML с awn_schema:).",
+          description: "Сохранить схему в schema-mod.yml (content = YAML с awn_schema:).",
           parameters: "path, content",
           http: "POST /api/file/page-schema"
         },

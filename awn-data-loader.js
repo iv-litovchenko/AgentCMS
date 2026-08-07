@@ -10,6 +10,12 @@ const {
   appendCsvRecord,
   serializeCsv
 } = require("./awn-data-csv");
+const {
+  SCHEMA_MOD_FILE,
+  LEGACY_SCHEME_MOD_FILE,
+  LEGACY_SHEMAMOD_FILE,
+  LEGACY_CONFIGURATION_SCHEMA_FILE
+} = require("./schema-mod-paths");
 
 const AWN_DATA_DIR = "awn-data";
 const TABLE_BASE_EXTENDS = `${AWN_DATA_DIR}/cms-base/entities/table.base.md`;
@@ -17,8 +23,11 @@ const ROW_BASE_EXTENDS = `${AWN_DATA_DIR}/cms-base/entities/row.base.md`;
 const ENTITY_BASE_EXTENDS = `${AWN_DATA_DIR}/cms-base/entities/base.md`;
 /** @deprecated use TABLE_BASE_EXTENDS */
 const TABLE_BASE_REL = "cms-base/entities/table.base.md";
+/** @deprecated use ROW_BASE_EXTENDS / rowBaseExtendsPath() */
+const RECORD_BASE_REL = "cms-base/entities/row.base.md";
 const COLLECTION_MANIFEST = "manifest.md";
-const SCHEME_MOD_FILE = "scheme-mod.yml";
+/** @deprecated use SCHEMA_MOD_FILE */
+const SCHEME_MOD_FILE = SCHEMA_MOD_FILE;
 /** @deprecated legacy split contract */
 const STORE_CONTRACT_FILE = "manifest.store.md";
 /** @deprecated legacy */
@@ -593,8 +602,21 @@ function readRawStoreSchemaAt(storeAbs, explicitPath = "") {
   return null;
 }
 
+function resolveStoreSchemeModPath(storeAbs) {
+  const candidates = [
+    path.join(storeAbs, SCHEMA_MOD_FILE),
+    path.join(storeAbs, LEGACY_SCHEME_MOD_FILE),
+    path.join(storeAbs, LEGACY_SHEMAMOD_FILE),
+    path.join(storeAbs, LEGACY_CONFIGURATION_SCHEMA_FILE)
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return path.join(storeAbs, SCHEMA_MOD_FILE);
+}
+
 function readStoreSchemeModOverlay(storeAbs) {
-  const schemePath = path.join(storeAbs, SCHEME_MOD_FILE);
+  const schemePath = resolveStoreSchemeModPath(storeAbs);
   if (!fs.existsSync(schemePath)) return null;
   try {
     const parsed = parseTypeYaml(fs.readFileSync(schemePath, "utf-8"));
@@ -639,7 +661,7 @@ function writeStoreSchemeMod(storeAbs, schema = {}) {
   const tabs = schema.elementSchemaTabs || schema.tabs || {};
   if (!Object.keys(fields).length && !Object.keys(tabs).length) return false;
   fs.writeFileSync(
-    path.join(storeAbs, SCHEME_MOD_FILE),
+    path.join(storeAbs, SCHEMA_MOD_FILE),
     composeAwnDataStoreSchemeModYaml({ fields, elementSchemaTabs: tabs }),
     "utf-8"
   );
@@ -690,7 +712,7 @@ function loadMergedStoreSchema(storeAbs, dataRoot = "") {
     },
     storeBody: leaf.body || leaf.schema.storeBody || "",
     schemaFile: leaf.schemaFile,
-    schemeModFile: schemeOverlay?.exists ? SCHEME_MOD_FILE : "",
+    schemeModFile: schemeOverlay?.exists ? SCHEMA_MOD_FILE : "",
     extendsChain: chain.map((item) => item.schema.extends).filter(Boolean),
     supertype: leaf.schema.supertype || ""
   };
@@ -1312,9 +1334,9 @@ function entityBaseExtendsPath() {
   return ENTITY_BASE_EXTENDS;
 }
 
-/** @deprecated use tableBaseExtendsPath */
-function recordBaseExtendsPath() {
-  return tableBaseExtendsPath();
+/** @deprecated use rowBaseExtendsPath for record/element schema */
+function recordBaseExtendsPath(_slug) {
+  return rowBaseExtendsPath();
 }
 
 function buildCollectionSchemaContent({ slug, name, description, hierarchy = true }) {
@@ -1671,8 +1693,8 @@ function readAwnDataStoreSchemaPayload(agentRoot, projectRoot, storeRel) {
     projectRoot,
     storeRel
   );
-  const schemeModRelPath = `${rel}/${SCHEME_MOD_FILE}`.replace(/\\/g, "/");
-  const schemePath = path.join(storeAbs, SCHEME_MOD_FILE);
+  const schemeModRelPath = `${rel}/${SCHEMA_MOD_FILE}`.replace(/\\/g, "/");
+  const schemePath = path.join(storeAbs, SCHEMA_MOD_FILE);
   const overlay = readStoreSchemeModOverlay(storeAbs);
   const merged = loadMergedStoreSchema(storeAbs, dataRoot);
   let content = "";
@@ -1704,7 +1726,7 @@ function writeAwnDataStoreSchema(agentRoot, projectRoot, storeRel, options = {})
     throw new Error("Record field schema is not supported for group stores");
   }
 
-  const schemePath = path.join(storeAbs, SCHEME_MOD_FILE);
+  const schemePath = path.join(storeAbs, SCHEMA_MOD_FILE);
   let nextContent = "";
 
   if (typeof options.content === "string" && options.content.trim()) {
@@ -1738,6 +1760,7 @@ module.exports = {
   SINGLETON_RECORD,
   COLLECTION_MANIFEST,
   SCHEME_MOD_FILE,
+  SCHEMA_MOD_FILE,
   getAwnDataRoot,
   loadAwnDataStores,
   getAwnDataPayload,

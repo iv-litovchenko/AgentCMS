@@ -1534,7 +1534,7 @@
             <h2 class="agent-canvas-title">Типы YAML</h2>
             <p class="agent-canvas-lead">
               Системные схемы полей frontmatter. Типы записей — в <code>awn-types/components/</code> (read-only).
-              Дополнительные поля темы — в <code>scheme-mod.yml</code> рядом с manifest темы.
+              Дополнительные поля темы — в <code>schema-mod.yml</code> рядом с manifest темы.
             </p>
           </div>
         </div>
@@ -2450,7 +2450,7 @@
                   <div>
                     <h3 class="topic-schema-title">📋 Схема полей темы</h3>
                     <p class="topic-schema-lead">
-                      Дополнительные поля сохраняются в <code>scheme-mod.yml</code> рядом с manifest темы.
+                      Дополнительные поля сохраняются в <code>schema-mod.yml</code> рядом с manifest темы.
                       Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь.
                       <span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>
                     </p>
@@ -3493,6 +3493,9 @@
                 <span class="awn-data-view-kind-badge hidden"></span>
               </div>
               <div class="awn-data-view-path hidden"></div>
+              <div class="awn-data-view-iblock-description-block hidden">
+                <div class="awn-data-view-iblock-description"></div>
+              </div>
             </div>
           </div>
         </header>
@@ -3500,17 +3503,20 @@
           <div class="awn-data-view-manifest hidden"></div>
           <div class="awn-data-view-iblock-layout">
             <section class="awn-data-view-schema-panel hidden" aria-label="Инфоблок">
-              <div class="awn-data-view-schema-settings">
-                <div class="awn-data-view-schema-block">
-                  <div class="awn-data-view-schema-block-head">
-                    <h2 class="awn-data-view-schema-section-title">Настройки инфоблока</h2>
-                    <div class="awn-data-view-schema-block-head-right">
-                      <code class="awn-data-view-schema-file">manifest.md</code>
-                      <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="edit-store">
-                        Редактировать
-                      </button>
-                    </div>
-                  </div>
+              <details class="awn-data-view-accordion awn-data-view-schema-settings-accordion">
+                <summary class="awn-data-view-accordion-summary">
+                  <span class="awn-data-view-accordion-leading" aria-hidden="true">▸</span>
+                  <span class="awn-data-view-accordion-summary-main">
+                    <span class="awn-data-view-accordion-title">Настройки инфоблока</span>
+                  </span>
+                  <span class="awn-data-view-accordion-actions">
+                    <code class="awn-data-view-schema-file">manifest.md</code>
+                    <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="edit-store">
+                      Редактировать
+                    </button>
+                  </span>
+                </summary>
+                <div class="awn-data-view-accordion-body">
                   <div class="awn-data-view-schema-read">
                     <div class="awn-data-view-schema-table-wrap">
                       <table class="awn-data-view-schema-table">
@@ -3541,23 +3547,22 @@
                     </div>
                   </div>
                 </div>
-              </div>
-              <div class="awn-data-view-iblock-description-block hidden">
-                <h2 class="awn-data-view-schema-section-title">Описание</h2>
-                <div class="awn-data-view-iblock-description"></div>
-              </div>
-              <div class="awn-data-view-schema-fields-section hidden">
-                <div class="awn-data-view-schema-block">
-                  <div class="awn-data-view-schema-block-head">
-                    <h2 class="awn-data-view-schema-section-title">Схема полей записей</h2>
-                    <div class="awn-data-view-schema-block-head-right">
-                      <code class="awn-data-view-scheme-mod-file">scheme-mod.yml</code>
-                      <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="edit-scheme-mod">
-                        Редактировать
-                      </button>
-                    </div>
-                    <span class="awn-data-view-schema-fields-count" aria-live="polite"></span>
-                  </div>
+              </details>
+              <details class="awn-data-view-accordion awn-data-view-schema-fields-accordion hidden">
+                <summary class="awn-data-view-accordion-summary">
+                  <span class="awn-data-view-accordion-leading" aria-hidden="true">▸</span>
+                  <span class="awn-data-view-accordion-summary-main">
+                    <span class="awn-data-view-accordion-title">Схема полей записей</span>
+                    <span class="awn-data-view-accordion-meta awn-data-view-schema-fields-count" aria-live="polite"></span>
+                  </span>
+                  <span class="awn-data-view-accordion-actions">
+                    <code class="awn-data-view-schema-file awn-data-view-schema-mod-file">schema-mod.yml</code>
+                    <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="edit-schema-mod">
+                      Редактировать
+                    </button>
+                  </span>
+                </summary>
+                <div class="awn-data-view-accordion-body">
                   <div class="awn-data-view-scheme-mod-read">
                     <div class="awn-data-view-schema-fields-wrap hidden">
                       <div class="awn-data-view-schema-table-wrap">
@@ -3583,16 +3588,16 @@
                       rows="14"
                     ></textarea>
                     <div class="awn-data-view-schema-edit-actions">
-                      <button type="button" class="awn-data-view-schema-btn is-primary" data-awn-data-action="save-scheme-mod">
-                        Сохранить scheme-mod.yml
+                      <button type="button" class="awn-data-view-schema-btn is-primary" data-awn-data-action="save-schema-mod">
+                        Сохранить schema-mod.yml
                       </button>
-                      <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="cancel-scheme-mod">
+                      <button type="button" class="awn-data-view-schema-btn" data-awn-data-action="cancel-schema-mod">
                         Отмена
                       </button>
                     </div>
                   </div>
                 </div>
-              </div>
+              </details>
             </section>
             <div class="awn-data-view-elements-main">
               <div class="awn-data-view-section-panel hidden">
@@ -3857,7 +3862,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.238"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.618"></script>
+    <script src="/main.js?v=0.5.622"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

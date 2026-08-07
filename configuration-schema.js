@@ -15,22 +15,17 @@ const {
   emptyAwnSchema
 } = require("./awn-types-loader");
 
-const SCHEMA_MOD_FILE = "scheme-mod.yml";
-const LEGACY_SHEMAMOD_FILE = "shemamod.yml";
-const LEGACY_CONFIGURATION_SCHEMA_FILE = "configuration-schema.yml";
+const {
+  SCHEMA_MOD_FILE,
+  LEGACY_SCHEME_MOD_FILE,
+  LEGACY_SHEMAMOD_FILE,
+  LEGACY_CONFIGURATION_SCHEMA_FILE,
+  isSchemaModFileName
+} = require("./schema-mod-paths");
 /** @deprecated use SCHEMA_MOD_FILE */
 const CONFIGURATION_SCHEMA_FILE = SCHEMA_MOD_FILE;
 const CORE_CONFIGURATION_SCHEMA_REL = `${AGENT_SYSTEM_FOLDER}/${SCHEMA_MOD_FILE}`;
 const WORKSPACE_CONFIGURATION_SCHEMA_REL = SCHEMA_MOD_FILE;
-
-function isSchemaModFileName(name) {
-  const lower = String(name || "").toLowerCase();
-  return (
-    lower === SCHEMA_MOD_FILE.toLowerCase() ||
-    lower === LEGACY_SHEMAMOD_FILE.toLowerCase() ||
-    lower === LEGACY_CONFIGURATION_SCHEMA_FILE.toLowerCase()
-  );
-}
 
 function resolveAgentRootAbsolute(agentRoot) {
   const raw = String(agentRoot || "").trim();
@@ -82,12 +77,14 @@ function listSchemaModRelCandidates(containerDirRel) {
   if (!dir) {
     return [
       WORKSPACE_CONFIGURATION_SCHEMA_REL,
+      LEGACY_SCHEME_MOD_FILE,
       LEGACY_SHEMAMOD_FILE,
       LEGACY_CONFIGURATION_SCHEMA_FILE
     ];
   }
   return [
     `${dir}/${SCHEMA_MOD_FILE}`,
+    `${dir}/${LEGACY_SCHEME_MOD_FILE}`,
     `${dir}/${LEGACY_SHEMAMOD_FILE}`,
     `${dir}/${LEGACY_CONFIGURATION_SCHEMA_FILE}`
   ];
@@ -290,6 +287,7 @@ function readNodeHasOwnSchemaLayer(manifestRel, agentRoot, configContent = "") {
 
 module.exports = {
   SCHEMA_MOD_FILE,
+  LEGACY_SCHEME_MOD_FILE,
   LEGACY_CONFIGURATION_SCHEMA_FILE,
   CONFIGURATION_SCHEMA_FILE,
   CORE_CONFIGURATION_SCHEMA_REL,

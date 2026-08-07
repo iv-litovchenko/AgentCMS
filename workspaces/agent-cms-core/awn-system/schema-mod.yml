@@ -11,5 +11,5 @@ description: >
 # layouts: {}
 # settings: {}
 
-# Topic overrides: {topic}/scheme-mod.yml
-# Workspace overrides: scheme-mod.yml в корне workspace агента
+# Topic overrides: {topic}/schema-mod.yml
+# Workspace overrides: schema-mod.yml в корне workspace агента
