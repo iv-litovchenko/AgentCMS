@@ -126,7 +126,7 @@ function buildMcpHints(focus) {
   const pagePath = focus?.page?.path;
   if (!pagePath) return mcp;
 
-  mcp.read_page_meta = { path: pagePath };
+  mcp.get_page_meta = { path: pagePath };
   mcp.read_page_body = { path: pagePath };
   mcp.read_page_properties = { path: pagePath };
   mcp.list_page_slots = { path: pagePath };
