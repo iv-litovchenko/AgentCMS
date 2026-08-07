@@ -51177,6 +51177,8 @@ function isNavigationImageFileItem(item) {
 
 function resolveNavigationItemPreviewUiForToc(item, nodePath = activePath) {
   if (isNavigationMarkdownItem(item)) {
+    const externalPreview = resolveExternalItemPreviewUi(item, nodePath);
+    if (externalPreview) return externalPreview;
     if (!isNavigationImageFileItem(item)) return null;
     const path = String(item?.path || item?.relativePath || "").replace(/\\/g, "/");
     const imageUrl = appendCacheBuster(buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_SMALL));
@@ -64923,7 +64925,7 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
 
   const handlers = getNavigationHubRailTocHandlers(memoryKind);
   const nav = document.createElement("nav");
-  nav.className = "node-navigation-book-toc nav-book-toc-tree--classic nav-book-toc-tree--rail";
+  nav.className = "node-navigation-book-toc nav-book-toc-tree--guide nav-book-toc-tree--rail";
   nav.setAttribute("aria-label", getEntryOverviewTocTitle(memoryKind));
 
   const list = document.createElement("ul");
@@ -64937,7 +64939,7 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
     folderStatuses,
     sectionManifestByFolder,
     nodePath,
-    treeStyle: "classic",
+    treeStyle: "guide",
     collapseDepthThreshold: 99,
     activeContext: activeCtx,
     resourceContextMenuMemoryKind: memoryKind,
@@ -64955,24 +64957,19 @@ function createNavigationHubRailBookTocNav(navigationIndex, memoryKind, nodePath
       ...tocHandlers,
       linkLeadingMode: "media",
       showFileTypeLeading: false,
-      showBranchLeading: false
-    });
-  } else if (isFlatEntryOverviewMemoryKind(memoryKind)) {
-    appendNavigationBookTocList(list, tree, 0, {
-      ...tocHandlers,
-      showFileTypeLeading: true,
-      showBranchLeading: false
+      showBranchLeading: false,
+      treeStyle: "guide"
     });
   } else {
     appendNavigationBookTocList(list, tree, 0, {
       ...tocHandlers,
-      showFileTypeLeading: false,
-      showBranchLeading: false
+      showFileTypeLeading: true,
+      showBranchLeading: false,
+      treeStyle: "guide"
     });
   }
 
   nav.appendChild(list);
-  refreshClassicNavBookTocTreeLines(nav);
   return nav;
 }
 
