@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 
 /** Единый workspace платформы — источник правды для типов, справочников и групп агентов. */
@@ -7,36 +8,60 @@ const COMPONENTS_REL = path.join(AGENT_CMS_CORE_REL, "components");
 
 const AWN_DATA_REL = "awn-data";
 const CMS_BASE_REL = path.join(AWN_DATA_REL, "cms-base");
-/** @deprecated use CMS_BASE_REL */
+/** Legacy alias — предпочитайте getCmsConfigRel(agentRoot) */
 const CMS_CONFIG_REL = CMS_BASE_REL;
 
+const AGENT_SYSTEM_FOLDER = "awn-system";
+
 const TYPE_DOMAINS = ["base", "pages", "content", "slots", "fields"];
-/** CMS-модель агента — конфиг и registry в awn-data/cms-base/ */
-const AGENT_SYSTEM_REL = CMS_CONFIG_REL;
-const AGENT_TYPE_DOMAINS = [
-  ...TYPE_DOMAINS,
-  "mixins",
-  "settings"
-];
+const AGENT_TYPE_DOMAINS = [...TYPE_DOMAINS, "mixins", "settings"];
+
+function resolveAgentRootAbsolute(agentRoot, projectRoot = process.cwd()) {
+  const raw = String(agentRoot || "").trim();
+  if (!raw) return "";
+  return path.isAbsolute(raw) ? raw : path.join(projectRoot, raw);
+}
+
+function agentSystemDirExists(agentRoot) {
+  const root = resolveAgentRootAbsolute(agentRoot);
+  if (!root) return false;
+  return fs.existsSync(path.join(root, AGENT_SYSTEM_FOLDER, "registry.yml"));
+}
+
+/** Относительный путь CMS-конфига агента: awn-system/ или fallback awn-data/cms-base/ */
+function getCmsConfigRel(agentRoot) {
+  return agentSystemDirExists(agentRoot) ? AGENT_SYSTEM_FOLDER : CMS_BASE_REL;
+}
+
+/** @deprecated use getCmsConfigRel — для совместимости экспортируем строку awn-system */
+const AGENT_SYSTEM_REL = AGENT_SYSTEM_FOLDER;
 
 function getAwnDataAbsolute(agentRoot) {
   return path.join(String(agentRoot || "").trim(), AWN_DATA_REL);
 }
 
 function getCmsConfigAbsolute(agentRoot) {
-  return path.join(String(agentRoot || "").trim(), CMS_CONFIG_REL);
+  return path.join(String(agentRoot || "").trim(), getCmsConfigRel(agentRoot));
+}
+
+function getAgentSystemAbsolute(agentRoot) {
+  return getCmsConfigAbsolute(agentRoot);
+}
+
+function getAgentSystemTypesDir(agentRoot, domain) {
+  return path.join(getAgentSystemAbsolute(agentRoot), "types", domain);
 }
 
 function getTypeDomainAbsolute(projectRoot, domain) {
+  const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
+  if (agentSystemDirExists(coreRoot)) {
+    return path.join(coreRoot, AGENT_SYSTEM_FOLDER, "types", domain);
+  }
   return resolvePlatformPath(projectRoot, AGENT_CMS_CORE_REL, AWN_DATA_REL, domain);
 }
 
 function getTypeCatalogRootAbsolute(projectRoot) {
   return getAgentCmsCoreAbsolute(projectRoot);
-}
-
-function getAgentSystemAbsolute(agentRoot) {
-  return getCmsConfigAbsolute(agentRoot);
 }
 
 const AWN_DATA_TAXONOMIES_REL = path.join(AGENT_CMS_CORE_REL, "awn-data", "taxonomies");
@@ -92,7 +117,7 @@ function getTodoCoreAbsolute(projectRoot) {
 }
 
 async function readPlatformTodoFooterMarkdown(projectRoot) {
-  const fs = require("fs/promises");
+  const fsPromises = require("fs/promises");
   const todoAbs = getTodoAbsolute(projectRoot);
   const coreAbs = getTodoCoreAbsolute(projectRoot);
   let todo = "";
@@ -101,14 +126,14 @@ async function readPlatformTodoFooterMarkdown(projectRoot) {
   let coreExists = false;
 
   try {
-    todo = await fs.readFile(todoAbs, "utf-8");
+    todo = await fsPromises.readFile(todoAbs, "utf-8");
     todoExists = true;
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
   }
 
   try {
-    core = await fs.readFile(coreAbs, "utf-8");
+    core = await fsPromises.readFile(coreAbs, "utf-8");
     coreExists = true;
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
@@ -148,12 +173,17 @@ module.exports = {
   AWN_DATA_REL,
   CMS_BASE_REL,
   CMS_CONFIG_REL,
+  AGENT_SYSTEM_FOLDER,
   TYPE_DOMAINS,
   AGENT_SYSTEM_REL,
   AGENT_TYPE_DOMAINS,
+  getCmsConfigRel,
+  agentSystemDirExists,
+  resolveAgentRootAbsolute,
   getAwnDataAbsolute,
   getCmsConfigAbsolute,
   getAgentSystemAbsolute,
+  getAgentSystemTypesDir,
   AWN_DATA_TAXONOMIES_REL,
   AGENT_REGISTRY_GROUPS_REL,
   AGENT_GROUPS_ATTACHMENTS_REL,

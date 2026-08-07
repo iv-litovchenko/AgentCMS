@@ -18933,7 +18933,7 @@ function stripPlatformDataFoldersFromMenuNode(node) {
     containerTree: node.containerTree
       ? stripPlatformDataFoldersFromMenuNode(node.containerTree)
       : node.containerTree ?? null,
-    systemTree: node.systemTree ? stripPlatformDataFoldersFromMenuNode(node.systemTree) : node.systemTree ?? null,
+    systemTree: node.systemTree ?? null,
     configurationTree: node.configurationTree
       ? stripPlatformDataFoldersFromMenuNode(node.configurationTree)
       : node.configurationTree ?? null

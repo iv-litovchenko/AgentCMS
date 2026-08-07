@@ -3,6 +3,11 @@ const path = require("path");
 const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 const { getAwnDataPayload } = require("./awn-data-loader");
 const { parseTypeYaml } = require("./awn-yaml-utils");
+const {
+  agentSystemDirExists,
+  getCmsConfigRel,
+  resolveAgentRootAbsolute: resolveAgentRootFromPlatform
+} = require("./platform-sources");
 
 const ACTIVE_STATUS = new Set(["active", "deprecated"]);
 
@@ -182,10 +187,23 @@ function ingestDomainTypesFromAwnData(projectRoot, domain, source, byId, byDomai
   return true;
 }
 
+function resolveAgentRootAbsolute(agentRoot, projectRoot = process.cwd()) {
+  return resolveAgentRootFromPlatform(agentRoot, projectRoot);
+}
+
 function resolveCmsConfigRoot(agentRoot, projectRoot = process.cwd()) {
   const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
   if (!agentRootAbs) return "";
-  return path.join(agentRootAbs, "awn-data", CMS_CONFIG_STORE);
+  return path.join(agentRootAbs, getCmsConfigRel(agentRootAbs));
+}
+
+function cmsConfigExists(agentRoot, projectRoot = process.cwd()) {
+  const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
+  if (!agentRootAbs) return false;
+  if (agentSystemDirExists(agentRootAbs)) return true;
+  const configRoot = path.join(agentRootAbs, "awn-data", CMS_CONFIG_STORE);
+  if (!fs.existsSync(configRoot)) return false;
+  return fs.existsSync(path.join(configRoot, "registry.yml"));
 }
 
 function readCmsConfigFile(agentRoot, fileName, projectRoot = process.cwd()) {
@@ -198,12 +216,6 @@ function readCmsConfigFile(agentRoot, fileName, projectRoot = process.cwd()) {
   } catch {
     return null;
   }
-}
-
-function cmsConfigExists(agentRoot, projectRoot = process.cwd()) {
-  const configRoot = resolveCmsConfigRoot(agentRoot, projectRoot);
-  if (!configRoot || !fs.existsSync(configRoot)) return false;
-  return fs.existsSync(path.join(configRoot, "registry.yml"));
 }
 
 module.exports = {

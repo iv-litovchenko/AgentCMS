@@ -1,0 +1,8 @@
+id: awn.content.record
+name: Запись
+kind: type
+domain: content
+status: active
+extends: awn.base
+description: Запись в слоте памяти (main, inbox, references…)
+mixins: [awn.mixin.attachments]

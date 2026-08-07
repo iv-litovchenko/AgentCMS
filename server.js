@@ -7248,7 +7248,8 @@ function stripPlatformDataFromMenuTree(menu) {
       serviceTree: node.serviceTree ? stripNode(node.serviceTree) : node.serviceTree ?? null,
       sharedTree: node.sharedTree ? stripNode(node.sharedTree) : node.sharedTree ?? null,
       containerTree: node.containerTree ? stripNode(node.containerTree) : node.containerTree ?? null,
-      systemTree: node.systemTree ? stripNode(node.systemTree) : node.systemTree ?? null,
+      // Базовая модель — awn-system/types; не вырезаем из systemTree
+      systemTree: node.systemTree ?? null,
       configurationTree: node.configurationTree
         ? stripNode(node.configurationTree)
         : node.configurationTree ?? null

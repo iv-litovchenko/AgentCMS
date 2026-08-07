@@ -4,9 +4,12 @@ const { loadYamlFileSync } = require("./awn-yaml-utils");
 const {
   getAgentCmsCoreAbsolute,
   getCmsConfigAbsolute,
+  getAgentSystemAbsolute,
+  getAgentSystemTypesDir,
   TYPE_DOMAINS,
   AGENT_TYPE_DOMAINS,
-  CMS_CONFIG_REL
+  AGENT_SYSTEM_REL,
+  agentSystemDirExists
 } = require("./platform-sources");
 const {
   editingFieldsStoreHasRecords,
@@ -17,6 +20,7 @@ const {
   ingestDomainTypesFromAwnData,
   cmsConfigExists
 } = require("./awn-data-types-bridge");
+const { ingestYamlDomainTypes } = require("./types-yaml-bridge");
 
 const WORKSPACE_STATUS_ACTIVE = "🟢 Открыта";
 
@@ -196,30 +200,48 @@ function resolveAgentDomainIds(cmsConfigRoot) {
 function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
   const agentRootAbs = resolveAgentRootAbsolute(agentRoot, projectRoot);
-  const coreConfigRoot = path.join(coreRoot, CMS_CONFIG_REL);
-  const agentConfigRoot = agentRootAbs ? getCmsConfigAbsolute(agentRootAbs) : "";
+  const coreSystemRoot = path.join(coreRoot, AGENT_SYSTEM_REL);
+  const agentSystemRoot = agentRootAbs ? getAgentSystemAbsolute(agentRootAbs) : "";
+  const coreUsesYaml = agentSystemDirExists(coreRoot);
   const byId = new Map();
   const byDomain = {};
-  const sources = ["platform:agent-cms-core/awn-data"];
+  const sources = coreUsesYaml
+    ? ["platform:agent-cms-core/awn-system/types"]
+    : ["platform:agent-cms-core/awn-data"];
   const useAwnDataFields = editingFieldsStoreHasRecords(projectRoot);
 
-  for (const domain of TYPE_DOMAINS) {
-    if (domain === "fields" && useAwnDataFields) continue;
-    ingestDomainTypesFromAwnData(projectRoot, domain, "platform", byId, byDomain, coreRoot);
-  }
-
-  for (const domain of ["mixins", "settings"]) {
-    ingestDomainTypesFromAwnData(projectRoot, domain, "platform", byId, byDomain, coreRoot);
+  if (coreUsesYaml) {
+    for (const domain of TYPE_DOMAINS) {
+      if (domain === "fields" && useAwnDataFields) continue;
+      ingestYamlDomainTypes(path.join(coreSystemRoot, "types", domain), domain, "platform", byId, byDomain);
+    }
+    for (const domain of ["mixins", "settings"]) {
+      ingestYamlDomainTypes(path.join(coreSystemRoot, "types", domain), domain, "platform", byId, byDomain);
+    }
+  } else {
+    for (const domain of TYPE_DOMAINS) {
+      if (domain === "fields" && useAwnDataFields) continue;
+      ingestDomainTypesFromAwnData(projectRoot, domain, "platform", byId, byDomain, coreRoot);
+    }
+    for (const domain of ["mixins", "settings"]) {
+      ingestDomainTypesFromAwnData(projectRoot, domain, "platform", byId, byDomain, coreRoot);
+    }
   }
 
   const isCoreAgent =
-    agentConfigRoot &&
+    agentSystemRoot &&
     cmsConfigExists(agentRootAbs, projectRoot) &&
-    path.resolve(agentConfigRoot) !== path.resolve(coreConfigRoot);
+    path.resolve(agentSystemRoot) !== path.resolve(coreSystemRoot);
 
-  if (isCoreAgent) {
-    sources.push(`${CMS_CONFIG_REL}:agent`);
-    for (const domain of resolveAgentDomainIds(agentConfigRoot)) {
+  if (isCoreAgent && agentSystemDirExists(agentRootAbs)) {
+    sources.push(`${AGENT_SYSTEM_REL}:agent`);
+    for (const domain of resolveAgentDomainIds(agentSystemRoot)) {
+      if (domain === "fields" && useAwnDataFields) continue;
+      ingestYamlDomainTypes(getAgentSystemTypesDir(agentRootAbs, domain), domain, "agent", byId, byDomain);
+    }
+  } else if (isCoreAgent) {
+    sources.push("awn-data/cms-base:agent");
+    for (const domain of resolveAgentDomainIds(getCmsConfigAbsolute(agentRootAbs))) {
       if (domain === "fields" && useAwnDataFields) continue;
       ingestDomainTypesFromAwnData(projectRoot, domain, "agent", byId, byDomain, agentRootAbs);
     }
@@ -235,7 +257,7 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   return {
     coreRoot,
     agentRoot: agentRootAbs,
-    agentSystemRoot: agentConfigRoot || coreConfigRoot,
+    agentSystemRoot: agentSystemRoot || getCmsConfigAbsolute(coreRoot),
     sources,
     byId,
     byDomain

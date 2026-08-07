@@ -1,0 +1,18 @@
+id: awn.slot.dialogs
+name: Диалоги
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+slot-category: communication
+storage-driver: external
+description: Диалог с агентом — thread/ (сообщения awn.content.dialog)
+path: thread/
+slot-order: 93
+slot-tier: system
+allowed-content:
+  - awn.content.dialog
+  - awn.content.record
+  - awn.content.sidecar
+accept-files:
+  - ".md"

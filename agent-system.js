@@ -1,12 +1,23 @@
 const fs = require("fs");
 const path = require("path");
-const { loadYamlFileSync } = require("./awn-yaml-utils");
-const { CMS_CONFIG_REL, AWN_DATA_REL } = require("./platform-sources");
+const {
+  AGENT_SYSTEM_REL,
+  AWN_DATA_REL,
+  getCmsConfigRel,
+  agentSystemDirExists,
+  getAgentCmsCoreAbsolute
+} = require("./platform-sources");
 const {
   getTypeCatalogPayload,
-  resolveAgentDomainManifest
+  resolveAgentDomainManifest,
+  loadTypeCatalog
 } = require("./type-catalog-loader");
 const { cmsConfigExists, DOMAIN_TYPE_STORES } = require("./awn-data-types-bridge");
+const {
+  getAgentSystemTypesSectionFolder,
+  isAgentSystemRelPath: isAwnSystemFolderRelPath,
+  resolveAgentSystemFileAbsolute
+} = require("./types-yaml-bridge");
 
 const SYSTEM_DOMAIN_LABELS = {
   base: "Base",
@@ -22,7 +33,11 @@ const SYSTEM_DOMAIN_LABELS = {
 };
 
 function getAgentSystemRoot(agentRoot) {
-  return path.join(String(agentRoot || "").trim(), CMS_CONFIG_REL);
+  return path.join(String(agentRoot || "").trim(), getCmsConfigRel(agentRoot));
+}
+
+function getAgentSystemRootRel(agentRoot) {
+  return getCmsConfigRel(agentRoot);
 }
 
 function agentSystemExists(agentRoot) {
@@ -31,23 +46,12 @@ function agentSystemExists(agentRoot) {
 
 function normalizeAgentSystemRelPath(relPath) {
   let normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (normalized === "awn-system" || normalized.startsWith("awn-system/")) {
-    normalized = normalized.replace(/^awn-system/, CMS_CONFIG_REL);
+  if (normalized.startsWith("awn-data/cms-base/")) {
+    return normalized;
   }
-  if (normalized.startsWith("awn-system/types/")) {
-    const rest = normalized.slice("awn-system/types/".length);
-    const domain = rest.split("/")[0];
-    const store = DOMAIN_TYPE_STORES[domain];
-    if (store) {
-      normalized = `awn-data/${store}/${rest.slice(domain.length + 1)}`.replace(/\.ya?ml$/i, ".md");
-    }
+  if (normalized.startsWith("awn-data/") && isAwnDataTypeRecordPath(normalized)) {
+    return normalized;
   }
-  normalized = normalized.replace(
-    /^awn-data\/(pages|content|slots|base|mixins|settings)\/types\//,
-    "awn-data/$1/"
-  );
-  normalized = normalized.replace(/^awn-data\/base\//, "awn-data/cms-base/entities/");
-  normalized = normalized.replace(/^awn-data\/mixins\//, "awn-data/cms-base/mixins/");
   return normalized;
 }
 
@@ -55,20 +59,14 @@ function isAwnDataStoreManifestPath(normalized) {
   return /^awn-data\/.+\/manifest\.md$/i.test(normalized);
 }
 
-/** @deprecated */
-function isAwnDataStoreContractPath(normalized) {
-  return isAwnDataStoreManifestPath(normalized) || /^awn-data\/.+\/manifest\.store\.md$/i.test(normalized);
-}
-
 function isAwnDataTypeRecordPath(normalized) {
   if (!normalized.startsWith(`${AWN_DATA_REL}/`) || !/\.md$/i.test(normalized)) return false;
-  if (/\/manifest\.md$/i.test(normalized) || /\/manifest\.store\.md$/i.test(normalized)) return false;
+  if (/\/manifest\.md$/i.test(normalized)) return false;
   const prefixes = [
     "awn-data/pages/",
     "awn-data/content/",
     "awn-data/slots/",
     "awn-data/settings/",
-    "awn-data/cms-base/entities/",
     "awn-data/cms-base/mixins/"
   ];
   return prefixes.some((prefix) => normalized.startsWith(prefix));
@@ -76,31 +74,46 @@ function isAwnDataTypeRecordPath(normalized) {
 
 function isAgentSystemRelPath(relPath) {
   const normalized = normalizeAgentSystemRelPath(relPath);
+  if (isAwnSystemFolderRelPath(normalized)) return true;
   return (
-    normalized === CMS_CONFIG_REL ||
-    normalized.startsWith(`${CMS_CONFIG_REL}/`) ||
+    normalized === AGENT_SYSTEM_REL ||
+    normalized.startsWith(`${AGENT_SYSTEM_REL}/`) ||
+    normalized.startsWith("awn-data/cms-base/") ||
     isAwnDataStoreManifestPath(normalized) ||
     isAwnDataTypeRecordPath(normalized)
   );
 }
 
-function resolveAgentSystemAbsolute(agentRoot, relPath) {
+function resolveAgentSystemAbsolute(agentRoot, relPath, projectRoot = process.cwd()) {
   const normalized = normalizeAgentSystemRelPath(relPath);
-  if (!isAgentSystemRelPath(normalized)) return null;
-  const absolute = path.join(String(agentRoot || "").trim(), normalized);
-  const dataRoot = path.join(String(agentRoot || "").trim(), AWN_DATA_REL);
-  if (!absolute.startsWith(dataRoot)) return null;
-  return absolute;
+  if (isAwnSystemFolderRelPath(normalized)) {
+    return resolveAgentSystemFileAbsolute(agentRoot, normalized);
+  }
+  if (
+    normalized.startsWith("awn-data/cms-base/") ||
+    isAwnDataStoreManifestPath(normalized) ||
+    isAwnDataTypeRecordPath(normalized)
+  ) {
+    const absolute = path.join(String(agentRoot || "").trim(), normalized);
+    const dataRoot = path.join(String(agentRoot || "").trim(), AWN_DATA_REL);
+    if (!absolute.startsWith(dataRoot)) return null;
+    return absolute;
+  }
+  const configRel = getCmsConfigRel(agentRoot);
+  if (normalized === configRel || normalized.startsWith(`${configRel}/`)) {
+    return path.join(String(agentRoot || "").trim(), normalized);
+  }
+  return null;
 }
 
 async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process.cwd()) {
   const agentRoot = String(agentRootAbsolute || "").trim();
   if (!agentRoot || !agentSystemExists(agentRoot)) return null;
 
+  const configRel = getAgentSystemRootRel(agentRoot);
   const configRoot = getAgentSystemRoot(agentRoot);
-  const indexPath = fs.existsSync(path.join(configRoot, "manifest.md"))
-    ? `${CMS_CONFIG_REL}/manifest.md`
-    : null;
+  const indexPath = fs.existsSync(path.join(configRoot, "manifest.md")) ? `${configRel}/manifest.md` : null;
+  const useYaml = agentSystemDirExists(agentRoot);
 
   const items = [];
   let topFiles = [];
@@ -115,26 +128,31 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
   for (const name of topFiles) {
     items.push({
       label: name,
-      path: `${CMS_CONFIG_REL}/${name}`.replace(/\\/g, "/"),
+      path: `${configRel}/${name}`.replace(/\\/g, "/"),
       systemFile: true
     });
   }
 
   const domainManifest = resolveAgentDomainManifest(configRoot);
-  const payload = getTypeCatalogPayload(projectRoot, agentRoot);
+  const catalog = loadTypeCatalog(projectRoot, agentRoot);
   const sections = [];
 
   for (const domainMeta of domainManifest) {
     const domain = domainMeta.id;
-    const domainEntries = (payload.domains?.[domain] || []).filter((entry) => entry && !entry.aliasOf);
+    const domainEntries = (catalog.byDomain?.[domain] || []).filter((entry) => entry && !entry.aliasOf);
     if (!domainEntries.length) continue;
 
     const domainItems = domainEntries.map((entry) => {
       const schema = entry.schema || {};
-      const isFoundation = schema.kind === "entity" || schema.kind === "base" || schema.kind === "table" || schema.kind === "row" || /\/(base|table\.base|row\.base|_base|entity)$/i.test(entry.relPath || "");
+      const isFoundation =
+        schema.kind === "entity" ||
+        schema.kind === "base" ||
+        schema.kind === "table" ||
+        schema.kind === "row" ||
+        /\/(base|table\.base|row\.base|_base|entity)$/i.test(entry.relPath || entry.fileName || "");
       return {
         label: isFoundation ? `${schema.name || entry.id} (база)` : schema.name || entry.id,
-        path: entry.catalogFile || `${CMS_CONFIG_REL}/${domain}/${entry.fileName}.md`,
+        path: entry.catalogFile || `${configRel}/${domain}/${entry.fileName}.md`,
         systemFile: true,
         typeId: entry.id,
         typeKind: schema.kind || entry.kind || "",
@@ -143,12 +161,17 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
       };
     });
 
-    const storeFolder = DOMAIN_TYPE_STORES[domain];
+    const storeFolder = useYaml
+      ? getAgentSystemTypesSectionFolder(domain)
+      : DOMAIN_TYPE_STORES[domain]
+        ? `awn-data/${DOMAIN_TYPE_STORES[domain]}`
+        : `${configRel}/${domain}`;
+
     sections.push({
       title: domainMeta.label || SYSTEM_DOMAIN_LABELS[domain] || domain,
       domain,
       domainKind: domainMeta.kind || null,
-      folderPath: storeFolder ? `awn-data/${storeFolder}` : `${CMS_CONFIG_REL}/${domain}`,
+      folderPath: storeFolder,
       items: domainItems.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru")),
       subGroups: []
     });
@@ -159,13 +182,13 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
     indexPath,
     sections,
     items,
-    typeCount: Array.isArray(payload?.browseTypes) ? payload.browseTypes.length : 0,
-    systemRoot: CMS_CONFIG_REL
+    typeCount: catalog.byId?.size || 0,
+    systemRoot: configRel
   };
 }
 
-async function readAgentSystemFile(agentRoot, relPath) {
-  const absolute = resolveAgentSystemAbsolute(agentRoot, relPath);
+async function readAgentSystemFile(agentRoot, relPath, projectRoot = process.cwd()) {
+  const absolute = resolveAgentSystemAbsolute(agentRoot, relPath, projectRoot);
   if (!absolute || !fs.existsSync(absolute)) {
     return { path: relPath, exists: false, content: null };
   }
@@ -182,32 +205,33 @@ async function readAgentSystemFile(agentRoot, relPath) {
   };
 }
 
-async function writeAgentSystemFile(agentRoot, relPath, content) {
-  const absolute = resolveAgentSystemAbsolute(agentRoot, relPath);
+async function writeAgentSystemFile(agentRoot, relPath, content, projectRoot = process.cwd()) {
+  const absolute = resolveAgentSystemAbsolute(agentRoot, relPath, projectRoot);
   if (!absolute) {
     throw new Error("Invalid agent-system path");
   }
   const ext = path.extname(absolute).toLowerCase();
   const allowed = [".yml", ".yaml", ".md", ".json"];
   if (!allowed.includes(ext)) {
-    throw new Error("Only .yml, .yaml, .md and .json files are editable in cms-base/types stores");
+    throw new Error("Only .yml, .yaml, .md and .json files are editable in agent-system");
   }
   await fs.promises.mkdir(path.dirname(absolute), { recursive: true });
   const normalized = String(content ?? "");
   const nextContent = normalized.endsWith("\n") || !normalized ? normalized : `${normalized}\n`;
   await fs.promises.writeFile(absolute, nextContent, "utf-8");
-  return readAgentSystemFile(agentRoot, relPath);
+  return readAgentSystemFile(agentRoot, relPath, projectRoot);
 }
 
 function getAgentSystemStatus(agentRoot, projectRoot = process.cwd()) {
   const exists = agentSystemExists(agentRoot);
+  const configRel = getAgentSystemRootRel(agentRoot);
   if (!exists) {
-    return { exists: false, root: CMS_CONFIG_REL };
+    return { exists: false, root: configRel };
   }
   const payload = getTypeCatalogPayload(projectRoot, agentRoot);
   return {
     exists: true,
-    root: CMS_CONFIG_REL,
+    root: configRel,
     sources: payload.sources || [],
     typeCount: Array.isArray(payload.browseTypes) ? payload.browseTypes.length : 0,
     domains: Object.keys(payload.domains || {}),
@@ -216,9 +240,10 @@ function getAgentSystemStatus(agentRoot, projectRoot = process.cwd()) {
 }
 
 module.exports = {
-  AGENT_SYSTEM_REL: CMS_CONFIG_REL,
+  AGENT_SYSTEM_REL,
   SYSTEM_DOMAIN_LABELS,
   getAgentSystemRoot,
+  getAgentSystemRootRel,
   agentSystemExists,
   isAgentSystemRelPath,
   resolveAgentSystemAbsolute,

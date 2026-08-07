@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getManifestContainerDirRel, isAreaManifestRelPath, isManifestMdRelPath } = require("./manifest-paths");
-const { CMS_CONFIG_REL } = require("./platform-sources");
+const { getCmsConfigRel, AGENT_SYSTEM_FOLDER } = require("./platform-sources");
 const { parseTypeYaml } = require("./awn-yaml-utils");
 const {
   normalizeAwnSchema,
@@ -12,7 +12,7 @@ const {
 } = require("./awn-types-loader");
 
 const CONFIGURATION_SCHEMA_FILE = "configuration-schema.yml";
-const CORE_CONFIGURATION_SCHEMA_REL = `${CMS_CONFIG_REL}/${CONFIGURATION_SCHEMA_FILE}`;
+const CORE_CONFIGURATION_SCHEMA_REL = `${AGENT_SYSTEM_FOLDER}/${CONFIGURATION_SCHEMA_FILE}`;
 const WORKSPACE_CONFIGURATION_SCHEMA_REL = CONFIGURATION_SCHEMA_FILE;
 
 function resolveAgentRootAbsolute(agentRoot) {
@@ -21,11 +21,14 @@ function resolveAgentRootAbsolute(agentRoot) {
   return path.isAbsolute(raw) ? raw : path.resolve(raw);
 }
 
+function getCoreConfigurationSchemaRel(agentRoot) {
+  return `${getCmsConfigRel(agentRoot)}/${CONFIGURATION_SCHEMA_FILE}`;
+}
+
 function isConfigurationSchemaRelPath(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   return (
     normalized === WORKSPACE_CONFIGURATION_SCHEMA_REL ||
-    normalized === CORE_CONFIGURATION_SCHEMA_REL ||
     normalized.endsWith(`/${CONFIGURATION_SCHEMA_FILE}`)
   );
 }
@@ -38,8 +41,9 @@ function resolveConfigurationSchemaAbsolute(agentRoot, relPath) {
   if (normalized === WORKSPACE_CONFIGURATION_SCHEMA_REL) {
     return path.join(agentRootAbs, CONFIGURATION_SCHEMA_FILE);
   }
-  if (normalized === CORE_CONFIGURATION_SCHEMA_REL) {
-    return path.join(agentRootAbs, CORE_CONFIGURATION_SCHEMA_REL);
+  const coreRel = getCoreConfigurationSchemaRel(agentRootAbs);
+  if (normalized === coreRel) {
+    return path.join(agentRootAbs, coreRel);
   }
   if (normalized.endsWith(`/${CONFIGURATION_SCHEMA_FILE}`) && !normalized.includes("..")) {
     const absolute = path.join(agentRootAbs, normalized);
