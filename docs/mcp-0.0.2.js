@@ -10,7 +10,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 (по умолчанию). 0.0.1 и 0.0.0 — предыдущие снимки.",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
     "path → manifest.md страницы; slot → main|inbox|media|main-single|…; ref → путь внутри слота.",
-    "91 tools — полный список ниже.",
+    "92 tools — полный список ниже.",
     "awn-mask-file — read_page_config; create_content slot=main подхватывает маску.",
     "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
@@ -56,7 +56,7 @@ module.exports = {
         {
           name: "get_always_context",
           description:
-            "Всегда в контексте: полное содержимое тем/записей с awn-runtime-load-always + AGENTS.md/SKILL.md/README.md.",
+            "Всегда в контексте: полное содержимое тем/записей с awn-runtime-load-always + AGENTS.md/SKILL.md/README.md/MCP_DOC.md.",
           parameters: "—",
           http: "GET /api/agent/always-context"
         },
@@ -370,10 +370,11 @@ module.exports = {
         { name: "write_content_body", description: "Сохранить тело (frontmatter не трогается).", parameters: "path, slot, ref?, content", http: "—" },
         { name: "read_content_properties", description: "Frontmatter .md.", parameters: "path, slot, ref?", http: "—" },
         { name: "write_content_properties", description: "Сохранить frontmatter.", parameters: "path, slot, ref?, content", http: "—" },
-        { name: "create_content", description: "Typed record или category.", parameters: "path, slot, awnType?, …", http: "POST /api/storage/file/create" },
+        { name: "create_content", description: "Typed record или plain-text (.html/.py через fileExtension + body).", parameters: "path, slot, awnType?, fileExtension?, body, …", http: "POST /api/storage/file/create" },
         { name: "upload_content", description: "Файл base64 → media/, repository/, …", parameters: "path, slot, fileName, data", http: "POST /api/media/file" },
         { name: "import_content_from_url", description: "Скачать по http(s) URL → media/, repository/, …", parameters: "path, slot, url, fileName?", http: "POST /api/media/file/import" },
         { name: "read_content_file", description: "Текст или previewUrl media.", parameters: "path, slot, ref", http: "GET /api/storage/file" },
+        { name: "write_content_file", description: "Запись/перезапись plain-text (.html, .py, .json, …) в external-слоте.", parameters: "path, slot, ref, content", http: "POST /api/storage/file" },
         { name: "rename_content", description: "Переименовать.", parameters: "path, slot, ref, displayName?", http: "—" },
         { name: "move_content", description: "Переместить (main, media).", parameters: "path, slot, ref, …", http: "—" },
         { name: "delete_content", description: "Удалить файл из external-слота.", parameters: "path, slot, ref", http: "DELETE /api/external/file | /api/media/file | /api/storage/file" }

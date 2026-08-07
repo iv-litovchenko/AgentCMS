@@ -3485,27 +3485,32 @@
 
     <template id="awn-data-view-template">
       <div class="awn-data-view-hub folder-browse-hub">
-        <header class="folder-browse-hero-card awn-data-view-page-header">
-          <div class="folder-browse-hero-main">
-            <div class="folder-browse-hero-body">
-              <div class="folder-browse-hero-title-row">
-                <h1 class="folder-browse-hero-title awn-data-view-title">Накопитель</h1>
-                <span class="awn-data-view-kind-badge hidden"></span>
-              </div>
-              <div class="awn-data-view-path hidden"></div>
-              <div class="awn-data-view-iblock-description-block hidden">
-                <div class="awn-data-view-iblock-description"></div>
-              </div>
-            </div>
-          </div>
-        </header>
+        <header class="folder-browse-hero-card awn-data-view-page-header hidden" aria-hidden="true"></header>
         <div class="awn-data-view-page-body">
           <div class="awn-data-view-manifest hidden"></div>
           <div class="awn-data-view-iblock-layout">
+            <div class="awn-data-view-iblock-description-block hidden">
+              <article class="awn-data-view-description-card awn-data-view-iblock-card">
+                <div class="awn-data-view-description-card-head awn-data-view-iblock-card-head">
+                  <div class="awn-data-view-iblock-card-head-main">
+                    <div class="awn-data-view-iblock-title-row">
+                      <h1 class="folder-browse-hero-title awn-data-view-title">Накопитель</h1>
+                      <span class="awn-data-view-kind-badge hidden"></span>
+                    </div>
+                    <div class="awn-data-view-path hidden"></div>
+                  </div>
+                </div>
+                <div class="awn-data-view-iblock-description-body hidden">
+                  <div class="awn-data-view-iblock-description"></div>
+                </div>
+              </article>
+            </div>
             <section class="awn-data-view-schema-panel hidden" aria-label="Инфоблок">
               <details class="awn-data-view-accordion awn-data-view-schema-settings-accordion">
                 <summary class="awn-data-view-accordion-summary">
-                  <span class="awn-data-view-accordion-leading" aria-hidden="true">▸</span>
+                  <span class="awn-data-view-accordion-toggle" aria-hidden="true">
+                    <span class="nav-book-toc-folder-chevron"></span>
+                  </span>
                   <span class="awn-data-view-accordion-summary-main">
                     <span class="awn-data-view-accordion-title">Настройки инфоблока</span>
                   </span>
@@ -3550,7 +3555,9 @@
               </details>
               <details class="awn-data-view-accordion awn-data-view-schema-fields-accordion hidden">
                 <summary class="awn-data-view-accordion-summary">
-                  <span class="awn-data-view-accordion-leading" aria-hidden="true">▸</span>
+                  <span class="awn-data-view-accordion-toggle" aria-hidden="true">
+                    <span class="nav-book-toc-folder-chevron"></span>
+                  </span>
                   <span class="awn-data-view-accordion-summary-main">
                     <span class="awn-data-view-accordion-title">Схема полей записей</span>
                     <span class="awn-data-view-accordion-meta awn-data-view-schema-fields-count" aria-live="polite"></span>
@@ -3862,7 +3869,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.238"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.622"></script>
+    <script src="/main.js?v=0.5.629"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=12"></script>
   </body>

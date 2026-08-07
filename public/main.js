@@ -53,6 +53,7 @@ const awnDataCreateSubmitBtn = document.getElementById("awn-data-create-submit-b
 let awnDataViewRoot = null;
 let awnDataViewIblockLayoutNode = null;
 let awnDataViewIblockDescriptionBlockNode = null;
+let awnDataViewIblockDescriptionBodyNode = null;
 let awnDataViewIblockDescriptionNode = null;
 let awnDataViewModalTitleNode = null;
 let awnDataViewModalKindNode = null;
@@ -36164,11 +36165,21 @@ function getTopicSchemaCacheKey(manifestPath, contentPath = "") {
   return content ? `${manifest}\0${content}` : manifest;
 }
 
+function isTopicSchemaStorageContentPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return false;
+  if (/\/awn-storage\/[^/]+\/.+/i.test(normalized)) return true;
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.relativePath) {
+    return !isEntryOverviewMemoryTocRoot(activeEntryOverviewContext);
+  }
+  return false;
+}
+
 function getSchemaContentPathForContext(nodePath = activePath) {
   const ctx = getPropsContextPath(nodePath);
   const normalized = String(ctx || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return "";
-  if (/\/awn-storage\/[^/]+\/.+/i.test(normalized)) return normalized;
+  if (isTopicSchemaStorageContentPath(normalized)) return normalized;
   return "";
 }
 
@@ -36193,19 +36204,23 @@ function resolveOverviewSchemaContentPath(context = activeEntryOverviewContext) 
   const relPath = String(context?.relPath || getPropsContextPath() || "")
     .replace(/\\/g, "/")
     .replace(/^\/+/, "");
-  if (!relPath || !/\/awn-storage\/[^/]+\/.+/i.test(relPath)) return "";
-  return relPath;
+  if (!relPath || isEntryOverviewMemoryTocRoot(context)) return "";
+  if (isTopicSchemaStorageContentPath(relPath)) return relPath;
+  return "";
 }
 
 function resolveActiveOverviewSchemaCache(context = activeEntryOverviewContext) {
-  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && context?.relPath) {
-    const manifestPath = getTopicSchemaManifestPath();
+  const manifestPath = getTopicSchemaManifestPath();
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && context?.relPath && manifestPath) {
     const contentPath = resolveOverviewSchemaContentPath(context);
-    if (manifestPath && contentPath) {
-      return getTopicSchemaCache(manifestPath, contentPath);
+    if (contentPath) {
+      const contentCache = getTopicSchemaCache(manifestPath, contentPath);
+      if (contentCache) return contentCache;
     }
+    const topicCache = getTopicSchemaCache(manifestPath, "");
+    if (topicCache) return topicCache;
   }
-  return getTopicSchemaCache();
+  return getTopicSchemaCache(manifestPath, "");
 }
 
 function resolveOverviewSchemaTargetForContext(context = activeEntryOverviewContext) {
@@ -38094,19 +38109,28 @@ function getActiveAwnTypeDef(typeName = null) {
   // When no specific typeName is requested, prefer the declared awn-type from frontmatter
   // (path inference returns generic "awn.topic", but frontmatter may say "awn.page.topic.agent")
   if (!typeName) {
-    const declared = getPropsEntryValueByKey(propsFormEntries, "awn-type");
-    if (declared) {
-      const normalized = normalizeAwnTypeName(declared);
-      if (normalized && normalized !== resolvedType && awnTypesCache?.types?.[normalized]) {
-        resolvedType = normalized;
+    if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.entryKind) {
+      resolvedType = normalizeAwnTypeName(activeEntryOverviewContext.entryKind);
+    } else {
+      const declared = getPropsEntryValueByKey(propsFormEntries, "awn-type");
+      if (declared) {
+        const normalized = normalizeAwnTypeName(declared);
+        if (normalized && normalized !== resolvedType && awnTypesCache?.types?.[normalized]) {
+          resolvedType = normalized;
+        }
       }
     }
   }
 
-  const cache = resolveActiveOverviewSchemaCache();
+  const overviewContext =
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null;
+  const cache = resolveActiveOverviewSchemaCache(overviewContext);
+  const slotKey = resolveSchemaSlotKeyForContext();
   const target = typeName
-    ? resolveAwnSchemaTargetForType(resolvedType)
-    : resolveAwnSchemaTargetForContext();
+    ? resolveAwnSchemaTargetForType(resolvedType, slotKey)
+    : activeContentMode === NODE_ENTRY_OVERVIEW_MODE
+      ? resolveOverviewSchemaTargetForContext(overviewContext)
+      : resolveAwnSchemaTargetForContext();
   const merged = cache ? resolveTopicSchemaMergedType(target, cache) : null;
   if (merged?.fields) {
     const baseTypeDef = awnTypesCache?.types?.[resolvedType];
@@ -38803,9 +38827,16 @@ function findPropsFieldDefInTopicSchemaTargets(key, cache = resolveActiveOvervie
   return sidecarMerged?.fields?.[normalized] || null;
 }
 
-function isPropsFieldDefinedInActiveSchema(key) {
-  const cache = resolveActiveOverviewSchemaCache();
-  return Boolean(getPropsFieldDef(key) || findPropsFieldDefInTopicSchemaTargets(key, cache));
+function isPropsFieldDefinedInActiveSchema(key, options = {}) {
+  if (options.fieldDef) return true;
+  const overviewContext =
+    options.context ??
+    (activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null);
+  const cache = resolveActiveOverviewSchemaCache(overviewContext);
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return false;
+  if (findPropsFieldDefInTopicSchemaTargets(normalized, cache)) return true;
+  return Boolean(getPropsFieldDef(normalized));
 }
 
 function resolvePropsFieldDefForOverview(key, entry = null) {
@@ -41193,7 +41224,7 @@ function renderEditorCustomPropsBar() {
       field.className = "props-preview-field props-preview-field--compact editor-custom-props-preview-field";
       field.dataset.index = String(index);
       field.title = entry.key || "";
-      if (!isPropsFieldDefinedInActiveSchema(entry.key)) {
+      if (!isPropsFieldDefinedInActiveSchema(entry.key, { fieldDef: entry.fieldDef })) {
         field.classList.add("is-schema-undefined");
       }
 
@@ -41227,7 +41258,7 @@ function renderEditorCustomPropsBar() {
   for (const { entry, index } of userItems) {
     const row = createPropsFormFieldRow(entry, index, { showFieldKey: true });
     row.classList.add("editor-custom-props-field");
-    if (!isPropsFieldDefinedInActiveSchema(entry.key)) {
+    if (!isPropsFieldDefinedInActiveSchema(entry.key, { fieldDef: entry.fieldDef })) {
       row.classList.add("is-schema-undefined");
       row.title = "Свойство не определено в схеме слота";
     }
@@ -47770,7 +47801,7 @@ function renderNodeOverviewMetaTable(metaItems) {
     const valCell = document.createElement("div");
     appendNodeOverviewMetaValueCell(valCell, item);
 
-    if (!isPropsFieldDefinedInActiveSchema(item.key)) {
+    if (!isPropsFieldDefinedInActiveSchema(item.key, { fieldDef: item.fieldDef })) {
       row.classList.add("is-schema-undefined");
       const schemaHint = "Свойство не определено в схеме слота";
       if (!keyCell.title.includes(schemaHint)) {
@@ -49346,14 +49377,21 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
   }
 
   const threadUnread = getThreadUnreadCount(manifestPath, intake);
-  const flatModes = ["note", "references", "artefacts", "repository", "scripts"];
-  const [todoData, mediaOverview, assetsOverview, ...folderResults] = await Promise.all([
+  const flatCounterModes = ["note", "references", "artefacts", "repository", "scripts"];
+  const [todoData, mediaOverview, assetsOverview, flatNavigationIndexes] = await Promise.all([
     fetchTodoForOverview(nodePath).catch(() => null),
     fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
     fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
-    ...flatModes.map(async (mode) => [mode, await fetchFlatStorageSectionSummary(manifestPath, mode)])
+    fetchNavigationHubRailFlatIndexes(nodePath).catch(() => ({}))
   ]);
-  const folderByMode = Object.fromEntries(folderResults);
+  const mediaPrepared = prepareNavigationMediaItems(
+    mediaOverview?.groups || {},
+    mediaOverview?.sectionManifests || []
+  );
+  const assetsPrepared = prepareNavigationMediaItems(
+    assetsOverview?.groups || {},
+    assetsOverview?.sectionManifests || []
+  );
 
   return NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS.map((spec) => {
     let count = 0;
@@ -49394,22 +49432,28 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
         title = `${spec.label}: пусто`;
       }
     } else if (spec.id === "media") {
-      count = Number(mediaOverview?.files) || 0;
-      filled = count > 0 || Boolean(mediaOverview?.exists);
+      count = countMultiFileStorageSlotItems(mediaPrepared);
+      filled = hasNavigationExternalPreparedContent(mediaPrepared) || Boolean(mediaOverview?.exists);
       title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
     } else if (spec.id === "assets") {
-      count = Number(assetsOverview?.files) || 0;
-      filled = count > 0 || Boolean(assetsOverview?.exists);
+      count = countMultiFileStorageSlotItems(assetsPrepared);
+      filled = hasNavigationExternalPreparedContent(assetsPrepared) || Boolean(assetsOverview?.exists);
       title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
-    } else {
-      const summary = folderByMode[spec.id] || { files: 0 };
-      count = Number(summary.files) || 0;
-      filled = count > 0;
+    } else if (flatCounterModes.includes(spec.id)) {
+      const slotSpec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === spec.id);
+      const memoryKind = getEntryOverviewMemoryKindForSlot(slotSpec);
+      const prepared = memoryKind ? flatNavigationIndexes[memoryKind] : null;
+      count = countMultiFileStorageSlotItems(prepared);
+      filled = hasNavigationExternalPreparedContent(prepared);
       if (spec.id === "repository") {
         title = getRepositorySlotCounterTitle(spec.label, count);
       } else {
         title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
       }
+    } else {
+      count = 0;
+      filled = false;
+      title = `${spec.label}: пусто`;
     }
 
     return { ...spec, count, filled, tone, title };
@@ -49489,6 +49533,7 @@ function renderNodeNavigationWorkspaceCounterStrip(
   appendWorkspaceStaticCounterItems(list, { layout });
 
   wrap.appendChild(list);
+  appendWorkspaceOutsideSlotsCounterRow(wrap);
   appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
   return wrap;
 }
@@ -51976,11 +52021,13 @@ function hasNavigationExternalPreparedContent(prepared) {
   );
 }
 
-function resolveNavigationPreparedItemCount(prepared) {
+function countMultiFileStorageSlotItems(prepared) {
   if (!prepared) return 0;
-  const fileCount = prepared.contentFiles?.length || 0;
-  if (fileCount > 0) return fileCount;
-  return prepared.folderPaths instanceof Set ? prepared.folderPaths.size : 0;
+  return prepared.contentFiles?.length || 0;
+}
+
+function resolveNavigationPreparedItemCount(prepared) {
+  return countMultiFileStorageSlotItems(prepared);
 }
 
 async function fetchFlatStorageFolderContent(manifestPath, folder, agentId = activeAgentId) {
@@ -52839,12 +52886,16 @@ async function fetchEntryOverviewProperties(relPath, context = null) {
 async function enrichEntryOverviewPropertiesWithSchema(entries, context) {
   if (!context?.relPath || isEntryOverviewMemoryTocRoot(context)) return entries;
   const contentPath = resolveOverviewSchemaContentPath(context);
-  if (!contentPath) return entries;
   try {
     const manifestPath = getTopicSchemaManifestPath();
     if (!manifestPath) return entries;
     if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
-    await loadTopicSchemaForManifest(manifestPath, { contentPath, force: false });
+    if (contentPath) {
+      await loadTopicSchemaForManifest(manifestPath, { contentPath, force: false });
+    }
+    if (!getTopicSchemaCache(manifestPath, contentPath || "")) {
+      await loadTopicSchemaForManifest(manifestPath, { topicOnly: true, force: false });
+    }
     const typeName = normalizeAwnTypeName(context.entryKind || resolveAwnTypeForContext());
     return applyTypeSchemaToEntries(entries, typeName);
   } catch {
@@ -54448,11 +54499,6 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
   const overviewSpecs = DATA_STORAGE_SLOT_SPECS.filter(
     (spec) => !spec.disabled && supportsDataEntryOverview(spec.key)
   );
-  const flatModes = overviewSpecs
-    .filter(
-      (spec) => spec.sectionKind === "flat" && spec.key !== "inbox" && spec.key !== "todo-single"
-    )
-    .map((spec) => spec.key);
 
   const [
     externalData,
@@ -54463,7 +54509,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     tabularData,
     assetsPreviewFilled,
     storageScan,
-    ...folderResults
+    flatNavigationIndexes
   ] = await Promise.all([
     fetchExternalFilesForNavigation(topicPath).catch(() => ({ files: [], folders: [] })),
     fetchMediaLibraryOverview(topicPath, "media").catch(() => ({ groups: {}, sectionManifests: [] })),
@@ -54473,14 +54519,14 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     fetchTabularMemoryForNavigation(topicPath).catch(() => null),
     resolveNavigationAssetsPreviewFilled(topicPath).catch(() => false),
     fetchStorageRootScan(manifestPath).catch(() => null),
-    ...flatModes.map(async (mode) => [
-      mode,
-      await fetchFlatStorageSectionSummary(manifestPath, mode)
-    ])
+    fetchNavigationHubRailFlatIndexes(topicPath).catch(() => ({}))
   ]);
 
   const externalPrepared = prepareNavigationExternalItems(
-    externalData.files || [],
+    combineNavigationStorageFileLists(
+      externalData.files || [],
+      externalData.nonMarkdownFiles || []
+    ),
     externalData.folders || []
   );
   const mediaPrepared = prepareNavigationMediaItems(
@@ -54491,7 +54537,6 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     assetsData?.groups || {},
     assetsData?.sectionManifests || []
   );
-  const folderByMode = Object.fromEntries(folderResults);
   const prefetchedIndex = { externalFiles: externalData.files || [] };
 
   const slots = overviewSpecs.map((spec) => {
@@ -54509,18 +54554,15 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
         title = bundleMetrics.title;
       }
     } else if (spec.key === "memory") {
-      count = resolveNavigationPreparedItemCount(externalPrepared);
+      count = countMultiFileStorageSlotItems(externalPrepared);
       filled = hasNavigationExternalPreparedContent(externalPrepared);
-      title =
-        count > 0
-          ? `${spec.label}: ${count} ${externalPrepared.contentFiles?.length ? "записей" : "разделов"}`
-          : `${spec.label}: пусто`;
+      title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
     } else if (spec.key === "media") {
-      count = resolveNavigationPreparedItemCount(mediaPrepared);
+      count = countMultiFileStorageSlotItems(mediaPrepared);
       filled = hasNavigationExternalPreparedContent(mediaPrepared);
       title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
     } else if (spec.key === "assets") {
-      count = resolveNavigationPreparedItemCount(assetsPrepared);
+      count = countMultiFileStorageSlotItems(assetsPrepared);
       filled = hasNavigationExternalPreparedContent(assetsPrepared) || assetsPreviewFilled;
       if (assetsPreviewFilled && count === 0) {
         count = 1;
@@ -54541,15 +54583,20 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
       } else {
         title = `${spec.label}: пусто`;
       }
-    } else {
-      const summary = folderByMode[spec.key] || { files: 0 };
-      count = Number(summary.files) || 0;
-      filled = count > 0;
+    } else if (spec.sectionKind === "flat") {
+      const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
+      const prepared = memoryKind ? flatNavigationIndexes[memoryKind] : null;
+      count = countMultiFileStorageSlotItems(prepared);
+      filled = hasNavigationExternalPreparedContent(prepared);
       if (spec.key === "repository") {
         title = getRepositorySlotCounterTitle(spec.label, count);
       } else {
         title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
       }
+    } else {
+      count = 0;
+      filled = false;
+      title = `${spec.label}: пусто`;
     }
 
     let folderExists = resolveStorageSlotFolderExistsFromScan(spec, storageScan);
@@ -54705,7 +54752,11 @@ function getWorkspaceCounterButtonStateClasses(slot) {
   return classes.join(" ");
 }
 
+/** Set to true to hide/disable the repository slot in workspace counters (legacy deprecation). */
+const REPOSITORY_SLOT_COUNTER_DEPRECATED = false;
+
 function isDeprecatedRepositoryCounterSlot(slot) {
+  if (!REPOSITORY_SLOT_COUNTER_DEPRECATED) return false;
   const key = slot?.id || slot?.spec?.key;
   return key === "repository";
 }
@@ -54883,6 +54934,7 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicP
   appendWorkspaceStaticCounterItems(list);
 
   wrap.appendChild(list);
+  appendWorkspaceOutsideSlotsCounterRow(wrap);
   appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
 }
 
@@ -54993,9 +55045,10 @@ function createStaticWorkspaceCounterStubItem({
   title,
   hint,
   tooltip,
-  staticMarkText = "(static)"
+  staticMarkText = "(static)",
+  containerTag = "li"
 }) {
-  const item = document.createElement("li");
+  const item = document.createElement(containerTag);
   item.className = `node-navigation-workspace-counter-item ${itemClass}`;
 
   const card = document.createElement("div");
@@ -55048,6 +55101,7 @@ function createFreeMemoryStaticCounterItem() {
 
 function createOutsideSlotsStaticCounterItem() {
   return createStaticWorkspaceCounterStubItem({
+    containerTag: "div",
     itemClass: "node-navigation-workspace-counter-item--outside-slots",
     cardClass: "node-navigation-workspace-counter-card--outside-slots",
     title: "Вне слотов",
@@ -55068,11 +55122,19 @@ function createStructuredDataStaticCounterItem() {
   });
 }
 
+function appendWorkspaceOutsideSlotsCounterRow(wrap) {
+  if (!wrap) return;
+  const row = document.createElement("div");
+  row.className = "node-navigation-workspace-outside-slots-row";
+  row.appendChild(createOutsideSlotsStaticCounterItem());
+  wrap.appendChild(row);
+  wrap.classList.add("has-outside-slots-static");
+}
+
 function appendWorkspaceStaticCounterItems(list, { layout = "grid" } = {}) {
   if (!list || layout === "area-single") return;
   list.classList.add("has-workspace-static-slots");
   list.appendChild(createFreeMemoryStaticCounterItem());
-  list.appendChild(createOutsideSlotsStaticCounterItem());
   list.appendChild(createStructuredDataStaticCounterItem());
 }
 
@@ -82192,6 +82254,7 @@ function syncAwnDataViewDomRefs(root) {
   if (!root) {
     awnDataViewIblockLayoutNode = null;
     awnDataViewIblockDescriptionBlockNode = null;
+    awnDataViewIblockDescriptionBodyNode = null;
     awnDataViewIblockDescriptionNode = null;
     awnDataViewModalTitleNode = null;
     awnDataViewModalKindNode = null;
@@ -82229,6 +82292,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewModalTitleNode = root.querySelector(".awn-data-view-title");
   awnDataViewIblockLayoutNode = root.querySelector(".awn-data-view-iblock-layout");
   awnDataViewIblockDescriptionBlockNode = root.querySelector(".awn-data-view-iblock-description-block");
+  awnDataViewIblockDescriptionBodyNode = root.querySelector(".awn-data-view-iblock-description-body");
   awnDataViewIblockDescriptionNode = root.querySelector(".awn-data-view-iblock-description");
   awnDataViewModalKindNode = root.querySelector(".awn-data-view-kind-badge");
   awnDataViewModalPathNode = root.querySelector(".awn-data-view-path");
@@ -82317,14 +82381,13 @@ function normalizeAwnDataDescriptionCompareText(value) {
     .toLowerCase();
 }
 
-function stripAwnDataManifestTitleFromMarkdown(markdown, title) {
+function stripAwnDataManifestTitleHeading(markdown, title) {
   const text = String(markdown || "").trim();
   const titleNorm = normalizeAwnDataDescriptionCompareText(title);
   if (!text || !titleNorm) return text;
 
   const lines = text.split("\n");
   let index = 0;
-
   while (index < lines.length && !lines[index].trim()) index += 1;
   if (index >= lines.length) return "";
 
@@ -82335,28 +82398,42 @@ function stripAwnDataManifestTitleFromMarkdown(markdown, title) {
     while (index < lines.length && !lines[index].trim()) index += 1;
   }
 
-  if (index < lines.length && normalizeAwnDataDescriptionCompareText(lines[index]) === titleNorm) {
-    index += 1;
-    while (index < lines.length && !lines[index].trim()) index += 1;
-  }
-
   return lines.slice(index).join("\n").trim();
 }
 
+function resolveAwnDataIblockDescriptionMarkdown(store) {
+  const title = String(store?.name || store?.schema?.name || "").trim();
+  const titleNorm = normalizeAwnDataDescriptionCompareText(title);
+  const manifestMarkdown = String(store?.manifestMarkdown || "").trim();
+
+  let markdown = stripAwnDataManifestTitleHeading(manifestMarkdown, title);
+  if (!markdown) {
+    const schemaDesc = String(store?.description || store?.schema?.description || "").trim();
+    if (schemaDesc && normalizeAwnDataDescriptionCompareText(schemaDesc) !== titleNorm) {
+      markdown = schemaDesc;
+    }
+  }
+
+  return markdown.trim();
+}
+
+function setAwnDataViewIblockCardVisible(visible) {
+  awnDataViewIblockDescriptionBlockNode?.classList.toggle("hidden", !visible);
+}
+
 function renderAwnDataIblockDescription(store) {
-  const blockNode = awnDataViewIblockDescriptionBlockNode;
+  const bodyNode = awnDataViewIblockDescriptionBodyNode;
   const descNode = awnDataViewIblockDescriptionNode;
   if (!descNode) return;
 
-  const title = String(store?.name || store?.schema?.name || "").trim();
-  const markdown = stripAwnDataManifestTitleFromMarkdown(store?.manifestMarkdown || "", title);
+  const markdown = store ? resolveAwnDataIblockDescriptionMarkdown(store) : "";
   if (!markdown) {
-    blockNode?.classList.add("hidden");
+    bodyNode?.classList.add("hidden");
     descNode.replaceChildren();
     return;
   }
 
-  blockNode?.classList.remove("hidden");
+  bodyNode?.classList.remove("hidden");
   const manifestPath =
     store?.manifestRelPath || (store?.relPath ? `awn-data/${store.relPath}/manifest.md` : "");
   if (typeof renderMarkdownToHtml === "function") {
@@ -82913,6 +82990,8 @@ function renderAwnDataViewHeader(store, { loading = false, error = false } = {})
   const viewStore = store ? normalizeAwnDataStoreView(store) : store;
   const title = loading ? "Загрузка…" : error ? "Ошибка" : String(viewStore?.name || viewStore?.relPath || "Накопитель").trim();
   if (awnDataViewModalTitleNode) awnDataViewModalTitleNode.textContent = title;
+
+  setAwnDataViewIblockCardVisible(loading || error || Boolean(viewStore));
 
   if (awnDataViewModalKindNode) {
     if (!viewStore?.kind || loading || error) {

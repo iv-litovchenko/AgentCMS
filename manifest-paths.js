@@ -922,6 +922,9 @@ function normalizeExternalMemoryFileRel(relFile, options = {}) {
   }
 
   normalized = stripEmbeddedStorageLayerSegments(normalized);
+  if (sectionRel && normalized && !normalized.includes("/")) {
+    normalized = `${sectionRel}/${normalized}`;
+  }
   return normalized.replace(/\\/g, "/").replace(/^\/+/, "");
 }
 

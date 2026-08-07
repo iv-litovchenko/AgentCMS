@@ -475,13 +475,42 @@ function collectFoundationTypes(byId, pageRoot) {
   return out.sort((a, b) => String(a.id).localeCompare(String(b.id), "ru"));
 }
 
+function stripTypePathExt(catalogPath) {
+  return String(catalogPath || "").replace(/\.(ya?ml|md)$/i, "");
+}
+
 function findTypeEntryByCatalogPath(byId, catalogPath) {
-  const normalized = normalizeLegacyCatalogPath(catalogPath);
-  if (!normalized) return null;
+  const raw = String(catalogPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!raw) return null;
+
+  const legacy = normalizeLegacyCatalogPath(catalogPath);
+  const rawBare = stripTypePathExt(raw);
+  const legacyBare = stripTypePathExt(legacy);
+
   for (const entry of byId.values()) {
-    if (entry.catalogFile === normalized) return entry;
+    const entryPath = String(entry.catalogFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!entryPath) continue;
+    if (entryPath === raw || entryPath === legacy) return entry;
+    const entryLegacy = normalizeLegacyCatalogPath(entryPath);
+    if (legacy && entryLegacy === legacy) return entry;
+    if (entryLegacy === raw) return entry;
+    // Agents often pass catalog paths without extension (…/area vs …/area.yml).
+    const entryBare = stripTypePathExt(entryPath);
+    const entryLegacyBare = stripTypePathExt(entryLegacy);
+    if (entryBare === rawBare || (legacyBare && entryBare === legacyBare)) return entry;
+    if (legacyBare && entryLegacyBare === legacyBare) return entry;
+    if (entryLegacyBare === rawBare) return entry;
   }
   return null;
+}
+
+function getTypeDetailByTypeId(projectRoot = process.cwd(), agentRoot = "", typeId = "") {
+  const { byId } = loadTypeCatalog(projectRoot, agentRoot);
+  const canonicalId = resolveCanonicalTypeId(typeId, byId);
+  if (!canonicalId) return null;
+  const entry = byId.get(canonicalId);
+  if (!entry?.catalogFile) return null;
+  return getTypeDetailByCatalogPath(projectRoot, agentRoot, entry.catalogFile);
 }
 
 function buildInheritanceChain(entry, byId) {
@@ -638,7 +667,7 @@ function getTypeDetailByCatalogPath(projectRoot = process.cwd(), agentRoot = "",
   const chain = buildInheritanceChain(entry, byId);
 
   return {
-    path: String(catalogPath || "").replace(/\\/g, "/"),
+    path: entry.catalogFile || String(catalogPath || "").replace(/\\/g, "/"),
     id: entry.id,
     name: merged.name || entry.id,
     kind: merged.kind || entry.kind || null,
@@ -900,6 +929,7 @@ module.exports = {
   getActiveTypes,
   getTypeCatalogPayload,
   getTypeDetailByCatalogPath,
+  getTypeDetailByTypeId,
   getCreateNodeTypesPayload,
   getTypeHealth,
   isFoundationType,

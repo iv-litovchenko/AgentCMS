@@ -199,7 +199,7 @@ const {
 const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
-const { getTypeCatalogPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
+const { getTypeCatalogPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const {
   getAwnDataPayload,
   createAwnDataStore,
@@ -387,6 +387,7 @@ const SYSTEM_FILE_NAMES = [
   ".gitignore",
   "AGENTS.md",
   "SKILL.md",
+  "MCP_DOC.md",
   AWN_DEPENDENCIES_FILE,
   "docker-compose.yml",
   ROOT_SYSTEM_NOTE_FILE,
@@ -397,6 +398,7 @@ const SYSTEM_FILE_NAMES = [
 const CORE_SYSTEM_FILE_NAMES = new Set([
   "AGENTS.md",
   "SKILL.md",
+  "MCP_DOC.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
   ".env",
@@ -5680,10 +5682,17 @@ async function createStorageRecordFile({
   const textBody = String(body || "").trim();
   const customFields = normalizeStorageRecordFields(fields);
   let frontmatterOverrides = customFields ? { ...customFields } : null;
+  const statusValue = String(status || "").trim();
+  if (
+    statusValue &&
+    !(frontmatterOverrides && Object.prototype.hasOwnProperty.call(frontmatterOverrides, "awn-status"))
+  ) {
+    frontmatterOverrides = { ...(frontmatterOverrides || {}), "awn-status": statusValue };
+  }
   if (slotKey === "inbox") {
     frontmatterOverrides = {
       ...(frontmatterOverrides || {}),
-      "awn-status": String(status || "new").trim() || "new",
+      "awn-status": frontmatterOverrides?.["awn-status"] || statusValue || "new",
       "awn-source": String(source || "mcp").trim() || "mcp",
       ...(String(author || "").trim() ? { "awn-author": String(author).trim() } : {})
     };
@@ -9029,7 +9038,7 @@ async function buildAgentAlwaysContextRegistry() {
     });
   }
 
-  for (const name of ["AGENTS.md", "SKILL.md", "README.md"]) {
+  for (const name of ["AGENTS.md", "SKILL.md", "README.md", "MCP_DOC.md"]) {
     const meta = await getSystemFileMeta(name);
     if (!meta.exists) continue;
     const absolute = await resolveExistingSystemFileAbsolute(name);
@@ -9055,7 +9064,7 @@ async function buildAgentAlwaysContextRegistry() {
   return {
     version: 1,
     model: "always-context",
-    hint: "Всегда в контексте: awn-runtime-load-always на темах/записях + AGENTS.md/SKILL.md. Полное содержимое каждого файла.",
+    hint: "Всегда в контексте: awn-runtime-load-always на темах/записях + AGENTS.md/SKILL.md/README.md/MCP_DOC.md. Полное содержимое каждого файла.",
     items,
     itemCount: items.length
   };
@@ -9256,7 +9265,8 @@ const SESSION_CONTEXT_API_MAP = {
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
   pageSlots: "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
   pageCreate: "POST /api/page/create — создать страницу area/topic",
-  contentCreate: "create_content MCP — typed .md; upload_content — base64; import_content_from_url — скачать по URL в slot media/repository/…",
+  contentCreate:
+    "create_content MCP — typed .md or plain-text via fileExtension; write_content_file — overwrite .py/.html/…; upload_content — base64; import_content_from_url — URL → slot",
   thread: "GET /api/thread?path=<manifest.md>",
   inbox: "GET /api/inbox?path=<manifest.md>",
   topicIntake: "GET /api/topic/intake?path=<manifest.md>",
@@ -16056,8 +16066,11 @@ async function handleApiForAgent(req, res, url) {
         catalogPath = match?.catalogFile || "";
       }
       if (!catalogPath) return sendJson(res, 400, { error: "Missing path or id" });
-      const detail = getTypeDetailByCatalogPath(getProjectRoot(), agentRoot, catalogPath);
-      if (!detail) return sendJson(res, 404, { error: "Type not found", path: catalogPath });
+      let detail = getTypeDetailByCatalogPath(getProjectRoot(), agentRoot, catalogPath);
+      if (!detail && typeId) {
+        detail = getTypeDetailByTypeId(getProjectRoot(), agentRoot, typeId);
+      }
+      if (!detail) return sendJson(res, 404, { error: "Type not found", path: catalogPath, id: typeId || undefined });
       return sendJson(res, 200, detail);
     } catch (error) {
       return sendJson(res, 500, {
@@ -16974,6 +16987,7 @@ async function handleApiForAgent(req, res, url) {
       const relPath = payload.path;
       let fileMask = String(payload.fileMask || payload.mask || "").trim();
       const { display, diskSlug } = resolveContentItemNames(payload);
+      const title = display || String(payload.title || "").trim();
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
 
       const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
@@ -16983,55 +16997,31 @@ async function handleApiForAgent(req, res, url) {
         fileMask = await resolveExternalFileMaskForManifest(relPath);
       }
 
-      const folderAbsolute = await resolveExternalMemoryFolderAbsolute(relPath, { create: true });
-      if (!folderAbsolute) return sendJson(res, 400, { error: "Invalid external folder path" });
+      const result = await createStorageRecordFile({
+        manifestRelPath: relPath,
+        storageFolder: STORAGE_SUBFOLDER_MAIN,
+        title: title || (fileMask ? displayNameFromMaskPath(fileMask) : ""),
+        slug: diskSlug || payload.slug,
+        parent: payload.parent,
+        body: payload.body,
+        fileMask,
+        source: payload.source,
+        author: payload.author,
+        status: payload.status,
+        fields: payload.fields
+      });
 
-      const parentRaw = resolveExternalMemoryCreateParentRel(relPath, payload.parent);
-      const targetFolder = await resolveMediaTargetFolderAbsolute(folderAbsolute, parentRaw);
-      if (!targetFolder) {
-        return sendJson(res, 400, { error: parentRaw ? "Parent section not found" : "Invalid external folder path" });
-      }
-
-      let fileName = null;
-      let title = display || "Воспоминание";
-
-      if (fileMask) {
-        fileName = await resolveExternalFileNameFromMask(targetFolder, fileMask, {
-          incrementRoot: folderAbsolute
-        });
-        if (!fileName) return sendJson(res, 400, { error: "Invalid file mask" });
-        title = display || displayNameFromMaskPath(fileName);
-        await ensureExternalRelativeParentDirs(targetFolder, fileName);
-      } else {
-        if (!title) return sendJson(res, 400, { error: "Title cannot be empty" });
-        if (!diskSlug) return sendJson(res, 400, { error: "Invalid slug" });
-        fileName = await resolveUniqueExternalFileName(targetFolder, diskSlug);
-        if (!fileName) return sendJson(res, 400, { error: "Invalid file name" });
-      }
-
-      const fileAbsolute = joinFolderRelativePath(targetFolder, fileName);
-      if (!fileAbsolute) return sendJson(res, 400, { error: "Invalid external file path" });
-      const parentRel = path.relative(folderAbsolute, targetFolder).replace(/\\/g, "/").replace(/^\/+/, "");
-      const relInSlot = parentRel ? `${parentRel}/${fileName}` : fileName;
-      const contentWorkspaceRel = buildStorageLayerRef(
-        String(relPath || "").replace(/\\/g, "/"),
-        STORAGE_SUBFOLDER_CONTENT,
-        relInSlot
-      );
-      const content = await buildExternalRecordFileContentForManifest(relPath, title, { contentWorkspaceRel });
-      await fs.writeFile(fileAbsolute, content, "utf-8");
-      const createdRel = manifestRelFromNodeAbsolute(fileAbsolute);
       recordWorkspaceActivity({
         action: "create",
-        path: createdRel || `${relPath.replace(/\\/g, "/")}/${fileName}`,
-        manifestPath: relPath.replace(/\\/g, "/"),
-        label: title,
+        path: `${String(relPath).replace(/\\/g, "/")}/${result.file}`,
+        manifestPath: String(relPath).replace(/\\/g, "/"),
+        label: title || displayNameFromMaskPath(result.file),
         fileKind: "memory"
       });
 
       return sendJson(res, 200, {
-        file: path.relative(folderAbsolute, fileAbsolute).replace(/\\/g, "/"),
-        content,
+        file: result.file,
+        content: result.content,
         exists: true
       });
     } catch (error) {
