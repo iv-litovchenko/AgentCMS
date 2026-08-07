@@ -1,5 +1,6 @@
 {
   "paths": [
+    "artefacts/api-postman-collection.json",
     "inbox/вопрос-match-vs-switch.md",
     "internal/main.md",
     "main/Безопасность/CSRF.md",
@@ -22,5 +23,5 @@
     "todo/todo.md",
     "topic-index-generated/awn-container/php/awn-storage/index.md"
   ],
-  "updatedAt": "2026-08-03T19:12:10.333Z"
+  "updatedAt": "2026-08-07T20:20:39.837Z"
 }

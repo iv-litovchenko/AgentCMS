@@ -51386,7 +51386,12 @@ function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {})
     }
 
     if (!icon) {
-      icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
+      const ext = getNavigationItemFileExtension(item);
+      if ([".md", ".txt", ".markdown"].includes(ext)) {
+        icon = createNavBookTocLinkIcon({ kind: "record" });
+      } else if (!preview) {
+        icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
+      }
     }
 
     return { icon, status, preview };
@@ -51415,7 +51420,12 @@ function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {})
   }
 
   if (!icon) {
-    icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
+    const ext = getNavigationItemFileExtension(item);
+    if ([".md", ".txt", ".markdown"].includes(ext)) {
+      icon = createNavBookTocLinkIcon({ kind: "record" });
+    } else if (!preview) {
+      icon = createNavBookTocLinkIcon(resolveNavigationTocLinkIcon(item));
+    }
   }
 
   return { icon, status, preview };
