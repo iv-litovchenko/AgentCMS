@@ -124,5 +124,5 @@ node mcp-server/index.js   # stdio — для отладки
 | 25 tools в справке | 58 tools |
 | `_registration.md`, `_Content` | `manifest.md`, `awn-storage/main/` |
 | Разведка через shell | `get_session_context` — один запрос |
-| Нет runtime registry | `get_always_context`, `get_cron_registry`, `get_heartbeat_registry`, `get_storage_layout` |
+| Нет runtime registry | `list_workspace_always_context`, `list_workspace_cron`, `list_workspace_heartbeat`, `get_storage_layout` |
 | — | inbox/thread, comments, page-schema, tabular memory |

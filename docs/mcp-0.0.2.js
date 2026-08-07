@@ -10,7 +10,7 @@ module.exports = {
     "GET /api/mcp-docs?version=0.0.2 (по умолчанию). 0.0.1 и 0.0.0 — предыдущие снимки.",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
     "path → manifest.md страницы; slot → main|inbox|media|main-single|…; ref → путь внутри слота.",
-    "90 tools — полный список ниже.",
+    "94 tools — полный список ниже (8 deprecated aliases).",
     "awn-mask-file — read_page_config; create_content slot=main подхватывает маску.",
     "notify_user — уведомление в колокольчик CMS; shell_post_message — сообщение в Agent Shell (thread), не в колокольчик."
   ],
@@ -49,26 +49,46 @@ module.exports = {
         },
         {
           name: "get_topic_registry",
-          description: "Краткий реестр всех тем workspace — skill/оглавление (name, path, description). Без тел файлов.",
+          description: "Deprecated → get_page_map.",
           parameters: "—",
-          http: "GET /api/agent/topic-registry"
+          http: "GET /api/agent/page-map"
+        },
+        {
+          name: "list_workspace_always_context",
+          description:
+            "Всегда в контексте: полное содержимое тем/записей с awn-runtime-load-always + AGENTS.md/SKILL.md/README.md + GLOBAL_MCP_DOC.md. Без query — фиксированный runtime-индекс.",
+          parameters: "—",
+          http: "GET /api/agent/always-context"
+        },
+        {
+          name: "list_workspace_cron",
+          description:
+            "Индекс cron: темы и записи с awn-runtime-cron (+ schedule). Без query. Команда: «обнови расписание задач».",
+          parameters: "—",
+          http: "GET /api/agent/cron-registry"
+        },
+        {
+          name: "list_workspace_heartbeat",
+          description:
+            "Индекс heartbeat: темы и записи с awn-runtime-heartbeat. Без query. Команда: «возьми реестр сердцебиения».",
+          parameters: "—",
+          http: "GET /api/agent/heartbeat-registry"
         },
         {
           name: "get_always_context",
-          description:
-            "Всегда в контексте: полное содержимое тем/записей с awn-runtime-load-always + AGENTS.md/SKILL.md/README.md + GLOBAL_MCP_DOC.md (из agent-cms-core, все агенты).",
+          description: "Deprecated → list_workspace_always_context.",
           parameters: "—",
           http: "GET /api/agent/always-context"
         },
         {
           name: "get_cron_registry",
-          description: "Реестр cron: темы и записи в слотах с awn-runtime-cron (+ schedule). Команда: «обнови расписание задач».",
+          description: "Deprecated → list_workspace_cron.",
           parameters: "—",
           http: "GET /api/agent/cron-registry"
         },
         {
           name: "get_heartbeat_registry",
-          description: "Реестр сердцебиения: темы и записи с awn-runtime-heartbeat. Команда: «возьми реестр сердцебиения».",
+          description: "Deprecated → list_workspace_heartbeat.",
           parameters: "—",
           http: "GET /api/agent/heartbeat-registry"
         },
@@ -97,21 +117,29 @@ module.exports = {
       title: "Навигация и workspace",
       tools: [
         {
-          name: "get_menu",
-          description: "Дерево workspace (manifest.md).",
-          parameters: "—",
-          http: "GET /api/menu"
+          name: "get_page_map",
+          description:
+            "Карта страниц workspace: path, title, description, properties (без body). Опционально slot summaries для тем.",
+          parameters: "includeSlots?: boolean (default true)",
+          http: "GET /api/agent/page-map?includeSlots=true"
         },
         {
-          name: "get_active_context",
+          name: "get_content_map",
           description:
-            "Универсальный фокус UI: focus.entity (page|slot|content|system|browse|home|none), focus.page/slot/content, mcp — готовые args для read/write_*, aliases.path/slot/ref.",
+            "Карта контента одной страницы по слотам: title, description, properties (без body).",
+          parameters: "path (manifest.md), slot?: main|inbox|media|…",
+          http: "GET /api/agent/content-map?path=&slot="
+        },
+        {
+          name: "get_user_active_context_now",
+          description:
+            "Что пользователь смотрит в UI Agent CMS прямо сейчас: focus.entity (page|slot|content|system|browse|…), mcp — готовые args для read/write_* (path/slot/ref).",
           parameters: "—",
           http: "GET /api/agent/active-context"
         },
         {
-          name: "get_active_page",
-          description: "Deprecated alias get_active_context.",
+          name: "get_active_context",
+          description: "Deprecated → get_user_active_context_now.",
           parameters: "—",
           http: "GET /api/agent/active-context"
         },
@@ -130,9 +158,9 @@ module.exports = {
         },
         {
           name: "get_workspace_table",
-          description: "Плоская таблица тем агента.",
+          description: "Deprecated → get_page_map.",
           parameters: "—",
-          http: "GET /api/agent/workspace-table"
+          http: "GET /api/agent/page-map"
         },
         {
           name: "get_canonical_model",
@@ -142,9 +170,9 @@ module.exports = {
         },
         {
           name: "get_site_map",
-          description: "Карта сайта — все области и темы с manifest paths и awn-type.",
+          description: "Deprecated → get_page_map.",
           parameters: "—",
-          http: "GET /api/agent/site-map"
+          http: "GET /api/agent/page-map"
         },
         {
           name: "list_awn_types",
@@ -157,6 +185,18 @@ module.exports = {
           description: "Проверка целостности типов awn-system.",
           parameters: "—",
           http: "GET /api/agent/type-health"
+        },
+        {
+          name: "get_menu",
+          description: "Deprecated → get_page_map. HTTP /api/menu остаётся для UI.",
+          parameters: "—",
+          http: "GET /api/agent/page-map"
+        },
+        {
+          name: "get_topic_registry",
+          description: "Deprecated → get_page_map.",
+          parameters: "—",
+          http: "GET /api/agent/page-map"
         }
       ]
     },
@@ -444,44 +484,50 @@ module.exports = {
       ]
     },
     {
+      id: "filesystem",
+      title: "Файловая система workspace",
+      tools: [
+        {
+          name: "read_file",
+          description: "Прочитать файл по пути workspace (текст или previewUrl для бинарника).",
+          parameters: "path, maxBytes?",
+          http: "GET /api/workspace/fs/read?path="
+        },
+        {
+          name: "write_file",
+          description: "Записать/перезаписать текстовый файл по пути.",
+          parameters: "path, content",
+          http: "POST /api/workspace/fs/write"
+        },
+        {
+          name: "upload_file",
+          description: "Загрузить файл (base64) по полному пути включая имя файла.",
+          parameters: "path, data, mimeType?",
+          http: "POST /api/workspace/fs/upload"
+        },
+        {
+          name: "upload_file_from_url",
+          description: "Скачать файл по URL и сохранить по пути workspace.",
+          parameters: "path, url, mimeType?",
+          http: "POST /api/workspace/fs/import"
+        },
+        {
+          name: "list_folder",
+          description: "Содержимое папки workspace (depth=1 или рекурсивно).",
+          parameters: "path, depth?, includeBody?, maxBodyChars?",
+          http: "GET /api/workspace/fs/list?path="
+        }
+      ]
+    },
+    {
       id: "workspace",
       title: "Свободная память",
       tools: [
         {
           name: "list_adopt_folders",
-          description: "Папки без manifest.md.",
+          description: "Папки без manifest.md. Дальше: list_folder / read_file / upload_file.",
           parameters: "—",
           http: "GET /api/workspace/folder/adopt"
-        },
-        {
-          name: "browse_workspace_folder",
-          description: "Содержимое на одном уровне.",
-          parameters: "folderPath",
-          http: "GET /api/workspace/folder/browse"
-        },
-        {
-          name: "scan_workspace_folder",
-          description: "Рекурсивный инвентарь.",
-          parameters: "folderPath, depth?, includeBody?",
-          http: "GET /api/workspace/folder/scan"
-        },
-        {
-          name: "read_workspace_page",
-          description: "Markdown из свободной памяти.",
-          parameters: "file",
-          http: "GET /api/workspace/folder/page"
-        },
-        {
-          name: "read_workspace_text_file",
-          description: "Текстовый файл.",
-          parameters: "file, maxBytes?",
-          http: "GET /api/workspace/folder/text"
-        },
-        {
-          name: "upload_workspace_file",
-          description: "Загрузить файл в свободную память (base64).",
-          parameters: "folderPath, fileName, data",
-          http: "POST /api/workspace/folder/upload"
         }
       ]
     },
@@ -491,21 +537,9 @@ module.exports = {
       tools: [
         {
           name: "list_system_files",
-          description: "AGENTS.md, README.md, awn-map.yml, …",
+          description: "AGENTS.md, README.md, … — каталог служебных файлов; читать/писать через read_file / write_file.",
           parameters: "—",
           http: "GET /api/system-files"
-        },
-        {
-          name: "read_system_file",
-          description: "Прочитать системный файл.",
-          parameters: "name",
-          http: "GET /api/system-file"
-        },
-        {
-          name: "write_system_file",
-          description: "Записать системный файл.",
-          parameters: "name, content",
-          http: "POST /api/system-file"
         }
       ]
     },

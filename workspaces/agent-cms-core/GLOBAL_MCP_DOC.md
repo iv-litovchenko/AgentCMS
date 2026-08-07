@@ -11,11 +11,11 @@
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, shell/`curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP.  
 Этот файл — шпаргалка. Полный список tools: `get_mcp_docs`.
 
-Перед работой: `get_session_context` → `get_active_context`.  
+Перед работой: `get_session_context` → `get_user_active_context_now`.  
 Поиск: `search_workspace` (как шапка UI; scope=all|content|filename…).
 
 **«Перезагрузи контекст»** → снова `get_session_context` (отдельного `reload_*` нет).  
-Уточнения: только always-файлы → `get_always_context`; фокус UI → `get_active_context`; только оглавление тем → `get_topic_registry`.
+Уточнения: always → `list_workspace_always_context`; карта страниц → `get_page_map`; контент страницы → `get_content_map(path)`; фокус UI → `get_user_active_context_now`.
 
 ## Модель (3 сущности)
 
@@ -37,7 +37,7 @@
 
 Устаревшие алиасы (ещё работают, но не используй): `note` → `notes`, `script` → `scripts`, `thread` → `dialogs`.
 
-### Фокус UI — `get_active_context`
+### Фокус UI — `get_user_active_context_now`
 
 Что открыто у пользователя. Смотри `focus.entity`: `page` | `slot` | `content` | `system` | `browse` | …  
 В ответе уже есть готовые MCP-args: `path` / `slot` / `ref` — подставляй в `read_*` / `write_*`, не угадывай пути.
@@ -68,12 +68,15 @@
 
 | Tool | Что внутри | Тела файлов? |
 |------|------------|--------------|
-| `get_topic_registry` | Все темы: name, path, description (skill-карта) | нет |
-| `get_always_context` | `awn-runtime-load-always` + `AGENTS.md` / `SKILL.md` / `README.md` + глобальный `GLOBAL_MCP_DOC.md` | **да** |
-| `get_cron_registry` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
-| `get_heartbeat_registry` | Темы/записи с `awn-runtime-heartbeat` | нет |
-| `get_site_map` | Карта сайта: области + темы + `awn-type` | нет |
-| `get_workspace_table` | Плоская таблица тем | нет |
+| `get_page_map` | Все страницы: path, title, description, properties, parentPath, slots summary | нет |
+| `get_content_map(path)` | Контент одной страницы по слотам (meta, без body) | нет |
+| `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC | **да** |
+| `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
+| `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
+| `get_site_map` | Legacy — используй `get_page_map` | нет |
+| `get_workspace_table` | Legacy — используй `get_page_map` | нет |
+
+Устаревшие MCP-алиасы: `get_always_context`, `get_cron_registry`, `get_heartbeat_registry`, `get_active_context`, `get_menu`, `get_topic_registry`, `get_site_map`, `get_workspace_table`.
 
 Флаги на теме/записи (frontmatter):
 
@@ -96,8 +99,8 @@
 | `awn.page.topic` | Тема | Рабочая страница со слотами (main, inbox, media…) |
 | `awn.page.section.*` | Секция | Служебные разделы: `agent-kit`, `shared`, `container` |
 
-- дерево / карта: `get_menu`, `get_site_map`
-- фокус UI: `get_active_context`
+- карта страниц: `get_page_map` → контент темы: `get_content_map(path)`
+- фокус UI: `get_user_active_context_now`
 - тело / свойства: `read_page_body` / `write_page_body`, `read_page_properties` / `write_page_properties`
 - схема / конфиг: `read_page_schema` / `write_page_schema`, `read_page_config` / `write_page_config`
 - создать / переименовать / сдвинуть: `create_page`, `rename_page`, `move_page`, `delete_page`
@@ -213,6 +216,39 @@
 
 ---
 
+## Файловая система workspace
+
+**Path-based слой** — работа с файлами по пути в workspace, без `path` + `slot` + `ref`.
+
+| Tool | Зачем |
+|------|-------|
+| `read_file` | Прочитать файл (текст → content; бинарник → previewUrl) |
+| `write_file` | Записать/перезаписать текстовый файл (.py, .html, .json, …) |
+| `upload_file` | Загрузить файл (base64) по полному пути |
+| `upload_file_from_url` | Скачать по URL → сохранить по пути |
+| `list_folder` | Содержимое папки (`depth=1` или рекурсивно) |
+
+**Путь** — относительно корня workspace агента, например:
+- `awn-container/tema/awn-storage/media/photo.png`
+- `awn-container/Materials/readme.md`
+- `AGENTS.md`
+
+**Когда path-based, когда slot-based:**
+
+| Задача | Tool |
+|--------|------|
+| `.md` запись в main/inbox/notes | `create_content` / `write_content_body` |
+| Frontmatter записи | `write_content_properties` |
+| `manifest.md` страницы | `write_page_body` |
+| Диалог / комментарии | `append_thread` / `append_comment` |
+| Код, HTML, бинарники, media | `read_file` / `write_file` / `upload_file` |
+| Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
+| Обход папки | `list_folder` |
+
+Старые slot-tools (`upload_content`, `read_content_file`, …) и free-memory tools пока работают; новые path-tools — предпочтительный способ для файлов.
+
+---
+
 ## Накопители (awn-data)
 
 **Терминология:** `awn-data` — это **хранилище структурированных данных** платформы (таблицы, коллекции записей со схемой полей). В документации и UI те же сущности могут называться **инфоблоки** или **информационные накопители** — это одно и то же, не путать со слотами темы.
@@ -237,7 +273,7 @@
 
 Два разных случая:
 
-1. **Папка без `manifest.md`** (ещё не тема) → `list_adopt_folders` / `browse_workspace_folder` / `scan_workspace_folder` / `upload_workspace_file`
+1. **Папка без `manifest.md`** (ещё не тема) → `list_adopt_folders` / `list_folder` / `read_file` / `upload_file`
 2. **Тема lite:** `awn-slots-disabled: true` — файлы рядом с `manifest.md`, без `awn-storage/` (не adopt-папка)
 
 Не путать с `create_content` (обычная тема **со слотами**).
@@ -248,11 +284,13 @@
 
 Корень **конкретного** workspace: `AGENTS.md`, `SKILL.md`, `README.md`, `NOTE.md`, `TODO.md`…
 
-- список: `list_system_files`
-- читать / писать: `read_system_file` / `write_system_file`
+- список: `list_system_files` → какие служебные файлы есть / scaffold
+- читать / писать: `read_file("AGENTS.md")` / `write_file("AGENTS.md", …)` — **с history** при записи
 
 В always-context агента (если есть): `AGENTS.md`, `SKILL.md`, `README.md`.  
 Плюс всегда глобально: `GLOBAL_MCP_DOC.md` из корня `agent-cms-core` (для всех агентов).
+
+`read_system_file` / `write_system_file` — **удалены из MCP**; UI по-прежнему использует HTTP `/api/system-file`.
 
 ---
 

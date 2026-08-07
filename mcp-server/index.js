@@ -7,6 +7,8 @@ import { registerPageTools } from "./lib/page-tools.js";
 import { registerSlotTools } from "./lib/slot-tools.js";
 import { registerContentTools } from "./lib/content-tools.js";
 import { registerTypeListTools } from "./lib/type-list-tools.js";
+import { registerWorkspaceFsTools } from "./lib/workspace-fs-tools.js";
+import { registerMapTools } from "./lib/map-tools.js";
 
 const pagePath = z
   .string()
@@ -14,15 +16,6 @@ const pagePath = z
   .describe(
     "Path to page manifest.md (awn.page.topic|area|ws), e.g. awn-container/finansydohody/manifest.md"
   );
-
-const workspaceFolderPath = z
-  .string()
-  .min(1)
-  .describe("Workspace folder path without manifest.md, e.g. awn-container/Материалы/PINE-TV");
-const workspaceFilePath = z
-  .string()
-  .min(1)
-  .describe("Relative workspace file path, e.g. awn-container/Материалы/notes/readme.md");
 
 function textResult(data) {
   return { content: [{ type: "text", text: typeof data === "string" ? data : jsonText(data) }] };
@@ -63,7 +56,7 @@ function createServer() {
 
   reg(
     "get_session_context",
-    "START HERE: session bootstrap — topicRegistry (skill-карта), alwaysContext (полные файлы), service manifests, API map.",
+    "START HERE: session bootstrap — topicRegistry (skill-карта), alwaysContext (полные файлы), service manifests, API map. Runtime indexes: list_workspace_always_context / list_workspace_cron / list_workspace_heartbeat.",
     z.object({}),
     () => client.get("/api/agent/session-context")
   );
@@ -74,20 +67,18 @@ function createServer() {
 
   // ── Navigation ─────────────────────────────────────────────────────────────
 
-  reg("get_menu", "Workspace tree: areas and topics (manifest.md paths).", z.object({}), () =>
-    client.get("/api/menu")
-  );
+  registerMapTools(reg, client, pagePath);
 
   reg(
-    "get_active_context",
-    "Current UI focus (PAGE→SLOT→CONTENT): focus.entity, focus.page/slot/content, mcp hints with ready tool args, aliases.path/slot/ref. Call when user did not specify path.",
+    "get_user_active_context_now",
+    "What the user is viewing in Agent CMS UI right now: focus.entity (page|slot|content|system|browse|…), ready MCP args (path/slot/ref) for read/write_*. Call when the user did not specify a path.",
     z.object({}),
     () => client.get("/api/agent/active-context")
   );
 
   reg(
-    "get_active_page",
-    "Deprecated alias of get_active_context.",
+    "get_active_context",
+    "Deprecated → get_user_active_context_now.",
     z.object({}),
     () => client.get("/api/agent/active-context")
   );
@@ -128,29 +119,43 @@ function createServer() {
   );
 
   reg(
-    "get_topic_registry",
-    "Brief topic catalog (name, path, description) — workspace skill/оглавление.",
+    "list_workspace_always_context",
+    "Always-in-context index: full file content for awn-runtime-load-always topics/records + AGENTS.md/SKILL.md/README.md + GLOBAL_MCP_DOC.md. No query — fixed runtime filter.",
     z.object({}),
-    () => client.get("/api/agent/topic-registry")
+    () => client.get("/api/agent/always-context")
+  );
+
+  reg(
+    "list_workspace_cron",
+    "Cron index: topics and records with awn-runtime-cron (+ schedule). No query — fixed runtime filter.",
+    z.object({}),
+    () => client.get("/api/agent/cron-registry")
+  );
+
+  reg(
+    "list_workspace_heartbeat",
+    "Heartbeat index: topics and records with awn-runtime-heartbeat. No query — fixed runtime filter.",
+    z.object({}),
+    () => client.get("/api/agent/heartbeat-registry")
   );
 
   reg(
     "get_always_context",
-    "Always-in-context registry: full file content for awn-runtime-load-always topics/records + AGENTS.md/SKILL.md.",
+    "Deprecated → list_workspace_always_context.",
     z.object({}),
     () => client.get("/api/agent/always-context")
   );
 
   reg(
     "get_cron_registry",
-    "Cron registry: topics and records with awn-runtime-cron (+ schedule).",
+    "Deprecated → list_workspace_cron.",
     z.object({}),
     () => client.get("/api/agent/cron-registry")
   );
 
   reg(
     "get_heartbeat_registry",
-    "Heartbeat registry: topics and records with awn-runtime-heartbeat.",
+    "Deprecated → list_workspace_heartbeat.",
     z.object({}),
     () => client.get("/api/agent/heartbeat-registry")
   );
@@ -159,19 +164,11 @@ function createServer() {
     client.get("/api/agent/storage-layout")
   );
 
-  reg("get_workspace_table", "Flat workspace table.", z.object({}), () =>
-    client.get("/api/agent/workspace-table")
-  );
-
   reg(
     "get_canonical_model",
     "Canonical CMS model v1: page types, slot content types, bindings.",
     z.object({}),
     () => client.get("/api/agent/canonical-model")
-  );
-
-  reg("get_site_map", "Site map — areas and topics with manifest paths.", z.object({}), () =>
-    client.get("/api/agent/site-map")
   );
 
   reg("list_awn_types", "Full effective awn-type catalog for agent workspace.", z.object({}), () =>
@@ -404,69 +401,12 @@ function createServer() {
       })
   );
 
+  registerWorkspaceFsTools(reg, client);
+
   // ── Workspace (free memory) ────────────────────────────────────────────────
 
-  reg("list_adopt_folders", "List adoptable folders (no manifest.md).", z.object({}), () =>
+  reg("list_adopt_folders", "List adoptable folders (no manifest.md). Then list_folder / read_file / upload_file.", z.object({}), () =>
     client.get("/api/workspace/folder/adopt")
-  );
-
-  reg(
-    "browse_workspace_folder",
-    "Browse one level of free memory folder.",
-    z.object({ folderPath: workspaceFolderPath }),
-    ({ folderPath }) => client.get("/api/workspace/folder/browse", { folderPath })
-  );
-
-  reg(
-    "scan_workspace_folder",
-    "Recursive inventory of free memory folder.",
-    z.object({
-      folderPath: workspaceFolderPath,
-      depth: z.union([z.string(), z.number()]).optional(),
-      includeBody: z.boolean().optional(),
-      maxBodyChars: z.number().int().min(200).max(20000).optional()
-    }),
-    ({ folderPath, depth, includeBody, maxBodyChars }) =>
-      client.get("/api/workspace/folder/scan", {
-        folderPath,
-        ...(depth != null ? { depth: String(depth) } : {}),
-        ...(includeBody ? { includeBody: "true" } : {}),
-        ...(maxBodyChars != null ? { maxBodyChars: String(maxBodyChars) } : {})
-      })
-  );
-
-  reg(
-    "read_workspace_page",
-    "Read markdown page from free memory.",
-    z.object({ file: workspaceFilePath }),
-    ({ file }) => client.get("/api/workspace/folder/page", { file })
-  );
-
-  reg(
-    "read_workspace_text_file",
-    "Read text file from free memory.",
-    z.object({
-      file: workspaceFilePath,
-      maxBytes: z.number().int().min(1024).max(120000).optional()
-    }),
-    ({ file, maxBytes }) =>
-      client.get("/api/workspace/folder/text", {
-        file,
-        ...(maxBytes != null ? { maxBytes: String(maxBytes) } : {})
-      })
-  );
-
-  reg(
-    "upload_workspace_file",
-    "Upload file to free memory folder (not a topic slot). data = base64.",
-    z.object({
-      folderPath: workspaceFolderPath,
-      fileName: z.string().min(1),
-      data: z.string().min(1),
-      mimeType: z.string().optional()
-    }),
-    ({ folderPath, fileName, data, mimeType }) =>
-      client.post("/api/workspace/folder/upload", { folderPath, fileName, data, mimeType })
   );
 
   // ── awn-system ─────────────────────────────────────────────────────────────
@@ -558,20 +498,8 @@ function createServer() {
       client.post("/api/agent/activity/notify", { title, message, manifestPath: path, path })
   );
 
-  reg("list_system_files", "List agent system files.", z.object({}), () => client.get("/api/system-files"));
-
-  reg(
-    "read_system_file",
-    "Read system file (AGENTS.md, …).",
-    z.object({ name: z.string().min(1) }),
-    ({ name }) => client.get("/api/system-file", { name })
-  );
-
-  reg(
-    "write_system_file",
-    "Write system file.",
-    z.object({ name: z.string().min(1), content: z.string() }),
-    ({ name, content }) => client.post("/api/system-file", { name, content })
+  reg("list_system_files", "List agent system files (AGENTS.md, SKILL.md, …) — then read_file/write_file by path.", z.object({}), () =>
+    client.get("/api/system-files")
   );
 
   return server;

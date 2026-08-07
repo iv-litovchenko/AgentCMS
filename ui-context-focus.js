@@ -158,9 +158,9 @@ function buildMcpHints(focus) {
   }
 
   if (focus.entity === "browse" && focus.browse?.folder) {
-    mcp.browse_workspace_folder = { folderPath: focus.browse.folder };
+    mcp.list_folder = { path: focus.browse.folder };
     if (focus.browse.file) {
-      mcp.read_workspace_page = { file: focus.browse.file };
+      mcp.read_file = { path: focus.browse.file };
     }
   }
 

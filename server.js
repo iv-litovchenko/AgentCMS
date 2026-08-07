@@ -4740,6 +4740,449 @@ async function readWorkspaceTextFile(fileRelPath, options = {}) {
   }
 }
 
+const WORKSPACE_FS_BLOCKED_WRITE_PREFIXES = ["awn-system/"];
+const WORKSPACE_FS_TYPED_MD_LAYERS = new Set(["main", "inbox", "notes", "references", "quick-notes"]);
+const WORKSPACE_FS_SYSTEM_LAYERS = new Set(["thread", "comments", "history", "temp", "volume"]);
+const WORKSPACE_FS_TEXT_EXTENSIONS = new Set([
+  ".md",
+  ".txt",
+  ".csv",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".html",
+  ".htm",
+  ".xml",
+  ".log",
+  ".pine",
+  ".py",
+  ".js",
+  ".jsx",
+  ".ts",
+  ".tsx",
+  ".css",
+  ".scss",
+  ".sh",
+  ".sql",
+  ".env",
+  ".toml",
+  ".ini",
+  ".cfg",
+  ".conf"
+]);
+const WORKSPACE_FS_WRITE_MAX_BYTES = 512_000;
+const WORKSPACE_FS_UPLOAD_MAX_BYTES = 45 * 1024 * 1024;
+
+function normalizeWorkspaceFsRelPath(raw) {
+  return String(raw || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+}
+
+function isWorkspaceFsTextPath(relPath) {
+  const ext = path.extname(String(relPath || "")).toLowerCase();
+  return WORKSPACE_FS_TEXT_EXTENSIONS.has(ext) || isWorkspaceTextFile(relPath);
+}
+
+function assertWorkspaceFsWriteAllowed(relPath) {
+  const normalized = normalizeWorkspaceFsRelPath(relPath);
+  if (!normalized) return { error: "Missing path", status: 400 };
+
+  for (const prefix of WORKSPACE_FS_BLOCKED_WRITE_PREFIXES) {
+    if (normalized.toLowerCase().startsWith(prefix.toLowerCase())) {
+      return {
+        error: `Writes to ${prefix} are not allowed via filesystem tools; use write_agent_system_file`,
+        status: 403
+      };
+    }
+  }
+
+  if (/\/manifest\.md$/i.test(normalized)) {
+    return { error: "Use write_page_body / write_page_properties for manifest.md", status: 400 };
+  }
+
+  const bundleMatch = normalized.match(/^(.*)\/awn-storage\/(main|todo|log|content)\.(md|csv)$/i);
+  if (bundleMatch) {
+    return {
+      error: "Use write_content_body for internal single-file slots (main-single, todo-single, log-single, main-single-csv)",
+      status: 400
+    };
+  }
+
+  const parsed = parseStorageLayerRef(normalized);
+  if (!parsed) return null;
+
+  const layer = parsed.layer;
+  const ext = path.extname(parsed.relativePath).toLowerCase();
+
+  if (WORKSPACE_FS_SYSTEM_LAYERS.has(layer)) {
+    const hint =
+      layer === "thread"
+        ? "append_thread"
+        : layer === "comments"
+          ? "append_comment"
+          : null;
+    return {
+      error: `Folder awn-storage/${layer}/ is not writable via filesystem tools${hint ? `; use ${hint}` : ""}`,
+      status: 400
+    };
+  }
+
+  if (ext === ".md" && WORKSPACE_FS_TYPED_MD_LAYERS.has(layer)) {
+    const { STORAGE_SLOT_ROUTING } = require("./storage-slot-routing");
+    const spec = STORAGE_SLOT_ROUTING.find((entry) => entry.storageFolder === layer);
+    return {
+      error: `For .md in awn-storage/${layer}/ use create_content / write_content_body / write_content_properties`,
+      status: 400,
+      hint: {
+        manifestPath: parsed.manifestCandidates?.[0] || null,
+        slot: spec?.slotKey || layer,
+        ref: parsed.relativePath
+      }
+    };
+  }
+
+  return null;
+}
+
+function parseAgentRootSystemFilePath(relPath) {
+  const normalized = normalizeWorkspaceFsRelPath(relPath);
+  if (!normalized || normalized.includes("/")) return null;
+  const canonical = canonicalSystemFileName(normalized);
+  if (!canonical) return null;
+  return { canonical, requestName: normalized };
+}
+
+async function readAgentRootSystemFileViaFs(parsed) {
+  const absolute = await resolveExistingSystemFileAbsolute(parsed.canonical);
+  try {
+    const content = await fs.readFile(absolute, "utf-8");
+    return {
+      exists: true,
+      path: parsed.canonical,
+      name: parsed.canonical,
+      kind: "text",
+      systemFile: true,
+      content,
+      size: Buffer.byteLength(content, "utf-8")
+    };
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      return {
+        exists: false,
+        path: parsed.canonical,
+        name: parsed.canonical,
+        kind: "text",
+        systemFile: true,
+        content: "",
+        size: 0
+      };
+    }
+    throw error;
+  }
+}
+
+async function writeAgentRootSystemFileViaFs(parsed, content) {
+  const serviceManifestRel = resolveSystemFileHistoryManifestRel();
+  const targetRelPath = resolveSystemFileHistoryTargetRel(parsed.canonical);
+  const existed = targetRelPath ? await fs.stat(normalizeWorkspacePath(targetRelPath)).catch(() => null) : null;
+
+  if (serviceManifestRel && targetRelPath) {
+    await ensureManifestStorageSlotDir(serviceManifestRel);
+    await writeWorkspaceTextFileWithHistory(serviceManifestRel, targetRelPath, content);
+  } else {
+    const absolute = resolveSystemFileAbsolute(parsed.canonical);
+    if (!absolute) return { error: "Invalid system file path", status: 400 };
+    await fs.mkdir(path.dirname(absolute), { recursive: true });
+    await fs.writeFile(absolute, content, "utf-8");
+  }
+
+  return {
+    path: parsed.canonical,
+    exists: true,
+    size: Buffer.byteLength(content, "utf-8"),
+    created: !existed,
+    systemFile: true,
+    history: Boolean(serviceManifestRel && targetRelPath)
+  };
+}
+
+async function readWorkspaceFsFile(relPath, options = {}) {
+  const normalized = normalizeWorkspaceFsRelPath(relPath);
+  const systemFile = parseAgentRootSystemFilePath(normalized);
+  if (systemFile) {
+    return readAgentRootSystemFileViaFs(systemFile);
+  }
+
+  const absolute = normalizeWorkspacePath(normalized);
+  if (!absolute) return { error: "Invalid path", status: 400 };
+
+  let stat;
+  try {
+    stat = await fs.stat(absolute);
+  } catch (error) {
+    if (error && error.code === "ENOENT") return { error: "File not found", status: 404, exists: false };
+    throw error;
+  }
+
+  if (stat.isDirectory()) {
+    return { error: "Path is a directory; use list_folder", status: 400 };
+  }
+
+  if (isWorkspaceFsTextPath(normalized)) {
+    if (isWorkspaceTextFile(normalized)) {
+      const data = await readWorkspaceTextFile(normalized, options);
+      if (data.error) return { error: data.error, status: data.exists === false ? 404 : 400, exists: data.exists };
+      return { ...data, kind: "text" };
+    }
+
+    try {
+      const stat = await fs.stat(absolute);
+      const maxBytes = Math.min(
+        Math.max(
+          Number.parseInt(String(options.maxBytes || WORKSPACE_TEXT_FILE_MAX_BYTES), 10) ||
+            WORKSPACE_TEXT_FILE_MAX_BYTES,
+          1024
+        ),
+        WORKSPACE_TEXT_FILE_MAX_BYTES
+      );
+      const truncated = stat.size > maxBytes;
+      const buffer = truncated ? Buffer.alloc(maxBytes) : await fs.readFile(absolute);
+      if (truncated) {
+        const fd = await fs.open(absolute, "r");
+        try {
+          await fd.read(buffer, 0, maxBytes, 0);
+        } finally {
+          await fd.close();
+        }
+      }
+      return {
+        exists: true,
+        path: normalized,
+        name: path.basename(normalized),
+        kind: "text",
+        size: stat.size,
+        truncated,
+        content: buffer.toString("utf-8")
+      };
+    } catch (error) {
+      if (error && error.code === "ENOENT") return { error: "File not found", status: 404, exists: false };
+      throw error;
+    }
+  }
+
+  const parsed = parseStorageLayerRef(normalized);
+  let previewUrl = buildWorkspaceFolderFileUrl(normalized);
+  if (parsed && (parsed.layer === "media" || parsed.layer === "assets")) {
+    const manifestRel = parsed.manifestCandidates?.[0];
+    const relFile = `${parsed.layer}/${parsed.relativePath}`;
+    if (manifestRel) {
+      previewUrl = `/api/media/file?path=${encodeURIComponent(manifestRel)}&file=${encodeURIComponent(relFile)}`;
+    }
+  }
+
+  return {
+    exists: true,
+    path: normalized,
+    name: path.basename(normalized),
+    kind: "binary",
+    binary: true,
+    size: stat.size,
+    previewUrl,
+    ext: path.extname(normalized).toLowerCase()
+  };
+}
+
+async function writeWorkspaceFsFile(relPath, content) {
+  const normalized = normalizeWorkspaceFsRelPath(relPath);
+  const policy = assertWorkspaceFsWriteAllowed(normalized);
+  if (policy) return policy;
+
+  if (!isWorkspaceFsTextPath(normalized)) {
+    return { error: "write_file supports text files only; use upload_file for binaries", status: 400 };
+  }
+
+  const text = typeof content === "string" ? content : null;
+  if (text === null) return { error: "Missing content", status: 400 };
+  if (Buffer.byteLength(text, "utf-8") > WORKSPACE_FS_WRITE_MAX_BYTES) {
+    return { error: `Content too large (max ${WORKSPACE_FS_WRITE_MAX_BYTES} bytes)`, status: 400 };
+  }
+
+  const systemFile = parseAgentRootSystemFilePath(normalized);
+  if (systemFile) {
+    return writeAgentRootSystemFileViaFs(systemFile, text);
+  }
+
+  const absolute = normalizeWorkspacePath(normalized);
+  if (!absolute) return { error: "Invalid path", status: 400 };
+
+  await fs.mkdir(path.dirname(absolute), { recursive: true });
+  const existed = await fs.stat(absolute).catch(() => null);
+  await fs.writeFile(absolute, text, "utf-8");
+
+  const parsed = parseStorageLayerRef(normalized);
+  if (parsed?.manifestCandidates?.[0]) {
+    await recordStorageLayerFileActivity({
+      manifestRelPath: parsed.manifestCandidates[0],
+      storageFolder: parsed.layer,
+      relFile: parsed.relativePath,
+      existed: Boolean(existed)
+    });
+    await invalidateNodeReadStateForStorageFile(
+      parsed.manifestCandidates[0],
+      parsed.layer,
+      parsed.relativePath
+    );
+  }
+
+  return {
+    path: normalized,
+    exists: true,
+    size: Buffer.byteLength(text, "utf-8"),
+    created: !existed
+  };
+}
+
+async function uploadWorkspaceFsFile(relPath, buffer, options = {}) {
+  const normalized = normalizeWorkspaceFsRelPath(relPath);
+  const policy = assertWorkspaceFsWriteAllowed(normalized);
+  if (policy) return policy;
+
+  const fileName = path.basename(normalized);
+  if (!fileName || fileName === "." || fileName === "..") {
+    return { error: "Path must include a file name", status: 400 };
+  }
+
+  const safeName = sanitizeMediaFileName(fileName);
+  if (!safeName) return { error: "Invalid file name", status: 400 };
+
+  const absolute = normalizeWorkspacePath(normalized);
+  if (!absolute) return { error: "Invalid path", status: 400 };
+  if (path.basename(absolute) !== safeName) {
+    return { error: "File name contains invalid characters", status: 400 };
+  }
+
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+    return { error: "Missing file data", status: 400 };
+  }
+  if (buffer.length > WORKSPACE_FS_UPLOAD_MAX_BYTES) {
+    return { error: "File is too large (max 45 MB)", status: 400 };
+  }
+
+  await fs.mkdir(path.dirname(absolute), { recursive: true });
+  const existed = await fs.stat(absolute).catch(() => null);
+  await fs.writeFile(absolute, buffer);
+
+  const parsed = parseStorageLayerRef(normalized);
+  if (parsed?.manifestCandidates?.[0]) {
+    await recordStorageLayerFileActivity({
+      manifestRelPath: parsed.manifestCandidates[0],
+      storageFolder: parsed.layer,
+      relFile: parsed.relativePath,
+      existed: Boolean(existed)
+    });
+    await invalidateNodeReadStateForStorageFile(
+      parsed.manifestCandidates[0],
+      parsed.layer,
+      parsed.relativePath
+    );
+  }
+
+  return {
+    path: normalized,
+    size: buffer.length,
+    mimeType: options.mimeType || null,
+    created: !existed
+  };
+}
+
+async function importWorkspaceFsFileFromUrl(relPath, sourceUrl, options = {}) {
+  const normalized = normalizeWorkspaceFsRelPath(relPath);
+  const remote = await fetchBufferFromImportUrl(String(sourceUrl || "").trim(), {
+    maxBytes: WORKSPACE_FS_UPLOAD_MAX_BYTES
+  });
+  const fileName = path.basename(normalized);
+  const resolvedName =
+    fileName && fileName !== "." && fileName !== ".."
+      ? fileName
+      : resolveImportFileName({
+          url: remote.sourceUrl,
+          contentType: remote.contentType,
+          contentDisposition: remote.contentDisposition
+        });
+  const targetPath =
+    fileName && fileName !== "." && fileName !== ".."
+      ? normalized
+      : `${normalizeWorkspaceFsRelPath(path.posix.dirname(normalized))}/${resolvedName}`.replace(/\/+/g, "/");
+
+  const result = await uploadWorkspaceFsFile(targetPath, remote.buffer, {
+    mimeType: options.mimeType || remote.contentType || undefined
+  });
+  if (result.error) return result;
+  return { ...result, sourceUrl: remote.sourceUrl };
+}
+
+async function listWorkspaceFsFolder(folderRelPath, options = {}) {
+  const normalizedFolder = normalizeWorkspaceFsRelPath(folderRelPath).replace(/\/+$/, "") || ".";
+  const maxDepth = resolveWorkspaceFolderScanDepth(options.depth ?? 1);
+
+  if (maxDepth <= 1) {
+    const browse = await browseWorkspaceFolderImmediate(normalizedFolder);
+    if (!browse.exists) {
+      return {
+        exists: false,
+        error: browse.error || "Folder not found",
+        status: browse.error ? 400 : 404
+      };
+    }
+
+    const entries = [];
+    for (const folder of browse.folders || []) {
+      entries.push({ kind: "folder", name: folder.name, path: folder.folderPath, itemCount: folder.itemCount || 0 });
+    }
+    const appendFiles = (items, kind) => {
+      for (const item of items || []) {
+        entries.push({
+          kind: "file",
+          fileKind: kind,
+          name: item.name,
+          path: item.path,
+          size: item.size ?? null,
+          ext: item.ext || path.extname(item.name || "").toLowerCase() || null,
+          previewUrl: item.previewUrl ?? null
+        });
+      }
+    };
+    appendFiles(browse.pages, "page");
+    appendFiles(browse.images, "image");
+    appendFiles(browse.videos, "video");
+    appendFiles(browse.audio, "audio");
+    appendFiles(browse.other, "file");
+
+    return {
+      exists: true,
+      path: browse.folderPath,
+      depth: 1,
+      entries,
+      counts: browse.counts
+    };
+  }
+
+  const scan = await scanWorkspaceFolder(normalizedFolder, options);
+  if (!scan.exists) {
+    return { exists: false, error: scan.error || "Folder not found", status: scan.error ? 400 : 404 };
+  }
+  return {
+    exists: true,
+    path: normalizedFolder,
+    depth: maxDepth === Number.POSITIVE_INFINITY ? "all" : maxDepth,
+    items: scan.items,
+    counts: scan.counts,
+    truncated: scan.truncated
+  };
+}
+
 async function resolveRecordMaterialsFolderExists(folderAbsolute, fileRelativePath) {
   const normalized = String(fileRelativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized.toLowerCase().endsWith(".md")) return false;
@@ -8952,7 +9395,7 @@ async function buildAgentTopicRegistry() {
   return {
     version: 1,
     model: "topic-registry",
-    hint: "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_page_body или get_always_context.",
+    hint: "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_page_body или list_workspace_always_context.",
     topics,
     topicCount: topics.length
   };
@@ -9083,6 +9526,320 @@ async function buildAgentHeartbeatRegistry() {
   };
 }
 
+function frontmatterPropsToObject(frontmatterOrProps) {
+  const props = Array.isArray(frontmatterOrProps)
+    ? frontmatterOrProps
+    : parseFrontmatterProps(frontmatterOrProps);
+  const out = {};
+  for (const entry of props) {
+    if (!entry?.key) continue;
+    out[entry.key] = entry.value;
+  }
+  return out;
+}
+
+async function buildPageMapSlotSummaries(manifestRelPath) {
+  const scan = await scanNodeStorageRoot(manifestRelPath);
+  const slots = [];
+  for (const folder of scan.folders || []) {
+    if (!folder.slotKey) continue;
+    slots.push({
+      slot: folder.slotKey,
+      driver: "external",
+      entryCount: folder.entryCount || 0
+    });
+  }
+  for (const [slotKey, info] of Object.entries(scan.bundleSlots || {})) {
+    if (!info?.exists) continue;
+    slots.push({
+      slot: slotKey,
+      driver: "internal",
+      entryCount: info.entryCount || 1
+    });
+  }
+  slots.sort((a, b) => String(a.slot).localeCompare(String(b.slot), "ru"));
+  return slots;
+}
+
+async function buildAgentPageMap(options = {}) {
+  const includeSlots = options.includeSlots !== false;
+  const agentRoot = getAgentRoot();
+  const projectRoot = getProjectRoot();
+  const catalog = loadTypeCatalog(projectRoot, agentRoot);
+  const menu = await buildAgentMenu(agentRoot);
+  const pages = [];
+
+  async function appendPage(manifestPath, label, kind, parentPath = null) {
+    const normalized = String(manifestPath || "").replace(/\\/g, "/");
+    if (!normalized) return;
+    let frontmatter = "";
+    try {
+      ({ frontmatter } = await readNodeFrontmatterContent(normalized));
+    } catch {
+      frontmatter = "";
+    }
+    const rawType = getYamlScalar(frontmatter, "awn-type") || "";
+    const awnType = rawType ? resolveCanonicalTypeId(String(rawType).trim(), catalog.byId) : "";
+    const title = String(getYamlScalar(frontmatter, "awn-name") || label || "").trim();
+    const description = String(getYamlScalar(frontmatter, "awn-description") || "").trim();
+    const entry = {
+      path: normalized,
+      title,
+      description,
+      awnType,
+      kind,
+      parentPath,
+      properties: frontmatterPropsToObject(frontmatter)
+    };
+    if (includeSlots && kind === "topic") {
+      entry.slots = await buildPageMapSlotSummaries(normalized);
+    }
+    pages.push(entry);
+  }
+
+  async function walkTree(tree, parentPath = null, rootKind = "area") {
+    if (!tree) return;
+    let areaPath = parentPath;
+    if (tree.indexPath) {
+      const kind = !parentPath && rootKind === "ws" ? "ws" : "area";
+      await appendPage(tree.indexPath, tree.title, kind, parentPath);
+      areaPath = tree.indexPath;
+    }
+    for (const item of tree.items || []) {
+      if (!item?.path) continue;
+      await appendPage(item.path, item.label, "topic", areaPath);
+    }
+    for (const section of tree.sections || []) {
+      await walkTree(section, areaPath, rootKind);
+    }
+  }
+
+  await walkTree(menu, null, "ws");
+  if (menu.containerTree) await walkTree(menu.containerTree, null, "area");
+  if (menu.sharedTree) await walkTree(menu.sharedTree, null, "area");
+  if (menu.serviceTree) await walkTree(menu.serviceTree, null, "area");
+
+  pages.sort((a, b) => {
+    const da = getManifestDisplayPathForTable(a.path, a.title, a.kind);
+    const db = getManifestDisplayPathForTable(b.path, b.title, b.kind);
+    return da.localeCompare(db, "ru");
+  });
+
+  return {
+    version: 1,
+    model: "page-map",
+    hint: "Карта страниц workspace: title, description, properties без body. Контент темы: get_content_map(path).",
+    pages,
+    pageCount: pages.length
+  };
+}
+
+const CONTENT_MAP_DEDICATED_SLOTS = new Set(["dialogs", "thread", "comments", "history", "temp", "volume"]);
+
+async function buildInternalSlotMapItems(manifestRelPath, slotKey) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  if (!nodeAbsolute) return [];
+  const storageRootAbs = getNodeStorageRootAbsolute(nodeAbsolute);
+  if (!storageRootAbs) return [];
+
+  const specs = [
+    { slotKey: "main-single", fileName: BUNDLE_CONTENT_FILE },
+    { slotKey: "main-single-csv", fileName: BUNDLE_TABULAR_FILE },
+    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE },
+    { slotKey: "log-single", fileName: BUNDLE_LOG_FILE }
+  ];
+  const spec = specs.find((row) => row.slotKey === slotKey);
+  if (!spec) return [];
+
+  for (const name of listBundleFileNameCandidates(spec.fileName)) {
+    const fileAbsolute = path.join(storageRootAbs, name);
+    if (!(await fileExists(fileAbsolute))) continue;
+    const workspaceRel = manifestRelFromNodeAbsolute(fileAbsolute);
+    let frontmatter = "";
+    try {
+      const raw = await fs.readFile(fileAbsolute, "utf-8");
+      ({ frontmatter } = splitNodeFrontmatter(raw));
+    } catch {
+      frontmatter = "";
+    }
+    const title = String(getYamlScalar(frontmatter, "awn-name") || path.basename(name)).trim();
+    return [
+      {
+        kind: "record",
+        ref: null,
+        title,
+        description: String(getYamlScalar(frontmatter, "awn-description") || "").trim(),
+        workspacePath: workspaceRel,
+        properties: frontmatterPropsToObject(frontmatter)
+      }
+    ];
+  }
+  return [];
+}
+
+async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder) {
+  const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
+  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, storageFolder);
+  if (!folderAbsolute || !(await isExistingDirectory(folderAbsolute))) {
+    return [];
+  }
+
+  const [files, folders, nonMarkdownFiles] = await Promise.all([
+    collectMarkdownFiles(folderAbsolute),
+    collectExternalContentFolders(folderAbsolute),
+    collectNonMarkdownFiles(folderAbsolute)
+  ]);
+
+  const items = [];
+
+  for (const folder of folders) {
+    const folderRel = String(folder.path || folder.name || "").replace(/\\/g, "/");
+    if (!folderRel) continue;
+    const categoryAbs = path.join(folderAbsolute, folderRel);
+    const hasManifest =
+      (await fileExists(path.join(categoryAbs, MANIFEST_FILE))) ||
+      (await fileExists(path.join(categoryAbs, AREA_MANIFEST_FILE)));
+    if (!hasManifest) continue;
+
+    let title = path.basename(folderRel);
+    let description = "";
+    let properties = {};
+    const sectionManifestRel = buildStorageLayerRef(
+      manifestRelPath,
+      storageFolder,
+      path.posix.join(folderRel, MANIFEST_FILE)
+    );
+    try {
+      const { frontmatter } = await readNodeFrontmatterContent(sectionManifestRel);
+      title = String(getYamlScalar(frontmatter, "awn-name") || title).trim();
+      description = String(getYamlScalar(frontmatter, "awn-description") || "").trim();
+      properties = frontmatterPropsToObject(frontmatter);
+    } catch {
+      // use defaults
+    }
+
+    items.push({
+      kind: "category",
+      ref: folderRel,
+      title,
+      description,
+      workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, folderRel),
+      properties
+    });
+  }
+
+  for (const file of files) {
+    const enriched = await enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute, file);
+    items.push({
+      kind: "record",
+      ref: enriched.relativePath,
+      title: enriched.title,
+      description: String(getFrontmatterPropValue(enriched.props, "awn-description") || "").trim(),
+      workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, enriched.relativePath),
+      properties: frontmatterPropsToObject(enriched.props),
+      status: enriched.status,
+      tags: enriched.tags
+    });
+  }
+
+  for (const file of nonMarkdownFiles) {
+    items.push({
+      kind: "file",
+      ref: file.relativePath,
+      title: file.name,
+      description: "",
+      workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, file.relativePath),
+      properties: {},
+      ext: path.extname(file.name || "").toLowerCase()
+    });
+  }
+
+  items.sort((a, b) =>
+    String(a.ref || a.title || "").localeCompare(String(b.ref || b.title || ""), "ru", {
+      sensitivity: "base",
+      numeric: true
+    })
+  );
+  return items;
+}
+
+async function buildAgentContentMap(manifestRelPath, options = {}) {
+  const normalizedPath = String(manifestRelPath || "").replace(/\\/g, "/").trim();
+  if (!normalizedPath) return { error: "Missing path", status: 400 };
+
+  const agentRoot = getAgentRoot();
+  const projectRoot = getProjectRoot();
+  let canonicalRelPath = normalizedPath;
+  try {
+    canonicalRelPath = await resolveCanonicalManifestRelPath(normalizedPath);
+  } catch {
+    canonicalRelPath = normalizedPath;
+  }
+
+  const nodeAbsolute = await resolveApiManifestAbsolute(canonicalRelPath);
+  if (!nodeAbsolute) return { error: "Invalid page path", status: 400 };
+
+  let frontmatter = "";
+  try {
+    ({ frontmatter } = await readNodeFrontmatterContent(canonicalRelPath));
+  } catch {
+    frontmatter = "";
+  }
+
+  const { slotKeyToStorageFolder, normalizeStorageSlotKey } = require("./storage-slot-routing");
+  const rawType = getYamlScalar(frontmatter, "awn-type") || "awn.page.topic";
+  const awnType = String(rawType).trim();
+  const slotKeys = resolveStorageSlotsForManifest(projectRoot, agentRoot, awnType);
+  const slotsPayload = getPageSlotsPayload(projectRoot, agentRoot, slotKeys);
+  const filterSlot = options.slot ? normalizeStorageSlotKey(options.slot) : "";
+  const slotsToScan = filterSlot
+    ? slotsPayload.slots.filter((row) => row.slot === filterSlot)
+    : slotsPayload.slots;
+
+  if (filterSlot && !slotsToScan.length) {
+    return { error: `Slot "${options.slot}" not found on page`, status: 404 };
+  }
+
+  const slots = [];
+  for (const slotEntry of slotsToScan) {
+    const slotKey = slotEntry.slot;
+    const driver = slotEntry.driver;
+
+    if (CONTENT_MAP_DEDICATED_SLOTS.has(slotKey)) {
+      slots.push({
+        slot: slotKey,
+        driver,
+        items: [],
+        hint: "Use dedicated thread/comments tools"
+      });
+      continue;
+    }
+
+    if (driver === "internal") {
+      const items = await buildInternalSlotMapItems(canonicalRelPath, slotKey);
+      slots.push({ slot: slotKey, driver, items, itemCount: items.length });
+      continue;
+    }
+
+    const storageFolder = slotKeyToStorageFolder(slotKey);
+    const items = await buildExternalSlotMapItems(canonicalRelPath, slotKey, storageFolder);
+    slots.push({ slot: slotKey, driver, items, itemCount: items.length });
+  }
+
+  const itemCount = slots.reduce((sum, row) => sum + (row.itemCount || row.items?.length || 0), 0);
+
+  return {
+    version: 1,
+    model: "content-map",
+    hint: "Карта контента страницы: title, description, properties без body. Тело: read_content_body.",
+    path: canonicalRelPath,
+    awnType,
+    slots,
+    slotCount: slots.length,
+    itemCount
+  };
+}
+
 const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
   menu: "GET /api/menu — дерево тем (manifest.md)",
@@ -9096,7 +9853,9 @@ const SESSION_CONTEXT_API_MAP = {
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
   workspaceTable: "GET /api/agent/workspace-table — таблица тем",
   canonicalModel: "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
-  siteMap: "GET /api/agent/site-map — карта сайта: все темы и области",
+  siteMap: "GET /api/agent/site-map — legacy; MCP: get_page_map",
+  pageMap: "GET /api/agent/page-map?includeSlots=true — карта страниц (meta, без body)",
+  contentMap: "GET /api/agent/content-map?path=<manifest.md>&slot= — карта контента страницы (meta, без body)",
   dataStores: "GET /api/awn-data — накопители awn-data; ?store= для одного",
   dataStoreCreate: "POST /api/awn-data/stores — создать накопитель",
   dataRecordCreate: "POST /api/awn-data/records — добавить запись",
@@ -9122,7 +9881,12 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFolderBrowse: "GET /api/workspace/folder/browse?folderPath=<path> — содержимое папки (1 уровень)",
   workspaceFolderScan: "GET /api/workspace/folder/scan?folderPath=<path>&depth=1|2|all&includeBody=true — рекурсивный инвентарь для разбора тем",
   workspaceFolderPage: "GET /api/workspace/folder/page?file=<path.md> — markdown-страница из свободной памяти",
-  workspaceFolderText: "GET /api/workspace/folder/text?file=<path> — текстовый файл из свободной памяти"
+  workspaceFolderText: "GET /api/workspace/folder/text?file=<path> — текстовый файл из свободной памяти",
+  workspaceFsRead: "GET /api/workspace/fs/read?path=<ws-path> — read_file MCP",
+  workspaceFsWrite: "POST /api/workspace/fs/write — write_file MCP { path, content }",
+  workspaceFsUpload: "POST /api/workspace/fs/upload — upload_file MCP { path, data base64 }",
+  workspaceFsImport: "POST /api/workspace/fs/import — upload_file_from_url MCP { path, url }",
+  workspaceFsList: "GET /api/workspace/fs/list?path=<folder>&depth=1|2|all — list_folder MCP"
 };
 
 const SESSION_PATH_HINTS = {
@@ -9254,7 +10018,7 @@ async function buildAgentSessionContext() {
     alwaysContext,
     alwaysContextCount: alwaysContext.itemCount,
     hint:
-      "Старт: topicRegistry (skill-карта) + alwaysContext (полные файлы). Cron: get_cron_registry. Heartbeat: get_heartbeat_registry."
+      "Старт: topicRegistry (skill-карта) + alwaysContext (полные файлы). Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat."
   };
 }
 
@@ -14368,6 +15132,35 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/page-map") {
+    try {
+      const includeSlots = url.searchParams.get("includeSlots") !== "false";
+      const payload = await buildAgentPageMap({ includeSlots });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read page map",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/content-map") {
+    const relPath = url.searchParams.get("path") || "";
+    const slot = url.searchParams.get("slot") || "";
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const payload = await buildAgentContentMap(relPath, { slot: slot || undefined });
+      if (payload.error) return sendJson(res, payload.status || 400, { error: payload.error });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read content map",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/site-map") {
     try {
       const payload = await buildAgentSiteMap();
@@ -18890,6 +19683,114 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to scan workspace folder",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/fs/read") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const data = await readWorkspaceFsFile(relPath, {
+        maxBytes: url.searchParams.get("maxBytes") || undefined
+      });
+      if (data.error) return sendJson(res, data.status || 400, { error: data.error, ...(data.hint ? { hint: data.hint } : {}) });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/fs/write") {
+    try {
+      const payload = await readJsonBody(req, 600_000);
+      const relPath = String(payload.path || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      const data = await writeWorkspaceFsFile(relPath, payload.content);
+      if (data.error) {
+        return sendJson(res, data.status || 400, { error: data.error, ...(data.hint ? { hint: data.hint } : {}) });
+      }
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write workspace file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/fs/upload") {
+    try {
+      const payload = await readJsonBody(req, 12_000_000);
+      const relPath = String(payload.path || "").trim();
+      const data = payload.data;
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!data || typeof data !== "string") return sendJson(res, 400, { error: "Missing file data" });
+      const buffer = decodeBase64UploadData(data, { label: "file data" });
+      const result = await uploadWorkspaceFsFile(relPath, buffer, { mimeType: payload.mimeType });
+      if (result.error) {
+        return sendJson(res, result.status || 400, { error: result.error, ...(result.hint ? { hint: result.hint } : {}) });
+      }
+      return sendJson(res, 200, result);
+    } catch (error) {
+      const code = error && error.code ? String(error.code) : "";
+      if (code === "EPERM" || code === "EACCES") {
+        return sendJson(res, 403, {
+          error: "No permission to write in agent workspace",
+          details: String(error.message || error)
+        });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to upload workspace file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/fs/import") {
+    try {
+      const payload = await readJsonBody(req, 256_000);
+      const relPath = String(payload.path || "").trim();
+      const sourceUrl = String(payload.url || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!sourceUrl) return sendJson(res, 400, { error: "Missing url" });
+      const result = await importWorkspaceFsFileFromUrl(relPath, sourceUrl, { mimeType: payload.mimeType });
+      if (result.error) {
+        return sendJson(res, result.status || 400, { error: result.error, ...(result.hint ? { hint: result.hint } : {}) });
+      }
+      return sendJson(res, 200, result);
+    } catch (error) {
+      if (error?.status) {
+        return sendJson(res, error.status, {
+          error: String(error.message || error),
+          ...(error.details ? { details: error.details } : {})
+        });
+      }
+      return sendJson(res, 500, {
+        error: "Failed to import workspace file from URL",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/fs/list") {
+    const folderPath = String(url.searchParams.get("path") || "").trim();
+    if (!folderPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const data = await listWorkspaceFsFolder(folderPath, {
+        depth: url.searchParams.get("depth") || "1",
+        includeBody: url.searchParams.get("includeBody") === "true",
+        maxBodyChars: url.searchParams.get("maxBodyChars") || undefined
+      });
+      if (data.error) return sendJson(res, data.status || 400, { error: data.error });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list workspace folder",
         details: String(error.message || error)
       });
     }
