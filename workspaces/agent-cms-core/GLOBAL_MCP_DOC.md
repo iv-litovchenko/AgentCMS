@@ -215,6 +215,10 @@
 
 ## Накопители (awn-data)
 
+**Терминология:** `awn-data` — это **хранилище данных** платформы. В документации и UI те же сущности могут называться **инфоблоки** или **информационные накопители** — это одно и то же, не путать со слотами темы.
+
+Папка `awn-data/` в workspace: структурированные коллекции вне дерева Page · Slot · Content — справочники (`taxonomies/`), задачи, агенты, группы полей и т.п. Записи — строки CSV или `{id}.md`, не файлы в `awn-storage/` темы.
+
 Отдельно от страниц/слотов.
 
 - список: `list_data_stores` → `get_data_store`
@@ -278,7 +282,7 @@
 1. Не писать файлы «в корень темы» — только через slot (`create_content` / `upload_content`), **если нет** `awn-slots-disabled: true` (режим lite: память рядом с `manifest.md`, без `awn-storage/`).
 2. Не путать page tools (`*_page_*`) и content tools (`*_content_*`).
 3. Типы искать по `id`, не угадывать path.
-4. `awn-data` ≠ слот страницы.
+4. `awn-data` (инфоблок / информационный накопитель) ≠ слот страницы.
 5. Уведомление в 🔔 CMS → `notify_user`; сообщение в Shell → `shell_post_message`.
 6. В `slot` — канонические ключи: `notes`, `scripts`, `dialogs` (не устаревшие `note` / `script` / `thread`).
 7. Комментарии / thread — свои tools; inbox создавать через `create_content` (`slot: inbox`), triage — `triage_inbox_item`.
