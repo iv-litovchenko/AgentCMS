@@ -197,7 +197,7 @@ const {
   MIGRATABLE_PRESETS
 } = require("./catalog-migration");
 const { addCatalogItemForAgentContext } = require("./catalog-items");
-const { getPlatformIndexAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
+const { getPlatformIndexAbsolute, getPlatformAgentRootAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const {
@@ -382,12 +382,13 @@ const {
   AWN_DEPENDENCIES_FILE
 } = agentRegistry;
 
+const GLOBAL_MCP_DOC_FILE = "GLOBAL_MCP_DOC.md";
+
 const SYSTEM_FILE_NAMES = [
   ".env",
   ".gitignore",
   "AGENTS.md",
   "SKILL.md",
-  "MCP_DOC.md",
   AWN_DEPENDENCIES_FILE,
   "docker-compose.yml",
   ROOT_SYSTEM_NOTE_FILE,
@@ -398,7 +399,6 @@ const SYSTEM_FILE_NAMES = [
 const CORE_SYSTEM_FILE_NAMES = new Set([
   "AGENTS.md",
   "SKILL.md",
-  "MCP_DOC.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
   ".env",
@@ -9038,7 +9038,7 @@ async function buildAgentAlwaysContextRegistry() {
     });
   }
 
-  for (const name of ["AGENTS.md", "SKILL.md", "README.md", "MCP_DOC.md"]) {
+  for (const name of ["AGENTS.md", "SKILL.md", "README.md"]) {
     const meta = await getSystemFileMeta(name);
     if (!meta.exists) continue;
     const absolute = await resolveExistingSystemFileAbsolute(name);
@@ -9061,10 +9061,32 @@ async function buildAgentAlwaysContextRegistry() {
     }
   }
 
+  // Platform-global MCP map — lives in agent-cms-core root, injected for every agent.
+  try {
+    const globalDocAbsolute = path.join(getPlatformAgentRootAbsolute(getProjectRoot()), GLOBAL_MCP_DOC_FILE);
+    if (await fileExists(globalDocAbsolute)) {
+      const content = await fs.readFile(globalDocAbsolute, "utf-8");
+      items.push({
+        entityKind: "system",
+        manifestPath: null,
+        slot: null,
+        ref: GLOBAL_MCP_DOC_FILE,
+        label: GLOBAL_MCP_DOC_FILE,
+        displayPath: `workspaces/agent-cms-core/${GLOBAL_MCP_DOC_FILE}`,
+        description: "Глобальная карта MCP (agent-cms-core, все агенты)",
+        runtimeLoadAlways: true,
+        exists: true,
+        content
+      });
+    }
+  } catch {
+    // skip unreadable global doc
+  }
+
   return {
     version: 1,
     model: "always-context",
-    hint: "Всегда в контексте: awn-runtime-load-always на темах/записях + AGENTS.md/SKILL.md/README.md/MCP_DOC.md. Полное содержимое каждого файла.",
+    hint: "Всегда в контексте: awn-runtime-load-always на темах/записях + AGENTS.md/SKILL.md/README.md + GLOBAL_MCP_DOC.md (платформа). Полное содержимое каждого файла.",
     items,
     itemCount: items.length
   };

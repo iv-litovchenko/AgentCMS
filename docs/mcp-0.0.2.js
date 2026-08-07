@@ -56,7 +56,7 @@ module.exports = {
         {
           name: "get_always_context",
           description:
-            "Всегда в контексте: полное содержимое тем/записей с awn-runtime-load-always + AGENTS.md/SKILL.md/README.md/MCP_DOC.md.",
+            "Всегда в контексте: полное содержимое тем/записей с awn-runtime-load-always + AGENTS.md/SKILL.md/README.md + GLOBAL_MCP_DOC.md (из agent-cms-core, все агенты).",
           parameters: "—",
           http: "GET /api/agent/always-context"
         },

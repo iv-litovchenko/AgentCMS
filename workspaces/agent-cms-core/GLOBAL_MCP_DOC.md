@@ -1,6 +1,11 @@
-# MCP_DOC — краткая карта Agent CMS
+# GLOBAL_MCP_DOC — краткая карта Agent CMS
 
-Перед работой: `get_session_context` → `get_active_context`.
+Глобальный документ платформы (`workspaces/agent-cms-core/GLOBAL_MCP_DOC.md`): попадает в always-context **всех** агентов.
+
+**Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, shell/`curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP.
+
+Перед работой: `get_session_context` → `get_active_context`.  
+Поиск: `search_workspace` (как шапка UI; scope=all|content|filename…).
 
 ## Модель (3 сущности)
 
@@ -12,6 +17,24 @@
 
 **Page ≠ Content.** Слот — не файл; контент живёт *в* слоте.
 
+### Фокус UI — `get_active_context`
+
+Что открыто у пользователя. Смотри `focus.entity`: `page` | `slot` | `content` | `system` | `browse` | …  
+В ответе уже есть готовые MCP-args: `path` / `slot` / `ref` — подставляй в `read_*` / `write_*`, не угадывай пути.
+
+---
+
+## Дерево агента
+
+| Папка | Зачем |
+|-------|-------|
+| `awn-agent-kit/` | Служебные темы агента (persona, rules, voice…) |
+| `awn-shared/` | Общие ресурсы между темами (inbox, media…) |
+| `awn-container/` | Пользовательский контент — обычные области/темы |
+| корень | `manifest.md` (ws) + системные MD (`AGENTS.md`, `SKILL.md`…) |
+
+`create_page`: обычно `parentPath` внутри `awn-container/` (или kit/shared по назначению).
+
 ---
 
 ## Реестры
@@ -21,7 +44,7 @@
 | Tool | Что внутри | Тела файлов? |
 |------|------------|--------------|
 | `get_topic_registry` | Все темы: name, path, description (skill-карта) | нет |
-| `get_always_context` | Что всегда в контексте: `awn-runtime-load-always` + `AGENTS.md` / `SKILL.md` / `README.md` / `MCP_DOC.md` | **да** |
+| `get_always_context` | `awn-runtime-load-always` + `AGENTS.md` / `SKILL.md` / `README.md` + глобальный `GLOBAL_MCP_DOC.md` | **да** |
 | `get_cron_registry` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `get_heartbeat_registry` | Темы/записи с `awn-runtime-heartbeat` | нет |
 | `get_runtime_registry` | Полный runtime: флаги sync/cron/heartbeat (фильтры) | нет |
@@ -132,6 +155,31 @@
 - запись: `create_data_record`
 
 Не путать с `create_content`.
+
+---
+
+## Свободная память
+
+Папки **без** `manifest.md` (ещё не темы CMS). Также тема с `awn-slots-disabled: true` — файлы рядом с manifest.
+
+- список: `list_adopt_folders`
+- обзор: `browse_workspace_folder` / `scan_workspace_folder`
+- читать: `read_workspace_page` / `read_workspace_text_file`
+- загрузить: `upload_workspace_file`
+
+Не путать с `create_content` (тот — только для страниц со слотами).
+
+---
+
+## Системные файлы агента
+
+Корень **конкретного** workspace: `AGENTS.md`, `SKILL.md`, `README.md`, `NOTE.md`, `TODO.md`…
+
+- список: `list_system_files`
+- читать / писать: `read_system_file` / `write_system_file`
+
+В always-context агента (если есть): `AGENTS.md`, `SKILL.md`, `README.md`.  
+Плюс всегда глобально: `GLOBAL_MCP_DOC.md` из корня `agent-cms-core` (для всех агентов).
 
 ---
 
