@@ -6,34 +6,32 @@ awn_schema:
     fields:
       field_topic:
         type: awn.field.string
-        name: Поле тема
+        name: Topic Field
   slot_memory:
     fields:
       field_2:
         type: awn.field.string
-        name: Поле запись (из топика - 1)
       field_mnogof_2:
         type: awn.field.string
-        name: Поле запись (из топика - 2)
+        name: field_mnogof2
       field_mnogof:
         type: awn.field.string
-        name: Поле запись (из топика - 3)
+        name: field_mnogof
   slot_memory_category:
     fields:
       field_2:
         type: awn.field.string
-        name: Поле раздел - 1 (из топика)
       field_2razdel:
         type: awn.field.string
-        name: Поле раздел - 2 (из топика)
+        name: field_2razdel
+      field_1razdel:
+        type: awn.field.string
+        name: field_1razdel
   slot_memory_sidecar:
     fields:
       field_1:
         type: awn.field.string
-        name: field_1
       field_2:
         type: awn.field.string
-        name: field_2
       field_3:
         type: awn.field.string
-        name: field_3

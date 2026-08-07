@@ -22,10 +22,10 @@ awn_schema:
     fields:
       field_2:
         type: awn.field.string
-        name: Поле раздел - 1 (из топика)
+        name: Поле Запись - 1 (topoc)
       field_2razdel:
         type: awn.field.string
-        name: Поле раздел - 2 (из топика)
+        name: Поле Запись - 2 (topoc)
   slot_memory_sidecar:
     fields:
       field_1:

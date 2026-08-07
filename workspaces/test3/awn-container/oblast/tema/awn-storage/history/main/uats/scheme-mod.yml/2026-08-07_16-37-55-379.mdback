@@ -6,12 +6,10 @@ awn_schema:
     fields:
       field_1:
         type: awn.field.string
-        name: Из раздела Поле  А
       field_24334:
         type: awn.field.string
-        name: Из Раздела ПОле Б
   slot_memory_category:
     fields:
-      field_razdel:
+      field_143:
         type: awn.field.string
-        name: из раздела
+        name: 434343

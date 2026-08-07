@@ -1,10 +1,12 @@
 {
   "paths": [
+    "main/autsauts",
     "main/autsauts.md",
     "main/awn-container/oblast/tema/awn-storage/manifest.md",
     "main/awn-storage/manifest.md",
+    "main/uats/4444.md",
     "main/uats/manifest.md",
     "topic-index-generated/awn-container/oblast/tema/awn-storage/index.md"
   ],
-  "updatedAt": "2026-08-07T13:31:14.461Z"
+  "updatedAt": "2026-08-07T14:00:43.550Z"
 }

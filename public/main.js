@@ -36159,6 +36159,34 @@ function getTopicSchemaCache(manifestPath = getTopicSchemaManifestPath(), conten
   return topicSchemaCacheByManifest.get(cacheKey) || null;
 }
 
+function resolveOverviewSchemaContentPath(context = activeEntryOverviewContext) {
+  const relPath = String(context?.relPath || getPropsContextPath() || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  if (!relPath || !/\/awn-storage\/[^/]+\/.+/i.test(relPath)) return "";
+  return relPath;
+}
+
+function resolveActiveOverviewSchemaCache(context = activeEntryOverviewContext) {
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && context?.relPath) {
+    const manifestPath = getTopicSchemaManifestPath();
+    const contentPath = resolveOverviewSchemaContentPath(context);
+    if (manifestPath && contentPath) {
+      return getTopicSchemaCache(manifestPath, contentPath);
+    }
+  }
+  return getTopicSchemaCache();
+}
+
+function resolveOverviewSchemaTargetForContext(context = activeEntryOverviewContext) {
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && context) {
+    const entryKind = normalizeAwnTypeName(context.entryKind || "awn.content.record");
+    const slotKey = getDataStorageSlotKeyForEntryView(NODE_ENTRY_OVERVIEW_MODE);
+    return resolveAwnSchemaTargetForType(entryKind, slotKey);
+  }
+  return resolveAwnSchemaTargetForContext();
+}
+
 function getTopicSchemaSavePayload() {
   const cache = getTopicSchemaCache();
   return cache ? normalizeTopicSchemaState(cache.awnSchema) : null;
@@ -38041,7 +38069,7 @@ function getActiveAwnTypeDef(typeName = null) {
     }
   }
 
-  const cache = getTopicSchemaCache();
+  const cache = resolveActiveOverviewSchemaCache();
   const target = typeName
     ? resolveAwnSchemaTargetForType(resolvedType)
     : resolveAwnSchemaTargetForContext();
@@ -38727,7 +38755,7 @@ function getPropsFieldDef(key) {
   return findPropsFieldDefInTopicSchemaTargets(normalized);
 }
 
-function findPropsFieldDefInTopicSchemaTargets(key, cache = getTopicSchemaCache()) {
+function findPropsFieldDefInTopicSchemaTargets(key, cache = resolveActiveOverviewSchemaCache()) {
   const normalized = normalizePropsKey(key);
   if (!normalized || !cache) return null;
 
@@ -38742,18 +38770,33 @@ function findPropsFieldDefInTopicSchemaTargets(key, cache = getTopicSchemaCache(
 }
 
 function isPropsFieldDefinedInActiveSchema(key) {
-  return Boolean(getPropsFieldDef(key) || findPropsFieldDefInTopicSchemaTargets(key));
+  const cache = resolveActiveOverviewSchemaCache();
+  return Boolean(getPropsFieldDef(key) || findPropsFieldDefInTopicSchemaTargets(key, cache));
 }
 
-function resolvePropsFieldDefForOverview(key) {
-  return getPropsFieldDef(key) || findPropsFieldDefInTopicSchemaTargets(key);
+function resolvePropsFieldDefForOverview(key, entry = null) {
+  if (entry?.fieldDef) return entry.fieldDef;
+
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return null;
+
+  const cache = resolveActiveOverviewSchemaCache();
+  if (cache) {
+    const preferredTarget = resolveOverviewSchemaTargetForContext();
+    const preferred = resolveTopicSchemaMergedType(preferredTarget, cache)?.fields?.[normalized];
+    if (preferred) return preferred;
+    const fromTargets = findPropsFieldDefInTopicSchemaTargets(normalized, cache);
+    if (fromTargets) return fromTargets;
+  }
+
+  return getPropsFieldDef(normalized);
 }
 
-function getPropsFieldOverviewLabel(key) {
+function getPropsFieldOverviewLabel(key, entry = null) {
   const normalized = normalizePropsKey(key);
   if (!normalized) return { key: String(key || "").trim(), label: "" };
 
-  const fieldDef = resolvePropsFieldDefForOverview(normalized);
+  const fieldDef = resolvePropsFieldDefForOverview(normalized, entry);
   let label = "";
   if (fieldDef) {
     label = getFieldDefDisplayName(fieldDef, normalized);
@@ -38865,6 +38908,7 @@ function applyTypeSchemaToEntries(entries, typeName = null) {
       const fieldDef = typeDef.fields[key];
       let entry = { ...existing };
       if (fieldDef) {
+        entry.fieldDef = fieldDef;
         entry.kind = fieldDefToEntryKind(fieldDef);
       }
       if (entry.kind === "array" && !Array.isArray(entry.value)) {
@@ -38921,7 +38965,8 @@ function applyTypeSchemaToEntries(entries, typeName = null) {
 
   for (const entry of entries) {
     if (!entry?.key || seen.has(entry.key) || HIDDEN_PROPS_FIELD_KEYS.has(entry.key)) continue;
-    result.push(entry);
+    const fieldDef = typeDef.fields[entry.key];
+    result.push(fieldDef ? { ...entry, fieldDef, kind: fieldDefToEntryKind(fieldDef) } : entry);
   }
   for (const entry of entries) {
     if (!entry?.key) result.push({ key: "", kind: entry.kind || "string", value: entry.value ?? "" });
@@ -47637,8 +47682,8 @@ function getPropsEntryOverviewDisplayValue(entry, key = entry?.key) {
   return text || "—";
 }
 
-function appendNodeOverviewMetaKeyCell(container, key) {
-  const { key: normalizedKey, label } = getPropsFieldOverviewLabel(key);
+function appendNodeOverviewMetaKeyCell(container, key, entry = null) {
+  const { key: normalizedKey, label } = getPropsFieldOverviewLabel(key, entry);
 
   const keyNode = document.createElement("span");
   keyNode.className = "node-overview-meta-key-id";
@@ -47686,7 +47731,7 @@ function renderNodeOverviewMetaTable(metaItems) {
 
     const keyCell = document.createElement("div");
     keyCell.className = "node-overview-meta-key";
-    appendNodeOverviewMetaKeyCell(keyCell, item.key);
+    appendNodeOverviewMetaKeyCell(keyCell, item.key, item);
 
     const valCell = document.createElement("div");
     appendNodeOverviewMetaValueCell(valCell, item);
@@ -47722,7 +47767,8 @@ function collectNodeOverviewMetaItems(entries) {
     items.push({
       key,
       value: getPropsEntryOverviewDisplayValue(entry, key),
-      rawValue: getPropsEntryDisplayValue(entry)
+      rawValue: getPropsEntryDisplayValue(entry),
+      fieldDef: entry?.fieldDef || null
     });
   };
 
@@ -52755,14 +52801,15 @@ async function fetchEntryOverviewProperties(relPath, context = null) {
 
 async function enrichEntryOverviewPropertiesWithSchema(entries, context) {
   if (!context?.relPath || isEntryOverviewMemoryTocRoot(context)) return entries;
-  const contentPath = String(context.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!contentPath || !/\/awn-storage\/[^/]+\/.+/i.test(contentPath)) {
-    return entries;
-  }
+  const contentPath = resolveOverviewSchemaContentPath(context);
+  if (!contentPath) return entries;
   try {
-    await ensureTopicSchemaForActiveContext({ contentPath });
+    const manifestPath = getTopicSchemaManifestPath();
+    if (!manifestPath) return entries;
     if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
-    return applyTypeSchemaToEntries(entries);
+    await loadTopicSchemaForManifest(manifestPath, { contentPath, force: false });
+    const typeName = normalizeAwnTypeName(context.entryKind || resolveAwnTypeForContext());
+    return applyTypeSchemaToEntries(entries, typeName);
   } catch {
     return entries;
   }
@@ -65432,6 +65479,9 @@ async function renderNodeOverview() {
     await loadPropertiesForActivePath();
     if (isStale()) return;
   }
+
+  await ensureTopicSchemaForActiveContext().catch(() => null);
+  if (isStale()) return;
 
   const entries = resolveNodeOverviewPropsEntries();
   const manifestRaw = modeContentCache.description || "";
