@@ -6,13 +6,9 @@ awn_schema:
     fields:
       ws-field_1:
         type: awn.field.string
-        name: ws-field_1
-      ws-field_2:
-        type: awn.field.string
   settings:
     fields:
-      ws-setting-ws-field_1:
+      ws-setting-1:
         type: awn.field.string
-        name: ws-field_1
-      ws-setting-ws-field_2:
+      ws-setting-2:
         type: awn.field.string

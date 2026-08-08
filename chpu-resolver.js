@@ -116,6 +116,18 @@ const CHPU_LEGACY_UI_ALIASES = {
 
 const APP_ROUTE_VIEW_IDS = new Set([...CHPU_UI_VIEW_IDS, ...Object.keys(CHPU_LEGACY_UI_ALIASES)]);
 
+const PROJECT_SETTINGS_CHPU_SEGMENTS = new Set(["настройки", "settings"]);
+
+function isProjectSettingsChpuPath(chpuPath) {
+  const normalized = String(chpuPath || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!normalized) return false;
+  const head = normalized.split("/")[0]?.toLowerCase();
+  return PROJECT_SETTINGS_CHPU_SEGMENTS.has(head) && !normalized.includes("/");
+}
+
 function normalizeChpuViewCandidate(candidate) {
   const raw = candidate === "quick-notes" ? "notes" : candidate;
   if (CHPU_LEGACY_UI_ALIASES[raw] === null) return raw;
@@ -410,6 +422,10 @@ async function resolveChpuPath(agentRoot, rawPath) {
     return attachChpuViews({ kind: "agentHome", workspacePath: "" }, views);
   }
 
+  if (isProjectSettingsChpuPath(chpuPath)) {
+    return attachChpuViews({ kind: "projectSettings", workspacePath: chpuPath }, views);
+  }
+
   const system = await resolveSystemFile(agentRootResolved, chpuPath);
   if (system) return attachChpuViews(system, views);
 
@@ -564,11 +580,13 @@ function isChpuReservedRootSegment(segment) {
 
 module.exports = {
   APP_ROUTE_VIEW_IDS,
+  PROJECT_SETTINGS_CHPU_SEGMENTS,
   SYSTEM_FILE_CHPU_ALIASES,
   SYSTEM_FILE_TO_CHPU_PATH,
   SLOT_FOLDER_TO_MODE,
   splitChpuPath,
   resolveChpuPath,
   workspacePathFromFileRel,
-  isChpuReservedRootSegment
+  isChpuReservedRootSegment,
+  isProjectSettingsChpuPath
 };

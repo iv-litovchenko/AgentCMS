@@ -29,8 +29,22 @@ const AWN_TYPE_REPLACEMENTS = [
   ["awn-type: awn.sidecar", "awn-type: awn.content.sidecar"],
   ["awn-type: awn.area", "awn-type: awn.page.area"],
   ["awn-type: awn.topic", "awn-type: awn.page.topic"],
-  ["awn-type: awn.page.service-doc", "awn-type: awn.page.topic.agent-kit.agent"],
-  ["awn-type: service-doc", "awn-type: awn.page.topic.agent-kit.agent"]
+  ["awn-type: awn.page.service-doc", "awn-type: awn.page.topic"],
+  ["awn-type: service-doc", "awn-type: awn.page.topic"],
+  ["awn-type: awn.page.section.agent-kit", "awn-type: awn.page.section"],
+  ["awn-type: awn.page.section.shared", "awn-type: awn.page.section"],
+  ["awn-type: awn.page.section.container", "awn-type: awn.page.section"],
+  ["awn-type: awn.page.topic.agent-kit.user", "awn-type: awn.page.topic"],
+  ["awn-type: awn.page.topic.agent-kit.users", "awn-type: awn.page.topic"],
+  ["awn-type: awn.page.topic.agent-kit.rules", "awn-type: awn.page.topic"],
+  ["awn-type: awn.page.topic.agent-kit.voice-tts", "awn-type: awn.page.topic"],
+  ["awn-type: awn.page.topic.agent-kit.voice-sst", "awn-type: awn.page.topic"],
+  ["awn-type: awn.page.topic.shared.inbox", "awn-type: awn.page.topic"],
+  ["awn-type: awn.page.topic.shared.notes", "awn-type: awn.page.topic"],
+  ["awn-type: awn.page.topic.shared.references", "awn-type: awn.page.topic"],
+  ["awn-type: awn.page.topic.shared.artefacts", "awn-type: awn.page.topic"],
+  ["awn-type: awn.page.topic.shared.scripts", "awn-type: awn.page.topic"],
+  ["awn-type: awn.page.topic.shared.media", "awn-type: awn.page.topic"]
 ];
 
 const DOC_REPLACEMENTS = [

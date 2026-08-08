@@ -106,8 +106,10 @@ fields:
   `storage`, `settings[]`. Виджет должен быть из существующих примитивов.
 - **Блок редактора (md-blocks):** `extends: awn.block.base`, задай `template` (текст),
   `group`, `sort`, `icon`. Работает сразу — это эталон 1 яруса.
-- **Слот (slots):** `extends: awn.slot`, задай `storage-shape` (single-file /
-  multi-file / tabular — форма памяти), `path`, `allowed-content[]`, `accept-files[]`.
+- **Слот (slots):** `extends: awn.slot`, задай `storage-driver` (`external` = папка /
+  `multi-file/`, `internal` = один файл / `single-file/`, `tabular` = CSV), `path`,
+  `allowed-content[]`, `accept-files[]`, `slot-category`. Файлы — в
+  `awn-system/types/slots/multi-file/` или `…/single-file/` (runtime — по `id`).
 - **Таксономия (taxonomies):** `extends: awn.taxonomy.base`, задай `data-path`, `props-field`.
 - **Миксин (mixins):** переиспользуемый набор `fields:`; подключается через `mixins: [id]`.
 

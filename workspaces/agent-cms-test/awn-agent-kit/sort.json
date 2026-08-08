@@ -1,6 +1,5 @@
 {
   "order": [
-    "user",
-    "voice-sst"
+    "awn-agent-kit"
   ]
 }

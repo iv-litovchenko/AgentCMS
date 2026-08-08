@@ -78,6 +78,8 @@ workspaces/agent-cms-test/
 
 **Слот = WHERE, content = WHAT.** Каждый `awn.slot.*` — запись в **`awn-data/slots/`** (`path`, `allowed-content`, `accept-files`, `storage-driver`, `slot-category`).
 
+**Каталог:** `awn-data/slots/multi-file/` (много файлов) и `…/single-file/` (один файл); runtime — `multi-file/system/`.
+
 **Категории слотов** (группы в каталоге): `awn-data/taxonomies/slot-categories/main.csv` — Память, Файлы, Однофайловая, Записи, Общение.
 
 ```
@@ -177,14 +179,14 @@ awn_schema:
 | PHP-тема | `awn-container/php/manifest.md` |
 | Запись | `awn-container/php/awn-storage/main/….md` |
 | Диалог | `awn-agent-kit/agent/awn-storage/thread/….md` |
-| Тип record | `awn-data/content/types/record.md` |
-| Слот main | `awn-data/slots/types/multi-file/multi-file-main.md` |
+| Тип record | `awn-system/types/content/record.yml` |
+| Слот main | `awn-system/types/slots/multi-file/main.yml` |
 
 ---
 
 ## Расширение системы
 
-Новый тип / слот / поле → запись в `awn-data/{pages,content,slots}/types/`.  
+Новый тип / слот / поле → правка YAML в `awn-system/types/` (слоты: `slots/multi-file/` или `slots/single-file/`).  
 **Не** изобретать типы в `config.yml` каждой темы — только override полей.
 
 Перегенерация из platform core:

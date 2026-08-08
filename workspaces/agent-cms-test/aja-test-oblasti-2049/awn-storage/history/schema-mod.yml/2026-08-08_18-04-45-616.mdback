@@ -6,13 +6,11 @@ awn_schema:
     fields:
       area-field_1:
         type: awn.field.string
-        name: ошр
+        name: area-field_1
       area-field_2:
         type: awn.field.string
-        name: ошщ
       area-field_3:
         type: awn.field.string
-        name: гшр
   settings:
     fields:
       area-setting-1:

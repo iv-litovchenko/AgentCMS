@@ -1,18 +1,12 @@
 ---
-id: ""
-name: ""
-description: ""
-extends: ""
-status: ""
-kind: ""
 awn-name: "Служебные темы и компоненты"
 awn-emoji: ""
 awn-status: open
 awn-description: ""
-awn-tags: ""
+awn-tags: []
 awn-type: awn.page.area
-awn-create: 2026-08-07T10:33:03.587Z
-awn-update: 2026-08-07T10:33:03.587Z
+awn-create: 2026-08-08T15:08:34.786Z
+awn-update: 2026-08-08T15:08:34.786Z
 awn-version: 1
 awn-preview: ""
 awn-web-url: ""

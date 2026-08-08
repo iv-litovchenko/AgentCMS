@@ -1,18 +1,12 @@
 ---
-id: ""
-name: ""
-description: ""
-extends: ""
-status: ""
-kind: ""
 awn-name: "Общие темы и ресурсы"
 awn-emoji: ""
 awn-status: open
 awn-description: ""
-awn-tags: ""
+awn-tags: []
 awn-type: awn.page.area
-awn-create: 2026-08-07T10:33:12.975Z
-awn-update: 2026-08-07T10:33:12.975Z
+awn-create: 2026-08-08T15:09:15.102Z
+awn-update: 2026-08-08T15:09:15.102Z
 awn-version: 1
 awn-preview: ""
 awn-web-url: ""

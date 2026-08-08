@@ -1,33 +1,9 @@
 ---
-id: ""
-name: ""
-description: ""
-extends: ""
-status: ""
-kind: ""
-awn-name: "Агент"
-awn-emoji: ""
-awn-status: open
-awn-description: ""
-awn-tags: ""
-awn-type: awn.page.topic.agent-kit.agent
-awn-create: 2026-08-07T10:43:14.324Z
-awn-update: 2026-08-07T10:43:14.324Z
-awn-version: 1
-awn-preview: ""
-awn-web-url: ""
-awn-main: false
-awn-category: ""
-awn-owner: ""
-awn-priority: ""
-awn-color: ""
-awn-sort: ""
-awn-runtime-load-always: false
-awn-runtime-cron: ""
-awn-runtime-cron-schedule: ""
-awn-runtime-heartbeat: ""
-awn-runtime-commands: false
-awn-slots-disabled: false
-awn-agent-role: ""
-awn-agent-language: ""
+awn-name: Агент
+awn-tags: [system, service]
+awn-type: awn.page.topic
 ---
+
+# Агент
+
+Описание агента: роль, цели и границы workspace.

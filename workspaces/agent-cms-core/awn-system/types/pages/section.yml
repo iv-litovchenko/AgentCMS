@@ -1,0 +1,20 @@
+id: awn.page.section
+name: Секция
+kind: type
+domain: pages
+status: active
+extends: awn.page.base
+description: "Служебная секция workspace — только в корне агента. Создаётся через UI (awn-agent-kit, awn-shared, awn-container). Не для областей контента внутри awn-container."
+manifest-pattern: "{slug}/manifest.md"
+storage-slots: []
+fields:
+  awn-section-bg:
+    type: awn.field.color
+    title: Цвет фона
+    description: Фон секции в меню workspace
+    group: nav
+  awn-section-border:
+    type: awn.field.color
+    title: Цвет бордюра
+    description: Обводка секции в меню workspace
+    group: nav

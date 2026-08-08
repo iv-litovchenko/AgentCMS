@@ -3,8 +3,8 @@ name: Область
 kind: type
 domain: pages
 status: deprecated
-extends: awn.page.section
-description: "Legacy — используйте awn.page.section.* (agent-kit, shared, container)"
+extends: awn.page.base
+description: "Область контента — папка-раздел в awn-container (не служебная секция корня)"
 fields:
   awn-color:
     type: awn.field.color

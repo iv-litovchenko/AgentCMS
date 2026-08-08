@@ -310,6 +310,13 @@ const nodeConfigPanelNode = document.getElementById("node-config-panel");
 const nodeConfigFieldsNode = document.getElementById("node-config-fields");
 const nodeConfigEmptyNode = document.getElementById("node-config-empty");
 const nodeConfigAddBtn = document.getElementById("node-config-add-btn");
+const projectSettingsPageNode = document.getElementById("project-settings-page");
+const projectSettingsScopeListNode = document.getElementById("project-settings-scope-list");
+const projectSettingsTitleNode = document.getElementById("project-settings-title");
+const projectSettingsLeadNode = document.getElementById("project-settings-lead");
+const projectSettingsFieldsNode = document.getElementById("project-settings-fields");
+const projectSettingsEmptyNode = document.getElementById("project-settings-empty");
+const docStackNode = document.querySelector(".content.doc-stack");
 const agentVaultPaneNode = document.getElementById("agent-vault-pane");
 const agentVaultSearchNode = document.getElementById("agent-vault-search");
 const agentVaultGridNode = document.getElementById("agent-vault-grid");
@@ -2034,6 +2041,12 @@ async function applyChpuResolvedRoute(resolved) {
     return;
   }
 
+  if (resolved?.kind === "projectSettings") {
+    hideHomeView();
+    await openProjectSettingsHub({ skipRouteSync: true });
+    return;
+  }
+
   if (resolved?.kind === "systemFile") {
     hideHomeView();
     const uiViews = getResolvedChpuViews(resolved);
@@ -2490,6 +2503,10 @@ function buildAppPathFromState() {
 
   if (appRootNode?.classList.contains("home-view") && !activePath && !activeSystemFile && !activeFolderBrowsePath && !awnDataViewStoreRel) {
     return `/${encodeURIComponent(agentId)}`;
+  }
+
+  if (isProjectSettingsMode() && !activePath && !activeSystemFile && !activeFolderBrowsePath) {
+    return `/${encodeURIComponent(agentId)}/${encodeURIComponent(PROJECT_SETTINGS_CHPU_SEGMENT)}`;
   }
 
   if (!activePath && !activeSystemFile && !activeFolderBrowsePath && !(awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE)) {
@@ -12607,7 +12624,9 @@ function syncLandingBgUi() {
   appLandingBgLightBtn?.setAttribute("aria-pressed", isSky ? "false" : "true");
 }
 const NODE_OPEN_MEMORY_MODE = "internal";
-const NODE_SETTINGS_MODE_IDS = new Set(["description", "topic-schema", "configs", "env"]);
+const PROJECT_SETTINGS_MODE = "project-settings";
+const PROJECT_SETTINGS_CHPU_SEGMENT = "настройки";
+const NODE_SETTINGS_MODE_IDS = new Set(["description", "topic-schema", "configs", "env", PROJECT_SETTINGS_MODE]);
 const NODE_SETTINGS_AUTO_MODE_IDS = new Set(["schedule", "heartbeat"]);
 const NODE_MEMORY_MODE_IDS = new Set([
   "inbox",
@@ -14034,6 +14053,28 @@ function isNodeMemorySelectMode(mode) {
   return NODE_MEMORY_MODE_IDS.has(mode);
 }
 
+function isProjectSettingsMode(mode = activeContentMode) {
+  return mode === PROJECT_SETTINGS_MODE;
+}
+
+function isNodeConfigEditorMode(mode = activeContentMode) {
+  return mode === "configs";
+}
+
+function getNodeSettingsFieldsContainer() {
+  return isProjectSettingsMode() ? projectSettingsFieldsNode : nodeConfigFieldsNode;
+}
+
+function getNodeSettingsEmptyContainer() {
+  return isProjectSettingsMode() ? projectSettingsEmptyNode : nodeConfigEmptyNode;
+}
+
+function getSchemaContextLevel(nodePath = getResolvedNodePath(activePath)) {
+  if (isWorkspaceSchemaContext(nodePath)) return "workspace";
+  if (isAreaSchemaContext(nodePath)) return "area";
+  return "topic";
+}
+
 function isSettingsDomainActive(mode = activeContentMode) {
   return isNodeSettingsSelectMode(mode);
 }
@@ -14048,6 +14089,7 @@ function isOverviewDomainActive(mode = activeContentMode) {
 
 let activeContentMode = NODE_OPEN_MEMORY_MODE;
 let nodeSettingsViewActive = false;
+let projectSettingsScopePath = null;
 let nodeMemoryViewActive = false;
 const WYSIWYG_EDITOR_ENABLED = true;
 let wysiwygEditorInstance = null;
@@ -19173,7 +19215,18 @@ function stripPlatformDataFoldersFromMenuNode(node) {
   if (!node || typeof node !== "object") return node;
   const sections = (node.sections || [])
     .filter((section) => !isPlatformDataMenuFolderPath(section?.folderPath))
-    .map((section) => stripPlatformDataFoldersFromMenuNode(section));
+    .map((section) => {
+      const stripped = stripPlatformDataFoldersFromMenuNode(section);
+      const subGroups = (section.subGroups || [])
+        .map((subGroup) => {
+          const items = (subGroup.items || []).filter(
+            (item) => !isPlatformDataMenuFolderPath(item?.path)
+          );
+          return items.length ? { ...subGroup, items } : null;
+        })
+        .filter(Boolean);
+      return subGroups.length ? { ...stripped, subGroups } : stripped;
+    });
   const items = (node.items || []).filter((item) => !isPlatformDataMenuFolderPath(item?.path));
   const repoItems = (node.repoItems || node.repoServiceItems || []).filter(
     (item) => !isPlatformDataMenuFolderPath(item?.path)
@@ -19468,6 +19521,9 @@ function isNodeSettingsTargetPath(nodePath) {
 }
 
 async function selectNodeManifest(label, filePath, contentMode, options = {}) {
+  if (contentMode !== PROJECT_SETTINGS_MODE) {
+    leaveProjectSettingsMode();
+  }
   if (contentMode) {
     applyContentModeState(contentMode);
   }
@@ -22330,15 +22386,6 @@ const SERVICE_DOC_PRESET_LABELS = {
   "agent-voice-tts": "Голос · TTS",
   "agent-voice-stt": "Голос · STT"
 };
-/** create-node-slug из каталога → preset service-doc (agent-registry) */
-const AGENT_KIT_CREATE_SLUG_TO_SERVICE_DOC_PRESET = {
-  agent: "agent",
-  user: "user",
-  users: "users",
-  rules: "agent-rules",
-  "voice-tts": "agent-voice-tts",
-  "voice-sst": "agent-voice-stt"
-};
 
 function getCreateModalMenuData(agentId = getCreateModalAgentId()) {
   if (!agentId) return null;
@@ -23014,86 +23061,6 @@ function closeCreateNodeModal() {
   syncCreateNodeActionsUi();
 }
 
-function createNodeWithPreset(awnType, defaultName, defaultSlug) {
-  if (createNameInputNode) {
-    createNameInputNode.value = defaultName || "";
-    createNameInputNode.dispatchEvent(new Event("input"));
-  }
-  if (createSlugInputNode && defaultSlug) {
-    createSlugInputNode.value = defaultSlug;
-    setCreateSlugLinked(false);
-  }
-  void createNode("file", { awnType });
-}
-
-let createNodeDynamicTypesCache = null;
-
-async function loadAndRenderCreateNodeDynamicTypes() {
-  try {
-    const agentId = getCreateModalAgentId() || activeAgentId;
-    const resp = await fetch(buildApiUrl("/api/agent-system/types", { filter: "create-page" }, agentId));
-    if (!resp.ok) return;
-    const data = await resp.json();
-    createNodeDynamicTypesCache = data;
-    renderCreateNodeDynamicTypes(data);
-  } catch {
-    // silently fail
-  }
-}
-
-function resolveAgentKitServiceDocPreset(type = {}) {
-  const slug = String(type.slug || "").trim().toLowerCase();
-  if (slug && AGENT_KIT_CREATE_SLUG_TO_SERVICE_DOC_PRESET[slug]) {
-    return AGENT_KIT_CREATE_SLUG_TO_SERVICE_DOC_PRESET[slug];
-  }
-  const typeId = String(type.id || "").trim().toLowerCase();
-  const suffix = typeId.replace(/^awn\.page\.topic\.agent-kit\./i, "");
-  if (suffix && suffix !== typeId) {
-    return AGENT_KIT_CREATE_SLUG_TO_SERVICE_DOC_PRESET[suffix] || "";
-  }
-  return "";
-}
-
-function renderCreateNodeDynamicTypes(data) {
-  if (!data?.groups?.length) return;
-
-  // "agent" group → «Агентские темы и ресурсы»: пресеты service-doc с awn.page.topic
-  const agentGroup = data.groups.find((g) => g.id === "agent");
-  if (agentGroup?.types?.length && createNodeServiceDocsWrapNode) {
-    const actionsNode = createNodeServiceDocsWrapNode.querySelector(".create-node-service-docs-actions");
-    if (actionsNode) {
-      actionsNode.replaceChildren();
-      for (const type of agentGroup.types) {
-        const preset = resolveAgentKitServiceDocPreset(type);
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "create-node-action-btn create-node-service-doc-btn create-node-dynamic-type-btn";
-        if (preset) {
-          btn.dataset.serviceDocPreset = preset;
-        } else {
-          btn.dataset.awnType = type.id;
-        }
-        btn.textContent = type.name;
-        btn.title = type.description || type.id;
-        btn.addEventListener("click", () => {
-          if (preset) {
-            if (isServiceDocPresetPresent(getCreateModalAgentId(), preset)) {
-              const label = SERVICE_DOC_PRESET_LABELS[preset] || type.name || preset;
-              showToast(`«${label}» уже создан`, "error");
-              syncCreateNodeServicePresetsUi();
-              return;
-            }
-            void createNode("service-doc", { preset });
-            return;
-          }
-          createNodeWithPreset(type.id, type.name, type.slug || "");
-        });
-        actionsNode.appendChild(btn);
-      }
-    }
-  }
-}
-
 function openCreateNodeModal(parentPath, options = {}) {
   createModalAgentId = options.agentId || activeAgentId;
   createModalBaseParentPath = resolveCreateModalParentPath(parentPath, options);
@@ -23114,7 +23081,6 @@ function openCreateNodeModal(parentPath, options = {}) {
     createNameInputNode.focus();
   }
   syncCreateSlugFromDisplayName();
-  void loadAndRenderCreateNodeDynamicTypes();
 }
 
 function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
@@ -23591,9 +23557,18 @@ function setContentMode(mode) {
 }
 
 async function applyContentModeChange() {
+  if (isProjectSettingsMode()) {
+    applyModeUi();
+    await loadProjectSettingsContent();
+    syncEditorLineNumbers();
+    syncChannelLiveUpdates();
+    return;
+  }
   if (activePath) {
     const deferInitialModeUi =
-      activeContentMode === "topic-schema" || activeContentMode === "configs";
+      activeContentMode === "topic-schema" ||
+      activeContentMode === "configs" ||
+      activeContentMode === PROJECT_SETTINGS_MODE;
     if (!deferInitialModeUi) {
       applyModeUi();
     }
@@ -23625,6 +23600,7 @@ function isCurrentModeWithoutContentEditor() {
     activeContentMode === "node-preview" ||
     activeContentMode === "topic-schema" ||
     activeContentMode === "configs" ||
+    activeContentMode === PROJECT_SETTINGS_MODE ||
     (isMediaLibraryContentMode() && !isMediaAssetEditing() && !isFlatStorageFileEditing())
   );
 }
@@ -24416,6 +24392,10 @@ function getDocumentTitlePageLabel() {
     return viewLabel ? `${agentLabel} — ${viewLabel}` : agentLabel;
   }
 
+  if (isProjectSettingsMode()) {
+    return `${agentLabel} — Настройки`;
+  }
+
   return agentLabel;
 }
 
@@ -24484,6 +24464,9 @@ function getBreadcrumbPathForActiveMode(overrides = {}) {
   }
   if (activeFolderBrowsePath && activeContentMode === FOLDER_BROWSE_MODE) {
     return normalizeCreateParentPath(activeFolderBrowsePath);
+  }
+  if (isProjectSettingsMode()) {
+    return PROJECT_SETTINGS_CHPU_SEGMENT;
   }
   if (appRootNode.classList.contains("home-view") || !activePath) {
     return getHomeBreadcrumbPath();
@@ -35724,9 +35707,6 @@ function resolveTopicSchemaBaseType(target, cache = getTopicSchemaCache()) {
 
 function getTopicSchemaCustomFieldsSource(cache) {
   if (!cache) return null;
-  if (cache.contentPath) {
-    return cache.effectiveAwnSchema || cache.awnSchema || null;
-  }
   return cache.awnSchema || null;
 }
 
@@ -35736,9 +35716,7 @@ function getTopicSchemaCustomFieldsForTarget(target, cache) {
 }
 
 function resolveTopicSchemaMergedType(target, cache = getTopicSchemaCache()) {
-  const customFields =
-    cache?.effectiveAwnSchema?.[target]?.fields ||
-    getTopicSchemaCustomFieldsForTarget(target, cache);
+  const customFields = getTopicSchemaCustomFieldsForTarget(target, cache);
   const base = resolveTopicSchemaBaseType(target, cache);
   if (base) {
     return {
@@ -35813,6 +35791,20 @@ function mergeTopicSchemaLayersClient(...layers) {
   return result;
 }
 
+function resolveContextSchemaFromParsedLayers(parsed, { manifestPath, contentPath = "" } = {}) {
+  if (parsed?.contextSchemaFromApi) return parsed.contextSchemaFromApi;
+  if (contentPath && parsed?.sectionAwnSchema && topicSchemaStateHasCustomFields(parsed.sectionAwnSchema)) {
+    return parsed.sectionAwnSchema;
+  }
+  if (isWorkspaceSchemaContext(manifestPath)) {
+    return parsed?.workspaceAwnSchema || emptyTopicSchemaState();
+  }
+  if (isAreaSchemaContext(manifestPath)) {
+    return parsed?.areaAwnSchema || emptyTopicSchemaState();
+  }
+  return parsed?.topicAwnSchema || emptyTopicSchemaState();
+}
+
 function parseTopicSchemaLayersFromApi(data) {
   if (data?.mode === "layers" && data.layers) {
     const workspaceAwnSchema = normalizeTopicSchemaState(data.layers.workspace || {});
@@ -35821,26 +35813,29 @@ function parseTopicSchemaLayersFromApi(data) {
     const sectionAwnSchema = data.layers.section
       ? normalizeTopicSchemaState(data.layers.section)
       : null;
+    const contextSchemaFromApi = data.contextSchema
+      ? normalizeTopicSchemaState(data.contextSchema)
+      : data.awnSchema
+        ? normalizeTopicSchemaState(data.awnSchema)
+        : null;
     return {
       workspaceAwnSchema,
       areaAwnSchema,
       topicAwnSchema,
       sectionAwnSchema,
-      effectiveAwnSchema: mergeTopicSchemaLayersClient(
-        workspaceAwnSchema,
-        areaAwnSchema,
-        topicAwnSchema,
-        sectionAwnSchema
-      ),
+      contextSchemaFromApi,
+      effectiveAwnSchema: contextSchemaFromApi,
       sectionChain: Array.isArray(data.sectionChain) ? data.sectionChain : []
     };
   }
+  const contextSchemaFromApi = data?.awnSchema ? normalizeTopicSchemaState(data.awnSchema) : null;
   return {
     workspaceAwnSchema: normalizeTopicSchemaState(data?.workspaceAwnSchema ?? {}),
     areaAwnSchema: normalizeTopicSchemaState(data?.areaAwnSchema ?? {}),
     topicAwnSchema: normalizeTopicSchemaState(data?.topicAwnSchema ?? {}),
     sectionAwnSchema: data?.sectionAwnSchema ? normalizeTopicSchemaState(data.sectionAwnSchema) : null,
-    effectiveAwnSchema: normalizeTopicSchemaState(data?.awnSchema ?? {}),
+    contextSchemaFromApi,
+    effectiveAwnSchema: contextSchemaFromApi || normalizeTopicSchemaState(data?.awnSchema ?? {}),
     sectionChain: Array.isArray(data?.sectionChain) ? data.sectionChain : []
   };
 }
@@ -36074,9 +36069,212 @@ function buildNodeConfigYamlFromState(state) {
 }
 
 function getNodeSettingsManifestPath(nodePath = getResolvedNodePath(activePath)) {
+  if (isProjectSettingsMode() && projectSettingsScopePath) {
+    return normalizeMenuNodePath(projectSettingsScopePath);
+  }
   const normalized = String(nodePath || "").replace(/\\/g, "/").trim();
   if (!normalized || !isNodeMdPath(normalized)) return "";
   return normalized;
+}
+
+function collectProjectSettingsScopes() {
+  const scopes = [];
+  const seen = new Set();
+  const pushScope = (path, label) => {
+    const normalized = normalizeMenuNodePath(path);
+    if (!normalized || seen.has(normalized) || !isNodeSettingsTargetPath(normalized)) return;
+    seen.add(normalized);
+    let level = "topic";
+    if (isWorkspaceRootNodePath(normalized)) level = "workspace";
+    else if (isAreaNodePath(normalized)) level = "area";
+    scopes.push({
+      path: normalized,
+      label: String(label || getLabelFromPath(normalized) || normalized).trim(),
+      level
+    });
+  };
+
+  const rootPath = getAgentWorkspaceRootManifestPath();
+  if (rootPath) pushScope(rootPath, "Workspace");
+
+  const walk = (node) => {
+    if (!node) return;
+    const path = node.indexPath || node.path;
+    const label = node.title || node.label || node.name;
+    if (path && isNodeMdPath(String(path)) && !isWorkspaceRootNodePath(path)) {
+      pushScope(path, label);
+    }
+    for (const item of node.items || []) {
+      if (item?.path) pushScope(item.path, item.title || item.label || item.name);
+    }
+    for (const section of node.sections || []) walk(section);
+    if (node.containerTree) walk(node.containerTree);
+    if (node.sharedTree) walk(node.sharedTree);
+  };
+
+  if (currentMenuData) {
+    walk({ title: getAgentTreeTitle(), ...currentMenuData });
+  }
+
+  scopes.sort((a, b) => {
+    const rank = { workspace: 0, area: 1, topic: 2 };
+    const ra = rank[a.level] ?? 3;
+    const rb = rank[b.level] ?? 3;
+    if (ra !== rb) return ra - rb;
+    return a.label.localeCompare(b.label, "ru");
+  });
+  return scopes;
+}
+
+function renderProjectSettingsScopeList() {
+  if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
+  projectSettingsScopeListNode.replaceChildren();
+  const scopes = collectProjectSettingsScopes();
+  const activeScopePath = getNodeSettingsManifestPath();
+  const groups = [
+    { level: "workspace", label: "Workspace" },
+    { level: "area", label: "Области" },
+    { level: "topic", label: "Темы" }
+  ];
+
+  for (const group of groups) {
+    const items = scopes.filter((scope) => scope.level === group.level);
+    if (!items.length) continue;
+    const section = document.createElement("div");
+    section.className = "project-settings-scope-group";
+    const title = document.createElement("div");
+    title.className = "project-settings-scope-group-title";
+    title.textContent = group.label;
+    section.appendChild(title);
+    for (const scope of items) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "project-settings-scope-item";
+      btn.dataset.path = scope.path;
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", scope.path === activeScopePath ? "true" : "false");
+      btn.classList.toggle("is-active", scope.path === activeScopePath);
+      btn.textContent = scope.label;
+      btn.addEventListener("click", () => {
+        void selectProjectSettingsScope(scope.path);
+      });
+      section.appendChild(btn);
+    }
+    projectSettingsScopeListNode.appendChild(section);
+  }
+}
+
+async function selectProjectSettingsScope(scopePath) {
+  const normalized = normalizeMenuNodePath(scopePath);
+  if (!normalized) return;
+  projectSettingsScopePath = normalized;
+  try {
+    await loadProjectSettingsContent({ force: true });
+    renderProjectSettingsPage();
+    commitEditorSaveBaseline();
+    updateBreadcrumbsForActiveMode();
+  } catch (error) {
+    showToast(`Не удалось загрузить настройки: ${error.message}`, "error");
+  }
+}
+
+function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
+  if (!projectSettingsPageNode) return;
+  const scope = collectProjectSettingsScopes().find(
+    (item) => item.path === getNodeSettingsManifestPath()
+  );
+  if (projectSettingsTitleNode) {
+    projectSettingsTitleNode.textContent = scope
+      ? `${scope.level === "workspace" ? "Workspace" : scope.level === "area" ? "Область" : "Тема"} · ${scope.label}`
+      : "Настройки проекта";
+  }
+  if (projectSettingsLeadNode) {
+    projectSettingsLeadNode.innerHTML =
+      "Значения сохраняются в <code>configuration.yml</code> → <code>awn_settings</code> выбранного узла. " +
+      "Поля задаются в редакторе схемы (вкладка «Настройки») на том же уровне: WS, область или тема.";
+  }
+  renderProjectSettingsScopeList();
+  renderNodeSettingsEditor(cache);
+}
+
+function hideProjectSettingsPageUi() {
+  appRootNode?.classList.remove("project-settings-view");
+  projectSettingsPageNode?.classList.add("hidden");
+  workspacePathHeaderNode?.classList.remove("is-project-settings");
+}
+
+function leaveProjectSettingsMode() {
+  if (!isProjectSettingsMode()) return;
+  activeContentMode = NODE_OPEN_MEMORY_MODE;
+  hideProjectSettingsPageUi();
+}
+
+function applyProjectSettingsPageUi(cache = getNodeSettingsCache()) {
+  hideHomeView();
+  appRootNode?.classList.add("project-settings-view");
+  projectSettingsPageNode?.classList.remove("hidden");
+  workspacePathHeaderNode?.classList.add("is-project-settings");
+  saveContentBtn?.classList.remove("hidden");
+  renderProjectSettingsPage(cache);
+}
+
+async function loadProjectSettingsContent(options = {}) {
+  showContentLoading({
+    variant: "document",
+    message: "Загрузка…"
+  });
+  try {
+    await loadAwnTypes(activeAgentId);
+    const manifestPath = getNodeSettingsManifestPath();
+    if (!projectSettingsScopePath && manifestPath) {
+      projectSettingsScopePath = manifestPath;
+    }
+    const cache = await loadNodeSettingsForManifest(getNodeSettingsManifestPath(), {
+      force: Boolean(options.force)
+    });
+    applyProjectSettingsPageUi(cache);
+    commitEditorSaveBaseline();
+    updateBreadcrumbsForActiveMode();
+  } catch (error) {
+    if (projectSettingsFieldsNode) projectSettingsFieldsNode.replaceChildren();
+    projectSettingsEmptyNode?.classList.remove("hidden");
+    if (projectSettingsEmptyNode) {
+      projectSettingsEmptyNode.textContent = `Ошибка чтения настроек: ${error.message}`;
+    }
+    updateBreadcrumbsForActiveMode();
+  } finally {
+    hideContentLoading({ force: true });
+  }
+}
+
+async function openProjectSettingsHub(options = {}) {
+  if (!activeAgentId) {
+    showToast("Сначала выберите агента", "info");
+    return;
+  }
+  hideHomeView();
+  clearActiveSystemFile();
+  activePath = null;
+  activeLabel = null;
+  activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
+  applyContentModeState(PROJECT_SETTINGS_MODE);
+
+  const scopes = collectProjectSettingsScopes();
+  const preferred =
+    scopes.find((item) => item.path === projectSettingsScopePath) ||
+    scopes.find((item) => item.level === "workspace") ||
+    scopes[0];
+  if (!preferred?.path) {
+    showToast("Нет узлов с настройками в этом агенте", "info");
+    return;
+  }
+  projectSettingsScopePath = preferred.path;
+  updateActiveButton();
+  if (!options.skipRouteSync) {
+    syncAppRouteToUrl({ replace: !options.push, push: Boolean(options.push) });
+  }
+  await loadProjectSettingsContent({ force: true });
 }
 
 function isNodeSettingsModeAvailable(nodePath = getResolvedNodePath(activePath)) {
@@ -36204,10 +36402,11 @@ function readNodeSettingsEntryFromRow(row) {
 }
 
 function syncNodeSettingsCacheFromDom(cache = getNodeSettingsCache()) {
-  if (!cache || !nodeConfigFieldsNode) return cache;
+  const fieldsNode = getNodeSettingsFieldsContainer();
+  if (!cache || !fieldsNode) return cache;
   const schemaFields = cache.settingsFields || {};
   const entries = [];
-  nodeConfigFieldsNode.querySelectorAll(".node-config-field-row").forEach((row) => {
+  fieldsNode.querySelectorAll(".node-config-field-row").forEach((row) => {
     const entry = readNodeSettingsEntryFromRow(row);
     if (!entry.key || !schemaFields[entry.key]) return;
     entries.push(entry);
@@ -36217,15 +36416,17 @@ function syncNodeSettingsCacheFromDom(cache = getNodeSettingsCache()) {
 }
 
 function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
-  if (!nodeConfigFieldsNode || !nodeConfigEmptyNode) return;
+  const fieldsNode = getNodeSettingsFieldsContainer();
+  const emptyNode = getNodeSettingsEmptyContainer();
+  if (!fieldsNode || !emptyNode) return;
 
-  nodeConfigFieldsNode.replaceChildren();
+  fieldsNode.replaceChildren();
 
   const schemaFields = cache?.settingsFields || {};
   const schemaKeys = Object.keys(schemaFields);
   if (!schemaKeys.length) {
-    nodeConfigEmptyNode.classList.remove("hidden");
-    nodeConfigEmptyNode.textContent =
+    emptyNode.classList.remove("hidden");
+    emptyNode.textContent =
       "Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.";
     return;
   }
@@ -36234,18 +36435,18 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
   cache.entries = entries;
 
   if (!entries.length) {
-    nodeConfigEmptyNode.classList.remove("hidden");
+    emptyNode.classList.remove("hidden");
     return;
   }
-  nodeConfigEmptyNode.classList.add("hidden");
+  emptyNode.classList.add("hidden");
 
   for (const entry of entries) {
-    nodeConfigFieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
+    fieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
   }
 }
 
 function handleNodeConfigFieldsInput() {
-  if (activeContentMode !== "configs") return;
+  if (!isNodeConfigEditorMode() && !isProjectSettingsMode()) return;
   syncNodeSettingsCacheFromDom();
   syncSaveButtonLamp();
 }
@@ -36541,7 +36742,10 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
       ? parsedLayers.areaAwnSchema || parsedLayers.topicAwnSchema
       : parsedLayers.areaAwnSchema;
     const editableSchema = isAreaSchemaContext(manifestPath) ? areaAwnSchema : topicAwnSchema;
-    const effectiveAwnSchema = parsedLayers.effectiveAwnSchema;
+    const effectiveAwnSchema = resolveContextSchemaFromParsedLayers(parsedLayers, {
+      manifestPath,
+      contentPath: contentPath || ""
+    });
     const payload = {
       manifestPath,
       contentPath: contentPath || "",
@@ -36724,24 +36928,30 @@ function topicSchemaTabGroupHasCustomFields(group, cache = getTopicSchemaCache()
   return false;
 }
 
+function defaultTopicSchemaFieldKeyForTarget(target, index) {
+  if (target === "workspace") return `ws-field_${index}`;
+  if (target === "area") return `area-field_${index}`;
+  if (target === "topic") return `topic-field_${index}`;
+  if (target === "settings") {
+    const level = getSchemaContextLevel();
+    if (level === "workspace") return `ws-setting-${index}`;
+    if (level === "area") return `area-setting-${index}`;
+    return `topic-setting-${index}`;
+  }
+  if (String(target || "").startsWith("slot_")) return `x-field_${index}`;
+  return `field_${index}`;
+}
+
 function addTopicSchemaField(target = topicSchemaActiveTarget) {
   const cache = getTopicSchemaCache();
   if (!cache) return;
   if (!cache.awnSchema[target]) cache.awnSchema[target] = { fields: {} };
   const fields = cache.awnSchema[target].fields;
   let index = 1;
-  let key = isWorkspaceSchemaContext()
-    ? `ws-field_${index}`
-    : isAreaSchemaContext()
-      ? `area-field_${index}`
-      : `field_${index}`;
+  let key = defaultTopicSchemaFieldKeyForTarget(target, index);
   while (fields[key]) {
     index += 1;
-    key = isWorkspaceSchemaContext()
-      ? `ws-field_${index}`
-      : isAreaSchemaContext()
-        ? `area-field_${index}`
-        : `field_${index}`;
+    key = defaultTopicSchemaFieldKeyForTarget(target, index);
   }
   fields[key] = { type: "awn.string", name: "", title: "" };
   renderTopicSchemaEditor();
@@ -36781,17 +36991,38 @@ function reorderTopicSchemaFields(target, key, direction) {
   syncSaveButtonLamp();
 }
 
+function normalizeSettingsSchemaFieldKey(key, level = getSchemaContextLevel()) {
+  const trimmed = String(key || "").trim();
+  if (!trimmed) return trimmed;
+  if (level === "workspace") {
+    if (/^ws-setting-/i.test(trimmed)) return trimmed;
+    return `ws-setting-${trimmed.replace(/^ws-setting-?/i, "")}`;
+  }
+  if (level === "area") {
+    if (/^area-setting-/i.test(trimmed)) return trimmed;
+    return `area-setting-${trimmed.replace(/^area-setting-?/i, "")}`;
+  }
+  if (/^topic-setting-/i.test(trimmed)) return trimmed;
+  return `topic-setting-${trimmed.replace(/^topic-setting-?/i, "")}`;
+}
+
+function normalizeTopicSchemaFieldKeyForTarget(key, target) {
+  const trimmed = String(key || "").trim();
+  if (!trimmed) return trimmed;
+  if (target === "workspace") return normalizeWorkspaceSchemaFieldKey(trimmed);
+  if (target === "area") return normalizeAreaSchemaFieldKey(trimmed);
+  if (target === "settings") return normalizeSettingsSchemaFieldKey(trimmed);
+  if (target === "topic") return normalizeTopicSchemaFieldKey(trimmed);
+  if (String(target || "").startsWith("slot_")) return normalizeSlotSchemaFieldKey(trimmed);
+  return trimmed;
+}
+
 function renameTopicSchemaField(target, oldKey, newKey) {
   if (target === "settings" && ExternalFileMask.isBuiltinSettingsSchemaKey(oldKey)) return;
   const cache = getTopicSchemaCache();
   if (!cache?.awnSchema?.[target]?.fields || oldKey === newKey) return;
   const fields = cache.awnSchema[target].fields;
-  let trimmed = String(newKey || "").trim();
-  if (isWorkspaceSchemaContext() && target === "workspace") {
-    trimmed = normalizeWorkspaceSchemaFieldKey(trimmed);
-  } else if (isAreaSchemaContext() && target === "area") {
-    trimmed = normalizeAreaSchemaFieldKey(trimmed);
-  }
+  let trimmed = normalizeTopicSchemaFieldKeyForTarget(newKey, target);
   if (!trimmed || (trimmed !== oldKey && fields[trimmed])) return;
   fields[trimmed] = fields[oldKey];
   delete fields[oldKey];
@@ -36851,6 +37082,10 @@ function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
       createTopicSchemaTargetTabButton(
         { id: "workspace", label: "Workspace", typeName: "awn.page.ws", group: "core" },
         cache
+      ),
+      createTopicSchemaTargetTabButton(
+        { id: "settings", label: "Настройки", typeName: "awn.settings", group: "settings" },
+        cache
       )
     );
     return;
@@ -36860,6 +37095,10 @@ function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
     topicSchemaTargetTabsNode.append(
       createTopicSchemaTargetTabButton(
         { id: "area", label: "Область", typeName: "awn.page.area", group: "core" },
+        cache
+      ),
+      createTopicSchemaTargetTabButton(
+        { id: "settings", label: "Настройки", typeName: "awn.settings", group: "settings" },
         cache
       )
     );
@@ -37016,11 +37255,32 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
     keyInput.className = "topic-schema-inline-input";
     keyInput.value = key;
     keyInput.placeholder =
-      isWorkspaceSchemaContext() && target === "workspace" ? "ws-ключ" : "ключ";
+      target === "workspace"
+        ? "ws-ключ"
+        : target === "area"
+          ? "area-ключ"
+          : target === "topic"
+            ? "topic-ключ"
+            : target === "settings"
+              ? "topic-setting-ключ"
+              : target.startsWith("slot_")
+                ? "x-ключ"
+                : "ключ";
     keyInput.dataset.schemaKey = key;
     keyInput.dataset.schemaField = "key";
     keyInput.spellcheck = false;
-    keyInput.title = isWorkspaceSchemaContext() && target === "workspace" ? "Ключ поля (ws-*)" : "Ключ поля";
+    keyInput.title =
+      target === "workspace"
+        ? "Ключ поля (ws-*)"
+        : target === "area"
+          ? "Ключ поля (area-*)"
+          : target === "topic"
+            ? "Ключ поля (topic-*)"
+            : target === "settings"
+              ? "Ключ поля (topic-setting-*)"
+              : target.startsWith("slot_")
+                ? "Ключ поля (x-*)"
+                : "Ключ поля";
 
     const typeSelect = document.createElement("select");
     typeSelect.className = "topic-schema-inline-select";
@@ -37072,17 +37332,21 @@ function renderTopicSchemaEditor() {
     if (isWorkspaceSchemaContext()) {
       leadNode.innerHTML =
         `Дополнительные поля workspace (<code>ws-*</code>) сохраняются в <code>${SCHEMA_MOD_FILE}</code> в корне агента. ` +
+        "Действуют только на уровне workspace — не смешиваются с областями и темами. " +
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
         '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
     } else if (isAreaSchemaContext()) {
       leadNode.innerHTML =
         `Дополнительные поля области (<code>area-*</code>) сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest области. ` +
-        "Наследуются поля workspace (<code>ws-*</code>) и ядра AWN. " +
+        "Действуют только на уровне области — поля WS и тем здесь не подмешиваются. " +
+        "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа. " +
         '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
     } else {
       leadNode.innerHTML =
         `Дополнительные поля сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest темы. ` +
+        "Префиксы: <code>topic-*</code> (тема), <code>topic-setting-*</code> (настройки), <code>x-*</code> (слоты и разделы). " +
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
+        "Поля WS и области здесь не смешиваются — только схема этой темы. " +
         '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
     }
   }
@@ -37118,7 +37382,7 @@ function syncTopicSchemaFieldsFromDom(cache = getTopicSchemaCache(), target = to
   if (!cache?.awnSchema?.[target]) return;
   const ordered = {};
   topicSchemaFieldsNode?.querySelectorAll(".topic-schema-field-row").forEach((row) => {
-    readTopicSchemaFieldFromRow(row, cache);
+    readTopicSchemaFieldFromRow(row, cache, target);
     const key = String(row.dataset.schemaRowKey || "").trim();
     if (!key) return;
     const fieldDef = cache.awnSchema[target].fields[key];
@@ -37127,9 +37391,9 @@ function syncTopicSchemaFieldsFromDom(cache = getTopicSchemaCache(), target = to
   cache.awnSchema[target].fields = ordered;
 }
 
-function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache()) {
+function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache(), target = topicSchemaActiveTarget) {
   if (!row || !cache) return;
-  const target = topicSchemaActiveTarget;
+  if (!cache.awnSchema?.[target]?.fields) return;
   const oldKey = row.dataset.schemaRowKey;
   if (!oldKey) return;
 
@@ -37139,12 +37403,7 @@ function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache()) {
   const fields = cache.awnSchema[target].fields;
 
   const nextKeyRaw = String(keyInput?.value || "").trim() || oldKey;
-  const nextKey =
-    isWorkspaceSchemaContext() && target === "workspace"
-      ? normalizeWorkspaceSchemaFieldKey(nextKeyRaw)
-      : isAreaSchemaContext() && target === "area"
-        ? normalizeAreaSchemaFieldKey(nextKeyRaw)
-        : nextKeyRaw;
+  const nextKey = normalizeTopicSchemaFieldKeyForTarget(nextKeyRaw, target);
   if (nextKey !== oldKey) {
     renameTopicSchemaField(target, oldKey, nextKey);
     row.dataset.schemaRowKey = nextKey;
@@ -37262,9 +37521,11 @@ async function saveWorkspaceSchemaContent() {
   if (!cache) throw new Error("Схема не загружена");
 
   syncTopicSchemaFieldsFromDom(cache, "workspace");
+  syncTopicSchemaFieldsFromDom(cache, "settings");
 
   const awnSchemaToSave = normalizeTopicSchemaState(cache.awnSchema);
   const savedWorkspaceFields = { ...(awnSchemaToSave.workspace?.fields || {}) };
+  const savedSettingsFields = { ...(awnSchemaToSave.settings?.fields || {}) };
   const response = await fetch(buildApiUrl("/api/file/workspace-schema"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -37285,7 +37546,10 @@ async function saveWorkspaceSchemaContent() {
   let workspaceAwnSchema =
     parsedLayers.workspaceAwnSchema ||
     normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema);
-  if (workspaceAwnSchema?.workspace?.fields) {
+  workspaceAwnSchema = normalizeTopicSchemaState(workspaceAwnSchema);
+  if (!Object.keys(savedWorkspaceFields).length) {
+    workspaceAwnSchema.workspace.fields = {};
+  } else if (Object.keys(workspaceAwnSchema.workspace?.fields || {}).length) {
     workspaceAwnSchema = {
       ...workspaceAwnSchema,
       workspace: {
@@ -37296,10 +37560,24 @@ async function saveWorkspaceSchemaContent() {
         )
       }
     };
-  } else if (!topicSchemaStateHasCustomFields(workspaceAwnSchema)) {
-    workspaceAwnSchema = normalizeTopicSchemaState({
-      workspace: { fields: savedWorkspaceFields }
-    });
+  } else {
+    workspaceAwnSchema.workspace.fields = { ...savedWorkspaceFields };
+  }
+  if (!Object.keys(savedSettingsFields).length) {
+    workspaceAwnSchema.settings.fields = {};
+  } else if (Object.keys(workspaceAwnSchema.settings?.fields || {}).length) {
+    workspaceAwnSchema = {
+      ...workspaceAwnSchema,
+      settings: {
+        ...workspaceAwnSchema.settings,
+        fields: preserveTopicSchemaFieldOrder(
+          savedSettingsFields,
+          workspaceAwnSchema.settings.fields
+        )
+      }
+    };
+  } else {
+    workspaceAwnSchema.settings.fields = { ...savedSettingsFields };
   }
   cache.awnSchema = workspaceAwnSchema;
   cache.workspaceAwnSchema = workspaceAwnSchema;
@@ -37359,7 +37637,13 @@ async function saveTopicSchemaContent() {
     : topicSchemaStateHasCustomFields(topicAwnSchema)
       ? topicAwnSchema
       : awnSchemaToSave;
-  if (nextEditableSchema?.[savedTarget]?.fields) {
+  nextEditableSchema = normalizeTopicSchemaState(nextEditableSchema);
+  if (!Object.keys(savedTargetFields).length) {
+    nextEditableSchema = {
+      ...nextEditableSchema,
+      [savedTarget]: { fields: {} }
+    };
+  } else if (Object.keys(nextEditableSchema?.[savedTarget]?.fields || {}).length) {
     nextEditableSchema = {
       ...nextEditableSchema,
       [savedTarget]: {
@@ -37370,16 +37654,19 @@ async function saveTopicSchemaContent() {
         )
       }
     };
-  } else if (!Object.keys(savedTargetFields).length) {
+  } else {
     nextEditableSchema = {
-      ...normalizeTopicSchemaState(nextEditableSchema),
-      [savedTarget]: { fields: {} }
+      ...nextEditableSchema,
+      [savedTarget]: { fields: { ...savedTargetFields } }
     };
   }
   cache.awnSchema = nextEditableSchema;
   cache.topicAwnSchema = topicAwnSchema;
   cache.areaAwnSchema = areaAwnSchema;
-  cache.effectiveAwnSchema = parsedLayers.effectiveAwnSchema;
+  cache.effectiveAwnSchema = resolveContextSchemaFromParsedLayers(parsedLayers, {
+    manifestPath,
+    contentPath: cache.contentPath || ""
+  });
   cache.workspaceAwnSchema = parsedLayers.workspaceAwnSchema || cache.workspaceAwnSchema;
   enrichTopicSchemaCacheFromTypes(cache);
   cache.configExists = Boolean(data.exists ?? data.schemaExists);
@@ -37387,7 +37674,7 @@ async function saveTopicSchemaContent() {
   const settingsCache = nodeSettingsCacheByManifest.get(manifestPath);
   if (settingsCache) {
     settingsCache.settingsFields = mergeTopicSchemaSettingsFields(
-      parsedLayers.effectiveAwnSchema?.settings?.fields || {}
+      cache.awnSchema?.settings?.fields || {}
     );
     settingsCache.entries = buildNodeSettingsEntriesFromSchema(
       settingsCache.entries,
@@ -38067,8 +38354,77 @@ function normalizeAreaSchemaFieldKey(key) {
   return `area-${trimmed.replace(/^area-?/i, "")}`;
 }
 
+function isTopicFieldKey(key) {
+  const trimmed = String(key || "").trim();
+  return /^topic-/i.test(trimmed) && !/^topic-setting-/i.test(trimmed);
+}
+
+function normalizeTopicSchemaFieldKey(key) {
+  const trimmed = String(key || "").trim();
+  if (!trimmed) return trimmed;
+  if (isTopicFieldKey(trimmed)) return trimmed;
+  return `topic-${trimmed.replace(/^topic-?/i, "")}`;
+}
+
+function isTopicSettingFieldKey(key) {
+  return /^topic-setting-/i.test(String(key || "").trim());
+}
+
+function isWsSettingFieldKey(key) {
+  return /^ws-setting-/i.test(String(key || "").trim());
+}
+
+function isAreaSettingFieldKey(key) {
+  return /^area-setting-/i.test(String(key || "").trim());
+}
+
+function normalizeTopicSettingSchemaFieldKey(key) {
+  return normalizeSettingsSchemaFieldKey(key, "topic");
+}
+
+function isSlotCustomFieldKey(key) {
+  return /^x-/i.test(String(key || "").trim());
+}
+
+function normalizeSlotSchemaFieldKey(key) {
+  const trimmed = String(key || "").trim();
+  if (!trimmed) return trimmed;
+  if (isSlotCustomFieldKey(trimmed)) return trimmed;
+  return `x-${trimmed.replace(/^x-?/i, "")}`;
+}
+
 function isSchemaDefinedFieldKey(key) {
-  return isAwnFieldKey(key) || isWsFieldKey(key) || isAreaFieldKey(key);
+  return (
+    isAwnFieldKey(key) ||
+    isWsFieldKey(key) ||
+    isAreaFieldKey(key) ||
+    isTopicFieldKey(key) ||
+    isTopicSettingFieldKey(key) ||
+    isWsSettingFieldKey(key) ||
+    isAreaSettingFieldKey(key) ||
+    isSlotCustomFieldKey(key)
+  );
+}
+
+function isOverviewCustomSchemaFieldKey(key) {
+  return (
+    isWsFieldKey(key) ||
+    isAreaFieldKey(key) ||
+    isTopicFieldKey(key) ||
+    isTopicSettingFieldKey(key) ||
+    isWsSettingFieldKey(key) ||
+    isAreaSettingFieldKey(key) ||
+    isSlotCustomFieldKey(key)
+  );
+}
+
+function getOverviewCustomSchemaFieldKeys(typeDef = getActiveAwnTypeDef()) {
+  if (!typeDef?.fields) return [];
+  return sortPropsFieldKeys(Object.keys(typeDef.fields)).filter((key) => {
+    if (HIDDEN_PROPS_FIELD_KEYS.has(key)) return false;
+    if (!shouldIncludePropsFieldKey(key)) return false;
+    return isOverviewCustomSchemaFieldKey(key);
+  });
 }
 
 function isEditorCustomPropsFieldKey(key) {
@@ -39098,14 +39454,14 @@ function findPropsFieldDefInTopicSchemaTargets(key, cache = resolveActiveOvervie
   const normalized = normalizePropsKey(key);
   if (!normalized || !cache) return null;
 
-  for (const { id } of getTopicSchemaTargetSpecs()) {
-    const merged = resolveTopicSchemaMergedType(id, cache);
-    const fieldDef = merged?.fields?.[normalized];
-    if (fieldDef) return fieldDef;
-  }
-
-  const sidecarMerged = resolveTopicSchemaMergedType("sidecar", cache);
-  return sidecarMerged?.fields?.[normalized] || null;
+  const overviewContext =
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null;
+  const target =
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE
+      ? resolveOverviewSchemaTargetForContext(overviewContext)
+      : resolveAwnSchemaTargetForContext();
+  const merged = resolveTopicSchemaMergedType(target, cache);
+  return merged?.fields?.[normalized] || null;
 }
 
 function isPropsFieldDefinedInActiveSchema(key, options = {}) {
@@ -46613,6 +46969,7 @@ function setSaveButtonsState(disabled, label = SAVE_BUTTON_LABEL_DEFAULT) {
 let savedEditorSnapshot = null;
 
 function isEditorSaveTrackingActive() {
+  if (isProjectSettingsMode()) return true;
   if (isAttachmentSidecarEditing()) return true;
   if (activeSystemFile) return isSystemFileEditing();
   if (isGitRepoLooseFilePath(activePath)) return true;
@@ -46648,7 +47005,7 @@ function getEditorSavePayload() {
   if (activeContentMode === "topic-schema") {
     return JSON.stringify({ topicSchema: getTopicSchemaSavePayload() });
   }
-  if (activeContentMode === "configs") {
+  if (isNodeConfigEditorMode() || isProjectSettingsMode()) {
     syncNodeSettingsCacheFromDom();
     return JSON.stringify({ nodeSettings: getNodeSettingsSavePayload() });
   }
@@ -48131,36 +48488,45 @@ function collectNodeOverviewMetaItems(entries) {
     if (!allowMissing && !map.has(normalized)) return;
     seen.add(normalized);
     const entry = map.get(normalized) || null;
-    const fieldDef = entry?.fieldDef || (inSchema ? schemaFields[normalized] || null : null);
+    const fieldDef = entry?.fieldDef || schemaFields[normalized] || null;
+    const schemaDefined = Boolean(
+      inSchema || fieldDef || schemaKeySet.has(normalized) || isPropsFieldDefinedInActiveSchema(normalized, { fieldDef })
+    );
     items.push({
       key: normalized,
       value: getPropsEntryOverviewDisplayValue(entry, normalized),
       rawValue: entry ? getPropsEntryDisplayValue(entry) : "",
       fieldDef,
-      inSchema: Boolean(inSchema || fieldDef || schemaKeySet.has(normalized))
+      inSchema: schemaDefined
     });
   };
 
-  // All fields from the active type schema — including empty ones.
   const standardKeys = getStandardPropsFieldKeys();
+  const customSchemaKeys = getOverviewCustomSchemaFieldKeys(typeDef);
   const schemaKeys = getTypeSchemaFieldKeys(typeDef);
-  const orderedSchemaKeys = [
-    ...standardKeys,
-    ...schemaKeys.filter((key) => !standardKeys.includes(key))
+  const orderedAwnKeys = [
+    ...standardKeys.filter((key) => !isOverviewCustomSchemaFieldKey(key)),
+    ...schemaKeys.filter(
+      (key) => !standardKeys.includes(key) && !isOverviewCustomSchemaFieldKey(key)
+    )
   ];
-  const hasSchema = schemaKeySet.size > 0;
-  for (const key of orderedSchemaKeys) {
-    const normalized = normalizePropsKey(key);
-    pushKey(key, {
-      allowMissing: true,
-      inSchema: hasSchema ? schemaKeySet.has(normalized) : isSchemaDefinedFieldKey(normalized)
-    });
+  const orderedCustomSchemaKeys = [
+    ...customSchemaKeys,
+    ...schemaKeys.filter(
+      (key) => isOverviewCustomSchemaFieldKey(key) && !customSchemaKeys.includes(key)
+    )
+  ];
+
+  for (const key of orderedAwnKeys) {
+    pushKey(key, { allowMissing: true, inSchema: schemaKeySet.has(normalizePropsKey(key)) });
   }
-  // Extra filled properties that are not part of the schema.
+  for (const key of orderedCustomSchemaKeys) {
+    pushKey(key, { allowMissing: true, inSchema: true });
+  }
   for (const key of [...map.keys()].sort((a, b) => a.localeCompare(b, "ru"))) {
     pushKey(key, {
       allowMissing: false,
-      inSchema: hasSchema ? schemaKeySet.has(key) : isSchemaDefinedFieldKey(key)
+      inSchema: schemaKeySet.has(key) || isPropsFieldDefinedInActiveSchema(key)
     });
   }
 
@@ -48171,8 +48537,11 @@ function splitNodeOverviewMetaItems(entries) {
   const awnItems = [];
   const customItems = [];
   for (const item of collectNodeOverviewMetaItems(entries)) {
-    if (item.inSchema) awnItems.push(item);
-    else customItems.push(item);
+    if (isOverviewCustomSchemaFieldKey(item.key) || !item.inSchema) {
+      customItems.push(item);
+    } else {
+      awnItems.push(item);
+    }
   }
   return { awnItems, customItems };
 }
@@ -48237,14 +48606,27 @@ function appendNavigationHeroTags(hero, propEntries = []) {
   if (!hero) return null;
   const tagsBar = createEntryOverviewTagsBar(propEntries);
   if (!tagsBar) return null;
-  const anchor =
-    [
-      ...hero.querySelectorAll(
-        ".node-overview-awn-props-fold, .node-overview-custom-props-fold, .node-overview-props-fold"
-      )
-    ].pop() || null;
-  if (anchor) anchor.insertAdjacentElement("afterend", tagsBar);
-  else hero.appendChild(tagsBar);
+  const blurb = hero.querySelector(".node-navigation-hero-footer-blurb");
+  if (blurb) {
+    blurb.insertAdjacentElement("afterend", tagsBar);
+    return tagsBar;
+  }
+  const overviewDesc = hero.querySelector(".node-overview-desc");
+  if (overviewDesc) {
+    overviewDesc.insertAdjacentElement("afterend", tagsBar);
+    return tagsBar;
+  }
+  const footer = hero.querySelector(".node-navigation-hero-footer");
+  if (footer) {
+    footer.appendChild(tagsBar);
+    return tagsBar;
+  }
+  const main = hero.querySelector(".node-navigation-hero-main, .node-overview-hero-main");
+  if (main) {
+    main.insertAdjacentElement("afterend", tagsBar);
+    return tagsBar;
+  }
+  hero.appendChild(tagsBar);
   return tagsBar;
 }
 
@@ -66685,8 +67067,16 @@ async function renderNodeOverview() {
 
 function applyModeUi(options = {}) {
   if (appRootNode.classList.contains("home-view")) {
+    hideProjectSettingsPageUi();
     return;
   }
+  if (isProjectSettingsMode()) {
+    applyProjectSettingsPageUi();
+    updateBreadcrumbsForActiveMode();
+    syncWorkspaceRevealFolderButton();
+    return;
+  }
+  hideProjectSettingsPageUi();
   if (isPlainServiceStyleOpen()) {
     nodeOverviewRenderSeq += 1;
     applySystemFileUi();
@@ -66709,7 +67099,7 @@ function applyModeUi(options = {}) {
     listTemplate && !threadMode && !(listViewWithSourceToggle && editorViewMode === "source");
   const previewMode = activeContentMode === "node-preview";
   const topicSchemaMode = activeContentMode === "topic-schema";
-  const configsMode = activeContentMode === "configs";
+  const configsMode = isNodeConfigEditorMode();
   const overviewMode = activeContentMode === NODE_OVERVIEW_MODE;
   const navigationMode = activeContentMode === NODE_NAVIGATION_MODE;
   const folderBrowseMode =
@@ -75500,7 +75890,7 @@ async function loadContentByMode(options = {}) {
         topicSchemaActiveTarget = "workspace";
       } else if (isAreaSchemaContext(activePath)) {
         topicSchemaActiveTarget = "area";
-      } else if (topicSchemaActiveTarget === "topic") {
+      } else if (topicSchemaActiveTarget === "topic" || topicSchemaActiveTarget === "workspace" || topicSchemaActiveTarget === "area") {
         syncTopicSchemaActiveTargetToStorageSlot();
       }
       await loadTopicSchemaForManifest(activePath, {
@@ -75781,6 +76171,23 @@ async function saveContent() {
       }
       saveSucceeded = true;
       showToast("Сохранено", "success");
+    } catch (error) {
+      showToast(`Ошибка сохранения: ${error.message}`, "error");
+    } finally {
+      setSaveButtonsState(false);
+      if (saveSucceeded) commitEditorSaveBaseline();
+    }
+    return;
+  }
+
+  if (activeContentMode === PROJECT_SETTINGS_MODE) {
+    setSaveButtonsState(true, "Сохраняю...");
+    let saveSucceeded = false;
+    try {
+      await saveNodeSettingsContent();
+      saveSucceeded = true;
+      showToast("Настройки сохранены", "success");
+      renderProjectSettingsPage();
     } catch (error) {
       showToast(`Ошибка сохранения: ${error.message}`, "error");
     } finally {
@@ -76078,7 +76485,7 @@ async function saveContent() {
             ? "/api/memory/tabular"
           : activeContentMode === "todo"
             ? "/api/todo"
-            : activeContentMode === "configs"
+            : isNodeConfigEditorMode()
               ? "/api/file/node-config"
               : activeContentMode === "env"
                 ? "/api/env"
@@ -76255,9 +76662,9 @@ async function saveContent() {
       refreshEditorViewContent();
       return;
     }
-    if (activeContentMode === "configs") {
+    if (isNodeConfigEditorMode()) {
       modeContentCache.configs = data.content || "";
-      setCachedNodeConfig(activePath, {
+      setCachedNodeConfig(getNodeSettingsManifestPath(), {
         path: data.path || "",
         content: data.content || "",
         exists: Boolean(data.exists),
@@ -76265,7 +76672,10 @@ async function saveContent() {
       });
       syncNodeDefaultLandingBtn();
       saveSucceeded = true;
-      showToast(`${BUNDLE_CONFIG_FILE} сохранён`, "success");
+      showToast(
+        isProjectSettingsMode() ? "Настройки сохранены" : `${BUNDLE_CONFIG_FILE} сохранён`,
+        "success"
+      );
       refreshEditorViewContent();
       return;
     }
@@ -81151,6 +81561,7 @@ function hideAppLandingView() {
 
 function showAppLandingView(hint = "") {
   hideContentLoading({ force: true });
+  leaveProjectSettingsMode();
   nodeSettingsViewActive = false;
   nodeMemoryViewActive = false;
   applyNodeWorkspaceViewUi();
@@ -81203,6 +81614,7 @@ function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
 
   hideAppLandingView();
   hideContentLoading({ force: true });
+  leaveProjectSettingsMode();
   nodeSettingsViewActive = false;
   nodeMemoryViewActive = false;
   applyNodeWorkspaceViewUi();
@@ -81246,6 +81658,7 @@ function formatNotFoundRequestPath(requestedPath = "") {
 function showNotFoundView(requestedPath = "") {
   hideAppLandingView();
   hideContentLoading({ force: true });
+  leaveProjectSettingsMode();
   nodeSettingsViewActive = false;
   nodeMemoryViewActive = false;
   applyNodeWorkspaceViewUi();
@@ -82502,6 +82915,22 @@ function setupMenuStaticFooterGroup() {
   menuStaticFooterToggleBtn?.addEventListener("click", () => {
     toggleMenuStaticFooterExpanded();
   });
+  const settingsOpenBtn = document.getElementById("menu-static-settings-open-btn");
+  settingsOpenBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void openProjectSettingsHub();
+  });
+  document.querySelector(".menu-static-section--settings .menu-static-summary")?.addEventListener(
+    "click",
+    (event) => {
+      if (event.target.closest("#menu-static-settings-open-btn")) return;
+      if (settingsOpenBtn?.disabled) return;
+      if (event.altKey || event.metaKey || event.ctrlKey) {
+        event.preventDefault();
+        void openProjectSettingsHub();
+      }
+    }
+  );
   void refreshMenuGoogleDriveStats();
   void refreshMenuAwnDataStores();
   loadAwnDataViewRecordsLayout();
@@ -87273,6 +87702,8 @@ nodeSettingsModeSelectNode?.addEventListener("change", () => {
 topicSchemaAddBtn?.addEventListener("click", () => addTopicSchemaField());
 nodeConfigFieldsNode?.addEventListener("input", handleNodeConfigFieldsInput);
 nodeConfigFieldsNode?.addEventListener("change", handleNodeConfigFieldsInput);
+projectSettingsFieldsNode?.addEventListener("input", handleNodeConfigFieldsInput);
+projectSettingsFieldsNode?.addEventListener("change", handleNodeConfigFieldsInput);
 topicSchemaTargetTabsNode?.addEventListener("click", (event) => {
   const tab = event.target.closest(".topic-schema-target-tab");
   if (!tab?.dataset.target) return;

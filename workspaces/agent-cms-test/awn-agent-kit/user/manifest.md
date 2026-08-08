@@ -1,33 +1,9 @@
 ---
-id: ""
-name: ""
-description: ""
-extends: ""
-status: ""
-kind: ""
-awn-name: "Пользователь"
-awn-emoji: ""
-awn-status: open
-awn-description: ""
-awn-tags: ""
-awn-type: awn.page.topic.agent-kit.user
-awn-create: 2026-08-07T10:43:26.045Z
-awn-update: 2026-08-07T10:43:26.045Z
-awn-version: 1
-awn-preview: ""
-awn-web-url: ""
-awn-main: false
-awn-category: ""
-awn-owner: ""
-awn-priority: ""
-awn-color: ""
-awn-sort: ""
-awn-runtime-load-always: false
-awn-runtime-cron: ""
-awn-runtime-cron-schedule: ""
-awn-runtime-heartbeat: ""
-awn-runtime-commands: false
-awn-slots-disabled: false
-awn-user-role: ""
-awn-user-timezone: ""
+awn-name: Пользователь
+awn-tags: [system, service]
+awn-type: awn.page.topic
 ---
+
+# Пользователь
+
+Профиль пользователя: предпочтения, контекст и стиль работы.

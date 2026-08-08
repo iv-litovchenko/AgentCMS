@@ -4,24 +4,15 @@ layer: topic
 awn_schema:
   topic:
     fields:
-      aya-t-custom-text:
+      topic-field_1:
         type: awn.field.string
-        name: Тема строка
-      aya-t-custom-number:
-        type: awn.field.integer
-        name: Тема число
-      aya-t-custom-boolean:
-        type: awn.field.boolean
-        name: Тема флаг
-      aya-t-custom-date:
-        type: awn.field.datetime
-        name: Тема дата
-      aya-t-custom-array:
-        type: awn.field.array
-        name: Тема список
-      property-ivan-tema:
+        name: ерк
+      topic-field_2:
         type: awn.field.string
-        name: Свойство темы (Иван)
+        name: рке
+      topic-field_3:
+        type: awn.field.string
+        name: рке
   settings:
     fields:
       field_1:

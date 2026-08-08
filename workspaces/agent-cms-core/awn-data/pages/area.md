@@ -7,9 +7,9 @@ awn-title: Область
 awn-kind: type
 awn-domain: pages
 awn-status: deprecated
-awn-extends: awn.page.section
+awn-extends: awn.page.base
 ---
-description: "Legacy — используйте awn.page.section.* (agent-kit, shared, container)"
+description: "Область workspace — папка-раздел в меню (awn-agent-kit, awn-shared, awn-container, …)"
 awn-fields:
   awn-color:
     type: awn.field.color

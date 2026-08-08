@@ -73,6 +73,7 @@ workspaces/agent-cms-test/
 ### Slots → content (главное правило)
 
 **Слот = WHERE, content = WHAT.** См. `awn-system/slots-bindings.yml`.  
+**Каталог:** `awn-system/types/slots/multi-file/` (много файлов) и `…/single-file/` (один файл); runtime — `multi-file/system/`.  
 **Категории слотов:** `awn-system/slot-categories.yml` — Память, Файлы, Однофайловая, Записи, Общение.
 
 ```

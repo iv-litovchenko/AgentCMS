@@ -164,6 +164,11 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
 
     let domainItems = [];
     let subGroups = [];
+    const storeFolder = useYaml
+      ? getAgentSystemTypesSectionFolder(domain)
+      : DOMAIN_TYPE_STORES[domain]
+        ? `awn-data/${DOMAIN_TYPE_STORES[domain]}`
+        : `${configRel}/${domain}`;
 
     if (domain === "data") {
       const foundations = [];
@@ -194,17 +199,99 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
           items: elements.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru"))
         });
       }
+    } else if (domain === "md-blocks") {
+      const groupsMeta = catalog.byId.get("awn.block.groups")?.schema || {};
+      const groupOrder = Array.isArray(groupsMeta.groupOrder) ? groupsMeta.groupOrder : [];
+      const groupNames =
+        groupsMeta.groupNames && typeof groupsMeta.groupNames === "object" ? groupsMeta.groupNames : {};
+      const foundations = [];
+      const byGroup = new Map();
+
+      const sortBlockEntries = (entries) =>
+        entries.slice().sort((a, b) => {
+          const sortA = Number(a.schema?.sort) || 0;
+          const sortB = Number(b.schema?.sort) || 0;
+          if (sortA !== sortB) return sortA - sortB;
+          const nameA = String(a.schema?.name || a.id);
+          const nameB = String(b.schema?.name || b.id);
+          return nameA.localeCompare(nameB, "ru");
+        });
+
+      for (const entry of domainEntries) {
+        const schema = entry.schema || {};
+        if (schema.kind === "meta" || entry.id === "awn.block.groups") continue;
+        const item = mapEntryToItem(entry);
+        if (item.isFoundation) {
+          foundations.push(item);
+          continue;
+        }
+        if (schema.kind !== "block" && entry.kind !== "block") continue;
+        const groupKey = String(schema.group || "misc").trim() || "misc";
+        if (!byGroup.has(groupKey)) byGroup.set(groupKey, []);
+        byGroup.get(groupKey).push(entry);
+      }
+
+      domainItems = foundations;
+      const orderedKeys = [
+        ...groupOrder.filter((key) => byGroup.has(key)),
+        ...[...byGroup.keys()].filter((key) => !groupOrder.includes(key)).sort((a, b) => a.localeCompare(b, "ru"))
+      ];
+      for (const groupKey of orderedKeys) {
+        const entries = byGroup.get(groupKey);
+        if (!entries?.length) continue;
+        subGroups.push({
+          title: groupNames[groupKey] || groupKey,
+          folderPath: `${storeFolder}/${groupKey}`,
+          items: sortBlockEntries(entries).map(mapEntryToItem)
+        });
+      }
+    } else if (domain === "slots") {
+      const foundations = [];
+      const singleFile = [];
+      const multiFile = [];
+      const systemSlots = [];
+      for (const entry of domainEntries) {
+        const item = mapEntryToItem(entry);
+        const rel = String(entry.relPath || entry.fileName || "").replace(/\\/g, "/");
+        if (item.isFoundation) {
+          foundations.push(item);
+        } else if (/\/single-file\//i.test(rel) || rel.startsWith("slots/single-file/")) {
+          singleFile.push(item);
+        } else if (/\/multi-file\/system\//i.test(rel) || rel.startsWith("slots/multi-file/system/")) {
+          systemSlots.push(item);
+        } else if (/\/multi-file\//i.test(rel) || rel.startsWith("slots/multi-file/")) {
+          multiFile.push(item);
+        } else {
+          multiFile.push(item);
+        }
+      }
+      domainItems = foundations;
+      if (singleFile.length) {
+        subGroups.push({
+          title: "Однофайловая (single-file)",
+          folderPath: `${storeFolder}/single-file`,
+          items: singleFile.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru"))
+        });
+      }
+      if (multiFile.length) {
+        subGroups.push({
+          title: "Многофайловая (multi-file)",
+          folderPath: `${storeFolder}/multi-file`,
+          items: multiFile.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru"))
+        });
+      }
+      if (systemSlots.length) {
+        subGroups.push({
+          title: "Системные (multi-file/system)",
+          folderPath: `${storeFolder}/multi-file/system`,
+          items: systemSlots.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru"))
+        });
+      }
     } else {
       domainItems = domainEntries
         .map(mapEntryToItem)
         .sort((a, b) => String(a.label).localeCompare(String(b.label), "ru"));
     }
-
-    const storeFolder = useYaml
-      ? getAgentSystemTypesSectionFolder(domain)
-      : DOMAIN_TYPE_STORES[domain]
-        ? `awn-data/${DOMAIN_TYPE_STORES[domain]}`
-        : `${configRel}/${domain}`;
 
     sections.push({
       title: domainMeta.label || SYSTEM_DOMAIN_LABELS[domain] || domain,

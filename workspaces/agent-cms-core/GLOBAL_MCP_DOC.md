@@ -154,6 +154,8 @@
 Место хранения на странице. MCP-ключ: `slot`.  
 `list_page_slots` отдаёт `driver`: **`external`** (папка, много файлов) или **`internal`** (один файл).
 
+**Каталог типов слотов** (для `get_type(id)`): YAML в `awn-system/types/slots/` — **`multi-file/`** (много файлов, `storage-driver: external`), **`single-file/`** (один файл, `internal`; CSV — `tabular`), служебные runtime — **`multi-file/system/`**. Runtime и MCP резолвят слот по **`id`** (`awn.slot.main`…), не по пути к файлу.
+
 ### Многофайловая память (external)
 
 Папка в `awn-storage/`. Нужны `path` + `slot` + `ref`.

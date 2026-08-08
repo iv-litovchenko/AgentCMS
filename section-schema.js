@@ -8,9 +8,8 @@ const {
   pickManifestRelFromStorageLayerRef,
   MANIFEST_FILE
 } = require("./manifest-paths");
+const { SCHEMA_MOD_FILE } = require("./schema-mod-paths");
 const {
-  mergeAwnSchemaLayers,
-  SCHEMA_MOD_FILE,
   extractAwnSchemaFromConfigurationSchemaContent
 } = require("./configuration-schema");
 const {
@@ -156,13 +155,14 @@ function getEffectiveSchemaPayload(configContent, agentRoot, projectRoot, sectio
     };
   }
 
-  const sectionAwnSchema = mergeAwnSchemaLayers(...sectionAwnSchemas);
-  const combinedAwnSchema = mergeAwnSchemaLayers(base.awnSchema, sectionAwnSchema);
-  const { baseTypes, merged } = recomputeMergedTypes(combinedAwnSchema, agentRoot, projectRoot);
+  const sectionAwnSchema = sectionAwnSchemas[sectionAwnSchemas.length - 1] || null;
+  const contextSchema = sectionAwnSchema || base.awnSchema;
+  const { baseTypes, merged } = recomputeMergedTypes(contextSchema, agentRoot, projectRoot);
   return {
     topicAwnSchema: base.topicAwnSchema || base.awnSchema,
     workspaceAwnSchema: base.workspaceAwnSchema || null,
-    awnSchema: combinedAwnSchema,
+    areaAwnSchema: base.areaAwnSchema || null,
+    awnSchema: contextSchema,
     sectionAwnSchema,
     baseTypes,
     merged

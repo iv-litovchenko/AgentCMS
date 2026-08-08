@@ -210,7 +210,7 @@ const {
   MIGRATABLE_PRESETS
 } = require("./catalog-migration");
 const { addCatalogItemForAgentContext } = require("./catalog-items");
-const { getPlatformIndexAbsolute, getPlatformAgentRootAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
+const { getPlatformIndexAbsolute, getPlatformAgentRootAbsolute, getAgentCmsCoreAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload, getTypesListPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const {
@@ -1627,24 +1627,33 @@ function resolvePageCreateAwnType(rawType, awnType, normalizedType) {
 
 function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, options = {}) {
   const isArea = nodeKind === "area";
+  const isSection = nodeKind === "section";
   const isTopic = nodeKind === "topic";
   let typeName =
     options.awnType ||
-    (isTopic ? "topic" : isArea ? "awn.page.area" : String(nodeKind || "topic"));
+    (isTopic
+      ? "topic"
+      : isSection
+        ? "awn.page.section"
+        : isArea
+          ? "awn.page.area"
+          : String(nodeKind || "topic"));
   if (isTopic && /^awn\.page\.topic\.agent-kit\./i.test(String(typeName).trim())) {
     typeName = "awn.page.topic";
   }
   const title =
     String(displayName || "").trim() ||
     stripTopicPrefix(String(folderSlug || "").trim()) ||
-    (isTopic ? "Тема" : "Область");
+    (isTopic ? "Тема" : isSection ? "Секция" : "Область");
   let frontmatter = buildDefaultFrontmatter(typeName, {
     name: title,
     agentRoot: getAgentRoot(),
     projectRoot: getProjectRoot(),
     skipCanonical:
       isArea ||
+      isSection ||
       String(typeName).trim() === "awn.page.area" ||
+      String(typeName).trim() === "awn.page.section" ||
       String(typeName).trim() === "awn.page.topic"
   });
   return upsertYamlScalarLine(frontmatter, "awn-name", title);
@@ -7364,6 +7373,11 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
 
     if (agentSystemExists(agentRootAbsolute)) {
       systemTree = await buildAgentSystemMenuTree(agentRootAbsolute, getProjectRoot());
+    } else {
+      const coreRoot = getAgentCmsCoreAbsolute(getProjectRoot());
+      if (agentSystemExists(coreRoot)) {
+        systemTree = await buildAgentSystemMenuTree(coreRoot, getProjectRoot());
+      }
     }
 
     enrichMenuTreeRuntimeRollup(menu);
@@ -20844,7 +20858,7 @@ async function handleApiForAgent(req, res, url) {
 
         await fs.mkdir(folderAbsolute, { recursive: false });
         const manifestAbsolute = path.join(folderAbsolute, AREA_MANIFEST_FILE);
-        const manifestFrontmatter = buildManifestCreateFrontmatter("area", areaName, folderName);
+        const manifestFrontmatter = buildManifestCreateFrontmatter("section", areaName, folderName);
         await fs.writeFile(
           manifestAbsolute,
           joinNodeFrontmatter(manifestFrontmatter, ""),

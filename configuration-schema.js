@@ -179,18 +179,13 @@ function resolveAreaManifestRelForNode(manifestRel) {
   return null;
 }
 
+/** Schema override from this node only (no ws/area/topic stacking). */
+function readContextOwnAwnSchema(manifestRel, agentRoot, configContent = "") {
+  return readNodeOnlyAwnSchema(manifestRel, agentRoot, configContent);
+}
+
 function readEffectiveTopicAwnSchema(manifestRel, agentRoot, configContent = "") {
-  const normalized = String(manifestRel || "").replace(/\\/g, "/");
-  const workspaceLayer = readWorkspaceLayerAwnSchema(agentRoot);
-  if (isAreaLevelManifestRelPath(normalized)) {
-    return mergeAwnSchemaLayers(workspaceLayer, readNodeOnlyAwnSchema(manifestRel, agentRoot, configContent));
-  }
-  const areaManifestRel = resolveAreaManifestRelForNode(normalized);
-  return mergeAwnSchemaLayers(
-    workspaceLayer,
-    areaManifestRel ? readNodeOnlyAwnSchema(areaManifestRel, agentRoot) : null,
-    readNodeOnlyAwnSchema(manifestRel, agentRoot, configContent)
-  );
+  return readContextOwnAwnSchema(manifestRel, agentRoot, configContent);
 }
 
 /** @deprecated use readEffectiveTopicAwnSchema or readTopicOnlyAwnSchema */
@@ -221,7 +216,7 @@ function composeSectionConfigurationSchemaYaml(awnSchema) {
 }
 
 function getEffectiveTopicSchemaPayload(manifestRel, agentRoot, projectRoot, configContent = "") {
-  const effectiveSchema = readEffectiveTopicAwnSchema(manifestRel, agentRoot, configContent);
+  const contextSchema = readContextOwnAwnSchema(manifestRel, agentRoot, configContent);
   const normalized = String(manifestRel || "").replace(/\\/g, "/");
   const topicAwnSchema = isAreaLevelManifestRelPath(normalized)
     ? emptyAwnSchema()
@@ -235,7 +230,7 @@ function getEffectiveTopicSchemaPayload(manifestRel, agentRoot, projectRoot, con
   const workspaceAwnSchema = readWorkspaceLayerAwnSchema(agentRoot);
   const { getTopicSchemaPayload } = require("./awn-types-loader");
   const payload = getTopicSchemaPayload(configContent, agentRoot, projectRoot, {
-    awnSchema: effectiveSchema
+    awnSchema: contextSchema
   });
   return {
     ...payload,
@@ -268,15 +263,26 @@ function compactAwnSchema(awnSchema) {
   return result;
 }
 
+function resolveSchemaLayerNameForTarget(target) {
+  if (target === "workspace") return "workspace";
+  if (target === "area") return "area";
+  if (target === "section") return "section";
+  return "topic";
+}
+
 function collectLayeredCustomFields(layers, target) {
-  let fields = {};
-  for (const layerName of ["workspace", "area", "topic", "section"]) {
-    const layerFields = layers?.[layerName]?.[target]?.fields;
-    if (layerFields && typeof layerFields === "object") {
-      fields = { ...fields, ...layerFields };
+  const layerName = resolveSchemaLayerNameForTarget(target);
+  const layerFields = layers?.[layerName]?.[target]?.fields;
+  if (layerFields && typeof layerFields === "object") {
+    return { ...layerFields };
+  }
+  if (layerName !== "section") {
+    const sectionFields = layers?.section?.[target]?.fields;
+    if (sectionFields && typeof sectionFields === "object") {
+      return { ...sectionFields };
     }
   }
-  return fields;
+  return {};
 }
 
 /** Per-page response: schema-mod layers only. Base types live in awn-system / get_type. */
@@ -299,6 +305,9 @@ function buildLayeredTopicSchemaResponse(meta, payload) {
   };
   if (Array.isArray(payload?.sectionChain) && payload.sectionChain.length) {
     result.sectionChain = payload.sectionChain;
+  }
+  if (payload?.awnSchema) {
+    result.contextSchema = compactAwnSchema(payload.awnSchema);
   }
   return result;
 }
@@ -402,6 +411,7 @@ module.exports = {
   extractAwnSchemaFromConfigurationSchemaContent,
   mergeAwnSchemaLayers,
   readTopicOnlyAwnSchema,
+  readContextOwnAwnSchema,
   readEffectiveTopicAwnSchema,
   readWorkspaceLayerAwnSchema,
   composeTopicConfigurationSchemaYaml,
