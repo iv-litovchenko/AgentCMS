@@ -1,44 +1,44 @@
-Agent CMS MCP — полное дерево (v0.0.2)
-~40 tools · модель PAGE → SLOT → CONTENT + path-based FS
+Agent CMS MCP — slim (v0.0.2) · 44 tools
+Модель PAGE → SLOT → CONTENT + path-based FS
 
-Ключи: path = manifest.md · slot = main|inbox|media|… · ref = путь внутри слота
-
-================================================================================
-1. Старт сессии [bootstrap] (5)
-================================================================================
-
-get_session_context              START HERE — topicRegistry + alwaysContext + API map
-list_workspace_always_context    always + AGENTS/SKILL/GLOBAL_MCP_DOC (полные тела)
-list_workspace_cron              awn-runtime-cron (+ schedule)
-list_workspace_heartbeat         awn-runtime-heartbeat
-get_mcp_docs                     Справка по MCP tools
+См. также: mcp-optimiz.md (канон)
 
 ================================================================================
-2. Навигация [menu] (3)
+1. Старт / контекст (5)
 ================================================================================
 
-get_page_map                     Карта страниц
-get_content_map                  Карта контента страницы по слотам
-search_workspace                 Поиск по workspace (как в шапке UI)
+get_session_context              START HERE
+get_user_active_context_now      что открыто в UI
+list_workspace_always_context    always + AGENTS/SKILL/GLOBAL_MCP_DOC
+list_workspace_cron              реестр cron
+list_workspace_heartbeat         реестр heartbeat
 
 ================================================================================
-3. Страница manifest.md [page] (10)
+2. Навигация (3)
+================================================================================
+
+get_page_map                     карта страниц
+get_content_map                  карта контента темы
+search_workspace                 поиск
+
+================================================================================
+3. Страница (10)
 ================================================================================
 
 read_page_body / write_page_body
 read_page_properties / write_page_properties
-read_page_schema / write_page_schema   (mode=layers default)
+read_page_schema / write_page_schema
 create_page / delete_page
 rename_page / move_page
 
 ================================================================================
-4. Слот [slot] (1)
+4. Слот (1)
 ================================================================================
 
-list_page_slots                  Слоты страницы: driver, path, allowedContent
+list_page_slots
 
 ================================================================================
-5. Контент [content] (8)
+5. Контент (8)
 ================================================================================
 
 read_content_body / write_content_body
@@ -47,22 +47,22 @@ create_content
 rename_content / move_content / delete_content
 
 ================================================================================
-6. Типы [types] (2)
+6. Типы (2)
 ================================================================================
 
-list_types                       Индекс: domain | kind | filter preset
-get_type                         Merged schema по id или catalog path
+list_types                       domain | kind | filter preset
+get_type                         merged schema по id
 
 ================================================================================
-7. AWN-DATA runtime [data] (5)
+7. AWN-DATA runtime (5)
 ================================================================================
 
 list_data_stores / get_data_store
 create_data_store / create_data_record
-read_data_store_schema           Схема store (экземпляр, не каталог)
+read_data_store_schema
 
 ================================================================================
-8. Inbox и thread [intake] (4)
+8. Inbox / thread (4)
 ================================================================================
 
 list_inbox
@@ -70,31 +70,23 @@ triage_inbox_item
 read_thread / append_thread
 
 ================================================================================
-9. Файловая система workspace [filesystem] (5)
+9. Система + FS (5)
 ================================================================================
 
+list_system_files
 read_file / write_file
 upload_file
 list_folder
-list_system_files                Каталог AGENTS.md → read_file / write_file
 
 ================================================================================
-10. Прочее
+10. Уведомление (1)
 ================================================================================
 
-get_user_active_context_now      Что открыто в UI сейчас
-get_canonical_model              Канон: page types, slot bindings
-get_storage_layout               Схема слотов awn-storage
-get_type_health                  Проверка типов awn-system
-list_components / get_platform_index
-get_agent_system_status          read/write_agent_system_file
-list_adopt_folders               Папки без manifest.md
-notify_user                      Колокольчик CMS
-shell_*                          Agent Shell (голос/mobile)
+notify_user
 
 ================================================================================
+ИТОГО: 44 tools
 
-Типичный старт: get_session_context → get_user_active_context_now → read_* / write_* по задаче.
-Типы: list_types({ filter: "create-page" }) → get_type({ id: "awn.page.topic" })
+Старт: get_session_context → get_user_active_context_now → read/write по задаче.
 
-Сгенерировано: 2026-08-08 · Agent CMS MCP v0.0.2
+Сгенерировано: 2026-08-08

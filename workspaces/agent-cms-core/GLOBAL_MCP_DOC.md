@@ -9,7 +9,7 @@
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, shell/`curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP.  
-Этот файл — шпаргалка. Полный список tools: `get_mcp_docs`.
+Этот файл — шпаргалка (**44 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 Перед работой: `get_session_context` → `get_user_active_context_now`.  
 Поиск: `search_workspace` (как шапка UI; scope=all|content|filename…).
@@ -171,19 +171,18 @@
 
 Системные (обычно не трогать вручную): `history`, `temp`, `volume`.
 
-- список слотов страницы: `list_page_slots`
-- схема: `get_storage_layout`, `get_canonical_model`
+- список слотов страницы: `list_page_slots` (+ `get_type` для allowedContent типов)
 
-### Куда грузить файлы (`upload_content` / `import_content_from_url`)
+### Куда грузить файлы (`upload_file` по workspace path)
 
-| Цель | `slot` | `parent` (подпапка) | Куда на диске / как ссылаться |
-|------|--------|---------------------|-------------------------------|
-| Превью темы/карточки | `assets` | `preview` | `awn-storage/assets/preview/` → поле `awn-preview` |
-| Картинка, вставленная в текст записи | `assets` | `pasted` | `awn-storage/assets/pasted/` → в markdown: `![…](awn-storage/assets/pasted/file.png)` |
-| Вложение записи | `assets` | `attachments` | `awn-storage/assets/attachments/` → поле `awn-attachments` |
-| Медиатека темы (не к конкретной записи) | `media` | — / раздел | `awn-storage/media/` |
+| Цель | Path (пример) | Зачем |
+|------|---------------|-------|
+| Превью темы | `…/awn-storage/assets/preview/shot.png` | поле `awn-preview` |
+| Картинка в тексте | `…/awn-storage/assets/pasted/shot.png` | markdown `![…](awn-storage/assets/pasted/…)` |
+| Вложение записи | `…/awn-storage/assets/attachments/doc.pdf` | поле `awn-attachments` |
+| Медиатека темы | `…/awn-storage/media/photo.png` | самостоятельный media-файл |
 
-Пример: `{ "path": "…/manifest.md", "slot": "assets", "parent": "pasted", "fileName": "shot.png", "data": "…" }`
+Пример: `upload_file({ path: "awn-container/tema/awn-storage/assets/pasted/shot.png", data: "<base64>" })`
 
 **`media` ≠ `assets`.** Не путать:
 - `media` — медиатека **темы** (самостоятельные файлы в `media/`)
@@ -203,9 +202,9 @@
 | `awn.content.comment` | Комментарий | Комментарий к странице/записи — слот `comments/` |
 | `awn.content.sidecar` | Sidecar | Мета к бинарному файлу (`*.sidecar.md` рядом с media) |
 
-- список: `list_content`
 - тело / свойства: `read_content_body` / `write_content_body`, `read_content_properties` / `write_content_properties`
-- создать: `create_content` (md/record), `upload_content` (файл), `import_content_from_url`
+- создать: `create_content` (md/record; inbox: `slot: inbox`, `status: new`)
+- бинарники: `upload_file` по полному path в `awn-storage/…`
 - типы: `list_types({ filter: "slot-content" })` → `get_type({ id: "awn.content.record" })`
 
 `write_content_properties` — patch frontmatter (одно поле ок); тело сохраняется.
@@ -221,7 +220,6 @@
 | `read_file` | Прочитать файл (текст → content; бинарник → previewUrl) |
 | `write_file` | Записать/перезаписать текстовый файл (.py, .html, .json, …) |
 | `upload_file` | Загрузить файл (base64) по полному пути |
-| `upload_file_from_url` | Скачать по URL → сохранить по пути |
 | `list_folder` | Содержимое папки (`depth=1` или рекурсивно) |
 
 **Путь** — относительно корня workspace агента, например:
@@ -236,12 +234,12 @@
 | `.md` запись в main/inbox/notes | `create_content` / `write_content_body` |
 | Frontmatter записи | `write_content_properties` |
 | `manifest.md` страницы | `write_page_body` |
-| Диалог / комментарии | `append_thread` / `append_comment` |
+| Диалог темы | `append_thread` / `read_thread` | Не писать в `thread/` через `create_content` |
 | Код, HTML, бинарники, media | `read_file` / `write_file` / `upload_file` |
 | Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
 | Обход папки | `list_folder` |
 
-Старые slot-tools (`upload_content`, `read_content_file`, …) и free-memory tools пока работают; новые path-tools — предпочтительный способ для файлов.
+Для обхода слотов и media — **path-based** tools (`read_file`, `upload_file`, `list_folder`).
 
 ---
 
@@ -256,12 +254,9 @@
 - типы контейнеров: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.data.collection" })`
 - схемы записей store: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.data.record" })`
 - список store: `list_data_stores` → `get_data_store`
-- схема полей: `read_data_store_schema` / `write_data_store_schema`
+- схема полей store (read): `read_data_store_schema`
 - запись: `create_data_record`
-
-Не путать с `create_content`.
-
-`write_data_store_schema` — полная замена схемы накопителя: сначала `read`, потом пиши полный актуальный YAML/`fields`.
+- правка schema-mod store: `write_file` на `awn-data/{store}/schema-mod.yml` (полный YAML)
 
 ---
 
@@ -271,7 +266,7 @@
 
 Два разных случая:
 
-1. **Папка без `manifest.md`** (ещё не тема) → `list_adopt_folders` / `list_folder` / `read_file` / `upload_file`
+1. **Папка без `manifest.md`** → `list_folder` / `read_file` / `upload_file`
 2. **Тема lite:** `awn-slots-disabled: true` — файлы рядом с `manifest.md`, без `awn-storage/` (не adopt-папка)
 
 Не путать с `create_content` (обычная тема **со слотами**).
@@ -292,17 +287,14 @@
 
 ---
 
-## Inbox / thread / comments
+## Inbox / thread
 
 | Задача | Tools | Не делать |
 |--------|-------|-----------|
-| Intake / входящие | `list_inbox`, `triage_inbox_item`, `create_content` (`slot: inbox`, `status: new`) | Не писать в `inbox/` в обход triage, если нужен intake-поток |
+| Intake / входящие | `list_inbox`, `triage_inbox_item`, `create_content` (`slot: inbox`, `status: new`) | Не писать в `inbox/` в обход triage |
 | Диалог темы | `read_thread`, `append_thread` | Не писать в `thread/` через `create_content` |
-| Комментарии к узлу/файлу | `list_comments`, `append_comment`, `toggle_comment_reaction` | Не `create_content` + `awn.content.comment` |
-| Сводка | `get_topic_intake` | — |
 
-Новая intake-заметка — `create_content` в `slot: inbox` с `status: new` (или через UI «Во входящие»).  
-Комментарии ≠ записи в `main`.
+Новая intake-заметка — `create_content` в `slot: inbox` с `status: new`.
 
 ---
 
@@ -335,13 +327,12 @@
 
 ## Антипаттерны
 
-1. Не писать файлы «в корень темы» — только через slot (`create_content` / `upload_content`), **если нет** `awn-slots-disabled: true` (режим lite: память рядом с `manifest.md`, без `awn-storage/`).
+1. Не писать файлы «в корень темы» — через slot (`create_content`) или `upload_file`, **если нет** `awn-slots-disabled: true`.
 2. Не путать page tools (`*_page_*`) и content tools (`*_content_*`).
 3. Типы искать по `id`, не угадывать path.
 4. `awn-data` (инфоблок / информационный накопитель) ≠ слот страницы.
-5. Уведомление в 🔔 CMS → `notify_user`; сообщение в Shell → `shell_post_message`.
+5. Уведомление в 🔔 CMS → `notify_user`.
 6. В `slot` — канонические ключи: `notes`, `scripts`, `dialogs` (не устаревшие `note` / `script` / `thread`).
 7. Комментарии / thread — свои tools; inbox создавать через `create_content` (`slot: inbox`), triage — `triage_inbox_item`.
-8. `read_page_schema` — default `mode=layers` (workspace/area/topic); не `mode=full` без нужды.
-9. `write_data_store_schema` — полная замена: сначала `read`, потом полный YAML.
-10. `media` ≠ `assets`: медиатека темы vs ресурсы записей (preview / pasted / attachments).
+8. `read_page_schema` — default `mode=layers`; не `mode=full` без нужды.
+9. `media` ≠ `assets`: медиатека темы vs ресурсы записей (preview / pasted / attachments).

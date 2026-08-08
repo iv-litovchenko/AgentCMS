@@ -2,20 +2,6 @@ import { z } from "zod";
 
 export function registerPageTools({ reg, client, pagePath }) {
   reg(
-    "get_page_meta",
-    "Page metadata (awn.page.* manifest): storage layers, preview, manifest info.",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/page/meta", { path })
-  );
-
-  reg(
-    "page_exists",
-    "Check whether a page manifest exists at path (no body read).",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/page/exists", { path })
-  );
-
-  reg(
     "read_page_body",
     "Read manifest.md body (markdown below frontmatter).",
     z.object({ path: pagePath }),
@@ -70,34 +56,6 @@ export function registerPageTools({ reg, client, pagePath }) {
     "Save schema-mod.yml override. Pass YAML with awn_schema: { topic: { fields: … } } — only blocks you change. Response is slim (written blocks only).",
     z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/page-schema", { path, content, responseMode: "layers" })
-  );
-
-  reg(
-    "read_page_config",
-    "Read page config.yml (awn_ui, awn_settings). Field schema is in schema-mod.yml — use read_page_schema.",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/file/page-config", { path })
-  );
-
-  reg(
-    "write_page_config",
-    "Save page configuration.yml (awn_ui, awn_settings only).",
-    z.object({ path: pagePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/file/page-config", { path, content })
-  );
-
-  reg(
-    "read_page_env",
-    "Read .env at page root (topic container).",
-    z.object({ path: pagePath }),
-    ({ path }) => client.get("/api/env", { path })
-  );
-
-  reg(
-    "write_page_env",
-    "Save .env at page root.",
-    z.object({ path: pagePath, content: z.string() }),
-    ({ path, content }) => client.post("/api/env", { path, content })
   );
 
   reg(

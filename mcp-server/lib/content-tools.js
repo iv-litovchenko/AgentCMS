@@ -86,49 +86,6 @@ async function writeInternalContent(client, pagePath, slot, content, file) {
 
 export function registerContentTools({ reg, client, pagePath }) {
   reg(
-    "list_content",
-    "List content items in a page slot. Works for external (folder) slots only.",
-    z.object({ path: pagePath, slot: contentSlot }),
-    async ({ path, slot }) => {
-      if (isInternalBundleSlot(slot)) {
-        throw new Error(`Slot "${slot}" is single-file (internal). Use read_content_body instead of list_content.`);
-      }
-      if (isExternalMemorySlot(slot)) return client.get("/api/external/files", { path });
-      if (isMediaSlotKey(slot)) return client.get("/api/media", { path, folder: slotToFolder(slot) });
-      return client.get("/api/folder/view", { path, folder: slotToFolder(slot) });
-    }
-  );
-
-  reg(
-    "get_content_meta",
-    "Content item metadata: path, slot, ref, driver, file.",
-    z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
-    async ({ path, slot, ref }) => {
-      if (isInternalBundleSlot(slot)) {
-        const payload = await readInternalContent(client, path, slot);
-        return { path, slot, driver: "internal", ref: null, file: null, payload };
-      }
-      if (!ref) throw new Error("ref is required for external slots");
-      const payload = await readMarkdownFull(client, path, slot, ref).catch(() => null);
-      return {
-        path,
-        slot,
-        driver: "external",
-        ref,
-        file: payload?.file || ref,
-        exists: Boolean(payload?.content != null)
-      };
-    }
-  );
-
-  reg(
-    "content_exists",
-    "Check whether content exists in a slot (no body read). ref required for external slots.",
-    z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
-    ({ path, slot, ref }) => client.get("/api/content/exists", { path, slot, ref: ref || "" })
-  );
-
-  reg(
     "read_content_body",
     "Read content body. For .md: markdown below frontmatter. For internal slots: full file content.",
     z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
@@ -214,7 +171,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "create_content",
-    "Create typed content: awn.content.record or awn.content.category. Categories are subfolders with manifest.md; endpoint is chosen by slot (memory→external API, media/assets→media API, flat slots→storage API). For artefacts/scripts text files use fileExtension + body (e.g. .html, .py) — not upload_content.",
+    "Create typed content: awn.content.record or awn.content.category. For plain-text in artefacts/scripts use fileExtension + body (.html, .py). For inbox intake: slot=inbox, status=new.",
     z.object({
       path: pagePath,
       slot: contentSlot,
@@ -230,9 +187,7 @@ export function registerContentTools({ reg, client, pagePath }) {
       fileExtension: z
         .string()
         .optional()
-        .describe(
-          "For flat slots (artefacts, scripts, …): .html, .py, .json, … — creates a plain-text file with body. Prefer this over upload_content for source code and markup."
-        ),
+        .describe("For flat slots (artefacts, scripts, …): .html, .py, .json, …"),
       fileMask: z.string().optional(),
       fields: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
       source: z.string().optional(),
@@ -240,7 +195,7 @@ export function registerContentTools({ reg, client, pagePath }) {
       status: z
         .string()
         .optional()
-        .describe("Maps to awn-status in frontmatter (e.g. open, closed). fields.awn-status overrides this.")
+        .describe("Maps to awn-status in frontmatter (e.g. new, open, closed).")
     }),
     async ({
       path,
@@ -289,120 +244,6 @@ export function registerContentTools({ reg, client, pagePath }) {
         source,
         author,
         status
-      });
-    }
-  );
-
-  reg(
-    "upload_content",
-    "Upload a binary or text file into an external slot (media/, repository/, artefacts/, scripts/, …). data must be valid base64 (plain text is rejected). For .html/.py/.json in artefacts/scripts prefer create_content { fileExtension, body } — no base64 or shell.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
-      fileName: z.string().min(1),
-      data: z.string().min(1).describe("Base64-encoded file bytes"),
-      mimeType: z.string().optional(),
-      parent: z.string().optional().describe("Subfolder inside slot, e.g. section path in media/"),
-      createSubdir: z.boolean().optional()
-    }),
-    async ({ path, slot, fileName, data, mimeType, parent, createSubdir }) => {
-      if (isInternalBundleSlot(slot)) {
-        throw new Error(`Cannot upload_content to internal slot "${slot}". Use write_content_body.`);
-      }
-      return client.post("/api/media/file", {
-        path,
-        fileName,
-        data,
-        mimeType,
-        libraryFolder: slotToFolder(slot),
-        folder: slotToFolder(slot),
-        subdir: parent || "",
-        createSubdir: Boolean(createSubdir)
-      });
-    }
-  );
-
-  reg(
-    "import_content_from_url",
-    "Download a file from http(s) URL and store it in an external slot (media/, repository/, …). Prefer this over curl + base64 shell workflows.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
-      url: z.string().url().describe("Public http(s) URL to download"),
-      fileName: z.string().min(1).optional().describe("Target file name; inferred from URL/headers when omitted"),
-      mimeType: z.string().optional(),
-      parent: z.string().optional().describe("Subfolder inside slot, e.g. section path in media/"),
-      createSubdir: z.boolean().optional()
-    }),
-    async ({ path, slot, url, fileName, mimeType, parent, createSubdir }) => {
-      if (isInternalBundleSlot(slot)) {
-        throw new Error(
-          `Cannot import_content_from_url to internal slot "${slot}". Use write_content_body for text slots.`
-        );
-      }
-      return client.post("/api/media/file/import", {
-        path,
-        url,
-        fileName,
-        mimeType,
-        slot: slotToFolder(slot),
-        libraryFolder: slotToFolder(slot),
-        folder: slotToFolder(slot),
-        parent: parent || "",
-        subdir: parent || "",
-        createSubdir: Boolean(createSubdir)
-      });
-    }
-  );
-
-  reg(
-    "read_content_file",
-    "Read a file from an external slot. Text files return content; media returns previewUrl for binary.",
-    z.object({ path: pagePath, slot: contentSlot, ref: z.string().min(1) }),
-    async ({ path, slot, ref }) => {
-      if (isInternalBundleSlot(slot)) {
-        throw new Error("read_content_file is for external slot files. Use read_content_body for internal slots.");
-      }
-      const folder = slotToFolder(slot);
-      if (isMediaSlotKey(slot)) {
-        const base = client.buildUrl("/api/media/file", { path, file: ref }).toString();
-        return { path, slot, ref, previewUrl: base, binary: true };
-      }
-      return client.get("/api/storage/file", { path, folder, file: ref });
-    }
-  );
-
-  reg(
-    "write_content_file",
-    "Write or overwrite a plain-text file in an external slot (.html, .py, .json, .css, .txt, …). Creates parent dirs and the file if missing. For .md records use write_content_body; for binaries use upload_content.",
-    z.object({
-      path: pagePath,
-      slot: contentSlot,
-      ref: z.string().min(1).describe("Relative path inside slot, e.g. hello.py or demos/hello.html"),
-      content: z.string()
-    }),
-    async ({ path, slot, ref, content }) => {
-      if (isInternalBundleSlot(slot)) {
-        throw new Error(`Cannot write_content_file to internal slot "${slot}". Use write_content_body.`);
-      }
-      const normalizedRef = String(ref || "").replace(/\\/g, "/").replace(/^\/+/, "");
-      if (!normalizedRef) throw new Error("ref is required");
-      if (normalizedRef.toLowerCase().endsWith(".md")) {
-        throw new Error("For .md files use write_content_body or write_content_properties.");
-      }
-      if (isExternalMemorySlot(slot)) {
-        throw new Error(
-          `Slot "${slot}" stores typed .md records only. Use create_content or write_content_body.`
-        );
-      }
-      if (isMediaSlotKey(slot)) {
-        throw new Error(`Slot "${slot}" is for media/assets. Use upload_content or import_content_from_url.`);
-      }
-      return client.post("/api/storage/file", {
-        path,
-        folder: slotToFolder(slot),
-        file: normalizedRef,
-        content
       });
     }
   );

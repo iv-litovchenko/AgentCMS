@@ -4,13 +4,13 @@ const workspacePath = z
   .string()
   .min(1)
   .describe(
-    "Workspace-relative path, e.g. awn-container/tema/awn-storage/media/photo.png or awn-container/Materials/readme.md"
+    "Workspace-relative path, e.g. awn-container/tema/awn-storage/media/photo.png or AGENTS.md"
   );
 
 export function registerWorkspaceFsTools(reg, client) {
   reg(
     "read_file",
-    "Read a workspace file by path (text returns content; binary returns previewUrl). Not for typed .md records in main/inbox/notes — use read_content_body.",
+    "Read a workspace file by path (text returns content; binary returns previewUrl). For typed .md in slots use read_content_body; for manifest use read_page_body.",
     z.object({
       path: workspacePath,
       maxBytes: z.number().int().min(1024).max(120000).optional()
@@ -24,7 +24,7 @@ export function registerWorkspaceFsTools(reg, client) {
 
   reg(
     "write_file",
-    "Write or overwrite a plain-text workspace file by path (.py, .html, .json, .txt, …). Root system files (AGENTS.md, SKILL.md, …) are saved with history. For .md records in memory slots use write_content_body; for manifest.md use write_page_body.",
+    "Write or overwrite a plain-text workspace file by path. Root system files (AGENTS.md, SKILL.md, …) are saved with history.",
     z.object({
       path: workspacePath,
       content: z.string()
@@ -34,24 +34,13 @@ export function registerWorkspaceFsTools(reg, client) {
 
   reg(
     "upload_file",
-    "Upload a file (base64) to a workspace path including file name. Example path: awn-container/tema/awn-storage/media/photo.png",
+    "Upload a file (base64) to a workspace path including file name. Use for media/assets binaries and imports.",
     z.object({
       path: workspacePath.describe("Full workspace path including file name"),
       data: z.string().min(1).describe("Base64-encoded file bytes"),
       mimeType: z.string().optional()
     }),
     ({ path, data, mimeType }) => client.post("/api/workspace/fs/upload", { path, data, mimeType })
-  );
-
-  reg(
-    "upload_file_from_url",
-    "Download a file from http(s) URL and save to workspace path (including file name).",
-    z.object({
-      path: workspacePath.describe("Full workspace path including file name"),
-      url: z.string().url(),
-      mimeType: z.string().optional()
-    }),
-    ({ path, url, mimeType }) => client.post("/api/workspace/fs/import", { path, url, mimeType })
   );
 
   reg(

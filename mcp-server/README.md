@@ -1,6 +1,8 @@
-# Agent CMS — MCP Server v0.2.0
+# Agent CMS — MCP Server v0.3.0 (slim · 44 tools)
 
 MCP-сервер для [Agent CMS](..): доступ к workspace через HTTP API для Cursor, Claude Desktop, CoPaw / QwenPaw.
+
+Полная карта: [workspaces/agent-cms-core/temp2/examples/mcp-optimiz.md](../workspaces/agent-cms-core/temp2/examples/mcp-optimiz.md)
 
 ## Требования
 
@@ -21,108 +23,39 @@ npm install
 | `AGENT_CMS_BASE_URL` | `http://localhost:3000` | Базовый URL CMS |
 | `AGENT_CMS_AGENT` | — | id агента (`?agent=`); если пусто — default из `awn-agents.json` |
 
-Устаревшие `YAMLCMS_*` по-прежнему читаются.
-
-## Подключение в Cursor
-
-**Settings → MCP → Add server** или файл `.cursor/mcp.json` в корне проекта:
-
-```json
-{
-  "mcpServers": {
-    "agent-cms": {
-      "command": "node",
-      "args": ["/Users/macbook/Desktop/YamlCMS/mcp-server/index.js"],
-      "env": {
-        "AGENT_CMS_BASE_URL": "http://localhost:3000",
-        "AGENT_CMS_AGENT": "agent-cms-test"
-      }
-    }
-  }
-}
-```
-
-Замените путь на абсолютный путь к вашему клону YamlCMS.  
-`AGENT_CMS_AGENT` — id из `awn-agents.json` (например `agent-cms-test`, `agent-cms-core`).
-
-После сохранения: **перезапустите MCP** в Cursor (или перезагрузите окно).
-
-## Подключение в CoPaw / QwenPaw
-
-В конфиге workspace (`~/.copaw/...`) в секции `mcp_servers`:
-
-```json
-{
-  "mcp_servers": {
-    "agent-cms": {
-      "command": "node",
-      "args": ["/Users/macbook/Desktop/YamlCMS/mcp-server/index.js"],
-      "env": {
-        "AGENT_CMS_BASE_URL": "http://localhost:3000",
-        "AGENT_CMS_AGENT": "agent-cms-test"
-      }
-    }
-  }
-}
-```
-
-CMS должен быть запущен (`npm start` в YamlCMS).
-
-## Старт сессии (v0.2)
-
-**Не** делайте `grep` / `curl` / `ls` по репозиторию для разведки.
-
-В начале сессии один раз вызовите:
+## Старт сессии
 
 ```
 get_session_context
 ```
 
-### Канон v0.3 (PAGE · SLOT · CONTENT)
+Затем при необходимости: `get_user_active_context_now` → `read_*` / `write_*` по задаче.
 
-- **PAGE** — manifest.md; `get_page_meta`, `read/write_page_*`, `create_page`
-- **SLOT** — `list_page_slots` (driver, allowedContent)
-- **CONTENT** — единая ветка: `list_content`, `read/write_content_*`, `create_content`, `upload_content`, `import_content_from_url`
-- **Типы** — `list_types`, `get_type`
+### Канон (PAGE · SLOT · CONTENT)
 
-HTTP: `/api/page/slots`, `/api/page/*`, content tools → существующие storage/media API
+| Группа | Tools |
+|--------|-------|
+| Старт | `get_session_context`, `get_user_active_context_now`, `list_workspace_*` |
+| Навигация | `get_page_map`, `get_content_map`, `search_workspace` |
+| Страница | `read/write_page_*`, `create_page`, `delete_page`, `rename_page`, `move_page` |
+| Слот | `list_page_slots` |
+| Контент | `read/write_content_*`, `create_content`, `rename/move/delete_content` |
+| Типы | `list_types`, `get_type` |
+| awn-data | `list/get_data_store`, `create_data_store/record`, `read_data_store_schema` |
+| FS | `list_system_files`, `read_file`, `write_file`, `upload_file`, `list_folder` |
 
-Ответ включает:
+Бинарники и media — **`upload_file`** по полному workspace path, не slot-upload tools.
 
-- `awn-agent-kit/agent/manifest.md`, `user/manifest.md`, `agent.voice.tts/manifest.md`, `agent.voice.stt/manifest.md`
-- темы с `awn-runtime-load: session-start`
-- `AGENTS.md`, `README.md`
-- `pathHints` и `apiMap`
+## Документация
 
-Пример path к теме:
+- Агентская шпаргалка: `GLOBAL_MCP_DOC.md` (always-context)
+- HTTP JSON: `GET http://localhost:3000/api/mcp-docs?version=0.0.2`
 
-```
-awn-container/finansydohody/manifest.md
-```
-
-(legacy `_registration.md` API тоже принимает)
-
-## Документация tools
-
-- UI: кнопка **MCP** в шапке CMS
-- JSON: `GET http://localhost:3000/api/mcp-docs?version=0.0.2`
-- MCP tool: `get_mcp_docs`
-
-## Запуск вручную
+## Запуск
 
 ```bash
 npm start          # из корня Agent CMS
-node mcp-server/index.js   # stdio — для отладки
+node mcp-server/index.js   # stdio
 ```
 
 Из корня: `npm run mcp`
-
-## Что нового в 0.2.0
-
-| Было (0.1) | Стало (0.2) |
-|------------|-------------|
-| 25 tools в справке | 58 tools |
-| `_registration.md`, `_Content` | `manifest.md`, `awn-storage/main/` |
-| Разведка через shell | `get_session_context` — один запрос |
-| Нет runtime registry | `list_workspace_always_context`, `list_workspace_cron`, `list_workspace_heartbeat`, `get_storage_layout` |
-| — | inbox/thread, comments, page-schema, tabular memory |
