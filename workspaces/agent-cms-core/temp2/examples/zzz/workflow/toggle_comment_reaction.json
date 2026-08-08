@@ -1,0 +1,16 @@
+{
+  "tool": "toggle_comment_reaction",
+  "folder": "zzz/workflow",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:06.544Z",
+  "sampleArgs": {
+    "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+    "commentId": "c1",
+    "reaction": "up"
+  },
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "ok": true
+  }
+}

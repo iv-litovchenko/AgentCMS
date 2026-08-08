@@ -1,0 +1,13 @@
+{
+  "tool": "shell_camera_snapshot",
+  "folder": "shell",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:06.532Z",
+  "sampleArgs": {},
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "imageUrl": "...",
+    "capturedAt": "..."
+  }
+}

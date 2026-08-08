@@ -1,0 +1,67 @@
+{
+  "tool": "read_page_schema",
+  "folder": "zzz/pages",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:39:58.721Z",
+  "sampleArgs": {
+    "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+    "mode": "layers"
+  },
+  "truncated": false,
+  "responseBytes": 1384,
+  "live": true,
+  "response": {
+    "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+    "contentPath": null,
+    "schemaPath": "aja-test-oblasti-2031/aja-test-temy-2031/schema-mod.yml",
+    "schemaExists": true,
+    "mode": "layers",
+    "layers": {
+      "workspace": {},
+      "area": {
+        "area": {
+          "fields": {
+            "aya-custom-text": {
+              "type": "awn.field.string",
+              "name": "Произвольный текст"
+            },
+            "aya-custom-number": {
+              "type": "awn.field.integer",
+              "name": "Произвольное число"
+            },
+            "aya-custom-boolean": {
+              "type": "awn.field.boolean",
+              "name": "Произвольный флаг"
+            }
+          }
+        }
+      },
+      "topic": {
+        "topic": {
+          "fields": {
+            "aya-t-custom-text": {
+              "type": "awn.field.string",
+              "name": "Тема строка"
+            },
+            "aya-t-custom-number": {
+              "type": "awn.field.integer",
+              "name": "Тема число"
+            },
+            "aya-t-custom-boolean": {
+              "type": "awn.field.boolean",
+              "name": "Тема флаг"
+            },
+            "aya-t-custom-date": {
+              "type": "awn.field.datetime",
+              "name": "Тема дата"
+            },
+            "aya-t-custom-array": {
+              "type": "awn.field.array",
+              "name": "Тема список"
+            }
+          }
+        }
+      }
+    }
+  }
+}

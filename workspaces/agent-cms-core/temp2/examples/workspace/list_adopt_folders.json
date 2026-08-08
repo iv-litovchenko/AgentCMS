@@ -1,0 +1,48 @@
+{
+  "tool": "list_adopt_folders",
+  "folder": "workspace",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:03.527Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 875,
+  "live": true,
+  "response": {
+    "folders": [
+      {
+        "title": "Правила",
+        "folderPath": "awn-agent-kit/rules",
+        "empty": true,
+        "parentPath": "awn-agent-kit",
+        "childTopics": 0,
+        "childFolders": 0,
+        "hasGitSelf": false,
+        "hasObsidianSelf": false,
+        "hasAgentSelf": false
+      },
+      {
+        "title": "Голос STT",
+        "folderPath": "awn-agent-kit/voice-sst",
+        "empty": true,
+        "parentPath": "awn-agent-kit",
+        "childTopics": 0,
+        "childFolders": 0,
+        "hasGitSelf": false,
+        "hasObsidianSelf": false,
+        "hasAgentSelf": false
+      },
+      {
+        "title": "Голос TTS",
+        "folderPath": "awn-agent-kit/voice-tts",
+        "empty": true,
+        "parentPath": "awn-agent-kit",
+        "childTopics": 0,
+        "childFolders": 0,
+        "hasGitSelf": false,
+        "hasObsidianSelf": false,
+        "hasAgentSelf": false
+      }
+    ],
+    "count": 3
+  }
+}

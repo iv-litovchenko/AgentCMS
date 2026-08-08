@@ -1,0 +1,648 @@
+{
+  "agent": "agent-cms-test",
+  "page": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+  "folders": {
+    "registries": "Реестры workspace",
+    "types": "Типы и каталоги",
+    "zzz/bootstrap": "zzz — Старт сессии",
+    "zzz/navigation": "zzz — Навигация и поиск",
+    "zzz/pages": "zzz — Страницы (Page)",
+    "zzz/content": "zzz — Контент в слотах (Content)",
+    "zzz/data-stores": "zzz — Накопители awn-data",
+    "zzz/system": "zzz — Системные файлы",
+    "zzz/workflow": "zzz — Inbox / thread / comments",
+    "workspace": "Свободная память",
+    "shell": "Agent Shell"
+  },
+  "tools": [
+    {
+      "tool": "list_agents",
+      "folder": "zzz/bootstrap",
+      "file": "examples/zzz/bootstrap/list_agents.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 6133
+    },
+    {
+      "tool": "get_session_context",
+      "folder": "zzz/bootstrap",
+      "file": "examples/zzz/bootstrap/get_session_context.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 27062
+    },
+    {
+      "tool": "get_mcp_docs",
+      "folder": "zzz/bootstrap",
+      "file": "examples/zzz/bootstrap/get_mcp_docs.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 23810
+    },
+    {
+      "tool": "get_menu",
+      "folder": "zzz/navigation",
+      "file": "examples/zzz/navigation/get_menu.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 19397
+    },
+    {
+      "tool": "get_active_context",
+      "folder": "zzz/navigation",
+      "file": "examples/zzz/navigation/get_active_context.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 1771
+    },
+    {
+      "tool": "get_active_page",
+      "folder": "zzz/navigation",
+      "file": "examples/zzz/navigation/get_active_page.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 1771
+    },
+    {
+      "tool": "search_workspace",
+      "folder": "zzz/navigation",
+      "file": "examples/zzz/navigation/search_workspace.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 4509
+    },
+    {
+      "tool": "get_topic_registry",
+      "folder": "registries",
+      "file": "examples/registries/get_topic_registry.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 3819
+    },
+    {
+      "tool": "get_always_context",
+      "folder": "registries",
+      "file": "examples/registries/get_always_context.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 15302
+    },
+    {
+      "tool": "get_cron_registry",
+      "folder": "registries",
+      "file": "examples/registries/get_cron_registry.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 542
+    },
+    {
+      "tool": "get_heartbeat_registry",
+      "folder": "registries",
+      "file": "examples/registries/get_heartbeat_registry.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 501
+    },
+    {
+      "tool": "get_storage_layout",
+      "folder": "registries",
+      "file": "examples/registries/get_storage_layout.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 68350
+    },
+    {
+      "tool": "get_workspace_table",
+      "folder": "registries",
+      "file": "examples/registries/get_workspace_table.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 4840
+    },
+    {
+      "tool": "get_canonical_model",
+      "folder": "registries",
+      "file": "examples/registries/get_canonical_model.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 25320
+    },
+    {
+      "tool": "get_site_map",
+      "folder": "zzz/navigation",
+      "file": "examples/zzz/navigation/get_site_map.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 5097
+    },
+    {
+      "tool": "list_awn_types",
+      "folder": "types",
+      "file": "examples/types/list_awn_types.json",
+      "live": true,
+      "truncated": true,
+      "responseBytes": 638881
+    },
+    {
+      "tool": "get_type_health",
+      "folder": "types",
+      "file": "examples/types/get_type_health.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 176
+    },
+    {
+      "tool": "list_data_stores",
+      "folder": "zzz/data-stores",
+      "file": "examples/zzz/data-stores/list_data_stores.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 2067
+    },
+    {
+      "tool": "get_data_store",
+      "folder": "zzz/data-stores",
+      "file": "examples/zzz/data-stores/get_data_store.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 3712
+    },
+    {
+      "tool": "read_data_store_schema",
+      "folder": "zzz/data-stores",
+      "file": "examples/zzz/data-stores/read_data_store_schema.json",
+      "live": false,
+      "error": "GET /api/awn-data/store-schema → 400: Failed to read awn-data store schema"
+    },
+    {
+      "tool": "list_type_catalog",
+      "folder": "types",
+      "file": "examples/types/list_type_catalog.json",
+      "live": true,
+      "truncated": true,
+      "responseBytes": 362341
+    },
+    {
+      "tool": "list_components",
+      "folder": "types",
+      "file": "examples/types/list_components.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 267
+    },
+    {
+      "tool": "get_platform_index",
+      "folder": "types",
+      "file": "examples/types/get_platform_index.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 2073
+    },
+    {
+      "tool": "get_page_meta",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/get_page_meta.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 587
+    },
+    {
+      "tool": "page_exists",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/page_exists.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 86
+    },
+    {
+      "tool": "read_page_body",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/read_page_body.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 1936
+    },
+    {
+      "tool": "read_page_properties",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/read_page_properties.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 1257
+    },
+    {
+      "tool": "read_page_schema",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/read_page_schema.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 1384
+    },
+    {
+      "tool": "read_page_config",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/read_page_config.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 191
+    },
+    {
+      "tool": "read_page_env",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/read_page_env.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 97
+    },
+    {
+      "tool": "list_page_slots",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/list_page_slots.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 3442
+    },
+    {
+      "tool": "list_page_types",
+      "folder": "types",
+      "file": "examples/types/list_page_types.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 4393
+    },
+    {
+      "tool": "get_page_type",
+      "folder": "types",
+      "file": "examples/types/get_page_type.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 12275
+    },
+    {
+      "tool": "list_content_types",
+      "folder": "types",
+      "file": "examples/types/list_content_types.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 25320
+    },
+    {
+      "tool": "get_content_type",
+      "folder": "types",
+      "file": "examples/types/get_content_type.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 7585
+    },
+    {
+      "tool": "list_content",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/list_content.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 8680
+    },
+    {
+      "tool": "content_exists",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/content_exists.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 150
+    },
+    {
+      "tool": "get_content_meta",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/get_content_meta.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 150
+    },
+    {
+      "tool": "read_content_body",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/read_content_body.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 492
+    },
+    {
+      "tool": "read_content_properties",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/read_content_properties.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 44
+    },
+    {
+      "tool": "list_inbox",
+      "folder": "zzz/workflow",
+      "file": "examples/zzz/workflow/list_inbox.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 1994
+    },
+    {
+      "tool": "read_thread",
+      "folder": "zzz/workflow",
+      "file": "examples/zzz/workflow/read_thread.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 210
+    },
+    {
+      "tool": "get_topic_intake",
+      "folder": "zzz/workflow",
+      "file": "examples/zzz/workflow/get_topic_intake.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 331
+    },
+    {
+      "tool": "get_intake_batch",
+      "folder": "zzz/workflow",
+      "file": "examples/zzz/workflow/get_intake_batch.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 595
+    },
+    {
+      "tool": "list_comments",
+      "folder": "zzz/workflow",
+      "file": "examples/zzz/workflow/list_comments.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 250
+    },
+    {
+      "tool": "list_adopt_folders",
+      "folder": "workspace",
+      "file": "examples/workspace/list_adopt_folders.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 875
+    },
+    {
+      "tool": "browse_workspace_folder",
+      "folder": "workspace",
+      "file": "examples/workspace/browse_workspace_folder.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 1210
+    },
+    {
+      "tool": "scan_workspace_folder",
+      "folder": "workspace",
+      "file": "examples/workspace/scan_workspace_folder.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 2168
+    },
+    {
+      "tool": "get_agent_system_status",
+      "folder": "types",
+      "file": "examples/types/get_agent_system_status.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 52
+    },
+    {
+      "tool": "get_agent_system_type",
+      "folder": "types",
+      "file": "examples/types/get_agent_system_type.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 12275
+    },
+    {
+      "tool": "read_agent_system_file",
+      "folder": "types",
+      "file": "examples/types/read_agent_system_file.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 69
+    },
+    {
+      "tool": "shell_get_status",
+      "folder": "shell",
+      "file": "examples/shell/shell_get_status.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 2851
+    },
+    {
+      "tool": "list_system_files",
+      "folder": "zzz/system",
+      "file": "examples/zzz/system/list_system_files.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 1771
+    },
+    {
+      "tool": "read_system_file",
+      "folder": "zzz/system",
+      "file": "examples/zzz/system/read_system_file.json",
+      "live": true,
+      "truncated": false,
+      "responseBytes": 61
+    },
+    {
+      "tool": "append_comment",
+      "folder": "zzz/workflow",
+      "file": "examples/zzz/workflow/append_comment.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "append_thread",
+      "folder": "zzz/workflow",
+      "file": "examples/zzz/workflow/append_thread.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "create_content",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/create_content.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "create_data_record",
+      "folder": "zzz/data-stores",
+      "file": "examples/zzz/data-stores/create_data_record.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "create_data_store",
+      "folder": "zzz/data-stores",
+      "file": "examples/zzz/data-stores/create_data_store.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "create_inbox_item",
+      "folder": "zzz/workflow",
+      "file": "examples/zzz/workflow/create_inbox_item.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "create_page",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/create_page.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "delete_content",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/delete_content.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "delete_page",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/delete_page.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "import_content_from_url",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/import_content_from_url.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "move_content",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/move_content.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "move_page",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/move_page.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "notify_user",
+      "folder": "zzz/system",
+      "file": "examples/zzz/system/notify_user.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "rename_content",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/rename_content.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "rename_page",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/rename_page.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "shell_camera_snapshot",
+      "folder": "shell",
+      "file": "examples/shell/shell_camera_snapshot.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "shell_post_message",
+      "folder": "shell",
+      "file": "examples/shell/shell_post_message.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "shell_screenshot",
+      "folder": "shell",
+      "file": "examples/shell/shell_screenshot.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "shell_stop_tts",
+      "folder": "shell",
+      "file": "examples/shell/shell_stop_tts.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "toggle_comment_reaction",
+      "folder": "zzz/workflow",
+      "file": "examples/zzz/workflow/toggle_comment_reaction.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "triage_inbox_item",
+      "folder": "zzz/workflow",
+      "file": "examples/zzz/workflow/triage_inbox_item.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "upload_content",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/upload_content.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "upload_workspace_file",
+      "folder": "workspace",
+      "file": "examples/workspace/upload_workspace_file.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "write_agent_system_file",
+      "folder": "types",
+      "file": "examples/types/write_agent_system_file.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "write_content_body",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/write_content_body.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "write_content_properties",
+      "folder": "zzz/content",
+      "file": "examples/zzz/content/write_content_properties.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "write_page_body",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/write_page_body.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "write_page_config",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/write_page_config.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "write_page_env",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/write_page_env.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "write_page_properties",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/write_page_properties.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "write_page_schema",
+      "folder": "zzz/pages",
+      "file": "examples/zzz/pages/write_page_schema.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "write_data_store_schema",
+      "folder": "zzz/data-stores",
+      "file": "examples/zzz/data-stores/write_data_store_schema.json",
+      "writeOnly": true
+    },
+    {
+      "tool": "write_system_file",
+      "folder": "zzz/system",
+      "file": "examples/zzz/system/write_system_file.json",
+      "writeOnly": true
+    }
+  ]
+}

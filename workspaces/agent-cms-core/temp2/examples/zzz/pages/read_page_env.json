@@ -1,0 +1,15 @@
+{
+  "tool": "read_page_env",
+  "folder": "zzz/pages",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:39:58.774Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 97,
+  "live": true,
+  "response": {
+    "path": "aja-test-oblasti-2031/aja-test-temy-2031/.env",
+    "content": "",
+    "exists": false
+  }
+}

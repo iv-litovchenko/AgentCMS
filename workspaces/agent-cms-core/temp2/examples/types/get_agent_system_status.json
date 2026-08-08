@@ -1,0 +1,14 @@
+{
+  "tool": "get_agent_system_status",
+  "folder": "types",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:03.559Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 52,
+  "live": true,
+  "response": {
+    "exists": false,
+    "root": "awn-data/cms-base"
+  }
+}

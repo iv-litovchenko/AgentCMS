@@ -1,0 +1,16 @@
+{
+  "tool": "create_page",
+  "folder": "zzz/pages",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:06.506Z",
+  "sampleArgs": {
+    "parentPath": "awn-container",
+    "type": "file",
+    "displayName": "Новая тема"
+  },
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "path": "awn-container/novaya-tema/manifest.md"
+  }
+}

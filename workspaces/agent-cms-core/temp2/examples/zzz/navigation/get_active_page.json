@@ -1,0 +1,62 @@
+{
+  "tool": "get_active_page",
+  "folder": "zzz/navigation",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:39:45.621Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 1771,
+  "live": true,
+  "response": {
+    "exists": true,
+    "context": {
+      "version": 1,
+      "agentId": "agent-cms-test",
+      "route": "aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/assets",
+      "contentMode": "entry-overview",
+      "label": "Ая тест темы 2031",
+      "focus": {
+        "entity": "page",
+        "page": {
+          "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+          "type": "awn.page.topic",
+          "label": "Ая тест темы 2031"
+        },
+        "editing": false
+      },
+      "mcp": {
+        "get_page_meta": {
+          "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md"
+        },
+        "read_page_body": {
+          "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md"
+        },
+        "read_page_properties": {
+          "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md"
+        },
+        "list_page_slots": {
+          "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md"
+        },
+        "write_page_body": {
+          "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md"
+        },
+        "write_page_properties": {
+          "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md"
+        }
+      },
+      "aliases": {
+        "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+        "slot": null,
+        "ref": null,
+        "contextPath": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+        "awnType": "awn.page.topic"
+      },
+      "editing": false,
+      "updatedAt": "2026-08-07T19:20:51.848Z"
+    },
+    "stale": true,
+    "path": "/Users/macbook/Desktop/YamlCMS/workspaces/agent-cms-test/.agent-cms/ui-context.json",
+    "maxAgeMs": 300000,
+    "hint": "focus.entity: page|slot|content|system|browse|home|none; mcp — готовые args для read/write_*; aliases.path/slot/ref — shortcuts; stale=true если UI давно не обновлялся"
+  }
+}

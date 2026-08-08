@@ -1,0 +1,17 @@
+{
+  "tool": "read_thread",
+  "folder": "zzz/workflow",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:02.961Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 210,
+  "live": true,
+  "response": {
+    "manifestPath": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+    "target": null,
+    "scope": "topic",
+    "threadDir": "aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/thread",
+    "messages": []
+  }
+}

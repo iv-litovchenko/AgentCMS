@@ -1,0 +1,17 @@
+{
+  "tool": "read_agent_system_file",
+  "folder": "types",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:03.872Z",
+  "sampleArgs": {
+    "path": "GLOBAL_MCP_DOC.md"
+  },
+  "truncated": false,
+  "responseBytes": 69,
+  "live": true,
+  "response": {
+    "name": "GLOBAL_MCP_DOC.md",
+    "content": "",
+    "exists": false
+  }
+}

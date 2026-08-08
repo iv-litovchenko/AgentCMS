@@ -1,0 +1,15 @@
+{
+  "tool": "create_inbox_item",
+  "folder": "zzz/workflow",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:06.504Z",
+  "sampleArgs": {
+    "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+    "title": "Intake"
+  },
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "file": "inbox/....md"
+  }
+}

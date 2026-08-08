@@ -1,0 +1,16 @@
+{
+  "tool": "upload_workspace_file",
+  "folder": "workspace",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:06.553Z",
+  "sampleArgs": {
+    "folderPath": "awn-container",
+    "fileName": "x.txt",
+    "data": "<base64>"
+  },
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "path": "awn-container/x.txt"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "tool": "shell_stop_tts",
+  "folder": "shell",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:06.541Z",
+  "sampleArgs": {},
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "ok": true
+  }
+}

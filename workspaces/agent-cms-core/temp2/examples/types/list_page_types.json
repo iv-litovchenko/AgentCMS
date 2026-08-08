@@ -1,0 +1,164 @@
+{
+  "tool": "list_page_types",
+  "folder": "types",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:01.611Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 4393,
+  "live": true,
+  "response": {
+    "groups": [
+      {
+        "id": "agent",
+        "types": [
+          {
+            "id": "awn.page.topic.agent-kit.agent",
+            "name": "Агент",
+            "description": "Описание агента — персона, роль, цели, ограничения",
+            "slug": "agent",
+            "preset": null,
+            "order": 1,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.topic.agent-kit.rules",
+            "name": "Правила",
+            "description": "Правила поведения агента — запреты, приоритеты, стиль",
+            "slug": "rules",
+            "preset": null,
+            "order": 2,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.topic.agent-kit.voice-tts",
+            "name": "Голос TTS",
+            "description": "Настройки синтеза речи (Text-to-Speech)",
+            "slug": "voice-tts",
+            "preset": null,
+            "order": 3,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.topic.agent-kit.voice-sst",
+            "name": "Голос STT",
+            "description": "Настройки распознавания речи (Speech-to-Text)",
+            "slug": "voice-sst",
+            "preset": null,
+            "order": 4,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.topic.agent-kit.user",
+            "name": "Пользователь",
+            "description": "Профиль пользователя — имя, предпочтения, контакты",
+            "slug": "user",
+            "preset": null,
+            "order": 5,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.topic.agent-kit.users",
+            "name": "Пользователи",
+            "description": "Реестр пользователей — список участников проекта или системы",
+            "slug": "users",
+            "preset": null,
+            "order": 6,
+            "source": "platform"
+          }
+        ]
+      },
+      {
+        "id": "section",
+        "types": [
+          {
+            "id": "awn.page.section.agent-kit",
+            "name": "Секция агента",
+            "description": "Служебные темы и компоненты — awn-agent-kit/",
+            "slug": "awn-agent-kit",
+            "preset": null,
+            "order": 1,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.section.shared",
+            "name": "Общие темы и ресурсы",
+            "description": "Cross-topic ресурсы — awn-shared/ (inbox, media, …)",
+            "slug": "awn-shared",
+            "preset": null,
+            "order": 2,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.section.container",
+            "name": "Контейнер",
+            "description": "Пользовательский контент — awn-container/ (опционально)",
+            "slug": "awn-container",
+            "preset": null,
+            "order": 3,
+            "source": "platform"
+          }
+        ]
+      },
+      {
+        "id": "shared",
+        "types": [
+          {
+            "id": "awn.page.topic.shared.inbox",
+            "name": "Входящие",
+            "description": "Общая inbox — входящие записи для всех тем",
+            "slug": "inbox",
+            "preset": null,
+            "order": 1,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.topic.shared.notes",
+            "name": "Заметки",
+            "description": "Общие быстрые заметки",
+            "slug": "notes",
+            "preset": null,
+            "order": 2,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.topic.shared.references",
+            "name": "Источники",
+            "description": "Общие ссылки и референсы",
+            "slug": "references",
+            "preset": null,
+            "order": 3,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.topic.shared.artefacts",
+            "name": "Артефакты",
+            "description": "Общие артефакты и черновики",
+            "slug": "artefacts",
+            "preset": null,
+            "order": 4,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.topic.shared.scripts",
+            "name": "Скрипты",
+            "description": "Общие скрипты и автоматизации",
+            "slug": "scripts",
+            "preset": null,
+            "order": 5,
+            "source": "platform"
+          },
+          {
+            "id": "awn.page.topic.shared.media",
+            "name": "Медиа",
+            "description": "Общее медиа-хранилище",
+            "slug": "media",
+            "preset": null,
+            "order": 6,
+            "source": "platform"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "tool": "get_page_meta",
+  "folder": "zzz/pages",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:39:54.978Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 587,
+  "live": true,
+  "response": {
+    "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+    "manifest": {
+      "size": 2586,
+      "createdAt": "2026-08-07T18:35:55.732Z",
+      "updatedAt": "2026-08-07T18:58:44.544Z",
+      "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md"
+    },
+    "folder": {
+      "createdAt": "2026-08-07T18:35:53.530Z",
+      "updatedAt": "2026-08-07T18:37:51.175Z"
+    },
+    "props": {
+      "size": 2586,
+      "createdAt": "2026-08-07T18:35:55.732Z",
+      "updatedAt": "2026-08-07T18:58:44.544Z",
+      "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+      "embedded": true
+    }
+  }
+}

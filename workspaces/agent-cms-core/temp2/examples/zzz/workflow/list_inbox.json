@@ -1,0 +1,68 @@
+{
+  "tool": "list_inbox",
+  "folder": "zzz/workflow",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:02.953Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 1994,
+  "live": true,
+  "response": {
+    "manifestPath": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+    "exists": true,
+    "inboxDir": "aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox",
+    "items": [
+      {
+        "path": "razdel-2/manifest.md",
+        "relPath": "aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox/razdel-2/manifest.md",
+        "status": "new",
+        "source": "",
+        "author": "",
+        "created": "",
+        "preview": "> Описание раздела.",
+        "body": "> Описание раздела."
+      },
+      {
+        "path": "razdel-2/fail-2-2.md",
+        "relPath": "aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox/razdel-2/fail-2-2.md",
+        "status": "new",
+        "source": "mcp",
+        "author": "",
+        "created": "",
+        "preview": "# Файл 2.2 входящих Вторая запись в разделе 2 входящих.",
+        "body": "# Файл 2.2 входящих\n\nВторая запись в разделе 2 входящих."
+      },
+      {
+        "path": "razdel-2/fail-2-1.md",
+        "relPath": "aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox/razdel-2/fail-2-1.md",
+        "status": "new",
+        "source": "mcp",
+        "author": "",
+        "created": "",
+        "preview": "# Файл 2.1 входящих Первая запись в разделе 2 входящих.",
+        "body": "# Файл 2.1 входящих\n\nПервая запись в разделе 2 входящих."
+      },
+      {
+        "path": "razdel-1/manifest.md",
+        "relPath": "aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox/razdel-1/manifest.md",
+        "status": "new",
+        "source": "",
+        "author": "",
+        "created": "",
+        "preview": "> Описание раздела.",
+        "body": "> Описание раздела."
+      },
+      {
+        "path": "razdel-1/fail-1-1.md",
+        "relPath": "aja-test-oblasti-2031/aja-test-temy-2031/awn-storage/inbox/razdel-1/fail-1-1.md",
+        "status": "new",
+        "source": "mcp",
+        "author": "",
+        "created": "",
+        "preview": "# Файл 1.1 входящих Запись в разделе 1 входящих (inbox).",
+        "body": "# Файл 1.1 входящих\n\nЗапись в разделе 1 входящих (inbox)."
+      }
+    ],
+    "pending": 5
+  }
+}

@@ -1,0 +1,270 @@
+{
+  "tool": "get_session_context",
+  "folder": "zzz/bootstrap",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:39:45.446Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 27062,
+  "live": true,
+  "response": {
+    "version": "0.0.4",
+    "mcpVersion": "0.3.0",
+    "agentId": "agent-cms-test",
+    "agentRootRel": "workspaces/agent-cms-test",
+    "kitFolder": "awn-agent-kit",
+    "pathHints": {
+      "topicManifest": "Путь к manifest.md страницы (awn.page.topic|area), напр. awn-container/finansydohody/manifest.md",
+      "externalSlot": "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
+      "internalSlot": "Internal-слот: read_content_body без ref (main-single, todo-single, main-single-csv)",
+      "agentKit": "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
+      "storageLayers": "awn-storage/main|memory|inbox|thread|references|artefacts|media|scripts|history|…",
+      "storageFile": "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
+      "adoptFolder": "Свободная память (папки без manifest.md): list adopt → browse/scan по folderPath → read page/text для разбора материалов",
+      "adoptFolderBrowse": "GET /api/workspace/folder/browse?folderPath=awn-container/Материалы",
+      "adoptFolderScan": "GET /api/workspace/folder/scan?folderPath=...&depth=all&includeBody=true — flat inventory для сортировки по темам"
+    },
+    "apiMap": {
+      "sessionContext": "GET /api/agent/session-context — стартовый пакет контекста",
+      "menu": "GET /api/menu — дерево тем (manifest.md)",
+      "activePage": "GET /api/agent/active-context — текущий фокус UI (PAGE→SLOT→CONTENT + mcp hints)",
+      "activeContext": "GET /api/agent/active-context — alias active-page",
+      "search": "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&match=relaxed|strict&limit=",
+      "topicRegistry": "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
+      "alwaysContext": "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
+      "cronRegistry": "GET /api/agent/cron-registry — реестр cron (темы + записи)",
+      "heartbeatRegistry": "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
+      "storageLayout": "GET /api/agent/storage-layout — слоты awn-storage",
+      "workspaceTable": "GET /api/agent/workspace-table — таблица тем",
+      "canonicalModel": "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
+      "siteMap": "GET /api/agent/site-map — карта сайта: все темы и области",
+      "dataStores": "GET /api/awn-data — накопители awn-data; ?store= для одного",
+      "dataStoreCreate": "POST /api/awn-data/stores — создать накопитель",
+      "dataRecordCreate": "POST /api/awn-data/records — добавить запись",
+      "dataStoreSchemaRead": "GET /api/awn-data/store-schema?store= — schema-mod.yml полей записей",
+      "dataStoreSchemaWrite": "POST /api/awn-data/store-schema — сохранить schema-mod.yml",
+      "platformCatalogs": "GET /api/platform/catalogs — legacy справочники",
+      "agentCatalogs": "GET /api/agent/catalogs — legacy справочники агента",
+      "manifest": "GET /api/file?path=<manifest.md>",
+      "pageMeta": "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
+      "pageSlots": "GET /api/page/slots?path=<manifest.md> — слоты страницы (driver, allowedContent)",
+      "pageCreate": "POST /api/page/create — создать страницу area/topic",
+      "contentCreate": "create_content MCP — typed .md or plain-text via fileExtension; write_content_file — overwrite .py/.html/…; upload_content — base64; import_content_from_url — URL → slot",
+      "thread": "GET /api/thread?path=<manifest.md>",
+      "inbox": "GET /api/inbox?path=<manifest.md>",
+      "topicIntake": "GET /api/topic/intake?path=<manifest.md>",
+      "adoptFolders": "GET /api/workspace/folder/adopt — свободная память: папки без manifest.md",
+      "workspaceFolderUpload": "POST /api/workspace/folder/upload — загрузить файл(ы) в папку свободной памяти (folderPath, data base64, fileName)",
+      "workspaceFolderRename": "POST /api/workspace/folder/rename — переименовать файл или папку (path, newName)",
+      "workspaceFolderMove": "POST /api/workspace/folder/move — переместить файл или папку (path, parentPath)",
+      "workspaceFolderDelete": "POST /api/workspace/folder/delete — удалить файлы/папки (paths[])",
+      "workspaceFolderBrowse": "GET /api/workspace/folder/browse?folderPath=<path> — содержимое папки (1 уровень)",
+      "workspaceFolderScan": "GET /api/workspace/folder/scan?folderPath=<path>&depth=1|2|all&includeBody=true — рекурсивный инвентарь для разбора тем",
+      "workspaceFolderPage": "GET /api/workspace/folder/page?file=<path.md> — markdown-страница из свободной памяти",
+      "workspaceFolderText": "GET /api/workspace/folder/text?file=<path> — текстовый файл из свободной памяти"
+    },
+    "menuSummary": {
+      "topicCount": 0,
+      "hasServiceTree": true,
+      "hasContainerTree": true,
+      "hasSharedTree": true
+    },
+    "awnSystem": {
+      "exists": false,
+      "root": "awn-data/cms-base",
+      "typeSummary": null,
+      "docs": {
+        "map": {
+          "path": "Resources/MAP.md",
+          "exists": false,
+          "content": null
+        },
+        "registry": {
+          "path": "awn-data/cms-base/registry.yml",
+          "exists": false,
+          "content": null
+        },
+        "manifest": {
+          "path": "awn-data/cms-base/manifest.md",
+          "exists": false,
+          "content": null
+        }
+      },
+      "hint": "CMS-модель агента: awn-data/{pages,content,slots}/ и awn-data/taxonomies/slot-categories/"
+    },
+    "serviceDocs": [
+      {
+        "slotKey": "agent",
+        "manifestPath": "awn-agent-kit/agent/manifest.md",
+        "exists": true,
+        "content": "---\nid: \"\"\nname: \"\"\ndescription: \"\"\nextends: \"\"\nstatus: \"\"\nkind: \"\"\nawn-name: \"Агент\"\nawn-emoji: \"\"\nawn-status: open\nawn-description: \"\"\nawn-tags: \"\"\nawn-type: awn.page.topic.agent-kit.agent\nawn-create: 2026-08-07T10:43:14.324Z\nawn-update: 2026-08-07T10:43:14.324Z\nawn-version: 1\nawn-preview: \"\"\nawn-web-url: \"\"\nawn-main: false\nawn-category: \"\"\nawn-owner: \"\"\nawn-priority: \"\"\nawn-color: \"\"\nawn-sort: \"\"\nawn-runtime-load-always: false\nawn-runtime-cron: \"\"\nawn-runtime-cron-schedule: \"\"\nawn-runtime-heartbeat: \"\"\nawn-runtime-commands: false\nawn-slots-disabled: false\nawn-agent-role: \"\"\nawn-agent-language: \"\"\n---\n"
+      },
+      {
+        "slotKey": "user",
+        "manifestPath": "awn-agent-kit/user/manifest.md",
+        "exists": true,
+        "content": "---\nid: \"\"\nname: \"\"\ndescription: \"\"\nextends: \"\"\nstatus: \"\"\nkind: \"\"\nawn-name: \"Пользователь\"\nawn-emoji: \"\"\nawn-status: open\nawn-description: \"\"\nawn-tags: \"\"\nawn-type: awn.page.topic.agent-kit.user\nawn-create: 2026-08-07T10:43:26.045Z\nawn-update: 2026-08-07T10:43:26.045Z\nawn-version: 1\nawn-preview: \"\"\nawn-web-url: \"\"\nawn-main: false\nawn-category: \"\"\nawn-owner: \"\"\nawn-priority: \"\"\nawn-color: \"\"\nawn-sort: \"\"\nawn-runtime-load-always: false\nawn-runtime-cron: \"\"\nawn-runtime-cron-schedule: \"\"\nawn-runtime-heartbeat: \"\"\nawn-runtime-commands: false\nawn-slots-disabled: false\nawn-user-role: \"\"\nawn-user-timezone: \"\"\n---\n"
+      },
+      {
+        "slotKey": "agent.voice.tts",
+        "manifestPath": "awn-agent-kit/agent.voice.tts/manifest.md",
+        "exists": false,
+        "content": null
+      },
+      {
+        "slotKey": "agent.voice.stt",
+        "manifestPath": "awn-agent-kit/agent.voice.stt/manifest.md",
+        "exists": false,
+        "content": null
+      }
+    ],
+    "topicRegistry": {
+      "version": 1,
+      "model": "topic-registry",
+      "hint": "Краткий реестр всех тем — skill/оглавление workspace. Полное содержимое: read_page_body или get_always_context.",
+      "topics": [
+        {
+          "manifestPath": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+          "label": "Ая тест темы 2031",
+          "displayPath": "aja-test-oblasti-2031/aja-test-temy-2031/aja-test-temy-2031",
+          "description": "Тестовая тема в области «Ая тест области 2031» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном.",
+          "awnType": "awn.page.topic"
+        },
+        {
+          "manifestPath": "awn-agent-kit/agent/manifest.md",
+          "label": "Агент",
+          "displayPath": "awn-agent-kit/agent/agent",
+          "description": "",
+          "awnType": "awn.page.topic.agent-kit.agent"
+        },
+        {
+          "manifestPath": "awn-agent-kit/user/manifest.md",
+          "label": "Пользователь",
+          "displayPath": "awn-agent-kit/user/user",
+          "description": "",
+          "awnType": "awn.page.topic.agent-kit.user"
+        },
+        {
+          "manifestPath": "awn-agent-kit/users/manifest.md",
+          "label": "Пользователи",
+          "displayPath": "awn-agent-kit/users/users",
+          "description": "",
+          "awnType": "awn.page.topic.agent-kit.users"
+        },
+        {
+          "manifestPath": "awn-container/media-test-gugl-disk/manifest.md",
+          "label": "Медиа-Тест гугл диск",
+          "displayPath": "awn-container/media-test-gugl-disk/media-test-gugl-disk",
+          "description": "",
+          "awnType": "awn.page.topic"
+        },
+        {
+          "manifestPath": "awn-container/php/manifest.md",
+          "label": "PHP",
+          "displayPath": "awn-container/php/php",
+          "description": "Описание",
+          "awnType": "awn.page.topic"
+        },
+        {
+          "manifestPath": "awn-container/tema-bez-slotov/manifest.md",
+          "label": "Тема без слотов",
+          "displayPath": "awn-container/tema-bez-slotov/tema-bez-slotov",
+          "description": "",
+          "awnType": "awn.page.topic"
+        },
+        {
+          "manifestPath": "awn-container/test-ssylok/manifest.md",
+          "label": "Тест ссылок",
+          "displayPath": "awn-container/test-ssylok/test-ssylok",
+          "description": "",
+          "awnType": "awn.page.topic"
+        },
+        {
+          "manifestPath": "awn-container/test-vseh-poley/manifest.md",
+          "label": "Тест всех полей",
+          "displayPath": "awn-container/test-vseh-poley/test-vseh-poley",
+          "description": "Демо-тема для проверки всех виджетов кастомных полей (topic / record / sidecar)",
+          "awnType": "awn.page.topic"
+        },
+        {
+          "manifestPath": "awn-shared/artefacts/manifest.md",
+          "label": "Артефакты",
+          "displayPath": "awn-shared/artefacts/artefacts",
+          "description": "",
+          "awnType": "awn.page.topic"
+        },
+        {
+          "manifestPath": "awn-shared/inbox/manifest.md",
+          "label": "Входящие",
+          "displayPath": "awn-shared/inbox/inbox",
+          "description": "",
+          "awnType": "awn.page.topic"
+        },
+        {
+          "manifestPath": "awn-shared/media/manifest.md",
+          "label": "Медиа",
+          "displayPath": "awn-shared/media/media",
+          "description": "",
+          "awnType": "awn.page.topic"
+        },
+        {
+          "manifestPath": "awn-shared/notes/manifest.md",
+          "label": "Заметки",
+          "displayPath": "awn-shared/notes/notes",
+          "description": "",
+          "awnType": "awn.page.topic"
+        },
+        {
+          "manifestPath": "awn-shared/references/manifest.md",
+          "label": "Источники",
+          "displayPath": "awn-shared/references/references",
+          "description": "",
+          "awnType": "awn.page.topic"
+        },
+        {
+          "manifestPath": "awn-shared/scripts/manifest.md",
+          "label": "Скрипты",
+          "displayPath": "awn-shared/scripts/scripts",
+          "description": "",
+          "awnType": "awn.page.topic"
+        }
+      ],
+      "topicCount": 15
+    },
+    "topicCount": 15,
+    "alwaysContext": {
+      "version": 1,
+      "model": "always-context",
+      "hint": "Всегда в контексте: awn-runtime-load-always на темах/записях + AGENTS.md/SKILL.md/README.md + GLOBAL_MCP_DOC.md (платформа). Полное содержимое каждого файла.",
+      "items": [
+        {
+          "entityKind": "topic",
+          "manifestPath": "awn-container/test-ssylok/manifest.md",
+          "slot": null,
+          "ref": null,
+          "label": "Тест ссылок",
+          "displayPath": "awn-container/test-ssylok/test-ssylok",
+          "description": "",
+          "runtimeLoadAlways": true,
+          "exists": true,
+          "content": "---\nawn-preview: \"\"\nawn-web-url: \"\"\nawn-emoji: \"\"\nawn-name: Тест ссылок\nawn-status: draft\nawn-type: awn.page.topic\nawn-create: \"2026-07-25T01:45\"\nawn-update: 2026-08-02T01:17:08.451Z\nawn-description: \"\"\nawn-main: false\nawn-category: \"\"\nawn-owner: \"\"\nawn-priority: \"\"\nawn-tags: []\nawn-color: \"\"\nawn-version: 15\nawn-sort: 0\nawn-runtime-load-always: true\nawn-runtime-cron: true\nawn-runtime-cron-schedule: \"*/30 * * * *\"\nawn-runtime-heartbeat: true\nawn-runtime-commands: true\nfield_test_ws_merge: \"\"\nawn-attachments: []\n---\n"
+        },
+        {
+          "entityKind": "system",
+          "manifestPath": null,
+          "slot": null,
+          "ref": "GLOBAL_MCP_DOC.md",
+          "label": "GLOBAL_MCP_DOC.md",
+          "displayPath": "workspaces/agent-cms-core/GLOBAL_MCP_DOC.md",
+          "description": "Глобальная карта MCP (agent-cms-core, все агенты)",
+          "runtimeLoadAlways": true,
+          "exists": true,
+          "content": "# GLOBAL_MCP_DOC — краткая карта Agent CMS\n\nГлобальный документ платформы (`workspaces/agent-cms-core/GLOBAL_MCP_DOC.md`): попадает в always-context **всех** агентов.\n\n## Зачем это\n\nЭто **общее хранилище** человека и агента: одно дерево страниц, слотов и записей, один язык модели (Page · Slot · Content · типы · MCP).  \nМы ведём его вместе: ты пишешь и правишь через MCP, человек — через UI; оба видят одно и то же.  \n**1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.\n\n**Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, shell/`curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP.  \nЭтот файл — шпаргалка. Полный список tools: `get_mcp_docs`.\n\nПеред работой: `get_session_context` → `get_active_context`.  \nПоиск: `search_workspace` (как шапка UI; scope=all|content|filename…).\n\n**«Перезагрузи контекст»** → снова `get_session_context` (отдельного `reload_*` нет).  \nУточнения: только always-файлы → `get_always_context`; фокус UI → `get_active_context`; только оглавление тем → `get_topic_registry`.\n\n## Модель (3 сущности)\n\n| Сущность | Что это | Ключ MCP |\n|----------|---------|----------|\n| **Page** | Узел дерева меню (`manifest.md`) | `path` → `…/manifest.md` |\n| **Slot** | Место хранения на странице | `slot` → `main`, `inbox`, `media`… |\n| **Content** | Файл внутри слота | `path` + `slot` + `ref` |\n\n**Page ≠ Content.** Слот — не файл; контент живёт *в* слоте.\n\n### Ключи (обязательно)\n\n| Ключ | Значение | Пример |\n|------|----------|--------|\n| `path` | Путь к **manifest.md** страницы | `awn-container/finansy/manifest.md` |\n| `slot` | MCP-ключ слота | `notes`, `scripts`, `dialogs` — совпадает с именем папки (кроме `dialogs` → папка `thread/`) |\n| `ref` | Путь файла **внутри** слота | `vstrecha.md` или `subdir/vstrecha.md` |\n\nУстаревшие алиасы (ещё работают, но не используй): `note` → `notes`, `script` → `scripts`, `thread` → `dialogs`.\n\n### Фокус UI — `get_active_context`\n\nЧто открыто у пользователя. Смотри `focus.entity`: `page` | `slot` | `content` | `system` | `browse` | …  \nВ ответе уже есть готовые MCP-args: `path` / `slot` / `ref` — подставляй в `read_*` / `write_*`, не угадывай пути.\n\n---\n\n## Дерево агента\n\n| Папка | Зачем |\n|-------|-------|\n| `awn-agent-kit/` | Служебные темы агента (persona, rules, voice…) |\n| `awn-shared/` | Общие ресурсы между темами (inbox, media…) |\n| `awn-container/` | Пользовательский контент — обычные области/темы |\n| корень | `manifest.md` (ws) + системные MD (`AGENTS.md`, `SKILL.md`…) |\n\n`create_page`: обычно `parentPath` внутри `awn-container/` (или kit/shared по назначению).\n\n- `type: \"folder\"` — раздел (area / section); `type: \"file\"` — тема (topic)\n- `awnType` — точный тип, напр. `awn.page.topic` или `awn.page.section.container`\n- `displayName` / `title` → `awn-name`; `slug` / `name` → папка на диске\n- список допустимых: `list_page_types`\n\n---\n\n## Реестры\n\nИндексы workspace — **без** полного обхода дерева вручную. Старт: `get_session_context` уже отдаёт `topicRegistry` + `alwaysContext`.\n\n| Tool | Что внутри | Тела файлов? |\n|------|------------|--------------|\n| `get_topic_registry` | Все темы: name, path, description (skill-карта) | нет |\n| `get_always_context` | `awn-runtime-load-always` + `AGENTS.md` / `SKILL.md` / `README.md` + глобальный `GLOBAL_MCP_DOC.md` | **да** |\n| `get_cron_registry` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |\n| `get_heartbeat_registry` | Темы/записи с `awn-runtime-heartbeat` | нет |\n| `get_site_map` | Карта сайта: области + темы + `awn-type` | нет |\n| `get_workspace_table` | Плоская таблица тем | нет |\n\nФлаги на теме/записи (frontmatter):\n\n- `awn-runtime-load-always` — полный текст в always-context  \n- `awn-runtime-cron` / `awn-runtime-cron-schedule` — расписание  \n- `awn-runtime-heartbeat` — периодическая проверка  \n\nСначала реестр → потом точечно `read_page_*` / `read_content_*` по path.\n\n---\n\n## Страницы\n\nУзел дерева меню (`manifest.md`).\n\n| id | Имя | Зачем |\n|----|-----|-------|\n| `awn.page.ws` | Workspace | Корень агента — `manifest.md` в корне workspace |\n| `awn.page.area` | Область | Папка-раздел в меню (legacy; новые — `awn.page.section.*`) |\n| `awn.page.topic` | Тема | Рабочая страница со слотами (main, inbox, media…) |\n| `awn.page.section.*` | Секция | Служебные разделы: `agent-kit`, `shared`, `container` |\n\n- дерево / карта: `get_menu`, `get_site_map`\n- фокус UI: `get_active_context`\n- тело / свойства: `read_page_body` / `write_page_body`, `read_page_properties` / `write_page_properties`\n- схема / конфиг: `read_page_schema` / `write_page_schema`, `read_page_config` / `write_page_config`\n- создать / переименовать / сдвинуть: `create_page`, `rename_page`, `move_page`, `delete_page`\n- типы: `list_page_types` → `get_page_type` **по `id`** (`awn.page.topic`)\n\n### Запись свойств — patch (одно поле ок)\n\n`write_page_properties` / `write_content_properties` — **merge**: шли только изменённые ключи, остальное остаётся с диска. Auto-поля (`awn-update`, `awn-version`, `awn-create`) дописывает сервер.\n\n| Метод | Что шлёшь | Исключение |\n|-------|----------|------------|\n| `write_page_properties` | patch YAML (`awn-status: closed`) | — |\n| `write_content_properties` | patch YAML | — |\n| `write_data_store_schema` | **полный** YAML/`fields` накопителя | без полного read потеряешь поля |\n\nТело (`write_page_body` / `write_content_body`) frontmatter **не трогает**.\n\n---\n\n## Схемы\n\nСхема = какие поля у сущности (не путать с телом markdown и значениями).\n\n| Что | Файл | Tools | Когда |\n|-----|------|-------|-------|\n| Поля страницы / слотов | `schema-mod.yml` (`awn_schema`) | `read_page_schema` / `write_page_schema` | Добавить/менять поля формы |\n| UI/настройки страницы | `configuration.yml` (`awn_ui`, `awn_settings`) | `read_page_config` / `write_page_config` | UI, mask — **не** поля |\n| Поля записей накопителя | `schema-mod.yml` в awn-data | `read_data_store_schema` / `write_data_store_schema` | Схема awn-data |\n| Канон типа | awn-system | `get_page_type` / `get_content_type` / `get_agent_system_type` | Смотреть базовые fields |\n\n- свойства (`*_properties`) — **значения** frontmatter; **patch**: шли только изменённые ключи, остальное merge с диском  \n- схема (`*_schema`) — **описание** полей формы  \n- тип (`get_*_type`) — база из awn-system; `schema-mod.yml` — локальный override поверх типа  \n\n**Схема для агента:** базовые поля типа — один раз `get_page_type(id)`. Локальные дополнения — `read_page_schema` (**`mode=layers`**, default): три слоя `workspace` / `area` / `topic`, только непустые блоки (нет 44× пустых, нет baseTypes/merged/fieldRegistry). **Запись:** YAML только с нужным блоком; ответ — те же layers. Legacy UI dump: `mode=full`. `write_data_store_schema` — полный актуальный YAML/`fields`.\n\n---\n\n## Слоты\n\nМесто хранения на странице. MCP-ключ: `slot`.  \n`list_page_slots` отдаёт `driver`: **`external`** (папка, много файлов) или **`internal`** (один файл).\n\n### Многофайловая память (external)\n\nПапка в `awn-storage/`. Нужны `path` + `slot` + `ref`.\n\n| slot | id | Папка | Зачем |\n|------|-----|-------|-------|\n| `main` | `awn.slot.main` | `main/` | Основная память — много `.md` |\n| `inbox` | `awn.slot.inbox` | `inbox/` | Входящие |\n| `notes` | `awn.slot.note` | `notes/` | Заметки |\n| `references` | `awn.slot.references` | `references/` | Источники / ссылки |\n| `artefacts` | `awn.slot.artefacts` | `artefacts/` | Артефакты / черновики |\n| `media` | `awn.slot.media` | `media/` | Медиатека темы (самостоятельные файлы) |\n| `assets` | `awn.slot.assets` | `assets/` | Ресурсы **для записей** (вставки, вложения, preview) |\n| `repository` | `awn.slot.repository` | `repository/` | Репозитории / код |\n| `scripts` | `awn.slot.script` | `scripts/` | Скрипты |\n| `comments` | `awn.slot.comments` | `comments/` | Комментарии к узлу/файлу |\n| `dialogs` | `awn.slot.dialogs` | `thread/` | Диалог темы (не через `create_content` — `read_thread` / `append_thread`) |\n\n### Однофайловая память (internal)\n\nОдин файл на слот (`main.md`, `todo.md`…). Нужны `path` + `slot`; **`ref` не указывай** — `read_content_body` / `write_content_body`.\n\n| slot | id | Файл | Зачем |\n|------|-----|------|-------|\n| `main-single` | `awn.slot.main-single` | `main.md` | Одна страница памяти |\n| `main-single-csv` | `awn.slot.main-single-csv` | `main.csv` | Табличная память |\n| `todo-single` | `awn.slot.todo-single` | `todo.md` | TODO |\n| `log-single` | `awn.slot.log-single` | `log.md` | Журнал |\n\nСистемные (обычно не трогать вручную): `history`, `temp`, `volume`.\n\n- список слотов страницы: `list_page_slots`\n- схема: `get_storage_layout`, `get_canonical_model`\n\n### Куда грузить файлы (`upload_content` / `import_content_from_url`)\n\n| Цель | `slot` | `parent` (подпапка) | Куда на диске / как ссылаться |\n|------|--------|---------------------|-------------------------------|\n| Превью темы/карточки | `assets` | `preview` | `awn-storage/assets/preview/` → поле `awn-preview` |\n| Картинка, вставленная в текст записи | `assets` | `pasted` | `awn-storage/assets/pasted/` → в markdown: `![…](awn-storage/assets/pasted/file.png)` |\n| Вложение записи | `assets` | `attachments` | `awn-storage/assets/attachments/` → поле `awn-attachments` |\n| Медиатека темы (не к конкретной записи) | `media` | — / раздел | `awn-storage/media/` |\n\nПример: `{ \"path\": \"…/manifest.md\", \"slot\": \"assets\", \"parent\": \"pasted\", \"fileName\": \"shot.png\", \"data\": \"…\" }`\n\n**`media` ≠ `assets`.** Не путать:\n- `media` — медиатека **темы** (самостоятельные файлы в `media/`)\n- `assets` — ресурсы **записей** (`preview` / `pasted` / `attachments` в `assets/`)  \nКартинку в текст или превью темы → `assets`, не `media`.\n\n---\n\n## Контент\n\nФайл внутри слота (`path` + `slot` + `ref`).\n\n| id | Имя | Зачем |\n|----|-----|-------|\n| `awn.content.category` | Категория | Папка для группировки записей внутри слота |\n| `awn.content.record` | Запись | Обычный `.md` в слоте (заметка, документ) |\n| `awn.content.comment` | Комментарий | Комментарий к странице/записи — слот `comments/` |\n| `awn.content.sidecar` | Sidecar | Мета к бинарному файлу (`*.sidecar.md` рядом с media) |\n\n- список: `list_content`\n- тело / свойства: `read_content_body` / `write_content_body`, `read_content_properties` / `write_content_properties`\n- создать: `create_content` (md/record), `upload_content` (файл), `import_content_from_url`\n- типы: `list_content_types` → `get_content_type` **по `id`**\n\n`write_content_properties` — patch frontmatter (одно поле ок); тело сохраняется.\n\n---\n\n## Накопители (awn-data)\n\nОтдельно от страниц/слотов.\n\n- список: `list_data_stores` → `get_data_store`\n- схема полей: `read_data_store_schema` / `write_data_store_schema`\n- запись: `create_data_record`\n\nНе путать с `create_content`.\n\n`write_data_store_schema` — полная замена схемы накопителя: сначала `read`, потом пиши полный актуальный YAML/`fields`.\n\n---\n\n---\n\n## Свободная память\n\nДва разных случая:\n\n1. **Папка без `manifest.md`** (ещё не тема) → `list_adopt_folders` / `browse_workspace_folder` / `scan_workspace_folder` / `upload_workspace_file`\n2. **Тема lite:** `awn-slots-disabled: true` — файлы рядом с `manifest.md`, без `awn-storage/` (не adopt-папка)\n\nНе путать с `create_content` (обычная тема **со слотами**).\n\n---\n\n## Системные файлы агента\n\nКорень **конкретного** workspace: `AGENTS.md`, `SKILL.md`, `README.md`, `NOTE.md`, `TODO.md`…\n\n- список: `list_system_files`\n- читать / писать: `read_system_file` / `write_system_file`\n\nВ always-context агента (если есть): `AGENTS.md`, `SKILL.md`, `README.md`.  \nПлюс всегда глобально: `GLOBAL_MCP_DOC.md` из корня `agent-cms-core` (для всех агентов).\n\n---\n\n## Inbox / thread / comments\n\n| Задача | Tools | Не делать |\n|--------|-------|-----------|\n| Intake / входящие | `list_inbox`, `create_inbox_item`, `triage_inbox_item` | Не подменять triage обычным `create_content` в `inbox`, если нужен triage-поток |\n| Диалог темы | `read_thread`, `append_thread` | Не писать в `thread/` через `create_content` |\n| Комментарии к узлу/файлу | `list_comments`, `append_comment`, `toggle_comment_reaction` | Не `create_content` + `awn.content.comment` |\n| Сводка | `get_topic_intake` | — |\n\n`create_content` в `slot: inbox` — просто файл в слоте; **intake-заметка** — `create_inbox_item`.  \nКомментарии ≠ записи в `main`.\n\n---\n\n## Типы (awn-system)\n\n- детали: `get_agent_system_type` / `get_page_type` / `get_content_type` — всегда **`id`**, не path без расширения\n- пример: `{ \"id\": \"awn.page.area\" }` ✅ · `{ \"path\": \"awn-system/types/pages/area\" }` — только если с `.yml`\n\n---\n\n## Антипаттерны\n\n1. Не писать файлы «в корень темы» — только через slot (`create_content` / `upload_content`), **если нет** `awn-slots-disabled: true` (режим lite: память рядом с `manifest.md`, без `awn-storage/`).\n2. Не путать page tools (`*_page_*`) и content tools (`*_content_*`).\n3. Типы искать по `id`, не угадывать path.\n4. `awn-data` ≠ слот страницы.\n5. Уведомление в 🔔 CMS → `notify_user`; сообщение в Shell → `shell_post_message`.\n6. В `slot` — канонические ключи: `notes`, `scripts`, `dialogs` (не устаревшие `note` / `script` / `thread`).\n7. Комментарии / thread / inbox-intake — свои tools; не через произвольный `create_content`.\n8. `read_page_schema` — default `mode=layers` (workspace/area/topic); не `mode=full` без нужды.\n9. `write_data_store_schema` — полная замена: сначала `read`, потом полный YAML.\n10. `media` ≠ `assets`: медиатека темы vs ресурсы записей (preview / pasted / attachments).\n"
+        }
+      ],
+      "itemCount": 2
+    },
+    "alwaysContextCount": 2,
+    "hint": "Старт: topicRegistry (skill-карта) + alwaysContext (полные файлы). Cron: get_cron_registry. Heartbeat: get_heartbeat_registry."
+  }
+}

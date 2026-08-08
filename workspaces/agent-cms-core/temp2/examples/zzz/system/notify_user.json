@@ -1,0 +1,14 @@
+{
+  "tool": "notify_user",
+  "folder": "zzz/system",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:06.520Z",
+  "sampleArgs": {
+    "title": "Готово"
+  },
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "ok": true
+  }
+}

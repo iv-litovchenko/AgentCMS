@@ -1,0 +1,22 @@
+{
+  "tool": "get_type_health",
+  "folder": "types",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:39:54.365Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 176,
+  "live": true,
+  "response": {
+    "specVersion": "1.0",
+    "model": "type-health",
+    "summary": {
+      "total": 88,
+      "errors": 0,
+      "warnings": 0,
+      "info": 0,
+      "healthy": true
+    },
+    "issues": []
+  }
+}

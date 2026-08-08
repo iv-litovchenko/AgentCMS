@@ -1,0 +1,17 @@
+{
+  "tool": "move_content",
+  "folder": "zzz/content",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:40:06.515Z",
+  "sampleArgs": {
+    "path": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+    "slot": "notes",
+    "ref": "a.md",
+    "targetRef": "b.md"
+  },
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "ok": true
+  }
+}

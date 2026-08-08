@@ -1,0 +1,2710 @@
+{
+  "tool": "get_storage_layout",
+  "folder": "registries",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:39:49.106Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 68350,
+  "live": true,
+  "response": {
+    "containers": [
+      {
+        "containerDir": "",
+        "storageRoot": "awn-storage",
+        "slots": [
+          {
+            "manifestPath": "manifest.md",
+            "kind": "area",
+            "label": "agent-cms-test",
+            "slotKey": "",
+            "slotDir": "awn-storage",
+            "exists": true,
+            "layers": {
+              "main.md": {
+                "kind": "file",
+                "exists": false
+              },
+              "main.csv": {
+                "kind": "file",
+                "exists": false
+              },
+              "config.yml": {
+                "kind": "file",
+                "exists": false
+              },
+              "todo.md": {
+                "kind": "file",
+                "exists": false
+              },
+              "log.md": {
+                "kind": "file",
+                "exists": false
+              },
+              ".env": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.png": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpeg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.gif": {
+                "kind": "file",
+                "exists": false
+              },
+              "main": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "inbox": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "thread": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "quick-notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "references": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "media": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "assets": {
+                "kind": "folder",
+                "exists": true,
+                "entryCount": 5
+              },
+              "scripts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "artefacts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "repository": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "configuration": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "temp": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "volume": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              }
+            }
+          }
+        ],
+        "orphanSlots": [
+          "history"
+        ],
+        "rootLayers": {
+          "main.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "main.csv": {
+            "kind": "file",
+            "exists": false
+          },
+          "config.yml": {
+            "kind": "file",
+            "exists": false
+          },
+          "todo.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "log.md": {
+            "kind": "file",
+            "exists": false
+          },
+          ".env": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.png": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpeg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.gif": {
+            "kind": "file",
+            "exists": false
+          },
+          "main": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "inbox": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "thread": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "quick-notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "references": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "media": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "assets": {
+            "kind": "folder",
+            "exists": true,
+            "entryCount": 5
+          },
+          "scripts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "artefacts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "repository": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "configuration": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "temp": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "volume": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          }
+        },
+        "rootHasContent": true
+      },
+      {
+        "containerDir": "aja-test-oblasti-2031",
+        "storageRoot": "aja-test-oblasti-2031/awn-storage",
+        "slots": [
+          {
+            "manifestPath": "aja-test-oblasti-2031/manifest.md",
+            "kind": "area",
+            "label": "Ая тест области 2031",
+            "slotKey": "aja-test-oblasti-2031",
+            "slotDir": "aja-test-oblasti-2031/awn-storage",
+            "exists": true,
+            "layers": {
+              "main.md": {
+                "kind": "file",
+                "exists": true
+              },
+              "main.csv": {
+                "kind": "file",
+                "exists": false
+              },
+              "config.yml": {
+                "kind": "file",
+                "exists": false
+              },
+              "todo.md": {
+                "kind": "file",
+                "exists": false
+              },
+              "log.md": {
+                "kind": "file",
+                "exists": false
+              },
+              ".env": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.png": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpeg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.gif": {
+                "kind": "file",
+                "exists": false
+              },
+              "main": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "inbox": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "thread": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "quick-notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "references": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "media": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "assets": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "scripts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "artefacts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "repository": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "configuration": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "temp": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "volume": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              }
+            }
+          }
+        ],
+        "orphanSlots": [
+          "history"
+        ],
+        "rootLayers": {
+          "main.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "main.csv": {
+            "kind": "file",
+            "exists": false
+          },
+          "config.yml": {
+            "kind": "file",
+            "exists": false
+          },
+          "todo.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "log.md": {
+            "kind": "file",
+            "exists": false
+          },
+          ".env": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.png": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpeg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.gif": {
+            "kind": "file",
+            "exists": false
+          },
+          "main": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "inbox": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "thread": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "quick-notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "references": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "media": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "assets": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "scripts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "artefacts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "repository": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "configuration": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "temp": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "volume": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          }
+        },
+        "rootHasContent": false
+      },
+      {
+        "containerDir": "aja-test-oblasti-2031/aja-test-temy-2031",
+        "storageRoot": "aja-test-oblasti-2031/aja-test-temy-2031/awn-storage",
+        "slots": [
+          {
+            "manifestPath": "aja-test-oblasti-2031/aja-test-temy-2031/manifest.md",
+            "kind": "topic",
+            "label": "Ая тест темы 2031",
+            "slotKey": "aja-test-temy-2031",
+            "slotDir": "aja-test-oblasti-2031/aja-test-temy-2031/awn-storage",
+            "exists": true,
+            "layers": {
+              "main.md": {
+                "kind": "file",
+                "exists": true
+              },
+              "main.csv": {
+                "kind": "file",
+                "exists": true
+              },
+              "config.yml": {
+                "kind": "file",
+                "exists": false
+              },
+              "todo.md": {
+                "kind": "file",
+                "exists": true
+              },
+              "log.md": {
+                "kind": "file",
+                "exists": false
+              },
+              ".env": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.png": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpeg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.gif": {
+                "kind": "file",
+                "exists": false
+              },
+              "main": {
+                "kind": "folder",
+                "exists": true,
+                "entryCount": 3
+              },
+              "inbox": {
+                "kind": "folder",
+                "exists": true,
+                "entryCount": 3
+              },
+              "thread": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "quick-notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "notes": {
+                "kind": "folder",
+                "exists": true,
+                "entryCount": 3
+              },
+              "references": {
+                "kind": "folder",
+                "exists": true,
+                "entryCount": 3
+              },
+              "media": {
+                "kind": "folder",
+                "exists": true,
+                "entryCount": 1
+              },
+              "assets": {
+                "kind": "folder",
+                "exists": true,
+                "entryCount": 2
+              },
+              "scripts": {
+                "kind": "folder",
+                "exists": true,
+                "entryCount": 1
+              },
+              "artefacts": {
+                "kind": "folder",
+                "exists": true,
+                "entryCount": 1
+              },
+              "repository": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "configuration": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "temp": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "volume": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              }
+            }
+          }
+        ],
+        "orphanSlots": [
+          "history"
+        ],
+        "rootLayers": {
+          "main.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "main.csv": {
+            "kind": "file",
+            "exists": false
+          },
+          "config.yml": {
+            "kind": "file",
+            "exists": false
+          },
+          "todo.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "log.md": {
+            "kind": "file",
+            "exists": false
+          },
+          ".env": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.png": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpeg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.gif": {
+            "kind": "file",
+            "exists": false
+          },
+          "main": {
+            "kind": "folder",
+            "exists": true,
+            "entryCount": 3
+          },
+          "inbox": {
+            "kind": "folder",
+            "exists": true,
+            "entryCount": 3
+          },
+          "thread": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "quick-notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "notes": {
+            "kind": "folder",
+            "exists": true,
+            "entryCount": 3
+          },
+          "references": {
+            "kind": "folder",
+            "exists": true,
+            "entryCount": 3
+          },
+          "media": {
+            "kind": "folder",
+            "exists": true,
+            "entryCount": 1
+          },
+          "assets": {
+            "kind": "folder",
+            "exists": true,
+            "entryCount": 2
+          },
+          "scripts": {
+            "kind": "folder",
+            "exists": true,
+            "entryCount": 1
+          },
+          "artefacts": {
+            "kind": "folder",
+            "exists": true,
+            "entryCount": 1
+          },
+          "repository": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "configuration": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "temp": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "volume": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          }
+        },
+        "rootHasContent": true
+      },
+      {
+        "containerDir": "awn-agent-kit",
+        "storageRoot": "awn-agent-kit/awn-storage",
+        "slots": [
+          {
+            "manifestPath": "awn-agent-kit/manifest.md",
+            "kind": "area",
+            "label": "Служебные темы и компоненты",
+            "slotKey": "awn-agent-kit",
+            "slotDir": "awn-agent-kit/awn-storage",
+            "exists": true,
+            "layers": {
+              "main.md": {
+                "kind": "file",
+                "exists": false
+              },
+              "main.csv": {
+                "kind": "file",
+                "exists": false
+              },
+              "config.yml": {
+                "kind": "file",
+                "exists": false
+              },
+              "todo.md": {
+                "kind": "file",
+                "exists": false
+              },
+              "log.md": {
+                "kind": "file",
+                "exists": false
+              },
+              ".env": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.png": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpeg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.gif": {
+                "kind": "file",
+                "exists": false
+              },
+              "main": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "inbox": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "thread": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "quick-notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "references": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "media": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "assets": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "scripts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "artefacts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "repository": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "configuration": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "temp": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "volume": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              }
+            }
+          }
+        ],
+        "orphanSlots": [],
+        "rootLayers": {
+          "main.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "main.csv": {
+            "kind": "file",
+            "exists": false
+          },
+          "config.yml": {
+            "kind": "file",
+            "exists": false
+          },
+          "todo.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "log.md": {
+            "kind": "file",
+            "exists": false
+          },
+          ".env": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.png": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpeg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.gif": {
+            "kind": "file",
+            "exists": false
+          },
+          "main": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "inbox": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "thread": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "quick-notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "references": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "media": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "assets": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "scripts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "artefacts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "repository": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "configuration": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "temp": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "volume": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          }
+        },
+        "rootHasContent": false
+      },
+      {
+        "containerDir": "awn-agent-kit/agent",
+        "storageRoot": "awn-agent-kit/agent/awn-storage",
+        "slots": [
+          {
+            "manifestPath": "awn-agent-kit/agent/manifest.md",
+            "kind": "topic",
+            "label": "Агент",
+            "slotKey": "agent",
+            "slotDir": "awn-agent-kit/agent/awn-storage",
+            "exists": true,
+            "layers": {
+              "main.md": {
+                "kind": "file",
+                "exists": false
+              },
+              "main.csv": {
+                "kind": "file",
+                "exists": false
+              },
+              "config.yml": {
+                "kind": "file",
+                "exists": false
+              },
+              "todo.md": {
+                "kind": "file",
+                "exists": false
+              },
+              "log.md": {
+                "kind": "file",
+                "exists": false
+              },
+              ".env": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.png": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpeg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.gif": {
+                "kind": "file",
+                "exists": false
+              },
+              "main": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "inbox": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "thread": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "quick-notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "references": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "media": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "assets": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "scripts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "artefacts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "repository": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "configuration": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "temp": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "volume": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              }
+            }
+          }
+        ],
+        "orphanSlots": [],
+        "rootLayers": {
+          "main.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "main.csv": {
+            "kind": "file",
+            "exists": false
+          },
+          "config.yml": {
+            "kind": "file",
+            "exists": false
+          },
+          "todo.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "log.md": {
+            "kind": "file",
+            "exists": false
+          },
+          ".env": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.png": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpeg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.gif": {
+            "kind": "file",
+            "exists": false
+          },
+          "main": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "inbox": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "thread": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "quick-notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "references": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "media": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "assets": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "scripts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "artefacts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "repository": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "configuration": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "temp": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "volume": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          }
+        },
+        "rootHasContent": false
+      },
+      {
+        "containerDir": "awn-agent-kit/user",
+        "storageRoot": "awn-agent-kit/user/awn-storage",
+        "slots": [
+          {
+            "manifestPath": "awn-agent-kit/user/manifest.md",
+            "kind": "topic",
+            "label": "Пользователь",
+            "slotKey": "user",
+            "slotDir": "awn-agent-kit/user/awn-storage",
+            "exists": true,
+            "layers": {
+              "main.md": {
+                "kind": "file",
+                "exists": false
+              },
+              "main.csv": {
+                "kind": "file",
+                "exists": false
+              },
+              "config.yml": {
+                "kind": "file",
+                "exists": false
+              },
+              "todo.md": {
+                "kind": "file",
+                "exists": false
+              },
+              "log.md": {
+                "kind": "file",
+                "exists": false
+              },
+              ".env": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.png": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpeg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.gif": {
+                "kind": "file",
+                "exists": false
+              },
+              "main": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "inbox": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "thread": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "quick-notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "references": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "media": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "assets": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "scripts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "artefacts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "repository": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "configuration": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "temp": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "volume": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              }
+            }
+          }
+        ],
+        "orphanSlots": [],
+        "rootLayers": {
+          "main.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "main.csv": {
+            "kind": "file",
+            "exists": false
+          },
+          "config.yml": {
+            "kind": "file",
+            "exists": false
+          },
+          "todo.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "log.md": {
+            "kind": "file",
+            "exists": false
+          },
+          ".env": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.png": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpeg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.gif": {
+            "kind": "file",
+            "exists": false
+          },
+          "main": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "inbox": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "thread": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "quick-notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "references": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "media": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "assets": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "scripts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "artefacts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "repository": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "configuration": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "temp": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "volume": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          }
+        },
+        "rootHasContent": false
+      },
+      {
+        "containerDir": "awn-agent-kit/users",
+        "storageRoot": "awn-agent-kit/users/awn-storage",
+        "slots": [
+          {
+            "manifestPath": "awn-agent-kit/users/manifest.md",
+            "kind": "topic",
+            "label": "Пользователи",
+            "slotKey": "users",
+            "slotDir": "awn-agent-kit/users/awn-storage",
+            "exists": true,
+            "layers": {
+              "main.md": {
+                "kind": "file",
+                "exists": false
+              },
+              "main.csv": {
+                "kind": "file",
+                "exists": false
+              },
+              "config.yml": {
+                "kind": "file",
+                "exists": false
+              },
+              "todo.md": {
+                "kind": "file",
+                "exists": false
+              },
+              "log.md": {
+                "kind": "file",
+                "exists": false
+              },
+              ".env": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.png": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.jpeg": {
+                "kind": "file",
+                "exists": false
+              },
+              "preview.gif": {
+                "kind": "file",
+                "exists": false
+              },
+              "main": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "inbox": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "thread": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "quick-notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "notes": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "references": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "media": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "assets": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "scripts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "artefacts": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "repository": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "configuration": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "temp": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              },
+              "volume": {
+                "kind": "folder",
+                "exists": false,
+                "entryCount": 0
+              }
+            }
+          }
+        ],
+        "orphanSlots": [],
+        "rootLayers": {
+          "main.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "main.csv": {
+            "kind": "file",
+            "exists": false
+          },
+          "config.yml": {
+            "kind": "file",
+            "exists": false
+          },
+          "todo.md": {
+            "kind": "file",
+            "exists": false
+          },
+          "log.md": {
+            "kind": "file",
+            "exists": false
+          },
+          ".env": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.png": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.jpeg": {
+            "kind": "file",
+            "exists": false
+          },
+          "preview.gif": {
+            "kind": "file",
+            "exists": false
+          },
+          "main": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "inbox": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "thread": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "quick-notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "notes": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "references": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "media": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "assets": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "scripts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "artefacts": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "repository": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "configuration": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "temp": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          },
+          "volume": {
+            "kind": "folder",
+            "exists": false,
+            "entryCount": 0
+          }
+        },
+        "rootHasContent": false
+      }
+    ],
+    "manifestCount": 7,
+    "canonicalModel": {
+      "version": 1,
+      "model": "canonical-v1",
+      "pageTypes": [
+        "awn.page.ws",
+        "awn.page.area",
+        "awn.page.topic"
+      ],
+      "slotContentTypes": [
+        "awn.content.record",
+        "awn.content.category",
+        "awn.content.sidecar"
+      ],
+      "primarySlotTypes": [
+        "awn.slot.main",
+        "awn.slot.main-single",
+        "awn.slot.main-single-csv",
+        "awn.slot.inbox",
+        "awn.slot.note",
+        "awn.slot.references",
+        "awn.slot.artefacts",
+        "awn.slot.media",
+        "awn.slot.assets",
+        "awn.slot.repository",
+        "awn.slot.script",
+        "awn.slot.todo-single",
+        "awn.slot.log-single"
+      ],
+      "rules": {
+        "pages": "Только awn.page.ws | awn.page.area | awn.page.topic — узлы дерева меню",
+        "slotContent": "В любом слоте допустимы только awn.content.record, awn.content.category, awn.content.sidecar",
+        "slotOrder": "Основные слоты топика — см. primarySlotTypes (main → … → todo)",
+        "slotTypesSource": "Типы слотов — записи в awn-data/slots/ (path, allowed-content, accept-files, slot-category)"
+      },
+      "slotTypes": [
+        {
+          "id": "awn.slot.main",
+          "name": "Память (многофайловая)",
+          "path": "main/",
+          "storageDriver": "external",
+          "slotCategory": "memory",
+          "slotTier": null,
+          "slotOrder": 1,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/main.yml"
+        },
+        {
+          "id": "awn.slot.inbox",
+          "name": "Входящие",
+          "path": "inbox/",
+          "storageDriver": "external",
+          "slotCategory": "memory",
+          "slotTier": null,
+          "slotOrder": 4,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/inbox.yml"
+        },
+        {
+          "id": "awn.slot.note",
+          "name": "Заметки",
+          "path": "notes/",
+          "storageDriver": "external",
+          "slotCategory": "memory",
+          "slotTier": null,
+          "slotOrder": 5,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/note.yml"
+        },
+        {
+          "id": "awn.slot.references",
+          "name": "Источники",
+          "path": "references/",
+          "storageDriver": "external",
+          "slotCategory": "memory",
+          "slotTier": null,
+          "slotOrder": 6,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/references.yml"
+        },
+        {
+          "id": "awn.slot.artefacts",
+          "name": "Артефакты",
+          "path": "artefacts/",
+          "storageDriver": "external",
+          "slotCategory": "files",
+          "slotTier": null,
+          "slotOrder": 7,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/artefacts.yml"
+        },
+        {
+          "id": "awn.slot.media",
+          "name": "Медиа",
+          "path": "media/",
+          "storageDriver": "external",
+          "slotCategory": "files",
+          "slotTier": null,
+          "slotOrder": 8,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/media.yml"
+        },
+        {
+          "id": "awn.slot.repository",
+          "name": "Репозитории",
+          "path": "repository/",
+          "storageDriver": "external",
+          "slotCategory": "files",
+          "slotTier": null,
+          "slotOrder": 8,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/repository.yml"
+        },
+        {
+          "id": "awn.slot.assets",
+          "name": "Активы",
+          "path": "assets/",
+          "storageDriver": "external",
+          "slotCategory": "files",
+          "slotTier": null,
+          "slotOrder": 9,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/assets.yml"
+        },
+        {
+          "id": "awn.slot.script",
+          "name": "Скрипты",
+          "path": "scripts/",
+          "storageDriver": "external",
+          "slotCategory": "files",
+          "slotTier": null,
+          "slotOrder": 11,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/scripts.yml"
+        },
+        {
+          "id": "awn.slot.main-single",
+          "name": "Память (однофайловая)",
+          "path": "main.md",
+          "storageDriver": "internal",
+          "slotCategory": "single-file",
+          "slotTier": null,
+          "slotOrder": 2,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ],
+          "catalogFile": "awn-system/types/slots/single-file/main-single.yml"
+        },
+        {
+          "id": "awn.slot.main-single-csv",
+          "name": "Память (табличная)",
+          "path": "main.csv",
+          "storageDriver": "tabular",
+          "slotCategory": "single-file",
+          "slotTier": null,
+          "slotOrder": 3,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".csv"
+          ],
+          "catalogFile": "awn-system/types/slots/single-file/main-single-csv.yml"
+        },
+        {
+          "id": "awn.slot.todo-single",
+          "name": "TODO",
+          "path": "todo.md",
+          "storageDriver": "internal",
+          "slotCategory": "single-file",
+          "slotTier": null,
+          "slotOrder": 12,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ],
+          "catalogFile": "awn-system/types/slots/single-file/todo-single.yml"
+        },
+        {
+          "id": "awn.slot.log-single",
+          "name": "Журнал",
+          "path": "log.md",
+          "storageDriver": "internal",
+          "slotCategory": "single-file",
+          "slotTier": null,
+          "slotOrder": 13,
+          "primary": true,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ],
+          "catalogFile": "awn-system/types/slots/single-file/log-single.yml"
+        },
+        {
+          "id": "awn.slot.history",
+          "name": "История",
+          "path": "history/",
+          "storageDriver": "external",
+          "slotCategory": "records",
+          "slotTier": "system",
+          "slotOrder": 91,
+          "primary": false,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/system/history.yml"
+        },
+        {
+          "id": "awn.slot.temp",
+          "name": "Временные файлы",
+          "path": "temp/",
+          "storageDriver": "external",
+          "slotCategory": "records",
+          "slotTier": "system",
+          "slotOrder": 92,
+          "primary": false,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/system/temp.yml"
+        },
+        {
+          "id": "awn.slot.volume",
+          "name": "Итоги",
+          "path": "volume/",
+          "storageDriver": "external",
+          "slotCategory": "records",
+          "slotTier": "system",
+          "slotOrder": 95,
+          "primary": false,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/system/volume.yml"
+        },
+        {
+          "id": "awn.slot.dialogs",
+          "name": "Диалоги",
+          "path": "thread/",
+          "storageDriver": "external",
+          "slotCategory": "communication",
+          "slotTier": "system",
+          "slotOrder": 93,
+          "primary": false,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/system/dialogs.yml"
+        },
+        {
+          "id": "awn.slot.comments",
+          "name": "Комментарии",
+          "path": "comments/",
+          "storageDriver": "external",
+          "slotCategory": "communication",
+          "slotTier": "system",
+          "slotOrder": 94,
+          "primary": false,
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ],
+          "catalogFile": "awn-system/types/slots/multi-file/system/comments.yml"
+        }
+      ],
+      "slotCategories": [
+        {
+          "id": "memory",
+          "name": "Память",
+          "sort": 1,
+          "description": "Рабочая память темы — записи, входящие, заметки, источники"
+        },
+        {
+          "id": "files",
+          "name": "Файлы",
+          "sort": 2,
+          "description": "Медиа, активы, скрипты, артефакты, репозитории"
+        },
+        {
+          "id": "single-file",
+          "name": "Однофайловая",
+          "sort": 3,
+          "description": "Один файл на слот — main.md, todo.md, log.md, CSV"
+        },
+        {
+          "id": "records",
+          "name": "Записи",
+          "sort": 4,
+          "description": "Системные слои — история, временные файлы, итоги"
+        },
+        {
+          "id": "communication",
+          "name": "Общение",
+          "sort": 5,
+          "description": "Диалоги и комментарии"
+        }
+      ],
+      "slotTypesByCategory": [
+        {
+          "id": "memory",
+          "name": "Память",
+          "sort": 1,
+          "slots": [
+            {
+              "id": "awn.slot.main",
+              "name": "Память (многофайловая)",
+              "path": "main/",
+              "storageDriver": "external",
+              "slotCategory": "memory",
+              "slotTier": null,
+              "slotOrder": 1,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                "*"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/main.yml"
+            },
+            {
+              "id": "awn.slot.inbox",
+              "name": "Входящие",
+              "path": "inbox/",
+              "storageDriver": "external",
+              "slotCategory": "memory",
+              "slotTier": null,
+              "slotOrder": 4,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                "*"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/inbox.yml"
+            },
+            {
+              "id": "awn.slot.note",
+              "name": "Заметки",
+              "path": "notes/",
+              "storageDriver": "external",
+              "slotCategory": "memory",
+              "slotTier": null,
+              "slotOrder": 5,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                "*"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/note.yml"
+            },
+            {
+              "id": "awn.slot.references",
+              "name": "Источники",
+              "path": "references/",
+              "storageDriver": "external",
+              "slotCategory": "memory",
+              "slotTier": null,
+              "slotOrder": 6,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                "*"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/references.yml"
+            }
+          ]
+        },
+        {
+          "id": "files",
+          "name": "Файлы",
+          "sort": 2,
+          "slots": [
+            {
+              "id": "awn.slot.artefacts",
+              "name": "Артефакты",
+              "path": "artefacts/",
+              "storageDriver": "external",
+              "slotCategory": "files",
+              "slotTier": null,
+              "slotOrder": 7,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                "*"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/artefacts.yml"
+            },
+            {
+              "id": "awn.slot.media",
+              "name": "Медиа",
+              "path": "media/",
+              "storageDriver": "external",
+              "slotCategory": "files",
+              "slotTier": null,
+              "slotOrder": 8,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                "*"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/media.yml"
+            },
+            {
+              "id": "awn.slot.repository",
+              "name": "Репозитории",
+              "path": "repository/",
+              "storageDriver": "external",
+              "slotCategory": "files",
+              "slotTier": null,
+              "slotOrder": 8,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                "*"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/repository.yml"
+            },
+            {
+              "id": "awn.slot.assets",
+              "name": "Активы",
+              "path": "assets/",
+              "storageDriver": "external",
+              "slotCategory": "files",
+              "slotTier": null,
+              "slotOrder": 9,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                "*"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/assets.yml"
+            },
+            {
+              "id": "awn.slot.script",
+              "name": "Скрипты",
+              "path": "scripts/",
+              "storageDriver": "external",
+              "slotCategory": "files",
+              "slotTier": null,
+              "slotOrder": 11,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                "*"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/scripts.yml"
+            }
+          ]
+        },
+        {
+          "id": "single-file",
+          "name": "Однофайловая",
+          "sort": 3,
+          "slots": [
+            {
+              "id": "awn.slot.main-single",
+              "name": "Память (однофайловая)",
+              "path": "main.md",
+              "storageDriver": "internal",
+              "slotCategory": "single-file",
+              "slotTier": null,
+              "slotOrder": 2,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                ".md"
+              ],
+              "catalogFile": "awn-system/types/slots/single-file/main-single.yml"
+            },
+            {
+              "id": "awn.slot.main-single-csv",
+              "name": "Память (табличная)",
+              "path": "main.csv",
+              "storageDriver": "tabular",
+              "slotCategory": "single-file",
+              "slotTier": null,
+              "slotOrder": 3,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                ".csv"
+              ],
+              "catalogFile": "awn-system/types/slots/single-file/main-single-csv.yml"
+            },
+            {
+              "id": "awn.slot.todo-single",
+              "name": "TODO",
+              "path": "todo.md",
+              "storageDriver": "internal",
+              "slotCategory": "single-file",
+              "slotTier": null,
+              "slotOrder": 12,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                ".md"
+              ],
+              "catalogFile": "awn-system/types/slots/single-file/todo-single.yml"
+            },
+            {
+              "id": "awn.slot.log-single",
+              "name": "Журнал",
+              "path": "log.md",
+              "storageDriver": "internal",
+              "slotCategory": "single-file",
+              "slotTier": null,
+              "slotOrder": 13,
+              "primary": true,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                ".md"
+              ],
+              "catalogFile": "awn-system/types/slots/single-file/log-single.yml"
+            }
+          ]
+        },
+        {
+          "id": "records",
+          "name": "Записи",
+          "sort": 4,
+          "slots": [
+            {
+              "id": "awn.slot.history",
+              "name": "История",
+              "path": "history/",
+              "storageDriver": "external",
+              "slotCategory": "records",
+              "slotTier": "system",
+              "slotOrder": 91,
+              "primary": false,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                "*"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/system/history.yml"
+            },
+            {
+              "id": "awn.slot.temp",
+              "name": "Временные файлы",
+              "path": "temp/",
+              "storageDriver": "external",
+              "slotCategory": "records",
+              "slotTier": "system",
+              "slotOrder": 92,
+              "primary": false,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                "*"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/system/temp.yml"
+            },
+            {
+              "id": "awn.slot.volume",
+              "name": "Итоги",
+              "path": "volume/",
+              "storageDriver": "external",
+              "slotCategory": "records",
+              "slotTier": "system",
+              "slotOrder": 95,
+              "primary": false,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.category",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                ".md"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/system/volume.yml"
+            }
+          ]
+        },
+        {
+          "id": "communication",
+          "name": "Общение",
+          "sort": 5,
+          "slots": [
+            {
+              "id": "awn.slot.dialogs",
+              "name": "Диалоги",
+              "path": "thread/",
+              "storageDriver": "external",
+              "slotCategory": "communication",
+              "slotTier": "system",
+              "slotOrder": 93,
+              "primary": false,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                ".md"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/system/dialogs.yml"
+            },
+            {
+              "id": "awn.slot.comments",
+              "name": "Комментарии",
+              "path": "comments/",
+              "storageDriver": "external",
+              "slotCategory": "communication",
+              "slotTier": "system",
+              "slotOrder": 94,
+              "primary": false,
+              "allowedContent": [
+                "awn.content.record",
+                "awn.content.sidecar"
+              ],
+              "acceptFiles": [
+                ".md"
+              ],
+              "catalogFile": "awn-system/types/slots/multi-file/system/comments.yml"
+            }
+          ]
+        }
+      ],
+      "slotBindings": [
+        {
+          "slotKey": "main",
+          "path": "main/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ]
+        },
+        {
+          "slotKey": "inbox",
+          "path": "inbox/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ]
+        },
+        {
+          "slotKey": "note",
+          "path": "notes/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ]
+        },
+        {
+          "slotKey": "references",
+          "path": "references/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ]
+        },
+        {
+          "slotKey": "artefacts",
+          "path": "artefacts/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ]
+        },
+        {
+          "slotKey": "media",
+          "path": "media/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ]
+        },
+        {
+          "slotKey": "repository",
+          "path": "repository/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ]
+        },
+        {
+          "slotKey": "assets",
+          "path": "assets/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ]
+        },
+        {
+          "slotKey": "script",
+          "path": "scripts/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ]
+        },
+        {
+          "slotKey": "main-single",
+          "path": "main.md",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ]
+        },
+        {
+          "slotKey": "main-single-csv",
+          "path": "main.csv",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".csv"
+          ]
+        },
+        {
+          "slotKey": "todo-single",
+          "path": "todo.md",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ]
+        },
+        {
+          "slotKey": "log-single",
+          "path": "log.md",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ]
+        },
+        {
+          "slotKey": "history",
+          "path": "history/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ]
+        },
+        {
+          "slotKey": "temp",
+          "path": "temp/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            "*"
+          ]
+        },
+        {
+          "slotKey": "volume",
+          "path": "volume/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.category",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ]
+        },
+        {
+          "slotKey": "dialogs",
+          "path": "thread/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ]
+        },
+        {
+          "slotKey": "comments",
+          "path": "comments/",
+          "allowedContent": [
+            "awn.content.record",
+            "awn.content.sidecar"
+          ],
+          "acceptFiles": [
+            ".md"
+          ]
+        }
+      ],
+      "slotTypesSource": "awn-data/slots/",
+      "slotCategoriesSource": "awn-data/taxonomies/slot-categories/main.csv",
+      "systemOnlyFolders": [
+        "preview/",
+        "history/",
+        "temp/",
+        "volume/",
+        "thread/",
+        "comments/"
+      ]
+    }
+  }
+}

@@ -1,0 +1,2448 @@
+{
+  "tool": "list_type_catalog",
+  "folder": "types",
+  "agent": "agent-cms-test",
+  "capturedAt": "2026-08-07T19:39:54.867Z",
+  "sampleArgs": null,
+  "truncated": true,
+  "responseBytes": 362341,
+  "live": true,
+  "response": {
+    "_truncated": true,
+    "_responseBytes": 362341,
+    "_note": "Full response too large; showing slim preview",
+    "specVersion": "1.1",
+    "model": "type-catalog",
+    "coreRoot": "/Users/macbook/Desktop/YamlCMS/workspaces/agent-cms-core",
+    "agentSystemRoot": "/Users/macbook/Desktop/agent-focus/awn-data/cms-base",
+    "sources": [
+      "platform:agent-cms-core/awn-system/types"
+    ],
+    "pageTreeRoot": "awn.page.base",
+    "domains": {
+      "base": [
+        {
+          "id": "awn.entity",
+          "fileName": "_base",
+          "status": "active",
+          "active": false
+        },
+        {
+          "id": "awn.base",
+          "fileName": "base",
+          "status": "active",
+          "active": false
+        }
+      ],
+      "pages": [
+        {
+          "id": "awn.page.base",
+          "fileName": "_base",
+          "status": "active",
+          "active": false
+        },
+        {
+          "id": "awn.page.topic.agent-kit.agent",
+          "fileName": "agent",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic.agent-kit.rules",
+          "fileName": "rules",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic.agent-kit.user",
+          "fileName": "user",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic.agent-kit.users",
+          "fileName": "users",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic.agent-kit.voice-sst",
+          "fileName": "voice-sst",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic.agent-kit.voice-tts",
+          "fileName": "voice-tts",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.area",
+          "fileName": "area",
+          "status": "deprecated",
+          "active": true
+        },
+        {
+          "id": "awn.page.section",
+          "fileName": "_base",
+          "status": "active",
+          "active": false
+        },
+        {
+          "id": "awn.page.section.agent-kit",
+          "fileName": "agent-kit",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.section.container",
+          "fileName": "container",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.section.shared",
+          "fileName": "shared",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic.shared.artefacts",
+          "fileName": "artefacts",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic.shared.inbox",
+          "fileName": "inbox",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic.shared.media",
+          "fileName": "media",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic.shared.notes",
+          "fileName": "notes",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic.shared.references",
+          "fileName": "references",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic.shared.scripts",
+          "fileName": "scripts",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.topic",
+          "fileName": "topic",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.page.ws",
+          "fileName": "ws",
+          "status": "active",
+          "active": true
+        }
+      ],
+      "content": [
+        {
+          "id": "awn.content.category",
+          "fileName": "category",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.content.comment",
+          "fileName": "comment",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.content.dialog",
+          "fileName": "dialog",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.content.record",
+          "fileName": "record",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.content.sidecar",
+          "fileName": "sidecar",
+          "status": "active",
+          "active": true
+        }
+      ],
+      "slots": [
+        {
+          "id": "awn.slot",
+          "fileName": "_base",
+          "status": "active",
+          "active": false
+        },
+        {
+          "id": "awn.slot.artefacts",
+          "fileName": "artefacts",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.assets",
+          "fileName": "assets",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.inbox",
+          "fileName": "inbox",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.main",
+          "fileName": "main",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.media",
+          "fileName": "media",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.note",
+          "fileName": "note",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.references",
+          "fileName": "references",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.repository",
+          "fileName": "repository",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.script",
+          "fileName": "scripts",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.comments",
+          "fileName": "comments",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.dialogs",
+          "fileName": "dialogs",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.history",
+          "fileName": "history",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.temp",
+          "fileName": "temp",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.volume",
+          "fileName": "volume",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.log-single",
+          "fileName": "log-single",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.main-single-csv",
+          "fileName": "main-single-csv",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.main-single",
+          "fileName": "main-single",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.slot.todo-single",
+          "fileName": "todo-single",
+          "status": "active",
+          "active": true
+        }
+      ],
+      "fields": [
+        {
+          "id": "awn.field.base",
+          "fileName": "_base",
+          "status": "active",
+          "active": false
+        },
+        {
+          "id": "awn.field.array",
+          "fileName": "array",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.boolean",
+          "fileName": "boolean",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.color",
+          "fileName": "color",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.date",
+          "fileName": "date",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.datetime",
+          "fileName": "datetime",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.email",
+          "fileName": "email",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.enum",
+          "fileName": "enum",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.file",
+          "fileName": "file",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.image",
+          "fileName": "image",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.integer",
+          "fileName": "integer",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.json",
+          "fileName": "json",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.link",
+          "fileName": "link",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.markdown",
+          "fileName": "markdown",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.number",
+          "fileName": "number",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.relation",
+          "fileName": "relation",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.slug",
+          "fileName": "slug",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.string",
+          "fileName": "string",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.tags",
+          "fileName": "tags",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.text",
+          "fileName": "text",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.field.url",
+          "fileName": "url",
+          "status": "active",
+          "active": true
+        }
+      ],
+      "mixins": [
+        {
+          "id": "awn.mixin.attachments",
+          "fileName": "attachments",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.mixin.preview",
+          "fileName": "preview",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.mixin.runtime",
+          "fileName": "runtime",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.mixin.web-url",
+          "fileName": "web-url",
+          "status": "active",
+          "active": true
+        }
+      ],
+      "settings": [
+        {
+          "id": "awn.settings.base",
+          "fileName": "_base",
+          "status": "active",
+          "active": false
+        },
+        {
+          "id": "agent.settings.general",
+          "fileName": "general",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "agent.settings.voice",
+          "fileName": "voice",
+          "status": "active",
+          "active": true
+        }
+      ],
+      "md-blocks": [
+        {
+          "id": "awn.block.base",
+          "fileName": "_base",
+          "status": "active",
+          "active": false
+        },
+        {
+          "id": "awn.block.code",
+          "fileName": "codeblock",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.block.desc",
+          "fileName": "desc",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.block.groups",
+          "fileName": "groups",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.block.h2",
+          "fileName": "h2",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.block.h3",
+          "fileName": "h3",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.block.hr",
+          "fileName": "hr",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.block.note",
+          "fileName": "note",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.block.ol",
+          "fileName": "ol",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.block.paragraph",
+          "fileName": "paragraph",
+          "status": "draft",
+          "active": false
+        },
+        {
+          "id": "awn.block.quote",
+          "fileName": "quote",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.block.table",
+          "fileName": "table",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.block.tasks",
+          "fileName": "tasks",
+          "status": "active",
+          "active": true
+        },
+        {
+          "id": "awn.block.ul",
+          "fileName": "ul",
+          "status": "inactive",
+          "active": false
+        }
+      ]
+    },
+    "types": {
+      "0": {
+        "id": "awn.page.topic.agent-kit.agent",
+        "domain": "pages",
+        "fileName": "agent",
+        "catalogFile": "awn-system/types/pages/agent-kit/agent.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Агент",
+        "description": "Описание агента — персона, роль, цели, ограничения",
+        "relPath": "pages/agent-kit/agent",
+        "registrable": true,
+        "inPageTree": true,
+        "schema": {
+          "id": "awn.page.topic.agent-kit.agent",
+          "name": "Агент",
+          "kind": "type",
+          "domain": "pages",
+          "description": "Описание агента — персона, роль, цели, ограничения",
+          "fields": {
+            "awn-name": {
+              "type": "awn.field.string",
+              "title": "Имя",
+              "description": "Отображаемое имя в меню",
+              "group": "content",
+              "locked": true
+            },
+            "awn-emoji": {
+              "type": "awn.field.string",
+              "title": "Эмодзи",
+              "description": "Показывается вместо иконки, если превью не задано",
+              "group": "content"
+            },
+            "awn-status": {
+              "type": "awn.field.enum",
+              "title": "Статус",
+              "group": "content",
+              "enum": [
+                {
+                  "key": "open",
+                  "name": "🟢 Открыта"
+                },
+                {
+                  "key": "draft",
+                  "name": "🟡 Черновик"
+                },
+                {
+                  "key": "closed",
+                  "name": "🔴 Закрыта"
+                },
+                {
+                  "key": "none",
+                  "name": "⚪ Без статуса"
+                }
+              ],
+              "default": "open"
+            },
+            "awn-description": {
+              "type": "awn.field.text",
+              "title": "Описание",
+              "group": "content"
+            },
+            "awn-tags": {
+              "type": "awn.field.array",
+              "title": "Теги",
+              "items": "awn.field.string",
+              "group": "content"
+            },
+            "awn-type": {
+              "type": "awn.field.string",
+              "title": "Тип",
+              "required": true,
+              "locked": true,
+              "group": "system"
+            },
+            "awn-create": {
+              "type": "awn.field.datetime",
+              "title": "Создан",
+              "locked": true,
+              "group": "system"
+            },
+            "awn-update": {
+              "type": "awn.field.datetime",
+              "title": "Изменён",
+              "locked": true,
+              "group": "system"
+            },
+            "awn-version": {
+              "type": "awn.field.integer",
+              "title": "Версия",
+              "default": 1,
+              "locked": true,
+              "group": "system"
+            },
+            "awn-main": {
+              "type": "awn.field.boolean",
+              "title": "На главной",
+              "default": false,
+              "group": "nav"
+            },
+            "awn-category": {
+              "type": "awn.field.string",
+              "title": "Категория",
+              "group": "nav"
+            },
+            "awn-owner": {
+              "type": "awn.field.string",
+              "title": "Владелец",
+              "group": "nav"
+            },
+            "awn-priority": {
+              "type": "awn.field.string",
+              "title": "Приоритет",
+              "group": "nav"
+            },
+            "awn-color": {
+              "type": "awn.field.color",
+              "title": "Цвет",
+              "group": "nav"
+            },
+            "awn-sort": {
+              "type": "awn.field.integer",
+              "title": "Сортировка",
+              "group": "nav"
+            },
+            "awn-slots-disabled": {
+              "type": "awn.field.boolean",
+              "title": "Общий слот (lite)",
+              "description": "Скрыть слоты данных; многофайловая память читается из папки темы (рядом с manifest.md), без awn-storage/",
+              "default": false,
+              "group": "nav"
+            },
+            "awn-agent-role": {
+              "type": "awn.field.text",
+              "title": "Роль агента"
+            },
+            "awn-agent-language": {
+              "type": "awn.field.string",
+              "title": "Язык общения"
+            }
+          },
+          "mixins": [
+            "awn.mixin.preview",
+            "awn.mixin.web-url",
+            "awn.mixin.runtime"
+          ],
+          "field-groups": [
+            {
+              "id": "content",
+              "name": "Основное",
+              "description": "Что заполняет человек или агент",
+              "collapsed": false
+            },
+            {
+              "id": "nav",
+              "name": "Дерево и вид",
+              "description": "Поведение в меню и на главной (для узлов дерева)",
+              "collapsed": true
+            },
+            {
+              "id": "runtime",
+              "name": "Runtime агента",
+              "description": "Загрузка в контекст, cron, heartbeat",
+              "collapsed": true
+            },
+            {
+              "id": "system",
+              "name": "Системные",
+              "description": "Заполняется автоматически, только чтение",
+              "collapsed": true
+            }
+          ],
+          "storage-slots": [
+            "main"
+          ],
+          "manifest-pattern": "{slug}/manifest.md",
+          "create-node-group": "agent",
+          "create-node-label": "Агент",
+          "create-node-slug": "agent",
+          "create-node-order": 1
+        }
+      },
+      "1": {
+        "id": "awn.page.topic.agent-kit.rules",
+        "domain": "pages",
+        "fileName": "rules",
+        "catalogFile": "awn-system/types/pages/agent-kit/rules.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Правила",
+        "description": "Правила поведения агента — запреты, приоритеты, стиль",
+        "relPath": "pages/agent-kit/rules",
+        "registrable": true,
+        "inPageTree": true,
+        "schema": {
+          "id": "awn.page.topic.agent-kit.rules",
+          "name": "Правила",
+          "kind": "type",
+          "domain": "pages",
+          "description": "Правила поведения агента — запреты, приоритеты, стиль",
+          "fields": {
+            "awn-name": {
+              "type": "awn.field.string",
+              "title": "Имя",
+              "description": "Отображаемое имя в меню",
+              "group": "content",
+              "locked": true
+            },
+            "awn-emoji": {
+              "type": "awn.field.string",
+              "title": "Эмодзи",
+              "description": "Показывается вместо иконки, если превью не задано",
+              "group": "content"
+            },
+            "awn-status": {
+              "type": "awn.field.enum",
+              "title": "Статус",
+              "group": "content",
+              "enum": [
+                {
+                  "key": "open",
+                  "name": "🟢 Открыта"
+                },
+                {
+                  "key": "draft",
+                  "name": "🟡 Черновик"
+                },
+                {
+                  "key": "closed",
+                  "name": "🔴 Закрыта"
+                },
+                {
+                  "key": "none",
+                  "name": "⚪ Без статуса"
+                }
+              ],
+              "default": "open"
+            },
+            "awn-description": {
+              "type": "awn.field.text",
+              "title": "Описание",
+              "group": "content"
+            },
+            "awn-tags": {
+              "type": "awn.field.array",
+              "title": "Теги",
+              "items": "awn.field.string",
+              "group": "content"
+            },
+            "awn-type": {
+              "type": "awn.field.string",
+              "title": "Тип",
+              "required": true,
+              "locked": true,
+              "group": "system"
+            },
+            "awn-create": {
+              "type": "awn.field.datetime",
+              "title": "Создан",
+              "locked": true,
+              "group": "system"
+            },
+            "awn-update": {
+              "type": "awn.field.datetime",
+              "title": "Изменён",
+              "locked": true,
+              "group": "system"
+            },
+            "awn-version": {
+              "type": "awn.field.integer",
+              "title": "Версия",
+              "default": 1,
+              "locked": true,
+              "group": "system"
+            },
+            "awn-main": {
+              "type": "awn.field.boolean",
+              "title": "На главной",
+              "default": false,
+              "group": "nav"
+            },
+            "awn-category": {
+              "type": "awn.field.string",
+              "title": "Категория",
+              "group": "nav"
+            },
+            "awn-owner": {
+              "type": "awn.field.string",
+              "title": "Владелец",
+              "group": "nav"
+            },
+            "awn-priority": {
+              "type": "awn.field.string",
+              "title": "Приоритет",
+              "group": "nav"
+            },
+            "awn-color": {
+              "type": "awn.field.color",
+              "title": "Цвет",
+              "group": "nav"
+            },
+            "awn-sort": {
+              "type": "awn.field.integer",
+              "title": "Сортировка",
+              "group": "nav"
+            },
+            "awn-slots-disabled": {
+              "type": "awn.field.boolean",
+              "title": "Общий слот (lite)",
+              "description": "Скрыть слоты данных; многофайловая память читается из папки темы (рядом с manifest.md), без awn-storage/",
+              "default": false,
+              "group": "nav"
+            }
+          },
+          "mixins": [
+            "awn.mixin.preview",
+            "awn.mixin.web-url",
+            "awn.mixin.runtime"
+          ],
+          "field-groups": [
+            {
+              "id": "content",
+              "name": "Основное",
+              "description": "Что заполняет человек или агент",
+              "collapsed": false
+            },
+            {
+              "id": "nav",
+              "name": "Дерево и вид",
+              "description": "Поведение в меню и на главной (для узлов дерева)",
+              "collapsed": true
+            },
+            {
+              "id": "runtime",
+              "name": "Runtime агента",
+              "description": "Загрузка в контекст, cron, heartbeat",
+              "collapsed": true
+            },
+            {
+              "id": "system",
+              "name": "Системные",
+              "description": "Заполняется автоматически, только чтение",
+              "collapsed": true
+            }
+          ],
+          "storage-slots": [
+            "main"
+          ],
+          "manifest-pattern": "{slug}/manifest.md",
+          "create-node-group": "agent",
+          "create-node-label": "Правила",
+          "create-node-slug": "rules",
+          "create-node-order": 2
+        }
+      }
+    },
+    "_typesTotal": 78,
+    "browseTypes": [
+      {
+        "id": "awn.entity",
+        "domain": "base",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/base/_base.yml",
+        "source": "platform",
+        "kind": "entity",
+        "status": "active",
+        "extends": null,
+        "name": "Сущность CMS",
+        "description": "Корневой тип platform — от него наследуют pages, content, fields, md-blocks",
+        "relPath": "base/_base",
+        "registrable": false,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.base",
+        "domain": "base",
+        "fileName": "base",
+        "catalogFile": "awn-system/types/base/base.yml",
+        "source": "platform",
+        "kind": "base",
+        "status": "active",
+        "extends": "awn.entity",
+        "name": "База сущности",
+        "description": {
+          "Общие поля любого контента и узла": "отображение и системные. Узлы дерева"
+        },
+        "relPath": "base/base",
+        "registrable": false,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.page.base",
+        "domain": "pages",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/pages/_base.yml",
+        "source": "platform",
+        "kind": "base",
+        "status": "active",
+        "extends": "awn.base",
+        "name": "База страницы",
+        "description": "Узел дерева (ws/section/topic) — база awn.base плюс навигация и runtime",
+        "relPath": "pages/_base",
+        "registrable": false,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.agent-kit.agent",
+        "domain": "pages",
+        "fileName": "agent",
+        "catalogFile": "awn-system/types/pages/agent-kit/agent.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Агент",
+        "description": "Описание агента — персона, роль, цели, ограничения",
+        "relPath": "pages/agent-kit/agent",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.agent-kit.rules",
+        "domain": "pages",
+        "fileName": "rules",
+        "catalogFile": "awn-system/types/pages/agent-kit/rules.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Правила",
+        "description": "Правила поведения агента — запреты, приоритеты, стиль",
+        "relPath": "pages/agent-kit/rules",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.agent-kit.user",
+        "domain": "pages",
+        "fileName": "user",
+        "catalogFile": "awn-system/types/pages/agent-kit/user.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Пользователь",
+        "description": "Профиль пользователя — имя, предпочтения, контакты",
+        "relPath": "pages/agent-kit/user",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.agent-kit.users",
+        "domain": "pages",
+        "fileName": "users",
+        "catalogFile": "awn-system/types/pages/agent-kit/users.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Пользователи",
+        "description": "Реестр пользователей — список участников проекта или системы",
+        "relPath": "pages/agent-kit/users",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.agent-kit.voice-sst",
+        "domain": "pages",
+        "fileName": "voice-sst",
+        "catalogFile": "awn-system/types/pages/agent-kit/voice-sst.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Голос STT",
+        "description": "Настройки распознавания речи (Speech-to-Text)",
+        "relPath": "pages/agent-kit/voice-sst",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.agent-kit.voice-tts",
+        "domain": "pages",
+        "fileName": "voice-tts",
+        "catalogFile": "awn-system/types/pages/agent-kit/voice-tts.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Голос TTS",
+        "description": "Настройки синтеза речи (Text-to-Speech)",
+        "relPath": "pages/agent-kit/voice-tts",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.area",
+        "domain": "pages",
+        "fileName": "area",
+        "catalogFile": "awn-system/types/pages/area.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "deprecated",
+        "extends": "awn.page.section",
+        "name": "Область",
+        "description": "Legacy — используйте awn.page.section.* (agent-kit, shared, container)",
+        "relPath": "pages/area",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.section",
+        "domain": "pages",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/pages/sections/_base.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.base",
+        "name": "Секция",
+        "description": "Секция workspace — прямой потомок ws; контейнер для тем (agent-kit, shared, container, …)",
+        "relPath": "pages/sections/_base",
+        "registrable": false,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.section.agent-kit",
+        "domain": "pages",
+        "fileName": "agent-kit",
+        "catalogFile": "awn-system/types/pages/sections/agent-kit.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.section",
+        "name": "Секция агента",
+        "description": "Служебные темы и компоненты — awn-agent-kit/",
+        "relPath": "pages/sections/agent-kit",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.section.container",
+        "domain": "pages",
+        "fileName": "container",
+        "catalogFile": "awn-system/types/pages/sections/container.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.section",
+        "name": "Контейнер контента",
+        "description": "Пользовательский контент — awn-container/ (опционально)",
+        "relPath": "pages/sections/container",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.section.shared",
+        "domain": "pages",
+        "fileName": "shared",
+        "catalogFile": "awn-system/types/pages/sections/shared.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.section",
+        "name": "Общие темы и ресурсы",
+        "description": "Cross-topic ресурсы — awn-shared/ (inbox, media, …)",
+        "relPath": "pages/sections/shared",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.shared.artefacts",
+        "domain": "pages",
+        "fileName": "artefacts",
+        "catalogFile": "awn-system/types/pages/shared/artefacts.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Артефакты",
+        "description": "Общие артефакты и черновики",
+        "relPath": "pages/shared/artefacts",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.shared.inbox",
+        "domain": "pages",
+        "fileName": "inbox",
+        "catalogFile": "awn-system/types/pages/shared/inbox.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Входящие",
+        "description": "Общая inbox — входящие записи для всех тем",
+        "relPath": "pages/shared/inbox",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.shared.media",
+        "domain": "pages",
+        "fileName": "media",
+        "catalogFile": "awn-system/types/pages/shared/media.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Медиа",
+        "description": "Общее медиа-хранилище",
+        "relPath": "pages/shared/media",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.shared.notes",
+        "domain": "pages",
+        "fileName": "notes",
+        "catalogFile": "awn-system/types/pages/shared/notes.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Заметки",
+        "description": "Общие быстрые заметки",
+        "relPath": "pages/shared/notes",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.shared.references",
+        "domain": "pages",
+        "fileName": "references",
+        "catalogFile": "awn-system/types/pages/shared/references.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Источники",
+        "description": "Общие ссылки и референсы",
+        "relPath": "pages/shared/references",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic.shared.scripts",
+        "domain": "pages",
+        "fileName": "scripts",
+        "catalogFile": "awn-system/types/pages/shared/scripts.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.topic",
+        "name": "Скрипты",
+        "description": "Общие скрипты и автоматизации",
+        "relPath": "pages/shared/scripts",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.topic",
+        "domain": "pages",
+        "fileName": "topic",
+        "catalogFile": "awn-system/types/pages/topic.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.base",
+        "name": "Тема",
+        "description": "Тема — manifest.md + слоты памяти",
+        "relPath": "pages/topic",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.page.ws",
+        "domain": "pages",
+        "fileName": "ws",
+        "catalogFile": "awn-system/types/pages/ws.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.base",
+        "name": "Workspace",
+        "description": "Корневой манифест агента — папка workspace (manifest.md в корне)",
+        "relPath": "pages/ws",
+        "registrable": true,
+        "inPageTree": true
+      },
+      {
+        "id": "awn.content.category",
+        "domain": "content",
+        "fileName": "category",
+        "catalogFile": "awn-system/types/content/category.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.base",
+        "name": "Категория",
+        "description": "Папка-категория для группировки контента в любом слоте",
+        "relPath": "content/category",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.content.comment",
+        "domain": "content",
+        "fileName": "comment",
+        "catalogFile": "awn-system/types/content/comment.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.base",
+        "name": "Комментарий",
+        "description": "Комментарий к узлу — слот comments/",
+        "relPath": "content/comment",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.content.dialog",
+        "domain": "content",
+        "fileName": "dialog",
+        "catalogFile": "awn-system/types/content/dialog.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.base",
+        "name": "Сообщение диалога",
+        "description": "Одно сообщение в слоте thread/ (awn.slot.dialogs) — диалог с агентом",
+        "relPath": "content/dialog",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.content.record",
+        "domain": "content",
+        "fileName": "record",
+        "catalogFile": "awn-system/types/content/record.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.base",
+        "name": "Запись",
+        "description": "Запись в слоте памяти (main, inbox, references…)",
+        "relPath": "content/record",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.content.sidecar",
+        "domain": "content",
+        "fileName": "sidecar",
+        "catalogFile": "awn-system/types/content/sidecar.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.base",
+        "name": "Sidecar",
+        "description": "Метаданные медиафайла (*.sidecar.md)",
+        "relPath": "content/sidecar",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot",
+        "domain": "slots",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/slots/_base.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.entity",
+        "name": "Слот памяти",
+        "description": "Базовый тип слоя памяти у топика",
+        "relPath": "slots/_base",
+        "registrable": false,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.artefacts",
+        "domain": "slots",
+        "fileName": "artefacts",
+        "catalogFile": "awn-system/types/slots/multi-file/artefacts.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Артефакты",
+        "description": "Артефакты и экспорты",
+        "relPath": "slots/multi-file/artefacts",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.assets",
+        "domain": "slots",
+        "fileName": "assets",
+        "catalogFile": "awn-system/types/slots/multi-file/assets.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Активы",
+        "description": "Медиа-библиотека активов — файлы, разделы и sidecar",
+        "relPath": "slots/multi-file/assets",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.inbox",
+        "domain": "slots",
+        "fileName": "inbox",
+        "catalogFile": "awn-system/types/slots/multi-file/inbox.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Входящие",
+        "description": "Входящие заметки и черновики",
+        "relPath": "slots/multi-file/inbox",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.main",
+        "domain": "slots",
+        "fileName": "main",
+        "catalogFile": "awn-system/types/slots/multi-file/main.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Память (многофайловая)",
+        "description": "Многофайловая память топика — папка main/",
+        "relPath": "slots/multi-file/main",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.media",
+        "domain": "slots",
+        "fileName": "media",
+        "catalogFile": "awn-system/types/slots/multi-file/media.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Медиа",
+        "description": "Медиа-файлы и sidecar",
+        "relPath": "slots/multi-file/media",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.note",
+        "domain": "slots",
+        "fileName": "note",
+        "catalogFile": "awn-system/types/slots/multi-file/note.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Заметки",
+        "description": "Заметки топика",
+        "relPath": "slots/multi-file/note",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.references",
+        "domain": "slots",
+        "fileName": "references",
+        "catalogFile": "awn-system/types/slots/multi-file/references.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Источники",
+        "description": "Ссылки и источники",
+        "relPath": "slots/multi-file/references",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.repository",
+        "domain": "slots",
+        "fileName": "repository",
+        "catalogFile": "awn-system/types/slots/multi-file/repository.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Репозитории",
+        "description": "Файловый репозиторий топика",
+        "relPath": "slots/multi-file/repository",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.script",
+        "domain": "slots",
+        "fileName": "scripts",
+        "catalogFile": "awn-system/types/slots/multi-file/scripts.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Скрипты",
+        "description": "Скрипты и автоматизация",
+        "relPath": "slots/multi-file/scripts",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.comments",
+        "domain": "slots",
+        "fileName": "comments",
+        "catalogFile": "awn-system/types/slots/multi-file/system/comments.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Комментарии",
+        "description": "Комментарии к узлам — comments/",
+        "relPath": "slots/multi-file/system/comments",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.dialogs",
+        "domain": "slots",
+        "fileName": "dialogs",
+        "catalogFile": "awn-system/types/slots/multi-file/system/dialogs.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Диалоги",
+        "description": "Диалог с агентом — thread/ (сообщения awn.content.dialog)",
+        "relPath": "slots/multi-file/system/dialogs",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.history",
+        "domain": "slots",
+        "fileName": "history",
+        "catalogFile": "awn-system/types/slots/multi-file/system/history.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "История",
+        "description": "Версии файлов и история правок — history/",
+        "relPath": "slots/multi-file/system/history",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.temp",
+        "domain": "slots",
+        "fileName": "temp",
+        "catalogFile": "awn-system/types/slots/multi-file/system/temp.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Временные файлы",
+        "description": "Черновики и временные файлы — temp/",
+        "relPath": "slots/multi-file/system/temp",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.volume",
+        "domain": "slots",
+        "fileName": "volume",
+        "catalogFile": "awn-system/types/slots/multi-file/system/volume.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Итоги",
+        "description": "Итоги сессий и решений — volume/ (сводки, договорённости)",
+        "relPath": "slots/multi-file/system/volume",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.log-single",
+        "domain": "slots",
+        "fileName": "log-single",
+        "catalogFile": "awn-system/types/slots/single-file/log-single.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Журнал",
+        "description": "Хронологический журнал топика — log.md",
+        "relPath": "slots/single-file/log-single",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.main-single-csv",
+        "domain": "slots",
+        "fileName": "main-single-csv",
+        "catalogFile": "awn-system/types/slots/single-file/main-single-csv.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Память (табличная)",
+        "description": "Табличная память топика — main.csv",
+        "relPath": "slots/single-file/main-single-csv",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.main-single",
+        "domain": "slots",
+        "fileName": "main-single",
+        "catalogFile": "awn-system/types/slots/single-file/main-single.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "Память (однофайловая)",
+        "description": "Однофайловая память топика — main.md рядом с manifest",
+        "relPath": "slots/single-file/main-single",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.slot.todo-single",
+        "domain": "slots",
+        "fileName": "todo-single",
+        "catalogFile": "awn-system/types/slots/single-file/todo-single.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.slot",
+        "name": "TODO",
+        "description": "Список задач топика — todo.md",
+        "relPath": "slots/single-file/todo-single",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.base",
+        "domain": "fields",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/fields/_base.yml",
+        "source": "platform",
+        "kind": "base",
+        "status": "active",
+        "extends": "awn.entity",
+        "name": "База поля",
+        "description": "Базовые мета-свойства любого поля",
+        "relPath": "fields/_base",
+        "registrable": false,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.array",
+        "domain": "fields",
+        "fileName": "array",
+        "catalogFile": "awn-system/types/fields/array.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Несколько из списка",
+        "description": "Несколько значений из заданного списка. Виджет: checkbox (по умолчанию) или select-multiple",
+        "relPath": "fields/array",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.boolean",
+        "domain": "fields",
+        "fileName": "boolean",
+        "catalogFile": "awn-system/types/fields/boolean.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Логическое",
+        "description": "Логическое значение (да/нет)",
+        "relPath": "fields/boolean",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.color",
+        "domain": "fields",
+        "fileName": "color",
+        "catalogFile": "awn-system/types/fields/color.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Цвет",
+        "description": "Цвет в формате",
+        "relPath": "fields/color",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.date",
+        "domain": "fields",
+        "fileName": "date",
+        "catalogFile": "awn-system/types/fields/date.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Дата",
+        "description": "Дата без времени (YYYY-MM-DD)",
+        "relPath": "fields/date",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.datetime",
+        "domain": "fields",
+        "fileName": "datetime",
+        "catalogFile": "awn-system/types/fields/datetime.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Дата и время",
+        "description": "Дата и время (ISO 8601)",
+        "relPath": "fields/datetime",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.email",
+        "domain": "fields",
+        "fileName": "email",
+        "catalogFile": "awn-system/types/fields/email.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Email",
+        "description": "Адрес электронной почты",
+        "relPath": "fields/email",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.enum",
+        "domain": "fields",
+        "fileName": "enum",
+        "catalogFile": "awn-system/types/fields/enum.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Одно из списка",
+        "description": "Одно значение из заданного списка. Виджет: select (по умолчанию) или radio",
+        "relPath": "fields/enum",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.file",
+        "domain": "fields",
+        "fileName": "file",
+        "catalogFile": "awn-system/types/fields/file.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Файл",
+        "description": "Ссылка на файл или список файлов (вложения)",
+        "relPath": "fields/file",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.image",
+        "domain": "fields",
+        "fileName": "image",
+        "catalogFile": "awn-system/types/fields/image.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Изображение",
+        "description": "Изображение — загружается или выбирается из медиатеки",
+        "relPath": "fields/image",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.integer",
+        "domain": "fields",
+        "fileName": "integer",
+        "catalogFile": "awn-system/types/fields/integer.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Целое число",
+        "description": "Целое число без дробной части",
+        "relPath": "fields/integer",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.json",
+        "domain": "fields",
+        "fileName": "json",
+        "catalogFile": "awn-system/types/fields/json.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "JSON",
+        "description": "Структурированные данные в формате JSON (редактор с подсветкой)",
+        "relPath": "fields/json",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.link",
+        "domain": "fields",
+        "fileName": "link",
+        "catalogFile": "awn-system/types/fields/link.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Связь",
+        "description": "Ссылка на ноду внутри системы (markdown [[путь]])",
+        "relPath": "fields/link",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.markdown",
+        "domain": "fields",
+        "fileName": "markdown",
+        "catalogFile": "awn-system/types/fields/markdown.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Markdown",
+        "description": "Форматированный текст в формате Markdown с превью",
+        "relPath": "fields/markdown",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.number",
+        "domain": "fields",
+        "fileName": "number",
+        "catalogFile": "awn-system/types/fields/number.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Число",
+        "description": "Число с дробной частью (float)",
+        "relPath": "fields/number",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.relation",
+        "domain": "fields",
+        "fileName": "relation",
+        "catalogFile": "awn-system/types/fields/relation.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Отношение",
+        "description": "Семантическая связь с другой нодой (топик, запись, категория) — с фильтром по типу",
+        "relPath": "fields/relation",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.slug",
+        "domain": "fields",
+        "fileName": "slug",
+        "catalogFile": "awn-system/types/fields/slug.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Слаг",
+        "description": "URL-слаг — строчные буквы, цифры и дефисы (напр. my-topic-name)",
+        "relPath": "fields/slug",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.string",
+        "domain": "fields",
+        "fileName": "string",
+        "catalogFile": "awn-system/types/fields/string.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Строка",
+        "description": "Короткая строка (одна строка текста)",
+        "relPath": "fields/string",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.tags",
+        "domain": "fields",
+        "fileName": "tags",
+        "catalogFile": "awn-system/types/fields/tags.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Теги",
+        "description": "Свободные теги — вводятся произвольно, не из фиксированного списка",
+        "relPath": "fields/tags",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.text",
+        "domain": "fields",
+        "fileName": "text",
+        "catalogFile": "awn-system/types/fields/text.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "Текст",
+        "description": "Длинный текст или описание (многострочное)",
+        "relPath": "fields/text",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.field.url",
+        "domain": "fields",
+        "fileName": "url",
+        "catalogFile": "awn-system/types/fields/url.yml",
+        "source": "platform",
+        "kind": "field",
+        "status": "active",
+        "extends": "awn.field.base",
+        "name": "URL",
+        "description": "Внешняя ссылка (https://...)",
+        "relPath": "fields/url",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.mixin.attachments",
+        "domain": "mixins",
+        "fileName": "attachments",
+        "catalogFile": "awn-system/types/mixins/attachments.yml",
+        "source": "platform",
+        "kind": "mixin",
+        "status": "active",
+        "extends": null,
+        "name": "Вложения",
+        "description": "Прикреплённые файлы",
+        "relPath": "mixins/attachments",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.mixin.preview",
+        "domain": "mixins",
+        "fileName": "preview",
+        "catalogFile": "awn-system/types/mixins/preview.yml",
+        "source": "platform",
+        "kind": "mixin",
+        "status": "active",
+        "extends": null,
+        "name": "Превью",
+        "description": "Поле превью-изображения",
+        "relPath": "mixins/preview",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.mixin.runtime",
+        "domain": "mixins",
+        "fileName": "runtime",
+        "catalogFile": "awn-system/types/mixins/runtime.yml",
+        "source": "platform",
+        "kind": "mixin",
+        "status": "active",
+        "extends": null,
+        "name": "Runtime",
+        "description": "Загрузка в контекст агента, cron, heartbeat, команды",
+        "relPath": "mixins/runtime",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.mixin.web-url",
+        "domain": "mixins",
+        "fileName": "web-url",
+        "catalogFile": "awn-system/types/mixins/web-url.yml",
+        "source": "platform",
+        "kind": "mixin",
+        "status": "active",
+        "extends": null,
+        "name": "Веб-источник",
+        "description": "Ссылка на оригинал в интернете",
+        "relPath": "mixins/web-url",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.settings.base",
+        "domain": "settings",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/settings/_base.yml",
+        "source": "platform",
+        "kind": "base",
+        "status": "active",
+        "extends": "awn.entity",
+        "name": "База настройки",
+        "description": {},
+        "relPath": "settings/_base",
+        "registrable": false,
+        "inPageTree": false
+      },
+      {
+        "id": "agent.settings.general",
+        "domain": "settings",
+        "fileName": "general",
+        "catalogFile": "awn-system/types/settings/general.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.settings.base",
+        "name": "Общие",
+        "description": "Общие настройки агента",
+        "relPath": "settings/general",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "agent.settings.voice",
+        "domain": "settings",
+        "fileName": "voice",
+        "catalogFile": "awn-system/types/settings/voice.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.settings.base",
+        "name": "Голос",
+        "description": "Настройки озвучки и распознавания речи",
+        "relPath": "settings/voice",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.base",
+        "domain": "md-blocks",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/md-blocks/_base.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": "awn.entity",
+        "name": "База блока",
+        "description": "Общий шаблон markdown-блока редактора",
+        "relPath": "md-blocks/_base",
+        "registrable": false,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.code",
+        "domain": "md-blocks",
+        "fileName": "codeblock",
+        "catalogFile": "awn-system/types/md-blocks/codeblock.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": null,
+        "name": "Блок кода",
+        "description": "Многострочный код",
+        "relPath": "md-blocks/codeblock",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.desc",
+        "domain": "md-blocks",
+        "fileName": "desc",
+        "catalogFile": "awn-system/types/md-blocks/desc.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": null,
+        "name": "Краткое описание",
+        "description": "Превью + полный текст",
+        "relPath": "md-blocks/desc",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.groups",
+        "domain": "md-blocks",
+        "fileName": "groups",
+        "catalogFile": "awn-system/types/md-blocks/groups.yml",
+        "source": "platform",
+        "kind": "meta",
+        "status": "active",
+        "extends": null,
+        "name": "awn.block.groups",
+        "description": "",
+        "relPath": "md-blocks/groups",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.h2",
+        "domain": "md-blocks",
+        "fileName": "h2",
+        "catalogFile": "awn-system/types/md-blocks/h2.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": "awn.block.base",
+        "name": "Заголовок H2",
+        "description": "Раздел второго уровня",
+        "relPath": "md-blocks/h2",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.h3",
+        "domain": "md-blocks",
+        "fileName": "h3",
+        "catalogFile": "awn-system/types/md-blocks/h3.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": null,
+        "name": "Заголовок H3",
+        "description": "Подраздел",
+        "relPath": "md-blocks/h3",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.hr",
+        "domain": "md-blocks",
+        "fileName": "hr",
+        "catalogFile": "awn-system/types/md-blocks/hr.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": null,
+        "name": "Разделитель",
+        "description": "Горизонтальная линия",
+        "relPath": "md-blocks/hr",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.note",
+        "domain": "md-blocks",
+        "fileName": "note",
+        "catalogFile": "awn-system/types/md-blocks/note.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": null,
+        "name": "Примечание",
+        "description": "Короткое выделение",
+        "relPath": "md-blocks/note",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.ol",
+        "domain": "md-blocks",
+        "fileName": "ol",
+        "catalogFile": "awn-system/types/md-blocks/ol.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": null,
+        "name": "Нумерованный список",
+        "description": "Шаги или порядок",
+        "relPath": "md-blocks/ol",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.quote",
+        "domain": "md-blocks",
+        "fileName": "quote",
+        "catalogFile": "awn-system/types/md-blocks/quote.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": null,
+        "name": "Цитата",
+        "description": "Выделенная цитата",
+        "relPath": "md-blocks/quote",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.table",
+        "domain": "md-blocks",
+        "fileName": "table",
+        "catalogFile": "awn-system/types/md-blocks/table.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": null,
+        "name": "Таблица",
+        "description": "2 колонки, шапка",
+        "relPath": "md-blocks/table",
+        "registrable": true,
+        "inPageTree": false
+      },
+      {
+        "id": "awn.block.tasks",
+        "domain": "md-blocks",
+        "fileName": "tasks",
+        "catalogFile": "awn-system/types/md-blocks/tasks.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": null,
+        "name": "Чеклист",
+        "description": "Задачи с галочками",
+        "relPath": "md-blocks/tasks",
+        "registrable": true,
+        "inPageTree": false
+      }
+    ],
+    "foundationTypes": [
+      {
+        "id": "awn.base",
+        "domain": "base",
+        "fileName": "base",
+        "catalogFile": "awn-system/types/base/base.yml",
+        "source": "platform",
+        "kind": "base",
+        "status": "active",
+        "extends": "awn.entity",
+        "name": "База сущности",
+        "description": {
+          "Общие поля любого контента и узла": "отображение и системные. Узлы дерева"
+        },
+        "relPath": "base/base",
+        "registrable": false,
+        "inPageTree": false,
+        "fieldCount": 9
+      },
+      {
+        "id": "awn.block.base",
+        "domain": "md-blocks",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/md-blocks/_base.yml",
+        "source": "platform",
+        "kind": "block",
+        "status": "active",
+        "extends": "awn.entity",
+        "name": "База блока",
+        "description": "Общий шаблон markdown-блока редактора",
+        "relPath": "md-blocks/_base",
+        "registrable": false,
+        "inPageTree": false,
+        "fieldCount": 6
+      },
+      {
+        "id": "awn.entity",
+        "domain": "base",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/base/_base.yml",
+        "source": "platform",
+        "kind": "entity",
+        "status": "active",
+        "extends": null,
+        "name": "Сущность CMS",
+        "description": "Корневой тип platform — от него наследуют pages, content, fields, md-blocks",
+        "relPath": "base/_base",
+        "registrable": false,
+        "inPageTree": false,
+        "fieldCount": 0
+      },
+      {
+        "id": "awn.field.base",
+        "domain": "fields",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/fields/_base.yml",
+        "source": "platform",
+        "kind": "base",
+        "status": "active",
+        "extends": "awn.entity",
+        "name": "База поля",
+        "description": "Базовые мета-свойства любого поля",
+        "relPath": "fields/_base",
+        "registrable": false,
+        "inPageTree": false,
+        "fieldCount": 11
+      },
+      {
+        "id": "awn.page.base",
+        "domain": "pages",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/pages/_base.yml",
+        "source": "platform",
+        "kind": "base",
+        "status": "active",
+        "extends": "awn.base",
+        "name": "База страницы",
+        "description": "Узел дерева (ws/section/topic) — база awn.base плюс навигация и runtime",
+        "relPath": "pages/_base",
+        "registrable": false,
+        "inPageTree": true,
+        "fieldCount": 15
+      },
+      {
+        "id": "awn.page.section",
+        "domain": "pages",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/pages/sections/_base.yml",
+        "source": "platform",
+        "kind": "type",
+        "status": "active",
+        "extends": "awn.page.base",
+        "name": "Секция",
+        "description": "Секция workspace — прямой потомок ws; контейнер для тем (agent-kit, shared, container, …)",
+        "relPath": "pages/sections/_base",
+        "registrable": false,
+        "inPageTree": true,
+        "fieldCount": 16
+      },
+      {
+        "id": "awn.settings.base",
+        "domain": "settings",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/settings/_base.yml",
+        "source": "platform",
+        "kind": "base",
+        "status": "active",
+        "extends": "awn.entity",
+        "name": "База настройки",
+        "description": {},
+        "relPath": "settings/_base",
+        "registrable": false,
+        "inPageTree": false,
+        "fieldCount": 3
+      },
+      {
+        "id": "awn.slot",
+        "domain": "slots",
+        "fileName": "_base",
+        "catalogFile": "awn-system/types/slots/_base.yml",
+        "source": "platform",
+        "kind": "slot",
+        "status": "active",
+        "extends": "awn.entity",
+        "name": "Слот памяти",
+        "description": "Базовый тип слоя памяти у топика",
+        "relPath": "slots/_base",
+        "registrable": false,
+        "inPageTree": false,
+        "fieldCount": 7
+      }
+    ],
+    "byKind": {
+      "type": [
+        "awn.page.topic.agent-kit.agent",
+        "awn.page.topic.agent-kit.rules",
+        "awn.page.topic.agent-kit.user",
+        "awn.page.topic.agent-kit.users",
+        "awn.page.topic.agent-kit.voice-sst",
+        "awn.page.topic.agent-kit.voice-tts",
+        "awn.page.area",
+        "awn.page.section.agent-kit",
+        "awn.page.section.container",
+        "awn.page.section.shared",
+        "awn.page.topic.shared.artefacts",
+        "awn.page.topic.shared.inbox",
+        "awn.page.topic.shared.media",
+        "awn.page.topic.shared.notes",
+        "awn.page.topic.shared.references",
+        "awn.page.topic.shared.scripts",
+        "awn.page.topic",
+        "awn.page.ws",
+        "awn.content.category",
+        "awn.content.comment",
+        "awn.content.dialog",
+        "awn.content.record",
+        "awn.content.sidecar",
+        "agent.settings.general",
+        "agent.settings.voice"
+      ],
+      "slot": [
+        "awn.slot.artefacts",
+        "awn.slot.assets",
+        "awn.slot.inbox",
+        "awn.slot.main",
+        "awn.slot.media",
+        "awn.slot.note",
+        "awn.slot.references",
+        "awn.slot.repository",
+        "awn.slot.script",
+        "awn.slot.comments",
+        "awn.slot.dialogs",
+        "awn.slot.history",
+        "awn.slot.temp",
+        "awn.slot.volume",
+        "awn.slot.log-single",
+        "awn.slot.main-single-csv",
+        "awn.slot.main-single",
+        "awn.slot.todo-single"
+      ],
+      "field": [
+        "awn.field.array",
+        "awn.field.boolean",
+        "awn.field.color",
+        "awn.field.date",
+        "awn.field.datetime",
+        "awn.field.email",
+        "awn.field.enum",
+        "awn.field.file",
+        "awn.field.image",
+        "awn.field.integer",
+        "awn.field.json",
+        "awn.field.link",
+        "awn.field.markdown",
+        "awn.field.number",
+        "awn.field.relation",
+        "awn.field.slug",
+        "awn.field.string",
+        "awn.field.tags",
+        "awn.field.text",
+        "awn.field.url"
+      ],
+      "mixin": [
+        "awn.mixin.attachments",
+        "awn.mixin.preview",
+        "awn.mixin.runtime",
+        "awn.mixin.web-url"
+      ],
+      "block": [
+        "awn.block.code",
+        "awn.block.desc",
+        "awn.block.h2",
+        "awn.block.h3",
+        "awn.block.hr",
+        "awn.block.note",
+        "awn.block.ol",
+        "awn.block.quote",
+        "awn.block.table",
+        "awn.block.tasks"
+      ],
+      "meta": [
+        "awn.block.groups"
+      ]
+    }
+  }
+}
