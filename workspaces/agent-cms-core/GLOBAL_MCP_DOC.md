@@ -167,7 +167,7 @@
 | `assets` | `awn.slot.assets` | `assets/` | Ресурсы **для записей** (вставки, вложения, preview) |
 | `repository` | `awn.slot.repository` | `repository/` | Репозитории / код |
 | `scripts` | `awn.slot.script` | `scripts/` | Скрипты |
-| `comments` | `awn.slot.comments` | `comments/` | Комментарии к узлу/файлу |
+| `comments` | `awn.slot.comments` | `comments/` | Discuss-комментарии (`list_comments` / `append_comment`, не `create_content`) |
 | `dialogs` | `awn.slot.dialogs` | `thread/` | Диалог темы (`read_dialogs` / `append_dialog`, не `create_content`) |
 
 ### Однофайловая память (internal)
@@ -211,7 +211,7 @@
 |----|-----|-------|
 | `awn.content.category` | Категория | Папка для группировки записей внутри слота |
 | `awn.content.record` | Запись | Обычный `.md` в слоте (заметка, документ) |
-| `awn.content.comment` | Комментарий | Комментарий к странице/записи — слот `comments/` |
+| `awn.content.comment` | Комментарий (legacy) | Тип для slug-файлов в `comments/`; для UI Discuss — `append_comment`, не `create_content` |
 | `awn.content.sidecar` | Sidecar | Мета к бинарному файлу (`*.sidecar.md` рядом с media) |
 
 - тело / свойства: `read_content_body` / `write_content_body`, `read_content_properties` / `write_content_properties`
@@ -248,6 +248,7 @@
 | Frontmatter записи | `write_content_properties` |
 | `manifest.md` страницы | `write_page_body` |
 | Диалог темы | `read_dialogs` / `append_dialog` | Не писать в `thread/` через `create_content` |
+| Discuss-комментарий | `list_comments` / `append_comment` | Не писать в `comments/` через `create_content` / `write_file` |
 | Код, HTML, бинарники, media | `read_file` / `write_file` / `upload_file` / `upload_file_from_url` |
 | Файл в слот темы по URL | `import_content_from_url` |
 | Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
@@ -331,14 +332,46 @@ awn-description: Черновики и ресурсы для разбора
 
 ---
 
-## Inbox / диалоги
+## Inbox / диалоги / комментарии
 
 | Задача | Tools | Не делать |
 |--------|-------|-----------|
 | Intake / входящие | `list_inbox`, `triage_inbox_item`, `create_content` (`slot: inbox`, `status: new`) | Не писать в `inbox/` в обход triage |
 | Диалог темы | `read_dialogs`, `append_dialog` | Не писать в `thread/` через `create_content` |
+| Discuss-комментарии | `list_comments`, `append_comment`, `toggle_comment_reaction` | Не писать в `comments/` через `create_content` / `write_file` |
 
 Новая intake-заметка — `create_content` в `slot: inbox` с `status: new`.
+
+### Комментарии (Discuss)
+
+Привязка к **manifest** или к **записи в слоте** — те же параметры контекста, что у диалогов:
+
+| Поле | Когда | Пример |
+|------|-------|--------|
+| `path` | всегда | `awn-container/tema/manifest.md` |
+| `mode` | комментарий к записи | `description` (manifest), `external`, `media`, … |
+| `file` | комментарий к записи | `memory/razdel/zapis.md` |
+| `name` | системный файл | редко |
+
+**Примеры:**
+
+```json
+// комментарий к теме (manifest)
+append_comment({ "path": "…/manifest.md", "body": "Готово", "author": "agent" })
+
+// комментарий к записи в main/
+append_comment({
+  "path": "…/manifest.md",
+  "mode": "external",
+  "file": "memory/razdel/zapis.md",
+  "body": "Уточнить формулировку",
+  "replyTo": "2026-08-08_14-00-00-123.md"
+})
+
+list_comments({ "path": "…/manifest.md", "mode": "external", "file": "memory/razdel/zapis.md" })
+```
+
+Файлы: `awn-storage/comments/{target}/{timestamp}.md` (не slug-имена записей).
 
 ---
 
@@ -377,6 +410,6 @@ awn-description: Черновики и ресурсы для разбора
 4. `awn-data` (инфоблок / информационный накопитель) ≠ слот страницы.
 5. Уведомление в 🔔 CMS → `notify_user`.
 6. В `slot` — канонические ключи: `notes`, `scripts`, `dialogs` (не устаревшие `note` / `script` / `thread`).
-7. Комментарии / диалоги — свои tools; inbox создавать через `create_content` (`slot: inbox`), triage — `triage_inbox_item` (`to-dialogs`).
+7. Комментарии / диалоги — свои tools (`list_comments`, `append_comment`, `read_dialogs`, …); inbox — `create_content` (`slot: inbox`), triage — `triage_inbox_item` (`to-dialogs`).
 8. `read_page_schema` — default `mode=layers`; не `mode=full` без нужды.
 9. `media` ≠ `assets`: медиатека темы vs ресурсы записей (preview / pasted / attachments).

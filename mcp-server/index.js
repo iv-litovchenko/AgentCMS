@@ -44,7 +44,7 @@ function createServer() {
     ? ` Agent: ${cfg.defaultAgent}.`
     : " Uses default agent from registry.";
 
-  const server = new McpServer({ name: "agent-cms", version: "0.3.0" });
+  const server = new McpServer({ name: "agent-cms", version: "0.3.1" });
 
   const reg = (name, description, schema, fn) => {
     server.registerTool(name, { description: description + agentNote, inputSchema: schema }, wrap(fn));
@@ -230,6 +230,50 @@ function createServer() {
     }),
     ({ path, body, role, author, linkedFiles, mode, file, name }) =>
       client.post("/api/dialogs", { path, body, role, author, linkedFiles, mode, file, name })
+  );
+
+  reg(
+    "list_comments",
+    "List discuss comments for manifest or a file in a slot (UI comments panel). Storage: awn-storage/comments/{target}/.",
+    z.object({
+      path: pagePath,
+      mode: z.string().optional().describe("description (default) | external | media | …"),
+      file: z.string().optional().describe("Record path in slot when commenting on content, e.g. memory/razdel/zapis.md"),
+      name: z.string().optional()
+    }),
+    ({ path, mode, file, name }) => client.get("/api/file/comments", { path, mode, file, name })
+  );
+
+  reg(
+    "append_comment",
+    "Append discuss comment to manifest or file in slot. Do not use create_content or write_file in comments/.",
+    z.object({
+      path: pagePath,
+      body: z.string().min(1),
+      author: z.string().optional().describe("Display author, default guest"),
+      replyTo: z.string().optional().describe("Parent comment file id, e.g. 2026-08-08_14-00-00-123.md"),
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, body, author, replyTo, mode, file, name }) =>
+      client.post("/api/file/comments", { path, body, author, replyTo, mode, file, name })
+  );
+
+  reg(
+    "toggle_comment_reaction",
+    "Toggle reaction on a discuss comment (default reaction: up).",
+    z.object({
+      path: pagePath,
+      commentId: z.string().min(1).describe("Comment file id, e.g. 2026-08-08_14-00-00-123.md"),
+      reaction: z.string().optional().describe("Default up"),
+      author: z.string().optional(),
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, commentId, reaction, author, mode, file, name }) =>
+      client.post("/api/file/comments/reaction", { path, commentId, reaction, author, mode, file, name })
   );
 
   // ── FS + system (5) ────────────────────────────────────────────────────────
