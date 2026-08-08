@@ -12992,7 +12992,7 @@ async function openTopicSchemaForStorageSlot(slotKey) {
     return;
   }
   try {
-    await loadTopicSchemaForManifest(activePath, { force: true, topicOnly: true });
+    await loadTopicSchemaForManifest(activePath, { topicOnly: true });
     renderTopicSchemaEditor();
   } catch (error) {
     showToast(`Не удалось открыть схему: ${error.message}`, "error");
@@ -23592,7 +23592,11 @@ function setContentMode(mode) {
 
 async function applyContentModeChange() {
   if (activePath) {
-    applyModeUi();
+    const deferInitialModeUi =
+      activeContentMode === "topic-schema" || activeContentMode === "configs";
+    if (!deferInitialModeUi) {
+      applyModeUi();
+    }
     await loadContentByMode();
     if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
       await renderEntryOverview();
@@ -35284,6 +35288,7 @@ let propsFormEntries = [];
 let propsFormHiddenEntries = [];
 let propsRawYamlVisible = false;
 let awnTypesCache = null;
+let awnTypesLoadPromise = null;
 let typeCatalogCacheByAgent = new Map();
 let typeCatalogLoadPromiseByAgent = new Map();
 let agentCatalogsCache = null;
@@ -35469,26 +35474,35 @@ async function loadAwnTypes(agentId = activeAgentId) {
     awnTypesCache = null;
     agentCatalogsCache = null;
     agentCatalogsLoadPromise = null;
+    awnTypesLoadPromise = null;
     return null;
   }
-  try {
-    const response = await fetch(buildApiUrl("/api/awn-types", {}, agentId));
-    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-    awnTypesCache = await response.json();
-    for (const cache of topicSchemaCacheByManifest.values()) {
-      enrichTopicSchemaCacheFromTypes(cache);
+  if (awnTypesLoadPromise) return awnTypesLoadPromise;
+
+  awnTypesLoadPromise = (async () => {
+    try {
+      const response = await fetch(buildApiUrl("/api/awn-types", {}, agentId));
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      awnTypesCache = await response.json();
+      for (const cache of topicSchemaCacheByManifest.values()) {
+        enrichTopicSchemaCacheFromTypes(cache);
+      }
+      if (getDocAsideTab() === "blocks") renderDocContentBlocks();
+      if (shouldRefreshPropsFormFromYaml()) {
+        absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
+        syncYamlFromPropsForm();
+        renderPropsForm();
+      }
+      return awnTypesCache;
+    } catch {
+      awnTypesCache = null;
+      return null;
+    } finally {
+      awnTypesLoadPromise = null;
     }
-    if (getDocAsideTab() === "blocks") renderDocContentBlocks();
-    if (shouldRefreshPropsFormFromYaml()) {
-      absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
-      syncYamlFromPropsForm();
-      renderPropsForm();
-    }
-    return awnTypesCache;
-  } catch {
-    awnTypesCache = null;
-    return null;
-  }
+  })();
+
+  return awnTypesLoadPromise;
 }
 
 async function loadAgentCatalogs(agentId = activeAgentId) {
@@ -35755,6 +35769,7 @@ function enrichTopicSchemaCacheFromTypes(cache) {
 }
 
 const topicSchemaCacheByManifest = new Map();
+const topicSchemaLoadPromises = new Map();
 let topicSchemaActiveTarget = "topic";
 const topicSchemaExpandedKeys = new Set();
 
@@ -35893,6 +35908,11 @@ function invalidateTopicSchemaCacheForManifest(manifestPath) {
   for (const key of [...topicSchemaCacheByManifest.keys()]) {
     if (key === manifest || key.startsWith(`${manifest}\0`)) {
       topicSchemaCacheByManifest.delete(key);
+    }
+  }
+  for (const key of [...topicSchemaLoadPromises.keys()]) {
+    if (key === manifest || key.startsWith(`${manifest}\0`)) {
+      topicSchemaLoadPromises.delete(key);
     }
   }
 }
@@ -36425,39 +36445,53 @@ async function loadWorkspaceSchemaForAgentRoot(nodePath, options = {}) {
     if (cached) return cached;
   }
 
-  const response = await fetch(buildApiUrl("/api/file/workspace-schema", { path: manifestPath, mode: "layers" }));
-  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-  const data = await response.json();
-  if (!awnTypesCache?.types) {
-    await loadAwnTypes(activeAgentId);
+  const inflight = topicSchemaLoadPromises.get(cacheKey);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    const response = await fetch(buildApiUrl("/api/file/workspace-schema", { path: manifestPath, mode: "layers" }));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    if (!awnTypesCache?.types) {
+      await loadAwnTypes(activeAgentId);
+    }
+    const fieldRegistry = awnTypesCache?.fieldRegistry || {};
+    const parsedLayers = parseTopicSchemaLayersFromApi(data);
+    const workspaceAwnSchema =
+      parsedLayers.workspaceAwnSchema ||
+      normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema);
+    const payload = {
+      manifestPath,
+      contentPath: "",
+      configPath: data.schemaPath || SCHEMA_MOD_FILE,
+      configExists: Boolean(data.schemaExists),
+      schemaPath: data.schemaPath || SCHEMA_MOD_FILE,
+      schemaExists: Boolean(data.schemaExists),
+      isWorkspaceSchema: true,
+      awnSchema: workspaceAwnSchema,
+      workspaceAwnSchema,
+      topicAwnSchema: emptyTopicSchemaState(),
+      areaAwnSchema: emptyTopicSchemaState(),
+      effectiveAwnSchema: workspaceAwnSchema,
+      sectionAwnSchema: null,
+      sectionChain: [],
+      baseTypes: {},
+      merged: {},
+      fieldRegistry
+    };
+    enrichTopicSchemaCacheFromTypes(payload);
+    topicSchemaCacheByManifest.set(cacheKey, payload);
+    return payload;
+  })();
+
+  topicSchemaLoadPromises.set(cacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    if (topicSchemaLoadPromises.get(cacheKey) === promise) {
+      topicSchemaLoadPromises.delete(cacheKey);
+    }
   }
-  const fieldRegistry = awnTypesCache?.fieldRegistry || {};
-  const parsedLayers = parseTopicSchemaLayersFromApi(data);
-  const workspaceAwnSchema =
-    parsedLayers.workspaceAwnSchema ||
-    normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema);
-  const payload = {
-    manifestPath,
-    contentPath: "",
-    configPath: data.schemaPath || SCHEMA_MOD_FILE,
-    configExists: Boolean(data.schemaExists),
-    schemaPath: data.schemaPath || SCHEMA_MOD_FILE,
-    schemaExists: Boolean(data.schemaExists),
-    isWorkspaceSchema: true,
-    awnSchema: workspaceAwnSchema,
-    workspaceAwnSchema,
-    topicAwnSchema: emptyTopicSchemaState(),
-    areaAwnSchema: emptyTopicSchemaState(),
-    effectiveAwnSchema: workspaceAwnSchema,
-    sectionAwnSchema: null,
-    sectionChain: [],
-    baseTypes: {},
-    merged: {},
-    fieldRegistry
-  };
-  enrichTopicSchemaCacheFromTypes(payload);
-  topicSchemaCacheByManifest.set(cacheKey, payload);
-  return payload;
 }
 
 async function loadTopicSchemaForManifest(nodePath, options = {}) {
@@ -36486,43 +36520,57 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
     if (cached) return cached;
   }
 
-  const query = { path: manifestPath, mode: "layers" };
-  if (contentPath) query.contentPath = contentPath;
-  const response = await fetch(buildApiUrl("/api/file/topic-schema", query));
-  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-  const data = await response.json();
-  if (!awnTypesCache?.types) {
-    await loadAwnTypes(activeAgentId);
+  const inflight = topicSchemaLoadPromises.get(cacheKey);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    const query = { path: manifestPath, mode: "layers" };
+    if (contentPath) query.contentPath = contentPath;
+    const response = await fetch(buildApiUrl("/api/file/topic-schema", query));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    if (!awnTypesCache?.types) {
+      await loadAwnTypes(activeAgentId);
+    }
+    const fieldRegistry = awnTypesCache?.fieldRegistry || {};
+    const parsedLayers = parseTopicSchemaLayersFromApi(data);
+    const topicAwnSchema = isAreaSchemaContext(manifestPath)
+      ? emptyTopicSchemaState()
+      : parsedLayers.topicAwnSchema;
+    const areaAwnSchema = isAreaSchemaContext(manifestPath)
+      ? parsedLayers.areaAwnSchema || parsedLayers.topicAwnSchema
+      : parsedLayers.areaAwnSchema;
+    const editableSchema = isAreaSchemaContext(manifestPath) ? areaAwnSchema : topicAwnSchema;
+    const effectiveAwnSchema = parsedLayers.effectiveAwnSchema;
+    const payload = {
+      manifestPath,
+      contentPath: contentPath || "",
+      configPath: data.schemaPath || data.configPath || "",
+      configExists: Boolean(data.schemaExists ?? data.configExists),
+      awnSchema: editableSchema,
+      effectiveAwnSchema,
+      topicAwnSchema,
+      areaAwnSchema,
+      workspaceAwnSchema: parsedLayers.workspaceAwnSchema,
+      sectionAwnSchema: parsedLayers.sectionAwnSchema,
+      sectionChain: parsedLayers.sectionChain,
+      baseTypes: {},
+      merged: {},
+      fieldRegistry
+    };
+    enrichTopicSchemaCacheFromTypes(payload);
+    topicSchemaCacheByManifest.set(cacheKey, payload);
+    return payload;
+  })();
+
+  topicSchemaLoadPromises.set(cacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    if (topicSchemaLoadPromises.get(cacheKey) === promise) {
+      topicSchemaLoadPromises.delete(cacheKey);
+    }
   }
-  const fieldRegistry = awnTypesCache?.fieldRegistry || {};
-  const parsedLayers = parseTopicSchemaLayersFromApi(data);
-  const topicAwnSchema = isAreaSchemaContext(manifestPath)
-    ? emptyTopicSchemaState()
-    : parsedLayers.topicAwnSchema;
-  const areaAwnSchema = isAreaSchemaContext(manifestPath)
-    ? parsedLayers.areaAwnSchema || parsedLayers.topicAwnSchema
-    : parsedLayers.areaAwnSchema;
-  const editableSchema = isAreaSchemaContext(manifestPath) ? areaAwnSchema : topicAwnSchema;
-  const effectiveAwnSchema = parsedLayers.effectiveAwnSchema;
-  const payload = {
-    manifestPath,
-    contentPath: contentPath || "",
-    configPath: data.schemaPath || data.configPath || "",
-    configExists: Boolean(data.schemaExists ?? data.configExists),
-    awnSchema: editableSchema,
-    effectiveAwnSchema,
-    topicAwnSchema,
-    areaAwnSchema,
-    workspaceAwnSchema: parsedLayers.workspaceAwnSchema,
-    sectionAwnSchema: parsedLayers.sectionAwnSchema,
-    sectionChain: parsedLayers.sectionChain,
-    baseTypes: {},
-    merged: {},
-    fieldRegistry
-  };
-  enrichTopicSchemaCacheFromTypes(payload);
-  topicSchemaCacheByManifest.set(cacheKey, payload);
-  return payload;
 }
 
 function getTopicSchemaRegistryEntries(cache = getTopicSchemaCache()) {
@@ -37049,6 +37097,36 @@ function renderTopicSchemaEditor() {
   renderTopicSchemaCustomFields(cache);
 }
 
+function preserveTopicSchemaFieldOrder(previousFields, nextFields) {
+  if (!nextFields || typeof nextFields !== "object") return nextFields;
+  const prevKeys = Object.keys(previousFields || {});
+  const ordered = {};
+  for (const key of prevKeys) {
+    if (Object.prototype.hasOwnProperty.call(nextFields, key)) {
+      ordered[key] = nextFields[key];
+    }
+  }
+  for (const key of Object.keys(nextFields)) {
+    if (!Object.prototype.hasOwnProperty.call(ordered, key)) {
+      ordered[key] = nextFields[key];
+    }
+  }
+  return ordered;
+}
+
+function syncTopicSchemaFieldsFromDom(cache = getTopicSchemaCache(), target = topicSchemaActiveTarget) {
+  if (!cache?.awnSchema?.[target]) return;
+  const ordered = {};
+  topicSchemaFieldsNode?.querySelectorAll(".topic-schema-field-row").forEach((row) => {
+    readTopicSchemaFieldFromRow(row, cache);
+    const key = String(row.dataset.schemaRowKey || "").trim();
+    if (!key) return;
+    const fieldDef = cache.awnSchema[target].fields[key];
+    if (fieldDef) ordered[key] = fieldDef;
+  });
+  cache.awnSchema[target].fields = ordered;
+}
+
 function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache()) {
   if (!row || !cache) return;
   const target = topicSchemaActiveTarget;
@@ -37183,11 +37261,10 @@ async function saveWorkspaceSchemaContent() {
   const cache = getTopicSchemaCache(manifestPath, "");
   if (!cache) throw new Error("Схема не загружена");
 
-  topicSchemaFieldsNode?.querySelectorAll(".topic-schema-field-row").forEach((row) => {
-    readTopicSchemaFieldFromRow(row, cache);
-  });
+  syncTopicSchemaFieldsFromDom(cache, "workspace");
 
   const awnSchemaToSave = normalizeTopicSchemaState(cache.awnSchema);
+  const savedWorkspaceFields = { ...(awnSchemaToSave.workspace?.fields || {}) };
   const response = await fetch(buildApiUrl("/api/file/workspace-schema"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -37205,9 +37282,25 @@ async function saveWorkspaceSchemaContent() {
 
   const data = await response.json();
   const parsedLayers = parseTopicSchemaLayersFromApi(data);
-  const workspaceAwnSchema =
+  let workspaceAwnSchema =
     parsedLayers.workspaceAwnSchema ||
     normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema);
+  if (workspaceAwnSchema?.workspace?.fields) {
+    workspaceAwnSchema = {
+      ...workspaceAwnSchema,
+      workspace: {
+        ...workspaceAwnSchema.workspace,
+        fields: preserveTopicSchemaFieldOrder(
+          savedWorkspaceFields,
+          workspaceAwnSchema.workspace.fields
+        )
+      }
+    };
+  } else if (!topicSchemaStateHasCustomFields(workspaceAwnSchema)) {
+    workspaceAwnSchema = normalizeTopicSchemaState({
+      workspace: { fields: savedWorkspaceFields }
+    });
+  }
   cache.awnSchema = workspaceAwnSchema;
   cache.workspaceAwnSchema = workspaceAwnSchema;
   cache.effectiveAwnSchema = workspaceAwnSchema;
@@ -37227,11 +37320,11 @@ async function saveTopicSchemaContent() {
   const cache = getTopicSchemaCache(manifestPath, "");
   if (!cache) throw new Error("Схема не загружена");
 
-  topicSchemaFieldsNode?.querySelectorAll(".topic-schema-field-row").forEach((row) => {
-    readTopicSchemaFieldFromRow(row, cache);
-  });
+  const savedTarget = topicSchemaActiveTarget;
+  syncTopicSchemaFieldsFromDom(cache, savedTarget);
 
   const awnSchemaToSave = normalizeTopicSchemaState(cache.awnSchema);
+  const savedTargetFields = { ...(awnSchemaToSave[savedTarget]?.fields || {}) };
   if (awnSchemaToSave.settings?.fields) {
     awnSchemaToSave.settings.fields = ExternalFileMask.stripBuiltinSettingsSchemaFields(
       awnSchemaToSave.settings.fields
@@ -37261,11 +37354,29 @@ async function saveTopicSchemaContent() {
   const areaAwnSchema = isAreaSchemaContext(manifestPath)
     ? parsedLayers.areaAwnSchema || parsedLayers.topicAwnSchema
     : parsedLayers.areaAwnSchema;
-  cache.awnSchema = isAreaSchemaContext(manifestPath)
+  let nextEditableSchema = isAreaSchemaContext(manifestPath)
     ? areaAwnSchema
     : topicSchemaStateHasCustomFields(topicAwnSchema)
       ? topicAwnSchema
       : awnSchemaToSave;
+  if (nextEditableSchema?.[savedTarget]?.fields) {
+    nextEditableSchema = {
+      ...nextEditableSchema,
+      [savedTarget]: {
+        ...nextEditableSchema[savedTarget],
+        fields: preserveTopicSchemaFieldOrder(
+          savedTargetFields,
+          nextEditableSchema[savedTarget].fields
+        )
+      }
+    };
+  } else if (!Object.keys(savedTargetFields).length) {
+    nextEditableSchema = {
+      ...normalizeTopicSchemaState(nextEditableSchema),
+      [savedTarget]: { fields: {} }
+    };
+  }
+  cache.awnSchema = nextEditableSchema;
   cache.topicAwnSchema = topicAwnSchema;
   cache.areaAwnSchema = areaAwnSchema;
   cache.effectiveAwnSchema = parsedLayers.effectiveAwnSchema;
@@ -45279,10 +45390,19 @@ async function ensureTopicSchemaForActiveContext(options = {}) {
     options.contentPath !== undefined
       ? String(options.contentPath || "").replace(/\\/g, "/").replace(/^\/+/, "")
       : getSchemaContentPathForContext();
-  if (!manifestPath || !contentPath) return null;
+  if (!manifestPath) return null;
+  if (!contentPath) {
+    if (activeContentMode === "topic-schema") {
+      return loadTopicSchemaForManifest(manifestPath, {
+        topicOnly: true,
+        force: options.force === true
+      }).catch(() => null);
+    }
+    return null;
+  }
   return loadTopicSchemaForManifest(manifestPath, {
     contentPath,
-    force: options.force !== false
+    force: options.force === true
   }).catch(() => null);
 }
 
@@ -74986,7 +75106,7 @@ async function selectFile(label, filePath) {
         invalidateNodeConfigCache(activePath);
       }
     }
-    if (isTopicSchemaModeAvailable(activePath)) {
+    if (isTopicSchemaModeAvailable(activePath) && activeContentMode !== "topic-schema") {
       try {
         await loadTopicSchemaForManifest(activePath);
       } catch {
@@ -75383,10 +75503,12 @@ async function loadContentByMode(options = {}) {
       } else if (topicSchemaActiveTarget === "topic") {
         syncTopicSchemaActiveTargetToStorageSlot();
       }
-      await loadTopicSchemaForManifest(activePath, { force: true, topicOnly: true });
+      await loadTopicSchemaForManifest(activePath, {
+        topicOnly: true,
+        force: Boolean(options.forceReload)
+      });
       fileContentInputNode.value = "";
       applyModeUi();
-      renderTopicSchemaEditor();
     } catch (error) {
       if (topicSchemaBaseFieldsNode) topicSchemaBaseFieldsNode.textContent = `Ошибка: ${error.message}`;
       topicSchemaFieldsNode?.replaceChildren();

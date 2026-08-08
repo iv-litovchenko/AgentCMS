@@ -17508,7 +17508,9 @@ async function handleApiForAgent(req, res, url) {
         async (manifestRel, schemaRel, content) => {
           await writeWorkspaceTextFileWithHistory(manifestRel, schemaRel, content);
         },
-        removeIfExists
+        async (schemaRel) => {
+          await removeIfExists(normalizeWorkspacePath(schemaRel));
+        }
       );
 
       const schemaPayload = getEffectiveTopicSchemaPayload(
@@ -17617,7 +17619,9 @@ async function handleApiForAgent(req, res, url) {
         async (_manifestRel, schemaRel, content) => {
           await writeWorkspaceTextFileWithHistory(manifestCtx.rel, schemaRel, content);
         },
-        removeIfExists
+        async (schemaRel) => {
+          await removeIfExists(normalizeWorkspacePath(schemaRel));
+        }
       );
 
       const schemaPayload = getWorkspaceSchemaPayloadFull(getAgentRoot(), getProjectRoot());

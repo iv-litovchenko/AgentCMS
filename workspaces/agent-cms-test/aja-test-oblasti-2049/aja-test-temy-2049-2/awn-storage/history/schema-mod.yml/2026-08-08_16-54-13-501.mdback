@@ -22,9 +22,3 @@ awn_schema:
       property-ivan-tema:
         type: awn.field.string
         name: Свойство темы (Иван)
-  settings:
-    fields:
-      field_1:
-        type: awn.field.string
-      field_2:
-        type: awn.field.string

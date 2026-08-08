@@ -1,0 +1,12 @@
+version: 1
+layer: workspace
+
+awn_schema:
+  workspace:
+    fields:
+      ws-fewfewfwe:
+        type: awn.field.string
+        name: ws-field_1
+      ws-field_4:
+        type: awn.field.string
+        name: ws-field_4
