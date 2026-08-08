@@ -24,7 +24,7 @@ domains:
   - md-blocks
   # Пример пользовательского домена-«пакета». Папка awn-system/types/settings/.
   - id: settings
-    label: Настройки
+    label: Настройки (todo)
     kind: type
     icon: "⚙"
 docs:
