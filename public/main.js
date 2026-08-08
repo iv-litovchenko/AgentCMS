@@ -38800,18 +38800,63 @@ function getOverviewSettingsSchemaFieldKeys(
   });
 }
 
+function shouldIncludeOverviewCustomSchemaFieldKey(key, nodePath = getResolvedNodePath(activePath)) {
+  if (HIDDEN_PROPS_FIELD_KEYS.has(key)) return false;
+  if (OVERVIEW_EXCLUDED_PROP_KEYS.has(key)) return false;
+  if (!shouldIncludePropsFieldKey(key)) return false;
+  if (isOverviewSettingsFieldKey(key, nodePath)) return false;
+  if (isAwnFieldKey(key)) return false;
+  return true;
+}
+
 function getOverviewCustomSchemaFieldKeys(nodePath = getResolvedNodePath(activePath)) {
+  const overviewContext =
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null;
+  const cache = resolveActiveOverviewSchemaCache(overviewContext);
+  const target = resolveOverviewSchemaTargetForNode(nodePath);
   const customFields = getOverviewCustomSchemaLayerFields(nodePath);
   const settingsKeySet = new Set(getOverviewSettingsSchemaFieldKeys(undefined, nodePath));
-  return Object.keys(customFields).filter((key) => {
-    if (HIDDEN_PROPS_FIELD_KEYS.has(key)) return false;
-    if (OVERVIEW_EXCLUDED_PROP_KEYS.has(key)) return false;
-    if (!shouldIncludePropsFieldKey(key)) return false;
+
+  const acceptKey = (key) => {
     if (settingsKeySet.has(key)) return false;
-    if (isOverviewSettingsFieldKey(key, nodePath)) return false;
-    if (isAwnFieldKey(key)) return false;
-    return true;
-  });
+    return shouldIncludeOverviewCustomSchemaFieldKey(key, nodePath);
+  };
+
+  const hasSectionLayer =
+    Boolean(cache?.sectionAwnSchema) ||
+    (Array.isArray(cache?.sectionChain) && cache.sectionChain.length > 0);
+
+  if (hasSectionLayer && cache) {
+    const topicFields = cache.topicAwnSchema?.[target]?.fields || {};
+    const localFields = cache.sectionAwnSchema?.[target]?.fields || {};
+    const localKeySet = new Set(Object.keys(localFields));
+    const ordered = [];
+    const seen = new Set();
+
+    for (const key of Object.keys(topicFields)) {
+      if (!customFields[key] || localKeySet.has(key) || !acceptKey(key) || seen.has(key)) continue;
+      seen.add(key);
+      ordered.push(key);
+    }
+    for (const key of Object.keys(customFields)) {
+      if (seen.has(key) || localKeySet.has(key) || !acceptKey(key)) continue;
+      seen.add(key);
+      ordered.push(key);
+    }
+    for (const key of Object.keys(localFields)) {
+      if (!customFields[key] || !acceptKey(key) || seen.has(key)) continue;
+      seen.add(key);
+      ordered.push(key);
+    }
+    for (const key of Object.keys(customFields)) {
+      if (seen.has(key) || !acceptKey(key)) continue;
+      seen.add(key);
+      ordered.push(key);
+    }
+    return ordered;
+  }
+
+  return Object.keys(customFields).filter((key) => acceptKey(key));
 }
 
 function isOrphanPropsFieldKey(key) {
