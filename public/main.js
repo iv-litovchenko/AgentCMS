@@ -1992,21 +1992,29 @@ async function resolveChpuTopicEntry(resolved) {
 
 async function openEntryOverviewFromResolvedRecord(resolved, contentMode) {
   const relInSlot = String(resolved.resourceRelPathInSlot || "").replace(/\\/g, "/");
-  const recordPath = relInSlot.replace(/\.md$/i, "");
+  const storageRelPath = /\.md$/i.test(relInSlot)
+    ? relInSlot
+    : relInSlot
+      ? `${relInSlot}.md`
+      : "";
+  const recordPath = storageRelPath.replace(/\.md$/i, "");
   const title = recordPath.split("/").pop() || recordPath;
 
   if (FLAT_STORAGE_SECTION_MODES.has(contentMode)) {
-    await openFlatStorageRecordOverviewFromNavigation({ path: recordPath, title }, contentMode);
+    await openFlatStorageRecordOverviewFromNavigation(
+      { path: storageRelPath || recordPath, title },
+      contentMode
+    );
     return;
   }
 
   if (contentMode === "external") {
-    const relPath = getExternalItemContextPath({ path: recordPath });
+    const relPath = getExternalItemContextPath({ path: storageRelPath || recordPath });
     await openEntryOverviewFromNavigation(
       {
         relPath,
         memoryKind: "external",
-        relativePath: recordPath,
+        relativePath: storageRelPath || recordPath,
         title,
         entryKind: inferAwnTypeFromRelPath(relPath, { contentMode: "external" })
       },
@@ -2016,12 +2024,12 @@ async function openEntryOverviewFromResolvedRecord(resolved, contentMode) {
   }
 
   if (contentMode === "media") {
-    const relPath = getMediaItemContextPath(recordPath);
+    const relPath = getMediaItemContextPath(storageRelPath || recordPath);
     await openEntryOverviewFromNavigation(
       {
         relPath,
         memoryKind: "media",
-        relativePath: recordPath,
+        relativePath: storageRelPath || recordPath,
         title,
         entryKind: /\.md$/i.test(relInSlot) ? "awn.record" : "awn.media.asset"
       },
@@ -4572,6 +4580,12 @@ function appendNavUnreadBadgeForContent(host, manifestPath, item, memoryKind = "
   const storagePath = getNodeReadContentPathForItem(item, memoryKind);
   if (!storagePath || !isNodeContentUnread(manifestPath, storagePath)) return;
   host.appendChild(createUnreadBadge());
+}
+
+function isNavigationTocItemUnread(manifestPath, item, memoryKind = "external") {
+  if (!manifestPath || !item) return false;
+  const storagePath = getNodeReadContentPathForItem(item, memoryKind);
+  return Boolean(storagePath && isNodeContentUnread(manifestPath, storagePath));
 }
 
 function appendNavUnreadBadgeForFolder(host, manifestPath, folderPath, memoryKind = "external") {
@@ -23944,8 +23958,10 @@ function shouldHideNavigationInfrastructureFolder(folderPath, memoryKind = null)
   if (memoryKind === "assets") return false;
   return isMemorySectionInfrastructureFolderPath(folderPath);
 }
-const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "parts-";
-const RECORD_MATERIALS_UI_LABEL = "Доп. материалы записи";
+const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "awn-parts-";
+const RECORD_PARTS_PACKAGE_FOLDER_PREFIXES = [RECORD_PARTS_PACKAGE_FOLDER_PREFIX, "parts-"];
+const RECORD_MATERIALS_UI_LABEL = "Доп материалы";
+const RECORD_MATERIALS_HERO_MARKER_CAPTION = "Доп материалы";
 const RECORD_MATERIALS_ICON_HTML =
   '<svg class="record-materials-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
   '<path d="M12 3 3 7.5 12 12l9-4.5L12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
@@ -23962,6 +23978,12 @@ function appendRecordMaterialsIconLabel(parent, labelText, { iconClass = "record
   label.className = "record-materials-label";
   label.textContent = labelText;
   parent.append(iconWrap, label);
+}
+
+function createRecordMaterialsMarkerSvg() {
+  const template = document.createElement("template");
+  template.innerHTML = RECORD_MATERIALS_ICON_HTML;
+  return template.content.firstElementChild;
 }
 
 function createRecordMaterialsIndicatorBadge({ title = RECORD_MATERIALS_UI_LABEL } = {}) {
@@ -28388,9 +28410,9 @@ function isMemorySectionInfrastructureFilePath(filePath) {
 }
 
 function isRecordPartsPackageFolderName(name) {
-  const normalized = String(name || "").trim();
+  const normalized = String(name || "").trim().toLowerCase();
   if (!normalized) return false;
-  return normalized.toLowerCase().startsWith(RECORD_PARTS_PACKAGE_FOLDER_PREFIX);
+  return RECORD_PARTS_PACKAGE_FOLDER_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 }
 
 function isRecordPartsPackageFolderPath(folderPath) {
@@ -28411,11 +28433,20 @@ function isRecordPartsPackageFilePath(filePath) {
     .some((segment) => isRecordPartsPackageFolderName(segment));
 }
 
+function isRecordStorageRelativePath(relativePath) {
+  const normalized = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || isSectionReadmePath(normalized)) return false;
+  const base = normalized.split("/").pop() || "";
+  if (!base) return false;
+  if (/\.md$/i.test(base)) return true;
+  // CHPU / slug routes pass record paths without ".md"
+  return !base.includes(".");
+}
+
 function getRecordSlugFromStorageRelativePath(relativePath) {
   const normalized = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!normalized || isSectionReadmePath(normalized)) return "";
+  if (!isRecordStorageRelativePath(normalized)) return "";
   const base = normalized.split("/").pop() || "";
-  if (!/\.md$/i.test(base)) return "";
   return base.replace(/\.md$/i, "");
 }
 
@@ -28435,8 +28466,9 @@ function resolveRecordPartsWorkspaceFolderPath(context) {
 
   const recordWorkspacePath = String(context.relPath || "")
     .replace(/\\/g, "/")
-    .replace(/^\/+/, "");
-  if (recordWorkspacePath && /\.md$/i.test(recordWorkspacePath)) {
+    .replace(/^\/+/, "")
+    .replace(/\.md$/i, "");
+  if (recordWorkspacePath) {
     const parentDir = recordWorkspacePath.includes("/")
       ? recordWorkspacePath.slice(0, recordWorkspacePath.lastIndexOf("/"))
       : "";
@@ -28449,13 +28481,67 @@ function resolveRecordPartsWorkspaceFolderPath(context) {
   return getEntryOverviewItemContextPath(storageRel, context.memoryKind || "external");
 }
 
+function resolveRecordParentWorkspaceFolderPath(context) {
+  const relativePath = String(context?.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (relativePath) {
+    const recordRel = /\.md$/i.test(relativePath)
+      ? relativePath
+      : `${relativePath.replace(/\.md$/i, "")}.md`;
+    const parentStorageRel = recordRel.includes("/")
+      ? recordRel.slice(0, recordRel.lastIndexOf("/"))
+      : "";
+    const memoryKind = context?.memoryKind || "external";
+    return getEntryOverviewItemContextPath(parentStorageRel, memoryKind);
+  }
+
+  const recordWorkspacePath = String(context?.relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\.md$/i, "");
+  if (recordWorkspacePath.includes("/")) {
+    return recordWorkspacePath.slice(0, recordWorkspacePath.lastIndexOf("/"));
+  }
+
+  return "";
+}
+
+function pickRecordPartsFolderFromParentListing(folders, parentPath, slug = "") {
+  const normalizedSlug = String(slug || "").trim();
+  if (!normalizedSlug) return "";
+  const preferredNames = [`awn-parts-${normalizedSlug}`, `parts-${normalizedSlug}`].map((name) =>
+    name.toLowerCase()
+  );
+  for (const folder of folders || []) {
+    const name = String(folder.name || "").trim();
+    if (!isRecordPartsPackageFolderName(name)) continue;
+    if (!preferredNames.includes(name.toLowerCase())) continue;
+    return String(folder.folderPath || `${parentPath}/${name}`)
+      .replace(/\\/g, "/")
+      .replace(/\/+$/, "");
+  }
+  return "";
+}
+
+async function findRecordPartsWorkspaceFolder(context) {
+  const parentPath = resolveRecordParentWorkspaceFolderPath(context);
+  if (!parentPath) return "";
+
+  try {
+    const parent = await fetchWorkspaceFolderBrowse(parentPath);
+    if (!parent?.exists) return "";
+    const slug = getRecordSlugFromStorageRelativePath(context?.relativePath || "");
+    return pickRecordPartsFolderFromParentListing(parent.folders, parentPath, slug);
+  } catch {
+    return "";
+  }
+}
+
 function shouldShowEntryOverviewRecordParts(context) {
   if (!context || isEntryOverviewMemoryTocRoot(context)) return false;
   if (isEntryOverviewCategoryContext(context)) return false;
   if (context.entryKind === "awn.media.asset") return false;
   const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!relativePath || !/\.md$/i.test(relativePath)) return false;
-  if (isSectionReadmePath(relativePath)) return false;
+  if (!relativePath || !isRecordStorageRelativePath(relativePath)) return false;
   return Boolean(getRecordSlugFromStorageRelativePath(relativePath));
 }
 
@@ -50697,6 +50783,102 @@ function collectStorageSlotIndexEntries(prepared, { excludeIndex = true } = {}) 
     .sort((a, b) => a.path.localeCompare(b.path, "ru"));
 }
 
+function resolveContentIndexSlotLabel(slotKey, slots = []) {
+  const counterSlot = slots.find((item) => {
+    const spec = resolveStorageSlotSpecFromCounterSlot(item);
+    return item.id === slotKey || spec?.key === slotKey;
+  });
+  if (counterSlot) {
+    const spec = resolveStorageSlotSpecFromCounterSlot(counterSlot);
+    const label = counterSlot.label || spec?.label || slotKey;
+    const icon = spec?.icon ? `${spec.icon} ` : "";
+    return `${icon}${label}`;
+  }
+  const spec = resolveStorageSlotSpecByCounterKey(slotKey);
+  if (spec) {
+    const icon = spec.icon ? `${spec.icon} ` : "";
+    return `${icon}${spec.label || slotKey}`;
+  }
+  return slotKey;
+}
+
+async function fetchAgentContentIndexPayload(manifestPath, { slot = "" } = {}) {
+  const params = { path: manifestPath };
+  if (slot) params.slot = slot;
+  const response = await fetch(buildApiUrl("/api/agent/content-index", params));
+  if (!response.ok) {
+    throw new Error(`content-index ${response.status}`);
+  }
+  return response.json();
+}
+
+function formatAgentContentIndexPayloadAsTopicMarkdown(payload, topicPath, slots = []) {
+  const lines = ["# Оглавление темы", ""];
+
+  const slotRows = Array.isArray(payload?.slots) ? payload.slots : [];
+  if (!slotRows.length) {
+    lines.push("_Нет слотов данных для оглавления._");
+    return lines.join("\n");
+  }
+
+  for (const slotRow of slotRows) {
+    const label = resolveContentIndexSlotLabel(slotRow.slot, slots);
+    const entries = Array.isArray(slotRow.entries) ? slotRow.entries : [];
+    lines.push(`## ${label}`);
+    lines.push("");
+    lines.push(
+      formatStorageIndexEntriesMarkdown(entries, {
+        emptyHint: "_В слоте пока нет файлов для оглавления._"
+      })
+    );
+    lines.push("");
+  }
+
+  return lines.join("\n").trimEnd() + "\n";
+}
+
+function formatAgentContentIndexPayloadAsSlotMarkdown(payload, topicPath, spec, slot = null) {
+  const slotKey = spec?.key || slot?.id || payload?.slot || "";
+  const label = slot?.label || spec?.label || resolveContentIndexSlotLabel(slotKey);
+  const icon = spec?.icon ? `${spec.icon} ` : "";
+  const slotRow =
+    payload?.slots?.find((row) => row.slot === slotKey) || payload?.slots?.[0] || null;
+  const entries = Array.isArray(slotRow?.entries) ? slotRow.entries : [];
+
+  return [
+    `# Оглавление — ${icon}${label}`,
+    "",
+    formatStorageIndexEntriesMarkdown(entries, {
+      emptyHint: "_В слоте пока нет файлов для оглавления._"
+    })
+  ].join("\n");
+}
+
+async function buildTopicStorageIndexMarkdownFromApi(topicPath, slots = []) {
+  const manifestPath = getOverviewNodeApiPath(topicPath);
+  if (!manifestPath) return buildTopicStorageIndexMarkdown(topicPath, slots);
+  try {
+    const payload = await fetchAgentContentIndexPayload(manifestPath);
+    return formatAgentContentIndexPayloadAsTopicMarkdown(payload, topicPath, slots);
+  } catch {
+    return buildTopicStorageIndexMarkdown(topicPath, slots);
+  }
+}
+
+async function buildStorageSlotIndexMarkdownFromApi(topicPath, spec, slot = null) {
+  const manifestPath = getOverviewNodeApiPath(topicPath);
+  const slotKey = spec?.key || slot?.id || "";
+  if (!manifestPath || !slotKey) {
+    return buildStorageSlotIndexMarkdown(topicPath, { ...slot, spec });
+  }
+  try {
+    const payload = await fetchAgentContentIndexPayload(manifestPath, { slot: slotKey });
+    return formatAgentContentIndexPayloadAsSlotMarkdown(payload, topicPath, spec, slot);
+  } catch {
+    return buildStorageSlotIndexMarkdown(topicPath, { ...slot, spec });
+  }
+}
+
 function formatStorageIndexEntriesMarkdown(entries, { emptyHint = "_Нет записей._" } = {}) {
   if (!entries.length) return emptyHint;
   const lines = ["| Путь | Название | Описание |", "| --- | --- | --- |"];
@@ -50712,38 +50894,16 @@ function buildStorageSlotIndexMarkdown(topicPath, slot = {}) {
   const spec = resolveStorageSlotSpecFromCounterSlot(slot);
   const label = slot.label || spec?.label || slot.id || "Слот";
   const icon = spec?.icon ? `${spec.icon} ` : "";
-  const indexPath = spec ? getStorageSlotIndexWorkspaceRelPath(topicPath, spec) : STORAGE_SLOT_INDEX_FILE;
   const entries = collectStorageSlotIndexEntries(slot.prepared);
-  const lines = [
+  return [
     `# Оглавление — ${icon}${label}`,
     "",
-    `_Файл индекса слота: \`${indexPath}\`_`,
-    ""
-  ];
-
-  if (slot.hasIndex) {
-    lines.push(
-      "> Ниже — автосборка по файлам слота. В репозитории также может быть свой `index.md`.",
-      ""
-    );
-  } else {
-    lines.push(
-      "> Черновик оглавления по файлам слота. Сохраните как `index.md` в корне папки слота.",
-      ""
-    );
-  }
-
-  lines.push(formatStorageIndexEntriesMarkdown(entries, { emptyHint: "_В слоте пока нет файлов для оглавления._" }));
-  return lines.join("\n");
+    formatStorageIndexEntriesMarkdown(entries, { emptyHint: "_В слоте пока нет файлов для оглавления._" })
+  ].join("\n");
 }
 
 function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
-  const lines = [
-    "# Оглавление темы",
-    "",
-    `_Общий индекс темы: \`${getTopicStorageIndexRelPath(topicPath)}\`_`,
-    ""
-  ];
+  const lines = ["# Оглавление темы", ""];
   const dataSlots = slots.filter((slot) => {
     const spec = resolveStorageSlotSpecFromCounterSlot(slot);
     return spec && supportsDataEntryOverview(spec.key);
@@ -50758,19 +50918,10 @@ function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
     const spec = resolveStorageSlotSpecFromCounterSlot(slot);
     const label = slot.label || spec?.label || slot.id;
     const icon = spec?.icon ? `${spec.icon} ` : "";
-    const indexPath = getStorageSlotIndexWorkspaceRelPath(topicPath, spec);
     const entries = collectStorageSlotIndexEntries(slot.prepared);
 
     lines.push(`## ${icon}${label}`);
     lines.push("");
-    if (slot.hasIndex) {
-      lines.push(`Индекс слота: \`${indexPath}\` · записей: ${entries.length}`, "");
-    } else {
-      lines.push(
-        `Индекс слота: \`${indexPath}\` _(ещё не создан)_ · записей: ${entries.length}`,
-        ""
-      );
-    }
     lines.push(
       formatStorageIndexEntriesMarkdown(entries, {
         emptyHint: "_В слоте пока нет файлов для оглавления._"
@@ -50779,31 +50930,27 @@ function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
     lines.push("");
   }
 
-  lines.push(
-    "---",
-    "",
-    `Каждый слот может иметь свой \`${STORAGE_SLOT_INDEX_FILE}\` в корне папки слота.`,
-    "Общий индекс собирается из содержимого слотов: путь, название, описание."
-  );
-  return lines.join("\n");
+  return lines.join("\n").trimEnd() + "\n";
 }
 
 function openStorageSlotIndexGeneratedOverview(topicPath, spec, slot = null) {
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
   if (!memoryKind) return;
   const manifestPath = getOverviewNodeApiPath(topicPath);
-  const markdown = buildStorageSlotIndexMarkdown(topicPath, { ...slot, spec });
-  if (manifestPath && spec?.key) {
-    slotGeneratedStorageIndexCache.set(`${manifestPath}:${spec.key}`, markdown);
-  }
-  void openEntryOverviewFromNavigation({
-    relPath: getStorageSlotIndexWorkspaceRelPath(topicPath, spec),
-    memoryKind: "slot-index-generated",
-    relativePath: getStorageSlotIndexRelativePath(),
-    title: `Индекс — ${spec.label || resolveDataStorageSlotDisplayLabel(memoryKind)}`,
-    entryKind: "awn.topic.slot-index.generated",
-    slotKey: spec.key
-  });
+  void (async () => {
+    const markdown = await buildStorageSlotIndexMarkdownFromApi(topicPath, spec, slot);
+    if (manifestPath && spec?.key) {
+      slotGeneratedStorageIndexCache.set(`${manifestPath}:${spec.key}`, markdown);
+    }
+    void openEntryOverviewFromNavigation({
+      relPath: getStorageSlotIndexWorkspaceRelPath(topicPath, spec),
+      memoryKind: "slot-index-generated",
+      relativePath: getStorageSlotIndexRelativePath(),
+      title: `Индекс — ${spec.label || resolveDataStorageSlotDisplayLabel(memoryKind)}`,
+      entryKind: "awn.topic.slot-index.generated",
+      slotKey: spec.key
+    });
+  })();
 }
 
 function openStorageSlotIndexOverview(topicPath, spec, slot = null) {
@@ -50871,7 +51018,7 @@ async function openTopicStorageIndexOverview(topicPath, slots = []) {
     return;
   }
 
-  const markdown = buildTopicStorageIndexMarkdown(topicPath, slots);
+  const markdown = await buildTopicStorageIndexMarkdownFromApi(topicPath, slots);
   if (manifestPath) topicGeneratedStorageIndexCache.set(manifestPath, markdown);
   void openEntryOverviewFromNavigation({
     relPath: getTopicStorageIndexRelPath(topicPath),
@@ -51217,9 +51364,9 @@ function createNavigationHeroMarkersRow(nodePath, options = {}) {
   wrap.className = "node-navigation-hero-marker-slots";
   wrap.setAttribute(
     "aria-label",
-    "Agent, Git и runtime-настройки темы"
+    "Agent, Git, доп. материалы записи и runtime-настройки темы"
   );
-  wrap.append(
+  const markerSlots = [
     createNavigationHeroMarkerSlot({
       id: "agent",
       caption: "Agent",
@@ -51234,7 +51381,20 @@ function createNavigationHeroMarkersRow(nodePath, options = {}) {
       active: markers.hasGit,
       createSvg: createGitMarkerSvg
     })
-  );
+  ];
+  if (options.hasRecordMaterials) {
+    markerSlots.push(
+      createNavigationHeroMarkerSlot({
+        id: "record-materials",
+        caption: RECORD_MATERIALS_HERO_MARKER_CAPTION,
+        active: true,
+        createSvg: createRecordMaterialsMarkerSvg,
+        titleActive: RECORD_MATERIALS_UI_LABEL,
+        titleInactive: RECORD_MATERIALS_UI_LABEL
+      })
+    );
+  }
+  wrap.append(...markerSlots);
   appendNavigationHeroRuntimeSlots(wrap, options.propEntries);
 
   const block = document.createElement("div");
@@ -52635,10 +52795,13 @@ function createAttachmentsCountBadge(count, { extraClass = "", attachmentPaths =
   return badge;
 }
 
-function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials = false, attachmentPaths = null } = {}) {
+function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials = false, attachmentPaths = null, hasUnread = false } = {}) {
   if (!leadersHost) return;
   const count = Number(attachmentCount);
   const badges = [];
+  if (hasUnread) {
+    badges.push(createUnreadBadge());
+  }
   if (Number.isFinite(count) && count > 0) {
     const attachmentBadge = createAttachmentsCountBadge(count, { attachmentPaths });
     if (attachmentBadge) badges.push(attachmentBadge);
@@ -52648,14 +52811,23 @@ function populateNavBookTocLeaders(leadersHost, attachmentCount, { hasMaterials 
     if (materialsBadge) badges.push(materialsBadge);
   }
   if (badges.length) {
-    leadersHost.classList.toggle("has-nav-book-toc-attachments-badge", badges.some((node) => node.classList.contains("nav-book-toc-attachments-badge")));
+    leadersHost.classList.add("has-nav-book-toc-link-indicators");
+    leadersHost.classList.toggle("has-nav-book-toc-unread-badge", hasUnread);
+    leadersHost.classList.toggle(
+      "has-nav-book-toc-attachments-badge",
+      badges.some((node) => node.classList.contains("nav-book-toc-attachments-badge"))
+    );
     leadersHost.classList.toggle("has-nav-book-toc-materials-badge", hasMaterials);
     leadersHost.replaceChildren(...badges);
     leadersHost.removeAttribute("aria-hidden");
     return;
   }
-  leadersHost.classList.remove("has-nav-book-toc-attachments-badge");
-  leadersHost.classList.remove("has-nav-book-toc-materials-badge");
+  leadersHost.classList.remove(
+    "has-nav-book-toc-link-indicators",
+    "has-nav-book-toc-unread-badge",
+    "has-nav-book-toc-attachments-badge",
+    "has-nav-book-toc-materials-badge"
+  );
   leadersHost.replaceChildren();
   leadersHost.setAttribute("aria-hidden", "true");
 }
@@ -53284,6 +53456,32 @@ function resolveNavigationFolderStatus(folderNode, folderStatuses, sectionManife
   return normalizeNavigationStatusForDisplay(raw);
 }
 
+function indexRecordPartsFoldersByParent(folders) {
+  const map = new Map();
+  for (const item of folders || []) {
+    const folderPath = String(item.path || item.name || "").replace(/\\/g, "/").replace(/\/$/, "");
+    const name = String(item.name || folderPath.split("/").pop() || "").trim();
+    if (!folderPath || !isRecordPartsPackageFolderName(name)) continue;
+    const parent = folderPath.includes("/") ? folderPath.slice(0, folderPath.lastIndexOf("/")) : "";
+    if (!map.has(parent)) map.set(parent, []);
+    map.get(parent).push(name);
+  }
+  return map;
+}
+
+function recordFileHasPartsFolder(filePath, partsByParent) {
+  const path = String(filePath || "").replace(/\\/g, "/");
+  const slug = getRecordSlugFromStorageRelativePath(path);
+  if (!slug) return false;
+  const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  const preferredNames = new Set(
+    [`awn-parts-${slug}`, `parts-${slug}`].map((name) => name.toLowerCase())
+  );
+  return (partsByParent.get(parent) || []).some((name) =>
+    preferredNames.has(String(name || "").trim().toLowerCase())
+  );
+}
+
 function prepareNavigationExternalItems(files, folders = []) {
   const folderLabels = new Map();
   const folderDescriptions = new Map();
@@ -53291,6 +53489,7 @@ function prepareNavigationExternalItems(files, folders = []) {
   const sectionManifestByFolder = new Map();
   const folderPaths = new Set();
   const contentFiles = [];
+  const partsFoldersByParent = indexRecordPartsFoldersByParent(folders);
 
   for (const item of folders) {
     const folderPath = String(item.path || item.name || "").replace(/\\/g, "/").replace(/\/$/, "");
@@ -53345,7 +53544,8 @@ function prepareNavigationExternalItems(files, folders = []) {
       props,
       hasPreview: Boolean(item.hasPreview),
       previewUrl: item.previewUrl || null,
-      hasRecordMaterials: Boolean(item.hasRecordMaterials)
+      hasRecordMaterials:
+        Boolean(item.hasRecordMaterials) || recordFileHasPartsFolder(path, partsFoldersByParent)
     });
     for (const ancestor of collectNavigationFolderAncestors(path)) {
       addMemorySectionFolderPath(folderPaths, ancestor);
@@ -54624,10 +54824,10 @@ async function fetchEntryOverviewBodyResult(context) {
       const cached = topicGeneratedStorageIndexCache.get(manifestPath);
       if (cached) return { content: cached, ok: true };
       const cachedSlots = entryOverviewSlotCountersCache.get(manifestPath) || [];
-      return {
-        content: buildTopicStorageIndexMarkdown(getResolvedNodePath(activePath), cachedSlots),
-        ok: true
-      };
+      const topicPath = getResolvedNodePath(activePath);
+      const markdown = await buildTopicStorageIndexMarkdownFromApi(topicPath, cachedSlots);
+      if (manifestPath) topicGeneratedStorageIndexCache.set(manifestPath, markdown);
+      return { content: markdown, ok: true };
     }
     if (context.memoryKind === "slot-index-generated") {
       const manifestPath = getActiveNodeApiPath();
@@ -54641,8 +54841,13 @@ async function fetchEntryOverviewBodyResult(context) {
         cachedSlots.find((item) => item.spec?.key === slotKey) ||
         null;
       const spec = slot?.spec || resolveStorageSlotSpecByCounterKey(slotKey);
+      const topicPath = getResolvedNodePath(activePath);
+      const markdown = await buildStorageSlotIndexMarkdownFromApi(topicPath, spec, slot);
+      if (manifestPath && spec?.key) {
+        slotGeneratedStorageIndexCache.set(`${manifestPath}:${spec.key}`, markdown);
+      }
       return {
-        content: buildStorageSlotIndexMarkdown(getResolvedNodePath(activePath), { ...slot, spec }),
+        content: markdown,
         ok: true
       };
     }
@@ -55520,19 +55725,256 @@ function openRecordPartsPackageFile(fileItem) {
   if (url) window.open(url, "_blank", "noopener,noreferrer");
 }
 
-async function renderEntryOverviewRecordPartsPart(context) {
+function createEntryOverviewRecordMaterialsCard(
+  title,
+  contentNode,
+  { badgeText = null, workspaceFolderPath = "" } = {}
+) {
+  const card = document.createElement("section");
+  card.className =
+    "node-navigation-memory-card node-navigation-memory-card--assets node-entry-overview-record-parts-card";
+
+  const body = document.createElement("div");
+  body.className = "node-navigation-memory-body";
+  body.appendChild(contentNode);
+
+  const head = createNavigationSectionHead(title, {
+    badgeText,
+    badgeModeId: "assets",
+    imageColumnsToggle: true
+  });
+  head.classList.add("node-navigation-memory-head--record-materials");
+  head.classList.add("node-navigation-memory-head--actionable");
+
+  if (workspaceFolderPath) {
+    const viewBtn = document.createElement("button");
+    viewBtn.type = "button";
+    viewBtn.className = "node-navigation-memory-view-btn node-overview-action-btn";
+    viewBtn.textContent = "Список";
+    viewBtn.title = "Открыть папку доп. материалов";
+    const folderPath = String(workspaceFolderPath || "").replace(/\\/g, "/").replace(/\/+$/, "");
+    viewBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const folderLabel = RECORD_MATERIALS_UI_LABEL;
+      void openFolderBrowseFromMenu(folderLabel, folderPath);
+    });
+    head.appendChild(viewBtn);
+  }
+
+  card.append(head, body);
+  return card;
+}
+
+function isRecordPartsNavigationImageItem(item) {
+  const filePath = String(item?.path || "").replace(/\\/g, "/");
+  if (!filePath) return false;
+  return (
+    String(item?.kind || "") === "image" ||
+    /\.(png|jpe?g|gif|webp|svg|avif|heic)$/i.test(filePath)
+  );
+}
+
+function mapRecordPartsScanItemForNavigationGrid(item, rootFolderPath) {
+  const filePath = String(item?.path || "").replace(/\\/g, "/");
+  const relPath = getRecordPartsRelativeDisplayPath(filePath, rootFolderPath);
+  return {
+    path: filePath,
+    name: item.name || relPath.split("/").pop() || "file",
+    displayName: item.title || item.name || relPath.split("/").pop() || "file",
+    title: item.title || item.name || relPath.split("/").pop() || "file",
+    size: item.size,
+    kind: item.kind
+  };
+}
+
+function createRecordPartsNavigationGridCard(item, onActivate) {
+  const filePath = String(item?.path || "").replace(/\\/g, "/");
+  const card = document.createElement("article");
+  card.className = "folder-browse-image-card navigation-media-image-card";
+  card.dataset.folderBrowsePath = filePath;
+  card.title = item.displayName || item.name || filePath;
+
+  const open = document.createElement("div");
+  open.className = "folder-browse-image-open";
+
+  const imgWrap = document.createElement("div");
+  imgWrap.className = "folder-browse-image-thumb";
+  const gridColumns =
+    navigationMediaImagesLayout === "strip" ? 3 : navigationMediaImagesLayout;
+  if (gridColumns === 1) {
+    imgWrap.classList.add("folder-browse-image-thumb--original");
+  }
+
+  const img = document.createElement("img");
+  img.alt = item.displayName || item.name || "";
+  img.loading = "lazy";
+  img.draggable = false;
+  img.src =
+    item.previewUrl ||
+    resolveWorkspaceFolderBrowseAssetUrl(null, filePath, {
+      thumb: gridColumns !== 1,
+      max: gridColumns === 1 ? 960 : MEDIA_THUMB_MAX_GRID
+    }) ||
+    "";
+  attachFolderBrowseImageFallback(img);
+  imgWrap.appendChild(img);
+  open.appendChild(imgWrap);
+
+  appendFolderBrowseImageFooter(open, {
+    name: String(item.displayName || item.name || "").trim(),
+    size: item.size
+  });
+
+  card.appendChild(open);
+  card.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onActivate(item);
+  });
+  return card;
+}
+
+function renderRecordPartsNavigationImagesGrid(assetItems, rootFolderPath, handlers = {}) {
+  const images = assetItems
+    .filter(isRecordPartsNavigationImageItem)
+    .map((item) => mapRecordPartsScanItemForNavigationGrid(item, rootFolderPath));
+  if (!images.length) return null;
+
+  const columns = navigationMediaImagesLayout === "strip" ? 3 : navigationMediaImagesLayout;
+  const wrap = document.createElement("div");
+  wrap.className = "navigation-media-images-grid-wrap";
+  const grid = document.createElement("div");
+  grid.className = `folder-browse-images-grid folder-browse-images-grid--cols-${columns}`;
+  grid.setAttribute("role", "list");
+  grid.setAttribute("aria-label", "Изображения");
+  const onActivate = (item) => {
+    if (typeof handlers.onFileClick === "function") handlers.onFileClick(item);
+    else openRecordPartsPackageFile(item);
+  };
+  for (const item of images) {
+    grid.appendChild(createRecordPartsNavigationGridCard(item, onActivate));
+  }
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+function appendRecordPartsNavigationImageStrip(parent, assetItems, rootFolderPath, handlers = {}) {
+  const images = assetItems
+    .filter(isRecordPartsNavigationImageItem)
+    .map((item) => mapRecordPartsScanItemForNavigationGrid(item, rootFolderPath));
+  if (!images.length) return;
+
+  const strip = document.createElement("div");
+  strip.className = "node-navigation-media-thumbs";
+  strip.setAttribute("role", "list");
+  strip.setAttribute("aria-label", "Превью изображений");
+
+  const onActivate = (item) => {
+    if (typeof handlers.onFileClick === "function") handlers.onFileClick(item);
+    else openRecordPartsPackageFile(item);
+  };
+
+  const visible = images.slice(0, NAVIGATION_MEDIA_IMAGE_THUMB_LIMIT);
+  for (const item of visible) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "node-navigation-media-thumb";
+    btn.title = item.name || item.path || "";
+
+    const img = document.createElement("img");
+    img.alt = item.name || "";
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.src =
+      item.previewUrl ||
+      resolveWorkspaceFolderBrowseAssetUrl(null, item.path, { thumb: true, max: MEDIA_THUMB_MAX_SMALL }) ||
+      "";
+    img.addEventListener("error", () => {
+      btn.classList.add("node-navigation-media-thumb--error");
+      img.remove();
+    });
+    btn.appendChild(img);
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onActivate(item);
+    });
+    strip.appendChild(btn);
+  }
+
+  if (images.length > NAVIGATION_MEDIA_IMAGE_THUMB_LIMIT) {
+    const moreBtn = document.createElement("button");
+    moreBtn.type = "button";
+    moreBtn.className = "node-navigation-media-thumbs-more";
+    moreBtn.textContent = `+${images.length - NAVIGATION_MEDIA_IMAGE_THUMB_LIMIT}`;
+    moreBtn.title = "Показать все изображения";
+    moreBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      navigationMediaImagesLayout = navigationMediaImagesLayout === "strip" ? 3 : "strip";
+      saveNavigationMediaImagesLayout(navigationMediaImagesLayout);
+      const preview = parent.closest(".navigation-media-images-preview");
+      if (preview) {
+        preview.replaceChildren();
+        if (navigationMediaImagesLayout === "strip") {
+          appendRecordPartsNavigationImageStrip(preview, assetItems, rootFolderPath, handlers);
+        } else {
+          const grid = renderRecordPartsNavigationImagesGrid(assetItems, rootFolderPath, handlers);
+          if (grid) preview.appendChild(grid);
+        }
+      }
+    });
+    strip.appendChild(moreBtn);
+  }
+
+  parent.appendChild(strip);
+}
+
+function flattenRecordPartsMdTree(node, parentPath = "") {
+  const files = [];
+  for (const file of node?.files || []) {
+    if (!isRecordPartsMarkdownScanItem(file)) continue;
+    const filePath = String(file.path || "").replace(/\\/g, "/");
+    const name = file.name || filePath.split("/").pop() || "file.md";
+    const relPath = parentPath ? `${parentPath}/${name}` : name;
+    files.push({
+      path: relPath,
+      name,
+      title: file.title || name.replace(/\.md$/i, ""),
+      parent: parentPath || ""
+    });
+  }
+  for (const [folderName, child] of node?.folders || []) {
+    const folderPath = parentPath ? `${parentPath}/${folderName}` : folderName;
+    files.push(...flattenRecordPartsMdTree(child, folderPath));
+  }
+  return files;
+}
+
+function collectRecordPartsFolderPathsFromTree(node, parentPath = "", folderPaths = new Set()) {
+  for (const [folderName, child] of node?.folders || []) {
+    const folderPath = parentPath ? `${parentPath}/${folderName}` : folderName;
+    folderPaths.add(folderPath);
+    collectRecordPartsFolderPathsFromTree(child, folderPath, folderPaths);
+  }
+  return folderPaths;
+}
+
+async function renderEntryOverviewRecordPartsPart(context, workspaceFolderPath = "") {
   if (!shouldShowEntryOverviewRecordParts(context)) return null;
 
-  const workspaceFolderPath = resolveRecordPartsWorkspaceFolderPath(context);
-  const storageRelPath = resolveRecordPartsStorageRelPath(context.relativePath);
-  if (!workspaceFolderPath || !storageRelPath) return null;
+  if (!workspaceFolderPath) {
+    workspaceFolderPath = await findRecordPartsWorkspaceFolder(context);
+  }
+  if (!workspaceFolderPath) return null;
 
-  const contentWrap = document.createElement("div");
-  contentWrap.className = "node-entry-overview-record-parts-content";
+  const storageRelPath = workspaceFolderPath.replace(/^.*?\/awn-storage\//i, "");
+
+  const bodyWrap = document.createElement("div");
+  bodyWrap.className =
+    "node-navigation-media node-navigation-assets node-entry-overview-record-parts";
 
   const body = document.createElement("div");
   body.className = "node-entry-overview-record-parts-body";
-  contentWrap.appendChild(body);
+  bodyWrap.appendChild(body);
 
   const renderEmpty = (message, { showCreate = false } = {}) => {
     body.replaceChildren();
@@ -55565,27 +56007,53 @@ async function renderEntryOverviewRecordPartsPart(context) {
     body.appendChild(actions);
   };
 
-  const titleLabel = document.createElement("span");
-  titleLabel.className = "node-entry-overview-record-parts-fold-title";
-  appendRecordMaterialsIconLabel(titleLabel, RECORD_MATERIALS_UI_LABEL, {
-    iconClass: "record-materials-icon record-materials-icon--title"
-  });
-
-  const accordion = createOverviewAccordionSection(
-    "record-materials",
-    titleLabel,
-    contentWrap,
-    { defaultOpen: true }
-  );
-  accordion.classList.add(
-    "node-entry-overview-record-parts",
-    "node-entry-overview-record-parts-fold",
-    "node-overview-props-fold"
-  );
-  accordion.dataset.partsStorageRel = storageRelPath;
-
   await refreshEntryOverviewRecordPartsBody(body, context, workspaceFolderPath, { renderEmpty });
-  return accordion;
+
+  const itemCount = body.dataset.recordPartsItemCount
+    ? Number(body.dataset.recordPartsItemCount)
+    : null;
+  const badgeText = Number.isFinite(itemCount) && itemCount > 0 ? String(itemCount) : null;
+
+  const card = createEntryOverviewRecordMaterialsCard(RECORD_MATERIALS_UI_LABEL, bodyWrap, {
+    badgeText,
+    workspaceFolderPath
+  });
+  card.dataset.partsStorageRel = storageRelPath;
+  card.dataset.recordPartsWorkspacePath = workspaceFolderPath;
+  return card;
+}
+
+async function refreshEntryOverviewRecordPartsImagesPreview(card) {
+  if (!card) return false;
+  const workspaceFolderPath = String(card.dataset.recordPartsWorkspacePath || "").trim();
+  const preview = card.querySelector(".navigation-media-images-preview");
+  if (!workspaceFolderPath || !preview) return false;
+
+  let scanData;
+  try {
+    scanData = await fetchWorkspaceFolderScan(workspaceFolderPath, { depth: "all" });
+  } catch {
+    return false;
+  }
+
+  const assetItems = collectRecordPartsAssetScanItems(scanData?.items || [], workspaceFolderPath);
+  const imageItems = assetItems.filter(isRecordPartsNavigationImageItem);
+  if (!imageItems.length) return false;
+
+  const fileHandlers = { onFileClick: openRecordPartsPackageFile };
+  preview.replaceChildren();
+  if (navigationMediaImagesLayout === "strip") {
+    appendRecordPartsNavigationImageStrip(preview, assetItems, workspaceFolderPath, fileHandlers);
+  } else {
+    const gridWrap = renderRecordPartsNavigationImagesGrid(
+      assetItems,
+      workspaceFolderPath,
+      fileHandlers
+    );
+    if (gridWrap) preview.appendChild(gridWrap);
+  }
+  syncNavigationMediaImagesLayoutToggle(card);
+  return true;
 }
 
 async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolderPath, helpers = {}) {
@@ -55603,7 +56071,7 @@ async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolde
     body.classList.remove("is-loading");
     const renderEmpty = helpers.renderEmpty;
     if (typeof renderEmpty === "function") {
-      renderEmpty("Не удалось загрузить доп. материалы записи", { showCreate: false });
+      renderEmpty(`Не удалось загрузить ${RECORD_MATERIALS_UI_LABEL.toLowerCase()}`, { showCreate: false });
     }
     return;
   }
@@ -55615,7 +56083,7 @@ async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolde
     const renderEmpty = helpers.renderEmpty;
     if (typeof renderEmpty === "function") {
       renderEmpty(
-        "Доп. материалы записи ещё не созданы — создайте папку или положите файлы рядом с записью на диске.",
+        `${RECORD_MATERIALS_UI_LABEL} ещё не созданы — создайте папку или положите файлы рядом с записью на диске.`,
         { showCreate: true }
       );
     }
@@ -55639,54 +56107,106 @@ async function refreshEntryOverviewRecordPartsBody(body, context, workspaceFolde
   }
 
   body.replaceChildren();
+  delete body.dataset.recordPartsItemCount;
   const fileHandlers = { onFileClick: openRecordPartsPackageFile };
+  body.dataset.recordPartsItemCount = String(
+    flattenRecordPartsMdTree(mdTree).length + assetItems.length
+  );
+
+  const imageItems = assetItems.filter(isRecordPartsNavigationImageItem);
+  if (imageItems.length) {
+    const preview = document.createElement("div");
+    preview.className = "navigation-media-images-preview";
+    if (navigationMediaImagesLayout === "strip") {
+      appendRecordPartsNavigationImageStrip(preview, assetItems, workspaceFolderPath, fileHandlers);
+    } else {
+      const gridWrap = renderRecordPartsNavigationImagesGrid(
+        assetItems,
+        workspaceFolderPath,
+        fileHandlers
+      );
+      if (gridWrap) preview.appendChild(gridWrap);
+    }
+    if (preview.childElementCount) body.appendChild(preview);
+  }
 
   if (hasMarkdown) {
+    const contentFiles = flattenRecordPartsMdTree(mdTree);
+    const folderPaths = collectRecordPartsFolderPathsFromTree(mdTree);
+    const folderLabels = new Map();
+    for (const folderPath of folderPaths) {
+      const segment = folderPath.split("/").pop() || folderPath;
+      folderLabels.set(folderPath, segment);
+    }
+
     const nav = document.createElement("nav");
-    nav.className = "node-entry-overview-record-parts-nav nav-book-toc-tree--guide";
+    nav.className = "node-navigation-book-toc nav-book-toc-tree--guide";
     nav.setAttribute("aria-label", `${RECORD_MATERIALS_UI_LABEL} — md`);
 
     const list = document.createElement("ul");
-    list.className = "nav-book-toc-list nav-book-toc-list--root record-parts-tree-root";
-    appendRecordPartsTreeList(list, mdTree, 0, fileHandlers);
+    list.className = "nav-book-toc-list nav-book-toc-list--root";
+    const tree = buildNavigationPathTree(contentFiles, folderLabels, "external");
+    ensureNavigationTreeFolders(tree, folderPaths, folderLabels, "external");
+    appendNavigationBookTocList(list, tree, 0, {
+      folderLabels,
+      folderStatuses: new Map(),
+      sectionManifestByFolder: new Map(),
+      nodePath: context?.relPath || activePath,
+      linkLeadingMode: "media",
+      treeStyle: "guide",
+      onFileClick: (item) => {
+        const rel = String(item.path || "").replace(/\\/g, "/");
+        const fullPath = `${workspaceFolderPath.replace(/\/+$/, "")}/${rel}`;
+        openRecordPartsPackageFile({ ...item, path: fullPath });
+      }
+    });
     nav.appendChild(list);
     body.appendChild(nav);
-  } else {
+  } else if (!imageItems.length) {
     const mdEmpty = document.createElement("div");
     mdEmpty.className = "node-entry-overview-record-parts-md-empty";
     mdEmpty.textContent = "Md-страниц пока нет — положите .md файлы в эту папку.";
     body.appendChild(mdEmpty);
   }
 
-  if (hasAssets) {
-    body.appendChild(renderRecordPartsAssetsSection(assetItems, workspaceFolderPath, fileHandlers));
+  const nonImageAssets = assetItems.filter((item) => !isRecordPartsNavigationImageItem(item));
+  if (nonImageAssets.length) {
+    body.appendChild(renderRecordPartsAssetsSection(nonImageAssets, workspaceFolderPath, fileHandlers));
   }
 }
 
-async function appendEntryOverviewRecordPartsPanel(hero, context, mount = hero, isStale = () => false) {
-  const panel = await renderEntryOverviewRecordPartsPart(context);
-  if (!panel || isStale()) return null;
+async function appendEntryOverviewRecordPartsPanel(
+  context,
+  mount,
+  isStale = () => false,
+  insertAfter = null,
+  workspaceFolderPath = ""
+) {
+  const contextKey = normalizeEntryOverviewRecordPartsContextKey(context);
+  const panel = await renderEntryOverviewRecordPartsPart(context, workspaceFolderPath);
+  if (!panel) return null;
 
-  let host = hero;
-  if (!host?.isConnected) {
-    host = mount?.querySelector?.(".node-navigation-hero") || mount;
+  if (normalizeEntryOverviewRecordPartsContextKey(activeEntryOverviewContext) !== contextKey) {
+    return null;
   }
-  if (!host?.isConnected) return null;
+  if (typeof isStale === "function" && isStale()) return null;
 
-  const anchor =
-    host.querySelector(".node-entry-overview-attachments") ||
-    host.querySelector(".node-entry-overview-tags") ||
-    host.querySelector(".node-navigation-hero-instruction-fold") ||
-    [
-      ...host.querySelectorAll(
-        ".node-overview-props-fold:not(.node-entry-overview-record-parts-fold), .node-overview-custom-props-fold, .node-overview-settings-props-fold"
-      )
-    ].pop() ||
-    host.querySelector(".node-navigation-hero-footer") ||
-    null;
-  if (anchor) anchor.insertAdjacentElement("afterend", panel);
-  else host.appendChild(panel);
+  if (insertAfter?.parentElement) {
+    insertAfter.insertAdjacentElement("afterend", panel);
+    return panel;
+  }
+
+  mount?.appendChild(panel);
   return panel;
+}
+
+function normalizeEntryOverviewRecordPartsContextKey(context) {
+  const memoryKind = String(context?.memoryKind || "").trim();
+  let rel = String(context?.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (rel && !/\.md$/i.test(rel) && isRecordStorageRelativePath(rel)) {
+    rel = `${rel}.md`;
+  }
+  return `${memoryKind}:${rel}`;
 }
 
 function renderEntryOverviewAttachmentsPart(entries, rawBody, context = null) {
@@ -56979,9 +57499,9 @@ function createWorkspaceCounterCard(slot, { isActive = false, topicPath = null, 
   return card;
 }
 
-async function refreshTopicStorageIndexOverview(topicPath, slots = []) {
+async function refreshTopicStorageIndexOverview(topicPath) {
   const manifestPath = getOverviewNodeApiPath(topicPath);
-  if (!manifestPath) return;
+  if (!manifestPath) return false;
 
   try {
     const response = await fetch(buildApiUrl("/api/agent/content-index"), {
@@ -56989,23 +57509,12 @@ async function refreshTopicStorageIndexOverview(topicPath, slots = []) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: manifestPath, overwrite: true })
     });
-    if (response.ok) {
-      await openTopicStorageIndexOverview(topicPath, slots);
-      return;
-    }
+    if (!response.ok) return false;
+    topicGeneratedStorageIndexCache.delete(manifestPath);
+    return true;
   } catch {
-    /* fall back to generated preview */
+    return false;
   }
-
-  const markdown = buildTopicStorageIndexMarkdown(topicPath, slots);
-  topicGeneratedStorageIndexCache.set(manifestPath, markdown);
-  void openEntryOverviewFromNavigation({
-    relPath: getTopicStorageIndexRelPath(topicPath),
-    memoryKind: "topic-index-generated",
-    relativePath: getTopicStorageIndexRelPath(topicPath),
-    title: "Оглавление темы",
-    entryKind: "awn.topic.storage-index.generated"
-  });
 }
 
 function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
@@ -57044,12 +57553,32 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
 
   const syncTopicIndexFooterState = () => {
     const hasTopicReadme = wrap.dataset.topicHasIndex === "1";
+    const indexRelPath = getTopicStorageIndexRelPath(topicPath);
     footer.textContent = "Индекс (оглавление) общий";
     footer.classList.toggle("is-available", hasTopicReadme);
     footer.classList.toggle("is-generated", !hasTopicReadme);
     footer.title = hasTopicReadme
-      ? `Открыть ${getTopicStorageIndexRelPath(topicPath)}`
-      : `Собрать общее оглавление темы (или создайте ${STORAGE_ROOT_FOLDER}/${STORAGE_SLOT_INDEX_FILE})`;
+      ? `Открыть ${indexRelPath}`
+      : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для сохранения ${STORAGE_ROOT_FOLDER}/${STORAGE_SLOT_INDEX_FILE})`;
+    refreshBtn.title = `Обновить и сохранить ${indexRelPath}`;
+  };
+
+  const setTopicIndexRefreshLoading = (loading) => {
+    refreshBtn.disabled = loading;
+    footer.disabled = loading;
+    refreshBtn.classList.toggle("is-loading", loading);
+    refreshBtn.textContent = loading ? "" : "⟲";
+    let spinner = refreshBtn.querySelector(".node-navigation-workspace-counter-topic-index-refresh-spinner");
+    if (loading) {
+      if (!spinner) {
+        spinner = document.createElement("span");
+        spinner.className = "node-navigation-workspace-counter-topic-index-refresh-spinner";
+        spinner.setAttribute("aria-hidden", "true");
+        refreshBtn.appendChild(spinner);
+      }
+    } else if (spinner) {
+      spinner.remove();
+    }
   };
 
   syncTopicIndexFooterState();
@@ -57057,20 +57586,32 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
   footer.onclick = (event) => {
     event.preventDefault();
     event.stopPropagation();
+    if (footer.disabled) return;
     void openTopicStorageIndexOverview(topicPath, slots);
   };
 
   refreshBtn.onclick = (event) => {
     event.preventDefault();
     event.stopPropagation();
-    void refreshTopicStorageIndexOverview(topicPath, slots).then(() => {
-      if (!wrap.isConnected) return;
-      void probeTopicStorageIndexExists(topicPath).then((exists) => {
+    if (refreshBtn.disabled || refreshBtn.classList.contains("is-loading")) return;
+    setTopicIndexRefreshLoading(true);
+    void refreshTopicStorageIndexOverview(topicPath)
+      .then((ok) => {
         if (!wrap.isConnected) return;
-        wrap.dataset.topicHasIndex = exists ? "1" : "0";
-        syncTopicIndexFooterState();
+        if (ok) {
+          wrap.dataset.topicHasIndex = "1";
+          syncTopicIndexFooterState();
+          showToast("Оглавление темы сохранено", "success");
+          return;
+        }
+        showToast("Не удалось обновить оглавление", "error");
+      })
+      .catch(() => {
+        if (wrap.isConnected) showToast("Не удалось обновить оглавление", "error");
+      })
+      .finally(() => {
+        if (wrap.isConnected) setTopicIndexRefreshLoading(false);
       });
-    });
   };
 
   void probeTopicStorageIndexExists(topicPath).then((exists) => {
@@ -58657,6 +59198,13 @@ async function renderEntryOverview() {
 
   const entryOverviewNav = buildEntryOverviewSiblingNavOptions(context, navigationIndex);
 
+  let recordPartsWorkspaceFolderPath = "";
+  const showRecordParts = shouldShowEntryOverviewRecordParts(context);
+  if (showRecordParts) {
+    recordPartsWorkspaceFolderPath = await findRecordPartsWorkspaceFolder(context);
+    if (isStale()) return;
+  }
+
   const isBundleEntryOverview = isBundleEntryOverviewMemoryKind(context.memoryKind);
   const entryTypeLabel = getPropsEntryValueByKey(entries, "awn-type") || "";
   const showHeroUnread = isMemoryTocRoot
@@ -58686,6 +59234,7 @@ async function renderEntryOverview() {
           showHeroInstruction: false,
           showSettingsProps: false,
           showUnread: showHeroUnread,
+          hasRecordMaterials: Boolean(recordPartsWorkspaceFolderPath),
           onEditClick: () => openEntryOverviewEdit(context),
           entryOverviewNav,
         });
@@ -58698,8 +59247,6 @@ async function renderEntryOverview() {
     if (isStale()) return;
   }
   appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody);
-  await appendEntryOverviewRecordPartsPanel(hero, context, hubMain, isStale);
-  if (isStale()) return;
   appendEntryOverviewSectionReadmeOffer(hubMain, context, {
     navigationIndex,
     manifestBodyFetchOk
@@ -58724,6 +59271,17 @@ async function renderEntryOverview() {
     contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav, title);
   }
   if (contentPanel) hubMain.appendChild(contentPanel);
+
+  if (showRecordParts) {
+    await appendEntryOverviewRecordPartsPanel(
+      context,
+      hubMain,
+      isStale,
+      contentPanel || hero,
+      recordPartsWorkspaceFolderPath
+    );
+    if (isStale()) return;
+  }
 
   appendEntryOverviewBrowsePanel(hubMain, context, navigationIndex, { isMemoryTocRoot: false });
 
@@ -59488,18 +60046,15 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
 
     const leaders = document.createElement("span");
     leaders.className = "nav-book-toc-leaders";
+    const readManifestPath = handlers.readManifestPath || getActiveNodeApiPath();
+    const readMemoryKind = handlers.readMemoryKind || handlers.resourceContextMenuMemoryKind || "external";
     populateNavBookTocLeaders(leaders, countNavigationItemAttachments(item), {
       hasMaterials: navigationItemHasRecordMaterials(item),
-      attachmentPaths: getNavigationItemAttachmentPaths(item)
+      attachmentPaths: getNavigationItemAttachmentPaths(item),
+      hasUnread: isNavigationTocItemUnread(readManifestPath, item, readMemoryKind)
     });
 
     appendNavBookTocEntryMarkers(link, item, nodePath, handlers);
-    appendNavUnreadBadgeForContent(
-      text,
-      handlers.readManifestPath || getActiveNodeApiPath(),
-      item,
-      handlers.readMemoryKind || handlers.resourceContextMenuMemoryKind || "external"
-    );
     link.append(text, leaders);
     const { fileIsCurrent } = getNavigationHubRailTocActiveState(handlers, "", item.path);
     if (fileIsCurrent) link.classList.add("is-current");
@@ -64518,6 +65073,16 @@ function setNavigationMediaImagesLayout(layout) {
   navigationMediaImagesLayout = layout;
   saveNavigationMediaImagesLayout(layout);
   syncNavigationMediaImagesLayoutUi();
+  syncFolderBrowseImagesColumnUi();
+
+  const recordPartsCard = nodeOverviewContentNode?.querySelector(
+    ".node-entry-overview-record-parts-card"
+  );
+  if (recordPartsCard) {
+    void refreshEntryOverviewRecordPartsImagesPreview(recordPartsCard);
+    return;
+  }
+
   void refreshNavigationMediaImagesView();
 }
 
@@ -64631,7 +65196,7 @@ function syncFolderBrowseImagesColumnUi() {
   for (const grid of root.querySelectorAll(".folder-browse-images-grid")) {
     const isMediaGrid = Boolean(
       grid.closest(
-        ".navigation-media-images-grid-wrap, .node-entry-overview-media-grid-wrap, .node-navigation-media"
+        ".navigation-media-images-grid-wrap, .node-entry-overview-media-grid-wrap, .node-navigation-media, .node-entry-overview-record-parts-card"
       )
     );
     const activeCols = isMediaGrid
@@ -64658,11 +65223,16 @@ function syncFolderBrowseImagesColumnUi() {
     const img = card.querySelector(".folder-browse-image-thumb img");
     if (!path || !img) continue;
     const nodePath = card.dataset.mediaGridNodePath || getResolvedNodePath(activePath);
+    const isRecordPartsCard = Boolean(card.closest(".node-entry-overview-record-parts-card"));
     const activeCols = card.dataset.mediaGridPath
       ? navigationMediaImagesLayout === "strip"
         ? 3
         : navigationMediaImagesLayout
-      : folderBrowseImagesColumns;
+      : isRecordPartsCard
+        ? navigationMediaImagesLayout === "strip"
+          ? 3
+          : navigationMediaImagesLayout
+        : folderBrowseImagesColumns;
     const nextSrc = card.dataset.mediaGridPath
       ? resolveNavigationMediaGridImageUrl(path, nodePath, activeCols)
       : resolveFolderBrowseGridImageUrl(path, activeCols);

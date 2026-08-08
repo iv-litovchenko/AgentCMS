@@ -4086,7 +4086,6 @@ async function collectExternalContentFolders(folderAbsolute, prefix = "", option
     if (entry.name.startsWith(".")) continue;
     if (!entry.isDirectory()) continue;
     if (shouldSkipDirectory(entry.name)) continue;
-    if (shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name).replace(/\\/g, "/");
     folders.push({ path: relative, name: entry.name });
@@ -4108,7 +4107,7 @@ async function collectMarkdownFiles(folderAbsolute, prefix = "", options = {}) {
 
     if (entry.isDirectory()) {
       if (shouldSkipDirectory(entry.name)) continue;
-      if (shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
+      if (shouldSkipRecordPartsPackageDirectoryForCollect(entry.name, options)) continue;
       const nested = await collectMarkdownFiles(absolute, relative, options);
       files.push(...nested);
       continue;
@@ -4147,7 +4146,7 @@ async function collectNonMarkdownFiles(folderAbsolute, prefix = "", options = {}
 
     if (entry.isDirectory()) {
       if (shouldSkipDirectory(entry.name)) continue;
-      if (shouldSkipRecordPartsPackageDirectory(entry.name)) continue;
+      if (shouldSkipRecordPartsPackageDirectoryForCollect(entry.name, options)) continue;
       files.push(...(await collectNonMarkdownFiles(absolute, relative, options)));
       continue;
     }
@@ -5296,17 +5295,25 @@ async function resolveRecordMaterialsFolderExists(folderAbsolute, fileRelativePa
   const slug = baseName.replace(/\.md$/i, "");
   if (!slug) return false;
   const parentRel = path.dirname(normalized);
-  const partsRel =
+  const parentAbsolute =
     !parentRel || parentRel === "."
-      ? `${RECORD_PARTS_PACKAGE_FOLDER_PREFIX}${slug}`
-      : path.posix.join(parentRel, `${RECORD_PARTS_PACKAGE_FOLDER_PREFIX}${slug}`);
-  const partsAbsolute = path.join(folderAbsolute, partsRel);
+      ? folderAbsolute
+      : path.join(folderAbsolute, parentRel);
+  let entries;
   try {
-    const stat = await fs.stat(partsAbsolute);
-    return stat.isDirectory();
+    entries = await fs.readdir(parentAbsolute, { withFileTypes: true });
   } catch {
     return false;
   }
+  const preferredNames = new Set(
+    [`awn-parts-${slug}`, `parts-${slug}`].map((name) => name.toLowerCase())
+  );
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (!isRecordPartsPackageFolderName(entry.name)) continue;
+    if (preferredNames.has(entry.name.toLowerCase())) return true;
+  }
+  return false;
 }
 
 async function enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute, fileEntry) {
@@ -8323,16 +8330,128 @@ const MENU_SKIP_DIRS = new Set([
 ]);
 const MENU_SORT_FILE = "sort.json";
 const PARTS_FOLDER = "_Parts";
-const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "parts-";
+const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "awn-parts-";
+const RECORD_PARTS_PACKAGE_FOLDER_PREFIXES = [RECORD_PARTS_PACKAGE_FOLDER_PREFIX, "parts-"];
 
 function isRecordPartsPackageFolderName(name) {
-  const normalized = String(name || "").trim();
+  const normalized = String(name || "").trim().toLowerCase();
   if (!normalized) return false;
-  return normalized.toLowerCase().startsWith(RECORD_PARTS_PACKAGE_FOLDER_PREFIX);
+  return RECORD_PARTS_PACKAGE_FOLDER_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 }
 
 function shouldSkipRecordPartsPackageDirectory(name) {
   return isRecordPartsPackageFolderName(name);
+}
+
+function shouldSkipRecordPartsPackageDirectoryForCollect(name, options = {}) {
+  if (options.includeRecordPartsPackages) return false;
+  return shouldSkipRecordPartsPackageDirectory(name);
+}
+
+function getRecordSlugFromPartsFolderName(name) {
+  const raw = String(name || "").trim();
+  const lower = raw.toLowerCase();
+  for (const prefix of RECORD_PARTS_PACKAGE_FOLDER_PREFIXES) {
+    if (lower.startsWith(prefix)) return raw.slice(prefix.length);
+  }
+  return "";
+}
+
+function getRecordPartsMetaFromRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const segments = normalized.split("/").filter(Boolean);
+  for (let i = 0; i < segments.length; i++) {
+    if (!isRecordPartsPackageFolderName(segments[i])) continue;
+    const folderRef = segments.slice(0, i + 1).join("/");
+    const slug = getRecordSlugFromPartsFolderName(segments[i]);
+    if (!slug) continue;
+    const parentPrefix = segments.slice(0, i).join("/");
+    const parentRecordRef = parentPrefix ? `${parentPrefix}/${slug}.md` : `${slug}.md`;
+    return { folderRef, parentRecordRef, slug };
+  }
+  return null;
+}
+
+function buildRecordPartsFolderTitle(slug, hasManifest = false) {
+  const label = String(slug || "").trim() || "запись";
+  return hasManifest ? `Доп. материалы (${label})` : `Доп. материалы — ${label}`;
+}
+
+function resolveRecordPartsFolderRefForRecordRel(recordRelPath) {
+  const normalized = String(recordRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!/\.md$/i.test(normalized)) return "";
+  const slug = path.basename(normalized).replace(/\.md$/i, "");
+  if (!slug) return "";
+  const parent = path.dirname(normalized);
+  const folderName = `${RECORD_PARTS_PACKAGE_FOLDER_PREFIX}${slug}`;
+  if (!parent || parent === ".") return folderName;
+  return `${parent.replace(/\\/g, "/")}/${folderName}`;
+}
+
+function isRecordPartsFolderManifestRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  if (!getRecordPartsMetaFromRelPath(normalized)) return false;
+  const base = path.basename(normalized);
+  return base.toLowerCase() === MANIFEST_FILE.toLowerCase() || isAreaManifestFileName(base);
+}
+
+async function renameRecordPartsFolderForMarkdownRename(parentFolderAbsolute, oldRelFile, newRelFile) {
+  const oldNormalized = String(oldRelFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const newNormalized = String(newRelFile || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!oldNormalized.toLowerCase().endsWith(".md") || !newNormalized.toLowerCase().endsWith(".md")) {
+    return { renamed: false };
+  }
+
+  const oldSlug = path.basename(oldNormalized).replace(/\.md$/i, "");
+  const newSlug = path.basename(newNormalized).replace(/\.md$/i, "");
+  if (!oldSlug || !newSlug || oldSlug.toLowerCase() === newSlug.toLowerCase()) {
+    return { renamed: false };
+  }
+
+  const parentRel = path.dirname(oldNormalized);
+  const parentAbsolute =
+    !parentRel || parentRel === "."
+      ? parentFolderAbsolute
+      : path.join(parentFolderAbsolute, parentRel);
+  if (!isPathInsideDirectory(parentFolderAbsolute, parentAbsolute)) {
+    return { renamed: false };
+  }
+
+  const preferredOldNames = [`awn-parts-${oldSlug}`, `parts-${oldSlug}`].map((name) => name.toLowerCase());
+  const nextFolderName = `${RECORD_PARTS_PACKAGE_FOLDER_PREFIX}${newSlug}`;
+
+  let sourceAbsolute = null;
+  let entries;
+  try {
+    entries = await fs.readdir(parentAbsolute, { withFileTypes: true });
+  } catch {
+    return { renamed: false };
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (!preferredOldNames.includes(String(entry.name || "").trim().toLowerCase())) continue;
+    sourceAbsolute = path.join(parentAbsolute, entry.name);
+    break;
+  }
+  if (!sourceAbsolute) return { renamed: false };
+
+  const destAbsolute = path.join(parentAbsolute, nextFolderName);
+  if (path.resolve(sourceAbsolute) === path.resolve(destAbsolute)) {
+    return { renamed: false };
+  }
+  if (await targetPathOccupiedByOther(sourceAbsolute, destAbsolute)) {
+    return { renamed: false, error: "Record materials folder with target name already exists" };
+  }
+
+  await renamePathCaseAware(sourceAbsolute, destAbsolute);
+  const parentRelPrefix =
+    !parentRel || parentRel === "." ? "" : `${String(parentRel).replace(/\\/g, "/")}/`;
+  return {
+    renamed: true,
+    from: `${parentRelPrefix}${path.basename(sourceAbsolute)}`.replace(/\\/g, "/"),
+    to: `${parentRelPrefix}${nextFolderName}`.replace(/\\/g, "/")
+  };
 }
 
 const TREE_MENU_TYPES = new Set(["workspace", "area", "topic"]);
@@ -9761,13 +9880,22 @@ function mapItemsToContentIndexEntries(items = []) {
       const baseName = ref.split("/").pop() || ref;
       if (baseName.toLowerCase() === STORAGE_SLOT_INDEX_FILE.toLowerCase()) return false;
       if (item?.kind === "file" && !String(item?.title || "").trim()) return false;
+      if (item?.kind === "record-materials-file" && !String(item?.title || "").trim()) return false;
       return Boolean(ref || item?.title);
     })
-    .map((item) => ({
-      path: String(item.ref || "").replace(/\\/g, "/"),
-      title: String(item.title || item.ref || "").trim(),
-      description: String(item.description || "").trim()
-    }))
+    .map((item) => {
+      const ref = String(item.ref || "").replace(/\\/g, "/");
+      let title = String(item.title || item.ref || "").trim();
+      if (item.kind === "record-materials-folder") {
+        title = title || ref.split("/").pop() || ref;
+      } else if (item.kind === "record-materials" || item.kind === "record-materials-file") {
+        title = title || ref.split("/").pop() || ref;
+      }
+      const description =
+        String(item.description || "").trim() ||
+        (item.parentRecordRef ? `Доп. материалы записи ${item.parentRecordRef}` : "");
+      return { path: ref, title, description };
+    })
     .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
 }
 
@@ -9823,14 +9951,10 @@ function formatContentIndexEntriesMarkdown(entries, { emptyHint = "_Нет за�
   return lines.join("\n");
 }
 
-function buildSlotContentIndexMarkdown({ slotKey, slotLabel, indexPath, entries }) {
+function buildSlotContentIndexMarkdown({ slotKey, slotLabel, entries }) {
   const label = String(slotLabel || slotKey || "Слот").trim();
   return [
     `# Оглавление — ${label}`,
-    "",
-    `_Файл индекса слота: \`${indexPath}\`_`,
-    "",
-    "> Сгенерировано автоматически из файлов слота.",
     "",
     formatContentIndexEntriesMarkdown(entries, {
       emptyHint: "_В слоте пока нет файлов для оглавления._"
@@ -9838,23 +9962,12 @@ function buildSlotContentIndexMarkdown({ slotKey, slotLabel, indexPath, entries 
   ].join("\n");
 }
 
-function buildTopicContentIndexMarkdown({ topicIndexPath, slots }) {
-  const lines = [
-    "# Оглавление темы",
-    "",
-    `_Общий индекс темы: \`${topicIndexPath}\`_`,
-    "",
-    "> Сгенерировано автоматически из содержимого слотов.",
-    ""
-  ];
+function buildTopicContentIndexMarkdown({ slots }) {
+  const lines = ["# Оглавление темы", ""];
 
   for (const slotRow of slots) {
     lines.push(`## ${slotRow.slot}`);
     lines.push("");
-    lines.push(
-      `Индекс слота: \`${slotRow.indexFile.path}\` · записей: ${slotRow.entryCount}`,
-      ""
-    );
     lines.push(
       formatContentIndexEntriesMarkdown(slotRow.entries, {
         emptyHint: "_В слоте пока нет файлов для оглавления._"
@@ -9863,12 +9976,7 @@ function buildTopicContentIndexMarkdown({ topicIndexPath, slots }) {
     lines.push("");
   }
 
-  lines.push(
-    "---",
-    "",
-    `Каждый слот может иметь свой \`${STORAGE_SLOT_INDEX_FILE}\` в корне папки слота.`
-  );
-  return lines.join("\n");
+  return lines.join("\n").trimEnd() + "\n";
 }
 
 async function buildAgentContentIndex(manifestRelPath, options = {}) {
@@ -9914,7 +10022,8 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     model: "content-index",
     hint:
       "Быстрое оглавление (path, title, description) без body и без properties. " +
-      "Для полной карты с meta → get_content_map. Для текста записи → read_content_body.",
+      "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
+      "Папки awn-parts-* (доп. материалы записи) включены в оглавление.",
     whenToUse: {
       get_content_index:
         "Быстрый обзор темы/слота без погружения: оглавление как index.md (путь, название, описание).",
@@ -9970,7 +10079,6 @@ async function writeAgentContentIndex(manifestRelPath, options = {}) {
     const markdown = buildSlotContentIndexMarkdown({
       slotKey: slotRow.slot,
       slotLabel: slotRow.slot,
-      indexPath,
       entries: slotRow.entries
     });
     await writeWorkspaceTextFileWithHistory(manifestPath, indexPath, markdown);
@@ -9993,7 +10101,6 @@ async function writeAgentContentIndex(manifestRelPath, options = {}) {
       };
     }
     const markdown = buildTopicContentIndexMarkdown({
-      topicIndexPath: indexPath,
       slots: indexPayload.slots
     });
     await writeWorkspaceTextFileWithHistory(manifestPath, indexPath, markdown);
@@ -10072,21 +10179,62 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
     return [];
   }
 
+  const collectOptions = { includeRecordPartsPackages: true };
   const [files, folders, nonMarkdownFiles] = await Promise.all([
-    collectMarkdownFiles(folderAbsolute),
+    collectMarkdownFiles(folderAbsolute, "", collectOptions),
     collectExternalContentFolders(folderAbsolute),
-    collectNonMarkdownFiles(folderAbsolute)
+    collectNonMarkdownFiles(folderAbsolute, "", collectOptions)
   ]);
 
   const items = [];
+  const seenFolderRefs = new Set();
 
   for (const folder of folders) {
     const folderRel = String(folder.path || folder.name || "").replace(/\\/g, "/");
     if (!folderRel) continue;
+    const folderName = path.basename(folderRel);
+    const isRecordPartsFolder = isRecordPartsPackageFolderName(folderName);
     const categoryAbs = path.join(folderAbsolute, folderRel);
     const hasManifest =
       (await fileExists(path.join(categoryAbs, MANIFEST_FILE))) ||
       (await fileExists(path.join(categoryAbs, AREA_MANIFEST_FILE)));
+
+    if (isRecordPartsFolder) {
+      const partsMeta = getRecordPartsMetaFromRelPath(`${folderRel}/placeholder.md`);
+      let title = buildRecordPartsFolderTitle(partsMeta?.slug, hasManifest);
+      let description = "";
+      let properties = {};
+      if (hasManifest) {
+        const sectionManifestRel = buildStorageLayerRef(
+          manifestRelPath,
+          storageFolder,
+          path.posix.join(folderRel, MANIFEST_FILE)
+        );
+        try {
+          const { frontmatter } = await readNodeFrontmatterContent(sectionManifestRel);
+          title = String(getYamlScalar(frontmatter, "awn-name") || title).trim();
+          description = String(getYamlScalar(frontmatter, "awn-description") || "").trim();
+          properties = frontmatterPropsToObject(frontmatter);
+        } catch {
+          // use defaults
+        }
+      }
+
+      items.push({
+        kind: "record-materials-folder",
+        ref: folderRel,
+        title,
+        description,
+        workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, folderRel),
+        properties,
+        hasManifest,
+        parentRecordRef: partsMeta?.parentRecordRef || "",
+        recordMaterials: true
+      });
+      seenFolderRefs.add(folderRel);
+      continue;
+    }
+
     if (!hasManifest) continue;
 
     let title = path.basename(folderRel);
@@ -10118,27 +10266,65 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
 
   for (const file of files) {
     const enriched = await enrichExternalMarkdownFilePreview(manifestRelPath, folderAbsolute, file);
+    const partsMeta = getRecordPartsMetaFromRelPath(enriched.relativePath);
+    if (partsMeta && isRecordPartsFolderManifestRelPath(enriched.relativePath)) {
+      const folderRel = partsMeta.folderRef;
+      if (!seenFolderRefs.has(folderRel)) {
+        items.push({
+          kind: "record-materials-folder",
+          ref: folderRel,
+          title: enriched.title,
+          description: String(getFrontmatterPropValue(enriched.props, "awn-description") || "").trim(),
+          workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, folderRel),
+          properties: frontmatterPropsToObject(enriched.props),
+          hasManifest: true,
+          parentRecordRef: partsMeta.parentRecordRef,
+          recordMaterials: true
+        });
+        seenFolderRefs.add(folderRel);
+      }
+      continue;
+    }
     items.push({
-      kind: "record",
+      kind: partsMeta ? "record-materials" : "record",
       ref: enriched.relativePath,
       title: enriched.title,
       description: String(getFrontmatterPropValue(enriched.props, "awn-description") || "").trim(),
       workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, enriched.relativePath),
       properties: frontmatterPropsToObject(enriched.props),
       status: enriched.status,
-      tags: enriched.tags
+      tags: enriched.tags,
+      hasRecordMaterials: Boolean(enriched.hasRecordMaterials),
+      recordMaterialsFolderRef: enriched.hasRecordMaterials
+        ? resolveRecordPartsFolderRefForRecordRel(enriched.relativePath)
+        : null,
+      ...(partsMeta
+        ? {
+            recordMaterials: true,
+            parentRecordRef: partsMeta.parentRecordRef,
+            recordMaterialsFolderRef: partsMeta.folderRef
+          }
+        : {})
     });
   }
 
   for (const file of nonMarkdownFiles) {
+    const partsMeta = getRecordPartsMetaFromRelPath(file.relativePath);
     items.push({
-      kind: "file",
+      kind: partsMeta ? "record-materials-file" : "file",
       ref: file.relativePath,
       title: file.name,
       description: "",
       workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, file.relativePath),
       properties: {},
-      ext: path.extname(file.name || "").toLowerCase()
+      ext: path.extname(file.name || "").toLowerCase(),
+      ...(partsMeta
+        ? {
+            recordMaterials: true,
+            parentRecordRef: partsMeta.parentRecordRef,
+            recordMaterialsFolderRef: partsMeta.folderRef
+          }
+        : {})
     });
   }
 
@@ -10219,7 +10405,7 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
   return {
     version: 1,
     model: "content-map",
-    hint: "Карта контента страницы: title, description, properties без body. Тело: read_content_body. Быстрое оглавление: get_content_index.",
+    hint: "Карта контента страницы: title, description, properties без body. Тело: read_content_body. Быстрое оглавление: get_content_index. Папки awn-parts-* (доп. материалы записи) включены как record-materials* с parentRecordRef.",
     path: canonicalRelPath,
     awnType,
     slots,
@@ -19367,12 +19553,22 @@ async function handleApiForAgent(req, res, url) {
         await renamePathCaseAware(resolved.fileAbsolute, nextAbsolute);
       }
 
+      let recordPartsRename = { renamed: false };
+      if (normalizedRelFile.toLowerCase().endsWith(".md")) {
+        recordPartsRename = await renameRecordPartsFolderForMarkdownRename(
+          resolved.folderAbsolute,
+          normalizedRelFile,
+          nextRelPath
+        );
+      }
+
       const content = await fs.readFile(nextAbsolute, "utf-8");
       return sendJson(res, 200, {
         folder: resolved.folder,
         file: nextRelPath.replace(/\\/g, "/"),
         content,
-        linkRewrite: { filesUpdated: 0, linksUpdated: 0, files: [] }
+        linkRewrite: { filesUpdated: 0, linksUpdated: 0, files: [] },
+        recordPartsRename
       });
     } catch (error) {
       const code = error && error.code ? String(error.code) : "";
@@ -19502,6 +19698,12 @@ async function handleApiForAgent(req, res, url) {
         await renamePathCaseAware(currentAbsolute, nextAbsolute);
       }
 
+      const recordPartsRename = await renameRecordPartsFolderForMarkdownRename(
+        folderAbsolute,
+        normalizedRelFile,
+        nextRelPath
+      );
+
       const content = await fs.readFile(nextAbsolute, "utf-8");
       let linkRewrite = { filesUpdated: 0, linksUpdated: 0, files: [] };
       const oldWorkspaceRel = await resolveExternalFileWorkspaceRel(relPath, normalizedRelFile);
@@ -19515,7 +19717,7 @@ async function handleApiForAgent(req, res, url) {
           exactMappings: [{ oldRel: oldWorkspaceRel, newRel: newWorkspaceRel }]
         });
       }
-      return sendJson(res, 200, { file: nextRelPath, content, linkRewrite });
+      return sendJson(res, 200, { file: nextRelPath, content, linkRewrite, recordPartsRename });
     } catch (error) {
       const code = error && error.code ? String(error.code) : "";
       if (code === "ENOENT") return sendJson(res, 404, { error: "External file not found" });

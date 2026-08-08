@@ -127,8 +127,8 @@ resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn
 | Tool | Что внутри | Тела файлов? |
 |------|------------|--------------|
 | `get_page_map` | Все узлы workspace: manifest (hasManifest:true) + папки без manifest (kind:folder). Meta, без body | нет |
-| `get_content_map(path)` | Контент одной страницы по слотам: title, description, **properties**, tags, status | нет |
-| `get_content_index(path)` | **Оглавление** темы или слота: path, title, description (как `index.md`). Без body и properties | нет |
+| `get_content_map(path)` | Контент одной страницы по слотам: title, description, **properties**, tags, status. Включая папки `awn-parts-*` (доп. материалы записи) | нет |
+| `get_content_index(path)` | **Оглавление** темы или слота: path, title, description (как `index.md`). Включая `awn-parts-*` и файлы внутри | нет |
 | `write_content_index(path)` | **Сохранить** сгенерированное оглавление в `index.md` на диск | да (index.md) |
 | `resolve_workspace_path({ path })` | Произвольный путь → цепочка manifest (topic/area/ws), slot/ref, mcp hints | нет |
 | `search_workspace_content` | Полнотекстовый поиск: пути, frontmatter, тела (`scope=all` по умолчанию) | meta + snippet |
@@ -153,6 +153,7 @@ resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn
 | «Сохранить оглавление в index.md» | `write_content_index(path)` или `write_content_index(path, slot=memory)` |
 | «Нужны properties/tags/status перед правкой» | `get_content_map(path)` |
 | «Читать/писать текст записи» | `read_content_body` / `write_content_body` |
+| «Доп. файлы **конкретной** записи (не раздел темы)» | `get_content_map` → `hasRecordMaterials` / `parentRecordRef` / `recordMaterialsFolderRef`; папка `awn-parts-{slug}` |
 
 `indexFile.exists` в ответе `get_content_index` — есть ли на диске `index.md` (общий: `awn-storage/index.md`, слота: `…/main/index.md` и т.п.). Если `false`, оглавление **сгенерировано** из файлов слота (как кнопка «Индекс» в UI).
 
@@ -315,6 +316,59 @@ write_sidecar({ "path": "…/manifest.md", "slot": "repository", "file": "spec.p
 - типы: `list_types({ filter: "slot-content" })` → `get_type({ id: "awn.content.record" })`
 
 `write_content_properties` — patch frontmatter (одно поле ок); тело сохраняется.
+
+### Доп. материалы записи (`awn-parts-{slug}`)
+
+**Суть:** это **не** обычный раздел каталога и **не** общая папка темы. Это **личная папка одной конкретной записи** — все файлы внутри относятся только к ней (черновики, приложения, схемы, картинки, доп. `.md`).
+
+**Связь по имени (1:1):**
+
+```
+razdel-1/
+  igra-dalnoboyschik-2.md              ← запись-владелец (awn.content.record)
+  awn-parts-igra-dalnoboyschik-2/      ← её доп. материалы (slug совпадает)
+    manifest.md                        ← опционально (как у обычного раздела)
+    черновик.md
+    схема.png
+```
+
+- Имя папки: `awn-parts-{slug}` (legacy: `parts-{slug}`), где `{slug}` = имя `.md` **без** расширения.
+- Папка **всегда** лежит **рядом** с записью (тот же родительский каталог).
+- Одна запись → **не больше одной** такой папки. Несколько записей в разделе → у каждой своя `awn-parts-*`, если создана.
+- При переименовании `{slug}.md` папка переименовывается вместе с записью.
+
+**Для агента — как понять «чья это папка»:**
+
+| Где смотреть | Поле / правило |
+|--------------|----------------|
+| `get_content_map` | `parentRecordRef` → ref записи-владельца, напр. `razdel-1/igra-dalnoboyschik-2.md` |
+| `get_content_map` (запись) | `hasRecordMaterials: true`, `recordMaterialsFolderRef` → ref папки |
+| По пути на диске | `…/awn-parts-{slug}/…` ⇒ владелец `…/{slug}.md` |
+| UI человека | блок «Доп материалы» на обзоре записи; в TOC папки **скрыты** |
+
+**Не путать с:**
+
+- **`awn.content.category`** — раздел для **многих** записей (manifest + группа `.md`).
+- **`assets` / `media`** — общие слоты темы, не привязаны к одной записи.
+- **`{file}.sidecar.md`** — мета **одного** файла, не папка материалов.
+
+**В карте и оглавлении** (`get_content_map`, `get_content_index`) папки включены как обычные узлы — с `manifest.md` или без — чтобы агент находил их без ручного обхода диска:
+
+| kind (map) | Что это |
+|------------|---------|
+| `record-materials-folder` | Папка `awn-parts-*` (раздел доп. материалов одной записи) |
+| `record-materials` | `.md` внутри такой папки |
+| `record-materials-file` | Не-markdown (png, pdf…) внутри |
+
+Поля связи: `parentRecordRef`, `recordMaterialsFolderRef`, `recordMaterials: true`.
+
+**Типичный сценарий агента:**
+
+1. `get_content_index(path)` или `get_content_map(path)` → найти запись с `hasRecordMaterials: true`.
+2. По `recordMaterialsFolderRef` или `parentRecordRef` понять пару «запись ↔ папка».
+3. Текст доп. `.md` → `read_content_body(path, slot, ref=…/awn-parts-…/file.md)`.
+4. Бинарник → `read_file` по `workspacePath` из map.
+5. Новый файл к записи → класть в `awn-parts-{slug}/`, **не** в корень раздела.
 
 ---
 
