@@ -30503,7 +30503,8 @@ button.node-navigation-memory-title:focus-visible {
   );
 }
 
-.nav-book-toc-tree--guide .nav-book-toc-leaders.has-nav-book-toc-attachments-badge {
+.nav-book-toc-tree--guide .nav-book-toc-leaders.has-nav-book-toc-attachments-badge,
+.nav-book-toc-tree--guide .nav-book-toc-leaders.has-nav-book-toc-materials-badge {
   display: flex;
   align-items: center;
   min-width: 12px;
@@ -30511,7 +30512,8 @@ button.node-navigation-memory-title:focus-visible {
   background: none;
 }
 
-.nav-book-toc-tree--guide .nav-book-toc-leaders.has-nav-book-toc-attachments-badge::before {
+.nav-book-toc-tree--guide .nav-book-toc-leaders.has-nav-book-toc-attachments-badge::before,
+.nav-book-toc-tree--guide .nav-book-toc-leaders.has-nav-book-toc-materials-badge::before {
   content: "";
   flex: 1 1 auto;
   min-width: 8px;
@@ -31048,7 +31050,13 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-leaders.has-nav-book-toc-materials-badge {
+  display: flex;
+  align-items: center;
   gap: 4px;
+  margin-left: 8px;
+  min-width: 0;
+  height: auto;
+  background: none;
 }
 
 .nav-book-toc-attachments-badge.ui-tooltip-host[data-tooltip]::after,
@@ -31083,7 +31091,8 @@ button.node-navigation-memory-title:focus-visible {
   text-align: center;
 }
 
-.nav-book-toc-leaders.has-nav-book-toc-attachments-badge {
+.nav-book-toc-leaders.has-nav-book-toc-attachments-badge,
+.nav-book-toc-leaders.has-nav-book-toc-materials-badge {
   margin-left: 8px;
   min-width: 0;
   height: auto;
@@ -49290,11 +49299,12 @@ body.is-discuss-resizing .discuss-aside-resizer {
 }
 
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-leaders.has-nav-book-toc-attachments-badge::before,
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-leaders.has-nav-book-toc-materials-badge::before,
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-leaders.has-nav-book-toc-folder-count-badge::before {
   margin-right: 4px;
 }
 
-.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-leaders:not(.has-nav-book-toc-attachments-badge):not(.has-nav-book-toc-folder-count-badge)::before {
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-leaders:not(.has-nav-book-toc-attachments-badge):not(.has-nav-book-toc-materials-badge):not(.has-nav-book-toc-folder-count-badge)::before {
   margin-right: 0;
 }
 
