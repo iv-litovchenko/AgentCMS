@@ -19,9 +19,10 @@
     "references/laravel-docs.md",
     "references/php-net-manual.md",
     "references/psr-4-autoloading.md",
+    "slot-index-generated/index.md",
     "tabular/main.csv",
     "todo/todo.md",
     "topic-index-generated/awn-container/php/awn-storage/index.md"
   ],
-  "updatedAt": "2026-08-07T20:20:39.837Z"
+  "updatedAt": "2026-08-08T19:19:43.555Z"
 }

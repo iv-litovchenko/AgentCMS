@@ -1,4 +1,4 @@
-agent-cms ( Agent MCP ) · 61
+agent-cms ( Agent MCP ) · 71
 │
 ├── СТАРТ / КОНТЕКСТ (5)
 │   ├── get_session_context              — START HERE
@@ -7,23 +7,30 @@ agent-cms ( Agent MCP ) · 61
 │   ├── list_workspace_cron              — реестр cron
 │   └── list_workspace_heartbeat         — реестр heartbeat
 │
-├── НАВИГАЦИЯ (3)
+├── НАВИГАЦИЯ (6)
 │   ├── get_page_map                     — карта workspace (+ kind:folder без manifest)
-│   ├── get_content_map                  — карта контента темы
-│   └── search_workspace                 — поиск
+│   ├── get_content_index                — оглавление темы/слота (path, title, description)
+│   ├── write_content_index              — сохранить index.md на диск
+│   ├── get_content_map                  — карта контента темы (meta + properties)
+│   ├── resolve_workspace_path           — path → breadcrumbs + topic/area/ws + slot/ref
+│   └── search_workspace_content         — полнотекстовый поиск (paths + body)
 │
-├── СТРАНИЦА (12)
+├── СТРАНИЦА (19)
 │   ├── read_page_body / write_page_body
 │   ├── read_page_properties / write_page_properties
 │   ├── read_page_property / write_page_property   — одно свойство manifest
 │   ├── read_page_schema / write_page_schema
+│   ├── read_page_config / write_page_config       — config.yml (awn_settings, awn_ui)
+│   ├── page_exists / get_page_meta
+│   ├── read_page_env / write_page_env
 │   ├── create_page / delete_page
 │   └── rename_page / move_page
 │
 ├── СЛОТ (1)
 │   └── list_page_slots                  — слоты + allowedContent
 │
-├── КОНТЕНТ (11)
+├── КОНТЕНТ (13)
+│   ├── content_exists / get_content_meta
 │   ├── read_content_body / write_content_body
 │   ├── read_content_properties / write_content_properties
 │   ├── read_content_property / write_content_property — одно свойство .md

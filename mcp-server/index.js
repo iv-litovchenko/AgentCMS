@@ -8,7 +8,7 @@ import { registerSlotTools } from "./lib/slot-tools.js";
 import { registerContentTools } from "./lib/content-tools.js";
 import { registerTypeListTools } from "./lib/type-list-tools.js";
 import { registerWorkspaceFsTools } from "./lib/workspace-fs-tools.js";
-import { registerMapTools } from "./lib/map-tools.js";
+import { registerMapTools, registerSearchWorkspaceTools } from "./lib/map-tools.js";
 import { registerDataPropertyTools } from "./lib/data-property-tools.js";
 import { registerExecTools } from "./lib/exec-tools.js";
 import { registerWebSearchTools } from "./lib/web-search-tools.js";
@@ -47,7 +47,7 @@ function createServer() {
     ? ` Agent: ${cfg.defaultAgent}.`
     : " Uses default agent from registry.";
 
-  const server = new McpServer({ name: "agent-cms", version: "0.3.5" });
+  const server = new McpServer({ name: "agent-cms", version: "0.3.6" });
 
   const reg = (name, description, schema, fn) => {
     server.registerTool(name, { description: description + agentNote, inputSchema: schema }, wrap(fn));
@@ -94,40 +94,7 @@ function createServer() {
 
   registerMapTools(reg, client, pagePath);
 
-  reg(
-    "search_workspace",
-    "Search workspace (UI header search). scope=all by default. match=relaxed|strict.",
-    z.object({
-      query: z.string().min(1),
-      scope: z.enum(["all", "content", "filename", "description", "tags"]).optional(),
-      fileType: z
-        .enum([
-          "all",
-          "markdown",
-          "sidecar",
-          "pdf",
-          "office",
-          "spreadsheet",
-          "video",
-          "audio",
-          "image",
-          "archive",
-          "config",
-          "other"
-        ])
-        .optional(),
-      match: z.enum(["relaxed", "strict"]).optional(),
-      limit: z.number().int().min(1).max(100).optional()
-    }),
-    ({ query, scope, fileType, match, limit }) =>
-      client.get("/api/search", {
-        q: query,
-        scope: scope || "all",
-        fileType: fileType || "all",
-        match: match || "relaxed",
-        limit: limit || 30
-      })
-  );
+  registerSearchWorkspaceTools(reg, client);
 
   // ── AWN-DATA runtime (5) ───────────────────────────────────────────────────
 

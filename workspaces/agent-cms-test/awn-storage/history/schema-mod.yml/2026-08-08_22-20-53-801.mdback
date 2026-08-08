@@ -4,17 +4,17 @@ layer: workspace
 awn_schema:
   workspace:
     fields:
-      ws-field-1:
+      ws-field_1:
         type: awn.field.string
         name: WS поле 1
-      ws-field-2:
+      ws-field_2:
         type: awn.field.string
         name: WS поле 2
   settings:
     fields:
-      ws-setting-ws-field-1:
+      ws-setting-1:
         type: awn.field.string
-        name: WS поле 1
-      ws-setting-ws-field-2:
+        name: WS-1
+      ws-setting-2:
         type: awn.field.string
-        name: WS поле 2
+        name: WS-2

@@ -6,18 +6,13 @@ awn_schema:
     fields:
       area-field_1:
         type: awn.field.string
-        name: AREA - 1
       area-field_2:
         type: awn.field.string
-        name: AREA - 2
   settings:
     fields:
       area-setting-1:
         type: awn.field.string
-        name: AREA Настрока 1
-      area-setting-3:
-        type: awn.field.string
-        name: AREA Настройка 3
       area-setting-2:
         type: awn.field.string
-        name: AREA Настрока 2
+      area-setting-3:
+        type: awn.field.string

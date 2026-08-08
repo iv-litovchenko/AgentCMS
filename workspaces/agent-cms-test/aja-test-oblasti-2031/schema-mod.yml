@@ -4,12 +4,17 @@ layer: area
 awn_schema:
   area:
     fields:
-      aya-custom-text:
+      area-field_1:
         type: awn.field.string
-        name: Произвольный текст
-      aya-custom-number:
-        type: awn.field.integer
-        name: Произвольное число
-      aya-custom-boolean:
-        type: awn.field.boolean
-        name: Произвольный флаг
+        name: Ареа А
+      area-field_2:
+        type: awn.field.string
+        name: Ареа Б
+  settings:
+    fields:
+      area-setting-1:
+        type: awn.field.string
+        name: Настрйока 1
+      area-setting-2:
+        type: awn.field.string
+        name: Настрйока 2

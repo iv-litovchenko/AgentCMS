@@ -115,6 +115,48 @@ export function registerPageTools({ reg, client, pagePath }) {
   );
 
   reg(
+    "read_page_config",
+    "Read page config.yml (awn_settings, awn_ui). Field definitions live in schema-mod — use read_page_schema.",
+    z.object({ path: pagePath }),
+    ({ path }) => client.get("/api/file/page-config", { path })
+  );
+
+  reg(
+    "write_page_config",
+    "Save page config.yml (awn_settings, awn_ui). Empty content deletes the file. Never put awn_schema here.",
+    z.object({ path: pagePath, content: z.string() }),
+    ({ path, content }) => client.post("/api/file/page-config", { path, content })
+  );
+
+  reg(
+    "page_exists",
+    "Check whether manifest.md exists. Accepts folder path — appends manifest.md automatically.",
+    z.object({ path: pagePath }),
+    ({ path }) => client.get("/api/page/exists", { path })
+  );
+
+  reg(
+    "get_page_meta",
+    "Lightweight page metadata: manifest stat, folder stat, props hint — no body.",
+    z.object({ path: pagePath }),
+    ({ path }) => client.get("/api/page/meta", { path })
+  );
+
+  reg(
+    "read_page_env",
+    "Read page .env (secrets, API keys). Path = manifest.md of the page.",
+    z.object({ path: pagePath }),
+    ({ path }) => client.get("/api/page/env", { path })
+  );
+
+  reg(
+    "write_page_env",
+    "Write page .env file.",
+    z.object({ path: pagePath, content: z.string() }),
+    ({ path, content }) => client.post("/api/page/env", { path, content })
+  );
+
+  reg(
     "create_page",
     "Create page. type: area → folder+manifest (awn.page.area); topic → file+manifest (awn.page.topic). Aliases: folder|area|file|topic or full awn-type id.",
     z

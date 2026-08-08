@@ -1,0 +1,7 @@
+# Agent CMS — конфигурация
+
+awn_settings:
+  awn-mask-file: ""
+  topic-setting-area-setting-1: 123
+  topic-setting-area-setting-3: 1
+  topic-setting-area-setting-2: 3

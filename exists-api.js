@@ -35,7 +35,9 @@ function createExistsApi(deps) {
     readTabularMemoryContent,
     resolveExternalFileOpContext,
     resolveStorageFileAbsolute,
-    resolveUploadedMediaFileAbsolute
+    resolveUploadedMediaFileAbsolute,
+    statNodeFileMeta,
+    manifestRelFromAbsolute
   } = deps;
 
   async function checkPageExists(relPath) {
@@ -51,6 +53,46 @@ function createExistsApi(deps) {
       path: manifestRel,
       exists: await fileExists(absolute)
     };
+  }
+
+  async function resolveContentFileAbsolute(relPath, slot, ref) {
+    const slotKey = String(slot || "").trim();
+    if (!slotKey) return null;
+
+    const nodeAbsolute = await resolveApiManifestAbsolute(relPath);
+    if (!nodeAbsolute) return null;
+
+    if (isInternalSlot(slotKey)) {
+      let payload;
+      if (slotKey === "main-single-csv") {
+        payload = await readTabularMemoryContent(relPath);
+      } else if (slotKey === "todo-single" || slotKey === "todo") {
+        payload = await readTodoContent(relPath);
+      } else if (slotKey === "log-single") {
+        payload = await readLogContent(relPath);
+      } else {
+        payload = await readInternalMemoryContent(relPath);
+      }
+      if (!payload?.exists || !payload.path) return null;
+      return normalizeWorkspacePath(payload.path);
+    }
+
+    const normalizedRef = String(ref || "").trim();
+    if (!normalizedRef) return null;
+
+    if (slotKey === "main") {
+      const ctx = await resolveExternalFileOpContext(relPath, normalizedRef);
+      if (ctx.error || !ctx.fileAbsolute) return null;
+      return ctx.fileAbsolute;
+    }
+
+    if (isMediaSlot(slotKey)) {
+      return (await resolveUploadedMediaFileAbsolute(nodeAbsolute, normalizedRef)) || null;
+    }
+
+    const resolved = await resolveStorageFileAbsolute(nodeAbsolute, slotToFolder(slotKey), normalizedRef);
+    if (!resolved || resolved.error || !resolved.fileAbsolute) return null;
+    return resolved.fileAbsolute;
   }
 
   async function checkContentExists(relPath, slot, ref) {
@@ -122,9 +164,34 @@ function createExistsApi(deps) {
     };
   }
 
+  async function getContentMeta(relPath, slot, ref) {
+    const existsPayload = await checkContentExists(relPath, slot, ref);
+    if (!existsPayload.exists) {
+      return { ...existsPayload, file: null };
+    }
+
+    const absolute = await resolveContentFileAbsolute(relPath, slot, ref);
+    const fileMeta = absolute && statNodeFileMeta ? await statNodeFileMeta(absolute) : null;
+    const filePath =
+      absolute && manifestRelFromAbsolute
+        ? manifestRelFromAbsolute(absolute)
+        : existsPayload.ref || null;
+
+    return {
+      ...existsPayload,
+      file: fileMeta
+        ? {
+            ...fileMeta,
+            path: filePath || existsPayload.ref || null
+          }
+        : null
+    };
+  }
+
   return {
     checkPageExists,
-    checkContentExists
+    checkContentExists,
+    getContentMeta
   };
 }
 

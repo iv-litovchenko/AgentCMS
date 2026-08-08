@@ -9,15 +9,16 @@
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
-Этот файл — шпаргалка (**55 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
+Этот файл — шпаргалка (**71 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 Перед работой: `get_session_context` → `get_user_active_context_now`.  
-Поиск в workspace: `search_workspace` (как шапка UI; scope=all|content|filename…).  
+Поиск по содержимому workspace: `search_workspace_content` (scope=all — пути, frontmatter, тела файлов; как шапка UI).  
+Произвольный путь → тема/область: `resolve_workspace_path({ path })`.  
 Поиск в интернете: `search_web`, `search_web_images`, `read_web_page`, `get_link_preview`, `extract_document_text`.  
 Идентичность: `get_agent_identity`, `get_user_identity`. Активность: `list_recent_activity`.
 
 **«Перезагрузи контекст»** → снова `get_session_context` (отдельного `reload_*` нет).  
-Уточнения: always → `list_workspace_always_context`; карта страниц → `get_page_map`; контент страницы → `get_content_map(path)`; фокус UI → `get_user_active_context_now`.
+Уточнения: always → `list_workspace_always_context`; карта страниц → `get_page_map`; контент страницы → `get_content_map(path)` или быстрое оглавление → `get_content_index(path)`; фокус UI → `get_user_active_context_now`.
 
 ## Модель (3 сущности)
 
@@ -43,6 +44,60 @@
 
 Что открыто у пользователя. Смотри `focus.entity`: `page` | `slot` | `content` | `system` | `browse` | …  
 В ответе уже есть готовые MCP-args: `path` / `slot` / `ref` — подставляй в `read_*` / `write_*`, не угадывай пути.
+
+### Как разобрать произвольный путь — `resolve_workspace_path`
+
+Дали только путь к файлу или папке — **не угадывай** topic/area. Вызови:
+
+```json
+resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/main/zametka.md" })
+```
+
+Сервер поднимается вверх по папкам, находит все `manifest.md` и собирает **хлебные крошки** до файла.
+
+**Пример ответа** (файл в слоте main):
+
+```json
+{
+  "breadcrumbsLabel": "[Agent CMS] … › Ая тест области 2049 › Ая тест темы 2049-2 › Память › read.json",
+  "breadcrumbs": [
+    { "kind": "ws", "label": "…", "path": ".", "manifestPath": "manifest.md" },
+    { "kind": "area", "label": "…", "path": "aja-test-oblasti-2049", "manifestPath": "…/manifest.md" },
+    { "kind": "topic", "label": "…", "path": "…/aja-test-temy-2049-2", "manifestPath": "…/manifest.md" },
+    { "kind": "slot", "label": "Память", "path": "…/awn-storage/main", "slot": "main" },
+    { "kind": "file", "label": "read.json", "path": "…/read.json", "current": true }
+  ]
+}
+```
+
+Каждая крошка: `kind`, `label`, `path` (workspace-relative). У страниц ещё `manifestPath`; у слота — `slot`; у файла — `ref`. Последняя крошка: `"current": true`.
+
+| Поле | Зачем |
+|------|-------|
+| `breadcrumbs[]` | **Хлебные крошки** сверху вниз: workspace → area → topic → slot → папки → файл |
+| `breadcrumbsLabel` | Одна строка: `WS › Area › Topic › Память › file.md` |
+| `ancestors[]` | Только manifest-страницы, **снизу вверх** (ближайшая тема первой) |
+| `ancestorsTopDown[]` | Те же manifest, сверху вниз (как в breadcrumbs, без slot/файла) |
+| `topic` / `area` / `workspace` | Быстрые ссылки с `manifestPath` и `title` |
+| `slot` | Если путь под `awn-storage/`: `mcpKey` (main, media…), `ref` |
+| `mcp` | Готовые `{ path, slot?, ref? }` для `read_content_*` |
+
+**Конвенция пути:**
+
+```
+{область}/{тема}/awn-storage/{слот}/{файл}
+```
+
+Примеры:
+
+| Путь | topic | area | slot |
+|------|-------|------|------|
+| `…/tema/awn-storage/main/readme.md` | `…/tema/manifest.md` | родительская область | `main`, ref=`readme.md` |
+| `…/oblast/manifest.md` | — | `…/oblast/manifest.md` | — |
+| `awn-data/tasks/…` | — (это инфоблоки, не Page) | — | — |
+| папка без manifest | `ancestors` пуст или только ws | свободная память | — |
+
+Альтернативы: `get_page_map` / `get_site_map` (полная карта), `search_workspace_content` (поиск по тексту), `get_user_active_context_now` (фокус UI).
 
 ---
 
@@ -72,7 +127,11 @@
 | Tool | Что внутри | Тела файлов? |
 |------|------------|--------------|
 | `get_page_map` | Все узлы workspace: manifest (hasManifest:true) + папки без manifest (kind:folder). Meta, без body | нет |
-| `get_content_map(path)` | Контент одной страницы по слотам (meta, без body) | нет |
+| `get_content_map(path)` | Контент одной страницы по слотам: title, description, **properties**, tags, status | нет |
+| `get_content_index(path)` | **Оглавление** темы или слота: path, title, description (как `index.md`). Без body и properties | нет |
+| `write_content_index(path)` | **Сохранить** сгенерированное оглавление в `index.md` на диск | да (index.md) |
+| `resolve_workspace_path({ path })` | Произвольный путь → цепочка manifest (topic/area/ws), slot/ref, mcp hints | нет |
+| `search_workspace_content` | Полнотекстовый поиск: пути, frontmatter, тела (`scope=all` по умолчанию) | meta + snippet |
 | `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
@@ -84,6 +143,18 @@
 - `awn-runtime-heartbeat` — периодическая проверка  
 
 Сначала реестр → потом точечно `read_page_*` / `read_content_*` по path.
+
+### Быстрый обзор vs полная карта
+
+| Задача | Tool |
+|--------|------|
+| «Что есть в теме, не читая тексты» | `get_content_index(path)` — оглавление по слотам |
+| «Оглавление одного слота (Память, inbox…)» | `get_content_index(path, slot=memory\|inbox\|…)` |
+| «Сохранить оглавление в index.md» | `write_content_index(path)` или `write_content_index(path, slot=memory)` |
+| «Нужны properties/tags/status перед правкой» | `get_content_map(path)` |
+| «Читать/писать текст записи» | `read_content_body` / `write_content_body` |
+
+`indexFile.exists` в ответе `get_content_index` — есть ли на диске `index.md` (общий: `awn-storage/index.md`, слота: `…/main/index.md` и т.п.). Если `false`, оглавление **сгенерировано** из файлов слота (как кнопка «Индекс» в UI).
 
 ---
 
@@ -98,10 +169,11 @@
 | `awn.page.topic` | Тема | Рабочая страница со слотами (main, inbox, media…) |
 | `awn.page.section.*` | Секция | Служебные разделы: `agent-kit`, `shared`, `container` |
 
-- карта страниц: `get_page_map` → контент темы: `get_content_map(path)`
+- карта страниц: `get_page_map` → оглавление контента: `get_content_index(path)` → полная meta-карта: `get_content_map(path)`
 - фокус UI: `get_user_active_context_now`
 - тело / свойства: `read_page_body` / `write_page_body`, `read_page_properties` / `write_page_properties`
-- схема / конфиг: `read_page_schema` / `write_page_schema`, `read_page_config` / `write_page_config`
+- схема / конфиг: `read_page_schema` / `write_page_schema`, `read_page_config` / `write_page_config` (`config.yml`)
+- проверки / мета: `page_exists`, `get_page_meta`; env: `read_page_env` / `write_page_env`
 - создать / переименовать / сдвинуть: `create_page`, `rename_page`, `move_page`, `delete_page`
 - типы: `list_types({ filter: "create-page" })` → `get_type({ id: "awn.page.topic" })`
 
@@ -137,7 +209,7 @@
 | Что | Файл | Tools | Когда |
 |-----|------|-------|-------|
 | Поля страницы / слотов | `schema-mod.yml` (`awn_schema`) | `read_page_schema` / `write_page_schema` | Добавить/менять поля формы |
-| UI/настройки страницы | `configuration.yml` (`awn_ui`, `awn_settings`) | `read_page_config` / `write_page_config` | UI, mask — **не** поля |
+| UI/настройки страницы | `config.yml` (`awn_ui`, `awn_settings`) | `read_page_config` / `write_page_config` | UI, mask — **не** поля |
 | Поля записей накопителя | `schema-mod.yml` в awn-data | `read_data_store_schema` / `write_data_store_schema` | Схема awn-data |
 | Канон типа | awn-system | `get_type(id)` | Смотреть базовые fields |
 
@@ -236,6 +308,7 @@ write_sidecar({ "path": "…/manifest.md", "slot": "repository", "file": "spec.p
 
 Не путать с **`{folder}/sidecar.md`** у adopt-папок (описание папки) — это `read_file` / `write_file`.
 
+- проверки / мета: `content_exists`, `get_content_meta`
 - тело / свойства записи: `read_content_body` / `write_content_body`, `read_content_properties` / `write_content_properties`
 - создать: `create_content` (md/record; inbox: `slot: inbox`, `status: new`)
 - бинарники: `upload_file` / `upload_file_from_url` по полному path; в слот — `import_content_from_url({ path, slot, url })`
@@ -275,7 +348,8 @@ write_sidecar({ "path": "…/manifest.md", "slot": "repository", "file": "spec.p
 | Файл в слот темы по URL | `import_content_from_url` |
 | Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
 | Обход папки | `list_folder` |
-| Поиск в workspace | `search_workspace` |
+| Поиск по содержимому workspace | `search_workspace_content` |
+| Разбор произвольного пути | `resolve_workspace_path` |
 | Поиск в интернете | `search_web`, `search_web_images`, `read_web_page`, `get_link_preview` |
 | Документ → текст | `extract_document_text` |
 | Профиль агента | `get_agent_identity` |
@@ -332,7 +406,7 @@ write_sidecar({ "path": "…/manifest.md", "slot": "repository", "file": "spec.p
 `size` / `type` для картинок — только в режиме `api`.  
 Найденную картинку в тему — `import_content_from_url({ path, slot: "media", url })` или `upload_file_from_url`.
 
-**Не путать:** `search_workspace` — только файлы **workspace агента**; `search_web` — публичный интернет; `read_web_page` — содержимое одного URL (не поиск).
+**Не путать:** `search_workspace_content` — файлы и **текст** workspace агента; `resolve_workspace_path` — один путь → topic/area/ws; `search_web` — публичный интернет; `read_web_page` — содержимое одного URL (не поиск).
 
 ---
 

@@ -277,7 +277,7 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file/node-config",
-          description: "Конфигурация ноды (*.x.configuration.yml).",
+          description: "config.yml страницы (awn_settings, awn_ui). Алиасы: /api/file/page-config, /api/page/config.",
           query: ["path"],
           body: null,
           response: "{ path, content, exists, defaultLandingMode?, awnMaskFile?, awnMaskFileKey? }"
@@ -285,10 +285,58 @@ module.exports = {
         {
           method: "POST",
           path: "/api/file/node-config",
-          description: "Сохранить *.x.configuration.yml (пустой content удаляет файл).",
+          description: "Сохранить config.yml (пустой content удаляет файл).",
           query: [],
           body: "{ path, content }",
           response: "{ path, content, exists, defaultLandingMode? }"
+        },
+        {
+          method: "GET",
+          path: "/api/page/exists",
+          description: "Проверить наличие manifest.md.",
+          query: ["path"],
+          body: null,
+          response: "{ path, exists }"
+        },
+        {
+          method: "GET",
+          path: "/api/page/meta",
+          description: "Мета страницы (stat manifest + folder). Алиас: /api/node/meta.",
+          query: ["path"],
+          body: null,
+          response: "{ path, manifest, folder, props? }"
+        },
+        {
+          method: "GET",
+          path: "/api/env",
+          description: "Прочитать .env страницы. Алиасы: /api/page/env, /api/file/page-env.",
+          query: ["path"],
+          body: null,
+          response: "{ path, content, exists }"
+        },
+        {
+          method: "POST",
+          path: "/api/env",
+          description: "Записать .env страницы.",
+          query: [],
+          body: "{ path, content }",
+          response: "{ path, content, exists }"
+        },
+        {
+          method: "GET",
+          path: "/api/content/exists",
+          description: "Проверить наличие контента в слоте.",
+          query: ["path", "slot", "ref?"],
+          body: null,
+          response: "{ path, slot, driver, ref, exists }"
+        },
+        {
+          method: "GET",
+          path: "/api/content/meta",
+          description: "Мета контента в слоте (exists + file stat).",
+          query: ["path", "slot", "ref?"],
+          body: null,
+          response: "{ path, slot, driver, ref, exists, file? }"
         },
         {
           method: "DELETE",

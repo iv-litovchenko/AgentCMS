@@ -1,12 +1,12 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Slim · 61 tools",
+  versionLabel: "Slim · 69 tools",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.0",
   packagePath: "mcp-server/",
   generatedAt: "2026-08-08",
   notes: [
-    "MCP slim v0.3.0 — 61 tools · PAGE · SLOT · CONTENT + path-based FS + exec.",
+    "MCP slim v0.3.0 — 69 tools · PAGE · SLOT · CONTENT + path-based FS + exec.",
     "Перед запуском: npm start → http://localhost:3000.",
     "GET /api/mcp-docs?version=0.0.2 — этот документ (HTTP, не MCP tool).",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
@@ -85,13 +85,31 @@ module.exports = {
         },
         {
           name: "get_content_map",
-          description: "Карта контента страницы по слотам (без body).",
+          description: "Карта контента страницы по слотам (meta + properties, без body).",
           parameters: "path, slot?",
           http: "GET /api/agent/content-map"
         },
         {
-          name: "search_workspace",
-          description: "Поиск по workspace (шапка UI). scope=all по умолчанию.",
+          name: "get_content_index",
+          description: "Оглавление index.md: path, title, description (без body/properties). Быстрый обзор темы/слота.",
+          parameters: "path, slot?",
+          http: "GET /api/agent/content-index"
+        },
+        {
+          name: "write_content_index",
+          description: "Сформировать и сохранить index.md (таблица path/title/description). overwrite=false — не перезаписывать.",
+          parameters: "path, slot?, overwrite?",
+          http: "POST /api/agent/content-index"
+        },
+        {
+          name: "resolve_workspace_path",
+          description: "Произвольный path → цепочка manifest (topic/area/ws), slot/ref, mcp hints.",
+          parameters: "path",
+          http: "GET /api/agent/resolve-path"
+        },
+        {
+          name: "search_workspace_content",
+          description: "Полнотекстовый поиск workspace (paths, frontmatter, body). scope=all по умолчанию.",
           parameters: "query, scope?, fileType?, match?, limit?",
           http: "GET /api/search"
         }
@@ -114,6 +132,22 @@ module.exports = {
           http: "GET /api/file/page-schema"
         },
         { name: "write_page_schema", description: "Записать schema-mod override.", parameters: "path, content", http: "POST /api/file/page-schema" },
+        {
+          name: "read_page_config",
+          description: "config.yml: awn_settings, awn_ui (не schema-mod).",
+          parameters: "path",
+          http: "GET /api/file/page-config"
+        },
+        {
+          name: "write_page_config",
+          description: "Сохранить config.yml.",
+          parameters: "path, content",
+          http: "POST /api/file/page-config"
+        },
+        { name: "page_exists", description: "Есть ли manifest.md.", parameters: "path", http: "GET /api/page/exists" },
+        { name: "get_page_meta", description: "Мета страницы без body.", parameters: "path", http: "GET /api/page/meta" },
+        { name: "read_page_env", description: "Прочитать .env страницы.", parameters: "path", http: "GET /api/page/env" },
+        { name: "write_page_env", description: "Записать .env страницы.", parameters: "path, content", http: "POST /api/page/env" },
         { name: "create_page", description: "Создать area или topic.", parameters: "parentPath?, type: area|topic|awn.page.area|awn.page.topic|folder|file, displayName?, slug?", http: "POST /api/page/create" },
         { name: "delete_page", description: "Удалить страницу.", parameters: "path", http: "DELETE /api/file" },
         { name: "rename_page", description: "Переименовать.", parameters: "path, displayName?, slug?", http: "POST /api/file/title" },
@@ -136,6 +170,8 @@ module.exports = {
       id: "content",
       title: "Контент",
       tools: [
+        { name: "content_exists", description: "Есть ли контент в слоте.", parameters: "path, slot, ref?", http: "GET /api/content/exists" },
+        { name: "get_content_meta", description: "Мета контента без body.", parameters: "path, slot, ref?", http: "GET /api/content/meta" },
         { name: "read_content_body", description: "Тело .md или internal slot.", parameters: "path, slot, ref?", http: "—" },
         { name: "write_content_body", description: "Сохранить тело.", parameters: "path, slot, ref?, content", http: "—" },
         { name: "read_content_properties", description: "Frontmatter .md (full YAML).", parameters: "path, slot, ref?" },

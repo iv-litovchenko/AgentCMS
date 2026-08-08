@@ -12559,6 +12559,7 @@ const OVERVIEW_ACCORDION_GROUP_IDS = new Set([
   "props",
   "awn-props",
   "custom-props",
+  "settings-props",
   "agent-instruction",
   "types-registry",
   "foundation-types",
@@ -12567,6 +12568,7 @@ const OVERVIEW_ACCORDION_GROUP_IDS = new Set([
 const OVERVIEW_PROPS_ACCORDION_GROUP_ID = "props";
 const OVERVIEW_AWN_PROPS_ACCORDION_GROUP_ID = "awn-props";
 const OVERVIEW_CUSTOM_PROPS_ACCORDION_GROUP_ID = "custom-props";
+const OVERVIEW_SETTINGS_PROPS_ACCORDION_GROUP_ID = "settings-props";
 const OVERVIEW_AGENT_INSTRUCTION_ACCORDION_GROUP_ID = "agent-instruction";
 const OVERVIEW_TYPES_ACCORDION_GROUP_ID = "types-registry";
 const OVERVIEW_FOUNDATION_ACCORDION_GROUP_ID = "foundation-types";
@@ -14072,6 +14074,9 @@ function getNodeSettingsEmptyContainer() {
 function getSchemaContextLevel(nodePath = getResolvedNodePath(activePath)) {
   if (isWorkspaceSchemaContext(nodePath)) return "workspace";
   if (isAreaSchemaContext(nodePath)) return "area";
+  const target = resolveAwnSchemaTargetForContext(nodePath);
+  if (target === "workspace") return "workspace";
+  if (target === "area") return "area";
   return "topic";
 }
 
@@ -25801,11 +25806,73 @@ function setMindmapLayoutDirection(value) {
 
 function syncMindmapLayoutUi(root = document) {
   const direction = getMindmapLayoutDirection();
-  for (const btn of root.querySelectorAll(".mindmap-layout-btn[data-mindmap-layout]")) {
+  for (const btn of root.querySelectorAll("[data-mindmap-layout]")) {
     const active = btn.dataset.mindmapLayout === direction;
     btn.classList.toggle("is-active", active);
     btn.setAttribute("aria-pressed", active ? "true" : "false");
   }
+}
+
+function createEmbeddedMindmapControlsOverlay(onRerender, getViewportApi) {
+  const controls = document.createElement("div");
+  controls.className = "external-graph-controls node-mindmap-controls";
+  controls.setAttribute("aria-label", "Управление картой");
+
+  for (const { layout, label, title } of [
+    { layout: "horizontal", label: "→", title: "Горизонтально — корень слева" },
+    { layout: "vertical", label: "↓", title: "Вертикально — корень сверху" }
+  ]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "external-graph-control-btn";
+    btn.dataset.mindmapLayout = layout;
+    btn.title = title;
+    btn.textContent = label;
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      applyMindmapLayout(layout);
+      syncMindmapLayoutUi(controls);
+      onRerender?.();
+    });
+    controls.appendChild(btn);
+  }
+
+  for (const { action, label, title } of [
+    { action: "zoom-in", label: "+", title: "Приблизить" },
+    { action: "zoom-out", label: "−", title: "Отдалить" },
+    { action: "reset", label: "⟲", title: "Сбросить вид" }
+  ]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "external-graph-control-btn";
+    btn.dataset.action = action;
+    btn.title = title;
+    btn.textContent = label;
+    controls.appendChild(btn);
+  }
+
+  controls.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-action]");
+    if (!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const api = getViewportApi?.();
+    if (!api) return;
+    if (btn.dataset.action === "zoom-in") api.zoomIn();
+    else if (btn.dataset.action === "zoom-out") api.zoomOut();
+    else if (btn.dataset.action === "reset") api.reset();
+  });
+
+  syncMindmapLayoutUi(controls);
+  return controls;
+}
+
+function appendEmbeddedMindmapControls(host, onRerender, getViewportApi) {
+  const wrap = host?.querySelector(".node-mindmap-wrap");
+  if (!wrap) return;
+  wrap.querySelector(".node-mindmap-controls")?.remove();
+  wrap.appendChild(createEmbeddedMindmapControlsOverlay(onRerender, getViewportApi));
 }
 
 function applyMindmapLayout(direction) {
@@ -25816,34 +25883,7 @@ function applyMindmapLayout(direction) {
 }
 
 function createEmbeddedMindmapLayoutBarElement(onRerender) {
-  const bar = document.createElement("div");
-  bar.className = "mindmap-view-bar mindmap-view-bar--embedded";
-
-  const toggle = document.createElement("div");
-  toggle.className = "mindmap-layout-toggle";
-  toggle.setAttribute("role", "group");
-  toggle.setAttribute("aria-label", "Раскладка карты");
-
-  for (const { layout, label, title } of [
-    { layout: "horizontal", label: "→", title: "Горизонтально — корень слева" },
-    { layout: "vertical", label: "↓", title: "Вертикально — корень сверху" }
-  ]) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "mindmap-layout-btn";
-    btn.dataset.mindmapLayout = layout;
-    btn.title = title;
-    btn.textContent = label;
-    btn.addEventListener("click", () => {
-      applyMindmapLayout(layout);
-      onRerender?.();
-    });
-    toggle.appendChild(btn);
-  }
-
-  bar.appendChild(toggle);
-  syncMindmapLayoutUi(bar);
-  return bar;
+  return createEmbeddedMindmapControlsOverlay(onRerender, () => null);
 }
 
 function createMindmapLayoutBarElement() {
@@ -26075,19 +26115,59 @@ function renderMindmapTreeCanvas(container, tree, options = {}) {
   viewport.addEventListener("mouseup", endPan);
   viewport.addEventListener("mouseleave", endPan);
 
-  requestAnimationFrame(() => {
-    const activeEl = canvas.querySelector(".node-mindmap-node.is-active");
-    const targetEl = activeEl || canvas.querySelector(".node-mindmap-node");
-    if (!targetEl) return;
-    const vr = viewport.getBoundingClientRect();
-    const tr = targetEl.getBoundingClientRect();
-    const nextLeft =
-      viewport.scrollLeft + (tr.left + tr.width / 2 - vr.left - vr.width / 2);
-    const nextTop =
-      viewport.scrollTop + (tr.top + tr.height / 2 - vr.top - vr.height / 2);
-    viewport.scrollLeft = Math.max(0, nextLeft);
-    viewport.scrollTop = Math.max(0, nextTop);
-  });
+  const scaleState = { value: 1 };
+
+  const centerMindmapViewport = () => {
+    requestAnimationFrame(() => {
+      const activeEl = canvas.querySelector(".node-mindmap-node.is-active");
+      const targetEl = activeEl || canvas.querySelector(".node-mindmap-node");
+      if (!targetEl) return;
+      const vr = viewport.getBoundingClientRect();
+      const tr = targetEl.getBoundingClientRect();
+      const nextLeft =
+        viewport.scrollLeft + (tr.left + tr.width / 2 - vr.left - vr.width / 2);
+      const nextTop =
+        viewport.scrollTop + (tr.top + tr.height / 2 - vr.top - vr.height / 2);
+      viewport.scrollLeft = Math.max(0, nextLeft);
+      viewport.scrollTop = Math.max(0, nextTop);
+    });
+  };
+
+  const applyCanvasScale = () => {
+    canvas.style.transform = scaleState.value === 1 ? "" : `scale(${scaleState.value})`;
+    canvas.style.transformOrigin = "0 0";
+  };
+
+  const zoomMindmap = (factor) => {
+    const prev = scaleState.value;
+    const next = Math.min(2.4, Math.max(0.35, prev * factor));
+    if (Math.abs(next - prev) < 0.001) return;
+    const ratio = next / prev;
+    const cx = viewport.scrollLeft + viewport.clientWidth / 2;
+    const cy = viewport.scrollTop + viewport.clientHeight / 2;
+    scaleState.value = next;
+    applyCanvasScale();
+    viewport.scrollLeft = Math.max(0, cx * ratio - viewport.clientWidth / 2);
+    viewport.scrollTop = Math.max(0, cy * ratio - viewport.clientHeight / 2);
+  };
+
+  const resetMindmapView = () => {
+    scaleState.value = 1;
+    applyCanvasScale();
+    viewport.scrollLeft = 0;
+    viewport.scrollTop = 0;
+    centerMindmapViewport();
+  };
+
+  if (typeof options.onViewportReady === "function") {
+    options.onViewportReady({
+      zoomIn: () => zoomMindmap(1.15),
+      zoomOut: () => zoomMindmap(0.87),
+      reset: resetMindmapView
+    });
+  }
+
+  centerMindmapViewport();
 }
 
 function buildMindmapNodeFromEntry(entry, menuRoot, depth) {
@@ -26143,13 +26223,13 @@ function renderEmbeddedNodeMindmap(container, nodePath, heroTitle = "") {
 
   const shell = document.createElement("div");
   shell.className = "node-navigation-elements-nav-mindmap-shell";
-  shell.appendChild(createEmbeddedMindmapLayoutBarElement(rerender));
 
   const host = document.createElement("div");
   host.className = "node-navigation-elements-nav-mindmap-host";
   shell.appendChild(host);
   container.appendChild(shell);
 
+  let viewportApi = null;
   const activeResolved = normalizeMenuNodePath(getResolvedNodePath(activePath));
   renderMindmapTreeCanvas(host, tree, {
     collapsedIds: nodeOverviewEmbeddedMindmapCollapsedIds,
@@ -26160,8 +26240,12 @@ function renderEmbeddedNodeMindmap(container, nodePath, heroTitle = "") {
         contentMode: NODE_NAVIGATION_MODE
       });
     },
-    onRerender: rerender
+    onRerender: rerender,
+    onViewportReady: (api) => {
+      viewportApi = api;
+    }
   });
+  appendEmbeddedMindmapControls(host, rerender, () => viewportApi);
 }
 
 function buildExternalMindmapTreeFromItems(mdItems, rootLabel = STORAGE_SUBFOLDER_CONTENT) {
@@ -35301,7 +35385,6 @@ function isAgentSystemFileEditing() {
 
 function agentHasTypeCatalogOverview(nodePath = activePath) {
   if (TYPE_CATALOG_OVERVIEW_AGENT_IDS.has(String(activeAgentId || ""))) return true;
-  if (currentMenuData?.systemTree) return true;
   return isAgentSystemRelPath(nodePath);
 }
 
@@ -36522,6 +36605,8 @@ function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
     typeof TopicSchemaSlotSpecs !== "undefined"
       ? TopicSchemaSlotSpecs.normalizeAwnContentTypeName(typeName)
       : typeName;
+  if (normalized === "awn.page.area" || typeName === "awn.area") return "area";
+  if (normalized === "awn.page.ws" || typeName === "awn.workspace") return "workspace";
   if (normalized === "awn.content.category" || typeName === "awn.media.category") {
     return resolvedSlotKey === "media" ? "slot_media_category" : "slot_memory_category";
   }
@@ -36538,6 +36623,13 @@ function resolveAwnSchemaTargetForType(typeName, slotKey = null) {
 }
 
 function resolveAwnSchemaTargetForContext(nodePath = getResolvedNodePath(activePath)) {
+  const resolvedPath =
+    nodePath != null && nodePath !== ""
+      ? String(nodePath).replace(/\\/g, "/")
+      : getResolvedNodePath(activePath);
+  if (isWorkspaceSchemaContext(resolvedPath)) return "workspace";
+  if (isAreaSchemaContext(resolvedPath)) return "area";
+
   const typeName = resolveAwnTypeForContext(nodePath);
   const slotKey = resolveSchemaSlotKeyForContext();
   if (slotKey && typeof TopicSchemaSlotSpecs !== "undefined") {
@@ -36658,9 +36750,11 @@ async function loadWorkspaceSchemaForAgentRoot(nodePath, options = {}) {
     }
     const fieldRegistry = awnTypesCache?.fieldRegistry || {};
     const parsedLayers = parseTopicSchemaLayersFromApi(data);
-    const workspaceAwnSchema =
+    const workspaceAwnSchema = stripAwnSchemaToContextLevel(
       parsedLayers.workspaceAwnSchema ||
-      normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema);
+        normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema),
+      "workspace"
+    );
     const payload = {
       manifestPath,
       contentPath: "",
@@ -36741,11 +36835,15 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
     const areaAwnSchema = isAreaSchemaContext(manifestPath)
       ? parsedLayers.areaAwnSchema || parsedLayers.topicAwnSchema
       : parsedLayers.areaAwnSchema;
-    const editableSchema = isAreaSchemaContext(manifestPath) ? areaAwnSchema : topicAwnSchema;
-    const effectiveAwnSchema = resolveContextSchemaFromParsedLayers(parsedLayers, {
+    const contextSchema = resolveContextSchemaFromParsedLayers(parsedLayers, {
       manifestPath,
       contentPath: contentPath || ""
     });
+    const editableSchema = stripAwnSchemaToContextLevel(
+      contextSchema,
+      getSchemaContextLevel(manifestPath)
+    );
+    const effectiveAwnSchema = contextSchema;
     const payload = {
       manifestPath,
       contentPath: contentPath || "",
@@ -36929,17 +37027,37 @@ function topicSchemaTabGroupHasCustomFields(group, cache = getTopicSchemaCache()
 }
 
 function defaultTopicSchemaFieldKeyForTarget(target, index) {
-  if (target === "workspace") return `ws-field_${index}`;
-  if (target === "area") return `area-field_${index}`;
-  if (target === "topic") return `topic-field_${index}`;
+  if (target === "workspace") return `ws-field-${index}`;
+  if (target === "area") return `area-field-${index}`;
+  if (target === "topic") return `topic-field-${index}`;
   if (target === "settings") {
     const level = getSchemaContextLevel();
     if (level === "workspace") return `ws-setting-${index}`;
     if (level === "area") return `area-setting-${index}`;
     return `topic-setting-${index}`;
   }
-  if (String(target || "").startsWith("slot_")) return `x-field_${index}`;
-  return `field_${index}`;
+  if (String(target || "").startsWith("slot_")) return `x-field-${index}`;
+  return `field-${index}`;
+}
+
+function getTopicSchemaFieldKeyHint(target) {
+  if (target === "workspace") return { placeholder: "ws-ключ", title: "Ключ поля (ws-*)" };
+  if (target === "area") return { placeholder: "area-ключ", title: "Ключ поля (area-*)" };
+  if (target === "topic") return { placeholder: "topic-ключ", title: "Ключ поля (topic-*)" };
+  if (target === "settings") {
+    const level = getSchemaContextLevel();
+    if (level === "workspace") {
+      return { placeholder: "ws-setting-ключ", title: "Ключ поля (ws-setting-*)" };
+    }
+    if (level === "area") {
+      return { placeholder: "area-setting-ключ", title: "Ключ поля (area-setting-*)" };
+    }
+    return { placeholder: "topic-setting-ключ", title: "Ключ поля (topic-setting-*)" };
+  }
+  if (String(target || "").startsWith("slot_")) {
+    return { placeholder: "x-ключ", title: "Ключ поля (x-*)" };
+  }
+  return { placeholder: "ключ", title: "Ключ поля" };
 }
 
 function addTopicSchemaField(target = topicSchemaActiveTarget) {
@@ -37032,6 +37150,10 @@ function renameTopicSchemaField(target, oldKey, newKey) {
   }
 }
 
+function getTopicSchemaTargetFieldCount(targetId, cache = getTopicSchemaCache()) {
+  return getTopicSchemaCustomFieldKeys(targetId, cache).length;
+}
+
 function createTopicSchemaTargetTabButton(spec, cache = getTopicSchemaCache()) {
   const { id, group, slotKey, contentKind, label, fullLabel, isDefault } = spec;
   const btn = document.createElement("button");
@@ -37050,25 +37172,32 @@ function createTopicSchemaTargetTabButton(spec, cache = getTopicSchemaCache()) {
   btn.classList.toggle("is-active", id === topicSchemaActiveTarget);
   const configured = topicSchemaTargetHasCustomFields(id, cache);
   btn.classList.toggle("is-configured", configured);
+  const fieldCount = getTopicSchemaTargetFieldCount(id, cache);
   const typeName = getTopicSchemaTargetTypeName(id) || AWN_SCHEMA_TARGET_TYPE_NAMES[id];
   const tabLabel = label || getTopicSchemaTargetLabel(id);
   btn.replaceChildren();
-  if (configured) {
-    const mark = document.createElement("span");
-    mark.className = "topic-schema-target-tab-mark";
-    mark.setAttribute("aria-hidden", "true");
-    btn.appendChild(mark);
-  }
+  const mark = document.createElement("span");
+  mark.className = "topic-schema-target-tab-mark";
+  mark.classList.toggle("is-filled", configured);
+  mark.classList.toggle("is-empty", !configured);
+  mark.setAttribute("aria-hidden", "true");
+  btn.appendChild(mark);
   const labelNode = document.createElement("span");
   labelNode.className = "topic-schema-target-tab-label";
   labelNode.textContent = tabLabel;
   btn.appendChild(labelNode);
+  const countNode = document.createElement("span");
+  countNode.className = "topic-schema-target-tab-count";
+  countNode.textContent = String(fieldCount);
+  countNode.setAttribute("aria-hidden", "true");
+  btn.appendChild(countNode);
+  const countLabel = fieldCount === 1 ? "1 поле" : fieldCount >= 2 && fieldCount <= 4 ? `${fieldCount} поля` : `${fieldCount} полей`;
   if (fullLabel || typeName) {
-    btn.title = [fullLabel || getTopicSchemaTargetLabel(id), typeName, configured ? "Есть доп. поля" : ""]
+    btn.title = [fullLabel || getTopicSchemaTargetLabel(id), typeName, countLabel]
       .filter(Boolean)
       .join(" · ");
-  } else if (configured) {
-    btn.title = `${tabLabel} · есть доп. поля`;
+  } else {
+    btn.title = `${tabLabel} · ${countLabel}`;
   }
   return btn;
 }
@@ -37125,12 +37254,13 @@ function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
 
     const heading = document.createElement("div");
     heading.className = "topic-schema-target-tab-group-label";
-    if (section.classList.contains("is-configured")) {
-      const groupMark = document.createElement("span");
-      groupMark.className = "topic-schema-target-group-mark";
-      groupMark.setAttribute("aria-hidden", "true");
-      heading.appendChild(groupMark);
-    }
+    const groupConfigured = topicSchemaTabGroupHasCustomFields(group, cache);
+    const groupMark = document.createElement("span");
+    groupMark.className = "topic-schema-target-group-mark";
+    groupMark.classList.toggle("is-filled", groupConfigured);
+    groupMark.classList.toggle("is-empty", !groupConfigured);
+    groupMark.setAttribute("aria-hidden", "true");
+    heading.appendChild(groupMark);
     heading.append(document.createTextNode(group.label));
     section.appendChild(heading);
 
@@ -37250,37 +37380,16 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
       })
     );
 
+    const keyHint = getTopicSchemaFieldKeyHint(target);
     const keyInput = document.createElement("input");
     keyInput.type = "text";
     keyInput.className = "topic-schema-inline-input";
     keyInput.value = key;
-    keyInput.placeholder =
-      target === "workspace"
-        ? "ws-ключ"
-        : target === "area"
-          ? "area-ключ"
-          : target === "topic"
-            ? "topic-ключ"
-            : target === "settings"
-              ? "topic-setting-ключ"
-              : target.startsWith("slot_")
-                ? "x-ключ"
-                : "ключ";
+    keyInput.placeholder = keyHint.placeholder;
     keyInput.dataset.schemaKey = key;
     keyInput.dataset.schemaField = "key";
     keyInput.spellcheck = false;
-    keyInput.title =
-      target === "workspace"
-        ? "Ключ поля (ws-*)"
-        : target === "area"
-          ? "Ключ поля (area-*)"
-          : target === "topic"
-            ? "Ключ поля (topic-*)"
-            : target === "settings"
-              ? "Ключ поля (topic-setting-*)"
-              : target.startsWith("slot_")
-                ? "Ключ поля (x-*)"
-                : "Ключ поля";
+    keyInput.title = keyHint.title;
 
     const typeSelect = document.createElement("select");
     typeSelect.className = "topic-schema-inline-select";
@@ -37632,11 +37741,14 @@ async function saveTopicSchemaContent() {
   const areaAwnSchema = isAreaSchemaContext(manifestPath)
     ? parsedLayers.areaAwnSchema || parsedLayers.topicAwnSchema
     : parsedLayers.areaAwnSchema;
-  let nextEditableSchema = isAreaSchemaContext(manifestPath)
-    ? areaAwnSchema
-    : topicSchemaStateHasCustomFields(topicAwnSchema)
-      ? topicAwnSchema
-      : awnSchemaToSave;
+  const contextSchema = resolveContextSchemaFromParsedLayers(parsedLayers, {
+    manifestPath,
+    contentPath: cache.contentPath || ""
+  });
+  let nextEditableSchema = stripAwnSchemaToContextLevel(
+    contextSchema,
+    getSchemaContextLevel(manifestPath)
+  );
   nextEditableSchema = normalizeTopicSchemaState(nextEditableSchema);
   if (!Object.keys(savedTargetFields).length) {
     nextEditableSchema = {
@@ -38003,11 +38115,24 @@ function renderSectionSchemaTargetTabs(panel, cache) {
     btn.classList.toggle("is-active", targetId === cache.activeTarget);
     const configured = Object.keys(cache.awnSchema?.[targetId]?.fields || {}).length > 0;
     btn.classList.toggle("is-configured", configured);
+    const fieldCount = Object.keys(cache.awnSchema?.[targetId]?.fields || {}).length;
+    const mark = document.createElement("span");
+    mark.className = "topic-schema-target-tab-mark";
+    mark.classList.toggle("is-filled", configured);
+    mark.classList.toggle("is-empty", !configured);
+    mark.setAttribute("aria-hidden", "true");
+    btn.appendChild(mark);
     const labelNode = document.createElement("span");
     labelNode.className = "topic-schema-target-tab-label";
     labelNode.textContent = getSectionSchemaTargetTabLabel(targetId);
     btn.appendChild(labelNode);
-    btn.title = getTopicSchemaTargetTypeName(targetId) || targetId;
+    const countNode = document.createElement("span");
+    countNode.className = "topic-schema-target-tab-count";
+    countNode.textContent = String(fieldCount);
+    countNode.setAttribute("aria-hidden", "true");
+    btn.appendChild(countNode);
+    const countLabel = fieldCount === 1 ? "1 поле" : fieldCount >= 2 && fieldCount <= 4 ? `${fieldCount} поля` : `${fieldCount} полей`;
+    btn.title = [getTopicSchemaTargetTypeName(targetId) || targetId, countLabel].filter(Boolean).join(" · ");
     btn.addEventListener("click", () => {
       readSectionSchemaFieldsFromPanel(panel, cache);
       cache.activeTarget = targetId;
@@ -38192,10 +38317,10 @@ function bindSectionSchemaPanelEvents(panel, cache, context) {
     if (!cache.awnSchema[target]) cache.awnSchema[target] = { fields: {} };
     const fields = cache.awnSchema[target].fields;
     let index = 1;
-    let key = `field_${index}`;
+    let key = `field-${index}`;
     while (fields[key]) {
       index += 1;
-      key = `field_${index}`;
+      key = `field-${index}`;
     }
     fields[key] = { type: "awn.string", name: "", title: "" };
     renderSectionSchemaEditor(panel, cache);
@@ -38304,10 +38429,11 @@ async function appendEntryOverviewSectionSchemaPanel(container, context) {
   const panel = createEntryOverviewSectionSchemaPanel(context);
   panel.querySelector(".topic-schema-base-fields").textContent = "Загрузка…";
   const fold = wrapEntryOverviewSectionSchemaFold(panel, params);
+  const propFolds = container.querySelectorAll(
+    ".node-overview-awn-props-fold, .node-overview-custom-props-fold, .node-overview-settings-props-fold"
+  );
   const anchor =
-    container.querySelector(".node-overview-awn-props-fold") ||
-    container.querySelector(".node-overview-custom-props-fold") ||
-    container.querySelector(".node-overview-props-custom") ||
+    (propFolds.length ? propFolds[propFolds.length - 1] : null) ||
     container.querySelector(".node-navigation-hero-main");
   if (anchor) anchor.insertAdjacentElement("afterend", fold);
   else container.appendChild(fold);
@@ -38386,6 +38512,89 @@ function isSlotCustomFieldKey(key) {
   return /^x-/i.test(String(key || "").trim());
 }
 
+function isSettingsPropKeyForSchemaLevel(key, nodePath = getResolvedNodePath(activePath), levelOverride = null) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return false;
+  const level = levelOverride || getSchemaContextLevel(nodePath);
+  if (level === "workspace") return isWsSettingFieldKey(normalized);
+  if (level === "area") return isAreaSettingFieldKey(normalized);
+  return isTopicSettingFieldKey(normalized);
+}
+
+function isCustomPropKeyForSchemaLevel(key, nodePath = getResolvedNodePath(activePath)) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized || isAwnFieldKey(normalized)) return false;
+  const level = getSchemaContextLevel(nodePath);
+  if (level === "workspace") return isWsFieldKey(normalized);
+  if (level === "area") return isAreaFieldKey(normalized);
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+    return isTopicFieldKey(normalized) || isSlotCustomFieldKey(normalized);
+  }
+  return isTopicFieldKey(normalized);
+}
+
+function isForeignLayerCustomPropKey(key, nodePath = getResolvedNodePath(activePath)) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return false;
+  return (
+    (isWsFieldKey(normalized) ||
+      isAreaFieldKey(normalized) ||
+      isTopicFieldKey(normalized) ||
+      isSlotCustomFieldKey(normalized)) &&
+    !isCustomPropKeyForSchemaLevel(normalized, nodePath)
+  );
+}
+
+function isForeignLayerSettingsPropKey(key, nodePath = getResolvedNodePath(activePath)) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return false;
+  return (
+    (isWsSettingFieldKey(normalized) ||
+      isAreaSettingFieldKey(normalized) ||
+      isTopicSettingFieldKey(normalized)) &&
+    !isSettingsPropKeyForSchemaLevel(normalized, nodePath)
+  );
+}
+
+function stripAwnSchemaToContextLevel(awnSchema, level) {
+  const normalized = normalizeTopicSchemaState(awnSchema);
+  const result = emptyTopicSchemaState();
+  if (level === "workspace") {
+    if (normalized.workspace?.fields && Object.keys(normalized.workspace.fields).length) {
+      result.workspace = { fields: { ...normalized.workspace.fields } };
+    }
+  } else if (level === "area") {
+    if (normalized.area?.fields && Object.keys(normalized.area.fields).length) {
+      result.area = { fields: { ...normalized.area.fields } };
+    }
+  } else {
+    if (normalized.topic?.fields && Object.keys(normalized.topic.fields).length) {
+      result.topic = { fields: { ...normalized.topic.fields } };
+    }
+    for (const { id } of getTopicSchemaTargetSpecs()) {
+      if (id === "workspace" || id === "area" || id === "topic" || id === "settings") continue;
+      const fields = normalized[id]?.fields;
+      if (fields && Object.keys(fields).length) {
+        result[id] = { fields: { ...fields } };
+      }
+    }
+    if (normalized.sidecar?.fields && Object.keys(normalized.sidecar.fields).length) {
+      result.sidecar = { fields: { ...normalized.sidecar.fields } };
+    }
+  }
+  const settingsFields = normalized.settings?.fields || {};
+  const filteredSettings = {};
+  for (const [settingKey, def] of Object.entries(settingsFields)) {
+    if (isSettingsPropKeyForSchemaLevel(settingKey, null, level)) {
+      filteredSettings[settingKey] = def;
+    }
+  }
+  if (Object.keys(filteredSettings).length) {
+    result.settings = { fields: filteredSettings };
+  }
+  return result;
+}
+
 function normalizeSlotSchemaFieldKey(key) {
   const trimmed = String(key || "").trim();
   if (!trimmed) return trimmed;
@@ -38406,39 +38615,257 @@ function isSchemaDefinedFieldKey(key) {
   );
 }
 
-function isOverviewCustomSchemaFieldKey(key) {
-  return (
-    isWsFieldKey(key) ||
-    isAreaFieldKey(key) ||
-    isTopicFieldKey(key) ||
-    isTopicSettingFieldKey(key) ||
-    isWsSettingFieldKey(key) ||
-    isAreaSettingFieldKey(key) ||
-    isSlotCustomFieldKey(key)
-  );
+function resolveOverviewSchemaTargetForNode(nodePath = getResolvedNodePath(activePath)) {
+  const overviewContext =
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null;
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && overviewContext) {
+    return resolveOverviewSchemaTargetForContext(overviewContext);
+  }
+  return resolveAwnSchemaTargetForContext(nodePath);
 }
 
-function getOverviewCustomSchemaFieldKeys(typeDef = getActiveAwnTypeDef()) {
-  if (!typeDef?.fields) return [];
-  return sortPropsFieldKeys(Object.keys(typeDef.fields)).filter((key) => {
+function getOverviewCustomSchemaLayerFields(nodePath = getResolvedNodePath(activePath)) {
+  const overviewContext =
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null;
+  const cache = resolveActiveOverviewSchemaCache(overviewContext);
+  const target = resolveOverviewSchemaTargetForNode(nodePath);
+  const rawFields = cache ? getTopicSchemaCustomFieldsForTarget(target, cache) : {};
+  const filtered = {};
+  for (const [key, def] of Object.entries(rawFields)) {
+    if (isCustomPropKeyForSchemaLevel(key, nodePath)) filtered[key] = def;
+  }
+  return filtered;
+}
+
+function getOverviewSettingsSchemaFieldsFromCache(context = null, nodePath = getResolvedNodePath(activePath)) {
+  const cache = resolveActiveOverviewSchemaCache(context);
+  const allFields = cache?.awnSchema?.settings?.fields || {};
+  const filtered = {};
+  for (const [key, def] of Object.entries(allFields)) {
+    if (isSettingsPropKeyForSchemaLevel(key, nodePath)) filtered[key] = def;
+  }
+  return filtered;
+}
+
+function getOverviewSchemaFieldDef(key, nodePath = getResolvedNodePath(activePath)) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return null;
+
+  const cache = resolveActiveOverviewSchemaCache();
+  if (cache?.awnSchema) {
+    if (isOverviewSettingsFieldKey(normalized, nodePath)) {
+      const settingsField = cache.awnSchema.settings?.fields?.[normalized];
+      if (settingsField) return settingsField;
+    }
+    const target = resolveOverviewSchemaTargetForNode(nodePath);
+    const targetField = cache.awnSchema[target]?.fields?.[normalized];
+    if (targetField) return targetField;
+  }
+
+  if (isOverviewSettingsFieldKey(normalized, nodePath)) {
+    return getActiveSettingsTypeDef()?.fields?.[normalized] || null;
+  }
+
+  return findPropsFieldDefInTopicSchemaTargets(normalized, cache) || getPropsFieldDef(normalized);
+}
+
+function isOverviewSettingsFieldKey(key, nodePath = getResolvedNodePath(activePath)) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized || !isSettingsPropKeyForSchemaLevel(normalized, nodePath)) return false;
+  const settingsFields = getOverviewSettingsSchemaFieldsFromCache(null, nodePath);
+  if (settingsFields && Object.prototype.hasOwnProperty.call(settingsFields, normalized)) {
+    return true;
+  }
+  return isSettingsPropKeyForSchemaLevel(normalized, nodePath);
+}
+
+function isOverviewCustomSchemaFieldKey(key, nodePath = getResolvedNodePath(activePath)) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized || isOverviewSettingsFieldKey(normalized) || isAwnFieldKey(normalized)) return false;
+  const customFields = getOverviewCustomSchemaLayerFields(nodePath);
+  return Object.prototype.hasOwnProperty.call(customFields, normalized);
+}
+
+function isOverviewExcludedPropKey(key) {
+  const normalized = normalizePropsKey(key);
+  return Boolean(normalized && OVERVIEW_EXCLUDED_PROP_KEYS.has(normalized));
+}
+
+function isOverviewAwnMetaItemKey(key, nodePath = getResolvedNodePath(activePath)) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized || isOverviewExcludedPropKey(normalized)) return false;
+  if (isOverviewSettingsFieldKey(normalized, nodePath)) return false;
+  return isAwnFieldKey(normalized);
+}
+
+function isOverviewCustomMetaItemForContext(item, nodePath = getResolvedNodePath(activePath)) {
+  const key = normalizePropsKey(item?.key);
+  if (!key || isOverviewExcludedPropKey(key)) return false;
+  if (isOverviewSettingsFieldKey(key, nodePath)) return false;
+  if (isOverviewAwnMetaItemKey(key)) return false;
+  if (isForeignLayerCustomPropKey(key, nodePath)) return false;
+  if (isForeignLayerSettingsPropKey(key, nodePath)) return false;
+  return true;
+}
+
+function isOverviewSettingsFieldDefinedInSchema(key, nodePath = getResolvedNodePath(activePath)) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return false;
+  const schemaFields = getOverviewSettingsSchemaFieldsFromCache(null, nodePath);
+  return Object.prototype.hasOwnProperty.call(schemaFields, normalized);
+}
+
+function isOverviewCustomFieldDefinedInSchema(key, nodePath = getResolvedNodePath(activePath)) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return false;
+  const customFields = getOverviewCustomSchemaLayerFields(nodePath);
+  return Object.prototype.hasOwnProperty.call(customFields, normalized);
+}
+
+function isNodeOverviewMetaItemInSchema(item, nodePath = getResolvedNodePath(activePath)) {
+  if (item?.inSchema === true) return true;
+  if (item?.inSchema === false) return false;
+  const key = normalizePropsKey(item?.key);
+  if (!key) return false;
+  if (isOverviewSettingsFieldKey(key, nodePath)) {
+    return isOverviewSettingsFieldDefinedInSchema(key, nodePath);
+  }
+  if (isCustomPropKeyForSchemaLevel(key, nodePath) || isSlotCustomFieldKey(key)) {
+    return isOverviewCustomFieldDefinedInSchema(key, nodePath);
+  }
+  return isPropsFieldDefinedInActiveSchema(key, { fieldDef: item?.fieldDef });
+}
+
+function isNodeOverviewMetaItemFilled(item) {
+  if (!item) return false;
+  const display = String(item.value ?? "").trim();
+  if (display && display !== "—") return true;
+  return Boolean(String(item.rawValue ?? "").trim());
+}
+
+function orderOverviewMetaItemsBySchema(items = [], schemaKeys = []) {
+  const map = new Map();
+  for (const item of items) {
+    const key = normalizePropsKey(item?.key);
+    if (key) map.set(key, item);
+  }
+  const schemaKeySet = new Set(
+    (Array.isArray(schemaKeys) ? schemaKeys : [])
+      .map((key) => normalizePropsKey(key))
+      .filter(Boolean)
+  );
+  const ordered = [];
+  const seen = new Set();
+  for (const key of schemaKeys) {
+    const normalized = normalizePropsKey(key);
+    if (!normalized || seen.has(normalized) || !map.has(normalized)) continue;
+    seen.add(normalized);
+    ordered.push(map.get(normalized));
+  }
+  const orphanItems = [];
+  for (const item of items) {
+    const normalized = normalizePropsKey(item?.key);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    if (schemaKeySet.has(normalized)) continue;
+    orphanItems.push(item);
+  }
+  orphanItems.sort((a, b) => String(a.key).localeCompare(String(b.key), "ru"));
+  return [...ordered, ...orphanItems];
+}
+
+function getOverviewSettingsSchemaFieldKeys(
+  schemaFields = getOverviewSettingsSchemaFieldsFromCache(),
+  nodePath = getResolvedNodePath(activePath)
+) {
+  if (!schemaFields || typeof schemaFields !== "object") return [];
+  return Object.keys(schemaFields).filter((key) => {
     if (HIDDEN_PROPS_FIELD_KEYS.has(key)) return false;
+    if (OVERVIEW_EXCLUDED_PROP_KEYS.has(key)) return false;
     if (!shouldIncludePropsFieldKey(key)) return false;
-    return isOverviewCustomSchemaFieldKey(key);
+    if (!isSettingsPropKeyForSchemaLevel(key, nodePath)) return false;
+    return true;
   });
 }
 
-function isEditorCustomPropsFieldKey(key) {
-  const entryKey = normalizePropsKey(key);
-  if (!entryKey || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) return false;
-  if (entryKey === "awn-preview" || entryKey === "awn-attachments") return false;
-  return !isSchemaDefinedFieldKey(entryKey);
+function getOverviewCustomSchemaFieldKeys(nodePath = getResolvedNodePath(activePath)) {
+  const customFields = getOverviewCustomSchemaLayerFields(nodePath);
+  const settingsKeySet = new Set(getOverviewSettingsSchemaFieldKeys(undefined, nodePath));
+  return Object.keys(customFields).filter((key) => {
+    if (HIDDEN_PROPS_FIELD_KEYS.has(key)) return false;
+    if (OVERVIEW_EXCLUDED_PROP_KEYS.has(key)) return false;
+    if (!shouldIncludePropsFieldKey(key)) return false;
+    if (settingsKeySet.has(key)) return false;
+    if (isOverviewSettingsFieldKey(key, nodePath)) return false;
+    if (isAwnFieldKey(key)) return false;
+    return true;
+  });
 }
 
-function shouldShowEditorCustomPropsBar() {
-  if (!editorCustomPropsBarNode || !editorCustomPropsFieldsNode) return false;
-  if (propsRawYamlVisible) return false;
-  if (!canEditPropsForm()) return false;
+function isOrphanPropsFieldKey(key) {
+  const entryKey = normalizePropsKey(key);
+  if (entryKey === "awn-preview" || entryKey === "awn-attachments") return false;
+  if (entryKey && HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) return false;
+  if (!entryKey) return true;
+  return !isOverviewCustomSchemaFieldKey(entryKey) && !isOverviewSettingsFieldKey(entryKey) && !isAwnFieldKey(entryKey);
+}
+
+function isEditorCustomPropsFieldKey(key, nodePath = getPropsContextPath()) {
+  const entryKey = normalizePropsKey(key);
+  if (!entryKey) return false;
+  if (OVERVIEW_EXCLUDED_PROP_KEYS.has(entryKey)) return false;
+  if (HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) return false;
+  if (isOverviewSettingsFieldKey(entryKey)) return false;
+  if (isAwnFieldKey(entryKey)) return false;
   return true;
+}
+
+function isEditorCustomPropsFieldInSchema(key, entry = null, nodePath = getPropsContextPath()) {
+  return isOverviewCustomSchemaFieldKey(key, nodePath);
+}
+
+function ensureEditorCustomPropsSchemaEntries(nodePath = getPropsContextPath()) {
+  const schemaKeys = getOverviewCustomSchemaFieldKeys(nodePath);
+  if (!schemaKeys.length) return false;
+  const existing = new Set(
+    propsFormEntries.map((entry) => normalizePropsKey(entry?.key)).filter(Boolean)
+  );
+  let changed = false;
+  for (const key of schemaKeys) {
+    if (existing.has(key)) continue;
+    propsFormEntries.push({ key, kind: "string", value: "" });
+    existing.add(key);
+    changed = true;
+  }
+  if (changed) {
+    propsFormEntries = sortPropsEntries(propsFormEntries);
+  }
+  return changed;
+}
+
+function collectEditorCustomPropsItems(nodePath = getPropsContextPath()) {
+  ensureEditorCustomPropsSchemaEntries(nodePath);
+  const items = [];
+  for (let index = 0; index < propsFormEntries.length; index += 1) {
+    const entry = propsFormEntries[index];
+    const key = normalizePropsKey(entry?.key);
+    if (!key || !isEditorCustomPropsFieldKey(key, nodePath)) continue;
+    items.push({ entry, index });
+  }
+  const compareKeys = (a, b) =>
+    String(a.entry.key || "").localeCompare(String(b.entry.key || ""), "ru");
+  const inSchema = [];
+  const orphans = [];
+  for (const item of items) {
+    if (isEditorCustomPropsFieldInSchema(item.entry.key, item.entry, nodePath)) {
+      inSchema.push(item);
+    } else {
+      orphans.push(item);
+    }
+  }
+  inSchema.sort(compareKeys);
+  orphans.sort(compareKeys);
+  return [...inSchema, ...orphans];
 }
 
 function getPropsFormFieldContainers() {
@@ -38446,6 +38873,23 @@ function getPropsFormFieldContainers() {
   if (propsFormFieldsNode) containers.push(propsFormFieldsNode);
   if (editorCustomPropsFieldsNode) containers.push(editorCustomPropsFieldsNode);
   return containers;
+}
+
+function shouldShowEditorCustomPropsBar() {
+  if (!editorCustomPropsBarNode || !editorCustomPropsFieldsNode) return false;
+  if (propsRawYamlVisible) return false;
+  if (!canEditPropsForm() && !isPropsFormReadOnly()) return false;
+  if (activeContentMode !== "description" && !activeSystemFile) return false;
+  return true;
+}
+
+function decorateEditorCustomPropsFormRow(row, entry) {
+  const key = normalizePropsKey(entry?.key);
+  if (!key) return;
+  if (!isEditorCustomPropsFieldInSchema(key, entry)) {
+    row.classList.add("is-schema-undefined");
+    row.title = "Свойство не определено в схеме";
+  }
 }
 
 function sortPropsFieldKeys(keys) {
@@ -38781,6 +39225,26 @@ function getActiveAwnTypeDef(typeName = null) {
   const baseTypeDef = awnTypesCache?.types?.[resolvedType];
   if (!baseTypeDef) return null;
   return { name: resolvedType, ...baseTypeDef };
+}
+
+function getActiveSettingsTypeDef(overviewContext = null) {
+  const context =
+    overviewContext ??
+    (activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null);
+  const cache = resolveActiveOverviewSchemaCache(context);
+  const merged = cache ? resolveTopicSchemaMergedType("settings", cache) : null;
+  const settingsTypeName = normalizeAwnTypeName("awn.settings");
+  if (merged?.fields) {
+    const baseTypeDef = awnTypesCache?.types?.[settingsTypeName];
+    return {
+      name: merged.name || settingsTypeName,
+      kind: merged.kind || baseTypeDef?.kind || "type",
+      fields: merged.fields
+    };
+  }
+  const baseTypeDef = awnTypesCache?.types?.[settingsTypeName];
+  if (!baseTypeDef) return null;
+  return { name: settingsTypeName, ...baseTypeDef };
 }
 
 // Returns fields defined in typeId that are NOT inherited from its parent type.
@@ -39476,15 +39940,18 @@ function isPropsFieldDefinedInActiveSchema(key, options = {}) {
   return Boolean(getPropsFieldDef(normalized));
 }
 
-function resolvePropsFieldDefForOverview(key, entry = null) {
+function resolvePropsFieldDefForOverview(key, entry = null, nodePath = getResolvedNodePath(activePath)) {
   if (entry?.fieldDef) return entry.fieldDef;
 
   const normalized = normalizePropsKey(key);
   if (!normalized) return null;
 
+  const fromSchemaCache = getOverviewSchemaFieldDef(normalized, nodePath);
+  if (fromSchemaCache) return fromSchemaCache;
+
   const cache = resolveActiveOverviewSchemaCache();
   if (cache) {
-    const preferredTarget = resolveOverviewSchemaTargetForContext();
+    const preferredTarget = resolveOverviewSchemaTargetForNode(nodePath);
     const preferred = resolveTopicSchemaMergedType(preferredTarget, cache)?.fields?.[normalized];
     if (preferred) return preferred;
     const fromTargets = findPropsFieldDefInTopicSchemaTargets(normalized, cache);
@@ -39494,11 +39961,11 @@ function resolvePropsFieldDefForOverview(key, entry = null) {
   return getPropsFieldDef(normalized);
 }
 
-function getPropsFieldOverviewLabel(key, entry = null) {
+function getPropsFieldOverviewLabel(key, entry = null, nodePath = getResolvedNodePath(activePath)) {
   const normalized = normalizePropsKey(key);
   if (!normalized) return { key: String(key || "").trim(), label: "" };
 
-  const fieldDef = resolvePropsFieldDefForOverview(normalized, entry);
+  const fieldDef = resolvePropsFieldDefForOverview(normalized, entry, nodePath);
   let label = "";
   if (fieldDef) {
     label = getFieldDefDisplayName(fieldDef, normalized);
@@ -39778,6 +40245,7 @@ function normalizePropsEntries(entries) {
 }
 
 const HIDDEN_PROPS_FIELD_KEYS = new Set(["title", "awn-name", "awn-description"]);
+const OVERVIEW_EXCLUDED_PROP_KEYS = new Set(["awn-preview", "awn-web-url", "awn-attachments"]);
 
 function ensureAwnContextDefaults(entries) {
   const map = new Map();
@@ -41833,12 +42301,17 @@ function renderEditorCustomPropsBar() {
     return;
   }
 
-  const userItems = [];
-  for (let index = 0; index < propsFormEntries.length; index += 1) {
-    const entry = propsFormEntries[index];
-    if (!isEditorCustomPropsFieldKey(entry.key)) continue;
-    userItems.push({ entry, index });
+  const manifestPath = getTopicSchemaManifestPath();
+  if (manifestPath && !getTopicSchemaCache(manifestPath, "")) {
+    void ensureTopicSchemaForActiveContext().then(() => {
+      if (shouldShowEditorCustomPropsBar() && !propsRawYamlVisible) renderEditorCustomPropsBar();
+    });
+    editorCustomPropsBarNode.classList.add("hidden");
+    return;
   }
+
+  const nodePath = getPropsContextPath();
+  const userItems = collectEditorCustomPropsItems(nodePath);
 
   if (!userItems.length) {
     editorCustomPropsBarNode.classList.add("hidden");
@@ -41860,10 +42333,7 @@ function renderEditorCustomPropsBar() {
       const field = document.createElement("div");
       field.className = "props-preview-field props-preview-field--compact editor-custom-props-preview-field";
       field.dataset.index = String(index);
-      field.title = entry.key || "";
-      if (!isPropsFieldDefinedInActiveSchema(entry.key, { fieldDef: entry.fieldDef })) {
-        field.classList.add("is-schema-undefined");
-      }
+      decorateEditorCustomPropsFormRow(field, entry);
 
       const label = buildPropsFieldKeyLabelElement(entry.key, meta, {
         tag: "span",
@@ -41895,10 +42365,7 @@ function renderEditorCustomPropsBar() {
   for (const { entry, index } of userItems) {
     const row = createPropsFormFieldRow(entry, index, { showFieldKey: true });
     row.classList.add("editor-custom-props-field");
-    if (!isPropsFieldDefinedInActiveSchema(entry.key, { fieldDef: entry.fieldDef })) {
-      row.classList.add("is-schema-undefined");
-      row.title = "Свойство не определено в схеме слота";
-    }
+    decorateEditorCustomPropsFormRow(row, entry);
     editorCustomPropsFieldsNode.appendChild(row);
   }
 }
@@ -41939,7 +42406,8 @@ function renderPropsForm() {
         continue;
       }
       if (!shouldIncludePropsFieldKey(entryKey)) continue;
-      if (!isSchemaDefinedFieldKey(entryKey)) continue;
+      if (isEditorCustomPropsFieldKey(entryKey)) continue;
+      if (!isAwnFieldKey(entryKey) && !isOverviewSettingsFieldKey(entryKey)) continue;
       const meta = getPropsFieldMeta(entry.key);
       const displayValue = getPropsEntryDisplayValue(entry);
 
@@ -41984,7 +42452,8 @@ function renderPropsForm() {
       continue;
     }
     if (!shouldIncludePropsFieldKey(entryKey)) continue;
-    if (!isSchemaDefinedFieldKey(entryKey)) continue;
+    if (isEditorCustomPropsFieldKey(entryKey)) continue;
+    if (!isAwnFieldKey(entryKey) && !isOverviewSettingsFieldKey(entryKey)) continue;
     if (entry?.key && isStandardPropsFieldKey(entry.key)) {
       standardEntries.push({ entry, index });
     } else {
@@ -45748,7 +46217,14 @@ async function ensureTopicSchemaForActiveContext(options = {}) {
       : getSchemaContentPathForContext();
   if (!manifestPath) return null;
   if (!contentPath) {
-    if (activeContentMode === "topic-schema") {
+    const shouldLoadManifestSchema =
+      activeContentMode === "topic-schema" ||
+      activeContentMode === NODE_OVERVIEW_MODE ||
+      activeContentMode === NODE_NAVIGATION_MODE ||
+      isNodeSettingsSelectMode(activeContentMode) ||
+      isWorkspaceSchemaContext(manifestPath) ||
+      isAreaSchemaContext(manifestPath);
+    if (shouldLoadManifestSchema) {
       return loadTopicSchemaForManifest(manifestPath, {
         topicOnly: true,
         force: options.force === true
@@ -46075,7 +46551,6 @@ async function enableFlatStorageFileEditor(filePath, content, options = {}) {
   await applyStorageFileContentUi(content || "", { mode: contentMode });
   syncTitleFieldsFromNode(filePath);
   syncPropsInputPlaceholder();
-  renderEditorCustomPropsBar();
   editorViewMode = "preview";
   applyModeUi();
   setEditorViewMode("preview", { skipRouteSync: true });
@@ -48301,7 +48776,11 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
   }
 
   if (options.showHeroProps !== false) {
-    appendNavigationHeroProps(hero, options.propEntries || []);
+    appendNavigationHeroProps(hero, options.propEntries || [], {
+      configSettingsEntries: options.configSettingsEntries || [],
+      nodePath,
+      showSettingsProps: options.showSettingsProps
+    });
   }
 
   appendNavigationHeroTags(hero, options.propEntries || []);
@@ -48396,8 +48875,8 @@ function getPropsEntryOverviewDisplayValue(entry, key = entry?.key) {
   return text || "—";
 }
 
-function appendNodeOverviewMetaKeyCell(container, key, entry = null) {
-  const { key: normalizedKey, label } = getPropsFieldOverviewLabel(key, entry);
+function appendNodeOverviewMetaKeyCell(container, key, entry = null, nodePath = getResolvedNodePath(activePath)) {
+  const { key: normalizedKey, label } = getPropsFieldOverviewLabel(key, entry, nodePath);
 
   const keyNode = document.createElement("span");
   keyNode.className = "node-overview-meta-key-id";
@@ -48434,7 +48913,7 @@ function appendNodeOverviewMetaValueCell(container, item) {
   container.appendChild(valueNode);
 }
 
-function renderNodeOverviewMetaTable(metaItems) {
+function renderNodeOverviewMetaTable(metaItems, nodePath = getResolvedNodePath(activePath)) {
   if (!metaItems.length) return null;
 
   const list = document.createElement("div");
@@ -48445,14 +48924,12 @@ function renderNodeOverviewMetaTable(metaItems) {
 
     const keyCell = document.createElement("div");
     keyCell.className = "node-overview-meta-key";
-    appendNodeOverviewMetaKeyCell(keyCell, item.key, item);
+    appendNodeOverviewMetaKeyCell(keyCell, item.key, item, nodePath);
 
     const valCell = document.createElement("div");
     appendNodeOverviewMetaValueCell(valCell, item);
 
-    const schemaDefined =
-      item.inSchema === true ||
-      isPropsFieldDefinedInActiveSchema(item.key, { fieldDef: item.fieldDef });
+    const schemaDefined = isNodeOverviewMetaItemInSchema(item, nodePath);
     if (!schemaDefined) {
       row.classList.add("is-schema-undefined");
       const schemaHint = "Свойство не определено в схеме";
@@ -48468,15 +48945,21 @@ function renderNodeOverviewMetaTable(metaItems) {
   return list;
 }
 
-function collectNodeOverviewMetaItems(entries) {
+function collectNodeOverviewMetaItems(entries, nodePath = getResolvedNodePath(activePath)) {
   const map = new Map();
   for (const entry of normalizePropsEntries(entries)) {
     if (entry?.key) map.set(entry.key, entry);
   }
 
   const typeDef = getActiveAwnTypeDef();
+  const settingsSchemaFields = getOverviewSettingsSchemaFieldsFromCache(null, nodePath);
   const schemaFields = typeDef?.fields || {};
-  const schemaKeySet = new Set(Object.keys(schemaFields));
+  const customLayerFields = getOverviewCustomSchemaLayerFields(nodePath);
+  const schemaKeySet = new Set([
+    ...Object.keys(schemaFields),
+    ...Object.keys(customLayerFields),
+    ...Object.keys(settingsSchemaFields)
+  ]);
   const items = [];
   const seen = new Set();
 
@@ -48484,13 +48967,25 @@ function collectNodeOverviewMetaItems(entries) {
     const normalized = normalizePropsKey(key);
     if (!normalized || seen.has(normalized)) return;
     if (HIDDEN_PROPS_FIELD_KEYS.has(normalized)) return;
+    if (OVERVIEW_EXCLUDED_PROP_KEYS.has(normalized)) return;
     if (!shouldIncludePropsFieldKey(normalized)) return;
     if (!allowMissing && !map.has(normalized)) return;
     seen.add(normalized);
     const entry = map.get(normalized) || null;
-    const fieldDef = entry?.fieldDef || schemaFields[normalized] || null;
+    const fieldDef =
+      entry?.fieldDef ||
+      getOverviewSchemaFieldDef(normalized, nodePath) ||
+      customLayerFields[normalized] ||
+      settingsSchemaFields[normalized] ||
+      schemaFields[normalized] ||
+      null;
     const schemaDefined = Boolean(
-      inSchema || fieldDef || schemaKeySet.has(normalized) || isPropsFieldDefinedInActiveSchema(normalized, { fieldDef })
+      inSchema ||
+        fieldDef ||
+        customLayerFields[normalized] ||
+        settingsSchemaFields[normalized] ||
+        isOverviewCustomSchemaFieldKey(normalized, nodePath) ||
+        isOverviewSettingsFieldDefinedInSchema(normalized, nodePath)
     );
     items.push({
       key: normalized,
@@ -48502,20 +48997,24 @@ function collectNodeOverviewMetaItems(entries) {
   };
 
   const standardKeys = getStandardPropsFieldKeys();
-  const customSchemaKeys = getOverviewCustomSchemaFieldKeys(typeDef);
+  const customSchemaKeys = getOverviewCustomSchemaFieldKeys(nodePath);
+  const settingsSchemaKeys = getOverviewSettingsSchemaFieldKeys(undefined, nodePath);
   const schemaKeys = getTypeSchemaFieldKeys(typeDef);
   const orderedAwnKeys = [
-    ...standardKeys.filter((key) => !isOverviewCustomSchemaFieldKey(key)),
+    ...standardKeys.filter(
+      (key) =>
+        isAwnFieldKey(key) && !isOverviewSettingsFieldKey(key, nodePath) && !customSchemaKeys.includes(key)
+    ),
     ...schemaKeys.filter(
-      (key) => !standardKeys.includes(key) && !isOverviewCustomSchemaFieldKey(key)
+      (key) =>
+        isAwnFieldKey(key) &&
+        !standardKeys.includes(key) &&
+        !customSchemaKeys.includes(key) &&
+        !isOverviewSettingsFieldKey(key, nodePath)
     )
   ];
-  const orderedCustomSchemaKeys = [
-    ...customSchemaKeys,
-    ...schemaKeys.filter(
-      (key) => isOverviewCustomSchemaFieldKey(key) && !customSchemaKeys.includes(key)
-    )
-  ];
+  const orderedCustomSchemaKeys = [...customSchemaKeys];
+  const orderedSettingsSchemaKeys = [...settingsSchemaKeys];
 
   for (const key of orderedAwnKeys) {
     pushKey(key, { allowMissing: true, inSchema: schemaKeySet.has(normalizePropsKey(key)) });
@@ -48523,39 +49022,126 @@ function collectNodeOverviewMetaItems(entries) {
   for (const key of orderedCustomSchemaKeys) {
     pushKey(key, { allowMissing: true, inSchema: true });
   }
+  for (const key of orderedSettingsSchemaKeys) {
+    pushKey(key, { allowMissing: true, inSchema: true });
+  }
   for (const key of [...map.keys()].sort((a, b) => a.localeCompare(b, "ru"))) {
     pushKey(key, {
       allowMissing: false,
-      inSchema: schemaKeySet.has(key) || isPropsFieldDefinedInActiveSchema(key)
+      inSchema:
+        isOverviewCustomSchemaFieldKey(key, nodePath) ||
+        isOverviewSettingsFieldKey(key, nodePath) ||
+        isAwnFieldKey(key)
     });
   }
 
   return items;
 }
 
-function splitNodeOverviewMetaItems(entries) {
-  const awnItems = [];
-  const customItems = [];
-  for (const item of collectNodeOverviewMetaItems(entries)) {
-    if (isOverviewCustomSchemaFieldKey(item.key) || !item.inSchema) {
-      customItems.push(item);
-    } else {
-      awnItems.push(item);
-    }
+function resolveNodeOverviewSettingsItems(configEntries = [], nodePath = getResolvedNodePath(activePath)) {
+  const map = new Map();
+  for (const entry of normalizePropsEntries(configEntries)) {
+    const key = normalizePropsKey(entry?.key);
+    if (!key || OVERVIEW_EXCLUDED_PROP_KEYS.has(key)) continue;
+    if (ExternalFileMask.isBuiltinSettingsSchemaKey(key)) continue;
+    if (isForeignLayerSettingsPropKey(key, nodePath)) continue;
+    map.set(key, entry);
   }
-  return { awnItems, customItems };
+
+  const schemaFields = getOverviewSettingsSchemaFieldsFromCache(null, nodePath);
+  const schemaKeys = getOverviewSettingsSchemaFieldKeys(schemaFields, nodePath);
+  const orderedKeys = [
+    ...schemaKeys,
+    ...[...map.keys()].filter((key) => !schemaKeys.includes(key))
+  ];
+  const seen = new Set();
+  const items = [];
+  for (const key of orderedKeys) {
+    const normalized = normalizePropsKey(key);
+    if (!normalized || seen.has(normalized)) continue;
+    const inSchema = isOverviewSettingsFieldDefinedInSchema(normalized, nodePath);
+    const entry = map.get(normalized) || null;
+    if (!inSchema && !entry) continue;
+    seen.add(normalized);
+    items.push({
+      key: normalized,
+      value: getPropsEntryOverviewDisplayValue(entry, normalized),
+      rawValue: entry ? getPropsEntryDisplayValue(entry) : "",
+      fieldDef: entry?.fieldDef || schemaFields[normalized] || null,
+      inSchema
+    });
+  }
+  return items;
 }
 
-function renderNodeOverviewCustomPropsFold(customItems) {
-  if (!customItems.length) return null;
+function mergeNodeOverviewSettingsItems(
+  manifestItems = [],
+  configItems = [],
+  nodePath = getResolvedNodePath(activePath)
+) {
+  const map = new Map();
+  for (const item of manifestItems) {
+    if (item?.key) map.set(item.key, item);
+  }
+  for (const item of configItems) {
+    if (item?.key) map.set(item.key, item);
+  }
+  const schemaKeys = getOverviewSettingsSchemaFieldKeys(undefined, nodePath);
+  return orderOverviewMetaItemsBySchema([...map.values()], schemaKeys);
+}
+
+function splitNodeOverviewMetaItems(entries, nodePath = getResolvedNodePath(activePath)) {
+  const customSchemaKeySet = new Set(getOverviewCustomSchemaFieldKeys(nodePath));
+  const awnItems = [];
+  const customItems = [];
+  const settingsItems = [];
+  for (const item of collectNodeOverviewMetaItems(entries, nodePath)) {
+    const key = normalizePropsKey(item.key);
+    if (!key) continue;
+    if (isForeignLayerCustomPropKey(key, nodePath) || isForeignLayerSettingsPropKey(key, nodePath)) {
+      continue;
+    }
+    if (isOverviewSettingsFieldKey(key, nodePath)) {
+      settingsItems.push(item);
+    } else if (isAwnFieldKey(key) && !isOverviewExcludedPropKey(key)) {
+      awnItems.push(item);
+    } else if (!isOverviewExcludedPropKey(key)) {
+      customItems.push({
+        ...item,
+        inSchema: customSchemaKeySet.has(key)
+      });
+    }
+  }
+  const customSchemaKeys = getOverviewCustomSchemaFieldKeys(nodePath);
+  return {
+    awnItems,
+    customItems: orderOverviewMetaItemsBySchema(customItems, customSchemaKeys),
+    settingsItems
+  };
+}
+
+function renderNodeOverviewCustomPropsFold(customItems, nodePath = getResolvedNodePath(activePath)) {
+  const schemaKeys = getOverviewCustomSchemaFieldKeys(nodePath);
+  const customFields = getOverviewCustomSchemaLayerFields(nodePath);
+  let items = orderOverviewMetaItemsBySchema(customItems, schemaKeys);
+  if (!items.length && schemaKeys.length) {
+    items = schemaKeys.map((key) => ({
+      key,
+      value: "—",
+      rawValue: "",
+      fieldDef: customFields[key] || null,
+      inSchema: true
+    }));
+  }
+  if (!items.length) return null;
 
   const metaSection = document.createElement("section");
   metaSection.className = "node-overview-props node-overview-props-custom";
-  metaSection.appendChild(renderNodeOverviewMetaTable(customItems));
+  metaSection.appendChild(renderNodeOverviewMetaTable(items, nodePath));
 
   const accordion = createOverviewAccordionSection(
     OVERVIEW_CUSTOM_PROPS_ACCORDION_GROUP_ID,
-    `Пользовательские · ${customItems.length}`,
+    `Пользовательские свойства · ${items.length}`,
     metaSection,
     { defaultOpen: false }
   );
@@ -48563,16 +49149,16 @@ function renderNodeOverviewCustomPropsFold(customItems) {
   return accordion;
 }
 
-function renderNodeOverviewAwnPropsFold(awnItems) {
+function renderNodeOverviewAwnPropsFold(awnItems, nodePath = getResolvedNodePath(activePath)) {
   if (!awnItems.length) return null;
 
   const metaSection = document.createElement("section");
   metaSection.className = "node-overview-props node-overview-props-awn";
-  metaSection.appendChild(renderNodeOverviewMetaTable(awnItems));
+  metaSection.appendChild(renderNodeOverviewMetaTable(awnItems, nodePath));
 
   const accordion = createOverviewAccordionSection(
     OVERVIEW_AWN_PROPS_ACCORDION_GROUP_ID,
-    `AWN · ${awnItems.length}`,
+    `Основные свойства · ${awnItems.length}`,
     metaSection,
     { defaultOpen: false }
   );
@@ -48580,23 +49166,79 @@ function renderNodeOverviewAwnPropsFold(awnItems) {
   return accordion;
 }
 
-function appendNavigationHeroProps(hero, propEntries = []) {
+function renderNodeOverviewSettingsPropsFold(settingsItems, nodePath = getResolvedNodePath(activePath)) {
+  const schemaKeys = getOverviewSettingsSchemaFieldKeys(undefined, nodePath);
+  const schemaFields = getOverviewSettingsSchemaFieldsFromCache(null, nodePath);
+  let items = orderOverviewMetaItemsBySchema(settingsItems, schemaKeys);
+  if (!items.length && schemaKeys.length) {
+    items = schemaKeys.map((key) => ({
+      key,
+      value: "—",
+      rawValue: "",
+      fieldDef: schemaFields[key] || null,
+      inSchema: true
+    }));
+  }
+  if (!items.length) return null;
+
+  const metaSection = document.createElement("section");
+  metaSection.className = "node-overview-props node-overview-props-settings";
+  metaSection.appendChild(renderNodeOverviewMetaTable(items, nodePath));
+
+  const accordion = createOverviewAccordionSection(
+    OVERVIEW_SETTINGS_PROPS_ACCORDION_GROUP_ID,
+    `Настройки · ${items.length}`,
+    metaSection,
+    { defaultOpen: false }
+  );
+  accordion.classList.add("node-overview-props-fold", "node-overview-settings-props-fold");
+  return accordion;
+}
+
+function shouldShowOverviewSettingsProps(options = {}) {
+  if (options.showSettingsProps === false) return false;
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) return false;
+  return true;
+}
+
+function appendNavigationHeroProps(hero, propEntries = [], options = {}) {
   if (!hero) return null;
-  const { awnItems, customItems } = splitNodeOverviewMetaItems(propEntries);
+  const nodePath = options.nodePath || getResolvedNodePath(activePath);
+  const { awnItems, customItems, settingsItems: manifestSettingsItems } = splitNodeOverviewMetaItems(
+    propEntries,
+    nodePath
+  );
   let lastNode = null;
 
-  const awnFold = renderNodeOverviewAwnPropsFold(awnItems);
+  const awnFold = renderNodeOverviewAwnPropsFold(awnItems, nodePath);
   if (awnFold) {
     awnFold.classList.add("node-navigation-props");
     hero.appendChild(awnFold);
     lastNode = awnFold;
   }
 
-  const customFold = renderNodeOverviewCustomPropsFold(customItems);
+  const customFold = renderNodeOverviewCustomPropsFold(customItems, nodePath);
   if (customFold) {
     customFold.classList.add("node-navigation-props");
     hero.appendChild(customFold);
     lastNode = customFold;
+  }
+
+  if (shouldShowOverviewSettingsProps(options)) {
+    const settingsItems = orderOverviewMetaItemsBySchema(
+      mergeNodeOverviewSettingsItems(
+        manifestSettingsItems,
+        resolveNodeOverviewSettingsItems(options.configSettingsEntries || [], nodePath),
+        nodePath
+      ),
+      getOverviewSettingsSchemaFieldKeys(undefined, nodePath)
+    );
+    const settingsFold = renderNodeOverviewSettingsPropsFold(settingsItems, nodePath);
+    if (settingsFold) {
+      settingsFold.classList.add("node-navigation-props");
+      hero.appendChild(settingsFold);
+      lastNode = settingsFold;
+    }
   }
 
   return lastNode;
@@ -49805,6 +50447,7 @@ async function fetchFlatStorageSectionSummary(manifestPath, slotKey) {
 }
 
 const topicGeneratedStorageIndexCache = new Map();
+const slotGeneratedStorageIndexCache = new Map();
 
 function resolveStorageSlotSpecFromCounterSlot(slot) {
   if (slot?.spec) return slot.spec;
@@ -49967,8 +50610,83 @@ async function probeTopicStorageIndexExists(topicPath) {
   return Boolean(await resolveExistingTopicStorageIndexRelPath(topicPath));
 }
 
+function escapeStorageIndexTableCell(value) {
+  return String(value || "")
+    .replace(/\|/g, "\\|")
+    .replace(/\n/g, " ")
+    .trim();
+}
+
+function collectStorageSlotIndexEntries(prepared, { excludeIndex = true } = {}) {
+  if (!prepared?.contentFiles?.length) return [];
+  return prepared.contentFiles
+    .filter((item) => {
+      const path = String(item.path || item.relativePath || "").replace(/\\/g, "/");
+      if (!path) return false;
+      const baseName = path.split("/").pop() || path;
+      if (excludeIndex && isStorageSlotIndexFileName(baseName)) return false;
+      if (isSlotNavigationServiceFilePath(path)) return false;
+      if (isMemorySectionInfrastructureFilePath(path)) return false;
+      return true;
+    })
+    .map((item) => {
+      const path = String(item.path || item.relativePath || "").replace(/\\/g, "/");
+      return {
+        path,
+        title: normalizeYamlDisplayString(String(item.title || item.name || path).trim()) || path,
+        description: normalizeYamlDisplayString(String(item.description || "").trim())
+      };
+    })
+    .sort((a, b) => a.path.localeCompare(b.path, "ru"));
+}
+
+function formatStorageIndexEntriesMarkdown(entries, { emptyHint = "_Нет записей._" } = {}) {
+  if (!entries.length) return emptyHint;
+  const lines = ["| Путь | Название | Описание |", "| --- | --- | --- |"];
+  for (const entry of entries) {
+    lines.push(
+      `| \`${escapeStorageIndexTableCell(entry.path)}\` | ${escapeStorageIndexTableCell(entry.title)} | ${escapeStorageIndexTableCell(entry.description) || "—"} |`
+    );
+  }
+  return lines.join("\n");
+}
+
+function buildStorageSlotIndexMarkdown(topicPath, slot = {}) {
+  const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+  const label = slot.label || spec?.label || slot.id || "Слот";
+  const icon = spec?.icon ? `${spec.icon} ` : "";
+  const indexPath = spec ? getStorageSlotIndexWorkspaceRelPath(topicPath, spec) : STORAGE_SLOT_INDEX_FILE;
+  const entries = collectStorageSlotIndexEntries(slot.prepared);
+  const lines = [
+    `# Оглавление — ${icon}${label}`,
+    "",
+    `_Файл индекса слота: \`${indexPath}\`_`,
+    ""
+  ];
+
+  if (slot.hasIndex) {
+    lines.push(
+      "> Ниже — автосборка по файлам слота. В репозитории также может быть свой `index.md`.",
+      ""
+    );
+  } else {
+    lines.push(
+      "> Черновик оглавления по файлам слота. Сохраните как `index.md` в корне папки слота.",
+      ""
+    );
+  }
+
+  lines.push(formatStorageIndexEntriesMarkdown(entries, { emptyHint: "_В слоте пока нет файлов для оглавления._" }));
+  return lines.join("\n");
+}
+
 function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
-  const lines = ["# Оглавление темы", ""];
+  const lines = [
+    "# Оглавление темы",
+    "",
+    `_Общий индекс темы: \`${getTopicStorageIndexRelPath(topicPath)}\`_`,
+    ""
+  ];
   const dataSlots = slots.filter((slot) => {
     const spec = resolveStorageSlotSpecFromCounterSlot(slot);
     return spec && supportsDataEntryOverview(spec.key);
@@ -49983,32 +50701,61 @@ function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
     const spec = resolveStorageSlotSpecFromCounterSlot(slot);
     const label = slot.label || spec?.label || slot.id;
     const icon = spec?.icon ? `${spec.icon} ` : "";
-    const count = Number(slot.count) || 0;
     const indexPath = getStorageSlotIndexWorkspaceRelPath(topicPath, spec);
+    const entries = collectStorageSlotIndexEntries(slot.prepared);
+
     lines.push(`## ${icon}${label}`);
     lines.push("");
     if (slot.hasIndex) {
-      lines.push(`- Индекс слота: \`${indexPath}\``);
+      lines.push(`Индекс слота: \`${indexPath}\` · записей: ${entries.length}`, "");
     } else {
-      lines.push(`- Индекс слота: \`${indexPath}\` _(ещё не создан)_`);
+      lines.push(
+        `Индекс слота: \`${indexPath}\` _(ещё не создан)_ · записей: ${entries.length}`,
+        ""
+      );
     }
-    lines.push(`- Записей: ${count}`);
+    lines.push(
+      formatStorageIndexEntriesMarkdown(entries, {
+        emptyHint: "_В слоте пока нет файлов для оглавления._"
+      })
+    );
     lines.push("");
   }
 
-  const topicIndexPath = getTopicStorageIndexRelPath(topicPath);
   lines.push(
     "---",
     "",
-    `> Общее оглавление темы: \`${topicIndexPath}\`.`,
-    `> Индекс каждого слота: \`${STORAGE_SLOT_INDEX_FILE}\` в корне папки слота.`
+    `Каждый слот может иметь свой \`${STORAGE_SLOT_INDEX_FILE}\` в корне папки слота.`,
+    "Общий индекс собирается из содержимого слотов: путь, название, описание."
   );
   return lines.join("\n");
 }
 
-function openStorageSlotIndexOverview(topicPath, spec) {
+function openStorageSlotIndexGeneratedOverview(topicPath, spec, slot = null) {
   const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
   if (!memoryKind) return;
+  const manifestPath = getOverviewNodeApiPath(topicPath);
+  const markdown = buildStorageSlotIndexMarkdown(topicPath, { ...slot, spec });
+  if (manifestPath && spec?.key) {
+    slotGeneratedStorageIndexCache.set(`${manifestPath}:${spec.key}`, markdown);
+  }
+  void openEntryOverviewFromNavigation({
+    relPath: getStorageSlotIndexWorkspaceRelPath(topicPath, spec),
+    memoryKind: "slot-index-generated",
+    relativePath: getStorageSlotIndexRelativePath(),
+    title: `Индекс — ${spec.label || resolveDataStorageSlotDisplayLabel(memoryKind)}`,
+    entryKind: "awn.topic.slot-index.generated",
+    slotKey: spec.key
+  });
+}
+
+function openStorageSlotIndexOverview(topicPath, spec, slot = null) {
+  const memoryKind = getEntryOverviewMemoryKindForSlot(spec);
+  if (!memoryKind) return;
+  if (!slot?.hasIndex) {
+    openStorageSlotIndexGeneratedOverview(topicPath, spec, slot);
+    return;
+  }
   const relativePath = getStorageSlotIndexRelativePath();
   const title = `Индекс — ${spec.label || resolveDataStorageSlotDisplayLabel(memoryKind)}`;
 
@@ -51210,20 +51957,24 @@ function renderEmbeddedTopicKnowledgeMindmap(container, context) {
 
   const shell = document.createElement("div");
   shell.className = "node-navigation-elements-nav-mindmap-shell";
-  shell.appendChild(createEmbeddedMindmapLayoutBarElement(rerender));
 
   const host = document.createElement("div");
   host.className = "node-navigation-elements-nav-mindmap-host";
   shell.appendChild(host);
   container.appendChild(shell);
 
+  let viewportApi = null;
   const activeResolved = normalizeMenuNodePath(getResolvedNodePath(activePath));
   renderMindmapTreeCanvas(host, tree, {
     collapsedIds: nodeOverviewEmbeddedMindmapCollapsedIds,
     activeTarget: activeResolved,
     onNodeClick: (node) => handleTopicKnowledgeNodeClick(node, context.nodePath),
-    onRerender: rerender
+    onRerender: rerender,
+    onViewportReady: (api) => {
+      viewportApi = api;
+    }
   });
+  appendEmbeddedMindmapControls(host, rerender, () => viewportApi);
 }
 
 function readNodeNavigationTopicOverviewView() {
@@ -51366,6 +52117,69 @@ function buildNavigationSubsectionsBody(childEntries) {
   return body;
 }
 
+function openTopicKnowledgeNavigationPopout(context, view = "graph") {
+  const activeView = view === "mindmap" ? "mindmap" : "graph";
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay topic-knowledge-nav-popout";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Навигация по элементам темы");
+
+  const card = document.createElement("div");
+  card.className = "topic-knowledge-nav-popout-card";
+
+  const head = document.createElement("div");
+  head.className = "topic-knowledge-nav-popout-head";
+
+  const title = document.createElement("h3");
+  title.className = "topic-knowledge-nav-popout-title";
+  title.textContent =
+    activeView === "mindmap" ? "Карта знаний темы" : "Граф знаний темы";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "topic-knowledge-nav-popout-close";
+  closeBtn.textContent = "×";
+  closeBtn.title = "Закрыть";
+  closeBtn.setAttribute("aria-label", "Закрыть");
+
+  head.append(title, closeBtn);
+
+  const body = document.createElement("div");
+  body.className = "topic-knowledge-nav-popout-body";
+
+  card.append(head, body);
+  overlay.appendChild(card);
+
+  const close = () => {
+    overlay.remove();
+    if (!document.querySelector(".modal-overlay:not(.hidden)")) {
+      document.body.classList.remove("modal-open");
+    }
+  };
+
+  closeBtn.addEventListener("click", close);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) close();
+  });
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") close();
+  });
+
+  document.body.appendChild(overlay);
+  document.body.classList.add("modal-open");
+
+  if (activeView === "mindmap") {
+    renderEmbeddedTopicKnowledgeMindmap(body, context);
+    return;
+  }
+
+  const graphHost = document.createElement("div");
+  graphHost.className = "topic-knowledge-nav-popout-graph-host";
+  body.appendChild(graphHost);
+  renderEmbeddedTopicKnowledgeGraph(graphHost, context);
+}
+
 function renderNodeNavigationElementsNavAccordion({
   childEntries = [],
   nodePath,
@@ -51387,6 +52201,21 @@ function renderNodeNavigationElementsNavAccordion({
   const summary = document.createElement("summary");
   summary.className = "doc-links-accordion-summary node-navigation-elements-nav-summary";
 
+  const toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "doc-links-accordion-toggle nav-book-toc-folder-toggle";
+  toggleBtn.setAttribute("aria-expanded", details.open ? "true" : "false");
+  toggleBtn.setAttribute("aria-label", details.open ? "Свернуть блок" : "Развернуть блок");
+  const toggleChevron = document.createElement("span");
+  toggleChevron.className = "nav-book-toc-folder-chevron";
+  toggleChevron.setAttribute("aria-hidden", "true");
+  toggleBtn.appendChild(toggleChevron);
+  toggleBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    details.open = !details.open;
+  });
+
   const summaryMain = document.createElement("span");
   summaryMain.className = "doc-links-accordion-summary-main";
 
@@ -51400,14 +52229,6 @@ function renderNodeNavigationElementsNavAccordion({
   count.className = "doc-links-accordion-count";
   count.textContent = String(itemCount);
 
-  summary.append(summaryMain, count);
-
-  const body = document.createElement("div");
-  body.className = "node-navigation-elements-nav-body doc-links-accordion-body";
-
-  const toolbar = document.createElement("div");
-  toolbar.className = "node-navigation-elements-nav-toolbar";
-
   const viewSelect = document.createElement("select");
   viewSelect.className = "node-navigation-elements-nav-view-select";
   viewSelect.setAttribute("aria-label", "Вид навигации по теме");
@@ -51420,8 +52241,26 @@ function renderNodeNavigationElementsNavAccordion({
     option.textContent = label;
     viewSelect.appendChild(option);
   }
-  toolbar.appendChild(viewSelect);
-  body.appendChild(toolbar);
+  for (const eventName of ["mousedown", "click"]) {
+    viewSelect.addEventListener(eventName, (event) => event.stopPropagation());
+  }
+
+  const popoutBtn = document.createElement("button");
+  popoutBtn.type = "button";
+  popoutBtn.className = "node-navigation-elements-nav-popout-btn";
+  popoutBtn.textContent = "↗";
+  popoutBtn.title = "Открыть в новом окне";
+  popoutBtn.setAttribute("aria-label", "Открыть навигацию в новом окне");
+  popoutBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openTopicKnowledgeNavigationPopout(knowledgeContext, viewSelect.value);
+  });
+
+  summary.append(toggleBtn, summaryMain, count, viewSelect, popoutBtn);
+
+  const body = document.createElement("div");
+  body.className = "node-navigation-elements-nav-body doc-links-accordion-body";
 
   const panelsWrap = document.createElement("div");
   panelsWrap.className = "node-navigation-elements-nav-panels";
@@ -51474,6 +52313,8 @@ function renderNodeNavigationElementsNavAccordion({
 
   details.addEventListener("toggle", () => {
     writeNodeNavigationTopicOverviewOpen(details.open);
+    toggleBtn.setAttribute("aria-expanded", details.open ? "true" : "false");
+    toggleBtn.setAttribute("aria-label", details.open ? "Свернуть блок" : "Развернуть блок");
     if (!details.open) return;
     if (viewSelect.value === "graph") ensureGraphRendered();
     if (viewSelect.value === "mindmap") ensureMindmapRendered();
@@ -53709,7 +54550,7 @@ async function fetchEntryOverviewBody(context) {
 }
 
 async function fetchEntryOverviewBodyResult(context) {
-  if (!context?.relativePath && context?.memoryKind !== "topic-index-generated") {
+  if (!context?.relativePath && !["topic-index-generated", "slot-index-generated"].includes(context?.memoryKind)) {
     return { content: "", ok: false };
   }
   try {
@@ -53728,6 +54569,23 @@ async function fetchEntryOverviewBodyResult(context) {
       const cachedSlots = entryOverviewSlotCountersCache.get(manifestPath) || [];
       return {
         content: buildTopicStorageIndexMarkdown(getResolvedNodePath(activePath), cachedSlots),
+        ok: true
+      };
+    }
+    if (context.memoryKind === "slot-index-generated") {
+      const manifestPath = getActiveNodeApiPath();
+      const slotKey = context.slotKey || getDataStorageSlotKeyForEntryView() || "";
+      const cacheKey = `${manifestPath}:${slotKey}`;
+      const cached = slotGeneratedStorageIndexCache.get(cacheKey);
+      if (cached) return { content: cached, ok: true };
+      const cachedSlots = entryOverviewSlotCountersCache.get(manifestPath) || [];
+      const slot =
+        cachedSlots.find((item) => item.id === slotKey) ||
+        cachedSlots.find((item) => item.spec?.key === slotKey) ||
+        null;
+      const spec = slot?.spec || resolveStorageSlotSpecByCounterKey(slotKey);
+      return {
+        content: buildStorageSlotIndexMarkdown(getResolvedNodePath(activePath), { ...slot, spec }),
         ok: true
       };
     }
@@ -54764,7 +55622,7 @@ async function appendEntryOverviewRecordPartsPanel(hero, context, mount = hero, 
     host.querySelector(".node-navigation-hero-instruction-fold") ||
     [
       ...host.querySelectorAll(
-        ".node-overview-props-fold:not(.node-entry-overview-record-parts-fold), .node-overview-custom-props-fold"
+        ".node-overview-props-fold:not(.node-entry-overview-record-parts-fold), .node-overview-custom-props-fold, .node-overview-settings-props-fold"
       )
     ].pop() ||
     host.querySelector(".node-navigation-hero-footer") ||
@@ -54852,7 +55710,7 @@ function appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody) {
   const anchor =
     [
       ...hero.querySelectorAll(
-        ".node-overview-props-fold, .node-overview-custom-props-fold, .node-navigation-hero-instruction-fold, .node-entry-overview-tags"
+        ".node-overview-props-fold, .node-overview-custom-props-fold, .node-overview-settings-props-fold, .node-navigation-hero-instruction-fold, .node-entry-overview-tags"
       )
     ].pop() ||
     null;
@@ -55508,6 +56366,7 @@ async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
       tone,
       title,
       hasIndex: false,
+      prepared,
       assetsPreview: spec.key === "assets" && assetsPreviewFilled ? assetsPreview : null
     };
   });
@@ -55923,15 +56782,16 @@ function syncWorkspaceCounterIndexButton(indexBtn, slot) {
 
   const hasIndex = Boolean(slot.hasIndex);
   const memoryKind = spec ? getEntryOverviewMemoryKindForSlot(spec) : null;
-  indexBtn.disabled = !hasIndex;
+  indexBtn.disabled = false;
   indexBtn.classList.toggle("is-available", hasIndex);
-  indexBtn.classList.toggle("is-missing", !hasIndex);
+  indexBtn.classList.toggle("is-generated", !hasIndex);
+  indexBtn.classList.toggle("is-missing", false);
   if (hasIndex) {
     indexBtn.title = `Открыть ${STORAGE_SLOT_INDEX_FILE} — оглавление слота`;
   } else if (isBundleEntryOverviewMemoryKind(memoryKind)) {
-    indexBtn.title = `${STORAGE_SLOT_INDEX_FILE} не найден рядом с ${spec?.bundleFile || "файлом слота"}`;
+    indexBtn.title = `Собрать оглавление слота (или создайте ${STORAGE_SLOT_INDEX_FILE} рядом с ${spec?.bundleFile || "файлом слота"})`;
   } else {
-    indexBtn.title = `${STORAGE_SLOT_INDEX_FILE} не найден в корне слота`;
+    indexBtn.title = `Собрать оглавление слота (или создайте ${STORAGE_SLOT_INDEX_FILE} в корне слота)`;
   }
 }
 
@@ -56044,11 +56904,8 @@ function createWorkspaceCounterIndexButton(slot, topicPath) {
   btn.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    if (!spec || !slot.hasIndex) {
-      showToast(`${STORAGE_SLOT_INDEX_FILE} не найден в этом слоте`, "info");
-      return;
-    }
-    openStorageSlotIndexOverview(topicPath || getResolvedNodePath(activePath), spec);
+    if (!spec) return;
+    openStorageSlotIndexOverview(topicPath || getResolvedNodePath(activePath), spec, slot);
   });
   return btn;
 }
@@ -56061,8 +56918,37 @@ function createWorkspaceCounterCard(slot, { isActive = false, topicPath = null, 
   }
 
   const mainBtn = renderEntryOverviewWorkspaceCounterButton(slot, { isActive, onClick });
-  card.append(mainBtn, createWorkspaceCounterIndexButton(slot, topicPath));
+  card.append(mainBtn);
   return card;
+}
+
+async function refreshTopicStorageIndexOverview(topicPath, slots = []) {
+  const manifestPath = getOverviewNodeApiPath(topicPath);
+  if (!manifestPath) return;
+
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/content-index"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: manifestPath, overwrite: true })
+    });
+    if (response.ok) {
+      await openTopicStorageIndexOverview(topicPath, slots);
+      return;
+    }
+  } catch {
+    /* fall back to generated preview */
+  }
+
+  const markdown = buildTopicStorageIndexMarkdown(topicPath, slots);
+  topicGeneratedStorageIndexCache.set(manifestPath, markdown);
+  void openEntryOverviewFromNavigation({
+    relPath: getTopicStorageIndexRelPath(topicPath),
+    memoryKind: "topic-index-generated",
+    relativePath: getTopicStorageIndexRelPath(topicPath),
+    title: "Оглавление темы",
+    entryKind: "awn.topic.storage-index.generated"
+  });
 }
 
 function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
@@ -56073,21 +56959,43 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
   });
   if (!dataSlots.length) return;
 
-  let footer = wrap.querySelector(".node-navigation-workspace-counter-topic-index");
+  let row = wrap.querySelector(".node-navigation-workspace-counter-topic-index-row");
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "node-navigation-workspace-counter-topic-index-row";
+    wrap.appendChild(row);
+  }
+
+  let footer = row.querySelector(".node-navigation-workspace-counter-topic-index");
   if (!footer) {
     footer = document.createElement("button");
     footer.type = "button";
     footer.className = "node-navigation-workspace-counter-topic-index";
-    wrap.appendChild(footer);
+    row.appendChild(footer);
   }
 
-  const hasTopicReadme = wrap.dataset.topicHasIndex === "1";
-  footer.textContent = "Индекс (оглавление) общий";
-  footer.classList.toggle("is-available", hasTopicReadme);
-  footer.classList.toggle("is-generated", !hasTopicReadme);
-  footer.title = hasTopicReadme
-    ? `Открыть ${getTopicStorageIndexRelPath(topicPath)}`
-    : `Собрать общее оглавление темы (или создайте ${STORAGE_ROOT_FOLDER}/${STORAGE_SLOT_INDEX_FILE})`;
+  let refreshBtn = row.querySelector(".node-navigation-workspace-counter-topic-index-refresh");
+  if (!refreshBtn) {
+    refreshBtn = document.createElement("button");
+    refreshBtn.type = "button";
+    refreshBtn.className = "node-navigation-workspace-counter-topic-index-refresh";
+    refreshBtn.textContent = "⟲";
+    refreshBtn.setAttribute("aria-label", "Обновить оглавление");
+    refreshBtn.title = "Обновить общее оглавление темы";
+    row.appendChild(refreshBtn);
+  }
+
+  const syncTopicIndexFooterState = () => {
+    const hasTopicReadme = wrap.dataset.topicHasIndex === "1";
+    footer.textContent = "Индекс (оглавление) общий";
+    footer.classList.toggle("is-available", hasTopicReadme);
+    footer.classList.toggle("is-generated", !hasTopicReadme);
+    footer.title = hasTopicReadme
+      ? `Открыть ${getTopicStorageIndexRelPath(topicPath)}`
+      : `Собрать общее оглавление темы (или создайте ${STORAGE_ROOT_FOLDER}/${STORAGE_SLOT_INDEX_FILE})`;
+  };
+
+  syncTopicIndexFooterState();
 
   footer.onclick = (event) => {
     event.preventDefault();
@@ -56095,14 +57003,23 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
     void openTopicStorageIndexOverview(topicPath, slots);
   };
 
+  refreshBtn.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void refreshTopicStorageIndexOverview(topicPath, slots).then(() => {
+      if (!wrap.isConnected) return;
+      void probeTopicStorageIndexExists(topicPath).then((exists) => {
+        if (!wrap.isConnected) return;
+        wrap.dataset.topicHasIndex = exists ? "1" : "0";
+        syncTopicIndexFooterState();
+      });
+    });
+  };
+
   void probeTopicStorageIndexExists(topicPath).then((exists) => {
     if (!wrap.isConnected) return;
     wrap.dataset.topicHasIndex = exists ? "1" : "0";
-    footer.classList.toggle("is-available", exists);
-    footer.classList.toggle("is-generated", !exists);
-    footer.title = exists
-      ? `Открыть ${getTopicStorageIndexRelPath(topicPath)}`
-      : `Собрать общее оглавление темы (или создайте ${STORAGE_ROOT_FOLDER}/${STORAGE_SLOT_INDEX_FILE})`;
+    syncTopicIndexFooterState();
   });
 }
 
@@ -57710,6 +58627,7 @@ async function renderEntryOverview() {
             ? null
             : createEntryOverviewThumbWrap(context, preview, title, entries),
           showHeroInstruction: false,
+          showSettingsProps: false,
           showUnread: showHeroUnread,
           onEditClick: () => openEntryOverviewEdit(context),
           entryOverviewNav,
@@ -66388,6 +67306,9 @@ async function renderNodeNavigation() {
     if (isStale()) return;
   }
 
+  await ensureTopicSchemaForActiveContext().catch(() => null);
+  if (isStale()) return;
+
   await ensureNavigationManifestCached();
   if (isStale()) return;
 
@@ -66416,7 +67337,8 @@ async function renderNodeNavigation() {
     preview,
     nodeMeta,
     mediaData,
-    assetsData
+    assetsData,
+    nodeConfigPayload
   ] = await Promise.all(
     isInlineNavHub
       ? [
@@ -66427,7 +67349,8 @@ async function renderNodeNavigation() {
           fetchNodeOverviewPreview(nodePath, entries),
           fetchNodeNavigationMeta(nodePath),
           Promise.resolve(null),
-          Promise.resolve(null)
+          Promise.resolve(null),
+          loadNodeConfig(nodePath).catch(() => null)
         ]
       : [
           fetchInternalMemoryForNavigation(nodePath),
@@ -66439,9 +67362,13 @@ async function renderNodeNavigation() {
           slotsDisabled ? Promise.resolve(null) : fetchMediaOverview(nodePath),
           slotsDisabled
             ? Promise.resolve(null)
-            : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
+            : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null),
+          loadNodeConfig(nodePath).catch(() => null)
         ]
   );
+  const configSettingsEntries = nodeConfigPayload?.content
+    ? parseNodeConfigContent(nodeConfigPayload.content).entries
+    : [];
   Object.assign(navigationPrefetch, {
     internalData,
     externalData,
@@ -66479,6 +67406,7 @@ async function renderNodeNavigation() {
   const hero = createNavigationHero(preview, heroTitle, nodePath, {
     meta: nodeMeta,
     propEntries: entries,
+    configSettingsEntries,
     descriptionRaw: modeContentCache.description || "",
     typeLabel: topicTypeLabel,
     showHeroInstruction: true,
@@ -66807,12 +67735,17 @@ async function renderNodeOverview() {
   ).trim();
   const isOverviewArea = isAreaNodePath(activePath);
   const nodePathResolved = getResolvedNodePath(activePath);
-  const [preview, memorySummaryForSlots, mediaOverviewForSlots, todoDataForSlots] = await Promise.all([
-    fetchNodeOverviewPreview(),
-    fetchMemorySummary(nodePathResolved),
-    isOverviewArea ? null : fetchMediaOverview(nodePathResolved),
-    fetchTodoForOverview(nodePathResolved)
-  ]);
+  const [preview, memorySummaryForSlots, mediaOverviewForSlots, todoDataForSlots, nodeConfigPayload] =
+    await Promise.all([
+      fetchNodeOverviewPreview(),
+      fetchMemorySummary(nodePathResolved),
+      isOverviewArea ? null : fetchMediaOverview(nodePathResolved),
+      fetchTodoForOverview(nodePathResolved),
+      loadNodeConfig(nodePathResolved).catch(() => null)
+    ]);
+  const configSettingsEntries = nodeConfigPayload?.content
+    ? parseNodeConfigContent(nodeConfigPayload.content).entries
+    : [];
   if (isStale()) return;
 
   const slotStripGroups = buildNodeSlotStripGroups({
@@ -66893,7 +67826,7 @@ async function renderNodeOverview() {
 
   heroMain.append(thumbWrap, head);
   hero.appendChild(heroMain);
-  appendNavigationHeroProps(hero, entries);
+  appendNavigationHeroProps(hero, entries, { configSettingsEntries, nodePath: nodePathResolved });
   appendNavigationHeroTags(hero, entries);
   fragment.appendChild(hero);
 
@@ -68681,7 +69614,19 @@ function toggleEditorLineNumbers() {
 }
 
 function shouldUseEditorAutoHeight() {
-  return editorViewMode === "wysiwyg";
+  return editorViewMode === "wysiwyg" || editorViewMode === "preview" || editorViewMode === "source";
+}
+
+function getEditorAutoHeightScrollHostTarget() {
+  if (!workspacePaneNode || !shouldUseEditorAutoHeight()) return null;
+  const editorSurface = workspacePaneNode.querySelector(".doc-slab-main > .editor-surface");
+  if (!editorSurface || editorSurface.classList.contains("hidden")) return null;
+  return (
+    editorSurface.querySelector("#editor-wysiwyg-wrap:not(.hidden)") ||
+    editorSurface.querySelector("#file-content-preview:not(.hidden)") ||
+    editorSurface.querySelector("#editor-code-wrap:not(.hidden)") ||
+    editorSurface
+  );
 }
 
 function getWysiwygProseMirrorRoot() {
@@ -71325,7 +72270,7 @@ function collectMenuSearchEntries(menu, agentId = activeAgentId) {
     ...collectAgentMenuFlatEntries(menu, agentId, { includeHiddenSections: true }),
     ...collectSystemFileMenuEntries(systemFilesCache)
   ];
-  if (menu.systemTree) {
+  if (menu.systemTree && shouldShowAgentSystemSectionInMenu(agentId)) {
     entries.push(
       ...collectFlatMenuEntries(
         pruneMenuTreeForDisplay({ title: AGENT_SYSTEM_SECTION_LABEL, ...menu.systemTree }, agentId),
@@ -71444,6 +72389,10 @@ function shouldShowSharedSectionInMenu(agentId = activeAgentId) {
   const pinnedPath = getPinnedMenuFolderForTree(agentId);
   if (!pinnedPath) return true;
   return isPinnedInsideSharedFolder(agentId);
+}
+
+function shouldShowAgentSystemSectionInMenu(agentId = activeAgentId) {
+  return TYPE_CATALOG_OVERVIEW_AGENT_IDS.has(String(agentId || "").trim());
 }
 
 function clearMenuServiceSection(parentEl) {
@@ -72849,8 +73798,8 @@ function hasVisibleKitSection(menu, agentId = activeAgentId) {
   return Boolean(menu?.serviceTree && shouldShowServiceSectionInMenu(agentId));
 }
 
-function hasVisibleAgentSystemSection(menu) {
-  return Boolean(menu?.systemTree);
+function hasVisibleAgentSystemSection(menu, agentId = activeAgentId) {
+  return Boolean(menu?.systemTree && shouldShowAgentSystemSectionInMenu(agentId));
 }
 
 function hasVisibleConfigurationSection(menu) {
@@ -72860,7 +73809,7 @@ function hasVisibleConfigurationSection(menu) {
 function renderRootMenuReservedSections(menu, parentEl, agentId = activeAgentId) {
   if (!parentEl) return;
 
-  if (menu?.systemTree) {
+  if (menu?.systemTree && shouldShowAgentSystemSectionInMenu(agentId)) {
     renderAgentSystemSection(menu.systemTree, parentEl, agentId);
   } else {
     clearMenuAgentSystemSection(parentEl);
@@ -85742,6 +86691,11 @@ function getWorkspaceScrollContext() {
   );
   if (overview) return { scrollElement: overview, hostTarget: overview };
 
+  const autoHeightHostTarget = getEditorAutoHeightScrollHostTarget();
+  if (autoHeightHostTarget) {
+    return { scrollElement: workspacePaneNode, hostTarget: autoHeightHostTarget };
+  }
+
   if (fileContentPreviewNode && !fileContentPreviewNode.classList.contains("hidden")) {
     return { scrollElement: fileContentPreviewNode, hostTarget: fileContentPreviewNode };
   }
@@ -87987,8 +88941,14 @@ storageSectionsPanelToggleNode?.addEventListener("change", () => {
   setStorageSectionsPanelVisible(storageSectionsPanelToggleNode.checked);
 });
 document.addEventListener("click", (event) => {
-  const layoutBtn = event.target.closest(".mindmap-layout-btn[data-mindmap-layout]");
-  if (!layoutBtn || layoutBtn.closest(".mindmap-view-bar--embedded")) return;
+  const layoutBtn = event.target.closest("[data-mindmap-layout]");
+  if (
+    !layoutBtn ||
+    layoutBtn.closest(".mindmap-view-bar--embedded") ||
+    layoutBtn.closest(".node-mindmap-controls")
+  ) {
+    return;
+  }
   applyMindmapLayout(layoutBtn.dataset.mindmapLayout || "horizontal");
 });
 syncMindmapLayoutUi();

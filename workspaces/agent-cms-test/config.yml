@@ -1,0 +1,6 @@
+# Agent CMS — конфигурация
+
+awn_settings:
+  awn-mask-file: ""
+  ws-setting-1: Настройка 1
+  ws-setting-2: настройка 2

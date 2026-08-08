@@ -9,7 +9,7 @@ awn_schema:
         name: AREA - 1
       area-field_2:
         type: awn.field.string
-        name: AREA - 2
+        name: AREA - 1
   settings:
     fields:
       area-setting-1:

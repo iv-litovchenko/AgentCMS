@@ -25,6 +25,7 @@ const { createScriptExecService } = require("./script-exec-service");
 const { createWebSearchService } = require("./web-search-service");
 const { createIdentityService } = require("./identity-service");
 const { createDocumentExtractService } = require("./document-extract-service");
+const { buildWorkspacePathResolvePayload } = require("./workspace-path-resolver");
 const {
   createSidecarService,
   toSidecarRelativePath,
@@ -7371,13 +7372,11 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
       );
     }
 
-    if (agentSystemExists(agentRootAbsolute)) {
+    const coreRootAbsolute = getAgentCmsCoreAbsolute(getProjectRoot());
+    const isPlatformCoreAgent =
+      path.resolve(agentRootAbsolute) === path.resolve(coreRootAbsolute);
+    if (isPlatformCoreAgent && agentSystemExists(agentRootAbsolute)) {
       systemTree = await buildAgentSystemMenuTree(agentRootAbsolute, getProjectRoot());
-    } else {
-      const coreRoot = getAgentCmsCoreAbsolute(getProjectRoot());
-      if (agentSystemExists(coreRoot)) {
-        systemTree = await buildAgentSystemMenuTree(coreRoot, getProjectRoot());
-      }
     }
 
     enrichMenuTreeRuntimeRollup(menu);
@@ -9752,6 +9751,277 @@ async function buildAgentPageMap(options = {}) {
 }
 
 const CONTENT_MAP_DEDICATED_SLOTS = new Set(["dialogs", "thread", "comments", "history", "temp", "volume"]);
+const STORAGE_SLOT_INDEX_FILE = "index.md";
+
+function mapItemsToContentIndexEntries(items = []) {
+  return (items || [])
+    .filter((item) => {
+      const ref = String(item?.ref || "").replace(/\\/g, "/").trim();
+      const baseName = ref.split("/").pop() || ref;
+      if (baseName.toLowerCase() === STORAGE_SLOT_INDEX_FILE.toLowerCase()) return false;
+      if (item?.kind === "file" && !String(item?.title || "").trim()) return false;
+      return Boolean(ref || item?.title);
+    })
+    .map((item) => ({
+      path: String(item.ref || "").replace(/\\/g, "/"),
+      title: String(item.title || item.ref || "").trim(),
+      description: String(item.description || "").trim()
+    }))
+    .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
+}
+
+function getTopicStorageIndexRelPath(manifestRelPath) {
+  const slotDir = getNamedStorageSlotDirRel(manifestRelPath, getStoragePathOptions());
+  const normalized = String(slotDir || "").replace(/\\/g, "/").trim();
+  return normalized ? `${normalized}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
+}
+
+function getSlotStorageIndexRelPath(manifestRelPath, slotKey, storageFolder, driver) {
+  const { slotKeyToStorageFolder, isExternalMemorySlot, isInternalBundleSlot } = require("./storage-slot-routing");
+  const slotDir = String(getNamedStorageSlotDirRel(manifestRelPath, getStoragePathOptions()) || "")
+    .replace(/\\/g, "/")
+    .trim();
+  const normalizedSlotKey = String(slotKey || "").trim();
+  const folder = String(storageFolder || slotKeyToStorageFolder(normalizedSlotKey) || "").trim();
+
+  if (isInternalBundleSlot(normalizedSlotKey)) {
+    return getNamedStorageBundleRel(manifestRelPath, STORAGE_SLOT_INDEX_FILE);
+  }
+  if (isExternalMemorySlot(normalizedSlotKey) || driver === "external") {
+    return slotDir ? `${slotDir}/${STORAGE_SUBFOLDER_CONTENT}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
+  }
+  if (folder && slotDir) {
+    return `${slotDir}/${folder}/${STORAGE_SLOT_INDEX_FILE}`;
+  }
+  return slotDir ? `${slotDir}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
+}
+
+async function workspaceRelFileExists(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!normalized) return false;
+  const absolute = normalizeWorkspacePath(normalized);
+  if (!absolute) return false;
+  return fileExists(absolute);
+}
+
+function escapeContentIndexTableCell(value) {
+  return String(value || "")
+    .replace(/\|/g, "\\|")
+    .replace(/\n/g, " ")
+    .trim();
+}
+
+function formatContentIndexEntriesMarkdown(entries, { emptyHint = "_Нет записей._" } = {}) {
+  if (!entries?.length) return emptyHint;
+  const lines = ["| Путь | Название | Описание |", "| --- | --- | --- |"];
+  for (const entry of entries) {
+    lines.push(
+      `| \`${escapeContentIndexTableCell(entry.path)}\` | ${escapeContentIndexTableCell(entry.title)} | ${escapeContentIndexTableCell(entry.description) || "—"} |`
+    );
+  }
+  return lines.join("\n");
+}
+
+function buildSlotContentIndexMarkdown({ slotKey, slotLabel, indexPath, entries }) {
+  const label = String(slotLabel || slotKey || "Слот").trim();
+  return [
+    `# Оглавление — ${label}`,
+    "",
+    `_Файл индекса слота: \`${indexPath}\`_`,
+    "",
+    "> Сгенерировано автоматически из файлов слота.",
+    "",
+    formatContentIndexEntriesMarkdown(entries, {
+      emptyHint: "_В слоте пока нет файлов для оглавления._"
+    })
+  ].join("\n");
+}
+
+function buildTopicContentIndexMarkdown({ topicIndexPath, slots }) {
+  const lines = [
+    "# Оглавление темы",
+    "",
+    `_Общий индекс темы: \`${topicIndexPath}\`_`,
+    "",
+    "> Сгенерировано автоматически из содержимого слотов.",
+    ""
+  ];
+
+  for (const slotRow of slots) {
+    lines.push(`## ${slotRow.slot}`);
+    lines.push("");
+    lines.push(
+      `Индекс слота: \`${slotRow.indexFile.path}\` · записей: ${slotRow.entryCount}`,
+      ""
+    );
+    lines.push(
+      formatContentIndexEntriesMarkdown(slotRow.entries, {
+        emptyHint: "_В слоте пока нет файлов для оглавления._"
+      })
+    );
+    lines.push("");
+  }
+
+  lines.push(
+    "---",
+    "",
+    `Каждый слот может иметь свой \`${STORAGE_SLOT_INDEX_FILE}\` в корне папки слота.`
+  );
+  return lines.join("\n");
+}
+
+async function buildAgentContentIndex(manifestRelPath, options = {}) {
+  const mapPayload = await buildAgentContentMap(manifestRelPath, { slot: options.slot || undefined });
+  if (mapPayload.error) return mapPayload;
+
+  const scope = options.slot ? "slot" : "topic";
+  const topicIndexPath = getTopicStorageIndexRelPath(mapPayload.path);
+  const topicIndexExists = await workspaceRelFileExists(topicIndexPath);
+
+  const slots = [];
+  for (const slotRow of mapPayload.slots || []) {
+    if (CONTENT_MAP_DEDICATED_SLOTS.has(slotRow.slot)) continue;
+    const entries = mapItemsToContentIndexEntries(slotRow.items);
+    const storageFolder =
+      slotRow.driver === "external"
+        ? STORAGE_SUBFOLDER_CONTENT
+        : require("./storage-slot-routing").slotKeyToStorageFolder(slotRow.slot);
+    const slotIndexPath = getSlotStorageIndexRelPath(
+      mapPayload.path,
+      slotRow.slot,
+      storageFolder,
+      slotRow.driver
+    );
+    const slotIndexExists = await workspaceRelFileExists(slotIndexPath);
+    slots.push({
+      slot: slotRow.slot,
+      driver: slotRow.driver,
+      indexFile: {
+        path: slotIndexPath,
+        exists: slotIndexExists,
+        source: slotIndexExists ? "file" : "generated"
+      },
+      entries,
+      entryCount: entries.length
+    });
+  }
+
+  const entryCount = slots.reduce((sum, row) => sum + (row.entryCount || 0), 0);
+
+  return {
+    version: 1,
+    model: "content-index",
+    hint:
+      "Быстрое оглавление (path, title, description) без body и без properties. " +
+      "Для полной карты с meta → get_content_map. Для текста записи → read_content_body.",
+    whenToUse: {
+      get_content_index:
+        "Быстрый обзор темы/слота без погружения: оглавление как index.md (путь, название, описание).",
+      write_content_index:
+        "Сформировать и сохранить index.md на диск (таблица path/title/description). Сначала get_content_index для preview.",
+      get_content_map:
+        "Планирование правок: все meta по слотам (properties, tags, status), но без body.",
+      read_content_body: "Когда нужен полный текст одной записи."
+    },
+    path: mapPayload.path,
+    awnType: mapPayload.awnType,
+    scope,
+    slot: options.slot || null,
+    indexFile: {
+      path: topicIndexPath,
+      exists: topicIndexExists,
+      source: topicIndexExists ? "file" : "generated"
+    },
+    slots,
+    slotCount: slots.length,
+    entryCount
+  };
+}
+
+async function writeAgentContentIndex(manifestRelPath, options = {}) {
+  const overwrite = options.overwrite !== false;
+  const indexPayload = await buildAgentContentIndex(manifestRelPath, {
+    slot: options.slot || undefined
+  });
+  if (indexPayload.error) return indexPayload;
+
+  const manifestPath = indexPayload.path;
+  const scope = options.slot ? "slot" : "topic";
+  const written = [];
+
+  if (scope === "slot") {
+    const slotRow = indexPayload.slots[0];
+    if (!slotRow) {
+      return { error: `Slot "${options.slot}" not found or has no index`, status: 404 };
+    }
+    if (CONTENT_MAP_DEDICATED_SLOTS.has(slotRow.slot)) {
+      return { error: `Slot "${slotRow.slot}" does not support content index`, status: 400 };
+    }
+    const indexPath = slotRow.indexFile.path;
+    if (slotRow.indexFile.exists && !overwrite) {
+      return {
+        error: "Index file already exists",
+        status: 409,
+        path: manifestPath,
+        indexFile: { path: indexPath, exists: true }
+      };
+    }
+    const markdown = buildSlotContentIndexMarkdown({
+      slotKey: slotRow.slot,
+      slotLabel: slotRow.slot,
+      indexPath,
+      entries: slotRow.entries
+    });
+    await writeWorkspaceTextFileWithHistory(manifestPath, indexPath, markdown);
+    written.push({
+      scope: "slot",
+      slot: slotRow.slot,
+      path: indexPath,
+      created: !slotRow.indexFile.exists,
+      overwritten: Boolean(slotRow.indexFile.exists),
+      entryCount: slotRow.entryCount
+    });
+  } else {
+    const indexPath = indexPayload.indexFile.path;
+    if (indexPayload.indexFile.exists && !overwrite) {
+      return {
+        error: "Topic index file already exists",
+        status: 409,
+        path: manifestPath,
+        indexFile: { path: indexPath, exists: true }
+      };
+    }
+    const markdown = buildTopicContentIndexMarkdown({
+      topicIndexPath: indexPath,
+      slots: indexPayload.slots
+    });
+    await writeWorkspaceTextFileWithHistory(manifestPath, indexPath, markdown);
+    written.push({
+      scope: "topic",
+      path: indexPath,
+      created: !indexPayload.indexFile.exists,
+      overwritten: Boolean(indexPayload.indexFile.exists),
+      entryCount: indexPayload.entryCount,
+      slotCount: indexPayload.slotCount
+    });
+  }
+
+  return {
+    version: 1,
+    model: "content-index-write",
+    hint:
+      "index.md сохранён на диск. Просмотр без записи → get_content_index. Ручная правка текста → read/write_content_body с ref=index.md.",
+    whenToUse: indexPayload.whenToUse,
+    path: manifestPath,
+    scope,
+    slot: options.slot ? indexPayload.slot : null,
+    overwrite,
+    written,
+    indexFile: written[0]
+      ? { path: written[0].path, exists: true, source: "file" }
+      : indexPayload.indexFile
+  };
+}
 
 async function buildInternalSlotMapItems(manifestRelPath, slotKey) {
   const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
@@ -9948,7 +10218,7 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
   return {
     version: 1,
     model: "content-map",
-    hint: "Карта контента страницы: title, description, properties без body. Тело: read_content_body.",
+    hint: "Карта контента страницы: title, description, properties без body. Тело: read_content_body. Быстрое оглавление: get_content_index.",
     path: canonicalRelPath,
     awnType,
     slots,
@@ -9963,6 +10233,7 @@ const SESSION_CONTEXT_API_MAP = {
   activePage: "GET /api/agent/active-context — текущий фокус UI (PAGE→SLOT→CONTENT + mcp hints)",
   activeContext: "GET /api/agent/active-context — alias active-page",
   search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&match=relaxed|strict&limit=",
+  resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
@@ -9974,6 +10245,10 @@ const SESSION_CONTEXT_API_MAP = {
   pageMap:
     "GET /api/agent/page-map?includeSlots=true — карта workspace: manifest-узлы + папки без manifest (kind:folder)",
   contentMap: "GET /api/agent/content-map?path=<manifest.md>&slot= — карта контента страницы (meta, без body)",
+  contentIndex:
+    "GET /api/agent/content-index?path=<manifest.md>&slot= — оглавление index.md (path, title, description; без body/properties)",
+  contentIndexWrite:
+    "POST /api/agent/content-index — сформировать и сохранить index.md (body: path, slot?, overwrite?)",
   dataStores: "GET /api/awn-data — накопители awn-data; ?store= для одного",
   dataStoreCreate: "POST /api/awn-data/stores — создать накопитель",
   dataRecordCreate: "POST /api/awn-data/records — добавить запись",
@@ -13623,6 +13898,21 @@ async function classifySearchResult(relPath) {
   return null;
 }
 
+async function resolveWorkspacePathContext(inputPath) {
+  return buildWorkspacePathResolvePayload(inputPath, {
+    fs,
+    nodePathExists,
+    normalizeWorkspacePath,
+    readNodeFrontmatterContent,
+    getYamlScalar,
+    getAgentRoot,
+    getProjectRoot,
+    loadTypeCatalog,
+    resolveCanonicalTypeId,
+    classifySearchResult
+  });
+}
+
 const MARKDOWN_LINK_AWN_TYPE_LABELS = {
   "awn.topic": "Тема",
   "awn.area": "Область",
@@ -15025,8 +15315,9 @@ async function searchGlobalAcrossAgents(query, agentIds, limit = 50, scope = "co
 
 function normalizeApiPathname(pathname) {
   const path = String(pathname || "");
-  if (path === "/api/file/page-config") return "/api/file/node-config";
+  if (path === "/api/file/page-config" || path === "/api/page/config") return "/api/file/node-config";
   if (path === "/api/file/page-schema") return "/api/file/topic-schema";
+  if (path === "/api/page/env" || path === "/api/file/page-env") return "/api/env";
   if (path === "/api/page/slots" || path === "/api/page/exists") return path;
   if (path.startsWith("/api/content/")) return path;
   if (path.startsWith("/api/page/")) {
@@ -15057,7 +15348,10 @@ function getExistsApi() {
       readTabularMemoryContent,
       resolveExternalFileOpContext,
       resolveStorageFileAbsolute,
-      resolveUploadedMediaFileAbsolute
+      resolveUploadedMediaFileAbsolute,
+      statNodeFileMeta,
+      manifestRelFromAbsolute: (absolute) =>
+        path.relative(getAgentRoot(), absolute).replace(/\\/g, "/")
     });
   }
   return existsApi;
@@ -15356,6 +15650,24 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/content/meta") {
+    const relPath = url.searchParams.get("path");
+    const slot = url.searchParams.get("slot");
+    const ref = url.searchParams.get("ref") || "";
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!slot) return sendJson(res, 400, { error: "Missing slot query parameter" });
+
+    try {
+      const payload = await getExistsApi().getContentMeta(relPath, slot, ref || undefined);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read content meta",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/page-map") {
     try {
       const includeSlots = url.searchParams.get("includeSlots") !== "false";
@@ -15380,6 +15692,65 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read content map",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/content-index") {
+    const relPath = url.searchParams.get("path") || "";
+    const slot = url.searchParams.get("slot") || "";
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const payload = await buildAgentContentIndex(relPath, { slot: slot || undefined });
+      if (payload.error) return sendJson(res, payload.status || 400, { error: payload.error });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read content index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/content-index") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = String(payload.path || url.searchParams.get("path") || "").trim();
+      const slot = String(payload.slot || url.searchParams.get("slot") || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      const result = await writeAgentContentIndex(relPath, {
+        slot: slot || undefined,
+        overwrite: payload.overwrite !== false
+      });
+      if (result.error) {
+        return sendJson(res, result.status || 400, {
+          error: result.error,
+          path: result.path,
+          indexFile: result.indexFile
+        });
+      }
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write content index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/resolve-path") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    if (!relPath) {
+      return sendJson(res, 400, { error: "path is required" });
+    }
+    try {
+      const payload = await resolveWorkspacePathContext(relPath);
+      if (payload.error) return sendJson(res, payload.status || 400, { error: payload.error });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to resolve workspace path",
         details: String(error.message || error)
       });
     }

@@ -4,18 +4,47 @@ layer: topic
 awn_schema:
   topic:
     fields:
-      topic-field_1:
+      topic-field-1:
         type: awn.field.string
-        name: ерк
-      topic-field_2:
+        name: TIPIC - 1
+      topic-field-2:
         type: awn.field.string
-        name: рке
-      topic-field_3:
+        name: TIPIC - 2
+      topic-field-3:
         type: awn.field.string
-        name: рке
+        name: TIPIC - 3
+  slot_memory_category:
+    fields:
+      x-field-1:
+        type: awn.field.string
+        name: MAIN-CAT-1
+      x-field-2:
+        type: awn.field.string
+        name: MAIN-CAT-2
+  slot_memory:
+    fields:
+      x-field-1:
+        type: awn.field.string
+        name: MAIN-RECORD-1
+      x-field-2:
+        type: awn.field.string
+        name: MAIN-RECORD-2
+  slot_memory_sidecar:
+    fields:
+      x-field-1:
+        type: awn.field.string
+        name: MAIN-SIDECAR-1
+      x-field-2:
+        type: awn.field.string
+        name: MAIN-SIDECAR-2
+      x-field-3:
+        type: awn.field.string
+        name: MAIN-SIDECAR-3
   settings:
     fields:
-      field_1:
+      topic-setting-1:
         type: awn.field.string
-      field_2:
+        name: TIPIC SETTING- 1
+      topic-setting-2:
         type: awn.field.string
+        name: TIPIC SETTING- 2

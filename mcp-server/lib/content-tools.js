@@ -80,6 +80,22 @@ async function writeInternalContent(client, pagePath, slot, content, file) {
 
 export function registerContentTools({ reg, client, pagePath }) {
   reg(
+    "content_exists",
+    "Check whether content exists in a slot (internal single-file bundle or external ref).",
+    z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
+    ({ path, slot, ref }) =>
+      client.get("/api/content/exists", { path, slot, ...(ref ? { ref } : {}) })
+  );
+
+  reg(
+    "get_content_meta",
+    "Lightweight content metadata: exists, driver, file stat — no body.",
+    z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
+    ({ path, slot, ref }) =>
+      client.get("/api/content/meta", { path, slot, ...(ref ? { ref } : {}) })
+  );
+
+  reg(
     "read_content_body",
     "Read content body. For .md: markdown below frontmatter. For internal slots: full file content.",
     z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),

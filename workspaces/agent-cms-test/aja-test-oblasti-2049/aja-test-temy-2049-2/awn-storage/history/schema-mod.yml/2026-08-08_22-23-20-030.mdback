@@ -1,0 +1,53 @@
+version: 1
+layer: topic
+
+awn_schema:
+  area:
+    fields:
+      area-field_1:
+        type: awn.field.string
+      area-field_2:
+        type: awn.field.string
+  topic:
+    fields:
+      topic-field_1:
+        type: awn.field.string
+        name: ТЕМА - ПОЛЕ 1
+      topic-field_2:
+        type: awn.field.string
+        name: ТЕМА - ПОЛЕ 4
+  slot_memory_category:
+    fields:
+      x-field_1-MAIN-1:
+        type: awn.field.string
+        name: x-MAIN-1 Раздел
+      x-field_1:
+        type: awn.field.string
+        name: x-MAIN-2 Раздел
+  slot_memory:
+    fields:
+      x-field_1:
+        type: awn.field.string
+        name: Запись Поле в раздел 1
+      x-field_2:
+        type: awn.field.string
+        name: Запись Поле в раздел 2
+      x-field_3:
+        type: awn.field.string
+        name: Запись Поле в раздел 3
+  slot_memory_sidecar:
+    fields:
+      x-field_1:
+        type: awn.field.string
+        name: SIDECAR Поле в раздел 1
+  settings:
+    fields:
+      area-setting-1:
+        type: awn.field.string
+        name: Настрока 1
+      area-setting-2:
+        type: awn.field.string
+        name: Настрока 2
+      area-setting-3:
+        type: awn.field.string
+        name: Настройка 3

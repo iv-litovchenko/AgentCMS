@@ -1,0 +1,14 @@
+version: 1
+layer: topic
+
+awn_schema:
+  topic:
+    fields:
+      topic-field_1:
+        type: awn.field.string
+      topic-field_2:
+        type: awn.field.string
+  settings:
+    fields:
+      topic-setting-1:
+        type: awn.field.string

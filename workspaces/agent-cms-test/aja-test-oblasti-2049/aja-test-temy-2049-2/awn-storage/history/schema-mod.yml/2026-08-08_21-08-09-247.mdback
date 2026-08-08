@@ -1,0 +1,16 @@
+version: 1
+layer: topic
+
+awn_schema:
+  topic:
+    fields:
+      topic-field_1:
+        type: awn.field.string
+        name: Полей 1
+      topic-field_2:
+        type: awn.field.string
+        name: Полей 2
+  settings:
+    fields:
+      topic-setting-1:
+        type: awn.field.string
