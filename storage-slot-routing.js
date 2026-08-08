@@ -90,6 +90,22 @@ function isInternalBundleSlot(raw) {
   return INTERNAL_BUNDLE_SLOT_KEYS.has(normalizeStorageSlotKey(raw));
 }
 
+/** External storage on disk (memory, inbox, media…), not bundle/single-file slots. */
+function isExternalDriverSlot(raw) {
+  const spec = getStorageSlotSpec(raw);
+  if (!spec || spec.disabled) return false;
+  return spec.sectionKind === "external" || spec.sectionKind === "flat" || spec.sectionKind === "media";
+}
+
+function isTopicWideContentIndexSlotRow(slotRow) {
+  if (!slotRow?.slot) return false;
+  if (isInternalBundleSlot(slotRow.slot)) return false;
+  const driver = String(slotRow.driver || "").trim();
+  if (driver === "internal" || driver === "tabular") return false;
+  if (driver === "external") return true;
+  return isExternalDriverSlot(slotRow.slot);
+}
+
 function isStorageFlatSectionFolder(storageFolder) {
   return FLAT_SECTION_STORAGE_FOLDERS.has(String(storageFolder || "").trim());
 }
@@ -169,6 +185,8 @@ module.exports = {
   isExternalMemorySlot,
   isMediaSlotKey,
   isInternalBundleSlot,
+  isExternalDriverSlot,
+  isTopicWideContentIndexSlotRow,
   isStorageFlatSectionFolder,
   listSectionCapableSlotKeys,
   resolveSectionCreateRoute,

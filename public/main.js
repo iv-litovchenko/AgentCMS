@@ -23958,8 +23958,18 @@ function shouldHideNavigationInfrastructureFolder(folderPath, memoryKind = null)
   if (memoryKind === "assets") return false;
   return isMemorySectionInfrastructureFolderPath(folderPath);
 }
-const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "awn-parts-";
-const RECORD_PARTS_PACKAGE_FOLDER_PREFIXES = [RECORD_PARTS_PACKAGE_FOLDER_PREFIX, "parts-"];
+const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "awn-materials-";
+const RECORD_PARTS_PACKAGE_FOLDER_PREFIXES = [
+  RECORD_PARTS_PACKAGE_FOLDER_PREFIX,
+  "awn-parts-",
+  "parts-"
+];
+
+function getRecordMaterialsFolderNamesForSlug(slug) {
+  const normalized = String(slug || "").trim();
+  if (!normalized) return [];
+  return RECORD_PARTS_PACKAGE_FOLDER_PREFIXES.map((prefix) => `${prefix}${normalized}`);
+}
 const RECORD_MATERIALS_UI_LABEL = "Доп материалы";
 const RECORD_MATERIALS_HERO_MARKER_CAPTION = "Доп материалы";
 const RECORD_MATERIALS_ICON_HTML =
@@ -28508,7 +28518,7 @@ function resolveRecordParentWorkspaceFolderPath(context) {
 function pickRecordPartsFolderFromParentListing(folders, parentPath, slug = "") {
   const normalizedSlug = String(slug || "").trim();
   if (!normalizedSlug) return "";
-  const preferredNames = [`awn-parts-${normalizedSlug}`, `parts-${normalizedSlug}`].map((name) =>
+  const preferredNames = getRecordMaterialsFolderNamesForSlug(normalizedSlug).map((name) =>
     name.toLowerCase()
   );
   for (const folder of folders || []) {
@@ -50814,27 +50824,77 @@ async function fetchAgentContentIndexPayload(manifestPath, { slot = "" } = {}) {
 
 function formatAgentContentIndexPayloadAsTopicMarkdown(payload, topicPath, slots = []) {
   const lines = ["# Оглавление темы", ""];
-
   const slotRows = Array.isArray(payload?.slots) ? payload.slots : [];
-  if (!slotRows.length) {
-    lines.push("_Нет слотов данных для оглавления._");
+  const entries = mergeTopicContentIndexEntriesFromPayloadSlots(slotRows);
+  if (!entries.length) {
+    lines.push("_Нет записей во внешних слотах._");
     return lines.join("\n");
   }
+  lines.push(
+    formatStorageIndexEntriesMarkdown(entries, {
+      emptyHint: "_Во внешних слотах пока нет файлов для оглавления._"
+    })
+  );
 
-  for (const slotRow of slotRows) {
-    const label = resolveContentIndexSlotLabel(slotRow.slot, slots);
-    const entries = Array.isArray(slotRow.entries) ? slotRow.entries : [];
-    lines.push(`## ${label}`);
-    lines.push("");
-    lines.push(
-      formatStorageIndexEntriesMarkdown(entries, {
-        emptyHint: "_В слоте пока нет файлов для оглавления._"
-      })
-    );
-    lines.push("");
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function isExternalStorageSlotSpec(spec) {
+  if (!spec) return false;
+  return spec.sectionKind === "external" || spec.sectionKind === "flat" || spec.sectionKind === "media";
+}
+
+function getStorageFolderForSlotSpec(spec) {
+  if (!spec) return "";
+  if (spec.key === "memory") return STORAGE_SUBFOLDER_CONTENT;
+  return getStorageSubfolderForMode(spec.defaultMode) || spec.key;
+}
+
+function isTopicWideContentIndexSlot(slotKeyOrRow) {
+  if (slotKeyOrRow && typeof slotKeyOrRow === "object") {
+    const spec = resolveStorageSlotSpecByCounterKey(slotKeyOrRow.slot);
+    if (spec?.sectionKind === "bundle") return false;
+    const driver = String(slotKeyOrRow.driver || "").trim();
+    if (driver === "internal" || driver === "tabular") return false;
+    if (driver === "external") return true;
+    return isExternalStorageSlotSpec(spec);
   }
+  const spec = resolveStorageSlotSpecByCounterKey(String(slotKeyOrRow || "").trim());
+  return isExternalStorageSlotSpec(spec);
+}
 
-  return lines.join("\n").trimEnd() + "\n";
+function mergeTopicContentIndexEntriesFromSlots(slots = []) {
+  const merged = [];
+  for (const slot of slots) {
+    const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+    if (!isExternalStorageSlotSpec(spec)) continue;
+    const folder = getStorageFolderForSlotSpec(spec);
+    for (const entry of collectStorageSlotIndexEntries(slot.prepared)) {
+      const relPath = String(entry.path || "").replace(/\\/g, "/").trim();
+      merged.push({
+        ...entry,
+        path: relPath ? `${folder}/${relPath}` : folder
+      });
+    }
+  }
+  return merged.sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
+}
+
+function mergeTopicContentIndexEntriesFromPayloadSlots(slotRows = []) {
+  const merged = [];
+  for (const slotRow of slotRows) {
+    if (!isTopicWideContentIndexSlot(slotRow)) continue;
+    const spec = resolveStorageSlotSpecByCounterKey(slotRow.slot);
+    const folder = getStorageFolderForSlotSpec(spec) || slotRow.slot;
+    for (const entry of Array.isArray(slotRow.entries) ? slotRow.entries : []) {
+      const relPath = String(entry.path || "").replace(/\\/g, "/").trim();
+      merged.push({
+        ...entry,
+        path: relPath ? `${folder}/${relPath}` : folder
+      });
+    }
+  }
+  return merged.sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
 }
 
 function formatAgentContentIndexPayloadAsSlotMarkdown(payload, topicPath, spec, slot = null) {
@@ -50904,33 +50964,24 @@ function buildStorageSlotIndexMarkdown(topicPath, slot = {}) {
 
 function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
   const lines = ["# Оглавление темы", ""];
-  const dataSlots = slots.filter((slot) => {
+  const externalSlots = slots.filter((slot) => {
     const spec = resolveStorageSlotSpecFromCounterSlot(slot);
-    return spec && supportsDataEntryOverview(spec.key);
+    return isExternalStorageSlotSpec(spec);
   });
 
-  if (!dataSlots.length) {
-    lines.push("_Нет слотов данных для оглавления._");
+  if (!externalSlots.length) {
+    lines.push("_Нет записей во внешних слотах._");
     return lines.join("\n");
   }
 
-  for (const slot of dataSlots) {
-    const spec = resolveStorageSlotSpecFromCounterSlot(slot);
-    const label = slot.label || spec?.label || slot.id;
-    const icon = spec?.icon ? `${spec.icon} ` : "";
-    const entries = collectStorageSlotIndexEntries(slot.prepared);
+  const entries = mergeTopicContentIndexEntriesFromSlots(externalSlots);
+  lines.push(
+    formatStorageIndexEntriesMarkdown(entries, {
+      emptyHint: "_Во внешних слотах пока нет файлов для оглавления._"
+    })
+  );
 
-    lines.push(`## ${icon}${label}`);
-    lines.push("");
-    lines.push(
-      formatStorageIndexEntriesMarkdown(entries, {
-        emptyHint: "_В слоте пока нет файлов для оглавления._"
-      })
-    );
-    lines.push("");
-  }
-
-  return lines.join("\n").trimEnd() + "\n";
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 function openStorageSlotIndexGeneratedOverview(topicPath, spec, slot = null) {
@@ -53475,7 +53526,7 @@ function recordFileHasPartsFolder(filePath, partsByParent) {
   if (!slug) return false;
   const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   const preferredNames = new Set(
-    [`awn-parts-${slug}`, `parts-${slug}`].map((name) => name.toLowerCase())
+    getRecordMaterialsFolderNamesForSlug(slug).map((name) => name.toLowerCase())
   );
   return (partsByParent.get(parent) || []).some((name) =>
     preferredNames.has(String(name || "").trim().toLowerCase())

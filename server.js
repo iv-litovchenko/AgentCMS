@@ -5306,7 +5306,7 @@ async function resolveRecordMaterialsFolderExists(folderAbsolute, fileRelativePa
     return false;
   }
   const preferredNames = new Set(
-    [`awn-parts-${slug}`, `parts-${slug}`].map((name) => name.toLowerCase())
+    getRecordMaterialsFolderNamesForSlug(slug).map((name) => name.toLowerCase())
   );
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
@@ -8330,8 +8330,18 @@ const MENU_SKIP_DIRS = new Set([
 ]);
 const MENU_SORT_FILE = "sort.json";
 const PARTS_FOLDER = "_Parts";
-const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "awn-parts-";
-const RECORD_PARTS_PACKAGE_FOLDER_PREFIXES = [RECORD_PARTS_PACKAGE_FOLDER_PREFIX, "parts-"];
+const RECORD_PARTS_PACKAGE_FOLDER_PREFIX = "awn-materials-";
+const RECORD_PARTS_PACKAGE_FOLDER_PREFIXES = [
+  RECORD_PARTS_PACKAGE_FOLDER_PREFIX,
+  "awn-parts-",
+  "parts-"
+];
+
+function getRecordMaterialsFolderNamesForSlug(slug) {
+  const normalized = String(slug || "").trim();
+  if (!normalized) return [];
+  return RECORD_PARTS_PACKAGE_FOLDER_PREFIXES.map((prefix) => `${prefix}${normalized}`);
+}
 
 function isRecordPartsPackageFolderName(name) {
   const normalized = String(name || "").trim().toLowerCase();
@@ -8417,7 +8427,9 @@ async function renameRecordPartsFolderForMarkdownRename(parentFolderAbsolute, ol
     return { renamed: false };
   }
 
-  const preferredOldNames = [`awn-parts-${oldSlug}`, `parts-${oldSlug}`].map((name) => name.toLowerCase());
+  const preferredOldNames = getRecordMaterialsFolderNamesForSlug(oldSlug).map((name) =>
+    name.toLowerCase()
+  );
   const nextFolderName = `${RECORD_PARTS_PACKAGE_FOLDER_PREFIX}${newSlug}`;
 
   let sourceAbsolute = null;
@@ -9872,6 +9884,7 @@ async function buildAgentPageMap(options = {}) {
 
 const CONTENT_MAP_DEDICATED_SLOTS = new Set(["dialogs", "thread", "comments", "history", "temp", "volume"]);
 const STORAGE_SLOT_INDEX_FILE = "index.md";
+const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder } = require("./storage-slot-routing");
 
 function mapItemsToContentIndexEntries(items = []) {
   return (items || [])
@@ -9916,8 +9929,11 @@ function getSlotStorageIndexRelPath(manifestRelPath, slotKey, storageFolder, dri
   if (isInternalBundleSlot(normalizedSlotKey)) {
     return getNamedStorageBundleRel(manifestRelPath, STORAGE_SLOT_INDEX_FILE);
   }
-  if (isExternalMemorySlot(normalizedSlotKey) || driver === "external") {
+  if (isExternalMemorySlot(normalizedSlotKey)) {
     return slotDir ? `${slotDir}/${STORAGE_SUBFOLDER_CONTENT}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
+  }
+  if (driver === "external" && folder && slotDir) {
+    return `${slotDir}/${folder}/${STORAGE_SLOT_INDEX_FILE}`;
   }
   if (folder && slotDir) {
     return `${slotDir}/${folder}/${STORAGE_SLOT_INDEX_FILE}`;
@@ -9962,21 +9978,37 @@ function buildSlotContentIndexMarkdown({ slotKey, slotLabel, entries }) {
   ].join("\n");
 }
 
+function mergeTopicContentIndexEntries(slots = []) {
+  const merged = [];
+  for (const slotRow of slots) {
+    if (!isTopicWideContentIndexSlotRow(slotRow)) continue;
+    const folder = slotKeyToStorageFolder(slotRow.slot);
+    for (const entry of slotRow.entries || []) {
+      const relPath = String(entry.path || "").replace(/\\/g, "/").trim();
+      merged.push({
+        ...entry,
+        path: relPath ? `${folder}/${relPath}` : folder
+      });
+    }
+  }
+  return merged.sort((a, b) =>
+    a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true })
+  );
+}
+
 function buildTopicContentIndexMarkdown({ slots }) {
   const lines = ["# Оглавление темы", ""];
-
-  for (const slotRow of slots) {
-    lines.push(`## ${slotRow.slot}`);
-    lines.push("");
-    lines.push(
-      formatContentIndexEntriesMarkdown(slotRow.entries, {
-        emptyHint: "_В слоте пока нет файлов для оглавления._"
-      })
-    );
-    lines.push("");
+  const externalSlots = (slots || []).filter((row) => isTopicWideContentIndexSlotRow(row));
+  if (!externalSlots.length) {
+    lines.push("_Нет записей во внешних слотах._");
+    return lines.join("\n");
   }
-
-  return lines.join("\n").trimEnd() + "\n";
+  lines.push(
+    formatContentIndexEntriesMarkdown(mergeTopicContentIndexEntries(externalSlots), {
+      emptyHint: "_Во внешних слотах пока нет файлов для оглавления._"
+    })
+  );
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 async function buildAgentContentIndex(manifestRelPath, options = {}) {
@@ -9990,11 +10022,9 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
   const slots = [];
   for (const slotRow of mapPayload.slots || []) {
     if (CONTENT_MAP_DEDICATED_SLOTS.has(slotRow.slot)) continue;
+    if (!options.slot && !isTopicWideContentIndexSlotRow(slotRow)) continue;
     const entries = mapItemsToContentIndexEntries(slotRow.items);
-    const storageFolder =
-      slotRow.driver === "external"
-        ? STORAGE_SUBFOLDER_CONTENT
-        : require("./storage-slot-routing").slotKeyToStorageFolder(slotRow.slot);
+    const storageFolder = slotKeyToStorageFolder(slotRow.slot);
     const slotIndexPath = getSlotStorageIndexRelPath(
       mapPayload.path,
       slotRow.slot,
@@ -10023,7 +10053,8 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     hint:
       "Быстрое оглавление (path, title, description) без body и без properties. " +
       "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
-      "Папки awn-parts-* (доп. материалы записи) включены в оглавление.",
+      "Общий index.md темы — только внешние слоты (driver external: memory, inbox, media…). " +
+      "Однофайловая/табличная память (bundle) не включается. Папки awn-materials-* включены.",
     whenToUse: {
       get_content_index:
         "Быстрый обзор темы/слота без погружения: оглавление как index.md (путь, название, описание).",
@@ -10405,7 +10436,7 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
   return {
     version: 1,
     model: "content-map",
-    hint: "Карта контента страницы: title, description, properties без body. Тело: read_content_body. Быстрое оглавление: get_content_index. Папки awn-parts-* (доп. материалы записи) включены как record-materials* с parentRecordRef.",
+    hint: "Карта контента страницы: title, description, properties без body. Тело: read_content_body. Быстрое оглавление: get_content_index. Папки awn-materials-* (доп. материалы записи) включены как record-materials* с parentRecordRef.",
     path: canonicalRelPath,
     awnType,
     slots,

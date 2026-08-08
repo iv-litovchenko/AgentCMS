@@ -127,9 +127,9 @@ resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn
 | Tool | Что внутри | Тела файлов? |
 |------|------------|--------------|
 | `get_page_map` | Все узлы workspace: manifest (hasManifest:true) + папки без manifest (kind:folder). Meta, без body | нет |
-| `get_content_map(path)` | Контент одной страницы по слотам: title, description, **properties**, tags, status. Включая папки `awn-parts-*` (доп. материалы записи) | нет |
-| `get_content_index(path)` | **Оглавление** темы или слота: path, title, description (как `index.md`). Включая `awn-parts-*` и файлы внутри | нет |
-| `write_content_index(path)` | **Сохранить** сгенерированное оглавление в `index.md` на диск | да (index.md) |
+| `get_content_map(path)` | Контент одной страницы по слотам: title, description, **properties**, tags, status. Включая папки `awn-materials-*` (доп. материалы записи) | нет |
+| `get_content_index(path)` | **Оглавление** темы (только **внешние слоты**: memory, inbox, media…; без однофайловой/табличной памяти) или одного слота с `slot=…` | нет |
+| `write_content_index(path)` | **Сохранить** оглавление в `awn-storage/index.md` (внешние слоты) или index слота | да (index.md) |
 | `resolve_workspace_path({ path })` | Произвольный путь → цепочка manifest (topic/area/ws), slot/ref, mcp hints | нет |
 | `search_workspace_content` | Полнотекстовый поиск: пути, frontmatter, тела (`scope=all` по умолчанию) | meta + snippet |
 | `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC | **да** |
@@ -148,14 +148,14 @@ resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn
 
 | Задача | Tool |
 |--------|------|
-| «Что есть в теме, не читая тексты» | `get_content_index(path)` — оглавление по слотам |
-| «Оглавление одного слота (Память, inbox…)» | `get_content_index(path, slot=memory\|inbox\|…)` |
-| «Сохранить оглавление в index.md» | `write_content_index(path)` или `write_content_index(path, slot=memory)` |
+| «Что есть в теме, не читая тексты» | `get_content_index(path)` — оглавление **внешних слотов** (без bundle-памяти) |
+| «Оглавление одного слота (inbox, media…)» | `get_content_index(path, slot=inbox\|media\|…)` |
+| «Сохранить оглавление в index.md» | `write_content_index(path)` (тема → внешние слоты) или `write_content_index(path, slot=…)` |
 | «Нужны properties/tags/status перед правкой» | `get_content_map(path)` |
 | «Читать/писать текст записи» | `read_content_body` / `write_content_body` |
-| «Доп. файлы **конкретной** записи (не раздел темы)» | `get_content_map` → `hasRecordMaterials` / `parentRecordRef` / `recordMaterialsFolderRef`; папка `awn-parts-{slug}` |
+| «Доп. файлы **конкретной** записи (не раздел темы)» | `get_content_map` → `hasRecordMaterials` / `parentRecordRef` / `recordMaterialsFolderRef`; папка `awn-materials-{slug}` |
 
-`indexFile.exists` в ответе `get_content_index` — есть ли на диске `index.md` (общий: `awn-storage/index.md`, слота: `…/main/index.md` и т.п.). Если `false`, оглавление **сгенерировано** из файлов слота (как кнопка «Индекс» в UI).
+`indexFile.exists` в ответе `get_content_index` — есть ли на диске `index.md` (тема: `awn-storage/index.md` — **внешние слоты**; слота: `…/main/index.md`, `…/inbox/index.md` и т.п.). Если `false`, оглавление **сгенерировано** из файлов (как кнопка «Индекс» в UI).
 
 ---
 
@@ -317,7 +317,7 @@ write_sidecar({ "path": "…/manifest.md", "slot": "repository", "file": "spec.p
 
 `write_content_properties` — patch frontmatter (одно поле ок); тело сохраняется.
 
-### Доп. материалы записи (`awn-parts-{slug}`)
+### Доп. материалы записи (`awn-materials-{slug}`)
 
 **Суть:** это **не** обычный раздел каталога и **не** общая папка темы. Это **личная папка одной конкретной записи** — все файлы внутри относятся только к ней (черновики, приложения, схемы, картинки, доп. `.md`).
 
@@ -326,16 +326,17 @@ write_sidecar({ "path": "…/manifest.md", "slot": "repository", "file": "spec.p
 ```
 razdel-1/
   igra-dalnoboyschik-2.md              ← запись-владелец (awn.content.record)
-  awn-parts-igra-dalnoboyschik-2/      ← её доп. материалы (slug совпадает)
+  awn-materials-igra-dalnoboyschik-2/ ← её доп. материалы (slug совпадает)
     manifest.md                        ← опционально (как у обычного раздела)
     черновик.md
     схема.png
 ```
 
-- Имя папки: `awn-parts-{slug}` (legacy: `parts-{slug}`), где `{slug}` = имя `.md` **без** расширения.
+- Имя папки: **`awn-materials-{slug}`** (канон), где `{slug}` = имя `.md` **без** расширения.
+- Legacy (читаются, но новые папки не так): `awn-parts-{slug}`, `parts-{slug}`.
 - Папка **всегда** лежит **рядом** с записью (тот же родительский каталог).
-- Одна запись → **не больше одной** такой папки. Несколько записей в разделе → у каждой своя `awn-parts-*`, если создана.
-- При переименовании `{slug}.md` папка переименовывается вместе с записью.
+- Одна запись → **не больше одной** такой папки. Несколько записей в разделе → у каждой своя `awn-materials-*`, если создана.
+- При переименовании `{slug}.md` папка переименовывается вместе с записью (в каноническое имя `awn-materials-{slug}`).
 
 **Для агента — как понять «чья это папка»:**
 
@@ -343,11 +344,12 @@ razdel-1/
 |--------------|----------------|
 | `get_content_map` | `parentRecordRef` → ref записи-владельца, напр. `razdel-1/igra-dalnoboyschik-2.md` |
 | `get_content_map` (запись) | `hasRecordMaterials: true`, `recordMaterialsFolderRef` → ref папки |
-| По пути на диске | `…/awn-parts-{slug}/…` ⇒ владелец `…/{slug}.md` |
+| По пути на диске | `…/awn-materials-{slug}/…` (или legacy `awn-parts-*`) ⇒ владелец `…/{slug}.md` |
 | UI человека | блок «Доп материалы» на обзоре записи; в TOC папки **скрыты** |
 
 **Не путать с:**
 
+- **`awn-attachments`** (поле) — ссылки на файлы в `assets/attachments/`, не эта папка.
 - **`awn.content.category`** — раздел для **многих** записей (manifest + группа `.md`).
 - **`assets` / `media`** — общие слоты темы, не привязаны к одной записи.
 - **`{file}.sidecar.md`** — мета **одного** файла, не папка материалов.
@@ -356,7 +358,7 @@ razdel-1/
 
 | kind (map) | Что это |
 |------------|---------|
-| `record-materials-folder` | Папка `awn-parts-*` (раздел доп. материалов одной записи) |
+| `record-materials-folder` | Папка `awn-materials-*` (раздел доп. материалов одной записи) |
 | `record-materials` | `.md` внутри такой папки |
 | `record-materials-file` | Не-markdown (png, pdf…) внутри |
 
@@ -366,9 +368,9 @@ razdel-1/
 
 1. `get_content_index(path)` или `get_content_map(path)` → найти запись с `hasRecordMaterials: true`.
 2. По `recordMaterialsFolderRef` или `parentRecordRef` понять пару «запись ↔ папка».
-3. Текст доп. `.md` → `read_content_body(path, slot, ref=…/awn-parts-…/file.md)`.
+3. Текст доп. `.md` → `read_content_body(path, slot, ref=…/awn-materials-…/file.md)`.
 4. Бинарник → `read_file` по `workspacePath` из map.
-5. Новый файл к записи → класть в `awn-parts-{slug}/`, **не** в корень раздела.
+5. Новый файл к записи → класть в `awn-materials-{slug}/`, **не** в корень раздела.
 
 ---
 
