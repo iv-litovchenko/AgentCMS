@@ -1,0 +1,12 @@
+# Схема многофайловой памяти main темы «Ая тест темы 2049-2» — наследуется записями и разделами.
+awn_schema:
+  slot_memory:
+    fields:
+      property-ivan-main-record:
+        type: awn.string
+        name: Свойство записи памяти (Иван)
+  slot_memory_category:
+    fields:
+      property-ivan-main-razdel:
+        type: awn.string
+        name: Свойство раздела памяти (Иван)

@@ -9,10 +9,11 @@
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
-Этот файл — шпаргалка (**44 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
+Этот файл — шпаргалка (**46 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 Перед работой: `get_session_context` → `get_user_active_context_now`.  
-Поиск: `search_workspace` (как шапка UI; scope=all|content|filename…).
+Поиск в workspace: `search_workspace` (как шапка UI; scope=all|content|filename…).  
+Поиск в интернете (Google): `search_web`, `search_web_images`.
 
 **«Перезагрузи контекст»** → снова `get_session_context` (отдельного `reload_*` нет).  
 Уточнения: always → `list_workspace_always_context`; карта страниц → `get_page_map`; контент страницы → `get_content_map(path)`; фокус UI → `get_user_active_context_now`.
@@ -253,6 +254,9 @@
 | Файл в слот темы по URL | `import_content_from_url` |
 | Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
 | Обход папки | `list_folder` |
+| Поиск в workspace | `search_workspace` |
+| Поиск в интернете (Google) | `search_web` |
+| Картинки в интернете (Google) | `search_web_images` |
 | Запуск скрипта `.py`/`.js`/`.sh` | `run_script` |
 | Команда с args (git, npm, …) | `exec_command` |
 | Shell-строка (pipes, `&&`) | `exec_shell` |
@@ -268,6 +272,29 @@
 | `exec_shell` | Произвольная shell-строка |
 
 `cwd` по умолчанию — папка темы из `topicPath` (dirname manifest) или корень workspace. Ответ: `exitCode`, `stdout`, `stderr`, `durationMs` (лимит вывода ~256KB, timeout до 10 мин).
+
+### Поиск в интернете (Google)
+
+Провайдер: **Google Programmable Search Engine** (Custom Search JSON API). Ключи задаются на **CMS-сервере** (`.env`), не в MCP-клиенте.
+
+| Переменная | Зачем |
+|------------|-------|
+| `GOOGLE_SEARCH_API_KEY` | API key из Google Cloud Console |
+| `GOOGLE_SEARCH_ENGINE_ID` | `cx` — ID поисковой системы ([programmablesearchengine.google.com](https://programmablesearchengine.google.com/)) |
+
+Опционально: `GOOGLE_SEARCH_LANG=ru`, `GOOGLE_SEARCH_COUNTRY=RU`, `GOOGLE_SEARCH_GL=ru`, `GOOGLE_SEARCH_SAFE=active`.
+
+| Tool | Зачем |
+|------|-------|
+| `search_web` | Текстовый поиск: `{ query, limit?, lang?, country?, gl?, safe? }` |
+| `search_web_images` | Картинки: `{ query, limit?, size?, type?, lang?, country?, gl?, safe? }` |
+
+`size`: `icon` \| `small` \| `medium` \| `large` \| `xlarge` \| `xxlarge` \| `huge`  
+`type`: `photo` \| `clipart` \| `face` \| `lineart` \| `stock` \| `animated`
+
+Найденную картинку в тему — `import_content_from_url({ path, slot: "media", url })` или `upload_file_from_url`.
+
+**Не путать:** `search_workspace` — только файлы **workspace агента**; `search_web` — публичный интернет.
 
 ---
 

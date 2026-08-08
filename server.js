@@ -22,6 +22,7 @@ const {
 const { fetchBufferFromImportUrl, resolveImportFileName } = require("./media-import");
 const { decodeBase64UploadData } = require("./base64-upload");
 const { createScriptExecService } = require("./script-exec-service");
+const { createWebSearchService } = require("./web-search-service");
 const { parseCsvText } = require("./awn-data-csv");
 const {
   READ_STATE_FILE,
@@ -1434,6 +1435,14 @@ function getScriptExecService() {
     scriptExecService = createScriptExecService({ normalizeWorkspacePath, getAgentRoot });
   }
   return scriptExecService;
+}
+
+let webSearchService = null;
+function getWebSearchService() {
+  if (!webSearchService) {
+    webSearchService = createWebSearchService();
+  }
+  return webSearchService;
 }
 
 async function handleExecApiRequest(req, res, runner) {
@@ -9974,7 +9983,11 @@ const SESSION_CONTEXT_API_MAP = {
   execCommand:
     "POST /api/exec/command — exec_command MCP { command, args?, cwd?, topicPath?, timeoutMs?, env? }",
   execShell:
-    "POST /api/exec/shell — exec_shell MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }"
+    "POST /api/exec/shell — exec_shell MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }",
+  webSearch:
+    "GET /api/web/search?q=&limit=&lang=&country=&gl=&safe= — search_web MCP (Google Custom Search)",
+  webImages:
+    "GET /api/web/images?q=&limit=&size=&type=&lang=&country=&gl=&safe= — search_web_images MCP (Google image search)"
 };
 
 const SESSION_PATH_HINTS = {
@@ -20223,6 +20236,52 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/exec/shell") {
     return handleExecApiRequest(req, res, (payload) => getScriptExecService().execShell(payload));
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/web/search") {
+    const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+    if (!query) return sendJson(res, 400, { error: "Missing q query parameter" });
+    try {
+      const result = await getWebSearchService().searchWeb({
+        query,
+        limit: url.searchParams.get("limit"),
+        lang: url.searchParams.get("lang"),
+        country: url.searchParams.get("country"),
+        gl: url.searchParams.get("gl"),
+        safe: url.searchParams.get("safe")
+      });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Web search failed",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/web/images") {
+    const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+    if (!query) return sendJson(res, 400, { error: "Missing q query parameter" });
+    try {
+      const result = await getWebSearchService().searchWebImages({
+        query,
+        limit: url.searchParams.get("limit"),
+        lang: url.searchParams.get("lang"),
+        country: url.searchParams.get("country"),
+        gl: url.searchParams.get("gl"),
+        safe: url.searchParams.get("safe"),
+        size: url.searchParams.get("size"),
+        type: url.searchParams.get("type")
+      });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Web image search failed",
+        details: String(error.message || error)
+      });
+    }
   }
 
   if (req.method === "GET" && url.pathname === "/api/workspace/folder/text") {

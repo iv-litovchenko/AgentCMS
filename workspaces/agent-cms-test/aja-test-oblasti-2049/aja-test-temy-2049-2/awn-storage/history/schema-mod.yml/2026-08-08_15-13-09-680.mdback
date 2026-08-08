@@ -19,6 +19,3 @@ awn_schema:
       aya-t-custom-array:
         type: awn.field.array
         name: Тема список
-      property-ivan-tema:
-        type: awn.field.string
-        name: Свойство темы (Иван)

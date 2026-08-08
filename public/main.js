@@ -16528,6 +16528,39 @@ function populateMenuContextStatusButton(btn, optionKey, optionName) {
   btn.appendChild(label);
 }
 
+function createHeroTitleCopyButton(title) {
+  const value = String(title || "").trim();
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-navigation-hero-title-copy";
+  btn.title = "Скопировать название";
+  btn.setAttribute("aria-label", "Скопировать название");
+  btn.innerHTML =
+    '<svg class="node-navigation-hero-title-copy-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  btn.disabled = !value;
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void (async () => {
+      if (!value) {
+        showToast("Название недоступно", "error");
+        return;
+      }
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(value);
+          showToast("Название скопировано", "success");
+          return;
+        }
+      } catch {
+        // fallback below
+      }
+      window.prompt("Скопируйте:", value);
+    })();
+  });
+  return btn;
+}
+
 function createHeroTitleRow(title, statusRaw = "", options = {}) {
   const row = document.createElement("div");
   row.className = options.rowClass || "node-navigation-hero-title-row";
@@ -16538,10 +16571,13 @@ function createHeroTitleRow(title, statusRaw = "", options = {}) {
     badge.classList.add(options.statusClass || "node-navigation-hero-status");
     titleNode.appendChild(badge);
   }
+  const titleMain = document.createElement("span");
+  titleMain.className = "node-navigation-hero-title-main";
   const titleText = document.createElement("span");
   titleText.className = options.titleTextClass || "node-navigation-hero-title-text";
   titleText.textContent = title;
-  titleNode.appendChild(titleText);
+  titleMain.append(createHeroTitleCopyButton(title), titleText);
+  titleNode.appendChild(titleMain);
   const attachmentsCount =
     options.attachmentsCount ?? countPropEntriesAttachments(options.propEntries || []);
   const attachmentPaths = (options.propEntries || []).find(
@@ -34217,6 +34253,27 @@ async function refreshWorkspaceContent() {
       return;
     }
 
+    // Entry overview: reload entry + schema, do not overwrite props form with topic YAML.
+    if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
+      const schemaManifestPath = getTopicSchemaManifestPath(activePath);
+      if (schemaManifestPath) {
+        invalidateTopicSchemaCacheForManifest(schemaManifestPath);
+        const contentPath = resolveOverviewSchemaContentPath(activeEntryOverviewContext);
+        try {
+          if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+          await loadTopicSchemaForManifest(schemaManifestPath, {
+            contentPath: contentPath || undefined,
+            force: true
+          });
+        } catch {
+          // schema reload is best-effort; overview still re-fetches entry props
+        }
+      }
+      await renderEntryOverview();
+      updateBreadcrumbsForActiveMode();
+      return;
+    }
+
     if (isNodeManifestContextPath()) {
       await reloadActiveNodeManifestFromDisk();
       await loadPropertiesForActivePath();
@@ -47770,6 +47827,8 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     appendNavigationHeroProps(hero, options.propEntries || []);
   }
 
+  appendNavigationHeroTags(hero, options.propEntries || []);
+
   if (options.showHeroInstruction) {
     appendNavigationHeroInstruction(hero, options.descriptionRaw || "", title);
   }
@@ -47914,9 +47973,12 @@ function renderNodeOverviewMetaTable(metaItems) {
     const valCell = document.createElement("div");
     appendNodeOverviewMetaValueCell(valCell, item);
 
-    if (!isPropsFieldDefinedInActiveSchema(item.key, { fieldDef: item.fieldDef })) {
+    const schemaDefined =
+      item.inSchema === true ||
+      isPropsFieldDefinedInActiveSchema(item.key, { fieldDef: item.fieldDef });
+    if (!schemaDefined) {
       row.classList.add("is-schema-undefined");
-      const schemaHint = "Свойство не определено в схеме слота";
+      const schemaHint = "Свойство не определено в схеме";
       if (!keyCell.title.includes(schemaHint)) {
         keyCell.title = keyCell.title ? `${keyCell.title} · ${schemaHint}` : schemaHint;
       }
@@ -47935,26 +47997,51 @@ function collectNodeOverviewMetaItems(entries) {
     if (entry?.key) map.set(entry.key, entry);
   }
 
+  const typeDef = getActiveAwnTypeDef();
+  const schemaFields = typeDef?.fields || {};
+  const schemaKeySet = new Set(Object.keys(schemaFields));
   const items = [];
   const seen = new Set();
 
-  const pushKey = (key) => {
-    if (!key || seen.has(key) || !map.has(key)) return;
-    seen.add(key);
-    const entry = map.get(key);
+  const pushKey = (key, { allowMissing = false, inSchema = false } = {}) => {
+    const normalized = normalizePropsKey(key);
+    if (!normalized || seen.has(normalized)) return;
+    if (HIDDEN_PROPS_FIELD_KEYS.has(normalized)) return;
+    if (!shouldIncludePropsFieldKey(normalized)) return;
+    if (!allowMissing && !map.has(normalized)) return;
+    seen.add(normalized);
+    const entry = map.get(normalized) || null;
+    const fieldDef = entry?.fieldDef || (inSchema ? schemaFields[normalized] || null : null);
     items.push({
-      key,
-      value: getPropsEntryOverviewDisplayValue(entry, key),
-      rawValue: getPropsEntryDisplayValue(entry),
-      fieldDef: entry?.fieldDef || null
+      key: normalized,
+      value: getPropsEntryOverviewDisplayValue(entry, normalized),
+      rawValue: entry ? getPropsEntryDisplayValue(entry) : "",
+      fieldDef,
+      inSchema: Boolean(inSchema || fieldDef || schemaKeySet.has(normalized))
     });
   };
 
-  for (const key of getStandardPropsFieldKeys()) {
-    pushKey(key);
+  // All fields from the active type schema — including empty ones.
+  const standardKeys = getStandardPropsFieldKeys();
+  const schemaKeys = getTypeSchemaFieldKeys(typeDef);
+  const orderedSchemaKeys = [
+    ...standardKeys,
+    ...schemaKeys.filter((key) => !standardKeys.includes(key))
+  ];
+  const hasSchema = schemaKeySet.size > 0;
+  for (const key of orderedSchemaKeys) {
+    const normalized = normalizePropsKey(key);
+    pushKey(key, {
+      allowMissing: true,
+      inSchema: hasSchema ? schemaKeySet.has(normalized) : isSchemaDefinedFieldKey(normalized)
+    });
   }
+  // Extra filled properties that are not part of the schema.
   for (const key of [...map.keys()].sort((a, b) => a.localeCompare(b, "ru"))) {
-    pushKey(key);
+    pushKey(key, {
+      allowMissing: false,
+      inSchema: hasSchema ? schemaKeySet.has(key) : isSchemaDefinedFieldKey(key)
+    });
   }
 
   return items;
@@ -47964,7 +48051,7 @@ function splitNodeOverviewMetaItems(entries) {
   const awnItems = [];
   const customItems = [];
   for (const item of collectNodeOverviewMetaItems(entries)) {
-    if (isSchemaDefinedFieldKey(item.key)) awnItems.push(item);
+    if (item.inSchema) awnItems.push(item);
     else customItems.push(item);
   }
   return { awnItems, customItems };
@@ -48024,6 +48111,21 @@ function appendNavigationHeroProps(hero, propEntries = []) {
   }
 
   return lastNode;
+}
+
+function appendNavigationHeroTags(hero, propEntries = []) {
+  if (!hero) return null;
+  const tagsBar = createEntryOverviewTagsBar(propEntries);
+  if (!tagsBar) return null;
+  const anchor =
+    [
+      ...hero.querySelectorAll(
+        ".node-overview-awn-props-fold, .node-overview-custom-props-fold, .node-overview-props-fold"
+      )
+    ].pop() || null;
+  if (anchor) anchor.insertAdjacentElement("afterend", tagsBar);
+  else hero.appendChild(tagsBar);
+  return tagsBar;
 }
 
 function appendNavigationHeroInstruction(hero, descriptionRaw = "", heroTitle = "") {
@@ -53371,6 +53473,76 @@ function appendEntryOverviewManifestNavActions(wrap, navOptions = {}) {
   if (nav) wrap.appendChild(nav);
 }
 
+function getPropsEntryTags(entries = []) {
+  if (!Array.isArray(entries) || !entries.length) return [];
+  const entry = entries.find((item) => normalizePropsKey(item.key) === "awn-tags");
+  if (!entry) return [];
+  const raw =
+    entry.kind === "array" && Array.isArray(entry.value)
+      ? entry.value
+      : String(entry.value || "").split(",");
+  const seen = new Set();
+  const tags = [];
+  for (const item of raw) {
+    const id = String(item || "")
+      .trim()
+      .replace(/^#+/, "")
+      .trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    tags.push(id);
+  }
+  return tags;
+}
+
+function resolveCatalogTagPresentation(tagId) {
+  const id = String(tagId || "")
+    .trim()
+    .replace(/^#+/, "")
+    .trim();
+  if (!id) return null;
+  const catalog = getAgentCatalogPreset("tags");
+  const item = (catalog.items || []).find((entry) => String(entry?.id || "").trim() === id);
+  const label = String(item?.label || "").trim() || id;
+  return {
+    id,
+    label,
+    title: label !== id ? `${label} (#${id})` : `#${id}`
+  };
+}
+
+function createEntryOverviewTagsBar(entries = []) {
+  const tags = getPropsEntryTags(entries)
+    .map((tagId) => resolveCatalogTagPresentation(tagId))
+    .filter(Boolean);
+  if (!tags.length) return null;
+
+  const bar = document.createElement("div");
+  bar.className = "node-entry-overview-tags";
+  bar.setAttribute("aria-label", "Теги");
+
+  const list = document.createElement("div");
+  list.className = "node-entry-overview-tags-list";
+
+  for (const tag of tags) {
+    const chip = document.createElement("span");
+    chip.className = "node-entry-overview-tag";
+    chip.title = tag.title;
+    const hash = document.createElement("span");
+    hash.className = "node-entry-overview-tag-hash";
+    hash.setAttribute("aria-hidden", "true");
+    hash.textContent = "#";
+    const label = document.createElement("span");
+    label.className = "node-entry-overview-tag-label";
+    label.textContent = tag.label;
+    chip.append(hash, label);
+    list.appendChild(chip);
+  }
+
+  bar.appendChild(list);
+  return bar;
+}
+
 function renderEntryOverviewTabularContentPart(context, nodePath = activePath, navOptions = null) {
   const wrap = document.createElement("div");
   wrap.className =
@@ -54086,6 +54258,7 @@ async function appendEntryOverviewRecordPartsPanel(hero, context, mount = hero, 
 
   const anchor =
     host.querySelector(".node-entry-overview-attachments") ||
+    host.querySelector(".node-entry-overview-tags") ||
     host.querySelector(".node-navigation-hero-instruction-fold") ||
     [
       ...host.querySelectorAll(
@@ -54177,7 +54350,7 @@ function appendEntryOverviewAttachmentsAfterHeroProps(hero, entries, rawBody) {
   const anchor =
     [
       ...hero.querySelectorAll(
-        ".node-overview-props-fold, .node-overview-custom-props-fold, .node-navigation-hero-instruction-fold"
+        ".node-overview-props-fold, .node-overview-custom-props-fold, .node-navigation-hero-instruction-fold, .node-entry-overview-tags"
       )
     ].pop() ||
     null;
@@ -66219,6 +66392,7 @@ async function renderNodeOverview() {
   heroMain.append(thumbWrap, head);
   hero.appendChild(heroMain);
   appendNavigationHeroProps(hero, entries);
+  appendNavigationHeroTags(hero, entries);
   fragment.appendChild(hero);
 
   await appendNodeOverviewTypeRegistryFold(fragment, nodePathResolved);
@@ -66389,7 +66563,7 @@ async function renderNodeOverview() {
   syncDataHubSlugWarning(NODE_OVERVIEW_MODE);
 }
 
-function applyModeUi() {
+function applyModeUi(options = {}) {
   if (appRootNode.classList.contains("home-view")) {
     return;
   }
@@ -66681,7 +66855,9 @@ function applyModeUi() {
     syncSaveButtonLamp();
     return;
   } else if (entryOverviewMode) {
-    void renderEntryOverview();
+    if (!options.skipAsyncRender) {
+      void renderEntryOverview();
+    }
     syncSaveButtonLamp();
     return;
   } else if (threadMode) {
@@ -74941,7 +75117,9 @@ async function loadContentByMode(options = {}) {
 
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
     fileContentInputNode.value = "";
-    applyModeUi();
+    // Keep shell/mode UI in sync, then await overview so refresh doesn't race an empty props state.
+    applyModeUi({ skipAsyncRender: true });
+    await renderEntryOverview();
     updateBreadcrumbsForActiveMode();
     return;
   }
