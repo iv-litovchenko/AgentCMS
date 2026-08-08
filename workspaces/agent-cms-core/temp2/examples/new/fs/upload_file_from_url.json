@@ -1,0 +1,19 @@
+{
+  "tool": "upload_file_from_url",
+  "section": "fs",
+  "sectionLabel": "Система + FS",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-08T09:55:02.580Z",
+  "sampleArgs": {
+    "path": "manifest.md",
+    "url": "https://example.com/x.png"
+  },
+  "live": false,
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "path": "awn-container/x.png",
+    "sourceUrl": "https://example.com/x.png"
+  }
+}

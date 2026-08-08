@@ -1,0 +1,20 @@
+{
+  "tool": "read_content_body",
+  "section": "content",
+  "sectionLabel": "Контент",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-08T09:55:02.184Z",
+  "sampleArgs": {
+    "path": "manifest.md",
+    "slot": "main-single"
+  },
+  "truncated": false,
+  "responseBytes": 44,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "slot": "main-single",
+    "content": ""
+  }
+}

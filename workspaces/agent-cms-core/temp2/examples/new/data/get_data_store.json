@@ -1,0 +1,1815 @@
+{
+  "tool": "get_data_store",
+  "section": "data",
+  "sectionLabel": "AWN-DATA / инфоблоки",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-08T09:55:02.403Z",
+  "sampleArgs": {
+    "store": "tasks"
+  },
+  "truncated": true,
+  "responseBytes": 607777,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "_truncated": true,
+    "_responseBytes": 607777,
+    "_note": "Full response too large; slim preview",
+    "specVersion": "0.2",
+    "model": "awn-data",
+    "root": "/Users/macbook/Desktop/YamlCMS/workspaces/agent-cms-core/awn-data",
+    "storeCount": 12,
+    "stores": [
+      {
+        "id": "cms-base",
+        "relPath": "cms-base",
+        "kind": "group",
+        "name": "CMS Base",
+        "description": "CMS Base",
+        "manifestMarkdown": "# CMS Base\n\n**ID = путь.** Структура manifest → из `awn-supertype`.\n\n```\ncms-base/\n├── base\n├── data-containers/     ← базовые типы контейнеров\n├── data-elements/       ← базовые типы элементов\n└── mixins/              ← каталог примесей\n```\n\nSpec: [Resources/_SPEC_2026_itogovaya.md](../../Resources/_SPEC_2026_itogovaya.md)",
+        "manifestRelPath": "cms-base/manifest.md",
+        "schemaRelPath": "cms-base/manifest.md",
+        "schemeModRelPath": "",
+        "schemeModFile": "",
+        "schemaFile": "manifest.md",
+        "schema": {
+          "version": 1,
+          "kind": "group",
+          "supertype": "awn-data/cms-base/data-containers/group.md",
+          "id": "",
+          "name": "CMS Base",
+          "description": "CMS Base",
+          "extends": "",
+          "layer": "",
+          "record": {},
+          "fields": {},
+          "elementSchemaTabs": {},
+          "elementSchemaMixins": [],
+          "fieldsLocal": {},
+          "fieldsInSchemeMod": false,
+          "schemaFile": "manifest.md",
+          "schemeModFile": "",
+          "extendsChain": [],
+          "_storeBody": "# CMS Base\n\n**ID = путь.** Структура manifest → из `awn-supertype`.\n\n```\ncms-base/\n├── base\n├── data-containers/     ← базовые типы контейнеров\n├── data-elements/       ← базовые типы элементов\n└── mixins/              ← каталог примесей\n```\n\nSpec: [Resources/_SPEC_2026_itogovaya.md](../../Resources/_SPEC_2026_itogovaya.md)"
+        },
+        "sortOrder": [
+          "data-containers",
+          "data-elements",
+          "mixins"
+        ],
+        "recordStorage": "md",
+        "recordCount": 9,
+        "recordFile": null,
+        "children": [
+          {
+            "id": "cms-base/data-containers",
+            "relPath": "cms-base/data-containers",
+            "kind": "collection",
+            "name": "Контейнеры",
+            "description": "Контейнеры",
+            "manifestMarkdown": "# Контейнеры\n\nStore id = **`awn-data/cms-base/data-containers`**\n\nКаталог базовых типов контейнеров. Кнопки UI: **+ Группа**, **+ Коллекция**, **+ Одиночка**.\n\n| Файл | Type id | supertype для нового store |\n|------|---------|----------------------------|\n| group.md | awn-data/cms-base/data-containers/group.md | группа |\n| collection.md | awn-data/cms-base/data-containers/collection.md | коллекция |\n| single.md | awn-data/cms-base/data-containers/single.md | одиночка |",
+            "manifestRelPath": "cms-base/data-containers/manifest.md",
+            "schemaRelPath": "cms-base/data-containers/manifest.md",
+            "schemeModRelPath": "",
+            "schemeModFile": "",
+            "schemaFile": "manifest.md",
+            "schema": {
+              "version": 1,
+              "kind": "collection",
+              "supertype": "awn-data/cms-base/data-containers/collection.md",
+              "id": "",
+              "name": "Контейнеры",
+              "description": "Контейнеры",
+              "extends": "",
+              "layer": "",
+              "record": {
+                "id-mode": "slug",
+                "file": "{id}.md"
+              },
+              "fields": {},
+              "elementSchemaTabs": {},
+              "elementSchemaMixins": [],
+              "fieldsLocal": {},
+              "fieldsInSchemeMod": false,
+              "schemaFile": "manifest.md",
+              "schemeModFile": "",
+              "extendsChain": [],
+              "_storeBody": "# Контейнеры\n\nStore id = **`awn-data/cms-base/data-containers`**\n\nКаталог базовых типов контейнеров. Кнопки UI: **+ Группа**, **+ Коллекция**, **+ Одиночка**.\n\n| Файл | Type id | supertype для нового store |\n|------|---------|----------------------------|\n| group.md | awn-data/cms-base/data-containers/group.md | группа |\n| collection.md | awn-data/cms-base/data-containers/collection.md | коллекция |\n| single.md | awn-data/cms-base/data-containers/single.md | одиночка |"
+            },
+            "sortOrder": [
+              "group.md",
+              "collection.md",
+              "single.md"
+            ],
+            "recordStorage": "md",
+            "recordCount": 3,
+            "recordFile": null,
+            "records": [
+              {
+                "id": "collection",
+                "parent": null,
+                "relPath": "cms-base/data-containers/collection.md",
+                "fileName": "collection.md",
+                "frontmatter": {
+                  "awn-supertype": "awn-data/cms-base/data-elements/default.md",
+                  "awn-name": "Коллекция",
+                  "awn-description": "manifest + N записей (*.md или main.csv)",
+                  "awn-record-id-mode": "slug",
+                  "awn-record-file": "{id}.md",
+                  "awn-record-hierarchy": "false",
+                  "awn-data-elements-schema-extends": "awn-data/cms-base/data-elements/default.md",
+                  "awn-data-elements-schema-mixins": "[]",
+                  "awn-data-elements-schema": "",
+                  "fields": "",
+                  "awn-title": "",
+                  "type": "awn.field.enum",
+                  "title": "Статус",
+                  "required": "true",
+                  "tab": "main",
+                  "awn-typeId": "",
+                  "awn-kind": "",
+                  "awn-domain": "",
+                  "awn-status": "",
+                  "enum": "[active, draft, deprecated, inactive]",
+                  "default": "active",
+                  "tabs": "",
+                  "main": "Основное"
+                },
+                "body": "# data-containers.collection\n\nType id = **`awn-data/cms-base/data-containers/collection.md`**\n\nПри создании коллекции новый `manifest.md` получает `awn-supertype` → этот файл.",
+                "title": "Статус",
+                "bodyFields": {}
+              },
+              {
+                "id": "group",
+                "parent": null,
+                "relPath": "cms-base/data-containers/group.md",
+                "fileName": "group.md",
+                "frontmatter": {
+                  "awn-supertype": "awn-data/cms-base/data-elements/default.md",
+                  "awn-name": "Группа",
+                  "awn-description": "только manifest + подпапки, без записей",
+                  "Примеры store": "`cms-base/`, `taxonomies/`, `markdown-blocks/`."
+                },
+                "body": "# data-containers.group\n\nType id = **`awn-data/cms-base/data-containers/group.md`**\n\nПримеры store: `cms-base/`, `taxonomies/`, `markdown-blocks/`.",
+                "title": "Группа",
+                "bodyFields": {}
+              },
+              {
+                "id": "single",
+                "parent": null,
+                "relPath": "cms-base/data-containers/single.md",
+                "fileName": "single.md",
+                "frontmatter": {
+                  "awn-supertype": "awn-data/cms-base/data-elements/default.md",
+                  "awn-name": "",
+                  "awn-description": "",
+                  "awn-record-file": "main.md",
+                  "awn-data-elements-schema-extends": "awn-data/cms-base/data-elements/default.md",
+                  "awn-data-elements-schema-mixins": "[]",
+                  "awn-data-elements-schema": "",
+                  "fields": "",
+                  "awn-title": "",
+                  "type": "awn.field.text",
+                  "title": "Описание",
+                  "required": "true",
+                  "tab": "main",
+                  "tabs": "",
+                  "main": "Основное",
+                  "system": "Системное",
+                  "Пример store": "`settings-global/`."
+                },
+                "body": "# data-containers.single\n\nType id = **`awn-data/cms-base/data-containers/single.md`**\n\nПример store: `settings-global/`.",
+                "title": "Описание",
+                "bodyFields": {}
+              }
+            ],
+            "tree": [
+              {
+                "id": "collection",
+                "parent": null,
+                "relPath": "cms-base/data-containers/collection.md",
+                "title": "Статус",
+                "frontmatter": {
+                  "awn-supertype": "awn-data/cms-base/data-elements/default.md",
+                  "awn-name": "Коллекция",
+                  "awn-description": "manifest + N записей (*.md или main.csv)",
+                  "awn-record-id-mode": "slug",
+                  "awn-record-file": "{id}.md",
+                  "awn-record-hierarchy": "false",
+                  "awn-data-elements-schema-extends": "awn-data/cms-base/data-elements/default.md",
+                  "awn-data-elements-schema-mixins": "[]",
+                  "awn-data-elements-schema": "",
+                  "fields": "",
+                  "awn-title": "",
+                  "type": "awn.field.enum",
+                  "title": "Статус",
+                  "required": "true",
+                  "tab": "main",
+                  "awn-typeId": "",
+                  "awn-kind": "",
+                  "awn-domain": "",
+                  "awn-status": "",
+                  "enum": "[active, draft, deprecated, inactive]",
+                  "default": "active",
+                  "tabs": "",
+                  "main": "Основное"
+                },
+                "children": []
+              },
+              {
+                "id": "group",
+                "parent": null,
+                "relPath": "cms-base/data-containers/group.md",
+                "title": "Группа",
+                "frontmatter": {
+                  "awn-supertype": "awn-data/cms-base/data-elements/default.md",
+                  "awn-name": "Группа",
+                  "awn-description": "только manifest + подпапки, без записей",
+                  "Примеры store": "`cms-base/`, `taxonomies/`, `markdown-blocks/`."
+                },
+                "children": []
+              },
+              {
+                "id": "single",
+                "parent": null,
+                "relPath": "cms-base/data-containers/single.md",
+                "title": "Описание",
+                "frontmatter": {
+                  "awn-supertype": "awn-data/cms-base/data-elements/default.md",
+                  "awn-name": "",
+                  "awn-description": "",
+                  "awn-record-file": "main.md",
+                  "awn-data-elements-schema-extends": "awn-data/cms-base/data-elements/default.md",
+                  "awn-data-elements-schema-mixins": "[]",
+                  "awn-data-elements-schema": "",
+                  "fields": "",
+                  "awn-title": "",
+                  "type": "awn.field.text",
+                  "title": "Описание",
+                  "required": "true",
+                  "tab": "main",
+                  "tabs": "",
+                  "main": "Основное",
+                  "system": "Системное",
+                  "Пример store": "`settings-global/`."
+                },
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "cms-base/data-elements",
+            "relPath": "cms-base/data-elements",
+            "kind": "collection",
+            "name": "Элементы",
+            "description": "Элементы",
+            "manifestMarkdown": "# Элементы\n\nStore id = **`awn-data/cms-base/data-elements`**\n\nОдна коллекция схем полей для записей. Сейчас одна запись — **`default.md`**.\n\n| Файл | Type id |\n|------|---------|\n| default.md | awn-data/cms-base/data-elements/default.md |",
+            "manifestRelPath": "cms-base/data-elements/manifest.md",
+            "schemaRelPath": "cms-base/data-elements/manifest.md",
+            "schemeModRelPath": "",
+            "schemeModFile": "",
+            "schemaFile": "manifest.md",
+            "schema": {
+              "version": 1,
+              "kind": "collection",
+              "supertype": "awn-data/cms-base/data-containers/collection.md",
+              "id": "",
+              "name": "Элементы",
+              "description": "Элементы",
+              "extends": "",
+              "layer": "",
+              "record": {
+                "id-mode": "slug",
+                "file": "{id}.md"
+              },
+              "fields": {},
+              "elementSchemaTabs": {},
+              "elementSchemaMixins": [],
+              "fieldsLocal": {},
+              "fieldsInSchemeMod": false,
+              "schemaFile": "manifest.md",
+              "schemeModFile": "",
+              "extendsChain": [],
+              "_storeBody": "# Элементы\n\nStore id = **`awn-data/cms-base/data-elements`**\n\nОдна коллекция схем полей для записей. Сейчас одна запись — **`default.md`**.\n\n| Файл | Type id |\n|------|---------|\n| default.md | awn-data/cms-base/data-elements/default.md |"
+            },
+            "sortOrder": [
+              "default.md"
+            ],
+            "recordStorage": "md",
+            "recordCount": 1,
+            "recordFile": null,
+            "records": [
+              {
+                "id": "default",
+                "parent": null,
+                "relPath": "cms-base/data-elements/default.md",
+                "fileName": "default.md",
+                "frontmatter": {
+                  "awn-supertype": "awn-data/cms-base/data-elements/default.md",
+                  "awn-name": "",
+                  "awn-description": "",
+                  "awn-data-elements-schema-mixins": "[]",
+                  "awn-data-elements-schema": "",
+                  "fields": "",
+                  "awn-created": "",
+                  "type": "awn.field.string",
+                  "title": "Владелец",
+                  "awn-updated": "",
+                  "awn-status": "",
+                  "awn-version": "",
+                  "awn-owner": "",
+                  "tabs": "",
+                  "system": "Системное"
+                },
+                "body": "# data-elements.default\n\nType id = **`awn-data/cms-base/data-elements/default.md`**",
+                "title": "Владелец",
+                "bodyFields": {}
+              }
+            ],
+            "tree": [
+              {
+                "id": "default",
+                "parent": null,
+                "relPath": "cms-base/data-elements/default.md",
+                "title": "Владелец",
+                "frontmatter": {
+                  "awn-supertype": "awn-data/cms-base/data-elements/default.md",
+                  "awn-name": "",
+                  "awn-description": "",
+                  "awn-data-elements-schema-mixins": "[]",
+                  "awn-data-elements-schema": "",
+                  "fields": "",
+                  "awn-created": "",
+                  "type": "awn.field.string",
+                  "title": "Владелец",
+                  "awn-updated": "",
+                  "awn-status": "",
+                  "awn-version": "",
+                  "awn-owner": "",
+                  "tabs": "",
+                  "system": "Системное"
+                },
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "cms-base.mixins",
+            "relPath": "cms-base/mixins",
+            "kind": "collection",
+            "name": "Mixins",
+            "description": "Mixins",
+            "manifestMarkdown": "# Mixins\n\nПримеси для страниц и контента (`awn.mixin.*`). Наследуют `awn.base`.\n\n- **manifest `awn-fields`** — метаданные записи mixin\n- **body `awn-fields`** — поля, которые mixin добавляет к типам",
+            "manifestRelPath": "cms-base/mixins/manifest.md",
+            "schemaRelPath": "cms-base/mixins/manifest.md",
+            "schemeModRelPath": "",
+            "schemeModFile": "",
+            "schemaFile": "manifest.md",
+            "schema": {
+              "version": 1,
+              "kind": "collection",
+              "supertype": "",
+              "id": "cms-base.mixins",
+              "name": "Mixins",
+              "description": "Mixins",
+              "extends": "awn-data/cms-base/entities/base.md",
+              "layer": "",
+              "record": {
+                "id-mode": "slug",
+                "file": "{id}.md"
+              },
+              "fields": {
+                "awn-title": {
+                  "type": "awn.string",
+                  "title": "Название",
+                  "required": true
+                },
+                "awn-typeId": {
+                  "type": "awn.string",
+                  "title": "ID типа",
+                  "required": true
+                },
+                "awn-kind": {
+                  "type": "awn.string",
+                  "title": "Kind"
+                },
+                "awn-domain": {
+                  "type": "awn.string",
+                  "title": "Domain"
+                },
+                "awn-status": {
+                  "type": "awn.enum",
+                  "title": "Статус",
+                  "enum": [
+                    "active",
+                    "draft",
+                    "deprecated",
+                    "inactive"
+                  ],
+                  "default": "active"
+                },
+                "awn-extends": {
+                  "type": "awn.string",
+                  "title": "Extends"
+                }
+              },
+              "elementSchemaTabs": {},
+              "elementSchemaMixins": [],
+              "fieldsLocal": {
+                "awn-title": {
+                  "type": "awn.string",
+                  "title": "Название",
+                  "required": true
+                },
+                "awn-typeId": {
+                  "type": "awn.string",
+                  "title": "ID типа",
+                  "required": true
+                },
+                "awn-kind": {
+                  "type": "awn.string",
+                  "title": "Kind"
+                },
+                "awn-domain": {
+                  "type": "awn.string",
+                  "title": "Domain"
+                },
+                "awn-status": {
+                  "type": "awn.enum",
+                  "title": "Статус",
+                  "enum": [
+                    "active",
+                    "draft",
+                    "deprecated",
+                    "inactive"
+                  ],
+                  "default": "active"
+                },
+                "awn-extends": {
+                  "type": "awn.string",
+                  "title": "Extends"
+                }
+              },
+              "fieldsInSchemeMod": false,
+              "schemaFile": "manifest.md",
+              "schemeModFile": "",
+              "extendsChain": [
+                "awn-data/cms-base/entities/base.md"
+              ],
+              "_storeBody": "# Mixins\n\nПримеси для страниц и контента (`awn.mixin.*`). Наследуют `awn.base`.\n\n- **manifest `awn-fields`** — метаданные записи mixin\n- **body `awn-fields`** — поля, которые mixin добавляет к типам"
+            },
+            "sortOrder": null,
+            "recordStorage": "md",
+            "recordCount": 5,
+            "recordFile": null,
+            "records": [
+              {
+                "id": "attachments",
+                "parent": null,
+                "relPath": "cms-base/mixins/attachments.md",
+                "fileName": "attachments.md",
+                "frontmatter": {
+                  "awn-id": "attachments",
+                  "awn-created": "2026-08-03T20:03:50.564Z",
+                  "awn-updated": "2026-08-03T20:03:50.564Z",
+                  "awn-typeId": "awn.mixin.attachments",
+                  "awn-title": "Вложения",
+                  "awn-kind": "mixin",
+                  "awn-domain": "mixins",
+                  "awn-status": "active",
+                  "description": "Прикреплённые файлы",
+                  "awn-fields": {
+                    "awn-attachments": {
+                      "type": "awn.field.array",
+                      "title": "Вложения",
+                      "items": "awn.field.file",
+                      "widget": "attachments"
+                    }
+                  }
+                },
+                "body": "description: Прикреплённые файлы\nawn-fields:\n  awn-attachments:\n    type: awn.field.array\n    title: Вложения\n    items: awn.field.file\n    widget: attachments",
+                "title": "Вложения",
+                "bodyFields": {
+                  "awn-attachments": {
+                    "type": "awn.array",
+                    "title": "Вложения",
+                    "items": "awn.field.file",
+                    "widget": "attachments"
+                  }
+                }
+              },
+              {
+                "id": "mixin",
+                "parent": null,
+                "relPath": "cms-base/mixins/mixin.md",
+                "fileName": "mixin.md",
+                "frontmatter": {
+                  "awn-super-type": "",
+                  "awn-name": "",
+                  "awn-description": "подмешивается через awn-data-elements-schema-mixins",
+                  "awn-data-elements-schema": "",
+                  "description": "название",
+                  "awn-fields": "",
+                  "awn-title": "",
+                  "type": "awn.field.string",
+                  "title": "Название",
+                  "Каталог экземпляров": "`cms-base/mixins/preview.md`, …"
+                },
+                "body": "# data-containers.mixin\n\nType id = **`awn-data/cms-base/data-containers/mixin.md`**\n\nКаталог экземпляров: `cms-base/mixins/preview.md`, …",
+                "title": "Название",
+                "bodyFields": {}
+              },
+              {
+                "id": "preview",
+                "parent": null,
+                "relPath": "cms-base/mixins/preview.md",
+                "fileName": "preview.md",
+                "frontmatter": {
+                  "awn-id": "preview",
+                  "awn-created": "2026-08-03T20:03:50.565Z",
+                  "awn-updated": "2026-08-03T20:03:50.565Z",
+                  "awn-typeId": "awn.mixin.preview",
+                  "awn-title": "Превью",
+                  "awn-kind": "mixin",
+                  "awn-domain": "mixins",
+                  "awn-status": "active",
+                  "description": "Поле превью-изображения",
+                  "awn-fields": {
+                    "awn-preview": {
+                      "type": "awn.field.url",
+                      "title": "Превью",
+                      "group": "content"
+                    }
+                  }
+                },
+                "body": "description: Поле превью-изображения\nawn-fields:\n  awn-preview:\n    type: awn.field.url\n    title: Превью\n    group: content",
+                "title": "Превью",
+                "bodyFields": {
+                  "awn-preview": {
+                    "type": "awn.url",
+                    "title": "Превью",
+                    "group": "content"
+                  }
+                }
+              },
+              {
+                "id": "runtime",
+                "parent": null,
+                "relPath": "cms-base/mixins/runtime.md",
+                "fileName": "runtime.md",
+                "frontmatter": {
+                  "awn-id": "runtime",
+                  "awn-created": "2026-08-03T20:03:50.566Z",
+                  "awn-updated": "2026-08-03T20:03:50.566Z",
+                  "awn-typeId": "awn.mixin.runtime",
+                  "awn-title": "Runtime",
+                  "awn-kind": "mixin",
+                  "awn-domain": "mixins",
+                  "awn-status": "active",
+                  "description": "Загрузка в контекст агента, cron, heartbeat, команды",
+                  "awn-fields": {
+                    "awn-runtime-load-always": {
+                      "type": "awn.field.boolean",
+                      "title": "Всегда в контексте",
+                      "group": "runtime",
+                      "description": "Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)",
+                      "default": false
+                    },
+                    "awn-runtime-cron": {
+                      "type": "awn.field.boolean",
+                      "title": "Выполнение по расписанию",
+                      "group": "runtime"
+                    },
+                    "awn-runtime-cron-schedule": {
+                      "type": "awn.field.string",
+                      "title": "Расписание cron",
+                      "group": "runtime",
+                      "description": "День и время, шаблон или своё cron-выражение"
+                    },
+                    "awn-runtime-heartbeat": {
+                      "type": "awn.field.boolean",
+                      "title": "Heartbeat",
+                      "group": "runtime"
+                    },
+                    "awn-runtime-commands": {
+                      "type": "awn.field.boolean",
+                      "title": "Выполнение команд",
+                      "group": "runtime",
+                      "description": "В инструкции темы есть команды для выполнения (визуальный маркер)",
+                      "default": false
+                    }
+                  }
+                },
+                "body": "description: \"Загрузка в контекст агента, cron, heartbeat, команды\"\nawn-fields:\n  awn-runtime-load-always:\n    type: awn.field.boolean\n    title: Всегда в контексте\n    group: runtime\n    description: Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)\n    default: false\n  awn-runtime-cron:\n    type: awn.field.boolean\n    title: Выполнение по расписанию\n    group: runtime\n  awn-runtime-cron-schedule:\n    type: awn.field.string\n    title: Расписание cron\n    group: runtime\n    description: \"День и время, шаблон или своё cron-выражение\"\n  awn-runtime-heartbeat:\n    type: awn.field.boolean\n    title: Heartbeat\n    group: runtime\n  awn-runtime-commands:\n    type: awn.field.boolean\n    title: Выполнение команд\n    group: runtime\n    description: В инструкции темы есть команды для выполнения (визуальный маркер)\n    default: false",
+                "title": "Runtime",
+                "bodyFields": {
+                  "awn-runtime-load-always": {
+                    "type": "awn.boolean",
+                    "title": "Всегда в контексте",
+                    "group": "runtime",
+                    "description": "Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)",
+                    "default": false
+                  },
+                  "awn-runtime-cron": {
+                    "type": "awn.boolean",
+                    "title": "Выполнение по расписанию",
+                    "group": "runtime"
+                  },
+                  "awn-runtime-cron-schedule": {
+                    "type": "awn.string",
+                    "title": "Расписание cron",
+                    "group": "runtime",
+                    "description": "День и время, шаблон или своё cron-выражение"
+                  },
+                  "awn-runtime-heartbeat": {
+                    "type": "awn.boolean",
+                    "title": "Heartbeat",
+                    "group": "runtime"
+                  },
+                  "awn-runtime-commands": {
+                    "type": "awn.boolean",
+                    "title": "Выполнение команд",
+                    "group": "runtime",
+                    "description": "В инструкции темы есть команды для выполнения (визуальный маркер)",
+                    "default": false
+                  }
+                }
+              },
+              {
+                "id": "web-url",
+                "parent": null,
+                "relPath": "cms-base/mixins/web-url.md",
+                "fileName": "web-url.md",
+                "frontmatter": {
+                  "awn-id": "web-url",
+                  "awn-created": "2026-08-03T20:03:50.568Z",
+                  "awn-updated": "2026-08-03T20:03:50.568Z",
+                  "awn-typeId": "awn.mixin.web-url",
+                  "awn-title": "Веб-источник",
+                  "awn-kind": "mixin",
+                  "awn-domain": "mixins",
+                  "awn-status": "active",
+                  "description": "Ссылка на оригинал в интернете",
+                  "awn-fields": {
+                    "awn-web-url": {
+                      "type": "awn.field.url",
+                      "title": "Веб-источник",
+                      "description": "URL оригинала в интернете (https://…)",
+                      "group": "content"
+                    }
+                  }
+                },
+                "body": "description: Ссылка на оригинал в интернете\nawn-fields:\n  awn-web-url:\n    type: awn.field.url\n    title: Веб-источник\n    description: \"URL оригинала в интернете (https://…)\"\n    group: content",
+                "title": "Веб-источник",
+                "bodyFields": {
+                  "awn-web-url": {
+                    "type": "awn.url",
+                    "title": "Веб-источник",
+                    "description": "URL оригинала в интернете (https://…)",
+                    "group": "content"
+                  }
+                }
+              }
+            ],
+            "tree": [
+              {
+                "id": "attachments",
+                "parent": null,
+                "relPath": "cms-base/mixins/attachments.md",
+                "title": "Вложения",
+                "frontmatter": {
+                  "awn-id": "attachments",
+                  "awn-created": "2026-08-03T20:03:50.564Z",
+                  "awn-updated": "2026-08-03T20:03:50.564Z",
+                  "awn-typeId": "awn.mixin.attachments",
+                  "awn-title": "Вложения",
+                  "awn-kind": "mixin",
+                  "awn-domain": "mixins",
+                  "awn-status": "active",
+                  "description": "Прикреплённые файлы",
+                  "awn-fields": {
+                    "awn-attachments": {
+                      "type": "awn.field.array",
+                      "title": "Вложения",
+                      "items": "awn.field.file",
+                      "widget": "attachments"
+                    }
+                  }
+                },
+                "children": []
+              },
+              {
+                "id": "mixin",
+                "parent": null,
+                "relPath": "cms-base/mixins/mixin.md",
+                "title": "Название",
+                "frontmatter": {
+                  "awn-super-type": "",
+                  "awn-name": "",
+                  "awn-description": "подмешивается через awn-data-elements-schema-mixins",
+                  "awn-data-elements-schema": "",
+                  "description": "название",
+                  "awn-fields": "",
+                  "awn-title": "",
+                  "type": "awn.field.string",
+                  "title": "Название",
+                  "Каталог экземпляров": "`cms-base/mixins/preview.md`, …"
+                },
+                "children": []
+              },
+              {
+                "id": "preview",
+                "parent": null,
+                "relPath": "cms-base/mixins/preview.md",
+                "title": "Превью",
+                "frontmatter": {
+                  "awn-id": "preview",
+                  "awn-created": "2026-08-03T20:03:50.565Z",
+                  "awn-updated": "2026-08-03T20:03:50.565Z",
+                  "awn-typeId": "awn.mixin.preview",
+                  "awn-title": "Превью",
+                  "awn-kind": "mixin",
+                  "awn-domain": "mixins",
+                  "awn-status": "active",
+                  "description": "Поле превью-изображения",
+                  "awn-fields": {
+                    "awn-preview": {
+                      "type": "awn.field.url",
+                      "title": "Превью",
+                      "group": "content"
+                    }
+                  }
+                },
+                "children": []
+              },
+              {
+                "id": "runtime",
+                "parent": null,
+                "relPath": "cms-base/mixins/runtime.md",
+                "title": "Runtime",
+                "frontmatter": {
+                  "awn-id": "runtime",
+                  "awn-created": "2026-08-03T20:03:50.566Z",
+                  "awn-updated": "2026-08-03T20:03:50.566Z",
+                  "awn-typeId": "awn.mixin.runtime",
+                  "awn-title": "Runtime",
+                  "awn-kind": "mixin",
+                  "awn-domain": "mixins",
+                  "awn-status": "active",
+                  "description": "Загрузка в контекст агента, cron, heartbeat, команды",
+                  "awn-fields": {
+                    "awn-runtime-load-always": {
+                      "type": "awn.field.boolean",
+                      "title": "Всегда в контексте",
+                      "group": "runtime",
+                      "description": "Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)",
+                      "default": false
+                    },
+                    "awn-runtime-cron": {
+                      "type": "awn.field.boolean",
+                      "title": "Выполнение по расписанию",
+                      "group": "runtime"
+                    },
+                    "awn-runtime-cron-schedule": {
+                      "type": "awn.field.string",
+                      "title": "Расписание cron",
+                      "group": "runtime",
+                      "description": "День и время, шаблон или своё cron-выражение"
+                    },
+                    "awn-runtime-heartbeat": {
+                      "type": "awn.field.boolean",
+                      "title": "Heartbeat",
+                      "group": "runtime"
+                    },
+                    "awn-runtime-commands": {
+                      "type": "awn.field.boolean",
+                      "title": "Выполнение команд",
+                      "group": "runtime",
+                      "description": "В инструкции темы есть команды для выполнения (визуальный маркер)",
+                      "default": false
+                    }
+                  }
+                },
+                "children": []
+              },
+              {
+                "id": "web-url",
+                "parent": null,
+                "relPath": "cms-base/mixins/web-url.md",
+                "title": "Веб-источник",
+                "frontmatter": {
+                  "awn-id": "web-url",
+                  "awn-created": "2026-08-03T20:03:50.568Z",
+                  "awn-updated": "2026-08-03T20:03:50.568Z",
+                  "awn-typeId": "awn.mixin.web-url",
+                  "awn-title": "Веб-источник",
+                  "awn-kind": "mixin",
+                  "awn-domain": "mixins",
+                  "awn-status": "active",
+                  "description": "Ссылка на оригинал в интернете",
+                  "awn-fields": {
+                    "awn-web-url": {
+                      "type": "awn.field.url",
+                      "title": "Веб-источник",
+                      "description": "URL оригинала в интернете (https://…)",
+                      "group": "content"
+                    }
+                  }
+                },
+                "children": []
+              }
+            ]
+          }
+        ],
+        "childCount": 3
+      },
+      {
+        "id": "agent-registry",
+        "relPath": "agent-registry",
+        "kind": "group",
+        "name": "Реестр агентов",
+        "description": "Реестр агентов",
+        "manifestMarkdown": "# Реестр агентов\n\nГруппа накопителей landing и multi-agent runtime.\n\n| Накопитель | Назначение |\n|------------|------------|\n| [agents/](./agents/manifest.md) | Workspace-агенты — пути, окружение, default/orchestrator |\n| [agent-groups/](./agent-groups/manifest.md) | UI-группы на landing («Работа», «Хобби», …) |\n\nLegacy fallback: `awn-agents.json`.",
+        "manifestRelPath": "agent-registry/manifest.md",
+        "schemaRelPath": "agent-registry/manifest.md",
+        "schemeModRelPath": "",
+        "schemeModFile": "",
+        "schemaFile": "manifest.md",
+        "schema": {
+          "version": 1,
+          "kind": "group",
+          "supertype": "",
+          "id": "agent-registry",
+          "name": "Реестр агентов",
+          "description": "Реестр агентов",
+          "extends": "",
+          "layer": "",
+          "record": {},
+          "fields": {},
+          "elementSchemaTabs": {},
+          "elementSchemaMixins": [],
+          "fieldsLocal": {},
+          "fieldsInSchemeMod": false,
+          "schemaFile": "manifest.md",
+          "schemeModFile": "",
+          "extendsChain": [],
+          "_storeBody": "# Реестр агентов\n\nГруппа накопителей landing и multi-agent runtime.\n\n| Накопитель | Назначение |\n|------------|------------|\n| [agents/](./agents/manifest.md) | Workspace-агенты — пути, окружение, default/orchestrator |\n| [agent-groups/](./agent-groups/manifest.md) | UI-группы на landing («Работа», «Хобби», …) |\n\nLegacy fallback: `awn-agents.json`."
+        },
+        "sortOrder": [
+          "agents",
+          "agent-groups"
+        ],
+        "recordStorage": "md",
+        "recordCount": 12,
+        "recordFile": null,
+        "children": [
+          {
+            "id": "agent-registry.agents",
+            "relPath": "agent-registry/agents",
+            "kind": "collection",
+            "name": "Агенты",
+            "description": "Агенты",
+            "manifestMarkdown": "# Агенты\n\nКоллекция workspace-агентов платформы. Каждая запись — один агент.\n\n- **path** — путь к папке workspace (относительный или абсолютный)\n- **environment** — окружение (`local`, `staging`, `production`)\n- **default** — агент по умолчанию при старте\n- **orchestrator** — флаг оркестратора\n\nDisplay-метаданные (имя, emoji, preview) — в `manifest.md` workspace.\n\nLegacy fallback: `awn-agents.json` в корне проекта.",
+            "manifestRelPath": "agent-registry/agents/manifest.md",
+            "schemaRelPath": "agent-registry/agents/manifest.md",
+            "schemeModRelPath": "",
+            "schemeModFile": "",
+            "schemaFile": "manifest.md",
+            "schema": {
+              "version": 1,
+              "kind": "collection",
+              "supertype": "",
+              "id": "agent-registry.agents",
+              "name": "Агенты",
+              "description": "Агенты",
+              "extends": "awn-data/cms-base/entities/row.base.md",
+              "layer": "",
+              "record": {
+                "id-mode": "slug",
+                "file": "{id}.md"
+              },
+              "fields": {
+                "awn-title": {
+                  "type": "awn.string",
+                  "title": "Название"
+                },
+                "awn-path": {
+                  "type": "awn.string",
+                  "title": "Путь workspace",
+                  "required": true
+                },
+                "awn-environment": {
+                  "type": "awn.enum",
+                  "title": "Окружение",
+                  "enum": [
+                    "local",
+                    "staging",
+                    "production"
+                  ],
+                  "default": "local"
+                },
+                "awn-default": {
+                  "type": "awn.boolean",
+                  "title": "Агент по умолчанию",
+                  "default": false
+                },
+                "awn-orchestrator": {
+                  "type": "awn.boolean",
+                  "title": "Оркестратор",
+                  "default": false
+                }
+              },
+              "elementSchemaTabs": {},
+              "elementSchemaMixins": [],
+              "fieldsLocal": {
+                "awn-title": {
+                  "type": "awn.string",
+                  "title": "Название"
+                },
+                "awn-path": {
+                  "type": "awn.string",
+                  "title": "Путь workspace",
+                  "required": true
+                },
+                "awn-environment": {
+                  "type": "awn.enum",
+                  "title": "Окружение",
+                  "enum": [
+                    "local",
+                    "staging",
+                    "production"
+                  ],
+                  "default": "local"
+                },
+                "awn-default": {
+                  "type": "awn.boolean",
+                  "title": "Агент по умолчанию",
+                  "default": false
+                },
+                "awn-orchestrator": {
+                  "type": "awn.boolean",
+                  "title": "Оркестратор",
+                  "default": false
+                }
+              },
+              "fieldsInSchemeMod": false,
+              "schemaFile": "manifest.md",
+              "schemeModFile": "",
+              "extendsChain": [
+                "awn-data/cms-base/entities/row.base.md"
+              ],
+              "_storeBody": "# Агенты\n\nКоллекция workspace-агентов платформы. Каждая запись — один агент.\n\n- **path** — путь к папке workspace (относительный или абсолютный)\n- **environment** — окружение (`local`, `staging`, `production`)\n- **default** — агент по умолчанию при старте\n- **orchestrator** — флаг оркестратора\n\nDisplay-метаданные (имя, emoji, preview) — в `manifest.md` workspace.\n\nLegacy fallback: `awn-agents.json` в корне проекта."
+            },
+            "sortOrder": [
+              "agent-cms-core",
+              "agent-cms-test",
+              "agent-focus",
+              "agent-medcenter",
+              "downloads",
+              "test2"
+            ],
+            "recordStorage": "md",
+            "recordCount": 6,
+            "recordFile": null,
+            "records": [
+              {
+                "id": "agent-cms-core",
+                "parent": null,
+                "relPath": "agent-registry/agents/agent-cms-core.md",
+                "fileName": "agent-cms-core.md",
+                "frontmatter": {
+                  "awn-id": "agent-cms-core",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "agent-cms-core",
+                  "awn-path": "workspaces/agent-cms-core",
+                  "awn-environment": "local"
+                },
+                "body": "Workspace **agent-cms-core** · `workspaces/agent-cms-core`",
+                "title": "agent-cms-core",
+                "bodyFields": {}
+              },
+              {
+                "id": "agent-cms-test",
+                "parent": null,
+                "relPath": "agent-registry/agents/agent-cms-test.md",
+                "fileName": "agent-cms-test.md",
+                "frontmatter": {
+                  "awn-id": "agent-cms-test",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "agent-cms-test",
+                  "awn-path": "workspaces/agent-cms-test",
+                  "awn-environment": "local"
+                },
+                "body": "Workspace **agent-cms-test** · `workspaces/agent-cms-test`",
+                "title": "agent-cms-test",
+                "bodyFields": {}
+              },
+              {
+                "id": "agent-focus",
+                "parent": null,
+                "relPath": "agent-registry/agents/agent-focus.md",
+                "fileName": "agent-focus.md",
+                "frontmatter": {
+                  "awn-id": "agent-focus",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "agent-focus",
+                  "awn-path": "/Users/macbook/Desktop/agent-focus",
+                  "awn-environment": "local",
+                  "awn-default": "true"
+                },
+                "body": "Workspace **agent-focus** · `/Users/macbook/Desktop/agent-focus`",
+                "title": "agent-focus",
+                "bodyFields": {}
+              },
+              {
+                "id": "agent-medcenter",
+                "parent": null,
+                "relPath": "agent-registry/agents/agent-medcenter.md",
+                "fileName": "agent-medcenter.md",
+                "frontmatter": {
+                  "awn-id": "agent-medcenter",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "agent-medcenter",
+                  "awn-path": "/Users/macbook/Desktop/agent-medcenter",
+                  "awn-environment": "local"
+                },
+                "body": "Workspace **agent-medcenter** · `/Users/macbook/Desktop/agent-medcenter`",
+                "title": "agent-medcenter",
+                "bodyFields": {}
+              },
+              {
+                "id": "downloads",
+                "parent": null,
+                "relPath": "agent-registry/agents/downloads.md",
+                "fileName": "downloads.md",
+                "frontmatter": {
+                  "awn-id": "downloads",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "downloads",
+                  "awn-path": "/Users/macbook/downloads",
+                  "awn-environment": "local"
+                },
+                "body": "Workspace **downloads** · `/Users/macbook/downloads`",
+                "title": "downloads",
+                "bodyFields": {}
+              },
+              {
+                "id": "test2",
+                "parent": null,
+                "relPath": "agent-registry/agents/test2.md",
+                "fileName": "test2.md",
+                "frontmatter": {
+                  "awn-id": "test2",
+                  "awn-created": "2026-08-02T21:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "test2",
+                  "awn-path": "workspaces/test2",
+                  "awn-environment": "local"
+                },
+                "body": "Workspace **test2** · `workspaces/test2`",
+                "title": "test2",
+                "bodyFields": {}
+              }
+            ],
+            "tree": [
+              {
+                "id": "agent-cms-core",
+                "parent": null,
+                "relPath": "agent-registry/agents/agent-cms-core.md",
+                "title": "agent-cms-core",
+                "frontmatter": {
+                  "awn-id": "agent-cms-core",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "agent-cms-core",
+                  "awn-path": "workspaces/agent-cms-core",
+                  "awn-environment": "local"
+                },
+                "children": []
+              },
+              {
+                "id": "agent-cms-test",
+                "parent": null,
+                "relPath": "agent-registry/agents/agent-cms-test.md",
+                "title": "agent-cms-test",
+                "frontmatter": {
+                  "awn-id": "agent-cms-test",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "agent-cms-test",
+                  "awn-path": "workspaces/agent-cms-test",
+                  "awn-environment": "local"
+                },
+                "children": []
+              },
+              {
+                "id": "agent-focus",
+                "parent": null,
+                "relPath": "agent-registry/agents/agent-focus.md",
+                "title": "agent-focus",
+                "frontmatter": {
+                  "awn-id": "agent-focus",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "agent-focus",
+                  "awn-path": "/Users/macbook/Desktop/agent-focus",
+                  "awn-environment": "local",
+                  "awn-default": "true"
+                },
+                "children": []
+              },
+              {
+                "id": "agent-medcenter",
+                "parent": null,
+                "relPath": "agent-registry/agents/agent-medcenter.md",
+                "title": "agent-medcenter",
+                "frontmatter": {
+                  "awn-id": "agent-medcenter",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "agent-medcenter",
+                  "awn-path": "/Users/macbook/Desktop/agent-medcenter",
+                  "awn-environment": "local"
+                },
+                "children": []
+              },
+              {
+                "id": "downloads",
+                "parent": null,
+                "relPath": "agent-registry/agents/downloads.md",
+                "title": "downloads",
+                "frontmatter": {
+                  "awn-id": "downloads",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "downloads",
+                  "awn-path": "/Users/macbook/downloads",
+                  "awn-environment": "local"
+                },
+                "children": []
+              },
+              {
+                "id": "test2",
+                "parent": null,
+                "relPath": "agent-registry/agents/test2.md",
+                "title": "test2",
+                "frontmatter": {
+                  "awn-id": "test2",
+                  "awn-created": "2026-08-02T21:00",
+                  "awn-updated": "2026-08-02T21:00",
+                  "awn-title": "test2",
+                  "awn-path": "workspaces/test2",
+                  "awn-environment": "local"
+                },
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "agent-registry.groups",
+            "relPath": "agent-registry/agent-groups",
+            "kind": "collection",
+            "name": "Группы агентов",
+            "description": "Группы агентов",
+            "manifestMarkdown": "# Группы агентов\n\nUI-группировка на landing: «Работа», «Хобби», «Образование» и т.д.\n\n- **agentIds** — список id агентов через запятую\n- **background** — путь к PNG/JPG в `awn-storage/assets/attachments/` этого накопителя\n- **appearance** — `light` или `dark`\n\nСистемная запись `_ungrouped.md` — настройки для агентов без группы.\n\nLegacy fallback: `awn-agents.json`.",
+            "manifestRelPath": "agent-registry/agent-groups/manifest.md",
+            "schemaRelPath": "agent-registry/agent-groups/manifest.md",
+            "schemeModRelPath": "",
+            "schemeModFile": "",
+            "schemaFile": "manifest.md",
+            "schema": {
+              "version": 1,
+              "kind": "collection",
+              "supertype": "",
+              "id": "agent-registry.groups",
+              "name": "Группы агентов",
+              "description": "Группы агентов",
+              "extends": "awn-data/cms-base/entities/row.base.md",
+              "layer": "",
+              "record": {
+                "id-mode": "slug",
+                "file": "{id}.md"
+              },
+              "fields": {
+                "awn-title": {
+                  "type": "awn.string",
+                  "title": "Название",
+                  "required": true
+                },
+                "awn-agentIds": {
+                  "type": "awn.string",
+                  "title": "Агенты",
+                  "description": "id агентов через запятую"
+                },
+                "awn-background": {
+                  "type": "awn.string",
+                  "title": "Фон (путь к изображению)",
+                  "description": "awn-storage/assets/attachments/{id}.png"
+                },
+                "awn-appearance": {
+                  "type": "awn.enum",
+                  "title": "Тема",
+                  "enum": [
+                    "light",
+                    "dark"
+                  ],
+                  "default": "light"
+                },
+                "awn-system": {
+                  "type": "awn.boolean",
+                  "title": "Системная запись",
+                  "description": "_ungrouped — настройки агентов без группы",
+                  "default": false
+                }
+              },
+              "elementSchemaTabs": {},
+              "elementSchemaMixins": [],
+              "fieldsLocal": {
+                "awn-title": {
+                  "type": "awn.string",
+                  "title": "Название",
+                  "required": true
+                },
+                "awn-agentIds": {
+                  "type": "awn.string",
+                  "title": "Агенты",
+                  "description": "id агентов через запятую"
+                },
+                "awn-background": {
+                  "type": "awn.string",
+                  "title": "Фон (путь к изображению)",
+                  "description": "awn-storage/assets/attachments/{id}.png"
+                },
+                "awn-appearance": {
+                  "type": "awn.enum",
+                  "title": "Тема",
+                  "enum": [
+                    "light",
+                    "dark"
+                  ],
+                  "default": "light"
+                },
+                "awn-system": {
+                  "type": "awn.boolean",
+                  "title": "Системная запись",
+                  "description": "_ungrouped — настройки агентов без группы",
+                  "default": false
+                }
+              },
+              "fieldsInSchemeMod": false,
+              "schemaFile": "manifest.md",
+              "schemeModFile": "",
+              "extendsChain": [
+                "awn-data/cms-base/entities/row.base.md"
+              ],
+              "_storeBody": "# Группы агентов\n\nUI-группировка на landing: «Работа», «Хобби», «Образование» и т.д.\n\n- **agentIds** — список id агентов через запятую\n- **background** — путь к PNG/JPG в `awn-storage/assets/attachments/` этого накопителя\n- **appearance** — `light` или `dark`\n\nСистемная запись `_ungrouped.md` — настройки для агентов без группы.\n\nLegacy fallback: `awn-agents.json`."
+            },
+            "sortOrder": [
+              "platform",
+              "образование",
+              "текущее",
+              "хобби",
+              "тестовая-группа"
+            ],
+            "recordStorage": "md",
+            "recordCount": 6,
+            "recordFile": null,
+            "records": [
+              {
+                "id": "_ungrouped",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/_ungrouped.md",
+                "fileName": "_ungrouped.md",
+                "frontmatter": {
+                  "awn-id": "_ungrouped",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Без группы",
+                  "awn-system": "true"
+                },
+                "body": "Настройки агентов без группы.",
+                "title": "Без группы",
+                "bodyFields": {}
+              },
+              {
+                "id": "platform",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/platform.md",
+                "fileName": "platform.md",
+                "frontmatter": {
+                  "awn-id": "platform",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Работа",
+                  "awn-agentIds": "agent-medcenter",
+                  "awn-background": "workspaces/agent-cms-core/awn-data/agent-registry/agent-groups/awn-storage/assets/attachments/platform.png",
+                  "awn-appearance": "dark"
+                },
+                "body": "Группа **Работа**.",
+                "title": "Работа",
+                "bodyFields": {}
+              },
+              {
+                "id": "образование",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/образование.md",
+                "fileName": "образование.md",
+                "frontmatter": {
+                  "awn-id": "образование",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Образование",
+                  "awn-background": "workspaces/agent-cms-core/awn-data/agent-registry/agent-groups/awn-storage/assets/attachments/образование.png"
+                },
+                "body": "Группа **Образование**.",
+                "title": "Образование",
+                "bodyFields": {}
+              },
+              {
+                "id": "текущее",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/текущее.md",
+                "fileName": "текущее.md",
+                "frontmatter": {
+                  "awn-id": "текущее",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Основное",
+                  "awn-agentIds": "agent-focus"
+                },
+                "body": "Группа **Основное**.",
+                "title": "Основное",
+                "bodyFields": {}
+              },
+              {
+                "id": "тестовая-группа",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/тестовая-группа.md",
+                "fileName": "тестовая-группа.md",
+                "frontmatter": {
+                  "awn-id": "тестовая-группа",
+                  "awn-created": "2026-08-02T21:01",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Тестовая группа"
+                },
+                "body": "Группа **Тестовая группа**.",
+                "title": "Тестовая группа",
+                "bodyFields": {}
+              },
+              {
+                "id": "хобби",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/хобби.md",
+                "fileName": "хобби.md",
+                "frontmatter": {
+                  "awn-id": "хобби",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Хобби",
+                  "awn-agentIds": "agent-cms-core, agent-cms-test"
+                },
+                "body": "Группа **Хобби**.",
+                "title": "Хобби",
+                "bodyFields": {}
+              }
+            ],
+            "tree": [
+              {
+                "id": "_ungrouped",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/_ungrouped.md",
+                "title": "Без группы",
+                "frontmatter": {
+                  "awn-id": "_ungrouped",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Без группы",
+                  "awn-system": "true"
+                },
+                "children": []
+              },
+              {
+                "id": "platform",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/platform.md",
+                "title": "Работа",
+                "frontmatter": {
+                  "awn-id": "platform",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Работа",
+                  "awn-agentIds": "agent-medcenter",
+                  "awn-background": "workspaces/agent-cms-core/awn-data/agent-registry/agent-groups/awn-storage/assets/attachments/platform.png",
+                  "awn-appearance": "dark"
+                },
+                "children": []
+              },
+              {
+                "id": "образование",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/образование.md",
+                "title": "Образование",
+                "frontmatter": {
+                  "awn-id": "образование",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Образование",
+                  "awn-background": "workspaces/agent-cms-core/awn-data/agent-registry/agent-groups/awn-storage/assets/attachments/образование.png"
+                },
+                "children": []
+              },
+              {
+                "id": "текущее",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/текущее.md",
+                "title": "Основное",
+                "frontmatter": {
+                  "awn-id": "текущее",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Основное",
+                  "awn-agentIds": "agent-focus"
+                },
+                "children": []
+              },
+              {
+                "id": "тестовая-группа",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/тестовая-группа.md",
+                "title": "Тестовая группа",
+                "frontmatter": {
+                  "awn-id": "тестовая-группа",
+                  "awn-created": "2026-08-02T21:01",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Тестовая группа"
+                },
+                "children": []
+              },
+              {
+                "id": "хобби",
+                "parent": null,
+                "relPath": "agent-registry/agent-groups/хобби.md",
+                "title": "Хобби",
+                "frontmatter": {
+                  "awn-id": "хобби",
+                  "awn-created": "2026-08-02T20:00",
+                  "awn-updated": "2026-08-02T21:01",
+                  "awn-title": "Хобби",
+                  "awn-agentIds": "agent-cms-core, agent-cms-test"
+                },
+                "children": []
+              }
+            ]
+          }
+        ],
+        "childCount": 2
+      }
+    ],
+    "_storesTotal": 12,
+    "source": "agent",
+    "sourceAgentId": "agent-cms-core",
+    "readRoot": "/Users/macbook/Desktop/YamlCMS/workspaces/agent-cms-core",
+    "store": {
+      "id": "tasks",
+      "relPath": "tasks",
+      "kind": "collection",
+      "name": "Задачи",
+      "description": "Задачи",
+      "manifestMarkdown": "# Задачи\n\nStore id = **`awn-data/tasks`**.\n\n`awn-supertype` → collection.md (поля manifest).  \n`awn-data-elements-schema-*` → поля записей.  \nЗаписи: `awn-supertype: awn-data/tasks/manifest.md`.",
+      "manifestRelPath": "tasks/manifest.md",
+      "schemaRelPath": "tasks/manifest.md",
+      "schemeModRelPath": "",
+      "schemeModFile": "",
+      "schemaFile": "manifest.md",
+      "schema": {
+        "version": 1,
+        "kind": "collection",
+        "supertype": "awn-data/cms-base/data-containers/collection.md",
+        "id": "",
+        "name": "Задачи",
+        "description": "Задачи",
+        "extends": "awn-data/cms-base/data-elements/default.md",
+        "layer": "",
+        "record": {
+          "id-mode": "numeric",
+          "file": "{id}.md",
+          "hierarchy": true
+        },
+        "fields": {
+          "awn-created": {
+            "type": "awn.field.datetime",
+            "title": "Создано"
+          },
+          "awn-updated": {
+            "type": "awn.field.datetime",
+            "title": "Обновлено"
+          },
+          "awn-name": {
+            "type": "awn.field.string",
+            "title": "Имя"
+          },
+          "awn-description": {
+            "type": "awn.field.text",
+            "title": "Описание"
+          },
+          "awn-status": {
+            "type": "awn.enum",
+            "title": "Статус",
+            "enum": [
+              "open",
+              "in_progress",
+              "done",
+              "cancelled"
+            ],
+            "default": "open",
+            "tab": "main"
+          },
+          "awn-version": {
+            "type": "awn.field.integer",
+            "title": "Версия"
+          },
+          "awn-owner": {
+            "type": "awn.field.string",
+            "title": "Владелец"
+          },
+          "awn-title": {
+            "type": "awn.string",
+            "title": "Название",
+            "required": true,
+            "tab": "main"
+          },
+          "awn-parent": {
+            "type": "awn.string",
+            "title": "Родитель",
+            "description": "id родительской задачи",
+            "tab": "main"
+          },
+          "awn-priority": {
+            "type": "awn.enum",
+            "title": "Приоритет",
+            "enum": [
+              "low",
+              "normal",
+              "high"
+            ],
+            "default": "normal",
+            "tab": "main"
+          }
+        },
+        "elementSchemaTabs": {
+          "main": "Задача"
+        },
+        "elementSchemaMixins": [],
+        "fieldsLocal": {
+          "awn-title": {
+            "type": "awn.string",
+            "title": "Название",
+            "required": true,
+            "tab": "main"
+          },
+          "awn-parent": {
+            "type": "awn.string",
+            "title": "Родитель",
+            "description": "id родительской задачи",
+            "tab": "main"
+          },
+          "awn-status": {
+            "type": "awn.enum",
+            "title": "Статус",
+            "enum": [
+              "open",
+              "in_progress",
+              "done",
+              "cancelled"
+            ],
+            "default": "open",
+            "tab": "main"
+          },
+          "awn-priority": {
+            "type": "awn.enum",
+            "title": "Приоритет",
+            "enum": [
+              "low",
+              "normal",
+              "high"
+            ],
+            "default": "normal",
+            "tab": "main"
+          }
+        },
+        "fieldsInSchemeMod": false,
+        "schemaFile": "manifest.md",
+        "schemeModFile": "",
+        "extendsChain": [
+          "awn-data/cms-base/data-elements/default.md"
+        ],
+        "_storeBody": "# Задачи\n\nStore id = **`awn-data/tasks`**.\n\n`awn-supertype` → collection.md (поля manifest).  \n`awn-data-elements-schema-*` → поля записей.  \nЗаписи: `awn-supertype: awn-data/tasks/manifest.md`."
+      },
+      "sortOrder": [
+        "1",
+        "2",
+        "4",
+        "5",
+        "6"
+      ],
+      "recordStorage": "md",
+      "recordCount": 6,
+      "recordFile": null,
+      "records": [
+        {
+          "id": "3",
+          "parent": "1",
+          "relPath": "tasks/1/3.md",
+          "fileName": "3.md",
+          "frontmatter": {
+            "awn-supertype": "awn-data/tasks/manifest.md",
+            "awn-created": "2026-08-02T19:10",
+            "awn-updated": "2026-08-02T19:10",
+            "awn-title": "Описать иерархию в SPEC",
+            "awn-parent": "1",
+            "awn-status": "done",
+            "awn-priority": "normal",
+            "Дочерняя запись": "лежит в `tasks/1/3.md`, поле `awn-parent: \"1\"`."
+          },
+          "body": "Дочерняя запись: лежит в `tasks/1/3.md`, поле `awn-parent: \"1\"`.",
+          "title": "Описать иерархию в SPEC",
+          "bodyFields": {}
+        },
+        {
+          "id": "1",
+          "parent": null,
+          "relPath": "tasks/1.md",
+          "fileName": "1.md",
+          "frontmatter": {
+            "awn-supertype": "awn-data/tasks/manifest.md",
+            "awn-created": "2026-08-02T19:00",
+            "awn-updated": "2026-08-02T19:00",
+            "awn-title": "Спроектировать awn-data",
+            "awn-status": "in_progress",
+            "awn-priority": "high"
+          },
+          "body": "Корневая задача. Дочерняя — `1/3.md`.\n\nID = **`awn-data/tasks/1.md`** (путь, без `awn-id`).",
+          "title": "Спроектировать awn-data",
+          "bodyFields": {}
+        },
+        {
+          "id": "2",
+          "parent": null,
+          "relPath": "tasks/2.md",
+          "fileName": "2.md",
+          "frontmatter": {
+            "awn-supertype": "awn-data/tasks/manifest.md",
+            "awn-created": "2026-08-02T19:05",
+            "awn-updated": "2026-08-02T19:05",
+            "awn-title": "Подключить loader и API",
+            "awn-status": "open",
+            "awn-priority": "normal"
+          },
+          "body": "Вторая корневая задача (без детей).",
+          "title": "Подключить loader и API",
+          "bodyFields": {}
+        },
+        {
+          "id": "4",
+          "parent": null,
+          "relPath": "tasks/4.md",
+          "fileName": "4.md",
+          "frontmatter": {
+            "awn-supertype": "awn-data/tasks/manifest.md",
+            "awn-created": "2026-08-02T19:55",
+            "awn-updated": "2026-08-02T19:55",
+            "awn-title": "ауц"
+          },
+          "body": "ауц.",
+          "title": "ауц",
+          "bodyFields": {}
+        },
+        {
+          "id": "5",
+          "parent": null,
+          "relPath": "tasks/5.md",
+          "fileName": "5.md",
+          "frontmatter": {
+            "awn-supertype": "awn-data/tasks/manifest.md",
+            "awn-created": "2026-08-02T23:27",
+            "awn-updated": "2026-08-02T23:27",
+            "awn-title": "ац"
+          },
+          "body": "ац.",
+          "title": "ац",
+          "bodyFields": {}
+        },
+        {
+          "id": "6",
+          "parent": null,
+          "relPath": "tasks/6.md",
+          "fileName": "6.md",
+          "frontmatter": {
+            "awn-supertype": "awn-data/tasks/manifest.md",
+            "awn-created": "2026-08-06T19:17",
+            "awn-updated": "2026-08-06T19:17",
+            "awn-title": "000"
+          },
+          "body": "000.",
+          "title": "000",
+          "bodyFields": {}
+        }
+      ],
+      "tree": [
+        {
+          "id": "1",
+          "parent": null,
+          "relPath": "tasks/1.md",
+          "title": "Спроектировать awn-data",
+          "frontmatter": {
+            "awn-supertype": "awn-data/tasks/manifest.md",
+            "awn-created": "2026-08-02T19:00",
+            "awn-updated": "2026-08-02T19:00",
+            "awn-title": "Спроектировать awn-data",
+            "awn-status": "in_progress",
+            "awn-priority": "high"
+          },
+          "children": [
+            {
+              "id": "3",
+              "parent": "1",
+              "relPath": "tasks/1/3.md",
+              "title": "Описать иерархию в SPEC",
+              "frontmatter": {
+                "awn-supertype": "awn-data/tasks/manifest.md",
+                "awn-created": "2026-08-02T19:10",
+                "awn-updated": "2026-08-02T19:10",
+                "awn-title": "Описать иерархию в SPEC",
+                "awn-parent": "1",
+                "awn-status": "done",
+                "awn-priority": "normal",
+                "Дочерняя запись": "лежит в `tasks/1/3.md`, поле `awn-parent: \"1\"`."
+              },
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "2",
+          "parent": null,
+          "relPath": "tasks/2.md",
+          "title": "Подключить loader и API",
+          "frontmatter": {
+            "awn-supertype": "awn-data/tasks/manifest.md",
+            "awn-created": "2026-08-02T19:05",
+            "awn-updated": "2026-08-02T19:05",
+            "awn-title": "Подключить loader и API",
+            "awn-status": "open",
+            "awn-priority": "normal"
+          },
+          "children": []
+        },
+        {
+          "id": "4",
+          "parent": null,
+          "relPath": "tasks/4.md",
+          "title": "ауц",
+          "frontmatter": {
+            "awn-supertype": "awn-data/tasks/manifest.md",
+            "awn-created": "2026-08-02T19:55",
+            "awn-updated": "2026-08-02T19:55",
+            "awn-title": "ауц"
+          },
+          "children": []
+        },
+        {
+          "id": "5",
+          "parent": null,
+          "relPath": "tasks/5.md",
+          "title": "ац",
+          "frontmatter": {
+            "awn-supertype": "awn-data/tasks/manifest.md",
+            "awn-created": "2026-08-02T23:27",
+            "awn-updated": "2026-08-02T23:27",
+            "awn-title": "ац"
+          },
+          "children": []
+        },
+        {
+          "id": "6",
+          "parent": null,
+          "relPath": "tasks/6.md",
+          "title": "000",
+          "frontmatter": {
+            "awn-supertype": "awn-data/tasks/manifest.md",
+            "awn-created": "2026-08-06T19:17",
+            "awn-updated": "2026-08-06T19:17",
+            "awn-title": "000"
+          },
+          "children": []
+        }
+      ]
+    }
+  }
+}

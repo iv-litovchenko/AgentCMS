@@ -1,0 +1,25 @@
+{
+  "tool": "create_data_record",
+  "section": "data",
+  "sectionLabel": "AWN-DATA / инфоблоки",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-08T09:55:02.578Z",
+  "sampleArgs": {
+    "store": "tasks",
+    "title": "Запись"
+  },
+  "live": false,
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "ok": true,
+    "store": {
+      "records": [
+        {
+          "id": "1"
+        }
+      ]
+    }
+  }
+}

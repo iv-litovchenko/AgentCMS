@@ -1,0 +1,23 @@
+{
+  "tool": "read_record_properties",
+  "section": "data",
+  "sectionLabel": "AWN-DATA / инфоблоки",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-08T09:55:02.513Z",
+  "sampleArgs": {
+    "store": "tasks",
+    "record": "3"
+  },
+  "truncated": false,
+  "responseBytes": 298,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "store": "tasks",
+    "record": "3",
+    "file": "3.md",
+    "content": "awn-supertype: awn-data/tasks/manifest.md\nawn-created: \"2026-08-02T19:10\"\nawn-updated: \"2026-08-02T19:10\"\nawn-title: Описать иерархию в SPEC\nawn-parent: \"1\"\nawn-status: done\nawn-priority: normal",
+    "exists": true
+  }
+}

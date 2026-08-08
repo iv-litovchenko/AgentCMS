@@ -8,7 +8,7 @@
 Мы ведём его вместе: ты пишешь и правишь через MCP, человек — через UI; оба видят одно и то же.  
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
-**Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, shell/`curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP.  
+**Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
 Этот файл — шпаргалка (**44 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 Перед работой: `get_session_context` → `get_user_active_context_now`.  
@@ -251,8 +251,21 @@
 | Файл в слот темы по URL | `import_content_from_url` |
 | Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
 | Обход папки | `list_folder` |
+| Запуск скрипта `.py`/`.js`/`.sh` | `run_script` |
+| Команда с args (git, npm, …) | `exec_command` |
+| Shell-строка (pipes, `&&`) | `exec_shell` |
 
 Для обхода слотов и media — **path-based** tools (`read_file`, `upload_file`, `list_folder`).
+
+### Выполнение команд
+
+| Tool | Зачем |
+|------|-------|
+| `run_script` | Запустить файл из workspace: `script`, опц. `args`, `cwd`, `topicPath`, `interpreter` |
+| `exec_command` | `command` + `args[]` без shell |
+| `exec_shell` | Произвольная shell-строка |
+
+`cwd` по умолчанию — папка темы из `topicPath` (dirname manifest) или корень workspace. Ответ: `exitCode`, `stdout`, `stderr`, `durationMs` (лимит вывода ~256KB, timeout до 10 мин).
 
 ---
 

@@ -21,6 +21,7 @@ const {
 } = require("./media-thumbs");
 const { fetchBufferFromImportUrl, resolveImportFileName } = require("./media-import");
 const { decodeBase64UploadData } = require("./base64-upload");
+const { createScriptExecService } = require("./script-exec-service");
 const {
   READ_STATE_FILE,
   READ_CONTENT_FILE,
@@ -1424,6 +1425,30 @@ function normalizeWorkspacePath(inputPath) {
     return null;
   }
   return absolute;
+}
+
+let scriptExecService = null;
+function getScriptExecService() {
+  if (!scriptExecService) {
+    scriptExecService = createScriptExecService({ normalizeWorkspacePath, getAgentRoot });
+  }
+  return scriptExecService;
+}
+
+async function handleExecApiRequest(req, res, runner) {
+  try {
+    const payload = await readJsonBody(req, 256_000);
+    const result = await runner(payload || {});
+    if (result.error) {
+      return sendJson(res, result.status || 400, { error: result.error });
+    }
+    return sendJson(res, 200, result);
+  } catch (error) {
+    return sendJson(res, 500, {
+      error: "Execution failed",
+      details: String(error.message || error)
+    });
+  }
 }
 
 /** Манифест *.md / _registration.md из прямого пути или bundle (todo, content, …). */
@@ -9952,7 +9977,13 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFsWrite: "POST /api/workspace/fs/write — write_file MCP { path, content }",
   workspaceFsUpload: "POST /api/workspace/fs/upload — upload_file MCP { path, data base64 }",
   workspaceFsImport: "POST /api/workspace/fs/import — upload_file_from_url MCP { path, url }",
-  workspaceFsList: "GET /api/workspace/fs/list?path=<folder>&depth=1|2|all — list_folder MCP"
+  workspaceFsList: "GET /api/workspace/fs/list?path=<folder>&depth=1|2|all — list_folder MCP",
+  execRunScript:
+    "POST /api/exec/run-script — run_script MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
+  execCommand:
+    "POST /api/exec/command — exec_command MCP { command, args?, cwd?, topicPath?, timeoutMs?, env? }",
+  execShell:
+    "POST /api/exec/shell — exec_shell MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }"
 };
 
 const SESSION_PATH_HINTS = {
@@ -20188,6 +20219,18 @@ async function handleApiForAgent(req, res, url) {
         details: String(error.message || error)
       });
     }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/exec/run-script") {
+    return handleExecApiRequest(req, res, (payload) => getScriptExecService().runScript(payload));
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/exec/command") {
+    return handleExecApiRequest(req, res, (payload) => getScriptExecService().execCommand(payload));
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/exec/shell") {
+    return handleExecApiRequest(req, res, (payload) => getScriptExecService().execShell(payload));
   }
 
   if (req.method === "GET" && url.pathname === "/api/workspace/folder/text") {

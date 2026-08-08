@@ -1,0 +1,19 @@
+{
+  "tool": "triage_inbox_item",
+  "section": "intake",
+  "sectionLabel": "Inbox / диалоги",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-08T09:55:02.579Z",
+  "sampleArgs": {
+    "path": "manifest.md",
+    "file": "inbox/x.md",
+    "action": "mark-done"
+  },
+  "live": false,
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "ok": true
+  }
+}

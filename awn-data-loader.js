@@ -1748,8 +1748,8 @@ function bumpRecordUpdatedFrontmatter(frontmatter) {
 }
 
 function readStoreManifestRaw(storeAbs) {
-  const manifestPath = path.join(storeAbs, COLLECTION_MANIFEST);
-  if (!fs.existsSync(manifestPath)) {
+  const manifestPath = resolveStoreSchemaPath(storeAbs);
+  if (!manifestPath || !fs.existsSync(manifestPath)) {
     throw new Error("Store manifest not found");
   }
   return { manifestPath, raw: fs.readFileSync(manifestPath, "utf-8") };

@@ -10,6 +10,7 @@ import { registerTypeListTools } from "./lib/type-list-tools.js";
 import { registerWorkspaceFsTools } from "./lib/workspace-fs-tools.js";
 import { registerMapTools } from "./lib/map-tools.js";
 import { registerDataPropertyTools } from "./lib/data-property-tools.js";
+import { registerExecTools } from "./lib/exec-tools.js";
 
 const pagePath = z
   .string()
@@ -234,6 +235,7 @@ function createServer() {
   // ── FS + system (5) ────────────────────────────────────────────────────────
 
   registerWorkspaceFsTools(reg, client);
+  registerExecTools(reg, client, pagePath);
 
   reg(
     "list_system_files",

@@ -1,0 +1,21 @@
+{
+  "tool": "list_inbox",
+  "section": "intake",
+  "sectionLabel": "Inbox / диалоги",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-08T09:55:02.546Z",
+  "sampleArgs": {
+    "path": "manifest.md"
+  },
+  "truncated": false,
+  "responseBytes": 85,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "manifestPath": "manifest.md",
+    "exists": false,
+    "items": [],
+    "pending": 0
+  }
+}

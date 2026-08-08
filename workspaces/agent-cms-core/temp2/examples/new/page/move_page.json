@@ -1,0 +1,18 @@
+{
+  "tool": "move_page",
+  "section": "page",
+  "sectionLabel": "Страница",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-08T09:55:02.575Z",
+  "sampleArgs": {
+    "path": "manifest.md",
+    "parentPath": "awn-container"
+  },
+  "live": false,
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "path": "awn-container/…/manifest.md"
+  }
+}

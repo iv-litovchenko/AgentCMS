@@ -1,4 +1,4 @@
-# Agent CMS — MCP Server v0.3.0 (slim · 58 tools)
+# Agent CMS — MCP Server v0.3.0 (slim · 61 tools)
 
 MCP-сервер для [Agent CMS](..): доступ к workspace через HTTP API для Cursor, Claude Desktop, CoPaw / QwenPaw.
 
@@ -43,6 +43,7 @@ get_session_context
 | Типы | `list_types`, `get_type` |
 | awn-data | `list/get_data_store`, `create_*`, `read_data_store_schema`, `read/write_store_properties`, `read/write_store_property`, `read/write_record_properties`, `read/write_record_property` |
 | FS | `list_system_files`, `read_file`, `write_file`, `upload_file`, `upload_file_from_url`, `list_folder` |
+| Exec | `run_script`, `exec_command`, `exec_shell` |
 
 Бинарники и media — **`upload_file`** (base64) или **`upload_file_from_url`** по полному workspace path; в слот темы — **`import_content_from_url`**.
 

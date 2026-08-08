@@ -1,12 +1,12 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Slim · 58 tools",
+  versionLabel: "Slim · 61 tools",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.0",
   packagePath: "mcp-server/",
   generatedAt: "2026-08-08",
   notes: [
-    "MCP slim v0.3.0 — 58 tools · PAGE · SLOT · CONTENT + path-based FS.",
+    "MCP slim v0.3.0 — 61 tools · PAGE · SLOT · CONTENT + path-based FS + exec.",
     "Перед запуском: npm start → http://localhost:3000.",
     "GET /api/mcp-docs?version=0.0.2 — этот документ (HTTP, не MCP tool).",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
@@ -230,6 +230,30 @@ module.exports = {
         { name: "upload_file", description: "Base64 → path (media/assets/бинарники).", parameters: "path, data, mimeType?", http: "POST /api/workspace/fs/upload" },
         { name: "upload_file_from_url", description: "http(s) URL → workspace path.", parameters: "path, url, mimeType?", http: "POST /api/workspace/fs/import" },
         { name: "list_folder", description: "Содержимое папки.", parameters: "path, depth?", http: "GET /api/workspace/fs/list" }
+      ]
+    },
+    {
+      id: "exec",
+      title: "Выполнение команд",
+      tools: [
+        {
+          name: "run_script",
+          description: "Запуск файла из workspace (.py, .js, .sh).",
+          parameters: "script, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env?",
+          http: "POST /api/exec/run-script"
+        },
+        {
+          name: "exec_command",
+          description: "Команда + args без shell (git, npm, …).",
+          parameters: "command, args?, cwd?, topicPath?, timeoutMs?, env?",
+          http: "POST /api/exec/command"
+        },
+        {
+          name: "exec_shell",
+          description: "Произвольная shell-строка (pipes, &&).",
+          parameters: "command, cwd?, topicPath?, timeoutMs?, env?",
+          http: "POST /api/exec/shell"
+        }
       ]
     },
     {

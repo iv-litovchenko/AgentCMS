@@ -1,4 +1,4 @@
-agent-cms ( Agent MCP ) · 58
+agent-cms ( Agent MCP ) · 61
 │
 ├── СТАРТ / КОНТЕКСТ (5)
 │   ├── get_session_context              — START HERE
@@ -58,6 +58,11 @@ agent-cms ( Agent MCP ) · 58
 │   ├── read_file / write_file
 │   ├── upload_file / upload_file_from_url — base64 или http(s) URL → path
 │   └── list_folder
+│
+├── ВЫПОЛНЕНИЕ (3)
+│   ├── run_script                       — .py / .js / .sh из workspace
+│   ├── exec_command                     — command + args (без shell)
+│   └── exec_shell                       — произвольная shell-строка
 │
 └── УВЕДОМЛЕНИЕ (1)
     └── notify_user
