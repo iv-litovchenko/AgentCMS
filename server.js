@@ -9985,9 +9985,11 @@ const SESSION_CONTEXT_API_MAP = {
   execShell:
     "POST /api/exec/shell — exec_shell MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }",
   webSearch:
-    "GET /api/web/search?q=&limit=&lang=&country=&gl=&safe= — search_web MCP (Google Custom Search)",
-  webImages:
-    "GET /api/web/images?q=&limit=&size=&type=&lang=&country=&gl=&safe= — search_web_images MCP (Google image search)"
+    "GET /api/web/search?q=&limit=&lang=&country=&gl=&safe= — search_web MCP (Google direct HTML or Custom Search API)",
+    webImages:
+    "GET /api/web/images?q=&limit=&size=&type=&lang=&country=&gl=&safe= — search_web_images MCP (Google Images direct or API)",
+  webPage:
+    "GET /api/web/page?url=&maxChars=&maxBytes= — read_web_page MCP (fetch external page as plain text)"
 };
 
 const SESSION_PATH_HINTS = {
@@ -20279,6 +20281,25 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Web image search failed",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/web/page") {
+    const pageUrl = String(url.searchParams.get("url") || "").trim();
+    if (!pageUrl) return sendJson(res, 400, { error: "Missing url query parameter" });
+    try {
+      const result = await getWebSearchService().readWebPage({
+        url: pageUrl,
+        maxChars: url.searchParams.get("maxChars"),
+        maxBytes: url.searchParams.get("maxBytes")
+      });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read web page",
         details: String(error.message || error)
       });
     }

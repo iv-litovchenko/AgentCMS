@@ -273,14 +273,17 @@
 
 `cwd` по умолчанию — папка темы из `topicPath` (dirname manifest) или корень workspace. Ответ: `exitCode`, `stdout`, `stderr`, `durationMs` (лимит вывода ~256KB, timeout до 10 мин).
 
-### Поиск в интернете (Google)
+### Поиск в интернете и чтение страниц
 
-Провайдер: **Google Programmable Search Engine** (Custom Search JSON API). Ключи задаются на **CMS-сервере** (`.env`), не в MCP-клиенте.
+По умолчанию: **прямой запрос к Google** (`WEB_SEARCH_MODE=direct`) — без API-ключей. Google часто отдаёт JS-оболочку без результатов; тогда автоматически используется **DuckDuckGo** (поле ответа `fallbackFrom: "google-direct"`). При captcha — ошибка 429.
+
+Альтернатива: **Google Custom Search JSON API** — `WEB_SEARCH_MODE=api` + ключи на CMS-сервере (`.env`).
 
 | Переменная | Зачем |
 |------------|-------|
-| `GOOGLE_SEARCH_API_KEY` | API key из Google Cloud Console |
-| `GOOGLE_SEARCH_ENGINE_ID` | `cx` — ID поисковой системы ([programmablesearchengine.google.com](https://programmablesearchengine.google.com/)) |
+| `WEB_SEARCH_MODE` | `direct` (по умолчанию) или `api` |
+| `GOOGLE_SEARCH_API_KEY` | API key (только для `api`) |
+| `GOOGLE_SEARCH_ENGINE_ID` | `cx` — ID поисковой системы (только для `api`) |
 
 Опционально: `GOOGLE_SEARCH_LANG=ru`, `GOOGLE_SEARCH_COUNTRY=RU`, `GOOGLE_SEARCH_GL=ru`, `GOOGLE_SEARCH_SAFE=active`.
 
@@ -288,13 +291,12 @@
 |------|-------|
 | `search_web` | Текстовый поиск: `{ query, limit?, lang?, country?, gl?, safe? }` |
 | `search_web_images` | Картинки: `{ query, limit?, size?, type?, lang?, country?, gl?, safe? }` |
+| `read_web_page` | Прочитать внешнюю страницу как текст: `{ url, maxChars?, maxBytes? }` — HTML→plain text, JSON pretty-print; локальные/private URL блокируются (SSRF) |
 
-`size`: `icon` \| `small` \| `medium` \| `large` \| `xlarge` \| `xxlarge` \| `huge`  
-`type`: `photo` \| `clipart` \| `face` \| `lineart` \| `stock` \| `animated`
-
+`size` / `type` для картинок — только в режиме `api`.  
 Найденную картинку в тему — `import_content_from_url({ path, slot: "media", url })` или `upload_file_from_url`.
 
-**Не путать:** `search_workspace` — только файлы **workspace агента**; `search_web` — публичный интернет.
+**Не путать:** `search_workspace` — только файлы **workspace агента**; `search_web` — публичный интернет; `read_web_page` — содержимое одного URL (не поиск).
 
 ---
 
