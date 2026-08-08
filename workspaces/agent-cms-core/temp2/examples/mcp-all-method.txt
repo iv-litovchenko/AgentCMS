@@ -1,5 +1,5 @@
 Agent CMS MCP — полное дерево (v0.0.2)
-86 tool · модель PAGE → SLOT → CONTENT + path-based FS
+~40 tools · модель PAGE → SLOT → CONTENT + path-based FS
 
 Ключи: path = manifest.md · slot = main|inbox|media|… · ref = путь внутри слота
 
@@ -7,198 +7,94 @@ Agent CMS MCP — полное дерево (v0.0.2)
 1. Старт сессии [bootstrap] (5)
 ================================================================================
 
-get_session_context      START HERE — topicRegistry + alwaysContext + API map
-+ list_workspace_always_context  always + AGENTS/SKILL/GLOBAL_MCP_DOC (полные тела)
-+ list_workspace_cron            awn-runtime-cron (+ schedule)
-+ list_workspace_heartbeat       awn-runtime-heartbeat
-get_mcp_docs             Справка по MCP tools
+get_session_context              START HERE — topicRegistry + alwaysContext + API map
+list_workspace_always_context    always + AGENTS/SKILL/GLOBAL_MCP_DOC (полные тела)
+list_workspace_cron              awn-runtime-cron (+ schedule)
+list_workspace_heartbeat         awn-runtime-heartbeat
+get_mcp_docs                     Справка по MCP tools
 
 ================================================================================
-2. Агенты [agents] (1)
+2. Навигация [menu] (3)
 ================================================================================
 
-list_agents              Список агентов из awn-agents.json
+get_page_map                     Карта страниц
+get_content_map                  Карта контента страницы по слотам
+search_workspace                 Поиск по workspace (как в шапке UI)
 
 ================================================================================
-3. Навигация и workspace [menu] (8)
+3. Страница manifest.md [page] (10)
 ================================================================================
 
-+ get_page_map             Карта страниц: title, description, properties (без body)
-+ get_content_map          Карта контента страницы по слотам (без body)
-+ get_user_active_context_now  Что пользователь смотрит в UI сейчас (path/slot/ref для read/write)
-search_workspace         Поиск по workspace (как в шапке UI)
-get_storage_layout       Схема слотов awn-storage
-get_canonical_model      Канон: page types, content types, bindings
-list_awn_types           Полный каталог awn-type агента
-get_type_health          Проверка целостности типов awn-system
+read_page_body / write_page_body
+read_page_properties / write_page_properties
+read_page_schema / write_page_schema   (mode=layers default)
+create_page / delete_page
+rename_page / move_page
 
 ================================================================================
-4. Накопители awn-data [data] (6)
+4. Слот [slot] (1)
 ================================================================================
 
-list_data_stores         Список накопителей (collections, singletons, groups)
-get_data_store           Один накопитель: schema, records, tree
-create_data_store        Создать накопитель (group/collection/singleton)
-read_data_store_schema   Схема полей записей (schema-mod.yml)
-write_data_store_schema  Полная замена схемы накопителя
-create_data_record       Добавить запись в коллекцию
+list_page_slots                  Слоты страницы: driver, path, allowedContent
 
 ================================================================================
-5. Платформа [platform] (3)
+5. Контент [content] (8)
 ================================================================================
 
-list_type_catalog        Каталог типов платформы
-list_components          Реестр компонентов
-get_platform_index       Навигационный index.json платформы
+read_content_body / write_content_body
+read_content_properties / write_content_properties
+create_content
+rename_content / move_content / delete_content
 
 ================================================================================
-6. Страница manifest.md [page] (16)
+6. Типы [types] (2)
 ================================================================================
 
-+ get_page_meta            Метаданные страницы (слои хранилища, превью, manifest)
-+ page_exists              Проверить существование страницы по пути
-+ read_page_body           Чтение тела manifest.md страницы
-+ write_page_body          Сохранение тела manifest.md (frontmatter сохраняется)
-+ read_page_properties     Чтение YAML-frontmatter manifest.md страницы
-+ write_page_properties    Сохранение frontmatter manifest.md
-read_page_schema         Схема полей (schema-mod.yml, mode=layers)
-write_page_schema        Записать схему страницы
-+ read_page_config         Чтение config.yml (awn_ui, awn_settings)
-+ write_page_config        Сохранение конфига страницы (awn_ui, awn_settings)
-+ read_page_env            Чтение .env на корне страницы
-+ write_page_env           Сохранение .env страницы
-+ create_page              Создать страницу: область (папка) или тему (файл)
-+ delete_page              Удалить область/тему/папку
-+ rename_page              Переименовать страницу (awn-name + файл/папка на диске)
-+ move_page                Переместить страницу в другую родительскую папку
+list_types                       Индекс: domain | kind | filter preset
+get_type                         Merged schema по id или catalog path
 
 ================================================================================
-7. Слот [slot] (1)
+7. AWN-DATA runtime [data] (5)
 ================================================================================
 
-+ list_page_slots          Слоты страницы: driver, path, allowedContent, acceptFiles
+list_data_stores / get_data_store
+create_data_store / create_data_record
+read_data_store_schema           Схема store (экземпляр, не каталог)
 
 ================================================================================
-8. Контент [content] (15)
+8. Inbox и thread [intake] (4)
 ================================================================================
 
-list_content             Список файлов в external-слоте
-+ get_content_meta         Метаданные контента (path, slot, ref, driver, file)
-+ content_exists           Проверка наличия контента в слоте
-+ read_content_body        Чтение тела markdown контента
-+ write_content_body       Сохранение тела контента (frontmatter сохраняется)
-+ read_content_properties  Чтение frontmatter .md контента
-+ write_content_properties Сохранение frontmatter контента
-+ create_content           Создание записи/категории; для текстовых файлов — fileExtension + body
-upload_content           Файл base64 → media/repository/…
-import_content_from_url  Скачать URL → слот
-read_content_file        Текст или previewUrl media
-write_content_file       Plain-text перезапись в external-слоте
-+ rename_content           Переименование контента в слоте
-+ move_content             Перемещение контента между темами/слотами
-+ delete_content           Удаление контента из внешнего слота
+list_inbox
+triage_inbox_item
+read_thread / append_thread
 
 ================================================================================
-9. Типы справочники [types] (4)
+9. Файловая система workspace [filesystem] (5)
 ================================================================================
 
-+ list_page_types          Типы страниц для мастера создания (как в UI)
-+ get_page_type            Тип страницы (поля, слоты, наследование)
-+ list_content_types       Канонические типы контента в слотах
-+ get_content_type         Разрешённый тип контента по id
+read_file / write_file
+upload_file
+list_folder
+list_system_files                Каталог AGENTS.md → read_file / write_file
 
 ================================================================================
-10. Inbox и thread [intake] (7)
+10. Прочее
 ================================================================================
 
-+ list_inbox               Inbox темы с triage-метаданными
-+ read_inbox_item          Один элемент inbox (тело + triage)
-+ triage_inbox_item        Triage: to-thread, to-content, mark-done, set-status
-+ create_content           Создать intake: slot inbox, status new (вместо create_inbox_item)
-read_thread              Диалог thread темы
-append_thread            Добавить сообщение в thread
-get_topic_intake         Сводка inbox + thread для темы
-get_intake_batch         Пакетная сводка для нескольких тем
+get_user_active_context_now      Что открыто в UI сейчас
+get_canonical_model              Канон: page types, slot bindings
+get_storage_layout               Схема слотов awn-storage
+get_type_health                  Проверка типов awn-system
+list_components / get_platform_index
+get_agent_system_status          read/write_agent_system_file
+list_adopt_folders               Папки без manifest.md
+notify_user                      Колокольчик CMS
+shell_*                          Agent Shell (голос/mobile)
 
 ================================================================================
-11. Комментарии [comments] (3)
-================================================================================
-
-list_comments            Комментарии к ноде/файлу
-append_comment           Добавить комментарий
-toggle_comment_reaction  Реакция на комментарий
-
-================================================================================
-12. Свободная память [workspace] (1)
-================================================================================
-
-+ list_adopt_folders       Папки без manifest.md → list_folder / read_file / upload_file
-
-================================================================================
-13. Системные файлы агента [system] (1)
-================================================================================
-
-+ list_system_files        Каталог AGENTS.md, SKILL.md, … → read_file / write_file
-
-================================================================================
-14. awn-system модель CMS [awn-system] (4)
-================================================================================
-
-get_agent_system_status  Статус awn-system
-get_agent_system_type    Тип по id или path
-read_agent_system_file   Файл awn-system
-write_agent_system_file  Записать awn-system
-
-================================================================================
-15. Уведомления CMS [notifications] (1)
-================================================================================
-
-notify_user              Уведомление в колокольчик CMS (не Shell)
-
-================================================================================
-16. Agent Shell голос/mobile [shell] (5)
-================================================================================
-
-+ shell_get_status         Статус Agent Shell
-+ shell_post_message       Отправка сообщения в тред Agent Shell
-+ shell_stop_tts           Остановка озвучки (TTS) Shell
-+ shell_camera_snapshot    Кадр камеры Shell (live/speech/manual)
-+ shell_screenshot         Кадр экрана Shell (live/speech/manual)
-
-================================================================================
-17. Файловая система workspace [filesystem] (5)
-================================================================================
-
-+ read_file                Прочитать файл по пути (текст / previewUrl)
-+ write_file               Записать текстовый файл по пути
-+ upload_file              Загрузить файл base64 по полному пути
-+ upload_file_from_url     Скачать URL → сохранить по пути workspace
-+ list_folder              Содержимое папки (depth=1|2|all)
-
-================================================================================
-Сводка по группам
-================================================================================
-
-#  Группа          Tools  Назначение
-1  bootstrap         5    Старт, реестры, always-context
-2  agents            1    Список агентов
-3  menu              8    Карты страниц/контента, навигация, поиск
-4  data              6    awn-data накопители
-5  platform          3    Каталог платформы
-6  page             16    manifest.md страницы
-7  slot              1    Слоты страницы
-8  content          15    Файлы в слотах
-9  types             4    Справочники типов
-10 intake            7    Inbox + thread
-11 comments          3    Комментарии
-12 workspace         1    adopt-папки
-13 system            1    AGENTS.md каталог
-14 awn-system        4    Модель CMS
-15 notifications     1    Колокольчик
-16 shell             5    Голосовой UI
-17 filesystem        5    Path-based FS
-   ИТОГО            86
 
 Типичный старт: get_session_context → get_user_active_context_now → read_* / write_* по задаче.
+Типы: list_types({ filter: "create-page" }) → get_type({ id: "awn.page.topic" })
 
-Сгенерировано: 2026-08-07 · Agent CMS MCP v0.0.2
+Сгенерировано: 2026-08-08 · Agent CMS MCP v0.0.2

@@ -18,17 +18,12 @@ Agent: `agent-cms-test` · Sample page: `aja-test-oblasti-2031/aja-test-temy-203
 
 | Tool | File | Live | Bytes |
 |------|------|------|-------|
-| `list_awn_types` | [examples/types/list_awn_types.json](examples/types/list_awn_types.json) | yes | 638881 |
+| `list_types` | — | regen | — |
+| `get_type` | — | regen | — |
 | `get_type_health` | [examples/types/get_type_health.json](examples/types/get_type_health.json) | yes | 176 |
-| `list_type_catalog` | [examples/types/list_type_catalog.json](examples/types/list_type_catalog.json) | yes | 362341 |
 | `list_components` | [examples/types/list_components.json](examples/types/list_components.json) | yes | 267 |
 | `get_platform_index` | [examples/types/get_platform_index.json](examples/types/get_platform_index.json) | yes | 2073 |
-| `list_page_types` | [examples/types/list_page_types.json](examples/types/list_page_types.json) | yes | 4393 |
-| `get_page_type` | [examples/types/get_page_type.json](examples/types/get_page_type.json) | yes | 12275 |
-| `list_content_types` | [examples/types/list_content_types.json](examples/types/list_content_types.json) | yes | 25320 |
-| `get_content_type` | [examples/types/get_content_type.json](examples/types/get_content_type.json) | yes | 7585 |
 | `get_agent_system_status` | [examples/types/get_agent_system_status.json](examples/types/get_agent_system_status.json) | yes | 52 |
-| `get_agent_system_type` | [examples/types/get_agent_system_type.json](examples/types/get_agent_system_type.json) | yes | 12275 |
 | `read_agent_system_file` | [examples/types/read_agent_system_file.json](examples/types/read_agent_system_file.json) | yes | 69 |
 | `write_agent_system_file` | [examples/types/write_agent_system_file.json](examples/types/write_agent_system_file.json) | write | — |
 

@@ -45,7 +45,7 @@ export function registerPageTools({ reg, client, pagePath }) {
 
   reg(
     "read_page_schema",
-    "Read schema-mod.yml layers (workspace / area / topic — non-empty blocks only). Base type fields: get_page_type.",
+    "Read schema-mod.yml layers (workspace / area / topic — non-empty blocks only). Base type fields: get_type.",
     z.object({
       path: pagePath,
       target: z

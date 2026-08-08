@@ -58,7 +58,7 @@
 - `type: "folder"` — раздел (area / section); `type: "file"` — тема (topic)
 - `awnType` — точный тип, напр. `awn.page.topic` или `awn.page.section.container`
 - `displayName` / `title` → `awn-name`; `slug` / `name` → папка на диске
-- список допустимых: `list_page_types`
+- список допустимых: `list_types({ filter: "create-page" })`
 
 ---
 
@@ -100,7 +100,7 @@
 - тело / свойства: `read_page_body` / `write_page_body`, `read_page_properties` / `write_page_properties`
 - схема / конфиг: `read_page_schema` / `write_page_schema`, `read_page_config` / `write_page_config`
 - создать / переименовать / сдвинуть: `create_page`, `rename_page`, `move_page`, `delete_page`
-- типы: `list_page_types` → `get_page_type` **по `id`** (`awn.page.topic`)
+- типы: `list_types({ filter: "create-page" })` → `get_type({ id: "awn.page.topic" })`
 
 ### Запись свойств — patch (одно поле ок)
 
@@ -125,13 +125,13 @@
 | Поля страницы / слотов | `schema-mod.yml` (`awn_schema`) | `read_page_schema` / `write_page_schema` | Добавить/менять поля формы |
 | UI/настройки страницы | `configuration.yml` (`awn_ui`, `awn_settings`) | `read_page_config` / `write_page_config` | UI, mask — **не** поля |
 | Поля записей накопителя | `schema-mod.yml` в awn-data | `read_data_store_schema` / `write_data_store_schema` | Схема awn-data |
-| Канон типа | awn-system | `get_page_type` / `get_content_type` / `get_agent_system_type` | Смотреть базовые fields |
+| Канон типа | awn-system | `get_type(id)` | Смотреть базовые fields |
 
 - свойства (`*_properties`) — **значения** frontmatter; **patch**: шли только изменённые ключи, остальное merge с диском  
 - схема (`*_schema`) — **описание** полей формы  
-- тип (`get_*_type`) — база из awn-system; `schema-mod.yml` — локальный override поверх типа  
+- тип (`get_type`) — база из awn-system; `schema-mod.yml` — локальный override поверх типа  
 
-**Схема для агента:** базовые поля типа — один раз `get_page_type(id)`. Локальные дополнения — `read_page_schema` (**`mode=layers`**, default): три слоя `workspace` / `area` / `topic`, только непустые блоки (нет 44× пустых, нет baseTypes/merged/fieldRegistry). **Запись:** YAML только с нужным блоком; ответ — те же layers. Legacy UI dump: `mode=full`. `write_data_store_schema` — полный актуальный YAML/`fields`.
+**Схема для агента:** базовые поля типа — один раз `get_type(id)`. Локальные дополнения — `read_page_schema` (**`mode=layers`**, default): три слоя `workspace` / `area` / `topic`, только непустые блоки (нет 44× пустых, нет baseTypes/merged/fieldRegistry). **Запись:** YAML только с нужным блоком; ответ — те же layers. Legacy UI dump: `mode=full`. `write_data_store_schema` — полный актуальный YAML/`fields`.
 
 ---
 
@@ -206,7 +206,7 @@
 - список: `list_content`
 - тело / свойства: `read_content_body` / `write_content_body`, `read_content_properties` / `write_content_properties`
 - создать: `create_content` (md/record), `upload_content` (файл), `import_content_from_url`
-- типы: `list_content_types` → `get_content_type` **по `id`**
+- типы: `list_types({ filter: "slot-content" })` → `get_type({ id: "awn.content.record" })`
 
 `write_content_properties` — patch frontmatter (одно поле ок); тело сохраняется.
 
@@ -253,8 +253,8 @@
 
 Отдельно от страниц/слотов.
 
-- типы контейнеров: `list_data_types` → `get_data_type(id)` — `awn.data.group` | `awn.data.collection` | `awn.data.single`
-- схемы записей store: `list_data_element_types` → `get_data_element_type(id)`
+- типы контейнеров: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.data.collection" })`
+- схемы записей store: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.data.record" })`
 - список store: `list_data_stores` → `get_data_store`
 - схема полей: `read_data_store_schema` / `write_data_store_schema`
 - запись: `create_data_record`
@@ -308,14 +308,25 @@
 
 ## Типы (awn-system)
 
-| Домен | Список | Детали |
-|-------|--------|--------|
-| Page | `list_page_types` | `get_page_type(id)` |
-| Content (слоты) | `list_content_types` | `get_content_type(id)` |
-| Data store | `list_data_types` | `get_data_type(id)` — `awn.data.group` / `.collection` / `.single` |
-| Data record schema | `list_data_element_types` | `get_data_element_type(id)` — `.default` / `.record` / `.category` / `.sidecar` |
-| MD-блоки | `list_awn_types?mode=index` (domain `md-blocks`) | YAML: `awn-system/types/md-blocks/<slug>.yml` |
-| Полный каталог | `list_awn_types?mode=full` | только если нужен UI dump (~700 KB) |
+**Канон — два метода:**
+
+| | MCP | HTTP |
+|--|-----|------|
+| Список | **`list_types`** | `GET /api/agent-system/types` |
+| Детали | **`get_type(id)`** | `GET /api/agent-system/type?id=` |
+
+Параметры `list_types`:
+- `domain` — `pages` \| `content` \| `data` \| `fields` \| `md-blocks` \| …
+- `kind` — `type` \| `field` \| `data-container` \| `data-element` \| `block` \| …
+- `filter` — preset: `create-page` \| `slot-content` \| `data-containers` \| `data-elements`
+
+Примеры:
+- create_page → `list_types({ filter: "create-page" })` → `get_type({ id: "awn.page.topic" })`
+- контент в слоте → `list_types({ filter: "slot-content" })` → `get_type({ id: "awn.content.record" })`
+- store → `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.data.collection" })`
+- поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.data.record" })`
+
+**Не типы** (экземпляр / override): `read_page_schema`, `read_data_store_schema` — локальные schema-mod, не справочник.
 
 - всегда **`id`**, не path: `{ "id": "awn.data.collection" }` ✅
 - алиасы legacy: `awn-data/cms-base/data-containers/collection.md` → `awn.data.collection`

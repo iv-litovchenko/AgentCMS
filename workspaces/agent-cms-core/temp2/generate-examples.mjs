@@ -30,17 +30,12 @@ const TOOL_FOLDER = {
   get_workspace_table: "registries",
   get_canonical_model: "registries",
 
-  list_awn_types: "types",
-  list_type_catalog: "types",
+  list_types: "types",
+  get_type: "types",
   list_components: "types",
   get_platform_index: "types",
-  list_page_types: "types",
-  get_page_type: "types",
-  list_content_types: "types",
-  get_content_type: "types",
   get_type_health: "types",
   get_agent_system_status: "types",
-  get_agent_system_type: "types",
   read_agent_system_file: "types",
   write_agent_system_file: "types",
 
@@ -242,7 +237,7 @@ function slimLargePayload(data) {
       continue;
     }
     if (key === "baseTypes" || key === "merged") {
-      out[key] = { _omitted: true, _reason: "legacy UI bloat — use mode=layers or get_page_type" };
+      out[key] = { _omitted: true, _reason: "legacy UI bloat — use mode=layers or get_type" };
       continue;
     }
     out[key] = value;
@@ -356,12 +351,16 @@ const READ_CALLS = [
   ["get_workspace_table", () => api("GET", "/api/agent/workspace-table")],
   ["get_canonical_model", () => api("GET", "/api/agent/canonical-model")],
   ["get_site_map", () => api("GET", "/api/agent/site-map")],
-  ["list_awn_types", () => api("GET", "/api/awn-types")],
+  ["list_types", () => api("GET", "/api/agent-system/types")],
+  [
+    "get_type",
+    () => api("GET", "/api/agent-system/type", { query: { id: "awn.page.topic" } }),
+    { sampleArgs: { id: "awn.page.topic" } }
+  ],
   ["get_type_health", () => api("GET", "/api/agent/type-health")],
   ["list_data_stores", () => api("GET", "/api/awn-data")],
   ["get_data_store", () => api("GET", "/api/awn-data", { query: { store: STORE } })],
   ["read_data_store_schema", () => api("GET", "/api/awn-data/store-schema", { query: { store: STORE } })],
-  ["list_type_catalog", () => api("GET", "/api/type-catalog", { agentScope: false })],
   ["list_components", () => api("GET", "/api/components", { agentScope: false })],
   ["get_platform_index", () => api("GET", "/api/platform/index", { agentScope: false })],
   ["get_page_meta", () => api("GET", "/api/page/meta", { query: { path: PAGE } })],
@@ -376,10 +375,6 @@ const READ_CALLS = [
   ["read_page_config", () => api("GET", "/api/file/page-config", { query: { path: PAGE } })],
   ["read_page_env", () => api("GET", "/api/env", { query: { path: PAGE } })],
   ["list_page_slots", () => api("GET", "/api/page/slots", { query: { path: PAGE } })],
-  ["list_page_types", () => api("GET", "/api/agent-system/create-node-types")],
-  ["get_page_type", () => api("GET", "/api/agent-system/type", { query: { id: "awn.page.topic" } })],
-  ["list_content_types", () => api("GET", "/api/agent/canonical-model")],
-  ["get_content_type", () => api("GET", "/api/agent-system/type", { query: { id: "awn.content.record" } })],
   ["list_content", () => api("GET", "/api/external/files", { query: { path: PAGE } })],
   [
     "content_exists",
@@ -439,11 +434,6 @@ const READ_CALLS = [
     { sampleArgs: { folderPath: "awn-container", depth: 1 } }
   ],
   ["get_agent_system_status", () => api("GET", "/api/agent-system/status")],
-  [
-    "get_agent_system_type",
-    () => api("GET", "/api/agent-system/type", { query: { id: "awn.page.topic" } }),
-    { sampleArgs: { id: "awn.page.topic" } }
-  ],
   [
     "read_agent_system_file",
     () => api("GET", "/api/agent-system/file", { query: { path: "GLOBAL_MCP_DOC.md" } }).catch(() =>

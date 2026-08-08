@@ -83,7 +83,7 @@ get_session_context
 - **PAGE** — manifest.md; `get_page_meta`, `read/write_page_*`, `create_page`
 - **SLOT** — `list_page_slots` (driver, allowedContent)
 - **CONTENT** — единая ветка: `list_content`, `read/write_content_*`, `create_content`, `upload_content`, `import_content_from_url`
-- **Типы** — `list_page_types`, `list_content_types`
+- **Типы** — `list_types`, `get_type`
 
 HTTP: `/api/page/slots`, `/api/page/*`, content tools → существующие storage/media API
 

@@ -143,19 +143,7 @@ function createServer() {
     () => client.get("/api/agent/canonical-model")
   );
 
-  reg(
-    "list_awn_types",
-    "Effective awn-type catalog. Default mode=index (~KB). mode=full returns UI payload (~700KB).",
-    z.object({
-      mode: z
-        .enum(["index", "full"])
-        .optional()
-        .describe("index (default) — id/domain/kind only; full — typeCatalog + fieldRegistry + blocks")
-    }),
-    ({ mode }) => client.get("/api/awn-types", { mode: mode || "index" })
-  );
-
-  reg("get_type_health", "Validate agent type model in awn-data/.", z.object({}), () =>
+  reg("get_type_health", "Validate agent type model in awn-system.", z.object({}), () =>
     client.get("/api/agent/type-health")
   );
 
@@ -244,15 +232,6 @@ function createServer() {
   );
 
   // ── Platform ───────────────────────────────────────────────────────────────
-
-  reg(
-    "list_type_catalog",
-    "Platform type catalog. Default mode=index (~KB). mode=full returns merged schemas (~400KB).",
-    z.object({
-      mode: z.enum(["index", "full"]).optional().describe("index (default) or full")
-    }),
-    ({ mode }) => client.get("/api/type-catalog", { mode: mode || "index" }, { agentScope: false })
-  );
 
   reg("list_components", "Platform component registry.", z.object({}), () =>
     client.get("/api/components", {}, { agentScope: false })
@@ -398,16 +377,6 @@ function createServer() {
 
   reg("get_agent_system_status", "Agent awn-system status.", z.object({}), () =>
     client.get("/api/agent-system/status", {})
-  );
-
-  reg(
-    "get_agent_system_type",
-    "Type details by id or catalog path.",
-    z.object({
-      id: z.string().optional(),
-      path: z.string().optional()
-    }),
-    ({ id, path }) => client.get("/api/agent-system/type", { id, path })
   );
 
   reg(

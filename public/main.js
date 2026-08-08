@@ -22995,7 +22995,7 @@ let createNodeDynamicTypesCache = null;
 async function loadAndRenderCreateNodeDynamicTypes() {
   try {
     const agentId = getCreateModalAgentId() || activeAgentId;
-    const resp = await fetch(buildApiUrl("/api/agent-system/create-node-types", {}, agentId));
+    const resp = await fetch(buildApiUrl("/api/agent-system/types", { filter: "create-page" }, agentId));
     if (!resp.ok) return;
     const data = await resp.json();
     createNodeDynamicTypesCache = data;
@@ -78920,8 +78920,26 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
 
   let allTypesData = null;
   try {
-    const res = await fetch(buildApiUrl("/api/agent-system/all-types", {}, agentId));
-    if (res.ok) allTypesData = await res.json();
+    const res = await fetch(buildApiUrl("/api/type-catalog", {}, agentId));
+    if (res.ok) {
+      const catalog = await res.json();
+      const types = (catalog.types || []).map((t) => ({
+        id: t.id,
+        name: t.name || t.id,
+        kind: t.kind || t.schema?.kind || "type",
+        domain: t.domain || "",
+        extends: t.extends || null,
+        status: t.status || "active",
+        description: t.schema?.description || t.description || "",
+        source: t.source || "platform",
+        fields: t.schema?.fields || null,
+        widget: t.schema?.widget || null,
+        storage: t.schema?.storage || null,
+        mdbase: t.schema?.mdbase || null,
+        settings: t.schema?.settings || null
+      }));
+      allTypesData = { types, total: types.length };
+    }
   } catch {}
 
   if (!allTypesData?.types?.length) {

@@ -133,12 +133,6 @@ module.exports = {
           http: "GET /api/agent/canonical-model"
         },
         {
-          name: "list_awn_types",
-          description: "Каталог awn-type. Default mode=index (~KB). mode=full — UI dump (~700 KB).",
-          parameters: "mode?: index|full",
-          http: "GET /api/awn-types?mode="
-        },
-        {
           name: "get_type_health",
           description: "Проверка целостности типов awn-system.",
           parameters: "—",
@@ -192,12 +186,6 @@ module.exports = {
       id: "platform",
       title: "Платформа",
       tools: [
-        {
-          name: "list_type_catalog",
-          description: "Каталог типов платформы. Default mode=index (~KB). mode=full — merged schemas (~400 KB).",
-          parameters: "mode?: index|full",
-          http: "GET /api/type-catalog?mode="
-        },
         {
           name: "list_components",
           description: "Реестр компонентов.",
@@ -351,14 +339,18 @@ module.exports = {
       id: "types",
       title: "Типы (справочники)",
       tools: [
-        { name: "list_page_types", description: "Типы для create_page.", parameters: "—", http: "GET /api/agent-system/create-node-types" },
-        { name: "get_page_type", description: "Детали page-типа.", parameters: "id", http: "GET /api/agent-system/type?id=" },
-        { name: "list_content_types", description: "Content-типы слотов.", parameters: "—", http: "GET /api/agent/canonical-model" },
-        { name: "get_content_type", description: "Детали content-типа.", parameters: "id", http: "GET /api/agent-system/type?id=" },
-        { name: "list_data_types", description: "Типы awn-data store: group, collection, single.", parameters: "—", http: "GET /api/agent-system/data-types" },
-        { name: "get_data_type", description: "Детали awn.data.* типа.", parameters: "id", http: "GET /api/agent-system/type?id=" },
-        { name: "list_data_element_types", description: "Схемы записей store: default, record, category, sidecar.", parameters: "—", http: "GET /api/agent-system/data-element-types" },
-        { name: "get_data_element_type", description: "Детали awn.data.element.* / record|category|sidecar.", parameters: "id", http: "GET /api/agent-system/type?id=" }
+        {
+          name: "list_types",
+          description: "Индекс типов (~KB): domain?, kind?, filter? (create-page|slot-content|data-containers|data-elements).",
+          parameters: "domain?, kind?, filter?",
+          http: "GET /api/agent-system/types"
+        },
+        {
+          name: "get_type",
+          description: "Merged schema типа по id или catalog path.",
+          parameters: "id?, path?",
+          http: "GET /api/agent-system/type?id="
+        }
       ]
     },
     {
@@ -498,7 +490,6 @@ module.exports = {
       title: "awn-system (модель CMS)",
       tools: [
         { name: "get_agent_system_status", description: "Статус awn-system.", parameters: "—", http: "GET /api/agent-system/status" },
-        { name: "get_agent_system_type", description: "Детали типа по id/path.", parameters: "id?, path?", http: "GET /api/agent-system/type" },
         { name: "read_agent_system_file", description: "Файл awn-system.", parameters: "path", http: "GET /api/agent-system/file" },
         { name: "write_agent_system_file", description: "Записать awn-system.", parameters: "path, content", http: "POST /api/agent-system/file" }
       ]

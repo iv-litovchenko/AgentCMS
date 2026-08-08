@@ -136,12 +136,11 @@
       "responseBytes": 5097
     },
     {
-      "tool": "list_awn_types",
+      "tool": "list_types",
       "folder": "types",
-      "file": "examples/types/list_awn_types.json",
-      "live": true,
-      "truncated": true,
-      "responseBytes": 638881
+      "file": "examples/types/list_types.json",
+      "live": false,
+      "error": "regenerate with generate-examples.mjs"
     },
     {
       "tool": "get_type_health",
@@ -173,14 +172,6 @@
       "file": "examples/zzz/data-stores/read_data_store_schema.json",
       "live": false,
       "error": "GET /api/awn-data/store-schema → 400: Failed to read awn-data store schema"
-    },
-    {
-      "tool": "list_type_catalog",
-      "folder": "types",
-      "file": "examples/types/list_type_catalog.json",
-      "live": true,
-      "truncated": true,
-      "responseBytes": 362341
     },
     {
       "tool": "list_components",
@@ -261,38 +252,6 @@
       "live": true,
       "truncated": false,
       "responseBytes": 3442
-    },
-    {
-      "tool": "list_page_types",
-      "folder": "types",
-      "file": "examples/types/list_page_types.json",
-      "live": true,
-      "truncated": false,
-      "responseBytes": 4393
-    },
-    {
-      "tool": "get_page_type",
-      "folder": "types",
-      "file": "examples/types/get_page_type.json",
-      "live": true,
-      "truncated": false,
-      "responseBytes": 12275
-    },
-    {
-      "tool": "list_content_types",
-      "folder": "types",
-      "file": "examples/types/list_content_types.json",
-      "live": true,
-      "truncated": false,
-      "responseBytes": 25320
-    },
-    {
-      "tool": "get_content_type",
-      "folder": "types",
-      "file": "examples/types/get_content_type.json",
-      "live": true,
-      "truncated": false,
-      "responseBytes": 7585
     },
     {
       "tool": "list_content",
@@ -405,14 +364,6 @@
       "live": true,
       "truncated": false,
       "responseBytes": 52
-    },
-    {
-      "tool": "get_agent_system_type",
-      "folder": "types",
-      "file": "examples/types/get_agent_system_type.json",
-      "live": true,
-      "truncated": false,
-      "responseBytes": 12275
     },
     {
       "tool": "read_agent_system_file",

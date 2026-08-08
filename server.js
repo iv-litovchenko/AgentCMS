@@ -202,7 +202,7 @@ const {
 const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute, getPlatformAgentRootAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
-const { getTypeCatalogPayload, getCreateNodeTypesPayload, getDataTypesPayload, getDataElementTypesPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
+const { getTypeCatalogPayload, getTypesListPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const {
   getAwnDataPayload,
   createAwnDataStore,
@@ -16596,67 +16596,19 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/agent-system/create-node-types") {
+  if (req.method === "GET" && url.pathname === "/api/agent-system/types") {
     try {
       const agentRoot = getAgentRoot();
-      const payload = getCreateNodeTypesPayload(getProjectRoot(), agentRoot || "");
+      const domain = String(url.searchParams.get("domain") || "").trim();
+      const kind = String(url.searchParams.get("kind") || "").trim();
+      const filter = String(url.searchParams.get("filter") || "").trim();
+      const payload = getTypesListPayload(getProjectRoot(), agentRoot || "", { domain, kind, filter });
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to load create-node types",
+        error: "Failed to load types list",
         details: String(error.message || error)
       });
-    }
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/agent-system/data-types") {
-    try {
-      const agentRoot = getAgentRoot();
-      const payload = getDataTypesPayload(getProjectRoot(), agentRoot || "");
-      return sendJson(res, 200, payload);
-    } catch (error) {
-      return sendJson(res, 500, {
-        error: "Failed to load data store types",
-        details: String(error.message || error)
-      });
-    }
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/agent-system/data-element-types") {
-    try {
-      const agentRoot = getAgentRoot();
-      const payload = getDataElementTypesPayload(getProjectRoot(), agentRoot || "");
-      return sendJson(res, 200, payload);
-    } catch (error) {
-      return sendJson(res, 500, {
-        error: "Failed to load data element types",
-        details: String(error.message || error)
-      });
-    }
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/agent-system/all-types") {
-    try {
-      const agentRoot = getAgentRoot();
-      const payload = getTypeCatalogPayload(getProjectRoot(), agentRoot || "");
-      const allTypes = (payload.types || []).map((t) => ({
-        id: t.id,
-        name: t.name || t.id,
-        kind: t.kind || "type",
-        domain: t.domain || "",
-        extends: t.extends || null,
-        status: t.status || "active",
-        description: t.schema?.description || t.description || "",
-        source: t.source || "platform",
-        fields: t.schema?.fields || null,
-        widget: t.schema?.widget || null,
-        storage: t.schema?.storage || null,
-        mdbase: t.schema?.mdbase || null,
-        settings: t.schema?.settings || null
-      }));
-      return sendJson(res, 200, { types: allTypes, total: allTypes.length });
-    } catch (error) {
-      return sendJson(res, 500, { error: "Failed to load all types", details: String(error.message || error) });
     }
   }
 

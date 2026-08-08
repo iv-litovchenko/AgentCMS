@@ -279,7 +279,7 @@ function collectLayeredCustomFields(layers, target) {
   return fields;
 }
 
-/** Per-page response: schema-mod layers only. Base types live in awn-system / get_page_type. */
+/** Per-page response: schema-mod layers only. Base types live in awn-system / get_type. */
 function buildLayeredTopicSchemaResponse(meta, payload) {
   const layers = {
     workspace: compactAwnSchema(payload?.workspaceAwnSchema),

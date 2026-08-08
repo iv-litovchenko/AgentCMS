@@ -1,80 +1,56 @@
 import { z } from "zod";
 
+const typeFilterSchema = z
+  .enum(["create-page", "slot-content", "data-containers", "data-elements"])
+  .optional()
+  .describe("Preset: create-page | slot-content | data-containers | data-elements");
+
+const listTypesSchema = z.object({
+  domain: z
+    .string()
+    .optional()
+    .describe("Filter by domain: pages | content | data | fields | md-blocks | slots | …"),
+  kind: z
+    .string()
+    .optional()
+    .describe("Filter by kind: type | field | block | data-container | data-element | slot | …"),
+  filter: typeFilterSchema
+});
+
+const getTypeSchema = z.object({
+  id: z.string().optional().describe("Type id, e.g. awn.page.topic or awn.data.collection"),
+  path: z
+    .string()
+    .optional()
+    .describe("Catalog path, e.g. awn-system/types/pages/topic.yml")
+});
+
+function requireTypeRef({ id, path }) {
+  if (!String(id || "").trim() && !String(path || "").trim()) {
+    throw new Error("Provide id or path");
+  }
+}
+
 export function registerTypeListTools({ reg, client }) {
   reg(
-    "list_page_types",
-    "Page types available for create_page (grouped like UI create wizard).",
-    z.object({}),
-    () => client.get("/api/agent-system/create-node-types")
+    "list_types",
+    "Slim type index (~KB). Optional domain/kind or filter preset. Details: get_type(id).",
+    listTypesSchema,
+    ({ domain, kind, filter }) =>
+      client.get("/api/agent-system/types", {
+        ...(domain ? { domain } : {}),
+        ...(kind ? { kind } : {}),
+        ...(filter ? { filter } : {})
+      })
   );
 
   reg(
-    "get_page_type",
-    "Resolved page type details: fields, storage-slots, inheritance.",
-    z.object({
-      id: z.string().min(1).describe("Type id, e.g. awn.page.topic")
-    }),
-    ({ id }) => client.get("/api/agent-system/type", { id })
-  );
-
-  reg(
-    "list_content_types",
-    "Canonical content types allowed in storage slots (record, category, sidecar).",
-    z.object({}),
-    async () => {
-      const model = await client.get("/api/agent/canonical-model");
-      return {
-        contentTypes: model.slotContentTypes || [],
-        slotCategories: model.slotCategories || [],
-        slotTypesByCategory: model.slotTypesByCategory || [],
-        slotTypes: (model.slotTypes || []).map((row) => ({
-          id: row.id,
-          name: row.name,
-          slotCategory: row.slotCategory,
-          allowedContent: row.allowedContent
-        }))
-      };
+    "get_type",
+    "Resolved type: merged schema, fields, inheritance. Use id (preferred) or catalog path.",
+    getTypeSchema,
+    (args) => {
+      requireTypeRef(args);
+      return client.get("/api/agent-system/type", { id: args.id, path: args.path });
     }
-  );
-
-  reg(
-    "get_content_type",
-    "Resolved content type details from awn-system.",
-    z.object({
-      id: z.string().min(1).describe("Type id, e.g. awn.content.record")
-    }),
-    ({ id }) => client.get("/api/agent-system/type", { id })
-  );
-
-  reg(
-    "list_data_types",
-    "awn-data store container types: group, collection, single (for create_data_store).",
-    z.object({}),
-    () => client.get("/api/agent-system/data-types")
-  );
-
-  reg(
-    "get_data_type",
-    "Resolved awn.data.* type: store-kind, record rules, elements-schema.",
-    z.object({
-      id: z.string().min(1).describe("Type id, e.g. awn.data.collection")
-    }),
-    ({ id }) => client.get("/api/agent-system/type", { id })
-  );
-
-  reg(
-    "list_data_element_types",
-    "Schema types for awn-data store records: default, record, category, sidecar.",
-    z.object({}),
-    () => client.get("/api/agent-system/data-element-types")
-  );
-
-  reg(
-    "get_data_element_type",
-    "Resolved awn.data.element.* / awn.data.record|category|sidecar — fields for store records.",
-    z.object({
-      id: z.string().min(1).describe("Type id, e.g. awn.data.element.default or awn.data.record")
-    }),
-    ({ id }) => client.get("/api/agent-system/type", { id })
   );
 }

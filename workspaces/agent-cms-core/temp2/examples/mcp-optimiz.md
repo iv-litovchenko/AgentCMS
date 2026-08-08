@@ -28,15 +28,17 @@ agent-cms ( Agent MCP ) · 40
 │   ├── create_content
 │   └── rename_content / move_content / delete_content
 │
-├── ТИПЫ — только точечно (3)
-│   ├── list_page_types                  — для create_page
-│   ├── get_page_type                    — поля/слоты типа страницы
-│   └── get_content_type                 — поля типа контента
+├── ТИПЫ (2)
+│   ├── list_types                       — индекс: domain | kind | filter preset
+│   └── get_type                         — merged schema по id
 │
-├── AWN-DATA / инфоблоки (3)
-│   ├── list_data_stores
-│   ├── get_data_store                   — schema + records вместе
-│   └── create_data_record
+├── AWN-DATA runtime (3)
+│   ├── list_data_stores / get_data_store
+│   ├── create_data_store / create_data_record
+│   └── read_data_store_schema           — schema store (экземпляр, не каталог)
+│
+├── SCHEMA страницы (не каталог типов)
+│   └── read_page_schema / write_page_schema
 │
 ├── INTAKE (4)
 │   ├── list_inbox
