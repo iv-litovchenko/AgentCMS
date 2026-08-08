@@ -114,7 +114,7 @@ module.exports = {
           http: "GET /api/file/page-schema"
         },
         { name: "write_page_schema", description: "Записать schema-mod override.", parameters: "path, content", http: "POST /api/file/page-schema" },
-        { name: "create_page", description: "Создать area (folder) или topic (file).", parameters: "parentPath?, type, displayName?, slug?, awnType?", http: "POST /api/page/create" },
+        { name: "create_page", description: "Создать area или topic.", parameters: "parentPath?, type: area|topic|awn.page.area|awn.page.topic|folder|file, displayName?, slug?", http: "POST /api/page/create" },
         { name: "delete_page", description: "Удалить страницу.", parameters: "path", http: "DELETE /api/file" },
         { name: "rename_page", description: "Переименовать.", parameters: "path, displayName?, slug?", http: "POST /api/file/title" },
         { name: "move_page", description: "Переместить.", parameters: "path, parentPath", http: "POST /api/page/move" }

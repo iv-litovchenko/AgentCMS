@@ -1,7 +1,12 @@
 {
   "paths": [
+    "inbox/razdel-1/fail-1-1.md",
+    "inbox/razdel-2/fail-2-1.md",
+    "inbox/razdel-2/fail-2-2.md",
+    "main/razdel-1/fail-1-1",
+    "main/razdel-1/fail-1-1.md",
     "main/razdel-1/manifest.md",
     "tabular/main.csv"
   ],
-  "updatedAt": "2026-08-07T21:02:41.039Z"
+  "updatedAt": "2026-08-08T11:09:17.726Z"
 }

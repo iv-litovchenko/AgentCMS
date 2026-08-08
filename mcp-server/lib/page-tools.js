@@ -1,5 +1,37 @@
 import { z } from "zod";
 
+/** folder|area|awn.page.area → folder; file|topic|awn.page.topic* → file + awnType */
+export function normalizeCreatePageArgs(input = {}) {
+  const explicitAwn = input.awnType ? String(input.awnType).trim() : "";
+  const raw = String(input.type || explicitAwn || "").trim();
+  if (!raw) {
+    throw new Error("type is required (folder|area|awn.page.area or file|topic|awn.page.topic)");
+  }
+
+  const lower = raw.toLowerCase();
+  if (lower === "folder" || lower === "area" || lower === "awn.page.area" || lower === "manifest") {
+    return {
+      ...input,
+      type: "folder",
+      awnType: explicitAwn || undefined
+    };
+  }
+
+  if (
+    lower === "file" ||
+    lower === "topic" ||
+    lower === "topic-manifest" ||
+    lower.startsWith("awn.page.topic")
+  ) {
+    const awnType = raw.startsWith("awn.page.") ? raw : explicitAwn || "awn.page.topic";
+    return { ...input, type: "file", awnType };
+  }
+
+  throw new Error(
+    `Invalid type "${raw}". Use folder|area|awn.page.area or file|topic|awn.page.topic`
+  );
+}
+
 export function registerPageTools({ reg, client, pagePath }) {
   reg(
     "read_page_body",
@@ -84,30 +116,35 @@ export function registerPageTools({ reg, client, pagePath }) {
 
   reg(
     "create_page",
-    "Create page: area (folder) or topic (file). displayName → awn-name; slug → folder on disk.",
+    "Create page. type: area → folder+manifest (awn.page.area); topic → file+manifest (awn.page.topic). Aliases: folder|area|file|topic or full awn-type id.",
     z
       .object({
         parentPath: z.string().optional(),
-        type: z.enum(["folder", "file"]),
+        type: z
+          .string()
+          .min(1)
+          .describe("folder | area | awn.page.area | file | topic | awn.page.topic"),
         name: z.string().min(1).optional(),
         displayName: z.string().min(1).optional(),
         title: z.string().optional(),
         slug: z.string().optional(),
-        awnType: z.string().optional()
+        awnType: z.string().optional().describe("Optional awn-type override; usually inferred from type")
       })
       .refine((value) => Boolean(value.displayName || value.title || value.name || value.slug), {
         message: "Provide displayName, title, name, or slug"
       }),
-    ({ parentPath, type, name, displayName, title, slug, awnType }) =>
-      client.post("/api/page/create", {
-        parentPath: parentPath || ".",
-        type,
-        name,
-        displayName,
-        title,
-        slug,
-        awnType
-      })
+    (args) => {
+      const payload = normalizeCreatePageArgs(args);
+      return client.post("/api/page/create", {
+        parentPath: payload.parentPath || ".",
+        type: payload.type,
+        name: payload.name,
+        displayName: payload.displayName,
+        title: payload.title,
+        slug: payload.slug,
+        awnType: payload.awnType
+      });
+    }
   );
 
   reg(

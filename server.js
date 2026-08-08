@@ -22,6 +22,7 @@ const {
 const { fetchBufferFromImportUrl, resolveImportFileName } = require("./media-import");
 const { decodeBase64UploadData } = require("./base64-upload");
 const { createScriptExecService } = require("./script-exec-service");
+const { parseCsvText } = require("./awn-data-csv");
 const {
   READ_STATE_FILE,
   READ_CONTENT_FILE,
@@ -1527,6 +1528,35 @@ function hasNodeCreateIdentity(payload = {}, type = "") {
   }
   const { displayName, folderSlug } = resolveNodeCreateNames(payload);
   return Boolean(displayName || folderSlug);
+}
+
+function normalizePageCreateType(rawType, awnType) {
+  const raw = String(rawType || awnType || "").trim();
+  if (!raw) return "";
+
+  const lower = raw.toLowerCase();
+  if (lower === "folder" || lower === "area" || lower === "awn.page.area" || lower === "manifest") {
+    return "folder";
+  }
+  if (
+    lower === "file" ||
+    lower === "topic" ||
+    lower === "topic-manifest" ||
+    lower.startsWith("awn.page.topic")
+  ) {
+    return "file";
+  }
+  return raw;
+}
+
+function resolvePageCreateAwnType(rawType, awnType, normalizedType) {
+  const explicit = String(awnType || "").trim();
+  const raw = String(rawType || "").trim();
+  if (normalizedType === "file") {
+    if (raw.startsWith("awn.page.")) return raw;
+    return explicit || "awn.page.topic";
+  }
+  return explicit || undefined;
 }
 
 function buildManifestCreateFrontmatter(nodeKind, displayName, folderSlug, options = {}) {
@@ -3387,46 +3417,6 @@ function excerptText(text, maxLen = 220) {
   return `${cleaned.slice(0, maxLen).trim()}…`;
 }
 
-function parseCsvLine(line) {
-  const result = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const ch = line[i];
-    if (inQuotes) {
-      if (ch === '"' && line[i + 1] === '"') {
-        current += '"';
-        i += 1;
-      } else if (ch === '"') {
-        inQuotes = false;
-      } else {
-        current += ch;
-      }
-    } else if (ch === '"') {
-      inQuotes = true;
-    } else if (ch === ",") {
-      result.push(current);
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-  result.push(current);
-  return result;
-}
-
-function parseCsvText(text) {
-  const lines = String(text || "")
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter((line) => line.length > 0);
-  if (!lines.length) return { columns: [], rows: [] };
-  const parsed = lines.map(parseCsvLine);
-  const columns = parsed[0] || [];
-  const rows = parsed.slice(1);
-  return { columns, rows };
-}
-
 async function readInternalMemoryContent(relPath) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
   const memoryRelPath = toContentFilePath(resolvedRelPath);
@@ -3485,6 +3475,7 @@ async function readTabularMemoryContent(relPath) {
       path: tabularRelPath,
       content: bundleHit.content,
       exists: true,
+      delimiter: parsed.delimiter,
       columns: parsed.columns,
       rows: parsed.rows,
       rowCount: parsed.rows.length
@@ -16600,6 +16591,7 @@ async function handleApiForAgent(req, res, url) {
         path: tabularRelPath,
         content,
         exists: true,
+        delimiter: parsed.delimiter,
         columns: parsed.columns,
         rows: parsed.rows,
         rowCount: parsed.rows.length
@@ -20592,7 +20584,11 @@ async function handleApiForAgent(req, res, url) {
       let parentPathResolved = await resolveExistingParentDirectoryRelPath(
         typeof payload.parentPath === "string" ? payload.parentPath : "."
       );
-      const type = String(payload.type || "").trim();
+      const typeRaw = String(payload.type || "").trim();
+      const type = normalizePageCreateType(typeRaw, payload.awnType);
+      if (type === "file" || type === "topic-manifest" || String(typeRaw).toLowerCase().startsWith("awn.page.topic")) {
+        payload.awnType = resolvePageCreateAwnType(typeRaw, payload.awnType, "file");
+      }
       const name = String(payload.name || "").trim();
 
       if (

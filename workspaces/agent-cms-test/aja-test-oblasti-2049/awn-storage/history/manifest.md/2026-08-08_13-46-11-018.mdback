@@ -1,0 +1,30 @@
+---
+awn-name: "Ая тест области 2049"
+awn-emoji: ""
+awn-type: awn.page.area
+awn-create: 2026-08-08T10:43:50.526Z
+awn-update: 2026-08-08T10:46:10.723Z
+awn-version: 2
+awn-web-url: ""
+awn-main: false
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-color: ""
+awn-sort: ""
+awn-runtime-load-always: false
+awn-runtime-cron: ""
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: ""
+awn-runtime-commands: false
+awn-section-role: ""
+awn-status: draft
+awn-description: "Тестовая область Agent CMS 2049 для проверки полного цикла: описание, инструкция, однофайловая память, кастомные поля и превью. Анекдот: — Почему программисты такие аккуратные? — Потому что в их мире каждая точка с запятой может стать точкой невозврата."
+awn-tags:
+  - test
+  - area
+awn-preview: "https://bipbap.ru/wp-content/uploads/2017/04/000f_7290754.jpg"
+aya-custom-text: "Произвольное значение строки области 2049 (анекдот: — Админ, у нас сеть упала! — Не переживай, она просто решила лечь пораньше)"
+aya-custom-number: 2049
+aya-custom-boolean: true
+---

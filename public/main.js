@@ -52228,22 +52228,11 @@ async function fetchFlatStorageNavigationIndex(manifestPath, slotKey, agentId = 
   const folders = getStorageFolderNamesForSlotKey(slotKey);
   if (!folders.length) return null;
 
-  const spec = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === slotKey);
-  const memoryKind = spec ? getEntryOverviewMemoryKindForSlot(spec) : null;
-
   const parts = await Promise.all(
     folders.map((folder) => fetchFlatStorageFilesForNavigation(manifestPath, folder, agentId))
   );
   const merged = mergeFlatStorageNavigationFileLists(parts);
   if (!merged.files.length && !merged.folders.length) return null;
-
-  if (memoryKind) {
-    try {
-      await reloadFlatStorageFolderMode(memoryKind);
-    } catch {
-      // keep list-view text cache best-effort
-    }
-  }
 
   const index = prepareNavigationExternalItems(merged.files, merged.folders);
   return hasNavigationExternalPreparedContent(index) ? index : null;
@@ -54685,7 +54674,14 @@ function getEntryOverviewTopicTitle() {
   );
 }
 
-async function buildEntryOverviewDataSlotCounters(topicPath) {
+async function resolveNavigationPrefetchValue(prefetched, key, fetcher) {
+  if (Object.prototype.hasOwnProperty.call(prefetched, key)) {
+    return prefetched[key];
+  }
+  return fetcher();
+}
+
+async function buildEntryOverviewDataSlotCounters(topicPath, prefetched = {}) {
   const manifestPath = resolveManifestPathForNodeApi(topicPath || getResolvedNodePath(activePath));
   if (!manifestPath || !topicPath) return [];
   if (await shouldHideTopicStorageSlots(topicPath)) return [];
@@ -54715,16 +54711,43 @@ async function buildEntryOverviewDataSlotCounters(topicPath) {
     storageScan,
     flatNavigationIndexes
   ] = await Promise.all([
-    fetchExternalFilesForNavigation(topicPath).catch(() => ({ files: [], folders: [] })),
-    fetchMediaLibraryOverview(topicPath, "media").catch(() => ({ groups: {}, sectionManifests: [] })),
-    fetchMediaLibraryOverview(topicPath, "assets").catch(() => ({ groups: {}, sectionManifests: [] })),
-    fetchTodoForOverview(topicPath).catch(() => null),
-    fetchInternalMemoryForNavigation(topicPath).catch(() => null),
-    fetchTabularMemoryForNavigation(topicPath).catch(() => null),
-    fetchNodeOverviewPreview(topicPath).catch(() => null),
-    fetchStorageRootScan(manifestPath).catch(() => null),
-    fetchNavigationHubRailFlatIndexes(topicPath).catch(() => ({}))
+    resolveNavigationPrefetchValue(prefetched, "externalData", () =>
+      fetchExternalFilesForNavigation(topicPath).catch(() => ({ files: [], folders: [] }))
+    ),
+    resolveNavigationPrefetchValue(prefetched, "mediaData", () =>
+      fetchMediaLibraryOverview(topicPath, "media").catch(() => ({ groups: {}, sectionManifests: [] }))
+    ),
+    resolveNavigationPrefetchValue(prefetched, "assetsData", () =>
+      fetchMediaLibraryOverview(topicPath, "assets").catch(() => ({ groups: {}, sectionManifests: [] }))
+    ),
+    resolveNavigationPrefetchValue(prefetched, "todoData", () => fetchTodoForOverview(topicPath).catch(() => null)),
+    resolveNavigationPrefetchValue(prefetched, "internalData", () =>
+      fetchInternalMemoryForNavigation(topicPath).catch(() => null)
+    ),
+    resolveNavigationPrefetchValue(prefetched, "tabularData", () =>
+      fetchTabularMemoryForNavigation(topicPath).catch(() => null)
+    ),
+    resolveNavigationPrefetchValue(prefetched, "assetsPreview", () =>
+      fetchNodeOverviewPreview(topicPath).catch(() => null)
+    ),
+    resolveNavigationPrefetchValue(prefetched, "storageScan", () =>
+      fetchStorageRootScan(manifestPath).catch(() => null)
+    ),
+    resolveNavigationPrefetchValue(prefetched, "flatNavigationIndexes", () =>
+      fetchNavigationHubRailFlatIndexes(topicPath).catch(() => ({}))
+    )
   ]);
+  Object.assign(prefetched, {
+    externalData,
+    mediaData,
+    assetsData,
+    todoData,
+    internalData,
+    tabularData,
+    assetsPreview,
+    storageScan,
+    flatNavigationIndexes
+  });
   const assetsPreviewFilled = Boolean(assetsPreview?.imageUrl && !assetsPreview?.broken);
 
   const externalPrepared = prepareNavigationExternalItems(
@@ -57116,6 +57139,7 @@ const NAV_HUB_RAIL_DOCUMENT_SLOT_ID = "__document__";
 const NAVIGATION_HUB_RAIL_SEARCH_MIN_ITEMS = 4;
 
 const navigationHubRailSlotSearchByKey = new Map();
+const navigationHubRailSlotBodyState = new WeakMap();
 
 let navTocCollapsedOverridesCache = null;
 let navHubRailSlotOpenOverridesCache = null;
@@ -64797,8 +64821,29 @@ function buildNavigationHubRailActiveContext() {
   return context;
 }
 
+function doesNavigationBookTocActiveContextApply(handlers, activeCtx) {
+  if (!activeCtx) return false;
+
+  const handlerMemoryKind = handlers.resourceContextMenuMemoryKind || handlers.readMemoryKind || null;
+  const activeMemoryKind = activeCtx.memoryKind || null;
+  if (handlerMemoryKind && activeMemoryKind && handlerMemoryKind !== activeMemoryKind) {
+    return false;
+  }
+
+  const handlerSlotKey = handlers.railSlotKey || null;
+  const activeSlotKey = activeCtx.slotKey || null;
+  if (handlerSlotKey && activeSlotKey && handlerSlotKey !== activeSlotKey) {
+    return false;
+  }
+
+  return true;
+}
+
 function getNavigationHubRailTocActiveState(handlers, folderPath = "", itemPath = null) {
   const activeCtx = handlers.activeContext;
+  if (!doesNavigationBookTocActiveContextApply(handlers, activeCtx)) {
+    return { forceExpand: false, folderIsCurrent: false, fileIsCurrent: false };
+  }
   const normalizedActiveRel = activeCtx?.relativePath
     ? String(activeCtx.relativePath).replace(/\\/g, "/").replace(/^\/+/, "")
     : "";
@@ -65055,7 +65100,53 @@ function refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, a
   }
 }
 
-function mountNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, activeCtx, prefetched) {
+function mountDeferredNavigationHubRailSlotTree(body) {
+  if (!body?.dataset.railTreeDeferred) return false;
+  const state = navigationHubRailSlotBodyState.get(body);
+  if (!state) return false;
+  delete body.dataset.railTreeDeferred;
+  refreshNavigationHubRailSlotTreeBody(
+    body,
+    state.slot,
+    state.slotIndex,
+    state.nodePath,
+    state.activeCtx,
+    state.prefetched
+  );
+  if (
+    !state.slotIndex.navigationIndex &&
+    isFlatEntryOverviewMemoryKind(state.slotIndex.memoryKind) &&
+    state.slot.filled &&
+    state.prefetched._flatIndexTopicPath
+  ) {
+    void fetchFlatStorageNavigationIndex(
+      state.prefetched._flatIndexTopicPath,
+      state.slotIndex.spec?.key || state.slot.id
+    ).then((index) => {
+      if (!index || !body.isConnected) return;
+      state.slotIndex.navigationIndex = index;
+      refreshNavigationHubRailSlotTreeBody(
+        body,
+        state.slot,
+        state.slotIndex,
+        state.nodePath,
+        state.activeCtx,
+        state.prefetched
+      );
+    });
+  }
+  return true;
+}
+
+function mountNavigationHubRailSlotTreeBody(
+  body,
+  slot,
+  slotIndex,
+  nodePath,
+  activeCtx,
+  prefetched,
+  { deferTreeMount = false } = {}
+) {
   body.replaceChildren();
 
   if (slotIndex.kind === "tree") {
@@ -65079,9 +65170,16 @@ function mountNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, act
     const treeHost = document.createElement("div");
     treeHost.className = "node-navigation-hub-rail-slot-tree";
     body.appendChild(treeHost);
-    refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, activeCtx, prefetched);
+
+    if (deferTreeMount) {
+      body.dataset.railTreeDeferred = "1";
+      navigationHubRailSlotBodyState.set(body, { slot, slotIndex, nodePath, activeCtx, prefetched });
+    } else {
+      refreshNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, activeCtx, prefetched);
+    }
 
     if (
+      !deferTreeMount &&
       !slotIndex.navigationIndex &&
       isFlatEntryOverviewMemoryKind(slotIndex.memoryKind) &&
       slot.filled &&
@@ -65097,7 +65195,9 @@ function mountNavigationHubRailSlotTreeBody(body, slot, slotIndex, nodePath, act
       });
     }
 
-    const treeHasContent = Boolean(treeHost.childElementCount);
+    const treeHasContent = deferTreeMount
+      ? Boolean(slot.filled && isFlatEntryOverviewMemoryKind(slotIndex.memoryKind))
+      : Boolean(treeHost.childElementCount);
 
     return (
       treeHasContent || Boolean(slot.filled && isFlatEntryOverviewMemoryKind(slotIndex.memoryKind))
@@ -65350,8 +65450,9 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
     }
     setNavHubRailSlotOpen(nodePath, slot.id, details.open);
     syncNavigationHubRailSlotToggleButton(toggleBtn, slot, details.open);
-    if (details.open && slotIndex.memoryKind) {
-      void refreshNavigationHubRailSlotTreeForMemoryKind(slotIndex.memoryKind);
+    if (details.open) {
+      const bodyNode = details.querySelector(".node-navigation-hub-rail-slot-body");
+      if (bodyNode) mountDeferredNavigationHubRailSlotTree(bodyNode);
     }
   });
   details.classList.toggle("is-empty", isNavigationHubRailSlotEmpty(slot));
@@ -65386,7 +65487,8 @@ function renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePat
     slotIndex,
     nodePath,
     activeCtx,
-    prefetched
+    prefetched,
+    { deferTreeMount: !details.open }
   );
 
   if (!hasContent && !slotActions) {
@@ -65522,7 +65624,8 @@ async function appendNodeNavigationSplitRail(
   if (usesNavigationHubInlineSubsections(nodePath)) return false;
   if (await shouldHideTopicStorageSlots(nodePath)) {
     const childEntries = getNavigationSubsectionEntries();
-    const flatNavigationIndexes = await fetchNavigationHubRailFlatIndexes(nodePath);
+    const flatNavigationIndexes =
+      prefetched.flatNavigationIndexes ?? (await fetchNavigationHubRailFlatIndexes(nodePath));
     if (isStale()) return false;
     const rail = renderNavigationHubRail([], childEntries, nodePath, {
       ...prefetched,
@@ -65542,16 +65645,18 @@ async function appendNodeNavigationSplitRail(
   }
 
   const childEntries = getNavigationSubsectionEntries();
-  const topicSlotCounters = await buildEntryOverviewDataSlotCounters(nodePath);
+  const topicSlotCounters =
+    prefetched.topicSlotCounters ?? (await buildEntryOverviewDataSlotCounters(nodePath, prefetched));
   if (isStale()) return false;
 
   try {
     const assetsData =
-      prefetched?.assetsData ??
+      prefetched.assetsData ??
       (await fetchMediaLibraryOverview(nodePath, "assets").catch(() => null));
     if (isStale()) return false;
 
-    const flatNavigationIndexes = await fetchNavigationHubRailFlatIndexes(nodePath);
+    const flatNavigationIndexes =
+      prefetched.flatNavigationIndexes ?? (await fetchNavigationHubRailFlatIndexes(nodePath));
     if (isStale()) return false;
 
     const assetsSlotPreview = topicSlotCounters.find((slot) => slot.id === "assets")?.assetsPreview || null;
@@ -65566,7 +65671,7 @@ async function appendNodeNavigationSplitRail(
       {
         ...prefetched,
         assetsData,
-        assetsPreview: assetsSlotPreview,
+        assetsPreview: assetsSlotPreview || prefetched.assetsPreview || null,
         flatNavigationIndexes,
         _flatIndexTopicPath: nodePath
       },
@@ -65627,7 +65732,17 @@ async function renderNodeNavigation() {
   const emptyExternal = { exists: false, files: [], folders: [], nonMarkdownFiles: [], slotsDisabled: false };
   const emptyTabular = { exists: false, columns: [], rows: [], rowCount: 0, path: null };
 
-  const [internalData, externalData, tabularData, todoData, preview, nodeMeta] = await Promise.all(
+  const navigationPrefetch = {};
+  const [
+    internalData,
+    externalData,
+    tabularData,
+    todoData,
+    preview,
+    nodeMeta,
+    mediaData,
+    assetsData
+  ] = await Promise.all(
     isInlineNavHub
       ? [
           fetchInternalMemoryForNavigation(nodePath),
@@ -65635,7 +65750,9 @@ async function renderNodeNavigation() {
           Promise.resolve(emptyTabular),
           fetchTodoForOverview(nodePath),
           fetchNodeOverviewPreview(nodePath, entries),
-          fetchNodeNavigationMeta(nodePath)
+          fetchNodeNavigationMeta(nodePath),
+          Promise.resolve(null),
+          Promise.resolve(null)
         ]
       : [
           fetchInternalMemoryForNavigation(nodePath),
@@ -65643,12 +65760,21 @@ async function renderNodeNavigation() {
           fetchTabularMemoryForNavigation(nodePath),
           fetchTodoForOverview(nodePath),
           fetchNodeOverviewPreview(nodePath, entries),
-          fetchNodeNavigationMeta(nodePath)
+          fetchNodeNavigationMeta(nodePath),
+          slotsDisabled ? Promise.resolve(null) : fetchMediaOverview(nodePath),
+          slotsDisabled
+            ? Promise.resolve(null)
+            : fetchMediaLibraryOverview(nodePath, "assets").catch(() => null)
         ]
   );
-  const mediaData = isInlineNavHub || slotsDisabled ? null : await fetchMediaOverview(nodePath);
-  const assetsData =
-    isInlineNavHub || slotsDisabled ? null : await fetchMediaLibraryOverview(nodePath, "assets").catch(() => null);
+  Object.assign(navigationPrefetch, {
+    internalData,
+    externalData,
+    tabularData,
+    todoData,
+    mediaData,
+    assetsData
+  });
   if (isStale()) return;
 
   const slotStripGroups = buildNodeSlotStripGroups({
@@ -65693,7 +65819,14 @@ async function renderNodeNavigation() {
   if (isStale()) return;
 
   const topicSlotCounters =
-    isInlineNavHub || slotsDisabled ? [] : await buildEntryOverviewDataSlotCounters(nodePath);
+    isInlineNavHub || slotsDisabled
+      ? []
+      : await buildEntryOverviewDataSlotCounters(nodePath, navigationPrefetch);
+  if (isInlineNavHub || slotsDisabled) {
+    navigationPrefetch.topicSlotCounters = [];
+  } else {
+    navigationPrefetch.topicSlotCounters = topicSlotCounters;
+  }
   if (isStale()) return;
 
   if (!isInlineNavHub && !slotsDisabled) {
@@ -65744,7 +65877,7 @@ async function renderNodeNavigation() {
     const railMounted = await appendNodeNavigationSplitRail(
       hub,
       nodePath,
-      { internalData, externalData, tabularData, mediaData, assetsData: undefined, todoData },
+      navigationPrefetch,
       { isStale, documentMarkdown: modeContentCache.description || "" }
     );
     if (isStale()) return;

@@ -2,8 +2,50 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_CSV_FILE = "main.csv";
+const DEFAULT_CSV_DELIMITER = ",";
 
-function parseCsvLine(line) {
+function countDelimitersOutsideQuotes(line, delimiter) {
+  let count = 0;
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') {
+        i += 1;
+      } else if (ch === '"') {
+        inQuotes = false;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === delimiter) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function detectCsvDelimiter(firstLine) {
+  const line = String(firstLine || "");
+  if (!line) return DEFAULT_CSV_DELIMITER;
+
+  const candidates = [
+    [",", countDelimitersOutsideQuotes(line, ",")],
+    [";", countDelimitersOutsideQuotes(line, ";")],
+    ["\t", countDelimitersOutsideQuotes(line, "\t")]
+  ];
+
+  let best = DEFAULT_CSV_DELIMITER;
+  let bestCount = 0;
+  for (const [delimiter, count] of candidates) {
+    if (count > bestCount) {
+      best = delimiter;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+function parseCsvLine(line, delimiter = DEFAULT_CSV_DELIMITER) {
   const result = [];
   let current = "";
   let inQuotes = false;
@@ -20,7 +62,7 @@ function parseCsvLine(line) {
       }
     } else if (ch === '"') {
       inQuotes = true;
-    } else if (ch === ",") {
+    } else if (ch === delimiter) {
       result.push(current);
       current = "";
     } else {
@@ -31,25 +73,30 @@ function parseCsvLine(line) {
   return result;
 }
 
-function parseCsvText(text) {
+function parseCsvText(text, options = {}) {
   const lines = String(text || "")
     .split(/\r?\n/)
     .map((line) => line.trimEnd())
     .filter((line) => line.length > 0);
-  if (!lines.length) return { columns: [], rows: [] };
-  const parsed = lines.map(parseCsvLine);
-  return { columns: parsed[0] || [], rows: parsed.slice(1) };
+  if (!lines.length) {
+    return { columns: [], rows: [], delimiter: options.delimiter || DEFAULT_CSV_DELIMITER };
+  }
+
+  const delimiter = options.delimiter || detectCsvDelimiter(lines[0]);
+  const parsed = lines.map((line) => parseCsvLine(line, delimiter));
+  return { columns: parsed[0] || [], rows: parsed.slice(1), delimiter };
 }
 
-function escapeCsvCell(value) {
+function escapeCsvCell(value, delimiter = DEFAULT_CSV_DELIMITER) {
   const text = String(value ?? "");
-  if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  const needsQuotes = text.includes('"') || text.includes("\n") || text.includes("\r") || text.includes(delimiter);
+  if (needsQuotes) return `"${text.replace(/"/g, '""')}"`;
   return text;
 }
 
-function serializeCsv(columns, rows) {
-  const header = columns.map(escapeCsvCell).join(",");
-  const body = rows.map((cells) => cells.map(escapeCsvCell).join(",")).join("\n");
+function serializeCsv(columns, rows, delimiter = DEFAULT_CSV_DELIMITER) {
+  const header = columns.map((cell) => escapeCsvCell(cell, delimiter)).join(delimiter);
+  const body = rows.map((cells) => cells.map((cell) => escapeCsvCell(cell, delimiter)).join(delimiter)).join("\n");
   return body ? `${header}\n${body}\n` : `${header}\n`;
 }
 
@@ -142,11 +189,12 @@ function appendCsvRecord(storeAbs, schema, recordData) {
   const csvPath = path.join(storeAbs, csvFile);
   const columns = getCsvColumnsFromSchema(schema);
 
-  let existing = { columns: [], rows: [] };
+  let existing = { columns: [], rows: [], delimiter: DEFAULT_CSV_DELIMITER };
   if (fs.existsSync(csvPath)) {
     existing = parseCsvText(fs.readFileSync(csvPath, "utf-8"));
   }
 
+  const delimiter = existing.delimiter || DEFAULT_CSV_DELIMITER;
   const header =
     existing.columns.length > 0
       ? existing.columns.map(String)
@@ -167,7 +215,7 @@ function appendCsvRecord(storeAbs, schema, recordData) {
   });
 
   const rows = [...(existing.rows || []), row];
-  fs.writeFileSync(csvPath, serializeCsv(header, rows), "utf-8");
+  fs.writeFileSync(csvPath, serializeCsv(header, rows, delimiter), "utf-8");
   return row;
 }
 
@@ -179,11 +227,18 @@ function writeCsvFromRecords(storeAbs, schema, records) {
     const fm = record.frontmatter || record;
     return columns.map((col) => String(fm[col] ?? "").trim());
   });
-  fs.writeFileSync(csvPath, serializeCsv(columns, rows), "utf-8");
+
+  let delimiter = DEFAULT_CSV_DELIMITER;
+  if (fs.existsSync(csvPath)) {
+    delimiter = parseCsvText(fs.readFileSync(csvPath, "utf-8")).delimiter || DEFAULT_CSV_DELIMITER;
+  }
+  fs.writeFileSync(csvPath, serializeCsv(columns, rows, delimiter), "utf-8");
 }
 
 module.exports = {
   DEFAULT_CSV_FILE,
+  DEFAULT_CSV_DELIMITER,
+  detectCsvDelimiter,
   parseCsvText,
   serializeCsv,
   getRecordStorage,

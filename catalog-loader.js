@@ -17,6 +17,7 @@ const {
 } = require("./manifest-paths");
 
 const { AGENT_CMS_CORE_REL } = require("./platform-sources");
+const { parseCsvText } = require("./awn-data-csv");
 const {
   AWN_DATA_TAXONOMY_PRESETS,
   loadPlatformTaxonomyPreset,
@@ -42,46 +43,6 @@ function splitNodeFrontmatter(raw = "") {
     frontmatter: match[1],
     body: match[2].replace(/^\r?\n?/, "")
   };
-}
-
-function parseCsvLine(line) {
-  const result = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const ch = line[i];
-    if (inQuotes) {
-      if (ch === '"' && line[i + 1] === '"') {
-        current += '"';
-        i += 1;
-      } else if (ch === '"') {
-        inQuotes = false;
-      } else {
-        current += ch;
-      }
-    } else if (ch === '"') {
-      inQuotes = true;
-    } else if (ch === ",") {
-      result.push(current);
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-  result.push(current);
-  return result;
-}
-
-function parseCsvText(text) {
-  const lines = String(text || "")
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter((line) => line.length > 0);
-  if (!lines.length) return { columns: [], rows: [] };
-  const parsed = lines.map(parseCsvLine);
-  const columns = parsed[0] || [];
-  const rows = parsed.slice(1);
-  return { columns, rows };
 }
 
 function getYamlScalar(frontmatter, key) {

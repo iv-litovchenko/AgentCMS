@@ -55,8 +55,9 @@
 
 `create_page`: обычно `parentPath` внутри `awn-container/` (или kit/shared по назначению).
 
-- `type: "folder"` — раздел (area / section); `type: "file"` — тема (topic)
-- `awnType` — точный тип, напр. `awn.page.topic` или `awn.page.section.container`
+- `type: "awn.page.area"` или `"area"` / `"folder"` — раздел (область)
+- `type: "awn.page.topic"` или `"topic"` / `"file"` — тема
+- `awnType` — опционально, если нужен нестандартный подтип (иначе выводится из `type`)
 - `displayName` / `title` → `awn-name`; `slug` / `name` → папка на диске
 - список допустимых: `list_types({ filter: "create-page" })`
 
