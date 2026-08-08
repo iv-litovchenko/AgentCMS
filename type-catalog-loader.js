@@ -83,7 +83,12 @@ const TYPE_ID_ALIASES = {
   "awn.slot.todo": "awn.slot.todo-single",
   "awn.slot.log": "awn.slot.log-single",
   "awn.slot.thread": "awn.slot.dialogs",
-  "awn.slot.quick-notes": "awn.slot.note"
+  "awn.slot.quick-notes": "awn.slot.note",
+  "awn.data.singleton": "awn.data.single",
+  "awn-data/cms-base/data-containers/group.md": "awn.data.group",
+  "awn-data/cms-base/data-containers/collection.md": "awn.data.collection",
+  "awn-data/cms-base/data-containers/single.md": "awn.data.single",
+  "awn-data/cms-base/data-elements/default.md": "awn.data.element.default"
 };
 
 function normalizeLegacyCatalogPath(catalogPath) {
@@ -129,7 +134,8 @@ const BUILTIN_DOMAIN_META = {
   fields: { label: "Fields", kind: "field" },
   "md-blocks": { label: "Markdown blocks", kind: "block" },
   taxonomies: { label: "Taxonomies", kind: "taxonomy" },
-  mixins: { label: "Mixins", kind: "mixin" }
+  mixins: { label: "Mixins", kind: "mixin" },
+  data: { label: "Накопители (awn-data)", kind: "data-container" }
 };
 
 function normalizeDomainEntry(raw) {
@@ -215,7 +221,7 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
     ? ["platform:agent-cms-core/awn-system/types"]
     : ["platform:agent-cms-core/awn-data"];
   const useAwnDataFields = editingFieldsStoreHasRecords(projectRoot) && !coreUsesYaml;
-  const platformExtraDomains = ["mixins", "settings", "md-blocks"];
+  const platformExtraDomains = ["mixins", "settings", "md-blocks", "data"];
 
   if (coreUsesYaml) {
     for (const domain of TYPE_DOMAINS) {
@@ -225,7 +231,7 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
     for (const domain of platformExtraDomains) {
       ingestYamlDomainTypes(path.join(coreSystemRoot, "types", domain), domain, "platform", byId, byDomain);
     }
-    for (const domain of ["fields", "md-blocks"]) {
+    for (const domain of ["fields"]) {
       if ((byDomain[domain] || []).length) continue;
       ingestLegacyPlatformYamlTypes(coreRoot, domain, byId, byDomain);
     }
@@ -403,7 +409,56 @@ function toTypeBrowseEntry(entry, byId, pageRoot) {
   };
 }
 
-function getTypeCatalogPayload(projectRoot = process.cwd(), agentRoot = "") {
+function getTypeCatalogIndexPayload(projectRoot = process.cwd(), agentRoot = "") {
+  const catalog = loadTypeCatalog(projectRoot, agentRoot);
+  const { byId, byDomain, coreRoot, agentSystemRoot, sources } = catalog;
+  const types = [];
+
+  for (const entry of byId.values()) {
+    if (entry.aliasOf || !isCatalogType(entry)) continue;
+    const schema = entry.schema || {};
+    types.push({
+      id: entry.id,
+      name: schema.name || entry.id,
+      domain: entry.domain,
+      kind: entry.kind || schema.kind || null,
+      status: entry.status || schema.status || "active",
+      extends: entry.extends || schema.extends || null,
+      source: entry.source || "platform",
+      catalogFile: entry.catalogFile || null,
+      description: schema.description || ""
+    });
+  }
+
+  types.sort((a, b) => String(a.domain).localeCompare(String(b.domain), "ru") || String(a.id).localeCompare(String(b.id), "ru"));
+
+  const domains = {};
+  for (const [domain, entries] of Object.entries(byDomain)) {
+    const active = entries.filter((e) => !e.aliasOf && isCatalogType(e));
+    domains[domain] = {
+      count: active.length,
+      ids: active.map((e) => e.id)
+    };
+  }
+
+  return {
+    specVersion: "1.1",
+    model: "type-catalog-index",
+    mode: "index",
+    coreRoot: coreRoot.replace(/\\/g, "/"),
+    agentSystemRoot: agentSystemRoot ? agentSystemRoot.replace(/\\/g, "/") : null,
+    sources,
+    typeCount: types.length,
+    domains,
+    types,
+    hint:
+      "Slim index без merged schema. Детали: get_page_type / get_content_type / get_data_type / get_data_element_type(id)."
+  };
+}
+
+function getTypeCatalogPayload(projectRoot = process.cwd(), agentRoot = "", options = {}) {
+  const mode = String(options?.mode || "full").trim().toLowerCase();
+  if (mode === "index") return getTypeCatalogIndexPayload(projectRoot, agentRoot);
   const catalog = loadTypeCatalog(projectRoot, agentRoot);
   const { byId, byDomain, coreRoot, agentSystemRoot, sources } = catalog;
   const pageRoot = getPageTreeRootId(byId);
@@ -616,6 +671,18 @@ function getTypeUsage(entry, merged, byId) {
         if (merged.renderer) consumers.push(`JS-рендер (${merged.renderer})`);
         else note = (note ? note + "; " : "") + "render: fence без renderer";
       }
+      break;
+    }
+    case "data": {
+      if (merged["store-kind"]) {
+        consumers.push(`create_data_store (${merged["store-kind"]})`);
+        wired = true;
+      }
+      if (entry.kind === "data-element") {
+        consumers.push("схема записей store (schema-mod)");
+        wired = true;
+      }
+      if (!consumers.length) note = "data-тип без store-kind / fields";
       break;
     }
     case "taxonomies": {
@@ -917,6 +984,78 @@ function getCreateNodeTypesPayload(projectRoot = process.cwd(), agentRoot = "") 
   return { groups };
 }
 
+function getDataElementTypesPayload(projectRoot = process.cwd(), agentRoot = "") {
+  const { byDomain } = loadTypeCatalog(projectRoot, agentRoot);
+  const types = [];
+
+  for (const entry of byDomain.data || []) {
+    if (entry.aliasOf || !isTypeActive(entry) || !isCatalogType(entry)) continue;
+    if (entry.kind !== "data-element" && entry.schema?.kind !== "data-element") continue;
+    const schema = entry.schema || {};
+    types.push({
+      id: entry.id,
+      name: schema.name || entry.id,
+      kind: entry.kind || schema.kind || "data-element",
+      recordRole: schema["record-role"] || null,
+      description: schema.description || "",
+      extends: entry.extends || schema.extends || null,
+      status: entry.status || schema.status || "active",
+      source: entry.source || "platform",
+      catalogFile: entry.catalogFile || null
+    });
+  }
+
+  types.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+
+  return {
+    version: 1,
+    model: "data-element-types",
+    hint: "Схемы полей записей awn-data store. Детали: get_data_element_type(id).",
+    types,
+    count: types.length
+  };
+}
+
+function getDataTypesPayload(projectRoot = process.cwd(), agentRoot = "") {
+  const { byDomain } = loadTypeCatalog(projectRoot, agentRoot);
+  const containers = [];
+  const elements = [];
+
+  for (const entry of byDomain.data || []) {
+    if (entry.aliasOf || !isTypeActive(entry) || !isCatalogType(entry)) continue;
+    const schema = entry.schema || {};
+    const row = {
+      id: entry.id,
+      name: schema.name || entry.id,
+      kind: entry.kind || schema.kind || null,
+      storeKind: schema["store-kind"] || null,
+      description: schema.description || "",
+      extends: entry.extends || schema.extends || null,
+      status: entry.status || schema.status || "active",
+      source: entry.source || "platform",
+      catalogFile: entry.catalogFile || null
+    };
+    if (entry.kind === "data-element" || schema.kind === "data-element") {
+      elements.push(row);
+    } else {
+      containers.push(row);
+    }
+  }
+
+  containers.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+  elements.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+
+  return {
+    version: 1,
+    model: "data-types",
+    hint: "Типы awn-data store: group / collection / single. Элементы записей: list_data_element_types.",
+    containers,
+    elements,
+    containerCount: containers.length,
+    elementCount: elements.length
+  };
+}
+
 module.exports = {
   TYPE_ID_ALIASES,
   loadTypeCatalog,
@@ -929,9 +1068,12 @@ module.exports = {
   isPageTreeType,
   getActiveTypes,
   getTypeCatalogPayload,
+  getTypeCatalogIndexPayload,
   getTypeDetailByCatalogPath,
   getTypeDetailByTypeId,
   getCreateNodeTypesPayload,
+  getDataTypesPayload,
+  getDataElementTypesPayload,
   getTypeHealth,
   isFoundationType,
   loadPageTypesFromCatalog,

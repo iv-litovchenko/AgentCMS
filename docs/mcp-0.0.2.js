@@ -134,9 +134,9 @@ module.exports = {
         },
         {
           name: "list_awn_types",
-          description: "Полный каталог awn-type для workspace агента.",
-          parameters: "—",
-          http: "GET /api/awn-types"
+          description: "Каталог awn-type. Default mode=index (~KB). mode=full — UI dump (~700 KB).",
+          parameters: "mode?: index|full",
+          http: "GET /api/awn-types?mode="
         },
         {
           name: "get_type_health",
@@ -194,9 +194,9 @@ module.exports = {
       tools: [
         {
           name: "list_type_catalog",
-          description: "Каталог типов платформы.",
-          parameters: "—",
-          http: "GET /api/type-catalog"
+          description: "Каталог типов платформы. Default mode=index (~KB). mode=full — merged schemas (~400 KB).",
+          parameters: "mode?: index|full",
+          http: "GET /api/type-catalog?mode="
         },
         {
           name: "list_components",
@@ -354,7 +354,11 @@ module.exports = {
         { name: "list_page_types", description: "Типы для create_page.", parameters: "—", http: "GET /api/agent-system/create-node-types" },
         { name: "get_page_type", description: "Детали page-типа.", parameters: "id", http: "GET /api/agent-system/type?id=" },
         { name: "list_content_types", description: "Content-типы слотов.", parameters: "—", http: "GET /api/agent/canonical-model" },
-        { name: "get_content_type", description: "Детали content-типа.", parameters: "id", http: "GET /api/agent-system/type?id=" }
+        { name: "get_content_type", description: "Детали content-типа.", parameters: "id", http: "GET /api/agent-system/type?id=" },
+        { name: "list_data_types", description: "Типы awn-data store: group, collection, single.", parameters: "—", http: "GET /api/agent-system/data-types" },
+        { name: "get_data_type", description: "Детали awn.data.* типа.", parameters: "id", http: "GET /api/agent-system/type?id=" },
+        { name: "list_data_element_types", description: "Схемы записей store: default, record, category, sidecar.", parameters: "—", http: "GET /api/agent-system/data-element-types" },
+        { name: "get_data_element_type", description: "Детали awn.data.element.* / record|category|sidecar.", parameters: "id", http: "GET /api/agent-system/type?id=" }
       ]
     },
     {

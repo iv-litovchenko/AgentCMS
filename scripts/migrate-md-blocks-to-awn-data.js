@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * One-time / refresh: ensure awn-data/markdown-blocks from legacy YAML (git or backup).
- * Primary source of truth: awn-data/markdown-blocks/ (edit records directly).
+ * Sync mirror: awn-system/types/md-blocks/ → awn-data/markdown-blocks/.
+ * Primary source of truth: awn-system/types/md-blocks/ (YAML типов, палитра редактора).
+ * awn-data/markdown-blocks/ — зеркало для legacy tools и UI, не редактировать вручную.
  *
  *   node scripts/migrate-md-blocks-to-awn-data.js
  */

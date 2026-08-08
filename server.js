@@ -202,7 +202,7 @@ const {
 const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute, getPlatformAgentRootAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
 const { getComponentsPayload } = require("./components-loader");
-const { getTypeCatalogPayload, getCreateNodeTypesPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
+const { getTypeCatalogPayload, getCreateNodeTypesPayload, getDataTypesPayload, getDataElementTypesPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const {
   getAwnDataPayload,
   createAwnDataStore,
@@ -16477,7 +16477,8 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/type-catalog") {
     try {
-      const payload = getTypeCatalogPayload(getProjectRoot(), getAgentRoot() || "");
+      const mode = String(url.searchParams.get("mode") || "full").trim().toLowerCase();
+      const payload = getTypeCatalogPayload(getProjectRoot(), getAgentRoot() || "", { mode });
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
@@ -16603,6 +16604,32 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to load create-node types",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent-system/data-types") {
+    try {
+      const agentRoot = getAgentRoot();
+      const payload = getDataTypesPayload(getProjectRoot(), agentRoot || "");
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load data store types",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent-system/data-element-types") {
+    try {
+      const agentRoot = getAgentRoot();
+      const payload = getDataElementTypesPayload(getProjectRoot(), agentRoot || "");
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load data element types",
         details: String(error.message || error)
       });
     }
@@ -16799,7 +16826,8 @@ async function handleApiForAgent(req, res, url) {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
-      const payload = getAwnTypesPayload(agentRoot, getProjectRoot());
+      const mode = String(url.searchParams.get("mode") || "full").trim().toLowerCase();
+      const payload = getAwnTypesPayload(agentRoot, getProjectRoot(), { mode });
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {

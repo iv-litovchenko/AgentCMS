@@ -29,7 +29,8 @@ const SYSTEM_DOMAIN_LABELS = {
   taxonomies: "Taxonomies",
   views: "Views",
   mixins: "Mixins",
-  settings: "Settings"
+  settings: "Settings",
+  data: "Накопители (awn-data)"
 };
 
 function getAgentSystemRoot(agentRoot) {
@@ -142,7 +143,7 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
     const domainEntries = (catalog.byDomain?.[domain] || []).filter((entry) => entry && !entry.aliasOf);
     if (!domainEntries.length) continue;
 
-    const domainItems = domainEntries.map((entry) => {
+    const mapEntryToItem = (entry) => {
       const schema = entry.schema || {};
       const isFoundation =
         schema.kind === "entity" ||
@@ -159,7 +160,45 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
         typeExtends: schema.extends || entry.extends || "",
         isFoundation
       };
-    });
+    };
+
+    let domainItems = [];
+    let subGroups = [];
+
+    if (domain === "data") {
+      const foundations = [];
+      const containers = [];
+      const elements = [];
+      for (const entry of domainEntries) {
+        const item = mapEntryToItem(entry);
+        const rel = String(entry.relPath || entry.fileName || "").replace(/\\/g, "/");
+        const kind = entry.kind || entry.schema?.kind || "";
+        if (item.isFoundation) {
+          foundations.push(item);
+        } else if (kind === "data-element" || rel.includes("elements/")) {
+          elements.push(item);
+        } else {
+          containers.push(item);
+        }
+      }
+      domainItems = foundations;
+      if (containers.length) {
+        subGroups.push({
+          title: "Контейнеры (group / collection / single)",
+          items: containers.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru"))
+        });
+      }
+      if (elements.length) {
+        subGroups.push({
+          title: "Схемы записей (elements)",
+          items: elements.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru"))
+        });
+      }
+    } else {
+      domainItems = domainEntries
+        .map(mapEntryToItem)
+        .sort((a, b) => String(a.label).localeCompare(String(b.label), "ru"));
+    }
 
     const storeFolder = useYaml
       ? getAgentSystemTypesSectionFolder(domain)
@@ -173,7 +212,7 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
       domainKind: domainMeta.kind || null,
       folderPath: storeFolder,
       items: domainItems.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru")),
-      subGroups: []
+      subGroups
     });
   }
 

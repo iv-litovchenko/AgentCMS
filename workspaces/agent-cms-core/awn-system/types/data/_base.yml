@@ -1,0 +1,26 @@
+id: awn.data.base
+name: База накопителя
+kind: data-container
+domain: data
+status: active
+extends: awn.entity
+description: >
+  Общие правила awn-data store: manifest.md + структура записей.
+  Не узел меню — контейнер в папке awn-data/.
+
+properties:
+  store-kind:
+    title: Kind runtime
+    description: group | collection | singleton — маппинг в awn-data-loader
+  record-id-mode:
+    title: Режим id записи
+    description: slug | uuid
+  record-file:
+    title: Шаблон имени файла
+    description: "{id}.md" для коллекции, main.md для одиночки
+  record-hierarchy:
+    title: Иерархия записей
+    description: true — вложенные записи с parent
+  elements-schema-extends:
+    title: Базовая схема полей записей
+    description: Обычно awn.data.element.default (Фаза B)

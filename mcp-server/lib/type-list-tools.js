@@ -45,4 +45,36 @@ export function registerTypeListTools({ reg, client }) {
     }),
     ({ id }) => client.get("/api/agent-system/type", { id })
   );
+
+  reg(
+    "list_data_types",
+    "awn-data store container types: group, collection, single (for create_data_store).",
+    z.object({}),
+    () => client.get("/api/agent-system/data-types")
+  );
+
+  reg(
+    "get_data_type",
+    "Resolved awn.data.* type: store-kind, record rules, elements-schema.",
+    z.object({
+      id: z.string().min(1).describe("Type id, e.g. awn.data.collection")
+    }),
+    ({ id }) => client.get("/api/agent-system/type", { id })
+  );
+
+  reg(
+    "list_data_element_types",
+    "Schema types for awn-data store records: default, record, category, sidecar.",
+    z.object({}),
+    () => client.get("/api/agent-system/data-element-types")
+  );
+
+  reg(
+    "get_data_element_type",
+    "Resolved awn.data.element.* / awn.data.record|category|sidecar — fields for store records.",
+    z.object({
+      id: z.string().min(1).describe("Type id, e.g. awn.data.element.default or awn.data.record")
+    }),
+    ({ id }) => client.get("/api/agent-system/type", { id })
+  );
 }

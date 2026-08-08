@@ -1,0 +1,7 @@
+id: awn.data.element.base
+name: База записи накопителя
+kind: data-element
+domain: data
+status: active
+extends: awn.entity
+description: Общие поля записи внутри awn-data collection/single (Фаза B — расширение)

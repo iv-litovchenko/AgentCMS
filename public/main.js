@@ -12563,7 +12563,9 @@ const TYPE_CATALOG_DOMAIN_LABELS = {
   slots: "Слоты",
   base: "База",
   taxonomies: "Таксономии",
-  mixins: "Миксины"
+  mixins: "Миксины",
+  data: "Накопители (awn-data)",
+  settings: "Настройки"
 };
 const collapsedFoldersByAgent = loadCollapsedFoldersByAgent();
 const agentSystemDomainCollapsedByAgent = loadAgentSystemDomainCollapsedByAgent();
@@ -48101,6 +48103,7 @@ function resolveTypeCatalogOverviewContext(nodePath) {
   const domainRules = [
     [/awn-system\/types\/fields(\/|$)/, "fields"],
     [/awn-system\/types\/md-blocks(\/|$)/, "md-blocks"],
+    [/awn-system\/types\/data(\/|$)/, "data"],
     [/awn-system\/types\/pages(\/|$)/, "pages"],
     [/awn-system\/types\/content(\/|$)/, "content"],
     [/awn-system\/types\/slots(\/|$)/, "slots"],
@@ -70767,7 +70770,9 @@ const AGENT_SYSTEM_DOMAIN_KIND = {
   fields: "field",
   "md-blocks": "block",
   taxonomies: "taxonomy",
-  mixins: "mixin"
+  mixins: "mixin",
+  data: "data-container",
+  settings: "type"
 };
 
 const AGENT_SYSTEM_DOMAIN_EXTENDS = {
@@ -78601,7 +78606,10 @@ function createAwnTypeKindBadge(kind) {
 // Группы навигации: base/entity → все конкретные типы → mixins
 const AWN_TYPE_NAV_GROUPS = [
   { kinds: ["base", "entity"], label: "Базовые" },
-  { kinds: ["type", "slot", "field", "view", "taxonomy", "block", "meta"], label: "Типы" },
+  {
+    kinds: ["type", "slot", "field", "view", "taxonomy", "block", "meta", "data-container", "data-element"],
+    label: "Типы"
+  },
   { kinds: ["mixin"], label: "Миксины" }
 ];
 
@@ -78615,7 +78623,9 @@ const AWN_KIND_BADGE_LABELS = {
   taxonomy: "Таксономия",
   block:    "Блок",
   mixin:    "Миксин",
-  meta:     "Мета"
+  meta:     "Мета",
+  "data-container": "Store",
+  "data-element": "Запись store"
 };
 
 function createAwnTypeNavItem(typeKey, typeDef, isActive) {

@@ -50,7 +50,8 @@ workspaces/agent-cms-test/
 | **fields** | `awn.string` … | типы полей frontmatter |
 | **mixins** | `awn.mixin.*` | переиспользуемые поля |
 
-**Markdown-блоки** — `awn-data/markdown-blocks/` (палитра редактора).
+**Markdown-блоки (канон)** — `awn-system/types/md-blocks/` (`awn.block.*`).  
+Зеркало: `awn-data/markdown-blocks/` — синхронизируется скриптом `migrate-md-blocks-to-awn-data.js`.
 
 **Справочники** — `awn-data/taxonomies/*/main.csv`.
 

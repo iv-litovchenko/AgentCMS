@@ -1,0 +1,9 @@
+id: awn.data.category
+name: Категория накопителя
+kind: data-element
+domain: data
+status: active
+extends: awn.data.element.default
+description: Папка-категория для группировки записей в awn-data collection
+record-role: category
+allow-children: true

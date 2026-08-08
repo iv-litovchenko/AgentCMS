@@ -16,7 +16,7 @@ workspaces/agent-cms-test/
 │   ├── registry.yml
 │   ├── MAP.md
 │   ├── slots-bindings.yml
-│   └── types/{pages,content,slots,fields,mixins}/
+│   └── types/{pages,content,slots,fields,mixins,md-blocks,data}/
 │
 ├── awn-container/              ← ★ КОНТЕНТ (дерево слева)
 │   └── {area}/manifest.md      ← awn.page.area
@@ -43,8 +43,11 @@ workspaces/agent-cms-test/
 | **slots** | `awn.slot.*` | **папки** в `topic/awn-storage/` |
 | **fields** | `awn.string` … | типы полей frontmatter |
 | **mixins** | `awn.mixin.*` | переиспользуемые поля |
+| **md-blocks** | `awn.block.*` | палитра блоков редактора (`template`, `status: active`) |
+| **data** | `awn.data.*` | контейнеры awn-data (group / collection / single) |
 
-**Markdown-блоки** — `awn-data/markdown-blocks/` (палитра редактора).
+**Markdown-блоки (канон)** — `awn-system/types/md-blocks/`.  
+Зеркало для legacy/UI: `awn-data/markdown-blocks/` (синхронизация: `node scripts/migrate-md-blocks-to-awn-data.js`).
 
 **Справочники** — `awn-data/taxonomies/*/main.csv` (не YAML-типы в `awn-system/types/`).
 

@@ -40,7 +40,7 @@ const {
   loadRecordTypesFromComponents,
   getComponentsPayload
 } = require("./components-loader");
-const { loadPageTypesFromCatalog, getTypeCatalogPayload } = require("./type-catalog-loader");
+const { loadPageTypesFromCatalog, getTypeCatalogPayload, getTypeCatalogIndexPayload } = require("./type-catalog-loader");
 const {
   normalizeEnumOptions,
   stringifyEnumOptionsYaml,
@@ -476,7 +476,20 @@ function typeFieldsToFormEntries(typeDef, existingEntries = [], options = {}) {
   return sortPropsEntries(result, agentRoot, projectRoot);
 }
 
-function getAwnTypesPayload(agentRoot, projectRoot) {
+function getAwnTypesPayload(agentRoot, projectRoot, options = {}) {
+  const mode = String(options?.mode || "full").trim().toLowerCase();
+  if (mode === "index") {
+    const index = getTypeCatalogIndexPayload(projectRoot, agentRoot);
+    return {
+      specVersion: "0.2.2",
+      mode: "index",
+      typeCount: index.typeCount,
+      domains: index.domains,
+      types: index.types,
+      hint: index.hint
+    };
+  }
+
   const types = loadAgentTypes(agentRoot, projectRoot);
   const { fieldDefSchema } = loadAgentFields(agentRoot, projectRoot);
   return {

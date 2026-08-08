@@ -143,8 +143,16 @@ function createServer() {
     () => client.get("/api/agent/canonical-model")
   );
 
-  reg("list_awn_types", "Full effective awn-type catalog for agent workspace.", z.object({}), () =>
-    client.get("/api/awn-types")
+  reg(
+    "list_awn_types",
+    "Effective awn-type catalog. Default mode=index (~KB). mode=full returns UI payload (~700KB).",
+    z.object({
+      mode: z
+        .enum(["index", "full"])
+        .optional()
+        .describe("index (default) — id/domain/kind only; full — typeCatalog + fieldRegistry + blocks")
+    }),
+    ({ mode }) => client.get("/api/awn-types", { mode: mode || "index" })
   );
 
   reg("get_type_health", "Validate agent type model in awn-data/.", z.object({}), () =>
@@ -237,8 +245,13 @@ function createServer() {
 
   // ── Platform ───────────────────────────────────────────────────────────────
 
-  reg("list_type_catalog", "Platform type catalog.", z.object({}), () =>
-    client.get("/api/type-catalog", {}, { agentScope: false })
+  reg(
+    "list_type_catalog",
+    "Platform type catalog. Default mode=index (~KB). mode=full returns merged schemas (~400KB).",
+    z.object({
+      mode: z.enum(["index", "full"]).optional().describe("index (default) or full")
+    }),
+    ({ mode }) => client.get("/api/type-catalog", { mode: mode || "index" }, { agentScope: false })
   );
 
   reg("list_components", "Platform component registry.", z.object({}), () =>

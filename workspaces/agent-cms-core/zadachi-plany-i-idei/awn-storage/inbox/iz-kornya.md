@@ -64,7 +64,7 @@ Legacy (постепенно убираем): `components/`, `types-of-component
 
 | Workspace | Код в репозитории |
 |-----------|-------------------|
-| `types/{base,pages,content,slots,fields,md-blocks}/` | `type-catalog-loader.js` → `/api/type-catalog` |
+| `awn-system/types/{base,pages,content,slots,fields,md-blocks,data}/` | `type-catalog-loader.js` → `/api/type-catalog` |
 | `components/` | legacy topic mirror |
 | `runtime/` | `server.js`, `*-loader.js`, `manifest-paths.js` |
 | `integrations/` | `mcp-server/`, hooks |

@@ -30,8 +30,25 @@ settings: [description, hint, required, default]
 `
   },
   block: {
-    error:
-      "Markdown-блоки — awn-data/markdown-blocks/blocks/{slug}.md, не types/md-blocks. Используйте MCP create_data_record."
+    destRel: "awn-system/types/md-blocks",
+    id: (s) => `awn.block.${s}`,
+    extends: "awn.block.base",
+    kind: "block",
+    body: (id, title) => `id: ${id}
+name: ${title}
+kind: block
+domain: md-blocks
+status: draft
+extends: awn.block.base
+group: misc
+sort: 99
+icon: "📦"
+description: ${title}
+template: |
+  ${title}
+
+  Текст блока.
+`
   },
   slot: {
     folder: "content",
@@ -82,8 +99,7 @@ const runtimeId = meta.id(slug);
 const dest = path.join(
   repoRoot,
   "workspaces/agent-cms-core",
-  meta.folder,
-  "awn-storage/configuration/types",
+  meta.destRel || path.join(meta.folder, "awn-storage/configuration/types"),
   `${slug}.yml`
 );
 

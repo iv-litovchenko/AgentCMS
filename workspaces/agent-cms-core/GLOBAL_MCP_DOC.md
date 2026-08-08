@@ -253,7 +253,9 @@
 
 Отдельно от страниц/слотов.
 
-- список: `list_data_stores` → `get_data_store`
+- типы контейнеров: `list_data_types` → `get_data_type(id)` — `awn.data.group` | `awn.data.collection` | `awn.data.single`
+- схемы записей store: `list_data_element_types` → `get_data_element_type(id)`
+- список store: `list_data_stores` → `get_data_store`
 - схема полей: `read_data_store_schema` / `write_data_store_schema`
 - запись: `create_data_record`
 
@@ -306,8 +308,17 @@
 
 ## Типы (awn-system)
 
-- детали: `get_agent_system_type` / `get_page_type` / `get_content_type` — всегда **`id`**, не path без расширения
-- пример: `{ "id": "awn.page.area" }` ✅ · `{ "path": "awn-system/types/pages/area" }` — только если с `.yml`
+| Домен | Список | Детали |
+|-------|--------|--------|
+| Page | `list_page_types` | `get_page_type(id)` |
+| Content (слоты) | `list_content_types` | `get_content_type(id)` |
+| Data store | `list_data_types` | `get_data_type(id)` — `awn.data.group` / `.collection` / `.single` |
+| Data record schema | `list_data_element_types` | `get_data_element_type(id)` — `.default` / `.record` / `.category` / `.sidecar` |
+| MD-блоки | `list_awn_types?mode=index` (domain `md-blocks`) | YAML: `awn-system/types/md-blocks/<slug>.yml` |
+| Полный каталог | `list_awn_types?mode=full` | только если нужен UI dump (~700 KB) |
+
+- всегда **`id`**, не path: `{ "id": "awn.data.collection" }` ✅
+- алиасы legacy: `awn-data/cms-base/data-containers/collection.md` → `awn.data.collection`
 
 ---
 

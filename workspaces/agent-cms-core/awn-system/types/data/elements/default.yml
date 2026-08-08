@@ -1,0 +1,29 @@
+id: awn.data.element.default
+name: Запись накопителя (default)
+kind: data-element
+domain: data
+status: active
+extends: awn.data.element.base
+description: Базовая схема полей для записей store — см. awn-data/cms-base/data-elements/default.md
+fields:
+  awn-created:
+    type: awn.field.datetime
+    title: Создано
+  awn-updated:
+    type: awn.field.datetime
+    title: Обновлено
+  awn-name:
+    type: awn.field.string
+    title: Имя
+  awn-description:
+    type: awn.field.text
+    title: Описание
+  awn-status:
+    type: awn.field.string
+    title: Статус
+  awn-version:
+    type: awn.field.integer
+    title: Версия
+  awn-owner:
+    type: awn.field.string
+    title: Владелец

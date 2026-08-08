@@ -1,0 +1,8 @@
+id: awn.data.record
+name: Запись накопителя
+kind: data-element
+domain: data
+status: active
+extends: awn.data.element.default
+description: Обычная запись в collection/single store (*.md или строка CSV)
+record-role: record

@@ -1,0 +1,15 @@
+id: awn.data.sidecar
+name: Sidecar накопителя
+kind: data-element
+domain: data
+status: active
+extends: awn.data.element.default
+description: Метаданные файла в store (*.sidecar.md)
+record-role: sidecar
+fields:
+  awn-mime:
+    type: awn.field.string
+    title: MIME-тип
+  awn-size:
+    type: awn.field.integer
+    title: Размер (байт)

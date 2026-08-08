@@ -1,0 +1,30 @@
+id: awn.data.single
+name: Одиночка
+kind: data-container
+domain: data
+status: active
+extends: awn.data.base
+store-kind: singleton
+description: manifest + ровно один main.md
+record-file: main.md
+elements-schema-extends: awn.data.element.default
+elements-schema:
+  fields:
+    awn-title:
+      type: awn.field.string
+      title: Название
+      required: true
+      tab: main
+    awn-name:
+      type: awn.field.string
+      title: Имя
+      tab: main
+    awn-description:
+      type: awn.field.text
+      title: Описание
+      tab: main
+  tabs:
+    main: Основное
+    system: Системное
+examples:
+  - awn-data/settings-global/

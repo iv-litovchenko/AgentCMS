@@ -1,0 +1,44 @@
+id: awn.data.collection
+name: Коллекция
+kind: data-container
+domain: data
+status: active
+extends: awn.data.base
+store-kind: collection
+description: manifest + N записей (*.md или main.csv)
+record-id-mode: slug
+record-file: "{id}.md"
+record-hierarchy: false
+elements-schema-extends: awn.data.element.default
+elements-schema:
+  fields:
+    awn-title:
+      type: awn.field.string
+      title: Название
+      required: true
+      tab: main
+    awn-typeId:
+      type: awn.field.string
+      title: ID типа
+      required: true
+      tab: main
+    awn-kind:
+      type: awn.field.string
+      title: Kind
+      tab: main
+    awn-domain:
+      type: awn.field.string
+      title: Domain
+      tab: main
+    awn-status:
+      type: awn.field.enum
+      title: Статус
+      enum: [active, draft, deprecated, inactive]
+      default: active
+      tab: main
+  tabs:
+    main: Основное
+examples:
+  - awn-data/pages/
+  - awn-data/taxonomies/tags/
+  - awn-data/editing-fields/fields/

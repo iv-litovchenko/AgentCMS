@@ -20,6 +20,8 @@ domains:
   - pages
   - slots
   - mixins
+  - data
+  - md-blocks
   # Пример пользовательского домена-«пакета». Папка awn-system/types/settings/.
   - id: settings
     label: Настройки

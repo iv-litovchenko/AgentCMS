@@ -1,0 +1,13 @@
+id: awn.data.group
+name: Группа
+kind: data-container
+domain: data
+status: active
+extends: awn.data.base
+store-kind: group
+description: manifest + подпапки-накопители, без собственных записей
+record-hierarchy: false
+examples:
+  - awn-data/taxonomies/
+  - awn-data/markdown-blocks/
+  - awn-data/cms-base/

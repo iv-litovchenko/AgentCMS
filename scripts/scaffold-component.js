@@ -4,7 +4,7 @@
  *
  *   node scripts/scaffold-component.js agent my-agent
  *
- * Поля — awn-data/editing-fields/fields/; страницы — awn-data/pages/; блоки — awn-data/markdown-blocks/.
+ * Поля — awn-data/editing-fields/fields/; страницы — awn-data/pages/; блоки — awn-system/types/md-blocks/.
  * После создания: awn-status: "🟢 Открыта" → появится в runtime
  */
 const fs = require("fs");
@@ -30,7 +30,7 @@ Fields: awn-data/editing-fields/fields/<slug>.md`);
 
 if (kind === "block") {
   console.error(
-    "Markdown-блоки — в awn-data/markdown-blocks/blocks/{slug}.md (MCP create_data_record или вручную)."
+    "Markdown-блоки — awn-system/types/md-blocks/{slug}.yml (node scripts/scaffold-type.js block <slug>)."
   );
   process.exit(1);
 }

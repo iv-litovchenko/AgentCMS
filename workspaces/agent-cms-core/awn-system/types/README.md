@@ -10,8 +10,10 @@ YAML-типы CMS platform core и агента. Loader: `type-catalog-loader.js
 | slots/ | `awn.slot.*` | `single-file/`, `multi-file/`, `multi-file/system/`; категории — `slot-categories.yml` |
 | fields/ | `awn.field.*` | `awn-data/editing-fields/` |
 | mixins/ | `awn.mixin.*` | preview, runtime, attachments |
+| data/ | `awn.data.*` | group, collection, single — контейнеры awn-data |
+| data/elements/ | `awn.data.element.*`, `awn.data.record` … | default, record, category, sidecar |
 
-**Markdown-блоки** — `awn-data/markdown-blocks/blocks/*.md`  
+**Markdown-блоки** — `awn-system/types/md-blocks/` (палитра редактора).  
 **Справочники** — `awn-data/taxonomies/*/main.csv`
 
 Файлы agent-специфичные (не из platform bootstrap):  
