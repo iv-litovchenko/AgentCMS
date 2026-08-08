@@ -242,6 +242,7 @@ const { getCanonicalModelPayload } = require("./awn-canonical-model");
 const { parseYamlScalar } = require("./awn-yaml-utils");
 const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./page-slots-api");
 const { createExistsApi } = require("./exists-api");
+const { createContentSchemaApi } = require("./content-schema-api");
 const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./ui-context-api");
 const NodeConfigBundle = require("./node-config-bundle");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
@@ -15357,6 +15358,22 @@ function getExistsApi() {
   return existsApi;
 }
 
+let contentSchemaApi = null;
+
+function getContentSchemaApi() {
+  if (!contentSchemaApi) {
+    contentSchemaApi = createContentSchemaApi({
+      readNodeConfigFile,
+      getAgentRoot,
+      getProjectRoot,
+      normalizeWorkspacePath,
+      writeWorkspaceTextFileWithHistory,
+      removeIfExists
+    });
+  }
+  return contentSchemaApi;
+}
+
 async function handleApiForAgent(req, res, url) {
   applyApiPathAliases(url);
 
@@ -15663,6 +15680,71 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read content meta",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/content/schema") {
+    const relPath = url.searchParams.get("path");
+    const slot = url.searchParams.get("slot");
+    const ref = url.searchParams.get("ref") || "";
+    const mode = url.searchParams.get("mode") || "effective";
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (!slot) return sendJson(res, 400, { error: "Missing slot query parameter" });
+
+    try {
+      const manifestCtx = await resolveApiManifestContext(relPath);
+      if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
+      const payload = await getContentSchemaApi().readContentSchema(manifestCtx.rel, slot, ref, { mode });
+      if (payload.error) return sendJson(res, payload.status || 400, { error: payload.error, ...(payload.hint ? { hint: payload.hint } : {}) });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read content schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/content/schema") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload.path;
+      const slot = payload.slot;
+      const ref = payload.ref || "";
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      if (!slot) return sendJson(res, 400, { error: "Missing slot" });
+      if (!ref) return sendJson(res, 400, { error: "Missing ref" });
+
+      const manifestCtx = await resolveApiManifestContext(relPath);
+      if (!manifestCtx) return sendJson(res, 400, { error: "Invalid file path" });
+
+      let schemaInput;
+      if (payload.awnSchema && typeof payload.awnSchema === "object") {
+        schemaInput = payload.awnSchema;
+      } else if (typeof payload.content === "string") {
+        schemaInput = payload.content;
+      } else {
+        return sendJson(res, 400, { error: "Missing content or awnSchema" });
+      }
+
+      const result = await getContentSchemaApi().writeContentSchema(
+        manifestCtx.rel,
+        slot,
+        ref,
+        schemaInput
+      );
+      if (result.error) {
+        return sendJson(res, result.status || 400, {
+          error: result.error,
+          ...(result.hint ? { hint: result.hint } : {})
+        });
+      }
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save content schema",
         details: String(error.message || error)
       });
     }

@@ -229,6 +229,35 @@ export function registerContentTools({ reg, client, pagePath }) {
   );
 
   reg(
+    "read_content_schema",
+    "Read slot content field schema (schema-mod.yml for sections): inherits topic slot_* fields + parent section chain. Use ref inside a category (e.g. razdel-1/manifest.md). mode=effective|layers|local.",
+    z.object({
+      path: pagePath,
+      slot: contentSlot,
+      ref: contentRef.describe("Required. Content ref inside slot, e.g. razdel-1/manifest.md or razdel-1/note.md"),
+      mode: z
+        .enum(["effective", "layers", "local"])
+        .optional()
+        .describe("effective (default) = merged slot_* fields; layers = topic+section; local = section file only")
+    }),
+    ({ path, slot, ref, mode }) =>
+      client.get("/api/content/schema", { path, slot, ref, ...(mode ? { mode } : {}) })
+  );
+
+  reg(
+    "write_content_schema",
+    "Save section schema-mod.yml override for slot content (category/record/sidecar x-field-*). Pass YAML with awn_schema slot_* blocks only. Inherits topic schema at runtime; writes local section layer only.",
+    z.object({
+      path: pagePath,
+      slot: contentSlot,
+      ref: contentRef.describe("Required. Ref inside target section folder, e.g. razdel-1/manifest.md"),
+      content: z.string().describe("YAML with awn_schema: { slot_memory_category|slot_memory|slot_memory_sidecar: { fields: … } }")
+    }),
+    ({ path, slot, ref, content }) =>
+      client.post("/api/content/schema", { path, slot, ref, content })
+  );
+
+  reg(
     "create_content",
     "Create typed content: awn.content.record or awn.content.category. For plain-text in artefacts/scripts use fileExtension + body (.html, .py). For inbox intake: slot=inbox, status=new.",
     z.object({

@@ -45,13 +45,14 @@ rename_page / move_page
 list_page_slots
 
 ================================================================================
-5. Контент (13)
+5. Контент (15)
 ================================================================================
 
 content_exists / get_content_meta
 read_content_body / write_content_body
 read_content_properties / write_content_properties
 read_content_property / write_content_property
+read_content_schema / write_content_schema
 create_content
 import_content_from_url          скачать URL → slot (media/, repository/, …)
 rename_content / move_content / delete_content
@@ -107,7 +108,7 @@ exec_shell                       произвольная shell-строка
 notify_user
 
 ================================================================================
-ИТОГО: 69 tools
+ИТОГО: 71 tools
 
 Старт: get_session_context → get_user_active_context_now → read/write по задаче.
 

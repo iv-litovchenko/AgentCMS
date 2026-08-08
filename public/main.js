@@ -35876,8 +35876,8 @@ function mergeTopicSchemaLayersClient(...layers) {
 
 function resolveContextSchemaFromParsedLayers(parsed, { manifestPath, contentPath = "" } = {}) {
   if (parsed?.contextSchemaFromApi) return parsed.contextSchemaFromApi;
-  if (contentPath && parsed?.sectionAwnSchema && topicSchemaStateHasCustomFields(parsed.sectionAwnSchema)) {
-    return parsed.sectionAwnSchema;
+  if (contentPath && parsed?.effectiveAwnSchema && topicSchemaStateHasCustomFields(parsed.effectiveAwnSchema)) {
+    return parsed.effectiveAwnSchema;
   }
   if (isWorkspaceSchemaContext(manifestPath)) {
     return parsed?.workspaceAwnSchema || emptyTopicSchemaState();
@@ -38016,6 +38016,14 @@ async function saveSectionSchemaFromPanel(panel) {
   return data;
 }
 
+function normalizeSectionSchemaFieldKey(key) {
+  return normalizeSlotSchemaFieldKey(key);
+}
+
+function defaultSectionSchemaFieldKey(target, index = 1) {
+  return defaultTopicSchemaFieldKeyForTarget(target, index);
+}
+
 function readSectionSchemaFieldFromRow(row, cache, target, scope) {
   if (!row || !cache) return;
   const oldKey = row.dataset.schemaRowKey;
@@ -38026,7 +38034,9 @@ function readSectionSchemaFieldFromRow(row, cache, target, scope) {
   const titleInput = row.querySelector('[data-schema-field="title"]');
   const fields = cache.awnSchema[target].fields;
 
-  const nextKey = String(keyInput?.value || "").trim() || oldKey;
+  const nextKeyRaw = String(keyInput?.value || "").trim() || oldKey;
+  const nextKey = normalizeSectionSchemaFieldKey(nextKeyRaw);
+  if (keyInput && nextKey !== nextKeyRaw) keyInput.value = nextKey;
   if (nextKey !== oldKey) {
     fields[nextKey] = fields[oldKey];
     delete fields[oldKey];
@@ -38189,6 +38199,7 @@ function renderSectionSchemaCustomFields(panel, cache) {
     const fieldDef = cache.awnSchema[target].fields[key] || {};
     const expanded = isSectionSchemaFieldExpanded(scope, target, key);
     const hasAdvancedSettings = topicSchemaFieldHasAdvancedSettings(fieldDef);
+    const keyHint = getTopicSchemaFieldKeyHint(target);
     const row = document.createElement("div");
     row.className = "topic-schema-field-row";
     row.dataset.schemaRowKey = key;
@@ -38212,7 +38223,8 @@ function renderSectionSchemaCustomFields(panel, cache) {
     keyInput.type = "text";
     keyInput.className = "topic-schema-inline-input";
     keyInput.value = key;
-    keyInput.placeholder = "ключ";
+    keyInput.placeholder = keyHint.placeholder;
+    keyInput.title = keyHint.title;
     keyInput.dataset.schemaKey = key;
     keyInput.dataset.schemaField = "key";
     keyInput.spellcheck = false;
@@ -38317,15 +38329,15 @@ function bindSectionSchemaPanelEvents(panel, cache, context) {
     if (!cache.awnSchema[target]) cache.awnSchema[target] = { fields: {} };
     const fields = cache.awnSchema[target].fields;
     let index = 1;
-    let key = `field-${index}`;
+    let key = defaultSectionSchemaFieldKey(target, index);
     while (fields[key]) {
       index += 1;
-      key = `field-${index}`;
+      key = defaultSectionSchemaFieldKey(target, index);
     }
     fields[key] = { type: "awn.string", name: "", title: "" };
     renderSectionSchemaEditor(panel, cache);
     markSectionSchemaPanelDirty(panel);
-    panel.querySelector(`[data-schema-row-key="${CSS.escape(key)}"] input[data-schema-field="key"]`)?.focus();
+    panel.querySelector(`[data-schema-row-key="${CSS.escape(key)}"] [data-schema-field="key"]`)?.focus();
   });
 
   panel.querySelector(".section-schema-save-btn")?.addEventListener("click", () => {
@@ -38392,7 +38404,7 @@ function createEntryOverviewSectionSchemaPanel(context) {
           Дополнительные поля для записей и подразделов внутри «${escapeHtml(
             context.title || getSectionFolderFromCategoryContext(context)
           )}».
-          <span class="topic-schema-lead-hint">Сохраняется в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest раздела.</span>
+          <span class="topic-schema-lead-hint">Ключи полей с префиксом <code>x-</code> (например <code>x-field-1</code>). Сохраняется в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest раздела.</span>
         </p>
         <p class="section-schema-meta">
           <span class="section-schema-meta-label">Файл:</span>

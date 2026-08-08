@@ -10,7 +10,8 @@ const {
 } = require("./manifest-paths");
 const { SCHEMA_MOD_FILE } = require("./schema-mod-paths");
 const {
-  extractAwnSchemaFromConfigurationSchemaContent
+  extractAwnSchemaFromConfigurationSchemaContent,
+  mergeAwnSchemaLayers
 } = require("./configuration-schema");
 const {
   extractAwnSchemaFromConfig,
@@ -145,20 +146,15 @@ function getEffectiveSchemaPayload(configContent, agentRoot, projectRoot, sectio
   const base = manifestRel
     ? getEffectiveTopicSchemaPayload(manifestRel, agentRoot, projectRoot, configContent)
     : getTopicSchemaPayload(configContent, agentRoot, projectRoot);
-  if (!sectionAwnSchemas.length) {
-    return {
-      ...base,
-      topicAwnSchema: base.topicAwnSchema || base.awnSchema,
-      workspaceAwnSchema: base.workspaceAwnSchema || null,
-      sectionAwnSchema: null,
-      sectionChain: []
-    };
-  }
 
-  const sectionAwnSchema = sectionAwnSchemas[sectionAwnSchemas.length - 1] || null;
-  const contextSchema = sectionAwnSchema || base.awnSchema;
+  const sectionAwnSchema =
+    sectionAwnSchemas.length > 0 ? sectionAwnSchemas[sectionAwnSchemas.length - 1] : null;
+  // Slot content (category / record / sidecar): inherit topic schema-mod + section chain only.
+  // ws/area schema-mod apply to their own node levels, not to storage slot fields.
+  const contextSchema = mergeAwnSchemaLayers(base.topicAwnSchema, ...sectionAwnSchemas);
   const { baseTypes, merged } = recomputeMergedTypes(contextSchema, agentRoot, projectRoot);
   return {
+    ...base,
     topicAwnSchema: base.topicAwnSchema || base.awnSchema,
     workspaceAwnSchema: base.workspaceAwnSchema || null,
     areaAwnSchema: base.areaAwnSchema || null,
@@ -229,6 +225,7 @@ module.exports = {
   listSectionConfigRelPaths,
   readSectionSchemaLayersSync,
   readSectionSchemaLayersForContentPath,
+  readSectionConfigContentSync,
   getEffectiveSchemaPayload,
   getEffectiveSchemaPayloadForContentPath,
   resolveSectionConfigRelPath,

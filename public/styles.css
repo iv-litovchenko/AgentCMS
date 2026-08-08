@@ -35634,6 +35634,18 @@ button.node-navigation-memory-title:focus-visible {
   word-break: break-word;
 }
 
+.node-navigation-preview.file-content-preview,
+.node-overview-content .node-entry-overview-manifest .node-navigation-preview.file-content-preview,
+.node-overview-content .node-navigation-manifest .node-navigation-preview.file-content-preview {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
 .file-content-preview h1,
 .file-content-preview h2,
 .file-content-preview h3,
