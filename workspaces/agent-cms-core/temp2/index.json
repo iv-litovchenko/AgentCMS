@@ -302,9 +302,9 @@
       "responseBytes": 1994
     },
     {
-      "tool": "read_thread",
+      "tool": "read_dialogs",
       "folder": "zzz/workflow",
-      "file": "examples/zzz/workflow/read_thread.json",
+      "file": "examples/zzz/workflow/read_dialogs.json",
       "live": true,
       "truncated": false,
       "responseBytes": 210
@@ -404,9 +404,9 @@
       "writeOnly": true
     },
     {
-      "tool": "append_thread",
+      "tool": "append_dialog",
       "folder": "zzz/workflow",
-      "file": "examples/zzz/workflow/append_thread.json",
+      "file": "examples/zzz/workflow/append_dialog.json",
       "writeOnly": true
     },
     {

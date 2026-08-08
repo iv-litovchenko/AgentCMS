@@ -3,7 +3,7 @@ import { z } from "zod";
 export function registerMapTools(reg, client, pagePath) {
   reg(
     "get_page_map",
-    "Lightweight page map: all manifest.md nodes with title, description, properties (no body). Optional slot entry counts per topic.",
+    "Workspace map: manifest nodes (hasManifest:true) + folders without manifest (kind:folder). No body. Folders → list_folder/read_file; pages → read_page_* / get_content_map.",
     z.object({
       includeSlots: z.boolean().optional().describe("Include slot summaries for topics (default true)")
     }),

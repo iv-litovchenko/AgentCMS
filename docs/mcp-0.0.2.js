@@ -79,7 +79,7 @@ module.exports = {
       tools: [
         {
           name: "get_page_map",
-          description: "Карта страниц: path, title, description, properties (без body).",
+          description: "Карта workspace: manifest-узлы + папки без manifest (kind:folder). Без body.",
           parameters: "includeSlots?: boolean",
           http: "GET /api/agent/page-map"
         },
@@ -180,12 +180,27 @@ module.exports = {
     },
     {
       id: "intake",
-      title: "Inbox / thread",
+      title: "Inbox и диалоги",
       tools: [
         { name: "list_inbox", description: "Inbox темы.", parameters: "path", http: "GET /api/inbox" },
-        { name: "triage_inbox_item", description: "Triage: to-thread, to-content, mark-done, set-status.", parameters: "path, file, action, status?", http: "POST /api/inbox/triage" },
-        { name: "read_thread", description: "Диалог thread.", parameters: "path, mode?, file?, name?", http: "GET /api/thread" },
-        { name: "append_thread", description: "Сообщение в thread.", parameters: "path, body, role?, …", http: "POST /api/thread" }
+        {
+          name: "triage_inbox_item",
+          description: "Triage: to-dialogs, to-content, mark-done, set-status.",
+          parameters: "path, file, action, status?",
+          http: "POST /api/inbox/triage"
+        },
+        {
+          name: "read_dialogs",
+          description: "Диалог темы (slot dialogs).",
+          parameters: "path, mode?, file?, name?",
+          http: "GET /api/dialogs"
+        },
+        {
+          name: "append_dialog",
+          description: "Сообщение в диалог темы.",
+          parameters: "path, body, role?, …",
+          http: "POST /api/dialogs"
+        }
       ]
     },
     {

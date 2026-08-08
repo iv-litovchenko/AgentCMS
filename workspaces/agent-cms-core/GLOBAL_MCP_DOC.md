@@ -68,7 +68,7 @@
 
 | Tool | Что внутри | Тела файлов? |
 |------|------------|--------------|
-| `get_page_map` | Все страницы: path, title, description, properties, parentPath, slots summary | нет |
+| `get_page_map` | Все узлы workspace: manifest (hasManifest:true) + папки без manifest (kind:folder). Meta, без body | нет |
 | `get_content_map(path)` | Контент одной страницы по слотам (meta, без body) | нет |
 | `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
@@ -156,7 +156,7 @@
 | `repository` | `awn.slot.repository` | `repository/` | Репозитории / код |
 | `scripts` | `awn.slot.script` | `scripts/` | Скрипты |
 | `comments` | `awn.slot.comments` | `comments/` | Комментарии к узлу/файлу |
-| `dialogs` | `awn.slot.dialogs` | `thread/` | Диалог темы (не через `create_content` — `read_thread` / `append_thread`) |
+| `dialogs` | `awn.slot.dialogs` | `thread/` | Диалог темы (`read_dialogs` / `append_dialog`, не `create_content`) |
 
 ### Однофайловая память (internal)
 
@@ -234,7 +234,7 @@
 | `.md` запись в main/inbox/notes | `create_content` / `write_content_body` |
 | Frontmatter записи | `write_content_properties` |
 | `manifest.md` страницы | `write_page_body` |
-| Диалог темы | `append_thread` / `read_thread` | Не писать в `thread/` через `create_content` |
+| Диалог темы | `read_dialogs` / `append_dialog` | Не писать в `thread/` через `create_content` |
 | Код, HTML, бинарники, media | `read_file` / `write_file` / `upload_file` |
 | Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
 | Обход папки | `list_folder` |
@@ -264,12 +264,27 @@
 
 ## Свободная память
 
-Два разных случая:
+**Не отдельный API** — папки без `manifest.md` уже в `get_page_map` как `kind: "folder"`, `hasManifest: false`, `adoptable: true`.
 
-1. **Папка без `manifest.md`** → `list_folder` / `read_file` / `upload_file`
-2. **Тема lite:** `awn-slots-disabled: true` — файлы рядом с `manifest.md`, без `awn-storage/` (не adopt-папка)
+| Поле | Значение |
+|------|----------|
+| `hasManifest: false` | Свободная память — `list_folder` / `read_file` / `upload_file`, не `read_page_*` |
+| `sidecarPath` | Описание папки: `{path}/sidecar.md` с `awn-name`, `awn-description` |
+| `hasManifest: true` + `slotsDisabled: true` | Lite-тема: manifest есть, слотов нет — path-based FS |
+| `adoptable: true` | Можно превратить в тему через `create_page` |
 
-Не путать с `create_content` (обычная тема **со слотами**).
+Отдельный HTTP `GET /api/workspace/folder/adopt` — legacy (те же узлы, что `kind:folder` в page-map).
+
+**Описание adopt-папки** — необязательный `sidecar.md` в корне:
+
+```yaml
+---
+awn-name: Материалы
+awn-description: Черновики и ресурсы для разбора
+---
+```
+
+Читать/писать: `read_file` / `write_file` на `{folderPath}/sidecar.md`. В `get_page_map` → `title`, `description`, `sidecarPath`.
 
 ---
 
@@ -287,12 +302,12 @@
 
 ---
 
-## Inbox / thread
+## Inbox / диалоги
 
 | Задача | Tools | Не делать |
 |--------|-------|-----------|
 | Intake / входящие | `list_inbox`, `triage_inbox_item`, `create_content` (`slot: inbox`, `status: new`) | Не писать в `inbox/` в обход triage |
-| Диалог темы | `read_thread`, `append_thread` | Не писать в `thread/` через `create_content` |
+| Диалог темы | `read_dialogs`, `append_dialog` | Не писать в `thread/` через `create_content` |
 
 Новая intake-заметка — `create_content` в `slot: inbox` с `status: new`.
 
@@ -333,6 +348,6 @@
 4. `awn-data` (инфоблок / информационный накопитель) ≠ слот страницы.
 5. Уведомление в 🔔 CMS → `notify_user`.
 6. В `slot` — канонические ключи: `notes`, `scripts`, `dialogs` (не устаревшие `note` / `script` / `thread`).
-7. Комментарии / thread — свои tools; inbox создавать через `create_content` (`slot: inbox`), triage — `triage_inbox_item`.
+7. Комментарии / диалоги — свои tools; inbox создавать через `create_content` (`slot: inbox`), triage — `triage_inbox_item` (`to-dialogs`).
 8. `read_page_schema` — default `mode=layers`; не `mode=full` без нужды.
 9. `media` ≠ `assets`: медиатека темы vs ресурсы записей (preview / pasted / attachments).

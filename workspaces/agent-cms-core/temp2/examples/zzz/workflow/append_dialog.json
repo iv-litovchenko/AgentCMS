@@ -1,5 +1,5 @@
 {
-  "tool": "append_thread",
+  "tool": "append_dialog",
   "folder": "zzz/workflow",
   "agent": "agent-cms-test",
   "capturedAt": "2026-08-07T19:40:06.487Z",

@@ -110,12 +110,12 @@ Agent: `agent-cms-test` · Sample page: `aja-test-oblasti-2031/aja-test-temy-203
 | Tool | File | Live | Bytes |
 |------|------|------|-------|
 | `list_inbox` | [examples/zzz/workflow/list_inbox.json](examples/zzz/workflow/list_inbox.json) | yes | 1994 |
-| `read_thread` | [examples/zzz/workflow/read_thread.json](examples/zzz/workflow/read_thread.json) | yes | 210 |
+| `read_dialogs` | [examples/zzz/workflow/read_dialogs.json](examples/zzz/workflow/read_dialogs.json) | yes | 210 |
 | `get_topic_intake` | [examples/zzz/workflow/get_topic_intake.json](examples/zzz/workflow/get_topic_intake.json) | yes | 331 |
 | `get_intake_batch` | [examples/zzz/workflow/get_intake_batch.json](examples/zzz/workflow/get_intake_batch.json) | yes | 595 |
 | `list_comments` | [examples/zzz/workflow/list_comments.json](examples/zzz/workflow/list_comments.json) | yes | 250 |
 | `append_comment` | [examples/zzz/workflow/append_comment.json](examples/zzz/workflow/append_comment.json) | write | — |
-| `append_thread` | [examples/zzz/workflow/append_thread.json](examples/zzz/workflow/append_thread.json) | write | — |
+| `append_dialog` | [examples/zzz/workflow/append_dialog.json](examples/zzz/workflow/append_dialog.json) | write | — |
 | `create_inbox_item` | [examples/zzz/workflow/create_inbox_item.json](examples/zzz/workflow/create_inbox_item.json) | write | — |
 | `toggle_comment_reaction` | [examples/zzz/workflow/toggle_comment_reaction.json](examples/zzz/workflow/toggle_comment_reaction.json) | write | — |
 | `triage_inbox_item` | [examples/zzz/workflow/triage_inbox_item.json](examples/zzz/workflow/triage_inbox_item.json) | write | — |

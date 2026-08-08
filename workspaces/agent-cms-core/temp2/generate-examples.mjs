@@ -83,8 +83,8 @@ const TOOL_FOLDER = {
   read_inbox_item: "zzz/workflow",
   create_inbox_item: "zzz/workflow",
   triage_inbox_item: "zzz/workflow",
-  read_thread: "zzz/workflow",
-  append_thread: "zzz/workflow",
+  read_dialogs: "zzz/workflow",
+  append_dialog: "zzz/workflow",
   get_topic_intake: "zzz/workflow",
   get_intake_batch: "zzz/workflow",
   list_comments: "zzz/workflow",
@@ -262,7 +262,7 @@ function writeExample(tool, payload, meta = {}) {
 
 const WRITE_ONLY = {
   append_comment: { input: { path: PAGE, body: "Комментарий" }, response: { ok: true } },
-  append_thread: { input: { path: PAGE, body: "Сообщение", role: "agent" }, response: { ok: true } },
+  append_dialog: { input: { path: PAGE, body: "Сообщение", role: "agent" }, response: { ok: true } },
   create_content: {
     input: { path: PAGE, slot: "notes", title: "Заметка" },
     response: { path: PAGE, file: "notes/zametka.md" }
@@ -411,7 +411,7 @@ const READ_CALLS = [
     { sampleArgs: { path: PAGE, slot: "main-single" } }
   ],
   ["list_inbox", () => api("GET", "/api/inbox", { query: { path: PAGE } })],
-  ["read_thread", () => api("GET", "/api/thread", { query: { path: PAGE } })],
+  ["read_dialogs", () => api("GET", "/api/dialogs", { query: { path: PAGE } })],
   ["get_topic_intake", () => api("GET", "/api/topic/intake", { query: { path: PAGE } })],
   [
     "get_intake_batch",

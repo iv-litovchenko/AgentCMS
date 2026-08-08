@@ -1,5 +1,5 @@
 {
-  "tool": "read_thread",
+  "tool": "read_dialogs",
   "folder": "zzz/workflow",
   "agent": "agent-cms-test",
   "capturedAt": "2026-08-07T19:40:02.961Z",

@@ -2723,7 +2723,7 @@ async function triageInboxItem({ manifestRelPath, file, action, status }) {
   const parsed = parseInboxItemContent(raw);
   const nextAction = String(action || "").trim().toLowerCase();
 
-  if (nextAction === "to-thread") {
+  if (nextAction === "to-thread" || nextAction === "to-dialogs") {
     const threadBody = wrapInboxBodyForThread(String(body || "").trim() || parsed.body, {
       source: parsed.source
     });
@@ -4398,6 +4398,7 @@ async function browseWorkspaceFolderImmediate(folderRelPath) {
 
     if (!(await isListableFileEntry(entry, path.join(folderAbsolute, entry.name)))) continue;
     if (isHiddenMenuEntry(entry.name)) continue;
+    if (isFolderSidecarFileName(entry.name)) continue;
 
     const fileRel = isAgentRoot ? entry.name : path.posix.join(normalizedFolder, entry.name);
     const fileAbsolute = path.join(folderAbsolute, entry.name);
@@ -4529,7 +4530,10 @@ function collectAdoptFoldersFromMenuNode(node, results = [], parentPath = null) 
     if (folderPath && !section.indexPath) {
       results.push({
         title: section.title || path.basename(folderPath),
+        description: String(section.description || "").trim(),
         folderPath,
+        sidecarPath: section.sidecarPath || null,
+        hasSidecar: Boolean(section.hasSidecar),
         empty: Boolean(section.empty),
         parentPath,
         childTopics: Array.isArray(section.items) ? section.items.length : 0,
@@ -4818,8 +4822,8 @@ function assertWorkspaceFsWriteAllowed(relPath) {
 
   if (WORKSPACE_FS_SYSTEM_LAYERS.has(layer)) {
     const hint =
-      layer === "thread"
-        ? "append_thread"
+        layer === "thread"
+        ? "append_dialog"
         : layer === "comments"
           ? "append_comment"
           : null;
@@ -9588,18 +9592,51 @@ async function buildAgentPageMap(options = {}) {
       description,
       awnType,
       kind,
+      hasManifest: true,
       parentPath,
       properties: frontmatterPropsToObject(frontmatter)
     };
-    if (includeSlots && kind === "topic") {
-      entry.slots = await buildPageMapSlotSummaries(normalized);
+    if (kind === "topic") {
+      entry.slotsDisabled = await readTopicSlotsDisabled(normalized);
+      if (includeSlots && !entry.slotsDisabled) {
+        entry.slots = await buildPageMapSlotSummaries(normalized);
+      }
     }
     pages.push(entry);
   }
 
-  async function walkTree(tree, parentPath = null, rootKind = "area") {
+  async function appendFolder(section, parentPath = null) {
+    const folderPath = String(section.folderPath || "")
+      .replace(/\\/g, "/")
+      .trim();
+    if (!folderPath) return;
+    const sidecar = await readFolderSidecarMeta(folderPath);
+    pages.push({
+      path: folderPath,
+      title: String(sidecar.name || section.title || path.basename(folderPath)).trim(),
+      description: String(sidecar.description || section.description || "").trim(),
+      sidecarPath: sidecar.exists ? sidecar.sidecarPath : section.sidecarPath || null,
+      hasSidecar: Boolean(sidecar.exists || section.hasSidecar),
+      awnType: "",
+      kind: "folder",
+      hasManifest: false,
+      adoptable: true,
+      parentPath: parentPath || null,
+      empty: Boolean(section.empty),
+      childTopics: Array.isArray(section.items) ? section.items.length : 0,
+      childFolders: Array.isArray(section.sections) ? section.sections.length : 0,
+      properties: {}
+    });
+  }
+
+  async function walkTree(tree, parentPath = null, rootKind = "area", parentFolderPath = null) {
     if (!tree) return;
     let areaPath = parentPath;
+    const currentFolderPath =
+      String(tree.folderPath || "")
+        .replace(/\\/g, "/")
+        .trim() || parentFolderPath;
+
     if (tree.indexPath) {
       const kind = !parentPath && rootKind === "ws" ? "ws" : "area";
       await appendPage(tree.indexPath, tree.title, kind, parentPath);
@@ -9610,7 +9647,13 @@ async function buildAgentPageMap(options = {}) {
       await appendPage(item.path, item.label, "topic", areaPath);
     }
     for (const section of tree.sections || []) {
-      await walkTree(section, areaPath, rootKind);
+      const folderPath = String(section.folderPath || "")
+        .replace(/\\/g, "/")
+        .trim();
+      if (folderPath && !section.indexPath) {
+        await appendFolder(section, currentFolderPath || areaPath);
+      }
+      await walkTree(section, areaPath, rootKind, folderPath || currentFolderPath);
     }
   }
 
@@ -9620,17 +9663,30 @@ async function buildAgentPageMap(options = {}) {
   if (menu.serviceTree) await walkTree(menu.serviceTree, null, "area");
 
   pages.sort((a, b) => {
-    const da = getManifestDisplayPathForTable(a.path, a.title, a.kind);
-    const db = getManifestDisplayPathForTable(b.path, b.title, b.kind);
+    const da =
+      a.kind === "folder"
+        ? stripAgentContentPrefixFromRelPath(a.path) || a.path
+        : getManifestDisplayPathForTable(a.path, a.title, a.kind);
+    const db =
+      b.kind === "folder"
+        ? stripAgentContentPrefixFromRelPath(b.path) || b.path
+        : getManifestDisplayPathForTable(b.path, b.title, b.kind);
     return da.localeCompare(db, "ru");
   });
+
+  const manifestCount = pages.filter((row) => row.hasManifest !== false).length;
+  const folderCount = pages.filter((row) => row.kind === "folder").length;
 
   return {
     version: 1,
     model: "page-map",
-    hint: "Карта страниц workspace: title, description, properties без body. Контент темы: get_content_map(path).",
+    hint:
+      "Карта workspace: manifest-узлы (hasManifest:true) + папки без manifest (kind:folder, hasManifest:false). " +
+      "Страницы: read/write_page_*; папки: list_folder/read_file/upload_file; усыновить → create_page.",
     pages,
-    pageCount: pages.length
+    nodeCount: pages.length,
+    pageCount: manifestCount,
+    folderCount
   };
 }
 
@@ -9854,7 +9910,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceTable: "GET /api/agent/workspace-table — таблица тем",
   canonicalModel: "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
   siteMap: "GET /api/agent/site-map — legacy; MCP: get_page_map",
-  pageMap: "GET /api/agent/page-map?includeSlots=true — карта страниц (meta, без body)",
+  pageMap:
+    "GET /api/agent/page-map?includeSlots=true — карта workspace: manifest-узлы + папки без manifest (kind:folder)",
   contentMap: "GET /api/agent/content-map?path=<manifest.md>&slot= — карта контента страницы (meta, без body)",
   dataStores: "GET /api/awn-data — накопители awn-data; ?store= для одного",
   dataStoreCreate: "POST /api/awn-data/stores — создать накопитель",
@@ -9869,10 +9926,11 @@ const SESSION_CONTEXT_API_MAP = {
   pageCreate: "POST /api/page/create — создать страницу area/topic",
   contentCreate:
     "create_content MCP — typed .md or plain-text via fileExtension; write_content_file — overwrite .py/.html/…; upload_content — base64; import_content_from_url — URL → slot",
-  thread: "GET /api/thread?path=<manifest.md>",
+  dialogs: "GET /api/dialogs?path=<manifest.md> (legacy: /api/thread)",
   inbox: "GET /api/inbox?path=<manifest.md>",
   topicIntake: "GET /api/topic/intake?path=<manifest.md>",
-  adoptFolders: "GET /api/workspace/folder/adopt — свободная память: папки без manifest.md",
+  adoptFolders:
+    "GET /api/workspace/folder/adopt — [legacy] те же folder-узлы, что kind:folder в GET /api/agent/page-map",
   workspaceFolderUpload:
     "POST /api/workspace/folder/upload — загрузить файл(ы) в папку свободной памяти (folderPath, data base64, fileName)",
   workspaceFolderRename: "POST /api/workspace/folder/rename — переименовать файл или папку (path, newName)",
@@ -11641,8 +11699,70 @@ async function readNodeDisplayLabelForManifestRel(manifestRel) {
   }
 }
 
+const FOLDER_SIDECAR_FILE = "sidecar.md";
+
+function isFolderSidecarFileName(name) {
+  return String(name || "").trim().toLowerCase() === FOLDER_SIDECAR_FILE;
+}
+
+function folderSidecarRelPath(relativePath) {
+  const normalized = String(relativePath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "")
+    .trim();
+  if (!normalized || normalized === ".") return FOLDER_SIDECAR_FILE;
+  return `${normalized}/${FOLDER_SIDECAR_FILE}`;
+}
+
+async function readFolderSidecarMeta(relativePath) {
+  const sidecarPath = folderSidecarRelPath(relativePath);
+  const sidecarAbsolute = normalizeWorkspacePath(sidecarPath);
+  if (!sidecarAbsolute) {
+    return { exists: false, name: "", description: "", sidecarPath: null };
+  }
+  try {
+    const stat = await fs.stat(sidecarAbsolute);
+    if (!stat.isFile()) {
+      return { exists: false, name: "", description: "", sidecarPath: null };
+    }
+  } catch {
+    return { exists: false, name: "", description: "", sidecarPath: null };
+  }
+  try {
+    const { frontmatter } = await readNodeFrontmatterContent(sidecarPath);
+    return {
+      exists: true,
+      name: String(getYamlScalar(frontmatter, "awn-name") || "").trim(),
+      description: String(getYamlScalar(frontmatter, "awn-description") || "").trim(),
+      sidecarPath
+    };
+  } catch {
+    return { exists: false, name: "", description: "", sidecarPath: sidecarPath };
+  }
+}
+
+async function withFolderSidecarFields(relativePath, row = {}) {
+  const sidecar = await readFolderSidecarMeta(relativePath);
+  const slug =
+    stripTopicPrefix(path.posix.basename(String(relativePath || "").replace(/\\/g, "/"))) ||
+    path.posix.basename(String(relativePath || "").replace(/\\/g, "/"));
+  return {
+    ...row,
+    title: sidecar.name || row.title || slug,
+    description: sidecar.description || row.description || "",
+    sidecarPath: sidecar.exists ? sidecar.sidecarPath : row.sidecarPath || null,
+    hasSidecar: Boolean(sidecar.exists || row.hasSidecar)
+  };
+}
+
+async function attachFolderSidecarMeta(relativePath, folderRow, manifestRelPath = null) {
+  if (manifestRelPath) return folderRow;
+  return withFolderSidecarFields(relativePath, folderRow);
+}
+
 async function resolveFolderDisplayTitle(dirAbsolute, relativePath, child = null) {
-  const slug = stripTopicPrefix(path.posix.basename(String(relativePath || "").replace(/\\/g, "/"))) ||
+  const slug =
+    stripTopicPrefix(path.posix.basename(String(relativePath || "").replace(/\\/g, "/"))) ||
     path.posix.basename(String(relativePath || "").replace(/\\/g, "/"));
   let manifestRel = child?.indexPath || null;
   if (!manifestRel) {
@@ -11654,6 +11774,8 @@ async function resolveFolderDisplayTitle(dirAbsolute, relativePath, child = null
   if (manifestRel) {
     return readNodeDisplayLabelForManifestRel(manifestRel);
   }
+  const sidecar = await readFolderSidecarMeta(relativePath);
+  if (sidecar.name) return sidecar.name;
   return slug;
 }
 
@@ -12603,6 +12725,11 @@ async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers,
     shell.runtimeCommands = Boolean(indexMeta.runtimeCommands);
     shell.runtimeCronSelf = shell.runtimeCron;
     shell.runtimeHeartbeatSelf = shell.runtimeHeartbeat;
+  } else {
+    const sidecar = await readFolderSidecarMeta(relativePath);
+    shell.description = sidecar.description;
+    shell.sidecarPath = sidecar.exists ? sidecar.sidecarPath : null;
+    shell.hasSidecar = sidecar.exists;
   }
 
   return shell;
@@ -12719,33 +12846,41 @@ async function processMenuDirectoryEntry({
     }
     return {
       kind: "folder",
-      folder: {
-        title: folderTitle,
-        folderPath: relativePath,
-        ...child,
-        ...withMenuFolderWorkspaceMarkers(markers)
-      }
+      folder: await attachFolderSidecarMeta(
+        relativePath,
+        {
+          title: folderTitle,
+          folderPath: relativePath,
+          ...child,
+          ...withMenuFolderWorkspaceMarkers(markers)
+        },
+        child.indexPath
+      )
     };
   }
 
   return {
     kind: "folder",
-    folder: {
-      title: folderTitle,
-      folderPath: relativePath,
-      empty: true,
-      ...markers,
-      hasGit: markers.hasGitSelf,
-      hasObsidian: markers.hasObsidianSelf,
-      hasAgent: markers.hasAgentSelf,
-      hasGitSelf: markers.hasGitSelf,
-      hasObsidianSelf: markers.hasObsidianSelf,
-      hasAgentSelf: markers.hasAgentSelf,
-      sections: [],
-      items: [],
-      indexPath: null,
-      menuOrder: await readMenuSortOrder(fullPath)
-    }
+    folder: await attachFolderSidecarMeta(
+      relativePath,
+      {
+        title: folderTitle,
+        folderPath: relativePath,
+        empty: true,
+        ...markers,
+        hasGit: markers.hasGitSelf,
+        hasObsidian: markers.hasObsidianSelf,
+        hasAgent: markers.hasAgentSelf,
+        hasGitSelf: markers.hasGitSelf,
+        hasObsidianSelf: markers.hasObsidianSelf,
+        hasAgentSelf: markers.hasAgentSelf,
+        sections: [],
+        items: [],
+        indexPath: null,
+        menuOrder: await readMenuSortOrder(fullPath)
+      },
+      null
+    )
   };
 }
 
@@ -16186,7 +16321,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/thread") {
+  if (req.method === "GET" && (url.pathname === "/api/dialogs" || url.pathname === "/api/thread")) {
     const manifestRelPath = url.searchParams.get("path") || "";
     if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     try {
@@ -16199,13 +16334,13 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to list thread messages",
+        error: "Failed to list dialog messages",
         details: String(error && error.message ? error.message : error)
       });
     }
   }
 
-  if (req.method === "POST" && url.pathname === "/api/thread") {
+  if (req.method === "POST" && (url.pathname === "/api/dialogs" || url.pathname === "/api/thread")) {
     try {
       const payload = await readJsonBody(req);
       const manifestRelPath = payload.path || "";

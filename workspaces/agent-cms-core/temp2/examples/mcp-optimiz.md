@@ -8,7 +8,7 @@ agent-cms ( Agent MCP ) · 44
 │   └── list_workspace_heartbeat         — реестр heartbeat
 │
 ├── НАВИГАЦИЯ (3)
-│   ├── get_page_map                     — карта страниц
+│   ├── get_page_map                     — карта workspace (+ kind:folder без manifest)
 │   ├── get_content_map                  — карта контента темы
 │   └── search_workspace                 — поиск
 │
@@ -43,8 +43,8 @@ agent-cms ( Agent MCP ) · 44
 ├── INTAKE (4)
 │   ├── list_inbox
 │   ├── triage_inbox_item
-│   ├── read_thread
-│   └── append_thread
+│   ├── read_dialogs
+│   └── append_dialog
 │
 ├── СИСТЕМА + FS (5)
 │   ├── list_system_files

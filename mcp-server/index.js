@@ -189,31 +189,31 @@ function createServer() {
 
   reg(
     "triage_inbox_item",
-    "Triage inbox: to-thread, to-content, mark-done, set-status.",
+    "Triage inbox: to-dialogs, to-content, mark-done, set-status.",
     z.object({
       path: pagePath,
       file: z.string().min(1),
-      action: z.enum(["to-thread", "to-content", "mark-done", "set-status"]),
+      action: z.enum(["to-dialogs", "to-content", "mark-done", "set-status"]),
       status: z.enum(["new", "in-progress", "done"]).optional()
     }),
     ({ path, file, action, status }) => client.post("/api/inbox/triage", { path, file, action, status })
   );
 
   reg(
-    "read_thread",
-    "Read topic dialogue thread.",
+    "read_dialogs",
+    "Read topic dialog (slot dialogs / folder thread/).",
     z.object({
       path: pagePath,
       mode: z.string().optional(),
       file: z.string().optional(),
       name: z.string().optional()
     }),
-    ({ path, mode, file, name }) => client.get("/api/thread", { path, mode, file, name })
+    ({ path, mode, file, name }) => client.get("/api/dialogs", { path, mode, file, name })
   );
 
   reg(
-    "append_thread",
-    "Append message to topic thread.",
+    "append_dialog",
+    "Append message to topic dialog.",
     z.object({
       path: pagePath,
       body: z.string().min(1),
@@ -225,7 +225,7 @@ function createServer() {
       name: z.string().optional()
     }),
     ({ path, body, role, author, linkedFiles, mode, file, name }) =>
-      client.post("/api/thread", { path, body, role, author, linkedFiles, mode, file, name })
+      client.post("/api/dialogs", { path, body, role, author, linkedFiles, mode, file, name })
   );
 
   // ── FS + system (5) ────────────────────────────────────────────────────────
