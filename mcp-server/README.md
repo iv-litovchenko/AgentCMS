@@ -1,4 +1,4 @@
-# Agent CMS — MCP Server v0.3.0 (slim · 44 tools)
+# Agent CMS — MCP Server v0.3.0 (slim · 58 tools)
 
 MCP-сервер для [Agent CMS](..): доступ к workspace через HTTP API для Cursor, Claude Desktop, CoPaw / QwenPaw.
 
@@ -37,14 +37,14 @@ get_session_context
 |--------|-------|
 | Старт | `get_session_context`, `get_user_active_context_now`, `list_workspace_*` |
 | Навигация | `get_page_map`, `get_content_map`, `search_workspace` |
-| Страница | `read/write_page_*`, `create_page`, `delete_page`, `rename_page`, `move_page` |
+| Страница | `read/write_page_*`, `read/write_page_property`, `create_page`, `delete_page`, `rename_page`, `move_page` |
 | Слот | `list_page_slots` |
-| Контент | `read/write_content_*`, `create_content`, `rename/move/delete_content` |
+| Контент | `read/write_content_*`, `read/write_content_property`, `create_content`, `import_content_from_url`, `rename/move/delete_content` |
 | Типы | `list_types`, `get_type` |
-| awn-data | `list/get_data_store`, `create_data_store/record`, `read_data_store_schema` |
-| FS | `list_system_files`, `read_file`, `write_file`, `upload_file`, `list_folder` |
+| awn-data | `list/get_data_store`, `create_*`, `read_data_store_schema`, `read/write_store_properties`, `read/write_store_property`, `read/write_record_properties`, `read/write_record_property` |
+| FS | `list_system_files`, `read_file`, `write_file`, `upload_file`, `upload_file_from_url`, `list_folder` |
 
-Бинарники и media — **`upload_file`** по полному workspace path, не slot-upload tools.
+Бинарники и media — **`upload_file`** (base64) или **`upload_file_from_url`** по полному workspace path; в слот темы — **`import_content_from_url`**.
 
 ## Документация
 

@@ -1666,6 +1666,247 @@ function resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel) {
   };
 }
 
+function isValidAwnPropertyKey(key) {
+  return /^[A-Za-z0-9_.-]+$/.test(String(key || "").trim());
+}
+
+function escapeYamlKeyRegExp(key) {
+  return String(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function formatYamlScalarValue(value) {
+  const text = String(value ?? "");
+  if (/^[a-zA-Z0-9_\-@.]+$/.test(text)) return text;
+  return JSON.stringify(text);
+}
+
+function getYamlScalarFromText(frontmatter, key) {
+  const normalizedKey = String(key || "").trim();
+  if (!normalizedKey) return { value: "", exists: false };
+  const text = String(frontmatter || "");
+  const match = text.match(new RegExp(`^${escapeYamlKeyRegExp(normalizedKey)}:\\s*(.+)$`, "im"));
+  if (!match) return { value: "", exists: false };
+  const raw = match[1].trim();
+  const unquoted =
+    (raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))
+      ? raw.slice(1, -1)
+      : raw;
+  return { value: unquoted, exists: true };
+}
+
+function upsertYamlScalarInText(frontmatter, key, value) {
+  const normalizedKey = String(key || "").trim();
+  const line = `${normalizedKey}: ${formatYamlScalarValue(value)}`;
+  const pattern = new RegExp(`^${escapeYamlKeyRegExp(normalizedKey)}:.*$`, "m");
+  const trimmed = String(frontmatter || "").trim();
+  if (pattern.test(trimmed)) {
+    return trimmed.replace(pattern, line);
+  }
+  return trimmed ? `${trimmed}\n${line}` : line;
+}
+
+function splitMarkdownFrontmatterText(content) {
+  const raw = String(content || "");
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---(\r?\n([\s\S]*))?$/);
+  if (!match) return { frontmatter: "", body: raw, hasFrontmatter: false };
+  return { frontmatter: match[1] || "", body: match[3] || "", hasFrontmatter: true };
+}
+
+function joinMarkdownFrontmatterText(frontmatter, body) {
+  const fm = String(frontmatter || "").trim();
+  const text = String(body ?? "");
+  if (!fm) return text;
+  return `---\n${fm}\n---\n${text}`;
+}
+
+function mergeFrontmatterBlocks(baseFrontmatter, overlayFrontmatter) {
+  const overlayText = String(overlayFrontmatter || "").trim();
+  if (!overlayText) return String(baseFrontmatter || "").trim();
+  const overlayKeys = new Set();
+  const overlayLines = overlayText.split("\n").filter((line) => line.trim());
+  for (const line of overlayLines) {
+    const key = line.split(":")[0]?.trim().toLowerCase();
+    if (key) overlayKeys.add(key);
+  }
+  const baseLines = String(baseFrontmatter || "")
+    .split("\n")
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return false;
+      const key = trimmed.split(":")[0]?.trim().toLowerCase();
+      return key && !overlayKeys.has(key);
+    });
+  return [...baseLines, ...overlayLines].join("\n");
+}
+
+function bumpRecordUpdatedFrontmatter(frontmatter) {
+  const text = String(frontmatter || "");
+  if (/\bawn-updated\s*:/i.test(text)) {
+    return upsertYamlScalarInText(text, "awn-updated", nowIsoMinute());
+  }
+  return text;
+}
+
+function readStoreManifestRaw(storeAbs) {
+  const manifestPath = path.join(storeAbs, COLLECTION_MANIFEST);
+  if (!fs.existsSync(manifestPath)) {
+    throw new Error("Store manifest not found");
+  }
+  return { manifestPath, raw: fs.readFileSync(manifestPath, "utf-8") };
+}
+
+function resolveStoreRecordAbsolute(storeEntry, storeAbs, recordRef) {
+  const kind = String(storeEntry?.kind || "").trim();
+  if (kind === "singleton") {
+    return path.join(storeAbs, SINGLETON_RECORD);
+  }
+  const ref = String(recordRef || "").trim();
+  if (!ref) throw new Error("record is required");
+
+  const records = storeEntry?.records || [];
+  const hit = records.find(
+    (item) =>
+      item.id === ref ||
+      item.fileName === ref ||
+      item.fileName === `${ref}.md` ||
+      item.relPath === ref ||
+      item.relPath.endsWith(`/${ref}`) ||
+      item.relPath.endsWith(`/${ref}.md`)
+  );
+  if (hit) {
+    const withinStore = String(hit.relPath || "")
+      .replace(/^[^/]+\//, "")
+      .replace(/\\/g, "/");
+    const rel = withinStore || hit.fileName || `${ref}.md`;
+    return path.join(storeAbs, rel);
+  }
+
+  const direct = ref.endsWith(".md") ? ref : `${ref}.md`;
+  const abs = path.join(storeAbs, direct);
+  if (fs.existsSync(abs)) return abs;
+  throw new Error(`Record not found: ${ref}`);
+}
+
+function readAwnDataStoreProperty(agentRoot, projectRoot, storeRel, key) {
+  const propertyKey = String(key || "").trim();
+  if (!isValidAwnPropertyKey(propertyKey)) throw new Error("Invalid property key");
+  const { storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  const { raw } = readStoreManifestRaw(storeAbs);
+  const { frontmatter } = splitMarkdownFrontmatterText(raw);
+  const { value, exists } = getYamlScalarFromText(frontmatter, propertyKey);
+  return { store: rel, key: propertyKey, value, exists };
+}
+
+function readAwnDataStoreProperties(agentRoot, projectRoot, storeRel) {
+  const { storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  const { raw } = readStoreManifestRaw(storeAbs);
+  const { frontmatter } = splitMarkdownFrontmatterText(raw);
+  return {
+    store: rel,
+    content: String(frontmatter || "").trim(),
+    exists: Boolean(String(frontmatter || "").trim())
+  };
+}
+
+function writeAwnDataStoreProperties(agentRoot, projectRoot, storeRel, content) {
+  const patch = typeof content === "string" ? content : null;
+  if (patch === null) throw new Error("Missing content");
+  const { storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  const { manifestPath, raw } = readStoreManifestRaw(storeAbs);
+  const parts = splitMarkdownFrontmatterText(raw);
+  const nextFrontmatter = mergeFrontmatterBlocks(parts.frontmatter, patch);
+  const nextRaw = joinMarkdownFrontmatterText(nextFrontmatter, parts.body);
+  fs.writeFileSync(manifestPath, nextRaw, "utf-8");
+  return { store: rel, content: nextFrontmatter };
+}
+
+function writeAwnDataStoreProperty(agentRoot, projectRoot, storeRel, key, value) {
+  const propertyKey = String(key || "").trim();
+  if (!isValidAwnPropertyKey(propertyKey)) throw new Error("Invalid property key");
+  if (value === undefined || value === null) throw new Error("Missing value");
+  const { storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  const { manifestPath, raw } = readStoreManifestRaw(storeAbs);
+  const parts = splitMarkdownFrontmatterText(raw);
+  const nextFrontmatter = upsertYamlScalarInText(parts.frontmatter, propertyKey, value);
+  const nextRaw = joinMarkdownFrontmatterText(nextFrontmatter, parts.body);
+  fs.writeFileSync(manifestPath, nextRaw, "utf-8");
+  return { store: rel, key: propertyKey, value: String(value), content: nextFrontmatter };
+}
+
+function readAwnDataRecordProperty(agentRoot, projectRoot, storeRel, recordRef, key) {
+  const propertyKey = String(key || "").trim();
+  if (!isValidAwnPropertyKey(propertyKey)) throw new Error("Invalid property key");
+  const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  if (store.recordStorage === "csv") {
+    throw new Error("CSV store records do not support property API yet; use get_data_store");
+  }
+  const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
+  if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
+  const raw = fs.readFileSync(recordAbs, "utf-8");
+  const { frontmatter } = splitMarkdownFrontmatterText(raw);
+  const { value, exists } = getYamlScalarFromText(frontmatter, propertyKey);
+  const record = String(recordRef || "").trim() || path.basename(recordAbs, ".md");
+  return { store: rel, record, key: propertyKey, value, exists, file: path.basename(recordAbs) };
+}
+
+function readAwnDataRecordProperties(agentRoot, projectRoot, storeRel, recordRef) {
+  const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  if (store.recordStorage === "csv") {
+    throw new Error("CSV store records do not support property API yet; use get_data_store");
+  }
+  const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
+  if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
+  const raw = fs.readFileSync(recordAbs, "utf-8");
+  const { frontmatter } = splitMarkdownFrontmatterText(raw);
+  const record = String(recordRef || "").trim() || path.basename(recordAbs, ".md");
+  return {
+    store: rel,
+    record,
+    file: path.basename(recordAbs),
+    content: String(frontmatter || "").trim(),
+    exists: Boolean(String(frontmatter || "").trim())
+  };
+}
+
+function writeAwnDataRecordProperties(agentRoot, projectRoot, storeRel, recordRef, content) {
+  const patch = typeof content === "string" ? content : null;
+  if (patch === null) throw new Error("Missing content");
+  const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  if (store.recordStorage === "csv") {
+    throw new Error("CSV store records do not support property API yet; use get_data_store");
+  }
+  const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
+  if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
+  const raw = fs.readFileSync(recordAbs, "utf-8");
+  const parts = splitMarkdownFrontmatterText(raw);
+  let nextFrontmatter = mergeFrontmatterBlocks(parts.frontmatter, patch);
+  nextFrontmatter = bumpRecordUpdatedFrontmatter(nextFrontmatter);
+  const nextRaw = joinMarkdownFrontmatterText(nextFrontmatter, parts.body);
+  fs.writeFileSync(recordAbs, nextRaw, "utf-8");
+  const record = String(recordRef || "").trim() || path.basename(recordAbs, ".md");
+  return { store: rel, record, file: path.basename(recordAbs), content: nextFrontmatter };
+}
+
+function writeAwnDataRecordProperty(agentRoot, projectRoot, storeRel, recordRef, key, value) {
+  const propertyKey = String(key || "").trim();
+  if (!isValidAwnPropertyKey(propertyKey)) throw new Error("Invalid property key");
+  if (value === undefined || value === null) throw new Error("Missing value");
+  const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
+  if (store.recordStorage === "csv") {
+    throw new Error("CSV store records do not support property API yet; use get_data_store");
+  }
+  const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
+  if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
+  const raw = fs.readFileSync(recordAbs, "utf-8");
+  const parts = splitMarkdownFrontmatterText(raw);
+  let nextFrontmatter = upsertYamlScalarInText(parts.frontmatter, propertyKey, value);
+  nextFrontmatter = bumpRecordUpdatedFrontmatter(nextFrontmatter);
+  const nextRaw = joinMarkdownFrontmatterText(nextFrontmatter, parts.body);
+  fs.writeFileSync(recordAbs, nextRaw, "utf-8");
+  const record = String(recordRef || "").trim() || path.basename(recordAbs, ".md");
+  return { store: rel, record, key: propertyKey, value: String(value), content: nextFrontmatter, file: path.basename(recordAbs) };
+}
+
 function extractRecordSchemaFromSchemeModContent(content) {
   const parsed = parseTypeYaml(String(content || ""));
   const awnSchema = parsed?.awn_schema;
@@ -1783,6 +2024,14 @@ module.exports = {
   resolveAwnDataStoreContext,
   readAwnDataStoreSchemaPayload,
   writeAwnDataStoreSchema,
+  readAwnDataStoreProperty,
+  writeAwnDataStoreProperty,
+  readAwnDataStoreProperties,
+  writeAwnDataStoreProperties,
+  readAwnDataRecordProperty,
+  writeAwnDataRecordProperty,
+  readAwnDataRecordProperties,
+  writeAwnDataRecordProperties,
   normalizeExtendsRef,
   resolveKindFromSupertype,
   CONTAINER_SUPERTYPE,

@@ -261,17 +261,17 @@ module.exports = {
         {
           method: "GET",
           path: "/api/file/properties",
-          description: "YAML frontmatter из _registration.md (между ---).",
-          query: ["path"],
+          description: "YAML frontmatter из manifest.md. Query key — одно свойство.",
+          query: ["path", "key?"],
           body: null,
-          response: "{ path, content, exists }"
+          response: "{ path, content, exists } | { path, key, value, exists }"
         },
         {
           method: "POST",
           path: "/api/file/properties",
-          description: "Сохранить YAML frontmatter в _registration.md.",
+          description: "Сохранить YAML frontmatter: content (patch) или key+value.",
           query: [],
-          body: "{ path, content }",
+          body: "{ path, content } | { path, key, value }",
           response: "{ path, content }"
         },
         {

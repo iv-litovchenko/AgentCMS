@@ -208,7 +208,15 @@ const {
   createAwnDataStore,
   createAwnDataRecord,
   readAwnDataStoreSchemaPayload,
-  writeAwnDataStoreSchema
+  writeAwnDataStoreSchema,
+  readAwnDataStoreProperty,
+  writeAwnDataStoreProperty,
+  readAwnDataStoreProperties,
+  writeAwnDataStoreProperties,
+  readAwnDataRecordProperty,
+  writeAwnDataRecordProperty,
+  readAwnDataRecordProperties,
+  writeAwnDataRecordProperties
 } = require("./awn-data-loader");
 const { loadSystemFileTemplatesFromAwnData } = require("./awn-data-templates-bridge");
 const {
@@ -16731,6 +16739,246 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/awn-data/store-properties") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const storeRel = String(url.searchParams.get("store") || "").trim();
+      const propertyKey = String(url.searchParams.get("key") || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
+      if (propertyKey) {
+        if (!/^[A-Za-z0-9_.-]+$/.test(propertyKey)) {
+          return sendJson(res, 400, { error: "Invalid property key" });
+        }
+        const payload = readAwnDataStoreProperty(agentRoot, getProjectRoot(), storeRel, propertyKey);
+        return sendJson(res, 200, payload);
+      }
+      const payload = readAwnDataStoreProperties(agentRoot, getProjectRoot(), storeRel);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to read store properties",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-data/store-properties") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      const content = typeof payload.content === "string" ? payload.content : null;
+      const propertyKey = String(payload?.key || "").trim();
+      const hasSingleKey = Boolean(propertyKey);
+      const singleValue =
+        hasSingleKey && payload.value !== undefined && payload.value !== null ? String(payload.value) : null;
+
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      if (hasSingleKey && content !== null) {
+        return sendJson(res, 400, { error: "Provide either content or key, not both" });
+      }
+      if (!hasSingleKey && content === null) {
+        return sendJson(res, 400, { error: "Missing content or key" });
+      }
+      if (hasSingleKey && !/^[A-Za-z0-9_.-]+$/.test(propertyKey)) {
+        return sendJson(res, 400, { error: "Invalid property key" });
+      }
+      if (hasSingleKey && singleValue === null) {
+        return sendJson(res, 400, { error: "Missing value for key" });
+      }
+
+      const result = hasSingleKey
+        ? writeAwnDataStoreProperty(agentRoot, getProjectRoot(), storeRel, propertyKey, singleValue)
+        : writeAwnDataStoreProperties(agentRoot, getProjectRoot(), storeRel, content);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to write store properties",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/awn-data/store-property") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const storeRel = String(url.searchParams.get("store") || "").trim();
+      const propertyKey = String(url.searchParams.get("key") || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
+      if (!propertyKey) return sendJson(res, 400, { error: "Missing key query parameter" });
+      const payload = readAwnDataStoreProperty(agentRoot, getProjectRoot(), storeRel, propertyKey);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to read store property",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-data/store-property") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      const propertyKey = String(payload?.key || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      if (!propertyKey) return sendJson(res, 400, { error: "Missing key" });
+      if (payload?.value === undefined || payload?.value === null) {
+        return sendJson(res, 400, { error: "Missing value" });
+      }
+      const result = writeAwnDataStoreProperty(
+        agentRoot,
+        getProjectRoot(),
+        storeRel,
+        propertyKey,
+        String(payload.value)
+      );
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to write store property",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/awn-data/record-properties") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const storeRel = String(url.searchParams.get("store") || "").trim();
+      const recordRef = String(url.searchParams.get("record") || "").trim();
+      const propertyKey = String(url.searchParams.get("key") || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
+      if (propertyKey) {
+        if (!/^[A-Za-z0-9_.-]+$/.test(propertyKey)) {
+          return sendJson(res, 400, { error: "Invalid property key" });
+        }
+        const payload = readAwnDataRecordProperty(
+          agentRoot,
+          getProjectRoot(),
+          storeRel,
+          recordRef,
+          propertyKey
+        );
+        return sendJson(res, 200, payload);
+      }
+      const payload = readAwnDataRecordProperties(agentRoot, getProjectRoot(), storeRel, recordRef);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to read record properties",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-data/record-properties") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      const recordRef = String(payload?.record || "").trim();
+      const content = typeof payload.content === "string" ? payload.content : null;
+      const propertyKey = String(payload?.key || "").trim();
+      const hasSingleKey = Boolean(propertyKey);
+      const singleValue =
+        hasSingleKey && payload.value !== undefined && payload.value !== null ? String(payload.value) : null;
+
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      if (hasSingleKey && content !== null) {
+        return sendJson(res, 400, { error: "Provide either content or key, not both" });
+      }
+      if (!hasSingleKey && content === null) {
+        return sendJson(res, 400, { error: "Missing content or key" });
+      }
+      if (hasSingleKey && !/^[A-Za-z0-9_.-]+$/.test(propertyKey)) {
+        return sendJson(res, 400, { error: "Invalid property key" });
+      }
+      if (hasSingleKey && singleValue === null) {
+        return sendJson(res, 400, { error: "Missing value for key" });
+      }
+
+      const result = hasSingleKey
+        ? writeAwnDataRecordProperty(
+            agentRoot,
+            getProjectRoot(),
+            storeRel,
+            recordRef,
+            propertyKey,
+            singleValue
+          )
+        : writeAwnDataRecordProperties(agentRoot, getProjectRoot(), storeRel, recordRef, content);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to write record properties",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/awn-data/record-property") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const storeRel = String(url.searchParams.get("store") || "").trim();
+      const recordRef = String(url.searchParams.get("record") || "").trim();
+      const propertyKey = String(url.searchParams.get("key") || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store query parameter" });
+      if (!propertyKey) return sendJson(res, 400, { error: "Missing key query parameter" });
+      const payload = readAwnDataRecordProperty(
+        agentRoot,
+        getProjectRoot(),
+        storeRel,
+        recordRef,
+        propertyKey
+      );
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to read record property",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/awn-data/record-property") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const storeRel = String(payload?.store || "").trim();
+      const recordRef = String(payload?.record || "").trim();
+      const propertyKey = String(payload?.key || "").trim();
+      if (!storeRel) return sendJson(res, 400, { error: "Missing store path" });
+      if (!propertyKey) return sendJson(res, 400, { error: "Missing key" });
+      if (payload?.value === undefined || payload?.value === null) {
+        return sendJson(res, 400, { error: "Missing value" });
+      }
+      const result = writeAwnDataRecordProperty(
+        agentRoot,
+        getProjectRoot(),
+        storeRel,
+        recordRef,
+        propertyKey,
+        String(payload.value)
+      );
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 400, {
+        error: "Failed to write record property",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent-system/types") {
     try {
       const agentRoot = getAgentRoot();
@@ -16984,13 +17232,28 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/file/properties") {
     const relPath = url.searchParams.get("path");
+    const propertyKey = String(url.searchParams.get("key") || "").trim();
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    if (propertyKey && !/^[A-Za-z0-9_.-]+$/.test(propertyKey)) {
+      return sendJson(res, 400, { error: "Invalid property key" });
+    }
 
     const nodeAbsolute = await resolveApiNodeFrontmatterAbsolute(relPath);
     if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
     try {
       const { frontmatter, source } = await readNodeFrontmatterContent(relPath);
+      if (propertyKey) {
+        const props = parseFrontmatterProps(frontmatter);
+        const hasKey = props.some((item) => normalizeFrontmatterPropKey(item.key) === propertyKey);
+        return sendJson(res, 200, {
+          path: relPath,
+          key: propertyKey,
+          value: getFrontmatterPropValue(props, propertyKey),
+          exists: hasKey,
+          source: source || "none"
+        });
+      }
       return sendJson(res, 200, {
         path: relPath,
         content: frontmatter,
@@ -17007,16 +17270,32 @@ async function handleApiForAgent(req, res, url) {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
       const content = typeof payload.content === "string" ? payload.content : null;
+      const propertyKey = String(payload.key || "").trim();
+      const hasSingleKey = Boolean(propertyKey);
+      const singleValue = hasSingleKey && payload.value !== undefined && payload.value !== null ? String(payload.value) : null;
 
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
-      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+      if (hasSingleKey && content !== null) {
+        return sendJson(res, 400, { error: "Provide either content or key, not both" });
+      }
+      if (!hasSingleKey && content === null) {
+        return sendJson(res, 400, { error: "Missing content or key" });
+      }
+      if (hasSingleKey && !/^[A-Za-z0-9_.-]+$/.test(propertyKey)) {
+        return sendJson(res, 400, { error: "Invalid property key" });
+      }
+      if (hasSingleKey && singleValue === null) {
+        return sendJson(res, 400, { error: "Missing value for key" });
+      }
 
       const nodeAbsolute = await resolveApiNodeFrontmatterAbsolute(relPath);
       if (!nodeAbsolute) return sendJson(res, 400, { error: "Invalid file path" });
 
       const raw = (await readNodeManifestRaw(nodeAbsolute)) ?? "";
       const { frontmatter: diskFrontmatter, body } = splitNodeFrontmatter(raw);
-      const mergedFrontmatter = mergeFrontmatterBlocks(diskFrontmatter, content);
+      const mergedFrontmatter = hasSingleKey
+        ? upsertYamlScalarLine(diskFrontmatter, propertyKey, singleValue)
+        : mergeFrontmatterBlocks(diskFrontmatter, content);
       const stampedFrontmatter = applyAwnTimestampsToFrontmatter(mergedFrontmatter, { diskFrontmatter });
       const nextContent = joinNodeFrontmatter(stampedFrontmatter, body);
       await fs.mkdir(path.dirname(nodeAbsolute), { recursive: true });

@@ -106,6 +106,17 @@
 
 `write_page_properties` / `write_content_properties` — **merge**: шли только изменённые ключи, остальное остаётся с диска. Auto-поля (`awn-update`, `awn-version`, `awn-create`) дописывает сервер.
 
+| Сущность | Полный frontmatter | Одно свойство |
+|----------|-------------------|---------------|
+| Страница | `read_page_properties` / `write_page_properties` | `read_page_property` / `write_page_property` |
+| Контент | `read_content_properties` / `write_content_properties` | `read_content_property` / `write_content_property` |
+| Инфоблок (manifest) | `read_store_properties` / `write_store_properties` | `read_store_property` / `write_store_property` |
+| Элемент инфоблока | `read_record_properties` / `write_record_properties` | `read_record_property` / `write_record_property` |
+
+`write_*_properties` — **merge**: шли только изменённые ключи. Для записей `awn-updated` дописывается автоматически.
+
+Полный frontmatter: `read_*_properties` / `write_*_properties` с YAML patch в `content`.
+
 | Метод | Что шлёшь | Исключение |
 |-------|----------|------------|
 | `write_page_properties` | patch YAML (`awn-status: closed`) | — |
@@ -204,7 +215,7 @@
 
 - тело / свойства: `read_content_body` / `write_content_body`, `read_content_properties` / `write_content_properties`
 - создать: `create_content` (md/record; inbox: `slot: inbox`, `status: new`)
-- бинарники: `upload_file` по полному path в `awn-storage/…`
+- бинарники: `upload_file` / `upload_file_from_url` по полному path; в слот — `import_content_from_url({ path, slot, url })`
 - типы: `list_types({ filter: "slot-content" })` → `get_type({ id: "awn.content.record" })`
 
 `write_content_properties` — patch frontmatter (одно поле ок); тело сохраняется.
@@ -220,6 +231,7 @@
 | `read_file` | Прочитать файл (текст → content; бинарник → previewUrl) |
 | `write_file` | Записать/перезаписать текстовый файл (.py, .html, .json, …) |
 | `upload_file` | Загрузить файл (base64) по полному пути |
+| `upload_file_from_url` | Скачать http(s) URL → workspace path |
 | `list_folder` | Содержимое папки (`depth=1` или рекурсивно) |
 
 **Путь** — относительно корня workspace агента, например:
@@ -235,7 +247,8 @@
 | Frontmatter записи | `write_content_properties` |
 | `manifest.md` страницы | `write_page_body` |
 | Диалог темы | `read_dialogs` / `append_dialog` | Не писать в `thread/` через `create_content` |
-| Код, HTML, бинарники, media | `read_file` / `write_file` / `upload_file` |
+| Код, HTML, бинарники, media | `read_file` / `write_file` / `upload_file` / `upload_file_from_url` |
+| Файл в слот темы по URL | `import_content_from_url` |
 | Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
 | Обход папки | `list_folder` |
 
@@ -255,6 +268,8 @@
 - схемы записей store: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.data.record" })`
 - список store: `list_data_stores` → `get_data_store`
 - схема полей store (read): `read_data_store_schema`
+- свойства инфоблока: `read_store_properties` / `write_store_properties`, `read_store_property` / `write_store_property`
+- свойства элемента: `read_record_properties` / `write_record_properties`, `read_record_property` / `write_record_property`
 - запись: `create_data_record`
 - правка schema-mod store: `write_file` на `awn-data/{store}/schema-mod.yml` (полный YAML)
 

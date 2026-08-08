@@ -9,6 +9,7 @@ import { registerContentTools } from "./lib/content-tools.js";
 import { registerTypeListTools } from "./lib/type-list-tools.js";
 import { registerWorkspaceFsTools } from "./lib/workspace-fs-tools.js";
 import { registerMapTools } from "./lib/map-tools.js";
+import { registerDataPropertyTools } from "./lib/data-property-tools.js";
 
 const pagePath = z
   .string()
@@ -173,6 +174,8 @@ function createServer() {
     }),
     (payload) => client.post("/api/awn-data/records", payload)
   );
+
+  registerDataPropertyTools(reg, client);
 
   // ── Page / Slot / Content / Types ──────────────────────────────────────────
 

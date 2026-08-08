@@ -17,7 +17,7 @@ export function registerPageTools({ reg, client, pagePath }) {
 
   reg(
     "read_page_properties",
-    "Read YAML frontmatter from manifest.md.",
+    "Read full YAML frontmatter from manifest.md.",
     z.object({ path: pagePath }),
     ({ path }) => client.get("/api/file/properties", { path })
   );
@@ -25,8 +25,32 @@ export function registerPageTools({ reg, client, pagePath }) {
   reg(
     "write_page_properties",
     "Patch YAML frontmatter on manifest.md. Send only keys to change — existing keys on disk are preserved (awn-create/update/version auto-stamped by server).",
-    z.object({ path: pagePath, content: z.string() }),
+    z.object({
+      path: pagePath,
+      content: z.string().describe("YAML patch, e.g. awn-status: closed")
+    }),
     ({ path, content }) => client.post("/api/file/properties", { path, content })
+  );
+
+  reg(
+    "read_page_property",
+    "Read one frontmatter property from manifest.md (e.g. awn-name, awn-status).",
+    z.object({
+      path: pagePath,
+      key: z.string().min(1).describe("Property key, e.g. awn-name")
+    }),
+    ({ path, key }) => client.get("/api/file/properties", { path, key })
+  );
+
+  reg(
+    "write_page_property",
+    "Set one frontmatter property on manifest.md. Other keys preserved; awn-update/version auto-stamped.",
+    z.object({
+      path: pagePath,
+      key: z.string().min(1),
+      value: z.string().describe("New value (empty string allowed)")
+    }),
+    ({ path, key, value }) => client.post("/api/file/properties", { path, key, value })
   );
 
   reg(

@@ -1,18 +1,18 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Slim · 44 tools",
+  versionLabel: "Slim · 58 tools",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.0",
   packagePath: "mcp-server/",
   generatedAt: "2026-08-08",
   notes: [
-    "MCP slim v0.3.0 — 44 tools · PAGE · SLOT · CONTENT + path-based FS.",
+    "MCP slim v0.3.0 — 58 tools · PAGE · SLOT · CONTENT + path-based FS.",
     "Перед запуском: npm start → http://localhost:3000.",
     "GET /api/mcp-docs?version=0.0.2 — этот документ (HTTP, не MCP tool).",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
     "path → manifest.md; slot → main|inbox|media|…; ref → путь внутри слота.",
     "Карта tools: workspaces/agent-cms-core/temp2/examples/mcp-optimiz.md",
-    "Бинарники / media → upload_file по полному workspace path.",
+    "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
     "notify_user — колокольчик CMS (не Shell)."
   ],
   cursorConfig: {
@@ -103,8 +103,10 @@ module.exports = {
       tools: [
         { name: "read_page_body", description: "Тело manifest.md.", parameters: "path", http: "GET /api/file" },
         { name: "write_page_body", description: "Сохранить тело.", parameters: "path, content", http: "POST /api/file/content" },
-        { name: "read_page_properties", description: "Frontmatter manifest.md.", parameters: "path", http: "GET /api/file/properties" },
+        { name: "read_page_properties", description: "Frontmatter manifest.md (full YAML).", parameters: "path", http: "GET /api/file/properties" },
         { name: "write_page_properties", description: "Patch frontmatter.", parameters: "path, content", http: "POST /api/file/properties" },
+        { name: "read_page_property", description: "One manifest property.", parameters: "path, key", http: "GET /api/file/properties?key=" },
+        { name: "write_page_property", description: "Set one manifest property.", parameters: "path, key, value", http: "POST /api/file/properties" },
         {
           name: "read_page_schema",
           description: "schema-mod.yml layers (mode=layers default). База типа: get_type.",
@@ -136,9 +138,12 @@ module.exports = {
       tools: [
         { name: "read_content_body", description: "Тело .md или internal slot.", parameters: "path, slot, ref?", http: "—" },
         { name: "write_content_body", description: "Сохранить тело.", parameters: "path, slot, ref?, content", http: "—" },
-        { name: "read_content_properties", description: "Frontmatter .md.", parameters: "path, slot, ref?", http: "—" },
-        { name: "write_content_properties", description: "Patch frontmatter.", parameters: "path, slot, ref?, content", http: "—" },
+        { name: "read_content_properties", description: "Frontmatter .md (full YAML).", parameters: "path, slot, ref?" },
+        { name: "write_content_properties", description: "Patch frontmatter.", parameters: "path, slot, ref?, content" },
+        { name: "read_content_property", description: "One frontmatter property.", parameters: "path, slot, ref?, key" },
+        { name: "write_content_property", description: "Set one frontmatter property.", parameters: "path, slot, ref?, key, value" },
         { name: "create_content", description: "Запись/категория; inbox intake: slot=inbox, status=new.", parameters: "path, slot, awnType?, body?, fileExtension?, …", http: "POST /api/storage/file/create" },
+        { name: "import_content_from_url", description: "Скачать http(s) URL → slot (media/, repository/, …).", parameters: "path, slot, url, fileName?", http: "POST /api/media/file/import" },
         { name: "rename_content", description: "Переименовать.", parameters: "path, slot, ref, displayName?", http: "—" },
         { name: "move_content", description: "Переместить.", parameters: "path, slot, ref, targetPath?, …", http: "—" },
         { name: "delete_content", description: "Удалить.", parameters: "path, slot, ref", http: "DELETE …" }
@@ -175,7 +180,19 @@ module.exports = {
           description: "schema-mod.yml store (экземпляр, не каталог типов).",
           parameters: "store",
           http: "GET /api/awn-data/store-schema"
-        }
+        },
+        { name: "read_store_properties", description: "Frontmatter manifest инфоблока.", parameters: "store", http: "GET /api/awn-data/store-properties" },
+        { name: "write_store_properties", description: "Patch manifest инфоблока.", parameters: "store, content", http: "POST /api/awn-data/store-properties" },
+        { name: "read_store_property", description: "One manifest property.", parameters: "store, key", http: "GET /api/awn-data/store-properties?key=" },
+        { name: "write_store_property", description: "Set one manifest property.", parameters: "store, key, value", http: "POST /api/awn-data/store-properties" },
+        { name: "read_record_properties", description: "Frontmatter элемента.", parameters: "store, record?", http: "GET /api/awn-data/record-properties" },
+        { name: "write_record_properties", description: "Patch frontmatter элемента.", parameters: "store, record?, content", http: "POST /api/awn-data/record-properties" },
+        { name: "read_record_property", description: "One element property.", parameters: "store, record?, key", http: "GET /api/awn-data/record-properties?key=" },
+        { name: "write_record_property", description: "Set one element property.", parameters: "store, record?, key, value", http: "POST /api/awn-data/record-properties" },
+        { name: "read_store_property", description: "One infoblock manifest property.", parameters: "store, key", http: "GET /api/awn-data/store-property" },
+        { name: "write_store_property", description: "Set one infoblock manifest property.", parameters: "store, key, value", http: "POST /api/awn-data/store-property" },
+        { name: "read_record_property", description: "One element property ({id}.md).", parameters: "store, record?, key", http: "GET /api/awn-data/record-property" },
+        { name: "write_record_property", description: "Set one element property.", parameters: "store, record?, key, value", http: "POST /api/awn-data/record-property" }
       ]
     },
     {
@@ -211,6 +228,7 @@ module.exports = {
         { name: "read_file", description: "Файл по workspace path.", parameters: "path, maxBytes?", http: "GET /api/workspace/fs/read" },
         { name: "write_file", description: "Текстовый файл по path.", parameters: "path, content", http: "POST /api/workspace/fs/write" },
         { name: "upload_file", description: "Base64 → path (media/assets/бинарники).", parameters: "path, data, mimeType?", http: "POST /api/workspace/fs/upload" },
+        { name: "upload_file_from_url", description: "http(s) URL → workspace path.", parameters: "path, url, mimeType?", http: "POST /api/workspace/fs/import" },
         { name: "list_folder", description: "Содержимое папки.", parameters: "path, depth?", http: "GET /api/workspace/fs/list" }
       ]
     },

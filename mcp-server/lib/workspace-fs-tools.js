@@ -44,7 +44,17 @@ export function registerWorkspaceFsTools(reg, client) {
   );
 
   reg(
-    "list_folder",
+    "upload_file_from_url",
+    "Download a file from http(s) URL and save to a workspace path (including file name).",
+    z.object({
+      path: workspacePath.describe("Full workspace path including file name"),
+      url: z.string().url(),
+      mimeType: z.string().optional()
+    }),
+    ({ path, url, mimeType }) => client.post("/api/workspace/fs/import", { path, url, mimeType })
+  );
+
+  reg(
     "List workspace folder contents by path. depth=1 (default) — one level; depth=2|all — recursive inventory.",
     z.object({
       path: z

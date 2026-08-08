@@ -1,4 +1,4 @@
-agent-cms ( Agent MCP ) · 44
+agent-cms ( Agent MCP ) · 58
 │
 ├── СТАРТ / КОНТЕКСТ (5)
 │   ├── get_session_context              — START HERE
@@ -12,9 +12,10 @@ agent-cms ( Agent MCP ) · 44
 │   ├── get_content_map                  — карта контента темы
 │   └── search_workspace                 — поиск
 │
-├── СТРАНИЦА (10)
+├── СТРАНИЦА (12)
 │   ├── read_page_body / write_page_body
 │   ├── read_page_properties / write_page_properties
+│   ├── read_page_property / write_page_property   — одно свойство manifest
 │   ├── read_page_schema / write_page_schema
 │   ├── create_page / delete_page
 │   └── rename_page / move_page
@@ -22,20 +23,26 @@ agent-cms ( Agent MCP ) · 44
 ├── СЛОТ (1)
 │   └── list_page_slots                  — слоты + allowedContent
 │
-├── КОНТЕНТ (8)
+├── КОНТЕНТ (11)
 │   ├── read_content_body / write_content_body
 │   ├── read_content_properties / write_content_properties
+│   ├── read_content_property / write_content_property — одно свойство .md
 │   ├── create_content
+│   ├── import_content_from_url          — скачать URL → slot (media/, repository/, …)
 │   └── rename_content / move_content / delete_content
 │
 ├── ТИПЫ (2)
 │   ├── list_types                       — индекс: domain | kind | filter preset
 │   └── get_type                         — merged schema по id
 │
-├── AWN-DATA runtime (3)
+├── AWN-DATA / инфоблоки (13)
 │   ├── list_data_stores / get_data_store
 │   ├── create_data_store / create_data_record
-│   └── read_data_store_schema           — schema store (экземпляр, не каталог)
+│   ├── read_data_store_schema
+│   ├── read_store_properties / write_store_properties — manifest инфоблока (как page)
+│   ├── read_store_property / write_store_property
+│   ├── read_record_properties / write_record_properties — элемент {id}.md
+│   └── read_record_property / write_record_property
 │
 ├── SCHEMA страницы (не каталог типов)
 │   └── read_page_schema / write_page_schema
@@ -46,10 +53,10 @@ agent-cms ( Agent MCP ) · 44
 │   ├── read_dialogs
 │   └── append_dialog
 │
-├── СИСТЕМА + FS (5)
+├── СИСТЕМА + FS (6)
 │   ├── list_system_files
 │   ├── read_file / write_file
-│   ├── upload_file
+│   ├── upload_file / upload_file_from_url — base64 или http(s) URL → path
 │   └── list_folder
 │
 └── УВЕДОМЛЕНИЕ (1)

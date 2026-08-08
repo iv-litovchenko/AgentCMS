@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import { z } from "zod";
-import { mergeFrontmatterBlocks } from "./yaml-frontmatter.js";
+import { getFrontmatterScalar, mergeFrontmatterBlocks, upsertYamlScalarLine } from "./yaml-frontmatter.js";
 
 const require = createRequire(import.meta.url);
 const {
@@ -128,7 +128,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "read_content_properties",
-    "Read YAML frontmatter of a .md content item.",
+    "Read full YAML frontmatter of a .md content item.",
     z.object({ path: pagePath, slot: contentSlot, ref: contentRef }),
     async ({ path, slot, ref }) => {
       if (isInternalBundleSlot(slot)) {
@@ -145,7 +145,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "write_content_properties",
-    "Patch YAML frontmatter of a .md content item. Send only keys to change — existing keys are merged from disk; body preserved.",
+    "Patch YAML frontmatter of a .md content item. Send only keys to change — existing keys merged from disk; body preserved.",
     z.object({
       path: pagePath,
       slot: contentSlot,
@@ -166,6 +166,55 @@ export function registerContentTools({ reg, client, pagePath }) {
       const mergedProps = mergeFrontmatterBlocks(properties, content);
       const merged = mergeMarkdownFrontmatter(mergedProps, description);
       return writeMarkdownFull(client, path, slot, ref, merged);
+    }
+  );
+
+  reg(
+    "read_content_property",
+    "Read one frontmatter property of a .md content item.",
+    z.object({
+      path: pagePath,
+      slot: contentSlot,
+      ref: contentRef,
+      key: z.string().min(1)
+    }),
+    async ({ path, slot, ref, key }) => {
+      if (isInternalBundleSlot(slot)) {
+        const payload = await readInternalContent(client, path, slot);
+        const { properties } = splitMarkdownFrontmatter(payload?.content || "");
+        const { value, exists } = getFrontmatterScalar(properties, key);
+        return { slot, key, value, exists };
+      }
+      if (!ref) throw new Error("ref is required for external slots");
+      const payload = await readMarkdownFull(client, path, slot, ref);
+      const { properties } = splitMarkdownFrontmatter(payload.content || "");
+      const { value, exists } = getFrontmatterScalar(properties, key);
+      return { file: payload.file, key, value, exists };
+    }
+  );
+
+  reg(
+    "write_content_property",
+    "Set one frontmatter property on a .md content item. Body and other keys preserved.",
+    z.object({
+      path: pagePath,
+      slot: contentSlot,
+      ref: contentRef,
+      key: z.string().min(1),
+      value: z.string()
+    }),
+    async ({ path, slot, ref, key, value }) => {
+      const patchOne = (properties, description) =>
+        mergeMarkdownFrontmatter(upsertYamlScalarLine(properties, key, value), description);
+      if (isInternalBundleSlot(slot)) {
+        const payload = await readInternalContent(client, path, slot);
+        const { properties, description } = splitMarkdownFrontmatter(payload?.content || "");
+        return writeInternalContent(client, path, slot, patchOne(properties, description));
+      }
+      if (!ref) throw new Error("ref is required for external slots");
+      const existing = await readMarkdownFull(client, path, slot, ref);
+      const { properties, description } = splitMarkdownFrontmatter(existing.content || "");
+      return writeMarkdownFull(client, path, slot, ref, patchOne(properties, description));
     }
   );
 
@@ -249,7 +298,39 @@ export function registerContentTools({ reg, client, pagePath }) {
   );
 
   reg(
-    "rename_content",
+    "import_content_from_url",
+    "Download a file from http(s) URL into an external slot (media/, repository/, …). Prefer over curl + base64.",
+    z.object({
+      path: pagePath,
+      slot: contentSlot,
+      url: z.string().url().describe("Public http(s) URL to download"),
+      fileName: z.string().min(1).optional().describe("Target file name; inferred from URL/headers when omitted"),
+      mimeType: z.string().optional(),
+      parent: z.string().optional().describe("Subfolder inside slot, e.g. section path in media/"),
+      createSubdir: z.boolean().optional()
+    }),
+    async ({ path, slot, url, fileName, mimeType, parent, createSubdir }) => {
+      if (isInternalBundleSlot(slot)) {
+        throw new Error(
+          `Cannot import_content_from_url to internal slot "${slot}". Use write_content_body for text slots.`
+        );
+      }
+      return client.post("/api/media/file/import", {
+        path,
+        url,
+        fileName,
+        mimeType,
+        slot: slotToFolder(slot),
+        libraryFolder: slotToFolder(slot),
+        folder: slotToFolder(slot),
+        parent: parent || "",
+        subdir: parent || "",
+        createSubdir: Boolean(createSubdir)
+      });
+    }
+  );
+
+  reg(
     "Rename content item in an external slot.",
     z.object({
       path: pagePath,
