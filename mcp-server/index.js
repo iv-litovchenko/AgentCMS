@@ -12,6 +12,8 @@ import { registerMapTools } from "./lib/map-tools.js";
 import { registerDataPropertyTools } from "./lib/data-property-tools.js";
 import { registerExecTools } from "./lib/exec-tools.js";
 import { registerWebSearchTools } from "./lib/web-search-tools.js";
+import { registerAgentUtilsTools } from "./lib/agent-utils-tools.js";
+import { registerSidecarTools } from "./lib/sidecar-tools.js";
 
 const pagePath = z
   .string()
@@ -45,7 +47,7 @@ function createServer() {
     ? ` Agent: ${cfg.defaultAgent}.`
     : " Uses default agent from registry.";
 
-  const server = new McpServer({ name: "agent-cms", version: "0.3.3" });
+  const server = new McpServer({ name: "agent-cms", version: "0.3.5" });
 
   const reg = (name, description, schema, fn) => {
     server.registerTool(name, { description: description + agentNote, inputSchema: schema }, wrap(fn));
@@ -282,6 +284,8 @@ function createServer() {
   registerWorkspaceFsTools(reg, client);
   registerExecTools(reg, client, pagePath);
   registerWebSearchTools(reg, client);
+  registerAgentUtilsTools(reg, client);
+  registerSidecarTools(reg, client);
 
   reg(
     "list_system_files",

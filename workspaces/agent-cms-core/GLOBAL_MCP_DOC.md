@@ -9,11 +9,12 @@
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
-Этот файл — шпаргалка (**46 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
+Этот файл — шпаргалка (**55 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 Перед работой: `get_session_context` → `get_user_active_context_now`.  
 Поиск в workspace: `search_workspace` (как шапка UI; scope=all|content|filename…).  
-Поиск в интернете (Google): `search_web`, `search_web_images`.
+Поиск в интернете: `search_web`, `search_web_images`, `read_web_page`, `get_link_preview`, `extract_document_text`.  
+Идентичность: `get_agent_identity`, `get_user_identity`. Активность: `list_recent_activity`.
 
 **«Перезагрузи контекст»** → снова `get_session_context` (отдельного `reload_*` нет).  
 Уточнения: always → `list_workspace_always_context`; карта страниц → `get_page_map`; контент страницы → `get_content_map(path)`; фокус UI → `get_user_active_context_now`.
@@ -213,9 +214,27 @@
 | `awn.content.category` | Категория | Папка для группировки записей внутри слота |
 | `awn.content.record` | Запись | Обычный `.md` в слоте (заметка, документ) |
 | `awn.content.comment` | Комментарий (legacy) | Тип для slug-файлов в `comments/`; для UI Discuss — `append_comment`, не `create_content` |
-| `awn.content.sidecar` | Sidecar | Мета к бинарному файлу (`*.sidecar.md` рядом с media) |
+| `awn.content.sidecar` | Sidecar | Мета к файлу (`{stem}.sidecar.md` рядом с исходником) — **только через `create_sidecar`** |
 
-- тело / свойства: `read_content_body` / `write_content_body`, `read_content_properties` / `write_content_properties`
+Sidecar **не создаётся автоматически** при upload/import/create_content. Явный запрос: `create_sidecar` → правки: `write_sidecar`.
+
+| Tool | Зачем |
+|------|-------|
+| `resolve_sidecar_path` | Куда ляжет sidecar: `sourcePath` **или** `path`+`slot`+`file` |
+| `read_sidecar` | Прочитать sidecar (`exists:false` если ещё не создан) |
+| `create_sidecar` | **Создать** sidecar с шаблоном `awn.content.sidecar` (409 если уже есть) |
+| `write_sidecar` | **Обновить** существующий sidecar (404 если нет — сначала `create_sidecar`) |
+
+**Именование:** `photo.png` → `photo.sidecar.md` (та же папка). Работает **в любом месте workspace** через `sourcePath`.
+
+```json
+create_sidecar({ "sourcePath": "awn-container/tema/awn-storage/scripts/deploy.py", "title": "Deploy", "body": "…" })
+write_sidecar({ "path": "…/manifest.md", "slot": "repository", "file": "spec.pdf", "body": "…" })
+```
+
+Не путать с **`{folder}/sidecar.md`** у adopt-папок (описание папки) — это `read_file` / `write_file`.
+
+- тело / свойства записи: `read_content_body` / `write_content_body`, `read_content_properties` / `write_content_properties`
 - создать: `create_content` (md/record; inbox: `slot: inbox`, `status: new`)
 - бинарники: `upload_file` / `upload_file_from_url` по полному path; в слот — `import_content_from_url({ path, slot, url })`
 - типы: `list_types({ filter: "slot-content" })` → `get_type({ id: "awn.content.record" })`
@@ -255,8 +274,11 @@
 | Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
 | Обход папки | `list_folder` |
 | Поиск в workspace | `search_workspace` |
-| Поиск в интернете (Google) | `search_web` |
-| Картинки в интернете (Google) | `search_web_images` |
+| Поиск в интернете | `search_web`, `search_web_images`, `read_web_page`, `get_link_preview` |
+| Документ → текст | `extract_document_text` |
+| Профиль агента | `get_agent_identity` |
+| Профиль пользователя | `get_user_identity` |
+| Лента изменений | `list_recent_activity` |
 | Запуск скрипта `.py`/`.js`/`.sh` | `run_script` |
 | Команда с args (git, npm, …) | `exec_command` |
 | Shell-строка (pipes, `&&`) | `exec_shell` |
@@ -292,6 +314,18 @@
 | `search_web` | Текстовый поиск: `{ query, limit?, lang?, country?, gl?, safe? }` |
 | `search_web_images` | Картинки: `{ query, limit?, size?, type?, lang?, country?, gl?, safe? }` |
 | `read_web_page` | Прочитать внешнюю страницу как текст: `{ url, maxChars?, maxBytes? }` — HTML→plain text, JSON pretty-print; локальные/private URL блокируются (SSRF) |
+| `get_link_preview` | Карточка ссылки: `{ url }` → title, description, imageUrl, siteName (OpenGraph/meta) |
+| `extract_document_text` | Текст из документа: `{ url? | path?, maxChars?, maxBytes? }` — pdf, docx, xlsx, html, txt, md, json |
+
+### Идентичность и активность
+
+| Tool | Зачем |
+|------|-------|
+| `get_agent_identity` | Персона и права агента из `awn-agent-kit/agent/` — manifest.md + main.md |
+| `get_user_identity` | Профиль пользователя из `awn-agent-kit/user/` — manifest.md + main.md |
+| `list_recent_activity` | Лента изменений workspace: `{ since?, limit? }` — MCP + UI, колокольчик |
+
+Ответ identity: `profile` (awn-name, role, …), `main.body`, `text` (сводка для контекста).
 
 `size` / `type` для картинок — только в режиме `api`.  
 Найденную картинку в тему — `import_content_from_url({ path, slot: "media", url })` или `upload_file_from_url`.

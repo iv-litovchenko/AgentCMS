@@ -23,6 +23,13 @@ const { fetchBufferFromImportUrl, resolveImportFileName } = require("./media-imp
 const { decodeBase64UploadData } = require("./base64-upload");
 const { createScriptExecService } = require("./script-exec-service");
 const { createWebSearchService } = require("./web-search-service");
+const { createIdentityService } = require("./identity-service");
+const { createDocumentExtractService } = require("./document-extract-service");
+const {
+  createSidecarService,
+  toSidecarRelativePath,
+  resolveSidecarAbsoluteFromSourceAbsolute
+} = require("./sidecar-service");
 const { parseCsvText } = require("./awn-data-csv");
 const {
   READ_STATE_FILE,
@@ -1443,6 +1450,56 @@ function getWebSearchService() {
     webSearchService = createWebSearchService();
   }
   return webSearchService;
+}
+
+let identityService = null;
+function getIdentityService() {
+  if (!identityService) {
+    identityService = createIdentityService({
+      getAgentRoot,
+      getAgentKitFolder,
+      getActiveAgentId,
+      getProjectRoot,
+      readWorkspaceManifestContent,
+      readInternalMemoryContent,
+      parseFrontmatterProps,
+      splitNodeFrontmatter,
+      getFrontmatterPropValue
+    });
+  }
+  return identityService;
+}
+
+let documentExtractService = null;
+function getDocumentExtractService() {
+  if (!documentExtractService) {
+    documentExtractService = createDocumentExtractService({ normalizeWorkspacePath });
+  }
+  return documentExtractService;
+}
+
+let sidecarService = null;
+function getSidecarService() {
+  if (!sidecarService) {
+    sidecarService = createSidecarService({
+      normalizeWorkspacePath,
+      getAgentRoot,
+      manifestRelFromNodeAbsolute,
+      resolveOwningManifestRelFromNodePath,
+      resolveApiManifestAbsolute,
+      resolveStorageFileAbsolute,
+      resolveUploadedMediaFileAbsolute,
+      resolveExternalFileOpContext,
+      buildSlotContentFileContentForManifest,
+      buildStorageLayerRef,
+      applyAwnTimestampsToMarkdownContent,
+      writeWorkspaceTextFileWithHistory,
+      splitNodeFrontmatter,
+      getYamlScalar,
+      mergeFrontmatterOverrides
+    });
+  }
+  return sidecarService;
 }
 
 async function handleExecApiRequest(req, res, runner) {
@@ -5476,28 +5533,11 @@ async function resolveStorageFileAbsolute(nodeAbsolute, storageFolder, relFile, 
 }
 
 function toMediaSidecarRelativePath(mediaRelPath) {
-  const normalized = normalizeRelativeFilePath(mediaRelPath);
-  if (!normalized || normalized.endsWith("/") || normalized.endsWith("\\")) return null;
-  const posixPath = normalized.replace(/\\/g, "/");
-  const lastSlash = posixPath.lastIndexOf("/");
-  const dir = lastSlash >= 0 ? `${posixPath.slice(0, lastSlash + 1)}` : "";
-  const filename = lastSlash >= 0 ? posixPath.slice(lastSlash + 1) : posixPath;
-  const dotIndex = filename.lastIndexOf(".");
-  const base = dotIndex > 0 ? filename.slice(0, dotIndex) : filename;
-  if (!base) return null;
-  return `${dir}${base}.sidecar.md`;
+  return toSidecarRelativePath(mediaRelPath);
 }
 
 function resolveMediaSidecarAbsoluteFromMediaFile(mediaAbsolute) {
-  if (!mediaAbsolute) return null;
-  const mediaDir = path.resolve(path.dirname(mediaAbsolute));
-  const fileName = path.basename(mediaAbsolute);
-  const dotIndex = fileName.lastIndexOf(".");
-  const stem = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
-  if (!stem) return null;
-  const sidecarAbsolute = path.join(mediaDir, `${stem}.sidecar.md`);
-  if (path.resolve(path.dirname(sidecarAbsolute)) !== mediaDir) return null;
-  return sidecarAbsolute;
+  return resolveSidecarAbsoluteFromSourceAbsolute(mediaAbsolute);
 }
 
 async function isAllowedMediaSidecarAbsolute(nodeAbsolute, sidecarAbsolute) {
@@ -6190,35 +6230,9 @@ async function createStorageRecordFile({
   await fs.mkdir(path.dirname(fileAbsolute), { recursive: true });
 
   let content;
-  let sidecarRel = null;
   if (useBinaryRecord) {
     content = buildPlaceholderFileContent(normalizedExtension);
     await fs.writeFile(fileAbsolute, content);
-    if (slotKey === "media" || slotKey === "assets") {
-      const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(fileAbsolute);
-      if (sidecarAbsolute) {
-        const sidecarContent = await buildSlotContentFileContentForManifest(
-          schemaManifestRel,
-          fileTitle,
-          slotKey,
-          "sidecar",
-          {
-            body: "",
-            frontmatterOverrides,
-            contentWorkspaceRel: buildStorageLayerRef(
-              schemaManifestRel,
-              canonicalFolder,
-              path
-                .relative(folderAbsolute, sidecarAbsolute)
-                .replace(/\\/g, "/")
-                .replace(/^\/+/, "")
-            )
-          }
-        );
-        await fs.writeFile(sidecarAbsolute, sidecarContent, "utf-8");
-        sidecarRel = path.relative(folderAbsolute, sidecarAbsolute).replace(/\\/g, "/");
-      }
-    }
   } else if (usePlainTextRecord) {
     content = textBody || buildPlainTextPlaceholderContent(normalizedExtension);
     await fs.writeFile(fileAbsolute, content, "utf-8");
@@ -6247,7 +6261,7 @@ async function createStorageRecordFile({
   return {
     folder: canonicalFolder,
     file: relFile,
-    sidecar: sidecarRel,
+    sidecar: null,
     content,
     exists: true,
     slotKey
@@ -9986,10 +10000,26 @@ const SESSION_CONTEXT_API_MAP = {
     "POST /api/exec/shell — exec_shell MCP { command|shell, cwd?, topicPath?, timeoutMs?, env? }",
   webSearch:
     "GET /api/web/search?q=&limit=&lang=&country=&gl=&safe= — search_web MCP (Google direct HTML or Custom Search API)",
-    webImages:
+  webImages:
     "GET /api/web/images?q=&limit=&size=&type=&lang=&country=&gl=&safe= — search_web_images MCP (Google Images direct or API)",
   webPage:
-    "GET /api/web/page?url=&maxChars=&maxBytes= — read_web_page MCP (fetch external page as plain text)"
+    "GET /api/web/page?url=&maxChars=&maxBytes= — read_web_page MCP (fetch external page as plain text)",
+  webPreview:
+    "GET /api/web/preview?url= — get_link_preview MCP (OpenGraph/meta card)",
+  webExtract:
+    "GET /api/web/extract?url=|path=&maxChars=&maxBytes= — extract_document_text MCP",
+  agentIdentity:
+    "GET /api/agent/identity/agent — get_agent_identity MCP (awn-agent-kit/agent/)",
+  userIdentity:
+    "GET /api/agent/identity/user — get_user_identity MCP (awn-agent-kit/user/)",
+  activity:
+    "GET /api/agent/activity?since=&limit= — list_recent_activity MCP",
+  sidecarResolve:
+    "GET /api/storage/sidecar/resolve?sourcePath=|path=&slot=&file= — resolve_sidecar_path MCP",
+  sidecarRead:
+    "GET /api/storage/sidecar?sourcePath=|path=&slot=&file= — read_sidecar MCP",
+  sidecarWrite:
+    "POST /api/storage/sidecar — write_sidecar / create_sidecar MCP (mode=create for explicit create)"
 };
 
 const SESSION_PATH_HINTS = {
@@ -15490,6 +15520,28 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/identity/agent") {
+    try {
+      return sendJson(res, 200, await getIdentityService().readAgentIdentity());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read agent identity",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/identity/user") {
+    try {
+      return sendJson(res, 200, await getIdentityService().readUserIdentity());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read user identity",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/agent/activity/clear") {
     try {
       const payload = await clearWorkspaceActivity();
@@ -19688,54 +19740,85 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/storage/sidecar/resolve") {
+    try {
+      const result = await getSidecarService().resolveSidecar({
+        sourcePath: url.searchParams.get("sourcePath") || undefined,
+        path: url.searchParams.get("path") || undefined,
+        slot: url.searchParams.get("slot") || undefined,
+        file: url.searchParams.get("file") || undefined
+      });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to resolve sidecar path",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/storage/sidecar") {
+    try {
+      const result = await getSidecarService().readSidecar({
+        sourcePath: url.searchParams.get("sourcePath") || undefined,
+        path: url.searchParams.get("path") || undefined,
+        slot: url.searchParams.get("slot") || undefined,
+        file: url.searchParams.get("file") || undefined
+      });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read sidecar",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage/sidecar") {
+    try {
+      const payload = await readJsonBody(req);
+      const mode = String(payload.mode || payload.action || "").trim().toLowerCase();
+      const result =
+        mode === "create"
+          ? await getSidecarService().createSidecar(payload)
+          : await getSidecarService().writeSidecar(payload, { updateOnly: mode !== "upsert" });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write sidecar",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/media/sidecar") {
     const relPath = url.searchParams.get("path");
-    const contextPath = url.searchParams.get("contextPath");
     const relFile = url.searchParams.get("file");
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     if (!relFile) return sendJson(res, 400, { error: "Missing file query parameter" });
-
-    const storageContext = await resolveApiStorageContext(contextPath || relPath);
-    if (!storageContext) return sendJson(res, 400, { error: "Invalid storage context path" });
-
-    const normalizedRelFile = normalizeRelativeFilePath(relFile);
-    if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
-
-    const mediaAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
-    if (!mediaAbsolute) return sendJson(res, 404, { error: "Media file not found" });
-
-    const sidecarRelPath = toMediaSidecarRelativePath(normalizedRelFile);
-    if (!sidecarRelPath) return sendJson(res, 400, { error: "Invalid media file path" });
-
-    const sidecarAbsolute = await resolveMediaSidecarAbsolute(
-      storageContext.absolute,
-      mediaAbsolute,
-      normalizedRelFile
-    );
-    if (!sidecarAbsolute) return sendJson(res, 400, { error: "Invalid sidecar file path" });
-
     try {
-      const mediaStat = await fs.stat(mediaAbsolute);
-      if (!mediaStat.isFile()) return sendJson(res, 404, { error: "Media file not found" });
-
-      let content = "";
-      let exists = false;
-      try {
-        content = await fs.readFile(sidecarAbsolute, "utf-8");
-        exists = true;
-      } catch (error) {
-        if (!error || error.code !== "ENOENT") throw error;
-      }
-
+      const normalizedRelFile = normalizeRelativeFilePath(relFile);
+      const slot = normalizedRelFile && /^assets\//i.test(normalizedRelFile) ? "assets" : "media";
+      const result = await getSidecarService().readSidecar({
+        path: relPath,
+        slot,
+        file: relFile
+      });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
       return sendJson(res, 200, {
-        sourceFile: normalizedRelFile.replace(/\\/g, "/"),
-        sidecar: sidecarRelPath.replace(/\\/g, "/"),
-        content,
-        exists
+        sourceFile: result.file || normalizedRelFile?.replace(/\\/g, "/"),
+        sidecar: result.sidecar,
+        content: result.content,
+        exists: result.exists
       });
     } catch (error) {
-      if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "Media file not found" });
-      return sendJson(res, 500, { error: "Failed to read media sidecar", details: String(error.message || error) });
+      return sendJson(res, 500, {
+        error: "Failed to read media sidecar",
+        details: String(error.message || error)
+      });
     }
   }
 
@@ -19743,49 +19826,28 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload.path;
-      const contextPath = payload.contextPath || relPath;
       const relFile = payload.file;
       const content = typeof payload.content === "string" ? payload.content : null;
-
       if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
       if (!relFile) return sendJson(res, 400, { error: "Missing media file path" });
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
-
-      const storageContext = await resolveApiStorageContext(contextPath);
-      if (!storageContext) return sendJson(res, 400, { error: "Invalid storage context path" });
-
       const normalizedRelFile = normalizeRelativeFilePath(relFile);
-      if (!normalizedRelFile) return sendJson(res, 400, { error: "Invalid media file path" });
-
-      const mediaAbsolute = await resolveUploadedMediaFileAbsolute(storageContext.absolute, normalizedRelFile);
-      if (!mediaAbsolute) return sendJson(res, 404, { error: "Media file not found" });
-
-      const sidecarRelPath = toMediaSidecarRelativePath(normalizedRelFile);
-      if (!sidecarRelPath) return sendJson(res, 400, { error: "Invalid media file path" });
-
-      const sidecarAbsolute = resolveMediaSidecarAbsoluteFromMediaFile(mediaAbsolute);
-      if (!sidecarAbsolute || !(await isAllowedMediaSidecarAbsolute(storageContext.absolute, sidecarAbsolute))) {
-        return sendJson(res, 400, { error: "Invalid sidecar file path" });
-      }
-
-      const mediaStat = await fs.stat(mediaAbsolute);
-      if (!mediaStat.isFile()) return sendJson(res, 404, { error: "Media file not found" });
-
-      const historyManifest = storageContext.rel;
-      const targetRelPath = manifestRelFromNodeAbsolute(sidecarAbsolute);
-      const raw = await fs.readFile(sidecarAbsolute, "utf-8").catch(() => "");
-      const { frontmatter: diskFrontmatter } = splitNodeFrontmatter(raw);
-      const stampedContent = applyAwnTimestampsToMarkdownContent(content, diskFrontmatter);
-      await writeWorkspaceTextFileWithHistory(historyManifest, targetRelPath, stampedContent);
-
+      const slot = normalizedRelFile && /^assets\//i.test(normalizedRelFile) ? "assets" : "media";
+      const result = await getSidecarService().writeSidecar(
+        { path: relPath, slot, file: relFile, content },
+        { updateOnly: false }
+      );
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
       return sendJson(res, 200, {
-        sourceFile: normalizedRelFile.replace(/\\/g, "/"),
-        sidecar: sidecarRelPath.replace(/\\/g, "/"),
-        content: stampedContent
+        sourceFile: normalizedRelFile?.replace(/\\/g, "/"),
+        sidecar: result.sidecar,
+        content: result.content
       });
     } catch (error) {
-      if (error && error.code === "ENOENT") return sendJson(res, 404, { error: "Media file not found" });
-      return sendJson(res, 500, { error: "Failed to save media sidecar", details: String(error.message || error) });
+      return sendJson(res, 500, {
+        error: "Failed to save media sidecar",
+        details: String(error.message || error)
+      });
     }
   }
 
@@ -20300,6 +20362,44 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read web page",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/web/preview") {
+    const pageUrl = String(url.searchParams.get("url") || "").trim();
+    if (!pageUrl) return sendJson(res, 400, { error: "Missing url query parameter" });
+    try {
+      const result = await getDocumentExtractService().getLinkPreview({ url: pageUrl });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build link preview",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/web/extract") {
+    const pageUrl = String(url.searchParams.get("url") || "").trim();
+    const filePath = String(url.searchParams.get("path") || url.searchParams.get("file") || "").trim();
+    if (!pageUrl && !filePath) {
+      return sendJson(res, 400, { error: "Missing url or path query parameter" });
+    }
+    try {
+      const result = await getDocumentExtractService().extractDocumentText({
+        url: pageUrl || undefined,
+        path: filePath || undefined,
+        maxChars: url.searchParams.get("maxChars"),
+        maxBytes: url.searchParams.get("maxBytes")
+      });
+      if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to extract document text",
         details: String(error.message || error)
       });
     }

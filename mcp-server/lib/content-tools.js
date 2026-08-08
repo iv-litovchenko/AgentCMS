@@ -36,9 +36,6 @@ async function readMarkdownFull(client, pagePath, slot, ref) {
   if (isExternalMemorySlot(slot)) {
     return client.get("/api/external/file", { path: pagePath, file: ref });
   }
-  if (isMediaSlotKey(slot) && ref.endsWith(".sidecar.md")) {
-    return client.get("/api/media/sidecar", { path: pagePath, file: ref });
-  }
   return client.get("/api/storage/markdown", { path: pagePath, folder, file: ref });
 }
 
@@ -46,9 +43,6 @@ async function writeMarkdownFull(client, pagePath, slot, ref, content) {
   const folder = slotToFolder(slot);
   if (isExternalMemorySlot(slot)) {
     return client.post("/api/external/file", { path: pagePath, file: ref, content });
-  }
-  if (isMediaSlotKey(slot) && ref.endsWith(".sidecar.md")) {
-    return client.post("/api/media/sidecar", { path: pagePath, file: ref.replace(/\.sidecar\.md$/i, ""), content });
   }
   return client.post("/api/storage/markdown", { path: pagePath, folder, file: ref, content });
 }
