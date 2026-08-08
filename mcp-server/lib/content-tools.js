@@ -331,6 +331,7 @@ export function registerContentTools({ reg, client, pagePath }) {
   );
 
   reg(
+    "rename_content",
     "Rename content item in an external slot.",
     z.object({
       path: pagePath,

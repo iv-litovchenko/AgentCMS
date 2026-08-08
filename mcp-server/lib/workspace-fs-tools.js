@@ -55,6 +55,7 @@ export function registerWorkspaceFsTools(reg, client) {
   );
 
   reg(
+    "list_folder",
     "List workspace folder contents by path. depth=1 (default) — one level; depth=2|all — recursive inventory.",
     z.object({
       path: z
