@@ -8,4 +8,6 @@ storage: bool
 mdbase: boolean
 description: Логическое значение (да/нет)
 settings: [hint, required, locked, default]
+group: choice
+sort: 2
 status: active

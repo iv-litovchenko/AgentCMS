@@ -12,10 +12,6 @@ const {
   agentSystemDirExists
 } = require("./platform-sources");
 const {
-  editingFieldsStoreHasRecords,
-  ingestFieldsIntoCatalog
-} = require("./awn-data-fields-bridge");
-const {
   DOMAIN_TYPE_STORES,
   ingestDomainTypesFromAwnData,
   cmsConfigExists
@@ -234,12 +230,10 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const sources = coreUsesYaml
     ? ["platform:agent-cms-core/awn-system/types"]
     : ["platform:agent-cms-core/awn-data"];
-  const useAwnDataFields = editingFieldsStoreHasRecords(projectRoot) && !coreUsesYaml;
   const platformExtraDomains = ["mixins", "settings", "md-blocks", "data"];
 
   if (coreUsesYaml) {
     for (const domain of TYPE_DOMAINS) {
-      if (domain === "fields" && useAwnDataFields) continue;
       ingestYamlDomainTypes(path.join(coreSystemRoot, "types", domain), domain, "platform", byId, byDomain);
     }
     for (const domain of platformExtraDomains) {
@@ -251,7 +245,6 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
     }
   } else {
     for (const domain of TYPE_DOMAINS) {
-      if (domain === "fields" && useAwnDataFields) continue;
       ingestDomainTypesFromAwnData(projectRoot, domain, "platform", byId, byDomain, coreRoot);
     }
     for (const domain of platformExtraDomains) {
@@ -267,20 +260,13 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   if (isCoreAgent && agentSystemDirExists(agentRootAbs)) {
     sources.push(`${AGENT_SYSTEM_REL}:agent`);
     for (const domain of resolveAgentDomainIds(agentSystemRoot)) {
-      if (domain === "fields" && useAwnDataFields) continue;
       ingestYamlDomainTypes(getAgentSystemTypesDir(agentRootAbs, domain), domain, "agent", byId, byDomain);
     }
   } else if (isCoreAgent) {
     sources.push("awn-data/cms-base:agent");
     for (const domain of resolveAgentDomainIds(getCmsConfigAbsolute(agentRootAbs))) {
-      if (domain === "fields" && useAwnDataFields) continue;
       ingestDomainTypesFromAwnData(projectRoot, domain, "agent", byId, byDomain, agentRootAbs);
     }
-  }
-
-  if (useAwnDataFields) {
-    ingestFieldsIntoCatalog(projectRoot, byId, byDomain);
-    sources.push("platform:awn-data/editing-fields");
   }
 
   applyTypeAliases(byId);
@@ -926,7 +912,7 @@ function loadFieldTypesFromCatalog(projectRoot, agentRoot = "") {
       id: entry.id,
       name: merged.name || entry.id,
       kind: "field",
-      group: merged.group || null,
+      group: merged.group || "misc",
       sort: Number(merged.sort) || 0,
       storage: merged.storage || "string",
       mdbase: merged.mdbase || entry.id.replace(/^awn\./, ""),
@@ -995,6 +981,62 @@ function loadBlockGroupsFromCatalog(projectRoot, agentRoot = "") {
     groupOrder: Array.isArray(meta.groupOrder) ? meta.groupOrder : [],
     groupNames: meta.groupNames && typeof meta.groupNames === "object" ? meta.groupNames : {}
   };
+}
+
+function loadFieldGroupsMetaFromCatalog(projectRoot, agentRoot = "") {
+  const { byId } = loadTypeCatalog(projectRoot, agentRoot);
+  const groupsEntry = byId.get("awn.field.groups");
+  const meta = groupsEntry?.schema || {};
+  return {
+    groupOrder: Array.isArray(meta.groupOrder) ? meta.groupOrder : [],
+    groupNames: meta.groupNames && typeof meta.groupNames === "object" ? meta.groupNames : {}
+  };
+}
+
+function buildFieldTypeGroups(registry, meta) {
+  const grouped = new Map();
+  for (const field of Object.values(registry || {})) {
+    const groupId = field.group || "misc";
+    if (!grouped.has(groupId)) grouped.set(groupId, []);
+    grouped.get(groupId).push(field);
+  }
+
+  const seen = new Set();
+  const orderedGroupIds = [];
+  for (const groupId of meta?.groupOrder || []) {
+    if (grouped.has(groupId)) {
+      orderedGroupIds.push(groupId);
+      seen.add(groupId);
+    }
+  }
+  for (const groupId of grouped.keys()) {
+    if (!seen.has(groupId)) orderedGroupIds.push(groupId);
+  }
+
+  return orderedGroupIds.map((groupId) => ({
+    id: groupId,
+    title: meta?.groupNames?.[groupId] || groupId,
+    fields: grouped
+      .get(groupId)
+      .slice()
+      .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "ru"))
+      .map((field) => ({
+        id: field.id,
+        label: field.name,
+        name: field.name,
+        kind: field.kind,
+        description: field.description,
+        widget: field.widget,
+        storeRel: field.storeRel || null
+      }))
+  }));
+}
+
+function loadFieldGroupsFromCatalog(projectRoot, agentRoot = "") {
+  const registry = loadFieldTypesFromCatalog(projectRoot, agentRoot);
+  if (!Object.keys(registry).length) return null;
+  const meta = loadFieldGroupsMetaFromCatalog(projectRoot, agentRoot);
+  return buildFieldTypeGroups(registry, meta);
 }
 
 /**
@@ -1112,6 +1154,9 @@ module.exports = {
   loadFieldDefFromCatalog,
   loadBlocksFromCatalog,
   loadBlockGroupsFromCatalog,
+  loadFieldGroupsFromCatalog,
+  loadFieldGroupsMetaFromCatalog,
+  buildFieldTypeGroups,
   getPageTreeRootId,
   resolveCanonicalTypeId
 };

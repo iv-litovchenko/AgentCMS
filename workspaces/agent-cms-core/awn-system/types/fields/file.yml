@@ -8,4 +8,6 @@ storage: string
 mdbase: file
 description: Ссылка на файл или список файлов (вложения)
 settings: [hint, required, locked, default, multiple, accept, upload, insertInText, scope]
+group: media
+sort: 2
 status: active

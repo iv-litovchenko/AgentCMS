@@ -8,4 +8,6 @@ storage: array
 mdbase: list
 description: Несколько значений из заданного списка. Виджет: checkbox (по умолчанию) или select-multiple
 settings: [hint, required, locked, default, widget, enum, items]
+group: choice
+sort: 1
 status: active

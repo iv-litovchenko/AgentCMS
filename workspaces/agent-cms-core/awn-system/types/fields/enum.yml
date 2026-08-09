@@ -8,4 +8,6 @@ storage: string
 mdbase: enum
 description: Одно значение из заданного списка. Виджет: select (по умолчанию) или radio
 settings: [hint, required, locked, default, widget, enum]
+group: choice
+sort: 3
 status: active

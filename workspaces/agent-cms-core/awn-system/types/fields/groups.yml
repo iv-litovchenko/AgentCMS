@@ -1,0 +1,12 @@
+id: awn.field.groups
+kind: meta
+status: active
+domain: fields
+groupOrder: [text, numbers, choice, datetime, media, structure]
+groupNames:
+  text: Текст
+  numbers: Числа
+  choice: Выбор
+  datetime: Дата и время
+  media: Медиа
+  structure: Структура

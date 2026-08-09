@@ -9,6 +9,7 @@
     "main/Безопасность/XSS.md",
     "main/Веб/HTTP и формы.md",
     "main/Объекты.md",
+    "main/Синтаксис/Массивы.md",
     "main/Синтаксис/manifest.md",
     "main/Типы данных",
     "main/Типы данных.md",
@@ -25,5 +26,5 @@
     "topic-index-generated/awn-container/php/awn-storage/index.md",
     "topic-index-generated/awn-container/php/index.md"
   ],
-  "updatedAt": "2026-08-09T15:26:16.262Z"
+  "updatedAt": "2026-08-09T16:28:25.623Z"
 }

@@ -1,20 +1,12 @@
-const fs = require("fs");
-const path = require("path");
 const {
   getActiveComponents,
   loadFieldDefFromComponents
 } = require("./components-loader");
 const {
   loadFieldTypesFromCatalog,
-  loadFieldDefFromCatalog
+  loadFieldDefFromCatalog,
+  loadFieldGroupsFromCatalog
 } = require("./type-catalog-loader");
-const {
-  loadFieldsFromAwnData,
-  loadFieldGroupsMetaFromAwnData,
-  buildFieldGroups,
-  loadFieldDefFromAwnData,
-  editingFieldsStoreHasRecords
-} = require("./awn-data-fields-bridge");
 const {
   getAgentCmsCoreAbsolute,
   agentSystemDirExists,
@@ -132,21 +124,10 @@ function shouldPreferCatalogFields(projectRoot, agentRoot) {
   return agentSystemDirExists(coreRoot) || Boolean(agentRootAbs && agentSystemDirExists(agentRootAbs));
 }
 
-function enrichCatalogFieldRegistryWithAwnData(registry, projectRoot) {
-  const awnDataFields = loadFieldsFromAwnData(projectRoot);
-  if (!awnDataFields) return registry;
-  for (const [id, meta] of Object.entries(awnDataFields)) {
-    if (!registry[id]) continue;
-    if (meta.group) registry[id].group = meta.group;
-    if (meta.sort) registry[id].sort = meta.sort;
+function ensureStringFieldAlias(registry) {
+  if (!registry["awn.field.string"] && !registry["awn.string"]) {
+    registry["awn.string"] = { ...FALLBACK_FIELD_TYPES["awn.string"] };
   }
-  return registry;
-}
-
-function buildFieldGroupsForRegistry(registry, projectRoot) {
-  const meta = loadFieldGroupsMetaFromAwnData(projectRoot);
-  if (!meta || !registry || !Object.keys(registry).length) return null;
-  return buildFieldGroups(registry, meta);
 }
 
 function loadAgentFields(agentRoot = "", projectRoot = process.cwd()) {
@@ -156,30 +137,11 @@ function loadAgentFields(agentRoot = "", projectRoot = process.cwd()) {
     const registry = loadFieldTypesFromCatalog(root, agent);
     const fieldDefSchema = loadFieldDefFromCatalog(root, agent);
     if (Object.keys(registry).length) {
-      if (!registry["awn.field.string"] && !registry["awn.string"]) {
-        registry["awn.string"] = { ...FALLBACK_FIELD_TYPES["awn.string"] };
-      }
-      enrichCatalogFieldRegistryWithAwnData(registry, root);
+      ensureStringFieldAlias(registry);
       return {
         fieldRegistry: registry,
         fieldDefSchema,
-        fieldGroups: buildFieldGroupsForRegistry(registry, root)
-      };
-    }
-  }
-
-  if (editingFieldsStoreHasRecords(root)) {
-    const fieldRegistry = loadFieldsFromAwnData(root) || {};
-    const meta = loadFieldGroupsMetaFromAwnData(root) || { groupOrder: [], groupNames: {} };
-    const fieldDefSchema = loadFieldDefFromAwnData(root) || loadFieldDefFromCatalog(root, agent);
-    if (Object.keys(fieldRegistry).length) {
-      if (!fieldRegistry["awn.field.string"] && !fieldRegistry["awn.string"]) {
-        fieldRegistry["awn.string"] = { ...FALLBACK_FIELD_TYPES["awn.string"] };
-      }
-      return {
-        fieldRegistry,
-        fieldDefSchema,
-        fieldGroups: buildFieldGroups(fieldRegistry, meta)
+        fieldGroups: loadFieldGroupsFromCatalog(root, agent)
       };
     }
   }
@@ -199,15 +161,11 @@ function loadAgentFields(agentRoot = "", projectRoot = process.cwd()) {
     };
   }
 
-  if (!registry["awn.string"] && !registry["awn.field.string"]) {
-    registry["awn.string"] = { ...FALLBACK_FIELD_TYPES["awn.string"] };
-  }
-
-  enrichCatalogFieldRegistryWithAwnData(registry, root);
+  ensureStringFieldAlias(registry);
   return {
     fieldRegistry: registry,
     fieldDefSchema,
-    fieldGroups: buildFieldGroupsForRegistry(registry, root)
+    fieldGroups: loadFieldGroupsFromCatalog(root, agent)
   };
 }
 

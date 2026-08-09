@@ -1,6 +1,7 @@
 /**
  * Реестр типов полей YAML-свойств (awn-*).
- * Типы полей — awn-data/editing-fields/, загрузка — awn-fields-loader.js.
+/**
+ * Реестр типов полей — awn-system/types/fields/, загрузка — awn-fields-loader.js.
  */
 
 const {

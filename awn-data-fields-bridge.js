@@ -1,3 +1,4 @@
+/** @deprecated Runtime uses awn-system/types/fields/ — kept for migration scripts only. */
 const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 const { getAwnDataPayload } = require("./awn-data-loader");
 const { parseTypeYaml } = require("./awn-yaml-utils");

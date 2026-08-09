@@ -8,4 +8,6 @@ storage: string
 mdbase: image
 description: Изображение — загружается или выбирается из медиатеки
 settings: [hint, required, locked, default, multiple, accept, upload]
+group: media
+sort: 3
 status: active

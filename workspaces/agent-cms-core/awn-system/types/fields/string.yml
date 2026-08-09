@@ -8,4 +8,6 @@ storage: string
 mdbase: string
 description: Короткая строка (одна строка текста)
 settings: [hint, required, locked, default, format]
+group: text
+sort: 4
 status: active

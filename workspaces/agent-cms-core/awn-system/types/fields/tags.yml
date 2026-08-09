@@ -8,4 +8,6 @@ storage: array
 mdbase: list
 description: Свободные теги — вводятся произвольно, не из фиксированного списка
 settings: [hint, required, locked, default]
+group: choice
+sort: 4
 status: active
