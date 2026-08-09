@@ -3,7 +3,7 @@
   - beta
   - gamma
 awn-attachments: []
-awn-emoji: 🧪пукпку
+awn-emoji: 🧪
 awn-status: 🟢 Открыта
 awn-tags:
   - demo
@@ -15,27 +15,27 @@ awn-priority: ""
 awn-color: "#7c3aed"
 awn-sort: 0
 awn-slots-disabled: false
-awn-runtime-load-always: true
-awn-runtime-cron: true
+awn-runtime-load-always: false
+awn-runtime-cron: false
 awn-runtime-cron-schedule: ""
-awn-runtime-heartbeat: true
+awn-runtime-heartbeat: false
 awn-runtime-commands: false
 awn-create: "2026-06-21T12:00"
-awn-update: 2026-08-09T19:24:43.306Z
-awn-version: 12
+awn-update: 2026-08-09T19:24:00.722Z
+awn-version: 7
 awn-description: ""
 awn-description: ""
 awn-name: ""
 awn-name: ""
 awn-preview: awn-storage/assets/preview/20260623203544.png
 awn-type: awn.page.topic
-awn-web-url: пкупку
+awn-web-url: ""
 demo_array: "alpha, beta, gamma"
 demo_array: "alpha, beta, gamma"
 demo_array: "alpha, beta, gamma"
 demo_array: "alpha, beta, gamma"
 demo_boolean: true
-demo_color: ""
+demo_color: null
 demo_date: NaN
 demo_datetime: "2026-06-21T12:00"
 demo_enum: ""

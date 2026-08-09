@@ -37287,6 +37287,7 @@ const FIELD_TYPE_SELECT_GROUPS = [
       "awn.field.file.one",
       "awn.field.file.many",
       "awn.field.file.image.one",
+      "awn.field.file.image.one.with-preview",
       "awn.field.file.image.many"
     ]
   },
@@ -37297,7 +37298,6 @@ const FIELD_TYPE_SELECT_GROUPS = [
   {
     label: "CMS / платформа",
     types: [
-      "awn.field.string.preview",
       "awn.field.string.cron-schedule",
       "awn.field.string.catalog-status",
       "awn.field.array.catalog-tags",
@@ -40565,8 +40565,7 @@ function formatPropsOverviewEnumValue(rawValue, fieldDef) {
 }
 
 function isPropsFieldLocked(key, fieldDef = getPropsFieldDef(key)) {
-  if (fieldDef?.locked) return true;
-  return PROPS_FORM_LOCKED_KEYS.has(normalizePropsKey(key));
+  return Boolean(fieldDef?.locked);
 }
 
 function getPropsFieldMetaFromSchema(key) {
@@ -43132,15 +43131,6 @@ function renderPropsForm() {
   }
 }
 
-const PROPS_FORM_LOCKED_KEYS = new Set([
-  "awn-type",
-  // Пока disabled: справочники категорий/владельцев/приоритетов/цветов не доработаны.
-  "awn-category",
-  "awn-owner",
-  "awn-priority",
-  "awn-color"
-]);
-
 function isTopicOnlyPropsFieldKey(key) {
   return normalizePropsKey(key) === "awn-slots-disabled";
 }
@@ -43174,7 +43164,7 @@ const DEDICATED_FIELD_TYPE_WIDGETS = new Set([
 ]);
 
 const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
-  "string.preview": "preview",
+  "file.image.one.with-preview": "preview",
   "string.cron-schedule": "cron-schedule",
   "string.catalog-status": "catalog-status",
   "string.catalog-category": "catalog-category",
@@ -43255,6 +43245,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (isBooleanFieldTypeId(typeId) || widget === "toggle") return "boolean";
   if (isRelationFieldTypeId(typeId) || widget === "relation" || widget === "link") return "relation";
   if (fieldTypeIs(typeId, "string.link") || widget === "path") return "path";
+  if (fieldTypeIs(typeId, "file.image.one.with-preview")) return "preview";
   if (fieldTypeIs(typeId, "file.image.one") || widget === "image") return "image";
   if (isFileFieldTypeId(typeId) || widget === "file") return "file";
   if (fieldTypeIs(typeId, "text") || widget === "textarea") return "textarea";

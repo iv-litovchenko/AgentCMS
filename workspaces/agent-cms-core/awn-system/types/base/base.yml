@@ -48,7 +48,7 @@ fields:
     sort: 2
 
   awn-preview:
-    type: awn.field.string.preview
+    type: awn.field.file.image.one.with-preview
     title: АААПревью
     description: awn-storage/assets/preview/
     placement: aside-hero
