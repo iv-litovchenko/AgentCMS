@@ -14113,6 +14113,7 @@ let nodeMemoryViewActive = false;
 const WYSIWYG_EDITOR_ENABLED = true;
 let wysiwygEditorInstance = null;
 let lastWysiwygMarkdownSelection = null;
+let lastWysiwygHighlightCapture = null;
 let pendingWysiwygInsertSelection = null;
 let lastSourceEditorSelection = null;
 const WYSIWYG_INSERT_MARKER = "awn-block-insert-marker";
@@ -27708,7 +27709,8 @@ const HIGHLIGHT_TONE_OPTIONS = [
   { tone: "purple", label: "Фиолетовый" }
 ];
 const HIGHLIGHT_MARKDOWN_REGEX = /==(?:\{([a-z]+)\})?([^=\n][^=]*?)==/gi;
-const HIGHLIGHT_HTML_REGEX = /<mark\s+class="md-highlight\s+md-highlight--([a-z]+)"[^>]*>([\s\S]*?)<\/mark>/gi;
+const HIGHLIGHT_HTML_MARK_REGEX = /<mark\b[^>]*>([\s\S]*?)<\/mark>/gi;
+const ESCAPED_HIGHLIGHT_MARKDOWN_REGEX = /\\==(?:\{([a-z]+)\})?([^=\\][^=]*?)\\==/gi;
 let editorHighlightTone = "yellow";
 let wysiwygHighlightToolbarRefs = null;
 
@@ -27724,18 +27726,105 @@ function buildHighlightMarkdown(inner, tone = "yellow") {
   return `=={${safeTone}}${text}==`;
 }
 
+function captureWysiwygHighlightSelection() {
+  const editor = wysiwygEditorInstance;
+  if (!editor || editorViewMode !== "wysiwyg") return;
+  const text = String(editor.getSelectedText?.() || "");
+  const selection = cloneWysiwygMarkdownSelection(editor.getSelection?.());
+  if (!text && !selection) return;
+  lastWysiwygHighlightCapture = { text, selection };
+  captureWysiwygMarkdownSelection();
+}
+
+function applyWysiwygHighlightReplacement(tone = editorHighlightTone) {
+  const editor = wysiwygEditorInstance;
+  if (!editor) return false;
+
+  const safeTone = normalizeHighlightTone(tone);
+  setEditorHighlightTone(safeTone);
+
+  const captured = lastWysiwygHighlightCapture;
+  const selectedText = String(captured?.text || editor.getSelectedText?.() || "").trim();
+  const inner = selectedText || "текст";
+  const wrapped = buildHighlightMarkdown(inner, safeTone);
+
+  if (captured?.selection) {
+    pendingWysiwygInsertSelection = captured.selection;
+    lastWysiwygMarkdownSelection = captured.selection;
+  }
+
+  const ok = insertMarkdownAtWysiwygCursor(wrapped);
+  if (ok) {
+    lastWysiwygHighlightCapture = null;
+    scheduleDocOutlineRefresh();
+  }
+  return ok;
+}
+
+function mapMarkdownOutsideFencedCode(markdown, mapper) {
+  const text = String(markdown || "");
+  const fenceRe = /(^|\n)(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)\n\2(?=\n|$)/g;
+  let result = "";
+  let lastIndex = 0;
+  let match;
+  while ((match = fenceRe.exec(text)) !== null) {
+    const chunkStart = match.index + match[1].length;
+    result += mapper(text.slice(lastIndex, chunkStart));
+    result += text.slice(chunkStart, fenceRe.lastIndex);
+    lastIndex = fenceRe.lastIndex;
+  }
+  result += mapper(text.slice(lastIndex));
+  return result;
+}
+
+function buildHighlightMarkdownFromParts(tone, inner) {
+  const safeTone = normalizeHighlightTone(tone);
+  const text = String(inner ?? "");
+  return safeTone === "yellow" ? `==${text}==` : `=={${safeTone}}${text}==`;
+}
+
+function restoreEscapedHighlightMarkdown(markdown) {
+  return mapMarkdownOutsideFencedCode(markdown, (segment) =>
+    segment.replace(ESCAPED_HIGHLIGHT_MARKDOWN_REGEX, (match, tone, inner) =>
+      buildHighlightMarkdownFromParts(tone, inner)
+    )
+  );
+}
+
 function convertHighlightMarkdownToHtml(markdown) {
-  return String(markdown || "").replace(HIGHLIGHT_MARKDOWN_REGEX, (match, tone, inner) => {
-    const toneClass = normalizeHighlightTone(tone);
-    return `<mark class="md-highlight md-highlight--${toneClass}">${inner}</mark>`;
-  });
+  return mapMarkdownOutsideFencedCode(markdown, (segment) =>
+    segment.replace(HIGHLIGHT_MARKDOWN_REGEX, (match, tone, inner) => {
+      const toneClass = normalizeHighlightTone(tone);
+      return `<mark class="md-highlight md-highlight--${toneClass}">${inner}</mark>`;
+    })
+  );
 }
 
 function convertHighlightHtmlToMarkdown(content) {
-  return String(content || "").replace(HIGHLIGHT_HTML_REGEX, (match, tone, inner) => {
-    const safeTone = normalizeHighlightTone(tone);
-    return safeTone === "yellow" ? `==${inner}==` : `=={${safeTone}}${inner}==`;
+  return String(content || "").replace(HIGHLIGHT_HTML_MARK_REGEX, (match, inner) => {
+    const toneMatch = match.match(/\bmd-highlight--([a-z]+)\b/i);
+    return buildHighlightMarkdownFromParts(toneMatch?.[1], inner);
   });
+}
+
+function buildToastUiHighlightCustomHTMLRenderer() {
+  return {
+    htmlInline: {
+      mark(node, { entering }) {
+        return entering
+          ? { type: "openTag", tagName: "mark", attributes: node.attrs || {} }
+          : { type: "closeTag", tagName: "mark" };
+      }
+    }
+  };
+}
+
+function getWysiwygEditorSourceMarkdown() {
+  const raw =
+    activeSystemFile && systemFileHasEditableFrontmatter(activeSystemFile)
+      ? getSystemFileWysiwygBodyMarkdown()
+      : fileContentInputNode?.value || "";
+  return String(raw || "");
 }
 
 function getEditorSelectionSlice() {
@@ -27790,7 +27879,10 @@ function replaceEditorSelectionText(replacement) {
 function setEditorHighlightTone(tone) {
   const safeTone = normalizeHighlightTone(tone);
   editorHighlightTone = safeTone;
-  const swatch = wysiwygHighlightToolbarRefs?.swatch;
+  const swatch =
+    wysiwygHighlightToolbarRefs?.menuSwatch ||
+    wysiwygHighlightToolbarRefs?.swatch ||
+    wysiwygHighlightToolbarRefs?.menuBtn?.querySelector(".awn-wysiwyg-highlight-swatch");
   if (swatch) {
     swatch.className = `awn-wysiwyg-highlight-swatch awn-wysiwyg-highlight-swatch--${safeTone}`;
   }
@@ -27799,6 +27891,19 @@ function setEditorHighlightTone(tone) {
 function applyEditorTextHighlight(tone = editorHighlightTone) {
   const safeTone = normalizeHighlightTone(tone);
   setEditorHighlightTone(safeTone);
+
+  if (editorViewMode === "wysiwyg") {
+    if (!wysiwygEditorInstance) {
+      showToast("WYSIWYG-редактор ещё загружается", "error");
+      return false;
+    }
+    const ok = applyWysiwygHighlightReplacement(safeTone);
+    if (!ok) {
+      showToast("Не удалось выделить текст", "error");
+    }
+    return ok;
+  }
+
   const { text } = getEditorSelectionSlice();
   const wrapped = buildHighlightMarkdown(text || "текст", safeTone);
   const ok = replaceEditorSelectionText(wrapped);
@@ -27825,7 +27930,6 @@ function buildWysiwygHighlightToolbarItem() {
   mainBtn.title = "Выделить текст";
   mainBtn.setAttribute("aria-label", "Выделить текст");
   mainBtn.innerHTML = `
-    <span class="awn-wysiwyg-highlight-swatch awn-wysiwyg-highlight-swatch--yellow" aria-hidden="true"></span>
     <span class="awn-wysiwyg-highlight-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="m9 11-6 6v3h3l6-6" />
@@ -27842,6 +27946,7 @@ function buildWysiwygHighlightToolbarItem() {
   menuBtn.setAttribute("aria-haspopup", "menu");
   menuBtn.setAttribute("aria-expanded", "false");
   menuBtn.innerHTML = `
+    <span class="awn-wysiwyg-highlight-swatch awn-wysiwyg-highlight-swatch--yellow" aria-hidden="true"></span>
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M4 6l4 4 4-4" />
     </svg>
@@ -27874,12 +27979,13 @@ function buildWysiwygHighlightToolbarItem() {
 
     const captureSelection = (event) => {
       event.preventDefault();
-      captureWysiwygMarkdownSelection();
+      event.stopPropagation();
+      captureWysiwygHighlightSelection();
     };
 
-    mainBtn.addEventListener("mousedown", captureSelection);
-    menuBtn.addEventListener("mousedown", captureSelection);
-    popover.addEventListener("mousedown", captureSelection);
+    mainBtn.addEventListener("pointerdown", captureSelection, true);
+    menuBtn.addEventListener("pointerdown", captureSelection, true);
+    popover.addEventListener("pointerdown", captureSelection, true);
 
     mainBtn.addEventListener("click", () => {
       applyEditorTextHighlight(editorHighlightTone);
@@ -27908,7 +28014,7 @@ function buildWysiwygHighlightToolbarItem() {
     mainBtn,
     menuBtn,
     popover,
-    swatch: mainBtn.querySelector(".awn-wysiwyg-highlight-swatch")
+    menuSwatch: menuBtn.querySelector(".awn-wysiwyg-highlight-swatch")
   };
 
   return {
@@ -70115,6 +70221,9 @@ function refreshEditorViewContent() {
     return;
   }
   if (editorViewMode === "wysiwyg") {
+    if (wysiwygEditorInstance) {
+      syncSourceFromWysiwygEditor();
+    }
     destroyWysiwygEditor();
     initWysiwygEditor();
     applyWysiwygLiveDiffHighlights();
@@ -70641,6 +70750,7 @@ function destroyWysiwygEditor() {
     wysiwygEditorInstance = null;
   }
   lastWysiwygMarkdownSelection = null;
+  lastWysiwygHighlightCapture = null;
   pendingWysiwygInsertSelection = null;
   wysiwygHighlightToolbarRefs = null;
   if (editorWysiwygWrapNode) {
@@ -70839,8 +70949,9 @@ function normalizeWysiwygExportedMarkdown(markdown) {
   let normalized = restoreBrokenImagePathsInExportedMarkdown(
     convertHighlightHtmlToMarkdown(stripWysiwygBreakArtifacts(markdown))
   );
+  normalized = restoreEscapedHighlightMarkdown(normalized);
   normalized = normalized.replace(/\\([#|,.\[\]()!])/g, "$1");
-  normalized = normalized.replace(/\\([\\`*_~\-])/g, "$1");
+  normalized = normalized.replace(/\\([\\`*_~\-=])/g, "$1");
   return normalizeMarkdownInlineAssetRefs(normalized);
 }
 
@@ -71108,7 +71219,9 @@ function bindWysiwygPasteHandler() {
 }
 
 function normalizeWysiwygImportedMarkdown(markdown) {
-  const normalized = stripWysiwygBreakArtifacts(normalizeEmbeddedDataUriMarkdown(String(markdown || "")));
+  let normalized = stripWysiwygBreakArtifacts(normalizeEmbeddedDataUriMarkdown(String(markdown || "")));
+  normalized = restoreEscapedHighlightMarkdown(normalized);
+  normalized = convertHighlightHtmlToMarkdown(normalized);
   return convertHighlightMarkdownToHtml(normalized);
 }
 
@@ -71127,6 +71240,9 @@ function initWysiwygEditor() {
     return;
   }
 
+  if (wysiwygEditorInstance) {
+    syncSourceFromWysiwygEditor();
+  }
   destroyWysiwygEditor();
   editorWysiwygWrapNode.innerHTML = "";
   editorWysiwygWrapNode.classList.toggle("auto-height", shouldUseEditorAutoHeight());
@@ -71140,18 +71256,14 @@ function initWysiwygEditor() {
       hideModeSwitch: true,
       usageStatistics: false,
       toolbarItems: [
-        ["heading", "bold", "italic", "strike"],
+        ["heading", "bold", "italic", "strike", buildWysiwygHighlightToolbarItem()],
         ["hr", "quote"],
         ["ul", "ol", "task"],
         ["table", "link", "image"],
-        ["code", "codeblock"],
-        [buildWysiwygHighlightToolbarItem()]
+        ["code", "codeblock"]
       ],
-      initialValue: normalizeWysiwygImportedMarkdown(
-        activeSystemFile && systemFileHasEditableFrontmatter(activeSystemFile)
-          ? getSystemFileWysiwygBodyMarkdown()
-          : fileContentInputNode.value || ""
-      )
+      customHTMLRenderer: buildToastUiHighlightCustomHTMLRenderer(),
+      initialValue: normalizeWysiwygImportedMarkdown(getWysiwygEditorSourceMarkdown())
     });
   } catch (error) {
     destroyWysiwygEditor();

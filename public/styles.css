@@ -35193,21 +35193,28 @@ button.node-navigation-memory-title:focus-visible {
   overflow: visible;
 }
 
-.awn-wysiwyg-highlight-toolbar {
+.editor-wysiwyg-wrap .toastui-editor-toolbar-item-wrapper:has(.awn-wysiwyg-highlight-toolbar) {
+  position: relative;
+  overflow: visible;
   display: inline-flex;
   align-items: center;
   gap: 0;
-  height: 32px;
-  margin: 7px 5px;
 }
 
-.awn-wysiwyg-highlight-main-btn,
-.awn-wysiwyg-highlight-menu-btn {
+.awn-wysiwyg-highlight-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  margin: 0;
+}
+
+.editor-wysiwyg-wrap .toastui-editor-defaultUI-toolbar .awn-wysiwyg-highlight-toolbar button {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  width: 32px;
   height: 32px;
   margin: 0;
   padding: 0;
@@ -35218,28 +35225,19 @@ button.node-navigation-memory-title:focus-visible {
   cursor: pointer;
 }
 
-.awn-wysiwyg-highlight-main-btn {
-  width: 40px;
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.awn-wysiwyg-highlight-menu-btn {
-  width: 20px;
-  border-left: 0;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.awn-wysiwyg-highlight-main-btn:not(:disabled):hover,
-.awn-wysiwyg-highlight-menu-btn:not(:disabled):hover {
+.editor-wysiwyg-wrap .toastui-editor-defaultUI-toolbar .awn-wysiwyg-highlight-toolbar button:not(:disabled):hover {
   border-color: #e4e7ee;
-  background: #fff;
+  background-color: #fff;
+}
+
+.awn-wysiwyg-highlight-main-btn,
+.awn-wysiwyg-highlight-menu-btn {
+  gap: 0;
 }
 
 .awn-wysiwyg-highlight-main-btn:disabled,
 .awn-wysiwyg-highlight-menu-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
@@ -35259,22 +35257,27 @@ button.node-navigation-memory-title:focus-visible {
 .awn-wysiwyg-highlight-swatch--orange { background: #fed7aa; }
 .awn-wysiwyg-highlight-swatch--purple { background: #e9d5ff; }
 
+.awn-wysiwyg-highlight-menu-btn {
+  gap: 2px;
+}
+
 .awn-wysiwyg-highlight-icon {
   display: inline-flex;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 
 .awn-wysiwyg-highlight-icon svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   display: block;
 }
 
 .awn-wysiwyg-highlight-menu-btn svg {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   display: block;
+  flex-shrink: 0;
 }
 
 .awn-wysiwyg-highlight-popover {
