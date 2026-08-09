@@ -1,14 +1,5 @@
 # Оглавление темы
 
-### Однофайловая память
-
-| Слот | Файл | Статус |
-| --- | --- | --- |
-| Память (однофайловая) | [main.md](awn-container/php/main.md) | заполнено |
-| Память (табличная) | [main.csv](awn-container/php/main.csv) | заполнено |
-| TODO | [todo.md](awn-container/php/todo.md) | заполнено |
-| Лог | [log.md](awn-container/php/log.md) | не заполнено |
-
 | Тип | Путь | Название | Описание |
 | --- | --- | --- | --- |
 | файл | `artefacts/api-postman-collection.json` | [api-postman-collection.json](awn-container/php/awn-storage/artefacts/api-postman-collection.json) | — |

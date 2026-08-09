@@ -9958,7 +9958,122 @@ async function buildAgentPageMap(options = {}) {
 const CONTENT_MAP_DEDICATED_SLOTS = new Set(["dialogs", "thread", "comments", "history", "temp", "volume"]);
 const STORAGE_SLOT_INDEX_FILE = "index.md";
 const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
-const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder } = require("./storage-slot-routing");
+const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder, isInternalBundleSlot } = require("./storage-slot-routing");
+
+const BUNDLE_SLOT_INDEX_LABELS = {
+  "main-single": "Память (однофайловая)",
+  "main-single-csv": "Память (табличная)",
+  "todo-single": "TODO",
+  "log-single": "Лог"
+};
+
+const BUNDLE_SLOT_INDEX_FILES = {
+  "main-single": BUNDLE_CONTENT_FILE,
+  "main-single-csv": BUNDLE_TABULAR_FILE,
+  "todo-single": BUNDLE_TODO_FILE,
+  "log-single": BUNDLE_LOG_FILE
+};
+
+function isMarkdownBundleBodyFilled(content) {
+  return Boolean(String(content || "").replace(/^---[\s\S]*?---\s*/m, "").trim());
+}
+
+async function resolveBundleSlotIndexRow(manifestRelPath, slotKey) {
+  const normalizedSlot = String(slotKey || "").trim();
+  const label = BUNDLE_SLOT_INDEX_LABELS[normalizedSlot] || normalizedSlot;
+  const defaultFileName = BUNDLE_SLOT_INDEX_FILES[normalizedSlot] || "";
+
+  if (normalizedSlot === "main-single") {
+    const hit = await readInternalMemoryContent(manifestRelPath);
+    const fileName = path.basename(String(hit.path || defaultFileName).replace(/\\/g, "/")) || defaultFileName;
+    return {
+      slot: normalizedSlot,
+      label,
+      fileName,
+      linkPath: hit.path || toContentFilePath(manifestRelPath),
+      filled: hit.exists && isMarkdownBundleBodyFilled(hit.content),
+      status: hit.exists && isMarkdownBundleBodyFilled(hit.content) ? "заполнено" : "не заполнено"
+    };
+  }
+
+  if (normalizedSlot === "main-single-csv") {
+    const resolvedRelPath = await resolveExistingWorkspaceRelPath(manifestRelPath);
+    const bundleHit = await readExistingBundleFile(resolvedRelPath, BUNDLE_TABULAR_FILE);
+    const hit = await readTabularMemoryContent(manifestRelPath);
+    const fileName = path.basename(String(bundleHit.path || hit.path || defaultFileName).replace(/\\/g, "/")) || defaultFileName;
+    const filled = bundleHit.exists && Number(hit.rowCount) > 0;
+    return {
+      slot: normalizedSlot,
+      label,
+      fileName,
+      linkPath: bundleHit.path || hit.path || toTabularFilePath(resolvedRelPath),
+      filled,
+      status: filled ? "заполнено" : "не заполнено"
+    };
+  }
+
+  if (normalizedSlot === "todo-single") {
+    const hit = await readTodoContent(manifestRelPath);
+    const fileName = path.basename(String(hit.path || defaultFileName).replace(/\\/g, "/")) || defaultFileName;
+    const filled = hit.exists && isMarkdownBundleBodyFilled(hit.content);
+    return {
+      slot: normalizedSlot,
+      label,
+      fileName,
+      linkPath: hit.path || toTodoFilePath(manifestRelPath),
+      filled,
+      status: filled ? "заполнено" : "не заполнено"
+    };
+  }
+
+  if (normalizedSlot === "log-single") {
+    const hit = await readLogContent(manifestRelPath);
+    const fileName = path.basename(String(hit.path || defaultFileName).replace(/\\/g, "/")) || defaultFileName;
+    const filled = hit.exists && Boolean(String(hit.content || "").trim());
+    return {
+      slot: normalizedSlot,
+      label,
+      fileName,
+      linkPath: hit.path || toLogFilePath(manifestRelPath),
+      filled,
+      status: filled ? "заполнено" : "не заполнено"
+    };
+  }
+
+  return null;
+}
+
+async function buildTopicBundleSlotIndexRows(manifestRelPath, pageSlotKeys = []) {
+  const rows = [];
+  for (const slotKey of pageSlotKeys) {
+    if (!isInternalBundleSlot(slotKey)) continue;
+    const row = await resolveBundleSlotIndexRow(manifestRelPath, slotKey);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+function formatBundleSlotIndexMarkdown(rows = []) {
+  if (!rows.length) return "";
+  const lines = [
+    "### Однофайловая память",
+    "",
+    "| Слот | Файл | Статус |",
+    "| --- | --- | --- |"
+  ];
+  for (const row of rows) {
+    const fileCell = row.linkPath
+      ? formatContentIndexTitleCell(
+          { title: row.fileName, linkPath: row.linkPath, path: row.fileName },
+          { linkTitle: true }
+        )
+      : `\`${escapeContentIndexTableCell(row.fileName)}\``;
+    lines.push(
+      `| ${escapeContentIndexTableCell(row.label)} | ${fileCell} | ${escapeContentIndexTableCell(row.status)} |`
+    );
+  }
+  return lines.join("\n");
+}
 
 function resolveContentIndexEntryType(item = {}) {
   const props = item?.properties && typeof item.properties === "object" ? item.properties : {};
@@ -10197,6 +10312,15 @@ function formatContentIndexEntriesMarkdown(entries, { emptyHint = "_Нет за�
   return lines.join("\n");
 }
 
+function formatMultiFileContentIndexMarkdown(entries, { emptyHint = "_Во внешних слотах пока нет файлов для оглавления._" } = {}) {
+  if (!entries?.length) return "";
+  return [
+    "### Многофайловая память",
+    "",
+    formatContentIndexEntriesMarkdown(entries, { emptyHint })
+  ].join("\n");
+}
+
 function buildSlotContentIndexMarkdown({ slotKey, slotLabel, entries }) {
   const label = String(slotLabel || slotKey || "Слот").trim();
   return [
@@ -10226,18 +10350,17 @@ function mergeTopicContentIndexEntries(slots = []) {
   );
 }
 
-function buildTopicContentIndexMarkdown({ slots }) {
+function buildTopicContentIndexMarkdown({ slots, bundleSlots = [] }) {
   const lines = ["# Оглавление темы", ""];
   const externalSlots = (slots || []).filter((row) => isTopicWideContentIndexSlotRow(row));
-  if (!externalSlots.length) {
-    lines.push("_Нет записей во внешних слотах._");
-    return lines.join("\n");
-  }
-  lines.push(
-    formatContentIndexEntriesMarkdown(mergeTopicContentIndexEntries(externalSlots), {
-      emptyHint: "_Во внешних слотах пока нет файлов для оглавления._"
-    })
-  );
+  const multiSection = formatMultiFileContentIndexMarkdown(mergeTopicContentIndexEntries(externalSlots));
+  const bundleSection = formatBundleSlotIndexMarkdown(bundleSlots);
+
+  if (multiSection) lines.push(multiSection, "");
+  else if (!bundleSection) lines.push("_Нет записей во внешних слотах._", "");
+
+  if (bundleSection) lines.push(bundleSection);
+
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
@@ -10276,15 +10399,21 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
   }
 
   const entryCount = slots.reduce((sum, row) => sum + (row.entryCount || 0), 0);
+  const projectRoot = getProjectRoot();
+  const agentRoot = getAgentRoot();
+  const pageSlotKeys = resolveStorageSlotsForManifest(projectRoot, agentRoot, mapPayload.awnType);
+  const bundleSlots =
+    scope === "topic" ? await buildTopicBundleSlotIndexRows(mapPayload.path, pageSlotKeys) : [];
 
   return {
     version: 1,
     model: "content-index",
     hint:
       "Быстрое оглавление (path, type, title, description) без body и без properties. " +
+      "Сверху — таблица однофайловых слотов (файл, заполнено/не заполнено). " +
       "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
       "Общий index.md темы — рядом с manifest.md, только внешние слоты (driver external: memory, inbox, media…). " +
-      "Однофайловая/табличная память (bundle) не включается. Папки awn-materials-* включены.",
+      "Папки awn-materials-* включены.",
     whenToUse: {
       get_content_index:
         "Быстрый обзор темы/слота без погружения: оглавление как index.md (путь, тип, название, описание).",
@@ -10305,7 +10434,8 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     },
     slots,
     slotCount: slots.length,
-    entryCount
+    entryCount,
+    bundleSlots
   };
 }
 
@@ -10362,7 +10492,8 @@ async function writeAgentContentIndex(manifestRelPath, options = {}) {
       };
     }
     const markdown = buildTopicContentIndexMarkdown({
-      slots: indexPayload.slots
+      slots: indexPayload.slots,
+      bundleSlots: indexPayload.bundleSlots || []
     });
     await writeWorkspaceTextFileWithHistory(manifestPath, indexPath, markdown);
     written.push({
