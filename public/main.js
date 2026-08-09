@@ -50996,37 +50996,74 @@ function collectStorageSlotIndexEntries(
   prepared,
   { excludeIndex = true, manifestPath = "", storageFolder = "" } = {}
 ) {
-  if (!prepared?.contentFiles?.length) return [];
-  return prepared.contentFiles
-    .filter((item) => {
-      const path = String(item.path || item.relativePath || "").replace(/\\/g, "/");
-      if (!path) return false;
-      const baseName = path.split("/").pop() || path;
-      if (excludeIndex && isStorageSlotIndexFileName(baseName)) return false;
-      if (isSlotNavigationServiceFilePath(path)) return false;
-      if (isMemorySectionInfrastructureFilePath(path)) return false;
-      return true;
-    })
-    .map((item) => {
-      const path = String(item.path || item.relativePath || "").replace(/\\/g, "/");
-      const rawType = String(item.awnType || item.entryKind || item.type || "").trim();
-      const isFolder =
-        /\/manifest\.md$/i.test(path) ||
-        item.kind === "category" ||
-        item.kind === "record-materials-folder";
-      const linkPath =
-        manifestPath && storageFolder
-          ? buildStorageLayerRef(manifestPath, storageFolder, path) || path
-          : path;
-      return {
-        path,
-        linkPath,
-        type: rawType || (isFolder ? "папка" : "файл"),
-        title: normalizeYamlDisplayString(String(item.title || item.name || path).trim()) || path,
-        description: normalizeYamlDisplayString(String(item.description || "").trim())
-      };
-    })
-    .sort((a, b) => a.path.localeCompare(b.path, "ru"));
+  const entries = [];
+  const seenPaths = new Set();
+
+  const pushEntry = (entry) => {
+    const entryPath = String(entry.path || "").replace(/\\/g, "/");
+    if (!entryPath || seenPaths.has(entryPath)) return;
+    seenPaths.add(entryPath);
+    entries.push(entry);
+  };
+
+  for (const item of prepared?.contentFiles || []) {
+    const path = String(item.path || item.relativePath || "").replace(/\\/g, "/");
+    if (!path) continue;
+    const baseName = path.split("/").pop() || path;
+    if (excludeIndex && isStorageSlotIndexFileName(baseName)) continue;
+    if (isSlotNavigationServiceFilePath(path)) continue;
+    if (isMemorySectionInfrastructureFilePath(path)) continue;
+
+    const rawType = String(item.awnType || item.entryKind || item.type || "").trim();
+    const isFolder =
+      /\/manifest\.md$/i.test(path) ||
+      item.kind === "category" ||
+      item.kind === "record-materials-folder";
+    const linkPath =
+      manifestPath && storageFolder
+        ? buildStorageLayerRef(manifestPath, storageFolder, path) || path
+        : path;
+    pushEntry({
+      path,
+      linkPath,
+      type: rawType || (isFolder ? "папка" : "файл"),
+      title: normalizeYamlDisplayString(String(item.title || item.name || path).trim()) || path,
+      description: normalizeYamlDisplayString(String(item.description || "").trim())
+    });
+  }
+
+  const folderPaths = prepared?.folderPaths instanceof Set ? prepared.folderPaths : new Set();
+  const folderLabels = prepared?.folderLabels instanceof Map ? prepared.folderLabels : new Map();
+  const folderDescriptions =
+    prepared?.folderDescriptions instanceof Map ? prepared.folderDescriptions : new Map();
+  const sectionManifestByFolder =
+    prepared?.sectionManifestByFolder instanceof Map ? prepared.sectionManifestByFolder : new Map();
+
+  for (const folderPath of folderPaths) {
+    const path = String(folderPath || "").replace(/\\/g, "/").replace(/\/$/, "");
+    if (!path || seenPaths.has(path)) continue;
+    if (isMemorySectionInfrastructureFolderPath(path)) continue;
+    if (isSlotNavigationServiceFilePath(path)) continue;
+    const baseName = path.split("/").pop() || path;
+    if (excludeIndex && isStorageSlotIndexFileName(baseName)) continue;
+
+    const sectionManifest = sectionManifestByFolder.get(path);
+    const props = Array.isArray(sectionManifest?.props) ? sectionManifest.props : [];
+    const rawType = getPropsEntryValueByKey(props, "awn-type") || "";
+    const linkPath =
+      manifestPath && storageFolder
+        ? buildStorageLayerRef(manifestPath, storageFolder, path) || path
+        : path;
+    pushEntry({
+      path,
+      linkPath,
+      type: rawType || "папка",
+      title: normalizeYamlDisplayString(String(folderLabels.get(path) || baseName).trim()) || baseName,
+      description: normalizeYamlDisplayString(String(folderDescriptions.get(path) || "").trim())
+    });
+  }
+
+  return entries.sort((a, b) => a.path.localeCompare(b.path, "ru"));
 }
 
 function resolveContentIndexSlotLabel(slotKey, slots = []) {

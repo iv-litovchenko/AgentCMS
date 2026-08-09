@@ -10423,23 +10423,23 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
       continue;
     }
 
-    if (!hasManifest) continue;
-
     let title = path.basename(folderRel);
     let description = "";
     let properties = {};
-    const sectionManifestRel = buildStorageLayerRef(
-      manifestRelPath,
-      storageFolder,
-      path.posix.join(folderRel, MANIFEST_FILE)
-    );
-    try {
-      const { frontmatter } = await readNodeFrontmatterContent(sectionManifestRel);
-      title = String(getYamlScalar(frontmatter, "awn-name") || title).trim();
-      description = String(getYamlScalar(frontmatter, "awn-description") || "").trim();
-      properties = frontmatterPropsToObject(frontmatter);
-    } catch {
-      // use defaults
+    if (hasManifest) {
+      const sectionManifestRel = buildStorageLayerRef(
+        manifestRelPath,
+        storageFolder,
+        path.posix.join(folderRel, MANIFEST_FILE)
+      );
+      try {
+        const { frontmatter } = await readNodeFrontmatterContent(sectionManifestRel);
+        title = String(getYamlScalar(frontmatter, "awn-name") || title).trim();
+        description = String(getYamlScalar(frontmatter, "awn-description") || "").trim();
+        properties = frontmatterPropsToObject(frontmatter);
+      } catch {
+        // use defaults
+      }
     }
 
     items.push({
@@ -10450,6 +10450,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
       workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, folderRel),
       properties
     });
+    seenFolderRefs.add(folderRel);
   }
 
   for (const file of files) {
