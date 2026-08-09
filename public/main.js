@@ -76721,26 +76721,41 @@ async function loadSystemFileTemplates() {
 
 async function loadSystemFiles(options = {}) {
   await loadSystemFileTemplates();
+  const mergeSystemFileLists = (primary, fallback) => {
+    const byName = new Map();
+    for (const file of fallback) {
+      const name = normalizeSystemFileName(file?.name);
+      if (!name) continue;
+      byName.set(name.toLowerCase(), { ...file, name });
+    }
+    for (const file of primary) {
+      const name = normalizeSystemFileName(file?.name);
+      if (!name) continue;
+      const key = name.toLowerCase();
+      byName.set(key, { ...(byName.get(key) || {}), ...file, name });
+    }
+    return sortSystemFilesByName([...byName.values()]);
+  };
+
   try {
     const response = await fetch(buildApiUrl("/api/system-files"));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
-    systemFilesCache = sortSystemFilesByName(
-      (Array.isArray(data.files) ? data.files : []).map((file) => {
-        const name = normalizeSystemFileName(file.name);
-        const exists = Boolean(file.exists);
-        return {
-          ...file,
-          name,
-          exists,
-          empty: Boolean(file.empty ?? !exists),
-          group: file.group || classifySystemFileGroup(name),
-          openMode: file.openMode || resolveSystemFileOpenMode(name, exists)
-        };
-      })
-    );
+    const apiFiles = (Array.isArray(data.files) ? data.files : []).map((file) => {
+      const name = normalizeSystemFileName(file.name);
+      const exists = Boolean(file.exists);
+      return {
+        ...file,
+        name,
+        exists,
+        empty: Boolean(file.empty ?? !exists),
+        group: file.group || classifySystemFileGroup(name),
+        openMode: file.openMode || resolveSystemFileOpenMode(name, exists)
+      };
+    });
+    systemFilesCache = mergeSystemFileLists(apiFiles, SYSTEM_FILE_SCAFFOLD_FALLBACK);
   } catch {
-    systemFilesCache = sortSystemFilesByName(SYSTEM_FILE_SCAFFOLD_FALLBACK);
+    systemFilesCache = mergeSystemFileLists([], SYSTEM_FILE_SCAFFOLD_FALLBACK);
   }
   if (options.skipRender) return;
   if (currentMenuData) {
