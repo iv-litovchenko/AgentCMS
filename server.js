@@ -5014,6 +5014,77 @@ async function writeAgentRootSystemFileViaFs(parsed, content) {
   };
 }
 
+const WORKSPACE_PAD_SPECS = {
+  note: {
+    fileName: ROOT_SYSTEM_NOTE_FILE,
+    kind: "workspace-note",
+    hint:
+      "Shared workspace NOTE.md (sidebar) — notes between user and agent. Not topic notes/ slot, not AGENTS.md."
+  },
+  todo: {
+    fileName: ROOT_SYSTEM_TODO_FILE,
+    kind: "workspace-todo",
+    hint:
+      "Shared workspace TODO.md (footer) — agreements and tasks with user. Not topic todo-single slot."
+  }
+};
+
+function resolveWorkspacePadSpec(pad) {
+  const key = String(pad || "").trim().toLowerCase();
+  return WORKSPACE_PAD_SPECS[key] || null;
+}
+
+async function readWorkspacePad(pad) {
+  const spec = resolveWorkspacePadSpec(pad);
+  if (!spec) return { error: "Invalid pad", status: 400 };
+
+  const parsed = { canonical: spec.fileName, requestName: spec.fileName };
+  const base = await readAgentRootSystemFileViaFs(parsed);
+  return {
+    pad,
+    kind: spec.kind,
+    path: spec.fileName,
+    exists: base.exists,
+    content: base.content,
+    size: base.size,
+    hint: spec.hint
+  };
+}
+
+async function writeWorkspacePad(pad, content, options = {}) {
+  const spec = resolveWorkspacePadSpec(pad);
+  if (!spec) return { error: "Invalid pad", status: 400 };
+
+  const mode = options.mode === "replace" ? "replace" : "append";
+  let finalContent = String(content ?? "");
+
+  if (mode === "append") {
+    const parsed = { canonical: spec.fileName, requestName: spec.fileName };
+    const existing = await readAgentRootSystemFileViaFs(parsed);
+    const prev = String(existing.content || "");
+    if (prev.trim()) {
+      finalContent = `${prev.replace(/\s+$/, "")}\n\n${finalContent.replace(/^\s+/, "")}`;
+    }
+  }
+
+  const parsed = { canonical: spec.fileName, requestName: spec.fileName };
+  const written = await writeAgentRootSystemFileViaFs(parsed, finalContent);
+  if (written.error) return written;
+
+  return {
+    pad,
+    kind: spec.kind,
+    path: spec.fileName,
+    mode,
+    exists: true,
+    content: finalContent,
+    size: written.size,
+    created: written.created,
+    history: written.history,
+    hint: spec.hint
+  };
+}
+
 async function readWorkspaceFsFile(relPath, options = {}) {
   const normalized = normalizeWorkspaceFsRelPath(relPath);
   const systemFile = parseAgentRootSystemFilePath(normalized);
@@ -10663,6 +10734,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFsUpload: "POST /api/workspace/fs/upload — upload_file MCP { path, data base64 }",
   workspaceFsImport: "POST /api/workspace/fs/import — upload_file_from_url MCP { path, url }",
   workspaceFsList: "GET /api/workspace/fs/list?path=<folder>&depth=1|2|all — list_folder MCP",
+  workspaceNote: "GET/POST /api/workspace/note — read_workspace_note / write_workspace_note (shared NOTE.md)",
+  workspaceTodo: "GET/POST /api/workspace/todo — read_workspace_todo / write_workspace_todo (shared TODO.md)",
   execRunScript:
     "POST /api/exec/run-script — run_script MCP { script|path, args?, cwd?, topicPath?, interpreter?, timeoutMs?, env? }",
   execCommand:
@@ -16644,6 +16717,64 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, { files });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to check system files", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/note") {
+    try {
+      const payload = await readWorkspacePad("note");
+      if (payload.error) return sendJson(res, payload.status || 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace NOTE.md",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/note") {
+    try {
+      const body = await readJsonBody(req);
+      const content = typeof body.content === "string" ? body.content : null;
+      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+      const payload = await writeWorkspacePad("note", content, { mode: body.mode });
+      if (payload.error) return sendJson(res, payload.status || 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write workspace NOTE.md",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/todo") {
+    try {
+      const payload = await readWorkspacePad("todo");
+      if (payload.error) return sendJson(res, payload.status || 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace TODO.md",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/todo") {
+    try {
+      const body = await readJsonBody(req);
+      const content = typeof body.content === "string" ? body.content : null;
+      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+      const payload = await writeWorkspacePad("todo", content, { mode: body.mode });
+      if (payload.error) return sendJson(res, payload.status || 400, payload);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write workspace TODO.md",
+        details: String(error.message || error)
+      });
     }
   }
 

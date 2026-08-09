@@ -13,7 +13,7 @@ import { registerDataPropertyTools } from "./lib/data-property-tools.js";
 import { registerExecTools } from "./lib/exec-tools.js";
 import { registerWebSearchTools } from "./lib/web-search-tools.js";
 import { registerAgentUtilsTools } from "./lib/agent-utils-tools.js";
-import { registerSidecarTools } from "./lib/sidecar-tools.js";
+import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
 
 const pagePath = z
   .string()
@@ -246,8 +246,9 @@ function createServer() {
       client.post("/api/file/comments/reaction", { path, commentId, reaction, author, mode, file, name })
   );
 
-  // ── FS + system (5) ────────────────────────────────────────────────────────
+  // ── Workspace pads + FS + system ───────────────────────────────────────────
 
+  registerWorkspacePadTools(reg, client);
   registerWorkspaceFsTools(reg, client);
   registerExecTools(reg, client, pagePath);
   registerWebSearchTools(reg, client);
@@ -256,7 +257,7 @@ function createServer() {
 
   reg(
     "list_system_files",
-    "List agent system files (AGENTS.md, SKILL.md, …) — then read_file/write_file by path.",
+    "List agent system files (AGENTS.md, SKILL.md, …). For shared NOTE/TODO pads use read_workspace_note / read_workspace_todo.",
     z.object({}),
     () => client.get("/api/system-files")
   );

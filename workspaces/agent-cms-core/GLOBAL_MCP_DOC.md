@@ -527,12 +527,31 @@ awn-description: Черновики и ресурсы для разбора
 
 ---
 
+## Workspace pads (общение человек ↔ агент)
+
+Корень workspace — **общая доска**, не слот темы и не инструкции агента:
+
+| Файл | UI | MCP |
+|------|-----|-----|
+| `NOTE.md` | sidebar «NOTE.md (заметки)» | `read_workspace_note` / `write_workspace_note` |
+| `TODO.md` | footer «TODO.MD» | `read_workspace_todo` / `write_workspace_todo` |
+
+- **write** по умолчанию `mode=append` — дописать; `mode=replace` — полная замена
+- запись с **history** (как system files)
+- не путать: слот `notes/` / `todo-single` в теме — другие tools
+
+Для `AGENTS.md`, `SKILL.md` — `list_system_files` → `read_file` / `write_file`.
+
+---
+
 ## Системные файлы агента
 
-Корень **конкретного** workspace: `AGENTS.md`, `SKILL.md`, `README.md`, `NOTE.md`, `TODO.md`…
+Корень **конкретного** workspace: `AGENTS.md`, `SKILL.md`, `README.md`…
 
 - список: `list_system_files` → какие служебные файлы есть / scaffold
 - читать / писать: `read_file("AGENTS.md")` / `write_file("AGENTS.md", …)` — **с history** при записи
+
+`NOTE.md` / `TODO.md` — предпочтительно **`read_workspace_*` / `write_workspace_*`** (см. выше).
 
 В always-context агента (если есть): `AGENTS.md`, `SKILL.md`, `README.md`.  
 Плюс всегда глобально: `GLOBAL_MCP_DOC.md` из корня `agent-cms-core` (для всех агентов).

@@ -24,7 +24,7 @@ export function registerWorkspaceFsTools(reg, client) {
 
   reg(
     "write_file",
-    "Write or overwrite a plain-text workspace file by path. Root system files (AGENTS.md, SKILL.md, …) are saved with history.",
+    "Write or overwrite a plain-text workspace file by path. Root system files (AGENTS.md, SKILL.md, …) are saved with history. For shared NOTE.md/TODO.md prefer write_workspace_note / write_workspace_todo.",
     z.object({
       path: workspacePath,
       content: z.string()
