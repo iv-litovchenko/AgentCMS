@@ -11,9 +11,12 @@ fields:
   awn-attachments:
     hidden: true
 
+  awn-materials:
+    hidden: true
+
   awn-role:
     type: awn.field.choice.one
-    title: Роль
+    title: "{A2!} Роль"
     placement: aside-body
     group: content
     sort: 10

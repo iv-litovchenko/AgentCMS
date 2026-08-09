@@ -10,3 +10,6 @@ allow-children: true
 fields:
   awn-attachments:
     hidden: true
+
+  awn-materials:
+    hidden: true

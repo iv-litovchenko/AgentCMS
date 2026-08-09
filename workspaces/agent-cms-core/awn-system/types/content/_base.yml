@@ -4,35 +4,37 @@ kind: base
 domain: content
 status: active
 extends: awn.base
-description: Запись, категория, sidecar — без nav/runtime страниц
+description: >
+  Запись, категория, sidecar, dialog, comment — без nav/runtime страниц дерева.
+
+# Свои field-groups: не наследуем nav/runtime из awn.base (см. resolveTypeFieldGroups).
 
 form:
-  panel-title: Свойства записи
-  zones:
-    - id: title-bar
-      role: primary-title
-    - id: aside-hero
-      role: media-links
-    - id: aside-body
-      role: field-groups
-    - id: hidden
-      role: system-storage
+  panel-title: "{A2!} Свойства записи"
 
 field-groups:
   - id: content
-    name: Основное
+    name: "{A2!} Основное"
+    description: Что заполняет человек или агент
     collapsed: false
   - id: materials
-    name: Материалы
+    name: "{A2!} Материалы"
+    description: Вложения и доп. материалы рядом с записью
     collapsed: false
+  - id: taxonomy
+    name: "{A2!} Таксономия"
+    description: Категории, теги, приоритет, цвет, владелец
+    collapsed: true
   - id: system
-    name: Системные
+    name: "{A2!} Системные"
+    description: Заполняется автоматически, только чтение
     collapsed: true
 
 fields:
+  # --- materials (aside-hero) ---
   awn-attachments:
     type: awn.field.file.many.with-preview
-    title: Вложения
+    title: "{A2!} Вложения"
     description: awn-storage/assets/attachments/
     scope: attachments
     placement: aside-hero
@@ -41,8 +43,27 @@ fields:
 
   awn-materials:
     type: awn.field.materials
-    title: Доп. материалы
+    title: "{A2!} Доп. материалы"
     description: Папка awn-materials-* рядом с записью
     placement: aside-hero
     group: materials
     sort: 2
+
+  # --- nav/runtime страниц (наследуются из awn.base, для контента не показываем) ---
+  awn-sort:
+    hidden: true
+
+  awn-runtime-load-always:
+    hidden: true
+
+  awn-runtime-cron:
+    hidden: true
+
+  awn-runtime-cron-schedule:
+    hidden: true
+
+  awn-runtime-heartbeat:
+    hidden: true
+
+  awn-runtime-commands:
+    hidden: true

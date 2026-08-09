@@ -9,16 +9,22 @@ description: Метаданные медиафайла (*.sidecar.md)
 fields:
   awn-preview:
     hidden: true
+
   awn-web-url:
     hidden: true
+
   awn-attachments:
     hidden: true
+
+  awn-materials:
+    hidden: true
+
   awn-tags:
     hidden: true
 
   awn-mime:
     type: awn.field.string
-    title: MIME-тип
+    title: "{A2!} MIME-тип"
     placement: aside-body
     group: content
     sort: 10
@@ -26,7 +32,7 @@ fields:
 
   awn-size:
     type: awn.field.number.integer
-    title: Размер (байт)
+    title: "{A2!} Размер (байт)"
     placement: aside-body
     group: content
     sort: 11

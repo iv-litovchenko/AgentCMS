@@ -20174,7 +20174,10 @@ async function closeMediaSidecarEditorToTargetView() {
   const sourceFile = activeMediaSidecarSourcePath || activeMediaMarkdownPath;
   memoryEntryCloseTargetView = null;
   clearMediaSidecarEditor();
+  setPropsYamlContent("");
   fileContentInputNode.value = "";
+  titleInputNode.value = "";
+  syncPropsInputPlaceholder();
 
   if (targetView === MEMORY_ENTRY_VIEW_OVERVIEW && sourceFile) {
     syncAppRouteToUrl({ replace: true });
@@ -37161,7 +37164,11 @@ function resolveOverviewSchemaTargetForContext(context = activeEntryOverviewCont
 
 function getTopicSchemaSavePayload() {
   const cache = getTopicSchemaCache();
-  return cache ? normalizeTopicSchemaState(cache.awnSchema) : null;
+  if (!cache) return null;
+  const manifestPath = getTopicSchemaManifestPath();
+  syncActiveTopicSchemaTargetFromDom();
+  syncTopicSchemaFieldsFromDom(cache, topicSchemaActiveTarget);
+  return compactTopicSchemaForContext(cache.awnSchema, manifestPath);
 }
 
 async function loadWorkspaceSchemaForAgentRoot(nodePath, options = {}) {
@@ -37185,10 +37192,12 @@ async function loadWorkspaceSchemaForAgentRoot(nodePath, options = {}) {
     }
     const fieldRegistry = awnTypesCache?.fieldRegistry || {};
     const parsedLayers = parseTopicSchemaLayersFromApi(data);
-    const workspaceAwnSchema = stripAwnSchemaToContextLevel(
-      parsedLayers.workspaceAwnSchema ||
-        normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema),
-      "workspace"
+    const workspaceAwnSchema = sanitizeTopicSchemaFieldKeys(
+      stripAwnSchemaToContextLevel(
+        parsedLayers.workspaceAwnSchema ||
+          normalizeTopicSchemaState(data.workspaceAwnSchema || data.awnSchema),
+        "workspace"
+      )
     );
     const payload = {
       manifestPath,
@@ -37268,15 +37277,14 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
       ? emptyTopicSchemaState()
       : parsedLayers.topicAwnSchema;
     const areaAwnSchema = isAreaSchemaContext(manifestPath)
-      ? parsedLayers.areaAwnSchema || parsedLayers.topicAwnSchema
+      ? parsedLayers.areaAwnSchema || emptyTopicSchemaState()
       : parsedLayers.areaAwnSchema;
     const contextSchema = resolveContextSchemaFromParsedLayers(parsedLayers, {
       manifestPath,
       contentPath: contentPath || ""
     });
-    const editableSchema = stripAwnSchemaToContextLevel(
-      contextSchema,
-      getSchemaContextLevel(manifestPath)
+    const editableSchema = sanitizeTopicSchemaFieldKeys(
+      stripAwnSchemaToContextLevel(contextSchema, getSchemaContextLevel(manifestPath))
     );
     const effectiveAwnSchema = contextSchema;
     const payload = {
@@ -37491,7 +37499,8 @@ function populateFieldTypeSelect(select, registryEntries, selectedTypeId = "awn.
 
 function getTopicSchemaCustomFieldKeys(target = topicSchemaActiveTarget, cache = getTopicSchemaCache()) {
   if (!cache) return [];
-  const keys = Object.keys(cache.awnSchema?.[target]?.fields || {});
+  let keys = Object.keys(cache.awnSchema?.[target]?.fields || {});
+  keys = keys.filter((key) => isTopicSchemaCustomFieldKey(key, target));
   if (target !== "settings") return keys;
   return keys.filter((key) => !ExternalFileMask.isBuiltinSettingsSchemaKey(key));
 }
@@ -37535,6 +37544,40 @@ function topicSchemaTabGroupHasCustomFields(group, cache = getTopicSchemaCache()
   return false;
 }
 
+function isTopicSchemaCustomFieldKey(key, target = "") {
+  const normalized = normalizePropsKey(key);
+  if (!normalized || isAwnFieldKey(normalized)) return false;
+  if (target === "settings" && ExternalFileMask.isBuiltinSettingsSchemaKey(normalized)) return false;
+  return true;
+}
+
+function normalizeTopicSchemaCustomFieldKey(key) {
+  return String(key || "").trim();
+}
+
+function sanitizeTopicSchemaTargetFieldKeys(fields, target = "") {
+  const next = {};
+  for (const [key, def] of Object.entries(fields || {})) {
+    const normalizedKey = normalizeTopicSchemaCustomFieldKey(key);
+    if (!isTopicSchemaCustomFieldKey(normalizedKey, target)) continue;
+    if (!Object.prototype.hasOwnProperty.call(next, normalizedKey)) next[normalizedKey] = def;
+  }
+  return next;
+}
+
+function sanitizeTopicSchemaFieldKeys(awnSchema) {
+  const normalized = normalizeTopicSchemaState(awnSchema);
+  for (const { id } of getTopicSchemaTargetSpecs()) {
+    if (normalized[id]?.fields) {
+      normalized[id].fields = sanitizeTopicSchemaTargetFieldKeys(normalized[id].fields, id);
+    }
+  }
+  if (normalized.sidecar?.fields) {
+    normalized.sidecar.fields = sanitizeTopicSchemaTargetFieldKeys(normalized.sidecar.fields, "slot_media");
+  }
+  return normalized;
+}
+
 function defaultTopicSchemaFieldKeyForTarget(_target, index) {
   return `field-${index}`;
 }
@@ -37543,11 +37586,84 @@ function getTopicSchemaFieldKeyHint(_target) {
   return { placeholder: "ключ", title: "Ключ поля" };
 }
 
-function addTopicSchemaField(target = topicSchemaActiveTarget) {
+function normalizeTopicSchemaActiveTarget(target = topicSchemaActiveTarget) {
+  const resolved = String(target || "").trim();
+  if (isWorkspaceSchemaContext()) {
+    return resolved === "settings" ? "settings" : "workspace";
+  }
+  if (isAreaSchemaContext()) {
+    return resolved === "settings" ? "settings" : "area";
+  }
+  if (resolved === "workspace" || resolved === "area") return "topic";
+  return resolved || "topic";
+}
+
+function resolveActiveTopicSchemaTarget() {
+  const activeTab = topicSchemaTargetTabsNode?.querySelector(
+    ".topic-schema-target-tab.is-active[data-target]"
+  );
+  const fromDom = String(activeTab?.dataset.target || "").trim();
+  return normalizeTopicSchemaActiveTarget(fromDom || topicSchemaActiveTarget);
+}
+
+function syncActiveTopicSchemaTargetFromDom() {
+  const resolved = resolveActiveTopicSchemaTarget();
+  if (resolved) topicSchemaActiveTarget = resolved;
+  return topicSchemaActiveTarget;
+}
+
+function ensureTopicSchemaTargetFieldsBucket(cache, target) {
+  if (!cache?.awnSchema) return null;
+  const existing = cache.awnSchema[target];
+  if (!existing || typeof existing !== "object") {
+    cache.awnSchema[target] = { fields: {} };
+    return cache.awnSchema[target].fields;
+  }
+  if (!existing.fields || typeof existing.fields !== "object") {
+    existing.fields = {};
+    return existing.fields;
+  }
+  if (existing.fields === cache.awnSchema.workspace?.fields && target !== "workspace") {
+    existing.fields = { ...existing.fields };
+  }
+  if (existing.fields === cache.awnSchema.topic?.fields && target !== "topic") {
+    existing.fields = { ...existing.fields };
+  }
+  if (existing.fields === cache.awnSchema.area?.fields && target !== "area") {
+    existing.fields = { ...existing.fields };
+  }
+  if (existing.fields === cache.awnSchema.settings?.fields && target !== "settings") {
+    existing.fields = { ...existing.fields };
+  }
+  return existing.fields;
+}
+
+function compactTopicSchemaForContext(awnSchema, manifestPath = getTopicSchemaManifestPath()) {
+  const level = getSchemaContextLevel(manifestPath);
+  return sanitizeTopicSchemaFieldKeys(
+    stripAwnSchemaToContextLevel(normalizeTopicSchemaState(awnSchema), level)
+  );
+}
+
+function getTopicSchemaTargetSpecsForEditor() {
+  if (isWorkspaceSchemaContext()) {
+    return getTopicSchemaTargetSpecs().filter((spec) => spec.id === "workspace" || spec.id === "settings");
+  }
+  if (isAreaSchemaContext()) {
+    return getTopicSchemaTargetSpecs().filter((spec) => spec.id === "area" || spec.id === "settings");
+  }
+  return getTopicSchemaTargetSpecs();
+}
+
+function addTopicSchemaField(target = syncActiveTopicSchemaTargetFromDom()) {
   const cache = getTopicSchemaCache();
   if (!cache) return;
-  if (!cache.awnSchema[target]) cache.awnSchema[target] = { fields: {} };
-  const fields = cache.awnSchema[target].fields;
+  const resolvedTarget = String(target || "").trim();
+  if (!resolvedTarget) return;
+  topicSchemaActiveTarget = resolvedTarget;
+  syncTopicSchemaFieldsFromDom(cache, resolvedTarget);
+  const fields = ensureTopicSchemaTargetFieldsBucket(cache, resolvedTarget);
+  if (!fields) return;
   let index = 1;
   let key = defaultTopicSchemaFieldKeyForTarget(target, index);
   while (fields[key]) {
@@ -37598,19 +37714,8 @@ function reorderTopicSchemaFields(target, key, direction) {
   syncSaveButtonLamp();
 }
 
-function normalizeSettingsSchemaFieldKey(key) {
-  return String(key || "").trim();
-}
-
-function normalizeTopicSchemaFieldKeyForTarget(key, target) {
-  const trimmed = String(key || "").trim();
-  if (!trimmed) return trimmed;
-  if (target === "workspace") return normalizeWorkspaceSchemaFieldKey(trimmed);
-  if (target === "area") return normalizeAreaSchemaFieldKey(trimmed);
-  if (target === "settings") return normalizeSettingsSchemaFieldKey(trimmed);
-  if (target === "topic") return normalizeTopicSchemaFieldKey(trimmed);
-  if (String(target || "").startsWith("slot_")) return normalizeSlotSchemaFieldKey(trimmed);
-  return trimmed;
+function normalizeTopicSchemaFieldKeyForTarget(key) {
+  return normalizeTopicSchemaCustomFieldKey(key);
 }
 
 function renameTopicSchemaField(target, oldKey, newKey) {
@@ -37618,7 +37723,7 @@ function renameTopicSchemaField(target, oldKey, newKey) {
   const cache = getTopicSchemaCache();
   if (!cache?.awnSchema?.[target]?.fields || oldKey === newKey) return;
   const fields = cache.awnSchema[target].fields;
-  let trimmed = normalizeTopicSchemaFieldKeyForTarget(newKey, target);
+  let trimmed = normalizeTopicSchemaFieldKeyForTarget(newKey);
   if (!trimmed || (trimmed !== oldKey && fields[trimmed])) return;
   fields[trimmed] = fields[oldKey];
   delete fields[oldKey];
@@ -37719,7 +37824,7 @@ function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
 
   if (!groups) {
     topicSchemaTargetTabsNode.append(
-      ...getTopicSchemaTargetSpecs().map((spec) => createTopicSchemaTargetTabButton(spec, cache))
+      ...getTopicSchemaTargetSpecsForEditor().map((spec) => createTopicSchemaTargetTabButton(spec, cache))
     );
     return;
   }
@@ -37913,6 +38018,7 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
 }
 
 function renderTopicSchemaEditor() {
+  topicSchemaActiveTarget = normalizeTopicSchemaActiveTarget(topicSchemaActiveTarget);
   const cache = getTopicSchemaCache();
   const leadNode = topicSchemaPanelNode?.querySelector(".topic-schema-lead");
   if (leadNode) {
@@ -37921,18 +38027,18 @@ function renderTopicSchemaEditor() {
         `Дополнительные поля workspace сохраняются в <code>${SCHEMA_MOD_FILE}</code> в корне агента. ` +
         "Действуют только на уровне workspace — не смешиваются с областями и темами. " +
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
-        '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
+        '<span class="topic-schema-lead-hint">Ключи произвольные — поля привязаны к вкладке (Workspace / Настройки), а не к префиксу.</span>';
     } else if (isAreaSchemaContext()) {
       leadNode.innerHTML =
         `Дополнительные поля области сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest области. ` +
         "Действуют только на уровне области — поля WS и тем здесь не подмешиваются. " +
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа. " +
-        '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
+        '<span class="topic-schema-lead-hint">Ключи произвольные — поля привязаны к вкладке (Область / Настройки).</span>';
     } else {
       leadNode.innerHTML =
         `Дополнительные поля сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest темы. ` +
-        "Ключи произвольные — префиксы не обязательны. Зона UI (<code>placement</code>): <code>editor-body</code> (над текстом), <code>aside-body</code> (панель свойств), <code>aside-hero</code> (медиа). " +
-        "Настройки темы — вкладка «Настройки». " +
+        "Ключи произвольные — каждая вкладка (Тема, слот, Настройки) хранит только свои поля. " +
+        "Зона UI (<code>placement</code>): <code>editor-body</code> (над текстом), <code>aside-body</code> (панель свойств), <code>aside-hero</code> (медиа). " +
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
         "Поля WS и области здесь не смешиваются — только схема этой темы. " +
         '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
@@ -37991,7 +38097,7 @@ function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache(), target 
   const fields = cache.awnSchema[target].fields;
 
   const nextKeyRaw = String(keyInput?.value || "").trim() || oldKey;
-  const nextKey = normalizeTopicSchemaFieldKeyForTarget(nextKeyRaw, target);
+  const nextKey = normalizeTopicSchemaFieldKeyForTarget(nextKeyRaw);
   if (nextKey !== oldKey) {
     renameTopicSchemaField(target, oldKey, nextKey);
     row.dataset.schemaRowKey = nextKey;
@@ -38114,10 +38220,10 @@ async function saveWorkspaceSchemaContent() {
   const cache = getTopicSchemaCache(manifestPath, "");
   if (!cache) throw new Error("Схема не загружена");
 
-  syncTopicSchemaFieldsFromDom(cache, "workspace");
-  syncTopicSchemaFieldsFromDom(cache, "settings");
+  const savedTarget = syncActiveTopicSchemaTargetFromDom();
+  syncTopicSchemaFieldsFromDom(cache, savedTarget);
 
-  const awnSchemaToSave = normalizeTopicSchemaState(cache.awnSchema);
+  const awnSchemaToSave = compactTopicSchemaForContext(cache.awnSchema, manifestPath);
   const savedWorkspaceFields = { ...(awnSchemaToSave.workspace?.fields || {}) };
   const savedSettingsFields = { ...(awnSchemaToSave.settings?.fields || {}) };
   const response = await fetch(buildApiUrl("/api/file/workspace-schema"), {
@@ -38192,10 +38298,10 @@ async function saveTopicSchemaContent() {
   const cache = getTopicSchemaCache(manifestPath, "");
   if (!cache) throw new Error("Схема не загружена");
 
-  const savedTarget = topicSchemaActiveTarget;
+  const savedTarget = syncActiveTopicSchemaTargetFromDom();
   syncTopicSchemaFieldsFromDom(cache, savedTarget);
 
-  const awnSchemaToSave = normalizeTopicSchemaState(cache.awnSchema);
+  const awnSchemaToSave = compactTopicSchemaForContext(cache.awnSchema, manifestPath);
   const savedTargetFields = { ...(awnSchemaToSave[savedTarget]?.fields || {}) };
   if (awnSchemaToSave.settings?.fields) {
     awnSchemaToSave.settings.fields = ExternalFileMask.stripBuiltinSettingsSchemaFields(
@@ -38224,7 +38330,7 @@ async function saveTopicSchemaContent() {
     ? emptyTopicSchemaState()
     : parsedLayers.topicAwnSchema;
   const areaAwnSchema = isAreaSchemaContext(manifestPath)
-    ? parsedLayers.areaAwnSchema || parsedLayers.topicAwnSchema
+    ? parsedLayers.areaAwnSchema || emptyTopicSchemaState()
     : parsedLayers.areaAwnSchema;
   const contextSchema = resolveContextSchemaFromParsedLayers(parsedLayers, {
     manifestPath,
@@ -38889,7 +38995,7 @@ function createEntryOverviewSectionSchemaPanel(context) {
           Дополнительные поля для записей и подразделов внутри «${escapeHtml(
             context.title || getSectionFolderFromCategoryContext(context)
           )}».
-          <span class="topic-schema-lead-hint">Ключи полей с префиксом <code>x-</code> (например <code>x-field-1</code>). Сохраняется в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest раздела.</span>
+          <span class="topic-schema-lead-hint">Ключи произвольные — поля привязаны к вкладке слота. Сохраняется в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest раздела.</span>
         </p>
         <p class="section-schema-meta">
           <span class="section-schema-meta-label">Файл:</span>
@@ -38959,16 +39065,8 @@ function isWsFieldKey(key) {
   return /^ws-/i.test(String(key || "").trim());
 }
 
-function normalizeWorkspaceSchemaFieldKey(key) {
-  return String(key || "").trim();
-}
-
 function isAreaFieldKey(key) {
   return /^area-/i.test(String(key || "").trim());
-}
-
-function normalizeAreaSchemaFieldKey(key) {
-  return String(key || "").trim();
 }
 
 function isTopicFieldKey(key) {
@@ -38976,8 +39074,20 @@ function isTopicFieldKey(key) {
   return /^topic-/i.test(trimmed) && !/^topic-setting-/i.test(trimmed);
 }
 
+function normalizeWorkspaceSchemaFieldKey(key) {
+  return normalizeTopicSchemaCustomFieldKey(key);
+}
+
+function normalizeAreaSchemaFieldKey(key) {
+  return normalizeTopicSchemaCustomFieldKey(key);
+}
+
 function normalizeTopicSchemaFieldKey(key) {
-  return String(key || "").trim();
+  return normalizeTopicSchemaCustomFieldKey(key);
+}
+
+function normalizeSettingsSchemaFieldKey(key) {
+  return normalizeTopicSchemaCustomFieldKey(key);
 }
 
 function isTopicSettingFieldKey(key) {
@@ -39020,7 +39130,14 @@ function isCustomPropKeyForSchemaLevel(key, nodePath = getResolvedNodePath(activ
   const normalized = normalizePropsKey(key);
   if (!normalized || isAwnFieldKey(normalized)) return false;
   if (isOverviewSettingsFieldKey(normalized, nodePath)) return false;
-  return true;
+  if (isForeignLayerCustomPropKey(normalized, nodePath)) return false;
+  return isOverviewCustomFieldDefinedInSchema(normalized, nodePath);
+}
+
+function isCustomFieldDefinedInSchemaTarget(key, target, cache) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized || !cache?.awnSchema?.[target]?.fields) return false;
+  return Object.prototype.hasOwnProperty.call(cache.awnSchema[target].fields, normalized);
 }
 
 function isForeignLayerCustomPropKey(key, nodePath = getResolvedNodePath(activePath)) {
@@ -39028,13 +39145,22 @@ function isForeignLayerCustomPropKey(key, nodePath = getResolvedNodePath(activeP
   if (!normalized || isAwnFieldKey(normalized)) return false;
   const customFields = getOverviewCustomSchemaLayerFields(nodePath);
   if (Object.prototype.hasOwnProperty.call(customFields, normalized)) return false;
-  return (
-    (isWsFieldKey(normalized) ||
-      isAreaFieldKey(normalized) ||
-      isTopicFieldKey(normalized) ||
-      isSlotCustomFieldKey(normalized)) &&
-    !isCustomPropKeyForSchemaLevel(normalized, nodePath)
-  );
+
+  const cache = resolveActiveOverviewSchemaCache();
+  const currentTarget = resolveOverviewSchemaTargetForNode(nodePath);
+  if (cache?.awnSchema && currentTarget) {
+    for (const target of ["workspace", "area", "topic"]) {
+      if (target === currentTarget) continue;
+      if (isCustomFieldDefinedInSchemaTarget(normalized, target, cache)) return true;
+    }
+  }
+
+  const level = getSchemaContextLevel(nodePath);
+  if (isWsFieldKey(normalized) && level !== "workspace") return true;
+  if (isAreaFieldKey(normalized) && level !== "area") return true;
+  if (isTopicFieldKey(normalized) && level !== "topic") return true;
+  if (isSlotCustomFieldKey(normalized)) return false;
+  return false;
 }
 
 function isForeignLayerSettingsPropKey(key, nodePath = getResolvedNodePath(activePath)) {
@@ -39075,20 +39201,16 @@ function stripAwnSchemaToContextLevel(awnSchema, level) {
     }
   }
   const settingsFields = normalized.settings?.fields || {};
-  const filteredSettings = {};
-  for (const [settingKey, def] of Object.entries(settingsFields)) {
-    if (isSettingsPropKeyForSchemaLevel(settingKey, null, level)) {
-      filteredSettings[settingKey] = def;
-    }
-  }
-  if (Object.keys(filteredSettings).length) {
-    result.settings = { fields: filteredSettings };
+  if (Object.keys(settingsFields).length) {
+    result.settings = { fields: { ...settingsFields } };
   }
   return result;
 }
 
 function normalizeSlotSchemaFieldKey(key) {
-  return String(key || "").trim();
+  const trimmed = String(key || "").trim();
+  if (!trimmed || isAwnFieldKey(trimmed)) return trimmed;
+  return trimmed;
 }
 
 function isSchemaDefinedFieldKey(key) {
@@ -39137,13 +39259,13 @@ function getOverviewSchemaFieldDef(key, nodePath = getResolvedNodePath(activePat
 
   const cache = resolveActiveOverviewSchemaCache();
   if (cache?.awnSchema) {
+    const target = resolveOverviewSchemaTargetForNode(nodePath);
+    const targetField = cache.awnSchema[target]?.fields?.[normalized];
+    if (targetField) return targetField;
     if (isOverviewSettingsFieldKey(normalized, nodePath)) {
       const settingsField = cache.awnSchema.settings?.fields?.[normalized];
       if (settingsField) return settingsField;
     }
-    const target = resolveOverviewSchemaTargetForNode(nodePath);
-    const targetField = cache.awnSchema[target]?.fields?.[normalized];
-    if (targetField) return targetField;
   }
 
   if (isOverviewSettingsFieldKey(normalized, nodePath)) {
@@ -39155,17 +39277,16 @@ function getOverviewSchemaFieldDef(key, nodePath = getResolvedNodePath(activePat
 
 function isOverviewSettingsFieldKey(key, nodePath = getResolvedNodePath(activePath)) {
   const normalized = normalizePropsKey(key);
-  if (!normalized || !isSettingsPropKeyForSchemaLevel(normalized, nodePath)) return false;
+  if (!normalized) return false;
   const settingsFields = getOverviewSettingsSchemaFieldsFromCache(null, nodePath);
-  if (settingsFields && Object.prototype.hasOwnProperty.call(settingsFields, normalized)) {
-    return true;
-  }
+  if (Object.prototype.hasOwnProperty.call(settingsFields, normalized)) return true;
+  if (isOverviewCustomSchemaFieldKey(normalized, nodePath)) return false;
   return isSettingsPropKeyForSchemaLevel(normalized, nodePath);
 }
 
 function isOverviewCustomSchemaFieldKey(key, nodePath = getResolvedNodePath(activePath)) {
   const normalized = normalizePropsKey(key);
-  if (!normalized || isOverviewSettingsFieldKey(normalized) || isAwnFieldKey(normalized)) return false;
+  if (!normalized || isAwnFieldKey(normalized)) return false;
   const customFields = getOverviewCustomSchemaLayerFields(nodePath);
   return Object.prototype.hasOwnProperty.call(customFields, normalized);
 }
@@ -39185,7 +39306,7 @@ function isOverviewAwnMetaItemKey(key, nodePath = getResolvedNodePath(activePath
 function isOverviewCustomMetaItemForContext(item, nodePath = getResolvedNodePath(activePath)) {
   const key = normalizePropsKey(item?.key);
   if (!key || isOverviewExcludedPropKey(key)) return false;
-  if (isOverviewSettingsFieldKey(key, nodePath)) return false;
+  if (isOverviewSettingsFieldKey(key, nodePath) && !isOverviewCustomSchemaFieldKey(key, nodePath)) return false;
   if (isOverviewAwnMetaItemKey(key)) return false;
   if (isForeignLayerCustomPropKey(key, nodePath)) return false;
   if (isForeignLayerSettingsPropKey(key, nodePath)) return false;
@@ -39276,9 +39397,8 @@ function shouldIncludeOverviewCustomSchemaFieldKey(key, nodePath = getResolvedNo
   if (HIDDEN_PROPS_FIELD_KEYS.has(key)) return false;
   if (OVERVIEW_EXCLUDED_PROP_KEYS.has(key)) return false;
   if (!shouldIncludePropsFieldKey(key)) return false;
-  if (isOverviewSettingsFieldKey(key, nodePath)) return false;
   if (isAwnFieldKey(key)) return false;
-  return true;
+  return isOverviewCustomSchemaFieldKey(key, nodePath);
 }
 
 function getOverviewCustomSchemaFieldKeys(nodePath = getResolvedNodePath(activePath)) {
@@ -39287,12 +39407,8 @@ function getOverviewCustomSchemaFieldKeys(nodePath = getResolvedNodePath(activeP
   const cache = resolveActiveOverviewSchemaCache(overviewContext);
   const target = resolveOverviewSchemaTargetForNode(nodePath);
   const customFields = getOverviewCustomSchemaLayerFields(nodePath);
-  const settingsKeySet = new Set(getOverviewSettingsSchemaFieldKeys(undefined, nodePath));
 
-  const acceptKey = (key) => {
-    if (settingsKeySet.has(key)) return false;
-    return shouldIncludeOverviewCustomSchemaFieldKey(key, nodePath);
-  };
+  const acceptKey = (key) => shouldIncludeOverviewCustomSchemaFieldKey(key, nodePath);
 
   const hasSectionLayer =
     Boolean(cache?.sectionAwnSchema) ||
@@ -39367,9 +39483,8 @@ function getPropsFormFieldContainers() {
 function shouldShowEditorCustomPropsBar() {
   if (!editorCustomPropsBarNode || !editorCustomPropsFieldsNode) return false;
   if (propsRawYamlVisible) return false;
-  if (!canEditPropsForm() && !isPropsFormReadOnly()) return false;
-  if (activeContentMode !== "description" && !activeSystemFile) return false;
-  return true;
+  if (!isDocAsideAvailable()) return false;
+  return isDocAsidePropsTabAvailable() || Boolean(activeSystemFile);
 }
 
 function decorateEditorCustomPropsFormRow(row, entry) {
@@ -39688,6 +39803,9 @@ function resolveAwnTypeForContext(nodePath = activePath) {
   return inferAwnTypeFromRelPath(manifestPath, typeOptions);
 }
 
+/** Не подниматься к awn.base за группами — у content свой набор секций формы. */
+const DOMAIN_FIELD_GROUP_BOUNDARY_TYPES = new Set(["awn.content.base"]);
+
 function resolveTypeFieldGroups(typeName) {
   let current = normalizeAwnTypeName(typeName);
   const visited = new Set();
@@ -39696,6 +39814,9 @@ function resolveTypeFieldGroups(typeName) {
     const def = awnTypesCache?.types?.[current];
     if (Array.isArray(def?.fieldGroups) && def.fieldGroups.length) {
       return def.fieldGroups;
+    }
+    if (DOMAIN_FIELD_GROUP_BOUNDARY_TYPES.has(current)) {
+      return null;
     }
     current = def?.extends ? normalizeAwnTypeName(def.extends) : null;
   }
@@ -42686,9 +42807,9 @@ function syncDocAsideUi({
     renderDocContentBlocks();
   } else if (effectiveTab === "links") {
     renderDocLinksLibrary();
-  } else if (effectiveTab === "props" && asideEnabled) {
-    renderPropsForm();
   }
+
+  syncPropsPanelsUi();
 
   renderDocAsideMiniDoc();
 }
@@ -43110,6 +43231,8 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-tags": "taxonomy",
   "awn-preview": "content",
   "awn-web-url": "content",
+  "awn-attachments": "materials",
+  "awn-materials": "materials",
   "awn-main": "nav",
   "awn-slots-disabled": "nav",
   "awn-category": "taxonomy",
@@ -43169,6 +43292,28 @@ function savePropsGroupCollapseState(groupId, isCollapsed) {
   } catch {
     // ignore quota / private mode
   }
+}
+
+function resetPropsAsideDomState() {
+  propsFormFieldsNode?.replaceChildren();
+  for (const node of [
+    propsPreviewBlockNode,
+    propsWebUrlBlockNode,
+    propsAttachmentsBlockNode,
+    propsMaterialsBlockNode
+  ]) {
+    node?.replaceChildren();
+    node?.classList.add("hidden");
+  }
+}
+
+function syncPropsPanelsUi() {
+  if (shouldRenderPropsFormNow()) {
+    renderPropsForm();
+    return;
+  }
+  renderEditorCustomPropsBar();
+  resetPropsAsideDomState();
 }
 
 function renderEditorCustomPropsBar() {
@@ -50108,33 +50253,64 @@ function mergeNodeOverviewSettingsItems(
   return orderOverviewMetaItemsBySchema([...map.values()], schemaKeys);
 }
 
+function createNodeOverviewMetaItem(key, entry, { fieldDef = null, inSchema = true } = {}) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return null;
+  return {
+    key: normalized,
+    value: getPropsEntryOverviewDisplayValue(entry, normalized),
+    rawValue: entry ? getPropsEntryDisplayValue(entry) : "",
+    fieldDef,
+    inSchema
+  };
+}
+
 function splitNodeOverviewMetaItems(entries, nodePath = getResolvedNodePath(activePath)) {
-  const customSchemaKeySet = new Set(getOverviewCustomSchemaFieldKeys(nodePath));
+  const manifestMap = new Map();
+  for (const entry of normalizePropsEntries(entries)) {
+    const key = normalizePropsKey(entry?.key);
+    if (key) manifestMap.set(key, entry);
+  }
+
+  const customFields = getOverviewCustomSchemaLayerFields(nodePath);
+  const settingsFields = getOverviewSettingsSchemaFieldsFromCache(null, nodePath);
+  const customSchemaKeys = getOverviewCustomSchemaFieldKeys(nodePath);
+  const settingsSchemaKeys = getOverviewSettingsSchemaFieldKeys(undefined, nodePath);
+
   const awnItems = [];
-  const customItems = [];
-  const settingsItems = [];
   for (const item of collectNodeOverviewMetaItems(entries, nodePath)) {
     const key = normalizePropsKey(item.key);
     if (!key) continue;
     if (isForeignLayerCustomPropKey(key, nodePath) || isForeignLayerSettingsPropKey(key, nodePath)) {
       continue;
     }
-    if (isOverviewSettingsFieldKey(key, nodePath)) {
-      settingsItems.push(item);
-    } else if (isAwnFieldKey(key) && !isOverviewExcludedPropKey(key)) {
+    if (isAwnFieldKey(key) && !isOverviewExcludedPropKey(key)) {
       awnItems.push(item);
-    } else if (!isOverviewExcludedPropKey(key)) {
-      customItems.push({
-        ...item,
-        inSchema: customSchemaKeySet.has(key)
-      });
     }
   }
-  const customSchemaKeys = getOverviewCustomSchemaFieldKeys(nodePath);
+
+  const customItems = customSchemaKeys
+    .map((key) =>
+      createNodeOverviewMetaItem(key, manifestMap.get(key), {
+        fieldDef: customFields[key] || null,
+        inSchema: true
+      })
+    )
+    .filter(Boolean);
+
+  const settingsItems = settingsSchemaKeys
+    .map((key) =>
+      createNodeOverviewMetaItem(key, manifestMap.get(key), {
+        fieldDef: settingsFields[key] || null,
+        inSchema: true
+      })
+    )
+    .filter(Boolean);
+
   return {
     awnItems,
     customItems: orderOverviewMetaItemsBySchema(customItems, customSchemaKeys),
-    settingsItems
+    settingsItems: orderOverviewMetaItemsBySchema(settingsItems, settingsSchemaKeys)
   };
 }
 
@@ -90580,7 +90756,12 @@ projectSettingsFieldsNode?.addEventListener("change", handleNodeConfigFieldsInpu
 topicSchemaTargetTabsNode?.addEventListener("click", (event) => {
   const tab = event.target.closest(".topic-schema-target-tab");
   if (!tab?.dataset.target) return;
-  topicSchemaActiveTarget = tab.dataset.target;
+  const nextTarget = normalizeTopicSchemaActiveTarget(tab.dataset.target);
+  const activeTarget = normalizeTopicSchemaActiveTarget(topicSchemaActiveTarget);
+  if (nextTarget === activeTarget) return;
+  const cache = getTopicSchemaCache();
+  if (cache) syncTopicSchemaFieldsFromDom(cache, activeTarget);
+  topicSchemaActiveTarget = nextTarget;
   renderTopicSchemaEditor();
 });
 topicSchemaFieldsNode?.addEventListener("input", handleTopicSchemaFieldsInput);

@@ -6,7 +6,8 @@ status: active
 extends: awn.base
 description: Узел дерева (ws / section / area / topic) — навигация и runtime
 
-# field-groups наследуются из awn.base; здесь только поля, специфичные для страниц
+form:
+  panel-title: "{A2!} Свойства страницы"
 
 fields:
   awn-main:
