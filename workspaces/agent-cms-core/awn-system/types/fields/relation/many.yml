@@ -1,5 +1,5 @@
 id: awn.field.relation.many
-name: Отношения
+name: Связи (несколько)
 kind: field
 domain: fields
 extends: awn.field.base

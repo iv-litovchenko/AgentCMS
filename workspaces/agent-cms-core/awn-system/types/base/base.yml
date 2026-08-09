@@ -89,7 +89,8 @@ fields:
     sort: 4
 
   awn-tags:
-    type: awn.field.array.catalog-tags
+    type: awn.field.lookup.many
+    source: tags
     title: АААТеги
     placement: aside-body
     group: content

@@ -9,7 +9,7 @@ demo_choice_many:
   - alpha
   - beta
 demo_choice_one: in_progress
-demo_color: "#461796"
+demo_color: "#7c3aed"
 demo_cron: "0 9 * * 1-5"
 demo_date: 2026-06-21
 demo_datetime: "2026-06-21T12:00"
@@ -43,7 +43,7 @@ demo_tags_free:
   - test
 demo_text: ""
 demo_url: "https://example.com/all-field-types"
-topic-demo_lookup_status: "[Ая тест области 2031](../../aja-test-oblasti-2031/manifest.md)"
+topic-demo_lookup_status: []
 awn-emoji: 🧪
 awn-status: open
 awn-tags:
@@ -62,8 +62,8 @@ awn-runtime-cron-schedule: "0 9 * * 1-5"
 awn-runtime-heartbeat: true
 awn-runtime-commands: false
 awn-create: "2026-06-21T12:00"
-awn-update: 2026-08-09T20:14:52.093Z
-awn-version: 14
+awn-update: 2026-08-09T20:13:29.251Z
+awn-version: 13
 awn-description: ""
 awn-description: ""
 awn-name: ""
@@ -71,6 +71,7 @@ awn-name: ""
 awn-preview: awn-storage/assets/preview/20260623203544.png
 awn-type: awn.page.topic
 awn-web-url: "https://example.com/all-field-types"
+demo_lookup_status: open
 demo_lookup_status: open
 demo_lookup_status: open
 demo_lookup_status: open

@@ -2,7 +2,7 @@ id: awn.field.groups
 kind: meta
 status: active
 domain: fields
-groupOrder: [text, numbers, choice, datetime, media, structure, cms]
+groupOrder: [text, numbers, choice, datetime, media, structure, lookup, cms]
 groupNames:
   text: Текст
   numbers: Числа
@@ -10,4 +10,5 @@ groupNames:
   datetime: Дата и время
   media: Медиа
   structure: Структура
+  lookup: Справочники
   cms: CMS / платформа

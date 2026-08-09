@@ -9,7 +9,9 @@ manifest-pattern: "{slug}/manifest.md"
 
 fields:
   awn-color:
-    type: awn.field.string.catalog-colors
+    type: awn.field.lookup.one
+    source: colors
+    value-kind: color
     title: Цвет
     description: Акцентный цвет области в меню
     placement: aside-body

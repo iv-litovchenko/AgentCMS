@@ -12,7 +12,9 @@ storage-slots: []
 
 fields:
   awn-section-bg:
-    type: awn.field.string.catalog-colors
+    type: awn.field.lookup.one
+    source: colors
+    value-kind: color
     title: Цвет фона
     description: Фон секции в меню workspace
     placement: aside-body
@@ -20,7 +22,9 @@ fields:
     sort: 10
 
   awn-section-border:
-    type: awn.field.string.catalog-colors
+    type: awn.field.lookup.one
+    source: colors
+    value-kind: color
     title: Цвет бордюра
     description: Обводка секции в меню workspace
     placement: aside-body

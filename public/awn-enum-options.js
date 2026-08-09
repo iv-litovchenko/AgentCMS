@@ -60,6 +60,14 @@ function isLinkFieldTypeId(typeId) {
   return isRelationFieldTypeId(typeId);
 }
 
+function isLookupOneFieldTypeId(typeId) {
+  return normalizeCanonicalFieldTypeId(typeId) === "awn.lookup.one";
+}
+
+function isLookupManyFieldTypeId(typeId) {
+  return normalizeCanonicalFieldTypeId(typeId) === "awn.lookup.many";
+}
+
 function isFileFieldTypeId(typeId) {
   const canonical = normalizeCanonicalFieldTypeId(typeId);
   return canonical.startsWith("awn.file.");
@@ -249,6 +257,8 @@ const api = {
   isNumberFieldTypeId,
   isRelationFieldTypeId,
   isLinkFieldTypeId,
+  isLookupOneFieldTypeId,
+  isLookupManyFieldTypeId,
   isFileFieldTypeId,
   isFieldTypeMany,
   resolveFieldWidget,

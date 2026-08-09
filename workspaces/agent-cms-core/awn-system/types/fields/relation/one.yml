@@ -1,5 +1,5 @@
 id: awn.field.relation.one
-name: Отношение
+name: Связь (одна)
 kind: field
 domain: fields
 extends: awn.field.base

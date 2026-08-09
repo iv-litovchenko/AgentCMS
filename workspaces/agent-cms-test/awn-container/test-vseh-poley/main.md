@@ -1,9 +1,9 @@
 # All Field Types — внутренняя память
 
-Демонстрационная тема: все типы полей из `awn-types/fields/`.
+Демонстрационная тема: **все типы полей** в `schema-mod.yml` → `awn_schema`.
 
-- **Тема** (`all-field-types.md`) — кастомные поля уровня topic в свойствах манифеста.
-- **Запись** (`Content/All-Field-Types.md`) — кастомные поля уровня record.
-- **Sidecar** — поля `sidecar_*` в схеме (для медиа-вложений).
+- **topic** (`manifest.md`) — `demo_*`, полный набор типов
+- **record** (`Content/All-Field-Types.md`) — `rec_*`
+- **sidecar** — `sidecar_*` (любой `.sidecar.md` в Assets)
 
-Справочники: `awn-category` → Categories, `awn-tags` → Tags.
+Справочники через `awn.field.lookup.*` + `source:` (categories, users, priorities, colors, tags, statuses).

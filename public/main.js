@@ -37296,16 +37296,12 @@ const FIELD_TYPE_SELECT_GROUPS = [
     types: ["awn.field.json", "awn.field.relation.one", "awn.field.relation.many"]
   },
   {
+    label: "Справочники",
+    types: ["awn.field.lookup.one", "awn.field.lookup.many"]
+  },
+  {
     label: "CMS / платформа",
-    types: [
-      "awn.field.string.cron-schedule",
-      "awn.field.string.catalog-status",
-      "awn.field.array.catalog-tags",
-      "awn.field.string.catalog-category",
-      "awn.field.string.catalog-users",
-      "awn.field.string.catalog-priorities",
-      "awn.field.string.catalog-colors"
-    ]
+    types: ["awn.field.string.cron-schedule"]
   }
 ];
 
@@ -39857,12 +39853,14 @@ const FIELD_TYPE_ICONS = {
   "awn.choice.one": "🔘",
   "awn.field.choice.many": "🎛️",
   "awn.choice.many": "🎛️",
-  "awn.field.relation.one": "↔️",
-  "awn.relation.one": "↔️",
-  "awn.field.relation.many": "↔️",
-  "awn.relation.many": "↔️",
+  "awn.field.relation.one": "🔗",
+  "awn.relation.one": "🔗",
+  "awn.field.relation.many": "🕸️",
+  "awn.relation.many": "🕸️",
   "awn.field.file.one": "📎",
   "awn.file.one": "📎",
+  "awn.field.file.many": "🗂️",
+  "awn.file.many": "🗂️",
   "awn.field.string": "🔤",
   "awn.string": "🔤",
   "awn.field.text": "📝",
@@ -39884,6 +39882,16 @@ const FIELD_TYPE_ICONS = {
   "awn.slug": "🔖",
   "awn.field.file.image.one": "🖼️",
   "awn.file.image.one": "🖼️",
+  "awn.field.file.image.many": "🎞️",
+  "awn.file.image.many": "🎞️",
+  "awn.field.file.image.one.with-preview": "🪪",
+  "awn.file.image.one.with-preview": "🪪",
+  "awn.field.lookup.one": "📇",
+  "awn.lookup.one": "📇",
+  "awn.field.lookup.many": "📚",
+  "awn.lookup.many": "📚",
+  "awn.field.string.cron-schedule": "🕐",
+  "awn.link": "📂",
   "awn.field.json": "🧩",
   "awn.json": "🧩",
   "awn.field.array.tags": "🏷️",
@@ -40072,6 +40080,18 @@ function isChoiceManyFieldTypeId(typeId) {
   const api = awnEnumOptionsApi();
   if (typeof api.isChoiceManyFieldTypeId === "function") return api.isChoiceManyFieldTypeId(typeId);
   return fieldTypeIs(typeId, "choice.many");
+}
+
+function isLookupOneFieldTypeId(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.isLookupOneFieldTypeId === "function") return api.isLookupOneFieldTypeId(typeId);
+  return fieldTypeIs(typeId, "lookup.one");
+}
+
+function isLookupManyFieldTypeId(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.isLookupManyFieldTypeId === "function") return api.isLookupManyFieldTypeId(typeId);
+  return fieldTypeIs(typeId, "lookup.many");
 }
 
 function propsFieldWidgetNeedsLibrary(widget) {
@@ -43155,24 +43175,57 @@ const DEDICATED_FIELD_TYPE_WIDGETS = new Set([
   "preview",
   "attachments",
   "cron-schedule",
-  "catalog-status",
-  "catalog-tags",
-  "catalog-category",
-  "catalog-users",
-  "catalog-priorities",
-  "catalog-colors"
+  "lookup-one",
+  "lookup-many"
 ]);
 
 const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
   "file.image.one.with-preview": "preview",
   "string.cron-schedule": "cron-schedule",
-  "string.catalog-status": "catalog-status",
-  "string.catalog-category": "catalog-category",
-  "string.catalog-users": "catalog-users",
-  "string.catalog-priorities": "catalog-priorities",
-  "string.catalog-colors": "catalog-colors",
-  "array.catalog-tags": "catalog-tags"
+  "lookup.one": "lookup-one",
+  "lookup.many": "lookup-many"
 };
+
+const LEGACY_LOOKUP_TYPE_SOURCES = {
+  "string.catalog-status": "statuses",
+  "string.catalog-category": "categories",
+  "string.catalog-users": "users",
+  "string.catalog-priorities": "priorities",
+  "string.catalog-colors": "colors",
+  "array.catalog-tags": "tags"
+};
+
+const LEGACY_LOOKUP_ONE_WIDGETS = new Set([
+  "catalog-category",
+  "catalog-status",
+  "catalog-users",
+  "catalog-priorities",
+  "catalog-colors"
+]);
+
+function resolveLookupSource(fieldDef) {
+  const explicit = String(fieldDef?.source || fieldDef?.catalog || "").trim();
+  if (explicit) return explicit;
+  const typeId = normalizeCanonicalFieldTypeId(fieldDef?.type || "");
+  const suffix = typeId.replace(/^awn\./, "");
+  return LEGACY_LOOKUP_TYPE_SOURCES[suffix] || "";
+}
+
+function isLookupColorField(fieldDef) {
+  return resolveLookupSource(fieldDef) === "colors" || fieldDef?.["value-kind"] === "color";
+}
+
+function isLookupOneWidget(widget) {
+  return widget === "lookup-one" || LEGACY_LOOKUP_ONE_WIDGETS.has(widget);
+}
+
+function isLookupManyWidget(widget) {
+  return widget === "lookup-many" || widget === "catalog-tags";
+}
+
+function isLookupFieldWidget(widget) {
+  return isLookupOneWidget(widget) || isLookupManyWidget(widget);
+}
 
 function resolveDedicatedFieldTypeWidget(typeId, registryEntry = null) {
   const widget = String(registryEntry?.widget || "").trim();
@@ -43197,22 +43250,15 @@ function resolveSchemaPropsWidget(fieldDef) {
   const fromType = resolveDedicatedFieldTypeWidget(typeId, registryEntry);
   if (fromType) return fromType;
 
-  // Legacy: widget + catalog on primitive types (старые схемы до awn.field.catalog-*)
+  // Legacy: widget + catalog on primitive types (старые схемы до awn.field.lookup.*)
   const widget = String(fieldDef.widget || "").trim();
-  const catalog = String(fieldDef.catalog || "").trim();
+  const catalog = String(fieldDef.catalog || fieldDef.source || "").trim();
   if (widget === "catalog-lookup" && catalog) {
-    const catalogWidgets = {
-      statuses: "catalog-status",
-      categories: "catalog-category",
-      users: "catalog-users",
-      priorities: "catalog-priorities",
-      colors: "catalog-colors",
-      tags: "catalog-tags"
-    };
-    return catalogWidgets[catalog] || "catalog-lookup";
+    const arrayCatalogs = new Set(["tags"]);
+    return arrayCatalogs.has(catalog) ? "lookup-many" : "lookup-one";
   }
-  if (widget === "catalog-tags") return "catalog-tags";
-  if (widget === "catalog-colors") return "catalog-colors";
+  if (widget === "catalog-tags") return "lookup-many";
+  if (LEGACY_LOOKUP_ONE_WIDGETS.has(widget)) return "lookup-one";
   if (widget === "cron-schedule") return "cron-schedule";
   if (widget === "preview") return "preview";
   if (widget === "attachments") return "attachments";
@@ -43238,6 +43284,8 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const widget = resolveFieldWidget(fieldDef, registryEntry);
   if (widget === "attachments") return "attachments";
 
+  if (isLookupOneFieldTypeId(typeId)) return "lookup-one";
+  if (isLookupManyFieldTypeId(typeId)) return "lookup-many";
   if (isChoiceOneFieldTypeId(typeId)) {
     if (widget === "radio") return "radio";
     return "select";
@@ -43625,62 +43673,31 @@ function createPropsFormSelectMultipleControl(entry, meta, options, { locked = f
   return wrap;
 }
 
-function createPropsFormCatalogCategoryControl(entry, meta, { locked = false } = {}) {
-  const catalog = getAgentCatalogPreset("categories");
-  const wrap = createPropsFormValueWrap("catalog-category");
-  const items = catalog.items || [];
-  const fieldKey = entry.key || "awn-category";
-
-  if (!catalog.exists && !items.length) {
-    wrap.appendChild(
-      createPropsFormCatalogMissingNote("Справочник «Категории» ещё не создан — добавьте первую запись")
-    );
-    appendPropsFormCatalogAddControl(wrap, "categories", fieldKey, { locked });
-    return wrap;
-  }
-
-  const select = document.createElement("select");
-  select.className = "props-form-value props-form-value--select";
-  const currentValue = getPropsEntryDisplayValue(entry);
-  appendPropsFormSelectOption(select, "", "— не выбрано —");
-
-  const groups = getCatalogGroups(catalog);
-  appendPropsFormSelectGroup(select, groups.global.title, groups.global.items, currentValue);
-  if (groups.agent.items.length) {
-    appendPropsFormSelectGroup(select, groups.agent.title, groups.agent.items, currentValue);
-  }
-
-  if (
-    currentValue &&
-    !items.some((item) => item.id === currentValue || item.label === currentValue)
-  ) {
-    appendPropsFormSelectOption(select, currentValue, `${currentValue} (вне справочника)`, {
-      selected: true
-    });
-  }
-  bindPropsFormLockedState(select, locked);
-  wrap.appendChild(select);
-  appendPropsFormCatalogAddControl(wrap, "categories", fieldKey, { locked });
-  return wrap;
-}
-
-const CATALOG_LOOKUP_PRESET_LABELS = {
+const LOOKUP_SOURCE_LABELS = {
   statuses: "Статусы",
+  categories: "Категории",
   users: "Пользователи",
-  priorities: "Приоритеты"
+  priorities: "Приоритеты",
+  colors: "Цвета",
+  tags: "Теги"
 };
 
-function createPropsFormCatalogTagsControl(entry, meta, { locked = false } = {}) {
-  const catalog = getAgentCatalogPreset("tags");
-  const wrap = createPropsFormValueWrap("catalog-tags");
+function createPropsFormLookupManyControl(entry, meta, { locked = false } = {}) {
+  const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
+  const preset = resolveLookupSource(fieldDef) || "tags";
+  const catalog = getAgentCatalogPreset(preset);
+  const wrap = createPropsFormValueWrap("lookup-many");
   const items = catalog.items || [];
   const fieldKey = entry.key || "awn-tags";
+  const presetLabel = LOOKUP_SOURCE_LABELS[preset] || preset;
 
   if (!catalog.exists && !items.length) {
     wrap.appendChild(
-      createPropsFormCatalogMissingNote("Справочник «Теги» ещё не создан — добавьте первый тег")
+      createPropsFormCatalogMissingNote(
+        `Справочник «${presetLabel}» ещё не создан — добавьте первую запись`
+      )
     );
-    appendPropsFormCatalogAddControl(wrap, "tags", fieldKey, { locked });
+    appendPropsFormCatalogAddControl(wrap, preset, fieldKey, { locked });
     return wrap;
   }
 
@@ -43730,7 +43747,7 @@ function createPropsFormCatalogTagsControl(entry, meta, { locked = false } = {})
   extraWrap.className = "props-form-tags-extra-wrap";
   const extraLabel = document.createElement("label");
   extraLabel.className = "props-form-tags-extra-label";
-  extraLabel.textContent = extraTags.length ? "Другие теги" : "Свои теги (через запятую)";
+  extraLabel.textContent = extraTags.length ? "Другие значения" : "Свои значения (через запятую)";
   const extraInput = document.createElement("input");
   extraInput.type = "text";
   extraInput.className = "props-form-value props-form-tags-extra";
@@ -43744,13 +43761,13 @@ function createPropsFormCatalogTagsControl(entry, meta, { locked = false } = {})
     warn.className = "props-form-catalog-warn";
     warn.textContent =
       extraTags.length === 1
-        ? `Тег «${extraTags[0]}» вне справочника`
-        : `Теги вне справочника: ${extraTags.join(", ")}`;
+        ? `«${extraTags[0]}» вне справочника`
+        : `Вне справочника: ${extraTags.join(", ")}`;
     extraWrap.appendChild(warn);
   }
   wrap.appendChild(extraWrap);
 
-  appendPropsFormCatalogAddControl(wrap, "tags", fieldKey, { locked });
+  appendPropsFormCatalogAddControl(wrap, preset, fieldKey, { locked });
   return wrap;
 }
 
@@ -43772,7 +43789,7 @@ function createPropsFormCatalogLookupControl(
     }
     wrap.appendChild(
       createPropsFormCatalogMissingNote(
-        `Справочник «${CATALOG_LOOKUP_PRESET_LABELS[preset] || preset}» ещё не создан — добавьте первую запись`
+        `Справочник «${LOOKUP_SOURCE_LABELS[preset] || preset}» ещё не создан — добавьте первую запись`
       )
     );
     appendPropsFormCatalogAddControl(wrap, preset, fieldKey, { locked });
@@ -43814,30 +43831,9 @@ function createPropsFormCatalogLookupControl(
   return wrap;
 }
 
-function createPropsFormCatalogStatusControl(entry, meta, { locked = false } = {}) {
-  const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
-  const enumFallback = Array.isArray(fieldDef?.["enum-fallback"])
-    ? fieldDef["enum-fallback"]
-    : Array.isArray(fieldDef?.enum)
-      ? fieldDef.enum
-      : [];
-  return createPropsFormCatalogLookupControl(entry, meta, "statuses", "catalog-status", {
-    locked,
-    enumFallback
-  });
-}
-
-function createPropsFormCatalogUsersControl(entry, meta, { locked = false } = {}) {
-  return createPropsFormCatalogLookupControl(entry, meta, "users", "catalog-users", { locked });
-}
-
-function createPropsFormCatalogPrioritiesControl(entry, meta, { locked = false } = {}) {
-  return createPropsFormCatalogLookupControl(entry, meta, "priorities", "catalog-priorities", { locked });
-}
-
-function createPropsFormCatalogColorsControl(entry, meta, { locked = false } = {}) {
-  const catalog = getAgentCatalogPreset("colors");
-  const wrap = createPropsFormValueWrap("catalog-colors");
+function createPropsFormLookupColorsControl(entry, meta, { locked = false, source = "colors" } = {}) {
+  const catalog = getAgentCatalogPreset(source);
+  const wrap = createPropsFormValueWrap("lookup-one");
   const items = catalog.items || [];
   const currentValue = getPropsEntryDisplayValue(entry);
   const fieldKey = entry.key || "awn-color";
@@ -43845,7 +43841,7 @@ function createPropsFormCatalogColorsControl(entry, meta, { locked = false } = {
 
   if (!catalog.exists && !items.length) {
     const fallback = createPropsFormTypedInputControl(entry, meta, "color", { locked });
-    appendPropsFormCatalogAddControl(fallback, "colors", fieldKey, { locked });
+    appendPropsFormCatalogAddControl(fallback, source, fieldKey, { locked });
     return fallback;
   }
 
@@ -43896,8 +43892,28 @@ function createPropsFormCatalogColorsControl(entry, meta, { locked = false } = {
   customWrap.append(customLabel, customInput);
   wrap.appendChild(customWrap);
 
-  appendPropsFormCatalogAddControl(wrap, "colors", fieldKey, { locked });
+  appendPropsFormCatalogAddControl(wrap, source, fieldKey, { locked });
   return wrap;
+}
+
+function createPropsFormLookupOneControl(entry, meta, { locked = false } = {}) {
+  const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
+  const source = resolveLookupSource(fieldDef);
+  if (!source) {
+    return createPropsFormTextValueControl(entry, meta, { locked });
+  }
+  if (isLookupColorField(fieldDef)) {
+    return createPropsFormLookupColorsControl(entry, meta, { locked, source });
+  }
+  const enumFallback = Array.isArray(fieldDef?.["enum-fallback"])
+    ? fieldDef["enum-fallback"]
+    : Array.isArray(fieldDef?.enum)
+      ? fieldDef.enum
+      : [];
+  return createPropsFormCatalogLookupControl(entry, meta, source, "lookup-one", {
+    locked,
+    enumFallback
+  });
 }
 
 const CRON_SCHEDULE_PRESET_CUSTOM = "__custom__";
@@ -46420,23 +46436,11 @@ function createPropsFormValueControl(entry, meta) {
   const locked = Boolean(entry.key && meta.locked);
   const widget = resolvePropsFieldWidget(entry.key, fieldDef);
 
-  if (widget === "catalog-category") {
-    return createPropsFormCatalogCategoryControl(entry, meta, { locked });
+  if (isLookupOneWidget(widget)) {
+    return createPropsFormLookupOneControl(entry, meta, { locked });
   }
-  if (widget === "catalog-tags") {
-    return createPropsFormCatalogTagsControl(entry, meta, { locked });
-  }
-  if (widget === "catalog-status") {
-    return createPropsFormCatalogStatusControl(entry, meta, { locked });
-  }
-  if (widget === "catalog-users") {
-    return createPropsFormCatalogUsersControl(entry, meta, { locked });
-  }
-  if (widget === "catalog-priorities") {
-    return createPropsFormCatalogPrioritiesControl(entry, meta, { locked });
-  }
-  if (widget === "catalog-colors") {
-    return createPropsFormCatalogColorsControl(entry, meta, { locked });
+  if (isLookupManyWidget(widget)) {
+    return createPropsFormLookupManyControl(entry, meta, { locked });
   }
   if (widget === "cron-schedule") {
     return createPropsFormCronScheduleControl(entry, meta, { locked });
@@ -46531,7 +46535,7 @@ function readPropsFormValueFromControl(valueWrap) {
     const checkbox = valueWrap.querySelector('input[type="checkbox"]');
     return checkbox?.checked ? "true" : "false";
   }
-  if (widget === "catalog-tags") {
+  if (isLookupManyWidget(widget)) {
     const fromCheckboxes = [...valueWrap.querySelectorAll('input[type="checkbox"]:checked')]
       .map((input) => input.value)
       .filter(Boolean);
@@ -46576,7 +46580,7 @@ function readPropsFormValueFromControl(valueWrap) {
     const hiddenValue = String(hidden?.value || "").trim();
     return manualValue || selectValue || hiddenValue;
   }
-  if (widget === "catalog-colors") {
+  if (isLookupOneWidget(widget) && valueWrap.querySelector(".props-form-color-custom")) {
     const custom = valueWrap.querySelector(".props-form-color-custom");
     const customValue = String(custom?.value || "").trim();
     if (customValue) return customValue;
@@ -46587,13 +46591,7 @@ function readPropsFormValueFromControl(valueWrap) {
     const input = valueWrap.querySelector(".props-form-cron-expression");
     return String(input?.value || "").trim();
   }
-  if (
-    widget === "select" ||
-    widget === "catalog-category" ||
-    widget === "catalog-status" ||
-    widget === "catalog-users" ||
-    widget === "catalog-priorities"
-  ) {
+  if (widget === "select" || widget === "lookup-one" || isLookupOneWidget(widget)) {
     const select = valueWrap.querySelector("select");
     return select?.value ?? "";
   }
@@ -46666,15 +46664,9 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false } = {}) {
     row.append(head, valueControl);
   }
 
-  const catalogWidget = resolvePropsFieldWidget(entry.key, meta.fieldDef);
-  const needsCatalog =
-    catalogWidget === "catalog-category" ||
-    catalogWidget === "catalog-tags" ||
-    catalogWidget === "catalog-status" ||
-    catalogWidget === "catalog-users" ||
-    catalogWidget === "catalog-priorities" ||
-    catalogWidget === "catalog-colors";
-  if (needsCatalog && !agentCatalogsCache && activeAgentId) {
+  const fieldWidget = resolvePropsFieldWidget(entry.key, meta.fieldDef);
+  const needsLookup = isLookupFieldWidget(fieldWidget);
+  if (needsLookup && !agentCatalogsCache && activeAgentId) {
     loadAgentCatalogs(activeAgentId);
   }
 

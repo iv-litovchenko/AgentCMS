@@ -34,28 +34,33 @@ fields:
     sort: 1
 
   awn-category:
-    type: awn.field.string.catalog-category
+    type: awn.field.lookup.one
+    source: categories
     title: АААКатегория
     placement: aside-body
     group: nav
     sort: 2
 
   awn-owner:
-    type: awn.field.string.catalog-users
+    type: awn.field.lookup.one
+    source: users
     title: АААВладелец
     placement: aside-body
     group: nav
     sort: 3
 
   awn-priority:
-    type: awn.field.string.catalog-priorities
+    type: awn.field.lookup.one
+    source: priorities
     title: АААПриоритет
     placement: aside-body
     group: nav
     sort: 4
 
   awn-color:
-    type: awn.field.string.catalog-colors
+    type: awn.field.lookup.one
+    source: colors
+    value-kind: color
     title: АААЦвет
     placement: aside-body
     group: nav
