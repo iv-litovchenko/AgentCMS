@@ -16455,6 +16455,16 @@ a.header-tool-btn {
   box-sizing: border-box;
 }
 
+.sidebar-slab-menu-tools .sidebar-workspace-page-index-row {
+  margin: 8px 0 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.sidebar-workspace-page-index-row.hidden {
+  display: none;
+}
+
 .sidebar-slab-menu-tools .menu-view-wrap,
 .sidebar-slab-menu-tools .menu-tools-row {
   display: flex;
@@ -35649,8 +35659,8 @@ button.node-navigation-memory-title:focus-visible {
   flex: 0 0 auto;
   height: auto;
   min-height: var(--editor-fill-min-height, 280px);
-  overflow: hidden;
-  overflow-x: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
   resize: none;
   white-space: pre-wrap;
   word-break: break-word;
@@ -36865,6 +36875,15 @@ button.node-navigation-memory-title:focus-visible {
   border-color: #93c5fd;
   background: #eff6ff;
   color: #1d4ed8;
+}
+
+.node-overview-action-btn:disabled,
+.node-overview-action-btn:disabled:hover {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--text-muted, var(--text));
 }
 
 .node-overview-action-btn.is-active {

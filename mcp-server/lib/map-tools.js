@@ -79,7 +79,7 @@ export function registerMapTools(reg, client, pagePath) {
 
   reg(
     "get_content_index",
-    "Quick TOC for a topic or one slot: path + title + description only (index.md style). No body, no properties. scope=topic (default) or slot when slot is set. indexFile.exists shows on-disk index.md.",
+    "Quick TOC for a topic or one slot: path + type + title + description (index.md style). No body, no properties. scope=topic (default) or slot when slot is set. indexFile.exists shows on-disk index.md.",
     z.object({
       path: pagePath,
       slot: z
@@ -97,25 +97,51 @@ export function registerMapTools(reg, client, pagePath) {
       })
   );
 
+  const refreshContentIndexSchema = z.object({
+    path: pagePath,
+    slot: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("Optional slot (memory/main, inbox…). Omit to refresh topic-wide index.md next to manifest.md."),
+    overwrite: z
+      .boolean()
+      .optional()
+      .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
+  });
+
+  const runRefreshContentIndex = ({ path, slot, overwrite }) =>
+    client.post("/api/agent/content-index", {
+      path,
+      ...(slot ? { slot } : {}),
+      ...(overwrite === false ? { overwrite: false } : {})
+    });
+
   reg(
-    "write_content_index",
-    "Generate and save index.md from current slot/topic files (path, title, description table). slot omitted → topic index (awn-storage/index.md); slot set → slot index (e.g. …/main/index.md). overwrite=false skips if file exists.",
+    "refresh_content_index",
+    "Refresh (rebuild and save) index.md from current slot/topic files (path, type, title, description table). slot omitted → topic index (index.md next to manifest.md); slot set → slot index (e.g. …/main/index.md). overwrite=false skips if file exists.",
+    refreshContentIndexSchema,
+    runRefreshContentIndex
+  );
+
+  reg(
+    "get_workspace_page_index",
+    "Quick TOC for all workspace pages: path + type + title + description (INDEX.md at workspace root). No body. indexFile.exists shows on-disk INDEX.md.",
+    z.object({}),
+    () => client.get("/api/agent/workspace-page-index")
+  );
+
+  reg(
+    "refresh_workspace_page_index",
+    "Refresh (rebuild and save) INDEX.md at workspace root from get_page_map (path, type, title, description table). overwrite=false skips if file exists.",
     z.object({
-      path: pagePath,
-      slot: z
-        .string()
-        .min(1)
-        .optional()
-        .describe("Optional slot (memory/main, inbox…). Omit to write topic-wide awn-storage/index.md."),
       overwrite: z
         .boolean()
         .optional()
-        .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
+        .describe("Replace existing INDEX.md if present (default true). false → 409 when file exists.")
     }),
-    ({ path, slot, overwrite }) =>
-      client.post("/api/agent/content-index", {
-        path,
-        ...(slot ? { slot } : {}),
+    ({ overwrite }) =>
+      client.post("/api/agent/workspace-page-index", {
         ...(overwrite === false ? { overwrite: false } : {})
       })
   );

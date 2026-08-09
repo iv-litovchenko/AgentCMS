@@ -91,15 +91,27 @@ module.exports = {
         },
         {
           name: "get_content_index",
-          description: "Оглавление index.md: path, title, description (без body/properties). Быстрый обзор темы/слота.",
+          description: "Оглавление index.md: path, type, title, description (без body/properties). Быстрый обзор темы/слота.",
           parameters: "path, slot?",
           http: "GET /api/agent/content-index"
         },
         {
-          name: "write_content_index",
-          description: "Сформировать и сохранить index.md (таблица path/title/description). overwrite=false — не перезаписывать.",
+          name: "refresh_content_index",
+          description: "Обновить index.md на диске (таблица path/type/title/description). overwrite=false — не перезаписывать.",
           parameters: "path, slot?, overwrite?",
           http: "POST /api/agent/content-index"
+        },
+        {
+          name: "get_workspace_page_index",
+          description: "Оглавление INDEX.md в корне workspace: path, type, title, description (страницы).",
+          parameters: "—",
+          http: "GET /api/agent/workspace-page-index"
+        },
+        {
+          name: "refresh_workspace_page_index",
+          description: "Обновить INDEX.md в корне workspace (таблица path/type/title/description).",
+          parameters: "overwrite?",
+          http: "POST /api/agent/workspace-page-index"
         },
         {
           name: "resolve_workspace_path",

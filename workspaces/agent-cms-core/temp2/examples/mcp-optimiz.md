@@ -7,10 +7,12 @@ agent-cms ( Agent MCP ) · 71
 │   ├── list_workspace_cron              — реестр cron
 │   └── list_workspace_heartbeat         — реестр heartbeat
 │
-├── НАВИГАЦИЯ (6)
+├── НАВИГАЦИЯ (8)
 │   ├── get_page_map                     — карта workspace (+ kind:folder без manifest)
-│   ├── get_content_index                — оглавление темы/слота (path, title, description)
-│   ├── write_content_index              — сохранить index.md на диск
+│   ├── get_workspace_page_index         — оглавление страниц (INDEX.md)
+│   ├── refresh_workspace_page_index     — обновить INDEX.md в корне workspace
+│   ├── get_content_index                — оглавление темы/слота (path, type, title, description)
+│   ├── refresh_content_index            — обновить index.md на диск
 │   ├── get_content_map                  — карта контента темы (meta + properties)
 │   ├── resolve_workspace_path           — path → breadcrumbs + topic/area/ws + slot/ref
 │   └── search_workspace_content         — полнотекстовый поиск (paths + body)

@@ -67,6 +67,45 @@ function nextSignificantYamlLine(lines, startIndex) {
   return null;
 }
 
+function parseYamlBlockScalar(lines, startIndex, baseIndent, style = "|") {
+  const collected = [];
+  let nextIndex = startIndex;
+
+  while (nextIndex < lines.length) {
+    const rawLine = lines[nextIndex];
+    if (!rawLine.trim()) {
+      collected.push({ indent: baseIndent + 2, raw: "" });
+      nextIndex += 1;
+      continue;
+    }
+    const lineIndent = rawLine.match(/^(\s*)/)[1].length;
+    if (lineIndent <= baseIndent) break;
+    collected.push({ indent: lineIndent, raw: rawLine });
+    nextIndex += 1;
+  }
+
+  if (!collected.length) {
+    return { value: "", nextIndex };
+  }
+
+  const contentIndent = collected
+    .filter((entry) => entry.raw.trim())
+    .reduce((min, entry) => Math.min(min, entry.indent), collected[0].indent);
+
+  const text = collected
+    .map((entry) => {
+      if (!entry.raw.trim()) return "";
+      return entry.raw.slice(contentIndent);
+    })
+    .join("\n")
+    .replace(/\n+$/, "");
+
+  if (style === ">") {
+    return { value: text.replace(/\s*\n\s*/g, " ").trim(), nextIndex };
+  }
+  return { value: text, nextIndex };
+}
+
 /** Простой парсер YAML (объекты, вложенность, списки `- item`) */
 function parseTypeYaml(text) {
   const lines = String(text || "").replace(/^\uFEFF/, "").split(/\r?\n/);
@@ -102,15 +141,22 @@ function parseTypeYaml(text) {
         const itemKey = itemKv[1].trim();
         const itemValue = itemKv[2].trim();
         const item = {};
-        if (itemValue === "" || itemValue === "|" || itemValue === ">") {
+        if (itemValue === "|" || itemValue === ">") {
+          const parsedBlock = parseYamlBlockScalar(lines, lineIndex + 1, indent, itemValue);
+          item[itemKey] = parsedBlock.value;
+          targetArray.push(item);
+          lineIndex = parsedBlock.nextIndex - 1;
+          continue;
+        }
+        if (itemValue === "") {
           item[itemKey] = {};
           targetArray.push(item);
           stack.push({ indent, kind: "object", obj: item[itemKey] });
-        } else {
-          item[itemKey] = parseYamlScalar(itemValue);
-          targetArray.push(item);
-          stack.push({ indent, kind: "object", obj: item });
+          continue;
         }
+        item[itemKey] = parseYamlScalar(itemValue);
+        targetArray.push(item);
+        stack.push({ indent, kind: "object", obj: item });
         continue;
       }
 
@@ -140,7 +186,14 @@ function parseTypeYaml(text) {
       continue;
     }
 
-    if (value === "" || value === "|" || value === ">") {
+    if (value === "|" || value === ">") {
+      const parsedBlock = parseYamlBlockScalar(lines, lineIndex + 1, indent, value);
+      target[key] = parsedBlock.value;
+      lineIndex = parsedBlock.nextIndex - 1;
+      continue;
+    }
+
+    if (value === "") {
       const next = nextSignificantYamlLine(lines, lineIndex + 1);
       if (next && next.indent > indent && next.trimmed.startsWith("- ")) {
         const arr = [];

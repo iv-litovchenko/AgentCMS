@@ -36,7 +36,7 @@ get_session_context
 | Группа | Tools |
 |--------|-------|
 | Старт | `get_session_context`, `get_user_active_context_now`, `list_workspace_*` |
-| Навигация | `get_page_map`, `get_content_index`, `write_content_index`, `get_content_map`, `resolve_workspace_path`, `search_workspace_content` |
+| Навигация | `get_page_map`, `get_content_index`, `refresh_content_index`, `get_workspace_page_index`, `refresh_workspace_page_index`, `get_content_map`, `resolve_workspace_path`, `search_workspace_content` |
 | Страница | `read/write_page_*`, `read/write_page_property`, `read/write_page_config`, `page_exists`, `get_page_meta`, `read/write_page_env`, `create_page`, `delete_page`, `rename_page`, `move_page` |
 | Слот | `list_page_slots` |
 | Контент | `content_exists`, `get_content_meta`, `read/write_content_*`, `read/write_content_property`, `create_content`, `import_content_from_url`, `rename/move/delete_content` |

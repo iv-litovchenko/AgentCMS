@@ -1185,6 +1185,7 @@ const MANIFEST_FILE = "manifest.md";
 const AREA_MANIFEST_FILE = MANIFEST_FILE;
 const STORAGE_ROOT_FOLDER = "awn-storage";
 const STORAGE_SLOT_INDEX_FILE = "index.md";
+const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
 const LEGACY_STORAGE_ROOT_FOLDER = "storage";
 const STORAGE_ROOT_PATH_PREFIX_RE = /^(?:awn-storage|storage)\//i;
 const STORAGE_ASSETS_PATH_PREFIX_RE = /^(?:awn-storage|storage)\/assets\//i;
@@ -3422,6 +3423,7 @@ async function loadAgents() {
   }
   renderAgentSelect();
   updateWorkspaceShareLinkButton();
+  ensureSidebarWorkspacePageIndexRow();
 }
 
 function stripTopicPrefix(name) {
@@ -10832,6 +10834,7 @@ async function switchActiveAgent(nextAgentId) {
       updateActiveButton();
       await refreshAgentSliderCatalog(true);
       syncAgentPreview();
+      ensureSidebarWorkspacePageIndexRow();
     }
 
     await Promise.all([
@@ -14150,6 +14153,22 @@ const DOC_CONTENT_BLOCK_ICON_BY_ID = {
   "awn.block.codeblock": "💻",
   table: "📊",
   "awn.block.table": "📊",
+  "mermaid-flowchart": "🔀",
+  "awn.block.mermaid-flowchart": "🔀",
+  "mermaid-sequence": "↔️",
+  "awn.block.mermaid-sequence": "↔️",
+  "mermaid-gantt": "📅",
+  "awn.block.mermaid-gantt": "📅",
+  "mermaid-pie": "🥧",
+  "awn.block.mermaid-pie": "🥧",
+  "mermaid-class": "🏗️",
+  "awn.block.mermaid-class": "🏗️",
+  "mermaid-state": "🔁",
+  "awn.block.mermaid-state": "🔁",
+  "mermaid-er": "🗄️",
+  "awn.block.mermaid-er": "🗄️",
+  "mermaid-mindmap": "🧠",
+  "awn.block.mermaid-mindmap": "🧠",
   "awn-desc": "🏷️",
   "awn.block.awn-desc": "🏷️"
 };
@@ -14251,6 +14270,60 @@ const DOC_CONTENT_BLOCK_GROUPS_FALLBACK = [
         label: "Таблица",
         description: "2 колонки, шапка",
         text: "\n| Колонка | Колонка |\n| --- | --- |\n| ячейка | ячейка |\n\n"
+      }
+    ]
+  },
+  {
+    id: "visualization",
+    title: "Визуализация",
+    blocks: [
+      {
+        id: "mermaid-flowchart",
+        label: "Блок-схема",
+        description: "Flowchart — процессы и ветвления",
+        text: "\n```mermaid\nflowchart LR\n  A[Начало] --> B{Условие?}\n  B -->|да| C[Действие]\n  B -->|нет| D[Другое]\n  C --> E[Конец]\n  D --> E\n```\n\n"
+      },
+      {
+        id: "mermaid-sequence",
+        label: "Диаграмма последовательности",
+        description: "Взаимодействие участников во времени",
+        text: "\n```mermaid\nsequenceDiagram\n  participant A as Клиент\n  participant B as Сервер\n  A->>B: Запрос\n  B-->>A: Ответ\n```\n\n"
+      },
+      {
+        id: "mermaid-gantt",
+        label: "Диаграмма Ганта",
+        description: "Roadmap и сроки задач",
+        text: "\n```mermaid\ngantt\n  title Пример roadmap\n  dateFormat YYYY-MM-DD\n  section Этап 1\n  Задача A     :done, a1, 2026-05-01, 7d\n  Задача B     :active, a2, 2026-05-20, 5d\n  Задача C     :a3, after a2, 7d\n```\n\n"
+      },
+      {
+        id: "mermaid-pie",
+        label: "Круговая диаграмма",
+        description: "Доли и проценты",
+        text: "\n```mermaid\npie title Распределение\n  \"Категория A\" : 45\n  \"Категория B\" : 30\n  \"Категория C\" : 25\n```\n\n"
+      },
+      {
+        id: "mermaid-class",
+        label: "Диаграмма классов",
+        description: "UML — классы и связи",
+        text: "\n```mermaid\nclassDiagram\n  class Animal {\n    +String name\n    +makeSound()\n  }\n  class Dog {\n    +bark()\n  }\n  Animal <|-- Dog\n```\n\n"
+      },
+      {
+        id: "mermaid-state",
+        label: "Диаграмма состояний",
+        description: "Состояния и переходы",
+        text: "\n```mermaid\nstateDiagram-v2\n  [*] --> Черновик\n  Черновик --> На_ревью : отправить\n  На_ревью --> Опубликовано : одобрить\n  На_ревью --> Черновик : вернуть\n  Опубликовано --> [*]\n```\n\n"
+      },
+      {
+        id: "mermaid-er",
+        label: "ER-диаграмма",
+        description: "Сущности и связи в БД",
+        text: "\n```mermaid\nerDiagram\n  USER ||--o{ ORDER : places\n  ORDER ||--|{ LINE_ITEM : contains\n  USER {\n    int id\n    string email\n  }\n  ORDER {\n    int id\n    date created\n  }\n```\n\n"
+      },
+      {
+        id: "mermaid-mindmap",
+        label: "Mind map",
+        description: "Древовидная карта идей",
+        text: "\n```mermaid\nmindmap\n  root((Тема))\n    Раздел A\n      Подпункт 1\n      Подпункт 2\n    Раздел B\n      Подпункт 3\n```\n\n"
       }
     ]
   },
@@ -27673,8 +27746,14 @@ function insertMarkdownAtWysiwygCursor(snippet) {
   });
 }
 
+function resolveDocBlockSnippet(blockOrText) {
+  if (typeof blockOrText === "string") return blockOrText;
+  const raw = blockOrText?.template ?? blockOrText?.text ?? "";
+  return typeof raw === "string" ? raw : "";
+}
+
 function insertMarkdownAtEditorCursor(text) {
-  const snippet = String(text || "");
+  const snippet = resolveDocBlockSnippet(text);
   if (!snippet) return false;
   if (!(canInsertDocContentBlocks() || canPasteMarkdownAttachment())) {
     showToast("Вставка доступна только в режиме редактирования", "error");
@@ -41113,7 +41192,7 @@ function renderDocContentBlocks() {
       bindEditorAsideInsertControl(btn);
       btn.addEventListener("click", (event) => {
         event.preventDefault();
-        const snippet = block.template || block.text || "";
+        const snippet = resolveDocBlockSnippet(block);
         insertMarkdownAtEditorCursor(snippet);
       });
 
@@ -47821,8 +47900,12 @@ function applySystemFileUi() {
   setTitleLockedDisplay(getServiceStyleContentLabel());
   editorViewClusterNode?.classList.remove("hidden");
   editorViewClusterNode?.classList.remove("is-line-numbers-only");
-  editorViewToggleNode?.classList.remove("hidden");
-
+  const readOnlyIndex = isReadOnlyWorkspacePageIndexSystemFile(activeSystemFile);
+  if (readOnlyIndex) {
+    systemFileEditActive = false;
+    editorViewMode = "preview";
+  }
+  editorViewToggleNode?.classList.toggle("hidden", readOnlyIndex);
   const editing = isSystemFileEditing();
   const isMd = isSystemFileMd();
   if (!editing) {
@@ -47850,9 +47933,9 @@ function applySystemFileUi() {
   saveContentBtn?.classList.toggle("hidden", !editing);
   saveSystemFileBtn?.classList.add("hidden");
   setSaveButtonsState(!editing);
-  fileContentInputNode.readOnly = !editing;
+  fileContentInputNode.readOnly = readOnlyIndex || !editing;
   fileContentInputNode.disabled = false;
-  syncEditorViewButtonsAvailability(false, false);
+  syncEditorViewButtonsAvailability(readOnlyIndex, readOnlyIndex);
   editorLineNumbersBtn?.classList.toggle("hidden", !isMd || editorViewMode !== "source");
   if (editorViewWysiwygBtn) {
     const frontmatterLocked = systemFileHasEditableFrontmatter(activeSystemFile);
@@ -48221,14 +48304,17 @@ function createOverviewFocusIcon() {
   );
 }
 
-function createNodeOverviewEditButton(onClick, label = "Редактировать") {
+function createNodeOverviewEditButton(onClick, label = "Редактировать", { disabled = false } = {}) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "node-overview-action-btn node-overview-edit-btn";
   btn.append(createOverviewEditManifestIcon(), document.createTextNode(label));
-  btn.addEventListener("click", () => {
-    void onClick();
-  });
+  btn.disabled = disabled;
+  if (!disabled) {
+    btn.addEventListener("click", () => {
+      void onClick();
+    });
+  }
   return btn;
 }
 
@@ -48324,8 +48410,12 @@ function createNodeOverviewHeroActions(nodePath, options = {}) {
     actions.appendChild(createNodeOverviewBookmarkButton(nodePath));
     actions.appendChild(createNodeOverviewFocusButton(nodePath, options.propEntries || null));
   }
-  if (options.onEditClick) {
-    actions.appendChild(createNodeOverviewEditButton(options.onEditClick, options.editLabel));
+  if (options.onEditClick || options.editDisabled) {
+    actions.appendChild(
+      createNodeOverviewEditButton(options.onEditClick || (() => {}), options.editLabel, {
+        disabled: Boolean(options.editDisabled)
+      })
+    );
   }
   return actions;
 }
@@ -48952,7 +49042,8 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     propEntries: options.propEntries || null,
     onEditClick: options.onEditClick,
     editLabel: options.editLabel,
-    editOnly: compact
+    editOnly: compact,
+    editDisabled: options.editDisabled
   });
 
   const body = document.createElement("div");
@@ -49469,7 +49560,8 @@ function appendNavigationHeroProps(hero, propEntries = [], options = {}) {
   );
   let lastNode = null;
 
-  const awnFold = renderNodeOverviewAwnPropsFold(awnItems, nodePath);
+  const awnFold =
+    options.showAwnProps !== false ? renderNodeOverviewAwnPropsFold(awnItems, nodePath) : null;
   if (awnFold) {
     awnFold.classList.add("node-navigation-props");
     hero.appendChild(awnFold);
@@ -50706,6 +50798,7 @@ async function fetchFlatStorageSectionSummary(manifestPath, slotKey) {
 }
 
 const topicGeneratedStorageIndexCache = new Map();
+const workspaceGeneratedPageIndexCache = new Map();
 const slotGeneratedStorageIndexCache = new Map();
 
 function resolveStorageSlotSpecFromCounterSlot(slot) {
@@ -50763,8 +50856,31 @@ function getStorageSlotIndexBundleRelPath(manifestOrTopicPath) {
 }
 
 function getTopicStorageIndexRelPath(topicPath) {
-  const storageDir = getNamedStorageSlotDirRel(topicPath);
-  return storageDir ? `${storageDir}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
+  const ownerRel = resolveOwningManifestRelFromNodePath(topicPath);
+  const containerDir = getManifestContainerDirRel(ownerRel);
+  return containerDir ? `${containerDir}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
+}
+
+function isReadOnlyWorkspacePageIndexSystemFile(name = activeSystemFile) {
+  return normalizeSystemFileName(name) === WORKSPACE_PAGE_INDEX_FILE;
+}
+
+function isStorageIndexMdEntryContext(context) {
+  if (!context) return false;
+  const rel = String(context.relativePath || context.relPath || "")
+    .replace(/\\/g, "/")
+    .trim();
+  const baseName = (rel.split("/").pop() || rel).toLowerCase();
+  if (baseName === STORAGE_SLOT_INDEX_FILE.toLowerCase()) return true;
+  if (normalizeSystemFileName(baseName) === WORKSPACE_PAGE_INDEX_FILE) return true;
+  const memoryKind = String(context.memoryKind || "").trim();
+  return (
+    memoryKind === "topic-index" ||
+    memoryKind === "topic-index-generated" ||
+    memoryKind === "slot-index-generated" ||
+    memoryKind === "workspace-page-index" ||
+    memoryKind === "workspace-page-index-generated"
+  );
 }
 
 function isBundleStorageSlotIndexContext(context) {
@@ -50876,7 +50992,10 @@ function escapeStorageIndexTableCell(value) {
     .trim();
 }
 
-function collectStorageSlotIndexEntries(prepared, { excludeIndex = true } = {}) {
+function collectStorageSlotIndexEntries(
+  prepared,
+  { excludeIndex = true, manifestPath = "", storageFolder = "" } = {}
+) {
   if (!prepared?.contentFiles?.length) return [];
   return prepared.contentFiles
     .filter((item) => {
@@ -50890,8 +51009,19 @@ function collectStorageSlotIndexEntries(prepared, { excludeIndex = true } = {}) 
     })
     .map((item) => {
       const path = String(item.path || item.relativePath || "").replace(/\\/g, "/");
+      const rawType = String(item.awnType || item.entryKind || item.type || "").trim();
+      const isFolder =
+        /\/manifest\.md$/i.test(path) ||
+        item.kind === "category" ||
+        item.kind === "record-materials-folder";
+      const linkPath =
+        manifestPath && storageFolder
+          ? buildStorageLayerRef(manifestPath, storageFolder, path) || path
+          : path;
       return {
         path,
+        linkPath,
+        type: rawType || (isFolder ? "папка" : "файл"),
         title: normalizeYamlDisplayString(String(item.title || item.name || path).trim()) || path,
         description: normalizeYamlDisplayString(String(item.description || "").trim())
       };
@@ -50969,13 +51099,17 @@ function isTopicWideContentIndexSlot(slotKeyOrRow) {
   return isExternalStorageSlotSpec(spec);
 }
 
-function mergeTopicContentIndexEntriesFromSlots(slots = []) {
+function mergeTopicContentIndexEntriesFromSlots(slots = [], topicPath = activePath) {
   const merged = [];
+  const manifestPath = getOverviewNodeApiPath(topicPath);
   for (const slot of slots) {
     const spec = resolveStorageSlotSpecFromCounterSlot(slot);
     if (!isExternalStorageSlotSpec(spec)) continue;
     const folder = getStorageFolderForSlotSpec(spec);
-    for (const entry of collectStorageSlotIndexEntries(slot.prepared)) {
+    for (const entry of collectStorageSlotIndexEntries(slot.prepared, {
+      manifestPath,
+      storageFolder: folder
+    })) {
       const relPath = String(entry.path || "").replace(/\\/g, "/").trim();
       merged.push({
         ...entry,
@@ -51045,12 +51179,35 @@ async function buildStorageSlotIndexMarkdownFromApi(topicPath, spec, slot = null
   }
 }
 
-function formatStorageIndexEntriesMarkdown(entries, { emptyHint = "_Нет записей._" } = {}) {
+function escapeStorageIndexLinkText(value) {
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]");
+}
+
+function encodeStorageIndexLinkTarget(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return encodeURI(raw).replace(/#/g, "%23");
+}
+
+function formatStorageIndexTitleCell(entry, { linkTitle = true } = {}) {
+  const titleRaw = String(entry.title || entry.path || "").trim();
+  const title = escapeStorageIndexTableCell(titleRaw) || "—";
+  if (!linkTitle) return title;
+  const linkPath = String(entry.linkPath || entry.path || "").trim();
+  if (!linkPath) return title;
+  const linkText = escapeStorageIndexLinkText(titleRaw || "—");
+  return `[${linkText}](${encodeStorageIndexLinkTarget(linkPath)})`;
+}
+
+function formatStorageIndexEntriesMarkdown(entries, { emptyHint = "_Нет записей._", linkTitle = true } = {}) {
   if (!entries.length) return emptyHint;
-  const lines = ["| Путь | Название | Описание |", "| --- | --- | --- |"];
+  const lines = ["| Тип | Путь | Название | Описание |", "| --- | --- | --- | --- |"];
   for (const entry of entries) {
     lines.push(
-      `| \`${escapeStorageIndexTableCell(entry.path)}\` | ${escapeStorageIndexTableCell(entry.title)} | ${escapeStorageIndexTableCell(entry.description) || "—"} |`
+      `| ${escapeStorageIndexTableCell(entry.type) || "—"} | \`${escapeStorageIndexTableCell(entry.path)}\` | ${formatStorageIndexTitleCell(entry, { linkTitle })} | ${escapeStorageIndexTableCell(entry.description) || "—"} |`
     );
   }
   return lines.join("\n");
@@ -51060,7 +51217,9 @@ function buildStorageSlotIndexMarkdown(topicPath, slot = {}) {
   const spec = resolveStorageSlotSpecFromCounterSlot(slot);
   const label = slot.label || spec?.label || slot.id || "Слот";
   const icon = spec?.icon ? `${spec.icon} ` : "";
-  const entries = collectStorageSlotIndexEntries(slot.prepared);
+  const manifestPath = getOverviewNodeApiPath(topicPath);
+  const storageFolder = getStorageFolderForSlotSpec(spec);
+  const entries = collectStorageSlotIndexEntries(slot.prepared, { manifestPath, storageFolder });
   return [
     `# Оглавление — ${icon}${label}`,
     "",
@@ -51080,7 +51239,7 @@ function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
     return lines.join("\n");
   }
 
-  const entries = mergeTopicContentIndexEntriesFromSlots(externalSlots);
+  const entries = mergeTopicContentIndexEntriesFromSlots(externalSlots, topicPath);
   lines.push(
     formatStorageIndexEntriesMarkdown(entries, {
       emptyHint: "_Во внешних слотах пока нет файлов для оглавления._"
@@ -54964,10 +55123,26 @@ async function fetchEntryOverviewBody(context) {
 }
 
 async function fetchEntryOverviewBodyResult(context) {
-  if (!context?.relativePath && !["topic-index-generated", "slot-index-generated"].includes(context?.memoryKind)) {
+  if (!context?.relativePath && !["topic-index-generated", "slot-index-generated", "workspace-page-index-generated"].includes(context?.memoryKind)) {
     return { content: "", ok: false };
   }
   try {
+    if (context.memoryKind === "workspace-page-index") {
+      const response = await fetch(
+        buildApiUrl("/api/file", { path: context.relativePath || context.relPath })
+      );
+      if (!response.ok) return { content: "", ok: false };
+      const data = await response.json();
+      return { content: String(data.content || ""), ok: true };
+    }
+    if (context.memoryKind === "workspace-page-index-generated") {
+      const cacheKey = activeAgentId || "main";
+      const cached = workspaceGeneratedPageIndexCache.get(cacheKey);
+      if (cached) return { content: cached, ok: true };
+      const markdown = await buildWorkspacePageIndexMarkdownFromApi();
+      workspaceGeneratedPageIndexCache.set(cacheKey, markdown);
+      return { content: markdown, ok: true };
+    }
     if (context.memoryKind === "topic-index") {
       const response = await fetch(
         buildApiUrl("/api/file", { path: context.relativePath || context.relPath })
@@ -57656,6 +57831,181 @@ function createWorkspaceCounterCard(slot, { isActive = false, topicPath = null, 
   return card;
 }
 
+function getWorkspacePageIndexRelPath() {
+  return WORKSPACE_PAGE_INDEX_FILE;
+}
+
+async function probeWorkspacePageIndexExists() {
+  return Boolean(await resolveExistingWorkspacePageIndexRelPath());
+}
+
+async function resolveExistingWorkspacePageIndexRelPath() {
+  const relPath = getWorkspacePageIndexRelPath();
+  try {
+    const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
+    if (response.ok) return relPath;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function formatWorkspacePageIndexPayloadAsMarkdown(payload) {
+  const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+  return [
+    "# Оглавление workspace",
+    "",
+    formatStorageIndexEntriesMarkdown(entries, {
+      emptyHint: "_В workspace пока нет страниц для оглавления._"
+    })
+  ]
+    .join("\n")
+    .trimEnd();
+}
+
+async function buildWorkspacePageIndexMarkdownFromApi() {
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-page-index"));
+    if (!response.ok) throw new Error(`workspace-page-index ${response.status}`);
+    const payload = await response.json();
+    return `${formatWorkspacePageIndexPayloadAsMarkdown(payload)}\n`;
+  } catch {
+    return "# Оглавление workspace\n\n_Не удалось сформировать оглавление._\n";
+  }
+}
+
+async function refreshWorkspacePageIndexOverview() {
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-page-index"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ overwrite: true })
+    });
+    if (!response.ok) return false;
+    workspaceGeneratedPageIndexCache.delete(activeAgentId || "main");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function openWorkspacePageIndexOverview() {
+  await selectSystemFile(WORKSPACE_PAGE_INDEX_FILE);
+}
+
+function ensureSidebarWorkspacePageIndexRow() {
+  const toolsSection = document.querySelector(".sidebar-slab-menu-tools");
+  if (!toolsSection) return;
+
+  let row = document.getElementById("sidebar-workspace-page-index-row");
+  if (!row) {
+    row = document.createElement("div");
+    row.id = "sidebar-workspace-page-index-row";
+    row.className = "sidebar-workspace-page-index-row node-navigation-workspace-counter-topic-index-row";
+  }
+
+  const toolsRow = toolsSection.querySelector(".menu-tools-row");
+  if (row.parentElement !== toolsSection) {
+    if (toolsRow) toolsRow.insertAdjacentElement("afterend", row);
+    else toolsSection.appendChild(row);
+  }
+
+  row.classList.toggle("hidden", !activeAgentId);
+
+  let footer = row.querySelector(".sidebar-workspace-page-index-open");
+  if (!footer) {
+    footer = document.createElement("button");
+    footer.type = "button";
+    footer.className =
+      "sidebar-workspace-page-index-open node-navigation-workspace-counter-topic-index";
+    row.appendChild(footer);
+  }
+
+  let refreshBtn = row.querySelector(".sidebar-workspace-page-index-refresh");
+  if (!refreshBtn) {
+    refreshBtn = document.createElement("button");
+    refreshBtn.type = "button";
+    refreshBtn.className =
+      "sidebar-workspace-page-index-refresh node-navigation-workspace-counter-topic-index-refresh";
+    refreshBtn.textContent = "⟲";
+    refreshBtn.setAttribute("aria-label", "Обновить оглавление workspace");
+    row.appendChild(refreshBtn);
+  }
+
+  const syncWorkspacePageIndexRowState = () => {
+    const hasIndex = row.dataset.workspaceHasIndex === "1";
+    const indexRelPath = getWorkspacePageIndexRelPath();
+    footer.textContent = "Индекс (оглавление) страниц";
+    footer.classList.toggle("is-available", hasIndex);
+    footer.classList.toggle("is-generated", !hasIndex);
+    footer.title = hasIndex
+      ? `Открыть ${indexRelPath}`
+      : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для обновления ${WORKSPACE_PAGE_INDEX_FILE})`;
+    refreshBtn.title = `Обновить и сохранить ${indexRelPath}`;
+  };
+
+  const setWorkspacePageIndexRefreshLoading = (loading) => {
+    refreshBtn.disabled = loading;
+    footer.disabled = loading;
+    refreshBtn.classList.toggle("is-loading", loading);
+    refreshBtn.textContent = loading ? "" : "⟲";
+    let spinner = refreshBtn.querySelector(".node-navigation-workspace-counter-topic-index-refresh-spinner");
+    if (loading) {
+      if (!spinner) {
+        spinner = document.createElement("span");
+        spinner.className = "node-navigation-workspace-counter-topic-index-refresh-spinner";
+        spinner.setAttribute("aria-hidden", "true");
+        refreshBtn.appendChild(spinner);
+      }
+    } else if (spinner) {
+      spinner.remove();
+    }
+  };
+
+  syncWorkspacePageIndexRowState();
+
+  footer.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (footer.disabled) return;
+    void openWorkspacePageIndexOverview();
+  };
+
+  refreshBtn.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (refreshBtn.disabled || refreshBtn.classList.contains("is-loading")) return;
+    setWorkspacePageIndexRefreshLoading(true);
+    void refreshWorkspacePageIndexOverview()
+      .then((ok) => {
+        if (!row.isConnected) return;
+        if (ok) {
+          row.dataset.workspaceHasIndex = "1";
+          syncWorkspacePageIndexRowState();
+          if (normalizeSystemFileName(activeSystemFile) === WORKSPACE_PAGE_INDEX_FILE) {
+            void selectSystemFile(WORKSPACE_PAGE_INDEX_FILE, { skipRouteSync: true });
+          }
+          void loadSystemFiles();
+          showToast("Оглавление workspace обновлено", "success");
+          return;
+        }
+        showToast("Не удалось обновить оглавление workspace", "error");
+      })
+      .catch(() => {
+        if (row.isConnected) showToast("Не удалось обновить оглавление workspace", "error");
+      })
+      .finally(() => {
+        if (row.isConnected) setWorkspacePageIndexRefreshLoading(false);
+      });
+  };
+
+  void probeWorkspacePageIndexExists().then((exists) => {
+    if (!row.isConnected) return;
+    row.dataset.workspaceHasIndex = exists ? "1" : "0";
+    syncWorkspacePageIndexRowState();
+  });
+}
+
 async function refreshTopicStorageIndexOverview(topicPath) {
   const manifestPath = getOverviewNodeApiPath(topicPath);
   if (!manifestPath) return false;
@@ -57703,7 +58053,7 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
     refreshBtn.type = "button";
     refreshBtn.className = "node-navigation-workspace-counter-topic-index-refresh";
     refreshBtn.textContent = "⟲";
-    refreshBtn.setAttribute("aria-label", "Обновить оглавление");
+    refreshBtn.setAttribute("aria-label", "Обновить оглавление темы");
     refreshBtn.title = "Обновить общее оглавление темы";
     row.appendChild(refreshBtn);
   }
@@ -57716,7 +58066,7 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
     footer.classList.toggle("is-generated", !hasTopicReadme);
     footer.title = hasTopicReadme
       ? `Открыть ${indexRelPath}`
-      : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для сохранения ${STORAGE_ROOT_FOLDER}/${STORAGE_SLOT_INDEX_FILE})`;
+      : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для обновления ${STORAGE_SLOT_INDEX_FILE})`;
     refreshBtn.title = `Обновить и сохранить ${indexRelPath}`;
   };
 
@@ -57758,7 +58108,7 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
         if (ok) {
           wrap.dataset.topicHasIndex = "1";
           syncTopicIndexFooterState();
-          showToast("Оглавление темы сохранено", "success");
+          showToast("Оглавление темы обновлено", "success");
           return;
         }
         showToast("Не удалось обновить оглавление", "error");
@@ -59364,6 +59714,7 @@ async function renderEntryOverview() {
 
   const isBundleEntryOverview = isBundleEntryOverviewMemoryKind(context.memoryKind);
   const entryTypeLabel = getPropsEntryValueByKey(entries, "awn-type") || "";
+  const indexEntryReadOnly = isStorageIndexMdEntryContext(context);
   const showHeroUnread = isMemoryTocRoot
     ? isNodePageUnread(manifestApiPath)
     : isNodeContentUnread(
@@ -59392,7 +59743,8 @@ async function renderEntryOverview() {
           showSettingsProps: false,
           showUnread: showHeroUnread,
           hasRecordMaterials: Boolean(recordPartsWorkspaceFolderPath),
-          onEditClick: () => openEntryOverviewEdit(context),
+          onEditClick: indexEntryReadOnly ? undefined : () => openEntryOverviewEdit(context),
+          editDisabled: indexEntryReadOnly,
           entryOverviewNav,
         });
   hubMain.appendChild(hero);
@@ -68194,10 +68546,12 @@ async function renderNodeNavigation() {
     descriptionRaw: modeContentCache.description || "",
     typeLabel: topicTypeLabel,
     showHeroInstruction: true,
+    showWorkspaceMarkers: false,
+    showAwnProps: false,
+    onEditClick: openDescriptionFromOverview,
     settingsSlots: slotStripGroups.settings || [],
     slugIssue: getNodeManifestSlugIssue(nodePath),
     showUnread: showHeroUnread,
-    onEditClick: openDescriptionFromOverview,
     entryOverviewNav: topicSiblingNav,
   });
   hubMain.appendChild(hero);
@@ -70484,13 +70838,36 @@ function applyEditorAutoHeightUi() {
 
 function applySourceEditorAutoHeightUi() {
   if (!fileContentInputNode) return;
-  fileContentInputNode.style.height = "";
-  fileContentInputNode.style.minHeight = "";
-  if (editorLineNumbersNode) {
-    editorLineNumbersNode.style.height = "";
-    editorLineNumbersNode.style.minHeight = "";
+
+  const resetInlineSizes = () => {
+    fileContentInputNode.style.height = "";
+    fileContentInputNode.style.minHeight = "";
+    if (editorLineNumbersNode) {
+      editorLineNumbersNode.style.height = "";
+      editorLineNumbersNode.style.minHeight = "";
+    }
+    if (editorCodeWrapNode) editorCodeWrapNode.style.minHeight = "";
+  };
+
+  if (!shouldUseEditorAutoHeight() || editorViewMode !== "source") {
+    resetInlineSizes();
+    return;
   }
-  if (editorCodeWrapNode) editorCodeWrapNode.style.minHeight = "";
+
+  syncEditorFillMinHeightCssVar();
+  const minHeightPx = getEditorFillMinHeightPx();
+  fileContentInputNode.style.minHeight = `${minHeightPx}px`;
+  fileContentInputNode.style.height = "auto";
+  const contentHeightPx = Math.max(minHeightPx, fileContentInputNode.scrollHeight);
+  fileContentInputNode.style.height = `${contentHeightPx}px`;
+
+  if (editorLineNumbersNode) {
+    editorLineNumbersNode.style.minHeight = `${contentHeightPx}px`;
+    editorLineNumbersNode.style.height = `${contentHeightPx}px`;
+  }
+  if (editorCodeWrapNode) {
+    editorCodeWrapNode.style.minHeight = `${contentHeightPx}px`;
+  }
 }
 
 function isWysiwygEditorEnabled() {
@@ -71435,6 +71812,9 @@ function applyEditorViewMode() {
 function setEditorViewMode(mode, options = {}) {
   if (mode !== "preview" && mode !== "wysiwyg" && mode !== "source") return;
   if (mode === "wysiwyg" && !isWysiwygEditorEnabled()) return;
+  if (activeSystemFile && isReadOnlyWorkspacePageIndexSystemFile(activeSystemFile) && mode !== "preview") {
+    return;
+  }
   if (editorViewMode === "wysiwyg" && mode !== "wysiwyg") {
     syncSourceFromWysiwygEditor();
     destroyWysiwygEditor();
@@ -75990,6 +76370,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
     syncMenuSearchLayoutClass(agentId);
     syncMenuCollapseAllButton();
     syncMenuPinBranchUi(agentId);
+    ensureSidebarWorkspacePageIndexRow();
   }
 
   enableMenuLinkDragSources(target);
@@ -76202,7 +76583,10 @@ async function openRootSystemMenuFile(file) {
   const empty = Boolean(file?.empty ?? !exists);
   // Menu always opens in preview (no ~edit). Only empty hint scaffolds
   // (.env / .gitignore) start in edit so the yellow template strip works.
-  const startInEdit = (!exists || empty) && Boolean(getSystemFileHintSpec(systemFile));
+  const startInEdit =
+    !isReadOnlyWorkspacePageIndexSystemFile(systemFile) &&
+    (!exists || empty) &&
+    Boolean(getSystemFileHintSpec(systemFile));
   await selectSystemFile(systemFile, { edit: startInEdit });
 }
 
@@ -76369,6 +76753,9 @@ function updateActiveButton() {
 async function selectSystemFile(name, options = {}) {
   const normalizedName = normalizeSystemFileName(name);
   if (!normalizedName) return;
+  if (isReadOnlyWorkspacePageIndexSystemFile(normalizedName)) {
+    options = { ...options, edit: false };
+  }
   hideHomeView();
   nodeOverviewRenderSeq += 1;
   activeSystemFile = normalizedName;
@@ -76400,6 +76787,7 @@ async function selectSystemFile(name, options = {}) {
     // Auto-edit only when the caller did not choose a mode (e.g. deep link) and
     // the file is an empty hint-scaffold. Menu clicks pass edit explicitly.
     if (
+      !isReadOnlyWorkspacePageIndexSystemFile(normalizedName) &&
       options.edit === undefined &&
       contentEmpty &&
       Boolean(getSystemFileHintSpec(normalizedName))

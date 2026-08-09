@@ -1,0 +1,68 @@
+# Оглавление темы
+
+| Путь | Название | Описание |
+| --- | --- | --- |
+| `artefacts/api-postman-collection.json` | api-postman-collection.json | — |
+| `artefacts/exported-cheatsheet.html` | exported-cheatsheet.html | — |
+| `assets/preview/20260611075941.png` | 20260611075941.png | — |
+| `assets/preview/20260611075941.png.sidecar.md` | 20260611075941.png.sidecar | Скриншот редактора с примером PHP-кода для темы |
+| `assets/preview/20260611075941.sidecar.md` | 20260611075941.sidecar | — |
+| `assets/preview/20260624202540.png` | 20260624202540.png | — |
+| `inbox/вопрос-match-vs-switch.md` | вопрос-match-vs-switch | — |
+| `inbox/заметка-generators.md` | заметка-generators | — |
+| `inbox/vhodyaschee-2.md` | vhodyaschee-2 | — |
+| `inbox/vhodyaschee-3.md` | vhodyaschee-3 | — |
+| `inbox/vhodyaschee-4.md` | vhodyaschee-4 | — |
+| `inbox/vhodyaschee.md` | vhodyaschee | — |
+| `main/Безопасность/CSRF.md` | CSRF | — |
+| `main/Безопасность/SQL Injection.md` | SQL Injection | — |
+| `main/Безопасность/XSS.md` | XSS | — |
+| `main/Веб/Роутинг.md` | Роутинг | — |
+| `main/Веб/Сессии и cookies.md` | Сессии и cookies | — |
+| `main/Веб/HTTP и формы.md` | HTTP и формы | — |
+| `main/Объекты.md` | Объекты | — |
+| `main/Синтаксис` | manifest | — |
+| `main/Синтаксис/Массивы.md` | Массивы | — |
+| `main/Синтаксис/Переменные.md` | Переменные | — |
+| `main/Синтаксис/Строки.md` | Строки | — |
+| `main/Синтаксис/Управление потоком.md` | PHP | — |
+| `main/Синтаксис/Функции.md` | Функции | — |
+| `main/Синтаксис/manifest.md` | Синтаксис | — |
+| `main/Тестирование/PHPUnit основы.md` | PHPUnit основы | — |
+| `main/Типы данных.md` | Типы данных | — |
+| `main/Фреймворки` | Фреймворки | — |
+| `main/Фреймворки/laravel-obzor.md` | Laravel обзор | — |
+| `main/Фреймворки/manifest.md` | Фреймворки | — |
+| `main/Фреймворки/symfony-obzor.md` | Symfony обзор | — |
+| `main/baza-dannyh` | База данных | — |
+| `main/baza-dannyh/Транзакции.md` | Транзакции | — |
+| `main/baza-dannyh/manifest.md` | База данных | — |
+| `main/baza-dannyh/migratsii.md` | Миграции | — |
+| `main/baza-dannyh/PDO.md` | PDO | — |
+| `main/Composer/osnovy.md` | osnovy | — |
+| `main/oop` | ООП | — |
+| `main/oop/Интерфейсы.md` | Интерфейсы | — |
+| `main/oop/Классы.md` | Классы | — |
+| `main/oop/Enums.md` | Enums | — |
+| `main/oop/manifest.md` | ООП | — |
+| `main/oop/Namespaces.md` | Namespaces | — |
+| `main/oop/Traits.md` | Traits | — |
+| `main/primery-koda` | Примеры кода | — |
+| `main/primery-koda/Пример-1.md` | Пример-1 | — |
+| `main/primery-koda/Пример-2-PDO.md` | Пример-2-PDO | — |
+| `main/primery-koda/Пример-3-REST.md` | Пример-3-REST | — |
+| `main/primery-koda/hello.php` | hello.php | — |
+| `main/primery-koda/manifest.md` | Примеры кода | — |
+| `main/primery-koda/PostRepository.php` | PostRepository.php | — |
+| `main/README.md` | README | — |
+| `main/sort.json` | sort.json | — |
+| `main/standartnaya-biblioteka` | Стандартная библиотека | — |
+| `main/standartnaya-biblioteka/Дата и время.md` | Дата и время | — |
+| `main/standartnaya-biblioteka/Файлы.md` | Файлы | — |
+| `main/standartnaya-biblioteka/JSON.md` | JSON | — |
+| `main/standartnaya-biblioteka/manifest.md` | Стандартная библиотека | — |
+| `references/laravel-docs.md` | laravel-docs | — |
+| `references/php-net-manual.md` | php-net-manual | — |
+| `references/psr-4-autoloading.md` | psr-4-autoloading | — |
+| `scripts/lint-examples.md` | lint-examples | — |
+| `scripts/lint-examples.sh` | lint-examples.sh | — |

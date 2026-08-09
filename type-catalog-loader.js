@@ -962,7 +962,9 @@ function loadBlocksFromCatalog(projectRoot, agentRoot = "") {
   for (const entry of byDomain["md-blocks"] || []) {
     if (!isCatalogType(entry) || entry.kind !== "block") continue;
     const merged = mergeTypeSchema(entry, byId);
-    const template = String(merged.template || merged.text || "")
+    let template = merged.template || merged.text || "";
+    if (typeof template !== "string") template = "";
+    template = template
       .replace(/\\n/g, "\n")
       .replace(/\\t/g, "\t");
     if (!template) continue;

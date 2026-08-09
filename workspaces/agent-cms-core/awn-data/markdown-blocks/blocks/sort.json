@@ -10,5 +10,13 @@
   "hr",
   "paragraph",
   "quote",
-  "note"
+  "note",
+  "mermaid-flowchart",
+  "mermaid-sequence",
+  "mermaid-gantt",
+  "mermaid-pie",
+  "mermaid-class",
+  "mermaid-state",
+  "mermaid-er",
+  "mermaid-mindmap"
 ]

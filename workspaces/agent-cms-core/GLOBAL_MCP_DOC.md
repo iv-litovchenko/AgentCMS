@@ -9,7 +9,7 @@
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
-Этот файл — шпаргалка (**71 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
+Этот файл — шпаргалка (**73 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 Перед работой: `get_session_context` → `get_user_active_context_now`.  
 Поиск по содержимому workspace: `search_workspace_content` (scope=all — пути, frontmatter, тела файлов; как шапка UI).  
@@ -18,7 +18,7 @@
 Идентичность: `get_agent_identity`, `get_user_identity`. Активность: `list_recent_activity`.
 
 **«Перезагрузи контекст»** → снова `get_session_context` (отдельного `reload_*` нет).  
-Уточнения: always → `list_workspace_always_context`; карта страниц → `get_page_map`; контент страницы → `get_content_map(path)` или быстрое оглавление → `get_content_index(path)`; фокус UI → `get_user_active_context_now`.
+Уточнения: always → `list_workspace_always_context`; карта страниц → `get_page_map`; оглавление страниц workspace → `get_workspace_page_index` / `refresh_workspace_page_index`; контент страницы → `get_content_map(path)` или быстрое оглавление → `get_content_index(path)` / обновить → `refresh_content_index(path)`; фокус UI → `get_user_active_context_now`.
 
 ## Модель (3 сущности)
 
@@ -127,9 +127,11 @@ resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn
 | Tool | Что внутри | Тела файлов? |
 |------|------------|--------------|
 | `get_page_map` | Все узлы workspace: manifest (hasManifest:true) + папки без manifest (kind:folder). Meta, без body | нет |
+| `get_workspace_page_index` | **Оглавление страниц** workspace: path, **type**, title, description. Файл `INDEX.md` в **корне** workspace | нет |
+| `refresh_workspace_page_index` | **Обновить** `INDEX.md` в корне workspace (пересобрать из `get_page_map`) | да (INDEX.md) |
 | `get_content_map(path)` | Контент одной страницы по слотам: title, description, **properties**, tags, status. Включая папки `awn-materials-*` (доп. материалы записи) | нет |
-| `get_content_index(path)` | **Оглавление** темы (только **внешние слоты**: memory, inbox, media…; без однофайловой/табличной памяти) или одного слота с `slot=…` | нет |
-| `write_content_index(path)` | **Сохранить** оглавление в `awn-storage/index.md` (внешние слоты) или index слота | да (index.md) |
+| `get_content_index(path)` | **Оглавление контента** темы (только **внешние слоты**: memory, inbox, media…; без bundle-памяти) или одного слота с `slot=…`. Колонки: path, **type**, title, description | нет |
+| `refresh_content_index(path)` | **Обновить** оглавление контента → `index.md` **рядом с manifest.md** темы (внешние слоты) или index слота | да (index.md) |
 | `resolve_workspace_path({ path })` | Произвольный путь → цепочка manifest (topic/area/ws), slot/ref, mcp hints | нет |
 | `search_workspace_content` | Полнотекстовый поиск: пути, frontmatter, тела (`scope=all` по умолчанию) | meta + snippet |
 | `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC | **да** |
@@ -148,14 +150,25 @@ resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn
 
 | Задача | Tool |
 |--------|------|
+| «Какие страницы есть в workspace» | `get_page_map` или `get_workspace_page_index` (компактнее) |
+| «Обновить оглавление страниц workspace» | `refresh_workspace_page_index` → `INDEX.md` в корне |
 | «Что есть в теме, не читая тексты» | `get_content_index(path)` — оглавление **внешних слотов** (без bundle-памяти) |
 | «Оглавление одного слота (inbox, media…)» | `get_content_index(path, slot=inbox\|media\|…)` |
-| «Сохранить оглавление в index.md» | `write_content_index(path)` (тема → внешние слоты) или `write_content_index(path, slot=…)` |
+| «Обновить оглавление контента в index.md» | `refresh_content_index(path)` (тема → внешние слоты, файл `{topic}/index.md`) или `refresh_content_index(path, slot=…)` |
 | «Нужны properties/tags/status перед правкой» | `get_content_map(path)` |
 | «Читать/писать текст записи» | `read_content_body` / `write_content_body` |
 | «Доп. файлы **конкретной** записи (не раздел темы)» | `get_content_map` → `hasRecordMaterials` / `parentRecordRef` / `recordMaterialsFolderRef`; папка `awn-materials-{slug}` |
 
-`indexFile.exists` в ответе `get_content_index` — есть ли на диске `index.md` (тема: `awn-storage/index.md` — **внешние слоты**; слота: `…/main/index.md`, `…/inbox/index.md` и т.п.). Если `false`, оглавление **сгенерировано** из файлов (как кнопка «Индекс» в UI).
+**Два уровня оглавления:**
+
+| Файл | Уровень | GET (preview) | POST (обновить) |
+|------|---------|---------------|-----------------|
+| `INDEX.md` | Страницы workspace (area/topic/folder) | `get_workspace_page_index` | `refresh_workspace_page_index` |
+| `index.md` | Контент одной темы/слота | `get_content_index(path[, slot])` | `refresh_content_index(path[, slot])` |
+
+Колонка **type**: для страниц — `awn.page.*` / `folder`; для контента — `awn-type` из frontmatter или kind (`awn.content.record`, `awn.media.asset`, …).
+
+`indexFile.exists` в ответе `get_content_index` / `get_workspace_page_index` — есть ли файл на диске. Тема: `{topic}/index.md` рядом с `manifest.md` (**внешние слоты**). Слот: `…/main/index.md`, `…/inbox/index.md` и т.п. Workspace: `INDEX.md` в корне. Если `exists: false`, оглавление **сгенерировано** из текущих файлов (как кнопка ⟲ в UI).
 
 ---
 
@@ -170,7 +183,8 @@ resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn
 | `awn.page.topic` | Тема | Рабочая страница со слотами (main, inbox, media…) |
 | `awn.page.section.*` | Секция | Служебные разделы: `agent-kit`, `shared`, `container` |
 
-- карта страниц: `get_page_map` → оглавление контента: `get_content_index(path)` → полная meta-карта: `get_content_map(path)`
+- карта страниц: `get_page_map` → оглавление страниц: `get_workspace_page_index` / `refresh_workspace_page_index`
+- оглавление контента: `get_content_index(path)` → обновить: `refresh_content_index(path)` → полная meta-карта: `get_content_map(path)`
 - фокус UI: `get_user_active_context_now`
 - тело / свойства: `read_page_body` / `write_page_body`, `read_page_properties` / `write_page_properties`
 - схема / конфиг: `read_page_schema` / `write_page_schema`, `read_page_config` / `write_page_config` (`config.yml`)

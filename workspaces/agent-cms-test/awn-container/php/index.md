@@ -1,0 +1,68 @@
+# Оглавление темы
+
+| Тип | Путь | Название | Описание |
+| --- | --- | --- | --- |
+| файл | `artefacts/api-postman-collection.json` | [api-postman-collection.json](awn-container/php/awn-storage/artefacts/api-postman-collection.json) | — |
+| файл | `artefacts/exported-cheatsheet.html` | [exported-cheatsheet.html](awn-container/php/awn-storage/artefacts/exported-cheatsheet.html) | — |
+| файл | `assets/preview/20260611075941.png` | [20260611075941.png](awn-container/php/awn-storage/assets/preview/20260611075941.png) | — |
+| файл | `assets/preview/20260611075941.png.sidecar.md` | [20260611075941.png.sidecar](awn-container/php/awn-storage/assets/preview/20260611075941.png.sidecar.md) | Скриншот редактора с примером PHP-кода для темы |
+| awn.content.sidecar | `assets/preview/20260611075941.sidecar.md` | [20260611075941.sidecar](awn-container/php/awn-storage/assets/preview/20260611075941.sidecar.md) | — |
+| файл | `assets/preview/20260624202540.png` | [20260624202540.png](awn-container/php/awn-storage/assets/preview/20260624202540.png) | — |
+| файл | `inbox/вопрос-match-vs-switch.md` | [вопрос-match-vs-switch](awn-container/php/awn-storage/inbox/%D0%B2%D0%BE%D0%BF%D1%80%D0%BE%D1%81-match-vs-switch.md) | — |
+| файл | `inbox/заметка-generators.md` | [заметка-generators](awn-container/php/awn-storage/inbox/%D0%B7%D0%B0%D0%BC%D0%B5%D1%82%D0%BA%D0%B0-generators.md) | — |
+| файл | `inbox/vhodyaschee-2.md` | [vhodyaschee-2](awn-container/php/awn-storage/inbox/vhodyaschee-2.md) | — |
+| файл | `inbox/vhodyaschee-3.md` | [vhodyaschee-3](awn-container/php/awn-storage/inbox/vhodyaschee-3.md) | — |
+| файл | `inbox/vhodyaschee-4.md` | [vhodyaschee-4](awn-container/php/awn-storage/inbox/vhodyaschee-4.md) | — |
+| файл | `inbox/vhodyaschee.md` | [vhodyaschee](awn-container/php/awn-storage/inbox/vhodyaschee.md) | — |
+| файл | `main/Безопасность/CSRF.md` | [CSRF](awn-container/php/awn-storage/main/%D0%91%D0%B5%D0%B7%D0%BE%D0%BF%D0%B0%D1%81%D0%BD%D0%BE%D1%81%D1%82%D1%8C/CSRF.md) | — |
+| файл | `main/Безопасность/SQL Injection.md` | [SQL Injection](awn-container/php/awn-storage/main/%D0%91%D0%B5%D0%B7%D0%BE%D0%BF%D0%B0%D1%81%D0%BD%D0%BE%D1%81%D1%82%D1%8C/SQL%20Injection.md) | — |
+| файл | `main/Безопасность/XSS.md` | [XSS](awn-container/php/awn-storage/main/%D0%91%D0%B5%D0%B7%D0%BE%D0%BF%D0%B0%D1%81%D0%BD%D0%BE%D1%81%D1%82%D1%8C/XSS.md) | — |
+| файл | `main/Веб/Роутинг.md` | [Роутинг](awn-container/php/awn-storage/main/%D0%92%D0%B5%D0%B1/%D0%A0%D0%BE%D1%83%D1%82%D0%B8%D0%BD%D0%B3.md) | — |
+| файл | `main/Веб/Сессии и cookies.md` | [Сессии и cookies](awn-container/php/awn-storage/main/%D0%92%D0%B5%D0%B1/%D0%A1%D0%B5%D1%81%D1%81%D0%B8%D0%B8%20%D0%B8%20cookies.md) | — |
+| файл | `main/Веб/HTTP и формы.md` | [HTTP и формы](awn-container/php/awn-storage/main/%D0%92%D0%B5%D0%B1/HTTP%20%D0%B8%20%D1%84%D0%BE%D1%80%D0%BC%D1%8B.md) | — |
+| файл | `main/Объекты.md` | [Объекты](awn-container/php/awn-storage/main/%D0%9E%D0%B1%D1%8A%D0%B5%D0%BA%D1%82%D1%8B.md) | — |
+| awn.content.record.category | `main/Синтаксис` | [manifest](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81) | — |
+| файл | `main/Синтаксис/Массивы.md` | [Массивы](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/%D0%9C%D0%B0%D1%81%D1%81%D0%B8%D0%B2%D1%8B.md) | — |
+| файл | `main/Синтаксис/Переменные.md` | [Переменные](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/%D0%9F%D0%B5%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%BD%D1%8B%D0%B5.md) | — |
+| файл | `main/Синтаксис/Строки.md` | [Строки](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/%D0%A1%D1%82%D1%80%D0%BE%D0%BA%D0%B8.md) | — |
+| awn.content.record | `main/Синтаксис/Управление потоком.md` | [PHP](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/%D0%A3%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5%20%D0%BF%D0%BE%D1%82%D0%BE%D0%BA%D0%BE%D0%BC.md) | — |
+| файл | `main/Синтаксис/Функции.md` | [Функции](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/%D0%A4%D1%83%D0%BD%D0%BA%D1%86%D0%B8%D0%B8.md) | — |
+| awn.content.record.category | `main/Синтаксис/manifest.md` | [Синтаксис](awn-container/php/awn-storage/main/%D0%A1%D0%B8%D0%BD%D1%82%D0%B0%D0%BA%D1%81%D0%B8%D1%81/manifest.md) | — |
+| файл | `main/Тестирование/PHPUnit основы.md` | [PHPUnit основы](awn-container/php/awn-storage/main/%D0%A2%D0%B5%D1%81%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5/PHPUnit%20%D0%BE%D1%81%D0%BD%D0%BE%D0%B2%D1%8B.md) | — |
+| файл | `main/Типы данных.md` | [Типы данных](awn-container/php/awn-storage/main/%D0%A2%D0%B8%D0%BF%D1%8B%20%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D1%85.md) | — |
+| awn.content.record.category | `main/Фреймворки` | [Фреймворки](awn-container/php/awn-storage/main/%D0%A4%D1%80%D0%B5%D0%B9%D0%BC%D0%B2%D0%BE%D1%80%D0%BA%D0%B8) | — |
+| awn.content.record | `main/Фреймворки/laravel-obzor.md` | [Laravel обзор](awn-container/php/awn-storage/main/%D0%A4%D1%80%D0%B5%D0%B9%D0%BC%D0%B2%D0%BE%D1%80%D0%BA%D0%B8/laravel-obzor.md) | — |
+| awn.content.record.category | `main/Фреймворки/manifest.md` | [Фреймворки](awn-container/php/awn-storage/main/%D0%A4%D1%80%D0%B5%D0%B9%D0%BC%D0%B2%D0%BE%D1%80%D0%BA%D0%B8/manifest.md) | — |
+| awn.content.record | `main/Фреймворки/symfony-obzor.md` | [Symfony обзор](awn-container/php/awn-storage/main/%D0%A4%D1%80%D0%B5%D0%B9%D0%BC%D0%B2%D0%BE%D1%80%D0%BA%D0%B8/symfony-obzor.md) | — |
+| awn.content.record.category | `main/baza-dannyh` | [База данных](awn-container/php/awn-storage/main/baza-dannyh) | — |
+| awn.content.record | `main/baza-dannyh/Транзакции.md` | [Транзакции](awn-container/php/awn-storage/main/baza-dannyh/%D0%A2%D1%80%D0%B0%D0%BD%D0%B7%D0%B0%D0%BA%D1%86%D0%B8%D0%B8.md) | — |
+| awn.content.record.category | `main/baza-dannyh/manifest.md` | [База данных](awn-container/php/awn-storage/main/baza-dannyh/manifest.md) | — |
+| awn.content.record | `main/baza-dannyh/migratsii.md` | [Миграции](awn-container/php/awn-storage/main/baza-dannyh/migratsii.md) | — |
+| файл | `main/baza-dannyh/PDO.md` | [PDO](awn-container/php/awn-storage/main/baza-dannyh/PDO.md) | — |
+| awn.content.record | `main/Composer/osnovy.md` | [osnovy](awn-container/php/awn-storage/main/Composer/osnovy.md) | — |
+| awn.content.record.category | `main/oop` | [ООП](awn-container/php/awn-storage/main/oop) | — |
+| файл | `main/oop/Интерфейсы.md` | [Интерфейсы](awn-container/php/awn-storage/main/oop/%D0%98%D0%BD%D1%82%D0%B5%D1%80%D1%84%D0%B5%D0%B9%D1%81%D1%8B.md) | — |
+| файл | `main/oop/Классы.md` | [Классы](awn-container/php/awn-storage/main/oop/%D0%9A%D0%BB%D0%B0%D1%81%D1%81%D1%8B.md) | — |
+| файл | `main/oop/Enums.md` | [Enums](awn-container/php/awn-storage/main/oop/Enums.md) | — |
+| awn.content.record.category | `main/oop/manifest.md` | [ООП](awn-container/php/awn-storage/main/oop/manifest.md) | — |
+| файл | `main/oop/Namespaces.md` | [Namespaces](awn-container/php/awn-storage/main/oop/Namespaces.md) | — |
+| файл | `main/oop/Traits.md` | [Traits](awn-container/php/awn-storage/main/oop/Traits.md) | — |
+| awn.content.record.category | `main/primery-koda` | [Примеры кода](awn-container/php/awn-storage/main/primery-koda) | — |
+| файл | `main/primery-koda/Пример-1.md` | [Пример-1](awn-container/php/awn-storage/main/primery-koda/%D0%9F%D1%80%D0%B8%D0%BC%D0%B5%D1%80-1.md) | — |
+| файл | `main/primery-koda/Пример-2-PDO.md` | [Пример-2-PDO](awn-container/php/awn-storage/main/primery-koda/%D0%9F%D1%80%D0%B8%D0%BC%D0%B5%D1%80-2-PDO.md) | — |
+| файл | `main/primery-koda/Пример-3-REST.md` | [Пример-3-REST](awn-container/php/awn-storage/main/primery-koda/%D0%9F%D1%80%D0%B8%D0%BC%D0%B5%D1%80-3-REST.md) | — |
+| файл | `main/primery-koda/hello.php` | [hello.php](awn-container/php/awn-storage/main/primery-koda/hello.php) | — |
+| awn.content.record.category | `main/primery-koda/manifest.md` | [Примеры кода](awn-container/php/awn-storage/main/primery-koda/manifest.md) | — |
+| файл | `main/primery-koda/PostRepository.php` | [PostRepository.php](awn-container/php/awn-storage/main/primery-koda/PostRepository.php) | — |
+| файл | `main/README.md` | [README](awn-container/php/awn-storage/main/README.md) | — |
+| файл | `main/sort.json` | [sort.json](awn-container/php/awn-storage/main/sort.json) | — |
+| awn.content.record.category | `main/standartnaya-biblioteka` | [Стандартная библиотека](awn-container/php/awn-storage/main/standartnaya-biblioteka) | — |
+| файл | `main/standartnaya-biblioteka/Дата и время.md` | [Дата и время](awn-container/php/awn-storage/main/standartnaya-biblioteka/%D0%94%D0%B0%D1%82%D0%B0%20%D0%B8%20%D0%B2%D1%80%D0%B5%D0%BC%D1%8F.md) | — |
+| файл | `main/standartnaya-biblioteka/Файлы.md` | [Файлы](awn-container/php/awn-storage/main/standartnaya-biblioteka/%D0%A4%D0%B0%D0%B9%D0%BB%D1%8B.md) | — |
+| файл | `main/standartnaya-biblioteka/JSON.md` | [JSON](awn-container/php/awn-storage/main/standartnaya-biblioteka/JSON.md) | — |
+| awn.content.record.category | `main/standartnaya-biblioteka/manifest.md` | [Стандартная библиотека](awn-container/php/awn-storage/main/standartnaya-biblioteka/manifest.md) | — |
+| файл | `references/laravel-docs.md` | [laravel-docs](awn-container/php/awn-storage/references/laravel-docs.md) | — |
+| файл | `references/php-net-manual.md` | [php-net-manual](awn-container/php/awn-storage/references/php-net-manual.md) | — |
+| файл | `references/psr-4-autoloading.md` | [psr-4-autoloading](awn-container/php/awn-storage/references/psr-4-autoloading.md) | — |
+| файл | `scripts/lint-examples.md` | [lint-examples](awn-container/php/awn-storage/scripts/lint-examples.md) | — |
+| файл | `scripts/lint-examples.sh` | [lint-examples.sh](awn-container/php/awn-storage/scripts/lint-examples.sh) | — |

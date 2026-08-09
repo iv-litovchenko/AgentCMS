@@ -9884,7 +9884,25 @@ async function buildAgentPageMap(options = {}) {
 
 const CONTENT_MAP_DEDICATED_SLOTS = new Set(["dialogs", "thread", "comments", "history", "temp", "volume"]);
 const STORAGE_SLOT_INDEX_FILE = "index.md";
+const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
 const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder } = require("./storage-slot-routing");
+
+function resolveContentIndexEntryType(item = {}) {
+  const props = item?.properties && typeof item.properties === "object" ? item.properties : {};
+  const fromProps = String(props["awn-type"] || props.awnType || "").trim();
+  if (fromProps) return fromProps;
+
+  const kind = String(item?.kind || "").trim();
+  if (kind === "category" || kind === "record-materials-folder") return "папка";
+  return "файл";
+}
+
+function resolveWorkspacePageIndexEntryType(page = {}) {
+  const awnType = String(page?.awnType || "").trim();
+  if (awnType) return awnType;
+  if (page?.kind === "folder") return "папка";
+  return "файл";
+}
 
 function mapItemsToContentIndexEntries(items = []) {
   return (items || [])
@@ -9907,15 +9925,131 @@ function mapItemsToContentIndexEntries(items = []) {
       const description =
         String(item.description || "").trim() ||
         (item.parentRecordRef ? `Доп. материалы записи ${item.parentRecordRef}` : "");
-      return { path: ref, title, description };
+      const workspacePath = String(item.workspacePath || "").replace(/\\/g, "/").trim();
+      return {
+        path: ref,
+        linkPath: workspacePath || ref,
+        type: resolveContentIndexEntryType(item),
+        title,
+        description
+      };
     })
     .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
 }
 
 function getTopicStorageIndexRelPath(manifestRelPath) {
-  const slotDir = getNamedStorageSlotDirRel(manifestRelPath, getStoragePathOptions());
-  const normalized = String(slotDir || "").replace(/\\/g, "/").trim();
+  const containerDir = getManifestContainerDirRel(manifestRelPath);
+  const normalized = String(containerDir || "").replace(/\\/g, "/").trim();
   return normalized ? `${normalized}/${STORAGE_SLOT_INDEX_FILE}` : STORAGE_SLOT_INDEX_FILE;
+}
+
+function getWorkspacePageIndexRelPath() {
+  return WORKSPACE_PAGE_INDEX_FILE;
+}
+
+async function resolveWorkspacePageIndexManifestRel() {
+  const menu = await buildAgentMenu(getAgentRoot());
+  return String(menu?.indexPath || MANIFEST_FILE).replace(/\\/g, "/");
+}
+
+function pageMapRowToWorkspaceIndexEntry(page) {
+  const manifestPath = String(page?.path || "").replace(/\\/g, "/").trim();
+  const path =
+    page?.kind === "folder"
+      ? stripAgentContentPrefixFromRelPath(manifestPath) || manifestPath
+      : stripAgentContentPrefixFromRelPath(manifestPath) || manifestPath;
+  return {
+    path: String(path || "").trim(),
+    linkPath: manifestPath,
+    type: resolveWorkspacePageIndexEntryType(page),
+    title: String(page?.title || "").trim(),
+    description: String(page?.description || "").trim()
+  };
+}
+
+function mapPageMapToWorkspaceIndexEntries(pages = []) {
+  return (pages || [])
+    .map(pageMapRowToWorkspaceIndexEntry)
+    .filter((entry) => entry.path || entry.title)
+    .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
+}
+
+function buildWorkspacePageIndexMarkdown({ pages }) {
+  const entries = mapPageMapToWorkspaceIndexEntries(pages);
+  const lines = ["# Оглавление workspace", ""];
+  lines.push(
+    formatContentIndexEntriesMarkdown(entries, {
+      emptyHint: "_В workspace пока нет страниц для оглавления._"
+    })
+  );
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
+async function buildAgentWorkspacePageIndex() {
+  const pageMap = await buildAgentPageMap({ includeSlots: false });
+  const indexPath = getWorkspacePageIndexRelPath();
+  const indexExists = await workspaceRelFileExists(indexPath);
+  const entries = mapPageMapToWorkspaceIndexEntries(pageMap.pages);
+  const manifestPath = await resolveWorkspacePageIndexManifestRel();
+
+  return {
+    version: 1,
+    model: "workspace-page-index",
+    hint:
+      "Оглавление страниц workspace (path, type, title, description) без body и properties. " +
+      "Файл INDEX.md в корне workspace. Для полной карты → get_page_map.",
+    whenToUse: {
+      get_workspace_page_index:
+        "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
+      refresh_workspace_page_index:
+        "Обновить (пересобрать и сохранить) INDEX.md в корне workspace (таблица path/type/title/description)."
+    },
+    path: manifestPath,
+    indexFile: {
+      path: indexPath,
+      exists: indexExists,
+      source: indexExists ? "file" : "generated"
+    },
+    entries,
+    entryCount: entries.length,
+    pageCount: pageMap.pageCount,
+    folderCount: pageMap.folderCount
+  };
+}
+
+async function writeAgentWorkspacePageIndex(options = {}) {
+  const overwrite = options.overwrite !== false;
+  const payload = await buildAgentWorkspacePageIndex();
+  const indexPath = payload.indexFile.path;
+  if (payload.indexFile.exists && !overwrite) {
+    return {
+      error: "Workspace index file already exists",
+      status: 409,
+      path: payload.path,
+      indexFile: { path: indexPath, exists: true }
+    };
+  }
+  const manifestRel = await resolveWorkspacePageIndexManifestRel();
+  const pageMap = await buildAgentPageMap({ includeSlots: false });
+  const markdown = buildWorkspacePageIndexMarkdown({ pages: pageMap.pages });
+  await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
+  return {
+    version: 1,
+    model: "workspace-page-index-write",
+    hint: "INDEX.md обновлён в корне workspace. Просмотр без записи → GET /api/agent/workspace-page-index.",
+    whenToUse: payload.whenToUse,
+    path: payload.path,
+    overwrite,
+    written: {
+      path: indexPath,
+      created: !payload.indexFile.exists,
+      overwritten: Boolean(payload.indexFile.exists),
+      entryCount: payload.entryCount,
+      pageCount: payload.pageCount,
+      folderCount: payload.folderCount
+    },
+    indexFile: { path: indexPath, exists: true, source: "file" }
+  };
 }
 
 function getSlotStorageIndexRelPath(manifestRelPath, slotKey, storageFolder, driver) {
@@ -9956,12 +10090,35 @@ function escapeContentIndexTableCell(value) {
     .trim();
 }
 
-function formatContentIndexEntriesMarkdown(entries, { emptyHint = "_Нет записей._" } = {}) {
+function escapeContentIndexLinkText(value) {
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]");
+}
+
+function encodeContentIndexLinkTarget(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return encodeURI(raw).replace(/#/g, "%23");
+}
+
+function formatContentIndexTitleCell(entry, { linkTitle = true } = {}) {
+  const titleRaw = String(entry.title || entry.path || "").trim();
+  const title = escapeContentIndexTableCell(titleRaw) || "—";
+  if (!linkTitle) return title;
+  const linkPath = String(entry.linkPath || entry.path || "").trim();
+  if (!linkPath) return title;
+  const linkText = escapeContentIndexLinkText(titleRaw || "—");
+  return `[${linkText}](${encodeContentIndexLinkTarget(linkPath)})`;
+}
+
+function formatContentIndexEntriesMarkdown(entries, { emptyHint = "_Нет записей._", linkTitle = true } = {}) {
   if (!entries?.length) return emptyHint;
-  const lines = ["| Путь | Название | Описание |", "| --- | --- | --- |"];
+  const lines = ["| Тип | Путь | Название | Описание |", "| --- | --- | --- | --- |"];
   for (const entry of entries) {
     lines.push(
-      `| \`${escapeContentIndexTableCell(entry.path)}\` | ${escapeContentIndexTableCell(entry.title)} | ${escapeContentIndexTableCell(entry.description) || "—"} |`
+      `| ${escapeContentIndexTableCell(entry.type) || "—"} | \`${escapeContentIndexTableCell(entry.path)}\` | ${formatContentIndexTitleCell(entry, { linkTitle })} | ${escapeContentIndexTableCell(entry.description) || "—"} |`
     );
   }
   return lines.join("\n");
@@ -10051,15 +10208,15 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     version: 1,
     model: "content-index",
     hint:
-      "Быстрое оглавление (path, title, description) без body и без properties. " +
+      "Быстрое оглавление (path, type, title, description) без body и без properties. " +
       "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
-      "Общий index.md темы — только внешние слоты (driver external: memory, inbox, media…). " +
+      "Общий index.md темы — рядом с manifest.md, только внешние слоты (driver external: memory, inbox, media…). " +
       "Однофайловая/табличная память (bundle) не включается. Папки awn-materials-* включены.",
     whenToUse: {
       get_content_index:
-        "Быстрый обзор темы/слота без погружения: оглавление как index.md (путь, название, описание).",
-      write_content_index:
-        "Сформировать и сохранить index.md на диск (таблица path/title/description). Сначала get_content_index для preview.",
+        "Быстрый обзор темы/слота без погружения: оглавление как index.md (путь, тип, название, описание).",
+      refresh_content_index:
+        "Обновить index.md на диске (таблица path/type/title/description). Сначала get_content_index для preview.",
       get_content_map:
         "Планирование правок: все meta по слотам (properties, tags, status), но без body.",
       read_content_body: "Когда нужен полный текст одной записи."
@@ -10149,7 +10306,7 @@ async function writeAgentContentIndex(manifestRelPath, options = {}) {
     version: 1,
     model: "content-index-write",
     hint:
-      "index.md сохранён на диск. Просмотр без записи → get_content_index. Ручная правка текста → read/write_content_body с ref=index.md.",
+      "index.md обновлён на диске. Просмотр без записи → get_content_index. Ручная правка текста → read/write_content_body с ref=index.md.",
     whenToUse: indexPayload.whenToUse,
     path: manifestPath,
     scope,
@@ -10464,9 +10621,13 @@ const SESSION_CONTEXT_API_MAP = {
     "GET /api/agent/page-map?includeSlots=true — карта workspace: manifest-узлы + папки без manifest (kind:folder)",
   contentMap: "GET /api/agent/content-map?path=<manifest.md>&slot= — карта контента страницы (meta, без body)",
   contentIndex:
-    "GET /api/agent/content-index?path=<manifest.md>&slot= — оглавление index.md (path, title, description; без body/properties)",
+    "GET /api/agent/content-index?path=<manifest.md>&slot= — оглавление index.md (path, type, title, description; без body/properties)",
   contentIndexWrite:
-    "POST /api/agent/content-index — сформировать и сохранить index.md (body: path, slot?, overwrite?)",
+    "POST /api/agent/content-index — обновить index.md (body: path, slot?, overwrite?)",
+  workspacePageIndex:
+    "GET /api/agent/workspace-page-index — оглавление INDEX.md (path, type, title, description; страницы workspace)",
+  workspacePageIndexWrite:
+    "POST /api/agent/workspace-page-index — обновить INDEX.md в корне workspace (body: overwrite?)",
   dataStores: "GET /api/awn-data — накопители awn-data; ?store= для одного",
   dataStoreCreate: "POST /api/awn-data/stores — создать накопитель",
   dataRecordCreate: "POST /api/awn-data/records — добавить запись",
@@ -16033,6 +16194,40 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to write content index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-page-index") {
+    try {
+      const payload = await buildAgentWorkspacePageIndex();
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace page index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-page-index") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await writeAgentWorkspacePageIndex({
+        overwrite: payload.overwrite !== false
+      });
+      if (result.error) {
+        return sendJson(res, result.status || 400, {
+          error: result.error,
+          path: result.path,
+          indexFile: result.indexFile
+        });
+      }
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write workspace page index",
         details: String(error.message || error)
       });
     }
