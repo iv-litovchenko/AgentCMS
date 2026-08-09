@@ -1,0 +1,8 @@
+version: 1
+layer: topic
+
+awn_schema:
+  topic:
+    fields:
+      topic-field-1:
+        type: awn.field.string

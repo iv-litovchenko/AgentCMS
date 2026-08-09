@@ -1,40 +1,37 @@
 ---
-awn-status: closed
+awn-name: "Ая тест темы 2049-2"
 awn-emoji: ""
-awn-sort: 0
-awn-slots-disabled: false
+awn-type: awn.page.topic
+awn-create: 2026-08-08T10:50:36.819Z
+awn-update: 2026-08-08T10:51:31.748Z
+awn-version: 3
+awn-web-url: ""
 awn-main: false
-awn-runtime-load-always: false
-awn-runtime-cron: false
-awn-runtime-cron-schedule: ""
-awn-runtime-heartbeat: false
-awn-runtime-commands: false
 awn-category: ""
 awn-owner: ""
 awn-priority: ""
 awn-color: ""
+awn-sort: ""
+awn-runtime-load-always: false
+awn-runtime-cron: ""
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: ""
+awn-runtime-commands: false
+awn-slots-disabled: false
+awn-status: closed
+awn-description: "Тестовая тема в области «Ая тест области 2049» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном — и в обоих забывают закрыть скобки."
 awn-tags:
   - test
   - topic
-awn-type: awn.page.topic
-awn-create: "2026-08-08T13:50"
-awn-update: 2026-08-09T22:50:11.715Z
-awn-version: 4
-awn-description: "Тестовая тема в области «Ая тест области 2049» для проверки полного цикла. Анекдот: — Почему программисты такие рассеянные? — А они и правда живут в двух мирах: реальном и виртуальном — и в обоих забывают закрыть скобки."
-awn-name: Ая тест темы 2049-2
 awn-preview: "https://bipbap.ru/wp-content/uploads/2017/04/000f_7290754.jpg"
-awn-web-url: ""
+aya-t-custom-text: "Значение строки: тема 2049, кастомное поле (анекдот: Если бы программисты строили дома, первый аист разнёс бы их, а потом пришёл бы с обновлением)"
+aya-t-custom-number: 2049
+aya-t-custom-boolean: true
+aya-t-custom-date: 2026-08-08
 aya-t-custom-array:
   - значение-один
   - значение-два
   - значение-три
-aya-t-custom-boolean: true
-aya-t-custom-date: 2026-08-08
-aya-t-custom-number: 2049
-aya-t-custom-text: "Значение строки: тема 2049, кастомное поле (анекдот: Если бы программисты строили дома, первый аист разнёс бы их, а потом пришёл бы с обновлением)"
-fewfew: 002
-field-122: ""
-fewfew: 001
 ---
 
 # Инструкция темы «Ая тест темы 2049-2»

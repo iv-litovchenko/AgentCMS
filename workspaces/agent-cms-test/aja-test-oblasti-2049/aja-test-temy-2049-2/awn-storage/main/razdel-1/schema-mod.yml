@@ -4,11 +4,16 @@ layer: section
 awn_schema:
   slot_memory_category:
     fields:
-      x-field-1:
+      field-12:
         type: awn.field.string
-        name: DOP-POLE-RAZDEl-1
+        name: RAZDEL
   slot_memory:
     fields:
-      x-field-1:
+      field-12:
         type: awn.field.string
-        name: DOP-POLE-RECORD-1
+        name: RECORD-2
+  slot_memory_sidecar:
+    fields:
+      field-1sidecar:
+        type: awn.field.string
+        name: SIDECAR
