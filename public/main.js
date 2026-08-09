@@ -34548,6 +34548,7 @@ async function reloadActiveNodeManifestFromDisk() {
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
   modeContentCache.description = data.content || "";
+  navigationManifestCachedPath = apiPath;
 
   invalidateNodeConfigCache(activePath);
   try {
@@ -36211,8 +36212,10 @@ function getTopicSchemaTargetLabel(targetId) {
 }
 
 function resolveTopicSchemaBaseType(target, cache = getTopicSchemaCache()) {
-  const typeName = getTopicSchemaTargetTypeName(target) || AWN_SCHEMA_TARGET_TYPE_NAMES[target];
-  const typeDef = typeName ? awnTypesCache?.types?.[typeName] : null;
+  const typeName = normalizeAwnTypeName(
+    getTopicSchemaTargetTypeName(target) || AWN_SCHEMA_TARGET_TYPE_NAMES[target]
+  );
+  const typeDef = typeName ? mergeClientTypeDefinition(typeName) : null;
   if (typeDef?.fields) {
     return {
       name: typeName,
@@ -37149,6 +37152,24 @@ function resolveActiveOverviewSchemaCache(context = activeEntryOverviewContext) 
     }
     const topicCache = getTopicSchemaCache(manifestPath, "");
     if (topicCache) return topicCache;
+  }
+  return getTopicSchemaCache(manifestPath, "");
+}
+
+function resolveActivePropsSchemaCache(context = activeEntryOverviewContext) {
+  const manifestPath = getTopicSchemaManifestPath();
+  if (!manifestPath) return null;
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && context?.relPath) {
+    const contentPath = resolveOverviewSchemaContentPath(context);
+    if (contentPath) {
+      const contentCache = getTopicSchemaCache(manifestPath, contentPath);
+      if (contentCache) return contentCache;
+    }
+  }
+  const contentPath = getSchemaContentPathForContext();
+  if (contentPath) {
+    const contentCache = getTopicSchemaCache(manifestPath, contentPath);
+    if (contentCache) return contentCache;
   }
   return getTopicSchemaCache(manifestPath, "");
 }
@@ -39716,6 +39737,107 @@ function getManifestTreeFolderDepth(normalized) {
   return countManifestFolderDepthFromWorkspaceRoot(path);
 }
 
+const CONTENT_AWN_TYPE_NAMES = new Set([
+  "awn.content.record",
+  "awn.content.category",
+  "awn.content.sidecar",
+  "awn.content.base",
+  "awn.record",
+  "awn.record.category",
+  "awn.sidecar"
+]);
+
+function isContentAwnTypeName(typeName) {
+  const normalized = normalizeAwnTypeName(typeName);
+  return Boolean(normalized && CONTENT_AWN_TYPE_NAMES.has(normalized));
+}
+
+function isAwnStorageSlotContentPath(normalized) {
+  return /\/(?:awn-storage|storage)\/[^/]+\/.+/i.test(String(normalized || "").replace(/\\/g, "/"));
+}
+
+function inferContentTypeFromStoragePath(normalized, fileNameLower = "") {
+  const lower = fileNameLower || String(normalized || "").split("/").filter(Boolean).pop()?.toLowerCase() || "";
+  if (lower.endsWith(".sidecar.md")) return normalizeAwnTypeName("awn.content.sidecar");
+  if (lower === "manifest.md") return normalizeAwnTypeName("awn.content.category");
+  return normalizeAwnTypeName("awn.content.record");
+}
+
+function mergeClientTypeDefinition(typeName) {
+  const normalized = normalizeAwnTypeName(typeName);
+  if (!normalized || !awnTypesCache?.types) return null;
+
+  const types = awnTypesCache.types;
+  const cached = types[normalized];
+  if (cached?.fields && Object.keys(cached.fields).length) {
+    return {
+      ...cached,
+      id: normalized,
+      name: cached.name || normalized,
+      fieldGroups: resolveTypeFieldGroups(normalized) || cached.fieldGroups || null,
+      fields: { ...cached.fields }
+    };
+  }
+
+  const visited = new Set();
+  const mergeFields = (name) => {
+    const key = normalizeAwnTypeName(name);
+    if (!key || visited.has(key)) return {};
+    visited.add(key);
+    const def = types[key];
+    if (!def) return {};
+    let fields = def.extends ? mergeFields(def.extends) : {};
+    if (def.fields && typeof def.fields === "object") {
+      for (const [fieldKey, patch] of Object.entries(def.fields)) {
+        fields[fieldKey] = { ...(fields[fieldKey] || {}), ...patch };
+      }
+    }
+    return fields;
+  };
+
+  const fields = mergeFields(normalized);
+  if (!Object.keys(fields).length) return cached || null;
+  return {
+    ...(cached || {}),
+    id: normalized,
+    name: cached?.name || normalized,
+    kind: cached?.kind || "type",
+    fieldGroups: resolveTypeFieldGroups(normalized) || cached?.fieldGroups || null,
+    fields
+  };
+}
+
+function buildContentTypeDef(resolvedType, target, cache) {
+  const canonicalTypeDef = mergeClientTypeDefinition(resolvedType);
+  const customFields = cache ? getTopicSchemaCustomFieldsForTarget(target, cache) : {};
+  const fieldGroups =
+    resolveTypeFieldGroups(resolvedType) || canonicalTypeDef?.fieldGroups || null;
+
+  if (canonicalTypeDef?.fields) {
+    return {
+      name: resolvedType,
+      kind: canonicalTypeDef.kind || "type",
+      fields: { ...canonicalTypeDef.fields, ...customFields },
+      form: canonicalTypeDef.form,
+      fieldGroups
+    };
+  }
+
+  const merged = cache ? resolveTopicSchemaMergedType(target, cache) : null;
+  if (merged?.fields && Object.keys(merged.fields).length) {
+    return {
+      name: merged.name || resolvedType,
+      kind: merged.kind || "type",
+      fields: merged.fields,
+      form: merged.form,
+      fieldGroups: fieldGroups || merged.fieldGroups
+    };
+  }
+
+  if (!canonicalTypeDef) return null;
+  return { name: resolvedType, ...canonicalTypeDef, fieldGroups };
+}
+
 function inferAwnTypeFromRelPath(relPath, options = {}) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return "awn.file";
@@ -39730,6 +39852,13 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
   }
   if (isSectionReadmePath(normalized) && /\/content\//i.test(normalized)) {
     return normalizeAwnTypeName("awn.content.category");
+  }
+
+  if (
+    isAwnStorageSlotContentPath(normalized) ||
+    (options.contentMode === "external" && /\/(?:awn-storage|storage)\//i.test(normalized))
+  ) {
+    return inferContentTypeFromStoragePath(normalized, lower);
   }
 
   const flatStorageModes = ["inbox", "note", "references"];
@@ -39835,38 +39964,22 @@ function getActiveAwnTypeDef(typeName = null) {
       const declared = getPropsEntryValueByKey(propsFormEntries, "awn-type");
       if (declared) {
         const normalized = normalizeAwnTypeName(declared);
-        if (normalized && normalized !== resolvedType && awnTypesCache?.types?.[normalized]) {
-          resolvedType = normalized;
-        }
+        if (normalized) resolvedType = normalized;
       }
     }
   }
 
   const overviewContext =
     activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null;
-  const cache = resolveActiveOverviewSchemaCache(overviewContext);
+  const cache = resolveActivePropsSchemaCache(overviewContext);
   const slotKey = resolveSchemaSlotKeyForContext();
   const target = typeName
     ? resolveAwnSchemaTargetForType(resolvedType, slotKey)
     : activeContentMode === NODE_ENTRY_OVERVIEW_MODE
       ? resolveOverviewSchemaTargetForContext(overviewContext)
       : resolveAwnSchemaTargetForContext();
-  const merged = cache ? resolveTopicSchemaMergedType(target, cache) : null;
-  if (merged?.fields) {
-    const baseTypeDef = awnTypesCache?.types?.[resolvedType];
-    return {
-      name: merged.name || resolvedType,
-      kind: merged.kind || baseTypeDef?.kind || "type",
-      fields: merged.fields,
-      form: baseTypeDef?.form,
-      fieldGroups: resolveTypeFieldGroups(resolvedType) || baseTypeDef?.fieldGroups
-    };
-  }
 
-  const baseTypeDef = awnTypesCache?.types?.[resolvedType];
-  if (!baseTypeDef) return null;
-  const fieldGroups = resolveTypeFieldGroups(resolvedType) || baseTypeDef.fieldGroups;
-  return { name: resolvedType, ...baseTypeDef, fieldGroups };
+  return buildContentTypeDef(resolvedType, target, cache);
 }
 
 function getActiveSettingsTypeDef(overviewContext = null) {
@@ -39907,19 +40020,11 @@ function getTypeOwnFields(typeId) {
 }
 
 function getExternalRecordTypeDef() {
-  const baseTypeDef = awnTypesCache?.types?.["awn.record"];
+  const slotKey = getDataStorageSlotForMode("external")?.key || "memory";
+  const target = resolveAwnSchemaTargetForType("awn.content.record", slotKey);
   const manifestPath = getExternalListSchemaManifestPath();
   const cache = manifestPath ? getTopicSchemaCache(manifestPath) : null;
-  const merged = cache?.merged?.record;
-  if (merged?.fields) {
-    return {
-      name: merged.name || "awn.record",
-      kind: merged.kind || baseTypeDef?.kind || "type",
-      fields: merged.fields
-    };
-  }
-  if (baseTypeDef) return { name: "awn.record", ...baseTypeDef };
-  return null;
+  return buildContentTypeDef("awn.content.record", target, cache);
 }
 
 function getExternalTableSchemaColumns() {
@@ -47170,9 +47275,8 @@ function readPropsFormIntoEntries() {
   const rows = getPropsFormFieldContainers().flatMap((container) =>
     container ? [...container.querySelectorAll(".props-form-row")] : []
   );
-  if (!rows.length) return;
 
-  const nextEntries = propsFormEntries.map((entry) => ({ ...entry }));
+  let nextEntries = propsFormEntries.map((entry) => ({ ...entry }));
 
   for (const row of rows) {
     const index = Number(row.dataset.index);
@@ -47195,6 +47299,14 @@ function readPropsFormIntoEntries() {
   propsFormEntries = mergePropsWebUrlIntoEntries(propsFormEntries);
   propsFormEntries = mergePropsAttachmentsIntoEntries(propsFormEntries);
   propsFormEntries = mergePropsMaterialsIntoEntries(propsFormEntries);
+}
+
+function mergePropsAsideHeroBlocksIntoEntries(entries = propsFormEntries) {
+  let next = mergePropsPreviewIntoEntries(entries);
+  next = mergePropsWebUrlIntoEntries(next);
+  next = mergePropsAttachmentsIntoEntries(next);
+  next = mergePropsMaterialsIntoEntries(next);
+  return normalizePropsEntriesAssetRefs(next);
 }
 
 function togglePropsRawYaml() {
@@ -47319,6 +47431,8 @@ function flushPropsYamlFromFormBeforeSave() {
   } else if (isPropsFormDomMounted()) {
     readPropsFormIntoEntries();
     propsFormEntries = normalizePropsEntriesAssetRefs(propsFormEntries);
+  } else {
+    propsFormEntries = mergePropsAsideHeroBlocksIntoEntries(propsFormEntries);
   }
   syncYamlFromPropsForm();
 }
@@ -47368,7 +47482,11 @@ function applyMediaSidecarContentUi(rawContent) {
 }
 
 async function applyStorageFileContentUi(rawContent, { mode = "external" } = {}) {
-  await ensureTopicSchemaForActiveContext();
+  await Promise.all([
+    loadAwnTypes(activeAgentId).catch(() => null),
+    loadAgentCatalogs(activeAgentId).catch(() => null),
+    ensureTopicSchemaForActiveContext()
+  ]);
   const { frontmatter, body } = splitFrontmatter(rawContent);
   if (mode === "external") {
     const recordPath = activeExternalFilePath || activeFlatStorageFilePath;
@@ -47378,6 +47496,11 @@ async function applyStorageFileContentUi(rawContent, { mode = "external" } = {})
       "";
     setPropsYamlContent(frontmatter);
     fileContentInputNode.value = stripDefaultManifestHeading(body, titleHint);
+    if (shouldRefreshPropsFormFromYaml()) {
+      absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
+      syncYamlFromPropsForm();
+      renderPropsForm();
+    }
     return;
   }
   if (mode === "flat-plain") {
@@ -47387,6 +47510,11 @@ async function applyStorageFileContentUi(rawContent, { mode = "external" } = {})
   }
   setPropsYamlContent(frontmatter);
   fileContentInputNode.value = body;
+  if (shouldRefreshPropsFormFromYaml()) {
+    absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
+    syncYamlFromPropsForm();
+    renderPropsForm();
+  }
 }
 
 function buildExternalFileContent() {
@@ -49994,11 +50122,63 @@ function saveOverviewAccordionOpenState(groupId, isOpen) {
   }
 }
 
-function resolveNodeOverviewPropsEntries() {
-  if (propsFormEntries.length || propsFormHiddenEntries.length) {
-    return mergePropsFormEntries();
+function isOverviewPropsMergeMode() {
+  return (
+    activeContentMode === NODE_OVERVIEW_MODE ||
+    activeContentMode === NODE_NAVIGATION_MODE ||
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE
+  );
+}
+
+function getOverviewManifestFrontmatterEntries() {
+  if (!isOverviewPropsMergeMode()) return [];
+  const map = new Map();
+
+  const absorbYaml = (yamlText) => {
+    const yaml = String(yamlText || "").trim();
+    if (!yaml) return;
+    for (const entry of normalizePropsEntries(parsePropsYaml(yaml))) {
+      const key = normalizePropsKey(entry?.key);
+      if (key) map.set(key, { ...entry, key });
+    }
+  };
+
+  const apiPath = getActiveNodeApiPath();
+  const cachedManifest = String(modeContentCache.description || "");
+  const cacheMatchesActiveNode =
+    !apiPath || !navigationManifestCachedPath || navigationManifestCachedPath === apiPath;
+  if (cachedManifest.trim() && cacheMatchesActiveNode) {
+    absorbYaml(splitFrontmatter(cachedManifest).frontmatter);
   }
-  return normalizePropsEntries(parsePropsYaml(propsInputNode.value || ""));
+  if (!map.size) {
+    absorbYaml(propsInputNode?.value || "");
+  }
+  return [...map.values()];
+}
+
+function mergeOverviewPropsEntrySources(formEntries, manifestEntries) {
+  if (!manifestEntries.length) return formEntries;
+  const map = new Map();
+  for (const entry of manifestEntries) {
+    const key = normalizePropsKey(entry?.key);
+    if (key) map.set(key, entry);
+  }
+  for (const entry of formEntries) {
+    const key = normalizePropsKey(entry?.key);
+    if (!key) continue;
+    const prev = map.get(key);
+    map.set(key, prev ? mergePropsEntryValues(prev, entry) : entry);
+  }
+  return dedupePropsEntriesByKey([...map.values()]);
+}
+
+function resolveNodeOverviewPropsEntries() {
+  const formEntries =
+    propsFormEntries.length || propsFormHiddenEntries.length
+      ? mergePropsFormEntries()
+      : normalizePropsEntries(parsePropsYaml(propsInputNode.value || ""));
+
+  return mergeOverviewPropsEntrySources(formEntries, getOverviewManifestFrontmatterEntries());
 }
 
 function getPropsEntryOverviewDisplayValue(entry, key = entry?.key) {
@@ -50178,17 +50358,7 @@ function collectNodeOverviewMetaItems(entries, nodePath = getResolvedNodePath(ac
   for (const key of orderedSettingsSchemaKeys) {
     pushKey(key, { allowMissing: true, inSchema: true });
   }
-  const hideOrphanCustomProps = orderedCustomSchemaKeys.length > 0;
   for (const key of [...map.keys()].sort((a, b) => a.localeCompare(b, "ru"))) {
-    const normalized = normalizePropsKey(key);
-    if (
-      hideOrphanCustomProps &&
-      !isAwnFieldKey(normalized) &&
-      !isOverviewSettingsFieldKey(normalized, nodePath) &&
-      !orderedCustomSchemaKeys.includes(normalized)
-    ) {
-      continue;
-    }
     pushKey(key, {
       allowMissing: false,
       inSchema:
@@ -50250,6 +50420,15 @@ function mergeNodeOverviewSettingsItems(
     if (item?.key) map.set(item.key, item);
   }
   const schemaKeys = getOverviewSettingsSchemaFieldKeys(undefined, nodePath);
+  const schemaFields = getOverviewSettingsSchemaFieldsFromCache(null, nodePath);
+  for (const key of schemaKeys) {
+    if (map.has(key)) continue;
+    const placeholder = createNodeOverviewMetaItem(key, null, {
+      fieldDef: schemaFields[key] || null,
+      inSchema: true
+    });
+    if (placeholder) map.set(key, placeholder);
+  }
   return orderOverviewMetaItemsBySchema([...map.values()], schemaKeys);
 }
 
@@ -50297,6 +50476,18 @@ function splitNodeOverviewMetaItems(entries, nodePath = getResolvedNodePath(acti
       })
     )
     .filter(Boolean);
+
+  const customItemKeys = new Set(customItems.map((item) => item.key));
+  for (const [key, entry] of manifestMap.entries()) {
+    if (customItemKeys.has(key)) continue;
+    if (isAwnFieldKey(key) || isOverviewExcludedPropKey(key)) continue;
+    if (isOverviewSettingsFieldKey(key, nodePath) && !isOverviewCustomSchemaFieldKey(key, nodePath)) continue;
+    if (isForeignLayerCustomPropKey(key, nodePath)) continue;
+    if (HIDDEN_PROPS_FIELD_KEYS.has(key) || OVERVIEW_EXCLUDED_PROP_KEYS.has(key)) continue;
+    if (!shouldIncludePropsFieldKey(key)) continue;
+    const orphan = createNodeOverviewMetaItem(key, entry, { fieldDef: null, inSchema: false });
+    if (orphan) customItems.push(orphan);
+  }
 
   const settingsItems = settingsSchemaKeys
     .map((key) =>
@@ -78514,6 +78705,7 @@ async function selectFile(label, filePath) {
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     modeContentCache.description = data.content;
+    navigationManifestCachedPath = getActiveNodeApiPath();
     modeContentCache.internal = "";
     modeContentCache.external = "";
     modeContentCache.inbox = "";
@@ -78629,6 +78821,7 @@ async function loadContentByMode(options = {}) {
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
       modeContentCache.description = data.content || "";
+      navigationManifestCachedPath = getActiveNodeApiPath();
     }
     await loadPropertiesForActivePath();
     applyNodeManifestBody(modeContentCache.description || "");
@@ -78644,6 +78837,7 @@ async function loadContentByMode(options = {}) {
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
       modeContentCache.description = data.content || "";
+      navigationManifestCachedPath = getActiveNodeApiPath();
     }
     fileContentInputNode.value = "";
     applyModeUi();
