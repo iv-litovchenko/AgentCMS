@@ -6,5 +6,3 @@ status: active
 extends: awn.page.base
 description: Область контента — папка-раздел в awn-container (не служебная секция корня)
 manifest-pattern: "{slug}/manifest.md"
-
-fields:

@@ -6,21 +6,12 @@ status: active
 extends: awn.base
 description: Узел дерева (ws / section / area / topic) — навигация и runtime
 
-field-groups:
-  - id: content
-    name: {A!}   Основное
-    description: Что заполняет человек или агент
-    collapsed: false
-  - id: nav
-    name: {A!}   Дерево и вид
-    description: Поведение в меню и на главной
-    collapsed: true
+# field-groups наследуются из awn.base; здесь только поля, специфичные для страниц
 
 fields:
-
   awn-main:
     type: awn.field.boolean
-    title: {A!}  На главной
+    title: "{A2!} На главной"
     default: false
     placement: aside-body
     group: nav
@@ -28,7 +19,7 @@ fields:
 
   awn-slots-disabled:
     type: awn.field.boolean
-    title: {A!}  Общий слот (lite)
+    title: "{A2!} Общий слот (lite)"
     description: >
       Скрыть слоты данных; многофайловая память читается из папки темы
       (рядом с manifest.md), без awn-storage/

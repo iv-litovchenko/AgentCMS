@@ -9,7 +9,7 @@ description: >
   (form / field-groups / fields.placement / type).
 
 form:
-  panel-title: {A!}  Метаданные
+  panel-title: "{A2!} Метаданные"
   zones:
     - id: title-bar
       role: primary-title
@@ -24,29 +24,31 @@ form:
 
 field-groups:
   - id: content
-    name: Основное
+    name: "{A2!} Основное"
     description: Что заполняет человек или агент
     collapsed: false
+  - id: nav
+    name: "{A2!} Дерево и вид"
+    description: Поведение в меню и на главной
+    collapsed: true
   - id: runtime
-    name: {A!}   Runtime агента
+    name: "{A2!} Runtime агента"
     description: Загрузка в контекст, cron, heartbeat
     collapsed: true
   - id: taxonomy
-    name: Таксономия
+    name: "{A2!} Таксономия"
     description: Категории, теги, приоритет, цвет, владелец
     collapsed: true
   - id: system
-    name: {A!}  Системные
+    name: "{A2!} Системные"
     description: Заполняется автоматически, только чтение
     collapsed: true
 
 fields:
-
-// Основные поля
-
+  # --- Основное (title-bar / hidden) ---
   awn-name:
     type: awn.field.string
-    title: {A!}  Имя
+    title: "{A2!} Имя"
     description: Отображаемое имя в меню; пустое → slug
     placement: title-bar
     group: content
@@ -54,16 +56,15 @@ fields:
 
   awn-description:
     type: awn.field.text
-    title: {A!}  Описание
+    title: "{A2!} Описание"
     placement: hidden
     group: content
     sort: 4
 
-// Превью и источник
-
+  # --- aside-hero ---
   awn-preview:
     type: awn.field.file.image.one.with-preview
-    title: {A!}  Превью
+    title: "{A2!} Превью"
     description: awn-storage/assets/preview/
     placement: aside-hero
     group: content
@@ -71,26 +72,17 @@ fields:
 
   awn-web-url:
     type: awn.field.string.url
-    title: {A!}  Веб-источник
+    title: "{A2!} Веб-источник"
     description: URL оригинала в интернете (https://…)
     placement: aside-hero
     widget: url
     group: content
     sort: 2
 
-// Эмодзи и статус
-
-  awn-emoji:
-    type: awn.field.string
-    title: {A!}  Эмодзи
-    description: Показывается вместо иконки, если превью не задано
-    placement: aside-body
-    group: content
-    sort: 3
-
+  # --- content (aside-body) ---
   awn-status:
     type: awn.field.choice.one
-    title: {A!}  Статус
+    title: "{A2!} Статус"
     placement: aside-body
     group: content
     sort: 2
@@ -105,19 +97,25 @@ fields:
         name: ⚪ Без статуса
     default: open
 
-  awn-sort:
-    type: awn.field.number.integer
-    title: {A!}  Сортировка
+  awn-emoji:
+    type: awn.field.string
+    title: "{A2!} Эмодзи"
+    description: Показывается вместо иконки, если превью не задано
     placement: aside-body
-    group: nav
+    group: content
     sort: 3
 
+  awn-sort:
+    type: awn.field.number.integer
+    title: "{A2!} Сортировка"
+    placement: aside-body
+    group: content
+    sort: 4
 
-// Runtime агента
-
+  # --- runtime ---
   awn-runtime-load-always:
     type: awn.field.boolean
-    title: {A!}  Всегда в контексте
+    title: "{A2!} Всегда в контексте"
     description: Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)
     default: false
     placement: aside-body
@@ -126,14 +124,14 @@ fields:
 
   awn-runtime-cron:
     type: awn.field.boolean
-    title: {A!}  Выполнение по расписанию
+    title: "{A2!} Выполнение по расписанию"
     placement: aside-body
     group: runtime
     sort: 2
 
   awn-runtime-cron-schedule:
     type: awn.field.string.cron-schedule
-    title: {A!}  Расписание
+    title: "{A2!} Расписание"
     description: День и время, шаблон или своё cron-выражение
     placement: aside-body
     group: runtime
@@ -144,26 +142,25 @@ fields:
 
   awn-runtime-heartbeat:
     type: awn.field.boolean
-    title: {A!}  Heartbeat
+    title: "{A2!} Heartbeat"
     placement: aside-body
     group: runtime
     sort: 4
 
   awn-runtime-commands:
     type: awn.field.boolean
-    title: {A!}  Выполнение команд
+    title: "{A2!} Выполнение команд"
     description: В инструкции темы есть команды для выполнения (визуальный маркер)
     default: false
     placement: aside-body
     group: runtime
     sort: 5
 
-// Таксономия
-
+  # --- taxonomy ---
   awn-category:
     type: awn.field.lookup.one
     source: categories
-    title: {A!}  Категория
+    title: "{A2!} Категория"
     placement: aside-body
     group: taxonomy
     sort: 1
@@ -171,7 +168,7 @@ fields:
   awn-owner:
     type: awn.field.lookup.one
     source: users
-    title: {A!}  Владелец
+    title: "{A2!} Владелец"
     placement: aside-body
     group: taxonomy
     sort: 2
@@ -179,7 +176,7 @@ fields:
   awn-priority:
     type: awn.field.lookup.one
     source: priorities
-    title: {A!}  Приоритет
+    title: "{A2!} Приоритет"
     placement: aside-body
     group: taxonomy
     sort: 3
@@ -188,16 +185,23 @@ fields:
     type: awn.field.lookup.one
     source: colors
     value-kind: color
-    title: {A!}  Цвет
+    title: "{A2!} Цвет"
     placement: aside-body
     group: taxonomy
     sort: 4
 
-// Системные поля
+  awn-tags:
+    type: awn.field.lookup.many
+    source: tags
+    title: "{A2!} Теги"
+    placement: aside-body
+    group: taxonomy
+    sort: 5
 
+  # --- system ---
   awn-type:
     type: awn.field.string
-    title: {A!}  Тип
+    title: "{A2!} Тип"
     required: true
     locked: true
     placement: aside-body
@@ -206,7 +210,7 @@ fields:
 
   awn-create:
     type: awn.field.date.datetime
-    title: {A!}  Создан
+    title: "{A2!} Создан"
     locked: true
     placement: aside-body
     group: system
@@ -214,7 +218,7 @@ fields:
 
   awn-update:
     type: awn.field.date.datetime
-    title: {A!}  Изменён
+    title: "{A2!} Изменён"
     locked: true
     placement: aside-body
     group: system
@@ -222,19 +226,9 @@ fields:
 
   awn-version:
     type: awn.field.number.integer
-    title: {A!}  Версия
+    title: "{A2!} Версия"
     default: 1
     locked: true
     placement: aside-body
     group: system
     sort: 4
-
-// Теги ???
-
-  awn-tags:
-    type: awn.field.lookup.many
-    source: tags
-    title: {A!}  Теги
-    placement: aside-body
-    group: content
-    sort: 5
