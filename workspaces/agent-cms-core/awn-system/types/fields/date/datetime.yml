@@ -1,8 +1,8 @@
-id: awn.field.datetime
+id: awn.field.date.datetime
 name: Дата и время
 kind: field
 domain: fields
-extends: awn.field.base
+extends: awn.field.date
 widget: datetime
 storage: string
 mdbase: datetime

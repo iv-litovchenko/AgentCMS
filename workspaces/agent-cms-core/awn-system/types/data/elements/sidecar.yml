@@ -11,5 +11,5 @@ fields:
     type: awn.field.string
     title: MIME-тип
   awn-size:
-    type: awn.field.integer
+    type: awn.field.number.integer
     title: Размер (байт)

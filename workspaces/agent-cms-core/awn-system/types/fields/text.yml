@@ -9,5 +9,5 @@ mdbase: text
 description: Длинный текст или описание (многострочное)
 settings: [hint, required, locked, default]
 group: text
-sort: 5
+sort: 4
 status: active

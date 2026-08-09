@@ -1,8 +1,8 @@
-id: awn.field.slug
+id: awn.field.string.slug
 name: Слаг
 kind: field
 domain: fields
-extends: awn.field.base
+extends: awn.field.string
 widget: slug
 storage: string
 mdbase: string

@@ -25,7 +25,7 @@ fields:
     locked: true
 
   awn-size:
-    type: awn.field.integer
+    type: awn.field.number.integer
     title: Размер (байт)
     placement: aside-body
     group: content

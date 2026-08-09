@@ -9073,6 +9073,11 @@ body.app-locked {
   font-size: 12px;
 }
 
+.agent-awn-field-registry-table th:first-child,
+.agent-awn-field-registry-table td:first-child {
+  white-space: nowrap;
+}
+
 .agent-awn-field-registry-table th,
 .agent-awn-field-registry-table td {
   padding: 8px 12px;

@@ -8,7 +8,7 @@ description: >
   для совместимости ссылок в документации.
 fields:
   awn-web-url:
-    type: awn.field.url
+    type: awn.field.string.url
     title: Веб-источник
     placement: aside-hero
     widget: url

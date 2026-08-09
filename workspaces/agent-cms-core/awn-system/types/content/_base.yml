@@ -31,11 +31,10 @@ field-groups:
 
 fields:
   awn-attachments:
-    type: awn.field.array
+    type: awn.field.file.many
     title: Вложения
     description: awn-storage/assets/attachments/
-    items: awn.field.file
+    scope: attachments
     placement: aside-hero
-    widget: attachments
     group: materials
     sort: 1

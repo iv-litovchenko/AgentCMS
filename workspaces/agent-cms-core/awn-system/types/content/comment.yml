@@ -12,7 +12,7 @@ fields:
     hidden: true
 
   awn-target:
-    type: awn.field.link
+    type: awn.field.link.one
     title: К чему привязан
     description: manifest.md или запись в awn-storage
     placement: aside-body

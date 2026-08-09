@@ -8,8 +8,7 @@ description: >
   для совместимости ссылок в документации.
 fields:
   awn-preview:
-    type: awn.field.url
+    type: awn.field.string.preview
     title: Превью
     placement: aside-hero
-    widget: preview
     group: content

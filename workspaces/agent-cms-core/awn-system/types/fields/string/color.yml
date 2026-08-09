@@ -1,8 +1,8 @@
-id: awn.field.color
+id: awn.field.string.color
 name: Цвет
 kind: field
 domain: fields
-extends: awn.field.base
+extends: awn.field.string
 widget: color
 storage: string
 mdbase: color

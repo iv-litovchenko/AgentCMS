@@ -1,0 +1,14 @@
+id: awn.field.string.catalog-status
+name: Статус (справочник)
+kind: field
+domain: fields
+extends: awn.field.string
+widget: catalog-status
+catalog: statuses
+storage: string
+mdbase: string
+description: Статус из справочника statuses (глобальный + агент)
+settings: [hint, required, locked, default, enum-fallback]
+group: cms
+sort: 10
+status: active

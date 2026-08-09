@@ -8,9 +8,8 @@ description: >
   Mixin оставлен для совместимости ссылок в документации.
 fields:
   awn-attachments:
-    type: awn.field.array
+    type: awn.field.file.many
     title: Вложения
-    items: awn.field.file
     placement: aside-hero
-    widget: attachments
     group: materials
+    scope: attachments

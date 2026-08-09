@@ -22,13 +22,12 @@ fields:
     sort: 2
 
   awn-runtime-cron-schedule:
-    type: awn.field.string
+    type: awn.field.string.cron-schedule
     title: Расписание
     description: День и время, шаблон или своё cron-выражение
     placement: aside-body
     group: runtime
     sort: 3
-    widget: cron-schedule
     show-when:
       field: awn-runtime-cron
       equals: true

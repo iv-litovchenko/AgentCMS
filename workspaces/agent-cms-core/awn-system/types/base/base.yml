@@ -6,10 +6,10 @@ status: active
 extends: awn.entity
 description: >
   Общие поля любой сущности CMS. UI формы свойств строится только из этой схемы
-  (form / field-groups / fields.placement / widget / catalog).
+  (form / field-groups / fields.placement / type).
 
 form:
-  panel-title: Метаданные
+  panel-title: АААМетаданные
   zones:
     - id: title-bar
       role: primary-title
@@ -33,7 +33,7 @@ field-groups:
 fields:
   awn-name:
     type: awn.field.string
-    title: Имя
+    title: АААИмя
     description: Отображаемое имя в меню; пустое → slug
     placement: title-bar
     group: content
@@ -41,24 +41,23 @@ fields:
 
   awn-emoji:
     type: awn.field.string
-    title: Эмодзи
+    title: АААЭмодзи
     description: Показывается вместо иконки, если превью не задано
     placement: aside-body
     group: content
     sort: 2
 
   awn-preview:
-    type: awn.field.url
-    title: Превью
+    type: awn.field.string.preview
+    title: АААПревью
     description: awn-storage/assets/preview/
     placement: aside-hero
-    widget: preview
     group: content
     sort: 1
 
   awn-web-url:
-    type: awn.field.url
-    title: Веб-источник
+    type: awn.field.string.url
+    title: АААВеб-источник
     description: URL оригинала в интернете (https://…)
     placement: aside-hero
     widget: url
@@ -66,13 +65,11 @@ fields:
     sort: 2
 
   awn-status:
-    type: awn.field.string
-    title: Статус
+    type: awn.field.string.catalog-status
+    title: АААСтатус
     placement: aside-body
     group: content
     sort: 3
-    widget: catalog-lookup
-    catalog: statuses
     enum-fallback:
       - key: open
         name: 🟢 Открыта
@@ -86,24 +83,21 @@ fields:
 
   awn-description:
     type: awn.field.text
-    title: Описание
+    title: АААОписание
     placement: hidden
     group: content
     sort: 4
 
   awn-tags:
-    type: awn.field.array
-    title: Теги
-    items: awn.field.string
+    type: awn.field.array.catalog-tags
+    title: АААТеги
     placement: aside-body
     group: content
     sort: 5
-    widget: catalog-tags
-    catalog: tags
 
   awn-type:
     type: awn.field.string
-    title: Тип
+    title: АААТип
     required: true
     locked: true
     placement: hidden
@@ -111,24 +105,24 @@ fields:
     sort: 1
 
   awn-create:
-    type: awn.field.datetime
-    title: Создан
+    type: awn.field.date.datetime
+    title: АААСоздан
     locked: true
     placement: aside-body
     group: system
     sort: 2
 
   awn-update:
-    type: awn.field.datetime
-    title: Изменён
+    type: awn.field.date.datetime
+    title: АААИзменён
     locked: true
     placement: aside-body
     group: system
     sort: 3
 
   awn-version:
-    type: awn.field.integer
-    title: Версия
+    type: awn.field.number.integer
+    title: АААВерсия
     default: 1
     locked: true
     placement: aside-body

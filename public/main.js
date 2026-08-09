@@ -36784,7 +36784,7 @@ function createNodeSettingsFieldRow(entry, fieldDef) {
 
   const row = document.createElement("div");
   row.className = "node-config-field-row node-config-field-row--compact";
-  if (entryKind === "array" || typeId === "awn.file" || typeId === "awn.text") {
+  if (entryKind === "array" || isFileFieldTypeId(fieldDef?.type) || fieldTypeIs(typeId, "text")) {
     row.classList.add("is-tall");
   }
   row.dataset.configRowKey = entry.key;
@@ -37233,21 +37233,75 @@ async function loadTopicSchemaForManifest(nodePath, options = {}) {
 function getTopicSchemaRegistryEntries(cache = getTopicSchemaCache()) {
   const registry = cache?.fieldRegistry || awnTypesCache?.fieldRegistry || {};
   return Object.entries(registry)
-    .filter(([id]) => id.startsWith("awn."))
-    .map(([id, def]) => ({ id, name: def?.name || def?.label || id }))
-    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    .filter(([id]) => id.startsWith("awn.field."))
+    .map(([id, def]) => ({
+      id,
+      name: def?.name || def?.label || id,
+      sort: Number(def?.sort) || 0,
+      group: def?.group || "misc",
+      widget: def?.widget || "",
+      description: def?.description || ""
+    }));
+}
+
+function compareFieldRegistryEntries(a, b) {
+  const sortA = Number(a?.sort) || 0;
+  const sortB = Number(b?.sort) || 0;
+  if (sortA !== sortB) return sortA - sortB;
+  const canonicalA = normalizeCanonicalFieldTypeId(a?.id || "");
+  const canonicalB = normalizeCanonicalFieldTypeId(b?.id || "");
+  const depthA = canonicalA.split(".").length;
+  const depthB = canonicalB.split(".").length;
+  if (depthA !== depthB) return depthA - depthB;
+  return canonicalA.localeCompare(canonicalB, "ru");
 }
 
 const FIELD_TYPE_SELECT_GROUPS = [
-  { label: "Текст", types: ["awn.string", "awn.text", "awn.url", "awn.email", "awn.markdown", "awn.slug"] },
-  { label: "Числа", types: ["awn.integer", "awn.number"] },
-  { label: "Дата и время", types: ["awn.date", "awn.datetime"] },
   {
-    label: "Выбор значений",
-    types: ["awn.boolean", "awn.enum", "awn.array", "awn.tags"]
+    label: "Текст",
+    types: [
+      "awn.string",
+      "awn.string.email",
+      "awn.string.slug",
+      "awn.string.url",
+      "awn.text",
+      "awn.text.markdown"
+    ]
   },
-  { label: "Связи и файлы", types: ["awn.link", "awn.file", "awn.relation", "awn.image"] },
-  { label: "Другое", types: ["awn.color", "awn.json", "awn.null"] }
+  { label: "Числа", types: ["awn.number", "awn.number.integer"] },
+  { label: "Дата и время", types: ["awn.date", "awn.date.datetime"] },
+  {
+    label: "Выбор",
+    types: ["awn.boolean", "awn.enum", "awn.array", "awn.array.tags"]
+  },
+  {
+    label: "Медиа",
+    types: [
+      "awn.string.color",
+      "awn.file.one",
+      "awn.file.many",
+      "awn.file.image.one",
+      "awn.file.image.one.preview",
+      "awn.file.image.many"
+    ]
+  },
+  {
+    label: "Структура",
+    types: ["awn.json", "awn.link.one", "awn.link.many", "awn.relation"]
+  },
+  {
+    label: "CMS / платформа",
+    types: [
+      "awn.string.preview",
+      "awn.string.cron-schedule",
+      "awn.string.catalog-status",
+      "awn.array.catalog-tags",
+      "awn.string.catalog-category",
+      "awn.string.catalog-users",
+      "awn.string.catalog-priorities",
+      "awn.string.catalog-colors"
+    ]
+  }
 ];
 
 function resolveFieldRegistryEntryId(typeId, byId) {
@@ -37290,10 +37344,13 @@ function getFieldTypeSelectGroups(registryEntries = []) {
         used.add(resolved);
       }
       if (entries.length) {
-        groups.push({ label: group.title || group.id, entries });
+        entries.sort(compareFieldRegistryEntries);
+        const label = group.title || group.id;
+        groups.push({ label, entries });
       }
     }
     const rest = registryEntries.filter((entry) => !used.has(entry.id));
+    rest.sort(compareFieldRegistryEntries);
     if (rest.length) groups.push({ label: "Другие", entries: rest });
     return groups;
   }
@@ -37308,10 +37365,14 @@ function getFieldTypeSelectGroups(registryEntries = []) {
       entries.push(byId.get(resolved));
       used.add(resolved);
     }
-    if (entries.length) groups.push({ label: spec.label, entries });
+    if (entries.length) {
+      entries.sort(compareFieldRegistryEntries);
+      groups.push({ label: spec.label, entries });
+    }
   }
 
   const rest = registryEntries.filter((entry) => !used.has(entry.id));
+  rest.sort(compareFieldRegistryEntries);
   if (rest.length) groups.push({ label: "Другие", entries: rest });
 
   return groups;
@@ -39796,7 +39857,7 @@ const FIELD_TYPE_ICONS = {
   "awn.number": "📊",
   "awn.url": "🌐",
   "awn.email": "✉️",
-  "awn.markdown": "📋",
+  "awn.text.markdown": "📋",
   "awn.slug": "🔖",
   "awn.image": "🖼️",
   "awn.json": "🧩",
@@ -39957,11 +40018,48 @@ function resolveFieldTypeId(typeId) {
 }
 
 function normalizeCanonicalFieldTypeId(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.normalizeCanonicalFieldTypeId === "function") {
+    return api.normalizeCanonicalFieldTypeId(typeId);
+  }
   const resolved = resolveFieldTypeId(typeId);
   if (resolved.startsWith("awn.field.")) {
     return `awn.${resolved.slice("awn.field.".length)}`;
   }
   return resolved;
+}
+
+function fieldTypeIs(typeId, kind) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.fieldTypeIs === "function") return api.fieldTypeIs(typeId, kind);
+  const canonical = normalizeCanonicalFieldTypeId(typeId);
+  const target = kind.startsWith("awn.") ? kind.slice(4) : kind;
+  return canonical === `awn.${target}` || canonical.endsWith(`.${target}`);
+}
+
+function isLinkFieldTypeId(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.isLinkFieldTypeId === "function") return api.isLinkFieldTypeId(typeId);
+  return fieldTypeIs(typeId, "link.one") || fieldTypeIs(typeId, "link.many");
+}
+
+function isFileFieldTypeId(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.isFileFieldTypeId === "function") return api.isFileFieldTypeId(typeId);
+  return normalizeCanonicalFieldTypeId(typeId).startsWith("awn.file.");
+}
+
+function isFieldTypeMany(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.isFieldTypeMany === "function") return api.isFieldTypeMany(typeId);
+  return normalizeCanonicalFieldTypeId(typeId).endsWith(".many");
+}
+
+function isPropsAttachmentsField(key, fieldDef = getPropsFieldDef(key)) {
+  if (normalizePropsKey(key) === "awn-attachments") return true;
+  if (!fieldDef) return false;
+  const scope = String(fieldDef.scope || "").trim();
+  return scope === "attachments" && fieldTypeIs(fieldDef.type, "file.many");
 }
 
 function isBooleanFieldTypeId(typeId) {
@@ -40441,12 +40539,14 @@ function getPropsFieldMetaFromSchema(key) {
 
 function fieldDefToEntryKind(fieldDef) {
   const typeId = normalizeCanonicalFieldTypeId(fieldDef?.type || "awn.string");
-  if (typeId === "awn.file" && fieldDef?.multiple) return "array";
   const registry = awnTypesCache?.fieldRegistry || {};
-  const registryEntry = registry[typeId] || registry[fieldDef?.type || ""];
+  const registryEntry =
+    registry[fieldDef?.type || ""] ||
+    registry[typeId] ||
+    registry[`awn.field.${typeId.replace(/^awn\./, "")}`];
   if (registryEntry?.storage) return registryEntry.storage;
   if (registryEntry?.kind && registryEntry.kind !== "field") return registryEntry.kind;
-  if (typeId === "awn.integer" || typeId === "awn.number") return "number";
+  if (fieldTypeIs(typeId, "number")) return "number";
   if (isBooleanFieldTypeId(typeId)) return "bool";
   if (isArrayFieldTypeId(typeId)) return "array";
   if (typeId === "awn.null") return "null";
@@ -43011,12 +43111,56 @@ const PROPS_FIELD_WIDGET_FALLBACKS = {
   "awn-runtime-cron": "boolean",
   "awn-runtime-heartbeat": "boolean",
   "awn-runtime-commands": "boolean",
-  "awn-runtime-load-always": "boolean",
-  "awn-runtime-cron-schedule": "cron-schedule"
+  "awn-runtime-load-always": "boolean"
 };
+
+const DEDICATED_FIELD_TYPE_WIDGETS = new Set([
+  "preview",
+  "attachments",
+  "cron-schedule",
+  "catalog-status",
+  "catalog-tags",
+  "catalog-category",
+  "catalog-users",
+  "catalog-priorities",
+  "catalog-colors"
+]);
+
+const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
+  "string.preview": "preview",
+  "string.cron-schedule": "cron-schedule",
+  "string.catalog-status": "catalog-status",
+  "string.catalog-category": "catalog-category",
+  "string.catalog-users": "catalog-users",
+  "string.catalog-priorities": "catalog-priorities",
+  "string.catalog-colors": "catalog-colors",
+  "array.catalog-tags": "catalog-tags"
+};
+
+function resolveDedicatedFieldTypeWidget(typeId, registryEntry = null) {
+  const widget = String(registryEntry?.widget || "").trim();
+  if (widget && DEDICATED_FIELD_TYPE_WIDGETS.has(widget)) return widget;
+
+  const canonical = normalizeCanonicalFieldTypeId(typeId);
+  const suffix = canonical.replace(/^awn\./, "");
+  if (DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS[suffix]) {
+    return DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS[suffix];
+  }
+  return null;
+}
 
 function resolveSchemaPropsWidget(fieldDef) {
   if (!fieldDef) return null;
+  const typeId = normalizeCanonicalFieldTypeId(fieldDef.type || "");
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const registryEntry =
+    registry[fieldDef.type] ||
+    registry[typeId] ||
+    registry[`awn.field.${typeId.replace(/^awn\./, "")}`];
+  const fromType = resolveDedicatedFieldTypeWidget(typeId, registryEntry);
+  if (fromType) return fromType;
+
+  // Legacy: widget + catalog on primitive types (старые схемы до awn.field.catalog-*)
   const widget = String(fieldDef.widget || "").trim();
   const catalog = String(fieldDef.catalog || "").trim();
   if (widget === "catalog-lookup" && catalog) {
@@ -43032,23 +43176,18 @@ function resolveSchemaPropsWidget(fieldDef) {
   }
   if (widget === "catalog-tags") return "catalog-tags";
   if (widget === "catalog-colors") return "catalog-colors";
+  if (widget === "cron-schedule") return "cron-schedule";
+  if (widget === "preview") return "preview";
+  if (widget === "attachments") return "attachments";
   if (widget) return widget;
   return null;
 }
 
 function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const normalized = normalizePropsKey(key);
+  if (isPropsAttachmentsField(key, fieldDef)) return "attachments";
   const fromSchema = resolveSchemaPropsWidget(fieldDef);
   if (fromSchema) return fromSchema;
-  if (normalized === "awn-preview") return "preview";
-  if (normalized === "awn-attachments") return "attachments";
-  if (normalized === "awn-category") return "catalog-category";
-  if (normalized === "awn-tags") return "catalog-tags";
-  if (normalized === "awn-status") return "catalog-status";
-  if (normalized === "awn-owner") return "catalog-users";
-  if (normalized === "awn-priority") return "catalog-priorities";
-  if (normalized === "awn-color") return "catalog-colors";
-  if (normalized === "awn-runtime-cron-schedule") return "cron-schedule";
   if (!fieldDef && PROPS_FIELD_WIDGET_FALLBACKS[normalized]) {
     return PROPS_FIELD_WIDGET_FALLBACKS[normalized];
   }
@@ -43056,6 +43195,9 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const typeId = normalizeCanonicalFieldTypeId(fieldDef?.type || "");
   const registry = awnTypesCache?.fieldRegistry || {};
   const registryEntry = registry[typeId] || registry[fieldDef?.type || ""];
+  const dedicatedWidget = resolveDedicatedFieldTypeWidget(typeId, registryEntry);
+  if (dedicatedWidget) return dedicatedWidget;
+
   const widget = resolveFieldWidget(fieldDef, registryEntry);
   if (widget === "attachments") return "attachments";
 
@@ -43064,14 +43206,15 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
     return "select";
   }
   if (isBooleanFieldTypeId(typeId) || widget === "toggle") return "boolean";
-  if (typeId === "awn.link" || widget === "link") return "link";
-  if (typeId === "awn.file" || widget === "file") return "file";
-  if (typeId === "awn.text" || widget === "textarea") return "textarea";
-  if (typeId === "awn.url" || widget === "url") return "url";
-  if (typeId === "awn.color" || widget === "color") return "color";
-  if (typeId === "awn.date") return "date";
-  if (typeId === "awn.datetime") return "datetime";
-  if (typeId === "awn.integer" || typeId === "awn.number") return "number";
+  if (isLinkFieldTypeId(typeId) || widget === "link") return "link";
+  if (fieldTypeIs(typeId, "file.image.one.preview") || widget === "image") return "image";
+  if (isFileFieldTypeId(typeId) || widget === "file") return "file";
+  if (fieldTypeIs(typeId, "text") || widget === "textarea") return "textarea";
+  if (fieldTypeIs(typeId, "string.url") || widget === "url") return "url";
+  if (fieldTypeIs(typeId, "string.color") || widget === "color") return "color";
+  if (fieldTypeIs(typeId, "date")) return "date";
+  if (fieldTypeIs(typeId, "date.datetime")) return "datetime";
+  if (fieldTypeIs(typeId, "number")) return "number";
   if (isArrayFieldTypeId(typeId)) {
     if (widget === "select-multiple") {
       return getEnumOptionsForField(fieldDef).length ? "select-multiple" : "array";
@@ -43719,7 +43862,7 @@ function createPropsFormCatalogColorsControl(entry, meta, { locked = false } = {
 
 const CRON_SCHEDULE_PRESET_CUSTOM = "__custom__";
 const CRON_SCHEDULE_PRESET_QUICK = "__quick__";
-const CRON_SCHEDULE_PRESETS = [
+const CRON_SCHEDULE_PRESETS_DEFAULT = [
   { id: "", label: "— шаблон —" },
   { id: CRON_SCHEDULE_PRESET_QUICK, label: "День и время…" },
   { id: "*/15 * * * *", label: "Каждые 15 минут" },
@@ -43733,7 +43876,7 @@ const CRON_SCHEDULE_PRESETS = [
   { id: CRON_SCHEDULE_PRESET_CUSTOM, label: "Своё выражение…" }
 ];
 
-const CRON_DAY_MODES = [
+const CRON_DAY_MODES_DEFAULT = [
   { id: "daily", label: "Каждый день", dow: "*" },
   { id: "weekdays", label: "По будням", dow: "1-5" },
   { id: "monday", label: "Понедельник", dow: "1" },
@@ -43744,6 +43887,41 @@ const CRON_DAY_MODES = [
   { id: "saturday", label: "Суббота", dow: "6" },
   { id: "sunday", label: "Воскресенье", dow: "0" }
 ];
+
+function getCronScheduleFieldRegistryEntry(fieldDef = null) {
+  const typeId = normalizeCanonicalFieldTypeId(fieldDef?.type || "awn.field.string.cron-schedule");
+  const registry = awnTypesCache?.fieldRegistry || {};
+  return (
+    registry[fieldDef?.type || ""] ||
+    registry[typeId] ||
+    registry[`awn.field.${typeId.replace(/^awn\./, "")}`] ||
+    registry["awn.field.string.cron-schedule"] ||
+    null
+  );
+}
+
+function getCronSchedulePresets(fieldDef = null) {
+  const presets = getCronScheduleFieldRegistryEntry(fieldDef)?.presets;
+  if (Array.isArray(presets) && presets.length) {
+    return presets.map((item) => ({
+      id: String(item?.id ?? ""),
+      label: String(item?.label ?? item?.name ?? item?.id ?? "")
+    }));
+  }
+  return CRON_SCHEDULE_PRESETS_DEFAULT;
+}
+
+function getCronDayModes(fieldDef = null) {
+  const dayModes = getCronScheduleFieldRegistryEntry(fieldDef)?.dayModes;
+  if (Array.isArray(dayModes) && dayModes.length) {
+    return dayModes.map((item) => ({
+      id: String(item?.id ?? ""),
+      label: String(item?.label ?? item?.name ?? item?.id ?? ""),
+      dow: String(item?.dow ?? "*")
+    }));
+  }
+  return CRON_DAY_MODES_DEFAULT;
+}
 
 function parseCronTimeOfDay(expression) {
   const match = String(expression || "")
@@ -43763,12 +43941,13 @@ function parseCronTimeOfDay(expression) {
   };
 }
 
-function buildCronFromTimeAndDayMode(timeValue, dayModeId) {
+function buildCronFromTimeAndDayMode(timeValue, dayModeId, fieldDef = null) {
   const [hourRaw, minuteRaw] = String(timeValue || "09:00").split(":");
   const hour = Number(hourRaw);
   const minute = Number(minuteRaw);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "0 9 * * *";
-  const mode = CRON_DAY_MODES.find((item) => item.id === dayModeId) || CRON_DAY_MODES[0];
+  const dayModes = getCronDayModes(fieldDef);
+  const mode = dayModes.find((item) => item.id === dayModeId) || dayModes[0];
   return `${minute} ${hour} * * ${mode.dow}`;
 }
 
@@ -43783,30 +43962,33 @@ function shouldShowCronQuickBuilder(expression, presetId) {
   return isCronTimedExpression(expression);
 }
 
-function matchCronSchedulePreset(expression) {
+function matchCronSchedulePreset(expression, fieldDef = null) {
+  const presets = getCronSchedulePresets(fieldDef);
   const expr = String(expression || "").trim();
   if (!expr) return "";
   if (isCronTimedExpression(expr)) {
-    const exactPreset = CRON_SCHEDULE_PRESETS.find(
+    const exactPreset = presets.find(
       (item) => item.id && item.id !== CRON_SCHEDULE_PRESET_CUSTOM && item.id !== CRON_SCHEDULE_PRESET_QUICK && item.id === expr
     );
     if (exactPreset) return exactPreset.id;
     return CRON_SCHEDULE_PRESET_QUICK;
   }
-  const preset = CRON_SCHEDULE_PRESETS.find(
+  const preset = presets.find(
     (item) => item.id && item.id !== CRON_SCHEDULE_PRESET_CUSTOM && item.id !== CRON_SCHEDULE_PRESET_QUICK && item.id === expr
   );
   return preset?.id || CRON_SCHEDULE_PRESET_CUSTOM;
 }
 
-function describeCronScheduleExpression(expression) {
+function describeCronScheduleExpression(expression, fieldDef = null) {
+  const presets = getCronSchedulePresets(fieldDef);
+  const dayModes = getCronDayModes(fieldDef);
   const expr = String(expression || "").trim();
   if (!expr) return "Расписание не задано";
-  const preset = CRON_SCHEDULE_PRESETS.find((item) => item.id === expr);
+  const preset = presets.find((item) => item.id === expr);
   if (preset?.id) return preset.label;
   const timed = parseCronTimeOfDay(expr);
   if (timed) {
-    const mode = CRON_DAY_MODES.find((item) => item.dow === timed.dow);
+    const mode = dayModes.find((item) => item.dow === timed.dow);
     if (mode) return `${mode.label.toLowerCase()} в ${timed.time}`;
     return `В ${timed.time} (${expr})`;
   }
@@ -43815,6 +43997,8 @@ function describeCronScheduleExpression(expression) {
 
 function syncPropsFormCronScheduleUi(wrap) {
   if (!wrap) return;
+  const fieldDef = wrap._cronFieldDef || null;
+  const dayModes = getCronDayModes(fieldDef);
   const expressionInput = wrap.querySelector(".props-form-cron-expression");
   const presetSelect = wrap.querySelector(".props-form-cron-preset");
   const quickRow = wrap.querySelector(".props-form-cron-quick");
@@ -43822,7 +44006,7 @@ function syncPropsFormCronScheduleUi(wrap) {
   const timeInput = wrap.querySelector(".props-form-cron-time");
   const hintNode = wrap.querySelector(".props-form-cron-hint");
   const expr = String(expressionInput?.value || "").trim();
-  const presetId = matchCronSchedulePreset(expr);
+  const presetId = matchCronSchedulePreset(expr, fieldDef);
   const showQuickBuilder = shouldShowCronQuickBuilder(expr, presetId);
   const isCustom = presetId === CRON_SCHEDULE_PRESET_CUSTOM;
   const expressionFocused = document.activeElement === expressionInput;
@@ -43834,11 +44018,11 @@ function syncPropsFormCronScheduleUi(wrap) {
   const timed = parseCronTimeOfDay(expr);
   if (dayModeSelect && timeInput) {
     if (timed) {
-      const mode = CRON_DAY_MODES.find((item) => item.dow === timed.dow) || CRON_DAY_MODES[0];
+      const mode = dayModes.find((item) => item.dow === timed.dow) || dayModes[0];
       dayModeSelect.value = mode.id;
       timeInput.value = timed.time;
     } else if (showQuickBuilder && !expr) {
-      if (!dayModeSelect.value) dayModeSelect.value = CRON_DAY_MODES[0].id;
+      if (!dayModeSelect.value) dayModeSelect.value = dayModes[0].id;
       if (!timeInput.value) timeInput.value = "09:00";
     }
   }
@@ -43849,22 +44033,26 @@ function syncPropsFormCronScheduleUi(wrap) {
   wrap.classList.toggle("is-custom-expression", isCustom);
 
   if (hintNode) {
-    hintNode.textContent = describeCronScheduleExpression(expr);
+    hintNode.textContent = describeCronScheduleExpression(expr, fieldDef);
   }
 }
 
 function createPropsFormCronScheduleControl(entry, meta, { locked = false } = {}) {
+  const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
   const wrap = createPropsFormValueWrap("cron-schedule");
   wrap.classList.add("props-form-value-wrap--cron-schedule");
+  wrap._cronFieldDef = fieldDef;
 
   const displayValue = getPropsEntryDisplayValue(entry);
+  const dayModes = getCronDayModes(fieldDef);
+  const presets = getCronSchedulePresets(fieldDef);
 
   const quickRow = document.createElement("div");
   quickRow.className = "props-form-cron-quick";
 
   const dayModeSelect = document.createElement("select");
   dayModeSelect.className = "props-form-value props-form-value--select props-form-cron-day-mode";
-  for (const mode of CRON_DAY_MODES) {
+  for (const mode of dayModes) {
     appendPropsFormSelectOption(dayModeSelect, mode.id, mode.label);
   }
 
@@ -43878,7 +44066,7 @@ function createPropsFormCronScheduleControl(entry, meta, { locked = false } = {}
 
   const presetSelect = document.createElement("select");
   presetSelect.className = "props-form-value props-form-value--select props-form-cron-preset";
-  for (const preset of CRON_SCHEDULE_PRESETS) {
+  for (const preset of presets) {
     appendPropsFormSelectOption(presetSelect, preset.id, preset.label);
   }
 
@@ -43895,7 +44083,7 @@ function createPropsFormCronScheduleControl(entry, meta, { locked = false } = {}
 
   const applyQuickBuilder = () => {
     if (locked) return;
-    expressionInput.value = buildCronFromTimeAndDayMode(timeInput.value, dayModeSelect.value);
+    expressionInput.value = buildCronFromTimeAndDayMode(timeInput.value, dayModeSelect.value, fieldDef);
     syncPropsFormCronScheduleUi(wrap);
   };
 
@@ -44478,12 +44666,21 @@ function appendPropsFilePickerOptions(select, library, { accept = "", currentVal
   appendPropsFormPickerGroups(select, groups, currentValue);
 }
 
+function resolvePropsFieldAccept(fieldDef = {}) {
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const typeId = String(fieldDef.type || "").trim();
+  const entry = registry[typeId] || registry[normalizeCanonicalFieldTypeId(typeId)];
+  return String(fieldDef.accept ?? entry?.accept ?? "").trim();
+}
+
 function createPropsFormFileControl(entry, meta, { locked = false } = {}) {
   const fieldDef = meta.fieldDef || {};
-  const multiple = Boolean(fieldDef.multiple);
+  const multiple =
+    isFieldTypeMany(fieldDef.type) ||
+    Boolean(fieldDef.multiple);
   const allowUpload = Boolean(fieldDef.upload);
   const allowInsert = Boolean(fieldDef.insertInText);
-  const accept = String(fieldDef.accept || "").trim();
+  const accept = resolvePropsFieldAccept(fieldDef);
   const scope = resolvePropsFileScope(fieldDef);
   const paths = parsePropsFileFieldPaths(entry, multiple);
   const currentValue = multiple ? "" : paths[0] || "";
@@ -46224,6 +46421,9 @@ function createPropsFormValueControl(entry, meta) {
   }
   if (widget === "attachments") {
     return createPropsFormAttachmentsControl(entry, meta, { locked });
+  }
+  if (widget === "image") {
+    return createPropsFormFileControl(entry, meta, { locked });
   }
   if (widget === "url") {
     return createPropsFormTypedInputControl(entry, meta, "url", { locked });
@@ -49221,7 +49421,8 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     appendNavigationHeroProps(hero, options.propEntries || [], {
       configSettingsEntries: options.configSettingsEntries || [],
       nodePath,
-      showSettingsProps: options.showSettingsProps
+      showSettingsProps: options.showSettingsProps,
+      showAwnProps: options.showAwnProps
     });
   }
 
@@ -68700,8 +68901,6 @@ async function renderNodeNavigation() {
     descriptionRaw: modeContentCache.description || "",
     typeLabel: topicTypeLabel,
     showHeroInstruction: true,
-    showWorkspaceMarkers: false,
-    showAwnProps: false,
     onEditClick: openDescriptionFromOverview,
     settingsSlots: slotStripGroups.settings || [],
     slugIssue: getNodeManifestSlugIssue(nodePath),
@@ -77433,7 +77632,7 @@ function buildTypeAddFieldForm() {
   const registry = awnTypesCache?.fieldRegistry || {};
   const fieldIds = Object.keys(registry).length
     ? Object.keys(registry)
-    : ["awn.string", "awn.text", "awn.boolean", "awn.integer", "awn.number", "awn.enum", "awn.date", "awn.file", "awn.link", "awn.url"];
+    : ["awn.field.string", "awn.field.text", "awn.field.link.one", "awn.field.file.one"];
   for (const fid of fieldIds) {
     const opt = document.createElement("option");
     opt.value = fid;

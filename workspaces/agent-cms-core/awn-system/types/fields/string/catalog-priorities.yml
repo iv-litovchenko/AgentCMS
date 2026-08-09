@@ -1,0 +1,14 @@
+id: awn.field.string.catalog-priorities
+name: Приоритет (справочник)
+kind: field
+domain: fields
+extends: awn.field.string
+widget: catalog-priorities
+catalog: priorities
+storage: string
+mdbase: string
+description: Приоритет из справочника priorities
+settings: [hint, required, locked, default]
+group: cms
+sort: 14
+status: active

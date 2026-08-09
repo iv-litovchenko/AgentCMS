@@ -7,10 +7,10 @@ extends: awn.data.element.base
 description: Базовая схема полей для записей store — см. awn-data/cms-base/data-elements/default.md
 fields:
   awn-created:
-    type: awn.field.datetime
+    type: awn.field.date.datetime
     title: Создано
   awn-updated:
-    type: awn.field.datetime
+    type: awn.field.date.datetime
     title: Обновлено
   awn-name:
     type: awn.field.string
@@ -22,7 +22,7 @@ fields:
     type: awn.field.string
     title: Статус
   awn-version:
-    type: awn.field.integer
+    type: awn.field.number.integer
     title: Версия
   awn-owner:
     type: awn.field.string

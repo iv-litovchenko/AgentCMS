@@ -9,11 +9,9 @@ manifest-pattern: "{slug}/manifest.md"
 
 fields:
   awn-color:
-    type: awn.field.color
+    type: awn.field.string.catalog-colors
     title: Цвет
     description: Акцентный цвет области в меню
     placement: aside-body
     group: nav
     sort: 5
-    widget: catalog-colors
-    catalog: colors

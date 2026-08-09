@@ -9,5 +9,5 @@ mdbase: link
 description: Семантическая связь с другой нодой (топик, запись, категория) — с фильтром по типу
 settings: [hint, required, locked, default, multiple, items]
 group: structure
-sort: 3
+sort: 5
 status: active

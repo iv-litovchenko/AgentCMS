@@ -1,13 +1,13 @@
-id: awn.field.markdown
+id: awn.field.text.markdown
 name: Markdown
 kind: field
 domain: fields
-extends: awn.field.base
+extends: awn.field.text
 widget: markdown
 storage: string
 mdbase: text
 description: Форматированный текст в формате Markdown с превью
 settings: [hint, required, locked, default]
 group: text
-sort: 2
+sort: 5
 status: active

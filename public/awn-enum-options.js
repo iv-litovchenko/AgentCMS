@@ -2,10 +2,42 @@
  * Enum option helpers: { key, name } + field type aliases (enum/array variants).
  */
 const FIELD_TYPE_ALIASES = {
-  "awn.enum-select": "awn.enum",
-  "awn.enum-radio": "awn.enum",
-  "awn.array-checkbox": "awn.array",
-  "awn.array-select-multiple": "awn.array"
+  "awn.enum-select": "awn.field.enum",
+  "awn.enum-radio": "awn.field.enum",
+  "awn.array-checkbox": "awn.field.array",
+  "awn.array-select-multiple": "awn.field.array",
+  // Legacy flat ids → hierarchical
+  "awn.string": "awn.field.string",
+  "awn.text": "awn.field.text",
+  "awn.boolean": "awn.field.boolean",
+  "awn.number": "awn.field.number",
+  "awn.integer": "awn.field.number.integer",
+  "awn.field.integer": "awn.field.number.integer",
+  "awn.date": "awn.field.date",
+  "awn.datetime": "awn.field.date.datetime",
+  "awn.field.datetime": "awn.field.date.datetime",
+  "awn.color": "awn.field.string.color",
+  "awn.field.color": "awn.field.string.color",
+  "awn.url": "awn.field.string.url",
+  "awn.field.url": "awn.field.string.url",
+  "awn.email": "awn.field.string.email",
+  "awn.field.email": "awn.field.string.email",
+  "awn.slug": "awn.field.string.slug",
+  "awn.field.slug": "awn.field.string.slug",
+  "awn.field.preview": "awn.field.string.preview",
+  "awn.field.cron-schedule": "awn.field.string.cron-schedule",
+  "awn.field.catalog-status": "awn.field.string.catalog-status",
+  "awn.field.catalog-category": "awn.field.string.catalog-category",
+  "awn.field.catalog-users": "awn.field.string.catalog-users",
+  "awn.field.catalog-priorities": "awn.field.string.catalog-priorities",
+  "awn.field.catalog-colors": "awn.field.string.catalog-colors",
+  "awn.field.catalog-tags": "awn.field.array.catalog-tags",
+  "awn.field.tags": "awn.field.array.tags",
+  "awn.tags": "awn.field.array.tags",
+  "awn.enum": "awn.field.enum",
+  "awn.array": "awn.field.array",
+  "awn.json": "awn.field.json",
+  "awn.relation": "awn.field.relation"
 };
 
 const LEGACY_FIELD_TYPE_WIDGET = {
@@ -16,23 +48,61 @@ const LEGACY_FIELD_TYPE_WIDGET = {
 };
 
 const DEFAULT_FIELD_WIDGET = {
+  "awn.field.enum": "select",
   "awn.enum": "select",
+  "awn.field.array": "checkbox",
   "awn.array": "checkbox"
 };
 
 function resolveFieldTypeId(typeId) {
   const raw = String(typeId || "").trim();
-  if (!raw) return "awn.string";
+  if (!raw) return "awn.field.string";
   const id = raw.startsWith("awn.") ? raw : `awn.${raw}`;
   return FIELD_TYPE_ALIASES[id] || id;
 }
 
+function normalizeCanonicalFieldTypeId(typeId) {
+  const resolved = resolveFieldTypeId(typeId);
+  if (resolved.startsWith("awn.field.")) {
+    return `awn.${resolved.slice("awn.field.".length)}`;
+  }
+  return resolved;
+}
+
+function fieldTypeIs(typeId, kind) {
+  const canonical = normalizeCanonicalFieldTypeId(typeId);
+  const target = kind.startsWith("awn.") ? kind.slice(4) : kind;
+  return canonical === `awn.${target}` || canonical.endsWith(`.${target}`);
+}
+
 function isEnumFieldTypeId(typeId) {
-  return resolveFieldTypeId(typeId) === "awn.enum";
+  const canonical = normalizeCanonicalFieldTypeId(typeId);
+  return canonical === "awn.enum" || canonical.startsWith("awn.enum.");
 }
 
 function isArrayFieldTypeId(typeId) {
-  return resolveFieldTypeId(typeId) === "awn.array";
+  const canonical = normalizeCanonicalFieldTypeId(typeId);
+  return canonical === "awn.array" || canonical.startsWith("awn.array.");
+}
+
+function isNumberFieldTypeId(typeId) {
+  const canonical = normalizeCanonicalFieldTypeId(typeId);
+  return canonical === "awn.number" || canonical.startsWith("awn.number.");
+}
+
+function isLinkFieldTypeId(typeId) {
+  const canonical = normalizeCanonicalFieldTypeId(typeId);
+  return canonical.startsWith("awn.link.");
+}
+
+function isFileFieldTypeId(typeId) {
+  const canonical = normalizeCanonicalFieldTypeId(typeId);
+  return canonical.startsWith("awn.file.");
+}
+
+function isFieldTypeMany(typeId) {
+  const canonical = normalizeCanonicalFieldTypeId(typeId);
+  return canonical.endsWith(".many");
 }
 
 function resolveFieldWidget(fieldDef, registryEntry = null) {
@@ -48,7 +118,8 @@ function resolveFieldWidget(fieldDef, registryEntry = null) {
   if (registryWidget && registryWidget !== "tags" && registryWidget !== "input") {
     return registryWidget;
   }
-  return DEFAULT_FIELD_WIDGET[typeId] || registryWidget || "";
+  const canonical = normalizeCanonicalFieldTypeId(typeId);
+  return DEFAULT_FIELD_WIDGET[typeId] || DEFAULT_FIELD_WIDGET[canonical] || registryWidget || "";
 }
 
 function isEnumOptionObject(item) {
@@ -208,8 +279,14 @@ const api = {
   LEGACY_FIELD_TYPE_WIDGET,
   DEFAULT_FIELD_WIDGET,
   resolveFieldTypeId,
+  normalizeCanonicalFieldTypeId,
+  fieldTypeIs,
   isEnumFieldTypeId,
   isArrayFieldTypeId,
+  isNumberFieldTypeId,
+  isLinkFieldTypeId,
+  isFileFieldTypeId,
+  isFieldTypeMany,
   resolveFieldWidget,
   isEnumOptionObject,
   normalizeEnumOptions,

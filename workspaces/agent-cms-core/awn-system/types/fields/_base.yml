@@ -8,7 +8,7 @@ description: Базовые мета-свойства любого поля
 properties:
   type:
     title: Тип данных
-    description: ID типа поля (awn.field.string, awn.field.enum…)
+    description: ID типа поля (awn.field.string, awn.field.string.url, awn.field.text…)
     required: true
   name:
     title: Название
@@ -48,5 +48,5 @@ properties:
     description: Список key/name для awn.field.enum и awn.field.array
   items:
     title: Тип элементов
-    description: Тип элементов для awn.field.array (awn.field.string, awn.field.link…)
+    description: Тип элементов для awn.field.array (awn.field.string, awn.field.file.one…)
     type: awn.field.string
