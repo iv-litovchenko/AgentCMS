@@ -8,11 +8,6 @@ description: Комментарий к узлу — слот comments/
 slot: comments
 
 fields:
-  awn-attachments:
-    hidden: true
-
-  awn-materials:
-    hidden: true
 
   awn-target:
     type: awn.field.relation.one

@@ -14,23 +14,6 @@ form:
 
 
 fields:
-  # --- materials (aside-hero) ---
-  awn-attachments:
-    type: awn.field.file.many.with-preview
-    title: "{A2!} Вложения"
-    description: awn-storage/assets/attachments/
-    scope: attachments
-    placement: aside-hero
-    group: content
-    sort: 1
-
-  awn-materials:
-    type: awn.field.materials
-    title: "{A2!} Доп. материалы"
-    description: Папка awn-materials-* рядом с записью
-    placement: aside-hero
-    group: content
-    sort: 2
 
   # --- nav/runtime страниц (наследуются из awn.base, для контента не показываем) ---
   awn-sort:

@@ -8,11 +8,6 @@ description: Одно сообщение в слоте dialogs/ — диалог
 slot: dialogs
 
 fields:
-  awn-attachments:
-    hidden: true
-
-  awn-materials:
-    hidden: true
 
   awn-role:
     type: awn.field.choice.one
