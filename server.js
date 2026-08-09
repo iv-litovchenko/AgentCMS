@@ -1680,7 +1680,7 @@ function shouldSyncAwnNameOnTitleRename(payload, display, diskSlug) {
 }
 
 function removeYamlScalarLine(frontmatter, key) {
-  const pattern = new RegExp(`^${String(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:.*\\n?`, "m");
+  const pattern = new RegExp(`^${String(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:.*\\n?`, "gm");
   return String(frontmatter || "")
     .replace(pattern, "")
     .trim();
@@ -2590,11 +2590,10 @@ async function streamAgentChannelEvents(req, res) {
 
 function upsertYamlScalarLine(frontmatter, key, value) {
   const line = `${key}: ${formatYamlScalar(value)}`;
-  const pattern = new RegExp(`^${String(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:.*$`, "m");
-  const trimmed = String(frontmatter || "").trim();
-  if (pattern.test(trimmed)) {
-    return trimmed.replace(pattern, line);
-  }
+  const pattern = new RegExp(`^${String(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:.*$\\n?`, "gm");
+  const trimmed = String(frontmatter || "")
+    .replace(pattern, "")
+    .trim();
   return trimmed ? `${trimmed}\n${line}` : line;
 }
 
@@ -3416,18 +3415,10 @@ function isEmptyAwnTimestampValue(value) {
 }
 
 function upsertFrontmatterScalar(frontmatter, key, value) {
-  const lines = String(frontmatter || "").split("\n");
-  const pattern = new RegExp(`^${key}:\\s*`);
-  let replaced = false;
-  const nextLines = lines.map((line) => {
-    if (pattern.test(line)) {
-      replaced = true;
-      return `${key}: ${value}`;
-    }
-    return line;
-  });
-  if (!replaced) nextLines.push(`${key}: ${value}`);
-  return nextLines.join("\n");
+  const withoutKey = removeYamlScalarLine(frontmatter, key);
+  const line = `${key}: ${value}`;
+  const trimmed = String(withoutKey || "").trim();
+  return trimmed ? `${trimmed}\n${line}` : line;
 }
 
 function parseAwnVersionNumber(value) {
@@ -6108,13 +6099,14 @@ async function buildSlotContentFileContentForManifest(
 
 function mergeFrontmatterBlocks(baseFrontmatter, overlayFrontmatter) {
   const overlayText = String(overlayFrontmatter || "").trim();
-  if (!overlayText) return String(baseFrontmatter || "").trim();
-  const overlayKeys = new Set();
-  const overlayLines = overlayText.split("\n").filter((line) => line.trim());
-  for (const line of overlayLines) {
-    const key = line.split(":")[0]?.trim().toLowerCase();
-    if (key) overlayKeys.add(key);
-  }
+  if (!overlayText) return dedupeFrontmatterScalarLines(String(baseFrontmatter || "").trim());
+
+  const overlayLines = dedupeFrontmatterLineList(overlayText.split("\n").filter((line) => line.trim()));
+  const overlayKeys = new Set(
+    overlayLines
+      .map((line) => line.split(":")[0]?.trim().toLowerCase())
+      .filter(Boolean)
+  );
   const baseLines = String(baseFrontmatter || "")
     .split("\n")
     .filter((line) => {
@@ -6123,7 +6115,25 @@ function mergeFrontmatterBlocks(baseFrontmatter, overlayFrontmatter) {
       const key = trimmed.split(":")[0]?.trim().toLowerCase();
       return key && !overlayKeys.has(key);
     });
-  return [...baseLines, ...overlayLines].join("\n");
+  return dedupeFrontmatterScalarLines([...baseLines, ...overlayLines].join("\n"));
+}
+
+function dedupeFrontmatterLineList(lines) {
+  const order = [];
+  const map = new Map();
+  for (const line of lines) {
+    const trimmed = String(line || "").trim();
+    if (!trimmed) continue;
+    const key = trimmed.split(":")[0]?.trim().toLowerCase();
+    if (!key) continue;
+    if (!map.has(key)) order.push(key);
+    map.set(key, line);
+  }
+  return order.map((key) => map.get(key));
+}
+
+function dedupeFrontmatterScalarLines(frontmatter) {
+  return dedupeFrontmatterLineList(String(frontmatter || "").split("\n")).join("\n");
 }
 
 function inferTitleFromMarkdownContent(content, fileName = "") {

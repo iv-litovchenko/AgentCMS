@@ -15,7 +15,7 @@ fields:
     type: awn.field.lookup.one
     source: colors
     value-kind: color
-    title: Цвет фона
+    title: {A!}  Цвет фона
     description: Фон секции в меню workspace
     placement: aside-body
     group: nav
@@ -25,7 +25,7 @@ fields:
     type: awn.field.lookup.one
     source: colors
     value-kind: color
-    title: Цвет бордюра
+    title: {A!}  Цвет бордюра
     description: Обводка секции в меню workspace
     placement: aside-body
     group: nav

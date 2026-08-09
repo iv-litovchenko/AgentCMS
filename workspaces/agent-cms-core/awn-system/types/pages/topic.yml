@@ -23,13 +23,4 @@ storage-slots:
   - log-single
 
 fields:
-  awn-slots-disabled:
-    type: awn.field.boolean
-    title: ААА Общий слот (lite)
-    description: >
-      Скрыть слоты данных; многофайловая память читается из папки темы
-      (рядом с manifest.md), без awn-storage/
-    default: false
-    placement: aside-body
-    group: nav
-    sort: 1
+

@@ -9,7 +9,7 @@ description: >
   (form / field-groups / fields.placement / type).
 
 form:
-  panel-title: АААМетаданные
+  panel-title: {A!}  Метаданные
   zones:
     - id: title-bar
       role: primary-title
@@ -27,31 +27,43 @@ field-groups:
     name: Основное
     description: Что заполняет человек или агент
     collapsed: false
+  - id: runtime
+    name: {A!}   Runtime агента
+    description: Загрузка в контекст, cron, heartbeat
+    collapsed: true
+  - id: taxonomy
+    name: Таксономия
+    description: Категории, теги, приоритет, цвет, владелец
+    collapsed: true
   - id: system
-    name: Системные
+    name: {A!}  Системные
     description: Заполняется автоматически, только чтение
     collapsed: true
 
 fields:
+
+// Основные поля
+
   awn-name:
     type: awn.field.string
-    title: АААИмя
+    title: {A!}  Имя
     description: Отображаемое имя в меню; пустое → slug
     placement: title-bar
     group: content
     sort: 1
 
-  awn-emoji:
-    type: awn.field.string
-    title: АААЭмодзи
-    description: Показывается вместо иконки, если превью не задано
-    placement: aside-body
+  awn-description:
+    type: awn.field.text
+    title: {A!}  Описание
+    placement: hidden
     group: content
-    sort: 3
+    sort: 4
+
+// Превью и источник
 
   awn-preview:
     type: awn.field.file.image.one.with-preview
-    title: АААПревью
+    title: {A!}  Превью
     description: awn-storage/assets/preview/
     placement: aside-hero
     group: content
@@ -59,16 +71,26 @@ fields:
 
   awn-web-url:
     type: awn.field.string.url
-    title: АААВеб-источник
+    title: {A!}  Веб-источник
     description: URL оригинала в интернете (https://…)
     placement: aside-hero
     widget: url
     group: content
     sort: 2
 
+// Эмодзи и статус
+
+  awn-emoji:
+    type: awn.field.string
+    title: {A!}  Эмодзи
+    description: Показывается вместо иконки, если превью не задано
+    placement: aside-body
+    group: content
+    sort: 3
+
   awn-status:
     type: awn.field.choice.one
-    title: АААСтатус
+    title: {A!}  Статус
     placement: aside-body
     group: content
     sort: 2
@@ -83,33 +105,108 @@ fields:
         name: ⚪ Без статуса
     default: open
 
-  awn-description:
-    type: awn.field.text
-    title: АААОписание
-    placement: hidden
-    group: content
+  awn-sort:
+    type: awn.field.number.integer
+    title: {A!}  Сортировка
+    placement: aside-body
+    group: nav
+    sort: 3
+
+
+// Runtime агента
+
+  awn-runtime-load-always:
+    type: awn.field.boolean
+    title: {A!}  Всегда в контексте
+    description: Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)
+    default: false
+    placement: aside-body
+    group: runtime
+    sort: 1
+
+  awn-runtime-cron:
+    type: awn.field.boolean
+    title: {A!}  Выполнение по расписанию
+    placement: aside-body
+    group: runtime
+    sort: 2
+
+  awn-runtime-cron-schedule:
+    type: awn.field.string.cron-schedule
+    title: {A!}  Расписание
+    description: День и время, шаблон или своё cron-выражение
+    placement: aside-body
+    group: runtime
+    sort: 3
+    show-when:
+      field: awn-runtime-cron
+      equals: true
+
+  awn-runtime-heartbeat:
+    type: awn.field.boolean
+    title: {A!}  Heartbeat
+    placement: aside-body
+    group: runtime
     sort: 4
 
-  awn-tags:
-    type: awn.field.lookup.many
-    source: tags
-    title: АААТеги
+  awn-runtime-commands:
+    type: awn.field.boolean
+    title: {A!}  Выполнение команд
+    description: В инструкции темы есть команды для выполнения (визуальный маркер)
+    default: false
     placement: aside-body
-    group: content
+    group: runtime
     sort: 5
+
+// Таксономия
+
+  awn-category:
+    type: awn.field.lookup.one
+    source: categories
+    title: {A!}  Категория
+    placement: aside-body
+    group: taxonomy
+    sort: 1
+
+  awn-owner:
+    type: awn.field.lookup.one
+    source: users
+    title: {A!}  Владелец
+    placement: aside-body
+    group: taxonomy
+    sort: 2
+
+  awn-priority:
+    type: awn.field.lookup.one
+    source: priorities
+    title: {A!}  Приоритет
+    placement: aside-body
+    group: taxonomy
+    sort: 3
+
+  awn-color:
+    type: awn.field.lookup.one
+    source: colors
+    value-kind: color
+    title: {A!}  Цвет
+    placement: aside-body
+    group: taxonomy
+    sort: 4
+
+// Системные поля
 
   awn-type:
     type: awn.field.string
-    title: АААТип
+    title: {A!}  Тип
     required: true
     locked: true
-    placement: hidden
+    placement: aside-body
     group: system
     sort: 1
 
   awn-create:
     type: awn.field.date.datetime
-    title: АААСоздан
+    title: {A!}  Создан
     locked: true
     placement: aside-body
     group: system
@@ -117,7 +214,7 @@ fields:
 
   awn-update:
     type: awn.field.date.datetime
-    title: АААИзменён
+    title: {A!}  Изменён
     locked: true
     placement: aside-body
     group: system
@@ -125,9 +222,19 @@ fields:
 
   awn-version:
     type: awn.field.number.integer
-    title: АААВерсия
+    title: {A!}  Версия
     default: 1
     locked: true
     placement: aside-body
     group: system
     sort: 4
+
+// Теги ???
+
+  awn-tags:
+    type: awn.field.lookup.many
+    source: tags
+    title: {A!}  Теги
+    placement: aside-body
+    group: content
+    sort: 5

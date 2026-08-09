@@ -39408,7 +39408,7 @@ function sortPropsFieldKeys(keys) {
 
 function sortPropsEntries(entries) {
   const drafts = entries.filter((entry) => !entry?.key);
-  const keyed = entries.filter((entry) => entry?.key);
+  const keyed = dedupePropsEntriesByKey(entries).filter((entry) => entry?.key);
   const order = sortPropsFieldKeys(keyed.map((entry) => entry.key));
   const map = new Map(keyed.map((entry) => [entry.key, entry]));
   const result = [];
@@ -39419,6 +39419,21 @@ function sortPropsEntries(entries) {
     if (!order.includes(entry.key)) result.push(entry);
   }
   return [...result, ...drafts];
+}
+
+function dedupePropsEntriesByKey(entries) {
+  const map = new Map();
+  const drafts = [];
+  for (const entry of entries || []) {
+    if (!entry?.key) {
+      drafts.push(entry);
+      continue;
+    }
+    const key = normalizePropsKey(entry.key);
+    if (!key) continue;
+    map.set(key, { ...entry, key });
+  }
+  return [...map.values(), ...drafts];
 }
 
 function isRecordCategoryContentPath(nodePath) {
@@ -40806,6 +40821,30 @@ function fieldDefDefaultValue(fieldDef) {
   return "";
 }
 
+const HIDDEN_PROPS_FIELD_KEYS = new Set(["title"]);
+const TITLE_BAR_HIDDEN_PROP_KEYS = new Set(["awn-name", "awn-description"]);
+
+function isTitleBarHiddenPropKey(key) {
+  return TITLE_BAR_HIDDEN_PROP_KEYS.has(normalizePropsKey(key));
+}
+
+function isPropsHiddenStorageKey(key) {
+  const normalized = normalizePropsKey(key);
+  return Boolean(normalized && (HIDDEN_PROPS_FIELD_KEYS.has(normalized) || isTitleBarHiddenPropKey(normalized)));
+}
+
+function stripTitleBarKeysFromVisibleEntries(entries) {
+  return (entries || []).filter((entry) => !isTitleBarHiddenPropKey(entry?.key));
+}
+
+function shouldStorePropsFieldInVisibleEntries(key, fieldDef = getSchemaPropsFieldDef(key)) {
+  if (isPropsHiddenStorageKey(key)) return false;
+  if (!shouldIncludePropsFieldKey(key)) return false;
+  if (isPropsFieldHiddenBySchema(key, fieldDef)) return false;
+  const placement = getPropsFieldPlacement(key, fieldDef);
+  return placement === "aside-body" || placement === PROPS_PLACEMENT_EDITOR_BODY;
+}
+
 function applyTypeSchemaToEntries(entries, typeName = null) {
   const typeDef = getActiveAwnTypeDef(typeName);
   if (!typeDef?.fields) return sortPropsEntries(entries);
@@ -40824,8 +40863,8 @@ function applyTypeSchemaToEntries(entries, typeName = null) {
   const result = [];
   const seen = new Set();
   for (const key of orderedKeys) {
-    if (seen.has(key) || HIDDEN_PROPS_FIELD_KEYS.has(key)) continue;
-    if (!shouldIncludePropsFieldKey(key)) continue;
+    if (seen.has(key) || isPropsHiddenStorageKey(key)) continue;
+    if (!shouldStorePropsFieldInVisibleEntries(key, typeDef.fields[key])) continue;
     seen.add(key);
 
     const existing = map.get(key);
@@ -40889,7 +40928,7 @@ function applyTypeSchemaToEntries(entries, typeName = null) {
   }
 
   for (const entry of entries) {
-    if (!entry?.key || seen.has(entry.key) || HIDDEN_PROPS_FIELD_KEYS.has(entry.key)) continue;
+    if (!entry?.key || seen.has(entry.key) || isPropsHiddenStorageKey(entry.key)) continue;
     const fieldDef = typeDef.fields[entry.key];
     result.push(fieldDef ? { ...entry, fieldDef, kind: fieldDefToEntryKind(fieldDef) } : entry);
   }
@@ -40993,7 +41032,6 @@ function normalizePropsEntries(entries) {
   return [...map.values()];
 }
 
-const HIDDEN_PROPS_FIELD_KEYS = new Set(["title"]);
 const OVERVIEW_EXCLUDED_PROP_KEYS = new Set(["awn-preview", "awn-web-url", "awn-attachments", "awn-materials"]);
 
 function ensureAwnContextDefaults(entries) {
@@ -41053,19 +41091,25 @@ function absorbPropsYamlEntries(entries) {
   const visible = [];
   for (const entry of normalized) {
     const key = normalizePropsKey(entry?.key);
-    if (key && HIDDEN_PROPS_FIELD_KEYS.has(key)) hidden.push({ ...entry, key });
+    if (key && isPropsHiddenStorageKey(key)) hidden.push({ ...entry, key });
     else visible.push(entry);
   }
-  propsFormHiddenEntries = hidden;
+  propsFormHiddenEntries = dedupePropsEntriesByKey(hidden);
   propsFormEntries = ensureStandardPropsEntries(ensureAwnContextDefaults(visible));
 }
 
 function mergePropsFormEntries() {
+  const hiddenKeys = new Set(
+    propsFormHiddenEntries.map((entry) => normalizePropsKey(entry?.key)).filter(Boolean)
+  );
   const visible = propsFormEntries.filter((entry) => {
     const key = normalizePropsKey(entry?.key);
-    return !key || !HIDDEN_PROPS_FIELD_KEYS.has(key);
+    if (!key) return true;
+    if (isPropsHiddenStorageKey(key)) return false;
+    if (hiddenKeys.has(key)) return false;
+    return true;
   });
-  return [...propsFormHiddenEntries, ...visible];
+  return dedupePropsEntriesByKey([...propsFormHiddenEntries, ...visible]);
 }
 
 function ensureStandardPropsEntries(entries) {
@@ -48374,6 +48418,21 @@ function setSaveButtonsState(disabled, label = SAVE_BUTTON_LABEL_DEFAULT) {
 }
 
 let savedEditorSnapshot = null;
+let editorDirtyCheckFrame = 0;
+
+function scheduleEditorDirtyCheck() {
+  if (editorDirtyCheckFrame) return;
+  editorDirtyCheckFrame = requestAnimationFrame(() => {
+    editorDirtyCheckFrame = 0;
+    syncSaveButtonLamp();
+  });
+}
+
+function buildNodeManifestContentFromSyncedForm(nodePath = activePath) {
+  syncDisplayNameIntoAwnNameProp(nodePath);
+  syncDescriptionIntoAwnDescriptionProp(nodePath);
+  return joinFrontmatter(propsInputNode?.value ?? "", fileContentInputNode?.value ?? "");
+}
 
 function isEditorSaveTrackingActive() {
   if (isProjectSettingsMode()) return true;
@@ -48419,8 +48478,12 @@ function getEditorSavePayload() {
   if (editorViewMode === "wysiwyg") {
     syncSourceFromWysiwygEditor();
   }
+  const content =
+    activeContentMode === "description" && !propsRawYamlVisible
+      ? buildNodeManifestContentFromSyncedForm()
+      : buildSaveContentPayload();
   return JSON.stringify({
-    content: buildSaveContentPayload(),
+    content,
     title: titleInputNode?.value?.trim() ?? ""
   });
 }
@@ -72946,16 +73009,12 @@ function syncDisplayNameIntoAwnNameProp(
   };
 
   upsertHidden("awn-name", valueToStore);
-  const legacyTitleIndex = propsFormHiddenEntries.findIndex(
-    (entry) => normalizePropsKey(entry.key) === "title"
+  propsFormHiddenEntries = propsFormHiddenEntries.filter(
+    (entry) => normalizePropsKey(entry.key) !== "title"
   );
-  if (legacyTitleIndex >= 0) propsFormHiddenEntries.splice(legacyTitleIndex, 1);
-  const visibleIndex = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === "awn-name");
-  if (visibleIndex >= 0) propsFormEntries.splice(visibleIndex, 1);
-  const legacyVisibleTitleIndex = propsFormEntries.findIndex(
-    (entry) => normalizePropsKey(entry.key) === "title"
+  propsFormEntries = propsFormEntries.filter(
+    (entry) => !["awn-name", "title"].includes(normalizePropsKey(entry.key))
   );
-  if (legacyVisibleTitleIndex >= 0) propsFormEntries.splice(legacyVisibleTitleIndex, 1);
 }
 
 function getAwnDescriptionRawForNode(nodePath = activePath) {
@@ -72992,10 +73051,7 @@ function syncDescriptionIntoAwnDescriptionProp(
   };
 
   upsertHidden("awn-description", valueToStore);
-  const visibleIndex = propsFormEntries.findIndex(
-    (entry) => normalizePropsKey(entry.key) === "awn-description"
-  );
-  if (visibleIndex >= 0) propsFormEntries.splice(visibleIndex, 1);
+  propsFormEntries = stripTitleBarKeysFromVisibleEntries(propsFormEntries);
 }
 
 function isTitleDescriptionRowVisible(nodePath = getActiveTitleEditorPath()) {
@@ -90269,10 +90325,12 @@ propsAddFieldBtn?.addEventListener("click", () => {
   lastInput?.focus();
 });
 propsEditSchemaBtn?.addEventListener("click", openTopicSchemaFromPropsAside);
-function handlePropsFormFieldsInput() {
+function handlePropsFormFieldsInput(event) {
+  const target = event?.target;
+  if (target?.type === "checkbox" && event?.type === "input") return;
   readPropsFormIntoEntries();
   syncYamlFromPropsForm();
-  syncSaveButtonLamp();
+  scheduleEditorDirtyCheck();
 }
 propsFormFieldsNode?.addEventListener("input", handlePropsFormFieldsInput);
 propsFormFieldsNode?.addEventListener("change", handlePropsFormFieldsInput);
@@ -90297,6 +90355,7 @@ titleInputNode?.addEventListener("input", () => {
   } else if (activeMediaSidecarSourcePath && titlePath === activeMediaSidecarSourcePath) {
     syncDisplayNameIntoAwnNameProp(activeMediaSidecarSourcePath);
   }
+  syncYamlFromPropsForm();
   syncSaveButtonLamp();
 });
 titleSlugInputNode?.addEventListener("input", () => {
