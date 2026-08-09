@@ -1,64 +1,17 @@
 /**
- * Enum option helpers: { key, name } + field type aliases (enum/array variants).
+ * Enum option helpers + field type normalization (canonical awn.field.* ids only).
  */
-const FIELD_TYPE_ALIASES = {
-  "awn.enum-select": "awn.field.enum",
-  "awn.enum-radio": "awn.field.enum",
-  "awn.array-checkbox": "awn.field.array",
-  "awn.array-select-multiple": "awn.field.array",
-  // Legacy flat ids → hierarchical
-  "awn.string": "awn.field.string",
-  "awn.text": "awn.field.text",
-  "awn.boolean": "awn.field.boolean",
-  "awn.number": "awn.field.number",
-  "awn.integer": "awn.field.number.integer",
-  "awn.field.integer": "awn.field.number.integer",
-  "awn.date": "awn.field.date",
-  "awn.datetime": "awn.field.date.datetime",
-  "awn.field.datetime": "awn.field.date.datetime",
-  "awn.color": "awn.field.string.color",
-  "awn.field.color": "awn.field.string.color",
-  "awn.url": "awn.field.string.url",
-  "awn.field.url": "awn.field.string.url",
-  "awn.email": "awn.field.string.email",
-  "awn.field.email": "awn.field.string.email",
-  "awn.slug": "awn.field.string.slug",
-  "awn.field.slug": "awn.field.string.slug",
-  "awn.field.preview": "awn.field.string.preview",
-  "awn.field.cron-schedule": "awn.field.string.cron-schedule",
-  "awn.field.catalog-status": "awn.field.string.catalog-status",
-  "awn.field.catalog-category": "awn.field.string.catalog-category",
-  "awn.field.catalog-users": "awn.field.string.catalog-users",
-  "awn.field.catalog-priorities": "awn.field.string.catalog-priorities",
-  "awn.field.catalog-colors": "awn.field.string.catalog-colors",
-  "awn.field.catalog-tags": "awn.field.array.catalog-tags",
-  "awn.field.tags": "awn.field.array.tags",
-  "awn.tags": "awn.field.array.tags",
-  "awn.enum": "awn.field.enum",
-  "awn.array": "awn.field.array",
-  "awn.json": "awn.field.json",
-  "awn.relation": "awn.field.relation"
-};
-
-const LEGACY_FIELD_TYPE_WIDGET = {
-  "awn.enum-select": "select",
-  "awn.enum-radio": "radio",
-  "awn.array-checkbox": "checkbox",
-  "awn.array-select-multiple": "select-multiple"
-};
+const FIELD_TYPE_ALIASES = {};
 
 const DEFAULT_FIELD_WIDGET = {
-  "awn.field.enum": "select",
-  "awn.enum": "select",
-  "awn.field.array": "checkbox",
-  "awn.array": "checkbox"
+  "awn.field.choice.one": "select",
+  "awn.field.choice.many": "checkbox"
 };
 
 function resolveFieldTypeId(typeId) {
   const raw = String(typeId || "").trim();
   if (!raw) return "awn.field.string";
-  const id = raw.startsWith("awn.") ? raw : `awn.${raw}`;
-  return FIELD_TYPE_ALIASES[id] || id;
+  return raw.startsWith("awn.") ? raw : `awn.${raw}`;
 }
 
 function normalizeCanonicalFieldTypeId(typeId) {
@@ -75,14 +28,22 @@ function fieldTypeIs(typeId, kind) {
   return canonical === `awn.${target}` || canonical.endsWith(`.${target}`);
 }
 
+function isChoiceOneFieldTypeId(typeId) {
+  return normalizeCanonicalFieldTypeId(typeId) === "awn.choice.one";
+}
+
+function isChoiceManyFieldTypeId(typeId) {
+  return normalizeCanonicalFieldTypeId(typeId) === "awn.choice.many";
+}
+
 function isEnumFieldTypeId(typeId) {
-  const canonical = normalizeCanonicalFieldTypeId(typeId);
-  return canonical === "awn.enum" || canonical.startsWith("awn.enum.");
+  return isChoiceOneFieldTypeId(typeId);
 }
 
 function isArrayFieldTypeId(typeId) {
   const canonical = normalizeCanonicalFieldTypeId(typeId);
-  return canonical === "awn.array" || canonical.startsWith("awn.array.");
+  if (isChoiceManyFieldTypeId(typeId)) return true;
+  return canonical.startsWith("awn.array.");
 }
 
 function isNumberFieldTypeId(typeId) {
@@ -90,9 +51,13 @@ function isNumberFieldTypeId(typeId) {
   return canonical === "awn.number" || canonical.startsWith("awn.number.");
 }
 
-function isLinkFieldTypeId(typeId) {
+function isRelationFieldTypeId(typeId) {
   const canonical = normalizeCanonicalFieldTypeId(typeId);
-  return canonical.startsWith("awn.link.");
+  return canonical.startsWith("awn.relation.");
+}
+
+function isLinkFieldTypeId(typeId) {
+  return isRelationFieldTypeId(typeId);
 }
 
 function isFileFieldTypeId(typeId) {
@@ -110,9 +75,6 @@ function resolveFieldWidget(fieldDef, registryEntry = null) {
   const normalizedType = rawType.startsWith("awn.") ? rawType : rawType ? `awn.${rawType}` : "";
   const explicit = String(fieldDef?.widget || "").trim();
   if (explicit) return explicit;
-  if (normalizedType && LEGACY_FIELD_TYPE_WIDGET[normalizedType]) {
-    return LEGACY_FIELD_TYPE_WIDGET[normalizedType];
-  }
   const typeId = resolveFieldTypeId(normalizedType);
   const registryWidget = String(registryEntry?.widget || "").trim();
   if (registryWidget && registryWidget !== "tags" && registryWidget !== "input") {
@@ -276,14 +238,16 @@ function formatYamlScalar(value) {
 
 const api = {
   FIELD_TYPE_ALIASES,
-  LEGACY_FIELD_TYPE_WIDGET,
   DEFAULT_FIELD_WIDGET,
   resolveFieldTypeId,
   normalizeCanonicalFieldTypeId,
   fieldTypeIs,
+  isChoiceOneFieldTypeId,
+  isChoiceManyFieldTypeId,
   isEnumFieldTypeId,
   isArrayFieldTypeId,
   isNumberFieldTypeId,
+  isRelationFieldTypeId,
   isLinkFieldTypeId,
   isFileFieldTypeId,
   isFieldTypeMany,

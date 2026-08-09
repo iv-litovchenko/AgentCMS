@@ -6,37 +6,36 @@ awn_schema:
   topic:
     fields:
       demo_string:
-        type: awn.string
+        type: awn.field.string
         name: Строка
         hint: Короткая однострочная строка
       demo_text:
-        type: awn.text
+        type: awn.field.text
         name: Текст
         description: Многострочное описание
       demo_integer:
-        type: awn.integer
+        type: awn.field.number.integer
         name: Целое
       demo_number:
-        type: awn.number
+        type: awn.field.number
         name: Дробное
       demo_boolean:
-        type: awn.boolean
-        name: Логическое
+        type: awn.field.boolean
+        name: Да / нет
       demo_null:
-        type: awn.null
+        type: awn.field.base
         name: Пустое (null)
       demo_array:
-        type: awn.array
+        type: awn.field.choice.many
         name: Массив (checkbox)
         widget: checkbox
-        items: awn.string
         enum:
           - key: alpha
             name: Alpha
           - key: beta
             name: Beta
       demo_enum:
-        type: awn.enum
+        type: awn.field.choice.one
         name: Перечисление (select)
         enum:
           - key: open
@@ -46,46 +45,45 @@ awn_schema:
           - key: done
             name: Готово
       demo_link:
-        type: awn.link
-        name: Связь
+        type: awn.field.relation.one
+        name: Отношение
         hint: Wikilink на другую запись
       demo_date:
-        type: awn.date
+        type: awn.field.date
         name: Дата
       demo_datetime:
-        type: awn.datetime
+        type: awn.field.date.datetime
         name: Дата и время
       demo_url:
-        type: awn.url
+        type: awn.field.string.url
         name: URL
       demo_color:
-        type: awn.color
+        type: awn.field.string.color
         name: Цвет
   record:
     fields:
       rec_string:
-        type: awn.string
+        type: awn.field.string
         name: Строка
       rec_text:
-        type: awn.text
+        type: awn.field.text
         name: Текст
       rec_integer:
-        type: awn.integer
+        type: awn.field.number.integer
         name: Целое
       rec_number:
-        type: awn.number
+        type: awn.field.number
         name: Дробное
       rec_boolean:
-        type: awn.boolean
-        name: Логическое
+        type: awn.field.boolean
+        name: Да / нет
       rec_null:
-        type: awn.null
+        type: awn.field.base
         name: Пустое (null)
       rec_array:
-        type: awn.array
+        type: awn.field.choice.many
         name: Массив (select multiple)
         widget: select-multiple
-        items: awn.string
         enum:
           - key: draft
             name: Черновик
@@ -94,7 +92,7 @@ awn_schema:
           - key: published
             name: Опубликовано
       rec_enum:
-        type: awn.enum
+        type: awn.field.choice.one
         name: Перечисление (radio)
         widget: radio
         enum:
@@ -105,16 +103,16 @@ awn_schema:
           - key: published
             name: Опубликовано
       rec_link:
-        type: awn.link
-        name: Связь
+        type: awn.field.relation.one
+        name: Отношение
       rec_file:
-        type: awn.file
+        type: awn.field.file.one
         name: Файл
         hint: Content/… или Assets/…
         scope: all
       rec_date:
-        type: awn.date
+        type: awn.field.date
         name: Дата
       rec_datetime:
-        type: awn.datetime
+        type: awn.field.date.datetime
         name: Дата и время

@@ -14,9 +14,11 @@ const {
 } = require("./platform-sources");
 const {
   resolveFieldTypeId,
+  isChoiceOneFieldTypeId,
+  isChoiceManyFieldTypeId,
   isEnumFieldTypeId,
   isArrayFieldTypeId
-} = require("./awn-enum-options");
+} = require("./public/awn-enum-options");
 
 const MDBASE_STORAGE = {
   string: "string",
@@ -96,8 +98,8 @@ function normalizeFieldTypeDef(schema, component) {
     field.settings = schema.settings.map((item) => String(item).trim()).filter(Boolean);
   } else {
     const idSuffix = id.replace(/^awn\./, "");
-    if (isEnumFieldTypeId(id)) field.settings = [...DEFAULT_FIELD_SETTINGS, "widget", "enum"];
-    else if (isArrayFieldTypeId(id)) field.settings = [...DEFAULT_FIELD_SETTINGS, "widget", "enum"];
+    if (isChoiceOneFieldTypeId(id)) field.settings = [...DEFAULT_FIELD_SETTINGS, "widget", "enum"];
+    else if (isChoiceManyFieldTypeId(id)) field.settings = [...DEFAULT_FIELD_SETTINGS, "widget", "enum"];
     else if (idSuffix === "null") field.settings = ["description", "hint", "locked"];
     else field.settings = [...DEFAULT_FIELD_SETTINGS];
   }

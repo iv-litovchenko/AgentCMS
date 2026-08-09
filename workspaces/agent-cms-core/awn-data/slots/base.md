@@ -12,7 +12,7 @@ awn-extends: awn.row.base
 description: Базовый тип слоя памяти у топика
 awn-fields:
   awn-storage-driver:
-    type: awn.field.enum
+    type: awn.field.choice.one
     title: Драйвер памяти
     description: internal — однофайловая; external — многофайловая; tabular — таблица
     enum:
@@ -36,7 +36,7 @@ awn-fields:
     description: "Расширения (.md, .png…)"
     items: awn.field.string
   awn-slot-category:
-    type: awn.field.enum
+    type: awn.field.choice.one
     title: Категория
     enum:
       - memory
@@ -48,7 +48,7 @@ awn-fields:
     type: awn.field.integer
     title: Порядок
   awn-slot-tier:
-    type: awn.field.enum
+    type: awn.field.choice.one
     title: Уровень
     enum:
       - user

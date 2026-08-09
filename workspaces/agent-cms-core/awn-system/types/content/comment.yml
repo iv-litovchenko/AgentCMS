@@ -12,10 +12,10 @@ fields:
     hidden: true
 
   awn-target:
-    type: awn.field.link.one
+    type: awn.field.relation.one
     title: К чему привязан
     description: manifest.md или запись в awn-storage
     placement: aside-body
     group: content
     sort: 10
-    widget: link
+    widget: relation

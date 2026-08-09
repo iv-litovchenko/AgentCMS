@@ -13,7 +13,7 @@ status: active
 properties:
   type:
     title: "Тип данных"
-    description: "ID типа поля (awn.field.string, awn.field.enum…)"
+    description: "ID типа поля (awn.field.string, awn.field.choice.one…)"
     required: true
   name:
     title: "Название"
@@ -50,8 +50,8 @@ properties:
     type: "awn.field.string"
   enum:
     title: "Варианты"
-    description: "Список key/name для awn.field.enum и awn.field.array"
+    description: "Список key/name для awn.field.choice.one и awn.field.choice.many"
   items:
     title: "Тип элементов"
-    description: "Тип элементов для awn.field.array (awn.field.string, awn.field.link…)"
+    description: "Тип элементов для awn.field.array (awn.field.string, awn.field.relation.one…)"
     type: "awn.field.string"

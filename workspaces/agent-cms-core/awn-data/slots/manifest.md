@@ -8,7 +8,7 @@ awn-record:
   file: "{id}.md"
 awn-fields:
   awn-slot-category:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Категория
     enum:
       - memory
@@ -18,7 +18,7 @@ awn-fields:
       - communication
     default: memory
   awn-storage-driver:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Драйвер памяти
     enum:
       - internal
@@ -43,7 +43,7 @@ awn-fields:
     title: Порядок
     description: Сортировка внутри категории
   awn-slot-tier:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Уровень
     enum:
       - user

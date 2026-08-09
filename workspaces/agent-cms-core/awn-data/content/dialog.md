@@ -13,7 +13,7 @@ description: Одно сообщение в слоте thread/ (awn.slot.dialogs
 slot: dialogs
 awn-fields:
   awn-role:
-    type: awn.field.enum
+    type: awn.field.choice.one
     title: Роль
     enum:
       -

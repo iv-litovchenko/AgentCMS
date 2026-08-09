@@ -20,7 +20,7 @@ awn-fields:
     title: Фон (путь к изображению)
     description: "awn-storage/assets/attachments/{id}.png"
   awn-appearance:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Тема
     enum:
       - light

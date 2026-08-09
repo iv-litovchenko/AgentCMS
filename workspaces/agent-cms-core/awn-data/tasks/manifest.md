@@ -21,13 +21,13 @@ awn-data-elements-schema:
       description: id родительской задачи
       tab: main
     awn-status:
-      type: awn.enum
+      type: awn.field.choice.one
       title: Статус
       enum: [open, in_progress, done, cancelled]
       default: open
       tab: main
     awn-priority:
-      type: awn.enum
+      type: awn.field.choice.one
       title: Приоритет
       enum: [low, normal, high]
       default: normal

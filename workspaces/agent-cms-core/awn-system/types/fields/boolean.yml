@@ -1,5 +1,5 @@
 id: awn.field.boolean
-name: Логическое
+name: Да / нет
 kind: field
 domain: fields
 extends: awn.field.base
@@ -9,5 +9,5 @@ mdbase: boolean
 description: Логическое значение (да/нет)
 settings: [hint, required, locked, default]
 group: choice
-sort: 2
+sort: 1
 status: active

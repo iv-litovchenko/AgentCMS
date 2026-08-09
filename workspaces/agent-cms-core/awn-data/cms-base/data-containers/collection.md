@@ -30,7 +30,7 @@ awn-data-elements-schema:
       title: Domain
       tab: main
     awn-status:
-      type: awn.field.enum
+      type: awn.field.choice.one
       title: Статус
       enum: [active, draft, deprecated, inactive]
       default: active

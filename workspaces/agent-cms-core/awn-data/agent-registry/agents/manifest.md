@@ -15,7 +15,7 @@ awn-fields:
     title: Путь workspace
     required: true
   awn-environment:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Окружение
     enum:
       - local

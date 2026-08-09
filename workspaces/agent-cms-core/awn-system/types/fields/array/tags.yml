@@ -2,7 +2,7 @@ id: awn.field.array.tags
 name: Теги
 kind: field
 domain: fields
-extends: awn.field.array
+extends: awn.field.base
 widget: tags
 storage: array
 mdbase: list

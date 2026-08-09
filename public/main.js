@@ -31241,7 +31241,7 @@ function formatExternalTablePropDisplay(column, item) {
     if (normalized === "false" || normalized === "нет") return "Нет";
   }
 
-  if (column.typeId === "awn.link") {
+  if (column.typeId === "awn.field.relation.one" || column.typeId === "awn.relation.one") {
     const linkMatch = String(value).match(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/);
     if (linkMatch) return (linkMatch[2] || linkMatch[1]).trim();
   }
@@ -36778,7 +36778,7 @@ function formatNodeSettingsFieldLabel(key, fieldDef) {
 
 function createNodeSettingsFieldRow(entry, fieldDef) {
   const meta = getNodeSettingsFieldMeta(entry.key, fieldDef);
-  const typeId = resolveFieldTypeId(fieldDef?.type || "awn.string");
+  const typeId = resolveFieldTypeId(fieldDef?.type || "awn.field.string");
   const displayLabel = formatNodeSettingsFieldLabel(entry.key, fieldDef);
   const entryKind = fieldDefToEntryKind(fieldDef);
 
@@ -37260,46 +37260,51 @@ const FIELD_TYPE_SELECT_GROUPS = [
   {
     label: "Текст",
     types: [
-      "awn.string",
-      "awn.string.email",
-      "awn.string.slug",
-      "awn.string.url",
-      "awn.text",
-      "awn.text.markdown"
+      "awn.field.string",
+      "awn.field.string.email",
+      "awn.field.string.slug",
+      "awn.field.string.url",
+      "awn.field.string.link",
+      "awn.field.text",
+      "awn.field.text.markdown"
     ]
   },
-  { label: "Числа", types: ["awn.number", "awn.number.integer"] },
-  { label: "Дата и время", types: ["awn.date", "awn.date.datetime"] },
+  { label: "Числа", types: ["awn.field.number", "awn.field.number.integer"] },
+  { label: "Дата и время", types: ["awn.field.date", "awn.field.date.datetime"] },
   {
     label: "Выбор",
-    types: ["awn.boolean", "awn.enum", "awn.array", "awn.array.tags"]
+    types: [
+      "awn.field.boolean",
+      "awn.field.choice.one",
+      "awn.field.choice.many",
+      "awn.field.array.tags"
+    ]
   },
   {
     label: "Медиа",
     types: [
-      "awn.string.color",
-      "awn.file.one",
-      "awn.file.many",
-      "awn.file.image.one",
-      "awn.file.image.one.preview",
-      "awn.file.image.many"
+      "awn.field.string.color",
+      "awn.field.file.one",
+      "awn.field.file.many",
+      "awn.field.file.image.one",
+      "awn.field.file.image.many"
     ]
   },
   {
     label: "Структура",
-    types: ["awn.json", "awn.link.one", "awn.link.many", "awn.relation"]
+    types: ["awn.field.json", "awn.field.relation.one", "awn.field.relation.many"]
   },
   {
     label: "CMS / платформа",
     types: [
-      "awn.string.preview",
-      "awn.string.cron-schedule",
-      "awn.string.catalog-status",
-      "awn.array.catalog-tags",
-      "awn.string.catalog-category",
-      "awn.string.catalog-users",
-      "awn.string.catalog-priorities",
-      "awn.string.catalog-colors"
+      "awn.field.string.preview",
+      "awn.field.string.cron-schedule",
+      "awn.field.string.catalog-status",
+      "awn.field.array.catalog-tags",
+      "awn.field.string.catalog-category",
+      "awn.field.string.catalog-users",
+      "awn.field.string.catalog-priorities",
+      "awn.field.string.catalog-colors"
     ]
   }
 ];
@@ -37378,7 +37383,7 @@ function getFieldTypeSelectGroups(registryEntries = []) {
   return groups;
 }
 
-function populateFieldTypeSelect(select, registryEntries, selectedTypeId = "awn.string") {
+function populateFieldTypeSelect(select, registryEntries, selectedTypeId = "awn.field.string") {
   if (!select) return;
   select.replaceChildren();
   const byId = new Map(registryEntries.map((entry) => [entry.id, entry]));
@@ -37395,7 +37400,7 @@ function populateFieldTypeSelect(select, registryEntries, selectedTypeId = "awn.
     select.appendChild(optgroup);
   }
 
-  const resolved = resolveFieldRegistryEntryId(selectedTypeId || "awn.string", byId);
+  const resolved = resolveFieldRegistryEntryId(selectedTypeId || "awn.field.string", byId);
   select.value = resolved;
   if (select.value !== resolved && resolved) {
     const legacy = document.createElement("option");
@@ -37419,7 +37424,7 @@ function topicSchemaTargetHasCustomFields(targetId, cache = getTopicSchemaCache(
 
 function topicSchemaFieldHasAdvancedSettings(fieldDef) {
   if (!fieldDef || typeof fieldDef !== "object") return false;
-  const typeId = resolveFieldTypeId(fieldDef.type || "awn.string");
+  const typeId = resolveFieldTypeId(fieldDef.type || "awn.field.string");
   const allowedSettings = new Set(["type", "title", "name", ...getFieldTypeSettingsKeys(typeId)]);
   for (const [propKey, value] of Object.entries(fieldDef)) {
     if (!allowedSettings.has(propKey)) continue;
@@ -37487,7 +37492,7 @@ function addTopicSchemaField(target = topicSchemaActiveTarget) {
     index += 1;
     key = defaultTopicSchemaFieldKeyForTarget(target, index);
   }
-  fields[key] = { type: "awn.string", name: "", title: "" };
+  fields[key] = { type: "awn.field.string", name: "", title: "" };
   renderTopicSchemaEditor();
   syncSaveButtonLamp();
   const keyInput = topicSchemaFieldsNode?.querySelector(`[data-schema-key="${CSS.escape(key)}"]`);
@@ -37812,7 +37817,7 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
     typeSelect.dataset.schemaKey = key;
     typeSelect.dataset.schemaField = "type";
     typeSelect.title = "Тип поля";
-    populateFieldTypeSelect(typeSelect, registryEntries, fieldDef.type || "awn.string");
+    populateFieldTypeSelect(typeSelect, registryEntries, fieldDef.type || "awn.field.string");
 
     const titleInput = document.createElement("input");
     titleInput.type = "text";
@@ -37940,7 +37945,7 @@ function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache(), target 
 
   const activeKey = row.dataset.schemaRowKey;
   const fieldDef = fields[activeKey] || {};
-  const nextType = resolveFieldTypeId(typeSelect?.value || "awn.string");
+  const nextType = resolveFieldTypeId(typeSelect?.value || "awn.field.string");
   const allowedSettings = new Set(["type", "title", "name", ...getFieldTypeSettingsKeys(nextType)]);
 
   fieldDef.type = nextType;
@@ -38468,7 +38473,7 @@ function readSectionSchemaFieldFromRow(row, cache, target, scope) {
 
   const activeKey = row.dataset.schemaRowKey;
   const fieldDef = fields[activeKey] || {};
-  const nextType = resolveFieldTypeId(typeSelect?.value || "awn.string");
+  const nextType = resolveFieldTypeId(typeSelect?.value || "awn.field.string");
   const allowedSettings = new Set(["type", "title", "name", ...getFieldTypeSettingsKeys(nextType)]);
 
   fieldDef.type = nextType;
@@ -38649,7 +38654,7 @@ function renderSectionSchemaCustomFields(panel, cache) {
     typeSelect.className = "topic-schema-inline-select";
     typeSelect.dataset.schemaKey = key;
     typeSelect.dataset.schemaField = "type";
-    populateFieldTypeSelect(typeSelect, registryEntries, fieldDef.type || "awn.string");
+    populateFieldTypeSelect(typeSelect, registryEntries, fieldDef.type || "awn.field.string");
 
     const titleInput = document.createElement("input");
     titleInput.type = "text";
@@ -38750,7 +38755,7 @@ function bindSectionSchemaPanelEvents(panel, cache, context) {
       index += 1;
       key = defaultSectionSchemaFieldKey(target, index);
     }
-    fields[key] = { type: "awn.string", name: "", title: "" };
+    fields[key] = { type: "awn.field.string", name: "", title: "" };
     renderSectionSchemaEditor(panel, cache);
     markSectionSchemaPanelDirty(panel);
     panel.querySelector(`[data-schema-row-key="${CSS.escape(key)}"] [data-schema-field="key"]`)?.focus();
@@ -39783,7 +39788,7 @@ function getExternalTableSchemaColumns() {
       key,
       label: fieldDef?.title || getPropsFieldMeta(key).label || key,
       fieldDef: fieldDef || null,
-      typeId: fieldDef ? resolveFieldTypeId(fieldDef.type || "awn.string") : null
+      typeId: fieldDef ? resolveFieldTypeId(fieldDef.type || "awn.field.string") : null
     });
   }
 
@@ -39842,27 +39847,47 @@ function getAwnTypeUsageHint(typeName) {
 }
 
 const FIELD_TYPE_ICONS = {
+  "awn.field.boolean": "☑️",
   "awn.boolean": "☑️",
+  "awn.field.date": "📅",
   "awn.date": "📅",
+  "awn.field.date.datetime": "🕒",
   "awn.datetime": "🕒",
-  "awn.enum": "🔘",
-  "awn.array": "🎛️",
-  "awn.null": "⚪",
-  "awn.link": "🔗",
-  "awn.file": "📎",
+  "awn.field.choice.one": "🔘",
+  "awn.choice.one": "🔘",
+  "awn.field.choice.many": "🎛️",
+  "awn.choice.many": "🎛️",
+  "awn.field.relation.one": "↔️",
+  "awn.relation.one": "↔️",
+  "awn.field.relation.many": "↔️",
+  "awn.relation.many": "↔️",
+  "awn.field.file.one": "📎",
+  "awn.file.one": "📎",
+  "awn.field.string": "🔤",
   "awn.string": "🔤",
+  "awn.field.text": "📝",
   "awn.text": "📝",
+  "awn.field.string.color": "🎨",
   "awn.color": "🎨",
+  "awn.field.number.integer": "🔢",
   "awn.integer": "🔢",
+  "awn.field.number": "📊",
   "awn.number": "📊",
+  "awn.field.string.url": "🌐",
   "awn.url": "🌐",
+  "awn.field.string.link": "📂",
+  "awn.field.string.email": "✉️",
   "awn.email": "✉️",
+  "awn.field.text.markdown": "📋",
   "awn.text.markdown": "📋",
+  "awn.field.string.slug": "🔖",
   "awn.slug": "🔖",
-  "awn.image": "🖼️",
+  "awn.field.file.image.one": "🖼️",
+  "awn.file.image.one": "🖼️",
+  "awn.field.json": "🧩",
   "awn.json": "🧩",
-  "awn.relation": "↔️",
-  "awn.tags": "🏷️"
+  "awn.field.array.tags": "🏷️",
+  "awn.array.tags": "🏷️"
 };
 
 const PROPS_FIELD_ICONS = {
@@ -40012,7 +40037,7 @@ function resolveFieldTypeId(typeId) {
   const api = awnEnumOptionsApi();
   if (typeof api.resolveFieldTypeId === "function") return api.resolveFieldTypeId(typeId);
   const raw = String(typeId || "").trim();
-  if (!raw) return "awn.string";
+  if (!raw) return "awn.field.string";
   if (raw.startsWith("awn.")) return raw;
   return `awn.${raw}`;
 }
@@ -40037,10 +40062,32 @@ function fieldTypeIs(typeId, kind) {
   return canonical === `awn.${target}` || canonical.endsWith(`.${target}`);
 }
 
+function isChoiceOneFieldTypeId(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.isChoiceOneFieldTypeId === "function") return api.isChoiceOneFieldTypeId(typeId);
+  return fieldTypeIs(typeId, "choice.one");
+}
+
+function isChoiceManyFieldTypeId(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.isChoiceManyFieldTypeId === "function") return api.isChoiceManyFieldTypeId(typeId);
+  return fieldTypeIs(typeId, "choice.many");
+}
+
+function propsFieldWidgetNeedsLibrary(widget) {
+  return widget === "relation" || widget === "link" || widget === "file";
+}
+
 function isLinkFieldTypeId(typeId) {
   const api = awnEnumOptionsApi();
   if (typeof api.isLinkFieldTypeId === "function") return api.isLinkFieldTypeId(typeId);
-  return fieldTypeIs(typeId, "link.one") || fieldTypeIs(typeId, "link.many");
+  return isRelationFieldTypeId(typeId);
+}
+
+function isRelationFieldTypeId(typeId) {
+  const api = awnEnumOptionsApi();
+  if (typeof api.isRelationFieldTypeId === "function") return api.isRelationFieldTypeId(typeId);
+  return fieldTypeIs(typeId, "relation.one") || fieldTypeIs(typeId, "relation.many");
 }
 
 function isFileFieldTypeId(typeId) {
@@ -40070,13 +40117,13 @@ function isBooleanFieldTypeId(typeId) {
 function isEnumFieldTypeId(typeId) {
   const api = awnEnumOptionsApi();
   if (typeof api.isEnumFieldTypeId === "function") return api.isEnumFieldTypeId(typeId);
-  return resolveFieldTypeId(typeId) === "awn.enum";
+  return fieldTypeIs(typeId, "choice.one");
 }
 
 function isArrayFieldTypeId(typeId) {
   const api = awnEnumOptionsApi();
   if (typeof api.isArrayFieldTypeId === "function") return api.isArrayFieldTypeId(typeId);
-  return resolveFieldTypeId(typeId) === "awn.array";
+  return fieldTypeIs(typeId, "choice.many") || fieldTypeIs(typeId, "array.tags");
 }
 
 function resolveFieldWidget(fieldDef, registryEntry = null) {
@@ -40125,10 +40172,10 @@ function getFieldTypeSettingsKeys(typeId) {
       (key) => key !== "type" && key !== "title" && key !== "name" && key !== "items"
     );
   }
-  if (isEnumFieldTypeId(typeId)) {
+  if (isChoiceOneFieldTypeId(typeId)) {
     return ["description", "hint", "required", "locked", "widget", "default", "enum"];
   }
-  if (isArrayFieldTypeId(typeId)) {
+  if (isChoiceManyFieldTypeId(typeId)) {
     return ["description", "hint", "required", "locked", "widget", "default", "enum"];
   }
   if (resolveFieldTypeId(typeId) === "awn.null") {
@@ -40309,7 +40356,7 @@ function createTopicSchemaSettingControl(propKey, propDef, fieldDef, schemaKey) 
     control.value = formatFieldDefSettingValue(propKey, fieldDef?.[propKey]);
   } else if (propKey === "items") {
     control = document.createElement("select");
-    populateFieldTypeSelect(control, getTopicSchemaRegistryEntries(), fieldDef?.items || "awn.string");
+    populateFieldTypeSelect(control, getTopicSchemaRegistryEntries(), fieldDef?.items || "awn.field.string");
   } else if (propKey === "enum") {
     control = createTopicSchemaEnumOptionsControl(fieldDef, schemaKey);
     delete label.dataset.schemaField;
@@ -40319,12 +40366,12 @@ function createTopicSchemaSettingControl(propKey, propDef, fieldDef, schemaKey) 
     control = document.createElement("select");
     const typeId = resolveFieldTypeId(fieldDef?.type || "");
     const registry = awnTypesCache?.fieldRegistry || {};
-    const widgetOptions = isEnumFieldTypeId(typeId)
+    const widgetOptions = isChoiceOneFieldTypeId(typeId)
       ? [
           ["select", "Select (выпадающий список)"],
           ["radio", "Radio (кнопки)"]
         ]
-      : isArrayFieldTypeId(typeId)
+      : isChoiceManyFieldTypeId(typeId)
         ? [
             ["checkbox", "Checkbox (флажки)"],
             ["select-multiple", "Select multiple (множественный выбор)"]
@@ -40531,14 +40578,14 @@ function getPropsFieldMetaFromSchema(key) {
     format: fieldDef.format || "",
     required: Boolean(fieldDef.required),
     locked: isPropsFieldLocked(key, fieldDef),
-    typeId: resolveFieldTypeId(fieldDef.type || "awn.string"),
+    typeId: resolveFieldTypeId(fieldDef.type || "awn.field.string"),
     enum: Array.isArray(fieldDef.enum) ? fieldDef.enum : null,
     fieldDef
   };
 }
 
 function fieldDefToEntryKind(fieldDef) {
-  const typeId = normalizeCanonicalFieldTypeId(fieldDef?.type || "awn.string");
+  const typeId = normalizeCanonicalFieldTypeId(fieldDef?.type || "awn.field.string");
   const registry = awnTypesCache?.fieldRegistry || {};
   const registryEntry =
     registry[fieldDef?.type || ""] ||
@@ -40691,7 +40738,7 @@ function getPropsFieldMeta(key) {
   if (override) {
     return { ...override, typeId: null, fieldDef: null };
   }
-  return { label: normalized, hint: "", typeId: "awn.string", fieldDef: null };
+  return { label: normalized, hint: "", typeId: "awn.field.string", fieldDef: null };
 }
 
 function isStandardPropsFieldKey(key) {
@@ -42215,7 +42262,7 @@ function getDocAsideMiniDocSpec() {
           `Файл: ${formatMiniDocPathHint(SCHEMA_MOD_FILE)}`,
           `Вкладки: тема, записи ${STORAGE_SUBFOLDER_CONTENT}/, sidecar`,
           "Базовые <code>awn-*</code> поля наследуются и не редактируются",
-          "<code>awn.link</code> — связь с темой/записью; <code>awn.file</code> — путь к файлу"
+          "<code>awn.field.relation.one</code> — отношение с темой/записью; <code>awn.field.string.link</code> — путь к файлу; <code>awn.field.file.one</code> — файл в слоте"
         ]
       };
     case "env":
@@ -42860,7 +42907,7 @@ function renderEditorCustomPropsBar() {
 
   const needsPropsLibrary = userItems.some(({ entry }) => {
     const widget = resolvePropsFieldWidget(entry.key, getPropsFieldDef(entry.key));
-    return widget === "link" || widget === "file";
+    return propsFieldWidgetNeedsLibrary(widget);
   });
   if (needsPropsLibrary && !isPropsLibrariesReadyForActiveNode()) {
     void ensurePropsLibrariesLoaded().then(() => {
@@ -43030,7 +43077,7 @@ function renderPropsForm() {
 
   const needsPropsLibrary = [...standardEntries, ...customEntries].some(({ entry }) => {
     const widget = resolvePropsFieldWidget(entry.key, getPropsFieldDef(entry.key));
-    return widget === "link" || widget === "file";
+    return propsFieldWidgetNeedsLibrary(widget);
   });
   if (needsPropsLibrary && !isPropsLibrariesReadyForActiveNode() && shouldRenderPropsFormNow()) {
     void ensurePropsLibrariesLoaded().then(() => {
@@ -43201,13 +43248,14 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const widget = resolveFieldWidget(fieldDef, registryEntry);
   if (widget === "attachments") return "attachments";
 
-  if (isEnumFieldTypeId(typeId)) {
+  if (isChoiceOneFieldTypeId(typeId)) {
     if (widget === "radio") return "radio";
     return "select";
   }
   if (isBooleanFieldTypeId(typeId) || widget === "toggle") return "boolean";
-  if (isLinkFieldTypeId(typeId) || widget === "link") return "link";
-  if (fieldTypeIs(typeId, "file.image.one.preview") || widget === "image") return "image";
+  if (isRelationFieldTypeId(typeId) || widget === "relation" || widget === "link") return "relation";
+  if (fieldTypeIs(typeId, "string.link") || widget === "path") return "path";
+  if (fieldTypeIs(typeId, "file.image.one") || widget === "image") return "image";
   if (isFileFieldTypeId(typeId) || widget === "file") return "file";
   if (fieldTypeIs(typeId, "text") || widget === "textarea") return "textarea";
   if (fieldTypeIs(typeId, "string.url") || widget === "url") return "url";
@@ -43215,7 +43263,8 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (fieldTypeIs(typeId, "date")) return "date";
   if (fieldTypeIs(typeId, "date.datetime")) return "datetime";
   if (fieldTypeIs(typeId, "number")) return "number";
-  if (isArrayFieldTypeId(typeId)) {
+  if (fieldTypeIs(typeId, "array.tags") || widget === "tags") return "tags";
+  if (isChoiceManyFieldTypeId(typeId)) {
     if (widget === "select-multiple") {
       return getEnumOptionsForField(fieldDef).length ? "select-multiple" : "array";
     }
@@ -44385,8 +44434,21 @@ async function openPropsFileTarget(fileRef) {
   await openExternalFile(parsed.file);
 }
 
+function createPropsFormWsPathControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("path");
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "props-form-value props-form-ws-path-value";
+  input.value = getPropsEntryDisplayValue(entry);
+  input.placeholder = meta.format || "папка/файл.md или awn-storage/Content/…";
+  if (meta.hint) input.title = meta.hint;
+  bindPropsFormLockedState(input, locked);
+  wrap.appendChild(input);
+  return wrap;
+}
+
 function createPropsFormLinkControl(entry, meta, { locked = false } = {}) {
-  const wrap = createPropsFormValueWrap("link");
+  const wrap = createPropsFormValueWrap("relation");
   const currentValue = getPropsEntryDisplayValue(entry);
   const { contentRecords, currentTopic, otherTopics } = collectPropsLinkLibraryGroups();
 
@@ -46388,8 +46450,11 @@ function createPropsFormValueControl(entry, meta) {
   if (widget === "cron-schedule") {
     return createPropsFormCronScheduleControl(entry, meta, { locked });
   }
-  if (widget === "link") {
+  if (widget === "relation" || widget === "link") {
     return createPropsFormLinkControl(entry, meta, { locked });
+  }
+  if (widget === "path") {
+    return createPropsFormWsPathControl(entry, meta, { locked });
   }
   if (widget === "file") {
     return createPropsFormFileControl(entry, meta, { locked });
@@ -46486,12 +46551,16 @@ function readPropsFormValueFromControl(valueWrap) {
       .filter(Boolean);
     return [...new Set([...fromCheckboxes, ...extraTags])].join(", ");
   }
-  if (widget === "link") {
+  if (widget === "relation" || widget === "link") {
     const select = valueWrap.querySelector("select");
     const manual = valueWrap.querySelector("[data-link-manual]");
     const manualValue = String(manual?.value || "").trim();
     const selectValue = String(select?.value || "").trim();
     return manualValue || selectValue;
+  }
+  if (widget === "path") {
+    const input = valueWrap.querySelector(".props-form-ws-path-value, .props-form-value");
+    return String(input?.value || "").trim();
   }
   if (widget === "file") {
     if (valueWrap.dataset.fileMultiple === "1") {
@@ -77632,7 +77701,7 @@ function buildTypeAddFieldForm() {
   const registry = awnTypesCache?.fieldRegistry || {};
   const fieldIds = Object.keys(registry).length
     ? Object.keys(registry)
-    : ["awn.field.string", "awn.field.text", "awn.field.link.one", "awn.field.file.one"];
+    : ["awn.field.string", "awn.field.text", "awn.field.relation.one", "awn.field.file.one"];
   for (const fid of fieldIds) {
     const opt = document.createElement("option");
     opt.value = fid;
@@ -85791,7 +85860,7 @@ function normalizeAwnDataStoreView(store) {
 
 function formatAwnDataSchemaFieldType(field) {
   if (!field || typeof field !== "object") return "—";
-  const base = String(field.type || "awn.string").trim();
+  const base = String(field.type || "awn.field.string").trim();
   if (Array.isArray(field.enum) && field.enum.length) {
     return `${base} · enum`;
   }
@@ -86972,7 +87041,7 @@ function getAwnDataViewColumns(store) {
       key,
       label: String(field?.title || key).trim() || key,
       kind: "field",
-      fieldType: String(field?.type || "awn.string"),
+      fieldType: String(field?.type || "awn.field.string"),
       field
     });
   }

@@ -10,7 +10,7 @@ awn-fields:
   awn-fieldId:
     type: awn.string
     title: ID типа
-    description: awn.field.string, awn.field.enum…
+    description: awn.field.string, awn.field.choice.one…
     required: true
   awn-group:
     type: awn.string

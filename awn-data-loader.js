@@ -1350,7 +1350,7 @@ function buildCollectionSchemaContent({ slug, name, description, hierarchy = tru
       tab: "main"
     },
     "awn-status": {
-      type: "awn.enum",
+      type: "awn.field.choice.one",
       title: "Статус",
       enum: ["open", "done"],
       default: "open",

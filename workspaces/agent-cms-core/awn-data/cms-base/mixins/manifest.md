@@ -22,7 +22,7 @@ awn-fields:
     type: awn.string
     title: Domain
   awn-status:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Статус
     enum:
       - active

@@ -12,7 +12,7 @@ awn-extends: awn.row.base
 description: Базовый тип настройки
 awn-fields:
   awn-scope:
-    type: awn.field.enum
+    type: awn.field.choice.one
     title: Область
     description: К чему относится настройка
     enum:

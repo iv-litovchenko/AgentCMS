@@ -19,7 +19,7 @@ awn-fields:
     title: Extends
     default: awn.table.base
   awn-status:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Статус
     enum:
       - active

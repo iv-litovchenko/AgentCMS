@@ -31,12 +31,12 @@ fields:
     type: awn.string
     title: Иконка
   status:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Статус
     enum: [active, draft, inactive]
     default: active
   render:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Рендер
     enum: [template, fence]
     default: template

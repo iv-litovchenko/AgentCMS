@@ -13,6 +13,6 @@ description: Комментарий к узлу — слот comments/
 slot: comments
 awn-fields:
   awn-target:
-    type: awn.field.link.one
+    type: awn.field.relation.one
     title: К чему привязан
     description: manifest.md или запись в awn-storage

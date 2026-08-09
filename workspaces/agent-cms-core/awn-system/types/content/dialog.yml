@@ -12,7 +12,7 @@ fields:
     hidden: true
 
   awn-role:
-    type: awn.field.enum
+    type: awn.field.choice.one
     title: Роль
     placement: aside-body
     group: content

@@ -30,7 +30,7 @@ awn-fields:
     title: Текст подсказки
     description: HTML-подсказка в редакторе (кнопка «Вставить шаблон»)
   awn-status:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Статус
     enum:
       - open

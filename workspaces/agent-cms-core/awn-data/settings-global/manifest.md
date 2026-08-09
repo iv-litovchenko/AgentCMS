@@ -15,7 +15,7 @@ awn-fields:
     title: Режим обслуживания
     default: false
   awn-default-locale:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Язык
     enum:
       - ru

@@ -19,7 +19,7 @@ fields:
     title: Порядок в палитре
     default: 0
   status:
-    type: awn.enum
+    type: awn.field.choice.one
     title: Статус
     enum: [active, inactive]
     default: active
