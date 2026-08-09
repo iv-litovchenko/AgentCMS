@@ -4,33 +4,6 @@ awn-attachments: []
   второй абзац
   ## Заголовок
   **Жирный** и *курсив*.
-awn-emoji: 🧪
-awn-status: open
-awn-tags:
-  - demo
-  - reference
-awn-main: true
-awn-category: reference
-awn-owner: me
-awn-priority: high
-awn-color: purple
-awn-sort: 0
-awn-slots-disabled: false
-awn-runtime-load-always: true
-awn-runtime-cron: true
-awn-runtime-cron-schedule: "0 9 * * 1-5"
-awn-runtime-heartbeat: true
-awn-runtime-commands: false
-awn-create: "2026-06-21T12:00"
-awn-update: 2026-08-09T21:09:41.835Z
-awn-version: 16
-awn-description: ""
-awn-description: ""
-awn-name: ""
-awn-name: ""
-awn-preview: awn-storage/assets/preview/20260623203544.png
-awn-type: awn.page.topic
-awn-web-url: "https://example.com/all-field-types"
 demo_boolean: true
 demo_choice_many:
   - alpha
@@ -72,6 +45,33 @@ demo_tags_free:
 demo_text: ""
 demo_url: "https://example.com/all-field-types"
 field-1: ""
+awn-emoji: 🧪
+awn-status: open
+awn-tags:
+  - demo
+  - reference
+awn-main: true
+awn-category: reference
+awn-owner: me
+awn-priority: high
+awn-color: purple
+awn-sort: 0
+awn-slots-disabled: false
+awn-runtime-load-always: true
+awn-runtime-cron: true
+awn-runtime-cron-schedule: "0 9 * * 1-5"
+awn-runtime-heartbeat: true
+awn-runtime-commands: false
+awn-create: "2026-06-21T12:00"
+awn-update: 2026-08-09T20:35:51.001Z
+awn-version: 15
+awn-description: ""
+awn-description: ""
+awn-name: ""
+awn-name: ""
+awn-preview: awn-storage/assets/preview/20260623203544.png
+awn-type: awn.page.topic
+awn-web-url: "https://example.com/all-field-types"
 ---
 
 # All Field Types — демонстрация типов полей

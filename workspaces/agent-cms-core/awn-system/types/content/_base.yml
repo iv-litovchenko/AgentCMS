@@ -31,10 +31,18 @@ field-groups:
 
 fields:
   awn-attachments:
-    type: awn.field.file.many
+    type: awn.field.file.many.with-preview
     title: Вложения
     description: awn-storage/assets/attachments/
     scope: attachments
     placement: aside-hero
     group: materials
     sort: 1
+
+  awn-materials:
+    type: awn.field.materials
+    title: Доп. материалы
+    description: Папка awn-materials-* рядом с записью
+    placement: aside-hero
+    group: materials
+    sort: 2

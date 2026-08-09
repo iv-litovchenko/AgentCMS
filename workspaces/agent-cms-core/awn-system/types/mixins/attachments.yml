@@ -8,7 +8,7 @@ description: >
   Mixin оставлен для совместимости ссылок в документации.
 fields:
   awn-attachments:
-    type: awn.field.file.many
+    type: awn.field.file.many.with-preview
     title: Вложения
     placement: aside-hero
     group: materials

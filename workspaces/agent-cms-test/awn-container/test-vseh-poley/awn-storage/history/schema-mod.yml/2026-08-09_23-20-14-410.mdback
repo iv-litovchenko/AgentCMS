@@ -1,9 +1,10 @@
 version: 1
-layer: area
+layer: topic
 
 awn_schema:
   topic:
     fields:
+      # ── Текст ──
       demo_string:
         type: awn.field.string
         name: Строка
@@ -32,6 +33,8 @@ awn_schema:
         type: awn.field.text.markdown
         name: Markdown
         hint: awn.field.text.markdown
+
+      # ── Числа ──
       demo_integer:
         type: awn.field.number.integer
         name: Целое
@@ -40,6 +43,8 @@ awn_schema:
         type: awn.field.number
         name: Число
         hint: awn.field.number
+
+      # ── Выбор ──
       demo_boolean:
         type: awn.field.boolean
         name: Да / нет
@@ -50,15 +55,16 @@ awn_schema:
         hint: awn.field.choice.one
         enum:
           - key: open
-            name: "Открыта"
+            name: Открыта
           - key: in_progress
-            name: "В работе"
+            name: В работе
           - key: done
-            name: "Готово"
+            name: Готово
       demo_choice_many:
         type: awn.field.choice.many
         name: Несколько из списка (checkbox)
         hint: awn.field.choice.many
+        widget: checkbox
         enum:
           - key: alpha
             name: Alpha
@@ -70,6 +76,8 @@ awn_schema:
         type: awn.field.array.tags
         name: Теги (свободные)
         hint: awn.field.array.tags
+
+      # ── Дата и время ──
       demo_date:
         type: awn.field.date
         name: Дата
@@ -78,6 +86,8 @@ awn_schema:
         type: awn.field.date.datetime
         name: Дата и время
         hint: awn.field.date.datetime
+
+      # ── Медиа ──
       demo_color:
         type: awn.field.string.color
         name: Цвет (hex)
@@ -86,22 +96,24 @@ awn_schema:
         type: awn.field.file.one
         name: Файл (один)
         hint: awn.field.file.one
-        scope: area
+        scope: all
       demo_file_many:
         type: awn.field.file.many
         name: Файлы (несколько)
         hint: awn.field.file.many
-        scope: area
+        scope: all
       demo_image_one:
         type: awn.field.file.image.one
         name: Изображение (одно)
         hint: awn.field.file.image.one
-        scope: area
+        scope: all
       demo_image_many:
         type: awn.field.file.image.many
         name: Изображения (несколько)
         hint: awn.field.file.image.many
-        scope: area
+        scope: all
+
+      # ── Структура ──
       demo_json:
         type: awn.field.json
         name: JSON
@@ -110,36 +122,45 @@ awn_schema:
         type: awn.field.relation.one
         name: Связь (одна)
         hint: awn.field.relation.one
-        scope: topic
       demo_relation_many:
         type: awn.field.relation.many
         name: Связи (несколько)
         hint: awn.field.relation.many
-        scope: topic
+
+      # ── Справочники (lookup) ──
       demo_lookup_status:
         type: awn.field.lookup.one
+        source: statuses
         name: Lookup · статус
         hint: awn.field.lookup.one
       demo_lookup_category:
         type: awn.field.lookup.one
+        source: categories
         name: Lookup · категория
         hint: awn.field.lookup.one + source categories
       demo_lookup_owner:
         type: awn.field.lookup.one
+        source: users
         name: Lookup · владелец
         hint: awn.field.lookup.one + source users
       demo_lookup_priority:
         type: awn.field.lookup.one
+        source: priorities
         name: Lookup · приоритет
         hint: awn.field.lookup.one + source priorities
       demo_lookup_color:
         type: awn.field.lookup.one
+        source: colors
+        value-kind: color
         name: Lookup · цвет
         hint: awn.field.lookup.one + source colors
       demo_lookup_tags:
         type: awn.field.lookup.many
+        source: tags
         name: Lookup · теги
         hint: awn.field.lookup.many + source tags
+
+      # ── CMS / платформа ──
       demo_cron:
         type: awn.field.string.cron-schedule
         name: Cron-расписание
@@ -148,9 +169,7 @@ awn_schema:
         type: awn.field.file.image.one.with-preview
         name: Превью сущности
         hint: awn.field.file.image.one.with-preview
-      field-1:
-        type: awn.field.string
-        name: ауцау
+
   slot_memory:
     fields:
       rec_string:
@@ -162,11 +181,11 @@ awn_schema:
         widget: radio
         enum:
           - key: draft
-            name: "Черновик"
+            name: Черновик
           - key: review
-            name: "Проверка"
+            name: Проверка
           - key: published
-            name: "Опубликовано"
+            name: Опубликовано
       rec_choice_many:
         type: awn.field.choice.many
         name: Choice many (select-multiple)
@@ -191,7 +210,9 @@ awn_schema:
         name: Связь
       rec_lookup:
         type: awn.field.lookup.one
+        source: priorities
         name: Lookup приоритет
+
   slot_memory_sidecar:
     fields:
       sidecar_string:
@@ -202,4 +223,5 @@ awn_schema:
         name: Sidecar да/нет
       sidecar_lookup:
         type: awn.field.lookup.one
+        source: tags
         name: Sidecar lookup тег

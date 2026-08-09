@@ -20170,6 +20170,31 @@ a.header-tool-btn {
   background: #fff;
 }
 
+.doc-props-aside .doc-aside-materials-block {
+  margin: 0 0 12px;
+  padding: 8px 10px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+  background: #fff;
+}
+
+.doc-props-aside .doc-aside-materials-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.doc-props-aside .doc-aside-materials-block .props-form-record-materials {
+  margin: 0;
+}
+
+.doc-props-aside .doc-aside-materials-block .props-form-record-materials-add {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .doc-props-aside .doc-aside-attachments-head {
   display: flex;
   flex-direction: column;
@@ -32420,21 +32445,73 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .editor-custom-props-fields .props-form-row.editor-custom-props-field,
-.editor-custom-props-fields .editor-custom-props-preview-field {
+.editor-custom-props-fields .props-form-row.props-form-field--compact.editor-custom-props-field {
   display: grid;
-  grid-template-columns: minmax(88px, 34%) minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
+  grid-template-columns: minmax(120px, 38%) minmax(0, 1fr);
+  align-items: start;
+  gap: 10px 12px;
   width: 100%;
   min-width: 0;
   margin: 0;
-  padding: 7px 14px;
+  padding: 8px 14px;
   border: 0;
   border-radius: 0;
   border-bottom: 1px solid rgba(226, 232, 240, 0.92);
   background: transparent;
   box-sizing: border-box;
-  font-size: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+  color: inherit;
+}
+
+.editor-custom-props-fields .props-form-field-head {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.editor-custom-props-fields .props-form-field-label--with-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow: hidden;
+}
+
+.editor-custom-props-fields .props-form-value-wrap,
+.editor-custom-props-fields .props-form-value-wrap--boolean {
+  justify-self: stretch;
+  align-self: center;
+  min-width: 0;
+}
+
+.editor-custom-props-fields .props-form-value-wrap--boolean .props-form-bool-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-height: 28px;
+}
+
+.editor-custom-props-fields .editor-custom-props-preview-field {
+  display: grid;
+  grid-template-columns: minmax(120px, 38%) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 12px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.92);
+  background: transparent;
+  box-sizing: border-box;
+  font-size: 13px;
+  line-height: 1.35;
   color: inherit;
 }
 

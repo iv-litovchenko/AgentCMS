@@ -352,6 +352,7 @@ const titleEditorBlockNode = document.getElementById("editor-title-bar");
 const propsPreviewBlockNode = document.getElementById("props-preview-block");
 const propsWebUrlBlockNode = document.getElementById("props-web-url-block");
 const propsAttachmentsBlockNode = document.getElementById("props-attachments-block");
+const propsMaterialsBlockNode = document.getElementById("props-materials-block");
 const attachmentSidecarModalNode = document.getElementById("attachment-sidecar-modal");
 const attachmentSidecarModalPathNode = document.getElementById("attachment-sidecar-modal-path");
 const attachmentSidecarNameInputNode = document.getElementById("attachment-sidecar-name-input");
@@ -28829,7 +28830,7 @@ function formatRecordMaterialsCountLabel(count) {
   return `${normalized} файлов`;
 }
 
-function createPropsRecordMaterialsAddControl({ locked = false } = {}) {
+function createPropsRecordMaterialsAddControl({ locked = false, onMaterialsStateChange = null } = {}) {
   const context = resolvePropsRecordMaterialsContext();
   if (!context || !shouldShowEntryOverviewRecordParts(context)) return null;
 
@@ -28846,6 +28847,7 @@ function createPropsRecordMaterialsAddControl({ locked = false } = {}) {
 
     const exists = await recordPartsWorkspaceFolderExists(workspaceFolderPath);
     if (exists) {
+      onMaterialsStateChange?.(true);
       const status = document.createElement("div");
       status.className = "props-form-record-materials-status";
       appendRecordMaterialsIconLabel(status, RECORD_MATERIALS_UI_LABEL, {
@@ -28875,6 +28877,7 @@ function createPropsRecordMaterialsAddControl({ locked = false } = {}) {
       addBtn.disabled = true;
       void ensureRecordPartsWorkspaceFolder(workspaceFolderPath)
         .then(() => {
+          onMaterialsStateChange?.(true);
           showToast(`${RECORD_MATERIALS_UI_LABEL} созданы`, "success");
           return renderState();
         })
@@ -35720,15 +35723,41 @@ function isPropsFieldHiddenBySchema(key, fieldDef = getSchemaPropsFieldDef(key))
   return String(fieldDef.placement || "").trim() === "hidden";
 }
 
+const PROPS_PLACEMENT_EDITOR_BODY = "editor-body";
+
 function getPropsFieldPlacement(key, fieldDef = getSchemaPropsFieldDef(key)) {
   const placement = String(fieldDef?.placement || "").trim();
   if (placement) return placement;
   const normalized = normalizePropsKey(key);
   if (normalized === "awn-name") return "title-bar";
-  if (normalized === "awn-preview" || normalized === "awn-web-url" || normalized === "awn-attachments") {
+  if (normalized === "awn-description") return "hidden";
+  if (
+    normalized === "awn-preview" ||
+    normalized === "awn-web-url" ||
+    normalized === "awn-attachments" ||
+    normalized === "awn-materials"
+  ) {
     return "aside-hero";
   }
-  return "aside-body";
+  if (isOverviewSettingsFieldKey(normalized)) return "aside-body";
+  if (isAwnFieldKey(normalized)) return "aside-body";
+  return PROPS_PLACEMENT_EDITOR_BODY;
+}
+
+function shouldRenderPropsFieldInPlacement(key, placement) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized || normalized === "title") return false;
+  if (!shouldIncludePropsFieldKey(normalized)) return false;
+  const fieldDef = getSchemaPropsFieldDef(normalized);
+  if (isPropsFieldHiddenBySchema(normalized, fieldDef)) return false;
+  if (getPropsFieldPlacement(normalized, fieldDef) !== placement) return false;
+  if (
+    (placement === "aside-body" || placement === PROPS_PLACEMENT_EDITOR_BODY) &&
+    isPropsAsideDedicatedBlockField(normalized, fieldDef)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function isPropsAsideHeroField(key, fieldDef = getSchemaPropsFieldDef(key)) {
@@ -35737,13 +35766,70 @@ function isPropsAsideHeroField(key, fieldDef = getSchemaPropsFieldDef(key)) {
 }
 
 function shouldRenderPropsFieldInAsideBody(key) {
-  const normalized = normalizePropsKey(key);
-  if (!normalized || normalized === "title") return false;
-  if (!shouldIncludePropsFieldKey(normalized)) return false;
-  const fieldDef = getSchemaPropsFieldDef(normalized);
-  if (isPropsFieldHiddenBySchema(normalized, fieldDef)) return false;
-  if (getPropsFieldPlacement(normalized, fieldDef) !== "aside-body") return false;
-  return true;
+  return shouldRenderPropsFieldInPlacement(key, "aside-body");
+}
+
+function shouldRenderPropsFieldInEditorBody(key) {
+  return shouldRenderPropsFieldInPlacement(key, PROPS_PLACEMENT_EDITOR_BODY);
+}
+
+function getSchemaFieldKeysForPlacement(placement) {
+  const typeDef = getActiveAwnTypeDef();
+  const fields = typeDef?.fields || {};
+  return Object.keys(fields)
+    .filter((key) => shouldRenderPropsFieldInPlacement(key, placement))
+    .sort((a, b) => comparePropsFieldSchemaOrder(a, b, fields));
+}
+
+function ensurePropsSchemaEntriesForPlacement(placement) {
+  const schemaKeys = getSchemaFieldKeysForPlacement(placement);
+  if (!schemaKeys.length) return false;
+  const existing = new Set(
+    propsFormEntries.map((entry) => normalizePropsKey(entry?.key)).filter(Boolean)
+  );
+  let changed = false;
+  for (const key of schemaKeys) {
+    if (existing.has(key)) continue;
+    const fieldDef = getPropsFieldDef(key);
+    const widget = resolvePropsFieldWidget(key, fieldDef);
+    let kind = "string";
+    let value = "";
+    if (widget === "attachments") {
+      kind = isAttachmentsFieldStorageMany(fieldDef) ? "array" : "string";
+      value = kind === "array" ? [] : "";
+    } else if (widget === "materials" || fieldDef?.storage === "boolean") {
+      kind = "bool";
+      value = false;
+    } else if (fieldDef?.storage === "array" || isFieldTypeMany(fieldDef?.type)) {
+      kind = "array";
+      value = [];
+    }
+    propsFormEntries.push({ key, kind, value });
+    existing.add(key);
+    changed = true;
+  }
+  if (changed) {
+    propsFormEntries = sortPropsEntries(propsFormEntries);
+  }
+  return changed;
+}
+
+function collectPropsFormItemsForPlacement(placement) {
+  ensurePropsSchemaEntriesForPlacement(placement);
+  const schemaKeys = getSchemaFieldKeysForPlacement(placement);
+  const items = [];
+  for (let index = 0; index < propsFormEntries.length; index += 1) {
+    const entry = propsFormEntries[index];
+    const key = normalizePropsKey(entry?.key);
+    if (!key || !shouldRenderPropsFieldInPlacement(key, placement)) continue;
+    items.push({ entry, index });
+  }
+  if (schemaKeys.length) {
+    const byKey = new Map(items.map((item) => [normalizePropsKey(item.entry.key), item]));
+    return schemaKeys.map((key) => byKey.get(normalizePropsKey(key))).filter(Boolean);
+  }
+  items.sort((a, b) => String(a.entry.key).localeCompare(String(b.entry.key), "ru"));
+  return items;
 }
 
 function comparePropsFieldSchemaOrder(a, b, fields = getActiveAwnTypeDef()?.fields || {}) {
@@ -35767,14 +35853,8 @@ function syncPropsPanelTitleFromSchema() {
 }
 
 function getStandardPropsFieldKeys() {
-  const typeDef = getActiveAwnTypeDef();
-  const fields = typeDef?.fields;
-  if (fields && typeof fields === "object") {
-    const keys = Object.keys(fields).filter((key) => shouldRenderPropsFieldInAsideBody(key));
-    if (keys.length) {
-      return keys.sort((a, b) => comparePropsFieldSchemaOrder(a, b, fields));
-    }
-  }
+  const keys = getSchemaFieldKeysForPlacement("aside-body");
+  if (keys.length) return keys;
 
   const fromApi = awnTypesCache?.baseFieldOrder;
   if (Array.isArray(fromApi) && fromApi.length) {
@@ -37288,7 +37368,9 @@ const FIELD_TYPE_SELECT_GROUPS = [
       "awn.field.file.many",
       "awn.field.file.image.one",
       "awn.field.file.image.one.with-preview",
-      "awn.field.file.image.many"
+      "awn.field.file.image.many.with-preview",
+      "awn.field.file.one.with-preview",
+      "awn.field.file.many.with-preview"
     ]
   },
   {
@@ -37301,7 +37383,7 @@ const FIELD_TYPE_SELECT_GROUPS = [
   },
   {
     label: "CMS / платформа",
-    types: ["awn.field.string.cron-schedule"]
+    types: ["awn.field.string.cron-schedule", "awn.field.materials"]
   }
 ];
 
@@ -37418,10 +37500,20 @@ function topicSchemaTargetHasCustomFields(targetId, cache = getTopicSchemaCache(
   return getTopicSchemaCustomFieldKeys(targetId, cache).length > 0;
 }
 
+function getTopicSchemaLayoutSettingKeys() {
+  return ["placement", "group", "sort"];
+}
+
 function topicSchemaFieldHasAdvancedSettings(fieldDef) {
   if (!fieldDef || typeof fieldDef !== "object") return false;
   const typeId = resolveFieldTypeId(fieldDef.type || "awn.field.string");
-  const allowedSettings = new Set(["type", "title", "name", ...getFieldTypeSettingsKeys(typeId)]);
+  const allowedSettings = new Set([
+    "type",
+    "title",
+    "name",
+    ...getFieldTypeSettingsKeys(typeId),
+    ...getTopicSchemaLayoutSettingKeys()
+  ]);
   for (const [propKey, value] of Object.entries(fieldDef)) {
     if (!allowedSettings.has(propKey)) continue;
     if (shouldPersistFieldDefSetting(propKey, value, fieldDef)) return true;
@@ -37443,37 +37535,11 @@ function topicSchemaTabGroupHasCustomFields(group, cache = getTopicSchemaCache()
   return false;
 }
 
-function defaultTopicSchemaFieldKeyForTarget(target, index) {
-  if (target === "workspace") return `ws-field-${index}`;
-  if (target === "area") return `area-field-${index}`;
-  if (target === "topic") return `topic-field-${index}`;
-  if (target === "settings") {
-    const level = getSchemaContextLevel();
-    if (level === "workspace") return `ws-setting-${index}`;
-    if (level === "area") return `area-setting-${index}`;
-    return `topic-setting-${index}`;
-  }
-  if (String(target || "").startsWith("slot_")) return `x-field-${index}`;
+function defaultTopicSchemaFieldKeyForTarget(_target, index) {
   return `field-${index}`;
 }
 
-function getTopicSchemaFieldKeyHint(target) {
-  if (target === "workspace") return { placeholder: "ws-ключ", title: "Ключ поля (ws-*)" };
-  if (target === "area") return { placeholder: "area-ключ", title: "Ключ поля (area-*)" };
-  if (target === "topic") return { placeholder: "topic-ключ", title: "Ключ поля (topic-*)" };
-  if (target === "settings") {
-    const level = getSchemaContextLevel();
-    if (level === "workspace") {
-      return { placeholder: "ws-setting-ключ", title: "Ключ поля (ws-setting-*)" };
-    }
-    if (level === "area") {
-      return { placeholder: "area-setting-ключ", title: "Ключ поля (area-setting-*)" };
-    }
-    return { placeholder: "topic-setting-ключ", title: "Ключ поля (topic-setting-*)" };
-  }
-  if (String(target || "").startsWith("slot_")) {
-    return { placeholder: "x-ключ", title: "Ключ поля (x-*)" };
-  }
+function getTopicSchemaFieldKeyHint(_target) {
   return { placeholder: "ключ", title: "Ключ поля" };
 }
 
@@ -37488,7 +37554,13 @@ function addTopicSchemaField(target = topicSchemaActiveTarget) {
     index += 1;
     key = defaultTopicSchemaFieldKeyForTarget(target, index);
   }
-  fields[key] = { type: "awn.field.string", name: "", title: "" };
+  fields[key] = {
+    type: "awn.field.string",
+    name: "",
+    placement: "editor-body",
+    group: "content",
+    sort: index * 10
+  };
   renderTopicSchemaEditor();
   syncSaveButtonLamp();
   const keyInput = topicSchemaFieldsNode?.querySelector(`[data-schema-key="${CSS.escape(key)}"]`);
@@ -37526,19 +37598,8 @@ function reorderTopicSchemaFields(target, key, direction) {
   syncSaveButtonLamp();
 }
 
-function normalizeSettingsSchemaFieldKey(key, level = getSchemaContextLevel()) {
-  const trimmed = String(key || "").trim();
-  if (!trimmed) return trimmed;
-  if (level === "workspace") {
-    if (/^ws-setting-/i.test(trimmed)) return trimmed;
-    return `ws-setting-${trimmed.replace(/^ws-setting-?/i, "")}`;
-  }
-  if (level === "area") {
-    if (/^area-setting-/i.test(trimmed)) return trimmed;
-    return `area-setting-${trimmed.replace(/^area-setting-?/i, "")}`;
-  }
-  if (/^topic-setting-/i.test(trimmed)) return trimmed;
-  return `topic-setting-${trimmed.replace(/^topic-setting-?/i, "")}`;
+function normalizeSettingsSchemaFieldKey(key) {
+  return String(key || "").trim();
 }
 
 function normalizeTopicSchemaFieldKeyForTarget(key, target) {
@@ -37857,20 +37918,21 @@ function renderTopicSchemaEditor() {
   if (leadNode) {
     if (isWorkspaceSchemaContext()) {
       leadNode.innerHTML =
-        `Дополнительные поля workspace (<code>ws-*</code>) сохраняются в <code>${SCHEMA_MOD_FILE}</code> в корне агента. ` +
+        `Дополнительные поля workspace сохраняются в <code>${SCHEMA_MOD_FILE}</code> в корне агента. ` +
         "Действуют только на уровне workspace — не смешиваются с областями и темами. " +
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
         '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
     } else if (isAreaSchemaContext()) {
       leadNode.innerHTML =
-        `Дополнительные поля области (<code>area-*</code>) сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest области. ` +
+        `Дополнительные поля области сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest области. ` +
         "Действуют только на уровне области — поля WS и тем здесь не подмешиваются. " +
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа. " +
         '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
     } else {
       leadNode.innerHTML =
         `Дополнительные поля сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest темы. ` +
-        "Префиксы: <code>topic-*</code> (тема), <code>topic-setting-*</code> (настройки), <code>x-*</code> (слоты и разделы). " +
+        "Ключи произвольные — префиксы не обязательны. Зона UI (<code>placement</code>): <code>editor-body</code> (над текстом), <code>aside-body</code> (панель свойств), <code>aside-hero</code> (медиа). " +
+        "Настройки темы — вкладка «Настройки». " +
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
         "Поля WS и области здесь не смешиваются — только схема этой темы. " +
         '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
@@ -37942,7 +38004,13 @@ function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache(), target 
   const activeKey = row.dataset.schemaRowKey;
   const fieldDef = fields[activeKey] || {};
   const nextType = resolveFieldTypeId(typeSelect?.value || "awn.field.string");
-  const allowedSettings = new Set(["type", "title", "name", ...getFieldTypeSettingsKeys(nextType)]);
+  const allowedSettings = new Set([
+    "type",
+    "title",
+    "name",
+    ...getFieldTypeSettingsKeys(nextType),
+    ...getTopicSchemaLayoutSettingKeys()
+  ]);
 
   fieldDef.type = nextType;
   const nextName = String(titleInput?.value || "").trim();
@@ -38892,10 +38960,7 @@ function isWsFieldKey(key) {
 }
 
 function normalizeWorkspaceSchemaFieldKey(key) {
-  const trimmed = String(key || "").trim();
-  if (!trimmed) return trimmed;
-  if (isWsFieldKey(trimmed)) return trimmed;
-  return `ws-${trimmed.replace(/^ws-?/i, "")}`;
+  return String(key || "").trim();
 }
 
 function isAreaFieldKey(key) {
@@ -38903,10 +38968,7 @@ function isAreaFieldKey(key) {
 }
 
 function normalizeAreaSchemaFieldKey(key) {
-  const trimmed = String(key || "").trim();
-  if (!trimmed) return trimmed;
-  if (isAreaFieldKey(trimmed)) return trimmed;
-  return `area-${trimmed.replace(/^area-?/i, "")}`;
+  return String(key || "").trim();
 }
 
 function isTopicFieldKey(key) {
@@ -38915,10 +38977,7 @@ function isTopicFieldKey(key) {
 }
 
 function normalizeTopicSchemaFieldKey(key) {
-  const trimmed = String(key || "").trim();
-  if (!trimmed) return trimmed;
-  if (isTopicFieldKey(trimmed)) return trimmed;
-  return `topic-${trimmed.replace(/^topic-?/i, "")}`;
+  return String(key || "").trim();
 }
 
 function isTopicSettingFieldKey(key) {
@@ -38934,16 +38993,23 @@ function isAreaSettingFieldKey(key) {
 }
 
 function normalizeTopicSettingSchemaFieldKey(key) {
-  return normalizeSettingsSchemaFieldKey(key, "topic");
+  return normalizeSettingsSchemaFieldKey(key);
 }
 
 function isSlotCustomFieldKey(key) {
   return /^x-/i.test(String(key || "").trim());
 }
 
+function isSettingsPropKeyInRawSchema(key, cache = resolveActiveOverviewSchemaCache()) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return false;
+  return Object.prototype.hasOwnProperty.call(cache?.awnSchema?.settings?.fields || {}, normalized);
+}
+
 function isSettingsPropKeyForSchemaLevel(key, nodePath = getResolvedNodePath(activePath), levelOverride = null) {
   const normalized = normalizePropsKey(key);
   if (!normalized) return false;
+  if (isSettingsPropKeyInRawSchema(normalized)) return true;
   const level = levelOverride || getSchemaContextLevel(nodePath);
   if (level === "workspace") return isWsSettingFieldKey(normalized);
   if (level === "area") return isAreaSettingFieldKey(normalized);
@@ -38953,18 +39019,15 @@ function isSettingsPropKeyForSchemaLevel(key, nodePath = getResolvedNodePath(act
 function isCustomPropKeyForSchemaLevel(key, nodePath = getResolvedNodePath(activePath)) {
   const normalized = normalizePropsKey(key);
   if (!normalized || isAwnFieldKey(normalized)) return false;
-  const level = getSchemaContextLevel(nodePath);
-  if (level === "workspace") return isWsFieldKey(normalized);
-  if (level === "area") return isAreaFieldKey(normalized);
-  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
-    return isTopicFieldKey(normalized) || isSlotCustomFieldKey(normalized);
-  }
-  return isTopicFieldKey(normalized);
+  if (isOverviewSettingsFieldKey(normalized, nodePath)) return false;
+  return true;
 }
 
 function isForeignLayerCustomPropKey(key, nodePath = getResolvedNodePath(activePath)) {
   const normalized = normalizePropsKey(key);
-  if (!normalized) return false;
+  if (!normalized || isAwnFieldKey(normalized)) return false;
+  const customFields = getOverviewCustomSchemaLayerFields(nodePath);
+  if (Object.prototype.hasOwnProperty.call(customFields, normalized)) return false;
   return (
     (isWsFieldKey(normalized) ||
       isAreaFieldKey(normalized) ||
@@ -39025,10 +39088,7 @@ function stripAwnSchemaToContextLevel(awnSchema, level) {
 }
 
 function normalizeSlotSchemaFieldKey(key) {
-  const trimmed = String(key || "").trim();
-  if (!trimmed) return trimmed;
-  if (isSlotCustomFieldKey(trimmed)) return trimmed;
-  return `x-${trimmed.replace(/^x-?/i, "")}`;
+  return String(key || "").trim();
 }
 
 function isSchemaDefinedFieldKey(key) {
@@ -39058,12 +39118,7 @@ function getOverviewCustomSchemaLayerFields(nodePath = getResolvedNodePath(activ
     activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null;
   const cache = resolveActiveOverviewSchemaCache(overviewContext);
   const target = resolveOverviewSchemaTargetForNode(nodePath);
-  const rawFields = cache ? getTopicSchemaCustomFieldsForTarget(target, cache) : {};
-  const filtered = {};
-  for (const [key, def] of Object.entries(rawFields)) {
-    if (isCustomPropKeyForSchemaLevel(key, nodePath)) filtered[key] = def;
-  }
-  return filtered;
+  return cache ? getTopicSchemaCustomFieldsForTarget(target, cache) : {};
 }
 
 function getOverviewSettingsSchemaFieldsFromCache(context = null, nodePath = getResolvedNodePath(activePath)) {
@@ -39278,68 +39333,28 @@ function getOverviewCustomSchemaFieldKeys(nodePath = getResolvedNodePath(activeP
 
 function isOrphanPropsFieldKey(key) {
   const entryKey = normalizePropsKey(key);
-  if (entryKey === "awn-preview" || entryKey === "awn-attachments") return false;
+  if (entryKey === "awn-preview" || entryKey === "awn-attachments" || entryKey === "awn-materials") return false;
   if (entryKey && HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) return false;
   if (!entryKey) return true;
   return !isOverviewCustomSchemaFieldKey(entryKey) && !isOverviewSettingsFieldKey(entryKey) && !isAwnFieldKey(entryKey);
 }
 
 function isEditorCustomPropsFieldKey(key, nodePath = getPropsContextPath()) {
-  const entryKey = normalizePropsKey(key);
-  if (!entryKey) return false;
-  if (OVERVIEW_EXCLUDED_PROP_KEYS.has(entryKey)) return false;
-  if (HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) return false;
-  if (isOverviewSettingsFieldKey(entryKey)) return false;
-  if (isAwnFieldKey(entryKey)) return false;
-  return true;
+  return shouldRenderPropsFieldInEditorBody(key);
 }
 
 function isEditorCustomPropsFieldInSchema(key, entry = null, nodePath = getPropsContextPath()) {
-  return isOverviewCustomSchemaFieldKey(key, nodePath);
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return false;
+  return Boolean(getPropsFieldDef(normalized));
 }
 
 function ensureEditorCustomPropsSchemaEntries(nodePath = getPropsContextPath()) {
-  const schemaKeys = getOverviewCustomSchemaFieldKeys(nodePath);
-  if (!schemaKeys.length) return false;
-  const existing = new Set(
-    propsFormEntries.map((entry) => normalizePropsKey(entry?.key)).filter(Boolean)
-  );
-  let changed = false;
-  for (const key of schemaKeys) {
-    if (existing.has(key)) continue;
-    propsFormEntries.push({ key, kind: "string", value: "" });
-    existing.add(key);
-    changed = true;
-  }
-  if (changed) {
-    propsFormEntries = sortPropsEntries(propsFormEntries);
-  }
-  return changed;
+  return ensurePropsSchemaEntriesForPlacement(PROPS_PLACEMENT_EDITOR_BODY);
 }
 
 function collectEditorCustomPropsItems(nodePath = getPropsContextPath()) {
-  ensureEditorCustomPropsSchemaEntries(nodePath);
-  const items = [];
-  for (let index = 0; index < propsFormEntries.length; index += 1) {
-    const entry = propsFormEntries[index];
-    const key = normalizePropsKey(entry?.key);
-    if (!key || !isEditorCustomPropsFieldKey(key, nodePath)) continue;
-    items.push({ entry, index });
-  }
-  const compareKeys = (a, b) =>
-    String(a.entry.key || "").localeCompare(String(b.entry.key || ""), "ru");
-  const inSchema = [];
-  const orphans = [];
-  for (const item of items) {
-    if (isEditorCustomPropsFieldInSchema(item.entry.key, item.entry, nodePath)) {
-      inSchema.push(item);
-    } else {
-      orphans.push(item);
-    }
-  }
-  inSchema.sort(compareKeys);
-  orphans.sort(compareKeys);
-  return [...inSchema, ...orphans];
+  return collectPropsFormItemsForPlacement(PROPS_PLACEMENT_EDITOR_BODY);
 }
 
 function getPropsFormFieldContainers() {
@@ -39658,6 +39673,20 @@ function resolveAwnTypeForContext(nodePath = activePath) {
   return inferAwnTypeFromRelPath(manifestPath, typeOptions);
 }
 
+function resolveTypeFieldGroups(typeName) {
+  let current = normalizeAwnTypeName(typeName);
+  const visited = new Set();
+  while (current && !visited.has(current)) {
+    visited.add(current);
+    const def = awnTypesCache?.types?.[current];
+    if (Array.isArray(def?.fieldGroups) && def.fieldGroups.length) {
+      return def.fieldGroups;
+    }
+    current = def?.extends ? normalizeAwnTypeName(def.extends) : null;
+  }
+  return null;
+}
+
 function getActiveAwnTypeDef(typeName = null) {
   let resolvedType = normalizeAwnTypeName(typeName || resolveAwnTypeForContext());
 
@@ -39692,13 +39721,16 @@ function getActiveAwnTypeDef(typeName = null) {
     return {
       name: merged.name || resolvedType,
       kind: merged.kind || baseTypeDef?.kind || "type",
-      fields: merged.fields
+      fields: merged.fields,
+      form: baseTypeDef?.form,
+      fieldGroups: resolveTypeFieldGroups(resolvedType) || baseTypeDef?.fieldGroups
     };
   }
 
   const baseTypeDef = awnTypesCache?.types?.[resolvedType];
   if (!baseTypeDef) return null;
-  return { name: resolvedType, ...baseTypeDef };
+  const fieldGroups = resolveTypeFieldGroups(resolvedType) || baseTypeDef.fieldGroups;
+  return { name: resolvedType, ...baseTypeDef, fieldGroups };
 }
 
 function getActiveSettingsTypeDef(overviewContext = null) {
@@ -39886,6 +39918,10 @@ const FIELD_TYPE_ICONS = {
   "awn.file.image.many": "🎞️",
   "awn.field.file.image.one.with-preview": "🪪",
   "awn.file.image.one.with-preview": "🪪",
+  "awn.field.file.image.many.with-preview": "🖼️",
+  "awn.field.file.one.with-preview": "📎",
+  "awn.field.file.many.with-preview": "📎",
+  "awn.field.materials": "📦",
   "awn.field.lookup.one": "📇",
   "awn.lookup.one": "📇",
   "awn.field.lookup.many": "📚",
@@ -40125,8 +40161,88 @@ function isFieldTypeMany(typeId) {
 function isPropsAttachmentsField(key, fieldDef = getPropsFieldDef(key)) {
   if (normalizePropsKey(key) === "awn-attachments") return true;
   if (!fieldDef) return false;
+  if (String(fieldDef.widget || "").trim() === "attachments") return true;
+  const typeId = normalizeCanonicalFieldTypeId(fieldDef.type || "");
+  if (
+    fieldTypeIs(typeId, "file.one.with-preview") ||
+    fieldTypeIs(typeId, "file.many.with-preview")
+  ) {
+    return true;
+  }
   const scope = String(fieldDef.scope || "").trim();
   return scope === "attachments" && fieldTypeIs(fieldDef.type, "file.many");
+}
+
+function isPropsPreviewWidgetField(key, fieldDef = getPropsFieldDef(key)) {
+  return resolvePropsFieldWidget(key, fieldDef) === "preview";
+}
+
+function isPropsMaterialsWidgetField(key, fieldDef = getPropsFieldDef(key)) {
+  return resolvePropsFieldWidget(key, fieldDef) === "materials";
+}
+
+function isPropsAsideDedicatedBlockField(key, fieldDef = getPropsFieldDef(key)) {
+  if (!isPropsAsideHeroField(key, fieldDef)) return false;
+  const widget = resolvePropsFieldWidget(key, fieldDef);
+  return widget === "preview" || widget === "attachments" || widget === "materials" || widget === "url";
+}
+
+function isAttachmentsFieldStorageMany(fieldDef = null) {
+  if (!fieldDef) return true;
+  const typeId = normalizeCanonicalFieldTypeId(fieldDef.type || "");
+  if (fieldTypeIs(typeId, "file.one.with-preview")) return false;
+  if (fieldTypeIs(typeId, "file.one")) return false;
+  return isFieldTypeMany(typeId) || fieldDef.storage === "array";
+}
+
+function findPropsAsideHeroFieldEntry(
+  widget,
+  { defaultKind = "string", defaultValue = "", fallbackKey = "" } = {}
+) {
+  const typeDef = getActiveAwnTypeDef();
+  const fields = typeDef?.fields || {};
+  const keys = Object.keys(fields).sort((a, b) => comparePropsFieldSchemaOrder(a, b, fields));
+  for (const key of keys) {
+    const def = fields[key];
+    if (!isPropsAsideHeroField(key, def)) continue;
+    if (resolvePropsFieldWidget(key, def) !== widget) continue;
+    const index = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === key);
+    if (index >= 0) return { entry: propsFormEntries[index], index, key };
+    const kind =
+      widget === "attachments"
+        ? isAttachmentsFieldStorageMany(def)
+          ? "array"
+          : "string"
+        : widget === "materials"
+          ? "bool"
+          : defaultKind;
+    const value =
+      widget === "attachments"
+        ? isAttachmentsFieldStorageMany(def)
+          ? []
+          : ""
+        : widget === "materials"
+          ? false
+          : defaultValue;
+    return { entry: { key, kind, value }, index: -1, key };
+  }
+  if (fallbackKey && isPropsAsideHeroField(fallbackKey)) {
+    const def = getPropsFieldDef(fallbackKey);
+    if (def && resolvePropsFieldWidget(fallbackKey, def) === widget) {
+      const index = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === fallbackKey);
+      if (index >= 0) return { entry: propsFormEntries[index], index, key: fallbackKey };
+      return {
+        entry: {
+          key: fallbackKey,
+          kind: widget === "attachments" ? "array" : widget === "materials" ? "bool" : defaultKind,
+          value: widget === "attachments" ? [] : widget === "materials" ? false : defaultValue
+        },
+        index: -1,
+        key: fallbackKey
+      };
+    }
+  }
+  return null;
 }
 
 function isBooleanFieldTypeId(typeId) {
@@ -40246,6 +40362,12 @@ function parseFieldDefSettingValue(propKey, propDef, rawValue) {
     const next = String(rawValue || "").trim();
     return next ? resolveFieldTypeId(next) : "";
   }
+  if (propKey === "sort") {
+    const next = String(rawValue ?? "").trim();
+    if (!next) return "";
+    const num = Number(next);
+    return Number.isFinite(num) ? num : "";
+  }
   if (isFieldDefBooleanSetting(propKey, propDef)) {
     if (typeof rawValue === "boolean") return rawValue;
     const normalized = String(rawValue || "").trim().toLowerCase();
@@ -40271,6 +40393,7 @@ function shouldPersistFieldDefSetting(propKey, value, fieldDef = null) {
     return Array.isArray(value) && value.length > 0;
   }
   if (propKey === "items") return Boolean(String(value || "").trim());
+  if (propKey === "sort") return value !== "" && value !== null && value !== undefined;
   if (isFieldDefBooleanSetting(propKey)) return value === true;
   return String(value ?? "").trim().length > 0;
 }
@@ -40382,6 +40505,37 @@ function createTopicSchemaSettingControl(propKey, propDef, fieldDef, schemaKey) 
     delete label.dataset.schemaField;
     label.append(caption, control);
     return label;
+  } else if (propKey === "placement") {
+    control = document.createElement("select");
+    const placementOptions = [
+      ["editor-body", "Над текстом (editor-body)"],
+      ["aside-body", "Панель свойств (aside-body)"],
+      ["aside-hero", "Панель · медиа (aside-hero)"],
+      ["title-bar", "Шапка (title-bar)"],
+      ["hidden", "Скрыто (hidden)"]
+    ];
+    for (const [value, text] of placementOptions) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      control.append(option);
+    }
+    control.value = String(fieldDef?.placement || "editor-body");
+  } else if (propKey === "group") {
+    control = document.createElement("select");
+    for (const groupDef of getActivePropsFieldGroups()) {
+      const option = document.createElement("option");
+      option.value = groupDef.id;
+      option.textContent = groupDef.name || groupDef.id;
+      control.append(option);
+    }
+    control.value = String(fieldDef?.group || "content");
+  } else if (propKey === "sort") {
+    control = document.createElement("input");
+    control.type = "number";
+    control.step = "1";
+    control.value = String(fieldDef?.sort ?? "");
+    control.placeholder = "0";
   } else if (propKey === "widget") {
     control = document.createElement("select");
     const typeId = resolveFieldTypeId(fieldDef?.type || "");
@@ -40441,7 +40595,8 @@ function appendTopicSchemaFieldSettings(host, fieldDef, schemaKey, { expanded = 
   const settingsHost = document.createElement("div");
   settingsHost.className = "topic-schema-field-settings";
   const settingKeys = getFieldTypeSettingsKeys(fieldDef?.type);
-  if (!settingKeys.length) {
+  const layoutKeys = getTopicSchemaLayoutSettingKeys();
+  if (!settingKeys.length && !layoutKeys.length) {
     settingsHost.classList.add("is-empty");
     host.appendChild(settingsHost);
     return settingsHost;
@@ -40454,6 +40609,29 @@ function appendTopicSchemaFieldSettings(host, fieldDef, schemaKey, { expanded = 
       createTopicSchemaSettingControl(
         propKey,
         getFieldTypeSettingPropDef(propKey),
+        fieldDef,
+        schemaKey
+      )
+    );
+  }
+  for (const propKey of layoutKeys) {
+    settingsHost.appendChild(
+      createTopicSchemaSettingControl(
+        propKey,
+        {
+          title:
+            propKey === "placement"
+              ? "Зона UI"
+              : propKey === "group"
+                ? "Группа"
+                : "Порядок",
+          description:
+            propKey === "placement"
+              ? "Где показывать поле в редакторе"
+              : propKey === "group"
+                ? "Группа в панели свойств (aside-body)"
+                : "Сортировка внутри зоны и группы"
+        },
         fieldDef,
         schemaKey
       )
@@ -40816,7 +40994,7 @@ function normalizePropsEntries(entries) {
 }
 
 const HIDDEN_PROPS_FIELD_KEYS = new Set(["title"]);
-const OVERVIEW_EXCLUDED_PROP_KEYS = new Set(["awn-preview", "awn-web-url", "awn-attachments"]);
+const OVERVIEW_EXCLUDED_PROP_KEYS = new Set(["awn-preview", "awn-web-url", "awn-attachments", "awn-materials"]);
 
 function ensureAwnContextDefaults(entries) {
   const map = new Map();
@@ -42527,24 +42705,24 @@ function syncDocAsideTabAvailability() {
 }
 
 function hasPropsAttachmentsField() {
-  return isPropsAsideHeroField("awn-attachments") && Boolean(getPropsFieldDef("awn-attachments"));
+  return Boolean(findPropsAsideHeroFieldEntry("attachments", { fallbackKey: "awn-attachments" }));
 }
 
 function findPropsAttachmentsEntry() {
-  const index = propsFormEntries.findIndex(
-    (entry) => normalizePropsKey(entry.key) === "awn-attachments"
-  );
-  if (index >= 0) return { entry: propsFormEntries[index], index };
-  if (!hasPropsAttachmentsField()) return null;
-  return { entry: { key: "awn-attachments", kind: "array", value: [] }, index: -1 };
+  return findPropsAsideHeroFieldEntry("attachments", { fallbackKey: "awn-attachments" });
 }
 
 function mergePropsAttachmentsIntoEntries(entries) {
-  const key = "awn-attachments";
-  const withoutAttachments = entries.filter((entry) => normalizePropsKey(entry.key) !== key);
-  if (!hasPropsAttachmentsField()) {
-    return ensureStandardPropsEntries(withoutAttachments);
+  const spec = findPropsAttachmentsEntry();
+  if (!spec) {
+    return ensureStandardPropsEntries(
+      entries.filter((entry) => resolvePropsFieldWidget(entry.key) !== "attachments")
+    );
   }
+  const key = spec.key;
+  const fieldDef = getPropsFieldDef(key);
+  const storageMany = isAttachmentsFieldStorageMany(fieldDef);
+  const withoutAttachments = entries.filter((entry) => normalizePropsKey(entry.key) !== key);
 
   const attachmentsWrap = propsAttachmentsBlockNode?.querySelector(
     '.props-form-value-wrap[data-widget="attachments"]'
@@ -42556,7 +42734,9 @@ function mergePropsAttachmentsIntoEntries(entries) {
   }
 
   const paths = getPropsAttachmentsPathsFromWrap(attachmentsWrap);
-  const nextEntry = { key, kind: "array", value: paths };
+  const nextEntry = storageMany
+    ? { key, kind: "array", value: paths }
+    : applyFormValueToEntry({ key, kind: "string", value: "" }, paths[0] || "");
   return ensureStandardPropsEntries([...withoutAttachments, nextEntry]);
 }
 
@@ -42572,7 +42752,9 @@ function renderPropsAttachmentsBlock() {
   }
 
   propsAttachmentsBlockNode.classList.remove("hidden");
-  const meta = getPropsFieldMeta("awn-attachments");
+  const { entry, index } = attachmentsSpec;
+  const fieldKey = entry.key || "awn-attachments";
+  const meta = getPropsFieldMeta(fieldKey);
   const readOnly = isPropsFormReadOnly();
 
   const head = document.createElement("div");
@@ -42620,22 +42802,103 @@ function renderPropsAttachmentsBlock() {
   syncPropsAttachmentsHeadUi(head);
   propsAttachmentsBlockNode.append(head);
   propsAttachmentsBlockNode.appendChild(
-    createPropsFormAttachmentsControl(attachmentsSpec.entry, meta, { locked: readOnly })
+    createPropsFormAttachmentsControl(entry, meta, { locked: readOnly, index })
   );
   refreshPropsAttachmentsUsageState();
 }
 
+function hasPropsMaterialsField() {
+  return Boolean(findPropsAsideHeroFieldEntry("materials", { fallbackKey: "awn-materials" }));
+}
+
+function findPropsMaterialsEntry() {
+  return findPropsAsideHeroFieldEntry("materials", { fallbackKey: "awn-materials" });
+}
+
+function upsertAwnMaterialsPropValue(hasMaterials) {
+  const spec = findPropsMaterialsEntry();
+  if (!spec) return;
+  const key = spec.key;
+  const removeFrom = (list) => {
+    const index = list.findIndex((entry) => normalizePropsKey(entry.key) === key);
+    if (index >= 0) list.splice(index, 1);
+  };
+  if (!hasMaterials) {
+    removeFrom(propsFormEntries);
+    removeFrom(propsFormHiddenEntries);
+    return;
+  }
+  const nextEntry = { key, kind: "bool", value: true };
+  const visibleIndex = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === key);
+  if (visibleIndex >= 0) propsFormEntries[visibleIndex] = nextEntry;
+  else propsFormHiddenEntries.push(nextEntry);
+}
+
+function mergePropsMaterialsIntoEntries(entries) {
+  const spec = findPropsMaterialsEntry();
+  if (!spec) {
+    return ensureStandardPropsEntries(
+      entries.filter((entry) => resolvePropsFieldWidget(entry.key) !== "materials")
+    );
+  }
+  const key = spec.key;
+  const without = entries.filter((entry) => normalizePropsKey(entry.key) !== key);
+  const existing = entries.find((entry) => normalizePropsKey(entry.key) === key);
+  if (existing && readPropsEntryBoolean(existing)) {
+    without.push({ key, kind: "bool", value: true });
+  }
+  return ensureStandardPropsEntries(without);
+}
+
+function renderPropsMaterialsBlock() {
+  if (!propsMaterialsBlockNode) return;
+
+  const materialsSpec = findPropsMaterialsEntry();
+  propsMaterialsBlockNode.replaceChildren();
+
+  if (!materialsSpec || propsRawYamlVisible || !hasPropsMaterialsField()) {
+    propsMaterialsBlockNode.classList.add("hidden");
+    return;
+  }
+
+  propsMaterialsBlockNode.classList.remove("hidden");
+  const readOnly = isPropsFormReadOnly();
+  const meta = getPropsFieldMeta(materialsSpec.key);
+  const control = createPropsRecordMaterialsAddControl({
+    locked: readOnly,
+    onMaterialsStateChange: (exists) => {
+      upsertAwnMaterialsPropValue(exists);
+      syncYamlFromPropsForm();
+      syncSaveButtonLamp();
+    }
+  });
+  if (!control) {
+    propsMaterialsBlockNode.classList.add("hidden");
+    return;
+  }
+
+  if (meta.label) {
+    const title = document.createElement("h4");
+    title.className = "doc-aside-materials-title";
+    title.textContent = meta.label;
+    if (meta.hint) title.title = meta.hint;
+    propsMaterialsBlockNode.appendChild(title);
+  }
+  propsMaterialsBlockNode.appendChild(control);
+}
+
 function findPropsPreviewEntry() {
-  if (!isPropsAsideHeroField("awn-preview")) return null;
-  const index = propsFormEntries.findIndex(
-    (entry) => normalizePropsKey(entry.key) === "awn-preview"
-  );
-  if (index < 0) return null;
-  return { entry: propsFormEntries[index], index };
+  return findPropsAsideHeroFieldEntry("preview", { fallbackKey: "awn-preview" });
 }
 
 function mergePropsPreviewIntoEntries(entries) {
-  const key = "awn-preview";
+  const spec = findPropsPreviewEntry();
+  if (!spec) {
+    return ensureStandardPropsEntries(
+      entries.filter((entry) => resolvePropsFieldWidget(entry.key) !== "preview")
+    );
+  }
+  const key = spec.key;
   const withoutPreview = entries.filter((entry) => normalizePropsKey(entry.key) !== key);
   const previewWrap = propsPreviewBlockNode?.querySelector(
     '.props-form-value-wrap[data-widget="preview"]'
@@ -42791,6 +43054,7 @@ const DEFAULT_PROPS_FIELD_GROUPS = [
   { id: "content", name: "Основное", collapsed: false },
   { id: "nav", name: "Дерево и вид", collapsed: true },
   { id: "runtime", name: "Runtime агента", collapsed: true },
+  { id: "taxonomy", name: "Таксономия", collapsed: true },
   { id: "system", name: "Системные", collapsed: true }
 ];
 
@@ -42799,15 +43063,15 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-emoji": "content",
   "awn-status": "content",
   "awn-description": "content",
-  "awn-tags": "content",
+  "awn-tags": "taxonomy",
   "awn-preview": "content",
   "awn-web-url": "content",
   "awn-main": "nav",
   "awn-slots-disabled": "nav",
-  "awn-category": "nav",
-  "awn-owner": "nav",
-  "awn-priority": "nav",
-  "awn-color": "nav",
+  "awn-category": "taxonomy",
+  "awn-owner": "taxonomy",
+  "awn-priority": "taxonomy",
+  "awn-color": "taxonomy",
   "awn-sort": "nav",
   "awn-runtime-load-always": "runtime",
   "awn-runtime-cron": "runtime",
@@ -42954,6 +43218,7 @@ function renderPropsForm() {
   renderPropsPreviewBlock();
   renderPropsWebUrlBlock();
   renderPropsAttachmentsBlock();
+  renderPropsMaterialsBlock();
   propsFormFieldsNode.innerHTML = "";
   const readOnly = isPropsFormReadOnly();
   propsFormFieldsNode.classList.toggle("is-readonly", readOnly);
@@ -42971,14 +43236,9 @@ function renderPropsForm() {
   if (readOnly) {
     const list = document.createElement("div");
     list.className = "props-preview-list props-preview-list--compact";
+    const asideItems = collectPropsFormItemsForPlacement("aside-body");
 
-    for (let index = 0; index < propsFormEntries.length; index += 1) {
-      const entry = propsFormEntries[index];
-      const entryKey = normalizePropsKey(entry.key);
-      if (HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) continue;
-      if (!shouldRenderPropsFieldInAsideBody(entryKey)) continue;
-      if (isEditorCustomPropsFieldKey(entryKey)) continue;
-      if (!isAwnFieldKey(entryKey) && !isOverviewSettingsFieldKey(entryKey)) continue;
+    for (const { entry, index } of asideItems) {
       const meta = getPropsFieldMeta(entry.key);
       const displayValue = getPropsEntryDisplayValue(entry);
 
@@ -43006,7 +43266,7 @@ function renderPropsForm() {
     if (!list.childElementCount) {
       const empty = document.createElement("p");
       empty.className = "props-form-empty props-form-empty--editor-custom-hint";
-      empty.textContent = "AWN-свойств пока нет.";
+      empty.textContent = "Свойств в панели пока нет.";
       propsFormFieldsNode.appendChild(empty);
     } else {
       propsFormFieldsNode.appendChild(list);
@@ -43014,21 +43274,7 @@ function renderPropsForm() {
     return;
   }
 
-  const standardEntries = [];
-  const customEntries = [];
-  for (let index = 0; index < propsFormEntries.length; index += 1) {
-    const entry = propsFormEntries[index];
-    const entryKey = normalizePropsKey(entry.key);
-    if (HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) continue;
-    if (!shouldRenderPropsFieldInAsideBody(entryKey)) continue;
-    if (isEditorCustomPropsFieldKey(entryKey)) continue;
-    if (!isAwnFieldKey(entryKey) && !isOverviewSettingsFieldKey(entryKey)) continue;
-    if (entry?.key && isStandardPropsFieldKey(entry.key)) {
-      standardEntries.push({ entry, index });
-    } else {
-      customEntries.push({ entry, index });
-    }
-  }
+  const asideItems = collectPropsFormItemsForPlacement("aside-body");
 
   const collapseState = loadPropsGroupCollapseState();
 
@@ -43094,7 +43340,7 @@ function renderPropsForm() {
     propsFormFieldsNode.appendChild(group);
   };
 
-  const needsPropsLibrary = [...standardEntries, ...customEntries].some(({ entry }) => {
+  const needsPropsLibrary = asideItems.some(({ entry }) => {
     const widget = resolvePropsFieldWidget(entry.key, getPropsFieldDef(entry.key));
     return propsFieldWidgetNeedsLibrary(widget);
   });
@@ -43106,7 +43352,7 @@ function renderPropsForm() {
 
   const groupDefs = getActivePropsFieldGroups();
   const grouped = new Map();
-  for (const item of standardEntries) {
+  for (const item of asideItems) {
     const gid = resolvePropsFieldGroupId(item.entry.key, getPropsFieldDef(item.entry.key));
     if (!grouped.has(gid)) grouped.set(gid, []);
     grouped.get(gid).push(item);
@@ -43119,7 +43365,6 @@ function renderPropsForm() {
     const items = grouped.get(groupDef.id);
     if (!items || !items.length) continue;
     renderedGroups.add(groupDef.id);
-    // Первая группа (обычно «Основное») остаётся раскрытой и без заголовка.
     if (!hasMultipleGroups || groupDef.id === firstGroupId) {
       appendPropsFieldGroup({ ...groupDef, name: null }, items, { collapsible: false });
     } else {
@@ -43131,24 +43376,16 @@ function renderPropsForm() {
     appendPropsFieldGroup({ id: gid, name: null }, items, { collapsible: false });
   }
 
-  if (!standardEntries.length && !customEntries.length) {
+  if (!asideItems.length) {
     const empty = document.createElement("p");
     empty.className = "props-form-empty props-form-empty--editor-custom-hint";
     empty.textContent = readOnly
-      ? "AWN-свойств пока нет."
-      : "Пользовательские поля — над текстом. Здесь только AWN.";
+      ? "Свойств в панели пока нет."
+      : "Поля с placement aside-body — здесь. Пользовательские поля по умолчанию — над текстом.";
     propsFormFieldsNode.appendChild(empty);
   }
 
   syncRuntimePropsFormVisibility();
-
-  if (customEntries.length) {
-    appendPropsFieldGroup(
-      { id: "__custom", name: "Ещё", collapsed: true },
-      customEntries,
-      { collapsible: true }
-    );
-  }
 }
 
 function isTopicOnlyPropsFieldKey(key) {
@@ -43174,6 +43411,7 @@ const PROPS_FIELD_WIDGET_FALLBACKS = {
 const DEDICATED_FIELD_TYPE_WIDGETS = new Set([
   "preview",
   "attachments",
+  "materials",
   "cron-schedule",
   "lookup-one",
   "lookup-many"
@@ -43181,9 +43419,13 @@ const DEDICATED_FIELD_TYPE_WIDGETS = new Set([
 
 const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
   "file.image.one.with-preview": "preview",
+  "file.image.many.with-preview": "preview",
+  "file.one.with-preview": "attachments",
+  "file.many.with-preview": "attachments",
   "string.cron-schedule": "cron-schedule",
   "lookup.one": "lookup-one",
-  "lookup.many": "lookup-many"
+  "lookup.many": "lookup-many",
+  "materials": "materials"
 };
 
 const LEGACY_LOOKUP_TYPE_SOURCES = {
@@ -43294,6 +43536,10 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (isRelationFieldTypeId(typeId) || widget === "relation" || widget === "link") return "relation";
   if (fieldTypeIs(typeId, "string.link") || widget === "path") return "path";
   if (fieldTypeIs(typeId, "file.image.one.with-preview")) return "preview";
+  if (fieldTypeIs(typeId, "file.image.many.with-preview")) return "preview";
+  if (fieldTypeIs(typeId, "file.one.with-preview")) return "attachments";
+  if (fieldTypeIs(typeId, "file.many.with-preview")) return "attachments";
+  if (fieldTypeIs(typeId, "materials")) return "materials";
   if (fieldTypeIs(typeId, "file.image.one") || widget === "image") return "image";
   if (isFileFieldTypeId(typeId) || widget === "file") return "file";
   if (fieldTypeIs(typeId, "text") || widget === "textarea") return "textarea";
@@ -46114,6 +46360,8 @@ function addPropsAttachmentPathToWrap(wrap, path, { locked = false } = {}) {
   const paths = getPropsAttachmentsPathsFromWrap(wrap);
   const registered = buildRegisteredAttachmentsCompareSet(paths);
   if (isRegisteredAttachmentPath(ref, registered)) return false;
+  const max = Number(wrap.dataset.attachmentsMax || "0");
+  if (max === 1) paths.length = 0;
   paths.push(ref);
   syncPropsAttachmentsHiddenInput(wrap, paths);
   renderPropsAttachmentsList(wrap, paths, { locked });
@@ -46272,6 +46520,10 @@ function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {})
   const wrap = createPropsFormValueWrap("attachments");
   wrap.classList.add("props-form-value-wrap--attachments");
 
+  const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
+  const singleFile = !isAttachmentsFieldStorageMany(fieldDef);
+  if (singleFile) wrap.dataset.attachmentsMax = "1";
+
   const paths = parsePropsAttachmentsValue(entry);
 
   const hidden = document.createElement("input");
@@ -46295,7 +46547,7 @@ function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {})
     const input = document.createElement("input");
     input.type = "file";
     input.hidden = true;
-    input.multiple = true;
+    input.multiple = !singleFile;
 
     const handleFiles = async (files) => {
       uploadZone.classList.add("is-uploading");
@@ -46333,9 +46585,6 @@ function createPropsFormAttachmentsControl(entry, meta, { locked = false } = {})
     });
 
     wrap.append(uploadZone, input);
-
-    const materialsControl = createPropsRecordMaterialsAddControl({ locked });
-    if (materialsControl) wrap.appendChild(materialsControl);
   }
 
   if (PROPS_ATTACHMENTS_ORPHANS_ENABLED) {
@@ -46756,6 +47005,7 @@ function readPropsFormIntoEntries() {
   propsFormEntries = mergePropsPreviewIntoEntries(nextEntries);
   propsFormEntries = mergePropsWebUrlIntoEntries(propsFormEntries);
   propsFormEntries = mergePropsAttachmentsIntoEntries(propsFormEntries);
+  propsFormEntries = mergePropsMaterialsIntoEntries(propsFormEntries);
 }
 
 function togglePropsRawYaml() {
@@ -49720,7 +49970,17 @@ function collectNodeOverviewMetaItems(entries, nodePath = getResolvedNodePath(ac
   for (const key of orderedSettingsSchemaKeys) {
     pushKey(key, { allowMissing: true, inSchema: true });
   }
+  const hideOrphanCustomProps = orderedCustomSchemaKeys.length > 0;
   for (const key of [...map.keys()].sort((a, b) => a.localeCompare(b, "ru"))) {
+    const normalized = normalizePropsKey(key);
+    if (
+      hideOrphanCustomProps &&
+      !isAwnFieldKey(normalized) &&
+      !isOverviewSettingsFieldKey(normalized, nodePath) &&
+      !orderedCustomSchemaKeys.includes(normalized)
+    ) {
+      continue;
+    }
     pushKey(key, {
       allowMissing: false,
       inSchema:
@@ -72445,7 +72705,6 @@ function getTitleSlugInputValue() {
 }
 
 function shouldRenameByTitleSlugInput(currentSlug, nextSlug) {
-  if (titleSlugLinked) return false;
   const normalizedNext = sanitizeSlugValue(nextSlug || "");
   const normalizedCurrent = sanitizeSlugValue(currentSlug || "");
   return Boolean(normalizedNext && normalizedNext !== normalizedCurrent);
@@ -90025,6 +90284,7 @@ propsInputNode?.addEventListener("input", () => {
   syncSaveButtonLamp();
 });
 titleInputNode?.addEventListener("input", () => {
+  syncTitleSlugFromDisplayName();
   const titlePath = getActiveTitleEditorPath();
   if (activeContentMode === "description" && activePath && !isPartNodePath(activePath)) {
     syncDisplayNameIntoAwnNameProp(activePath);

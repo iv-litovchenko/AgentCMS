@@ -15,5 +15,5 @@ fields:
     title: Цвет
     description: Акцентный цвет области в меню
     placement: aside-body
-    group: nav
+    group: taxonomy
     sort: 5

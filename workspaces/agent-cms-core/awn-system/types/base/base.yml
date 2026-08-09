@@ -13,6 +13,8 @@ form:
   zones:
     - id: title-bar
       role: primary-title
+    - id: editor-body
+      role: inline-fields
     - id: aside-hero
       role: media-links
     - id: aside-body
@@ -45,7 +47,7 @@ fields:
     description: Показывается вместо иконки, если превью не задано
     placement: aside-body
     group: content
-    sort: 2
+    sort: 3
 
   awn-preview:
     type: awn.field.file.image.one.with-preview
@@ -69,7 +71,7 @@ fields:
     title: АААСтатус
     placement: aside-body
     group: content
-    sort: 3
+    sort: 2
     enum:
       - key: open
         name: 🟢 Открыта

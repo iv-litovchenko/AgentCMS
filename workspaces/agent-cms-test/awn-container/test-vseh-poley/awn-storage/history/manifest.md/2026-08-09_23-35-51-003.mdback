@@ -4,33 +4,6 @@ awn-attachments: []
   второй абзац
   ## Заголовок
   **Жирный** и *курсив*.
-awn-emoji: 🧪
-awn-status: open
-awn-tags:
-  - demo
-  - reference
-awn-main: true
-awn-category: reference
-awn-owner: me
-awn-priority: high
-awn-color: purple
-awn-sort: 0
-awn-slots-disabled: false
-awn-runtime-load-always: true
-awn-runtime-cron: true
-awn-runtime-cron-schedule: "0 9 * * 1-5"
-awn-runtime-heartbeat: true
-awn-runtime-commands: false
-awn-create: "2026-06-21T12:00"
-awn-update: 2026-08-09T21:09:41.835Z
-awn-version: 16
-awn-description: ""
-awn-description: ""
-awn-name: ""
-awn-name: ""
-awn-preview: awn-storage/assets/preview/20260623203544.png
-awn-type: awn.page.topic
-awn-web-url: "https://example.com/all-field-types"
 demo_boolean: true
 demo_choice_many:
   - alpha
@@ -52,7 +25,6 @@ demo_lookup_category: reference
 demo_lookup_color: purple
 demo_lookup_owner: me
 demo_lookup_priority: high
-demo_lookup_status: open
 demo_lookup_tags:
   - demo
   - reference
@@ -71,7 +43,32 @@ demo_tags_free:
   - test
 demo_text: ""
 demo_url: "https://example.com/all-field-types"
-field-1: ""
+demo_lookup_status: open
+awn-emoji: 🧪
+awn-status: open
+awn-tags:
+  - demo
+  - reference
+awn-main: true
+awn-category: reference
+awn-owner: me
+awn-priority: high
+awn-color: purple
+awn-sort: 0
+awn-slots-disabled: false
+awn-runtime-load-always: true
+awn-runtime-cron: true
+awn-runtime-cron-schedule: "0 9 * * 1-5"
+awn-runtime-heartbeat: true
+awn-runtime-commands: false
+awn-create: "2026-06-21T12:00"
+awn-update: 2026-08-09T20:14:52.093Z
+awn-version: 14
+awn-description: ""
+awn-name: ""
+awn-preview: awn-storage/assets/preview/20260623203544.png
+awn-type: awn.page.topic
+awn-web-url: "https://example.com/all-field-types"
 ---
 
 # All Field Types — демонстрация типов полей

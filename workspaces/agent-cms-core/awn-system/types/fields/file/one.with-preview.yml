@@ -1,0 +1,13 @@
+id: awn.field.file.one.with-preview
+name: Файл с превью (один)
+kind: field
+domain: fields
+extends: awn.field.file.one
+widget: attachments
+storage: string
+mdbase: file
+description: Один файл во вложениях — список с превью, drag-and-drop и вставка в текст
+settings: [hint, required, locked, default, accept, upload, insertInText, scope]
+group: media
+sort: 2.5
+status: active
