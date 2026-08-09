@@ -411,6 +411,8 @@ const SYSTEM_FILE_NAMES = [
   ".env",
   ".gitignore",
   "AGENTS.md",
+  "AUTH.md",
+  "BOOTSTRAP.md",
   "SKILL.md",
   AWN_DEPENDENCIES_FILE,
   "docker-compose.yml",

@@ -1243,6 +1243,8 @@ const ROOT_SYSTEM_TODO_FILE = "TODO.md";
 const ROOT_SYSTEM_NOTE_FILE = "NOTE.md";
 const MENU_TREE_VISIBLE_SYSTEM_MD = new Set([
   "AGENTS.md",
+  "AUTH.md",
+  "BOOTSTRAP.md",
   "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
@@ -1250,6 +1252,8 @@ const MENU_TREE_VISIBLE_SYSTEM_MD = new Set([
 ]);
 const SYSTEM_FILE_TO_CHPU_PATH = {
   "AGENTS.md": "AGENTS",
+  "AUTH.md": "AUTH",
+  "BOOTSTRAP.md": "BOOTSTRAP",
   "SKILL.md": "SKILL",
   "NOTE.md": "NOTE",
   "TODO.md": "TODO",
@@ -1269,6 +1273,8 @@ const SYSTEM_FILE_SCAFFOLD_FALLBACK = [
   { name: ".env", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: ".gitignore", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "AGENTS.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
+  { name: "AUTH.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
+  { name: "BOOTSTRAP.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "SKILL.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "awn-dependencies.json", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "docker-compose.yml", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
@@ -22341,6 +22347,12 @@ function getDefaultSystemFileScaffoldContent(name) {
   }
   if (normalized === "AGENTS.md") {
     return "# Agent\n\n> Инструкции для LLM-агента.\n";
+  }
+  if (normalized === "AUTH.md") {
+    return "# AUTH\n\n> Доступы, права и аутентификация workspace.\n";
+  }
+  if (normalized === "BOOTSTRAP.md") {
+    return "# Bootstrap\n\n> Первичная настройка и загрузка workspace.\n";
   }
   if (normalized === "SKILL.md") {
     return RECOMMENDED_SKILL_MD_TEMPLATE;
@@ -73345,6 +73357,8 @@ function normalizeSystemFileName(name) {
     return ROOT_SYSTEM_NOTE_FILE;
   }
   if (lower === "agents.md" || lower === "agents") return "AGENTS.md";
+  if (lower === "auth.md" || lower === "auth") return "AUTH.md";
+  if (lower === "bootstrap.md" || lower === "bootstrap") return "BOOTSTRAP.md";
   if (lower === "skill.md" || lower === "skill") return "SKILL.md";
   if (lower === "readme.md" || lower === "readme") return "README.md";
   if (lower === ".env" || lower === "env") return ".env";

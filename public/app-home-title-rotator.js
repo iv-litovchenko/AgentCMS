@@ -12,7 +12,8 @@
     { text: "My Storage", holdMs: 6500 },
     { text: "My Memory", holdMs: 6500 },
     { text: "My Knowledge", holdMs: 6500 },
-    { text: "My Tree", holdMs: 6500 }
+    { text: "My Tree", holdMs: 6500 },
+    { text: "My Box", holdMs: 6500 }
   ];
 
   function pickRandomIndex(excludeIndex) {

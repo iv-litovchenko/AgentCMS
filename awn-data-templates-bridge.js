@@ -12,13 +12,23 @@ function normalizeTargetFile(name) {
   return normalizeSystemFileRequestName(String(name || "").trim());
 }
 
+function readFm(fm, ...keys) {
+  for (const key of keys) {
+    const value = fm?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+  return "";
+}
+
 function recordToTemplateDef(record) {
   if (!record) return null;
   const fm = record.frontmatter || {};
-  const status = String(fm.status || "open").trim().toLowerCase();
+  const status = readFm(fm, "awn-status", "status").toLowerCase();
   if (status === "done") return null;
 
-  const targetFile = normalizeTargetFile(fm["target-file"] || fm.targetFile || "");
+  const targetFile = normalizeTargetFile(readFm(fm, "awn-target-file", "target-file", "targetFile"));
   if (!targetFile) return null;
 
   const body = String(record.body || "").trim();
@@ -27,9 +37,9 @@ function recordToTemplateDef(record) {
   return {
     id: String(record.id || "").trim(),
     targetFile,
-    title: String(fm.title || record.title || targetFile).trim(),
-    hintTitle: String(fm["hint-title"] || fm.hintTitle || fm.title || record.title || "").trim(),
-    hintText: String(fm["hint-text"] || fm.hintText || "").trim(),
+    title: readFm(fm, "awn-title", "title") || record.title || targetFile,
+    hintTitle: readFm(fm, "awn-hint-title", "hint-title", "hintTitle", "awn-title", "title") || record.title || "",
+    hintText: readFm(fm, "awn-hint-text", "hint-text", "hintText"),
     body,
     relPath: String(record.relPath || "").replace(/\\/g, "/")
   };

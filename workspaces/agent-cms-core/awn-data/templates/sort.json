@@ -3,6 +3,8 @@
   "env",
   "skill",
   "agents",
+  "auth",
+  "bootstrap",
   "readme",
   "note",
   "todo"

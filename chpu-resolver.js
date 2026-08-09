@@ -14,6 +14,10 @@ const SYSTEM_FILE_CHPU_ALIASES = new Map([
   // Preferred CHPU (no .md) + with extension + short/lowercase legacy aliases
   ["agents", "AGENTS.md"],
   ["agents.md", "AGENTS.md"],
+  ["auth", "AUTH.md"],
+  ["auth.md", "AUTH.md"],
+  ["bootstrap", "BOOTSTRAP.md"],
+  ["bootstrap.md", "BOOTSTRAP.md"],
   ["skill", "SKILL.md"],
   ["skill.md", "SKILL.md"],
   ["note", "NOTE.md"],
@@ -32,6 +36,8 @@ const SYSTEM_FILE_CHPU_ALIASES = new Map([
 
 const SYSTEM_FILE_TO_CHPU_PATH = new Map([
   ["AGENTS.md", "AGENTS"],
+  ["AUTH.md", "AUTH"],
+  ["BOOTSTRAP.md", "BOOTSTRAP"],
   ["SKILL.md", "SKILL"],
   ["NOTE.md", "NOTE"],
   ["TODO.md", "TODO"],
