@@ -6,10 +6,3 @@ status: active
 extends: awn.content.base
 description: Папка-категория для группировки контента в любом слоте
 allow-children: true
-
-fields:
-  awn-attachments:
-    hidden: true
-
-  awn-materials:
-    hidden: true

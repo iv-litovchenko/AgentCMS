@@ -12,23 +12,6 @@ description: >
 form:
   panel-title: "{A2!} Свойства записи"
 
-field-groups:
-  - id: content
-    name: "{A2!} Основное"
-    description: Что заполняет человек или агент
-    collapsed: false
-  - id: materials
-    name: "{A2!} Материалы"
-    description: Вложения и доп. материалы рядом с записью
-    collapsed: false
-  - id: taxonomy
-    name: "{A2!} Таксономия"
-    description: Категории, теги, приоритет, цвет, владелец
-    collapsed: true
-  - id: system
-    name: "{A2!} Системные"
-    description: Заполняется автоматически, только чтение
-    collapsed: true
 
 fields:
   # --- materials (aside-hero) ---
@@ -38,7 +21,7 @@ fields:
     description: awn-storage/assets/attachments/
     scope: attachments
     placement: aside-hero
-    group: materials
+    group: content
     sort: 1
 
   awn-materials:
@@ -46,7 +29,7 @@ fields:
     title: "{A2!} Доп. материалы"
     description: Папка awn-materials-* рядом с записью
     placement: aside-hero
-    group: materials
+    group: content
     sort: 2
 
   # --- nav/runtime страниц (наследуются из awn.base, для контента не показываем) ---
