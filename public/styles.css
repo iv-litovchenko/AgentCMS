@@ -35191,24 +35191,22 @@ button.node-navigation-memory-title:focus-visible {
 .editor-wysiwyg-wrap .toastui-editor-toolbar-item-wrapper:has(.awn-wysiwyg-highlight-toolbar) {
   position: relative;
   overflow: visible;
-}
-
-.editor-wysiwyg-wrap .toastui-editor-toolbar-item-wrapper:has(.awn-wysiwyg-highlight-toolbar) {
-  position: relative;
-  overflow: visible;
   display: inline-flex;
   align-items: center;
-  gap: 0;
+  margin: 0;
+  height: auto;
+  line-height: normal;
 }
 
 .awn-wysiwyg-highlight-toolbar {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  height: 32px;
+  gap: 0;
+  height: auto;
   margin: 0;
 }
 
+/* Match .toastui-editor-defaultUI-toolbar button exactly (normal + hover). */
 .editor-wysiwyg-wrap .toastui-editor-defaultUI-toolbar .awn-wysiwyg-highlight-toolbar button {
   box-sizing: border-box;
   display: inline-flex;
@@ -35216,23 +35214,22 @@ button.node-navigation-memory-title:focus-visible {
   justify-content: center;
   width: 32px;
   height: 32px;
-  margin: 0;
+  margin: 7px 5px;
   padding: 0;
   border: 1px solid #f7f9fc;
   border-radius: 3px;
-  background: #fff;
+  background-color: transparent;
+  background-image: none;
   color: #555;
   cursor: pointer;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .editor-wysiwyg-wrap .toastui-editor-defaultUI-toolbar .awn-wysiwyg-highlight-toolbar button:not(:disabled):hover {
-  border-color: #e4e7ee;
+  border: 1px solid #e4e7ee;
   background-color: #fff;
-}
-
-.awn-wysiwyg-highlight-main-btn,
-.awn-wysiwyg-highlight-menu-btn {
-  gap: 0;
 }
 
 .awn-wysiwyg-highlight-main-btn:disabled,
