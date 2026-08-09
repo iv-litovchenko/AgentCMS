@@ -65,12 +65,12 @@ fields:
     sort: 2
 
   awn-status:
-    type: awn.field.string.catalog-status
+    type: awn.field.choice.one
     title: АААСтатус
     placement: aside-body
     group: content
     sort: 3
-    enum-fallback:
+    enum:
       - key: open
         name: 🟢 Открыта
       - key: draft
