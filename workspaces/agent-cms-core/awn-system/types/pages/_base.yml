@@ -4,11 +4,8 @@ kind: base
 domain: pages
 status: active
 extends: awn.base
-description: Узел дерева (ws/section/topic) — база awn.base плюс навигация и runtime
-mixins: [awn.mixin.preview, awn.mixin.runtime]
+description: Узел дерева (ws / section / area / topic) — навигация и runtime
 
-# Полный список групп для узлов дерева. Наследники awn.base (записи) видят
-# только content+system; узлы дерева — все четыре.
 field-groups:
   - id: content
     name: Основное
@@ -16,7 +13,7 @@ field-groups:
     collapsed: false
   - id: nav
     name: Дерево и вид
-    description: Поведение в меню и на главной (для узлов дерева)
+    description: Поведение в меню и на главной
     collapsed: true
   - id: runtime
     name: Runtime агента
@@ -28,29 +25,97 @@ field-groups:
     collapsed: true
 
 fields:
-  # --- Дерево и вид (nav) — только у узлов дерева ---
   awn-main:
     type: awn.field.boolean
     title: На главной
     default: false
+    placement: aside-body
     group: nav
+    sort: 1
+
   awn-category:
     type: awn.field.string
     title: Категория
+    placement: aside-body
     group: nav
+    sort: 2
+    widget: catalog-lookup
+    catalog: categories
+
   awn-owner:
     type: awn.field.string
     title: Владелец
+    placement: aside-body
     group: nav
+    sort: 3
+    widget: catalog-lookup
+    catalog: users
+
   awn-priority:
     type: awn.field.string
     title: Приоритет
+    placement: aside-body
     group: nav
+    sort: 4
+    widget: catalog-lookup
+    catalog: priorities
+
   awn-color:
     type: awn.field.color
     title: Цвет
+    placement: aside-body
     group: nav
+    sort: 5
+    widget: catalog-colors
+    catalog: colors
+
   awn-sort:
     type: awn.field.integer
     title: Сортировка
+    placement: aside-body
     group: nav
+    sort: 6
+
+  awn-runtime-load-always:
+    type: awn.field.boolean
+    title: Всегда в контексте
+    description: Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)
+    default: false
+    placement: aside-body
+    group: runtime
+    sort: 1
+
+  awn-runtime-cron:
+    type: awn.field.boolean
+    title: Выполнение по расписанию
+    placement: aside-body
+    group: runtime
+    sort: 2
+
+  awn-runtime-cron-schedule:
+    type: awn.field.string
+    title: Расписание
+    description: День и время, шаблон или своё cron-выражение
+    placement: aside-body
+    group: runtime
+    sort: 3
+    widget: cron-schedule
+    show-when:
+      field: awn-runtime-cron
+      equals: true
+
+  awn-runtime-heartbeat:
+    type: awn.field.boolean
+    title: Heartbeat
+    placement: aside-body
+    group: runtime
+    sort: 4
+
+  awn-runtime-commands:
+    type: awn.field.boolean
+    title: Выполнение команд
+    description: В инструкции темы есть команды для выполнения (визуальный маркер)
+    default: false
+    placement: aside-body
+    group: runtime
+    sort: 5

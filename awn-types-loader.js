@@ -147,7 +147,9 @@ function mergeTypeFields(typeDef, byName, visited = new Set()) {
     }
   }
   if (typeDef.fields && typeof typeDef.fields === "object") {
-    fields = { ...fields, ...typeDef.fields };
+    for (const [fieldKey, patch] of Object.entries(typeDef.fields)) {
+      fields[fieldKey] = { ...(fields[fieldKey] || {}), ...patch };
+    }
   }
   fields = applyTypeMixins(typeDef, byName, fields);
   return fields;
@@ -513,6 +515,7 @@ function getAwnTypesPayload(agentRoot, projectRoot, options = {}) {
           mixins: Array.isArray(def.mixins) ? [...def.mixins] : [],
           description: def.description || "",
           fieldGroups: Array.isArray(def.fieldGroups) ? def.fieldGroups : null,
+          form: def.form && typeof def.form === "object" ? def.form : null,
           fields: def.fields || {}
         }
       ])

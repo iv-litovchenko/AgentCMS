@@ -3,11 +3,19 @@ name: Комментарий
 kind: type
 domain: content
 status: active
-extends: awn.base
+extends: awn.content.base
 description: Комментарий к узлу — слот comments/
 slot: comments
+
 fields:
+  awn-attachments:
+    hidden: true
+
   awn-target:
     type: awn.field.link
-    name: К чему привязан
+    title: К чему привязан
     description: manifest.md или запись в awn-storage
+    placement: aside-body
+    group: content
+    sort: 10
+    widget: link

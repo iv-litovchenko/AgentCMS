@@ -5,6 +5,8 @@ domain: pages
 status: active
 extends: awn.page.base
 description: Тема — manifest.md + слоты памяти
+manifest-pattern: "{slug}/manifest.md"
+
 storage-slots:
   - main
   - main-single
@@ -19,12 +21,15 @@ storage-slots:
   - scripts
   - todo-single
   - log-single
-manifest-pattern: "{slug}/manifest.md"
 
 fields:
   awn-slots-disabled:
     type: awn.field.boolean
     title: Общий слот (lite)
-    description: Скрыть слоты данных; многофайловая память читается из папки темы (рядом с manifest.md), без awn-storage/
+    description: >
+      Скрыть слоты данных; многофайловая память читается из папки темы
+      (рядом с manifest.md), без awn-storage/
     default: false
+    placement: aside-body
     group: nav
+    sort: 7

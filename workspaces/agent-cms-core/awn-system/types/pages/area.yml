@@ -2,11 +2,18 @@ id: awn.page.area
 name: Область
 kind: type
 domain: pages
-status: deprecated
+status: active
 extends: awn.page.base
-description: "Область контента — папка-раздел в awn-container (не служебная секция корня)"
+description: Область контента — папка-раздел в awn-container (не служебная секция корня)
+manifest-pattern: "{slug}/manifest.md"
+
 fields:
   awn-color:
     type: awn.field.color
     title: Цвет
     description: Акцентный цвет области в меню
+    placement: aside-body
+    group: nav
+    sort: 5
+    widget: catalog-colors
+    catalog: colors

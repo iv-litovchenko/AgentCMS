@@ -4,4 +4,4 @@ kind: type
 domain: pages
 status: active
 extends: awn.page.base
-description: Корневой манифест агента — папка workspace (manifest.md в корне)
+description: Корневой манифест агента — manifest.md в корне workspace

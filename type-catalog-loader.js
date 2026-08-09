@@ -320,7 +320,10 @@ function mergeTypeSchema(entry, byId, visited = new Set()) {
     (schema.fields && typeof schema.fields === "object" ? schema.fields : null) ||
     (schema["awn-fields"] && typeof schema["awn-fields"] === "object" ? schema["awn-fields"] : null);
   if (schemaFields) {
-    merged.fields = { ...(merged.fields || {}), ...schemaFields };
+    merged.fields = { ...(merged.fields || {}) };
+    for (const [fieldKey, patch] of Object.entries(schemaFields)) {
+      merged.fields[fieldKey] = { ...(merged.fields[fieldKey] || {}), ...patch };
+    }
   }
   if (schema.properties && typeof schema.properties === "object") {
     merged.properties = { ...(merged.properties || {}), ...schema.properties };
@@ -861,6 +864,7 @@ function toRecordTypeDef(entry, byId) {
     mixins: Array.isArray(merged.mixins) ? [...merged.mixins] : [],
     description: merged.description || "",
     fieldGroups: Array.isArray(merged["field-groups"]) ? [...merged["field-groups"]] : null,
+    form: merged.form && typeof merged.form === "object" ? { ...merged.form } : null,
     fields: merged.fields && typeof merged.fields === "object" ? { ...merged.fields } : {}
   };
 }

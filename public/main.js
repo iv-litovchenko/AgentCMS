@@ -35710,15 +35710,77 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-slots-disabled"
 ];
 
-function getStandardPropsFieldKeys() {
-  // Поля активного типа (запись, тема, область…) — форма зависит от типа узла.
+function getSchemaPropsFieldDef(key) {
+  return getPropsFieldDef(key);
+}
+
+function isPropsFieldHiddenBySchema(key, fieldDef = getSchemaPropsFieldDef(key)) {
+  if (!fieldDef) return false;
+  if (fieldDef.hidden === true) return true;
+  return String(fieldDef.placement || "").trim() === "hidden";
+}
+
+function getPropsFieldPlacement(key, fieldDef = getSchemaPropsFieldDef(key)) {
+  const placement = String(fieldDef?.placement || "").trim();
+  if (placement) return placement;
+  const normalized = normalizePropsKey(key);
+  if (normalized === "awn-name") return "title-bar";
+  if (normalized === "awn-preview" || normalized === "awn-web-url" || normalized === "awn-attachments") {
+    return "aside-hero";
+  }
+  return "aside-body";
+}
+
+function isPropsAsideHeroField(key, fieldDef = getSchemaPropsFieldDef(key)) {
+  if (isPropsFieldHiddenBySchema(key, fieldDef)) return false;
+  return getPropsFieldPlacement(key, fieldDef) === "aside-hero";
+}
+
+function shouldRenderPropsFieldInAsideBody(key) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized || normalized === "title") return false;
+  if (!shouldIncludePropsFieldKey(normalized)) return false;
+  const fieldDef = getSchemaPropsFieldDef(normalized);
+  if (isPropsFieldHiddenBySchema(normalized, fieldDef)) return false;
+  if (getPropsFieldPlacement(normalized, fieldDef) !== "aside-body") return false;
+  return true;
+}
+
+function comparePropsFieldSchemaOrder(a, b, fields = getActiveAwnTypeDef()?.fields || {}) {
+  const fa = fields[a];
+  const fb = fields[b];
+  const groups = getActivePropsFieldGroups().map((group) => group.id);
+  const ga = resolvePropsFieldGroupId(a, fa);
+  const gb = resolvePropsFieldGroupId(b, fb);
+  const ia = groups.indexOf(ga);
+  const ib = groups.indexOf(gb);
+  if (ia !== ib) return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+  return (Number(fa?.sort) || 0) - (Number(fb?.sort) || 0) || String(a).localeCompare(String(b), "ru");
+}
+
+function syncPropsPanelTitleFromSchema() {
+  const titleNode = document.querySelector(".doc-aside-fields-card-title");
+  if (!titleNode) return;
   const typeDef = getActiveAwnTypeDef();
-  const typeKeys = typeDef?.fields ? Object.keys(typeDef.fields) : null;
-  if (typeKeys && typeKeys.length) return typeKeys;
+  const panelTitle = typeDef?.form?.["panel-title"] || typeDef?.form?.panelTitle;
+  titleNode.textContent = String(panelTitle || "").trim() || "Метаданные";
+}
+
+function getStandardPropsFieldKeys() {
+  const typeDef = getActiveAwnTypeDef();
+  const fields = typeDef?.fields;
+  if (fields && typeof fields === "object") {
+    const keys = Object.keys(fields).filter((key) => shouldRenderPropsFieldInAsideBody(key));
+    if (keys.length) {
+      return keys.sort((a, b) => comparePropsFieldSchemaOrder(a, b, fields));
+    }
+  }
 
   const fromApi = awnTypesCache?.baseFieldOrder;
-  if (Array.isArray(fromApi) && fromApi.length) return fromApi;
-  return STANDARD_PROPS_FIELD_KEYS;
+  if (Array.isArray(fromApi) && fromApi.length) {
+    return fromApi.filter((key) => shouldRenderPropsFieldInAsideBody(key));
+  }
+  return STANDARD_PROPS_FIELD_KEYS.filter((key) => shouldRenderPropsFieldInAsideBody(key));
 }
 
 const PROPS_FIELD_META = {
@@ -40524,15 +40586,8 @@ function getPropsFieldMeta(key) {
     return { label: "Свойство", hint: "" };
   }
   const schemaMeta = getPropsFieldMetaFromSchema(normalized);
+  if (schemaMeta) return schemaMeta;
   const override = PROPS_FIELD_META[normalized];
-  if (schemaMeta) {
-    if (!override) return schemaMeta;
-    return {
-      ...schemaMeta,
-      label: Object.prototype.hasOwnProperty.call(override, "label") ? override.label : schemaMeta.label,
-      hint: override.hint || schemaMeta.hint
-    };
-  }
   if (override) {
     return { ...override, typeId: null, fieldDef: null };
   }
@@ -40594,7 +40649,7 @@ function normalizePropsEntries(entries) {
   return [...map.values()];
 }
 
-const HIDDEN_PROPS_FIELD_KEYS = new Set(["title", "awn-name", "awn-description"]);
+const HIDDEN_PROPS_FIELD_KEYS = new Set(["title"]);
 const OVERVIEW_EXCLUDED_PROP_KEYS = new Set(["awn-preview", "awn-web-url", "awn-attachments"]);
 
 function ensureAwnContextDefaults(entries) {
@@ -42306,7 +42361,7 @@ function syncDocAsideTabAvailability() {
 }
 
 function hasPropsAttachmentsField() {
-  return Boolean(getPropsFieldDef("awn-attachments"));
+  return isPropsAsideHeroField("awn-attachments") && Boolean(getPropsFieldDef("awn-attachments"));
 }
 
 function findPropsAttachmentsEntry() {
@@ -42405,6 +42460,7 @@ function renderPropsAttachmentsBlock() {
 }
 
 function findPropsPreviewEntry() {
+  if (!isPropsAsideHeroField("awn-preview")) return null;
   const index = propsFormEntries.findIndex(
     (entry) => normalizePropsKey(entry.key) === "awn-preview"
   );
@@ -42467,7 +42523,7 @@ function renderPropsPreviewBlock() {
 }
 
 function hasPropsWebUrlField() {
-  return Boolean(getPropsFieldDef("awn-web-url"));
+  return isPropsAsideHeroField("awn-web-url") && Boolean(getPropsFieldDef("awn-web-url"));
 }
 
 function findPropsWebUrlEntry() {
@@ -42722,6 +42778,7 @@ function renderEditorCustomPropsBar() {
 
 function renderPropsForm() {
   propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
+  syncPropsPanelTitleFromSchema();
   renderEditorCustomPropsBar();
   if (!propsFormFieldsNode) return;
   if (!shouldRenderPropsFormNow()) {
@@ -42752,10 +42809,8 @@ function renderPropsForm() {
     for (let index = 0; index < propsFormEntries.length; index += 1) {
       const entry = propsFormEntries[index];
       const entryKey = normalizePropsKey(entry.key);
-      if (entryKey === "awn-preview" || entryKey === "awn-web-url" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) {
-        continue;
-      }
-      if (!shouldIncludePropsFieldKey(entryKey)) continue;
+      if (HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) continue;
+      if (!shouldRenderPropsFieldInAsideBody(entryKey)) continue;
       if (isEditorCustomPropsFieldKey(entryKey)) continue;
       if (!isAwnFieldKey(entryKey) && !isOverviewSettingsFieldKey(entryKey)) continue;
       const meta = getPropsFieldMeta(entry.key);
@@ -42798,10 +42853,8 @@ function renderPropsForm() {
   for (let index = 0; index < propsFormEntries.length; index += 1) {
     const entry = propsFormEntries[index];
     const entryKey = normalizePropsKey(entry.key);
-    if (entryKey === "awn-preview" || entryKey === "awn-web-url" || entryKey === "awn-attachments" || HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) {
-      continue;
-    }
-    if (!shouldIncludePropsFieldKey(entryKey)) continue;
+    if (HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) continue;
+    if (!shouldRenderPropsFieldInAsideBody(entryKey)) continue;
     if (isEditorCustomPropsFieldKey(entryKey)) continue;
     if (!isAwnFieldKey(entryKey) && !isOverviewSettingsFieldKey(entryKey)) continue;
     if (entry?.key && isStandardPropsFieldKey(entry.key)) {
@@ -42962,8 +43015,31 @@ const PROPS_FIELD_WIDGET_FALLBACKS = {
   "awn-runtime-cron-schedule": "cron-schedule"
 };
 
+function resolveSchemaPropsWidget(fieldDef) {
+  if (!fieldDef) return null;
+  const widget = String(fieldDef.widget || "").trim();
+  const catalog = String(fieldDef.catalog || "").trim();
+  if (widget === "catalog-lookup" && catalog) {
+    const catalogWidgets = {
+      statuses: "catalog-status",
+      categories: "catalog-category",
+      users: "catalog-users",
+      priorities: "catalog-priorities",
+      colors: "catalog-colors",
+      tags: "catalog-tags"
+    };
+    return catalogWidgets[catalog] || "catalog-lookup";
+  }
+  if (widget === "catalog-tags") return "catalog-tags";
+  if (widget === "catalog-colors") return "catalog-colors";
+  if (widget) return widget;
+  return null;
+}
+
 function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const normalized = normalizePropsKey(key);
+  const fromSchema = resolveSchemaPropsWidget(fieldDef);
+  if (fromSchema) return fromSchema;
   if (normalized === "awn-preview") return "preview";
   if (normalized === "awn-attachments") return "attachments";
   if (normalized === "awn-category") return "catalog-category";
@@ -43557,7 +43633,11 @@ function createPropsFormCatalogLookupControl(
 
 function createPropsFormCatalogStatusControl(entry, meta, { locked = false } = {}) {
   const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
-  const enumFallback = Array.isArray(fieldDef?.enum) ? fieldDef.enum : [];
+  const enumFallback = Array.isArray(fieldDef?.["enum-fallback"])
+    ? fieldDef["enum-fallback"]
+    : Array.isArray(fieldDef?.enum)
+      ? fieldDef.enum
+      : [];
   return createPropsFormCatalogLookupControl(entry, meta, "statuses", "catalog-status", {
     locked,
     enumFallback

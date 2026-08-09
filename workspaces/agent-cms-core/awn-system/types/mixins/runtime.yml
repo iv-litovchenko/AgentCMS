@@ -7,26 +7,44 @@ description: Загрузка в контекст агента, cron, heartbeat,
 fields:
   awn-runtime-load-always:
     type: awn.field.boolean
-    name: Всегда в контексте
-    group: runtime
+    title: Всегда в контексте
     description: Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)
     default: false
+    placement: aside-body
+    group: runtime
+    sort: 1
+
   awn-runtime-cron:
     type: awn.field.boolean
-    name: Выполнение по расписанию
+    title: Выполнение по расписанию
+    placement: aside-body
     group: runtime
+    sort: 2
+
   awn-runtime-cron-schedule:
     type: awn.field.string
-    name: ""
-    group: runtime
+    title: Расписание
     description: День и время, шаблон или своё cron-выражение
+    placement: aside-body
+    group: runtime
+    sort: 3
+    widget: cron-schedule
+    show-when:
+      field: awn-runtime-cron
+      equals: true
+
   awn-runtime-heartbeat:
     type: awn.field.boolean
-    name: Heartbeat
+    title: Heartbeat
+    placement: aside-body
     group: runtime
+    sort: 4
+
   awn-runtime-commands:
     type: awn.field.boolean
-    name: Выполнение команд
-    group: runtime
+    title: Выполнение команд
     description: В инструкции темы есть команды для выполнения (визуальный маркер)
     default: false
+    placement: aside-body
+    group: runtime
+    sort: 5

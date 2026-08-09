@@ -2,10 +2,14 @@ id: awn.mixin.preview
 name: Превью
 kind: mixin
 domain: mixins
-status: active
-description: Поле превью-изображения
+status: deprecated
+description: >
+  Deprecated — поле awn-preview объявлено в awn.base.fields. Mixin оставлен
+  для совместимости ссылок в документации.
 fields:
   awn-preview:
     type: awn.field.url
-    name: Превью
+    title: Превью
+    placement: aside-hero
+    widget: preview
     group: content

@@ -5,9 +5,20 @@ domain: base
 status: active
 extends: awn.entity
 description: >
-  Общие поля любого контента и узла: отображение и системные. Узлы дерева
-  добавляют навигацию через awn.page.base; записи наследуют только это.
-mixins: [awn.mixin.preview, awn.mixin.web-url]
+  Общие поля любой сущности CMS. UI формы свойств строится только из этой схемы
+  (form / field-groups / fields.placement / widget / catalog).
+
+form:
+  panel-title: Метаданные
+  zones:
+    - id: title-bar
+      role: primary-title
+    - id: aside-hero
+      role: media-links
+    - id: aside-body
+      role: field-groups
+    - id: hidden
+      role: system-storage
 
 field-groups:
   - id: content
@@ -20,23 +31,49 @@ field-groups:
     collapsed: true
 
 fields:
-  # --- Основное (content) ---
   awn-name:
     type: awn.field.string
     title: Имя
-    description: Отображаемое имя в меню
+    description: Отображаемое имя в меню; пустое → slug
+    placement: title-bar
     group: content
-    locked: true
+    sort: 1
+
   awn-emoji:
     type: awn.field.string
     title: Эмодзи
     description: Показывается вместо иконки, если превью не задано
+    placement: aside-body
     group: content
+    sort: 2
+
+  awn-preview:
+    type: awn.field.url
+    title: Превью
+    description: awn-storage/assets/preview/
+    placement: aside-hero
+    widget: preview
+    group: content
+    sort: 1
+
+  awn-web-url:
+    type: awn.field.url
+    title: Веб-источник
+    description: URL оригинала в интернете (https://…)
+    placement: aside-hero
+    widget: url
+    group: content
+    sort: 2
+
   awn-status:
-    type: awn.field.enum
+    type: awn.field.string
     title: Статус
+    placement: aside-body
     group: content
-    enum:
+    sort: 3
+    widget: catalog-lookup
+    catalog: statuses
+    enum-fallback:
       - key: open
         name: 🟢 Открыта
       - key: draft
@@ -46,36 +83,54 @@ fields:
       - key: none
         name: ⚪ Без статуса
     default: open
+
   awn-description:
     type: awn.field.text
     title: Описание
+    placement: hidden
     group: content
+    sort: 4
+
   awn-tags:
     type: awn.field.array
     title: Теги
     items: awn.field.string
+    placement: aside-body
     group: content
+    sort: 5
+    widget: catalog-tags
+    catalog: tags
 
-  # --- Системные (system, авто) ---
   awn-type:
     type: awn.field.string
     title: Тип
     required: true
     locked: true
+    placement: hidden
     group: system
+    sort: 1
+
   awn-create:
     type: awn.field.datetime
     title: Создан
     locked: true
+    placement: aside-body
     group: system
+    sort: 2
+
   awn-update:
     type: awn.field.datetime
     title: Изменён
     locked: true
+    placement: aside-body
     group: system
+    sort: 3
+
   awn-version:
     type: awn.field.integer
     title: Версия
     default: 1
     locked: true
+    placement: aside-body
     group: system
+    sort: 4

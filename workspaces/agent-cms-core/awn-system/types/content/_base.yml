@@ -1,0 +1,41 @@
+id: awn.content.base
+name: База контента
+kind: base
+domain: content
+status: active
+extends: awn.base
+description: Запись, категория, sidecar — без nav/runtime страниц
+
+form:
+  panel-title: Свойства записи
+  zones:
+    - id: title-bar
+      role: primary-title
+    - id: aside-hero
+      role: media-links
+    - id: aside-body
+      role: field-groups
+    - id: hidden
+      role: system-storage
+
+field-groups:
+  - id: content
+    name: Основное
+    collapsed: false
+  - id: materials
+    name: Материалы
+    collapsed: false
+  - id: system
+    name: Системные
+    collapsed: true
+
+fields:
+  awn-attachments:
+    type: awn.field.array
+    title: Вложения
+    description: awn-storage/assets/attachments/
+    items: awn.field.file
+    placement: aside-hero
+    widget: attachments
+    group: materials
+    sort: 1

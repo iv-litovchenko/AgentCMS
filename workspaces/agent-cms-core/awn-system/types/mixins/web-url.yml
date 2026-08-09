@@ -2,11 +2,14 @@ id: awn.mixin.web-url
 name: Веб-источник
 kind: mixin
 domain: mixins
-status: active
-description: Ссылка на оригинал в интернете
+status: deprecated
+description: >
+  Deprecated — поле awn-web-url объявлено в awn.base.fields. Mixin оставлен
+  для совместимости ссылок в документации.
 fields:
   awn-web-url:
     type: awn.field.url
     title: Веб-источник
-    description: URL оригинала в интернете (https://…)
+    placement: aside-hero
+    widget: url
     group: content

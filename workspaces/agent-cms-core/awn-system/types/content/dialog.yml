@@ -3,13 +3,20 @@ name: Сообщение диалога
 kind: type
 domain: content
 status: active
-extends: awn.base
-description: Одно сообщение в слоте thread/ (awn.slot.dialogs) — диалог с агентом
+extends: awn.content.base
+description: Одно сообщение в слоте dialogs/ — диалог с агентом
 slot: dialogs
+
 fields:
+  awn-attachments:
+    hidden: true
+
   awn-role:
     type: awn.field.enum
-    name: Роль
+    title: Роль
+    placement: aside-body
+    group: content
+    sort: 10
     enum:
       - key: user
         name: Пользователь

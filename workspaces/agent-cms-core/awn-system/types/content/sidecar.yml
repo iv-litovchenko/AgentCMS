@@ -3,12 +3,31 @@ name: Sidecar
 kind: type
 domain: content
 status: active
-extends: awn.base
+extends: awn.content.base
 description: Метаданные медиафайла (*.sidecar.md)
+
 fields:
+  awn-preview:
+    hidden: true
+  awn-web-url:
+    hidden: true
+  awn-attachments:
+    hidden: true
+  awn-tags:
+    hidden: true
+
   awn-mime:
     type: awn.field.string
     title: MIME-тип
+    placement: aside-body
+    group: content
+    sort: 10
+    locked: true
+
   awn-size:
     type: awn.field.integer
     title: Размер (байт)
+    placement: aside-body
+    group: content
+    sort: 11
+    locked: true
