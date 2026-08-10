@@ -44421,7 +44421,7 @@ function renderPropsForm() {
       caret.textContent = "▸";
       const titleEl = document.createElement("span");
       titleEl.className = "props-form-group-title";
-      titleEl.textContent = title;
+      titleEl.textContent = formatSchemaDisplayTitle(title, { replaceMarker: false });
       const countEl = document.createElement("span");
       countEl.className = "props-form-group-count";
       countEl.textContent = String(items.length);
@@ -44441,7 +44441,7 @@ function renderPropsForm() {
       if (title) {
         const groupTitle = document.createElement("h4");
         groupTitle.className = "props-form-group-title";
-        groupTitle.textContent = title;
+        groupTitle.textContent = formatSchemaDisplayTitle(title, { replaceMarker: false });
         group.appendChild(groupTitle);
       }
       group.appendChild(groupBody);
@@ -48168,7 +48168,6 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCom
     row.append(head, valueControl);
   }
 
-  const fieldWidget = resolvePropsFieldWidget(entry.key, meta.fieldDef);
   const needsLookup = isLookupFieldWidget(fieldWidget);
   if (needsLookup && !agentCatalogsCache && activeAgentId) {
     loadAgentCatalogs(activeAgentId);

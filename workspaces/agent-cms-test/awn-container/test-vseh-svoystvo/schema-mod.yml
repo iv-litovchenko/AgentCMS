@@ -10,35 +10,35 @@ awn_schema:
         name: Строка
         hint: awn.field.string
         placement: editor-body
-        group: Текст (многострочный) (однострочный)
+        group: Текст (однострочный)
         sort: 10
       demo_email:
         type: awn.field.string.email
         name: Email
         hint: awn.field.string.email
         placement: editor-body
-        group: Текст (многострочный) (однострочный)
+        group: Текст (однострочный)
         sort: 11
       demo_password:
         type: awn.field.string.password
         name: Пароль
         hint: awn.field.string.password
         placement: editor-body
-        group: Текст (многострочный) (однострочный)
+        group: Текст (однострочный)
         sort: 12
       demo_slug:
         type: awn.field.string.slug
         name: Слаг
         hint: awn.field.string.slug
         placement: editor-body
-        group: Текст (многострочный) (однострочный)
+        group: Текст (однострочный)
         sort: 13
       demo_url:
         type: awn.field.string.url
         name: URL
         hint: awn.field.string.url
         placement: editor-body
-        group: Текст (многострочный) (однострочный)
+        group: Текст (однострочный)
         sort: 14
 
       # --- Текст (многострочные) ---
@@ -280,7 +280,7 @@ awn_schema:
         type: awn.field.string
         name: Строка
         placement: editor-body
-        group: Текст (многострочный) (однострочный)
+        group: Текст (однострочный)
         sort: 10
       rec_choice_one:
         type: awn.field.choice.one
@@ -343,7 +343,7 @@ awn_schema:
         type: awn.field.string
         name: Sidecar строка
         placement: editor-body
-        group: Текст (многострочный) (однострочный)
+        group: Текст (однострочный)
         sort: 10
       sidecar_boolean:
         type: awn.field.boolean
