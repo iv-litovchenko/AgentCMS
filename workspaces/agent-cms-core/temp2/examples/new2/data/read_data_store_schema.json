@@ -1,0 +1,127 @@
+{
+  "tool": "read_data_store_schema",
+  "section": "data",
+  "sectionLabel": "AWN-DATA / инфоблоки",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:32:00.126Z",
+  "sampleArgs": {
+    "store": "tasks"
+  },
+  "truncated": false,
+  "responseBytes": 2266,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "store": "tasks",
+    "kind": "collection",
+    "schemeModRelPath": "tasks/schema-mod.yml",
+    "schemeModExists": false,
+    "content": "",
+    "awnSchema": {
+      "record": {
+        "fields": {},
+        "tabs": {}
+      }
+    },
+    "mergedFields": {
+      "awn-created": {
+        "type": "awn.field.datetime",
+        "title": "Создано"
+      },
+      "awn-updated": {
+        "type": "awn.field.datetime",
+        "title": "Обновлено"
+      },
+      "awn-name": {
+        "type": "awn.field.string",
+        "title": "Имя"
+      },
+      "awn-description": {
+        "type": "awn.field.text",
+        "title": "Описание"
+      },
+      "awn-status": {
+        "type": "awn.field.choice.one",
+        "title": "Статус",
+        "enum": [
+          "open",
+          "in_progress",
+          "done",
+          "cancelled"
+        ],
+        "default": "open",
+        "tab": "main"
+      },
+      "awn-version": {
+        "type": "awn.field.integer",
+        "title": "Версия"
+      },
+      "awn-owner": {
+        "type": "awn.field.string",
+        "title": "Владелец"
+      },
+      "awn-title": {
+        "type": "awn.string",
+        "title": "Название",
+        "required": true,
+        "tab": "main"
+      },
+      "awn-parent": {
+        "type": "awn.string",
+        "title": "Родитель",
+        "description": "id родительской задачи",
+        "tab": "main"
+      },
+      "awn-priority": {
+        "type": "awn.field.choice.one",
+        "title": "Приоритет",
+        "enum": [
+          "low",
+          "normal",
+          "high"
+        ],
+        "default": "normal",
+        "tab": "main"
+      }
+    },
+    "fieldsLocal": {
+      "awn-title": {
+        "type": "awn.string",
+        "title": "Название",
+        "required": true,
+        "tab": "main"
+      },
+      "awn-parent": {
+        "type": "awn.string",
+        "title": "Родитель",
+        "description": "id родительской задачи",
+        "tab": "main"
+      },
+      "awn-status": {
+        "type": "awn.field.choice.one",
+        "title": "Статус",
+        "enum": [
+          "open",
+          "in_progress",
+          "done",
+          "cancelled"
+        ],
+        "default": "open",
+        "tab": "main"
+      },
+      "awn-priority": {
+        "type": "awn.field.choice.one",
+        "title": "Приоритет",
+        "enum": [
+          "low",
+          "normal",
+          "high"
+        ],
+        "default": "normal",
+        "tab": "main"
+      }
+    },
+    "fieldsInSchemeMod": false
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "tool": "read_store_property",
+  "section": "data",
+  "sectionLabel": "AWN-DATA / инфоблоки",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:32:00.312Z",
+  "sampleArgs": {
+    "store": "tasks",
+    "key": "awn-name"
+  },
+  "truncated": false,
+  "responseBytes": 82,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "store": "tasks",
+    "key": "awn-name",
+    "value": "Задачи",
+    "exists": true
+  }
+}

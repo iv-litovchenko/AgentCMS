@@ -1,0 +1,22 @@
+{
+  "tool": "write_content_property",
+  "section": "content",
+  "sectionLabel": "Контент",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:32:00.580Z",
+  "sampleArgs": {
+    "path": "manifest.md",
+    "slot": "main-single",
+    "key": "awn-status",
+    "value": "open"
+  },
+  "live": false,
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "file": "main/",
+    "key": "awn-status",
+    "value": "open"
+  }
+}

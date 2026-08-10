@@ -1,0 +1,20 @@
+{
+  "tool": "read_store_properties",
+  "section": "data",
+  "sectionLabel": "AWN-DATA / инфоблоки",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:32:00.172Z",
+  "sampleArgs": {
+    "store": "tasks"
+  },
+  "truncated": false,
+  "responseBytes": 944,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "store": "tasks",
+    "content": "awn-supertype: awn-data/cms-base/data-containers/collection.md\nawn-name: Задачи\n\nawn-record-id-mode: numeric\nawn-record-file: \"{id}.md\"\nawn-record-hierarchy: true\n\nawn-data-elements-schema-extends: awn-data/cms-base/data-elements/default.md\nawn-data-elements-schema-mixins: []\nawn-data-elements-schema:\n  fields:\n    awn-title:\n      type: awn.string\n      title: Название\n      required: true\n      tab: main\n    awn-parent:\n      type: awn.string\n      title: Родитель\n      description: id родительской задачи\n      tab: main\n    awn-status:\n      type: awn.field.choice.one\n      title: Статус\n      enum: [open, in_progress, done, cancelled]\n      default: open\n      tab: main\n    awn-priority:\n      type: awn.field.choice.one\n      title: Приоритет\n      enum: [low, normal, high]\n      default: normal\n      tab: main\n  tabs:\n    main: Задача",
+    "exists": true
+  }
+}

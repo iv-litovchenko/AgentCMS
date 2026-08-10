@@ -1,0 +1,24 @@
+{
+  "tool": "read_file",
+  "section": "fs",
+  "sectionLabel": "Система + FS",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:32:00.538Z",
+  "sampleArgs": {
+    "path": "AGENTS.md"
+  },
+  "truncated": false,
+  "responseBytes": 136,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "exists": true,
+    "path": "AGENTS.md",
+    "name": "AGENTS.md",
+    "kind": "text",
+    "systemFile": true,
+    "content": "",
+    "size": 0
+  }
+}

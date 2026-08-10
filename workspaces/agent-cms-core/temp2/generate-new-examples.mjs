@@ -8,7 +8,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = path.join(__dirname, "examples", "new");
+const OUT_SUBDIR = process.env.MCP_EXAMPLE_OUT || "new";
+const OUT_DIR = path.join(__dirname, "examples", OUT_SUBDIR);
 
 const TOOL_FOLDER = {
   get_session_context: "start",
@@ -604,7 +605,7 @@ async function main() {
       index.push({
         tool,
         section: TOOL_FOLDER[tool],
-        file: `new/${TOOL_FOLDER[tool]}/${tool}.json`,
+        file: `${OUT_SUBDIR}/${TOOL_FOLDER[tool]}/${tool}.json`,
         live: true,
         writeOnly: false,
         truncated,
@@ -621,7 +622,7 @@ async function main() {
       index.push({
         tool,
         section: TOOL_FOLDER[tool],
-        file: `new/${TOOL_FOLDER[tool]}/${tool}.json`,
+        file: `${OUT_SUBDIR}/${TOOL_FOLDER[tool]}/${tool}.json`,
         live: false,
         writeOnly: false,
         error: String(e.message)
@@ -636,7 +637,7 @@ async function main() {
     const spec = WRITE_ONLY[tool];
     if (!spec) {
       writeExample(tool, { _note: "No live or write-only template" }, { live: false, writeOnly: false });
-      index.push({ tool, section: TOOL_FOLDER[tool], file: `new/${TOOL_FOLDER[tool]}/${tool}.json`, live: false });
+      index.push({ tool, section: TOOL_FOLDER[tool], file: `${OUT_SUBDIR}/${TOOL_FOLDER[tool]}/${tool}.json`, live: false });
       continue;
     }
     writeExample(tool, spec.response, {
@@ -648,7 +649,7 @@ async function main() {
     index.push({
       tool,
       section: TOOL_FOLDER[tool],
-      file: `new/${TOOL_FOLDER[tool]}/${tool}.json`,
+      file: `${OUT_SUBDIR}/${TOOL_FOLDER[tool]}/${tool}.json`,
       live: false,
       writeOnly: true
     });

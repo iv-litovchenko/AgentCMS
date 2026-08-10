@@ -1,0 +1,19 @@
+{
+  "tool": "create_page",
+  "section": "page",
+  "sectionLabel": "Страница",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:32:00.552Z",
+  "sampleArgs": {
+    "parentPath": "awn-container",
+    "type": "file",
+    "displayName": "Новая тема"
+  },
+  "live": false,
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "path": "awn-container/novaya-tema/manifest.md"
+  }
+}

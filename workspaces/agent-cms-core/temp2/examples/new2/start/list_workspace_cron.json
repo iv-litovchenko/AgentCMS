@@ -1,0 +1,21 @@
+{
+  "tool": "list_workspace_cron",
+  "section": "start",
+  "sectionLabel": "Старт / контекст",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:31:58.852Z",
+  "sampleArgs": null,
+  "truncated": false,
+  "responseBytes": 208,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "version": 1,
+    "model": "cron-registry",
+    "hint": "Реестр cron: темы и записи с awn-runtime-cron. Обновляй по команде «обнови расписание задач».",
+    "items": [],
+    "itemCount": 0,
+    "scheduleCount": 0
+  }
+}

@@ -1,0 +1,484 @@
+{
+  "generatedAt": "2026-08-10T14:32:00.641Z",
+  "agent": "agent-cms-core",
+  "page": "manifest.md",
+  "store": "tasks",
+  "contentRef": null,
+  "contentMode": {
+    "slot": "main-single",
+    "ref": null,
+    "internal": true
+  },
+  "recordId": "3",
+  "toolCount": 58,
+  "liveOk": 30,
+  "liveErr": 0,
+  "tools": [
+    {
+      "tool": "get_session_context",
+      "section": "start",
+      "file": "new2/start/get_session_context.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 57424
+    },
+    {
+      "tool": "get_user_active_context_now",
+      "section": "start",
+      "file": "new2/start/get_user_active_context_now.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 811
+    },
+    {
+      "tool": "list_workspace_always_context",
+      "section": "start",
+      "file": "new2/start/list_workspace_always_context.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 36908
+    },
+    {
+      "tool": "list_workspace_cron",
+      "section": "start",
+      "file": "new2/start/list_workspace_cron.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 208
+    },
+    {
+      "tool": "list_workspace_heartbeat",
+      "section": "start",
+      "file": "new2/start/list_workspace_heartbeat.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 207
+    },
+    {
+      "tool": "get_page_map",
+      "section": "navigation",
+      "file": "new2/navigation/get_page_map.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 21181
+    },
+    {
+      "tool": "get_content_map",
+      "section": "navigation",
+      "file": "new2/navigation/get_content_map.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 387
+    },
+    {
+      "tool": "search_workspace",
+      "section": "navigation",
+      "file": "new2/navigation/search_workspace.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 4522
+    },
+    {
+      "tool": "read_page_body",
+      "section": "page",
+      "file": "new2/page/read_page_body.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 745
+    },
+    {
+      "tool": "write_page_body",
+      "section": "page",
+      "file": "new2/page/write_page_body.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "read_page_properties",
+      "section": "page",
+      "file": "new2/page/read_page_properties.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 749
+    },
+    {
+      "tool": "write_page_properties",
+      "section": "page",
+      "file": "new2/page/write_page_properties.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "read_page_property",
+      "section": "page",
+      "file": "new2/page/read_page_property.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 134
+    },
+    {
+      "tool": "write_page_property",
+      "section": "page",
+      "file": "new2/page/write_page_property.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "read_page_schema",
+      "section": "page",
+      "file": "new2/page/read_page_schema.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 212
+    },
+    {
+      "tool": "write_page_schema",
+      "section": "page",
+      "file": "new2/page/write_page_schema.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "create_page",
+      "section": "page",
+      "file": "new2/page/create_page.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "delete_page",
+      "section": "page",
+      "file": "new2/page/delete_page.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "rename_page",
+      "section": "page",
+      "file": "new2/page/rename_page.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "move_page",
+      "section": "page",
+      "file": "new2/page/move_page.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "list_page_slots",
+      "section": "slot",
+      "file": "new2/slot/list_page_slots.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 3401
+    },
+    {
+      "tool": "read_content_body",
+      "section": "content",
+      "file": "new2/content/read_content_body.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 44
+    },
+    {
+      "tool": "write_content_body",
+      "section": "content",
+      "file": "new2/content/write_content_body.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "read_content_properties",
+      "section": "content",
+      "file": "new2/content/read_content_properties.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 44
+    },
+    {
+      "tool": "write_content_properties",
+      "section": "content",
+      "file": "new2/content/write_content_properties.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "read_content_property",
+      "section": "content",
+      "file": "new2/content/read_content_property.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 82
+    },
+    {
+      "tool": "write_content_property",
+      "section": "content",
+      "file": "new2/content/write_content_property.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "create_content",
+      "section": "content",
+      "file": "new2/content/create_content.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "import_content_from_url",
+      "section": "content",
+      "file": "new2/content/import_content_from_url.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "rename_content",
+      "section": "content",
+      "file": "new2/content/rename_content.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "move_content",
+      "section": "content",
+      "file": "new2/content/move_content.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "delete_content",
+      "section": "content",
+      "file": "new2/content/delete_content.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "list_types",
+      "section": "types",
+      "file": "new2/types/list_types.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 36607
+    },
+    {
+      "tool": "get_type",
+      "section": "types",
+      "file": "new2/types/get_type.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 21258
+    },
+    {
+      "tool": "list_data_stores",
+      "section": "data",
+      "file": "new2/data/list_data_stores.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": true,
+      "responseBytes": 584131
+    },
+    {
+      "tool": "get_data_store",
+      "section": "data",
+      "file": "new2/data/get_data_store.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": true,
+      "responseBytes": 593856
+    },
+    {
+      "tool": "create_data_store",
+      "section": "data",
+      "file": "new2/data/create_data_store.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "create_data_record",
+      "section": "data",
+      "file": "new2/data/create_data_record.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "read_data_store_schema",
+      "section": "data",
+      "file": "new2/data/read_data_store_schema.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 2266
+    },
+    {
+      "tool": "read_store_properties",
+      "section": "data",
+      "file": "new2/data/read_store_properties.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 944
+    },
+    {
+      "tool": "write_store_properties",
+      "section": "data",
+      "file": "new2/data/write_store_properties.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "read_store_property",
+      "section": "data",
+      "file": "new2/data/read_store_property.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 82
+    },
+    {
+      "tool": "write_store_property",
+      "section": "data",
+      "file": "new2/data/write_store_property.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "read_record_properties",
+      "section": "data",
+      "file": "new2/data/read_record_properties.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 298
+    },
+    {
+      "tool": "write_record_properties",
+      "section": "data",
+      "file": "new2/data/write_record_properties.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "read_record_property",
+      "section": "data",
+      "file": "new2/data/read_record_property.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 135
+    },
+    {
+      "tool": "write_record_property",
+      "section": "data",
+      "file": "new2/data/write_record_property.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "list_inbox",
+      "section": "intake",
+      "file": "new2/intake/list_inbox.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 85
+    },
+    {
+      "tool": "triage_inbox_item",
+      "section": "intake",
+      "file": "new2/intake/triage_inbox_item.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "read_dialogs",
+      "section": "intake",
+      "file": "new2/intake/read_dialogs.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 128
+    },
+    {
+      "tool": "append_dialog",
+      "section": "intake",
+      "file": "new2/intake/append_dialog.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "list_system_files",
+      "section": "fs",
+      "file": "new2/fs/list_system_files.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 2575
+    },
+    {
+      "tool": "read_file",
+      "section": "fs",
+      "file": "new2/fs/read_file.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 136
+    },
+    {
+      "tool": "write_file",
+      "section": "fs",
+      "file": "new2/fs/write_file.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "upload_file",
+      "section": "fs",
+      "file": "new2/fs/upload_file.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "upload_file_from_url",
+      "section": "fs",
+      "file": "new2/fs/upload_file_from_url.json",
+      "live": false,
+      "writeOnly": true
+    },
+    {
+      "tool": "list_folder",
+      "section": "fs",
+      "file": "new2/fs/list_folder.json",
+      "live": true,
+      "writeOnly": false,
+      "truncated": false,
+      "responseBytes": 914
+    },
+    {
+      "tool": "notify_user",
+      "section": "notify",
+      "file": "new2/notify/notify_user.json",
+      "live": false,
+      "writeOnly": true
+    }
+  ]
+}

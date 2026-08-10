@@ -1,0 +1,21 @@
+{
+  "tool": "read_page_properties",
+  "section": "page",
+  "sectionLabel": "Страница",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:31:59.377Z",
+  "sampleArgs": {
+    "path": "manifest.md"
+  },
+  "truncated": false,
+  "responseBytes": 749,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "path": "manifest.md",
+    "content": "awn-name: \"[Agent CMS] Ядро платформы\"\nawn-emoji: \"\"\nawn-status: 🟢 Открыта\nawn-description: \"Ядро платформы — спеки, доки, runtime, интеграции; описано на языке CMS\"\nawn-tags: []\nawn-type: awn.page.ws\nawn-create: \"2026-06-17T11:52\"\nawn-update: 2026-08-01T21:47:07.220Z\nawn-version: 9\nawn-preview: awn-storage/assets/preview/20260729221936.png\nawn-web-url: \"\"\nawn-main: false\nawn-category: \"\"\nawn-owner: \"\"\nawn-priority: \"\"\nawn-color: \"#000000\"\nawn-sort: 0\nawn-runtime-load-always: false\nawn-runtime-cron: false\nawn-runtime-cron-schedule: \"\"\nawn-runtime-heartbeat: false\nawn-runtime-commands: false\nawn-attachments: []",
+    "exists": true,
+    "source": "frontmatter"
+  }
+}

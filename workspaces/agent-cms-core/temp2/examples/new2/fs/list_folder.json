@@ -1,0 +1,64 @@
+{
+  "tool": "list_folder",
+  "section": "fs",
+  "sectionLabel": "Система + FS",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:32:00.545Z",
+  "sampleArgs": {
+    "path": "awn-container",
+    "depth": 1
+  },
+  "truncated": false,
+  "responseBytes": 914,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "exists": true,
+    "path": "awn-container",
+    "depth": 1,
+    "entries": [
+      {
+        "kind": "folder",
+        "name": "awn-storage",
+        "path": "awn-container/awn-storage",
+        "itemCount": 0
+      },
+      {
+        "kind": "file",
+        "fileKind": "page",
+        "name": "manifest.md",
+        "path": "awn-container/manifest.md",
+        "size": null,
+        "ext": ".md",
+        "previewUrl": null
+      },
+      {
+        "kind": "file",
+        "fileKind": "file",
+        "name": "read.json",
+        "path": "awn-container/read.json",
+        "size": 55,
+        "ext": ".json",
+        "previewUrl": null
+      },
+      {
+        "kind": "file",
+        "fileKind": "file",
+        "name": "sort.json",
+        "path": "awn-container/sort.json",
+        "size": 41,
+        "ext": ".json",
+        "previewUrl": null
+      }
+    ],
+    "counts": {
+      "folders": 1,
+      "images": 0,
+      "pages": 1,
+      "videos": 0,
+      "audio": 0,
+      "other": 2
+    }
+  }
+}

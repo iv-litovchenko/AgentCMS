@@ -1,0 +1,25 @@
+{
+  "tool": "get_content_map",
+  "section": "navigation",
+  "sectionLabel": "Навигация",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:31:59.021Z",
+  "sampleArgs": {
+    "path": "manifest.md"
+  },
+  "truncated": false,
+  "responseBytes": 387,
+  "live": true,
+  "writeOnly": false,
+  "response": {
+    "version": 1,
+    "model": "content-map",
+    "hint": "Карта контента страницы: title, description, properties без body. Тело: read_content_body. Быстрое оглавление: get_content_index. Папки awn-materials-* (доп. материалы записи) включены как record-materials* с parentRecordRef.",
+    "path": "manifest.md",
+    "awnType": "awn.page.ws",
+    "slots": [],
+    "slotCount": 0,
+    "itemCount": 0
+  }
+}

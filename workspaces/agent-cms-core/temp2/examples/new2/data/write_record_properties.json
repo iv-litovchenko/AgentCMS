@@ -1,0 +1,21 @@
+{
+  "tool": "write_record_properties",
+  "section": "data",
+  "sectionLabel": "AWN-DATA / инфоблоки",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:32:00.607Z",
+  "sampleArgs": {
+    "store": "tasks",
+    "record": "1",
+    "content": "awn-title: Элемент"
+  },
+  "live": false,
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "store": "tasks",
+    "record": "1",
+    "content": "awn-title: Элемент\n…"
+  }
+}

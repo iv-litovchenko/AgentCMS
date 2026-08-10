@@ -1,0 +1,19 @@
+{
+  "tool": "write_store_properties",
+  "section": "data",
+  "sectionLabel": "AWN-DATA / инфоблоки",
+  "agent": "agent-cms-core",
+  "mcpVersion": "0.3.0-slim-58",
+  "capturedAt": "2026-08-10T14:32:00.604Z",
+  "sampleArgs": {
+    "store": "tasks",
+    "content": "awn-name: Накопитель"
+  },
+  "live": false,
+  "writeOnly": true,
+  "note": "Write-only — shape example, not live capture",
+  "response": {
+    "store": "tasks",
+    "content": "awn-name: Накопитель\n…"
+  }
+}
