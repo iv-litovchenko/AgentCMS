@@ -5129,10 +5129,72 @@ body.app-locked {
   min-height: 0;
   padding: 8px clamp(16px, 4vw, 48px) 64px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
-.app-landing-orbit-dive-canvas::before {
-  display: none;
+.app-landing-orbit-dive-canvas-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.app-landing-orbit-dive-canvas-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0.62) 0%, rgba(15, 23, 42, 0.28) 42%, rgba(2, 6, 23, 0.68) 100%),
+    radial-gradient(ellipse 80% 50% at 50% 18%, rgba(59, 130, 246, 0.12), transparent 70%);
+}
+
+.app-landing-orbit-dive-canvas-bg-slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  opacity: 0;
+  animation: app-landing-orbit-dive-bg-cycle 18s ease-in-out infinite;
+}
+
+.app-landing-orbit-dive-canvas-bg-slide.is-1 {
+  background-image: url("/assets/orbit-dive-bg/orbit-dive-bg-1.png");
+  animation-delay: 0s;
+}
+
+.app-landing-orbit-dive-canvas-bg-slide.is-2 {
+  background-image: url("/assets/orbit-dive-bg/orbit-dive-bg-2.png");
+  animation-delay: 6s;
+}
+
+.app-landing-orbit-dive-canvas-bg-slide.is-3 {
+  background-image: url("/assets/orbit-dive-bg/orbit-dive-bg-3.png");
+  animation-delay: 12s;
+}
+
+@keyframes app-landing-orbit-dive-bg-cycle {
+  0% {
+    opacity: 0;
+  }
+
+  4% {
+    opacity: 0.52;
+  }
+
+  28% {
+    opacity: 0.52;
+  }
+
+  33.33% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 0;
+  }
 }
 
 .app-landing-orbit-dive-graph-node {
@@ -9646,8 +9708,9 @@ body.app-locked {
 
 .topic-schema-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
 }
@@ -9667,6 +9730,150 @@ body.app-locked {
 
 .topic-schema-add-btn:hover {
   background: #dbeafe;
+}
+
+.topic-schema-add-section-btn {
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 7px;
+  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+  color: #4338ca;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+
+.topic-schema-add-section-btn:hover {
+  background: #e0e7ff;
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.topic-schema-add-section-btn.is-active {
+  background: linear-gradient(180deg, #ddd6fe, #c7d2fe);
+  border-color: rgba(79, 70, 229, 0.55);
+  color: #312e81;
+  box-shadow: inset 0 0 0 1px rgba(79, 70, 229, 0.18);
+}
+
+.topic-schema-pending-group-hint-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.topic-schema-pending-group-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.topic-schema-pending-group-hint.is-active {
+  color: #4338ca;
+}
+
+.topic-schema-pending-group-hint.is-default {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.topic-schema-pending-group-reset {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 5px;
+  background: #fff;
+  color: #6366f1;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+
+.topic-schema-pending-group-reset:hover {
+  background: #eef2ff;
+  border-color: rgba(99, 102, 241, 0.55);
+}
+
+.topic-schema-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 4px;
+  padding: 6px 2px;
+}
+
+.topic-schema-group-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.topic-schema-group-sort-btn,
+.topic-schema-group-rename-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  border-radius: 6px;
+  background: #fff;
+  color: #475569;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.topic-schema-group-sort-btn:hover:not(:disabled),
+.topic-schema-group-rename-btn:hover {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.topic-schema-group-sort-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.topic-schema-group-header::before,
+.topic-schema-group-header::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.35));
+}
+
+.topic-schema-group-header::after {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.35), transparent);
+}
+
+.topic-schema-group-header-label {
+  flex: 0 0 auto;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  background: rgba(238, 242, 255, 0.9);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #4338ca;
+}
+
+.topic-schema-group-header:first-child {
+  margin-top: 0;
 }
 
 .topic-schema-target-tabs {
@@ -9955,10 +10162,15 @@ body.app-locked {
 
 .topic-schema-field-compact {
   display: grid;
-  grid-template-columns: auto minmax(92px, 0.9fr) minmax(108px, 1fr) minmax(120px, 1.2fr) auto auto;
+  grid-template-columns: auto minmax(88px, 0.75fr) minmax(92px, 0.9fr) minmax(108px, 1fr) minmax(120px, 1.2fr) auto auto;
   gap: 6px;
   align-items: center;
   padding: 5px 6px;
+}
+
+.topic-schema-inline-select--group {
+  font-size: 10px;
+  color: #475569;
 }
 
 .topic-schema-field-sort {
@@ -32465,6 +32677,52 @@ button.node-navigation-memory-title:focus-visible {
   min-width: 0;
 }
 
+.editor-custom-props-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.38);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+  background: linear-gradient(180deg, rgba(238, 242, 255, 0.88), rgba(248, 250, 252, 0.72));
+  box-shadow:
+    inset 4px 0 0 #6366f1,
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4338ca;
+}
+
+.editor-custom-props-group-header::before,
+.editor-custom-props-group-header::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.35));
+}
+
+.editor-custom-props-group-header::after {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.35), transparent);
+}
+
+.editor-custom-props-group-header-label {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  line-height: 1.2;
+}
+
+.editor-custom-props-group-header:first-child {
+  border-top: 0;
+  padding-top: 8px;
+}
+
 .editor-custom-props-fields .props-form-row.editor-custom-props-field,
 .editor-custom-props-fields .props-form-row.props-form-field--compact.editor-custom-props-field {
   display: grid;
@@ -32702,6 +32960,526 @@ button.node-navigation-memory-title:focus-visible {
   color: #94a3b8;
   font-style: italic;
   font-weight: 400;
+}
+
+/* --- Центральная панель: визуальные акценты по типу поля --- */
+.editor-custom-props-fields .props-form-row.editor-custom-props-field,
+.editor-custom-props-fields .editor-custom-props-preview-field {
+  position: relative;
+  border-left: 3px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.editor-custom-props-fields .props-form-row.editor-custom-props-field:hover,
+.editor-custom-props-fields .editor-custom-props-preview-field:hover {
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.editor-custom-props-fields .props-form-value-wrap[data-widget]::before {
+  content: attr(data-widget);
+  display: none;
+}
+
+/* Текст / строка */
+.editor-custom-props-fields .editor-custom-props-field--widget-text,
+.editor-custom-props-fields .editor-custom-props-field--widget-email,
+.editor-custom-props-fields .editor-custom-props-field--widget-slug {
+  border-left-color: #94a3b8;
+  background: linear-gradient(90deg, rgba(241, 245, 249, 0.55), transparent 42%);
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-text .props-form-value,
+.editor-custom-props-fields .editor-custom-props-field--widget-email .props-form-value,
+.editor-custom-props-fields .editor-custom-props-field--widget-slug .props-form-value {
+  border-color: rgba(100, 116, 139, 0.28);
+  background: #fff;
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-slug .props-form-value--slug {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  letter-spacing: 0.01em;
+}
+
+/* Пароль */
+.editor-custom-props-fields .editor-custom-props-field--widget-password {
+  border-left-color: #f59e0b;
+  background: linear-gradient(90deg, rgba(255, 251, 235, 0.72), transparent 42%);
+}
+
+.editor-custom-props-fields .props-form-value-wrap--password .props-form-password-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.editor-custom-props-fields .props-form-value-wrap--password .props-form-value--password {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  letter-spacing: 0.08em;
+  border-color: rgba(245, 158, 11, 0.35);
+  background: #fffbeb;
+}
+
+.editor-custom-props-fields .props-form-password-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 7px;
+  background: #fff;
+  color: #b45309;
+  cursor: pointer;
+}
+
+.editor-custom-props-fields .props-form-password-toggle:not(:disabled):hover,
+.editor-custom-props-fields .props-form-password-toggle:not(:disabled):focus-visible {
+  border-color: rgba(245, 158, 11, 0.55);
+  background: rgba(255, 251, 235, 0.9);
+  outline: none;
+}
+
+.editor-custom-props-fields .props-form-password-toggle.is-visible {
+  color: #d97706;
+  background: rgba(254, 243, 199, 0.85);
+}
+
+.editor-custom-props-fields .props-form-password-toggle-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+/* Многострочный текст */
+.editor-custom-props-fields .editor-custom-props-field--widget-textarea {
+  border-left-color: #8b5cf6;
+  background: linear-gradient(90deg, rgba(245, 243, 255, 0.72), transparent 42%);
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-textarea textarea.props-form-value {
+  min-height: 64px;
+  border-color: rgba(139, 92, 246, 0.28);
+  background: #faf5ff;
+  resize: vertical;
+}
+
+/* Числа */
+.editor-custom-props-fields .editor-custom-props-field--widget-number {
+  border-left-color: #f97316;
+  background: linear-gradient(90deg, rgba(255, 247, 237, 0.72), transparent 42%);
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-number .props-form-value {
+  max-width: 180px;
+  font-variant-numeric: tabular-nums;
+  border-color: rgba(249, 115, 22, 0.3);
+  background: #fff7ed;
+}
+
+/* Дата / время */
+.editor-custom-props-fields .editor-custom-props-field--widget-date,
+.editor-custom-props-fields .editor-custom-props-field--widget-datetime {
+  border-left-color: #14b8a6;
+  background: linear-gradient(90deg, rgba(240, 253, 250, 0.72), transparent 42%);
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-date .props-form-value,
+.editor-custom-props-fields .editor-custom-props-field--widget-datetime .props-form-value {
+  border-color: rgba(20, 184, 166, 0.32);
+  background: #f0fdfa;
+}
+
+/* Да / нет */
+.editor-custom-props-fields .editor-custom-props-field--widget-boolean {
+  border-left-color: #22c55e;
+  background: linear-gradient(90deg, rgba(240, 253, 244, 0.72), transparent 42%);
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-boolean .props-form-value-wrap--boolean {
+  padding: 2px 10px 2px 8px;
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: 999px;
+  background: #f0fdf4;
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-boolean .props-form-bool-label {
+  color: #166534;
+}
+
+/* URL / ссылка / путь */
+.editor-custom-props-fields .editor-custom-props-field--widget-url,
+.editor-custom-props-fields .editor-custom-props-field--widget-link,
+.editor-custom-props-fields .editor-custom-props-field--widget-path {
+  border-left-color: #3b82f6;
+  background: linear-gradient(90deg, rgba(239, 246, 255, 0.72), transparent 42%);
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-url .props-form-value,
+.editor-custom-props-fields .editor-custom-props-field--widget-link .props-form-value,
+.editor-custom-props-fields .editor-custom-props-field--widget-path .props-form-value {
+  border-color: rgba(59, 130, 246, 0.28);
+  background: #eff6ff;
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-url .props-form-url-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-url .props-form-url-input-row .props-form-value {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-url .props-form-url-open-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  border-radius: 7px;
+  background: #fff;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-url .props-form-url-open-btn:not(:disabled):hover {
+  background: rgba(239, 246, 255, 0.95);
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-url .props-form-url-open-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+/* Цвет */
+.editor-custom-props-fields .editor-custom-props-field--widget-color {
+  border-left-color: #ec4899;
+  background: linear-gradient(90deg, rgba(253, 242, 248, 0.72), transparent 42%);
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-color .props-form-value {
+  max-width: 160px;
+  min-height: 32px;
+  padding: 2px 4px;
+  border-color: rgba(236, 72, 153, 0.28);
+  background: #fff;
+}
+
+/* Выбор: select / radio / checkbox */
+.editor-custom-props-fields .editor-custom-props-field--widget-select,
+.editor-custom-props-fields .editor-custom-props-field--widget-radio,
+.editor-custom-props-fields .editor-custom-props-field--widget-enum-checkbox,
+.editor-custom-props-fields .editor-custom-props-field--widget-select-multiple {
+  border-left-color: #6366f1;
+  background: linear-gradient(90deg, rgba(238, 242, 255, 0.72), transparent 42%);
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-select select.props-form-value,
+.editor-custom-props-fields .editor-custom-props-field--widget-select-multiple select.props-form-value {
+  border-color: rgba(99, 102, 241, 0.28);
+  background: #eef2ff;
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-radio .props-form-radio-label,
+.editor-custom-props-fields .editor-custom-props-field--widget-enum-checkbox .props-form-enum-checkbox-label {
+  padding: 3px 8px;
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+/* Справочники lookup */
+.editor-custom-props-fields .editor-custom-props-field--widget-lookup-one,
+.editor-custom-props-fields .editor-custom-props-field--widget-lookup-many,
+.editor-custom-props-fields .editor-custom-props-field--widget-tags {
+  border-left-color: #a855f7;
+  background: linear-gradient(90deg, rgba(250, 245, 255, 0.72), transparent 42%);
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-lookup-one select.props-form-value,
+.editor-custom-props-fields .editor-custom-props-field--widget-lookup-many select.props-form-value {
+  border-color: rgba(168, 85, 247, 0.28);
+  background: #faf5ff;
+}
+
+/* Отношения / файлы / превью */
+.editor-custom-props-fields .editor-custom-props-field--widget-relation,
+.editor-custom-props-fields .editor-custom-props-field--widget-file,
+.editor-custom-props-fields .editor-custom-props-field--widget-image,
+.editor-custom-props-fields .editor-custom-props-field--widget-preview,
+.editor-custom-props-fields .editor-custom-props-field--widget-attachments {
+  border-left-color: #f43f5e;
+  background: linear-gradient(90deg, rgba(255, 241, 242, 0.72), transparent 42%);
+}
+
+/* Cron / массив */
+.editor-custom-props-fields .editor-custom-props-field--widget-cron-schedule,
+.editor-custom-props-fields .editor-custom-props-field--widget-array {
+  border-left-color: #64748b;
+  background: linear-gradient(90deg, rgba(248, 250, 252, 0.72), transparent 42%);
+}
+
+.editor-custom-props-fields .editor-custom-props-field--widget-cron-schedule .props-form-value,
+.editor-custom-props-fields .editor-custom-props-field--widget-array .props-form-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+/* Picker: связи и файлы */
+.editor-custom-props-fields .props-form-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.editor-custom-props-fields .props-form-picker--compact {
+  gap: 5px;
+}
+
+.editor-custom-props-fields .props-form-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.editor-custom-props-fields .props-form-picker-row select.props-form-value,
+.editor-custom-props-fields .props-form-picker-row .props-form-file-select,
+.editor-custom-props-fields .props-form-picker-row .props-form-link-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+}
+
+.editor-custom-props-fields .props-form-picker-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.editor-custom-props-fields .props-form-picker-open {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  border-radius: 7px;
+  background: #fff;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.editor-custom-props-fields .props-form-picker-open:hover:not(:disabled) {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.editor-custom-props-fields .props-form-picker-open:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.editor-custom-props-fields .props-form-picker-note {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #94a3b8;
+}
+
+.editor-custom-props-fields .props-form-link-manual,
+.editor-custom-props-fields .props-form-file-manual {
+  width: 100%;
+  font-size: 12px;
+}
+
+.editor-custom-props-fields .props-form-picker--compact .props-form-link-manual {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+}
+
+/* Lookup many: компактные чипы вместо длинного списка */
+.editor-custom-props-fields .props-form-tags-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow: auto;
+  padding: 6px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.editor-custom-props-fields .props-form-tags-list--chips {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 4px;
+  max-height: 120px;
+  padding: 6px;
+}
+
+.editor-custom-props-fields .props-form-tags-list--chips .props-form-catalog-group {
+  display: contents;
+}
+
+.editor-custom-props-fields .props-form-tags-list--chips .props-form-catalog-group-title {
+  flex: 0 0 100%;
+  margin: 2px 0 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.editor-custom-props-fields .props-form-tags-list--chips .props-form-catalog-group:first-child .props-form-catalog-group-title {
+  margin-top: 0;
+}
+
+.editor-custom-props-fields .props-form-tag-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 2px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  background: #f8fafc;
+  font-size: 11px;
+  line-height: 1.25;
+  color: #334155;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.editor-custom-props-fields .props-form-tags-list--chips .props-form-tag-option:has(input:checked) {
+  border-color: rgba(168, 85, 247, 0.45);
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.editor-custom-props-fields .props-form-tag-option input {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: #a855f7;
+}
+
+.editor-custom-props-fields .props-form-tags-extra-wrap {
+  margin-top: 2px;
+}
+
+.editor-custom-props-fields .props-form-tags-extra-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.editor-custom-props-fields .props-form-tags-extra {
+  font-size: 11px;
+}
+
+.editor-custom-props-fields .props-form-catalog-missing,
+.editor-custom-props-fields .props-form-catalog-warn {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.editor-custom-props-fields .props-form-catalog-missing {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  color: #64748b;
+}
+
+.editor-custom-props-fields .props-form-catalog-warn {
+  color: #b45309;
+}
+
+/* Файлы: список и загрузка */
+.editor-custom-props-fields .props-form-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.editor-custom-props-fields .props-form-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: rgba(255, 241, 242, 0.65);
+  border: 1px solid rgba(244, 63, 94, 0.15);
+}
+
+.editor-custom-props-fields .props-form-file-item-name {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-custom-props-fields .props-form-file-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin-top: 2px;
+  padding: 6px 10px;
+  border: 1px dashed rgba(244, 63, 94, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 241, 242, 0.45);
+  color: #be123c;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.editor-custom-props-fields .props-form-file-upload:hover,
+.editor-custom-props-fields .props-form-file-upload:focus-visible {
+  border-color: rgba(244, 63, 94, 0.55);
+  background: rgba(255, 228, 230, 0.75);
+  outline: none;
+}
+
+.editor-custom-props-fields .props-form-file-upload.is-uploading {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .doc-props-aside .props-form-empty--editor-custom-hint {

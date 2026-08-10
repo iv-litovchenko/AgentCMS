@@ -306,6 +306,7 @@ const topicSchemaBaseFieldsNode = document.getElementById("topic-schema-base-fie
 const topicSchemaFieldsNode = document.getElementById("topic-schema-fields");
 const topicSchemaEmptyNode = document.getElementById("topic-schema-empty");
 const topicSchemaAddBtn = document.getElementById("topic-schema-add-btn");
+const topicSchemaPendingGroupByTarget = {};
 const nodeConfigPanelNode = document.getElementById("node-config-panel");
 const nodeConfigFieldsNode = document.getElementById("node-config-fields");
 const nodeConfigEmptyNode = document.getElementById("node-config-empty");
@@ -10370,15 +10371,22 @@ function highlightOrbitDiveNode(nodeId, active) {
   }
 }
 
+function resetOrbitDiveTreeContent() {
+  if (!appLandingOrbitDiveTreeNode) return;
+  const bg = appLandingOrbitDiveTreeNode.querySelector(".app-landing-orbit-dive-canvas-bg");
+  const linksNode = appLandingOrbitDiveLinksNode;
+  appLandingOrbitDiveTreeNode.replaceChildren();
+  if (bg) appLandingOrbitDiveTreeNode.appendChild(bg);
+  if (linksNode) appLandingOrbitDiveTreeNode.appendChild(linksNode);
+}
+
 function renderOrbitAgentDive(agentId) {
   if (!appLandingOrbitDiveTreeNode || !appLandingOrbitDiveTitleNode) return;
   const agent = getOrbitDiveAgentRecord(agentId);
   if (!agent) return;
 
   landingOrbitDiveGraphNodes = buildOrbitDiveGraph(agent);
-  const linksNode = appLandingOrbitDiveLinksNode;
-  appLandingOrbitDiveTreeNode.replaceChildren();
-  if (linksNode) appLandingOrbitDiveTreeNode.appendChild(linksNode);
+  resetOrbitDiveTreeContent();
   appLandingOrbitDiveLinksNode?.replaceChildren();
   appLandingOrbitDiveTitleNode.textContent = agent.name || agent.id;
 
@@ -10518,9 +10526,7 @@ function syncOrbitDiveUi() {
 
   if (!isOpen) {
     landingOrbitDiveGraphNodes = [];
-    const linksNode = appLandingOrbitDiveLinksNode;
-    appLandingOrbitDiveTreeNode?.replaceChildren();
-    if (linksNode && appLandingOrbitDiveTreeNode) appLandingOrbitDiveTreeNode.appendChild(linksNode);
+    resetOrbitDiveTreeContent();
     appLandingOrbitDiveLinksNode?.replaceChildren();
     if (appLandingOrbitDiveTitleNode) appLandingOrbitDiveTitleNode.textContent = "";
     if (appLandingOrbitDiveStatsNode) appLandingOrbitDiveStatsNode.textContent = "";
@@ -37371,6 +37377,7 @@ const FIELD_TYPE_SELECT_GROUPS = [
     types: [
       "awn.field.string",
       "awn.field.string.email",
+      "awn.field.string.password",
       "awn.field.string.slug",
       "awn.field.string.url",
       "awn.field.string.link",
@@ -37534,6 +37541,261 @@ function getTopicSchemaLayoutSettingKeys() {
   return ["placement", "group", "sort"];
 }
 
+function getTopicSchemaPendingGroup(target = topicSchemaActiveTarget) {
+  return String(topicSchemaPendingGroupByTarget[target] || "").trim();
+}
+
+function setTopicSchemaPendingGroup(value, target = topicSchemaActiveTarget) {
+  const trimmed = String(value || "").trim();
+  if (trimmed) topicSchemaPendingGroupByTarget[target] = trimmed;
+  else delete topicSchemaPendingGroupByTarget[target];
+}
+
+function resolveSchemaEditorContextTarget(root = topicSchemaPanelNode) {
+  if (root?.classList?.contains("node-entry-overview-section-schema")) {
+    return String(root._sectionSchemaCache?.activeTarget || "").trim();
+  }
+  return normalizeTopicSchemaActiveTarget(topicSchemaActiveTarget);
+}
+
+function collectSchemaEditorGroupNames(fields = {}, target = topicSchemaActiveTarget) {
+  const names = new Set();
+  const keys = Object.keys(fields || {});
+  for (const groupId of getSchemaEditorGroupOrder(fields, keys)) {
+    if (groupId && groupId !== "content") names.add(groupId);
+  }
+  const pending = getTopicSchemaPendingGroup(target);
+  if (pending) names.add(pending);
+  return [...names].sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+function sortSchemaEditorFieldKeys(keys, fields = {}) {
+  return [...keys].sort((a, b) => comparePropsFieldSchemaOrder(a, b, fields));
+}
+
+function resolveSchemaEditorGroupLabel(groupId) {
+  const id = String(groupId || "").trim();
+  if (!id || id === "content") return "";
+  const known = getActivePropsFieldGroups().find((group) => group.id === id);
+  if (known?.name && known.name !== id) return known.name;
+  return id;
+}
+
+function getSchemaEditorGroupOrder(fields = {}, keys = []) {
+  const sortedKeys = sortSchemaEditorFieldKeys(keys, fields);
+  const groups = [];
+  const seen = new Set();
+  for (const key of sortedKeys) {
+    const groupId = resolvePropsFieldGroupId(key, fields[key]);
+    if (seen.has(groupId)) continue;
+    seen.add(groupId);
+    groups.push(groupId);
+  }
+  return groups;
+}
+
+function applySchemaEditorGroupOrder(fields, keys, groups) {
+  let baseSort = 10;
+  for (const groupId of groups) {
+    const groupKeys = sortSchemaEditorFieldKeys(keys, fields).filter(
+      (key) => resolvePropsFieldGroupId(key, fields[key]) === groupId
+    );
+    groupKeys.forEach((key, index) => {
+      if (!fields[key]) return;
+      fields[key].sort = baseSort + index;
+    });
+    baseSort += 100;
+  }
+}
+
+function moveSchemaEditorGroup(fields, keys, groupId, direction) {
+  if (!fields) return false;
+  const groups = getSchemaEditorGroupOrder(fields, keys);
+  const index = groups.indexOf(groupId);
+  if (index < 0) return false;
+  const swapIndex = direction === "up" ? index - 1 : index + 1;
+  if (swapIndex < 0 || swapIndex >= groups.length) return false;
+  [groups[index], groups[swapIndex]] = [groups[swapIndex], groups[index]];
+  applySchemaEditorGroupOrder(fields, keys, groups);
+  return true;
+}
+
+function renameSchemaEditorGroup(fields, keys, groupId, nextName, target = "") {
+  const trimmed = String(nextName || "").trim();
+  if (!trimmed || trimmed === groupId) return false;
+  for (const key of keys) {
+    const def = fields[key];
+    if (!def) continue;
+    if (resolvePropsFieldGroupId(key, def) === groupId) {
+      def.group = trimmed;
+    }
+  }
+  if (target && getTopicSchemaPendingGroup(target) === groupId) {
+    setTopicSchemaPendingGroup(trimmed, target);
+  }
+  return true;
+}
+
+function createTopicSchemaGroupHeader(groupId, { groupIndex = 0, groupCount = 1 } = {}) {
+  const normalized = String(groupId || "content").trim() || "content";
+  const label = resolveSchemaEditorGroupLabel(normalized);
+  if (!label) return null;
+
+  const header = document.createElement("div");
+  header.className = "topic-schema-group-header";
+  header.dataset.group = normalized;
+
+  const actions = document.createElement("div");
+  actions.className = "topic-schema-group-header-actions";
+
+  const upBtn = document.createElement("button");
+  upBtn.type = "button";
+  upBtn.className = "topic-schema-group-sort-btn";
+  upBtn.dataset.schemaAction = "group-move-up";
+  upBtn.dataset.schemaGroup = normalized;
+  upBtn.textContent = "↑";
+  upBtn.title = "Переместить раздел выше";
+  upBtn.disabled = groupIndex <= 0;
+
+  const downBtn = document.createElement("button");
+  downBtn.type = "button";
+  downBtn.className = "topic-schema-group-sort-btn";
+  downBtn.dataset.schemaAction = "group-move-down";
+  downBtn.dataset.schemaGroup = normalized;
+  downBtn.textContent = "↓";
+  downBtn.title = "Переместить раздел ниже";
+  downBtn.disabled = groupIndex >= groupCount - 1;
+
+  const renameBtn = document.createElement("button");
+  renameBtn.type = "button";
+  renameBtn.className = "topic-schema-group-rename-btn";
+  renameBtn.dataset.schemaAction = "group-rename";
+  renameBtn.dataset.schemaGroup = normalized;
+  renameBtn.textContent = "✎";
+  renameBtn.title = "Переименовать раздел (все поля в группе)";
+
+  actions.append(upBtn, downBtn, renameBtn);
+
+  const caption = document.createElement("span");
+  caption.className = "topic-schema-group-header-label";
+  caption.textContent = label;
+  caption.title = `Раздел «${label}» — свойство group у полей`;
+
+  header.append(actions, caption);
+  return header;
+}
+
+function appendSchemaEditorGroupHeader(container, groupId, state, meta = {}) {
+  const normalized = String(groupId || "content").trim() || "content";
+  if (state.lastGroup === normalized) return;
+  state.lastGroup = normalized;
+  const header = createTopicSchemaGroupHeader(normalized, meta);
+  if (header) container.appendChild(header);
+}
+
+function syncTopicSchemaPendingGroupHint(root = topicSchemaPanelNode) {
+  root?.querySelectorAll(".topic-schema-pending-group-hint-wrap").forEach((node) => node.remove());
+  const footer =
+    root?.querySelector(".topic-schema-footer") ||
+    document.querySelector("#topic-schema-panel .topic-schema-footer");
+  if (!footer) return;
+
+  const target = resolveSchemaEditorContextTarget(root);
+  const pendingGroup = getTopicSchemaPendingGroup(target);
+  const sectionBtn = footer.querySelector(".topic-schema-add-section-btn");
+  sectionBtn?.classList.toggle("is-active", Boolean(pendingGroup));
+
+  const wrap = document.createElement("span");
+  wrap.className = "topic-schema-pending-group-hint-wrap";
+  if (target) wrap.dataset.schemaTarget = target;
+
+  const hint = document.createElement("span");
+  hint.className = "topic-schema-pending-group-hint";
+  if (pendingGroup) {
+    hint.classList.add("is-active");
+    hint.textContent = `Раздел «${pendingGroup}» — новые поля попадут сюда`;
+
+    const resetBtn = document.createElement("button");
+    resetBtn.type = "button";
+    resetBtn.className = "topic-schema-pending-group-reset";
+    resetBtn.title = "Сбросить раздел";
+    resetBtn.setAttribute("aria-label", "Сбросить раздел");
+    resetBtn.textContent = "×";
+    wrap.append(hint, resetBtn);
+  } else {
+    hint.classList.add("is-default");
+    hint.textContent = "Раздел сброшен — новые поля без группы";
+    wrap.appendChild(hint);
+  }
+
+  footer.insertBefore(wrap, footer.firstChild);
+}
+
+function resetTopicSchemaPendingGroup(target = topicSchemaActiveTarget) {
+  if (!getTopicSchemaPendingGroup(target)) return;
+  setTopicSchemaPendingGroup("", target);
+  syncTopicSchemaPendingGroupHint(topicSchemaPanelNode);
+  syncTopicSchemaPendingGroupHint(document.querySelector(".node-entry-overview-section-schema"));
+}
+
+function addTopicSchemaSection(target = topicSchemaActiveTarget) {
+  const suggested = getTopicSchemaPendingGroup(target) || "";
+  const name = window.prompt(
+    "Название раздела для новых полей.\n\n" +
+      "Раздел — это метка group: поля с одним названием группируются под общим заголовком в форме.\n\n" +
+      "Оставьте пустым и нажмите OK — сбросить активный раздел.\n" +
+      "Следующие поля («+ Поле») попадут в выбранный раздел.",
+    suggested
+  );
+  if (name === null) return;
+  const trimmed = String(name || "").trim();
+  setTopicSchemaPendingGroup(trimmed, target);
+  syncTopicSchemaPendingGroupHint(topicSchemaPanelNode);
+  syncTopicSchemaPendingGroupHint(document.querySelector(".node-entry-overview-section-schema"));
+  if (trimmed) {
+    showToast(`Раздел «${trimmed}» активен — нажмите «+ Поле»`, "info");
+  }
+}
+
+function moveTopicSchemaEditorGroup(target, groupId, direction) {
+  const cache = getTopicSchemaCache();
+  const fields = cache?.awnSchema?.[target]?.fields;
+  if (!fields) return;
+  const keys = getTopicSchemaCustomFieldKeys(target, cache);
+  if (!moveSchemaEditorGroup(fields, keys, groupId, direction)) return;
+  renderTopicSchemaEditor();
+  syncSaveButtonLamp();
+}
+
+function renameTopicSchemaEditorGroup(target, groupId) {
+  const cache = getTopicSchemaCache();
+  const fields = cache?.awnSchema?.[target]?.fields;
+  if (!fields) return;
+  const keys = getTopicSchemaCustomFieldKeys(target, cache);
+  const label = resolveSchemaEditorGroupLabel(groupId) || groupId;
+  const name = window.prompt(
+    `Переименовать раздел «${label}».\n\nИзменится group у всех полей этого раздела.`,
+    label
+  );
+  if (name === null) return;
+  if (!renameSchemaEditorGroup(fields, keys, groupId, name, target)) return;
+  renderTopicSchemaEditor();
+  syncSaveButtonLamp();
+  showToast(`Раздел переименован в «${String(name).trim()}»`, "success");
+}
+
+function buildTopicSchemaFieldDefaults(index = 1, target = topicSchemaActiveTarget) {
+  const defaults = {
+    type: "awn.field.string",
+    name: "",
+    placement: "editor-body",
+    sort: index * 10
+  };
+  const pending = getTopicSchemaPendingGroup(target);
+  if (pending) defaults.group = pending;
+  return defaults;
+}
+
 function topicSchemaFieldHasAdvancedSettings(fieldDef) {
   if (!fieldDef || typeof fieldDef !== "object") return false;
   const typeId = resolveFieldTypeId(fieldDef.type || "awn.field.string");
@@ -37691,15 +37953,10 @@ function addTopicSchemaField(target = syncActiveTopicSchemaTargetFromDom()) {
     index += 1;
     key = defaultTopicSchemaFieldKeyForTarget(target, index);
   }
-  fields[key] = {
-    type: "awn.field.string",
-    name: "",
-    placement: "editor-body",
-    group: "content",
-    sort: index * 10
-  };
+  fields[key] = buildTopicSchemaFieldDefaults(index, resolvedTarget);
   renderTopicSchemaEditor();
   syncSaveButtonLamp();
+  syncTopicSchemaPendingGroupHint();
   const keyInput = topicSchemaFieldsNode?.querySelector(`[data-schema-key="${CSS.escape(key)}"]`);
   keyInput?.focus();
   keyInput?.select();
@@ -37945,21 +38202,92 @@ function createTopicSchemaSortButton(action, key, { disabled = false, title = ""
   return button;
 }
 
+function createTopicSchemaGroupSelect(fieldDef, schemaKey, fields = {}, target = topicSchemaActiveTarget) {
+  const select = document.createElement("select");
+  select.className = "topic-schema-inline-select topic-schema-inline-select--group";
+  select.dataset.schemaKey = schemaKey;
+  select.dataset.schemaField = "group";
+  select.title = "Раздел — переместить поле в другую секцию";
+
+  const rawGroup = String(fieldDef?.group || "").trim();
+  const current = !rawGroup || rawGroup === "content" ? "" : rawGroup;
+  const names = collectSchemaEditorGroupNames(fields, target).filter((name) => name !== "content");
+  if (current && !names.includes(current)) names.push(current);
+  names.sort((a, b) => a.localeCompare(b, "ru"));
+
+  const addOption = (value, label, selected = false) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    option.selected = selected;
+    select.appendChild(option);
+  };
+
+  addOption("", "Основное", current === "");
+  for (const name of names) {
+    addOption(name, name, name === current);
+  }
+
+  return select;
+}
+
+function applySchemaEditorFieldGroupMove(fields, fieldKey, groupValue) {
+  const fieldDef = fields?.[fieldKey];
+  if (!fieldDef) return;
+  const trimmed = String(groupValue || "").trim();
+  if (!trimmed || trimmed === "content") delete fieldDef.group;
+  else fieldDef.group = trimmed;
+
+  const targetGroupId = resolvePropsFieldGroupId(fieldKey, fieldDef);
+  let maxSort = 0;
+  for (const key of Object.keys(fields || {})) {
+    if (key === fieldKey) continue;
+    if (resolvePropsFieldGroupId(key, fields[key]) !== targetGroupId) continue;
+    maxSort = Math.max(maxSort, Number(fields[key]?.sort) || 0);
+  }
+  fieldDef.sort = maxSort + 1;
+}
+
+function restoreTopicSchemaFieldRowUiAfterRerender(activeKey, target = topicSchemaActiveTarget) {
+  if (!activeKey || !isTopicSchemaFieldExpanded(target, activeKey)) return;
+  setTopicSchemaFieldExpanded(target, activeKey, true);
+  const nextRow = topicSchemaFieldsNode?.querySelector(
+    `[data-schema-row-key="${CSS.escape(activeKey)}"]`
+  );
+  if (!nextRow) return;
+  nextRow.classList.add("is-settings-open");
+  nextRow.querySelector(".topic-schema-field-settings")?.classList.remove("is-collapsed");
+  const toggle = nextRow.querySelector('[data-schema-action="toggle-settings"]');
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.textContent = "Скрыть";
+  }
+}
+
 function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
   if (!topicSchemaFieldsNode || !topicSchemaEmptyNode) return;
   const target = topicSchemaActiveTarget;
-  const keys = getTopicSchemaCustomFieldKeys(target, cache);
+  const fields = cache?.awnSchema?.[target]?.fields || {};
+  const keys = sortSchemaEditorFieldKeys(getTopicSchemaCustomFieldKeys(target, cache), fields);
   const registryEntries = getTopicSchemaRegistryEntries(cache);
+  const groupOrder = getSchemaEditorGroupOrder(fields, keys);
+  const groupState = { lastGroup: null };
 
   topicSchemaFieldsNode.replaceChildren();
   if (!keys.length) {
     topicSchemaEmptyNode.classList.remove("hidden");
+    syncTopicSchemaPendingGroupHint();
     return;
   }
   topicSchemaEmptyNode.classList.add("hidden");
 
   keys.forEach((key, index) => {
-    const fieldDef = cache?.awnSchema?.[target]?.fields?.[key] || {};
+    const fieldDef = fields[key] || {};
+    const groupId = resolvePropsFieldGroupId(key, fieldDef);
+    appendSchemaEditorGroupHeader(topicSchemaFieldsNode, groupId, groupState, {
+      groupIndex: groupOrder.indexOf(groupId),
+      groupCount: groupOrder.length
+    });
     const expanded = isTopicSchemaFieldExpanded(target, key);
     const hasAdvancedSettings = topicSchemaFieldHasAdvancedSettings(fieldDef);
     const row = document.createElement("div");
@@ -38031,11 +38359,14 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
     removeBtn.title = "Удалить поле";
     removeBtn.textContent = "×";
 
-    compact.append(sort, keyInput, typeSelect, titleInput, settingsBtn, removeBtn);
+    const groupSelect = createTopicSchemaGroupSelect(fieldDef, key, fields, target);
+
+    compact.append(sort, groupSelect, keyInput, typeSelect, titleInput, settingsBtn, removeBtn);
     row.appendChild(compact);
     appendTopicSchemaFieldSettings(row, fieldDef, key, { expanded });
     topicSchemaFieldsNode.append(row);
   });
+  syncTopicSchemaPendingGroupHint();
 }
 
 function renderTopicSchemaEditor() {
@@ -38060,6 +38391,7 @@ function renderTopicSchemaEditor() {
         `Дополнительные поля сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest темы. ` +
         "Ключи произвольные — каждая вкладка (Тема, слот, Настройки) хранит только свои поля. " +
         "Зона UI (<code>placement</code>): <code>editor-body</code> (над текстом), <code>aside-body</code> (панель свойств), <code>aside-hero</code> (медиа). " +
+        "Разделы: «+ Раздел» задаёт group для новых полей; у заголовка раздела — ✎ переименовать, ↑↓ переместить весь блок. " +
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
         "Поля WS и области здесь не смешиваются — только схема этой темы. " +
         '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
@@ -38074,6 +38406,7 @@ function renderTopicSchemaEditor() {
   renderTopicSchemaTargetTabs();
   renderTopicSchemaBaseFields(cache);
   renderTopicSchemaCustomFields(cache);
+  syncTopicSchemaPendingGroupHint();
 }
 
 function preserveTopicSchemaFieldOrder(previousFields, nextFields) {
@@ -38150,7 +38483,11 @@ function readTopicSchemaFieldFromRow(row, cache = getTopicSchemaCache(), target 
     if (!allowedSettings.has(propKey)) delete fieldDef[propKey];
   }
 
-  row.querySelectorAll(".topic-schema-enum-options, .topic-schema-setting [data-schema-field]").forEach((control) => {
+  row
+    .querySelectorAll(
+      ".topic-schema-field-compact [data-schema-field], .topic-schema-enum-options, .topic-schema-setting [data-schema-field]"
+    )
+    .forEach((control) => {
     const propKey = control.dataset.schemaField;
     if (!propKey || !allowedSettings.has(propKey)) return;
     if (propKey === "enum" && typeof control.readEnumOptions === "function") {
@@ -38184,24 +38521,19 @@ function handleTopicSchemaFieldsInput(event) {
   if (activeContentMode !== "topic-schema") return;
   const row = event.target.closest(".topic-schema-field-row");
   if (!row) return;
+  const schemaField = event.target.dataset.schemaField;
   readTopicSchemaFieldFromRow(row);
-  if (event.target.dataset.schemaField === "type") {
+  if (schemaField === "group") {
     const activeKey = row.dataset.schemaRowKey;
-    const expanded = isTopicSchemaFieldExpanded(topicSchemaActiveTarget, activeKey);
-    renderTopicSchemaCustomFields();
-    if (expanded && activeKey) {
-      setTopicSchemaFieldExpanded(topicSchemaActiveTarget, activeKey, true);
-      const nextRow = topicSchemaFieldsNode?.querySelector(
-        `[data-schema-row-key="${CSS.escape(activeKey)}"]`
-      );
-      nextRow?.classList.add("is-settings-open");
-      nextRow?.querySelector(".topic-schema-field-settings")?.classList.remove("is-collapsed");
-      const toggle = nextRow?.querySelector('[data-schema-action="toggle-settings"]');
-      if (toggle) {
-        toggle.setAttribute("aria-expanded", "true");
-        toggle.textContent = "Скрыть";
-      }
+    const fields = getTopicSchemaCache()?.awnSchema?.[topicSchemaActiveTarget]?.fields;
+    if (activeKey && fields?.[activeKey]) {
+      applySchemaEditorFieldGroupMove(fields, activeKey, event.target.value);
     }
+  }
+  if (schemaField === "type" || schemaField === "group") {
+    const activeKey = row.dataset.schemaRowKey;
+    renderTopicSchemaCustomFields();
+    restoreTopicSchemaFieldRowUiAfterRerender(activeKey);
   }
   syncSaveButtonLamp();
 }
@@ -38211,6 +38543,24 @@ function handleTopicSchemaFieldsClick(event) {
   const btn = event.target.closest("[data-schema-action]");
   if (!btn) return;
   const action = btn.dataset.schemaAction;
+
+  if (action === "group-move-up" || action === "group-move-down") {
+    const groupId = btn.dataset.schemaGroup;
+    if (!groupId) return;
+    moveTopicSchemaEditorGroup(
+      topicSchemaActiveTarget,
+      groupId,
+      action === "group-move-up" ? "up" : "down"
+    );
+    return;
+  }
+  if (action === "group-rename") {
+    const groupId = btn.dataset.schemaGroup;
+    if (!groupId) return;
+    renameTopicSchemaEditorGroup(topicSchemaActiveTarget, groupId);
+    return;
+  }
+
   const key = btn.dataset.schemaKey;
   if (!key) return;
 
@@ -38665,7 +39015,13 @@ function readSectionSchemaFieldFromRow(row, cache, target, scope) {
   const activeKey = row.dataset.schemaRowKey;
   const fieldDef = fields[activeKey] || {};
   const nextType = resolveFieldTypeId(typeSelect?.value || "awn.field.string");
-  const allowedSettings = new Set(["type", "title", "name", ...getFieldTypeSettingsKeys(nextType)]);
+  const allowedSettings = new Set([
+    "type",
+    "title",
+    "name",
+    ...getFieldTypeSettingsKeys(nextType),
+    ...getTopicSchemaLayoutSettingKeys()
+  ]);
 
   fieldDef.type = nextType;
   const nextName = String(titleInput?.value || "").trim();
@@ -38678,7 +39034,11 @@ function readSectionSchemaFieldFromRow(row, cache, target, scope) {
     if (!allowedSettings.has(propKey)) delete fieldDef[propKey];
   }
 
-  row.querySelectorAll(".topic-schema-enum-options, .topic-schema-setting [data-schema-field]").forEach((control) => {
+  row
+    .querySelectorAll(
+      ".topic-schema-field-compact [data-schema-field], .topic-schema-enum-options, .topic-schema-setting [data-schema-field]"
+    )
+    .forEach((control) => {
     const propKey = control.dataset.schemaField;
     if (!propKey || !allowedSettings.has(propKey)) return;
     if (propKey === "enum" && typeof control.readEnumOptions === "function") {
@@ -38796,19 +39156,28 @@ function renderSectionSchemaCustomFields(panel, cache) {
 
   const target = cache.activeTarget;
   if (!cache.awnSchema[target]) cache.awnSchema[target] = { fields: {} };
-  const keys = Object.keys(cache.awnSchema[target].fields || {});
+  const fields = cache.awnSchema[target].fields || {};
+  const keys = sortSchemaEditorFieldKeys(Object.keys(fields), fields);
   const registryEntries = getTopicSchemaRegistryEntries(cache);
   const scope = cache.cacheKey;
+  const groupOrder = getSchemaEditorGroupOrder(fields, keys);
+  const groupState = { lastGroup: null };
 
   fieldsNode.replaceChildren();
   if (!keys.length) {
     emptyNode.classList.remove("hidden");
+    syncTopicSchemaPendingGroupHint(panel);
     return;
   }
   emptyNode.classList.add("hidden");
 
   keys.forEach((key, index) => {
-    const fieldDef = cache.awnSchema[target].fields[key] || {};
+    const fieldDef = fields[key] || {};
+    const groupId = resolvePropsFieldGroupId(key, fieldDef);
+    appendSchemaEditorGroupHeader(fieldsNode, groupId, groupState, {
+      groupIndex: groupOrder.indexOf(groupId),
+      groupCount: groupOrder.length
+    });
     const expanded = isSectionSchemaFieldExpanded(scope, target, key);
     const hasAdvancedSettings = topicSchemaFieldHasAdvancedSettings(fieldDef);
     const keyHint = getTopicSchemaFieldKeyHint(target);
@@ -38872,11 +39241,14 @@ function renderSectionSchemaCustomFields(panel, cache) {
     removeBtn.title = "Удалить поле";
     removeBtn.textContent = "×";
 
-    compact.append(sort, keyInput, typeSelect, titleInput, settingsBtn, removeBtn);
+    const groupSelect = createTopicSchemaGroupSelect(fieldDef, key, fields, target);
+
+    compact.append(sort, groupSelect, keyInput, typeSelect, titleInput, settingsBtn, removeBtn);
     row.appendChild(compact);
     appendTopicSchemaFieldSettings(row, fieldDef, key, { expanded });
     fieldsNode.append(row);
   });
+  syncTopicSchemaPendingGroupHint(panel);
 }
 
 function bindSectionSchemaPanelEvents(panel, cache, context) {
@@ -38886,8 +39258,16 @@ function bindSectionSchemaPanelEvents(panel, cache, context) {
   panel.addEventListener("input", (event) => {
     const row = event.target.closest(".topic-schema-field-row");
     if (!row) return;
+    const schemaField = event.target.dataset.schemaField;
     readSectionSchemaFieldFromRow(row, cache, cache.activeTarget, cache.cacheKey);
-    if (event.target.dataset.schemaField === "type") {
+    if (schemaField === "group") {
+      const activeKey = row.dataset.schemaRowKey;
+      const fields = cache?.awnSchema?.[cache.activeTarget]?.fields;
+      if (activeKey && fields?.[activeKey]) {
+        applySchemaEditorFieldGroupMove(fields, activeKey, event.target.value);
+      }
+    }
+    if (schemaField === "type" || schemaField === "group") {
       renderSectionSchemaCustomFields(panel, cache);
       markSectionSchemaPanelDirty(panel);
       return;
@@ -38896,12 +39276,47 @@ function bindSectionSchemaPanelEvents(panel, cache, context) {
   });
 
   panel.addEventListener("click", (event) => {
+    if (event.target.closest(".topic-schema-pending-group-reset")) {
+      const wrap = event.target.closest(".topic-schema-pending-group-hint-wrap");
+      const target = wrap?.dataset.schemaTarget || cache.activeTarget;
+      resetTopicSchemaPendingGroup(target);
+      return;
+    }
     const btn = event.target.closest("[data-schema-action]");
     if (!btn) return;
     const action = btn.dataset.schemaAction;
-    const key = btn.dataset.schemaKey;
     const target = cache.activeTarget;
     const scope = cache.cacheKey;
+    const fields = cache.awnSchema[target]?.fields || {};
+    const fieldKeys = Object.keys(fields);
+
+    if (action === "group-move-up" || action === "group-move-down") {
+      const groupId = btn.dataset.schemaGroup;
+      if (!groupId) return;
+      if (moveSchemaEditorGroup(fields, fieldKeys, groupId, action === "group-move-up" ? "up" : "down")) {
+        renderSectionSchemaEditor(panel, cache);
+        markSectionSchemaPanelDirty(panel);
+      }
+      return;
+    }
+    if (action === "group-rename") {
+      const groupId = btn.dataset.schemaGroup;
+      if (!groupId) return;
+      const label = resolveSchemaEditorGroupLabel(groupId) || groupId;
+      const name = window.prompt(
+        `Переименовать раздел «${label}».\n\nИзменится group у всех полей этого раздела.`,
+        label
+      );
+      if (name === null) return;
+      if (renameSchemaEditorGroup(fields, fieldKeys, groupId, name, target)) {
+        renderSectionSchemaEditor(panel, cache);
+        markSectionSchemaPanelDirty(panel);
+        showToast(`Раздел переименован в «${String(name).trim()}»`, "success");
+      }
+      return;
+    }
+
+    const key = btn.dataset.schemaKey;
 
     if (action === "remove" && key) {
       delete cache.awnSchema[target].fields[key];
@@ -38946,10 +39361,14 @@ function bindSectionSchemaPanelEvents(panel, cache, context) {
       index += 1;
       key = defaultSectionSchemaFieldKey(target, index);
     }
-    fields[key] = { type: "awn.field.string", name: "", title: "" };
+    fields[key] = buildTopicSchemaFieldDefaults(index, target);
     renderSectionSchemaEditor(panel, cache);
     markSectionSchemaPanelDirty(panel);
     panel.querySelector(`[data-schema-row-key="${CSS.escape(key)}"] [data-schema-field="key"]`)?.focus();
+  });
+
+  panel.querySelector(".section-schema-add-section-btn")?.addEventListener("click", () => {
+    addTopicSchemaSection(cache.activeTarget);
   });
 
   panel.querySelector(".section-schema-save-btn")?.addEventListener("click", () => {
@@ -39037,6 +39456,7 @@ function createEntryOverviewSectionSchemaPanel(context) {
     <div class="topic-schema-add-area">
       <p class="topic-schema-empty hidden">Дополнительных полей пока нет — добавьте поле кнопкой ниже.</p>
       <footer class="topic-schema-footer section-schema-footer">
+        <button type="button" class="topic-schema-add-section-btn section-schema-add-section-btn">+ Раздел</button>
         <button type="button" class="topic-schema-add-btn section-schema-add-btn">+ Поле</button>
         <button type="button" class="section-schema-save-btn">Сохранить схему</button>
       </footer>
@@ -39508,12 +39928,32 @@ function shouldShowEditorCustomPropsBar() {
   return isDocAsidePropsTabAvailable() || Boolean(activeSystemFile);
 }
 
+function sanitizeEditorCustomPropsCssToken(value) {
+  return String(value || "text")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "text";
+}
+
 function decorateEditorCustomPropsFormRow(row, entry) {
   const key = normalizePropsKey(entry?.key);
   if (!key) return;
   if (!isEditorCustomPropsFieldInSchema(key, entry)) {
     row.classList.add("is-schema-undefined");
     row.title = "Свойство не определено в схеме";
+  }
+  const fieldDef = getPropsFieldDef(key);
+  const widget = resolvePropsFieldWidget(key, fieldDef);
+  const typeId = normalizeCanonicalFieldTypeId(fieldDef?.type || "");
+  const widgetToken = sanitizeEditorCustomPropsCssToken(widget);
+  row.dataset.fieldWidget = widget;
+  row.classList.add(`editor-custom-props-field--widget-${widgetToken}`);
+  if (typeId) {
+    row.dataset.fieldType = typeId;
+    row.classList.add(
+      `editor-custom-props-field--type-${sanitizeEditorCustomPropsCssToken(typeId.replace(/^awn\./, "").replace(/\./g, "-"))}`
+    );
   }
 }
 
@@ -40149,6 +40589,8 @@ const FIELD_TYPE_ICONS = {
   "awn.field.string.link": "📂",
   "awn.field.string.email": "✉️",
   "awn.email": "✉️",
+  "awn.field.string.password": "🔒",
+  "awn.password": "🔒",
   "awn.field.text.markdown": "📋",
   "awn.text.markdown": "📋",
   "awn.field.string.slug": "🔖",
@@ -40763,14 +41205,28 @@ function createTopicSchemaSettingControl(propKey, propDef, fieldDef, schemaKey) 
     }
     control.value = String(fieldDef?.placement || "editor-body");
   } else if (propKey === "group") {
-    control = document.createElement("select");
-    for (const groupDef of getActivePropsFieldGroups()) {
+    const listId = `topic-schema-group-list-${schemaKey}`;
+    control = document.createElement("input");
+    control.type = "text";
+    control.className = "topic-schema-inline-input";
+    control.placeholder = "content или Строки, Текст, Медиа…";
+    const groupValue = String(fieldDef?.group || "").trim();
+    control.value = groupValue === "content" ? "" : groupValue;
+    control.setAttribute("list", listId);
+    const cache = getTopicSchemaCache();
+    const activeTarget = normalizeTopicSchemaActiveTarget(topicSchemaActiveTarget);
+    const fields = cache?.awnSchema?.[activeTarget]?.fields || {};
+    const datalist = document.createElement("datalist");
+    datalist.id = listId;
+    for (const name of collectSchemaEditorGroupNames(fields, activeTarget)) {
       const option = document.createElement("option");
-      option.value = groupDef.id;
-      option.textContent = groupDef.name || groupDef.id;
-      control.append(option);
+      option.value = name;
+      datalist.append(option);
     }
-    control.value = String(fieldDef?.group || "content");
+    label.append(caption, control, datalist);
+    control.dataset.schemaKey = schemaKey;
+    control.dataset.schemaField = propKey;
+    return label;
   } else if (propKey === "sort") {
     control = document.createElement("input");
     control.type = "number";
@@ -40870,7 +41326,7 @@ function appendTopicSchemaFieldSettings(host, fieldDef, schemaKey, { expanded = 
             propKey === "placement"
               ? "Где показывать поле в редакторе"
               : propKey === "group"
-                ? "Группа в панели свойств (aside-body)"
+                ? "Раздел (group) — заголовок-разделитель между полями в editor-body"
                 : "Сортировка внутри зоны и группы"
         },
         fieldDef,
@@ -43421,6 +43877,26 @@ function syncPropsPanelsUi() {
   resetPropsAsideDomState();
 }
 
+function resolveEditorCustomPropsGroupLabel(groupId) {
+  return resolveSchemaEditorGroupLabel(groupId);
+}
+
+function appendEditorCustomPropsGroupHeader(container, groupId, state) {
+  const normalized = String(groupId || "content").trim() || "content";
+  if (state.lastGroup === normalized) return;
+  state.lastGroup = normalized;
+  const label = resolveEditorCustomPropsGroupLabel(normalized);
+  if (!label) return;
+  const header = document.createElement("div");
+  header.className = "editor-custom-props-group-header";
+  header.dataset.group = normalized;
+  const caption = document.createElement("span");
+  caption.className = "editor-custom-props-group-header-label";
+  caption.textContent = label;
+  header.appendChild(caption);
+  container.appendChild(header);
+}
+
 function renderEditorCustomPropsBar() {
   if (!editorCustomPropsBarNode || !editorCustomPropsFieldsNode) return;
 
@@ -43455,8 +43931,12 @@ function renderEditorCustomPropsBar() {
   if (readOnly) {
     const list = document.createElement("div");
     list.className = "props-preview-list props-preview-list--compact editor-custom-props-preview";
+    const groupState = { lastGroup: null };
 
     for (const { entry, index } of userItems) {
+      const fieldDef = getPropsFieldDef(entry.key);
+      appendEditorCustomPropsGroupHeader(list, resolvePropsFieldGroupId(entry.key, fieldDef), groupState);
+
       const meta = getPropsFieldMeta(entry.key);
       const displayValue = getPropsEntryOverviewDisplayValue(entry, entry.key);
 
@@ -43492,8 +43972,16 @@ function renderEditorCustomPropsBar() {
     });
   }
 
+  const groupState = { lastGroup: null };
   for (const { entry, index } of userItems) {
-    const row = createPropsFormFieldRow(entry, index, { showFieldKey: true });
+    const fieldDef = getPropsFieldDef(entry.key);
+    appendEditorCustomPropsGroupHeader(
+      editorCustomPropsFieldsNode,
+      resolvePropsFieldGroupId(entry.key, fieldDef),
+      groupState
+    );
+
+    const row = createPropsFormFieldRow(entry, index, { showFieldKey: true, editorCompact: true });
     row.classList.add("editor-custom-props-field");
     decorateEditorCustomPropsFormRow(row, entry);
     editorCustomPropsFieldsNode.appendChild(row);
@@ -43838,6 +44326,9 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (isFileFieldTypeId(typeId) || widget === "file") return "file";
   if (fieldTypeIs(typeId, "text") || widget === "textarea") return "textarea";
   if (fieldTypeIs(typeId, "string.url") || widget === "url") return "url";
+  if (fieldTypeIs(typeId, "string.email") || widget === "email") return "email";
+  if (fieldTypeIs(typeId, "string.password") || widget === "password") return "password";
+  if (fieldTypeIs(typeId, "string.slug") || widget === "slug") return "slug";
   if (fieldTypeIs(typeId, "string.color") || widget === "color") return "color";
   if (fieldTypeIs(typeId, "date")) return "date";
   if (fieldTypeIs(typeId, "date.datetime")) return "datetime";
@@ -44024,11 +44515,52 @@ function createPropsFormTextValueControl(entry, meta, { locked = false } = {}) {
   return wrap;
 }
 
+function createPropsFormPasswordControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("password");
+  wrap.classList.add("props-form-value-wrap--password");
+  const row = document.createElement("div");
+  row.className = "props-form-password-input-row";
+  const input = document.createElement("input");
+  input.className = "props-form-value props-form-value--password";
+  input.type = "password";
+  input.autocomplete = "new-password";
+  input.spellcheck = false;
+  input.value = getPropsEntryDisplayValue(entry);
+  if (meta.hint) {
+    input.title = meta.hint;
+    if (!input.value) input.placeholder = meta.hint;
+  }
+  bindPropsFormLockedState(input, locked);
+  const toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "props-form-password-toggle";
+  toggleBtn.setAttribute("aria-label", "Показать пароль");
+  toggleBtn.innerHTML =
+    '<svg class="props-form-password-toggle-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+  toggleBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    const showing = input.type === "text";
+    input.type = showing ? "password" : "text";
+    toggleBtn.classList.toggle("is-visible", !showing);
+    toggleBtn.setAttribute("aria-label", showing ? "Показать пароль" : "Скрыть пароль");
+  });
+  if (locked) toggleBtn.disabled = true;
+  row.append(input, toggleBtn);
+  wrap.appendChild(row);
+  return wrap;
+}
+
 function createPropsFormTypedInputControl(entry, meta, type, { locked = false } = {}) {
   const wrap = createPropsFormValueWrap(type);
   const input = document.createElement("input");
   input.className = "props-form-value";
-  input.type = type === "datetime" ? "datetime-local" : type;
+  if (type === "slug") {
+    input.classList.add("props-form-value--slug");
+    input.type = "text";
+    input.spellcheck = false;
+  } else {
+    input.type = type === "datetime" ? "datetime-local" : type;
+  }
   const displayValue = getPropsEntryDisplayValue(entry);
   input.value = type === "datetime" ? formatPropsDatetimeLocalValue(displayValue) : displayValue;
   if (meta.hint) input.title = meta.hint;
@@ -44222,11 +44754,12 @@ const LOOKUP_SOURCE_LABELS = {
   tags: "Теги"
 };
 
-function createPropsFormLookupManyControl(entry, meta, { locked = false } = {}) {
+function createPropsFormLookupManyControl(entry, meta, { locked = false, compact = false } = {}) {
   const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
   const preset = resolveLookupSource(fieldDef) || "tags";
   const catalog = getAgentCatalogPreset(preset);
   const wrap = createPropsFormValueWrap("lookup-many");
+  if (compact) wrap.classList.add("props-form-value-wrap--compact");
   const items = catalog.items || [];
   const fieldKey = entry.key || "awn-tags";
   const presetLabel = LOOKUP_SOURCE_LABELS[preset] || preset;
@@ -44255,6 +44788,7 @@ function createPropsFormLookupManyControl(entry, meta, { locked = false } = {}) 
 
   const list = document.createElement("div");
   list.className = "props-form-tags-list";
+  if (compact) list.classList.add("props-form-tags-list--chips");
   const groups = getCatalogGroups(catalog);
 
   if (!items.length) {
@@ -44895,6 +45429,20 @@ function collectPropsLinkLibraryGroups() {
   };
 }
 
+function createPropsFormPickerRow(select, actions) {
+  const row = document.createElement("div");
+  row.className = "props-form-picker-row";
+  row.append(select, actions);
+  return row;
+}
+
+function resolvePropsFileAllowUpload(fieldDef = {}) {
+  if (fieldDef.upload === false) return false;
+  if (fieldDef.upload === true) return true;
+  const typeId = normalizeCanonicalFieldTypeId(fieldDef.type || "");
+  return isFileFieldTypeId(typeId);
+}
+
 function createPropsFormPickerOpenButton({ title = "Открыть", disabled = false, onClick }) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -44994,13 +45542,15 @@ function createPropsFormWsPathControl(entry, meta, { locked = false } = {}) {
   return wrap;
 }
 
-function createPropsFormLinkControl(entry, meta, { locked = false } = {}) {
+function createPropsFormLinkControl(entry, meta, { locked = false, compact = false } = {}) {
   const wrap = createPropsFormValueWrap("relation");
+  if (compact) wrap.classList.add("props-form-value-wrap--compact");
   const currentValue = getPropsEntryDisplayValue(entry);
   const { contentRecords, currentTopic, otherTopics } = collectPropsLinkLibraryGroups();
 
   const picker = document.createElement("div");
   picker.className = "props-form-picker";
+  if (compact) picker.classList.add("props-form-picker--compact");
 
   const select = document.createElement("select");
   select.className = "props-form-value props-form-value--select props-form-link-select";
@@ -45034,7 +45584,7 @@ function createPropsFormLinkControl(entry, meta, { locked = false } = {}) {
   manual.type = "text";
   manual.className = "props-form-value props-form-link-manual";
   manual.dataset.linkManual = "1";
-  manual.placeholder = "[Название](путь/к/файлу.md)";
+  manual.placeholder = compact ? "[[Название]] или [label](path/file.md)" : "[Название](путь/к/файлу.md)";
   manual.value = select.value || currentValue;
   if (meta.hint) manual.title = meta.hint;
 
@@ -45053,16 +45603,24 @@ function createPropsFormLinkControl(entry, meta, { locked = false } = {}) {
     })
   );
 
+  let loadingNote = null;
   if (!propsLibrariesCache.loaded) {
-    const note = document.createElement("p");
-    note.className = "props-form-picker-note";
-    note.textContent = "Загрузка библиотеки связей…";
-    picker.append(note);
+    loadingNote = document.createElement("p");
+    loadingNote.className = "props-form-picker-note";
+    loadingNote.textContent = "Загрузка библиотеки связей…";
   }
 
   bindPropsFormLockedState(select, locked);
   bindPropsFormLockedState(manual, locked);
-  picker.append(select, actions, manual);
+
+  if (compact) {
+    picker.append(manual);
+    picker.appendChild(createPropsFormPickerRow(select, actions));
+    if (loadingNote) picker.appendChild(loadingNote);
+  } else {
+    if (loadingNote) picker.appendChild(loadingNote);
+    picker.append(select, actions, manual);
+  }
   wrap.appendChild(picker);
   return wrap;
 }
@@ -45086,14 +45644,34 @@ function parsePropsFileFieldAccept(accept) {
     .filter(Boolean);
 }
 
-function fileNameMatchesAccept(fileName, accept) {
+const PROPS_FILE_ACCEPT_MIME_EXTENSIONS = {
+  "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif", ".heic", ".tif", ".tiff"],
+  "video/*": [".mp4", ".webm", ".mov", ".avi", ".mkv", ".m4v"],
+  "audio/*": [".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac"]
+};
+
+function fileNameMatchesAccept(fileName, accept, fileType = "") {
   const patterns = parsePropsFileFieldAccept(accept);
   if (!patterns.length) return true;
   const name = String(fileName || "").toLowerCase();
+  const mime = String(fileType || "").toLowerCase();
+
   return patterns.some((pattern) => {
+    if (pattern.includes("/")) {
+      if (pattern.endsWith("/*")) {
+        const prefix = pattern.slice(0, pattern.indexOf("/"));
+        if (mime && mime.startsWith(`${prefix}/`)) return true;
+        const extensions = PROPS_FILE_ACCEPT_MIME_EXTENSIONS[pattern] || PROPS_FILE_ACCEPT_MIME_EXTENSIONS[`${prefix}/*`];
+        return Boolean(extensions?.some((ext) => name.endsWith(ext)));
+      }
+      return mime === pattern;
+    }
+    if (pattern.startsWith("*.")) {
+      return name.endsWith(pattern.slice(1).toLowerCase());
+    }
     if (pattern.includes("*")) {
       const re = new RegExp(`^${pattern.replace(/\./g, "\\.").replace(/\*/g, ".*")}$`, "i");
-      return re.test(name) || name.endsWith(pattern.replace(/^\*\.?/, "."));
+      return re.test(name);
     }
     const ext = pattern.startsWith(".") ? pattern : `.${pattern}`;
     return name.endsWith(ext);
@@ -45276,18 +45854,31 @@ function appendPropsFilePickerOptions(select, library, { accept = "", currentVal
 }
 
 function resolvePropsFieldAccept(fieldDef = {}) {
+  const explicit = String(fieldDef.accept ?? "").trim();
+  if (explicit) return explicit;
   const registry = awnTypesCache?.fieldRegistry || {};
   const typeId = String(fieldDef.type || "").trim();
-  const entry = registry[typeId] || registry[normalizeCanonicalFieldTypeId(typeId)];
-  return String(fieldDef.accept ?? entry?.accept ?? "").trim();
+  const candidates = [
+    typeId,
+    normalizeCanonicalFieldTypeId(typeId),
+    typeId.startsWith("awn.field.") ? typeId : `awn.field.${typeId.replace(/^awn\./, "")}`
+  ];
+  for (const id of candidates) {
+    const entry = registry[id];
+    if (entry?.accept) return String(entry.accept).trim();
+  }
+  if (fieldTypeIs(typeId, "file.image.one") || fieldTypeIs(typeId, "file.image.many")) {
+    return "image/*";
+  }
+  return "";
 }
 
-function createPropsFormFileControl(entry, meta, { locked = false } = {}) {
+function createPropsFormFileControl(entry, meta, { locked = false, compact = false } = {}) {
   const fieldDef = meta.fieldDef || {};
   const multiple =
     isFieldTypeMany(fieldDef.type) ||
     Boolean(fieldDef.multiple);
-  const allowUpload = Boolean(fieldDef.upload);
+  const allowUpload = resolvePropsFileAllowUpload(fieldDef);
   const allowInsert = Boolean(fieldDef.insertInText);
   const accept = resolvePropsFieldAccept(fieldDef);
   const scope = resolvePropsFileScope(fieldDef);
@@ -45295,10 +45886,12 @@ function createPropsFormFileControl(entry, meta, { locked = false } = {}) {
   const currentValue = multiple ? "" : paths[0] || "";
 
   const wrap = createPropsFormValueWrap("file");
+  if (compact) wrap.classList.add("props-form-value-wrap--compact");
   if (multiple) wrap.dataset.fileMultiple = "1";
 
   const picker = document.createElement("div");
   picker.className = "props-form-picker";
+  if (compact) picker.classList.add("props-form-picker--compact");
 
   const hidden = document.createElement("input");
   hidden.type = "hidden";
@@ -45361,7 +45954,14 @@ function createPropsFormFileControl(entry, meta, { locked = false } = {}) {
   const note = document.createElement("p");
   note.className = "props-form-picker-note";
   note.textContent = "Загрузка списка файлов…";
-  picker.append(note, select, actions, manual);
+
+  if (compact) {
+    picker.appendChild(createPropsFormPickerRow(select, actions));
+    if (!multiple) picker.appendChild(manual);
+    picker.appendChild(note);
+  } else {
+    picker.append(note, select, actions, manual);
+  }
   wrap.appendChild(picker);
 
   const refreshFromControls = () => {
@@ -45396,7 +45996,7 @@ function createPropsFormFileControl(entry, meta, { locked = false } = {}) {
     const handleFiles = async (files) => {
       uploadZone.classList.add("is-uploading");
       for (const file of files) {
-        if (!fileNameMatchesAccept(file.name, accept)) {
+        if (!fileNameMatchesAccept(file.name, accept, file.type)) {
           showToast(`Формат не подходит: ${file.name}`, "error");
           continue;
         }
@@ -46974,28 +47574,29 @@ function createPropsFormPreviewControl(entry, meta, { locked = false } = {}) {
   return wrap;
 }
 
-function createPropsFormValueControl(entry, meta) {
+function createPropsFormValueControl(entry, meta, { editorCompact = false } = {}) {
   const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
   const locked = Boolean(entry.key && meta.locked);
   const widget = resolvePropsFieldWidget(entry.key, fieldDef);
+  const compact = editorCompact;
 
   if (isLookupOneWidget(widget)) {
     return createPropsFormLookupOneControl(entry, meta, { locked });
   }
   if (isLookupManyWidget(widget)) {
-    return createPropsFormLookupManyControl(entry, meta, { locked });
+    return createPropsFormLookupManyControl(entry, meta, { locked, compact });
   }
   if (widget === "cron-schedule") {
     return createPropsFormCronScheduleControl(entry, meta, { locked });
   }
   if (widget === "relation" || widget === "link") {
-    return createPropsFormLinkControl(entry, meta, { locked });
+    return createPropsFormLinkControl(entry, meta, { locked, compact });
   }
   if (widget === "path") {
     return createPropsFormWsPathControl(entry, meta, { locked });
   }
   if (widget === "file") {
-    return createPropsFormFileControl(entry, meta, { locked });
+    return createPropsFormFileControl(entry, meta, { locked, compact });
   }
   if (widget === "select") {
     const options = getEnumOptionsForField(fieldDef);
@@ -47026,10 +47627,19 @@ function createPropsFormValueControl(entry, meta) {
     return createPropsFormAttachmentsControl(entry, meta, { locked });
   }
   if (widget === "image") {
-    return createPropsFormFileControl(entry, meta, { locked });
+    return createPropsFormFileControl(entry, meta, { locked, compact });
   }
   if (widget === "url") {
     return createPropsFormTypedInputControl(entry, meta, "url", { locked });
+  }
+  if (widget === "email") {
+    return createPropsFormTypedInputControl(entry, meta, "email", { locked });
+  }
+  if (widget === "password") {
+    return createPropsFormPasswordControl(entry, meta, { locked });
+  }
+  if (widget === "slug") {
+    return createPropsFormTypedInputControl(entry, meta, "slug", { locked });
   }
   if (widget === "color") {
     return createPropsFormTypedInputControl(entry, meta, "color", { locked });
@@ -47161,7 +47771,7 @@ function syncRuntimePropsFormVisibility() {
   }
 }
 
-function createPropsFormFieldRow(entry, index, { showFieldKey = false } = {}) {
+function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCompact = false } = {}) {
   const meta = getPropsFieldMeta(entry.key);
   const normalizedKey = normalizePropsKey(entry.key);
   const isPreviewField = normalizedKey === "awn-preview";
@@ -47200,7 +47810,7 @@ function createPropsFormFieldRow(entry, index, { showFieldKey = false } = {}) {
     head.appendChild(keyInput);
   }
 
-  const valueControl = createPropsFormValueControl(entry, meta);
+  const valueControl = createPropsFormValueControl(entry, meta, { editorCompact });
   if (isPreviewField || isCronScheduleField) {
     row.append(valueControl);
   } else {
@@ -90943,6 +91553,17 @@ nodeSettingsModeSelectNode?.addEventListener("change", () => {
   }
 });
 topicSchemaAddBtn?.addEventListener("click", () => addTopicSchemaField());
+topicSchemaPanelNode?.addEventListener("click", (event) => {
+  if (event.target.closest(".topic-schema-pending-group-reset")) {
+    const wrap = event.target.closest(".topic-schema-pending-group-hint-wrap");
+    const target = wrap?.dataset.schemaTarget || topicSchemaActiveTarget;
+    resetTopicSchemaPendingGroup(target);
+    return;
+  }
+  if (event.target.closest(".topic-schema-add-section-btn")) {
+    addTopicSchemaSection(topicSchemaActiveTarget);
+  }
+});
 nodeConfigFieldsNode?.addEventListener("input", handleNodeConfigFieldsInput);
 nodeConfigFieldsNode?.addEventListener("change", handleNodeConfigFieldsInput);
 projectSettingsFieldsNode?.addEventListener("input", handleNodeConfigFieldsInput);
