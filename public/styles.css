@@ -9802,6 +9802,56 @@ body.app-locked {
   border-color: rgba(99, 102, 241, 0.55);
 }
 
+.topic-schema-pending-group-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.topic-schema-pending-group-input {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.topic-schema-pending-group-apply,
+.topic-schema-pending-group-clear,
+.topic-schema-pending-group-cancel {
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: #fff;
+  color: #4338ca;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.topic-schema-pending-group-apply {
+  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+}
+
+.topic-schema-pending-group-clear {
+  color: #64748b;
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.topic-schema-pending-group-cancel {
+  width: 24px;
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+}
+
+.topic-schema-pending-group-apply:hover,
+.topic-schema-pending-group-clear:hover,
+.topic-schema-pending-group-cancel:hover {
+  background: #eef2ff;
+}
+
 .topic-schema-group-header {
   display: flex;
   align-items: center;
@@ -9870,6 +9920,51 @@ body.app-locked {
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: #4338ca;
+}
+
+.topic-schema-group-header-label.is-hidden-during-rename {
+  display: none;
+}
+
+.topic-schema-group-rename-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.topic-schema-group-rename-input {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.topic-schema-group-rename-apply,
+.topic-schema-group-rename-cancel {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: #fff;
+  color: #4338ca;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.topic-schema-group-rename-apply {
+  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+}
+
+.topic-schema-group-rename-apply:hover,
+.topic-schema-group-rename-cancel:hover {
+  background: #eef2ff;
 }
 
 .topic-schema-group-header:first-child {
