@@ -107,6 +107,7 @@ function createSemanticSearchService(deps) {
     if (rebuildLocks.get(lockKey)) return rebuildLocks.get(lockKey);
 
     const job = (async () => {
+      const started = Date.now();
       const sources = await collectSources(agentRoot);
       const allTexts = sources.flatMap((s) => s.chunks);
       const idf = buildIdf(allTexts);
@@ -130,6 +131,7 @@ function createSemanticSearchService(deps) {
         dims: DIMS,
         offline: true,
         builtAt: new Date().toISOString(),
+        lastRebuildMs: Date.now() - started,
         agentId: agentId || null,
         fileCount: sources.length,
         chunkCount: chunks.length,
@@ -143,7 +145,8 @@ function createSemanticSearchService(deps) {
         builtAt: index.builtAt,
         fileCount: index.fileCount,
         chunkCount: index.chunkCount,
-        model: index.model
+        model: index.model,
+        lastRebuildMs: index.lastRebuildMs
       };
     })();
 
@@ -176,6 +179,8 @@ function createSemanticSearchService(deps) {
       model: index.model,
       offline: true,
       builtAt: index.builtAt,
+      builtAge: null,
+      lastRebuildMs: index.lastRebuildMs ?? null,
       fileCount: index.fileCount,
       chunkCount: index.chunkCount
     };

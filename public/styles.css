@@ -50155,6 +50155,99 @@ body.is-discuss-resizing .discuss-aside-resizer {
   outline: 1px solid #ca8a04;
 }
 
+.menu-index-block--monitor {
+  border-top: 1px solid rgba(148, 163, 184, 0.35);
+  padding-top: 10px;
+}
+
+.menu-index-monitor-summary {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.menu-index-monitor-summary.is-ok {
+  color: #15803d;
+}
+
+.menu-index-monitor-summary.is-stale {
+  color: #b45309;
+}
+
+.menu-index-monitor-summary.is-partial,
+.menu-index-monitor-summary.is-empty {
+  color: #64748b;
+}
+
+.menu-index-monitor-summary.is-error {
+  color: #b91c1c;
+}
+
+.menu-index-monitor-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.menu-index-monitor-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.menu-index-monitor-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.menu-index-monitor-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.menu-index-monitor-badge {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.menu-index-monitor-badge.is-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.menu-index-monitor-badge.is-stale {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.menu-index-monitor-badge.is-empty,
+.menu-index-monitor-badge.is-partial {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.menu-index-monitor-lines {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.menu-index-monitor-lines li {
+  margin: 0;
+}
+
 .menu-static-title--indexing {
   color: #be185d;
 }

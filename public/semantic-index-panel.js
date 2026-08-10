@@ -6,6 +6,8 @@
   const storageStatusNode = document.getElementById("menu-storage-index-status");
   const storageRebuildBtn = document.getElementById("menu-storage-index-rebuild-btn");
   const storageShowBtn = document.getElementById("menu-storage-index-show-btn");
+  const monitorSummaryNode = document.getElementById("menu-workspace-index-monitor-summary");
+  const monitorGridNode = document.getElementById("menu-workspace-index-monitor-grid");
   if (
     !summaryStatsNode ||
     !semanticStatusNode ||
@@ -65,46 +67,110 @@
       .replace(/"/g, "&quot;");
   }
 
-  function formatSemanticStatus(data) {
-    if (!data?.ready) return data?.hint || "Смысловой индекс не построен.";
-    const built = data.builtAt ? new Date(data.builtAt).toLocaleString("ru-RU") : "—";
-    return `${data.fileCount || 0} файлов · ${data.chunkCount || 0} фрагм. · ${built}`;
+  function healthLabel(health) {
+    if (health === "ok") return "ok";
+    if (health === "stale") return "stale";
+    if (health === "partial") return "partial";
+    return "empty";
   }
 
-  function formatStorageStatus(data) {
-    if (!data?.ready) return data?.hint || "Каталог полей не построен.";
-    const built = data.builtAt ? new Date(data.builtAt).toLocaleString("ru-RU") : "—";
-    const sample = Array.isArray(data.fieldCatalog) ? data.fieldCatalog.slice(0, 6).join(", ") : "";
-    return `${data.recordCount || 0} записей · ${data.fieldCount || 0} полей · ${built}${
-      sample ? ` · ${sample}${data.fieldCount > 6 ? "…" : ""}` : ""
-    }`;
-  }
-
-  function updateSummary(semantic, storage) {
+  function formatLayerStatus(layer, data) {
+    if (!data?.ready) return data?.hint || "Не построен";
     const parts = [];
-    if (semantic?.ready) parts.push(`смысл ${semantic.chunkCount || 0}`);
-    if (storage?.ready) parts.push(`поля ${storage.recordCount || 0}`);
+    if (layer === "semantic") {
+      parts.push(`${data.fileCount || 0} файлов · ${data.chunkCount || 0} фрагм.`);
+    } else {
+      parts.push(`${data.recordCount || 0} записей · ${data.fieldCount || 0} полей`);
+    }
+    parts.push(data.builtAge || "—");
+    if (data.indexSizeLabel) parts.push(data.indexSizeLabel);
+    if (data.lastRebuildLabel) parts.push(`сборка ${data.lastRebuildLabel}`);
+    if ((data.staleCount || 0) > 0) parts.push(`устарело ${data.staleCount}`);
+    if ((data.newFilesCount || 0) > 0) parts.push(`новых ${data.newFilesCount}`);
+    return parts.join(" · ");
+  }
+
+  function renderMonitorCard(title, layer) {
+    if (!layer) return "";
+    const badge = healthLabel(layer.health);
+    const lines = [];
+    if (!layer.ready) {
+      lines.push(layer.hint || "Индекс не построен");
+    } else {
+      if (title.startsWith("Смысл")) {
+        lines.push(`${layer.fileCount || 0} файлов · ${layer.chunkCount || 0} фрагментов`);
+      } else {
+        lines.push(`${layer.recordCount || 0} записей · ${layer.fieldCount || 0} полей`);
+      }
+      lines.push(`обновлён ${layer.builtAge || "—"} · ${layer.indexSizeLabel || "—"}`);
+      if (layer.lastRebuildLabel) lines.push(`полная сборка: ${layer.lastRebuildLabel}`);
+      if ((layer.staleCount || 0) > 0) lines.push(`устарело: ${layer.staleCount} файл(ов)`);
+      if ((layer.newFilesCount || 0) > 0) lines.push(`не в индексе: ${layer.newFilesCount} новых`);
+      if ((layer.missingCount || 0) > 0) lines.push(`в индексе, но удалены: ${layer.missingCount}`);
+      if (Array.isArray(layer.staleSamples) && layer.staleSamples.length) {
+        lines.push(`пример: ${layer.staleSamples.slice(0, 2).join(", ")}`);
+      }
+    }
+    return `<article class="menu-index-monitor-card">
+      <div class="menu-index-monitor-card-head">
+        <span class="menu-index-monitor-card-title">${escapeHtml(title)}</span>
+        <span class="menu-index-monitor-badge is-${escapeHtml(badge)}">${escapeHtml(badge)}</span>
+      </div>
+      <ul class="menu-index-monitor-lines">${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>
+    </article>`;
+  }
+
+  function renderMonitor(monitor) {
+    if (monitorSummaryNode) {
+      const health = healthLabel(monitor?.summary?.health);
+      monitorSummaryNode.textContent = monitor?.summary?.message || "—";
+      monitorSummaryNode.className = `menu-index-monitor-summary is-${health}`;
+    }
+    if (monitorGridNode) {
+      monitorGridNode.innerHTML = [
+        renderMonitorCard("Смысл (RAG)", monitor?.semantic),
+        renderMonitorCard("Поля (SQL-like)", monitor?.storage)
+      ].join("");
+    }
+  }
+
+  function updateSummaryFromMonitor(monitor) {
+    const semantic = monitor?.semantic;
+    const storage = monitor?.storage;
+    const parts = [];
+    if (semantic?.ready) {
+      const mark = semantic.health === "stale" ? "!" : "";
+      parts.push(`смысл ${semantic.chunkCount || 0}${mark}`);
+    }
+    if (storage?.ready) {
+      const mark = storage.health === "stale" ? "!" : "";
+      parts.push(`поля ${storage.recordCount || 0}${mark}`);
+    }
     summaryStatsNode.textContent = parts.length ? parts.join(" · ") : "нет индексов";
     summaryStatsNode.classList.toggle("is-empty", !parts.length);
     summaryStatsNode.classList.remove("is-error");
+    if (monitor?.summary?.health === "stale") {
+      summaryStatsNode.classList.add("is-error");
+    }
   }
 
   async function refreshStatus() {
     try {
-      const [semanticRes, storageRes] = await Promise.all([
-        fetch(buildApiUrl("/api/search/semantic/status")),
-        fetch(buildApiUrl("/api/storage-index/status"))
-      ]);
-      const semantic = await semanticRes.json();
-      const storage = await storageRes.json();
-      if (!semanticRes.ok) throw new Error(semantic.error || semanticRes.statusText);
-      if (!storageRes.ok) throw new Error(storage.error || storageRes.statusText);
-      semanticStatusNode.textContent = formatSemanticStatus(semantic);
-      storageStatusNode.textContent = formatStorageStatus(storage);
-      updateSummary(semantic, storage);
+      const monitorRes = await fetch(buildApiUrl("/api/workspace-index/monitor"));
+      const monitor = await monitorRes.json();
+      if (!monitorRes.ok) throw new Error(monitor.error || monitorRes.statusText);
+
+      semanticStatusNode.textContent = formatLayerStatus("semantic", monitor.semantic);
+      storageStatusNode.textContent = formatLayerStatus("storage", monitor.storage);
+      renderMonitor(monitor);
+      updateSummaryFromMonitor(monitor);
     } catch (error) {
       summaryStatsNode.textContent = "ошибка";
       summaryStatsNode.classList.add("is-error");
+      if (monitorSummaryNode) {
+        monitorSummaryNode.textContent = String(error.message || error);
+        monitorSummaryNode.className = "menu-index-monitor-summary is-error";
+      }
       semanticStatusNode.textContent = String(error.message || error);
     }
   }

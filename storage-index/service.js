@@ -133,6 +133,7 @@ function createStorageIndexService(deps) {
     if (rebuildLocks.get(lockKey)) return rebuildLocks.get(lockKey);
 
     const job = (async () => {
+      const started = Date.now();
       const { records, fieldCatalog } = await collectRecords(agentRoot);
       const index = {
         version: 1,
@@ -140,6 +141,7 @@ function createStorageIndexService(deps) {
         offline: true,
         scope: "workspace",
         builtAt: new Date().toISOString(),
+        lastRebuildMs: Date.now() - started,
         agentId: agentId || null,
         recordCount: records.length,
         fieldCount: fieldCatalog.length,
@@ -152,7 +154,8 @@ function createStorageIndexService(deps) {
         builtAt: index.builtAt,
         recordCount: index.recordCount,
         fieldCount: index.fieldCount,
-        model: index.model
+        model: index.model,
+        lastRebuildMs: index.lastRebuildMs
       };
     })();
 
@@ -187,6 +190,7 @@ function createStorageIndexService(deps) {
       scope: index.scope,
       offline: true,
       builtAt: index.builtAt,
+      lastRebuildMs: index.lastRebuildMs ?? null,
       recordCount: index.recordCount,
       fieldCount: index.fieldCount,
       fieldCatalog: index.fieldCatalog?.slice(0, 40) || []

@@ -26,6 +26,9 @@ const { createWebSearchService } = require("./web-search-service");
 const { createSemanticSearchService } = require("./semantic-search/service");
 const { createStorageIndexService } = require("./storage-index/service");
 const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
+const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
+const { loadIndex: loadSemanticIndexFile } = require("./semantic-search/store");
+const { loadIndex: loadStorageIndexFile } = require("./storage-index/store");
 const { createIdentityService } = require("./identity-service");
 const { createDocumentExtractService } = require("./document-extract-service");
 const { buildWorkspacePathResolvePayload } = require("./workspace-path-resolver");
@@ -1487,6 +1490,16 @@ function queueWorkspaceIndexFileSync(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return;
   void syncWorkspaceIndexFile(getSemanticSearchService(), getStorageIndexService(), normalized).catch(() => {});
+}
+
+async function getWorkspaceIndexMonitorPayload() {
+  return getWorkspaceIndexMonitor({
+    getAgentRoot,
+    collectSearchableFiles,
+    resolvePathAbsolute: normalizeWorkspacePath,
+    loadSemanticIndex: loadSemanticIndexFile,
+    loadStorageIndex: loadStorageIndexFile
+  });
 }
 
 let identityService = null;
@@ -10908,6 +10921,7 @@ const SESSION_CONTEXT_API_MAP = {
   semanticIndexCatalog: "GET /api/search/semantic/catalog — просмотр фрагментов векторного индекса",
   storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
   workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла",
+  workspaceIndexMonitor: "GET /api/workspace-index/monitor — мониторинг индексов (stale, размер, время сборки)",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
@@ -16221,6 +16235,17 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to sync workspace index for file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace-index/monitor") {
+    try {
+      return sendJson(res, 200, await getWorkspaceIndexMonitorPayload());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace index monitor",
         details: String(error.message || error)
       });
     }

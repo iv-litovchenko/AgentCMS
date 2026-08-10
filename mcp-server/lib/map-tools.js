@@ -99,6 +99,13 @@ function registerSearchWorkspaceTools(reg, client) {
   );
 
   reg(
+    "get_workspace_index_monitor",
+    "Monitor workspace indexes: stale/outdated files, index size, last rebuild duration, health (ok|stale|partial|empty).",
+    z.object({}),
+    () => client.get("/api/workspace-index/monitor")
+  );
+
+  reg(
     "rebuild_workspace_semantic_index",
     "Rebuild offline semantic index for the whole workspace (hash-TF-IDF chunks in .agent-cms/semantic-index). Run after bulk file changes or before semantic search.",
     z.object({}),
