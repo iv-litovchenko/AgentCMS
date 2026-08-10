@@ -337,7 +337,7 @@ agent-cms-core/
 │   ├── tasks/                      ← platform data
 │   └── taxonomies/
 ├── awn-system/                     ← PLATFORM: канон типов (pages, content, slots, …)
-│   └── types/content/              ← awn.content.* (источник для рантайма)
+│   └── types/{pages,content,slots}/ ← источник для рантайма
 │
 └── workspaces/{agent}/
     ├── manifest.md                 ← WS

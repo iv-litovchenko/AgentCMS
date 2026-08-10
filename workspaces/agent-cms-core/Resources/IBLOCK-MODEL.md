@@ -49,7 +49,7 @@ row.base  ←  id, created, updated
 table.base  ←  + title, typeId, kind, status
    ↑ awn-extends
 awn-system/types/*          ←  pages, content, slots (YAML, источник рантайма)
-awn-data/slots, content     ←  legacy накопители
+awn-data/slots              ←  legacy накопитель
 tasks / taxonomies          ←  extends row.base напрямую
 ```
 
