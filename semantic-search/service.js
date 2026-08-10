@@ -43,6 +43,62 @@ function createSemanticSearchService(deps) {
     return sources;
   }
 
+  function buildChunksForPath(relPath, texts, idf) {
+    return texts.map((text, index) => ({
+      id: `${relPath}#${index}`,
+      path: relPath,
+      chunkIndex: index,
+      preview: text.slice(0, 220).replace(/\s+/g, " ").trim(),
+      vector: embedText(text, idf)
+    }));
+  }
+
+  async function updateFile(relPath) {
+    const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    const agentRoot = getAgentRoot();
+    if (!agentRoot) throw new Error("Agent not selected");
+    if (!normalized) throw new Error("Path is required");
+
+    const index = await loadIndex(agentRoot);
+    if (!index?.chunks) {
+      return { ok: false, skipped: true, reason: "no_index", path: normalized };
+    }
+
+    index.chunks = index.chunks.filter((chunk) => chunk.path !== normalized);
+
+    if (isTextFile(path.basename(normalized))) {
+      const absolute = resolvePathAbsolute(normalized);
+      if (absolute) {
+        let content = "";
+        try {
+          content = await fs.readFile(absolute, "utf-8");
+        } catch {
+          content = "";
+        }
+        if (String(content).trim()) {
+          const texts = chunkMarkdown(content);
+          if (texts.length) {
+            index.chunks.push(...buildChunksForPath(normalized, texts, index.idf || {}));
+          }
+        }
+      }
+    }
+
+    index.fileCount = new Set(index.chunks.map((chunk) => chunk.path)).size;
+    index.chunkCount = index.chunks.length;
+    index.builtAt = new Date().toISOString();
+    await saveIndex(agentRoot, index);
+
+    return {
+      ok: true,
+      mode: "incremental",
+      path: normalized,
+      fileCount: index.fileCount,
+      chunkCount: index.chunkCount,
+      chunksForFile: index.chunks.filter((chunk) => chunk.path === normalized).length
+    };
+  }
+
   async function rebuildIndex({ agentId = "" } = {}) {
     const agentRoot = getAgentRoot();
     if (!agentRoot) throw new Error("Agent not selected");
@@ -255,7 +311,7 @@ function createSemanticSearchService(deps) {
     };
   }
 
-  return { rebuildIndex, getStatus, search, catalog };
+  return { rebuildIndex, getStatus, search, catalog, updateFile };
 }
 
 module.exports = { createSemanticSearchService };

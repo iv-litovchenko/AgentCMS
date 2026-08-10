@@ -122,6 +122,15 @@ function registerSearchWorkspaceTools(reg, client) {
       return { semantic, storage };
     }
   );
+
+  reg(
+    "sync_workspace_index_file",
+    "Incrementally update both workspace indexes for one saved file (fast; requires an initial full rebuild). Use after editing a single file instead of full reindex.",
+    z.object({
+      path: z.string().min(1).describe("Workspace-relative file path, e.g. awn-storage/main/note.md")
+    }),
+    ({ path }) => client.post("/api/workspace-index/sync-file", { path })
+  );
 }
 
 export function registerMapTools(reg, client, pagePath) {

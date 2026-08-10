@@ -25,6 +25,7 @@ const { createScriptExecService } = require("./script-exec-service");
 const { createWebSearchService } = require("./web-search-service");
 const { createSemanticSearchService } = require("./semantic-search/service");
 const { createStorageIndexService } = require("./storage-index/service");
+const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
 const { createIdentityService } = require("./identity-service");
 const { createDocumentExtractService } = require("./document-extract-service");
 const { buildWorkspacePathResolvePayload } = require("./workspace-path-resolver");
@@ -1482,6 +1483,12 @@ function getStorageIndexService() {
   return storageIndexService;
 }
 
+function queueWorkspaceIndexFileSync(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return;
+  void syncWorkspaceIndexFile(getSemanticSearchService(), getStorageIndexService(), normalized).catch(() => {});
+}
+
 let identityService = null;
 function getIdentityService() {
   if (!identityService) {
@@ -1886,6 +1893,7 @@ async function writeWorkspaceTextFileWithHistory(manifestRelPath, targetRelPath,
     manifestPath: manifestRelPath,
     label: path.posix.basename(normalizedTarget)
   });
+  queueWorkspaceIndexFileSync(normalizedTarget);
   return normalizedTarget;
 }
 
@@ -5229,6 +5237,8 @@ async function writeWorkspaceFsFile(relPath, content) {
       parsed.relativePath
     );
   }
+
+  queueWorkspaceIndexFileSync(normalized);
 
   return {
     path: normalized,
@@ -10897,6 +10907,7 @@ const SESSION_CONTEXT_API_MAP = {
   storageIndexQuery: "POST /api/storage-index/query — SQL-like фильтр по полям (весь workspace)",
   semanticIndexCatalog: "GET /api/search/semantic/catalog — просмотр фрагментов векторного индекса",
   storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
+  workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
@@ -16192,6 +16203,24 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read storage index catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace-index/sync-file") {
+    try {
+      const payload = await readJsonBody(req);
+      const relPath = payload?.path || payload?.filePath || "";
+      const data = await syncWorkspaceIndexFile(
+        getSemanticSearchService(),
+        getStorageIndexService(),
+        relPath
+      );
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to sync workspace index for file",
         details: String(error.message || error)
       });
     }

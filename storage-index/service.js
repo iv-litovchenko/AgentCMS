@@ -72,6 +72,59 @@ function createStorageIndexService(deps) {
     return { records, fieldCatalog: Array.from(fieldSet).sort((a, b) => a.localeCompare(b, "ru")) };
   }
 
+  function rebuildFieldCatalog(records) {
+    const fieldSet = new Set();
+    for (const record of records) {
+      for (const key of Object.keys(record.fields || {})) fieldSet.add(key);
+    }
+    return Array.from(fieldSet).sort((a, b) => a.localeCompare(b, "ru"));
+  }
+
+  async function updateFile(relPath) {
+    const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    const agentRoot = getAgentRoot();
+    if (!agentRoot) throw new Error("Agent not selected");
+    if (!normalized) throw new Error("Path is required");
+
+    const index = await loadIndex(agentRoot);
+    if (!index?.records) {
+      return { ok: false, skipped: true, reason: "no_index", path: normalized };
+    }
+
+    index.records = index.records.filter((record) => record.path !== normalized);
+
+    if (isIndexableTextFile(path.basename(normalized))) {
+      const absolute = resolvePathAbsolute(normalized);
+      if (absolute) {
+        let content = "";
+        try {
+          content = await fs.readFile(absolute, "utf-8");
+        } catch {
+          content = "";
+        }
+        const fields = extractFrontmatter(content);
+        if (Object.keys(fields).length) {
+          index.records.push({ path: normalized, fields });
+        }
+      }
+    }
+
+    index.fieldCatalog = rebuildFieldCatalog(index.records);
+    index.recordCount = index.records.length;
+    index.fieldCount = index.fieldCatalog.length;
+    index.builtAt = new Date().toISOString();
+    await saveIndex(agentRoot, index);
+
+    return {
+      ok: true,
+      mode: "incremental",
+      path: normalized,
+      recordCount: index.recordCount,
+      fieldCount: index.fieldCount,
+      hasRecord: index.records.some((record) => record.path === normalized)
+    };
+  }
+
   async function rebuildIndex({ agentId = "" } = {}) {
     const agentRoot = getAgentRoot();
     if (!agentRoot) throw new Error("Agent not selected");
@@ -258,7 +311,7 @@ function createStorageIndexService(deps) {
     };
   }
 
-  return { rebuildIndex, getStatus, query, catalog };
+  return { rebuildIndex, getStatus, query, catalog, updateFile };
 }
 
 module.exports = { createStorageIndexService };

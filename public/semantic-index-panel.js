@@ -328,5 +328,11 @@
     openCatalog("fields");
   }
 
+  let refreshTimer = null;
+  window.addEventListener("workspace-index-file-saved", () => {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => refreshStatus(), 600);
+  });
+
   refreshStatus();
 })();

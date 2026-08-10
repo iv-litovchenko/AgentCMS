@@ -50241,6 +50241,7 @@ function commitEditorSaveBaseline() {
   savedEditorSnapshot = getEditorSavePayload();
   syncSaveButtonLamp();
   void markLiveSyncOwnSaveForActivePath();
+  window.dispatchEvent(new CustomEvent("workspace-index-file-saved"));
 }
 
 function applySystemFileUi() {
@@ -83548,6 +83549,13 @@ async function openWorkspaceInspectorPath(relPath) {
 
 window.showToast = showToast;
 window.openWorkspaceInspectorPath = openWorkspaceInspectorPath;
+window.getEditorPlainTextForFind = () => {
+  if (editorViewMode === "wysiwyg") {
+    syncSourceFromWysiwygEditor();
+  }
+  return fileContentInputNode?.value || "";
+};
+window.getEditorViewModeForFind = () => editorViewMode;
 
 async function revealWorkspacePath(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");

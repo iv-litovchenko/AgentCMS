@@ -871,6 +871,7 @@
                 <div class="menu-static-body">
                   <p class="menu-static-description">
                     Два offline-слоя поверх <strong>всего</strong> хранилища (не только инфоблоки): смысл и поля.
+                    После сохранения файла индексы обновляются автоматически (инкрементально).
                   </p>
 
                   <div class="menu-index-block">
@@ -2300,7 +2301,7 @@
                   </div>
                   <button
                     id="editor-line-numbers-btn"
-                    class="editor-line-numbers-btn"
+                    class="editor-cluster-btn editor-line-numbers-btn"
                     type="button"
                     data-tooltip="Нумерация строк"
                     aria-label="Нумерация строк"
@@ -2314,6 +2315,20 @@
                         <path d="M4 6h1" />
                         <path d="M4 12h1" />
                         <path d="M4 18h1" />
+                      </svg>
+                    </span>
+                  </button>
+                  <button
+                    id="editor-file-find-btn"
+                    class="editor-cluster-btn editor-file-find-btn"
+                    type="button"
+                    data-tooltip="Найти в файле (⌘F)"
+                    aria-label="Найти в файле"
+                  >
+                    <span class="editor-view-btn-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M20 20l-3-3" />
                       </svg>
                     </span>
                   </button>
@@ -2672,6 +2687,20 @@
                   </button>
                 </div>
                 <pre id="live-file-diff-panel-body" class="live-file-diff-panel-body"></pre>
+              </div>
+              <div id="editor-file-find-bar" class="editor-file-find-bar hidden" role="search" aria-label="Поиск в файле">
+                <input
+                  id="editor-file-find-input"
+                  class="editor-file-find-input"
+                  type="search"
+                  placeholder="Найти в файле…"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <span id="editor-file-find-count" class="editor-file-find-count" aria-live="polite"></span>
+                <button id="editor-file-find-prev-btn" class="editor-file-find-btn" type="button" aria-label="Предыдущее">↑</button>
+                <button id="editor-file-find-next-btn" class="editor-file-find-btn" type="button" aria-label="Следующее">↓</button>
+                <button id="editor-file-find-close-btn" class="editor-file-find-btn editor-file-find-btn--close" type="button" aria-label="Закрыть">×</button>
               </div>
               <div class="editor-surface">
                 <div id="agent-system-type-inspector" class="agent-system-type-inspector hidden" aria-label="Схема типа"></div>
@@ -3995,7 +4024,8 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=5"></script>
     <script src="/connection-status.js?v=1"></script>
-    <script src="/semantic-index-panel.js?v=6"></script>
+    <script src="/semantic-index-panel.js?v=7"></script>
+    <script src="/file-find-bar.js?v=2"></script>
     <script src="/slug-translit.js?v=1"></script>
     <script src="/external-file-mask.js?v=1"></script>
     <script src="/awn-enum-options.js?v=1"></script>

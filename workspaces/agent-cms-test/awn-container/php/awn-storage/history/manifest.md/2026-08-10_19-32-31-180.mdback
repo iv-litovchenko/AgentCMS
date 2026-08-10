@@ -1,28 +1,27 @@
 ---
-awn-attachments: []
-awn-status: open
+awn-preview: awn-storage/assets/preview/20260624202540.png
+awn-web-url: ""
 awn-emoji: ""
-awn-sort: 0
-awn-slots-disabled: false
+awn-name: PHP
+awn-status: open
+awn-type: awn.page.topic
+awn-create: "2026-06-09T02:18"
+awn-update: 2026-08-02T10:21:09.759Z
+awn-description: Описание
 awn-main: true
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-tags: []
+awn-color: "#000000"
+awn-version: 12
+awn-sort: 0
 awn-runtime-load-always: false
 awn-runtime-cron: false
 awn-runtime-cron-schedule: ""
 awn-runtime-heartbeat: false
 awn-runtime-commands: false
-awn-category: ""
-awn-owner: ""
-awn-priority: ""
-awn-color: "#000000"
-awn-tags: []
-awn-type: awn.page.topic
-awn-create: "2026-06-09T02:18"
-awn-description: Описание
-awn-name: PHP
-awn-preview: awn-storage/assets/preview/20260624202540.png
-awn-web-url: ""
-awn-update: 2026-08-10T16:32:31.177Z
-awn-version: 13
+awn-attachments: []
 ---
 
 **Назначение темы** — учебный workspace по PHP 8.x: от синтаксиса до практики с БД и фреймворками.
