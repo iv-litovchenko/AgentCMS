@@ -1,4 +1,4 @@
-id: awn.field.file.image.one.with-preview
+id: awn.field.file.image.for-preview
 name: Превью сущности
 kind: field
 domain: fields

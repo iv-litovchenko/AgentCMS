@@ -41,7 +41,7 @@ demo_cron: "0 9 * * 1-5"
 demo_date: 2026-06-21
 demo_datetime: "2026-06-21T12:00"
 demo_email: demo@example.com
-demo_entity_preview: ""
+demo_entity_preview: awn-storage/assets/preview/20260623203544.png
 demo_file_many:
   - awn-storage/assets/attachments/939bad10-15ef-4708-b6a1-fff2ee90d7df-20260810000040.png
   - awn-storage/assets/attachments/47ee4862-2d97-44dd-b7e4-81ad60349fd1-20260810000044.png
@@ -89,5 +89,17 @@ field-1: ""
 | **sidecar** | любой `.sidecar.md` в `Assets/` (`sidecar_*`) |
 
 Схема полей: **`schema-mod.yml`** → `awn_schema`.
+
+**Медиа (5 типов файлов):**
+
+| Поле | Тип | Виджет |
+| ---- | --- | ------ |
+| `demo_file_one` | `awn.field.file.one` | файл |
+| `demo_file_many` | `awn.field.file.many` | файлы |
+| `demo_image_one` | `awn.field.file.image.one` | изображение |
+| `demo_image_many` | `awn.field.file.image.many` | изображения |
+| `demo_entity_preview` | `awn.field.file.image.for-preview` | превью сущности |
+| `awn-attachments` | `awn.field.file.many` + `widget: attachments` | блок вложений |
+| `awn-preview` | `awn.field.file.image.for-preview` | превью в aside |
 
 Запись с заполненными значениями: [[All-Field-Types]].

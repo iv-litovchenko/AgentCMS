@@ -8,6 +8,6 @@ storage: string
 mdbase: string
 description: Адрес электронной почты
 settings: [hint, required, locked, default]
-group: text
+group: text-single
 sort: 2
 status: active

@@ -37373,17 +37373,18 @@ function compareFieldRegistryEntries(a, b) {
 
 const FIELD_TYPE_SELECT_GROUPS = [
   {
-    label: "Текст",
+    label: "Текст (однострочный)",
     types: [
       "awn.field.string",
       "awn.field.string.email",
       "awn.field.string.password",
       "awn.field.string.slug",
-      "awn.field.string.url",
-      "awn.field.string.link",
-      "awn.field.text",
-      "awn.field.text.markdown"
+      "awn.field.string.url"
     ]
+  },
+  {
+    label: "Текст (многострочный)",
+    types: ["awn.field.text", "awn.field.text.markdown"]
   },
   { label: "Числа", types: ["awn.field.number", "awn.field.number.integer"] },
   { label: "Дата и время", types: ["awn.field.date", "awn.field.date.datetime"] },
@@ -37403,15 +37404,17 @@ const FIELD_TYPE_SELECT_GROUPS = [
       "awn.field.file.one",
       "awn.field.file.many",
       "awn.field.file.image.one",
-      "awn.field.file.image.one.with-preview",
-      "awn.field.file.image.many.with-preview",
-      "awn.field.file.one.with-preview",
-      "awn.field.file.many.with-preview"
+      "awn.field.file.image.many"
     ]
   },
   {
     label: "Структура",
-    types: ["awn.field.json", "awn.field.relation.one", "awn.field.relation.many"]
+    types: [
+      "awn.field.string.link",
+      "awn.field.json",
+      "awn.field.relation.one",
+      "awn.field.relation.many"
+    ]
   },
   {
     label: "Справочники",
@@ -37419,7 +37422,11 @@ const FIELD_TYPE_SELECT_GROUPS = [
   },
   {
     label: "CMS / платформа",
-    types: ["awn.field.string.cron-schedule", "awn.field.materials"]
+    types: [
+      "awn.field.file.image.for-preview",
+      "awn.field.string.cron-schedule",
+      "awn.field.materials"
+    ]
   }
 ];
 
@@ -40906,11 +40913,8 @@ const FIELD_TYPE_ICONS = {
   "awn.file.image.one": "🖼️",
   "awn.field.file.image.many": "🎞️",
   "awn.file.image.many": "🎞️",
-  "awn.field.file.image.one.with-preview": "🪪",
-  "awn.file.image.one.with-preview": "🪪",
-  "awn.field.file.image.many.with-preview": "🖼️",
-  "awn.field.file.one.with-preview": "📎",
-  "awn.field.file.many.with-preview": "📎",
+  "awn.field.file.image.for-preview": "🪪",
+  "awn.file.image.for-preview": "🪪",
   "awn.field.materials": "📦",
   "awn.field.lookup.one": "📇",
   "awn.lookup.one": "📇",
@@ -40954,6 +40958,16 @@ function resolveFieldLabelIcon(typeId, key = "") {
   }
   const id = resolveFieldTypeId(typeId || "");
   return FIELD_TYPE_ICONS[id] || FIELD_TYPE_ICONS[normalizeCanonicalFieldTypeId(id)] || "";
+}
+
+function formatSchemaDisplayTitle(text, { typeId = "", key = "", replaceMarker = false } = {}) {
+  const raw = String(text || "").trim();
+  if (!raw.includes("{A2!}")) return raw;
+  if (replaceMarker) {
+    const icon = resolveFieldLabelIcon(typeId, key);
+    return raw.replace(/\{A2!\}\s*/g, icon ? `${icon} ` : "").trim();
+  }
+  return raw.replace(/\{A2!\}\s*/g, "").trim();
 }
 
 function appendFieldLabelIcon(label, { typeId = "", key = "" } = {}) {
@@ -41012,7 +41026,7 @@ function buildFieldLabelElement(
   if (!iconOnly) {
     const textSpan = document.createElement("span");
     textSpan.className = "field-label-text";
-    textSpan.textContent = text || "—";
+    textSpan.textContent = formatSchemaDisplayTitle(text || "—", { typeId, key }) || "—";
     label.appendChild(textSpan);
   } else if (title) {
     label.setAttribute("aria-label", title);
@@ -41148,19 +41162,19 @@ function isFieldTypeMany(typeId) {
   return normalizeCanonicalFieldTypeId(typeId).endsWith(".many");
 }
 
+function isLegacyAttachmentsWithPreviewType(fieldDef) {
+  const raw = String(fieldDef?.type || "").trim();
+  return /awn\.field\.file\.(one|many)\.with-preview$/i.test(raw);
+}
+
 function isPropsAttachmentsField(key, fieldDef = getPropsFieldDef(key)) {
   if (normalizePropsKey(key) === "awn-attachments") return true;
   if (!fieldDef) return false;
   if (String(fieldDef.widget || "").trim() === "attachments") return true;
+  if (isLegacyAttachmentsWithPreviewType(fieldDef)) return true;
   const typeId = normalizeCanonicalFieldTypeId(fieldDef.type || "");
-  if (
-    fieldTypeIs(typeId, "file.one.with-preview") ||
-    fieldTypeIs(typeId, "file.many.with-preview")
-  ) {
-    return true;
-  }
   const scope = String(fieldDef.scope || "").trim();
-  return scope === "attachments" && fieldTypeIs(fieldDef.type, "file.many");
+  return scope === "attachments" && fieldTypeIs(typeId, "file.many");
 }
 
 function isPropsPreviewWidgetField(key, fieldDef = getPropsFieldDef(key)) {
@@ -41179,8 +41193,10 @@ function isPropsAsideDedicatedBlockField(key, fieldDef = getPropsFieldDef(key)) 
 
 function isAttachmentsFieldStorageMany(fieldDef = null) {
   if (!fieldDef) return true;
+  if (isLegacyAttachmentsWithPreviewType(fieldDef)) {
+    return /awn\.field\.file\.many\.with-preview$/i.test(String(fieldDef.type || "").trim());
+  }
   const typeId = normalizeCanonicalFieldTypeId(fieldDef.type || "");
-  if (fieldTypeIs(typeId, "file.one.with-preview")) return false;
   if (fieldTypeIs(typeId, "file.one")) return false;
   return isFieldTypeMany(typeId) || fieldDef.storage === "array";
 }
@@ -44507,10 +44523,7 @@ const DEDICATED_FIELD_TYPE_WIDGETS = new Set([
 ]);
 
 const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
-  "file.image.one.with-preview": "preview",
-  "file.image.many.with-preview": "preview",
-  "file.one.with-preview": "attachments",
-  "file.many.with-preview": "attachments",
+  "file.image.for-preview": "preview",
   "string.cron-schedule": "cron-schedule",
   "lookup.one": "lookup-one",
   "lookup.many": "lookup-many",
@@ -44624,10 +44637,8 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (isBooleanFieldTypeId(typeId) || widget === "toggle") return "boolean";
   if (isRelationFieldTypeId(typeId) || widget === "relation" || widget === "link") return "relation";
   if (fieldTypeIs(typeId, "string.link") || widget === "path") return "path";
-  if (fieldTypeIs(typeId, "file.image.one.with-preview")) return "preview";
-  if (fieldTypeIs(typeId, "file.image.many.with-preview")) return "preview";
-  if (fieldTypeIs(typeId, "file.one.with-preview")) return "attachments";
-  if (fieldTypeIs(typeId, "file.many.with-preview")) return "attachments";
+  if (fieldTypeIs(typeId, "file.image.for-preview")) return "preview";
+  if (isLegacyAttachmentsWithPreviewType(fieldDef)) return "attachments";
   if (fieldTypeIs(typeId, "materials")) return "materials";
   if (fieldTypeIs(typeId, "file.image.one") || widget === "image") return "image";
   if (isFileFieldTypeId(typeId) || widget === "file") return "file";
@@ -44805,8 +44816,9 @@ function createPropsFormTextValueControl(entry, meta, { locked = false } = {}) {
       const nodePath = getPropsContextPath();
       document.querySelectorAll(".props-form-preview-thumb-wrap").forEach((thumbWrap) => {
         if (thumbWrap.dataset.hasPreview === "1") return;
+        const previewKey = normalizePropsKey(thumbWrap.dataset.propKey || "awn-preview");
         const previewEntry = propsFormEntries.find(
-          (item) => normalizePropsKey(item.key) === "awn-preview"
+          (item) => normalizePropsKey(item.key) === previewKey
         );
         populatePreviewThumbWrap(
           thumbWrap,
@@ -46458,9 +46470,21 @@ function populatePreviewThumbWrap(thumbWrap, preview, title, nodePath = activePa
     };
     thumbWrap.appendChild(img);
   } else if (preview?.broken) {
-    thumbWrap.appendChild(
-      createBrokenImagePlaceholder({ label: "Превью не найдено", className: "node-overview-thumb" })
-    );
+    const emoji = getPropsFormAwnEmoji(nodePath);
+    if (emoji) {
+      thumbWrap.appendChild(
+        createNodeCoverFallbackElement({
+          nodePath,
+          emoji,
+          emojiClass: "node-overview-thumb-emoji",
+          iconClass: "node-overview-thumb-placeholder"
+        })
+      );
+    } else {
+      thumbWrap.appendChild(
+        createBrokenImagePlaceholder({ label: "Превью не найдено", className: "node-overview-thumb" })
+      );
+    }
   } else {
     thumbWrap.appendChild(
       createNodeCoverFallbackElement({
@@ -47852,6 +47876,7 @@ function createPropsFormPreviewControl(entry, meta, { locked = false } = {}) {
 
   const thumbWrap = document.createElement("div");
   thumbWrap.className = "node-overview-thumb-wrap props-form-preview-thumb-wrap";
+  if (entry.key) thumbWrap.dataset.propKey = entry.key;
   thumbWrap.tabIndex = locked ? -1 : 0;
   thumbWrap.setAttribute("role", locked ? "img" : "button");
   const previewPath = hidden.value;
@@ -48081,7 +48106,8 @@ function syncRuntimePropsFormVisibility() {
 function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCompact = false } = {}) {
   const meta = getPropsFieldMeta(entry.key);
   const normalizedKey = normalizePropsKey(entry.key);
-  const isPreviewField = normalizedKey === "awn-preview";
+  const fieldWidget = resolvePropsFieldWidget(entry.key, meta.fieldDef);
+  const isPreviewField = fieldWidget === "preview";
   const isAttachmentsField = normalizedKey === "awn-attachments";
   const isCronScheduleField = normalizedKey === "awn-runtime-cron-schedule";
   const row = document.createElement("div");

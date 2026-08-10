@@ -8,7 +8,7 @@ description: >
   для совместимости ссылок в документации.
 fields:
   awn-preview:
-    type: awn.field.file.image.one.with-preview
+    type: awn.field.file.image.for-preview
     title: Превью
     placement: aside-hero
     group: content

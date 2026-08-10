@@ -11,7 +11,8 @@ fields:
 
   # --- materials (aside-hero) ---
   awn-attachments:
-    type: awn.field.file.many.with-preview
+    type: awn.field.file.many
+    widget: attachments
     title: "{A2!} Вложения"
     description: awn-storage/assets/attachments/
     scope: attachments

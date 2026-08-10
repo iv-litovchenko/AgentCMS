@@ -10,43 +10,36 @@ awn_schema:
         name: Строка
         hint: awn.field.string
         placement: editor-body
-        group: Строки
+        group: Текст (многострочный) (однострочный)
         sort: 10
       demo_email:
         type: awn.field.string.email
         name: Email
         hint: awn.field.string.email
         placement: editor-body
-        group: Строки
+        group: Текст (многострочный) (однострочный)
         sort: 11
       demo_password:
         type: awn.field.string.password
         name: Пароль
         hint: awn.field.string.password
         placement: editor-body
-        group: Строки
+        group: Текст (многострочный) (однострочный)
         sort: 12
       demo_slug:
         type: awn.field.string.slug
         name: Слаг
         hint: awn.field.string.slug
         placement: editor-body
-        group: Строки
+        group: Текст (многострочный) (однострочный)
         sort: 13
       demo_url:
         type: awn.field.string.url
         name: URL
         hint: awn.field.string.url
         placement: editor-body
-        group: Строки
+        group: Текст (многострочный) (однострочный)
         sort: 14
-      demo_path:
-        type: awn.field.string.link
-        name: Путь в workspace
-        hint: awn.field.string.link
-        placement: editor-body
-        group: Строки
-        sort: 15
 
       # --- Текст (многострочные) ---
       demo_text:
@@ -54,14 +47,14 @@ awn_schema:
         name: Текст
         hint: awn.field.text
         placement: editor-body
-        group: Текст
+        group: Текст (многострочный)
         sort: 20
       demo_markdown:
         type: awn.field.text.markdown
         name: Markdown
         hint: awn.field.text.markdown
         placement: editor-body
-        group: Текст
+        group: Текст (многострочный)
         sort: 21
 
       # --- Числа ---
@@ -188,12 +181,21 @@ awn_schema:
         sort: 64
         scope: area
       demo_entity_preview:
-        type: awn.field.file.image.one.with-preview
+        type: awn.field.file.image.for-preview
         name: Превью сущности
-        hint: awn.field.file.image.one.with-preview
+        hint: awn.field.file.image.for-preview
         placement: editor-body
         group: Медиа
         sort: 65
+
+      # --- Структура ---
+      demo_path:
+        type: awn.field.string.link
+        name: Путь в workspace
+        hint: awn.field.string.link
+        placement: editor-body
+        group: Структура
+        sort: 68
 
       # --- Связи ---
       demo_relation_one:
@@ -278,7 +280,7 @@ awn_schema:
         type: awn.field.string
         name: Строка
         placement: editor-body
-        group: Строки
+        group: Текст (многострочный) (однострочный)
         sort: 10
       rec_choice_one:
         type: awn.field.choice.one
@@ -341,7 +343,7 @@ awn_schema:
         type: awn.field.string
         name: Sidecar строка
         placement: editor-body
-        group: Строки
+        group: Текст (многострочный) (однострочный)
         sort: 10
       sidecar_boolean:
         type: awn.field.boolean

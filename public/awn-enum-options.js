@@ -1,7 +1,12 @@
 /**
  * Enum option helpers + field type normalization (canonical awn.field.* ids only).
  */
-const FIELD_TYPE_ALIASES = {};
+const FIELD_TYPE_ALIASES = {
+  "awn.field.file.image.one.with-preview": "awn.field.file.image.for-preview",
+  "awn.field.file.image.many.with-preview": "awn.field.file.image.many",
+  "awn.field.file.one.with-preview": "awn.field.file.one",
+  "awn.field.file.many.with-preview": "awn.field.file.many"
+};
 
 const DEFAULT_FIELD_WIDGET = {
   "awn.field.choice.one": "select",
@@ -11,7 +16,8 @@ const DEFAULT_FIELD_WIDGET = {
 function resolveFieldTypeId(typeId) {
   const raw = String(typeId || "").trim();
   if (!raw) return "awn.field.string";
-  return raw.startsWith("awn.") ? raw : `awn.${raw}`;
+  const resolved = raw.startsWith("awn.") ? raw : `awn.${raw}`;
+  return FIELD_TYPE_ALIASES[resolved] || resolved;
 }
 
 function normalizeCanonicalFieldTypeId(typeId) {

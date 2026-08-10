@@ -63,7 +63,7 @@ fields:
 
   # --- aside-hero ---
   awn-preview:
-    type: awn.field.file.image.one.with-preview
+    type: awn.field.file.image.for-preview
     title: "{A2!} Превью"
     description: awn-storage/assets/preview/
     placement: aside-hero
