@@ -23,6 +23,7 @@ const { fetchBufferFromImportUrl, resolveImportFileName } = require("./media-imp
 const { decodeBase64UploadData } = require("./base64-upload");
 const { createScriptExecService } = require("./script-exec-service");
 const { createWebSearchService } = require("./web-search-service");
+const { createSemanticSearchService } = require("./semantic-search/service");
 const { createIdentityService } = require("./identity-service");
 const { createDocumentExtractService } = require("./document-extract-service");
 const { buildWorkspacePathResolvePayload } = require("./workspace-path-resolver");
@@ -1454,6 +1455,18 @@ function getWebSearchService() {
     webSearchService = createWebSearchService();
   }
   return webSearchService;
+}
+
+let semanticSearchService = null;
+function getSemanticSearchService() {
+  if (!semanticSearchService) {
+    semanticSearchService = createSemanticSearchService({
+      getAgentRoot,
+      collectSearchableFiles,
+      resolvePathAbsolute: normalizeWorkspacePath
+    });
+  }
+  return semanticSearchService;
 }
 
 let identityService = null;
@@ -10863,6 +10876,9 @@ const SESSION_CONTEXT_API_MAP = {
   activePage: "GET /api/agent/active-context — текущий фокус UI (PAGE→SLOT→CONTENT + mcp hints)",
   activeContext: "GET /api/agent/active-context — alias active-page",
   search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&match=relaxed|strict&limit=",
+  semanticSearch: "GET /api/search/semantic?q=&limit= — локальный поиск по смыслу (offline hash-tfidf)",
+  semanticSearchStatus: "GET /api/search/semantic/status — статус индекса",
+  semanticSearchReindex: "POST /api/search/semantic/reindex — пересобрать индекс",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
@@ -16033,6 +16049,54 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, data);
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to search content", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/search/semantic/status") {
+    try {
+      return sendJson(res, 200, await getSemanticSearchService().getStatus());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read semantic index status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/search/semantic/reindex") {
+    try {
+      const payload = await getSemanticSearchService().rebuildIndex({ agentId: getActiveAgentId() });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rebuild semantic index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/search/semantic") {
+    const query = url.searchParams.get("q") || "";
+    const limitRaw = Number(url.searchParams.get("limit") || 20);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 20;
+    try {
+      const data = await getSemanticSearchService().search(query, limit);
+      const enriched = [];
+      for (const row of data.results || []) {
+        const meta = await resolveSearchResultMeta(row.path).catch(() => null);
+        enriched.push({
+          ...row,
+          displayName: meta?.displayName || path.basename(row.path),
+          locationHint: meta?.locationHint || row.path,
+          filePath: row.path
+        });
+      }
+      return sendJson(res, 200, { ...data, results: enriched });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to run semantic search",
+        details: String(error.message || error)
+      });
     }
   }
 

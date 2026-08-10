@@ -143,6 +143,10 @@
         <div class="app-header-tools">
           <div class="content-search-wrap">
             <div class="content-search-bar">
+              <select id="content-search-mode" class="content-search-mode" aria-label="Режим поиска">
+                <option value="text" selected>Текст</option>
+                <option value="semantic">Смысл</option>
+              </select>
               <select id="content-search-scope" class="content-search-scope" aria-label="Область поиска">
                 <option value="all" selected>Везде</option>
                 <option value="filename">Только имя</option>
@@ -208,6 +212,7 @@
                 <li><strong>Маски</strong> — <code>*</code> любые символы, <code>?</code> один символ: <code>report*.pdf</code>, <code>img_???</code>.</li>
                 <li><strong>Область</strong> — «Везде» ищет в именах, метаданных тем и тексте файлов.</li>
                 <li><strong>Тип</strong> — фильтр по формату (Markdown, PDF, видео и т.д.).</li>
+                <li><strong>Смысл</strong> — локальный семантический поиск по всему workspace (offline). Индекс: sidebar → «Индексирование…» → Переиндексировать.</li>
               </ul>
             </div>
             <div id="content-search-results" class="content-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
@@ -853,13 +858,26 @@
                   <span class="menu-static-title menu-static-title--indexing">
                     <span aria-hidden="true">🟢</span>
                     <span>Индексирование и смысловая карта заметок (RAG+vector)</span>
-                    <span class="stub-static-mark">(static)</span>
                   </span>
+                  <span
+                    id="menu-semantic-index-stats"
+                    class="menu-static-google-drive-stats menu-static-google-drive-stats--summary is-empty"
+                    aria-live="polite"
+                  ></span>
                 </summary>
                 <div class="menu-static-body">
                   <p class="menu-static-description">
-                    Изучить эту тему, чтобы можно было искать по смыслу — и как это вообще всё работает
+                    Локальный поиск по смыслу по всему workspace — без интернета и внешних программ (hash-TF-IDF в
+                    <code>.agent-cms/semantic-index/</code>).
                   </p>
+                  <p id="menu-semantic-index-status" class="menu-static-description" aria-live="polite"></p>
+                  <button
+                    type="button"
+                    id="menu-semantic-index-rebuild-btn"
+                    class="menu-static-action-btn"
+                  >
+                    Переиндексировать
+                  </button>
                 </div>
               </details>
               </div>
@@ -3927,13 +3945,14 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=5"></script>
     <script src="/connection-status.js?v=1"></script>
+    <script src="/semantic-index-panel.js?v=2"></script>
     <script src="/slug-translit.js?v=1"></script>
     <script src="/external-file-mask.js?v=1"></script>
     <script src="/awn-enum-options.js?v=1"></script>
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.238"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.698"></script>
+    <script src="/main.js?v=0.5.699"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
     <script src="/app-home-title-rotator.js?v=13"></script>
   </body>

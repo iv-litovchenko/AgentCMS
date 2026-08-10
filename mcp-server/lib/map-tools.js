@@ -44,6 +44,16 @@ function registerSearchWorkspaceTools(reg, client) {
     searchWorkspaceSchema,
     runSearch
   );
+
+  reg(
+    "search_workspace_semantic",
+    "Offline semantic search across the entire workspace (local hash-TF-IDF index in .agent-cms/semantic-index). Finds related notes by meaning without exact words. Reindex: POST /api/search/semantic/reindex.",
+    z.object({
+      query: z.string().min(2),
+      limit: z.number().int().min(1).max(50).optional()
+    }),
+    ({ query, limit }) => client.get("/api/search/semantic", { q: query, limit: limit || 20 })
+  );
 }
 
 export function registerMapTools(reg, client, pagePath) {

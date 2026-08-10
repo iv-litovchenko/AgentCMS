@@ -216,7 +216,8 @@ const appLandingSearchAgentsActiveBtn = document.getElementById("app-landing-sea
 const menuSearchInputNode = document.getElementById("menu-search-input");
 const contentSearchInputNode = document.getElementById("content-search-input");
 const contentSearchSpinnerNode = document.getElementById("content-search-spinner");
-const contentSearchBarNode = document.querySelector(".content-search-bar");
+const contentSearchBarNode = document.querySelector(".app-header-tools .content-search-bar");
+const contentSearchModeNode = document.getElementById("content-search-mode");
 const contentSearchScopeNode = document.getElementById("content-search-scope");
 const contentSearchTypeNode = document.getElementById("content-search-type");
 const contentSearchMatchNode = document.getElementById("content-search-match");
@@ -21182,6 +21183,22 @@ function setLoading(message) {
   refreshEditorViewContent();
 }
 
+function getContentSearchMode() {
+  return contentSearchModeNode?.value === "semantic" ? "semantic" : "text";
+}
+
+function isContentSearchSemantic() {
+  return getContentSearchMode() === "semantic";
+}
+
+function updateContentSearchFiltersState() {
+  const semantic = isContentSearchSemantic();
+  contentSearchBarNode?.classList.toggle("content-search-bar--semantic", semantic);
+  for (const node of [contentSearchScopeNode, contentSearchMatchNode, contentSearchTypeNode]) {
+    if (node) node.disabled = semantic;
+  }
+}
+
 function getContentSearchScope() {
   const scope = contentSearchScopeNode?.value || "all";
   if (scope === "filename" || scope === "content" || scope === "all") return scope;
@@ -21213,11 +21230,16 @@ function toggleContentSearchHelp() {
 }
 
 function getContentSearchMinLength(scope = getContentSearchScope()) {
+  if (isContentSearchSemantic()) return 2;
   return scope === "filename" || scope === "all" ? 1 : 2;
 }
 
 function updateContentSearchPlaceholder() {
   if (!contentSearchInputNode) return;
+  if (isContentSearchSemantic()) {
+    contentSearchInputNode.placeholder = "Поиск по смыслу по всему workspace…";
+    return;
+  }
   const scope = getContentSearchScope();
   if (scope === "filename") {
     contentSearchInputNode.placeholder = "Поиск по имени файла...";
@@ -21472,6 +21494,37 @@ async function fetchContentSearch(
   return response.json();
 }
 
+function mapSemanticSearchResults(data) {
+  const results = Array.isArray(data?.results) ? data.results : [];
+  return {
+    query: data?.query || "",
+    mode: "semantic",
+    scope: "semantic",
+    results: results.map((row) => {
+      const filePath = String(row.path || row.filePath || "").replace(/\\/g, "/");
+      const fileName = filePath.split("/").pop() || filePath;
+      return {
+        filePath,
+        fileName,
+        displayName: row.displayName || fileName,
+        locationHint: row.locationHint || filePath,
+        pathBreadcrumb: filePath,
+        snippet: row.snippet || "",
+        matchKindLabel: row.score != null ? `≈ ${row.score}` : "смысл",
+        kindLabel: "Смысл"
+      };
+    }),
+    total: data?.total ?? results.length
+  };
+}
+
+async function fetchContentSearchSemantic(query, limit = 30) {
+  const response = await fetch(buildApiUrl("/api/search/semantic", { q: query, limit }));
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  const data = await response.json();
+  return mapSemanticSearchResults(data);
+}
+
 function scheduleContentSearch() {
   if (!contentSearchInputNode) return;
   const query = contentSearchInputNode.value.trim();
@@ -21499,7 +21552,9 @@ function scheduleContentSearch() {
     renderContentSearchLoading();
 
     try {
-      const data = await fetchContentSearch(query, scope, fileType, match);
+      const data = isContentSearchSemantic()
+        ? await fetchContentSearchSemantic(query)
+        : await fetchContentSearch(query, scope, fileType, match);
       if (requestId !== contentSearchRequestId) return;
       renderContentSearchResults(data);
     } catch {
@@ -92889,6 +92944,11 @@ document.addEventListener("click", (event) => {
   }
 });
 
+contentSearchModeNode?.addEventListener("change", () => {
+  updateContentSearchFiltersState();
+  updateContentSearchPlaceholder();
+  scheduleContentSearch();
+});
 contentSearchScopeNode?.addEventListener("change", () => {
   updateContentSearchPlaceholder();
   scheduleContentSearch();
@@ -92909,6 +92969,9 @@ contentSearchInputNode?.addEventListener("keydown", (event) => {
     contentSearchInputNode.blur();
   }
 });
+
+updateContentSearchFiltersState();
+updateContentSearchPlaceholder();
 
 appLandingSearchScopeNode?.addEventListener("change", () => {
   updateLandingSearchPlaceholder();

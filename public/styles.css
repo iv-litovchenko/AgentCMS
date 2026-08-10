@@ -14759,8 +14759,34 @@ a.header-tool-btn {
   background-size: 14px;
 }
 
+.content-search-mode {
+  flex: 0 0 auto;
+  max-width: 92px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: #ecfdf5;
+  color: #065f46;
+  padding: 8px 24px 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23059669'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
+}
+
+.content-search-mode:focus,
 .content-search-scope:focus {
   outline: none;
+}
+
+.content-search-bar--semantic .content-search-scope,
+.content-search-bar--semantic .content-search-match,
+.content-search-bar--semantic .content-search-type-wrap {
+  opacity: 0.42;
+  pointer-events: none;
 }
 
 .content-search-scope option:disabled {
