@@ -10234,7 +10234,7 @@ function buildOrbitDiveTileNode(nodeData, { agent, focusItem, folderPath, isTopi
         }
       : {
           nodePath: folderPath || `${label}/index.md`,
-          iconKind: "folder"
+          iconKind: "section"
         },
     { rounded: false }
   );
@@ -10301,7 +10301,7 @@ function createOrbitDiveGraphNode(nodeData) {
       core.className = "app-landing-orbit-dive-graph-section-core";
       mountOrbitDiveOrbContent(core, {
         nodePath: folderPath || `${label}/index.md`,
-        iconKind: "folder"
+        iconKind: "section"
       });
       body.append(ring, core);
       appendOrbitDiveNodeLabel(el, label, "section");
@@ -50173,9 +50173,21 @@ async function removeOverviewPreviewInline(thumbWrap) {
   overviewPreviewUploadWrap = null;
 }
 
+function isCategoryCoverIconPath(nodePath) {
+  const normalized = String(nodePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return false;
+  const typeName = normalizeAwnTypeName(inferAwnTypeFromRelPath(normalized));
+  return (
+    typeName === normalizeAwnTypeName("awn.content.category") ||
+    typeName === normalizeAwnTypeName("awn.record.category") ||
+    typeName === normalizeAwnTypeName("awn.media.category")
+  );
+}
+
 function getNodeCoverIconKind(nodePath) {
   const resolved = getResolvedNodePath(nodePath);
   if (isAgentRootIndexPath(resolved)) return "agent-root";
+  if (isCategoryCoverIconPath(resolved)) return "section";
   if (isPartNodePath(resolved)) return "file";
   if (isTopicManifestPath(resolved)) return "file";
   if (isNodeManifestPath(resolved)) return "folder";
