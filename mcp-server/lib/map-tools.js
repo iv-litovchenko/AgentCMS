@@ -54,6 +54,36 @@ function registerSearchWorkspaceTools(reg, client) {
     }),
     ({ query, limit }) => client.get("/api/search/semantic", { q: query, limit: limit || 20 })
   );
+
+  reg(
+    "query_workspace_storage",
+    "SQL-like filter over entire workspace field catalog (.agent-cms/storage-index). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: POST /api/storage-index/reindex.",
+    z.object({
+      pathPrefix: z.string().optional().describe("Limit to path prefix, e.g. awn-container/finansy"),
+      where: z
+        .array(
+          z.object({
+            field: z.string().min(1),
+            eq: z.union([z.string(), z.number(), z.boolean()]).optional(),
+            contains: z.string().optional(),
+            gte: z.union([z.string(), z.number()]).optional(),
+            lte: z.union([z.string(), z.number()]).optional(),
+            gt: z.union([z.string(), z.number()]).optional(),
+            lt: z.union([z.string(), z.number()]).optional()
+          })
+        )
+        .optional(),
+      sort: z
+        .object({
+          field: z.string().min(1),
+          dir: z.enum(["asc", "desc"]).optional()
+        })
+        .optional(),
+      fields: z.array(z.string()).optional(),
+      limit: z.number().int().min(1).max(500).optional()
+    }),
+    (payload) => client.post("/api/storage-index/query", payload)
+  );
 }
 
 export function registerMapTools(reg, client, pagePath) {

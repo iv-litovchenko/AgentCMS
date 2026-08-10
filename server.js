@@ -24,6 +24,7 @@ const { decodeBase64UploadData } = require("./base64-upload");
 const { createScriptExecService } = require("./script-exec-service");
 const { createWebSearchService } = require("./web-search-service");
 const { createSemanticSearchService } = require("./semantic-search/service");
+const { createStorageIndexService } = require("./storage-index/service");
 const { createIdentityService } = require("./identity-service");
 const { createDocumentExtractService } = require("./document-extract-service");
 const { buildWorkspacePathResolvePayload } = require("./workspace-path-resolver");
@@ -1467,6 +1468,18 @@ function getSemanticSearchService() {
     });
   }
   return semanticSearchService;
+}
+
+let storageIndexService = null;
+function getStorageIndexService() {
+  if (!storageIndexService) {
+    storageIndexService = createStorageIndexService({
+      getAgentRoot,
+      collectSearchableFiles,
+      resolvePathAbsolute: normalizeWorkspacePath
+    });
+  }
+  return storageIndexService;
 }
 
 let identityService = null;
@@ -10879,6 +10892,11 @@ const SESSION_CONTEXT_API_MAP = {
   semanticSearch: "GET /api/search/semantic?q=&limit= — локальный поиск по смыслу (offline hash-tfidf)",
   semanticSearchStatus: "GET /api/search/semantic/status — статус индекса",
   semanticSearchReindex: "POST /api/search/semantic/reindex — пересобрать индекс",
+  storageIndexStatus: "GET /api/storage-index/status — каталог полей workspace",
+  storageIndexReindex: "POST /api/storage-index/reindex — пересобрать каталог полей",
+  storageIndexQuery: "POST /api/storage-index/query — SQL-like фильтр по полям (весь workspace)",
+  semanticIndexCatalog: "GET /api/search/semantic/catalog — просмотр фрагментов векторного индекса",
+  storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
@@ -16095,6 +16113,85 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to run semantic search",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/search/semantic/catalog") {
+    const limitRaw = Number(url.searchParams.get("limit") || 40);
+    const offsetRaw = Number(url.searchParams.get("offset") || 0);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 40;
+    const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+    try {
+      const data = await getSemanticSearchService().catalog({
+        limit,
+        offset,
+        pathPrefix: url.searchParams.get("pathPrefix") || "",
+        q: url.searchParams.get("q") || ""
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read semantic index catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/storage-index/status") {
+    try {
+      return sendJson(res, 200, await getStorageIndexService().getStatus());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read storage index status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage-index/reindex") {
+    try {
+      const payload = await getStorageIndexService().rebuildIndex({ agentId: getActiveAgentId() });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rebuild storage index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/storage-index/query") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getStorageIndexService().query(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to query storage index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/storage-index/catalog") {
+    const limitRaw = Number(url.searchParams.get("limit") || 40);
+    const offsetRaw = Number(url.searchParams.get("offset") || 0);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 40;
+    const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+    try {
+      const data = await getStorageIndexService().catalog({
+        limit,
+        offset,
+        pathPrefix: url.searchParams.get("pathPrefix") || "",
+        q: url.searchParams.get("q") || "",
+        field: url.searchParams.get("field") || ""
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read storage index catalog",
         details: String(error.message || error)
       });
     }

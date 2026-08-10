@@ -212,7 +212,7 @@
                 <li><strong>Маски</strong> — <code>*</code> любые символы, <code>?</code> один символ: <code>report*.pdf</code>, <code>img_???</code>.</li>
                 <li><strong>Область</strong> — «Везде» ищет в именах, метаданных тем и тексте файлов.</li>
                 <li><strong>Тип</strong> — фильтр по формату (Markdown, PDF, видео и т.д.).</li>
-                <li><strong>Смысл</strong> — локальный семантический поиск по всему workspace (offline). Индекс: sidebar → «Индексирование…» → Переиндексировать.</li>
+                <li><strong>Смысл</strong> — локальный семантический поиск по всему workspace (offline). Индекс: sidebar → «Индексирование workspace…» → Переиндексировать.</li>
               </ul>
             </div>
             <div id="content-search-results" class="content-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
@@ -854,30 +854,53 @@
                 </div>
               </details>
               <details class="menu-static-section menu-static-section--indexing menu-static-accordion">
-                <summary class="menu-static-summary" title="Индексирование и смысловая карта заметок (RAG+vector)">
+                <summary class="menu-static-summary" title="Индексирование workspace (смысловая карта заметок): смысл + поля">
                   <span class="menu-static-title menu-static-title--indexing">
                     <span aria-hidden="true">🟢</span>
-                    <span>Индексирование и смысловая карта заметок (RAG+vector)</span>
+                    <span class="menu-static-title-text">
+                      Индексирование workspace
+                      <span class="menu-static-subtitle">смысловая карта заметок</span>
+                    </span>
                   </span>
                   <span
-                    id="menu-semantic-index-stats"
+                    id="menu-workspace-index-stats"
                     class="menu-static-google-drive-stats menu-static-google-drive-stats--summary is-empty"
                     aria-live="polite"
                   ></span>
                 </summary>
                 <div class="menu-static-body">
                   <p class="menu-static-description">
-                    Локальный поиск по смыслу по всему workspace — без интернета и внешних программ (hash-TF-IDF в
-                    <code>.agent-cms/semantic-index/</code>).
+                    Два offline-слоя поверх <strong>всего</strong> хранилища (не только инфоблоки): смысл и поля.
                   </p>
-                  <p id="menu-semantic-index-status" class="menu-static-description" aria-live="polite"></p>
-                  <button
-                    type="button"
-                    id="menu-semantic-index-rebuild-btn"
-                    class="menu-static-action-btn"
-                  >
-                    Переиндексировать
-                  </button>
+
+                  <div class="menu-index-block">
+                    <div class="menu-index-block-title">1. Смысл (RAG)</div>
+                    <p class="menu-static-description">
+                      Поиск по смыслу · <code>.agent-cms/semantic-index/</code>
+                    </p>
+                    <p id="menu-semantic-index-status" class="menu-static-description" aria-live="polite"></p>
+                    <button type="button" id="menu-semantic-index-rebuild-btn" class="menu-static-action-btn">
+                      Переиндексировать смысл
+                    </button>
+                    <button type="button" id="menu-semantic-index-show-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                      ~show-vector
+                    </button>
+                  </div>
+
+                  <div class="menu-index-block">
+                    <div class="menu-index-block-title">2. Поля (SQL-like)</div>
+                    <p class="menu-static-description">
+                      Каталог frontmatter всех .md/.yml · фильтр по дате, сумме, типу ·
+                      <code>.agent-cms/storage-index/</code>
+                    </p>
+                    <p id="menu-storage-index-status" class="menu-static-description" aria-live="polite"></p>
+                    <button type="button" id="menu-storage-index-rebuild-btn" class="menu-static-action-btn">
+                      Пересобрать каталог полей
+                    </button>
+                    <button type="button" id="menu-storage-index-show-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                      ~show-fields
+                    </button>
+                  </div>
                 </div>
               </details>
               </div>
@@ -3835,6 +3858,33 @@
       </div>
     </div>
 
+    <div id="workspace-index-catalog-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="workspace-index-catalog-title">
+      <div class="modal-card workspace-index-catalog-card">
+        <div class="workspace-index-catalog-header">
+          <div>
+            <div class="modal-message" id="workspace-index-catalog-title">~show-vector</div>
+            <p id="workspace-index-catalog-subtitle" class="workspace-index-catalog-subtitle"></p>
+          </div>
+          <button id="workspace-index-catalog-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div class="workspace-index-catalog-toolbar">
+          <input id="workspace-index-catalog-q" class="workspace-index-catalog-input" type="search" placeholder="Поиск по пути / тексту…" />
+          <input id="workspace-index-catalog-prefix" class="workspace-index-catalog-input" type="text" placeholder="pathPrefix (опц.)" />
+          <select id="workspace-index-catalog-field" class="workspace-index-catalog-input workspace-index-catalog-field hidden" aria-label="Фильтр по полю">
+            <option value="">Все поля</option>
+          </select>
+          <button id="workspace-index-catalog-refresh-btn" class="menu-static-action-btn" type="button">Обновить</button>
+        </div>
+        <div id="workspace-index-catalog-meta" class="workspace-index-catalog-meta"></div>
+        <div id="workspace-index-catalog-list" class="workspace-index-catalog-list"></div>
+        <div class="workspace-index-catalog-footer">
+          <button id="workspace-index-catalog-prev-btn" class="menu-static-action-btn" type="button">← Назад</button>
+          <span id="workspace-index-catalog-page" class="workspace-index-catalog-page"></span>
+          <button id="workspace-index-catalog-next-btn" class="menu-static-action-btn" type="button">Вперёд →</button>
+        </div>
+      </div>
+    </div>
+
     <div id="md-showcase-modal" class="modal-overlay hidden">
       <div class="modal-card md-showcase-card">
         <div class="md-showcase-header">
@@ -3945,7 +3995,7 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=5"></script>
     <script src="/connection-status.js?v=1"></script>
-    <script src="/semantic-index-panel.js?v=2"></script>
+    <script src="/semantic-index-panel.js?v=6"></script>
     <script src="/slug-translit.js?v=1"></script>
     <script src="/external-file-mask.js?v=1"></script>
     <script src="/awn-enum-options.js?v=1"></script>

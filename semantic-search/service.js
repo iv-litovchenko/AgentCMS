@@ -125,6 +125,76 @@ function createSemanticSearchService(deps) {
     };
   }
 
+  function vectorPreview(vector, head = 8) {
+    const arr = Array.isArray(vector) ? vector : [];
+    let sum = 0;
+    for (let i = 0; i < arr.length; i++) sum += arr[i] * arr[i];
+    const norm = Math.sqrt(sum);
+    return {
+      dims: arr.length,
+      norm: Math.round(norm * 1000) / 1000,
+      head: arr.slice(0, head).map((v) => Math.round(v * 10000) / 10000)
+    };
+  }
+
+  async function catalog({ limit = 40, offset = 0, pathPrefix = "", q = "" } = {}) {
+    const agentRoot = getAgentRoot();
+    if (!agentRoot) throw new Error("Agent not selected");
+
+    const index = await loadIndex(agentRoot);
+    if (!index?.chunks?.length) {
+      return {
+        mode: "semantic-catalog",
+        model: MODEL_ID,
+        ready: false,
+        total: 0,
+        offset: 0,
+        limit,
+        items: [],
+        hint: "Индекс не построен"
+      };
+    }
+
+    const prefix = String(pathPrefix || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    const needle = String(q || "").trim().toLowerCase();
+    let rows = index.chunks;
+    if (prefix) rows = rows.filter((row) => row.path.startsWith(prefix));
+    if (needle) {
+      rows = rows.filter(
+        (row) =>
+          row.path.toLowerCase().includes(needle) ||
+          String(row.preview || "").toLowerCase().includes(needle) ||
+          String(row.id || "").toLowerCase().includes(needle)
+      );
+    }
+
+    const total = rows.length;
+    const start = Math.max(Number(offset) || 0, 0);
+    const take = Math.min(Math.max(Number(limit) || 40, 1), 200);
+    const items = rows.slice(start, start + take).map((row) => ({
+      id: row.id,
+      path: row.path,
+      chunkIndex: row.chunkIndex,
+      preview: row.preview,
+      vector: vectorPreview(row.vector)
+    }));
+
+    return {
+      mode: "semantic-catalog",
+      model: index.model || MODEL_ID,
+      ready: true,
+      builtAt: index.builtAt,
+      fileCount: index.fileCount,
+      chunkCount: index.chunkCount,
+      total,
+      offset: start,
+      limit: take,
+      pathPrefix: prefix || null,
+      query: needle || null,
+      items
+    };
+  }
+
   async function search(query, limit = 20) {
     const trimmed = String(query || "").trim();
     const agentRoot = getAgentRoot();
@@ -185,7 +255,7 @@ function createSemanticSearchService(deps) {
     };
   }
 
-  return { rebuildIndex, getStatus, search };
+  return { rebuildIndex, getStatus, search, catalog };
 }
 
 module.exports = { createSemanticSearchService };
