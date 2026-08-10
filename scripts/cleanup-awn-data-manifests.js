@@ -28,7 +28,6 @@ const EXTENDS_FIELD_DEFAULTS = {
   "cms-base.entities": null,
   "cms-base.mixins": null,
   "editing-fields.fields": "awn.field.base",
-  "markdown-blocks.blocks": "awn.block.base",
   "editing-fields.field-def": "awn.table.base"
 };
 

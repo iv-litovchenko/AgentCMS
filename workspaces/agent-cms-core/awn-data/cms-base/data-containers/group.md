@@ -7,4 +7,4 @@ awn-description: только manifest + подпапки, без записей
 
 Type id = **`awn-data/cms-base/data-containers/group.md`**
 
-Примеры store: `cms-base/`, `taxonomies/`, `markdown-blocks/`.
+Примеры store: `cms-base/`, `taxonomies/`, `editing-fields/`.

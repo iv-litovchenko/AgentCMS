@@ -1,9 +1,4 @@
 const {
-  loadMdBlocksFromAwnData,
-  loadMdBlockGroupsMetaFromAwnData,
-  mdBlocksStoreHasRecords
-} = require("./awn-data-md-blocks-bridge");
-const {
   loadBlocksFromCatalog,
   loadBlockGroupsFromCatalog
 } = require("./type-catalog-loader");
@@ -94,17 +89,6 @@ function loadAgentBlocks(agentRoot = "", projectRoot = process.cwd()) {
     const blocksById = loadBlocksFromCatalog(root, agent);
     if (blocksById && Object.keys(blocksById).length) {
       const meta = loadBlockGroupsFromCatalog(root, agent) || { groupOrder: [], groupNames: {} };
-      return {
-        blockRegistry: blocksById,
-        blockGroups: buildBlockGroups(blocksById, meta)
-      };
-    }
-  }
-
-  if (mdBlocksStoreHasRecords(root)) {
-    const blocksById = loadMdBlocksFromAwnData(root);
-    const meta = loadMdBlockGroupsMetaFromAwnData(root) || { groupOrder: [], groupNames: {} };
-    if (blocksById && Object.keys(blocksById).length) {
       return {
         blockRegistry: blocksById,
         blockGroups: buildBlockGroups(blocksById, meta)

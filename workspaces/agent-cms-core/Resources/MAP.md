@@ -16,13 +16,13 @@ workspaces/agent-cms-test/
 ├── awn-data/                   ← ★ CMS-данные (tasks, taxonomies, cms-base, …)
 │   ├── cms-base/               ← entities, mixins, registry
 │   ├── editing-fields/         ← awn.field.*
-│   ├── markdown-blocks/        ← awn.block.*
 │   └── taxonomies/             ← справочники (tags, slot-categories, …)
-├── awn-system/                 ← ★ CMS-типы (pages, content, slots — YAML)
+├── awn-system/                 ← ★ CMS-типы (pages, content, slots, md-blocks — YAML)
 │   └── types/
 │       ├── pages/              ← awn.page.*
 │       ├── content/            ← awn.content.*
-│       └── slots/              ← awn.slot.*
+│       ├── slots/              ← awn.slot.*
+│       └── md-blocks/          ← awn.block.*
 │
 ├── awn-container/              ← ★ КОНТЕНТ (дерево слева)
 │   └── {area}/manifest.md      ← awn.page.area
@@ -52,8 +52,7 @@ workspaces/agent-cms-test/
 | **fields** | `awn.string` … | типы полей frontmatter |
 | **mixins** | `awn.mixin.*` | переиспользуемые поля |
 
-**Markdown-блоки (канон)** — `awn-system/types/md-blocks/` (`awn.block.*`).  
-Зеркало: `awn-data/markdown-blocks/` — синхронизируется скриптом `migrate-md-blocks-to-awn-data.js`.
+**Markdown-блоки** — `awn-system/types/md-blocks/` (`awn.block.*`, палитра редактора).
 
 **Справочники** — `awn-data/taxonomies/*/main.csv`.
 

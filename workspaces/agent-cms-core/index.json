@@ -34,9 +34,7 @@
     {
       "title": "Markdown-блоки",
       "items": [
-        { "label": "Markdown-блоки", "path": "awn-data/markdown-blocks/manifest.md" },
-        { "label": "Группы блоков", "path": "awn-data/markdown-blocks/groups/manifest.md" },
-        { "label": "MD-Блоки", "path": "awn-data/markdown-blocks/blocks/manifest.md" }
+        { "label": "Типы блоков (YAML)", "path": "awn-system/TYPES-GUIDE.md" }
       ]
     },
     {

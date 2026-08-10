@@ -46,8 +46,7 @@ workspaces/agent-cms-test/
 | **md-blocks** | `awn.block.*` | палитра блоков редактора (`template`, `status: active`) |
 | **data** | `awn.data.*` | контейнеры awn-data (group / collection / single) |
 
-**Markdown-блоки (канон)** — `awn-system/types/md-blocks/`.  
-Зеркало для legacy/UI: `awn-data/markdown-blocks/` (синхронизация: `node scripts/migrate-md-blocks-to-awn-data.js`).
+**Markdown-блоки** — `awn-system/types/md-blocks/` (редактировать YAML напрямую).
 
 **Справочники** — `awn-data/taxonomies/*/main.csv` (не YAML-типы в `awn-system/types/`).
 

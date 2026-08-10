@@ -9,5 +9,5 @@ description: manifest + подпапки-накопители, без собст
 record-hierarchy: false
 examples:
   - awn-data/taxonomies/
-  - awn-data/markdown-blocks/
+  - awn-data/editing-fields/
   - awn-data/cms-base/
