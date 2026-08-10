@@ -143,7 +143,7 @@ awn_schema:
 
 | Действие | Инструмент |
 |----------|------------|
-| Менять **схему CMS** (типы) | Записи в `awn-data/{pages,content,slots}/types/` |
+| Менять **схему CMS** (типы) | `awn-system/types/{pages,content,slots}/` (YAML) |
 | Создать **тему/запись** | `create_page` / `create_content` |
 | Загрузить **файл** | `upload_content` slot=media |
 | Задать **поля одной страницы** | `write_page_schema` (content = YAML с awn_schema:) |

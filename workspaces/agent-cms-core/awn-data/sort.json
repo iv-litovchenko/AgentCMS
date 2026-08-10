@@ -1,7 +1,5 @@
 [
   "cms-base",
-  "pages",
-  "content",
   "slots",
   "settings",
   "agent-registry",

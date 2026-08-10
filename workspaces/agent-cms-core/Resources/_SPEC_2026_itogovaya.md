@@ -24,7 +24,7 @@
 | `awn-data-elements-schema-extends` | store manifest | базовая схема **записей** |
 | `awn-data-elements-schema-mixins` | store manifest | примеси для записей |
 | `awn-data-elements-schema` | store manifest | fields + tabs **записей** |
-| `awn-fields` | store (каталог типов) | поля item-описания типа (pages/topic.md) |
+| `awn-fields` | store (каталог типов) | поля item-описания типа (`awn-system/types/pages/topic.yml`) |
 
 > **`awn-extends`**, **`awn-type`**, дубль **`awn-fields`** — не нужны: структуру manifest и допустимые ключи задаёт **`awn-supertype`** (файл базового типа).
 
@@ -71,15 +71,11 @@ tasks/1.md
 
 ---
 
-## 5) Пример: pages (каталог типов)
+## 5) Пример: page types (каталог типов)
 
 ```
-awn-data/pages/manifest.md
-  awn-supertype: …/data-containers/collection.md
-  awn-fields: …                             ← поля описания типа
-
-awn-data/pages/topic.md                     ← item: чертёж awn.page.topic
-awn-container/…/manifest.md                 ← item: живая тема (за пределами awn-data)
+awn-system/types/pages/topic.yml            ← чертёж awn.page.topic (источник рантайма)
+awn-container/…/manifest.md                 ← item: живая тема (за пределами awn-system)
 ```
 
 ---
@@ -90,9 +86,8 @@ awn-container/…/manifest.md                 ← item: живая тема (з�
 awn-data/
 ├── sort.json
 ├── cms-base/          ← §3
-├── pages/             collection → каталог типов
-├── content/           collection → каталог типов
-├── slots/             collection → каталог слотов
+├── content/           collection → каталог типов (legacy; runtime → awn-system/types/content/)
+├── slots/             collection → каталог слотов (legacy; runtime → awn-system/types/slots/)
 ├── settings/          collection
 ├── settings-global/   single
 ├── taxonomies/        group → внутри collection+csv

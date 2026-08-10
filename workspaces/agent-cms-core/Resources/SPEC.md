@@ -40,7 +40,7 @@ Workspace → Section → Area → Topic → Slot → [Container] → Row
 | `{agent}/awn-data/` | Настраиваешь **конкретного агента** (слот, mixin, kit-страница) |
 | `configuration-schema.yml` на уровне WS / Area / Section | Override схемы **в дереве** |
 
-**Правило:** `awn-data/pages/` — только **каталог типов** (чертёж «что такое topic/area/ws»).  
+**Правило:** типы страниц (`awn.page.*`) — в **`awn-system/types/pages/`** (YAML).  
 **Живые узлы** — в дереве workspace. Узел хранит `awn-type` → runtime ищет тип в каталоге → строит форму и меню.
 
 ---
@@ -329,15 +329,15 @@ agent-cms-core/
 │   ├── IBLOCK-MODEL.md
 │   ├── TYPES-GUIDE.md
 │   └── MAP.md
-├── awn-data/                       ← PLATFORM
+├── awn-data/                       ← PLATFORM (накопители данных + cms-base)
 │   ├── cms-base/
 │   │   ├── entities/               ← awn.base, table.base, row.base
 │   │   └── mixins/
-│   ├── pages/                      ← каталог типов страниц
-│   ├── content/
-│   ├── slots/
+│   ├── slots/                      ← legacy накопитель (runtime → awn-system/types/slots/)
 │   ├── tasks/                      ← platform data
 │   └── taxonomies/
+├── awn-system/                     ← PLATFORM: канон типов (pages, content, slots, …)
+│   └── types/content/              ← awn.content.* (источник для рантайма)
 │
 └── workspaces/{agent}/
     ├── manifest.md                 ← WS

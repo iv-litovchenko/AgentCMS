@@ -39,6 +39,6 @@ elements-schema:
   tabs:
     main: Основное
 examples:
-  - awn-data/pages/
+  - awn-system/types/pages/
   - awn-data/taxonomies/tags/
   - awn-data/editing-fields/fields/

@@ -20,17 +20,17 @@ awn-data/
 │   ├── table.base.md       ← «Инфоблок»
 │   └── row.base.md         ← «Элемент»
 │
-├── pages/                  ← инфоблок «типы страниц»
-│   ├── manifest.md         ← свойства инфоблока
-│   └── topic.md …          ← элементы = описания типов
-│
 ├── tasks/                  ← инфоблок «задачи»
 │   ├── manifest.md
 │   └── 1.md, 2.md          ← элементы = данные
 │
-└── slots/                  ← инфоблок «слоты»
+└── slots/                  ← инфоблок «слоты» (legacy; типы → awn-system/types/slots/)
     ├── manifest.md
     └── inbox.md …
+
+awn-system/types/pages/     ← типы страниц awn.page.* (источник рантайма)
+    ├── _base.yml
+    └── topic.yml …
 ```
 
 ## Три слоя у инфоблока
@@ -48,7 +48,8 @@ row.base  ←  id, created, updated
    ↑ awn-extends
 table.base  ←  + title, typeId, kind, status
    ↑ awn-extends
-pages / slots / content     ←  + свои свойства
+awn-system/types/*          ←  pages, content, slots (YAML, источник рантайма)
+awn-data/slots, content     ←  legacy накопители
 tasks / taxonomies          ←  extends row.base напрямую
 ```
 

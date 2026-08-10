@@ -84517,7 +84517,7 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
   } catch {}
 
   if (!allTypesData?.types?.length) {
-    renderListEmptyMessage(containerNode, "Типы не найдены. Проверьте awn-data/pages/, content/, slots/.");
+    renderListEmptyMessage(containerNode, "Типы не найдены. Проверьте awn-system/types/ или awn-data/slots/.");
     return;
   }
 
