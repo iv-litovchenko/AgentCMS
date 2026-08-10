@@ -40,7 +40,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "search_workspace_content",
-    "Full-text search across workspace files (paths, titles, frontmatter, body). scope=all searches everything; use content|filename|tags to narrow. Same as UI header search.",
+    "Full-text search across the entire workspace (paths, titles, frontmatter, body). scope=all — everything; content|filename|tags to narrow. Same as UI header search.",
     searchWorkspaceSchema,
     runSearch
   );

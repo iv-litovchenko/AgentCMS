@@ -20,7 +20,7 @@ const TOOL_FOLDER = {
 
   get_page_map: "navigation",
   get_content_map: "navigation",
-  search_workspace: "navigation",
+  search_workspace_content: "navigation",
 
   read_page_body: "page",
   write_page_body: "page",
@@ -401,7 +401,7 @@ async function buildReadCalls(page, recordId, contentMode) {
       { sampleArgs: { path: page } }
     ],
     [
-      "search_workspace",
+      "search_workspace_content",
       () => api("GET", "/api/search", { query: { q: "тест", scope: "all", limit: 5 } }),
       { sampleArgs: { query: "тест", scope: "all", limit: 5 } }
     ],

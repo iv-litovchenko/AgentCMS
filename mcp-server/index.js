@@ -14,6 +14,7 @@ import { registerExecTools } from "./lib/exec-tools.js";
 import { registerWebSearchTools } from "./lib/web-search-tools.js";
 import { registerAgentUtilsTools } from "./lib/agent-utils-tools.js";
 import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
+import { registerSidecarTools } from "./lib/sidecar-tools.js";
 
 const pagePath = z
   .string()
