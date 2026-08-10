@@ -23,14 +23,11 @@ awn-data/
 ├── tasks/                  ← инфоблок «задачи»
 │   ├── manifest.md
 │   └── 1.md, 2.md          ← элементы = данные
-│
-└── slots/                  ← инфоблок «слоты» (legacy; типы → awn-system/types/slots/)
-    ├── manifest.md
-    └── inbox.md …
 
-awn-system/types/pages/     ← типы страниц awn.page.* (источник рантайма)
-    ├── _base.yml
-    └── topic.yml …
+awn-system/types/           ← pages, content, slots (источник рантайма)
+    └── slots/
+        ├── multi-file/
+        └── single-file/
 ```
 
 ## Три слоя у инфоблока
@@ -49,7 +46,6 @@ row.base  ←  id, created, updated
 table.base  ←  + title, typeId, kind, status
    ↑ awn-extends
 awn-system/types/*          ←  pages, content, slots (YAML, источник рантайма)
-awn-data/slots              ←  legacy накопитель
 tasks / taxonomies          ←  extends row.base напрямую
 ```
 

@@ -11077,7 +11077,7 @@ async function readAgentSystemContext(agentRoot) {
       registry: await readText("registry.yml"),
       manifest: await readText("manifest.md")
     },
-    hint: "CMS-модель агента: awn-system/types/; awn-data/slots/ (legacy); taxonomies/slot-categories/"
+    hint: "CMS-модель: awn-system/types/; awn-data/taxonomies/slot-categories/"
   };
 }
 

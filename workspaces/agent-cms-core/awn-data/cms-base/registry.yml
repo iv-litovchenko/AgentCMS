@@ -1,7 +1,7 @@
 version: 1
 mode: agent-owned
 agent: agent-cms-test
-description: CMS-модель агента — типы в awn-system/types/ и awn-data/{slots,cms-base/entities}
+description: CMS-модель агента — типы в awn-system/types/ и awn-data/cms-base/entities
 
 # domains — источник правды по доменам («какие бывают компоненты»).
 # Встроенные домены известны рантайму по умолчанию. Здесь можно:
@@ -15,7 +15,6 @@ description: CMS-модель агента — типы в awn-system/types/ и 
 domains:
   - base
   - fields
-  - slots
   - mixins
   - id: settings
     label: Настройки

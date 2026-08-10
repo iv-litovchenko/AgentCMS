@@ -14,7 +14,6 @@ const ACTIVE_STATUS = new Set(["active", "deprecated"]);
 /** domain id → awn-data store folder (without /types suffix) */
 const DOMAIN_TYPE_STORES = {
   base: "cms-base/entities",
-  slots: "slots",
   mixins: "cms-base/mixins",
   settings: "settings"
 };

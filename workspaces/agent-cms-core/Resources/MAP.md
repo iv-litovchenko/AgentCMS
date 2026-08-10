@@ -1,6 +1,6 @@
 # Карта Agent CMS — `[Agent CMS] Test`
 
-> **Агент = CMS.** Схема типов — в `awn-data/` (Страницы, Контент, Слоты, … + `cms-base/`).  
+> **Агент = CMS.** Схема типов — в `awn-system/types/`; данные — в `awn-data/` (tasks, taxonomies, … + `cms-base/`).  
 > Контент — в `awn-container/`. Служебное — в `awn-agent-kit/`.  
 > Итоговая спецификация модели: [SPEC.md](./SPEC.md)
 
@@ -13,14 +13,16 @@ workspaces/agent-cms-test/
 │
 ├── manifest.md                 ← awn.page.ws (корень агента)
 ├── AGENTS.md                   ← этот файл
-├── awn-data/                   ← ★ CMS-МОДЕЛЬ (накопители типов + конфиг)
-│   ├── cms-base/               ← entities (base/table/row + table-base), mixins, registry
-│   ├── slots/                  ← awn.slot.* (path, allowed-content, accept-files)
-│   ├── pages/                  ← awn.page.*
-│   ├── content/                ← awn.content.*
+├── awn-data/                   ← ★ CMS-данные (tasks, taxonomies, cms-base, …)
+│   ├── cms-base/               ← entities, mixins, registry
 │   ├── editing-fields/         ← awn.field.*
 │   ├── markdown-blocks/        ← awn.block.*
 │   └── taxonomies/             ← справочники (tags, slot-categories, …)
+├── awn-system/                 ← ★ CMS-типы (pages, content, slots — YAML)
+│   └── types/
+│       ├── pages/              ← awn.page.*
+│       ├── content/            ← awn.content.*
+│       └── slots/              ← awn.slot.*
 │
 ├── awn-container/              ← ★ КОНТЕНТ (дерево слева)
 │   └── {area}/manifest.md      ← awn.page.area
@@ -76,16 +78,16 @@ workspaces/agent-cms-test/
 
 ### Slots → content (главное правило)
 
-**Слот = WHERE, content = WHAT.** Каждый `awn.slot.*` — запись в **`awn-data/slots/`** (`path`, `allowed-content`, `accept-files`, `storage-driver`, `slot-category`).
+**Слот = WHERE, content = WHAT.** Каждый `awn.slot.*` — YAML в **`awn-system/types/slots/`** (`path`, `allowed-content`, `accept-files`, `storage-driver`, `slot-category`).
 
-**Каталог:** `awn-data/slots/multi-file/` (много файлов) и `…/single-file/` (один файл); runtime — `multi-file/system/`.
+**Каталог:** `awn-system/types/slots/multi-file/` (много файлов), `…/single-file/` (один файл), `…/multi-file/system/` (системные).
 
 **Категории слотов** (группы в каталоге): `awn-data/taxonomies/slot-categories/main.csv` — Память, Файлы, Однофайловая, Записи, Общение.
 
 ```
-main/      → awn.content.record, awn.content.category  (см. slots/multi-file/multi-file-main.md)
-inbox/     → awn.content.record                         (см. slots/multi-file/inbox.md)
-thread/    → awn.content.dialog                         (см. slots/multi-file/system/dialogs.md)
+main/      → awn.content.record, awn.content.category  (см. awn-system/types/slots/multi-file/main.yml)
+inbox/     → awn.content.record                         (см. …/multi-file/inbox.yml)
+thread/    → awn.content.dialog                         (см. …/multi-file/system/dialogs.yml)
 media/     → sidecar + бинарники
 comments/  → awn.content.comment
 ```

@@ -147,7 +147,7 @@ Workspace-агенты могут дополнять список локальн
 - **Реальные узлы** (ws/area/topic) — в **дереве workspace** (`manifest.md`, `configuration.yml`), не в awn-data
 - Рантайм: узел хранит `awn-type` → ищет тип в `awn-system/types/` → строит форму/меню
 
-Типы контента/слотов в рантайме из **`awn-system/types/`**; `awn-data/slots/` — legacy-накопитель в UI.
+Типы страниц/контента/слотов в рантайме — **`awn-system/types/`**.
 
 ---
 

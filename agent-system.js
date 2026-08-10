@@ -64,7 +64,6 @@ function isAwnDataTypeRecordPath(normalized) {
   if (!normalized.startsWith(`${AWN_DATA_REL}/`) || !/\.md$/i.test(normalized)) return false;
   if (/\/manifest\.md$/i.test(normalized)) return false;
   const prefixes = [
-    "awn-data/slots/",
     "awn-data/settings/",
     "awn-data/cms-base/mixins/"
   ];

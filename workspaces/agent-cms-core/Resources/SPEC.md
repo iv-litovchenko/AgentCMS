@@ -333,7 +333,6 @@ agent-cms-core/
 │   ├── cms-base/
 │   │   ├── entities/               ← awn.base, table.base, row.base
 │   │   └── mixins/
-│   ├── slots/                      ← legacy накопитель (runtime → awn-system/types/slots/)
 │   ├── tasks/                      ← platform data
 │   └── taxonomies/
 ├── awn-system/                     ← PLATFORM: канон типов (pages, content, slots, …)

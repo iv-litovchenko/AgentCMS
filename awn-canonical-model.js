@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { parseCsvText } = require("./awn-data-csv");
-const { getAgentCmsCoreAbsolute, CMS_CONFIG_REL, AWN_DATA_REL } = require("./platform-sources");
+const { getAgentCmsCoreAbsolute, AGENT_SYSTEM_REL, AWN_DATA_REL } = require("./platform-sources");
 const {
   loadTypeCatalog,
   mergeTypeSchema,
@@ -58,7 +58,7 @@ const SLOT_CATEGORY_ORDER = new Map(DEFAULT_SLOT_CATEGORIES.map((row) => [row.id
 
 const DEFAULT_SYSTEM_ONLY_FOLDERS = ["preview/"];
 
-const SLOT_TYPES_SOURCE = `${AWN_DATA_REL}/slots/`;
+const SLOT_TYPES_SOURCE = `${AGENT_SYSTEM_REL}/types/slots/`;
 const SLOT_CATEGORIES_SOURCE = `${AWN_DATA_REL}/taxonomies/slot-categories/main.csv`;
 
 function normalizeCanonicalSlotContent(typeIds, byId) {

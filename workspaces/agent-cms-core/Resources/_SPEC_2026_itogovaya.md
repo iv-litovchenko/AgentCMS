@@ -86,7 +86,6 @@ awn-container/…/manifest.md                 ← item: живая тема (з�
 awn-data/
 ├── sort.json
 ├── cms-base/          ← §3
-├── slots/             collection → каталог слотов (legacy; runtime → awn-system/types/slots/)
 ├── settings/          collection
 ├── settings-global/   single
 ├── taxonomies/        group → внутри collection+csv
