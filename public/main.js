@@ -41789,13 +41789,14 @@ function isPropsFieldLocked(key, fieldDef = getPropsFieldDef(key)) {
 function getPropsFieldMetaFromSchema(key) {
   const fieldDef = getPropsFieldDef(key);
   if (!fieldDef) return null;
+  const typeId = resolveFieldTypeId(fieldDef.type || "awn.field.string");
   return {
-    label: getFieldDefDisplayName(fieldDef, key),
+    label: formatSchemaDisplayTitle(getFieldDefDisplayName(fieldDef, key), { typeId, key }),
     hint: fieldDef.hint || fieldDef.description || "",
     format: fieldDef.format || "",
     required: Boolean(fieldDef.required),
     locked: isPropsFieldLocked(key, fieldDef),
-    typeId: resolveFieldTypeId(fieldDef.type || "awn.field.string"),
+    typeId,
     enum: Array.isArray(fieldDef.enum) ? fieldDef.enum : null,
     fieldDef
   };
@@ -43811,7 +43812,11 @@ function renderPropsAttachmentsBlock() {
 
   const title = document.createElement("h4");
   title.className = "doc-aside-attachments-title";
-  title.textContent = meta.label || "Вложения";
+  title.textContent = formatSchemaDisplayTitle(meta.label || "Вложения", {
+    typeId: meta.typeId || meta.fieldDef?.type,
+    key: fieldKey,
+    replaceMarker: true
+  });
   if (meta.hint) title.title = meta.hint;
   head.appendChild(title);
 
@@ -46423,25 +46428,38 @@ function buildPreviewUiFromPath(previewPath, nodePath = activePath) {
   return { imageUrl, previewPath: trimmed };
 }
 
-function syncPropsPreviewDomValue(previewValue) {
-  const hidden = propsPreviewBlockNode?.querySelector(".props-form-preview-value");
+function syncPropsPreviewDomValue(previewValue, key = "awn-preview") {
+  const normalizedKey = normalizePropsKey(key);
+  const hidden =
+    propsPreviewBlockNode?.querySelector(".props-form-preview-value") ||
+    propsFormFieldsNode?.querySelector(
+      `[data-prop-key="${normalizedKey}"] .props-form-preview-value`
+    );
   if (hidden) hidden.value = String(previewValue || "");
 }
 
-async function setPropsPreviewValue(previewRef, { save = true, showToastOnSuccess = false } = {}) {
+async function setPropsPreviewValue(
+  previewRef,
+  { key = "", save = true, showToastOnSuccess = false } = {}
+) {
   absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
   propsFormEntries = ensureStandardPropsEntries(propsFormEntries);
 
-  const key = "awn-preview";
+  const previewKey = normalizePropsKey(
+    key ||
+      overviewPreviewUploadWrap?.dataset?.propKey ||
+      findPropsPreviewEntry()?.key ||
+      "awn-preview"
+  );
   const previewValue = String(previewRef || "").trim();
-  const index = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === key);
+  const index = propsFormEntries.findIndex((entry) => normalizePropsKey(entry.key) === previewKey);
   const base =
-    index >= 0 ? propsFormEntries[index] : { key, kind: "string", value: "" };
+    index >= 0 ? propsFormEntries[index] : { key: previewKey, kind: "string", value: "" };
   const nextEntry = applyFormValueToEntry(base, previewValue);
   if (index >= 0) propsFormEntries[index] = nextEntry;
   else propsFormEntries.push(nextEntry);
   syncYamlFromPropsForm();
-  syncPropsPreviewDomValue(previewValue);
+  syncPropsPreviewDomValue(previewValue, previewKey);
   if (shouldRenderPropsFormNow()) renderPropsForm();
   if (save) {
     await saveProperties({ showToastOnSuccess, fromSyncedYaml: true });
@@ -58610,7 +58628,11 @@ function renderEntryOverviewAttachmentsPart(entries, rawBody, context = null) {
 
   const title = document.createElement("h3");
   title.className = "node-entry-overview-attachments-title";
-  title.textContent = meta.label || "Вложения";
+  title.textContent = formatSchemaDisplayTitle(meta.label || "Вложения", {
+    typeId: meta.typeId || meta.fieldDef?.type,
+    key: "awn-attachments",
+    replaceMarker: true
+  });
   if (meta.hint) title.title = meta.hint;
   head.appendChild(title);
 

@@ -1,5 +1,6 @@
 [
-  "text",
+  "text-single",
+  "text-multiline",
   "numbers",
   "choice",
   "datetime",

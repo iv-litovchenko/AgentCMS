@@ -4,7 +4,7 @@ layer: area
 awn_schema:
   topic:
     fields:
-      # --- Строки (однострочные) ---
+      # --- Текст (однострочный) ---
       demo_string:
         type: awn.field.string
         name: Строка
