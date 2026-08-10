@@ -109,10 +109,10 @@ awn_schema:
             name: Beta
           - key: gamma
             name: Gamma
-      demo_tags_free:
-        type: awn.field.array.tags
-        name: Теги (свободные)
-        hint: awn.field.array.tags
+      demo_array:
+        type: awn.field.array
+        name: Произвольные значения
+        hint: awn.field.array
         placement: editor-body
         group: Выбор
         sort: 43

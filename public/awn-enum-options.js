@@ -5,7 +5,8 @@ const FIELD_TYPE_ALIASES = {
   "awn.field.file.image.one.with-preview": "awn.field.file.image.for-preview",
   "awn.field.file.image.many.with-preview": "awn.field.file.image.many",
   "awn.field.file.one.with-preview": "awn.field.file.one",
-  "awn.field.file.many.with-preview": "awn.field.file.many"
+  "awn.field.file.many.with-preview": "awn.field.file.many",
+  "awn.field.array.tags": "awn.field.array"
 };
 
 const DEFAULT_FIELD_WIDGET = {
@@ -49,6 +50,7 @@ function isEnumFieldTypeId(typeId) {
 function isArrayFieldTypeId(typeId) {
   const canonical = normalizeCanonicalFieldTypeId(typeId);
   if (isChoiceManyFieldTypeId(typeId)) return true;
+  if (canonical === "awn.array") return true;
   return canonical.startsWith("awn.array.");
 }
 

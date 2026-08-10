@@ -37403,7 +37403,7 @@ const FIELD_TYPE_SELECT_GROUPS = [
       "awn.field.boolean",
       "awn.field.choice.one",
       "awn.field.choice.many",
-      "awn.field.array.tags"
+      "awn.field.array"
     ]
   },
   {
@@ -40934,8 +40934,8 @@ const FIELD_TYPE_ICONS = {
   "awn.link": "📂",
   "awn.field.json": "🧩",
   "awn.json": "🧩",
-  "awn.field.array.tags": "🏷️",
-  "awn.array.tags": "🏷️",
+  "awn.field.array": "🏷️",
+  "awn.array": "🏷️",
   "awn.field.date.time": "⏰",
   "awn.date.time": "⏰",
   "awn.field.duration": "⏱️",
@@ -41287,7 +41287,7 @@ function isEnumFieldTypeId(typeId) {
 function isArrayFieldTypeId(typeId) {
   const api = awnEnumOptionsApi();
   if (typeof api.isArrayFieldTypeId === "function") return api.isArrayFieldTypeId(typeId);
-  return fieldTypeIs(typeId, "choice.many") || fieldTypeIs(typeId, "array.tags");
+  return fieldTypeIs(typeId, "choice.many") || fieldTypeIs(typeId, "array");
 }
 
 function resolveFieldWidget(fieldDef, registryEntry = null) {
@@ -44692,7 +44692,8 @@ const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
   "json": "json",
   "lookup.one": "lookup-one",
   "lookup.many": "lookup-many",
-  "materials": "materials"
+  "materials": "materials",
+  "array": "array"
 };
 
 const LEGACY_LOOKUP_TYPE_SOURCES = {
@@ -44823,7 +44824,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (fieldTypeIs(typeId, "object")) return "object";
   if (fieldTypeIs(typeId, "repeater")) return "repeater";
   if (fieldTypeIs(typeId, "number")) return "number";
-  if (fieldTypeIs(typeId, "array.tags") || widget === "tags") return "tags";
+  if (fieldTypeIs(typeId, "array") || widget === "tags") return "array";
   if (isChoiceManyFieldTypeId(typeId)) {
     if (widget === "select-multiple") {
       return getEnumOptionsForField(fieldDef).length ? "select-multiple" : "array";

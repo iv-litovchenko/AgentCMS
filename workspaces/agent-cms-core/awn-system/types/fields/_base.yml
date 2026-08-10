@@ -48,5 +48,5 @@ properties:
     description: Список key/name для awn.field.choice.one и awn.field.choice.many
   items:
     title: Тип элементов
-    description: Тип элементов для awn.field.array.* (awn.field.string, awn.field.file.one…)
+    description: Тип элементов для awn.field.array (awn.field.string, awn.field.file.one…)
     type: awn.field.string

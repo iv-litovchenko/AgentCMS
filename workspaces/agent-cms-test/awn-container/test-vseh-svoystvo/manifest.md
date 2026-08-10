@@ -69,7 +69,7 @@ demo_relation_many: "[PHP](../php/manifest.md)"
 demo_relation_one: "[pukpku](../pukpku/manifest.md)"
 demo_slug: all-field-types
 demo_string: Пример однострочной строки
-demo_tags_free:
+demo_array:
   - demo
   - ui
   - test
