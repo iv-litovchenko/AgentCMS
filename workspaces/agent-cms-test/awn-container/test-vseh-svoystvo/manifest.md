@@ -75,6 +75,19 @@ demo_tags_free:
   - test
 demo_text: ""
 demo_url: "https://example.com/all-field-types"
+demo_time: "14:30"
+demo_duration: 2h 30m
+demo_code: |
+  version: 1
+  items:
+    - name: alpha
+demo_secret: ""
+demo_object: '{"title":"Пример","count":1}'
+demo_repeater:
+  - name: Первый
+    qty: 1
+  - name: Второй
+    qty: 2
 field-1: ""
 ---
 
@@ -101,5 +114,16 @@ field-1: ""
 | `demo_entity_preview` | `awn.field.file.image.for-preview` | превью сущности |
 | `awn-attachments` | `awn.field.file.many` + `widget: attachments` | блок вложений |
 | `awn-preview` | `awn.field.file.image.for-preview` | превью в aside |
+
+**Новые (new!):**
+
+| Поле | Тип |
+| ---- | --- |
+| `demo_time` | `awn.field.date.time` |
+| `demo_duration` | `awn.field.duration` |
+| `demo_code` | `awn.field.text.code` |
+| `demo_secret` | `awn.field.string.secret` |
+| `demo_object` | `awn.field.object` |
+| `demo_repeater` | `awn.field.repeater` |
 
 Запись с заполненными значениями: [[All-Field-Types]].

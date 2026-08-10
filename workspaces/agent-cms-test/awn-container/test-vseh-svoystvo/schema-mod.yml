@@ -267,6 +267,51 @@ awn_schema:
         placement: editor-body
         group: Прочее
         sort: 90
+
+      # --- Новые (new!) ---
+      demo_time:
+        type: awn.field.date.time
+        name: Время (new!)
+        hint: "14:30"
+        placement: editor-body
+        group: Новые (new!)
+        sort: 100
+      demo_duration:
+        type: awn.field.duration
+        name: Длительность (new!)
+        hint: 2h 30m
+        placement: editor-body
+        group: Новые (new!)
+        sort: 101
+      demo_code:
+        type: awn.field.text.code
+        name: Код / YAML (new!)
+        hint: awn.field.text.code
+        placement: editor-body
+        group: Новые (new!)
+        sort: 102
+      demo_secret:
+        type: awn.field.string.secret
+        name: Секрет / токен (new!)
+        hint: API key / token
+        placement: editor-body
+        group: Новые (new!)
+        sort: 103
+      demo_object:
+        type: awn.field.object
+        name: Объект (new!)
+        hint: JSON object
+        placement: editor-body
+        group: Новые (new!)
+        sort: 104
+      demo_repeater:
+        type: awn.field.repeater
+        name: Repeater (new!)
+        hint: JSON array of objects
+        placement: editor-body
+        group: Новые (new!)
+        sort: 105
+
       field-1:
         type: awn.field.string
         name: ауцау

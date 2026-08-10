@@ -10,5 +10,5 @@ items: awn.field.relation.one
 description: Несколько отношений с другими нодами в CMS
 settings: [hint, required, locked, default, targets, scope]
 group: structure
-sort: 4
+sort: 6
 status: active

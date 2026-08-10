@@ -37378,16 +37378,25 @@ const FIELD_TYPE_SELECT_GROUPS = [
       "awn.field.string",
       "awn.field.string.email",
       "awn.field.string.password",
+      "awn.field.string.secret",
       "awn.field.string.slug",
       "awn.field.string.url"
     ]
   },
   {
     label: "Текст (многострочный)",
-    types: ["awn.field.text", "awn.field.text.markdown"]
+    types: ["awn.field.text", "awn.field.text.markdown", "awn.field.text.code"]
   },
   { label: "Числа", types: ["awn.field.number", "awn.field.number.integer"] },
-  { label: "Дата и время", types: ["awn.field.date", "awn.field.date.datetime"] },
+  {
+    label: "Дата и время",
+    types: [
+      "awn.field.date",
+      "awn.field.date.datetime",
+      "awn.field.date.time",
+      "awn.field.duration"
+    ]
+  },
   {
     label: "Выбор",
     types: [
@@ -37411,6 +37420,8 @@ const FIELD_TYPE_SELECT_GROUPS = [
     label: "Структура",
     types: [
       "awn.field.string.link",
+      "awn.field.repeater",
+      "awn.field.object",
       "awn.field.json",
       "awn.field.relation.one",
       "awn.field.relation.many"
@@ -37492,7 +37503,6 @@ function getFieldTypeSelectGroups(registryEntries = []) {
       used.add(resolved);
     }
     if (entries.length) {
-      entries.sort(compareFieldRegistryEntries);
       groups.push({ label: spec.label, entries });
     }
   }
@@ -40925,7 +40935,19 @@ const FIELD_TYPE_ICONS = {
   "awn.field.json": "🧩",
   "awn.json": "🧩",
   "awn.field.array.tags": "🏷️",
-  "awn.array.tags": "🏷️"
+  "awn.array.tags": "🏷️",
+  "awn.field.date.time": "⏰",
+  "awn.date.time": "⏰",
+  "awn.field.duration": "⏱️",
+  "awn.duration": "⏱️",
+  "awn.field.text.code": "💻",
+  "awn.text.code": "💻",
+  "awn.field.string.secret": "🔐",
+  "awn.string.secret": "🔐",
+  "awn.field.object": "🗃️",
+  "awn.object": "🗃️",
+  "awn.field.repeater": "🔁",
+  "awn.repeater": "🔁"
 };
 
 const PROPS_FIELD_ICONS = {
@@ -44141,6 +44163,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
 };
 
 const PROPS_GROUP_COLLAPSE_STORAGE_KEY = "agent-cms:props-group-collapsed";
+const EDITOR_CUSTOM_PROPS_COLLAPSE_STORAGE_KEY = "agent-cms:editor-custom-props-collapsed";
 
 function getActivePropsFieldGroups() {
   const typeDef = getActiveAwnTypeDef();
@@ -44183,6 +44206,171 @@ function savePropsGroupCollapseState(groupId, isCollapsed) {
   }
 }
 
+function loadEditorCustomPropsCollapseState() {
+  try {
+    const raw = readStorageItem(EDITOR_CUSTOM_PROPS_COLLAPSE_STORAGE_KEY);
+    if (!raw) return { root: false, groups: {} };
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return { root: false, groups: {} };
+    return {
+      root: Boolean(parsed.root),
+      groups: parsed.groups && typeof parsed.groups === "object" ? parsed.groups : {}
+    };
+  } catch {
+    return { root: false, groups: {} };
+  }
+}
+
+function saveEditorCustomPropsCollapseState({ root = null, groupId = "", isCollapsed = false } = {}) {
+  const state = loadEditorCustomPropsCollapseState();
+  if (root !== null) state.root = Boolean(root);
+  if (groupId) state.groups[groupId] = Boolean(isCollapsed);
+  try {
+    localStorage.setItem(EDITOR_CUSTOM_PROPS_COLLAPSE_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function groupEditorCustomPropsItems(userItems) {
+  const order = [];
+  const map = new Map();
+  for (const item of userItems) {
+    const groupId = resolvePropsFieldGroupId(item.entry.key, getPropsFieldDef(item.entry.key));
+    if (!map.has(groupId)) {
+      map.set(groupId, []);
+      order.push(groupId);
+    }
+    map.get(groupId).push(item);
+  }
+  return order.map((groupId) => ({
+    id: groupId,
+    label: resolveEditorCustomPropsGroupLabel(groupId),
+    items: map.get(groupId) || []
+  }));
+}
+
+function ensureEditorCustomPropsRootToggle() {
+  if (!editorCustomPropsBarNode) return null;
+  let toggle = editorCustomPropsBarNode.querySelector(".editor-custom-props-root-toggle");
+  if (!toggle) {
+    toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "editor-custom-props-root-toggle";
+    toggle.dataset.bound = "0";
+    editorCustomPropsBarNode.insertBefore(toggle, editorCustomPropsFieldsNode);
+  }
+  if (toggle.dataset.bound !== "1") {
+    toggle.dataset.bound = "1";
+    toggle.addEventListener("click", () => {
+      if (!editorCustomPropsBarNode) return;
+      const nowCollapsed = !editorCustomPropsBarNode.classList.contains("is-root-collapsed");
+      editorCustomPropsBarNode.classList.toggle("is-root-collapsed", nowCollapsed);
+      toggle.setAttribute("aria-expanded", String(!nowCollapsed));
+      saveEditorCustomPropsCollapseState({ root: nowCollapsed });
+    });
+  }
+  return toggle;
+}
+
+function syncEditorCustomPropsRootToggle({ fieldCount = 0, rootCollapsed = false } = {}) {
+  const toggle = ensureEditorCustomPropsRootToggle();
+  if (!toggle || !editorCustomPropsBarNode) return;
+  editorCustomPropsBarNode.classList.toggle("is-root-collapsed", rootCollapsed);
+  toggle.setAttribute("aria-expanded", String(!rootCollapsed));
+  toggle.replaceChildren();
+  const caret = document.createElement("span");
+  caret.className = "props-form-group-caret";
+  caret.textContent = "▸";
+  caret.setAttribute("aria-hidden", "true");
+  const label = document.createElement("span");
+  label.className = "editor-custom-props-root-toggle-label";
+  label.textContent = "Свойства над текстом";
+  const count = document.createElement("span");
+  count.className = "props-form-group-count";
+  count.textContent = String(fieldCount);
+  toggle.append(caret, label, count);
+}
+
+function appendEditorCustomPropsFieldRow(container, entry, index, { readOnly = false } = {}) {
+  if (readOnly) {
+    const meta = getPropsFieldMeta(entry.key);
+    const displayValue = getPropsEntryOverviewDisplayValue(entry, entry.key);
+    const field = document.createElement("div");
+    field.className = "props-preview-field props-preview-field--compact editor-custom-props-preview-field";
+    field.dataset.index = String(index);
+    decorateEditorCustomPropsFormRow(field, entry);
+    const label = buildPropsFieldKeyLabelElement(entry.key, meta, {
+      tag: "span",
+      className: "props-preview-label props-preview-label--with-key"
+    });
+    const value = document.createElement("span");
+    value.className = "props-preview-value";
+    value.textContent = displayValue;
+    value.classList.toggle("is-empty", displayValue === "—");
+    field.append(label, value);
+    container.appendChild(field);
+    return;
+  }
+  const row = createPropsFormFieldRow(entry, index, { showFieldKey: true, editorCompact: true });
+  row.classList.add("editor-custom-props-field");
+  decorateEditorCustomPropsFormRow(row, entry);
+  container.appendChild(row);
+}
+
+function appendEditorCustomPropsGroupSection(
+  container,
+  { id, label, items },
+  { readOnly = false, collapsible = false, collapsed = false } = {}
+) {
+  if (!items.length) return;
+
+  if (!collapsible || !label) {
+    for (const { entry, index } of items) {
+      appendEditorCustomPropsFieldRow(container, entry, index, { readOnly });
+    }
+    return;
+  }
+
+  const group = document.createElement("section");
+  group.className = "editor-custom-props-group props-form-group--collapsible";
+  group.dataset.group = id;
+  group.classList.toggle("is-collapsed", collapsed);
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "editor-custom-props-group-toggle props-form-group-toggle";
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+
+  const caret = document.createElement("span");
+  caret.className = "props-form-group-caret";
+  caret.textContent = "▸";
+  caret.setAttribute("aria-hidden", "true");
+  const title = document.createElement("span");
+  title.className = "editor-custom-props-group-header-label props-form-group-title";
+  title.textContent = label;
+  const count = document.createElement("span");
+  count.className = "props-form-group-count";
+  count.textContent = String(items.length);
+  toggle.append(caret, title, count);
+
+  const body = document.createElement("div");
+  body.className = "editor-custom-props-group-body props-form-group-body";
+  for (const { entry, index } of items) {
+    appendEditorCustomPropsFieldRow(body, entry, index, { readOnly });
+  }
+
+  toggle.addEventListener("click", () => {
+    const nowCollapsed = !group.classList.contains("is-collapsed");
+    group.classList.toggle("is-collapsed", nowCollapsed);
+    toggle.setAttribute("aria-expanded", String(!nowCollapsed));
+    saveEditorCustomPropsCollapseState({ groupId: id, isCollapsed: nowCollapsed });
+  });
+
+  group.append(toggle, body);
+  container.appendChild(group);
+}
+
 function resetPropsAsideDomState() {
   propsFormFieldsNode?.replaceChildren();
   for (const node of [
@@ -44207,22 +44395,6 @@ function syncPropsPanelsUi() {
 
 function resolveEditorCustomPropsGroupLabel(groupId) {
   return resolveSchemaEditorGroupLabel(groupId);
-}
-
-function appendEditorCustomPropsGroupHeader(container, groupId, state) {
-  const normalized = String(groupId || "content").trim() || "content";
-  if (state.lastGroup === normalized) return;
-  state.lastGroup = normalized;
-  const label = resolveEditorCustomPropsGroupLabel(normalized);
-  if (!label) return;
-  const header = document.createElement("div");
-  header.className = "editor-custom-props-group-header";
-  header.dataset.group = normalized;
-  const caption = document.createElement("span");
-  caption.className = "editor-custom-props-group-header-label";
-  caption.textContent = label;
-  header.appendChild(caption);
-  container.appendChild(header);
 }
 
 function renderEditorCustomPropsBar() {
@@ -44255,36 +44427,24 @@ function renderEditorCustomPropsBar() {
   editorCustomPropsBarNode.classList.remove("hidden");
   const readOnly = isPropsFormReadOnly();
   editorCustomPropsFieldsNode.classList.toggle("is-readonly", readOnly);
+  const collapseState = loadEditorCustomPropsCollapseState();
+  syncEditorCustomPropsRootToggle({
+    fieldCount: userItems.length,
+    rootCollapsed: collapseState.root
+  });
+
+  const groupedItems = groupEditorCustomPropsItems(userItems);
+  const hasMultipleGroups = groupedItems.length > 1;
 
   if (readOnly) {
     const list = document.createElement("div");
     list.className = "props-preview-list props-preview-list--compact editor-custom-props-preview";
-    const groupState = { lastGroup: null };
-
-    for (const { entry, index } of userItems) {
-      const fieldDef = getPropsFieldDef(entry.key);
-      appendEditorCustomPropsGroupHeader(list, resolvePropsFieldGroupId(entry.key, fieldDef), groupState);
-
-      const meta = getPropsFieldMeta(entry.key);
-      const displayValue = getPropsEntryOverviewDisplayValue(entry, entry.key);
-
-      const field = document.createElement("div");
-      field.className = "props-preview-field props-preview-field--compact editor-custom-props-preview-field";
-      field.dataset.index = String(index);
-      decorateEditorCustomPropsFormRow(field, entry);
-
-      const label = buildPropsFieldKeyLabelElement(entry.key, meta, {
-        tag: "span",
-        className: "props-preview-label props-preview-label--with-key"
+    for (const group of groupedItems) {
+      appendEditorCustomPropsGroupSection(list, group, {
+        readOnly: true,
+        collapsible: hasMultipleGroups,
+        collapsed: Boolean(collapseState.groups[group.id])
       });
-
-      const value = document.createElement("span");
-      value.className = "props-preview-value";
-      value.textContent = displayValue;
-      value.classList.toggle("is-empty", displayValue === "—");
-
-      field.append(label, value);
-      list.appendChild(field);
     }
     editorCustomPropsFieldsNode.appendChild(list);
     return;
@@ -44300,19 +44460,12 @@ function renderEditorCustomPropsBar() {
     });
   }
 
-  const groupState = { lastGroup: null };
-  for (const { entry, index } of userItems) {
-    const fieldDef = getPropsFieldDef(entry.key);
-    appendEditorCustomPropsGroupHeader(
-      editorCustomPropsFieldsNode,
-      resolvePropsFieldGroupId(entry.key, fieldDef),
-      groupState
-    );
-
-    const row = createPropsFormFieldRow(entry, index, { showFieldKey: true, editorCompact: true });
-    row.classList.add("editor-custom-props-field");
-    decorateEditorCustomPropsFormRow(row, entry);
-    editorCustomPropsFieldsNode.appendChild(row);
+  for (const group of groupedItems) {
+    appendEditorCustomPropsGroupSection(editorCustomPropsFieldsNode, group, {
+      readOnly: false,
+      collapsible: hasMultipleGroups,
+      collapsed: Boolean(collapseState.groups[group.id])
+    });
   }
 }
 
@@ -44530,6 +44683,13 @@ const DEDICATED_FIELD_TYPE_WIDGETS = new Set([
 const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
   "file.image.for-preview": "preview",
   "string.cron-schedule": "cron-schedule",
+  "date.time": "time",
+  "duration": "duration",
+  "text.code": "code",
+  "string.secret": "secret",
+  "object": "object",
+  "repeater": "repeater",
+  "json": "json",
   "lookup.one": "lookup-one",
   "lookup.many": "lookup-many",
   "materials": "materials"
@@ -44655,6 +44815,13 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (fieldTypeIs(typeId, "string.color") || widget === "color") return "color";
   if (fieldTypeIs(typeId, "date")) return "date";
   if (fieldTypeIs(typeId, "date.datetime")) return "datetime";
+  if (fieldTypeIs(typeId, "date.time")) return "time";
+  if (fieldTypeIs(typeId, "duration")) return "duration";
+  if (fieldTypeIs(typeId, "text.code")) return "code";
+  if (fieldTypeIs(typeId, "string.secret")) return "secret";
+  if (fieldTypeIs(typeId, "json")) return "json";
+  if (fieldTypeIs(typeId, "object")) return "object";
+  if (fieldTypeIs(typeId, "repeater")) return "repeater";
   if (fieldTypeIs(typeId, "number")) return "number";
   if (fieldTypeIs(typeId, "array.tags") || widget === "tags") return "tags";
   if (isChoiceManyFieldTypeId(typeId)) {
@@ -44886,7 +45053,11 @@ function createPropsFormTypedInputControl(entry, meta, type, { locked = false } 
     input.type = type === "datetime" ? "datetime-local" : type;
   }
   const displayValue = getPropsEntryDisplayValue(entry);
-  input.value = type === "datetime" ? formatPropsDatetimeLocalValue(displayValue) : displayValue;
+  input.value =
+    type === "datetime" ? formatPropsDatetimeLocalValue(displayValue) : displayValue;
+  if (type === "time" && input.value.length > 5) {
+    input.value = input.value.slice(0, 5);
+  }
   if (meta.hint) input.title = meta.hint;
   if (meta.format && !input.value) input.placeholder = meta.format;
   bindPropsFormLockedState(input, locked);
@@ -44895,6 +45066,123 @@ function createPropsFormTypedInputControl(entry, meta, type, { locked = false } 
   } else {
     wrap.appendChild(input);
   }
+  return wrap;
+}
+
+function formatStructuredFieldDisplayValue(entry, widget = "") {
+  const kind = String(widget || "").trim();
+  if (kind === "repeater") {
+    if (Array.isArray(entry?.value)) {
+      try {
+        return JSON.stringify(entry.value, null, 2);
+      } catch {
+        return "[]";
+      }
+    }
+    const raw = String(entry?.value ?? "").trim();
+    return raw || "[]";
+  }
+  if (kind === "object" || kind === "json") {
+    const raw = getPropsEntryDisplayValue(entry);
+    if (!raw) return kind === "object" ? "{}" : "";
+    try {
+      return JSON.stringify(JSON.parse(raw), null, 2);
+    } catch {
+      return raw;
+    }
+  }
+  return getPropsEntryDisplayValue(entry);
+}
+
+function applyPropsFormWidgetValue(entry, rawValue, widget = "") {
+  const trimmed = String(rawValue ?? "").trim();
+  const kind = String(widget || "").trim();
+  if (kind === "repeater") {
+    if (!trimmed) return { ...entry, kind: "array", value: [] };
+    try {
+      const parsed = JSON.parse(trimmed);
+      return {
+        ...entry,
+        kind: "array",
+        value: Array.isArray(parsed) ? parsed : [parsed]
+      };
+    } catch {
+      return { ...entry, kind: "array", value: entry.value ?? [] };
+    }
+  }
+  if (kind === "object" || kind === "json") {
+    if (!trimmed) return { ...entry, kind: "string", value: kind === "object" ? "{}" : "" };
+    try {
+      JSON.parse(trimmed);
+      return { ...entry, kind: "string", value: trimmed };
+    } catch {
+      return { ...entry, kind: "string", value: rawValue };
+    }
+  }
+  return applyFormValueToEntry(entry, rawValue);
+}
+
+function createPropsFormCodeControl(entry, meta, widget, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap(widget);
+  wrap.classList.add("props-form-value-wrap--code");
+  const textarea = document.createElement("textarea");
+  textarea.className = "props-form-value props-form-value--textarea props-form-value--code";
+  textarea.rows = widget === "repeater" ? 8 : widget === "code" ? 10 : 6;
+  textarea.spellcheck = false;
+  textarea.value = formatStructuredFieldDisplayValue(entry, widget);
+  textarea.placeholder = meta.format || meta.hint || (widget === "repeater" ? "[]" : widget === "object" ? "{}" : "—");
+  if (meta.hint) textarea.title = meta.hint;
+  bindPropsFormLockedState(textarea, locked);
+  wrap.appendChild(textarea);
+  return wrap;
+}
+
+function createPropsFormSecretControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("secret");
+  wrap.classList.add("props-form-value-wrap--secret");
+  const row = document.createElement("div");
+  row.className = "props-form-password-input-row";
+  const input = document.createElement("input");
+  input.className = "props-form-value props-form-value--secret";
+  input.type = "password";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.value = getPropsEntryDisplayValue(entry);
+  if (meta.hint) {
+    input.title = meta.hint;
+    if (!input.value) input.placeholder = meta.hint;
+  }
+  bindPropsFormLockedState(input, locked);
+  const toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "props-form-password-toggle";
+  toggleBtn.setAttribute("aria-label", "Показать секрет");
+  toggleBtn.innerHTML =
+    '<svg class="props-form-password-toggle-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+  toggleBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    const showing = input.type === "text";
+    input.type = showing ? "password" : "text";
+    toggleBtn.classList.toggle("is-visible", !showing);
+    toggleBtn.setAttribute("aria-label", showing ? "Показать секрет" : "Скрыть секрет");
+  });
+  if (locked) toggleBtn.disabled = true;
+  row.append(input, toggleBtn);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+function createPropsFormDurationControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("duration");
+  const input = document.createElement("input");
+  input.className = "props-form-value props-form-value--duration";
+  input.type = "text";
+  input.spellcheck = false;
+  input.value = getPropsEntryDisplayValue(entry);
+  input.placeholder = meta.format || meta.hint || "2h 30m";
+  if (meta.hint) input.title = meta.hint;
+  bindPropsFormLockedState(input, locked);
+  wrap.appendChild(input);
   return wrap;
 }
 
@@ -48000,6 +48288,18 @@ function createPropsFormValueControl(entry, meta, { editorCompact = false } = {}
   if (widget === "datetime") {
     return createPropsFormTypedInputControl(entry, meta, "datetime", { locked });
   }
+  if (widget === "time") {
+    return createPropsFormTypedInputControl(entry, meta, "time", { locked });
+  }
+  if (widget === "duration") {
+    return createPropsFormDurationControl(entry, meta, { locked });
+  }
+  if (widget === "code" || widget === "json" || widget === "object" || widget === "repeater") {
+    return createPropsFormCodeControl(entry, meta, widget, { locked });
+  }
+  if (widget === "secret") {
+    return createPropsFormSecretControl(entry, meta, { locked });
+  }
   if (widget === "number") {
     return createPropsFormTypedInputControl(entry, meta, "number", { locked });
   }
@@ -48222,7 +48522,8 @@ function readPropsFormRowEntry(row, baseEntry) {
     entry.kind = fieldDefToEntryKind(fieldDef);
   }
   if (valueWrap) {
-    entry = applyFormValueToEntry(entry, readPropsFormValueFromControl(valueWrap));
+    const widget = valueWrap.dataset.widget || "";
+    entry = applyPropsFormWidgetValue(entry, readPropsFormValueFromControl(valueWrap), widget);
     entry.key = key;
   } else if (valueInput) {
     entry = applyFormValueToEntry(entry, valueInput.value);
