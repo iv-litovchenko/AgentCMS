@@ -37377,6 +37377,7 @@ const FIELD_TYPE_SELECT_GROUPS = [
     types: [
       "awn.field.string",
       "awn.field.string.email",
+      "awn.field.string.phone",
       "awn.field.string.password",
       "awn.field.string.secret",
       "awn.field.string.slug",
@@ -37420,6 +37421,7 @@ const FIELD_TYPE_SELECT_GROUPS = [
     label: "Структура",
     types: [
       "awn.field.string.link",
+      "awn.field.coordinates",
       "awn.field.repeater",
       "awn.field.object",
       "awn.field.json",
@@ -40913,6 +40915,8 @@ const FIELD_TYPE_ICONS = {
   "awn.field.string.link": "📂",
   "awn.field.string.email": "✉️",
   "awn.email": "✉️",
+  "awn.field.string.phone": "📞",
+  "awn.phone": "📞",
   "awn.field.string.password": "🔒",
   "awn.password": "🔒",
   "awn.field.text.markdown": "📋",
@@ -40947,7 +40951,9 @@ const FIELD_TYPE_ICONS = {
   "awn.field.object": "🗃️",
   "awn.object": "🗃️",
   "awn.field.repeater": "🔁",
-  "awn.repeater": "🔁"
+  "awn.repeater": "🔁",
+  "awn.field.coordinates": "📍",
+  "awn.coordinates": "📍"
 };
 
 const PROPS_FIELD_ICONS = {
@@ -44690,6 +44696,7 @@ const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
   "object": "object",
   "repeater": "repeater",
   "json": "json",
+  "coordinates": "coordinates",
   "lookup.one": "lookup-one",
   "lookup.many": "lookup-many",
   "materials": "materials",
@@ -44811,6 +44818,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (fieldTypeIs(typeId, "text") || widget === "textarea") return "textarea";
   if (fieldTypeIs(typeId, "string.url") || widget === "url") return "url";
   if (fieldTypeIs(typeId, "string.email") || widget === "email") return "email";
+  if (fieldTypeIs(typeId, "string.phone") || widget === "tel") return "tel";
   if (fieldTypeIs(typeId, "string.password") || widget === "password") return "password";
   if (fieldTypeIs(typeId, "string.slug") || widget === "slug") return "slug";
   if (fieldTypeIs(typeId, "string.color") || widget === "color") return "color";
@@ -44823,6 +44831,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (fieldTypeIs(typeId, "json")) return "json";
   if (fieldTypeIs(typeId, "object")) return "object";
   if (fieldTypeIs(typeId, "repeater")) return "repeater";
+  if (fieldTypeIs(typeId, "coordinates")) return "coordinates";
   if (fieldTypeIs(typeId, "number")) return "number";
   if (fieldTypeIs(typeId, "array") || widget === "tags") return "array";
   if (isChoiceManyFieldTypeId(typeId)) {
@@ -45184,6 +45193,122 @@ function createPropsFormDurationControl(entry, meta, { locked = false } = {}) {
   if (meta.hint) input.title = meta.hint;
   bindPropsFormLockedState(input, locked);
   wrap.appendChild(input);
+  return wrap;
+}
+
+function parseCoordinatesFieldValue(rawValue) {
+  const raw = String(rawValue ?? "").trim();
+  if (!raw) return { lat: "", lng: "" };
+  if (raw.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const lat = parsed.lat ?? parsed.latitude ?? "";
+        const lng = parsed.lng ?? parsed.longitude ?? parsed.lon ?? "";
+        return { lat: lat === "" ? "" : String(lat), lng: lng === "" ? "" : String(lng) };
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    return { lat: parts[0], lng: parts[1] };
+  }
+  return { lat: raw, lng: "" };
+}
+
+function formatCoordinatesFieldValue({ lat = "", lng = "" } = {}) {
+  const latText = String(lat ?? "").trim();
+  const lngText = String(lng ?? "").trim();
+  if (!latText && !lngText) return "";
+  if (!lngText) return latText;
+  return `${latText}, ${lngText}`;
+}
+
+function buildCoordinatesMapsUrl(lat, lng) {
+  const latNum = Number(String(lat ?? "").trim());
+  const lngNum = Number(String(lng ?? "").trim());
+  if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return "";
+  if (latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) return "";
+  return `https://www.google.com/maps?q=${encodeURIComponent(`${latNum},${lngNum}`)}`;
+}
+
+function syncPropsFormCoordinatesOpenButton(openBtn, latInput, lngInput) {
+  if (!openBtn || openBtn.dataset.locked === "1") return;
+  const url = buildCoordinatesMapsUrl(latInput.value, lngInput.value);
+  openBtn.disabled = !url;
+  openBtn.dataset.url = url;
+  openBtn.title = url ? `Открыть на карте: ${latInput.value}, ${lngInput.value}` : "Введите lat и lng";
+}
+
+function createPropsFormCoordinatesControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("coordinates");
+  wrap.classList.add("props-form-value-wrap--coordinates");
+  const row = document.createElement("div");
+  row.className = "props-form-coordinates-row";
+
+  const latInput = document.createElement("input");
+  latInput.className = "props-form-value props-form-value--coordinates-lat";
+  latInput.type = "number";
+  latInput.step = "any";
+  latInput.min = "-90";
+  latInput.max = "90";
+  latInput.inputMode = "decimal";
+  latInput.placeholder = "lat";
+  latInput.title = "Широта (lat)";
+
+  const lngInput = document.createElement("input");
+  lngInput.className = "props-form-value props-form-value--coordinates-lng";
+  lngInput.type = "number";
+  lngInput.step = "any";
+  lngInput.min = "-180";
+  lngInput.max = "180";
+  lngInput.inputMode = "decimal";
+  lngInput.placeholder = "lng";
+  lngInput.title = "Долгота (lng)";
+
+  const parsed = parseCoordinatesFieldValue(getPropsEntryDisplayValue(entry));
+  latInput.value = parsed.lat;
+  lngInput.value = parsed.lng;
+  if (meta.format && !parsed.lat && !parsed.lng) {
+    const sample = parseCoordinatesFieldValue(meta.format);
+    latInput.placeholder = sample.lat || "lat";
+    lngInput.placeholder = sample.lng || "lng";
+  }
+  if (meta.hint) {
+    latInput.title = meta.hint;
+    lngInput.title = meta.hint;
+  }
+  bindPropsFormLockedState(latInput, locked);
+  bindPropsFormLockedState(lngInput, locked);
+
+  const openBtn = document.createElement("button");
+  openBtn.type = "button";
+  openBtn.className = "props-form-url-open-btn props-form-coordinates-open-btn";
+  openBtn.setAttribute("aria-label", "Открыть на карте");
+  openBtn.innerHTML = PROPS_FORM_EXTERNAL_URL_OPEN_ICON;
+  openBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    const url = buildCoordinatesMapsUrl(latInput.value, lngInput.value);
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  });
+  const syncOpen = () => syncPropsFormCoordinatesOpenButton(openBtn, latInput, lngInput);
+  latInput.addEventListener("input", syncOpen);
+  latInput.addEventListener("change", syncOpen);
+  lngInput.addEventListener("input", syncOpen);
+  lngInput.addEventListener("change", syncOpen);
+  if (locked) {
+    openBtn.disabled = true;
+    openBtn.dataset.locked = "1";
+    openBtn.title = "Поле только для чтения";
+  } else {
+    syncOpen();
+  }
+
+  row.append(latInput, lngInput, openBtn);
+  wrap.appendChild(row);
   return wrap;
 }
 
@@ -48274,6 +48399,9 @@ function createPropsFormValueControl(entry, meta, { editorCompact = false } = {}
   if (widget === "email") {
     return createPropsFormTypedInputControl(entry, meta, "email", { locked });
   }
+  if (widget === "tel") {
+    return createPropsFormTypedInputControl(entry, meta, "tel", { locked });
+  }
   if (widget === "password") {
     return createPropsFormPasswordControl(entry, meta, { locked });
   }
@@ -48294,6 +48422,9 @@ function createPropsFormValueControl(entry, meta, { editorCompact = false } = {}
   }
   if (widget === "duration") {
     return createPropsFormDurationControl(entry, meta, { locked });
+  }
+  if (widget === "coordinates") {
+    return createPropsFormCoordinatesControl(entry, meta, { locked });
   }
   if (widget === "code" || widget === "json" || widget === "object" || widget === "repeater") {
     return createPropsFormCodeControl(entry, meta, widget, { locked });
@@ -48394,6 +48525,14 @@ function readPropsFormValueFromControl(valueWrap) {
   if (widget === "cron-schedule") {
     const input = valueWrap.querySelector(".props-form-cron-expression");
     return String(input?.value || "").trim();
+  }
+  if (widget === "coordinates") {
+    const latInput = valueWrap.querySelector(".props-form-value--coordinates-lat");
+    const lngInput = valueWrap.querySelector(".props-form-value--coordinates-lng");
+    return formatCoordinatesFieldValue({
+      lat: latInput?.value ?? "",
+      lng: lngInput?.value ?? ""
+    });
   }
   if (widget === "select" || widget === "lookup-one" || isLookupOneWidget(widget)) {
     const select = valueWrap.querySelector("select");

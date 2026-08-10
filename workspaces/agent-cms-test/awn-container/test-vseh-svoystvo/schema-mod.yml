@@ -19,6 +19,13 @@ awn_schema:
         placement: editor-body
         group: Текст (однострочный)
         sort: 11
+      demo_phone:
+        type: awn.field.string.phone
+        name: Телефон
+        hint: "+7 900 000-00-00"
+        placement: editor-body
+        group: Текст (однострочный)
+        sort: 115
       demo_password:
         type: awn.field.string.password
         name: Пароль
@@ -196,6 +203,13 @@ awn_schema:
         placement: editor-body
         group: Структура
         sort: 68
+      demo_coordinates:
+        type: awn.field.coordinates
+        name: Координаты
+        hint: "55.7558, 37.6173"
+        placement: editor-body
+        group: Структура
+        sort: 69
 
       # --- Связи ---
       demo_relation_one:

@@ -33336,6 +33336,24 @@ button.node-navigation-memory-title:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+.props-form-coordinates-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.props-form-value-wrap--coordinates .props-form-value--coordinates-lat,
+.props-form-value-wrap--coordinates .props-form-value--coordinates-lng {
+  flex: 1 1 0;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.props-form-coordinates-open-btn {
+  flex: 0 0 auto;
+}
+
 /* Многострочный текст */
 .editor-custom-props-fields .editor-custom-props-field--widget-textarea {
   border-left-color: #8b5cf6;
@@ -48054,10 +48072,16 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .menu-awn-data-toolbar {
   display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+}
+
+.menu-awn-data-toolbar-row {
+  display: flex;
   flex-wrap: nowrap;
   align-items: stretch;
   gap: 0.35rem;
-  margin: 0 0 0.35rem;
 }
 
 .menu-awn-data-create-btn {
@@ -48069,6 +48093,24 @@ body.is-discuss-resizing .discuss-aside-resizer {
   padding: 0.25rem 0.35rem;
   min-height: 1.6rem;
   white-space: nowrap;
+}
+
+.menu-awn-data-create-btn--static {
+  border-color: rgba(220, 38, 38, 0.35);
+  background:
+    linear-gradient(135deg, rgba(220, 38, 38, 0.06) 0%, rgba(248, 113, 113, 0.04) 100%),
+    #fff;
+  color: #991b1b;
+}
+
+.menu-awn-data-create-btn--static:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.menu-awn-data-create-btn--static .stub-static-mark {
+  font-size: 9px;
+  font-weight: 700;
 }
 
 .menu-awn-data-store {

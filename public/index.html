@@ -756,30 +756,54 @@
                 </summary>
                 <div class="menu-static-body">
                   <div class="menu-awn-data-toolbar">
-                    <button
-                      id="menu-awn-data-create-group-btn"
-                      type="button"
-                      class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--group"
-                      title="Создать группу (manifest.md, без записей)"
-                    >
-                      + Группа
-                    </button>
-                    <button
-                      id="menu-awn-data-create-collection-btn"
-                      type="button"
-                      class="menu-static-action-btn menu-awn-data-create-btn"
-                      title="Создать коллекцию (много записей)"
-                    >
-                      + Коллекция
-                    </button>
-                    <button
-                      id="menu-awn-data-create-singleton-btn"
-                      type="button"
-                      class="menu-static-action-btn menu-awn-data-create-btn"
-                      title="Создать одиночку (main.md)"
-                    >
-                      + Одиночка
-                    </button>
+                    <div class="menu-awn-data-toolbar-row">
+                      <button
+                        id="menu-awn-data-create-group-btn"
+                        type="button"
+                        class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--group"
+                        title="Создать группу (manifest.md, без записей)"
+                      >
+                        + Группа
+                      </button>
+                      <button
+                        id="menu-awn-data-create-collection-btn"
+                        type="button"
+                        class="menu-static-action-btn menu-awn-data-create-btn"
+                        title="Создать коллекцию (много записей)"
+                      >
+                        + Коллекция
+                      </button>
+                      <button
+                        id="menu-awn-data-create-singleton-btn"
+                        type="button"
+                        class="menu-static-action-btn menu-awn-data-create-btn"
+                        title="Создать одиночку (main.md)"
+                      >
+                        + Одиночка
+                      </button>
+                    </div>
+                    <div class="menu-awn-data-toolbar-row menu-awn-data-toolbar-row--static">
+                      <button
+                        id="menu-awn-data-create-untyped-btn"
+                        type="button"
+                        class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--static"
+                        disabled
+                        aria-disabled="true"
+                        title="Заготовка — пока не работает"
+                      >
+                        + Без типа <span class="stub-static-mark">(static)</span>
+                      </button>
+                      <button
+                        id="menu-awn-data-create-mixin-btn"
+                        type="button"
+                        class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--static"
+                        disabled
+                        aria-disabled="true"
+                        title="Заготовка — пока не работает"
+                      >
+                        + Миксин <span class="stub-static-mark">(static)</span>
+                      </button>
+                    </div>
                   </div>
                   <ul
                     id="menu-awn-data-stores"

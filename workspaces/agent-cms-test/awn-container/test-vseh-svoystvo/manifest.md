@@ -41,6 +41,7 @@ demo_cron: "0 9 * * 1-5"
 demo_date: 2026-06-21
 demo_datetime: "2026-06-21T12:00"
 demo_email: demo@example.com
+demo_phone: "+7 900 123-45-67"
 demo_entity_preview: awn-storage/assets/preview/20260623203544.png
 demo_file_many:
   - awn-storage/assets/attachments/939bad10-15ef-4708-b6a1-fff2ee90d7df-20260810000040.png
@@ -65,6 +66,7 @@ demo_lookup_tags:
 demo_markdown: ""
 demo_number: 3.14
 demo_path: awn-container/test-vseh-poley/main.md
+demo_coordinates: "55.7558, 37.6173"
 demo_relation_many: "[PHP](../php/manifest.md)"
 demo_relation_one: "[pukpku](../pukpku/manifest.md)"
 demo_slug: all-field-types
