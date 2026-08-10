@@ -47,7 +47,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "search_workspace_semantic",
-    "Offline semantic search across the entire workspace (local hash-TF-IDF index in .agent-cms/semantic-index). Finds related notes by meaning without exact words. Reindex: POST /api/search/semantic/reindex.",
+    "Offline semantic search across the entire workspace (local hash-TF-IDF index in .agent-cms/semantic-index). Finds related notes by meaning without exact words. Reindex: rebuild_workspace_semantic_index.",
     z.object({
       query: z.string().min(2),
       limit: z.number().int().min(1).max(50).optional()
@@ -57,7 +57,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "query_workspace_storage",
-    "SQL-like filter over entire workspace field catalog (.agent-cms/storage-index). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: POST /api/storage-index/reindex.",
+    "SQL-like filter over entire workspace field catalog (.agent-cms/storage-index). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: rebuild_workspace_storage_index.",
     z.object({
       pathPrefix: z.string().optional().describe("Limit to path prefix, e.g. awn-container/finansy"),
       where: z
@@ -83,6 +83,44 @@ function registerSearchWorkspaceTools(reg, client) {
       limit: z.number().int().min(1).max(500).optional()
     }),
     (payload) => client.post("/api/storage-index/query", payload)
+  );
+
+  reg(
+    "get_workspace_index_status",
+    "Status of both offline workspace indexes: semantic (RAG vectors in .agent-cms/semantic-index) and field catalog (SQL-like in .agent-cms/storage-index).",
+    z.object({}),
+    async () => {
+      const [semantic, storage] = await Promise.all([
+        client.get("/api/search/semantic/status"),
+        client.get("/api/storage-index/status")
+      ]);
+      return { semantic, storage };
+    }
+  );
+
+  reg(
+    "rebuild_workspace_semantic_index",
+    "Rebuild offline semantic index for the whole workspace (hash-TF-IDF chunks in .agent-cms/semantic-index). Run after bulk file changes or before semantic search.",
+    z.object({}),
+    () => client.post("/api/search/semantic/reindex", {})
+  );
+
+  reg(
+    "rebuild_workspace_storage_index",
+    "Rebuild workspace field catalog from frontmatter of all .md/.yml (.agent-cms/storage-index). Run after bulk metadata changes or before query_workspace_storage.",
+    z.object({}),
+    () => client.post("/api/storage-index/reindex", {})
+  );
+
+  reg(
+    "rebuild_workspace_indexes",
+    "Rebuild both workspace indexes: semantic (RAG) then field catalog (SQL-like). Same as sidebar «Переиндексировать смысл» + «Пересобрать каталог полей».",
+    z.object({}),
+    async () => {
+      const semantic = await client.post("/api/search/semantic/reindex", {});
+      const storage = await client.post("/api/storage-index/reindex", {});
+      return { semantic, storage };
+    }
   );
 }
 
