@@ -1,6 +1,8 @@
 {
   "paths": [
+    "main/009.md",
+    "main/999/manifest.md",
     "main/history/manifest.md"
   ],
-  "updatedAt": "2026-08-02T19:23:05.244Z"
+  "updatedAt": "2026-08-10T00:42:51.284Z"
 }

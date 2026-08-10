@@ -1,0 +1,12 @@
+version: 1
+layer: section
+
+awn_schema:
+  slot_memory:
+    fields:
+      field-1:
+        type: awn.field.string
+      field-2:
+        type: awn.field.string
+      field-3:
+        type: awn.field.string
