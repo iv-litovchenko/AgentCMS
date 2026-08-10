@@ -53577,12 +53577,20 @@ function formatMultiFileContentIndexMarkdown(entries, { emptyHint = "_Во вн�
 function formatAgentContentIndexPayloadAsTopicMarkdown(payload, topicPath, slots = []) {
   const lines = ["# Оглавление темы", ""];
   const slotRows = Array.isArray(payload?.slots) ? payload.slots : [];
-  const entries = mergeTopicContentIndexEntriesFromPayloadSlots(slotRows);
-  const multiSection = formatMultiFileContentIndexMarkdown(entries);
+  const liteEntries = Array.isArray(payload?.liteEntries) ? payload.liteEntries : [];
+  const slotsDisabled = Boolean(payload?.slotsDisabled);
+  const slotMerged = slotsDisabled ? [] : mergeTopicContentIndexEntriesFromPayloadSlots(slotRows);
+  const entries = [...liteEntries, ...slotMerged].sort((a, b) =>
+    a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true })
+  );
+  const liteEmptyHint = "_В каталоге темы пока нет файлов для оглавления._";
+  const multiSection = formatMultiFileContentIndexMarkdown(entries, {
+    emptyHint: slotsDisabled ? liteEmptyHint : undefined
+  });
   const bundleSection = formatBundleSlotIndexMarkdown(payload?.bundleSlots || []);
 
   if (multiSection) lines.push(multiSection, "");
-  else if (!bundleSection) lines.push("_Нет записей во внешних слотах._", "");
+  else if (!bundleSection) lines.push(slotsDisabled ? liteEmptyHint : "_Нет записей во внешних слотах._", "");
 
   if (bundleSection) lines.push(bundleSection);
 
@@ -60540,11 +60548,7 @@ async function refreshTopicStorageIndexOverview(topicPath) {
 
 function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
   if (!wrap || !topicPath) return;
-  const dataSlots = slots.filter((slot) => {
-    const spec = resolveStorageSlotSpecFromCounterSlot(slot);
-    return spec && supportsDataEntryOverview(spec.key);
-  });
-  if (!dataSlots.length) return;
+  if (isAreaNodePath(topicPath) || isWorkspaceRootNodePath(topicPath)) return;
 
   let row = wrap.querySelector(".node-navigation-workspace-counter-topic-index-row");
   if (!row) {
@@ -60640,6 +60644,17 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
     wrap.dataset.topicHasIndex = exists ? "1" : "0";
     syncTopicIndexFooterState();
   });
+}
+
+function appendTopicLiteIndexControlsRow(container, topicPath) {
+  if (!container || !topicPath) return;
+  if (isAreaNodePath(topicPath) || isWorkspaceRootNodePath(topicPath)) return;
+  const wrap = document.createElement("div");
+  wrap.className =
+    "node-navigation-workspace-counters node-navigation-workspace-counters--lite-index has-outside-slots-static";
+  appendWorkspaceOutsideSlotsCounterRow(wrap);
+  appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, []);
+  container.appendChild(wrap);
 }
 
 function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onClick } = {}) {
@@ -71085,6 +71100,8 @@ async function renderNodeNavigation() {
   if (!isInlineNavHub && !slotsDisabled) {
     await appendTopicSlotCounterStrip(hubMain, nodePath, { isStale, slots: topicSlotCounters });
     if (isStale()) return;
+  } else if (!isInlineNavHub && slotsDisabled) {
+    appendTopicLiteIndexControlsRow(hubMain, nodePath);
   }
 
   const elementsNavAccordion = renderNodeNavigationElementsNavAccordion({

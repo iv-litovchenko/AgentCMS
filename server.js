@@ -10360,14 +10360,32 @@ function mergeTopicContentIndexEntries(slots = []) {
   );
 }
 
-function buildTopicContentIndexMarkdown({ slots, bundleSlots = [] }) {
+function resolveManifestContainerEntryRelPath(manifestRelPath, relPath) {
+  const containerDir = getManifestContainerDirRel(manifestRelPath);
+  const rel = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel) return containerDir || String(manifestRelPath || "").replace(/\\/g, "/");
+  return containerDir ? `${containerDir}/${rel}` : rel;
+}
+
+async function buildLiteTopicContainerMapItems(manifestRelPath) {
+  if (!(await readTopicSlotsDisabled(manifestRelPath))) return [];
+  return buildExternalSlotMapItems(manifestRelPath, "memory", STORAGE_SUBFOLDER_CONTENT, { liteMode: true });
+}
+
+function buildTopicContentIndexMarkdown({ slots, bundleSlots = [], liteEntries = [], slotsDisabled = false } = {}) {
   const lines = ["# Оглавление темы", ""];
-  const externalSlots = (slots || []).filter((row) => isTopicWideContentIndexSlotRow(row));
-  const multiSection = formatMultiFileContentIndexMarkdown(mergeTopicContentIndexEntries(externalSlots));
+  const mergedExternal = slotsDisabled ? [] : mergeTopicContentIndexEntries(slots);
+  const merged = [...liteEntries, ...mergedExternal].sort((a, b) =>
+    a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true })
+  );
+  const liteEmptyHint = "_В каталоге темы пока нет файлов для оглавления._";
+  const multiSection = formatMultiFileContentIndexMarkdown(merged, {
+    emptyHint: slotsDisabled ? liteEmptyHint : undefined
+  });
   const bundleSection = formatBundleSlotIndexMarkdown(bundleSlots);
 
   if (multiSection) lines.push(multiSection, "");
-  else if (!bundleSection) lines.push("_Нет записей во внешних слотах._", "");
+  else if (!bundleSection) lines.push(slotsDisabled ? liteEmptyHint : "_Нет записей во внешних слотах._", "");
 
   if (bundleSection) lines.push(bundleSection);
 
@@ -10382,33 +10400,44 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
   const topicIndexPath = getTopicStorageIndexRelPath(mapPayload.path);
   const topicIndexExists = await workspaceRelFileExists(topicIndexPath);
 
+  const slotsDisabled = await readTopicSlotsDisabled(mapPayload.path);
+  const liteModeTopicIndex =
+    scope === "topic" && !options.slot && slotsDisabled;
+  const liteEntries = liteModeTopicIndex
+    ? mapItemsToContentIndexEntries(await buildLiteTopicContainerMapItems(mapPayload.path))
+    : [];
+
   const slots = [];
-  for (const slotRow of mapPayload.slots || []) {
-    if (CONTENT_MAP_DEDICATED_SLOTS.has(slotRow.slot)) continue;
-    if (!options.slot && !isTopicWideContentIndexSlotRow(slotRow)) continue;
-    const entries = mapItemsToContentIndexEntries(slotRow.items);
-    const storageFolder = slotKeyToStorageFolder(slotRow.slot);
-    const slotIndexPath = getSlotStorageIndexRelPath(
-      mapPayload.path,
-      slotRow.slot,
-      storageFolder,
-      slotRow.driver
-    );
-    const slotIndexExists = await workspaceRelFileExists(slotIndexPath);
-    slots.push({
-      slot: slotRow.slot,
-      driver: slotRow.driver,
-      indexFile: {
-        path: slotIndexPath,
-        exists: slotIndexExists,
-        source: slotIndexExists ? "file" : "generated"
-      },
-      entries,
-      entryCount: entries.length
-    });
+  if (!liteModeTopicIndex) {
+    for (const slotRow of mapPayload.slots || []) {
+      if (CONTENT_MAP_DEDICATED_SLOTS.has(slotRow.slot)) continue;
+      if (!options.slot && !isTopicWideContentIndexSlotRow(slotRow)) continue;
+      const entries = mapItemsToContentIndexEntries(slotRow.items);
+      const storageFolder = slotKeyToStorageFolder(slotRow.slot);
+      const slotIndexPath = getSlotStorageIndexRelPath(
+        mapPayload.path,
+        slotRow.slot,
+        storageFolder,
+        slotRow.driver
+      );
+      const slotIndexExists = await workspaceRelFileExists(slotIndexPath);
+      slots.push({
+        slot: slotRow.slot,
+        driver: slotRow.driver,
+        indexFile: {
+          path: slotIndexPath,
+          exists: slotIndexExists,
+          source: slotIndexExists ? "file" : "generated"
+        },
+        entries,
+        entryCount: entries.length
+      });
+    }
   }
 
-  const entryCount = slots.reduce((sum, row) => sum + (row.entryCount || 0), 0);
+  const entryCount = liteModeTopicIndex
+    ? liteEntries.length
+    : slots.reduce((sum, row) => sum + (row.entryCount || 0), 0);
   const projectRoot = getProjectRoot();
   const agentRoot = getAgentRoot();
   const pageSlotKeys = resolveStorageSlotsForManifest(projectRoot, agentRoot, mapPayload.awnType);
@@ -10420,10 +10449,10 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     model: "content-index",
     hint:
       "Быстрое оглавление (path, type, title, description) без body и без properties. " +
-      "Сверху — таблица однофайловых слотов (файл, заполнено/не заполнено). " +
+      "При awn-slots-disabled:lite — многофайловая часть из каталога manifest (path-based FS). " +
+      "В конце — однофайловые слоты (файл, заполнено/не заполнено). " +
       "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
-      "Общий index.md темы — рядом с manifest.md, только внешние слоты (driver external: memory, inbox, media…). " +
-      "Папки awn-materials-* включены.",
+      "Общий index.md темы — рядом с manifest.md.",
     whenToUse: {
       get_content_index:
         "Быстрый обзор темы/слота без погружения: оглавление как index.md (путь, тип, название, описание).",
@@ -10435,6 +10464,7 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     },
     path: mapPayload.path,
     awnType: mapPayload.awnType,
+    slotsDisabled,
     scope,
     slot: options.slot || null,
     indexFile: {
@@ -10445,7 +10475,8 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     slots,
     slotCount: slots.length,
     entryCount,
-    bundleSlots
+    bundleSlots,
+    liteEntries
   };
 }
 
@@ -10503,7 +10534,9 @@ async function writeAgentContentIndex(manifestRelPath, options = {}) {
     }
     const markdown = buildTopicContentIndexMarkdown({
       slots: indexPayload.slots,
-      bundleSlots: indexPayload.bundleSlots || []
+      bundleSlots: indexPayload.bundleSlots || [],
+      liteEntries: indexPayload.liteEntries || [],
+      slotsDisabled: Boolean(indexPayload.slotsDisabled)
     });
     await writeWorkspaceTextFileWithHistory(manifestPath, indexPath, markdown);
     written.push({
@@ -10574,19 +10607,34 @@ async function buildInternalSlotMapItems(manifestRelPath, slotKey) {
   return [];
 }
 
-async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder) {
+async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder, options = {}) {
+  const liteMode = Boolean(options.liteMode);
   const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);
-  const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, storageFolder);
+  const folderAbsolute = liteMode
+    ? await resolveExternalMemoryFolderAbsolute(manifestRelPath)
+    : await resolveNodeSubfolderAbsolute(nodeAbsolute, storageFolder);
   if (!folderAbsolute || !(await isExistingDirectory(folderAbsolute))) {
     return [];
   }
 
-  const collectOptions = { includeRecordPartsPackages: true };
-  const [files, folders, nonMarkdownFiles] = await Promise.all([
+  const collectOptions = liteMode
+    ? { includeRecordPartsPackages: true, shouldSkipDirectory: shouldSkipSharedSlotTopicDirectory }
+    : { includeRecordPartsPackages: true };
+  let [files, folders, nonMarkdownFiles] = await Promise.all([
     collectMarkdownFiles(folderAbsolute, "", collectOptions),
-    collectExternalContentFolders(folderAbsolute),
+    collectExternalContentFolders(folderAbsolute, "", collectOptions),
     collectNonMarkdownFiles(folderAbsolute, "", collectOptions)
   ]);
+  if (liteMode) {
+    files = filterSharedSlotExternalFiles(files);
+    folders = filterSharedSlotExternalFolders(folders);
+    nonMarkdownFiles = filterSharedSlotExternalFiles(nonMarkdownFiles);
+  }
+
+  const entryWorkspacePath = (rel) =>
+    liteMode
+      ? resolveManifestContainerEntryRelPath(manifestRelPath, rel)
+      : buildStorageLayerRef(manifestRelPath, storageFolder, rel);
 
   const items = [];
   const seenFolderRefs = new Set();
@@ -10607,11 +10655,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
       let description = "";
       let properties = {};
       if (hasManifest) {
-        const sectionManifestRel = buildStorageLayerRef(
-          manifestRelPath,
-          storageFolder,
-          path.posix.join(folderRel, MANIFEST_FILE)
-        );
+        const sectionManifestRel = entryWorkspacePath(path.posix.join(folderRel, MANIFEST_FILE));
         try {
           const { frontmatter } = await readNodeFrontmatterContent(sectionManifestRel);
           title = String(getYamlScalar(frontmatter, "awn-name") || title).trim();
@@ -10627,7 +10671,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
         ref: folderRel,
         title,
         description,
-        workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, folderRel),
+        workspacePath: entryWorkspacePath(folderRel),
         properties,
         hasManifest,
         parentRecordRef: partsMeta?.parentRecordRef || "",
@@ -10641,11 +10685,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
     let description = "";
     let properties = {};
     if (hasManifest) {
-      const sectionManifestRel = buildStorageLayerRef(
-        manifestRelPath,
-        storageFolder,
-        path.posix.join(folderRel, MANIFEST_FILE)
-      );
+      const sectionManifestRel = entryWorkspacePath(path.posix.join(folderRel, MANIFEST_FILE));
       try {
         const { frontmatter } = await readNodeFrontmatterContent(sectionManifestRel);
         title = String(getYamlScalar(frontmatter, "awn-name") || title).trim();
@@ -10661,7 +10701,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
       ref: folderRel,
       title,
       description,
-      workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, folderRel),
+      workspacePath: entryWorkspacePath(folderRel),
       properties
     });
     seenFolderRefs.add(folderRel);
@@ -10678,7 +10718,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
           ref: folderRel,
           title: enriched.title,
           description: String(getFrontmatterPropValue(enriched.props, "awn-description") || "").trim(),
-          workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, folderRel),
+          workspacePath: entryWorkspacePath(folderRel),
           properties: frontmatterPropsToObject(enriched.props),
           hasManifest: true,
           parentRecordRef: partsMeta.parentRecordRef,
@@ -10693,7 +10733,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
       ref: enriched.relativePath,
       title: enriched.title,
       description: String(getFrontmatterPropValue(enriched.props, "awn-description") || "").trim(),
-      workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, enriched.relativePath),
+      workspacePath: entryWorkspacePath(enriched.relativePath),
       properties: frontmatterPropsToObject(enriched.props),
       status: enriched.status,
       tags: enriched.tags,
@@ -10718,7 +10758,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
       ref: file.relativePath,
       title: file.name,
       description: "",
-      workspacePath: buildStorageLayerRef(manifestRelPath, storageFolder, file.relativePath),
+      workspacePath: entryWorkspacePath(file.relativePath),
       properties: {},
       ext: path.extname(file.name || "").toLowerCase(),
       ...(partsMeta
