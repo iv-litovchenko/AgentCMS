@@ -2832,7 +2832,7 @@ async function listInboxItems(manifestRelPath) {
 
   const inboxAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_INBOX);
   if (!inboxAbsolute) {
-    return { manifestPath: manifestRelPath, exists: false, items: [], pending: 0 };
+    return { manifestPath: manifestRelPath, exists: false, items: [], pending: 0, fileCount: 0 };
   }
 
   const inboxDirRel = path
@@ -2869,13 +2869,15 @@ async function listInboxItems(manifestRelPath) {
 
   items.sort((left, right) => right.path.localeCompare(left.path));
   const pending = items.filter((item) => item.status !== "done").length;
+  const fileCount = await countDirectoryFiles(inboxAbsolute);
 
   return {
     manifestPath: manifestRelPath,
     exists: true,
     inboxDir: inboxDirRel,
     items,
-    pending
+    pending,
+    fileCount
   };
 }
 
@@ -3017,7 +3019,7 @@ async function buildTopicIntakeSummary(manifestRelPath, options = {}) {
     inbox: {
       exists: Boolean(inbox.exists),
       pending: Number(inbox.pending) || 0,
-      total: Array.isArray(inbox.items) ? inbox.items.length : 0
+      total: Number(inbox.fileCount) || 0
     },
     thread: {
       count: messages.length,

@@ -20614,16 +20614,18 @@ function createContextAlwaysRuntimeMarkerSvg() {
   svg.setAttribute("class", "menu-marker-svg menu-runtime-marker-svg");
   svg.setAttribute("aria-hidden", "true");
 
-  for (const d of ["M12 2L3 7l9 5 9-5-9-5z", "M3 12l9 5 9-5", "M3 17l9 5 9-5"]) {
-    const layer = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    layer.setAttribute("d", d);
-    layer.setAttribute("fill", "none");
-    layer.setAttribute("stroke", "currentColor");
-    layer.setAttribute("stroke-width", "2");
-    layer.setAttribute("stroke-linecap", "round");
-    layer.setAttribute("stroke-linejoin", "round");
-    svg.appendChild(layer);
-  }
+  // Thumbtack — «закреплено / всегда в контексте»
+  const pin = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  pin.setAttribute(
+    "d",
+    "M12 21v-3M9 10.76a2 2 0 0 1 1.11-1.79l1.78-.9A2 2 0 0 1 14.5 10.76V4h-5v6.76z"
+  );
+  pin.setAttribute("fill", "none");
+  pin.setAttribute("stroke", "currentColor");
+  pin.setAttribute("stroke-width", "2");
+  pin.setAttribute("stroke-linecap", "round");
+  pin.setAttribute("stroke-linejoin", "round");
+  svg.appendChild(pin);
 
   return svg;
 }
@@ -64654,18 +64656,17 @@ function upsertMenuIntakeBadges(host, intake, manifestPath) {
   }
 
   badgesEl.replaceChildren();
-  if (pending > 0) {
+  const inboxDisplayCount = total > 0 ? total : pending;
+  if (inboxDisplayCount > 0) {
     const inboxBadge = document.createElement("span");
     inboxBadge.className = "menu-intake-badge menu-intake-badge--inbox";
-    inboxBadge.textContent = String(pending);
-    inboxBadge.title = `${pending} необработ. во входящих`;
-    inboxBadge.setAttribute("aria-label", inboxBadge.title);
-    badgesEl.appendChild(inboxBadge);
-  } else if (total > 0) {
-    const inboxBadge = document.createElement("span");
-    inboxBadge.className = "menu-intake-badge menu-intake-badge--inbox menu-intake-badge--total";
-    inboxBadge.textContent = String(total);
-    inboxBadge.title = `${total} во входящих`;
+    if (pending <= 0) inboxBadge.classList.add("menu-intake-badge--total");
+    inboxBadge.textContent = String(inboxDisplayCount);
+    inboxBadge.title = buildNavigationSlotCounterTitle(
+      { key: "inbox", label: "Входящие" },
+      inboxDisplayCount,
+      { intake }
+    );
     inboxBadge.setAttribute("aria-label", inboxBadge.title);
     badgesEl.appendChild(inboxBadge);
   }
