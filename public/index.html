@@ -776,7 +776,7 @@
             <section
               id="menu-static-footer"
               class="menu-static-footer menu-static-footer-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar"
-              aria-label="Системные папки"
+              aria-label="Системные и дополнительные секции"
             >
               <button
                 id="menu-static-footer-toggle"
@@ -784,66 +784,17 @@
                 class="menu-static-footer-toggle-btn sidebar-focus-toggle agent-focus-head agent-focus-head--compact"
                 aria-expanded="true"
                 aria-controls="menu-static-footer-body"
-                title="Системные папки — свернуть или показать"
+                title="Системные и дополнительные секции — свернуть или показать"
               >
                 <span class="sidebar-focus-toggle-main">
                   <span class="sidebar-focus-chevron" aria-hidden="true"></span>
                   <span class="menu-static-footer-title agent-focus-title">
-                    Системные папки <span class="agent-focus-sub agent-focus-sub--inline">(static)</span>
+                    Системные и дополнительные секции
                   </span>
                 </span>
                 <span id="menu-static-footer-action" class="menu-static-footer-action">Свернуть</span>
               </button>
               <div id="menu-static-footer-body" class="menu-static-footer-body">
-              <details class="menu-static-section menu-static-section--google-drive menu-static-accordion">
-                <summary class="menu-static-summary" title="Google Drive — внешнее хранилище awn-google-drive">
-                  <span class="menu-static-title menu-static-title--google-drive">
-                    <span aria-hidden="true">🟢</span>
-                    <span>Гугл диск</span>
-                  </span>
-                  <span
-                    id="menu-google-drive-stats"
-                    class="menu-static-google-drive-stats menu-static-google-drive-stats--summary"
-                    aria-live="polite"
-                  >
-                    —
-                  </span>
-                  <span class="menu-static-summary-actions">
-                    <button
-                      id="menu-google-drive-refresh-btn"
-                      type="button"
-                      class="menu-static-summary-refresh-btn"
-                      title="Обновить Google Drive"
-                      aria-label="Обновить Google Drive"
-                    >
-                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
-                          stroke="currentColor"
-                          stroke-width="2.25"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <button
-                    id="menu-google-drive-repair-btn"
-                    type="button"
-                    class="menu-static-action-btn menu-static-action-btn--google-drive"
-                    title="Пересчитать относительные пути symlink в media → awn-google-drive"
-                  >
-                    Синхронизировать ссылки
-                  </button>
-                  <ul
-                    id="menu-google-drive-files"
-                    class="menu-google-drive-files"
-                    aria-label="Файлы awn-google-drive"
-                  ></ul>
-                </div>
-              </details>
               <details class="menu-static-section menu-static-section--storage-schemes menu-static-accordion">
                 <summary class="menu-static-summary" title="Накопители информации (аналог БД). Domains (модели)">
                   <span class="menu-static-title menu-static-title--storage-schemes">
@@ -945,10 +896,11 @@
                 </div>
               </details>
               <details class="menu-static-section menu-static-section--settings menu-static-accordion">
-                <summary class="menu-static-summary" title="Настройки workspace, областей и тем">
+                <summary class="menu-static-summary" title="Настройки и параметры workspace, областей и тем">
                   <span class="menu-static-title menu-static-title--settings">
                     <span aria-hidden="true">🟢</span>
-                    <span>Настройки</span>
+                    <span>Настройки и параметры</span>
+                    <span class="stub-static-mark">(static)</span>
                   </span>
                 </summary>
                 <div class="menu-static-body">
@@ -965,6 +917,79 @@
                   >
                     Открыть настройки проекта
                   </button>
+                </div>
+              </details>
+              <details class="menu-static-section menu-static-section--server-sync menu-static-accordion">
+                <summary class="menu-static-summary" title="Синхронизация workspace с удалённым сервером (скоро)">
+                  <span class="menu-static-title menu-static-title--server-sync">
+                    <span aria-hidden="true">🟢</span>
+                    <span>Синхронизация с сервером</span>
+                    <span class="stub-static-mark">(static)</span>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <p class="menu-static-description">
+                    Выгрузка и подтягивание workspace между локальной копией и сервером Agent CMS.
+                  </p>
+                  <button
+                    id="menu-static-server-sync-open-btn"
+                    type="button"
+                    class="menu-static-action-btn"
+                    disabled
+                    aria-disabled="true"
+                    title="Скоро"
+                  >
+                    Настроить синхронизацию
+                  </button>
+                </div>
+              </details>
+              <details class="menu-static-section menu-static-section--google-drive menu-static-accordion">
+                <summary class="menu-static-summary" title="Google Drive (выгрузка файлов) — внешнее хранилище awn-google-drive">
+                  <span class="menu-static-title menu-static-title--google-drive">
+                    <span aria-hidden="true">🟢</span>
+                    <span>Google Drive (выгрузка файлов)</span>
+                  </span>
+                  <span
+                    id="menu-google-drive-stats"
+                    class="menu-static-google-drive-stats menu-static-google-drive-stats--summary"
+                    aria-live="polite"
+                  >
+                    —
+                  </span>
+                  <span class="menu-static-summary-actions">
+                    <button
+                      id="menu-google-drive-refresh-btn"
+                      type="button"
+                      class="menu-static-summary-refresh-btn"
+                      title="Обновить Google Drive"
+                      aria-label="Обновить Google Drive"
+                    >
+                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                          stroke="currentColor"
+                          stroke-width="2.25"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <button
+                    id="menu-google-drive-repair-btn"
+                    type="button"
+                    class="menu-static-action-btn menu-static-action-btn--google-drive"
+                    title="Пересчитать относительные пути symlink в media → awn-google-drive"
+                  >
+                    Синхронизировать ссылки
+                  </button>
+                  <ul
+                    id="menu-google-drive-files"
+                    class="menu-google-drive-files"
+                    aria-label="Файлы awn-google-drive"
+                  ></ul>
                 </div>
               </details>
               <details class="menu-static-section menu-static-section--indexing menu-static-accordion">

@@ -49977,6 +49977,11 @@ body.is-discuss-resizing .discuss-aside-resizer {
   background: #f8fafc;
 }
 
+.menu-static-section--server-sync {
+  border: 1px solid #fdba74;
+  background: #fff7ed;
+}
+
 .menu-static-section--indexing {
   border: 1px solid #f9a8d4;
   background: #fdf2f8;
@@ -50106,6 +50111,10 @@ body.is-discuss-resizing .discuss-aside-resizer {
   border-bottom: 1px solid rgba(203, 213, 225, 0.75);
 }
 
+.menu-static-section--server-sync[open] > .menu-static-summary {
+  border-bottom: 1px solid rgba(253, 186, 116, 0.55);
+}
+
 .menu-static-section--indexing[open] > .menu-static-summary {
   border-bottom: 1px solid rgba(249, 168, 212, 0.55);
 }
@@ -50191,6 +50200,10 @@ body.is-discuss-resizing .discuss-aside-resizer {
 
 .menu-static-title--settings {
   color: #334155;
+}
+
+.menu-static-title--server-sync {
+  color: #c2410c;
 }
 
 .menu-index-block {
