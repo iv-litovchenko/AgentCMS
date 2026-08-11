@@ -761,6 +761,38 @@ const SYSTEM_REFERENCE_SCAFFOLDS = [
     fileName: "agent.voice.stt",
     title: "Голос · STT",
     manifest: "# Голос · STT\n\nНастройки и инструкции для распознавания речи (speech-to-text).\n"
+  },
+  {
+    preset: "devices",
+    kind: "service-doc",
+    fileName: "devices",
+    title: "Управление ПК, устройствами, различный софт",
+    manifest:
+      "# Управление ПК, устройствами, различный софт\n\nТема про компьютер, ОС, периферию, софт и автоматизацию устройств.\n"
+  },
+  {
+    preset: "random-joke",
+    kind: "service-doc",
+    fileName: "random-joke",
+    title: "Случайный анекдот — для экспериментов",
+    manifest:
+      "# Случайный анекдот\n\nЭкспериментальная тема: правила выбора анекдота, журнал рассказанных шуток, триггеры.\n"
+  },
+  {
+    preset: "robot-exoskeleton-and-body",
+    kind: "service-doc",
+    fileName: "robot-exoskeleton-and-body",
+    title: "Экзоскелет · робот (сенсоры, датчики, механизмы, руки, ноги, колеса и другое)",
+    manifest:
+      "# Экзоскелет · робот\n\nСенсоры, датчики, механизмы, руки, ноги, колеса и другие компоненты робота.\n"
+  },
+  {
+    preset: "real-world-and-space",
+    kind: "service-doc",
+    fileName: "real-world-and-space",
+    title: "Объекты реального мира, места и пространства",
+    manifest:
+      "# Объекты реального мира, места и пространства\n\nФизические объекты, локации, помещения и пространства.\n"
   }
 ];
 const AGENT_FOLDER_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/;

@@ -22546,7 +22546,11 @@ const SERVICE_DOC_PRESET_FILES = {
   users: "users",
   "agent-rules": "agent.rules",
   "agent-voice-tts": "agent.voice.tts",
-  "agent-voice-stt": "agent.voice.stt"
+  "agent-voice-stt": "agent.voice.stt",
+  devices: "devices",
+  "random-joke": "random-joke",
+  "robot-exoskeleton-and-body": "robot-exoskeleton-and-body",
+  "real-world-and-space": "real-world-and-space"
 };
 const SERVICE_DOC_PRESET_LABELS = {
   agent: "Агент",
@@ -22554,7 +22558,12 @@ const SERVICE_DOC_PRESET_LABELS = {
   users: "Пользователи",
   "agent-rules": "Правила агента",
   "agent-voice-tts": "Голос · TTS",
-  "agent-voice-stt": "Голос · STT"
+  "agent-voice-stt": "Голос · STT",
+  devices: "Управление ПК и устройствами, софт",
+  "random-joke": "Случайный анекдот — для экспериментов",
+  "robot-exoskeleton-and-body":
+    "Экзоскелет · робот (сенсоры, датчики, механизмы, руки, ноги, колёса и другое)",
+  "real-world-and-space": "Объекты реального мира, места и пространства"
 };
 
 function getCreateModalMenuData(agentId = getCreateModalAgentId()) {

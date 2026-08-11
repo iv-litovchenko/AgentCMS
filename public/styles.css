@@ -45266,14 +45266,37 @@ button.node-navigation-memory-title:focus-visible {
   margin-top: 0;
 }
 
+.create-node-service-docs-actions-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .create-node-service-docs-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+}
+
+.create-node-service-docs-actions--cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.create-node-service-docs-actions--topics {
+  margin-top: 2px;
 }
 
 .create-node-service-doc-btn {
   font-size: 13px;
+  text-align: center;
+  white-space: normal;
+}
+
+.create-node-service-docs-actions--topics .create-node-service-doc-btn {
+  text-align: left;
+}
+
+.create-node-service-doc-btn--solo {
+  grid-column: 1 / 2;
 }
 
 .create-node-service-doc-btn:disabled {
@@ -45344,7 +45367,7 @@ button.node-navigation-memory-title:focus-visible {
 
 @media (max-width: 520px) {
   .create-node-catalog-actions,
-  .create-node-service-docs-actions,
+  .create-node-service-docs-actions--cols-3,
   .create-node-shared-themes-actions,
   .create-node-actions.has-free-memory-option,
   .create-node-actions.has-manifest-option {
