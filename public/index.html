@@ -90,6 +90,26 @@
           </label>
           <p id="app-lock-error" class="app-lock-error hidden" role="alert"></p>
           <button id="app-lock-submit" class="app-lock-submit" type="submit">Войти</button>
+          <div class="app-lock-auth-links">
+            <button
+              id="app-lock-register-btn"
+              class="app-lock-auth-link"
+              type="button"
+              disabled
+              title="Скоро"
+            >
+              Регистрация
+            </button>
+            <button
+              id="app-lock-forgot-btn"
+              class="app-lock-auth-link"
+              type="button"
+              disabled
+              title="Скоро"
+            >
+              Забыли пароль?
+            </button>
+          </div>
         </form>
         <button
           id="app-lock-biometric-btn"
@@ -100,6 +120,100 @@
         >
           Face ID / Touch ID
         </button>
+        <section id="app-lock-scanner" class="app-lock-scanner hidden" aria-label="USB-сканер отпечатка" hidden>
+          <div class="app-lock-scanner-head">
+            <div class="app-lock-scanner-title-wrap">
+              <svg class="app-lock-scanner-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M4 7h16v10H4V7zm2 2v6h12V9H6zm-1 9h14v1H5v-1z"/>
+                <circle cx="12" cy="12" r="2.2" fill="currentColor"/>
+              </svg>
+              <strong class="app-lock-scanner-title">USB-сканер</strong>
+            </div>
+            <span id="app-lock-scanner-badge" class="app-lock-scanner-badge">Mock · SQLite</span>
+          </div>
+          <p id="app-lock-scanner-lead" class="app-lock-scanner-lead">Своё распознавание на сервере, без Touch ID Mac.</p>
+          <p id="app-lock-scanner-status" class="app-lock-scanner-status">Проверка…</p>
+          <div id="app-lock-scanner-progress" class="app-lock-scanner-progress hidden" aria-live="polite"></div>
+          <button id="app-lock-scanner-action" class="app-lock-scanner-action" type="button">
+            Сканировать палец
+          </button>
+          <p id="app-lock-scanner-footnote" class="app-lock-scanner-footnote">
+            Демо без USB: 3 скана при привязке, шаблон в <code>.agent-cms/fingerprint-scanner.sqlite</code>.
+          </p>
+        </section>
+        <p id="app-lock-bio-hint" class="app-lock-bio-hint hidden" hidden>
+          <strong>Как работает вход на Mac:</strong>
+          зелёная кнопка → macOS «Продолжить» → иногда пароль <em>MacBook</em> в окне «Пароли».
+          Touch ID может <em>не появиться отдельно</em> — macOS принимает пароль Mac вместо отпечатка. Это нормально.
+        </p>
+        <div class="app-lock-bio-legend" aria-label="Способы входа">
+          <div class="app-lock-bio-legend-item app-lock-bio-legend-item--active">
+            <div class="app-lock-bio-legend-icon app-lock-bio-legend-icon--touch" title="Touch ID — отпечаток на кнопке питания Mac">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 4a8 8 0 0 0-8 8v1"/>
+                <path d="M20 13v-1a8 8 0 0 0-2.34-5.66"/>
+                <path d="M12 7a5 5 0 0 0-5 5v3"/>
+                <path d="M17 12a5 5 0 0 0-1.46-3.54"/>
+                <path d="M12 10a2 2 0 0 0-2 2v2"/>
+                <path d="M14 12a2 2 0 0 0-1-1.73"/>
+                <path d="M9 16v-1"/>
+                <path d="M15 16v-1"/>
+                <path d="M6 16v-1"/>
+                <path d="M18 16v-1"/>
+                <path d="M12 19v-1"/>
+              </svg>
+            </div>
+            <span class="app-lock-bio-legend-name">Touch ID</span>
+            <span class="app-lock-bio-legend-device">Mac · палец</span>
+          </div>
+          <div class="app-lock-bio-legend-item">
+            <div class="app-lock-bio-legend-icon app-lock-bio-legend-icon--face" title="Face ID — скан лица на iPhone / iPad">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+                <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                <circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none"/>
+                <circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none"/>
+                <path d="M12 11v3"/>
+                <path d="M9.5 16.5a3 3 0 0 0 5 0"/>
+              </svg>
+            </div>
+            <span class="app-lock-bio-legend-name">Face ID</span>
+            <span class="app-lock-bio-legend-device">iPhone · лицо</span>
+          </div>
+          <div class="app-lock-bio-legend-item">
+            <div class="app-lock-bio-legend-icon app-lock-bio-legend-icon--optic" title="Optic ID — скан радужки на Vision Pro">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12c0 0 3.5-6 10-6s10 6 10 6-3.5 6-10 6-10-6-10-6z" />
+                <circle cx="12" cy="12" r="3" />
+                <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+            <span class="app-lock-bio-legend-name">Optic ID</span>
+            <span class="app-lock-bio-legend-device">Vision Pro · глаз</span>
+          </div>
+          <div class="app-lock-bio-legend-item app-lock-bio-legend-item--soon">
+            <div class="app-lock-bio-legend-icon app-lock-bio-legend-icon--qr" title="QR-код — вход по ссылке с телефона">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="4" width="6" height="6" rx="1"/>
+                <rect x="14" y="4" width="6" height="6" rx="1"/>
+                <rect x="4" y="14" width="6" height="6" rx="1"/>
+                <path d="M7 7h.01"/>
+                <path d="M17 7h.01"/>
+                <path d="M7 17h.01"/>
+                <path d="M14 14h.01"/>
+                <path d="M18 14h2"/>
+                <path d="M14 18h2"/>
+                <path d="M18 18h.01"/>
+                <path d="M20 18v2"/>
+                <path d="M14 20h2"/>
+              </svg>
+            </div>
+            <span class="app-lock-bio-legend-name">QR-код</span>
+            <span class="app-lock-bio-legend-device">По ссылке</span>
+          </div>
+        </div>
         <p id="app-lock-footnote" class="app-lock-footnote">Логин и пароль задаются в файле <code>.env</code> в корне проекта.</p>
       </div>
     </div>
@@ -4033,7 +4147,7 @@
     <script src="/vendor/mammoth.browser.min.js"></script>
     <script src="/vendor/xlsx.full.min.js"></script>
     <script src="/document-viewer.js?v=1"></script>
-    <script src="/app-lock.js?v=5"></script>
+    <script src="/app-lock.js?v=12"></script>
     <script src="/connection-status.js?v=1"></script>
     <script src="/semantic-index-panel.js?v=8"></script>
     <script src="/file-find-bar.js?v=2"></script>

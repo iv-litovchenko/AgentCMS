@@ -38,6 +38,8 @@ const {
   resolveSidecarAbsoluteFromSourceAbsolute
 } = require("./sidecar-service");
 const { parseCsvText } = require("./awn-data-csv");
+const { createAppLockPasskeyService } = require("./lib/app-lock-passkey");
+const { createFingerprintScannerService } = require("./lib/fingerprint-scanner/service");
 const {
   READ_STATE_FILE,
   READ_CONTENT_FILE,
@@ -790,6 +792,30 @@ async function saveAppLockCredentials(login, password) {
     [APP_LOCK_LOGIN_KEY]: String(login || "").trim(),
     [APP_LOCK_PASSWORD_KEY]: String(password || "")
   });
+}
+
+let appLockPasskeyService = null;
+
+function getAppLockPasskeyService() {
+  if (!appLockPasskeyService) {
+    appLockPasskeyService = createAppLockPasskeyService({
+      projectRoot: getProjectRoot(),
+      verifyCredentials: verifyAppLockCredentials
+    });
+  }
+  return appLockPasskeyService;
+}
+
+let fingerprintScannerService = null;
+
+function getFingerprintScannerService() {
+  if (!fingerprintScannerService) {
+    fingerprintScannerService = createFingerprintScannerService({
+      projectRoot: getProjectRoot(),
+      verifyCredentials: verifyAppLockCredentials
+    });
+  }
+  return fingerprintScannerService;
 }
 
 function sendJson(res, statusCode, payload) {
@@ -22585,7 +22611,8 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/app-lock/status") {
     try {
       const status = await getAppLockStatus();
-      return sendJson(res, 200, status);
+      const passkeyStatus = await getAppLockPasskeyService().getStatus();
+      return sendJson(res, 200, { ...status, ...passkeyStatus });
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read app lock config",
@@ -22639,6 +22666,159 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Не удалось сохранить пароль",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/app-lock/passkey/register/options") {
+    try {
+      const payload = await readJsonBody(req, 32_000);
+      const login = String(payload?.login || "").trim();
+      const password = String(payload?.password || "");
+      if (!login || !password) {
+        return sendJson(res, 400, { error: "Missing login or password" });
+      }
+      const options = await getAppLockPasskeyService().createRegistrationOptions(req, login, password);
+      return sendJson(res, 200, options);
+    } catch (error) {
+      return sendJson(res, error?.statusCode || 500, {
+        error: error?.message || "Failed to create passkey options",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/app-lock/passkey/register/verify") {
+    try {
+      const payload = await readJsonBody(req, 128_000);
+      const login = String(payload?.login || "").trim();
+      const password = String(payload?.password || "");
+      if (!login || !password) {
+        return sendJson(res, 400, { error: "Missing login or password" });
+      }
+      const result = await getAppLockPasskeyService().verifyRegistration(req, login, password, payload);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, error?.statusCode || 500, {
+        error: error?.message || "Failed to verify passkey registration",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/app-lock/passkey/auth/options") {
+    try {
+      const options = await getAppLockPasskeyService().createAuthenticationOptions(req);
+      return sendJson(res, 200, options);
+    } catch (error) {
+      return sendJson(res, error?.statusCode || 500, {
+        error: error?.message || "Failed to create passkey auth options",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/app-lock/passkey/auth/verify") {
+    try {
+      const payload = await readJsonBody(req, 128_000);
+      const result = await getAppLockPasskeyService().verifyAuthentication(req, payload);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, error?.statusCode || 500, {
+        error: error?.message || "Failed to verify passkey authentication",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/fingerprint-scanner/status") {
+    try {
+      const login = String(url.searchParams.get("login") || "").trim() || null;
+      return sendJson(res, 200, getFingerprintScannerService().getStatus(login));
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read fingerprint scanner status",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/fingerprint-scanner/enroll/start") {
+    try {
+      const payload = await readJsonBody(req, 32_000);
+      const login = String(payload?.login || "").trim();
+      const password = String(payload?.password || "");
+      if (!login || !password) {
+        return sendJson(res, 400, { error: "Missing login or password" });
+      }
+      const result = await getFingerprintScannerService().startEnroll(login, password);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, error?.statusCode || 500, {
+        error: error?.message || "Failed to start fingerprint enroll",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/fingerprint-scanner/enroll/scan") {
+    try {
+      const payload = await readJsonBody(req, 32_000);
+      const sessionId = String(payload?.sessionId || "").trim();
+      if (!sessionId) return sendJson(res, 400, { error: "Missing sessionId" });
+      const result = await getFingerprintScannerService().captureEnrollScan(sessionId);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, error?.statusCode || 500, {
+        error: error?.message || "Failed to capture enroll scan",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/fingerprint-scanner/enroll/finish") {
+    try {
+      const payload = await readJsonBody(req, 32_000);
+      const sessionId = String(payload?.sessionId || "").trim();
+      if (!sessionId) return sendJson(res, 400, { error: "Missing sessionId" });
+      const result = await getFingerprintScannerService().finishEnroll(sessionId);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, error?.statusCode || 500, {
+        error: error?.message || "Failed to finish fingerprint enroll",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/fingerprint-scanner/verify/scan") {
+    try {
+      const payload = await readJsonBody(req, 32_000);
+      const loginHint = String(payload?.login || "").trim() || null;
+      const result = await getFingerprintScannerService().verifyScan(loginHint);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, error?.statusCode || 500, {
+        error: error?.message || "Failed to verify fingerprint scan",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/fingerprint-scanner/reset") {
+    try {
+      const payload = await readJsonBody(req, 32_000);
+      const login = String(payload?.login || "").trim();
+      const password = String(payload?.password || "");
+      if (!login || !password) {
+        return sendJson(res, 400, { error: "Missing login or password" });
+      }
+      const result = await getFingerprintScannerService().resetEnroll(login, password);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, error?.statusCode || 500, {
+        error: error?.message || "Failed to reset fingerprint templates",
         details: String(error?.message || error)
       });
     }

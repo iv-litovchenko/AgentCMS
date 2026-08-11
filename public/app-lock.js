@@ -14,11 +14,15 @@
   const confirmNode = document.getElementById("app-lock-confirm");
   const errorNode = document.getElementById("app-lock-error");
   const submitNode = document.getElementById("app-lock-submit");
+  const biometricBtn = document.getElementById("app-lock-biometric-btn");
+  const biometricLabelNode = document.getElementById("app-lock-biometric-label");
   const logoutBtn = document.getElementById("app-lock-logout-btn");
 
   let unlockResolve = null;
   let mode = "login";
   let lockActive = false;
+  let passkeyRegistered = false;
+  let webAuthnSupported = false;
 
   const unlockPromise = new Promise((resolve) => {
     unlockResolve = resolve;
@@ -48,10 +52,101 @@
     }
   }
 
+  function bufferToBase64URL(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let str = "";
+    for (const byte of bytes) str += String.fromCharCode(byte);
+    return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+
+  function base64URLToBuffer(base64url) {
+    const base64 = String(base64url || "").replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  function prepareRegistrationOptions(options) {
+    return {
+      ...options,
+      challenge: base64URLToBuffer(options.challenge),
+      user: {
+        ...options.user,
+        id: base64URLToBuffer(options.user.id)
+      },
+      excludeCredentials: (options.excludeCredentials || []).map((cred) => ({
+        ...cred,
+        id: base64URLToBuffer(cred.id)
+      }))
+    };
+  }
+
+  function prepareAuthenticationOptions(options) {
+    return {
+      ...options,
+      challenge: base64URLToBuffer(options.challenge),
+      allowCredentials: (options.allowCredentials || []).map((cred) => ({
+        ...cred,
+        id: base64URLToBuffer(cred.id)
+      }))
+    };
+  }
+
+  function credentialToJSON(credential) {
+    const response = credential.response;
+    const payload = {
+      id: credential.id,
+      rawId: bufferToBase64URL(credential.rawId),
+      type: credential.type,
+      response: {
+        clientDataJSON: bufferToBase64URL(response.clientDataJSON)
+      }
+    };
+
+    if (response.attestationObject) {
+      payload.response.attestationObject = bufferToBase64URL(response.attestationObject);
+      if (typeof credential.getTransports === "function") {
+        payload.response.transports = credential.getTransports();
+      }
+    }
+
+    if (response.authenticatorData) {
+      payload.response.authenticatorData = bufferToBase64URL(response.authenticatorData);
+      payload.response.signature = bufferToBase64URL(response.signature);
+      if (response.userHandle) {
+        payload.response.userHandle = bufferToBase64URL(response.userHandle);
+      }
+    }
+
+    return payload;
+  }
+
+  function detectWebAuthnSupport() {
+    return Boolean(window.PublicKeyCredential && navigator.credentials);
+  }
+
+  function getBiometricLabel() {
+    if (!passkeyRegistered) return "Face ID / Touch ID";
+    return "Войти по Face ID / Touch ID";
+  }
+
   function updateLogoutButton() {
     if (!logoutBtn) return;
     const show = lockActive && mode === "login" && isSessionUnlocked();
     logoutBtn.classList.toggle("hidden", !show);
+  }
+
+  function updateBiometricButton() {
+    if (!biometricBtn) return;
+    const show = mode === "login";
+    biometricBtn.classList.toggle("hidden", !show);
+    biometricBtn.disabled = true;
+    biometricBtn.title = "Скоро";
+    if (biometricLabelNode) {
+      biometricLabelNode.textContent = "Face ID / Touch ID";
+    }
   }
 
   function setError(message = "") {
@@ -69,6 +164,11 @@
       return;
     }
     submitNode.textContent = isSubmitting ? "Проверка…" : "Войти";
+  }
+
+  function setBiometricSubmitting() {
+    if (!biometricBtn) return;
+    biometricBtn.disabled = true;
   }
 
   function setMode(nextMode) {
@@ -101,7 +201,9 @@
     }
 
     setSubmitting(false);
+    setBiometricSubmitting(false);
     updateLogoutButton();
+    updateBiometricButton();
   }
 
   function hideLockScreen() {
@@ -123,7 +225,14 @@
     lockNode?.classList.remove("hidden");
     document.body.classList.add("app-locked");
     updateLogoutButton();
-    window.setTimeout(() => loginNode?.focus(), 60);
+    updateBiometricButton();
+    window.setTimeout(() => {
+      if (passkeyRegistered && biometricBtn && !biometricBtn.classList.contains("hidden")) {
+        biometricBtn.focus();
+        return;
+      }
+      loginNode?.focus();
+    }, 60);
   }
 
   function completeUnlock() {
@@ -181,6 +290,113 @@
     return data;
   }
 
+  async function registerPasskey(login, password) {
+    const optionsResponse = await fetch("/api/app-lock/passkey/register/options", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login, password })
+    });
+    const optionsData = await optionsResponse.json().catch(() => ({}));
+    if (!optionsResponse.ok) {
+      throw new Error(optionsData.error || "Не удалось начать привязку Touch ID");
+    }
+
+    const credential = await navigator.credentials.create({
+      publicKey: prepareRegistrationOptions(optionsData)
+    });
+    if (!credential) {
+      throw new Error("Touch ID не подтверждён");
+    }
+
+    const verifyResponse = await fetch("/api/app-lock/passkey/register/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        login,
+        password,
+        ...credentialToJSON(credential)
+      })
+    });
+    const verifyData = await verifyResponse.json().catch(() => ({}));
+    if (!verifyResponse.ok) {
+      throw new Error(verifyData.error || "Не удалось сохранить Touch ID");
+    }
+
+    passkeyRegistered = true;
+    updateBiometricButton();
+    setMode("login");
+  }
+
+  async function maybeOfferPasskeyRegistration(login, password) {
+    if (!webAuthnSupported || passkeyRegistered) return;
+    const shouldRegister = window.confirm(
+      "Привязать Touch ID / Face ID для быстрого входа на этом Mac?"
+    );
+    if (!shouldRegister) return;
+    try {
+      await registerPasskey(login, password);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не удалось привязать Touch ID";
+      window.alert(message);
+    }
+  }
+
+  async function loginWithPasskey() {
+    if (!webAuthnSupported) {
+      setError("Touch ID работает в Safari или Chrome: откройте http://127.0.0.1:3000");
+      return;
+    }
+
+    if (!passkeyRegistered) {
+      setError("Сначала войдите паролем — появится предложение привязать Face ID / Touch ID");
+      passwordNode?.focus();
+      return;
+    }
+
+    setError("");
+    setBiometricSubmitting(true);
+    try {
+      const optionsResponse = await fetch("/api/app-lock/passkey/auth/options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      const optionsData = await optionsResponse.json().catch(() => ({}));
+      if (!optionsResponse.ok) {
+        throw new Error(optionsData.error || "Touch ID недоступен");
+      }
+
+      const credential = await navigator.credentials.get({
+        publicKey: prepareAuthenticationOptions(optionsData)
+      });
+      if (!credential) {
+        throw new Error("Touch ID не подтверждён");
+      }
+
+      const verifyResponse = await fetch("/api/app-lock/passkey/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentialToJSON(credential))
+      });
+      const verifyData = await verifyResponse.json().catch(() => ({}));
+      if (!verifyResponse.ok) {
+        throw new Error(verifyData.error || "Touch ID не принят");
+      }
+
+      if (loginNode) loginNode.value = "";
+      if (passwordNode) passwordNode.value = "";
+      completeUnlock();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
+        setError("Touch ID отменён");
+      } else {
+        setError(error instanceof Error ? error.message : "Ошибка Touch ID");
+      }
+    } finally {
+      setBiometricSubmitting(false);
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
@@ -220,6 +436,7 @@
         if (loginNode) loginNode.value = "";
         if (passwordNode) passwordNode.value = "";
         if (confirmNode) confirmNode.value = "";
+        await maybeOfferPasskeyRegistration(login, password);
         completeUnlock();
       } catch (error) {
         setError(error instanceof Error ? error.message : "Ошибка сохранения");
@@ -233,6 +450,7 @@
     setSubmitting(true);
     try {
       await verifyCredentials(login, password);
+      await maybeOfferPasskeyRegistration(login, password);
       if (loginNode) loginNode.value = "";
       if (passwordNode) passwordNode.value = "";
       completeUnlock();
@@ -246,6 +464,8 @@
   }
 
   async function boot() {
+    webAuthnSupported = detectWebAuthnSupport();
+
     if (!lockNode || !formNode) {
       unlockResolve?.();
       return;
@@ -262,6 +482,7 @@
     try {
       const status = await fetchLockStatus();
       lockActive = Boolean(status?.enabled || status?.needsSetup);
+      passkeyRegistered = Boolean(status?.passkeyRegistered);
 
       if (status?.needsSetup) {
         setMode("setup");
@@ -289,7 +510,8 @@
 
   window.agentAppLock = {
     whenUnlocked: () => unlockPromise,
-    logout
+    logout,
+    completeUnlock
   };
 
   void boot();
