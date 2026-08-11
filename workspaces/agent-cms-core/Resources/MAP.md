@@ -15,13 +15,13 @@ workspaces/agent-cms-test/
 ├── AGENTS.md                   ← этот файл
 ├── awn-data/                   ← ★ CMS-данные (tasks, taxonomies, cms-base, …)
 │   ├── cms-base/               ← entities, mixins, registry
-│   ├── editing-fields/         ← awn.field.*
 │   └── taxonomies/             ← справочники (tags, slot-categories, …)
-├── awn-system/                 ← ★ CMS-типы (pages, content, slots, md-blocks — YAML)
+├── awn-system/                 ← ★ CMS-типы (pages, content, slots, fields, md-blocks — YAML)
 │   └── types/
 │       ├── pages/              ← awn.page.*
 │       ├── content/            ← awn.content.*
 │       ├── slots/              ← awn.slot.*
+│       ├── fields/             ← awn.field.*
 │       └── md-blocks/          ← awn.block.*
 │
 ├── awn-container/              ← ★ КОНТЕНТ (дерево слева)

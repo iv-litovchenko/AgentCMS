@@ -18595,7 +18595,8 @@ async function handleApiForAgent(req, res, url) {
       const isStoreManifest = /\/manifest\.md$/i.test(normPath) || /\/manifest\.store\.md$/i.test(normPath);
       const isTypeFile =
         !isStoreManifest &&
-        /^awn-data\/(pages|content|slots|settings|cms-base\/(entities|mixins))\/.+\.md$/i.test(normPath);
+        (/^awn-data\/(pages|content|slots|settings|cms-base\/(entities|mixins))\/.+\.md$/i.test(normPath) ||
+          /^awn-system\/types\/.+\.ya?ml$/i.test(normPath));
       if (isTypeFile && content.trim()) {
         const { parseTypeYaml } = require("./awn-yaml-utils");
         let parsed;

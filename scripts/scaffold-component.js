@@ -4,7 +4,7 @@
  *
  *   node scripts/scaffold-component.js agent my-agent
  *
- * Поля — awn-data/editing-fields/fields/; страницы — awn-system/types/pages/; блоки — awn-system/types/md-blocks/.
+ * Поля — awn-system/types/fields/; страницы — awn-system/types/pages/; блоки — awn-system/types/md-blocks/.
  * После создания: awn-status: "🟢 Открыта" → появится в runtime
  */
 const fs = require("fs");
@@ -24,7 +24,7 @@ if (!kind || !slug || !KIND_FOLDER[kind]) {
 Kinds: ${Object.keys(KIND_FOLDER).join(", ")}
 Example: node scripts/scaffold-component.js agent my-agent
 
-Fields: awn-data/editing-fields/fields/<slug>.md`);
+Fields: awn-system/types/fields/{slug}.yml (node scripts/scaffold-type.js field <slug>).`);
   process.exit(1);
 }
 
@@ -37,7 +37,7 @@ if (kind === "block") {
 
 if (kind === "field") {
   console.error(
-    "Поля — awn-data/editing-fields/fields/{slug}.md (MCP create_data_record или вручную)."
+    "Поля — awn-system/types/fields/{slug}.yml (node scripts/scaffold-type.js field <slug>)."
   );
   process.exit(1);
 }

@@ -91,7 +91,6 @@ awn-data/
 ├── taxonomies/        group → внутри collection+csv
 ├── tasks/             collection → данные (§4)
 ├── templates/         collection → данные
-├── editing-fields/    group
 └── agent-registry/    group
 ```
 

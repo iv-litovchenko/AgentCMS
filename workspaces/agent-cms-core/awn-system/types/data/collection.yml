@@ -41,4 +41,4 @@ elements-schema:
 examples:
   - awn-system/types/pages/
   - awn-data/taxonomies/tags/
-  - awn-data/editing-fields/fields/
+  - awn-system/types/fields/

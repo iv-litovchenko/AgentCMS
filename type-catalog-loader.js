@@ -923,12 +923,12 @@ function loadFieldTypesFromCatalog(projectRoot, agentRoot = "") {
 
 function loadFieldDefFromCatalog(projectRoot, agentRoot = "") {
   const { byId } = loadTypeCatalog(projectRoot, agentRoot);
-  const base = byId.get("awn.field-def");
+  const base = byId.get("awn.field.base") || byId.get("awn.field-def");
   if (!base) return null;
   const merged = mergeTypeSchema(base, byId);
   if (!merged.properties) return null;
   return {
-    id: "awn.field-def",
+    id: base.id || "awn.field.base",
     name: merged.name || "Мета-свойства поля",
     description: merged.description || "",
     properties: merged.properties

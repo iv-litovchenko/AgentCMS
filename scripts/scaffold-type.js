@@ -14,14 +14,14 @@ const DOMAIN_META = {
   field: {
     folder: "fields",
     id: (s) => `awn.${s}`,
-    extends: "awn.field-def",
+    extends: "awn.field.base",
     kind: "field",
     body: (id, title) => `id: ${id}
 name: ${title}
 kind: field
 domain: fields
 status: draft
-extends: awn.field-def
+extends: awn.field.base
 widget: input
 storage: string
 mdbase: string

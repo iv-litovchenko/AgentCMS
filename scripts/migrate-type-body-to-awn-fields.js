@@ -9,7 +9,6 @@ const path = require("path");
 const AWN_DATA = path.join(process.cwd(), "workspaces/agent-cms-core/awn-data");
 
 const SKIP = new Set([
-  "editing-fields/field-def/main.md",
   "cms-base/entities/table.base.md"
 ]);
 

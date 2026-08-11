@@ -76392,6 +76392,32 @@ function buildNewTypeYaml(domain, slug, displayName, domainKind = null) {
   return `${fm.join("\n")}${body.join("\n")}\n`;
 }
 
+function buildNewFieldTypeYaml(slug, displayName) {
+  const typeId = `awn.field.${slug}`;
+  return [
+    `id: ${typeId}`,
+    `name: ${JSON.stringify(displayName)}`,
+    "kind: field",
+    "domain: fields",
+    "extends: awn.field.base",
+    "widget: input",
+    "storage: string",
+    `mdbase: ${slug}`,
+    'description: ""',
+    "settings: [hint, required, default]",
+    "group: misc",
+    "sort: 99",
+    "status: draft",
+    ""
+  ].join("\n");
+}
+
+function resolveNewTypeFilePath(domain, slug) {
+  if (domain === "fields") return `awn-system/types/fields/${slug}.yml`;
+  const store = AWN_DATA_TYPE_STORE[domain] || domain;
+  return `awn-data/${store}/${slug}.md`;
+}
+
 async function createStarterRenderer(relPath, title) {
   const norm = String(relPath || "").replace(/\\/g, "/");
   if (!/^awn-system\/renderers\/[A-Za-z0-9_-]+\.js$/.test(norm)) {
@@ -76502,12 +76528,11 @@ function showNewTypeInlineForm(domain, triggerBtn, domainKind = null) {
     }
     confirmBtn.disabled = true;
     confirmBtn.textContent = "…";
-    const store = AWN_DATA_TYPE_STORE[domain] || domain;
-    const filePath =
+    const filePath = resolveNewTypeFilePath(domain, slug);
+    const content =
       domain === "fields"
-        ? `awn-data/editing-fields/fields/${slug}.md`
-        : `awn-data/${store}/${slug}.md`;
-    const content = buildNewTypeYaml(domain, slug, displayName, domainKind);
+        ? buildNewFieldTypeYaml(slug, displayName)
+        : buildNewTypeYaml(domain, slug, displayName, domainKind);
     try {
       const resp = await fetch(buildApiUrl("/api/agent-system/file"), {
         method: "POST",

@@ -10,16 +10,13 @@ const OLD = "awn-data/cms-base/entities/table-base/manifest.md";
 
 const TYPE_STORES = new Set([
   "cms-base/entities/manifest.md",
-  "settings/manifest.md",
-  "editing-fields/fields/manifest.md",
-  "editing-fields/groups/manifest.md"
+  "settings/manifest.md"
 ]);
 
 const DATA_STORES = new Set([
   "tasks/manifest.md",
   "templates/manifest.md",
   "settings-global/manifest.md",
-  "editing-fields/field-def/manifest.md",
   "agent-registry/agents/manifest.md",
   "agent-registry/agent-groups/manifest.md",
   "taxonomies/categories/manifest.md",

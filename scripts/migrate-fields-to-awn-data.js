@@ -1,6 +1,8 @@
+#!/usr/bin/env node
 /**
- * @deprecated Legacy YAML removed — edit awn-data/editing-fields/ directly.
- * Kept as no-op stub; exits with message if run.
+ * Deprecated: awn-data/editing-fields/ removed.
+ * Source of truth: awn-system/types/fields/ (YAML).
  */
-console.log("migrate-fields-to-awn-data: deprecated — edit awn-data/editing-fields/ directly.");
-process.exit(0);
+console.log(
+  "migrate-fields-to-awn-data: deprecated — edit awn-system/types/fields/ directly"
+);

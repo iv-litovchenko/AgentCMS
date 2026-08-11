@@ -8,7 +8,7 @@ YAML-типы CMS platform core и агента. Loader: `type-catalog-loader.js
 | pages/ | `awn.page.*` | ws, section, **area**, topic |
 | content/ | `awn.content.*` | `_base`, record, category, sidecar, dialog, comment |
 | slots/ | `awn.slot.*` | `single-file/`, `multi-file/`, `multi-file/system/`; категории — `slot-categories.yml` |
-| fields/ | `awn.field.*` | `groups.yml` + group/sort на каждом типе; legacy — `awn-data/editing-fields/` |
+| fields/ | `awn.field.*` | `groups.yml` + group/sort на каждом типе |
 | mixins/ | `awn.mixin.*` | runtime (active); preview/web-url/attachments — deprecated |
 
 ## Наследование pages / content (schema-first UI)
