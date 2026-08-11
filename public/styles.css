@@ -45295,8 +45295,8 @@ button.node-navigation-memory-title:focus-visible {
   text-align: left;
 }
 
-.create-node-service-doc-btn--solo {
-  grid-column: 1 / 2;
+.create-node-service-doc-btn--full {
+  grid-column: 1 / -1;
 }
 
 .create-node-service-doc-btn:disabled {
