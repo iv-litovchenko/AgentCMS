@@ -421,6 +421,7 @@ const SYSTEM_FILE_NAMES = [
   "AGENTS.md",
   "AUTH.md",
   "BOOTSTRAP.md",
+  "ONBOARDING.md",
   "SKILL.md",
   AWN_DEPENDENCIES_FILE,
   "docker-compose.yml",

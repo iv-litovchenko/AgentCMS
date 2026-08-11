@@ -1248,6 +1248,7 @@ const MENU_TREE_VISIBLE_SYSTEM_MD = new Set([
   "AGENTS.md",
   "AUTH.md",
   "BOOTSTRAP.md",
+  "ONBOARDING.md",
   "SKILL.md",
   ROOT_SYSTEM_NOTE_FILE,
   ROOT_SYSTEM_TODO_FILE,
@@ -1257,6 +1258,7 @@ const SYSTEM_FILE_TO_CHPU_PATH = {
   "AGENTS.md": "AGENTS",
   "AUTH.md": "AUTH",
   "BOOTSTRAP.md": "BOOTSTRAP",
+  "ONBOARDING.md": "ONBOARDING",
   "SKILL.md": "SKILL",
   "NOTE.md": "NOTE",
   "TODO.md": "TODO",
@@ -1278,6 +1280,7 @@ const SYSTEM_FILE_SCAFFOLD_FALLBACK = [
   { name: "AGENTS.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "AUTH.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "BOOTSTRAP.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
+  { name: "ONBOARDING.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "SKILL.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "awn-dependencies.json", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "docker-compose.yml", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
@@ -22418,6 +22421,9 @@ function getDefaultSystemFileScaffoldContent(name) {
   }
   if (normalized === "BOOTSTRAP.md") {
     return "# Bootstrap\n\n> Первичная настройка и загрузка workspace.\n";
+  }
+  if (normalized === "ONBOARDING.md") {
+    return "# Onboarding\n\n> Первое знакомство с workspace: кто вы, кто агент, с чего начать.\n";
   }
   if (normalized === "SKILL.md") {
     return RECOMMENDED_SKILL_MD_TEMPLATE;
@@ -75896,6 +75902,7 @@ function normalizeSystemFileName(name) {
   if (lower === "agents.md" || lower === "agents") return "AGENTS.md";
   if (lower === "auth.md" || lower === "auth") return "AUTH.md";
   if (lower === "bootstrap.md" || lower === "bootstrap") return "BOOTSTRAP.md";
+  if (lower === "onboarding.md" || lower === "onboarding") return "ONBOARDING.md";
   if (lower === "skill.md" || lower === "skill") return "SKILL.md";
   if (lower === "readme.md" || lower === "readme") return "README.md";
   if (lower === ".env" || lower === "env") return ".env";
