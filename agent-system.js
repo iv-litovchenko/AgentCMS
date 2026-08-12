@@ -10,7 +10,8 @@ const {
 const {
   getTypeCatalogPayload,
   resolveAgentDomainManifest,
-  loadTypeCatalog
+  loadTypeCatalog,
+  isFoundationType
 } = require("./type-catalog-loader");
 const { cmsConfigExists, DOMAIN_TYPE_STORES } = require("./awn-data-types-bridge");
 const {
@@ -142,12 +143,7 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
 
     const mapEntryToItem = (entry) => {
       const schema = entry.schema || {};
-      const isFoundation =
-        schema.kind === "entity" ||
-        schema.kind === "base" ||
-        schema.kind === "table" ||
-        schema.kind === "row" ||
-        /\/(base|table\.base|row\.base|_base|entity)$/i.test(entry.relPath || entry.fileName || "");
+      const isFoundation = isFoundationType(entry);
       return {
         label: isFoundation ? `${schema.name || entry.id} (база)` : schema.name || entry.id,
         path: entry.catalogFile || `${configRel}/${domain}/${entry.fileName}.md`,

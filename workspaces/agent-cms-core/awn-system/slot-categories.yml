@@ -9,7 +9,7 @@ categories:
   - id: files
     name: Файлы
     sort: 2
-    description: Медиа, активы, скрипты, шаблоны, база, артефакты, репозитории
+    description: Медиа, активы, скрипты, шаблоны, база, NotebookLM, артефакты, репозитории
   - id: single-file
     name: Однофайловая
     sort: 3

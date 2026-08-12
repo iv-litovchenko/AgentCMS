@@ -190,6 +190,17 @@
         }
       },
       {
+        slotKey: "notebooklm",
+        label: "NotebookLM",
+        tabGroup: "files",
+        defaultKind: "record",
+        targets: {
+          record: { id: "slot_notebooklm" },
+          category: { id: "slot_notebooklm_category" },
+          sidecar: { id: "slot_notebooklm_sidecar" }
+        }
+      },
+      {
         slotKey: "todo-single",
         label: "TODO",
         tabGroup: "todo",

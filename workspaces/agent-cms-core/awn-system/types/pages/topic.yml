@@ -21,5 +21,6 @@ storage-slots:
   - scripts
   - templates
   - base
+  - notebooklm
   - todo-single
   - log-single

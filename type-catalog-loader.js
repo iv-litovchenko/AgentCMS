@@ -329,6 +329,9 @@ function isTypeActive(entry) {
 
 function isCatalogType(entry) {
   if (!entry || !isTypeActive(entry)) return false;
+  if (entry.domain === "slots" && entry.kind === "slot" && entry.fileName !== "_base" && entry.id !== "awn.slot") {
+    return true;
+  }
   const baseNames = new Set(["_base", "base", "table.base", "row.base"]);
   if (baseNames.has(entry.fileName)) return false;
   if (entry.kind === "entity" || entry.kind === "base" || entry.kind === "table" || entry.kind === "row" || entry.kind === "component") return false;
@@ -582,6 +585,9 @@ function getTypeCatalogPayload(projectRoot = process.cwd(), agentRoot = "", opti
 
 function isFoundationType(entry) {
   if (!entry || !isTypeActive(entry)) return false;
+  if (entry.domain === "slots") {
+    return entry.fileName === "_base" || entry.id === "awn.slot";
+  }
   if (entry.kind === "entity" || entry.kind === "base" || entry.kind === "table" || entry.kind === "row") return true;
   const baseNames = new Set(["_base", "base", "table.base", "row.base"]);
   return baseNames.has(entry.fileName);

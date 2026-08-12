@@ -1,0 +1,17 @@
+id: awn.slot.notebooklm
+name: NotebookLM
+kind: slot
+domain: slots
+status: active
+extends: awn.slot
+slot-category: files
+storage-driver: external
+description: Материалы и заметки из NotebookLM
+path: notebooklm/
+slot-order: 14
+allowed-content:
+  - awn.content.record
+  - awn.content.category
+  - awn.content.sidecar
+accept-files:
+  - "*"

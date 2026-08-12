@@ -29086,6 +29086,60 @@ button.node-navigation-hub-rail-slot-summary {
   min-width: 0;
 }
 
+.node-navigation-workspace-outside-slots-row {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-item--outside-slots {
+  width: 100%;
+  min-width: 0;
+}
+
+.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-card--outside-slots {
+  width: 100%;
+}
+
+.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 0;
+  padding: 8px 14px;
+  text-align: left;
+}
+
+.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter-value {
+  flex: 0 0 auto;
+  font-size: 16px;
+}
+
+.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter-label--stacked {
+  flex: 1 1 auto;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  text-align: left;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter-label-hint {
+  flex: 0 1 auto;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-card--outside-slots .stub-static-mark {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .node-navigation-workspace-counter-card--outside-slots,
 .node-navigation-workspace-counter-card--static-stub {
   height: auto;

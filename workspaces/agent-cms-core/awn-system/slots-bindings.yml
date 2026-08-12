@@ -54,6 +54,10 @@ bindings:
     path: base/
     content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
+  notebooklm:
+    path: notebooklm/
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
+    files: ["*"]
   todo-single:
     path: todo.md
     content: [awn.content.record, awn.content.category, awn.content.sidecar]
