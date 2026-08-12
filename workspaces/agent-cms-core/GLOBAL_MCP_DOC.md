@@ -425,6 +425,9 @@ razdel-1/
 | Профиль агента | `get_agent_identity` |
 | Профиль пользователя | `get_user_identity` |
 | Лента изменений | `list_recent_activity` |
+| Единая лента workspace | `list_workspace_feed` |
+| Аудит памяти (memory rot) | `audit_workspace_memory` |
+| Q&A по workspace | `ask_workspace` |
 | Запуск скрипта `.py`/`.js`/`.sh` | `run_script` |
 | Команда с args (git, npm, …) | `exec_command` |
 | Shell-строка (pipes, `&&`) | `exec_shell` |

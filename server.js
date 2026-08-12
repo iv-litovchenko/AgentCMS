@@ -37,6 +37,7 @@ const {
   toSidecarRelativePath,
   resolveSidecarAbsoluteFromSourceAbsolute
 } = require("./sidecar-service");
+const { createWorkspaceBrainService } = require("./workspace-brain-service");
 const { parseCsvText } = require("./awn-data-csv");
 const { createAppLockPasskeyService } = require("./lib/app-lock-passkey");
 const { createFingerprintScannerService } = require("./lib/fingerprint-scanner/service");
@@ -1580,6 +1581,26 @@ function getSidecarService() {
     });
   }
   return sidecarService;
+}
+
+let workspaceBrainService = null;
+function getWorkspaceBrainService() {
+  if (!workspaceBrainService) {
+    workspaceBrainService = createWorkspaceBrainService({
+      resolveAlwaysContextItemRel,
+      resolvePathAbsolute: normalizeWorkspacePath,
+      buildAgentAlwaysContextRegistry,
+      collectAgentTopicManifestPaths,
+      buildIntakeBatchSummary,
+      listWorkspaceActivityEvents,
+      getWorkspaceIndexMonitorPayload,
+      searchWorkspaceSemantic: (query, limit) =>
+        getSemanticSearchService().search(query, limit),
+      searchWorkspaceContent,
+      enrichSearchResults
+    });
+  }
+  return workspaceBrainService;
 }
 
 async function handleExecApiRequest(req, res, runner) {
@@ -9602,6 +9623,28 @@ const RUNTIME_CONTENT_SCAN_SLOTS = [
   { folder: STORAGE_SUBFOLDER_REPOSITORY, slot: "repository" }
 ];
 
+function resolveAlwaysContextItemRel(item) {
+  const kind = String(item?.entityKind || "").trim();
+  if (kind === "system") {
+    const ref = String(item.ref || item.displayPath || "").replace(/\\/g, "/").trim();
+    if (ref.startsWith("workspaces/")) return null;
+    return ref;
+  }
+  if (kind === "topic") {
+    return String(item.manifestPath || "").replace(/\\/g, "/").trim();
+  }
+  if (kind === "content") {
+    const manifestPath = String(item.manifestPath || "").replace(/\\/g, "/").trim();
+    const ref = String(item.ref || "").replace(/\\/g, "/").trim();
+    const slot = String(item.slot || "").trim();
+    if (!manifestPath || !ref) return String(item.displayPath || "").replace(/\\/g, "/").trim() || null;
+    const slotEntry = RUNTIME_CONTENT_SCAN_SLOTS.find((row) => row.slot === slot);
+    const folder = slotEntry?.folder || STORAGE_SUBFOLDER_CONTENT;
+    return buildStorageLayerRef(manifestPath, folder, ref);
+  }
+  return String(item.displayPath || "").replace(/\\/g, "/").trim() || null;
+}
+
 function runtimeEntityHasAnyFlag(entity) {
   return Boolean(
     entity?.runtimeLoadAlways || entity?.runtimeCron || entity?.runtimeHeartbeat || entity?.runtimeCommands
@@ -11002,6 +11045,9 @@ const SESSION_CONTEXT_API_MAP = {
   dialogs: "GET /api/dialogs?path=<manifest.md> (legacy: /api/thread)",
   inbox: "GET /api/inbox?path=<manifest.md>",
   topicIntake: "GET /api/topic/intake?path=<manifest.md>",
+  workspaceFeed: "GET /api/agent/workspace-feed?activityLimit=&staleDays= — list_workspace_feed MCP",
+  workspaceMemoryAudit: "GET /api/agent/workspace-memory-audit?staleDays= — audit_workspace_memory MCP",
+  workspaceAsk: "GET /api/agent/workspace-ask?q=&limit=&scopes=semantic,fulltext,always — ask_workspace MCP",
   adoptFolders:
     "GET /api/workspace/folder/adopt — [legacy] те же folder-узлы, что kind:folder в GET /api/agent/page-map",
   workspaceFolderUpload:
@@ -16910,6 +16956,70 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace activity",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-feed") {
+    try {
+      const activityLimitRaw = Number(url.searchParams.get("activityLimit"));
+      const staleDaysRaw = Number(url.searchParams.get("staleDays"));
+      const payload = await getWorkspaceBrainService().listWorkspaceFeed({
+        activityLimit: Number.isFinite(activityLimitRaw) && activityLimitRaw > 0 ? activityLimitRaw : 30,
+        staleDays: Number.isFinite(staleDaysRaw) && staleDaysRaw > 0 ? staleDaysRaw : 90,
+        includeIntake: url.searchParams.get("includeIntake") !== "false",
+        includeAuditSummary: url.searchParams.get("includeAuditSummary") !== "false"
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace feed",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-memory-audit") {
+    try {
+      const staleDaysRaw = Number(url.searchParams.get("staleDays"));
+      const payload = await getWorkspaceBrainService().auditWorkspaceMemory({
+        staleDays: Number.isFinite(staleDaysRaw) && staleDaysRaw > 0 ? staleDaysRaw : 90,
+        includeContentChecks: url.searchParams.get("includeContentChecks") !== "false"
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to audit workspace memory",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-ask") {
+    const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+    if (query.length < 2) {
+      return sendJson(res, 400, { error: "Missing q query parameter (min 2 chars)" });
+    }
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const scopesRaw = String(url.searchParams.get("scopes") || "").trim();
+      const scopes = scopesRaw
+        ? scopesRaw
+            .split(",")
+            .map((item) => item.trim().toLowerCase())
+            .filter(Boolean)
+        : undefined;
+      const payload = await getWorkspaceBrainService().askWorkspace({
+        query,
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 8,
+        scopes,
+        includeSnippets: url.searchParams.get("includeSnippets") !== "false"
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to ask workspace",
         details: String(error.message || error)
       });
     }
