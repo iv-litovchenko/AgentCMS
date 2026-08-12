@@ -101,8 +101,7 @@
   }
 
   function buildShellIframeUrl(agentId) {
-    const url = new URL("/shell/", window.location.origin);
-    url.searchParams.set("embed", "1");
+    const url = new URL("/shell", window.location.origin);
     if (agentId) url.searchParams.set("agent", agentId);
     return url.toString();
   }

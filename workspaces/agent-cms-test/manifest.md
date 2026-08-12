@@ -1,7 +1,7 @@
 ---
 title: Test MCP notify fix
 awn-attachments: []
-awn-status: open
+awn-status: 🟢 Открыта
 awn-emoji: ""
 awn-sort: 0
 awn-main: false
@@ -25,6 +25,7 @@ awn-preview: awn-storage/assets/preview/20260729221421.png
 awn-web-url: ""
 ws-1: few
 ---
+
 
 
 

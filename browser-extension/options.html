@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent Shell Companion — настройки</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        font: 14px/1.5 system-ui, sans-serif;
+        color: #1e1b4b;
+        background: #faf5ff;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 16px;
+        color: #4c1d95;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      input {
+        width: 100%;
+        max-width: 420px;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #c4b5fd;
+      }
+      .field {
+        margin-bottom: 16px;
+      }
+      button {
+        margin-top: 8px;
+        margin-right: 8px;
+        padding: 8px 14px;
+        border: 0;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #7c3aed, #c026d3);
+        color: #fff;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      #reset-btn {
+        background: #64748b;
+      }
+      #shell-url-preview {
+        display: block;
+        margin-top: 6px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #ede9fe;
+        color: #4c1d95;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        word-break: break-all;
+      }
+      #status {
+        margin-top: 12px;
+        min-height: 1.2em;
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Agent Shell Companion</h1>
+    <p>
+      Укажите <strong>базовый URL CMS</strong> (без <code>/shell</code>). Side Panel откроет Shell автоматически.
+    </p>
+
+    <div class="field">
+      <label for="cmsBaseUrl">Базовый URL Agent CMS</label>
+      <input id="cmsBaseUrl" type="url" placeholder="http://localhost:3000" />
+      <code id="shell-url-preview"></code>
+    </div>
+
+    <div class="field">
+      <label for="agentId">ID агента (необязательно)</label>
+      <input id="agentId" type="text" placeholder="оставьте пустым" />
+    </div>
+
+    <button id="save-btn" type="button">Сохранить</button>
+    <button id="reset-btn" type="button">Сброс: localhost:3000</button>
+    <div id="status" aria-live="polite"></div>
+
+    <script src="options.js"></script>
+  </body>
+</html>

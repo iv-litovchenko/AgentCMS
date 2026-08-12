@@ -1,10 +1,10 @@
 ---
-awn-id: agent-medcenter
-awn-created: "2026-08-02T20:00"
-awn-updated: "2026-08-02T21:00"
-awn-title: agent-medcenter
-awn-path: /Users/macbook/Desktop/agent-medcenter
-awn-environment: local
+id: agent-medcenter
+created: "2026-08-12T09:42"
+updated: "2026-08-12T09:42"
+title: agent-medcenter
+path: /Users/macbook/Desktop/agent-medcenter
+environment: local
 ---
 
 Workspace **agent-medcenter** · `/Users/macbook/Desktop/agent-medcenter`

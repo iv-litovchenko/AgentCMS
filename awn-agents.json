@@ -24,6 +24,10 @@
     {
       "path": "workspaces/test3",
       "environment": "local"
+    },
+    {
+      "path": "workspaces/school-vs",
+      "environment": "local"
     }
   ]
 }

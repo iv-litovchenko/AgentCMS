@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent Shell</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0f0a1e;
+      }
+      iframe {
+        border: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        background: #0f0a1e;
+      }
+      .sidepanel-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        background: rgba(15, 10, 30, 0.92);
+        border-top: 1px solid rgba(124, 58, 237, 0.35);
+        font: 12px/1.4 system-ui, sans-serif;
+        color: #ddd6fe;
+      }
+      .sidepanel-bar button,
+      .sidepanel-bar a {
+        appearance: none;
+        border: 1px solid rgba(167, 139, 250, 0.45);
+        background: rgba(124, 58, 237, 0.22);
+        color: #f5f3ff;
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .sidepanel-bar button:hover,
+      .sidepanel-bar a:hover {
+        background: rgba(124, 58, 237, 0.38);
+      }
+      #shell-url-label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        opacity: 0.85;
+        font-size: 11px;
+      }
+      #shell-frame {
+        height: calc(100% - 40px);
+      }
+    </style>
+  </head>
+  <body>
+    <iframe id="shell-frame" title="Agent Shell" allow="microphone; camera"></iframe>
+    <div class="sidepanel-bar">
+      <span id="shell-url-label" aria-live="polite"></span>
+      <button id="retry-btn" type="button">Обновить</button>
+      <a id="options-link" href="#">URL</a>
+    </div>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

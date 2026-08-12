@@ -51391,3 +51391,22 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-entry {
   overflow: visible;
 }
+
+.header-tool-btn--companion {
+  border-color: #c4b5fd;
+  background: linear-gradient(180deg, #faf5ff 0%, #f3e8ff 100%);
+  color: #5b21b6;
+  padding-inline: 8px;
+}
+
+.header-tool-btn--companion:hover {
+  border-color: #a78bfa;
+  background: #ede9fe;
+  color: #4c1d95;
+}
+
+.header-tool-btn-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+}

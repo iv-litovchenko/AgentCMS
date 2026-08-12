@@ -1,10 +1,10 @@
 ---
-awn-id: agent-cms-test
-awn-created: "2026-08-02T20:00"
-awn-updated: "2026-08-02T21:00"
-awn-title: agent-cms-test
-awn-path: workspaces/agent-cms-test
-awn-environment: local
+id: agent-cms-test
+created: "2026-08-12T09:42"
+updated: "2026-08-12T09:42"
+title: agent-cms-test
+path: workspaces/agent-cms-test
+environment: local
 ---
 
 Workspace **agent-cms-test** · `workspaces/agent-cms-test`

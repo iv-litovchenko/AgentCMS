@@ -1,10 +1,10 @@
 ---
-awn-id: downloads
-awn-created: "2026-08-02T20:00"
-awn-updated: "2026-08-02T21:00"
-awn-title: downloads
-awn-path: /Users/macbook/downloads
-awn-environment: local
+id: downloads
+created: "2026-08-12T09:42"
+updated: "2026-08-12T09:42"
+title: downloads
+path: /Users/macbook/downloads
+environment: local
 ---
 
 Workspace **downloads** · `/Users/macbook/downloads`

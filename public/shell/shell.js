@@ -3353,7 +3353,8 @@ async function boot() {
       applyWindowSettings({
         ...(state.windowSettings || {}),
         windowCompact: true,
-        windowBackground: "dark"
+        windowBackground: "dark",
+        windowTransparent: false
       });
     }
     await refreshStatus();

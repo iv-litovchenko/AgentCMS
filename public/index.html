@@ -346,6 +346,15 @@
               title="Маркетинговый сайт Agent CMS"
             >WEB</a>
             <button
+              id="companion-docs-btn"
+              class="header-tool-btn header-tool-btn--companion"
+              type="button"
+              title="Agent Shell Companion — расширение для Chrome"
+              aria-label="Agent Shell Companion — установка расширения для Chrome"
+            >
+              <img src="/assets/companion-brand-icon.svg" alt="" width="20" height="20" class="header-tool-btn-icon" aria-hidden="true" />
+            </button>
+            <button
               id="components-ideas-btn"
               class="header-tool-btn header-tool-btn--idea"
               type="button"
@@ -4144,6 +4153,19 @@
       </div>
     </div>
 
+    <div id="companion-docs-modal" class="modal-overlay hidden">
+      <div class="modal-card md-showcase-card">
+        <div class="md-showcase-header docs-modal-header">
+          <div>
+            <div class="modal-message" id="companion-docs-title">Agent Shell Companion</div>
+            <p id="companion-docs-subtitle" class="md-showcase-subtitle">Расширение Chrome · Side Panel + команды на любой странице</p>
+          </div>
+          <button id="companion-docs-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div id="companion-docs-content" class="md-showcase-content file-content-preview"></div>
+      </div>
+    </div>
+
     <div id="mcp-docs-modal" class="modal-overlay hidden">
       <div class="modal-card api-docs-card mcp-docs-card">
         <div class="api-docs-header docs-modal-header">
@@ -4186,6 +4208,7 @@
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
     <script src="/main.js?v=0.5.699"></script>
     <script src="/discuss-panel.js?v=0.5.235"></script>
+    <script src="/companion-docs.js?v=3"></script>
     <script src="/app-home-title-rotator.js?v=13"></script>
   </body>
   </html>
