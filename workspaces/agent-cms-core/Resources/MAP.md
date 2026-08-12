@@ -16,7 +16,8 @@ workspaces/agent-cms-test/
 ├── awn-data/                   ← ★ CMS-данные (tasks, taxonomies, cms-base, …)
 │   ├── cms-base/               ← entities, mixins, registry
 │   └── taxonomies/             ← справочники (tags, slot-categories, …)
-├── awn-system/                 ← ★ CMS-типы (pages, content, slots, fields, md-blocks — YAML)
+├── awn-system/                 ← ★ CMS-типы + presets (pages, content, slots, fields, md-blocks — YAML)
+│   ├── presets/                ← шаблоны системных файлов (.env, SKILL.md, …)
 │   └── types/
 │       ├── pages/              ← awn.page.*
 │       ├── content/            ← awn.content.*

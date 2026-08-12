@@ -1,0 +1,11 @@
+id: awn.preset.auth
+name: AUTH.md — доступы и права
+target-file: AUTH.md
+status: active
+sort: 5
+hint-title: AUTH.md — доступы, права, аутентификация
+hint-text: "Служебный <code>AUTH.md</code> workspace: кто имеет доступ, какие роли и права, где хранятся секреты и токены. Не дублируйте пароли — ссылайтесь на <code>.env</code>."
+body: |
+  # AUTH
+  
+  > Доступы, права и аутентификация workspace.

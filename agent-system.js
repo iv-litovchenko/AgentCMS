@@ -14,6 +14,7 @@ const {
   isFoundationType
 } = require("./type-catalog-loader");
 const { cmsConfigExists, DOMAIN_TYPE_STORES } = require("./awn-data-types-bridge");
+const { loadPresetsMenuItems } = require("./awn-system-presets-loader");
 const {
   getAgentSystemTypesSectionFolder,
   isAgentSystemRelPath: isAwnSystemFolderRelPath,
@@ -293,6 +294,18 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
       folderPath: storeFolder,
       items: domainItems.sort((a, b) => String(a.label).localeCompare(String(b.label), "ru")),
       subGroups
+    });
+  }
+
+  const presetItems = loadPresetsMenuItems(projectRoot, agentRoot);
+  if (presetItems.length) {
+    sections.push({
+      title: "Presets",
+      domain: "presets",
+      domainKind: null,
+      folderPath: `${configRel}/presets`,
+      items: presetItems,
+      subGroups: []
     });
   }
 

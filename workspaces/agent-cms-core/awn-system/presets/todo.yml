@@ -1,0 +1,9 @@
+id: awn.preset.todo
+name: TODO.md — список задач
+target-file: TODO.md
+status: active
+sort: 10
+body: |
+  # TODO
+  
+  - [ ]

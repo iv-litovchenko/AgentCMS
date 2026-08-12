@@ -15,7 +15,6 @@ const TYPE_STORES = new Set([
 
 const DATA_STORES = new Set([
   "tasks/manifest.md",
-  "templates/manifest.md",
   "settings-global/manifest.md",
   "agent-registry/agents/manifest.md",
   "agent-registry/agent-groups/manifest.md",

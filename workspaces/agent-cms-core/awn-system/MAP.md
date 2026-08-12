@@ -16,6 +16,7 @@ workspaces/agent-cms-test/
 │   ├── registry.yml
 │   ├── MAP.md
 │   ├── slots-bindings.yml
+│   ├── presets/                ← шаблоны системных файлов (.env, SKILL.md, …)
 │   └── types/{pages,content,slots,fields,mixins,md-blocks,data}/
 │
 ├── awn-container/              ← ★ КОНТЕНТ (дерево слева)

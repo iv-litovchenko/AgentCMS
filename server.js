@@ -240,7 +240,7 @@ const {
   readAwnDataRecordProperties,
   writeAwnDataRecordProperties
 } = require("./awn-data-loader");
-const { loadSystemFileTemplatesFromAwnData } = require("./awn-data-templates-bridge");
+const { loadSystemFileTemplatesFromPresets } = require("./awn-system-presets-loader");
 const {
   AGENT_SYSTEM_REL,
   agentSystemExists,
@@ -17220,7 +17220,7 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/system-file-templates") {
     try {
-      const templates = loadSystemFileTemplatesFromAwnData(getProjectRoot());
+      const templates = loadSystemFileTemplatesFromPresets(getProjectRoot(), getAgentRoot() || "");
       return sendJson(res, 200, { templates });
     } catch (error) {
       return sendJson(res, 500, {
@@ -18637,10 +18637,13 @@ async function handleApiForAgent(req, res, url) {
       // Validate YAML types before saving
       const normPath = relPath.replace(/\\/g, "/");
       const isStoreManifest = /\/manifest\.md$/i.test(normPath) || /\/manifest\.store\.md$/i.test(normPath);
+      const isPresetFile =
+        /^awn-system\/presets\/.+\.ya?ml$/i.test(normPath) && !/\/sort\.ya?ml$/i.test(normPath);
       const isTypeFile =
         !isStoreManifest &&
         (/^awn-data\/(pages|content|slots|settings|cms-base\/(entities|mixins))\/.+\.md$/i.test(normPath) ||
-          /^awn-system\/types\/.+\.ya?ml$/i.test(normPath));
+          /^awn-system\/types\/.+\.ya?ml$/i.test(normPath) ||
+          isPresetFile);
       if (isTypeFile && content.trim()) {
         const { parseTypeYaml } = require("./awn-yaml-utils");
         let parsed;
@@ -18660,14 +18663,25 @@ async function handleApiForAgent(req, res, url) {
           });
         }
         if (!parsed) return sendJson(res, 400, { error: "Empty or unparseable YAML", path: relPath });
-        // Require id and kind
-        const missing = ["id", "kind"].filter((k) => !parsed[k]);
-        if (missing.length) {
-          return sendJson(res, 400, {
-            error: `Type YAML missing required fields: ${missing.join(", ")}`,
-            path: relPath,
-            hint: 'Required: id (e.g. "awn.content.mytype"), kind (type|base|slot|field|block|mixin|taxonomy|view)'
-          });
+        if (isPresetFile) {
+          const missing = ["id", "target-file", "body"].filter((k) => !parsed[k]);
+          if (missing.length) {
+            return sendJson(res, 400, {
+              error: `Preset YAML missing required fields: ${missing.join(", ")}`,
+              path: relPath,
+              hint: "Required: id, target-file (.env, SKILL.md, …), body (| block)"
+            });
+          }
+        } else {
+          // Require id and kind
+          const missing = ["id", "kind"].filter((k) => !parsed[k]);
+          if (missing.length) {
+            return sendJson(res, 400, {
+              error: `Type YAML missing required fields: ${missing.join(", ")}`,
+              path: relPath,
+              hint: 'Required: id (e.g. "awn.content.mytype"), kind (type|base|slot|field|block|mixin|taxonomy|view)'
+            });
+          }
         }
       }
 

@@ -90,7 +90,6 @@ awn-data/
 ├── settings-global/   single
 ├── taxonomies/        group → внутри collection+csv
 ├── tasks/             collection → данные (§4)
-├── templates/         collection → данные
 └── agent-registry/    group
 ```
 
