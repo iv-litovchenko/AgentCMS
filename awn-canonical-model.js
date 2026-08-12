@@ -30,6 +30,8 @@ const CANONICAL_PRIMARY_SLOT_TYPES = [
   "awn.slot.assets",
   "awn.slot.repository",
   "awn.slot.script",
+  "awn.slot.templates",
+  "awn.slot.base",
   "awn.slot.todo-single",
   "awn.slot.log-single"
 ];
@@ -43,7 +45,7 @@ const DEFAULT_SLOT_CATEGORIES = [
     sort: 1,
     description: "Рабочая память темы — записи, входящие, заметки, источники"
   },
-  { id: "files", name: "Файлы", sort: 2, description: "Медиа, активы, скрипты, артефакты, репозитории" },
+  { id: "files", name: "Файлы", sort: 2, description: "Медиа, активы, скрипты, шаблоны, база, артефакты, репозитории" },
   {
     id: "single-file",
     name: "Однофайловая",

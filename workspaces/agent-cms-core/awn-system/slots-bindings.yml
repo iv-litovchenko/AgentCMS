@@ -46,6 +46,14 @@ bindings:
     path: scripts/
     content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
+  templates:
+    path: templates/
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
+    files: ["*"]
+  base:
+    path: base/
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
+    files: ["*"]
   todo-single:
     path: todo.md
     content: [awn.content.record, awn.content.category, awn.content.sidecar]

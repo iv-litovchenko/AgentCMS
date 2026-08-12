@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent CMS — Мозг для вашего ИИ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#1e40af',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+    <!-- Навигация -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center">
+                    <i class="fas fa-robot text-primary text-2xl mr-2"></i>
+                    <span class="font-bold text-xl tracking-tight">Agent CMS</span>
+                </div>
+                <div>
+                    <a href="#features" class="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Особенности</a>
+                    <a href="#how-it-works" class="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Как это работает</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Главный экран (Hero) -->
+    <header class="bg-white overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 flex flex-col lg:flex-row items-center">
+            <div class="lg:w-1/2 lg:pr-10 text-center lg:text-left z-10">
+                <h1 class="text-4xl tracking-tight font-extrabold sm:text-5xl md:text-6xl mb-6">
+                    <span class="block">Организуйте знания для</span>
+                    <span class="block gradient-text">вашего ИИ-помощника</span>
+                </h1>
+                <p class="mt-3 max-w-md mx-auto lg:mx-0 text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl">
+                    Agent CMS — это простая система, которая помогает хранить информацию, задачи и контекст для нейросетей в обычных файлах на вашем компьютере. Без сложных баз данных.
+                </p>
+                <div class="mt-8 flex justify-center lg:justify-start gap-4">
+                    <a href="#features" class="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-primary hover:bg-secondary transition-colors md:py-4 md:text-lg md:px-10">
+                        Узнать больше
+                    </a>
+                    <a href="https://github.com/ваш-репозиторий" target="_blank" class="inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors md:py-4 md:text-lg md:px-10 shadow-sm">
+                        <i class="fab fa-github mr-2"></i> GitHub
+                    </a>
+                </div>
+            </div>
+            <div class="lg:w-1/2 mt-12 lg:mt-0 relative">
+                <div class="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-500 rounded-2xl blur opacity-30"></div>
+                <div class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                    <!-- Имитация интерфейса -->
+                    <div class="bg-gray-100 px-4 py-3 border-b border-gray-200 flex items-center">
+                        <div class="flex space-x-2">
+                            <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                        </div>
+                        <div class="mx-auto text-xs text-gray-500 font-medium">project-knowledge.md</div>
+                    </div>
+                    <div class="p-6 font-mono text-sm text-gray-700 h-64 overflow-hidden bg-gray-50">
+                        <p class="text-blue-600">---</p>
+                        <p class="text-green-600">title: "Сценарий для видео"</p>
+                        <p class="text-green-600">status: "В процессе"</p>
+                        <p class="text-green-600">agent-role: "Копирайтер"</p>
+                        <p class="text-blue-600">---</p>
+                        <br>
+                        <p class="font-bold text-gray-900"># Основная идея</p>
+                        <p class="mt-2 text-gray-600">Нам нужно рассказать о том, как легко управлять данными для ИИ...</p>
+                        <br>
+                        <div class="flex items-center mt-4 bg-white p-3 rounded shadow-sm border border-gray-200">
+                            <i class="fas fa-robot text-purple-500 mr-3 text-lg"></i>
+                            <span class="text-gray-800">Понял задачу! Изучил ваши заметки, готов предложить 3 варианта вступления.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Что такое Agent CMS (для людей) -->
+    <section class="py-16 bg-blue-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl font-extrabold text-gray-900 sm:text-4xl">Простыми словами</h2>
+            <p class="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
+                Представьте, что вы наняли умного помощника (ИИ). Чтобы он работал хорошо, ему нужно знать контекст: ваши правила, документы, прошлые решения.
+            </p>
+            <p class="mt-4 max-w-2xl text-xl text-gray-500 mx-auto font-medium">
+                Agent CMS — это "шкафчик с папками", куда вы складываете эту информацию. Ваш помощник всегда знает, где что лежит, и может сам читать эти документы.
+            </p>
+        </div>
+    </section>
+
+    <!-- Преимущества -->
+    <section id="features" class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-base text-primary font-semibold tracking-wide uppercase">Преимущества</h2>
+                <p class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                    Почему это удобно?
+                </p>
+            </div>
+
+            <div class="mt-10">
+                <div class="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
+                    <!-- Feature 1 -->
+                    <div class="flex flex-col items-center text-center p-6 bg-gray-50 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 text-blue-600 mb-6">
+                            <i class="fas fa-folder-open text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">Файлы вместо баз данных</h3>
+                        <p class="text-base text-gray-500">
+                            Вся информация хранится в обычных текстовых документах прямо на вашем диске. Вы полностью контролируете свои данные.
+                        </p>
+                    </div>
+
+                    <!-- Feature 2 -->
+                    <div class="flex flex-col items-center text-center p-6 bg-gray-50 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-center h-16 w-16 rounded-full bg-purple-100 text-purple-600 mb-6">
+                            <i class="fas fa-brain text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">Идеально для ИИ</h3>
+                        <p class="text-base text-gray-500">
+                            Формат данных специально адаптирован для того, чтобы языковые модели (LLM) могли быстро и точно понимать ваш контекст.
+                        </p>
+                    </div>
+
+                    <!-- Feature 3 -->
+                    <div class="flex flex-col items-center text-center p-6 bg-gray-50 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-center h-16 w-16 rounded-full bg-green-100 text-green-600 mb-6">
+                            <i class="fas fa-microphone text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">Голосовой интерфейс</h3>
+                        <p class="text-base text-gray-500">
+                            Встроенный модуль Agent Shell позволяет общаться со своим ИИ-агентом голосом — как с настоящим секретарем.
+                        </p>
+                    </div>
+
+                    <!-- Feature 4 -->
+                    <div class="flex flex-col items-center text-center p-6 bg-gray-50 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-center h-16 w-16 rounded-full bg-orange-100 text-orange-600 mb-6">
+                            <i class="fas fa-plug text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">Подключение к редакторам</h3>
+                        <p class="text-base text-gray-500">
+                            Легко интегрируется с продвинутыми редакторами (например, Cursor), чтобы ИИ помогал вам прямо во время работы.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Как это работает -->
+    <section id="how-it-works" class="py-20 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-extrabold text-gray-900 sm:text-4xl">Как это работает?</h2>
+                <p class="mt-4 text-xl text-gray-500">Три простых шага к организованному ИИ</p>
+            </div>
+
+            <div class="relative">
+                <!-- Линия между шагами -->
+                <div class="hidden md:block absolute top-12 left-0 w-full h-0.5 bg-gray-200" aria-hidden="true"></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-10 relative">
+                    <!-- Шаг 1 -->
+                    <div class="relative text-center">
+                        <div class="w-24 h-24 mx-auto bg-white border-4 border-primary rounded-full flex items-center justify-center text-3xl font-bold text-primary mb-6 relative z-10">
+                            1
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">Пишете текстом</h3>
+                        <p class="text-gray-500">Создаете обычные текстовые заметки о своих проектах, правилах и задачах.</p>
+                    </div>
+
+                    <!-- Шаг 2 -->
+                    <div class="relative text-center">
+                        <div class="w-24 h-24 mx-auto bg-white border-4 border-primary rounded-full flex items-center justify-center text-3xl font-bold text-primary mb-6 relative z-10">
+                            2
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">CMS организует</h3>
+                        <p class="text-gray-500">Agent CMS структурирует эти файлы так, чтобы в них было легко ориентироваться машинным алгоритмам.</p>
+                    </div>
+
+                    <!-- Шаг 3 -->
+                    <div class="relative text-center">
+                        <div class="w-24 h-24 mx-auto bg-white border-4 border-primary rounded-full flex items-center justify-center text-3xl font-bold text-primary mb-6 relative z-10">
+                            3
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">ИИ помогает</h3>
+                        <p class="text-gray-500">Ваш ИИ-ассистент мгновенно находит нужную информацию и дает точные ответы в контексте вашей задачи.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Подвал -->
+    <footer class="bg-white border-t border-gray-200">
+        <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 md:flex md:items-center md:justify-between lg:px-8">
+            <div class="flex justify-center space-x-6 md:order-2">
+                <a href="#" class="text-gray-400 hover:text-gray-500">
+                    <span class="sr-only">GitHub</span>
+                    <i class="fab fa-github text-2xl"></i>
+                </a>
+            </div>
+            <div class="mt-8 md:mt-0 md:order-1">
+                <p class="text-center text-base text-gray-400">
+                    &copy; 2026 Agent CMS. File-based CMS для LLM-агентов.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

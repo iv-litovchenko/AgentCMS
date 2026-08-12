@@ -1462,6 +1462,8 @@ const APP_ROUTE_VIEW_IDS = new Set([
   "configs",
   "env",
   "scripts",
+  "templates",
+  "base",
   "artefacts",
   "assets",
   "repository",
@@ -1490,6 +1492,8 @@ const CHPU_LEGACY_SLOT_VIEW_TO_FOLDER = {
   assets: "assets",
   repository: "repository",
   scripts: "scripts",
+  templates: "templates",
+  base: "base",
   temp: "temp"
 };
 
@@ -1504,6 +1508,8 @@ const CHPU_SLOT_FOLDER_TO_MODE = {
   assets: "assets",
   repository: "repository",
   scripts: "scripts",
+  templates: "templates",
+  base: "base",
   temp: "temp"
 };
 
@@ -1811,6 +1817,8 @@ const CHPU_FLAT_STORAGE_SLOT_FOLDER_NAMES = new Set([
   "assets",
   "repository",
   "scripts",
+  "templates",
+  "base",
   "temp",
   "quick-notes",
   "thread"
@@ -4625,6 +4633,8 @@ const NODE_NAVIGATION_WORKSPACE_COUNTER_SPECS = [
   { id: "media", label: "Медиа", modeId: "media" },
   { id: "repository", label: "Репозитории", modeId: "repository" },
   { id: "scripts", label: "Скрипты", modeId: "scripts" },
+  { id: "templates", label: "Шаблоны", modeId: "templates" },
+  { id: "base", label: "База", modeId: "base" },
   { id: "todo-single", label: "TODO", modeId: "todo" }
 ];
 
@@ -12350,7 +12360,9 @@ const ENTRY_OVERVIEW_KIND_LABELS = {
   "awn.artefacts.toc.root": "Оглавление",
   "awn.assets.toc.root": "Оглавление",
   "awn.repository.toc.root": "Оглавление",
-  "awn.scripts.toc.root": "Оглавление"
+  "awn.scripts.toc.root": "Оглавление",
+  "awn.templates.toc.root": "Оглавление",
+  "awn.base.toc.root": "Оглавление"
 };
 
 const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
@@ -12361,7 +12373,9 @@ const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
   "artefacts",
   "assets",
   "repository",
-  "scripts"
+  "scripts",
+  "templates",
+  "base"
 ]);
 const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "external",
@@ -12374,6 +12388,8 @@ const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "assets",
   "repository",
   "scripts",
+  "templates",
+  "base",
   "todo"
 ]);
 const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
@@ -12385,7 +12401,9 @@ const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
   "awn.artefacts.toc.root",
   "awn.assets.toc.root",
   "awn.repository.toc.root",
-  "awn.scripts.toc.root"
+  "awn.scripts.toc.root",
+  "awn.templates.toc.root",
+  "awn.base.toc.root"
 ]);
 
 /** @type {Record<string, "overview"|"document"|"browser"|"asset"|"canvas">} */
@@ -12834,6 +12852,24 @@ const DATA_STORAGE_SLOT_SPECS = [
     treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
   },
   {
+    key: "templates",
+    label: "Шаблоны",
+    icon: "📐",
+    modes: new Set(["templates"]),
+    defaultMode: "templates",
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
+  },
+  {
+    key: "base",
+    label: "База",
+    icon: "🗄",
+    modes: new Set(["base"]),
+    defaultMode: "base",
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
+  },
+  {
     key: "main-single",
     label: "Память (однофайловая)",
     icon: "📄",
@@ -12952,6 +12988,8 @@ const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
     "Изображения, видео, аудио, документы, архивы; метаданные — .sidecar.md",
   repository: `Любые файлы, кроме исполняемых (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
   scripts: `Скрипты и текстовые файлы; запрещены исполняемые (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
+  templates: "Markdown (.md) — шаблоны записей и manifest",
+  base: "Markdown (.md) — строки структурированных данных",
   media:
     "Изображения, видео, аудио, документы, архивы; метаданные медиа — .sidecar.md",
   "main-single": "Markdown (.md) — main.md",
@@ -14503,6 +14541,8 @@ function getStorageFolderNamesForSlotKey(slotKey) {
     repository: ["repository"],
     media: ["media"],
     scripts: ["scripts"],
+    templates: ["templates"],
+    base: ["base"],
     thread: ["thread"],
     temp: ["temp"],
     volume: ["volume"],
@@ -16214,6 +16254,8 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
     mode === "media" ||
     mode === "repository" ||
     mode === "scripts" ||
+    mode === "templates" ||
+    mode === "base" ||
     mode === "todo" ||
     mode === NODE_THREAD_MODE
   ) {
@@ -16364,6 +16406,8 @@ function getContentModeLabel(mode) {
   if (mode === NODE_THREAD_MODE) return "Диалог";
   if (mode === "note" || mode === "quick-notes") return "Заметки";
   if (mode === "scripts") return "Скрипты";
+  if (mode === "templates") return "Шаблоны";
+  if (mode === "base") return "База";
   if (mode === "todo") return "TODO";
   if (mode === "references") return "Источники";
   if (mode === "artefacts") return "Артефакты";
@@ -32806,6 +32850,8 @@ function getFlatStorageSectionTreeLabel(mode) {
   if (mode === "artefacts") return "Разделы артефактов";
   if (mode === "assets") return "Разделы активов";
   if (mode === "repository") return "Разделы репозитория";
+  if (mode === "templates") return "Разделы шаблонов";
+  if (mode === "base") return "Разделы базы";
   return "Разделы";
 }
 
@@ -34527,6 +34573,8 @@ function isFlatStorageListMode(mode = activeContentMode) {
     mode === "quick-notes" ||
     mode === "references" ||
     mode === "scripts" ||
+    mode === "templates" ||
+    mode === "base" ||
     mode === "artefacts" ||
     mode === "repository" ||
     mode === "temp"
@@ -40699,7 +40747,7 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     return inferContentTypeFromStoragePath(normalized, lower);
   }
 
-  const flatStorageModes = ["inbox", "note", "references"];
+  const flatStorageModes = ["inbox", "note", "references", "templates", "base"];
   const isFlatStorageContentFile =
     flatStorageModes.includes(options.contentMode) ||
     flatStorageModes.some((mode) => new RegExp(`/(?:awn-storage|storage)/${mode}/`, "i").test(normalized));
@@ -53953,7 +54001,7 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
   }
 
   const threadUnread = getThreadUnreadCount(manifestPath, intake);
-  const flatCounterModes = ["notes", "references", "artefacts", "repository", "scripts"];
+  const flatCounterModes = ["notes", "references", "artefacts", "repository", "scripts", "templates", "base"];
   const [todoData, mediaOverview, assetsOverview, storageScan, flatNavigationIndexes] = await Promise.all([
     fetchTodoForOverview(nodePath).catch(() => null),
     fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
@@ -54103,10 +54151,9 @@ function renderNodeNavigationWorkspaceCounterStrip(
     list.appendChild(item);
   }
 
-  appendWorkspaceStaticCounterItems(list, { layout });
+  appendWorkspaceOutsideSlotsCounterItem(list, wrap);
 
   wrap.appendChild(list);
-  appendWorkspaceOutsideSlotsCounterRow(wrap);
   appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
   return wrap;
 }
@@ -60190,10 +60237,9 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicP
     list.appendChild(item);
   }
 
-  appendWorkspaceStaticCounterItems(list);
+  appendWorkspaceOutsideSlotsCounterItem(list, wrap);
 
   wrap.appendChild(list);
-  appendWorkspaceOutsideSlotsCounterRow(wrap);
   appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
 }
 
@@ -60349,53 +60395,21 @@ function createStaticWorkspaceCounterStubItem({
   return item;
 }
 
-function createFreeMemoryStaticCounterItem() {
-  return createStaticWorkspaceCounterStubItem({
-    itemClass: "node-navigation-workspace-counter-item--free-memory",
-    cardClass: "node-navigation-workspace-counter-card--free-memory",
-    title: "Свободная память (free)",
-    hint: "Откроется просмотр свободной памяти",
-    tooltip: `${FREE_MEMORY_LABEL} (static) — просмотр свободной памяти`
-  });
-}
-
 function createOutsideSlotsStaticCounterItem() {
   return createStaticWorkspaceCounterStubItem({
-    containerTag: "div",
     itemClass: "node-navigation-workspace-counter-item--outside-slots",
     cardClass: "node-navigation-workspace-counter-card--outside-slots",
     title: "Вне слотов",
-    hint: "Если элемент вне слотов — он появится здесь и как веточка в основном дереве слева",
-    tooltip:
-      "Вне слотов (static): если элемент вне слотов — он появится здесь и как веточка в основном дереве слева"
+    hint: "Появится здесь и в дереве слева",
+    tooltip: "Вне слотов (static) — появится здесь и в дереве слева"
   });
 }
 
-function createStructuredDataStaticCounterItem() {
-  return createStaticWorkspaceCounterStubItem({
-    itemClass: "node-navigation-workspace-counter-item--structured-data",
-    cardClass: "node-navigation-workspace-counter-card--structured-data",
-    title: "Структурированные данные",
-    hint: "Накопители данных внутренние",
-    staticMarkText: "Слот (static)",
-    tooltip: "Структурированные данные (static) — накопители данных внутренние"
-  });
-}
-
-function appendWorkspaceOutsideSlotsCounterRow(wrap) {
-  if (!wrap) return;
-  const row = document.createElement("div");
-  row.className = "node-navigation-workspace-outside-slots-row";
-  row.appendChild(createOutsideSlotsStaticCounterItem());
-  wrap.appendChild(row);
-  wrap.classList.add("has-outside-slots-static");
-}
-
-function appendWorkspaceStaticCounterItems(list, { layout = "grid" } = {}) {
-  if (!list || layout === "area-single") return;
-  list.classList.add("has-workspace-static-slots");
-  list.appendChild(createFreeMemoryStaticCounterItem());
-  list.appendChild(createStructuredDataStaticCounterItem());
+function appendWorkspaceOutsideSlotsCounterItem(list, wrap = null) {
+  if (!list) return;
+  list.appendChild(createOutsideSlotsStaticCounterItem());
+  const countersWrap = wrap || list.closest(".node-navigation-workspace-counters");
+  countersWrap?.classList.add("has-outside-slots-static");
 }
 
 function createWorkspaceCounterIndexButton(slot, topicPath) {
@@ -60725,7 +60739,10 @@ function appendTopicLiteIndexControlsRow(container, topicPath) {
   const wrap = document.createElement("div");
   wrap.className =
     "node-navigation-workspace-counters node-navigation-workspace-counters--lite-index has-outside-slots-static";
-  appendWorkspaceOutsideSlotsCounterRow(wrap);
+  const list = document.createElement("ul");
+  list.className = "node-navigation-workspace-counter-list";
+  appendWorkspaceOutsideSlotsCounterItem(list, wrap);
+  wrap.appendChild(list);
   appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, []);
   container.appendChild(wrap);
 }
@@ -79563,7 +79580,7 @@ function deleteTypeFieldFromYaml(fieldKey) {
 }
 
 function buildTypeStorageSlotsEditor(currentSlots) {
-  const KNOWN_SLOTS = ["main", "media", "inbox", "thread", "references", "scripts", "artefacts", "assets", "repository"];
+  const KNOWN_SLOTS = ["main", "media", "inbox", "thread", "references", "scripts", "templates", "base", "artefacts", "assets", "repository"];
   const slots = Array.isArray(currentSlots) ? [...currentSlots] : [];
 
   const wrap = document.createElement("div");

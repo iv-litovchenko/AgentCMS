@@ -29077,7 +29077,7 @@ button.node-navigation-hub-rail-slot-summary {
 
 .node-navigation-workspace-counter-list {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -29086,89 +29086,18 @@ button.node-navigation-hub-rail-slot-summary {
   min-width: 0;
 }
 
-.node-navigation-workspace-counter-list.has-workspace-static-slots {
-  grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(128px, 0.95fr);
-}
-
-.node-navigation-workspace-counter-item--free-memory {
-  grid-column: 7;
-  grid-row: 1;
-}
-
-.node-navigation-workspace-counter-item--structured-data {
-  grid-column: 7;
-  grid-row: 2;
-}
-
-.node-navigation-workspace-outside-slots-row {
-  width: 100%;
-  margin-top: 8px;
-}
-
-.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-item--outside-slots {
-  width: 100%;
-  min-width: 0;
-}
-
-.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-card--outside-slots {
-  width: 100%;
-}
-
-.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter {
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
-  min-height: 0;
-  padding: 10px 14px;
-  text-align: left;
-}
-
-.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter-value {
-  flex: 0 0 auto;
-  font-size: 16px;
-}
-
-.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter-label--stacked {
-  flex: 1 1 auto;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: flex-start;
-  gap: 6px 10px;
-  text-align: left;
-}
-
-.node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter-label-hint {
-  flex: 1 1 100%;
-  text-align: left;
-}
-
-.node-navigation-workspace-counter-card--free-memory,
 .node-navigation-workspace-counter-card--outside-slots,
-.node-navigation-workspace-counter-card--structured-data,
 .node-navigation-workspace-counter-card--static-stub {
   height: auto;
 }
 
-.node-navigation-workspace-counter-card--free-memory .node-navigation-workspace-counter,
 .node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter,
-.node-navigation-workspace-counter-card--structured-data .node-navigation-workspace-counter,
 .node-navigation-workspace-counter-card--static-stub .node-navigation-workspace-counter {
   min-height: 0;
   height: auto;
   padding: 8px 6px 6px;
   cursor: default;
   pointer-events: none;
-}
-
-.node-navigation-workspace-counter-card--free-memory {
-  border-color: #cbd5e1;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-}
-
-.node-navigation-workspace-counter-card--free-memory .node-navigation-workspace-counter-label-main {
-  color: #475569;
 }
 
 .node-navigation-workspace-counter-label--stacked {
@@ -29193,24 +29122,13 @@ button.node-navigation-hub-rail-slot-summary {
   color: #64748b;
 }
 
-.node-navigation-workspace-counter-card--outside-slots .stub-static-mark,
-.node-navigation-workspace-counter-card--structured-data .stub-static-mark {
+.node-navigation-workspace-counter-card--outside-slots .stub-static-mark {
   font-size: 9px;
 }
 
-.node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter-value,
-.node-navigation-workspace-counter-card--structured-data .node-navigation-workspace-counter-value {
+.node-navigation-workspace-counter-card--outside-slots .node-navigation-workspace-counter-value {
   font-size: 18px;
   color: #94a3b8;
-}
-
-.node-navigation-workspace-counter-card--structured-data {
-  border-color: #cbd5e1;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-}
-
-.node-navigation-workspace-counter-card--structured-data .node-navigation-workspace-counter-label-main {
-  color: #475569;
 }
 
 .node-navigation-workspace-counter.is-deprecated-slot {

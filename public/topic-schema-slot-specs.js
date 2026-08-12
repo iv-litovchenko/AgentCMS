@@ -168,6 +168,28 @@
         }
       },
       {
+        slotKey: "templates",
+        label: "Шаблоны",
+        tabGroup: "files",
+        defaultKind: "record",
+        targets: {
+          record: { id: "slot_templates" },
+          category: { id: "slot_templates_category" },
+          sidecar: { id: "slot_templates_sidecar" }
+        }
+      },
+      {
+        slotKey: "base",
+        label: "База",
+        tabGroup: "files",
+        defaultKind: "record",
+        targets: {
+          record: { id: "slot_base" },
+          category: { id: "slot_base_category" },
+          sidecar: { id: "slot_base_sidecar" }
+        }
+      },
+      {
         slotKey: "todo-single",
         label: "TODO",
         tabGroup: "todo",

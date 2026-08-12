@@ -19,5 +19,7 @@ storage-slots:
   - media
   - repository
   - scripts
+  - templates
+  - base
   - todo-single
   - log-single

@@ -8,7 +8,7 @@ slot-category: single-file
 storage-driver: internal
 description: Хронологический журнал топика — log.md
 path: log.md
-slot-order: 13
+slot-order: 15
 allowed-content:
   - awn.content.record
   - awn.content.category
