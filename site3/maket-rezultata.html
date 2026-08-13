@@ -35,6 +35,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 .cosmos-splash{
   position:relative;min-height:calc(100svh - var(--cosmos-dock-h, 72px));
+  scroll-margin-top:var(--cosmos-dock-h,72px);
   display:flex;flex-direction:column;
   background:linear-gradient(180deg,#070b14 0%,#0f172a 55%,#111827 100%);
   overflow:hidden
@@ -44,9 +45,15 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   gap:7px;width:auto;min-width:88px;
   padding:10px 16px 10px 18px;
   background:linear-gradient(180deg,rgba(30,58,138,.52) 0%,rgba(11,18,32,.98) 100%);
-  border-right:1px solid rgba(96,165,250,.28);
-  box-shadow:inset -1px 0 0 rgba(255,255,255,.05),4px 0 18px rgba(2,6,23,.22)
+  border:0;border-right:1px solid rgba(96,165,250,.28);
+  box-shadow:inset -1px 0 0 rgba(255,255,255,.05),4px 0 18px rgba(2,6,23,.22);
+  cursor:pointer;font:inherit;color:inherit;text-align:center;
+  transition:background .2s
 }
+.cosmos-dock .cosmos-hub:hover{
+  background:linear-gradient(180deg,rgba(37,99,235,.58) 0%,rgba(11,18,32,.98) 100%)
+}
+.cosmos-dock .cosmos-hub:focus-visible{outline:2px solid #93c5fd;outline-offset:-2px}
 .cosmos-dock .cosmos-hub .cosmos-bubble-label{
   white-space:nowrap;max-width:none;font-size:9.5px;letter-spacing:.02em;
   color:rgba(226,232,240,.96)
@@ -75,12 +82,15 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   background:rgba(15,23,42,.72)
 }
 .cosmos-dock .cosmos-hub-bubble{
-  cursor:default;pointer-events:none;
   border-color:rgba(96,165,250,.62);
   background:linear-gradient(145deg,#1e3a8a 0%,#312e81 100%);
-  box-shadow:0 0 16px rgba(96,165,250,.2),inset 0 0 0 1px rgba(255,255,255,.08)
+  box-shadow:0 0 16px rgba(96,165,250,.2),inset 0 0 0 1px rgba(255,255,255,.08);
+  transition:transform .25s,border-color .25s,box-shadow .25s
 }
-.cosmos-dock .cosmos-hub-bubble:hover,.cosmos-dock .cosmos-hub-bubble:focus-visible{transform:none;box-shadow:0 0 16px rgba(96,165,250,.2),inset 0 0 0 1px rgba(255,255,255,.08)}
+.cosmos-dock .cosmos-hub:hover .cosmos-hub-bubble{
+  transform:scale(1.06);border-color:rgba(147,197,253,.75);
+  box-shadow:0 0 0 3px rgba(96,165,250,.18),0 0 20px rgba(96,165,250,.28)
+}
 .cosmos-dock .cosmos-hub-letter{
   display:grid;place-items:center;width:100%;height:100%;
   font-style:normal;font-weight:800;font-size:18px;color:#e0e7ff;line-height:1
@@ -1137,12 +1147,12 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 <body>
 <div class="app">
   <div class="cosmos-dock" id="cosmosDock">
-    <div class="cosmos-hub">
-      <div class="cosmos-bubble cosmos-hub-bubble" aria-label="Agent CMS">
+    <button type="button" class="cosmos-hub" onclick="jump('cosmosSplash',this)" title="Agent CMS — в начало" aria-label="Agent CMS — в начало страницы">
+      <span class="cosmos-bubble cosmos-hub-bubble" aria-hidden="true">
         <span class="cosmos-hub-letter">A</span>
-      </div>
+      </span>
       <span class="cosmos-bubble-label">Agent CMS</span>
-    </div>
+    </button>
     <div class="cosmos-dock-inner">
       <nav class="cosmos-orbit-nav cosmos-orbit-nav--dock" aria-label="Разделы">
         <div class="cosmos-orbit-track" role="list">
@@ -2179,7 +2189,7 @@ function jump(id,btn){
   const el=document.getElementById(id);
   if(!el) return;
   el.scrollIntoView({behavior:'smooth',block:'start'});
-  setActiveNav(id);
+  setActiveNav(id==='cosmosSplash'?null:id);
   if(btn) btn.focus({preventScroll:true});
 }
 
