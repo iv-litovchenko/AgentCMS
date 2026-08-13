@@ -80,6 +80,26 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .lead-box p:last-child{margin-bottom:0}
 .lead-box strong{color:var(--ink);font-weight:700}
 
+.lead-statement{
+  margin-top:36px;padding:40px 32px 44px;text-align:center;
+  border-radius:24px;
+  background:linear-gradient(145deg,#f0f4ff 0%,#e8eeff 50%,#f5f7fc 100%);
+  border:1px solid #dbe4f5;
+  box-shadow:0 4px 24px rgba(59,130,246,.06)
+}
+.lead-statement-text{
+  margin:0;font-size:clamp(17px,2.4vw,28px);font-weight:700;line-height:1.2;letter-spacing:-.02em;
+  color:var(--ink)
+}
+.lead-statement-text strong{font-weight:800;color:#1e3a8a}
+.lead-statement-cms{
+  margin:14px 0 0;font-size:14px;line-height:1.4;font-weight:500;color:#64748b;letter-spacing:.01em
+}
+.lead-statement-cms abbr{text-decoration:none;border-bottom:1px dotted #94a3b8;cursor:help}
+@media(min-width:960px){
+  .lead-statement-text{white-space:nowrap}
+}
+
 /* VS visual */
 .idea-visual{margin-top:22px;padding:22px;border-radius:18px;background:linear-gradient(145deg,#f8faff,#eef4ff);border:1px solid #dbe6ff}
 .vs-row{display:grid;gap:12px;margin-bottom:16px}
@@ -118,6 +138,8 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 @media(min-width:900px){.info-grid.three{grid-template-columns:repeat(3,1fr)}}
 .feature-grid{display:grid;gap:16px}
 @media(min-width:640px){.feature-grid{grid-template-columns:1fr 1fr}}
+.feature-grid-solo{display:grid;gap:16px;margin-top:16px}
+.feature-grid-solo .feature{max-width:720px;margin-inline:auto;width:100%}
 .search-example{padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.72);font-size:13px;color:#4b5c72;border:1px solid rgba(221,227,238,.95);line-height:1.5}
 
 .pillrow{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
@@ -135,7 +157,9 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .box-visual .box-tags span{font-size:11px;font-weight:700;padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
 
 .formula{text-align:center;padding:20px;border-radius:18px;background:linear-gradient(135deg,#edf3ff,#f5f0ff);border:1px solid #dbe6ff;margin-top:16px}
-.formula .eq{font-size:clamp(28px,4vw,36px);font-weight:900;letter-spacing:-1px;background:linear-gradient(90deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.formula .eq{font-size:clamp(22px,3.5vw,34px);font-weight:900;letter-spacing:-.5px;background:linear-gradient(90deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.25}
+.formula .eq-n{font-size:.72em;font-weight:800;opacity:.85}
+.formula .eq-synergy{font-size:.58em;font-weight:800;letter-spacing:.01em;opacity:.9}
 .formula p{margin:8px 0 0;font-size:14px;color:#4f6078;line-height:1.5}
 
 .sidecar-demo{display:grid;grid-template-columns:72px 1fr;gap:14px;align-items:center;padding:14px;background:rgba(255,255,255,.72);border-radius:16px;border:1px solid rgba(221,227,238,.95)}
@@ -172,12 +196,48 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .graph-svg line{stroke:#bfd3ff;stroke-width:1.5;stroke-dasharray:5 4;opacity:.85}
 .graph-svg line.agent-line{stroke:#c4b5fd;stroke-dasharray:none;opacity:.55}
 .graph-svg line.orchestrator-line{stroke:#34d399;stroke-width:2;stroke-dasharray:none;opacity:.85}
+.graph-svg line.branch-line{stroke:#64748b;stroke-width:2;stroke-dasharray:4 3;opacity:.7}
 .graph-hub.orchestrator{
   background:linear-gradient(135deg,#18a56a,#0d9488);box-shadow:0 12px 36px rgba(24,165,106,.38);
   border:2px solid rgba(255,255,255,.32);width:clamp(120px,24vw,168px)
 }
 .graph-node.isolated{border-color:#dbe6ff;background:#fff}
 .graph-legend .legend-green{background:#ecfdf5;border-color:#a7f3d0;color:#047857}
+
+/* Agents map — clear card layout */
+.agents-map,.life-graph-layout{display:flex;flex-direction:column;align-items:center;gap:0;max-width:880px;margin:0 auto}
+.life-graph-layout{max-width:720px}
+.life-agent-link{width:2px;height:32px;background:linear-gradient(180deg,#34d399,#18a56a);flex:none;margin:2px 0}
+.agents-map .agent-card,.life-graph-layout .agent-card{
+  width:100%;padding:24px 28px;border-radius:var(--r);border:1px solid var(--line);
+  background:#fff;box-shadow:var(--shadow-sm);transition:.2s;text-align:center
+}
+.agents-map .agent-card:hover,.life-graph-layout .agent-card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.agents-map .agent-card .ac-ico,.life-graph-layout .agent-card .ac-ico{font-size:40px;line-height:1;margin-bottom:10px}
+.agents-map .agent-card h3,.life-graph-layout .agent-card h3{margin:0 0 8px;font-size:18px;font-weight:800;letter-spacing:-.2px}
+.agents-map .agent-card .ac-desc,.life-graph-layout .agent-card .ac-desc{margin:0;font-size:14px;color:var(--muted);line-height:1.55}
+.agents-map .agent-card .ac-store,.life-graph-layout .agent-card .ac-store{
+  display:inline-block;margin-top:12px;padding:6px 12px;border-radius:999px;
+  font-size:11px;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  background:#f8fafc;border:1px solid #e2e8f0;color:#475569
+}
+.agents-map .agent-card.orchestrator,.life-graph-layout .agent-card.orchestrator{
+  max-width:420px;border-color:#a7f3d0;background:linear-gradient(180deg,#fff,#ecfdf5);
+  box-shadow:0 10px 32px rgba(24,165,106,.14)
+}
+.agents-map .agent-card.orchestrator h3,.life-graph-layout .agent-card.orchestrator h3{color:#047857}
+.agents-map .agent-card.orchestrator .ac-store,.life-graph-layout .agent-card.orchestrator .ac-store{background:#ecfdf5;border-color:#a7f3d0;color:#047857}
+.agents-map .agent-card.isolated{border-color:#cfe0ff;background:linear-gradient(180deg,#fff,#f5f9ff)}
+.agents-map .agent-card.isolated h3{color:var(--blue3)}
+.agents-connector{
+  width:100%;max-width:640px;height:36px;position:relative;margin:4px 0
+}
+.agents-connector svg{width:100%;height:100%;display:block}
+.agents-connector line{stroke:#34d399;stroke-width:2;opacity:.7}
+.agents-row{display:grid;gap:14px;width:100%}
+@media(min-width:640px){.agents-row{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:639px){.agents-connector{display:none}}
+
 .graph-hub{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;
   width:clamp(108px,22vw,148px);padding:16px 12px;border-radius:20px;text-align:center;
@@ -201,6 +261,12 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .graph-node .g-sub{display:block;margin-top:3px;font-size:9px;font-weight:600;color:var(--muted);line-height:1.2}
 .graph-node .g-sub.g-store{font-size:8px;line-height:1.25}
 .graph-node{transform:rotate(var(--a)) translateY(calc(-1 * var(--r))) rotate(calc(-1 * var(--a)))}
+.graph-node--branch{
+  width:clamp(68px,13vw,82px);margin-left:calc(clamp(68px,13vw,82px)/-2);margin-top:-24px;
+  padding:8px 6px;font-size:10px;border-style:dashed;border-color:#94a3b8;background:#f8fafc;z-index:2
+}
+.graph-node--branch:hover{border-color:#64748b;box-shadow:0 8px 22px rgba(100,116,139,.12)}
+.graph-node--parent{border-color:#bfd3ff;background:linear-gradient(180deg,#fff,#f8fbff)}
 .graph-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:18px;padding-top:16px;border-top:1px dashed #cfe0ff}
 .graph-legend span{font-size:11px;font-weight:650;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.7);border:1px solid #dbe6ff;color:#536078}
 @media(max-width:520px){
@@ -226,14 +292,20 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .slot-cat-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#7a879c;margin:0 0 10px}
 .slot-buttons{display:flex;flex-wrap:wrap;gap:10px}
 .slot-btn{
-  display:inline-flex;align-items:center;gap:8px;padding:10px 14px 10px 12px;
+  display:inline-flex;align-items:flex-start;gap:8px;padding:10px 14px 10px 12px;
   border-radius:14px;border:1px solid var(--line);background:#fff;
-  font-size:13px;color:var(--ink);transition:.2s;box-shadow:var(--shadow-sm);text-align:left
+  font-size:13px;color:var(--ink);transition:.2s;box-shadow:var(--shadow-sm);text-align:left;
+  max-width:220px
 }
 .slot-btn:hover,.slot-btn.active{border-color:#bfd3ff;background:#f8fbff;box-shadow:0 6px 20px rgba(57,120,255,.1);transform:translateY(-1px)}
-.slot-btn .emoji{font-size:20px;line-height:1;flex:none}
-.slot-btn .name{font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.slot-btn .emoji{font-size:20px;line-height:1;flex:none;margin-top:1px}
+.slot-btn-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.slot-btn .name{font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--blue3)}
+.slot-btn .slot-label{font-size:12px;font-weight:700;line-height:1.25;color:var(--ink);font-family:inherit}
 .slot-detail{margin-top:14px;padding:16px 18px;border-radius:16px;background:linear-gradient(90deg,#edf3ff,#f5f0ff);border:1px solid #dbe6ff;font-size:14px;color:#4b5c72;line-height:1.55;min-height:48px}
+.slot-detail .slot-key{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--blue3);margin-bottom:4px}
+.slot-detail .slot-human{font-weight:800;color:var(--ink);font-size:15px;margin-bottom:6px}
+.slot-detail .slot-example{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.7);border:1px solid #dbe6ff;font-size:13px;color:#536078}
 .slot-detail strong{color:var(--blue3)}
 
 /* Fields */
@@ -532,6 +604,152 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 .dialogue-input-row input::placeholder{color:rgba(255,255,255,.4)}
 .dialogue-showcase .dialogue-hint{margin-top:14px;font-size:13px;color:rgba(255,255,255,.5)}
+
+/* Ecosystem */
+.ecosystem-section{overflow:hidden}
+.ecosystem-visual{max-width:900px;margin:0 auto}
+.ecosystem-stage{position:relative;width:100%;height:480px;margin:0 auto}
+.ecosystem-lines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.eco-line{fill:none;stroke:#cbd5e1;stroke-width:1.5;stroke-linecap:round;stroke-dasharray:6 8}
+.eco-merge-zone{position:relative;margin-top:-4px;padding-bottom:8px}
+.eco-merge-lines{display:block;width:100%;height:72px;margin:0 auto;max-width:480px;overflow:visible}
+.eco-merge-lines path{fill:none;stroke:#cbd5e1;stroke-width:1.5;stroke-linecap:round;stroke-dasharray:6 8}
+.eco-cup-hub{
+  position:relative;z-index:2;max-width:420px;margin:-6px auto 0;padding:24px 28px;
+  border-radius:24px;text-align:center;color:#fff;
+  background:linear-gradient(145deg,#0f1724 0%,#1a3358 50%,#243f7a 100%);
+  border:1px solid rgba(147,197,253,.25);
+  box-shadow:0 20px 56px rgba(15,23,36,.22),0 0 0 1px rgba(255,255,255,.06) inset
+}
+.eco-cup-hub:before{
+  content:"";position:absolute;inset:0;border-radius:24px;pointer-events:none;
+  background:radial-gradient(circle at 50% 0%,rgba(57,120,255,.28),transparent 55%)
+}
+.eco-cup-hub>*{position:relative;z-index:1}
+.eco-cup-hub .eco-cup-ico{font-size:36px;line-height:1;margin-bottom:8px;display:block}
+.eco-cup-hub .eco-cup-badge{
+  display:inline-block;margin-bottom:8px;padding:4px 12px;border-radius:999px;
+  font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:#6ee7b7;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.28)
+}
+.eco-cup-hub strong{display:block;font-size:clamp(22px,4vw,28px);font-weight:900;letter-spacing:.06em;margin-bottom:6px}
+.eco-cup-hub .eco-cup-sub{font-size:13px;opacity:.82;font-weight:600;line-height:1.45}
+.eco-cup-hub .eco-cup-sub em{font-style:normal;color:#93c5fd}
+.eco-collect{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);z-index:3;width:10px;height:10px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px rgba(57,120,255,.4)}
+.eco-device{position:absolute;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:2}
+.eco-device-label{font-size:12px;font-weight:700;color:var(--muted)}
+.eco-device--macbook{top:38%;left:44%;transform:translate(-50%,-50%)}
+.eco-macbook-lid{width:180px;padding:7px 7px 3px;border-radius:11px 11px 0 0;background:linear-gradient(180deg,#e2e8f0,#cbd5e1);border:1px solid #94a3b8}
+.eco-macbook-screen{height:108px;border-radius:5px;background:linear-gradient(135deg,#eef2ff,#dbeafe);border:1px solid #c7d2fe;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6)}
+.eco-macbook-base{width:198px;height:9px;margin-top:2px;border-radius:0 0 12px 12px;background:#cbd5e1;border:1px solid #94a3b8}
+.eco-device--iphone{top:40%;left:66%;transform:translateY(-50%)}
+.eco-iphone-screen{width:64px;height:132px;border-radius:16px;background:linear-gradient(180deg,#f1f5f9,#e2e8f0);border:3px solid #64748b;box-shadow:0 12px 28px rgba(15,23,42,.1);position:relative}
+.eco-iphone-screen::before{content:"";position:absolute;top:7px;left:50%;transform:translateX(-50%);width:24px;height:4px;border-radius:999px;background:#94a3b8}
+.eco-gadget{
+  position:absolute;display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:10px 12px;border-radius:14px;background:#fff;border:1px solid var(--line);
+  box-shadow:var(--shadow-sm);font-size:22px;z-index:2
+}
+.eco-gadget small{font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap}
+.eco-gadget--glasses{top:6%;left:6%}
+.eco-gadget--headphones{top:4%;right:8%}
+.eco-gadget--speaker{top:34%;left:1%}
+.eco-gadget--camera{top:32%;right:2%}
+.eco-gadget--server{bottom:12%;left:10%}
+.eco-gadget--robot{bottom:10%;right:8%}
+.eco-gadget--watch{bottom:22%;left:18%}
+.eco-gadget--home{bottom:20%;right:16%}
+.ecosystem-tags{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:28px;padding:0;list-style:none}
+.ecosystem-tags li{padding:8px 14px;border-radius:999px;font-size:12px;font-weight:650;color:#506079;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+@media(max-width:960px){
+  .ecosystem-stage{height:580px}
+  .eco-device--macbook{top:42%;left:50%;transform:translate(-50%,-50%)}
+  .eco-device--iphone{top:auto;bottom:14%;left:50%;transform:translateX(-50%)}
+}
+@media(max-width:640px){
+  .ecosystem-stage{height:640px}
+  .eco-gadget--watch,.eco-gadget--home{display:none}
+  .eco-merge-lines{height:64px;max-width:320px}
+}
+
+/* Footer hero + mascot */
+.site-footer{
+  margin-top:8px;padding:56px 0 72px;
+  background:linear-gradient(180deg,#fff 0%,#eef1f8 100%);
+  border-top:1px solid var(--line)
+}
+.footer-hero{
+  display:flex;flex-direction:column;align-items:center;max-width:640px;margin:0 auto;text-align:center
+}
+.footer-mascot-block{margin:0 0 18px}
+.footer-mascot{position:relative;width:112px;height:132px;margin:0 auto}
+.footer-mascot-glow{
+  position:absolute;left:50%;bottom:8px;width:88px;height:24px;transform:translateX(-50%);
+  border-radius:999px;background:radial-gradient(ellipse,rgba(99,102,241,.28),transparent 70%)
+}
+.footer-mascot-shell{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center}
+.footer-mascot-antenna{width:4px;height:12px;margin-bottom:-2px;border-radius:999px;background:#475569}
+.footer-mascot-antenna::after{
+  content:"";display:block;width:10px;height:10px;margin:-1px 0 0 -3px;border-radius:999px;
+  background:linear-gradient(145deg,#fde047,#facc15);box-shadow:0 0 12px rgba(250,204,21,.55)
+}
+.footer-mascot-screen{
+  width:78px;height:58px;padding:10px 8px 8px;border:3px solid #334155;border-radius:18px 18px 14px 14px;
+  background:linear-gradient(180deg,#dbeafe,#bfdbfe);
+  box-shadow:inset 0 -4px 0 rgba(59,130,246,.12),0 6px 0 #1e293b,0 10px 20px rgba(59,130,246,.14)
+}
+.footer-mascot-face{position:relative;width:100%;height:100%}
+.footer-mascot-eye{position:absolute;top:10px;width:8px;height:10px;border-radius:2px;background:#0f172a}
+.footer-mascot-eye--left{left:16px}
+.footer-mascot-eye--right{right:16px}
+.footer-mascot-smile{
+  position:absolute;left:50%;bottom:8px;width:18px;height:9px;transform:translateX(-50%);
+  border:3px solid #0f172a;border-top:0;border-radius:0 0 12px 12px;background:transparent
+}
+.footer-mascot-body{display:flex;align-items:flex-start;justify-content:center;gap:4px;margin-top:8px}
+.footer-mascot-torso{
+  width:34px;height:28px;border:3px solid #1e293b;border-radius:6px;
+  background:linear-gradient(180deg,#6366f1,#4f46e5);box-shadow:inset 0 2px 0 rgba(255,255,255,.18)
+}
+.footer-mascot-arm{
+  width:12px;height:22px;margin-top:4px;border:3px solid #1e293b;border-radius:4px;background:#facc15;
+  transform-origin:top center
+}
+.footer-mascot-arm--left{transform:rotate(-12deg)}
+.footer-mascot-arm--right{transform:rotate(12deg)}
+.footer-mascot-feet{display:flex;gap:10px;margin-top:2px}
+.footer-mascot-feet span{
+  width:18px;height:10px;border:3px solid #1e293b;border-radius:4px 4px 8px 8px;background:#fde047
+}
+.footer-eyebrow{
+  margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6366f1
+}
+.footer-title{
+  margin:0 0 14px;font-size:clamp(28px,5vw,40px);font-weight:900;letter-spacing:-.03em;line-height:1.05;
+  background:linear-gradient(135deg,#1e3a8a,#4338ca 45%,#2563eb);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent
+}
+.footer-slogan-main{
+  margin:0 0 16px;font-size:clamp(17px,2.5vw,20px);font-weight:800;line-height:1.35;color:var(--ink);
+  max-width:28ch
+}
+.footer-tags{
+  list-style:none;margin:0 0 18px;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px
+}
+.footer-tag{
+  display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:650;line-height:1.2;
+  color:#334155;padding:6px 12px 6px 10px;border:1px solid rgba(226,232,240,.95);border-radius:999px;
+  background:rgba(255,255,255,.92);box-shadow:0 1px 3px rgba(15,23,36,.06);white-space:nowrap
+}
+.footer-tag-hash{font-weight:800;color:#6366f1}
+.footer-tag:nth-child(2){color:#4338ca}
+.footer-tag:nth-child(2) .footer-tag-hash{color:#4f46e5}
+.footer-tag:nth-child(3){color:#0369a1}
+.footer-tag:nth-child(3) .footer-tag-hash{color:#0284c7}
+.footer-lead{margin:0;font-size:16px;line-height:1.65;color:#475569;max-width:52ch}
+.footer-quote{margin:16px 0 0;font-size:14px;font-style:italic;color:#64748b}
+.footer-copy{margin-top:28px;font-size:12px;color:#94a3b8}
+
 .toast{position:fixed;z-index:30;left:50%;bottom:calc(24px + var(--safe-bottom));transform:translate(-50%,20px);background:#141c2b;color:#fff;padding:12px 20px;border-radius:16px;font-size:14px;opacity:0;pointer-events:none;transition:.3s;max-width:calc(100% - 32px);box-shadow:0 10px 30px rgba(0,0,0,.2);text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
@@ -557,6 +775,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
     <button class="chip" type="button" data-target="fields" onclick="jump('fields',this)">Поля</button>
     <button class="chip" type="button" data-target="agents" onclick="jump('agents',this)">Агенты</button>
     <button class="chip" type="button" data-target="shell" onclick="jump('shell',this)">Говорилка</button>
+    <button class="chip" type="button" data-target="ecosystem" onclick="jump('ecosystem',this)">Экосистема</button>
     <button class="chip" type="button" data-target="cases" onclick="jump('cases',this)">Кейсы</button>
     <button class="chip" type="button" data-target="features" onclick="jump('features',this)">Особенности</button>
     <button class="chip" type="button" data-target="search" onclick="jump('search',this)">Поиск</button>
@@ -627,10 +846,15 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
             <div class="result">Итог: идеальный порядок, который ИИ поддерживает за вас</div>
           </div>
           <div class="formula">
-            <div class="eq">1 + 1 ≥ 2</div>
+            <div class="eq">вы <span class="eq-n">(1)</span> + агент <span class="eq-n">(1)</span> ≥ 2 <span class="eq-synergy">(синергия)</span></div>
             <p>Всё стекается в одно место. Вы ведёте данные вместе — и понимаете друг друга без перевода.</p>
           </div>
         </div>
+
+        <blockquote class="lead-statement">
+          <p class="lead-statement-text"><strong>Agent CMS</strong> — система управления контекстом и контентом для LLM-агентов</p>
+          <p class="lead-statement-cms">CMS — <abbr title="Content Management System">Content Management System</abbr> · <abbr title="Context Management System">Context Management System</abbr></p>
+        </blockquote>
       </div>
     </section>
 
@@ -666,17 +890,24 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
       <div class="container">
         <div class="section-head"><h2>Моя цифровая жизнь</h2><p>всё важное — в одном хранилище, по одним правилам</p></div>
         <div class="graph-block">
-          <p class="graph-lead">Финансы, здоровье, контакты, работа, дом, обучение — не разрозненные приложения, а связанные области одной системы. Агент знает контекст между ними.</p>
-          <div class="graph-radial" aria-label="Граф цифровой жизни">
+          <p class="graph-lead">Финансы, здоровье, контакты, работа, дом, обучение — связанные области одной системы. Их ведёт <strong style="color:#047857">агент основной</strong> — знает контекст между ними.</p>
+          <div class="life-graph-layout" aria-label="Граф цифровой жизни">
+          <div class="graph-radial">
             <svg class="graph-svg" viewBox="0 0 400 380" preserveAspectRatio="xMidYMid meet">
-              <line x1="200" y1="190" x2="200" y2="42"/><line x1="200" y1="190" x2="318" y2="78"/>
-              <line x1="200" y1="190" x2="358" y2="190"/><line x1="200" y1="190" x2="318" y2="302"/>
-              <line x1="200" y1="190" x2="200" y2="338"/><line x1="200" y1="190" x2="82" y2="302"/>
-              <line x1="200" y1="190" x2="42" y2="190"/><line x1="200" y1="190" x2="82" y2="78"/>
-              <line x1="200" y1="190" x2="130" y2="52"/><line x1="200" y1="190" x2="270" y2="52"/>
-              <line x1="200" y1="190" x2="348" y2="130"/><line x1="200" y1="190" x2="348" y2="250"/>
-              <line x1="200" y1="190" x2="270" y2="328"/><line x1="200" y1="190" x2="130" y2="328"/>
-              <line x1="200" y1="190" x2="52" y2="250"/><line x1="200" y1="190" x2="52" y2="130"/>
+              <line x1="200" y1="190" x2="200" y2="42"/>
+              <line x1="200" y1="190" x2="274" y2="62"/>
+              <line x1="200" y1="190" x2="328" y2="106"/>
+              <line x1="200" y1="190" x2="348" y2="174"/>
+              <line x1="200" y1="190" x2="328" y2="242"/>
+              <line x1="200" y1="190" x2="274" y2="318"/>
+              <line x1="200" y1="190" x2="200" y2="338"/>
+              <line x1="200" y1="190" x2="126" y2="318"/>
+              <line x1="200" y1="190" x2="72" y2="264"/>
+              <line x1="200" y1="190" x2="52" y2="190"/>
+              <line x1="200" y1="190" x2="72" y2="116"/>
+              <line x1="200" y1="190" x2="126" y2="62"/>
+              <line class="branch-line" x1="72" y1="264" x2="10" y2="234"/>
+              <line class="orchestrator-line" x1="200" y1="190" x2="200" y2="368"/>
             </svg>
             <div class="graph-hub">
               <span class="hub-ico">🌐</span>
@@ -692,13 +923,24 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
               <div class="graph-node" style="--a:150deg;--r:148px"><span class="g-ico">📚</span>Обучение<span class="g-sub">курсы · языки</span></div>
               <div class="graph-node" style="--a:180deg;--r:148px"><span class="g-ico">🎬</span>Досуг<span class="g-sub">кино · хобби</span></div>
               <div class="graph-node" style="--a:210deg;--r:148px"><span class="g-ico">🛒</span>Покупки<span class="g-sub">wishlist · гарантии</span></div>
-              <div class="graph-node" style="--a:240deg;--r:148px"><span class="g-ico">🧾</span>Документы<span class="g-sub">договоры · паспорт</span></div>
+              <div class="graph-node graph-node--parent" style="--a:240deg;--r:148px"><span class="g-ico">🧾</span>Документы<span class="g-sub">договоры · паспорт</span></div>
+              <div class="graph-node graph-node--branch" style="--a:257deg;--r:195px"><span class="g-ico">📷</span>Фотки<span class="g-sub">альбомы · sidecar</span></div>
               <div class="graph-node" style="--a:270deg;--r:148px"><span class="g-ico">🎯</span>Цели<span class="g-sub">личные · годовые</span></div>
               <div class="graph-node" style="--a:300deg;--r:148px"><span class="g-ico">✈️</span>Путешествия<span class="g-sub">маршруты · билеты</span></div>
               <div class="graph-node" style="--a:330deg;--r:148px"><span class="g-ico">🍽</span>Питание<span class="g-sub">рецепты · калории</span></div>
             </div>
           </div>
+          <div class="life-agent-link" aria-hidden="true"></div>
+          <div class="agent-card orchestrator">
+            <div class="ac-ico">🎭</div>
+            <h3>Агент основной</h3>
+            <p class="ac-desc">Ведёт цифровую жизнь · знает контекст между областями</p>
+            <span class="ac-store">🗄️ своё хранилище</span>
+          </div>
+          </div>
           <div class="graph-legend">
+            <span class="legend-green">🎭 Агент основной — ведёт всю цифровую жизнь</span>
+            <span>📷 Фотки — ветка от «Документов»</span>
             <span>«Сколько потратил на ремонт?» → Финансы + Дом</span>
             <span>«Напомни анализы перед поездкой» → Здоровье + Путешествия</span>
           </div>
@@ -706,26 +948,46 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
         <div class="section-head" style="margin-top:44px"><h2>Мои агенты</h2><p>1 агент = 1 изолированная область · своё хранилище</p></div>
         <div class="graph-block">
-          <p class="graph-lead">У каждого агента — своё обособленное хранилище. Оркестратор (зелёный) координирует и имеет доступ ко всем; проекты друг друга не видят.</p>
-          <div class="graph-radial compact" aria-label="Граф агентов">
-            <svg class="graph-svg" viewBox="0 0 400 320" preserveAspectRatio="xMidYMid meet">
-              <line class="orchestrator-line" x1="200" y1="160" x2="312" y2="160"/>
-              <line class="orchestrator-line" x1="200" y1="160" x2="88" y2="160"/>
-            </svg>
-            <div class="graph-hub orchestrator">
-              <span class="hub-ico">🎭</span>
-              <strong>Личный агент-оркестратор</strong>
-              <small>🗄️ своё хранилище · доступ ко всем</small>
+          <p class="graph-lead">Четыре отдельных агента — четыре хранилища. Личный агент-оркестратор координирует и видит все; остальные изолированы друг от друга.</p>
+          <div class="agents-map" aria-label="Карта агентов">
+            <div class="agent-card orchestrator">
+              <div class="ac-ico">🎭</div>
+              <h3>Личный агент</h3>
+              <p class="ac-desc">Оркестратор · доступ ко всем агентам</p>
+              <span class="ac-store">🗄️ своё хранилище</span>
             </div>
-            <div class="graph-orbit">
-              <div class="graph-node isolated" style="--a:90deg;--r:112px"><span class="g-ico">📋</span>Проект А<span class="g-sub g-store">🗄️ своё хранилище</span></div>
-              <div class="graph-node isolated" style="--a:270deg;--r:112px"><span class="g-ico">📋</span>Проект Б<span class="g-sub g-store">🗄️ своё хранилище</span></div>
+            <div class="agents-connector" aria-hidden="true">
+              <svg viewBox="0 0 640 36" preserveAspectRatio="xMidYMid meet">
+                <line x1="320" y1="0" x2="107" y2="36"/>
+                <line x1="320" y1="0" x2="320" y2="36"/>
+                <line x1="320" y1="0" x2="533" y2="36"/>
+              </svg>
+            </div>
+            <div class="agents-row">
+              <div class="agent-card isolated">
+                <div class="ac-ico">📋</div>
+                <h3>Агент «Проект А»</h3>
+                <p class="ac-desc">Изолированная область</p>
+                <span class="ac-store">🗄️ своё хранилище</span>
+              </div>
+              <div class="agent-card isolated">
+                <div class="ac-ico">📋</div>
+                <h3>Агент «Проект Б»</h3>
+                <p class="ac-desc">Изолированная область</p>
+                <span class="ac-store">🗄️ своё хранилище</span>
+              </div>
+              <div class="agent-card isolated">
+                <div class="ac-ico">💼</div>
+                <h3>Агент «Работа В»</h3>
+                <p class="ac-desc">Изолированная область</p>
+                <span class="ac-store">🗄️ своё хранилище</span>
+              </div>
             </div>
           </div>
           <div class="graph-legend">
-            <span class="legend-green">🎭 Оркестратор — своё хранилище + доступ ко всем</span>
-            <span>🗄️ У каждого агента — отдельное хранилище</span>
-            <span>Проект А ⊥ Проект Б</span>
+            <span class="legend-green">🎭 Личный агент — оркестратор, доступ ко всем</span>
+            <span>🗄️ У каждого — своё хранилище</span>
+            <span>Проект А ⊥ Проект Б ⊥ Работа В</span>
           </div>
         </div>
       </div>
@@ -791,7 +1053,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
         <div class="block slots-section">
           <h3 class="block-title">Записи хранятся в слотах</h3>
-          <p class="block-lead">Слоты — типы <code>awn.slot.*</code>. Нажмите на слот, чтобы увидеть назначение.</p>
+          <p class="block-lead">Слот — «полка» в теме. Ключ вроде <code>notes/</code> — для системы, подпись рядом — для человека. Нажмите слот — расшифровка и пример.</p>
           <div class="slot-cats" id="slotGrid"></div>
           <div class="slot-detail" id="slotDetail">Выберите слот — покажем, для чего он нужен.</div>
         </div>
@@ -1035,7 +1297,73 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
       </div>
     </section>
 
-    <section class="section" id="cases">
+    <section class="section" id="ecosystem">
+      <div class="container ecosystem-section">
+        <div class="section-head"><h2>Всё стекается в один центр</h2><p>ЦУП — центр управления вашей цифровой жизнью</p></div>
+        <p class="block-lead" style="text-align:center;max-width:58ch;margin:0 auto 28px">MacBook, телефон, очки, камера, умный дом — контекст, голос и медиа стекаются в одну точку. Ниже — <strong style="color:var(--blue3)">ЦУП</strong>: Agent CMS принимает, хранит и обрабатывает.</p>
+
+        <div class="ecosystem-visual" aria-label="Экосистема устройств">
+          <div class="ecosystem-stage">
+            <svg class="ecosystem-lines" viewBox="0 0 900 480" fill="none" aria-hidden="true">
+              <path class="eco-line" d="M 90 70 L 450 462"/>
+              <path class="eco-line" d="M 810 55 L 450 462"/>
+              <path class="eco-line" d="M 45 195 L 450 462"/>
+              <path class="eco-line" d="M 855 175 L 450 462"/>
+              <path class="eco-line" d="M 360 210 L 450 462"/>
+              <path class="eco-line" d="M 594 195 L 450 462"/>
+              <path class="eco-line" d="M 162 375 L 450 462"/>
+              <path class="eco-line" d="M 738 370 L 450 462"/>
+              <path class="eco-line" d="M 270 395 L 450 462"/>
+              <path class="eco-line" d="M 630 390 L 450 462"/>
+              <path class="eco-line" d="M 126 430 L 450 462"/>
+              <path class="eco-line" d="M 774 425 L 450 462"/>
+            </svg>
+            <div class="eco-collect" aria-hidden="true"></div>
+
+            <div class="eco-device eco-device--macbook">
+              <div class="eco-macbook-lid"><div class="eco-macbook-screen"></div></div>
+              <div class="eco-macbook-base"></div>
+              <span class="eco-device-label">MacBook</span>
+            </div>
+            <div class="eco-device eco-device--iphone">
+              <div class="eco-iphone-screen"></div>
+              <span class="eco-device-label">iPhone</span>
+            </div>
+            <div class="eco-gadget eco-gadget--glasses"><span aria-hidden="true">👓</span><small>Очки</small></div>
+            <div class="eco-gadget eco-gadget--headphones"><span aria-hidden="true">🎧</span><small>Наушники</small></div>
+            <div class="eco-gadget eco-gadget--speaker"><span aria-hidden="true">🔊</span><small>Колонка</small></div>
+            <div class="eco-gadget eco-gadget--camera"><span aria-hidden="true">📷</span><small>Камера</small></div>
+            <div class="eco-gadget eco-gadget--server"><span aria-hidden="true">🖥️</span><small>Сервер</small></div>
+            <div class="eco-gadget eco-gadget--robot"><span aria-hidden="true">🤖</span><small>Lego-робот</small></div>
+            <div class="eco-gadget eco-gadget--watch"><span aria-hidden="true">⌚</span><small>Watch</small></div>
+            <div class="eco-gadget eco-gadget--home"><span aria-hidden="true">🏠</span><small>Smart Home</small></div>
+          </div>
+
+          <div class="eco-merge-zone">
+            <svg class="eco-merge-lines" viewBox="0 0 480 72" fill="none" aria-hidden="true">
+              <path class="eco-line" d="M 120 0 L 240 68"/>
+              <path class="eco-line" d="M 240 0 L 240 68"/>
+              <path class="eco-line" d="M 360 0 L 240 68"/>
+            </svg>
+            <div class="eco-cup-hub">
+              <span class="eco-cup-badge">Центр управления</span>
+              <span class="eco-cup-ico" aria-hidden="true">🎛️</span>
+              <strong>ЦУП</strong>
+              <p class="eco-cup-sub"><em>Agent CMS</em> — хранилище, агент, обработка.<br>Всё стекается сюда.</p>
+            </div>
+          </div>
+        </div>
+
+        <ul class="ecosystem-tags">
+          <li>Cursor · MCP</li>
+          <li>Agent Shell · голос</li>
+          <li>Desktop · Web UI</li>
+          <li>ЦУП · Agent CMS</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section alt" id="cases">
       <div class="container">
         <div class="section-head"><h2>Примеры кейсов</h2><p>как это может быть полезно</p></div>
         <div class="cases" id="casesList"></div>
@@ -1052,8 +1380,12 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
           <div class="feature tone-warm"><div class="card-emoji">📥</div><h3>Inbox</h3><p class="card-desc">Бросили мысль, ссылку, файл — потом разберёте вместе с агентом.</p></div>
           <div class="feature tone-blue"><div class="card-emoji">🧩</div><h3>Типы и схемы</h3><p class="card-desc">Каждая запись типизирована. Поведение зависит от типа и места в дереве.</p></div>
           <div class="feature tone-green"><div class="card-emoji">🔒</div><h3>Доступ</h3><p class="card-desc">Делитесь с людьми, разделяя публичное и личное.</p></div>
-          <div class="feature tone-purple"><div class="card-emoji">🔔</div><h3>Уведомления</h3><p class="card-desc">Колокольчик в интерфейсе: создание, изменение, перемещение. Агент может вызвать <code>notify_user</code> — вы увидите в ленте активности.</p></div>
           <div class="feature tone-warm"><div class="card-emoji">☁️</div><h3>Google Drive</h3><p class="card-desc">Тяжёлые медиа уезжают в <code>awn-google-drive/</code>, на месте symlink. Место на диске экономится, файлы доступны из облака.</p></div>
+          <div class="feature tone-blue"><div class="card-emoji">🌐</div><h3>Бесшовное блуждание</h3><p class="card-desc">Начали заметку на телефоне — продолжили на ноутбуке. Один workspace, одно дерево: синхронизация между устройствами без «а где это было?».</p></div>
+          <div class="feature tone-purple"><div class="card-emoji">🧭</div><h3>Продолжить с места</h3><p class="card-desc">Агент помнит активную тему, последнюю запись и незаконченный диалог. Открыли другой экран — контекст уже на месте, можно сразу работать.</p></div>
+        </div>
+        <div class="feature-grid-solo">
+          <div class="feature tone-purple"><div class="card-emoji">🔔</div><h3>Уведомления</h3><p class="card-desc">Колокольчик в интерфейсе: создание, изменение, перемещение. Агент может вызвать <code>notify_user</code> — вы увидите в ленте активности.</p></div>
         </div>
       </div>
     </section>
@@ -1146,7 +1478,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
       <div class="container">
         <div class="section-head"><h2>Пример: изучение английского</h2><p>как выглядит заполненная тема в хранилище</p></div>
         <div class="case-graph-block">
-          <p class="graph-lead">Не абстракция — реальная структура: агент → область → тема → слоты с записями. Агент знает, что «урок-12» лежит в <code>main/</code>, а фото карточек — в <code>media/</code> с sidecar.</p>
+          <p class="graph-lead">Не абстракция — реальная структура: агент → область → тема → слоты с записями. Агент знает, где лежит «Урок 12», а где — фото карточек с описанием.</p>
 
           <div class="case-tree" aria-label="Граф темы Английский">
             <div class="case-spine">
@@ -1178,40 +1510,40 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
                 <div class="case-slot">
                   <div class="case-slot-head"><span class="cs-ico">🧠</span><strong>main/</strong></div>
                   <div class="case-slot-files">
-                    <div class="case-file"><span class="cf-ico">📄</span><span><code>урок-12.md</code> — Present Perfect, упражнение 7</span></div>
-                    <div class="case-file"><span class="cf-ico">📄</span><span><code>progress.md</code> — уровень B1, цель B2</span></div>
+                    <div class="case-file"><span class="cf-ico">📄</span><span>Урок 12 — Present Perfect, упражнение 7</span></div>
+                    <div class="case-file"><span class="cf-ico">📄</span><span>Прогресс — уровень B1, цель B2</span></div>
                   </div>
                 </div>
                 <div class="case-slot">
                   <div class="case-slot-head"><span class="cs-ico">📒</span><strong>notes/</strong></div>
                   <div class="case-slot-files">
-                    <div class="case-file"><span class="cf-ico">📝</span><span><code>irregular-verbs.md</code> — 80 глаголов</span></div>
-                    <div class="case-file"><span class="cf-ico">📝</span><span><code>phrasal-go-off.md</code> — go off, go on</span></div>
+                    <div class="case-file"><span class="cf-ico">📝</span><span>Неправильные глаголы — 80 штук</span></div>
+                    <div class="case-file"><span class="cf-ico">📝</span><span>Фразовые глаголы — go off, go on</span></div>
                   </div>
                 </div>
                 <div class="case-slot">
                   <div class="case-slot-head"><span class="cs-ico">🖼</span><strong>media/</strong></div>
                   <div class="case-slot-files">
-                    <div class="case-file sidecar-hint"><span class="cf-ico">🖼️</span><span><code>flashcards-unit-5.jpg</code> + <code>.sidecar.md</code></span></div>
-                    <div class="case-file"><span class="cf-ico">🔊</span><span><code>pronunciation-ai.mp3</code> — произношение /θ/</span></div>
+                    <div class="case-file sidecar-hint"><span class="cf-ico">🖼️</span><span>Карточки · юнит 5</span></div>
+                    <div class="case-file"><span class="cf-ico">🔊</span><span>Произношение /θ/</span></div>
                   </div>
                 </div>
                 <div class="case-slot">
                   <div class="case-slot-head"><span class="cs-ico">🔗</span><strong>references/</strong></div>
                   <div class="case-slot-files">
-                    <div class="case-file"><span class="cf-ico">📕</span><span><code>murphy-essential.pdf</code></span></div>
-                    <div class="case-file"><span class="cf-ico">🌐</span><span><code>bbc-learning.md</code> — ссылка + заметки</span></div>
+                    <div class="case-file"><span class="cf-ico">📕</span><span>Murphy · Essential Grammar</span></div>
+                    <div class="case-file"><span class="cf-ico">🌐</span><span>BBC Learning</span></div>
                   </div>
                 </div>
                 <div class="case-slot">
                   <div class="case-slot-head"><span class="cs-ico">📥</span><strong>inbox/</strong></div>
                   <div class="case-slot-files">
-                    <div class="case-file"><span class="cf-ico">🔗</span><span><code>youtube-grammar-tip.md</code> — разобрать позже</span></div>
-                    <div class="case-file"><span class="cf-ico">🎙</span><span><code>voice-idea.md</code> — «запомни фразу…»</span></div>
+                    <div class="case-file"><span class="cf-ico">🔗</span><span>Видео про грамматику</span></div>
+                    <div class="case-file"><span class="cf-ico">🎙</span><span>«Запомни фразу…»</span></div>
                   </div>
                 </div>
                 <div class="case-slot">
-                  <div class="case-slot-head"><span class="cs-ico">📋</span><strong>todo.md</strong></div>
+                  <div class="case-slot-head"><span class="cs-ico">📋</span><strong>todo</strong></div>
                   <div class="case-slot-files">
                     <div class="case-file"><span class="cf-ico">✅</span><span>Выучить 20 слов до пятницы</span></div>
                     <div class="case-file"><span class="cf-ico">✅</span><span>Повторить урок 11 · аудирование</span></div>
@@ -1221,7 +1553,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
             </div>
 
             <div class="case-path-bar">
-              <strong>Личный/Знания/Английский/main/урок-12.md</strong><br>
+              <strong>Личный → Знания → Английский → Урок 12</strong><br>
               «На чём остановились?» → Present Perfect, упражнение 7, стр. 42
             </div>
           </div>
@@ -1235,6 +1567,45 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
       </div>
     </section>
   </main>
+
+  <footer class="site-footer" id="footer">
+    <div class="container">
+      <div class="footer-hero">
+        <div class="footer-mascot-block" aria-hidden="true">
+          <div class="footer-mascot">
+            <div class="footer-mascot-glow"></div>
+            <div class="footer-mascot-shell">
+              <div class="footer-mascot-antenna"></div>
+              <div class="footer-mascot-screen">
+                <div class="footer-mascot-face">
+                  <span class="footer-mascot-eye footer-mascot-eye--left"></span>
+                  <span class="footer-mascot-eye footer-mascot-eye--right"></span>
+                  <span class="footer-mascot-smile"></span>
+                </div>
+              </div>
+              <div class="footer-mascot-body">
+                <div class="footer-mascot-arm footer-mascot-arm--left"></div>
+                <div class="footer-mascot-torso"></div>
+                <div class="footer-mascot-arm footer-mascot-arm--right"></div>
+              </div>
+              <div class="footer-mascot-feet"><span></span><span></span></div>
+            </div>
+          </div>
+        </div>
+        <p class="footer-eyebrow">Workspaces / *.md</p>
+        <h2 class="footer-title">Agent CMS</h2>
+        <p class="footer-slogan-main">Наша цель — всё, что можно вообразить!</p>
+        <ul class="footer-tags" aria-label="Теги">
+          <li class="footer-tag"><span class="footer-tag-hash" aria-hidden="true">#</span>обучаем агента</li>
+          <li class="footer-tag"><span class="footer-tag-hash" aria-hidden="true">#</span>обучаемся сами</li>
+          <li class="footer-tag"><span class="footer-tag-hash" aria-hidden="true">#</span>вместе растём</li>
+        </ul>
+        <p class="footer-lead">Система управления контекстом для LLM. Каждая тема — отдельный контекст, память накапливается заметка за заметкой.</p>
+        <p class="footer-quote">«Файл — это не папка, а намерение.»</p>
+        <p class="footer-copy">Agent CMS · 2026</p>
+      </div>
+    </div>
+  </footer>
 </div>
 
 <div class="toast" id="toast" role="status"></div>
@@ -1249,34 +1620,34 @@ const treeTexts={
 
 const slotCatalog=[
   {cat:'Память',items:[
-    {emoji:'🧠',title:'main/',desc:'Основные записи темы'},
-    {emoji:'📄',title:'main.md',desc:'Память в одном файле'},
-    {emoji:'📥',title:'inbox/',desc:'Неразобранное'},
-    {emoji:'📒',title:'notes/',desc:'Заметки'},
-    {emoji:'🔗',title:'references/',desc:'Источники и ссылки'}
+    {emoji:'🧠',title:'main/',label:'Основное содержимое',desc:'Главные записи темы: уроки, документы, прогресс. Сюда агент кладёт «основной» материал.',example:'Урок 12, смета, главная заметка по проекту'},
+    {emoji:'📄',title:'main.md',label:'Вся память в одном файле',desc:'Одна большая заметка вместо папки — когда тема компактная и всё в одном документе.',example:'Краткий чеклист, одностраничная памятка'},
+    {emoji:'📥',title:'inbox/',label:'Входящее · неразобранное',desc:'Бросили мысль, ссылку, голосовую — сюда. Потом вместе с агентом разберёте по местам.',example:'Ссылка с YouTube, «запомни позже», скрин без контекста'},
+    {emoji:'📒',title:'notes/',label:'Заметки и мысли',desc:'Вспомогательные записи: наброски, определения, списки. Не главный материал, но важный контекст.',example:'Неправильные глаголы, идея для статьи, цитата из книги'},
+    {emoji:'🔗',title:'references/',label:'Источники и ссылки',desc:'Книги, статьи, сайты, PDF — откуда брали информацию. Ссылки + ваши пометки.',example:'Murphy Grammar, BBC Learning, статья по теме'}
   ]},
   {cat:'Файлы',items:[
-    {emoji:'🖼',title:'media/',desc:'Фото, видео, PDF'},
-    {emoji:'📎',title:'assets/',desc:'Активы и вложения'},
-    {emoji:'📚',title:'repository/',desc:'Репозитории / код'},
-    {emoji:'📦',title:'artefacts/',desc:'Черновики и экспорты'},
-    {emoji:'📜',title:'scripts/',desc:'Скрипты'},
-    {emoji:'📐',title:'templates/',desc:'Шаблоны'},
-    {emoji:'📓',title:'notebooklm/',desc:'Материалы NotebookLM'}
+    {emoji:'🖼',title:'media/',label:'Фото, видео, PDF',desc:'Картинки, аудио, видео, сканы. Рядом может быть sidecar с описанием для агента.',example:'Фото карточек, скан чека, запись произношения'},
+    {emoji:'📎',title:'assets/',label:'Вложения и файлы',desc:'Документы, которые прикрепляются к теме, но не являются основной записью.',example:'Договор, презентация, архив материалов'},
+    {emoji:'📚',title:'repository/',label:'Код и репозитории',desc:'Git-репозитории, исходники, технические проекты внутри темы.',example:'Код утилиты, clone репозитория документации'},
+    {emoji:'📦',title:'artefacts/',label:'Черновики и экспорты',desc:'Промежуточные результаты: выгрузки, сгенерированные файлы, черновики.',example:'Экспорт из Notion, черновик отчёта'},
+    {emoji:'📜',title:'scripts/',label:'Скрипты',desc:'Автоматизация для этой темы: скрипты обработки, утилиты.',example:'Скрипт импорта данных, bash-обработчик'},
+    {emoji:'📐',title:'templates/',label:'Шаблоны',desc:'Заготовки записей — агент или вы создаёте новые файлы по образцу.',example:'Шаблон урока, шаблон встречи'},
+    {emoji:'📓',title:'notebooklm/',label:'Материалы NotebookLM',desc:'Импорт и материалы из Google NotebookLM, связанные с темой.',example:'Подкаст-саммари, конспект из источников'}
   ]},
   {cat:'Однофайловые',items:[
-    {emoji:'📋',title:'todo.md',desc:'Список задач'},
-    {emoji:'📜',title:'log.md',desc:'Журнал'},
-    {emoji:'📊',title:'main.csv',desc:'Таблица CSV'}
+    {emoji:'📋',title:'todo.md',label:'Список задач',desc:'Что нужно сделать по этой теме. Агент может отмечать выполненное.',example:'Выучить 20 слов, сдать домашку, позвонить подрядчику'},
+    {emoji:'📜',title:'log.md',label:'Журнал событий',desc:'Хронология: что происходило, когда, в каком порядке.',example:'14.08 — прошли урок 12; 15.08 — добавили карточки'},
+    {emoji:'📊',title:'main.csv',label:'Табличные данные',desc:'Структурированные данные в CSV — для списков, таблиц, импорта.',example:'Список слов, таблица расходов, трекер привычек'}
   ]},
   {cat:'Общение',items:[
-    {emoji:'💬',title:'comments/',desc:'Комментарии'},
-    {emoji:'🗨',title:'thread/',desc:'Диалог темы'}
+    {emoji:'💬',title:'comments/',label:'Комментарии',desc:'Обсуждение отдельных записей — заметки «к записи», не в основной текст.',example:'Комментарий к уроку, уточнение от коллеги'},
+    {emoji:'🗨',title:'thread/',label:'Диалог по теме',desc:'Переписка и обсуждение внутри темы — история диалога, не размазанная по файлам.',example:'Обсуждение проекта, ветка вопросов с агентом'}
   ]},
   {cat:'Системные',items:[
-    {emoji:'🕘',title:'history/',desc:'История версий'},
-    {emoji:'🗂️',title:'temp/',desc:'Временные файлы'},
-    {emoji:'📈',title:'volume/',desc:'Итоги и сводки'}
+    {emoji:'🕘',title:'history/',label:'История версий',desc:'Снимки и версии — что менялось и когда (если включено версионирование).',example:'Прошлая версия сметы, backup перед правками'},
+    {emoji:'🗂️',title:'temp/',label:'Временное',desc:'Черновики на удаление, промежуточные файлы — не для долгого хранения.',example:'Копия для эксперимента, кэш обработки'},
+    {emoji:'📈',title:'volume/',label:'Сводки и итоги',desc:'Агрегированные отчёты: итоги периода, summary по теме.',example:'Итоги месяца, сводка по проекту, дайджест'}
   ]}
 ];
 
@@ -1317,7 +1688,11 @@ function selectTree(node){
 function selectSlot(btn){
   document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('slotDetail').innerHTML='<strong>'+btn.dataset.title+'</strong> — '+btn.dataset.desc;
+  document.getElementById('slotDetail').innerHTML=
+    '<span class="slot-key">'+btn.dataset.title+'</span>'+
+    '<div class="slot-human">'+btn.dataset.label+'</div>'+
+    '<p>'+btn.dataset.desc+'</p>'+
+    (btn.dataset.example?'<div class="slot-example"><strong>Пример:</strong> '+btn.dataset.example+'</div>':'');
 }
 
 function renderSlots(){
@@ -1325,9 +1700,17 @@ function renderSlots(){
     <div>
       <p class="slot-cat-label">${cat.cat}</p>
       <div class="slot-buttons">${cat.items.map(s=>`
-        <button class="slot-btn" type="button" data-title="${s.title}" data-desc="${s.desc.replace(/"/g,'&quot;')}" onclick="selectSlot(this)">
+        <button class="slot-btn" type="button"
+          data-title="${s.title}"
+          data-label="${s.label.replace(/"/g,'&quot;')}"
+          data-desc="${s.desc.replace(/"/g,'&quot;')}"
+          data-example="${(s.example||'').replace(/"/g,'&quot;')}"
+          onclick="selectSlot(this)">
           <span class="emoji">${s.emoji}</span>
-          <span class="name">${s.title}</span>
+          <span class="slot-btn-text">
+            <span class="name">${s.title}</span>
+            <span class="slot-label">${s.label}</span>
+          </span>
         </button>`).join('')}
       </div>
     </div>`).join('');
@@ -1382,7 +1765,7 @@ function startDialogue(){
 
 renderSlots();renderCases();renderGoals();
 
-const obsSections=['problem','audience','life-graph','structure','fields','agents','shell','cases','features','search','connect','goals','dialogue','case-example'];
+const obsSections=['problem','audience','life-graph','structure','fields','agents','shell','ecosystem','cases','features','search','connect','goals','dialogue','case-example'];
 const io=new IntersectionObserver(entries=>{
   const v=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
   if(!v) return;
