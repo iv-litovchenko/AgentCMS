@@ -22,16 +22,60 @@ html{scroll-behavior:smooth}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.5}
 button{font:inherit;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
-.app{padding-bottom:calc(32px + var(--safe-bottom))}
+.app{padding-bottom:calc(32px + var(--safe-bottom));padding-top:var(--cosmos-dock-h,72px)}
 .container{width:var(--container);margin:0 auto}
 
-/* Cosmos header + orbit nav */
-.cosmos-shell{
-  position:sticky;top:0;z-index:20;
+/* Cosmos dock (always on top) + splash hero */
+.cosmos-dock{
+  position:fixed;top:0;left:0;right:0;z-index:25;
+  display:flex;align-items:stretch;min-height:68px;
   background:linear-gradient(180deg,#070b14 0%,#0f172a 55%,#111827 100%);
   border-bottom:1px solid rgba(148,163,184,.12);
-  box-shadow:0 12px 40px rgba(2,6,23,.45);
+  box-shadow:0 8px 28px rgba(2,6,23,.38)
+}
+.cosmos-splash{
+  position:relative;min-height:calc(100svh - var(--cosmos-dock-h, 72px));
+  display:flex;flex-direction:column;
+  background:linear-gradient(180deg,#070b14 0%,#0f172a 55%,#111827 100%);
   overflow:hidden
+}
+.cosmos-dock-inner{flex:1;min-width:0;display:flex;align-items:center}
+.cosmos-dock .cosmos-orbit-nav--dock{flex:1;min-width:0;width:100%}
+.cosmos-dock .cosmos-hub{
+  flex:0 0 auto;display:flex;align-items:center;gap:12px;
+  width:auto;min-width:min(280px,38vw);max-width:320px;
+  padding:8px 16px 8px 20px;
+  border-right:1px solid rgba(148,163,184,.18)
+}
+.cosmos-dock .cosmos-orbit-nav{
+  flex:1;min-width:0;margin-top:0;padding:8px 20px 8px 12px;
+  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 24px),transparent)
+}
+.cosmos-dock .cosmos-orbit-track{padding:2px 4px 0;gap:12px}
+.cosmos-dock .cosmos-orbit-item{width:64px;animation:none;gap:6px}
+.cosmos-dock .cosmos-bubble{width:44px;height:44px}
+.cosmos-dock .cosmos-bubble-emoji{font-size:18px}
+.cosmos-dock .cosmos-bubble-label{font-size:9px;max-width:64px;line-height:1.15}
+.cosmos-dock .cosmos-hub-aura{width:48px;height:48px}
+.cosmos-dock .cosmos-hub-mark{width:34px;height:34px;font-size:14px}
+.cosmos-dock .cosmos-hub-line--brand{
+  margin:0 0 2px;font-size:14px;font-weight:800;line-height:1.25;color:#f8fafc;letter-spacing:-.2px
+}
+.cosmos-dock .cosmos-hub-sep{color:rgba(148,163,184,.5);font-weight:600;margin:0 2px}
+.cosmos-dock .cosmos-hub-path{font-weight:650;color:#93c5fd;font-size:12px}
+.cosmos-dock .cosmos-hub-tagline{font-size:10px;line-height:1.35;margin:0}
+.cosmos-dock .cosmos-cta{display:none}
+@media(max-width:900px){
+  .cosmos-dock .cosmos-hub-tagline{display:none}
+  .cosmos-dock .cosmos-hub{min-width:min(240px,42vw);padding:8px 12px 8px 16px}
+  .cosmos-dock .cosmos-hub-line--brand{font-size:13px}
+}
+@media(max-width:640px){
+  .cosmos-dock .cosmos-hub{min-width:160px;max-width:180px;padding:8px 10px 8px 12px;gap:10px}
+  .cosmos-dock .cosmos-orbit-nav{padding:8px 12px 8px 8px}
+  .cosmos-dock .cosmos-orbit-item{width:58px}
+  .cosmos-dock .cosmos-bubble{width:42px;height:42px}
+  .cosmos-dock .cosmos-orbit-track{gap:10px}
 }
 .cosmos-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .cosmos-nebula{
@@ -79,8 +123,46 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   18%{opacity:0;transform:translate3d(-280px,280px,0) rotate(-32deg)}
   100%{opacity:0;transform:translate3d(-280px,280px,0) rotate(-32deg)}
 }
-.cosmos-inner{position:relative;z-index:1;padding:12px 20px 0}
-.cosmos-top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:10px}
+.cosmos-inner{
+  position:relative;z-index:1;padding:24px 20px 48px;
+  flex:1;display:flex;flex-direction:column;justify-content:center;
+  min-height:calc(100svh - var(--cosmos-dock-h, 72px))
+}
+.cosmos-intro{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:20px 24px 12px;gap:0
+}
+.cosmos-intro-eyebrow{
+  margin:0 0 14px;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#93c5fd
+}
+.cosmos-intro-title{
+  margin:0 0 18px;font-size:clamp(44px,10vw,76px);font-weight:900;letter-spacing:-.045em;line-height:1.02;
+  font-family:ui-rounded,"SF Pro Rounded","Segoe UI",system-ui,sans-serif;
+  background:linear-gradient(135deg,#fff 0%,#bfdbfe 38%,#c4b5fd 72%,#fde68a 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent
+}
+.cosmos-intro-lead{
+  margin:0;max-width:34ch;font-size:clamp(16px,2.6vw,21px);line-height:1.6;font-weight:500;
+  color:rgba(226,232,240,.9);letter-spacing:-.01em
+}
+.cosmos-intro-lead em{font-style:normal;color:#fde68a;font-weight:650}
+.cosmos-intro-cta{
+  margin-top:32px;display:inline-flex;align-items:center;gap:10px;
+  background:linear-gradient(135deg,#3978ff,#6366f1);color:#fff;
+  padding:13px 24px;border-radius:999px;font-size:15px;font-weight:700;
+  box-shadow:0 6px 22px rgba(57,120,255,.38);transition:.2s
+}
+.cosmos-intro-cta:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(57,120,255,.48)}
+.cosmos-intro-down-arrow{
+  display:grid;place-items:center;width:28px;height:28px;border-radius:50%;
+  background:rgba(255,255,255,.16);font-size:16px;line-height:1;
+  animation:cosmos-hint-bob 2.4s ease-in-out infinite
+}
+@keyframes cosmos-hint-bob{0%,100%{transform:translateY(0);opacity:.85}50%{transform:translateY(4px);opacity:1}}
+.cosmos-top{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:10px
+}
+.cosmos-splash .cosmos-top{display:none}
 .cosmos-hub{display:flex;align-items:center;gap:14px;min-width:0}
 .cosmos-hub-aura{
   position:relative;width:52px;height:52px;flex:none;display:grid;place-items:center
@@ -114,9 +196,10 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 .cosmos-cta:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(57,120,255,.45)}
 .cosmos-orbit-nav{
-  padding:6px 0 14px;overflow:auto;scrollbar-width:none;
+  padding:6px 0 14px;overflow:auto;scrollbar-width:none;margin-top:auto;
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent)
 }
+.cosmos-dock .cosmos-orbit-nav{margin-top:0;padding-bottom:12px}
 .cosmos-orbit-nav::-webkit-scrollbar{display:none}
 .cosmos-orbit-track{
   display:flex;align-items:flex-start;gap:14px;padding:8px 4px 4px;min-width:max-content
@@ -158,6 +241,8 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .cosmos-bubble.active+.cosmos-bubble-label{color:#fde68a}
 @media(max-width:640px){
   .cosmos-inner{padding:10px 14px 0}
+  .cosmos-intro{padding:24px 16px 20px}
+  .cosmos-intro-lead{font-size:15px}
   .cosmos-hub-tagline{display:none}
   .cosmos-orbit-item{width:64px}
   .cosmos-bubble{width:46px;height:46px}
@@ -165,13 +250,19 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   .cosmos-bubble-label{font-size:9px;max-width:64px}
 }
 @media(prefers-reduced-motion:reduce){
-  .cosmos-stars--far,.cosmos-stars--mid,.cosmos-stars--near,.cosmos-meteor,.cosmos-hub-ring--outer,.cosmos-hub-ring--inner,.cosmos-hub-glow,.cosmos-orbit-item{animation:none}
+  .cosmos-stars--far,.cosmos-stars--mid,.cosmos-stars--near,.cosmos-meteor,.cosmos-hub-ring--outer,.cosmos-hub-ring--inner,.cosmos-hub-glow,.cosmos-orbit-item,.cosmos-intro-down-arrow{animation:none}
+  .cosmos-splash{min-height:auto}
+  .cosmos-inner{min-height:auto}
+  .cosmos-intro{padding:24px 16px 12px}
 }
 
 /* Header legacy aliases removed */
 
 /* Hero band */
-.hero-band{background:linear-gradient(135deg,#0f1724 0%,#1a3358 55%,#243f7a 100%);padding:32px 0 36px;position:relative;overflow:hidden}
+.hero-band{
+  scroll-margin-top:calc(var(--cosmos-dock-h, 72px) + 16px);
+  background:linear-gradient(135deg,#0f1724 0%,#1a3358 55%,#243f7a 100%);padding:32px 0 36px;position:relative;overflow:hidden
+}
 .hero-band:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 90% 10%,rgba(124,92,255,.25),transparent 45%),radial-gradient(circle at 5% 90%,rgba(57,120,255,.2),transparent 40%);pointer-events:none}
 .hero-band .container{position:relative;z-index:1}
 .slogan-kicker{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#9ec5ff;margin-bottom:12px}
@@ -197,7 +288,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .hero-caption strong{color:#fff;font-weight:700}
 
 /* Sections */
-.section{padding:48px 0;scroll-margin-top:188px}
+.section{padding:48px 0;scroll-margin-top:calc(var(--cosmos-dock-h, 72px) + 16px)}
 .section.alt{background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .section-head{margin:0 0 28px;text-align:center}
 .section-head h2{margin:0 0 8px;font-size:clamp(24px,3vw,32px);letter-spacing:-.5px;font-weight:800}
@@ -408,12 +499,13 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .graph-node{transform:rotate(var(--a)) translateY(calc(-1 * var(--r))) rotate(calc(-1 * var(--a)))}
 .graph-svg line.branch-line{display:none}
 .graph-node-group{
+  --node-w:clamp(76px,15vw,96px);
   position:absolute;left:50%;top:50%;z-index:1;pointer-events:none;
   transform:rotate(var(--a)) translateY(calc(-1 * var(--r))) rotate(calc(-1 * var(--a)))
 }
 .graph-node-group:hover{z-index:3}
 .graph-node-group > .graph-node--parent{
-  position:relative;left:auto;top:auto;margin:0;margin-left:calc(clamp(76px,15vw,96px)/-2);margin-top:-28px;
+  position:relative;left:auto;top:auto;width:var(--node-w);margin:0;margin-left:calc(var(--node-w)/-2);margin-top:-28px;
   transform:none;pointer-events:auto;
   transition:.25s transform,.25s box-shadow,.25s border-color
 }
@@ -421,20 +513,21 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   transform:scale(1.06);border-color:#bfd3ff;box-shadow:0 10px 28px rgba(57,120,255,.14)
 }
 .graph-node-group .graph-branch-svg{
-  position:absolute;left:calc(50% - 96px);top:20px;width:92px;height:64px;
-  overflow:visible;pointer-events:none
+  position:absolute;left:calc(50% - var(--node-w)/2 - 80px);top:0;
+  width:80px;height:70px;overflow:visible;pointer-events:none
 }
 .graph-node-group .graph-branch-svg path{
   fill:none;stroke:#7c93b8;stroke-width:2;stroke-linecap:round;stroke-dasharray:5 4
 }
 .graph-node-group .graph-branch-svg circle{fill:#64748b}
 .graph-node--leaf{
-  position:absolute;left:calc(50% - 112px);top:78px;width:72px;margin:0;
+  position:absolute;left:calc(50% - var(--node-w)/2 - 84px);top:46px;
+  transform:translateX(-100%);width:72px;margin:0;
   padding:8px 6px;font-size:10px;text-align:center;
   background:#fff;border:1px solid #bfd3ff;border-radius:12px;box-shadow:0 4px 14px rgba(57,120,255,.1);
   pointer-events:auto;transition:.25s transform,.25s box-shadow,.25s border-color;line-height:1.25;font-weight:700;color:var(--ink)
 }
-.graph-node--leaf:hover{border-color:#94a3b8;box-shadow:0 8px 20px rgba(100,116,139,.14);transform:scale(1.05);z-index:4}
+.graph-node--leaf:hover{border-color:#94a3b8;box-shadow:0 8px 20px rgba(100,116,139,.14);transform:translateX(-100%) scale(1.05);z-index:4}
 .graph-node--leaf .g-ico{font-size:18px;display:block;margin-bottom:3px;line-height:1}
 .graph-node--parent{border-color:#bfd3ff;background:linear-gradient(180deg,#fff,#f8fbff);z-index:2}
 .graph-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:18px;padding-top:16px;border-top:1px dashed #cfe0ff}
@@ -445,9 +538,10 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   .graph-node .g-ico{font-size:17px}
   .graph-node .g-sub{display:none}
   .graph-node .g-sub.g-store{display:block;font-size:7px}
+  .graph-node-group{--node-w:68px}
   .graph-node-group .graph-node--parent{width:68px;margin-left:-34px;padding:8px 4px;font-size:10px}
-  .graph-node--leaf{width:62px;left:calc(50% - 96px);top:66px;padding:6px 4px;font-size:9px}
-  .graph-node-group .graph-branch-svg{width:78px;height:56px;left:calc(50% - 82px);top:16px}
+  .graph-node--leaf{width:62px;left:calc(50% - var(--node-w)/2 - 76px);top:40px;padding:6px 4px;font-size:9px}
+  .graph-node-group .graph-branch-svg{width:72px;height:58px;left:calc(50% - var(--node-w)/2 - 72px);top:2px}
   .graph-hub{width:96px;padding:12px 8px}
   .graph-hub .hub-ico{font-size:22px}
   .graph-hub strong{font-size:11px}
@@ -730,6 +824,44 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 .case-path-bar strong{color:var(--blue3);font-weight:700}
 
+/* Principles block */
+.principles-block{
+  margin-top:36px;padding:28px 24px 24px;border-radius:var(--r);
+  background:linear-gradient(160deg,#fff 0%,#f8faff 45%,#f5f0ff 100%);
+  border:1px solid #dbe6ff;box-shadow:var(--shadow)
+}
+.principles-lead{
+  margin:0 auto 24px;max-width:54ch;text-align:center;font-size:15px;line-height:1.6;color:var(--muted)
+}
+.principles-grid{display:grid;gap:14px}
+@media(min-width:640px){.principles-grid{grid-template-columns:1fr 1fr}}
+@media(min-width:960px){.principles-grid{grid-template-columns:repeat(3,1fr)}}
+.principle-card{
+  padding:18px 18px 16px;border-radius:16px;border:1px solid var(--line);
+  background:#fff;box-shadow:var(--shadow-sm);transition:.2s;display:flex;flex-direction:column;gap:8px
+}
+.principle-card:hover{border-color:#bfd3ff;transform:translateY(-2px);box-shadow:var(--shadow)}
+.principle-card-head{display:flex;align-items:center;gap:10px}
+.principle-ico{
+  width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+  font-size:20px;line-height:1;flex:none;background:var(--blue2);border:1px solid #cfe0ff
+}
+.principle-card:nth-child(2) .principle-ico{background:var(--purple2);border-color:#ddd6fe}
+.principle-card:nth-child(3) .principle-ico{background:var(--green2);border-color:#a7f3d0}
+.principle-card:nth-child(4) .principle-ico{background:var(--orange2);border-color:#fde68a}
+.principle-card:nth-child(5) .principle-ico{background:#f0f9ff;border-color:#bae6fd}
+.principle-card:nth-child(6) .principle-ico{background:#ecfdf5;border-color:#a7f3d0}
+.principle-card h3{margin:0;font-size:14px;font-weight:800;line-height:1.3;letter-spacing:-.15px;color:var(--ink)}
+.principle-card p{margin:0;font-size:13px;line-height:1.55;color:var(--muted)}
+.principle-card p em{font-style:normal;color:var(--blue3);font-weight:650}
+.principles-cta{
+  margin-top:22px;padding:20px 22px;border-radius:18px;text-align:center;
+  background:linear-gradient(135deg,#ecfdf5 0%,#eef4ff 100%);border:1px solid #a7f3d0
+}
+.principles-cta p{margin:0;font-size:14px;line-height:1.55;color:#334155}
+.principles-cta strong{color:#047857;font-weight:800}
+.principles-cta .principles-cta-ico{font-size:28px;line-height:1;margin-bottom:8px;display:block}
+
 .recorder-wrap{
   position:relative;width:132px;height:132px;margin:0 auto 24px;display:grid;place-items:center
 }
@@ -847,7 +979,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 /* Footer hero + mascot */
 .site-footer{
-  margin-top:8px;padding:56px 0 72px;scroll-margin-top:188px;
+  margin-top:8px;padding:56px 0 72px;scroll-margin-top:calc(var(--cosmos-dock-h, 72px) + 16px);
   background:linear-gradient(180deg,#fff 0%,#eef1f8 100%);
   border-top:1px solid var(--line)
 }
@@ -936,7 +1068,44 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 </head>
 <body>
 <div class="app">
-  <div class="cosmos-shell">
+  <div class="cosmos-dock" id="cosmosDock">
+    <div class="cosmos-hub">
+      <div class="cosmos-hub-aura" aria-hidden="true">
+        <span class="cosmos-hub-ring cosmos-hub-ring--outer"></span>
+        <span class="cosmos-hub-ring cosmos-hub-ring--inner"></span>
+        <span class="cosmos-hub-glow"></span>
+        <i class="cosmos-hub-mark">A</i>
+      </div>
+      <div class="cosmos-hub-copy">
+        <p class="cosmos-hub-line cosmos-hub-line--brand">Agent CMS<span class="cosmos-hub-sep">/</span><span class="cosmos-hub-path">Workspaces / *.md</span></p>
+        <p class="cosmos-hub-tagline">Контекст для LLM-агентов · тема за темой</p>
+      </div>
+    </div>
+    <div class="cosmos-dock-inner">
+      <nav class="cosmos-orbit-nav cosmos-orbit-nav--dock" aria-label="Разделы">
+        <div class="cosmos-orbit-track" role="list">
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="problem" onclick="jump('problem',this)" title="О проекте"><span class="cosmos-bubble-emoji">📦</span></button><span class="cosmos-bubble-label">О проекте</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="audience" onclick="jump('audience',this)" title="Для кого"><span class="cosmos-bubble-emoji">👥</span></button><span class="cosmos-bubble-label">Для кого</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="life-graph" onclick="jump('life-graph',this)" title="Цифровая жизнь"><span class="cosmos-bubble-emoji">🌐</span></button><span class="cosmos-bubble-label">Жизнь</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="structure" onclick="jump('structure',this)" title="Структура"><span class="cosmos-bubble-emoji">🗂️</span></button><span class="cosmos-bubble-label">Структура</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="fields" onclick="jump('fields',this)" title="Поля"><span class="cosmos-bubble-emoji">🧩</span></button><span class="cosmos-bubble-label">Поля</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="agents" onclick="jump('agents',this)" title="Агенты"><span class="cosmos-bubble-emoji">🎭</span></button><span class="cosmos-bubble-label">Агенты</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="shell" onclick="jump('shell',this)" title="Говорилка"><span class="cosmos-bubble-emoji">🎙</span></button><span class="cosmos-bubble-label">Говорилка</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="ecosystem" onclick="jump('ecosystem',this)" title="Экосистема"><span class="cosmos-bubble-emoji">🛰</span></button><span class="cosmos-bubble-label">Экосистема</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="cases" onclick="jump('cases',this)" title="Кейсы"><span class="cosmos-bubble-emoji">💼</span></button><span class="cosmos-bubble-label">Кейсы</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="features" onclick="jump('features',this)" title="Особенности"><span class="cosmos-bubble-emoji">✨</span></button><span class="cosmos-bubble-label">Особенности</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="search" onclick="jump('search',this)" title="Поиск"><span class="cosmos-bubble-emoji">🔍</span></button><span class="cosmos-bubble-label">Поиск</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="connect" onclick="jump('connect',this)" title="MCP"><span class="cosmos-bubble-emoji">🔌</span></button><span class="cosmos-bubble-label">MCP</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="goals" onclick="jump('goals',this)" title="Цели"><span class="cosmos-bubble-emoji">🎯</span></button><span class="cosmos-bubble-label">Цели</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="dialogue" onclick="jump('dialogue',this)" title="Диалог"><span class="cosmos-bubble-emoji">💬</span></button><span class="cosmos-bubble-label">Диалог</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="case-example" onclick="jump('case-example',this)" title="Пример: английский"><span class="cosmos-bubble-emoji">🇬🇧</span></button><span class="cosmos-bubble-label">Английский</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="footer" onclick="jump('footer',this)" title="Растём"><span class="cosmos-bubble-emoji">🤖</span></button><span class="cosmos-bubble-label">Растём</span></div>
+        </div>
+      </nav>
+    </div>
+  </div>
+
+  <section class="cosmos-splash" id="cosmosSplash">
     <div class="cosmos-bg" aria-hidden="true">
       <div class="cosmos-nebula"></div>
       <div class="cosmos-stars cosmos-stars--far"></div>
@@ -950,45 +1119,19 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
       </div>
     </div>
     <div class="cosmos-inner">
-      <header class="cosmos-top">
-        <div class="cosmos-hub">
-          <div class="cosmos-hub-aura" aria-hidden="true">
-            <span class="cosmos-hub-ring cosmos-hub-ring--outer"></span>
-            <span class="cosmos-hub-ring cosmos-hub-ring--inner"></span>
-            <span class="cosmos-hub-glow"></span>
-            <i class="cosmos-hub-mark">A</i>
-          </div>
-          <div class="cosmos-hub-copy">
-            <p class="cosmos-hub-eyebrow">Workspaces / *.md</p>
-            <h1 class="cosmos-hub-title">Agent CMS</h1>
-            <p class="cosmos-hub-tagline">Контекст для LLM-агентов · тема за темой</p>
-          </div>
-        </div>
-        <button type="button" class="cosmos-cta" onclick="jump('problem')">О проекте</button>
-      </header>
-      <nav class="cosmos-orbit-nav" aria-label="Разделы">
-        <div class="cosmos-orbit-track" role="list">
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="problem" onclick="jump('problem',this)" title="О проекте"><span class="cosmos-bubble-emoji">📦</span></button><span class="cosmos-bubble-label">О проекте</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="audience" onclick="jump('audience',this)" title="Для кого"><span class="cosmos-bubble-emoji">👥</span></button><span class="cosmos-bubble-label">Для кого</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip active" type="button" data-target="structure" onclick="jump('structure',this)" title="Структура"><span class="cosmos-bubble-emoji">🗂️</span></button><span class="cosmos-bubble-label">Структура</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="fields" onclick="jump('fields',this)" title="Поля"><span class="cosmos-bubble-emoji">🧩</span></button><span class="cosmos-bubble-label">Поля</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="agents" onclick="jump('agents',this)" title="Агенты"><span class="cosmos-bubble-emoji">🎭</span></button><span class="cosmos-bubble-label">Агенты</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="shell" onclick="jump('shell',this)" title="Говорилка"><span class="cosmos-bubble-emoji">🎙</span></button><span class="cosmos-bubble-label">Говорилка</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="ecosystem" onclick="jump('ecosystem',this)" title="Экосистема"><span class="cosmos-bubble-emoji">🛰</span></button><span class="cosmos-bubble-label">Экосистема</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="cases" onclick="jump('cases',this)" title="Кейсы"><span class="cosmos-bubble-emoji">💼</span></button><span class="cosmos-bubble-label">Кейсы</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="features" onclick="jump('features',this)" title="Особенности"><span class="cosmos-bubble-emoji">✨</span></button><span class="cosmos-bubble-label">Особенности</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="search" onclick="jump('search',this)" title="Поиск"><span class="cosmos-bubble-emoji">🔍</span></button><span class="cosmos-bubble-label">Поиск</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="connect" onclick="jump('connect',this)" title="MCP"><span class="cosmos-bubble-emoji">🔌</span></button><span class="cosmos-bubble-label">MCP</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="goals" onclick="jump('goals',this)" title="Цели"><span class="cosmos-bubble-emoji">🎯</span></button><span class="cosmos-bubble-label">Цели</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="dialogue" onclick="jump('dialogue',this)" title="Диалог"><span class="cosmos-bubble-emoji">💬</span></button><span class="cosmos-bubble-label">Диалог</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="case-example" onclick="jump('case-example',this)" title="Пример: английский"><span class="cosmos-bubble-emoji">🇬🇧</span></button><span class="cosmos-bubble-label">Английский</span></div>
-          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="footer" onclick="jump('footer',this)" title="Подвал"><span class="cosmos-bubble-emoji">✦</span></button><span class="cosmos-bubble-label">Подвал</span></div>
-        </div>
-      </nav>
+      <div class="cosmos-intro">
+        <p class="cosmos-intro-eyebrow">Workspaces / *.md</p>
+        <h1 class="cosmos-intro-title">Agent CMS</h1>
+        <p class="cosmos-intro-lead">Хранилище контекста для LLM — <em>одно дерево</em>, общий язык с агентом, память заметка за заметкой.</p>
+        <button type="button" class="cosmos-intro-cta" onclick="jump('hero-band')">
+          <span class="cosmos-intro-down-arrow" aria-hidden="true">↓</span>
+          Познакомимся
+        </button>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <div class="hero-band">
+  <div class="hero-band" id="hero-band">
     <div class="container slogan-banner">
       <div class="slogan-kicker">Agent CMS</div>
       <div class="hero-row">
@@ -1128,9 +1271,9 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
               <div class="graph-node" style="--a:210deg;--r:148px"><span class="g-ico">🛒</span>Покупки<span class="g-sub">wishlist · гарантии</span></div>
               <div class="graph-node-group" style="--a:240deg;--r:148px">
                 <div class="graph-node graph-node--parent"><span class="g-ico">🧾</span>Документы<span class="g-sub">договоры · паспорт</span></div>
-                <svg class="graph-branch-svg" viewBox="0 0 92 64" aria-hidden="true">
-                  <path d="M 14 8 Q 14 28 18 40 T 26 56"/>
-                  <circle cx="14" cy="8" r="2.5"/>
+                <svg class="graph-branch-svg" viewBox="0 0 80 70" aria-hidden="true">
+                  <path d="M 79 20 C 54 20, 28 34, 14 48 S 2 64, 2 67"/>
+                  <circle cx="79" cy="20" r="2.5"/>
                 </svg>
                 <div class="graph-node--leaf"><span class="g-ico">📷</span>Фотки</div>
               </div>
@@ -1781,6 +1924,62 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
             <span>Записи — обычные файлы на диске</span>
           </div>
         </div>
+
+        <div class="principles-block" id="principles">
+          <div class="section-head" style="margin-bottom:20px">
+            <h2>Основные принципы</h2>
+            <p>хорошие практики · база знаний и агент</p>
+          </div>
+          <p class="principles-lead">Чтобы хранилище оставалось чистым, а агент понимал вас с полуслова.</p>
+          <div class="principles-grid">
+            <article class="principle-card">
+              <div class="principle-card-head">
+                <span class="principle-ico" aria-hidden="true">📌</span>
+                <h3>1 запись = 1 уникальная запись</h3>
+              </div>
+              <p>Меньше дублей между заметками и внутри заметки — <em>чище информация</em>, проще искать и обновлять.</p>
+            </article>
+            <article class="principle-card">
+              <div class="principle-card-head">
+                <span class="principle-ico" aria-hidden="true">🗂️</span>
+                <h3>1 тема = 1 логическая область</h3>
+              </div>
+              <p>Не смешиваем разное в одной теме: «Английский» — про язык, «Ремонт» — про дом. Границы помогают агенту не путаться.</p>
+            </article>
+            <article class="principle-card">
+              <div class="principle-card-head">
+                <span class="principle-ico" aria-hidden="true">🔗</span>
+                <h3>Ссылка вместо копии</h3>
+              </div>
+              <p>Не грузим всё подряд — даём <em>ссылку на источник</em> в веб. Принцип чистых знаний: в базе — ваш контекст, не зеркало интернета.</p>
+            </article>
+            <article class="principle-card">
+              <div class="principle-card-head">
+                <span class="principle-ico" aria-hidden="true">🚫</span>
+                <h3>Не перекачиваем интернет</h3>
+              </div>
+              <p>Не стремимся сохранить у себя каждую статью и PDF «на всякий случай». Храним то, что важно <em>именно вам</em> и вашему агенту.</p>
+            </article>
+            <article class="principle-card">
+              <div class="principle-card-head">
+                <span class="principle-ico" aria-hidden="true">📊</span>
+                <h3>Данные первичны</h3>
+              </div>
+              <p>Визуализация вторична: диаграммы, графики, календари, канбан — агент <em>построит сам</em> на основе ваших записей, когда понадобится.</p>
+            </article>
+            <article class="principle-card">
+              <div class="principle-card-head">
+                <span class="principle-ico" aria-hidden="true">🧭</span>
+                <h3>Структура — под вас</h3>
+              </div>
+              <p>Дерево областей и тем подбираете под себя. Нет идей — спросите агента: <em>«Куда записать? Что предложишь для меня?»</em></p>
+            </article>
+          </div>
+          <div class="principles-cta">
+            <span class="principles-cta-ico" aria-hidden="true">🎭</span>
+            <p><strong>Не знаете, с чего начать?</strong> Спросите агента — он предложит области, темы и слоты под вашу жизнь, а вы поправите под себя.</p>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -1885,9 +2084,16 @@ const goals=[
 
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');clearTimeout(window._t);window._t=setTimeout(()=>el.classList.remove('show'),3000)}
 
-function jump(id){
-  document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});
-  document.querySelectorAll('.chip').forEach(b=>b.classList.toggle('active',b.dataset.target===id));
+function jump(id,btn){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth',block:'start'});
+  setActiveNav(id);
+  if(btn) btn.focus({preventScroll:true});
+}
+
+function setActiveNav(id){
+  document.querySelectorAll('.chip').forEach(b=>b.classList.toggle('active',!!id&&b.dataset.target===id));
 }
 
 function toggleTree(node){
@@ -1982,13 +2188,54 @@ function startDialogue(){
 
 renderSlots();renderCases();renderGoals();
 
-const obsSections=['problem','audience','life-graph','structure','fields','agents','shell','ecosystem','cases','features','search','connect','goals','dialogue','case-example','footer'];
-const io=new IntersectionObserver(entries=>{
-  const v=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
-  if(!v) return;
-  document.querySelectorAll('.chip').forEach(b=>b.classList.toggle('active',b.dataset.target===v.target.id));
-},{rootMargin:'-40% 0 -55% 0',threshold:[0.1,0.5]});
-obsSections.forEach(id=>{const el=document.getElementById(id);if(el) io.observe(el)});
+(function initCosmosDock(){
+  const dock=document.getElementById('cosmosDock');
+  if(!dock) return;
+  let lastH=0;
+  function syncDockH(){
+    const h=dock.offsetHeight;
+    if(h===lastH) return;
+    lastH=h;
+    document.documentElement.style.setProperty('--cosmos-dock-h',h+'px');
+    updateNavFromScroll();
+  }
+  syncDockH();
+  window.addEventListener('resize',syncDockH,{passive:true});
+  window.addEventListener('load',syncDockH);
+  if(typeof ResizeObserver!=='undefined') new ResizeObserver(syncDockH).observe(dock);
+})();
+
+const obsSections=['problem','audience','life-graph','structure','fields','agents','shell','ecosystem','cases','features','search','connect','goals','dialogue','case-example','principles','footer'];
+
+function dockOffset(){
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cosmos-dock-h'))||72;
+}
+
+function updateNavFromScroll(){
+  const topLine=dockOffset();
+  const splash=document.getElementById('cosmosSplash');
+  if(splash&&splash.getBoundingClientRect().bottom>topLine+100){
+    setActiveNav(null);
+    return;
+  }
+  const anchor=topLine+56;
+  let current=null;
+  obsSections.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el&&el.getBoundingClientRect().top<=anchor) current=id;
+  });
+  if(current==='principles') current='case-example';
+  if(current) setActiveNav(current);
+}
+
+let navTick=false;
+window.addEventListener('scroll',()=>{
+  if(navTick) return;
+  navTick=true;
+  requestAnimationFrame(()=>{updateNavFromScroll();navTick=false});
+},{passive:true});
+window.addEventListener('load',updateNavFromScroll);
+updateNavFromScroll();
 </script>
 </body>
 </html>
