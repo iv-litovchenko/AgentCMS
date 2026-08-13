@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1724">
+<meta name="description" content="Agent CMS — общее хранилище, где человек и агент работают с данными на одном языке. Не система про агентов — ящик, в который вы заходите вместе.">
+<title>Agent CMS — общее хранилище на одном языке</title>
+<style>
+:root{
+  --bg:#f3f5fa;--card:#fff;--ink:#141c2b;--muted:#6d7a90;--line:#e3e8f0;
+  --blue:#3978ff;--blue2:#eaf1ff;--blue3:#1d4ed8;
+  --green:#18a56a;--green2:#e8f7f0;--purple:#7c5cff;--purple2:#f0ebff;
+  --orange:#f59e0b;--orange2:#fff7e6;--shadow:0 10px 30px rgba(20,30,50,.08);
+  --r:20px;--safe-bottom:max(10px,env(safe-area-inset-bottom));
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.45}
+button{font:inherit;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.app{max-width:820px;margin:0 auto;padding-bottom:calc(130px + var(--safe-bottom))}
+.top{padding:16px 16px 8px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:12;background:rgba(243,245,250,.92);backdrop-filter:blur(14px);border-bottom:1px solid rgba(227,232,240,.7)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px}
+.logo i{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--blue),var(--purple));display:grid;place-items:center;color:#fff;font-style:normal;font-size:15px}
+.chipnav{display:flex;gap:7px;overflow:auto;padding:8px 16px 12px;scrollbar-width:none;position:sticky;top:58px;z-index:11;background:var(--bg)}
+.chipnav::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;padding:8px 13px;border-radius:999px;background:#fff;border:1px solid var(--line);color:#536078;font-size:12px;font-weight:650;transition:.2s}
+.chip.active{background:var(--blue2);border-color:#cfe0ff;color:var(--blue3)}
+main{padding:0 14px 20px}
+.slogan-banner{
+  margin-bottom:12px;padding:20px 18px 18px;border-radius:24px;
+  background:linear-gradient(135deg,#0f1724 0%,#1a3358 52%,#2a4a8a 100%);
+  color:#fff;box-shadow:0 14px 36px rgba(15,23,36,.22);position:relative;overflow:hidden
+}
+.slogan-banner:before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(circle at 88% 12%,rgba(124,92,255,.28),transparent 42%),
+             radial-gradient(circle at 8% 88%,rgba(57,120,255,.22),transparent 38%);
+  pointer-events:none
+}
+.slogan-banner>*{position:relative;z-index:1}
+.slogan-kicker{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#9ec5ff;margin-bottom:10px}
+.slogan-problem{margin:0 0 12px;font-size:13px;line-height:1.45;color:rgba(255,255,255,.72);max-width:42ch}
+.slogan-banner h1{margin:0 0 10px;font-size:clamp(17px,4.4vw,22px);line-height:1.28;letter-spacing:-.3px;font-weight:800}
+.slogan-banner h1 em{font-style:normal;background:linear-gradient(90deg,#93c5fd,#c4b5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.slogan-solution{margin:0;font-size:clamp(12px,3.2vw,14px);line-height:1.5;color:rgba(255,255,255,.88);white-space:nowrap}
+.slogan-arrow{margin:10px 0 8px;font-size:18px;color:#7dd3fc;opacity:.85}
+.slogan-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.slogan-tag{
+  display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:650;
+  padding:8px 13px;border-radius:999px;color:#eef4ff;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+  backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,.08)
+}
+.slogan-tag.t1{background:rgba(147,197,253,.14);border-color:rgba(147,197,253,.32);color:#dbeafe}
+.slogan-tag.t2{background:rgba(196,181,253,.14);border-color:rgba(196,181,253,.32);color:#ede9fe}
+.slogan-tag.t3{background:rgba(110,231,183,.12);border-color:rgba(110,231,183,.28);color:#d1fae5}
+.slogan-tag.t4{background:rgba(253,186,116,.12);border-color:rgba(253,186,116,.28);color:#ffedd5}
+.slogan-tag.t5{background:rgba(244,114,182,.12);border-color:rgba(244,114,182,.28);color:#fce7f3}
+.slogan-tag.t6{background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.28);color:#ffe4e6}
+.slogan-tag.t7{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.28);color:#ede9fe}
+.slogan-tag.t8{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff;font-weight:750}
+.slogan-lang-box{
+  margin-top:16px;padding:16px 18px;border-radius:18px;text-align:center;
+  background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(57,120,255,.14));
+  border:1px solid rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)
+}
+.slogan-lang-box .lang-label{
+  display:inline-block;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  color:#6ee7b7;margin-bottom:6px
+}
+.slogan-lang-box .lang-phrase{
+  margin:0;font-size:clamp(15px,4vw,18px);font-weight:800;line-height:1.35;letter-spacing:-.2px
+}
+.slogan-lang-box .lang-phrase em{
+  font-style:normal;background:linear-gradient(90deg,#6ee7b7,#93c5fd,#c4b5fd);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent
+}
+.slogan-lang-box .lang-sub{margin:6px 0 0;font-size:12px;color:rgba(255,255,255,.72);line-height:1.4}
+.hero{position:relative;overflow:hidden;border-radius:26px;box-shadow:var(--shadow);background:#0f1724;margin-bottom:10px}
+.hero img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
+.hero-caption{
+  margin:12px 4px 0;text-align:center;font-size:15px;line-height:1.45;color:#334155;font-weight:650
+}
+.hero-caption strong{color:var(--blue3);font-weight:800}
+.hero-badge{position:absolute;left:14px;top:14px;background:rgba(255,255,255,.92);color:var(--blue3);font-size:11px;font-weight:800;padding:7px 11px;border-radius:999px;backdrop-filter:blur(8px)}
+.lead{margin:0 0 18px;font-size:15px;color:#425066;line-height:1.55}
+.section{margin-top:22px;scroll-margin-top:118px}
+.section-head{margin:0 0 12px}
+.section-head h2{margin:0 0 4px;font-size:21px;letter-spacing:-.3px}
+.section-head p{margin:0;color:var(--muted);font-size:13px}
+.card{background:var(--card);border:1px solid rgba(230,234,242,.95);border-radius:var(--r);box-shadow:var(--shadow)}
+.card.pad{padding:16px}
+.pillrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.pill{font-size:11px;font-weight:700;padding:6px 10px;border-radius:999px;background:#f2f5fa;color:#506079}
+.pill.blue{background:var(--blue2);color:var(--blue3)}
+.pill.green{background:var(--green2);color:var(--green)}
+.pill.purple{background:var(--purple2);color:#5b43d6}
+.formula{text-align:center;padding:22px 16px;background:linear-gradient(135deg,#edf3ff,#f5f0ff);border-radius:var(--r);border:1px solid #dbe6ff;margin-top:12px}
+.formula .eq{font-size:34px;font-weight:900;letter-spacing:-1px;background:linear-gradient(90deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.formula p{margin:8px 0 0;font-size:13px;color:#4f6078}
+.tree{padding:14px}
+.tree-level{display:grid;gap:8px}
+.tree-node{
+  border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:#fff;
+  display:flex;align-items:center;gap:12px;transition:.2s;cursor:pointer
+}
+.tree-node:hover,.tree-node.active{border-color:#bfd3ff;background:#f8fbff}
+.tree-node .ico{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:16px;flex:none}
+.tree-node strong{display:block;font-size:14px}.tree-node small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.tree-node .arrow{margin-left:auto;color:#a7b0bf;font-size:18px;transition:.2s}
+.tree-node.open .arrow{transform:rotate(90deg)}
+.tree-children{margin:8px 0 0 18px;padding-left:12px;border-left:2px dashed #dbe2ee;display:none}
+.tree-children.show{display:grid;gap:8px}
+.tree-detail{margin-top:10px;padding:12px 14px;background:#f7f9fc;border-radius:14px;font-size:13px;color:#4b5c72;line-height:1.5;min-height:52px}
+.entity-grid{display:grid;gap:10px}
+.entity{padding:15px;border-radius:18px;border:1px solid var(--line);background:#fff;transition:.2s}
+.entity:hover{border-color:#cfe0ff;box-shadow:0 6px 18px rgba(57,120,255,.08)}
+.entity .tag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--blue3);margin-bottom:6px}
+.entity h3{margin:0 0 6px;font-size:16px}
+.entity p{margin:0;font-size:13px;color:var(--muted)}
+.sidecar-demo{display:grid;grid-template-columns:72px 1fr;gap:12px;align-items:center;margin-top:12px;padding:12px;background:#f7f9fc;border-radius:16px}
+.sidecar-photo{width:72px;height:72px;border-radius:14px;background:linear-gradient(135deg,#ffd89b,#19547b);position:relative}
+.sidecar-link{position:absolute;bottom:-4px;right:-4px;width:22px;height:22px;border-radius:8px;background:var(--blue);color:#fff;font-size:11px;display:grid;place-items:center;box-shadow:0 4px 10px rgba(57,120,255,.35)}
+.fields{display:grid;gap:8px}
+.field{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:14px;background:#fff;font-size:13px}
+.field code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;background:#eef2f8;padding:3px 7px;border-radius:7px;color:#334155;flex:none}
+.field span{color:var(--muted);margin-left:auto;font-size:12px;text-align:right;max-width:48%}
+.field-group{margin-bottom:14px}
+.field-group:last-child{margin-bottom:0}
+.field-group h4{margin:0 0 8px;font-size:13px;color:var(--blue3);letter-spacing:.01em}
+.field-group p{margin:0 0 8px;font-size:12px;color:var(--muted);line-height:1.4}
+.slot-list{display:grid;gap:7px}
+.slot-row{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:13px;background:#fff;font-size:12px}
+.slot-row code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;background:#eef2f8;padding:2px 7px;border-radius:6px;color:#334155;flex:none}
+.slot-row strong{display:block;font-size:13px;margin-bottom:2px}
+.slot-row small{display:block;color:var(--muted);line-height:1.35}
+.slot-cat{margin:12px 0 8px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#7a879c}
+.search-layer{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;margin-bottom:10px}
+.search-layer:last-child{margin-bottom:0}
+.search-layer h3{margin:0 0 6px;font-size:15px}
+.search-layer p{margin:0 0 8px;font-size:13px;color:var(--muted);line-height:1.45}
+.search-example{padding:10px 12px;border-radius:12px;background:#f7f9fc;font-size:12px;color:#4b5c72;line-height:1.5}
+.agent-create{margin-top:10px;padding:16px;border-radius:18px;border:1px dashed #bfd3ff;background:linear-gradient(180deg,#f8fbff,#fff);text-align:center}
+.agent-create h3{margin:0 0 6px;font-size:16px}
+.agent-create p{margin:0;font-size:13px;color:var(--muted);line-height:1.45}
+.audience{display:grid;gap:10px}
+@media(min-width:560px){.audience{grid-template-columns:1fr 1fr}}
+.audience-card{padding:18px;border-radius:18px;border:1px solid var(--line);background:#fff}
+.audience-card.personal{border-color:#cfe0ff;background:linear-gradient(180deg,#fff,#f5f9ff)}
+.audience-card.business{border-color:#d8f0e3;background:linear-gradient(180deg,#fff,#f6fcf9)}
+.audience-card .ico{font-size:28px;margin-bottom:10px}
+.audience-card h3{margin:0 0 8px;font-size:17px}
+.audience-card p{margin:0;font-size:13px;color:var(--muted);line-height:1.5}
+.audience-card ul{margin:10px 0 0;padding-left:18px;font-size:12px;color:#4b5c72;line-height:1.55}
+.slots-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(min-width:640px){.slots-grid{grid-template-columns:repeat(3,1fr)}}
+.slot-col{background:#f8fafc;border:1px solid var(--line);border-radius:16px;padding:12px 12px 10px}
+.slot-col h4{margin:0 0 8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#7a879c}
+.slot-col-items{display:grid;gap:0}
+.slot-cell{padding:8px 0;border-bottom:1px solid #e8edf3}
+.slot-cell:last-child{border-bottom:0;padding-bottom:0}
+.slot-cell strong{display:block;font-size:13px;line-height:1.25;margin-bottom:2px;color:var(--ink)}
+.slot-cell span{display:block;font-size:11px;color:var(--muted);line-height:1.35}
+.agent-cards{display:grid;gap:10px}
+@media(min-width:560px){.agent-cards{grid-template-columns:1fr 1fr}}
+.agent-card{padding:16px;border-radius:18px;border:1px solid var(--line);background:#fff}
+.agent-card.core{border-color:#cfe0ff;background:linear-gradient(180deg,#fff,#f5f9ff)}
+.agent-card.sandbox{border-color:#ffe6b3;background:linear-gradient(180deg,#fff,#fffaf0)}
+.agent-card h3{margin:0 0 6px;font-size:16px}
+.agent-card p{margin:0;font-size:13px;color:var(--muted)}
+.shell-flow{display:grid;gap:8px;margin:0 0 16px}
+.shell-step{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:14px;background:#f7f9fc;border:1px solid var(--line);font-size:12px;line-height:1.45;color:#4b5c72}
+.shell-step .num{width:22px;height:22px;border-radius:8px;background:var(--blue2);color:var(--blue3);font-weight:800;font-size:11px;display:grid;place-items:center;flex:none}
+.shell-step strong{display:block;font-size:13px;color:var(--ink);margin-bottom:2px}
+.shell-screens{display:grid;gap:10px}
+@media(min-width:560px){.shell-screens{grid-template-columns:repeat(3,1fr)}}
+.shell-screen{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
+.shell-screen-head{padding:10px 12px;background:#f2f5fa;border-bottom:1px solid var(--line);font-size:12px;font-weight:700;color:#506079;text-align:center}
+.shell-preview{padding:12px;border-radius:0;background:#101828;color:#e5edff;min-height:118px}
+.shell-preview .line{margin:0 0 8px;font-size:12px;opacity:.55;line-height:1.4}
+.shell-preview .line:last-child{margin-bottom:0}
+.shell-preview .line.user{color:#fff;opacity:1;background:rgba(57,120,255,.22);padding:8px 10px;border-radius:12px;display:block}
+.shell-preview .line.ai{color:#dbeafe;opacity:1;background:rgba(255,255,255,.06);padding:8px 10px;border-radius:12px;display:block}
+.shell-sync{margin-top:12px;padding:12px 14px;border-radius:14px;background:linear-gradient(90deg,#edf3ff,#e8f7f0);border:1px solid #dbe6ff;font-size:12px;line-height:1.5;color:#4b5c72;text-align:center}
+.shell-sync strong{color:var(--blue3)}
+.feature-grid{display:grid;gap:10px}
+@media(min-width:560px){.feature-grid{grid-template-columns:1fr 1fr}}
+.feature{padding:14px;border-radius:16px;border:1px solid var(--line);background:#fff}
+.feature .ico{font-size:22px;margin-bottom:8px}
+.feature h3{margin:0 0 5px;font-size:15px}
+.feature p{margin:0;font-size:12px;color:var(--muted);line-height:1.45}
+.search-demo{padding:14px}
+.search-tabs{display:flex;gap:6px;margin-bottom:10px;overflow:auto;scrollbar-width:none}
+.search-tab{padding:8px 11px;border-radius:11px;background:#f2f5fa;font-size:11px;font-weight:700;color:#5a677c;white-space:nowrap}
+.search-tab.active{background:var(--blue2);color:var(--blue3)}
+.search-input{width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:#f8fafc;font-size:14px;margin-bottom:10px}
+.search-results{display:grid;gap:7px}
+.search-hit{padding:10px 12px;border-radius:12px;background:#f7f9fc;border:1px solid #e8edf5;font-size:12px}
+.search-hit strong{display:block;font-size:13px;margin-bottom:2px}
+.search-hit em{font-style:normal;color:var(--green);font-weight:700}
+.mcp-flow{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:10px 0}
+.mcp-box{padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:#fff;text-align:center;min-width:110px;font-weight:700;font-size:13px}
+.mcp-box.highlight{background:var(--blue2);border-color:#bfd3ff;color:var(--blue3)}
+.mcp-arrow{color:#a7b0bf;font-size:20px}
+.sync-row{display:grid;gap:10px}
+.sync-item{display:flex;gap:12px;padding:14px;border-radius:16px;border:1px solid var(--line);background:#fff;align-items:flex-start}
+.sync-item .ico{font-size:24px;flex:none}
+.sync-item h3{margin:0 0 4px;font-size:15px}
+.sync-item p{margin:0;font-size:12px;color:var(--muted)}
+.cases{display:grid;gap:10px}
+.case{padding:16px;border-radius:18px;border:1px solid var(--line);background:#fff;cursor:pointer;transition:.2s}
+.case:hover{border-color:#cfe0ff}
+.case.open{background:#f8fbff;border-color:#bfd3ff}
+.case-head{display:flex;align-items:center;gap:10px}
+.case-head .emoji{font-size:26px}
+.case-head h3{margin:0;font-size:15px;flex:1}
+.case-head .chev{color:#a7b0bf;transition:.2s}
+.case.open .chev{transform:rotate(180deg)}
+.case-body{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:#4b5c72;line-height:1.55}
+.case.open .case-body{display:block}
+.case-body .dialog{margin-top:10px;padding:10px;background:#f2f5fa;border-radius:12px;font-size:12px}
+.case-body .dialog .u{color:var(--blue3);font-weight:700}
+.demo .msg{padding:11px 13px;border-radius:15px;margin:7px 0;max-width:92%;font-size:13px;line-height:1.4}
+.demo .msg.ai{background:#f1f4f9}.demo .msg.me{background:var(--blue);color:#fff;margin-left:auto}
+.demo .microw{display:flex;gap:9px;margin-top:10px}
+.demo .mic{width:42px;height:42px;border-radius:50%;background:var(--blue);color:#fff;display:grid;place-items:center;flex:none}
+.demo input{flex:1;border:0;background:#f7f8fb;border-radius:14px;padding:0 12px;color:var(--muted);font-size:13px}
+.box-visual{
+  margin-top:14px;padding:18px;border-radius:18px;background:linear-gradient(145deg,#0f1724,#1a2740);
+  color:#dbe7ff;text-align:center;position:relative;overflow:hidden
+}
+.box-visual:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(57,120,255,.18),transparent 60%)}
+.box-visual .box-icon{font-size:36px;margin-bottom:8px;position:relative}
+.box-visual p{margin:0;font-size:13px;line-height:1.55;opacity:.88;position:relative}
+.box-visual .box-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px;position:relative}
+.box-visual .box-tags span{font-size:10px;font-weight:700;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1)}
+.dialogue-cta{
+  position:fixed;left:50%;bottom:var(--safe-bottom);transform:translateX(-50%);z-index:20;
+  width:min(820px,calc(100% - 16px));background:rgba(255,255,255,.97);backdrop-filter:blur(18px);
+  border:1px solid var(--line);border-radius:22px;box-shadow:0 16px 40px rgba(20,30,50,.16);padding:12px 14px 14px
+}
+.dialogue-status{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--green);margin-bottom:10px;padding:0 2px}
+.dialogue-status .dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse-dot 2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.85)}}
+.dialogue-input{display:flex;align-items:center;gap:10px;background:#f3f6fb;border-radius:16px;padding:8px 10px 8px 8px}
+.dialogue-input .mic{
+  width:44px;height:44px;border-radius:50%;background:var(--blue);color:#fff;display:grid;place-items:center;
+  font-size:20px;flex:none;box-shadow:0 6px 16px rgba(57,120,255,.28);transition:transform .15s
+}
+.dialogue-input .mic:active{transform:scale(.96)}
+.dialogue-input .mic.listening{animation:mic-pulse 1.4s ease-in-out infinite}
+@keyframes mic-pulse{0%,100%{box-shadow:0 6px 16px rgba(57,120,255,.28)}50%{box-shadow:0 0 0 10px rgba(57,120,255,.12)}}
+.dialogue-input input{flex:1;border:0;background:transparent;font-size:14px;color:var(--ink);outline:0;min-width:0}
+.dialogue-input input::placeholder{color:#8a96a8}
+.dialogue-hint{margin:8px 2px 0;font-size:11px;color:var(--muted);text-align:center;line-height:1.35}
+.goals{display:grid;gap:8px}
+.goal{
+  display:flex;align-items:flex-start;gap:12px;padding:14px 14px 14px 12px;border-radius:16px;
+  border:1px solid var(--line);background:#fff;cursor:pointer;transition:.2s;text-align:left;width:100%
+}
+.goal:hover{border-color:#cfe0ff;background:#fafcff}
+.goal.done{opacity:.72;background:#f8fcf9;border-color:#cce9da}
+.goal-check{
+  width:24px;height:24px;border-radius:8px;border:2px solid #c8d2e0;flex:none;margin-top:1px;
+  display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff;transition:.2s
+}
+.goal.done .goal-check{background:var(--green);border-color:var(--green)}
+.goal-body strong{display:block;font-size:14px;line-height:1.35}
+.goal-body small{display:block;margin-top:4px;font-size:12px;color:var(--muted);line-height:1.4}
+.goal-num{margin-left:auto;font-size:11px;font-weight:800;color:#a7b0bf;flex:none;padding-top:2px}
+.goal.done .goal-num{color:var(--green)}
+.goals-note{margin-top:10px;font-size:12px;color:var(--muted);text-align:center}
+.toast{position:fixed;z-index:30;left:50%;bottom:calc(118px + var(--safe-bottom));transform:translate(-50%,16px);background:#141c2b;color:#fff;padding:11px 14px;border-radius:13px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;max-width:calc(100% - 28px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(min-width:600px){main{padding:0 18px 24px}.entity-grid{grid-template-columns:1fr 1fr}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="logo"><i>A</i> Agent CMS</div>
+    <button type="button" onclick="jump('about')" style="background:var(--blue);color:#fff;padding:8px 14px;border-radius:12px;font-size:12px;font-weight:700">О проекте</button>
+  </header>
+
+  <nav class="chipnav" aria-label="Разделы">
+    <button class="chip active" type="button" data-target="about" onclick="jump('about',this)">О проекте</button>
+    <button class="chip" type="button" data-target="audience" onclick="jump('audience',this)">Для кого</button>
+    <button class="chip" type="button" data-target="structure" onclick="jump('structure',this)">Структура</button>
+    <button class="chip" type="button" data-target="entities" onclick="jump('entities',this)">Сущности</button>
+    <button class="chip" type="button" data-target="fields" onclick="jump('fields',this)">Поля</button>
+    <button class="chip" type="button" data-target="agents" onclick="jump('agents',this)">Агенты</button>
+    <button class="chip" type="button" data-target="shell" onclick="jump('shell',this)">Shell</button>
+    <button class="chip" type="button" data-target="features" onclick="jump('features',this)">Возможности</button>
+    <button class="chip" type="button" data-target="search" onclick="jump('search',this)">Поиск</button>
+    <button class="chip" type="button" data-target="connect" onclick="jump('connect',this)">MCP</button>
+    <button class="chip" type="button" data-target="cases" onclick="jump('cases',this)">Кейсы</button>
+    <button class="chip" type="button" data-target="dialogue" onclick="jump('dialogue',this)">Диалог</button>
+    <button class="chip" type="button" data-target="goals" onclick="jump('goals',this)">Цели</button>
+  </nav>
+
+  <main>
+    <section class="slogan-banner" id="slogan" aria-label="Слоган">
+      <div class="slogan-kicker">Agent CMS</div>
+      <h1>Хранилище для всего <em>самого важного и ценного</em>: ваши файлы, документы, заметки и&nbsp;мысли — <em>организация цифровой жизни</em> по одним принципам вместе с&nbsp;ИИ</h1>
+      <p class="slogan-solution">Структуру, которую&nbsp;помните&nbsp;вы&nbsp;и&nbsp;понимает&nbsp;ваш&nbsp;агент.</p>
+      <div class="slogan-tags" aria-label="Типы данных">
+        <span class="slogan-tag t1">📄 файлы</span>
+        <span class="slogan-tag t2">📷 фотографии</span>
+        <span class="slogan-tag t3">📋 документы</span>
+        <span class="slogan-tag t4">📝 заметки</span>
+        <span class="slogan-tag t5">💭 мысли</span>
+        <span class="slogan-tag t6">🔒 пароли</span>
+        <span class="slogan-tag t7">🤫 секреты</span>
+        <span class="slogan-tag t8">◎ одни правила</span>
+      </div>
+      <div class="slogan-lang-box">
+        <div class="lang-label">общий язык</div>
+        <p class="lang-phrase"><em>Вы и агент</em> в одном хранилище</p>
+        <p class="lang-sub">Один ящик · одна структура · без перевода между человеком и ИИ</p>
+      </div>
+    </section>
+
+    <section class="hero" id="hero">
+      <span class="hero-badge">1 + 1 ≥ 2</span>
+      <img src="agent-cms-hero.png" width="1024" height="576" alt="Agent CMS — где человек и агент думают вместе">
+    </section>
+    <p class="hero-caption"><strong>Agent CMS</strong> — система управления контекстом и контентом для LLM-агентов</p>
+
+    <section class="section" id="about">
+      <div class="section-head"><h2>Что это за проект</h2><p>не про агентов — про хранилище</p></div>
+      <p class="lead">
+        <strong>Agent CMS</strong> — это не «система для агентов». Это <em>хранилище</em>.
+        Общий ящик, куда всё складывается по одним и тем же принципам — их понимают и вы, и агент.
+      </p>
+      <div class="card pad">
+        <p style="margin:0 0 10px;font-size:14px">Вы вместе заходите в этот контейнер и выстраиваете свою экосистему: области, темы, слоты, записи. Агент лазит по всему этому — знает, куда что записать и где что найти. Со временем становится очевидно: фильмы — в «Кино», уроки — в «Английский», рабочие документы — в «Стройка».</p>
+        <div class="pillrow">
+          <span class="pill blue">общий язык</span>
+          <span class="pill green">одни правила для всех</span>
+          <span class="pill purple">общий ящик</span>
+          <span class="pill">вы + агент внутри</span>
+        </div>
+        <div class="box-visual">
+          <div class="box-icon">📦</div>
+          <p>Коробка-контейнер, где человек и агент общаются на одном языке и вместе наводят порядок в данных</p>
+          <div class="box-tags"><span>Личное</span><span>Работа</span><span>Кино</span><span>Английский</span><span>Здоровье</span></div>
+        </div>
+        <div class="formula">
+          <div class="eq">1 + 1 ≥ 2</div>
+          <p>Всё стекается в одно место. Вы ведёте данные вместе — и понимаете друг друга без перевода.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="audience">
+      <div class="section-head"><h2>Для кого полезно</h2><p>личный и корпоративный контекст</p></div>
+      <div class="audience">
+        <div class="audience-card personal">
+          <div class="ico">🏠</div>
+          <h3>Личный ассистент</h3>
+          <p>Ваши заметки, дела, книги, здоровье, обучение — в одном хранилище. Агент помнит контекст и знает, где что лежит.</p>
+          <ul>
+            <li>Уроки, фильмы, личные цели</li>
+            <li>Голосом — записал, нашёл, напомнил</li>
+            <li>Структура понятна вам и агенту</li>
+          </ul>
+        </div>
+        <div class="audience-card business">
+          <div class="ico">🏢</div>
+          <h3>Бизнес · корпоративный ассистент</h3>
+          <p>Общая база знаний команды или компании: проекты, документы, регламенты. Разделение публичного и приватного.</p>
+          <ul>
+            <li>Рабочие области и темы по отделам</li>
+            <li>Единые правила для людей и ИИ</li>
+            <li>MCP — подключение корпоративных агентов</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="structure">
+      <div class="section-head"><h2>Из чего состоит система</h2><p>рабочее пространство → область → тема → записи</p></div>
+      <div class="card tree">
+        <div class="tree-level">
+          <div class="tree-node open active" data-id="ws" onclick="toggleTree(this)">
+            <div class="ico" style="background:#eaf1ff">🏠</div>
+            <div><strong>Рабочее пространство</strong><small>Workspace — корень хранилища, manifest.md</small></div>
+            <span class="arrow">›</span>
+          </div>
+          <div class="tree-children show" id="children-ws">
+            <div class="tree-node" data-id="area" onclick="selectTree(this)">
+              <div class="ico" style="background:#e8f7f0">📁</div>
+              <div><strong>Область</strong><small>Area — раздел меню: Работа, Личное, Здоровье…</small></div>
+            </div>
+            <div class="tree-node" data-id="topic" onclick="selectTree(this)">
+              <div class="ico" style="background:#f0ebff">📋</div>
+              <div><strong>Тема</strong><small>Topic — рабочая страница со слотами</small></div>
+            </div>
+            <div class="tree-node" data-id="record" onclick="selectTree(this)">
+              <div class="ico" style="background:#fff7e6">📄</div>
+              <div><strong>Запись</strong><small>Record — markdown-файл в слоте</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="tree-detail" id="treeDetail">
+          <strong>Рабочее пространство</strong> — ваш общий «ящик». Внутри — области, темы, слоты и записи. Пример пути: <code style="font-size:11px;background:#eef2f8;padding:2px 6px;border-radius:6px">Работа/Стройка/awn-storage/main/смета.md</code>
+        </div>
+      </div>
+      <div class="card pad" style="margin-top:10px">
+        <strong style="font-size:14px">В каких слотах хранятся записи</strong>
+        <p style="margin:6px 0 10px;font-size:12px;color:var(--muted)">Типы <code style="font-size:11px">awn.slot.*</code> — кратко: название и для чего</p>
+        <div class="slots-grid" id="slotGrid"></div>
+      </div>
+    </section>
+
+    <section class="section" id="entities">
+      <div class="section-head"><h2>Три базовых понятия</h2><p>папка · запись · sidecar</p></div>
+      <div class="entity-grid">
+        <div class="entity">
+          <div class="tag">Раздел</div>
+          <h3>Раздел (папка)</h3>
+          <p>Область или тема — это папка с manifest и слотами. Агент знает, что внутри «Работа → Стройка», и куда класть новые материалы.</p>
+        </div>
+        <div class="entity">
+          <div class="tag">Запись</div>
+          <h3>Типизированный файл</h3>
+          <p>Markdown с frontmatter: тип, даты, локация, теги. Человек и агент читают и пишут одинаково — через MCP или интерфейс.</p>
+        </div>
+        <div class="entity" style="grid-column:1/-1">
+          <div class="tag">Sidecar</div>
+          <h3>Описание рядом с файлом</h3>
+          <p>Sidecar — отдельный <code>.sidecar.md</code> рядом с картинкой или PDF. В сам файл нельзя вставить текст — sidecar хранит описание, теги и связи.</p>
+          <div class="sidecar-demo">
+            <div class="sidecar-photo"><span class="sidecar-link">↗</span></div>
+            <div>
+              <strong style="font-size:13px">photo.jpg</strong>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px">↳ photo.sidecar.md — «Фасад дома, июль 2026, привязать к теме Стройка»</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="fields">
+      <div class="section-head"><h2>Базовые поля записи</h2><p>из схемы <code style="font-size:12px">awn.base</code> + физическая локация контента</p></div>
+      <div class="card pad">
+        <div class="field-group">
+          <h4>Основное</h4>
+          <p>Что заполняет человек или агент</p>
+          <div class="fields">
+            <div class="field"><code>awn-name</code> Имя <span>в меню и списках</span></div>
+            <div class="field"><code>awn-description</code> Описание <span>текст</span></div>
+            <div class="field"><code>awn-status</code> Статус <span>open · draft · closed</span></div>
+            <div class="field"><code>awn-emoji</code> Эмодзи <span>если нет превью</span></div>
+            <div class="field"><code>awn-preview</code> Превью <span>картинка</span></div>
+            <div class="field"><code>awn-web-url</code> Веб-источник <span>URL оригинала</span></div>
+          </div>
+        </div>
+        <div class="field-group">
+          <h4>Таксономия</h4>
+          <div class="fields">
+            <div class="field"><code>awn-category</code> Категория <span>lookup</span></div>
+            <div class="field"><code>awn-owner</code> Владелец <span>lookup</span></div>
+            <div class="field"><code>awn-priority</code> Приоритет <span>lookup</span></div>
+            <div class="field"><code>awn-color</code> Цвет <span>lookup</span></div>
+            <div class="field"><code>awn-tags</code> Теги <span>много</span></div>
+          </div>
+        </div>
+        <div class="field-group">
+          <h4>Физическая локация</h4>
+          <p>Группа из <code style="font-size:11px">awn.content.base</code> — для записей о вещах и событиях в мире</p>
+          <div class="fields">
+            <div class="field"><code>awn-location-label</code> Локация <span>комната / полка / зона</span></div>
+            <div class="field"><code>awn-location-coordinates</code> Координаты <span>GPS / карта</span></div>
+            <div class="field"><code>awn-is-real-world-object</code> Реальный объект <span>boolean</span></div>
+            <div class="field"><code>awn-is-real-world-event</code> Реальное событие <span>boolean</span></div>
+          </div>
+        </div>
+        <div class="field-group">
+          <h4>Системные</h4>
+          <p>Заполняются автоматически, только чтение</p>
+          <div class="fields">
+            <div class="field"><code>awn-type</code> Тип <span>awn.content.record…</span></div>
+            <div class="field"><code>awn-create</code> Создан <span>datetime</span></div>
+            <div class="field"><code>awn-update</code> Изменён <span>datetime</span></div>
+            <div class="field"><code>awn-version</code> Версия <span>integer</span></div>
+          </div>
+        </div>
+        <div class="field-group">
+          <h4>Свои поля (Типы из agent-cms-core)</h4>
+          <p>Вы можете добавлять любые дополнительные поля к записям</p>
+          <div class="fields">
+            <div class="field"><code>string</code> Строка <span>короткий текст</span></div>
+            <div class="field"><code>text</code> Текст <span>длинный текст, описание</span></div>
+            <div class="field"><code>number</code> Число <span>целое или с дробью</span></div>
+            <div class="field"><code>date</code> Дата <span>со временем или без</span></div>
+            <div class="field"><code>boolean</code> Да / нет <span>галочка (логическое значение)</span></div>
+            <div class="field"><code>choice</code> Выбор <span>один или несколько вариантов</span></div>
+            <div class="field"><code>lookup</code> Справочник <span>связь со словарем</span></div>
+            <div class="field"><code>relation</code> Связь <span>ссылка на другую запись</span></div>
+            <div class="field"><code>file</code> Файл <span>документ или медиа</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="agents">
+      <div class="section-head"><h2>Агенты из коробки</h2><p>готовые рабочие пространства — дальше создаёте своё</p></div>
+      <div class="agent-cards">
+        <div class="agent-card core">
+          <h3>🧠 Ядро</h3>
+          <p><strong>agent-cms-core</strong> — платформа из коробки: типы, спецификации, документация.</p>
+        </div>
+        <div class="agent-card sandbox">
+          <h3>🧪 Песочница</h3>
+          <p><strong>agent-cms-test</strong> — для экспериментов. Проверяете сценарии, не трогая важное.</p>
+        </div>
+      </div>
+      <div class="agent-create">
+        <h3>+ Добавь своего агента</h3>
+        <p>Новая папка-workspace + <code style="font-size:11px">manifest.md</code> + запись в <code style="font-size:11px">awn-agents.json</code>. Это ваше хранилище — со своими областями, темами и данными.</p>
+      </div>
+    </section>
+
+    <section class="section" id="shell">
+      <div class="section-head"><h2>Agent Shell · «Говорилка»</h2><p>одно и то же окно диалога на компьютере, телефоне и в браузере</p></div>
+      <div class="card pad">
+        <p style="margin:0 0 14px;font-size:14px;line-height:1.55">Больше не нужно начинать новый чат каждый раз. У вас есть <strong>один вечный диалог</strong> с ассистентом. Всё, что вы скажете, сохраняется в общую память — пишите с компьютера, продолжайте с телефона.</p>
+
+        <div class="shell-flow">
+          <div class="shell-step"><span class="num">1</span><div><strong>Вы говорите или пишете</strong> в Shell — с компьютера, телефона или из браузера</div></div>
+          <div class="shell-step"><span class="num">2</span><div><strong>Агент понимает контекст</strong> анализирует ваши записи и прошлые диалоги</div></div>
+          <div class="shell-step"><span class="num">3</span><div><strong>Ответ + действие</strong> находит, записывает, связывает файлы — всё делает за вас</div></div>
+        </div>
+
+        <div class="shell-screens">
+          <div class="shell-screen">
+            <div class="shell-screen-head">💻 На компьютере</div>
+            <div class="shell-preview">
+              <div class="line user">Добавь в «Английский» — прошли Present Perfect</div>
+              <div class="line ai">Записал в main/. Остановились на упражнении 7, стр. 42.</div>
+            </div>
+          </div>
+          <div class="shell-screen">
+            <div class="shell-screen-head">📱 На телефоне</div>
+            <div class="shell-preview">
+              <div class="line user">🎙 Запомни фильм — Blade Runner</div>
+              <div class="line ai">✓ Личное/Кино/main/ — сохранено с телефона</div>
+            </div>
+          </div>
+          <div class="shell-screen">
+            <div class="shell-screen-head">🌐 В браузере</div>
+            <div class="shell-preview">
+              <div class="line user">На чём остановились в английском?</div>
+              <div class="line ai">Тот же диалог: main/урок-12.md, упражнение 7 — история синхронизирована</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="shell-sync"><strong>Одно окно диалога везде.</strong> Вы продолжаете общение с того же места на любом устройстве.</div>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="section-head"><h2>Возможности</h2><p>что умеет система</p></div>
+      <div class="feature-grid">
+        <div class="feature"><div class="ico">🗂️</div><h3>Файловая память</h3><p>Markdown + YAML. Прозрачно, версионируется, ваши данные на диске.</p></div>
+        <div class="feature"><div class="ico">🔗</div><h3>Связи</h3><p>Агент связывает записи между собой: книга → заметка → задача → проект.</p></div>
+        <div class="feature"><div class="ico">🎙</div><h3>Голос и диалог</h3><p>Говорите — агент понимает контекст и сохраняет в нужный слот.</p></div>
+        <div class="feature"><div class="ico">📥</div><h3>Inbox</h3><p>Бросили мысль, ссылку, файл — потом разберёте вместе с агентом.</p></div>
+        <div class="feature"><div class="ico">🧩</div><h3>Типы и схемы</h3><p>Каждая запись типизирована. Поведение зависит от типа и места в дереве.</p></div>
+        <div class="feature"><div class="ico">🔒</div><h3>Доступ</h3><p>Делитесь с людьми, разделяя публичное и личное.</p></div>
+      </div>
+    </section>
+
+    <section class="section" id="search">
+      <div class="section-head"><h2>Индексация и поиск</h2><p>три способа найти любую информацию</p></div>
+      <div class="card pad">
+        <p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.5">Хранилище растёт, но найти нужный документ так же легко, как в поисковике. Система сама создает индексы, чтобы вы ничего не потеряли.</p>
+        <div class="search-layer">
+          <h3>1. Обычный поиск (по словам)</h3>
+          <p>Ищет точные слова в ваших файлах. Напишете «краска для потолка» — и система выдаст все заметки, где есть эта фраза.</p>
+          <div class="search-example">Запрос «рецепт пирога» → находит документ «Рецепты.md», где есть эти слова.</div>
+        </div>
+        <div class="search-layer">
+          <h3>2. Умный поиск (по смыслу)</h3>
+          <p>Агент понимает суть того, что вы ищете, даже если вы забыли точное слово. Вы можете искать «что-то про налоги за прошлый год».</p>
+          <div class="search-example">Ищем «интервальное голодание» → находит документ «16:8 режим», потому что смысл тот же.</div>
+        </div>
+        <div class="search-layer">
+          <h3>3. Поиск по свойствам (как в каталоге)</h3>
+          <p>Позволяет фильтровать записи по тегам, датам или типу файла (например, найти все фотографии или все чеки).</p>
+          <div class="search-example">Покажи все записи с тегом «питание» со статусом «завершено» → 3 документа.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="connect">
+      <div class="section-head"><h2>Подключение по MCP</h2><p>к любому агенту с поддержкой Model Context Protocol</p></div>
+      <div class="card pad">
+        <p style="margin:0 0 12px;font-size:14px;line-height:1.55">Хранилище не привязано к одному ИИ. Подключите <strong>любой MCP-клиент</strong> — Cursor, Claude Desktop, свой агент — и он получит ~70 инструментов: читать, писать, искать, вести диалог.</p>
+        <div class="mcp-flow">
+          <div class="mcp-box">Любой агент</div>
+          <div class="mcp-arrow">⇄</div>
+          <div class="mcp-box highlight">MCP Server</div>
+          <div class="mcp-arrow">→</div>
+          <div class="mcp-box">Хранилище</div>
+        </div>
+      </div>
+      <div class="section-head" style="margin-top:18px"><h2>Дополнительные возможности</h2><p>поверх хранилища</p></div>
+      <div class="sync-row">
+        <div class="sync-item">
+          <div class="ico">🔔</div>
+          <div><h3>Уведомления</h3><p>Колокольчик в интерфейсе: создание, изменение, перемещение. Агент может вызвать <code style="font-size:11px">notify_user</code> — вы увидите в ленте активности.</p></div>
+        </div>
+        <div class="sync-item">
+          <div class="ico">☁️</div>
+          <div><h3>Google Drive</h3><p>Тяжёлые медиа уезжают в <code style="font-size:11px">awn-google-drive/</code>, на месте symlink. Место на диске экономится, файлы доступны из облака.</p></div>
+        </div>
+      </div>
+    </section>
+
+      <div class="section-head"><h2>Примеры кейсов</h2><p>как это может быть полезно</p></div>
+      <div class="cases" id="casesList"></div>
+    </section>
+
+    <section class="section" id="dialogue">
+      <div class="section-head"><h2>Общий контейнер</h2><p>здесь вы и агент встречаетесь</p></div>
+      <div class="card pad">
+        <p style="margin:0;font-size:14px;line-height:1.55">Внизу экрана — точка входа. Не отдельный чат «для ИИ», а дверь в то же хранилище: сказали — записали в нужную тему, спросили — нашли в нужном слоте.</p>
+        <div style="margin-top:12px;padding:12px 14px;background:#f7f9fc;border-radius:14px;font-size:13px;color:#4b5c72;line-height:1.5">
+          «Запомни фильм — Blade Runner» → <strong>Личное/Кино/main/</strong><br>
+          «На чём остановились в английском?» → <strong>main/урок-12.md, упражнение 7</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="goals">
+      <div class="section-head"><h2>Мои цели сейчас</h2><p>фокус на ближайшее время</p></div>
+      <div class="card pad">
+        <div class="goals" id="goalsList"></div>
+        <p class="goals-note">Нажми на пункт — отметить выполненным</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="dialogue-cta" id="dialogueCta" role="region" aria-label="Диалог с системой">
+  <div class="dialogue-status"><span class="dot" aria-hidden="true"></span> Ожидаю диалог или команду</div>
+  <div class="dialogue-input">
+    <button class="mic" id="ctaMic" type="button" onclick="startDialogue()" aria-label="Голосовая команда">●</button>
+    <input id="ctaInput" type="text" placeholder="Скажите или напишите…" aria-label="Диалог или команда" onkeydown="if(event.key==='Enter')startDialogue()">
+  </div>
+  <div class="dialogue-hint">Общий ящик · один язык · агент знает, куда записать и где найти</div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const treeTexts={
+  ws:'<strong>Рабочее пространство</strong> — ваш общий «ящик». Внутри — области, темы, слоты и записи. Пример: <code style="font-size:11px;background:#eef2f8;padding:2px 6px;border-radius:6px">Работа/Стройка/awn-storage/main/смета.md</code>',
+  area:'<strong>Область</strong> — раздел верхнего уровня: Работа, Личное, Здоровье. Может содержать другие области и темы. Аналог папки в меню.',
+  topic:'<strong>Тема</strong> — рабочая страница. Имеет слоты (main, inbox, media…). Пример: «Английский», «Стройка», «Кино».',
+  record:'<strong>Запись</strong> — типизированный .md файл в слоте. Агент может читать, создавать, перемещать и связывать записи — как полноценный пользователь.'
+};
+const slotCatalog=[
+  {cat:'Память',items:[
+    {name:'main/',title:'main',desc:'Основные записи темы'},
+    {name:'main.md',title:'main.md',desc:'Память в одном файле'},
+    {name:'inbox/',title:'inbox',desc:'Неразобранное'},
+    {name:'notes/',title:'notes',desc:'Заметки'},
+    {name:'references/',title:'references',desc:'Источники и ссылки'}
+  ]},
+  {cat:'Файлы',items:[
+    {name:'media/',title:'media',desc:'Фото, видео, PDF'},
+    {name:'assets/',title:'assets',desc:'Активы и вложения'},
+    {name:'repository/',title:'repository',desc:'Файловый репозиторий'},
+    {name:'artefacts/',title:'artefacts',desc:'Черновики и экспорты'},
+    {name:'scripts/',title:'scripts',desc:'Скрипты'},
+    {name:'templates/',title:'templates',desc:'Шаблоны'},
+    {name:'notebooklm/',title:'notebooklm',desc:'Материалы NotebookLM'}
+  ]},
+  {cat:'Однофайловые',items:[
+    {name:'todo.md',title:'todo.md',desc:'Список задач'},
+    {name:'log.md',title:'log.md',desc:'Журнал'},
+    {name:'main.csv',title:'main.csv',desc:'Таблица CSV'}
+  ]},
+  {cat:'Общение',items:[
+    {name:'comments/',title:'comments',desc:'Комментарии'}
+  ]},
+  {cat:'Системные',items:[
+    {name:'history/',title:'history',desc:'История версий'},
+    {name:'temp/',title:'temp',desc:'Временные файлы'},
+    {name:'volume/',title:'volume',desc:'Итоги и сводки'}
+  ]}
+];
+const cases=[
+  {emoji:'🇬🇧',title:'Учите английский',body:'Есть тема «Английский». Агент знает, на чём остановились: «Вы на Present Perfect, упражнение 7». Можно продолжить голосом в машине — запись попадёт в main/.',dialog:'Продолжим с упражнения 7? → Да → Записал прогресс в main/урок-12.md'},
+  {emoji:'🎬',title:'Любимый фильм или книга',body:'«Запомни: любимый фильм — Бегущий по лезвию». Агент создаст запись в нужной теме или найдёт существующую и дополнит.',dialog:'Мой любимый фильм — Blade Runner → Сохранил в Личное/Кино/main/'},
+  {emoji:'🏗️',title:'Стройка и документы',body:'Область «Работа», тема «Стройка». Фото фасада + sidecar с описанием. Агент: «Смета выросла на 12% — связать с проектом X?»',dialog:'Проанализируй смету → Связал с main/смета-v3.md'},
+  {emoji:'🏊',title:'Здоровье и выводы',body:'Агент анализирует данные из разных тем: «Ты стал хуже плавать — спишь меньше 6 часов последние 2 недели».',dialog:'Почему хуже плавать? → Корреляция: сон ↓, тренировки без изменений'},
+  {emoji:'📥',title:'Inbox без стресса',body:'Скинули ссылку, голосовую, скрин — всё в inbox. Потом вместе разбираете: в main, в источники или в архив.',dialog:'Разбери inbox → 3 записи распределены по слотам'}
+];
+const goals=[
+  {id:'critical',title:'Доделать все критичные детали',desc:'Закрыть блокеры, без которых хранилище не готово к реальному использованию'},
+  {id:'shell',title:'Начать разработку «Говорилки» — Agent Shell',desc:'Единое диалоговое окно: система, телефон, браузер — один поток'},
+  {id:'video',title:'Записать 1 видео',desc:'Показать идею проекта — что это за ящик и зачем он нужен'},
+  {id:'daily',title:'Начать использовать систему в повседневной жизни',desc:'Не демо, а реальные заметки, темы и диалоги каждый день'}
+];
+
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');clearTimeout(window._t);window._t=setTimeout(()=>el.classList.remove('show'),2200)}
+
+function jump(id,btn){
+  document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});
+  document.querySelectorAll('.chip').forEach(b=>{
+    b.classList.toggle('active',b.dataset.target===id);
+  });
+}
+
+function toggleTree(node){
+  node.classList.toggle('open');
+  document.getElementById('children-ws').classList.toggle('show',node.classList.contains('open'));
+  selectTree(node);
+}
+
+function selectTree(node){
+  document.querySelectorAll('.tree-node').forEach(n=>n.classList.remove('active'));
+  node.classList.add('active');
+  document.getElementById('treeDetail').innerHTML=treeTexts[node.dataset.id]||treeTexts.ws;
+}
+
+function renderSlots(){
+  document.getElementById('slotGrid').innerHTML=slotCatalog.map(cat=>`
+    <div class="slot-col">
+      <h4>${cat.cat}</h4>
+      <div class="slot-col-items">${cat.items.map(s=>`
+        <div class="slot-cell"><strong>${s.title}</strong><span>${s.desc}</span></div>
+      `).join('')}</div>
+    </div>`).join('');
+}
+
+function renderCases(){
+  document.getElementById('casesList').innerHTML=cases.map((c,i)=>
+    `<div class="case" onclick="toggleCase(this)"><div class="case-head"><span class="emoji">${c.emoji}</span><h3>${c.title}</h3><span class="chev">▾</span></div><div class="case-body">${c.body}<div class="dialog">${c.dialog}</div></div></div>`
+  ).join('');
+}
+function toggleCase(el){el.classList.toggle('open')}
+
+function startDialogue(){
+  const input=document.getElementById('ctaInput');
+  const mic=document.getElementById('ctaMic');
+  const text=(input.value||'').trim();
+  mic.classList.add('listening');
+  if(!text){
+    toast('Слушаю… скажите команду или введите текст');
+    setTimeout(()=>mic.classList.remove('listening'),1400);
+    return;
+  }
+  const lower=text.toLowerCase();
+  let reply='Записал в нужный раздел хранилища';
+  if(/фильм|кино|blade|бегущ/i.test(lower)) reply='→ Личное/Кино/main/ — фильм сохранён';
+  else if(/англ|english|урок/i.test(lower)) reply='→ Английский/main/ — прогресс обновлён';
+  else if(/найди|где|найти/i.test(lower)) reply='→ Нашёл в хранилище, открываю запись';
+  else reply='→ '+text+' — определил тему и слот, сохранил';
+  toast(reply);
+  input.value='';
+  setTimeout(()=>mic.classList.remove('listening'),900);
+}
+
+function renderGoals(){
+  const done=JSON.parse(localStorage.getItem('agentCmsGoals')||'[]');
+  document.getElementById('goalsList').innerHTML=goals.map((g,i)=>{
+    const checked=done.includes(g.id);
+    return `<button class="goal${checked?' done':''}" type="button" data-id="${g.id}" onclick="toggleGoal('${g.id}')">
+      <span class="goal-check">${checked?'✓':''}</span>
+      <span class="goal-body"><strong>${g.title}</strong><small>${g.desc}</small></span>
+      <span class="goal-num">${String(i+1).padStart(2,'0')}</span>
+    </button>`;
+  }).join('');
+}
+function toggleGoal(id){
+  let done=JSON.parse(localStorage.getItem('agentCmsGoals')||'[]');
+  done=done.includes(id)?done.filter(x=>x!==id):[...done,id];
+  localStorage.setItem('agentCmsGoals',JSON.stringify(done));
+  renderGoals();
+  const g=goals.find(x=>x.id===id);
+  toast(done.includes(id)?'✓ '+g.title:'Снова в работе: '+g.title);
+}
+
+renderSlots();
+renderCases();
+renderGoals();
+
+const obsSections=['about','audience','structure','entities','fields','agents','shell','features','search','connect','cases','dialogue','goals'];
+const io=new IntersectionObserver(entries=>{
+  const v=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
+  if(!v) return;
+  const id=v.target.id;
+  document.querySelectorAll('.chip').forEach(b=>{
+    b.classList.toggle('active',b.dataset.target===id);
+  });
+},{rootMargin:'-40% 0 -55% 0',threshold:[0.15,0.4]});
+obsSections.forEach(id=>{const el=document.getElementById(id);if(el) io.observe(el)});
+</script>
+</body>
+</html>
