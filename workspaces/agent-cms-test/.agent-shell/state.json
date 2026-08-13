@@ -1,6 +1,6 @@
 {
   "phase": "waiting",
-  "phrase": "Готов к сообщению",
+  "phrase": "fetch failed",
   "metrics": "",
   "lastAgentMessageId": "msg_b73ac4ee-d2de-49cb-931b-ac057f260e25",
   "lastShellReply": "",
@@ -8,6 +8,6 @@
   "stopTtsAt": 1783275094262,
   "sidecarSeenAt": 0,
   "pttHeld": false,
-  "lastTtsClientId": "c7b3e1d3-ee8a-444e-bd74-7813f9293f23",
-  "updatedAt": "2026-07-26T14:18:31.579Z"
+  "lastTtsClientId": "shell-1786574977301-p8je12cdfb9",
+  "updatedAt": "2026-08-12T22:49:39.032Z"
 }
