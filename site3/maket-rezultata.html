@@ -39,43 +39,83 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   background:linear-gradient(180deg,#070b14 0%,#0f172a 55%,#111827 100%);
   overflow:hidden
 }
-.cosmos-dock-inner{flex:1;min-width:0;display:flex;align-items:center}
-.cosmos-dock .cosmos-orbit-nav--dock{flex:1;min-width:0;width:100%}
 .cosmos-dock .cosmos-hub{
-  flex:0 0 auto;display:flex;align-items:center;gap:12px;
-  width:auto;min-width:min(280px,38vw);max-width:320px;
-  padding:8px 16px 8px 20px;
-  border-right:1px solid rgba(148,163,184,.18)
+  flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  gap:7px;width:auto;min-width:88px;
+  padding:10px 16px 10px 18px;
+  background:linear-gradient(180deg,rgba(30,58,138,.52) 0%,rgba(11,18,32,.98) 100%);
+  border-right:1px solid rgba(96,165,250,.28);
+  box-shadow:inset -1px 0 0 rgba(255,255,255,.05),4px 0 18px rgba(2,6,23,.22)
 }
+.cosmos-dock .cosmos-hub .cosmos-bubble-label{
+  white-space:nowrap;max-width:none;font-size:9.5px;letter-spacing:.02em;
+  color:rgba(226,232,240,.96)
+}
+.cosmos-dock-inner{
+  flex:1;min-width:0;display:flex;align-items:stretch;
+  position:relative;overflow:hidden
+}
+.cosmos-dock-inner::after{
+  content:"";position:absolute;top:0;right:0;bottom:0;width:28px;pointer-events:none;z-index:2;
+  background:linear-gradient(90deg,transparent,rgba(15,23,42,.92))
+}
+.cosmos-dock .cosmos-orbit-nav--dock{flex:1;min-width:0;width:100%}
 .cosmos-dock .cosmos-orbit-nav{
-  flex:1;min-width:0;margin-top:0;padding:8px 20px 8px 12px;
-  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 24px),transparent)
+  margin-top:0;padding:10px 0;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
+  mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent);
+  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent)
 }
-.cosmos-dock .cosmos-orbit-track{padding:2px 4px 0;gap:12px}
-.cosmos-dock .cosmos-orbit-item{width:64px;animation:none;gap:6px}
-.cosmos-dock .cosmos-bubble{width:44px;height:44px}
-.cosmos-dock .cosmos-bubble-emoji{font-size:18px}
-.cosmos-dock .cosmos-bubble-label{font-size:9px;max-width:64px;line-height:1.15}
-.cosmos-dock .cosmos-hub-aura{width:48px;height:48px}
-.cosmos-dock .cosmos-hub-mark{width:34px;height:34px;font-size:14px}
-.cosmos-dock .cosmos-hub-line--brand{
-  margin:0 0 2px;font-size:14px;font-weight:800;line-height:1.25;color:#f8fafc;letter-spacing:-.2px
+.cosmos-dock .cosmos-orbit-track{padding:2px 20px 2px 12px;gap:14px;align-items:flex-end}
+.cosmos-dock .cosmos-orbit-item{width:72px;animation:none;gap:7px}
+.cosmos-dock .cosmos-bubble{
+  width:50px;height:50px;
+  border-color:rgba(148,163,184,.55);
+  background:rgba(15,23,42,.72)
 }
-.cosmos-dock .cosmos-hub-sep{color:rgba(148,163,184,.5);font-weight:600;margin:0 2px}
-.cosmos-dock .cosmos-hub-path{font-weight:650;color:#93c5fd;font-size:12px}
-.cosmos-dock .cosmos-hub-tagline{font-size:10px;line-height:1.35;margin:0}
+.cosmos-dock .cosmos-hub-bubble{
+  cursor:default;pointer-events:none;
+  border-color:rgba(96,165,250,.62);
+  background:linear-gradient(145deg,#1e3a8a 0%,#312e81 100%);
+  box-shadow:0 0 16px rgba(96,165,250,.2),inset 0 0 0 1px rgba(255,255,255,.08)
+}
+.cosmos-dock .cosmos-hub-bubble:hover,.cosmos-dock .cosmos-hub-bubble:focus-visible{transform:none;box-shadow:0 0 16px rgba(96,165,250,.2),inset 0 0 0 1px rgba(255,255,255,.08)}
+.cosmos-dock .cosmos-hub-letter{
+  display:grid;place-items:center;width:100%;height:100%;
+  font-style:normal;font-weight:800;font-size:18px;color:#e0e7ff;line-height:1
+}
+.cosmos-dock .cosmos-bubble-emoji{font-size:21px}
+.cosmos-dock .cosmos-bubble-label{
+  font-size:10px;font-weight:700;max-width:72px;line-height:1.25;text-align:center;
+  color:rgba(226,232,240,.94);letter-spacing:.01em;white-space:normal
+}
+.cosmos-dock .cosmos-orbit-item:has(.cosmos-bubble.active) .cosmos-bubble-label{color:#fde68a}
 .cosmos-dock .cosmos-cta{display:none}
 @media(max-width:900px){
-  .cosmos-dock .cosmos-hub-tagline{display:none}
-  .cosmos-dock .cosmos-hub{min-width:min(240px,42vw);padding:8px 12px 8px 16px}
-  .cosmos-dock .cosmos-hub-line--brand{font-size:13px}
+  .cosmos-dock .cosmos-hub{min-width:80px;padding:8px 12px 8px 14px}
+  .cosmos-dock .cosmos-hub-letter{font-size:17px}
+  .cosmos-dock .cosmos-orbit-item{width:68px}
+  .cosmos-dock .cosmos-bubble{width:48px;height:48px}
+  .cosmos-dock .cosmos-bubble-emoji{font-size:20px}
 }
 @media(max-width:640px){
-  .cosmos-dock .cosmos-hub{min-width:160px;max-width:180px;padding:8px 10px 8px 12px;gap:10px}
-  .cosmos-dock .cosmos-orbit-nav{padding:8px 12px 8px 8px}
-  .cosmos-dock .cosmos-orbit-item{width:58px}
-  .cosmos-dock .cosmos-bubble{width:42px;height:42px}
-  .cosmos-dock .cosmos-orbit-track{gap:10px}
+  .cosmos-dock .cosmos-hub{
+    min-width:72px;padding:8px 10px 8px 12px;gap:6px
+  }
+  .cosmos-dock .cosmos-hub .cosmos-bubble-label{font-size:9px}
+  .cosmos-dock-inner::after{width:24px}
+  .cosmos-dock .cosmos-orbit-nav{
+    padding:8px 0 10px;
+    mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 24px),transparent);
+    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 24px),transparent)
+  }
+  .cosmos-dock .cosmos-orbit-track{padding:0 16px 0 8px;gap:12px}
+  .cosmos-dock .cosmos-orbit-item{width:62px;gap:6px}
+  .cosmos-dock .cosmos-hub-letter{font-size:16px}
+  .cosmos-dock .cosmos-bubble{width:46px;height:46px}
+  .cosmos-dock .cosmos-bubble-emoji{font-size:19px}
+  .cosmos-dock .cosmos-bubble-label{font-size:9px;max-width:62px;line-height:1.2}
 }
 .cosmos-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .cosmos-nebula{
@@ -166,8 +206,8 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .cosmos-intro-tags .footer-tag:nth-child(3){color:#bae6fd}
 .cosmos-intro-tags .footer-tag:nth-child(3) .footer-tag-hash{color:#38bdf8}
 .cosmos-intro-summary{
-  margin:18px 0 0;max-width:36ch;font-size:clamp(14px,2.2vw,16px);line-height:1.55;
-  color:rgba(203,213,225,.88);font-weight:500
+  margin:18px 0 0;font-size:clamp(14px,2.2vw,16px);line-height:1.55;
+  color:rgba(203,213,225,.88);font-weight:500;white-space:nowrap
 }
 .cosmos-intro-summary-kicker{
   font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6ee7b7;margin-right:6px
@@ -226,7 +266,6 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   padding:6px 0 14px;overflow:auto;scrollbar-width:none;margin-top:auto;
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent)
 }
-.cosmos-dock .cosmos-orbit-nav{margin-top:0;padding-bottom:12px}
 .cosmos-orbit-nav::-webkit-scrollbar{display:none}
 .cosmos-orbit-track{
   display:flex;align-items:flex-start;gap:14px;padding:8px 4px 4px;min-width:max-content
@@ -1099,20 +1138,15 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 <div class="app">
   <div class="cosmos-dock" id="cosmosDock">
     <div class="cosmos-hub">
-      <div class="cosmos-hub-aura" aria-hidden="true">
-        <span class="cosmos-hub-ring cosmos-hub-ring--outer"></span>
-        <span class="cosmos-hub-ring cosmos-hub-ring--inner"></span>
-        <span class="cosmos-hub-glow"></span>
-        <i class="cosmos-hub-mark">A</i>
+      <div class="cosmos-bubble cosmos-hub-bubble" aria-label="Agent CMS">
+        <span class="cosmos-hub-letter">A</span>
       </div>
-      <div class="cosmos-hub-copy">
-        <p class="cosmos-hub-line cosmos-hub-line--brand">Agent CMS<span class="cosmos-hub-sep">/</span><span class="cosmos-hub-path">Workspaces / *.md</span></p>
-        <p class="cosmos-hub-tagline">Контекст для LLM-агентов · тема за темой</p>
-      </div>
+      <span class="cosmos-bubble-label">Agent CMS</span>
     </div>
     <div class="cosmos-dock-inner">
       <nav class="cosmos-orbit-nav cosmos-orbit-nav--dock" aria-label="Разделы">
         <div class="cosmos-orbit-track" role="list">
+        <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="hero-band" onclick="jump('hero-band',this)" title="Введение"><span class="cosmos-bubble-emoji">📖</span></button><span class="cosmos-bubble-label">Введение</span></div>
           <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="problem" onclick="jump('problem',this)" title="О проекте"><span class="cosmos-bubble-emoji">📦</span></button><span class="cosmos-bubble-label">О проекте</span></div>
           <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="audience" onclick="jump('audience',this)" title="Для кого"><span class="cosmos-bubble-emoji">👥</span></button><span class="cosmos-bubble-label">Для кого</span></div>
           <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="life-graph" onclick="jump('life-graph',this)" title="Цифровая жизнь"><span class="cosmos-bubble-emoji">🌐</span></button><span class="cosmos-bubble-label">Жизнь</span></div>
@@ -1179,7 +1213,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
           <li class="footer-tag"><span class="footer-tag-hash" aria-hidden="true">#</span>обучаемся сами</li>
           <li class="footer-tag"><span class="footer-tag-hash" aria-hidden="true">#</span>вместе растём</li>
         </ul>
-        <p class="cosmos-intro-summary"><span class="cosmos-intro-summary-kicker">Итог:</span> совместный порядок, который <em>ИИ</em> и <em>Вы</em> поддерживаете вместе</p>
+        <p class="cosmos-intro-summary"><span class="cosmos-intro-summary-kicker">Итог:</span> <em>совместный диалог</em>, который <em>ИИ</em> и <em>Вы</em> ведёте на протяжении долгих лет</p>
         <button type="button" class="cosmos-intro-cta" onclick="jump('hero-band')">
           <span class="cosmos-intro-down-arrow" aria-hidden="true">↓</span>
           Познакомимся
@@ -2151,6 +2185,9 @@ function jump(id,btn){
 
 function setActiveNav(id){
   document.querySelectorAll('.chip').forEach(b=>b.classList.toggle('active',!!id&&b.dataset.target===id));
+  if(!id) return;
+  const active=document.querySelector('#cosmosDock .chip.active');
+  if(active) active.closest('.cosmos-orbit-item')?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
 }
 
 function toggleTree(node){
@@ -2262,7 +2299,7 @@ renderSlots();renderCases();renderGoals();
   if(typeof ResizeObserver!=='undefined') new ResizeObserver(syncDockH).observe(dock);
 })();
 
-const obsSections=['problem','audience','life-graph','structure','fields','agents','shell','ecosystem','cases','features','search','connect','goals','dialogue','case-example','principles','footer'];
+const obsSections=['hero-band','problem','audience','life-graph','structure','fields','agents','shell','ecosystem','cases','features','search','connect','goals','dialogue','case-example','principles','footer'];
 
 function dockOffset(){
   return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cosmos-dock-h'))||72;
