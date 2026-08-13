@@ -216,8 +216,9 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .cosmos-intro-tags .footer-tag:nth-child(3){color:#bae6fd}
 .cosmos-intro-tags .footer-tag:nth-child(3) .footer-tag-hash{color:#38bdf8}
 .cosmos-intro-summary{
-  margin:18px 0 0;font-size:clamp(14px,2.2vw,16px);line-height:1.55;
-  color:rgba(203,213,225,.88);font-weight:500;white-space:nowrap
+  margin:18px auto 0;max-width:min(52ch,calc(100% - 24px));
+  font-size:clamp(13px,2.2vw,16px);line-height:1.55;
+  color:rgba(203,213,225,.88);font-weight:500;text-align:center
 }
 .cosmos-intro-summary-kicker{
   font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6ee7b7;margin-right:6px
@@ -319,6 +320,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   .cosmos-inner{padding:10px 14px 0}
   .cosmos-intro{padding:24px 16px 20px}
   .cosmos-intro-lead{font-size:15px}
+  .cosmos-intro-summary{max-width:calc(100% - 8px);font-size:14px;line-height:1.5;padding:0 4px}
   .cosmos-hub-tagline{display:none}
   .cosmos-orbit-item{width:64px}
   .cosmos-bubble{width:46px;height:46px}
@@ -1223,7 +1225,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
           <li class="footer-tag"><span class="footer-tag-hash" aria-hidden="true">#</span>обучаемся сами</li>
           <li class="footer-tag"><span class="footer-tag-hash" aria-hidden="true">#</span>вместе растём</li>
         </ul>
-        <p class="cosmos-intro-summary"><span class="cosmos-intro-summary-kicker">Итог:</span> <em>совместный диалог</em>, который <em>ИИ</em> и <em>Вы</em> ведёте на протяжении долгих лет</p>
+        <p class="cosmos-intro-summary"><span class="cosmos-intro-summary-kicker">Итог:</span> <em>совместный диалог</em>, который <em>Вы</em> и <em>ИИ</em> ведёте на протяжении долгих лет и можете вспомнить, где что лежит</p>
         <button type="button" class="cosmos-intro-cta" onclick="jump('hero-band')">
           <span class="cosmos-intro-down-arrow" aria-hidden="true">↓</span>
           Познакомимся
