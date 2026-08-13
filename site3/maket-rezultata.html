@@ -487,11 +487,11 @@ main{padding:0 14px 20px}
     <section class="section" id="shell">
       <div class="section-head"><h2>Agent Shell · «Говорилка»</h2><p>единое диалоговое окно — система, телефон, браузер</p></div>
       <div class="card pad">
-        <p style="margin:0 0 14px;font-size:14px;line-height:1.55">Один поток сообщений и одно хранилище. Неважно, откуда вы говорите — диалог попадает в <code style="font-size:11px">thread/</code> темы, агент понимает контекст и сохраняет результат в нужный слот.</p>
+        <p style="margin:0 0 14px;font-size:14px;line-height:1.55">Один поток сообщений и одно хранилище. Неважно, откуда вы говорите — диалог сохраняется в теме, агент понимает контекст и записывает результат в нужный слот.</p>
 
         <div class="shell-flow">
           <div class="shell-step"><span class="num">1</span><div><strong>Вы говорите или пишете</strong> в Shell — с компьютера, телефона или из браузера</div></div>
-          <div class="shell-step"><span class="num">2</span><div><strong>Сообщение → thread/</strong> одна история диалога для темы, без разрывов между устройствами</div></div>
+          <div class="shell-step"><span class="num">2</span><div><strong>Сообщение в историю темы</strong> одна история диалога, без разрывов между устройствами</div></div>
           <div class="shell-step"><span class="num">3</span><div><strong>Агент читает хранилище</strong> понимает контекст: области, темы, слоты, записи</div></div>
           <div class="shell-step"><span class="num">4</span><div><strong>Ответ + действие</strong> находит, записывает, связывает — main/, inbox/, media/…</div></div>
         </div>
@@ -520,7 +520,7 @@ main{padding:0 14px 20px}
           </div>
         </div>
 
-        <div class="shell-sync"><strong>Один thread/</strong> — три экрана, одна память. Продолжаете разговор с любого устройства.</div>
+        <div class="shell-sync"><strong>Один диалог</strong> — три экрана, одна память. Продолжаете разговор с любого устройства.</div>
       </div>
     </section>
 
@@ -676,7 +676,6 @@ const slotCatalog=[
     {name:'main.csv',title:'main.csv',desc:'Таблица CSV'}
   ]},
   {cat:'Общение',items:[
-    {name:'thread/',title:'thread',desc:'Диалог с агентом'},
     {name:'comments/',title:'comments',desc:'Комментарии'}
   ]},
   {cat:'Системные',items:[
