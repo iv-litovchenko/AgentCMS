@@ -142,12 +142,39 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   -webkit-background-clip:text;-webkit-text-fill-color:transparent
 }
 .cosmos-intro-lead{
-  margin:0;max-width:34ch;font-size:clamp(16px,2.6vw,21px);line-height:1.6;font-weight:500;
+  margin:0;max-width:52ch;font-size:clamp(16px,2.6vw,21px);line-height:1.6;font-weight:500;
   color:rgba(226,232,240,.9);letter-spacing:-.01em
 }
 .cosmos-intro-lead em{font-style:normal;color:#fde68a;font-weight:650}
+.cosmos-intro-mascot{margin:0 0 18px}
+.cosmos-intro-slogan{
+  margin:22px 0 0;font-size:clamp(17px,2.5vw,20px);font-weight:800;line-height:1.35;
+  color:rgba(226,232,240,.95);max-width:30ch
+}
+.cosmos-intro-slogan em{
+  font-style:normal;background:linear-gradient(90deg,#fde68a,#c4b5fd);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent
+}
+.cosmos-intro-tags{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.cosmos-intro-tags .footer-tag{
+  background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:rgba(226,232,240,.92);
+  box-shadow:0 4px 14px rgba(2,6,23,.18)
+}
+.cosmos-intro-tags .footer-tag-hash{color:#93c5fd}
+.cosmos-intro-tags .footer-tag:nth-child(2){color:#ddd6fe}
+.cosmos-intro-tags .footer-tag:nth-child(2) .footer-tag-hash{color:#a78bfa}
+.cosmos-intro-tags .footer-tag:nth-child(3){color:#bae6fd}
+.cosmos-intro-tags .footer-tag:nth-child(3) .footer-tag-hash{color:#38bdf8}
+.cosmos-intro-summary{
+  margin:18px 0 0;max-width:36ch;font-size:clamp(14px,2.2vw,16px);line-height:1.55;
+  color:rgba(203,213,225,.88);font-weight:500
+}
+.cosmos-intro-summary-kicker{
+  font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#6ee7b7;margin-right:6px
+}
+.cosmos-intro-summary em{font-style:normal;color:#fde68a;font-weight:650}
 .cosmos-intro-cta{
-  margin-top:32px;display:inline-flex;align-items:center;gap:10px;
+  margin-top:28px;display:inline-flex;align-items:center;gap:10px;
   background:linear-gradient(135deg,#3978ff,#6366f1);color:#fff;
   padding:13px 24px;border-radius:999px;font-size:15px;font-weight:700;
   box-shadow:0 6px 22px rgba(57,120,255,.38);transition:.2s
@@ -269,6 +296,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .slogan-banner h1{margin:0 0 14px;font-size:clamp(20px,3.5vw,32px);line-height:1.25;letter-spacing:-.4px;font-weight:800;color:#fff;max-width:62ch}
 .slogan-banner h1 em{font-style:normal;background:linear-gradient(90deg,#93c5fd,#c4b5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .slogan-solution{margin:0 0 18px;font-size:clamp(14px,2vw,17px);line-height:1.5;color:rgba(255,255,255,.82);max-width:56ch}
+.slogan-solution em{font-style:normal;background:linear-gradient(90deg,#6ee7b7,#93c5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:700}
 .slogan-tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
 .slogan-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:650;padding:8px 14px;border-radius:999px;color:#eef4ff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14)}
 .slogan-tag.t6{background:rgba(251,113,133,.14);border-color:rgba(251,113,133,.28);color:#ffe4e6}
@@ -332,6 +360,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .vs-side strong{display:block;color:var(--ink);font-size:15px;margin-bottom:6px;font-weight:700}
 .vs-icon{width:36px;height:36px;border-radius:50%;background:#fff;border:1px solid var(--line);display:grid;place-items:center;font-size:13px;color:var(--muted);font-weight:800;margin:0 auto}
 .result{padding:16px;background:linear-gradient(90deg,var(--blue),var(--purple));color:#fff;border-radius:16px;font-size:15px;font-weight:600;text-align:center;box-shadow:0 10px 30px rgba(57,120,255,.25)}
+.result em{font-style:normal;color:#fde68a;font-weight:700}
 
 /* Unified info cards (aud-card style) */
 .info-card,
@@ -1120,9 +1149,37 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
     </div>
     <div class="cosmos-inner">
       <div class="cosmos-intro">
+        <div class="cosmos-intro-mascot footer-mascot-block" aria-hidden="true">
+          <div class="footer-mascot">
+            <div class="footer-mascot-glow"></div>
+            <div class="footer-mascot-shell">
+              <div class="footer-mascot-antenna"></div>
+              <div class="footer-mascot-screen">
+                <div class="footer-mascot-face">
+                  <span class="footer-mascot-eye footer-mascot-eye--left"></span>
+                  <span class="footer-mascot-eye footer-mascot-eye--right"></span>
+                  <span class="footer-mascot-smile"></span>
+                </div>
+              </div>
+              <div class="footer-mascot-body">
+                <div class="footer-mascot-arm footer-mascot-arm--left"></div>
+                <div class="footer-mascot-torso"></div>
+                <div class="footer-mascot-arm footer-mascot-arm--right"></div>
+              </div>
+              <div class="footer-mascot-feet"><span></span><span></span></div>
+            </div>
+          </div>
+        </div>
         <p class="cosmos-intro-eyebrow">Workspaces / *.md</p>
         <h1 class="cosmos-intro-title">Agent CMS</h1>
-        <p class="cosmos-intro-lead">Хранилище контекста для LLM — <em>одно дерево</em>, общий язык с агентом, память заметка за заметкой.</p>
+        <p class="cosmos-intro-lead">Хранилище контекста для LLM — <em>одно дерево</em>, общий язык с агентом. Воспоминания и память заметка за заметкой.</p>
+        <p class="cosmos-intro-slogan">Наша цель — <em>всё, что можно вообразить!</em></p>
+        <ul class="cosmos-intro-tags footer-tags" aria-label="Теги">
+          <li class="footer-tag"><span class="footer-tag-hash" aria-hidden="true">#</span>обучаем агента</li>
+          <li class="footer-tag"><span class="footer-tag-hash" aria-hidden="true">#</span>обучаемся сами</li>
+          <li class="footer-tag"><span class="footer-tag-hash" aria-hidden="true">#</span>вместе растём</li>
+        </ul>
+        <p class="cosmos-intro-summary"><span class="cosmos-intro-summary-kicker">Итог:</span> совместный порядок, который <em>ИИ</em> и <em>Вы</em> поддерживаете вместе</p>
         <button type="button" class="cosmos-intro-cta" onclick="jump('hero-band')">
           <span class="cosmos-intro-down-arrow" aria-hidden="true">↓</span>
           Познакомимся
@@ -1137,7 +1194,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
       <div class="hero-row">
         <div>
           <h1>Хранилище для всего <em>самого важного и ценного</em>, что есть в цифровой жизни, по одним принципам вместе с <em>ИИ</em></h1>
-          <p class="slogan-solution">Структуру, которую помните вы и понимает ваш агент.</p>
+          <p class="slogan-solution">Итог: совместный порядок, который <em>ИИ</em> и <em>Вы</em> поддерживаете вместе</p>
           <div class="slogan-tags">
             <span class="slogan-tag">📄 файлы</span>
             <span class="slogan-tag">📷 фотографии</span>
@@ -1190,7 +1247,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
               <div class="vs-icon">VS</div>
               <div class="vs-side"><strong>Агент в хранилище</strong>Знает структуру. Помнит диалоги. Сам раскладывает файлы по местам.</div>
             </div>
-            <div class="result">Итог: идеальный порядок, который ИИ поддерживает за вас</div>
+            <div class="result">Итог: совместный порядок, который <em>ИИ</em> и <em>Вы</em> поддерживаете вместе</div>
           </div>
           <div class="formula">
             <div class="eq">вы <span class="eq-n">(1)</span> + агент <span class="eq-n">(1)</span> ≥ 2 <span class="eq-synergy">(синергия)</span></div>
