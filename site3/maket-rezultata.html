@@ -138,8 +138,8 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 @media(min-width:900px){.info-grid.three{grid-template-columns:repeat(3,1fr)}}
 .feature-grid{display:grid;gap:16px}
 @media(min-width:640px){.feature-grid{grid-template-columns:1fr 1fr}}
-.feature-grid-solo{display:grid;gap:16px;margin-top:16px}
-.feature-grid-solo .feature{max-width:720px;margin-inline:auto;width:100%}
+.feature-grid-extra{display:grid;gap:16px;margin-top:16px;padding-top:16px;border-top:1px dashed #dbe6ff}
+@media(min-width:640px){.feature-grid-extra{grid-template-columns:1fr 1fr}}
 .search-example{padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.72);font-size:13px;color:#4b5c72;border:1px solid rgba(221,227,238,.95);line-height:1.5}
 
 .pillrow{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
@@ -196,7 +196,6 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .graph-svg line{stroke:#bfd3ff;stroke-width:1.5;stroke-dasharray:5 4;opacity:.85}
 .graph-svg line.agent-line{stroke:#c4b5fd;stroke-dasharray:none;opacity:.55}
 .graph-svg line.orchestrator-line{stroke:#34d399;stroke-width:2;stroke-dasharray:none;opacity:.85}
-.graph-svg line.branch-line{stroke:#64748b;stroke-width:2;stroke-dasharray:4 3;opacity:.7}
 .graph-hub.orchestrator{
   background:linear-gradient(135deg,#18a56a,#0d9488);box-shadow:0 12px 36px rgba(24,165,106,.38);
   border:2px solid rgba(255,255,255,.32);width:clamp(120px,24vw,168px)
@@ -261,12 +260,32 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .graph-node .g-sub{display:block;margin-top:3px;font-size:9px;font-weight:600;color:var(--muted);line-height:1.2}
 .graph-node .g-sub.g-store{font-size:8px;line-height:1.25}
 .graph-node{transform:rotate(var(--a)) translateY(calc(-1 * var(--r))) rotate(calc(-1 * var(--a)))}
-.graph-node--branch{
-  width:clamp(68px,13vw,82px);margin-left:calc(clamp(68px,13vw,82px)/-2);margin-top:-24px;
-  padding:8px 6px;font-size:10px;border-style:dashed;border-color:#94a3b8;background:#f8fafc;z-index:2
+.graph-svg line.branch-line{display:none}
+.graph-node-group{
+  position:absolute;left:50%;top:50%;z-index:2;pointer-events:none;
+  transform:rotate(var(--a)) translateY(calc(-1 * var(--r))) rotate(calc(-1 * var(--a)))
 }
-.graph-node--branch:hover{border-color:#64748b;box-shadow:0 8px 22px rgba(100,116,139,.12)}
-.graph-node--parent{border-color:#bfd3ff;background:linear-gradient(180deg,#fff,#f8fbff)}
+.graph-node-group > .graph-node--parent{
+  position:relative;left:auto;top:auto;margin:0;margin-left:calc(clamp(76px,15vw,96px)/-2);margin-top:-28px;
+  transform:none;pointer-events:auto
+}
+.graph-node-group .graph-branch-svg{
+  position:absolute;left:calc(50% - 52px);top:18px;width:92px;height:64px;
+  overflow:visible;pointer-events:none
+}
+.graph-node-group .graph-branch-svg path{
+  fill:none;stroke:#7c93b8;stroke-width:2;stroke-linecap:round;stroke-dasharray:5 4
+}
+.graph-node-group .graph-branch-svg circle{fill:#64748b}
+.graph-node--leaf{
+  position:absolute;left:calc(50% - 84px);top:72px;width:72px;margin:0;
+  padding:8px 6px;font-size:10px;text-align:center;
+  background:#fff;border:1px solid #bfd3ff;border-radius:12px;box-shadow:0 4px 14px rgba(57,120,255,.1);
+  pointer-events:auto;transition:.25s transform,.25s box-shadow,.25s border-color;line-height:1.25;font-weight:700;color:var(--ink)
+}
+.graph-node--leaf:hover{border-color:#94a3b8;box-shadow:0 8px 20px rgba(100,116,139,.14);transform:scale(1.05);z-index:4}
+.graph-node--leaf .g-ico{font-size:18px;display:block;margin-bottom:3px;line-height:1}
+.graph-node--parent{border-color:#bfd3ff;background:linear-gradient(180deg,#fff,#f8fbff);z-index:2}
 .graph-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:18px;padding-top:16px;border-top:1px dashed #cfe0ff}
 .graph-legend span{font-size:11px;font-weight:650;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.7);border:1px solid #dbe6ff;color:#536078}
 @media(max-width:520px){
@@ -275,6 +294,9 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   .graph-node .g-ico{font-size:17px}
   .graph-node .g-sub{display:none}
   .graph-node .g-sub.g-store{display:block;font-size:7px}
+  .graph-node-group .graph-node--parent{width:68px;margin-left:-34px;padding:8px 4px;font-size:10px}
+  .graph-node--leaf{width:62px;left:calc(50% - 72px);top:62px;padding:6px 4px;font-size:9px}
+  .graph-node-group .graph-branch-svg{width:78px;height:56px;left:calc(50% - 44px);top:14px}
   .graph-hub{width:96px;padding:12px 8px}
   .graph-hub .hub-ico{font-size:22px}
   .graph-hub strong{font-size:11px}
@@ -906,7 +928,6 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
               <line x1="200" y1="190" x2="52" y2="190"/>
               <line x1="200" y1="190" x2="72" y2="116"/>
               <line x1="200" y1="190" x2="126" y2="62"/>
-              <line class="branch-line" x1="72" y1="264" x2="10" y2="234"/>
               <line class="orchestrator-line" x1="200" y1="190" x2="200" y2="368"/>
             </svg>
             <div class="graph-hub">
@@ -923,8 +944,14 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
               <div class="graph-node" style="--a:150deg;--r:148px"><span class="g-ico">📚</span>Обучение<span class="g-sub">курсы · языки</span></div>
               <div class="graph-node" style="--a:180deg;--r:148px"><span class="g-ico">🎬</span>Досуг<span class="g-sub">кино · хобби</span></div>
               <div class="graph-node" style="--a:210deg;--r:148px"><span class="g-ico">🛒</span>Покупки<span class="g-sub">wishlist · гарантии</span></div>
-              <div class="graph-node graph-node--parent" style="--a:240deg;--r:148px"><span class="g-ico">🧾</span>Документы<span class="g-sub">договоры · паспорт</span></div>
-              <div class="graph-node graph-node--branch" style="--a:257deg;--r:195px"><span class="g-ico">📷</span>Фотки<span class="g-sub">альбомы · sidecar</span></div>
+              <div class="graph-node-group" style="--a:240deg;--r:148px">
+                <div class="graph-node graph-node--parent"><span class="g-ico">🧾</span>Документы<span class="g-sub">договоры · паспорт</span></div>
+                <svg class="graph-branch-svg" viewBox="0 0 92 64" aria-hidden="true">
+                  <path d="M 62 4 Q 62 28 50 40 T 10 58"/>
+                  <circle cx="62" cy="4" r="2.5"/>
+                </svg>
+                <div class="graph-node--leaf"><span class="g-ico">📷</span>Фотки</div>
+              </div>
               <div class="graph-node" style="--a:270deg;--r:148px"><span class="g-ico">🎯</span>Цели<span class="g-sub">личные · годовые</span></div>
               <div class="graph-node" style="--a:300deg;--r:148px"><span class="g-ico">✈️</span>Путешествия<span class="g-sub">маршруты · билеты</span></div>
               <div class="graph-node" style="--a:330deg;--r:148px"><span class="g-ico">🍽</span>Питание<span class="g-sub">рецепты · калории</span></div>
@@ -1380,12 +1407,12 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
           <div class="feature tone-warm"><div class="card-emoji">📥</div><h3>Inbox</h3><p class="card-desc">Бросили мысль, ссылку, файл — потом разберёте вместе с агентом.</p></div>
           <div class="feature tone-blue"><div class="card-emoji">🧩</div><h3>Типы и схемы</h3><p class="card-desc">Каждая запись типизирована. Поведение зависит от типа и места в дереве.</p></div>
           <div class="feature tone-green"><div class="card-emoji">🔒</div><h3>Доступ</h3><p class="card-desc">Делитесь с людьми, разделяя публичное и личное.</p></div>
+        </div>
+        <div class="feature-grid-extra">
           <div class="feature tone-warm"><div class="card-emoji">☁️</div><h3>Google Drive</h3><p class="card-desc">Тяжёлые медиа уезжают в <code>awn-google-drive/</code>, на месте symlink. Место на диске экономится, файлы доступны из облака.</p></div>
+          <div class="feature tone-purple"><div class="card-emoji">🔔</div><h3>Уведомления</h3><p class="card-desc">Колокольчик в интерфейсе: создание, изменение, перемещение. Агент может вызвать <code>notify_user</code> — вы увидите в ленте активности.</p></div>
           <div class="feature tone-blue"><div class="card-emoji">🌐</div><h3>Бесшовное блуждание</h3><p class="card-desc">Начали заметку на телефоне — продолжили на ноутбуке. Один workspace, одно дерево: синхронизация между устройствами без «а где это было?».</p></div>
           <div class="feature tone-purple"><div class="card-emoji">🧭</div><h3>Продолжить с места</h3><p class="card-desc">Агент помнит активную тему, последнюю запись и незаконченный диалог. Открыли другой экран — контекст уже на месте, можно сразу работать.</p></div>
-        </div>
-        <div class="feature-grid-solo">
-          <div class="feature tone-purple"><div class="card-emoji">🔔</div><h3>Уведомления</h3><p class="card-desc">Колокольчик в интерфейсе: создание, изменение, перемещение. Агент может вызвать <code>notify_user</code> — вы увидите в ленте активности.</p></div>
         </div>
       </div>
     </section>
