@@ -366,6 +366,37 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .hero-caption{margin:0;font-size:15px;line-height:1.5;color:rgba(255,255,255,.75);font-weight:500}
 .hero-caption strong{color:#fff;font-weight:700}
 
+.overview-visual{
+  scroll-margin-top:calc(var(--cosmos-dock-h, 72px) + 16px);
+  padding:28px 0 36px;background:#fff;border-bottom:1px solid var(--line)
+}
+.overview-figure{
+  margin:0;border-radius:20px;overflow:hidden;
+  box-shadow:var(--shadow);border:1px solid var(--line);background:#f8fafc
+}
+.overview-figure img{display:block;width:100%;height:auto;vertical-align:middle}
+
+.ui-screenshot-wrap{
+  margin:20px 0 0;min-height:420px;padding:16px 16px 0;border-radius:20px;
+  border:2px dashed #cfd8e6;background:linear-gradient(180deg,#f8fafc 0%,#eef2f7 100%);
+  display:flex;flex-direction:column;overflow:hidden
+}
+.ui-screenshot-inner{
+  flex:1;min-height:340px;margin-bottom:12px;border-radius:14px;
+  background:linear-gradient(180deg,#e8eef8 0%,#dde7f5 100%);
+  border:1px solid #c7d5ea;
+  box-shadow:inset 0 2px 12px rgba(15,23,36,.04);
+  display:grid;place-items:center;padding:24px
+}
+.ui-screenshot-empty{
+  margin:0;font-size:15px;font-weight:600;letter-spacing:.02em;color:#8b9cb3;text-align:center
+}
+.ui-screenshot-caption{
+  margin:0 -16px;padding:12px 16px;text-align:center;
+  font-size:13px;font-weight:600;letter-spacing:.04em;color:#64748b;
+  background:rgba(226,232,240,.5);border-top:1px solid #d5dee9
+}
+
 /* Sections */
 .section{padding:48px 0;scroll-margin-top:calc(var(--cosmos-dock-h, 72px) + 16px)}
 .section.alt{background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -787,6 +818,40 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 .audience{display:grid;gap:16px}
 @media(min-width:640px){.audience{grid-template-columns:1fr 1fr}}
+.audience-screenshot{margin-bottom:0}
+.century-note{
+  margin-top:28px;padding:28px 26px 24px;border-radius:var(--r);
+  background:linear-gradient(135deg,#0f172a 0%,#1e293b 48%,#172554 100%);
+  border:1px solid rgba(148,163,184,.18);box-shadow:0 20px 50px rgba(15,23,42,.22);
+  text-align:center;position:relative;overflow:hidden
+}
+.century-note:before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(circle at 12% 20%,rgba(99,102,241,.28),transparent 42%),
+    radial-gradient(circle at 88% 78%,rgba(59,130,246,.22),transparent 40%)
+}
+.century-note>*{position:relative;z-index:1}
+.century-note-kicker{
+  margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:.14em;
+  text-transform:uppercase;color:#93c5fd
+}
+.century-note h3{
+  margin:0 0 12px;font-size:clamp(22px,3.2vw,30px);font-weight:800;
+  letter-spacing:-.4px;line-height:1.25;color:#f8fafc
+}
+.century-note h3 em{font-style:normal;color:#fde68a}
+.century-note p{
+  margin:0 auto;max-width:52ch;font-size:15px;line-height:1.65;color:rgba(203,213,225,.9)
+}
+.century-note-tags{
+  margin:18px 0 0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px
+}
+.century-note-tags span{
+  font-size:11px;font-weight:700;padding:7px 12px;border-radius:999px;
+  color:rgba(226,232,240,.92);background:rgba(255,255,255,.07);
+  border:1px solid rgba(148,163,184,.2)
+}
 
 .adv-tag{display:inline-block;padding:3px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;font-size:11px;font-family:monospace;color:#475569;margin-top:10px}
 .mcp-diagram{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;padding:16px;background:#f8fafc;border-radius:14px;border:1px dashed #cbd5e1;flex-wrap:wrap}
@@ -904,7 +969,214 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 .case-path-bar strong{color:var(--blue3);font-weight:700}
 
-/* Principles block */
+/* Cubic room slide */
+.cube-room-section{
+  padding:56px 0 64px;
+  background:linear-gradient(180deg,#070b14 0%,#0f172a 52%,#111827 100%);
+  border-top:1px solid rgba(148,163,184,.12);border-bottom:1px solid rgba(148,163,184,.12);
+  position:relative;overflow:hidden
+}
+.cube-room-section:before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 50% 40% at 18% 20%,rgba(99,102,241,.28),transparent 60%),
+    radial-gradient(ellipse 45% 35% at 82% 75%,rgba(59,130,246,.22),transparent 55%)
+}
+.cube-room-section .container{position:relative;z-index:1}
+.cube-room-section .section-head h2{color:#f8fafc}
+.cube-room-section .section-head p{color:rgba(148,163,184,.85)}
+.cube-room-lead{
+  margin:0 auto 36px;max-width:58ch;text-align:center;
+  font-size:clamp(15px,2.2vw,18px);line-height:1.65;color:rgba(203,213,225,.88)
+}
+.cube-room-lead em{font-style:normal;color:#fde68a;font-weight:650}
+.cube-room-scene{
+  --cube-size:min(280px,72vw);
+  position:relative;display:grid;gap:24px;align-items:center;justify-items:center;
+  max-width:1120px;margin:0 auto;padding:8px 0 4px
+}
+.cube-room-flow{
+  display:none;position:absolute;inset:0;width:100%;height:100%;
+  z-index:1;pointer-events:none;overflow:visible
+}
+@media(min-width:900px){.cube-room-flow{display:block}}
+.cube-room-flow-glow{fill:none;stroke-linecap:round}
+.cube-room-flow-path{
+  fill:none;stroke-linecap:round;
+  stroke-dasharray:9 6;animation:cube-flow-dash 2.2s linear infinite
+}
+.cube-room-flow-path--agent{animation-direction:reverse}
+@keyframes cube-flow-dash{to{stroke-dashoffset:-30}}
+.cube-room-actor-card{
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  padding:18px 20px 16px;border-radius:22px;min-width:148px;
+  background:linear-gradient(165deg,rgba(30,41,82,.55),rgba(15,23,42,.72));
+  border:1px solid rgba(148,163,184,.22);
+  box-shadow:0 16px 42px rgba(2,6,23,.42),inset 0 1px 0 rgba(255,255,255,.07);
+  position:relative;z-index:2
+}
+.cube-room-actor--you .cube-room-actor-card{
+  border-color:rgba(147,197,253,.32);
+  box-shadow:0 0 0 1px rgba(96,165,250,.12),0 16px 42px rgba(2,6,23,.42),inset 0 1px 0 rgba(255,255,255,.07)
+}
+.cube-room-actor--agent .cube-room-actor-card{
+  border-color:rgba(110,231,183,.28);
+  box-shadow:0 0 0 1px rgba(52,211,153,.1),0 16px 42px rgba(2,6,23,.42),inset 0 1px 0 rgba(255,255,255,.07)
+}
+.cube-room-actor-avatar{
+  width:84px;height:84px;margin:0 0 12px;border-radius:50%;
+  display:grid;place-items:center;font-size:36px;line-height:1;
+  border:2px solid rgba(148,163,184,.35);
+  box-shadow:0 12px 32px rgba(2,6,23,.4);
+  position:relative;flex:none
+}
+.cube-room-actor--you .cube-room-actor-avatar{
+  background:linear-gradient(145deg,#1e3a8a,#4338ca);
+  border-color:rgba(147,197,253,.5);
+  box-shadow:0 0 0 5px rgba(96,165,250,.14),0 0 28px rgba(96,165,250,.22),0 12px 32px rgba(2,6,23,.4)
+}
+.cube-room-actor--agent .cube-room-actor-avatar{
+  background:linear-gradient(145deg,#065f46,#0f766e);
+  border-color:rgba(110,231,183,.45);
+  box-shadow:0 0 0 5px rgba(110,231,183,.12),0 0 28px rgba(52,211,153,.18),0 12px 32px rgba(2,6,23,.4)
+}
+.cube-room-actor--you .cube-room-actor-avatar:after,
+.cube-room-actor--agent .cube-room-actor-avatar:after{
+  content:"";position:absolute;inset:-6px;border-radius:50%;
+  border:1px dashed rgba(148,163,184,.22);animation:cube-actor-ring 5s linear infinite
+}
+.cube-room-actor--you .cube-room-actor-avatar:after{border-color:rgba(147,197,253,.35)}
+.cube-room-actor--agent .cube-room-actor-avatar:after{border-color:rgba(110,231,183,.35)}
+@keyframes cube-actor-ring{to{transform:rotate(360deg)}}
+@media(max-width:899px){
+  .cube-room-scene{
+    grid-template-columns:1fr 1fr;
+    grid-template-areas:
+      "you agent"
+      "stage stage";
+    gap:20px 16px;padding-bottom:8px
+  }
+  .cube-room-actor--you{grid-area:you}
+  .cube-room-actor--agent{grid-area:agent}
+  .cube-room-stage{grid-area:stage;margin-top:0}
+  .cube-room-actor-card{min-width:0;padding:14px 12px 12px}
+  .cube-room-actor-avatar{width:72px;height:72px;font-size:30px;margin-bottom:10px}
+}
+@media(min-width:900px){
+  .cube-room-scene{
+    grid-template-columns:minmax(150px,1fr) minmax(280px,320px) minmax(150px,1fr);
+    gap:0 64px;align-items:center;min-height:calc(var(--cube-size) + 120px);
+    padding-top:8px
+  }
+  .cube-room-actor--you{grid-column:1;justify-self:end;padding-right:16px;transform:translateX(-20px)}
+  .cube-room-stage{grid-column:2}
+  .cube-room-actor--agent{grid-column:3;justify-self:start;padding-left:16px;transform:translateX(20px)}
+}
+.cube-room-actor{
+  text-align:center;max-width:200px;position:relative;z-index:3;
+  display:flex;flex-direction:column;align-items:center
+}
+.cube-room-actor-name{margin:0 0 5px;font-size:16px;font-weight:800;color:#f8fafc}
+.cube-room-actor-role{margin:0;font-size:12px;line-height:1.45;color:rgba(148,163,184,.92);max-width:18ch}
+.cube-room-connector-mobile{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  margin-top:14px;font-size:11px;font-weight:700;color:#93c5fd
+}
+.cube-room-connector-mobile svg{width:48px;height:68px;display:block;overflow:visible}
+@media(min-width:900px){.cube-room-connector-mobile{display:none}}
+.cube-room-stage{
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  width:100%;max-width:min(360px,94vw);padding:0 0 6px;position:relative;z-index:2
+}
+.cubic-room{
+  container-type:size;container-name:cube;
+  width:min(280px,72vw);height:min(280px,72vw);
+  perspective:1000px;perspective-origin:50% 50%;
+  position:relative;margin:calc(min(280px,72vw)*.08) auto calc(min(280px,72vw)*.1);padding:0
+}
+.cube-room-tags{
+  margin:calc(min(280px,72vw)*.1 + 20px) 0 0;padding:18px 0 0;display:flex;flex-wrap:wrap;
+  justify-content:center;gap:8px;width:100%;
+  border-top:1px solid rgba(148,163,184,.14)
+}
+.cubic-shell{
+  width:100%;height:100%;position:relative;
+  transform-style:preserve-3d;
+  transform:rotate3d(1,0,0,-18deg) rotate3d(0,1,0,-34deg);
+  animation:cubic-room-spin 16s ease-in-out infinite
+}
+@keyframes cubic-room-spin{
+  0%,100%{transform:rotate3d(1,0,0,-18deg) rotate3d(0,1,0,-34deg) translate3d(0,0,0)}
+  25%{transform:rotate3d(1,0,0,-14deg) rotate3d(0,1,0,-22deg) translate3d(0,-3px,0)}
+  50%{transform:rotate3d(1,0,0,-20deg) rotate3d(0,1,0,-48deg) translate3d(0,-5px,0)}
+  75%{transform:rotate3d(1,0,0,-16deg) rotate3d(0,1,0,-28deg) translate3d(0,-2px,0)}
+}
+.cubic-face{
+  position:absolute;inset:0;display:grid;
+  grid-template:repeat(3,1fr)/repeat(3,1fr);gap:3px;padding:6px;
+  border:2px solid rgba(147,197,253,.45);
+  background:rgba(15,23,42,.58);
+  box-shadow:inset 0 0 22px rgba(96,165,250,.12);
+  backface-visibility:hidden
+}
+.cubic-face span{
+  border-radius:4px;border:1px solid rgba(148,163,184,.24);
+  background:rgba(59,130,246,.11)
+}
+.cubic-face--front{transform:rotateY(0deg) translateZ(calc(min(280px,72vw)/2))}
+.cubic-face--back{transform:rotateY(180deg) translateZ(calc(min(280px,72vw)/2));opacity:.32}
+.cubic-face--right{transform:rotateY(90deg) translateZ(calc(min(280px,72vw)/2));opacity:.7}
+.cubic-face--left{transform:rotateY(-90deg) translateZ(calc(min(280px,72vw)/2));opacity:.7}
+.cubic-face--top{transform:rotateX(90deg) translateZ(calc(min(280px,72vw)/2));background:rgba(30,58,138,.26);opacity:.48}
+.cubic-face--bottom{transform:rotateX(-90deg) translateZ(calc(min(280px,72vw)/2));opacity:0}
+@supports (width:1cqw){
+  .cubic-face--front{transform:rotateY(0deg) translateZ(calc(50cqw))}
+  .cubic-face--back{transform:rotateY(180deg) translateZ(calc(50cqw))}
+  .cubic-face--right{transform:rotateY(90deg) translateZ(calc(50cqw))}
+  .cubic-face--left{transform:rotateY(-90deg) translateZ(calc(50cqw))}
+  .cubic-face--top{transform:rotateX(90deg) translateZ(calc(50cqw))}
+  .cubic-face--bottom{transform:rotateX(-90deg) translateZ(calc(50cqw))}
+  .cubic-core{transform:translate(-50%,-50%) translateZ(calc(11cqw));max-width:calc(50cqw + 50cqh)}
+}
+.cubic-face--front span:nth-child(5){background:rgba(250,204,21,.2);border-color:rgba(250,204,21,.38)}
+.cubic-core{
+  position:absolute;left:50%;top:50%;z-index:3;
+  transform:translate(-50%,-50%) translateZ(calc(min(280px,72vw)/2*0.22));
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  pointer-events:none;max-width:calc(min(280px,72vw)*.78);text-align:center
+}
+.cubic-treasure{
+  width:62px;height:52px;border-radius:11px 11px 15px 15px;position:relative;
+  display:grid;place-items:center;font-size:28px;line-height:1;
+  background:linear-gradient(180deg,#fde68a 0%,#d97706 100%);
+  border:2px solid #fbbf24;
+  box-shadow:0 0 22px rgba(251,191,36,.48),inset 0 2px 0 rgba(255,255,255,.35);
+  animation:cubic-treasure-pulse 3s ease-in-out infinite
+}
+@keyframes cubic-treasure-pulse{
+  0%,100%{box-shadow:0 0 22px rgba(251,191,36,.48),inset 0 2px 0 rgba(255,255,255,.35)}
+  50%{box-shadow:0 0 32px rgba(251,191,36,.72),0 0 48px rgba(251,191,36,.28),inset 0 2px 0 rgba(255,255,255,.35)}
+}
+.cubic-treasure:before{
+  content:"";position:absolute;top:-7px;left:8px;right:8px;height:10px;
+  border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,#fef3c7,#f59e0b);
+  border:2px solid #fbbf24;border-bottom:none
+}
+.cubic-treasure-label{
+  font-size:9px;font-weight:700;line-height:1.35;letter-spacing:.01em;
+  color:#fde68a;text-shadow:0 0 8px rgba(251,191,36,.35)
+}
+.cube-room-tags span{
+  font-size:11px;font-weight:700;padding:7px 12px;border-radius:999px;
+  color:rgba(226,232,240,.92);background:rgba(255,255,255,.06);
+  border:1px solid rgba(148,163,184,.18)
+}
+@media(prefers-reduced-motion:reduce){
+  .cubic-shell{animation:none}
+  .cube-room-flow-path{animation:none;stroke-dasharray:none}
+  .cube-room-actor-avatar:after{animation:none}
+  .cubic-treasure{animation:none}
+}
 .principles-block{
   margin-top:36px;padding:28px 24px 24px;border-radius:var(--r);
   background:linear-gradient(160deg,#fff 0%,#f8faff 45%,#f5f0ff 100%);
@@ -1268,6 +1540,14 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
     </div>
   </div>
 
+  <section class="overview-visual" id="overview-visual" aria-label="Agent CMS — общая память">
+    <div class="container">
+      <figure class="overview-figure">
+        <img src="agent-cms-overview.png" width="1920" height="1080" alt="Agent CMS — общая память: человек и агент вместе через MCP, области, темы, слоты, записи и поля" loading="lazy">
+      </figure>
+    </div>
+  </section>
+
   <main>
     <section class="section" id="problem">
       <div class="container">
@@ -1331,6 +1611,25 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
               <span>Единые правила для людей и ИИ</span>
               <span>MCP — подключение корпоративных агентов</span>
             </div>
+          </div>
+        </div>
+        <figure class="ui-screenshot-wrap audience-screenshot">
+          <div class="ui-screenshot-inner">
+            <p class="ui-screenshot-empty">Скриншота временно нет</p>
+          </div>
+          <figcaption class="ui-screenshot-caption">Скриншот интерфейса</figcaption>
+        </figure>
+
+        <div class="century-note">
+          <p class="century-note-kicker">контекст эпохи</p>
+          <h3><em>XXI век</em> — век цифры и информации</h3>
+          <p>Вокруг нас всё больше данных: переписки, документы, заметки, знания, медиа. Вопрос уже не «есть ли информация», а <strong style="color:#e0f2fe;font-weight:700">где она лежит</strong> и как к ней вернуться — через месяц и через год.</p>
+          <div class="century-note-tags" aria-label="Ключевые слова">
+            <span>цифра</span>
+            <span>информация</span>
+            <span>контекст</span>
+            <span>память</span>
+            <span>структура</span>
           </div>
         </div>
       </div>
@@ -2085,6 +2384,151 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
         </div>
       </div>
     </section>
+    <section class="section cube-room-section" id="cube-room">
+      <div class="container">
+        <div class="section-head">
+          <h2>Цифровая кубическая комната</h2>
+          <p>один контейнер · структура внутри · вы и агент вместе</p>
+        </div>
+        <p class="cube-room-lead">В которой всё хранится <em>в структурированном виде</em>: области, темы, слоты, записи и поля — обычные файлы на диске, но в одном понятном пространстве.</p>
+
+        <div class="cube-room-scene" aria-label="Цифровая кубическая комната: вы и агент подключаются к одному хранилищу">
+          <svg class="cube-room-flow" viewBox="0 0 1000 360" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <defs>
+              <linearGradient id="flowYou" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#818cf8"/>
+                <stop offset="100%" stop-color="#22d3ee"/>
+              </linearGradient>
+              <linearGradient id="flowAgent" x1="100%" y1="0%" x2="0%" y2="0%">
+                <stop offset="0%" stop-color="#34d399"/>
+                <stop offset="100%" stop-color="#22d3ee"/>
+              </linearGradient>
+              <marker id="flowPort" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+                <circle cx="5" cy="5" r="4" fill="#22d3ee"/>
+              </marker>
+              <filter id="flowGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2.5" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <path class="cube-room-flow-glow" d="M 168 142 Q 330 88, 500 172" stroke="url(#flowYou)" stroke-width="14" opacity=".18"/>
+            <path class="cube-room-flow-path cube-room-flow-path--you" d="M 168 142 Q 330 88, 500 172" stroke="url(#flowYou)" stroke-width="3.2" filter="url(#flowGlow)"/>
+            <circle cx="168" cy="142" r="9" fill="#818cf8" filter="url(#flowGlow)"/>
+            <rect x="228" y="86" width="88" height="24" rx="12" fill="rgba(15,23,42,.88)" stroke="rgba(147,197,253,.5)"/>
+            <text x="272" y="102" text-anchor="middle" fill="#e0f2fe" font-size="12" font-weight="800" font-family="system-ui,sans-serif">Интерфейс</text>
+            <path class="cube-room-flow-glow" d="M 832 142 Q 670 88, 500 172" stroke="url(#flowAgent)" stroke-width="14" opacity=".18"/>
+            <path class="cube-room-flow-path cube-room-flow-path--agent" d="M 832 142 Q 670 88, 500 172" stroke="url(#flowAgent)" stroke-width="3.2" filter="url(#flowGlow)"/>
+            <circle cx="832" cy="142" r="9" fill="#34d399" filter="url(#flowGlow)"/>
+            <rect x="680" y="86" width="58" height="24" rx="12" fill="rgba(6,47,35,.88)" stroke="rgba(110,231,183,.5)"/>
+            <text x="709" y="102" text-anchor="middle" fill="#d1fae5" font-size="12" font-weight="800" font-family="system-ui,sans-serif">MCP</text>
+            <circle cx="500" cy="172" r="12" fill="none" stroke="#fbbf24" stroke-width="2" opacity=".75"/>
+            <circle cx="500" cy="172" r="5" fill="#fde68a" opacity=".95"/>
+          </svg>
+
+          <article class="cube-room-actor cube-room-actor--you">
+            <div class="cube-room-actor-card">
+              <div class="cube-room-actor-avatar" aria-hidden="true">👤</div>
+              <p class="cube-room-actor-name">Вы</p>
+              <p class="cube-room-actor-role">обращаетесь к базе знаний</p>
+            </div>
+            <p class="cube-room-connector-mobile" aria-hidden="true">
+              <svg viewBox="0 0 48 68" aria-hidden="true">
+                <defs>
+                  <linearGradient id="cubeArrowMobYou" x1="50%" y1="0%" x2="50%" y2="100%">
+                    <stop offset="0%" stop-color="#93c5fd"/>
+                    <stop offset="100%" stop-color="#22d3ee"/>
+                  </linearGradient>
+                  <marker id="cubeMobHeadYou" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                    <path d="M0,0 L8,4 L0,8 Z" fill="#22d3ee"/>
+                  </marker>
+                </defs>
+                <rect x="4" y="2" width="40" height="18" rx="9" fill="rgba(15,23,42,.88)" stroke="rgba(147,197,253,.45)"/>
+                <text x="24" y="14" text-anchor="middle" fill="#e0f2fe" font-size="7" font-weight="800" font-family="system-ui,sans-serif">Интерфейс</text>
+                <circle cx="24" cy="28" r="5" fill="#818cf8"/>
+                <path d="M24 36 C24 46, 24 52, 24 60" fill="none" stroke="url(#cubeArrowMobYou)" stroke-width="2.8" stroke-linecap="round" marker-end="url(#cubeMobHeadYou)"/>
+              </svg>
+              к комнате
+            </p>
+          </article>
+
+          <div class="cube-room-stage">
+            <div class="cubic-room">
+              <div class="cubic-shell">
+                <div class="cubic-face cubic-face--front" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="cubic-face cubic-face--back" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="cubic-face cubic-face--right" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="cubic-face cubic-face--left" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="cubic-face cubic-face--top" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="cubic-face cubic-face--bottom" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="cubic-core">
+                  <div class="cubic-treasure" aria-hidden="true">💎</div>
+                  <span class="cubic-treasure-label">Сундук сокровищ и база знаний (цифровой мозг)</span>
+                </div>
+              </div>
+            </div>
+            <div class="cube-room-tags" aria-label="Структура внутри комнаты">
+              <span>области</span>
+              <span>темы</span>
+              <span>слоты</span>
+              <span>записи</span>
+              <span>поля</span>
+              <span>файлы · папки</span>
+            </div>
+          </div>
+
+          <article class="cube-room-actor cube-room-actor--agent">
+            <div class="cube-room-actor-card">
+              <div class="cube-room-actor-avatar" aria-hidden="true">🤖</div>
+              <p class="cube-room-actor-name">Агент</p>
+              <p class="cube-room-actor-role">обращается к базе через MCP</p>
+            </div>
+            <p class="cube-room-connector-mobile" aria-hidden="true">
+              <svg viewBox="0 0 48 68" aria-hidden="true">
+                <defs>
+                  <linearGradient id="cubeArrowMobAgent" x1="50%" y1="0%" x2="50%" y2="100%">
+                    <stop offset="0%" stop-color="#6ee7b7"/>
+                    <stop offset="100%" stop-color="#22d3ee"/>
+                  </linearGradient>
+                  <marker id="cubeMobHeadAgent" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                    <path d="M0,0 L8,4 L0,8 Z" fill="#22d3ee"/>
+                  </marker>
+                </defs>
+                <rect x="10" y="2" width="28" height="18" rx="9" fill="rgba(6,47,35,.88)" stroke="rgba(110,231,183,.45)"/>
+                <text x="24" y="14" text-anchor="middle" fill="#d1fae5" font-size="7" font-weight="800" font-family="system-ui,sans-serif">MCP</text>
+                <circle cx="24" cy="28" r="5" fill="#34d399"/>
+                <path d="M24 36 C24 46, 24 52, 24 60" fill="none" stroke="url(#cubeArrowMobAgent)" stroke-width="2.8" stroke-linecap="round" marker-end="url(#cubeMobHeadAgent)"/>
+              </svg>
+              к комнате
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <footer class="site-footer" id="footer">
@@ -2311,7 +2755,7 @@ renderSlots();renderCases();renderGoals();
   if(typeof ResizeObserver!=='undefined') new ResizeObserver(syncDockH).observe(dock);
 })();
 
-const obsSections=['hero-band','problem','audience','life-graph','structure','fields','agents','shell','ecosystem','cases','features','search','connect','goals','dialogue','case-example','principles','footer'];
+const obsSections=['hero-band','problem','audience','life-graph','structure','fields','agents','shell','ecosystem','cases','features','search','connect','goals','dialogue','case-example','principles','cube-room','footer'];
 
 function dockOffset(){
   return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cosmos-dock-h'))||72;
