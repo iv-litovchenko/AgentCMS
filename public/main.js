@@ -55396,6 +55396,33 @@ function buildTopicKnowledgeMindmapTree({
   return root;
 }
 
+function buildTopicKnowledgeMindmapTreeV2({ heroTitle = "", externalData = null } = {}) {
+  if (!externalData) return null;
+  const prepared = prepareNavigationExternalItems(externalData.files || [], externalData.folders || []);
+  const mapItems = prepared.contentFiles
+    .filter((item) => item?.mapMeta?.enabled !== false)
+    .map((item) => ({
+      path: item.path,
+      title: item.title || String(item.path || "").split("/").pop() || "Файл",
+      description: item.description || "",
+      status: item.status || "",
+      mapMeta: item.mapMeta || extractKnowledgeMapMetaFromProps(item.props || [])
+    }));
+  if (!mapItems.length) return null;
+
+  const memorySlot = DATA_STORAGE_SLOT_SPECS.find((item) => item.key === "memory");
+  const rootLabel =
+    heroTitle ||
+    (memorySlot?.icon ? `${memorySlot.icon} ${memorySlot.label}` : memorySlot?.label) ||
+    "Многофайловая";
+
+  return buildExternalMindmapTreeFromItems(mapItems, rootLabel, {
+    folderLabels: prepared.folderLabels,
+    folderDescriptions: prepared.folderDescriptions,
+    folderMapMeta: prepared.folderMapMeta
+  });
+}
+
 function flattenTopicKnowledgeTreeToGraph(tree) {
   const nodes = [];
   const edges = [];
@@ -55471,11 +55498,19 @@ function renderEmbeddedTopicKnowledgeGraph(container, context) {
 function renderEmbeddedTopicKnowledgeMindmap(container, context, options = {}) {
   if (!container) return;
   const variant = options.variant === "knowledge-map-v2" ? "knowledge-map-v2" : "";
-  const tree = buildTopicKnowledgeMindmapTree(context);
+  const tree =
+    variant === "knowledge-map-v2"
+      ? buildTopicKnowledgeMindmapTreeV2(context)
+      : buildTopicKnowledgeMindmapTree(context);
   const rerender = () => renderEmbeddedTopicKnowledgeMindmap(container, context, options);
   container.replaceChildren();
   if (!tree) {
-    renderListEmptyMessage(container, "Нет данных для карты знаний");
+    renderListEmptyMessage(
+      container,
+      variant === "knowledge-map-v2"
+        ? "Нет записей многофайловой памяти для карты знаний (v2)"
+        : "Нет данных для карты знаний"
+    );
     return;
   }
 
@@ -55727,7 +55762,15 @@ function renderNodeNavigationElementsNavAccordion({
 
   const knowledgeContext = { nodePath, heroTitle, childEntries, slots, externalData, mediaData };
   const previewTree = buildTopicKnowledgeMindmapTree(knowledgeContext);
-  const itemCount = countTopicKnowledgeTreeNodes(previewTree);
+  const previewTreeV2 = buildTopicKnowledgeMindmapTreeV2(knowledgeContext);
+
+  const resolveNavItemCount = (view) => {
+    const tree =
+      view === "mindmap-v2"
+        ? previewTreeV2
+        : previewTree;
+    return countTopicKnowledgeTreeNodes(tree);
+  };
 
   const details = document.createElement("details");
   details.className = "node-navigation-elements-nav-accordion doc-links-accordion";
@@ -55762,7 +55805,7 @@ function renderNodeNavigationElementsNavAccordion({
 
   const count = document.createElement("span");
   count.className = "doc-links-accordion-count";
-  count.textContent = String(itemCount);
+  count.textContent = String(resolveNavItemCount(readNodeNavigationTopicOverviewView()));
 
   const viewSelect = document.createElement("select");
   viewSelect.className = "node-navigation-elements-nav-view-select";
@@ -55781,6 +55824,20 @@ function renderNodeNavigationElementsNavAccordion({
     viewSelect.addEventListener(eventName, (event) => event.stopPropagation());
   }
 
+  const slotSelect = document.createElement("select");
+  slotSelect.className = "node-navigation-elements-nav-slot-select";
+  slotSelect.disabled = true;
+  slotSelect.title = "Фильтр по слоту — скоро";
+  slotSelect.setAttribute("aria-label", "Выбор слота");
+  const slotPlaceholder = document.createElement("option");
+  slotPlaceholder.value = "";
+  slotPlaceholder.textContent = "Выбор слота";
+  slotPlaceholder.selected = true;
+  slotSelect.appendChild(slotPlaceholder);
+  for (const eventName of ["mousedown", "click"]) {
+    slotSelect.addEventListener(eventName, (event) => event.stopPropagation());
+  }
+
   const popoutBtn = document.createElement("button");
   popoutBtn.type = "button";
   popoutBtn.className = "node-navigation-elements-nav-popout-btn";
@@ -55793,7 +55850,7 @@ function renderNodeNavigationElementsNavAccordion({
     openTopicKnowledgeNavigationPopout(knowledgeContext, viewSelect.value);
   });
 
-  summary.append(toggleBtn, summaryMain, count, viewSelect, popoutBtn);
+  summary.append(toggleBtn, summaryMain, count, viewSelect, slotSelect, popoutBtn);
 
   const body = document.createElement("div");
   body.className = "node-navigation-elements-nav-body doc-links-accordion-body";
@@ -55841,6 +55898,7 @@ function renderNodeNavigationElementsNavAccordion({
       view === "mindmap-v2" ? "mindmap-v2" : view === "mindmap-v1" || view === "mindmap" ? "mindmap-v1" : "graph";
     writeNodeNavigationTopicOverviewView(nextView);
     viewSelect.value = nextView;
+    count.textContent = String(resolveNavItemCount(nextView));
     graphPanel.classList.toggle("hidden", nextView !== "graph");
     mindmapPanel.classList.toggle("hidden", nextView !== "mindmap-v1" && nextView !== "mindmap-v2");
     if (nextView === "graph") ensureGraphRendered();
