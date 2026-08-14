@@ -7537,7 +7537,6 @@ function openAppLandingCreateModal() {
     appLandingCreatePathInputNode.value = "./workspaces/";
   }
   clearCreateAgentFormValidation(getCreateAgentFormFields("app-landing").fieldNodes);
-  resetCreateAgentPathAutoSync("app-landing");
   appLandingCreateModalNode.classList.remove("hidden");
   window.setTimeout(() => appLandingCreateNameInputNode?.focus(), 0);
 }
@@ -11034,7 +11033,6 @@ const CREATE_AGENT_NAME_MAX_LENGTH = 120;
 const CREATE_AGENT_DESCRIPTION_MAX_LENGTH = 2000;
 const CREATE_AGENT_ID_FOLDER_RE = /^[a-z0-9][a-z0-9_-]*$/;
 const CREATE_AGENT_WORKSPACE_PATH_PREFIX = "./workspaces/";
-const createAgentPathAutoSyncState = new Map();
 
 function slugifyAgentFolderSegment(raw) {
   const text = String(raw || "").trim();
@@ -11214,10 +11212,6 @@ function bindCreateAgentFormValidation(prefix) {
   }
 }
 
-function resetCreateAgentPathAutoSync(prefix) {
-  createAgentPathAutoSyncState.set(prefix, true);
-}
-
 function isCreateAgentWorkspacePrefixPath(rawPath) {
   const normalized = String(rawPath || "")
     .trim()
@@ -11244,7 +11238,6 @@ function buildCreateAgentWorkspacePath(parentPath, folderName) {
 }
 
 function syncCreateAgentPathFromName(prefix) {
-  if (!createAgentPathAutoSyncState.get(prefix)) return;
   const { nameInput, pathInput } = getCreateAgentFormFields(prefix);
   if (!pathInput) return;
   const folderName = normalizeAgentFolderName(nameInput?.value || "");
@@ -11256,13 +11249,8 @@ function bindCreateAgentPathAutoSync(prefix) {
   const { nameInput, pathInput } = getCreateAgentFormFields(prefix);
   if (!nameInput || !pathInput) return;
 
-  resetCreateAgentPathAutoSync(prefix);
-
   nameInput.addEventListener("input", () => {
     syncCreateAgentPathFromName(prefix);
-  });
-  pathInput.addEventListener("input", () => {
-    createAgentPathAutoSyncState.set(prefix, false);
   });
   pathInput.addEventListener("blur", () => {
     const normalized = normalizeCreateAgentWorkspacePath(pathInput.value.trim());
@@ -11904,7 +11892,6 @@ function openAgentsRegistryCreateModal() {
     agentsRegistryCreatePathInputNode.value = "./workspaces/";
   }
   clearCreateAgentFormValidation(getCreateAgentFormFields("agents-registry").fieldNodes);
-  resetCreateAgentPathAutoSync("agents-registry");
   agentsRegistryCreateModalNode.classList.remove("hidden");
   window.setTimeout(() => agentsRegistryCreateNameInputNode?.focus(), 0);
 }
