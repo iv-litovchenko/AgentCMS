@@ -11218,9 +11218,18 @@ function resetCreateAgentPathAutoSync(prefix) {
   createAgentPathAutoSyncState.set(prefix, true);
 }
 
+function isCreateAgentWorkspacePrefixPath(rawPath) {
+  const normalized = String(rawPath || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "");
+  return normalized === "./workspaces" || normalized === "workspaces";
+}
+
 function getCreateAgentPathParent(rawPath) {
   const trimmed = String(rawPath || "").trim().replace(/[\\/]+$/, "");
   if (!trimmed) return CREATE_AGENT_WORKSPACE_PATH_PREFIX.replace(/\/$/, "");
+  if (isCreateAgentWorkspacePrefixPath(trimmed)) return trimmed;
   const folderName = getWorkspaceFolderNameFromPath(trimmed);
   if (!folderName || trimmed === folderName) return trimmed;
   return trimmed.slice(0, Math.max(0, trimmed.length - folderName.length)).replace(/[\\/]+$/, "");
