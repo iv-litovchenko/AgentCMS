@@ -1,3 +1,14 @@
+---
+awn-name: PDO
+awn-description: Подключение, prepared statements, fetch modes
+awn-status: open
+awn-sort: 10
+awn-mindmap-enabled: true
+awn-mindmap-type: recommended
+awn-mindmap-color: green
+awn-mindmap-size: medium
+---
+
 # PDO
 
 ```php

@@ -18,6 +18,8 @@
     "main/awn-container/manifest.md",
     "main/awn-container/php/awn-storage/manifest.md",
     "main/awn-container/php/manifest.md",
+    "main/baza-dannyh/PDO.md",
+    "main/oop/Enums.md",
     "main/README.md",
     "references/laravel-docs.md",
     "references/php-net-manual.md",
@@ -28,5 +30,5 @@
     "topic-index-generated/awn-container/php/awn-storage/index.md",
     "topic-index-generated/awn-container/php/index.md"
   ],
-  "updatedAt": "2026-08-11T09:50:18.782Z"
+  "updatedAt": "2026-08-14T06:28:53.831Z"
 }

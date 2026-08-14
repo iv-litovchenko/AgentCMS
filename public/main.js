@@ -26042,6 +26042,134 @@ const MINDMAP_CANVAS_PAD_VERTICAL = { top: 80, right: 320, bottom: 100, left: 12
 const MINDMAP_NODE_LINK_HALF = 72;
 const MINDMAP_LAYOUT_STORAGE_KEY = "yamlcms.mindmapLayoutDirection";
 
+const KNOWLEDGE_MAP_TYPE_META = {
+  required: { icon: "!", title: "Required" },
+  recommended: { icon: "★", title: "Recommended" },
+  optional: { icon: "○", title: "Optional" },
+  advanced: { icon: "⚡", title: "Advanced" },
+  milestone: { icon: "◆", title: "Milestone" }
+};
+
+const KNOWLEDGE_MAP_COLOR_STROKE = {
+  blue: "#60a5fa",
+  teal: "#2dd4bf",
+  slate: "#94a3b8",
+  amber: "#fbbf24",
+  red: "#fb7185",
+  purple: "#c084fc",
+  green: "#4ade80",
+  pink: "#f472b6"
+};
+
+const KNOWLEDGE_MAP_COLOR_BG = {
+  blue: "#1d4ed8",
+  teal: "#0f766e",
+  slate: "#334155",
+  amber: "#b45309",
+  red: "#b91c1c",
+  purple: "#7e22ce",
+  green: "#15803d",
+  pink: "#be185d"
+};
+
+const KNOWLEDGE_MAP_DEFAULT_TYPE = "optional";
+const KNOWLEDGE_MAP_DEFAULT_COLOR = "slate";
+const KNOWLEDGE_MAP_DEFAULT_SIZE = "auto";
+const KNOWLEDGE_MAP_DEFAULT_DIRECTION = "auto";
+
+function readPropsRawValue(entries, key) {
+  if (!Array.isArray(entries) || !entries.length) return "";
+  const normalizedKey = normalizePropsKey(key);
+  const entry = entries.find((item) => normalizePropsKey(item.key) === normalizedKey);
+  if (!entry) return "";
+  if (entry.kind === "null") return "";
+  if (entry.kind === "bool") return entry.value ? "true" : "false";
+  if (entry.kind === "array") return (entry.value || []).join(", ");
+  return String(entry.value ?? "").trim();
+}
+
+function parseKnowledgeMapBoolean(raw, defaultValue = true) {
+  const value = String(raw ?? "").trim().toLowerCase();
+  if (!value) return defaultValue;
+  if (value === "false" || value === "0" || value === "no" || value === "нет") return false;
+  if (value === "true" || value === "1" || value === "yes" || value === "да") return true;
+  return defaultValue;
+}
+
+function normalizeKnowledgeMapChoice(raw, allowed, fallback) {
+  const value = String(raw || "").trim().toLowerCase();
+  return allowed.includes(value) ? value : fallback;
+}
+
+function readMindmapPropRaw(entries, suffix) {
+  const primary = readPropsRawValue(entries, `awn-mindmap-${suffix}`);
+  if (primary !== "") return primary;
+  return readPropsRawValue(entries, `awn-map-${suffix}`);
+}
+
+function extractKnowledgeMapMetaFromProps(props, fallback = {}) {
+  const entries = Array.isArray(props) ? props : [];
+  const enabledRaw = readMindmapPropRaw(entries, "enabled");
+  const enabled = enabledRaw === "" ? fallback.enabled !== false : parseKnowledgeMapBoolean(enabledRaw, true);
+  const mapType = normalizeKnowledgeMapChoice(
+    readMindmapPropRaw(entries, "type"),
+    Object.keys(KNOWLEDGE_MAP_TYPE_META),
+    fallback.mapType || KNOWLEDGE_MAP_DEFAULT_TYPE
+  );
+  const mapColor = normalizeKnowledgeMapChoice(
+    readMindmapPropRaw(entries, "color"),
+    Object.keys(KNOWLEDGE_MAP_COLOR_BG),
+    fallback.mapColor || KNOWLEDGE_MAP_DEFAULT_COLOR
+  );
+  const mapSize = normalizeKnowledgeMapChoice(
+    readMindmapPropRaw(entries, "size"),
+    ["auto", "small", "medium", "large", "junction"],
+    fallback.mapSize || KNOWLEDGE_MAP_DEFAULT_SIZE
+  );
+  const layoutIndependent = parseKnowledgeMapBoolean(
+    readMindmapPropRaw(entries, "layout-independent"),
+    Boolean(fallback.layoutIndependent)
+  );
+  const mapDirection = normalizeKnowledgeMapChoice(
+    readMindmapPropRaw(entries, "direction"),
+    ["auto", "left", "right", "up", "down"],
+    fallback.mapDirection || KNOWLEDGE_MAP_DEFAULT_DIRECTION
+  );
+  const sortRaw = readPropsRawValue(entries, "awn-sort");
+  const sort = sortRaw === "" ? Number(fallback.sort) || 0 : Number(sortRaw) || 0;
+  return {
+    enabled,
+    mapType,
+    mapColor,
+    mapSize,
+    layoutIndependent,
+    mapDirection,
+    sort
+  };
+}
+
+function attachKnowledgeMapMetaToNode(node, meta = {}) {
+  if (!node || !meta) return node;
+  node.mapMeta = {
+    enabled: meta.enabled !== false,
+    mapType: meta.mapType || KNOWLEDGE_MAP_DEFAULT_TYPE,
+    mapColor: meta.mapColor || KNOWLEDGE_MAP_DEFAULT_COLOR,
+    mapSize: meta.mapSize || KNOWLEDGE_MAP_DEFAULT_SIZE,
+    layoutIndependent: Boolean(meta.layoutIndependent),
+    mapDirection: meta.mapDirection || KNOWLEDGE_MAP_DEFAULT_DIRECTION,
+    sort: Number(meta.sort) || 0
+  };
+  return node;
+}
+
+function sortKnowledgeMapNodes(nodes = []) {
+  return [...nodes].sort((a, b) => {
+    const sortDiff = (Number(a?.mapMeta?.sort) || 0) - (Number(b?.mapMeta?.sort) || 0);
+    if (sortDiff !== 0) return sortDiff;
+    return String(a?.label || "").localeCompare(String(b?.label || ""), "ru");
+  });
+}
+
 function readMindmapLayoutDirection() {
   try {
     const stored = localStorage.getItem(MINDMAP_LAYOUT_STORAGE_KEY);
@@ -26241,6 +26369,85 @@ function layoutMindmapTree(node, depth, start, collapsedIds, direction = "horizo
   return layoutMindmapTreeHorizontal(node, depth, start, collapsedIds);
 }
 
+function getDefaultInheritedBranchDirection(globalDirection) {
+  return globalDirection === "vertical" ? "down" : "right";
+}
+
+function resolveNodeBranchDirection(node, inheritedDirection) {
+  const explicit = node?.mapMeta?.mapDirection;
+  if (explicit && explicit !== "auto") return explicit;
+  return inheritedDirection;
+}
+
+function layoutMindmapBranchDirected(
+  node,
+  x,
+  y,
+  depth,
+  collapsedIds,
+  inheritedDirection,
+  positioned = []
+) {
+  positioned.push({ node, x, y, depth });
+  if (collapsedIds.has(node.id) || !node.children?.length) return positioned;
+
+  const branchDir = resolveNodeBranchDirection(node, inheritedDirection);
+  const isHorizontal = branchDir === "left" || branchDir === "right";
+  const sign = branchDir === "left" || branchDir === "up" ? -1 : 1;
+  const childSpans = node.children.map((child) => countMindmapVisibleLeaves(child, collapsedIds));
+  const totalSpan = childSpans.reduce((sum, span) => sum + span, 0) || 1;
+  let cursor = isHorizontal
+    ? y - (totalSpan * MINDMAP_LAYOUT_ROW_GAP) / 2 + MINDMAP_LAYOUT_ROW_GAP / 2
+    : x - (totalSpan * MINDMAP_LAYOUT_ROW_GAP) / 2 + MINDMAP_LAYOUT_ROW_GAP / 2;
+
+  for (let index = 0; index < node.children.length; index += 1) {
+    const child = node.children[index];
+    const span = childSpans[index];
+    if (isHorizontal) {
+      const childY = cursor + (span * MINDMAP_LAYOUT_ROW_GAP) / 2 - MINDMAP_LAYOUT_ROW_GAP / 2;
+      const childX = x + sign * MINDMAP_LAYOUT_LEVEL_GAP;
+      layoutMindmapBranchDirected(child, childX, childY, depth + 1, collapsedIds, branchDir, positioned);
+      cursor += span * MINDMAP_LAYOUT_ROW_GAP;
+    } else {
+      const childX = cursor + (span * MINDMAP_LAYOUT_ROW_GAP) / 2 - MINDMAP_LAYOUT_ROW_GAP / 2;
+      const childY = y + sign * MINDMAP_LAYOUT_LEVEL_GAP;
+      layoutMindmapBranchDirected(child, childX, childY, depth + 1, collapsedIds, branchDir, positioned);
+      cursor += span * MINDMAP_LAYOUT_ROW_GAP;
+    }
+  }
+  return positioned;
+}
+
+function layoutMindmapTreeDirected(tree, collapsedIds, globalDirection) {
+  const inherited = getDefaultInheritedBranchDirection(globalDirection);
+  return layoutMindmapBranchDirected(tree, 72, 72, 0, collapsedIds, inherited);
+}
+
+function inferMindmapLinkDirection(a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? "right" : "left";
+  return dy >= 0 ? "down" : "up";
+}
+
+function buildMindmapLinkPathDirected(a, b, direction) {
+  const half = MINDMAP_NODE_LINK_HALF;
+  if (direction === "left") {
+    const mx = (a.x + b.x) / 2;
+    return `M ${a.x - half} ${a.y} C ${mx} ${a.y}, ${mx} ${b.y}, ${b.x + half} ${b.y}`;
+  }
+  if (direction === "up") {
+    const my = (a.y + b.y) / 2;
+    return `M ${a.x} ${a.y - half} C ${a.x} ${my}, ${b.x} ${my}, ${b.x} ${b.y + half}`;
+  }
+  if (direction === "down") {
+    const my = (a.y + b.y) / 2;
+    return `M ${a.x} ${a.y + half} C ${a.x} ${my}, ${b.x} ${my}, ${b.x} ${b.y - half}`;
+  }
+  const mx = (a.x + b.x) / 2;
+  return `M ${a.x + half} ${a.y} C ${mx} ${a.y}, ${mx} ${b.y}, ${b.x - half} ${b.y}`;
+}
+
 function collectMindmapEdges(node, parent, collapsedIds) {
   const edges = [];
   if (parent && !collapsedIds.has(parent.id)) {
@@ -26252,13 +26459,36 @@ function collectMindmapEdges(node, parent, collapsedIds) {
   return edges;
 }
 
+function getKnowledgeMapNodeClasses(node, variant = "") {
+  const classes = [`node-mindmap-node`, `node-mindmap-node--${node.kind}`];
+  if (variant !== "knowledge-map-v2" || !node?.mapMeta) return classes;
+  const meta = node.mapMeta;
+  classes.push("node-knowledge-map-node");
+  classes.push(`node-knowledge-map-node--color-${meta.mapColor || KNOWLEDGE_MAP_DEFAULT_COLOR}`);
+  classes.push(`node-knowledge-map-node--type-${meta.mapType || KNOWLEDGE_MAP_DEFAULT_TYPE}`);
+  if (meta.mapSize && meta.mapSize !== "auto") {
+    classes.push(`node-knowledge-map-node--size-${meta.mapSize}`);
+  }
+  if (meta.layoutIndependent) classes.push("node-knowledge-map-node--layout-independent");
+  if (meta.mapDirection && meta.mapDirection !== "auto") {
+    classes.push(`node-knowledge-map-node--direction-${meta.mapDirection}`);
+  }
+  return classes;
+}
+
+function getKnowledgeMapLinkStroke(node) {
+  const colorKey = node?.mapMeta?.mapColor || KNOWLEDGE_MAP_DEFAULT_COLOR;
+  return KNOWLEDGE_MAP_COLOR_STROKE[colorKey] || KNOWLEDGE_MAP_COLOR_STROKE.slate;
+}
+
 function renderMindmapTreeCanvas(container, tree, options = {}) {
   const {
     collapsedIds,
     activeTarget = null,
     onNodeClick = null,
     onRerender = null,
-    layoutDirection = getMindmapLayoutDirection()
+    layoutDirection = getMindmapLayoutDirection(),
+    variant = ""
   } = options;
   if (!container || !tree) return;
 
@@ -26268,7 +26498,9 @@ function renderMindmapTreeCanvas(container, tree, options = {}) {
   container.replaceChildren();
 
   const wrap = document.createElement("div");
-  wrap.className = `node-mindmap-wrap node-mindmap-wrap--${direction}`;
+  wrap.className = `node-mindmap-wrap node-mindmap-wrap--${direction}${
+    variant === "knowledge-map-v2" ? " node-mindmap-wrap--knowledge-map-v2" : ""
+  }`;
 
   const viewport = document.createElement("div");
   viewport.className = "node-mindmap-viewport";
@@ -26280,10 +26512,17 @@ function renderMindmapTreeCanvas(container, tree, options = {}) {
   linksSvg.setAttribute("class", "node-mindmap-links");
   linksSvg.setAttribute("aria-hidden", "true");
 
-  const items = layoutMindmapTree(tree, 0, 0, collapsedIds, direction);
+  const items =
+    variant === "knowledge-map-v2"
+      ? layoutMindmapTreeDirected(tree, collapsedIds, direction)
+      : layoutMindmapTree(tree, 0, 0, collapsedIds, direction);
   const posById = new Map();
   let maxY = 0;
   let maxX = 0;
+  const activeFilePath =
+    activeContentMode === "external" && activeExternalFilePath
+      ? normalizeExternalMemoryMdRelPath(activeExternalFilePath)
+      : "";
 
   for (const { node, x, y } of items) {
     const px = x + canvasPad.left;
@@ -26294,13 +26533,25 @@ function renderMindmapTreeCanvas(container, tree, options = {}) {
 
     const el = document.createElement("button");
     el.type = "button";
-    el.className = `node-mindmap-node node-mindmap-node--${node.kind}`;
+    el.className = getKnowledgeMapNodeClasses(node, variant).join(" ");
     el.style.left = `${px}px`;
     el.style.top = `${py}px`;
-    el.title = node.targetPath || node.label;
+    el.title = node.description || node.targetPath || node.label;
 
-    const isActive = activeTarget && node.targetPath && activeTarget === node.targetPath;
+    const nodeFilePath = node.filePath ? normalizeExternalMemoryMdRelPath(node.filePath) : "";
+    const isActive =
+      (activeTarget && node.targetPath && activeTarget === node.targetPath) ||
+      (activeFilePath && nodeFilePath && activeFilePath === nodeFilePath);
     if (isActive) el.classList.add("is-active");
+
+    if (variant === "knowledge-map-v2" && node.mapMeta) {
+      const typeMeta = KNOWLEDGE_MAP_TYPE_META[node.mapMeta.mapType] || KNOWLEDGE_MAP_TYPE_META.optional;
+      const typeBadge = document.createElement("span");
+      typeBadge.className = "node-knowledge-map-type";
+      typeBadge.title = typeMeta.title;
+      typeBadge.textContent = typeMeta.icon;
+      el.appendChild(typeBadge);
+    }
 
     if (node.children?.length) {
       const toggle = document.createElement("span");
@@ -26321,7 +26572,15 @@ function renderMindmapTreeCanvas(container, tree, options = {}) {
     label.textContent = node.label;
     el.appendChild(label);
 
-    if (node.targetPath && !isActive && onNodeClick) {
+    if (variant === "knowledge-map-v2" && node.description) {
+      const description = document.createElement("span");
+      description.className = "node-knowledge-map-description";
+      description.textContent = node.description;
+      el.appendChild(description);
+    }
+
+    const canOpen = Boolean(node.targetPath || node.filePath || node.slotKey);
+    if (!isActive && onNodeClick && canOpen) {
       el.addEventListener("click", () => onNodeClick(node));
     }
 
@@ -26338,13 +26597,27 @@ function renderMindmapTreeCanvas(container, tree, options = {}) {
   linksSvg.setAttribute("height", String(canvasHeight));
   linksSvg.setAttribute("viewBox", `0 0 ${canvasWidth} ${canvasHeight}`);
 
+  const nodeById = new Map(items.map(({ node }) => [node.id, node]));
+
   for (const { from, to } of collectMindmapEdges(tree, null, collapsedIds)) {
     const a = posById.get(from);
     const b = posById.get(to);
     if (!a || !b) continue;
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", buildMindmapLinkPath(a, b, direction));
+    const linkDirection =
+      variant === "knowledge-map-v2" ? inferMindmapLinkDirection(a, b) : direction;
+    path.setAttribute(
+      "d",
+      variant === "knowledge-map-v2"
+        ? buildMindmapLinkPathDirected(a, b, linkDirection)
+        : buildMindmapLinkPath(a, b, direction)
+    );
     path.setAttribute("class", "node-mindmap-link");
+    if (variant === "knowledge-map-v2") {
+      const childNode = nodeById.get(to);
+      path.setAttribute("stroke", getKnowledgeMapLinkStroke(childNode));
+      path.setAttribute("class", "node-mindmap-link node-knowledge-map-link");
+    }
     linksSvg.appendChild(path);
   }
 
@@ -26510,45 +26783,89 @@ function renderEmbeddedNodeMindmap(container, nodePath, heroTitle = "") {
   appendEmbeddedMindmapControls(host, rerender, () => viewportApi);
 }
 
-function buildExternalMindmapTreeFromItems(mdItems, rootLabel = STORAGE_SUBFOLDER_CONTENT) {
-  const root = {
-    id: "external-root",
-    label: rootLabel,
-    kind: "root",
-    targetPath: null,
-    children: []
-  };
+function buildExternalMindmapTreeFromItems(mdItems, rootLabel = STORAGE_SUBFOLDER_CONTENT, options = {}) {
+  const folderLabels = options.folderLabels instanceof Map ? options.folderLabels : new Map();
+  const folderDescriptions = options.folderDescriptions instanceof Map ? options.folderDescriptions : new Map();
+  const folderMapMeta = options.folderMapMeta instanceof Map ? options.folderMapMeta : new Map();
+  const root = attachKnowledgeMapMetaToNode(
+    {
+      id: "external-root",
+      label: rootLabel,
+      kind: "root",
+      targetPath: null,
+      children: []
+    },
+    options.rootMapMeta || {}
+  );
   const folderNodes = new Map([["", root]]);
 
-  for (const item of mdItems) {
+  const visibleItems = (mdItems || []).filter((item) => item?.mapMeta?.enabled !== false);
+
+  for (const item of visibleItems) {
     const segments = String(item.path || "").split("/").filter(Boolean);
     if (!segments.length) continue;
+    const folderSegments = segments.slice(0, -1);
+    let blocked = false;
+    let builtPath = "";
+    for (const segment of folderSegments) {
+      builtPath = builtPath ? `${builtPath}/${segment}` : segment;
+      if ((folderMapMeta.get(builtPath) || {}).enabled === false) {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked) continue;
+
     segments.pop();
     let parent = root;
     let built = "";
     for (const segment of segments) {
       built = built ? `${built}/${segment}` : segment;
       if (!folderNodes.has(built)) {
-        const folderNode = {
-          id: `folder:${built}`,
-          label: segment,
-          kind: "topic",
-          targetPath: null,
-          children: []
-        };
+        const folderMeta = folderMapMeta.get(built) || {};
+        const folderManifestPath = `${built}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
+        const folderNode = attachKnowledgeMapMetaToNode(
+          {
+            id: `folder:${built}`,
+            label: folderLabels.get(built) || segment,
+            kind: "topic",
+            targetPath: null,
+            filePath: folderManifestPath,
+            folderPath: built,
+            description: folderDescriptions.get(built) || "",
+            children: []
+          },
+          folderMeta
+        );
         folderNodes.set(built, folderNode);
         parent.children.push(folderNode);
       }
       parent = folderNodes.get(built);
     }
-    parent.children.push({
-      id: `file:${item.path}`,
-      label: item.title,
-      kind: "leaf",
-      targetPath: item.path,
-      children: []
-    });
+    parent.children.push(
+      attachKnowledgeMapMetaToNode(
+        {
+          id: `file:${item.path}`,
+          label: item.title,
+          kind: "leaf",
+          targetPath: item.path,
+          filePath: item.path,
+          description: item.description || "",
+          status: item.status || "",
+          children: []
+        },
+        item.mapMeta || {}
+      )
+    );
   }
+
+  const sortTree = (node) => {
+    if (!node?.children?.length) return;
+    node.children = sortKnowledgeMapNodes(node.children.filter((child) => child?.mapMeta?.enabled !== false));
+    for (const child of node.children) sortTree(child);
+    node.children = node.children.filter((child) => child.kind === "leaf" || (child.children && child.children.length));
+  };
+  sortTree(root);
   return root;
 }
 
@@ -54994,15 +55311,23 @@ async function fetchTabularMemoryForNavigation(nodePath) {
   }
 }
 
-function buildMindmapChildrenFromContentFiles(contentFiles, idPrefix = "file") {
+function buildMindmapChildrenFromContentFiles(contentFiles, idPrefix = "file", options = {}) {
   if (!contentFiles.length) return [];
-  const subtree = buildExternalMindmapTreeFromItems(
-    contentFiles.map((item) => ({
+  const mapItems = contentFiles
+    .filter((item) => item?.mapMeta?.enabled !== false)
+    .map((item) => ({
       path: item.path,
-      title: item.title || String(item.path || "").split("/").pop() || "Файл"
-    })),
-    "."
-  );
+      title: item.title || String(item.path || "").split("/").pop() || "Файл",
+      description: item.description || "",
+      status: item.status || "",
+      mapMeta: item.mapMeta || extractKnowledgeMapMetaFromProps(item.props || [])
+    }));
+  if (!mapItems.length) return [];
+  const subtree = buildExternalMindmapTreeFromItems(mapItems, ".", {
+    folderLabels: options.folderLabels,
+    folderDescriptions: options.folderDescriptions,
+    folderMapMeta: options.folderMapMeta
+  });
   return remapMindmapNodeIds(subtree.children || [], idPrefix);
 }
 
@@ -55044,7 +55369,11 @@ function buildTopicKnowledgeMindmapTree({
         externalData.files || [],
         externalData.folders || []
       );
-      slotNode.children = buildMindmapChildrenFromContentFiles(prepared.contentFiles, `slot:${spec.key}`);
+      slotNode.children = buildMindmapChildrenFromContentFiles(prepared.contentFiles, `slot:${spec.key}`, {
+        folderLabels: prepared.folderLabels,
+        folderDescriptions: prepared.folderDescriptions,
+        folderMapMeta: prepared.folderMapMeta
+      });
     } else if (spec.key === "media" && mediaData) {
       const prepared = prepareNavigationMediaItems(
         mediaData.groups || {},
@@ -55110,8 +55439,12 @@ function handleTopicKnowledgeNodeClick(node, nodePath) {
     if (spec) setActiveDataStorageSlotFromOverview(spec);
     return;
   }
-  if (node.filePath) {
-    openExternalFile(node.filePath);
+  const filePath = node.filePath || (node.kind === "leaf" ? node.targetPath : null);
+  if (filePath) {
+    if (activeContentMode !== "external") {
+      setContentMode("external");
+    }
+    void openExternalFile(filePath, { memoryEntryCloseTargetView: captureMemoryEntryCloseTargetView() });
     return;
   }
   if (node.targetPath) {
@@ -55135,10 +55468,11 @@ function renderEmbeddedTopicKnowledgeGraph(container, context) {
   });
 }
 
-function renderEmbeddedTopicKnowledgeMindmap(container, context) {
+function renderEmbeddedTopicKnowledgeMindmap(container, context, options = {}) {
   if (!container) return;
+  const variant = options.variant === "knowledge-map-v2" ? "knowledge-map-v2" : "";
   const tree = buildTopicKnowledgeMindmapTree(context);
-  const rerender = () => renderEmbeddedTopicKnowledgeMindmap(container, context);
+  const rerender = () => renderEmbeddedTopicKnowledgeMindmap(container, context, options);
   container.replaceChildren();
   if (!tree) {
     renderListEmptyMessage(container, "Нет данных для карты знаний");
@@ -55158,6 +55492,7 @@ function renderEmbeddedTopicKnowledgeMindmap(container, context) {
   renderMindmapTreeCanvas(host, tree, {
     collapsedIds: nodeOverviewEmbeddedMindmapCollapsedIds,
     activeTarget: activeResolved,
+    variant,
     onNodeClick: (node) => handleTopicKnowledgeNodeClick(node, context.nodePath),
     onRerender: rerender,
     onViewportReady: (api) => {
@@ -55170,7 +55505,8 @@ function renderEmbeddedTopicKnowledgeMindmap(container, context) {
 function readNodeNavigationTopicOverviewView() {
   try {
     const value = sessionStorage.getItem(NODE_NAV_TOPIC_OVERVIEW_VIEW_STORAGE_KEY);
-    if (value === "mindmap" || value === "graph") return value;
+    if (value === "mindmap-v1" || value === "mindmap-v2" || value === "graph") return value;
+    if (value === "mindmap") return "mindmap-v2";
     if (value === "elements" || value === "navigation") return "graph";
   } catch {
     /* ignore */
@@ -55308,7 +55644,8 @@ function buildNavigationSubsectionsBody(childEntries) {
 }
 
 function openTopicKnowledgeNavigationPopout(context, view = "graph") {
-  const activeView = view === "mindmap" ? "mindmap" : "graph";
+  const activeView =
+    view === "mindmap-v2" ? "mindmap-v2" : view === "mindmap-v1" || view === "mindmap" ? "mindmap-v1" : "graph";
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay topic-knowledge-nav-popout";
   overlay.setAttribute("role", "dialog");
@@ -55324,7 +55661,11 @@ function openTopicKnowledgeNavigationPopout(context, view = "graph") {
   const title = document.createElement("h3");
   title.className = "topic-knowledge-nav-popout-title";
   title.textContent =
-    activeView === "mindmap" ? "Карта знаний темы" : "Граф знаний темы";
+    activeView === "mindmap-v2"
+      ? "Карта знаний (v2)"
+      : activeView === "mindmap-v1"
+        ? "Карта знаний (v1)"
+        : "Граф знаний темы";
 
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";
@@ -55359,7 +55700,11 @@ function openTopicKnowledgeNavigationPopout(context, view = "graph") {
   document.body.appendChild(overlay);
   document.body.classList.add("modal-open");
 
-  if (activeView === "mindmap") {
+  if (activeView === "mindmap-v2") {
+    renderEmbeddedTopicKnowledgeMindmap(body, context, { variant: "knowledge-map-v2" });
+    return;
+  }
+  if (activeView === "mindmap-v1") {
     renderEmbeddedTopicKnowledgeMindmap(body, context);
     return;
   }
@@ -55424,7 +55769,8 @@ function renderNodeNavigationElementsNavAccordion({
   viewSelect.setAttribute("aria-label", "Вид навигации по теме");
   for (const { value, label } of [
     { value: "graph", label: "Граф знаний" },
-    { value: "mindmap", label: "Карта знаний" }
+    { value: "mindmap-v1", label: "Карта знаний (v1)" },
+    { value: "mindmap-v2", label: "Карта знаний (v2)" }
   ]) {
     const option = document.createElement("option");
     option.value = value;
@@ -55481,20 +55827,24 @@ function renderNodeNavigationElementsNavAccordion({
     graphHost.dataset.rendered = "1";
   };
 
-  const ensureMindmapRendered = () => {
-    if (mindmapHost.dataset.rendered === "1") return;
-    renderEmbeddedTopicKnowledgeMindmap(mindmapHost, knowledgeContext);
+  const ensureMindmapRendered = (view) => {
+    const variant = view === "mindmap-v2" ? "knowledge-map-v2" : "";
+    if (mindmapHost.dataset.renderedVariant === view) return;
+    mindmapHost.dataset.rendered = "";
+    mindmapHost.dataset.renderedVariant = view;
+    renderEmbeddedTopicKnowledgeMindmap(mindmapHost, knowledgeContext, { variant });
     mindmapHost.dataset.rendered = "1";
   };
 
   const applyView = (view) => {
-    const nextView = view === "mindmap" ? "mindmap" : "graph";
+    const nextView =
+      view === "mindmap-v2" ? "mindmap-v2" : view === "mindmap-v1" || view === "mindmap" ? "mindmap-v1" : "graph";
     writeNodeNavigationTopicOverviewView(nextView);
     viewSelect.value = nextView;
     graphPanel.classList.toggle("hidden", nextView !== "graph");
-    mindmapPanel.classList.toggle("hidden", nextView !== "mindmap");
+    mindmapPanel.classList.toggle("hidden", nextView !== "mindmap-v1" && nextView !== "mindmap-v2");
     if (nextView === "graph") ensureGraphRendered();
-    if (nextView === "mindmap") ensureMindmapRendered();
+    if (nextView === "mindmap-v1" || nextView === "mindmap-v2") ensureMindmapRendered(nextView);
   };
 
   viewSelect.addEventListener("change", () => {
@@ -55506,8 +55856,9 @@ function renderNodeNavigationElementsNavAccordion({
     toggleBtn.setAttribute("aria-expanded", details.open ? "true" : "false");
     toggleBtn.setAttribute("aria-label", details.open ? "Свернуть блок" : "Развернуть блок");
     if (!details.open) return;
-    if (viewSelect.value === "graph") ensureGraphRendered();
-    if (viewSelect.value === "mindmap") ensureMindmapRendered();
+    const currentView = viewSelect.value;
+    if (currentView === "graph") ensureGraphRendered();
+    if (currentView === "mindmap-v1" || currentView === "mindmap-v2") ensureMindmapRendered(currentView);
   });
 
   applyView(activeView);
@@ -56459,6 +56810,7 @@ function prepareNavigationExternalItems(files, folders = []) {
   const folderLabels = new Map();
   const folderDescriptions = new Map();
   const folderStatuses = new Map();
+  const folderMapMeta = new Map();
   const sectionManifestByFolder = new Map();
   const folderPaths = new Set();
   const contentFiles = [];
@@ -56494,6 +56846,7 @@ function prepareNavigationExternalItems(files, folders = []) {
       );
       if (description) folderDescriptions.set(folderKey, description);
       sectionManifestByFolder.set(folderKey, item);
+      folderMapMeta.set(folderKey, extractKnowledgeMapMetaFromProps(props));
       if (status) folderStatuses.set(folderKey, status);
       if (folderKey) addMemorySectionFolderPath(folderPaths, folderKey);
       continue;
@@ -56507,6 +56860,7 @@ function prepareNavigationExternalItems(files, folders = []) {
     const awnName = getPropsEntryValueByKey(props, "awn-name");
     const title = normalizeYamlDisplayString(String(item.title || "").trim());
     const description = getNavigationAwnDescription(item);
+    const mapMeta = extractKnowledgeMapMetaFromProps(props);
     contentFiles.push({
       path,
       name: item.name,
@@ -56515,6 +56869,7 @@ function prepareNavigationExternalItems(files, folders = []) {
       description,
       status: resolveNavigationItemStatus(item),
       props,
+      mapMeta,
       hasPreview: Boolean(item.hasPreview),
       previewUrl: item.previewUrl || null,
       hasRecordMaterials:
@@ -56530,6 +56885,7 @@ function prepareNavigationExternalItems(files, folders = []) {
     folderLabels,
     folderDescriptions,
     folderStatuses,
+    folderMapMeta,
     sectionManifestByFolder,
     folderPaths
   };

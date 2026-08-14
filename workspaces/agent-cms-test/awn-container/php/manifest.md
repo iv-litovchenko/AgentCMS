@@ -19,6 +19,11 @@ awn-type: awn.page.topic
 awn-create: "2026-06-09T02:18"
 awn-description: Описание
 awn-name: PHP
+awn-mindmap-enabled: true
+awn-mindmap-type: milestone
+awn-mindmap-color: blue
+awn-mindmap-size: large
+awn-mindmap-direction: down
 awn-preview: awn-storage/assets/preview/20260624202540.png
 awn-web-url: ""
 awn-update: 2026-08-10T16:32:31.177Z

@@ -1,13 +1,13 @@
 ---
 awn-attachments: []
-awn-name: "Примеры кода"
+awn-name: Примеры кода
 awn-emoji: ""
-awn-status: draft
-awn-description: ""
+awn-status: open
+awn-description: Практические мини-проекты и snippets
 awn-tags: []
 awn-type: awn.content.record.category
-awn-create: 2026-07-25T11:14:50.639Z
-awn-update: 2026-07-25T22:34:24.404Z
+awn-create: "2026-07-25T11:00:01.495Z"
+awn-update: "2026-07-25T11:00:01.495Z"
 awn-version: 3
 awn-preview: ""
 awn-web-url: ""
@@ -16,12 +16,16 @@ awn-category: ""
 awn-owner: ""
 awn-priority: ""
 awn-color: ""
-awn-sort: 
-awn-runtime-load-always: false
+awn-sort: 50
+awn-mindmap-enabled: true
+awn-mindmap-type: milestone
+awn-mindmap-color: amber
+awn-mindmap-size: large
+awn-mindmap-layout-independent: true
+awn-mindmap-direction: down
 awn-runtime-cron: false
 awn-runtime-cron-schedule: ""
 awn-runtime-heartbeat: false
-awn-runtime-commands: false
 ---
 
-> Описание раздела.
+> Практические примеры для закрепления материала.

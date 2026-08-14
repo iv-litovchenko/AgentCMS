@@ -1,9 +1,15 @@
 ---
-awn-create: ""
-awn-update: ""
-awn-description: ""
-awn-version: ""
-awn-sort: ""
+awn-create: "2026-07-25T11:00:01.495Z"
+awn-update: "2026-07-25T11:00:01.495Z"
+awn-name: XSS
+awn-description: Экранирование вывода и CSP
+awn-version: 2
+awn-sort: 10
+awn-status: open
+awn-mindmap-enabled: true
+awn-mindmap-type: advanced
+awn-mindmap-color: red
+awn-mindmap-size: small
 ---
 
 # XSS
