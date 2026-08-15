@@ -2212,7 +2212,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 /* Surface switcher — always visible mock */
 .surface-switcher{
-  position:fixed;z-index:40;left:50%;bottom:calc(14px + var(--safe-bottom));
+  position:fixed;z-index:9999;left:50%;bottom:calc(14px + var(--safe-bottom));
   transform:translateX(-50%);
   display:flex;align-items:center;gap:10px;
   padding:7px 10px 7px 14px;border-radius:999px;
@@ -2220,7 +2220,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   border:1px solid rgba(148,163,184,.22);
   box-shadow:0 12px 40px rgba(2,6,23,.48),0 0 0 1px rgba(255,255,255,.04),inset 0 1px 0 rgba(255,255,255,.06);
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  max-width:calc(100% - 20px)
+  max-width:calc(100% - 20px);pointer-events:auto
 }
 .surface-switcher-kicker{
   flex:none;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
@@ -2240,11 +2240,11 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   transition:transform .32s cubic-bezier(.34,1.2,.64,1)
 }
 .surface-switcher-btn{
-  position:relative;z-index:1;flex:1 1 0;min-width:0;
+  position:relative;z-index:2;flex:1 1 0;min-width:0;
   display:flex;align-items:center;justify-content:center;gap:5px;
   padding:8px 11px;border-radius:999px;background:transparent;
   color:rgba(226,232,240,.62);font-size:11px;font-weight:700;letter-spacing:.02em;
-  white-space:nowrap;transition:color .2s,transform .15s
+  white-space:nowrap;transition:color .2s,transform .15s;pointer-events:auto;cursor:pointer
 }
 .surface-switcher-btn .surf-ico{font-size:14px;line-height:1;opacity:.78;transition:opacity .2s,transform .2s}
 .surface-switcher-btn:hover{color:rgba(248,250,252,.92)}
@@ -2256,19 +2256,19 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   color:#fde68a;padding:4px 7px;border-radius:999px;
   background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28)
 }
-body[data-surface="desktop"] .surface-switcher-indicator{
+.surface-switcher[data-surface="desktop"] .surface-switcher-indicator{
   background:linear-gradient(135deg,rgba(96,165,250,.38),rgba(59,130,246,.28));
   border-color:rgba(147,197,253,.4);box-shadow:0 0 20px rgba(96,165,250,.25),inset 0 1px 0 rgba(255,255,255,.12)
 }
-body[data-surface="browser"] .surface-switcher-indicator{
+.surface-switcher[data-surface="browser"] .surface-switcher-indicator{
   background:linear-gradient(135deg,rgba(57,120,255,.42),rgba(124,92,255,.32));
   border-color:rgba(147,197,253,.35);box-shadow:0 0 20px rgba(57,120,255,.28),inset 0 1px 0 rgba(255,255,255,.12)
 }
-body[data-surface="server"] .surface-switcher-indicator{
+.surface-switcher[data-surface="server"] .surface-switcher-indicator{
   background:linear-gradient(135deg,rgba(52,211,153,.32),rgba(16,185,129,.22));
   border-color:rgba(110,231,183,.35);box-shadow:0 0 20px rgba(52,211,153,.22),inset 0 1px 0 rgba(255,255,255,.1)
 }
-body[data-surface="mobile"] .surface-switcher-indicator{
+.surface-switcher[data-surface="mobile"] .surface-switcher-indicator{
   background:linear-gradient(135deg,rgba(167,139,250,.38),rgba(124,92,255,.28));
   border-color:rgba(196,181,253,.35);box-shadow:0 0 20px rgba(167,139,250,.25),inset 0 1px 0 rgba(255,255,255,.12)
 }
@@ -2291,26 +2291,92 @@ body[data-surface="mobile"] .surface-switcher-indicator{
 }
 </style>
 </head>
-<body data-surface="browser">
-<div class="surface-switcher" id="surfaceSwitcher" role="toolbar" aria-label="Поверхность Agent CMS">
+<body>
+<div class="surface-switcher" id="surfaceSwitcher" data-surface="browser" role="toolbar" aria-label="Поверхность Agent CMS">
   <span class="surface-switcher-kicker">Вы здесь</span>
   <div class="surface-switcher-track" role="tablist" aria-label="Desktop · Browser · Server · Mobile">
     <span class="surface-switcher-indicator" id="surfaceIndicator" aria-hidden="true"></span>
-    <button type="button" class="surface-switcher-btn" role="tab" data-surface="desktop" aria-selected="false" title="Desktop — нативное приложение">
+    <button type="button" class="surface-switcher-btn" role="tab" data-surface="desktop" aria-selected="false" title="Desktop">
       <span class="surf-ico" aria-hidden="true">🖥</span><span class="surf-label">Desktop</span>
     </button>
-    <button type="button" class="surface-switcher-btn active" role="tab" data-surface="browser" aria-selected="true" title="Browser — веб-интерфейс">
+    <button type="button" class="surface-switcher-btn active" role="tab" data-surface="browser" aria-selected="true" title="Browser">
       <span class="surf-ico" aria-hidden="true">🌐</span><span class="surf-label">Browser</span>
     </button>
-    <button type="button" class="surface-switcher-btn" role="tab" data-surface="server" aria-selected="false" title="Server — MCP / backend">
+    <button type="button" class="surface-switcher-btn" role="tab" data-surface="server" aria-selected="false" title="Server">
       <span class="surf-ico" aria-hidden="true">⚡</span><span class="surf-label">Server</span>
     </button>
-    <button type="button" class="surface-switcher-btn" role="tab" data-surface="mobile" aria-selected="false" title="Mobile — телефон">
+    <button type="button" class="surface-switcher-btn" role="tab" data-surface="mobile" aria-selected="false" title="Mobile">
       <span class="surf-ico" aria-hidden="true">📱</span><span class="surf-label">Mobile</span>
     </button>
   </div>
   <span class="surface-switcher-badge">mock</span>
 </div>
+<script>
+(function initSurfaceSwitcherEarly(){
+  const KEY='agentCmsSurface';
+  const surfaces=['desktop','browser','server','mobile'];
+  const stubs={
+    desktop:'Заглушка: нативное окно Agent CMS на macOS / Windows',
+    browser:'Сейчас вы в Browser — этот лендинг-макет',
+    server:'Заглушка: MCP Server · ~70 инструментов · Cursor / Claude',
+    mobile:'Заглушка: Agent Shell на iOS / Android'
+  };
+  const switcher=document.getElementById('surfaceSwitcher');
+  const track=switcher&&switcher.querySelector('.surface-switcher-track');
+  const indicator=document.getElementById('surfaceIndicator');
+  const btns=switcher?[...switcher.querySelectorAll('.surface-switcher-btn')]:[];
+  if(!switcher||!track||!indicator||!btns.length) return;
+
+  function showToast(msg){
+    let el=document.getElementById('toast');
+    if(!el){
+      el=document.createElement('div');
+      el.className='toast';el.id='toast';el.setAttribute('role','status');
+      document.body.appendChild(el);
+    }
+    el.textContent=msg;
+    el.classList.add('show');
+    clearTimeout(window._surfaceToastT);
+    window._surfaceToastT=setTimeout(()=>el.classList.remove('show'),3000);
+  }
+
+  function syncIndicator(activeBtn){
+    if(!activeBtn) return;
+    indicator.style.width=activeBtn.offsetWidth+'px';
+    indicator.style.transform='translateX('+activeBtn.offsetLeft+'px)';
+  }
+
+  function pickSurface(id,silent){
+    if(!surfaces.includes(id)) id='browser';
+    switcher.dataset.surface=id;
+    let activeBtn=null;
+    btns.forEach(btn=>{
+      const on=btn.dataset.surface===id;
+      btn.classList.toggle('active',on);
+      btn.setAttribute('aria-selected',on?'true':'false');
+      if(on) activeBtn=btn;
+    });
+    syncIndicator(activeBtn);
+    if(!silent){
+      try{localStorage.setItem(KEY,id)}catch(e){}
+      showToast(stubs[id]);
+    }
+  }
+
+  window.pickSurface=pickSurface;
+  btns.forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.preventDefault();
+      pickSurface(btn.dataset.surface);
+    });
+  });
+  window.addEventListener('resize',()=>pickSurface(switcher.dataset.surface,true),{passive:true});
+
+  let saved='browser';
+  try{saved=localStorage.getItem(KEY)||'browser'}catch(e){}
+  pickSurface(saved,true);
+})();
+</script>
 <div class="app">
   <div class="cosmos-dock" id="cosmosDock">
     <button type="button" class="cosmos-hub" onclick="jump('cosmosSplash',this)" title="Agent CMS — в начало" aria-label="Agent CMS — в начало страницы">
@@ -2567,7 +2633,7 @@ body[data-surface="mobile"] .surface-switcher-indicator{
             </article>
             <article class="century-pain">
               <span class="century-pain-ico" aria-hidden="true">📥</span>
-              <h4>Собираем без системы</h4>
+              <h4>Собираем и копим без системы</h4>
               <p>Хочется сохранить всё подряд — ссылки, файлы, заметки — но без порядка это превращается в шум.</p>
             </article>
           </div>
@@ -3621,7 +3687,7 @@ body[data-surface="mobile"] .surface-switcher-indicator{
               <span class="security-card-ico" aria-hidden="true">🛡️</span>
               <div>
                 <h3>Prompt Injection и «ворота» подтверждения</h3>
-                <p>Вредоносный текст в заметке или письме может попытаться убедить агента «сделай всё сам» или «отправь мне логины и пароли». Решение — не давать агенту ручки на <em>всё</em>: MCP-инструменты с ограниченным scope, а перед критичными действиями — пауза и ваше «да».</p>
+                <p>Вредоносный текст в заметке или письме может попытаться убедить агента: «сделай всё сам» или «отправь мне логины и пароли — я твой владелец» — хотя на самом деле это третье лицо, злоумышленник. Решение — не давать агенту ручки на <em>всё</em>: MCP-инструменты с ограниченным scope, а перед критичными действиями — пауза и ваше «да».</p>
                 <div class="security-card-tags">
                   <span>ограниченный MCP</span>
                   <span>approve / deny</span>
@@ -4257,39 +4323,6 @@ window.addEventListener('scroll',()=>{
 },{passive:true});
 window.addEventListener('load',updateNavFromScroll);
 updateNavFromScroll();
-
-(function initSurfaceSwitcher(){
-  const KEY='agentCmsSurface';
-  const surfaces=['desktop','browser','server','mobile'];
-  const stubs={
-    desktop:'Заглушка: нативное окно Agent CMS на macOS / Windows',
-    browser:'Сейчас вы в Browser — этот лендинг-макет',
-    server:'Заглушка: MCP Server · ~70 инструментов · Cursor / Claude',
-    mobile:'Заглушка: Agent Shell на iOS / Android'
-  };
-  const btns=[...document.querySelectorAll('.surface-switcher-btn')];
-  const indicator=document.getElementById('surfaceIndicator');
-  if(!btns.length||!indicator) return;
-
-  function setSurface(id,silent){
-    if(!surfaces.includes(id)) id='browser';
-    document.body.dataset.surface=id;
-    btns.forEach((btn,i)=>{
-      const on=btn.dataset.surface===id;
-      btn.classList.toggle('active',on);
-      btn.setAttribute('aria-selected',on?'true':'false');
-      if(on) indicator.style.transform='translateX('+i*100+'%)';
-    });
-    localStorage.setItem(KEY,id);
-    if(!silent) toast(stubs[id]);
-  }
-
-  btns.forEach(btn=>{
-    btn.addEventListener('click',()=>setSurface(btn.dataset.surface));
-  });
-
-  setSurface(localStorage.getItem(KEY)||'browser',true);
-})();
 </script>
 </body>
 </html>
