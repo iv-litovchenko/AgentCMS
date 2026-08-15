@@ -813,6 +813,42 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .field-panel-head h4{margin:0;font-size:14px;font-weight:800}
 .field-panel-head p{margin:2px 0 0;font-size:12px;color:var(--muted)}
 .field-panel-body{padding:14px 16px}
+.structure-flex{
+  margin-top:16px;margin-bottom:0;padding:28px 24px 26px;text-align:center;
+  background:linear-gradient(135deg,#f8faff 0%,#f5f0ff 55%,#f6fcf9 100%);
+  border:1px solid #dbe6ff
+}
+.structure-flex .fields-flex-head{
+  display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:16px
+}
+.structure-flex .fields-flex-ico{
+  width:52px;height:52px;border-radius:16px;flex:none;
+  display:grid;place-items:center;font-size:28px;line-height:1;
+  background:#fff;border:1px solid #cfe0ff;box-shadow:var(--shadow-sm)
+}
+.structure-flex .fields-flex-head .block-title{margin:0 0 6px}
+.structure-flex .fields-flex-head .block-lead{margin:0;max-width:52ch}
+.structure-flex .fields-flex-text{
+  margin:0 auto 16px;font-size:14px;line-height:1.65;color:#425066;max-width:62ch;text-align:center
+}
+.structure-flex .fields-flex-pieces{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.structure-flex .fields-flex-pieces span{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;
+  font-size:12px;font-weight:700;color:#334155;background:rgba(255,255,255,.88);
+  border:1px solid #dbe6ff;box-shadow:0 2px 8px rgba(57,120,255,.06)
+}
+.structure-flex .fields-flex-note{
+  margin:16px auto 0;padding:12px 14px;border-radius:12px;max-width:58ch;
+  font-size:13px;line-height:1.55;color:#4b5c72;text-align:center;
+  background:rgba(255,255,255,.72);border:1px dashed #bfd3ff
+}
+.structure-flex .fields-flex-tip{
+  margin:14px auto 0;max-width:48ch;text-align:center
+}
+.structure-flex .fields-flex-tip strong{
+  display:block;margin-bottom:6px;font-size:14px;font-weight:800;color:var(--ink)
+}
+.structure-flex .fields-flex-tip p{margin:0;font-size:13px;line-height:1.55;color:#5b43d6;font-weight:650}
 .fields{display:grid;gap:8px}
 .field{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:#fafbfc;font-size:13px}
 .field code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;background:#eef2f8;padding:3px 8px;border-radius:7px;color:#334155;flex:none}
@@ -2059,6 +2095,29 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
           <p class="block-lead">Слот — «полка» в теме. Ключ вроде <code>notes/</code> — для системы, подпись рядом — для человека. Нажмите слот — расшифровка и пример.</p>
           <div class="slot-cats" id="slotGrid"></div>
           <div class="slot-detail" id="slotDetail">Выберите слот — покажем, для чего он нужен.</div>
+        </div>
+
+        <div class="structure-flex block">
+          <div class="fields-flex-head">
+            <span class="fields-flex-ico" aria-hidden="true">🧩</span>
+            <div>
+              <h3 class="block-title">Нет жёсткой структуры</h3>
+              <p class="block-lead">Её определяете вы — вместе с агентом. Не чужой шаблон, а ваш порядок.</p>
+            </div>
+          </div>
+          <p class="fields-flex-text">Хранилище собирается как пазл: из тем, записей и полей — только тех, что нужны именно вам. Комбинации выбираете сами: для дома одни слоты, для работы другие, для обучения — третьи. Можно начать с малого и постепенно достраивать, не ломая уже накопленное.</p>
+          <div class="fields-flex-pieces" aria-label="Из чего складывается структура">
+            <span>📁 Темы</span>
+            <span>📄 Записи</span>
+            <span>🏷 Поля</span>
+            <span>🗂️ Слоты</span>
+            <span>🔗 Связи</span>
+          </div>
+          <p class="fields-flex-note">Workspace → область → тема → слот — это каркас. Как именно его заполнить и развить — решаете вы.</p>
+          <div class="fields-flex-tip">
+            <strong>Не знаете, с чего начать?</strong>
+            <p>🎭 Посоветуйтесь о структуре с вашим агентом</p>
+          </div>
         </div>
       </div>
     </section>
