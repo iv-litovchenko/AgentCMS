@@ -73839,9 +73839,17 @@ async function copyMarkdownPreviewImageToClipboard(img) {
   }
 }
 
-function createMarkdownPreviewImageActionBar(img) {
+function createMarkdownPreviewImageActionBar(img, { index = 1, total = 1 } = {}) {
   const bar = document.createElement("div");
   bar.className = "markdown-preview-image-actions";
+
+  if (total > 1) {
+    const counter = document.createElement("span");
+    counter.className = "markdown-preview-image-counter";
+    counter.textContent = `${index} / ${total}`;
+    counter.setAttribute("aria-label", `Изображение ${index} из ${total}`);
+    bar.appendChild(counter);
+  }
 
   const zoomBtn = document.createElement("button");
   zoomBtn.type = "button";
@@ -73871,7 +73879,7 @@ function createMarkdownPreviewImageActionBar(img) {
   return bar;
 }
 
-function wrapMarkdownPreviewImage(img) {
+function wrapMarkdownPreviewImage(img, { index = 1, total = 1 } = {}) {
   if (!(img instanceof HTMLImageElement)) return;
   if (img.closest(".markdown-preview-image-wrap")) return;
   if (img.classList.contains("broken-image-placeholder") || img.dataset.brokenPlaceholder === "1") return;
@@ -73880,6 +73888,7 @@ function wrapMarkdownPreviewImage(img) {
   const wrap = document.createElement("div");
   wrap.className = "markdown-preview-image-wrap";
   const parent = img.parentElement;
+  const actionBar = createMarkdownPreviewImageActionBar(img, { index, total });
 
   if (parent?.tagName === "P") {
     const onlyImage = [...parent.childNodes].every(
@@ -73890,20 +73899,29 @@ function wrapMarkdownPreviewImage(img) {
     if (onlyImage) {
       parent.replaceWith(wrap);
       wrap.appendChild(img);
-      wrap.appendChild(createMarkdownPreviewImageActionBar(img));
+      wrap.appendChild(actionBar);
       return;
     }
   }
 
   img.replaceWith(wrap);
   wrap.appendChild(img);
-  wrap.appendChild(createMarkdownPreviewImageActionBar(img));
+  wrap.appendChild(actionBar);
 }
 
 function attachMarkdownPreviewImageActions(root) {
   if (!root) return;
-  root.querySelectorAll("img").forEach((img) => {
-    wrapMarkdownPreviewImage(img);
+  const images = [...root.querySelectorAll("img")].filter((img) => {
+    if (img.closest(".markdown-preview-image-wrap")) return false;
+    if (img.classList.contains("broken-image-placeholder") || img.dataset.brokenPlaceholder === "1") {
+      return false;
+    }
+    if (img.closest(".img-style-lightbox")) return false;
+    return true;
+  });
+  const total = images.length;
+  images.forEach((img, index) => {
+    wrapMarkdownPreviewImage(img, { index: index + 1, total });
   });
 }
 

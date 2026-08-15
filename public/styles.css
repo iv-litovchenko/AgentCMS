@@ -203,15 +203,20 @@ body.app-locked {
 
 .app-lock-brand {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 10px;
   margin-bottom: 8px;
 }
 
-.app-lock-icon {
-  font-size: 22px;
-  line-height: 1;
+.app-lock-logo {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  display: block;
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
 }
 
 .app-lock-title {
@@ -32466,6 +32471,23 @@ button.node-navigation-memory-title:focus-visible {
   justify-content: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.markdown-preview-image-counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  user-select: none;
 }
 
 .markdown-preview-image-action-btn {
