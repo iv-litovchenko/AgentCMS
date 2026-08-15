@@ -55193,7 +55193,14 @@ function buildNavigationHeroDatesPanel(meta, nodePath = activePath, options = {}
   );
   const lastViewedIso = getNodeLastViewedIso(nodePath);
 
+  const quality = getAwnQualityFromPropEntries(options.propEntries || []);
   const rows = [
+    {
+      kind: "quality",
+      label: getAwnQualityTooltip(quality),
+      value: `★ ${quality}/10`,
+      qualityValue: quality
+    },
     { kind: "created", label: "Создан", value: createdIso ? formatNodeMetaDateTime(createdIso) : null },
     { kind: "modified", label: "Изменён", value: modifiedIso ? formatNodeMetaDateTime(modifiedIso) : null },
     {
@@ -55206,7 +55213,7 @@ function buildNavigationHeroDatesPanel(meta, nodePath = activePath, options = {}
   const panel = document.createElement("div");
   panel.className = "node-navigation-hero-meta node-navigation-hero-dates";
   panel.setAttribute("role", "group");
-  panel.setAttribute("aria-label", "Даты записи");
+  panel.setAttribute("aria-label", "Качество и даты записи");
   for (const row of rows) {
     if (options.hideEmpty && !String(row.value ?? "").trim()) continue;
     appendNavigationHeroMetaRow(panel, row);
