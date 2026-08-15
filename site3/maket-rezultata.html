@@ -404,6 +404,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .section-head h2{margin:0 0 8px;font-size:clamp(24px,3vw,32px);letter-spacing:-.5px;font-weight:800}
 .section-head p{margin:0;color:var(--muted);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
 #peer-share{scroll-margin-top:calc(var(--cosmos-dock-h, 72px) + 16px)}
+#share-link{scroll-margin-top:calc(var(--cosmos-dock-h, 72px) + 16px)}
 
 .block{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:24px}
 .block+.block{margin-top:16px}
@@ -697,6 +698,31 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   fill:none;stroke:#c4b5fd;stroke-width:2;stroke-linecap:round;stroke-dasharray:6 4
 }
 .graph-legend .legend-purple{background:#faf8ff;border-color:#ddd6fe;color:#5b43d6}
+.share-link-scene{
+  display:flex;flex-direction:column;align-items:center;gap:14px;max-width:640px;margin:0 auto
+}
+@media(min-width:640px){
+  .share-link-scene{flex-direction:row;justify-content:center;align-items:stretch;gap:16px}
+}
+.share-link-step,.share-link-card{
+  flex:1;padding:18px 16px;border-radius:16px;text-align:center;
+  background:#fff;border:1px solid #dbe6ff;box-shadow:var(--shadow-sm)
+}
+.share-link-step span{display:block;font-size:32px;line-height:1;margin-bottom:8px}
+.share-link-step p{margin:0;font-size:13px;line-height:1.5;color:var(--muted);font-weight:650}
+.share-link-arrow{
+  display:grid;place-items:center;font-size:22px;font-weight:800;color:#94a3b8;flex:none
+}
+@media(max-width:639px){.share-link-arrow{transform:rotate(90deg)}}
+.share-link-card{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0}
+.share-link-ico{font-size:34px;line-height:1}
+.share-link-card strong{display:block;font-size:14px;font-weight:800;color:var(--ink);margin-bottom:6px}
+.share-link-card code{
+  display:inline-block;padding:6px 10px;border-radius:999px;
+  font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  background:#f8fafc;border:1px solid #e2e8f0;color:#334155
+}
+.share-link-card small{display:block;margin-top:8px;font-size:12px;line-height:1.45;color:var(--muted)}
 
 .graph-hub{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;
@@ -2029,6 +2055,31 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
             <span>🔒 Личное у каждого остаётся в своём хранилище</span>
           </div>
         </div>
+
+        <div class="section-head" style="margin-top:44px" id="share-link"><h2>Поделиться по ссылке</h2><p>хранилище на сервере — отправьте, что нужно</p></div>
+        <div class="graph-block">
+          <p class="graph-lead">Если хранилище подключено к серверу, можно в любой момент поделиться своими данными — темой, записью или файлом. Система создаст короткую ссылку для отправки.</p>
+          <div class="share-link-scene" aria-label="Поделиться по короткой ссылке">
+            <div class="share-link-step">
+              <span aria-hidden="true">☁️</span>
+              <p>Хранилище на сервере — доступно извне</p>
+            </div>
+            <div class="share-link-arrow" aria-hidden="true">→</div>
+            <div class="share-link-card">
+              <span class="share-link-ico" aria-hidden="true">🔗</span>
+              <div>
+                <strong>Короткая ссылка</strong>
+                <code>https://…/s/k7x2m</code>
+                <small>«Смета по ремонту» · только чтение</small>
+              </div>
+            </div>
+          </div>
+          <div class="graph-legend">
+            <span class="legend-purple">📋 Тема · 📄 Запись · 📎 Файл — что угодно из хранилища</span>
+            <span>🔒 Права доступа задаёте вы</span>
+            <span>⏱ Ссылку можно отозвать</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -3055,7 +3106,7 @@ renderSlots();renderCases();renderGoals();
   if(typeof ResizeObserver!=='undefined') new ResizeObserver(syncDockH).observe(dock);
 })();
 
-const obsSections=['hero-band','problem','audience','life-graph','peer-share','structure','fields','agents','shell','ecosystem','cases','features','search','connect','goals','dialogue','case-example','principles','cube-room','footer'];
+const obsSections=['hero-band','problem','audience','life-graph','peer-share','share-link','structure','fields','agents','shell','ecosystem','cases','features','search','connect','goals','dialogue','case-example','principles','cube-room','footer'];
 
 function dockOffset(){
   return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cosmos-dock-h'))||72;
