@@ -12,8 +12,8 @@
 Этот файл — шпаргалка (**73 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 Перед работой: `get_session_context` → `get_user_active_context_now`.  
-Поиск по содержимому workspace: `search_workspace_content` (scope=all — пути, frontmatter, тела файлов; как шапка UI).  
-Произвольный путь → тема/область: `resolve_workspace_path({ path })`.  
+Поиск по содержимому workspace: `search_workspace_content` (scope, fileType, **`pathPrefix`** — как шапка UI); по смыслу: `search_workspace_semantic` (тоже **`pathPrefix`**).  
+Произвольный путь → тема/область: `resolve_workspace_path({ path })` → `topic.folderPath` для ограничения поиска.  
 Поиск в интернете: `search_web`, `search_web_images`, `read_web_page`, `get_link_preview`, `extract_document_text`.  
 Идентичность: `get_agent_identity`, `get_user_identity`. Активность: `list_recent_activity`.
 
@@ -97,7 +97,39 @@ resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn
 | `awn-data/tasks/…` | — (это инфоблоки, не Page) | — | — |
 | папка без manifest | `ancestors` пуст или только ws | свободная память | — |
 
-Альтернативы: `get_page_map` / `get_site_map` (полная карта), `search_workspace_content` (поиск по тексту), `get_user_active_context_now` (фокус UI).
+Альтернативы: `get_page_map` / `get_site_map` (полная карта), `search_workspace_content` (поиск по тексту, опц. `pathPrefix`), `get_user_active_context_now` (фокус UI).
+
+### Поиск с ограничением по теме — `pathPrefix`
+
+В шапке UI: иконка **◎** справа от поля поиска — drag-and-drop темы из меню ограничивает область. В MCP — тот же параметр.
+
+| Tool | `pathPrefix` |
+|------|--------------|
+| `search_workspace_content` | поддерево workspace (тема, область, папка) |
+| `search_workspace_semantic` | то же для offline semantic index |
+| `query_workspace_storage` | фильтр по пути (как раньше) |
+
+Пустой или без параметра = **весь workspace**.
+
+**Как получить prefix:**
+
+```json
+resolve_workspace_path({ "path": "aja-test-oblasti-2031/aja-test-temy-2031/main.md" })
+→ topic.folderPath   // "aja-test-oblasti-2031/aja-test-temy-2031"
+```
+
+**Пример — «найди RAG в теме»:**
+
+```json
+search_workspace_content({
+  "query": "RAG",
+  "pathPrefix": "aja-test-oblasti-2031/aja-test-temy-2031",
+  "scope": "all",
+  "limit": 20
+})
+```
+
+Сценарий: пользователь назвал тему → `resolve_workspace_path` по manifest или пути → `pathPrefix: topic.folderPath` → поиск.
 
 ---
 
@@ -133,7 +165,8 @@ resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn
 | `get_content_index(path)` | **Оглавление контента** темы (только **внешние слоты**: memory, inbox, media…; без bundle-памяти) или одного слота с `slot=…`. Колонки: path, **type**, title, description | нет |
 | `refresh_content_index(path)` | **Обновить** оглавление контента → `index.md` **рядом с manifest.md** темы (внешние слоты) или index слота | да (index.md) |
 | `resolve_workspace_path({ path })` | Произвольный путь → цепочка manifest (topic/area/ws), slot/ref, mcp hints | нет |
-| `search_workspace_content` | Полнотекстовый поиск: пути, frontmatter, тела (`scope=all` по умолчанию) | meta + snippet |
+| `search_workspace_content` | Полнотекстовый поиск: пути, frontmatter, тела; опц. **`pathPrefix`** | meta + snippet |
+| `search_workspace_semantic` | Семантический поиск (offline hash-TF-IDF); опц. **`pathPrefix`** | snippet + score |
 | `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
@@ -155,6 +188,8 @@ resolve_workspace_path({ "path": "aja-test-oblasti-2049/aja-test-temy-2049-2/awn
 | «Что есть в теме, не читая тексты» | `get_content_index(path)` — оглавление **внешних слотов** (без bundle-памяти) |
 | «Оглавление одного слота (inbox, media…)» | `get_content_index(path, slot=inbox\|media\|…)` |
 | «Обновить оглавление контента в index.md» | `refresh_content_index(path)` (тема → внешние слоты, файл `{topic}/index.md`) или `refresh_content_index(path, slot=…)` |
+| «Найти текст только в одной теме/области» | `resolve_workspace_path` → `search_workspace_content({ pathPrefix: topic.folderPath })` |
+| «Найти по смыслу в теме» | `search_workspace_semantic({ query, pathPrefix })` |
 | «Нужны properties/tags/status перед правкой» | `get_content_map(path)` |
 | «Читать/писать текст записи» | `read_content_body` / `write_content_body` |
 | «Доп. файлы **конкретной** записи (не раздел темы)» | `get_content_map` → `hasRecordMaterials` / `parentRecordRef` / `recordMaterialsFolderRef`; папка `awn-materials-{slug}` |
@@ -418,7 +453,8 @@ razdel-1/
 | Файл в слот темы по URL | `import_content_from_url` |
 | Системные файлы корня (`AGENTS.md`, …) | `list_system_files` → `read_file` / `write_file` (history) |
 | Обход папки | `list_folder` |
-| Поиск по содержимому workspace | `search_workspace_content` |
+| Поиск по содержимому workspace | `search_workspace_content` (опц. `pathPrefix`) |
+| Поиск по смыслу в workspace | `search_workspace_semantic` (опц. `pathPrefix`) |
 | Разбор произвольного пути | `resolve_workspace_path` |
 | Поиск в интернете | `search_web`, `search_web_images`, `read_web_page`, `get_link_preview` |
 | Документ → текст | `extract_document_text` |
@@ -479,7 +515,7 @@ razdel-1/
 `size` / `type` для картинок — только в режиме `api`.  
 Найденную картинку в тему — `import_content_from_url({ path, slot: "media", url })` или `upload_file_from_url`.
 
-**Не путать:** `search_workspace_content` — файлы и **текст** workspace агента; `resolve_workspace_path` — один путь → topic/area/ws; `search_web` — публичный интернет; `read_web_page` — содержимое одного URL (не поиск).
+**Не путать:** `search_workspace_content` / `search_workspace_semantic` — текст workspace агента (опц. **`pathPrefix`** для темы); `resolve_workspace_path` — один path → topic/area/ws + `folderPath`; `query_workspace_storage` — SQL-like по полям frontmatter; `search_web` — публичный интернет; `read_web_page` — содержимое одного URL (не поиск).
 
 ---
 

@@ -15,7 +15,8 @@ agent-cms ( Agent MCP ) · 71
 │   ├── refresh_content_index            — обновить index.md на диск
 │   ├── get_content_map                  — карта контента темы (meta + properties)
 │   ├── resolve_workspace_path           — path → breadcrumbs + topic/area/ws + slot/ref
-│   └── search_workspace_content         — полнотекстовый поиск (paths + body)
+│   ├── search_workspace_content         — полнотекстовый поиск (paths + body); pathPrefix
+│   └── search_workspace_semantic        — semantic search (offline); pathPrefix
 │
 ├── СТРАНИЦА (19)
 │   ├── read_page_body / write_page_body
