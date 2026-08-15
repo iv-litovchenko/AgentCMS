@@ -59030,18 +59030,40 @@ function resolveCatalogTagPresentation(tagId) {
   };
 }
 
+function createEntryOverviewQualityChip(quality) {
+  const chip = document.createElement("span");
+  chip.className = "node-entry-overview-tag node-entry-overview-quality";
+  if (awnQualityNeedsReview(quality)) chip.classList.add("is-needs-review");
+  else if (quality >= 8) chip.classList.add("is-high");
+  chip.title = getAwnQualityTooltip(quality);
+  chip.setAttribute("aria-label", `Качество проверки: ${quality} из 10`);
+
+  const icon = document.createElement("span");
+  icon.className = "node-entry-overview-quality-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "★";
+
+  const value = document.createElement("span");
+  value.className = "node-entry-overview-quality-value";
+  value.textContent = `${quality}/10`;
+
+  chip.append(icon, value);
+  return chip;
+}
+
 function createEntryOverviewTagsBar(entries = []) {
+  const quality = getAwnQualityFromPropEntries(entries);
   const tags = getPropsEntryTags(entries)
     .map((tagId) => resolveCatalogTagPresentation(tagId))
     .filter(Boolean);
-  if (!tags.length) return null;
 
   const bar = document.createElement("div");
   bar.className = "node-entry-overview-tags";
-  bar.setAttribute("aria-label", "Теги");
+  bar.setAttribute("aria-label", "Качество и теги");
 
   const list = document.createElement("div");
   list.className = "node-entry-overview-tags-list";
+  list.appendChild(createEntryOverviewQualityChip(quality));
 
   for (const tag of tags) {
     const chip = document.createElement("span");
