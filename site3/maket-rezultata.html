@@ -2253,7 +2253,10 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   border-top:1px solid rgba(226,232,240,.9)
 }
 .footer-gallery-item:first-child figcaption{color:#4338ca}
-.footer-gallery-item:last-child figcaption{color:#0369a1;font-size:13px;letter-spacing:.12em}
+.footer-gallery-item:last-child figcaption{
+  color:#0369a1;font-size:13px;letter-spacing:.02em;
+  text-transform:none;font-weight:600;font-style:italic
+}
 .footer-copy{margin-top:28px;font-size:12px;color:#94a3b8}
 
 .toast{position:fixed;z-index:30;left:50%;bottom:calc(88px + var(--safe-bottom));transform:translate(-50%,20px);background:#141c2b;color:#fff;padding:12px 20px;border-radius:16px;font-size:14px;opacity:0;pointer-events:none;transition:.3s;max-width:calc(100% - 32px);box-shadow:0 10px 30px rgba(0,0,0,.2);text-align:center}
@@ -2296,6 +2299,11 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   white-space:nowrap;transition:color .2s,transform .15s;pointer-events:auto;cursor:pointer
 }
 .surface-switcher-btn .surf-label{display:inline-flex;align-items:baseline;gap:3px}
+.surface-switcher-btn .surf-label--stack{
+  flex-direction:column;align-items:flex-start;gap:0;line-height:1.05
+}
+.surface-switcher-btn[data-surface="server"]{padding:7px 10px 6px;gap:6px}
+.surface-switcher-btn[data-surface="server"] .surf-label{font-size:10px}
 .surface-switcher-btn .surf-sub{
   font-size:8px;font-weight:800;letter-spacing:.04em;color:rgba(147,197,253,.75)
 }
@@ -2357,7 +2365,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
       <span class="surf-ico" aria-hidden="true">🌐</span><span class="surf-label">Browser</span>
     </button>
     <button type="button" class="surface-switcher-btn" role="tab" data-surface="server" aria-selected="false" title="Server — данные в облаке, доступ 24/7">
-      <span class="surf-ico" aria-hidden="true">☁️</span><span class="surf-label">Server<span class="surf-sub">24/7</span></span>
+      <span class="surf-ico" aria-hidden="true">☁️</span><span class="surf-label surf-label--stack">Server<span class="surf-sub">(24/7)</span></span>
     </button>
     <button type="button" class="surface-switcher-btn" role="tab" data-surface="mobile" aria-selected="false" title="Mobile">
       <span class="surf-ico" aria-hidden="true">📱</span><span class="surf-label">Mobile</span>
