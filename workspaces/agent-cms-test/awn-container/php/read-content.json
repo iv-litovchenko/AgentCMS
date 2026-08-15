@@ -18,6 +18,7 @@
     "main/awn-container/manifest.md",
     "main/awn-container/php/awn-storage/manifest.md",
     "main/awn-container/php/manifest.md",
+    "main/baza-dannyh/manifest.md",
     "main/baza-dannyh/PDO.md",
     "main/oop/Enums.md",
     "main/README.md",
@@ -30,5 +31,5 @@
     "topic-index-generated/awn-container/php/awn-storage/index.md",
     "topic-index-generated/awn-container/php/index.md"
   ],
-  "updatedAt": "2026-08-14T06:28:53.831Z"
+  "updatedAt": "2026-08-15T19:34:41.624Z"
 }

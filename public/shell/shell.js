@@ -38,6 +38,12 @@ const VOICE_MODE_TITLES = {
 };
 
 const SHELL_AGENT_KEY = "agentcms.shellAgent.v1";
+const COMPOSE_DRAFT_SAVE_MS = 700;
+
+let composeDraftSavedText = null;
+let composeDraftSaveTimer = null;
+let composeDraftSaveInFlight = null;
+let composeDraftExpanded = false;
 
 function isShellEmbedMode() {
   try {
@@ -365,6 +371,11 @@ const nodes = {
   voiceControl: document.getElementById("shell-voice-control"),
   fnPttHint: document.getElementById("shell-fn-ptt-hint"),
   message: document.getElementById("shell-message"),
+  composeField: document.getElementById("shell-compose-field"),
+  composeExpandToggle: document.getElementById("shell-compose-expand-toggle"),
+  composeExpandBackdrop: document.getElementById("shell-compose-expand-backdrop"),
+  composeDraftStatus: document.getElementById("shell-compose-draft-status"),
+  composeDraftPath: document.getElementById("shell-compose-draft-path"),
   sendBtn: document.getElementById("shell-send-btn"),
   sendStopBtn: document.getElementById("shell-send-stop"),
   micBtn: document.getElementById("shell-mic-btn"),
@@ -1076,10 +1087,9 @@ function cancelEditOutboundMessage() {
 function moveOutboundMessageToDraft(id) {
   const item = outboundQueue.find((entry) => entry.id === id);
   if (!item || !nodes.message) return;
-  nodes.message.value = item.text;
+  setComposeMessageValue(item.text);
   removeOutboundMessage(id);
   nodes.message.focus();
-  updateSendButtonLabel();
 }
 
 function createQueueAction(label, { variant = "", onClick, ariaLabel = label, compact = false } = {}) {
@@ -2163,6 +2173,145 @@ async function saveSettings(patch) {
   }
 }
 
+function renderComposeDraftStatus(kind = "idle") {
+  const el = nodes.composeDraftStatus;
+  if (!el) return;
+  el.classList.remove("is-saving", "is-saved", "is-error");
+  if (kind === "idle") {
+    el.textContent = "";
+    el.classList.add("hidden");
+    nodes.composeDraftPath?.classList.add("hidden");
+    return;
+  }
+  el.classList.remove("hidden");
+  if (kind === "saving") {
+    el.textContent = "сохранение…";
+    el.classList.add("is-saving");
+  } else if (kind === "saved") {
+    el.textContent = "(сохранено)";
+    el.classList.add("is-saved");
+    nodes.composeDraftPath?.classList.remove("hidden");
+  } else if (kind === "error") {
+    el.textContent = "не сохранено";
+    el.classList.add("is-error");
+  } else if (kind === "dirty") {
+    el.textContent = "изменено";
+  }
+}
+
+function scheduleComposeDraftSave() {
+  clearTimeout(composeDraftSaveTimer);
+  const body = String(nodes.message?.value || "");
+  if (!body.trim()) {
+    renderComposeDraftStatus("idle");
+    composeDraftSaveTimer = setTimeout(() => void persistComposeDraft(""), COMPOSE_DRAFT_SAVE_MS);
+    return;
+  }
+  if (body !== composeDraftSavedText) {
+    renderComposeDraftStatus("dirty");
+  }
+  composeDraftSaveTimer = setTimeout(() => void persistComposeDraft(body), COMPOSE_DRAFT_SAVE_MS);
+}
+
+async function persistComposeDraft(body) {
+  const text = String(body ?? "");
+  if (text === composeDraftSavedText) {
+    renderComposeDraftStatus(text ? "saved" : "idle");
+    return;
+  }
+  if (composeDraftSaveInFlight) {
+    await composeDraftSaveInFlight.catch(() => {});
+    if (text === composeDraftSavedText) {
+      renderComposeDraftStatus(text ? "saved" : "idle");
+      return;
+    }
+  }
+  renderComposeDraftStatus("saving");
+  composeDraftSaveInFlight = apiFetch("/api/shell/compose-draft", {
+    method: "POST",
+    body: JSON.stringify({ body: text })
+  })
+    .then(() => {
+      composeDraftSavedText = text;
+      renderComposeDraftStatus(text ? "saved" : "idle");
+    })
+    .catch(() => {
+      renderComposeDraftStatus("error");
+    })
+    .finally(() => {
+      composeDraftSaveInFlight = null;
+    });
+  await composeDraftSaveInFlight;
+}
+
+async function loadComposeDraft() {
+  try {
+    const data = await apiFetch("/api/shell/compose-draft");
+    const body = String(data.body || "");
+    composeDraftSavedText = body;
+    if (body && nodes.message && !String(nodes.message.value || "").trim()) {
+      nodes.message.value = body;
+      updateSendButtonLabel();
+    }
+    renderComposeDraftStatus(body ? "saved" : "idle");
+  } catch {
+    renderComposeDraftStatus("idle");
+  }
+}
+
+async function clearComposeDraft() {
+  clearTimeout(composeDraftSaveTimer);
+  composeDraftSavedText = "";
+  renderComposeDraftStatus("idle");
+  try {
+    await apiFetch("/api/shell/compose-draft", {
+      method: "POST",
+      body: JSON.stringify({ body: "" })
+    });
+  } catch {
+    // ignore
+  }
+}
+
+function setComposeMessageValue(value, { save = true } = {}) {
+  if (!nodes.message) return;
+  nodes.message.value = String(value ?? "");
+  updateSendButtonLabel();
+  if (save) scheduleComposeDraftSave();
+}
+
+function setComposeExpanded(next) {
+  composeDraftExpanded = Boolean(next);
+  nodes.composeField?.classList.toggle("is-expanded", composeDraftExpanded);
+  nodes.composeExpandBackdrop?.classList.toggle("hidden", !composeDraftExpanded);
+  if (nodes.composeExpandBackdrop) {
+    nodes.composeExpandBackdrop.hidden = !composeDraftExpanded;
+  }
+  nodes.composeExpandToggle?.setAttribute("aria-pressed", composeDraftExpanded ? "true" : "false");
+  nodes.composeExpandToggle?.setAttribute(
+    "aria-label",
+    composeDraftExpanded ? "Свернуть" : "Развернуть на весь экран"
+  );
+  nodes.composeExpandToggle?.setAttribute(
+    "title",
+    composeDraftExpanded ? "Свернуть" : "Развернуть на весь экран"
+  );
+  nodes.composeExpandToggle
+    ?.querySelector(".shell-compose-expand-icon")
+    ?.classList.toggle("hidden", composeDraftExpanded);
+  nodes.composeExpandToggle
+    ?.querySelector(".shell-compose-collapse-icon")
+    ?.classList.toggle("hidden", !composeDraftExpanded);
+  document.body.classList.toggle("shell-compose-expanded", composeDraftExpanded);
+  if (composeDraftExpanded) {
+    nodes.message?.focus();
+  }
+}
+
+function toggleComposeExpanded() {
+  setComposeExpanded(!composeDraftExpanded);
+}
+
 async function patchShellState(patch) {
   const data = await apiFetch("/api/shell/state", {
     method: "POST",
@@ -2179,6 +2328,7 @@ async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
   if (fromCompose && nodes.message) {
     nodes.message.value = "";
     updateSendButtonLabel();
+    void clearComposeDraft();
   }
 
   if (state.messagePipelineBusy) {
@@ -2223,7 +2373,7 @@ async function sendMessageDirect(body, { fromCompose = false, voice = false } = 
       signal
     });
     if (result?.sttRefined && nodes.message && String(result.sttRefined) !== text) {
-      nodes.message.value = String(result.sttRefined);
+      setComposeMessageValue(String(result.sttRefined));
     }
     if (state.messageStopped) {
       releaseMessagePipeline();
@@ -3253,13 +3403,22 @@ function bindUi() {
 
   nodes.sendBtn.addEventListener("click", () => void sendMessage(nodes.message.value));
   nodes.sendStopBtn?.addEventListener("click", () => void stopActiveMessage());
-  nodes.message?.addEventListener("input", updateSendButtonLabel);
+  nodes.message?.addEventListener("input", () => {
+    updateSendButtonLabel();
+    scheduleComposeDraftSave();
+  });
   nodes.message.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       void sendMessage(nodes.message.value);
     }
+    if (event.key === "Escape" && composeDraftExpanded) {
+      event.preventDefault();
+      setComposeExpanded(false);
+    }
   });
+  nodes.composeExpandToggle?.addEventListener("click", toggleComposeExpanded);
+  nodes.composeExpandBackdrop?.addEventListener("click", () => setComposeExpanded(false));
 
   nodes.micBtn.addEventListener("click", toggleMic);
   nodes.ttsStopBtn?.addEventListener("click", (event) => {
@@ -3358,6 +3517,7 @@ async function boot() {
       });
     }
     await refreshStatus();
+    await loadComposeDraft();
     commitAllSettingsBaselines();
     void loadQwenPawAgents();
     connectStream();

@@ -761,6 +761,95 @@ body.shell-window-transparent {
   box-shadow: 0 0 0 1px rgba(124, 108, 255, 0.15);
 }
 
+.shell-compose-field-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.shell-compose-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shell-compose-expand-toggle {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.shell-compose-expand-toggle svg {
+  display: block;
+}
+
+.shell-compose-expand-toggle[aria-pressed="true"] {
+  border-color: rgba(124, 108, 255, 0.65);
+  background: rgba(124, 108, 255, 0.2);
+}
+
+.shell-compose-draft-status {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.shell-compose-draft-status.is-saving {
+  color: #94a3b8;
+}
+
+.shell-compose-draft-status.is-saved {
+  color: #22c55e;
+}
+
+.shell-compose-draft-status.is-error {
+  color: #ef4444;
+}
+
+.shell-compose-draft-path {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.shell-compose-field.is-expanded {
+  position: fixed;
+  inset: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  z-index: 1200;
+  padding: 14px 16px 12px;
+  border-radius: 16px;
+  background: #0a0c18;
+  border: 1px solid rgba(122, 108, 255, 0.35);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
+}
+
+.shell-compose-field.is-expanded .shell-textarea {
+  flex: 1 1 auto;
+  min-height: 0;
+  resize: none;
+}
+
+.shell-compose-expand-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1199;
+  background: rgba(4, 6, 14, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.shell-compose-expand-backdrop.hidden {
+  display: none;
+}
+
+body.shell-compose-expanded {
+  overflow: hidden;
+}
+
 .shell-compose-head {
   display: flex;
   align-items: center;

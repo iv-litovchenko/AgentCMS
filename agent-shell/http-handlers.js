@@ -86,6 +86,33 @@ function createShellHandlers(deps) {
       return true;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/shell/compose-draft") {
+      try {
+        const draft = await shellService.readComposeDraft(agentRoot);
+        deps.sendJson(res, 200, { agentId, ...draft });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to read compose draft",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/compose-draft") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const draft = await shellService.writeComposeDraft(agentRoot, payload?.body ?? "", agentId);
+        deps.sendJson(res, 200, { agentId, ...draft });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to save compose draft",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/shell/state") {
       try {
         const payload = await deps.readJsonBody(req);

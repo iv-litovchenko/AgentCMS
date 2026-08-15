@@ -17,6 +17,10 @@ field-groups:
     name: "{A2!} Основное"
     description: Что заполняет человек или агент
     collapsed: false
+  - id: work-note
+    name: "{A2!} Служебная заметка"
+    description: На чём остановились — для вас и агента
+    collapsed: false
   - id: taxonomy
     name: "{A2!} Таксономия"
     description: Категории, теги, приоритет, цвет, владелец

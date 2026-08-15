@@ -978,6 +978,7 @@ const DOC_LINKS_ACCORDION_DEFAULT_OPEN = new Set([
   "awn.topic"
 ]);
 const docAsideMiniDocNode = document.getElementById("doc-aside-mini-doc");
+const docAsideTodoStickerNode = document.getElementById("doc-aside-todo-sticker");
 const docOutlineContentNode = document.getElementById("doc-outline-content");
 const nodeWorkspaceCloseBtn = document.getElementById("node-workspace-close-btn");
 const workspaceRefreshBtn = document.getElementById("workspace-refresh-btn");
@@ -13136,6 +13137,10 @@ const AWN_QUALITY_FIELD_KEY = "awn-quality";
 const AWN_QUALITY_DEFAULT = 4;
 const AWN_QUALITY_REVIEW_THRESHOLD = 4;
 
+const AWN_NOTE_TODO_STICKER_FIELD_KEY = "awn-note-todo-sticker";
+const AWN_NOTE_TODO_STICKER_LABEL = "Заметка остановки";
+const DOC_ASIDE_TODO_STICKER_OPEN_KEY = "agentcms.docAside.todoStickerOpen.v1";
+
 function parseAwnQualityValue(raw, fallback = AWN_QUALITY_DEFAULT) {
   const text = String(raw ?? "").trim();
   if (!text) return fallback;
@@ -13171,13 +13176,17 @@ function awnQualityNeedsReview(value) {
   return parseAwnQualityValue(value) < AWN_QUALITY_REVIEW_THRESHOLD;
 }
 
+function getAwnNoteTodoStickerValue(entries = propsFormEntries) {
+  return String(getPropsEntryValueByKey(entries, AWN_NOTE_TODO_STICKER_FIELD_KEY) || "").trim();
+}
+
 const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
   memory: {
-    external: "Markdown (.md)",
-    internal: "Markdown в bundle-файле",
+    external: "Markdown (.md), CSV (.csv)",
+    internal: "Markdown (.md) — bundle-файл",
     tabular: "CSV (.csv)"
   },
-  inbox: "Markdown (.md)",
+  inbox: "Любые файлы",
   note: "Markdown (.md)",
   references: "Markdown (.md)",
   artefacts: `Любые файлы, кроме исполняемых (${BLOCKED_EXECUTABLE_EXTENSIONS_LABEL})`,
@@ -25138,6 +25147,23 @@ function getStorageSlotAllowedFileTypesLabel(spec, mode = null) {
 function getDataStorageSlotAllowedFileTypesLabel(mode = activeContentMode) {
   const slot = getDataStorageSlotForMode(mode);
   return getStorageSlotAllowedFileTypesLabel(slot, mode);
+}
+
+const WORKSPACE_COUNTER_ALLOWED_TYPES_TRIGGER_LABEL = "Разрешенные типы";
+
+function createWorkspaceCounterAllowedTypesTrigger(spec) {
+  const fileTypesHint = getStorageSlotAllowedFileTypesLabel(spec);
+  if (!fileTypesHint) return null;
+
+  const trigger = document.createElement("span");
+  trigger.className = "node-navigation-workspace-counter-types-trigger";
+  trigger.textContent = WORKSPACE_COUNTER_ALLOWED_TYPES_TRIGGER_LABEL;
+  trigger.setAttribute("role", "note");
+  trigger.setAttribute("tabindex", "0");
+  trigger.setAttribute("aria-label", `${WORKSPACE_COUNTER_ALLOWED_TYPES_TRIGGER_LABEL}: ${fileTypesHint}`);
+  applyUiTooltip(trigger, fileTypesHint, { position: "top" });
+  trigger.addEventListener("click", (event) => event.stopPropagation());
+  return trigger;
 }
 
 function shouldShowStorageSlotPolicyWarning(mode = activeContentMode) {
@@ -41771,7 +41797,9 @@ const FIELD_TYPE_ICONS = {
   "awn.field.repeater": "🔁",
   "awn.repeater": "🔁",
   "awn.field.coordinates": "📍",
-  "awn.coordinates": "📍"
+  "awn.coordinates": "📍",
+  "awn.field.number.stars": "⭐",
+  "awn.number.stars": "⭐"
 };
 
 const PROPS_FIELD_ICONS = {
@@ -41793,6 +41821,7 @@ const PROPS_FIELD_ICONS = {
   "awn-attachments": "📎",
   "awn-color": "🎨",
   "awn-emoji": "😀",
+  "awn-quality": "⭐",
   "awn-runtime-load-always": "",
   "awn-runtime-cron-schedule": "🕐"
 };
@@ -44482,6 +44511,119 @@ function renderDocAsideMiniDoc() {
   docAsideMiniDocNode.classList.remove("hidden");
 }
 
+function isDocAsideTodoStickerOpen() {
+  const stored = readStorageItem(DOC_ASIDE_TODO_STICKER_OPEN_KEY);
+  return stored == null || stored === "1";
+}
+
+function setDocAsideTodoStickerOpen(open) {
+  localStorage.setItem(DOC_ASIDE_TODO_STICKER_OPEN_KEY, open ? "1" : "0");
+}
+
+function syncDocAsideTodoStickerExpandedUi(open = isDocAsideTodoStickerOpen()) {
+  if (!docAsideTodoStickerNode) return;
+  const head = docAsideTodoStickerNode.querySelector(".doc-aside-todo-sticker-head");
+  const body = docAsideTodoStickerNode.querySelector(".doc-aside-todo-sticker-body");
+  if (!head || !body) return;
+  head.setAttribute("aria-expanded", open ? "true" : "false");
+  docAsideTodoStickerNode.classList.toggle("is-open", open);
+  body.hidden = !open;
+}
+
+function renderDocAsideTodoSticker() {
+  if (!docAsideTodoStickerNode) return;
+  if (!yamlPanelNode || yamlPanelNode.classList.contains("hidden")) {
+    docAsideTodoStickerNode.classList.add("hidden");
+    docAsideTodoStickerNode.classList.remove("is-open");
+    docAsideTodoStickerNode.innerHTML = "";
+    return;
+  }
+
+  const text = getAwnNoteTodoStickerValue();
+  if (!text) {
+    docAsideTodoStickerNode.classList.add("hidden");
+    docAsideTodoStickerNode.classList.remove("is-open");
+    docAsideTodoStickerNode.innerHTML = "";
+    return;
+  }
+
+  const isOpen = isDocAsideTodoStickerOpen();
+  docAsideTodoStickerNode.innerHTML = `
+    <button
+      type="button"
+      class="doc-aside-todo-sticker-head"
+      aria-expanded="${isOpen ? "true" : "false"}"
+      aria-controls="doc-aside-todo-sticker-body"
+      title="${isOpen ? "Свернуть заметку" : "Развернуть заметку"}"
+    >
+      <span class="doc-aside-todo-sticker-chevron" aria-hidden="true"></span>
+      <span class="doc-aside-todo-sticker-label">${escapeHtml(AWN_NOTE_TODO_STICKER_LABEL)}</span>
+    </button>
+    <div id="doc-aside-todo-sticker-body" class="doc-aside-todo-sticker-body"${isOpen ? "" : " hidden"}>${escapeHtml(text)}</div>
+  `;
+  docAsideTodoStickerNode.classList.toggle("is-open", isOpen);
+  docAsideTodoStickerNode.classList.remove("hidden");
+}
+
+function syncDocAsideTodoStickerPreview(entries = propsFormEntries) {
+  if (!docAsideTodoStickerNode) return;
+  const text = getAwnNoteTodoStickerValue(entries);
+  const body = docAsideTodoStickerNode.querySelector(".doc-aside-todo-sticker-body");
+  if (!text) {
+    if (!docAsideTodoStickerNode.classList.contains("hidden")) {
+      renderDocAsideTodoSticker();
+    }
+    return;
+  }
+  if (!body) {
+    renderDocAsideTodoSticker();
+    return;
+  }
+  body.textContent = text;
+  docAsideTodoStickerNode.classList.remove("hidden");
+}
+
+function createNavigationHeroTodoSticker(text) {
+  const wrap = document.createElement("div");
+  wrap.className = "node-navigation-hero-todo-sticker";
+
+  const label = document.createElement("span");
+  label.className = "node-navigation-hero-todo-sticker-label";
+  label.textContent = AWN_NOTE_TODO_STICKER_LABEL;
+
+  const body = document.createElement("p");
+  body.className = "node-navigation-hero-todo-sticker-body";
+  body.textContent = text;
+
+  wrap.append(label, body);
+  return wrap;
+}
+
+function syncActiveNavigationHeroTodoSticker(entries = propsFormEntries) {
+  const hero = document.querySelector("#node-overview-block .node-navigation-hero");
+  if (!hero) return;
+  const footer = hero.querySelector(".node-navigation-hero-footer");
+  if (!footer) return;
+
+  const text = getAwnNoteTodoStickerValue(entries);
+  let sticker = footer.querySelector(".node-navigation-hero-todo-sticker");
+  if (!text) {
+    sticker?.remove();
+    return;
+  }
+
+  if (!sticker) {
+    sticker = createNavigationHeroTodoSticker(text);
+    const blurb = footer.querySelector(".node-navigation-hero-footer-blurb");
+    if (blurb) blurb.insertAdjacentElement("afterend", sticker);
+    else footer.prepend(sticker);
+    return;
+  }
+
+  const body = sticker.querySelector(".node-navigation-hero-todo-sticker-body");
+  if (body) body.textContent = text;
+}
+
 function syncDocAsideUi({
   outlinePanelAvailable = isDocAsideOutlineTabAvailable(),
   propsPanelAvailable = isDocAsidePropsTabAvailable(),
@@ -44543,6 +44685,7 @@ function syncDocAsideUi({
   syncPropsPanelsUi();
 
   renderDocAsideMiniDoc();
+  renderDocAsideTodoSticker();
 }
 
 function setPropsYamlToggleLabel(text) {
@@ -44952,6 +45095,7 @@ function renderPropsWebUrlBlock() {
 
 const DEFAULT_PROPS_FIELD_GROUPS = [
   { id: "content", name: "Основное", collapsed: false },
+  { id: "work-note", name: "Служебная заметка", collapsed: false },
   { id: "nav", name: "Дерево и вид", collapsed: true },
   { id: "runtime", name: "Runtime агента", collapsed: true },
   { id: "taxonomy", name: "Таксономия", collapsed: true },
@@ -44963,6 +45107,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-emoji": "content",
   "awn-status": "content",
   "awn-description": "content",
+  "awn-note-todo-sticker": "work-note",
   "awn-tags": "taxonomy",
   "awn-preview": "content",
   "awn-web-url": "content",
@@ -45473,6 +45618,7 @@ function renderPropsForm() {
   }
 
   syncRuntimePropsFormVisibility();
+  syncDocAsideTodoStickerPreview();
 }
 
 function isTopicOnlyPropsFieldKey(key) {
@@ -46192,10 +46338,10 @@ function createPropsFormStarsControl(entry, meta, { locked = false } = {}) {
   zeroBtn.setAttribute("aria-label", "0 — очень низкое качество");
   zeroBtn.disabled = locked;
 
-  const starsRow = document.createElement("div");
-  starsRow.className = "props-form-stars-row";
-  starsRow.setAttribute("role", "radiogroup");
-  starsRow.setAttribute("aria-label", "Качество проверки");
+  const scale = document.createElement("div");
+  scale.className = "props-form-stars-scale";
+  scale.setAttribute("role", "radiogroup");
+  scale.setAttribute("aria-label", "Качество проверки");
 
   const display = document.createElement("span");
   display.className = "props-form-stars-display";
@@ -46203,11 +46349,17 @@ function createPropsFormStarsControl(entry, meta, { locked = false } = {}) {
 
   const hint = document.createElement("span");
   hint.className = "props-form-stars-hint";
+  hint.hidden = true;
   if (meta.hint) hint.title = meta.hint;
 
+  const segments = [];
+
   function syncHint(value) {
-    hint.textContent = awnQualityNeedsReview(value) ? "нужна обработка" : "";
-    display.classList.toggle("is-needs-review", awnQualityNeedsReview(value));
+    const needsReview = awnQualityNeedsReview(value);
+    hint.hidden = !needsReview;
+    hint.textContent = needsReview ? "!" : "";
+    display.title = getAwnQualityTooltip(value);
+    display.classList.toggle("is-needs-review", needsReview);
     display.classList.toggle("is-high", value >= 8);
     zeroBtn.classList.toggle("is-active", value === 0);
   }
@@ -46216,10 +46368,10 @@ function createPropsFormStarsControl(entry, meta, { locked = false } = {}) {
     const value = parseAwnQualityValue(next, AWN_QUALITY_DEFAULT);
     hidden.value = String(value);
     display.textContent = String(value);
-    starsRow.querySelectorAll(".props-form-stars-star").forEach((btn) => {
-      const starValue = Number(btn.dataset.value);
-      btn.classList.toggle("is-filled", value > 0 && starValue <= value);
-      btn.setAttribute("aria-checked", value === starValue ? "true" : "false");
+    segments.forEach((btn) => {
+      const segmentValue = Number(btn.dataset.value);
+      btn.classList.toggle("is-filled", value > 0 && segmentValue <= value);
+      btn.setAttribute("aria-checked", value === segmentValue ? "true" : "false");
     });
     syncHint(value);
     hidden.dispatchEvent(new Event("input", { bubbles: true }));
@@ -46231,25 +46383,25 @@ function createPropsFormStarsControl(entry, meta, { locked = false } = {}) {
     setValue(0);
   });
 
-  for (let starValue = 1; starValue <= 10; starValue += 1) {
+  for (let segmentValue = 1; segmentValue <= 10; segmentValue += 1) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "props-form-stars-star";
-    btn.dataset.value = String(starValue);
+    btn.className = "props-form-stars-segment";
+    btn.dataset.value = String(segmentValue);
     btn.setAttribute("role", "radio");
-    btn.setAttribute("aria-checked", initial === starValue ? "true" : "false");
-    btn.title = getAwnQualityTooltip(starValue);
-    btn.setAttribute("aria-label", `${starValue} из 10`);
-    btn.textContent = "★";
+    btn.setAttribute("aria-checked", initial === segmentValue ? "true" : "false");
+    btn.title = getAwnQualityTooltip(segmentValue);
+    btn.setAttribute("aria-label", `${segmentValue} из 10`);
     btn.disabled = locked;
     btn.addEventListener("click", (event) => {
       event.preventDefault();
-      setValue(starValue);
+      setValue(segmentValue);
     });
-    starsRow.appendChild(btn);
+    scale.appendChild(btn);
+    segments.push(btn);
   }
 
-  ui.append(zeroBtn, starsRow, display, hint);
+  ui.append(zeroBtn, scale, display, hint);
   wrap.append(ui, hidden);
   setValue(initial);
   return wrap;
@@ -52398,6 +52550,11 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     blurb.textContent = hasDescription ? description : OVERVIEW_DESCRIPTION_PLACEHOLDER;
     footer.appendChild(blurb);
 
+    const stickerText = getAwnNoteTodoStickerValue(options.propEntries || []);
+    if (stickerText) {
+      footer.appendChild(createNavigationHeroTodoSticker(stickerText));
+    }
+
     if (footerMeta) {
       footer.appendChild(footerMeta);
     }
@@ -52985,8 +53142,11 @@ function appendNavigationHeroTags(hero, propEntries = []) {
   const tagsBar = createEntryOverviewTagsBar(propEntries);
   if (!tagsBar) return null;
   const blurb = hero.querySelector(".node-navigation-hero-footer-blurb");
-  if (blurb) {
-    blurb.insertAdjacentElement("afterend", tagsBar);
+  const anchor =
+    hero.querySelector(".node-navigation-hero-todo-sticker") ||
+    blurb;
+  if (anchor) {
+    anchor.insertAdjacentElement("afterend", tagsBar);
     return tagsBar;
   }
   const overviewDesc = hero.querySelector(".node-overview-desc");
@@ -61030,7 +61190,7 @@ function applyWorkspaceCounterLabelForSlot(labelNode, slot) {
   if (!isDeprecatedRepositoryCounterSlot(slot)) {
     const spec = resolveStorageSlotSpecFromCounterSlot(slot);
     const title = slot.label || resolveDataStorageSlotDisplayLabel(slot.id || spec?.key);
-    const fileTypesHint = getStorageSlotAllowedFileTypesLabel(spec);
+    const typesTrigger = createWorkspaceCounterAllowedTypesTrigger(spec);
 
     labelNode.replaceChildren();
     labelNode.classList.remove(
@@ -61038,18 +61198,12 @@ function applyWorkspaceCounterLabelForSlot(labelNode, slot) {
       "node-navigation-workspace-counter-label-note"
     );
 
-    if (fileTypesHint) {
+    if (typesTrigger) {
       labelNode.classList.add("node-navigation-workspace-counter-label--stacked");
       const main = document.createElement("span");
       main.className = "node-navigation-workspace-counter-label-main";
       setWorkspaceCounterLabelText(main, title);
-
-      const hint = document.createElement("span");
-      hint.className = "node-navigation-workspace-counter-label-hint";
-      hint.textContent = fileTypesHint;
-      hint.title = fileTypesHint;
-
-      labelNode.append(main, hint);
+      labelNode.append(main, typesTrigger);
       return;
     }
 
@@ -61161,12 +61315,7 @@ function updateEntryOverviewDataSlotBarCounts(wrap, slots = []) {
 
     btn.title = isDeprecatedRepositoryCounterSlot(slot)
       ? "Репозитории — откажемся от этого слота"
-      : (() => {
-          const spec = resolveStorageSlotSpecFromCounterSlot(slot);
-          const fileTypesHint = getStorageSlotAllowedFileTypesLabel(spec);
-          const baseTitle = slot.title;
-          return fileTypesHint && baseTitle ? `${baseTitle}\n${fileTypesHint}` : baseTitle || fileTypesHint || "";
-        })();
+      : slot.title || "";
     btn.className = `${getWorkspaceCounterButtonStateClasses(slot)}${btn.classList.contains("is-active") ? " is-active" : ""}`;
     btn.classList.remove("is-pending", "is-unread");
     if (slot.tone) btn.classList.add(`is-${slot.tone}`);
@@ -61723,12 +61872,10 @@ function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onC
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = `${getWorkspaceCounterButtonStateClasses(slot)}${isActive ? " is-active" : ""}`;
-  const spec = resolveStorageSlotSpecFromCounterSlot(slot);
-  const fileTypesHint = getStorageSlotAllowedFileTypesLabel(spec);
   const baseTitle = isDeprecatedRepositoryCounterSlot(slot)
     ? "Репозитории — откажемся от этого слота"
     : slot.title;
-  btn.title = fileTypesHint && baseTitle ? `${baseTitle}\n${fileTypesHint}` : baseTitle || fileTypesHint || "";
+  btn.title = baseTitle || "";
   btn.setAttribute("aria-selected", isActive ? "true" : "false");
   if (isDeprecatedRepositoryCounterSlot(slot)) {
     btn.disabled = true;
@@ -93225,6 +93372,15 @@ docAsideMiniDocNode?.addEventListener("click", (event) => {
   toggleBtn.title = nextOpen ? "Свернуть подсказку" : "Развернуть подсказку";
 });
 
+docAsideTodoStickerNode?.addEventListener("click", (event) => {
+  const toggleBtn = event.target.closest(".doc-aside-todo-sticker-head");
+  if (!toggleBtn || !docAsideTodoStickerNode.contains(toggleBtn)) return;
+  const nextOpen = !docAsideTodoStickerNode.classList.contains("is-open");
+  setDocAsideTodoStickerOpen(nextOpen);
+  syncDocAsideTodoStickerExpandedUi(nextOpen);
+  toggleBtn.title = nextOpen ? "Свернуть заметку" : "Развернуть заметку";
+});
+
 saveContentBtn.addEventListener("click", saveContent);
 saveSystemFileBtn?.addEventListener("click", saveContent);
 fileHistoryBtn?.addEventListener("click", () => {
@@ -93256,6 +93412,8 @@ function handlePropsFormFieldsInput(event) {
   readPropsFormIntoEntries();
   syncYamlFromPropsForm();
   scheduleEditorDirtyCheck();
+  syncDocAsideTodoStickerPreview();
+  syncActiveNavigationHeroTodoSticker();
 }
 propsFormFieldsNode?.addEventListener("input", handlePropsFormFieldsInput);
 propsFormFieldsNode?.addEventListener("change", handlePropsFormFieldsInput);

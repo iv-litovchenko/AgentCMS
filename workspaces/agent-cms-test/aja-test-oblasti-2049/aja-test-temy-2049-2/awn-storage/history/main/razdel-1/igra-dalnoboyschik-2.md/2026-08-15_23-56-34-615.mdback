@@ -1,48 +1,22 @@
 ---
-awn-status: open
-awn-quality: 4
+awn-name: игра дальнобойщик 2
 awn-emoji: ""
-awn-note-todo-sticker: 009
-awn-category: ""
-awn-owner: ""
-awn-priority: ""
-awn-color: ""
+awn-status: open
+awn-description: "Культовый российский автосимулятор дальнобойщика (SoftLab-NSK, 2001): открытый мир, экономика, милиция и мафия. Западное название — Hard Truck 2 / King of the Road."
 awn-tags:
   - игра
   - автосимулятор
   - SoftLab-NSK
   - Дальнобойщики
-awn-location-label: ""
-awn-location-coordinates: ""
-awn-is-real-world-object: false
-awn-is-real-world-event: false
 awn-type: awn.content.record
 awn-create: "2026-08-08T14:30"
-awn-mindmap-enabled: true
-awn-mindmap-type: optional
-awn-mindmap-color: slate
-awn-mindmap-size: auto
-awn-mindmap-layout-independent: false
-awn-mindmap-direction: auto
-awn-attachments: awn-storage/assets/attachments/47ee4862-2d97-44dd-b7e4-81ad60349fd1-20260808215005.png
-awn-description: "Культовый российский автосимулятор дальнобойщика (SoftLab-NSK, 2001): открытый мир, экономика, милиция и мафия. Западное название — Hard Truck 2 / King of the Road."
-awn-main: false
-awn-materials: true
-awn-name: игра дальнобойщик 2
+awn-update: 2026-08-08T21:50:11.045Z
+awn-version: 5
 awn-preview: awn-storage/assets/pasted/dalnobojschik-2-oblozhka.jpg
-awn-runtime-commands: false
-awn-runtime-cron: false
-awn-runtime-cron-schedule: ""
-awn-runtime-heartbeat: false
-awn-runtime-load-always: false
-awn-sort: 
 awn-web-url: ""
-field-1: ""
-field-12: ""
+awn-attachments: awn-storage/assets/attachments/47ee4862-2d97-44dd-b7e4-81ad60349fd1-20260808215005.png
 x-field-1: ""
 x-field-2: ""
-awn-update: 2026-08-15T20:56:34.609Z
-awn-version: 6
 ---
 
 # Игра «Дальнобойщик 2» (Hard Truck 2)

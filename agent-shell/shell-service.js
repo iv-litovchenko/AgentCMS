@@ -19,6 +19,7 @@ const { syncLatestReplyFromQwenPaw } = require("./qwenpaw-sync");
 const SETTINGS_DIR = ".agent-shell";
 const SETTINGS_FILE = "settings.json";
 const STATE_FILE = "state.json";
+const COMPOSE_DRAFT_FILE = "compose-draft.md";
 
 const PHASE_WAITING = "waiting";
 const PHASE_LISTENING = "listening";
@@ -148,6 +149,14 @@ function stateAbsolute(agentRoot) {
   return path.join(agentRoot, SETTINGS_DIR, STATE_FILE);
 }
 
+function composeDraftAbsolute(agentRoot) {
+  return path.join(agentRoot, SETTINGS_DIR, COMPOSE_DRAFT_FILE);
+}
+
+function composeDraftRelativePath() {
+  return path.join(SETTINGS_DIR, COMPOSE_DRAFT_FILE);
+}
+
 function normalizeSettings(raw) {
   const merged = { ...DEFAULT_SETTINGS, ...(raw && typeof raw === "object" ? raw : {}) };
   if (!String(merged.topicPath || "").trim()) merged.topicPath = DEFAULT_SETTINGS.topicPath;
@@ -221,6 +230,47 @@ async function writeSettings(agentRoot, patch, agentId) {
   await fs.rename(tmp, settingsAbsolute(agentRoot));
   emitShellEvent(agentId, "settings", next);
   return next;
+}
+
+async function readComposeDraft(agentRoot) {
+  const relativePath = composeDraftRelativePath();
+  try {
+    const body = await fs.readFile(composeDraftAbsolute(agentRoot), "utf-8");
+    const stat = await fs.stat(composeDraftAbsolute(agentRoot));
+    return {
+      body,
+      path: relativePath,
+      updatedAt: stat.mtime.toISOString()
+    };
+  } catch {
+    return { body: "", path: relativePath, updatedAt: null };
+  }
+}
+
+async function writeComposeDraft(agentRoot, body, agentId) {
+  const text = String(body ?? "");
+  const relativePath = composeDraftRelativePath();
+  const target = composeDraftAbsolute(agentRoot);
+  await fs.mkdir(path.join(agentRoot, SETTINGS_DIR), { recursive: true });
+
+  if (!text) {
+    await fs.unlink(target).catch(() => {});
+    const payload = { body: "", path: relativePath, updatedAt: null };
+    emitShellEvent(agentId, "compose_draft", payload);
+    return payload;
+  }
+
+  const tmp = `${target}.tmp`;
+  await fs.writeFile(tmp, text, "utf-8");
+  await fs.rename(tmp, target);
+  const stat = await fs.stat(target);
+  const payload = {
+    body: text,
+    path: relativePath,
+    updatedAt: stat.mtime.toISOString()
+  };
+  emitShellEvent(agentId, "compose_draft", payload);
+  return payload;
 }
 
 function applyOutboundSettings(settings, overrides = {}) {
@@ -970,6 +1020,8 @@ module.exports = {
   DEFAULT_SETTINGS,
   readSettings,
   writeSettings,
+  readComposeDraft,
+  writeComposeDraft,
   applyOutboundSettings,
   getState,
   patchState,
