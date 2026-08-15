@@ -403,6 +403,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .section-head{margin:0 0 28px;text-align:center}
 .section-head h2{margin:0 0 8px;font-size:clamp(24px,3vw,32px);letter-spacing:-.5px;font-weight:800}
 .section-head p{margin:0;color:var(--muted);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+#peer-share{scroll-margin-top:calc(var(--cosmos-dock-h, 72px) + 16px)}
 
 .block{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:24px}
 .block+.block{margin-top:16px}
@@ -430,9 +431,6 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   margin:14px 0 0;font-size:14px;line-height:1.4;font-weight:500;color:#64748b;letter-spacing:.01em
 }
 .lead-statement-cms abbr{text-decoration:none;border-bottom:1px dotted #94a3b8;cursor:help}
-@media(min-width:960px){
-  .lead-statement-text{white-space:nowrap}
-}
 
 /* VS visual */
 .idea-visual{margin-top:22px;padding:22px;border-radius:18px;background:linear-gradient(145deg,#f8faff,#eef4ff);border:1px solid #dbe6ff}
@@ -468,6 +466,39 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .card-extra,.aud-points{margin-top:18px;padding-top:18px;border-top:1px solid rgba(221,227,238,.9);flex:none}
 .aud-points{display:flex;flex-direction:column;gap:10px}
 .aud-points span{display:block;font-size:14px;color:#4b5c72;line-height:1.5}
+.aud-access-note{
+  margin-top:14px;padding:14px 16px;border-radius:14px;flex:none;
+  display:flex;align-items:flex-start;gap:12px;border:2px solid transparent
+}
+.aud-card.personal .aud-access-note{
+  background:linear-gradient(135deg,#fff 0%,#eef4ff 100%);
+  border-color:#93c5fd;box-shadow:0 8px 24px rgba(57,120,255,.12)
+}
+.aud-card.business .aud-access-note{
+  background:linear-gradient(135deg,#fff 0%,#ecfdf5 100%);
+  border-color:#6ee7b7;box-shadow:0 8px 24px rgba(16,185,129,.12)
+}
+.aud-access-ico{
+  width:44px;height:44px;border-radius:12px;flex:none;
+  display:grid;place-items:center;font-size:22px;line-height:1
+}
+.aud-card.personal .aud-access-ico{background:#dbeafe;border:1px solid #93c5fd}
+.aud-card.business .aud-access-ico{background:#d1fae5;border:1px solid #6ee7b7}
+.aud-access-body{min-width:0;flex:1}
+.aud-access-kicker{
+  display:block;margin:0 0 6px;font-size:11px;font-weight:800;
+  letter-spacing:.08em;text-transform:uppercase
+}
+.aud-card.personal .aud-access-kicker{color:#1d4ed8}
+.aud-card.business .aud-access-kicker{color:#047857}
+.aud-access-note p{margin:0;font-size:13px;line-height:1.55;font-weight:700;color:#1e293b}
+.aud-access-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.aud-access-tags span{
+  display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:999px;
+  font-size:11px;font-weight:700;line-height:1.2;white-space:nowrap
+}
+.aud-card.personal .aud-access-tags span{background:#fff;border:1px solid #bfdbfe;color:#1e40af}
+.aud-card.business .aud-access-tags span{background:#fff;border:1px solid #a7f3d0;color:#065f46}
 .info-grid{display:grid;gap:16px}
 @media(min-width:640px){.info-grid.two{grid-template-columns:1fr 1fr}}
 @media(min-width:900px){.info-grid.three{grid-template-columns:repeat(3,1fr)}}
@@ -492,9 +523,18 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .box-visual .box-tags span{font-size:11px;font-weight:700;padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
 
 .formula{text-align:center;padding:20px;border-radius:18px;background:linear-gradient(135deg,#edf3ff,#f5f0ff);border:1px solid #dbe6ff;margin-top:16px}
-.formula .eq{font-size:clamp(22px,3.5vw,34px);font-weight:900;letter-spacing:-.5px;background:linear-gradient(90deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.25}
-.formula .eq-n{font-size:.72em;font-weight:800;opacity:.85}
-.formula .eq-synergy{font-size:.58em;font-weight:800;letter-spacing:.01em;opacity:.9}
+.formula .eq{
+  font-size:clamp(22px,3.5vw,34px);font-weight:900;letter-spacing:-.5px;line-height:1.25;
+  color:var(--blue3);
+  background:linear-gradient(90deg,var(--blue),var(--purple));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent
+}
+.formula .eq-result{
+  display:inline-block;margin-left:.12em;padding:.06em .28em;border-radius:10px;
+  background:linear-gradient(90deg,rgba(57,120,255,.12),rgba(91,67,214,.12));
+  -webkit-text-fill-color:initial;color:#4338ca
+}
+.formula .eq-synergy{font-size:.72em;font-weight:800;letter-spacing:.01em;color:#5b43d6}
 .formula p{margin:8px 0 0;font-size:14px;color:#4f6078;line-height:1.5}
 
 .sidecar-demo{display:grid;grid-template-columns:72px 1fr;gap:14px;align-items:center;padding:14px;background:rgba(255,255,255,.72);border-radius:16px;border:1px solid rgba(221,227,238,.95)}
@@ -583,7 +623,80 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .agents-connector line{stroke:#34d399;stroke-width:2;opacity:.7}
 .agents-row{display:grid;gap:14px;width:100%}
 @media(min-width:640px){.agents-row{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:639px){.agents-connector{display:none}}
+@media(max-width:639px){
+  .agents-connector{display:none}
+  .agents-map{gap:18px}
+  .agents-map .agent-card.orchestrator{margin-bottom:2px;padding-bottom:26px}
+}
+.agent-exchange{
+  display:grid;gap:18px;max-width:920px;margin:0 auto
+}
+.agent-exchange-lead{
+  margin:0;font-size:14px;color:var(--muted);line-height:1.55;text-align:center;max-width:58ch;margin-left:auto;margin-right:auto
+}
+.peer-share-scene{
+  display:grid;gap:18px;align-items:stretch
+}
+@media(min-width:760px){
+  .peer-share-scene{grid-template-columns:1fr minmax(180px,240px) 1fr;align-items:center;gap:20px}
+}
+.peer-person{
+  display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px 20px 22px;
+  border-radius:var(--r);border:1px solid var(--line);background:#fff;box-shadow:var(--shadow-sm);text-align:center
+}
+.peer-person.marina{border-color:#f9a8d4;background:linear-gradient(180deg,#fff 0%,#fdf2f8 100%)}
+.peer-person.vlad{border-color:#93c5fd;background:linear-gradient(180deg,#fff 0%,#eff6ff 100%)}
+.peer-phone{
+  width:92px;padding:10px 9px 12px;border-radius:24px;
+  background:linear-gradient(180deg,#334155 0%,#0f172a 100%);
+  border:3px solid #64748b;box-shadow:0 16px 36px rgba(15,23,42,.22)
+}
+.peer-phone-notch{width:38px;height:5px;border-radius:999px;background:#475569;margin:0 auto 8px}
+.peer-phone-screen{
+  width:100%;aspect-ratio:9/15;border-radius:14px;
+  background:linear-gradient(180deg,#eef4ff 0%,#f5f0ff 100%);
+  border:1px solid rgba(255,255,255,.14);
+  display:grid;place-items:center;font-size:34px;line-height:1
+}
+.peer-name{margin:0;font-size:20px;font-weight:800;letter-spacing:-.2px}
+.peer-person.marina .peer-name{color:#be185d}
+.peer-person.vlad .peer-name{color:#1d4ed8}
+.peer-agent{margin:0;font-size:13px;color:var(--muted);line-height:1.5}
+.peer-action{
+  display:block;width:100%;margin-top:4px;padding:10px 12px;border-radius:12px;
+  font-size:12px;font-weight:650;line-height:1.45;color:#334155;
+  background:rgba(255,255,255,.78);border:1px solid rgba(221,227,238,.95)
+}
+.peer-person.marina .peer-action{border-color:#fbcfe8;background:rgba(255,255,255,.92)}
+.peer-person.vlad .peer-action{border-color:#bfdbfe;background:rgba(255,255,255,.92)}
+.peer-hub-stack{
+  display:flex;flex-direction:column;gap:12px;width:100%;min-height:100%;justify-content:center
+}
+.peer-hub{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  padding:18px 16px;border-radius:18px;text-align:center;
+  background:#fff;border:2px dashed #c4b5fd;box-shadow:0 10px 28px rgba(91,67,214,.1);min-height:auto;flex:1
+}
+.peer-hub-ico{font-size:32px;line-height:1}
+.peer-hub strong{font-size:13px;font-weight:800;color:#5b43d6;letter-spacing:.02em}
+.peer-hub p{margin:0;font-size:12px;color:var(--muted);line-height:1.5;max-width:22ch}
+.peer-hub-tag{
+  display:inline-block;margin-top:2px;padding:4px 9px;border-radius:999px;
+  font-size:10px;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  background:#faf8ff;border:1px solid #ddd6fe;color:#5b43d6
+}
+.peer-hub-examples{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:2px}
+.peer-hub-examples span{
+  display:inline-flex;align-items:center;gap:3px;padding:5px 10px;border-radius:999px;
+  font-size:11px;font-weight:700;background:#faf8ff;border:1px solid #ddd6fe;color:#5b43d6;white-space:nowrap
+}
+.peer-hub-arrows{display:none;width:100%;max-width:760px;margin:0 auto;height:36px}
+@media(min-width:760px){.peer-hub-arrows{display:block}}
+.peer-hub-arrows svg{width:100%;height:100%;display:block}
+.peer-hub-arrows path{
+  fill:none;stroke:#c4b5fd;stroke-width:2;stroke-linecap:round;stroke-dasharray:6 4
+}
+.graph-legend .legend-purple{background:#faf8ff;border-color:#ddd6fe;color:#5b43d6}
 
 .graph-hub{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;
@@ -1576,13 +1689,13 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
             <div class="result">Итог: совместный порядок, который <em>ИИ</em> и <em>Вы</em> поддерживаете вместе</div>
           </div>
           <div class="formula">
-            <div class="eq">вы <span class="eq-n">(1)</span> + агент <span class="eq-n">(1)</span> ≥ 2 <span class="eq-synergy">(синергия)</span></div>
+            <div class="eq">вы + агент <span class="eq-result">&gt;= 2 <span class="eq-synergy">(синергия)</span></span></div>
             <p>Всё стекается в одно место. Вы ведёте данные вместе — и понимаете друг друга без перевода.</p>
           </div>
         </div>
 
         <blockquote class="lead-statement">
-          <p class="lead-statement-text"><strong>Agent CMS</strong> — система управления контекстом и контентом для LLM-агентов</p>
+          <p class="lead-statement-text"><strong>Agent CMS</strong> — система управления памятью, контекстом и содержимым для LLM-агентов, которые являются вашими цифровыми спутниками в личной и корпоративной жизни</p>
           <p class="lead-statement-cms">CMS — <abbr title="Content Management System">Content Management System</abbr> · <abbr title="Context Management System">Context Management System</abbr></p>
         </blockquote>
       </div>
@@ -1601,6 +1714,18 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
               <span>Голосом — записал, нашёл, напомнил</span>
               <span>Структура понятна вам и агенту</span>
             </div>
+            <div class="aud-access-note">
+              <div class="aud-access-ico" aria-hidden="true">💻</div>
+              <div class="aud-access-body">
+                <strong class="aud-access-kicker">Доступ к данным</strong>
+                <p>Полный доступ к своим файлам — на компьютере и при необходимости на своём сервере 24/7 с синхронизацией</p>
+                <div class="aud-access-tags">
+                  <span>💻 Компьютер</span>
+                  <span>🖥️ Сервер 24/7</span>
+                  <span>🔄 Синхронизация</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="aud-card business">
             <div class="aud-emoji">🏢</div>
@@ -1610,6 +1735,18 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
               <span>Рабочие области и темы по отделам</span>
               <span>Единые правила для людей и ИИ</span>
               <span>MCP — подключение корпоративных агентов</span>
+            </div>
+            <div class="aud-access-note">
+              <div class="aud-access-ico" aria-hidden="true">☁️</div>
+              <div class="aud-access-body">
+                <strong class="aud-access-kicker">Доступ к данным</strong>
+                <p>Только через облако (сервер). Доступ к данным — по ролям (RBAC/ACL): каждый видит и делает только то, что разрешено. Полный доступ к файлам проекта — у администратора сервера</p>
+                <div class="aud-access-tags">
+                  <span>☁️ Облако (сервер 24/7)</span>
+                  <span title="Role-Based Access Control · Access Control List">🔐 Доступ по ролям</span>
+                  <span>🚫 Без локальных файлов</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1750,6 +1887,66 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
             <span class="legend-green">🎭 Личный агент — оркестратор, доступ ко всем</span>
             <span>🗄️ У каждого — своё хранилище</span>
             <span>Проект А ⊥ Проект Б ⊥ Работа В</span>
+          </div>
+        </div>
+
+        <div class="section-head" style="margin-top:44px" id="peer-share"><h2>Обмен между людьми</h2><p>Марина и Владислав — у каждого смартфон и свой агент</p></div>
+        <div class="graph-block">
+          <p class="graph-lead">Они не сидят за одним компьютером — у каждого телефон. Но могут обмениваться данными: заметкой, файлом или голосом — через общую тему на сервере или через взаимодействие системы.</p>
+          <div class="agent-exchange" aria-label="Марина и Владислав обмениваются данными">
+            <div class="peer-hub-arrows" aria-hidden="true">
+              <svg viewBox="0 0 760 36" preserveAspectRatio="xMidYMid meet">
+                <path d="M 120 18 H 310"/>
+                <path d="M 450 18 H 640"/>
+                <polygon points="310,18 302,14 302,22" fill="#c4b5fd" stroke="none"/>
+                <polygon points="450,18 458,14 458,22" fill="#c4b5fd" stroke="none"/>
+              </svg>
+            </div>
+            <div class="peer-share-scene">
+              <div class="peer-person marina">
+                <div class="peer-phone" aria-hidden="true">
+                  <div class="peer-phone-notch"></div>
+                  <div class="peer-phone-screen">👩</div>
+                </div>
+                <h3 class="peer-name">Марина</h3>
+                <p class="peer-agent">📱 Agent Shell · 🎭 личный агент</p>
+                <span class="peer-action">«Запиши смету по ремонту кухни»</span>
+              </div>
+              <div class="peer-hub-stack">
+                <div class="peer-hub">
+                  <span class="peer-hub-ico">☁️</span>
+                  <strong>Общая тема</strong>
+                  <p>«Ремонт кухни» на сервере — видят оба</p>
+                  <span class="peer-hub-tag">shared/kitchen/</span>
+                </div>
+                <div class="peer-hub">
+                  <span class="peer-hub-ico">↔️</span>
+                  <strong>Обмен данными</strong>
+                  <p>Например, записи:</p>
+                  <div class="peer-hub-examples">
+                    <span>👤 Контакт</span>
+                    <span>📚 Книга</span>
+                    <span>🎬 Фильм</span>
+                    <span>📝 Заметка</span>
+                  </div>
+                </div>
+              </div>
+              <div class="peer-person vlad">
+                <div class="peer-phone" aria-hidden="true">
+                  <div class="peer-phone-notch"></div>
+                  <div class="peer-phone-screen">👨</div>
+                </div>
+                <h3 class="peer-name">Владислав</h3>
+                <p class="peer-agent">📱 Agent Shell · 🎭 свой агент</p>
+                <span class="peer-action">«Покажи, что добавила Марина»</span>
+              </div>
+            </div>
+          </div>
+          <div class="graph-legend">
+            <span class="legend-purple">📱 Смартфон — диалог с агентом в любой момент</span>
+            <span class="legend-purple">↔️ Общая тема — мост между хранилищами</span>
+            <span>🎙 Голосом или текстом — данные синхронизируются</span>
+            <span>🔒 Личное у каждого остаётся в своём хранилище</span>
           </div>
         </div>
       </div>
@@ -2755,7 +2952,7 @@ renderSlots();renderCases();renderGoals();
   if(typeof ResizeObserver!=='undefined') new ResizeObserver(syncDockH).observe(dock);
 })();
 
-const obsSections=['hero-band','problem','audience','life-graph','structure','fields','agents','shell','ecosystem','cases','features','search','connect','goals','dialogue','case-example','principles','cube-room','footer'];
+const obsSections=['hero-band','problem','audience','life-graph','peer-share','structure','fields','agents','shell','ecosystem','cases','features','search','connect','goals','dialogue','case-example','principles','cube-room','footer'];
 
 function dockOffset(){
   return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cosmos-dock-h'))||72;
