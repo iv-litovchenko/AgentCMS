@@ -224,6 +224,9 @@ const contentSearchMatchNode = document.getElementById("content-search-match");
 const contentSearchHelpBtnNode = document.getElementById("content-search-help-btn");
 const contentSearchHelpPopoverNode = document.getElementById("content-search-help-popover");
 const contentSearchResultsNode = document.getElementById("content-search-results");
+const contentSearchPathScopeNode = document.getElementById("content-search-path-scope");
+const contentSearchPathScopeLabelNode = document.getElementById("content-search-path-scope-label");
+const contentSearchPathScopeClearNode = document.getElementById("content-search-path-scope-clear");
 const menuCardsFilterWrapNode = document.getElementById("menu-cards-filter-wrap");
 const menuCardsPreviewOnlyNode = document.getElementById("menu-cards-preview-only");
 const menuViewTreeBtn = document.getElementById("menu-view-tree-btn");
@@ -12652,6 +12655,8 @@ const agentGraphSettingsByAgent = loadAgentGraphSettingsByAgent();
 let menuCardsPreviewOnly = loadCardsPreviewOnly();
 let contentSearchTimer = null;
 let contentSearchRequestId = 0;
+const CONTENT_SEARCH_PATH_SCOPE_KEY = "contentSearchPathScope";
+let contentSearchPathScope = loadContentSearchPathScope();
 let landingSearchTimer = null;
 let landingSearchRequestId = 0;
 const LANDING_SEARCH_AGENTS_KEY = "agentcms.landingSearchAgents.v1";
@@ -21266,6 +21271,159 @@ function updateContentSearchFiltersState() {
   }
 }
 
+function loadContentSearchPathScope() {
+  try {
+    const raw = sessionStorage.getItem(CONTENT_SEARCH_PATH_SCOPE_KEY);
+    if (!raw) return { pathPrefix: "", label: "", kind: "all", sourcePath: "" };
+    const parsed = JSON.parse(raw);
+    const pathPrefix = String(parsed?.pathPrefix || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
+    if (!pathPrefix) return { pathPrefix: "", label: "", kind: "all", sourcePath: "" };
+    return {
+      pathPrefix,
+      label: String(parsed?.label || pathPrefix.split("/").pop() || pathPrefix),
+      kind: String(parsed?.kind || "folder"),
+      sourcePath: String(parsed?.sourcePath || "")
+    };
+  } catch {
+    return { pathPrefix: "", label: "", kind: "all", sourcePath: "" };
+  }
+}
+
+function saveContentSearchPathScope(scope) {
+  contentSearchPathScope = scope || { pathPrefix: "", label: "", kind: "all", sourcePath: "" };
+  try {
+    if (contentSearchPathScope.pathPrefix) {
+      sessionStorage.setItem(CONTENT_SEARCH_PATH_SCOPE_KEY, JSON.stringify(contentSearchPathScope));
+    } else {
+      sessionStorage.removeItem(CONTENT_SEARCH_PATH_SCOPE_KEY);
+    }
+  } catch {
+    // ignore storage errors
+  }
+  renderContentSearchPathScope();
+  updateContentSearchPlaceholder();
+}
+
+function getContentSearchPathPrefix() {
+  return String(contentSearchPathScope?.pathPrefix || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+}
+
+function clearContentSearchPathScope() {
+  saveContentSearchPathScope({ pathPrefix: "", label: "", kind: "all", sourcePath: "" });
+  scheduleContentSearch();
+}
+
+function renderContentSearchPathScope() {
+  if (!contentSearchPathScopeNode || !contentSearchPathScopeLabelNode) return;
+  const pathPrefix = getContentSearchPathPrefix();
+  const active = Boolean(pathPrefix);
+  contentSearchPathScopeNode.classList.toggle("is-empty", !active);
+  contentSearchPathScopeNode.classList.toggle("is-active", active);
+  contentSearchPathScopeLabelNode.textContent = active
+    ? contentSearchPathScope.label || pathPrefix.split("/").pop() || pathPrefix
+    : "";
+  contentSearchPathScopeNode.title = active
+    ? `Искать только в: ${pathPrefix}`
+    : "Перетащите тему из меню, чтобы ограничить область поиска";
+  contentSearchPathScopeClearNode?.classList.toggle("hidden", !active);
+}
+
+function deriveSearchPathScopeFromResolve(payload, fallbackLabel = "") {
+  if (!payload || payload.error) return null;
+  if (payload.topic?.folderPath && payload.topic.folderPath !== ".") {
+    return {
+      pathPrefix: String(payload.topic.folderPath).replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, ""),
+      label: payload.topic.title || fallbackLabel || payload.topic.folderPath.split("/").pop(),
+      kind: "topic",
+      sourcePath: payload.inputPath || payload.topic.manifestPath || ""
+    };
+  }
+  if (payload.area?.folderPath && payload.area.folderPath !== ".") {
+    return {
+      pathPrefix: String(payload.area.folderPath).replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, ""),
+      label: payload.area.title || fallbackLabel || payload.area.folderPath.split("/").pop(),
+      kind: "area",
+      sourcePath: payload.inputPath || payload.area.manifestPath || ""
+    };
+  }
+  const inputPath = String(payload.inputPath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
+  if (!inputPath) return null;
+  const folderPath = inputPath.includes("/") ? inputPath.slice(0, inputPath.lastIndexOf("/")) : "";
+  if (!folderPath) return null;
+  return {
+    pathPrefix: folderPath,
+    label: fallbackLabel || folderPath.split("/").pop() || folderPath,
+    kind: "folder",
+    sourcePath: inputPath
+  };
+}
+
+async function resolveContentSearchPathScopeFromMenuPayload(payload) {
+  if (!payload) return null;
+  const folderPath = String(payload.folderPath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
+  if (folderPath && folderPath !== ".") {
+    return {
+      pathPrefix: folderPath,
+      label: payload.label || folderPath.split("/").pop() || folderPath,
+      kind: payload.source === "adopt-folder" ? "area" : "folder",
+      sourcePath: payload.path || folderPath
+    };
+  }
+  const nodePath = String(payload.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!nodePath) return null;
+  const response = await fetch(buildApiUrl("/api/agent/resolve-path", { path: nodePath }));
+  if (!response.ok) throw new Error(`resolve-path failed with ${response.status}`);
+  const data = await response.json();
+  return deriveSearchPathScopeFromResolve(data, payload.label || "");
+}
+
+async function applyContentSearchPathScopeFromMenuPayload(payload) {
+  const scope = await resolveContentSearchPathScopeFromMenuPayload(payload);
+  if (!scope?.pathPrefix) {
+    showToast("Не удалось определить область поиска", "error");
+    return;
+  }
+  saveContentSearchPathScope(scope);
+  scheduleContentSearch();
+  showToast(`Поиск ограничен: ${scope.label}`, "success");
+}
+
+function bindContentSearchPathScopeDrop() {
+  if (!contentSearchPathScopeNode || contentSearchPathScopeNode.dataset.dropBound === "1") return;
+  contentSearchPathScopeNode.dataset.dropBound = "1";
+
+  contentSearchPathScopeNode.addEventListener("dragover", (event) => {
+    if (!dataTransferHasMenuLink(event.dataTransfer)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    contentSearchPathScopeNode.classList.add("is-drop-target");
+  });
+
+  contentSearchPathScopeNode.addEventListener("dragleave", (event) => {
+    if (event.currentTarget.contains(event.relatedTarget)) return;
+    contentSearchPathScopeNode.classList.remove("is-drop-target");
+  });
+
+  contentSearchPathScopeNode.addEventListener("drop", (event) => {
+    if (!dataTransferHasMenuLink(event.dataTransfer)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    contentSearchPathScopeNode.classList.remove("is-drop-target");
+    const payload = extractMenuLinkFromDataTransfer(event.dataTransfer);
+    if (!payload) return;
+    void applyContentSearchPathScopeFromMenuPayload(payload);
+  });
+
+  contentSearchPathScopeClearNode?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    clearContentSearchPathScope();
+  });
+}
+
 function getContentSearchScope() {
   const scope = contentSearchScopeNode?.value || "all";
   if (scope === "filename" || scope === "content" || scope === "all") return scope;
@@ -21303,24 +21461,36 @@ function getContentSearchMinLength(scope = getContentSearchScope()) {
 
 function updateContentSearchPlaceholder() {
   if (!contentSearchInputNode) return;
+  const pathPrefix = getContentSearchPathPrefix();
+  const scopeLabel = pathPrefix ? contentSearchPathScope.label || "теме" : "";
   if (isContentSearchSemantic()) {
-    contentSearchInputNode.placeholder = "Поиск по смыслу по всему workspace…";
+    contentSearchInputNode.placeholder = pathPrefix
+      ? `Поиск по смыслу в «${scopeLabel}»…`
+      : "Поиск по смыслу по всему workspace…";
     return;
   }
   const scope = getContentSearchScope();
   if (scope === "filename") {
-    contentSearchInputNode.placeholder = "Поиск по имени файла...";
+    contentSearchInputNode.placeholder = pathPrefix
+      ? `Поиск по имени в «${scopeLabel}»…`
+      : "Поиск по имени файла...";
     return;
   }
   if (scope === "content") {
-    contentSearchInputNode.placeholder = "Поиск по тексту внутри файлов...";
+    contentSearchInputNode.placeholder = pathPrefix
+      ? `Поиск по тексту в «${scopeLabel}»…`
+      : "Поиск по тексту внутри файлов...";
     return;
   }
   if (scope === "tags") {
-    contentSearchInputNode.placeholder = "Поиск по тэгам...";
+    contentSearchInputNode.placeholder = pathPrefix
+      ? `Поиск по тегам в «${scopeLabel}»…`
+      : "Поиск по тэгам...";
     return;
   }
-  contentSearchInputNode.placeholder = "Найти файл или текст...";
+  contentSearchInputNode.placeholder = pathPrefix
+    ? `Найти в «${scopeLabel}»…`
+    : "Найти файл или текст...";
 }
 
 function getSearchResultTitle(item) {
@@ -21528,7 +21698,11 @@ function renderContentSearchResults(data) {
   }
 
   if (results.length === 0) {
-    contentSearchResultsNode.innerHTML = `<div class="content-search-empty">Ничего не найдено</div>`;
+    const pathPrefix = getContentSearchPathPrefix();
+    const scopeHint = pathPrefix
+      ? `<div class="content-search-hint">В «${escapeHtml(contentSearchPathScope.label || pathPrefix)}» ничего не найдено</div>`
+      : "";
+    contentSearchResultsNode.innerHTML = `${scopeHint}<div class="content-search-empty">Ничего не найдено</div>`;
     contentSearchResultsNode.classList.remove("hidden");
     contentSearchInputNode?.setAttribute("aria-expanded", "true");
     return;
@@ -21552,11 +21726,12 @@ async function fetchContentSearch(
   query,
   scope = getContentSearchScope(),
   fileType = getContentSearchFileType(),
-  match = getContentSearchMatch()
+  match = getContentSearchMatch(),
+  pathPrefix = getContentSearchPathPrefix()
 ) {
-  const response = await fetch(
-    buildApiUrl("/api/search", { q: query, scope, fileType, match, limit: 30 })
-  );
+  const params = { q: query, scope, fileType, match, limit: 30 };
+  if (pathPrefix) params.pathPrefix = pathPrefix;
+  const response = await fetch(buildApiUrl("/api/search", params));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   return response.json();
 }
@@ -21585,8 +21760,10 @@ function mapSemanticSearchResults(data) {
   };
 }
 
-async function fetchContentSearchSemantic(query, limit = 30) {
-  const response = await fetch(buildApiUrl("/api/search/semantic", { q: query, limit }));
+async function fetchContentSearchSemantic(query, limit = 30, pathPrefix = getContentSearchPathPrefix()) {
+  const params = { q: query, limit };
+  if (pathPrefix) params.pathPrefix = pathPrefix;
+  const response = await fetch(buildApiUrl("/api/search/semantic", params));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
   return mapSemanticSearchResults(data);
@@ -93418,7 +93595,8 @@ document.addEventListener("click", (event) => {
     const insideSearch =
       searchBar?.contains(event.target) ||
       contentSearchResultsNode.contains(event.target) ||
-      contentSearchHelpPopoverNode?.contains(event.target);
+      contentSearchHelpPopoverNode?.contains(event.target) ||
+      contentSearchPathScopeNode?.contains(event.target);
     if (!insideSearch) hideContentSearchResults();
     if (
       contentSearchHelpPopoverNode &&
@@ -93471,6 +93649,8 @@ contentSearchInputNode?.addEventListener("keydown", (event) => {
 
 updateContentSearchFiltersState();
 updateContentSearchPlaceholder();
+renderContentSearchPathScope();
+bindContentSearchPathScopeDrop();
 
 appLandingSearchScopeNode?.addEventListener("change", () => {
   updateLandingSearchPlaceholder();

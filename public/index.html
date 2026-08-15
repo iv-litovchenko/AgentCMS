@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
+    <script src="/project-version.js?v=1"></script>
   </head>
   <body class="app-booting">
     <div id="app-splash" class="app-splash" role="status" aria-live="polite" aria-label="Загрузка Agent CMS">
@@ -40,12 +41,13 @@
           <div class="app-splash-track-bar"></div>
         </div>
         <p class="app-splash-tagline">Загружаем важное…</p>
-        <p class="app-splash-version">Версия проекта: <span class="app-project-version">0.0.1</span></p>
+        <p class="app-splash-version">Версия проекта: <span class="app-project-version"></span></p>
       </div>
     </div>
 
     <div id="app-lock" class="app-lock hidden" role="dialog" aria-modal="true" aria-labelledby="app-lock-title" aria-describedby="app-lock-lead">
       <div class="app-lock-bg" aria-hidden="true"></div>
+      <div class="app-lock-panel">
       <div class="app-lock-inner">
         <div class="app-lock-brand">
           <span class="app-lock-icon" aria-hidden="true">🔒</span>
@@ -216,6 +218,10 @@
         </div>
         <p id="app-lock-footnote" class="app-lock-footnote">Логин и пароль задаются в файле <code>.env</code> в корне проекта.</p>
       </div>
+      <div class="app-lock-version-wrap">
+        <span class="app-project-version-badge" aria-label="Версия проекта">v<span class="app-project-version"></span></span>
+      </div>
+      </div>
     </div>
 
     <div id="app-connection-lost" class="app-connection-lost hidden" role="alert" aria-live="assertive">
@@ -288,6 +294,28 @@
                 title="Поиск…"
               ></span>
               <div class="content-search-type-wrap">
+                <div
+                  id="content-search-path-scope"
+                  class="content-search-path-scope is-empty"
+                  role="group"
+                  aria-label="Ограничить область поиска"
+                  title="Перетащите тему из меню"
+                >
+                  <span class="content-search-path-scope-icon" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="10" cy="10" r="6.25" stroke="currentColor" stroke-width="1.5"></circle>
+                      <circle cx="10" cy="10" r="1.75" fill="currentColor"></circle>
+                    </svg>
+                  </span>
+                  <span id="content-search-path-scope-label" class="content-search-path-scope-label"></span>
+                  <button
+                    type="button"
+                    id="content-search-path-scope-clear"
+                    class="content-search-path-scope-clear hidden"
+                    aria-label="Искать по всему workspace"
+                    title="Сбросить ограничение"
+                  >×</button>
+                </div>
                 <select id="content-search-type" class="content-search-type" aria-label="Формат файлов">
                   <option value="all" selected>Все типы</option>
                   <option value="markdown">Markdown</option>
@@ -325,6 +353,7 @@
                 <li><strong>Точный</strong> — подстрока как есть: выберите режим «Точный» или возьмите фразу в кавычки <code>"exact phrase"</code>.</li>
                 <li><strong>Маски</strong> — <code>*</code> любые символы, <code>?</code> один символ: <code>report*.pdf</code>, <code>img_???</code>.</li>
                 <li><strong>Область</strong> — «Везде» ищет в именах, метаданных тем и тексте файлов.</li>
+                <li><strong>Лимит</strong> — перетащите пункт меню на иконку ◎ справа от поля, чтобы искать только внутри темы или области.</li>
                 <li><strong>Тип</strong> — фильтр по формату (Markdown, PDF, видео и т.д.).</li>
                 <li><strong>Смысл</strong> — локальный семантический поиск по всему workspace (offline). Индекс: sidebar → «Индексирование workspace…» → Переиндексировать.</li>
               </ul>
@@ -3280,7 +3309,7 @@
                 <div id="app-footer-ideas-body" class="app-footer-ideas-body" aria-live="polite"></div>
               </div>
             </div>
-            <span class="app-footer-version-badge" aria-label="Версия проекта">v<span class="app-project-version">0.0.1</span></span>
+            <span class="app-project-version-badge app-footer-version-badge" aria-label="Версия проекта">v<span class="app-project-version"></span></span>
             <span class="app-footer-title">🧩 Agent CMS — система управления контекстом для LLM.</span>
             <span class="app-footer-rule">Одна тема = 1 задача = 1 таблица</span>
           </div>

@@ -18,6 +18,17 @@ function isTextFile(name) {
   );
 }
 
+function normalizeSearchPathPrefix(value) {
+  return String(value || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
+}
+
+function matchesSearchPathPrefix(relPath, pathPrefix) {
+  const prefix = normalizeSearchPathPrefix(pathPrefix);
+  if (!prefix) return true;
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  return normalized === prefix || normalized.startsWith(`${prefix}/`);
+}
+
 function createSemanticSearchService(deps) {
   const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute } = deps;
   const rebuildLocks = new Map();
@@ -256,12 +267,20 @@ function createSemanticSearchService(deps) {
     };
   }
 
-  async function search(query, limit = 20) {
+  async function search(query, limit = 20, pathPrefix = "") {
     const trimmed = String(query || "").trim();
+    const prefix = normalizeSearchPathPrefix(pathPrefix);
     const agentRoot = getAgentRoot();
     if (!agentRoot) throw new Error("Agent not selected");
     if (trimmed.length < 2) {
-      return { query: trimmed, mode: "semantic", model: MODEL_ID, results: [], total: 0 };
+      return {
+        query: trimmed,
+        mode: "semantic",
+        model: MODEL_ID,
+        pathPrefix: prefix || null,
+        results: [],
+        total: 0
+      };
     }
 
     let index = await loadIndex(agentRoot);
@@ -274,6 +293,7 @@ function createSemanticSearchService(deps) {
         query: trimmed,
         mode: "semantic",
         model: MODEL_ID,
+        pathPrefix: prefix || null,
         results: [],
         total: 0,
         hint: "Нет текстов для индексации"
@@ -289,6 +309,7 @@ function createSemanticSearchService(deps) {
         snippet: chunk.preview
       }))
       .filter((row) => row.score > 0.05)
+      .filter((row) => matchesSearchPathPrefix(row.path, prefix))
       .sort((a, b) => b.score - a.score);
 
     const byPath = new Map();
@@ -311,6 +332,7 @@ function createSemanticSearchService(deps) {
       model: index.model || MODEL_ID,
       offline: true,
       builtAt: index.builtAt,
+      pathPrefix: prefix || null,
       results,
       total: results.length
     };

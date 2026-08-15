@@ -25,34 +25,46 @@ const searchWorkspaceSchema = z.object({
     ])
     .optional(),
   match: z.enum(["relaxed", "strict"]).optional(),
+  pathPrefix: workspaceRelPath
+    .optional()
+    .describe("Limit search to workspace subtree, e.g. awn-container/tema-x. Empty = entire workspace."),
   limit: z.number().int().min(1).max(100).optional()
 });
 
 function registerSearchWorkspaceTools(reg, client) {
-  const runSearch = ({ query, scope, fileType, match, limit }) =>
+  const runSearch = ({ query, scope, fileType, match, pathPrefix, limit }) =>
     client.get("/api/search", {
       q: query,
       scope: scope || "all",
       fileType: fileType || "all",
       match: match || "relaxed",
+      pathPrefix: pathPrefix || undefined,
       limit: limit || 30
     });
 
   reg(
     "search_workspace_content",
-    "Full-text search across the entire workspace (paths, titles, frontmatter, body). scope=all — everything; content|filename|tags to narrow. Same as UI header search.",
+    "Full-text search across the workspace (paths, titles, frontmatter, body). scope=all — everything; content|filename|tags to narrow. pathPrefix limits to a topic/area/folder subtree. Same as UI header search.",
     searchWorkspaceSchema,
     runSearch
   );
 
   reg(
     "search_workspace_semantic",
-    "Offline semantic search across the entire workspace (local hash-TF-IDF index in .agent-cms/semantic-index). Finds related notes by meaning without exact words. Reindex: rebuild_workspace_semantic_index.",
+    "Offline semantic search across the workspace (local hash-TF-IDF index in .agent-cms/semantic-index). pathPrefix limits to subtree. Reindex: rebuild_workspace_semantic_index.",
     z.object({
       query: z.string().min(2),
+      pathPrefix: workspaceRelPath
+        .optional()
+        .describe("Limit search to workspace subtree, e.g. awn-container/tema-x"),
       limit: z.number().int().min(1).max(50).optional()
     }),
-    ({ query, limit }) => client.get("/api/search/semantic", { q: query, limit: limit || 20 })
+    ({ query, pathPrefix, limit }) =>
+      client.get("/api/search/semantic", {
+        q: query,
+        pathPrefix: pathPrefix || undefined,
+        limit: limit || 20
+      })
   );
 
   reg(

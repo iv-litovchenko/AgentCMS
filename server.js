@@ -10998,8 +10998,8 @@ const SESSION_CONTEXT_API_MAP = {
   menu: "GET /api/menu — дерево тем (manifest.md)",
   activePage: "GET /api/agent/active-context — текущий фокус UI (PAGE→SLOT→CONTENT + mcp hints)",
   activeContext: "GET /api/agent/active-context — alias active-page",
-  search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&match=relaxed|strict&limit=",
-  semanticSearch: "GET /api/search/semantic?q=&limit= — локальный поиск по смыслу (offline hash-tfidf)",
+  search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&match=relaxed|strict&pathPrefix=&limit=",
+  semanticSearch: "GET /api/search/semantic?q=&pathPrefix=&limit= — локальный поиск по смыслу (offline hash-tfidf)",
   semanticSearchStatus: "GET /api/search/semantic/status — статус индекса",
   semanticSearchReindex: "POST /api/search/semantic/reindex — пересобрать индекс",
   storageIndexStatus: "GET /api/storage-index/status — каталог полей workspace",
@@ -15288,6 +15288,17 @@ function normalizeSearchScope(scope) {
   return "all";
 }
 
+function normalizeSearchPathPrefix(value) {
+  return String(value || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
+}
+
+function matchesSearchPathPrefix(relPath, pathPrefix) {
+  const prefix = normalizeSearchPathPrefix(pathPrefix);
+  if (!prefix) return true;
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  return normalized === prefix || normalized.startsWith(`${prefix}/`);
+}
+
 function getSearchMinLength(scope) {
   if (scope === "filename" || scope === "all") return 1;
   return 2;
@@ -15522,7 +15533,7 @@ async function enrichSearchResults(results) {
   return Promise.all((results || []).map((entry) => enrichSearchResultEntry(entry)));
 }
 
-async function searchByTopicMeta(query, limit = 30, fileType = "all", match = "relaxed") {
+async function searchByTopicMeta(query, limit = 30, fileType = "all", match = "relaxed", pathPrefix = "") {
   const trimmed = String(query || "").trim();
   const normalizedFileType = normalizeSearchFileType(fileType);
   const parsed = parseSearchQuery(trimmed, { match });
@@ -15539,6 +15550,8 @@ async function searchByTopicMeta(query, limit = 30, fileType = "all", match = "r
   const results = [];
 
   for (const relPath of manifests) {
+    if (!matchesSearchPathPrefix(relPath, pathPrefix)) continue;
+
     let frontmatter = "";
     let body = "";
     try {
@@ -15750,7 +15763,7 @@ async function collectNodeMdFiles(dirAbsolute, prefix = "", files = []) {
   return files;
 }
 
-async function searchByFilename(query, limit = 30, fileType = "all", match = "relaxed") {
+async function searchByFilename(query, limit = 30, fileType = "all", match = "relaxed", pathPrefix = "") {
   const trimmed = String(query || "").trim();
   const normalizedFileType = normalizeSearchFileType(fileType);
   const parsed = parseSearchQuery(trimmed, { match });
@@ -15762,6 +15775,7 @@ async function searchByFilename(query, limit = 30, fileType = "all", match = "re
   const results = [];
 
   for (const relPath of relFiles) {
+    if (!matchesSearchPathPrefix(relPath, pathPrefix)) continue;
     if (!matchesFilename(relPath, trimmed, parsed)) continue;
 
     const meta = await resolveSearchResultMeta(relPath);
@@ -15791,12 +15805,13 @@ async function searchByFilename(query, limit = 30, fileType = "all", match = "re
     scope: "filename",
     fileType: normalizedFileType,
     match: parsed.match,
+    pathPrefix: normalizeSearchPathPrefix(pathPrefix) || null,
     results: sliced,
     total: sliced.length
   };
 }
 
-async function searchByContent(query, limit = 30, fileType = "all", match = "relaxed") {
+async function searchByContent(query, limit = 30, fileType = "all", match = "relaxed", pathPrefix = "") {
   const trimmed = String(query || "").trim();
   const normalizedFileType = normalizeSearchFileType(fileType);
   const parsed = parseSearchQuery(trimmed, { match });
@@ -15809,6 +15824,7 @@ async function searchByContent(query, limit = 30, fileType = "all", match = "rel
   const results = [];
 
   for (const relPath of relFiles) {
+    if (!matchesSearchPathPrefix(relPath, pathPrefix)) continue;
     if (!isTextSearchableFileName(path.basename(relPath))) continue;
 
     const absolute = normalizeWorkspacePath(relPath);
@@ -15844,10 +15860,18 @@ async function searchByContent(query, limit = 30, fileType = "all", match = "rel
     return a.filePath.localeCompare(b.filePath, "ru");
   });
 
-  return { query: trimmed, scope: "content", fileType: normalizedFileType, match: parsed.match, results, total: results.length };
+  return {
+    query: trimmed,
+    scope: "content",
+    fileType: normalizedFileType,
+    match: parsed.match,
+    pathPrefix: normalizeSearchPathPrefix(pathPrefix) || null,
+    results,
+    total: results.length
+  };
 }
 
-async function searchAll(query, limit = 30, fileType = "all", match = "relaxed") {
+async function searchAll(query, limit = 30, fileType = "all", match = "relaxed", pathPrefix = "") {
   const trimmed = String(query || "").trim();
   const normalizedFileType = normalizeSearchFileType(fileType);
   const parsed = parseSearchQuery(trimmed, { match });
@@ -15875,13 +15899,25 @@ async function searchAll(query, limit = 30, fileType = "all", match = "relaxed")
     existing.searchScore = Math.max(existing.searchScore || 0, scoreBoost + (entry.matchCount || 1));
   };
 
-  const filenameData = await searchByFilename(trimmed, Math.max(limit * 3, 60), normalizedFileType, match);
+  const filenameData = await searchByFilename(
+    trimmed,
+    Math.max(limit * 3, 60),
+    normalizedFileType,
+    match,
+    pathPrefix
+  );
   for (const entry of filenameData.results) {
     addResult(entry, "filename", scoreFilenameMatch(entry.filePath, trimmed, parsed));
   }
 
   if (trimmed.length >= 1) {
-    const topicData = await searchByTopicMeta(trimmed, Math.max(limit * 2, 40), normalizedFileType, match);
+    const topicData = await searchByTopicMeta(
+      trimmed,
+      Math.max(limit * 2, 40),
+      normalizedFileType,
+      match,
+      pathPrefix
+    );
     for (const entry of topicData.results) {
       addResult(entry, "topic", entry.topicMatchScore || 240);
     }
@@ -15889,7 +15925,13 @@ async function searchAll(query, limit = 30, fileType = "all", match = "relaxed")
 
   const contentMinLen = parsed.mode === "wildcard" ? 1 : 2;
   if (trimmed.length >= contentMinLen) {
-    const contentData = await searchByContent(trimmed, Math.max(limit * 3, 60), normalizedFileType, match);
+    const contentData = await searchByContent(
+      trimmed,
+      Math.max(limit * 3, 60),
+      normalizedFileType,
+      match,
+      pathPrefix
+    );
     for (const entry of contentData.results) {
       addResult(entry, "content", (entry.matchCount || 1) * 5);
     }
@@ -15914,6 +15956,7 @@ async function searchAll(query, limit = 30, fileType = "all", match = "relaxed")
     scope: "all",
     fileType: normalizedFileType,
     match: parsed.match,
+    pathPrefix: normalizeSearchPathPrefix(pathPrefix) || null,
     results: enrichedResults,
     total: enrichedResults.length
   };
@@ -15962,7 +16005,7 @@ async function searchByDescription(query, limit = 30) {
   return { query: trimmed, scope: "description", results, total: results.length };
 }
 
-async function searchByTags(query, limit = 30, fileType = "all", match = "relaxed") {
+async function searchByTags(query, limit = 30, fileType = "all", match = "relaxed", pathPrefix = "") {
   const trimmed = String(query || "").trim();
   const normalizedFileType = normalizeSearchFileType(fileType);
   const parsed = parseSearchQuery(trimmed, { match });
@@ -15977,6 +16020,8 @@ async function searchByTags(query, limit = 30, fileType = "all", match = "relaxe
   const results = [];
 
   for (const relPath of relFiles) {
+    if (!matchesSearchPathPrefix(relPath, pathPrefix)) continue;
+
     let propsContent = "";
     try {
       const { frontmatter } = await readNodeFrontmatterContent(relPath);
@@ -16038,21 +16083,45 @@ async function searchByTags(query, limit = 30, fileType = "all", match = "relaxe
     return a.filePath.localeCompare(b.filePath, "ru");
   });
 
-  return { query: trimmed, scope: "tags", fileType: normalizedFileType, match: parsed.match, results, total: results.length };
+  return {
+    query: trimmed,
+    scope: "tags",
+    fileType: normalizedFileType,
+    match: parsed.match,
+    pathPrefix: normalizeSearchPathPrefix(pathPrefix) || null,
+    results,
+    total: results.length
+  };
 }
 
-async function searchWorkspaceContent(query, limit = 30, scope = "all", fileType = "all", match = "relaxed") {
+async function searchWorkspaceContent(
+  query,
+  limit = 30,
+  scope = "all",
+  fileType = "all",
+  match = "relaxed",
+  pathPrefix = ""
+) {
   const normalizedScope = normalizeSearchScope(scope);
   const normalizedFileType = normalizeSearchFileType(fileType);
   const normalizedMatch = normalizeSearchMatchMode(match);
+  const normalizedPrefix = normalizeSearchPathPrefix(pathPrefix);
   let data;
-  if (normalizedScope === "all") data = await searchAll(query, limit, normalizedFileType, normalizedMatch);
-  else if (normalizedScope === "filename") data = await searchByFilename(query, limit, normalizedFileType, normalizedMatch);
-  else if (normalizedScope === "tags") data = await searchByTags(query, limit, normalizedFileType, normalizedMatch);
-  else data = await searchByContent(query, limit, normalizedFileType, normalizedMatch);
+  if (normalizedScope === "all") {
+    data = await searchAll(query, limit, normalizedFileType, normalizedMatch, normalizedPrefix);
+  } else if (normalizedScope === "filename") {
+    data = await searchByFilename(query, limit, normalizedFileType, normalizedMatch, normalizedPrefix);
+  } else if (normalizedScope === "tags") {
+    data = await searchByTags(query, limit, normalizedFileType, normalizedMatch, normalizedPrefix);
+  } else {
+    data = await searchByContent(query, limit, normalizedFileType, normalizedMatch, normalizedPrefix);
+  }
 
   if (normalizedScope !== "all" && Array.isArray(data?.results)) {
     data.results = await enrichSearchResults(data.results);
+  }
+  if (normalizedPrefix && data && !Object.prototype.hasOwnProperty.call(data, "pathPrefix")) {
+    data.pathPrefix = normalizedPrefix;
   }
   return data;
 }
@@ -16174,11 +16243,12 @@ async function handleApiForAgent(req, res, url) {
     const scope = url.searchParams.get("scope") || "all";
     const fileType = url.searchParams.get("fileType") || "all";
     const match = url.searchParams.get("match") || "relaxed";
+    const pathPrefix = url.searchParams.get("pathPrefix") || "";
     const limitRaw = Number(url.searchParams.get("limit") || 30);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 30;
 
     try {
-      const data = await searchWorkspaceContent(query, limit, scope, fileType, match);
+      const data = await searchWorkspaceContent(query, limit, scope, fileType, match, pathPrefix);
       return sendJson(res, 200, data);
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to search content", details: String(error.message || error) });
@@ -16210,10 +16280,11 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/search/semantic") {
     const query = url.searchParams.get("q") || "";
+    const pathPrefix = url.searchParams.get("pathPrefix") || "";
     const limitRaw = Number(url.searchParams.get("limit") || 20);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 20;
     try {
-      const data = await getSemanticSearchService().search(query, limit);
+      const data = await getSemanticSearchService().search(query, limit, pathPrefix);
       const enriched = [];
       for (const row of data.results || []) {
         const meta = await resolveSearchResultMeta(row.path).catch(() => null);
