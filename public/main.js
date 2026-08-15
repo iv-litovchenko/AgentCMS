@@ -6440,6 +6440,7 @@ function bindLandingFocusToolbar() {
 
 const FOCUS_AWN_KEYS = [
   "awn-status",
+  "awn-quality",
   "awn-description",
   "awn-category",
   "awn-owner",
@@ -6463,6 +6464,9 @@ function formatFocusPropValue(key, value) {
   if (!text) return "";
   if (key === "awn-color" && /^#[0-9a-f]{3,8}$/i.test(text)) {
     return text;
+  }
+  if (key === AWN_QUALITY_FIELD_KEY) {
+    return `${parseAwnQualityValue(text)}/10`;
   }
   return text;
 }
@@ -13127,6 +13131,45 @@ const DATA_STORAGE_SLOT_SPECS = [
 ];
 
 const BLOCKED_EXECUTABLE_EXTENSIONS_LABEL = ".exe, .dll, .so, .dylib, .bin, .com, .msi, .scr";
+
+const AWN_QUALITY_FIELD_KEY = "awn-quality";
+const AWN_QUALITY_DEFAULT = 4;
+const AWN_QUALITY_REVIEW_THRESHOLD = 4;
+
+function parseAwnQualityValue(raw, fallback = AWN_QUALITY_DEFAULT) {
+  const text = String(raw ?? "").trim();
+  if (!text) return fallback;
+  const parsed = Number(text);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.min(10, Math.round(parsed)));
+}
+
+function getAwnQualityFromPropEntries(entries) {
+  const raw = getPropsEntryValueByKey(entries, AWN_QUALITY_FIELD_KEY);
+  if (raw === "" || raw == null) return AWN_QUALITY_DEFAULT;
+  return parseAwnQualityValue(raw);
+}
+
+function getAwnQualityTooltip(value) {
+  const normalized = parseAwnQualityValue(value);
+  if (normalized <= 0) {
+    return "0 — очень низкое качество, нужна существенная доработка с агентом";
+  }
+  if (normalized < AWN_QUALITY_REVIEW_THRESHOLD) {
+    return `${normalized} — ниже нормы (< ${AWN_QUALITY_REVIEW_THRESHOLD}), требует обработки`;
+  }
+  if (normalized === AWN_QUALITY_REVIEW_THRESHOLD) {
+    return `${normalized} — норма, базовый уровень проверки`;
+  }
+  if (normalized <= 7) {
+    return `${normalized} — хорошее качество, критичных доработок не требуется`;
+  }
+  return `${normalized} — высокое качество, запись проверена хорошо`;
+}
+
+function awnQualityNeedsReview(value) {
+  return parseAwnQualityValue(value) < AWN_QUALITY_REVIEW_THRESHOLD;
+}
 
 const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
   memory: {
@@ -25081,14 +25124,20 @@ function updateBreadcrumbsForActiveMode(overrides) {
   updateDocumentTitle();
 }
 
+function getStorageSlotAllowedFileTypesLabel(spec, mode = null) {
+  if (!spec || spec.disabled) return null;
+  if (spec.key === "memory") {
+    const labels = DATA_STORAGE_SLOT_FILE_TYPE_LABELS.memory;
+    const resolvedMode = mode || getEntryOverviewMemoryKindForSlot(spec) || spec.defaultMode || "external";
+    return labels[resolvedMode] || labels.external || null;
+  }
+  const label = DATA_STORAGE_SLOT_FILE_TYPE_LABELS[spec.key];
+  return typeof label === "string" ? label : null;
+}
+
 function getDataStorageSlotAllowedFileTypesLabel(mode = activeContentMode) {
   const slot = getDataStorageSlotForMode(mode);
-  if (!slot || slot.disabled) return null;
-  if (slot.key === "memory") {
-    const labels = DATA_STORAGE_SLOT_FILE_TYPE_LABELS.memory;
-    return labels[mode] || labels.external;
-  }
-  return DATA_STORAGE_SLOT_FILE_TYPE_LABELS[slot.key] || null;
+  return getStorageSlotAllowedFileTypesLabel(slot, mode);
 }
 
 function shouldShowStorageSlotPolicyWarning(mode = activeContentMode) {
@@ -38157,7 +38206,7 @@ const FIELD_TYPE_SELECT_GROUPS = [
     label: "Текст (многострочный)",
     types: ["awn.field.text", "awn.field.text.markdown", "awn.field.text.code"]
   },
-  { label: "Числа", types: ["awn.field.number", "awn.field.number.integer"] },
+  { label: "Числа", types: ["awn.field.number", "awn.field.number.integer", "awn.field.number.stars"] },
   {
     label: "Дата и время",
     types: [
@@ -45452,7 +45501,8 @@ const DEDICATED_FIELD_TYPE_WIDGETS = new Set([
   "materials",
   "cron-schedule",
   "lookup-one",
-  "lookup-many"
+  "lookup-many",
+  "stars"
 ]);
 
 const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
@@ -45469,7 +45519,8 @@ const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
   "lookup.one": "lookup-one",
   "lookup.many": "lookup-many",
   "materials": "materials",
-  "array": "array"
+  "array": "array",
+  "number.stars": "stars"
 };
 
 const LEGACY_LOOKUP_TYPE_SOURCES = {
@@ -45601,6 +45652,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (fieldTypeIs(typeId, "object")) return "object";
   if (fieldTypeIs(typeId, "repeater")) return "repeater";
   if (fieldTypeIs(typeId, "coordinates")) return "coordinates";
+  if (fieldTypeIs(typeId, "number.stars")) return "stars";
   if (fieldTypeIs(typeId, "number")) return "number";
   if (fieldTypeIs(typeId, "array") || widget === "tags") return "array";
   if (isChoiceManyFieldTypeId(typeId)) {
@@ -46111,6 +46163,95 @@ function createPropsFormBooleanControl(entry, meta, { locked = false } = {}) {
   });
   label.append(input, caption);
   wrap.appendChild(label);
+  return wrap;
+}
+
+function createPropsFormStarsControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("stars");
+  wrap.classList.add("props-form-value-wrap--stars");
+  const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
+  const initial = parseAwnQualityValue(
+    entry.value ?? entry.rawValue ?? fieldDefDefaultValue(fieldDef),
+    fieldDefDefaultValue(fieldDef)
+  );
+
+  const hidden = document.createElement("input");
+  hidden.type = "hidden";
+  hidden.className = "props-form-value props-form-stars-value";
+  hidden.value = String(initial);
+  if (locked) hidden.disabled = true;
+
+  const ui = document.createElement("div");
+  ui.className = "props-form-stars";
+
+  const zeroBtn = document.createElement("button");
+  zeroBtn.type = "button";
+  zeroBtn.className = "props-form-stars-zero";
+  zeroBtn.textContent = "0";
+  zeroBtn.title = getAwnQualityTooltip(0);
+  zeroBtn.setAttribute("aria-label", "0 — очень низкое качество");
+  zeroBtn.disabled = locked;
+
+  const starsRow = document.createElement("div");
+  starsRow.className = "props-form-stars-row";
+  starsRow.setAttribute("role", "radiogroup");
+  starsRow.setAttribute("aria-label", "Качество проверки");
+
+  const display = document.createElement("span");
+  display.className = "props-form-stars-display";
+  display.textContent = String(initial);
+
+  const hint = document.createElement("span");
+  hint.className = "props-form-stars-hint";
+  if (meta.hint) hint.title = meta.hint;
+
+  function syncHint(value) {
+    hint.textContent = awnQualityNeedsReview(value) ? "нужна обработка" : "";
+    display.classList.toggle("is-needs-review", awnQualityNeedsReview(value));
+    display.classList.toggle("is-high", value >= 8);
+    zeroBtn.classList.toggle("is-active", value === 0);
+  }
+
+  function setValue(next) {
+    const value = parseAwnQualityValue(next, AWN_QUALITY_DEFAULT);
+    hidden.value = String(value);
+    display.textContent = String(value);
+    starsRow.querySelectorAll(".props-form-stars-star").forEach((btn) => {
+      const starValue = Number(btn.dataset.value);
+      btn.classList.toggle("is-filled", value > 0 && starValue <= value);
+      btn.setAttribute("aria-checked", value === starValue ? "true" : "false");
+    });
+    syncHint(value);
+    hidden.dispatchEvent(new Event("input", { bubbles: true }));
+    hidden.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  zeroBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    setValue(0);
+  });
+
+  for (let starValue = 1; starValue <= 10; starValue += 1) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "props-form-stars-star";
+    btn.dataset.value = String(starValue);
+    btn.setAttribute("role", "radio");
+    btn.setAttribute("aria-checked", initial === starValue ? "true" : "false");
+    btn.title = getAwnQualityTooltip(starValue);
+    btn.setAttribute("aria-label", `${starValue} из 10`);
+    btn.textContent = "★";
+    btn.disabled = locked;
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      setValue(starValue);
+    });
+    starsRow.appendChild(btn);
+  }
+
+  ui.append(zeroBtn, starsRow, display, hint);
+  wrap.append(ui, hidden);
+  setValue(initial);
   return wrap;
 }
 
@@ -49201,6 +49342,9 @@ function createPropsFormValueControl(entry, meta, { editorCompact = false } = {}
   if (widget === "secret") {
     return createPropsFormSecretControl(entry, meta, { locked });
   }
+  if (widget === "stars") {
+    return createPropsFormStarsControl(entry, meta, { locked });
+  }
   if (widget === "number") {
     return createPropsFormTypedInputControl(entry, meta, "number", { locked });
   }
@@ -49302,6 +49446,10 @@ function readPropsFormValueFromControl(valueWrap) {
       lat: latInput?.value ?? "",
       lng: lngInput?.value ?? ""
     });
+  }
+  if (widget === "stars") {
+    const hidden = valueWrap.querySelector(".props-form-stars-value");
+    return String(hidden?.value ?? "").trim();
   }
   if (widget === "select" || widget === "lookup-one" || isLookupOneWidget(widget)) {
     const select = valueWrap.querySelector("select");
@@ -51979,6 +52127,20 @@ function createNavigationHeroDateIconSvg(kind) {
     return svg;
   }
 
+  if (kind === "quality") {
+    const star = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    star.setAttribute(
+      "d",
+      "M8 2.2l1.55 3.14 3.47.5-2.51 2.45.59 3.45L8 10.4l-3.1 1.34.59-3.45-2.51-2.45 3.47-.5L8 2.2z"
+    );
+    star.setAttribute("fill", "none");
+    star.setAttribute("stroke", "currentColor");
+    star.setAttribute("stroke-width", "1.1");
+    star.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(star);
+    return svg;
+  }
+
   const eye = document.createElementNS("http://www.w3.org/2000/svg", "path");
   eye.setAttribute(
     "d",
@@ -52166,7 +52328,10 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     const toolbar = document.createElement("div");
     toolbar.className = "node-navigation-hero-compact-toolbar";
 
-    const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath, { hideEmpty: true });
+    const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath, {
+      hideEmpty: true,
+      propEntries: options.propEntries || []
+    });
     if (datesPanel.childElementCount > 0) toolbar.appendChild(datesPanel);
     toolbar.appendChild(actions);
     body.appendChild(toolbar);
@@ -52199,7 +52364,9 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
       body.appendChild(createNavigationHeroTypePathRow(options.typeLabel));
     }
 
-    const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath);
+    const datesPanel = buildNavigationHeroDatesPanel(options.meta, nodePath, {
+      propEntries: options.propEntries || []
+    });
     if (datesPanel.childElementCount > 0) {
       datesPanel.classList.add("node-navigation-hero-body-dates");
       body.appendChild(datesPanel);
@@ -54833,9 +55000,14 @@ async function appendTopicSlotCounterStrip(
   return strip;
 }
 
-function appendNavigationHeroMetaRow(panel, { kind, label, value }) {
+function appendNavigationHeroMetaRow(panel, { kind, label, value, qualityValue }) {
   const chip = document.createElement("div");
   chip.className = "node-navigation-hero-meta-chip";
+  if (kind === "quality") {
+    chip.classList.add("node-navigation-hero-meta-chip--quality");
+    if (awnQualityNeedsReview(qualityValue)) chip.classList.add("is-needs-review");
+    else if (Number(qualityValue) >= 8) chip.classList.add("is-high");
+  }
 
   const iconNode = document.createElement("span");
   iconNode.className = `node-navigation-hero-meta-icon node-navigation-hero-meta-icon--${kind} ui-tooltip-host`;
@@ -54847,6 +55019,9 @@ function appendNavigationHeroMetaRow(panel, { kind, label, value }) {
   valueNode.className = "node-navigation-hero-meta-value";
   const text = String(value ?? "").trim();
   valueNode.textContent = text || "—";
+  if (kind === "quality") {
+    chip.title = label;
+  }
 
   chip.append(iconNode, valueNode);
   panel.appendChild(chip);
@@ -60824,14 +60999,33 @@ function createDeprecatedRepositoryCounterIndicator() {
 function applyWorkspaceCounterLabelForSlot(labelNode, slot) {
   if (!labelNode) return;
   if (!isDeprecatedRepositoryCounterSlot(slot)) {
+    const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+    const title = slot.label || resolveDataStorageSlotDisplayLabel(slot.id || spec?.key);
+    const fileTypesHint = getStorageSlotAllowedFileTypesLabel(spec);
+
+    labelNode.replaceChildren();
     labelNode.classList.remove(
       "node-navigation-workspace-counter-label--deprecated",
-      "node-navigation-workspace-counter-label--stacked"
+      "node-navigation-workspace-counter-label-note"
     );
-    setWorkspaceCounterLabelText(
-      labelNode,
-      slot.label || resolveDataStorageSlotDisplayLabel(slot.id || slot.spec?.key)
-    );
+
+    if (fileTypesHint) {
+      labelNode.classList.add("node-navigation-workspace-counter-label--stacked");
+      const main = document.createElement("span");
+      main.className = "node-navigation-workspace-counter-label-main";
+      setWorkspaceCounterLabelText(main, title);
+
+      const hint = document.createElement("span");
+      hint.className = "node-navigation-workspace-counter-label-hint";
+      hint.textContent = fileTypesHint;
+      hint.title = fileTypesHint;
+
+      labelNode.append(main, hint);
+      return;
+    }
+
+    labelNode.classList.remove("node-navigation-workspace-counter-label--stacked");
+    setWorkspaceCounterLabelText(labelNode, title);
     return;
   }
 
@@ -60938,7 +61132,12 @@ function updateEntryOverviewDataSlotBarCounts(wrap, slots = []) {
 
     btn.title = isDeprecatedRepositoryCounterSlot(slot)
       ? "Репозитории — откажемся от этого слота"
-      : slot.title;
+      : (() => {
+          const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+          const fileTypesHint = getStorageSlotAllowedFileTypesLabel(spec);
+          const baseTitle = slot.title;
+          return fileTypesHint && baseTitle ? `${baseTitle}\n${fileTypesHint}` : baseTitle || fileTypesHint || "";
+        })();
     btn.className = `${getWorkspaceCounterButtonStateClasses(slot)}${btn.classList.contains("is-active") ? " is-active" : ""}`;
     btn.classList.remove("is-pending", "is-unread");
     if (slot.tone) btn.classList.add(`is-${slot.tone}`);
@@ -61495,9 +61694,12 @@ function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onC
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = `${getWorkspaceCounterButtonStateClasses(slot)}${isActive ? " is-active" : ""}`;
-  btn.title = isDeprecatedRepositoryCounterSlot(slot)
+  const spec = resolveStorageSlotSpecFromCounterSlot(slot);
+  const fileTypesHint = getStorageSlotAllowedFileTypesLabel(spec);
+  const baseTitle = isDeprecatedRepositoryCounterSlot(slot)
     ? "Репозитории — откажемся от этого слота"
     : slot.title;
+  btn.title = fileTypesHint && baseTitle ? `${baseTitle}\n${fileTypesHint}` : baseTitle || fileTypesHint || "";
   btn.setAttribute("aria-selected", isActive ? "true" : "false");
   if (isDeprecatedRepositoryCounterSlot(slot)) {
     btn.disabled = true;

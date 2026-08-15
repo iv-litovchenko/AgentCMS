@@ -29415,10 +29415,21 @@ button.node-navigation-hub-rail-slot-summary {
   color: #334155;
 }
 
+.node-navigation-workspace-counter-card .node-navigation-workspace-counter-label-main {
+  font-weight: 600;
+  color: inherit;
+}
+
 .node-navigation-workspace-counter-label-hint {
   font-size: 9px;
   font-weight: 500;
   color: #64748b;
+  max-width: 100%;
+  line-height: 1.2;
+}
+
+.node-navigation-workspace-counter-card .node-navigation-workspace-counter-label-hint {
+  opacity: 0.92;
 }
 
 .node-navigation-workspace-counter-card--outside-slots .stub-static-mark {

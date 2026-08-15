@@ -97,20 +97,32 @@ fields:
         name: ⚪ Без статуса
     default: open
 
+  awn-quality:
+    type: awn.field.number.stars
+    title: "{A2!} Качество проверки"
+    description: >
+      Насколько запись готова после совместной проверки с агентом.
+      Ниже 4 — требует доработки; 4 — норма; 10 — отлично.
+    hint: "0 — очень низко · 4 — норма · 10 — высоко · ниже 4 нужна обработка"
+    placement: aside-body
+    group: content
+    sort: 3
+    default: 4
+
   awn-emoji:
     type: awn.field.string
     title: "{A2!} Эмодзи"
     description: Показывается вместо иконки, если превью не задано
     placement: aside-body
     group: content
-    sort: 3
+    sort: 4
 
   awn-sort:
     type: awn.field.number.integer
     title: "{A2!} Сортировка"
     placement: aside-body
     group: content
-    sort: 4
+    sort: 5
 
   # --- runtime ---
   awn-runtime-load-always:
