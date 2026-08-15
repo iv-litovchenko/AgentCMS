@@ -28673,8 +28673,11 @@ button.node-navigation-hub-rail-slot-summary {
 }
 
 .node-navigation-hero-todo-sticker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin: 8px 0 0;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid #e5d089;
   border-radius: 8px;
   background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
@@ -28683,7 +28686,7 @@ button.node-navigation-hub-rail-slot-summary {
 
 .node-navigation-hero-todo-sticker-label {
   display: block;
-  margin-bottom: 4px;
+  margin: 0;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -28698,6 +28701,12 @@ button.node-navigation-hub-rail-slot-summary {
   font-size: 12px;
   line-height: 1.45;
   color: #78350f;
+}
+
+.node-navigation-hero-footer .node-navigation-hero-todo-sticker + .node-entry-overview-tags,
+.node-navigation-hero-footer .node-navigation-hero-todo-sticker + .node-navigation-hero-footer-meta,
+.node-navigation-hero-footer .node-navigation-hero-todo-sticker + .node-navigation-hero-footer-meta-row {
+  margin-top: 10px;
 }
 
 .node-navigation-hero-footer-note {

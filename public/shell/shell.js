@@ -2296,12 +2296,6 @@ function setComposeExpanded(next) {
     "title",
     composeDraftExpanded ? "Свернуть" : "Развернуть на весь экран"
   );
-  nodes.composeExpandToggle
-    ?.querySelector(".shell-compose-expand-icon")
-    ?.classList.toggle("hidden", composeDraftExpanded);
-  nodes.composeExpandToggle
-    ?.querySelector(".shell-compose-collapse-icon")
-    ?.classList.toggle("hidden", !composeDraftExpanded);
   document.body.classList.toggle("shell-compose-expanded", composeDraftExpanded);
   if (composeDraftExpanded) {
     nodes.message?.focus();
