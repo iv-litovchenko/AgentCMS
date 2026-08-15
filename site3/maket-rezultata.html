@@ -363,8 +363,18 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .hero{position:relative;overflow:hidden;border-radius:24px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
 .hero img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
 .hero-badge{position:absolute;left:16px;top:16px;background:rgba(255,255,255,.94);color:var(--blue3);font-size:12px;font-weight:800;padding:8px 14px;border-radius:999px}
-.hero-caption{margin:0;font-size:15px;line-height:1.5;color:rgba(255,255,255,.75);font-weight:500}
-.hero-caption strong{color:#fff;font-weight:700}
+.hero-caption{
+  margin:14px 0 0;padding:14px 18px 15px;
+  font-size:14px;line-height:1.55;color:#334155;font-weight:500;text-align:left;
+  background:linear-gradient(180deg,#fff 0%,#f8faff 100%);
+  border:1px solid rgba(191,211,255,.75);border-left:4px solid var(--blue);
+  border-radius:16px;
+  box-shadow:0 14px 36px rgba(2,6,23,.18),0 0 0 1px rgba(255,255,255,.65)
+}
+.hero-caption strong{
+  color:#1d4ed8;font-weight:800
+}
+.hero-caption em{font-style:normal;color:#1e3a8a;font-weight:650}
 
 .overview-visual{
   scroll-margin-top:calc(var(--cosmos-dock-h, 72px) + 16px);
@@ -1209,6 +1219,21 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .mcp-block h3{margin:0 0 10px;font-size:20px;font-weight:800;letter-spacing:-.2px}
 .mcp-block .mcp-lead{margin:0 0 16px;font-size:15px;color:#425066;line-height:1.6}
 .mcp-block .mcp-lead strong{color:var(--ink)}
+.mcp-agents{
+  display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px
+}
+.mcp-agents span{
+  font-size:12px;font-weight:700;padding:8px 12px;border-radius:999px;
+  color:#334155;background:#fff;border:1px solid #dbe6ff;
+  box-shadow:0 2px 8px rgba(57,120,255,.06)
+}
+.mcp-agents span:nth-child(1){color:#7c3aed;border-color:#ddd6fe;background:#f5f3ff}
+.mcp-agents span:nth-child(2){color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff}
+.mcp-agents span:nth-child(3){color:#0f766e;border-color:#99f6e4;background:#f0fdfa}
+.mcp-agents span:nth-child(4){color:#b45309;border-color:#fde68a;background:#fffbeb}
+.mcp-agents span:nth-child(5){color:#4338ca;border-color:#c7d2fe;background:#eef2ff}
+.mcp-agents span:nth-child(6){color:#0369a1;border-color:#bae6fd;background:#f0f9ff}
+.mcp-agents span:nth-child(7){color:#64748b;border-color:#e2e8f0;background:#f8fafc;font-weight:600}
 
 /* Goals */
 .goals{display:grid;gap:10px}
@@ -2136,7 +2161,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   border-top:1px solid var(--line)
 }
 .footer-hero{
-  display:flex;flex-direction:column;align-items:center;max-width:640px;margin:0 auto;text-align:center
+  display:flex;flex-direction:column;align-items:center;max-width:var(--container);margin:0 auto;text-align:center
 }
 .footer-mascot-block{margin:0 0 18px}
 .footer-mascot{position:relative;width:112px;height:132px;margin:0 auto}
@@ -2205,6 +2230,30 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .footer-tag:nth-child(3) .footer-tag-hash{color:#0284c7}
 .footer-lead{margin:0;font-size:16px;line-height:1.65;color:#475569;max-width:52ch}
 .footer-quote{margin:16px 0 0;font-size:14px;font-style:italic;color:#64748b}
+.footer-gallery{
+  align-self:stretch;width:100%;margin:32px 0 0;
+  display:grid;gap:20px;grid-template-columns:1fr
+}
+.footer-gallery-item{
+  margin:0;border-radius:22px;overflow:hidden;
+  border:1px solid rgba(191,211,255,.85);
+  background:linear-gradient(165deg,#fff 0%,#f8faff 100%);
+  box-shadow:0 18px 44px rgba(57,120,255,.1),0 0 0 1px rgba(255,255,255,.75);
+  transition:transform .25s,box-shadow .25s
+}
+.footer-gallery-item:hover{
+  transform:translateY(-3px);
+  box-shadow:0 26px 56px rgba(57,120,255,.16),0 0 0 1px rgba(147,197,253,.35)
+}
+.footer-gallery-item img{display:block;width:100%;height:auto;vertical-align:middle}
+.footer-gallery-item figcaption{
+  padding:14px 16px;font-size:12px;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:#475569;text-align:center;line-height:1.35;
+  background:linear-gradient(180deg,rgba(248,250,252,.95),#fff);
+  border-top:1px solid rgba(226,232,240,.9)
+}
+.footer-gallery-item:first-child figcaption{color:#4338ca}
+.footer-gallery-item:last-child figcaption{color:#0369a1;font-size:13px;letter-spacing:.12em}
 .footer-copy{margin-top:28px;font-size:12px;color:#94a3b8}
 
 .toast{position:fixed;z-index:30;left:50%;bottom:calc(88px + var(--safe-bottom));transform:translate(-50%,20px);background:#141c2b;color:#fff;padding:12px 20px;border-radius:16px;font-size:14px;opacity:0;pointer-events:none;transition:.3s;max-width:calc(100% - 32px);box-shadow:0 10px 30px rgba(0,0,0,.2);text-align:center}
@@ -2246,6 +2295,11 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   color:rgba(226,232,240,.62);font-size:11px;font-weight:700;letter-spacing:.02em;
   white-space:nowrap;transition:color .2s,transform .15s;pointer-events:auto;cursor:pointer
 }
+.surface-switcher-btn .surf-label{display:inline-flex;align-items:baseline;gap:3px}
+.surface-switcher-btn .surf-sub{
+  font-size:8px;font-weight:800;letter-spacing:.04em;color:rgba(147,197,253,.75)
+}
+.surface-switcher-btn.active .surf-sub{color:#bfdbfe}
 .surface-switcher-btn .surf-ico{font-size:14px;line-height:1;opacity:.78;transition:opacity .2s,transform .2s}
 .surface-switcher-btn:hover{color:rgba(248,250,252,.92)}
 .surface-switcher-btn:hover .surf-ico{opacity:1;transform:scale(1.06)}
@@ -2302,8 +2356,8 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
     <button type="button" class="surface-switcher-btn active" role="tab" data-surface="browser" aria-selected="true" title="Browser">
       <span class="surf-ico" aria-hidden="true">🌐</span><span class="surf-label">Browser</span>
     </button>
-    <button type="button" class="surface-switcher-btn" role="tab" data-surface="server" aria-selected="false" title="Server">
-      <span class="surf-ico" aria-hidden="true">⚡</span><span class="surf-label">Server</span>
+    <button type="button" class="surface-switcher-btn" role="tab" data-surface="server" aria-selected="false" title="Server — данные в облаке, доступ 24/7">
+      <span class="surf-ico" aria-hidden="true">☁️</span><span class="surf-label">Server<span class="surf-sub">24/7</span></span>
     </button>
     <button type="button" class="surface-switcher-btn" role="tab" data-surface="mobile" aria-selected="false" title="Mobile">
       <span class="surf-ico" aria-hidden="true">📱</span><span class="surf-label">Mobile</span>
@@ -2318,7 +2372,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   const stubs={
     desktop:'Заглушка: нативное окно Agent CMS на macOS / Windows',
     browser:'Сейчас вы в Browser — этот лендинг-макет',
-    server:'Заглушка: MCP Server · ~70 инструментов · Cursor / Claude',
+    server:'Заглушка: хранилище в облаке — доступ к данным 24/7 с любого устройства',
     mobile:'Заглушка: Agent Shell на iOS / Android'
   };
   const switcher=document.getElementById('surfaceSwitcher');
@@ -2492,7 +2546,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
             <span class="hero-badge">1 + 1 ≥ 2</span>
             <img src="agent-cms-hero.png" width="1024" height="576" alt="Agent CMS — где человек и агент думают вместе">
           </section>
-          <p class="hero-caption"><strong>Agent CMS</strong> — система управления контекстом и контентом для LLM-агентов</p>
+          <p class="hero-caption"><strong>Agent CMS</strong> — система управления <em>контекстом</em> и <em>контентом</em> для LLM-агентов</p>
         </div>
       </div>
     </div>
@@ -2761,7 +2815,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
         <div class="section-head" style="margin-top:44px" id="peer-share"><h2>Обмен между людьми</h2><p>Марина и Владислав — у каждого смартфон и свой агент</p></div>
         <div class="graph-block">
-          <p class="graph-lead">Они не сидят за одним компьютером — у каждого телефон. Но могут обмениваться данными: заметкой, файлом или голосом — через общую тему на сервере или через взаимодействие системы.</p>
+          <p class="graph-lead">Они не сидят за одним компьютером — у каждого телефон. Но могут обмениваться данными: заметкой, файлом или голосом — через общую тему в облаке на сервере (доступ 24/7) или через взаимодействие системы.</p>
           <div class="agent-exchange" aria-label="Марина и Владислав обмениваются данными">
             <div class="peer-hub-arrows" aria-hidden="true">
               <svg viewBox="0 0 760 36" preserveAspectRatio="xMidYMid meet">
@@ -2785,7 +2839,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
                 <div class="peer-hub">
                   <span class="peer-hub-ico">☁️</span>
                   <strong>Общая тема</strong>
-                  <p>«Ремонт кухни» на сервере — видят оба</p>
+                  <p>«Ремонт кухни» в облаке — доступ 24/7, видят оба</p>
                   <span class="peer-hub-tag">shared/kitchen/</span>
                 </div>
                 <div class="peer-hub">
@@ -3446,13 +3500,22 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
     <section class="section alt" id="connect">
       <div class="container">
-        <div class="section-head"><h2>Подключение по MCP</h2><p>к любому агенту с поддержкой Model Context Protocol</p></div>
+        <div class="section-head"><h2>Подключение по MCP</h2><p>коннект с популярными агентами · Model Context Protocol</p></div>
         <div class="mcp-block">
-          <h3>🔌 Работает с любым ИИ</h3>
-          <p class="mcp-lead">Хранилище не привязано к одному ChatGPT. Подключите <strong>любой MCP-клиент</strong> — Cursor, Claude Desktop, свой агент — и он получит ~70 инструментов: читать, писать, искать, вести диалог.</p>
+          <h3>🔌 Коннект с самыми популярными агентами</h3>
+          <p class="mcp-lead">Хранилище не привязано к одному ChatGPT. Подключите <strong>любой MCP-клиент</strong> — и агент получит ~70 инструментов: читать, писать, искать, вести диалог.</p>
+          <div class="mcp-agents" aria-label="Популярные MCP-клиенты">
+            <span>Claude</span>
+            <span>Cursor</span>
+            <span>OpenClaw</span>
+            <span>Hermes</span>
+            <span>Agent Zero</span>
+            <span>Agent QwenPaw</span>
+            <span>и другие</span>
+          </div>
           <span class="adv-tag">Model Context Protocol</span>
           <div class="mcp-diagram">
-            <div class="mcp-node">Любой агент</div>
+            <div class="mcp-node">Claude · Cursor · …</div>
             <div class="mcp-arrow">⇄</div>
             <div class="mcp-node server">MCP Server</div>
             <div class="mcp-arrow">→</div>
@@ -4102,6 +4165,18 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
         </ul>
         <p class="footer-lead">Система управления контекстом для LLM. Каждая тема — отдельный контекст, память накапливается заметка за заметкой.</p>
         <p class="footer-quote">«Файл — это не папка, а намерение.»</p>
+
+        <div class="footer-gallery" aria-label="Визуализации Agent CMS">
+          <figure class="footer-gallery-item">
+            <img src="pic.jpg" width="1920" height="1080" alt="Agent CMS — общая память: MCP, устройства, области, темы, слоты и записи" loading="lazy">
+            <figcaption>Общая память · MCP · структура хранилища</figcaption>
+          </figure>
+          <figure class="footer-gallery-item">
+            <img src="pic-2.jpg" width="1920" height="1080" alt="Agent CMS — дерево контекста: человек и агент, связанные темы и знания" loading="lazy">
+            <figcaption>мечта</figcaption>
+          </figure>
+        </div>
+
         <p class="footer-copy">Agent CMS · 2026</p>
       </div>
     </div>
