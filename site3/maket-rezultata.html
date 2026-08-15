@@ -1515,18 +1515,66 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 .graph-hub.record-hub{background:linear-gradient(135deg,#3978ff,#7c5cff)}
 .graph-hub.custom-hub{background:linear-gradient(135deg,#18a56a,#0d9488);box-shadow:0 12px 36px rgba(24,165,106,.32)}
-.graph-radial.fields-radial{max-width:780px;min-height:480px;aspect-ratio:1/0.95}
-.graph-orbit--inner .graph-node{
-  --r:82px;width:clamp(62px,12vw,78px);margin-left:calc(clamp(62px,12vw,78px)/-2);
-  padding:7px 5px;font-size:10px
+
+/* Fields radial — grouped clusters, spaced out */
+.graph-radial.fields-radial{
+  max-width:920px;min-height:660px;aspect-ratio:1/1.02;margin:0 auto
 }
-.graph-orbit--inner .graph-node .g-ico{font-size:16px;margin-bottom:2px}
-.graph-orbit--inner .graph-node .g-sub{font-size:8px}
-.graph-orbit--outer .graph-node{--r:152px}
-.graph-node.runtime-node{border-color:#fde68a;background:linear-gradient(180deg,#fff,#fffbeb)}
-.graph-node.runtime-node .g-sub{color:#b45309}
+.fields-radial-group{
+  position:absolute;left:50%;top:50%;z-index:1;pointer-events:none;
+  --gr:clamp(168px,34vw,238px);
+  transform:rotate(var(--ga)) translateY(calc(-1 * var(--gr))) rotate(calc(-1 * var(--ga)))
+}
+.fields-radial-group-inner{
+  transform:translate(-50%,-50%);
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  width:max-content;max-width:min(190px,42vw);pointer-events:auto
+}
+.fields-radial-group-head{
+  margin:0;font-size:10px;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:#64748b;text-align:center;
+  padding:6px 12px;border-radius:999px;background:#fff;
+  border:1px solid #e2e8f0;box-shadow:var(--shadow-sm);white-space:nowrap
+}
+.fields-radial-group.runtime .fields-radial-group-head{
+  color:#b45309;background:#fffbeb;border-color:#fde68a
+}
+.fields-radial-group.mindmap .fields-radial-group-head{
+  color:#6d28d9;background:#f5f3ff;border-color:#ddd6fe
+}
+.fields-radial-nodes{
+  display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:196px
+}
+.graph-node.graph-node--mini{
+  position:relative;left:auto;top:auto;transform:none!important;
+  width:74px;margin:0;padding:8px 6px;font-size:10px;border-radius:12px;flex:none
+}
+.graph-node.graph-node--mini:hover{
+  transform:translateY(-2px)!important;border-color:#bfd3ff;
+  box-shadow:0 10px 28px rgba(57,120,255,.14);z-index:3
+}
+.graph-node.graph-node--mini .g-ico{font-size:17px;margin-bottom:3px}
+.graph-node.graph-node--mini .g-sub{font-size:8px;line-height:1.2}
+.graph-node.graph-node--mini.runtime-node{
+  border-color:#fde68a;background:linear-gradient(180deg,#fff,#fffbeb)
+}
+.graph-node.graph-node--mini.runtime-node .g-sub{color:#b45309}
+.graph-node.graph-node--mini.mindmap-node{
+  border-color:#ddd6fe;background:linear-gradient(180deg,#fff,#f5f3ff)
+}
+.graph-node.graph-node--mini.mindmap-node .g-sub{color:#6d28d9}
+.fields-radial .graph-svg line{stroke:#c7d9ff;stroke-width:1.5;opacity:.75}
+
+@media(max-width:520px){
+  .graph-radial.fields-radial{min-height:580px}
+  .graph-node.graph-node--mini{width:66px;padding:7px 5px;font-size:9px}
+  .graph-node.graph-node--mini .g-ico{font-size:15px}
+  .fields-radial-group-head{font-size:9px;padding:5px 9px}
+  .fields-radial-nodes{gap:8px;max-width:156px}
+}
+
 .fields-record-card{
-  max-width:640px;margin:20px auto 0;padding:18px 20px;border-radius:18px;
+  max-width:100%;margin:20px 0 0;padding:18px 20px;border-radius:18px;
   background:#fff;border:1px solid #dbe6ff;box-shadow:var(--shadow-sm);text-align:left
 }
 .fields-record-card h4{margin:0 0 10px;font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px}
@@ -1537,7 +1585,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 .fields-record-card .frc-body{margin:0;font-size:13px;line-height:1.55;color:#4b5c72}
 .fields-custom-demo{
-  display:grid;gap:10px;max-width:780px;margin:20px auto 0
+  display:grid;gap:10px;max-width:100%;margin:20px 0 0
 }
 @media(min-width:640px){.fields-custom-demo{grid-template-columns:repeat(2,1fr)}}
 @media(min-width:960px){.fields-custom-demo{grid-template-columns:repeat(3,1fr)}}
@@ -1669,6 +1717,157 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 .security-note p{margin:0;font-size:14px;line-height:1.55;color:#334155}
 .security-note strong{color:#047857;font-weight:800}
+
+/* Pocket net — mini internet, library in your pocket */
+.pocket-net-section{
+  padding:64px 0 72px;position:relative;overflow:hidden;
+  background:linear-gradient(155deg,#0a0f1e 0%,#141038 38%,#0c2340 72%,#091828 100%);
+  border-top:1px solid rgba(148,163,184,.1);border-bottom:1px solid rgba(148,163,184,.1)
+}
+.pocket-net-section:before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 55% 45% at 12% 18%,rgba(124,92,255,.32),transparent 58%),
+    radial-gradient(ellipse 50% 40% at 88% 22%,rgba(56,189,248,.24),transparent 55%),
+    radial-gradient(ellipse 45% 38% at 50% 100%,rgba(251,191,36,.14),transparent 60%)
+}
+.pocket-net-mesh{
+  position:absolute;inset:0;pointer-events:none;opacity:.35;
+  background-image:
+    radial-gradient(circle at center,rgba(147,197,253,.08) 1px,transparent 1px);
+  background-size:28px 28px;
+  mask-image:radial-gradient(ellipse 80% 70% at 50% 40%,#000 20%,transparent 75%)
+}
+.pocket-net-section .container{position:relative;z-index:1}
+.pocket-net-hero{
+  text-align:center;max-width:720px;margin:0 auto 40px;padding:0 8px
+}
+.pocket-net-kicker{
+  display:inline-flex;align-items:center;gap:8px;margin:0 0 18px;
+  font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:#93c5fd;padding:8px 16px;border-radius:999px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(147,197,253,.22)
+}
+.pocket-net-hero h2{
+  margin:0 0 16px;font-size:clamp(26px,4.2vw,42px);line-height:1.15;
+  letter-spacing:-.6px;font-weight:800;color:#f8fafc
+}
+.pocket-net-hero h2 em{
+  font-style:normal;
+  background:linear-gradient(90deg,#93c5fd 0%,#c4b5fd 45%,#fcd34d 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
+}
+.pocket-net-slogan{
+  margin:0 auto;font-size:clamp(16px,2.4vw,21px);line-height:1.55;font-weight:600;
+  color:rgba(226,232,240,.88);max-width:52ch
+}
+.pocket-net-slogan em{
+  font-style:normal;font-weight:800;
+  background:linear-gradient(90deg,#6ee7b7,#fde68a);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
+}
+.pocket-net-tags{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:22px
+}
+.pocket-net-tags span{
+  font-size:12px;font-weight:700;padding:8px 14px;border-radius:999px;
+  color:#e0f2fe;background:rgba(255,255,255,.07);border:1px solid rgba(148,163,184,.18)
+}
+.pocket-net-tags span:nth-child(2){color:#ddd6fe;border-color:rgba(167,139,250,.28);background:rgba(124,92,255,.12)}
+.pocket-net-tags span:nth-child(3){color:#fde68a;border-color:rgba(251,191,36,.28);background:rgba(251,191,36,.1)}
+.pocket-net-layout{
+  display:flex;flex-direction:column;gap:24px;max-width:1080px;margin:0 auto;width:100%
+}
+.pocket-net-visual{
+  position:relative;width:100%;max-width:720px;margin:0 auto;min-height:280px;padding:24px;border-radius:24px;
+  background:linear-gradient(165deg,rgba(30,41,82,.45),rgba(15,23,42,.65));
+  border:1px solid rgba(148,163,184,.18);
+  box-shadow:0 24px 60px rgba(2,6,23,.45),inset 0 1px 0 rgba(255,255,255,.06);
+  display:grid;place-items:center
+}
+.pocket-net-visual svg{width:100%;max-width:420px;height:auto;display:block}
+.pocket-net-phone{
+  position:absolute;bottom:16px;right:16px;left:auto;
+  width:112px;padding:10px 10px 12px;border-radius:18px;
+  background:linear-gradient(180deg,#1e293b,#0f172a);
+  border:2px solid rgba(148,163,184,.25);
+  box-shadow:0 16px 40px rgba(2,6,23,.55),0 0 0 1px rgba(255,255,255,.04);
+  transform:rotate(-4deg)
+}
+@media(max-width:899px){
+  .pocket-net-phone{position:relative;bottom:auto;right:auto;margin:16px auto 0;transform:none}
+  .pocket-net-visual{min-height:auto;padding-bottom:20px}
+}
+.pocket-net-phone-notch{
+  width:36px;height:5px;margin:0 auto 8px;border-radius:999px;background:rgba(148,163,184,.35)
+}
+.pocket-net-phone-screen{
+  border-radius:12px;padding:10px 8px;
+  background:linear-gradient(180deg,#0f172a,#1e3a5f);
+  border:1px solid rgba(96,165,250,.2)
+}
+.pocket-net-phone-screen p{
+  margin:0 0 6px;font-size:8px;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:#93c5fd;text-align:center
+}
+.pocket-net-phone-icons{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+.pocket-net-phone-icons span{
+  width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+  font-size:13px;line-height:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1)
+}
+.pocket-net-grid{display:grid;gap:14px;width:100%;grid-template-columns:1fr}
+@media(min-width:640px){.pocket-net-grid{grid-template-columns:repeat(3,1fr)}}
+.pocket-net-card{
+  padding:20px 18px 18px;border-radius:18px;text-align:left;
+  background:linear-gradient(165deg,rgba(255,255,255,.09),rgba(255,255,255,.04));
+  border:1px solid rgba(148,163,184,.16);
+  backdrop-filter:blur(8px);
+  box-shadow:0 12px 32px rgba(2,6,23,.28),inset 0 1px 0 rgba(255,255,255,.08);
+  transition:.2s
+}
+.pocket-net-card:hover{
+  transform:translateY(-2px);border-color:rgba(147,197,253,.35);
+  box-shadow:0 18px 44px rgba(2,6,23,.38),inset 0 1px 0 rgba(255,255,255,.1)
+}
+.pocket-net-card-ico{
+  width:48px;height:48px;margin-bottom:12px;border-radius:14px;
+  display:grid;place-items:center;font-size:24px;line-height:1;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)
+}
+.pocket-net-card:nth-child(1) .pocket-net-card-ico{background:rgba(96,165,250,.15);border-color:rgba(147,197,253,.3)}
+.pocket-net-card:nth-child(2) .pocket-net-card-ico{background:rgba(167,139,250,.15);border-color:rgba(196,181,253,.28)}
+.pocket-net-card:nth-child(3) .pocket-net-card-ico{background:rgba(251,191,36,.12);border-color:rgba(253,224,71,.28)}
+.pocket-net-card h3{margin:0 0 8px;font-size:16px;font-weight:800;color:#f1f5f9;letter-spacing:-.2px}
+.pocket-net-card p{margin:0;font-size:13px;line-height:1.58;color:rgba(203,213,225,.82)}
+.pocket-net-card-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.pocket-net-card-tags span{
+  font-size:10px;font-weight:700;padding:5px 9px;border-radius:999px;
+  color:rgba(226,232,240,.9);background:rgba(255,255,255,.06);border:1px solid rgba(148,163,184,.16)
+}
+.pocket-net-banner{
+  margin-top:28px;padding:22px 24px;border-radius:20px;text-align:center;
+  background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(57,120,255,.14));
+  border:1px solid rgba(110,231,183,.22);
+  box-shadow:0 8px 32px rgba(2,6,23,.25)
+}
+.pocket-net-banner p{
+  margin:0;font-size:clamp(15px,2.2vw,18px);line-height:1.55;font-weight:700;color:#ecfdf5
+}
+.pocket-net-banner p em{
+  font-style:normal;
+  background:linear-gradient(90deg,#6ee7b7,#93c5fd);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
+}
+@media(prefers-reduced-motion:reduce){
+  .pocket-net-node-pulse{animation:none}
+}
+@keyframes pocket-net-pulse{
+  0%,100%{opacity:.55;transform:scale(1)}
+  50%{opacity:1;transform:scale(1.08)}
+}
+.pocket-net-node-pulse{animation:pocket-net-pulse 3s ease-in-out infinite}
+.pocket-net-node-pulse:nth-child(2){animation-delay:.6s}
+.pocket-net-node-pulse:nth-child(3){animation-delay:1.2s}
 
 .principles-block{
   margin-top:36px;padding:28px 24px 24px;border-radius:var(--r);
@@ -1900,8 +2099,89 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .footer-quote{margin:16px 0 0;font-size:14px;font-style:italic;color:#64748b}
 .footer-copy{margin-top:28px;font-size:12px;color:#94a3b8}
 
-.toast{position:fixed;z-index:30;left:50%;bottom:calc(24px + var(--safe-bottom));transform:translate(-50%,20px);background:#141c2b;color:#fff;padding:12px 20px;border-radius:16px;font-size:14px;opacity:0;pointer-events:none;transition:.3s;max-width:calc(100% - 32px);box-shadow:0 10px 30px rgba(0,0,0,.2);text-align:center}
+.toast{position:fixed;z-index:30;left:50%;bottom:calc(88px + var(--safe-bottom));transform:translate(-50%,20px);background:#141c2b;color:#fff;padding:12px 20px;border-radius:16px;font-size:14px;opacity:0;pointer-events:none;transition:.3s;max-width:calc(100% - 32px);box-shadow:0 10px 30px rgba(0,0,0,.2);text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* Surface switcher — always visible mock */
+.surface-switcher{
+  position:fixed;z-index:40;left:50%;bottom:calc(14px + var(--safe-bottom));
+  transform:translateX(-50%);
+  display:flex;align-items:center;gap:10px;
+  padding:7px 10px 7px 14px;border-radius:999px;
+  background:linear-gradient(165deg,rgba(15,23,42,.94),rgba(7,11,20,.97));
+  border:1px solid rgba(148,163,184,.22);
+  box-shadow:0 12px 40px rgba(2,6,23,.48),0 0 0 1px rgba(255,255,255,.04),inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  max-width:calc(100% - 20px)
+}
+.surface-switcher-kicker{
+  flex:none;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  color:rgba(148,163,184,.88);white-space:nowrap;padding-right:2px
+}
+.surface-switcher-track{
+  position:relative;display:flex;align-items:stretch;gap:2px;
+  padding:3px;border-radius:999px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.07)
+}
+.surface-switcher-indicator{
+  position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px) / 4);
+  border-radius:999px;pointer-events:none;z-index:0;
+  background:linear-gradient(135deg,rgba(57,120,255,.42),rgba(124,92,255,.32));
+  border:1px solid rgba(147,197,253,.35);
+  box-shadow:0 0 20px rgba(57,120,255,.28),inset 0 1px 0 rgba(255,255,255,.12);
+  transition:transform .32s cubic-bezier(.34,1.2,.64,1)
+}
+.surface-switcher-btn{
+  position:relative;z-index:1;flex:1 1 0;min-width:0;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  padding:8px 11px;border-radius:999px;background:transparent;
+  color:rgba(226,232,240,.62);font-size:11px;font-weight:700;letter-spacing:.02em;
+  white-space:nowrap;transition:color .2s,transform .15s
+}
+.surface-switcher-btn .surf-ico{font-size:14px;line-height:1;opacity:.78;transition:opacity .2s,transform .2s}
+.surface-switcher-btn:hover{color:rgba(248,250,252,.92)}
+.surface-switcher-btn:hover .surf-ico{opacity:1;transform:scale(1.06)}
+.surface-switcher-btn.active{color:#fff;text-shadow:0 0 18px rgba(147,197,253,.35)}
+.surface-switcher-btn.active .surf-ico{opacity:1}
+.surface-switcher-badge{
+  flex:none;font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:#fde68a;padding:4px 7px;border-radius:999px;
+  background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.28)
+}
+body[data-surface="desktop"] .surface-switcher-indicator{
+  background:linear-gradient(135deg,rgba(96,165,250,.38),rgba(59,130,246,.28));
+  border-color:rgba(147,197,253,.4);box-shadow:0 0 20px rgba(96,165,250,.25),inset 0 1px 0 rgba(255,255,255,.12)
+}
+body[data-surface="browser"] .surface-switcher-indicator{
+  background:linear-gradient(135deg,rgba(57,120,255,.42),rgba(124,92,255,.32));
+  border-color:rgba(147,197,253,.35);box-shadow:0 0 20px rgba(57,120,255,.28),inset 0 1px 0 rgba(255,255,255,.12)
+}
+body[data-surface="server"] .surface-switcher-indicator{
+  background:linear-gradient(135deg,rgba(52,211,153,.32),rgba(16,185,129,.22));
+  border-color:rgba(110,231,183,.35);box-shadow:0 0 20px rgba(52,211,153,.22),inset 0 1px 0 rgba(255,255,255,.1)
+}
+body[data-surface="mobile"] .surface-switcher-indicator{
+  background:linear-gradient(135deg,rgba(167,139,250,.38),rgba(124,92,255,.28));
+  border-color:rgba(196,181,253,.35);box-shadow:0 0 20px rgba(167,139,250,.25),inset 0 1px 0 rgba(255,255,255,.12)
+}
+body[data-surface="mobile"] .app{
+  max-width:430px;margin-left:auto;margin-right:auto;
+  box-shadow:0 0 0 1px rgba(148,163,184,.18),0 24px 80px rgba(15,23,36,.12)
+}
+body[data-surface="server"]:before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:24;
+  box-shadow:inset 0 0 0 2px rgba(52,211,153,.18),inset 0 0 80px rgba(52,211,153,.04)
+}
+@media(max-width:720px){
+  .surface-switcher-kicker,.surface-switcher-badge{display:none}
+  .surface-switcher{padding:6px 8px}
+  .surface-switcher-btn{padding:8px 9px;font-size:10px;gap:4px}
+  .surface-switcher-btn .surf-label{display:none}
+  .surface-switcher-btn .surf-ico{font-size:16px}
+}
+@media(max-width:420px){
+  .surface-switcher-btn{padding:8px 7px}
+}
 
 @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
 
@@ -1911,7 +2191,26 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 </style>
 </head>
-<body>
+<body data-surface="browser">
+<div class="surface-switcher" id="surfaceSwitcher" role="toolbar" aria-label="Поверхность Agent CMS">
+  <span class="surface-switcher-kicker">Вы здесь</span>
+  <div class="surface-switcher-track" role="tablist" aria-label="Desktop · Browser · Server · Mobile">
+    <span class="surface-switcher-indicator" id="surfaceIndicator" aria-hidden="true"></span>
+    <button type="button" class="surface-switcher-btn" role="tab" data-surface="desktop" aria-selected="false" title="Desktop — нативное приложение">
+      <span class="surf-ico" aria-hidden="true">🖥</span><span class="surf-label">Desktop</span>
+    </button>
+    <button type="button" class="surface-switcher-btn active" role="tab" data-surface="browser" aria-selected="true" title="Browser — веб-интерфейс">
+      <span class="surf-ico" aria-hidden="true">🌐</span><span class="surf-label">Browser</span>
+    </button>
+    <button type="button" class="surface-switcher-btn" role="tab" data-surface="server" aria-selected="false" title="Server — MCP / backend">
+      <span class="surf-ico" aria-hidden="true">⚡</span><span class="surf-label">Server</span>
+    </button>
+    <button type="button" class="surface-switcher-btn" role="tab" data-surface="mobile" aria-selected="false" title="Mobile — телефон">
+      <span class="surf-ico" aria-hidden="true">📱</span><span class="surf-label">Mobile</span>
+    </button>
+  </div>
+  <span class="surface-switcher-badge">mock</span>
+</div>
 <div class="app">
   <div class="cosmos-dock" id="cosmosDock">
     <button type="button" class="cosmos-hub" onclick="jump('cosmosSplash',this)" title="Agent CMS — в начало" aria-label="Agent CMS — в начало страницы">
@@ -2485,51 +2784,106 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
         <div class="graph-block">
           <p class="graph-lead">Кроме текста внутри, у записи есть <strong>«паспорт»</strong> — имя, картинка, статус, теги, где лежит вещь. У <strong>тем и областей</strong> добавляются поля расписания и runtime — cron, heartbeat, команды.</p>
           <div class="graph-radial fields-radial" aria-label="Базовые поля записи">
-            <svg class="graph-svg" viewBox="0 0 400 380" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-              <line x1="200" y1="190" x2="200" y2="42"/>
-              <line x1="200" y1="190" x2="274" y2="62"/>
-              <line x1="200" y1="190" x2="328" y2="106"/>
-              <line x1="200" y1="190" x2="348" y2="174"/>
-              <line x1="200" y1="190" x2="328" y2="242"/>
-              <line x1="200" y1="190" x2="274" y2="318"/>
-              <line x1="200" y1="190" x2="200" y2="338"/>
-              <line x1="200" y1="190" x2="126" y2="318"/>
-              <line x1="200" y1="190" x2="72" y2="264"/>
-              <line x1="200" y1="190" x2="52" y2="190"/>
-              <line x1="200" y1="190" x2="72" y2="116"/>
-              <line x1="200" y1="190" x2="126" y2="62"/>
+            <svg class="graph-svg" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <line x1="200" y1="200" x2="200" y2="82"/>
+              <line x1="200" y1="200" x2="292" y2="126"/>
+              <line x1="200" y1="200" x2="333" y2="226"/>
+              <line x1="200" y1="200" x2="282" y2="312"/>
+              <line x1="200" y1="200" x2="182" y2="318"/>
+              <line x1="200" y1="200" x2="92" y2="268"/>
+              <line x1="200" y1="200" x2="67" y2="152"/>
             </svg>
             <div class="graph-hub record-hub">
               <span class="hub-ico">📄</span>
               <strong>Запись</strong>
               <small>базовые поля</small>
             </div>
-            <div class="graph-orbit graph-orbit--outer">
-              <div class="graph-node" style="--a:0deg"><span class="g-ico">📝</span>Имя<span class="g-sub">заголовок в меню</span></div>
-              <div class="graph-node" style="--a:30deg"><span class="g-ico">📋</span>Описание<span class="g-sub">краткое резюме</span></div>
-              <div class="graph-node" style="--a:60deg"><span class="g-ico">🟢</span>Статус<span class="g-sub">открыта · черновик</span></div>
-              <div class="graph-node" style="--a:90deg"><span class="g-ico">😀</span>Эмодзи<span class="g-sub">если нет превью</span></div>
-              <div class="graph-node" style="--a:120deg"><span class="g-ico">🖼</span>Превью<span class="g-sub">картинка карточки</span></div>
-              <div class="graph-node" style="--a:150deg"><span class="g-ico">🔗</span>Веб-URL<span class="g-sub">ссылка на источник</span></div>
-              <div class="graph-node" style="--a:180deg"><span class="g-ico">📎</span>Вложения<span class="g-sub">pdf · фото · docs</span></div>
-              <div class="graph-node" style="--a:210deg"><span class="g-ico">📁</span>Материалы<span class="g-sub">папка рядом</span></div>
-              <div class="graph-node" style="--a:240deg"><span class="g-ico">🏷</span>Теги<span class="g-sub">категория · метки</span></div>
-              <div class="graph-node" style="--a:270deg"><span class="g-ico">👤</span>Владелец<span class="g-sub">кто отвечает</span></div>
-              <div class="graph-node" style="--a:300deg"><span class="g-ico">🎨</span>Цвет<span class="g-sub">метка в списке</span></div>
-              <div class="graph-node" style="--a:330deg"><span class="g-ico">📍</span>Локация<span class="g-sub">комната · GPS</span></div>
+
+            <div class="fields-radial-group" style="--ga:0deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">📝 Основное</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📝</span>Имя<span class="g-sub">заголовок</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📋</span>Описание<span class="g-sub">резюме</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🟢</span>Статус<span class="g-sub">открыта</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">😀</span>Эмодзи<span class="g-sub">иконка</span></div>
+                </div>
+              </div>
             </div>
-            <div class="graph-orbit graph-orbit--inner">
-              <div class="graph-node runtime-node" style="--a:0deg"><span class="g-ico">🗺</span>Mindmap<span class="g-sub">узел на карте</span></div>
-              <div class="graph-node runtime-node" style="--a:60deg"><span class="g-ico">🕐</span>Cron<span class="g-sub">по расписанию</span></div>
-              <div class="graph-node runtime-node" style="--a:120deg"><span class="g-ico">📅</span>Расписание<span class="g-sub">день · время</span></div>
-              <div class="graph-node runtime-node" style="--a:180deg"><span class="g-ico">💓</span>Heartbeat<span class="g-sub">проверка агентом</span></div>
-              <div class="graph-node runtime-node" style="--a:240deg"><span class="g-ico">📌</span>В контексте<span class="g-sub">всегда «в голове»</span></div>
-              <div class="graph-node runtime-node" style="--a:300deg"><span class="g-ico">▶</span>Команды<span class="g-sub">скрипты · shell</span></div>
+
+            <div class="fields-radial-group" style="--ga:51deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">🖼 Медиа и файлы</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🖼</span>Превью<span class="g-sub">картинка</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🔗</span>Веб-URL<span class="g-sub">источник</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📎</span>Вложения<span class="g-sub">pdf · фото</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📁</span>Материалы<span class="g-sub">папка</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fields-radial-group" style="--ga:103deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">🏷 Метки и люди</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🏷</span>Теги<span class="g-sub">метки</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📂</span>Категория<span class="g-sub">раздел</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">👤</span>Владелец<span class="g-sub">ответств.</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">⚡</span>Приоритет<span class="g-sub">важность</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🎨</span>Цвет<span class="g-sub">в списке</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fields-radial-group" style="--ga:154deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">📍 Где в мире</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📍</span>Локация<span class="g-sub">комната</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🧭</span>GPS<span class="g-sub">координаты</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📦</span>Объект<span class="g-sub">вещь</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📅</span>Событие<span class="g-sub">случилось</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fields-radial-group mindmap" style="--ga:206deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">🗺 Карта знаний</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini mindmap-node"><span class="g-ico">🗺</span>Mindmap<span class="g-sub">узел на карте</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fields-radial-group runtime" style="--ga:257deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">⚡ Runtime тем</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini runtime-node"><span class="g-ico">🕐</span>Cron<span class="g-sub">расписание</span></div>
+                  <div class="graph-node graph-node--mini runtime-node"><span class="g-ico">💓</span>Heartbeat<span class="g-sub">сердце</span></div>
+                  <div class="graph-node graph-node--mini runtime-node"><span class="g-ico">📌</span>В контексте<span class="g-sub">всегда</span></div>
+                  <div class="graph-node graph-node--mini runtime-node"><span class="g-ico">▶</span>Команды<span class="g-sub">скрипты</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fields-radial-group" style="--ga:309deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">⚙ Системное</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🏷</span>Тип<span class="g-sub">record…</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🕒</span>Создана<span class="g-sub">дата</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">✏️</span>Изменена<span class="g-sub">дата</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">#</span>Версия<span class="g-sub">номер</span></div>
+                </div>
+              </div>
             </div>
           </div>
           <div class="fields-record-card" aria-label="Пример записи с базовыми полями">
             <h4><span aria-hidden="true">🔧</span> Смета по ремонту кухни</h4>
-            <p class="frc-body">Текст сметы — внутри. Вокруг — «паспорт» записи. Жёлтые узлы ближе к центру — для <em>тем</em> (например «Стройка»: cron «напомни каждый понедельник»).</p>
+            <p class="frc-body">Текст сметы — внутри. Вокруг — «паспорт» записи. Фиолетовая группа — <em>карта знаний</em>. Жёлтая — <em>runtime</em> для тем (cron «напомни каждый понедельник»).</p>
             <div class="frc-row">
               <span>🟢 Открыта</span>
               <span>😀 🔧</span>
@@ -2543,10 +2897,9 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
             </div>
           </div>
           <div class="graph-legend">
-            <span class="legend-green">📄 Внешнее кольцо — у любой записи</span>
-            <span style="background:#fffbeb;border-color:#fde68a;color:#92400e">🕐 Внутреннее — runtime для тем и областей</span>
-            <span>🗺 Mindmap · 🎨 цвет · 👤 владелец — тоже из коробки</span>
-            <span>⚙ Системные: создана · изменена · версия · тип</span>
+            <span class="legend-green">📄 Белые группы — у любой записи</span>
+            <span style="background:#f5f3ff;border-color:#ddd6fe;color:#6d28d9">🗺 Карта знаний — отдельная группа</span>
+            <span style="background:#fffbeb;border-color:#fde68a;color:#92400e">⚡ Runtime — cron · 💓 сердце · 📌 контекст · ▶ команды</span>
           </div>
         </div>
 
@@ -2557,46 +2910,103 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
         <div class="graph-block">
           <p class="graph-lead">Нужен <strong>контакт с телефоном</strong>? <strong>Книга с ISBN</strong>? <strong>Чек с суммой</strong>? Вы добавляете свои поля — система рисует форму. <strong>37 типов</strong> из коробки: от строки до JSON и repeater.</p>
           <div class="graph-radial fields-radial" aria-label="Пользовательские типы полей">
-            <svg class="graph-svg" viewBox="0 0 400 380" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-              <line x1="200" y1="190" x2="200" y2="42"/>
-              <line x1="200" y1="190" x2="274" y2="62"/>
-              <line x1="200" y1="190" x2="328" y2="106"/>
-              <line x1="200" y1="190" x2="348" y2="174"/>
-              <line x1="200" y1="190" x2="328" y2="242"/>
-              <line x1="200" y1="190" x2="274" y2="318"/>
-              <line x1="200" y1="190" x2="200" y2="338"/>
-              <line x1="200" y1="190" x2="126" y2="318"/>
-              <line x1="200" y1="190" x2="72" y2="264"/>
-              <line x1="200" y1="190" x2="52" y2="190"/>
-              <line x1="200" y1="190" x2="72" y2="116"/>
-              <line x1="200" y1="190" x2="126" y2="62"/>
+            <svg class="graph-svg" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <line x1="200" y1="200" x2="200" y2="82"/>
+              <line x1="200" y1="200" x2="292" y2="126"/>
+              <line x1="200" y1="200" x2="333" y2="226"/>
+              <line x1="200" y1="200" x2="282" y2="312"/>
+              <line x1="200" y1="200" x2="182" y2="318"/>
+              <line x1="200" y1="200" x2="92" y2="268"/>
+              <line x1="200" y1="200" x2="67" y2="152"/>
             </svg>
             <div class="graph-hub custom-hub">
               <span class="hub-ico">🧩</span>
               <strong>Ваши поля</strong>
               <small>37 типов</small>
             </div>
-            <div class="graph-orbit graph-orbit--outer">
-              <div class="graph-node" style="--a:0deg"><span class="g-ico">✏️</span>Строка<span class="g-sub">короткий текст</span></div>
-              <div class="graph-node" style="--a:30deg"><span class="g-ico">📧</span>Email<span class="g-sub">почта</span></div>
-              <div class="graph-node" style="--a:60deg"><span class="g-ico">📱</span>Телефон<span class="g-sub">номер</span></div>
-              <div class="graph-node" style="--a:90deg"><span class="g-ico">🔗</span>URL & slug<span class="g-sub">ссылка · адрес</span></div>
-              <div class="graph-node" style="--a:120deg"><span class="g-ico">📝</span>Текст<span class="g-sub">длинное описание</span></div>
-              <div class="graph-node" style="--a:150deg"><span class="g-ico">📄</span>Markdown<span class="g-sub">формат · код</span></div>
-              <div class="graph-node" style="--a:180deg"><span class="g-ico">🔢</span>Число<span class="g-sub">сумма · счётчик</span></div>
-              <div class="graph-node" style="--a:210deg"><span class="g-ico">📅</span>Дата<span class="g-sub">время · срок</span></div>
-              <div class="graph-node" style="--a:240deg"><span class="g-ico">⏱</span>Длительность<span class="g-sub">2h 30m</span></div>
-              <div class="graph-node" style="--a:270deg"><span class="g-ico">☑️</span>Выбор<span class="g-sub">да/нет · список</span></div>
-              <div class="graph-node" style="--a:300deg"><span class="g-ico">📎</span>Файлы<span class="g-sub">док · фото</span></div>
-              <div class="graph-node" style="--a:330deg"><span class="g-ico">🎨</span>Цвет<span class="g-sub">#RRGGBB</span></div>
+
+            <div class="fields-radial-group" style="--ga:0deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">✏️ Текст</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">✏️</span>Строка<span class="g-sub">короткий</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📧</span>Email<span class="g-sub">почта</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📱</span>Телефон<span class="g-sub">номер</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🔗</span>URL<span class="g-sub">ссылка</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📝</span>Текст<span class="g-sub">длинный</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📄</span>Markdown<span class="g-sub">код</span></div>
+                </div>
+              </div>
             </div>
-            <div class="graph-orbit graph-orbit--inner">
-              <div class="graph-node" style="--a:0deg"><span class="g-ico">🔗</span>Связь<span class="g-sub">→ запись</span></div>
-              <div class="graph-node" style="--a:60deg"><span class="g-ico">📚</span>Справочник<span class="g-sub">из словаря</span></div>
-              <div class="graph-node" style="--a:120deg"><span class="g-ico">🔐</span>Пароль<span class="g-sub">скрытый ввод</span></div>
-              <div class="graph-node" style="--a:180deg"><span class="g-ico">🗝</span>Секрет<span class="g-sub">API · токен</span></div>
-              <div class="graph-node" style="--a:240deg"><span class="g-ico">🧭</span>GPS<span class="g-sub">координаты</span></div>
-              <div class="graph-node" style="--a:300deg"><span class="g-ico">{ }</span>JSON<span class="g-sub">объект · repeater</span></div>
+
+            <div class="fields-radial-group" style="--ga:51deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">🔢 Числа и время</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🔢</span>Число<span class="g-sub">сумма</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📅</span>Дата<span class="g-sub">календарь</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🕐</span>Время<span class="g-sub">часы</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">⏱</span>Длит.<span class="g-sub">2h 30m</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🕐</span>Cron<span class="g-sub">поле</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fields-radial-group" style="--ga:103deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">☑️ Выбор</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">☑️</span>Да/нет<span class="g-sub">флаг</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📋</span>Список<span class="g-sub">один</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">☰</span>Неск.<span class="g-sub">мульти</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📑</span>Массив<span class="g-sub">items</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fields-radial-group" style="--ga:154deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">📎 Медиа</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📎</span>Файл<span class="g-sub">один</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🖼</span>Фото<span class="g-sub">картинка</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🎞</span>Галерея<span class="g-sub">альбом</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📁</span>Материалы<span class="g-sub">папка</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fields-radial-group" style="--ga:206deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">🔗 Связи</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🔗</span>Связь<span class="g-sub">→ запись</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📚</span>Справ.<span class="g-sub">словарь</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🧭</span>GPS<span class="g-sub">карта</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">📂</span>Путь<span class="g-sub">workspace</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fields-radial-group" style="--ga:257deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">🔐 Секреты</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🔐</span>Пароль<span class="g-sub">скрытый</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🗝</span>Секрет<span class="g-sub">токен</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fields-radial-group" style="--ga:309deg">
+              <div class="fields-radial-group-inner">
+                <p class="fields-radial-group-head">{ } Структура</p>
+                <div class="fields-radial-nodes">
+                  <div class="graph-node graph-node--mini"><span class="g-ico">{ }</span>JSON<span class="g-sub">объект</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🧱</span>Объект<span class="g-sub">поля</span></div>
+                  <div class="graph-node graph-node--mini"><span class="g-ico">🔁</span>Repeater<span class="g-sub">строки</span></div>
+                </div>
+              </div>
             </div>
           </div>
           <div class="fields-custom-demo" aria-label="Примеры пользовательских полей">
@@ -2638,10 +3048,8 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
             </div>
           </div>
           <div class="graph-legend">
-            <span class="legend-green">🧩 Внешнее кольцо — частые типы ввода</span>
-            <span>Внутреннее — связи · секреты · структуры</span>
-            <span>🕐 Cron-schedule · 📁 materials · 🔁 repeater — тоже есть</span>
-            <span>Десятки готовых типов — форма строится сама</span>
+            <span class="legend-green">🧩 37 типов — сгруппированы вокруг центра</span>
+            <span>✏️ Текст · 🔢 Числа · ☑️ Выбор · 📎 Медиа · 🔗 Связи · 🔐 Секреты · { } Структура</span>
           </div>
         </div>
       </div>
@@ -3348,6 +3756,111 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
       </div>
     </section>
 
+    <section class="section pocket-net-section" id="pocket-knowledge">
+      <div class="pocket-net-mesh" aria-hidden="true"></div>
+      <div class="container">
+        <div class="pocket-net-hero">
+          <p class="pocket-net-kicker"><span aria-hidden="true">📡</span> ваше личное пространство</p>
+          <h2>Твоя мини <em>интернет-сеть</em></h2>
+          <p class="pocket-net-slogan">и библиотека, и справочники — <em>в кармане, всегда под рукой</em></p>
+          <div class="pocket-net-tags" aria-label="Три грани хранилища">
+            <span>🌐 своя сеть страниц</span>
+            <span>📚 полки и каталог</span>
+            <span>📱 справочник в кармане</span>
+          </div>
+        </div>
+
+        <div class="pocket-net-layout">
+          <div class="pocket-net-visual" aria-hidden="true">
+            <svg viewBox="0 0 360 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="pnLine" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#818cf8" stop-opacity=".5"/>
+                  <stop offset="100%" stop-color="#22d3ee" stop-opacity=".7"/>
+                </linearGradient>
+                <radialGradient id="pnGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#93c5fd" stop-opacity=".35"/>
+                  <stop offset="100%" stop-color="#93c5fd" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <circle cx="180" cy="130" r="72" fill="url(#pnGlow)"/>
+              <line x1="180" y1="130" x2="72" y2="52" stroke="url(#pnLine)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".7"/>
+              <line x1="180" y1="130" x2="288" y2="58" stroke="url(#pnLine)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".7"/>
+              <line x1="180" y1="130" x2="310" y2="168" stroke="url(#pnLine)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".7"/>
+              <line x1="180" y1="130" x2="268" y2="248" stroke="url(#pnLine)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".7"/>
+              <line x1="180" y1="130" x2="92" y2="232" stroke="url(#pnLine)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".7"/>
+              <line x1="180" y1="130" x2="48" y2="148" stroke="url(#pnLine)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".7"/>
+              <circle class="pocket-net-node-pulse" cx="180" cy="130" r="28" fill="rgba(57,120,255,.2)" stroke="#93c5fd" stroke-width="2"/>
+              <text x="180" y="136" text-anchor="middle" fill="#e0f2fe" font-size="22" font-family="system-ui,sans-serif">🏠</text>
+              <circle cx="72" cy="52" r="20" fill="rgba(124,92,255,.18)" stroke="rgba(196,181,253,.5)" stroke-width="1.5"/>
+              <text x="72" y="58" text-anchor="middle" fill="#ddd6fe" font-size="16" font-family="system-ui,sans-serif">📚</text>
+              <circle cx="288" cy="58" r="20" fill="rgba(56,189,248,.15)" stroke="rgba(125,211,252,.45)" stroke-width="1.5"/>
+              <text x="288" y="58" text-anchor="middle" fill="#bae6fd" font-size="16" font-family="system-ui,sans-serif">🔗</text>
+              <circle cx="310" cy="168" r="18" fill="rgba(52,211,153,.15)" stroke="rgba(110,231,183,.4)" stroke-width="1.5"/>
+              <text x="310" y="174" text-anchor="middle" fill="#a7f3d0" font-size="14" font-family="system-ui,sans-serif">📋</text>
+              <circle cx="268" cy="248" r="20" fill="rgba(251,191,36,.12)" stroke="rgba(253,224,71,.4)" stroke-width="1.5"/>
+              <text x="268" y="254" text-anchor="middle" fill="#fde68a" font-size="16" font-family="system-ui,sans-serif">📖</text>
+              <circle cx="92" cy="232" r="18" fill="rgba(244,114,182,.12)" stroke="rgba(251,207,232,.35)" stroke-width="1.5"/>
+              <text x="92" y="238" text-anchor="middle" fill="#fbcfe8" font-size="14" font-family="system-ui,sans-serif">🎬</text>
+              <circle cx="48" cy="148" r="16" fill="rgba(148,163,184,.12)" stroke="rgba(203,213,225,.35)" stroke-width="1.5"/>
+              <text x="48" y="154" text-anchor="middle" fill="#cbd5e1" font-size="13" font-family="system-ui,sans-serif">🔧</text>
+            </svg>
+            <div class="pocket-net-phone">
+              <div class="pocket-net-phone-notch"></div>
+              <div class="pocket-net-phone-screen">
+                <p>в кармане</p>
+                <div class="pocket-net-phone-icons">
+                  <span aria-hidden="true">📚</span>
+                  <span aria-hidden="true">📋</span>
+                  <span aria-hidden="true">🔗</span>
+                  <span aria-hidden="true">🔐</span>
+                  <span aria-hidden="true">🗺</span>
+                  <span aria-hidden="true">💬</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pocket-net-grid" aria-label="Сеть, библиотека и справочники">
+            <article class="pocket-net-card">
+              <div class="pocket-net-card-ico" aria-hidden="true">🌐</div>
+              <h3>Мини интернет-сеть</h3>
+              <p>Темы и записи связаны ссылками — как сайты в вашем домене. «Стройка» ссылается на смету, контакт подрядчика и фото фасада. Агент ходит по этой сети, а не по хаосу папок.</p>
+              <div class="pocket-net-card-tags">
+                <span>ссылки между темами</span>
+                <span>свой домен</span>
+                <span>граф знаний</span>
+              </div>
+            </article>
+            <article class="pocket-net-card">
+              <div class="pocket-net-card-ico" aria-hidden="true">📚</div>
+              <h3>Библиотека на полках</h3>
+              <p>Книги, курсы, статьи, фильмы — не в Downloads, а на полках: «Кино», «Английский», «Здоровье». Источники, заметки и прогресс лежат рядом, в одной структуре.</p>
+              <div class="pocket-net-card-tags">
+                <span>references/</span>
+                <span>media/</span>
+                <span>каталог</span>
+              </div>
+            </article>
+            <article class="pocket-net-card">
+              <div class="pocket-net-card-ico" aria-hidden="true">📱</div>
+              <h3>Справочники в кармане</h3>
+              <p>Wi‑Fi дома, рецепт, чеклист, адрес объекта — всё синхронизируется с телефоном и ноутбуком. Открыл на телефоне — продолжил на компьютере. Справочник всегда под рукой.</p>
+              <div class="pocket-net-card-tags">
+                <span>синхронизация</span>
+                <span>под рукой</span>
+                <span>24/7 дома</span>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="pocket-net-banner">
+          <p>Ваша мини-сеть, ваши полки, ваш справочник в кармане. Одна цифровая комната.</p>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <footer class="site-footer" id="footer">
@@ -3605,6 +4118,39 @@ window.addEventListener('scroll',()=>{
 },{passive:true});
 window.addEventListener('load',updateNavFromScroll);
 updateNavFromScroll();
+
+(function initSurfaceSwitcher(){
+  const KEY='agentCmsSurface';
+  const surfaces=['desktop','browser','server','mobile'];
+  const stubs={
+    desktop:'Заглушка: нативное окно Agent CMS на macOS / Windows',
+    browser:'Сейчас вы в Browser — этот лендинг-макет',
+    server:'Заглушка: MCP Server · ~70 инструментов · Cursor / Claude',
+    mobile:'Заглушка: Agent Shell на iOS / Android'
+  };
+  const btns=[...document.querySelectorAll('.surface-switcher-btn')];
+  const indicator=document.getElementById('surfaceIndicator');
+  if(!btns.length||!indicator) return;
+
+  function setSurface(id,silent){
+    if(!surfaces.includes(id)) id='browser';
+    document.body.dataset.surface=id;
+    btns.forEach((btn,i)=>{
+      const on=btn.dataset.surface===id;
+      btn.classList.toggle('active',on);
+      btn.setAttribute('aria-selected',on?'true':'false');
+      if(on) indicator.style.transform='translateX('+i*100+'%)';
+    });
+    localStorage.setItem(KEY,id);
+    if(!silent) toast(stubs[id]);
+  }
+
+  btns.forEach(btn=>{
+    btn.addEventListener('click',()=>setSurface(btn.dataset.surface));
+  });
+
+  setSurface(localStorage.getItem(KEY)||'browser',true);
+})();
 </script>
 </body>
 </html>
