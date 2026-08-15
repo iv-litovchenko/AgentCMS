@@ -965,6 +965,28 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   color:rgba(226,232,240,.92);background:rgba(255,255,255,.07);
   border:1px solid rgba(148,163,184,.2)
 }
+.century-pains{
+  margin-top:16px;padding:24px 22px 22px;border-radius:var(--r);
+  background:linear-gradient(180deg,#fff 0%,#f8fafc 100%);
+  border:1px solid #dbe6ff;box-shadow:var(--shadow-sm)
+}
+.century-pains-kicker{
+  margin:0 0 8px;text-align:center;font-size:11px;font-weight:800;
+  letter-spacing:.12em;text-transform:uppercase;color:#64748b
+}
+.century-pains-title{
+  margin:0 0 18px;text-align:center;font-size:clamp(18px,2.4vw,22px);
+  font-weight:800;letter-spacing:-.3px;color:var(--ink)
+}
+.century-pains-grid{display:grid;gap:12px}
+@media(min-width:768px){.century-pains-grid{grid-template-columns:repeat(3,1fr)}}
+.century-pain{
+  padding:18px 16px;border-radius:16px;text-align:center;
+  background:#fff;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.04)
+}
+.century-pain-ico{font-size:28px;line-height:1;margin-bottom:10px;display:block}
+.century-pain h4{margin:0 0 8px;font-size:15px;font-weight:800;letter-spacing:-.2px;color:var(--ink)}
+.century-pain p{margin:0;font-size:13px;line-height:1.55;color:#4b5c72}
 
 .adv-tag{display:inline-block;padding:3px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;font-size:11px;font-family:monospace;color:#475569;margin-top:10px}
 .mcp-diagram{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;padding:16px;background:#f8fafc;border-radius:14px;border:1px dashed #cbd5e1;flex-wrap:wrap}
@@ -1769,12 +1791,34 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
             <span>структура</span>
           </div>
         </div>
+
+        <div class="century-pains" aria-label="Три проблемы XXI века">
+          <p class="century-pains-kicker">три проблемы XXI века</p>
+          <h3 class="century-pains-title">Знакомо?</h3>
+          <div class="century-pains-grid">
+            <article class="century-pain">
+              <span class="century-pain-ico" aria-hidden="true">🌊</span>
+              <h4>Избыток информации</h4>
+              <p>Поток не останавливается — и растёт ощущение, что что-то важное можно упустить.</p>
+            </article>
+            <article class="century-pain">
+              <span class="century-pain-ico" aria-hidden="true">🧭</span>
+              <h4>Где это лежит?</h4>
+              <p>Записал — и забыл, куда. Через неделю или месяц найти уже непросто.</p>
+            </article>
+            <article class="century-pain">
+              <span class="century-pain-ico" aria-hidden="true">📥</span>
+              <h4>Собираем без системы</h4>
+              <p>Хочется сохранить всё подряд — ссылки, файлы, заметки — но без порядка это превращается в шум.</p>
+            </article>
+          </div>
+        </div>
       </div>
     </section>
 
     <section class="section alt" id="life-graph">
       <div class="container">
-        <div class="section-head"><h2>Моя цифровая жизнь</h2><p>всё важное — в одном хранилище, по одним правилам</p></div>
+        <div class="section-head"><h2>Моя цифровая жизнь</h2><p>всё важное и ценное — в одном месте (хранилище) и по одним правилам</p></div>
         <div class="graph-block">
           <p class="graph-lead">Финансы, здоровье, контакты, работа, дом, обучение — связанные области одной системы. Их ведёт <strong style="color:#047857">агент основной</strong> — знает контекст между ними.</p>
           <div class="life-graph-layout" aria-label="Граф цифровой жизни">
