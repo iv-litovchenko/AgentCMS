@@ -1044,6 +1044,10 @@ const confirmHintNode = document.getElementById("confirm-hint");
 const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 const confirmOkBtn = document.getElementById("confirm-ok-btn");
 const agentSelectNode = document.getElementById("agent-select");
+const sidebarAgentAvatarBtn = document.getElementById("sidebar-agent-avatar-btn");
+const sidebarAgentAvatarMountNode = document.getElementById("sidebar-agent-avatar-mount");
+const headerUserProfileBtn = document.getElementById("header-user-profile-btn");
+const headerUserProfileAvatarMountNode = document.getElementById("header-user-profile-avatar-mount");
 const agentsManageBtn = document.getElementById("agents-manage-btn");
 const agentsPickerBtn = document.getElementById("agents-picker-btn");
 const agentsPickerPopoverNode = document.getElementById("agents-picker-popover");
@@ -7500,6 +7504,7 @@ function renderAgentSelect() {
         : "";
   agentSelectNode.value = nextValue;
   void refreshAgentSliderCatalog(true).then(() => syncAgentPreview());
+  syncIdentityToolbarAvatars(nextValue || activeAgentId);
   refreshAgentsPickerIfOpen();
 }
 
@@ -10858,6 +10863,7 @@ async function switchActiveAgent(nextAgentId) {
 
     showHomeView();
     renderAgentSelect();
+    syncIdentityToolbarAvatars(activeAgentId);
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
     closeMenuSettingsPopover();
@@ -11374,6 +11380,135 @@ function applyManifestToRegistryDraft(index, result) {
   agentsRegistryDraft[index].comment = manifest.comment || "";
   if (manifest.awnProps && typeof manifest.awnProps === "object") {
     agentsRegistryDraft[index].awnProps = { ...manifest.awnProps };
+  }
+}
+
+function getAgentKitTopicManifestRel(kind = "agent", agentId = activeAgentId) {
+  const kitFolder = getActiveAgentKitFolder(agentId);
+  if (!kitFolder) return null;
+  const slot = kind === "user" ? "user" : "agent";
+  return `${kitFolder}/${slot}/manifest.md`;
+}
+
+function getAgentKitTopicPreviewUrl(kind = "agent", agentId = activeAgentId) {
+  const manifestPath = getAgentKitTopicManifestRel(kind, agentId);
+  if (!manifestPath) return null;
+  const url = `/api/preview/image?path=${encodeURIComponent(manifestPath)}`;
+  return appendMediaThumbToApiUrl(
+    appendCacheBuster(appendAgentToApiUrl(url, agentId)),
+    MEDIA_THUMB_MAX_AVATAR
+  );
+}
+
+function mountIdentityAvatarWithFallbacks(
+  container,
+  { primaryUrl = "", secondaryUrl = "", emoji = "", fallbackText = "?", emojiClass = "", initialsClass = "" } = {}
+) {
+  const mountFallback = () => {
+    mountPreviewOrFallback(container, {
+      previewUrl: "",
+      emoji,
+      fallbackText,
+      emojiClass,
+      initialsClass
+    });
+  };
+
+  const trySecondary = () => {
+    if (secondaryUrl) {
+      mountPreviewOrFallback(container, {
+        previewUrl: secondaryUrl,
+        emoji,
+        fallbackText,
+        emojiClass,
+        initialsClass
+      });
+      const img = container.querySelector("img");
+      if (img) img.onerror = mountFallback;
+      return;
+    }
+    mountFallback();
+  };
+
+  if (primaryUrl) {
+    mountPreviewOrFallback(container, {
+      previewUrl: primaryUrl,
+      emoji,
+      fallbackText,
+      emojiClass,
+      initialsClass
+    });
+    const img = container.querySelector("img");
+    if (img) img.onerror = trySecondary;
+    return;
+  }
+
+  if (secondaryUrl) {
+    trySecondary();
+    return;
+  }
+
+  mountFallback();
+}
+
+function resolveSidebarAgentToolbarPreviewUrl(agentId = activeAgentId) {
+  const agent = getAgentMeta(agentId);
+  return {
+    primaryUrl: getAgentKitTopicPreviewUrl("agent", agentId),
+    secondaryUrl: agent ? getRegistryAgentPreviewUrl(agent) : null
+  };
+}
+
+function syncIdentityToolbarAvatars(agentId = activeAgentId) {
+  const agent = getAgentMeta(agentId);
+  const showKitAvatars = Boolean(agentId && !isPlatformAgentId(agentId));
+
+  if (sidebarAgentAvatarBtn && sidebarAgentAvatarMountNode) {
+    sidebarAgentAvatarBtn.classList.toggle("hidden", !showKitAvatars);
+    if (showKitAvatars) {
+      const agentLabel = String(agent?.name || agent?.id || "Агент").trim();
+      sidebarAgentAvatarBtn.title = agentLabel;
+      sidebarAgentAvatarBtn.setAttribute("aria-label", `Открыть тему агента ${agentLabel}`);
+      const { primaryUrl, secondaryUrl } = resolveSidebarAgentToolbarPreviewUrl(agentId);
+      mountIdentityAvatarWithFallbacks(sidebarAgentAvatarMountNode, {
+        primaryUrl,
+        secondaryUrl,
+        emoji: resolveAwnEmoji(agent),
+        fallbackText: getAgentPickerInitials(agent),
+        emojiClass: "sidebar-agent-toolbar-avatar-emoji",
+        initialsClass: "sidebar-agent-toolbar-avatar-initials"
+      });
+    } else {
+      sidebarAgentAvatarMountNode.replaceChildren();
+    }
+  }
+
+  if (headerUserProfileBtn && headerUserProfileAvatarMountNode) {
+    headerUserProfileBtn.classList.toggle("hidden", !showKitAvatars);
+    if (showKitAvatars) {
+      mountPreviewOrFallback(headerUserProfileAvatarMountNode, {
+        previewUrl: getAgentKitTopicPreviewUrl("user", agentId),
+        emoji: "",
+        fallbackText: "П",
+        emojiClass: "header-user-profile-avatar-emoji",
+        initialsClass: "header-user-profile-avatar-initials"
+      });
+    } else {
+      headerUserProfileAvatarMountNode.replaceChildren();
+    }
+  }
+}
+
+async function openAgentKitTopic(kind = "agent") {
+  const manifestPath = getAgentKitTopicManifestRel(kind);
+  if (!manifestPath) return;
+  const label = kind === "user" ? "Пользователь" : "Агент";
+  try {
+    hideAppLandingView();
+    await openNodeFromMenu(label, manifestPath);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(message ? `Не удалось открыть: ${message}` : "Не удалось открыть", "error");
   }
 }
 
@@ -91923,6 +92058,12 @@ agentsManageBtn?.addEventListener("click", () => {
   openAgentsRegistryModal();
 });
 agentsPickerBtn?.addEventListener("click", () => openAgentsPickerPopover());
+sidebarAgentAvatarBtn?.addEventListener("click", () => {
+  void openAgentKitTopic("agent");
+});
+headerUserProfileBtn?.addEventListener("click", () => {
+  void openAgentKitTopic("user");
+});
 agentsPickerPopoverCloseBtn?.addEventListener("click", closeAgentsPickerPopover);
 document.addEventListener("click", (event) => {
   if (!agentsPickerIsOpen || !agentsPickerPopoverNode) return;

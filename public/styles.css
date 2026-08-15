@@ -14110,6 +14110,59 @@ a.header-tool-btn {
   color: #7f1d1d;
 }
 
+.header-user-profile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 4px;
+  max-width: 160px;
+}
+
+.header-user-profile-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(145deg, #312e81, #1e3a8a);
+  color: #e0e7ff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.header-user-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.header-user-profile-avatar-emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.header-user-profile-avatar-initials {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.header-user-profile-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-user-profile-btn:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .sidebar-agent-bar {
   display: flex;
   flex-direction: column;
@@ -16018,6 +16071,62 @@ a.header-tool-btn {
   gap: 8px;
   padding: 8px 12px 10px;
   box-sizing: border-box;
+}
+
+.sidebar-agent-toolbar-avatar {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 2px solid #facc15;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #312e81, #1e3a8a);
+  box-shadow:
+    0 0 0 2px rgba(250, 204, 21, 0.18),
+    0 4px 12px rgba(2, 6, 23, 0.18);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.sidebar-agent-toolbar-avatar:hover,
+.sidebar-agent-toolbar-avatar:focus-visible {
+  transform: scale(1.05);
+  outline: none;
+  border-color: #fde047;
+  box-shadow:
+    0 0 0 3px rgba(250, 204, 21, 0.24),
+    0 6px 16px rgba(2, 6, 23, 0.22);
+}
+
+.sidebar-agent-toolbar-avatar-mount {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  color: #e0e7ff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.sidebar-agent-toolbar-avatar-mount img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sidebar-agent-toolbar-avatar-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.sidebar-agent-toolbar-avatar-initials {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .sidebar-agent-row {

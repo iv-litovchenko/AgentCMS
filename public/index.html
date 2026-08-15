@@ -464,6 +464,16 @@
               </div>
             </div>
             <button
+              id="header-user-profile-btn"
+              class="header-tool-btn header-user-profile-btn hidden"
+              type="button"
+              title="Профиль пользователя"
+              aria-label="Открыть профиль пользователя"
+            >
+              <span id="header-user-profile-avatar-mount" class="header-user-profile-avatar" aria-hidden="true"></span>
+              <span class="header-user-profile-label">Профиль</span>
+            </button>
+            <button
               id="app-lock-logout-btn"
               class="header-tool-btn header-tool-btn--logout hidden"
               type="button"
@@ -488,6 +498,15 @@
             <div class="sidebar-agent-toolbar">
               <div class="sidebar-agent-row sidebar-agent-row--agent">
                 <div class="sidebar-agent-controls">
+                  <button
+                    id="sidebar-agent-avatar-btn"
+                    class="sidebar-agent-toolbar-avatar hidden"
+                    type="button"
+                    title="Агент"
+                    aria-label="Открыть тему агента"
+                  >
+                    <span id="sidebar-agent-avatar-mount" class="sidebar-agent-toolbar-avatar-mount" aria-hidden="true"></span>
+                  </button>
                   <div id="agent-select-wrap" class="agent-select-wrap">
                     <select id="agent-select" class="agent-select" aria-label="Агент"></select>
                   </div>
