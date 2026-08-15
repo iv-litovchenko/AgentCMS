@@ -2253,9 +2253,9 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   border-top:1px solid rgba(226,232,240,.9)
 }
 .footer-gallery-item:first-child figcaption{color:#4338ca}
-.footer-gallery-item:last-child figcaption{
-  color:#0369a1;font-size:13px;letter-spacing:.02em;
-  text-transform:none;font-weight:600;font-style:italic
+.footer-gallery-item:last-child figcaption{color:#0369a1}
+.footer-gallery-dream{
+  text-transform:none;font-style:italic;font-weight:600;color:#0284c7
 }
 .footer-copy{margin-top:28px;font-size:12px;color:#94a3b8}
 
@@ -2304,6 +2304,9 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 .surface-switcher-btn[data-surface="server"]{padding:7px 10px 6px;gap:6px}
 .surface-switcher-btn[data-surface="server"] .surf-label{font-size:10px}
+.surface-switcher-btn .surf-label--stack .surf-sub{
+  display:block;margin-top:1px;font-size:8px;letter-spacing:.02em
+}
 .surface-switcher-btn .surf-sub{
   font-size:8px;font-weight:800;letter-spacing:.04em;color:rgba(147,197,253,.75)
 }
@@ -4181,7 +4184,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
           </figure>
           <figure class="footer-gallery-item">
             <img src="pic-2.jpg" width="1920" height="1080" alt="Agent CMS — дерево контекста: человек и агент, связанные темы и знания" loading="lazy">
-            <figcaption>мечта</figcaption>
+            <figcaption>Дерево контекста · человек и агент вместе <span class="footer-gallery-dream">(мечта)</span></figcaption>
           </figure>
         </div>
 
