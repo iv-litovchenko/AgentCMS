@@ -7,7 +7,7 @@ import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 import { createShellTtsTabCoordinator } from "/shell/shell-tts-tab.js?v=1";
-import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=2";
+import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=3";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
@@ -20,6 +20,13 @@ const DEFAULT_TTS_PROMPT = `Сформируй ответ в следующем 
 Далее — полный текст ответа для экрана.`;
 
 const DEFAULT_STT_PROMPT = `Исправь пунктуацию и регистр, убери слова-паразиты («э-э», «эээ», «мм», «ну»), сохрани смысл. Верни только готовый текст для отправки агенту — без пояснений и обёрток.`;
+
+/** @type {{ ttsPrompt: string, sttPrompt: string, sources: { ttsPrompt: string | null, sttPrompt: string | null } }} */
+let shellPromptTemplates = {
+  ttsPrompt: DEFAULT_TTS_PROMPT,
+  sttPrompt: DEFAULT_STT_PROMPT,
+  sources: { ttsPrompt: null, sttPrompt: null }
+};
 
 const PHASE_LABELS = {
   waiting: "🟡 Ожидаю",
@@ -59,6 +66,10 @@ let lastHandledAssistantId = "";
 let lastSpokenBody = "";
 let lastHandledStreamId = "";
 let lastStreamHandledBody = "";
+/** @type {{ text: string, blob: Blob | null, mimeType: string, blobText: string }} */
+let lastTtsSpoken = { text: "", blob: null, mimeType: "", blobText: "" };
+/** @type {{ blob: Blob, mimeType: string, text: string } | null} */
+let lastTtsChunkRecording = null;
 const outboundQueue = [];
 
 const state = {
@@ -383,6 +394,7 @@ const nodes = {
   ttsPauseBtn: document.getElementById("shell-tts-pause"),
   ttsResumeBtn: document.getElementById("shell-tts-resume"),
   ttsStopBtn: document.getElementById("shell-tts-stop"),
+  ttsDownloadBtn: document.getElementById("shell-tts-download"),
   voiceWave: document.getElementById("shell-voice-wave"),
   settingsBtn: document.getElementById("shell-settings-btn"),
   windowSave: document.getElementById("shell-window-save"),
@@ -686,6 +698,100 @@ function updateTtsControlsUi(phase = resolveDisplayPhase(state.shellState?.phase
   nodes.voiceWave?.classList.toggle("hidden", !showWave);
   nodes.voiceWave?.classList.toggle("is-paused", Boolean(state.ttsPaused));
   updateSendButtonLabel();
+  updateTtsDownloadUi();
+}
+
+function updateTtsDownloadUi() {
+  const text = String(lastTtsSpoken.text || "").trim();
+  const hasText = Boolean(text);
+  nodes.ttsDownloadBtn?.classList.toggle("hidden", !hasText);
+  if (!nodes.ttsDownloadBtn) return;
+  nodes.ttsDownloadBtn.disabled = !hasText || nodes.ttsDownloadBtn.classList.contains("is-busy");
+  nodes.ttsDownloadBtn.title = hasText
+    ? `Скачать аудио озвучки: ${text.slice(0, 160)}${text.length > 160 ? "…" : ""}`
+    : "Пока нечего скачивать — дождитесь ответа с озвучкой";
+}
+
+function rememberLastTtsSpoken(text) {
+  const spoken = String(text || "").trim();
+  if (!spoken) return;
+  const chunk = lastTtsChunkRecording;
+  const useChunkBlob = chunk?.blob && chunk.text === spoken;
+  lastTtsSpoken = {
+    text: spoken,
+    blob: useChunkBlob ? chunk.blob : null,
+    mimeType: useChunkBlob ? chunk.mimeType || chunk.blob.type || "audio/mpeg" : "",
+    blobText: useChunkBlob ? chunk.text : spoken
+  };
+  updateTtsDownloadUi();
+}
+
+function ttsDownloadExtension(mimeType = "") {
+  const mime = String(mimeType || "").toLowerCase();
+  if (mime.includes("wav")) return "wav";
+  if (mime.includes("ogg")) return "ogg";
+  return "mp3";
+}
+
+function decodeTtsAudioResult(result) {
+  const mimeType = String(result?.mimeType || "audio/mpeg");
+  const binary = atob(String(result?.audio || ""));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return { blob: new Blob([bytes], { type: mimeType }), mimeType };
+}
+
+async function resolveTtsDownloadBlob(text) {
+  const payload = String(text || "").trim();
+  if (!payload) throw new Error("Нет текста для скачивания");
+
+  if (
+    lastTtsSpoken.blob &&
+    lastTtsSpoken.blobText === payload &&
+    lastTtsSpoken.text === payload
+  ) {
+    return {
+      blob: lastTtsSpoken.blob,
+      mimeType: lastTtsSpoken.mimeType || lastTtsSpoken.blob.type || "audio/mpeg"
+    };
+  }
+
+  const request = { text: payload };
+  if (isBrowserTtsEngine()) request.engine = "edge";
+  const result = await apiFetch("/api/shell/tts/synthesize", {
+    method: "POST",
+    body: JSON.stringify(request)
+  });
+  return decodeTtsAudioResult(result);
+}
+
+async function downloadLastTtsAudio() {
+  const text = String(lastTtsSpoken.text || "").trim();
+  if (!text || !nodes.ttsDownloadBtn) return;
+
+  nodes.ttsDownloadBtn.classList.add("is-busy");
+  updateTtsDownloadUi();
+  try {
+    const { blob, mimeType } = await resolveTtsDownloadBlob(text);
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const filename = `shell-tts-${stamp}.${ttsDownloadExtension(mimeType)}`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.rel = "noopener";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    lastTtsSpoken = { text, blob, mimeType, blobText: text };
+    updateTtsDownloadUi();
+  } catch (error) {
+    renderPhase("waiting", `Не удалось скачать озвучку: ${error.message}`);
+  } finally {
+    nodes.ttsDownloadBtn.classList.remove("is-busy");
+    updateTtsDownloadUi();
+  }
 }
 
 function pauseTtsPlayback() {
@@ -2439,16 +2545,38 @@ function getSpeechSynth() {
 
 function insertTtsPromptTemplate() {
   if (!nodes.ttsPrompt) return;
-  nodes.ttsPrompt.value = DEFAULT_TTS_PROMPT;
-  state.settings = { ...(state.settings || {}), ttsPrompt: DEFAULT_TTS_PROMPT };
+  const template = String(shellPromptTemplates.ttsPrompt || DEFAULT_TTS_PROMPT).trim() || DEFAULT_TTS_PROMPT;
+  nodes.ttsPrompt.value = template;
+  state.settings = { ...(state.settings || {}), ttsPrompt: template };
   markSettingsDirty("tts");
 }
 
 function insertSttPromptTemplate() {
   if (!nodes.sttPrompt) return;
-  nodes.sttPrompt.value = DEFAULT_STT_PROMPT;
-  state.settings = { ...(state.settings || {}), sttPrompt: DEFAULT_STT_PROMPT };
+  const template = String(shellPromptTemplates.sttPrompt || DEFAULT_STT_PROMPT).trim() || DEFAULT_STT_PROMPT;
+  nodes.sttPrompt.value = template;
+  state.settings = { ...(state.settings || {}), sttPrompt: template };
   markSettingsDirty("stt");
+}
+
+async function loadShellPromptTemplates() {
+  try {
+    const data = await apiFetch("/api/shell/prompt-templates");
+    shellPromptTemplates = {
+      ttsPrompt: String(data.ttsPrompt || DEFAULT_TTS_PROMPT).trim() || DEFAULT_TTS_PROMPT,
+      sttPrompt: String(data.sttPrompt || DEFAULT_STT_PROMPT).trim() || DEFAULT_STT_PROMPT,
+      sources: {
+        ttsPrompt: data.sources?.ttsPrompt || null,
+        sttPrompt: data.sources?.sttPrompt || null
+      }
+    };
+  } catch {
+    shellPromptTemplates = {
+      ttsPrompt: DEFAULT_TTS_PROMPT,
+      sttPrompt: DEFAULT_STT_PROMPT,
+      sources: { ttsPrompt: null, sttPrompt: null }
+    };
+  }
 }
 
 function hasTtsPrompt() {
@@ -2810,14 +2938,17 @@ async function speakOneChunk(text) {
   if (!payload) return;
   if (isBrowserTtsEngine()) {
     await speakBrowserChunk(payload);
+    lastTtsChunkRecording = null;
   } else if (isServerTtsEngine() && ttsPlayer) {
     try {
       await ttsPlayer.speak(payload);
+      lastTtsChunkRecording = ttsPlayer.getLastRecording?.() || null;
     } catch (serverError) {
       const synth = getSpeechSynth();
       if (!synth) throw serverError;
       console.warn("[shell] server TTS failed, fallback to browser:", serverError?.message || serverError);
       await speakBrowserChunk(payload);
+      lastTtsChunkRecording = null;
     }
   }
 }
@@ -2835,6 +2966,7 @@ async function speakTextParts(parts, { ttsClientId } = {}) {
     return;
   }
 
+  lastTtsChunkRecording = null;
   const seq = bumpTtsPlayback();
   stopBrowserTts({ notifyServer: false, resetPhase: false, broadcast: false, bumpPlayback: false });
   state.speaking = true;
@@ -2863,6 +2995,8 @@ async function speakTextParts(parts, { ttsClientId } = {}) {
     clearPendingReplyTtsClientId();
     return;
   }
+
+  rememberLastTtsSpoken(list.join("\n\n"));
 
   state.speaking = false;
   state.ttsPaused = false;
@@ -3421,6 +3555,7 @@ function bindUi() {
     stopBrowserTts({ bumpPlayback: false });
     releaseMessagePipeline();
   });
+  nodes.ttsDownloadBtn?.addEventListener("click", () => void downloadLastTtsAudio());
 
   nodes.ttsPauseBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -3490,6 +3625,7 @@ async function boot() {
   bindUi();
   bindNavigationUi();
   bindWindowSettingsUi();
+  updateTtsDownloadUi();
   setupSpeechRecognition();
   setupPttKeyboard();
   startClock();
@@ -3500,6 +3636,7 @@ async function boot() {
   void initShellCharacter(nodes.characterStage, nodes.agentAvatar);
   try {
     await resolveShellAgent();
+    await loadShellPromptTemplates();
     await topicPicker.refresh();
     await loadWindowSettings();
     if (shellEmbedMode) {

@@ -1,0 +1,15 @@
+awn_schema:
+  topic:
+    fields:
+      master_name:
+        type: awn.field.string
+        title: Имя мастера
+      master_specialization:
+        type: awn.field.string
+        title: Специализация
+      master_phone:
+        type: awn.field.phone
+        title: Телефон
+      master_schedule:
+        type: awn.field.string
+        title: График работы

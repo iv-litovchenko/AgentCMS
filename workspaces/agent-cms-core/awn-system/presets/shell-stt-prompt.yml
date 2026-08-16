@@ -1,0 +1,9 @@
+id: awn.preset.shell-stt-prompt
+name: Shell — промпт STT
+target-file: .agent-shell/settings.json
+status: active
+sort: 21
+hint-title: Agent Shell — пост-обработка STT
+hint-text: "Заготовка для поля <code>sttPrompt</code> в <code>.agent-shell/settings.json</code>. Кнопка «Вставить заготовку» в Shell подставляет этот текст."
+body: |
+  Исправь пунктуацию и регистр, убери слова-паразиты («э-э», «эээ», «мм», «ну»), сохрани смысл. Верни только готовый текст для отправки агенту — без пояснений и обёрток.

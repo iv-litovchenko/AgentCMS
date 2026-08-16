@@ -313,6 +313,35 @@ body.shell-window-transparent {
   display: none;
 }
 
+.shell-tts-download {
+  cursor: pointer;
+  font: inherit;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.shell-tts-download.hidden {
+  display: none;
+}
+
+.shell-tts-download:not(:disabled):hover {
+  border-color: rgba(124, 108, 255, 0.45);
+  color: #d4ccff;
+  background: rgba(124, 108, 255, 0.12);
+}
+
+.shell-tts-download:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.shell-tts-download.is-busy {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 .shell-meta-icon {
   font-size: 11px;
   line-height: 1;

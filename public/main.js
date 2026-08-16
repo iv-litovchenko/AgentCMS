@@ -72315,19 +72315,24 @@ async function renderNodeNavigation() {
     appendTopicLiteIndexControlsRow(hubMain, nodePath);
   }
 
-  const elementsNavAccordion = renderNodeNavigationElementsNavAccordion({
-    childEntries,
-    nodePath,
-    heroTitle,
-    slots: topicSlotCounters,
-    externalData,
-    mediaData
-  });
-  if (elementsNavAccordion) {
-    hubMain.appendChild(elementsNavAccordion);
-  } else if (!useSplitLayout) {
+  if (isInlineNavHub) {
     const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
     if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
+  } else {
+    const elementsNavAccordion = renderNodeNavigationElementsNavAccordion({
+      childEntries,
+      nodePath,
+      heroTitle,
+      slots: topicSlotCounters,
+      externalData,
+      mediaData
+    });
+    if (elementsNavAccordion) {
+      hubMain.appendChild(elementsNavAccordion);
+    } else if (!useSplitLayout) {
+      const subsectionsBlock = renderNavigationSubsectionsBlock(childEntries);
+      if (subsectionsBlock) hubMain.appendChild(subsectionsBlock);
+    }
   }
 
   if (isInlineNavHub) {
@@ -76728,8 +76733,14 @@ function findMenuNodeInAgentMenu(menuRoot, targetPath) {
   }
 
   const containerTree = menuRoot?.containerTree;
-  if (!containerTree) return null;
-  return findMenuNodeByPath({ title: "", ...containerTree }, normalized);
+  if (containerTree) {
+    const containerMatch = findMenuNodeByPath({ title: "", ...containerTree }, normalized);
+    if (containerMatch) return containerMatch;
+  }
+
+  const sharedTree = menuRoot?.sharedTree;
+  if (!sharedTree) return null;
+  return findMenuNodeByPath({ title: "", ...sharedTree }, normalized);
 }
 
 function findMenuNodeInContainerMenu(menuRoot, targetPath) {
@@ -76748,18 +76759,26 @@ function findMenuSectionInAgentMenu(menuRoot, folderPath) {
     if (serviceSection) return serviceSection;
   }
   const containerTree = menuRoot?.containerTree;
-  if (!containerTree) return null;
-  return findMenuSectionByFolderPath({ title: "", ...containerTree }, folderPath);
+  if (containerTree) {
+    const containerSection = findMenuSectionByFolderPath({ title: "", ...containerTree }, folderPath);
+    if (containerSection) return containerSection;
+  }
+
+  const sharedTree = menuRoot?.sharedTree;
+  if (!sharedTree) return null;
+  return findMenuSectionByFolderPath({ title: "", ...sharedTree }, folderPath);
 }
 
 function menuNodeHasChildren(node) {
   const nestedServiceChildren = node.serviceTree ? getOrderedMenuChildren(node.serviceTree).length : 0;
   const nestedContainerChildren = node.containerTree ? getOrderedMenuChildren(node.containerTree).length : 0;
+  const nestedSharedChildren = node.sharedTree ? getOrderedMenuChildren(node.sharedTree).length : 0;
   return (
     getOrderedMenuChildren(node).length > 0 ||
     getMenuRepoServiceItems(node).length > 0 ||
     nestedServiceChildren > 0 ||
-    nestedContainerChildren > 0
+    nestedContainerChildren > 0 ||
+    nestedSharedChildren > 0
   );
 }
 

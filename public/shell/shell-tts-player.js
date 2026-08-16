@@ -3,6 +3,8 @@ export function createShellTtsPlayer({ apiFetch }) {
   let audio = null;
   let objectUrl = "";
   let speakGeneration = 0;
+  /** @type {{ blob: Blob, mimeType: string, text: string } | null} */
+  let lastRecording = null;
 
   function cleanupAudio() {
     if (audio) {
@@ -62,6 +64,7 @@ export function createShellTtsPlayer({ apiFetch }) {
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
     const blob = new Blob([bytes], { type: mimeType });
+    lastRecording = { blob, mimeType, text: payload };
     objectUrl = URL.createObjectURL(blob);
     audio = new Audio(objectUrl);
     if (generation !== speakGeneration) {
@@ -88,6 +91,10 @@ export function createShellTtsPlayer({ apiFetch }) {
     });
   }
 
+  function getLastRecording() {
+    return lastRecording;
+  }
+
   return {
     speak,
     stop,
@@ -96,6 +103,7 @@ export function createShellTtsPlayer({ apiFetch }) {
     isPlaying,
     isPaused,
     hasAudio,
-    cleanupAudio
+    cleanupAudio,
+    getLastRecording
   };
 }

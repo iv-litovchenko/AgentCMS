@@ -1,5 +1,6 @@
 const shellService = require("./shell-service");
 const windowSettings = require("./window-settings");
+const { loadShellPromptTemplates } = require("./shell-prompt-presets");
 
 const ttsService = require("./tts-service");
 
@@ -66,6 +67,19 @@ function createShellHandlers(deps) {
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to read shell settings",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/shell/prompt-templates") {
+      try {
+        const templates = loadShellPromptTemplates(projectRoot, agentRoot);
+        deps.sendJson(res, 200, { agentId, ...templates });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to load shell prompt templates",
           details: String(error?.message || error)
         });
       }
@@ -308,7 +322,12 @@ function createShellHandlers(deps) {
           return true;
         }
         const settings = await shellService.readSettings(agentRoot);
-        const result = await ttsService.synthesize(text, settings);
+        const engineOverride = String(payload?.engine || "").trim();
+        const synthSettings =
+          engineOverride && engineOverride !== "browser"
+            ? { ...settings, ttsEngine: engineOverride }
+            : settings;
+        const result = await ttsService.synthesize(text, synthSettings);
         deps.sendJson(res, 200, { agentId, ok: true, ...result });
       } catch (error) {
         deps.sendJson(res, 500, {

@@ -1,0 +1,21 @@
+awn_schema:
+  topic:
+    fields:
+      appointment_client:
+        type: awn.field.string
+        title: Клиент
+      appointment_service:
+        type: awn.field.string
+        title: Услуга
+      appointment_master:
+        type: awn.field.string
+        title: Мастер
+      appointment_datetime:
+        type: awn.field.datetime
+        title: Дата и время
+      appointment_status:
+        type: awn.field.string
+        title: Статус
+      appointment_cost:
+        type: awn.field.number
+        title: Стоимость (руб)
