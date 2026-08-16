@@ -16,7 +16,7 @@
   "ttsEnabled": true,
   "ttsEngine": "edge",
   "ttsEdgeVoice": "ru-RU-DmitryNeural",
-  "ttsElevenlabsApiKey": "**MetabasePass**",
+  "ttsElevenlabsApiKey": "",
   "ttsElevenlabsVoiceId": "",
   "ttsElevenlabsModel": "eleven_multilingual_v2",
   "ttsPiperModel": "",

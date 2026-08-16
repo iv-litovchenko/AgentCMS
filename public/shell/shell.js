@@ -3503,8 +3503,13 @@ function bindUi() {
   });
   nodes.ttsPiperModel?.addEventListener("blur", markTtsDirty);
   nodes.ttsPiperBinary?.addEventListener("blur", markTtsDirty);
+  nodes.ttsElevenlabsKey?.addEventListener("input", markTtsDirty);
   nodes.ttsElevenlabsKey?.addEventListener("blur", markTtsDirty);
+  nodes.ttsElevenlabsVoiceId?.addEventListener("input", markTtsDirty);
   nodes.ttsElevenlabsVoiceId?.addEventListener("blur", markTtsDirty);
+  nodes.ttsSave?.addEventListener("mousedown", () => {
+    markSettingsDirty("tts", collectTtsFormPatch());
+  });
   nodes.ttsRate?.addEventListener("input", () => {
     updateTtsRateLabel();
     markTtsDirty();
