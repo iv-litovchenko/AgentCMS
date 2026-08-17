@@ -39,11 +39,11 @@
 | 22 | TTS | Safari speechSynthesis fallback с таймаутами | ✅ |
 | 23 | TTS | Понятные hint'ы при ошибках TTS | ✅ |
 | 24 | TTS | Обрезка длинного текста для TTS | ✅ |
-| 36 | Сессия | visibilitychange → soft reconnect | ❌ |
-| 37 | Сессия | Dedup ответов (displayed/spoken ids) | ⚠️ (другая логика) |
-| 38 | Сессия | Throttled render стрима | ⚠️ (есть stream, без throttle UI) |
-| 39 | Сессия | UI lock на время активной сессии | ❌ |
-| 50 | SSE | Явный reconnect при возврате на вкладку | ⚠️ (silent retry) |
+| 36 | Сессия | visibilitychange → soft reconnect | ✅ |
+| 37 | Сессия | Dedup ответов (displayed/spoken ids) | ✅ |
+| 38 | Сессия | Throttled render стрима | ✅ |
+| 39 | Сессия | UI lock на время активной сессии | ✅ |
+| 50 | SSE | Явный reconnect при возврате на вкладку | ✅ |
 | 40 | Layout | Адаптация к клавиатуре (visualViewport, dock) | ❌ |
 | 41 | Layout | Dismiss клавиатуры по тапу вне поля | ❌ |
 | 42 | Layout | Однострочный compose-dock | ❌ |
@@ -122,7 +122,9 @@ Backend: `local` / `server` (disabled)
 | `public/shell/mobile/mobile-device-chips.js` | компас, батарея |
 | `public/shell/shell-permissions.js` | HTTPS, mic |
 | `public/shell/shell-dialog.js` | диалог mobile-style |
+| `public/shell/shell-session.js` | reconnect, dedup, UI lock, stream throttle |
 | `public/shell/shell-audio-unlock.js` | AudioContext unlock iOS |
+| `public/shell/shell-tts-mobile.js` | truncate, error hints |
 | `public/shell/shell-browser-tts.js` | Safari speechSynthesis + таймауты |
 | `public/shell/shell-voice.js` | tap-микрофон, confirm, wake lock |
 | `public/shell/shell-pwa.js` | PWA banner, standalone |
@@ -137,7 +139,7 @@ Backend: `local` / `server` (disabled)
 1. **Фаза 1 — Диалог:** #1–11, #48–49  
 2. **Фаза 2 — Голос:** #12–19 ✅  
 3. **Фаза 3 — TTS + mobile adapters:** #20–24 ✅ · #25–29 ✅ · #40–44  
-4. **Фаза 4 — Сессия / SSE:** #36–39, #50  
+4. **Фаза 4 — Сессия / SSE:** #36–39, #50 ✅  
 5. **Фаза 5 — Контекст CMS:** D1–D5  
 6. **Фаза 6 — Deprecate:** `/shell/mobile/`, вкладка Shell Mobile в CMS  
 

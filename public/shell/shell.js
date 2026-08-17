@@ -7,14 +7,15 @@ import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 import { createShellTtsTabCoordinator } from "/shell/shell-tts-tab.js?v=1";
-import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=7";
+import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=8";
 import { unlockShellAudio } from "/shell/shell-audio-unlock.js?v=1";
-import { speakShellBrowserTts } from "/shell/shell-browser-tts.js?v=1";
+import { speakShellBrowserTts } from "/shell/shell-browser-tts.js?v=6";
 import {
   formatTtsErrorHint,
   shellTtsFailureMessage,
   truncateForShellTts
 } from "/shell/shell-tts-mobile.js?v=1";
+import { createShellSession } from "/shell/shell-session.js?v=1";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
 import { getShellSurfacePayload, initShellSurfaceSwitcher } from "/shell/shell-surface.js?v=2";
 import { initShellOrientationChip, initShellLocationChip, getShellDeviceLocation, isShellLocationShareEnabled, refreshShellLocationForSend } from "/shell/shell-device-chips.js?v=2";
@@ -162,6 +163,7 @@ const state = {
   processingMessage: "",
   queueEditingId: "",
   messageStopped: false,
+  sessionUiLocked: false,
   sttResumeMode: "browser",
   /** shellClientId отправителя текущего вопроса — для надёжной маршрутизации TTS */
   pendingReplyTtsClientId: ""
@@ -264,26 +266,29 @@ function isLocalMessagePipelineActive() {
   return Boolean(state.messagePipelineBusy || state.processingMessage);
 }
 
-/** Озвучивать только на том устройстве, с которого отправили вопрос. */
+function isTtsEnabledSetting() {
+  return state.settings?.ttsEnabled !== false;
+}
+
+/** Озвучивать на устройстве, с которого отправили вопрос. */
 function shouldPlayReplyTts(meta = {}) {
-  if (!state.settings?.ttsEnabled) return false;
+  if (!isTtsEnabledSetting()) return false;
   if (state.messageStopped) return false;
   if (document.visibilityState !== "visible") return false;
 
-  const target = String(meta.ttsClientId || "").trim();
   const mine = getShellClientId();
   const pending = String(state.pendingReplyTtsClientId || "").trim();
+  const target = String(meta.ttsClientId || "").trim();
 
-  if (target) {
-    if (target !== mine) return false;
+  if (pending === mine || target === mine) {
     ttsTabCoordinator?.claimLeader({ force: true });
     return true;
   }
-  if (pending && pending === mine) {
+  if (state.micActive || state.pttHeld || isLocalMessagePipelineActive()) {
     ttsTabCoordinator?.claimLeader({ force: true });
     return true;
   }
-  return isLocalMessagePipelineActive() && canPlayTts();
+  return false;
 }
 
 function clearPendingReplyTtsClientId() {
@@ -622,8 +627,12 @@ const shellDialog = createShellDialog({
   pullHint: document.getElementById("shell-pull-hint")
 });
 
-function syncDialogConnectionState() {
-  shellDialog.setConnectionState(resolveShellServerConnectionState());
+let shellSession = null;
+
+function syncDialogConnectionState(override) {
+  const conn = override || resolveShellServerConnectionState();
+  shellDialog.setConnectionState(conn);
+  renderServerChip();
 }
 
 function apiUrl(path, params = {}) {
@@ -841,6 +850,9 @@ function maybeResetStaleSpeakingPhase() {
 }
 
 function renderPhase(phase, phrase = "", metrics = "") {
+  if (shellSession?.shouldBlockPhaseUpdate(phase)) return;
+  if (shellSession?.shouldSkipDuplicatePhase(phase) && !String(phrase || "").trim()) return;
+  shellSession?.rememberPhase(phase);
   const displayPhase = resolveDisplayPhase(phase);
   const statusText = String(phrase || "").trim();
   if (!state.ttsPaused) {
@@ -1103,13 +1115,12 @@ function markAssistantReplyHandled(message, body, { streamTts = false } = {}) {
   if (streamTts || message?.streamId) lastStreamHandledBody = body;
 }
 
-function shouldSkipAssistantSpeech(message, body) {
-  if (lastHandledStreamId && String(message?.streamId || "") === lastHandledStreamId) return true;
-  if (lastStreamHandledBody && lastStreamHandledBody === body) return true;
-  return false;
+function shouldSkipAssistantSpeech(message) {
+  return Boolean(shellSession?.isReplyAlreadySpoken(message));
 }
 
 function beginAssistantStream({ streamId } = {}) {
+  shellSession?.resetStreamRenderState();
   state.assistantStream = {
     id: String(streamId || `local-${Date.now()}`),
     text: "",
@@ -1185,7 +1196,7 @@ async function speakStreamChunk(text) {
   }
 
   try {
-    await playTtsPayload(payload, { allowBrowserFallback: true });
+    await speakReplyAudio(payload);
   } catch {
     // playTtsPayload уже показал hint в диалоге
     throw new Error("stream-tts-failed");
@@ -1240,8 +1251,10 @@ function finalizeAssistantStream(message) {
 
   state.assistantStream = { id: streamId, text: body, spokenText, spokenParts, done: true, finalized: true };
   nodes.replyPanel?.classList.remove("is-streaming");
+  shellSession?.flushStreamingRender(renderStreamingAssistantText);
   renderShellReply({ ...message, body, spokenText, spokenParts });
   shellDialog.onAgentReply(body);
+  shellSession?.markReplyDisplayed({ ...message, body, streamId });
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
 
   if (state.settings?.ttsEnabled && shouldPlayReplyTts(message) && !state.messageStopped) {
@@ -1256,7 +1269,7 @@ function finalizeAssistantStream(message) {
     state.streamTtsQueue = [];
     if (parts.length) {
       lastSpokenBody = parts.join("\0");
-      void speakTextParts(parts, { ttsClientId: message.ttsClientId }).finally(() => {
+      void speakTextParts(parts, { ttsClientId: message.ttsClientId, sourceMessage: { ...message, body, streamId } }).finally(() => {
         state.assistantStream = null;
         releaseMessagePipeline();
       });
@@ -1273,6 +1286,11 @@ function finalizeAssistantStream(message) {
     }
   } else {
     state.assistantStream = null;
+    if (isTtsEnabledSetting() && !state.messageStopped && !shouldPlayReplyTts(message)) {
+      shellDialog.setError("Озвучка пропущена", {
+        hint: "Ответ пришёл на другое устройство или вкладку — отправьте вопрос снова с этого экрана"
+      });
+    }
     releaseMessagePipeline();
   }
   return true;
@@ -1281,9 +1299,9 @@ function finalizeAssistantStream(message) {
 function releaseMessagePipeline() {
   state.messagePipelineBusy = false;
   state.processingMessage = "";
-  clearPendingReplyTtsClientId();
   renderMessageQueue();
   updateSendButtonLabel();
+  shellSession?.releaseSessionUiLock();
   void drainOutboundQueue();
 }
 
@@ -1336,6 +1354,7 @@ async function stopActiveMessage() {
   );
   state.messageStopped = true;
   bumpTtsPlayback();
+  shellSession?.resetStreamRenderState();
   messageSendAbortController?.abort();
   messageSendAbortController = null;
   outboundQueue.length = 0;
@@ -1354,6 +1373,8 @@ async function stopActiveMessage() {
   await patchShellState({ phase: "waiting", phrase }).catch(() => {});
   renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
   updateSendButtonLabel();
+  clearPendingReplyTtsClientId();
+  shellSession?.setSessionUiLocked(false);
 }
 
 function removeOutboundMessage(id) {
@@ -1590,7 +1611,7 @@ function handleAssistantDelta(payload) {
   if (spokenText) state.assistantStream.spokenText = spokenText;
   if (spokenParts.length) state.assistantStream.spokenParts = spokenParts;
   state.assistantStream.done = done;
-  renderStreamingAssistantText(displayText);
+  shellSession?.queueStreamingRender(displayText, renderStreamingAssistantText);
   queueStreamSpeech(rawText);
 
   if (done) {
@@ -2412,6 +2433,18 @@ function applyStatusPayload(payload) {
   updateTtsSaveAgentHint(payload);
   renderAgentChip();
   if (payload?.settings) applySettings(payload.settings);
+  state.sidecarConnected = Boolean(payload?.sidecarConnected);
+  state.qwenpawServerOk = Boolean(payload?.qwenpaw?.serverOk);
+  state.qwenpawAgentOk = Boolean(payload?.qwenpaw?.agentOk);
+  state.qwenpawAgentName = String(payload?.qwenpaw?.agentName || "");
+  state.qwenpawAgentError = String(payload?.qwenpaw?.agentError || "");
+  state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
+  renderHeroLinkChip();
+  updateQwenPawChatUi(payload);
+  syncDialogConnectionState();
+
+  if (state.sessionUiLocked) return;
+
   if (payload?.state) {
     onShellPhaseChange(payload.state);
     state.shellState = payload.state;
@@ -2426,18 +2459,13 @@ function applyStatusPayload(payload) {
     if (state.pttHeld) setMicButtonState("Стоп", { active: true });
     else if (!state.micActive) setMicButtonState("Говорить");
   }
-  state.sidecarConnected = Boolean(payload?.sidecarConnected);
   updateFnPttHint();
-  state.qwenpawServerOk = Boolean(payload?.qwenpaw?.serverOk);
-  state.qwenpawAgentOk = Boolean(payload?.qwenpaw?.agentOk);
-  state.qwenpawAgentName = String(payload?.qwenpaw?.agentName || "");
-  state.qwenpawAgentError = String(payload?.qwenpaw?.agentError || "");
-  state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
-  renderHeroLinkChip();
-  updateQwenPawChatUi(payload);
   if (payload?.latestAgentMessage?.body) {
     const streaming = state.assistantStream && !state.assistantStream.finalized;
-    if (!streaming) renderShellReply(payload.latestAgentMessage);
+    if (!streaming && !shellSession?.isReplyAlreadyDisplayed(payload.latestAgentMessage)) {
+      renderShellReply(payload.latestAgentMessage);
+      shellSession?.markReplyDisplayed(payload.latestAgentMessage);
+    }
   }
 }
 
@@ -2677,6 +2705,8 @@ async function sendMessageDirect(body, { fromCompose = false, voice = false } = 
   const text = String(body || "").trim();
   if (!text) return;
   void unlockShellAudio();
+  shellSession?.setSessionUiLocked(true);
+  shellSession?.resetStreamRenderState();
   state.messageStopped = false;
   state.messagePipelineBusy = true;
   state.processingMessage = text;
@@ -2727,7 +2757,12 @@ async function sendMessageDirect(body, { fromCompose = false, voice = false } = 
       );
     } else {
       await refreshStatus();
-      releaseMessagePipeline();
+      const waitingForStream = Boolean(
+        streamingQwenPaw || (state.assistantStream && !state.assistantStream.finalized)
+      );
+      if (!waitingForStream) {
+        releaseMessagePipeline();
+      }
       return;
     }
 
@@ -3261,6 +3296,94 @@ function ttsEngineLabel(engine = getTtsEngine()) {
   return labels[engine] || engine;
 }
 
+function resolveReplyTtsEngines() {
+  const configured = String(state.settings?.ttsEngine || getTtsEngine() || "").trim();
+  const order = [];
+  const push = (engine) => {
+    if (SERVER_TTS_ENGINES.has(engine) && !order.includes(engine)) order.push(engine);
+  };
+  if (SERVER_TTS_ENGINES.has(configured)) push(configured);
+  push("edge");
+  if (/Mac/i.test(navigator.platform || "")) push("say");
+  return order;
+}
+
+async function speakReplyAudio(text) {
+  const payload = String(text || "").trim();
+  if (!payload) throw new Error("empty-tts-payload");
+  await unlockShellAudio();
+
+  const settings = { ...(state.settings || {}), ...collectTtsFormPatch() };
+  const lang = settings.ttsLang || "ru-RU";
+  const rate = settings.ttsRate || 1;
+  const voiceName = settings.ttsVoice || "";
+  let serverReason = "";
+
+  if (ttsPlayer) {
+    for (const engine of resolveReplyTtsEngines()) {
+      renderPhase("thinking", `Синтез · ${ttsEngineLabel(engine)}…`, state.shellState?.metrics || "");
+      state.speaking = true;
+      updateTtsControlsUi("speaking");
+      let result;
+      try {
+        result = await ttsPlayer.speak(payload, {
+          engine,
+          onPhase(phase) {
+            if (phase === "synthesizing") {
+              renderPhase("thinking", `Синтез · ${ttsEngineLabel(engine)}…`, state.shellState?.metrics || "");
+              return;
+            }
+            renderPhase("speaking", `Озвучиваю · ${ttsEngineLabel(engine)}…`, state.shellState?.metrics || "");
+          }
+        });
+      } catch (error) {
+        result = { ok: false, reason: String(error?.message || error) };
+      } finally {
+        state.speaking = false;
+        updateTtsControlsUi("waiting");
+      }
+      if (result?.ok) {
+        shellDialog.clearError();
+        return {
+          engine: result.engine || engine,
+          voice: result.voice || "",
+          transport: result.mimeType ? `сервер · ${result.mimeType}` : "сервер"
+        };
+      }
+      if (result?.reason) serverReason = String(result.reason);
+    }
+  }
+
+  if (getSpeechSynth()) {
+    renderPhase("speaking", "Озвучиваю · Web Speech…", state.shellState?.metrics || "");
+    state.speaking = true;
+    updateTtsControlsUi("speaking");
+    let browserReason = "";
+    try {
+      const browser = await speakShellBrowserTts(payload, { lang, rate, voiceName });
+      if (browser.ok) {
+        shellDialog.clearError();
+        return {
+          engine: "browser",
+          voice: browser.voice || voiceName || "системный",
+          transport: "Web Speech (вкладка)"
+        };
+      }
+      browserReason = String(browser.reason || "speech-error");
+    } finally {
+      state.speaking = false;
+      updateTtsControlsUi("waiting");
+    }
+    const { title, hint } = shellTtsFailureMessage(serverReason, browserReason, true);
+    shellDialog.setError(title, { hint });
+    throw new Error(browserReason || serverReason || "tts-failed");
+  }
+
+  const { title, hint } = shellTtsFailureMessage(serverReason, "", true);
+  shellDialog.setError(title, { hint });
+  throw new Error(serverReason || "tts-failed");
+}
+
 async function playTtsPayload(text, { allowBrowserFallback = true } = {}) {
   const payload = String(text || "").trim();
   if (!payload) return null;
@@ -3303,6 +3426,7 @@ async function playTtsPayload(text, { allowBrowserFallback = true } = {}) {
   let serverReason = "";
   try {
     const result = await ttsPlayer.speak(payload, {
+      engine,
       onPhase(phase) {
         if (phase === "synthesizing") {
           renderPhase("thinking", `Синтез · ${ttsEngineLabel(engine)}…`);
@@ -3440,9 +3564,9 @@ function stopBrowserTts({ notifyServer = true, resetPhase = true, broadcast = tr
 
 async function speakOneChunk(text) {
   const payload = String(text || "").trim();
-  if (!payload) return;
+  if (!payload) throw new Error("empty-tts-payload");
   const engine = getTtsEngine();
-  const result = await playTtsPayload(payload, { allowBrowserFallback: true });
+  const result = await speakReplyAudio(payload);
   if (result?.engine && result.engine !== engine) {
     renderPhase("waiting", `Озвучено · ${ttsEngineLabel(result.engine)} (выбран ${ttsEngineLabel(engine)})`);
   }
@@ -3453,15 +3577,23 @@ async function speakOneChunk(text) {
   }
 }
 
-async function speakTextParts(parts, { ttsClientId } = {}) {
+async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {}) {
   const list = (Array.isArray(parts) ? parts : [parts])
     .map((part) => String(part || "").trim())
     .filter(Boolean);
   if (!list.length) return;
-  if (!state.settings?.ttsEnabled) return;
+  if (!isTtsEnabledSetting()) return;
   if (state.messageStopped) return;
-  if (!shouldPlayReplyTts({ ttsClientId })) {
-    releaseMessagePipeline();
+  const ttsMeta = {
+    ttsClientId: ttsClientId || sourceMessage?.ttsClientId,
+    ...(sourceMessage && typeof sourceMessage === "object" ? sourceMessage : {})
+  };
+  if (!shouldPlayReplyTts(ttsMeta)) {
+    if (state.pendingReplyTtsClientId === getShellClientId()) {
+      shellDialog.setError("Озвучка не запустилась", {
+        hint: "Обновите страницу и проверьте, что TTS включён в настройках"
+      });
+    }
     renderPhase(state.shellState?.phase || "waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
     return;
   }
@@ -3476,7 +3608,8 @@ async function speakTextParts(parts, { ttsClientId } = {}) {
       if (!isTtsPlaybackCurrent(seq)) break;
       const label =
         list.length > 1 ? `Озвучиваю ${i + 1}/${list.length}…` : "Озвучиваю ответ…";
-      await patchShellState({ phase: "speaking", phrase: label });
+      renderPhase("speaking", label, state.shellState?.metrics || "");
+      void patchShellState({ phase: "speaking", phrase: label }).catch(() => {});
       await speakOneChunk(list[i]);
       if (!isTtsPlaybackCurrent(seq)) break;
     }
@@ -3495,6 +3628,7 @@ async function speakTextParts(parts, { ttsClientId } = {}) {
   }
 
   rememberLastTtsSpoken(list.join("\n\n"));
+  if (sourceMessage) shellSession?.markReplySpoken(sourceMessage);
   state.pendingReplyTtsClientId = "";
   await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).catch(() => {});
   syncWaitingUiAfterPlayback();
@@ -3514,28 +3648,26 @@ async function handleAssistantMessage(message) {
     if (state.messagePipelineBusy) releaseMessagePipeline();
     return;
   }
-  const messageId = resolveAssistantMessageKey(message, body);
   const stream = state.assistantStream;
 
   if (
     stream?.finalized &&
-    (stream.id === message?.streamId || stream.id === messageId || stream.text === body)
+    (stream.id === message?.streamId ||
+      stream.id === resolveAssistantMessageKey(message, body) ||
+      stream.text === body)
   ) {
-    markAssistantReplyHandled(message, body, { streamTts: true });
-    return;
-  }
-
-  if (messageId && messageId === lastHandledAssistantId) return;
-  if (lastHandledStreamId && String(message?.streamId || "") === lastHandledStreamId) {
-    if (!nodes.lastReplyText?.textContent || nodes.lastReplyText.textContent === "…" || nodes.lastReplyText.textContent === "—") {
-      renderShellReply(message);
+    if (
+      !shellSession?.isReplyAlreadySpoken(message) &&
+      state.settings?.ttsEnabled &&
+      shouldPlayReplyTts(message) &&
+      !shouldSkipAssistantSpeech(message)
+    ) {
+      const parts = buildSpeechParts(body, message);
+      if (parts.length) {
+        await speakTextParts(parts, { ttsClientId: message.ttsClientId, sourceMessage: message });
+      }
     }
-    return;
-  }
-  if (lastStreamHandledBody && lastStreamHandledBody === body) {
-    if (!nodes.lastReplyText?.textContent || nodes.lastReplyText.textContent === "…" || nodes.lastReplyText.textContent === "—") {
-      renderShellReply(message);
-    }
+    releaseMessagePipeline();
     return;
   }
 
@@ -3544,14 +3676,33 @@ async function handleAssistantMessage(message) {
     return;
   }
 
+  if (shellSession?.isReplyAlreadyDisplayed(message)) {
+    if (
+      !shellSession.isReplyAlreadySpoken(message) &&
+      state.settings?.ttsEnabled &&
+      shouldPlayReplyTts(message) &&
+      !shouldSkipAssistantSpeech(message)
+    ) {
+      const parts = buildSpeechParts(body, message);
+      if (parts.length) {
+        await speakTextParts(parts, { ttsClientId: message.ttsClientId, sourceMessage: message });
+      }
+    }
+    releaseMessagePipeline();
+    return;
+  }
+
+  shellSession?.flushStreamingRender(renderStreamingAssistantText);
   markAssistantReplyHandled(message, body);
   renderShellReply(message);
   shellDialog.onAgentReply(body);
+  shellSession?.markReplyDisplayed(message);
+
   const phase = state.shellState?.phase || "waiting";
   if (phase === "waiting" && !state.pttHeld && !state.micActive && !state.speaking) {
     renderPhase(phase, "Готов к сообщению", state.shellState?.metrics || "");
   }
-  if (state.settings?.ttsEnabled && !shouldSkipAssistantSpeech(message, body)) {
+  if (state.settings?.ttsEnabled && !shouldSkipAssistantSpeech(message)) {
     const parts = buildSpeechParts(body, message);
     if (!parts.length) {
       shellDialog.setError("Нечего озвучить", {
@@ -3566,7 +3717,7 @@ async function handleAssistantMessage(message) {
       return;
     }
     lastSpokenBody = speechKey;
-    await speakTextParts(parts, { ttsClientId: message.ttsClientId });
+    await speakTextParts(parts, { ttsClientId: message.ttsClientId, sourceMessage: message });
     releaseMessagePipeline();
     return;
   }
@@ -3585,9 +3736,15 @@ function connectStream() {
 
   const source = new EventSource(apiUrl("/api/shell/stream"));
   state.eventSource = source;
-  renderServerChip();
-  source.onopen = () => renderHeroLinkChip();
-  source.onerror = () => renderHeroLinkChip();
+  syncDialogConnectionState("connecting");
+  source.onopen = () => {
+    renderHeroLinkChip();
+    syncDialogConnectionState("live");
+  };
+  source.onerror = () => {
+    renderHeroLinkChip();
+    syncDialogConnectionState("error");
+  };
 
   source.addEventListener("status", (event) => {
     try {
@@ -3649,7 +3806,9 @@ function connectStream() {
       onShellPhaseChange(nextState);
       if (nextState?.phase) {
         state.shellState = { ...(state.shellState || {}), ...nextState };
-        renderPhase(nextState.phase, nextState.phrase, nextState.metrics);
+        if (!state.sessionUiLocked) {
+          renderPhase(nextState.phase, nextState.phrase, nextState.metrics);
+        }
         maybeResetStaleSpeakingPhase();
       }
     } catch {
@@ -4255,13 +4414,22 @@ async function boot() {
   });
   bindMicPermissionsUi(permissionApi);
   shellDialog.init();
-  shellDialog.bindReconnect(() => {
-    if (state.eventSource) {
-      state.eventSource.close();
-      state.eventSource = null;
-    }
-    connectStream();
-    void refreshStatus();
+  shellSession = createShellSession(state, {
+    nodes,
+    shellDialog,
+    closeStream: () => {
+      if (state.eventSource) {
+        state.eventSource.close();
+        state.eventSource = null;
+      }
+    },
+    connectStream,
+    refreshStatus,
+    syncConnectionState: syncDialogConnectionState,
+    renderReconnectPhrase: () => renderPhase("waiting", "Переподключение…")
+  });
+  shellDialog.bindReconnect(({ soft } = {}) => {
+    void shellSession.reconnect({ soft });
   });
   if (nodes.micDialogUrl) {
     nodes.micDialogUrl.textContent = getShellHttpsUrl();

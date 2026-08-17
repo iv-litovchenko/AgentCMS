@@ -17,16 +17,22 @@ export function formatTtsErrorHint({ serverReason = "", browserReason = "", useS
     parts.push("iPhone заблокировал звук — нажмите 🎤 или «Отправить» и сразу задайте вопрос");
   } else if (serverReason === "play-failed" || serverReason === "audio-element-error") {
     parts.push("Выключите беззвучный режим, громкость вверх");
+  } else if (serverReason === "audio-playback-timeout") {
+    parts.push("Воспроизведение зависло — выберите Edge TTS в настройках");
   } else if (serverReason === "audio-load-timeout") {
-    parts.push("Аудио не загрузилось — проверьте сеть или выберите «Браузер» в TTS");
+    parts.push("Аудио не загрузилось — проверьте сеть или выберите Edge TTS");
   } else if (serverReason === "engine-browser" && useServerTts) {
     parts.push("Настройки TTS не загрузились — обновите страницу");
   } else if (serverReason && serverReason !== "engine-browser") {
     parts.push(`Сервер: ${serverReason}`);
   }
 
-  if (browserReason === "speech-timeout" || browserReason === "speech-end-timeout") {
-    parts.push("Safari TTS завис — попробуйте Edge/say на Mac или перезагрузите вкладку");
+  if (browserReason === "speech-not-allowed" || browserReason === "speech-no-start") {
+    parts.push("Браузер заблокировал TTS — нажмите «Пробная озвучка» или выберите Edge/say");
+  } else if (browserReason === "speech-cut-short") {
+    parts.push("Safari оборвал TTS — выберите Edge TTS или macOS say");
+  } else if (browserReason === "speech-timeout" || browserReason === "speech-end-timeout") {
+    parts.push("Safari TTS завис — для ответов агента выберите Edge TTS или macOS say");
   } else if (browserReason && browserReason !== "no-speech-synthesis") {
     parts.push(`Safari: ${browserReason}`);
   }

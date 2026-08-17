@@ -234,6 +234,23 @@ body.shell-window-transparent {
   pointer-events: none;
 }
 
+body.shell-session-active .shell-character-stage .shell-character-rig,
+body.shell-session-active .shell-character-stage[data-phase="speaking"] .shell-character-mouth {
+  animation-play-state: paused;
+}
+
+body.shell-session-active .shell-reply-panel .shell-dialog-scroll {
+  contain: layout style paint;
+}
+
+body.shell-session-active .shell-hero {
+  flex-shrink: 0;
+}
+
+body.shell-session-active .shell-compose-panel {
+  contain: layout style;
+}
+
 body.shell-embed .shell-haptic-test {
   display: none;
 }

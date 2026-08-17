@@ -28,7 +28,7 @@ function pickVoice(voices, lang, voiceName = "") {
   );
 }
 
-/** Safari / iOS speechSynthesis — success only on onend (onstart lies on iOS). */
+/** Safari / iOS — успех только если был onstart и пришёл onend. */
 export async function speakShellBrowserTts(text, { lang = "ru-RU", rate = 1, voiceName = "" } = {}) {
   const synth = window.speechSynthesis;
   const payload = String(text || "").trim();

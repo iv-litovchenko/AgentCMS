@@ -122,13 +122,28 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
     }
 
     return new Promise((resolve) => {
+      let settled = false;
+      const maxMs = Math.min(180_000, Math.max(20_000, bytes.length * 8 + 5000));
+      const maxTimer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanupAudio();
+        resolve({ ok: false, reason: "audio-playback-timeout" });
+      }, maxMs);
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(maxTimer);
+        resolve(result);
+      };
+
       audio.onended = () => {
         cleanupAudio();
-        resolve({ ok: true, reason: "audio-element" });
+        finish({ ok: true, reason: "audio-element" });
       };
       audio.onerror = () => {
         cleanupAudio();
-        resolve({ ok: false, reason: "audio-element-error" });
+        finish({ ok: false, reason: "audio-element-error" });
       };
       void audio
         .play()
@@ -140,7 +155,7 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
             await unlockShellAudio();
             if (gen !== speakGeneration) {
               cleanupAudio();
-              resolve({ ok: false, reason: "cancelled" });
+              finish({ ok: false, reason: "cancelled" });
               return;
             }
             try {
@@ -150,7 +165,7 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
               if (attempt === 1) {
                 cleanupAudio();
                 const msg = String(retryError?.message || error?.message || "play-failed");
-                resolve({
+                finish({
                   ok: false,
                   reason: /notallowed|interact/i.test(msg) ? "play-not-allowed" : "play-failed"
                 });
@@ -201,14 +216,14 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
     }
   }
 
-  async function speak(text, { onPhase } = {}) {
+  async function speak(text, { onPhase, engine: engineOverride = "" } = {}) {
     const generation = ++speakGeneration;
     cleanupAudio();
     const payload = String(text || "").trim();
     if (!payload) return { ok: false, reason: "empty" };
 
     const settings = getTtsSettings();
-    const engine = String(settings?.ttsEngine || "").trim();
+    const engine = String(engineOverride || settings?.ttsEngine || "").trim();
     onPhase?.("synthesizing", engine);
 
     let result;
@@ -216,7 +231,7 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
       result = await apiFetch("/api/shell/tts/synthesize", {
         method: "POST",
         timeoutMs: synthTimeoutMs,
-        body: JSON.stringify({ text: payload, settings, engine })
+        body: JSON.stringify({ text: payload, settings, engine: engine || undefined })
       });
     } catch (error) {
       return { ok: false, reason: error?.message || "synthesize-fetch" };
