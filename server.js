@@ -23690,12 +23690,28 @@ async function handleApi(req, res, url) {
   return runWithAgent(agent.id, () => withWorkspaceActivityContext(req, url, () => handleApiForAgent(req, res, url)));
 }
 
+function shellMobileRedirectTarget(pathname) {
+  if (!pathname.startsWith("/shell/mobile")) return null;
+  const suffix = pathname.slice("/shell/mobile".length) || "/";
+  const normalized = suffix.startsWith("/") ? suffix : `/${suffix}`;
+  if (normalized === "/" || normalized === "/index.html") return "/shell/";
+  return `/shell${normalized}`;
+}
+
 function createRequestHandler() {
   return async (req, res) => {
     const url = new URL(req.url, "http://localhost");
 
     if (url.pathname.startsWith("/api/")) {
       return handleApi(req, res, url);
+    }
+
+    const mobileRedirect = shellMobileRedirectTarget(url.pathname);
+    if (mobileRedirect) {
+      const location = `${mobileRedirect}${url.search}`;
+      res.writeHead(301, { Location: location });
+      res.end();
+      return;
     }
 
     return serveStatic(url.pathname, res);
@@ -23801,7 +23817,7 @@ async function startServer(options = {}) {
       tls: true,
       httpUrl: null,
       httpsUrl: lanIp ? `https://${lanIp}:${boundTlsPort}` : url,
-      mobileUrl: lanIp ? `https://${lanIp}:${boundTlsPort}/shell/mobile/` : `${url}/shell/mobile/`,
+      mobileUrl: lanIp ? `https://${lanIp}:${boundTlsPort}/shell/` : `${url}/shell/`,
       stop: stopServer
     };
   }
@@ -23831,10 +23847,10 @@ async function startServer(options = {}) {
     httpUrl: lanIp ? `http://${lanIp}:${boundPort}` : httpUrl,
     httpsUrl: lanIp && boundTlsPort ? `https://${lanIp}:${boundTlsPort}` : httpsUrl,
     mobileUrl: lanIp && boundTlsPort
-      ? `https://${lanIp}:${boundTlsPort}/shell/mobile/`
+      ? `https://${lanIp}:${boundTlsPort}/shell/`
       : lanIp
-        ? `http://${lanIp}:${boundPort}/shell/mobile/`
-        : `${httpUrl}/shell/mobile/`,
+        ? `http://${lanIp}:${boundPort}/shell/`
+        : `${httpUrl}/shell/`,
     stop: stopServer
   };
 }
@@ -23866,7 +23882,7 @@ if (require.main === module) {
       if (info.httpUrl) console.log(`Agent CMS HTTP  at ${info.httpUrl}`);
       if (info.httpsUrl) console.log(`Agent CMS HTTPS at ${info.httpsUrl}`);
       else if (!info.httpUrl) console.log(`Agent CMS at ${info.url}`);
-      console.log(`Mobile Shell:     ${info.mobileUrl}`);
+      console.log(`Agent Shell:      ${info.mobileUrl}`);
       console.log("");
       if (info.httpsUrl) {
         console.log("iPhone: open HTTPS URL → accept certificate → hold 🎤");

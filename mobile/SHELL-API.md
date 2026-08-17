@@ -4,7 +4,7 @@
 
 | Клиент | Путь |
 |--------|------|
-| Web mobile | `public/shell/mobile/` + `shell-client.js` |
+| Web | `public/shell/` + `shell-client.js` |
 | iOS | `mobile/iphone-shell/AgentShell/Services/` |
 
 Web-константы: `public/shell/shell-contract.js`.

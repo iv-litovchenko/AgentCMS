@@ -13,7 +13,7 @@ shell только пишет в thread/inbox и слушает ответы.
 | Путь | Что это |
 |------|---------|
 | `mobile/iphone-shell/` | Нативное iOS-приложение (SwiftUI) |
-| `public/shell/mobile/` | Облегчённый web-клиент для Safari / PWA |
+| `public/shell/` | Web-клиент Safari / PWA / desktop browser |
 
 На iPhone укажите URL Mac в локальной сети, например `http://192.168.1.42:3000`. CMS: `HOST=0.0.0.0 npm start`.
 Подробнее: [`mobile/README.md`](../mobile/README.md).

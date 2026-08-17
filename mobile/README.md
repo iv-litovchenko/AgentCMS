@@ -10,9 +10,7 @@
 | `mobile/SHELL-API.md` | Контракт API (общий для web и iOS) |
 | `public/shell/shell-contract.js` | Константы фаз, SSE, paths |
 | `public/shell/shell-client.js` | HTTP/SSE клиент для mobile web |
-| `public/shell/mobile/` | Web-клиент Safari / «На экран Домой» |
-| `agent-shell/` | Backend Shell (не mobile — общий с desktop) |
-| `public/shell/` | Полный web UI Shell (desktop + browser) |
+| `public/shell/` | Universal Shell (desktop · browser · mobile · PWA) |
 | `desktop/agent-shell/` | Electron-оболочка для macOS |
 
 ## iPhone (SwiftUI)
@@ -37,7 +35,7 @@ HOST=0.0.0.0 npm start
 ```bash
 npm start
 # на iPhone:
-# http://<IP-Mac>:3000/shell/mobile/
+# https://<IP-Mac>:3443/shell/
 ```
 
 ## Связь с desktop
@@ -45,5 +43,5 @@ npm start
 | | Mac | iPhone |
 |---|-----|--------|
 | Оболочка | Electron | SwiftUI или Safari |
-| UI | `public/shell/index.html` | `mobile/iphone-shell` или `public/shell/mobile/` |
+| UI | `public/shell/index.html` | `mobile/iphone-shell` или `public/shell/` |
 | API | `/api/shell/*` | тот же |

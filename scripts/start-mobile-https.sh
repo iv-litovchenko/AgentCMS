@@ -34,7 +34,7 @@ else
   echo "Starting HTTP :3000 + HTTPS :3443"
 fi
 echo "iPhone — open THIS URL (port 3443, not 3000):"
-echo "  https://${IP}:3443/shell/mobile/"
+echo "  https://${IP}:3443/shell/"
 echo ""
 echo "Safari: warning → Подробнее → Перейти на сайт"
 echo ""

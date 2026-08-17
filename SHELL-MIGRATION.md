@@ -1,7 +1,7 @@
 # Agent Shell — миграция в единый клиент
 
 Цель: один универсальный Agent Shell для **desktop · browser · mobile · companion**.  
-Отдельный `/shell/mobile/` — **deprecated**, функционал переносится в `/shell/`.
+~~Отдельный `/shell/mobile/`~~ — **удалён** (2026-08-18), redirect → `/shell/`.
 
 Статусы: ❌ нет · ⚠️ частично · ✅ есть
 
@@ -88,7 +88,7 @@
 | `browser-embed` | iframe в CMS |
 | `browser-tab` | `/shell` в вкладке |
 | `mobile-native` | iOS app (SwiftUI) |
-| `mobile-web` | `/shell/mobile` → **→ `/shell` responsive** |
+| `mobile-web` | `/shell` responsive · Safari / PWA |
 | `extension` | Companion (Chrome) |
 
 Backend: `local` / `server` (disabled)
@@ -110,42 +110,35 @@ Backend: `local` / `server` (disabled)
 
 ---
 
-## Источники кода (mobile, deprecated)
+## Модули universal shell
 
 | Путь | Назначение |
 |------|------------|
-| `public/shell/mobile/mobile.js` | основной UI + логика |
-| `public/shell/mobile/mobile-permissions.js` | HTTPS, mic |
-| `public/shell/mobile/mobile-tts.js` | iOS TTS |
-| `public/shell/mobile/mobile-browser-tts.js` | Safari TTS |
-| `public/shell/mobile/mobile-audio-unlock.js` | AudioContext |
-| `public/shell/mobile/mobile-device-chips.js` | компас, батарея |
+| `public/shell/shell.js` | основной UI + логика |
 | `public/shell/shell-permissions.js` | HTTPS, mic |
 | `public/shell/shell-dialog.js` | диалог mobile-style |
 | `public/shell/shell-session.js` | reconnect, dedup, UI lock, stream throttle |
 | `public/shell/shell-audio-unlock.js` | AudioContext unlock iOS |
-| `public/shell/shell-tts-mobile.js` | truncate, error hints |
+| `public/shell/shell-tts-mobile.js` | truncate, error hints (iOS, не mobile-app) |
 | `public/shell/shell-browser-tts.js` | Safari speechSynthesis + таймауты |
-| `public/shell/shell-compose-layout.js` | visualViewport, keyboard dismiss, mobile dock |
-| `public/shell/shell-storage-keys.js` | canonical storage keys + mobile migration |
+| `public/shell/shell-compose-layout.js` | visualViewport, keyboard dismiss |
+| `public/shell/shell-storage-keys.js` | canonical keys + legacy mobile migration |
 | `public/shell/shell-compose-camera.js` | снимок из compose → upload + message |
 | `public/shell/shell-help.js` | справка «?» |
 | `public/shell/shell-voice.js` | tap-микрофон, confirm, wake lock |
 | `public/shell/shell-pwa.js` | PWA banner, standalone |
 | `public/shell/manifest.webmanifest` | Web app manifest |
-| `public/shell/mobile/mobile-background.js` | подложка персонажа |
-| `public/shell/mobile/mobile-character.js` | персонаж mobile |
 
 ---
 
-## План (черновик)
+## План
 
-1. **Фаза 1 — Диалог:** #1–11, #48–49  
+1. **Фаза 1 — Диалог:** #1–11, #48–49 ✅  
 2. **Фаза 2 — Голос:** #12–19 ✅  
-3. **Фаза 3 — TTS + mobile adapters:** #20–24 ✅ · #25–29 ✅ · #40–44 ✅  
+3. **Фаза 3 — TTS + adapters:** #20–29, #40–44 ✅  
 4. **Фаза 4 — Сессия / SSE:** #36–39, #50 ✅  
 5. **Фаза 5 — Контекст CMS:** D1–D5  
-6. **Фаза 6 — Deprecate:** `/shell/mobile/`, вкладка Shell Mobile в CMS  
+6. **Фаза 6 — Deprecate `/shell/mobile/`:** ✅ redirect 301, вкладка CMS, удалён код  
 
 ---
 

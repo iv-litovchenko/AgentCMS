@@ -17,7 +17,7 @@ import {
 } from "/shell/shell-tts-mobile.js?v=1";
 import { createShellSession } from "/shell/shell-session.js?v=1";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
-import { getShellSurfacePayload, initShellSurfaceSwitcher } from "/shell/shell-surface.js?v=2";
+import { getShellSurfacePayload, initShellSurfaceSwitcher } from "/shell/shell-surface.js?v=3";
 import { initShellOrientationChip, initShellLocationChip, getShellDeviceLocation, isShellLocationShareEnabled, refreshShellLocationForSend } from "/shell/shell-device-chips.js?v=3";
 import { initShellInstallBanner } from "/shell/shell-pwa.js?v=2";
 import {

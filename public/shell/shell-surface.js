@@ -18,18 +18,30 @@ const HOST_META = {
   "browser-embed": { icon: "🌐", short: "Embed", hint: "Панель в Agent CMS" },
   "browser-tab": { icon: "🌐", short: "Tab", hint: "Вкладка браузера · /shell" },
   "mobile-native": { icon: "📱", short: "iOS", hint: "iOS app (SwiftUI)" },
-  "mobile-web": { icon: "📱", short: "Mobile", hint: "/shell/mobile" },
+  "mobile-web": { icon: "📱", short: "Mobile", hint: "Safari / PWA · /shell" },
   extension: { icon: "🧩", short: "Companion", hint: "Companion · расширение Chrome" }
 };
 
 let activeSurface = null;
 
-function isMobileShellPath() {
+function isMobileWebShellPath() {
   try {
-    return window.location.pathname.replace(/\/+$/, "").endsWith("/shell/mobile");
+    const path = window.location.pathname.replace(/\/+$/, "");
+    return path.endsWith("/shell") || path.endsWith("/shell/index.html");
   } catch {
     return false;
   }
+}
+
+function isMobileWebUserAgent() {
+  try {
+    const ua = navigator.userAgent || "";
+    if (/iPhone|iPad|iPod|Android/i.test(ua)) return true;
+    if (window.matchMedia("(max-width: 768px)").matches && "ontouchstart" in window) return true;
+  } catch {
+    // ignore
+  }
+  return false;
 }
 
 function isShellEmbedQuery() {
@@ -103,25 +115,14 @@ export function detectShellBackend() {
 /** @returns {{ host: string, hint: string, embedded: boolean, backend: ReturnType<typeof detectShellBackend> }} */
 export function detectShellSurface() {
   const inIframe = window.parent !== window;
-  const mobilePath = isMobileShellPath();
   const queryHost = readHostQuery();
+  const mobileWebPath = isMobileWebShellPath() && isMobileWebUserAgent();
 
-  if (isExtensionContext() && !mobilePath) {
+  if (isExtensionContext()) {
     return {
       host: "extension",
       hint: HOST_META.extension.hint,
       embedded: true,
-      backend: detectShellBackend()
-    };
-  }
-
-  if (mobilePath) {
-    const host =
-      queryHost === "mobile-native" || isMobileNativeContext() ? "mobile-native" : "mobile-web";
-    return {
-      host,
-      hint: HOST_META[host].hint,
-      embedded: inIframe || isShellEmbedQuery(),
       backend: detectShellBackend()
     };
   }
@@ -132,6 +133,24 @@ export function detectShellSurface() {
       host: queryHost,
       hint: meta?.hint || queryHost,
       embedded: queryHost === "browser-embed" || queryHost === "desktop-cms" || isShellEmbedQuery(),
+      backend: detectShellBackend()
+    };
+  }
+
+  if (isMobileNativeContext()) {
+    return {
+      host: "mobile-native",
+      hint: HOST_META["mobile-native"].hint,
+      embedded: inIframe || isShellEmbedQuery(),
+      backend: detectShellBackend()
+    };
+  }
+
+  if (mobileWebPath && !inIframe && !isShellEmbedQuery()) {
+    return {
+      host: "mobile-web",
+      hint: HOST_META["mobile-web"].hint,
+      embedded: false,
       backend: detectShellBackend()
     };
   }

@@ -51,8 +51,7 @@ npm run shell:dist
 |------|---------|
 | `desktop/agent-shell/` | Electron-оболочка (окно, иконка) |
 | `mobile/iphone-shell/` | iOS-приложение (SwiftUI) |
-| `public/shell/mobile/` | Web UI Shell для iPhone Safari |
 | `agent-shell/` | Backend Shell: API, sidecar, QwenPaw (`npm run shell:sidecar`) |
-| `public/shell/` | Web UI Shell |
+| `public/shell/` | Web UI Shell (desktop · browser · mobile · PWA) |
 
 В **Agent CMS.app** упакован backend `agent-shell/` (API для `/shell/` в браузере) — это не desktop-приложение Shell.
