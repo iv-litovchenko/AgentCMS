@@ -2,12 +2,17 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#070812" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Agent Shell" />
     <title>Agent Shell</title>
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=125" />
+    <link rel="manifest" href="/shell/manifest.webmanifest" />
+    <link rel="stylesheet" href="/shell/shell.css?v=126" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=1" />
     <script type="importmap">
       {
@@ -19,6 +24,10 @@
   </head>
   <body class="shell-bg-wallpaper">
     <div class="shell-app" id="shell-app" data-view="main">
+      <div class="shell-install-banner hidden" id="shell-install-banner">
+        <span>Добавьте на экран Домой — Safari → Поделиться → «На экран Домой»</span>
+        <button type="button" class="shell-install-dismiss" id="shell-install-dismiss" aria-label="Скрыть">×</button>
+      </div>
       <header class="shell-header">
         <button
           type="button"
@@ -1328,6 +1337,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script src="/shell/shell.js?v=127" type="module"></script>
+    <script src="/shell/shell.js?v=128" type="module"></script>
   </body>
 </html>

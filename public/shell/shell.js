@@ -11,6 +11,7 @@ import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=5";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
 import { getShellSurfacePayload, initShellSurfaceSwitcher } from "/shell/shell-surface.js?v=2";
 import { initShellOrientationChip } from "/shell/shell-device-chips.js?v=1";
+import { initShellInstallBanner } from "/shell/shell-pwa.js?v=1";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
@@ -4019,6 +4020,12 @@ async function boot() {
     document.body.classList.add("shell-embed");
   }
   initShellSurfaceSwitcher();
+  if (!shellEmbedMode) {
+    initShellInstallBanner({
+      bannerEl: document.getElementById("shell-install-banner"),
+      dismissBtn: document.getElementById("shell-install-dismiss")
+    });
+  }
   initShellOrientationChip({
     button: nodes.orientChip,
     valueEl: nodes.orientValue

@@ -65,6 +65,40 @@ body.shell-window-transparent {
   gap: 12px;
 }
 
+.shell-install-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(91, 157, 255, 0.14);
+  border: 1px solid rgba(91, 157, 255, 0.25);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: #cfe3ff;
+  flex-shrink: 0;
+}
+
+.shell-install-banner.hidden {
+  display: none;
+}
+
+.shell-install-dismiss {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.shell-install-dismiss:hover {
+  color: var(--text);
+}
+
 .shell-version {
   margin: 0;
   padding: 0 4px 2px;
@@ -2143,6 +2177,10 @@ body.shell-embed {
 body.shell-embed.shell-bg-wallpaper,
 body.shell-embed.shell-bg-dark {
   background-attachment: scroll;
+}
+
+body.shell-embed .shell-install-banner {
+  display: none !important;
 }
 
 body.shell-embed .shell-app {

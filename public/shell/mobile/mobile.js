@@ -13,6 +13,7 @@ import {
 } from "/shell/mobile/mobile-background.js?v=2";
 import { initMobileDeviceChips } from "/shell/mobile/mobile-device-chips.js?v=4";
 import { initMobilePermissions, warmUpMicrophone, mobilePermissionIssue, getMobileHttpsUrl } from "/shell/mobile/mobile-permissions.js?v=2";
+import { initShellInstallBanner } from "/shell/shell-pwa.js?v=1";
 import { loadAgentSelectData, populateAgentSelect, getSelectableAgents } from "/shared/agent-select.js";
 import { unlockMobileAudio, isIosDevice } from "/shell/mobile/mobile-audio-unlock.js?v=3";
 import { speakBrowserTts } from "/shell/mobile/mobile-browser-tts.js?v=3";
@@ -143,10 +144,6 @@ const nodes = {
   voiceRetry: document.getElementById("mobile-voice-retry"),
   voiceCancel: document.getElementById("mobile-voice-cancel")
 };
-
-function isStandalonePwa() {
-  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-}
 
 function setStatusDot(connState) {
   if (!nodes.statusDot) return;
@@ -1444,11 +1441,11 @@ function bindHelp() {
 }
 
 function bindInstallBanner() {
-  if (isStandalonePwa() || localStorage.getItem(INSTALL_DISMISS_KEY) === "1") return;
-  nodes.installBanner?.classList.remove("hidden");
-  nodes.installDismiss?.addEventListener("click", () => {
-    localStorage.setItem(INSTALL_DISMISS_KEY, "1");
-    nodes.installBanner?.classList.add("hidden");
+  initShellInstallBanner({
+    bannerEl: nodes.installBanner,
+    dismissBtn: nodes.installDismiss,
+    dismissKey: INSTALL_DISMISS_KEY,
+    requireMobileContext: false
   });
 }
 
