@@ -6,6 +6,7 @@ import {
   unwrapShellState
 } from "/shell/shell-contract.js?v=1";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
+import { getShellSurfacePayload } from "/shell/shell-surface.js?v=2";
 
 export class ShellClient {
   constructor({
@@ -55,14 +56,16 @@ export class ShellClient {
     return this.apiFetch(SHELL_API.status);
   }
 
-  sendMessage(body, { voice = false, author = "shell", signal } = {}) {
+  sendMessage(body, { voice = false, author = "shell", signal, extra = {} } = {}) {
     return this.apiFetch(SHELL_API.message, {
       method: "POST",
       body: JSON.stringify({
         body: String(body || "").trim(),
         author,
         voice: Boolean(voice),
-        shellClientId: getShellClientId()
+        shellClientId: getShellClientId(),
+        ...getShellSurfacePayload(),
+        ...extra
       }),
       signal
     });

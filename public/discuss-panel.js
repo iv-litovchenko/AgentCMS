@@ -102,6 +102,8 @@
 
   function buildShellIframeUrl(agentId) {
     const url = new URL("/shell", window.location.origin);
+    url.searchParams.set("embed", "1");
+    url.searchParams.set("host", window.desktopApp?.isDesktop ? "desktop-cms" : "browser-embed");
     if (agentId) url.searchParams.set("agent", agentId);
     return url.toString();
   }
@@ -109,6 +111,7 @@
   function buildShellMobileIframeUrl(agentId) {
     const url = new URL("/shell/mobile/", window.location.origin);
     url.searchParams.set("embed", "1");
+    url.searchParams.set("host", "mobile-web");
     if (agentId) url.searchParams.set("agent", agentId);
     return url.toString();
   }

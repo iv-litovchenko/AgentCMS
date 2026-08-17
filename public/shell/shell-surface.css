@@ -1,0 +1,200 @@
+.shell-surface-switcher {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin: 0 var(--shell-panel-inset-x, 12px) 8px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  background: linear-gradient(165deg, rgba(15, 23, 42, 0.82), rgba(7, 11, 20, 0.9));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.shell-surface-switcher-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.shell-surface-switcher-kicker {
+  flex: none;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.88);
+  white-space: nowrap;
+}
+
+.shell-surface-switcher-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(191, 219, 254, 0.82);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shell-surface-backend {
+  flex: none;
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.shell-surface-backend-tab {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.72);
+  pointer-events: none;
+  user-select: none;
+}
+
+.shell-surface-backend-tab.is-active {
+  color: #dbeafe;
+  background: rgba(57, 120, 255, 0.22);
+  border: 1px solid rgba(147, 197, 253, 0.28);
+}
+
+.shell-surface-backend-tab[aria-disabled="true"]:not(.is-active) {
+  opacity: 0.38;
+}
+
+.shell-surface-switcher-track {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  overflow-x: auto;
+  scrollbar-width: none;
+  user-select: none;
+}
+
+.shell-surface-switcher-track::-webkit-scrollbar {
+  display: none;
+}
+
+.shell-surface-switcher-indicator {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(135deg, rgba(57, 120, 255, 0.42), rgba(124, 92, 255, 0.32));
+  border: 1px solid rgba(147, 197, 253, 0.35);
+  box-shadow: 0 0 20px rgba(57, 120, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: transform 0.32s cubic-bezier(0.34, 1.2, 0.64, 1), width 0.32s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.shell-surface-tab {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 7px;
+  border-radius: 999px;
+  color: rgba(226, 232, 240, 0.55);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.shell-surface-tab .surf-label {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.shell-surface-tab .surf-ico {
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.72;
+}
+
+.shell-surface-tab.is-active {
+  color: #fff;
+  text-shadow: 0 0 18px rgba(147, 197, 253, 0.35);
+}
+
+.shell-surface-tab.is-active .surf-ico {
+  opacity: 1;
+}
+
+body.shell-embed .shell-surface-switcher {
+  margin-top: 0;
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  gap: 4px;
+}
+
+body.shell-embed .shell-surface-tab .surf-label,
+body.shell-embed .shell-surface-switcher-hint {
+  display: none;
+}
+
+body.shell-embed .shell-surface-tab {
+  min-width: 36px;
+  padding: 7px 5px;
+}
+
+body.shell-embed .shell-surface-tab .surf-ico {
+  font-size: 14px;
+}
+
+.shell-app[data-compact="1"] .shell-surface-switcher-hint {
+  display: none;
+}
+
+.shell-app[data-compact="1"] .shell-surface-tab .surf-label {
+  display: none;
+}
+
+.mobile-app .shell-surface-switcher {
+  margin: 0 0 10px;
+}
+
+.mobile-app .shell-surface-tab {
+  min-width: 44px;
+}
+
+@media (max-width: 420px) {
+  .shell-surface-switcher-hint {
+    display: none;
+  }
+
+  .shell-surface-tab .surf-label {
+    display: none;
+  }
+
+  .shell-surface-tab {
+    min-width: 34px;
+    padding: 7px 5px;
+  }
+
+  .shell-surface-tab .surf-ico {
+    font-size: 14px;
+  }
+}

@@ -12,6 +12,7 @@
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/mobile/manifest.webmanifest" />
     <link rel="stylesheet" href="/shell/mobile/mobile.css?v=39" />
+    <link rel="stylesheet" href="/shell/shell-surface.css?v=1" />
     <link rel="stylesheet" href="/shell/mobile/mobile-md.css?v=3" />
     <link rel="stylesheet" href="/shell/mobile/mobile-character.css?v=4" />
     <script type="importmap">
@@ -65,6 +66,14 @@
           <span class="mobile-device-value" id="mobile-orient-value">…</span>
         </button>
       </section>
+
+      <div
+        class="shell-surface-switcher"
+        id="shell-surface-switcher"
+        data-host="mobile-web"
+        data-backend="local"
+        aria-label="Host и backend Agent Shell"
+      ></div>
 
       <div class="mobile-hero">
         <div class="mobile-character-mount" id="mobile-character-mount"></div>
@@ -289,6 +298,6 @@ CMS workspace (agent-cms-test)</pre>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script type="module" src="/shell/mobile/mobile.js?v=39"></script>
+    <script type="module" src="/shell/mobile/mobile.js?v=40"></script>
   </body>
 </html>

@@ -9,6 +9,7 @@ import { createShellScreen } from "/shell/shell-screen.js?v=1";
 import { createShellTtsTabCoordinator } from "/shell/shell-tts-tab.js?v=1";
 import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=5";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
+import { getShellSurfacePayload, initShellSurfaceSwitcher } from "/shell/shell-surface.js?v=2";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
@@ -3022,7 +3023,8 @@ function collectOutboundMessageSettings() {
   const ttsEnabled = nodes.ttsEnabled?.checked !== false;
   return {
     ttsEnabled,
-    ttsPrompt: nodes.ttsPrompt?.value ?? ""
+    ttsPrompt: nodes.ttsPrompt?.value ?? "",
+    ...getShellSurfacePayload()
   };
 }
 
@@ -3969,6 +3971,7 @@ async function boot() {
   if (shellEmbedMode) {
     document.body.classList.add("shell-embed");
   }
+  initShellSurfaceSwitcher();
   ttsPlayer = createShellTtsPlayer({ apiFetch, getTtsSettings: collectTtsRuntimeSettings });
   ttsTabCoordinator = createShellTtsTabCoordinator({
     onYieldSpeech: (reason) => yieldLocalTtsPlayback(reason)
@@ -3987,6 +3990,12 @@ async function boot() {
   void initShellCharacter(nodes.characterStage, nodes.agentAvatar);
   try {
     await resolveShellAgent();
+    const surfacePayload = getShellSurfacePayload();
+    void patchShellState({
+      shellSurfaceHost: surfacePayload.surfaceHost,
+      shellSurfaceHint: surfacePayload.surfaceHint,
+      shellSurfaceBackend: surfacePayload.surfaceBackend
+    }).catch(() => {});
     await loadShellPromptTemplates();
     await topicPicker.refresh();
     await loadWindowSettings();
@@ -3994,7 +4003,7 @@ async function boot() {
       applyWindowSettings({
         ...(state.windowSettings || {}),
         windowCompact: true,
-        windowBackground: "dark",
+        windowBackground: "wallpaper",
         windowTransparent: false
       });
     }

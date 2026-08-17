@@ -3,6 +3,7 @@ import { renderShellReplyBody } from "/shell/shell-markdown.js?v=5";
 import { shellPhaseLabel, shellRouteLabel } from "/shell/shell-contract.js?v=1";
 import { ShellClient } from "/shell/shell-client.js?v=4";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
+import { initShellSurfaceSwitcher, renderShellSurfaceSwitcherMarkup } from "/shell/shell-surface.js?v=2";
 import { createMobileTtsPlayer } from "/shell/mobile/mobile-tts.js?v=5";
 import { initMobileCharacter, setMobileCharacterPhase } from "/shell/mobile/mobile-character.js?v=1";
 import {
@@ -1565,6 +1566,11 @@ function reconnect({ soft = false } = {}) {
 }
 
 async function init() {
+  const surfaceSwitcher = document.getElementById("shell-surface-switcher");
+  if (surfaceSwitcher) {
+    surfaceSwitcher.innerHTML = renderShellSurfaceSwitcherMarkup();
+    initShellSurfaceSwitcher({ rootEl: surfaceSwitcher });
+  }
   if (mobileEmbedMode) {
     document.body.classList.add("mobile-embed");
     cleanMobileUrl();

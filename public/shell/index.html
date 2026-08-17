@@ -7,7 +7,8 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=123" />
+    <link rel="stylesheet" href="/shell/shell.css?v=124" />
+    <link rel="stylesheet" href="/shell/shell-surface.css?v=1" />
     <script type="importmap">
       {
         "imports": {
@@ -532,6 +533,46 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </div>
 
       <div class="shell-main-view" id="shell-main-view" data-chat-open="1" data-route-open="0" data-media-open="0">
+      <div
+        class="shell-surface-switcher"
+        id="shell-surface-switcher"
+        data-host="browser-tab"
+        data-backend="local"
+        aria-label="Host и backend Agent Shell"
+      >
+        <div class="shell-surface-switcher-head">
+          <span class="shell-surface-switcher-kicker">Host</span>
+          <span class="shell-surface-switcher-hint" id="shell-surface-hint"></span>
+          <div class="shell-surface-backend" role="tablist" aria-label="Backend">
+            <span class="shell-surface-backend-tab" role="tab" data-backend="local" aria-selected="false" tabindex="-1">local</span>
+            <span class="shell-surface-backend-tab" role="tab" data-backend="server" aria-selected="false" aria-disabled="true" disabled tabindex="-1" title="Server — скоро">server</span>
+          </div>
+        </div>
+        <div class="shell-surface-switcher-track" role="tablist" aria-label="Shell host">
+          <span class="shell-surface-switcher-indicator" aria-hidden="true"></span>
+          <span class="shell-surface-tab" role="tab" data-host="desktop-cms" aria-selected="false" tabindex="-1" title="Agent CMS.app · панель">
+            <span class="surf-ico" aria-hidden="true">🖥</span><span class="surf-label">CMS</span>
+          </span>
+          <span class="shell-surface-tab" role="tab" data-host="desktop-shell" aria-selected="false" tabindex="-1" title="Agent Shell.app">
+            <span class="surf-ico" aria-hidden="true">🖥</span><span class="surf-label">Shell</span>
+          </span>
+          <span class="shell-surface-tab" role="tab" data-host="browser-embed" aria-selected="false" tabindex="-1" title="Панель в Agent CMS">
+            <span class="surf-ico" aria-hidden="true">🌐</span><span class="surf-label">Embed</span>
+          </span>
+          <span class="shell-surface-tab" role="tab" data-host="browser-tab" aria-selected="false" tabindex="-1" title="Вкладка браузера · /shell">
+            <span class="surf-ico" aria-hidden="true">🌐</span><span class="surf-label">Tab</span>
+          </span>
+          <span class="shell-surface-tab" role="tab" data-host="mobile-native" aria-selected="false" tabindex="-1" title="iOS app (SwiftUI)">
+            <span class="surf-ico" aria-hidden="true">📱</span><span class="surf-label">iOS</span>
+          </span>
+          <span class="shell-surface-tab" role="tab" data-host="mobile-web" aria-selected="false" tabindex="-1" title="/shell/mobile">
+            <span class="surf-ico" aria-hidden="true">📱</span><span class="surf-label">Mobile</span>
+          </span>
+          <span class="shell-surface-tab" role="tab" data-host="extension" aria-selected="false" tabindex="-1" title="Companion · расширение Chrome">
+            <span class="surf-ico" aria-hidden="true">🧩</span><span class="surf-label">Companion</span>
+          </span>
+        </div>
+      </div>
       <section class="shell-hero" id="shell-hero">
         <div class="shell-hero-layout">
           <button type="button" class="shell-agent-avatar" id="shell-agent-avatar" data-phase="waiting" aria-label="Облачко">
@@ -1275,6 +1316,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script src="/shell/shell.js?v=124" type="module"></script>
+    <script src="/shell/shell.js?v=126" type="module"></script>
   </body>
 </html>
