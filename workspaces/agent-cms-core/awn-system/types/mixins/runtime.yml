@@ -14,12 +14,19 @@ fields:
     group: runtime
     sort: 1
 
-  awn-runtime-cron:
+  awn-runtime-heartbeat:
     type: awn.field.boolean
-    title: Выполнение по расписанию
+    title: Heartbeat
     placement: aside-body
     group: runtime
     sort: 2
+
+  awn-runtime-cron:
+    type: awn.field.boolean
+    title: "Тип расписания (выполнение по расписанию)"
+    placement: aside-body
+    group: runtime
+    sort: 3
 
   awn-runtime-cron-schedule:
     type: awn.field.string.cron-schedule
@@ -27,17 +34,10 @@ fields:
     description: День и время, шаблон или своё cron-выражение
     placement: aside-body
     group: runtime
-    sort: 3
+    sort: 4
     show-when:
       field: awn-runtime-cron
       equals: true
-
-  awn-runtime-heartbeat:
-    type: awn.field.boolean
-    title: Heartbeat
-    placement: aside-body
-    group: runtime
-    sort: 4
 
   awn-runtime-commands:
     type: awn.field.boolean

@@ -16,19 +16,19 @@ awn-fields:
     group: runtime
     description: Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)
     default: false
+  awn-runtime-heartbeat:
+    type: awn.field.boolean
+    title: Heartbeat
+    group: runtime
   awn-runtime-cron:
     type: awn.field.boolean
-    title: Выполнение по расписанию
+    title: "Тип расписания (выполнение по расписанию)"
     group: runtime
   awn-runtime-cron-schedule:
     type: awn.field.string
     title: Расписание cron
     group: runtime
     description: "День и время, шаблон или своё cron-выражение"
-  awn-runtime-heartbeat:
-    type: awn.field.boolean
-    title: Heartbeat
-    group: runtime
   awn-runtime-commands:
     type: awn.field.boolean
     title: Выполнение команд

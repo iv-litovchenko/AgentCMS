@@ -20889,8 +20889,8 @@ function resolveMenuRuntimeBadgeTitle(kind, source) {
   const hasSelf = source?.[selfKey];
   const schedule = String(source?.runtimeCronSchedule || "").trim();
   if (kind === "cron") {
-    if (hasSelf === false) return "Cron в дочерних темах";
-    const base = "Cron включён";
+    if (hasSelf === false) return "Повторяющаяся задача в дочерних темах";
+    const base = "Повторяющаяся задача";
     return schedule ? `${base}: ${schedule}` : base;
   }
   if (hasSelf === false) return "Heartbeat в дочерних темах";
@@ -20985,17 +20985,6 @@ function createMenuRuntimeBadges(source, agentId = activeAgentId) {
     wrap.appendChild(badge);
   }
 
-  if (hasCron) {
-    const badge = document.createElement("span");
-    badge.className = "menu-runtime-badge menu-runtime-badge--cron";
-    if (resolved?.runtimeCronSelf === false) badge.classList.add("menu-runtime-badge--descendant");
-    badge.appendChild(createCronRuntimeMarkerSvg());
-    const title = resolveMenuRuntimeBadgeTitle("cron", resolved);
-    badge.title = title;
-    badge.setAttribute("aria-label", title);
-    wrap.appendChild(badge);
-  }
-
   if (hasHeartbeat) {
     const badge = document.createElement("span");
     badge.className = "menu-runtime-badge menu-runtime-badge--heartbeat";
@@ -21004,6 +20993,17 @@ function createMenuRuntimeBadges(source, agentId = activeAgentId) {
     }
     badge.appendChild(createHeartbeatRuntimeMarkerSvg());
     const title = resolveMenuRuntimeBadgeTitle("heartbeat", resolved);
+    badge.title = title;
+    badge.setAttribute("aria-label", title);
+    wrap.appendChild(badge);
+  }
+
+  if (hasCron) {
+    const badge = document.createElement("span");
+    badge.className = "menu-runtime-badge menu-runtime-badge--cron";
+    if (resolved?.runtimeCronSelf === false) badge.classList.add("menu-runtime-badge--descendant");
+    badge.appendChild(createCronRuntimeMarkerSvg());
+    const title = resolveMenuRuntimeBadgeTitle("cron", resolved);
     badge.title = title;
     badge.setAttribute("aria-label", title);
     wrap.appendChild(badge);
@@ -36560,9 +36560,9 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-version",
   "awn-sort",
   "awn-runtime-load-always",
+  "awn-runtime-heartbeat",
   "awn-runtime-cron",
   "awn-runtime-cron-schedule",
-  "awn-runtime-heartbeat",
   "awn-runtime-commands",
   "awn-slots-disabled"
 ];
@@ -36771,12 +36771,12 @@ const PROPS_FIELD_META = {
     hint: "Тема всегда в контексте агента; иначе — только по запросу (по умолчанию)"
   },
   "awn-runtime-cron": {
-    label: "Выполнение по расписанию",
-    hint: "Участвует в планировщике по расписанию"
+    label: "Тип расписания (выполнение по расписанию)",
+    hint: "Повторяющаяся (cron) или запланированная (разово / до даты)"
   },
   "awn-runtime-cron-schedule": {
     label: "",
-    hint: "День и время, шаблон или своё cron-выражение"
+    hint: "Cron-выражение повтора: каждые N минут, каждый день, по будням…"
   },
   "awn-runtime-heartbeat": {
     label: "Heartbeat",
@@ -45635,7 +45635,7 @@ function shouldIncludePropsFieldKey(key, contextPath = getPropsContextPath()) {
 const PROPS_FIELD_WIDGET_FALLBACKS = {
   "awn-main": "boolean",
   "awn-slots-disabled": "boolean",
-  "awn-runtime-cron": "boolean",
+  "awn-runtime-cron": "runtime-schedule-type",
   "awn-runtime-heartbeat": "boolean",
   "awn-runtime-commands": "boolean",
   "awn-runtime-load-always": "boolean"
@@ -45751,6 +45751,7 @@ function resolveSchemaPropsWidget(fieldDef) {
 
 function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   const normalized = normalizePropsKey(key);
+  if (normalized === "awn-runtime-cron") return "runtime-schedule-type";
   if (isPropsAttachmentsField(key, fieldDef)) return "attachments";
   const fromSchema = resolveSchemaPropsWidget(fieldDef);
   if (fromSchema) return fromSchema;
@@ -46095,6 +46096,9 @@ function applyPropsFormWidgetValue(entry, rawValue, widget = "") {
     } catch {
       return { ...entry, kind: "string", value: rawValue };
     }
+  }
+  if (kind === "runtime-schedule-type") {
+    return { ...entry, kind: "bool", value: trimmed === "recurring" };
   }
   return applyFormValueToEntry(entry, rawValue);
 }
@@ -46790,11 +46794,7 @@ function createPropsFormLookupOneControl(entry, meta, { locked = false } = {}) {
   });
 }
 
-const CRON_SCHEDULE_PRESET_CUSTOM = "__custom__";
-const CRON_SCHEDULE_PRESET_QUICK = "__quick__";
 const CRON_SCHEDULE_PRESETS_DEFAULT = [
-  { id: "", label: "— шаблон —" },
-  { id: CRON_SCHEDULE_PRESET_QUICK, label: "День и время…" },
   { id: "*/15 * * * *", label: "Каждые 15 минут" },
   { id: "*/30 * * * *", label: "Каждые 30 минут" },
   { id: "0 * * * *", label: "Каждый час" },
@@ -46802,8 +46802,32 @@ const CRON_SCHEDULE_PRESETS_DEFAULT = [
   { id: "0 9 * * 1-5", label: "По будням в 09:00" },
   { id: "0 9 * * 1", label: "По понедельникам в 09:00" },
   { id: "0 0 * * *", label: "Каждый день в полночь" },
-  { id: "0 9 1 * *", label: "1-го числа месяца в 09:00" },
-  { id: CRON_SCHEDULE_PRESET_CUSTOM, label: "Своё выражение…" }
+  { id: "0 9 1 * *", label: "1-го числа месяца в 09:00" }
+];
+
+const CRON_SCHEDULE_MODE_OPTIONS = [
+  { id: "interval", label: "Каждые N минут / часов" },
+  { id: "daily", label: "Каждый день в заданное время" },
+  { id: "weekdays", label: "По будням (пн–пт)" },
+  { id: "weekly", label: "По выбранным дням недели" },
+  { id: "monthly", label: "Каждый месяц, N-го числа" },
+  { id: "custom", label: "Своё cron-выражение" }
+];
+
+const CRON_WEEKDAY_OPTIONS = [
+  { value: "1", label: "Пн" },
+  { value: "2", label: "Вт" },
+  { value: "3", label: "Ср" },
+  { value: "4", label: "Чт" },
+  { value: "5", label: "Пт" },
+  { value: "6", label: "Сб" },
+  { value: "0", label: "Вс" }
+];
+
+const RUNTIME_SCHEDULE_TYPE_OPTIONS = [
+  { id: "", label: "— нет —" },
+  { id: "recurring", label: "Повторяющаяся" },
+  { id: "scheduled", label: "Запланированная" }
 ];
 
 const CRON_DAY_MODES_DEFAULT = [
@@ -46871,42 +46895,129 @@ function parseCronTimeOfDay(expression) {
   };
 }
 
-function buildCronFromTimeAndDayMode(timeValue, dayModeId, fieldDef = null) {
+function parseCronScheduleTimeValue(timeValue) {
   const [hourRaw, minuteRaw] = String(timeValue || "09:00").split(":");
   const hour = Number(hourRaw);
   const minute = Number(minuteRaw);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "0 9 * * *";
-  const dayModes = getCronDayModes(fieldDef);
-  const mode = dayModes.find((item) => item.id === dayModeId) || dayModes[0];
-  return `${minute} ${hour} * * ${mode.dow}`;
+  return {
+    hour: Number.isFinite(hour) ? hour : 9,
+    minute: Number.isFinite(minute) ? minute : 0
+  };
 }
 
-function isCronTimedExpression(expression) {
-  return Boolean(parseCronTimeOfDay(expression));
+function formatCronScheduleTime(hour, minute) {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-function shouldShowCronQuickBuilder(expression, presetId) {
-  if (presetId === CRON_SCHEDULE_PRESET_QUICK) return true;
-  if (presetId === CRON_SCHEDULE_PRESET_CUSTOM) return isCronTimedExpression(expression);
-  if (!String(expression || "").trim()) return true;
-  return isCronTimedExpression(expression);
-}
-
-function matchCronSchedulePreset(expression, fieldDef = null) {
-  const presets = getCronSchedulePresets(fieldDef);
+function parseCronScheduleExpression(expression) {
   const expr = String(expression || "").trim();
-  if (!expr) return "";
-  if (isCronTimedExpression(expr)) {
-    const exactPreset = presets.find(
-      (item) => item.id && item.id !== CRON_SCHEDULE_PRESET_CUSTOM && item.id !== CRON_SCHEDULE_PRESET_QUICK && item.id === expr
-    );
-    if (exactPreset) return exactPreset.id;
-    return CRON_SCHEDULE_PRESET_QUICK;
+  const defaults = {
+    mode: "daily",
+    intervalN: 30,
+    intervalUnit: "minutes",
+    time: "09:00",
+    weeklyDays: ["1"],
+    monthlyDay: 1,
+    customExpr: "0 9 * * *"
+  };
+  if (!expr) return { ...defaults };
+
+  const intervalMinutes = expr.match(/^\*\/(\d+) \* \* \* \*$/);
+  if (intervalMinutes) {
+    return {
+      ...defaults,
+      mode: "interval",
+      intervalN: Number(intervalMinutes[1]) || 30,
+      intervalUnit: "minutes"
+    };
   }
-  const preset = presets.find(
-    (item) => item.id && item.id !== CRON_SCHEDULE_PRESET_CUSTOM && item.id !== CRON_SCHEDULE_PRESET_QUICK && item.id === expr
-  );
-  return preset?.id || CRON_SCHEDULE_PRESET_CUSTOM;
+
+  const intervalHours = expr.match(/^0 \*\/(\d+) \* \* \*$/);
+  if (intervalHours) {
+    return {
+      ...defaults,
+      mode: "interval",
+      intervalN: Number(intervalHours[1]) || 1,
+      intervalUnit: "hours"
+    };
+  }
+
+  const monthly = expr.match(/^(\d{1,2}) (\d{1,2}) (\d{1,2}) \* \*$/);
+  if (monthly) {
+    return {
+      ...defaults,
+      mode: "monthly",
+      monthlyDay: Number(monthly[3]) || 1,
+      time: formatCronScheduleTime(Number(monthly[2]), Number(monthly[1]))
+    };
+  }
+
+  const timed = parseCronTimeOfDay(expr);
+  if (timed) {
+    if (timed.dow === "*") return { ...defaults, mode: "daily", time: timed.time };
+    if (timed.dow === "1-5") return { ...defaults, mode: "weekdays", time: timed.time };
+    const days = timed.dow
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return {
+      ...defaults,
+      mode: "weekly",
+      time: timed.time,
+      weeklyDays: days.length ? days : ["1"]
+    };
+  }
+
+  return { ...defaults, mode: "custom", customExpr: expr };
+}
+
+function readPropsFormCronScheduleState(wrap) {
+  const mode = wrap.querySelector(".props-form-cron-mode")?.value || "daily";
+  const weeklyDays = [...wrap.querySelectorAll(".props-form-cron-weekday:checked")].map((el) => el.value);
+  return {
+    mode,
+    intervalN: wrap.querySelector(".props-form-cron-interval-n")?.value ?? "30",
+    intervalUnit: wrap.querySelector(".props-form-cron-interval-unit")?.value || "minutes",
+    time:
+      wrap.querySelector(`.props-form-cron-time[data-cron-mode="${mode}"]`)?.value ||
+      wrap.querySelector(".props-form-cron-time")?.value ||
+      "09:00",
+    weeklyDays,
+    monthlyDay: wrap.querySelector(".props-form-cron-monthly-day")?.value ?? "1",
+    customExpr: wrap.querySelector(".props-form-cron-expression")?.value || ""
+  };
+}
+
+function buildCronScheduleExpression(state) {
+  const mode = state?.mode || "daily";
+  if (mode === "custom") {
+    return String(state.customExpr || "").trim() || "0 9 * * *";
+  }
+  if (mode === "interval") {
+    const n = Math.max(1, Math.min(59, Number(state.intervalN) || 1));
+    return state.intervalUnit === "hours" ? `0 */${n} * * *` : `*/${n} * * * *`;
+  }
+  const { hour, minute } = parseCronScheduleTimeValue(state.time);
+  if (mode === "daily") return `${minute} ${hour} * * *`;
+  if (mode === "weekdays") return `${minute} ${hour} * * 1-5`;
+  if (mode === "weekly") {
+    const days = Array.isArray(state.weeklyDays) ? state.weeklyDays.filter(Boolean) : ["1"];
+    const dow = days.length
+      ? days
+          .slice()
+          .sort((a, b) => {
+            const rank = (value) => (value === "0" ? 7 : Number(value));
+            return rank(a) - rank(b);
+          })
+          .join(",")
+      : "1";
+    return `${minute} ${hour} * * ${dow}`;
+  }
+  if (mode === "monthly") {
+    const day = Math.min(31, Math.max(1, Number(state.monthlyDay) || 1));
+    return `${minute} ${hour} ${day} * *`;
+  }
+  return "0 9 * * *";
 }
 
 function describeCronScheduleExpression(expression, fieldDef = null) {
@@ -46914,57 +47025,170 @@ function describeCronScheduleExpression(expression, fieldDef = null) {
   const dayModes = getCronDayModes(fieldDef);
   const expr = String(expression || "").trim();
   if (!expr) return "Расписание не задано";
+
   const preset = presets.find((item) => item.id === expr);
   if (preset?.id) return preset.label;
+
+  const intervalMinutes = expr.match(/^\*\/(\d+) \* \* \* \*$/);
+  if (intervalMinutes) return `Каждые ${intervalMinutes[1]} минут`;
+
+  const intervalHours = expr.match(/^0 \*\/(\d+) \* \* \*$/);
+  if (intervalHours) return `Каждые ${intervalHours[1]} ч`;
+
+  const monthly = expr.match(/^(\d{1,2}) (\d{1,2}) (\d{1,2}) \* \*$/);
+  if (monthly) {
+    return `${monthly[3]}-го числа в ${formatCronScheduleTime(Number(monthly[2]), Number(monthly[1]))}`;
+  }
+
   const timed = parseCronTimeOfDay(expr);
   if (timed) {
     const mode = dayModes.find((item) => item.dow === timed.dow);
     if (mode) return `${mode.label.toLowerCase()} в ${timed.time}`;
+    if (timed.dow.includes(",")) return `В ${timed.time} (${timed.dow})`;
     return `В ${timed.time} (${expr})`;
   }
+
   return expr;
+}
+
+function applyPropsFormCronScheduleState(wrap, state) {
+  if (!wrap || !state) return;
+  wrap._cronHydrating = true;
+
+  const modeSelect = wrap.querySelector(".props-form-cron-mode");
+  if (modeSelect) modeSelect.value = state.mode;
+
+  const intervalN = wrap.querySelector(".props-form-cron-interval-n");
+  if (intervalN) intervalN.value = String(state.intervalN ?? 30);
+
+  const intervalUnit = wrap.querySelector(".props-form-cron-interval-unit");
+  if (intervalUnit) intervalUnit.value = state.intervalUnit || "minutes";
+
+  for (const timeInput of wrap.querySelectorAll(".props-form-cron-time")) {
+    timeInput.value = state.time || "09:00";
+  }
+
+  const monthlyDay = wrap.querySelector(".props-form-cron-monthly-day");
+  if (monthlyDay) monthlyDay.value = String(state.monthlyDay ?? 1);
+
+  const selectedDays = new Set(Array.isArray(state.weeklyDays) ? state.weeklyDays : ["1"]);
+  for (const checkbox of wrap.querySelectorAll(".props-form-cron-weekday")) {
+    checkbox.checked = selectedDays.has(checkbox.value);
+  }
+
+  const expressionInput = wrap.querySelector(".props-form-cron-expression");
+  if (expressionInput) {
+    expressionInput.value = state.mode === "custom" ? state.customExpr || "" : buildCronScheduleExpression(state);
+  }
+
+  wrap._cronHydrating = false;
+  syncPropsFormCronScheduleUi(wrap);
 }
 
 function syncPropsFormCronScheduleUi(wrap) {
   if (!wrap) return;
   const fieldDef = wrap._cronFieldDef || null;
-  const dayModes = getCronDayModes(fieldDef);
+  const mode = wrap.querySelector(".props-form-cron-mode")?.value || "daily";
   const expressionInput = wrap.querySelector(".props-form-cron-expression");
-  const presetSelect = wrap.querySelector(".props-form-cron-preset");
-  const quickRow = wrap.querySelector(".props-form-cron-quick");
-  const dayModeSelect = wrap.querySelector(".props-form-cron-day-mode");
-  const timeInput = wrap.querySelector(".props-form-cron-time");
   const hintNode = wrap.querySelector(".props-form-cron-hint");
-  const expr = String(expressionInput?.value || "").trim();
-  const presetId = matchCronSchedulePreset(expr, fieldDef);
-  const showQuickBuilder = shouldShowCronQuickBuilder(expr, presetId);
-  const isCustom = presetId === CRON_SCHEDULE_PRESET_CUSTOM;
-  const expressionFocused = document.activeElement === expressionInput;
+  const isCustom = mode === "custom";
 
-  if (presetSelect && presetSelect.value !== presetId) {
-    presetSelect.value = presetId;
+  for (const panel of wrap.querySelectorAll(".props-form-cron-panel")) {
+    const panelMode = panel.getAttribute("data-cron-mode") || "";
+    panel.classList.toggle("is-active", panelMode === mode);
   }
 
-  const timed = parseCronTimeOfDay(expr);
-  if (dayModeSelect && timeInput) {
-    if (timed) {
-      const mode = dayModes.find((item) => item.dow === timed.dow) || dayModes[0];
-      dayModeSelect.value = mode.id;
-      timeInput.value = timed.time;
-    } else if (showQuickBuilder && !expr) {
-      if (!dayModeSelect.value) dayModeSelect.value = dayModes[0].id;
-      if (!timeInput.value) timeInput.value = "09:00";
+  wrap.classList.toggle("is-custom-expression", isCustom);
+
+  if (!wrap._cronHydrating && !isCustom) {
+    const nextExpr = buildCronScheduleExpression(readPropsFormCronScheduleState(wrap));
+    if (expressionInput && expressionInput.value !== nextExpr) {
+      expressionInput.value = nextExpr;
     }
   }
 
-  quickRow?.classList.toggle("hidden", !showQuickBuilder);
-  wrap.classList.toggle("is-quick-builder", showQuickBuilder);
-  expressionInput?.classList.toggle("hidden", !isCustom && !expressionFocused);
-  wrap.classList.toggle("is-custom-expression", isCustom);
-
+  const expr = String(expressionInput?.value || "").trim();
   if (hintNode) {
     hintNode.textContent = describeCronScheduleExpression(expr, fieldDef);
   }
+}
+
+function resolveRuntimeScheduleTypeFromEntry(entry) {
+  if (!entry) return "";
+  if (entry.kind === "bool") return entry.value ? "recurring" : "";
+  const raw = String(entry.value ?? "").trim().toLowerCase();
+  if (raw === "true" || raw === "1") return "recurring";
+  return "";
+}
+
+function createPropsFormRuntimeScheduleTypeControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("runtime-schedule-type");
+  wrap.classList.add("props-form-value-wrap--runtime-schedule-type");
+  const select = document.createElement("select");
+  select.className = "props-form-value props-form-value--select props-form-runtime-schedule-type";
+  for (const option of RUNTIME_SCHEDULE_TYPE_OPTIONS) {
+    appendPropsFormSelectOption(select, option.id, option.label);
+  }
+  select.value = resolveRuntimeScheduleTypeFromEntry(entry);
+  select.addEventListener("change", () => syncRuntimePropsFormVisibility());
+  bindPropsFormLockedState(select, locked);
+  wrap.appendChild(select);
+  return wrap;
+}
+
+function createPropsFormRuntimeScheduledPanel() {
+  const shell = document.createElement("div");
+  shell.className = "props-form-runtime-scheduled hidden";
+
+  const intro = document.createElement("p");
+  intro.className = "props-form-cron-intro";
+  intro.textContent =
+    "Запланированная задача — разово или серия «каждый N дней до даты». Пока не сохраняется. Агент: «загрузи задачи по расписанию».";
+
+  const typeSelect = document.createElement("select");
+  typeSelect.className = "props-form-value props-form-value--select props-form-runtime-scheduled-type";
+  typeSelect.disabled = true;
+  appendPropsFormSelectOption(typeSelect, "once", "Один раз (в дату и время)");
+  appendPropsFormSelectOption(typeSelect, "repeat-until", "Каждый N дней до даты");
+
+  const runAt = document.createElement("input");
+  runAt.type = "datetime-local";
+  runAt.className = "props-form-value props-form-runtime-scheduled-run-at";
+  runAt.disabled = true;
+
+  const row = document.createElement("div");
+  row.className = "props-form-cron-panel-row";
+  const everyDays = document.createElement("input");
+  everyDays.type = "number";
+  everyDays.min = "1";
+  everyDays.value = "1";
+  everyDays.className = "props-form-value props-form-runtime-scheduled-every-days";
+  everyDays.disabled = true;
+  const until = document.createElement("input");
+  until.type = "datetime-local";
+  until.className = "props-form-value props-form-runtime-scheduled-until";
+  until.disabled = true;
+  row.append(everyDays, until);
+
+  const tz = document.createElement("select");
+  tz.className = "props-form-value props-form-value--select props-form-runtime-scheduled-tz";
+  tz.disabled = true;
+  appendPropsFormSelectOption(tz, "Europe/Moscow", "Europe/Moscow");
+
+  const hint = document.createElement("p");
+  hint.className = "props-form-cron-hint";
+  hint.textContent = "Скоро: поля run_at, repeat_every_days, repeat_until в frontmatter.";
+
+  shell.append(intro, typeSelect, runAt, row, tz, hint);
+  return shell;
+}
+
+function getRuntimeScheduleTypeFromForm() {
+  if (!propsFormFieldsNode) return "";
+  const cronRow = propsFormFieldsNode.querySelector('[data-prop-key="awn-runtime-cron"]');
+  const typeWrap = cronRow?.querySelector('[data-widget="runtime-schedule-type"]');
+  if (!typeWrap) return "";
+  return String(readPropsFormValueFromControl(typeWrap) || "").trim();
 }
 
 function createPropsFormCronScheduleControl(entry, meta, { locked = false } = {}) {
@@ -46974,78 +47198,151 @@ function createPropsFormCronScheduleControl(entry, meta, { locked = false } = {}
   wrap._cronFieldDef = fieldDef;
 
   const displayValue = getPropsEntryDisplayValue(entry);
-  const dayModes = getCronDayModes(fieldDef);
-  const presets = getCronSchedulePresets(fieldDef);
+  const initialState = parseCronScheduleExpression(displayValue);
 
-  const quickRow = document.createElement("div");
-  quickRow.className = "props-form-cron-quick";
+  const introNode = document.createElement("p");
+  introNode.className = "props-form-cron-intro";
+  introNode.textContent =
+    "Повторяющаяся задача — срабатывает по cron снова и снова. Агент: «загрузи повторяющиеся задачи».";
 
-  const dayModeSelect = document.createElement("select");
-  dayModeSelect.className = "props-form-value props-form-value--select props-form-cron-day-mode";
-  for (const mode of dayModes) {
-    appendPropsFormSelectOption(dayModeSelect, mode.id, mode.label);
+  const modeSelect = document.createElement("select");
+  modeSelect.className = "props-form-value props-form-value--select props-form-cron-mode";
+  for (const option of CRON_SCHEDULE_MODE_OPTIONS) {
+    appendPropsFormSelectOption(modeSelect, option.id, option.label);
   }
 
-  const timeInput = document.createElement("input");
-  timeInput.type = "time";
-  timeInput.className = "props-form-value props-form-cron-time";
-  timeInput.step = "60";
-  timeInput.value = "09:00";
+  const createPanel = (modeId) => {
+    const panel = document.createElement("div");
+    panel.className = "props-form-cron-panel";
+    panel.dataset.cronMode = modeId;
+    return panel;
+  };
 
-  quickRow.append(dayModeSelect, timeInput);
+  const createTimeInput = (modeId, value = "09:00") => {
+    const input = document.createElement("input");
+    input.type = "time";
+    input.step = "60";
+    input.value = value;
+    input.dataset.cronMode = modeId;
+    input.className = "props-form-value props-form-cron-time";
+    return input;
+  };
 
-  const presetSelect = document.createElement("select");
-  presetSelect.className = "props-form-value props-form-value--select props-form-cron-preset";
-  for (const preset of presets) {
-    appendPropsFormSelectOption(presetSelect, preset.id, preset.label);
+  const createCronTimezoneSelect = () => {
+    const tz = document.createElement("select");
+    tz.className = "props-form-value props-form-value--select props-form-cron-timezone";
+    tz.disabled = true;
+    appendPropsFormSelectOption(tz, "Europe/Moscow", "Europe/Moscow");
+    appendPropsFormSelectOption(tz, "UTC", "UTC");
+    tz.value = "Europe/Moscow";
+    return tz;
+  };
+
+  const panelInterval = createPanel("interval");
+  const intervalRow = document.createElement("div");
+  intervalRow.className = "props-form-cron-panel-row";
+  const intervalN = document.createElement("input");
+  intervalN.type = "number";
+  intervalN.min = "1";
+  intervalN.max = "59";
+  intervalN.value = "30";
+  intervalN.className = "props-form-value props-form-cron-interval-n";
+  const intervalUnit = document.createElement("select");
+  intervalUnit.className = "props-form-value props-form-value--select props-form-cron-interval-unit";
+  appendPropsFormSelectOption(intervalUnit, "minutes", "минут");
+  appendPropsFormSelectOption(intervalUnit, "hours", "часов");
+  intervalRow.append(intervalN, intervalUnit);
+  panelInterval.append(intervalRow);
+
+  const panelDaily = createPanel("daily");
+  panelDaily.append(createTimeInput("daily"), createCronTimezoneSelect());
+
+  const panelWeekdays = createPanel("weekdays");
+  panelWeekdays.append(createTimeInput("weekdays"), createCronTimezoneSelect());
+
+  const panelWeekly = createPanel("weekly");
+  const weekdaysWrap = document.createElement("div");
+  weekdaysWrap.className = "props-form-cron-weekdays";
+  for (const option of CRON_WEEKDAY_OPTIONS) {
+    const label = document.createElement("label");
+    label.className = "props-form-cron-weekday-label";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = option.value;
+    checkbox.className = "props-form-cron-weekday";
+    checkbox.checked = option.value === "1";
+    label.append(checkbox, document.createTextNode(` ${option.label}`));
+    weekdaysWrap.append(label);
   }
+  panelWeekly.append(weekdaysWrap, createTimeInput("weekly"), createCronTimezoneSelect());
 
+  const panelMonthly = createPanel("monthly");
+  const monthlyRow = document.createElement("div");
+  monthlyRow.className = "props-form-cron-panel-row";
+  const monthlyDay = document.createElement("input");
+  monthlyDay.type = "number";
+  monthlyDay.min = "1";
+  monthlyDay.max = "31";
+  monthlyDay.value = "1";
+  monthlyDay.className = "props-form-value props-form-cron-monthly-day";
+  monthlyRow.append(monthlyDay, createTimeInput("monthly"));
+  panelMonthly.append(monthlyRow, createCronTimezoneSelect());
+
+  const panelCustom = createPanel("custom");
   const expressionInput = document.createElement("input");
   expressionInput.type = "text";
-  expressionInput.className = "props-form-value props-form-cron-expression hidden";
-  expressionInput.value = displayValue;
-  expressionInput.placeholder = "0 9 * * *";
+  expressionInput.className = "props-form-value props-form-cron-expression";
+  expressionInput.placeholder = "0 9 * * 1-5";
   expressionInput.spellcheck = false;
   if (meta.hint) expressionInput.title = meta.hint;
+  panelCustom.append(expressionInput);
 
   const hintNode = document.createElement("p");
   hintNode.className = "props-form-cron-hint";
 
-  const applyQuickBuilder = () => {
-    if (locked) return;
-    expressionInput.value = buildCronFromTimeAndDayMode(timeInput.value, dayModeSelect.value, fieldDef);
+  const recurringShell = document.createElement("div");
+  recurringShell.className = "props-form-runtime-recurring";
+  recurringShell.append(
+    introNode,
+    modeSelect,
+    panelInterval,
+    panelDaily,
+    panelWeekdays,
+    panelWeekly,
+    panelMonthly,
+    panelCustom,
+    hintNode
+  );
+
+  const scheduledShell = createPropsFormRuntimeScheduledPanel();
+
+  wrap.append(recurringShell, scheduledShell);
+
+  const commitCronSchedule = () => {
+    if (locked || wrap._cronHydrating) return;
     syncPropsFormCronScheduleUi(wrap);
   };
 
-  const applyPreset = () => {
-    if (locked) return;
-    const presetId = presetSelect.value;
-    if (presetId === CRON_SCHEDULE_PRESET_QUICK || presetId === "") {
-      applyQuickBuilder();
-      return;
-    }
-    if (presetId === CRON_SCHEDULE_PRESET_CUSTOM) {
-      syncPropsFormCronScheduleUi(wrap);
-      expressionInput.focus();
-      return;
-    }
-    expressionInput.value = presetId;
-    syncPropsFormCronScheduleUi(wrap);
-  };
+  modeSelect.addEventListener("change", commitCronSchedule);
+  for (const el of wrap.querySelectorAll("input, select")) {
+    el.addEventListener("input", commitCronSchedule);
+    el.addEventListener("change", commitCronSchedule);
+  }
 
-  dayModeSelect.addEventListener("change", applyQuickBuilder);
-  timeInput.addEventListener("change", applyQuickBuilder);
-  presetSelect.addEventListener("change", applyPreset);
-  expressionInput.addEventListener("input", () => syncPropsFormCronScheduleUi(wrap));
-  expressionInput.addEventListener("blur", () => syncPropsFormCronScheduleUi(wrap));
-
-  bindPropsFormLockedState(dayModeSelect, locked);
-  bindPropsFormLockedState(timeInput, locked);
-  bindPropsFormLockedState(presetSelect, locked);
+  bindPropsFormLockedState(modeSelect, locked);
+  bindPropsFormLockedState(intervalN, locked);
+  bindPropsFormLockedState(intervalUnit, locked);
+  bindPropsFormLockedState(monthlyDay, locked);
   bindPropsFormLockedState(expressionInput, locked);
+  for (const timeInput of wrap.querySelectorAll(".props-form-cron-time")) {
+    bindPropsFormLockedState(timeInput, locked);
+  }
+  for (const checkbox of wrap.querySelectorAll(".props-form-cron-weekday")) {
+    bindPropsFormLockedState(checkbox, locked);
+  }
 
-  wrap.append(presetSelect, quickRow, expressionInput, hintNode);
-  syncPropsFormCronScheduleUi(wrap);
+  applyPropsFormCronScheduleState(wrap, initialState);
+  syncRuntimePropsFormVisibility();
   return wrap;
 }
 
@@ -49415,6 +49712,9 @@ function createPropsFormValueControl(entry, meta, { editorCompact = false } = {}
   if (widget === "cron-schedule") {
     return createPropsFormCronScheduleControl(entry, meta, { locked });
   }
+  if (widget === "runtime-schedule-type") {
+    return createPropsFormRuntimeScheduleTypeControl(entry, meta, { locked });
+  }
   if (widget === "relation" || widget === "link") {
     return createPropsFormLinkControl(entry, meta, { locked, compact });
   }
@@ -49535,6 +49835,10 @@ function readPropsFormValueFromControl(valueWrap) {
     const checkbox = valueWrap.querySelector('input[type="checkbox"]');
     return checkbox?.checked ? "true" : "false";
   }
+  if (widget === "runtime-schedule-type") {
+    const select = valueWrap.querySelector("select");
+    return select?.value ?? "";
+  }
   if (isLookupManyWidget(widget)) {
     const fromCheckboxes = [...valueWrap.querySelectorAll('input[type="checkbox"]:checked')]
       .map((input) => input.value)
@@ -49588,6 +49892,10 @@ function readPropsFormValueFromControl(valueWrap) {
     return String(select?.value || "").trim();
   }
   if (widget === "cron-schedule") {
+    const mode = valueWrap.querySelector(".props-form-cron-mode")?.value;
+    if (mode && mode !== "custom") {
+      return buildCronScheduleExpression(readPropsFormCronScheduleState(valueWrap));
+    }
     const input = valueWrap.querySelector(".props-form-cron-expression");
     return String(input?.value || "").trim();
   }
@@ -49613,21 +49921,20 @@ function readPropsFormValueFromControl(valueWrap) {
 
 function syncRuntimePropsFormVisibility() {
   if (!propsFormFieldsNode) return;
-  const cronRow = propsFormFieldsNode.querySelector('[data-prop-key="awn-runtime-cron"]');
   const scheduleRow = propsFormFieldsNode.querySelector('[data-prop-key="awn-runtime-cron-schedule"]');
   if (!scheduleRow) return;
 
-  const cronWrap = cronRow?.querySelector('.props-form-value-wrap[data-field="value"]');
-  const cronEnabled = cronWrap ? readPropsFormValueFromControl(cronWrap) === "true" : false;
-  scheduleRow.classList.toggle("hidden", !cronEnabled);
+  const scheduleType = getRuntimeScheduleTypeFromForm();
+  const isRecurring = scheduleType === "recurring";
+  const isScheduled = scheduleType === "scheduled";
 
-  const checkbox = cronWrap?.querySelector('input[type="checkbox"]');
-  if (checkbox && checkbox.dataset.runtimeBound !== "1") {
-    checkbox.dataset.runtimeBound = "1";
-    checkbox.addEventListener("change", () => {
-      syncRuntimePropsFormVisibility();
-    });
-  }
+  scheduleRow.classList.toggle("hidden", !isRecurring && !isScheduled);
+
+  const scheduleWrap = scheduleRow.querySelector(".props-form-value-wrap--cron-schedule");
+  const recurringShell = scheduleWrap?.querySelector(".props-form-runtime-recurring");
+  const scheduledShell = scheduleWrap?.querySelector(".props-form-runtime-scheduled");
+  recurringShell?.classList.toggle("hidden", !isRecurring);
+  scheduledShell?.classList.toggle("hidden", !isScheduled);
 }
 
 function createPropsFormFieldRow(entry, index, { showFieldKey = false, editorCompact = false } = {}) {
@@ -52382,17 +52689,6 @@ function appendNavigationHeroRuntimeSlots(parent, propEntries) {
       })
     }),
     createNavigationHeroRuntimeSlot({
-      id: "cron",
-      active: runtime.runtimeCron,
-      caption: "Выполнение по расписанию",
-      title: buildNavigationHeroRuntimeTooltip({
-        id: "cron",
-        active: runtime.runtimeCron,
-        caption: "Выполнение по расписанию",
-        cronSchedule
-      })
-    }),
-    createNavigationHeroRuntimeSlot({
       id: "heartbeat",
       active: runtime.runtimeHeartbeat,
       caption: "Сердцебиение",
@@ -52400,6 +52696,17 @@ function appendNavigationHeroRuntimeSlots(parent, propEntries) {
         id: "heartbeat",
         active: runtime.runtimeHeartbeat,
         caption: "Сердцебиение"
+      })
+    }),
+    createNavigationHeroRuntimeSlot({
+      id: "cron",
+      active: runtime.runtimeCron,
+      caption: "Повторяющаяся",
+      title: buildNavigationHeroRuntimeTooltip({
+        id: "cron",
+        active: runtime.runtimeCron,
+        caption: "Повторяющаяся задача",
+        cronSchedule
       })
     }),
     createNavigationHeroRuntimeSlot({

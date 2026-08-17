@@ -36141,7 +36141,7 @@ button.node-navigation-memory-title:focus-visible {
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   gap: 0;
-  padding: 4px 10px 8px;
+  padding: 6px 10px 10px;
 }
 
 .doc-props-aside .props-form-field--cron-schedule .props-form-value-wrap--cron-schedule {
@@ -36151,35 +36151,118 @@ button.node-navigation-memory-title:focus-visible {
 .doc-props-aside .props-form-value-wrap--cron-schedule {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
 }
 
-.doc-props-aside .props-form-cron-quick {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px;
-  gap: 6px;
+.doc-props-aside .props-form-runtime-recurring,
+.doc-props-aside .props-form-runtime-scheduled {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
 }
 
-.doc-props-aside .props-form-cron-quick.hidden {
+.doc-props-aside .props-form-runtime-recurring.hidden,
+.doc-props-aside .props-form-runtime-scheduled.hidden {
   display: none;
 }
 
-.doc-props-aside .props-form-cron-preset {
+.doc-props-aside .props-form-runtime-scheduled .props-form-value:disabled,
+.doc-props-aside .props-form-runtime-scheduled select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.doc-props-aside .props-form-value-wrap--runtime-schedule-type {
   width: 100%;
+}
+
+.doc-props-aside .props-form-runtime-schedule-type {
+  width: 100%;
+}
+
+.doc-props-aside .props-form-cron-intro {
+  margin: 0 0 2px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.doc-props-aside .props-form-cron-mode {
+  width: 100%;
+  margin: 0;
+}
+
+.doc-props-aside .props-form-cron-panel {
+  display: none;
+  width: 100%;
+}
+
+.doc-props-aside .props-form-cron-panel.is-active {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding-top: 2px;
+}
+
+.doc-props-aside .props-form-cron-panel-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+  width: 100%;
+}
+
+.doc-props-aside .props-form-cron-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+}
+
+.doc-props-aside .props-form-cron-weekday-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(248, 250, 252, 0.85);
+  font-size: 11px;
+  line-height: 1;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.doc-props-aside .props-form-cron-weekday-label:has(input:checked) {
+  border-color: rgba(14, 116, 144, 0.45);
+  background: rgba(224, 242, 254, 0.95);
+  color: #0f172a;
+}
+
+.doc-props-aside .props-form-cron-weekday {
+  margin: 0;
+}
+
+.doc-props-aside .props-form-cron-timezone {
+  width: 100%;
+}
+
+.doc-props-aside .props-form-cron-timezone:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .doc-props-aside .props-form-cron-time {
   min-width: 0;
 }
 
-.doc-props-aside .props-form-cron-expression.hidden {
-  display: none;
-}
-
 .doc-props-aside .props-form-cron-hint {
-  margin: 0;
+  margin: 4px 0 0;
+  padding-top: 4px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
   font-size: 10px;
   line-height: 1.35;
   color: #64748b;
@@ -36188,6 +36271,7 @@ button.node-navigation-memory-title:focus-visible {
 .doc-props-aside .props-form-cron-expression {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 11px;
+  width: 100%;
 }
 
 .doc-props-aside .props-form-color-custom {
