@@ -1,17 +1,31 @@
+import { getShellAudioContext, isIosDevice, unlockShellAudio } from "/shell/shell-audio-unlock.js?v=1";
+
 export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), synthTimeoutMs = 45000 }) {
   /** @type {HTMLAudioElement | null} */
   let audio = null;
   let objectUrl = "";
+  let webSource = null;
   let speakGeneration = 0;
   /** @type {{ blob: Blob, mimeType: string, text: string } | null} */
   let lastRecording = null;
 
   function cleanupAudio() {
+    if (webSource) {
+      try {
+        webSource.stop();
+      } catch {
+        // ignore
+      }
+      webSource.disconnect?.();
+      webSource = null;
+    }
     if (audio) {
       audio.pause();
       audio.onended = null;
       audio.onerror = null;
       audio.src = "";
+      audio.removeAttribute("src");
+      audio.load();
       audio = null;
     }
     if (objectUrl) {
@@ -21,7 +35,7 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
   }
 
   function isPlaying() {
-    return Boolean(audio && !audio.paused && !audio.ended);
+    return Boolean((audio && !audio.paused && !audio.ended) || webSource);
   }
 
   function isPaused() {
@@ -47,68 +61,203 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
     void audio.play().catch(() => {});
   }
 
+  function waitForAudioReady(element, gen, timeoutMs = 8000) {
+    return new Promise((resolve, reject) => {
+      if (gen !== speakGeneration) {
+        reject(new Error("cancelled"));
+        return;
+      }
+      if (element.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        resolve();
+        return;
+      }
+      const timer = setTimeout(() => {
+        element.removeEventListener("canplaythrough", onReady);
+        element.removeEventListener("loadeddata", onReady);
+        reject(new Error("audio-load-timeout"));
+      }, timeoutMs);
+      const onReady = () => {
+        clearTimeout(timer);
+        element.removeEventListener("canplaythrough", onReady);
+        element.removeEventListener("loadeddata", onReady);
+        resolve();
+      };
+      element.addEventListener("canplaythrough", onReady, { once: true });
+      element.addEventListener("loadeddata", onReady, { once: true });
+    });
+  }
+
+  async function playViaElement(bytes, mimeType, gen, { base64 = "" } = {}) {
+    if (gen !== speakGeneration) return { ok: false, reason: "cancelled" };
+
+    await unlockShellAudio();
+    if (gen !== speakGeneration) return { ok: false, reason: "cancelled" };
+
+    cleanupAudio();
+
+    if (isIosDevice() && base64) {
+      audio = new Audio(`data:${mimeType};base64,${base64}`);
+    } else {
+      objectUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+      audio = new Audio(objectUrl);
+    }
+
+    audio.playsInline = true;
+    audio.setAttribute("playsinline", "true");
+    audio.setAttribute("webkit-playsinline", "true");
+    audio.preload = "auto";
+    audio.volume = 1;
+
+    try {
+      audio.load();
+      await waitForAudioReady(audio, gen);
+    } catch (error) {
+      cleanupAudio();
+      return { ok: false, reason: error?.message || "audio-load-failed" };
+    }
+
+    if (gen !== speakGeneration) {
+      cleanupAudio();
+      return { ok: false, reason: "cancelled" };
+    }
+
+    return new Promise((resolve) => {
+      audio.onended = () => {
+        cleanupAudio();
+        resolve({ ok: true, reason: "audio-element" });
+      };
+      audio.onerror = () => {
+        cleanupAudio();
+        resolve({ ok: false, reason: "audio-element-error" });
+      };
+      void audio
+        .play()
+        .then(() => {
+          // wait for onended
+        })
+        .catch(async (error) => {
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            await unlockShellAudio();
+            if (gen !== speakGeneration) {
+              cleanupAudio();
+              resolve({ ok: false, reason: "cancelled" });
+              return;
+            }
+            try {
+              await audio.play();
+              return;
+            } catch (retryError) {
+              if (attempt === 1) {
+                cleanupAudio();
+                const msg = String(retryError?.message || error?.message || "play-failed");
+                resolve({
+                  ok: false,
+                  reason: /notallowed|interact/i.test(msg) ? "play-not-allowed" : "play-failed"
+                });
+              }
+            }
+          }
+        });
+    });
+  }
+
+  async function playViaWebAudio(bytes, mimeType, gen) {
+    if (isIosDevice() && mimeType.includes("mpeg")) {
+      return { ok: false, reason: "web-audio-skip-mp3" };
+    }
+    const ctx = getShellAudioContext();
+    if (!ctx || gen !== speakGeneration) return { ok: false, reason: "no-context" };
+
+    await unlockShellAudio();
+    if (gen !== speakGeneration) return { ok: false, reason: "cancelled" };
+
+    try {
+      const slice = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+      const audioBuffer = await ctx.decodeAudioData(slice.slice(0));
+      if (gen !== speakGeneration) return { ok: false, reason: "cancelled" };
+
+      return new Promise((resolve) => {
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(ctx.destination);
+        webSource = source;
+        source.onended = () => {
+          if (gen !== speakGeneration) {
+            resolve({ ok: false, reason: "cancelled" });
+            return;
+          }
+          webSource = null;
+          resolve({ ok: true, reason: "web-audio" });
+        };
+        try {
+          source.start(0);
+        } catch (error) {
+          webSource = null;
+          resolve({ ok: false, reason: error?.message || "web-audio-start" });
+        }
+      });
+    } catch (error) {
+      return { ok: false, reason: error?.message || "web-audio-decode" };
+    }
+  }
+
   async function speak(text, { onPhase } = {}) {
     const generation = ++speakGeneration;
     cleanupAudio();
     const payload = String(text || "").trim();
-    if (!payload) return;
+    if (!payload) return { ok: false, reason: "empty" };
 
     const settings = getTtsSettings();
     const engine = String(settings?.ttsEngine || "").trim();
     onPhase?.("synthesizing", engine);
-    const result = await apiFetch("/api/shell/tts/synthesize", {
-      method: "POST",
-      timeoutMs: synthTimeoutMs,
-      body: JSON.stringify({ text: payload, settings, engine })
-    });
-    if (generation !== speakGeneration) return;
 
-    const mimeType = String(result.mimeType || "audio/mpeg");
-    const binary = atob(String(result.audio || ""));
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-    const blob = new Blob([bytes], { type: mimeType });
-    lastRecording = { blob, mimeType, text: payload };
-    objectUrl = URL.createObjectURL(blob);
-    audio = new Audio(objectUrl);
-    if (generation !== speakGeneration) {
-      cleanupAudio();
-      return;
+    let result;
+    try {
+      result = await apiFetch("/api/shell/tts/synthesize", {
+        method: "POST",
+        timeoutMs: synthTimeoutMs,
+        body: JSON.stringify({ text: payload, settings, engine })
+      });
+    } catch (error) {
+      return { ok: false, reason: error?.message || "synthesize-fetch" };
     }
 
+    if (generation !== speakGeneration) return { ok: false, reason: "cancelled" };
+
+    const mimeType = String(result.mimeType || "audio/mpeg");
+    const base64 = String(result.audio || "");
+    const binary = atob(base64);
+    if (!binary.length) return { ok: false, reason: "empty-audio" };
+
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    lastRecording = { blob: new Blob([bytes], { type: mimeType }), mimeType, text: payload };
+
     onPhase?.("playing", engine);
-    await new Promise((resolve, reject) => {
-      if (generation !== speakGeneration) {
-        resolve();
-        return;
-      }
-      const finish = () => {
-        if (generation !== speakGeneration) {
-          resolve();
-          return;
-        }
-        cleanupAudio();
-        resolve();
+
+    const element = await playViaElement(bytes, mimeType, generation, { base64 });
+    if (element.ok) {
+      return {
+        ok: true,
+        engine: String(result.engine || engine),
+        voice: String(result.voice || ""),
+        mimeType,
+        transport: element.reason
       };
-      const fail = (error) => {
-        cleanupAudio();
-        reject(error instanceof Error ? error : new Error(String(error || "audio-error")));
+    }
+
+    const web = await playViaWebAudio(bytes, mimeType, generation);
+    if (web.ok) {
+      return {
+        ok: true,
+        engine: String(result.engine || engine),
+        voice: String(result.voice || ""),
+        mimeType,
+        transport: web.reason
       };
-      audio.onended = finish;
-      audio.onerror = () => fail(new Error("Не удалось воспроизвести аудио"));
-      const playTimer = setTimeout(() => fail(new Error("Не удалось начать воспроизведение")), 12000);
-      audio.play()
-        .then(() => clearTimeout(playTimer))
-        .catch((error) => {
-          clearTimeout(playTimer);
-          fail(error);
-        });
-    });
-    return {
-      engine: String(result.engine || ""),
-      voice: String(result.voice || ""),
-      mimeType
-    };
+    }
+
+    return { ok: false, reason: element.reason || web.reason || "play-failed" };
   }
 
   function getLastRecording() {

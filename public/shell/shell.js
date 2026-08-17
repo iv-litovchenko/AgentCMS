@@ -7,7 +7,14 @@ import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 import { createShellTtsTabCoordinator } from "/shell/shell-tts-tab.js?v=1";
-import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=5";
+import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=7";
+import { unlockShellAudio } from "/shell/shell-audio-unlock.js?v=1";
+import { speakShellBrowserTts } from "/shell/shell-browser-tts.js?v=1";
+import {
+  formatTtsErrorHint,
+  shellTtsFailureMessage,
+  truncateForShellTts
+} from "/shell/shell-tts-mobile.js?v=1";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
 import { getShellSurfacePayload, initShellSurfaceSwitcher } from "/shell/shell-surface.js?v=2";
 import { initShellOrientationChip, initShellLocationChip, getShellDeviceLocation, isShellLocationShareEnabled, refreshShellLocationForSend } from "/shell/shell-device-chips.js?v=2";
@@ -1143,7 +1150,7 @@ function prepareTtsStreamChunk(text) {
   if (state.settings?.ttsStripEmoji !== false) {
     speech = speech.replace(/\p{Extended_Pictographic}/gu, " ").replace(/\s+/g, " ").trim();
   }
-  return speech;
+  return truncateForShellTts(speech);
 }
 
 function queueStreamSpeech(fullBody) {
@@ -1178,11 +1185,10 @@ async function speakStreamChunk(text) {
   }
 
   try {
-    await playTtsPayload(payload, { allowBrowserFallback: false });
-  } catch (serverError) {
-    const msg = String(serverError?.message || serverError);
-    renderPhase("waiting", msg);
-    throw serverError;
+    await playTtsPayload(payload, { allowBrowserFallback: true });
+  } catch {
+    // playTtsPayload уже показал hint в диалоге
+    throw new Error("stream-tts-failed");
   } finally {
     if (!state.streamTtsQueue.length) {
       state.speaking = false;
@@ -2670,6 +2676,7 @@ async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
 async function sendMessageDirect(body, { fromCompose = false, voice = false } = {}) {
   const text = String(body || "").trim();
   if (!text) return;
+  void unlockShellAudio();
   state.messageStopped = false;
   state.messagePipelineBusy = true;
   state.processingMessage = text;
@@ -3254,20 +3261,33 @@ function ttsEngineLabel(engine = getTtsEngine()) {
   return labels[engine] || engine;
 }
 
-async function playTtsPayload(text, { allowBrowserFallback = false } = {}) {
+async function playTtsPayload(text, { allowBrowserFallback = true } = {}) {
   const payload = String(text || "").trim();
   if (!payload) return null;
+  await unlockShellAudio();
+
   const engine = getTtsEngine();
+  const settings = { ...(state.settings || {}), ...collectTtsFormPatch() };
+  const lang = settings.ttsLang || "ru-RU";
+  const rate = settings.ttsRate || 1;
+  const voiceName = settings.ttsVoice || "";
+  const useServerTts = engine !== "browser" && SERVER_TTS_ENGINES.has(engine);
 
   if (engine === "browser") {
     state.speaking = true;
     updateTtsControlsUi("speaking");
     renderPhase("speaking", "Озвучиваю · Web Speech…");
     try {
-      const spoken = await speakBrowserChunk(payload);
+      const browser = await speakShellBrowserTts(payload, { lang, rate, voiceName });
+      if (!browser.ok) {
+        const { title, hint } = shellTtsFailureMessage("", browser.reason, false);
+        shellDialog.setError(title, { hint });
+        throw new Error(browser.reason || "speech-error");
+      }
+      shellDialog.clearError();
       return {
         engine: "browser",
-        voice: spoken?.voice || "",
+        voice: browser.voice || voiceName || "системный",
         transport: "Web Speech (вкладка)"
       };
     } finally {
@@ -3280,6 +3300,7 @@ async function playTtsPayload(text, { allowBrowserFallback = false } = {}) {
     throw new Error(`Неизвестный движок: ${engine}`);
   }
 
+  let serverReason = "";
   try {
     const result = await ttsPlayer.speak(payload, {
       onPhase(phase) {
@@ -3292,33 +3313,44 @@ async function playTtsPayload(text, { allowBrowserFallback = false } = {}) {
         renderPhase("speaking", `Озвучиваю · ${ttsEngineLabel(engine)}…`);
       }
     });
-    return {
-      engine: result?.engine || engine,
-      voice: result?.voice || "",
-      transport: result?.mimeType ? `сервер · ${result.mimeType}` : "сервер"
-    };
-  } catch (serverError) {
-    state.speaking = false;
-    updateTtsControlsUi("waiting");
-    const msg = String(serverError?.message || serverError);
-    if (!allowBrowserFallback) throw serverError;
-    const synth = getSpeechSynth();
-    if (!synth) throw serverError;
-    console.warn("[shell] server TTS failed, fallback to browser:", msg);
-    renderPhase("speaking", `${ttsEngineLabel(engine)} недоступен — озвучиваю браузером`);
-    state.speaking = true;
-    updateTtsControlsUi("speaking");
-    try {
-      await speakBrowserChunk(payload);
-      return { engine: "browser", fallbackFrom: engine };
-    } finally {
-      state.speaking = false;
-      updateTtsControlsUi("waiting");
+    if (result?.ok) {
+      shellDialog.clearError();
+      return {
+        engine: result.engine || engine,
+        voice: result.voice || "",
+        transport: result.mimeType ? `сервер · ${result.mimeType}` : "сервер"
+      };
     }
+    serverReason = String(result?.reason || "play-failed");
+  } catch (serverError) {
+    serverReason = String(serverError?.message || serverError);
   } finally {
     state.speaking = false;
     updateTtsControlsUi("waiting");
   }
+
+  if (allowBrowserFallback && getSpeechSynth()) {
+    renderPhase("speaking", `${ttsEngineLabel(engine)} недоступен — озвучиваю браузером`);
+    state.speaking = true;
+    updateTtsControlsUi("speaking");
+    try {
+      const browser = await speakShellBrowserTts(payload, { lang, rate, voiceName });
+      if (browser.ok) {
+        shellDialog.clearError();
+        return { engine: "browser", fallbackFrom: engine, voice: browser.voice || "" };
+      }
+      const { title, hint } = shellTtsFailureMessage(serverReason, browser.reason, useServerTts);
+      shellDialog.setError(title, { hint });
+      throw new Error(browser.reason || serverReason);
+    } finally {
+      state.speaking = false;
+      updateTtsControlsUi("waiting");
+    }
+  }
+
+  const { title, hint } = shellTtsFailureMessage(serverReason, "", useServerTts);
+  shellDialog.setError(title, { hint });
+  throw new Error(serverReason || "tts-failed");
 }
 
 async function testTtsEngine() {
@@ -3330,6 +3362,7 @@ async function testTtsEngine() {
 
   bumpTtsPlayback();
   stopBrowserTts({ notifyServer: false, resetPhase: false, broadcast: false, bumpPlayback: false });
+  await unlockShellAudio();
 
   try {
     const runtime = collectTtsRuntimeSettings();
@@ -3358,7 +3391,7 @@ async function testTtsEngine() {
     const phrase = getTtsTestPhrase(engine);
     renderPhase("thinking", `Пробная озвучка · ${ttsEngineLabel(engine)}…`);
 
-    const result = await playTtsPayload(phrase, { allowBrowserFallback: false });
+    const result = await playTtsPayload(phrase, { allowBrowserFallback: true });
     const usedEngine = result?.engine || engine;
     const voiceHint = result?.voice ? ` · ${result.voice}` : "";
     const transportHint = result?.transport ? ` · ${result.transport}` : "";
@@ -3405,23 +3438,11 @@ function stopBrowserTts({ notifyServer = true, resetPhase = true, broadcast = tr
   }
 }
 
-async function speakBrowserChunk(text) {
-  const synth = getSpeechSynth();
-  if (!synth) throw new Error("Web Speech недоступен в этом браузере");
-  return new Promise((resolve, reject) => {
-    const utterance = createSpeechUtterance(text);
-    utterance.onend = () =>
-      resolve({ voice: utterance.voice?.name || nodes.ttsVoice?.value || "системный" });
-    utterance.onerror = (event) => reject(new Error(event?.error || "speech-error"));
-    synth.speak(utterance);
-  });
-}
-
 async function speakOneChunk(text) {
   const payload = String(text || "").trim();
   if (!payload) return;
   const engine = getTtsEngine();
-  const result = await playTtsPayload(payload, { allowBrowserFallback: false });
+  const result = await playTtsPayload(payload, { allowBrowserFallback: true });
   if (result?.engine && result.engine !== engine) {
     renderPhase("waiting", `Озвучено · ${ttsEngineLabel(result.engine)} (выбран ${ttsEngineLabel(engine)})`);
   }
@@ -3461,8 +3482,10 @@ async function speakTextParts(parts, { ttsClientId } = {}) {
     }
   } catch (error) {
     if (!isTtsPlaybackCurrent(seq)) return;
-    const msg = String(error?.message || "Ошибка озвучки");
-    renderPhase("waiting", msg.includes("No audio") ? "Edge TTS недоступен — выберите say или browser" : msg);
+    const reason = String(error?.message || "Ошибка озвучки");
+    const { title, hint } = shellTtsFailureMessage(reason, "", getTtsEngine() !== "browser");
+    shellDialog.setError(title, { hint: hint || formatTtsErrorHint({ serverReason: reason }) });
+    renderPhase("waiting", title);
     return;
   }
 
@@ -3531,6 +3554,9 @@ async function handleAssistantMessage(message) {
   if (state.settings?.ttsEnabled && !shouldSkipAssistantSpeech(message, body)) {
     const parts = buildSpeechParts(body, message);
     if (!parts.length) {
+      shellDialog.setError("Нечего озвучить", {
+        hint: "Агент не вернул блок [tts] — проверьте ttsPrompt в настройках TTS"
+      });
       releaseMessagePipeline();
       return;
     }
