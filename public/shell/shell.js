@@ -31,6 +31,12 @@ import { initShellComposeLayout } from "/shell/shell-compose-layout.js?v=1";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
 import { initShellHelp } from "/shell/shell-help.js?v=1";
 import {
+  buildComposeCameraMessage,
+  captureOneShotCameraFrame,
+  openCameraFilePicker,
+  preferredComposeCameraFacing
+} from "/shell/shell-compose-camera.js?v=1";
+import {
   createShellTapVoice,
   createVoiceConfirmDialog,
   hapticTap,
@@ -148,6 +154,7 @@ const state = {
   stopTtsAt: 0,
   previousPhase: "waiting",
   cameraSnapshotBusy: false,
+  composeCameraBusy: false,
   cameraAppliedKey: "",
   screenSnapshotBusy: false,
   screenAppliedKey: "",
@@ -538,6 +545,8 @@ const nodes = {
   routeToggle: document.getElementById("shell-route-toggle"),
   routePanel: document.getElementById("shell-route-panel"),
   watchCamera: document.getElementById("shell-watch-camera"),
+  composeCameraStub: document.getElementById("shell-compose-camera-stub"),
+  composeCameraFile: document.getElementById("shell-compose-camera-file"),
   watchScreen: document.getElementById("shell-watch-screen"),
   screenshotAction: document.getElementById("shell-screenshot-action"),
   clipboardReadAction: document.getElementById("shell-clipboard-read-action"),
@@ -1729,6 +1738,91 @@ async function uploadCameraSnapshot(kind = "speech") {
     body: JSON.stringify({ ...frame, kind })
   });
   return data;
+}
+
+async function captureAndSendComposePhoto() {
+  if (state.composeCameraBusy || state.messagePipelineBusy) return;
+  if (!shellCamera.isSupported() && !nodes.composeCameraFile) {
+    renderPhase("waiting", "Камера недоступна в этом браузере");
+    return;
+  }
+
+  const httpsIssue = shellPermissionIssue();
+  if (httpsIssue && !window.isSecureContext) {
+    renderPhase("waiting", `Камера на iPhone нужен HTTPS · ${getShellHttpsUrl()}`);
+    return;
+  }
+
+  state.composeCameraBusy = true;
+  nodes.composeCameraStub?.classList.add("is-busy");
+  nodes.composeCameraStub?.setAttribute("aria-busy", "true");
+
+  const userText = String(nodes.message?.value || "").trim();
+  const keepCameraActive = shellCamera.isActive() || Boolean(state.settings?.cameraEnabled);
+  const facing = preferredComposeCameraFacing(state.settings);
+
+  try {
+    void unlockShellAudio();
+    renderPhase("waiting", "Камера…");
+    nodes.message?.blur();
+    composeLayout?.resetViewport?.();
+
+    let frame = null;
+    try {
+      const captured = await captureOneShotCameraFrame(shellCamera, nodes.cameraVideo, {
+        facing,
+        keepActive: keepCameraActive
+      });
+      frame = captured.frame;
+      if (captured.startedHere) {
+        updateCameraUi(keepCameraActive);
+        if (nodes.cameraEnabled) nodes.cameraEnabled.checked = keepCameraActive;
+      }
+    } catch (streamError) {
+      if (nodes.composeCameraFile) {
+        try {
+          frame = await openCameraFilePicker(nodes.composeCameraFile);
+        } catch (pickError) {
+          if (String(pickError?.message || pickError) === "cancelled") return;
+          throw pickError;
+        }
+      } else {
+        throw streamError;
+      }
+    }
+
+    if (!frame?.dataUrl) {
+      throw new Error("Не удалось получить снимок");
+    }
+
+    renderPhase("waiting", "Сохраняю снимок…");
+    const meta = await apiFetch("/api/shell/camera/speech-snapshot", {
+      method: "POST",
+      body: JSON.stringify({ ...frame, kind: "manual" })
+    });
+
+    const body = buildComposeCameraMessage(userText, meta?.path);
+    if (userText && nodes.message) {
+      nodes.message.value = "";
+      updateSendButtonLabel();
+      void clearComposeDraft();
+    }
+
+    renderPhase("waiting", "Отправляю снимок…");
+    await sendMessageDirect(body, { fromCompose: false });
+  } catch (error) {
+    const message = String(error?.message || error);
+    if (message === "cancelled") return;
+    if (message.includes("NotAllowed") || message.includes("доступ")) {
+      renderPhase("waiting", "Нет доступа к камере — разрешите в браузере");
+    } else {
+      renderPhase("waiting", message || "Не удалось сделать снимок");
+    }
+  } finally {
+    state.composeCameraBusy = false;
+    nodes.composeCameraStub?.classList.remove("is-busy");
+    nodes.composeCameraStub?.removeAttribute("aria-busy");
+  }
 }
 
 async function uploadScreenSnapshot(kind = "speech") {
@@ -4017,6 +4111,10 @@ function bindNavigationUi() {
   });
   nodes.watchCamera?.addEventListener("click", () => {
     void toggleWatchCamera().catch((error) => renderPhase("waiting", error.message));
+  });
+
+  nodes.composeCameraStub?.addEventListener("click", () => {
+    void captureAndSendComposePhoto();
   });
   nodes.watchScreen?.addEventListener("click", () => {
     void toggleWatchScreen().catch((error) => renderPhase("waiting", error.message));

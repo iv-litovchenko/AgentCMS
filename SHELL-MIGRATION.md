@@ -47,7 +47,7 @@
 | 40 | Layout | Адаптация к клавиатуре (visualViewport, dock) | ✅ |
 | 41 | Layout | Dismiss клавиатуры по тапу вне поля | ✅ |
 | 42 | Layout | Однострочный compose-dock | ❌ (не нужен) |
-| 43 | Layout | Кнопка камеры в compose (stub) | ✅ |
+| 43 | Layout | Кнопка камеры в compose (снимок → агенту) | ✅ |
 | 44 | Layout | Embed-режим CSS для iframe | ✅ |
 | 35 | UI | Mobile-theme / cosmic background | ❌ |
 | 45 | UI | Диалог справки «?» | ✅ |
@@ -128,6 +128,7 @@ Backend: `local` / `server` (disabled)
 | `public/shell/shell-browser-tts.js` | Safari speechSynthesis + таймауты |
 | `public/shell/shell-compose-layout.js` | visualViewport, keyboard dismiss, mobile dock |
 | `public/shell/shell-storage-keys.js` | canonical storage keys + mobile migration |
+| `public/shell/shell-compose-camera.js` | снимок из compose → upload + message |
 | `public/shell/shell-help.js` | справка «?» |
 | `public/shell/shell-voice.js` | tap-микрофон, confirm, wake lock |
 | `public/shell/shell-pwa.js` | PWA banner, standalone |

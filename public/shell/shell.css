@@ -216,11 +216,15 @@ body.shell-window-transparent {
 
 .shell-compose-bar--primary .shell-compose-camera-stub {
   flex: 0 0 auto;
-  opacity: 0.45;
 }
 
-.shell-compose-bar--primary .shell-compose-camera-stub:disabled {
-  cursor: not-allowed;
+.shell-compose-bar--primary .shell-compose-camera-stub.is-busy {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.shell-compose-camera-file {
+  display: none;
 }
 
 .shell-dialog-actions {

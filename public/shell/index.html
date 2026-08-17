@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=135" />
+    <link rel="stylesheet" href="/shell/shell.css?v=136" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=1" />
     <script type="importmap">
       {
@@ -1206,13 +1206,22 @@ aya_bar_v2 тоже читает те же файлы</pre>
         <div class="shell-compose-expand-backdrop hidden" id="shell-compose-expand-backdrop" hidden></div>
         <div class="shell-compose-actions">
           <div class="shell-compose-bar shell-compose-bar--primary">
+            <input
+              type="file"
+              id="shell-compose-camera-file"
+              class="shell-compose-camera-file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              tabindex="-1"
+              aria-hidden="true"
+            />
             <button
               type="button"
               class="shell-icon-btn shell-compose-tool shell-compose-camera-stub"
               id="shell-compose-camera-stub"
-              disabled
               aria-label="Снимок с камеры"
-              title="Скоро: отправка фото с камеры"
+              title="Сфотографировать и отправить агенту"
             >
               <span class="shell-compose-tool-icon" aria-hidden="true">📷</span>
             </button>
@@ -1515,6 +1524,6 @@ CMS workspace (agent-cms-test)</pre>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script src="/shell/shell.js?v=143" type="module"></script>
+    <script src="/shell/shell.js?v=144" type="module"></script>
   </body>
 </html>
