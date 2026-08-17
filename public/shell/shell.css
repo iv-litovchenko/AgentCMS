@@ -200,6 +200,14 @@ body.shell-window-transparent {
   justify-content: flex-end;
 }
 
+.shell-dialog-actions--spread {
+  justify-content: space-between;
+}
+
+.shell-stt-voice-confirm {
+  margin: 0 0 10px;
+}
+
 .shell-stt-settings-note a {
   color: #c4b8ff;
 }
@@ -2095,6 +2103,27 @@ body.shell-compose-expanded {
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+.shell-hero-cancel {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 120, 120, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 80, 80, 0.12);
+  color: #ffb4b4;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.shell-hero-cancel:hover {
+  background: rgba(255, 80, 80, 0.22);
+}
+
+.shell-hero-cancel.hidden {
+  display: none;
 }
 
 .shell-phase-stack > .shell-tts-controls {

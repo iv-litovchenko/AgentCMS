@@ -19,6 +19,14 @@ import {
   warmUpMicrophone
 } from "/shell/shell-permissions.js?v=1";
 import { createShellDialog } from "/shell/shell-dialog.js?v=1";
+import {
+  createShellTapVoice,
+  createVoiceConfirmDialog,
+  hapticTap,
+  isBrowserTapVoiceMode,
+  readVoiceConfirmSetting,
+  writeVoiceConfirmSetting
+} from "/shell/shell-voice.js?v=1";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
@@ -108,6 +116,7 @@ const state = {
   speaking: false,
   ttsPaused: false,
   micActive: false,
+  micTapHeld: false,
   micWarmed: false,
   pttHeld: false,
   pttKeyboardHeld: false,
@@ -329,12 +338,9 @@ function beginPttHold() {
     return;
   }
 
-  if ((mode === "fn_button" || mode === "browser") && state.recognition) {
-    try {
-      state.recognition.start();
-    } catch {
-      // already started
-    }
+  if ((mode === "fn_button" || mode === "browser") && state.recognition && shellTapVoice) {
+    shellTapVoice.prepareSession();
+    void shellTapVoice.startSession();
   }
 }
 
@@ -350,8 +356,12 @@ function endPttHold() {
     return;
   }
 
-  if ((mode === "fn_button" || mode === "browser") && state.recognition && state.micActive) {
-    state.recognition.stop();
+  if ((mode === "fn_button" || mode === "browser") && state.recognition && (state.micActive || state.micTapHeld)) {
+    try {
+      state.recognition.stop();
+    } catch {
+      // ignore
+    }
   }
 }
 
@@ -459,6 +469,13 @@ const nodes = {
   micDialogClose: document.getElementById("shell-mic-dialog-close"),
   micDialogCheck: document.getElementById("shell-mic-dialog-check"),
   micHelpLink: document.getElementById("shell-mic-help-link"),
+  voiceConfirm: document.getElementById("shell-voice-confirm"),
+  voiceConfirmDialog: document.getElementById("shell-voice-confirm-dialog"),
+  voiceConfirmForm: document.getElementById("shell-voice-confirm-form"),
+  voiceConfirmText: document.getElementById("shell-voice-confirm-text"),
+  voiceRetry: document.getElementById("shell-voice-retry"),
+  voiceCancel: document.getElementById("shell-voice-cancel"),
+  heroCancelSend: document.getElementById("shell-hero-cancel-send"),
   ttsControls: document.getElementById("shell-tts-controls"),
   ttsPauseBtn: document.getElementById("shell-tts-pause"),
   ttsResumeBtn: document.getElementById("shell-tts-resume"),
@@ -794,7 +811,7 @@ function resolveDisplayPhase(requestedPhase = "waiting") {
   const phase = PHASE_LABELS[requestedPhase] ? requestedPhase : "waiting";
 
   if (phase === "disabled") return "disabled";
-  if (state.micActive || state.pttHeld) return "listening";
+  if (state.micActive || state.micTapHeld || state.pttHeld || state.pttKeyboardHeld) return "listening";
   if (isTtsPlaybackActive()) return "speaking";
   if (state.assistantStream && !state.assistantStream.finalized) return "thinking";
   if (state.messagePipelineBusy) return "thinking";
@@ -1288,6 +1305,12 @@ function updateSendButtonLabel() {
       nodes.sendStopBtn.setAttribute("aria-label", "Остановить ответ агента");
     }
   }
+  const heroCancelActive = Boolean(
+    state.messagePipelineBusy ||
+      state.processingMessage ||
+      (state.assistantStream && !state.assistantStream.finalized)
+  );
+  nodes.heroCancelSend?.classList.toggle("hidden", !heroCancelActive);
 }
 
 async function stopActiveMessage() {
@@ -2902,13 +2925,7 @@ function updateVoiceModeSelectUi(mode = getVoiceInputMode()) {
     nodes.micBtn.disabled = disabled;
   }
   if (disabled) {
-    if (state.recognition && state.micActive) {
-      try {
-        state.recognition.stop();
-      } catch {
-        // ignore
-      }
-    }
+    shellTapVoice?.abortSession();
     if (state.pttKeyboardHeld) endPttHold();
     setMicButtonState("Голосовой ввод выключен");
   } else if (!state.micActive && !state.pttHeld) {
@@ -3651,6 +3668,56 @@ function bindMicPermissionsUi(permissionApi) {
   });
 }
 
+let shellTapVoice = null;
+let showVoiceConfirmDialog = null;
+
+function renderWaitingPhrase() {
+  renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
+}
+
+function isSttDisabled() {
+  return getVoiceInputMode() === "disabled" || nodes.sttEnabled?.checked === false;
+}
+
+function isMessagePipelineActive() {
+  return Boolean(state.messagePipelineBusy || state.processingMessage);
+}
+
+async function sendVoiceMessage(text) {
+  if (state.settings?.cameraOnSpeech && shellCamera.isActive()) {
+    await uploadCameraSnapshot("speech").catch(() => {});
+  }
+  if (state.settings?.screenOnSpeech && shellScreen.isActive()) {
+    await uploadScreenSnapshot("speech").catch(() => {});
+  }
+  await sendMessage(text, { fromCompose: false, voice: true });
+}
+
+async function handleVoiceTranscript(text) {
+  const trimmed = String(text || "").trim();
+  if (!trimmed) {
+    renderWaitingPhrase();
+    return;
+  }
+
+  if (readVoiceConfirmSetting()) {
+    const result = await showVoiceConfirmDialog(trimmed);
+    if (result === "__retry__") {
+      renderWaitingPhrase();
+      hapticTap();
+      return;
+    }
+    if (!result) {
+      renderWaitingPhrase();
+      return;
+    }
+    await sendVoiceMessage(result);
+    return;
+  }
+
+  await sendVoiceMessage(trimmed);
+}
+
 function setupSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const insecure = Boolean(shellPermissionIssue());
@@ -3668,60 +3735,28 @@ function setupSpeechRecognition() {
 
   const recognition = new SpeechRecognition();
   recognition.lang = state.settings?.sttLang || nodes.sttLang?.value || "ru-RU";
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
   state.recognition = recognition;
 
-  recognition.onstart = () => {
-    state.micActive = true;
-    setMicButtonState("Стоп", { active: true });
-    void patchShellState({ phase: "listening", phrase: "Говорите…" });
-  };
-
-  recognition.onend = () => {
-    if (state.pttKeyboardHeld && isFnButtonMode() && !state.sidecarConnected && state.recognition) {
-      try {
-        state.recognition.start();
-      } catch {
-        // ignore restart race
-      }
-      return;
-    }
-    state.micActive = false;
-    setMicButtonState("Говорить");
-    if (!state.speaking) void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
-  };
-
-  recognition.onerror = (event) => {
-    const errorCode = event.error || "unknown";
-    if (errorCode === "not-allowed") {
-      renderPhase("waiting", "Нет доступа к микрофону · Настройки → Safari → Микрофон");
-      showMicPermissionDialog();
-      return;
-    }
-    if (errorCode === "service-not-allowed" || insecure) {
-      renderPhase("waiting", `Микрофон заблокирован · откройте ${getShellHttpsUrl()}`);
-      showMicPermissionDialog();
-      return;
-    }
-    renderPhase("waiting", errorCode || "Ошибка распознавания");
-  };
-
-  recognition.onresult = (event) => {
-    const text = event.results?.[0]?.[0]?.transcript || "";
-    if (text) {
-      nodes.message.value = text;
-      void (async () => {
-        if (state.settings?.cameraOnSpeech && shellCamera.isActive()) {
-          await uploadCameraSnapshot("speech").catch(() => {});
-        }
-        if (state.settings?.screenOnSpeech && shellScreen.isActive()) {
-          await uploadScreenSnapshot("speech").catch(() => {});
-        }
-        await sendMessage(text, { fromCompose: false, voice: true });
-      })();
-    }
-  };
+  showVoiceConfirmDialog = createVoiceConfirmDialog(nodes);
+  shellTapVoice = createShellTapVoice({
+    state,
+    recognition,
+    getVoiceInputMode,
+    shellPermissionIssue,
+    getShellHttpsUrl,
+    warmUpMicrophone,
+    showMicPermissionDialog,
+    setMicButtonState,
+    renderPhase,
+    renderWaitingPhrase,
+    getLivePhrase: () => livePhraseFromStatus(state.shellState, null),
+    handleVoiceTranscript,
+    isSttDisabled,
+    isMessageBusy: isMessagePipelineActive,
+    clearShellError: () => shellDialog?.clearError?.()
+  });
+  shellTapVoice.configureRecognition(recognition);
+  shellTapVoice.bindHandlers(recognition);
 }
 
 function toggleMic() {
@@ -3743,41 +3778,13 @@ function toggleMic() {
     void setPttHeldRemote(nextHeld).catch((error) => renderPhase("waiting", error.message));
     return;
   }
-  if (!state.recognition) return;
-  if (state.micActive) {
-    state.recognition.stop();
-    return;
-  }
-  void startBrowserMic();
+  if (!shellTapVoice || !isBrowserTapVoiceMode(mode)) return;
+  shellTapVoice.toggleTap();
 }
 
 async function startBrowserMic() {
-  const issue = shellPermissionIssue();
-  if (issue) {
-    renderPhase("waiting", `Safari не спрашивает микрофон по HTTP · ${getShellHttpsUrl()}`);
-    showMicPermissionDialog();
-    return;
-  }
-  try {
-    if (!state.micWarmed) {
-      await warmUpMicrophone();
-      state.micWarmed = true;
-    }
-    state.recognition.start();
-  } catch (error) {
-    state.micWarmed = false;
-    if (error?.code === "insecure-context") {
-      renderPhase("waiting", "Нужен HTTPS для микрофона · npm run start:https");
-      showMicPermissionDialog();
-      return;
-    }
-    if (error?.name === "NotAllowedError") {
-      renderPhase("waiting", "Нет доступа к микрофону · Настройки → Safari → Микрофон");
-      showMicPermissionDialog();
-      return;
-    }
-    renderPhase("waiting", error?.message || "Не удалось включить микрофон");
-  }
+  if (!shellTapVoice) return;
+  await shellTapVoice.startSession({ viaTap: true });
 }
 
 function setShellView(view) {
@@ -3987,6 +3994,7 @@ function bindUi() {
       state.sttResumeMode = mode;
       mode = "disabled";
       if (nodes.voiceMode) nodes.voiceMode.value = mode;
+      shellTapVoice?.abortSession();
     }
     updateVoiceModeSelectUi(mode);
     void persistVoiceInputMode(mode);
@@ -4003,6 +4011,12 @@ function bindUi() {
     applyRecognitionLang();
     markSttDirty();
   });
+  if (nodes.voiceConfirm) {
+    nodes.voiceConfirm.checked = readVoiceConfirmSetting();
+    nodes.voiceConfirm.addEventListener("change", () => {
+      writeVoiceConfirmSetting(nodes.voiceConfirm.checked);
+    });
+  }
   nodes.ttsSettingsToggle?.addEventListener("click", () => {
     const open = nodes.ttsSettingsPanel?.classList.contains("hidden");
     setTtsSettingsOpen(open);
@@ -4077,12 +4091,14 @@ function bindUi() {
     const mode = nodes.voiceMode.value;
     if (mode !== "disabled") state.sttResumeMode = mode;
     if (nodes.sttEnabled) nodes.sttEnabled.checked = mode !== "disabled";
+    if (!isBrowserTapVoiceMode(mode)) shellTapVoice?.abortSession();
     updateVoiceModeSelectUi(mode);
     void persistVoiceInputMode(mode);
   });
 
   nodes.sendBtn.addEventListener("click", () => void sendMessage(nodes.message.value));
   nodes.sendStopBtn?.addEventListener("click", () => void stopActiveMessage());
+  nodes.heroCancelSend?.addEventListener("click", () => void stopActiveMessage());
   nodes.message?.addEventListener("input", () => {
     updateSendButtonLabel();
     scheduleComposeDraftSave();

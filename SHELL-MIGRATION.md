@@ -26,14 +26,14 @@
 | 11 | Диалог | Баннер ошибок с подсказками | ✅ |
 | 48 | Диалог | pushHistory при каждой паре Q/A | ✅ |
 | 49 | Диалог | lastReplyRaw для copy/share | ✅ |
-| 12 | Голос | Tap-микрофон (тап → запись → тап → стоп) | ❌ (есть PTT) |
-| 13 | Голос | Диалог подтверждения голоса (edit / send / retry / cancel) | ❌ |
-| 14 | Голос | Настройка «Подтверждать голос перед отправкой» | ❌ |
-| 15 | Голос | Прогрев микрофона (warmUpMicrophone) | ❌ |
-| 16 | Голос | Авто-restart STT при длинной записи | ❌ |
-| 17 | Голос | Кнопка ✕ отмены отправки в hero | ⚠️ (есть stop в compose) |
-| 18 | Голос | Wake Lock экрана на время сессии | ❌ |
-| 19 | Голос | Haptic feedback | ❌ |
+| 12 | Голос | Tap-микрофон (тап → запись → тап → стоп) | ✅ |
+| 13 | Голос | Диалог подтверждения голоса (edit / send / retry / cancel) | ✅ |
+| 14 | Голос | Настройка «Подтверждать голос перед отправкой» | ✅ |
+| 15 | Голос | Прогрев микрофона (warmUpMicrophone) | ✅ |
+| 16 | Голос | Авто-restart STT при длинной записи | ✅ |
+| 17 | Голос | Кнопка ✕ отмены отправки в hero | ✅ |
+| 18 | Голос | Wake Lock экрана на время сессии | ✅ |
+| 19 | Голос | Haptic feedback | ✅ |
 | 20 | TTS | AudioContext unlock по жесту (iOS) | ❌ |
 | 21 | TTS | iOS-safe server TTS (Audio + WebAudio) | ❌ |
 | 22 | TTS | Safari speechSynthesis fallback с таймаутами | ❌ |
@@ -122,6 +122,7 @@ Backend: `local` / `server` (disabled)
 | `public/shell/mobile/mobile-device-chips.js` | компас, батарея |
 | `public/shell/shell-permissions.js` | HTTPS, mic |
 | `public/shell/shell-dialog.js` | диалог mobile-style |
+| `public/shell/shell-voice.js` | tap-микрофон, confirm, wake lock |
 | `public/shell/shell-pwa.js` | PWA banner, standalone |
 | `public/shell/manifest.webmanifest` | Web app manifest |
 | `public/shell/mobile/mobile-background.js` | подложка персонажа |
@@ -132,7 +133,7 @@ Backend: `local` / `server` (disabled)
 ## План (черновик)
 
 1. **Фаза 1 — Диалог:** #1–11, #48–49  
-2. **Фаза 2 — Голос:** #12–19  
+2. **Фаза 2 — Голос:** #12–19 ✅  
 3. **Фаза 3 — TTS + mobile adapters:** #20–29, #40–44  
 4. **Фаза 4 — Сессия / SSE:** #36–39, #50  
 5. **Фаза 5 — Контекст CMS:** D1–D5  
@@ -140,4 +141,4 @@ Backend: `local` / `server` (disabled)
 
 ---
 
-*Обновлено: 2026-08-17*
+*Обновлено: 2026-08-18*

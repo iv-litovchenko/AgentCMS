@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=129" />
+    <link rel="stylesheet" href="/shell/shell.css?v=130" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=1" />
     <script type="importmap">
       {
@@ -609,6 +609,15 @@ aya_bar_v2 тоже читает те же файлы</pre>
                     <span></span>
                   </div>
                   <div class="shell-status-line" id="shell-phase-label">🟡 Ожидаю</div>
+                  <button
+                    type="button"
+                    class="shell-hero-cancel hidden"
+                    id="shell-hero-cancel-send"
+                    title="Отменить отправку"
+                    aria-label="Отменить отправку"
+                  >
+                    ✕
+                  </button>
                 </div>
                 <div class="shell-tts-controls hidden" id="shell-tts-controls">
                   <button
@@ -1076,6 +1085,10 @@ aya_bar_v2 тоже читает те же файлы</pre>
               placeholder="Исправь пунктуацию, убери «э-э» и «эээ», сохрани смысл. Верни только готовый текст для агента.&#10;&#10;Если поле пустое — сырой STT сразу уходит агенту без LLM-очистки."
             ></textarea>
           </label>
+          <label class="shell-check shell-stt-voice-confirm" title="Показать текст перед отправкой голосового сообщения">
+            <input id="shell-voice-confirm" type="checkbox" checked />
+            <span>Подтверждать голос перед отправкой</span>
+          </label>
           <div class="shell-stt-settings-grid">
             <label class="shell-field shell-field--compact">
               <span class="shell-label">Язык STT</span>
@@ -1397,6 +1410,21 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </div>
     </dialog>
 
+    <dialog class="shell-dialog" id="shell-voice-confirm-dialog">
+      <form method="dialog" class="shell-dialog-form" id="shell-voice-confirm-form">
+        <h2>Отправить?</h2>
+        <label class="shell-field">
+          <span class="shell-label">Распознано</span>
+          <textarea id="shell-voice-confirm-text" class="shell-textarea" rows="4"></textarea>
+        </label>
+        <div class="shell-dialog-actions shell-dialog-actions--spread">
+          <button type="button" class="shell-btn shell-btn--ghost" id="shell-voice-retry">🎤 Заново</button>
+          <button type="button" class="shell-btn shell-btn--ghost" id="shell-voice-cancel">Отмена</button>
+          <button type="submit" class="shell-btn">Отправить</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog class="shell-dialog" id="shell-mic-dialog">
       <div class="shell-dialog-form">
         <h2>Микрофон в Safari</h2>
@@ -1422,6 +1450,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script src="/shell/shell.js?v=131" type="module"></script>
+    <script src="/shell/shell.js?v=132" type="module"></script>
   </body>
 </html>
