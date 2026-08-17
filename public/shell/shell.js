@@ -10,8 +10,14 @@ import { createShellTtsTabCoordinator } from "/shell/shell-tts-tab.js?v=1";
 import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=5";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
 import { getShellSurfacePayload, initShellSurfaceSwitcher } from "/shell/shell-surface.js?v=2";
-import { initShellOrientationChip } from "/shell/shell-device-chips.js?v=1";
+import { initShellOrientationChip, initShellLocationChip, getShellDeviceLocation, isShellLocationShareEnabled, refreshShellLocationForSend } from "/shell/shell-device-chips.js?v=2";
 import { initShellInstallBanner } from "/shell/shell-pwa.js?v=1";
+import {
+  getShellHttpsUrl,
+  initShellPermissions,
+  shellPermissionIssue,
+  warmUpMicrophone
+} from "/shell/shell-permissions.js?v=1";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
@@ -101,6 +107,7 @@ const state = {
   speaking: false,
   ttsPaused: false,
   micActive: false,
+  micWarmed: false,
   pttHeld: false,
   pttKeyboardHeld: false,
   sidecarConnected: false,
@@ -445,6 +452,12 @@ const nodes = {
   sendBtn: document.getElementById("shell-send-btn"),
   sendStopBtn: document.getElementById("shell-send-stop"),
   micBtn: document.getElementById("shell-mic-btn"),
+  permissionBanner: document.getElementById("shell-permission-banner"),
+  micDialog: document.getElementById("shell-mic-dialog"),
+  micDialogUrl: document.getElementById("shell-mic-dialog-url"),
+  micDialogClose: document.getElementById("shell-mic-dialog-close"),
+  micDialogCheck: document.getElementById("shell-mic-dialog-check"),
+  micHelpLink: document.getElementById("shell-mic-help-link"),
   ttsControls: document.getElementById("shell-tts-controls"),
   ttsPauseBtn: document.getElementById("shell-tts-pause"),
   ttsResumeBtn: document.getElementById("shell-tts-resume"),
@@ -499,6 +512,9 @@ const nodes = {
   serverChip: document.getElementById("shell-server-chip"),
   orientChip: document.getElementById("shell-orient-chip"),
   orientValue: document.getElementById("shell-orient-value"),
+  locationChip: document.getElementById("shell-location-chip"),
+  locationValue: document.getElementById("shell-location-value"),
+  locationShare: document.getElementById("shell-location-share"),
   meta: document.getElementById("shell-meta"),
   pulse: document.getElementById("shell-pulse"),
   lastReply: document.getElementById("shell-last-reply"),
@@ -2607,6 +2623,9 @@ async function sendMessageDirect(body, { fromCompose = false, voice = false } = 
   messageSendAbortController = new AbortController();
   const { signal } = messageSendAbortController;
   try {
+    if (isShellLocationShareEnabled()) {
+      await refreshShellLocationForSend();
+    }
     await patchShellState({ phase: "thinking", phrase: text.slice(0, 240) });
     const result = await apiFetch("/api/shell/message", {
       method: "POST",
@@ -3065,12 +3084,31 @@ function applyTtsSettingsUi(settings) {
   void loadTtsCapabilities();
 }
 
+function collectDeviceContextForMessage() {
+  if (!isShellLocationShareEnabled()) return undefined;
+  const location = getShellDeviceLocation();
+  if (!location) return undefined;
+  return {
+    location: {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracy: location.accuracy,
+      altitude: location.altitude,
+      heading: location.heading,
+      speed: location.speed,
+      capturedAt: location.capturedAt
+    }
+  };
+}
+
 function collectOutboundMessageSettings() {
   const ttsEnabled = nodes.ttsEnabled?.checked !== false;
+  const deviceContext = collectDeviceContextForMessage();
   return {
     ttsEnabled,
     ttsPrompt: nodes.ttsPrompt?.value ?? "",
-    ...getShellSurfacePayload()
+    ...getShellSurfacePayload(),
+    ...(deviceContext ? { deviceContext } : {})
   };
 }
 
@@ -3546,12 +3584,52 @@ function connectStream() {
   });
 }
 
+function showMicPermissionDialog() {
+  if (nodes.micDialogUrl) {
+    nodes.micDialogUrl.textContent = getShellHttpsUrl();
+  }
+  nodes.micDialog?.showModal();
+}
+
+function syncMicPermissionUi() {
+  const issue = shellPermissionIssue();
+  if (!nodes.micBtn || !issue) return;
+  nodes.micBtn.title = `Нужен HTTPS · ${getShellHttpsUrl()}`;
+}
+
+function bindMicPermissionsUi(permissionApi) {
+  nodes.micHelpLink?.addEventListener("click", (event) => {
+    event.preventDefault();
+    showMicPermissionDialog();
+  });
+  nodes.micDialogClose?.addEventListener("click", () => nodes.micDialog?.close());
+  nodes.micDialogCheck?.addEventListener("click", () => {
+    void permissionApi.runCheck().then(() => {
+      initShellPermissions({
+        bannerEl: nodes.permissionBanner,
+        micDialog: nodes.micDialog
+      });
+      syncMicPermissionUi();
+    });
+  });
+  nodes.micDialog?.addEventListener("click", (event) => {
+    if (event.target === nodes.micDialog) nodes.micDialog.close();
+  });
+}
+
 function setupSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const insecure = Boolean(shellPermissionIssue());
   if (!SpeechRecognition) {
     nodes.micBtn.disabled = true;
-    nodes.micBtn.title = "SpeechRecognition недоступен в этом браузере";
+    nodes.micBtn.title = insecure
+      ? `SpeechRecognition недоступен · нужен HTTPS · ${getShellHttpsUrl()}`
+      : "SpeechRecognition недоступен в этом браузере";
     return;
+  }
+
+  if (insecure) {
+    syncMicPermissionUi();
   }
 
   const recognition = new SpeechRecognition();
@@ -3581,7 +3659,18 @@ function setupSpeechRecognition() {
   };
 
   recognition.onerror = (event) => {
-    renderPhase("waiting", event.error || "Ошибка распознавания");
+    const errorCode = event.error || "unknown";
+    if (errorCode === "not-allowed") {
+      renderPhase("waiting", "Нет доступа к микрофону · Настройки → Safari → Микрофон");
+      showMicPermissionDialog();
+      return;
+    }
+    if (errorCode === "service-not-allowed" || insecure) {
+      renderPhase("waiting", `Микрофон заблокирован · откройте ${getShellHttpsUrl()}`);
+      showMicPermissionDialog();
+      return;
+    }
+    renderPhase("waiting", errorCode || "Ошибка распознавания");
   };
 
   recognition.onresult = (event) => {
@@ -3625,7 +3714,36 @@ function toggleMic() {
     state.recognition.stop();
     return;
   }
-  state.recognition.start();
+  void startBrowserMic();
+}
+
+async function startBrowserMic() {
+  const issue = shellPermissionIssue();
+  if (issue) {
+    renderPhase("waiting", `Safari не спрашивает микрофон по HTTP · ${getShellHttpsUrl()}`);
+    showMicPermissionDialog();
+    return;
+  }
+  try {
+    if (!state.micWarmed) {
+      await warmUpMicrophone();
+      state.micWarmed = true;
+    }
+    state.recognition.start();
+  } catch (error) {
+    state.micWarmed = false;
+    if (error?.code === "insecure-context") {
+      renderPhase("waiting", "Нужен HTTPS для микрофона · npm run start:https");
+      showMicPermissionDialog();
+      return;
+    }
+    if (error?.name === "NotAllowedError") {
+      renderPhase("waiting", "Нет доступа к микрофону · Настройки → Safari → Микрофон");
+      showMicPermissionDialog();
+      return;
+    }
+    renderPhase("waiting", error?.message || "Не удалось включить микрофон");
+  }
 }
 
 function setShellView(view) {
@@ -4026,9 +4144,23 @@ async function boot() {
       dismissBtn: document.getElementById("shell-install-dismiss")
     });
   }
+  const permissionApi = initShellPermissions({
+    bannerEl: nodes.permissionBanner,
+    micDialog: nodes.micDialog
+  });
+  bindMicPermissionsUi(permissionApi);
+  if (nodes.micDialogUrl) {
+    nodes.micDialogUrl.textContent = getShellHttpsUrl();
+  }
+  syncMicPermissionUi();
   initShellOrientationChip({
     button: nodes.orientChip,
     valueEl: nodes.orientValue
+  });
+  initShellLocationChip({
+    button: nodes.locationChip,
+    valueEl: nodes.locationValue,
+    shareBtn: nodes.locationShare
   });
   renderAgentChip();
   renderServerChip();

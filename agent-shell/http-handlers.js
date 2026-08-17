@@ -160,6 +160,8 @@ function createShellHandlers(deps) {
           ttsPrompt: payload?.ttsPrompt
         });
         const voiceInput = Boolean(payload?.voice) || String(payload?.author || "") === "sidecar";
+        const deviceContext =
+          payload?.deviceContext && typeof payload.deviceContext === "object" ? payload.deviceContext : null;
         let body = rawBody;
         let sttRefine = null;
 
@@ -196,6 +198,8 @@ function createShellHandlers(deps) {
             return true;
           }
         }
+
+        body = shellService.applyDeviceContextToBody(body, deviceContext);
 
         const ttsClientId = String(payload?.shellClientId || payload?.clientId || "").trim();
 

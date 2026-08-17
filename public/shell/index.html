@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=126" />
+    <link rel="stylesheet" href="/shell/shell.css?v=128" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=1" />
     <script type="importmap">
       {
@@ -28,6 +28,7 @@
         <span>Добавьте на экран Домой — Safari → Поделиться → «На экран Домой»</span>
         <button type="button" class="shell-install-dismiss" id="shell-install-dismiss" aria-label="Скрыть">×</button>
       </div>
+      <div class="shell-permission-banner hidden" id="shell-permission-banner" role="alert"></div>
       <header class="shell-header">
         <button
           type="button"
@@ -686,6 +687,26 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </button>
               <button
                 type="button"
+                class="shell-meta-chip shell-location-chip"
+                id="shell-location-chip"
+                aria-label="GPS координаты"
+                data-active="0"
+              >
+                <span class="shell-meta-icon" aria-hidden="true">📍</span>
+                <span class="shell-location-value" id="shell-location-value">—</span>
+              </button>
+              <button
+                type="button"
+                class="shell-meta-chip shell-location-share hidden"
+                id="shell-location-share"
+                aria-label="Поделиться местоположением с агентом"
+                aria-pressed="false"
+                data-active="0"
+              >
+                ↗ агенту
+              </button>
+              <button
+                type="button"
                 class="shell-meta-chip shell-tts-download hidden"
                 id="shell-tts-download"
                 disabled
@@ -1006,6 +1027,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <p class="shell-stt-settings-note">
             Язык и промпт сохраняются в <code>settings.json</code>. Режим ввода — у кнопки 🎤.
             Sidecar: <code>npm run shell:sidecar</code>.
+            iPhone: <a href="#" id="shell-mic-help-link">Микрофон Safari</a>.
             Если задан промпт пост-обработки — голос сначала проходит через отдельный чат QwenPaw
             (<code>shell-stt-&lt;agent&gt;</code>), затем очищенный текст уходит в основной чат.
           </p>
@@ -1334,9 +1356,32 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
       <footer class="shell-version" id="shell-version" aria-label="Версия">0.0.2</footer>
     </div>
+
+    <dialog class="shell-dialog" id="shell-mic-dialog">
+      <div class="shell-dialog-form">
+        <h2>Микрофон в Safari</h2>
+        <ol class="shell-help-list shell-help-list--ol">
+          <li>
+            <strong>Важно:</strong> по <code>http://192.168…</code> Safari <strong>не спрашивает</strong> микрофон.
+            Нужен <strong>HTTPS на порту 3443</strong> — на Mac: <code>npm run start:https</code>, на iPhone:
+            <code id="shell-mic-dialog-url">https://IP:3443/shell/</code>.
+          </li>
+          <li>Нажмите 🎤 — начнётся запись; нажмите ещё раз — стоп и отправка.</li>
+          <li>Нажмите <strong>Разрешить</strong>, если Safari спросит.</li>
+          <li>Если отказали: <strong>Настройки → Safari → Микрофон</strong> → «Спросить» или «Разрешить».</li>
+          <li><strong>Настройки → Конфиденциальность → Микрофон</strong> — Safari включён.</li>
+        </ol>
+        <p class="shell-dialog-note">Mac и iPhone — одна Wi‑Fi. CMS: <code>HOST=0.0.0.0 npm start</code></p>
+        <div class="shell-dialog-actions">
+          <button type="button" class="shell-btn shell-btn--ghost" id="shell-mic-dialog-check">Проверить доступ</button>
+          <button type="button" class="shell-btn" id="shell-mic-dialog-close">OK</button>
+        </div>
+      </div>
+    </dialog>
+
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script src="/shell/shell.js?v=128" type="module"></script>
+    <script src="/shell/shell.js?v=130" type="module"></script>
   </body>
 </html>

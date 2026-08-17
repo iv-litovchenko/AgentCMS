@@ -474,6 +474,33 @@ function shouldLogToCms(settings) {
   return target === "cms" || target === "qwenpaw-log";
 }
 
+function formatDeviceContextBlock(deviceContext) {
+  if (!deviceContext || typeof deviceContext !== "object") return "";
+  const lines = [];
+  const location = deviceContext.location;
+  if (location && location.latitude != null && location.longitude != null) {
+    const lat = Number(location.latitude);
+    const lng = Number(location.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      const accuracy =
+        location.accuracy != null && Number.isFinite(Number(location.accuracy))
+          ? ` ±${Math.round(Number(location.accuracy))} м`
+          : "";
+      lines.push(`Геолокация: ${lat.toFixed(6)}, ${lng.toFixed(6)}${accuracy}`);
+      lines.push(`Карта: https://maps.apple.com/?ll=${lat},${lng}`);
+    }
+  }
+  if (!lines.length) return "";
+  return `[Контекст устройства]\n${lines.join("\n")}\n[/Контекст устройства]\n\n`;
+}
+
+function applyDeviceContextToBody(body, deviceContext) {
+  const prefix = formatDeviceContextBlock(deviceContext);
+  const text = String(body || "").trim();
+  if (!prefix) return text;
+  return `${prefix}${text}`;
+}
+
 function buildQwenPawSessionId(settings, agentId) {
   const configured = String(settings?.qwenpawSessionId || DEFAULT_SETTINGS.qwenpawSessionId).trim();
   if (configured && configured !== DEFAULT_SETTINGS.qwenpawSessionId) return configured;
@@ -1053,6 +1080,7 @@ module.exports = {
   patchState,
   sendUserMessage,
   sendToQwenPaw,
+  applyDeviceContextToBody,
   usesQwenPaw,
   shouldLogToCms,
   buildQwenPawSessionId,

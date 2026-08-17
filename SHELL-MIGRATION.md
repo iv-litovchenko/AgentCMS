@@ -57,9 +57,10 @@
 | 30 | Устройство | Чип компаса / ориентации (🧭) | ✅ |
 | 31 | Устройство | Чип server URL в шапке | ✅ |
 | 32 | Устройство | Компактные chips agent + route в шапке | ✅ |
-| 25 | Permissions | Баннер «Нужен HTTPS» для микрофона | ❌ |
-| 26 | Permissions | Диалог помощи по микрофону Safari | ❌ |
-| 27 | Permissions | getMobileHttpsUrl (порт 3443) | ❌ |
+| 51 | Устройство | Чип GPS 📍 + «↗ агенту» в `/api/shell/message` | ✅ |
+| 25 | Permissions | Баннер «Нужен HTTPS» для микрофона | ✅ |
+| 26 | Permissions | Диалог помощи по микрофону Safari | ✅ |
+| 27 | Permissions | getMobileHttpsUrl (порт 3443) | ✅ |
 | 28 | PWA | Баннер «Добавь на экран Домой» | ✅ |
 | 29 | PWA | manifest + apple-mobile-web-app meta | ✅ |
 | 47 | Storage | Унификация mobile storage-ключей | ❌ |
@@ -119,6 +120,7 @@ Backend: `local` / `server` (disabled)
 | `public/shell/mobile/mobile-browser-tts.js` | Safari TTS |
 | `public/shell/mobile/mobile-audio-unlock.js` | AudioContext |
 | `public/shell/mobile/mobile-device-chips.js` | компас, батарея |
+| `public/shell/shell-permissions.js` | HTTPS, mic |
 | `public/shell/shell-pwa.js` | PWA banner, standalone |
 | `public/shell/manifest.webmanifest` | Web app manifest |
 | `public/shell/mobile/mobile-background.js` | подложка персонажа |

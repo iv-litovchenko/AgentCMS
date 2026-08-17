@@ -99,6 +99,111 @@ body.shell-window-transparent {
   color: var(--text);
 }
 
+.shell-permission-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 107, 107, 0.14);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #ffd7d7;
+  flex-shrink: 0;
+}
+
+.shell-permission-banner.hidden {
+  display: none;
+}
+
+.shell-permission-banner__main p {
+  margin: 6px 0 0;
+}
+
+.shell-permission-banner__hint {
+  margin: 6px 0 0 !important;
+  color: #ffb4b4;
+  font-size: 0.78rem;
+}
+
+.shell-permission-banner__link {
+  display: block;
+  margin-top: 8px;
+  color: #b9d6ff;
+  font-size: 0.78rem;
+  word-break: break-all;
+  text-decoration: underline;
+}
+
+.shell-permission-banner__btn {
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.shell-dialog {
+  border: 0;
+  border-radius: 16px;
+  background: #17182c;
+  color: var(--text);
+  padding: 0;
+  width: min(92vw, 420px);
+}
+
+.shell-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.shell-dialog-form {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+
+.shell-dialog-form h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.shell-dialog-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.shell-help-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.shell-help-list--ol {
+  display: grid;
+  gap: 8px;
+}
+
+.shell-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.shell-stt-settings-note a {
+  color: #c4b8ff;
+}
+
 .shell-version {
   margin: 0;
   padding: 0 4px 2px;
@@ -342,6 +447,37 @@ body.shell-window-transparent {
 
 .shell-orient-value {
   font-variant-numeric: tabular-nums;
+}
+
+.shell-location-chip[data-active="0"] {
+  color: var(--muted);
+}
+
+.shell-location-chip[data-active="1"] {
+  color: #b9f6ca;
+}
+
+.shell-location-value {
+  font-variant-numeric: tabular-nums;
+  max-width: 118px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shell-location-share {
+  cursor: pointer;
+  font: inherit;
+  color: var(--muted);
+}
+
+.shell-location-share[data-active="1"] {
+  background: rgba(53, 208, 127, 0.16);
+  color: #8ee4a0;
+  border-color: rgba(53, 208, 127, 0.35);
+}
+
+.shell-location-share.hidden {
+  display: none;
 }
 
 .shell-link-chip-label {
