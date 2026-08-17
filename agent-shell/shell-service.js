@@ -285,6 +285,28 @@ function applyOutboundSettings(settings, overrides = {}) {
   return merged;
 }
 
+const TTS_SYNTH_PRESERVE_IF_EMPTY = [
+  "ttsElevenlabsApiKey",
+  "ttsElevenlabsVoiceId",
+  "ttsPiperModel",
+  "ttsPiperBinary"
+];
+
+function mergeTtsSynthSettings(stored, client = {}) {
+  const merged = { ...(stored && typeof stored === "object" ? stored : {}) };
+  if (!client || typeof client !== "object") return merged;
+  for (const [key, value] of Object.entries(client)) {
+    if (value === undefined || value === null) continue;
+    if (TTS_SYNTH_PRESERVE_IF_EMPTY.includes(key) && !String(value).trim()) continue;
+    merged[key] = value;
+  }
+  if (Object.prototype.hasOwnProperty.call(client, "ttsEngine")) {
+    const engine = String(client.ttsEngine ?? "").trim();
+    if (engine) merged.ttsEngine = engine;
+  }
+  return merged;
+}
+
 async function readPersistedState(agentRoot) {
   try {
     const raw = await fs.readFile(stateAbsolute(agentRoot), "utf-8");
@@ -884,6 +906,8 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
 
   return {
     agentId,
+    agentRoot,
+    settingsFile: settingsAbsolute(agentRoot),
     settings,
     state: stateOut,
     sidecarConnected: isSidecarConnected(state),
@@ -1020,9 +1044,11 @@ module.exports = {
   DEFAULT_SETTINGS,
   readSettings,
   writeSettings,
+  settingsAbsolute,
   readComposeDraft,
   writeComposeDraft,
   applyOutboundSettings,
+  mergeTtsSynthSettings,
   getState,
   patchState,
   sendUserMessage,

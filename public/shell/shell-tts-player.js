@@ -1,4 +1,4 @@
-export function createShellTtsPlayer({ apiFetch }) {
+export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), synthTimeoutMs = 45000 }) {
   /** @type {HTMLAudioElement | null} */
   let audio = null;
   let objectUrl = "";
@@ -47,15 +47,19 @@ export function createShellTtsPlayer({ apiFetch }) {
     void audio.play().catch(() => {});
   }
 
-  async function speak(text) {
+  async function speak(text, { onPhase } = {}) {
     const generation = ++speakGeneration;
     cleanupAudio();
     const payload = String(text || "").trim();
     if (!payload) return;
 
+    const settings = getTtsSettings();
+    const engine = String(settings?.ttsEngine || "").trim();
+    onPhase?.("synthesizing", engine);
     const result = await apiFetch("/api/shell/tts/synthesize", {
       method: "POST",
-      body: JSON.stringify({ text: payload })
+      timeoutMs: synthTimeoutMs,
+      body: JSON.stringify({ text: payload, settings, engine })
     });
     if (generation !== speakGeneration) return;
 
@@ -72,6 +76,7 @@ export function createShellTtsPlayer({ apiFetch }) {
       return;
     }
 
+    onPhase?.("playing", engine);
     await new Promise((resolve, reject) => {
       if (generation !== speakGeneration) {
         resolve();
@@ -85,10 +90,25 @@ export function createShellTtsPlayer({ apiFetch }) {
         cleanupAudio();
         resolve();
       };
+      const fail = (error) => {
+        cleanupAudio();
+        reject(error instanceof Error ? error : new Error(String(error || "audio-error")));
+      };
       audio.onended = finish;
-      audio.onerror = () => reject(new Error("Не удалось воспроизвести аудио"));
-      audio.play().catch(reject);
+      audio.onerror = () => fail(new Error("Не удалось воспроизвести аудио"));
+      const playTimer = setTimeout(() => fail(new Error("Не удалось начать воспроизведение")), 12000);
+      audio.play()
+        .then(() => clearTimeout(playTimer))
+        .catch((error) => {
+          clearTimeout(playTimer);
+          fail(error);
+        });
     });
+    return {
+      engine: String(result.engine || ""),
+      voice: String(result.voice || ""),
+      mimeType
+    };
   }
 
   function getLastRecording() {

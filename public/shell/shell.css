@@ -313,6 +313,15 @@ body.shell-window-transparent {
   display: none;
 }
 
+.shell-label-action.is-ready {
+  color: #c4b8ff;
+}
+
+.shell-tts-download-panel.is-busy {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
 .shell-tts-download {
   cursor: pointer;
   font: inherit;
@@ -425,6 +434,17 @@ body.shell-window-transparent {
   display: none;
 }
 
+.shell-tts-engine-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.shell-tts-engine-hint:empty {
+  display: none;
+}
+
 .shell-tts-capabilities-note {
   margin: 0;
   font-size: 11px;
@@ -461,8 +481,9 @@ body.shell-window-transparent {
   text-underline-offset: 2px;
 }
 
-.shell-label-action:hover {
-  color: #d4ccff;
+.shell-label-action.is-busy {
+  opacity: 0.65;
+  pointer-events: none;
 }
 
 .shell-label-action:focus-visible {
@@ -2506,6 +2527,11 @@ body.shell-embed .shell-version {
   color: var(--text);
   padding: 10px 12px;
   font: inherit;
+}
+
+.shell-input--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
 }
 
 .shell-input-row {

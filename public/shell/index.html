@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/shell/shell.css?v=110" />
+    <link rel="stylesheet" href="/shell/shell.css?v=123" />
     <script type="importmap">
       {
         "imports": {
@@ -824,15 +824,34 @@ aya_bar_v2 тоже читает те же файлы</pre>
             ></textarea>
           </label>
           <label class="shell-field shell-field--compact shell-tts-engine-field">
-            <span class="shell-label">Движок TTS</span>
+            <span class="shell-label shell-label-row shell-label-row--spread">
+              Движок TTS
+              <button type="button" class="shell-label-action" id="shell-tts-test" title="Озвучить пробную фразу выбранным движком">
+                Пробный текст
+              </button>
+              <button
+                type="button"
+                class="shell-label-action shell-tts-download-panel"
+                id="shell-tts-download-panel"
+                disabled
+                title="Скачать аудио последней озвучки"
+              >
+                ⬇ Скачать
+              </button>
+            </span>
             <select id="shell-tts-engine" class="shell-select shell-select--full">
-              <option value="browser">Браузер (Web Speech)</option>
-              <option value="say">macOS say</option>
-              <option value="edge">Edge TTS (онлайн)</option>
-              <option value="piper">Piper (офлайн)</option>
-              <option value="elevenlabs">ElevenLabs</option>
+              <optgroup label="На этом устройстве">
+                <option value="browser">Браузер · Web Speech (вкладка)</option>
+                <option value="say">macOS say · сервер Mac</option>
+                <option value="piper">Piper · офлайн-модель</option>
+              </optgroup>
+              <optgroup label="Онлайн / API">
+                <option value="edge">Edge TTS · Microsoft</option>
+                <option value="elevenlabs">ElevenLabs · API key</option>
+              </optgroup>
             </select>
           </label>
+          <p class="shell-tts-engine-hint" id="shell-tts-engine-hint"></p>
           <p class="shell-tts-capabilities-note hidden" id="shell-tts-capabilities-note"></p>
           <div class="shell-tts-engine-fields" id="shell-tts-engine-fields">
             <label class="shell-field shell-field--compact" data-tts-engines="browser say">
@@ -843,7 +862,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </select>
             </label>
             <label class="shell-field shell-field--compact" data-tts-engines="browser say">
-              <span class="shell-label">Голос</span>
+              <span class="shell-label" id="shell-tts-voice-label">Голос</span>
               <select id="shell-tts-voice" class="shell-select shell-select--full">
                 <option value="">Системный по умолчанию</option>
               </select>
@@ -868,7 +887,14 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </label>
             <label class="shell-field shell-field--compact hidden" data-tts-engines="elevenlabs">
               <span class="shell-label">ElevenLabs API key</span>
-              <input id="shell-tts-elevenlabs-key" class="shell-input" type="password" autocomplete="off" placeholder="sk_…" />
+              <input
+                id="shell-tts-elevenlabs-key"
+                class="shell-input shell-input--mono"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="sk_…"
+              />
             </label>
             <label class="shell-field shell-field--compact hidden" data-tts-engines="elevenlabs">
               <span class="shell-label">ElevenLabs Voice ID</span>
@@ -884,7 +910,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <span class="shell-save-btn-lamp" aria-hidden="true"></span>
               Сохранить
             </button>
-            <span class="shell-settings-save-hint"><code>.agent-shell/settings.json</code></span>
+            <span class="shell-settings-save-hint" id="shell-tts-save-hint"><code>.agent-shell/settings.json</code></span>
           </div>
         </div>
         <div class="shell-reply-body" id="shell-last-reply">
@@ -1249,6 +1275,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script src="/shell/shell.js?v=112" type="module"></script>
+    <script src="/shell/shell.js?v=124" type="module"></script>
   </body>
 </html>

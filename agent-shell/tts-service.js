@@ -212,24 +212,40 @@ async function synthesizeElevenLabs(text, settings = {}) {
   if (!apiKey) throw new Error("ElevenLabs: укажите API key в настройках TTS");
   const voiceId = String(settings.ttsElevenlabsVoiceId || settings.ttsVoice || "").trim();
   if (!voiceId) throw new Error("ElevenLabs: укажите Voice ID");
-  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`, {
-    method: "POST",
-    headers: {
-      "xi-api-key": apiKey,
-      "Content-Type": "application/json",
-      Accept: "audio/mpeg"
-    },
-    body: JSON.stringify({
-      text,
-      model_id: String(settings.ttsElevenlabsModel || "eleven_multilingual_v2")
-    })
-  });
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`ElevenLabs: HTTP ${response.status}${detail ? ` — ${detail.slice(0, 180)}` : ""}`);
+  const ELEVENLABS_TIMEOUT_MS = 30000;
+
+  const run = async () => {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`, {
+      method: "POST",
+      headers: {
+        "xi-api-key": apiKey,
+        "Content-Type": "application/json",
+        Accept: "audio/mpeg"
+      },
+      body: JSON.stringify({
+        text,
+        model_id: String(settings.ttsElevenlabsModel || "eleven_multilingual_v2")
+      })
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`ElevenLabs: HTTP ${response.status}${detail ? ` — ${detail.slice(0, 180)}` : ""}`);
+    }
+    const audio = Buffer.from(await response.arrayBuffer());
+    return { engine: "elevenlabs", mimeType: "audio/mpeg", audio: audio.toString("base64"), voice: voiceId };
+  };
+
+  let timer;
+  try {
+    return await Promise.race([
+      run(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("ElevenLabs: timeout (30s)")), ELEVENLABS_TIMEOUT_MS);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
-  const audio = Buffer.from(await response.arrayBuffer());
-  return { engine: "elevenlabs", mimeType: "audio/mpeg", audio: audio.toString("base64"), voice: voiceId };
 }
 
 async function synthesizePiper(text, settings = {}) {

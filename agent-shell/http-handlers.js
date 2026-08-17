@@ -90,7 +90,12 @@ function createShellHandlers(deps) {
       try {
         const payload = await deps.readJsonBody(req);
         const settings = await shellService.writeSettings(agentRoot, payload?.settings || payload, agentId);
-        deps.sendJson(res, 200, { agentId, settings });
+        deps.sendJson(res, 200, {
+          agentId,
+          agentRoot,
+          settingsFile: shellService.settingsAbsolute(agentRoot),
+          settings
+        });
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to save shell settings",
@@ -321,12 +326,14 @@ function createShellHandlers(deps) {
           deps.sendJson(res, 400, { error: "Text is required" });
           return true;
         }
-        const settings = await shellService.readSettings(agentRoot);
+        const stored = await shellService.readSettings(agentRoot);
+        const client =
+          payload?.settings && typeof payload.settings === "object" ? payload.settings : {};
+        const synthSettings = shellService.mergeTtsSynthSettings(stored, client);
         const engineOverride = String(payload?.engine || "").trim();
-        const synthSettings =
-          engineOverride && engineOverride !== "browser"
-            ? { ...settings, ttsEngine: engineOverride }
-            : settings;
+        if (engineOverride && engineOverride !== "browser") {
+          synthSettings.ttsEngine = engineOverride;
+        }
         const result = await ttsService.synthesize(text, synthSettings);
         deps.sendJson(res, 200, { agentId, ok: true, ...result });
       } catch (error) {
