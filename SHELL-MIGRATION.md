@@ -13,19 +13,19 @@
 
 | # | Категория | Функция | Desktop |
 |---|-----------|---------|---------|
-| 1 | Диалог | Единая лента «Диалог» (вопрос + ответ в одном scroll) | ❌ |
-| 2 | Диалог | Блок «Ваш вопрос» (последнее сообщение пользователя) | ❌ |
-| 3 | Диалог | История сессии (до 12 пар Q/A, sessionStorage) | ❌ |
-| 4 | Диалог | Sheet «История» со списком и ролями | ❌ |
-| 5 | Диалог | Сворачивание диалога + preview в свёрнутом виде | ❌ |
-| 6 | Диалог | Copy ответа в буфер | ❌ |
-| 7 | Диалог | Share ответа (Web Share API) | ❌ |
-| 8 | Диалог | Pull-to-refresh → reconnect | ❌ |
-| 9 | Диалог | Кнопка ↻ переподключения | ❌ |
-| 10 | Диалог | Status dot (online / offline / error) | ❌ |
-| 11 | Диалог | Баннер ошибок с подсказками | ❌ |
-| 48 | Диалог | pushHistory при каждой паре Q/A | ❌ |
-| 49 | Диалог | lastReplyRaw для copy/share | ❌ |
+| 1 | Диалог | Единая лента «Диалог» (вопрос + ответ в одном scroll) | ✅ |
+| 2 | Диалог | Блок «Ваш вопрос» (последнее сообщение пользователя) | ✅ |
+| 3 | Диалог | История сессии (до 12 пар Q/A, sessionStorage) | ✅ |
+| 4 | Диалог | Sheet «История» со списком и ролями | ✅ |
+| 5 | Диалог | Сворачивание диалога + preview в свёрнутом виде | ✅ |
+| 6 | Диалог | Copy ответа в буфер | ✅ |
+| 7 | Диалог | Share ответа (Web Share API) | ✅ |
+| 8 | Диалог | Pull-to-refresh → reconnect | ✅ |
+| 9 | Диалог | Кнопка ↻ переподключения | ✅ |
+| 10 | Диалог | Status dot (online / offline / error) | ✅ |
+| 11 | Диалог | Баннер ошибок с подсказками | ✅ |
+| 48 | Диалог | pushHistory при каждой паре Q/A | ✅ |
+| 49 | Диалог | lastReplyRaw для copy/share | ✅ |
 | 12 | Голос | Tap-микрофон (тап → запись → тап → стоп) | ❌ (есть PTT) |
 | 13 | Голос | Диалог подтверждения голоса (edit / send / retry / cancel) | ❌ |
 | 14 | Голос | Настройка «Подтверждать голос перед отправкой» | ❌ |
@@ -121,6 +121,7 @@ Backend: `local` / `server` (disabled)
 | `public/shell/mobile/mobile-audio-unlock.js` | AudioContext |
 | `public/shell/mobile/mobile-device-chips.js` | компас, батарея |
 | `public/shell/shell-permissions.js` | HTTPS, mic |
+| `public/shell/shell-dialog.js` | диалог mobile-style |
 | `public/shell/shell-pwa.js` | PWA banner, standalone |
 | `public/shell/manifest.webmanifest` | Web app manifest |
 | `public/shell/mobile/mobile-background.js` | подложка персонажа |

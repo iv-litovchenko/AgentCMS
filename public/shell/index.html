@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=128" />
+    <link rel="stylesheet" href="/shell/shell.css?v=129" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=1" />
     <script type="importmap">
       {
@@ -869,7 +869,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
         </div>
       </section>
 
-      <section class="shell-reply-panel" id="shell-reply-panel">
+      <section class="shell-reply-panel" id="shell-reply-panel" data-collapsed="0">
         <div class="shell-reply-head">
           <div class="shell-section-label">Ответ агента</div>
           <div class="shell-reply-tts-bar">
@@ -996,10 +996,40 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <span class="shell-settings-save-hint" id="shell-tts-save-hint"><code>.agent-shell/settings.json</code></span>
           </div>
         </div>
-        <div class="shell-reply-body" id="shell-last-reply">
-          <div class="shell-reply-text" id="shell-last-reply-text">—</div>
-          <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
+        <div class="shell-dialog-toolbar">
+          <button
+            type="button"
+            class="shell-dialog-collapse"
+            id="shell-dialog-collapse"
+            aria-expanded="true"
+            aria-controls="shell-dialog-scroll"
+          >
+            <span class="shell-status-dot" id="shell-status-dot" data-state="offline" aria-hidden="true"></span>
+            <span class="shell-dialog-collapse-title">Диалог</span>
+            <span class="shell-dialog-collapse-hint hidden" id="shell-dialog-collapse-hint"></span>
+            <span class="shell-dialog-collapse-chev" aria-hidden="true">▾</span>
+          </button>
+          <div class="shell-dialog-toolbar-actions">
+            <button type="button" class="shell-icon-btn shell-dialog-tool" id="shell-reconnect-btn" title="Переподключить" aria-label="Переподключить">↻</button>
+            <button type="button" class="shell-icon-btn shell-dialog-tool hidden" id="shell-copy-reply" title="Копировать ответ" aria-label="Копировать ответ">⎘</button>
+            <button type="button" class="shell-icon-btn shell-dialog-tool hidden" id="shell-share-reply" title="Поделиться ответом" aria-label="Поделиться">↗</button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact hidden" id="shell-history-open" aria-haspopup="dialog">
+              История <span class="shell-history-count" id="shell-history-count"></span>
+            </button>
+          </div>
         </div>
+        <div class="shell-pull-hint hidden" id="shell-pull-hint">Отпустите для обновления</div>
+        <div class="shell-dialog-scroll" id="shell-dialog-scroll">
+          <div class="shell-last-ask hidden" id="shell-last-ask-wrap">
+            <div class="shell-last-ask-label">Ваш вопрос</div>
+            <div class="shell-last-ask-text" id="shell-last-ask"></div>
+          </div>
+          <div class="shell-reply-body" id="shell-last-reply">
+            <div class="shell-reply-text" id="shell-last-reply-text">—</div>
+            <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
+          </div>
+        </div>
+        <p class="shell-dialog-error hidden" id="shell-dialog-error" role="alert"></p>
       </section>
 
       <section class="shell-compose-panel" id="shell-compose-panel">
@@ -1357,6 +1387,16 @@ aya_bar_v2 тоже читает те же файлы</pre>
       <footer class="shell-version" id="shell-version" aria-label="Версия">0.0.2</footer>
     </div>
 
+    <dialog class="shell-dialog shell-dialog--sheet" id="shell-history-dialog">
+      <div class="shell-dialog-form shell-dialog-form--sheet">
+        <div class="shell-sheet-head">
+          <h2>История</h2>
+          <button type="button" class="shell-icon-btn" id="shell-history-close" aria-label="Закрыть">✕</button>
+        </div>
+        <ul class="shell-history-list" id="shell-history-list"></ul>
+      </div>
+    </dialog>
+
     <dialog class="shell-dialog" id="shell-mic-dialog">
       <div class="shell-dialog-form">
         <h2>Микрофон в Safari</h2>
@@ -1382,6 +1422,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script src="/shell/shell.js?v=130" type="module"></script>
+    <script src="/shell/shell.js?v=131" type="module"></script>
   </body>
 </html>

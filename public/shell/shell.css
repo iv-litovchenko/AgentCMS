@@ -829,44 +829,267 @@ body.shell-window-transparent {
   gap: 10px;
 }
 
-.shell-reply-panel .shell-reply-body {
+.shell-reply-panel .shell-dialog-scroll {
   margin-top: 0;
   padding: 0 4px 0 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
   min-height: 64px;
   max-height: min(32vh, 270px);
   overflow: auto;
   overflow-x: hidden;
-  font-size: 13px;
-  line-height: 1.45;
   scrollbar-width: thin;
   scrollbar-color: rgba(124, 108, 255, 0.45) transparent;
   scrollbar-gutter: stable;
 }
 
-.shell-reply-panel .shell-reply-body::-webkit-scrollbar {
+.shell-reply-panel .shell-reply-body {
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.shell-reply-panel[data-collapsed="1"] .shell-dialog-scroll,
+.shell-reply-panel[data-collapsed="1"] .shell-dialog-error {
+  display: none;
+}
+
+.shell-reply-panel[data-collapsed="1"] .shell-dialog-collapse-chev {
+  transform: rotate(-90deg);
+}
+
+.shell-dialog-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.shell-dialog-collapse {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(12, 14, 28, 0.45);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.shell-dialog-collapse-title {
+  font-weight: 600;
+}
+
+.shell-dialog-collapse-hint {
+  color: var(--muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+.shell-dialog-collapse-chev {
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.shell-dialog-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.shell-dialog-tool {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+
+.shell-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #888;
+  flex-shrink: 0;
+}
+
+.shell-status-dot[data-state="live"] {
+  background: #35d07f;
+  box-shadow: 0 0 0 2px rgba(53, 208, 127, 0.25);
+}
+
+.shell-status-dot[data-state="error"] {
+  background: #ff6b8a;
+}
+
+.shell-status-dot[data-state="offline"] {
+  background: #ffd166;
+}
+
+.shell-last-ask {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(124, 108, 255, 0.1);
+  border: 1px solid rgba(124, 108, 255, 0.18);
+}
+
+.shell-last-ask-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.shell-last-ask-text {
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.shell-dialog-error {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.28);
+  color: #ffd7d7;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.shell-dialog-error.hidden,
+.shell-pull-hint.hidden {
+  display: none;
+}
+
+.shell-pull-hint {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(91, 157, 255, 0.14);
+  color: #cfe3ff;
+  font-size: 11px;
+  text-align: center;
+}
+
+.shell-history-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.shell-dialog--sheet {
+  width: min(92vw, 420px);
+  max-height: min(80vh, 520px);
+}
+
+.shell-dialog-form--sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: min(80vh, 520px);
+}
+
+.shell-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.shell-sheet-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.shell-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.shell-history-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.shell-history-item--user {
+  border: 1px solid rgba(124, 108, 255, 0.16);
+}
+
+.shell-history-item--agent {
+  border: 1px solid rgba(53, 208, 127, 0.16);
+}
+
+.shell-history-avatar {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  padding-top: 2px;
+}
+
+.shell-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.shell-history-role {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.shell-history-time {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.shell-history-text {
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.shell-reply-panel .shell-dialog-scroll::-webkit-scrollbar {
   width: 5px;
 }
 
-.shell-reply-panel .shell-reply-body::-webkit-scrollbar-track {
+.shell-reply-panel .shell-dialog-scroll::-webkit-scrollbar-track {
   background: transparent;
   margin: 4px 0;
 }
 
-.shell-reply-panel .shell-reply-body::-webkit-scrollbar-thumb {
+.shell-reply-panel .shell-dialog-scroll::-webkit-scrollbar-thumb {
   background: rgba(124, 108, 255, 0.22);
   border-radius: 999px;
   transition: background 0.2s ease;
 }
 
-.shell-reply-panel .shell-reply-body:hover::-webkit-scrollbar-thumb,
-.shell-reply-panel .shell-reply-body:focus-within::-webkit-scrollbar-thumb {
+.shell-reply-panel .shell-dialog-scroll:hover::-webkit-scrollbar-thumb,
+.shell-reply-panel .shell-dialog-scroll:focus-within::-webkit-scrollbar-thumb {
   background: rgba(124, 108, 255, 0.52);
 }
 
-.shell-reply-panel .shell-reply-body::-webkit-scrollbar-thumb:hover {
+.shell-reply-panel .shell-dialog-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(88, 196, 255, 0.55);
 }
 

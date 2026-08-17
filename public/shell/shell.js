@@ -18,6 +18,7 @@ import {
   shellPermissionIssue,
   warmUpMicrophone
 } from "/shell/shell-permissions.js?v=1";
+import { createShellDialog } from "/shell/shell-dialog.js?v=1";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
@@ -484,6 +485,7 @@ const nodes = {
   characterPicker: document.getElementById("shell-character-picker"),
   sessionToggle: document.getElementById("shell-session-toggle"),
   replyPanel: document.getElementById("shell-reply-panel"),
+  dialogScroll: document.getElementById("shell-dialog-scroll"),
   composePanel: document.getElementById("shell-compose-panel"),
   messageQueue: document.getElementById("shell-message-queue"),
   messageQueueActive: document.getElementById("shell-message-queue-active"),
@@ -568,6 +570,30 @@ const topicPicker = createTopicPicker({
     onRouteSettingsDirty();
   }
 });
+
+const shellDialog = createShellDialog({
+  panel: nodes.replyPanel,
+  scroll: document.getElementById("shell-dialog-scroll"),
+  collapseBtn: document.getElementById("shell-dialog-collapse"),
+  collapseHint: document.getElementById("shell-dialog-collapse-hint"),
+  statusDot: document.getElementById("shell-status-dot"),
+  reconnectBtn: document.getElementById("shell-reconnect-btn"),
+  copyBtn: document.getElementById("shell-copy-reply"),
+  shareBtn: document.getElementById("shell-share-reply"),
+  historyOpen: document.getElementById("shell-history-open"),
+  historyCount: document.getElementById("shell-history-count"),
+  historyDialog: document.getElementById("shell-history-dialog"),
+  historyClose: document.getElementById("shell-history-close"),
+  historyList: document.getElementById("shell-history-list"),
+  lastAskWrap: document.getElementById("shell-last-ask-wrap"),
+  lastAsk: document.getElementById("shell-last-ask"),
+  errorEl: document.getElementById("shell-dialog-error"),
+  pullHint: document.getElementById("shell-pull-hint")
+});
+
+function syncDialogConnectionState() {
+  shellDialog.setConnectionState(resolveShellServerConnectionState());
+}
 
 function apiUrl(path, params = {}) {
   const url = new URL(path, window.location.origin);
@@ -709,6 +735,7 @@ function renderHeroLinkChip() {
     nodes.linkChipOpen.title = usesQwen ? "Открыть QwenPaw" : "";
   }
   renderServerChip();
+  syncDialogConnectionState();
 }
 
 function renderClock() {
@@ -1018,6 +1045,7 @@ function renderShellReply(message) {
   }
 
   renderShellReplyMedia(nodes.lastReplyMedia, shows, state.agentId);
+  shellDialog.onReplyRendered(stub ? "" : rawText);
   return { ...parsed, shows };
 }
 
@@ -1081,7 +1109,8 @@ function renderStreamingAssistantText(text) {
     return;
   }
   renderShellReplyBody(nodes.lastReplyText, value);
-  nodes.lastReply?.scrollTo?.({ top: nodes.lastReply.scrollHeight, behavior: "auto" });
+  nodes.dialogScroll?.scrollTo?.({ top: nodes.dialogScroll.scrollHeight, behavior: "auto" });
+  shellDialog.onReplyRendered(value);
 }
 
 function prepareTtsStreamChunk(text) {
@@ -1182,6 +1211,7 @@ function finalizeAssistantStream(message) {
   state.assistantStream = { id: streamId, text: body, spokenText, spokenParts, done: true, finalized: true };
   nodes.replyPanel?.classList.remove("is-streaming");
   renderShellReply({ ...message, body, spokenText, spokenParts });
+  shellDialog.onAgentReply(body);
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
 
   if (state.settings?.ttsEnabled && shouldPlayReplyTts(message) && !state.messageStopped) {
@@ -2626,6 +2656,8 @@ async function sendMessageDirect(body, { fromCompose = false, voice = false } = 
     if (isShellLocationShareEnabled()) {
       await refreshShellLocationForSend();
     }
+    shellDialog.clearError();
+    shellDialog.onUserMessage(text);
     await patchShellState({ phase: "thinking", phrase: text.slice(0, 240) });
     const result = await apiFetch("/api/shell/message", {
       method: "POST",
@@ -2686,6 +2718,7 @@ async function sendMessageDirect(body, { fromCompose = false, voice = false } = 
     }
     state.processingMessage = "";
     renderMessageQueue();
+    shellDialog.setError(error.message, { hint: shellDialog.connectionHint(error) });
     renderPhase("waiting", error.message);
     releaseMessagePipeline();
   } finally {
@@ -3466,6 +3499,7 @@ async function handleAssistantMessage(message) {
 
   markAssistantReplyHandled(message, body);
   renderShellReply(message);
+  shellDialog.onAgentReply(body);
   const phase = state.shellState?.phase || "waiting";
   if (phase === "waiting" && !state.pttHeld && !state.micActive && !state.speaking) {
     renderPhase(phase, "Готов к сообщению", state.shellState?.metrics || "");
@@ -4149,6 +4183,15 @@ async function boot() {
     micDialog: nodes.micDialog
   });
   bindMicPermissionsUi(permissionApi);
+  shellDialog.init();
+  shellDialog.bindReconnect(() => {
+    if (state.eventSource) {
+      state.eventSource.close();
+      state.eventSource = null;
+    }
+    connectStream();
+    void refreshStatus();
+  });
   if (nodes.micDialogUrl) {
     nodes.micDialogUrl.textContent = getShellHttpsUrl();
   }
