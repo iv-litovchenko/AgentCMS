@@ -2,7 +2,7 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content" />
     <meta name="theme-color" content="#070812" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=132" />
+    <link rel="stylesheet" href="/shell/shell.css?v=134" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=1" />
     <script type="importmap">
       {
@@ -1132,12 +1132,15 @@ aya_bar_v2 тоже читает те же файлы</pre>
           </div>
           <ul class="shell-message-queue-list" id="shell-message-queue-list"></ul>
         </div>
+        <div class="shell-compose-dock" id="shell-compose-dock">
+          <div class="shell-compose-dock-inner">
         <div class="shell-compose-field" id="shell-compose-field">
           <div class="shell-compose-input-wrap">
             <textarea
               id="shell-message"
               class="shell-textarea"
               rows="3"
+              enterkeyhint="send"
               placeholder="Напишите агенту…"
               aria-label="Ваше сообщение"
             ></textarea>
@@ -1188,6 +1191,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <span class="shell-compose-draft-path hidden" id="shell-compose-draft-path">
               <code>.agent-shell/compose-draft.md</code>
             </span>
+          </div>
           </div>
         </div>
         <div class="shell-compose-expand-backdrop hidden" id="shell-compose-expand-backdrop" hidden></div>
@@ -1266,6 +1270,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
         <p id="shell-fn-ptt-hint" class="shell-compose-voice-hint hidden">
           Shift: удерживай для записи. С sidecar — глобально; без sidecar — когда окно Shell в фокусе (не в поле ввода).
         </p>
+        </div>
       </section>
 
       <section class="shell-tools-panel" id="shell-voice-panel">
@@ -1465,6 +1470,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script src="/shell/shell.js?v=141" type="module"></script>
+    <script src="/shell/shell.js?v=142" type="module"></script>
   </body>
 </html>

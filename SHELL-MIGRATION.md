@@ -44,11 +44,11 @@
 | 38 | Сессия | Throttled render стрима | ✅ |
 | 39 | Сессия | UI lock на время активной сессии | ✅ |
 | 50 | SSE | Явный reconnect при возврате на вкладку | ✅ |
-| 40 | Layout | Адаптация к клавиатуре (visualViewport, dock) | ❌ |
-| 41 | Layout | Dismiss клавиатуры по тапу вне поля | ❌ |
-| 42 | Layout | Однострочный compose-dock | ❌ |
-| 43 | Layout | Кнопка камеры в compose (stub) | ❌ |
-| 44 | Layout | Embed-режим CSS для iframe | ⚠️ (shell-embed есть) |
+| 40 | Layout | Адаптация к клавиатуре (visualViewport, dock) | ✅ |
+| 41 | Layout | Dismiss клавиатуры по тапу вне поля | ✅ |
+| 42 | Layout | Однострочный compose-dock | ❌ (не нужен) |
+| 43 | Layout | Кнопка камеры в compose (stub) | ❌ (не нужен) |
+| 44 | Layout | Embed-режим CSS для iframe | ✅ |
 | 35 | UI | Mobile-theme / cosmic background | ❌ |
 | 45 | UI | Диалог справки «?» | ❌ |
 | 46 | UI | Упрощённые настройки в modal | ⚠️ (desktop — полная панель) |
@@ -126,6 +126,7 @@ Backend: `local` / `server` (disabled)
 | `public/shell/shell-audio-unlock.js` | AudioContext unlock iOS |
 | `public/shell/shell-tts-mobile.js` | truncate, error hints |
 | `public/shell/shell-browser-tts.js` | Safari speechSynthesis + таймауты |
+| `public/shell/shell-compose-layout.js` | visualViewport, keyboard dismiss, mobile dock |
 | `public/shell/shell-voice.js` | tap-микрофон, confirm, wake lock |
 | `public/shell/shell-pwa.js` | PWA banner, standalone |
 | `public/shell/manifest.webmanifest` | Web app manifest |
@@ -138,7 +139,7 @@ Backend: `local` / `server` (disabled)
 
 1. **Фаза 1 — Диалог:** #1–11, #48–49  
 2. **Фаза 2 — Голос:** #12–19 ✅  
-3. **Фаза 3 — TTS + mobile adapters:** #20–24 ✅ · #25–29 ✅ · #40–44  
+3. **Фаза 3 — TTS + mobile adapters:** #20–24 ✅ · #25–29 ✅ · #40–44 ✅  
 4. **Фаза 4 — Сессия / SSE:** #36–39, #50 ✅  
 5. **Фаза 5 — Контекст CMS:** D1–D5  
 6. **Фаза 6 — Deprecate:** `/shell/mobile/`, вкладка Shell Mobile в CMS  

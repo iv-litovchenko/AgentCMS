@@ -27,6 +27,7 @@ import {
   warmUpMicrophone
 } from "/shell/shell-permissions.js?v=1";
 import { createShellDialog } from "/shell/shell-dialog.js?v=1";
+import { initShellComposeLayout } from "/shell/shell-compose-layout.js?v=1";
 import {
   createShellTapVoice,
   createVoiceConfirmDialog,
@@ -523,6 +524,7 @@ const nodes = {
   replyPanel: document.getElementById("shell-reply-panel"),
   dialogScroll: document.getElementById("shell-dialog-scroll"),
   composePanel: document.getElementById("shell-compose-panel"),
+  composeDock: document.getElementById("shell-compose-dock"),
   messageQueue: document.getElementById("shell-message-queue"),
   messageQueueActive: document.getElementById("shell-message-queue-active"),
   messageQueueActiveText: document.getElementById("shell-message-queue-active-text"),
@@ -2686,6 +2688,8 @@ async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
     nodes.message.value = "";
     updateSendButtonLabel();
     void clearComposeDraft();
+    nodes.message.blur();
+    composeLayout?.resetViewport?.();
   }
 
   if (state.messagePipelineBusy) {
@@ -3863,6 +3867,7 @@ function bindMicPermissionsUi(permissionApi) {
 let shellTapVoice = null;
 let showVoiceConfirmDialog = null;
 let shellKeepAwake = null;
+let composeLayout = null;
 
 function renderWaitingPhrase() {
   renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
@@ -4456,6 +4461,10 @@ async function boot() {
   updateTtsDownloadUi();
   setupSpeechRecognition();
   shellKeepAwake = initShellKeepAwake(state, { getEnabled: readKeepAwakeSetting });
+  composeLayout = initShellComposeLayout({
+    nodes,
+    getSessionUiLocked: () => state.sessionUiLocked
+  });
   setupPttKeyboard();
   startClock();
   window.addEventListener("online", renderHeroLinkChip);

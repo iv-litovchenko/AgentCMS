@@ -13,6 +13,8 @@
   --speak: #58c4ff;
   --shell-panel-inset-x: 14px;
   --shell-panel-inset-y: 12px;
+  --vv-keyboard: 0px;
+  --shell-compose-dock-height: 96px;
 }
 
 * {
@@ -3708,6 +3710,39 @@ body.shell-embed .shell-version {
     padding: 8px;
   }
 
+  body.shell-layout-mobile .shell-app {
+    width: 100%;
+    min-height: 100dvh;
+  }
+
+  body.shell-layout-mobile .shell-main-view {
+    flex: 1;
+    min-height: 0;
+  }
+
+  body.shell-layout-mobile .shell-compose-input-wrap .shell-textarea {
+    font-size: 16px;
+  }
+
+  body.shell-keyboard-open.shell-layout-mobile #shell-compose-dock {
+    position: fixed;
+    left: 50%;
+    z-index: 120;
+    width: min(calc(100vw - 16px), 480px);
+    transform: translateX(-50%);
+    bottom: calc(var(--vv-keyboard, 0px) + max(6px, env(safe-area-inset-bottom)));
+    padding: 8px 10px max(8px, env(safe-area-inset-bottom));
+    border-radius: 14px 14px 0 0;
+    background: rgba(7, 8, 18, 0.96);
+    border: 1px solid rgba(122, 108, 255, 0.28);
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+  }
+
+  body.shell-keyboard-open.shell-layout-mobile .shell-reply-panel .shell-dialog-scroll,
+  body.shell-keyboard-open.shell-layout-mobile .shell-main-view {
+    padding-bottom: calc(var(--shell-compose-dock-height, 120px) + 12px);
+  }
+
   .shell-compose-actions {
     gap: 6px;
   }
@@ -3731,4 +3766,54 @@ body.shell-embed .shell-version {
   .shell-compose-panel .shell-compose-actions .shell-btn--primary {
     flex: 1 1 auto;
   }
+}
+
+/* #44 — embed: flex column, scroll в диалоге, dock внизу */
+body.shell-embed .shell-main-view {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.shell-embed .shell-reply-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body.shell-embed .shell-dialog-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.shell-embed .shell-compose-panel {
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+body.shell-embed.shell-keyboard-open .shell-compose-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 120;
+  width: auto;
+  transform: none;
+  bottom: calc(var(--vv-keyboard, 0px) + env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  border-radius: 12px 12px 0 0;
+  background: rgba(7, 8, 18, 0.96);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.4);
+}
+
+body.shell-embed.shell-keyboard-open .shell-dialog-scroll {
+  padding-bottom: calc(var(--shell-compose-dock-height, 88px) + 8px);
+}
+
+.shell-compose-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
