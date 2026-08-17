@@ -474,11 +474,24 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   margin:0;font-size:13px;line-height:1.55;color:rgba(148,163,184,.95)
 }
 .folder-game-play{
+  position:relative;overflow:hidden;
   max-width:720px;margin:0 auto;padding:24px 22px 22px;border-radius:24px;
-  background:linear-gradient(165deg,rgba(15,23,42,.82),rgba(30,41,82,.55));
   border:1px solid rgba(147,197,253,.2);
-  box-shadow:0 24px 56px rgba(2,6,23,.45),inset 0 1px 0 rgba(255,255,255,.05)
+  box-shadow:0 24px 56px rgba(2,6,23,.45),inset 0 1px 0 rgba(255,255,255,.05);
+  background:#0f172a
 }
+.folder-game-play:before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:url("background-folder.png") left center/cover no-repeat;
+  opacity:1
+}
+.folder-game-play:after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:
+    linear-gradient(90deg,rgba(15,23,42,.04) 0%,rgba(15,23,42,.28) 42%,rgba(7,11,20,.52) 100%),
+    linear-gradient(180deg,rgba(7,11,20,.18) 0%,transparent 24%,transparent 76%,rgba(7,11,20,.28) 100%)
+}
+.folder-game-play > *{position:relative;z-index:1}
 .folder-game-play-head{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
   margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid rgba(148,163,184,.14)
@@ -496,13 +509,14 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 .folder-game-msg--you{
   align-self:flex-end;color:#e0f2fe;
-  background:linear-gradient(135deg,rgba(59,130,246,.35),rgba(99,102,241,.28));
-  border:1px solid rgba(147,197,253,.25);border-bottom-right-radius:6px
+  background:linear-gradient(135deg,rgba(59,130,246,.62),rgba(99,102,241,.52));
+  border:1px solid rgba(147,197,253,.32);border-bottom-right-radius:6px;
+  backdrop-filter:blur(8px)
 }
 .folder-game-msg--agent{
   align-self:flex-start;color:#ecfdf5;
-  background:rgba(255,255,255,.05);border:1px solid rgba(148,163,184,.16);
-  border-bottom-left-radius:6px
+  background:rgba(15,23,42,.72);border:1px solid rgba(148,163,184,.22);
+  border-bottom-left-radius:6px;backdrop-filter:blur(8px)
 }
 .folder-game-msg--agent strong{color:#6ee7b7;font-weight:700}
 .folder-game-msg--agent em{
@@ -510,7 +524,8 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 .folder-game-input{
   display:flex;align-items:center;gap:10px;margin-top:18px;padding:10px 12px;
-  border-radius:14px;background:rgba(2,6,23,.45);border:1px solid rgba(148,163,184,.16)
+  border-radius:14px;background:rgba(2,6,23,.72);border:1px solid rgba(148,163,184,.2);
+  backdrop-filter:blur(8px)
 }
 .folder-game-input p{
   flex:1;margin:0;font-size:13px;color:rgba(148,163,184,.85)
