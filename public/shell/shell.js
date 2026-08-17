@@ -10,6 +10,7 @@ import { createShellTtsTabCoordinator } from "/shell/shell-tts-tab.js?v=1";
 import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=5";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
 import { getShellSurfacePayload, initShellSurfaceSwitcher } from "/shell/shell-surface.js?v=2";
+import { initShellOrientationChip } from "/shell/shell-device-chips.js?v=1";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
@@ -88,6 +89,7 @@ const outboundQueue = [];
 
 const state = {
   agentId: localStorage.getItem(SHELL_AGENT_KEY) || "",
+  agentLabel: "",
   agentRoot: "",
   settingsFile: "",
   settings: null,
@@ -492,6 +494,10 @@ const nodes = {
   linkChipDot: document.getElementById("shell-link-chip-dot"),
   linkChipLabel: document.getElementById("shell-link-chip-label"),
   linkChipOpen: document.getElementById("shell-link-chip-open"),
+  agentChip: document.getElementById("shell-agent-chip"),
+  serverChip: document.getElementById("shell-server-chip"),
+  orientChip: document.getElementById("shell-orient-chip"),
+  orientValue: document.getElementById("shell-orient-value"),
   meta: document.getElementById("shell-meta"),
   pulse: document.getElementById("shell-pulse"),
   lastReply: document.getElementById("shell-last-reply"),
@@ -607,6 +613,40 @@ const ROUTE_CHIP_LABELS = {
   cms: "CMS"
 };
 
+function renderAgentChip() {
+  if (!nodes.agentChip) return;
+  const label = state.agentLabel || state.agentId || "—";
+  nodes.agentChip.textContent = label;
+  nodes.agentChip.title = state.agentId
+    ? `Workspace · agent=${state.agentId}`
+    : "Workspace CMS";
+}
+
+function resolveShellServerConnectionState() {
+  const online = navigator.onLine !== false;
+  if (!online) return "offline";
+  if (!state.agentId || typeof EventSource === "undefined") return "connecting";
+  const readyState = state.eventSource?.readyState;
+  if (readyState === EventSource.OPEN) return "live";
+  if (readyState === EventSource.CLOSED) return "error";
+  return "connecting";
+}
+
+function renderServerChip() {
+  if (!nodes.serverChip) return;
+  const host = window.location.host || "localhost";
+  nodes.serverChip.textContent = host;
+  const conn = resolveShellServerConnectionState();
+  nodes.serverChip.dataset.state = conn;
+  const titles = {
+    live: `Live · ${host}`,
+    error: `Обрыв SSE · ${host}`,
+    offline: "Нет сети",
+    connecting: `Подключение… · ${host}`
+  };
+  nodes.serverChip.title = titles[conn] || titles.connecting;
+}
+
 function renderHeroLinkChip() {
   if (!nodes.linkChip || !nodes.linkChipDot || !nodes.linkChipLabel) return;
   const target = state.settings?.messageTarget || nodes.messageTarget?.value || "cms";
@@ -651,6 +691,7 @@ function renderHeroLinkChip() {
     nodes.linkChipOpen.classList.toggle("hidden", !usesQwen);
     nodes.linkChipOpen.title = usesQwen ? "Открыть QwenPaw" : "";
   }
+  renderServerChip();
 }
 
 function renderClock() {
@@ -2286,6 +2327,7 @@ function applyStatusPayload(payload) {
   if (payload?.settingsFile) state.settingsFile = payload.settingsFile;
   if (payload?.agentRoot) state.agentRoot = payload.agentRoot;
   updateTtsSaveAgentHint(payload);
+  renderAgentChip();
   if (payload?.settings) applySettings(payload.settings);
   if (payload?.state) {
     onShellPhaseChange(payload.state);
@@ -2338,6 +2380,9 @@ async function resolveShellAgent() {
     state.agentId = nextId;
     localStorage.setItem(SHELL_AGENT_KEY, nextId);
   }
+  const agent = selectable.find((entry) => entry.id === state.agentId);
+  state.agentLabel = agent?.name || state.agentId || "";
+  renderAgentChip();
 }
 
 async function refreshStatus() {
@@ -3411,11 +3456,13 @@ function connectStream() {
     state.eventSource = null;
   }
   if (!state.agentId || typeof EventSource === "undefined") {
+    renderServerChip();
     return;
   }
 
   const source = new EventSource(apiUrl("/api/shell/stream"));
   state.eventSource = source;
+  renderServerChip();
   source.onopen = () => renderHeroLinkChip();
   source.onerror = () => renderHeroLinkChip();
 
@@ -3972,6 +4019,12 @@ async function boot() {
     document.body.classList.add("shell-embed");
   }
   initShellSurfaceSwitcher();
+  initShellOrientationChip({
+    button: nodes.orientChip,
+    valueEl: nodes.orientValue
+  });
+  renderAgentChip();
+  renderServerChip();
   ttsPlayer = createShellTtsPlayer({ apiFetch, getTtsSettings: collectTtsRuntimeSettings });
   ttsTabCoordinator = createShellTtsTabCoordinator({
     onYieldSpeech: (reason) => yieldLocalTtsPlayback(reason)
