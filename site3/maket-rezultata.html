@@ -386,6 +386,142 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 }
 .overview-figure img{display:block;width:100%;height:auto;vertical-align:middle}
 
+/* Folder game — one folder as DB + «Где · что · когда» */
+.folder-game-section{
+  scroll-margin-top:calc(var(--cosmos-dock-h, 72px) + 16px);
+  padding:72px 0 80px;position:relative;overflow:hidden;
+  background:linear-gradient(160deg,#0c1222 0%,#1a1040 32%,#0f2847 68%,#0a1628 100%);
+  border-bottom:1px solid rgba(148,163,184,.1)
+}
+.folder-game-section:before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 52% 42% at 18% 24%,rgba(124,92,255,.34),transparent 58%),
+    radial-gradient(ellipse 48% 38% at 82% 18%,rgba(56,189,248,.22),transparent 55%),
+    radial-gradient(ellipse 44% 36% at 50% 92%,rgba(251,191,36,.16),transparent 62%)
+}
+.folder-game-bg{
+  position:absolute;inset:0;pointer-events:none;opacity:.22;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='%2393c5fd' fill-opacity='.08'%3E%3Cpath d='M18 34h34l8 8h42v48H18z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size:120px 120px;
+  mask-image:radial-gradient(ellipse 85% 75% at 50% 45%,#000 15%,transparent 78%)
+}
+.folder-game-grid{
+  position:absolute;inset:0;pointer-events:none;opacity:.28;
+  background-image:
+    linear-gradient(rgba(147,197,253,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(147,197,253,.06) 1px,transparent 1px);
+  background-size:40px 40px;
+  mask-image:radial-gradient(ellipse 90% 80% at 50% 50%,#000 10%,transparent 72%)
+}
+.folder-game-section .container{position:relative;z-index:1}
+.folder-game-hero{
+  text-align:center;max-width:760px;margin:0 auto 32px;padding:0 8px
+}
+.folder-game-kicker{
+  display:inline-flex;align-items:center;gap:8px;margin:0 0 20px;
+  font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:#c4b5fd;padding:8px 16px;border-radius:999px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(167,139,250,.28)
+}
+.folder-game-hero h2{
+  margin:0 0 18px;font-size:clamp(26px,4vw,40px);line-height:1.18;
+  letter-spacing:-.55px;font-weight:800;color:#f8fafc
+}
+.folder-game-hero h2 em{
+  font-style:normal;
+  background:linear-gradient(90deg,#93c5fd 0%,#c4b5fd 50%,#fcd34d 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
+}
+.folder-game-question{
+  margin:0;font-size:clamp(17px,2.6vw,22px);line-height:1.45;font-weight:650;
+  color:rgba(226,232,240,.9)
+}
+.folder-game-question em{
+  font-style:normal;font-weight:800;
+  background:linear-gradient(90deg,#6ee7b7,#fde68a);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
+}
+.folder-game-pitch{
+  max-width:62ch;margin:0 auto 36px;text-align:center;
+  font-size:clamp(15px,2.1vw,18px);line-height:1.65;color:rgba(203,213,225,.9)
+}
+.folder-game-pitch strong{
+  color:#fde68a;font-weight:800;white-space:nowrap
+}
+.folder-game-cards{
+  display:grid;gap:16px;max-width:980px;margin:0 auto 32px
+}
+@media(min-width:760px){.folder-game-cards{grid-template-columns:repeat(3,1fr)}}
+.folder-game-card{
+  padding:22px 20px 20px;border-radius:20px;text-align:center;
+  background:linear-gradient(165deg,rgba(30,41,82,.52),rgba(15,23,42,.72));
+  border:1px solid rgba(148,163,184,.18);
+  box-shadow:0 16px 40px rgba(2,6,23,.38),inset 0 1px 0 rgba(255,255,255,.06)
+}
+.folder-game-card-ico{
+  width:52px;height:52px;margin:0 auto 14px;border-radius:16px;
+  display:grid;place-items:center;font-size:26px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(148,163,184,.16)
+}
+.folder-game-card:nth-child(1) .folder-game-card-ico{background:rgba(124,92,255,.14);border-color:rgba(167,139,250,.28)}
+.folder-game-card:nth-child(2) .folder-game-card-ico{background:rgba(56,189,248,.12);border-color:rgba(125,211,252,.28)}
+.folder-game-card:nth-child(3) .folder-game-card-ico{background:rgba(251,191,36,.12);border-color:rgba(253,224,71,.28)}
+.folder-game-card h3{
+  margin:0 0 10px;font-size:16px;font-weight:800;letter-spacing:-.2px;color:#f1f5f9
+}
+.folder-game-card p{
+  margin:0;font-size:13px;line-height:1.55;color:rgba(148,163,184,.95)
+}
+.folder-game-play{
+  max-width:720px;margin:0 auto;padding:24px 22px 22px;border-radius:24px;
+  background:linear-gradient(165deg,rgba(15,23,42,.82),rgba(30,41,82,.55));
+  border:1px solid rgba(147,197,253,.2);
+  box-shadow:0 24px 56px rgba(2,6,23,.45),inset 0 1px 0 rgba(255,255,255,.05)
+}
+.folder-game-play-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid rgba(148,163,184,.14)
+}
+.folder-game-play-head p{
+  margin:0;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#93c5fd
+}
+.folder-game-play-head span{
+  font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;
+  color:#fde68a;background:rgba(251,191,36,.12);border:1px solid rgba(253,224,71,.25)
+}
+.folder-game-chat{display:flex;flex-direction:column;gap:12px}
+.folder-game-msg{
+  max-width:92%;padding:12px 14px;border-radius:16px;font-size:14px;line-height:1.5
+}
+.folder-game-msg--you{
+  align-self:flex-end;color:#e0f2fe;
+  background:linear-gradient(135deg,rgba(59,130,246,.35),rgba(99,102,241,.28));
+  border:1px solid rgba(147,197,253,.25);border-bottom-right-radius:6px
+}
+.folder-game-msg--agent{
+  align-self:flex-start;color:#ecfdf5;
+  background:rgba(255,255,255,.05);border:1px solid rgba(148,163,184,.16);
+  border-bottom-left-radius:6px
+}
+.folder-game-msg--agent strong{color:#6ee7b7;font-weight:700}
+.folder-game-msg--agent em{
+  display:block;margin-top:8px;font-style:normal;font-size:12px;color:rgba(148,163,184,.9)
+}
+.folder-game-input{
+  display:flex;align-items:center;gap:10px;margin-top:18px;padding:10px 12px;
+  border-radius:14px;background:rgba(2,6,23,.45);border:1px solid rgba(148,163,184,.16)
+}
+.folder-game-input p{
+  flex:1;margin:0;font-size:13px;color:rgba(148,163,184,.85)
+}
+.folder-game-input span{
+  flex:none;width:34px;height:34px;border-radius:50%;
+  display:grid;place-items:center;font-size:15px;
+  background:linear-gradient(135deg,#6366f1,#3978ff);
+  box-shadow:0 6px 16px rgba(57,120,255,.35)
+}
+
 .ui-screenshot-wrap{
   margin:20px 0 0;min-height:420px;padding:16px 16px 0;border-radius:20px;
   border:2px dashed #cfd8e6;background:linear-gradient(180deg,#f8fafc 0%,#eef2f7 100%);
@@ -2454,6 +2590,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
       <nav class="cosmos-orbit-nav cosmos-orbit-nav--dock" aria-label="Разделы">
         <div class="cosmos-orbit-track" role="list">
         <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="hero-band" onclick="jump('hero-band',this)" title="Введение"><span class="cosmos-bubble-emoji">📖</span></button><span class="cosmos-bubble-label">Введение</span></div>
+          <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="folder-game" onclick="jump('folder-game',this)" title="Игра с данными"><span class="cosmos-bubble-emoji">🎮</span></button><span class="cosmos-bubble-label">Игра</span></div>
           <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="problem" onclick="jump('problem',this)" title="О проекте"><span class="cosmos-bubble-emoji">📦</span></button><span class="cosmos-bubble-label">О проекте</span></div>
           <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="audience" onclick="jump('audience',this)" title="Для кого"><span class="cosmos-bubble-emoji">👥</span></button><span class="cosmos-bubble-label">Для кого</span></div>
           <div class="cosmos-orbit-item" role="listitem"><button class="cosmos-bubble chip" type="button" data-target="life-graph" onclick="jump('life-graph',this)" title="Цифровая жизнь"><span class="cosmos-bubble-emoji">🌐</span></button><span class="cosmos-bubble-label">Жизнь</span></div>
@@ -2568,6 +2705,65 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
       <figure class="overview-figure">
         <img src="agent-cms-overview.png" width="1920" height="1080" alt="Agent CMS — общая память: человек и агент вместе через MCP, области, темы, слоты, записи и поля" loading="lazy">
       </figure>
+    </div>
+  </section>
+
+  <section class="folder-game-section" id="folder-game" aria-label="Папка как база знаний и игра с данными">
+    <div class="folder-game-bg" aria-hidden="true"></div>
+    <div class="folder-game-grid" aria-hidden="true"></div>
+    <div class="container">
+      <div class="folder-game-hero">
+        <p class="folder-game-kicker"><span aria-hidden="true">🎮</span> одна папка · живые данные</p>
+        <h2>Как <em>одна папка</em> становится вашей базой данных и базой знаний?</h2>
+        <p class="folder-game-question">И как превратить работу с файлами на компьютере в <em>увлекательную игру</em>?</p>
+      </div>
+
+      <p class="folder-game-pitch">Общайтесь с файлами, текстами и заметками обычным языком — голосом или текстом. Agent CMS превращает ваши цифровые данные в игру <strong>«Где · что · когда»</strong>: вы спрашиваете — агент находит, связывает и отвечает из вашего же хранилища.</p>
+
+      <div class="folder-game-cards" aria-label="Три идеи">
+        <article class="folder-game-card">
+          <div class="folder-game-card-ico" aria-hidden="true">📁</div>
+          <h3>Одна папка — вся память</h3>
+          <p>Workspace на диске: области, темы, записи и поля. Не отдельная БД — обычные файлы, но с единой структурой, которую понимаете вы и агент.</p>
+        </article>
+        <article class="folder-game-card">
+          <div class="folder-game-card-ico" aria-hidden="true">🗣️</div>
+          <h3>Естественный язык</h3>
+          <p>«Где договор?», «Что мы решили на прошлой неделе?», «Когда последний урок?» — голосом в Shell или текстом в чате, без пути к файлу.</p>
+        </article>
+        <article class="folder-game-card">
+          <div class="folder-game-card-ico" aria-hidden="true">🎯</div>
+          <h3>Игра «Где · что · когда»</h3>
+          <p>Каждый вопрос — раунд: агент ищет по вашему дереву, вспоминает контекст и возвращает ответ с местом, сутью и временем.</p>
+        </article>
+      </div>
+
+      <div class="folder-game-play" aria-label="Пример игры с данными">
+        <div class="folder-game-play-head">
+          <p>🎙 диалог с хранилищем</p>
+          <span>раунд · где · что · когда</span>
+        </div>
+        <div class="folder-game-chat">
+          <div class="folder-game-msg folder-game-msg--you">Где договор со строителями и когда мы его подписали?</div>
+          <div class="folder-game-msg folder-game-msg--agent">
+            <strong>Где:</strong> Стройка → documents → dogovor-2024.pdf<br>
+            <strong>Что:</strong> ремонт фасада, срок до декабря<br>
+            <strong>Когда:</strong> подписан 12 марта, напоминание в main/
+            <em>📂 открыть в workspace · 🔗 связано с «Смета фасада»</em>
+          </div>
+          <div class="folder-game-msg folder-game-msg--you">А что там по Present Perfect — когда последний урок?</div>
+          <div class="folder-game-msg folder-game-msg--agent">
+            <strong>Где:</strong> Английский → main/ → урок 12<br>
+            <strong>Что:</strong> Present Perfect, упражнения 4–7<br>
+            <strong>Когда:</strong> вчера, прогресс записан агентом
+            <em>💬 продолжить урок · 📋 добавить в todo</em>
+          </div>
+        </div>
+        <div class="folder-game-input" aria-hidden="true">
+          <p>Спросите что угодно о своих файлах…</p>
+          <span>🎙</span>
+        </div>
+      </div>
     </div>
   </section>
 
