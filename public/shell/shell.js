@@ -18,16 +18,18 @@ import {
 import { createShellSession } from "/shell/shell-session.js?v=1";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
 import { getShellSurfacePayload, initShellSurfaceSwitcher } from "/shell/shell-surface.js?v=2";
-import { initShellOrientationChip, initShellLocationChip, getShellDeviceLocation, isShellLocationShareEnabled, refreshShellLocationForSend } from "/shell/shell-device-chips.js?v=2";
-import { initShellInstallBanner } from "/shell/shell-pwa.js?v=1";
+import { initShellOrientationChip, initShellLocationChip, getShellDeviceLocation, isShellLocationShareEnabled, refreshShellLocationForSend } from "/shell/shell-device-chips.js?v=3";
+import { initShellInstallBanner } from "/shell/shell-pwa.js?v=2";
 import {
   getShellHttpsUrl,
   initShellPermissions,
   shellPermissionIssue,
   warmUpMicrophone
 } from "/shell/shell-permissions.js?v=1";
-import { createShellDialog } from "/shell/shell-dialog.js?v=1";
+import { createShellDialog } from "/shell/shell-dialog.js?v=2";
 import { initShellComposeLayout } from "/shell/shell-compose-layout.js?v=1";
+import { migrateShellStorageFromMobile, SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
+import { initShellHelp } from "/shell/shell-help.js?v=1";
 import {
   createShellTapVoice,
   createVoiceConfirmDialog,
@@ -40,7 +42,7 @@ import {
   runHapticDemo,
   writeKeepAwakeSetting,
   writeVoiceConfirmSetting
-} from "/shell/shell-voice.js?v=2";
+} from "/shell/shell-voice.js?v=3";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
@@ -88,7 +90,6 @@ const VOICE_MODE_TITLES = {
   fn_button: "Shift (удерживать)"
 };
 
-const SHELL_AGENT_KEY = "agentcms.shellAgent.v1";
 const COMPOSE_DRAFT_SAVE_MS = 700;
 
 let composeDraftSavedText = null;
@@ -118,7 +119,7 @@ let lastTtsChunkRecording = null;
 const outboundQueue = [];
 
 const state = {
-  agentId: localStorage.getItem(SHELL_AGENT_KEY) || "",
+  agentId: localStorage.getItem(SHELL_STORAGE.agent) || "",
   agentLabel: "",
   agentRoot: "",
   settingsFile: "",
@@ -487,6 +488,10 @@ const nodes = {
   micDialogClose: document.getElementById("shell-mic-dialog-close"),
   micDialogCheck: document.getElementById("shell-mic-dialog-check"),
   micHelpLink: document.getElementById("shell-mic-help-link"),
+  helpBtn: document.getElementById("shell-help-btn"),
+  helpDialog: document.getElementById("shell-help-dialog"),
+  helpClose: document.getElementById("shell-help-close"),
+  helpMicLink: document.getElementById("shell-help-mic-link"),
   voiceConfirm: document.getElementById("shell-voice-confirm"),
   voiceConfirmDialog: document.getElementById("shell-voice-confirm-dialog"),
   voiceConfirmForm: document.getElementById("shell-voice-confirm-form"),
@@ -2221,7 +2226,7 @@ function cleanShellUrl() {
   const embedAgent = shellEmbedMode ? String(url.searchParams.get("agent") || "").trim() : "";
   if (embedAgent) {
     state.agentId = embedAgent;
-    localStorage.setItem(SHELL_AGENT_KEY, embedAgent);
+    localStorage.setItem(SHELL_STORAGE.agent, embedAgent);
   }
   if (!url.searchParams.has("agent")) return;
   if (shellEmbedMode) {
@@ -2491,7 +2496,7 @@ async function resolveShellAgent() {
 
   if (nextId) {
     state.agentId = nextId;
-    localStorage.setItem(SHELL_AGENT_KEY, nextId);
+    localStorage.setItem(SHELL_STORAGE.agent, nextId);
   }
   const agent = selectable.find((entry) => entry.id === state.agentId);
   state.agentLabel = agent?.name || state.agentId || "";
@@ -4403,6 +4408,7 @@ function bindUi() {
 
 async function boot() {
   cleanShellUrl();
+  migrateShellStorageFromMobile();
   if (shellEmbedMode) {
     document.body.classList.add("shell-embed");
   }
@@ -4418,6 +4424,13 @@ async function boot() {
     micDialog: nodes.micDialog
   });
   bindMicPermissionsUi(permissionApi);
+  initShellHelp({
+    helpBtn: nodes.helpBtn,
+    helpDialog: nodes.helpDialog,
+    helpClose: nodes.helpClose,
+    micHelpLink: nodes.helpMicLink,
+    onMicHelp: showMicPermissionDialog
+  });
   shellDialog.init();
   shellSession = createShellSession(state, {
     nodes,

@@ -1,6 +1,8 @@
 /** PWA helpers: standalone detection + «На экран Домой» banner. */
 
-const DEFAULT_DISMISS_KEY = "agentcms.shell.installDismiss.v1";
+import { SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
+
+const DEFAULT_DISMISS_KEY = SHELL_STORAGE.installDismiss;
 
 export function isStandalonePwa() {
   return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;

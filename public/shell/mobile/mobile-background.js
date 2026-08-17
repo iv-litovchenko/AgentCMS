@@ -1,12 +1,18 @@
-const BG_STORAGE_KEY = "agentcms.shellMobile.characterBg.v1";
-const LEGACY_BG_KEY = "agentcms.shellMobile.background.v1";
+import { MOBILE_STORAGE_LEGACY, SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
+
+const BG_STORAGE_KEY = SHELL_STORAGE.characterBg;
+const LEGACY_BG_KEY = MOBILE_STORAGE_LEGACY.characterBg;
+const LEGACY_BG_KEY_OLD = MOBILE_STORAGE_LEGACY.characterBgLegacy;
 
 export function normalizeCharacterBackdrop(value) {
   return value === "dark" ? "dark" : "wallpaper";
 }
 
 export function readStoredCharacterBackdrop() {
-  const stored = localStorage.getItem(BG_STORAGE_KEY) || localStorage.getItem(LEGACY_BG_KEY);
+  const stored =
+    localStorage.getItem(BG_STORAGE_KEY) ||
+    localStorage.getItem(LEGACY_BG_KEY) ||
+    localStorage.getItem(LEGACY_BG_KEY_OLD);
   return normalizeCharacterBackdrop(stored || "wallpaper");
 }
 

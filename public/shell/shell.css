@@ -195,6 +195,34 @@ body.shell-window-transparent {
   gap: 8px;
 }
 
+.shell-help-list strong {
+  color: var(--text);
+}
+
+.shell-help-diagram {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  overflow: auto;
+  white-space: pre;
+}
+
+.shell-dialog--wide {
+  max-width: min(92vw, 520px);
+}
+
+.shell-compose-bar--primary .shell-compose-camera-stub {
+  flex: 0 0 auto;
+  opacity: 0.45;
+}
+
+.shell-compose-bar--primary .shell-compose-camera-stub:disabled {
+  cursor: not-allowed;
+}
+
 .shell-dialog-actions {
   display: flex;
   flex-wrap: wrap;

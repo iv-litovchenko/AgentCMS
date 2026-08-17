@@ -17,12 +17,27 @@ import { initShellInstallBanner } from "/shell/shell-pwa.js?v=1";
 import { loadAgentSelectData, populateAgentSelect, getSelectableAgents } from "/shared/agent-select.js";
 import { unlockMobileAudio, isIosDevice } from "/shell/mobile/mobile-audio-unlock.js?v=3";
 import { speakBrowserTts } from "/shell/mobile/mobile-browser-tts.js?v=3";
+import {
+  migrateShellStorageFromMobile,
+  MOBILE_STORAGE_LEGACY,
+  SHELL_STORAGE
+} from "/shell/shell-storage-keys.js?v=1";
 
-const AGENT_KEY = "agentcms.shellAgent.mobile.v1";
-const VOICE_CONFIRM_KEY = "agentcms.shellMobile.voiceConfirm.v1";
-const INSTALL_DISMISS_KEY = "agentcms.shellMobile.installDismiss.v1";
-const HISTORY_KEY = "agentcms.shellMobile.history.v1";
-const CHAT_COLLAPSE_KEY = "agentcms.shellMobile.chatCollapsed.v1";
+const AGENT_KEY = SHELL_STORAGE.agent;
+const VOICE_CONFIRM_KEY = SHELL_STORAGE.voiceConfirm;
+const INSTALL_DISMISS_KEY = SHELL_STORAGE.installDismiss;
+const HISTORY_KEY = SHELL_STORAGE.history;
+const CHAT_COLLAPSE_KEY = SHELL_STORAGE.chatCollapsed;
+
+function readLegacyAgentId() {
+  return localStorage.getItem(MOBILE_STORAGE_LEGACY.agent) || "";
+}
+
+function readVoiceConfirmPref() {
+  const shell = localStorage.getItem(SHELL_STORAGE.voiceConfirm);
+  if (shell !== null) return shell !== "0";
+  return localStorage.getItem(MOBILE_STORAGE_LEGACY.voiceConfirm) !== "0";
+}
 const MAX_HISTORY = 12;
 const MIC_HINT_IDLE = "Нажмите микрофон — запись";
 const MIC_HINT_ACTIVE = "Нажмите ещё раз — стоп";
@@ -39,7 +54,7 @@ function isMobileEmbedMode() {
 const mobileEmbedMode = isMobileEmbedMode();
 
 const state = {
-  agentId: localStorage.getItem(AGENT_KEY) || "",
+  agentId: localStorage.getItem(AGENT_KEY) || readLegacyAgentId() || "",
   agentLabel: "",
   shellSettings: null,
   ttsEnabled: true,
@@ -51,7 +66,7 @@ const state = {
   speakMutex: null,
   spokenReplyIds: new Set(),
   displayedReplyIds: new Set(),
-  voiceConfirm: localStorage.getItem(VOICE_CONFIRM_KEY) !== "0",
+  voiceConfirm: readVoiceConfirmPref(),
   characterBackdrop: readStoredCharacterBackdrop(),
   client: null,
   serverTts: null,
@@ -1563,6 +1578,7 @@ function reconnect({ soft = false } = {}) {
 }
 
 async function init() {
+  migrateShellStorageFromMobile();
   const surfaceSwitcher = document.getElementById("shell-surface-switcher");
   if (surfaceSwitcher) {
     surfaceSwitcher.innerHTML = renderShellSurfaceSwitcherMarkup();

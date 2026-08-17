@@ -1,7 +1,9 @@
 /** Mobile-style dialog: history, collapse, copy/share, reconnect, errors. */
 
-const HISTORY_KEY = "agentcms.shell.history.v1";
-const CHAT_COLLAPSE_KEY = "agentcms.shell.chatCollapsed.v1";
+import { SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
+
+const HISTORY_KEY = SHELL_STORAGE.history;
+const CHAT_COLLAPSE_KEY = SHELL_STORAGE.chatCollapsed;
 const MAX_HISTORY = 12;
 const STREAM_PREVIEW_LEN = 120;
 

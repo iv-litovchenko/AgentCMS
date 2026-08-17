@@ -1,6 +1,8 @@
-const VOICE_CONFIRM_KEY = "agentcms.shell.voiceConfirm.v1";
-const VOICE_CONFIRM_MOBILE_KEY = "agentcms.shellMobile.voiceConfirm.v1";
-const KEEP_AWAKE_KEY = "agentcms.shell.keepAwake.v1";
+import { MOBILE_STORAGE_LEGACY, SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
+
+const VOICE_CONFIRM_KEY = SHELL_STORAGE.voiceConfirm;
+const VOICE_CONFIRM_MOBILE_KEY = MOBILE_STORAGE_LEGACY.voiceConfirm;
+const KEEP_AWAKE_KEY = SHELL_STORAGE.keepAwake;
 
 /** ~3s varied pattern: buzz · pause · buzz · … */
 const HAPTIC_DEMO_PATTERN = [120, 70, 180, 90, 240, 110, 80, 60, 320, 140, 100, 80, 420, 120, 520, 160, 680];
