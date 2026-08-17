@@ -1,5 +1,9 @@
 const VOICE_CONFIRM_KEY = "agentcms.shell.voiceConfirm.v1";
 const VOICE_CONFIRM_MOBILE_KEY = "agentcms.shellMobile.voiceConfirm.v1";
+const KEEP_AWAKE_KEY = "agentcms.shell.keepAwake.v1";
+
+/** ~3s varied pattern: buzz · pause · buzz · … */
+const HAPTIC_DEMO_PATTERN = [120, 70, 180, 90, 240, 110, 80, 60, 320, 140, 100, 80, 420, 120, 520, 160, 680];
 
 export function readVoiceConfirmSetting() {
   const shell = localStorage.getItem(VOICE_CONFIRM_KEY);
@@ -11,31 +15,124 @@ export function writeVoiceConfirmSetting(enabled) {
   localStorage.setItem(VOICE_CONFIRM_KEY, enabled ? "1" : "0");
 }
 
+export function hapticSupported() {
+  return typeof navigator.vibrate === "function";
+}
+
 export function hapticTap() {
+  if (!hapticSupported()) return false;
   try {
-    navigator.vibrate?.(12);
+    return Boolean(navigator.vibrate(12));
   } catch {
-    // ignore
+    return false;
   }
 }
 
-export async function acquireShellWakeLock(state) {
-  if (!state || !("wakeLock" in navigator)) return;
+export function runHapticDemo() {
+  if (!hapticSupported()) return false;
   try {
-    state.wakeLock = await navigator.wakeLock.request("screen");
+    navigator.vibrate(0);
+    return Boolean(navigator.vibrate(HAPTIC_DEMO_PATTERN));
   } catch {
-    state.wakeLock = null;
+    return false;
   }
 }
 
-export async function releaseShellWakeLock(state) {
+export function readKeepAwakeSetting() {
+  const stored = localStorage.getItem(KEEP_AWAKE_KEY);
+  if (stored !== null) return stored !== "0";
+  try {
+    return window.matchMedia("(pointer: coarse)").matches;
+  } catch {
+    return false;
+  }
+}
+
+export function writeKeepAwakeSetting(enabled) {
+  localStorage.setItem(KEEP_AWAKE_KEY, enabled ? "1" : "0");
+}
+
+function ensureWakeLockTags(state) {
+  if (!state.wakeLockTags) state.wakeLockTags = new Set();
+  return state.wakeLockTags;
+}
+
+export async function acquireShellWakeLock(state, tag = "session") {
+  if (!state || !("wakeLock" in navigator)) return false;
+  const tags = ensureWakeLockTags(state);
+  tags.add(tag);
+  if (state.wakeLock) return true;
+  try {
+    const sentinel = await navigator.wakeLock.request("screen");
+    state.wakeLock = sentinel;
+    sentinel.addEventListener("release", () => {
+      if (state.wakeLock === sentinel) state.wakeLock = null;
+    });
+    return true;
+  } catch {
+    tags.delete(tag);
+    return false;
+  }
+}
+
+export async function releaseShellWakeLock(state, tag = "session") {
   if (!state) return;
+  const tags = ensureWakeLockTags(state);
+  tags.delete(tag);
+  if (tags.size > 0) return;
   try {
     await state.wakeLock?.release();
   } catch {
     // ignore
   }
   state.wakeLock = null;
+}
+
+export function initShellKeepAwake(state, { getEnabled = readKeepAwakeSetting } = {}) {
+  if (!state || !("wakeLock" in navigator)) {
+    return { sync: () => {}, destroy: () => {} };
+  }
+
+  let armed = false;
+
+  const sync = async () => {
+    if (document.visibilityState !== "visible") {
+      await releaseShellWakeLock(state, "keep-awake");
+      return;
+    }
+    if (!getEnabled()) {
+      await releaseShellWakeLock(state, "keep-awake");
+      return;
+    }
+    await acquireShellWakeLock(state, "keep-awake");
+  };
+
+  const onVisibility = () => {
+    void sync();
+  };
+
+  const arm = () => {
+    if (armed) return;
+    armed = true;
+    document.removeEventListener("pointerdown", arm, true);
+    document.removeEventListener("keydown", arm, true);
+    void sync();
+  };
+
+  document.addEventListener("visibilitychange", onVisibility);
+  document.addEventListener("pointerdown", arm, true);
+  document.addEventListener("keydown", arm, true);
+  if (getEnabled() && document.visibilityState === "visible") void sync();
+
+  return {
+    sync,
+    destroy: () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("pointerdown", arm, true);
+      document.removeEventListener("keydown", arm, true);
+      void releaseShellWakeLock(state, "keep-awake");
+    }
+  };
 }
 
 export function createVoiceConfirmDialog(nodes) {
@@ -119,7 +216,7 @@ export function createShellTapVoice(deps) {
     deps.state.micTapHeld = false;
     deps.state.micActive = false;
     syncMicUi(false);
-    await releaseShellWakeLock(deps.state);
+    await releaseShellWakeLock(deps.state, "recording");
 
     const text = (finalText || deps.getLivePhrase?.() || "").trim();
     finalText = "";
@@ -168,7 +265,7 @@ export function createShellTapVoice(deps) {
       deps.state.micTapHeld = false;
       deps.state.micActive = false;
       syncMicUi(false);
-      void releaseShellWakeLock(deps.state);
+      void releaseShellWakeLock(deps.state, "recording");
 
       if (errorCode === "not-allowed") {
         deps.renderPhase("waiting", "Нет доступа к микрофону · Настройки → Safari → Микрофон");
@@ -205,7 +302,10 @@ export function createShellTapVoice(deps) {
       deps.renderPhase("disabled", "Голосовой ввод выключен");
       return false;
     }
-    if (deps.isMessageBusy?.()) return false;
+    if (deps.isMessageBusy?.()) {
+      deps.renderPhase("waiting", "Дождитесь ответа агента или нажмите ✕");
+      return false;
+    }
 
     if (deps.shellPermissionIssue?.()) {
       deps.renderPhase("waiting", `Safari не спрашивает микрофон по HTTP · ${deps.getShellHttpsUrl?.()}`);
@@ -227,7 +327,7 @@ export function createShellTapVoice(deps) {
     syncMicUi(true);
     deps.renderPhase("listening", "Запись…");
     deps.clearShellError?.();
-    void acquireShellWakeLock(deps.state);
+    void acquireShellWakeLock(deps.state, "recording");
 
     try {
       if (!deps.state.micWarmed) {
@@ -240,10 +340,16 @@ export function createShellTapVoice(deps) {
         micStarting = false;
         syncMicUi(false);
         deps.renderWaitingPhrase?.();
-        void releaseShellWakeLock(deps.state);
+        void releaseShellWakeLock(deps.state, "recording");
         return false;
       }
-      deps.recognition.start();
+      try {
+        deps.recognition.start();
+      } catch (error) {
+        const msg = String(error?.message || error?.name || "");
+        if (/already/i.test(msg) || error?.name === "InvalidStateError") return true;
+        throw error;
+      }
       return true;
     } catch (error) {
       micStarting = false;
@@ -251,7 +357,7 @@ export function createShellTapVoice(deps) {
       micTapHeld = false;
       deps.state.micTapHeld = false;
       syncMicUi(false);
-      void releaseShellWakeLock(deps.state);
+      void releaseShellWakeLock(deps.state, "recording");
       deps.state.micWarmed = false;
 
       if (error?.code === "insecure-context") {
@@ -305,7 +411,7 @@ export function createShellTapVoice(deps) {
     deps.state.micTapHeld = false;
     finalText = "";
     syncMicUi(false);
-    void releaseShellWakeLock(deps.state);
+    void releaseShellWakeLock(deps.state, "recording");
     if (deps.recognition) {
       try {
         deps.recognition.stop();

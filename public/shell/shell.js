@@ -23,10 +23,15 @@ import {
   createShellTapVoice,
   createVoiceConfirmDialog,
   hapticTap,
+  hapticSupported,
+  initShellKeepAwake,
   isBrowserTapVoiceMode,
+  readKeepAwakeSetting,
   readVoiceConfirmSetting,
+  runHapticDemo,
+  writeKeepAwakeSetting,
   writeVoiceConfirmSetting
-} from "/shell/shell-voice.js?v=1";
+} from "/shell/shell-voice.js?v=2";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
@@ -476,6 +481,8 @@ const nodes = {
   voiceRetry: document.getElementById("shell-voice-retry"),
   voiceCancel: document.getElementById("shell-voice-cancel"),
   heroCancelSend: document.getElementById("shell-hero-cancel-send"),
+  keepAwake: document.getElementById("shell-keep-awake"),
+  hapticTestBtn: document.getElementById("shell-haptic-test"),
   ttsControls: document.getElementById("shell-tts-controls"),
   ttsPauseBtn: document.getElementById("shell-tts-pause"),
   ttsResumeBtn: document.getElementById("shell-tts-resume"),
@@ -3670,6 +3677,7 @@ function bindMicPermissionsUi(permissionApi) {
 
 let shellTapVoice = null;
 let showVoiceConfirmDialog = null;
+let shellKeepAwake = null;
 
 function renderWaitingPhrase() {
   renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
@@ -3843,6 +3851,13 @@ function bindWindowSettingsUi() {
     onWindowFieldChange();
   });
   nodes.windowBackground?.addEventListener("change", onWindowFieldChange);
+  if (nodes.keepAwake) {
+    nodes.keepAwake.checked = readKeepAwakeSetting();
+    nodes.keepAwake.addEventListener("change", () => {
+      writeKeepAwakeSetting(nodes.keepAwake.checked);
+      shellKeepAwake?.sync();
+    });
+  }
   nodes.windowSave?.addEventListener("click", () => {
     void saveSettingsSection("window").catch((error) => renderPhase("waiting", error.message));
   });
@@ -4017,6 +4032,20 @@ function bindUi() {
       writeVoiceConfirmSetting(nodes.voiceConfirm.checked);
     });
   }
+  nodes.hapticTestBtn?.addEventListener("click", () => {
+    const btn = nodes.hapticTestBtn;
+    btn?.classList.add("is-busy");
+    window.setTimeout(() => btn?.classList.remove("is-busy"), 3200);
+    const ok = runHapticDemo();
+    if (!ok) {
+      btn?.classList.remove("is-busy");
+      window.alert(
+        hapticSupported()
+          ? "Вибрация не сработала."
+          : "navigator.vibrate недоступен в этом браузере (Safari на iPhone часто не поддерживает)."
+      );
+    }
+  });
   nodes.ttsSettingsToggle?.addEventListener("click", () => {
     const open = nodes.ttsSettingsPanel?.classList.contains("hidden");
     setTtsSettingsOpen(open);
@@ -4232,6 +4261,7 @@ async function boot() {
   bindWindowSettingsUi();
   updateTtsDownloadUi();
   setupSpeechRecognition();
+  shellKeepAwake = initShellKeepAwake(state, { getEnabled: readKeepAwakeSetting });
   setupPttKeyboard();
   startClock();
   window.addEventListener("online", renderHeroLinkChip);
