@@ -44,6 +44,7 @@ const DEFAULT_SETTINGS = {
   sttLang: "ru-RU",
   sttPrompt: "",
   ttsEnabled: true,
+  ttsPlaybackMode: "dialog",
   ttsEngine: "browser",
   ttsEdgeVoice: "ru-RU-SvetlanaNeural",
   ttsElevenlabsApiKey: "",
@@ -192,6 +193,7 @@ function normalizeSettings(raw) {
   merged.sttLang = String(merged.sttLang || "ru-RU").trim() || "ru-RU";
   merged.sttPrompt = String(merged.sttPrompt || "");
   merged.ttsEnabled = Boolean(merged.ttsEnabled);
+  merged.ttsPlaybackMode = merged.ttsPlaybackMode === "reading" ? "reading" : "dialog";
   merged.ttsPrompt = String(merged.ttsPrompt || "");
   merged.ttsRate = Math.min(2, Math.max(0.5, Number(merged.ttsRate) || 1));
   merged.ttsPitch = Math.min(2, Math.max(0, Number(merged.ttsPitch) || 1));

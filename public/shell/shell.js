@@ -30,6 +30,7 @@ import { createShellDialog } from "/shell/shell-dialog.js?v=3";
 import { initShellComposeLayout } from "/shell/shell-compose-layout.js?v=2";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
 import { initShellHelp } from "/shell/shell-help.js?v=1";
+import { initShellHints, updateTtsPlaybackHint } from "/shell/shell-hints.js?v=2";
 import { buildProactiveMessage, createShellProactive, DEFAULT_PROACTIVE_PROMPT } from "/shell/shell-proactive.js?v=3";
 import {
   buildComposeCameraMessage,
@@ -50,9 +51,28 @@ import {
 } from "/shell/shell-voice.js?v=3";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
+let ttsPlaybackModePersisting = false;
 
-/** Озвучка по мере печати (до маркера ::: VOICE-END :::). */
-const TTS_WAIT_FOR_COMPLETE_REPLY = false;
+/** dialog — озвучка по мере печати; reading — после полного ответа и маркера. */
+function getTtsPlaybackMode() {
+  const fromDom = nodes.ttsPlaybackMode?.value;
+  if (fromDom === "reading" || fromDom === "dialog") return fromDom;
+  const mode = String(state.settings?.ttsPlaybackMode || "dialog").trim();
+  return mode === "reading" ? "reading" : "dialog";
+}
+
+function syncTtsPlaybackModeUi(settings = state.settings) {
+  if (!nodes.ttsPlaybackMode || document.activeElement === nodes.ttsPlaybackMode || ttsPlaybackModePersisting) {
+    return;
+  }
+  const mode = settings?.ttsPlaybackMode === "reading" ? "reading" : "dialog";
+  nodes.ttsPlaybackMode.value = mode;
+  updateTtsPlaybackHint(mode);
+}
+
+function isReadingTtsMode() {
+  return getTtsPlaybackMode() === "reading";
+}
 
 const DEFAULT_TTS_PROMPT = `Сформируй ответ в следующем формате (строго, в таком порядке):
 
@@ -455,6 +475,7 @@ const nodes = {
   topicSearch: document.getElementById("shell-topic-search"),
   topicTree: document.getElementById("shell-topic-tree"),
   ttsEnabled: document.getElementById("shell-tts-enabled"),
+  ttsPlaybackMode: document.getElementById("shell-tts-playback-mode"),
   ttsSettingsToggle: document.getElementById("shell-tts-settings-toggle"),
   ttsSettingsPanel: document.getElementById("shell-tts-settings"),
   ttsPrompt: document.getElementById("shell-tts-prompt"),
@@ -1179,7 +1200,7 @@ function shouldSkipAssistantSpeech(message) {
 }
 
 function usesStreamingReplyTts() {
-  return !TTS_WAIT_FOR_COMPLETE_REPLY;
+  return !isReadingTtsMode();
 }
 
 function shouldPlayMessageTts(message = {}) {
@@ -1361,7 +1382,7 @@ function prepareTtsStreamChunk(text) {
 }
 
 function queueStreamSpeech(fullBody, { flush = false } = {}) {
-  if (TTS_WAIT_FOR_COMPLETE_REPLY) return;
+  if (isReadingTtsMode()) return;
   if (state.streamTtsVoiceEnded && !flush) return;
   if (!canPlayTts()) return;
   if (!state.settings?.ttsEnabled) return;
@@ -1532,7 +1553,7 @@ function finalizeAssistantStream(message) {
       if (fallback) parts.push(fallback);
     }
 
-    if (TTS_WAIT_FOR_COMPLETE_REPLY) {
+    if (isReadingTtsMode()) {
       state.streamTtsCursor = 0;
       state.streamTtsQueue = [];
       state.streamTtsVoiceEnded = false;
@@ -2722,6 +2743,7 @@ function applySettings(settings) {
   }
 
   nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
+  syncTtsPlaybackModeUi(settings);
   if (!settingsSave.isSectionDirty("tts")) {
     applyTtsSettingsUi(settings);
   }
@@ -3708,6 +3730,19 @@ async function persistTtsEnabled(enabled) {
   }
 }
 
+async function persistTtsPlaybackMode(mode) {
+  const next = mode === "reading" ? "reading" : "dialog";
+  if (state.settings) state.settings.ttsPlaybackMode = next;
+  ttsPlaybackModePersisting = true;
+  try {
+    await saveSettings({ ttsPlaybackMode: next });
+  } catch (error) {
+    renderPhase("waiting", error.message);
+  } finally {
+    ttsPlaybackModePersisting = false;
+  }
+}
+
 async function loadTtsCapabilities() {
   try {
     const data = await apiFetch("/api/shell/tts/capabilities");
@@ -3839,6 +3874,7 @@ async function refreshTtsEngineVoices(engine = getTtsEngine()) {
 }
 
 function applyTtsSettingsUi(settings) {
+  syncTtsPlaybackModeUi(settings);
   if (nodes.ttsPrompt && document.activeElement !== nodes.ttsPrompt) {
     nodes.ttsPrompt.value = settings.ttsPrompt || "";
   }
@@ -3889,6 +3925,7 @@ function collectOutboundMessageSettings() {
 
 function collectTtsFormPatch() {
   return {
+    ttsPlaybackMode: getTtsPlaybackMode(),
     ttsPrompt: nodes.ttsPrompt?.value || "",
     ttsEngine: nodes.ttsEngine?.value || "browser",
     ttsLang: nodes.ttsLang?.value || "ru-RU",
@@ -4924,6 +4961,12 @@ function bindUi() {
     if (!enabled) stopBrowserTts({ notifyServer: true });
     void persistTtsEnabled(enabled);
   });
+  nodes.ttsPlaybackMode?.addEventListener("change", () => {
+    const mode = nodes.ttsPlaybackMode.value === "reading" ? "reading" : "dialog";
+    if (state.settings) state.settings.ttsPlaybackMode = mode;
+    updateTtsPlaybackHint(mode);
+    void persistTtsPlaybackMode(mode);
+  });
   nodes.sttEnabled?.addEventListener("change", () => {
     let mode = nodes.voiceMode?.value || state.settings?.voiceInputMode || "browser";
     if (nodes.sttEnabled.checked) {
@@ -5180,6 +5223,7 @@ async function boot() {
     micHelpLink: nodes.helpMicLink,
     onMicHelp: showMicPermissionDialog
   });
+  initShellHints();
   shellDialog.init();
   shellSession = createShellSession(state, {
     nodes,

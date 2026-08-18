@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=158" />
+    <link rel="stylesheet" href="/shell/shell.css?v=161" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=3" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=1" />
     <script src="/project-version.js?v=1"></script>
@@ -1071,6 +1071,20 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <input id="shell-tts-enabled" type="checkbox" checked />
               <span>Голосовой вывод (TTS)</span>
             </label>
+            <span
+              class="shell-hint"
+              id="shell-tts-playback-hint"
+              data-hint="Диалог — озвучка по мере печати ответа (как живой разговор)."
+            >
+              <select
+                id="shell-tts-playback-mode"
+                class="shell-select shell-tts-playback-mode"
+                aria-label="Режим озвучки"
+              >
+                <option value="dialog" selected>Диалог</option>
+                <option value="reading">Чтение</option>
+              </select>
+            </span>
             <button
               type="button"
               class="shell-icon-btn shell-tts-settings-toggle"
@@ -1320,83 +1334,97 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <div class="shell-compose-dock-inner">
         <div class="shell-compose-field" id="shell-compose-field">
           <div class="shell-compose-options" role="group" aria-label="Параметры запроса">
+            <span class="shell-hint" data-hint="Рассуждения — показывать ход мыслей агента (chain-of-thought) в шагах активности. Скоро.">
             <button
               type="button"
               class="shell-compose-option"
               data-compose-option="reasoning"
               aria-pressed="false"
               disabled
-              title="Рассуждения — скоро"
+              aria-label="Рассуждения — показывать ход мыслей агента. Скоро."
             >
               <span class="shell-compose-option-ico" aria-hidden="true">🧠</span>
               <span class="shell-compose-option-label">Рассуждения</span>
             </button>
+            </span>
+            <span class="shell-hint" data-hint="Tools — разрешить агенту вызывать MCP-инструменты CMS (файлы, память, shell) в этом запросе. Скоро.">
             <button
               type="button"
               class="shell-compose-option"
               data-compose-option="tools"
               aria-pressed="false"
               disabled
-              title="Tools — скоро"
+              aria-label="Tools — MCP-инструменты CMS в запросе. Скоро."
             >
               <span class="shell-compose-option-ico" aria-hidden="true">🔧</span>
               <span class="shell-compose-option-label">Tools</span>
             </button>
+            </span>
+            <span class="shell-hint" data-hint="Vision — прикреплять кадр с камеры или снимок экрана к сообщению для агента. Скоро.">
             <button
               type="button"
               class="shell-compose-option"
               data-compose-option="vision"
               aria-pressed="false"
               disabled
-              title="Vision — скоро"
+              aria-label="Vision — камера и экран в запросе. Скоро."
             >
               <span class="shell-compose-option-ico" aria-hidden="true">👁</span>
               <span class="shell-compose-option-label">Vision</span>
             </button>
+            </span>
+            <span class="shell-hint" data-hint="Web — разрешить агенту искать в интернете и подмешивать свежие факты в ответ. Скоро.">
             <button
               type="button"
               class="shell-compose-option"
               data-compose-option="web"
               aria-pressed="false"
               disabled
-              title="Web / Search — скоро"
+              aria-label="Web — поиск в интернете. Скоро."
             >
               <span class="shell-compose-option-ico" aria-hidden="true">🔍</span>
               <span class="shell-compose-option-label">Web</span>
             </button>
+            </span>
+            <span class="shell-hint" data-hint="Memory — записывать и подтягивать долговременные заметки workspace в контекст запроса. Скоро.">
             <button
               type="button"
               class="shell-compose-option"
               data-compose-option="memory"
               aria-pressed="false"
               disabled
-              title="Memory — скоро"
+              aria-label="Memory — долговременная память workspace. Скоро."
             >
               <span class="shell-compose-option-ico" aria-hidden="true">💾</span>
               <span class="shell-compose-option-label">Memory</span>
             </button>
+            </span>
+            <span class="shell-hint" data-hint="Code — запуск кода в песочнице или computer control (вставка в активное поле). Скоро.">
             <button
               type="button"
               class="shell-compose-option"
               data-compose-option="code"
               aria-pressed="false"
               disabled
-              title="Code / Sandbox — скоро"
+              aria-label="Code — песочница и выполнение кода. Скоро."
             >
               <span class="shell-compose-option-ico" aria-hidden="true">⌨️</span>
               <span class="shell-compose-option-label">Code</span>
             </button>
+            </span>
+            <span class="shell-hint" data-hint="Recall — автоматически подмешивать релевантные факты, диалоги и воспоминания из CMS в запрос. Скоро.">
             <button
               type="button"
               class="shell-compose-option"
               data-compose-option="recall"
               aria-pressed="false"
               disabled
-              title="Подмешивать факты и воспоминания в запрос — скоро"
+              aria-label="Recall — релевантный контекст из CMS. Скоро."
             >
               <span class="shell-compose-option-ico" aria-hidden="true">✨</span>
               <span class="shell-compose-option-label">Recall</span>
             </button>
+            </span>
           </div>
           <div class="shell-compose-input-wrap">
             <textarea
@@ -1787,6 +1815,6 @@ CMS workspace (agent-cms-test)</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=12"></script>
-    <script src="/shell/shell.js?v=169" type="module"></script>
+    <script src="/shell/shell.js?v=171" type="module"></script>
   </body>
 </html>
