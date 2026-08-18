@@ -4,7 +4,7 @@ import {
   pickShellReply,
   unwrapAssistantMessage,
   unwrapShellState
-} from "/shell/shell-contract.js?v=1";
+} from "/shell/shell-contract.js?v=2";
 import { getShellClientId } from "/shell/shell-client-id.js?v=1";
 import { getShellSurfacePayload } from "/shell/shell-surface.js?v=2";
 
@@ -127,6 +127,10 @@ export class ShellClient {
     }
     if (type === SHELL_SSE.assistantDelta) {
       this.onStreamEvent({ type: "assistant_delta", delta: data });
+      return;
+    }
+    if (type === SHELL_SSE.agentActivity) {
+      this.onStreamEvent({ type: "agent_activity", activity: data });
       return;
     }
     if (type === SHELL_SSE.settings) {

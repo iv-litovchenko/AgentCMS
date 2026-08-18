@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=136" />
+    <link rel="stylesheet" href="/shell/shell.css?v=137" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=1" />
     <script type="importmap">
       {
@@ -926,7 +926,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
               class="shell-textarea shell-textarea--compact"
               rows="3"
               spellcheck="false"
-              placeholder="Инструкция для ответа: блок [tts] для озвучки, затем полный текст. Без [tts] — только экран, без озвучки. «Вставить заготовку» — шаблон."
+              placeholder="Инструкция для ответа: текст для голоса, затем ::: VOICE-END :::, затем полный текст. «Вставить заготовку» — шаблон."
             ></textarea>
           </label>
           <label class="shell-field shell-field--compact shell-tts-engine-field">
@@ -1050,6 +1050,10 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <div class="shell-reply-body" id="shell-last-reply">
             <div class="shell-reply-text" id="shell-last-reply-text">—</div>
             <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
+          </div>
+          <div class="shell-agent-activity hidden" id="shell-agent-activity" aria-live="polite">
+            <div class="shell-agent-activity-label">Шаги агента</div>
+            <ol class="shell-agent-activity-list" id="shell-agent-activity-list"></ol>
           </div>
         </div>
         <p class="shell-dialog-error hidden" id="shell-dialog-error" role="alert"></p>
@@ -1524,6 +1528,6 @@ CMS workspace (agent-cms-test)</pre>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script src="/shell/shell.js?v=144" type="module"></script>
+    <script src="/shell/shell.js?v=156" type="module"></script>
   </body>
 </html>

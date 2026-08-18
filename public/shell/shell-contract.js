@@ -18,6 +18,7 @@ export const SHELL_SSE = {
   state: "state",
   assistantMessage: "assistant_message",
   assistantDelta: "assistant_delta",
+  agentActivity: "agent_activity",
   settings: "settings",
   error: "error"
 };

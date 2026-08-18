@@ -44,6 +44,102 @@ function extractFromContentParts(content) {
   return chunks.join("\n").trim();
 }
 
+function extractToolName(event) {
+  const dataObj = event?.data && typeof event.data === "object" ? event.data : null;
+  const direct = [
+    dataObj?.name,
+    event?.name,
+    event?.tool_name,
+    event?.tool?.name,
+    event?.function?.name,
+    event?.function_call?.name,
+    event?.call?.name
+  ];
+  for (const value of direct) {
+    const name = String(value || "").trim();
+    if (name && name !== "assistant") return name;
+  }
+  for (const part of Array.isArray(event?.content) ? event.content : []) {
+    const name = String(part?.name || part?.tool_name || part?.function?.name || "").trim();
+    if (name) return name;
+    const type = String(part?.type || "").toLowerCase();
+    if ((type.includes("tool") || type.includes("function")) && part?.id) {
+      return String(part.id).trim();
+    }
+  }
+  return "";
+}
+
+function extractActivityFromEvent(event) {
+  if (!event || typeof event !== "object") return null;
+
+  const object = String(event.object || "");
+  const status = String(event.status || "").toLowerCase();
+  const type = String(event.type || "").toLowerCase();
+
+  if (object === "response") {
+    if (status === "created") {
+      return { kind: "run", phase: "start", priority: 10, phrase: "Запускаю…" };
+    }
+    if (status === "in_progress") {
+      return { kind: "run", phase: "progress", priority: 20, phrase: "Работаю…" };
+    }
+    if (status === "failed") {
+      return { kind: "run", phase: "failed", priority: 60, phrase: "Ошибка агента" };
+    }
+    return null;
+  }
+
+  if (object === "message") {
+    if (type === "reasoning") {
+      return { kind: "reasoning", phase: "start", priority: 30, phrase: "Размышляю…" };
+    }
+    if (
+      type === "plugin_call" ||
+      type === "function_call" ||
+      type === "tool_call" ||
+      type === "tool_use" ||
+      type === "function"
+    ) {
+      const tool = extractToolName(event);
+      return {
+        kind: "tool",
+        phase: "start",
+        priority: 40,
+        tool: tool || "tool",
+        phrase: tool ? `🔧 ${tool}…` : "🔧 Инструмент…"
+      };
+    }
+    if (
+      type === "plugin_call_output" ||
+      type === "function_call_output" ||
+      type === "tool_result" ||
+      type === "tool_output"
+    ) {
+      const tool = extractToolName(event);
+      return { kind: "tool", phase: "end", priority: 35, tool: tool || undefined };
+    }
+  }
+
+  if (object === "content") {
+    if (
+      type === "data" ||
+      type === "tool_use" ||
+      type === "function_call" ||
+      type === "tool_call" ||
+      type === "function" ||
+      type === "mcp_call"
+    ) {
+      const tool = extractToolName(event);
+      if (tool) {
+        return { kind: "tool", phase: "start", priority: 40, tool, phrase: `🔧 ${tool}…` };
+      }
+    }
+  }
+
+  return null;
+}
+
 function parseSseBuffer(buffer) {
   const events = [];
   const blocks = buffer.split("\n\n");
@@ -283,7 +379,8 @@ async function chatWithQwenPaw({
       onEvent({
         event,
         text: parser.latestAssistantText(),
-        delta: String(event?.object || "") === "content" && Boolean(event?.delta)
+        delta: String(event?.object || "") === "content" && Boolean(event?.delta),
+        activity: extractActivityFromEvent(event)
       });
     } catch {
       // ignore listener errors
@@ -493,5 +590,7 @@ module.exports = {
   createQwenPawChat,
   updateQwenPawChat,
   buildNewShellSessionId,
-  extractAssistantText
+  extractAssistantText,
+  extractActivityFromEvent,
+  extractToolName
 };

@@ -1,3 +1,13 @@
+import {
+  hasVoiceEndDelimiter,
+  splitVoiceEndReply,
+  extractStreamingVoiceSpeech,
+  extractStreamingVoiceDisplay,
+  stripHtmlComments
+} from "/shell/voice-end-format.js?v=2";
+
+export { hasVoiceEndDelimiter, stripHtmlComments };
+
 const SHOW_BLOCK_RE = /\[show\]([\s\S]*?)\[\/show\]/gi;
 const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i;
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|avif|bmp)(\?|#|$)/i;
@@ -79,6 +89,7 @@ export function parseShellReply(body) {
   });
 
   let text = raw.replace(SHOW_BLOCK_RE, "").trim();
+  text = stripHtmlComments(text);
 
   if (!text && shows.length) text = "—";
   return { text: text || "—", shows };
@@ -164,7 +175,7 @@ export function stripAllTtsBlocks(text) {
 }
 
 export function cleanReplyTextSegment(text) {
-  let value = String(text || "").trim();
+  let value = stripHtmlComments(String(text || "").trim());
   if (!value) return value;
 
   const closed = value.match(/^\[text\]([\s\S]*?)\[\/text\]$/i);
@@ -177,11 +188,20 @@ export function cleanReplyTextSegment(text) {
 }
 
 export function hasReplyTtsBlocks(text) {
-  return /\[tts\]/i.test(String(text || ""));
+  const raw = String(text || "");
+  return hasVoiceEndDelimiter(raw) || /\[tts\]/i.test(raw);
 }
 
 export function splitReplyDisplayParts(text) {
   const source = String(text || "");
+  const voiceSplit = splitVoiceEndReply(source);
+  if (voiceSplit) {
+    const parts = [];
+    if (voiceSplit.spoken) parts.push({ kind: "tts", text: cleanReplyTextSegment(voiceSplit.spoken) });
+    if (voiceSplit.body) parts.push({ kind: "markdown", text: cleanReplyTextSegment(voiceSplit.body) });
+    return parts.length ? parts : [{ kind: "markdown", text: cleanReplyTextSegment(source) }];
+  }
+
   const parts = [];
   const block = findFirstTtsBlock(source);
 
@@ -215,33 +235,53 @@ export function parseDualReply(text) {
   const raw = String(text || "").trim();
   if (!raw) return { body: "", spoken: null, spokenParts: [], parsed: false };
 
+  const voiceSplit = splitVoiceEndReply(raw);
+  if (voiceSplit) {
+    const spokenParts = (voiceSplit.spokenParts || [])
+      .map((part) => stripHtmlComments(part))
+      .filter(Boolean);
+    return {
+      body: stripHtmlComments(voiceSplit.body || ""),
+      spoken: stripHtmlComments(voiceSplit.spoken || "") || null,
+      spokenParts,
+      parsed: true
+    };
+  }
+
   const spokenParts = extractAllTtsBlocks(raw);
   const spoken = spokenParts.length ? spokenParts.join("\n\n") : null;
 
   const closedText = raw.match(/\[text\]([\s\S]*?)\[\/text\]/i);
   if (closedText) {
-    return { body: closedText[1].trim(), spoken, spokenParts, parsed: true };
+    return { body: stripHtmlComments(closedText[1].trim()), spoken, spokenParts, parsed: true };
   }
 
   const openText = raw.match(/\[text\]\s*([\s\S]*)/i);
   if (openText) {
-    const body = openText[1].replace(/\[\/text\]\s*$/i, "").trim();
+    const body = stripHtmlComments(openText[1].replace(/\[\/text\]\s*$/i, "").trim());
     return { body, spoken, spokenParts, parsed: true };
   }
 
   if (spokenParts.length) {
-    return { body: stripAllTtsBlocks(raw), spoken, spokenParts, parsed: true };
+    return { body: stripHtmlComments(stripAllTtsBlocks(raw)), spoken, spokenParts, parsed: true };
   }
 
   if (/^\s*\[tts\]/i.test(raw) && !findFirstTtsBlock(raw)) {
     return { body: "", spoken: null, spokenParts: [], parsed: true };
   }
 
-  return { body: raw, spoken: null, spokenParts: [], parsed: false };
+  return { body: stripHtmlComments(raw), spoken: null, spokenParts: [], parsed: false };
 }
 
 export function extractStreamingTtsBody(partialText) {
   const raw = String(partialText || "");
+  if (hasVoiceEndDelimiter(raw) || !/^\s*\[tts\]/i.test(raw)) {
+    const voiceSpeech = extractStreamingVoiceSpeech(raw);
+    if (voiceSpeech || hasVoiceEndDelimiter(raw) || !/\[tts\]/i.test(raw)) {
+      return stripHtmlComments(voiceSpeech);
+    }
+  }
+
   const leading = raw.match(/^\s*/)?.[0]?.length || 0;
   const openMatch = /\[tts\]\s*/i.exec(raw.slice(leading));
   if (!openMatch || openMatch.index !== 0) return "";
@@ -250,23 +290,28 @@ export function extractStreamingTtsBody(partialText) {
   if (closeMatch && closeMatch.index !== undefined) {
     return afterOpen.slice(0, closeMatch.index).trim();
   }
-  return afterOpen.replace(/\n*\[text\][\s\S]*$/i, "").trim();
+  return stripHtmlComments(afterOpen.replace(/\n*\[text\][\s\S]*$/i, "").trim());
 }
 
 export function extractStreamingReplyBody(partialText) {
   const raw = String(partialText || "");
+  if (hasVoiceEndDelimiter(raw) || (!/\[tts\]/i.test(raw) && !/\[text\]/i.test(raw))) {
+    const display = extractStreamingVoiceDisplay(raw);
+    if (display || hasVoiceEndDelimiter(raw)) return stripHtmlComments(display);
+  }
+
   if (/\[text\]/i.test(raw)) {
-    return parseDualReply(raw).body || "";
+    return stripHtmlComments(parseDualReply(raw).body || "");
   }
   const block = findFirstTtsBlock(raw);
   if (block) {
-    return (raw.slice(0, block.start) + raw.slice(block.end)).trim();
+    return stripHtmlComments((raw.slice(0, block.start) + raw.slice(block.end)).trim());
   }
   const firstOpen = /^\s*\[tts\]/i.exec(raw);
   if (firstOpen) {
-    return raw.slice(0, firstOpen.index).trim();
+    return stripHtmlComments(raw.slice(0, firstOpen.index).trim());
   }
-  return raw.trim();
+  return stripHtmlComments(raw.trim());
 }
 
 export function prepareSpeechText(body, settings = {}) {
@@ -297,6 +342,28 @@ export function pullSpeechSentences(speechText, fromIndex = 0) {
   }
 
   return { sentences, cursor };
+}
+
+/** Склеивает предложения в более длинные фрагменты — меньше пауз между запросами TTS. */
+export function mergeSpeechStreamChunks(sentences, { maxChars = 280, maxParts = 4 } = {}) {
+  const merged = [];
+  let batch = "";
+  let parts = 0;
+  for (const raw of sentences) {
+    const sentence = String(raw || "").trim();
+    if (!sentence) continue;
+    const candidate = batch ? `${batch} ${sentence}` : sentence;
+    if (batch && (candidate.length > maxChars || parts >= maxParts)) {
+      merged.push(batch);
+      batch = sentence;
+      parts = 1;
+    } else {
+      batch = candidate;
+      parts += 1;
+    }
+  }
+  if (batch) merged.push(batch);
+  return merged;
 }
 
 export function renderShellReplyMedia(containerEl, shows, agentId) {

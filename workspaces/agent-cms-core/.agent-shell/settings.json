@@ -14,7 +14,7 @@
   "sttLang": "ru-RU",
   "sttPrompt": "",
   "ttsEnabled": true,
-  "ttsEngine": "browser",
+  "ttsEngine": "edge",
   "ttsEdgeVoice": "ru-RU-SvetlanaNeural",
   "ttsElevenlabsApiKey": "",
   "ttsElevenlabsVoiceId": "",

@@ -3199,6 +3199,60 @@ body.shell-embed .shell-version {
   color: inherit;
 }
 
+.shell-agent-activity {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(122, 108, 255, 0.08);
+  border: 1px solid rgba(122, 108, 255, 0.18);
+}
+
+.shell-agent-activity.hidden {
+  display: none;
+}
+
+.shell-agent-activity-label {
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.shell-agent-activity-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.shell-agent-activity-item {
+  color: var(--muted);
+}
+
+.shell-agent-activity-item.is-active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.shell-agent-activity-item--tool {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+}
+
+.shell-agent-activity-item:not(:last-child)::after {
+  content: "→";
+  margin-left: 4px;
+  color: rgba(255, 255, 255, 0.28);
+  font-weight: 400;
+}
+
 .shell-reply-panel.is-streaming .shell-reply-text::after {
   content: "▍";
   display: inline-block;

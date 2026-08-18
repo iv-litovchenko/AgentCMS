@@ -8,6 +8,7 @@ const {
   finalizeDualReply,
   shouldRequestDualReply
 } = require("./spoken-text");
+const { hasVoiceEndDelimiter } = require("./voice-end-format");
 const { createSnapshotRequestService, parseDataUrl } = require("./shell-snapshot");
 const {
   shouldRefineStt,
@@ -677,10 +678,54 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
 
   const sessionId = buildQwenPawSessionId(settings, agentId);
   const streamId = `qwenpaw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const dualReply = shouldRequestDualReply(settings);
   const outboundText = buildDualReplyInstruction(text, settings);
   let lastEmittedText = "";
   let lastEmitAt = 0;
+  let activityPriority = 0;
+  let lastActivityPhrase = "";
+  let lastActivityPayload = null;
+
+  const emitAgentActivity = async (activity) => {
+    if (!activity || typeof activity !== "object") return;
+    const priority = Number(activity.priority) || 0;
+    const phrase = String(activity.phrase || "").trim();
+    const tool = String(activity.tool || "").trim();
+
+    if (activity.phase === "end") {
+      if (tool) {
+        emitShellEvent(agentId, "agent_activity", {
+          streamId,
+          kind: activity.kind || "tool",
+          phase: "end",
+          tool
+        });
+      }
+      return;
+    }
+
+    if (!phrase) return;
+    if (priority < activityPriority) return;
+    activityPriority = priority;
+    lastActivityPhrase = phrase;
+    lastActivityPayload = {
+      kind: activity.kind || "run",
+      phrase,
+      tool: tool || undefined
+    };
+
+    await patchState(agentRoot, agentId, {
+      phase: PHASE_THINKING,
+      phrase,
+      metrics: tool || ""
+    });
+    emitShellEvent(agentId, "agent_activity", {
+      streamId,
+      kind: lastActivityPayload.kind,
+      phase: activity.phase || "start",
+      tool: lastActivityPayload.tool,
+      phrase
+    });
+  };
 
   const emitAssistantDelta = async (
     nextText,
@@ -693,18 +738,40 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     lastEmittedText = replyText;
     lastEmitAt = now;
 
-    await patchState(agentRoot, agentId, {
+    const patch = {
       phase: done ? PHASE_WAITING : PHASE_THINKING,
-      phrase: done ? "" : "Печатает…",
       lastShellReply: replyText
-    });
+    };
+    if (done) {
+      patch.phrase = "";
+      patch.metrics = "";
+      activityPriority = 0;
+      lastActivityPhrase = "";
+      lastActivityPayload = null;
+    } else if (replyText.trim()) {
+      const showTyping =
+        !shouldRequestDualReply(settings) || hasVoiceEndDelimiter(replyText);
+      if (showTyping) {
+        activityPriority = 50;
+        patch.phrase = "Печатает…";
+        lastActivityPayload = { kind: "typing", phrase: "Печатает…" };
+        emitShellEvent(agentId, "agent_activity", {
+          streamId,
+          kind: "typing",
+          phase: "start",
+          phrase: "Печатает…"
+        });
+      }
+    }
+    await patchState(agentRoot, agentId, patch);
     emitShellEvent(agentId, "assistant_delta", {
       streamId,
       text: replyText,
       done,
       ttsClientId: replyTtsClientId || undefined,
       spokenText: spokenText || undefined,
-      spokenParts: Array.isArray(spokenParts) && spokenParts.length ? spokenParts : undefined
+      spokenParts: Array.isArray(spokenParts) && spokenParts.length ? spokenParts : undefined,
+      activity: lastActivityPayload || undefined
     });
     if (typeof onProgress === "function") {
       onProgress({
@@ -719,7 +786,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     }
   };
 
-  await emitAssistantDelta("", { force: true });
+  await emitAgentActivity({ kind: "run", phase: "start", priority: 10, phrase: "Запускаю…" });
 
   let reply;
   try {
@@ -729,9 +796,9 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
       sessionId,
       userId: settings.qwenpawUserId,
       text: outboundText,
-      onEvent: ({ text: partialText }) => {
-        const displayText = dualReply ? extractStreamingReplyBody(partialText) : partialText;
-        void emitAssistantDelta(displayText);
+      onEvent: ({ text: partialText, activity }) => {
+        if (activity) void emitAgentActivity(activity);
+        if (String(partialText || "").trim()) void emitAssistantDelta(partialText);
       }
     });
   } catch (error) {
@@ -1009,6 +1076,10 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
     }
     if (entry.type === "assistant_delta") {
       push("assistant_delta", entry.payload || {});
+      return;
+    }
+    if (entry.type === "agent_activity") {
+      push("agent_activity", entry.payload || {});
       return;
     }
     push(entry.type, entry);

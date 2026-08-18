@@ -1,0 +1,13 @@
+{
+  "phase": "waiting",
+  "phrase": "",
+  "metrics": "",
+  "lastAgentMessageId": "4a2c6d19aaf1422eb9daeaf152dca4c8",
+  "lastShellReply": "Принято, тест работает ✅",
+  "qwenpawChatUpdatedAt": "2026-08-18T00:24:06.877009Z",
+  "stopTtsAt": 0,
+  "sidecarSeenAt": 0,
+  "pttHeld": false,
+  "lastTtsClientId": "",
+  "updatedAt": "2026-08-18T00:24:38.408Z"
+}

@@ -22,7 +22,7 @@ body: |
 - **`draft` / `inactive`** — только в меню редактора, не подставляется автоматически.
 - **`deprecated`** — как у типов: ещё в runtime, но помечен устаревшим.
 
-Shell (Agent Shell): пресеты `shell-tts-prompt.yml` и `shell-stt-prompt.yml` — заготовки для кнопок «Вставить заготовку» в TTS/STT (`GET /api/shell/prompt-templates`).
+Shell (Agent Shell): пресеты `shell-tts-prompt.yml` и `shell-stt-prompt.yml` — заготовки для кнопок «Вставить заготовку» в TTS/STT (`GET /api/shell/prompt-templates`). TTS-формат: текст для голоса → `::: VOICE-END :::` → текст для экрана.
 
 Порядок в меню — `sort.yml` (`sortOrder`).
 

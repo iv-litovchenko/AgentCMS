@@ -32,16 +32,8 @@ export function initShellComposeLayout({ nodes, getSessionUiLocked = () => false
   }
 
   function resetViewport() {
-    if (document.activeElement === input) return;
     document.documentElement.style.setProperty("--vv-keyboard", "0px");
     document.body.classList.remove("shell-keyboard-open");
-    const snap = () => {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    };
-    snap();
-    requestAnimationFrame(snap);
   }
 
   function keepsInputFocus(target) {

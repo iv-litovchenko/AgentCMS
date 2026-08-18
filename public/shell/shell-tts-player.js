@@ -216,15 +216,12 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
     }
   }
 
-  async function speak(text, { onPhase, engine: engineOverride = "" } = {}) {
-    const generation = ++speakGeneration;
-    cleanupAudio();
+  async function synthesize(text, { engine: engineOverride = "" } = {}) {
     const payload = String(text || "").trim();
     if (!payload) return { ok: false, reason: "empty" };
 
     const settings = getTtsSettings();
     const engine = String(engineOverride || settings?.ttsEngine || "").trim();
-    onPhase?.("synthesizing", engine);
 
     let result;
     try {
@@ -237,8 +234,6 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
       return { ok: false, reason: error?.message || "synthesize-fetch" };
     }
 
-    if (generation !== speakGeneration) return { ok: false, reason: "cancelled" };
-
     const mimeType = String(result.mimeType || "audio/mpeg");
     const base64 = String(result.audio || "");
     const binary = atob(base64);
@@ -248,31 +243,66 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
     for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
     lastRecording = { blob: new Blob([bytes], { type: mimeType }), mimeType, text: payload };
 
-    onPhase?.("playing", engine);
+    return {
+      ok: true,
+      text: payload,
+      bytes,
+      mimeType,
+      base64,
+      engine: String(result.engine || engine),
+      voice: String(result.voice || "")
+    };
+  }
 
-    const element = await playViaElement(bytes, mimeType, generation, { base64 });
+  async function playPrepared(prepared, { onPhase, generation } = {}) {
+    if (!prepared?.ok || !prepared.bytes?.length) {
+      return { ok: false, reason: prepared?.reason || "empty-prepared" };
+    }
+    const gen = generation ?? ++speakGeneration;
+    if (generation == null) cleanupAudio();
+
+    onPhase?.("playing", prepared.engine || "");
+    const element = await playViaElement(prepared.bytes, prepared.mimeType, gen, {
+      base64: prepared.base64 || ""
+    });
     if (element.ok) {
       return {
         ok: true,
-        engine: String(result.engine || engine),
-        voice: String(result.voice || ""),
-        mimeType,
+        engine: prepared.engine || "",
+        voice: prepared.voice || "",
+        mimeType: prepared.mimeType,
         transport: element.reason
       };
     }
 
-    const web = await playViaWebAudio(bytes, mimeType, generation);
+    const web = await playViaWebAudio(prepared.bytes, prepared.mimeType, gen);
     if (web.ok) {
       return {
         ok: true,
-        engine: String(result.engine || engine),
-        voice: String(result.voice || ""),
-        mimeType,
+        engine: prepared.engine || "",
+        voice: prepared.voice || "",
+        mimeType: prepared.mimeType,
         transport: web.reason
       };
     }
 
     return { ok: false, reason: element.reason || web.reason || "play-failed" };
+  }
+
+  async function speak(text, { onPhase, engine: engineOverride = "" } = {}) {
+    const generation = ++speakGeneration;
+    cleanupAudio();
+    const payload = String(text || "").trim();
+    if (!payload) return { ok: false, reason: "empty" };
+
+    const engine = String(engineOverride || getTtsSettings()?.ttsEngine || "").trim();
+    onPhase?.("synthesizing", engine);
+
+    const prepared = await synthesize(payload, { engine });
+    if (generation !== speakGeneration) return { ok: false, reason: "cancelled" };
+    if (!prepared.ok) return prepared;
+
+    return playPrepared(prepared, { onPhase, generation });
   }
 
   function getLastRecording() {
@@ -281,6 +311,8 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
 
   return {
     speak,
+    synthesize,
+    playPrepared,
     stop,
     pause,
     resume,

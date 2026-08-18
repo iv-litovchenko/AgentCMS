@@ -151,7 +151,6 @@ export function createShellDialog(options = {}) {
     }
     nodes.lastAskWrap?.classList.remove("hidden");
     if (nodes.lastAsk) nodes.lastAsk.textContent = raw;
-    nodes.scroll?.scrollTo?.({ top: 0, behavior: "auto" });
   }
 
   function onReplyRendered(rawText) {

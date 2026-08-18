@@ -62,7 +62,7 @@ AGENT_CMS_AGENT=agent-cms-test npm run shell:sidecar
 | POST | `/api/shell/camera/snapshot/complete` | Shell UI: ответ на запрос кадра |
 | POST | `/api/shell/camera/speech-snapshot` | Кадр при речи (VAD) или вручную |
 | GET | `/api/shell/camera/latest?kind=speech\|manual` | Последний сохранённый кадр |
-| GET | `/api/shell/stream?agent=` | SSE: status, assistant_message, assistant_delta, camera_snapshot_request, screen_snapshot_request |
+| GET | `/api/shell/stream?agent=` | SSE: status, assistant_message, assistant_delta, agent_activity, camera_snapshot_request, screen_snapshot_request |
 
 Настройки хранятся в workspace агента: `.agent-shell/settings.json`.
 

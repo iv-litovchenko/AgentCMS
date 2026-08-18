@@ -1,13 +1,13 @@
 import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
 import { createSettingsSaveController } from "/shell/shell-settings-save.js?v=2";
-import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, parseDualReply, extractStreamingTtsBody, stripAllTtsBlocks } from "/shell/shell-reply.js?v=12";
-import { renderShellReplyMarkdown, renderShellReplyBody } from "/shell/shell-markdown.js?v=6";
+import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, mergeSpeechStreamChunks, parseDualReply, extractStreamingTtsBody, extractStreamingReplyBody, hasVoiceEndDelimiter, stripAllTtsBlocks } from "/shell/shell-reply.js?v=16";
+import { renderShellReplyMarkdown, renderShellReplyBody } from "/shell/shell-markdown.js?v=7";
 import { initShellCharacter } from "/shell/shell-character.js?v=18";
 import { createShellCamera } from "/shell/shell-camera.js?v=2";
 import { createShellScreen } from "/shell/shell-screen.js?v=1";
 import { createShellTtsTabCoordinator } from "/shell/shell-tts-tab.js?v=1";
-import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=8";
+import { createShellTtsPlayer } from "/shell/shell-tts-player.js?v=9";
 import { unlockShellAudio } from "/shell/shell-audio-unlock.js?v=1";
 import { speakShellBrowserTts } from "/shell/shell-browser-tts.js?v=6";
 import {
@@ -26,8 +26,8 @@ import {
   shellPermissionIssue,
   warmUpMicrophone
 } from "/shell/shell-permissions.js?v=1";
-import { createShellDialog } from "/shell/shell-dialog.js?v=2";
-import { initShellComposeLayout } from "/shell/shell-compose-layout.js?v=1";
+import { createShellDialog } from "/shell/shell-dialog.js?v=3";
+import { initShellComposeLayout } from "/shell/shell-compose-layout.js?v=2";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
 import { initShellHelp } from "/shell/shell-help.js?v=1";
 import {
@@ -52,12 +52,17 @@ import {
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 
-/** Озвучка только после полного ответа агента (без streaming TTS по предложениям). */
-const TTS_WAIT_FOR_COMPLETE_REPLY = true;
+/** Озвучка по мере печати (до маркера ::: VOICE-END :::). */
+const TTS_WAIT_FOR_COMPLETE_REPLY = false;
 
-const DEFAULT_TTS_PROMPT = `Сформируй ответ в следующем формате. В начале ответа добавь блок [tts], в котором сформируй краткую версию текста для озвучки (предполагается, что ты работаешь в режиме голосового ассистента). Убери emoji, markdown и подробные детали, оставь только смысл и другие незначительные детали которые можно воспроизвести через TTS (text to speech). Закрой блок [/tts].
+const DEFAULT_TTS_PROMPT = `Сформируй ответ в следующем формате (строго, в таком порядке):
 
-Далее — полный текст ответа для экрана.`;
+1) Краткая версия для озвучки — 1–4 предложения, без emoji и markdown, только то, что можно произнести вслух. Не включай секреты, ключи и пароли. Не используй HTML-комментарии <!-- -->.
+
+2) Отдельной строкой маркер:
+::: VOICE-END :::
+
+3) Полный текст ответа для экрана (можно markdown, списки, код). Без HTML-комментариев <!-- -->.`;
 
 const DEFAULT_STT_PROMPT = `Исправь пунктуацию и регистр, убери слова-паразиты («э-э», «эээ», «мм», «ну»), сохрани смысл. Верни только готовый текст для отправки агенту — без пояснений и обёрток.`;
 
@@ -118,6 +123,9 @@ let lastHandledAssistantId = "";
 let lastSpokenBody = "";
 let lastHandledStreamId = "";
 let lastStreamHandledBody = "";
+/** @type {{ kind: string, label: string, tool?: string, active?: boolean, at: number }[]} */
+let agentActivitySteps = [];
+let agentActivityTypingAdded = false;
 /** @type {{ text: string, blob: Blob | null, mimeType: string, blobText: string }} */
 let lastTtsSpoken = { text: "", blob: null, mimeType: "", blobText: "" };
 /** @type {{ blob: Blob, mimeType: string, text: string } | null} */
@@ -574,6 +582,8 @@ const nodes = {
   lastReply: document.getElementById("shell-last-reply"),
   lastReplyText: document.getElementById("shell-last-reply-text"),
   lastReplyMedia: document.getElementById("shell-last-reply-media"),
+  agentActivity: document.getElementById("shell-agent-activity"),
+  agentActivityList: document.getElementById("shell-agent-activity-list"),
   cameraEnabled: document.getElementById("shell-camera-enabled"),
   cameraStage: document.getElementById("shell-camera-stage"),
   cameraVideo: document.getElementById("shell-camera-video"),
@@ -1118,6 +1128,7 @@ function clearShellReply() {
   }
   renderShellReplyMedia(nodes.lastReplyMedia, [], state.agentId);
   nodes.replyPanel?.classList.remove("is-streaming");
+  resetAgentActivitySteps();
 }
 
 function resolveAssistantMessageKey(message, body) {
@@ -1135,8 +1146,136 @@ function shouldSkipAssistantSpeech(message) {
   return Boolean(shellSession?.isReplyAlreadySpoken(message));
 }
 
+function usesStreamingReplyTts() {
+  return !TTS_WAIT_FOR_COMPLETE_REPLY;
+}
+
+function shouldPlayMessageTts(message = {}) {
+  if (!state.settings?.ttsEnabled) return false;
+  if (!shouldPlayReplyTts(message)) return false;
+  if (shouldSkipAssistantSpeech(message)) return false;
+  if (usesStreamingReplyTts()) {
+    if (state.assistantStream && !state.assistantStream.finalized) return false;
+    if (state.streamTtsActive || state.streamTtsQueue.length) return false;
+    const streamId = String(message?.streamId || message?.id || "").trim();
+    if (streamId.startsWith("qwenpaw-")) return false;
+  }
+  return true;
+}
+
+function shouldShowTypingActivity(rawText, displayText) {
+  if (!String(displayText || "").trim()) return false;
+  if (!hasTtsPrompt()) return true;
+  return hasVoiceEndDelimiter(rawText);
+}
+
+function syncAgentActivityFromPhrase(phrase = "", metrics = "") {
+  const text = String(phrase || "").trim();
+  if (!text) return;
+  let kind = "run";
+  if (/^🔧/.test(text) || String(metrics || "").trim()) kind = "tool";
+  else if (/Размышляю/i.test(text)) kind = "reasoning";
+  else if (/Печатает/i.test(text)) kind = "typing";
+  else if (/Запускаю|Работаю/i.test(text)) kind = "run";
+  pushAgentActivityStep({
+    kind,
+    phrase: text,
+    tool: String(metrics || "").trim() || undefined
+  });
+}
+
+function normalizeActivityStepLabel(payload = {}) {
+  const kind = String(payload.kind || "").trim();
+  const tool = String(payload.tool || "").trim();
+  const phrase = String(payload.phrase || "")
+    .trim()
+    .replace(/^🔧\s*/, "")
+    .replace(/…+$/u, "")
+    .trim();
+  if (kind === "tool" && tool) return tool;
+  if (phrase) return phrase;
+  if (kind === "reasoning") return "Размышляю";
+  if (kind === "typing") return "Печатает";
+  return "";
+}
+
+function renderAgentActivitySteps() {
+  const wrap = nodes.agentActivity;
+  const list = nodes.agentActivityList;
+  if (!wrap || !list) return;
+  if (!agentActivitySteps.length) {
+    wrap.classList.add("hidden");
+    list.replaceChildren();
+    return;
+  }
+  wrap.classList.remove("hidden");
+  list.replaceChildren();
+  for (const step of agentActivitySteps) {
+    const li = document.createElement("li");
+    li.className = `shell-agent-activity-item shell-agent-activity-item--${step.kind || "run"}`;
+    if (step.active) li.classList.add("is-active");
+    li.textContent = step.label;
+    list.append(li);
+  }
+  if (agentActivitySteps.length && nodes.replyPanel?.classList.contains("is-streaming")) {
+    nodes.dialogScroll?.scrollTo?.({ top: nodes.dialogScroll.scrollHeight, behavior: "auto" });
+  }
+}
+
+function resetAgentActivitySteps() {
+  agentActivitySteps = [];
+  agentActivityTypingAdded = false;
+  renderAgentActivitySteps();
+}
+
+function finalizeAgentActivitySteps() {
+  for (const step of agentActivitySteps) step.active = false;
+  renderAgentActivitySteps();
+}
+
+function pushAgentActivityStep(payload = {}) {
+  if (payload.phase === "end") {
+    const tool = String(payload.tool || "").trim();
+    if (tool) {
+      for (let i = agentActivitySteps.length - 1; i >= 0; i -= 1) {
+        const step = agentActivitySteps[i];
+        if (step.kind === "tool" && step.label === tool) {
+          step.active = false;
+          renderAgentActivitySteps();
+          break;
+        }
+      }
+    }
+    return;
+  }
+
+  const kind = String(payload.kind || "run").trim() || "run";
+  const label = normalizeActivityStepLabel({ ...payload, kind });
+  if (!label) return;
+
+  const last = agentActivitySteps[agentActivitySteps.length - 1];
+  if (last && last.label === label && last.kind === kind) {
+    for (const step of agentActivitySteps) step.active = false;
+    last.active = true;
+    renderAgentActivitySteps();
+    return;
+  }
+
+  for (const step of agentActivitySteps) step.active = false;
+  agentActivitySteps.push({
+    kind,
+    label,
+    tool: String(payload.tool || "").trim() || undefined,
+    active: true,
+    at: Date.now()
+  });
+  if (agentActivitySteps.length > 14) agentActivitySteps = agentActivitySteps.slice(-14);
+  renderAgentActivitySteps();
+}
+
 function beginAssistantStream({ streamId } = {}) {
   shellSession?.resetStreamRenderState();
+  resetAgentActivitySteps();
   state.assistantStream = {
     id: String(streamId || `local-${Date.now()}`),
     text: "",
@@ -1147,6 +1286,11 @@ function beginAssistantStream({ streamId } = {}) {
   };
   state.streamTtsCursor = 0;
   state.streamTtsQueue = [];
+  state.streamTtsVoiceEnded = false;
+  if (queueStreamSpeech._timer) {
+    clearTimeout(queueStreamSpeech._timer);
+    queueStreamSpeech._timer = 0;
+  }
   lastStreamHandledBody = "";
   lastHandledStreamId = "";
   nodes.replyPanel?.classList.add("is-streaming");
@@ -1154,7 +1298,8 @@ function beginAssistantStream({ streamId } = {}) {
     nodes.lastReplyText.classList.remove("shell-md");
     nodes.lastReplyText.textContent = "…";
   }
-  renderPhase("thinking", "Печатает…");
+  pushAgentActivityStep({ kind: "run", phrase: "Запускаю…" });
+  renderPhase("thinking", "Запускаю…");
 }
 
 function renderStreamingAssistantText(text) {
@@ -1171,6 +1316,9 @@ function renderStreamingAssistantText(text) {
   shellDialog.onReplyRendered(value);
 }
 
+const STREAM_TTS_MERGE = { maxChars: 320, maxParts: 4 };
+const STREAM_TTS_MERGE_FLUSH = { maxChars: 2000, maxParts: 32 };
+
 function prepareTtsStreamChunk(text) {
   let speech = String(text || "").trim();
   if (!speech) return "";
@@ -1180,70 +1328,139 @@ function prepareTtsStreamChunk(text) {
   return truncateForShellTts(speech);
 }
 
-function queueStreamSpeech(fullBody) {
+function queueStreamSpeech(fullBody, { flush = false } = {}) {
   if (TTS_WAIT_FOR_COMPLETE_REPLY) return;
+  if (state.streamTtsVoiceEnded && !flush) return;
   if (!canPlayTts()) return;
   if (!state.settings?.ttsEnabled) return;
 
-  const speech = hasTtsPrompt()
-    ? prepareTtsStreamChunk(extractStreamingTtsBody(fullBody))
-    : buildSpeechPayloadSync(fullBody);
-  if (!speech) return;
+  const run = () => {
+    queueStreamSpeech._timer = 0;
+    const speech = hasTtsPrompt()
+      ? prepareTtsStreamChunk(extractStreamingTtsBody(fullBody))
+      : buildSpeechPayloadSync(fullBody);
+    if (!speech) return;
 
-  const { sentences, cursor } = pullSpeechSentences(speech, state.streamTtsCursor);
-  if (!sentences.length && cursor === state.streamTtsCursor) return;
+    if (hasTtsPrompt() && hasVoiceEndDelimiter(fullBody)) {
+      state.streamTtsVoiceEnded = true;
+    }
 
-  state.streamTtsCursor = cursor;
-  for (const sentence of sentences) {
-    state.streamTtsQueue.push(sentence);
+    const { sentences, cursor } = pullSpeechSentences(speech, state.streamTtsCursor);
+    if (!sentences.length && cursor === state.streamTtsCursor) return;
+
+    state.streamTtsCursor = cursor;
+    const pending = [];
+    for (const sentence of sentences) {
+      const chunk = String(sentence || "").trim();
+      if (!chunk) continue;
+      if (
+        !flush &&
+        pending.length === 0 &&
+        chunk.length < 12 &&
+        !hasVoiceEndDelimiter(fullBody)
+      ) {
+        continue;
+      }
+      pending.push(chunk);
+    }
+    const mergeOpts = flush ? STREAM_TTS_MERGE_FLUSH : STREAM_TTS_MERGE;
+    for (const chunk of mergeSpeechStreamChunks(pending, mergeOpts)) {
+      state.streamTtsQueue.push(chunk);
+    }
+    if (state.streamTtsQueue.length) void drainStreamTtsQueue();
+  };
+
+  if (flush) {
+    if (queueStreamSpeech._timer) {
+      clearTimeout(queueStreamSpeech._timer);
+      queueStreamSpeech._timer = 0;
+    }
+    run();
+    return;
   }
-  void drainStreamTtsQueue();
+
+  if (queueStreamSpeech._timer) clearTimeout(queueStreamSpeech._timer);
+  queueStreamSpeech._timer = window.setTimeout(run, 90);
+}
+queueStreamSpeech._timer = 0;
+
+async function synthesizeStreamTtsChunk(text) {
+  const payload = String(text || "").trim();
+  if (!payload || !canPlayTts()) return null;
+  if (getTtsEngine() === "browser" || !ttsPlayer?.synthesize) return null;
+  try {
+    const prepared = await ttsPlayer.synthesize(payload, { engine: getTtsEngine() });
+    return prepared?.ok ? prepared : null;
+  } catch {
+    return null;
+  }
 }
 
-async function speakStreamChunk(text) {
+async function speakStreamChunk(text, prepared = null) {
   const payload = String(text || "").trim();
-  if (!payload) return;
-  if (!canPlayTts()) return;
+  if (!payload || !canPlayTts()) return;
 
   state.speaking = true;
   updateTtsControlsUi("speaking");
-  if ((state.shellState?.phase || "waiting") !== "speaking") {
-    await patchShellState({ phase: "speaking", phrase: "Озвучиваю ответ…" });
-  }
+  renderPhase("speaking", "Озвучиваю…", state.shellState?.metrics || "");
 
   try {
-    await speakReplyAudio(payload);
+    if (prepared?.ok && ttsPlayer?.playPrepared) {
+      const result = await ttsPlayer.playPrepared(prepared, {
+        onPhase() {
+          renderPhase("speaking", "Озвучиваю…", state.shellState?.metrics || "");
+        }
+      });
+      if (result?.ok !== false && result) shellDialog.clearError();
+    } else {
+      await playTtsPayload(payload, { allowBrowserFallback: false, streamChunk: true });
+      shellDialog.clearError();
+    }
   } catch {
-    // playTtsPayload уже показал hint в диалоге
-    throw new Error("stream-tts-failed");
+    // Не прерываем очередь и не переключаемся на Web Speech — иначе голос обрывается.
   } finally {
-    if (!state.streamTtsQueue.length) {
+    if (!state.streamTtsActive && !state.streamTtsQueue.length) {
       state.speaking = false;
+      updateTtsControlsUi("waiting");
     }
   }
 }
 
 async function drainStreamTtsQueue() {
-  if (state.streamTtsActive) return;
-  state.streamTtsActive = true;
-  updateTtsControlsUi("speaking");
-  try {
-    while (state.streamTtsQueue.length) {
-      await waitWhileTtsPaused();
-      if (!state.streamTtsQueue.length) break;
-      const chunk = state.streamTtsQueue.shift();
-      await speakStreamChunk(chunk);
+  drainStreamTtsQueue._chain = (drainStreamTtsQueue._chain || Promise.resolve()).then(async () => {
+    state.streamTtsActive = true;
+    updateTtsControlsUi("speaking");
+    let prepared = null;
+    try {
+      while (state.streamTtsQueue.length) {
+        await waitWhileTtsPaused();
+        if (!state.streamTtsQueue.length) break;
+        const chunk = state.streamTtsQueue.shift();
+        if (!prepared || prepared.text !== chunk) {
+          prepared = await synthesizeStreamTtsChunk(chunk);
+        }
+        const nextChunk = state.streamTtsQueue[0];
+        const prefetch = nextChunk
+          ? synthesizeStreamTtsChunk(nextChunk).catch(() => null)
+          : null;
+        await speakStreamChunk(chunk, prepared);
+        prepared = prefetch ? await prefetch : null;
+      }
+    } finally {
+      state.streamTtsActive = false;
+      if (!state.streamTtsQueue.length) {
+        state.speaking = false;
+      }
+      updateTtsControlsUi(state.shellState?.phase || "waiting");
     }
-  } finally {
-    state.streamTtsActive = false;
-    updateTtsControlsUi(state.shellState?.phase || "waiting");
-  }
+  });
+  return drainStreamTtsQueue._chain;
 }
 
 function finalizeAssistantStream(message) {
   const stream = state.assistantStream;
   const streamId = String(message?.streamId || message?.id || stream?.id || "");
-  const rawBody = String(message?.body || stream?.text || "").trim();
+  const rawBody = String(stream?.text || message?.body || "").trim();
   if (!rawBody) return false;
   if (stream?.finalized && stream.id === streamId) return true;
 
@@ -1270,6 +1487,7 @@ function finalizeAssistantStream(message) {
   shellSession?.flushStreamingRender(renderStreamingAssistantText);
   renderShellReply({ ...message, body, spokenText, spokenParts });
   shellDialog.onAgentReply(body);
+  finalizeAgentActivitySteps();
   shellSession?.markReplyDisplayed({ ...message, body, streamId });
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
 
@@ -1278,27 +1496,57 @@ function finalizeAssistantStream(message) {
       .map((part) => prepareTtsStreamChunk(String(part || "").trim()))
       .filter(Boolean);
     if (!parts.length && !hasTtsPrompt()) {
-      const fallback = prepareTtsStreamChunk(buildSpeechPayloadSync(body));
+      const fallback = prepareTtsStreamChunk(buildSpeechPayloadSync(rawBody));
       if (fallback) parts.push(fallback);
     }
-    state.streamTtsCursor = 0;
-    state.streamTtsQueue = [];
-    if (parts.length) {
-      lastSpokenBody = parts.join("\0");
-      void speakTextParts(parts, { ttsClientId: message.ttsClientId, sourceMessage: { ...message, body, streamId } }).finally(() => {
+
+    if (TTS_WAIT_FOR_COMPLETE_REPLY) {
+      state.streamTtsCursor = 0;
+      state.streamTtsQueue = [];
+      state.streamTtsVoiceEnded = false;
+      if (parts.length) {
+        lastSpokenBody = parts.join("\0");
+        void speakTextParts(parts, {
+          ttsClientId: message.ttsClientId,
+          sourceMessage: { ...message, body, streamId }
+        }).finally(() => {
+          state.assistantStream = null;
+          releaseMessagePipeline();
+        });
+      } else {
         state.assistantStream = null;
+        if (hasTtsPrompt()) {
+          renderPhase(
+            "waiting",
+            "Нет текста для озвучки — агент не вернул блок до ::: VOICE-END :::",
+            state.shellState?.metrics || ""
+          );
+        }
         releaseMessagePipeline();
-      });
+      }
     } else {
-      state.assistantStream = null;
-      if (state.settings?.ttsEnabled && shouldPlayReplyTts(message) && hasTtsPrompt()) {
+      queueStreamSpeech(rawBody, { flush: true });
+      if (parts.length) lastSpokenBody = parts.join("\0");
+      const spokeViaStream =
+        parts.length > 0 ||
+        state.streamTtsCursor > 0 ||
+        state.streamTtsQueue.length > 0 ||
+        state.streamTtsVoiceEnded;
+      if (!spokeViaStream && hasTtsPrompt()) {
+        state.assistantStream = null;
         renderPhase(
           "waiting",
-          "Нет блока [tts] для озвучки — агент не вернул текст для TTS",
+          "Нет текста для озвучки — агент не вернул блок до ::: VOICE-END :::",
           state.shellState?.metrics || ""
         );
+        releaseMessagePipeline();
+      } else {
+        shellSession?.markReplySpoken({ ...message, body, streamId });
+        void finishStreamTtsWhenIdle({
+          sourceMessage: { ...message, body, streamId },
+          spokenText: parts.join("\n\n")
+        });
       }
-      releaseMessagePipeline();
     }
   } else {
     state.assistantStream = null;
@@ -1382,6 +1630,7 @@ async function stopActiveMessage() {
   }
   state.streamTtsQueue = [];
   state.streamTtsCursor = 0;
+  finalizeAgentActivitySteps();
   stopBrowserTts({ notifyServer: true, resetPhase: false, broadcast: true });
   renderMessageQueue();
   releaseMessagePipeline();
@@ -1591,17 +1840,39 @@ function syncWaitingUiAfterPlayback() {
   renderPhase("waiting", phrase, metrics);
 }
 
-async function finishStreamTtsWhenIdle() {
-  await drainStreamTtsQueue();
-  state.speaking = false;
-  state.ttsPaused = false;
-  state.assistantStream = null;
-  updateTtsControlsUi("waiting");
-  if (!state.pttHeld && !state.micActive) {
-    await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).catch(() => {});
+async function finishStreamTtsWhenIdle({ sourceMessage = null, spokenText = "" } = {}) {
+  try {
+    await drainStreamTtsQueue();
+    const speech = String(spokenText || "").trim();
+    if (speech) rememberLastTtsSpoken(speech);
+    if (sourceMessage) shellSession?.markReplySpoken(sourceMessage);
+    state.pendingReplyTtsClientId = "";
+  } finally {
+    state.speaking = false;
+    state.ttsPaused = false;
+    state.assistantStream = null;
+    updateTtsControlsUi("waiting");
+    if (!state.pttHeld && !state.micActive) {
+      await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).catch(() => {});
+    }
+    syncWaitingUiAfterPlayback();
+    releaseMessagePipeline();
   }
-  syncWaitingUiAfterPlayback();
-  releaseMessagePipeline();
+}
+
+function handleAgentActivity(payload = {}) {
+  if (state.messageStopped) return;
+  pushAgentActivityStep(payload);
+  const phrase = String(payload.phrase || "").trim();
+  const tool = String(payload.tool || "").trim();
+  if (!phrase) return;
+  renderPhase("thinking", phrase, tool || state.shellState?.metrics || "");
+}
+
+function applyAssistantActivity(payload = {}) {
+  const activity = payload?.activity;
+  if (!activity || typeof activity !== "object") return;
+  handleAgentActivity(activity);
 }
 
 function handleAssistantDelta(payload) {
@@ -1622,19 +1893,24 @@ function handleAssistantDelta(payload) {
     }
   }
 
-  const displayText = rawText;
-  state.assistantStream.text = rawText;
+  state.assistantStream.text = done ? state.assistantStream.text || rawText : rawText;
   if (spokenText) state.assistantStream.spokenText = spokenText;
   if (spokenParts.length) state.assistantStream.spokenParts = spokenParts;
   state.assistantStream.done = done;
+  const displayText = hasTtsPrompt() ? extractStreamingReplyBody(rawText) : rawText;
   shellSession?.queueStreamingRender(displayText, renderStreamingAssistantText);
-  queueStreamSpeech(rawText);
+  if (!done) queueStreamSpeech(rawText);
+  applyAssistantActivity(payload);
+  if (!done && shouldShowTypingActivity(rawText, displayText) && !agentActivityTypingAdded) {
+    agentActivityTypingAdded = true;
+    pushAgentActivityStep({ kind: "typing", phrase: "Печатает" });
+  }
 
   if (done) {
     finalizeAssistantStream({
       streamId,
       id: streamId,
-      body: rawText,
+      body: state.assistantStream.text || rawText,
       spokenText,
       spokenParts,
       ttsClientId: payload.ttsClientId
@@ -1642,8 +1918,18 @@ function handleAssistantDelta(payload) {
     if (!state.settings?.ttsEnabled || !shouldPlayReplyTts(payload)) {
       renderPhase("waiting", "Готов к сообщению", state.shellState?.metrics || "");
     }
-  } else {
-    renderPhase("thinking", "Печатает…");
+  } else if (shouldShowTypingActivity(rawText, displayText)) {
+    if (state.streamTtsActive || state.speaking || state.streamTtsQueue.length) {
+      renderPhase("speaking", "Озвучиваю…", state.shellState?.metrics || "");
+    } else if (payload.activity?.phrase) {
+      renderPhase(
+        "thinking",
+        payload.activity.phrase,
+        payload.activity.tool || state.shellState?.metrics || ""
+      );
+    } else {
+      renderPhase("thinking", "Печатает…", state.shellState?.metrics || "");
+    }
   }
 }
 
@@ -2788,7 +3074,7 @@ async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
     updateSendButtonLabel();
     void clearComposeDraft();
     nodes.message.blur();
-    composeLayout?.resetViewport?.();
+    composeLayout?.syncKeyboardViewport?.();
   }
 
   if (state.messagePipelineBusy) {
@@ -3487,10 +3773,13 @@ async function speakReplyAudio(text) {
   throw new Error(serverReason || "tts-failed");
 }
 
-async function playTtsPayload(text, { allowBrowserFallback = true } = {}) {
+async function playTtsPayload(text, { allowBrowserFallback = true, streamChunk = false } = {}) {
   const payload = String(text || "").trim();
   if (!payload) return null;
   await unlockShellAudio();
+
+  const keepSpeakingState = () =>
+    streamChunk || state.streamTtsActive || state.streamTtsQueue.length > 0;
 
   const engine = getTtsEngine();
   const settings = { ...(state.settings || {}), ...collectTtsFormPatch() };
@@ -3517,8 +3806,10 @@ async function playTtsPayload(text, { allowBrowserFallback = true } = {}) {
         transport: "Web Speech (вкладка)"
       };
     } finally {
-      state.speaking = false;
-      updateTtsControlsUi("waiting");
+      if (!keepSpeakingState()) {
+        state.speaking = false;
+        updateTtsControlsUi("waiting");
+      }
     }
   }
 
@@ -3532,7 +3823,10 @@ async function playTtsPayload(text, { allowBrowserFallback = true } = {}) {
       engine,
       onPhase(phase) {
         if (phase === "synthesizing") {
-          renderPhase("thinking", `Синтез · ${ttsEngineLabel(engine)}…`);
+          renderPhase(
+            streamChunk ? "speaking" : "thinking",
+            streamChunk ? "Озвучиваю…" : `Синтез · ${ttsEngineLabel(engine)}…`
+          );
           return;
         }
         state.speaking = true;
@@ -3552,8 +3846,10 @@ async function playTtsPayload(text, { allowBrowserFallback = true } = {}) {
   } catch (serverError) {
     serverReason = String(serverError?.message || serverError);
   } finally {
-    state.speaking = false;
-    updateTtsControlsUi("waiting");
+    if (!keepSpeakingState()) {
+      state.speaking = false;
+      updateTtsControlsUi("waiting");
+    }
   }
 
   if (allowBrowserFallback && getSpeechSynth()) {
@@ -3570,8 +3866,10 @@ async function playTtsPayload(text, { allowBrowserFallback = true } = {}) {
       shellDialog.setError(title, { hint });
       throw new Error(browser.reason || serverReason);
     } finally {
-      state.speaking = false;
-      updateTtsControlsUi("waiting");
+      if (!keepSpeakingState()) {
+        state.speaking = false;
+        updateTtsControlsUi("waiting");
+      }
     }
   }
 
@@ -3759,12 +4057,7 @@ async function handleAssistantMessage(message) {
       stream.id === resolveAssistantMessageKey(message, body) ||
       stream.text === body)
   ) {
-    if (
-      !shellSession?.isReplyAlreadySpoken(message) &&
-      state.settings?.ttsEnabled &&
-      shouldPlayReplyTts(message) &&
-      !shouldSkipAssistantSpeech(message)
-    ) {
+    if (shouldPlayMessageTts(message)) {
       const parts = buildSpeechParts(body, message);
       if (parts.length) {
         await speakTextParts(parts, { ttsClientId: message.ttsClientId, sourceMessage: message });
@@ -3780,12 +4073,7 @@ async function handleAssistantMessage(message) {
   }
 
   if (shellSession?.isReplyAlreadyDisplayed(message)) {
-    if (
-      !shellSession.isReplyAlreadySpoken(message) &&
-      state.settings?.ttsEnabled &&
-      shouldPlayReplyTts(message) &&
-      !shouldSkipAssistantSpeech(message)
-    ) {
+    if (shouldPlayMessageTts(message)) {
       const parts = buildSpeechParts(body, message);
       if (parts.length) {
         await speakTextParts(parts, { ttsClientId: message.ttsClientId, sourceMessage: message });
@@ -3805,11 +4093,11 @@ async function handleAssistantMessage(message) {
   if (phase === "waiting" && !state.pttHeld && !state.micActive && !state.speaking) {
     renderPhase(phase, "Готов к сообщению", state.shellState?.metrics || "");
   }
-  if (state.settings?.ttsEnabled && !shouldSkipAssistantSpeech(message)) {
+  if (shouldPlayMessageTts(message)) {
     const parts = buildSpeechParts(body, message);
     if (!parts.length) {
       shellDialog.setError("Нечего озвучить", {
-        hint: "Агент не вернул блок [tts] — проверьте ttsPrompt в настройках TTS"
+        hint: "Агент не вернул текст до маркера ::: VOICE-END ::: — проверьте ttsPrompt"
       });
       releaseMessagePipeline();
       return;
@@ -3875,6 +4163,15 @@ function connectStream() {
     }
   });
 
+  source.addEventListener("agent_activity", (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      handleAgentActivity(payload);
+    } catch {
+      // ignore malformed event
+    }
+  });
+
   source.addEventListener("camera_snapshot_request", (event) => {
     try {
       const payload = JSON.parse(event.data);
@@ -3909,8 +4206,17 @@ function connectStream() {
       onShellPhaseChange(nextState);
       if (nextState?.phase) {
         state.shellState = { ...(state.shellState || {}), ...nextState };
-        if (!state.sessionUiLocked) {
-          renderPhase(nextState.phase, nextState.phrase, nextState.metrics);
+        const phase = nextState.phase;
+        const phrase = String(nextState.phrase || "").trim();
+        const metrics = String(nextState.metrics || "").trim();
+        const shouldRender =
+          !state.sessionUiLocked ||
+          phase === "thinking" ||
+          phase === "speaking" ||
+          phase === "listening";
+        if (shouldRender) {
+          renderPhase(phase, phrase, metrics);
+          if (phase === "thinking" && phrase) syncAgentActivityFromPhrase(phrase, metrics);
         }
         maybeResetStaleSpeakingPhase();
       }
@@ -4603,6 +4909,9 @@ async function boot() {
       });
     }
     await refreshStatus();
+    if (state.messagePipelineBusy && !isTtsPlaybackActive() && (state.shellState?.phase || "waiting") === "waiting") {
+      releaseMessagePipeline();
+    }
     await loadComposeDraft();
     commitAllSettingsBaselines();
     void loadQwenPawAgents();

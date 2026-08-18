@@ -1,8 +1,9 @@
 import {
   splitReplyDisplayParts,
   cleanReplyTextSegment,
-  hasReplyTtsBlocks
-} from "./shell-reply.js?v=12";
+  hasReplyTtsBlocks,
+  stripHtmlComments
+} from "./shell-reply.js?v=15";
 
 let shellMarkdownIt = null;
 
@@ -64,7 +65,7 @@ function getShellMarkdownIt() {
 
 export function renderShellReplyMarkdown(element, markdown) {
   if (!element) return;
-  const source = String(markdown || "").trim();
+  const source = stripHtmlComments(String(markdown || "").trim());
   element.classList.remove("shell-md");
 
   if (!source || source === "—") {
