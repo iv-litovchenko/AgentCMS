@@ -168,7 +168,6 @@ const state = {
   screenAppliedKey: "",
   view: "main",
   chatOpen: true,
-  routeOpen: false,
   characterPickerOpen: false,
   mediaMode: "",
   clockTimer: null,
@@ -540,7 +539,6 @@ const nodes = {
   characterToggle: document.getElementById("shell-character-toggle"),
   characterPickerWrap: document.getElementById("shell-character-picker-wrap"),
   characterPicker: document.getElementById("shell-character-picker"),
-  sessionToggle: document.getElementById("shell-session-toggle"),
   replyPanel: document.getElementById("shell-reply-panel"),
   dialogScroll: document.getElementById("shell-dialog-scroll"),
   composePanel: document.getElementById("shell-compose-panel"),
@@ -560,6 +558,9 @@ const nodes = {
   clipboardReadAction: document.getElementById("shell-clipboard-read-action"),
   clipboardPasteAction: document.getElementById("shell-clipboard-paste-action"),
   compactAction: document.getElementById("shell-compact-action"),
+  compactStage: document.getElementById("shell-compact-stage"),
+  compactSensor: document.getElementById("shell-compact-sensor"),
+  compactSensorStatus: document.getElementById("shell-compact-sensor-status"),
   mediaSection: document.getElementById("shell-media-section"),
   phaseLabel: document.getElementById("shell-phase-label"),
   battery: document.getElementById("shell-battery"),
@@ -889,6 +890,7 @@ function renderPhase(phase, phrase = "", metrics = "") {
   if (nodes.agentAvatar) nodes.agentAvatar.dataset.phase = displayPhase;
   if (nodes.characterStage) nodes.characterStage.dataset.phase = displayPhase;
   updateTtsControlsUi(displayPhase);
+  syncCompactSensorPhase(displayPhase, statusText);
 }
 
 function isTtsPlaybackActive() {
@@ -2212,15 +2214,202 @@ function buildWindowSettingsPayload(overrides = {}) {
   };
 }
 
+function syncCompactSensorUi(compact = isWindowCompactEnabled()) {
+  syncCompactSensorAvailability();
+  if (!compact) {
+    setCompactSensorScanning(false);
+    return;
+  }
+  if (!isCompactSensorScanning()) {
+    syncCompactSensorPhase(resolveDisplayPhase(nodes.pulse?.dataset.phase || state.shellState?.phase || "waiting"));
+  }
+}
+
+function isCompactSensorScanning() {
+  return Boolean(nodes.compactSensor?.classList.contains("is-scanning"));
+}
+
+function syncCompactSensorPhase(phase, phrase = "") {
+  const displayPhase = resolveDisplayPhase(phase);
+  const sensor = nodes.compactSensor;
+  const status = nodes.compactSensorStatus;
+  if (!sensor || !status || !isWindowCompactEnabled()) return;
+  if (isCompactSensorScanning()) return;
+
+  sensor.dataset.phase = displayPhase;
+  const text = String(phrase || "").trim() || PHASE_LABELS[displayPhase] || "Ожидание касания…";
+  status.textContent = text;
+  status.classList.remove("is-active", "is-busy", "is-speaking");
+  if (displayPhase === "listening") status.classList.add("is-active");
+  else if (displayPhase === "thinking") status.classList.add("is-busy");
+  else if (displayPhase === "speaking") status.classList.add("is-speaking");
+}
+
+function setCompactSensorScanning(active) {
+  const sensor = nodes.compactSensor;
+  const status = nodes.compactSensorStatus;
+  if (!sensor) return;
+  const on = Boolean(active);
+  sensor.classList.toggle("is-holding", on);
+  sensor.classList.toggle("is-scanning", on);
+  if (!status || !isWindowCompactEnabled()) return;
+  if (on) {
+    const voiceReady = sensor.dataset.voiceReady !== "0";
+    status.textContent = voiceReady ? "Сканирование…" : "Сканирование… (демо)";
+    status.classList.remove("is-busy", "is-speaking");
+    status.classList.add("is-active");
+    return;
+  }
+  syncCompactSensorPhase(sensor.dataset.phase || "waiting", nodes.phaseLabel?.textContent || "");
+}
+
+function beginCompactSensorVoice() {
+  const sensor = nodes.compactSensor;
+  if (!sensor || sensor.dataset.voiceReady === "0") return Promise.resolve(false);
+
+  const mode = getVoiceInputMode();
+  if (mode === "disabled") {
+    return Promise.resolve(false);
+  }
+  if (isMessagePipelineActive()) {
+    return Promise.resolve(false);
+  }
+
+  void unlockShellAudio();
+  hapticTap();
+
+  if (usesSidecarPtt(mode)) {
+    if (!state.sidecarConnected) {
+      return Promise.resolve(false);
+    }
+    return setPttHeldRemote(true)
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  if (shellTapVoice && isBrowserTapVoiceMode(mode)) {
+    shellTapVoice.prepareSession();
+    return shellTapVoice.startSession({ viaTap: true }).then((ok) => Boolean(ok));
+  }
+
+  return Promise.resolve(false);
+}
+
+function endCompactSensorHold() {
+  const mode = getVoiceInputMode();
+  if (usesSidecarPtt(mode)) {
+    if (state.pttHeld) {
+      void setPttHeldRemote(false).catch((error) => renderPhase("waiting", error.message));
+    }
+    return;
+  }
+  if (shellTapVoice && (state.micActive || state.micTapHeld || shellTapVoice.isTapHeld?.())) {
+    shellTapVoice.stopSession();
+  }
+}
+
+function syncCompactSensorAvailability() {
+  const sensor = nodes.compactSensor;
+  if (!sensor) return;
+  const mode = getVoiceInputMode();
+  const needsSidecar = mode === "sidecar" || mode === "always" || mode === "fn_button";
+  const voiceUnavailable =
+    mode === "disabled" || (needsSidecar && usesSidecarPtt(mode) && !state.sidecarConnected);
+  sensor.dataset.voiceReady = voiceUnavailable ? "0" : "1";
+  sensor.setAttribute("aria-disabled", voiceUnavailable ? "true" : "false");
+}
+
+function initCompactSensor() {
+  const sensor = nodes.compactSensor;
+  if (!sensor) return;
+
+  let pointerHeld = false;
+  let keyboardHeld = false;
+
+  const isHeld = () => pointerHeld || keyboardHeld;
+
+  const syncScanningFromHold = () => {
+    setCompactSensorScanning(isHeld());
+  };
+
+  const releaseHold = () => {
+    if (!isHeld()) return;
+    pointerHeld = false;
+    keyboardHeld = false;
+    setCompactSensorScanning(false);
+    endCompactSensorHold();
+  };
+
+  const startHold = () => {
+    setCompactSensorScanning(true);
+    void beginCompactSensorVoice();
+  };
+
+  sensor.addEventListener("pointerdown", (event) => {
+    if (pointerHeld) return;
+    event.preventDefault();
+    pointerHeld = true;
+    try {
+      sensor.setPointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+    startHold();
+  });
+
+  const onPointerRelease = (event) => {
+    if (!pointerHeld) return;
+    pointerHeld = false;
+    try {
+      sensor.releasePointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+    setCompactSensorScanning(keyboardHeld);
+    endCompactSensorHold();
+  };
+
+  sensor.addEventListener("pointerup", onPointerRelease);
+  sensor.addEventListener("pointercancel", onPointerRelease);
+  sensor.addEventListener("lostpointercapture", () => {
+    if (pointerHeld) onPointerRelease({ pointerId: -1 });
+  });
+
+  sensor.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      if (keyboardHeld) return;
+      keyboardHeld = true;
+      startHold();
+    }
+  });
+
+  sensor.addEventListener("keyup", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      if (!keyboardHeld) return;
+      keyboardHeld = false;
+      syncScanningFromHold();
+      endCompactSensorHold();
+    }
+  });
+}
+
 function syncCompactActionUi(compact = isWindowCompactEnabled()) {
   const pressed = compact ? "true" : "false";
   nodes.windowCompact?.setAttribute("aria-pressed", pressed);
   nodes.compactAction?.setAttribute("aria-pressed", pressed);
+  syncCompactSensorUi(compact);
 }
 
 function toggleCompactMode() {
   const next = !isWindowCompactEnabled();
+  if (nodes.windowCompact) {
+    nodes.windowCompact.setAttribute("aria-pressed", next ? "true" : "false");
+  }
+  applyWindowAppearance({ ...(state.windowSettings || {}), windowCompact: next });
   syncCompactActionUi(next);
+  if (next) setShellView("main");
   void saveWindowSettings(buildWindowSettingsPayload({ windowCompact: next })).catch((error) =>
     renderPhase("waiting", error.message)
   );
@@ -2384,19 +2573,8 @@ function setChatPanel(open) {
   const next = Boolean(open);
   state.chatOpen = next;
   nodes.mainView?.setAttribute("data-chat-open", next ? "1" : "0");
-  nodes.sessionToggle?.setAttribute("aria-pressed", next ? "true" : "false");
   nodes.replyPanel?.classList.toggle("hidden", !next);
   nodes.composePanel?.classList.toggle("hidden", !next);
-}
-
-function setRouteDrawer(open) {
-  const next = Boolean(open);
-  state.routeOpen = next;
-  nodes.mainView?.setAttribute("data-route-open", next ? "1" : "0");
-  document.querySelectorAll(".shell-route-toggle").forEach((btn) => {
-    btn.setAttribute("aria-pressed", next ? "true" : "false");
-  });
-  nodes.routePanel?.classList.toggle("hidden", !next);
 }
 
 function setCharacterPicker(open) {
@@ -2558,6 +2736,7 @@ function applySettings(settings) {
       }
     }
   }
+  syncCompactSensorAvailability();
 }
 
 function getQwenPawUrlValue() {
@@ -2821,6 +3000,7 @@ function applyStatusPayload(payload) {
   renderAgentChip();
   if (payload?.settings) applySettings(payload.settings);
   state.sidecarConnected = Boolean(payload?.sidecarConnected);
+  syncCompactSensorAvailability();
   state.qwenpawServerOk = Boolean(payload?.qwenpaw?.serverOk);
   state.qwenpawAgentOk = Boolean(payload?.qwenpaw?.agentOk);
   state.qwenpawAgentName = String(payload?.qwenpaw?.agentName || "");
@@ -4390,7 +4570,11 @@ async function startBrowserMic() {
   await shellTapVoice.startSession({ viaTap: true });
 }
 
-function setShellView(view) {
+function setRouteSettingsView() {
+  setShellView("settings", { scrollTo: "route" });
+}
+
+function setShellView(view, { scrollTo = "" } = {}) {
   const next = view === "settings" ? "settings" : "main";
   state.view = next;
   if (nodes.shellApp) nodes.shellApp.dataset.view = next;
@@ -4403,14 +4587,21 @@ function setShellView(view) {
   if (nodes.homeBrand) {
     nodes.homeBrand.setAttribute("aria-pressed", next === "main" ? "true" : "false");
   }
+  document.querySelectorAll(".shell-route-toggle").forEach((btn) => {
+    btn.setAttribute("aria-pressed", next === "settings" ? "true" : "false");
+  });
+  if (next === "settings" && scrollTo === "route") {
+    requestAnimationFrame(() => {
+      nodes.routePanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 }
 
 function bindNavigationUi() {
   nodes.settingsBtn?.addEventListener("click", () => setShellView("settings"));
   nodes.homeBtn?.addEventListener("click", () => setShellView("main"));
   nodes.homeBrand?.addEventListener("click", () => setShellView("main"));
-  nodes.sessionToggle?.addEventListener("click", () => setChatPanel(!state.chatOpen));
-  nodes.routeToggle?.addEventListener("click", () => setRouteDrawer(!state.routeOpen));
+  nodes.routeToggle?.addEventListener("click", () => setRouteSettingsView());
   nodes.characterToggle?.addEventListener("click", () => setCharacterPicker(!state.characterPickerOpen));
   nodes.characterPicker?.addEventListener("click", (event) => {
     if (event.target.closest(".shell-character-option")) setCharacterPicker(false);
@@ -4579,6 +4770,12 @@ function bindUi() {
     toggleCompactMode();
   });
 
+  nodes.windowCompact?.addEventListener("click", () => {
+    toggleCompactMode();
+  });
+
+  initCompactSensor();
+
   nodes.messageTarget.addEventListener("change", () => {
     updateTargetUi(nodes.messageTarget.value);
     markRouteDirty();
@@ -4721,6 +4918,7 @@ function bindUi() {
     if (nodes.sttEnabled) nodes.sttEnabled.checked = mode !== "disabled";
     if (!isBrowserTapVoiceMode(mode)) shellTapVoice?.abortSession();
     updateVoiceModeSelectUi(mode);
+    syncCompactSensorAvailability();
     void persistVoiceInputMode(mode);
   });
 
