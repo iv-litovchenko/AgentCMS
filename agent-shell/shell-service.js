@@ -39,7 +39,9 @@ const DEFAULT_SETTINGS = {
   qwenpawChatName: "",
   qwenpawSttSessionId: "",
   qwenpawSttChatName: "Shell STT",
-  voiceInputMode: "browser",
+  voiceInputMode: "hold",
+  voiceGlobalListen: false,
+  voiceWakeName: "",
   voiceResponseEnabled: true,
   sttLang: "ru-RU",
   sttPrompt: "",
@@ -82,11 +84,24 @@ const DEFAULT_STATE = {
   stopTtsAt: 0,
   sidecarSeenAt: 0,
   pttHeld: false,
+  meetingRecording: false,
   lastTtsClientId: "",
   updatedAt: ""
 };
 
 const SIDECAR_TTL_MS = 8000;
+const VOICE_INPUT_MODES = new Set(["live", "wake_name", "meeting", "hold", "fn_button"]);
+const { appendShellDialogChat, saveShellVoiceRecord } = require("./shell-dialog-log");
+
+function migrateVoiceInputMode(mode) {
+  const raw = String(mode || "").trim();
+  if (raw === "disabled") return "disabled";
+  if (VOICE_INPUT_MODES.has(raw)) return raw;
+  if (raw === "always") return "live";
+  if (raw === "browser" || raw === "sidecar") return "hold";
+  if (raw === "fn_button") return "fn_button";
+  return "hold";
+}
 
 const SHELL_SHOW_DEMO_RE = /^(демо|demo|пример)(\s+[\wа-яё-]+)?$/i;
 const SHELL_SHOW_VIDEO_RE = /\b(видео|video)\b/i;
@@ -182,9 +197,9 @@ function normalizeSettings(raw) {
   merged.qwenpawSttSessionId = String(merged.qwenpawSttSessionId || "").trim();
   merged.qwenpawSttChatName = String(merged.qwenpawSttChatName || DEFAULT_SETTINGS.qwenpawSttChatName).trim()
     || DEFAULT_SETTINGS.qwenpawSttChatName;
-  if (!["disabled", "browser", "sidecar", "always", "fn_button"].includes(merged.voiceInputMode)) {
-    merged.voiceInputMode = "browser";
-  }
+  merged.voiceInputMode = migrateVoiceInputMode(merged.voiceInputMode);
+  merged.voiceGlobalListen = Boolean(merged.voiceGlobalListen);
+  merged.voiceWakeName = String(merged.voiceWakeName || "").trim();
   if (!["browser", "say", "edge", "piper", "elevenlabs", "sidecar"].includes(merged.ttsEngine)) {
     merged.ttsEngine = "browser";
   }
@@ -858,6 +873,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null
   });
   emitShellEvent(agentId, "assistant_message", assistantMessage);
+  void logShellDialogAgent(agentRoot, finalized.body);
 
   return {
     channel: "qwenpaw",
@@ -899,6 +915,7 @@ async function pollAssistantReply(deps, agentRoot, agentId, settings) {
   if (latest.id === state.lastAgentMessageId) return null;
   await patchState(agentRoot, agentId, { lastAgentMessageId: latest.id });
   emitShellEvent(agentId, "assistant_message", latest);
+  void logShellDialogAgent(agentRoot, latest.body || "");
   return latest;
 }
 
@@ -922,7 +939,53 @@ async function setPttHeld(agentRoot, agentId, held) {
     phase: pttHeld ? PHASE_LISTENING : PHASE_THINKING,
     phrase: pttHeld ? "Sidecar слушает…" : "Распознаю речь…"
   };
+  if (pttHeld) {
+    patch.stopTtsAt = Date.now();
+  }
   return patchState(agentRoot, agentId, patch);
+}
+
+async function setMeetingRecording(agentRoot, agentId, recording) {
+  const meetingRecording = Boolean(recording);
+  const patch = {
+    meetingRecording,
+    phase: meetingRecording ? PHASE_LISTENING : PHASE_THINKING,
+    phrase: meetingRecording ? "Запись встречи…" : "Обрабатываю встречу…"
+  };
+  if (meetingRecording) {
+    patch.stopTtsAt = Date.now();
+  }
+  return patchState(agentRoot, agentId, patch);
+}
+
+async function logShellDialogUser(agentRoot, text) {
+  try {
+    return await appendShellDialogChat(agentRoot, { role: "user", text });
+  } catch {
+    return null;
+  }
+}
+
+async function logShellDialogAgent(agentRoot, text) {
+  try {
+    return await appendShellDialogChat(agentRoot, { role: "agent", text });
+  } catch {
+    return null;
+  }
+}
+
+async function storeShellVoiceRecord(agentRoot, payload = {}) {
+  try {
+    const raw = payload?.dataBase64 || payload?.data || "";
+    const buffer = Buffer.from(String(raw), payload?.dataBase64 ? "base64" : undefined);
+    return await saveShellVoiceRecord(agentRoot, {
+      kind: String(payload?.kind || "meeting").trim() || "meeting",
+      data: buffer,
+      ext: String(payload?.ext || "pcm").trim() || "pcm"
+    });
+  } catch {
+    return null;
+  }
 }
 
 async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = false } = {}) {
@@ -1179,6 +1242,11 @@ module.exports = {
   pollAssistantReply,
   stopTts,
   setPttHeld,
+  setMeetingRecording,
+  logShellDialogUser,
+  logShellDialogAgent,
+  storeShellVoiceRecord,
+  migrateVoiceInputMode,
   isSidecarConnected,
   buildStatusPayload,
   streamShellEvents,

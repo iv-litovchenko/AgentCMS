@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import subprocess
@@ -27,6 +28,19 @@ POLL_SEC = float(env("SHELL_SIDECAR_POLL_SEC", "0.35"))
 SAY_VOICE = env("SHELL_SAY_VOICE", "Milena")
 STT_LANGUAGE = env("SHELL_STT_LANGUAGE", "ru-RU")
 ALWAYS_THRESHOLD = float(env("SHELL_ALWAYS_RMS", "450"))
+LIVE_MODES = frozenset({"live", "wake_name", "always"})
+
+
+def normalize_voice_mode(mode: str) -> str:
+    raw = str(mode or "hold").strip()
+    legacy = {
+        "browser": "hold",
+        "sidecar": "hold",
+        "always": "live",
+        "fn_button": "fn_button",
+        "disabled": "disabled",
+    }
+    return legacy.get(raw, raw)
 
 
 class Sidecar:
@@ -36,10 +50,10 @@ class Sidecar:
         self._last_message_id = ""
         self._stop_tts_at = 0
         self._last_ptt_held = False
+        self._last_meeting_recording = False
         self._recorder = MicRecorder()
         self._always_recording = False
         self._always_silence = 0
-        self._always_frames: list[bytes] = []
         self._ptt_gate: PttGate | None = None
 
     def _url(self, path: str, params: dict[str, str] | None = None) -> str:
@@ -72,6 +86,32 @@ class Sidecar:
             body={"body": text, "author": "sidecar", "voice": True},
         )
 
+    def _stop_user_tts(self) -> None:
+        self.stop_playback()
+        try:
+            self._request_json("/api/shell/stop-tts", method="POST", body={})
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _upload_voice_record(self, pcm: bytes, kind: str = "meeting") -> None:
+        if not pcm:
+            return
+        try:
+            saved = self._request_json(
+                "/api/shell/voice-record",
+                method="POST",
+                body={
+                    "kind": kind,
+                    "dataBase64": base64.b64encode(pcm).decode("ascii"),
+                    "ext": "pcm",
+                },
+            )
+            path = (saved.get("saved") or {}).get("path")
+            if path:
+                print(f"💾 {path}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"⚠️ voice-record: {exc}")
+
     def stop_playback(self) -> None:
         proc = self._speak_proc
         self._speak_proc = None
@@ -94,18 +134,36 @@ class Sidecar:
         self._speak_proc = None
         self._patch_state({"phase": "waiting", "phrase": payload[:240]})
 
-    def _process_pcm(self, pcm: bytes) -> None:
+    def _should_send_transcript(self, text: str, settings: dict[str, Any]) -> bool:
+        mode = normalize_voice_mode(settings.get("voiceInputMode"))
+        wake = str(settings.get("voiceWakeName") or "").strip()
+        if mode == "wake_name" and wake and wake.lower() not in text.lower():
+            print(f"⏭ wake skip (нет «{wake}»)")
+            self._patch_state({"phase": "waiting", "phrase": f"Жду «{wake}»…"})
+            return False
+        return True
+
+    def _process_pcm(self, pcm: bytes, *, settings: dict[str, Any] | None = None, save_record: bool = False, record_kind: str = "meeting") -> None:
+        if save_record and pcm:
+            self._upload_voice_record(pcm, record_kind)
         result = transcribe_pcm(pcm, language=STT_LANGUAGE)
         if result.error:
             self._patch_state({"phase": "waiting", "phrase": result.error, "metrics": f"{result.duration_sec:.2f}s rms={result.peak_rms:.0f}"})
             print(f"⚠️ {result.error}")
             return
-        print(f"📝 {result.text}")
-        self._patch_state({"phase": "thinking", "phrase": result.text[:240], "metrics": f"{result.duration_sec:.2f}s"})
-        self._send_message(result.text)
+        text = (result.text or "").strip()
+        if not text:
+            self._patch_state({"phase": "waiting", "phrase": "Пустая расшифровка"})
+            return
+        if settings and not self._should_send_transcript(text, settings):
+            return
+        print(f"📝 {text}")
+        self._patch_state({"phase": "thinking", "phrase": text[:240], "metrics": f"{result.duration_sec:.2f}s"})
+        self._send_message(text)
 
-    def _handle_ptt(self, held: bool) -> None:
+    def _handle_ptt(self, held: bool, *, settings: dict[str, Any] | None = None, save_record: bool = False) -> None:
         if held and not self._recorder.active:
+            self._stop_user_tts()
             self._recorder.start()
             self._patch_state({"phase": "listening", "phrase": "Говорите…", "pttHeld": True})
             print("🔴 Слушаю (PTT)")
@@ -114,7 +172,21 @@ class Sidecar:
             self._patch_state({"pttHeld": False})
             pcm = self._recorder.stop()
             print("✅ Обработка PTT…")
-            self._process_pcm(pcm)
+            self._process_pcm(pcm, settings=settings or {}, save_record=save_record)
+
+    def _handle_meeting(self, recording: bool, settings: dict[str, Any]) -> None:
+        if recording and not self._recorder.active:
+            self._stop_user_tts()
+            self._recorder.start()
+            self._patch_state({"phase": "listening", "phrase": "Запись встречи…", "meetingRecording": True})
+            print("🎙 Meeting ON")
+            return
+        if not recording and self._recorder.active:
+            pcm = self._recorder.stop()
+            self._patch_state({"meetingRecording": False, "phase": "thinking", "phrase": "Обрабатываю встречу…"})
+            print("⏹ Meeting OFF")
+            if pcm:
+                self._process_pcm(pcm, settings=settings, save_record=True, record_kind="meeting")
 
     def _ensure_ptt_gate(self) -> None:
         if self._ptt_gate is None:
@@ -130,7 +202,7 @@ class Sidecar:
         if self._recorder.active:
             self._recorder.pump()
 
-    def _handle_always(self) -> None:
+    def _handle_live_phrase(self, settings: dict[str, Any]) -> None:
         if self._recorder.active:
             self._recorder.pump()
             return
@@ -142,10 +214,10 @@ class Sidecar:
             print(f"⚠️ Микрофон: {exc}")
             return
 
-        self._always_frames = []
         self._always_silence = 0
         speech_started = False
-        print("👂 Always listen…")
+        mode = normalize_voice_mode(settings.get("voiceInputMode"))
+        print(f"👂 Live listen ({mode})…")
 
         while not self._stop.is_set():
             self._recorder.pump()
@@ -155,6 +227,8 @@ class Sidecar:
                 continue
             level = rms(chunk)
             if level > ALWAYS_THRESHOLD:
+                if not speech_started:
+                    self._stop_user_tts()
                 speech_started = True
                 self._always_silence = 0
                 self._patch_state({"phase": "listening", "phrase": f"vol={level:.0f}"})
@@ -166,31 +240,42 @@ class Sidecar:
 
         pcm = self._recorder.stop()
         if speech_started and pcm:
-            self._process_pcm(pcm)
+            self._process_pcm(pcm, settings=settings)
         else:
             self._patch_state({"phase": "waiting", "phrase": "Ожидаю речь…"})
 
-    def _always_loop(self) -> None:
+    def _live_loop(self) -> None:
         while not self._stop.is_set():
             try:
                 status = self._request_json("/api/shell/status")
-                mode = str((status.get("settings") or {}).get("voiceInputMode") or "browser")
-                if mode != "always":
+                settings = status.get("settings") or {}
+                mode = normalize_voice_mode(settings.get("voiceInputMode"))
+                if mode not in LIVE_MODES:
                     time.sleep(0.5)
                     continue
                 if self._speak_proc and self._speak_proc.poll() is None:
                     time.sleep(0.3)
                     continue
-                self._handle_always()
+                self._handle_live_phrase(settings)
             except Exception as exc:  # noqa: BLE001
-                print(f"⚠️ always: {exc}")
+                print(f"⚠️ live: {exc}")
                 time.sleep(1.0)
+
+    def _reset_recorder(self) -> None:
+        self._stop_ptt_gate()
+        if self._recorder.active:
+            pcm = self._recorder.stop()
+            if pcm and self._last_ptt_held:
+                self._process_pcm(pcm)
+        self._last_ptt_held = False
+        self._last_meeting_recording = False
 
     def tick(self) -> None:
         status = self._request_json("/api/shell/status")
         settings = status.get("settings") or {}
         state = status.get("state") or {}
-        voice_mode = str(settings.get("voiceInputMode") or "browser")
+        voice_mode = normalize_voice_mode(settings.get("voiceInputMode"))
+        global_listen = bool(settings.get("voiceGlobalListen"))
 
         self._patch_state({"sidecarSeenAt": int(time.time() * 1000)})
 
@@ -200,27 +285,33 @@ class Sidecar:
             self.stop_playback()
 
         held = bool(state.get("pttHeld"))
-        if voice_mode == "sidecar":
+        meeting_rec = bool(state.get("meetingRecording"))
+
+        if voice_mode == "meeting":
+            if meeting_rec != self._last_meeting_recording:
+                self._handle_meeting(meeting_rec, settings)
+                self._last_meeting_recording = meeting_rec
+            self._pump_ptt()
+        elif voice_mode == "hold" and global_listen:
             if held != self._last_ptt_held:
-                self._handle_ptt(held)
+                self._handle_ptt(held, settings=settings)
                 self._last_ptt_held = held
             self._pump_ptt()
-        elif voice_mode == "fn_button":
+        elif voice_mode == "fn_button" and global_listen:
             self._ensure_ptt_gate()
             fn_held = self._ptt_gate.is_held() if self._ptt_gate else False
             if fn_held != self._last_ptt_held:
-                self._handle_ptt(fn_held)
+                self._handle_ptt(fn_held, settings=settings)
                 self._last_ptt_held = fn_held
             self._pump_ptt()
             if fn_held != bool(state.get("pttHeld")):
                 self._patch_state({"pttHeld": fn_held})
-        elif voice_mode != "always":
+        elif voice_mode in LIVE_MODES:
             self._stop_ptt_gate()
-            if self._recorder.active:
-                pcm = self._recorder.stop()
-                if pcm and self._last_ptt_held:
-                    self._process_pcm(pcm)
-            self._last_ptt_held = False
+        elif voice_mode in ("hold", "fn_button") and not global_listen:
+            self._stop_ptt_gate()
+        else:
+            self._reset_recorder()
 
         engine = str(settings.get("ttsEngine") or "browser")
         target = str(settings.get("messageTarget") or "cms")
@@ -241,12 +332,11 @@ class Sidecar:
         print(f"Agent: {AGENT_ID or '(default)'}")
         print("STT: Google Speech (SpeechRecognition)")
         print("TTS: macOS say")
-        print("Режим sidecar: кнопка 🎤 в Shell (PTT)")
-        print("Режим fn_button: удерживай Shift (SHELL_PTT_KEY=shift)")
+        print("Режимы: live · wake_name · meeting · hold+global · fn_button+global")
         print("Ctrl+C — выход")
         print("=" * 50)
 
-        threading.Thread(target=self._always_loop, daemon=True).start()
+        threading.Thread(target=self._live_loop, daemon=True).start()
 
         while not self._stop.is_set():
             try:

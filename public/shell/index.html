@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=161" />
+    <link rel="stylesheet" href="/shell/shell.css?v=164" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=3" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=1" />
     <script src="/project-version.js?v=1"></script>
@@ -1268,7 +1268,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
         <div class="shell-stt-settings hidden" id="shell-stt-settings">
           <p class="shell-stt-settings-note">
             Язык и промпт сохраняются в <code>settings.json</code>. Режим ввода — у кнопки 🎤.
-            Sidecar: <code>npm run shell:sidecar</code>.
+            Sidecar: <code>npm run shell:sidecar</code>. Режим 🎤 — см. подсказку под полем ввода.
             iPhone: <a href="#" id="shell-mic-help-link">Микрофон Safari</a>.
             Если задан промпт пост-обработки — голос сначала проходит через отдельный чат QwenPaw
             (<code>shell-stt-&lt;agent&gt;</code>), затем очищенный текст уходит в основной чат.
@@ -1292,6 +1292,21 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <input id="shell-voice-confirm" type="checkbox" checked />
             <span>Подтверждать голос перед отправкой</span>
           </label>
+          <label class="shell-check shell-stt-global" title="Sidecar слушает микрофон в любом приложении (режимы Голосовое и Shift)">
+            <input id="shell-voice-global-listen" type="checkbox" />
+            <span>Глобально — слышу из любого приложения</span>
+          </label>
+          <label class="shell-field shell-field--compact">
+            <span class="shell-label">Wake-имя (режим «По имени»)</span>
+            <input
+              id="shell-voice-wake-name"
+              class="shell-input"
+              type="text"
+              spellcheck="false"
+              placeholder="Например: Ая"
+              autocomplete="off"
+            />
+          </label>
           <div class="shell-stt-settings-grid">
             <label class="shell-field shell-field--compact">
               <span class="shell-label">Язык STT</span>
@@ -1300,15 +1315,11 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <option value="en-US">English</option>
               </select>
             </label>
-            <label class="shell-field shell-field--compact shell-field--todo">
-              <span class="shell-label shell-label-row">
-                Движок STT (sidecar)
-                <span class="shell-todo-badge" title="Sidecar-модель и VAD — в sidecar, не в Shell UI">TODO · sidecar</span>
-              </span>
-              <select id="shell-stt-engine" class="shell-select" disabled>
-                <option value="browser">Браузер (Web Speech)</option>
-                <option value="sidecar">Sidecar (Python) · TODO</option>
-              </select>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Движок STT</span>
+              <p class="shell-stt-engine-note">
+                Выбирается автоматически: Web Speech в браузере или sidecar (Python), если нужен глобальный микрофон / Live / Встреча.
+              </p>
             </label>
           </div>
           <div class="shell-settings-save-row">
@@ -1562,23 +1573,25 @@ aya_bar_v2 тоже читает те же файлы</pre>
               >
                 <span class="shell-compose-tool-icon" aria-hidden="true">🎤</span>
               </button>
+              <span
+                class="shell-hint shell-voice-mode-hint"
+                id="shell-voice-mode-hint"
+                data-hint="Зажмите 🎤 — говорите — отпустите. Без «Глобально» — Web Speech в Shell. С «Глобально» — sidecar."
+              >
               <select
                 id="shell-voice-mode"
                 class="shell-select shell-compose-voice-select"
                 aria-label="Режим голосового ввода"
                 title="Режим голосового ввода"
               >
-                <option value="disabled">Выкл</option>
-                <option value="browser" selected>Web</option>
-                <option value="sidecar">Side</option>
-                <option value="always">Live</option>
-                <option value="fn_button">Shift</option>
+                <option value="hold" selected>Голосовое — удерживать 🎤</option>
               </select>
+              </span>
             </div>
           </div>
         </div>
-        <p id="shell-fn-ptt-hint" class="shell-compose-voice-hint hidden">
-          Shift: удерживай для записи. С sidecar — глобально; без sidecar — когда окно Shell в фокусе (не в поле ввода).
+        <p id="shell-fn-ptt-hint" class="shell-compose-voice-hint">
+          Удерживайте 🎤 — говорите — отпустите.
         </p>
         </div>
       </section>
@@ -1815,6 +1828,6 @@ CMS workspace (agent-cms-test)</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=12"></script>
-    <script src="/shell/shell.js?v=171" type="module"></script>
+    <script src="/shell/shell.js?v=174" type="module"></script>
   </body>
 </html>

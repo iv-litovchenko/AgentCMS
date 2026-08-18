@@ -30,7 +30,7 @@ import { createShellDialog } from "/shell/shell-dialog.js?v=3";
 import { initShellComposeLayout } from "/shell/shell-compose-layout.js?v=2";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
 import { initShellHelp } from "/shell/shell-help.js?v=1";
-import { initShellHints, updateTtsPlaybackHint } from "/shell/shell-hints.js?v=2";
+import { initShellHints, updateTtsPlaybackHint, updateVoiceModeHint } from "/shell/shell-hints.js?v=3";
 import { buildProactiveMessage, createShellProactive, DEFAULT_PROACTIVE_PROMPT } from "/shell/shell-proactive.js?v=3";
 import {
   buildComposeCameraMessage,
@@ -43,15 +43,26 @@ import {
   createVoiceConfirmDialog,
   hapticTap,
   initShellKeepAwake,
-  isBrowserTapVoiceMode,
   readKeepAwakeSetting,
   readVoiceConfirmSetting,
   writeKeepAwakeSetting,
   writeVoiceConfirmSetting
-} from "/shell/shell-voice.js?v=3";
+} from "/shell/shell-voice.js?v=4";
+import {
+  normalizeVoiceInputMode,
+  VOICE_INPUT_MODES,
+  VOICE_MODE_LABELS,
+  VOICE_MODE_HINTS,
+  VOICE_MODE_OPTION_LABELS,
+  voiceModeMicAction,
+  voiceModeRequiresSidecar,
+  voiceModeUsesBrowserStt,
+  voiceModeUsesSidecarMic
+} from "/shell/shell-voice-modes.js?v=2";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 let ttsPlaybackModePersisting = false;
+let voiceInputModePersisting = false;
 
 /** dialog — озвучка по мере печати; reading — после полного ответа и маркера. */
 function getTtsPlaybackMode() {
@@ -113,13 +124,7 @@ const PHASE_LABELS = {
   disabled: "⏸️ Отключено"
 };
 
-const VOICE_MODE_TITLES = {
-  disabled: "Отключен",
-  browser: "Браузер (микрофон)",
-  sidecar: "Sidecar (Python)",
-  always: "Sidecar · всегда слушать",
-  fn_button: "Shift (удерживать)"
-};
+const VOICE_MODE_TITLES = VOICE_MODE_LABELS;
 
 const COMPOSE_DRAFT_SAVE_MS = 700;
 
@@ -201,7 +206,8 @@ const state = {
   queueEditingId: "",
   messageStopped: false,
   sessionUiLocked: false,
-  sttResumeMode: "browser",
+  sttResumeMode: "hold",
+  meetingRecording: false,
   /** shellClientId отправителя текущего вопроса — для надёжной маршрутизации TTS */
   pendingReplyTtsClientId: ""
 };
@@ -345,7 +351,29 @@ function isTypingTarget(element) {
 }
 
 function getVoiceInputMode() {
-  return nodes.voiceMode?.value || state.settings?.voiceInputMode || "browser";
+  if (nodes.sttEnabled?.checked === false) return "disabled";
+  const raw = nodes.voiceMode?.value || state.settings?.voiceInputMode || "hold";
+  const mode = normalizeVoiceInputMode(raw);
+  return mode === "disabled" ? "hold" : mode;
+}
+
+function isVoiceGlobalListen(settings = state.settings) {
+  return Boolean(settings?.voiceGlobalListen);
+}
+
+function getVoiceModeContext(settings = state.settings) {
+  return {
+    globalListen: isVoiceGlobalListen(settings),
+    sidecarConnected: state.sidecarConnected
+  };
+}
+
+function usesSidecarMic(mode = getVoiceInputMode()) {
+  return voiceModeUsesSidecarMic(mode, getVoiceModeContext());
+}
+
+function usesBrowserStt(mode = getVoiceInputMode()) {
+  return voiceModeUsesBrowserStt(mode, getVoiceModeContext());
 }
 
 function isFnButtonMode() {
@@ -353,7 +381,7 @@ function isFnButtonMode() {
 }
 
 function usesSidecarPtt(mode = getVoiceInputMode()) {
-  return mode === "sidecar" || mode === "always" || (mode === "fn_button" && state.sidecarConnected);
+  return usesSidecarMic(mode);
 }
 
 function isPttKeyEvent(event) {
@@ -378,21 +406,44 @@ function setPttHeldRemote(held) {
   });
 }
 
+function setMeetingRecordingRemote(recording) {
+  return apiFetch("/api/shell/meeting", {
+    method: "POST",
+    body: JSON.stringify({ recording: Boolean(recording) })
+  }).then((data) => {
+    state.meetingRecording = Boolean(data.recording);
+    updateVoiceModeSelectUi();
+    setMicButtonState(state.meetingRecording ? "Стоп встречи" : "Говорить", {
+      active: state.meetingRecording
+    });
+    renderPhase(
+      state.meetingRecording ? "listening" : "waiting",
+      state.meetingRecording ? "Запись встречи…" : "Готов к сообщению"
+    );
+  });
+}
+
+function interruptTtsForUserVoice() {
+  stopBrowserTts({ bumpPlayback: false });
+  void apiFetch("/api/shell/stop-tts", { method: "POST", body: "{}" }).catch(() => {});
+}
+
 function beginPttHold() {
   const mode = getVoiceInputMode();
   if (mode === "disabled") return;
   if (isTypingTarget(document.activeElement)) return;
   if (state.pttKeyboardHeld) return;
   state.pttKeyboardHeld = true;
+  interruptTtsForUserVoice();
 
-  if (mode === "fn_button" && state.sidecarConnected) return;
+  if (mode === "fn_button" && usesSidecarMic(mode)) return;
 
-  if (mode === "sidecar" || mode === "always") {
+  if (usesSidecarMic(mode) && (mode === "hold" || mode === "fn_button")) {
     void setPttHeldRemote(true);
     return;
   }
 
-  if ((mode === "fn_button" || mode === "browser") && state.recognition && shellTapVoice) {
+  if ((mode === "fn_button" || mode === "hold") && state.recognition && shellTapVoice) {
     shellTapVoice.prepareSession();
     void shellTapVoice.startSession();
   }
@@ -403,14 +454,14 @@ function endPttHold() {
   state.pttKeyboardHeld = false;
 
   const mode = getVoiceInputMode();
-  if (mode === "fn_button" && state.sidecarConnected) return;
+  if (mode === "fn_button" && usesSidecarMic(mode)) return;
 
-  if (mode === "sidecar" || mode === "always") {
+  if (usesSidecarMic(mode) && (mode === "hold" || mode === "fn_button")) {
     void setPttHeldRemote(false);
     return;
   }
 
-  if ((mode === "fn_button" || mode === "browser") && state.recognition && (state.micActive || state.micTapHeld)) {
+  if ((mode === "fn_button" || mode === "hold") && state.recognition && (state.micActive || state.micTapHeld)) {
     try {
       state.recognition.stop();
     } catch {
@@ -422,7 +473,7 @@ function endPttHold() {
 function setupPttKeyboard() {
   window.addEventListener("keydown", (event) => {
     if (!isFnButtonMode()) return;
-    if (state.sidecarConnected) return;
+    if (usesSidecarMic()) return;
     if (event.repeat) return;
     if (!isPttKeyEvent(event)) return;
     if (isTypingTarget(event.target)) return;
@@ -432,7 +483,7 @@ function setupPttKeyboard() {
 
   window.addEventListener("keyup", (event) => {
     if (!isFnButtonMode()) return;
-    if (state.sidecarConnected) return;
+    if (usesSidecarMic()) return;
     if (!isPttKeyEvent(event)) return;
     event.preventDefault();
     endPttHold();
@@ -443,7 +494,7 @@ function setupPttKeyboard() {
   });
 
   window.shellApp?.onPttKey?.((payload) => {
-    if (!isFnButtonMode() || state.sidecarConnected) return;
+    if (!isFnButtonMode() || usesSidecarMic()) return;
     if (payload?.pressed) beginPttHold();
     if (payload?.released) endPttHold();
   });
@@ -502,6 +553,8 @@ const nodes = {
   sttPromptInsert: document.getElementById("shell-stt-prompt-insert"),
   sttLang: document.getElementById("shell-stt-lang"),
   sttEngine: document.getElementById("shell-stt-engine"),
+  voiceGlobalListen: document.getElementById("shell-voice-global-listen"),
+  voiceWakeName: document.getElementById("shell-voice-wake-name"),
   topmost: document.getElementById("shell-topmost"),
   windowTransparent: document.getElementById("shell-window-transparent"),
   windowBackground: document.getElementById("shell-window-background"),
@@ -2338,7 +2391,7 @@ function beginCompactSensorVoice() {
       .catch(() => false);
   }
 
-  if (shellTapVoice && isBrowserTapVoiceMode(mode)) {
+  if (shellTapVoice && usesBrowserStt(mode)) {
     shellTapVoice.prepareSession();
     return shellTapVoice.startSession({ viaTap: true }).then((ok) => Boolean(ok));
   }
@@ -2363,9 +2416,9 @@ function syncCompactSensorAvailability() {
   const sensor = nodes.compactSensor;
   if (!sensor) return;
   const mode = getVoiceInputMode();
-  const needsSidecar = mode === "sidecar" || mode === "always" || mode === "fn_button";
+  const needsSidecar = voiceModeRequiresSidecar(mode) || (isVoiceGlobalListen() && (mode === "hold" || mode === "fn_button"));
   const voiceUnavailable =
-    mode === "disabled" || (needsSidecar && usesSidecarPtt(mode) && !state.sidecarConnected);
+    mode === "disabled" || (needsSidecar && !state.sidecarConnected);
   sensor.dataset.voiceReady = voiceUnavailable ? "0" : "1";
   sensor.setAttribute("aria-disabled", voiceUnavailable ? "true" : "false");
 }
@@ -3054,6 +3107,10 @@ function applyStatusPayload(payload) {
   if (payload?.agentId) state.agentId = payload.agentId;
   if (payload?.settingsFile) state.settingsFile = payload.settingsFile;
   if (payload?.agentRoot) state.agentRoot = payload.agentRoot;
+  if (payload?.state?.meetingRecording != null) {
+    state.meetingRecording = Boolean(payload.state.meetingRecording);
+    updateVoiceModeSelectUi();
+  }
   updateTtsSaveAgentHint(payload);
   renderAgentChip();
   if (payload?.settings) applySettings(payload.settings);
@@ -3094,8 +3151,10 @@ function applyStatusPayload(payload) {
   }
 }
 
-function needsSidecar(mode) {
-  return mode === "sidecar" || mode === "always" || mode === "fn_button";
+function needsSidecar(mode = getVoiceInputMode()) {
+  const m = normalizeVoiceInputMode(mode);
+  if (voiceModeRequiresSidecar(m)) return true;
+  return isVoiceGlobalListen() && (m === "hold" || m === "fn_button");
 }
 
 async function resolveShellAgent() {
@@ -3615,31 +3674,71 @@ function applyRecognitionLang(lang) {
   if (state.recognition) state.recognition.lang = code;
 }
 
-function updateFnPttHint(mode = getVoiceInputMode()) {
+function updateVoiceModeHint(mode = getVoiceInputMode()) {
   if (!nodes.fnPttHint) return;
-  const show = mode === "fn_button";
-  nodes.fnPttHint.classList.toggle("hidden", !show);
-  if (!show) return;
-  if (state.sidecarConnected) {
-    nodes.fnPttHint.textContent =
-      "Shift: удерживай для записи. Sidecar подключён — работает глобально в любом приложении.";
-    nodes.fnPttHint.classList.remove("shell-compose-voice-hint--warn");
-  } else {
-    nodes.fnPttHint.textContent =
-      "Shift глобально — запусти sidecar: npm run shell:sidecar. Без sidecar Shift только когда окно Shell в фокусе (не в поле ввода).";
+  const action = voiceModeMicAction(mode);
+  const globalOn = isVoiceGlobalListen();
+  const sidecar = state.sidecarConnected;
+  const needsSidecar = voiceModeRequiresSidecar(mode) || (globalOn && (mode === "hold" || mode === "fn_button"));
+
+  let show = true;
+  let text = VOICE_MODE_HINTS[mode] || "";
+  nodes.fnPttHint.classList.remove("shell-compose-voice-hint--warn");
+
+  if (mode === "disabled") {
+    show = false;
+  } else if (mode === "fn_button") {
+    text = globalOn && sidecar
+      ? "Shift: удерживай для записи. Глобально — sidecar подключён."
+      : globalOn
+        ? "Shift глобально — запусти sidecar: npm run shell:sidecar"
+        : "Shift: удерживай для записи (окно Shell в фокусе, не в поле ввода).";
+    if (globalOn && !sidecar) nodes.fnPttHint.classList.add("shell-compose-voice-hint--warn");
+  } else if (mode === "live" || mode === "wake_name") {
+    text = `${VOICE_MODE_HINTS[mode] || ""}${mode === "wake_name" && state.settings?.voiceWakeName ? ` Имя: «${state.settings.voiceWakeName}».` : ""} Нужен sidecar.`;
+    if (!sidecar) {
+      text += " Запусти: npm run shell:sidecar";
+      nodes.fnPttHint.classList.add("shell-compose-voice-hint--warn");
+    }
+  } else if (mode === "meeting") {
+    text = sidecar
+      ? "Нажмите 🎤 — старт/стоп записи встречи. Файл → awn-dialogs/records/meeting/."
+      : "Запись встречи — нужен sidecar: npm run shell:sidecar";
+    if (!sidecar) nodes.fnPttHint.classList.add("shell-compose-voice-hint--warn");
+  } else if (mode === "hold") {
+    text = globalOn
+      ? sidecar
+        ? "Удерживайте 🎤 — глобально через sidecar."
+        : "Глобально — запусти sidecar: npm run shell:sidecar"
+      : "Удерживайте 🎤 — говорите — отпустите.";
+    if (globalOn && !sidecar) nodes.fnPttHint.classList.add("shell-compose-voice-hint--warn");
+  }
+
+  if (needsSidecar && !sidecar && mode !== "hold" && mode !== "fn_button") {
     nodes.fnPttHint.classList.add("shell-compose-voice-hint--warn");
   }
+
+  nodes.fnPttHint.classList.toggle("hidden", !show);
+  if (show) nodes.fnPttHint.textContent = text;
+}
+
+function updateFnPttHint(mode = getVoiceInputMode()) {
+  updateVoiceModeHint(mode);
 }
 
 function updateVoiceModeSelectUi(mode = getVoiceInputMode()) {
-  const title = VOICE_MODE_TITLES[mode] || mode;
+  const title = VOICE_MODE_LABELS[mode] || mode;
   const disabled = mode === "disabled";
+  const micAction = voiceModeMicAction(mode);
   if (nodes.voiceMode) {
-    nodes.voiceMode.title = `Режим голосового ввода: ${title}`;
+    nodes.voiceMode.title = VOICE_MODE_HINTS[mode] || `Режим: ${title}`;
   }
+  updateVoiceModeHint(mode);
   nodes.voiceControl?.classList.toggle("is-disabled", disabled);
   if (nodes.micBtn) {
-    nodes.micBtn.disabled = disabled;
+    nodes.micBtn.disabled = disabled || micAction === "none";
+    nodes.micBtn.dataset.voiceAction = micAction;
+    nodes.micBtn.classList.toggle("is-meeting-active", Boolean(state.meetingRecording));
   }
   if (disabled) {
     shellTapVoice?.abortSession();
@@ -3651,12 +3750,51 @@ function updateVoiceModeSelectUi(mode = getVoiceInputMode()) {
   updateFnPttHint(mode);
 }
 
+function populateVoiceModeSelect(selected = getVoiceInputMode()) {
+  if (!nodes.voiceMode) return;
+  const current = normalizeVoiceInputMode(selected === "disabled" ? state.sttResumeMode || "hold" : selected);
+  nodes.voiceMode.innerHTML = "";
+  for (const mode of VOICE_INPUT_MODES) {
+    const opt = document.createElement("option");
+    opt.value = mode;
+    opt.textContent = VOICE_MODE_OPTION_LABELS[mode] || VOICE_MODE_LABELS[mode] || mode;
+    if (mode === current) opt.selected = true;
+    nodes.voiceMode.append(opt);
+  }
+}
+
+function syncVoiceModeUi(settings = state.settings) {
+  if (!nodes.voiceMode || document.activeElement === nodes.voiceMode || voiceInputModePersisting) {
+    return;
+  }
+  const stored = normalizeVoiceInputMode(settings?.voiceInputMode || "hold");
+  if (pendingVoiceInputMode) {
+    const pending = normalizeVoiceInputMode(pendingVoiceInputMode);
+    if (stored !== pending) {
+      nodes.voiceMode.value = pending;
+      state.sttResumeMode = pending;
+      if (state.settings) state.settings.voiceInputMode = pending;
+      updateVoiceModeSelectUi(pending);
+      return;
+    }
+    pendingVoiceInputMode = null;
+  }
+  const enabled = stored !== "disabled";
+  const uiMode = enabled ? stored : normalizeVoiceInputMode(state.sttResumeMode || "hold");
+  if (nodes.voiceMode.value !== uiMode) nodes.voiceMode.value = uiMode;
+  if (enabled) state.sttResumeMode = stored;
+  if (nodes.sttEnabled) nodes.sttEnabled.checked = enabled;
+  updateVoiceModeSelectUi(enabled ? stored : "disabled");
+}
+
 function applySttToggleUi(settings) {
-  const mode = settings.voiceInputMode || "browser";
-  if (nodes.voiceMode) nodes.voiceMode.value = mode;
-  if (mode !== "disabled") state.sttResumeMode = mode;
-  if (nodes.sttEnabled) nodes.sttEnabled.checked = mode !== "disabled";
-  updateVoiceModeSelectUi(mode);
+  syncVoiceModeUi(settings);
+  if (nodes.voiceGlobalListen && document.activeElement !== nodes.voiceGlobalListen) {
+    nodes.voiceGlobalListen.checked = settings.voiceGlobalListen === true;
+  }
+  if (nodes.voiceWakeName && document.activeElement !== nodes.voiceWakeName) {
+    nodes.voiceWakeName.value = settings.voiceWakeName || "";
+  }
 }
 
 function applySttFormUi(settings) {
@@ -3665,8 +3803,10 @@ function applySttFormUi(settings) {
   }
   if (nodes.sttLang) nodes.sttLang.value = settings.sttLang || "ru-RU";
   if (nodes.sttEngine) {
-    const mode = settings.voiceInputMode || "browser";
-    const sidecar = mode === "sidecar" || mode === "always" || mode === "fn_button";
+    const mode = normalizeVoiceInputMode(settings.voiceInputMode || "hold");
+    const sidecar =
+      voiceModeRequiresSidecar(mode) ||
+      (settings.voiceGlobalListen && (mode === "hold" || mode === "fn_button"));
     nodes.sttEngine.value = sidecar ? "sidecar" : "browser";
   }
   applyRecognitionLang(settings.sttLang);
@@ -3680,7 +3820,9 @@ function applySttSettingsUi(settings) {
 function collectSttFormPatch() {
   return {
     sttLang: nodes.sttLang?.value || "ru-RU",
-    sttPrompt: nodes.sttPrompt?.value || ""
+    sttPrompt: nodes.sttPrompt?.value || "",
+    voiceGlobalListen: Boolean(nodes.voiceGlobalListen?.checked),
+    voiceWakeName: nodes.voiceWakeName?.value?.trim() || ""
   };
 }
 
@@ -3715,10 +3857,19 @@ function collectProactiveFormPatch() {
 }
 
 async function persistVoiceInputMode(mode) {
+  const next = normalizeVoiceInputMode(mode);
+  const stored = next === "disabled" ? "disabled" : next;
+  if (stored !== "disabled") pendingVoiceInputMode = stored;
+  if (state.settings) state.settings.voiceInputMode = stored;
+  voiceInputModePersisting = true;
   try {
-    await saveSettings({ voiceInputMode: mode });
+    await saveSettings({ voiceInputMode: stored });
+    if (pendingVoiceInputMode === stored) pendingVoiceInputMode = null;
   } catch (error) {
+    pendingVoiceInputMode = null;
     renderPhase("waiting", error.message);
+  } finally {
+    voiceInputModePersisting = false;
   }
 }
 
@@ -4686,27 +4837,88 @@ function setupSpeechRecognition() {
   shellTapVoice.bindHandlers(recognition);
 }
 
-function toggleMic() {
-  const mode = nodes.voiceMode.value;
+function beginMicHold() {
+  const mode = getVoiceInputMode();
+  if (mode === "disabled" || isSttDisabled()) return;
+  if (voiceModeMicAction(mode) !== "hold") return;
+  interruptTtsForUserVoice();
+  if (usesSidecarMic(mode)) {
+    void setPttHeldRemote(true).catch((error) => renderPhase("waiting", error.message));
+    return;
+  }
+  if (shellTapVoice && usesBrowserStt(mode)) {
+    shellTapVoice.prepareSession();
+    void shellTapVoice.startSession({ viaTap: true });
+  }
+}
+
+function endMicHold() {
+  const mode = getVoiceInputMode();
+  if (voiceModeMicAction(mode) !== "hold") return;
+  if (usesSidecarMic(mode)) {
+    void setPttHeldRemote(false).catch((error) => renderPhase("waiting", error.message));
+    return;
+  }
+  shellTapVoice?.stopSession();
+}
+
+function handleMicPress() {
+  const mode = getVoiceInputMode();
   if (mode === "disabled") {
     renderPhase("disabled", "Голосовой ввод отключён");
     return;
   }
-  if (mode === "fn_button" && state.sidecarConnected) {
-    renderPhase("waiting", "Удерживай Shift. Sidecar слушает глобально.");
+  const action = voiceModeMicAction(mode);
+  if (action === "none") {
+    if (voiceModeRequiresSidecar(mode) && !state.sidecarConnected) {
+      renderPhase("disabled", "Sidecar не запущен — npm run shell:sidecar");
+    } else {
+      renderPhase("waiting", VOICE_MODE_HINTS[mode] || "Режим без кнопки 🎤");
+    }
     return;
   }
-  if (mode === "sidecar" || mode === "always") {
+  if (action === "hint") {
+    renderPhase(
+      "waiting",
+      usesSidecarMic(mode) ? "Удерживай Shift. Sidecar слушает глобально." : "Удерживай Shift для записи."
+    );
+    return;
+  }
+  if (action === "toggle-meeting") {
     if (!state.sidecarConnected) {
       renderPhase("disabled", "Sidecar не запущен — npm run shell:sidecar");
       return;
     }
-    const nextHeld = !state.pttHeld;
-    void setPttHeldRemote(nextHeld).catch((error) => renderPhase("waiting", error.message));
-    return;
+    void setMeetingRecordingRemote(!state.meetingRecording).catch((error) =>
+      renderPhase("waiting", error.message)
+    );
   }
-  if (!shellTapVoice || !isBrowserTapVoiceMode(mode)) return;
-  shellTapVoice.toggleTap();
+}
+
+function bindMicUi() {
+  if (!nodes.micBtn) return;
+  let micPointerHeld = false;
+  nodes.micBtn.addEventListener("click", (event) => {
+    if (voiceModeMicAction() === "hold") {
+      event.preventDefault();
+      return;
+    }
+    handleMicPress();
+  });
+  nodes.micBtn.addEventListener("pointerdown", (event) => {
+    if (voiceModeMicAction() !== "hold" || event.button !== 0) return;
+    micPointerHeld = true;
+    nodes.micBtn.setPointerCapture?.(event.pointerId);
+    beginMicHold();
+  });
+  const releaseMicHold = () => {
+    if (!micPointerHeld) return;
+    micPointerHeld = false;
+    endMicHold();
+  };
+  nodes.micBtn.addEventListener("pointerup", releaseMicHold);
+  nodes.micBtn.addEventListener("pointercancel", releaseMicHold);
+  nodes.micBtn.addEventListener("lostpointercapture", releaseMicHold);
 }
 
 async function startBrowserMic() {
@@ -4819,6 +5031,7 @@ function bindWindowSettingsUi() {
 }
 
 function bindUi() {
+  populateVoiceModeSelect();
   onRouteSettingsDirty = () => markSettingsDirty("route");
 
   settingsSave.attachUi({
@@ -4968,18 +5181,18 @@ function bindUi() {
     void persistTtsPlaybackMode(mode);
   });
   nodes.sttEnabled?.addEventListener("change", () => {
-    let mode = nodes.voiceMode?.value || state.settings?.voiceInputMode || "browser";
+    const uiMode = normalizeVoiceInputMode(nodes.voiceMode?.value || state.sttResumeMode || "hold");
     if (nodes.sttEnabled.checked) {
-      mode = state.sttResumeMode || "browser";
-      if (nodes.voiceMode) nodes.voiceMode.value = mode;
-    } else if (mode !== "disabled") {
-      state.sttResumeMode = mode;
-      mode = "disabled";
-      if (nodes.voiceMode) nodes.voiceMode.value = mode;
+      state.sttResumeMode = uiMode;
+      void persistVoiceInputMode(uiMode);
+    } else {
+      state.sttResumeMode = uiMode;
       shellTapVoice?.abortSession();
+      if (state.meetingRecording) void setMeetingRecordingRemote(false);
+      void persistVoiceInputMode("disabled");
     }
-    updateVoiceModeSelectUi(mode);
-    void persistVoiceInputMode(mode);
+    updateVoiceModeSelectUi(nodes.sttEnabled.checked ? uiMode : "disabled");
+    syncCompactSensorAvailability();
   });
   nodes.sttSettingsToggle?.addEventListener("click", () => {
     const open = nodes.sttSettingsPanel?.classList.contains("hidden");
@@ -4993,6 +5206,14 @@ function bindUi() {
     applyRecognitionLang();
     markSttDirty();
   });
+  nodes.voiceGlobalListen?.addEventListener("change", () => {
+    if (state.settings) state.settings.voiceGlobalListen = nodes.voiceGlobalListen.checked;
+    updateVoiceModeSelectUi();
+    syncCompactSensorAvailability();
+    markSttDirty();
+  });
+  nodes.voiceWakeName?.addEventListener("input", markSttDirty);
+  nodes.voiceWakeName?.addEventListener("change", markSttDirty);
   if (nodes.voiceConfirm) {
     nodes.voiceConfirm.checked = readVoiceConfirmSetting();
     nodes.voiceConfirm.addEventListener("change", () => {
@@ -5100,10 +5321,14 @@ function bindUi() {
     speechSynthesis.addEventListener("voiceschanged", refreshTtsVoiceOptions);
   }
   nodes.voiceMode?.addEventListener("change", () => {
-    const mode = nodes.voiceMode.value;
-    if (mode !== "disabled") state.sttResumeMode = mode;
-    if (nodes.sttEnabled) nodes.sttEnabled.checked = mode !== "disabled";
-    if (!isBrowserTapVoiceMode(mode)) shellTapVoice?.abortSession();
+    const mode = normalizeVoiceInputMode(nodes.voiceMode.value);
+    pendingVoiceInputMode = mode;
+    nodes.voiceMode.value = mode;
+    state.sttResumeMode = mode;
+    if (state.settings) state.settings.voiceInputMode = mode;
+    if (nodes.sttEnabled) nodes.sttEnabled.checked = true;
+    if (!usesBrowserStt(mode)) shellTapVoice?.abortSession();
+    if (state.meetingRecording) void setMeetingRecordingRemote(false);
     updateVoiceModeSelectUi(mode);
     syncCompactSensorAvailability();
     void persistVoiceInputMode(mode);
@@ -5129,7 +5354,7 @@ function bindUi() {
   nodes.composeExpandToggle?.addEventListener("click", toggleComposeExpanded);
   nodes.composeExpandBackdrop?.addEventListener("click", () => setComposeExpanded(false));
 
-  nodes.micBtn.addEventListener("click", toggleMic);
+  bindMicUi();
   nodes.ttsStopBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     bumpTtsPlayback();

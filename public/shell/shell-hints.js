@@ -3,6 +3,24 @@ const TTS_PLAYBACK_HINTS = {
   reading: "Чтение — ждёт полный текст на экране и маркер ::: VOICE-END :::, затем читает целиком."
 };
 
+export function updateVoiceModeHint(mode = "hold", hintEl = document.getElementById("shell-voice-mode-hint")) {
+  if (!hintEl) return;
+  const hints = {
+    live:
+      "Sidecar постоянно слушает. Фраза по паузе → агенту. Ваш голос останавливает TTS. Нужен npm run shell:sidecar.",
+    wake_name:
+      "Sidecar слушает всегда, но шлёт агенту только если в речи есть wake-имя (поле в ⚙️ STT). Нужен sidecar.",
+    meeting:
+      "🎤 — старт/стоп длинной записи. Аудио → awn-dialogs/records/, текст → агенту. Нужен sidecar.",
+    hold:
+      "Зажмите 🎤 — говорите — отпустите. Без «Глобально» — Web Speech в Shell. С «Глобально» — sidecar.",
+    fn_button:
+      "Удерживайте Shift. Без «Глобально» — когда Shell в фокусе (не в поле ввода). С «Глобально» + sidecar — в любом приложении."
+  };
+  const next = hints[mode] ? mode : "hold";
+  hintEl.dataset.hint = hints[next];
+}
+
 export function updateTtsPlaybackHint(mode = "dialog", hintEl = document.getElementById("shell-tts-playback-hint")) {
   if (!hintEl) return;
   const next = mode === "reading" ? "reading" : "dialog";
@@ -69,4 +87,5 @@ export function initShellHints() {
   });
 
   updateTtsPlaybackHint(document.getElementById("shell-tts-playback-mode")?.value || "dialog");
+  updateVoiceModeHint(document.getElementById("shell-voice-mode")?.value || "hold");
 }

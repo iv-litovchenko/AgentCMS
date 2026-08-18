@@ -203,6 +203,7 @@ function createShellHandlers(deps) {
 
         const ttsClientId = String(payload?.shellClientId || payload?.clientId || "").trim();
         const author = String(payload?.author || "shell").trim() || "shell";
+        void shellService.logShellDialogUser(agentRoot, body);
 
         await shellService.patchState(agentRoot, agentId, {
           phase: shellService.PHASE_THINKING,
@@ -219,6 +220,7 @@ function createShellHandlers(deps) {
             lastAgentMessageId: result.message.id,
             lastShellReply: result.reply
           });
+          void shellService.logShellDialogAgent(agentRoot, result.reply || result.message?.body || "");
           deps.sendJson(res, 200, { agentId, ...result });
           return true;
         }
@@ -276,6 +278,38 @@ function createShellHandlers(deps) {
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to update PTT state",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/meeting") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const state = await shellService.setMeetingRecording(agentRoot, agentId, payload?.recording);
+        deps.sendJson(res, 200, {
+          agentId,
+          state,
+          recording: Boolean(state.meetingRecording)
+        });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to update meeting recording state",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/voice-record") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const saved = await shellService.storeShellVoiceRecord(agentRoot, payload || {});
+        deps.sendJson(res, 200, { agentId, saved });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to store voice record",
           details: String(error?.message || error)
         });
       }

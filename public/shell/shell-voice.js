@@ -171,7 +171,8 @@ export function createVoiceConfirmDialog(nodes) {
 }
 
 function usesBrowserRecognition(mode) {
-  return mode === "browser" || mode === "fn_button";
+  const m = String(mode || "").trim();
+  return m === "hold" || m === "browser" || m === "fn_button";
 }
 
 export function createShellTapVoice(deps) {
