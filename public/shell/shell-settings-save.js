@@ -1,8 +1,8 @@
-export const SETTINGS_SECTIONS = ["window", "route", "tts", "stt"];
+export const SETTINGS_SECTIONS = ["window", "route", "proactive", "tts", "stt"];
 
 export function createSettingsSaveController() {
   const baselines = {};
-  const dirty = { window: false, route: false, tts: false, stt: false };
+  const dirty = { window: false, route: false, proactive: false, tts: false, stt: false };
   let saveButtons = {};
   let toggleButtons = {};
 
@@ -26,6 +26,11 @@ export function createSettingsSaveController() {
         saveBtn.disabled = section === "tts" ? false : !dirty[section];
       }
       toggleButtons[section]?.classList.toggle("has-unsaved", Boolean(dirty[section]));
+      if (["window", "route", "proactive"].includes(section)) {
+        document
+          .querySelectorAll(`.shell-settings-tab[data-settings-tab="${section}"]`)
+          .forEach((tab) => tab.classList.toggle("has-unsaved", Boolean(dirty[section])));
+      }
     }
   }
 

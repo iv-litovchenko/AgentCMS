@@ -1,6 +1,6 @@
 import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
 import { createTopicPicker } from "/shell/topic-picker.js";
-import { createSettingsSaveController } from "/shell/shell-settings-save.js?v=2";
+import { createSettingsSaveController } from "/shell/shell-settings-save.js?v=4";
 import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, mergeSpeechStreamChunks, parseDualReply, extractStreamingTtsBody, extractStreamingReplyBody, hasVoiceEndDelimiter, stripAllTtsBlocks } from "/shell/shell-reply.js?v=16";
 import { renderShellReplyMarkdown, renderShellReplyBody } from "/shell/shell-markdown.js?v=7";
 import { initShellCharacter } from "/shell/shell-character.js?v=18";
@@ -30,6 +30,7 @@ import { createShellDialog } from "/shell/shell-dialog.js?v=3";
 import { initShellComposeLayout } from "/shell/shell-compose-layout.js?v=2";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
 import { initShellHelp } from "/shell/shell-help.js?v=1";
+import { buildProactiveMessage, createShellProactive, DEFAULT_PROACTIVE_PROMPT } from "/shell/shell-proactive.js?v=3";
 import {
   buildComposeCameraMessage,
   captureOneShotCameraFrame,
@@ -40,12 +41,10 @@ import {
   createShellTapVoice,
   createVoiceConfirmDialog,
   hapticTap,
-  hapticSupported,
   initShellKeepAwake,
   isBrowserTapVoiceMode,
   readKeepAwakeSetting,
   readVoiceConfirmSetting,
-  runHapticDemo,
   writeKeepAwakeSetting,
   writeVoiceConfirmSetting
 } from "/shell/shell-voice.js?v=3";
@@ -66,6 +65,14 @@ const DEFAULT_TTS_PROMPT = `Сформируй ответ в следующем 
 
 const DEFAULT_STT_PROMPT = `Исправь пунктуацию и регистр, убери слова-паразиты («э-э», «эээ», «мм», «ну»), сохрани смысл. Верни только готовый текст для отправки агенту — без пояснений и обёрток.`;
 
+/** @type {{ ttsPrompt: string, sttPrompt: string, proactivePrompt: string, sources: Record<string, string | null> }} */
+let shellPromptTemplates = {
+  ttsPrompt: DEFAULT_TTS_PROMPT,
+  sttPrompt: DEFAULT_STT_PROMPT,
+  proactivePrompt: DEFAULT_PROACTIVE_PROMPT,
+  sources: { ttsPrompt: null, sttPrompt: null, proactivePrompt: null }
+};
+
 const TTS_TEST_PHRASES = {
   browser: "Это Web Speech в браузере. Озвучивает вкладка, не сервер.",
   say: "Это macOS say на сервере Mac. Озвучивает команда say.",
@@ -77,13 +84,6 @@ const TTS_TEST_PHRASES = {
 function getTtsTestPhrase(engine = getTtsEngine()) {
   return TTS_TEST_PHRASES[engine] || TTS_TEST_PHRASES.browser;
 }
-
-/** @type {{ ttsPrompt: string, sttPrompt: string, sources: { ttsPrompt: string | null, sttPrompt: string | null } }} */
-let shellPromptTemplates = {
-  ttsPrompt: DEFAULT_TTS_PROMPT,
-  sttPrompt: DEFAULT_STT_PROMPT,
-  sources: { ttsPrompt: null, sttPrompt: null }
-};
 
 const PHASE_LABELS = {
   waiting: "🟡 Ожидаю",
@@ -167,6 +167,7 @@ const state = {
   screenSnapshotBusy: false,
   screenAppliedKey: "",
   view: "main",
+  settingsTab: "route",
   chatOpen: true,
   characterPickerOpen: false,
   mediaMode: "",
@@ -483,7 +484,7 @@ const nodes = {
   topmost: document.getElementById("shell-topmost"),
   windowTransparent: document.getElementById("shell-window-transparent"),
   windowBackground: document.getElementById("shell-window-background"),
-  windowCompact: document.getElementById("shell-compact-toggle"),
+  windowCompact: document.getElementById("shell-compact-action"),
   voiceMode: document.getElementById("shell-voice-mode"),
   voiceControl: document.getElementById("shell-voice-control"),
   fnPttHint: document.getElementById("shell-fn-ptt-hint"),
@@ -514,7 +515,13 @@ const nodes = {
   voiceCancel: document.getElementById("shell-voice-cancel"),
   heroCancelSend: document.getElementById("shell-hero-cancel-send"),
   keepAwake: document.getElementById("shell-keep-awake"),
-  hapticTestBtn: document.getElementById("shell-haptic-test"),
+  proactiveToggle: document.getElementById("shell-proactive-toggle"),
+  proactiveEnabled: document.getElementById("shell-proactive-enabled"),
+  proactiveIdleSeconds: document.getElementById("shell-proactive-idle-seconds"),
+  proactiveCooldownSeconds: document.getElementById("shell-proactive-cooldown-seconds"),
+  proactivePrompt: document.getElementById("shell-proactive-prompt"),
+  proactivePromptInsert: document.getElementById("shell-proactive-prompt-insert"),
+  proactiveSave: document.getElementById("shell-proactive-save"),
   ttsControls: document.getElementById("shell-tts-controls"),
   ttsPauseBtn: document.getElementById("shell-tts-pause"),
   ttsResumeBtn: document.getElementById("shell-tts-resume"),
@@ -528,10 +535,11 @@ const nodes = {
   ttsSave: document.getElementById("shell-tts-save"),
   ttsSaveHint: document.getElementById("shell-tts-save-hint"),
   sttSave: document.getElementById("shell-stt-save"),
-  homeBtn: document.getElementById("shell-home-btn"),
   homeBrand: document.getElementById("shell-home-brand"),
+  openSiteBtn: document.getElementById("shell-open-site"),
   openCmsBtn: document.getElementById("shell-open-cms"),
   shellApp: document.getElementById("shell-app"),
+  settingsView: document.getElementById("shell-settings-view"),
   mainView: document.getElementById("shell-main-view"),
   subtitle: document.getElementById("shell-subtitle"),
   agentAvatar: document.getElementById("shell-agent-avatar"),
@@ -548,7 +556,6 @@ const nodes = {
   messageQueueActiveText: document.getElementById("shell-message-queue-active-text"),
   messageQueueCount: document.getElementById("shell-message-queue-count"),
   messageQueueList: document.getElementById("shell-message-queue-list"),
-  routeToggle: document.getElementById("shell-route-toggle"),
   routePanel: document.getElementById("shell-route-panel"),
   watchCamera: document.getElementById("shell-watch-camera"),
   composeCameraStub: document.getElementById("shell-compose-camera-stub"),
@@ -655,6 +662,29 @@ const shellDialog = createShellDialog({
 });
 
 let shellSession = null;
+let shellProactive = null;
+
+function initShellProactiveController() {
+  shellProactive = createShellProactive({
+    toggleBtn: nodes.proactiveToggle,
+    composeEl: nodes.message,
+    getPhase: () => resolveDisplayPhase(state.shellState?.phase || nodes.pulse?.dataset.phase || "waiting"),
+    isPipelineBusy: () => isMessagePipelineActive(),
+    isTtsActive: () => isTtsPlaybackActive(),
+    isMicActive: () =>
+      Boolean(state.micActive || state.micTapHeld || shellTapVoice?.isTapHeld?.()),
+    sendProactive: (idleSeconds) => sendProactiveMessage(idleSeconds),
+    syncEnabledUi: (on) => {
+      if (nodes.proactiveEnabled) nodes.proactiveEnabled.checked = on;
+    },
+    persistEnabled: async (enabled) => {
+      await saveSettings({ proactiveEnabled: enabled });
+      if (nodes.proactiveEnabled) nodes.proactiveEnabled.checked = enabled;
+    }
+  });
+  shellProactive.start();
+  if (state.settings) shellProactive.syncSettings(state.settings);
+}
 
 function syncDialogConnectionState(override) {
   const conn = override || resolveShellServerConnectionState();
@@ -2404,9 +2434,6 @@ function syncCompactActionUi(compact = isWindowCompactEnabled()) {
 
 function toggleCompactMode() {
   const next = !isWindowCompactEnabled();
-  if (nodes.windowCompact) {
-    nodes.windowCompact.setAttribute("aria-pressed", next ? "true" : "false");
-  }
   applyWindowAppearance({ ...(state.windowSettings || {}), windowCompact: next });
   syncCompactActionUi(next);
   if (next) setShellView("main");
@@ -2533,7 +2560,10 @@ function applyWindowAppearance(settings) {
 }
 
 function isWindowCompactEnabled() {
-  return nodes.windowCompact?.getAttribute("aria-pressed") === "true";
+  if (state.windowSettings && Object.prototype.hasOwnProperty.call(state.windowSettings, "windowCompact")) {
+    return Boolean(state.windowSettings.windowCompact);
+  }
+  return nodes.compactAction?.getAttribute("aria-pressed") === "true";
 }
 
 function applyWindowSettings(settings) {
@@ -2636,6 +2666,7 @@ function collectRouteSnapshot() {
 function getSettingsSnapshot(section) {
   if (section === "window") return collectWindowSnapshot();
   if (section === "route") return collectRouteSnapshot();
+  if (section === "proactive") return collectProactiveFormPatch();
   if (section === "tts") return collectTtsFormPatch();
   if (section === "stt") return collectSttFormPatch();
   return {};
@@ -2649,6 +2680,7 @@ function commitAllSettingsBaselines() {
   settingsSave.commitAllBaselines({
     window: collectWindowSnapshot(),
     route: collectRouteSnapshot(),
+    proactive: collectProactiveFormPatch(),
     tts: collectTtsFormPatch(),
     stt: collectSttFormPatch()
   });
@@ -2736,7 +2768,11 @@ function applySettings(settings) {
       }
     }
   }
+  if (!settingsSave.isSectionDirty("proactive")) {
+    applyProactiveFormUi(settings);
+  }
   syncCompactSensorAvailability();
+  shellProactive?.syncSettings(settings);
 }
 
 function getQwenPawUrlValue() {
@@ -3248,6 +3284,7 @@ async function patchShellState(patch) {
 async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
   const text = String(body || "").trim();
   if (!text) return;
+  shellProactive?.bumpActivity();
 
   if (fromCompose && nodes.message) {
     nodes.message.value = "";
@@ -3270,9 +3307,25 @@ async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
   await sendMessageDirect(text, { fromCompose, voice });
 }
 
-async function sendMessageDirect(body, { fromCompose = false, voice = false } = {}) {
+async function sendProactiveMessage(idleSeconds) {
+  hapticTap();
+  const template = resolveProactivePromptTemplate();
+  await sendMessageDirect(buildProactiveMessage(idleSeconds, template), {
+    fromCompose: false,
+    voice: false,
+    author: "shell/proactive",
+    displayPhrase: "Проактивность…",
+    showInDialog: false
+  });
+}
+
+async function sendMessageDirect(
+  body,
+  { fromCompose = false, voice = false, author = "shell", displayPhrase = "", showInDialog = true } = {}
+) {
   const text = String(body || "").trim();
   if (!text) return;
+  shellProactive?.bumpActivity();
   void unlockShellAudio();
   shellSession?.setSessionUiLocked(true);
   shellSession?.resetStreamRenderState();
@@ -3293,13 +3346,14 @@ async function sendMessageDirect(body, { fromCompose = false, voice = false } = 
       await refreshShellLocationForSend();
     }
     shellDialog.clearError();
-    shellDialog.onUserMessage(text);
-    await patchShellState({ phase: "thinking", phrase: text.slice(0, 240) });
+    if (showInDialog) shellDialog.onUserMessage(text);
+    await patchShellState({ phase: "thinking", phrase: String(displayPhrase || text).slice(0, 240) });
     const result = await apiFetch("/api/shell/message", {
       method: "POST",
       body: JSON.stringify({
         body: text,
-        author: "shell",
+        author,
+        displayPhrase: displayPhrase || undefined,
         voice: Boolean(voice),
         shellClientId: getShellClientId(),
         ...collectOutboundMessageSettings()
@@ -3399,22 +3453,45 @@ function insertSttPromptTemplate() {
   markSettingsDirty("stt");
 }
 
+function insertProactivePromptTemplate() {
+  if (!nodes.proactivePrompt) return;
+  const template =
+    String(shellPromptTemplates.proactivePrompt || DEFAULT_PROACTIVE_PROMPT).trim() ||
+    DEFAULT_PROACTIVE_PROMPT;
+  nodes.proactivePrompt.value = template;
+  state.settings = { ...(state.settings || {}), proactivePrompt: template };
+  markSettingsDirty("proactive");
+}
+
+function resolveProactivePromptTemplate() {
+  const custom = String(state.settings?.proactivePrompt || nodes.proactivePrompt?.value || "").trim();
+  if (custom) return custom;
+  return (
+    String(shellPromptTemplates.proactivePrompt || DEFAULT_PROACTIVE_PROMPT).trim() ||
+    DEFAULT_PROACTIVE_PROMPT
+  );
+}
+
 async function loadShellPromptTemplates() {
   try {
     const data = await apiFetch("/api/shell/prompt-templates");
     shellPromptTemplates = {
       ttsPrompt: String(data.ttsPrompt || DEFAULT_TTS_PROMPT).trim() || DEFAULT_TTS_PROMPT,
       sttPrompt: String(data.sttPrompt || DEFAULT_STT_PROMPT).trim() || DEFAULT_STT_PROMPT,
+      proactivePrompt:
+        String(data.proactivePrompt || DEFAULT_PROACTIVE_PROMPT).trim() || DEFAULT_PROACTIVE_PROMPT,
       sources: {
         ttsPrompt: data.sources?.ttsPrompt || null,
-        sttPrompt: data.sources?.sttPrompt || null
+        sttPrompt: data.sources?.sttPrompt || null,
+        proactivePrompt: data.sources?.proactivePrompt || null
       }
     };
   } catch {
     shellPromptTemplates = {
       ttsPrompt: DEFAULT_TTS_PROMPT,
       sttPrompt: DEFAULT_STT_PROMPT,
-      sources: { ttsPrompt: null, sttPrompt: null }
+      proactivePrompt: DEFAULT_PROACTIVE_PROMPT,
+      sources: { ttsPrompt: null, sttPrompt: null, proactivePrompt: null }
     };
   }
 }
@@ -3582,6 +3659,36 @@ function collectSttFormPatch() {
   return {
     sttLang: nodes.sttLang?.value || "ru-RU",
     sttPrompt: nodes.sttPrompt?.value || ""
+  };
+}
+
+function applyProactiveFormUi(settings) {
+  if (nodes.proactiveEnabled) {
+    nodes.proactiveEnabled.checked = Boolean(settings.proactiveEnabled);
+  }
+  if (nodes.proactiveIdleSeconds) {
+    nodes.proactiveIdleSeconds.value = String(settings.proactiveIdleSeconds ?? 180);
+  }
+  if (nodes.proactiveCooldownSeconds) {
+    nodes.proactiveCooldownSeconds.value = String(settings.proactiveCooldownSeconds ?? 900);
+  }
+  if (nodes.proactivePrompt && document.activeElement !== nodes.proactivePrompt) {
+    nodes.proactivePrompt.value = settings.proactivePrompt || "";
+  }
+}
+
+function collectProactiveFormPatch() {
+  return {
+    proactiveEnabled: Boolean(nodes.proactiveEnabled?.checked),
+    proactiveIdleSeconds: Math.min(
+      3600,
+      Math.max(30, Number(nodes.proactiveIdleSeconds?.value) || 180)
+    ),
+    proactiveCooldownSeconds: Math.min(
+      86400,
+      Math.max(60, Number(nodes.proactiveCooldownSeconds?.value) || 900)
+    ),
+    proactivePrompt: nodes.proactivePrompt?.value || ""
   };
 }
 
@@ -4570,38 +4677,59 @@ async function startBrowserMic() {
   await shellTapVoice.startSession({ viaTap: true });
 }
 
-function setRouteSettingsView() {
-  setShellView("settings", { scrollTo: "route" });
+const SETTINGS_TABS = ["route", "proactive", "window", "todo"];
+
+const SETTINGS_TAB_PANELS = {
+  route: "shell-route-panel",
+  proactive: "shell-proactive-panel",
+  window: "shell-window-panel",
+  todo: "shell-todo-panel"
+};
+
+function setSettingsTab(tab) {
+  const next = SETTINGS_TABS.includes(tab) ? tab : "route";
+  state.settingsTab = next;
+  if (nodes.settingsView) nodes.settingsView.dataset.settingsTab = next;
+  for (const id of SETTINGS_TABS) {
+    const panel = document.getElementById(SETTINGS_TAB_PANELS[id]);
+    if (panel) panel.hidden = id !== next;
+  }
+  document.querySelectorAll(".shell-settings-tab").forEach((btn) => {
+    const active = btn.dataset.settingsTab === next;
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
 }
 
-function setShellView(view, { scrollTo = "" } = {}) {
+function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
   const next = view === "settings" ? "settings" : "main";
   state.view = next;
   if (nodes.shellApp) nodes.shellApp.dataset.view = next;
   if (nodes.settingsBtn) {
     nodes.settingsBtn.setAttribute("aria-pressed", next === "settings" ? "true" : "false");
   }
-  if (nodes.homeBtn) {
-    nodes.homeBtn.setAttribute("aria-pressed", next === "main" ? "true" : "false");
-  }
   if (nodes.homeBrand) {
     nodes.homeBrand.setAttribute("aria-pressed", next === "main" ? "true" : "false");
   }
-  document.querySelectorAll(".shell-route-toggle").forEach((btn) => {
-    btn.setAttribute("aria-pressed", next === "settings" ? "true" : "false");
-  });
-  if (next === "settings" && scrollTo === "route") {
-    requestAnimationFrame(() => {
-      nodes.routePanel?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+  if (next === "settings") {
+    const tabFromScroll =
+      scrollTo === "route" || scrollTo === "proactive" || scrollTo === "window" || scrollTo === "todo"
+        ? scrollTo
+        : "";
+    setSettingsTab(settingsTab || tabFromScroll || state.settingsTab || "route");
   }
 }
 
 function bindNavigationUi() {
-  nodes.settingsBtn?.addEventListener("click", () => setShellView("settings"));
-  nodes.homeBtn?.addEventListener("click", () => setShellView("main"));
+  nodes.settingsBtn?.addEventListener("click", () => {
+    setShellView(state.view === "settings" ? "main" : "settings");
+  });
   nodes.homeBrand?.addEventListener("click", () => setShellView("main"));
-  nodes.routeToggle?.addEventListener("click", () => setRouteSettingsView());
+  document.querySelectorAll(".shell-settings-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.settingsTab;
+      if (tab) setSettingsTab(tab);
+    });
+  });
   nodes.characterToggle?.addEventListener("click", () => setCharacterPicker(!state.characterPickerOpen));
   nodes.characterPicker?.addEventListener("click", (event) => {
     if (event.target.closest(".shell-character-option")) setCharacterPicker(false);
@@ -4660,12 +4788,12 @@ function bindUi() {
     saveButtons: {
       window: nodes.windowSave,
       route: nodes.routeSave,
+      proactive: nodes.proactiveSave,
       tts: nodes.ttsSave,
       stt: nodes.sttSave
     },
     toggleButtons: {
       window: nodes.settingsBtn,
-      route: nodes.routeToggle,
       tts: nodes.ttsSettingsToggle,
       stt: nodes.sttSettingsToggle
     }
@@ -4673,9 +4801,13 @@ function bindUi() {
   const markRouteDirty = () => markSettingsDirty("route");
   const markTtsDirty = () => markSettingsDirty("tts");
   const markSttDirty = () => markSettingsDirty("stt");
+  const markProactiveDirty = () => markSettingsDirty("proactive");
 
   nodes.routeSave?.addEventListener("click", () => {
     void saveSettingsSection("route").catch((error) => renderPhase("waiting", error.message));
+  });
+  nodes.proactiveSave?.addEventListener("click", () => {
+    void saveSettingsSection("proactive").catch((error) => renderPhase("waiting", error.message));
   });
   nodes.ttsSave?.addEventListener("click", () => {
     void persistTtsSettings().catch((error) => renderPhase("waiting", error.message));
@@ -4770,10 +4902,6 @@ function bindUi() {
     toggleCompactMode();
   });
 
-  nodes.windowCompact?.addEventListener("click", () => {
-    toggleCompactMode();
-  });
-
   initCompactSensor();
 
   nodes.messageTarget.addEventListener("change", () => {
@@ -4828,19 +4956,16 @@ function bindUi() {
       writeVoiceConfirmSetting(nodes.voiceConfirm.checked);
     });
   }
-  nodes.hapticTestBtn?.addEventListener("click", () => {
-    const btn = nodes.hapticTestBtn;
+  nodes.proactiveToggle?.addEventListener("click", () => {
+    const btn = nodes.proactiveToggle;
     btn?.classList.add("is-busy");
-    window.setTimeout(() => btn?.classList.remove("is-busy"), 3200);
-    const ok = runHapticDemo();
-    if (!ok) {
-      btn?.classList.remove("is-busy");
-      window.alert(
-        hapticSupported()
-          ? "Вибрация не сработала."
-          : "navigator.vibrate недоступен в этом браузере (Safari на iPhone часто не поддерживает)."
-      );
-    }
+    void shellProactive
+      ?.toggleEnabled()
+      .then((enabled) => {
+        renderPhase("waiting", enabled ? "Проактивность включена" : "Проактивность выключена");
+      })
+      .catch((error) => renderPhase("waiting", error.message))
+      .finally(() => btn?.classList.remove("is-busy"));
   });
   nodes.ttsSettingsToggle?.addEventListener("click", () => {
     const open = nodes.ttsSettingsPanel?.classList.contains("hidden");
@@ -4872,6 +4997,25 @@ function bindUi() {
   nodes.sttPromptInsert?.addEventListener("click", (event) => {
     event.preventDefault();
     insertSttPromptTemplate();
+  });
+  nodes.proactivePromptInsert?.addEventListener("click", (event) => {
+    event.preventDefault();
+    insertProactivePromptTemplate();
+  });
+  for (const el of [
+    nodes.proactiveEnabled,
+    nodes.proactiveIdleSeconds,
+    nodes.proactiveCooldownSeconds,
+    nodes.proactivePrompt
+  ]) {
+    el?.addEventListener("change", markProactiveDirty);
+  }
+  nodes.proactivePrompt?.addEventListener("input", markProactiveDirty);
+  nodes.proactiveEnabled?.addEventListener("change", () => {
+    shellProactive?.syncSettings({
+      ...(state.settings || {}),
+      ...collectProactiveFormPatch()
+    });
   });
   nodes.ttsPiperModel?.addEventListener("blur", markTtsDirty);
   nodes.ttsPiperBinary?.addEventListener("blur", markTtsDirty);
@@ -5009,6 +5153,9 @@ function bindUi() {
 }
 
 async function boot() {
+  if (window.agentAppLock?.whenUnlocked) {
+    await window.agentAppLock.whenUnlocked();
+  }
   cleanShellUrl();
   migrateShellStorageFromMobile();
   if (shellEmbedMode) {
@@ -5072,6 +5219,7 @@ async function boot() {
   });
   bindUi();
   bindNavigationUi();
+  setSettingsTab(state.settingsTab || "route");
   bindWindowSettingsUi();
   updateTtsDownloadUi();
   setupSpeechRecognition();
@@ -5114,6 +5262,7 @@ async function boot() {
     commitAllSettingsBaselines();
     void loadQwenPawAgents();
     connectStream();
+    initShellProactiveController();
   } catch (error) {
     renderPhase("waiting", error.message);
   }

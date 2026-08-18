@@ -202,10 +202,11 @@ function createShellHandlers(deps) {
         body = shellService.applyDeviceContextToBody(body, deviceContext);
 
         const ttsClientId = String(payload?.shellClientId || payload?.clientId || "").trim();
+        const author = String(payload?.author || "shell").trim() || "shell";
 
         await shellService.patchState(agentRoot, agentId, {
           phase: shellService.PHASE_THINKING,
-          phrase: body.slice(0, 240),
+          phrase: String(payload?.displayPhrase || body).slice(0, 240),
           lastTtsClientId: ttsClientId || undefined
         });
 
@@ -229,14 +230,15 @@ function createShellHandlers(deps) {
             agentId,
             settings: outboundSettings,
             body,
-            ttsClientId
+            ttsClientId,
+            author
           });
         } else {
           result = await shellService.sendUserMessage(deps, {
             agentRoot,
             settings,
             body,
-            author: payload?.author || "shell"
+            author
           });
           await shellService.patchState(agentRoot, agentId, {
             phase: shellService.PHASE_WAITING,

@@ -64,7 +64,11 @@ const DEFAULT_SETTINGS = {
   cameraFacing: "user",
   cameraDeviceId: "",
   screenEnabled: false,
-  screenOnSpeech: true
+  screenOnSpeech: true,
+  proactiveEnabled: false,
+  proactiveIdleSeconds: 180,
+  proactiveCooldownSeconds: 900,
+  proactivePrompt: ""
 };
 
 const DEFAULT_STATE = {
@@ -210,6 +214,13 @@ function normalizeSettings(raw) {
   merged.cameraDeviceId = String(merged.cameraDeviceId || "").trim();
   merged.screenEnabled = Boolean(merged.screenEnabled);
   merged.screenOnSpeech = merged.screenOnSpeech !== false;
+  merged.proactiveEnabled = Boolean(merged.proactiveEnabled);
+  merged.proactiveIdleSeconds = Math.min(3600, Math.max(30, Number(merged.proactiveIdleSeconds) || 180));
+  merged.proactiveCooldownSeconds = Math.min(
+    86400,
+    Math.max(60, Number(merged.proactiveCooldownSeconds) || 900)
+  );
+  merged.proactivePrompt = String(merged.proactivePrompt || "");
   return merged;
 }
 
@@ -659,7 +670,7 @@ async function appendAgentReplyToCms(deps, settings, body, { partial = false } =
   });
 }
 
-async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgress, ttsClientId = "" }) {
+async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgress, ttsClientId = "", author = "shell" }) {
   const text = String(body || "").trim();
   if (!text) throw new Error("Message body is required");
   const replyTtsClientId = String(ttsClientId || "").trim();
@@ -672,7 +683,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
       agentRoot,
       settings,
       body: text,
-      author: "shell"
+      author: String(author || "shell").trim() || "shell"
     });
   }
 

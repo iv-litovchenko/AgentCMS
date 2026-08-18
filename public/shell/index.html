@@ -12,8 +12,9 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=145" />
+    <link rel="stylesheet" href="/shell/shell.css?v=158" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=3" />
+    <link rel="stylesheet" href="/shell/shell-app-lock.css?v=1" />
     <script src="/project-version.js?v=1"></script>
     <script type="importmap">
       {
@@ -24,6 +25,42 @@
     </script>
   </head>
   <body class="shell-bg-wallpaper">
+    <div id="app-lock" class="app-lock hidden" role="dialog" aria-modal="true" aria-labelledby="app-lock-title" aria-describedby="app-lock-lead">
+      <div class="app-lock-bg" aria-hidden="true"></div>
+      <div class="app-lock-panel">
+        <div class="app-lock-inner">
+          <div class="app-lock-brand">
+            <img class="app-lock-logo" src="/shell/favicon.svg" width="48" height="48" alt="" aria-hidden="true" />
+            <h2 id="app-lock-title" class="app-lock-title">Agent Shell</h2>
+          </div>
+          <p id="app-lock-lead" class="app-lock-lead">Введите логин и пароль</p>
+          <form id="app-lock-form" class="app-lock-form">
+            <label class="app-lock-field">
+              <span class="app-lock-label">Логин</span>
+              <input id="app-lock-login" class="app-lock-input" type="text" name="login" placeholder="Логин" autocomplete="username" required />
+            </label>
+            <label class="app-lock-field">
+              <span class="app-lock-label">Пароль</span>
+              <input id="app-lock-password" class="app-lock-input" type="password" name="password" placeholder="Пароль" autocomplete="current-password" required />
+            </label>
+            <label id="app-lock-confirm-field" class="app-lock-field hidden">
+              <span class="app-lock-label">Повтор пароля</span>
+              <input id="app-lock-confirm" class="app-lock-input" type="password" name="confirm" placeholder="Повторите пароль" autocomplete="new-password" />
+            </label>
+            <p id="app-lock-error" class="app-lock-error hidden" role="alert"></p>
+            <button id="app-lock-submit" class="app-lock-submit" type="submit">Войти</button>
+          </form>
+          <button id="app-lock-biometric-btn" class="app-lock-biometric-btn hidden" type="button" disabled title="Скоро">
+            <span id="app-lock-biometric-label">Face ID / Touch ID</span>
+          </button>
+          <p id="app-lock-footnote" class="app-lock-footnote">Логин и пароль задаются в файле <code>.env</code> в корне проекта.</p>
+        </div>
+        <div class="app-lock-version-wrap">
+          <span class="app-project-version-badge" aria-label="Версия проекта">v<span class="app-project-version"></span></span>
+        </div>
+      </div>
+    </div>
+
     <div class="shell-app" id="shell-app" data-view="main">
       <div class="shell-install-banner hidden" id="shell-install-banner">
         <span>Добавьте на экран Домой — Safari → Поделиться → «На экран Домой»</span>
@@ -41,30 +78,22 @@
         >
           <img class="shell-logo" src="/shell/favicon.svg" width="42" height="42" alt="" aria-hidden="true" />
           <div>
-            <h1 class="shell-title">Agent Shell</h1>
+            <h1 class="shell-title">Agent CMS Voice</h1>
             <p class="shell-subtitle" id="shell-subtitle">Голосовой клиент Agent CMS</p>
           </div>
         </button>
         <div class="shell-header-actions">
-          <button
-            type="button"
-            class="shell-icon-btn shell-compact-toggle"
-            id="shell-compact-toggle"
-            title="Компактный режим"
-            aria-label="Компактный режим"
-            aria-pressed="false"
+          <a
+            class="shell-icon-btn shell-icon-btn--link"
+            id="shell-open-site"
+            href="https://agent-cms.ru/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Сайт agent-cms.ru"
+            aria-label="Сайт agent-cms.ru"
           >
-            ▫
-          </button>
-          <button
-            type="button"
-            class="shell-icon-btn"
-            id="shell-help-btn"
-            title="Как это работает"
-            aria-label="Справка"
-          >
-            ?
-          </button>
+            WEB
+          </a>
           <button
             type="button"
             class="shell-icon-btn shell-icon-btn--cms"
@@ -76,20 +105,10 @@
           </button>
           <button
             type="button"
-            class="shell-icon-btn shell-route-toggle"
-            id="shell-route-toggle"
-            title="Маршрут и QwenPaw"
-            aria-label="Маршрут и QwenPaw"
-            aria-pressed="false"
-          >
-            🔀
-          </button>
-          <button
-            type="button"
             class="shell-icon-btn"
             id="shell-settings-btn"
-            title="Настройки окна"
-            aria-label="Настройки окна"
+            title="Настройки"
+            aria-label="Настройки"
             aria-pressed="false"
           >
             ⚙️
@@ -97,57 +116,75 @@
           <button
             type="button"
             class="shell-icon-btn"
-            id="shell-home-btn"
-            title="Главная"
-            aria-label="Главная"
-            aria-pressed="true"
+            id="shell-help-btn"
+            title="Помощь"
+            aria-label="Помощь"
           >
-            🏠
+            ?
+          </button>
+          <button
+            type="button"
+            class="shell-icon-btn shell-icon-btn--exit hidden"
+            id="app-lock-logout-btn"
+            title="Выйти из Agent CMS"
+            aria-label="Выход"
+          >
+            ✕
           </button>
         </div>
       </header>
 
-      <div class="shell-settings-view" id="shell-settings-view">
-        <section class="shell-window-panel" id="shell-window-panel">
-        <div class="shell-window-head">
-          <span class="shell-label">Окно</span>
-          <span class="shell-window-hint"><code>awn-shell.json</code></span>
-        </div>
-        <div class="shell-window-options">
-          <label class="shell-check">
-            <input id="shell-topmost" type="checkbox" checked />
-            <span>Поверх окон</span>
-          </label>
-          <label class="shell-check">
-            <input id="shell-window-transparent" type="checkbox" />
-            <span>Прозрачный фон</span>
-          </label>
-          <label class="shell-check" title="Wake Lock API — экран не гаснет, пока Shell открыт">
-            <input id="shell-keep-awake" type="checkbox" checked />
-            <span>Не гасить экран</span>
-          </label>
-          <p class="shell-window-note">Компактный режим — кнопка ▫ в шапке. Минимум окна: 320×500.</p>
-          <p class="shell-window-note shell-window-note--local">«Не гасить экран» — на этом устройстве (не в awn-shell.json).</p>
-          <label class="shell-field shell-field--compact">
-            <span class="shell-label">Фон</span>
-            <select id="shell-window-background" class="shell-select">
-              <option value="wallpaper" selected>Обои (горы)</option>
-              <option value="dark">Тёмный</option>
-              <option value="transparent">Прозрачный</option>
-            </select>
-          </label>
-        </div>
-        <div class="shell-settings-save-row">
-          <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-window-save" disabled>
-            <span class="shell-save-btn-lamp" aria-hidden="true"></span>
-            Сохранить
-          </button>
-          <span class="shell-settings-save-hint"><code>awn-shell.json</code></span>
-        </div>
-      </section>
+      <div class="shell-settings-view" id="shell-settings-view" data-settings-tab="route">
+        <div class="shell-settings-shell">
+          <div class="shell-settings-tabs" role="tablist" aria-label="Разделы настроек">
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-route"
+              role="tab"
+              data-settings-tab="route"
+              aria-selected="true"
+              aria-controls="shell-route-panel"
+            >
+              Маршрут
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-proactive"
+              role="tab"
+              data-settings-tab="proactive"
+              aria-selected="false"
+              aria-controls="shell-proactive-panel"
+            >
+              Проактив
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-window"
+              role="tab"
+              data-settings-tab="window"
+              aria-selected="false"
+              aria-controls="shell-window-panel"
+            >
+              Окно
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-todo"
+              role="tab"
+              data-settings-tab="todo"
+              aria-selected="false"
+              aria-controls="shell-todo-panel"
+            >
+              TODO
+            </button>
+          </div>
 
-      <section class="shell-route-panel" id="shell-route-panel">
-        <div class="shell-section-label">Куда отправлять (маршрут)</div>
+          <div class="shell-settings-panels">
+        <section class="shell-route-panel" id="shell-route-panel" role="tabpanel" aria-labelledby="shell-settings-tab-route">
         <label class="shell-field">
           <select id="shell-message-target" class="shell-select" aria-label="Куда отправлять (маршрут)">
             <option value="qwenpaw" selected>QwenPaw (localhost:8088)</option>
@@ -249,9 +286,105 @@
           </button>
           <span class="shell-settings-save-hint"><code>.agent-shell/settings.json</code></span>
         </div>
-      </section>
+        </section>
 
-      <section class="shell-todo-panel" id="shell-todo-panel">
+        <section class="shell-proactive-panel" id="shell-proactive-panel" role="tabpanel" aria-labelledby="shell-settings-tab-proactive" hidden>
+        <div class="shell-proactive-options">
+          <p class="shell-proactive-note">
+            При бездействии Shell отправляет агенту сообщение по тому же маршруту, что и обычный ввод.
+            Включение — кнопка <strong>✨ Проактив</strong> внизу экрана или чекбокс ниже.
+            Плейсхолдеры: <code>{{idle_seconds}}</code>, <code>{{idle_minutes}}</code>.
+          </p>
+          <label class="shell-check shell-proactive-check">
+            <input id="shell-proactive-enabled" type="checkbox" />
+            <span>Включить проактивность</span>
+          </label>
+          <div class="shell-proactive-grid">
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Бездействие, сек</span>
+              <input
+                id="shell-proactive-idle-seconds"
+                class="shell-input"
+                type="number"
+                min="30"
+                max="3600"
+                step="30"
+                value="180"
+              />
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Пауза между пингами, сек</span>
+              <input
+                id="shell-proactive-cooldown-seconds"
+                class="shell-input"
+                type="number"
+                min="60"
+                max="86400"
+                step="60"
+                value="900"
+              />
+            </label>
+          </div>
+          <label class="shell-field shell-field--compact shell-proactive-prompt-field">
+            <span class="shell-label shell-label-row shell-label-row--spread">
+              Промпт проактивности
+              <button type="button" class="shell-label-action" id="shell-proactive-prompt-insert">
+                Вставить заготовку
+              </button>
+            </span>
+            <textarea
+              id="shell-proactive-prompt"
+              class="shell-textarea shell-textarea--compact"
+              rows="5"
+              spellcheck="false"
+              placeholder="Пользователь неактивен {{idle_seconds}} сек… Представь, что ты живой человек рядом.&#10;&#10;Если поле пустое — заготовка из shell-proactive-prompt.yml"
+            ></textarea>
+          </label>
+        </div>
+        <div class="shell-settings-save-row">
+          <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-proactive-save" disabled>
+            <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+            Сохранить
+          </button>
+          <span class="shell-settings-save-hint"><code>.agent-shell/settings.json</code></span>
+        </div>
+        </section>
+
+        <section class="shell-window-panel" id="shell-window-panel" role="tabpanel" aria-labelledby="shell-settings-tab-window" hidden>
+        <div class="shell-window-options">
+          <label class="shell-check">
+            <input id="shell-topmost" type="checkbox" checked />
+            <span>Поверх окон</span>
+          </label>
+          <label class="shell-check">
+            <input id="shell-window-transparent" type="checkbox" />
+            <span>Прозрачный фон</span>
+          </label>
+          <label class="shell-check" title="Wake Lock API — экран не гаснет, пока Shell открыт">
+            <input id="shell-keep-awake" type="checkbox" checked />
+            <span>Не гасить экран</span>
+          </label>
+          <p class="shell-window-note">Компактный режим — кнопка «Компакт» внизу экрана. Минимум окна: 320×500.</p>
+          <p class="shell-window-note shell-window-note--local">«Не гасить экран» — на этом устройстве (не в awn-shell.json).</p>
+          <label class="shell-field shell-field--compact">
+            <span class="shell-label">Фон</span>
+            <select id="shell-window-background" class="shell-select">
+              <option value="wallpaper" selected>Обои (горы)</option>
+              <option value="dark">Тёмный</option>
+              <option value="transparent">Прозрачный</option>
+            </select>
+          </label>
+        </div>
+        <div class="shell-settings-save-row">
+          <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-window-save" disabled>
+            <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+            Сохранить
+          </button>
+          <span class="shell-settings-save-hint"><code>awn-shell.json</code></span>
+        </div>
+        </section>
+
+        <section class="shell-todo-panel" id="shell-todo-panel" role="tabpanel" aria-labelledby="shell-settings-tab-todo" hidden>
         <div class="shell-todo-head">
           <span class="shell-label">TODO · roadmap</span>
           <span class="shell-todo-hint">dev notes</span>
@@ -669,7 +802,10 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <code>npm run shell:open</code>
         </p>
         </div>
-      </section>
+        </section>
+
+          </div>
+        </div>
       </div>
 
       <div class="shell-main-view" id="shell-main-view" data-chat-open="1" data-route-open="0" data-media-open="0">
@@ -1452,17 +1588,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <span class="shell-action-icon" aria-hidden="true">✎</span>
             <span class="shell-action-label">Вставить</span>
           </button>
-          <button
-            type="button"
-            class="shell-action-card"
-            id="shell-compact-action"
-            title="Компактный режим окна"
-            aria-label="Компактный режим"
-            aria-pressed="false"
-          >
-            <span class="shell-action-icon" aria-hidden="true">▫</span>
-            <span class="shell-action-label">Компакт</span>
-          </button>
         </div>
       </section>
 
@@ -1566,15 +1691,34 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </div>
     </dialog>
 
-    <button
-      type="button"
-      class="shell-haptic-test"
-      id="shell-haptic-test"
-      title="Тест вибрации ~3 сек"
-      aria-label="Тест вибрации"
-    >
-      📳 Тест вибрации
-    </button>
+    <div class="shell-mode-bar" id="shell-mode-bar" role="group" aria-label="Режимы Shell">
+      <button
+        type="button"
+        class="shell-mode-segment shell-mode-segment--proactive"
+        id="shell-proactive-toggle"
+        title="Проактивность — агент сам начнёт диалог при бездействии"
+        aria-label="Проактивность"
+        aria-pressed="false"
+      >
+        ✨ Проактив
+      </button>
+      <button
+        type="button"
+        class="shell-mode-segment shell-mode-segment--compact"
+        id="shell-compact-action"
+        title="Компактный режим окна"
+        aria-label="Компактный режим"
+        aria-pressed="false"
+      >
+        <span class="shell-mode-segment-label">
+          <svg class="shell-mode-segment-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.45" />
+            <rect x="4" y="9" width="8" height="4" rx="1.2" fill="currentColor" />
+          </svg>
+          Компакт
+        </span>
+      </button>
+    </div>
 
     <dialog class="shell-dialog" id="shell-voice-confirm-dialog">
       <form method="dialog" class="shell-dialog-form" id="shell-voice-confirm-form">
@@ -1642,6 +1786,7 @@ CMS workspace (agent-cms-test)</pre>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script src="/shell/shell.js?v=161" type="module"></script>
+    <script src="/app-lock.js?v=12"></script>
+    <script src="/shell/shell.js?v=169" type="module"></script>
   </body>
 </html>
