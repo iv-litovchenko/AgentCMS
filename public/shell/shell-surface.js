@@ -12,6 +12,16 @@ export const SHELL_HOSTS = [
 
 export const SHELL_BACKENDS = ["local", "server"];
 
+/** Static client row (UI placeholder). */
+export const SHELL_CLIENTS = [
+  { id: "desktop", icon: "🖥", short: "Desktop", hint: "Desktop" },
+  { id: "server", icon: "☁️", short: "Server", hint: "Server" },
+  { id: "mobile", icon: "📱", short: "Mobile", hint: "Mobile" },
+  { id: "web", icon: "🌐", short: "Web", hint: "Web" },
+  { id: "robot", icon: "🤖", short: "Robot", hint: "Robot" },
+  { id: "shell", icon: "🐚", short: "Shell", hint: "Shell" }
+];
+
 const HOST_META = {
   "desktop-shell": { icon: "🖥", short: "Shell", hint: "Agent Shell.app" },
   "desktop-cms": { icon: "🖥", short: "CMS", hint: "Agent CMS.app · панель" },
@@ -273,6 +283,14 @@ export function renderShellSurfaceSwitcherMarkup() {
     }>${backend}</span>`;
   }).join("");
 
+  const clientTabs = SHELL_CLIENTS.map((client, index) => {
+    const active = index === 0 ? " is-active" : "";
+    return `<span class="shell-surface-tab shell-surface-tab--static${active}" data-client="${client.id}" title="${client.hint}">
+      <span class="surf-ico" aria-hidden="true">${client.icon}</span>
+      <span class="surf-label">${client.short}</span>
+    </span>`;
+  }).join("");
+
   return `<div class="shell-surface-switcher-head">
     <span class="shell-surface-switcher-kicker">Host</span>
     <span class="shell-surface-switcher-hint" id="shell-surface-hint"></span>
@@ -281,5 +299,8 @@ export function renderShellSurfaceSwitcherMarkup() {
   <div class="shell-surface-switcher-track" role="tablist" aria-label="Shell host">
     <span class="shell-surface-switcher-indicator" aria-hidden="true"></span>
     ${hostTabs}
+  </div>
+  <div class="shell-surface-switcher-track shell-surface-client-track" role="group" aria-label="Client">
+    ${clientTabs}
   </div>`;
 }

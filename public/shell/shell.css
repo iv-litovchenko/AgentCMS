@@ -1337,6 +1337,67 @@ body.shell-embed .shell-haptic-test {
   gap: 4px;
 }
 
+.shell-compose-options {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  overflow-x: auto;
+  scrollbar-width: none;
+  user-select: none;
+}
+
+.shell-compose-options::-webkit-scrollbar {
+  display: none;
+}
+
+.shell-compose-option {
+  flex: 0 0 auto;
+  min-width: 72px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.52);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.shell-compose-option:disabled {
+  pointer-events: none;
+}
+
+.shell-compose-option-ico {
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.82;
+}
+
+.shell-compose-option-label {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.shell-compose-option[aria-pressed="true"] {
+  color: rgba(226, 232, 240, 0.95);
+  background: rgba(124, 108, 255, 0.18);
+  border-color: rgba(147, 197, 253, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  opacity: 1;
+}
+
 .shell-compose-input-wrap {
   position: relative;
 }
@@ -3851,6 +3912,19 @@ body.shell-embed .shell-version {
 
   .shell-compose-panel .shell-compose-actions .shell-btn--primary {
     flex: 1 1 auto;
+  }
+
+  .shell-compose-option-label {
+    display: none;
+  }
+
+  .shell-compose-option {
+    min-width: 36px;
+    padding: 6px 7px;
+  }
+
+  .shell-compose-option-ico {
+    font-size: 14px;
   }
 }
 

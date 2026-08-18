@@ -12,8 +12,8 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=137" />
-    <link rel="stylesheet" href="/shell/shell-surface.css?v=1" />
+    <link rel="stylesheet" href="/shell/shell.css?v=139" />
+    <link rel="stylesheet" href="/shell/shell-surface.css?v=2" />
     <script type="importmap">
       {
         "imports": {
@@ -596,6 +596,26 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <span class="surf-ico" aria-hidden="true">🧩</span><span class="surf-label">Companion</span>
           </span>
         </div>
+        <div class="shell-surface-switcher-track shell-surface-client-track" role="group" aria-label="Client">
+          <span class="shell-surface-tab shell-surface-tab--static is-active" data-client="desktop" title="Desktop">
+            <span class="surf-ico" aria-hidden="true">🖥</span><span class="surf-label">Desktop</span>
+          </span>
+          <span class="shell-surface-tab shell-surface-tab--static" data-client="server" title="Server">
+            <span class="surf-ico" aria-hidden="true">☁️</span><span class="surf-label">Server</span>
+          </span>
+          <span class="shell-surface-tab shell-surface-tab--static" data-client="mobile" title="Mobile">
+            <span class="surf-ico" aria-hidden="true">📱</span><span class="surf-label">Mobile</span>
+          </span>
+          <span class="shell-surface-tab shell-surface-tab--static" data-client="web" title="Web">
+            <span class="surf-ico" aria-hidden="true">🌐</span><span class="surf-label">Web</span>
+          </span>
+          <span class="shell-surface-tab shell-surface-tab--static" data-client="robot" title="Robot">
+            <span class="surf-ico" aria-hidden="true">🤖</span><span class="surf-label">Robot</span>
+          </span>
+          <span class="shell-surface-tab shell-surface-tab--static" data-client="shell" title="Shell">
+            <span class="surf-ico" aria-hidden="true">🐚</span><span class="surf-label">Shell</span>
+          </span>
+        </div>
       </div>
       <section class="shell-hero" id="shell-hero">
         <div class="shell-hero-layout">
@@ -1148,6 +1168,85 @@ aya_bar_v2 тоже читает те же файлы</pre>
         <div class="shell-compose-dock" id="shell-compose-dock">
           <div class="shell-compose-dock-inner">
         <div class="shell-compose-field" id="shell-compose-field">
+          <div class="shell-compose-options" role="group" aria-label="Параметры запроса">
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="reasoning"
+              aria-pressed="false"
+              disabled
+              title="Рассуждения — скоро"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">🧠</span>
+              <span class="shell-compose-option-label">Рассуждения</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="tools"
+              aria-pressed="false"
+              disabled
+              title="Tools — скоро"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">🔧</span>
+              <span class="shell-compose-option-label">Tools</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="vision"
+              aria-pressed="false"
+              disabled
+              title="Vision — скоро"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">👁</span>
+              <span class="shell-compose-option-label">Vision</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="web"
+              aria-pressed="false"
+              disabled
+              title="Web / Search — скоро"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">🔍</span>
+              <span class="shell-compose-option-label">Web</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="memory"
+              aria-pressed="false"
+              disabled
+              title="Memory — скоро"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">💾</span>
+              <span class="shell-compose-option-label">Memory</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="code"
+              aria-pressed="false"
+              disabled
+              title="Code / Sandbox — скоро"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">⌨️</span>
+              <span class="shell-compose-option-label">Code</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="recall"
+              aria-pressed="false"
+              disabled
+              title="Подмешивать факты и воспоминания в запрос — скоро"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">✨</span>
+              <span class="shell-compose-option-label">Recall</span>
+            </button>
+          </div>
           <div class="shell-compose-input-wrap">
             <textarea
               id="shell-message"
