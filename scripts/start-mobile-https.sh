@@ -33,8 +33,11 @@ if lsof -ti :3000 >/dev/null 2>&1; then
 else
   echo "Starting HTTP :3000 + HTTPS :3443"
 fi
-echo "iPhone — open THIS URL (port 3443, not 3000):"
-echo "  https://${IP}:3443/shell/"
+echo "iPhone — open Voice HTTPS URL (port ${VOICE_TLS_PORT:-3488}, not CMS):"
+echo "  https://${IP}:${VOICE_TLS_PORT:-3488}/"
+echo "  https://${IP}:${VOICE_TLS_PORT:-3488}/<agent-id>/"
+echo ""
+echo "CMS editor stays on :3443 — Voice is a separate app on :${VOICE_TLS_PORT:-3488}"
 echo ""
 echo "Safari: warning → Подробнее → Перейти на сайт"
 echo ""
@@ -45,4 +48,7 @@ export PORT="${PORT:-3000}"
 export TLS_PORT="${TLS_PORT:-3443}"
 export TLS_KEY="$KEY"
 export TLS_CERT="$CERT"
+export VOICE_TLS_PORT="${VOICE_TLS_PORT:-3488}"
+export VOICE_PORT="${VOICE_PORT:-3088}"
+export VOICE_REDIRECT_SHELL="${VOICE_REDIRECT_SHELL:-1}"
 exec node server.js

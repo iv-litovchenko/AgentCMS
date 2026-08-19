@@ -14,6 +14,7 @@ const apiDocs = require("./api-docs");
 const mcpDocs = require("./mcp-docs");
 const { createGdriveSyncHelpers, getGoogleDriveSymlinkMeta } = require("./gdrive-sync");
 const { createShellHandlers } = require("./agent-shell/http-handlers");
+const { startVoiceServer, stopVoiceServer, shellLegacyRedirectTarget } = require("./voice-server");
 const {
   clampThumbMax,
   readOrCreateImageThumb,
@@ -274,6 +275,7 @@ let appRoot = __dirname;
 let projectRoot = __dirname;
 let httpServer = null;
 let httpsServer = null;
+let voiceServerInfo = null;
 
 function getAppRoot() {
   return appRoot;
@@ -14207,8 +14209,48 @@ async function serveIndexHtml(res) {
   res.end(content);
 }
 
+function voicePublicBaseUrl() {
+  const explicit = String(process.env.VOICE_PUBLIC_URL || process.env.VOICE_BASE_URL || "").trim();
+  if (explicit) return explicit.replace(/\/+$/, "");
+  if (voiceServerInfo?.httpsUrl) return voiceServerInfo.httpsUrl.replace(/\/+$/, "");
+  if (voiceServerInfo?.httpUrl) return voiceServerInfo.httpUrl.replace(/\/+$/, "");
+  const port = Number(process.env.VOICE_PORT || 3088);
+  const host = process.env.VOICE_HOST || "localhost";
+  return `http://${host}:${port}`;
+}
+
+function shellToVoiceRedirect(pathname) {
+  if (process.env.VOICE_REDIRECT_SHELL === "0") return null;
+  if (!voiceServerInfo && !process.env.VOICE_PUBLIC_URL && !process.env.VOICE_BASE_URL) return null;
+  const targetPath = shellLegacyRedirectTarget(pathname);
+  if (!targetPath) return null;
+  return `${voicePublicBaseUrl()}${targetPath}`;
+}
+
+function resolveShellStaticPath(reqPath) {
+  if (reqPath === "/shell" || reqPath === "/shell/") return "/shell/index.html";
+  const match = String(reqPath || "").match(/^\/shell\/([^/]+)\/?$/);
+  if (!match) return reqPath;
+  const segment = decodeURIComponent(match[1]);
+  const reserved = new Set([
+    "index.html",
+    "shell.js",
+    "shell.css",
+    "shell-build.js",
+    "manifest.webmanifest",
+    "favicon.svg",
+    "favicon.png",
+    "apple-touch-icon.png"
+  ]);
+  if (reserved.has(segment)) return reqPath;
+  if (getAgentsPublicList().some((agent) => agent.id === segment)) {
+    return "/shell/index.html";
+  }
+  return reqPath;
+}
+
 async function serveStatic(reqPath, res) {
-  let normalizedPath = reqPath === "/shell" || reqPath === "/shell/" ? "/shell/index.html" : reqPath;
+  let normalizedPath = resolveShellStaticPath(reqPath);
   if (normalizedPath.endsWith("/") && normalizedPath !== "/") {
     normalizedPath = `${normalizedPath}index.html`;
   }
@@ -23714,6 +23756,13 @@ function createRequestHandler() {
       return;
     }
 
+    const voiceRedirect = shellToVoiceRedirect(url.pathname);
+    if (voiceRedirect) {
+      res.writeHead(302, { Location: `${voiceRedirect}${url.search}` });
+      res.end();
+      return;
+    }
+
     return serveStatic(url.pathname, res);
   };
 }
@@ -23800,6 +23849,30 @@ async function startServer(options = {}) {
   const handler = createRequestHandler();
   const lanIp = getLanIPv4();
   const attachHttpsOnly = process.env.HTTPS_ATTACH === "1";
+  const voiceAutostart = process.env.VOICE_AUTOSTART !== "0";
+
+  function resolveVoiceCmsApiUrl({ httpUrl, httpsUrl, boundPort, boundTlsPort, lanIp }) {
+    const explicit = String(process.env.CMS_API_URL || process.env.AGENT_CMS_BASE_URL || "").trim();
+    if (explicit) return explicit.replace(/\/+$/, "");
+    if (httpUrl && boundPort) {
+      return lanIp ? `http://${lanIp}:${boundPort}` : httpUrl.replace(/\/+$/, "");
+    }
+    if (httpsUrl && boundTlsPort) {
+      return `https://127.0.0.1:${boundTlsPort}`;
+    }
+    return "http://127.0.0.1:3000";
+  }
+
+  async function maybeStartVoiceServer(cmsApiUrl) {
+    if (!voiceAutostart) return null;
+    process.env.CMS_API_URL = cmsApiUrl;
+    voiceServerInfo = await startVoiceServer({
+      root: options.root || __dirname,
+      host: process.env.VOICE_HOST || host || "127.0.0.1",
+      tryNextPort: Boolean(options.tryNextPort)
+    });
+    return voiceServerInfo;
+  }
 
   if ((process.env.TLS_ONLY === "1" || attachHttpsOnly) && isTlsEnabled()) {
     const tls = readTlsCredentials();
@@ -23807,6 +23880,15 @@ async function startServer(options = {}) {
     const boundTlsPort = await listenServer(httpsServer, { host, port: tlsPort, tryNextPort });
     const hostname = host || "localhost";
     const url = `https://${hostname}:${boundTlsPort}`;
+    const cmsApiUrl = resolveVoiceCmsApiUrl({
+      httpUrl: null,
+      httpsUrl: url,
+      boundPort: null,
+      boundTlsPort,
+      lanIp
+    });
+    const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
+    const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
     return {
       port: boundTlsPort,
       tlsPort: boundTlsPort,
@@ -23817,7 +23899,10 @@ async function startServer(options = {}) {
       tls: true,
       httpUrl: null,
       httpsUrl: lanIp ? `https://${lanIp}:${boundTlsPort}` : url,
-      mobileUrl: lanIp ? `https://${lanIp}:${boundTlsPort}/shell/` : `${url}/shell/`,
+      voiceUrl,
+      voiceHttpUrl: voiceInfo?.httpUrl || null,
+      voiceHttpsUrl: voiceInfo?.httpsUrl || null,
+      mobileUrl: voiceUrl || (lanIp ? `https://${lanIp}:${boundTlsPort}/` : `${url}/`),
       stop: stopServer
     };
   }
@@ -23836,6 +23921,16 @@ async function startServer(options = {}) {
     httpsUrl = `https://${hostname}:${boundTlsPort}`;
   }
 
+  const cmsApiUrl = resolveVoiceCmsApiUrl({
+    httpUrl,
+    httpsUrl,
+    boundPort,
+    boundTlsPort,
+    lanIp
+  });
+  const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
+  const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
+
   return {
     port: boundPort,
     tlsPort: boundTlsPort,
@@ -23846,16 +23941,23 @@ async function startServer(options = {}) {
     tls: Boolean(httpsUrl),
     httpUrl: lanIp ? `http://${lanIp}:${boundPort}` : httpUrl,
     httpsUrl: lanIp && boundTlsPort ? `https://${lanIp}:${boundTlsPort}` : httpsUrl,
-    mobileUrl: lanIp && boundTlsPort
-      ? `https://${lanIp}:${boundTlsPort}/shell/`
-      : lanIp
-        ? `http://${lanIp}:${boundPort}/shell/`
-        : `${httpUrl}/shell/`,
+    voiceUrl,
+    voiceHttpUrl: voiceInfo?.httpUrl || null,
+    voiceHttpsUrl: voiceInfo?.httpsUrl || null,
+    mobileUrl:
+      voiceUrl ||
+      (lanIp && boundTlsPort
+        ? `https://${lanIp}:${boundTlsPort}/`
+        : lanIp
+          ? `http://${lanIp}:${boundPort}/`
+          : `${httpUrl}/`),
     stop: stopServer
   };
 }
 
 async function stopServer() {
+  await stopVoiceServer().catch(() => null);
+  voiceServerInfo = null;
   const closes = [];
   if (httpServer) {
     closes.push(
@@ -23882,12 +23984,15 @@ if (require.main === module) {
       if (info.httpUrl) console.log(`Agent CMS HTTP  at ${info.httpUrl}`);
       if (info.httpsUrl) console.log(`Agent CMS HTTPS at ${info.httpsUrl}`);
       else if (!info.httpUrl) console.log(`Agent CMS at ${info.url}`);
-      console.log(`Agent Shell:      ${info.mobileUrl}`);
+      if (info.voiceHttpUrl) console.log(`Agent CMS Voice HTTP  at ${info.voiceHttpUrl}`);
+      if (info.voiceHttpsUrl) console.log(`Agent CMS Voice HTTPS at ${info.voiceHttpsUrl}`);
+      else if (info.voiceUrl) console.log(`Agent CMS Voice at ${info.voiceUrl}`);
+      console.log(`Voice UI:         ${info.mobileUrl}`);
       console.log("");
-      if (info.httpsUrl) {
-        console.log("iPhone: open HTTPS URL → accept certificate → hold 🎤");
+      if (info.voiceHttpsUrl || info.httpsUrl) {
+        console.log("iPhone mic: open Voice HTTPS URL → accept certificate → hold 🎤");
       } else {
-        console.log("iPhone mic/compass need HTTPS. Run in another terminal:");
+        console.log("iPhone mic/compass need HTTPS. Run:");
         console.log("  npm run start:https");
       }
     })

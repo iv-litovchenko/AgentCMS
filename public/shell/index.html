@@ -7,12 +7,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Agent Shell" />
-    <title>Agent Shell</title>
+    <title>Agent CMS Voice</title>
     <link rel="icon" type="image/svg+xml" href="/shell/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=198" />
+    <link rel="stylesheet" href="/shell/shell.css?v=202" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=3" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=1" />
     <script src="/project-version.js?v=1"></script>
@@ -21,37 +21,38 @@
       {
         "imports": {
           "three": "/shell/vendor/three.module.js",
-          "@shell/topic-picker": "/shell/topic-picker.js?v=198",
-          "@shell/settings-save": "/shell/shell-settings-save.js?v=198",
-          "@shell/reply": "/shell/shell-reply.js?v=198",
-          "@shell/markdown": "/shell/shell-markdown.js?v=198",
-          "@shell/character": "/shell/shell-character.js?v=198",
-          "@shell/character-models": "/shell/shell-character-models.js?v=198",
-          "@shell/camera": "/shell/shell-camera.js?v=198",
-          "@shell/screen": "/shell/shell-screen.js?v=198",
-          "@shell/tts-tab": "/shell/shell-tts-tab.js?v=198",
-          "@shell/tts-player": "/shell/shell-tts-player.js?v=198",
-          "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=198",
-          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=198",
-          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=198",
-          "@shell/session": "/shell/shell-session.js?v=198",
-          "@shell/client-id": "/shell/shell-client-id.js?v=198",
-          "@shell/surface": "/shell/shell-surface.js?v=198",
-          "@shell/device-chips": "/shell/shell-device-chips.js?v=198",
-          "@shell/pwa": "/shell/shell-pwa.js?v=198",
-          "@shell/permissions": "/shell/shell-permissions.js?v=198",
-          "@shell/dialog": "/shell/shell-dialog.js?v=198",
-          "@shell/compose-layout": "/shell/shell-compose-layout.js?v=198",
-          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=198",
-          "@shell/help": "/shell/shell-help.js?v=198",
-          "@shell/hints": "/shell/shell-hints.js?v=198",
-          "@shell/proactive": "/shell/shell-proactive.js?v=198",
-          "@shell/compose-camera": "/shell/shell-compose-camera.js?v=198",
-          "@shell/voice": "/shell/shell-voice.js?v=198",
-          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=198",
-          "@shell/voice-end-format": "/shell/voice-end-format.js?v=198",
-          "@shell/contract": "/shell/shell-contract.js?v=198",
-          "@shell/build": "/shell/shell-build.js?v=198"
+          "@shell/topic-picker": "/shell/topic-picker.js?v=202",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=202",
+          "@shell/reply": "/shell/shell-reply.js?v=202",
+          "@shell/markdown": "/shell/shell-markdown.js?v=202",
+          "@shell/character": "/shell/shell-character.js?v=202",
+          "@shell/character-models": "/shell/shell-character-models.js?v=202",
+          "@shell/camera": "/shell/shell-camera.js?v=202",
+          "@shell/screen": "/shell/shell-screen.js?v=202",
+          "@shell/tts-tab": "/shell/shell-tts-tab.js?v=202",
+          "@shell/tts-player": "/shell/shell-tts-player.js?v=202",
+          "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=202",
+          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=202",
+          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=202",
+          "@shell/session": "/shell/shell-session.js?v=202",
+          "@shell/client-id": "/shell/shell-client-id.js?v=202",
+          "@shell/surface": "/shell/shell-surface.js?v=202",
+          "@shell/device-chips": "/shell/shell-device-chips.js?v=202",
+          "@shell/pwa": "/shell/shell-pwa.js?v=202",
+          "@shell/permissions": "/shell/shell-permissions.js?v=202",
+          "@shell/dialog": "/shell/shell-dialog.js?v=202",
+          "@shell/compose-layout": "/shell/shell-compose-layout.js?v=202",
+          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=202",
+          "@shell/help": "/shell/shell-help.js?v=202",
+          "@shell/hints": "/shell/shell-hints.js?v=202",
+          "@shell/proactive": "/shell/shell-proactive.js?v=202",
+          "@shell/compose-camera": "/shell/shell-compose-camera.js?v=202",
+          "@shell/voice": "/shell/shell-voice.js?v=202",
+          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=202",
+          "@shell/voice-end-format": "/shell/voice-end-format.js?v=202",
+          "@shell/contract": "/shell/shell-contract.js?v=202",
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=202",
+          "@shell/build": "/shell/shell-build.js?v=202"
         }
       }
     </script>
@@ -63,7 +64,7 @@
         <div class="app-lock-inner">
           <div class="app-lock-brand">
             <img class="app-lock-logo" src="/shell/favicon.svg" width="48" height="48" alt="" aria-hidden="true" />
-            <h2 id="app-lock-title" class="app-lock-title">Agent Shell</h2>
+            <h2 id="app-lock-title" class="app-lock-title">Agent CMS Voice</h2>
           </div>
           <p id="app-lock-lead" class="app-lock-lead">Введите логин и пароль</p>
           <form id="app-lock-form" class="app-lock-form">
@@ -90,6 +91,18 @@
         <div class="app-lock-version-wrap">
           <span class="app-project-version-badge" aria-label="Версия проекта">v<span class="app-project-version"></span></span>
         </div>
+      </div>
+    </div>
+
+    <div id="shell-agent-gate" class="shell-agent-gate hidden" role="dialog" aria-modal="true" aria-labelledby="shell-agent-gate-title">
+      <div class="shell-agent-gate-panel">
+        <h2 id="shell-agent-gate-title" class="shell-agent-gate-title">Agent CMS Voice</h2>
+        <p class="shell-agent-gate-lead">Выберите workspace CMS — память и настройки Shell привязаны к агенту.</p>
+        <label class="shell-field">
+          <span class="shell-label">Workspace агента</span>
+          <select id="shell-agent-gate-select" class="shell-select" aria-label="Workspace агента"></select>
+        </label>
+        <button type="button" class="shell-btn shell-agent-gate-open" id="shell-agent-gate-open">Открыть Shell</button>
       </div>
     </div>
 
@@ -218,12 +231,10 @@
           <div class="shell-settings-panels">
         <section class="shell-route-panel" id="shell-route-panel" role="tabpanel" aria-labelledby="shell-settings-tab-route">
         <label class="shell-field">
-          <select id="shell-message-target" class="shell-select" aria-label="Куда отправлять (маршрут)">
-            <option value="qwenpaw" selected>QwenPaw (localhost:8088)</option>
-            <option value="qwenpaw-log">QwenPaw + лог в CMS</option>
-            <option value="cms">Agent CMS (thread/inbox)</option>
-          </select>
+          <span class="shell-label">Runtime — кому отправлять</span>
+          <select id="shell-message-target" class="shell-select" aria-label="Runtime — кому отправлять"></select>
         </label>
+        <p class="shell-runtime-hint shell-field-note" id="shell-runtime-hint"></p>
 
         <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
             <p class="shell-qwenpaw-note" id="shell-qwenpaw-note">
@@ -282,7 +293,74 @@
             </div>
           </div>
 
-          <div class="shell-field shell-topic-field" id="shell-topic-field">
+        <div class="shell-runtime-bridge-panel" id="shell-runtime-bridge-panel" data-visible="0">
+          <p class="shell-runtime-bridge-note shell-field-note" id="shell-runtime-bridge-note"></p>
+          <div class="shell-runtime-bridge-fields">
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label" id="shell-runtime-bridge-url-label">Base URL</span>
+              <input
+                id="shell-runtime-bridge-url"
+                class="shell-input"
+                type="url"
+                spellcheck="false"
+                placeholder="http://127.0.0.1:8642"
+              />
+            </label>
+            <label class="shell-field shell-field--compact" id="shell-runtime-bridge-api-key-field">
+              <span class="shell-label">API key</span>
+              <input
+                id="shell-runtime-bridge-api-key"
+                class="shell-input"
+                type="password"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="Bearer token"
+              />
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Model</span>
+              <input
+                id="shell-runtime-bridge-model"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                placeholder="hermes-agent"
+              />
+            </label>
+            <label class="shell-field shell-field--compact hidden" id="shell-runtime-bridge-profile-field" hidden>
+              <span class="shell-label">Профиль Hermes</span>
+              <input
+                id="shell-runtime-bridge-profile"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                placeholder="default или alice"
+              />
+            </label>
+            <label class="shell-field shell-field--compact hidden" id="shell-runtime-bridge-agent-field" hidden>
+              <span class="shell-label">Agent OpenClaw</span>
+              <input
+                id="shell-runtime-bridge-agent-id"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                placeholder="default"
+              />
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Session ID</span>
+              <input
+                id="shell-runtime-bridge-session-id"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                placeholder="agent-shell"
+              />
+            </label>
+          </div>
+        </div>
+
+          <div class="shell-field shell-topic-field hidden" id="shell-topic-field" hidden aria-hidden="true">
             <span class="shell-label">Тема</span>
             <div class="shell-topic-picker" id="shell-topic-picker">
               <button
@@ -928,7 +1006,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
       <section class="shell-hero" id="shell-hero">
         <div class="shell-hero-layout">
           <div class="shell-hero-band shell-hero-band--session" aria-label="Сессия">
-            <span class="shell-meta-chip shell-agent-chip" id="shell-agent-chip" title="Workspace CMS">—</span>
+            <button type="button" class="shell-meta-chip shell-agent-chip" id="shell-agent-chip" title="Workspace CMS">—</button>
             <span class="shell-meta-chip shell-link-chip" id="shell-link-chip" title="Маршрут">
               <span class="shell-meta-icon shell-link-chip-dot" id="shell-link-chip-dot" aria-hidden="true">🟡</span>
               <span class="shell-link-chip-label" id="shell-link-chip-label">—</span>
@@ -1837,21 +1915,18 @@ aya_bar_v2 тоже читает те же файлы</pre>
     <dialog class="shell-dialog shell-dialog--wide" id="shell-help-dialog">
       <div class="shell-dialog-form">
         <h2>Как это связано</h2>
-        <pre class="shell-help-diagram">iPhone / Browser Shell
-    ↓ Wi‑Fi
-Agent CMS (:3000)
-    ↓ messageTarget
-QwenPaw (:8088)
-    ↓ MCP tools
-CMS workspace (agent-cms-test)</pre>
+        <pre class="shell-help-diagram">/shell/agent-cms-core/
+    ↓ workspace + .agent-shell/settings.json
+Runtime (QwenPaw / …) → LLM
+    ↓ MCP (в QwenPaw)
+CMS workspace</pre>
         <ul class="shell-help-list">
-          <li><strong>Shell</strong> — голос, текст и ответ на экране.</li>
-          <li><strong>CMS</strong> — роутер: какой workspace и куда слать.</li>
-          <li><strong>QwenPaw</strong> — LLM, который отвечает.</li>
-          <li><strong>MCP</strong> — «руки» QwenPaw в файлах CMS.</li>
+          <li><strong>URL</strong> — <code>/shell/&lt;agent-id&gt;/</code> выбирает workspace CMS.</li>
+          <li><strong>Runtime</strong> — кому Shell шлёт речь (сейчас QwenPaw).</li>
+          <li><strong>QwenPaw профиль</strong> — агент внутри QwenPaw, не workspace CMS.</li>
         </ul>
         <p class="shell-dialog-note">
-          Маршрут — в настройках Shell или в <code>.agent-shell/settings.json</code>.
+          Маршрут — в ⚙️ «Runtime» или <code>.agent-shell/settings.json</code> · <code>messageTarget</code>.
           <a href="#" id="shell-help-mic-link">Микрофон Safari</a>
         </p>
         <div class="shell-dialog-actions">
@@ -1886,6 +1961,6 @@ CMS workspace (agent-cms-test)</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=12"></script>
-    <script src="/shell/shell.js?v=198" type="module"></script>
+    <script src="/shell/shell.js?v=202" type="module"></script>
   </body>
 </html>

@@ -41,8 +41,11 @@ export const SHELL_PHASE_LABELS = {
 
 export const SHELL_ROUTE_LABELS = {
   qwenpaw: "QwenPaw",
-  "qwenpaw-log": "QwenPaw + CMS",
-  cms: "CMS"
+  hermes: "Hermes",
+  openclaw: "OpenClaw",
+  cursor: "Cursor",
+  codex: "Codex",
+  claude: "Claude"
 };
 
 export function shellPhaseLabel(phase) {

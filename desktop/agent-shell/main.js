@@ -9,6 +9,7 @@ const { app, BrowserWindow, dialog, shell, ipcMain, screen } = electron;
 const path = require("path");
 const {
   getCmsBaseUrl,
+  getVoiceBaseUrl,
   getProjectRoot,
   saveConfig
 } = require("./config");
@@ -34,6 +35,7 @@ const PROTOCOL = "agentshell";
 let mainWindow = null;
 let ownedServer = null;
 let cmsBaseUrl = getCmsBaseUrl();
+let voiceBaseUrl = getVoiceBaseUrl();
 let shuttingDown = false;
 
 function getRepoRoot() {
@@ -43,6 +45,18 @@ function getRepoRoot() {
 async function probeCms(baseUrl) {
   try {
     const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/api/agents`, {
+      signal: AbortSignal.timeout(2500)
+    });
+    if (!response.ok) return null;
+    return baseUrl.replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
+}
+
+async function probeVoice(baseUrl) {
+  try {
+    const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/`, {
       signal: AbortSignal.timeout(2500)
     });
     if (!response.ok) return null;
@@ -62,17 +76,22 @@ async function startEmbeddedServer() {
     port: Number(process.env.PORT || 3000),
     tryNextPort: true
   });
-  cmsBaseUrl = ownedServer.url;
-  saveConfig({ cmsBaseUrl, projectRoot: getRepoRoot() });
+  cmsBaseUrl = ownedServer.httpUrl || ownedServer.url;
+  voiceBaseUrl = ownedServer.voiceHttpUrl || ownedServer.voiceUrl || voiceBaseUrl;
+  saveConfig({ cmsBaseUrl, voiceBaseUrl, projectRoot: getRepoRoot() });
   console.info(`Agent Shell started CMS backend at ${cmsBaseUrl}`);
+  if (voiceBaseUrl) console.info(`Agent CMS Voice at ${voiceBaseUrl}`);
   return cmsBaseUrl;
 }
 
 async function ensureCmsAvailable() {
   cmsBaseUrl = getCmsBaseUrl();
+  voiceBaseUrl = getVoiceBaseUrl();
   const alive = await probeCms(cmsBaseUrl);
   if (alive) {
     cmsBaseUrl = alive;
+    const voiceAlive = await probeVoice(voiceBaseUrl);
+    if (voiceAlive) voiceBaseUrl = voiceAlive;
     return cmsBaseUrl;
   }
 
@@ -86,6 +105,12 @@ async function ensureCmsAvailable() {
 }
 
 function buildShellUrl() {
+  const agentId = String(process.env.AGENT_CMS_AGENT || "").trim();
+  if (voiceBaseUrl) {
+    const base = voiceBaseUrl.replace(/\/+$/, "");
+    if (agentId) return `${base}/${encodeURIComponent(agentId)}/`;
+    return `${base}/`;
+  }
   return new URL("/shell/index.html", `${cmsBaseUrl}/`).toString();
 }
 

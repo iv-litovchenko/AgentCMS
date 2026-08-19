@@ -16,6 +16,21 @@ const {
   refineSttTranscript
 } = require("./stt-refine");
 const { syncLatestReplyFromQwenPaw } = require("./qwenpaw-sync");
+const {
+  normalizeMessageRuntime,
+  isRuntimeImplemented,
+  runtimeUsesQwenPaw,
+  runtimeUsesBridge
+} = require("./shell-runtimes");
+const { checkOpenAiRuntimeHealth, chatOpenAiCompletions } = require("./runtime-openai-client");
+const { checkAnthropicRuntimeHealth, chatAnthropicMessages } = require("./runtime-anthropic-client");
+const {
+  resolveRuntimeEndpoint,
+  buildDefaultRuntimeSettings,
+  buildRuntimeExtraHeaders,
+  runtimeHealthPath,
+  RUNTIME_TRANSPORT
+} = require("./runtime-bridge");
 
 const SETTINGS_DIR = ".agent-shell";
 const SETTINGS_FILE = "settings.json";
@@ -73,7 +88,8 @@ const DEFAULT_SETTINGS = {
   proactiveEnabled: false,
   proactiveIdleSeconds: 180,
   proactiveCooldownSeconds: 900,
-  proactivePrompt: ""
+  proactivePrompt: "",
+  ...buildDefaultRuntimeSettings()
 };
 
 const DEFAULT_STATE = {
@@ -184,9 +200,7 @@ function normalizeSettings(raw) {
   const merged = { ...DEFAULT_SETTINGS, ...(raw && typeof raw === "object" ? raw : {}) };
   if (!String(merged.topicPath || "").trim()) merged.topicPath = DEFAULT_SETTINGS.topicPath;
   if (!["thread", "inbox"].includes(merged.messageChannel)) merged.messageChannel = "thread";
-  if (!["cms", "qwenpaw", "qwenpaw-log"].includes(merged.messageTarget)) {
-    merged.messageTarget = DEFAULT_SETTINGS.messageTarget;
-  }
+  merged.messageTarget = normalizeMessageRuntime(merged.messageTarget);
   merged.qwenpawBaseUrl = String(merged.qwenpawBaseUrl || DEFAULT_SETTINGS.qwenpawBaseUrl).trim()
     || DEFAULT_SETTINGS.qwenpawBaseUrl;
   merged.qwenpawAgentId = String(merged.qwenpawAgentId || DEFAULT_SETTINGS.qwenpawAgentId).trim()
@@ -241,6 +255,13 @@ function normalizeSettings(raw) {
     Math.max(60, Number(merged.proactiveCooldownSeconds) || 900)
   );
   merged.proactivePrompt = String(merged.proactivePrompt || "");
+  for (const [key, value] of Object.entries(buildDefaultRuntimeSettings())) {
+    if (key.endsWith("BaseUrl") || key.endsWith("Model") || key.endsWith("SessionId")) {
+      merged[key] = String(merged[key] ?? value ?? "").trim() || value;
+    } else if (key.endsWith("ApiKey") || key.endsWith("Profile") || key.endsWith("AgentId")) {
+      merged[key] = String(merged[key] ?? "").trim();
+    }
+  }
   return merged;
 }
 
@@ -508,13 +529,45 @@ async function sendUserMessage(deps, { agentRoot, settings, body, author }) {
 }
 
 function usesQwenPaw(settings) {
-  const target = String(settings?.messageTarget || DEFAULT_SETTINGS.messageTarget);
-  return target === "qwenpaw" || target === "qwenpaw-log";
+  return runtimeUsesQwenPaw(settings?.messageTarget);
 }
 
-function shouldLogToCms(settings) {
-  const target = String(settings?.messageTarget || DEFAULT_SETTINGS.messageTarget);
-  return target === "cms" || target === "qwenpaw-log";
+function usesBridgeRuntime(settings) {
+  return runtimeUsesBridge(settings?.messageTarget);
+}
+
+function getMessageRuntime(settings) {
+  return normalizeMessageRuntime(settings?.messageTarget);
+}
+
+async function checkBridgeRuntimeHealth(settings, runtime = getMessageRuntime(settings)) {
+  const id = normalizeMessageRuntime(runtime);
+  if (id === "qwenpaw") {
+    return { ok: false, configured: false, runtime: id };
+  }
+  const endpoint = resolveRuntimeEndpoint(settings, id);
+  let health;
+  if (endpoint.transport === RUNTIME_TRANSPORT.claude) {
+    health = await checkAnthropicRuntimeHealth({
+      baseUrl: endpoint.baseUrl,
+      apiKey: endpoint.apiKey
+    });
+  } else {
+    health = await checkOpenAiRuntimeHealth({
+      baseUrl: endpoint.baseUrl,
+      apiKey: endpoint.apiKey,
+      path: runtimeHealthPath(id),
+      extraHeaders: buildRuntimeExtraHeaders(id, endpoint)
+    });
+  }
+  return {
+    ...health,
+    configured: true,
+    runtime: id,
+    model: endpoint.model,
+    sessionId: endpoint.sessionId,
+    ok: Boolean(health.ok)
+  };
 }
 
 function formatDeviceContextBlock(deviceContext) {
@@ -707,16 +760,6 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
   const replyTtsClientId = String(ttsClientId || "").trim();
 
   const topicPath = String(settings.topicPath || DEFAULT_SETTINGS.topicPath).trim();
-  let userMessage = null;
-
-  if (shouldLogToCms(settings)) {
-    userMessage = await sendUserMessage(deps, {
-      agentRoot,
-      settings,
-      body: text,
-      author: String(author || "shell").trim() || "shell"
-    });
-  }
 
   const sessionId = buildQwenPawSessionId(settings, agentId);
   const streamId = `qwenpaw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -845,25 +888,13 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     });
   } catch (error) {
     const partial = String(lastEmittedText || "").trim();
-    if (partial && shouldLogToCms(settings)) {
-      try {
-        await appendAgentReplyToCms(deps, settings, partial, { partial: true });
-      } catch {
-        // keep partial in state even if CMS write fails
-      }
-    }
     await emitAssistantDelta(partial, { done: true, force: true });
     throw error;
   }
 
-  let agentMessage = null;
   const finalized = finalizeDualReply(reply.text, settings);
-  if (shouldLogToCms(settings)) {
-    agentMessage = await appendAgentReplyToCms(deps, settings, finalized.body);
-  }
-
   const assistantMessage = {
-    id: agentMessage?.id || streamId,
+    id: streamId,
     streamId,
     body: finalized.body,
     spokenText: finalized.spoken || null,
@@ -871,7 +902,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     ttsClientId: replyTtsClientId || undefined,
     role: "agent",
     author: "qwenpaw",
-    created: agentMessage?.created || new Date().toISOString()
+    created: new Date().toISOString()
   };
 
   await patchState(agentRoot, agentId, {
@@ -898,9 +929,149 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     spokenText: finalized.spoken || null,
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null,
     ttsClientId: replyTtsClientId || undefined,
-    userMessage,
     message: assistantMessage
   };
+}
+
+async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, onProgress, ttsClientId = "", author = "shell" }) {
+  const text = String(body || "").trim();
+  if (!text) throw new Error("Message body is required");
+  const runtime = getMessageRuntime(settings);
+  if (!usesBridgeRuntime(settings)) throw new Error(`Runtime ${runtime} is not a bridge runtime`);
+
+  const endpoint = resolveRuntimeEndpoint(settings, runtime);
+  const replyTtsClientId = String(ttsClientId || "").trim();
+  const streamId = `${runtime}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const outboundText = buildDualReplyInstruction(text, settings);
+  let lastEmittedText = "";
+  let lastEmitAt = 0;
+
+  const emitAssistantDelta = async (
+    nextText,
+    { done = false, force = false, spokenText = null, spokenParts = null } = {}
+  ) => {
+    const replyText = String(nextText || "");
+    const now = Date.now();
+    if (!done && !force && replyText === lastEmittedText) return;
+    if (!done && !force && now - lastEmitAt < 60) return;
+    lastEmittedText = replyText;
+    lastEmitAt = now;
+
+    const patch = {
+      phase: done ? PHASE_WAITING : PHASE_THINKING,
+      lastShellReply: replyText
+    };
+    if (done) {
+      patch.phrase = "";
+      patch.metrics = "";
+    } else if (replyText.trim()) {
+      patch.phrase = "Печатает…";
+    }
+    await patchState(agentRoot, agentId, patch);
+    emitShellEvent(agentId, "assistant_delta", {
+      streamId,
+      text: replyText,
+      done,
+      ttsClientId: replyTtsClientId || undefined,
+      spokenText: spokenText || undefined,
+      spokenParts: Array.isArray(spokenParts) && spokenParts.length ? spokenParts : undefined
+    });
+    if (typeof onProgress === "function") {
+      onProgress({
+        phase: done ? PHASE_WAITING : PHASE_THINKING,
+        streamId,
+        text: replyText,
+        done,
+        ttsClientId: replyTtsClientId || undefined,
+        spokenText,
+        spokenParts
+      });
+    }
+  };
+
+  await patchState(agentRoot, agentId, {
+    phase: PHASE_THINKING,
+    phrase: "Запускаю…",
+    metrics: runtime
+  });
+
+  const messages = [{ role: "user", content: outboundText }];
+  const onDelta = (partial) => {
+    if (String(partial || "").trim()) void emitAssistantDelta(partial);
+  };
+  const extraHeaders = buildRuntimeExtraHeaders(runtime, endpoint);
+
+  let reply;
+  try {
+    if (endpoint.transport === RUNTIME_TRANSPORT.claude) {
+      reply = await chatAnthropicMessages({
+        baseUrl: endpoint.baseUrl,
+        apiKey: endpoint.apiKey,
+        model: endpoint.model,
+        messages,
+        onDelta
+      });
+    } else {
+      reply = await chatOpenAiCompletions({
+        baseUrl: endpoint.baseUrl,
+        apiKey: endpoint.apiKey,
+        model: endpoint.model,
+        messages,
+        extraHeaders,
+        onDelta
+      });
+    }
+  } catch (error) {
+    const partial = String(lastEmittedText || "").trim();
+    await emitAssistantDelta(partial, { done: true, force: true });
+    throw error;
+  }
+
+  const finalized = finalizeDualReply(reply.text, settings);
+  const assistantMessage = {
+    id: streamId,
+    streamId,
+    body: finalized.body,
+    spokenText: finalized.spoken || null,
+    spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : undefined,
+    ttsClientId: replyTtsClientId || undefined,
+    role: "agent",
+    author: runtime,
+    created: new Date().toISOString()
+  };
+
+  await patchState(agentRoot, agentId, {
+    phase: PHASE_WAITING,
+    phrase: "",
+    lastAgentMessageId: assistantMessage.id,
+    lastShellReply: finalized.body
+  });
+  await emitAssistantDelta(finalized.body, {
+    done: true,
+    force: true,
+    spokenText: finalized.spoken || null,
+    spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null
+  });
+  emitShellEvent(agentId, "assistant_message", assistantMessage);
+  void logShellDialogAgent(agentRoot, finalized.body);
+
+  return {
+    channel: runtime,
+    sessionId: endpoint.sessionId,
+    streamId,
+    reply: finalized.body,
+    spokenText: finalized.spoken || null,
+    spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null,
+    ttsClientId: replyTtsClientId || undefined,
+    message: assistantMessage
+  };
+}
+
+async function sendToRuntime(deps, opts) {
+  const settings = opts?.settings || {};
+  if (usesQwenPaw(settings)) return sendToQwenPaw(deps, opts);
+  if (usesBridgeRuntime(settings)) return sendToBridgeRuntime(deps, opts);
+  throw new Error(`Runtime ${getMessageRuntime(settings)} is not supported`);
 }
 
 async function findLatestAgentMessage(deps, settings) {
@@ -920,7 +1091,7 @@ async function findLatestAgentMessage(deps, settings) {
 }
 
 async function pollAssistantReply(deps, agentRoot, agentId, settings) {
-  if (usesQwenPaw(settings) && !shouldLogToCms(settings)) {
+  if (usesQwenPaw(settings)) {
     return null;
   }
   const latest = await findLatestAgentMessage(deps, settings);
@@ -1039,18 +1210,20 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
       author: "qwenpaw",
       created: state.updatedAt || new Date().toISOString()
     };
-  } else if (shouldLogToCms(settings)) {
-    try {
-      latestAgent = await findLatestAgentMessage(deps, settings);
-    } catch {
-      latestAgent = null;
-    }
+  } else if (usesBridgeRuntime(settings) && shellReply) {
+    const finalized = finalizeDualReply(shellReply, settings);
+    latestAgent = {
+      id: state.lastAgentMessageId || `${getMessageRuntime(settings)}-reply`,
+      body: finalized.body || shellReply,
+      spokenText: finalized.spoken || undefined,
+      spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : undefined,
+      ttsClientId: state.lastTtsClientId || undefined,
+      role: "agent",
+      author: getMessageRuntime(settings),
+      created: state.updatedAt || new Date().toISOString()
+    };
   } else {
-    try {
-      latestAgent = await findLatestAgentMessage(deps, settings);
-    } catch {
-      latestAgent = null;
-    }
+    latestAgent = null;
   }
 
   if (shellReply && stateOut.phrase) {
@@ -1088,6 +1261,18 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
     };
   }
 
+  let bridgeRuntime = { ok: false, configured: usesBridgeRuntime(settings), runtime: getMessageRuntime(settings) };
+  if (usesBridgeRuntime(settings)) {
+    const health = await checkBridgeRuntimeHealth(settings);
+    bridgeRuntime = {
+      ...health,
+      configured: true,
+      serverOk: Boolean(health.ok),
+      ok: Boolean(health.ok),
+      error: health.error || ""
+    };
+  }
+
   return {
     agentId,
     agentRoot,
@@ -1096,6 +1281,7 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
     state: stateOut,
     sidecarConnected: isSidecarConnected(state),
     qwenpaw,
+    runtime: bridgeRuntime,
     camera: {
       speech: await cameraSnapshots.readLatestMeta(agentRoot, "camera", "speech"),
       manual: await cameraSnapshots.readLatestMeta(agentRoot, "camera", "manual")
@@ -1242,9 +1428,14 @@ module.exports = {
   patchState,
   sendUserMessage,
   sendToQwenPaw,
+  sendToBridgeRuntime,
+  sendToRuntime,
   applyDeviceContextToBody,
   usesQwenPaw,
-  shouldLogToCms,
+  usesBridgeRuntime,
+  checkBridgeRuntimeHealth,
+  getMessageRuntime,
+  isRuntimeImplemented,
   buildQwenPawSessionId,
   shouldRefineStt,
   buildSttSessionId,

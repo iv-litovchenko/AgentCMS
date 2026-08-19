@@ -718,6 +718,66 @@ body:not(.shell-embed) .shell-version {
   color: #dccaff;
   overflow: hidden;
   text-overflow: ellipsis;
+  border: 1px solid rgba(155, 120, 255, 0.35);
+  cursor: pointer;
+  font: inherit;
+}
+
+.shell-agent-chip:hover {
+  background: rgba(155, 120, 255, 0.28);
+}
+
+.shell-agent-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 6, 14, 0.92);
+  backdrop-filter: blur(12px);
+}
+
+.shell-agent-gate.hidden {
+  display: none;
+}
+
+.shell-agent-gate-panel {
+  width: min(420px, 100%);
+  padding: 24px 22px;
+  border-radius: 16px;
+  border: 1px solid rgba(124, 108, 255, 0.35);
+  background: linear-gradient(165deg, rgba(18, 16, 32, 0.98), rgba(10, 12, 22, 0.98));
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.shell-agent-gate-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.shell-agent-gate-lead {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.shell-agent-gate-open {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.shell-runtime-hint {
+  margin: -4px 0 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.shell-field-note:empty {
+  display: none;
 }
 
 .shell-server-chip[data-state="live"] {
@@ -2383,6 +2443,28 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.shell-route-panel .shell-runtime-bridge-panel {
+  display: none;
+  margin: 0;
+  padding: 10px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  border-top: 1px solid rgba(122, 108, 255, 0.18);
+}
+
+.shell-route-panel .shell-runtime-bridge-panel[data-visible="1"] {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shell-runtime-bridge-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .shell-route-panel .shell-qwenpaw-chat {

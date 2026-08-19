@@ -32,6 +32,15 @@ function getCmsBaseUrl() {
   return `http://127.0.0.1:${port}`;
 }
 
+function getVoiceBaseUrl() {
+  const env = String(process.env.AGENT_CMS_VOICE_URL || process.env.VOICE_BASE_URL || "").trim();
+  if (env) return env.replace(/\/+$/, "");
+  const saved = String(loadConfig().voiceBaseUrl || "").trim();
+  if (saved) return saved.replace(/\/+$/, "");
+  const port = Number(process.env.VOICE_PORT || loadConfig().voicePort || 3088);
+  return `http://127.0.0.1:${port}`;
+}
+
 function getDefaultAgentId() {
   const env = String(process.env.AGENT_CMS_AGENT || "").trim();
   if (env) return env;
@@ -65,6 +74,7 @@ module.exports = {
   loadConfig,
   saveConfig,
   getCmsBaseUrl,
+  getVoiceBaseUrl,
   getDefaultAgentId,
   getProjectRoot
 };

@@ -325,9 +325,9 @@ class Sidecar:
             self._reset_recorder()
 
         engine = str(settings.get("ttsEngine") or "browser")
-        target = str(settings.get("messageTarget") or "cms")
-        uses_cms_reply = target in ("cms", "qwenpaw-log")
-        if settings.get("ttsEnabled", True) and engine in ("sidecar", "say") and uses_cms_reply:
+        target = str(settings.get("messageTarget") or "qwenpaw")
+        uses_shell_reply = target not in ("cms", "qwenpaw-log")
+        if settings.get("ttsEnabled", True) and engine in ("sidecar", "say") and uses_shell_reply:
             latest = status.get("latestAgentMessage") or {}
             msg_id = str(latest.get("id") or "")
             body = str(latest.get("body") or "").strip()

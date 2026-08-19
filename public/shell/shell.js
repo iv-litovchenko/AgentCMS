@@ -63,6 +63,18 @@ import {
   voiceModeUsesBrowserStt,
   voiceModeUsesSidecarMic
 } from "@shell/voice-modes";
+import {
+  SHELL_RUNTIMES,
+  SHELL_RUNTIME_LABELS,
+  SHELL_RUNTIME_HINTS,
+  RUNTIME_DEFAULTS,
+  normalizeMessageRuntime,
+  runtimeUsesQwenPaw,
+  runtimeUsesBridge,
+  bridgeRuntimeField,
+  runtimeShowsProfile,
+  runtimeShowsAgentId
+} from "@shell/runtimes";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 const VOICE_MODE_USER_GRACE_MS = 30000;
@@ -150,7 +162,18 @@ function isShellEmbedMode() {
   }
 }
 
+/** Voice на отдельном порту: /\<agent\>/ вместо /shell/\<agent\>/ */
+function isVoiceStandaloneApp() {
+  try {
+    if (document.querySelector('meta[name="agent-cms-voice-app"]')?.content === "1") return true;
+    return !window.location.pathname.startsWith("/shell");
+  } catch {
+    return false;
+  }
+}
+
 const shellEmbedMode = isShellEmbedMode();
+const shellVoiceStandalone = isVoiceStandaloneApp();
 
 let lastHandledAssistantId = "";
 let lastSpokenBody = "";
@@ -194,6 +217,9 @@ const state = {
   qwenpawChatsOpen: false,
   qwenpawChatNameDraft: "",
   qwenpawRenameBusy: false,
+  runtimeConnected: false,
+  runtimeServerOk: false,
+  runtimeError: "",
   stopTtsAt: 0,
   previousPhase: "waiting",
   cameraSnapshotBusy: false,
@@ -610,6 +636,17 @@ const nodes = {
   qwenpawNewChat: document.getElementById("shell-qwenpaw-new-chat"),
   qwenpawChatsToggle: document.getElementById("shell-qwenpaw-chats-toggle"),
   qwenpawChatsPanel: document.getElementById("shell-qwenpaw-chats-panel"),
+  bridgePanel: document.getElementById("shell-runtime-bridge-panel"),
+  bridgeNote: document.getElementById("shell-runtime-bridge-note"),
+  bridgeUrlLabel: document.getElementById("shell-runtime-bridge-url-label"),
+  bridgeUrl: document.getElementById("shell-runtime-bridge-url"),
+  bridgeApiKey: document.getElementById("shell-runtime-bridge-api-key"),
+  bridgeModel: document.getElementById("shell-runtime-bridge-model"),
+  bridgeProfileField: document.getElementById("shell-runtime-bridge-profile-field"),
+  bridgeProfile: document.getElementById("shell-runtime-bridge-profile"),
+  bridgeAgentField: document.getElementById("shell-runtime-bridge-agent-field"),
+  bridgeAgentId: document.getElementById("shell-runtime-bridge-agent-id"),
+  bridgeSessionId: document.getElementById("shell-runtime-bridge-session-id"),
   topicPath: document.getElementById("shell-topic-path"),
   topicField: document.getElementById("shell-topic-field"),
   topicTrigger: document.getElementById("shell-topic-trigger"),
@@ -749,6 +786,10 @@ const nodes = {
   linkChipLabel: document.getElementById("shell-link-chip-label"),
   linkChipOpen: document.getElementById("shell-link-chip-open"),
   agentChip: document.getElementById("shell-agent-chip"),
+  agentGate: document.getElementById("shell-agent-gate"),
+  agentGateSelect: document.getElementById("shell-agent-gate-select"),
+  agentGateOpen: document.getElementById("shell-agent-gate-open"),
+  runtimeHint: document.getElementById("shell-runtime-hint"),
   serverChip: document.getElementById("shell-server-chip"),
   orientChip: document.getElementById("shell-orient-chip"),
   orientValue: document.getElementById("shell-orient-value"),
@@ -917,11 +958,7 @@ function formatShellClock(date = new Date()) {
   }).format(date);
 }
 
-const ROUTE_CHIP_LABELS = {
-  qwenpaw: "QwenPaw",
-  "qwenpaw-log": "QwenPaw",
-  cms: "CMS"
-};
+const ROUTE_CHIP_LABELS = SHELL_RUNTIME_LABELS;
 
 function renderAgentChip() {
   if (!nodes.agentChip) return;
@@ -959,7 +996,7 @@ function renderServerChip() {
 
 function renderHeroLinkChip() {
   if (!nodes.linkChip || !nodes.linkChipDot || !nodes.linkChipLabel) return;
-  const target = state.settings?.messageTarget || nodes.messageTarget?.value || "cms";
+  const target = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
   const label = ROUTE_CHIP_LABELS[target] || "CMS";
   const streamLive = state.eventSource?.readyState === EventSource.OPEN;
   const online = navigator.onLine !== false;
@@ -986,6 +1023,20 @@ function renderHeroLinkChip() {
       status = "partial";
       dot = "🟡";
       title = `${label} · ${agentLabel} · агент ok, SSE отключён`;
+    }
+  } else if (runtimeUsesBridge(target)) {
+    if (!online) {
+      title = `${label} · нет сети`;
+    } else if (!state.runtimeServerOk) {
+      title = state.runtimeError || `${label} · сервер недоступен`;
+    } else if (streamLive) {
+      status = "ok";
+      dot = "🟢";
+      title = `${label} · на связи`;
+    } else {
+      status = "partial";
+      dot = "🟡";
+      title = `${label} · runtime ok, SSE отключён`;
     }
   } else if (streamLive && online) {
     status = "ok";
@@ -2860,13 +2911,46 @@ function collectWindowSnapshot() {
   return buildWindowSettingsPayload();
 }
 
-function collectRouteSnapshot() {
+function collectBridgeFormPatch(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  const defaults = RUNTIME_DEFAULTS[id] || {};
   return {
-    messageTarget: nodes.messageTarget?.value || "qwenpaw",
+    [bridgeRuntimeField(id, "baseUrl")]: nodes.bridgeUrl?.value.trim() || defaults.baseUrl || "",
+    [bridgeRuntimeField(id, "apiKey")]: nodes.bridgeApiKey?.value.trim() || "",
+    [bridgeRuntimeField(id, "model")]: nodes.bridgeModel?.value.trim() || defaults.model || "",
+    [bridgeRuntimeField(id, "profile")]: nodes.bridgeProfile?.value.trim() || "",
+    [bridgeRuntimeField(id, "agentId")]: nodes.bridgeAgentId?.value.trim() || "",
+    [bridgeRuntimeField(id, "sessionId")]:
+      nodes.bridgeSessionId?.value.trim() || defaults.sessionId || "agent-shell"
+  };
+}
+
+function applyBridgeForm(runtime, settings = state.settings || {}) {
+  const id = normalizeMessageRuntime(runtime);
+  const defaults = RUNTIME_DEFAULTS[id] || {};
+  const read = (field) => String(settings[bridgeRuntimeField(id, field)] ?? "").trim();
+  if (nodes.bridgeUrl) nodes.bridgeUrl.value = read("baseUrl") || defaults.baseUrl || "";
+  if (nodes.bridgeApiKey) nodes.bridgeApiKey.value = read("apiKey");
+  if (nodes.bridgeModel) nodes.bridgeModel.value = read("model") || defaults.model || "";
+  if (nodes.bridgeProfile) nodes.bridgeProfile.value = read("profile");
+  if (nodes.bridgeAgentId) nodes.bridgeAgentId.value = read("agentId");
+  if (nodes.bridgeSessionId) {
+    nodes.bridgeSessionId.value = read("sessionId") || defaults.sessionId || "agent-shell";
+  }
+}
+
+function collectRouteSnapshot() {
+  const runtime = normalizeMessageRuntime(nodes.messageTarget?.value || "qwenpaw");
+  const patch = {
+    messageTarget: runtime,
     qwenpawBaseUrl: nodes.qwenpawUrl?.value.trim() || "http://127.0.0.1:8088",
     qwenpawAgentId: nodes.qwenpawAgentId?.value.trim() || "default",
     topicPath: topicPicker.getValue() || ""
   };
+  if (runtimeUsesBridge(runtime)) {
+    Object.assign(patch, collectBridgeFormPatch(runtime));
+  }
+  return patch;
 }
 
 function getSettingsSnapshot(section) {
@@ -2907,7 +2991,7 @@ async function saveSettingsSection(section) {
   }
 
   const patch = getSettingsSnapshot(section);
-  if (section === "route") updateTargetUi(patch.messageTarget);
+  if (section === "route") updateRuntimeUi();
   if (section === "stt") {
     applyRecognitionLang(patch.sttLang);
   }
@@ -2919,12 +3003,13 @@ function applySettings(settings) {
   state.settings = settings;
 
   if (!settingsSave.isSectionDirty("route")) {
-    nodes.messageTarget.value = settings.messageTarget || "cms";
+    populateRuntimeSelect(settings.messageTarget || "qwenpaw");
     nodes.qwenpawUrl.value = settings.qwenpawBaseUrl || "http://127.0.0.1:8088";
     nodes.qwenpawAgentId.value = settings.qwenpawAgentId || "default";
     void loadQwenPawAgents(settings.qwenpawAgentId || "default");
+    applyBridgeForm(normalizeMessageRuntime(settings.messageTarget || "qwenpaw"), settings);
     topicPicker.setValue(settings.topicPath || "");
-    updateTargetUi(settings.messageTarget || "cms");
+    updateRuntimeUi();
   }
 
   nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
@@ -3009,35 +3094,206 @@ function openQwenPawInBrowser() {
   })();
 }
 
-function usesQwenPawTarget(target) {
-  return target === "qwenpaw" || target === "qwenpaw-log";
+function parseShellPathAgentId() {
+  try {
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    if (shellVoiceStandalone) {
+      const reserved = new Set([
+        "shell",
+        "shared",
+        "vendor",
+        "cms",
+        "a",
+        "api",
+        "favicon.svg",
+        "project-version.js",
+        "app-lock.js",
+        "markdown-github-alerts.js",
+        "markdown-it-task-lists.js"
+      ]);
+      if (parts.length >= 1 && !reserved.has(parts[0]) && !parts[0].includes(".")) {
+        return decodeURIComponent(parts[0]);
+      }
+      return "";
+    }
+    if (parts[0] !== "shell" || parts.length < 2) return "";
+    const segment = decodeURIComponent(parts[1]);
+    const reserved = new Set([
+      "index.html",
+      "shell.js",
+      "shell.css",
+      "shell-build.js",
+      "manifest.webmanifest",
+      "vendor"
+    ]);
+    if (reserved.has(segment)) return "";
+    return segment;
+  } catch {
+    return "";
+  }
 }
 
-function updateTargetUi(target) {
-  const qwenpaw = usesQwenPawTarget(target);
-  const cmsOnly = target === "cms";
-  const cmsLog = target === "qwenpaw-log";
+function shellAgentPath(agentId) {
+  const id = String(agentId || "").trim();
+  if (!id) return shellVoiceStandalone ? "/" : "/shell/";
+  if (shellVoiceStandalone) return `/${encodeURIComponent(id)}/`;
+  return `/shell/${encodeURIComponent(id)}/`;
+}
 
-  nodes.qwenpawPanel.dataset.visible = qwenpaw ? "1" : "0";
-  topicPicker.setVisible(cmsOnly || cmsLog);
+function syncShellAgentUrl(agentId) {
+  if (shellEmbedMode) return;
+  const id = String(agentId || "").trim();
+  if (!id) return;
+  const desired = shellAgentPath(id);
+  if (window.location.pathname !== desired) {
+    const url = new URL(window.location.href);
+    url.pathname = desired;
+    window.history.replaceState({}, "", url.toString());
+  }
+}
+
+let shellAgentGateResolver = null;
+
+function hideShellAgentGate() {
+  nodes.agentGate?.classList.add("hidden");
+  document.body.classList.remove("shell-agent-gate-open");
+}
+
+function showShellAgentGate(selectable) {
+  return new Promise((resolve) => {
+    shellAgentGateResolver = resolve;
+    if (!nodes.agentGate || !nodes.agentGateSelect) {
+      resolve(null);
+      return;
+    }
+    nodes.agentGateSelect.innerHTML = "";
+    for (const agent of selectable) {
+      const opt = document.createElement("option");
+      opt.value = agent.id;
+      opt.textContent = agent.name && agent.name !== agent.id ? `${agent.name} (${agent.id})` : agent.id;
+      if (agent.id === state.agentId) opt.selected = true;
+      nodes.agentGateSelect.append(opt);
+    }
+    nodes.agentGate.classList.remove("hidden");
+    document.body.classList.add("shell-agent-gate-open");
+  });
+}
+
+function navigateToShellAgent(agentId) {
+  const id = String(agentId || "").trim();
+  if (!id) return;
+  state.agentId = id;
+  localStorage.setItem(SHELL_STORAGE.agent, id);
+  syncShellAgentUrl(id);
+  hideShellAgentGate();
+  if (shellAgentGateResolver) {
+    shellAgentGateResolver(id);
+    shellAgentGateResolver = null;
+  }
+}
+
+function bindShellAgentGateUi() {
+  nodes.agentGateOpen?.addEventListener("click", () => {
+    navigateToShellAgent(nodes.agentGateSelect?.value || state.agentId);
+  });
+}
+
+async function ensureShellAgentSelected() {
+  const fromPath = parseShellPathAgentId();
+  if (fromPath) {
+    state.agentId = fromPath;
+    localStorage.setItem(SHELL_STORAGE.agent, fromPath);
+    hideShellAgentGate();
+    return fromPath;
+  }
+
+  const data = await loadAgentSelectData();
+  const selectable = getSelectableAgents(data.agents);
+  if (!selectable.length) {
+    throw new Error("Нет доступных workspace-агентов в CMS");
+  }
+
+  const remembered = selectable.find((agent) => agent.id === state.agentId);
+  if (remembered) {
+    navigateToShellAgent(remembered.id);
+    return remembered.id;
+  }
+
+  if (selectable.length === 1) {
+    navigateToShellAgent(selectable[0].id);
+    return selectable[0].id;
+  }
+
+  await showShellAgentGate(selectable);
+  return state.agentId;
+}
+
+function populateRuntimeSelect(selected = normalizeMessageRuntime(state.settings?.messageTarget || "qwenpaw")) {
+  if (!nodes.messageTarget) return;
+  const current = normalizeMessageRuntime(selected);
+  nodes.messageTarget.innerHTML = "";
+  for (const runtime of SHELL_RUNTIMES) {
+    const opt = document.createElement("option");
+    opt.value = runtime;
+    opt.textContent = SHELL_RUNTIME_LABELS[runtime] || runtime;
+    if (runtime === current) opt.selected = true;
+    nodes.messageTarget.append(opt);
+  }
+  updateRuntimeUi();
+}
+
+function updateRuntimeUi() {
+  const runtime = normalizeMessageRuntime(nodes.messageTarget?.value || state.settings?.messageTarget || "qwenpaw");
+  if (nodes.runtimeHint) {
+    nodes.runtimeHint.textContent = SHELL_RUNTIME_HINTS[runtime] || "";
+  }
+  if (nodes.qwenpawPanel) {
+    nodes.qwenpawPanel.dataset.visible = runtimeUsesQwenPaw(runtime) ? "1" : "0";
+  }
+  if (nodes.bridgePanel) {
+    nodes.bridgePanel.dataset.visible = runtimeUsesBridge(runtime) ? "1" : "0";
+  }
+  if (runtimeUsesBridge(runtime)) {
+    applyBridgeForm(runtime, state.settings || {});
+    if (nodes.bridgeNote) {
+      nodes.bridgeNote.textContent = SHELL_RUNTIME_HINTS[runtime] || "";
+    }
+    if (nodes.bridgeUrlLabel) {
+      nodes.bridgeUrlLabel.textContent =
+        runtime === "claude" ? "Anthropic API URL" : "Base URL (/v1 добавится автоматически)";
+    }
+    const showProfile = runtimeShowsProfile(runtime);
+    nodes.bridgeProfileField?.classList.toggle("hidden", !showProfile);
+    if (nodes.bridgeProfileField) nodes.bridgeProfileField.hidden = !showProfile;
+    const showAgent = runtimeShowsAgentId(runtime);
+    nodes.bridgeAgentField?.classList.toggle("hidden", !showAgent);
+    if (nodes.bridgeAgentField) nodes.bridgeAgentField.hidden = !showAgent;
+  }
+  topicPicker.setVisible(false);
   renderHeroLinkChip();
 }
 
+function usesQwenPawTarget(target) {
+  return runtimeUsesQwenPaw(target);
+}
+
 function cleanShellUrl() {
-  const url = new URL(window.location.href);
-  const embedAgent = shellEmbedMode ? String(url.searchParams.get("agent") || "").trim() : "";
+  const fromPath = parseShellPathAgentId();
+  if (fromPath) {
+    state.agentId = fromPath;
+    localStorage.setItem(SHELL_STORAGE.agent, fromPath);
+  }
+  const embedAgent = shellEmbedMode ? String(new URL(window.location.href).searchParams.get("agent") || "").trim() : "";
   if (embedAgent) {
     state.agentId = embedAgent;
     localStorage.setItem(SHELL_STORAGE.agent, embedAgent);
   }
-  if (!url.searchParams.has("agent")) return;
-  if (shellEmbedMode) {
+  if (state.agentId) syncShellAgentUrl(state.agentId);
+  const url = new URL(window.location.href);
+  if (url.searchParams.has("agent")) {
     url.searchParams.delete("agent");
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-    return;
   }
-  url.searchParams.delete("agent");
-  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
 function renderQwenPawAgents(agents, selectedAgentId) {
@@ -3088,7 +3344,7 @@ async function loadQwenPawAgents(preferredId = "") {
 
 function updateQwenPawChatUi(payload) {
   if (!nodes.qwenpawChatName || !nodes.qwenpawChatSession) return;
-  const target = payload?.settings?.messageTarget || state.settings?.messageTarget || "cms";
+  const target = normalizeMessageRuntime(payload?.settings?.messageTarget || state.settings?.messageTarget || "qwenpaw");
   if (!usesQwenPawTarget(target)) return;
 
   const qwenpaw = payload?.qwenpaw || {};
@@ -3261,6 +3517,9 @@ function applyStatusPayload(payload) {
   state.qwenpawAgentName = String(payload?.qwenpaw?.agentName || "");
   state.qwenpawAgentError = String(payload?.qwenpaw?.agentError || "");
   state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
+  state.runtimeServerOk = Boolean(payload?.runtime?.serverOk ?? payload?.runtime?.ok);
+  state.runtimeConnected = Boolean(payload?.runtime?.ok);
+  state.runtimeError = String(payload?.runtime?.error || "");
   renderHeroLinkChip();
   updateQwenPawChatUi(payload);
   syncDialogConnectionState();
@@ -3656,7 +3915,7 @@ async function sendMessageDirect(
   state.pendingReplyTtsClientId = getShellClientId();
   renderMessageQueue();
   updateSendButtonLabel();
-  const target = state.settings?.messageTarget || nodes.messageTarget?.value || "cms";
+  const target = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
   const streamingQwenPaw = usesQwenPawTarget(target);
   if (streamingQwenPaw) beginAssistantStream({});
   messageSendAbortController?.abort();
@@ -5537,6 +5796,23 @@ function bindWindowSettingsUi() {
 
 function bindUi() {
   populateVoiceModeSelect();
+  populateRuntimeSelect();
+  nodes.agentChip?.addEventListener("click", async () => {
+    const data = await loadAgentSelectData();
+    const selectable = getSelectableAgents(data.agents);
+    if (selectable.length <= 1) return;
+    const prev = state.agentId;
+    await showShellAgentGate(selectable);
+    if (!state.agentId || state.agentId === prev) return;
+    if (state.eventSource) {
+      state.eventSource.close();
+      state.eventSource = null;
+    }
+    await resolveShellAgent();
+    await refreshStatus();
+    await loadComposeDraft();
+    connectStream();
+  });
   onRouteSettingsDirty = () => markSettingsDirty("route");
 
   settingsSave.attachUi({
@@ -5660,7 +5936,7 @@ function bindUi() {
   initCompactSensor();
 
   nodes.messageTarget.addEventListener("change", () => {
-    updateTargetUi(nodes.messageTarget.value);
+    updateRuntimeUi();
     markRouteDirty();
   });
   nodes.qwenpawUrl.addEventListener("change", () => {
@@ -5673,6 +5949,16 @@ function bindUi() {
     openQwenPawInBrowser();
   });
   nodes.qwenpawAgentId.addEventListener("change", markRouteDirty);
+  for (const input of [
+    nodes.bridgeUrl,
+    nodes.bridgeApiKey,
+    nodes.bridgeModel,
+    nodes.bridgeProfile,
+    nodes.bridgeAgentId,
+    nodes.bridgeSessionId
+  ]) {
+    input?.addEventListener("change", markRouteDirty);
+  }
   nodes.ttsEnabled.addEventListener("change", () => {
     const enabled = nodes.ttsEnabled.checked;
     if (state.settings) state.settings.ttsEnabled = enabled;
@@ -5962,10 +6248,13 @@ function bindUi() {
 async function boot() {
   setComposeExpanded(false);
   populateVoiceModeSelect();
+  populateRuntimeSelect();
   if (window.agentAppLock?.whenUnlocked) {
     await window.agentAppLock.whenUnlocked();
   }
   cleanShellUrl();
+  bindShellAgentGateUi();
+  await ensureShellAgentSelected();
   migrateShellStorageFromMobile();
   if (shellEmbedMode) {
     document.body.classList.add("shell-embed");

@@ -1,0 +1,37 @@
+/** Серверная копия — держите в sync с public/shell/shell-runtimes.js */
+
+const SHELL_RUNTIMES = ["qwenpaw", "hermes", "openclaw", "cursor", "codex", "claude"];
+const SHELL_RUNTIME_IMPLEMENTED = new Set(SHELL_RUNTIMES);
+
+const LEGACY_TARGET_MAP = {
+  cms: "qwenpaw",
+  "qwenpaw-log": "qwenpaw"
+};
+
+function normalizeMessageRuntime(value) {
+  const raw = String(value || "").trim();
+  const mapped = LEGACY_TARGET_MAP[raw] || raw;
+  if (SHELL_RUNTIMES.includes(mapped)) return mapped;
+  return "qwenpaw";
+}
+
+function isRuntimeImplemented(runtime) {
+  return SHELL_RUNTIME_IMPLEMENTED.has(normalizeMessageRuntime(runtime));
+}
+
+function runtimeUsesQwenPaw(runtime) {
+  return normalizeMessageRuntime(runtime) === "qwenpaw";
+}
+
+function runtimeUsesBridge(runtime) {
+  return normalizeMessageRuntime(runtime) !== "qwenpaw";
+}
+
+module.exports = {
+  SHELL_RUNTIMES,
+  SHELL_RUNTIME_IMPLEMENTED,
+  normalizeMessageRuntime,
+  isRuntimeImplemented,
+  runtimeUsesQwenPaw,
+  runtimeUsesBridge
+};

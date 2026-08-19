@@ -249,27 +249,22 @@ function createShellHandlers(deps) {
         }
 
         let result;
-        if (shellService.usesQwenPaw(settings)) {
-          result = await shellService.sendToQwenPaw(deps, {
-            agentRoot,
-            agentId,
-            settings: outboundSettings,
-            body,
-            ttsClientId,
-            author
+        const runtime = shellService.getMessageRuntime(settings);
+        if (!shellService.isRuntimeImplemented(runtime)) {
+          deps.sendJson(res, 501, {
+            error: "Runtime not implemented",
+            details: `${runtime} не поддерживается.`
           });
-        } else {
-          result = await shellService.sendUserMessage(deps, {
-            agentRoot,
-            settings,
-            body,
-            author
-          });
-          await shellService.patchState(agentRoot, agentId, {
-            phase: shellService.PHASE_WAITING,
-            phrase: body.slice(0, 240)
-          });
+          return true;
         }
+        result = await shellService.sendToRuntime(deps, {
+          agentRoot,
+          agentId,
+          settings: outboundSettings,
+          body,
+          ttsClientId,
+          author
+        });
 
         deps.sendJson(res, 200, {
           agentId,
