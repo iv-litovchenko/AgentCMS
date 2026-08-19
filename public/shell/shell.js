@@ -67,6 +67,7 @@ import {
   SHELL_RUNTIMES,
   SHELL_RUNTIME_LABELS,
   SHELL_RUNTIME_HINTS,
+  SHELL_RUNTIME_DESCRIPTIONS,
   RUNTIME_DEFAULTS,
   normalizeMessageRuntime,
   runtimeUsesQwenPaw,
@@ -790,6 +791,7 @@ const nodes = {
   agentGateSelect: document.getElementById("shell-agent-gate-select"),
   agentGateOpen: document.getElementById("shell-agent-gate-open"),
   runtimeHint: document.getElementById("shell-runtime-hint"),
+  runtimeDetail: document.getElementById("shell-runtime-detail"),
   serverChip: document.getElementById("shell-server-chip"),
   orientChip: document.getElementById("shell-orient-chip"),
   orientValue: document.getElementById("shell-orient-value"),
@@ -3236,6 +3238,7 @@ function populateRuntimeSelect(selected = normalizeMessageRuntime(state.settings
     const opt = document.createElement("option");
     opt.value = runtime;
     opt.textContent = SHELL_RUNTIME_LABELS[runtime] || runtime;
+    opt.title = SHELL_RUNTIME_HINTS[runtime] || "";
     if (runtime === current) opt.selected = true;
     nodes.messageTarget.append(opt);
   }
@@ -3246,6 +3249,9 @@ function updateRuntimeUi() {
   const runtime = normalizeMessageRuntime(nodes.messageTarget?.value || state.settings?.messageTarget || "qwenpaw");
   if (nodes.runtimeHint) {
     nodes.runtimeHint.textContent = SHELL_RUNTIME_HINTS[runtime] || "";
+  }
+  if (nodes.runtimeDetail) {
+    nodes.runtimeDetail.textContent = SHELL_RUNTIME_DESCRIPTIONS[runtime] || SHELL_RUNTIME_HINTS[runtime] || "";
   }
   if (nodes.qwenpawPanel) {
     nodes.qwenpawPanel.dataset.visible = runtimeUsesQwenPaw(runtime) ? "1" : "0";

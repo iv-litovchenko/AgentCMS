@@ -1,11 +1,20 @@
 /** Серверная копия — держите в sync с public/shell/shell-runtimes.js */
 
-const SHELL_RUNTIMES = ["qwenpaw", "hermes", "openclaw", "cursor", "codex", "claude"];
+const SHELL_RUNTIMES = [
+  "claude",
+  "codex",
+  "cursor",
+  "openclaw",
+  "hermes",
+  "agent-zero",
+  "qwenpaw"
+];
 const SHELL_RUNTIME_IMPLEMENTED = new Set(SHELL_RUNTIMES);
 
 const LEGACY_TARGET_MAP = {
   cms: "qwenpaw",
-  "qwenpaw-log": "qwenpaw"
+  "qwenpaw-log": "qwenpaw",
+  agentzero: "agent-zero"
 };
 
 function normalizeMessageRuntime(value) {
@@ -24,7 +33,8 @@ function runtimeUsesQwenPaw(runtime) {
 }
 
 function runtimeUsesBridge(runtime) {
-  return normalizeMessageRuntime(runtime) !== "qwenpaw";
+  const id = normalizeMessageRuntime(runtime);
+  return id !== "qwenpaw";
 }
 
 module.exports = {

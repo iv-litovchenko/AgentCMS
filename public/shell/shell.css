@@ -776,6 +776,26 @@ body:not(.shell-embed) .shell-version {
   color: var(--muted);
 }
 
+.shell-runtime-intro {
+  margin: 4px 0 8px;
+  line-height: 1.45;
+}
+
+.shell-runtime-detail {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(122, 108, 255, 0.22);
+  background: rgba(12, 14, 28, 0.55);
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(220, 218, 255, 0.88);
+  max-height: 12rem;
+  overflow: auto;
+}
+
 .shell-field-note:empty {
   display: none;
 }

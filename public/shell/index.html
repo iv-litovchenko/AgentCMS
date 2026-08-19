@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=202" />
+    <link rel="stylesheet" href="/shell/shell.css?v=203" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=3" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=1" />
     <script src="/project-version.js?v=1"></script>
@@ -21,38 +21,38 @@
       {
         "imports": {
           "three": "/shell/vendor/three.module.js",
-          "@shell/topic-picker": "/shell/topic-picker.js?v=202",
-          "@shell/settings-save": "/shell/shell-settings-save.js?v=202",
-          "@shell/reply": "/shell/shell-reply.js?v=202",
-          "@shell/markdown": "/shell/shell-markdown.js?v=202",
-          "@shell/character": "/shell/shell-character.js?v=202",
-          "@shell/character-models": "/shell/shell-character-models.js?v=202",
-          "@shell/camera": "/shell/shell-camera.js?v=202",
-          "@shell/screen": "/shell/shell-screen.js?v=202",
-          "@shell/tts-tab": "/shell/shell-tts-tab.js?v=202",
-          "@shell/tts-player": "/shell/shell-tts-player.js?v=202",
-          "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=202",
-          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=202",
-          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=202",
-          "@shell/session": "/shell/shell-session.js?v=202",
-          "@shell/client-id": "/shell/shell-client-id.js?v=202",
-          "@shell/surface": "/shell/shell-surface.js?v=202",
-          "@shell/device-chips": "/shell/shell-device-chips.js?v=202",
-          "@shell/pwa": "/shell/shell-pwa.js?v=202",
-          "@shell/permissions": "/shell/shell-permissions.js?v=202",
-          "@shell/dialog": "/shell/shell-dialog.js?v=202",
-          "@shell/compose-layout": "/shell/shell-compose-layout.js?v=202",
-          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=202",
-          "@shell/help": "/shell/shell-help.js?v=202",
-          "@shell/hints": "/shell/shell-hints.js?v=202",
-          "@shell/proactive": "/shell/shell-proactive.js?v=202",
-          "@shell/compose-camera": "/shell/shell-compose-camera.js?v=202",
-          "@shell/voice": "/shell/shell-voice.js?v=202",
-          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=202",
-          "@shell/voice-end-format": "/shell/voice-end-format.js?v=202",
-          "@shell/contract": "/shell/shell-contract.js?v=202",
-          "@shell/runtimes": "/shell/shell-runtimes.js?v=202",
-          "@shell/build": "/shell/shell-build.js?v=202"
+          "@shell/topic-picker": "/shell/topic-picker.js?v=203",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=203",
+          "@shell/reply": "/shell/shell-reply.js?v=203",
+          "@shell/markdown": "/shell/shell-markdown.js?v=203",
+          "@shell/character": "/shell/shell-character.js?v=203",
+          "@shell/character-models": "/shell/shell-character-models.js?v=203",
+          "@shell/camera": "/shell/shell-camera.js?v=203",
+          "@shell/screen": "/shell/shell-screen.js?v=203",
+          "@shell/tts-tab": "/shell/shell-tts-tab.js?v=203",
+          "@shell/tts-player": "/shell/shell-tts-player.js?v=203",
+          "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=203",
+          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=203",
+          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=203",
+          "@shell/session": "/shell/shell-session.js?v=203",
+          "@shell/client-id": "/shell/shell-client-id.js?v=203",
+          "@shell/surface": "/shell/shell-surface.js?v=203",
+          "@shell/device-chips": "/shell/shell-device-chips.js?v=203",
+          "@shell/pwa": "/shell/shell-pwa.js?v=203",
+          "@shell/permissions": "/shell/shell-permissions.js?v=203",
+          "@shell/dialog": "/shell/shell-dialog.js?v=203",
+          "@shell/compose-layout": "/shell/shell-compose-layout.js?v=203",
+          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=203",
+          "@shell/help": "/shell/shell-help.js?v=203",
+          "@shell/hints": "/shell/shell-hints.js?v=203",
+          "@shell/proactive": "/shell/shell-proactive.js?v=203",
+          "@shell/compose-camera": "/shell/shell-compose-camera.js?v=203",
+          "@shell/voice": "/shell/shell-voice.js?v=203",
+          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=203",
+          "@shell/voice-end-format": "/shell/voice-end-format.js?v=203",
+          "@shell/contract": "/shell/shell-contract.js?v=203",
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=203",
+          "@shell/build": "/shell/shell-build.js?v=203"
         }
       }
     </script>
@@ -231,10 +231,14 @@
           <div class="shell-settings-panels">
         <section class="shell-route-panel" id="shell-route-panel" role="tabpanel" aria-labelledby="shell-settings-tab-route">
         <label class="shell-field">
-          <span class="shell-label">Runtime — кому отправлять</span>
+          <span class="shell-label">Runtime — кто думает и отвечает</span>
+          <p class="shell-field-note shell-runtime-intro">
+            Shell слышит, показывает и озвучивает. Runtime — внешний агент, который обрабатывает сообщения.
+          </p>
           <select id="shell-message-target" class="shell-select" aria-label="Runtime — кому отправлять"></select>
         </label>
         <p class="shell-runtime-hint shell-field-note" id="shell-runtime-hint"></p>
+        <pre class="shell-runtime-detail shell-field-note" id="shell-runtime-detail"></pre>
 
         <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
             <p class="shell-qwenpaw-note" id="shell-qwenpaw-note">
@@ -1961,6 +1965,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=12"></script>
-    <script src="/shell/shell.js?v=202" type="module"></script>
+    <script src="/shell/shell.js?v=203" type="module"></script>
   </body>
 </html>

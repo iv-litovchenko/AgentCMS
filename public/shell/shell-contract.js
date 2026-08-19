@@ -40,12 +40,13 @@ export const SHELL_PHASE_LABELS = {
 };
 
 export const SHELL_ROUTE_LABELS = {
-  qwenpaw: "QwenPaw",
-  hermes: "Hermes",
-  openclaw: "OpenClaw",
-  cursor: "Cursor",
+  claude: "Claude",
   codex: "Codex",
-  claude: "Claude"
+  cursor: "Cursor",
+  openclaw: "OpenClaw",
+  hermes: "Hermes",
+  "agent-zero": "Agent Zero",
+  qwenpaw: "QwenPaw"
 };
 
 export function shellPhaseLabel(phase) {

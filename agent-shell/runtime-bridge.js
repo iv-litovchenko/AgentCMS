@@ -6,7 +6,8 @@ const RUNTIME_TRANSPORT = {
   openclaw: "openai",
   cursor: "openai",
   codex: "openai",
-  claude: "anthropic"
+  claude: "anthropic",
+  "agent-zero": "openai"
 };
 
 const RUNTIME_DEFAULTS = {
@@ -43,6 +44,12 @@ const RUNTIME_DEFAULTS = {
   claude: {
     baseUrl: "https://api.anthropic.com",
     model: "claude-sonnet-4-20250514",
+    profile: "",
+    sessionId: "agent-shell"
+  },
+  "agent-zero": {
+    baseUrl: "http://127.0.0.1:42617",
+    model: "agent-zero",
     profile: "",
     sessionId: "agent-shell"
   }
@@ -158,7 +165,7 @@ function buildRuntimeExtraHeaders(runtime, endpoint) {
 }
 
 function runtimeHealthPath(runtime) {
-  if (runtime === "hermes") return "/health";
+  if (runtime === "hermes" || runtime === "agent-zero") return "/health";
   return "/v1/models";
 }
 
