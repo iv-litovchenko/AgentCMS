@@ -14199,7 +14199,12 @@ function isSpaAppRoute(reqPath) {
 
 async function serveIndexHtml(res) {
   const indexPath = path.join(getPublicDir(), "index.html");
-  const content = await fs.readFile(indexPath);
+  let content = await fs.readFile(indexPath, "utf8");
+  const voiceBase = voicePublicBaseUrl();
+  if (voiceBase && !content.includes("__AGENT_CMS_VOICE_URL__")) {
+    const script = `<script>window.__AGENT_CMS_VOICE_URL__=${JSON.stringify(voiceBase)};</script>`;
+    content = content.replace("<head>", `<head>\n    ${script}`);
+  }
   res.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "no-cache, no-store, must-revalidate",

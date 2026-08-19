@@ -3136,17 +3136,6 @@
 
         <aside id="discuss-aside" class="discuss-aside" aria-label="Панель обсуждения">
           <div id="discuss-aside-resizer" class="discuss-aside-resizer" role="separator" aria-orientation="vertical" aria-label="Ширина панели обсуждения" tabindex="0"></div>
-          <div
-            id="discuss-agent-preview-wrap"
-            class="discuss-agent-preview-wrap agent-preview-wrap agent-preview-portrait hidden"
-            title="Превью агента"
-            aria-hidden="true"
-          >
-            <div class="agent-preview-frame">
-              <img id="discuss-agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
-              <span class="agent-preview-shine" aria-hidden="true"></span>
-            </div>
-          </div>
           <header class="discuss-aside-head">
             <div class="discuss-aside-tabs" role="tablist" aria-label="Панель справа">
               <button
@@ -3168,7 +3157,7 @@
                 aria-controls="discuss-panel-shell"
                 tabindex="-1"
               >
-                Agent Shell
+                Agent CMS Voice
               </button>
             </div>
           </header>
@@ -3246,9 +3235,10 @@
             <iframe
               id="discuss-shell-iframe"
               class="discuss-shell-iframe"
-              title="Agent Shell"
+              title="Agent CMS Voice"
               loading="lazy"
               referrerpolicy="same-origin"
+              allow="microphone; camera"
             ></iframe>
           </div>
         </aside>
@@ -4236,7 +4226,7 @@
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
     <script src="/main.js?v=0.5.711"></script>
-    <script src="/discuss-panel.js?v=0.5.235"></script>
+    <script src="/discuss-panel.js?v=0.5.237"></script>
     <script src="/companion-docs.js?v=3"></script>
     <script src="/app-home-title-rotator.js?v=13"></script>
   </body>

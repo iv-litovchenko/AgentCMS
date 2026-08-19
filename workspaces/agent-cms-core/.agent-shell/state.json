@@ -6,9 +6,12 @@
   "lastShellReply": "Принято, тест работает ✅",
   "qwenpawChatUpdatedAt": "2026-08-18T00:24:06.877009Z",
   "stopTtsAt": 0,
-  "sidecarSeenAt": 1787136113477,
+  "sidecarSeenAt": 1787137087914,
   "pttHeld": false,
   "meetingRecording": false,
   "lastTtsClientId": "",
-  "updatedAt": "2026-08-19T10:41:53.480Z"
+  "updatedAt": "2026-08-19T10:58:07.923Z",
+  "shellSurfaceHost": "browser-tab",
+  "shellSurfaceHint": "Вкладка браузера · /shell",
+  "shellSurfaceBackend": "local"
 }

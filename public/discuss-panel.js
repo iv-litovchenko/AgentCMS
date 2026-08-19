@@ -73,13 +73,20 @@
       .replace(/"/g, "&quot;");
   }
 
+  const CHPU_RESERVED_ROOT_SEGMENTS = new Set(["api", "shell", "vendor", "a", "shared", "cms"]);
+
   function getActiveAgentIdFromUrl() {
     try {
       const params = new URLSearchParams(window.location.search);
       const fromQuery = params.get("agent");
       if (fromQuery) return fromQuery;
       const parts = window.location.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+      if (!parts.length) return "";
       if (parts[0] === "a" && parts[1]) return decodeURIComponent(parts[1]);
+      const first = parts[0];
+      if (first && !CHPU_RESERVED_ROOT_SEGMENTS.has(first.toLowerCase()) && !first.includes(".")) {
+        return decodeURIComponent(first);
+      }
     } catch {
       // ignore
     }
@@ -97,11 +104,28 @@
     return "discuss";
   }
 
+  function resolveVoiceShellBaseUrl() {
+    try {
+      const explicit = String(window.__AGENT_CMS_VOICE_URL__ || "").trim();
+      if (explicit) return explicit.replace(/\/+$/, "");
+    } catch {
+      // ignore
+    }
+    const { protocol, hostname, port } = window.location;
+    const isHttps = protocol === "https:";
+    if (port === "3088" || port === "3488") return window.location.origin;
+    const voicePort = isHttps ? "3488" : "3088";
+    const host = hostname || "127.0.0.1";
+    return `${protocol}//${host}:${voicePort}`;
+  }
+
   function buildShellIframeUrl(agentId) {
-    const url = new URL("/shell", window.location.origin);
+    const base = resolveVoiceShellBaseUrl();
+    const id = String(agentId || "").trim();
+    const path = id ? `/${encodeURIComponent(id)}/` : "/";
+    const url = new URL(path, `${base}/`);
     url.searchParams.set("embed", "1");
     url.searchParams.set("host", window.desktopApp?.isDesktop ? "desktop-cms" : "browser-embed");
-    if (agentId) url.searchParams.set("agent", agentId);
     return url.toString();
   }
 

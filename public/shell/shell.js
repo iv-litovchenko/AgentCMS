@@ -70,6 +70,7 @@ import {
   SHELL_RUNTIME_DESCRIPTIONS,
   RUNTIME_DEFAULTS,
   normalizeMessageRuntime,
+  isRuntimeImplemented,
   runtimeUsesQwenPaw,
   runtimeUsesBridge,
   bridgeRuntimeField,
@@ -3232,15 +3233,22 @@ async function ensureShellAgentSelected() {
 
 function populateRuntimeSelect(selected = normalizeMessageRuntime(state.settings?.messageTarget || "qwenpaw")) {
   if (!nodes.messageTarget) return;
-  const current = normalizeMessageRuntime(selected);
+  let current = normalizeMessageRuntime(selected);
+  if (!isRuntimeImplemented(current)) current = "qwenpaw";
   nodes.messageTarget.innerHTML = "";
   for (const runtime of SHELL_RUNTIMES) {
     const opt = document.createElement("option");
+    const implemented = isRuntimeImplemented(runtime);
     opt.value = runtime;
-    opt.textContent = SHELL_RUNTIME_LABELS[runtime] || runtime;
+    const label = SHELL_RUNTIME_LABELS[runtime] || runtime;
+    opt.textContent = implemented ? label : `${label} — скоро`;
     opt.title = SHELL_RUNTIME_HINTS[runtime] || "";
+    opt.disabled = !implemented;
     if (runtime === current) opt.selected = true;
     nodes.messageTarget.append(opt);
+  }
+  if (!isRuntimeImplemented(nodes.messageTarget.value)) {
+    nodes.messageTarget.value = "qwenpaw";
   }
   updateRuntimeUi();
 }
@@ -6214,7 +6222,7 @@ function bindUi() {
   });
 
   nodes.openCmsBtn.addEventListener("click", () => {
-    const url = state.agentId ? `/a/${encodeURIComponent(state.agentId)}` : "/";
+    const url = state.agentId ? `/${encodeURIComponent(state.agentId)}/` : "/";
     window.open(url, "_blank");
     if (window.shellApp?.positionWindowBottomCenter) {
       void window.shellApp.positionWindowBottomCenter();

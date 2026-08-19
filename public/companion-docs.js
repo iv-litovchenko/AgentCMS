@@ -17,13 +17,20 @@
       .replace(/"/g, "&quot;");
   }
 
+  const CHPU_RESERVED_ROOT_SEGMENTS = new Set(["api", "shell", "vendor", "a", "shared", "cms"]);
+
   function getAgentHint() {
     try {
       const params = new URLSearchParams(window.location.search);
       const fromQuery = params.get("agent");
       if (fromQuery) return fromQuery;
       const parts = window.location.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+      if (!parts.length) return "";
       if (parts[0] === "a" && parts[1]) return decodeURIComponent(parts[1]);
+      const first = parts[0];
+      if (first && !CHPU_RESERVED_ROOT_SEGMENTS.has(first.toLowerCase()) && !first.includes(".")) {
+        return decodeURIComponent(first);
+      }
     } catch {
       // ignore
     }

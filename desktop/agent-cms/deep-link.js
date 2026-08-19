@@ -34,14 +34,14 @@ function buildAppUrl(serverUrl, deepLink) {
   if (!deepLink?.agentId) return serverUrl;
   const url = new URL(serverUrl);
   const agentSegment = encodeURIComponent(deepLink.agentId);
-  let pathname = `/a/${agentSegment}`;
+  let pathname = `/${agentSegment}`;
   const displayPath = String(deepLink.displayPath || "").trim();
   if (displayPath) {
     const segments = displayPath.split("/").filter(Boolean).map((part) => encodeURIComponent(part));
     if (segments.length) pathname += `/${segments.join("/")}`;
   }
   const view = String(deepLink.view || "").trim();
-  if (view) pathname += `/v/${encodeURIComponent(view)}`;
+  if (view) pathname += `/~${encodeURIComponent(view)}`;
   url.pathname = pathname;
   url.search = "";
   return url.toString();

@@ -64,3 +64,66 @@ AGENT_CMS_AGENT=agent-cms-core npm run shell:sidecar
 ```
 
 Должен совпадать с `?agent=` в URL Shell.
+
+---
+
+## Дальше по плану (логичный порядок)
+
+### 1. Довести runtime до «боевого» (Фаза 3 — начало)
+
+Сейчас bridge работает, но поверхностно:
+
+- [ ] **Per-runtime панели** (не одна общая bridge) — свои поля, health, «открыть UI»
+- [ ] **Health в chip** для Hermes / OpenClaw / Agent Zero / Cursor / Codex / Claude
+- [ ] **Сессии и история** для OpenAI-compatible (не только single-turn)
+- [ ] **Agent Zero** — pairing token, проверка `/health`
+- [ ] **STT refine** — сейчас только через QwenPaw; решить политику для других runtime
+
+### 2. Связка CMS ↔ Voice в UI
+
+- [ ] Кнопка **«Открыть Voice»** в шапке CMS (рядом с MCP)
+- [ ] Кнопка **«Открыть CMS»** в Voice (`#shell-open-cms`) — проверить URL на `:3443`
+- [ ] **Desktop/Electron:** заголовок Agent CMS Voice, дефолт `:3488`
+- [ ] **Sidecar:** `AGENT_CMS_VOICE_URL` + API через Voice или напрямую CMS — унифицировать
+
+### 3. Голос — догнать Aya (Фаза 2, хвосты)
+
+По help в `index.html` ещё ❌ (часть уже есть в коде, help устарел):
+
+- [ ] anti-echo / cooldown после TTS
+- [ ] meeting / wake_name в sidecar стабильно
+- [ ] метрики mic (vol/thr/vad), выбор устройства
+- [ ] архив голосовых записей
+
+### 4. Конфигурация и деплой
+
+- [ ] `npm run start:https` — документировать 4 порта одной шпаргалкой
+- [ ] `.env`: `VOICE_PORT`, `CMS_API_URL`, ключи runtime
+- [ ] Убрать/закрыть legacy `/shell/` на CMS (оставить только redirect)
+- [ ] Обновить help в Voice (`index.html`) — фазы и чеклисты
+
+### 5. Фаза 3 — multi-agent routing (ещё не делали)
+
+- [ ] Routing по **теме / группе / intent** («спроси OpenClaw про heartbeat»)
+- [ ] Несколько runtime одновременно (think vs log vs TTS)
+- [ ] Launch profiles + heartbeat для OpenClaw/Hermes
+
+### 6. Полировка продукта
+
+- [ ] Spoken vs full reply для TTS везде
+- [ ] Monitor-страница / phrase history
+- [ ] IPC в desktop: screenshot, clipboard
+- [ ] Настройки Voice в CMS configuration (сейчас только `.agent-shell/settings.json`)
+
+---
+
+## Рекомендуемый следующий шаг
+
+**П.1 + П.2** — runtime по-настоящему + кнопка CMS→Voice:
+
+1. Health + свои панели для Hermes / OpenClaw / Agent Zero
+2. Кнопка в CMS **🎤 Voice** → `https://<host>:3488/<agent>/`
+3. Обновить help и sidecar env
+
+Приоритет на выбор: **runtime health** · **кнопка в CMS** · **sidecar/anti-echo**
+

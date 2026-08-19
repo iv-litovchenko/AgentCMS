@@ -10,8 +10,8 @@ export const SHELL_RUNTIMES = [
   "qwenpaw"
 ];
 
-/** Подключено в Shell (маршрутизация + настройки). */
-export const SHELL_RUNTIME_IMPLEMENTED = new Set(SHELL_RUNTIMES);
+/** Подключено в Shell (маршрутизация + настройки). Пока только QwenPaw. */
+export const SHELL_RUNTIME_IMPLEMENTED = new Set(["qwenpaw"]);
 
 const LEGACY_TARGET_MAP = {
   cms: "qwenpaw",

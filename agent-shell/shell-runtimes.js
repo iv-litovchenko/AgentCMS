@@ -9,7 +9,7 @@ const SHELL_RUNTIMES = [
   "agent-zero",
   "qwenpaw"
 ];
-const SHELL_RUNTIME_IMPLEMENTED = new Set(SHELL_RUNTIMES);
+const SHELL_RUNTIME_IMPLEMENTED = new Set(["qwenpaw"]);
 
 const LEGACY_TARGET_MAP = {
   cms: "qwenpaw",

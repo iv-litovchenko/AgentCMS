@@ -1064,8 +1064,6 @@ const agentSliderEmptyNoteNode = document.getElementById("agent-slider-empty-not
 const agentSliderUploadZoneNode = document.getElementById("agent-slider-upload-zone");
 const agentSliderFileInputNode = document.getElementById("agent-slider-file-input");
 const agentSliderModalCloseBtn = document.getElementById("agent-slider-modal-close-btn");
-const discussAgentPreviewWrapNode = document.getElementById("discuss-agent-preview-wrap");
-const discussAgentPreviewThumbNode = document.getElementById("discuss-agent-preview-thumb");
 const appHomeLink = document.getElementById("app-home-link");
 const appHomeTitleNode = document.getElementById("app-home-title");
 const agentsRegistryModalNode = document.getElementById("agents-registry-modal");
@@ -4880,36 +4878,23 @@ function syncAgentPreviewOpenUi() {
     }
   }
 
-  for (const node of [agentPreviewPlaceholderNode, discussAgentPreviewWrapNode]) {
+  for (const node of [agentPreviewPlaceholderNode]) {
     if (!node) continue;
-    const isDiscussPreview = node === discussAgentPreviewWrapNode;
-    const isInteractive =
-      canOpen &&
-      (isDiscussPreview
-        ? previewVisible && !discussAgentPreviewWrapNode?.classList.contains("hidden")
-        : !previewVisible);
+    const isInteractive = canOpen && !previewVisible;
     node.classList.toggle("agent-preview-openable", isInteractive);
     if (isInteractive) {
       node.setAttribute("role", "button");
       node.tabIndex = 0;
-      node.setAttribute("aria-label", isDiscussPreview ? workspaceViewHint : sliderHint);
-      node.title = isDiscussPreview
-        ? workspaceViewHint
-        : `${sliderHint} (превью не задано)`;
-      if (isDiscussPreview) node.removeAttribute("aria-hidden");
+      node.setAttribute("aria-label", sliderHint);
+      node.title = `${sliderHint} (превью не задано)`;
     } else {
       node.classList.remove("agent-preview-openable");
       node.removeAttribute("role");
       node.removeAttribute("tabindex");
       node.removeAttribute("aria-label");
-      if (isDiscussPreview) {
-        node.title = "Превью агента";
-        if (node.classList.contains("hidden")) node.setAttribute("aria-hidden", "true");
-      } else {
-        const agent = getActiveAgentMeta();
-        const label = String(agent?.name || agent?.id || "").trim();
-        node.title = label ? `Превью не задано — ${label}` : "Превью не задано";
-      }
+      const agent = getActiveAgentMeta();
+      const label = String(agent?.name || agent?.id || "").trim();
+      node.title = label ? `Превью не задано — ${label}` : "Превью не задано";
     }
   }
 }
@@ -4963,10 +4948,9 @@ function resolveSidebarAgentPreviewMeta(previewMeta = null, { preferWorkspacePre
 }
 
 function syncAgentPreview(previewMeta = null, options = {}) {
-  const targets = [
-    { wrap: agentPreviewWrapNode, thumb: agentPreviewThumbNode, primary: true },
-    { wrap: discussAgentPreviewWrapNode, thumb: discussAgentPreviewThumbNode, primary: false }
-  ].filter((target) => target.wrap && target.thumb);
+  const targets = [{ wrap: agentPreviewWrapNode, thumb: agentPreviewThumbNode, primary: true }].filter(
+    (target) => target.wrap && target.thumb
+  );
   if (!targets.length) return;
 
   const agent = getActiveAgentMeta();
@@ -93544,8 +93528,6 @@ function openAgentTodoPreviewForEdit() {
   void selectSystemFile(ROOT_SYSTEM_NOTE_FILE);
 }
 
-discussAgentPreviewWrapNode?.addEventListener("click", handleAgentPreviewOpenActivate);
-discussAgentPreviewWrapNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
 agentPreviewPlaceholderNode?.addEventListener("click", handleAgentPreviewOpenActivate);
 agentPreviewPlaceholderNode?.addEventListener("keydown", handleAgentPreviewOpenActivate);
 agentTodoPreviewEditBtn?.addEventListener("click", (event) => {
