@@ -8,6 +8,10 @@
   "stopTtsAt": 1783275094262,
   "sidecarSeenAt": 0,
   "pttHeld": false,
+  "meetingRecording": false,
   "lastTtsClientId": "shell-1786574977301-p8je12cdfb9",
-  "updatedAt": "2026-08-12T22:49:39.032Z"
+  "updatedAt": "2026-08-19T11:04:33.006Z",
+  "shellSurfaceHost": "browser-embed",
+  "shellSurfaceHint": "Панель в Agent CMS",
+  "shellSurfaceBackend": "local"
 }
