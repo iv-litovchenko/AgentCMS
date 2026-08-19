@@ -3,8 +3,15 @@ const TTS_PLAYBACK_HINTS = {
   reading: "Чтение — ждёт полный текст на экране и маркер ::: VOICE-END :::, затем читает целиком."
 };
 
-export function updateVoiceModeHint(mode = "hold", hintEl = document.getElementById("shell-voice-mode-hint")) {
+export function updateVoiceModeHint(
+  mode = "hold",
+  hintEl = document.getElementById("shell-voice-control")
+) {
   if (!hintEl) return;
+  if (mode === "disabled") {
+    hintEl.dataset.hint = "Голосовой ввод выключен — включите «Голосовой ввод (STT)» в панели выше.";
+    return;
+  }
   const hints = {
     live:
       "Sidecar постоянно слушает. Фраза по паузе → агенту. Ваш голос останавливает TTS. Нужен npm run shell:sidecar.",

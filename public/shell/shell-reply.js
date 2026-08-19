@@ -4,7 +4,7 @@ import {
   extractStreamingVoiceSpeech,
   extractStreamingVoiceDisplay,
   stripHtmlComments
-} from "/shell/voice-end-format.js?v=2";
+} from "@shell/voice-end-format";
 
 export { hasVoiceEndDelimiter, stripHtmlComments };
 

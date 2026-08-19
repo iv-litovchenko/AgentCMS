@@ -158,6 +158,17 @@ class Sidecar:
         if settings and not self._should_send_transcript(text, settings):
             return
         print(f"📝 {text}")
+        if settings and settings.get("voiceToCompose"):
+            try:
+                self._request_json(
+                    "/api/shell/voice-compose",
+                    method="POST",
+                    body={"text": text},
+                )
+            except Exception as exc:  # noqa: BLE001
+                print(f"⚠️ voice-compose: {exc}")
+                self._patch_state({"phase": "waiting", "phrase": "Не удалось записать в поле ввода"})
+            return
         self._patch_state({"phase": "thinking", "phrase": text[:240], "metrics": f"{result.duration_sec:.2f}s"})
         self._send_message(text)
 

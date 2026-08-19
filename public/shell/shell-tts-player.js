@@ -1,4 +1,4 @@
-import { getShellAudioContext, isIosDevice, unlockShellAudio } from "/shell/shell-audio-unlock.js?v=1";
+import { getShellAudioContext, isIosDevice, unlockShellAudio } from "@shell/audio-unlock";
 
 export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), synthTimeoutMs = 45000 }) {
   /** @type {HTMLAudioElement | null} */

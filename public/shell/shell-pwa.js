@@ -1,6 +1,6 @@
 /** PWA helpers: standalone detection + «На экран Домой» banner. */
 
-import { SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
+import { SHELL_STORAGE } from "@shell/storage-keys";
 
 const DEFAULT_DISMISS_KEY = SHELL_STORAGE.installDismiss;
 

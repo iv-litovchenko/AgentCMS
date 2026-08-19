@@ -3,7 +3,7 @@ import {
   cleanReplyTextSegment,
   hasReplyTtsBlocks,
   stripHtmlComments
-} from "./shell-reply.js?v=15";
+} from "@shell/reply";
 
 let shellMarkdownIt = null;
 

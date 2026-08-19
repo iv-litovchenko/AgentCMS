@@ -132,6 +132,29 @@ function createShellHandlers(deps) {
       return true;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/shell/voice-compose") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const text = String(payload?.text || "").trim();
+        if (!text) {
+          deps.sendJson(res, 400, { error: "Text is required" });
+          return true;
+        }
+        const draft = await shellService.appendVoiceToComposeDraft(agentRoot, agentId, text);
+        await shellService.patchState(agentRoot, agentId, {
+          phase: shellService.PHASE_WAITING,
+          phrase: "Текст в поле ввода — отправьте вручную"
+        });
+        deps.sendJson(res, 200, { agentId, ...draft, appended: text });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to append voice text to compose draft",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/shell/state") {
       try {
         const payload = await deps.readJsonBody(req);

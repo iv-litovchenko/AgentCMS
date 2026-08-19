@@ -1,4 +1,4 @@
-import { MOBILE_STORAGE_LEGACY, SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
+import { MOBILE_STORAGE_LEGACY, SHELL_STORAGE } from "@shell/storage-keys";
 
 const VOICE_CONFIRM_KEY = SHELL_STORAGE.voiceConfirm;
 const VOICE_CONFIRM_MOBILE_KEY = MOBILE_STORAGE_LEGACY.voiceConfirm;
@@ -194,6 +194,7 @@ export function createShellTapVoice(deps) {
   const syncMicUi = (active) => {
     deps.state.micTapHeld = micTapHeld;
     deps.setMicButtonState(active ? "Стоп" : "Говорить", { active });
+    deps.syncVoiceRecordTimer?.();
   };
 
   const scheduleRecognitionRestart = (delayMs = 140) => {
@@ -434,7 +435,8 @@ export function createShellTapVoice(deps) {
     prepareSession,
     startSession,
     isSessionActive,
-    isTapHeld: () => micTapHeld
+    isTapHeld: () => micTapHeld,
+    isStarting: () => micStarting
   };
 }
 

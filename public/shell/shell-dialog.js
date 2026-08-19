@@ -1,6 +1,6 @@
 /** Mobile-style dialog: history, collapse, copy/share, reconnect, errors. */
 
-import { SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
+import { SHELL_STORAGE } from "@shell/storage-keys";
 
 const HISTORY_KEY = SHELL_STORAGE.history;
 const CHAT_COLLAPSE_KEY = SHELL_STORAGE.chatCollapsed;

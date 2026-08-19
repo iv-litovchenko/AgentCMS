@@ -15,7 +15,6 @@ import speech_recognition as sr
 RATE = 16000
 CHUNK = 1024
 CHANNELS = 1
-MIN_PCM_BYTES = int(RATE * 0.35 * 2)  # ~350 ms
 
 
 def _pcm_to_wav(pcm: bytes, rate: int = RATE) -> bytes:
@@ -39,15 +38,9 @@ class TranscribeResult:
 def transcribe_pcm(pcm: bytes, language: str = "ru-RU") -> TranscribeResult:
     duration_sec = len(pcm) / (RATE * 2) if pcm else 0.0
     peak_rms = rms(pcm) if pcm else 0.0
-    if not pcm or len(pcm) < MIN_PCM_BYTES:
+    if not pcm:
         return TranscribeResult(
-            error=f"Слишком коротко ({duration_sec:.2f}s) — держите 🎤 дольше",
-            duration_sec=duration_sec,
-            peak_rms=peak_rms,
-        )
-    if peak_rms < 80:
-        return TranscribeResult(
-            error=f"Тихо (rms={peak_rms:.0f}) — громче или ближе к микрофону",
+            error="Нет аудио — проверьте микрофон",
             duration_sec=duration_sec,
             peak_rms=peak_rms,
         )

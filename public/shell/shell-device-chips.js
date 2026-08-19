@@ -1,7 +1,7 @@
 /** Device chips: compass / tilt / GPS (shared desktop + mobile). */
 
 const ORIENT_THROTTLE_MS = 200;
-import { SHELL_STORAGE } from "/shell/shell-storage-keys.js?v=1";
+import { SHELL_STORAGE } from "@shell/storage-keys";
 
 const LOCATION_SHARE_KEY = SHELL_STORAGE.locationShare;
 const LOCATION_MAX_AGE_MS = 60_000;

@@ -42,8 +42,10 @@ const DEFAULT_SETTINGS = {
   voiceInputMode: "hold",
   voiceGlobalListen: false,
   voiceWakeName: "",
+  voiceToCompose: false,
   voiceResponseEnabled: true,
   sttLang: "ru-RU",
+  sttEngine: "auto",
   sttPrompt: "",
   ttsEnabled: true,
   ttsPlaybackMode: "dialog",
@@ -200,6 +202,7 @@ function normalizeSettings(raw) {
   merged.voiceInputMode = migrateVoiceInputMode(merged.voiceInputMode);
   merged.voiceGlobalListen = Boolean(merged.voiceGlobalListen);
   merged.voiceWakeName = String(merged.voiceWakeName || "").trim();
+  merged.voiceToCompose = Boolean(merged.voiceToCompose);
   if (!["browser", "say", "edge", "piper", "elevenlabs", "sidecar"].includes(merged.ttsEngine)) {
     merged.ttsEngine = "browser";
   }
@@ -274,6 +277,17 @@ async function readComposeDraft(agentRoot) {
   } catch {
     return { body: "", path: relativePath, updatedAt: null };
   }
+}
+
+async function appendVoiceToComposeDraft(agentRoot, agentId, text) {
+  const trimmed = String(text || "").trim();
+  if (!trimmed) {
+    return readComposeDraft(agentRoot);
+  }
+  const draft = await readComposeDraft(agentRoot);
+  const base = String(draft.body || "").trimEnd();
+  const next = base ? `${base} ${trimmed}` : trimmed;
+  return writeComposeDraft(agentRoot, next, agentId);
 }
 
 async function writeComposeDraft(agentRoot, body, agentId) {
@@ -1221,6 +1235,7 @@ module.exports = {
   settingsAbsolute,
   readComposeDraft,
   writeComposeDraft,
+  appendVoiceToComposeDraft,
   applyOutboundSettings,
   mergeTtsSynthSettings,
   getState,

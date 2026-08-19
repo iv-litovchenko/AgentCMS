@@ -12,14 +12,46 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=164" />
+    <link rel="stylesheet" href="/shell/shell.css?v=198" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=3" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=1" />
     <script src="/project-version.js?v=1"></script>
+    <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
     <script type="importmap">
       {
         "imports": {
-          "three": "/shell/vendor/three.module.js"
+          "three": "/shell/vendor/three.module.js",
+          "@shell/topic-picker": "/shell/topic-picker.js?v=198",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=198",
+          "@shell/reply": "/shell/shell-reply.js?v=198",
+          "@shell/markdown": "/shell/shell-markdown.js?v=198",
+          "@shell/character": "/shell/shell-character.js?v=198",
+          "@shell/character-models": "/shell/shell-character-models.js?v=198",
+          "@shell/camera": "/shell/shell-camera.js?v=198",
+          "@shell/screen": "/shell/shell-screen.js?v=198",
+          "@shell/tts-tab": "/shell/shell-tts-tab.js?v=198",
+          "@shell/tts-player": "/shell/shell-tts-player.js?v=198",
+          "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=198",
+          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=198",
+          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=198",
+          "@shell/session": "/shell/shell-session.js?v=198",
+          "@shell/client-id": "/shell/shell-client-id.js?v=198",
+          "@shell/surface": "/shell/shell-surface.js?v=198",
+          "@shell/device-chips": "/shell/shell-device-chips.js?v=198",
+          "@shell/pwa": "/shell/shell-pwa.js?v=198",
+          "@shell/permissions": "/shell/shell-permissions.js?v=198",
+          "@shell/dialog": "/shell/shell-dialog.js?v=198",
+          "@shell/compose-layout": "/shell/shell-compose-layout.js?v=198",
+          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=198",
+          "@shell/help": "/shell/shell-help.js?v=198",
+          "@shell/hints": "/shell/shell-hints.js?v=198",
+          "@shell/proactive": "/shell/shell-proactive.js?v=198",
+          "@shell/compose-camera": "/shell/shell-compose-camera.js?v=198",
+          "@shell/voice": "/shell/shell-voice.js?v=198",
+          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=198",
+          "@shell/voice-end-format": "/shell/voice-end-format.js?v=198",
+          "@shell/contract": "/shell/shell-contract.js?v=198",
+          "@shell/build": "/shell/shell-build.js?v=198"
         }
       }
     </script>
@@ -1317,8 +1349,13 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </label>
             <label class="shell-field shell-field--compact">
               <span class="shell-label">Движок STT</span>
-              <p class="shell-stt-engine-note">
-                Выбирается автоматически: Web Speech в браузере или sidecar (Python), если нужен глобальный микрофон / Live / Встреча.
+              <select id="shell-stt-engine" class="shell-select shell-select--full">
+                <option value="auto">Авто — browser или sidecar по режиму</option>
+                <option value="browser">Web Speech (браузер)</option>
+                <option value="sidecar">Sidecar (Python)</option>
+              </select>
+              <p class="shell-stt-engine-note" id="shell-stt-engine-note">
+                Авто: Web Speech для «Голосовое», sidecar для Live / Встреча / «Глобально».
               </p>
             </label>
           </div>
@@ -1342,6 +1379,12 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <ul class="shell-message-queue-list" id="shell-message-queue-list"></ul>
         </div>
         <div class="shell-compose-dock" id="shell-compose-dock">
+          <div class="shell-compose-fullscreen-head" aria-hidden="true">
+            <div class="shell-compose-fullscreen-head-main">
+              <span class="shell-section-label">Ваше сообщение</span>
+              <span class="shell-compose-fullscreen-kbd">Esc — свернуть · ⌘↵ — отправить</span>
+            </div>
+          </div>
           <div class="shell-compose-dock-inner">
         <div class="shell-compose-field" id="shell-compose-field">
           <div class="shell-compose-options" role="group" aria-label="Параметры запроса">
@@ -1496,7 +1539,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
           </div>
           </div>
         </div>
-        <div class="shell-compose-expand-backdrop hidden" id="shell-compose-expand-backdrop" hidden></div>
         <div class="shell-compose-actions">
           <div class="shell-compose-bar shell-compose-bar--primary">
             <input
@@ -1562,7 +1604,11 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <span class="shell-compose-tool-icon" aria-hidden="true">🖥</span>
               </button>
             </div>
-            <div class="shell-compose-voice" id="shell-voice-control">
+            <div
+              class="shell-compose-voice"
+              id="shell-voice-control"
+              data-hint="Зажмите 🎤 — говорите — отпустите. Без «Глобально» — Web Speech в Shell. С «Глобально» — sidecar."
+            >
               <button
                 type="button"
                 class="shell-icon-btn shell-compose-tool shell-compose-mic"
@@ -1573,20 +1619,31 @@ aya_bar_v2 тоже читает те же файлы</pre>
               >
                 <span class="shell-compose-tool-icon" aria-hidden="true">🎤</span>
               </button>
-              <span
-                class="shell-hint shell-voice-mode-hint"
-                id="shell-voice-mode-hint"
-                data-hint="Зажмите 🎤 — говорите — отпустите. Без «Глобально» — Web Speech в Shell. С «Глобально» — sidecar."
-              >
               <select
                 id="shell-voice-mode"
                 class="shell-select shell-compose-voice-select"
                 aria-label="Режим голосового ввода"
                 title="Режим голосового ввода"
               >
+                <option value="live">Живой диалог — sidecar, речь по паузе → агенту</option>
+                <option value="wake_name">По имени — sidecar, wake-слово из ⚙️</option>
+                <option value="meeting">Запись встречи — 🎤 старт / стоп</option>
                 <option value="hold" selected>Голосовое — удерживать 🎤</option>
+                <option value="fn_button">Shift — удерживать клавишу</option>
               </select>
-              </span>
+              <label
+                id="shell-voice-to-compose-wrap"
+                class="shell-compose-voice-compose"
+                title="В поле ввода — речь попадает в текст, не отправляется агенту"
+              >
+                <input
+                  id="shell-voice-to-compose"
+                  class="shell-compose-voice-compose-input"
+                  type="checkbox"
+                  aria-label="В поле ввода — не отправлять агенту"
+                />
+                <span class="shell-compose-tool-icon" aria-hidden="true">✏️</span>
+              </label>
             </div>
           </div>
         </div>
@@ -1594,6 +1651,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
           Удерживайте 🎤 — говорите — отпустите.
         </p>
         </div>
+        <div class="shell-compose-expand-backdrop hidden" id="shell-compose-expand-backdrop" hidden></div>
       </section>
 
       <section class="shell-tools-panel" id="shell-voice-panel">
@@ -1828,6 +1886,6 @@ CMS workspace (agent-cms-test)</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=12"></script>
-    <script src="/shell/shell.js?v=174" type="module"></script>
+    <script src="/shell/shell.js?v=198" type="module"></script>
   </body>
 </html>

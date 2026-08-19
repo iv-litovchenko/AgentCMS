@@ -3,6 +3,7 @@
   --bg: #0f1020;
   --panel: #17182c;
   --panel-border: #3a3a5f;
+  --border: var(--panel-border);
   --accent: #7c6cff;
   --accent-soft: rgba(124, 108, 255, 0.18);
   --text: #eef0ff;
@@ -13,6 +14,7 @@
   --speak: #58c4ff;
   --shell-panel-inset-x: 14px;
   --shell-panel-inset-y: 12px;
+  --shell-compose-tool-h: 42px;
   --vv-keyboard: 0px;
   --shell-compose-dock-height: 96px;
   --shell-proactive-bar: 60px;
@@ -1488,59 +1490,126 @@ body:not(.shell-embed) .shell-version {
 }
 
 .shell-compose-voice {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 40px;
   align-items: stretch;
-  flex: 0 0 auto;
-  min-height: 42px;
-  border: 1px solid var(--border);
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--shell-compose-tool-h);
+  min-height: var(--shell-compose-tool-h);
+  max-height: var(--shell-compose-tool-h);
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
   overflow: hidden;
   background: var(--panel);
 }
 
-.shell-compose-voice .shell-compose-mic {
+.shell-compose-voice #shell-mic-btn {
+  grid-column: 1;
+  grid-row: 1;
   width: 44px;
-  min-height: 42px;
+  height: 100%;
+  min-height: 0;
   border: 0;
   border-radius: 0;
-  border-right: 1px solid var(--border);
-  flex: 0 0 auto;
-}
-
-.shell-compose-voice .shell-hint,
-.shell-voice-mode-hint {
-  display: inline-flex;
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.shell-compose-voice-select {
-  width: auto;
-  min-width: 8.5rem;
-  min-height: 42px;
-  max-width: min(100%, 18rem);
-  flex: 1 1 auto;
-  padding: 0 22px 0 8px;
-  font-size: 11px;
-  line-height: 1.1;
-  border: 0;
-  border-radius: 0;
+  border-right: 1px solid var(--panel-border);
   background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  z-index: 2;
+  touch-action: manipulation;
+}
+
+.shell-compose-voice #shell-voice-mode,
+.shell-compose-voice .shell-compose-voice-select {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  padding: 0 28px 0 10px;
+  font-size: 12px;
+  line-height: var(--shell-compose-tool-h);
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
   color: var(--text);
   cursor: pointer;
 }
 
+.shell-compose-voice-compose {
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  border-left: 1px solid var(--panel-border);
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.shell-compose-voice-compose-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.shell-compose-voice-compose .shell-compose-tool-icon {
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.shell-compose-voice-compose.is-active {
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.shell-compose-voice-compose.is-active .shell-compose-tool-icon {
+  opacity: 1;
+}
+
+.shell-compose-voice-compose.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.shell-compose-voice-compose.is-disabled .shell-compose-tool-icon {
+  opacity: 0.35;
+}
+
+.shell-compose-voice #shell-mic-btn.is-voice-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .shell-compose-voice.is-disabled {
-  opacity: 0.72;
+  opacity: 0.55;
 }
 
 .shell-compose-voice.is-disabled .shell-compose-mic {
-  opacity: 0.55;
+  opacity: 1;
 }
 
 .shell-compose-voice.is-disabled .shell-compose-mic:not(:disabled) {
   cursor: not-allowed;
+}
+
+.shell-compose-voice.is-disabled .shell-compose-voice-select,
+.shell-compose-voice.is-disabled select.shell-select {
+  opacity: 1;
+  cursor: not-allowed;
+  color: rgba(226, 232, 240, 0.45);
 }
 
 .shell-compose-voice:focus-within {
@@ -1563,6 +1632,11 @@ body:not(.shell-embed) .shell-version {
   color: #e8a045;
 }
 
+.shell-compose-voice-hint--recording {
+  color: #f87171;
+  font-variant-numeric: tabular-nums;
+}
+
 .shell-stt-engine-note {
   margin: 4px 0 0;
   font-size: 11px;
@@ -1570,13 +1644,23 @@ body:not(.shell-embed) .shell-version {
   color: rgba(226, 232, 240, 0.58);
 }
 
+.shell-stt-engine-note--warn {
+  color: #e8a045;
+}
+
 .shell-compose-tool {
   flex: 0 0 auto;
   width: 44px;
-  min-height: 42px;
+  height: var(--shell-compose-tool-h);
+  min-height: var(--shell-compose-tool-h);
   align-self: stretch;
   font-size: 18px;
   padding: 0;
+}
+
+.shell-compose-bar--tools .shell-icon-btn.shell-compose-tool {
+  height: var(--shell-compose-tool-h);
+  min-height: var(--shell-compose-tool-h);
 }
 
 .shell-compose-tool-icon {
@@ -1749,50 +1833,203 @@ body:not(.shell-embed) .shell-version {
   color: var(--muted);
 }
 
-.shell-compose-field.is-expanded .shell-compose-input-wrap {
+.shell-compose-field.is-expanded .shell-compose-input-wrap,
+#shell-compose-dock.is-expanded .shell-compose-input-wrap {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.shell-compose-field.is-expanded {
-  position: fixed;
-  inset: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
-    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-  z-index: 1200;
-  padding: 14px 16px 12px;
-  border-radius: 16px;
-  background: #0a0c18;
-  border: 1px solid rgba(122, 108, 255, 0.35);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
+.shell-compose-fullscreen-head {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: max(10px, env(safe-area-inset-top)) 16px 8px;
+  border-bottom: 1px solid rgba(122, 108, 255, 0.22);
+  background: rgba(8, 10, 20, 0.98);
 }
 
-.shell-compose-field.is-expanded .shell-textarea {
+.shell-compose-fullscreen-head-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.shell-compose-fullscreen-kbd {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+#shell-compose-dock.is-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #070812;
+  box-shadow: none;
+  gap: 0;
+}
+
+#shell-compose-dock.is-expanded .shell-compose-fullscreen-head {
+  display: flex;
+}
+
+#shell-compose-dock.is-expanded .shell-compose-dock-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#shell-compose-dock.is-expanded .shell-compose-field {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+#shell-compose-dock.is-expanded .shell-compose-options {
+  display: none;
+}
+
+#shell-compose-dock.is-expanded .shell-textarea {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  resize: none;
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  border-bottom: 1px solid rgba(122, 108, 255, 0.12);
+  padding: 16px 52px 16px 16px;
+  font-size: 15px;
+  line-height: 1.55;
+  background: #0a0c18;
+}
+
+#shell-compose-dock.is-expanded .shell-compose-field-meta {
+  flex-shrink: 0;
+  padding: 6px 16px 0;
+}
+
+#shell-compose-dock.is-expanded .shell-compose-actions {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(122, 108, 255, 0.22);
+  background: rgba(8, 10, 20, 0.98);
+  gap: 10px;
+}
+
+#shell-compose-dock.is-expanded .shell-compose-voice-hint {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 16px 10px;
+}
+
+#shell-compose-dock.is-expanded .shell-compose-expand-toggle {
+  top: max(10px, env(safe-area-inset-top));
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  z-index: 3;
+}
+
+.shell-compose-field.is-expanded {
+  /* legacy hook — layout driven by #shell-compose-dock.is-expanded */
+}
+
+.shell-compose-field.is-expanded .shell-textarea,
+#shell-compose-dock.is-expanded .shell-textarea {
   flex: 1 1 auto;
   min-height: 0;
   resize: none;
 }
 
-.shell-compose-field.is-expanded .shell-compose-expand-toggle {
-  top: 10px;
-  right: 10px;
+.shell-compose-field.is-expanded .shell-compose-expand-toggle,
+#shell-compose-dock.is-expanded .shell-compose-expand-toggle {
+  top: max(10px, env(safe-area-inset-top));
+  right: 12px;
 }
 
 .shell-compose-expand-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1199;
-  background: rgba(4, 6, 14, 0.72);
-  backdrop-filter: blur(4px);
+  background: rgba(4, 6, 14, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .shell-compose-expand-backdrop.hidden {
   display: none;
 }
 
-body.shell-compose-expanded {
+body.shell-compose-expanded,
+body.shell-compose-fullscreen {
   overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body.shell-compose-fullscreen.shell-bg-wallpaper {
+  background-attachment: scroll;
+}
+
+body.shell-compose-expanded .shell-compose-panel,
+body.shell-compose-fullscreen .shell-compose-panel {
+  contain: none;
+}
+
+body.shell-compose-fullscreen .shell-compose-expand-backdrop:not(.hidden) {
+  display: block;
+}
+
+body > #shell-compose-expand-backdrop:not(.hidden) {
+  position: fixed;
+  inset: 0;
+  z-index: 1199;
+}
+
+body > #shell-compose-dock.is-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  height: 100dvh;
+}
+
+body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-compose-dock.is-expanded {
+  position: fixed;
+  inset: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: none;
+  transform: none;
+  border-radius: 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 
 .shell-compose-head {
@@ -3683,6 +3920,54 @@ body.shell-embed .shell-version {
   box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.14);
 }
 
+.shell-compose-voice select.shell-select.shell-compose-voice-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' stroke='%239aa0c3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 0 28px 0 10px;
+  font-size: 12px;
+  line-height: var(--shell-compose-tool-h);
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.shell-compose-voice select.shell-select.shell-compose-voice-select:hover {
+  border-color: transparent;
+  background-color: rgba(124, 108, 255, 0.06);
+}
+
+.shell-compose-voice select.shell-select.shell-compose-voice-select:focus {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
+  background-color: rgba(124, 108, 255, 0.08);
+}
+
+.shell-compose-voice .shell-compose-mic.shell-icon-btn:hover {
+  background: rgba(124, 108, 255, 0.08);
+}
+
+.shell-compose-voice .shell-compose-mic.is-meeting-active,
+.shell-compose-voice .shell-compose-mic.is-active {
+  border-right-color: rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+}
+
+.shell-compose-voice .shell-compose-mic.is-active {
+  background: rgba(255, 107, 138, 0.16);
+  color: #fecaca;
+}
+
 .shell-textarea {
   resize: vertical;
   min-height: 84px;
@@ -4431,9 +4716,22 @@ body.shell-embed .shell-version {
 
   .shell-compose-media-tools .shell-compose-tool {
     width: 40px;
+    height: var(--shell-compose-tool-h);
+    min-height: var(--shell-compose-tool-h);
   }
 
-  .shell-compose-voice .shell-compose-mic {
+  .shell-compose-voice {
+    height: var(--shell-compose-tool-h);
+    min-height: var(--shell-compose-tool-h);
+    max-height: var(--shell-compose-tool-h);
+    grid-template-columns: 40px minmax(0, 1fr) 36px;
+  }
+
+  .shell-compose-voice-compose {
+    width: 36px;
+  }
+
+  .shell-compose-voice #shell-mic-btn {
     width: 40px;
   }
 

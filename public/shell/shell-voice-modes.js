@@ -51,6 +51,32 @@ export function isVoiceInputEnabled(mode) {
   return normalizeVoiceInputMode(mode) !== "disabled";
 }
 
+export function normalizeSttEngine(value) {
+  const raw = String(value || "").trim();
+  if (raw === "browser" || raw === "sidecar") return raw;
+  return "auto";
+}
+
+/** Какой STT реально использовать: browser или sidecar. */
+export function resolveSttEngine(
+  mode,
+  { globalListen = false, sidecarConnected = false, sttEngine = "auto" } = {}
+) {
+  const m = normalizeVoiceInputMode(mode);
+  if (voiceModeRequiresSidecar(m)) return "sidecar";
+  const engine = normalizeSttEngine(sttEngine);
+  if (engine === "browser") return "browser";
+  if (engine === "sidecar") return "sidecar";
+  if ((m === "hold" || m === "fn_button") && globalListen) return "sidecar";
+  return "browser";
+}
+
+export function sttEngineIsAvailable(mode, context = {}) {
+  const resolved = resolveSttEngine(mode, context);
+  if (resolved === "browser") return true;
+  return Boolean(context.sidecarConnected);
+}
+
 /** Sidecar обязателен для режима (не считая глобальность). */
 export function voiceModeRequiresSidecar(mode) {
   const m = normalizeVoiceInputMode(mode);
@@ -58,27 +84,47 @@ export function voiceModeRequiresSidecar(mode) {
 }
 
 /** Микрофон через sidecar PTT / meeting / always. */
-export function voiceModeUsesSidecarMic(mode, { globalListen = false, sidecarConnected = false } = {}) {
+export function voiceModeUsesSidecarMic(
+  mode,
+  { globalListen = false, sidecarConnected = false, sttEngine = "auto" } = {}
+) {
+  if (resolveSttEngine(mode, { globalListen, sidecarConnected, sttEngine }) !== "sidecar") {
+    return false;
+  }
   const m = normalizeVoiceInputMode(mode);
-  if (voiceModeRequiresSidecar(m)) return sidecarConnected;
-  if (m === "fn_button" || m === "hold") return Boolean(globalListen && sidecarConnected);
+  if (voiceModeRequiresSidecar(m)) return Boolean(sidecarConnected);
+  if (m === "hold" || m === "fn_button") return Boolean(sidecarConnected);
   return false;
 }
 
 /** Web Speech в браузере. */
-export function voiceModeUsesBrowserStt(mode, { globalListen = false, sidecarConnected = false } = {}) {
+export function voiceModeUsesBrowserStt(
+  mode,
+  { globalListen = false, sidecarConnected = false, sttEngine = "auto" } = {}
+) {
+  if (resolveSttEngine(mode, { globalListen, sidecarConnected, sttEngine }) !== "browser") {
+    return false;
+  }
   const m = normalizeVoiceInputMode(mode);
-  if (m === "disabled" || voiceModeRequiresSidecar(m)) return false;
-  if (m === "hold") return !voiceModeUsesSidecarMic(m, { globalListen, sidecarConnected });
-  if (m === "fn_button") return !voiceModeUsesSidecarMic(m, { globalListen, sidecarConnected });
-  return false;
+  return m !== "disabled" && !voiceModeRequiresSidecar(m);
 }
 
 export function voiceModeMicAction(mode) {
   const m = normalizeVoiceInputMode(mode);
   if (m === "meeting") return "toggle-meeting";
   if (m === "hold") return "hold";
-  if (m === "live" || m === "wake_name") return "none";
+  if (m === "live" || m === "wake_name") return "sidecar-always";
   if (m === "fn_button") return "hint";
-  return "none";
+  return "hint";
+}
+
+/** Подпись кнопки 🎤 для режима. */
+export function voiceModeMicLabel(mode, { meetingRecording = false } = {}) {
+  const m = normalizeVoiceInputMode(mode);
+  if (m === "meeting") return meetingRecording ? "Стоп встречи" : "Запись встречи";
+  if (m === "hold") return "Говорить";
+  if (m === "live") return "Живой диалог";
+  if (m === "wake_name") return "По имени";
+  if (m === "fn_button") return "Shift";
+  return "Говорить";
 }

@@ -4,9 +4,9 @@ import {
   pickShellReply,
   unwrapAssistantMessage,
   unwrapShellState
-} from "/shell/shell-contract.js?v=2";
-import { getShellClientId } from "/shell/shell-client-id.js?v=1";
-import { getShellSurfacePayload } from "/shell/shell-surface.js?v=2";
+} from "@shell/contract";
+import { getShellClientId } from "@shell/client-id";
+import { getShellSurfacePayload } from "@shell/surface";
 
 export class ShellClient {
   constructor({
