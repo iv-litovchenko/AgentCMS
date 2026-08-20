@@ -7,7 +7,7 @@ MCP-сервер для [Agent CMS](..): доступ к workspace через HT
 ## Требования
 
 - Node.js 18+
-- Запущенный Agent CMS: из корня репозитория `npm start` → http://localhost:3000
+- Запущенный Agent CMS: из корня репозитория `npm run start:https` → https://localhost:3443
 
 ## Установка
 
@@ -20,8 +20,9 @@ npm install
 
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
-| `AGENT_CMS_BASE_URL` | `http://localhost:3000` | Базовый URL CMS |
+| `AGENT_CMS_BASE_URL` | `https://localhost:3443` при HTTPS | Базовый URL CMS (см. кнопку **MCP** в UI) |
 | `AGENT_CMS_AGENT` | — | id агента (`?agent=`); если пусто — default из `awn-agents.json` |
+| `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
 
 ## Старт сессии
 
@@ -51,7 +52,7 @@ get_session_context
 ## Документация
 
 - Агентская шпаргалка: `GLOBAL_MCP_DOC.md` (always-context)
-- HTTP JSON: `GET http://localhost:3000/api/mcp-docs?version=0.0.2`
+- HTTP JSON: `GET https://localhost:3443/api/mcp-docs?version=0.0.2` (URL подставляется автоматически в модалке **MCP**)
 
 ## Запуск
 

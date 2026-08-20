@@ -6,10 +6,24 @@ File-based CMS для LLM-агентов без базы данных. Конт�
 
 ```bash
 npm install
-npm start
+npm run start:https
 ```
 
-Откройте http://localhost:3000
+Откройте https://localhost:3443
+
+### HTTPS без предупреждений браузера
+
+Самоподписанный сертификат (по умолчанию) браузер спрашивает каждый раз. Для **доверенного локального HTTPS**:
+
+```bash
+brew install mkcert
+mkcert -install
+npm run setup:certs
+npm run start:https
+```
+
+`mkcert` один раз добавляет локальный CA в систему — Safari/Chrome доверяют CMS (`:3443`) и Voice (`:3488`) без окошек.
+
 
 ## Desktop
 

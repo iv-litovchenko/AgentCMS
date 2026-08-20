@@ -4,28 +4,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CERT_DIR="$ROOT/.dev-certs"
 KEY="$CERT_DIR/key.pem"
 CERT="$CERT_DIR/cert.pem"
-IP_FILE="$CERT_DIR/last-ip.txt"
+PROVIDER_FILE="$CERT_DIR/provider.txt"
 
-mkdir -p "$CERT_DIR"
-
-IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
-IP="${IP:-127.0.0.1}"
-
-LAST_IP=""
-if [[ -f "$IP_FILE" ]]; then
-  LAST_IP="$(cat "$IP_FILE")"
-fi
-
-if [[ ! -f "$KEY" || ! -f "$CERT" || "$LAST_IP" != "$IP" ]]; then
-  echo "Creating self-signed certificate for IP $IP in .dev-certs/ ..."
-  SAN="DNS:localhost,DNS:agent-cms.local,IP:127.0.0.1,IP:${IP}"
-  openssl req -x509 -newkey rsa:2048 \
-    -keyout "$KEY" -out "$CERT" \
-    -days 825 -nodes \
-    -subj "/CN=agent-cms.local/O=Agent CMS/C=RU" \
-    -addext "subjectAltName=${SAN}"
-  echo "$IP" > "$IP_FILE"
-fi
+bash "$ROOT/scripts/setup-dev-certs.sh"
 
 if lsof -ti :3000 >/dev/null 2>&1; then
   echo "HTTP already running on :3000 — adding HTTPS on :3443 only."
@@ -34,12 +15,19 @@ else
   echo "Starting HTTP :3000 + HTTPS :3443"
 fi
 echo "iPhone — open Voice HTTPS URL (port ${VOICE_TLS_PORT:-3488}, not CMS):"
+IP="$(cat "$CERT_DIR/last-ip.txt" 2>/dev/null || echo 127.0.0.1)"
 echo "  https://${IP}:${VOICE_TLS_PORT:-3488}/"
 echo "  https://${IP}:${VOICE_TLS_PORT:-3488}/<agent-id>/"
 echo ""
 echo "CMS editor stays on :3443 — Voice is a separate app on :${VOICE_TLS_PORT:-3488}"
-echo ""
-echo "Safari: warning → Подробнее → Перейти на сайт"
+if [[ -f "$PROVIDER_FILE" ]] && [[ "$(cat "$PROVIDER_FILE")" == "mkcert" ]]; then
+  echo ""
+  echo "Certificates: mkcert (trusted by system — no browser warnings)."
+else
+  echo ""
+  echo "Safari: warning → Подробнее → Перейти на сайт"
+  echo "Trusted certs: brew install mkcert && mkcert -install && npm run setup:certs"
+fi
 echo ""
 
 cd "$ROOT"
@@ -48,6 +36,7 @@ export PORT="${PORT:-3000}"
 export TLS_PORT="${TLS_PORT:-3443}"
 export TLS_KEY="$KEY"
 export TLS_CERT="$CERT"
+export DEV_CERT_PROVIDER="$(cat "$PROVIDER_FILE" 2>/dev/null || echo openssl)"
 export VOICE_TLS_PORT="${VOICE_TLS_PORT:-3488}"
 export VOICE_PORT="${VOICE_PORT:-3088}"
 export VOICE_REDIRECT_SHELL="${VOICE_REDIRECT_SHELL:-1}"

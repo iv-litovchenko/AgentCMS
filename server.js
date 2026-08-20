@@ -18,7 +18,8 @@ const { startVoiceServer, stopVoiceServer, shellLegacyRedirectTarget } = require
 const {
   isHttpsRedirectEnabled,
   createHttpToHttpsRedirectHandler,
-  resolveInternalCmsApiUrl
+  resolveInternalCmsApiUrl,
+  enrichMcpDocsForClient
 } = require("./lib/https-redirect");
 const {
   clampThumbMax,
@@ -23204,7 +23205,9 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/mcp-docs") {
     const version = docsRegistry.normalizeDocVersion(url.searchParams.get("version"));
-    return sendJson(res, 200, docsRegistry.getMcpDocs(version));
+    const docs = docsRegistry.getMcpDocs(version);
+    const reqHost = String(req.headers.host || "").trim();
+    return sendJson(res, 200, enrichMcpDocsForClient(docs, reqHost));
   }
 
   if (req.method === "GET" && url.pathname === "/api/user-docs") {

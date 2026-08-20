@@ -1,5 +1,36 @@
 const DEFAULT_BASE_URL = "http://localhost:3000";
 
+function isLocalCmsHost(hostname) {
+  const host = String(hostname || "").trim().toLowerCase();
+  return host === "127.0.0.1" || host === "localhost" || host === "::1" || host.endsWith(".local");
+}
+
+function shouldUseInsecureTls(urlString) {
+  const flag = String(process.env.AGENT_CMS_TLS_INSECURE || "").trim();
+  if (flag === "1" || flag.toLowerCase() === "true") return true;
+  if (flag === "0" || flag.toLowerCase() === "false") return false;
+  try {
+    const url = new URL(urlString);
+    return url.protocol === "https:" && isLocalCmsHost(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function cmsFetch(url, init = {}) {
+  if (!shouldUseInsecureTls(String(url))) {
+    return fetch(url, init);
+  }
+  const previous = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  try {
+    return await fetch(url, init);
+  } finally {
+    if (previous === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    else process.env.NODE_TLS_REJECT_UNAUTHORIZED = previous;
+  }
+}
+
 export function getConfig() {
   const baseUrl = (
     process.env.AGENT_CMS_BASE_URL ||
@@ -46,10 +77,10 @@ export class AgentCmsClient {
 
     let response;
     try {
-      response = await fetch(url, init);
+      response = await cmsFetch(url, init);
     } catch (error) {
       throw new Error(
-        `Cannot reach Agent CMS at ${this.baseUrl}. Run "npm start" in the project root. (${error.message})`
+        `Cannot reach Agent CMS at ${this.baseUrl}. Run "npm run start:https" or "npm start" in the project root. (${error.message})`
       );
     }
 
