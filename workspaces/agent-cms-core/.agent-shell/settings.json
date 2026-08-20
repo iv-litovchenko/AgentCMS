@@ -18,7 +18,7 @@
   "sttEngine": "auto",
   "sttPrompt": "",
   "ttsEnabled": true,
-  "ttsPlaybackMode": "dialog",
+  "ttsPlaybackMode": "reading",
   "ttsEngine": "edge",
   "ttsEdgeVoice": "ru-RU-SvetlanaNeural",
   "ttsElevenlabsApiKey": "",

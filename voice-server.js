@@ -12,6 +12,10 @@ const fsSync = require("fs");
 const path = require("path");
 const os = require("os");
 const agentRegistry = require("./agent-registry");
+const {
+  isHttpsRedirectEnabled,
+  createHttpToHttpsRedirectHandler
+} = require("./lib/https-redirect");
 
 const ROOT = __dirname;
 
@@ -362,25 +366,35 @@ async function startVoiceServer(options = {}) {
     };
   }
 
-  httpServer = http.createServer(handler);
-  const boundPort = await listenServer(httpServer, { host, port, tryNextPort });
   const hostname = host || "localhost";
-  const httpUrl = `http://${hostname}:${boundPort}`;
+  let httpUrl = null;
   let httpsUrl = null;
+  let boundPort = null;
   let boundTlsPort = null;
 
   if (tls) {
     httpsServer = https.createServer(tls, handler);
     boundTlsPort = await listenServer(httpsServer, { host, port: tlsPort, tryNextPort: false });
     httpsUrl = `https://${hostname}:${boundTlsPort}`;
+
+    const httpHandler = isHttpsRedirectEnabled()
+      ? createHttpToHttpsRedirectHandler({ tlsPort: boundTlsPort, hostname })
+      : handler;
+    httpServer = http.createServer(httpHandler);
+    boundPort = await listenServer(httpServer, { host, port, tryNextPort });
+    httpUrl = `http://${hostname}:${boundPort}`;
+  } else {
+    httpServer = http.createServer(handler);
+    boundPort = await listenServer(httpServer, { host, port, tryNextPort });
+    httpUrl = `http://${hostname}:${boundPort}`;
   }
 
   return {
     port: boundPort,
     tlsPort: boundTlsPort,
     host: hostname,
-    url: httpUrl,
-    scheme: "http",
+    url: httpsUrl || httpUrl,
+    scheme: httpsUrl ? "https" : "http",
     lanIp,
     tls: Boolean(httpsUrl),
     httpUrl: lanIp ? `http://${lanIp}:${boundPort}` : httpUrl,
@@ -415,7 +429,13 @@ async function stopVoiceServer() {
 if (require.main === module) {
   startVoiceServer({ root: ROOT, tryNextPort: false })
     .then((info) => {
-      console.log(`Agent CMS Voice HTTP  at ${info.httpUrl || info.url}`);
+      if (info.httpUrl) {
+        console.log(
+          `Agent CMS Voice HTTP  at ${info.httpUrl}${
+            info.httpsUrl && isHttpsRedirectEnabled() ? " → redirects to HTTPS" : ""
+          }`
+        );
+      }
       if (info.httpsUrl) console.log(`Agent CMS Voice HTTPS at ${info.httpsUrl}`);
       console.log(`CMS API proxy      → ${info.cmsApiUrl}`);
       console.log("");

@@ -16,6 +16,11 @@ const { createGdriveSyncHelpers, getGoogleDriveSymlinkMeta } = require("./gdrive
 const { createShellHandlers } = require("./agent-shell/http-handlers");
 const { startVoiceServer, stopVoiceServer, shellLegacyRedirectTarget } = require("./voice-server");
 const {
+  isHttpsRedirectEnabled,
+  createHttpToHttpsRedirectHandler,
+  resolveInternalCmsApiUrl
+} = require("./lib/https-redirect");
+const {
   clampThumbMax,
   readOrCreateImageThumb,
   wantsThumbVariant
@@ -14197,10 +14202,20 @@ function isSpaAppRoute(reqPath) {
   return getAgentsPublicList().some((agent) => agent.id === agentId);
 }
 
-async function serveIndexHtml(res) {
+async function serveIndexHtml(res, reqHost = "") {
   const indexPath = path.join(getPublicDir(), "index.html");
   let content = await fs.readFile(indexPath, "utf8");
-  const voiceBase = voicePublicBaseUrl();
+  let voiceBase = voicePublicBaseUrl();
+  const clientHost = String(reqHost || "").split(":")[0].trim();
+  if (voiceBase && clientHost && clientHost !== "0.0.0.0") {
+    try {
+      const voiceUrl = new URL(voiceBase);
+      voiceUrl.hostname = clientHost;
+      voiceBase = voiceUrl.toString().replace(/\/+$/, "");
+    } catch {
+      // keep voiceBase
+    }
+  }
   if (voiceBase && !content.includes("__AGENT_CMS_VOICE_URL__")) {
     const script = `<script>window.__AGENT_CMS_VOICE_URL__=${JSON.stringify(voiceBase)};</script>`;
     content = content.replace("<head>", `<head>\n    ${script}`);
@@ -14218,6 +14233,12 @@ function voicePublicBaseUrl() {
   const explicit = String(process.env.VOICE_PUBLIC_URL || process.env.VOICE_BASE_URL || "").trim();
   if (explicit) return explicit.replace(/\/+$/, "");
   if (voiceServerInfo?.httpsUrl) return voiceServerInfo.httpsUrl.replace(/\/+$/, "");
+  if (voiceServerInfo?.httpUrl && !isTlsEnabled()) return voiceServerInfo.httpUrl.replace(/\/+$/, "");
+  if (isTlsEnabled()) {
+    const host = process.env.VOICE_HOST || process.env.HOST || "localhost";
+    const port = Number(process.env.VOICE_TLS_PORT || 3488);
+    return `https://${host}:${port}`;
+  }
   if (voiceServerInfo?.httpUrl) return voiceServerInfo.httpUrl.replace(/\/+$/, "");
   const port = Number(process.env.VOICE_PORT || 3088);
   const host = process.env.VOICE_HOST || "localhost";
@@ -14254,7 +14275,7 @@ function resolveShellStaticPath(reqPath) {
   return reqPath;
 }
 
-async function serveStatic(reqPath, res) {
+async function serveStatic(reqPath, res, req) {
   let normalizedPath = resolveShellStaticPath(reqPath);
   if (normalizedPath.endsWith("/") && normalizedPath !== "/") {
     normalizedPath = `${normalizedPath}index.html`;
@@ -14266,6 +14287,11 @@ async function serveStatic(reqPath, res) {
   if (!filePath.startsWith(getPublicDir())) {
     res.writeHead(403);
     res.end("Forbidden");
+    return;
+  }
+
+  if (safePath === "index.html") {
+    await serveIndexHtml(res, String(req?.headers?.host || "").trim());
     return;
   }
 
@@ -14284,7 +14310,7 @@ async function serveStatic(reqPath, res) {
     const ext = path.extname(safePath).toLowerCase();
     if (!ext || ext === ".html" || isSpaAppRoute(reqPath)) {
       try {
-        await serveIndexHtml(res);
+        await serveIndexHtml(res, String(req?.headers?.host || "").trim());
         return;
       } catch {
         // fall through to 404
@@ -23768,7 +23794,7 @@ function createRequestHandler() {
       return;
     }
 
-    return serveStatic(url.pathname, res);
+    return serveStatic(url.pathname, res, req);
   };
 }
 
@@ -23856,16 +23882,8 @@ async function startServer(options = {}) {
   const attachHttpsOnly = process.env.HTTPS_ATTACH === "1";
   const voiceAutostart = process.env.VOICE_AUTOSTART !== "0";
 
-  function resolveVoiceCmsApiUrl({ httpUrl, httpsUrl, boundPort, boundTlsPort, lanIp }) {
-    const explicit = String(process.env.CMS_API_URL || process.env.AGENT_CMS_BASE_URL || "").trim();
-    if (explicit) return explicit.replace(/\/+$/, "");
-    if (httpUrl && boundPort) {
-      return lanIp ? `http://${lanIp}:${boundPort}` : httpUrl.replace(/\/+$/, "");
-    }
-    if (httpsUrl && boundTlsPort) {
-      return `https://127.0.0.1:${boundTlsPort}`;
-    }
-    return "http://127.0.0.1:3000";
+  function resolveVoiceCmsApiUrl({ boundPort, boundTlsPort }) {
+    return resolveInternalCmsApiUrl({ boundPort, boundTlsPort });
   }
 
   async function maybeStartVoiceServer(cmsApiUrl) {
@@ -23885,13 +23903,7 @@ async function startServer(options = {}) {
     const boundTlsPort = await listenServer(httpsServer, { host, port: tlsPort, tryNextPort });
     const hostname = host || "localhost";
     const url = `https://${hostname}:${boundTlsPort}`;
-    const cmsApiUrl = resolveVoiceCmsApiUrl({
-      httpUrl: null,
-      httpsUrl: url,
-      boundPort: null,
-      boundTlsPort,
-      lanIp
-    });
+    const cmsApiUrl = resolveVoiceCmsApiUrl({ boundPort: null, boundTlsPort });
     const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
     const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
     return {
@@ -23912,11 +23924,10 @@ async function startServer(options = {}) {
     };
   }
 
-  httpServer = http.createServer(handler);
-  const boundPort = await listenServer(httpServer, { host, port, tryNextPort });
   const hostname = host || "localhost";
-  const httpUrl = `http://${hostname}:${boundPort}`;
+  let httpUrl = null;
   let httpsUrl = null;
+  let boundPort = null;
   let boundTlsPort = null;
 
   if (isTlsEnabled()) {
@@ -23924,15 +23935,20 @@ async function startServer(options = {}) {
     httpsServer = https.createServer(tls, handler);
     boundTlsPort = await listenServer(httpsServer, { host, port: tlsPort, tryNextPort: false });
     httpsUrl = `https://${hostname}:${boundTlsPort}`;
+
+    const httpHandler = isHttpsRedirectEnabled()
+      ? createHttpToHttpsRedirectHandler({ tlsPort: boundTlsPort, hostname })
+      : handler;
+    httpServer = http.createServer(httpHandler);
+    boundPort = await listenServer(httpServer, { host, port, tryNextPort });
+    httpUrl = `http://${hostname}:${boundPort}`;
+  } else {
+    httpServer = http.createServer(handler);
+    boundPort = await listenServer(httpServer, { host, port, tryNextPort });
+    httpUrl = `http://${hostname}:${boundPort}`;
   }
 
-  const cmsApiUrl = resolveVoiceCmsApiUrl({
-    httpUrl,
-    httpsUrl,
-    boundPort,
-    boundTlsPort,
-    lanIp
-  });
+  const cmsApiUrl = resolveVoiceCmsApiUrl({ boundPort, boundTlsPort });
   const voiceInfo = await maybeStartVoiceServer(cmsApiUrl);
   const voiceUrl = voiceInfo?.httpsUrl || voiceInfo?.httpUrl || voiceInfo?.url || null;
 
@@ -23951,8 +23967,10 @@ async function startServer(options = {}) {
     voiceHttpsUrl: voiceInfo?.httpsUrl || null,
     mobileUrl:
       voiceUrl ||
-      (lanIp && boundTlsPort
-        ? `https://${lanIp}:${boundTlsPort}/`
+      (httpsUrl
+        ? lanIp
+          ? `https://${lanIp}:${boundTlsPort}/`
+          : `${httpsUrl}/`
         : lanIp
           ? `http://${lanIp}:${boundPort}/`
           : `${httpUrl}/`),
@@ -23986,10 +24004,22 @@ async function stopServer() {
 if (require.main === module) {
   startServer({ root: __dirname, tryNextPort: false })
     .then((info) => {
-      if (info.httpUrl) console.log(`Agent CMS HTTP  at ${info.httpUrl}`);
+      if (info.httpUrl) {
+        console.log(
+          `Agent CMS HTTP  at ${info.httpUrl}${
+            info.httpsUrl && isHttpsRedirectEnabled() ? " → redirects to HTTPS" : ""
+          }`
+        );
+      }
       if (info.httpsUrl) console.log(`Agent CMS HTTPS at ${info.httpsUrl}`);
       else if (!info.httpUrl) console.log(`Agent CMS at ${info.url}`);
-      if (info.voiceHttpUrl) console.log(`Agent CMS Voice HTTP  at ${info.voiceHttpUrl}`);
+      if (info.voiceHttpUrl) {
+        console.log(
+          `Agent CMS Voice HTTP  at ${info.voiceHttpUrl}${
+            info.voiceHttpsUrl && isHttpsRedirectEnabled() ? " → redirects to HTTPS" : ""
+          }`
+        );
+      }
       if (info.voiceHttpsUrl) console.log(`Agent CMS Voice HTTPS at ${info.voiceHttpsUrl}`);
       else if (info.voiceUrl) console.log(`Agent CMS Voice at ${info.voiceUrl}`);
       console.log(`Voice UI:         ${info.mobileUrl}`);

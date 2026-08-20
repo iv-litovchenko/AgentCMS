@@ -1072,11 +1072,23 @@ function startClock() {
   state.clockTimer = setInterval(renderClock, 1000);
 }
 
+function renderBatteryUnavailable(reason = "") {
+  if (!nodes.battery || !nodes.batteryFill || !nodes.batteryLevel) return;
+  nodes.battery.classList.remove("hidden");
+  nodes.battery.dataset.charging = "0";
+  nodes.battery.dataset.level = "unknown";
+  nodes.battery.dataset.available = "0";
+  nodes.batteryFill.setAttribute("width", "0");
+  nodes.batteryLevel.textContent = "—";
+  nodes.battery.title = reason || "Батарея недоступна в этом браузере";
+}
+
 function renderBattery(battery) {
   if (!nodes.battery || !nodes.batteryFill || !nodes.batteryLevel) return;
   const level = Math.max(0, Math.min(100, Math.round((battery?.level || 0) * 100)));
   const charging = Boolean(battery?.charging);
   nodes.battery.classList.remove("hidden");
+  nodes.battery.dataset.available = "1";
   nodes.battery.dataset.charging = charging ? "1" : "0";
   nodes.battery.dataset.level = level <= 10 ? "critical" : level <= 20 ? "low" : "normal";
   nodes.batteryFill.setAttribute("width", String((level / 100) * BATTERY_FILL_MAX));
@@ -1086,7 +1098,7 @@ function renderBattery(battery) {
 
 async function initBatteryMonitor() {
   if (!navigator.getBattery) {
-    nodes.battery?.classList.add("hidden");
+    renderBatteryUnavailable("Батарея: API недоступен (Safari / iOS)");
     return;
   }
   try {
@@ -1096,7 +1108,7 @@ async function initBatteryMonitor() {
     battery.addEventListener("levelchange", update);
     battery.addEventListener("chargingchange", update);
   } catch {
-    nodes.battery?.classList.add("hidden");
+    renderBatteryUnavailable("Батарея: не удалось прочитать уровень");
   }
 }
 

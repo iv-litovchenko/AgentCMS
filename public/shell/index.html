@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=205" />
+    <link rel="stylesheet" href="/shell/shell.css?v=207" />
     <link rel="stylesheet" href="/shell/shell-surface.css?v=3" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=1" />
     <script src="/project-version.js?v=1"></script>
@@ -21,38 +21,38 @@
       {
         "imports": {
           "three": "/shell/vendor/three.module.js",
-          "@shell/topic-picker": "/shell/topic-picker.js?v=205",
-          "@shell/settings-save": "/shell/shell-settings-save.js?v=205",
-          "@shell/reply": "/shell/shell-reply.js?v=205",
-          "@shell/markdown": "/shell/shell-markdown.js?v=205",
-          "@shell/character": "/shell/shell-character.js?v=205",
-          "@shell/character-models": "/shell/shell-character-models.js?v=205",
-          "@shell/camera": "/shell/shell-camera.js?v=205",
-          "@shell/screen": "/shell/shell-screen.js?v=205",
-          "@shell/tts-tab": "/shell/shell-tts-tab.js?v=205",
-          "@shell/tts-player": "/shell/shell-tts-player.js?v=205",
-          "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=205",
-          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=205",
-          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=205",
-          "@shell/session": "/shell/shell-session.js?v=205",
-          "@shell/client-id": "/shell/shell-client-id.js?v=205",
-          "@shell/surface": "/shell/shell-surface.js?v=205",
-          "@shell/device-chips": "/shell/shell-device-chips.js?v=205",
-          "@shell/pwa": "/shell/shell-pwa.js?v=205",
-          "@shell/permissions": "/shell/shell-permissions.js?v=205",
-          "@shell/dialog": "/shell/shell-dialog.js?v=205",
-          "@shell/compose-layout": "/shell/shell-compose-layout.js?v=205",
-          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=205",
-          "@shell/help": "/shell/shell-help.js?v=205",
-          "@shell/hints": "/shell/shell-hints.js?v=205",
-          "@shell/proactive": "/shell/shell-proactive.js?v=205",
-          "@shell/compose-camera": "/shell/shell-compose-camera.js?v=205",
-          "@shell/voice": "/shell/shell-voice.js?v=205",
-          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=205",
-          "@shell/voice-end-format": "/shell/voice-end-format.js?v=205",
-          "@shell/contract": "/shell/shell-contract.js?v=205",
-          "@shell/runtimes": "/shell/shell-runtimes.js?v=205",
-          "@shell/build": "/shell/shell-build.js?v=205"
+          "@shell/topic-picker": "/shell/topic-picker.js?v=207",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=207",
+          "@shell/reply": "/shell/shell-reply.js?v=207",
+          "@shell/markdown": "/shell/shell-markdown.js?v=207",
+          "@shell/character": "/shell/shell-character.js?v=207",
+          "@shell/character-models": "/shell/shell-character-models.js?v=207",
+          "@shell/camera": "/shell/shell-camera.js?v=207",
+          "@shell/screen": "/shell/shell-screen.js?v=207",
+          "@shell/tts-tab": "/shell/shell-tts-tab.js?v=207",
+          "@shell/tts-player": "/shell/shell-tts-player.js?v=207",
+          "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=207",
+          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=207",
+          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=207",
+          "@shell/session": "/shell/shell-session.js?v=207",
+          "@shell/client-id": "/shell/shell-client-id.js?v=207",
+          "@shell/surface": "/shell/shell-surface.js?v=207",
+          "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
+          "@shell/pwa": "/shell/shell-pwa.js?v=207",
+          "@shell/permissions": "/shell/shell-permissions.js?v=207",
+          "@shell/dialog": "/shell/shell-dialog.js?v=207",
+          "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
+          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=207",
+          "@shell/help": "/shell/shell-help.js?v=207",
+          "@shell/hints": "/shell/shell-hints.js?v=207",
+          "@shell/proactive": "/shell/shell-proactive.js?v=207",
+          "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
+          "@shell/voice": "/shell/shell-voice.js?v=207",
+          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=207",
+          "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
+          "@shell/contract": "/shell/shell-contract.js?v=207",
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=207",
+          "@shell/build": "/shell/shell-build.js?v=207"
         }
       }
     </script>
@@ -1028,7 +1028,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
           </div>
 
           <div class="shell-hero-band shell-hero-band--device" aria-label="Устройство">
-            <span class="shell-meta-chip shell-battery hidden" id="shell-battery" title="Батарея">
+            <span class="shell-meta-chip shell-battery" id="shell-battery" title="Батарея" data-available="0">
               <span class="shell-meta-icon" aria-hidden="true">🔋</span>
               <svg class="shell-battery-icon" viewBox="0 0 26 12" aria-hidden="true">
                 <rect class="shell-battery-body" x="0.5" y="0.5" width="20" height="11" rx="2" />
@@ -1965,6 +1965,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=12"></script>
-    <script src="/shell/shell.js?v=205" type="module"></script>
+    <script src="/shell/shell.js?v=207" type="module"></script>
   </body>
 </html>

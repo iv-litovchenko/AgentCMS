@@ -69,12 +69,8 @@
     } catch {
       // ignore
     }
-    const { protocol, hostname, port } = window.location;
-    const isHttps = protocol === "https:";
-    if (port === "3088" || port === "3488") return window.location.origin;
-    const voicePort = isHttps ? "3488" : "3088";
-    const host = hostname || "127.0.0.1";
-    return `${protocol}//${host}:${voicePort}`;
+    const host = window.location.hostname || "127.0.0.1";
+    return `https://${host}:3488`;
   }
 
   function buildShellIframeUrl(agentId) {
@@ -89,7 +85,7 @@
 
   function ensureShellIframeLoaded(agentId) {
     if (!discussShellIframeNode) return;
-    const nextAgentId = agentId || "default";
+    const nextAgentId = String(agentId || "").trim();
     const nextUrl = buildShellIframeUrl(nextAgentId);
     const currentSrc = discussShellIframeNode.getAttribute("src") || "";
     if (!currentSrc) {
