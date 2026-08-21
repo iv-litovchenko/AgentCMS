@@ -22,11 +22,15 @@
       "environment": "local"
     },
     {
+      "path": "workspaces/school-vs",
+      "environment": "local"
+    },
+    {
       "path": "workspaces/test3",
       "environment": "local"
     },
     {
-      "path": "workspaces/school-vs",
+      "path": "/Users/macbook/Desktop/moikomp",
       "environment": "local"
     }
   ]

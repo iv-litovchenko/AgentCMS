@@ -11,7 +11,8 @@ const {
   getCmsBaseUrl,
   getVoiceBaseUrl,
   getProjectRoot,
-  saveConfig
+  saveConfig,
+  loadSharedCmsConfig
 } = require("./config");
 const { getAppIcon } = require("./icon");
 
@@ -42,28 +43,78 @@ function getRepoRoot() {
   return getProjectRoot(REPO_ROOT);
 }
 
-async function probeCms(baseUrl) {
+async function probeService(baseUrl, healthPath = "/api/agents") {
+  if (!baseUrl) return null;
+  const prevTls = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
   try {
-    const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/api/agents`, {
+    const response = await fetch(`${baseUrl.replace(/\/+$/, "")}${healthPath}`, {
       signal: AbortSignal.timeout(2500)
     });
     if (!response.ok) return null;
     return baseUrl.replace(/\/+$/, "");
   } catch {
     return null;
+  } finally {
+    if (prevTls === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevTls;
   }
 }
 
+async function probeCms(baseUrl) {
+  return probeService(baseUrl, "/api/agents");
+}
+
 async function probeVoice(baseUrl) {
-  try {
-    const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/`, {
-      signal: AbortSignal.timeout(2500)
-    });
-    if (!response.ok) return null;
-    return baseUrl.replace(/\/+$/, "");
-  } catch {
-    return null;
+  return probeService(baseUrl, "/");
+}
+
+async function discoverCmsBaseUrl() {
+  const shared = loadSharedCmsConfig();
+  const candidates = [
+    getCmsBaseUrl(),
+    shared.cmsBaseUrl,
+    shared.cmsHttpUrl,
+    "https://127.0.0.1:3443",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002"
+  ];
+  const seen = new Set();
+  for (const candidate of candidates) {
+    const base = String(candidate || "").trim();
+    if (!base || seen.has(base)) continue;
+    seen.add(base);
+    const alive = await probeCms(base);
+    if (alive) return alive;
   }
+  return null;
+}
+
+async function discoverVoiceBaseUrl(cmsUrl) {
+  const shared = loadSharedCmsConfig();
+  const candidates = [
+    getVoiceBaseUrl(),
+    shared.voiceBaseUrl,
+    shared.voiceHttpUrl
+  ];
+  if (cmsUrl) {
+    try {
+      const cms = new URL(cmsUrl);
+      candidates.push(`https://${cms.hostname}:3488`, `http://${cms.hostname}:3088`);
+    } catch {
+      // ignore
+    }
+  }
+  const seen = new Set();
+  for (const candidate of candidates) {
+    const base = String(candidate || "").trim();
+    if (!base || seen.has(base)) continue;
+    seen.add(base);
+    const alive = await probeVoice(base);
+    if (alive) return alive;
+  }
+  return null;
 }
 
 async function startEmbeddedServer() {
@@ -87,17 +138,17 @@ async function startEmbeddedServer() {
 async function ensureCmsAvailable() {
   cmsBaseUrl = getCmsBaseUrl();
   voiceBaseUrl = getVoiceBaseUrl();
-  const alive = await probeCms(cmsBaseUrl);
+  const alive = await discoverCmsBaseUrl();
   if (alive) {
     cmsBaseUrl = alive;
-    const voiceAlive = await probeVoice(voiceBaseUrl);
-    if (voiceAlive) voiceBaseUrl = voiceAlive;
+    voiceBaseUrl = (await discoverVoiceBaseUrl(cmsBaseUrl)) || voiceBaseUrl;
+    saveConfig({ cmsBaseUrl, voiceBaseUrl, projectRoot: getRepoRoot() });
     return cmsBaseUrl;
   }
 
   if (app.isPackaged) {
     throw new Error(
-      "Agent CMS не запущен. Сначала откройте Agent CMS или выполните npm start в проекте."
+      "Agent CMS не найден. Сначала откройте Agent CMS.app, дождитесь загрузки редактора, затем запустите Agent Shell."
     );
   }
 

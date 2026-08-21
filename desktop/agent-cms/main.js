@@ -9,7 +9,7 @@ const { app, BrowserWindow, shell, dialog, ipcMain } = electron;
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
-const { startServer, stopServer } = require("../server");
+const { startServer, stopServer } = require("../../server");
 const { initLogger } = require("./logger");
 const { saveConfig, getProjectRoot } = require("./config");
 const { findDeepLinkInArgv, buildAppUrl, registerProtocol, parseDeepLink } = require("./deep-link");
@@ -29,6 +29,44 @@ let appReady = false;
 let pendingShowWindow = false;
 let pendingDeepLink = findDeepLinkInArgv(process.argv);
 let activeProjectRoot = getBundledProjectRoot();
+
+function isLoopbackHost(hostname) {
+  const host = String(hostname || "").trim().toLowerCase();
+  return host === "127.0.0.1" || host === "localhost" || host === "::1";
+}
+
+function isPrivateNetworkHost(hostname) {
+  const host = String(hostname || "").trim();
+  if (isLoopbackHost(host)) return true;
+  return /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
+}
+
+function normalizeLoopbackUrl(urlString) {
+  if (!urlString) return null;
+  try {
+    const url = new URL(urlString);
+    url.hostname = "127.0.0.1";
+    return url.toString().replace(/\/+$/, "");
+  } catch {
+    return urlString;
+  }
+}
+
+function getDesktopWindowBaseUrl() {
+  if (!serverInfo) return null;
+  if (serverInfo.httpUrl) return normalizeLoopbackUrl(serverInfo.httpUrl);
+  if (serverInfo.port) return `http://127.0.0.1:${serverInfo.port}`;
+  if (serverInfo.url && String(serverInfo.url).startsWith("http://")) {
+    return normalizeLoopbackUrl(serverInfo.url);
+  }
+  if (serverInfo.tlsPort) return `https://127.0.0.1:${serverInfo.tlsPort}`;
+  if (serverInfo.httpsUrl) return normalizeLoopbackUrl(serverInfo.httpsUrl);
+  return normalizeLoopbackUrl(serverInfo.url);
+}
+
+function getPreferredServerUrl() {
+  return getDesktopWindowBaseUrl();
+}
 
 function resolveProjectRoot() {
   return getProjectRoot(ensureWritableProject(app));
@@ -58,22 +96,55 @@ async function startAppServer(root) {
     serverInfo = null;
   }
 
-  serverInfo = await startServer({
-    root,
-    appRoot: getBundledProjectRoot(),
-    host: "127.0.0.1",
-    port: Number(process.env.PORT) || 3000,
-    tryNextPort: true
-  });
+  const tlsEnvBackup = {
+    TLS_KEY: process.env.TLS_KEY,
+    TLS_CERT: process.env.TLS_CERT,
+    HTTPS_REDIRECT: process.env.HTTPS_REDIRECT
+  };
+  delete process.env.TLS_KEY;
+  delete process.env.TLS_CERT;
+  process.env.HTTPS_REDIRECT = "0";
+
+  try {
+    serverInfo = await startServer({
+      root,
+      appRoot: getBundledProjectRoot(),
+      host: "127.0.0.1",
+      port: Number(process.env.PORT) || 3000,
+      tryNextPort: true
+    });
+  } finally {
+    if (tlsEnvBackup.TLS_KEY !== undefined) process.env.TLS_KEY = tlsEnvBackup.TLS_KEY;
+    else delete process.env.TLS_KEY;
+    if (tlsEnvBackup.TLS_CERT !== undefined) process.env.TLS_CERT = tlsEnvBackup.TLS_CERT;
+    else delete process.env.TLS_CERT;
+    if (tlsEnvBackup.HTTPS_REDIRECT !== undefined) {
+      process.env.HTTPS_REDIRECT = tlsEnvBackup.HTTPS_REDIRECT;
+    } else {
+      delete process.env.HTTPS_REDIRECT;
+    }
+  }
 
   activeProjectRoot = root;
-  console.info(`Server started at ${serverInfo.url} (workspace: ${root})`);
+  const cmsBaseUrl = getDesktopWindowBaseUrl() || serverInfo.httpUrl || serverInfo.url;
+  const voiceBaseUrl =
+    serverInfo.voiceHttpUrl || serverInfo.voiceUrl || serverInfo.voiceHttpsUrl || null;
+  saveConfig({
+    projectRoot: root,
+    cmsBaseUrl,
+    cmsHttpUrl: serverInfo.httpUrl ? normalizeLoopbackUrl(serverInfo.httpUrl) : null,
+    voiceBaseUrl: voiceBaseUrl ? normalizeLoopbackUrl(voiceBaseUrl) : null,
+    voiceHttpUrl: serverInfo.voiceHttpUrl ? normalizeLoopbackUrl(serverInfo.voiceHttpUrl) : null
+  });
+  console.info(`Server started at ${cmsBaseUrl} (workspace: ${root})`);
+  if (voiceBaseUrl) console.info(`Voice at ${voiceBaseUrl}`);
   return serverInfo;
 }
 
 function getWindowUrl(deepLink = pendingDeepLink) {
-  if (!serverInfo) return null;
-  return buildAppUrl(serverInfo.url, deepLink);
+  const baseUrl = getPreferredServerUrl();
+  if (!baseUrl) return null;
+  return buildAppUrl(baseUrl, deepLink);
 }
 
 async function navigateWithDeepLink(deepLink) {
@@ -179,7 +250,7 @@ async function switchProjectRoot(newRoot) {
   pendingDeepLink = null;
 
   if (mainWindow) {
-    await mainWindow.loadURL(serverInfo.url);
+    await mainWindow.loadURL(getWindowUrl() || getPreferredServerUrl());
     return;
   }
 
@@ -237,12 +308,13 @@ async function createWindow() {
       mainWindow?.show();
     });
 
-    const initialUrl = getWindowUrl() || serverInfo.url;
+    const initialUrl = getWindowUrl() || getPreferredServerUrl();
     await mainWindow.loadURL(initialUrl);
     pendingDeepLink = null;
 
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-      if (url.startsWith(serverInfo.url)) {
+      const baseUrl = getPreferredServerUrl() || serverInfo.url;
+      if (url.startsWith(baseUrl)) {
         return { action: "allow" };
       }
       shell.openExternal(url);
@@ -273,6 +345,21 @@ function requestQuit() {
 }
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+app.on("certificate-error", (event, _webContents, url, _error, _certificate, callback) => {
+  try {
+    const hostname = new URL(url).hostname;
+    if (isPrivateNetworkHost(hostname)) {
+      event.preventDefault();
+      callback(true);
+      return;
+    }
+  } catch {
+    // ignore malformed URL
+  }
+  callback(false);
+});
+
 if (!gotSingleInstanceLock) {
   app.quit();
 } else {

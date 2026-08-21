@@ -23,9 +23,39 @@ function saveConfig(partial) {
   return next;
 }
 
+function getSharedCmsDesktopConfigPaths() {
+  const home = app.getPath("home");
+  if (process.platform === "darwin") {
+    return [
+      path.join(home, "Library", "Application Support", "agent-cms", "desktop-config.json"),
+      path.join(home, "Library", "Application Support", "Agent CMS", "desktop-config.json")
+    ];
+  }
+  return [
+    path.join(app.getPath("appData"), "agent-cms", "desktop-config.json"),
+    path.join(app.getPath("appData"), "Agent CMS", "desktop-config.json")
+  ];
+}
+
+function loadSharedCmsConfig() {
+  for (const configPath of getSharedCmsDesktopConfigPaths()) {
+    try {
+      if (fs.existsSync(configPath)) {
+        const parsed = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        if (parsed && typeof parsed === "object") return parsed;
+      }
+    } catch {
+      // try next path
+    }
+  }
+  return {};
+}
+
 function getCmsBaseUrl() {
   const env = String(process.env.AGENT_CMS_BASE_URL || "").trim();
   if (env) return env.replace(/\/+$/, "");
+  const shared = String(loadSharedCmsConfig().cmsBaseUrl || "").trim();
+  if (shared) return shared.replace(/\/+$/, "");
   const saved = String(loadConfig().cmsBaseUrl || "").trim();
   if (saved) return saved.replace(/\/+$/, "");
   const port = Number(process.env.PORT || loadConfig().port || 3000);
@@ -35,6 +65,8 @@ function getCmsBaseUrl() {
 function getVoiceBaseUrl() {
   const env = String(process.env.AGENT_CMS_VOICE_URL || process.env.VOICE_BASE_URL || "").trim();
   if (env) return env.replace(/\/+$/, "");
+  const shared = String(loadSharedCmsConfig().voiceBaseUrl || "").trim();
+  if (shared) return shared.replace(/\/+$/, "");
   const saved = String(loadConfig().voiceBaseUrl || "").trim();
   if (saved) return saved.replace(/\/+$/, "");
   const port = Number(process.env.VOICE_PORT || loadConfig().voicePort || 3088);
@@ -48,15 +80,12 @@ function getDefaultAgentId() {
 }
 
 function getSharedCmsDesktopConfigPath() {
-  if (process.platform === "darwin") {
-    return path.join(app.getPath("home"), "Library", "Application Support", "Agent CMS", "desktop-config.json");
-  }
-  return path.join(app.getPath("appData"), "Agent CMS", "desktop-config.json");
+  return getSharedCmsDesktopConfigPaths()[0];
 }
 
 function getProjectRoot(defaultRoot) {
   try {
-    const shared = JSON.parse(fs.readFileSync(getSharedCmsDesktopConfigPath(), "utf-8"));
+    const shared = loadSharedCmsConfig();
     if (shared?.projectRoot && fs.existsSync(shared.projectRoot)) {
       return path.resolve(shared.projectRoot);
     }
@@ -76,5 +105,7 @@ module.exports = {
   getCmsBaseUrl,
   getVoiceBaseUrl,
   getDefaultAgentId,
-  getProjectRoot
+  getProjectRoot,
+  loadSharedCmsConfig,
+  getSharedCmsDesktopConfigPath
 };

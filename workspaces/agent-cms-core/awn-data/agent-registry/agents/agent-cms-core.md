@@ -1,7 +1,7 @@
 ---
 id: agent-cms-core
 created: "2026-08-12T09:42"
-updated: "2026-08-12T09:42"
+updated: "2026-08-20T10:42"
 title: agent-cms-core
 path: workspaces/agent-cms-core
 environment: local

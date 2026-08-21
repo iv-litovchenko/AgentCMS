@@ -49,8 +49,8 @@ function ensureWritableProject(app) {
     fs.copyFileSync(registrySource, registryTarget);
   }
 
-  const workspacesSource = path.join(bundledRoot, "Workspaces");
-  const workspacesTarget = path.join(writableRoot, "Workspaces");
+  const workspacesSource = path.join(bundledRoot, "workspaces");
+  const workspacesTarget = path.join(writableRoot, "workspaces");
   if (fs.existsSync(workspacesSource)) {
     copyRecursiveSync(workspacesSource, workspacesTarget);
   }
