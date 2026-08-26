@@ -11003,6 +11003,8 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
 
 const SESSION_CONTEXT_API_MAP = {
   sessionContext: "GET /api/agent/session-context — стартовый пакет контекста",
+  mcpPing: "GET /api/agent/mcp-ping — test_mcp_connection MCP (health check)",
+  storageSummary: "GET /api/agent/storage-summary — get_workspace_storage_info MCP (sidebar stats)",
   menu: "GET /api/menu — дерево тем (manifest.md)",
   activePage: "GET /api/agent/active-context — текущий фокус UI (PAGE→SLOT→CONTENT + mcp hints)",
   activeContext: "GET /api/agent/active-context — alias active-page",
@@ -13453,6 +13455,115 @@ async function buildAgentWorkspaceStats() {
     totalSizeLabel: formatBytesLabel(stats.totalBytes),
     fileCount: stats.fileCount,
     folderCount: stats.folderCount
+  };
+}
+
+function buildAgentMcpPing() {
+  const agentRoot = getAgentRoot();
+  return {
+    ok: true,
+    serverTime: new Date().toISOString(),
+    agentId: getActiveAgentId(),
+    agentRootRel: path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".",
+    cmsVersion: require("./package.json").version,
+    mcpVersion: "0.3.7",
+    hint: "MCP connection OK. Call get_workspace_storage_info for sidebar storage stats."
+  };
+}
+
+function countAgentMenuNodeStats(menu) {
+  const stats = { total: 0, folders: 0, leaves: 0 };
+
+  function walk(node) {
+    if (!node || typeof node !== "object") return;
+    if (node.indexPath) {
+      stats.total += 1;
+      stats.folders += 1;
+    }
+    for (const item of node.items || []) {
+      if (!item?.path) continue;
+      stats.total += 1;
+      stats.leaves += 1;
+    }
+    for (const section of node.sections || []) {
+      walk(section);
+    }
+  }
+
+  walk(menu);
+  if (menu?.serviceTree) walk(menu.serviceTree);
+  if (menu?.containerTree) walk(menu.containerTree);
+  if (menu?.sharedTree) walk(menu.sharedTree);
+
+  return stats;
+}
+
+function formatMenuAgentStatsLine({ menu, workspace, intake } = {}) {
+  const parts = [
+    `${menu?.topicCount ?? 0} тем`,
+    `${menu?.containerCount ?? 0} контейнеров`,
+    `${workspace?.fileCount ?? 0} файлов`,
+    `${workspace?.totalSizeLabel || "—"} размер`
+  ];
+  if (Number(intake?.inboxPending) > 0) {
+    parts.push(`${intake.inboxPending} входящ.`);
+  }
+  if (Number(intake?.mentionUnread) > 0) {
+    parts.push(`${intake.mentionUnread} @упом.`);
+  }
+  return parts.join(" ");
+}
+
+async function buildAgentStorageSummary() {
+  const agentRoot = getAgentRoot();
+  const agentId = getActiveAgentId();
+  const agentRootRel = path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".";
+
+  const [menu, workspaceStats, topicRegistry] = await Promise.all([
+    buildAgentMenu(agentRoot),
+    buildAgentWorkspaceStats(),
+    buildAgentTopicRegistry().catch(() => null)
+  ]);
+
+  const menuNodes = countAgentMenuNodeStats(menu);
+  const manifests = collectAllMenuManifestEntries(menu);
+  const topicPaths = manifests
+    .filter((entry) => entry.kind === "topic")
+    .map((entry) => entry.manifestPath);
+
+  let intakeTotals = { inboxPending: 0, threadMessages: 0, mentionUnread: 0 };
+  if (topicPaths.length) {
+    try {
+      const batch = await buildIntakeBatchSummary(topicPaths);
+      intakeTotals = {
+        inboxPending: Number(batch?.totals?.inboxPending) || 0,
+        threadMessages: Number(batch?.totals?.threadMessages) || 0,
+        mentionUnread: Number(batch?.totals?.mentionUnread) || 0
+      };
+    } catch {
+      // intake is optional for summary
+    }
+  }
+
+  const menuStats = {
+    topicCount: menuNodes.total,
+    containerCount: menuNodes.folders,
+    leafCount: menuNodes.leaves,
+    registryTopicCount: topicRegistry?.topicCount ?? null
+  };
+
+  return {
+    agentId,
+    agentRootRel,
+    menu: menuStats,
+    workspace: workspaceStats,
+    intake: intakeTotals,
+    summaryLine: formatMenuAgentStatsLine({
+      menu: menuStats,
+      workspace: workspaceStats,
+      intake: intakeTotals
+    }),
+    hint: "Same counters as CMS sidebar #menu-agent-stats."
   };
 }
 
@@ -16569,6 +16680,29 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace stats",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/mcp-ping") {
+    try {
+      return sendJson(res, 200, buildAgentMcpPing());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build MCP ping",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/storage-summary") {
+    try {
+      const summary = await buildAgentStorageSummary();
+      return sendJson(res, 200, summary);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read storage summary",
         details: String(error.message || error)
       });
     }

@@ -8,6 +8,20 @@ const workspacePath = z
 
 export function registerAgentUtilsTools(reg, client) {
   reg(
+    "test_mcp_connection",
+    "Ping Agent CMS: ok, agentId, serverTime, cms/mcp versions. Use to verify MCP can reach the running CMS.",
+    z.object({}),
+    () => client.get("/api/agent/mcp-ping")
+  );
+
+  reg(
+    "get_workspace_storage_info",
+    "Workspace storage summary (same as CMS sidebar #menu-agent-stats): topics, containers, files, size, inbox totals + summaryLine.",
+    z.object({}),
+    () => client.get("/api/agent/storage-summary")
+  );
+
+  reg(
     "get_agent_identity",
     "Agent persona and permissions from awn-agent-kit/agent/ (manifest.md + main.md).",
     z.object({}),

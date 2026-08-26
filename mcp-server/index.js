@@ -49,7 +49,7 @@ function createServer() {
     ? ` Agent: ${cfg.defaultAgent}.`
     : " Uses default agent from registry.";
 
-  const server = new McpServer({ name: "agent-cms", version: "0.3.6" });
+  const server = new McpServer({ name: "agent-cms", version: "0.3.7" });
 
   const reg = (name, description, schema, fn) => {
     server.registerTool(name, { description: description + agentNote, inputSchema: schema }, wrap(fn));

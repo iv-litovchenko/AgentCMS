@@ -1,12 +1,12 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Slim · 69 tools",
+  versionLabel: "Slim · 73 tools",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.0",
   packagePath: "mcp-server/",
   generatedAt: "2026-08-08",
   notes: [
-    "MCP slim v0.3.0 — 69 tools · PAGE · SLOT · CONTENT + path-based FS + exec.",
+    "MCP slim v0.3.7 — 73 tools · PAGE · SLOT · CONTENT + path-based FS + exec.",
     "Перед запуском: npm start → http://localhost:3000.",
     "GET /api/mcp-docs?version=0.0.2 — этот документ (HTTP, не MCP tool).",
     "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
@@ -70,6 +70,18 @@ module.exports = {
           description: "Индекс awn-runtime-heartbeat.",
           parameters: "—",
           http: "GET /api/agent/heartbeat-registry"
+        },
+        {
+          name: "test_mcp_connection",
+          description: "Ping CMS: ok, agentId, serverTime, versions. Проверка связи MCP → Agent CMS.",
+          parameters: "—",
+          http: "GET /api/agent/mcp-ping"
+        },
+        {
+          name: "get_workspace_storage_info",
+          description: "Сводка хранилища (как #menu-agent-stats): темы, контейнеры, файлы, размер, входящие.",
+          parameters: "—",
+          http: "GET /api/agent/storage-summary"
         }
       ]
     },
