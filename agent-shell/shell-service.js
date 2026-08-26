@@ -31,7 +31,7 @@ const {
   runtimeHealthPath,
   RUNTIME_TRANSPORT
 } = require("./runtime-bridge");
-const { probeAvailableRuntimes } = require("./runtime-probe");
+const { probeAvailableRuntimes, hasApiKeyForRuntime } = require("./runtime-probe");
 
 const SETTINGS_DIR = ".agent-shell";
 const SETTINGS_FILE = "settings.json";
@@ -111,7 +111,7 @@ const DEFAULT_STATE = {
 
 const SIDECAR_TTL_MS = 8000;
 const VOICE_INPUT_MODES = new Set(["live", "wake_name", "meeting", "hold", "fn_button"]);
-const { appendShellDialogChat, saveShellVoiceRecord } = require("./shell-dialog-log");
+const { appendShellDialogChat, readShellDialogHistory, saveShellVoiceRecord } = require("./shell-dialog-log");
 
 function migrateVoiceInputMode(mode) {
   const raw = String(mode || "").trim();
@@ -572,6 +572,71 @@ async function checkBridgeRuntimeHealth(settings, runtime = getMessageRuntime(se
   };
 }
 
+async function probeAllRuntimeStatuses(settings) {
+  const probe = await probeAvailableRuntimes(settings);
+  const statuses = {};
+
+  let qwenHealth = { ok: false, error: "QwenPaw недоступен" };
+  try {
+    qwenHealth = await checkQwenPawHealth(settings.qwenpawBaseUrl);
+  } catch (error) {
+    qwenHealth = { ok: false, error: String(error?.message || error) };
+  }
+
+  let qwenAgent = { ok: false, error: qwenHealth.error || "QwenPaw недоступен" };
+  if (qwenHealth.ok) {
+    try {
+      qwenAgent = await checkQwenPawAgent({
+        baseUrl: settings.qwenpawBaseUrl,
+        agentId: settings.qwenpawAgentId
+      });
+    } catch (error) {
+      qwenAgent = { ok: false, error: String(error?.message || error) };
+    }
+  }
+
+  statuses.qwenpaw = {
+    runtime: "qwenpaw",
+    configured: true,
+    installed: true,
+    serverOk: Boolean(qwenHealth.ok),
+    agentOk: Boolean(qwenAgent.ok),
+    ok: Boolean(qwenHealth.ok && qwenAgent.ok),
+    error: qwenAgent.error || qwenHealth.error || "",
+    agentName: qwenAgent.name || ""
+  };
+
+  for (const runtime of ["claude", "codex"]) {
+    const installed = probe.installed.includes(runtime);
+    const configured = hasApiKeyForRuntime(runtime, settings);
+    let ok = false;
+    let error = installed ? "" : "Нет API-ключа или CLI";
+    if (installed) {
+      try {
+        const health = await checkBridgeRuntimeHealth(settings, runtime);
+        ok = Boolean(health.ok);
+        error = health.error || error;
+      } catch (err) {
+        error = String(err?.message || err);
+      }
+    }
+    statuses[runtime] = {
+      runtime,
+      configured,
+      installed,
+      serverOk: ok,
+      ok,
+      error
+    };
+  }
+
+  return {
+    statuses,
+    available: probe.available,
+    installed: probe.installed
+  };
+}
+
 function formatDeviceContextBlock(deviceContext) {
   if (!deviceContext || typeof deviceContext !== "object") return "";
   const lines = [];
@@ -920,7 +985,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null
   });
   emitShellEvent(agentId, "assistant_message", assistantMessage);
-  void logShellDialogAgent(agentRoot, finalized.body);
+  void logShellDialogAgent(agentRoot, finalized.body, "qwenpaw");
 
   return {
     channel: "qwenpaw",
@@ -1055,7 +1120,7 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null
   });
   emitShellEvent(agentId, "assistant_message", assistantMessage);
-  void logShellDialogAgent(agentRoot, finalized.body);
+  void logShellDialogAgent(agentRoot, finalized.body, runtime);
 
   return {
     channel: runtime,
@@ -1102,7 +1167,7 @@ async function pollAssistantReply(deps, agentRoot, agentId, settings) {
   if (latest.id === state.lastAgentMessageId) return null;
   await patchState(agentRoot, agentId, { lastAgentMessageId: latest.id });
   emitShellEvent(agentId, "assistant_message", latest);
-  void logShellDialogAgent(agentRoot, latest.body || "");
+  void logShellDialogAgent(agentRoot, latest.body || "", getMessageRuntime(settings));
   return latest;
 }
 
@@ -1145,19 +1210,27 @@ async function setMeetingRecording(agentRoot, agentId, recording) {
   return patchState(agentRoot, agentId, patch);
 }
 
-async function logShellDialogUser(agentRoot, text) {
+async function logShellDialogUser(agentRoot, text, runtime = "qwenpaw") {
   try {
-    return await appendShellDialogChat(agentRoot, { role: "user", text });
+    return await appendShellDialogChat(agentRoot, { role: "user", text, runtime });
   } catch {
     return null;
   }
 }
 
-async function logShellDialogAgent(agentRoot, text) {
+async function logShellDialogAgent(agentRoot, text, runtime = "qwenpaw") {
   try {
-    return await appendShellDialogChat(agentRoot, { role: "agent", text });
+    return await appendShellDialogChat(agentRoot, { role: "agent", text, runtime });
   } catch {
     return null;
+  }
+}
+
+async function fetchShellDialogHistory(agentRoot, options = {}) {
+  try {
+    return await readShellDialogHistory(agentRoot, options);
+  } catch {
+    return [];
   }
 }
 
@@ -1239,43 +1312,39 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
   }
 
   let qwenpaw = { ok: false, configured: usesQwenPaw(settings) };
+  let bridgeRuntime = { ok: false, configured: usesBridgeRuntime(settings), runtime: getMessageRuntime(settings) };
+  const runtimeProbe = await probeAllRuntimeStatuses(settings);
+  const runtimeStatuses = runtimeProbe.statuses;
+
+  const qwenStatus = runtimeStatuses.qwenpaw || { ok: false, configured: false };
   if (usesQwenPaw(settings)) {
-    const health = await checkQwenPawHealth(settings.qwenpawBaseUrl);
-    const agent =
-      health.ok
-        ? await checkQwenPawAgent({
-            baseUrl: settings.qwenpawBaseUrl,
-            agentId: settings.qwenpawAgentId
-          })
-        : { ok: false, agentId: settings.qwenpawAgentId, error: "QwenPaw недоступен" };
     qwenpaw = {
-      ...health,
+      ...qwenStatus,
       configured: true,
-      serverOk: Boolean(health.ok),
-      agentOk: Boolean(agent.ok),
-      ok: Boolean(health.ok && agent.ok),
+      serverOk: Boolean(qwenStatus.serverOk),
+      agentOk: Boolean(qwenStatus.agentOk),
+      ok: Boolean(qwenStatus.ok),
       agentId: settings.qwenpawAgentId,
-      agentName: agent.name || "",
-      agentError: agent.error || "",
+      agentName: qwenStatus.agentName || "",
+      agentError: qwenStatus.error || "",
       sessionId: buildQwenPawSessionId(settings, agentId),
       chatName: settings.qwenpawChatName || "",
       userId: settings.qwenpawUserId
     };
   }
 
-  let bridgeRuntime = { ok: false, configured: usesBridgeRuntime(settings), runtime: getMessageRuntime(settings) };
   if (usesBridgeRuntime(settings)) {
-    const health = await checkBridgeRuntimeHealth(settings);
+    const currentRuntime = getMessageRuntime(settings);
+    const bridgeStatus = runtimeStatuses[currentRuntime] || {};
     bridgeRuntime = {
-      ...health,
+      ...bridgeStatus,
       configured: true,
-      serverOk: Boolean(health.ok),
-      ok: Boolean(health.ok),
-      error: health.error || ""
+      runtime: currentRuntime,
+      serverOk: Boolean(bridgeStatus.serverOk ?? bridgeStatus.ok),
+      ok: Boolean(bridgeStatus.ok),
+      error: bridgeStatus.error || ""
     };
   }
-
-  const availableRuntimes = await probeAvailableRuntimes(settings);
 
   return {
     agentId,
@@ -1286,7 +1355,9 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
     sidecarConnected: isSidecarConnected(state),
     qwenpaw,
     runtime: bridgeRuntime,
-    availableRuntimes,
+    runtimeStatuses,
+    availableRuntimes: runtimeProbe.available,
+    installedRuntimes: runtimeProbe.installed,
     camera: {
       speech: await cameraSnapshots.readLatestMeta(agentRoot, "camera", "speech"),
       manual: await cameraSnapshots.readLatestMeta(agentRoot, "camera", "manual")
@@ -1320,13 +1391,31 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
   res.write(": connected\n\n");
 
   let closed = false;
-  req.on("close", () => {
+  let interval = null;
+  let reconnectTimer = null;
+  let unsubscribe = () => {};
+
+  const closeStream = () => {
+    if (closed) return;
     closed = true;
-  });
+    unsubscribe();
+    if (interval) clearInterval(interval);
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    interval = null;
+    reconnectTimer = null;
+  };
+
+  req.on("close", closeStream);
+  res.on("close", closeStream);
+  res.on("error", closeStream);
 
   const push = (event, data) => {
-    if (closed) return;
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    if (closed || res.writableEnded || res.destroyed) return;
+    try {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    } catch {
+      closeStream();
+    }
   };
 
   const onBus = (entry) => {
@@ -1365,11 +1454,11 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
     }
     push(entry.type, entry);
   };
-  const unsubscribe = subscribeShellEvents(onBus);
+  unsubscribe = subscribeShellEvents(onBus);
 
   let lastSig = "";
   const tick = async () => {
-    if (closed) return;
+    if (closed || res.writableEnded || res.destroyed) return;
     try {
       const settings = await readSettings(agentRoot);
       const reply = await pollAssistantReply(deps, agentRoot, agentId, settings);
@@ -1395,23 +1484,17 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
   };
 
   await tick();
-  const interval = setInterval(() => {
+  interval = setInterval(() => {
     void tick();
   }, 1500);
 
-  const reconnectTimer = setTimeout(() => {
+  reconnectTimer = setTimeout(() => {
     if (!closed) {
       push("reconnect", {});
-      res.end();
+      if (!res.writableEnded) res.end();
     }
-    clearInterval(interval);
+    closeStream();
   }, 300000);
-
-  req.on("close", () => {
-    unsubscribe();
-    clearInterval(interval);
-    clearTimeout(reconnectTimer);
-  });
 }
 
 module.exports = {
@@ -1456,6 +1539,7 @@ module.exports = {
   setMeetingRecording,
   logShellDialogUser,
   logShellDialogAgent,
+  fetchShellDialogHistory,
   storeShellVoiceRecord,
   migrateVoiceInputMode,
   isSidecarConnected,

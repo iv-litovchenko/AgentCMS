@@ -23,7 +23,7 @@ export function createSettingsSaveController() {
         const hasBaseline = Object.prototype.hasOwnProperty.call(baselines, section);
         saveBtn.classList.toggle("is-dirty", Boolean(dirty[section]));
         saveBtn.classList.toggle("is-saved", hasBaseline && !dirty[section]);
-        saveBtn.disabled = section === "tts" ? false : !dirty[section];
+        saveBtn.disabled = false;
       }
       toggleButtons[section]?.classList.toggle("has-unsaved", Boolean(dirty[section]));
       if (["window", "route", "proactive"].includes(section)) {

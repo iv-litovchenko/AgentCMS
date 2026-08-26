@@ -3,7 +3,7 @@
   "messageChannel": "thread",
   "messageTarget": "qwenpaw",
   "qwenpawBaseUrl": "http://127.0.0.1:8088",
-  "qwenpawAgentId": "default",
+  "qwenpawAgentId": "Aya",
   "qwenpawSessionId": "agent-shell",
   "qwenpawUserId": "shell",
   "qwenpawChatName": "",
@@ -73,5 +73,11 @@
   "claudeModel": "claude-sonnet-4-20250514",
   "claudeProfile": "",
   "claudeAgentId": "",
-  "claudeSessionId": "agent-shell"
+  "claudeSessionId": "agent-shell",
+  "agent-zeroBaseUrl": "http://127.0.0.1:42617",
+  "agent-zeroApiKey": "",
+  "agent-zeroModel": "agent-zero",
+  "agent-zeroProfile": "",
+  "agent-zeroAgentId": "",
+  "agent-zeroSessionId": "agent-shell"
 }

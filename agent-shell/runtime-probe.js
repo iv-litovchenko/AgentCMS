@@ -1,6 +1,6 @@
 const { execFile } = require("child_process");
 const { promisify } = require("util");
-const { normalizeMessageRuntime } = require("./shell-runtimes");
+const { SHELL_RUNTIMES, isRuntimeImplemented, normalizeMessageRuntime } = require("./shell-runtimes");
 
 const execFileAsync = promisify(execFile);
 
@@ -38,13 +38,14 @@ function hasApiKeyForRuntime(runtime, settings = {}) {
 }
 
 async function probeAvailableRuntimes(settings = {}) {
-  const available = ["qwenpaw"];
+  const implemented = SHELL_RUNTIMES.filter((runtime) => isRuntimeImplemented(runtime));
+  const installed = [];
   for (const runtime of ["claude", "codex"]) {
     if ((await probeCliRuntime(runtime)) || hasApiKeyForRuntime(runtime, settings)) {
-      available.push(runtime);
+      installed.push(runtime);
     }
   }
-  return available;
+  return { available: implemented, installed };
 }
 
 module.exports = {

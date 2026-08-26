@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=238" />
+    <link rel="stylesheet" href="/shell/shell.css?v=256" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=1" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -21,7 +21,7 @@
         "imports": {
           "three": "/shell/vendor/three.module.js",
           "@shell/topic-picker": "/shell/topic-picker.js?v=207",
-          "@shell/settings-save": "/shell/shell-settings-save.js?v=207",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=251",
           "@shell/reply": "/shell/shell-reply.js?v=207",
           "@shell/markdown": "/shell/shell-markdown.js?v=207",
           "@shell/character": "/shell/shell-character.js?v=207",
@@ -41,7 +41,7 @@
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=207",
-          "@shell/dialog": "/shell/shell-dialog.js?v=207",
+          "@shell/dialog": "/shell/shell-dialog.js?v=259",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=207",
           "@shell/help": "/shell/shell-help.js?v=207",
@@ -52,8 +52,8 @@
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=207",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
-          "@shell/runtimes": "/shell/shell-runtimes.js?v=229",
-          "@shell/build": "/shell/shell-build.js?v=235"
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=254",
+          "@shell/build": "/shell/shell-build.js?v=251"
         }
       }
     </script>
@@ -175,16 +175,6 @@
               <button
                 type="button"
                 class="shell-path-action-btn"
-                id="shell-settings-btn"
-                title="Настройки"
-                aria-label="Настройки"
-                aria-pressed="false"
-              >
-                ⚙️
-              </button>
-              <button
-                type="button"
-                class="shell-path-action-btn"
                 id="shell-help-btn"
                 title="Справка"
                 aria-label="Справка"
@@ -220,16 +210,16 @@
               <label class="shell-path-field shell-path-field--runtime">
                 <select id="shell-message-target" class="shell-path-select" aria-label="Runtime"></select>
               </label>
-              <span
-                class="shell-path-server-dot"
-                id="shell-local-server-badge"
-                role="status"
-                title="Локальный сервер"
-                aria-label="Статус локального сервера"
-                data-state="connecting"
+              <button
+                type="button"
+                class="shell-path-action-btn shell-path-settings-btn"
+                id="shell-settings-btn"
+                title="Настройки"
+                aria-label="Настройки"
+                aria-pressed="false"
               >
-                <span class="shell-path-server-dot-core" aria-hidden="true"></span>
-              </span>
+                ⚙️
+              </button>
             </div>
           </div>
           <div class="shell-path-context-row shell-path-context-row--device" aria-label="Устройство">
@@ -275,17 +265,6 @@
               data-active="0"
             >
               ↗ агенту
-            </button>
-            <button
-              type="button"
-              class="shell-meta-chip shell-tts-download hidden"
-              id="shell-tts-download"
-              disabled
-              title="Скачать последнюю озвучку агента"
-              aria-label="Скачать аудио озвучки"
-            >
-              <span class="shell-meta-icon" aria-hidden="true">⬇</span>
-              <span class="shell-tts-download-label">Скачать</span>
             </button>
           </div>
         </div>
@@ -501,11 +480,14 @@
             <input id="shell-topic-path" type="hidden" value="" />
           </div>
         <div class="shell-settings-save-row">
-          <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-route-save" disabled>
-            <span class="shell-save-btn-lamp" aria-hidden="true"></span>
-            Сохранить
-          </button>
-          <span class="shell-settings-save-hint"><code>.agent-shell/settings.json</code></span>
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-route-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" data-settings-save-hint="agent"></span>
         </div>
         </section>
 
@@ -563,11 +545,14 @@
           </label>
         </div>
         <div class="shell-settings-save-row">
-          <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-proactive-save" disabled>
-            <span class="shell-save-btn-lamp" aria-hidden="true"></span>
-            Сохранить
-          </button>
-          <span class="shell-settings-save-hint"><code>.agent-shell/settings.json</code></span>
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-proactive-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" data-settings-save-hint="agent"></span>
         </div>
         </section>
 
@@ -597,11 +582,14 @@
           </label>
         </div>
         <div class="shell-settings-save-row">
-          <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-window-save" disabled>
-            <span class="shell-save-btn-lamp" aria-hidden="true"></span>
-            Сохранить
-          </button>
-          <span class="shell-settings-save-hint"><code>awn-shell.json</code></span>
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-window-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" data-settings-save-hint="global"></span>
         </div>
         </section>
 
@@ -1037,10 +1025,24 @@ aya_bar_v2 тоже читает те же файлы</pre>
             class="shell-compact-sensor"
             id="shell-compact-sensor"
             data-phase="waiting"
+            data-activity="idle"
             aria-label="Говорить с агентом"
           >
             <span class="shell-compact-sensor-ripple" aria-hidden="true"></span>
+            <span class="shell-compact-sensor-ripple shell-compact-sensor-ripple--echo" aria-hidden="true"></span>
             <span class="shell-compact-sensor-ring" aria-hidden="true"></span>
+            <span class="shell-compact-sensor-waves" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+            <span class="shell-compact-sensor-typing" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
             <svg class="shell-compact-sensor-cloud" viewBox="0 0 64 64" role="presentation" aria-hidden="true">
               <circle class="shell-compact-cloud-ring" cx="32" cy="32" r="29" />
               <circle class="shell-compact-cloud-face" cx="32" cy="30" r="17" />
@@ -1056,8 +1058,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </section>
       <section class="shell-hero" id="shell-hero">
         <div class="shell-hero-layout">
-          <header class="shell-hero-head">
-            <button type="button" class="shell-agent-avatar" id="shell-agent-avatar" data-phase="waiting" aria-label="Облачко">
+          <div class="shell-hero-center">
+            <button type="button" class="shell-agent-avatar shell-agent-avatar--hero" id="shell-agent-avatar" data-phase="waiting" aria-label="Облачко">
               <svg class="shell-agent-svg" viewBox="0 0 64 64" role="presentation">
                 <circle class="shell-agent-ring" cx="32" cy="32" r="29" />
                 <circle class="shell-agent-face" cx="32" cy="30" r="17" />
@@ -1069,83 +1071,75 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <div class="shell-pulse" id="shell-pulse" data-phase="waiting"></div>
             </button>
 
-            <div class="shell-hero-status">
-              <div class="shell-phase-stack">
-                <div class="shell-phase-status">
-                  <div class="shell-voice-wave hidden" id="shell-voice-wave" aria-hidden="true">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                  <div class="shell-status-line" id="shell-phase-label">🟡 Ожидаю</div>
-                  <button
-                    type="button"
-                    class="shell-hero-cancel hidden"
-                    id="shell-hero-cancel-send"
-                    title="Отменить отправку"
-                    aria-label="Отменить отправку"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div class="shell-tts-controls hidden" id="shell-tts-controls">
-                  <button
-                    type="button"
-                    class="shell-tts-btn"
-                    id="shell-tts-pause"
-                    title="Пауза (Space)"
-                    aria-label="Пауза озвучки"
-                  >
-                    <span class="shell-tts-btn-icon" aria-hidden="true">⏸</span>
-                    <span class="shell-tts-btn-label">Пауза</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="shell-tts-btn hidden"
-                    id="shell-tts-resume"
-                    title="Продолжить (Space)"
-                    aria-label="Продолжить озвучку"
-                  >
-                    <span class="shell-tts-btn-icon" aria-hidden="true">▶</span>
-                    <span class="shell-tts-btn-label">Продолжить</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="shell-tts-btn shell-tts-btn--stop"
-                    id="shell-tts-stop"
-                    title="Стоп озвучки"
-                    aria-label="Стоп озвучки"
-                  >
-                    <span class="shell-tts-btn-icon" aria-hidden="true">⏹</span>
-                    <span class="shell-tts-btn-label">Стоп</span>
-                  </button>
-                </div>
-              </div>
-              <div class="shell-status-meta" id="shell-meta"></div>
+            <div class="shell-voice-wave hidden" id="shell-voice-wave" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
-          </header>
-        </div>
-      </section>
 
-      <section class="shell-character-stage" id="shell-character-stage" data-phase="waiting" data-character-picker-open="0" aria-hidden="true">
-        <div class="shell-character-viewport" id="shell-character-viewport">
-          <button
-            type="button"
-            class="shell-icon-btn shell-character-toggle"
-            id="shell-character-toggle"
-            title="Выбор персонажа"
-            aria-label="Выбор персонажа"
-            aria-pressed="false"
-            aria-controls="shell-character-picker-wrap"
-            aria-expanded="false"
-          >
-            🎭
-          </button>
-        </div>
-        <div class="shell-character-picker-wrap hidden" id="shell-character-picker-wrap">
-          <div class="shell-character-picker" id="shell-character-picker" role="listbox" aria-label="Модель персонажа"></div>
+            <div class="shell-status-line" id="shell-phase-label">🟡 Ожидаю</div>
+            <div class="shell-status-meta" id="shell-meta"></div>
+
+            <div class="shell-hero-toolbar" id="shell-tts-controls">
+              <button
+                type="button"
+                class="shell-tts-btn"
+                id="shell-tts-pause"
+                title="Пауза (Space)"
+                aria-label="Пауза озвучки"
+                disabled
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">⏸</span>
+                <span class="shell-tts-btn-label">Пауза</span>
+              </button>
+              <button
+                type="button"
+                class="shell-tts-btn"
+                id="shell-tts-resume"
+                title="Продолжить (Space)"
+                aria-label="Продолжить озвучку"
+                disabled
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">▶</span>
+                <span class="shell-tts-btn-label">Продолжить</span>
+              </button>
+              <button
+                type="button"
+                class="shell-tts-btn shell-tts-btn--stop"
+                id="shell-tts-stop"
+                title="Стоп озвучки"
+                aria-label="Стоп озвучки"
+                disabled
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">⏹</span>
+                <span class="shell-tts-btn-label">Стоп</span>
+              </button>
+              <button
+                type="button"
+                class="shell-tts-btn shell-tts-btn--download"
+                id="shell-tts-download"
+                title="Скачать последнюю озвучку"
+                aria-label="Скачать аудио озвучки"
+                disabled
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">⬇</span>
+                <span class="shell-tts-btn-label">Скачать</span>
+              </button>
+              <button
+                type="button"
+                class="shell-tts-btn shell-tts-btn--cancel"
+                id="shell-hero-cancel-send"
+                title="Отменить отправку"
+                aria-label="Отменить отправку"
+                disabled
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">✕</span>
+                <span class="shell-tts-btn-label">Отмена</span>
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1283,7 +1277,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </label>
           </div>
           <div class="shell-settings-save-row">
-            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-tts-save" disabled>
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-tts-save">
               <span class="shell-save-btn-lamp" aria-hidden="true"></span>
               Сохранить
             </button>
@@ -1414,7 +1408,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </label>
           </div>
           <div class="shell-settings-save-row">
-            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-stt-save" disabled>
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-stt-save">
               <span class="shell-save-btn-lamp" aria-hidden="true"></span>
               Сохранить
             </button>
@@ -1831,7 +1825,9 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
       </div>
 
-      <footer class="shell-version" id="shell-version" aria-label="Версия"><span class="app-project-version"></span></footer>
+      <footer class="shell-version" id="shell-version" aria-label="Версия">
+        <span class="app-project-version-badge shell-version-badge">v<span class="app-project-version"></span></span>
+      </footer>
     </div>
 
     <dialog class="shell-dialog shell-dialog--sheet" id="shell-history-dialog">
@@ -1937,6 +1933,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=237" type="module"></script>
+    <script src="/shell/shell.js?v=259" type="module"></script>
   </body>
 </html>

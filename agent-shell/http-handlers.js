@@ -74,6 +74,24 @@ function createShellHandlers(deps) {
       return true;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/shell/dialogs/history") {
+      try {
+        const settings = await shellService.readSettings(agentRoot);
+        const runtime =
+          url.searchParams.get("runtime") || shellService.getMessageRuntime(settings);
+        const limit = Number(url.searchParams.get("limit") || 12);
+        const days = Number(url.searchParams.get("days") || 14);
+        const messages = await shellService.fetchShellDialogHistory(agentRoot, { runtime, limit, days });
+        deps.sendJson(res, 200, { agentId, runtime, messages });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to read shell dialog history",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/shell/prompt-templates") {
       try {
         const templates = loadShellPromptTemplates(projectRoot, agentRoot);
@@ -263,9 +281,10 @@ function createShellHandlers(deps) {
 
         body = shellService.applyDeviceContextToBody(body, deviceContext);
 
+        const runtime = shellService.getMessageRuntime(settings);
         const ttsClientId = String(payload?.shellClientId || payload?.clientId || "").trim();
         const author = String(payload?.author || "shell").trim() || "shell";
-        void shellService.logShellDialogUser(agentRoot, body);
+        void shellService.logShellDialogUser(agentRoot, body, runtime);
 
         await shellService.patchState(agentRoot, agentId, {
           phase: shellService.PHASE_THINKING,
@@ -297,13 +316,16 @@ function createShellHandlers(deps) {
             lastAgentMessageId: result.message.id,
             lastShellReply: result.reply
           });
-          void shellService.logShellDialogAgent(agentRoot, result.reply || result.message?.body || "");
+          void shellService.logShellDialogAgent(
+            agentRoot,
+            result.reply || result.message?.body || "",
+            runtime
+          );
           deps.sendJson(res, 200, { agentId, ...result });
           return true;
         }
 
         let result;
-        const runtime = shellService.getMessageRuntime(settings);
         if (!shellService.isRuntimeImplemented(runtime)) {
           deps.sendJson(res, 501, {
             error: "Runtime not implemented",

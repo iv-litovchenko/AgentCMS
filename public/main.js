@@ -7406,6 +7406,27 @@ function getActiveAgentLabel() {
   return getActiveAgentMeta()?.name || "";
 }
 
+function normalizeAwnEmoji(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  if (typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+    const segmenter = new Intl.Segmenter("ru", { granularity: "grapheme" });
+    const first = [...segmenter.segment(text)][0];
+    return first?.segment || text;
+  }
+  return [...text][0] || text;
+}
+
+function resolveAgentSelectStatusEmoji(agent) {
+  const fromStatus = normalizeAwnEmoji(agent?.awnProps?.["awn-status"] || agent?.status || "");
+  if (fromStatus) return fromStatus;
+  const fromEmoji = normalizeAwnEmoji(agent?.awnProps?.["awn-emoji"] || "");
+  if (fromEmoji) return fromEmoji;
+  if (agent?.folderExists === false) return "🔴";
+  if (!isAgentRegistryActive(agent)) return "⚪";
+  return "🟢";
+}
+
 function formatAgentSelectLabel(agent, groupTitle = "") {
   const registryActive = isAgentRegistryActive(agent);
   const name = agent.name || agent.id;
@@ -7414,7 +7435,8 @@ function formatAgentSelectLabel(agent, groupTitle = "") {
     label = `${name} — глобальные справочники`;
   }
   const prefix = String(groupTitle || "").trim();
-  return prefix ? `${prefix} | ${label}` : label;
+  const core = prefix ? `${prefix} | ${label}` : label;
+  return `${resolveAgentSelectStatusEmoji(agent)} ${core}`;
 }
 
 function createAgentSelectOption(agent, groupTitle = "") {

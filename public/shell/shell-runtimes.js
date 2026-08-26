@@ -40,10 +40,52 @@ export const SHELL_RUNTIME_EMOJIS = {
   qwenpaw: "🐾"
 };
 
-export function formatRuntimeSelectLabel(runtime, { implemented = true } = {}) {
+export function resolveRuntimeConnectionState(runtime, status, { implemented = true } = {}) {
+  const id = normalizeMessageRuntime(runtime);
+  if (!implemented) return "soon";
+  if (!status) return "connecting";
+  if (status.ok) return "live";
+  if (status.installed === false || status.configured === false) return "unconfigured";
+  return "error";
+}
+
+export function formatRuntimeStatusEmoji(conn) {
+  switch (conn) {
+    case "live":
+      return "🟢";
+    case "connecting":
+      return "🟡";
+    case "unconfigured":
+      return "⚪";
+    case "error":
+      return "🔴";
+    case "soon":
+      return "⏸";
+    default:
+      return "⚪";
+  }
+}
+
+export function formatRuntimeSelectLabel(runtime, { implemented = true, status = null, conn = null } = {}) {
   const id = String(runtime || "").trim();
   const label = SHELL_RUNTIME_LABELS[id] || id;
-  return implemented ? label : `${label} — скоро`;
+  const connection = conn || resolveRuntimeConnectionState(id, status, { implemented });
+  const emoji = formatRuntimeStatusEmoji(connection);
+  if (!implemented) return `${emoji} ${label} — скоро`;
+  return `${emoji} ${label}`;
+}
+
+export function formatRuntimeStatusTitle(runtime, status, { implemented = true } = {}) {
+  const id = String(runtime || "").trim();
+  const label = SHELL_RUNTIME_LABELS[id] || id;
+  const conn = resolveRuntimeConnectionState(id, status, { implemented });
+  if (!implemented) return `${label} — скоро`;
+  if (conn === "live") return `${label} · на связи`;
+  if (conn === "connecting") return `${label} · проверка…`;
+  if (conn === "unconfigured") return `${label} · нет API-ключа или CLI`;
+  if (conn === "soon") return `${label} — скоро`;
+  const detail = String(status?.error || "").trim();
+  return detail ? `${label} · ${detail}` : `${label} · недоступен`;
 }
 
 /** Короткая подсказка под select (1 строка). */

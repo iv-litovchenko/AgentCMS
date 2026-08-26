@@ -372,18 +372,46 @@ body.shell-embed .shell-mode-segment {
 }
 
 .shell-version {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   margin: 0;
-  padding: 0 4px 2px;
+  padding: 14px var(--shell-surface-inset-x) 20px;
   text-align: center;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  color: rgba(148, 145, 180, 0.55);
-  letter-spacing: 0.02em;
   user-select: none;
+  flex-shrink: 0;
 }
 
 body:not(.shell-embed) .shell-version {
-  margin-bottom: 4px;
+  margin-top: 10px;
+  padding-bottom: max(22px, calc(env(safe-area-inset-bottom, 0px) + 6px));
+}
+
+.shell-version-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 108, 255, 0.24);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  line-height: 1.4;
+}
+
+body.shell-bg-dark .shell-version-badge,
+body.shell-bg-wallpaper .shell-version-badge {
+  color: rgba(196, 181, 253, 0.92);
+  background: rgba(124, 108, 255, 0.12);
+  border-color: rgba(124, 108, 255, 0.24);
+}
+
+body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-version-badge {
+  color: #6d28d9;
+  background: rgba(124, 108, 255, 0.1);
+  border-color: rgba(124, 108, 255, 0.22);
 }
 
 .shell-path-header {
@@ -541,6 +569,16 @@ body:not(.shell-embed) .shell-version {
   box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.22);
 }
 
+.shell-path-server-dot[data-state="unconfigured"] .shell-path-server-dot-core {
+  background: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.22);
+}
+
+.shell-path-server-dot[data-state="soon"] .shell-path-server-dot-core {
+  background: #64748b;
+  box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.22);
+}
+
 .shell-path-backend-badge {
   flex: 0 0 auto;
   display: inline-flex;
@@ -633,6 +671,13 @@ body:not(.shell-embed) .shell-version {
   border-color: rgba(99, 102, 241, 0.55);
   background: rgba(99, 102, 241, 0.12);
   color: #4338ca;
+}
+
+.shell-app[data-view="settings"] #shell-settings-btn {
+  border-color: rgba(99, 102, 241, 0.65);
+  background: rgba(99, 102, 241, 0.18);
+  color: #4338ca;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
 }
 
 .shell-path-action-btn--link {
@@ -769,8 +814,16 @@ body:not(.shell-embed) .shell-version {
   min-width: 0;
 }
 
-.shell-path-field--runtime-wrap .shell-path-server-dot {
+.shell-path-field--runtime-wrap .shell-path-settings-btn {
   flex: 0 0 auto;
+}
+
+.shell-path-field--runtime-wrap .shell-path-action-btn[aria-pressed="true"],
+.shell-app[data-view="settings"] .shell-path-field--runtime-wrap #shell-settings-btn {
+  border-color: rgba(99, 102, 241, 0.65);
+  background: rgba(99, 102, 241, 0.18);
+  color: #4338ca;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
 }
 
 .shell-path-host-chip {
@@ -901,6 +954,16 @@ body.shell-bg-wallpaper .shell-path-action-btn {
   border-color: rgba(148, 163, 184, 0.35);
   background: rgba(255, 255, 255, 0.06);
   color: #e2e8f0;
+}
+
+body.shell-bg-dark .shell-path-action-btn[aria-pressed="true"],
+body.shell-bg-wallpaper .shell-path-action-btn[aria-pressed="true"],
+body.shell-bg-dark .shell-app[data-view="settings"] #shell-settings-btn,
+body.shell-bg-wallpaper .shell-app[data-view="settings"] #shell-settings-btn {
+  border-color: rgba(129, 140, 248, 0.75);
+  background: rgba(99, 102, 241, 0.24);
+  color: #c4b5fd;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.22);
 }
 
 body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select {
@@ -1163,7 +1226,6 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
 }
 
 .shell-main-view > .shell-hero,
-.shell-main-view > .shell-character-stage,
 .shell-main-view > .shell-reply-panel,
 .shell-main-view > .shell-compose-panel,
 .shell-main-view > .shell-tools-panel,
@@ -1190,23 +1252,68 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
 
 .shell-hero-layout {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.shell-hero-head {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: 12px;
+  justify-content: center;
   align-items: center;
+  width: 100%;
 }
 
-.shell-hero-status {
-  min-width: 0;
+.shell-hero-center {
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.shell-agent-avatar--hero {
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+}
+
+.shell-agent-avatar--hero .shell-agent-svg {
+  width: 96px;
+  height: 96px;
+}
+
+.shell-hero-center .shell-voice-wave {
+  margin: 0;
+}
+
+.shell-hero-center .shell-status-line {
+  width: 100%;
+  max-width: 100%;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.shell-hero-center .shell-status-meta {
+  width: 100%;
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+
+.shell-hero-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.shell-hero-toolbar .shell-tts-btn {
+  min-width: 88px;
+}
+
+.shell-character-stage {
+  display: none !important;
 }
 
 .shell-hero-band {
@@ -1585,7 +1692,26 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
   gap: 10px;
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid rgba(122, 108, 255, 0.18);
+  padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--shell-surface-divider);
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background: var(--shell-surface-bg);
+}
+
+.shell-settings-save-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.shell-settings-close-btn {
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .shell-settings-save-hint {
@@ -2459,7 +2585,7 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
   border-right: 0;
   border-top: 0;
   border-bottom: 1px solid rgba(122, 108, 255, 0.12);
-  padding: 16px 52px 16px 16px;
+  padding: 16px calc(var(--shell-surface-inset-x) + 36px) 16px var(--shell-surface-inset-x);
   font-size: 15px;
   line-height: 1.55;
   background: #0a0c18;
@@ -2467,13 +2593,13 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
 
 #shell-compose-dock.is-expanded .shell-compose-field-meta {
   flex-shrink: 0;
-  padding: 6px 16px 0;
+  padding: 6px var(--shell-surface-inset-x) 0;
 }
 
 #shell-compose-dock.is-expanded .shell-compose-actions {
   flex-shrink: 0;
   margin-top: 0;
-  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  padding: 12px var(--shell-surface-inset-x) max(12px, env(safe-area-inset-bottom));
   border-top: 1px solid rgba(122, 108, 255, 0.22);
   background: rgba(8, 10, 20, 0.98);
   gap: 10px;
@@ -2482,12 +2608,12 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
 #shell-compose-dock.is-expanded .shell-compose-voice-hint {
   flex-shrink: 0;
   margin: 0;
-  padding: 0 16px 10px;
+  padding: 0 var(--shell-surface-inset-x) 10px;
 }
 
 #shell-compose-dock.is-expanded .shell-compose-expand-toggle {
   top: max(10px, env(safe-area-inset-top));
-  right: 12px;
+  right: var(--shell-surface-inset-x);
   width: 32px;
   height: 32px;
   z-index: 3;
@@ -2507,7 +2633,7 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
 .shell-compose-field.is-expanded .shell-compose-expand-toggle,
 #shell-compose-dock.is-expanded .shell-compose-expand-toggle {
   top: max(10px, env(safe-area-inset-top));
-  right: 12px;
+  right: var(--shell-surface-inset-x);
 }
 
 .shell-compose-expand-backdrop {
@@ -3621,16 +3747,38 @@ body.shell-bg-wallpaper .shell-character-viewport {
 .shell-tts-controls {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
-  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
   flex: 0 0 auto;
   max-width: 100%;
   margin: 0;
   padding: 0;
 }
 
-.shell-tts-controls.hidden {
-  display: none;
+.shell-tts-btn:disabled,
+.shell-tts-btn--cancel:disabled {
+  opacity: 0.34;
+  cursor: not-allowed;
+  transform: none;
+  pointer-events: none;
+  filter: grayscale(0.15);
+}
+
+.shell-tts-btn:disabled:hover,
+.shell-tts-btn--cancel:disabled:hover {
+  border-color: rgba(122, 108, 255, 0.32);
+  background: rgba(12, 14, 28, 0.72);
+}
+
+.shell-tts-btn--stop:disabled:hover {
+  border-color: rgba(255, 107, 138, 0.35);
+  background: rgba(12, 14, 28, 0.72);
+}
+
+.shell-tts-btn--download:disabled:hover {
+  border-color: rgba(122, 108, 255, 0.32);
+  background: rgba(12, 14, 28, 0.72);
 }
 
 .shell-tts-btn {
@@ -3662,12 +3810,12 @@ body.shell-bg-wallpaper .shell-character-viewport {
   white-space: nowrap;
 }
 
-.shell-tts-btn:hover {
+.shell-tts-btn:hover:not(:disabled) {
   border-color: rgba(124, 108, 255, 0.55);
   background: rgba(124, 108, 255, 0.16);
 }
 
-.shell-tts-btn:active {
+.shell-tts-btn:active:not(:disabled) {
   transform: scale(0.96);
 }
 
@@ -3679,9 +3827,18 @@ body.shell-bg-wallpaper .shell-character-viewport {
   border-color: rgba(255, 107, 138, 0.35);
 }
 
-.shell-tts-btn--stop:hover {
+.shell-tts-btn--stop:hover:not(:disabled) {
   border-color: rgba(255, 107, 138, 0.62);
   background: rgba(255, 107, 138, 0.14);
+}
+
+.shell-tts-btn--cancel {
+  border-color: rgba(255, 120, 120, 0.35);
+}
+
+.shell-tts-btn--cancel:hover:not(:disabled) {
+  border-color: rgba(255, 120, 120, 0.55);
+  background: rgba(255, 80, 80, 0.14);
 }
 
 @keyframes shell-voice-bar {
@@ -3839,18 +3996,29 @@ body.shell-bg-wallpaper .shell-character-viewport {
   min-height: 112px;
 }
 
-body.shell-compact {
+body.shell-compact:not(.shell-embed) {
   padding: 6px;
 }
 
 body.shell-embed {
   display: block;
+  width: 100%;
   min-height: 100%;
   height: 100%;
   margin: 0;
   padding: 0;
   padding-bottom: calc(var(--shell-proactive-bar) + 8px);
   overflow: hidden;
+}
+
+html:has(body.shell-embed) {
+  height: 100%;
+}
+
+body.shell-embed.shell-compact {
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: 0;
 }
 
 body.shell-embed.shell-bg-wallpaper,
@@ -3864,12 +4032,17 @@ body.shell-embed .shell-install-banner {
 
 body.shell-embed .shell-app {
   width: 100%;
-  min-height: 100%;
+  max-width: none;
   height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  margin: 0;
   gap: 0;
+  overflow: hidden;
 }
 
 body.shell-embed .shell-path-header {
+  flex-shrink: 0;
   border-radius: 0;
 }
 
@@ -3885,10 +4058,6 @@ body.shell-embed .shell-version {
 
 .shell-app[data-compact="1"] .shell-path-actions,
 .shell-app[data-compact="1"] .shell-path-block--context {
-  display: none;
-}
-
-.shell-app[data-compact="1"] .shell-path-server-dot {
   display: none;
 }
 
@@ -3966,6 +4135,10 @@ body.shell-embed .shell-version {
   color: #7dd3fc;
 }
 
+.shell-compact-sensor-status.is-typing {
+  color: #6ee7b7;
+}
+
 .shell-compact-sensor {
   position: relative;
   width: 116px;
@@ -3979,8 +4152,9 @@ body.shell-embed .shell-version {
     inset 0 2px 8px rgba(255, 255, 255, 0.12),
     0 12px 28px rgba(2, 6, 23, 0.45);
   color: #fff;
-  transition: transform 0.12s ease, box-shadow 0.2s ease;
+  transition: transform 0.12s ease, box-shadow 0.25s ease;
   touch-action: manipulation;
+  isolation: isolate;
 }
 
 .shell-compact-sensor:hover {
@@ -4008,6 +4182,86 @@ body.shell-embed .shell-version {
   pointer-events: none;
   opacity: 0;
   background: radial-gradient(circle, rgba(34, 197, 94, 0.35) 0%, transparent 70%);
+}
+
+.shell-compact-sensor-ripple--echo {
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.22) 0%, transparent 72%);
+}
+
+.shell-compact-sensor-waves {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 2;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  width: 34px;
+  height: 18px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.shell-compact-sensor-waves span {
+  display: block;
+  width: 3px;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #9ee8ff 0%, #58c4ff 100%);
+  box-shadow: 0 0 8px rgba(88, 196, 255, 0.45);
+  transform-origin: center bottom;
+  animation: shell-voice-bar 0.85s ease-in-out infinite;
+}
+
+.shell-compact-sensor-waves span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.shell-compact-sensor-waves span:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.shell-compact-sensor-waves span:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+.shell-compact-sensor-waves span:nth-child(4) {
+  animation-delay: 0.16s;
+}
+
+.shell-compact-sensor-waves span:nth-child(5) {
+  animation-delay: 0.08s;
+}
+
+.shell-compact-sensor-typing {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  z-index: 3;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.shell-compact-sensor-typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #6ee7b7;
+  box-shadow: 0 0 8px rgba(110, 231, 183, 0.55);
+  animation: shell-compact-typing-dot 1.1s ease-in-out infinite;
+}
+
+.shell-compact-sensor-typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.shell-compact-sensor-typing span:nth-child(3) {
+  animation-delay: 0.3s;
 }
 
 .shell-compact-sensor-cloud {
@@ -4103,31 +4357,114 @@ body.shell-embed .shell-version {
   animation: shell-compact-ripple 1.1s ease-out infinite;
 }
 
-.shell-compact-sensor[data-phase="thinking"] {
+.shell-compact-sensor[data-phase="listening"] .shell-compact-sensor-ripple--echo,
+.shell-compact-sensor.is-holding .shell-compact-sensor-ripple--echo,
+.shell-compact-sensor.is-scanning .shell-compact-sensor-ripple--echo {
+  animation: shell-compact-ripple 1.1s ease-out infinite;
+  animation-delay: 0.45s;
+}
+
+.shell-compact-sensor[data-phase="waiting"][data-activity="idle"] .shell-compact-sensor-cloud {
+  animation: shell-compact-idle-breathe 3.2s ease-in-out infinite;
+}
+
+.shell-compact-sensor[data-activity="thinking"] {
   box-shadow:
     inset 0 0 0 3px rgba(96, 165, 250, 0.5),
     0 0 0 8px rgba(96, 165, 250, 0.1),
     0 12px 28px rgba(2, 6, 23, 0.45);
 }
 
-.shell-compact-sensor[data-phase="thinking"] .shell-compact-sensor-ring {
-  border-color: rgba(96, 165, 250, 0.55);
+.shell-compact-sensor[data-activity="thinking"]::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px dashed rgba(96, 165, 250, 0.28);
+  pointer-events: none;
+  animation: shell-compact-orbit-spin 3.6s linear infinite;
 }
 
-.shell-compact-sensor[data-phase="speaking"] {
+.shell-compact-sensor[data-activity="thinking"] .shell-compact-sensor-ring {
+  border-color: rgba(96, 165, 250, 0.55);
+  animation: shell-compact-think-ring 2.4s ease-in-out infinite;
+}
+
+.shell-compact-sensor[data-activity="thinking"] .shell-compact-sensor-cloud {
+  animation: shell-compact-think-float 2.2s ease-in-out infinite;
+}
+
+.shell-compact-sensor[data-activity="thinking"] .shell-compact-cloud-ring {
+  animation: shell-compact-think-glow 2.2s ease-in-out infinite;
+}
+
+.shell-compact-sensor[data-activity="thinking"] .shell-compact-cloud-eye {
+  animation: shell-compact-blink 2.8s ease-in-out infinite;
+}
+
+.shell-compact-sensor[data-activity="typing"] {
+  box-shadow:
+    inset 0 0 0 3px rgba(52, 211, 153, 0.52),
+    0 0 0 8px rgba(52, 211, 153, 0.1),
+    0 12px 28px rgba(2, 6, 23, 0.45);
+}
+
+.shell-compact-sensor[data-activity="typing"] .shell-compact-sensor-ring {
+  border-color: rgba(52, 211, 153, 0.58);
+  animation: shell-compact-think-ring 1.6s ease-in-out infinite;
+}
+
+.shell-compact-sensor[data-activity="typing"] .shell-compact-sensor-cloud {
+  animation: shell-compact-type-jitter 0.55s ease-in-out infinite;
+}
+
+.shell-compact-sensor[data-activity="typing"] .shell-compact-cloud-mouth {
+  opacity: 0;
+}
+
+.shell-compact-sensor[data-activity="typing"] .shell-compact-sensor-typing {
+  display: inline-flex;
+}
+
+.shell-compact-sensor[data-activity="speaking"] {
   box-shadow:
     inset 0 0 0 3px rgba(56, 189, 248, 0.55),
     0 0 0 8px rgba(56, 189, 248, 0.12),
     0 12px 28px rgba(2, 6, 23, 0.45);
 }
 
-.shell-compact-sensor[data-phase="speaking"] .shell-compact-sensor-ring {
+.shell-compact-sensor[data-activity="speaking"] .shell-compact-sensor-ring {
   border-color: rgba(56, 189, 248, 0.55);
+  animation: shell-compact-speak-ring 0.9s ease-in-out infinite;
 }
 
-.shell-compact-sensor[data-phase="speaking"] .shell-compact-sensor-ripple {
+.shell-compact-sensor[data-activity="speaking"] .shell-compact-sensor-ripple {
   animation: shell-compact-ripple 1.4s ease-out infinite;
   background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, transparent 70%);
+}
+
+.shell-compact-sensor[data-activity="speaking"] .shell-compact-sensor-ripple--echo {
+  animation: shell-compact-ripple 1.4s ease-out infinite;
+  animation-delay: 0.55s;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.22) 0%, transparent 72%);
+}
+
+.shell-compact-sensor[data-activity="speaking"] .shell-compact-sensor-cloud {
+  animation: shell-compact-speak-pulse 0.85s ease-in-out infinite;
+}
+
+.shell-compact-sensor[data-activity="speaking"] .shell-compact-cloud-mouth {
+  animation: shell-compact-talk 0.35s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+
+.shell-compact-sensor[data-activity="speaking"] .shell-compact-cloud-ring {
+  animation: shell-compact-speak-glow 0.85s ease-in-out infinite;
+}
+
+.shell-compact-sensor[data-activity="speaking"] .shell-compact-sensor-waves {
+  display: inline-flex;
 }
 
 .shell-compact-sensor[data-voice-ready="0"] {
@@ -4155,6 +4492,137 @@ body.shell-embed .shell-version {
   100% {
     opacity: 0;
     transform: scale(1.15);
+  }
+}
+
+@keyframes shell-compact-idle-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.78;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 0.92;
+  }
+}
+
+@keyframes shell-compact-orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shell-compact-think-ring {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: inset 0 0 0 0 rgba(96, 165, 250, 0.15);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: inset 0 0 12px rgba(96, 165, 250, 0.22);
+  }
+}
+
+@keyframes shell-compact-think-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.04);
+  }
+}
+
+@keyframes shell-compact-think-glow {
+  0%,
+  100% {
+    stroke: rgba(96, 165, 250, 0.45);
+    stroke-width: 2;
+  }
+  50% {
+    stroke: rgba(147, 197, 253, 0.95);
+    stroke-width: 2.5;
+  }
+}
+
+@keyframes shell-compact-blink {
+  0%,
+  42%,
+  44%,
+  100% {
+    opacity: 1;
+  }
+  43% {
+    opacity: 0.12;
+  }
+}
+
+@keyframes shell-compact-typing-dot {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes shell-compact-type-jitter {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-0.6px);
+  }
+  75% {
+    transform: translateX(0.6px);
+  }
+}
+
+@keyframes shell-compact-speak-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes shell-compact-speak-ring {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes shell-compact-speak-glow {
+  0%,
+  100% {
+    stroke: rgba(56, 189, 248, 0.5);
+  }
+  50% {
+    stroke: rgba(125, 211, 252, 0.98);
+  }
+}
+
+@keyframes shell-compact-talk {
+  from {
+    transform: scaleY(0.72);
+  }
+  to {
+    transform: scaleY(1.18);
   }
 }
 
@@ -5210,19 +5678,19 @@ body.shell-embed .shell-version {
     padding: 8px;
   }
 
-    .shell-hero-head {
-      grid-template-columns: 56px minmax(0, 1fr);
-      gap: 10px;
-    }
-
-  .shell-agent-avatar {
-    width: 56px;
-    height: 56px;
+  .shell-hero-center {
+    max-width: 300px;
   }
 
-  .shell-agent-svg {
-    width: 56px;
-    height: 56px;
+  .shell-agent-avatar--hero,
+  .shell-agent-avatar--hero .shell-agent-svg {
+    width: 80px;
+    height: 80px;
+  }
+
+  .shell-hero-toolbar .shell-tts-btn {
+    min-width: 76px;
+    padding: 4px 8px;
   }
 
   .shell-status-line {
@@ -5314,6 +5782,30 @@ body.shell-embed .shell-version {
 }
 
 /* #44 — embed: flex column, scroll в диалоге, dock внизу */
+body.shell-embed .shell-settings-view {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.shell-embed .shell-settings-shell {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.shell-embed .shell-settings-tabs {
+  flex-shrink: 0;
+}
+
+body.shell-embed .shell-settings-panels {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
 body.shell-embed .shell-main-view {
   flex: 1;
   min-height: 0;

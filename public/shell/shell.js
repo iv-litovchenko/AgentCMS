@@ -77,6 +77,9 @@ import {
   SHELL_RUNTIME_LABELS,
   SHELL_RUNTIME_HINTS,
   formatRuntimeSelectLabel,
+  formatRuntimeStatusTitle,
+  resolveRuntimeConnectionState,
+  formatRuntimeStatusEmoji,
   RUNTIME_DEFAULTS,
   normalizeMessageRuntime,
   isRuntimeImplemented,
@@ -237,7 +240,9 @@ const state = {
   runtimeConnected: false,
   runtimeServerOk: false,
   runtimeError: "",
+  runtimeStatuses: {},
   availableRuntimes: ["qwenpaw"],
+  pendingVoiceInputMode: null,
   stopTtsAt: 0,
   previousPhase: "waiting",
   cameraSnapshotBusy: false,
@@ -422,7 +427,7 @@ function isVoiceModeUserLocked() {
   return (
     state.voiceModeInteracting ||
     document.activeElement === nodes.voiceMode ||
-    Boolean(pendingVoiceInputMode) ||
+    Boolean(state.pendingVoiceInputMode) ||
     Date.now() - voiceModeUserChangedAt < VOICE_MODE_USER_GRACE_MS
   );
 }
@@ -435,7 +440,7 @@ function commitVoiceModeSelection({ persist = true } = {}) {
   state.voiceModeInteracting = false;
   voiceModeUserChangedAt = Date.now();
   lastCommittedVoiceMode = mode;
-  pendingVoiceInputMode = mode;
+  state.pendingVoiceInputMode = mode;
   if (nodes.voiceMode) nodes.voiceMode.value = mode;
   state.sttResumeMode = mode;
   if (state.settings) state.settings.voiceInputMode = mode;
@@ -884,7 +889,12 @@ const shellDialog = createShellDialog({
   lastAskWrap: document.getElementById("shell-last-ask-wrap"),
   lastAsk: document.getElementById("shell-last-ask"),
   errorEl: document.getElementById("shell-dialog-error"),
-  pullHint: document.getElementById("shell-pull-hint")
+  pullHint: document.getElementById("shell-pull-hint"),
+  fetchHistory: async () => {
+    const runtime = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
+    const data = await apiFetch(`/api/shell/dialogs/history?runtime=${encodeURIComponent(runtime)}&limit=12`);
+    return Array.isArray(data?.messages) ? data.messages : [];
+  }
 });
 
 let shellSession = null;
@@ -915,7 +925,11 @@ function initShellProactiveController() {
 function syncDialogConnectionState(override) {
   const conn = override || resolveShellServerConnectionState();
   shellDialog.setConnectionState(conn);
-  renderLocalServerBadge();
+}
+
+function getRuntimeStatus(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  return state.runtimeStatuses?.[id] || null;
 }
 
 function apiUrl(path, params = {}) {
@@ -1009,8 +1023,11 @@ async function onAgentSelectChange(next) {
     state.eventSource = null;
   }
   await resolveShellAgent();
+  state.runtimeStatuses = {};
+  refreshRuntimeSelectLabels();
   await refreshStatus();
   await loadComposeDraft();
+  commitAllSettingsBaselines();
   connectStream();
 }
 
@@ -1018,23 +1035,6 @@ function bindAgentSelectUi(selectEl) {
   selectEl?.addEventListener("change", () => {
     void onAgentSelectChange(selectEl.value);
   });
-}
-
-function renderLocalServerBadge() {
-  const badge = document.getElementById("shell-local-server-badge");
-  if (!badge) return;
-  const host = window.location.host || "localhost";
-  const conn = resolveShellServerConnectionState();
-  badge.dataset.state = conn;
-  const titles = {
-    live: `На связи · ${host}`,
-    error: `Обрыв SSE · ${host}`,
-    offline: "Нет сети",
-    connecting: `Подключение… · ${host}`
-  };
-  const title = titles[conn] || titles.connecting;
-  badge.title = title;
-  badge.setAttribute("aria-label", title);
 }
 
 function renderHeaderHostChip() {
@@ -1185,9 +1185,15 @@ function waitWhileTtsPaused() {
 function updateTtsControlsUi(phase = resolveDisplayPhase(state.shellState?.phase || nodes.pulse?.dataset.phase || "waiting")) {
   const playbackActive = isTtsPlaybackActive();
 
-  nodes.ttsControls?.classList.toggle("hidden", !playbackActive);
-  nodes.ttsPauseBtn?.classList.toggle("hidden", !playbackActive || state.ttsPaused);
-  nodes.ttsResumeBtn?.classList.toggle("hidden", !playbackActive || !state.ttsPaused);
+  if (nodes.ttsPauseBtn) {
+    nodes.ttsPauseBtn.disabled = !playbackActive || state.ttsPaused;
+  }
+  if (nodes.ttsResumeBtn) {
+    nodes.ttsResumeBtn.disabled = !playbackActive || !state.ttsPaused;
+  }
+  if (nodes.ttsStopBtn) {
+    nodes.ttsStopBtn.disabled = !playbackActive;
+  }
 
   const showWave = playbackActive;
   nodes.voiceWave?.classList.toggle("hidden", !showWave);
@@ -1207,7 +1213,7 @@ function updateTtsDownloadUi() {
       nodes.ttsDownloadPanelBtn?.classList.contains("is-busy")
   );
 
-  nodes.ttsDownloadBtn?.classList.toggle("hidden", !hasText);
+  nodes.ttsDownloadBtn?.classList.remove("hidden");
   if (nodes.ttsDownloadBtn) {
     nodes.ttsDownloadBtn.disabled = !hasText || busy;
     nodes.ttsDownloadBtn.title = title;
@@ -1756,6 +1762,7 @@ function finalizeAssistantStream(message) {
   shellSession?.flushStreamingRender(renderStreamingAssistantText);
   renderShellReply({ ...message, body, spokenText, spokenParts });
   shellDialog.onAgentReply(body);
+  void shellDialog.refreshHistory?.();
   finalizeAgentActivitySteps();
   shellSession?.markReplyDisplayed({ ...message, body, streamId });
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
@@ -1874,11 +1881,27 @@ function updateSendButtonLabel() {
       state.processingMessage ||
       (state.assistantStream && !state.assistantStream.finalized)
   );
-  nodes.heroCancelSend?.classList.toggle("hidden", !heroCancelActive);
+  if (nodes.heroCancelSend) {
+    nodes.heroCancelSend.disabled = !heroCancelActive;
+  }
 }
 
 async function stopActiveMessage() {
-  if (nodes.sendStopBtn?.disabled) return;
+  const heroCancelActive = Boolean(
+    state.messagePipelineBusy ||
+      state.processingMessage ||
+      (state.assistantStream && !state.assistantStream.finalized)
+  );
+  const stopActive = Boolean(
+    state.messagePipelineBusy ||
+      state.processingMessage ||
+      (state.assistantStream && !state.assistantStream.finalized) ||
+      state.streamTtsActive ||
+      state.streamTtsQueue.length ||
+      state.speaking
+  );
+  if (!stopActive && !heroCancelActive) return;
+  if (nodes.sendStopBtn?.disabled && nodes.heroCancelSend?.disabled) return;
   const stoppingSpeech = Boolean(state.speaking || state.streamTtsActive || state.streamTtsQueue.length);
   const stoppingGeneration = Boolean(
     state.messagePipelineBusy ||
@@ -2496,6 +2519,18 @@ function isCompactSensorScanning() {
   return Boolean(nodes.compactSensor?.classList.contains("is-scanning"));
 }
 
+function resolveCompactSensorActivity(displayPhase, phrase = "") {
+  const text = String(phrase || "").trim();
+  if (displayPhase === "listening") return "listening";
+  if (displayPhase === "speaking") return "speaking";
+  if (displayPhase === "thinking") {
+    if (/печатает|typing|пишет/i.test(text)) return "typing";
+    return "thinking";
+  }
+  if (displayPhase === "disabled") return "disabled";
+  return "idle";
+}
+
 function syncCompactSensorPhase(phase, phrase = "") {
   const displayPhase = resolveDisplayPhase(phase);
   const sensor = nodes.compactSensor;
@@ -2505,11 +2540,13 @@ function syncCompactSensorPhase(phase, phrase = "") {
 
   sensor.dataset.phase = displayPhase;
   const text = String(phrase || "").trim() || PHASE_LABELS[displayPhase] || "Ожидание касания…";
+  sensor.dataset.activity = resolveCompactSensorActivity(displayPhase, text);
   status.textContent = text;
-  status.classList.remove("is-active", "is-busy", "is-speaking");
-  if (displayPhase === "listening") status.classList.add("is-active");
-  else if (displayPhase === "thinking") status.classList.add("is-busy");
-  else if (displayPhase === "speaking") status.classList.add("is-speaking");
+  status.classList.remove("is-active", "is-busy", "is-speaking", "is-typing");
+  if (sensor.dataset.activity === "listening") status.classList.add("is-active");
+  else if (sensor.dataset.activity === "typing") status.classList.add("is-typing");
+  else if (sensor.dataset.activity === "thinking") status.classList.add("is-busy");
+  else if (sensor.dataset.activity === "speaking") status.classList.add("is-speaking");
 }
 
 function setCompactSensorScanning(active) {
@@ -2521,9 +2558,10 @@ function setCompactSensorScanning(active) {
   sensor.classList.toggle("is-scanning", on);
   if (!status || !isWindowCompactEnabled()) return;
   if (on) {
+    sensor.dataset.activity = "listening";
     const voiceReady = sensor.dataset.voiceReady !== "0";
     status.textContent = voiceReady ? "Сканирование…" : "Сканирование… (демо)";
-    status.classList.remove("is-busy", "is-speaking");
+    status.classList.remove("is-busy", "is-speaking", "is-typing");
     status.classList.add("is-active");
     return;
   }
@@ -3275,9 +3313,6 @@ function getSelectedRuntime() {
 }
 
 function getSelectableRuntimes() {
-  if (Array.isArray(state.availableRuntimes) && state.availableRuntimes.length) {
-    return state.availableRuntimes.map((item) => normalizeMessageRuntime(item));
-  }
   return SHELL_RUNTIMES.filter((runtime) => isRuntimeImplemented(runtime));
 }
 
@@ -3294,15 +3329,37 @@ function fillRuntimeSelect(selectEl, selected, available) {
   for (const runtime of SHELL_RUNTIMES) {
     const opt = document.createElement("option");
     const selectable = available.includes(runtime);
+    const status = selectable ? getRuntimeStatus(runtime) : null;
+    const conn = selectable
+      ? resolveRuntimeConnectionState(runtime, status, { implemented: true })
+      : "soon";
     opt.value = runtime;
-    opt.textContent = formatRuntimeSelectLabel(runtime, { implemented: selectable });
-    opt.title = SHELL_RUNTIME_HINTS[runtime] || "";
+    opt.textContent = formatRuntimeSelectLabel(runtime, { implemented: selectable, status, conn });
+    opt.title = formatRuntimeStatusTitle(runtime, status, { implemented: selectable });
     opt.disabled = !selectable;
     if (runtime === current) opt.selected = true;
     selectEl.append(opt);
   }
   if (!available.includes(normalizeMessageRuntime(selectEl.value))) {
     selectEl.value = current;
+  }
+}
+
+function refreshRuntimeSelectLabels() {
+  for (const selectEl of [nodes.messageTarget, nodes.routeRuntime]) {
+    if (!selectEl) continue;
+    for (const opt of selectEl.options) {
+      if (!opt.value) continue;
+      const runtime = normalizeMessageRuntime(opt.value);
+      if (!SHELL_RUNTIMES.includes(runtime)) continue;
+      const selectable = isRuntimeImplemented(runtime);
+      const status = selectable ? getRuntimeStatus(runtime) : null;
+      const conn = selectable
+        ? resolveRuntimeConnectionState(runtime, status, { implemented: true })
+        : "soon";
+      opt.textContent = formatRuntimeSelectLabel(runtime, { implemented: selectable, status, conn });
+      opt.title = formatRuntimeStatusTitle(runtime, status, { implemented: selectable });
+    }
   }
 }
 
@@ -3545,16 +3602,38 @@ async function selectQwenPawChat(sessionId, chatName) {
   if (state.qwenpawChatsOpen) await loadQwenPawChats();
 }
 
-function updateTtsSaveAgentHint(extra = {}) {
-  const agentId = String(extra.agentId || state.agentId || "").trim() || "?";
-  const settingsFile = String(extra.settingsFile || state.settingsFile || "").trim();
-  const fileLabel = settingsFile
-    ? settingsFile.replace(/^.*\/workspaces\//, "workspaces/").replace(/^\/Users\/macbook\//, "~/")
-    : `.agent-shell/settings.json · agent ${agentId}`;
-  if (nodes.ttsSaveHint) {
-    nodes.ttsSaveHint.innerHTML = `<code>${fileLabel}</code>`;
-    nodes.ttsSaveHint.title = settingsFile || `Агент ${agentId}`;
+function formatSettingsFileLabel(settingsFile, agentId) {
+  if (settingsFile) {
+    return settingsFile.replace(/^.*\/workspaces\//, "workspaces/").replace(/^\/Users\/macbook\//, "~/");
   }
+  const id = String(agentId || "").trim();
+  return id ? `workspaces/${id}/.agent-shell/settings.json` : ".agent-shell/settings.json";
+}
+
+function updateSettingsSaveHints(extra = {}) {
+  const agentId = String(extra.agentId || state.agentId || "").trim();
+  const agentLabel = String(state.agentLabel || agentId || "").trim() || "агент";
+  const settingsFile = String(extra.settingsFile || state.settingsFile || "").trim();
+  const agentFileLabel = formatSettingsFileLabel(settingsFile, agentId);
+  const perAgentHtml = `${agentLabel} · <code>${agentFileLabel}</code>`;
+  const globalHtml = `глобально · <code>awn-shell.json</code>`;
+
+  document.querySelectorAll("[data-settings-save-hint='agent']").forEach((el) => {
+    el.innerHTML = perAgentHtml;
+    el.title = settingsFile || `Настройки агента ${agentLabel}`;
+  });
+  document.querySelectorAll("[data-settings-save-hint='global']").forEach((el) => {
+    el.innerHTML = globalHtml;
+    el.title = "Общие настройки окна Shell для всего CMS";
+  });
+  if (nodes.ttsSaveHint) {
+    nodes.ttsSaveHint.innerHTML = perAgentHtml;
+    nodes.ttsSaveHint.title = settingsFile || `Настройки агента ${agentLabel}`;
+  }
+}
+
+function updateTtsSaveAgentHint(extra = {}) {
+  updateSettingsSaveHints(extra);
 }
 
 function applyStatusPayload(payload) {
@@ -3574,6 +3653,9 @@ function applyStatusPayload(payload) {
   updateTtsSaveAgentHint(payload);
   syncAgentSelects();
   if (payload?.settings) applySettings(payload.settings);
+  if (payload?.agentId && payload.agentId !== prevAgentId) {
+    commitAllSettingsBaselines();
+  }
   state.sidecarConnected = Boolean(payload?.sidecarConnected);
   syncCompactSensorAvailability();
   updateFnPttHint(getVoiceInputMode());
@@ -3585,8 +3667,34 @@ function applyStatusPayload(payload) {
   state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
   if (Array.isArray(payload?.availableRuntimes) && payload.availableRuntimes.length) {
     state.availableRuntimes = payload.availableRuntimes.map((item) => normalizeMessageRuntime(item));
-    populateRuntimeSelect(state.settings?.messageTarget || getSelectedRuntime());
   }
+  if (Array.isArray(payload?.installedRuntimes)) {
+    state.installedRuntimes = payload.installedRuntimes.map((item) => normalizeMessageRuntime(item));
+  }
+  if (payload?.runtimeStatuses && typeof payload.runtimeStatuses === "object") {
+    state.runtimeStatuses = payload.runtimeStatuses;
+  } else {
+    const next = { ...(state.runtimeStatuses || {}) };
+    if (payload?.qwenpaw) {
+      next.qwenpaw = {
+        runtime: "qwenpaw",
+        configured: true,
+        installed: true,
+        ...next.qwenpaw,
+        ...payload.qwenpaw
+      };
+    }
+    const activeRuntime = normalizeMessageRuntime(payload?.runtime?.runtime || payload?.settings?.messageTarget);
+    if (payload?.runtime && activeRuntime !== "qwenpaw") {
+      next[activeRuntime] = {
+        ...next[activeRuntime],
+        ...payload.runtime,
+        runtime: activeRuntime
+      };
+    }
+    state.runtimeStatuses = next;
+  }
+  refreshRuntimeSelectLabels();
   state.runtimeServerOk = Boolean(payload?.runtime?.serverOk ?? payload?.runtime?.ok);
   state.runtimeConnected = Boolean(payload?.runtime?.ok);
   state.runtimeError = String(payload?.runtime?.error || "");
@@ -3646,6 +3754,7 @@ async function resolveShellAgent() {
   const agent = selectable.find((entry) => entry.id === state.agentId);
   state.agentLabel = agent?.name || state.agentId || "";
   syncAgentSelects();
+  updateSettingsSaveHints();
   shellPresenceController?.setAgentId(state.agentId);
 }
 
@@ -4011,6 +4120,7 @@ async function sendMessageDirect(
       }),
       signal
     });
+    void shellDialog.refreshHistory?.();
     if (result?.sttRefined && nodes.message && String(result.sttRefined) !== text) {
       setComposeMessageValue(String(result.sttRefined));
     }
@@ -4468,8 +4578,8 @@ function syncVoiceModeUi(settings = state.settings) {
     }
   }
 
-  if (pendingVoiceInputMode && stored === normalizeVoiceInputMode(pendingVoiceInputMode)) {
-    pendingVoiceInputMode = null;
+  if (state.pendingVoiceInputMode && stored === normalizeVoiceInputMode(state.pendingVoiceInputMode)) {
+    state.pendingVoiceInputMode = null;
   }
 
   updateVoiceModeSelectUi();
@@ -4584,15 +4694,15 @@ function collectProactiveFormPatch() {
 async function persistVoiceInputMode(mode) {
   const next = normalizeVoiceInputMode(mode);
   const stored = next === "disabled" ? "disabled" : next;
-  if (stored !== "disabled") pendingVoiceInputMode = stored;
+  if (stored !== "disabled") state.pendingVoiceInputMode = stored;
   if (state.settings) state.settings.voiceInputMode = stored;
   voiceInputModePersisting = true;
   try {
     await saveSettings({ voiceInputMode: stored });
     lastCommittedVoiceMode = stored;
-    if (pendingVoiceInputMode === stored) pendingVoiceInputMode = null;
+    if (state.pendingVoiceInputMode === stored) state.pendingVoiceInputMode = null;
   } catch (error) {
-    pendingVoiceInputMode = null;
+    state.pendingVoiceInputMode = null;
     renderPhase("waiting", error.message);
   } finally {
     voiceInputModePersisting = false;
@@ -5289,6 +5399,7 @@ async function handleAssistantMessage(message) {
   markAssistantReplyHandled(message, body);
   renderShellReply(message);
   shellDialog.onAgentReply(body);
+  void shellDialog.refreshHistory?.();
   shellSession?.markReplyDisplayed(message);
 
   const phase = state.shellState?.phase || "waiting";
@@ -5799,6 +5910,7 @@ function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
         ? scrollTo
         : "";
     setSettingsTab(settingsTab || tabFromScroll || state.settingsTab || "route");
+    settingsSave.syncUi();
   }
 }
 
@@ -5807,6 +5919,9 @@ function bindNavigationUi() {
     setShellView(state.view === "settings" ? "main" : "settings");
   });
   nodes.homeBrand?.addEventListener("click", () => setShellView("main"));
+  document.querySelectorAll(".shell-settings-close-btn").forEach((btn) => {
+    btn.addEventListener("click", () => setShellView("main"));
+  });
   document.querySelectorAll(".shell-settings-tab").forEach((btn) => {
     btn.addEventListener("click", () => {
       const tab = btn.dataset.settingsTab;
@@ -5888,9 +6003,11 @@ function bindUi() {
   const markSttDirty = () => markSettingsDirty("stt");
   const markProactiveDirty = () => markSettingsDirty("proactive");
 
+  nodes.routeSave?.addEventListener("mousedown", () => markSettingsDirty("route"));
   nodes.routeSave?.addEventListener("click", () => {
     void saveSettingsSection("route").catch((error) => renderPhase("waiting", error.message));
   });
+  nodes.proactiveSave?.addEventListener("mousedown", () => markSettingsDirty("proactive"));
   nodes.proactiveSave?.addEventListener("click", () => {
     void saveSettingsSection("proactive").catch((error) => renderPhase("waiting", error.message));
   });
@@ -6129,12 +6246,13 @@ function bindUi() {
   for (const el of [
     nodes.proactiveEnabled,
     nodes.proactiveIdleSeconds,
-    nodes.proactiveCooldownSeconds,
-    nodes.proactivePrompt
+    nodes.proactiveCooldownSeconds
   ]) {
     el?.addEventListener("change", markProactiveDirty);
+    el?.addEventListener("input", markProactiveDirty);
   }
   nodes.proactivePrompt?.addEventListener("input", markProactiveDirty);
+  nodes.proactivePrompt?.addEventListener("change", markProactiveDirty);
   nodes.proactiveEnabled?.addEventListener("change", () => {
     shellProactive?.syncSettings({
       ...(state.settings || {}),
@@ -6191,10 +6309,10 @@ function bindUi() {
       if (document.activeElement !== nodes.voiceMode) {
         state.voiceModeInteracting = false;
         syncVoiceModeSelectFromDom();
-        if (pendingVoiceInputMode) {
-          const pending = normalizeVoiceInputMode(pendingVoiceInputMode);
+        if (state.pendingVoiceInputMode) {
+          const pending = normalizeVoiceInputMode(state.pendingVoiceInputMode);
           const stored = normalizeVoiceInputMode(state.settings?.voiceInputMode || "hold");
-          if (pending === stored) pendingVoiceInputMode = null;
+          if (pending === stored) state.pendingVoiceInputMode = null;
         }
       }
     }, 0);
@@ -6299,6 +6417,9 @@ function bindUi() {
     const chatRoot = document.getElementById("shell-qwenpaw-chat");
     if (chatRoot && !chatRoot.contains(event.target)) setQwenPawChatsOpen(false);
   });
+
+  updateTtsControlsUi();
+  updateTtsDownloadUi();
 }
 
 async function boot() {
@@ -6314,7 +6435,6 @@ async function boot() {
   await ensureShellAgentSelected();
   await populateHeaderAgentSelect();
   renderHeaderHostChip();
-  renderLocalServerBadge();
   migrateShellStorageFromMobile();
   if (shellEmbedMode) {
     document.body.classList.add("shell-embed");
@@ -6392,7 +6512,7 @@ async function boot() {
   window.addEventListener("offline", syncDialogConnectionState);
   syncDialogConnectionState();
   void initBatteryMonitor();
-  void initShellCharacter(nodes.characterStage, nodes.agentAvatar);
+  void initShellCharacter(null, nodes.agentAvatar);
   try {
     await resolveShellAgent();
     shellPresenceController?.stop();

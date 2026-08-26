@@ -1,9 +1,5 @@
 /** Mobile-style dialog: history, collapse, copy/share, reconnect, errors. */
 
-import { SHELL_STORAGE } from "@shell/storage-keys";
-
-const HISTORY_KEY = SHELL_STORAGE.history;
-const CHAT_COLLAPSE_KEY = SHELL_STORAGE.chatCollapsed;
 const MAX_HISTORY = 12;
 const STREAM_PREVIEW_LEN = 120;
 
@@ -21,11 +17,40 @@ function formatHistoryPreview(text) {
   return raw.length > STREAM_PREVIEW_LEN ? `${raw.slice(0, STREAM_PREVIEW_LEN)}…` : raw;
 }
 
+function historyRoleLabel(item) {
+  if (item?.label) return item.label;
+  if (item?.role === "agent") return "AI";
+  return "Human (человек)";
+}
+
+function historyAvatarLabel(item) {
+  return item?.role === "agent" ? "AI" : "H";
+}
+
 function connectionHint(error) {
   const msg = String(error?.message || error || "").toLowerCase();
-  if (msg.includes("failed") || msg.includes("network") || msg.includes("load") || msg.includes("abort")) {
-    return "Mac и iPhone в одной Wi‑Fi? CMS: HOST=0.0.0.0 npm start";
+  const host = String(window.location?.hostname || "").toLowerCase();
+  const onLocalHost = host === "localhost" || host === "127.0.0.1" || host === "::1";
+
+  if (
+    msg.includes("qwenpaw") ||
+    msg.includes("quota exceeded") ||
+    msg.includes("rate limit") ||
+    msg.includes("model is unavailable") ||
+    msg.includes("execution failed") ||
+    msg.includes("upstream request failed") ||
+    msg.includes("provider (console)")
+  ) {
+    return "Ошибка модели QwenPaw — смените модель у агента в http://127.0.0.1:8088 (free-модели часто падают по лимиту)";
   }
+
+  if (msg === "failed to fetch" || msg.includes("networkerror") || msg.includes("load failed")) {
+    if (onLocalHost) {
+      return "Сервер не отвечает. Запустите: npm run start:https";
+    }
+    return "Не достучались до Mac по сети. Одна Wi‑Fi? Запуск: npm run start:https";
+  }
+
   if (msg.includes("404")) return "Перезапустите CMS после обновления";
   return "";
 }
@@ -49,12 +74,16 @@ function connectionHint(error) {
  *   lastAsk?: HTMLElement | null,
  *   errorEl?: HTMLElement | null,
  *   pullHint?: HTMLElement | null,
- *   onReconnect?: () => void
+ *   onReconnect?: () => void,
+ *   fetchHistory?: () => Promise<Array<{ role?: string, body?: string, at?: number, label?: string }>>
  * }} options
  */
 export function createShellDialog(options = {}) {
+  const CHAT_COLLAPSE_KEY = "agentcms.shell.chatCollapsed.v1";
   const nodes = options;
+  const fetchHistory = typeof options.fetchHistory === "function" ? options.fetchHistory : null;
   let history = [];
+  let historyLoading = false;
   let collapsed = localStorage.getItem(CHAT_COLLAPSE_KEY) === "1";
   let lastReplyRaw = "";
   let lastAskRaw = "";
@@ -63,25 +92,37 @@ export function createShellDialog(options = {}) {
   let reconnectHandler = options.onReconnect || null;
 
   function loadHistory() {
-    try {
-      const raw = sessionStorage.getItem(HISTORY_KEY);
-      history = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(history)) history = [];
-    } catch {
+    if (!fetchHistory) {
       history = [];
+      renderHistoryUi();
+      return Promise.resolve();
     }
-  }
-
-  function saveHistory() {
-    sessionStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-MAX_HISTORY)));
+    if (historyLoading) return Promise.resolve();
+    historyLoading = true;
+    return fetchHistory()
+      .then((items) => {
+        history = Array.isArray(items) ? items.slice(-MAX_HISTORY) : [];
+        renderHistoryUi();
+      })
+      .catch(() => {
+        history = [];
+        renderHistoryUi();
+      })
+      .finally(() => {
+        historyLoading = false;
+      });
   }
 
   function pushHistory(role, body) {
     const text = String(body || "").trim();
     if (!text) return;
-    history.push({ role, body: text, at: Date.now() });
+    history.push({
+      role,
+      body: text,
+      at: Date.now(),
+      label: historyRoleLabel({ role })
+    });
     if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
-    saveHistory();
     renderHistoryUi();
   }
 
@@ -97,7 +138,7 @@ export function createShellDialog(options = {}) {
       li.className = `shell-history-item shell-history-item--${item.role}`;
       const avatar = document.createElement("span");
       avatar.className = "shell-history-avatar";
-      avatar.textContent = item.role === "user" ? "Вы" : "AI";
+      avatar.textContent = historyAvatarLabel(item);
       avatar.setAttribute("aria-hidden", "true");
       const bodyWrap = document.createElement("div");
       bodyWrap.className = "shell-history-body";
@@ -105,7 +146,7 @@ export function createShellDialog(options = {}) {
       head.className = "shell-history-head";
       const label = document.createElement("span");
       label.className = "shell-history-role";
-      label.textContent = item.role === "user" ? "Вы" : "Агент";
+      label.textContent = historyRoleLabel(item);
       const time = document.createElement("time");
       time.className = "shell-history-time";
       time.textContent = formatHistoryTime(item.at);
@@ -226,8 +267,7 @@ export function createShellDialog(options = {}) {
     nodes.collapseBtn?.addEventListener("click", () => setCollapsed(!collapsed));
     nodes.reconnectBtn?.addEventListener("click", () => doReconnect());
     nodes.historyOpen?.addEventListener("click", () => {
-      renderHistoryUi();
-      nodes.historyDialog?.showModal();
+      void loadHistory().then(() => nodes.historyDialog?.showModal());
     });
     nodes.historyClose?.addEventListener("click", () => nodes.historyDialog?.close());
     nodes.historyDialog?.addEventListener("click", (event) => {
@@ -294,9 +334,8 @@ export function createShellDialog(options = {}) {
   }
 
   function init() {
-    loadHistory();
     setCollapsed(collapsed);
-    renderHistoryUi();
+    void loadHistory();
     bindUi();
   }
 
@@ -312,6 +351,7 @@ export function createShellDialog(options = {}) {
     clearError,
     bindReconnect,
     connectionHint,
-    pushHistory
+    pushHistory,
+    refreshHistory: loadHistory
   };
 }
