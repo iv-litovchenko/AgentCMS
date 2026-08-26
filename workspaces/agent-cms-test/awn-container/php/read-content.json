@@ -10,6 +10,7 @@
     "main/Веб/HTTP и формы.md",
     "main/Объекты.md",
     "main/Синтаксис/Массивы.md",
+    "main/Синтаксис/Управление потоком.md",
     "main/Синтаксис/manifest.md",
     "main/Тестирование/PHPUnit основы.md",
     "main/Типы данных",
@@ -31,5 +32,5 @@
     "topic-index-generated/awn-container/php/awn-storage/index.md",
     "topic-index-generated/awn-container/php/index.md"
   ],
-  "updatedAt": "2026-08-21T16:49:52.803Z"
+  "updatedAt": "2026-08-26T16:18:29.278Z"
 }

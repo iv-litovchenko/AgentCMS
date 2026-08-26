@@ -28107,9 +28107,9 @@ button.node-navigation-hub-rail-slot-summary {
 }
 
 .node-entry-overview-copy-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
   gap: 8px;
   margin: 0 0 12px;
   padding: 0 2px;
@@ -28126,9 +28126,14 @@ button.node-navigation-hub-rail-slot-summary {
 }
 
 .node-entry-overview-copy-btn {
+  width: 100%;
+  min-width: 0;
   font-size: 11px;
   font-weight: 600;
-  padding: 5px 10px;
+  padding: 8px 10px;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
 }
 
 .node-overview-settings-props-fold > .node-overview-fold-head {
