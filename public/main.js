@@ -59633,12 +59633,6 @@ function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null,
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-manifest node-entry-overview-manifest";
 
-  const copyBar = createEntryOverviewCopyActionsBar(rawContent);
-  if (copyBar) {
-    copyBar.classList.add("node-entry-overview-manifest-copy-actions");
-    wrap.appendChild(copyBar);
-  }
-
   const preview = document.createElement("div");
   preview.className = "node-navigation-preview file-content-preview";
   const workspacePath = nodePath;
@@ -59651,6 +59645,13 @@ function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null,
   } else {
     setMarkdownPreviewHtml(preview, content, { nodePath, workspacePath });
   }
+
+  const copyBar = createEntryOverviewCopyActionsBar(rawContent);
+  if (copyBar) {
+    copyBar.classList.add("node-entry-overview-manifest-copy-actions");
+    preview.insertBefore(copyBar, preview.firstChild);
+  }
+
   wrap.appendChild(preview);
 
   const meter = createDocumentContextMeter(content);
