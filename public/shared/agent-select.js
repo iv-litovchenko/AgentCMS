@@ -114,7 +114,7 @@ export function populateAgentSelect(selectEl, {
   agents = [],
   groups = [],
   selectedId = "",
-  placeholder = "— агент —",
+  placeholder = "— Хранилище (агент) —",
   includePlaceholder = true
 } = {}) {
   if (!selectEl) return { selectedId: "", selectableAgents: [] };

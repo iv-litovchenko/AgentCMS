@@ -40,6 +40,10 @@
     "sharp": "^0.35.2",
     "xlsx": "^0.18.5"
   },
+  "optionalDependencies": {
+    "@anthropic-ai/claude-code": "^2.1.0",
+    "@openai/codex": "^0.149.0"
+  },
   "devDependencies": {
     "electron": "^35.0.0",
     "electron-builder": "^25.1.8",

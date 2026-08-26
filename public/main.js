@@ -7467,7 +7467,7 @@ function renderAgentSelect() {
 
   const placeholderOption = document.createElement("option");
   placeholderOption.value = "";
-  placeholderOption.textContent = "— агент —";
+  placeholderOption.textContent = "— Хранилище (агент) —";
   agentSelectNode.appendChild(placeholderOption);
 
   if (agents.length === 0) {

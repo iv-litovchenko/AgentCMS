@@ -10,8 +10,8 @@ export const SHELL_RUNTIMES = [
   "qwenpaw"
 ];
 
-/** Подключено в Shell (маршрутизация + настройки). Пока только QwenPaw. */
-export const SHELL_RUNTIME_IMPLEMENTED = new Set(["qwenpaw"]);
+/** Подключено в Shell (маршрутизация + настройки). */
+export const SHELL_RUNTIME_IMPLEMENTED = new Set(["qwenpaw", "claude", "codex"]);
 
 const LEGACY_TARGET_MAP = {
   cms: "qwenpaw",
@@ -29,6 +29,22 @@ export const SHELL_RUNTIME_LABELS = {
   "agent-zero": "Agent Zero",
   qwenpaw: "QwenPaw"
 };
+
+export const SHELL_RUNTIME_EMOJIS = {
+  claude: "🟠",
+  codex: "💬",
+  cursor: "⌨️",
+  openclaw: "🦞",
+  hermes: "⚡",
+  "agent-zero": "🕳️",
+  qwenpaw: "🐾"
+};
+
+export function formatRuntimeSelectLabel(runtime, { implemented = true } = {}) {
+  const id = String(runtime || "").trim();
+  const label = SHELL_RUNTIME_LABELS[id] || id;
+  return implemented ? label : `${label} — скоро`;
+}
 
 /** Короткая подсказка под select (1 строка). */
 export const SHELL_RUNTIME_HINTS = {

@@ -36,6 +36,21 @@
     }
   }
 
+  function isParentSessionUnlocked() {
+    try {
+      if (window.parent === window) return false;
+      return window.parent.sessionStorage.getItem(SESSION_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function inheritParentUnlockSession() {
+    if (!isParentSessionUnlocked()) return false;
+    markSessionUnlocked();
+    return true;
+  }
+
   function markSessionUnlocked() {
     try {
       sessionStorage.setItem(SESSION_KEY, "1");
@@ -493,9 +508,14 @@
         return;
       }
 
+      if (!lockActive) {
+        completeUnlock();
+        return;
+      }
+
       setMode("login");
 
-      if (isSessionUnlocked()) {
+      if (isSessionUnlocked() || inheritParentUnlockSession()) {
         completeUnlock();
         return;
       }

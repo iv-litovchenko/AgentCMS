@@ -17,27 +17,43 @@ export const SHELL_HOSTS = [
   "extension"
 ];
 
-export const SHELL_BACKENDS = ["local", "server"];
-
-/** Static client row (UI placeholder). */
-export const SHELL_CLIENTS = [
-  { id: "desktop", icon: "🖥", short: "Desktop", hint: "Desktop" },
-  { id: "server", icon: "☁️", short: "Server", hint: "Server" },
-  { id: "mobile", icon: "📱", short: "Mobile", hint: "Mobile" },
-  { id: "web", icon: "🌐", short: "Web", hint: "Web" },
-  { id: "robot", icon: "🤖", short: "Robot", hint: "Robot" },
-  { id: "shell", icon: "🐚", short: "Shell", hint: "Shell" }
-];
-
 const HOST_META = {
   "desktop-shell": { icon: "🖥", short: "Shell", hint: "Agent Shell.app" },
   "desktop-cms": { icon: "🖥", short: "CMS", hint: "Agent CMS.app · панель" },
   "browser-embed": { icon: "🌐", short: "Embed", hint: "Панель в Agent CMS" },
-  "browser-tab": { icon: "🌐", short: "Tab", hint: "Вкладка браузера · /shell" },
+  "browser-tab": { icon: "🌐", short: "Tab", hint: "Вкладка браузера" },
   "mobile-native": { icon: "📱", short: "iOS", hint: "iOS app (SwiftUI)" },
-  "mobile-web": { icon: "📱", short: "Mobile", hint: "Safari / PWA · /shell" },
-  extension: { icon: "🧩", short: "Companion", hint: "Companion · расширение Chrome" }
+  "mobile-web": { icon: "📱", short: "Mobile", hint: "Safari / PWA" },
+  extension: { icon: "🧩", short: "Companion", hint: "Companion · Chrome" }
 };
+
+export function getShellHostLabel(hostId) {
+  const meta = HOST_META[String(hostId || "").trim()];
+  return meta?.hint || hostId || "—";
+}
+
+export function getShellHostShortLabel(hostId) {
+  const meta = HOST_META[String(hostId || "").trim()];
+  return meta?.short || hostId || "—";
+}
+
+/** Короткая подпись для шапки Shell — с emoji из HOST_META. */
+export function getShellHostHeaderLabel(hostId) {
+  const id = String(hostId || "").trim();
+  const meta = HOST_META[id];
+  const labels = {
+    "browser-embed": "Панель CMS",
+    "browser-tab": "Вкладка",
+    "desktop-cms": "CMS.app",
+    "desktop-shell": "Shell.app",
+    "mobile-native": "iOS",
+    "mobile-web": "Mobile",
+    extension: "Companion"
+  };
+  const text = labels[id] || getShellHostLabel(id);
+  const icon = meta?.icon || "📍";
+  return `${icon} ${text}`;
+}
 
 let activeSurface = null;
 
@@ -225,101 +241,11 @@ export function getShellSurfacePayload() {
   };
 }
 
-function syncIndicator(track, indicator, activeTab) {
-  if (!track || !indicator || !activeTab) return;
-  indicator.style.width = `${activeTab.offsetWidth}px`;
-  indicator.style.transform = `translateX(${activeTab.offsetLeft}px)`;
-}
-
 /**
- * @param {{ rootEl?: HTMLElement | null, hintEl?: HTMLElement | null, onSurface?: (surface: ReturnType<typeof detectShellSurface>) => void }} options
+ * @param {{ onSurface?: (surface: ReturnType<typeof detectShellSurface>) => void }} options
  */
-export function initShellSurfaceSwitcher(options = {}) {
-  const rootEl = options.rootEl || document.getElementById("shell-surface-switcher");
-  const hintEl = options.hintEl || document.getElementById("shell-surface-hint");
-  const track = rootEl?.querySelector(".shell-surface-switcher-track");
-  const indicator = rootEl?.querySelector(".shell-surface-switcher-indicator");
-  const hostTabs = rootEl ? [...rootEl.querySelectorAll("[data-host]")] : [];
-  const backendTabs = rootEl ? [...rootEl.querySelectorAll("[data-backend]")] : [];
-
+export function initShellSurface(options = {}) {
   activeSurface = detectShellSurface();
-  if (!rootEl || !track || !indicator || !hostTabs.length) {
-    options.onSurface?.(activeSurface);
-    return activeSurface;
-  }
-
-  const apply = (surface, { syncOnly = false } = {}) => {
-    activeSurface = surface;
-    rootEl.dataset.host = surface.host;
-    rootEl.dataset.backend = surface.backend.id;
-    if (hintEl) hintEl.textContent = surface.hint;
-
-    let activeHostTab = null;
-    hostTabs.forEach((tab) => {
-      const hostId = tab.getAttribute("data-host");
-      const isActive = hostId === surface.host;
-      tab.classList.toggle("is-active", isActive);
-      tab.setAttribute("aria-selected", isActive ? "true" : "false");
-      if (isActive) activeHostTab = tab;
-    });
-
-    backendTabs.forEach((tab) => {
-      const backendId = tab.getAttribute("data-backend");
-      const isActive = backendId === surface.backend.id;
-      const isDisabled = backendId === "server" && surface.backend.disabled;
-      tab.classList.toggle("is-active", isActive);
-      tab.setAttribute("aria-selected", isActive ? "true" : "false");
-      tab.setAttribute("aria-disabled", isDisabled ? "true" : "false");
-      tab.toggleAttribute("disabled", isDisabled);
-    });
-
-    syncIndicator(track, indicator, activeHostTab);
-    if (!syncOnly) options.onSurface?.(surface);
-  };
-
-  const onResize = () => apply(getShellSurface(), { syncOnly: true });
-  window.addEventListener("resize", onResize, { passive: true });
-
-  apply(activeSurface);
-  requestAnimationFrame(() => apply(getShellSurface(), { syncOnly: true }));
-
+  options.onSurface?.(activeSurface);
   return activeSurface;
-}
-
-export function renderShellSurfaceSwitcherMarkup() {
-  const hostTabs = SHELL_HOSTS.map((host) => {
-    const meta = HOST_META[host];
-    return `<span class="shell-surface-tab" role="tab" data-host="${host}" aria-selected="false" tabindex="-1" title="${meta.hint}">
-      <span class="surf-ico" aria-hidden="true">${meta.icon}</span>
-      <span class="surf-label">${meta.short}</span>
-    </span>`;
-  }).join("");
-
-  const backendTabs = SHELL_BACKENDS.map((backend) => {
-    const disabled = backend === "server";
-    return `<span class="shell-surface-backend-tab" role="tab" data-backend="${backend}" aria-selected="false"${
-      disabled ? ' aria-disabled="true" disabled tabindex="-1" title="Server — скоро"' : ' tabindex="-1"'
-    }>${backend}</span>`;
-  }).join("");
-
-  const clientTabs = SHELL_CLIENTS.map((client, index) => {
-    const active = index === 0 ? " is-active" : "";
-    return `<span class="shell-surface-tab shell-surface-tab--static${active}" data-client="${client.id}" title="${client.hint}">
-      <span class="surf-ico" aria-hidden="true">${client.icon}</span>
-      <span class="surf-label">${client.short}</span>
-    </span>`;
-  }).join("");
-
-  return `<div class="shell-surface-switcher-head">
-    <span class="shell-surface-switcher-kicker">Host</span>
-    <span class="shell-surface-switcher-hint" id="shell-surface-hint"></span>
-    <div class="shell-surface-backend" role="tablist" aria-label="Backend">${backendTabs}</div>
-  </div>
-  <div class="shell-surface-switcher-track" role="tablist" aria-label="Shell host">
-    <span class="shell-surface-switcher-indicator" aria-hidden="true"></span>
-    ${hostTabs}
-  </div>
-  <div class="shell-surface-switcher-track shell-surface-client-track" role="group" aria-label="Client">
-    ${clientTabs}
-  </div>`;
 }

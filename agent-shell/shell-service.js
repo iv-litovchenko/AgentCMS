@@ -31,6 +31,7 @@ const {
   runtimeHealthPath,
   RUNTIME_TRANSPORT
 } = require("./runtime-bridge");
+const { probeAvailableRuntimes } = require("./runtime-probe");
 
 const SETTINGS_DIR = ".agent-shell";
 const SETTINGS_FILE = "settings.json";
@@ -1274,6 +1275,8 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
     };
   }
 
+  const availableRuntimes = await probeAvailableRuntimes(settings);
+
   return {
     agentId,
     agentRoot,
@@ -1283,6 +1286,7 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
     sidecarConnected: isSidecarConnected(state),
     qwenpaw,
     runtime: bridgeRuntime,
+    availableRuntimes,
     camera: {
       speech: await cameraSnapshots.readLatestMeta(agentRoot, "camera", "speech"),
       manual: await cameraSnapshots.readLatestMeta(agentRoot, "camera", "manual")

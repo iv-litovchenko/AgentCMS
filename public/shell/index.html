@@ -12,8 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=207" />
-    <link rel="stylesheet" href="/shell/shell-surface.css?v=3" />
+    <link rel="stylesheet" href="/shell/shell.css?v=238" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=1" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -36,7 +35,7 @@
           "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=207",
           "@shell/session": "/shell/shell-session.js?v=207",
           "@shell/client-id": "/shell/shell-client-id.js?v=207",
-          "@shell/surface": "/shell/shell-surface.js?v=209",
+          "@shell/surface": "/shell/shell-surface.js?v=226",
           "@shell/presence": "/shell/shell-presence.js?v=209",
           "@shell/voice-chpu": "/shell/voice-chpu.js?v=209",
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
@@ -53,13 +52,26 @@
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=207",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
-          "@shell/runtimes": "/shell/shell-runtimes.js?v=207",
-          "@shell/build": "/shell/shell-build.js?v=207"
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=229",
+          "@shell/build": "/shell/shell-build.js?v=235"
         }
       }
     </script>
   </head>
   <body class="shell-bg-wallpaper">
+    <script>
+      (function () {
+        try {
+          var parts = location.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+          var embedHosts = ["browser-embed", "desktop-cms", "extension"];
+          if (parts.length >= 2 && embedHosts.indexOf(decodeURIComponent(parts[1])) >= 0) {
+            document.body.classList.add("shell-embed");
+          } else if (new URLSearchParams(location.search).get("embed") === "1") {
+            document.body.classList.add("shell-embed");
+          }
+        } catch (e) {}
+      })();
+    </script>
     <div id="app-lock" class="app-lock hidden" role="dialog" aria-modal="true" aria-labelledby="app-lock-title" aria-describedby="app-lock-lead">
       <div class="app-lock-bg" aria-hidden="true"></div>
       <div class="app-lock-panel">
@@ -114,70 +126,168 @@
         <button type="button" class="shell-install-dismiss" id="shell-install-dismiss" aria-label="Скрыть">×</button>
       </div>
       <div class="shell-permission-banner hidden" id="shell-permission-banner" role="alert"></div>
-      <header class="shell-header">
-        <button
-          type="button"
-          class="shell-brand"
-          id="shell-home-brand"
-          title="Главная"
-          aria-label="Главная"
-          aria-pressed="true"
-        >
-          <img class="shell-logo" src="/shell/favicon.svg" width="42" height="42" alt="" aria-hidden="true" />
-          <div>
-            <h1 class="shell-title">Agent CMS Voice</h1>
-            <p class="shell-subtitle" id="shell-subtitle">Голосовой клиент Agent CMS</p>
+      <header class="shell-path-header" id="shell-path-header" aria-label="Agent CMS Voice">
+        <div class="shell-path-block shell-path-block--title">
+          <div class="shell-path-row">
+            <button
+              type="button"
+              class="shell-path-title-btn"
+              id="shell-home-brand"
+              title="Главная"
+              aria-label="Главная"
+              aria-pressed="true"
+            >
+              <img class="shell-path-logo" src="/shell/favicon.svg" width="24" height="24" alt="" aria-hidden="true" />
+              <span class="shell-path-title-stack">
+                <span class="shell-path-title">Agent CMS Voice</span>
+                <span class="shell-path-subtitle" id="shell-subtitle">Голосовой клиент Agent CMS</span>
+              </span>
+            </button>
+            <div class="shell-path-actions">
+              <a
+                class="shell-path-action-btn shell-path-action-btn--link"
+                id="shell-open-site"
+                href="https://agent-cms.ru/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Сайт agent-cms.ru"
+                aria-label="Сайт agent-cms.ru"
+              >
+                <svg class="shell-path-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75" />
+                  <path
+                    d="M3 12h18M12 3c2.5 2.5 4 5.5 4 9s-1.5 6.5-4 9M12 3c-2.5 2.5-4 5.5-4 9s1.5 6.5 4 9"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </a>
+              <button
+                type="button"
+                class="shell-path-action-btn shell-path-action-btn--cms"
+                id="shell-open-cms"
+                title="Agent CMS на localhost"
+                aria-label="Открыть Agent CMS на localhost"
+              >
+                <img class="shell-path-action-icon" src="/favicon.svg" width="16" height="16" alt="" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                class="shell-path-action-btn"
+                id="shell-settings-btn"
+                title="Настройки"
+                aria-label="Настройки"
+                aria-pressed="false"
+              >
+                ⚙️
+              </button>
+              <button
+                type="button"
+                class="shell-path-action-btn"
+                id="shell-help-btn"
+                title="Справка"
+                aria-label="Справка"
+              >
+                ?
+              </button>
+              <button
+                type="button"
+                class="shell-path-action-btn shell-path-action-btn--exit hidden"
+                id="app-lock-logout-btn"
+                title="Выход из Agent CMS Voice"
+                aria-label="Выход из Agent CMS Voice"
+              >
+                ✕
+              </button>
+            </div>
           </div>
-        </button>
-        <div class="shell-header-actions">
-          <a
-            class="shell-icon-btn shell-icon-btn--link"
-            id="shell-open-site"
-            href="https://agent-cms.ru/"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Сайт agent-cms.ru"
-            aria-label="Сайт agent-cms.ru"
-          >
-            WEB
-          </a>
-          <button
-            type="button"
-            class="shell-icon-btn shell-icon-btn--cms"
-            id="shell-open-cms"
-            title="Открыть Agent CMS"
-            aria-label="Открыть Agent CMS"
-          >
-            <img class="shell-header-icon" src="/favicon.svg" width="20" height="20" alt="" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            class="shell-icon-btn"
-            id="shell-settings-btn"
-            title="Настройки"
-            aria-label="Настройки"
-            aria-pressed="false"
-          >
-            ⚙️
-          </button>
-          <button
-            type="button"
-            class="shell-icon-btn"
-            id="shell-help-btn"
-            title="Помощь"
-            aria-label="Помощь"
-          >
-            ?
-          </button>
-          <button
-            type="button"
-            class="shell-icon-btn shell-icon-btn--exit hidden"
-            id="app-lock-logout-btn"
-            title="Выйти из Agent CMS"
-            aria-label="Выход"
-          >
-            ✕
-          </button>
+        </div>
+
+        <div class="shell-path-block shell-path-block--context">
+          <div class="shell-path-context-row">
+            <label class="shell-path-field shell-path-field--agent">
+              <select id="shell-header-agent" class="shell-path-select agent-select" aria-label="Хранилище (агент)"></select>
+            </label>
+            <span
+              id="shell-header-host"
+              class="shell-path-host-chip shell-path-field--host"
+              role="status"
+              aria-label="Где открыт Agent CMS Voice"
+              title="Где сейчас открыт Agent CMS Voice"
+            ></span>
+            <div class="shell-path-field shell-path-field--runtime-wrap">
+              <label class="shell-path-field shell-path-field--runtime">
+                <select id="shell-message-target" class="shell-path-select" aria-label="Runtime"></select>
+              </label>
+              <span
+                class="shell-path-server-dot"
+                id="shell-local-server-badge"
+                role="status"
+                title="Локальный сервер"
+                aria-label="Статус локального сервера"
+                data-state="connecting"
+              >
+                <span class="shell-path-server-dot-core" aria-hidden="true"></span>
+              </span>
+            </div>
+          </div>
+          <div class="shell-path-context-row shell-path-context-row--device" aria-label="Устройство">
+            <span class="shell-meta-chip shell-battery" id="shell-battery" title="Батарея" data-available="0">
+              <span class="shell-meta-icon" aria-hidden="true">🔋</span>
+              <svg class="shell-battery-icon" viewBox="0 0 26 12" aria-hidden="true">
+                <rect class="shell-battery-body" x="0.5" y="0.5" width="20" height="11" rx="2" />
+                <rect class="shell-battery-cap" x="22" y="3.5" width="3" height="5" rx="1" />
+                <rect class="shell-battery-fill" id="shell-battery-fill" x="2" y="2" height="8" rx="1" width="0" />
+              </svg>
+              <span class="shell-battery-level" id="shell-battery-level">—</span>
+            </span>
+            <span class="shell-meta-chip shell-clock-chip">
+              <span class="shell-meta-icon" aria-hidden="true">🕐</span>
+              <time class="shell-clock" id="shell-clock" datetime="">—</time>
+            </span>
+            <button
+              type="button"
+              class="shell-meta-chip shell-orient-chip"
+              id="shell-orient-chip"
+              aria-label="Ориентация в пространстве"
+              data-active="0"
+            >
+              <span class="shell-meta-icon" aria-hidden="true">🧭</span>
+              <span class="shell-orient-value" id="shell-orient-value">—</span>
+            </button>
+            <button
+              type="button"
+              class="shell-meta-chip shell-location-chip"
+              id="shell-location-chip"
+              aria-label="GPS координаты"
+              data-active="0"
+            >
+              <span class="shell-meta-icon" aria-hidden="true">📍</span>
+              <span class="shell-location-value" id="shell-location-value">—</span>
+            </button>
+            <button
+              type="button"
+              class="shell-meta-chip shell-location-share hidden"
+              id="shell-location-share"
+              aria-label="Поделиться местоположением с агентом"
+              aria-pressed="false"
+              data-active="0"
+            >
+              ↗ агенту
+            </button>
+            <button
+              type="button"
+              class="shell-meta-chip shell-tts-download hidden"
+              id="shell-tts-download"
+              disabled
+              title="Скачать последнюю озвучку агента"
+              aria-label="Скачать аудио озвучки"
+            >
+              <span class="shell-meta-icon" aria-hidden="true">⬇</span>
+              <span class="shell-tts-download-label">Скачать</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -233,19 +343,15 @@
           <div class="shell-settings-panels">
         <section class="shell-route-panel" id="shell-route-panel" role="tabpanel" aria-labelledby="shell-settings-tab-route">
         <label class="shell-field">
-          <span class="shell-label">Runtime — кто думает и отвечает</span>
-          <p class="shell-field-note shell-runtime-intro">
-            Shell слышит, показывает и озвучивает. Runtime — внешний агент, который обрабатывает сообщения.
-          </p>
-          <select id="shell-message-target" class="shell-select" aria-label="Runtime — кому отправлять"></select>
+          <span class="shell-label">Хранилище (агент)</span>
+          <select id="shell-route-agent" class="shell-select agent-select" aria-label="Хранилище (агент)"></select>
         </label>
-        <p class="shell-runtime-hint shell-field-note" id="shell-runtime-hint"></p>
-        <pre class="shell-runtime-detail shell-field-note" id="shell-runtime-detail"></pre>
+        <label class="shell-field">
+          <span class="shell-label">Runtime</span>
+          <select id="shell-route-runtime" class="shell-select" aria-label="Runtime"></select>
+        </label>
 
         <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
-            <p class="shell-qwenpaw-note" id="shell-qwenpaw-note">
-              Профиль QwenPaw для Shell. Подключение CMS к агенту — через MCP в QwenPaw, не здесь.
-            </p>
             <div class="shell-qwenpaw-profile">
               <label class="shell-field shell-field--compact">
                 <span class="shell-label">QwenPaw URL</span>
@@ -300,7 +406,6 @@
           </div>
 
         <div class="shell-runtime-bridge-panel" id="shell-runtime-bridge-panel" data-visible="0">
-          <p class="shell-runtime-bridge-note shell-field-note" id="shell-runtime-bridge-note"></p>
           <div class="shell-runtime-bridge-fields">
             <label class="shell-field shell-field--compact">
               <span class="shell-label" id="shell-runtime-bridge-url-label">Base URL</span>
@@ -949,143 +1054,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <p class="shell-compact-sensor-status" id="shell-compact-sensor-status">Ожидание касания…</p>
         </div>
       </section>
-      <div
-        class="shell-surface-switcher"
-        id="shell-surface-switcher"
-        data-host="browser-tab"
-        data-backend="local"
-        aria-label="Host и backend Agent Shell"
-      >
-        <div class="shell-surface-switcher-head">
-          <span class="shell-surface-switcher-kicker">Host</span>
-          <span class="shell-surface-switcher-hint" id="shell-surface-hint"></span>
-          <div class="shell-surface-backend" role="tablist" aria-label="Backend">
-            <span class="shell-surface-backend-tab" role="tab" data-backend="local" aria-selected="false" tabindex="-1">local</span>
-            <span class="shell-surface-backend-tab" role="tab" data-backend="server" aria-selected="false" aria-disabled="true" disabled tabindex="-1" title="Server — скоро">server</span>
-          </div>
-        </div>
-        <div class="shell-surface-switcher-track" role="tablist" aria-label="Shell host">
-          <span class="shell-surface-switcher-indicator" aria-hidden="true"></span>
-          <span class="shell-surface-tab" role="tab" data-host="desktop-cms" aria-selected="false" tabindex="-1" title="Agent CMS.app · панель">
-            <span class="surf-ico" aria-hidden="true">🖥</span><span class="surf-label">CMS</span>
-          </span>
-          <span class="shell-surface-tab" role="tab" data-host="desktop-shell" aria-selected="false" tabindex="-1" title="Agent Shell.app">
-            <span class="surf-ico" aria-hidden="true">🖥</span><span class="surf-label">Shell</span>
-          </span>
-          <span class="shell-surface-tab" role="tab" data-host="browser-embed" aria-selected="false" tabindex="-1" title="Панель в Agent CMS">
-            <span class="surf-ico" aria-hidden="true">🌐</span><span class="surf-label">Embed</span>
-          </span>
-          <span class="shell-surface-tab" role="tab" data-host="browser-tab" aria-selected="false" tabindex="-1" title="Вкладка браузера · /shell">
-            <span class="surf-ico" aria-hidden="true">🌐</span><span class="surf-label">Tab</span>
-          </span>
-          <span class="shell-surface-tab" role="tab" data-host="mobile-native" aria-selected="false" tabindex="-1" title="iOS app (SwiftUI)">
-            <span class="surf-ico" aria-hidden="true">📱</span><span class="surf-label">iOS</span>
-          </span>
-          <span class="shell-surface-tab" role="tab" data-host="mobile-web" aria-selected="false" tabindex="-1" title="Safari / PWA · /shell">
-            <span class="surf-ico" aria-hidden="true">📱</span><span class="surf-label">Mobile</span>
-          </span>
-          <span class="shell-surface-tab" role="tab" data-host="extension" aria-selected="false" tabindex="-1" title="Companion · расширение Chrome">
-            <span class="surf-ico" aria-hidden="true">🧩</span><span class="surf-label">Companion</span>
-          </span>
-        </div>
-        <div class="shell-surface-switcher-track shell-surface-client-track" role="group" aria-label="Client">
-          <span class="shell-surface-tab shell-surface-tab--static is-active" data-client="desktop" title="Desktop">
-            <span class="surf-ico" aria-hidden="true">🖥</span><span class="surf-label">Desktop</span>
-          </span>
-          <span class="shell-surface-tab shell-surface-tab--static" data-client="server" title="Server">
-            <span class="surf-ico" aria-hidden="true">☁️</span><span class="surf-label">Server</span>
-          </span>
-          <span class="shell-surface-tab shell-surface-tab--static" data-client="mobile" title="Mobile">
-            <span class="surf-ico" aria-hidden="true">📱</span><span class="surf-label">Mobile</span>
-          </span>
-          <span class="shell-surface-tab shell-surface-tab--static" data-client="web" title="Web">
-            <span class="surf-ico" aria-hidden="true">🌐</span><span class="surf-label">Web</span>
-          </span>
-          <span class="shell-surface-tab shell-surface-tab--static" data-client="robot" title="Robot">
-            <span class="surf-ico" aria-hidden="true">🤖</span><span class="surf-label">Robot</span>
-          </span>
-          <span class="shell-surface-tab shell-surface-tab--static" data-client="shell" title="Shell">
-            <span class="surf-ico" aria-hidden="true">🐚</span><span class="surf-label">Shell</span>
-          </span>
-        </div>
-      </div>
       <section class="shell-hero" id="shell-hero">
         <div class="shell-hero-layout">
-          <div class="shell-hero-band shell-hero-band--session" aria-label="Сессия">
-            <button type="button" class="shell-meta-chip shell-agent-chip" id="shell-agent-chip" title="Workspace CMS">—</button>
-            <span class="shell-meta-chip shell-link-chip" id="shell-link-chip" title="Маршрут">
-              <span class="shell-meta-icon shell-link-chip-dot" id="shell-link-chip-dot" aria-hidden="true">🟡</span>
-              <span class="shell-link-chip-label" id="shell-link-chip-label">—</span>
-              <button
-                type="button"
-                class="shell-link-chip-open hidden"
-                id="shell-link-chip-open"
-                title="Открыть QwenPaw"
-                aria-label="Открыть QwenPaw в новом окне"
-              >
-                ↗
-              </button>
-            </span>
-            <span class="shell-meta-chip shell-server-chip" id="shell-server-chip" title="CMS server">—</span>
-          </div>
-
-          <div class="shell-hero-band shell-hero-band--device" aria-label="Устройство">
-            <span class="shell-meta-chip shell-battery" id="shell-battery" title="Батарея" data-available="0">
-              <span class="shell-meta-icon" aria-hidden="true">🔋</span>
-              <svg class="shell-battery-icon" viewBox="0 0 26 12" aria-hidden="true">
-                <rect class="shell-battery-body" x="0.5" y="0.5" width="20" height="11" rx="2" />
-                <rect class="shell-battery-cap" x="22" y="3.5" width="3" height="5" rx="1" />
-                <rect class="shell-battery-fill" id="shell-battery-fill" x="2" y="2" height="8" rx="1" width="0" />
-              </svg>
-              <span class="shell-battery-level" id="shell-battery-level">—</span>
-            </span>
-            <span class="shell-meta-chip shell-clock-chip">
-              <span class="shell-meta-icon" aria-hidden="true">🕐</span>
-              <time class="shell-clock" id="shell-clock" datetime="">—</time>
-            </span>
-            <button
-              type="button"
-              class="shell-meta-chip shell-orient-chip"
-              id="shell-orient-chip"
-              aria-label="Ориентация в пространстве"
-              data-active="0"
-            >
-              <span class="shell-meta-icon" aria-hidden="true">🧭</span>
-              <span class="shell-orient-value" id="shell-orient-value">—</span>
-            </button>
-            <button
-              type="button"
-              class="shell-meta-chip shell-location-chip"
-              id="shell-location-chip"
-              aria-label="GPS координаты"
-              data-active="0"
-            >
-              <span class="shell-meta-icon" aria-hidden="true">📍</span>
-              <span class="shell-location-value" id="shell-location-value">—</span>
-            </button>
-            <button
-              type="button"
-              class="shell-meta-chip shell-location-share hidden"
-              id="shell-location-share"
-              aria-label="Поделиться местоположением с агентом"
-              aria-pressed="false"
-              data-active="0"
-            >
-              ↗ агенту
-            </button>
-            <button
-              type="button"
-              class="shell-meta-chip shell-tts-download hidden"
-              id="shell-tts-download"
-              disabled
-              title="Скачать последнюю озвучку агента"
-              aria-label="Скачать аудио озвучки"
-            >
-              <span class="shell-meta-icon" aria-hidden="true">⬇</span>
-              <span class="shell-tts-download-label">Скачать</span>
-            </button>
-          </div>
-
           <header class="shell-hero-head">
             <button type="button" class="shell-agent-avatar" id="shell-agent-avatar" data-phase="waiting" aria-label="Облачко">
               <svg class="shell-agent-svg" viewBox="0 0 64 64" role="presentation">
@@ -1966,7 +1936,7 @@ CMS workspace</pre>
     <script src="/vendor/markdown-it.min.js"></script>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
-    <script src="/app-lock.js?v=12"></script>
-    <script src="/shell/shell.js?v=209" type="module"></script>
+    <script src="/app-lock.js?v=13"></script>
+    <script src="/shell/shell.js?v=237" type="module"></script>
   </body>
 </html>

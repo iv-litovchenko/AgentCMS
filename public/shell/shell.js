@@ -1,4 +1,4 @@
-import { loadAgentSelectData, getSelectableAgents } from "/shared/agent-select.js";
+import { loadAgentSelectData, getSelectableAgents, populateAgentSelect } from "/shared/agent-select.js";
 import { createTopicPicker } from "@shell/topic-picker";
 import { createSettingsSaveController } from "@shell/settings-save";
 import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, mergeSpeechStreamChunks, parseDualReply, extractStreamingTtsBody, extractStreamingReplyBody, hasVoiceEndDelimiter, stripAllTtsBlocks } from "@shell/reply";
@@ -17,7 +17,7 @@ import {
 } from "@shell/tts-mobile";
 import { createShellSession } from "@shell/session";
 import { getShellClientId } from "@shell/client-id";
-import { getShellSurfacePayload, initShellSurfaceSwitcher } from "@shell/surface";
+import { getShellSurfacePayload, initShellSurface, getShellHostLabel, getShellHostHeaderLabel, getShellSurface } from "@shell/surface";
 import {
   buildVoiceShellPath,
   isEmbeddedVoiceHost,
@@ -76,7 +76,7 @@ import {
   SHELL_RUNTIMES,
   SHELL_RUNTIME_LABELS,
   SHELL_RUNTIME_HINTS,
-  SHELL_RUNTIME_DESCRIPTIONS,
+  formatRuntimeSelectLabel,
   RUNTIME_DEFAULTS,
   normalizeMessageRuntime,
   isRuntimeImplemented,
@@ -237,6 +237,7 @@ const state = {
   runtimeConnected: false,
   runtimeServerOk: false,
   runtimeError: "",
+  availableRuntimes: ["qwenpaw"],
   stopTtsAt: 0,
   previousPhase: "waiting",
   cameraSnapshotBusy: false,
@@ -645,6 +646,7 @@ function toggleTtsPauseResume() {
 
 const nodes = {
   messageTarget: document.getElementById("shell-message-target"),
+  routeRuntime: document.getElementById("shell-route-runtime"),
   qwenpawPanel: document.getElementById("shell-qwenpaw-panel"),
   qwenpawUrl: document.getElementById("shell-qwenpaw-url"),
   qwenpawOpenUrl: document.getElementById("shell-qwenpaw-open-url"),
@@ -655,7 +657,6 @@ const nodes = {
   qwenpawChatsToggle: document.getElementById("shell-qwenpaw-chats-toggle"),
   qwenpawChatsPanel: document.getElementById("shell-qwenpaw-chats-panel"),
   bridgePanel: document.getElementById("shell-runtime-bridge-panel"),
-  bridgeNote: document.getElementById("shell-runtime-bridge-note"),
   bridgeUrlLabel: document.getElementById("shell-runtime-bridge-url-label"),
   bridgeUrl: document.getElementById("shell-runtime-bridge-url"),
   bridgeApiKey: document.getElementById("shell-runtime-bridge-api-key"),
@@ -799,17 +800,12 @@ const nodes = {
   batteryFill: document.getElementById("shell-battery-fill"),
   batteryLevel: document.getElementById("shell-battery-level"),
   clock: document.getElementById("shell-clock"),
-  linkChip: document.getElementById("shell-link-chip"),
-  linkChipDot: document.getElementById("shell-link-chip-dot"),
-  linkChipLabel: document.getElementById("shell-link-chip-label"),
-  linkChipOpen: document.getElementById("shell-link-chip-open"),
-  agentChip: document.getElementById("shell-agent-chip"),
   agentGate: document.getElementById("shell-agent-gate"),
   agentGateSelect: document.getElementById("shell-agent-gate-select"),
   agentGateOpen: document.getElementById("shell-agent-gate-open"),
-  runtimeHint: document.getElementById("shell-runtime-hint"),
-  runtimeDetail: document.getElementById("shell-runtime-detail"),
-  serverChip: document.getElementById("shell-server-chip"),
+  headerAgent: document.getElementById("shell-header-agent"),
+  routeAgent: document.getElementById("shell-route-agent"),
+  headerHost: document.getElementById("shell-header-host"),
   orientChip: document.getElementById("shell-orient-chip"),
   orientValue: document.getElementById("shell-orient-value"),
   locationChip: document.getElementById("shell-location-chip"),
@@ -919,7 +915,7 @@ function initShellProactiveController() {
 function syncDialogConnectionState(override) {
   const conn = override || resolveShellServerConnectionState();
   shellDialog.setConnectionState(conn);
-  renderServerChip();
+  renderLocalServerBadge();
 }
 
 function apiUrl(path, params = {}) {
@@ -977,15 +973,81 @@ function formatShellClock(date = new Date()) {
   }).format(date);
 }
 
-const ROUTE_CHIP_LABELS = SHELL_RUNTIME_LABELS;
+function syncAgentSelects() {
+  if (nodes.headerAgent && state.agentId) {
+    nodes.headerAgent.value = state.agentId;
+  }
+  if (nodes.routeAgent && state.agentId) {
+    nodes.routeAgent.value = state.agentId;
+  }
+}
 
-function renderAgentChip() {
-  if (!nodes.agentChip) return;
-  const label = state.agentLabel || state.agentId || "—";
-  nodes.agentChip.textContent = label;
-  nodes.agentChip.title = state.agentId
-    ? `Workspace · agent=${state.agentId}`
-    : "Workspace CMS";
+async function populateAgentSelects() {
+  const data = await loadAgentSelectData();
+  const selected = String(state.agentId || "").trim();
+  const options = {
+    agents: data.agents,
+    groups: data.groups,
+    selectedId: selected,
+    placeholder: "— Хранилище (агент) —",
+    includePlaceholder: true
+  };
+  populateAgentSelect(nodes.headerAgent, options);
+  populateAgentSelect(nodes.routeAgent, options);
+}
+
+async function populateHeaderAgentSelect() {
+  await populateAgentSelects();
+}
+
+async function onAgentSelectChange(next) {
+  const agentId = String(next || "").trim();
+  if (!agentId || agentId === state.agentId) return;
+  navigateToShellAgent(agentId);
+  if (state.eventSource) {
+    state.eventSource.close();
+    state.eventSource = null;
+  }
+  await resolveShellAgent();
+  await refreshStatus();
+  await loadComposeDraft();
+  connectStream();
+}
+
+function bindAgentSelectUi(selectEl) {
+  selectEl?.addEventListener("change", () => {
+    void onAgentSelectChange(selectEl.value);
+  });
+}
+
+function renderLocalServerBadge() {
+  const badge = document.getElementById("shell-local-server-badge");
+  if (!badge) return;
+  const host = window.location.host || "localhost";
+  const conn = resolveShellServerConnectionState();
+  badge.dataset.state = conn;
+  const titles = {
+    live: `На связи · ${host}`,
+    error: `Обрыв SSE · ${host}`,
+    offline: "Нет сети",
+    connecting: `Подключение… · ${host}`
+  };
+  const title = titles[conn] || titles.connecting;
+  badge.title = title;
+  badge.setAttribute("aria-label", title);
+}
+
+function renderHeaderHostChip() {
+  if (!nodes.headerHost) return;
+  const surface = getShellSurface();
+  const host = surface?.host || readVoiceSurfaceHostFromLocation() || "browser-embed";
+  nodes.headerHost.textContent = getShellHostHeaderLabel(host);
+  nodes.headerHost.title = `${getShellHostLabel(host)} · где открыт Agent CMS Voice`;
+}
+
+function bindHeaderContextUi() {
+  bindAgentSelectUi(nodes.headerAgent);
+  bindAgentSelectUi(nodes.routeAgent);
 }
 
 function resolveShellServerConnectionState() {
@@ -996,83 +1058,6 @@ function resolveShellServerConnectionState() {
   if (readyState === EventSource.OPEN) return "live";
   if (readyState === EventSource.CLOSED) return "error";
   return "connecting";
-}
-
-function renderServerChip() {
-  if (!nodes.serverChip) return;
-  const host = window.location.host || "localhost";
-  nodes.serverChip.textContent = host;
-  const conn = resolveShellServerConnectionState();
-  nodes.serverChip.dataset.state = conn;
-  const titles = {
-    live: `Live · ${host}`,
-    error: `Обрыв SSE · ${host}`,
-    offline: "Нет сети",
-    connecting: `Подключение… · ${host}`
-  };
-  nodes.serverChip.title = titles[conn] || titles.connecting;
-}
-
-function renderHeroLinkChip() {
-  if (!nodes.linkChip || !nodes.linkChipDot || !nodes.linkChipLabel) return;
-  const target = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
-  const label = ROUTE_CHIP_LABELS[target] || "CMS";
-  const streamLive = state.eventSource?.readyState === EventSource.OPEN;
-  const online = navigator.onLine !== false;
-  const usesQwen = usesQwenPawTarget(target);
-  let status = "off";
-  let dot = "🔴";
-  let title = `${label} · нет связи`;
-
-  if (usesQwen) {
-    const agentLabel = state.qwenpawAgentName || state.settings?.qwenpawAgentId || "default";
-    if (!online) {
-      title = `${label} · нет сети`;
-    } else if (!state.qwenpawServerOk) {
-      title = `${label} · сервер недоступен`;
-    } else if (!state.qwenpawAgentOk) {
-      status = "off";
-      dot = "🔴";
-      title = state.qwenpawAgentError || `${label} · агент «${agentLabel}» недоступен`;
-    } else if (streamLive) {
-      status = "ok";
-      dot = "🟢";
-      title = `${label} · ${agentLabel} · на связи`;
-    } else {
-      status = "partial";
-      dot = "🟡";
-      title = `${label} · ${agentLabel} · агент ok, SSE отключён`;
-    }
-  } else if (runtimeUsesBridge(target)) {
-    if (!online) {
-      title = `${label} · нет сети`;
-    } else if (!state.runtimeServerOk) {
-      title = state.runtimeError || `${label} · сервер недоступен`;
-    } else if (streamLive) {
-      status = "ok";
-      dot = "🟢";
-      title = `${label} · на связи`;
-    } else {
-      status = "partial";
-      dot = "🟡";
-      title = `${label} · runtime ok, SSE отключён`;
-    }
-  } else if (streamLive && online) {
-    status = "ok";
-    dot = "🟢";
-    title = `${label} · на связи`;
-  }
-
-  nodes.linkChip.dataset.status = status;
-  nodes.linkChipDot.textContent = dot;
-  nodes.linkChipLabel.textContent = label;
-  nodes.linkChip.title = title;
-  if (nodes.linkChipOpen) {
-    nodes.linkChipOpen.classList.toggle("hidden", !usesQwen);
-    nodes.linkChipOpen.title = usesQwen ? "Открыть QwenPaw" : "";
-  }
-  renderServerChip();
-  syncDialogConnectionState();
 }
 
 function renderClock() {
@@ -2971,7 +2956,7 @@ function applyBridgeForm(runtime, settings = state.settings || {}) {
 }
 
 function collectRouteSnapshot() {
-  const runtime = normalizeMessageRuntime(nodes.messageTarget?.value || "qwenpaw");
+  const runtime = getSelectedRuntime();
   const patch = {
     messageTarget: runtime,
     qwenpawBaseUrl: nodes.qwenpawUrl?.value.trim() || "http://127.0.0.1:8088",
@@ -3268,36 +3253,69 @@ async function ensureShellAgentSelected() {
   return state.agentId;
 }
 
-function populateRuntimeSelect(selected = normalizeMessageRuntime(state.settings?.messageTarget || "qwenpaw")) {
-  if (!nodes.messageTarget) return;
+function syncRuntimeSelects(preferred = "") {
+  const raw =
+    preferred === "route"
+      ? nodes.routeRuntime?.value
+      : preferred === "header"
+        ? nodes.messageTarget?.value
+        : nodes.routeRuntime?.value || nodes.messageTarget?.value || state.settings?.messageTarget || "qwenpaw";
+  const runtime = normalizeMessageRuntime(raw);
+  if (nodes.messageTarget) nodes.messageTarget.value = runtime;
+  if (nodes.routeRuntime) nodes.routeRuntime.value = runtime;
+}
+
+function getSelectedRuntime() {
+  const raw =
+    nodes.routeRuntime?.value ||
+    nodes.messageTarget?.value ||
+    state.settings?.messageTarget ||
+    "qwenpaw";
+  return normalizeMessageRuntime(raw);
+}
+
+function getSelectableRuntimes() {
+  if (Array.isArray(state.availableRuntimes) && state.availableRuntimes.length) {
+    return state.availableRuntimes.map((item) => normalizeMessageRuntime(item));
+  }
+  return SHELL_RUNTIMES.filter((runtime) => isRuntimeImplemented(runtime));
+}
+
+function fillRuntimeSelect(selectEl, selected, available) {
+  if (!selectEl) return;
   let current = normalizeMessageRuntime(selected);
-  if (!isRuntimeImplemented(current)) current = "qwenpaw";
-  nodes.messageTarget.innerHTML = "";
+  if (!available.includes(current)) current = available.includes("qwenpaw") ? "qwenpaw" : available[0] || "qwenpaw";
+  selectEl.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "— Runtime —";
+  placeholder.disabled = true;
+  selectEl.append(placeholder);
   for (const runtime of SHELL_RUNTIMES) {
     const opt = document.createElement("option");
-    const implemented = isRuntimeImplemented(runtime);
+    const selectable = available.includes(runtime);
     opt.value = runtime;
-    const label = SHELL_RUNTIME_LABELS[runtime] || runtime;
-    opt.textContent = implemented ? label : `${label} — скоро`;
+    opt.textContent = formatRuntimeSelectLabel(runtime, { implemented: selectable });
     opt.title = SHELL_RUNTIME_HINTS[runtime] || "";
-    opt.disabled = !implemented;
+    opt.disabled = !selectable;
     if (runtime === current) opt.selected = true;
-    nodes.messageTarget.append(opt);
+    selectEl.append(opt);
   }
-  if (!isRuntimeImplemented(nodes.messageTarget.value)) {
-    nodes.messageTarget.value = "qwenpaw";
+  if (!available.includes(normalizeMessageRuntime(selectEl.value))) {
+    selectEl.value = current;
   }
+}
+
+function populateRuntimeSelect(selected = normalizeMessageRuntime(state.settings?.messageTarget || "qwenpaw")) {
+  const available = getSelectableRuntimes();
+  fillRuntimeSelect(nodes.messageTarget, selected, available);
+  fillRuntimeSelect(nodes.routeRuntime, selected, available);
+  syncRuntimeSelects();
   updateRuntimeUi();
 }
 
 function updateRuntimeUi() {
-  const runtime = normalizeMessageRuntime(nodes.messageTarget?.value || state.settings?.messageTarget || "qwenpaw");
-  if (nodes.runtimeHint) {
-    nodes.runtimeHint.textContent = SHELL_RUNTIME_HINTS[runtime] || "";
-  }
-  if (nodes.runtimeDetail) {
-    nodes.runtimeDetail.textContent = SHELL_RUNTIME_DESCRIPTIONS[runtime] || SHELL_RUNTIME_HINTS[runtime] || "";
-  }
+  const runtime = getSelectedRuntime();
   if (nodes.qwenpawPanel) {
     nodes.qwenpawPanel.dataset.visible = runtimeUsesQwenPaw(runtime) ? "1" : "0";
   }
@@ -3306,9 +3324,6 @@ function updateRuntimeUi() {
   }
   if (runtimeUsesBridge(runtime)) {
     applyBridgeForm(runtime, state.settings || {});
-    if (nodes.bridgeNote) {
-      nodes.bridgeNote.textContent = SHELL_RUNTIME_HINTS[runtime] || "";
-    }
     if (nodes.bridgeUrlLabel) {
       nodes.bridgeUrlLabel.textContent =
         runtime === "claude" ? "Anthropic API URL" : "Base URL (/v1 добавится автоматически)";
@@ -3321,7 +3336,7 @@ function updateRuntimeUi() {
     if (nodes.bridgeAgentField) nodes.bridgeAgentField.hidden = !showAgent;
   }
   topicPicker.setVisible(false);
-  renderHeroLinkChip();
+  syncDialogConnectionState();
 }
 
 function usesQwenPawTarget(target) {
@@ -3557,7 +3572,7 @@ function applyStatusPayload(payload) {
     syncVoiceRecordTimer();
   }
   updateTtsSaveAgentHint(payload);
-  renderAgentChip();
+  syncAgentSelects();
   if (payload?.settings) applySettings(payload.settings);
   state.sidecarConnected = Boolean(payload?.sidecarConnected);
   syncCompactSensorAvailability();
@@ -3568,12 +3583,15 @@ function applyStatusPayload(payload) {
   state.qwenpawAgentName = String(payload?.qwenpaw?.agentName || "");
   state.qwenpawAgentError = String(payload?.qwenpaw?.agentError || "");
   state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
+  if (Array.isArray(payload?.availableRuntimes) && payload.availableRuntimes.length) {
+    state.availableRuntimes = payload.availableRuntimes.map((item) => normalizeMessageRuntime(item));
+    populateRuntimeSelect(state.settings?.messageTarget || getSelectedRuntime());
+  }
   state.runtimeServerOk = Boolean(payload?.runtime?.serverOk ?? payload?.runtime?.ok);
   state.runtimeConnected = Boolean(payload?.runtime?.ok);
   state.runtimeError = String(payload?.runtime?.error || "");
-  renderHeroLinkChip();
-  updateQwenPawChatUi(payload);
   syncDialogConnectionState();
+  updateQwenPawChatUi(payload);
 
   if (state.sessionUiLocked) return;
 
@@ -3627,7 +3645,7 @@ async function resolveShellAgent() {
   }
   const agent = selectable.find((entry) => entry.id === state.agentId);
   state.agentLabel = agent?.name || state.agentId || "";
-  renderAgentChip();
+  syncAgentSelects();
   shellPresenceController?.setAgentId(state.agentId);
 }
 
@@ -5305,7 +5323,7 @@ function connectStream() {
     state.eventSource = null;
   }
   if (!state.agentId || typeof EventSource === "undefined") {
-    renderServerChip();
+    syncDialogConnectionState();
     return;
   }
 
@@ -5313,11 +5331,9 @@ function connectStream() {
   state.eventSource = source;
   syncDialogConnectionState("connecting");
   source.onopen = () => {
-    renderHeroLinkChip();
     syncDialogConnectionState("live");
   };
   source.onerror = () => {
-    renderHeroLinkChip();
     syncDialogConnectionState("error");
   };
 
@@ -5851,22 +5867,6 @@ function bindWindowSettingsUi() {
 function bindUi() {
   populateVoiceModeSelect();
   populateRuntimeSelect();
-  nodes.agentChip?.addEventListener("click", async () => {
-    const data = await loadAgentSelectData();
-    const selectable = getSelectableAgents(data.agents);
-    if (selectable.length <= 1) return;
-    const prev = state.agentId;
-    await showShellAgentGate(selectable);
-    if (!state.agentId || state.agentId === prev) return;
-    if (state.eventSource) {
-      state.eventSource.close();
-      state.eventSource = null;
-    }
-    await resolveShellAgent();
-    await refreshStatus();
-    await loadComposeDraft();
-    connectStream();
-  });
   onRouteSettingsDirty = () => markSettingsDirty("route");
 
   settingsSave.attachUi({
@@ -5989,7 +5989,13 @@ function bindUi() {
 
   initCompactSensor();
 
-  nodes.messageTarget.addEventListener("change", () => {
+  nodes.messageTarget?.addEventListener("change", () => {
+    syncRuntimeSelects("header");
+    updateRuntimeUi();
+    markRouteDirty();
+  });
+  nodes.routeRuntime?.addEventListener("change", () => {
+    syncRuntimeSelects("route");
     updateRuntimeUi();
     markRouteDirty();
   });
@@ -5998,10 +6004,6 @@ function bindUi() {
     void loadQwenPawAgents(nodes.qwenpawAgentId?.value);
   });
   nodes.qwenpawOpenUrl?.addEventListener("click", openQwenPawInBrowser);
-  nodes.linkChipOpen?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    openQwenPawInBrowser();
-  });
   nodes.qwenpawAgentId.addEventListener("change", markRouteDirty);
   for (const input of [
     nodes.bridgeUrl,
@@ -6308,12 +6310,16 @@ async function boot() {
   }
   cleanShellUrl();
   bindShellAgentGateUi();
+  bindHeaderContextUi();
   await ensureShellAgentSelected();
+  await populateHeaderAgentSelect();
+  renderHeaderHostChip();
+  renderLocalServerBadge();
   migrateShellStorageFromMobile();
   if (shellEmbedMode) {
     document.body.classList.add("shell-embed");
   }
-  initShellSurfaceSwitcher();
+  initShellSurface({ onSurface: renderHeaderHostChip });
   if (!shellEmbedMode) {
     initShellInstallBanner({
       bannerEl: document.getElementById("shell-install-banner"),
@@ -6364,8 +6370,7 @@ async function boot() {
     valueEl: nodes.locationValue,
     shareBtn: nodes.locationShare
   });
-  renderAgentChip();
-  renderServerChip();
+  syncAgentSelects();
   ttsPlayer = createShellTtsPlayer({ apiFetch, getTtsSettings: collectTtsRuntimeSettings });
   ttsTabCoordinator = createShellTtsTabCoordinator({
     onYieldSpeech: (reason) => yieldLocalTtsPlayback(reason)
@@ -6383,9 +6388,9 @@ async function boot() {
   });
   setupPttKeyboard();
   startClock();
-  window.addEventListener("online", renderHeroLinkChip);
-  window.addEventListener("offline", renderHeroLinkChip);
-  renderHeroLinkChip();
+  window.addEventListener("online", syncDialogConnectionState);
+  window.addEventListener("offline", syncDialogConnectionState);
+  syncDialogConnectionState();
   void initBatteryMonitor();
   void initShellCharacter(nodes.characterStage, nodes.agentAvatar);
   try {
