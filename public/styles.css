@@ -28106,6 +28106,27 @@ button.node-navigation-hub-rail-slot-summary {
   box-shadow: none;
 }
 
+.node-entry-overview-copy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0 2px;
+}
+
+.node-entry-overview-manifest-copy-actions {
+  margin: 0 0 14px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.node-entry-overview-copy-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+}
+
 .node-overview-settings-props-fold > .node-overview-fold-head {
   background: linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 55%, #f8fafc 100%);
 }
@@ -47455,6 +47476,7 @@ body.is-discuss-resizing .discuss-aside-resizer {
 .app-print-mode .node-overview-types,
 .app-print-mode .node-overview-types-fold,
 .app-print-mode .node-overview-action-btn,
+.app-print-mode .node-entry-overview-copy-actions,
 .app-print-mode .node-navigation-hub-rail,
 .app-print-mode .node-navigation-hub-rail-resize-bar,
 .app-print-mode .node-navigation-hub-rail-toggle,

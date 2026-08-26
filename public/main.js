@@ -53351,6 +53351,72 @@ function renderNodeOverviewAwnPropsFold(awnItems, nodePath = getResolvedNodePath
   return accordion;
 }
 
+async function copyEntryOverviewTextToClipboard(text, successMessage) {
+  const value = String(text ?? "");
+  if (!value.trim()) {
+    showToast("Нечего копировать", "error");
+    return;
+  }
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      showToast(successMessage, "success");
+      return;
+    }
+  } catch {
+    // fallback below
+  }
+
+  window.prompt("Скопируйте:", value);
+}
+
+function createEntryOverviewCopyActionsBar(rawContent = "") {
+  const raw = String(rawContent || "");
+  if (!raw.trim()) return null;
+
+  const { frontmatter, body } = splitFrontmatter(raw);
+  const hasFrontmatter = Boolean(String(frontmatter || "").trim());
+  const hasBody = Boolean(String(body || "").trim());
+  if (!hasFrontmatter && !hasBody) return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-entry-overview-copy-actions";
+  wrap.setAttribute("role", "group");
+  wrap.setAttribute("aria-label", "Копирование документа");
+
+  const makeBtn = (label, getText, successMessage, enabled = true) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "node-overview-action-btn node-entry-overview-copy-btn";
+    btn.textContent = label;
+    btn.disabled = !enabled;
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      void copyEntryOverviewTextToClipboard(getText(), successMessage);
+    });
+    return btn;
+  };
+
+  wrap.append(
+    makeBtn("Скопировать весь документ", () => raw, "Весь документ скопирован"),
+    makeBtn(
+      "Скопировать свойства",
+      () => (hasFrontmatter ? `---\n${frontmatter.trim()}\n---\n` : ""),
+      "Свойства скопированы",
+      hasFrontmatter
+    ),
+    makeBtn(
+      "Скопировать оригинал текста",
+      () => body,
+      "Оригинальный текст скопирован",
+      hasBody
+    )
+  );
+
+  return wrap;
+}
+
 function renderNodeOverviewSettingsPropsFold(settingsItems, nodePath = getResolvedNodePath(activePath)) {
   const schemaKeys = getOverviewSettingsSchemaFieldKeys(undefined, nodePath);
   const schemaFields = getOverviewSettingsSchemaFieldsFromCache(null, nodePath);
@@ -59566,6 +59632,12 @@ function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null,
 
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-manifest node-entry-overview-manifest";
+
+  const copyBar = createEntryOverviewCopyActionsBar(rawContent);
+  if (copyBar) {
+    copyBar.classList.add("node-entry-overview-manifest-copy-actions");
+    wrap.appendChild(copyBar);
+  }
 
   const preview = document.createElement("div");
   preview.className = "node-navigation-preview file-content-preview";
