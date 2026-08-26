@@ -1,4 +1,5 @@
 const shellService = require("./shell-service");
+const shellPresence = require("./shell-presence");
 const windowSettings = require("./window-settings");
 const { loadShellPromptTemplates } = require("./shell-prompt-presets");
 
@@ -169,6 +170,44 @@ function createShellHandlers(deps) {
       return true;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/shell/presence") {
+      try {
+        const state = await shellService.getState(agentRoot);
+        deps.sendJson(res, 200, shellPresence.buildPresencePayload(agentId, state));
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to read shell presence",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/presence") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const record = shellPresence.upsertPresence(agentId, payload);
+        const statePatch = {
+          shellSurfaceHost: record.surfaceHost || undefined,
+          shellSurfaceHint: record.surfaceHint || undefined,
+          shellSurfaceBackend: record.surfaceBackend || undefined
+        };
+        if (payload?.interact) {
+          statePatch.primaryClientId = record.clientId;
+        }
+        const state = await shellService.patchState(agentRoot, agentId, statePatch);
+        deps.sendJson(res, 200, shellPresence.buildPresencePayload(agentId, state));
+      } catch (error) {
+        const message = String(error?.message || error);
+        const status = /required/i.test(message) ? 400 : 500;
+        deps.sendJson(res, status, {
+          error: status === 400 ? "Invalid shell presence payload" : "Failed to update shell presence",
+          details: message
+        });
+      }
+      return true;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/shell/message") {
       try {
         const payload = await deps.readJsonBody(req);
@@ -231,8 +270,23 @@ function createShellHandlers(deps) {
         await shellService.patchState(agentRoot, agentId, {
           phase: shellService.PHASE_THINKING,
           phrase: String(payload?.displayPhrase || body).slice(0, 240),
-          lastTtsClientId: ttsClientId || undefined
+          lastTtsClientId: ttsClientId || undefined,
+          primaryClientId: ttsClientId || undefined,
+          shellSurfaceHost: String(payload?.surfaceHost || "").trim() || undefined,
+          shellSurfaceHint: String(payload?.surfaceHint || "").trim() || undefined,
+          shellSurfaceBackend: String(payload?.surfaceBackend || "").trim() || undefined
         });
+        if (ttsClientId) {
+          shellPresence.upsertPresence(agentId, {
+            shellClientId: ttsClientId,
+            surfaceHost: payload?.surfaceHost,
+            surfaceHint: payload?.surfaceHint,
+            surfaceEmbedded: payload?.surfaceEmbedded,
+            surfaceBackend: payload?.surfaceBackend,
+            hostUrl: payload?.hostUrl,
+            interact: true
+          });
+        }
 
         if (shellService.isShellShowDemoRequest(body)) {
           const result = shellService.buildShellShowDemoResult(body);

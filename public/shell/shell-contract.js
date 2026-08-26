@@ -6,6 +6,7 @@ export const SHELL_API = {
   status: "/api/shell/status",
   settings: "/api/shell/settings",
   message: "/api/shell/message",
+  presence: "/api/shell/presence",
   stopTts: "/api/shell/stop-tts",
   ttsSynthesize: "/api/shell/tts/synthesize",
   stream: "/api/shell/stream",

@@ -18,6 +18,15 @@ import {
 import { createShellSession } from "@shell/session";
 import { getShellClientId } from "@shell/client-id";
 import { getShellSurfacePayload, initShellSurfaceSwitcher } from "@shell/surface";
+import {
+  buildVoiceShellPath,
+  isEmbeddedVoiceHost,
+  isVoiceStandaloneAppLocation,
+  migrateVoiceHostQueryToPath,
+  parseVoiceShellPath,
+  readVoiceSurfaceHostFromLocation
+} from "@shell/voice-chpu";
+import { initShellPresence } from "@shell/presence";
 import { initShellOrientationChip, initShellLocationChip, getShellDeviceLocation, isShellLocationShareEnabled, refreshShellLocationForSend } from "@shell/device-chips";
 import { initShellInstallBanner } from "@shell/pwa";
 import {
@@ -156,12 +165,18 @@ let composeDraftSaveInFlight = null;
 let composeDraftExpanded = false;
 let ttsTestBusy = false;
 
+migrateVoiceHostQueryToPath();
+
 function isShellEmbedMode() {
   try {
-    return new URLSearchParams(window.location.search).get("embed") === "1";
+    if (new URLSearchParams(window.location.search).get("embed") === "1") return true;
+    if (isVoiceStandaloneAppLocation()) {
+      return isEmbeddedVoiceHost(readVoiceSurfaceHostFromLocation());
+    }
   } catch {
-    return false;
+    // ignore
   }
+  return false;
 }
 
 /** Voice на отдельном порту: /\<agent\>/ вместо /shell/\<agent\>/ */
@@ -253,6 +268,7 @@ const state = {
 
 let messageSendAbortController = null;
 let ttsTabCoordinator = null;
+let shellPresenceController = null;
 let ttsPlayer = null;
 let ttsPlaybackSeq = 0;
 const settingsSave = createSettingsSaveController();
@@ -3113,6 +3129,8 @@ function parseShellPathAgentId() {
   try {
     const parts = window.location.pathname.split("/").filter(Boolean);
     if (shellVoiceStandalone) {
+      const { agentId } = parseVoiceShellPath(window.location.pathname);
+      if (agentId) return agentId;
       const reserved = new Set([
         "shell",
         "shared",
@@ -3148,10 +3166,15 @@ function parseShellPathAgentId() {
   }
 }
 
-function shellAgentPath(agentId) {
+function shellAgentPath(agentId, surfaceHost = "") {
   const id = String(agentId || "").trim();
   if (!id) return shellVoiceStandalone ? "/" : "/shell/";
-  if (shellVoiceStandalone) return `/${encodeURIComponent(id)}/`;
+  if (shellVoiceStandalone) {
+    const host =
+      String(surfaceHost || "").trim() ||
+      readVoiceSurfaceHostFromLocation();
+    return buildVoiceShellPath(id, host);
+  }
   return `/shell/${encodeURIComponent(id)}/`;
 }
 
@@ -3160,7 +3183,9 @@ function syncShellAgentUrl(agentId) {
   const id = String(agentId || "").trim();
   if (!id) return;
   const desired = shellAgentPath(id);
-  if (window.location.pathname !== desired) {
+  const current = window.location.pathname.replace(/\/+$/, "") || "/";
+  const target = desired.replace(/\/+$/, "") || "/";
+  if (current !== target) {
     const url = new URL(window.location.href);
     url.pathname = desired;
     window.history.replaceState({}, "", url.toString());
@@ -3603,6 +3628,7 @@ async function resolveShellAgent() {
   const agent = selectable.find((entry) => entry.id === state.agentId);
   state.agentLabel = agent?.name || state.agentId || "";
   renderAgentChip();
+  shellPresenceController?.setAgentId(state.agentId);
 }
 
 async function refreshStatus() {
@@ -3939,6 +3965,7 @@ async function sendMessageDirect(
   state.messagePipelineBusy = true;
   state.processingMessage = text;
   state.pendingReplyTtsClientId = getShellClientId();
+  shellPresenceController?.ping({ interact: true });
   renderMessageQueue();
   updateSendButtonLabel();
   const target = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
@@ -4750,6 +4777,7 @@ function collectOutboundMessageSettings() {
   return {
     ttsEnabled,
     ttsPrompt: nodes.ttsPrompt?.value ?? "",
+    hostUrl: window.location.href,
     ...getShellSurfacePayload(),
     ...(deviceContext ? { deviceContext } : {})
   };
@@ -6362,6 +6390,13 @@ async function boot() {
   void initShellCharacter(nodes.characterStage, nodes.agentAvatar);
   try {
     await resolveShellAgent();
+    shellPresenceController?.stop();
+    shellPresenceController = initShellPresence({
+      agentId: state.agentId,
+      apiFetch,
+      getMicActive: () => Boolean(state.micActive || state.micTapHeld || state.pttHeld),
+      getPttHeld: () => Boolean(state.pttHeld)
+    });
     const surfacePayload = getShellSurfacePayload();
     void patchShellState({
       shellSurfaceHost: surfacePayload.surfaceHost,

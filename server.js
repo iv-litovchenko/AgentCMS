@@ -15,6 +15,7 @@ const mcpDocs = require("./mcp-docs");
 const { createGdriveSyncHelpers, getGoogleDriveSymlinkMeta } = require("./gdrive-sync");
 const { createShellHandlers } = require("./agent-shell/http-handlers");
 const { startVoiceServer, stopVoiceServer, shellLegacyRedirectTarget } = require("./voice-server");
+const voiceChpu = require("./lib/voice-chpu");
 const {
   isHttpsRedirectEnabled,
   createHttpToHttpsRedirectHandler,
@@ -14306,12 +14307,38 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
 }
 
 function isSpaAppRoute(reqPath) {
+  if (isVoiceShellSpaRoute(reqPath)) return false;
   const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
   if (normalized.startsWith("/a/")) return true;
   const firstSegment = normalized.split("/").filter(Boolean)[0];
   if (!firstSegment || isChpuReservedRootSegment(firstSegment)) return false;
   const agentId = decodeURIComponent(firstSegment);
   return getAgentsPublicList().some((agent) => agent.id === agentId);
+}
+
+function isVoiceShellSpaRoute(reqPath) {
+  const parsed = voiceChpu.parseVoiceShellPath(reqPath);
+  if (!parsed.agentId || parsed.extraSegments.length > 0) return false;
+  if (parsed.surfaceHost === voiceChpu.VOICE_DEFAULT_HOST) return false;
+  return voiceChpu.isVoiceShellHostSegment(parsed.surfaceHost);
+}
+
+async function serveVoiceShellHtml(res) {
+  const shellPath = path.join(getPublicDir(), "shell", "index.html");
+  let content = await fs.readFile(shellPath, "utf8");
+  if (!content.includes('name="agent-cms-voice-app"')) {
+    content = content.replace(
+      "<head>",
+      '<head>\n    <meta name="agent-cms-voice-app" content="1" />'
+    );
+  }
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0"
+  });
+  res.end(content);
 }
 
 async function serveIndexHtml(res, reqHost = "") {
@@ -14420,6 +14447,10 @@ async function serveStatic(reqPath, res, req) {
     res.end(content);
   } catch {
     const ext = path.extname(safePath).toLowerCase();
+    if (isVoiceShellSpaRoute(reqPath)) {
+      await serveVoiceShellHtml(res);
+      return;
+    }
     if (!ext || ext === ".html" || isSpaAppRoute(reqPath)) {
       try {
         await serveIndexHtml(res, String(req?.headers?.host || "").trim());
@@ -23928,6 +23959,11 @@ function createRequestHandler() {
     if (voiceRedirect) {
       res.writeHead(302, { Location: `${voiceRedirect}${url.search}` });
       res.end();
+      return;
+    }
+
+    if (isVoiceShellSpaRoute(url.pathname)) {
+      await serveVoiceShellHtml(res);
       return;
     }
 

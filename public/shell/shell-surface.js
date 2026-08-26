@@ -1,5 +1,12 @@
 /** Read-only surface indicator — host (where UI runs) + backend badge. */
 
+import {
+  VOICE_DEFAULT_HOST,
+  isEmbeddedVoiceHost,
+  isVoiceStandaloneAppLocation,
+  readVoiceSurfaceHostFromLocation
+} from "@shell/voice-chpu";
+
 export const SHELL_HOSTS = [
   "desktop-cms",
   "desktop-shell",
@@ -71,6 +78,14 @@ function readHostQuery() {
   }
 }
 
+function readSurfaceHost() {
+  if (isVoiceStandaloneAppLocation()) {
+    return readVoiceSurfaceHostFromLocation();
+  }
+  const fromQuery = readHostQuery();
+  return fromQuery || "";
+}
+
 function isParentDesktopCms() {
   try {
     return window.parent !== window && Boolean(window.parent.desktopApp?.isDesktop);
@@ -80,6 +95,7 @@ function isParentDesktopCms() {
 }
 
 function isExtensionContext() {
+  if (readSurfaceHost() === "extension") return true;
   if (readHostQuery() === "extension") return true;
   try {
     if (new URLSearchParams(window.location.search).get("companion") === "1") return true;
@@ -90,6 +106,7 @@ function isExtensionContext() {
 }
 
 function isMobileNativeContext() {
+  if (readSurfaceHost() === "mobile-native") return true;
   if (readHostQuery() === "mobile-native") return true;
   if (Boolean(window.shellNative?.isNative)) return true;
   try {
@@ -125,7 +142,9 @@ export function detectShellBackend() {
 /** @returns {{ host: string, hint: string, embedded: boolean, backend: ReturnType<typeof detectShellBackend> }} */
 export function detectShellSurface() {
   const inIframe = window.parent !== window;
+  const pathHost = isVoiceStandaloneAppLocation() ? readVoiceSurfaceHostFromLocation() : "";
   const queryHost = readHostQuery();
+  const surfaceHost = pathHost || queryHost;
   const mobileWebPath = isMobileWebShellPath() && isMobileWebUserAgent();
 
   if (isExtensionContext()) {
@@ -137,12 +156,12 @@ export function detectShellSurface() {
     };
   }
 
-  if (queryHost) {
-    const meta = HOST_META[queryHost];
+  if (surfaceHost) {
+    const meta = HOST_META[surfaceHost];
     return {
-      host: queryHost,
-      hint: meta?.hint || queryHost,
-      embedded: queryHost === "browser-embed" || queryHost === "desktop-cms" || isShellEmbedQuery(),
+      host: surfaceHost,
+      hint: meta?.hint || surfaceHost,
+      embedded: isEmbeddedVoiceHost(surfaceHost) || (!pathHost && isShellEmbedQuery()),
       backend: detectShellBackend()
     };
   }

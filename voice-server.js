@@ -12,6 +12,7 @@ const fsSync = require("fs");
 const path = require("path");
 const os = require("os");
 const agentRegistry = require("./agent-registry");
+const voiceChpu = require("./lib/voice-chpu");
 const {
   isHttpsRedirectEnabled,
   createHttpToHttpsRedirectHandler
@@ -105,6 +106,10 @@ function resolveVoiceAppPath(reqPath) {
 
   if (normalized.startsWith("/shell/")) return normalized;
 
+  if (voiceChpu.isVoiceAgentSpaPath(normalized, isKnownAgentId)) {
+    return "/shell/index.html";
+  }
+
   const rootMatch = normalized.match(/^\/([^/]+)$/);
   if (rootMatch) {
     const segment = decodeURIComponent(rootMatch[1]);
@@ -119,6 +124,7 @@ function resolveVoiceAppPath(reqPath) {
 function isSpaFallbackPath(reqPath) {
   const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
   if (normalized === "/") return true;
+  if (voiceChpu.isVoiceAgentSpaPath(normalized, isKnownAgentId)) return true;
   const rootMatch = normalized.match(/^\/([^/]+)$/);
   if (!rootMatch) return false;
   const segment = decodeURIComponent(rootMatch[1]);
@@ -196,7 +202,7 @@ function proxyToCms(req, res, url) {
   req.pipe(proxyReq);
 }
 
-async function serveStaticFile(relativePath, res) {
+async function serveStaticFile(relativePath, res, { spaSourcePath = "" } = {}) {
   const publicDir = getPublicDir();
   let safePath = path.normalize(relativePath).replace(/^(\.\.[\\/])+/, "").replace(/^[/\\]+/, "");
   let filePath = path.join(publicDir, safePath);
@@ -231,8 +237,9 @@ async function serveStaticFile(relativePath, res) {
     });
     res.end(content);
   } catch {
-    if (isSpaFallbackPath(relativePath === "/shell/index.html" ? "/" : relativePath)) {
-      await serveStaticFile("/shell/index.html", res);
+    const fallbackPath = String(spaSourcePath || relativePath || "/");
+    if (isSpaFallbackPath(fallbackPath.startsWith("/") ? fallbackPath : `/${fallbackPath}`)) {
+      await serveStaticFile("shell/index.html", res, { spaSourcePath: fallbackPath });
       return;
     }
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
@@ -243,22 +250,22 @@ async function serveStaticFile(relativePath, res) {
 async function serveStatic(reqPath, res) {
   const resolved = resolveVoiceAppPath(reqPath);
   if (resolved.startsWith("/shell/")) {
-    await serveStaticFile(resolved.replace(/^\//, ""), res);
+    await serveStaticFile(resolved.replace(/^\//, ""), res, { spaSourcePath: reqPath });
     return;
   }
 
   if (resolved.startsWith("/shared/") || resolved.startsWith("/vendor/") || resolved.startsWith("/cms/")) {
-    await serveStaticFile(resolved.replace(/^\//, ""), res);
+    await serveStaticFile(resolved.replace(/^\//, ""), res, { spaSourcePath: reqPath });
     return;
   }
 
   const rootFile = resolved.replace(/^\//, "");
   if (rootFile && !rootFile.includes("/")) {
-    await serveStaticFile(rootFile, res);
+    await serveStaticFile(rootFile, res, { spaSourcePath: reqPath });
     return;
   }
 
-  await serveStaticFile(resolved.replace(/^\//, ""), res);
+  await serveStaticFile(resolved.replace(/^\//, ""), res, { spaSourcePath: reqPath });
 }
 
 function createVoiceRequestHandler() {

@@ -30,6 +30,8 @@
   let panelWidth = clamp(readNumber(STORAGE_WIDTH_KEY, readDefaultPanelWidth()), 280, 520);
   let shellIframeAgentId = "";
   let panelHidden = readHiddenState();
+  let presencePollTimer = 0;
+  let lastPresence = null;
 
   function readNumber(key, fallback) {
     try {
@@ -53,16 +55,62 @@
     }
   }
 
+  function formatPresenceSummary(presence) {
+    if (!presence || !presence.clientCount) return "";
+    const hint = String(presence.primarySurfaceHint || presence.primarySurfaceHost || "").trim();
+    const count = Number(presence.clientCount) || 0;
+    if (!hint) return count > 1 ? `${count} клиента Shell` : "Shell на связи";
+    return count > 1 ? `${hint} · primary (${count})` : hint;
+  }
+
+  function applyPresenceToChatButton(presence) {
+    if (!discussPanelToggleBtnNode) return;
+    if (presence) lastPresence = presence;
+    const summary = formatPresenceSummary(presence || lastPresence);
+    const baseTitle = panelHidden ? "Открыть чат Agent CMS Voice" : "Скрыть чат Agent CMS Voice";
+    discussPanelToggleBtnNode.title = summary ? `${baseTitle} · ${summary}` : baseTitle;
+    const active = presence || lastPresence;
+    discussPanelToggleBtnNode.dataset.shellClients = String(active?.clientCount || 0);
+    discussPanelToggleBtnNode.dataset.shellPrimaryHost = String(active?.primarySurfaceHost || "");
+  }
+
+  async function refreshShellPresence() {
+    const agentId = getActiveAgentIdFromUrl();
+    if (!agentId) {
+      lastPresence = null;
+      applyPresenceToChatButton(null);
+      return null;
+    }
+    try {
+      const url = new URL("/api/shell/presence", window.location.origin);
+      url.searchParams.set("agent", agentId);
+      const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
+      applyPresenceToChatButton(data);
+      return data;
+    } catch {
+      applyPresenceToChatButton(lastPresence);
+      return lastPresence;
+    }
+  }
+
+  function bindPresencePolling() {
+    void refreshShellPresence();
+    presencePollTimer = window.setInterval(() => {
+      void refreshShellPresence();
+    }, 12000);
+    window.addEventListener("focus", () => {
+      void refreshShellPresence();
+    });
+  }
+
   function updatePanelUi() {
     if (!discussAsideNode) return;
     discussAsideNode.classList.toggle("is-hidden", panelHidden);
     discussPanelToggleBtnNode?.classList.toggle("is-active", !panelHidden);
     discussPanelToggleBtnNode?.setAttribute("aria-expanded", panelHidden ? "false" : "true");
-    if (discussPanelToggleBtnNode) {
-      discussPanelToggleBtnNode.title = panelHidden
-        ? "Открыть чат Agent CMS Voice"
-        : "Скрыть чат Agent CMS Voice";
-    }
+    applyPresenceToChatButton(lastPresence);
   }
 
   function setPanelHidden(next) {
@@ -103,25 +151,21 @@
     return "";
   }
 
-  function resolveVoiceShellBaseUrl() {
-    try {
-      const explicit = String(window.__AGENT_CMS_VOICE_URL__ || "").trim();
-      if (explicit) return explicit.replace(/\/+$/, "");
-    } catch {
-      // ignore
-    }
-    const host = window.location.hostname || "127.0.0.1";
-    return `https://${host}:3488`;
+  function buildShellIframeUrl(agentId) {
+    const id = String(agentId || "").trim();
+    const host = window.desktopApp?.isDesktop ? "desktop-cms" : "browser-embed";
+    const path = id ? `/${encodeURIComponent(id)}/${host}/` : "/";
+    return new URL(path, window.location.origin).toString();
   }
 
-  function buildShellIframeUrl(agentId) {
-    const base = resolveVoiceShellBaseUrl();
-    const id = String(agentId || "").trim();
-    const path = id ? `/${encodeURIComponent(id)}/` : "/";
-    const url = new URL(path, `${base}/`);
-    url.searchParams.set("embed", "1");
-    url.searchParams.set("host", window.desktopApp?.isDesktop ? "desktop-cms" : "browser-embed");
-    return url.toString();
+  function shouldReloadShellIframe(currentSrc, nextUrl, nextAgentId) {
+    if (!currentSrc) return true;
+    if (shellIframeAgentId !== nextAgentId) return true;
+    try {
+      return new URL(currentSrc).pathname.replace(/\/+$/, "") !== new URL(nextUrl).pathname.replace(/\/+$/, "");
+    } catch {
+      return currentSrc !== nextUrl;
+    }
   }
 
   function ensureShellIframeLoaded(agentId) {
@@ -129,12 +173,7 @@
     const nextAgentId = String(agentId || "").trim();
     const nextUrl = buildShellIframeUrl(nextAgentId);
     const currentSrc = discussShellIframeNode.getAttribute("src") || "";
-    if (!currentSrc) {
-      discussShellIframeNode.src = nextUrl;
-      shellIframeAgentId = nextAgentId;
-      return;
-    }
-    if (shellIframeAgentId !== nextAgentId) {
+    if (shouldReloadShellIframe(currentSrc, nextUrl, nextAgentId)) {
       discussShellIframeNode.src = nextUrl;
       shellIframeAgentId = nextAgentId;
     }
@@ -209,11 +248,13 @@
   function syncFromApp() {
     const agentId = getActiveAgentIdFromUrl();
     ensureShellIframeLoaded(agentId);
+    void refreshShellPresence();
   }
 
   bindResize();
   bindHeaderToggle();
   bindDiscussAsideHeightSync();
+  bindPresencePolling();
   applyPanelWidth();
   updatePanelUi();
   ensureShellIframeLoaded(getActiveAgentIdFromUrl());
@@ -225,5 +266,6 @@
     toggle: () => setPanelHidden(!panelHidden),
     isCollapsed: () => panelHidden,
     setCollapsed: (next) => setPanelHidden(next),
+    getPresence: refreshShellPresence
   };
 })();

@@ -104,6 +104,7 @@ const DEFAULT_STATE = {
   pttHeld: false,
   meetingRecording: false,
   lastTtsClientId: "",
+  primaryClientId: "",
   updatedAt: ""
 };
 
