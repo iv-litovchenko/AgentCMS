@@ -11,13 +11,28 @@
             "id": "405da914a80a02f6",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
-              "icon": "lucide-file",
-              "title": "Новая вкладка"
+              "type": "release-notes",
+              "state": {
+                "currentVersion": "1.13.4"
+              },
+              "icon": "lucide-book-up",
+              "title": "примечания к выпуску 1.13.4"
+            }
+          },
+          {
+            "id": "11325e1cb0def270",
+            "type": "leaf",
+            "state": {
+              "type": "release-notes",
+              "state": {
+                "currentVersion": "1.13.7"
+              },
+              "icon": "lucide-book-up",
+              "title": "примечания к выпуску 1.13.7"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -37,7 +52,9 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
               "title": "Файловый менеджер"
@@ -176,7 +193,7 @@
       "bases:Создать новую базу": false
     }
   },
-  "active": "405da914a80a02f6",
+  "active": "11325e1cb0def270",
   "lastOpenFiles": [
     "awn-system/schema-mod.yml",
     "zadachi-plany-i-idei/awn-storage/history/main/git-dlya-md-faylov-i-media-razdelno.md/2026-08-07_16-06-29-466.mdback",
