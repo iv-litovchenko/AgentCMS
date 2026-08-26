@@ -93,6 +93,9 @@ export function initShellHints() {
     if (active) positionHint(active);
   });
 
-  updateTtsPlaybackHint(document.getElementById("shell-tts-playback-mode")?.value || "dialog");
+  updateTtsPlaybackHint(
+    document.querySelector('#shell-tts-playback-mode input[name="shell-tts-playback-mode"]:checked')?.value ||
+      "dialog"
+  );
   updateVoiceModeHint(document.getElementById("shell-voice-mode")?.value || "hold");
 }

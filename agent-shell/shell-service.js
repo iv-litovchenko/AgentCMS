@@ -23,7 +23,7 @@ const {
   runtimeUsesBridge
 } = require("./shell-runtimes");
 const { checkOpenAiRuntimeHealth, chatOpenAiCompletions } = require("./runtime-openai-client");
-const { checkAnthropicRuntimeHealth, chatAnthropicMessages } = require("./runtime-anthropic-client");
+const { checkCliRuntimeHealth, chatClaudeCli, chatCodexCli, resolveCliBinary } = require("./runtime-cli-client");
 const {
   resolveRuntimeEndpoint,
   buildDefaultRuntimeSettings,
@@ -31,7 +31,7 @@ const {
   runtimeHealthPath,
   RUNTIME_TRANSPORT
 } = require("./runtime-bridge");
-const { probeAvailableRuntimes, hasApiKeyForRuntime } = require("./runtime-probe");
+const { probeAvailableRuntimes } = require("./runtime-probe");
 
 const SETTINGS_DIR = ".agent-shell";
 const SETTINGS_FILE = "settings.json";
@@ -549,10 +549,11 @@ async function checkBridgeRuntimeHealth(settings, runtime = getMessageRuntime(se
   }
   const endpoint = resolveRuntimeEndpoint(settings, id);
   let health;
-  if (endpoint.transport === RUNTIME_TRANSPORT.claude) {
-    health = await checkAnthropicRuntimeHealth({
-      baseUrl: endpoint.baseUrl,
-      apiKey: endpoint.apiKey
+  if (endpoint.transport === RUNTIME_TRANSPORT.cli) {
+    const binary = await resolveCliBinary(id, settings);
+    health = await checkCliRuntimeHealth({
+      runtime: id,
+      binary: binary || endpoint.cliPath
     });
   } else {
     health = await checkOpenAiRuntimeHealth({
@@ -608,9 +609,11 @@ async function probeAllRuntimeStatuses(settings) {
 
   for (const runtime of ["claude", "codex"]) {
     const installed = probe.installed.includes(runtime);
-    const configured = hasApiKeyForRuntime(runtime, settings);
+    const configured = installed;
     let ok = false;
-    let error = installed ? "" : "Нет API-ключа или CLI";
+    let error = installed
+      ? ""
+      : "CLI не найден процессом Shell — проверьте PATH или claudeCliPath/codexCliPath";
     if (installed) {
       try {
         const health = await checkBridgeRuntimeHealth(settings, runtime);
@@ -1070,12 +1073,15 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
 
   let reply;
   try {
-    if (endpoint.transport === RUNTIME_TRANSPORT.claude) {
-      reply = await chatAnthropicMessages({
-        baseUrl: endpoint.baseUrl,
-        apiKey: endpoint.apiKey,
+    if (endpoint.transport === RUNTIME_TRANSPORT.cli) {
+      const binary = await resolveCliBinary(runtime, settings);
+      const cliChat = runtime === "codex" ? chatCodexCli : chatClaudeCli;
+      reply = await cliChat({
+        binary: binary || endpoint.cliPath,
         model: endpoint.model,
         messages,
+        sessionId: endpoint.sessionId,
+        cwd: agentRoot,
         onDelta
       });
     } else {

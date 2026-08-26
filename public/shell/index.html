@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=271" />
+    <link rel="stylesheet" href="/shell/shell.css?v=293" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=1" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -20,7 +20,7 @@
       {
         "imports": {
           "three": "/shell/vendor/three.module.js",
-          "@shell/settings-save": "/shell/shell-settings-save.js?v=251",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=292",
           "@shell/reply": "/shell/shell-reply.js?v=207",
           "@shell/markdown": "/shell/shell-markdown.js?v=207",
           "@shell/character": "/shell/shell-character.js?v=207",
@@ -51,7 +51,7 @@
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=207",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
-          "@shell/runtimes": "/shell/shell-runtimes.js?v=254",
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=289",
           "@shell/build": "/shell/shell-build.js?v=251"
         }
       }
@@ -321,10 +321,6 @@
           <div class="shell-settings-panels">
         <section class="shell-route-panel" id="shell-route-panel" role="tabpanel" aria-labelledby="shell-settings-tab-route">
         <label class="shell-field">
-          <span class="shell-label">Хранилище (агент)</span>
-          <select id="shell-route-agent" class="shell-select agent-select" aria-label="Хранилище (агент)"></select>
-        </label>
-        <label class="shell-field">
           <span class="shell-label">Runtime</span>
           <select id="shell-route-runtime" class="shell-select" aria-label="Runtime"></select>
         </label>
@@ -385,7 +381,7 @@
 
         <div class="shell-runtime-bridge-panel" id="shell-runtime-bridge-panel" data-visible="0">
           <div class="shell-runtime-bridge-fields">
-            <label class="shell-field shell-field--compact">
+            <label class="shell-field shell-field--compact" id="shell-runtime-bridge-url-field">
               <span class="shell-label" id="shell-runtime-bridge-url-label">Base URL</span>
               <input
                 id="shell-runtime-bridge-url"
@@ -413,7 +409,7 @@
                 class="shell-input"
                 type="text"
                 spellcheck="false"
-                placeholder="hermes-agent"
+                placeholder="по умолчанию из CLI"
               />
             </label>
             <label class="shell-field shell-field--compact hidden" id="shell-runtime-bridge-profile-field" hidden>
@@ -443,7 +439,7 @@
                 class="shell-input"
                 type="text"
                 spellcheck="false"
-                placeholder="agent-shell"
+                placeholder="для --resume (необязательно)"
               />
             </label>
           </div>
@@ -1033,39 +1029,45 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <div class="shell-hero-avatar-stage">
             <button
               type="button"
-              class="shell-agent-avatar shell-agent-avatar--hero shell-hero-sensor"
+              class="shell-compact-sensor shell-hero-sensor shell-agent-avatar"
               id="shell-agent-avatar"
               data-phase="waiting"
-              data-hero-state="idle"
-              data-activity="idle"
-              aria-label="Ожидаю"
+              data-hero-state="ready"
+              data-activity="ready"
+              aria-label="Готов к сообщению"
             >
-              <span class="shell-hero-sensor-ripple" aria-hidden="true"></span>
-              <span class="shell-hero-sensor-ripple shell-hero-sensor-ripple--echo" aria-hidden="true"></span>
-              <span class="shell-hero-sensor-ring" aria-hidden="true"></span>
-              <span class="shell-voice-wave shell-hero-sensor-waves hidden" id="shell-voice-wave" aria-hidden="true">
+              <span class="shell-compact-sensor-ripple" aria-hidden="true"></span>
+              <span class="shell-compact-sensor-ripple shell-compact-sensor-ripple--echo" aria-hidden="true"></span>
+              <span class="shell-compact-sensor-ring" aria-hidden="true"></span>
+              <span class="shell-voice-wave shell-compact-sensor-waves hidden" id="shell-voice-wave" aria-hidden="true">
                 <span></span>
                 <span></span>
                 <span></span>
                 <span></span>
                 <span></span>
               </span>
-              <svg class="shell-agent-svg shell-hero-sensor-cloud" viewBox="0 0 64 64" role="presentation">
-                <circle class="shell-agent-ring" cx="32" cy="32" r="29" />
-                <circle class="shell-agent-face" cx="32" cy="30" r="17" />
-                <circle class="shell-agent-eye" cx="26" cy="28" r="2.5" />
-                <circle class="shell-agent-eye" cx="38" cy="28" r="2.5" />
-                <path class="shell-agent-mouth" d="M24 38 Q32 44 40 38" />
-                <ellipse class="shell-agent-glow" cx="32" cy="52" rx="10" ry="3" />
+              <span class="shell-compact-sensor-typing" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+              <svg class="shell-compact-sensor-cloud" viewBox="0 0 64 64" role="presentation">
+                <circle class="shell-compact-cloud-ring" cx="32" cy="32" r="29" />
+                <circle class="shell-compact-cloud-face" cx="32" cy="30" r="17" />
+                <circle class="shell-compact-cloud-eye" cx="26" cy="28" r="2.5" />
+                <circle class="shell-compact-cloud-eye" cx="38" cy="28" r="2.5" />
+                <path class="shell-compact-cloud-mouth" d="M24 38 Q32 44 40 38" />
+                <ellipse class="shell-compact-cloud-glow" cx="32" cy="52" rx="10" ry="3" />
               </svg>
             </button>
             </div>
 
-            <p class="shell-hero-status-badge is-idle" id="shell-phase-label" aria-live="polite">Ожидаю</p>
+            <p class="shell-hero-status-badge is-ready" id="shell-phase-label" aria-live="polite">Готов к сообщению</p>
             <div class="shell-status-meta shell-hero-status-meta" id="shell-meta"></div>
 
             <div class="shell-hero-demo-bar" id="shell-hero-demo-bar" aria-label="Примеры статусов">
               <span class="shell-hero-demo-label">Пример</span>
+              <button type="button" class="shell-hero-demo-btn" data-hero-demo="ready">Готов</button>
               <button type="button" class="shell-hero-demo-btn" data-hero-demo="idle">Ожидаю</button>
               <button type="button" class="shell-hero-demo-btn" data-hero-demo="listening">Слушаю</button>
               <button type="button" class="shell-hero-demo-btn" data-hero-demo="thinking">Думаю</button>
@@ -1137,32 +1139,44 @@ aya_bar_v2 тоже читает те же файлы</pre>
       <section class="shell-voice-settings-panel shell-voice-settings-panel--tts" id="shell-voice-tts-panel">
         <details class="shell-voice-settings-details">
           <summary class="shell-voice-settings-summary" id="shell-tts-settings-summary">
-            <span class="shell-voice-settings-summary-title">Голосовой вывод</span>
+            <span class="shell-voice-settings-summary-title">Голосовой ответ</span>
             <span class="shell-voice-settings-summary-actions">
+              <label
+                class="shell-check shell-voice-settings-summary-option shell-reply-tts"
+                title="Текст ответа агента → голос"
+              >
+                <input id="shell-tts-enabled" type="checkbox" checked aria-label="Включить TTS" />
+                <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--tts">TTS</span>
+              </label>
               <span
                 class="shell-hint shell-voice-settings-summary-control"
                 id="shell-tts-playback-hint"
                 data-hint="Диалог — озвучка по мере печати ответа (как живой разговор)."
               >
-                <select
-                  id="shell-tts-playback-mode"
-                  class="shell-select shell-tts-playback-mode"
-                  aria-label="Режим озвучки"
-                >
-                  <option value="dialog" selected>Диалог</option>
-                  <option value="reading">Чтение</option>
-                </select>
+                <span class="shell-tts-playback-radio" id="shell-tts-playback-mode" role="radiogroup" aria-label="Режим озвучки">
+                  <label class="shell-check shell-tts-playback-radio-option">
+                    <input type="radio" name="shell-tts-playback-mode" value="dialog" checked />
+                    <span>Диалог</span>
+                  </label>
+                  <label class="shell-check shell-tts-playback-radio-option">
+                    <input type="radio" name="shell-tts-playback-mode" value="reading" />
+                    <span>Чтение</span>
+                  </label>
+                </span>
               </span>
-              <span class="shell-voice-settings-summary-hint">TTS</span>
             </span>
+            <button
+              type="button"
+              class="shell-icon-btn shell-voice-settings-expand shell-tts-settings-toggle"
+              id="shell-tts-settings-toggle"
+              title="Настройки голосового ответа"
+              aria-label="Настройки голосового ответа"
+              aria-expanded="false"
+            >
+              ⚙️
+            </button>
           </summary>
           <div class="shell-voice-settings-body shell-voice-settings-body--single">
-            <div class="shell-voice-settings-toolbar shell-reply-tts-bar">
-              <label class="shell-check shell-reply-tts" title="Текст ответа агента → голос">
-                <input id="shell-tts-enabled" type="checkbox" checked />
-                <span>Включить TTS</span>
-              </label>
-            </div>
             <div class="shell-tts-settings" id="shell-tts-settings">
           <label class="shell-field shell-field--compact">
             <span class="shell-label shell-label-row shell-label-row--spread">
@@ -1278,16 +1292,26 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <summary class="shell-voice-settings-summary" id="shell-stt-settings-summary">
             <span class="shell-voice-settings-summary-title">Голосовой ввод</span>
             <span class="shell-voice-settings-summary-actions">
-              <span class="shell-voice-settings-summary-hint">STT</span>
+              <label
+                class="shell-check shell-voice-settings-summary-option shell-compose-stt"
+                title="Ваш голос → текст сообщения"
+              >
+                <input id="shell-stt-enabled" type="checkbox" checked aria-label="Включить STT" />
+                <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--stt">STT</span>
+              </label>
             </span>
+            <button
+              type="button"
+              class="shell-icon-btn shell-voice-settings-expand shell-stt-settings-toggle"
+              id="shell-stt-settings-toggle"
+              title="Настройки голосового ввода"
+              aria-label="Настройки голосового ввода"
+              aria-expanded="false"
+            >
+              ⚙️
+            </button>
           </summary>
           <div class="shell-voice-settings-body shell-voice-settings-body--single">
-            <div class="shell-voice-settings-toolbar shell-compose-stt-bar">
-              <label class="shell-check shell-compose-stt" title="Ваш голос → текст сообщения">
-                <input id="shell-stt-enabled" type="checkbox" checked />
-                <span>Включить STT</span>
-              </label>
-            </div>
             <div class="shell-stt-settings" id="shell-stt-settings">
                 <p class="shell-stt-settings-note">
                   Язык и промпт сохраняются в <code>settings.json</code>. Режим ввода — у кнопки 🎤.
@@ -1655,6 +1679,15 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </button>
               <button
                 type="button"
+                class="shell-icon-btn shell-compose-tool"
+                id="shell-screenshot-action"
+                aria-label="Сделать скриншот"
+                title="Снимок экрана или камеры для агента"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">📸</span>
+              </button>
+              <button
+                type="button"
                 class="shell-icon-btn shell-compose-tool shell-compose-attach"
                 id="shell-attach-btn"
                 disabled
@@ -1691,42 +1724,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
         </p>
         </div>
         <div class="shell-compose-expand-backdrop hidden" id="shell-compose-expand-backdrop" hidden></div>
-      </section>
-
-      <section class="shell-tools-panel" id="shell-voice-panel">
-        <div class="shell-section-label">Действия</div>
-        <div class="shell-action-row">
-          <button
-            type="button"
-            class="shell-action-card"
-            id="shell-screenshot-action"
-            title="Снимок экрана или камеры для агента"
-            aria-label="Сделать скриншот"
-          >
-            <span class="shell-action-icon" aria-hidden="true">📸</span>
-            <span class="shell-action-label">Скриншот</span>
-          </button>
-          <button
-            type="button"
-            class="shell-action-card"
-            id="shell-clipboard-read-action"
-            title="Прочитать буфер обмена и показать агенту"
-            aria-label="Прочитать буфер обмена"
-          >
-            <span class="shell-action-icon" aria-hidden="true">📋</span>
-            <span class="shell-action-label">Буфер</span>
-          </button>
-          <button
-            type="button"
-            class="shell-action-card"
-            id="shell-clipboard-paste-action"
-            title="Вставить текст из буфера в сообщение"
-            aria-label="Вставить из буфера"
-          >
-            <span class="shell-action-icon" aria-hidden="true">✎</span>
-            <span class="shell-action-label">Вставить</span>
-          </button>
-        </div>
       </section>
 
       <section class="shell-media shell-media--drawer hidden" id="shell-media-section" data-mode="">
@@ -1924,6 +1921,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=271" type="module"></script>
+    <script src="/shell/shell.js?v=295" type="module"></script>
   </body>
 </html>

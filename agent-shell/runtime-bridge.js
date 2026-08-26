@@ -5,9 +5,10 @@ const RUNTIME_TRANSPORT = {
   hermes: "openai",
   openclaw: "openai",
   cursor: "openai",
-  codex: "openai",
-  claude: "anthropic",
-  "agent-zero": "openai"
+  codex: "cli",
+  claude: "cli",
+  "agent-zero": "openai",
+  cli: "cli"
 };
 
 const RUNTIME_DEFAULTS = {
@@ -36,16 +37,16 @@ const RUNTIME_DEFAULTS = {
     sessionId: "agent-shell"
   },
   codex: {
-    baseUrl: "https://api.openai.com",
-    model: "gpt-4o",
+    cliPath: "codex",
+    model: "",
     profile: "",
-    sessionId: "agent-shell"
+    sessionId: ""
   },
   claude: {
-    baseUrl: "https://api.anthropic.com",
-    model: "claude-sonnet-4-20250514",
+    cliPath: "claude",
+    model: "",
     profile: "",
-    sessionId: "agent-shell"
+    sessionId: ""
   },
   "agent-zero": {
     baseUrl: "http://127.0.0.1:42617",
@@ -106,11 +107,12 @@ function resolveRuntimeEndpoint(settings, runtime) {
     };
   }
 
-  if (id === "claude") {
+  if (id === "claude" || id === "codex") {
+    const cliPath = readRuntimeString(settings, id, "CliPath", defaults.cliPath || id);
     return {
-      transport: RUNTIME_TRANSPORT.claude,
-      baseUrl: baseUrl.replace(/\/+$/, ""),
-      apiKey: readRuntimeString(settings, id, "ApiKey"),
+      transport: RUNTIME_TRANSPORT.cli,
+      runtime: id,
+      cliPath: /^https?:\/\//i.test(cliPath) ? defaults.cliPath || id : cliPath,
       model: readRuntimeString(settings, id, "Model", defaults.model),
       profile,
       agentId,
@@ -134,6 +136,13 @@ function buildRuntimeSettingsPatch(runtime) {
   const id = String(runtime || "").trim();
   const defaults = RUNTIME_DEFAULTS[id];
   if (!defaults) return {};
+  if (id === "claude" || id === "codex") {
+    return {
+      [runtimeField(id, "CliPath")]: defaults.cliPath || id,
+      [runtimeField(id, "Model")]: defaults.model || "",
+      [runtimeField(id, "SessionId")]: defaults.sessionId || ""
+    };
+  }
   return {
     [runtimeField(id, "BaseUrl")]: defaults.baseUrl,
     [runtimeField(id, "ApiKey")]: "",

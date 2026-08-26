@@ -86,7 +86,10 @@ import {
   runtimeUsesBridge,
   bridgeRuntimeField,
   runtimeShowsProfile,
-  runtimeShowsAgentId
+  runtimeShowsAgentId,
+  runtimeUsesCli,
+  runtimeShowsApiKey,
+  runtimeShowsBaseUrl
 } from "@shell/runtimes";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
@@ -98,19 +101,27 @@ let voiceModeHydratedFromServer = false;
 let lastCommittedVoiceMode = "";
 
 /** dialog — озвучка по мере печати; reading — после полного ответа и маркера. */
-function getTtsPlaybackMode() {
-  const fromDom = nodes.ttsPlaybackMode?.value;
+function readTtsPlaybackModeFromDom() {
+  const checked = nodes.ttsPlaybackModeGroup?.querySelector('input[name="shell-tts-playback-mode"]:checked');
+  const fromDom = checked?.value;
   if (fromDom === "reading" || fromDom === "dialog") return fromDom;
+  return null;
+}
+
+function getTtsPlaybackMode() {
+  const fromDom = readTtsPlaybackModeFromDom();
+  if (fromDom) return fromDom;
   const mode = String(state.settings?.ttsPlaybackMode || "dialog").trim();
   return mode === "reading" ? "reading" : "dialog";
 }
 
 function syncTtsPlaybackModeUi(settings = state.settings) {
-  if (!nodes.ttsPlaybackMode || document.activeElement === nodes.ttsPlaybackMode || ttsPlaybackModePersisting) {
-    return;
-  }
+  if (!nodes.ttsPlaybackModeGroup || ttsPlaybackModePersisting) return;
+  const active = document.activeElement;
+  if (active && nodes.ttsPlaybackModeGroup.contains(active)) return;
   const mode = settings?.ttsPlaybackMode === "reading" ? "reading" : "dialog";
-  nodes.ttsPlaybackMode.value = mode;
+  const input = nodes.ttsPlaybackModeGroup.querySelector(`input[name="shell-tts-playback-mode"][value="${mode}"]`);
+  if (input) input.checked = true;
   updateTtsPlaybackHint(mode);
 }
 
@@ -158,20 +169,22 @@ const PHASE_LABELS = {
 };
 
 const HERO_STATE_LABELS = {
+  ready: "Готов к сообщению",
   idle: "Ожидаю",
+  listening: "Слушаю",
   thinking: "Думаю",
   replying: "Отвечаю"
 };
 
 const HERO_DEMO_PRESETS = {
+  ready: { phase: "waiting", heroState: "ready", phrase: "Готов к сообщению" },
   idle: { phase: "waiting", heroState: "idle", phrase: "Ожидаю" },
-  listening: { phase: "listening", heroState: "idle", phrase: "Слушаю" },
+  listening: { phase: "listening", heroState: "listening", phrase: "Слушаю" },
   thinking: { phase: "thinking", heroState: "thinking", phrase: "Думаю" },
   replying: { phase: "speaking", heroState: "replying", phrase: "Отвечаю" }
 };
 
 let heroStatusDemo = null;
-let heroStatusDemoTimer = null;
 
 const VOICE_MODE_TITLES = VOICE_MODE_LABELS;
 
@@ -679,7 +692,9 @@ const nodes = {
   bridgePanel: document.getElementById("shell-runtime-bridge-panel"),
   bridgeUrlLabel: document.getElementById("shell-runtime-bridge-url-label"),
   bridgeUrl: document.getElementById("shell-runtime-bridge-url"),
+  bridgeUrlField: document.getElementById("shell-runtime-bridge-url-field"),
   bridgeApiKey: document.getElementById("shell-runtime-bridge-api-key"),
+  bridgeApiKeyField: document.getElementById("shell-runtime-bridge-api-key-field"),
   bridgeModel: document.getElementById("shell-runtime-bridge-model"),
   bridgeProfileField: document.getElementById("shell-runtime-bridge-profile-field"),
   bridgeProfile: document.getElementById("shell-runtime-bridge-profile"),
@@ -687,9 +702,10 @@ const nodes = {
   bridgeAgentId: document.getElementById("shell-runtime-bridge-agent-id"),
   bridgeSessionId: document.getElementById("shell-runtime-bridge-session-id"),
   ttsEnabled: document.getElementById("shell-tts-enabled"),
-  ttsPlaybackMode: document.getElementById("shell-tts-playback-mode"),
+  ttsPlaybackModeGroup: document.getElementById("shell-tts-playback-mode"),
   ttsPlaybackHint: document.getElementById("shell-tts-playback-hint"),
   ttsSettingsSummary: document.getElementById("shell-tts-settings-summary"),
+  ttsSettingsToggle: document.getElementById("shell-tts-settings-toggle"),
   ttsSettingsPanel: document.getElementById("shell-tts-settings"),
   ttsPrompt: document.getElementById("shell-tts-prompt"),
   ttsPromptInsert: document.getElementById("shell-tts-prompt-insert"),
@@ -710,6 +726,7 @@ const nodes = {
   ttsRateValue: document.getElementById("shell-tts-rate-value"),
   sttEnabled: document.getElementById("shell-stt-enabled"),
   sttSettingsSummary: document.getElementById("shell-stt-settings-summary"),
+  sttSettingsToggle: document.getElementById("shell-stt-settings-toggle"),
   sttSettingsPanel: document.getElementById("shell-stt-settings"),
   sttPrompt: document.getElementById("shell-stt-prompt"),
   sttPromptInsert: document.getElementById("shell-stt-prompt-insert"),
@@ -801,8 +818,6 @@ const nodes = {
   composeCameraFile: document.getElementById("shell-compose-camera-file"),
   watchScreen: document.getElementById("shell-watch-screen"),
   screenshotAction: document.getElementById("shell-screenshot-action"),
-  clipboardReadAction: document.getElementById("shell-clipboard-read-action"),
-  clipboardPasteAction: document.getElementById("shell-clipboard-paste-action"),
   compactAction: document.getElementById("shell-compact-action"),
   compactStage: document.getElementById("shell-compact-stage"),
   compactSensor: document.getElementById("shell-compact-sensor"),
@@ -818,7 +833,6 @@ const nodes = {
   agentGateSelect: document.getElementById("shell-agent-gate-select"),
   agentGateOpen: document.getElementById("shell-agent-gate-open"),
   headerAgent: document.getElementById("shell-header-agent"),
-  routeAgent: document.getElementById("shell-route-agent"),
   headerHost: document.getElementById("shell-header-host"),
   orientChip: document.getElementById("shell-orient-chip"),
   orientValue: document.getElementById("shell-orient-value"),
@@ -986,23 +1000,18 @@ function syncAgentSelects() {
   if (nodes.headerAgent && state.agentId) {
     nodes.headerAgent.value = state.agentId;
   }
-  if (nodes.routeAgent && state.agentId) {
-    nodes.routeAgent.value = state.agentId;
-  }
 }
 
 async function populateAgentSelects() {
   const data = await loadAgentSelectData();
   const selected = String(state.agentId || "").trim();
-  const options = {
+  populateAgentSelect(nodes.headerAgent, {
     agents: data.agents,
     groups: data.groups,
     selectedId: selected,
     placeholder: "— Хранилище (агент) —",
     includePlaceholder: true
-  };
-  populateAgentSelect(nodes.headerAgent, options);
-  populateAgentSelect(nodes.routeAgent, options);
+  });
 }
 
 async function populateHeaderAgentSelect() {
@@ -1042,7 +1051,6 @@ function renderHeaderHostChip() {
 
 function bindHeaderContextUi() {
   bindAgentSelectUi(nodes.headerAgent);
-  bindAgentSelectUi(nodes.routeAgent);
 }
 
 function resolveShellServerConnectionState() {
@@ -1136,6 +1144,7 @@ function resolveHeroStatusBadgeClass(displayPhase, heroState) {
   if (displayPhase === "listening") return "is-active";
   if (heroState === "thinking") return "is-busy";
   if (heroState === "replying") return "is-speaking";
+  if (heroState === "ready") return "is-ready";
   return "is-idle";
 }
 
@@ -1143,24 +1152,33 @@ function resolveHeroSensorActivity(displayPhase, heroState) {
   if (displayPhase === "listening") return "listening";
   if (heroState === "replying") return "speaking";
   if (heroState === "thinking") return "thinking";
+  if (heroState === "ready") return "ready";
   return "idle";
 }
 
-function resolveHeroAvatarState(requestedPhase = "waiting") {
+function isHeroReadyPhrase(phrase = "") {
+  const text = String(phrase || "").trim();
+  if (!text) return true;
+  return text.startsWith("Готов к сообщению");
+}
+
+function resolveHeroAvatarState(requestedPhase = "waiting", phrase = "") {
   if (heroStatusDemo?.heroState) return heroStatusDemo.heroState;
   if (isTtsPlaybackActive()) return "replying";
   if (state.assistantStream && !state.assistantStream.finalized) return "replying";
   const displayPhase = resolveDisplayPhase(requestedPhase);
+  if (displayPhase === "listening") return "listening";
   if (displayPhase === "thinking") return "thinking";
   if (state.messagePipelineBusy) return "thinking";
+  if (displayPhase === "waiting" && isHeroReadyPhrase(phrase)) return "ready";
   return "idle";
 }
 
 function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false, phrase = "" } = {}) {
   const displayPhase = heroStatusDemo?.phase || resolveDisplayPhase(requestedPhase);
-  const heroState = resolveHeroAvatarState(requestedPhase);
   const statusText = String(phrase || "").trim();
   const demoPhrase = heroStatusDemo?.phrase || "";
+  const heroState = resolveHeroAvatarState(requestedPhase, demoPhrase || statusText);
 
   if (nodes.agentAvatar) {
     nodes.agentAvatar.dataset.phase = displayPhase;
@@ -1179,7 +1197,7 @@ function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false
   }
 
   if (updateLabel && !state.ttsPaused && nodes.phaseLabel) {
-    nodes.phaseLabel.classList.remove("is-idle", "is-active", "is-busy", "is-speaking", "is-typing");
+    nodes.phaseLabel.classList.remove("is-idle", "is-ready", "is-active", "is-busy", "is-speaking", "is-typing");
     let labelText = demoPhrase;
     if (!labelText) {
       if (statusText) {
@@ -1203,10 +1221,6 @@ function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false
 
 function clearHeroStatusDemo() {
   heroStatusDemo = null;
-  if (heroStatusDemoTimer) {
-    clearTimeout(heroStatusDemoTimer);
-    heroStatusDemoTimer = null;
-  }
   nodes.heroDemoBar?.querySelectorAll("[data-hero-demo].is-active").forEach((btn) => {
     btn.classList.remove("is-active");
   });
@@ -1215,15 +1229,15 @@ function clearHeroStatusDemo() {
 function applyHeroStatusDemo(key) {
   const preset = HERO_DEMO_PRESETS[key];
   if (!preset) return;
-  heroStatusDemo = { key, ...preset };
-  if (heroStatusDemoTimer) clearTimeout(heroStatusDemoTimer);
-  heroStatusDemoTimer = setTimeout(() => {
+  if (heroStatusDemo?.key === key) {
     clearHeroStatusDemo();
     syncHeroAvatarVisuals(state.shellState?.phase || "waiting", {
       updateLabel: true,
       phrase: state.shellState?.phrase || ""
     });
-  }, 9000);
+    return;
+  }
+  heroStatusDemo = { key, ...preset };
   syncHeroAvatarVisuals(preset.phase, { updateLabel: true, phrase: preset.phrase });
 }
 
@@ -1235,7 +1249,6 @@ function maybeResetStaleSpeakingPhase() {
 
 function renderPhase(phase, phrase = "", metrics = "") {
   if (shellSession?.shouldBlockPhaseUpdate(phase)) return;
-  clearHeroStatusDemo();
   const statusText = String(phrase || "").trim();
   const skipLabel = shellSession?.shouldSkipDuplicatePhase(phase) && !statusText;
   if (!skipLabel) shellSession?.rememberPhase(phase);
@@ -2539,50 +2552,6 @@ async function takeManualScreenshot() {
   renderPhase("waiting", "Сначала включите камеру 📷 или демонстрацию экрана 🖥");
 }
 
-async function readClipboardText() {
-  if (!navigator.clipboard?.readText) {
-    throw new Error("Буфер обмена недоступен в этом браузере");
-  }
-  return navigator.clipboard.readText();
-}
-
-async function readClipboardForAgent() {
-  try {
-    const text = String(await readClipboardText() || "").trim();
-    if (!text) {
-      renderPhase("waiting", "Буфер пуст");
-      return;
-    }
-    state.lastClipboardText = text;
-    const preview = text.length > 320 ? `${text.slice(0, 320)}…` : text;
-    renderShellReplyMarkdown(nodes.lastReplyText, `**Буфер обмена**\n\n${preview}`);
-    renderPhase(state.shellState?.phase || "waiting", "Буфер прочитан");
-  } catch {
-    renderPhase("waiting", "Нет доступа к буферу — разрешите в браузере");
-  }
-}
-
-async function pasteClipboardToCompose() {
-  try {
-    const text = String(await readClipboardText() || "");
-    if (!text.trim()) {
-      renderPhase("waiting", "Буфер пуст");
-      return;
-    }
-    const field = nodes.message;
-    if (!field) return;
-    const start = field.selectionStart ?? field.value.length;
-    const end = field.selectionEnd ?? field.value.length;
-    field.value = field.value.slice(0, start) + text + field.value.slice(end);
-    const caret = start + text.length;
-    field.setSelectionRange(caret, caret);
-    field.focus();
-    renderPhase(state.shellState?.phase || "waiting", "Вставлено из буфера");
-  } catch {
-    renderPhase("waiting", "Нет доступа к буферу — разрешите в браузере");
-  }
-}
-
 function buildWindowSettingsPayload(overrides = {}) {
   const windowBackground = nodes.windowBackground?.value || "wallpaper";
   const windowTransparent =
@@ -3060,28 +3029,40 @@ function collectWindowSnapshot() {
 function collectBridgeFormPatch(runtime) {
   const id = normalizeMessageRuntime(runtime);
   const defaults = RUNTIME_DEFAULTS[id] || {};
-  return {
-    [bridgeRuntimeField(id, "baseUrl")]: nodes.bridgeUrl?.value.trim() || defaults.baseUrl || "",
-    [bridgeRuntimeField(id, "apiKey")]: nodes.bridgeApiKey?.value.trim() || "",
+  const patch = {
     [bridgeRuntimeField(id, "model")]: nodes.bridgeModel?.value.trim() || defaults.model || "",
     [bridgeRuntimeField(id, "profile")]: nodes.bridgeProfile?.value.trim() || "",
     [bridgeRuntimeField(id, "agentId")]: nodes.bridgeAgentId?.value.trim() || "",
-    [bridgeRuntimeField(id, "sessionId")]:
-      nodes.bridgeSessionId?.value.trim() || defaults.sessionId || "agent-shell"
+    [bridgeRuntimeField(id, "sessionId")]: nodes.bridgeSessionId?.value.trim() || defaults.sessionId || ""
   };
+  if (runtimeUsesCli(id)) {
+    patch[bridgeRuntimeField(id, "cliPath")] =
+      nodes.bridgeUrl?.value.trim() || defaults.cliPath || (id === "codex" ? "codex" : "claude");
+  } else {
+    patch[bridgeRuntimeField(id, "baseUrl")] = nodes.bridgeUrl?.value.trim() || defaults.baseUrl || "";
+    patch[bridgeRuntimeField(id, "apiKey")] = nodes.bridgeApiKey?.value.trim() || "";
+  }
+  return patch;
 }
 
 function applyBridgeForm(runtime, settings = state.settings || {}) {
   const id = normalizeMessageRuntime(runtime);
   const defaults = RUNTIME_DEFAULTS[id] || {};
   const read = (field) => String(settings[bridgeRuntimeField(id, field)] ?? "").trim();
-  if (nodes.bridgeUrl) nodes.bridgeUrl.value = read("baseUrl") || defaults.baseUrl || "";
-  if (nodes.bridgeApiKey) nodes.bridgeApiKey.value = read("apiKey");
+  if (runtimeUsesCli(id)) {
+    if (nodes.bridgeUrl) {
+      nodes.bridgeUrl.value =
+        read("cliPath") || defaults.cliPath || (id === "codex" ? "codex" : "claude");
+    }
+  } else {
+    if (nodes.bridgeUrl) nodes.bridgeUrl.value = read("baseUrl") || defaults.baseUrl || "";
+    if (nodes.bridgeApiKey) nodes.bridgeApiKey.value = read("apiKey");
+  }
   if (nodes.bridgeModel) nodes.bridgeModel.value = read("model") || defaults.model || "";
   if (nodes.bridgeProfile) nodes.bridgeProfile.value = read("profile");
   if (nodes.bridgeAgentId) nodes.bridgeAgentId.value = read("agentId");
   if (nodes.bridgeSessionId) {
-    nodes.bridgeSessionId.value = read("sessionId") || defaults.sessionId || "agent-shell";
+    nodes.bridgeSessionId.value = read("sessionId") || defaults.sessionId || "";
   }
 }
 
@@ -3102,8 +3083,8 @@ function getSettingsSnapshot(section) {
   if (section === "window") return collectWindowSnapshot();
   if (section === "route") return collectRouteSnapshot();
   if (section === "proactive") return collectProactiveFormPatch();
-  if (section === "tts") return collectTtsFormPatch();
-  if (section === "stt") return collectSttFormPatch();
+  if (section === "tts") return collectTtsSettingsPatch();
+  if (section === "stt") return collectSttSettingsPatch();
   return {};
 }
 
@@ -3116,8 +3097,8 @@ function commitAllSettingsBaselines() {
     window: collectWindowSnapshot(),
     route: collectRouteSnapshot(),
     proactive: collectProactiveFormPatch(),
-    tts: collectTtsFormPatch(),
-    stt: collectSttFormPatch()
+    tts: collectTtsSettingsPatch(),
+    stt: collectSttSettingsPatch()
   });
 }
 
@@ -3144,6 +3125,19 @@ async function saveSettingsSection(section) {
   settingsSave.commitBaseline(section, getSettingsSnapshot(section));
 }
 
+function applyTtsSummarySettings(settings = state.settings) {
+  if (!settings) return;
+  if (document.activeElement !== nodes.ttsEnabled) {
+    nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
+  }
+  syncTtsPlaybackModeUi(settings);
+}
+
+function applySttSummarySettings(settings = state.settings) {
+  if (!settings) return;
+  applySttToggleUi(settings);
+}
+
 function applySettings(settings) {
   state.settings = settings;
 
@@ -3156,7 +3150,9 @@ function applySettings(settings) {
     updateRuntimeUi();
   }
 
-  nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
+  if (!settingsSave.isSectionDirty("tts") && document.activeElement !== nodes.ttsEnabled) {
+    nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
+  }
   syncTtsPlaybackModeUi(settings);
   if (!settingsSave.isSectionDirty("tts")) {
     applyTtsSettingsUi(settings);
@@ -3471,10 +3467,26 @@ function updateRuntimeUi() {
   }
   if (runtimeUsesBridge(runtime)) {
     applyBridgeForm(runtime, state.settings || {});
+    const usesCli = runtimeUsesCli(runtime);
+    const showBaseUrl = runtimeShowsBaseUrl(runtime);
     if (nodes.bridgeUrlLabel) {
-      nodes.bridgeUrlLabel.textContent =
-        runtime === "claude" ? "Anthropic API URL" : "Base URL (/v1 добавится автоматически)";
+      nodes.bridgeUrlLabel.textContent = usesCli ? "CLI binary" : "Base URL (/v1 добавится автоматически)";
     }
+    if (nodes.bridgeUrl) {
+      nodes.bridgeUrl.type = usesCli ? "text" : "url";
+      nodes.bridgeUrl.placeholder = usesCli
+        ? runtime === "codex"
+          ? "codex"
+          : "claude"
+        : "http://127.0.0.1:8642";
+    }
+    if (nodes.bridgeUrlField) {
+      nodes.bridgeUrlField.hidden = !showBaseUrl && !usesCli;
+      nodes.bridgeUrlField.classList.toggle("hidden", !showBaseUrl && !usesCli);
+    }
+    const showApiKey = runtimeShowsApiKey(runtime);
+    nodes.bridgeApiKeyField?.classList.toggle("hidden", !showApiKey);
+    if (nodes.bridgeApiKeyField) nodes.bridgeApiKeyField.hidden = !showApiKey;
     const showProfile = runtimeShowsProfile(runtime);
     nodes.bridgeProfileField?.classList.toggle("hidden", !showProfile);
     if (nodes.bridgeProfileField) nodes.bridgeProfileField.hidden = !showProfile;
@@ -3872,7 +3884,7 @@ async function saveWindowSettings(patch) {
   }
 }
 
-async function saveSettings(patch) {
+async function saveSettings(patch, { apply = "full" } = {}) {
   try {
     const data = await apiFetch("/api/shell/settings", {
       method: "POST",
@@ -3882,7 +3894,13 @@ async function saveSettings(patch) {
     if (data.agentRoot) state.agentRoot = data.agentRoot;
     if (data.agentId) state.agentId = data.agentId;
     updateTtsSaveAgentHint(data);
-    applySettings(data.settings);
+    const settings = data.settings;
+    if (settings) {
+      state.settings = { ...(state.settings || {}), ...settings };
+    }
+    if (apply === "tts") applyTtsSummarySettings(settings);
+    else if (apply === "stt") applySttSummarySettings(settings);
+    else if (apply === "full") applySettings(settings);
   } catch (error) {
     renderPhase("waiting", error.message);
     throw error;
@@ -4175,6 +4193,7 @@ async function sendMessageDirect(
 ) {
   const text = String(body || "").trim();
   if (!text) return;
+  clearHeroStatusDemo();
   shellProactive?.bumpActivity();
   void unlockShellAudio();
   shellSession?.setSessionUiLocked(true);
@@ -4431,6 +4450,22 @@ function preventDetailsToggleOnControl(el) {
   for (const type of ["click", "mousedown", "pointerdown"]) {
     el.addEventListener(type, (event) => event.stopPropagation());
   }
+}
+
+function bindVoiceSettingsExpandToggle(button) {
+  if (!button) return;
+  const details = button.closest("details");
+  if (!details) return;
+  const sync = () => {
+    button.setAttribute("aria-expanded", details.open ? "true" : "false");
+  };
+  details.addEventListener("toggle", sync);
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    details.open = !details.open;
+  });
+  sync();
 }
 
 function applyRecognitionLang(lang) {
@@ -4745,6 +4780,13 @@ function collectSttFormPatch() {
   };
 }
 
+function collectSttSettingsPatch() {
+  return {
+    sttEnabled: nodes.sttEnabled?.checked !== false,
+    ...collectSttFormPatch()
+  };
+}
+
 function applyProactiveFormUi(settings) {
   if (nodes.proactiveEnabled) {
     nodes.proactiveEnabled.checked = Boolean(settings.proactiveEnabled);
@@ -4775,6 +4817,38 @@ function collectProactiveFormPatch() {
   };
 }
 
+async function persistMessageTarget(runtime) {
+  const target = normalizeMessageRuntime(runtime);
+  if (state.settings) state.settings.messageTarget = target;
+  try {
+    await saveSettings({ messageTarget: target });
+    settingsSave.commitBaseline("route", collectRouteSnapshot());
+    refreshRuntimeSelectLabels();
+  } catch (error) {
+    markSettingsDirty("route");
+  }
+}
+
+async function persistSttEnabled(enabled) {
+  const uiMode = normalizeVoiceInputMode(nodes.voiceMode?.value || state.sttResumeMode || "hold");
+  const voiceInputMode = enabled ? uiMode : "disabled";
+  state.sttResumeMode = uiMode;
+  if (!enabled) {
+    shellTapVoice?.abortSession();
+    if (state.meetingRecording) void setMeetingRecordingRemote(false);
+  }
+  if (state.settings) state.settings.voiceInputMode = voiceInputMode;
+  try {
+    await saveSettings({ voiceInputMode }, { apply: "stt" });
+    settingsSave.commitBaseline("stt", collectSttSettingsPatch());
+  } catch (error) {
+    renderPhase("waiting", error.message);
+    markSettingsDirty("stt");
+  }
+  updateVoiceModeSelectUi();
+  syncCompactSensorAvailability();
+}
+
 async function persistVoiceInputMode(mode) {
   const next = normalizeVoiceInputMode(mode);
   const stored = next === "disabled" ? "disabled" : next;
@@ -4782,7 +4856,7 @@ async function persistVoiceInputMode(mode) {
   if (state.settings) state.settings.voiceInputMode = stored;
   voiceInputModePersisting = true;
   try {
-    await saveSettings({ voiceInputMode: stored });
+    await saveSettings({ voiceInputMode: stored }, { apply: "stt" });
     lastCommittedVoiceMode = stored;
     if (state.pendingVoiceInputMode === stored) state.pendingVoiceInputMode = null;
   } catch (error) {
@@ -4794,10 +4868,13 @@ async function persistVoiceInputMode(mode) {
 }
 
 async function persistTtsEnabled(enabled) {
+  if (state.settings) state.settings.ttsEnabled = enabled;
   try {
-    await saveSettings({ ttsEnabled: enabled });
+    await saveSettings({ ttsEnabled: enabled }, { apply: "tts" });
+    settingsSave.commitBaseline("tts", collectTtsSettingsPatch());
   } catch (error) {
     renderPhase("waiting", error.message);
+    markSettingsDirty("tts");
   }
 }
 
@@ -4806,9 +4883,11 @@ async function persistTtsPlaybackMode(mode) {
   if (state.settings) state.settings.ttsPlaybackMode = next;
   ttsPlaybackModePersisting = true;
   try {
-    await saveSettings({ ttsPlaybackMode: next });
+    await saveSettings({ ttsPlaybackMode: next }, { apply: "tts" });
+    settingsSave.commitBaseline("tts", collectTtsSettingsPatch());
   } catch (error) {
     renderPhase("waiting", error.message);
+    markSettingsDirty("tts");
   } finally {
     ttsPlaybackModePersisting = false;
   }
@@ -5032,7 +5111,7 @@ async function persistTtsSettings() {
   if (nodes.ttsElevenlabsVoiceId && document.activeElement !== nodes.ttsElevenlabsVoiceId) {
     nodes.ttsElevenlabsVoiceId.value = String(state.settings?.ttsElevenlabsVoiceId || "");
   }
-  settingsSave.commitBaseline("tts", collectTtsFormPatch());
+  settingsSave.commitBaseline("tts", collectTtsSettingsPatch());
   void loadTtsCapabilities();
 
   const savedKey = String(state.settings?.ttsElevenlabsApiKey || "").trim();
@@ -6077,10 +6156,10 @@ function bindUi() {
       stt: nodes.sttSave
     },
     toggleButtons: {
-      window: nodes.settingsBtn,
-      tts: nodes.ttsSettingsSummary,
-      stt: nodes.sttSettingsSummary
-    }
+      tts: nodes.ttsSettingsToggle,
+      stt: nodes.sttSettingsToggle
+    },
+    settingsMenuBtn: nodes.settingsBtn
   });
   const markRouteDirty = () => markSettingsDirty("route");
   const markTtsDirty = () => markSettingsDirty("tts");
@@ -6176,14 +6255,6 @@ function bindUi() {
     void takeManualScreenshot();
   });
 
-  nodes.clipboardReadAction?.addEventListener("click", () => {
-    void readClipboardForAgent();
-  });
-
-  nodes.clipboardPasteAction?.addEventListener("click", () => {
-    void pasteClipboardToCompose();
-  });
-
   nodes.compactAction?.addEventListener("click", () => {
     toggleCompactMode();
   });
@@ -6193,12 +6264,12 @@ function bindUi() {
   nodes.messageTarget?.addEventListener("change", () => {
     syncRuntimeSelects("header");
     updateRuntimeUi();
-    markRouteDirty();
+    void persistMessageTarget(nodes.messageTarget.value);
   });
   nodes.routeRuntime?.addEventListener("change", () => {
     syncRuntimeSelects("route");
     updateRuntimeUi();
-    markRouteDirty();
+    void persistMessageTarget(nodes.routeRuntime.value);
   });
   nodes.qwenpawUrl.addEventListener("change", () => {
     markRouteDirty();
@@ -6222,25 +6293,16 @@ function bindUi() {
     if (!enabled) stopBrowserTts({ notifyServer: true });
     void persistTtsEnabled(enabled);
   });
-  nodes.ttsPlaybackMode?.addEventListener("change", () => {
-    const mode = nodes.ttsPlaybackMode.value === "reading" ? "reading" : "dialog";
+  nodes.ttsPlaybackModeGroup?.addEventListener("change", (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || input.name !== "shell-tts-playback-mode") return;
+    const mode = input.value === "reading" ? "reading" : "dialog";
     if (state.settings) state.settings.ttsPlaybackMode = mode;
     updateTtsPlaybackHint(mode);
     void persistTtsPlaybackMode(mode);
   });
   nodes.sttEnabled?.addEventListener("change", () => {
-    const uiMode = normalizeVoiceInputMode(nodes.voiceMode?.value || state.sttResumeMode || "hold");
-    if (nodes.sttEnabled.checked) {
-      state.sttResumeMode = uiMode;
-      void persistVoiceInputMode(uiMode);
-    } else {
-      state.sttResumeMode = uiMode;
-      shellTapVoice?.abortSession();
-      if (state.meetingRecording) void setMeetingRecordingRemote(false);
-      void persistVoiceInputMode("disabled");
-    }
-    updateVoiceModeSelectUi();
-    syncCompactSensorAvailability();
+    void persistSttEnabled(nodes.sttEnabled.checked);
   });
   for (const el of [nodes.sttPrompt]) {
     el?.addEventListener("change", markSttDirty);
@@ -6288,8 +6350,16 @@ function bindUi() {
       .catch((error) => renderPhase("waiting", error.message))
       .finally(() => btn?.classList.remove("is-busy"));
   });
-  preventDetailsToggleOnControl(nodes.ttsPlaybackMode);
+  preventDetailsToggleOnControl(nodes.ttsPlaybackModeGroup);
   preventDetailsToggleOnControl(nodes.ttsPlaybackHint);
+  preventDetailsToggleOnControl(nodes.ttsEnabled);
+  preventDetailsToggleOnControl(nodes.ttsEnabled?.closest("label"));
+  preventDetailsToggleOnControl(nodes.ttsSettingsSummary?.querySelector(".shell-voice-settings-summary-actions"));
+  preventDetailsToggleOnControl(nodes.sttEnabled);
+  preventDetailsToggleOnControl(nodes.sttEnabled?.closest("label"));
+  preventDetailsToggleOnControl(nodes.sttSettingsSummary?.querySelector(".shell-voice-settings-summary-actions"));
+  bindVoiceSettingsExpandToggle(nodes.ttsSettingsToggle);
+  bindVoiceSettingsExpandToggle(nodes.sttSettingsToggle);
   nodes.heroDemoBar?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-hero-demo]");
     if (!btn) return;
@@ -6355,7 +6425,7 @@ function bindUi() {
     void maybeAutoSaveElevenlabsCredentials();
   });
   nodes.ttsSave?.addEventListener("mousedown", () => {
-    markSettingsDirty("tts", collectTtsFormPatch());
+    markSettingsDirty("tts");
   });
   nodes.ttsRate?.addEventListener("input", () => {
     updateTtsRateLabel();

@@ -82,7 +82,7 @@ export function formatRuntimeStatusTitle(runtime, status, { implemented = true }
   if (!implemented) return `${label} — скоро`;
   if (conn === "live") return `${label} · на связи`;
   if (conn === "connecting") return `${label} · проверка…`;
-  if (conn === "unconfigured") return `${label} · нет API-ключа или CLI`;
+  if (conn === "unconfigured") return `${label} · CLI не установлен`;
   if (conn === "soon") return `${label} — скоро`;
   const detail = String(status?.error || "").trim();
   return detail ? `${label} · ${detail}` : `${label} · недоступен`;
@@ -90,8 +90,8 @@ export function formatRuntimeStatusTitle(runtime, status, { implemented = true }
 
 /** Короткая подсказка под select (1 строка). */
 export const SHELL_RUNTIME_HINTS = {
-  claude: "Anthropic Claude — облачная модель, API key в bridge-панели.",
-  codex: "OpenAI Codex / ChatGPT — облако OpenAI, ключ OPENAI_API_KEY.",
+  claude: "Claude Code CLI — npm i -g @anthropic-ai/claude-code, auth через claude login.",
+  codex: "Codex CLI — npm i -g @openai/codex, auth через codex login.",
   cursor: "Cursor Agent — IDE/cloud, OpenAI-compatible endpoint.",
   openclaw: "OpenClaw Gateway — локальный агент, :18789, heartbeat и каналы.",
   hermes: "Hermes Agent — Nous Research, профили, API :8642/v1.",
@@ -101,13 +101,13 @@ export const SHELL_RUNTIME_HINTS = {
 
 /** Развёрнутое описание runtime для панели маршрута. */
 export const SHELL_RUNTIME_DESCRIPTIONS = {
-  claude: `Claude (Anthropic) — облачный LLM-агент для рассуждений, кода и длинного контекста.
-Подключение: Anthropic Messages API. Укажите API key и модель (например claude-sonnet).
-Shell отправляет текст → Claude отвечает → Shell озвучивает и показывает ответ.`,
+  claude: `Claude Code (@anthropic-ai/claude-code) — локальный CLI-агент Anthropic.
+Подключение: бинарь claude в PATH (npm i -g @anthropic-ai/claude-code), авторизация claude login.
+Shell запускает claude -p … в каталоге workspace → ответ стримится в диалог.`,
 
-  codex: `Codex / ChatGPT (OpenAI) — агент OpenAI для кода, анализа и диалога.
-Подключение: OpenAI API (https://api.openai.com/v1). Ключ OPENAI_API_KEY, модель gpt-4o / o-series.
-Удобен как универсальный «мозг» без локального сервера.`,
+  codex: `Codex CLI (@openai/codex) — локальный CLI-агент OpenAI.
+Подключение: бинарь codex в PATH (npm i -g @openai/codex), авторизация codex login.
+Shell запускает codex exec … — сессии через Session ID (codex exec resume).`,
 
   cursor: `Cursor — агент из экосистемы Cursor IDE (локально или cloud).
 Подключение: OpenAI-compatible endpoint (если у вас поднят Cursor agent / proxy).
@@ -149,14 +149,14 @@ export const RUNTIME_DEFAULTS = {
     sessionId: "agent-shell"
   },
   codex: {
-    baseUrl: "https://api.openai.com",
-    model: "gpt-4o",
-    sessionId: "agent-shell"
+    cliPath: "codex",
+    model: "",
+    sessionId: ""
   },
   claude: {
-    baseUrl: "https://api.anthropic.com",
-    model: "claude-sonnet-4-20250514",
-    sessionId: "agent-shell"
+    cliPath: "claude",
+    model: "",
+    sessionId: ""
   },
   "agent-zero": {
     baseUrl: "http://127.0.0.1:42617",
@@ -193,6 +193,7 @@ export function bridgeRuntimeField(runtime, field) {
   const id = normalizeMessageRuntime(runtime);
   const map = {
     baseUrl: "BaseUrl",
+    cliPath: "CliPath",
     apiKey: "ApiKey",
     model: "Model",
     profile: "Profile",
@@ -200,6 +201,11 @@ export function bridgeRuntimeField(runtime, field) {
     sessionId: "SessionId"
   };
   return runtimeField(id, map[field] || field);
+}
+
+export function runtimeUsesCli(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  return id === "claude" || id === "codex";
 }
 
 export function runtimeShowsProfile(runtime) {
@@ -211,5 +217,9 @@ export function runtimeShowsAgentId(runtime) {
 }
 
 export function runtimeShowsApiKey(runtime) {
-  return normalizeMessageRuntime(runtime) !== "qwenpaw";
+  return !runtimeUsesQwenPaw(runtime) && !runtimeUsesCli(runtime);
+}
+
+export function runtimeShowsBaseUrl(runtime) {
+  return runtimeUsesBridge(runtime) && !runtimeUsesCli(runtime);
 }

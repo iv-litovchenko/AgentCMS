@@ -5,10 +5,12 @@ export function createSettingsSaveController() {
   const dirty = { window: false, route: false, proactive: false, tts: false, stt: false };
   let saveButtons = {};
   let toggleButtons = {};
+  let settingsMenuBtn = null;
 
-  function attachUi({ saveButtons: saveMap = {}, toggleButtons: toggleMap = {} } = {}) {
+  function attachUi({ saveButtons: saveMap = {}, toggleButtons: toggleMap = {}, settingsMenuBtn: menuBtn = null } = {}) {
     saveButtons = saveMap;
     toggleButtons = toggleMap;
+    settingsMenuBtn = menuBtn;
     syncUi();
   }
 
@@ -17,6 +19,7 @@ export function createSettingsSaveController() {
   }
 
   function syncUi() {
+    let settingsPanelDirty = false;
     for (const section of SETTINGS_SECTIONS) {
       const saveBtn = saveButtons[section];
       if (saveBtn) {
@@ -30,8 +33,10 @@ export function createSettingsSaveController() {
         document
           .querySelectorAll(`.shell-settings-tab[data-settings-tab="${section}"]`)
           .forEach((tab) => tab.classList.toggle("has-unsaved", Boolean(dirty[section])));
+        if (dirty[section]) settingsPanelDirty = true;
       }
     }
+    settingsMenuBtn?.classList.toggle("has-unsaved", settingsPanelDirty);
   }
 
   function commitBaseline(section, snapshot) {
