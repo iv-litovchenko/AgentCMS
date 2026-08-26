@@ -3,9 +3,11 @@
  */
 (function initDiscussPanel() {
   const STORAGE_WIDTH_KEY = "agent-cms-discuss-width";
+  const STORAGE_HIDDEN_KEY = "agent-cms-discuss-collapsed";
 
   const discussAsideNode = document.getElementById("discuss-aside");
   const discussResizerNode = document.getElementById("discuss-aside-resizer");
+  const discussPanelToggleBtnNode = document.getElementById("discuss-panel-toggle-btn");
   const discussShellIframeNode = document.getElementById("discuss-shell-iframe");
   const workspacePaneNode = document.querySelector(".workspace-pane");
   const discussAsideHeightMq = window.matchMedia("(max-width: 960px)");
@@ -27,6 +29,7 @@
 
   let panelWidth = clamp(readNumber(STORAGE_WIDTH_KEY, readDefaultPanelWidth()), 280, 520);
   let shellIframeAgentId = "";
+  let panelHidden = readHiddenState();
 
   function readNumber(key, fallback) {
     try {
@@ -40,6 +43,44 @@
 
   function clamp(n, min, max) {
     return Math.min(max, Math.max(min, n));
+  }
+
+  function readHiddenState() {
+    try {
+      return localStorage.getItem(STORAGE_HIDDEN_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function updatePanelUi() {
+    if (!discussAsideNode) return;
+    discussAsideNode.classList.toggle("is-hidden", panelHidden);
+    discussPanelToggleBtnNode?.classList.toggle("is-active", !panelHidden);
+    discussPanelToggleBtnNode?.setAttribute("aria-expanded", panelHidden ? "false" : "true");
+    if (discussPanelToggleBtnNode) {
+      discussPanelToggleBtnNode.title = panelHidden
+        ? "Открыть чат Agent CMS Voice"
+        : "Скрыть чат Agent CMS Voice";
+    }
+  }
+
+  function setPanelHidden(next) {
+    panelHidden = Boolean(next);
+    updatePanelUi();
+    try {
+      localStorage.setItem(STORAGE_HIDDEN_KEY, panelHidden ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }
+
+  function bindHeaderToggle() {
+    if (!discussPanelToggleBtnNode || discussPanelToggleBtnNode.dataset.bound === "1") return;
+    discussPanelToggleBtnNode.dataset.bound = "1";
+    discussPanelToggleBtnNode.addEventListener("click", () => {
+      setPanelHidden(!panelHidden);
+    });
   }
 
   const CHPU_RESERVED_ROOT_SEGMENTS = new Set(["api", "shell", "vendor", "a", "shared", "cms"]);
@@ -100,7 +141,7 @@
   }
 
   function syncDiscussAsideHeight() {
-    if (!discussAsideNode) return;
+    if (!discussAsideNode || panelHidden) return;
     if (discussAsideHeightMq.matches) {
       discussAsideNode.style.height = "";
       discussAsideNode.style.maxHeight = "";
@@ -171,11 +212,18 @@
   }
 
   bindResize();
+  bindHeaderToggle();
   bindDiscussAsideHeightSync();
   applyPanelWidth();
+  updatePanelUi();
   ensureShellIframeLoaded(getActiveAgentIdFromUrl());
 
   window.AgentDiscussPanel = {
-    sync: syncFromApp
+    sync: syncFromApp,
+    isHidden: () => panelHidden,
+    setHidden: (next) => setPanelHidden(next),
+    toggle: () => setPanelHidden(!panelHidden),
+    isCollapsed: () => panelHidden,
+    setCollapsed: (next) => setPanelHidden(next),
   };
 })();
