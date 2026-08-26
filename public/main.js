@@ -12484,6 +12484,7 @@ const ENTRY_OVERVIEW_KIND_LABELS = {
   "awn.media.memory.toc.root": "Оглавление медиа",
   "awn.inbox.toc.root": "Оглавление",
   "awn.note.toc.root": "Оглавление",
+  "awn.notes.toc.root": "Оглавление",
   "awn.references.toc.root": "Оглавление",
   "awn.artefacts.toc.root": "Оглавление",
   "awn.assets.toc.root": "Оглавление",
@@ -12528,6 +12529,7 @@ const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
   "awn.media.memory.toc.root",
   "awn.inbox.toc.root",
   "awn.note.toc.root",
+  "awn.notes.toc.root",
   "awn.references.toc.root",
   "awn.artefacts.toc.root",
   "awn.assets.toc.root",
@@ -58537,6 +58539,8 @@ function getEntryOverviewKindClass(entryKind) {
   if (
     kind === "awn.memory.toc.root" ||
     kind === "awn.inbox.toc.root" ||
+    kind === "awn.note.toc.root" ||
+    kind === "awn.notes.toc.root" ||
     kind === "awn.quick-notes.toc.root" ||
     kind === "awn.references.toc.root"
   ) {
