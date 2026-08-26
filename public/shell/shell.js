@@ -1,5 +1,4 @@
 import { loadAgentSelectData, getSelectableAgents, populateAgentSelect } from "/shared/agent-select.js";
-import { createTopicPicker } from "@shell/topic-picker";
 import { createSettingsSaveController } from "@shell/settings-save";
 import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, mergeSpeechStreamChunks, parseDualReply, extractStreamingTtsBody, extractStreamingReplyBody, hasVoiceEndDelimiter, stripAllTtsBlocks } from "@shell/reply";
 import { renderShellReplyMarkdown, renderShellReplyBody } from "@shell/markdown";
@@ -154,9 +153,25 @@ const PHASE_LABELS = {
   waiting: "🟡 Ожидаю",
   listening: "🔴 Слушаю",
   thinking: "🟢 Думаю",
-  speaking: "🔊 Говорю",
-  disabled: "⏸️ Отключено"
+  speaking: "🔵 Отвечаю",
+  disabled: "⏸️ Ожидаю"
 };
+
+const HERO_STATE_LABELS = {
+  idle: "Ожидаю",
+  thinking: "Думаю",
+  replying: "Отвечаю"
+};
+
+const HERO_DEMO_PRESETS = {
+  idle: { phase: "waiting", heroState: "idle", phrase: "Ожидаю" },
+  listening: { phase: "listening", heroState: "idle", phrase: "Слушаю" },
+  thinking: { phase: "thinking", heroState: "thinking", phrase: "Думаю" },
+  replying: { phase: "speaking", heroState: "replying", phrase: "Отвечаю" }
+};
+
+let heroStatusDemo = null;
+let heroStatusDemoTimer = null;
 
 const VOICE_MODE_TITLES = VOICE_MODE_LABELS;
 
@@ -671,17 +686,10 @@ const nodes = {
   bridgeAgentField: document.getElementById("shell-runtime-bridge-agent-field"),
   bridgeAgentId: document.getElementById("shell-runtime-bridge-agent-id"),
   bridgeSessionId: document.getElementById("shell-runtime-bridge-session-id"),
-  topicPath: document.getElementById("shell-topic-path"),
-  topicField: document.getElementById("shell-topic-field"),
-  topicTrigger: document.getElementById("shell-topic-trigger"),
-  topicTriggerLabel: document.getElementById("shell-topic-trigger-label"),
-  topicTriggerPath: document.getElementById("shell-topic-trigger-path"),
-  topicPopover: document.getElementById("shell-topic-popover"),
-  topicSearch: document.getElementById("shell-topic-search"),
-  topicTree: document.getElementById("shell-topic-tree"),
   ttsEnabled: document.getElementById("shell-tts-enabled"),
   ttsPlaybackMode: document.getElementById("shell-tts-playback-mode"),
-  ttsSettingsToggle: document.getElementById("shell-tts-settings-toggle"),
+  ttsPlaybackHint: document.getElementById("shell-tts-playback-hint"),
+  ttsSettingsSummary: document.getElementById("shell-tts-settings-summary"),
   ttsSettingsPanel: document.getElementById("shell-tts-settings"),
   ttsPrompt: document.getElementById("shell-tts-prompt"),
   ttsPromptInsert: document.getElementById("shell-tts-prompt-insert"),
@@ -701,7 +709,7 @@ const nodes = {
   ttsRate: document.getElementById("shell-tts-rate"),
   ttsRateValue: document.getElementById("shell-tts-rate-value"),
   sttEnabled: document.getElementById("shell-stt-enabled"),
-  sttSettingsToggle: document.getElementById("shell-stt-settings-toggle"),
+  sttSettingsSummary: document.getElementById("shell-stt-settings-summary"),
   sttSettingsPanel: document.getElementById("shell-stt-settings"),
   sttPrompt: document.getElementById("shell-stt-prompt"),
   sttPromptInsert: document.getElementById("shell-stt-prompt-insert"),
@@ -801,6 +809,7 @@ const nodes = {
   compactSensorStatus: document.getElementById("shell-compact-sensor-status"),
   mediaSection: document.getElementById("shell-media-section"),
   phaseLabel: document.getElementById("shell-phase-label"),
+  heroDemoBar: document.getElementById("shell-hero-demo-bar"),
   battery: document.getElementById("shell-battery"),
   batteryFill: document.getElementById("shell-battery-fill"),
   batteryLevel: document.getElementById("shell-battery-level"),
@@ -817,7 +826,6 @@ const nodes = {
   locationValue: document.getElementById("shell-location-value"),
   locationShare: document.getElementById("shell-location-share"),
   meta: document.getElementById("shell-meta"),
-  pulse: document.getElementById("shell-pulse"),
   lastReply: document.getElementById("shell-last-reply"),
   lastReplyText: document.getElementById("shell-last-reply-text"),
   lastReplyMedia: document.getElementById("shell-last-reply-media"),
@@ -857,21 +865,6 @@ const shellScreen = createShellScreen({
   }
 });
 
-const topicPicker = createTopicPicker({
-  rootEl: document.getElementById("shell-topic-picker"),
-  triggerEl: nodes.topicTrigger,
-  labelEl: nodes.topicTriggerLabel,
-  pathEl: nodes.topicTriggerPath,
-  popoverEl: nodes.topicPopover,
-  searchEl: nodes.topicSearch,
-  treeEl: nodes.topicTree,
-  hiddenInputEl: nodes.topicPath,
-  getAgentId: () => state.agentId,
-  onChange: () => {
-    onRouteSettingsDirty();
-  }
-});
-
 const shellDialog = createShellDialog({
   panel: nodes.replyPanel,
   scroll: document.getElementById("shell-dialog-scroll"),
@@ -888,11 +881,13 @@ const shellDialog = createShellDialog({
   historyList: document.getElementById("shell-history-list"),
   lastAskWrap: document.getElementById("shell-last-ask-wrap"),
   lastAsk: document.getElementById("shell-last-ask"),
+  thread: document.getElementById("shell-dialog-thread"),
+  lastReply: document.getElementById("shell-last-reply"),
   errorEl: document.getElementById("shell-dialog-error"),
   pullHint: document.getElementById("shell-pull-hint"),
   fetchHistory: async () => {
     const runtime = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
-    const data = await apiFetch(`/api/shell/dialogs/history?runtime=${encodeURIComponent(runtime)}&limit=12`);
+    const data = await apiFetch(`/api/shell/dialogs/history?runtime=${encodeURIComponent(runtime)}&limit=25`);
     return Array.isArray(data?.messages) ? data.messages : [];
   }
 });
@@ -904,7 +899,7 @@ function initShellProactiveController() {
   shellProactive = createShellProactive({
     toggleBtn: nodes.proactiveToggle,
     composeEl: nodes.message,
-    getPhase: () => resolveDisplayPhase(state.shellState?.phase || nodes.pulse?.dataset.phase || "waiting"),
+    getPhase: () => resolveDisplayPhase(state.shellState?.phase || nodes.agentAvatar?.dataset.phase || "waiting"),
     isPipelineBusy: () => isMessagePipelineActive(),
     isTtsActive: () => isTtsPlaybackActive(),
     isMicActive: () =>
@@ -1137,6 +1132,101 @@ function resolveDisplayPhase(requestedPhase = "waiting") {
   return phase;
 }
 
+function resolveHeroStatusBadgeClass(displayPhase, heroState) {
+  if (displayPhase === "listening") return "is-active";
+  if (heroState === "thinking") return "is-busy";
+  if (heroState === "replying") return "is-speaking";
+  return "is-idle";
+}
+
+function resolveHeroSensorActivity(displayPhase, heroState) {
+  if (displayPhase === "listening") return "listening";
+  if (heroState === "replying") return "speaking";
+  if (heroState === "thinking") return "thinking";
+  return "idle";
+}
+
+function resolveHeroAvatarState(requestedPhase = "waiting") {
+  if (heroStatusDemo?.heroState) return heroStatusDemo.heroState;
+  if (isTtsPlaybackActive()) return "replying";
+  if (state.assistantStream && !state.assistantStream.finalized) return "replying";
+  const displayPhase = resolveDisplayPhase(requestedPhase);
+  if (displayPhase === "thinking") return "thinking";
+  if (state.messagePipelineBusy) return "thinking";
+  return "idle";
+}
+
+function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false, phrase = "" } = {}) {
+  const displayPhase = heroStatusDemo?.phase || resolveDisplayPhase(requestedPhase);
+  const heroState = resolveHeroAvatarState(requestedPhase);
+  const statusText = String(phrase || "").trim();
+  const demoPhrase = heroStatusDemo?.phrase || "";
+
+  if (nodes.agentAvatar) {
+    nodes.agentAvatar.dataset.phase = displayPhase;
+    nodes.agentAvatar.dataset.heroState = heroState;
+    nodes.agentAvatar.dataset.activity = resolveHeroSensorActivity(displayPhase, heroState);
+    nodes.agentAvatar.setAttribute(
+      "aria-label",
+      demoPhrase || HERO_STATE_LABELS[heroState] || HERO_STATE_LABELS.idle
+    );
+  }
+
+  if (nodes.voiceWave) {
+    const showWave = heroState === "replying" || isTtsPlaybackActive();
+    nodes.voiceWave.classList.toggle("hidden", !showWave);
+    nodes.voiceWave.classList.toggle("is-paused", Boolean(state.ttsPaused));
+  }
+
+  if (updateLabel && !state.ttsPaused && nodes.phaseLabel) {
+    nodes.phaseLabel.classList.remove("is-idle", "is-active", "is-busy", "is-speaking", "is-typing");
+    let labelText = demoPhrase;
+    if (!labelText) {
+      if (statusText) {
+        labelText = statusText;
+      } else if (displayPhase === "listening") {
+        labelText = "Слушаю";
+      } else if (displayPhase === "disabled") {
+        labelText = PHASE_LABELS.disabled;
+      } else {
+        labelText = HERO_STATE_LABELS[heroState] || HERO_STATE_LABELS.idle;
+      }
+    }
+    nodes.phaseLabel.textContent = labelText;
+    nodes.phaseLabel.classList.add(resolveHeroStatusBadgeClass(displayPhase, heroState));
+  }
+
+  nodes.heroDemoBar?.querySelectorAll("[data-hero-demo]").forEach((btn) => {
+    btn.classList.toggle("is-active", Boolean(heroStatusDemo && btn.dataset.heroDemo === heroStatusDemo.key));
+  });
+}
+
+function clearHeroStatusDemo() {
+  heroStatusDemo = null;
+  if (heroStatusDemoTimer) {
+    clearTimeout(heroStatusDemoTimer);
+    heroStatusDemoTimer = null;
+  }
+  nodes.heroDemoBar?.querySelectorAll("[data-hero-demo].is-active").forEach((btn) => {
+    btn.classList.remove("is-active");
+  });
+}
+
+function applyHeroStatusDemo(key) {
+  const preset = HERO_DEMO_PRESETS[key];
+  if (!preset) return;
+  heroStatusDemo = { key, ...preset };
+  if (heroStatusDemoTimer) clearTimeout(heroStatusDemoTimer);
+  heroStatusDemoTimer = setTimeout(() => {
+    clearHeroStatusDemo();
+    syncHeroAvatarVisuals(state.shellState?.phase || "waiting", {
+      updateLabel: true,
+      phrase: state.shellState?.phrase || ""
+    });
+  }, 9000);
+  syncHeroAvatarVisuals(preset.phase, { updateLabel: true, phrase: preset.phrase });
+}
+
 function maybeResetStaleSpeakingPhase() {
   if (state.shellState?.phase !== "speaking") return;
   if (isTtsPlaybackActive()) return;
@@ -1145,19 +1235,15 @@ function maybeResetStaleSpeakingPhase() {
 
 function renderPhase(phase, phrase = "", metrics = "") {
   if (shellSession?.shouldBlockPhaseUpdate(phase)) return;
-  if (shellSession?.shouldSkipDuplicatePhase(phase) && !String(phrase || "").trim()) return;
-  shellSession?.rememberPhase(phase);
-  const displayPhase = resolveDisplayPhase(phase);
+  clearHeroStatusDemo();
   const statusText = String(phrase || "").trim();
-  if (!state.ttsPaused) {
-    nodes.phaseLabel.textContent = statusText || PHASE_LABELS[displayPhase];
-  }
+  const skipLabel = shellSession?.shouldSkipDuplicatePhase(phase) && !statusText;
+  if (!skipLabel) shellSession?.rememberPhase(phase);
+  syncHeroAvatarVisuals(phase, { updateLabel: !skipLabel && !state.ttsPaused, phrase: statusText });
   nodes.meta.textContent = metrics || "";
-  nodes.pulse.dataset.phase = displayPhase;
-  if (nodes.agentAvatar) nodes.agentAvatar.dataset.phase = displayPhase;
-  if (nodes.characterStage) nodes.characterStage.dataset.phase = displayPhase;
-  updateTtsControlsUi(displayPhase);
-  syncCompactSensorPhase(displayPhase, statusText);
+  if (nodes.characterStage) nodes.characterStage.dataset.phase = resolveDisplayPhase(phase);
+  updateTtsControlsUi(resolveDisplayPhase(phase));
+  syncCompactSensorPhase(resolveDisplayPhase(phase), statusText);
 }
 
 function isTtsPlaybackActive() {
@@ -1182,7 +1268,7 @@ function waitWhileTtsPaused() {
   });
 }
 
-function updateTtsControlsUi(phase = resolveDisplayPhase(state.shellState?.phase || nodes.pulse?.dataset.phase || "waiting")) {
+function updateTtsControlsUi(phase = resolveDisplayPhase(state.shellState?.phase || nodes.agentAvatar?.dataset.phase || "waiting")) {
   const playbackActive = isTtsPlaybackActive();
 
   if (nodes.ttsPauseBtn) {
@@ -1403,6 +1489,7 @@ function clearShellReply() {
   }
   renderShellReplyMedia(nodes.lastReplyMedia, [], state.agentId);
   nodes.replyPanel?.classList.remove("is-streaming");
+  shellDialog.syncLiveReplySlot?.();
   resetAgentActivitySteps();
 }
 
@@ -1569,6 +1656,7 @@ function beginAssistantStream({ streamId } = {}) {
   lastStreamHandledBody = "";
   lastHandledStreamId = "";
   nodes.replyPanel?.classList.add("is-streaming");
+  shellDialog.syncLiveReplySlot?.();
   if (nodes.lastReplyText) {
     nodes.lastReplyText.classList.remove("shell-md");
     nodes.lastReplyText.textContent = "…";
@@ -1589,6 +1677,9 @@ function renderStreamingAssistantText(text) {
   renderShellReplyBody(nodes.lastReplyText, value);
   nodes.dialogScroll?.scrollTo?.({ top: nodes.dialogScroll.scrollHeight, behavior: "auto" });
   shellDialog.onReplyRendered(value);
+  if (state.assistantStream && !state.assistantStream.finalized) {
+    syncHeroAvatarVisuals(state.shellState?.phase || "speaking", { updateLabel: true });
+  }
 }
 
 const STREAM_TTS_MERGE = { maxChars: 320, maxParts: 4 };
@@ -1759,6 +1850,7 @@ function finalizeAssistantStream(message) {
 
   state.assistantStream = { id: streamId, text: body, spokenText, spokenParts, done: true, finalized: true };
   nodes.replyPanel?.classList.remove("is-streaming");
+  shellDialog.syncLiveReplySlot?.();
   shellSession?.flushStreamingRender(renderStreamingAssistantText);
   renderShellReply({ ...message, body, spokenText, spokenParts });
   shellDialog.onAgentReply(body);
@@ -2511,7 +2603,7 @@ function syncCompactSensorUi(compact = isWindowCompactEnabled()) {
     return;
   }
   if (!isCompactSensorScanning()) {
-    syncCompactSensorPhase(resolveDisplayPhase(nodes.pulse?.dataset.phase || state.shellState?.phase || "waiting"));
+    syncCompactSensorPhase(resolveDisplayPhase(nodes.agentAvatar?.dataset.phase || state.shellState?.phase || "waiting"));
   }
 }
 
@@ -2998,8 +3090,7 @@ function collectRouteSnapshot() {
   const patch = {
     messageTarget: runtime,
     qwenpawBaseUrl: nodes.qwenpawUrl?.value.trim() || "http://127.0.0.1:8088",
-    qwenpawAgentId: nodes.qwenpawAgentId?.value.trim() || "default",
-    topicPath: topicPicker.getValue() || ""
+    qwenpawAgentId: nodes.qwenpawAgentId?.value.trim() || "default"
   };
   if (runtimeUsesBridge(runtime)) {
     Object.assign(patch, collectBridgeFormPatch(runtime));
@@ -3062,7 +3153,6 @@ function applySettings(settings) {
     nodes.qwenpawAgentId.value = settings.qwenpawAgentId || "default";
     void loadQwenPawAgents(settings.qwenpawAgentId || "default");
     applyBridgeForm(normalizeMessageRuntime(settings.messageTarget || "qwenpaw"), settings);
-    topicPicker.setValue(settings.topicPath || "");
     updateRuntimeUi();
   }
 
@@ -3392,7 +3482,6 @@ function updateRuntimeUi() {
     nodes.bridgeAgentField?.classList.toggle("hidden", !showAgent);
     if (nodes.bridgeAgentField) nodes.bridgeAgentField.hidden = !showAgent;
   }
-  topicPicker.setVisible(false);
   syncDialogConnectionState();
 }
 
@@ -3583,6 +3672,7 @@ async function startNewQwenPawChat() {
   clearShellReply();
   lastHandledAssistantId = "";
   renderPhase("waiting", "Новый чат QwenPaw");
+  void shellDialog.refreshHistory?.();
   nodes.qwenpawChatName?.focus();
   nodes.qwenpawChatName?.select();
   if (state.qwenpawChatsOpen) await loadQwenPawChats();
@@ -3599,6 +3689,7 @@ async function selectQwenPawChat(sessionId, chatName) {
   lastHandledAssistantId = "";
   setQwenPawChatsOpen(false);
   renderPhase("waiting", `Чат: ${data.chatName || data.sessionId}`);
+  void shellDialog.refreshHistory?.();
   if (state.qwenpawChatsOpen) await loadQwenPawChats();
 }
 
@@ -4335,18 +4426,11 @@ function updateTtsRateLabel() {
   nodes.ttsRateValue.textContent = Number(nodes.ttsRate.value || 1).toFixed(1);
 }
 
-function setTtsSettingsOpen(open) {
-  const next = Boolean(open);
-  nodes.ttsSettingsPanel?.classList.toggle("hidden", !next);
-  nodes.ttsSettingsToggle?.setAttribute("aria-expanded", next ? "true" : "false");
-  nodes.ttsSettingsToggle?.setAttribute("aria-pressed", next ? "true" : "false");
-}
-
-function setSttSettingsOpen(open) {
-  const next = Boolean(open);
-  nodes.sttSettingsPanel?.classList.toggle("hidden", !next);
-  nodes.sttSettingsToggle?.setAttribute("aria-expanded", next ? "true" : "false");
-  nodes.sttSettingsToggle?.setAttribute("aria-pressed", next ? "true" : "false");
+function preventDetailsToggleOnControl(el) {
+  if (!el) return;
+  for (const type of ["click", "mousedown", "pointerdown"]) {
+    el.addEventListener(type, (event) => event.stopPropagation());
+  }
 }
 
 function applyRecognitionLang(lang) {
@@ -5994,8 +6078,8 @@ function bindUi() {
     },
     toggleButtons: {
       window: nodes.settingsBtn,
-      tts: nodes.ttsSettingsToggle,
-      stt: nodes.sttSettingsToggle
+      tts: nodes.ttsSettingsSummary,
+      stt: nodes.sttSettingsSummary
     }
   });
   const markRouteDirty = () => markSettingsDirty("route");
@@ -6158,10 +6242,6 @@ function bindUi() {
     updateVoiceModeSelectUi();
     syncCompactSensorAvailability();
   });
-  nodes.sttSettingsToggle?.addEventListener("click", () => {
-    const open = nodes.sttSettingsPanel?.classList.contains("hidden");
-    setSttSettingsOpen(open);
-  });
   for (const el of [nodes.sttPrompt]) {
     el?.addEventListener("change", markSttDirty);
   }
@@ -6208,9 +6288,12 @@ function bindUi() {
       .catch((error) => renderPhase("waiting", error.message))
       .finally(() => btn?.classList.remove("is-busy"));
   });
-  nodes.ttsSettingsToggle?.addEventListener("click", () => {
-    const open = nodes.ttsSettingsPanel?.classList.contains("hidden");
-    setTtsSettingsOpen(open);
+  preventDetailsToggleOnControl(nodes.ttsPlaybackMode);
+  preventDetailsToggleOnControl(nodes.ttsPlaybackHint);
+  nodes.heroDemoBar?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-hero-demo]");
+    if (!btn) return;
+    applyHeroStatusDemo(btn.dataset.heroDemo);
   });
   nodes.ttsTestBtn?.addEventListener("click", (event) => {
     event.preventDefault();
@@ -6529,7 +6612,6 @@ async function boot() {
       shellSurfaceBackend: surfacePayload.surfaceBackend
     }).catch(() => {});
     await loadShellPromptTemplates();
-    await topicPicker.refresh();
     await loadWindowSettings();
     if (shellEmbedMode) {
       applyWindowSettings({

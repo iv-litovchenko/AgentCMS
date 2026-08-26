@@ -1,6 +1,8 @@
 /** Mobile-style dialog: history, collapse, copy/share, reconnect, errors. */
 
-const MAX_HISTORY = 12;
+import { renderShellReplyBody } from "@shell/markdown";
+
+const MAX_HISTORY = 25;
 const STREAM_PREVIEW_LEN = 120;
 
 function formatHistoryTime(at) {
@@ -72,6 +74,8 @@ function connectionHint(error) {
  *   historyList?: HTMLElement | null,
  *   lastAskWrap?: HTMLElement | null,
  *   lastAsk?: HTMLElement | null,
+ *   thread?: HTMLElement | null,
+ *   lastReply?: HTMLElement | null,
  *   errorEl?: HTMLElement | null,
  *   pullHint?: HTMLElement | null,
  *   onReconnect?: () => void,
@@ -126,6 +130,38 @@ export function createShellDialog(options = {}) {
     renderHistoryUi();
   }
 
+  function renderThreadMessage(item) {
+    const el = document.createElement("div");
+    const role = item?.role === "agent" ? "agent" : "user";
+    el.className = `shell-chat-msg shell-chat-msg--${role}`;
+    el.dataset.role = role;
+    if (role === "agent") {
+      renderShellReplyBody(el, String(item.body || ""));
+    } else {
+      el.textContent = String(item.body || "");
+    }
+    return el;
+  }
+
+  function syncLiveReplySlot() {
+    const streaming = nodes.panel?.classList.contains("is-streaming");
+    const hasThread = history.length > 0;
+    nodes.lastReply?.classList.toggle("hidden", hasThread && !streaming);
+    nodes.lastAskWrap?.classList.toggle("hidden", hasThread || !lastAskRaw);
+  }
+
+  function renderThread() {
+    if (!nodes.thread) return;
+    nodes.thread.replaceChildren();
+    for (const item of history) {
+      nodes.thread.append(renderThreadMessage(item));
+    }
+    syncLiveReplySlot();
+    if (history.length) {
+      nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "auto" });
+    }
+  }
+
   function renderHistoryUi() {
     if (nodes.historyCount) {
       nodes.historyCount.textContent = history.length ? String(history.length) : "";
@@ -158,6 +194,7 @@ export function createShellDialog(options = {}) {
       li.append(avatar, bodyWrap);
       nodes.historyList.append(li);
     }
+    renderThread();
   }
 
   function setCollapsed(next) {
@@ -200,6 +237,7 @@ export function createShellDialog(options = {}) {
     const hasReply = raw && raw !== "—";
     nodes.copyBtn?.classList.toggle("hidden", !hasReply);
     nodes.shareBtn?.classList.toggle("hidden", !hasReply || !navigator.share);
+    syncLiveReplySlot();
     updateCollapseHint();
     if (hasReply) {
       nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "smooth" });
@@ -352,6 +390,7 @@ export function createShellDialog(options = {}) {
     bindReconnect,
     connectionHint,
     pushHistory,
-    refreshHistory: loadHistory
+    refreshHistory: loadHistory,
+    syncLiveReplySlot
   };
 }

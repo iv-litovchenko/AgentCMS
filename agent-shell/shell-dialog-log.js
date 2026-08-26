@@ -130,11 +130,11 @@ async function listDialogDayFiles(dirAbsolute) {
   }
 }
 
-async function readShellDialogHistory(agentRoot, { runtime = "qwenpaw", limit = 12, days = 14 } = {}) {
+async function readShellDialogHistory(agentRoot, { runtime = "qwenpaw", limit = 25, days = 14 } = {}) {
   if (!agentRoot) return [];
 
   const runtimeId = normalizeMessageRuntime(runtime);
-  const safeLimit = Math.min(100, Math.max(1, Number(limit) || 12));
+  const safeLimit = Math.min(100, Math.max(1, Number(limit) || 25));
   const safeDays = Math.min(30, Math.max(1, Number(days) || 14));
   const scanDirs = [
     path.join(agentRoot, runtimeDialogDir(runtimeId)),

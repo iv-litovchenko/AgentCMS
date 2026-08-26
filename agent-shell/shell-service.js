@@ -1,7 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { EventEmitter } = require("events");
-const { chatWithQwenPaw, checkQwenPawHealth, checkQwenPawAgent, listQwenPawAgents, listQwenPawChats, createQwenPawChat, updateQwenPawChat, buildNewShellSessionId } = require("./qwenpaw-client");
+const { chatWithQwenPaw, checkQwenPawHealth, checkQwenPawAgent, listQwenPawAgents, listQwenPawChats, createQwenPawChat, updateQwenPawChat, buildNewShellSessionId, fetchQwenPawChatHistory } = require("./qwenpaw-client");
 const {
   buildDualReplyInstruction,
   extractStreamingReplyBody,
@@ -1226,9 +1226,33 @@ async function logShellDialogAgent(agentRoot, text, runtime = "qwenpaw") {
   }
 }
 
-async function fetchShellDialogHistory(agentRoot, options = {}) {
+async function fetchShellDialogHistory(agentRoot, agentId, options = {}) {
+  const settings = await readSettings(agentRoot);
+  const runtime = options.runtime || getMessageRuntime(settings);
+  const limit = options.limit || 25;
+
+  if (usesQwenPaw(settings) && normalizeMessageRuntime(runtime) === "qwenpaw") {
+    try {
+      const sessionId = buildQwenPawSessionId(settings, agentId);
+      const fromQwenPaw = await fetchQwenPawChatHistory({
+        baseUrl: settings.qwenpawBaseUrl,
+        agentId: settings.qwenpawAgentId,
+        userId: settings.qwenpawUserId,
+        channel: "console",
+        sessionId,
+        limit
+      });
+      if (fromQwenPaw.length) {
+        return fromQwenPaw;
+      }
+    } catch {
+      // Fall back to local awn-dialogs archive.
+    }
+  }
+
   try {
-    return await readShellDialogHistory(agentRoot, options);
+    const fromArchive = await readShellDialogHistory(agentRoot, { ...options, runtime, limit });
+    return fromArchive.map((item) => ({ ...item, source: item.source || "awn-dialogs" }));
   } catch {
     return [];
   }

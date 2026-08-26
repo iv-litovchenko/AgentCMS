@@ -503,6 +503,60 @@ function extractMessageText(message) {
   return extractAssistantText(message);
 }
 
+function stripShellOutboundSuffix(text) {
+  const raw = String(text || "").trim();
+  const marker = "\n\n---\n";
+  const idx = raw.indexOf(marker);
+  if (idx === -1) return raw;
+  return raw.slice(0, idx).trim();
+}
+
+function mapQwenPawMessagesToDialogHistory(messages, { limit = 25 } = {}) {
+  const safeLimit = Math.min(100, Math.max(1, Number(limit) || 25));
+  const mapped = [];
+  for (const item of Array.isArray(messages) ? messages : []) {
+    const roleRaw = String(item?.role || "").toLowerCase();
+    const role = roleRaw === "assistant" || roleRaw === "agent" ? "agent" : "user";
+    let body = String(extractMessageText(item) || "").trim();
+    if (!body) continue;
+    if (role === "user") body = stripShellOutboundSuffix(body);
+    if (!body) continue;
+    const created = String(item.created_at || item.updated_at || "");
+    const at = Date.parse(created) || Date.now();
+    mapped.push({
+      id: String(item.id || ""),
+      role,
+      author: role === "agent" ? "AI" : "Human",
+      label: role === "agent" ? "AI" : "Human (человек)",
+      body,
+      at,
+      runtime: "qwenpaw",
+      source: "qwenpaw"
+    });
+  }
+  return mapped.slice(-safeLimit);
+}
+
+async function fetchQwenPawChatHistory({
+  baseUrl,
+  agentId = "default",
+  userId = "shell",
+  channel = "console",
+  sessionId,
+  limit = 25
+} = {}) {
+  const chat = await findQwenPawChatBySessionId({
+    baseUrl,
+    agentId,
+    userId,
+    channel,
+    sessionId
+  });
+  if (!chat?.id) return [];
+  const detail = await fetchQwenPawChat({ baseUrl, agentId, chatId: chat.id });
+  return mapQwenPawMessagesToDialogHistory(detail?.messages, { limit });
+}
+
 function findLatestAssistantMessage(messages) {
   const list = Array.isArray(messages) ? messages : [];
   for (let i = list.length - 1; i >= 0; i -= 1) {
@@ -587,6 +641,9 @@ module.exports = {
   findQwenPawChatBySessionId,
   findLatestAssistantMessage,
   extractMessageText,
+  stripShellOutboundSuffix,
+  mapQwenPawMessagesToDialogHistory,
+  fetchQwenPawChatHistory,
   createQwenPawChat,
   updateQwenPawChat,
   buildNewShellSessionId,

@@ -79,10 +79,15 @@ function createShellHandlers(deps) {
         const settings = await shellService.readSettings(agentRoot);
         const runtime =
           url.searchParams.get("runtime") || shellService.getMessageRuntime(settings);
-        const limit = Number(url.searchParams.get("limit") || 12);
+        const limit = Number(url.searchParams.get("limit") || 25);
         const days = Number(url.searchParams.get("days") || 14);
-        const messages = await shellService.fetchShellDialogHistory(agentRoot, { runtime, limit, days });
-        deps.sendJson(res, 200, { agentId, runtime, messages });
+        const messages = await shellService.fetchShellDialogHistory(agentRoot, agentId, {
+          runtime,
+          limit,
+          days
+        });
+        const source = messages[0]?.source || (runtime === "qwenpaw" ? "qwenpaw" : "awn-dialogs");
+        deps.sendJson(res, 200, { agentId, runtime, source, messages });
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to read shell dialog history",
