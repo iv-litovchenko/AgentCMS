@@ -2764,6 +2764,16 @@ body.app-locked {
   line-height: 1;
 }
 
+.app-landing-flow-card-media-empty {
+  display: block;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.08);
+  box-sizing: border-box;
+}
+
 .app-landing-flow-card-body {
   display: flex;
   flex-direction: column;
@@ -6572,6 +6582,11 @@ body.app-locked {
   background:
     radial-gradient(ellipse 80% 70% at 50% 20%, rgba(147, 197, 253, 0.35), transparent 65%),
     #f1f5f9;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-flow-card-media-empty {
+  border-color: rgba(100, 116, 139, 0.24);
+  background: rgba(148, 163, 184, 0.12);
 }
 
 .app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-flow-empty,
@@ -29001,6 +29016,12 @@ button.node-navigation-hub-rail-slot-summary {
   border: 1px solid rgba(52, 211, 153, 0.45);
 }
 
+.node-navigation-runtime-slot--schema .node-navigation-runtime-slot-icon {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+}
+
 .node-navigation-runtime-slot-icon .menu-runtime-marker-svg {
   width: 11px;
   height: 11px;
@@ -32000,6 +32021,15 @@ button.node-navigation-memory-title:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.nav-book-toc-schema-badge {
+  flex-shrink: 0;
+}
+
+.nav-book-toc-schema-badge .menu-runtime-marker-svg {
+  width: 11px;
+  height: 11px;
 }
 
 .nav-book-toc-folder-icon {
@@ -37293,10 +37323,10 @@ button.node-navigation-memory-title:focus-visible {
 .editor-cluster-btn[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
-  top: calc(100% + 8px);
+  bottom: calc(100% + 8px);
   left: 50%;
-  z-index: 30;
-  transform: translateX(-50%) translateY(-2px);
+  z-index: 50;
+  transform: translateX(-50%) translateY(2px);
   padding: 5px 9px;
   border-radius: 8px;
   background: #1e293b;
@@ -37316,16 +37346,27 @@ button.node-navigation-memory-title:focus-visible {
 .editor-cluster-btn[data-tooltip]::before {
   content: "";
   position: absolute;
-  top: calc(100% + 2px);
+  bottom: calc(100% + 2px);
   left: 50%;
-  z-index: 30;
+  z-index: 50;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-bottom-color: #1e293b;
+  border-top-color: #1e293b;
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.12s ease, visibility 0.12s ease;
+}
+
+#editor-view-wysiwyg-btn[data-tooltip]::after {
+  max-width: 280px;
+  white-space: normal;
+  text-align: center;
+}
+
+.editor-view-btn:disabled[data-tooltip],
+.editor-view-cluster .editor-cluster-btn:disabled[data-tooltip] {
+  pointer-events: auto;
 }
 
 .editor-view-btn[data-tooltip]:hover::after,

@@ -5958,6 +5958,7 @@ function mountPreviewOrFallback(container, {
   fallbackText = "?",
   emojiClass,
   initialsClass,
+  emptyClass = "",
   nodePath = "",
   iconClass = ""
 }) {
@@ -5967,6 +5968,13 @@ function mountPreviewOrFallback(container, {
       container.appendChild(
         createPreviewFallbackNode({ emoji, fallbackText, emojiClass, initialsClass })
       );
+      return;
+    }
+    if (emptyClass) {
+      const empty = document.createElement("span");
+      empty.className = emptyClass;
+      empty.setAttribute("aria-hidden", "true");
+      container.appendChild(empty);
       return;
     }
     if (nodePath) {
@@ -9530,6 +9538,7 @@ function createAppLandingFlowCard(focusItem) {
     fallbackText: getAgentPickerInitials({ name: label, id: focusItem.agentId }),
     emojiClass: "app-landing-flow-card-emoji",
     initialsClass: "app-landing-flow-card-fallback",
+    emptyClass: "app-landing-flow-card-media-empty",
     nodePath,
     iconClass: "node-cover-icon--in-flow-card"
   });
@@ -37330,6 +37339,126 @@ function topicSchemaStateHasCustomFields(state) {
   );
 }
 
+function nodeManifestHasOwnCustomSchema(nodePath = getResolvedNodePath(activePath)) {
+  const manifestPath = getTopicSchemaManifestPath(nodePath);
+  if (!manifestPath) return false;
+  const cache = getTopicSchemaCache(manifestPath, "");
+  if (!cache) return false;
+  if (isWorkspaceSchemaContext(manifestPath)) {
+    return topicSchemaStateHasCustomFields(cache.workspaceAwnSchema);
+  }
+  if (isAreaSchemaContext(manifestPath)) {
+    return topicSchemaStateHasCustomFields(cache.areaAwnSchema);
+  }
+  return topicSchemaStateHasCustomFields(cache.topicAwnSchema);
+}
+
+function nodeHasCustomSchemaFromMenu(nodePath = getResolvedNodePath(activePath), agentId = activeAgentId) {
+  const menu = menuCacheByAgent.get(agentId) || (agentId === activeAgentId ? currentMenuData : null);
+  if (!menu) return false;
+
+  const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath));
+  const menuRoot = { title: getAgentTreeTitle(agentId), ...menu };
+  const fromMenuItem = findMenuItemEntryInAgentMenu(menuRoot, normalized);
+  if (fromMenuItem) {
+    return Boolean(fromMenuItem.hasCustomSchemaSelf ?? fromMenuItem.hasCustomSchema);
+  }
+
+  const folderRel = normalizeFolderPath(getFolderPathFromManifest(normalized) || ".");
+  const source =
+    folderRel === "."
+      ? menu
+      : findMenuSectionInAgentMenu(menuRoot, folderRel) || getMenuTreeNodeByFolderPath(folderRel, agentId);
+  return Boolean(source?.hasCustomSchemaSelf ?? source?.hasCustomSchema);
+}
+
+function nodeHasOwnCustomSchemaIndicator(nodePath = getResolvedNodePath(activePath)) {
+  return nodeManifestHasOwnCustomSchema(nodePath) || nodeHasCustomSchemaFromMenu(nodePath);
+}
+
+function sectionFolderHasOwnCustomSchemaFromCache(
+  manifestPath,
+  sectionPath,
+  memoryKind = "external"
+) {
+  const normalizedSection = String(sectionPath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!manifestPath || !normalizedSection) return false;
+  const context = {
+    memoryKind: memoryKind || "external",
+    relativePath: `${normalizedSection}/manifest.md`
+  };
+  const params = resolveSectionSchemaParams(context, manifestPath);
+  if (!params) return false;
+  const cached = sectionSchemaCacheByKey.get(getSectionSchemaCacheKey(params));
+  return cached ? topicSchemaStateHasCustomFields(cached.awnSchema) : false;
+}
+
+function createNavBookTocSchemaBadge() {
+  const badge = document.createElement("span");
+  badge.className =
+    "nav-book-toc-schema-badge menu-runtime-badge menu-runtime-badge--schema ui-tooltip-host";
+  applyUiTooltip(badge, "Схема полей задана", { position: "top" });
+  badge.setAttribute("aria-label", "Схема полей задана");
+  badge.appendChild(createSchemaMenuMarkerSvg());
+  return badge;
+}
+
+function appendNavBookTocSchemaBadge(folderLabel) {
+  if (!folderLabel || folderLabel.querySelector(".nav-book-toc-schema-badge")) return;
+  const badge = createNavBookTocSchemaBadge();
+  const folderText = folderLabel.querySelector(".nav-book-toc-folder-text");
+  if (folderText) {
+    folderText.insertBefore(badge, folderText.firstChild);
+    return;
+  }
+  folderLabel.appendChild(badge);
+}
+
+function applyNavBookTocSectionSchemaBadge(rootEl, sectionPath) {
+  if (!rootEl || !sectionPath) return;
+  const escaped = CSS.escape(String(sectionPath));
+  const folderLabel = rootEl.querySelector(`.nav-book-toc-folder-label[data-section-folder="${escaped}"]`);
+  if (folderLabel) appendNavBookTocSchemaBadge(folderLabel);
+}
+
+async function prefetchNavBookTocSectionSchemaBadges(
+  rootEl,
+  { manifestPath, memoryKind = "external", folderPaths = null } = {}
+) {
+  if (!rootEl || !manifestPath) return;
+  const paths =
+    folderPaths instanceof Set
+      ? [...folderPaths]
+      : Array.isArray(folderPaths)
+        ? folderPaths
+        : [];
+  if (!paths.length) return;
+
+  await Promise.all(
+    paths.map(async (sectionPath) => {
+      if (sectionFolderHasOwnCustomSchemaFromCache(manifestPath, sectionPath, memoryKind)) {
+        applyNavBookTocSectionSchemaBadge(rootEl, sectionPath);
+        return;
+      }
+      const normalizedSection = String(sectionPath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+      if (!normalizedSection) return;
+      const context = {
+        memoryKind: memoryKind || "external",
+        relativePath: `${normalizedSection}/manifest.md`,
+        entryKind: memoryKind === "media" ? "awn.media.category" : "awn.content.category"
+      };
+      try {
+        const cache = await loadSectionSchemaForEntry(context);
+        if (topicSchemaStateHasCustomFields(cache?.awnSchema)) {
+          applyNavBookTocSectionSchemaBadge(rootEl, sectionPath);
+        }
+      } catch {
+        // ignore missing section schema
+      }
+    })
+  );
+}
+
 function invalidateTopicSchemaCacheForManifest(manifestPath) {
   const manifest = String(manifestPath || "").replace(/\\/g, "/");
   if (!manifest) return;
@@ -51762,9 +51891,7 @@ function applySystemFileUi() {
   if (editorViewWysiwygBtn) {
     const frontmatterLocked = systemFileHasEditableFrontmatter(activeSystemFile);
     editorViewWysiwygBtn.disabled = !isMd || !isWysiwygEditorEnabled();
-    editorViewWysiwygBtn.title = frontmatterLocked
-      ? "Редактируется только основной текст; YAML-свойства — в режиме «Исходник»"
-      : "";
+    syncEditorViewWysiwygTooltip({ frontmatterLocked });
   }
   applyEditorViewMode();
   syncSaveButtonLamp();
@@ -52785,7 +52912,21 @@ function createNavigationHeroRuntimeSlot({ id, active = false, caption = "", tit
   return slot;
 }
 
-function appendNavigationHeroRuntimeSlots(parent, propEntries) {
+function createNavigationHeroSchemaSlot() {
+  const slot = document.createElement("span");
+  slot.className = "node-slot-chip node-navigation-runtime-slot node-navigation-runtime-slot--schema is-active";
+  applyUiTooltip(slot, "Схема полей задана");
+  slot.setAttribute("role", "img");
+  slot.setAttribute("aria-label", "Схема полей задана");
+
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "node-navigation-runtime-slot-icon";
+  iconWrap.appendChild(createSchemaMenuMarkerSvg());
+  slot.appendChild(iconWrap);
+  return slot;
+}
+
+function appendNavigationHeroRuntimeSlots(parent, propEntries, { nodePath = getResolvedNodePath(activePath) } = {}) {
   if (!parent || !Array.isArray(propEntries)) return;
 
   const runtime = extractRuntimePropsFromPropEntries(propEntries);
@@ -52834,6 +52975,10 @@ function appendNavigationHeroRuntimeSlots(parent, propEntries) {
       })
     })
   );
+
+  if (nodeHasOwnCustomSchemaIndicator(nodePath)) {
+    parent.appendChild(createNavigationHeroSchemaSlot());
+  }
 }
 
 function createNavigationHeroTypePathRow(typeLabel = "") {
@@ -55821,7 +55966,7 @@ function createNavigationHeroMarkersRow(nodePath, options = {}) {
     );
   }
   wrap.append(...markerSlots);
-  appendNavigationHeroRuntimeSlots(wrap, options.propEntries);
+  appendNavigationHeroRuntimeSlots(wrap, options.propEntries, { nodePath });
 
   const block = document.createElement("div");
   block.className = "node-navigation-hero-marker-block";
@@ -58231,6 +58376,9 @@ function populateNavBookTocFolderLabel(
     : description
       ? `${label} (${description})`
       : label;
+  if (folderNode.folderPath) {
+    folderLabel.dataset.sectionFolder = folderNode.folderPath;
+  }
   folderLabel.classList.toggle("nav-book-toc-folder-label--unregistered", isUnregistered);
   folderIcon.className = isUnregistered
     ? "nav-book-toc-folder-icon nav-book-toc-folder-icon--adopt"
@@ -58247,6 +58395,12 @@ function populateNavBookTocFolderLabel(
   folderLabel.appendChild(folderIcon);
   if (statusBadge) folderLabel.appendChild(statusBadge);
   folderLabel.appendChild(folderText);
+  if (
+    folderNode.folderPath &&
+    sectionFolderHasOwnCustomSchemaFromCache(readManifestPath, folderNode.folderPath, readMemoryKind)
+  ) {
+    appendNavBookTocSchemaBadge(folderLabel);
+  }
   if (folderStatus) {
     const leaders = document.createElement("span");
     leaders.className = "nav-book-toc-leaders";
@@ -62734,6 +62888,11 @@ function renderEntryOverviewSectionList(context, navigationIndex) {
 
   nav.appendChild(list);
   section.appendChild(nav);
+  void prefetchNavBookTocSectionSchemaBadges(section, {
+    manifestPath: getOverviewNodeApiPath(activePath),
+    memoryKind: context.memoryKind,
+    folderPaths: collectNavigationTreeFolderPaths(tree)
+  });
   return section;
 }
 
@@ -63806,6 +63965,11 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex, { topicPrevi
   nav.classList.add("nav-book-toc-tree--guide");
   nav.appendChild(list);
   section.appendChild(nav);
+  void prefetchNavBookTocSectionSchemaBadges(section, {
+    manifestPath: getOverviewNodeApiPath(activePath),
+    memoryKind: context.memoryKind,
+    folderPaths
+  });
   return section;
 }
 
@@ -64672,6 +64836,15 @@ function renderNavigationHubRailFlatSlot(slot, slotIndex, activeCtx) {
   return row;
 }
 
+function collectNavigationTreeFolderPaths(node, acc = new Set()) {
+  if (!node?.folders) return acc;
+  for (const [, folderNode] of node.folders) {
+    if (folderNode.folderPath) acc.add(folderNode.folderPath);
+    collectNavigationTreeFolderPaths(folderNode, acc);
+  }
+  return acc;
+}
+
 function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {}) {
   const folderLabels = handlers.folderLabels || new Map();
   const folderDescriptions = handlers.folderDescriptions || new Map();
@@ -64896,16 +65069,20 @@ function refreshNavigationExternalTocSearch(card) {
       : new Set(filtered.folderPaths || []);
 
   if (filtered.contentFiles.length || filteredFolderPaths.size) {
-    body.appendChild(
-      renderNavigationExternalBookToc(
-        filtered.contentFiles,
-        filtered.folderLabels,
-        filteredFolderPaths,
-        filtered.folderStatuses,
-        filtered.folderDescriptions,
-        filtered.sectionManifestByFolder
-      )
+    const nav = renderNavigationExternalBookToc(
+      filtered.contentFiles,
+      filtered.folderLabels,
+      filteredFolderPaths,
+      filtered.folderStatuses,
+      filtered.folderDescriptions,
+      filtered.sectionManifestByFolder
     );
+    body.appendChild(nav);
+    void prefetchNavBookTocSectionSchemaBadges(nav, {
+      manifestPath: getActiveNodeApiPath(),
+      memoryKind: "external",
+      folderPaths: filteredFolderPaths
+    });
     return;
   }
 
@@ -65239,6 +65416,11 @@ function renderNavigationMediaPart(mediaData, { memoryKind = "media", label = "�
   });
   nav.appendChild(list);
   body.appendChild(nav);
+  void prefetchNavBookTocSectionSchemaBadges(nav, {
+    manifestPath: getActiveNodeApiPath(),
+    memoryKind,
+    folderPaths
+  });
   return createNavigationMemoryPanel(memoryKind, label, body, mediaData);
 }
 
@@ -75135,17 +75317,26 @@ function isWysiwygEditorEnabled() {
   return WYSIWYG_EDITOR_ENABLED;
 }
 
+function syncEditorViewWysiwygTooltip({ frontmatterLocked = false } = {}) {
+  if (!editorViewWysiwygBtn) return;
+  const defaultTooltip = "Редактор";
+  let tooltip = defaultTooltip;
+  if (!isWysiwygEditorEnabled()) {
+    tooltip = "WYSIWYG-редактор временно отключён";
+  } else if (frontmatterLocked) {
+    tooltip = "Редактируется только основной текст; YAML-свойства — в режиме «Исходник»";
+  }
+  editorViewWysiwygBtn.dataset.tooltip = tooltip;
+  editorViewWysiwygBtn.setAttribute("aria-label", tooltip);
+}
+
 function syncEditorViewButtonsAvailability(readOnly, forceEditOnly) {
   const wysiwygBlocked = !isWysiwygEditorEnabled();
   const readOnlyBlocksToggle = readOnly && !isListViewWithSourceToggleMode();
   editorViewSourceBtn.disabled = readOnlyBlocksToggle || forceEditOnly;
   editorViewWysiwygBtn.disabled = readOnlyBlocksToggle || forceEditOnly || wysiwygBlocked;
   editorViewPreviewBtn.disabled = readOnlyBlocksToggle || forceEditOnly;
-  if (wysiwygBlocked) {
-    editorViewWysiwygBtn.title = "WYSIWYG-редактор временно отключён";
-  } else {
-    editorViewWysiwygBtn.removeAttribute("title");
-  }
+  syncEditorViewWysiwygTooltip();
 }
 
 function getToastUiEditorClass() {

@@ -405,6 +405,7 @@ const {
   collectAllFocusEntries,
   collectAgentFocusEntries,
   collectAllRecentEntries,
+  getActiveAgentId,
   isPlatformAgentId,
   getAgentKitFolder,
   getAgentContainerFolder,
@@ -7591,10 +7592,15 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
     }
 
     enrichMenuTreeRuntimeRollup(menu);
+    enrichMenuTreeSchemaRollup(menu);
     if (serviceTree) enrichMenuTreeRuntimeRollup(serviceTree);
+    if (serviceTree) enrichMenuTreeSchemaRollup(serviceTree);
     if (containerTree) enrichMenuTreeRuntimeRollup(containerTree);
+    if (containerTree) enrichMenuTreeSchemaRollup(containerTree);
     if (sharedTree) enrichMenuTreeRuntimeRollup(sharedTree);
+    if (sharedTree) enrichMenuTreeSchemaRollup(sharedTree);
     if (systemTree) enrichMenuTreeRuntimeRollup(systemTree);
+    if (systemTree) enrichMenuTreeSchemaRollup(systemTree);
 
     return stripPlatformDataFromMenuTree({
       ...menu,
@@ -7660,6 +7666,7 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     );
     const branch = await normalizeContainerMenuTree(tree, containerAbsolute, containerFolder);
     enrichMenuTreeRuntimeRollup(branch);
+    enrichMenuTreeSchemaRollup(branch);
     return branch;
   }
 
@@ -7671,6 +7678,7 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     const tree = await listNodeMdFiles(sharedAbsolute, sharedFolder, 0, resolveBranchListOptions(0));
     const branch = await normalizeSharedMenuTree(tree, sharedAbsolute);
     enrichMenuTreeRuntimeRollup(branch);
+    enrichMenuTreeSchemaRollup(branch);
     return branch;
   }
 
@@ -7682,6 +7690,7 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     const tree = await listNodeMdFiles(kitAbsolute, kitFolder, 0, resolveBranchListOptions(0));
     const branch = await normalizeServiceMenuTree(tree, kitAbsolute);
     enrichMenuTreeRuntimeRollup(branch);
+    enrichMenuTreeSchemaRollup(branch);
     return branch;
   }
 
@@ -7705,6 +7714,7 @@ async function buildAgentMenuBranch(agentRootAbsolute, folderPathRaw, options = 
     branch = tree;
   }
   enrichMenuTreeRuntimeRollup(branch);
+  enrichMenuTreeSchemaRollup(branch);
   return stripPlatformDataFromMenuTree(branch);
 }
 
@@ -13077,6 +13087,7 @@ async function enrichMenuNodeItem(nodeRelPath, options = {}) {
   const previewMeta = previewRaw
     ? await resolveAwnPreviewFieldMeta(normalizedPath, previewRaw)
     : { hasPreview: false, previewUrl: null, previewFile: null };
+  const hasCustomSchema = await readNodeHasOwnSchemaLayerForMenu(normalizedPath);
   const result = {
     color: meta.color,
     tags: meta.tags,
@@ -13089,7 +13100,7 @@ async function enrichMenuNodeItem(nodeRelPath, options = {}) {
     runtimeHeartbeat: Boolean(meta.runtimeHeartbeat),
     runtimeLoadAlways: Boolean(meta.runtimeLoadAlways),
     runtimeCommands: Boolean(meta.runtimeCommands),
-    hasCustomSchema: false,
+    hasCustomSchema,
     ...previewMeta
   };
   cache?.set(normalizedPath, result);
@@ -13994,6 +14005,8 @@ async function buildMenuFolderShellAtDepthLimit(fullPath, relativePath, markers,
     shell.runtimeCommands = Boolean(indexMeta.runtimeCommands);
     shell.runtimeCronSelf = shell.runtimeCron;
     shell.runtimeHeartbeatSelf = shell.runtimeHeartbeat;
+    shell.hasCustomSchema = Boolean(indexMeta.hasCustomSchema);
+    shell.hasCustomSchemaSelf = shell.hasCustomSchema;
   } else {
     const sidecar = await readFolderSidecarMeta(relativePath);
     shell.description = sidecar.description;
@@ -14258,6 +14271,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
   let runtimeHeartbeat = false;
   let runtimeLoadAlways = false;
   let runtimeCommands = false;
+  let hasCustomSchema = false;
   if (indexPath) {
     const indexMeta = await enrichMenuNodeItem(indexPath, options);
     color = indexMeta.color;
@@ -14271,6 +14285,7 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     runtimeHeartbeat = Boolean(indexMeta.runtimeHeartbeat);
     runtimeLoadAlways = Boolean(indexMeta.runtimeLoadAlways);
     runtimeCommands = Boolean(indexMeta.runtimeCommands);
+    hasCustomSchema = Boolean(indexMeta.hasCustomSchema);
   }
 
   const baseNode = {
@@ -14294,6 +14309,8 @@ async function listNodeMdFiles(dirPath, prefix = "", depth = 0, options = {}) {
     runtimeCommands,
     runtimeCronSelf: runtimeCron,
     runtimeHeartbeatSelf: runtimeHeartbeat,
+    hasCustomSchema,
+    hasCustomSchemaSelf: hasCustomSchema,
     hasGit: selfMarkers.hasGitSelf,
     hasObsidian: selfMarkers.hasObsidianSelf,
     ...selfMarkers
