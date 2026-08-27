@@ -9502,6 +9502,8 @@ function createAppLandingFlowCard(focusItem) {
   const awnProps = focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
   const status = getFocusPropDisplayValue(focusItem, "awn-status");
   const typeLabel = getFocusPropDisplayValue(focusItem, "awn-type") || getFocusItemType(focusItem);
+  const updatedAt = String(focusItem.updatedAt || focusItem?.awnProps?.["awn-update"] || "").trim();
+  const updatedLabel = updatedAt ? formatTimelineRelativeTime(updatedAt) : "";
 
   const btn = document.createElement("button");
   btn.type = "button";
@@ -9560,6 +9562,14 @@ function createAppLandingFlowCard(focusItem) {
 
   meta.appendChild(agentChip);
 
+  if (updatedLabel) {
+    const updatedNode = document.createElement("span");
+    updatedNode.className = "app-landing-flow-card-updated";
+    updatedNode.textContent = updatedLabel;
+    updatedNode.title = formatNodeMetaDateTime(updatedAt);
+    meta.appendChild(updatedNode);
+  }
+
   if (status || typeLabel) {
     const tags = document.createElement("span");
     tags.className = "app-landing-flow-card-tags";
@@ -9586,7 +9596,7 @@ function createAppLandingFlowCard(focusItem) {
   return btn;
 }
 
-function renderAppLandingFlow(focusItems = getProcessedLandingFocusItems()) {
+function renderAppLandingFlow(focusItems = globalFlowItemsCache) {
   if (!appLandingFlowGridNode) return;
   if (getLandingAgentsView() !== "flow") return;
 
@@ -9608,11 +9618,11 @@ function renderAppLandingFlow(focusItems = getProcessedLandingFocusItems()) {
 
     const lead = document.createElement("p");
     lead.className = "app-landing-flow-empty";
-    lead.textContent = "Пока нет тем в фокусе.";
+    lead.textContent = "Пока нет недавних обновлений.";
 
     const hint = document.createElement("p");
     hint.className = "app-landing-flow-empty-hint";
-    hint.textContent = "Отметьте тему звёздочкой (awn-main: true) — она появится здесь и на других видах.";
+    hint.textContent = `Здесь показываются ${LANDING_FLOW_RECENT_LIMIT} последних изменённых записей по всем агентам.`;
 
     empty.append(lead, hint);
     appLandingFlowGridNode.appendChild(empty);
