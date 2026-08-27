@@ -9009,13 +9009,14 @@ function getOrbitBubbleLayout(index, total, agentId) {
 }
 
 function syncLandingAgentsViewUi() {
+  appLandingInnerNode?.classList.toggle("is-orbit-direct-open", ORBIT_BUBBLE_OPENS_WORKSPACE);
   const view = getLandingAgentsView();
   const isHub = view === "hub";
   const isOrbit = view === "orbit";
   const isSettings = view === "settings";
   const isGrid = view === "grid";
   const isFlow = view === "flow";
-  const isCanvasView = isHub || isOrbit || isFlow;
+  const isCanvasView = isHub || isOrbit || isFlow || isGrid;
 
   appLandingPaneNode?.classList.toggle("is-screensaver", isCanvasView);
   appLandingPaneNode?.classList.toggle("app-landing-pane--hub", isHub);
@@ -9604,6 +9605,8 @@ function renderAppLandingFlow(focusItems = getProcessedLandingFocusItems()) {
 }
 
 const ORBIT_LINK_CENTER = { x: 50, y: 48 };
+/** Orbit: клик по пузырю сразу открывает workspace; twigs на hover и dive-дерево — отложены */
+const ORBIT_BUBBLE_OPENS_WORKSPACE = true;
 
 function createAppLandingOrbitBubble(agent, index, total, share) {
   const registryActive = isAgentRegistryActive(agent);
@@ -9632,15 +9635,15 @@ function createAppLandingOrbitBubble(agent, index, total, share) {
   }`;
   btn.title = registryActive
     ? isOrchestrator
-      ? `Оркестратор · ${label} — нажмите, чтобы провалиться внутрь`
-      : `Провалиться в ${label}`
+      ? `Оркестратор · ${label} — открыть workspace`
+      : `Открыть workspace · ${label}`
     : `${label} — неактивен`;
   btn.setAttribute(
     "aria-label",
     registryActive
       ? isOrchestrator
-        ? `Оркестратор ${label} — провалиться внутрь`
-        : `Провалиться в агента ${label}`
+        ? `Оркестратор ${label} — открыть workspace`
+        : `Открыть workspace агента ${label}`
       : `Агент ${label} неактивен`
   );
 
@@ -9675,6 +9678,10 @@ function createAppLandingOrbitBubble(agent, index, total, share) {
       showToast("Агент выключен — включите в реестре (⚙)", "error");
       return;
     }
+    if (ORBIT_BUBBLE_OPENS_WORKSPACE) {
+      selectAgentOption(agent.id);
+      return;
+    }
     if (landingOrbitDiveAgentId === agent.id) {
       selectAgentOption(agent.id);
       return;
@@ -9704,7 +9711,9 @@ function createAppLandingOrbitBubble(agent, index, total, share) {
 
   item.append(...children);
   bindOrbitAttentionHover(item, agent.id);
-  bindOrbitItemFocusHover(item, agent, index);
+  if (!ORBIT_BUBBLE_OPENS_WORKSPACE) {
+    bindOrbitItemFocusHover(item, agent, index);
+  }
   return item;
 }
 
@@ -9760,6 +9769,7 @@ function renderAppLandingOrbit() {
   renderAppLandingAttention(buildMockAgentAttentionShares(agents));
   setLandingOrbitFocusCache(getLandingHubOrbitTopicItems());
   syncOrbitDiveSelection();
+  appLandingInnerNode?.classList.toggle("is-orbit-direct-open", ORBIT_BUBBLE_OPENS_WORKSPACE);
 }
 
 const ORBIT_FOCUS_TWIG_LIMIT = 8;
@@ -9835,6 +9845,10 @@ function getOrbitGraphTwigLayout(focusIndex, focusTotal, agentLayout, focusItem)
 }
 
 function renderOrbitAllAgentFocusGraphs() {
+  if (ORBIT_BUBBLE_OPENS_WORKSPACE) {
+    clearOrbitAgentFocusDisplay();
+    return;
+  }
   if (!appLandingOrbitTwigsNode || !appLandingOrbitFocusLinksNode) return;
   if (getLandingAgentsView() !== "orbit") return;
 
@@ -10578,6 +10592,10 @@ function syncOrbitDiveUi() {
 }
 
 function openOrbitAgentDive(agentId) {
+  if (ORBIT_BUBBLE_OPENS_WORKSPACE) {
+    selectAgentOption(agentId);
+    return;
+  }
   const agent = getOrbitDiveAgentRecord(agentId);
   if (!agent || !isAgentRegistryActive(agent)) {
     showToast("Агент выключен — включите в реестре (⚙)", "error");
@@ -40854,12 +40872,63 @@ function resolveOverviewSchemaTargetForNode(nodePath = getResolvedNodePath(activ
   return resolveAwnSchemaTargetForContext(nodePath);
 }
 
+function getOverviewSchemaLookupTargets(
+  nodePath = getResolvedNodePath(activePath),
+  context = activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null
+) {
+  const primary = resolveOverviewSchemaTargetForNode(nodePath);
+  const targets = primary ? [primary] : [];
+
+  const slotKey =
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE && context
+      ? getDataStorageSlotKeyForEntryView(NODE_ENTRY_OVERVIEW_MODE)
+      : resolveSchemaSlotKeyForContext(nodePath);
+
+  if (slotKey && typeof TopicSchemaSlotSpecs !== "undefined" && primary) {
+    const spec = TopicSchemaSlotSpecs.findTopicSchemaTargetSpecById(primary);
+    if (spec?.contentKind === "record") {
+      const categoryTarget = TopicSchemaSlotSpecs.resolveTopicSchemaTargetId(slotKey, {
+        contentKind: "category"
+      });
+      if (categoryTarget && !targets.includes(categoryTarget)) targets.push(categoryTarget);
+    } else if (spec?.contentKind === "sidecar") {
+      const categoryTarget = TopicSchemaSlotSpecs.resolveTopicSchemaTargetId(slotKey, {
+        contentKind: "category"
+      });
+      if (categoryTarget && !targets.includes(categoryTarget)) targets.push(categoryTarget);
+    }
+  }
+
+  return targets;
+}
+
+function collectOverviewCustomFieldsForTargets(cache, targets = []) {
+  if (!cache || !Array.isArray(targets) || !targets.length) return {};
+  const result = {};
+  for (const target of targets) {
+    const layers = [
+      getTopicSchemaCustomFieldsForTarget(target, cache),
+      cache.sectionAwnSchema?.[target]?.fields || {},
+      cache.topicAwnSchema?.[target]?.fields || {}
+    ];
+    for (const fields of layers) {
+      for (const [key, def] of Object.entries(fields)) {
+        if (!result[key]) result[key] = def;
+      }
+    }
+  }
+  return result;
+}
+
 function getOverviewCustomSchemaLayerFields(nodePath = getResolvedNodePath(activePath)) {
   const overviewContext =
     activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null;
   const cache = resolveActiveOverviewSchemaCache(overviewContext);
-  const target = resolveOverviewSchemaTargetForNode(nodePath);
-  return cache ? getTopicSchemaCustomFieldsForTarget(target, cache) : {};
+  if (!cache) return {};
+  return collectOverviewCustomFieldsForTargets(
+    cache,
+    getOverviewSchemaLookupTargets(nodePath, overviewContext)
+  );
 }
 
 function getOverviewSettingsSchemaFieldsFromCache(context = null, nodePath = getResolvedNodePath(activePath)) {
@@ -40878,9 +40947,10 @@ function getOverviewSchemaFieldDef(key, nodePath = getResolvedNodePath(activePat
 
   const cache = resolveActiveOverviewSchemaCache();
   if (cache?.awnSchema) {
-    const target = resolveOverviewSchemaTargetForNode(nodePath);
-    const targetField = cache.awnSchema[target]?.fields?.[normalized];
-    if (targetField) return targetField;
+    for (const target of getOverviewSchemaLookupTargets(nodePath)) {
+      const targetField = cache.awnSchema[target]?.fields?.[normalized];
+      if (targetField) return targetField;
+    }
     if (isOverviewSettingsFieldKey(normalized, nodePath)) {
       const settingsField = cache.awnSchema.settings?.fields?.[normalized];
       if (settingsField) return settingsField;
@@ -41024,7 +41094,7 @@ function getOverviewCustomSchemaFieldKeys(nodePath = getResolvedNodePath(activeP
   const overviewContext =
     activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null;
   const cache = resolveActiveOverviewSchemaCache(overviewContext);
-  const target = resolveOverviewSchemaTargetForNode(nodePath);
+  const targets = getOverviewSchemaLookupTargets(nodePath, overviewContext);
   const customFields = getOverviewCustomSchemaLayerFields(nodePath);
 
   const acceptKey = (key) => shouldIncludeOverviewCustomSchemaFieldKey(key, nodePath);
@@ -41034,29 +41104,27 @@ function getOverviewCustomSchemaFieldKeys(nodePath = getResolvedNodePath(activeP
     (Array.isArray(cache?.sectionChain) && cache.sectionChain.length > 0);
 
   if (hasSectionLayer && cache) {
-    const topicFields = cache.topicAwnSchema?.[target]?.fields || {};
-    const localFields = cache.sectionAwnSchema?.[target]?.fields || {};
-    const localKeySet = new Set(Object.keys(localFields));
     const ordered = [];
     const seen = new Set();
 
-    for (const key of Object.keys(topicFields)) {
-      if (!customFields[key] || localKeySet.has(key) || !acceptKey(key) || seen.has(key)) continue;
-      seen.add(key);
-      ordered.push(key);
+    for (const target of targets) {
+      const topicFields = cache.topicAwnSchema?.[target]?.fields || {};
+      const localFields = cache.sectionAwnSchema?.[target]?.fields || {};
+      const localKeySet = new Set(Object.keys(localFields));
+
+      for (const key of Object.keys(topicFields)) {
+        if (!customFields[key] || localKeySet.has(key) || !acceptKey(key) || seen.has(key)) continue;
+        seen.add(key);
+        ordered.push(key);
+      }
+      for (const key of Object.keys(localFields)) {
+        if (!acceptKey(key) || seen.has(key)) continue;
+        seen.add(key);
+        ordered.push(key);
+      }
     }
     for (const key of Object.keys(customFields)) {
-      if (seen.has(key) || localKeySet.has(key) || !acceptKey(key)) continue;
-      seen.add(key);
-      ordered.push(key);
-    }
-    for (const key of Object.keys(localFields)) {
-      if (!customFields[key] || !acceptKey(key) || seen.has(key)) continue;
-      seen.add(key);
-      ordered.push(key);
-    }
-    for (const key of Object.keys(customFields)) {
-      if (seen.has(key) || !acceptKey(key)) continue;
+      if (!acceptKey(key) || seen.has(key)) continue;
       seen.add(key);
       ordered.push(key);
     }
@@ -42578,12 +42646,17 @@ function findPropsFieldDefInTopicSchemaTargets(key, cache = resolveActiveOvervie
 
   const overviewContext =
     activeContentMode === NODE_ENTRY_OVERVIEW_MODE ? activeEntryOverviewContext : null;
-  const target =
-    activeContentMode === NODE_ENTRY_OVERVIEW_MODE
-      ? resolveOverviewSchemaTargetForContext(overviewContext)
-      : resolveAwnSchemaTargetForContext();
-  const merged = resolveTopicSchemaMergedType(target, cache);
-  return merged?.fields?.[normalized] || null;
+  const targets = getOverviewSchemaLookupTargets(getResolvedNodePath(activePath), overviewContext);
+
+  for (const target of targets) {
+    const fromCustom = cache.awnSchema?.[target]?.fields?.[normalized];
+    if (fromCustom) return fromCustom;
+    const fromSection = cache.sectionAwnSchema?.[target]?.fields?.[normalized];
+    if (fromSection) return fromSection;
+    const merged = resolveTopicSchemaMergedType(target, cache);
+    if (merged?.fields?.[normalized]) return merged.fields[normalized];
+  }
+  return null;
 }
 
 function isPropsFieldDefinedInActiveSchema(key, options = {}) {
@@ -53307,7 +53380,9 @@ function splitNodeOverviewMetaItems(entries, nodePath = getResolvedNodePath(acti
     if (isForeignLayerCustomPropKey(key, nodePath)) continue;
     if (HIDDEN_PROPS_FIELD_KEYS.has(key) || OVERVIEW_EXCLUDED_PROP_KEYS.has(key)) continue;
     if (!shouldIncludePropsFieldKey(key)) continue;
-    const orphan = createNodeOverviewMetaItem(key, entry, { fieldDef: null, inSchema: false });
+    const fieldDef = customFields[key] || getOverviewSchemaFieldDef(key, nodePath) || null;
+    const inSchema = Boolean(fieldDef) || isOverviewCustomFieldDefinedInSchema(key, nodePath);
+    const orphan = createNodeOverviewMetaItem(key, entry, { fieldDef, inSchema });
     if (orphan) customItems.push(orphan);
   }
 

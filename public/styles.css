@@ -4650,6 +4650,13 @@ body.app-locked {
   pointer-events: auto;
 }
 
+/* Orbit direct-open: twigs на hover и dive-дерево отложены (ORBIT_BUBBLE_OPENS_WORKSPACE) */
+.app-landing-inner.is-orbit-direct-open #app-landing-orbit-twigs,
+.app-landing-inner.is-orbit-direct-open #app-landing-orbit-focus-links,
+.app-landing-inner.is-orbit-direct-open #app-landing-orbit-dive {
+  display: none !important;
+}
+
 .app-landing-orbit-focus-links {
   position: absolute;
   inset: 0;
