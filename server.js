@@ -404,7 +404,7 @@ const {
   runWithAgent,
   collectAllFocusEntries,
   collectAgentFocusEntries,
-  getActiveAgentId,
+  collectAllRecentEntries,
   isPlatformAgentId,
   getAgentKitFolder,
   getAgentContainerFolder,
@@ -23446,6 +23446,21 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to load focus items",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agents/recent-updates") {
+    const limitRaw = Number(url.searchParams.get("limit"));
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 30;
+    try {
+      refreshAgentsFromDisk();
+      const items = collectAllRecentEntries(limit);
+      return sendJson(res, 200, { items: await enrichFocusItems(items), limit });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load recent updates",
         details: String(error?.message || error)
       });
     }

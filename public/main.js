@@ -6017,10 +6017,12 @@ function getPlatformAgentForLanding() {
 let globalFocusItemsCache = [];
 let agentFocusItemsCache = [];
 let globalLandingHubTopicItemsCache = [];
+let globalFlowItemsCache = [];
 let landingHubTopicItemsLoadSeq = 0;
 
 const LANDING_HUB_ORBIT_TOPIC_MAX_DEPTH = 2;
 const LANDING_HUB_ORBIT_MENU_MAX_DEPTH = LANDING_HUB_ORBIT_TOPIC_MAX_DEPTH + 1;
+const LANDING_FLOW_RECENT_LIMIT = 30;
 
 const LANDING_FOCUS_FILTER_STORAGE_KEY = "agentcms.landingFocusFilter.v1";
 const LANDING_FOCUS_SORT_STORAGE_KEY = "agentcms.landingFocusSort.v1";
@@ -7121,7 +7123,7 @@ function renderGlobalFocusPanel() {
     return;
   }
   if (getLandingAgentsView() === "flow") {
-    renderAppLandingFlow(processed);
+    renderAppLandingFlow(globalFlowItemsCache);
     return;
   }
   renderLandingFocusGrid(processed);
@@ -7198,6 +7200,22 @@ async function loadGlobalFocusItems() {
   renderGlobalFocusPanel();
 }
 
+async function loadGlobalFlowItems() {
+  try {
+    const response = await fetch(
+      `/api/agents/recent-updates?limit=${encodeURIComponent(LANDING_FLOW_RECENT_LIMIT)}`
+    );
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    const data = await response.json();
+    globalFlowItemsCache = Array.isArray(data.items) ? data.items : [];
+  } catch {
+    globalFlowItemsCache = [];
+  }
+  if (getLandingAgentsView() === "flow") {
+    renderAppLandingFlow(globalFlowItemsCache);
+  }
+}
+
 async function loadAgentFocusItems(agentId = activeAgentId) {
   if (!agentId) {
     agentFocusItemsCache = [];
@@ -7216,7 +7234,11 @@ async function loadAgentFocusItems(agentId = activeAgentId) {
 }
 
 async function refreshAllFocusPanels() {
-  await Promise.all([loadGlobalFocusItems(), loadAgentFocusItems(activeAgentId)]);
+  await Promise.all([
+    loadGlobalFocusItems(),
+    loadGlobalFlowItems(),
+    loadAgentFocusItems(activeAgentId)
+  ]);
 }
 
 function getAgentsInSelectOrder() {
@@ -9070,7 +9092,7 @@ function syncLandingAgentsViewUi() {
     renderAppLandingList(getProcessedLandingFocusItems());
   }
   if (isFlow) {
-    renderAppLandingFlow(getProcessedLandingFocusItems());
+    void loadGlobalFlowItems();
   }
   if (isHub || isOrbit || isFlow) {
     renderAppLandingAttention(buildMockAgentAttentionShares(getAgentsForLandingGrid()));

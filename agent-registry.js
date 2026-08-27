@@ -213,6 +213,103 @@ function collectAllFocusEntries() {
   return items;
 }
 
+function resolveRecentEntryUpdatedAt(frontmatter, stat) {
+  for (const key of ["awn-update", "awn-updated"]) {
+    const raw = getYamlScalar(frontmatter, key);
+    if (!raw) continue;
+    const ms = Date.parse(raw);
+    if (Number.isFinite(ms)) return new Date(ms).toISOString();
+  }
+  if (stat?.mtime) return stat.mtime.toISOString();
+  return "";
+}
+
+function shouldIncludeRecentEntry(relativePath, frontmatter) {
+  const lower = String(relativePath || "").replace(/\\/g, "/").toLowerCase();
+  if (/\/history\//.test(lower)) return false;
+  if (/\/awn-system\//.test(lower)) return false;
+
+  const awnType = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
+  if (awnType === "awn.page.ws") return false;
+
+  const hasName = Boolean(String(getYamlScalar(frontmatter, "awn-name") || "").trim());
+  if (!hasName && !awnType) return false;
+
+  return true;
+}
+
+function walkRecentMdFilesSync(dirAbsolute, prefix, acc) {
+  let entries = [];
+  try {
+    entries = fs.readdirSync(dirAbsolute, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    const fullPath = path.join(dirAbsolute, entry.name);
+    const relativePath = prefix ? `${prefix}/${entry.name}`.replace(/\\/g, "/") : entry.name;
+
+    if (entry.isDirectory()) {
+      if (shouldSkipFocusWalkDir(entry.name)) continue;
+      walkRecentMdFilesSync(fullPath, relativePath, acc);
+      continue;
+    }
+
+    if (!entry.isFile() || shouldSkipFocusMdFileName(entry.name)) continue;
+
+    try {
+      const stat = fs.statSync(fullPath);
+      const content = fs.readFileSync(fullPath, "utf-8");
+      const { frontmatter } = splitFrontmatter(content);
+      if (!shouldIncludeRecentEntry(relativePath, frontmatter)) continue;
+
+      const updatedAt = resolveRecentEntryUpdatedAt(frontmatter, stat);
+      if (!updatedAt) continue;
+
+      const slug = focusEntrySlugFromFileName(entry.name);
+      let name = getYamlScalar(frontmatter, "awn-name") || "";
+      if (!String(name).trim()) name = slug;
+
+      acc.push({
+        nodePath: relativePath.replace(/\\/g, "/"),
+        name: String(name).trim() || slug,
+        awnType: getYamlScalar(frontmatter, "awn-type") || "",
+        awnProps: extractWorkspaceAwnProps(frontmatter),
+        updatedAt
+      });
+    } catch {
+      // skip unreadable files
+    }
+  }
+}
+
+function collectAgentRecentEntries(agent) {
+  const items = [];
+  if (!agent?.rootAbsolute || agent.folderExists === false) return items;
+  walkRecentMdFilesSync(agent.rootAbsolute, "", items);
+  return items;
+}
+
+function collectAllRecentEntries(limit = 30) {
+  const cappedLimit = Math.max(1, Math.min(100, Number(limit) || 30));
+  const items = [];
+  for (const agent of agents) {
+    if (agent.folderExists === false) continue;
+    for (const entry of collectAgentRecentEntries(agent)) {
+      items.push({
+        agentId: agent.id,
+        agentName: agent.name || agent.id,
+        agentPath: agent.path,
+        agentActive: normalizeAgentActive(agent.active),
+        ...entry
+      });
+    }
+  }
+  items.sort((a, b) => Date.parse(b.updatedAt || 0) - Date.parse(a.updatedAt || 0));
+  return items.slice(0, cappedLimit);
+}
+
 function formatYamlScalar(value) {
   const text = String(value ?? "");
   if (!text || /[:#\[\]{}&,*?]|^\s|\s$/.test(text)) {
@@ -1817,5 +1914,7 @@ module.exports = {
   runWithAgent,
   collectAllFocusEntries,
   collectAgentFocusEntries,
+  collectAllRecentEntries,
+  collectAgentRecentEntries,
   isPlatformAgentId
 };
