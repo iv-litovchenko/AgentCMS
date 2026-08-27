@@ -1,0 +1,30 @@
+version: 1
+extends: awn-data/cms-base/entities/row.base.md
+
+fields:
+  awn-code:
+    type: awn.string
+    title: "Код"
+    required: true
+  awn-label:
+    type: awn.string
+    title: "Подпись"
+    required: true
+  awn-emoji:
+    type: awn.string
+    title: "Эмодзи"
+  awn-color:
+    type: awn.color
+    title: "Цвет"
+  awn-sort:
+    type: awn.integer
+    title: "Порядок"
+    default: 0
+  usage_count:
+    type: awn.integer
+    title: "Сколько раз использовалась"
+    default: 0
+  is_recurring:
+    type: awn.boolean
+    title: "Повторяющаяся тема"
+    default: false

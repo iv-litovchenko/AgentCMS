@@ -1,0 +1,36 @@
+version: 1
+layer: topic
+
+awn_schema:
+  topic:
+    fields:
+      podcast_platforms:
+        type: awn.field.choice.many
+        name: Платформы публикации
+        enum:
+          - key: apple
+            name: "Apple Podcasts"
+          - key: yandex
+            name: "Яндекс Музыка"
+          - key: spotify
+            name: Spotify
+          - key: rss
+            name: RSS
+      release_day:
+        type: awn.field.choice.one
+        name: День релиза
+        enum:
+          - key: mon
+            name: "Понедельник"
+          - key: fri
+            name: "Пятница"
+          - key: sat
+            name: "Суббота"
+        default: fri
+      target_episode_length:
+        type: awn.field.duration
+        name: Целевая длительность эпизода
+        hint: например 20m
+      contact_email:
+        type: awn.field.string.email
+        name: Почта для обратной связи

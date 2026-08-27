@@ -1,0 +1,41 @@
+<svg viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eef2ff"/>
+      <stop offset="100%" stop-color="#f8fafc"/>
+    </linearGradient>
+    <linearGradient id="coin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="600" height="400" fill="url(#sky)"/>
+
+  <g>
+    <rect x="60" y="280" width="50" height="80" rx="6" fill="#94a3b8"/>
+    <rect x="130" y="240" width="50" height="120" rx="6" fill="#64748b"/>
+    <rect x="200" y="190" width="50" height="170" rx="6" fill="#475569"/>
+    <rect x="270" y="130" width="50" height="230" rx="6" fill="#22c55e"/>
+  </g>
+  <text x="60" y="380" font-family="sans-serif" font-size="14" fill="#334155">Доходы</text>
+  <text x="130" y="380" font-family="sans-serif" font-size="14" fill="#334155">Расходы</text>
+  <text x="200" y="380" font-family="sans-serif" font-size="14" fill="#334155">Остаток</text>
+  <text x="270" y="380" font-family="sans-serif" font-size="14" fill="#334155">Цель</text>
+
+  <g transform="translate(400,180)">
+    <ellipse cx="60" cy="90" rx="90" ry="60" fill="#fb7185"/>
+    <circle cx="130" cy="60" r="18" fill="#fb7185"/>
+    <polygon points="0,80 -25,60 -25,100" fill="#fb7185"/>
+    <ellipse cx="30" cy="60" rx="6" ry="8" fill="#1f2937"/>
+    <rect x="45" y="20" width="30" height="8" rx="4" fill="#be123c"/>
+    <circle cx="15" cy="150" r="12" fill="#334155"/>
+    <circle cx="105" cy="150" r="12" fill="#334155"/>
+  </g>
+
+  <circle cx="440" cy="80" r="14" fill="url(#coin)" stroke="#b45309" stroke-width="2"/>
+  <circle cx="475" cy="50" r="10" fill="url(#coin)" stroke="#b45309" stroke-width="2"/>
+  <circle cx="410" cy="55" r="8" fill="url(#coin)" stroke="#b45309" stroke-width="2"/>
+
+  <text x="300" y="40" font-family="sans-serif" font-size="22" font-weight="bold" fill="#1e293b" text-anchor="middle">Финансы: рост и накопления</text>
+</svg>

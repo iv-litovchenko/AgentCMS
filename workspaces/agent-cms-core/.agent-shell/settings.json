@@ -64,18 +64,18 @@
   "cursorSessionId": "agent-shell",
   "codexCliPath": "codex",
   "codexModel": "",
-  "codexProfile": "",
-  "codexAgentId": "",
   "codexSessionId": "",
   "claudeCliPath": "claude",
   "claudeModel": "",
-  "claudeProfile": "",
-  "claudeAgentId": "",
   "claudeSessionId": "",
   "agent-zeroBaseUrl": "http://127.0.0.1:42617",
   "agent-zeroApiKey": "",
   "agent-zeroModel": "agent-zero",
   "agent-zeroProfile": "",
   "agent-zeroAgentId": "",
-  "agent-zeroSessionId": "agent-shell"
+  "agent-zeroSessionId": "agent-shell",
+  "codexProfile": "",
+  "codexAgentId": "",
+  "claudeProfile": "",
+  "claudeAgentId": ""
 }

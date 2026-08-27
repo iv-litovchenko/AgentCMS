@@ -1,0 +1,113 @@
+---
+awn-status: open
+awn-quality: 4
+awn-emoji: ""
+awn-note-todo-sticker: ""
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-color: ""
+awn-tags: []
+awn-location-label: ""
+awn-location-coordinates: ""
+awn-is-real-world-object: false
+awn-is-real-world-event: false
+awn-type: awn.content.record
+awn-create: "2026-08-27T18:05"
+awn-mindmap-enabled: true
+awn-mindmap-type: optional
+awn-mindmap-color: slate
+awn-mindmap-size: auto
+awn-mindmap-layout-independent: false
+awn-mindmap-direction: auto
+awn-attachments: []
+awn-description: ""
+awn-main: false
+awn-name: Идеи разные
+awn-preview: awn-storage/assets/preview/20260827151737.png
+awn-runtime-commands: false
+awn-runtime-cron: false
+awn-runtime-cron-schedule: ""
+awn-runtime-heartbeat: false
+awn-runtime-load-always: false
+awn-sort: 
+awn-web-url: ""
+awn-update: 2026-08-27T15:25:01.990Z
+awn-version: 3
+---
+
+🧬 Архитектура (очень важная)
+User → Chat → AI → Node Graph → Actions → Render
+
+💥 Самая сильная идея у тебя
+Вот это: 👉 “универсальная админка для любого проекта”
+
+## Картинки
+
+Графика
+1 ИИ агент
+2 ИИ чат (нарисовал)
+3 ИИ агент VS ИИ чат
+4 ИИ агенты (команда офис)
+5 New Можешь нарисовать картинку Человек редактирует и обсуждает ноды в виде плиток с человеком Ноды связаны между собой Все это очень напоминает таблицы баз данных и связи между ними типа диаграммы ER
+
+## AWN-DATA
+
+```
+awn-type: awn.data.collection
+awn-id: tasks
+awn-name: Задачи
+awn-extends: awn-data/cms-base/entities/row.base.md
+awn-record:
+  id-mode: numeric
+  file: "{id}.md"
+  hierarchy: true
+
+
+Тип без записей???????
+Это любой произвольный md - файл также как и миксины
+```
+
+## Придумать еще какой то типа рабочий стол
+
+Пространство
+Не знаю пока точно что это может быть но идея классная
+
+![20260827151514](awn-storage/assets/pasted/20260827151514.png)![20260827151647](awn-storage/assets/pasted/20260827151647.png)
+
+## Структура
+
+==_1) WS -> section -> area -> topic -> slot -> record category comment sidecar==
+-> s- доп материалы
+
+* awn-agent-kit (фактически это такие же области - но с заготовкой)
+* awn-container (фактически это такие же области - но с заготовкой)
+* awn-shared (фактически это такие же области - но с заготовкой)
+
+==_2) WS -> data -> инфоблока (новый тип) -> записи==
+
+Пример - Ольга Калякина
+
+```
+- Тема - Поток 1
+- В нем есть накопитель который содержит
+- Накопитель участники
+- Накопитель ДЗ
+- Накопитель ответы
+```
+
+=={purple}Sub topic==
+
+Workspace
+↓
+Section
+↓
+Area
+↓
+Topic
+↓
+Slot
+↓
+Collection
+↓
+Record
