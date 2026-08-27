@@ -10861,6 +10861,7 @@ async function renderAppLandingAgents() {
   renderAppLandingOrbit();
   renderAppLandingHub(getLandingHubOrbitTopicItems());
   void loadGlobalFocusItems();
+  void loadGlobalFlowItems();
   void loadGlobalLandingHubTopicItems();
   syncLandingAgentsViewUi();
   renderAgentSelect();
@@ -88047,6 +88048,7 @@ function showAppLandingView(hint = "") {
   agentFocusItemsCache = [];
   renderAgentFocusPanels();
   void loadGlobalFocusItems();
+  void loadGlobalFlowItems();
   void loadGlobalLandingHubTopicItems();
   syncAppRouteToUrl({ replace: true });
   syncWorkspaceNotificationsAvailability();
