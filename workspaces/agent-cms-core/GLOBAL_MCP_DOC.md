@@ -680,3 +680,4 @@ list_comments({ "path": "…/manifest.md", "mode": "external", "file": "memory/r
 7. Комментарии / диалоги — свои tools (`list_comments`, `append_comment`, `read_dialogs`, …); inbox — `create_content` (`slot: inbox`), triage — `triage_inbox_item` (`to-dialogs`).
 8. `read_page_schema` — default `mode=layers`; не `mode=full` без нужды.
 9. `media` ≠ `assets`: медиатека темы vs ресурсы записей (preview / pasted / attachments).
+10. Бинарные файлы → только upload_file, create_content для данных файлов не используется.
