@@ -80942,7 +80942,9 @@ async function fetchSystemEnvironment(force = false) {
   const response = await fetch(buildApiUrl("/api/agent/system-environment"));
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `HTTP ${response.status}`);
+    const error = new Error(errorData.error || `HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
   menuSystemEnvironmentCache = await response.json();
   return menuSystemEnvironmentCache;
@@ -81025,11 +81027,19 @@ async function syncMenuSystemEnvironment({ force = false } = {}) {
     const payload = await fetchSystemEnvironment(force);
     if (seq !== menuSystemEnvironmentSeq) return;
     renderMenuSystemEnvironment(payload);
-  } catch {
+  } catch (error) {
     if (seq !== menuSystemEnvironmentSeq) return;
+    const needsRestart = Number(error?.status) === 404;
     renderMenuSystemEnvironment({
-      summaryLine: "Среда недоступна",
+      summaryLine: needsRestart
+        ? "Среда: перезапустите CMS"
+        : "Среда недоступна",
       dependencies: [
+        {
+          label: needsRestart ? "Сервер" : "API",
+          value: needsRestart ? "restart" : "error",
+          status: "warn"
+        },
         { label: "Node.js", value: "—", status: "missing" },
         { label: "npm", value: "—", status: "missing" }
       ]

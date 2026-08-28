@@ -16757,18 +16757,6 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/agent/system-environment") {
-    try {
-      const environment = await buildSystemEnvironment(getProjectRoot());
-      return sendJson(res, 200, environment);
-    } catch (error) {
-      return sendJson(res, 500, {
-        error: "Failed to read system environment",
-        details: String(error.message || error)
-      });
-    }
-  }
-
   if (req.method === "GET" && url.pathname === "/api/agent/topic-sizes") {
     try {
       const report = await buildAgentTopicSizeReport();
@@ -23963,6 +23951,18 @@ async function handleApi(req, res, url) {
       return sendJson(res, 500, {
         error: "Failed to search across agents",
         details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/system-environment") {
+    try {
+      const environment = await buildSystemEnvironment(getProjectRoot());
+      return sendJson(res, 200, environment);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read system environment",
+        details: String(error.message || error)
       });
     }
   }

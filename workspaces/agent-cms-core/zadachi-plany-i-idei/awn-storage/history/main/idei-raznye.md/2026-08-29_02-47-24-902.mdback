@@ -32,8 +32,8 @@ awn-runtime-heartbeat: false
 awn-runtime-load-always: false
 awn-sort: 
 awn-web-url: ""
-awn-update: 2026-08-28T23:47:24.890Z
-awn-version: 4
+awn-update: 2026-08-27T15:25:01.990Z
+awn-version: 3
 ---
 
 🧬 Архитектура (очень важная)
@@ -111,34 +111,3 @@ Slot
 Collection
 ↓
 Record
-
-```
-├── cursor-ide-browser                      (16)  браузер Cursor
-│   ├── Навигация
-│   │   ├── browser_tabs
-│   │   ├── browser_navigate
-│   │   └── browser_lock
-│   ├── Снимок и зрение
-│   │   ├── browser_snapshot
-│   │   ├── browser_take_screenshot
-│   │   ├── browser_highlight
-│   │   └── browser_get_bounding_box
-│   ├── Ввод
-│   │   ├── browser_click / browser_mouse_click_xy
-│   │   ├── browser_type / browser_fill / browser_press_key
-│   │   ├── browser_select_option
-│   │   ├── browser_scroll
-│   │   └── browser_drag
-│   └── Низкий уровень
-│       └── browser_cdp
-│
-├── user-context7                           (3)  актуальная документация библиотек
-│   ├── mcp_auth
-│   ├── resolve-library-id
-│   └── query-docs
-│
-└── cursor                                  (3)  нативные тулы Cursor
-    ├── CreateGoal
-    ├── UpdateGoal
-    └── GenerateImage
-```
