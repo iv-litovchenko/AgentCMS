@@ -34,7 +34,16 @@ fi
 
 if command -v mkcert >/dev/null 2>&1; then
   echo "Creating trusted local certificate with mkcert for IP ${IP} ..."
-  mkcert -install 2>/dev/null || true
+  if [[ -t 0 ]]; then
+    mkcert -install || {
+      echo "mkcert -install failed — certificate files will still be created,"
+      echo "but the browser may warn until you run: mkcert -install"
+    }
+  else
+    mkcert -install 2>/dev/null || {
+      echo "mkcert CA not installed — run once in Terminal: mkcert -install"
+    }
+  fi
   mkcert -cert-file "$CERT" -key-file "$KEY" \
     localhost 127.0.0.1 ::1 agent-cms.local "$IP"
   echo "mkcert" > "$PROVIDER_FILE"

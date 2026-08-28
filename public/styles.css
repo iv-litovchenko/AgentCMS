@@ -17686,6 +17686,106 @@ a.header-tool-btn {
   text-overflow: ellipsis;
 }
 
+.menu-system-environment {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 10px 6px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, #f1f5f9 0%, #e8eef5 100%);
+}
+
+.menu-system-environment.hidden {
+  display: none;
+}
+
+.menu-system-environment-host {
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-system-environment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 4px;
+}
+
+.menu-system-env-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 5px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.menu-system-env-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #94a3b8;
+  flex: 0 0 auto;
+}
+
+.menu-system-env-item.is-ok .menu-system-env-dot {
+  background: #16a34a;
+}
+
+.menu-system-env-item.is-warn .menu-system-env-dot {
+  background: #d97706;
+}
+
+.menu-system-env-item.is-missing .menu-system-env-dot {
+  background: #cbd5e1;
+}
+
+.menu-system-env-item.is-loading .menu-system-env-dot {
+  background: #64748b;
+  opacity: 0.55;
+}
+
+.menu-system-env-name {
+  min-width: 0;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-system-env-value {
+  flex: 0 0 auto;
+  max-width: 46%;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
+.menu-sidebar-bottom .menu-system-environment:not(.hidden) {
+  margin-top: 0;
+}
+
+.sidebar-slab-menu .menu-system-environment {
+  border-top-color: rgba(148, 163, 184, 0.16);
+}
+
 .menu-intake-badges {
   display: inline-flex;
   align-items: center;

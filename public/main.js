@@ -13,6 +13,7 @@ const workspaceScrollProgressNode = document.getElementById("workspace-scroll-pr
 const workspaceScrollDepthNode = document.getElementById("workspace-scroll-depth");
 const workspaceScrollChromeNode = document.querySelector("#workspace-scroll-chrome-store .workspace-scroll-chrome");
 const menuAgentStatsNode = document.getElementById("menu-agent-stats");
+const menuSystemEnvironmentNode = document.getElementById("menu-system-environment");
 const menuLoadingNode = document.getElementById("menu-loading");
 const menuLoadingTextNode = document.getElementById("menu-loading-text");
 const appRootNode = document.getElementById("app-root");
@@ -80875,6 +80876,8 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
 }
 
 let menuAgentStatsSeq = 0;
+let menuSystemEnvironmentSeq = 0;
+let menuSystemEnvironmentCache = null;
 
 async function fetchAgentWorkspaceStats() {
   const response = await fetch(buildApiUrl("/api/agent/workspace-stats"));
@@ -80934,6 +80937,106 @@ function hideMenuAgentStats() {
   menuAgentStatsNode?.replaceChildren();
 }
 
+async function fetchSystemEnvironment(force = false) {
+  if (!force && menuSystemEnvironmentCache) return menuSystemEnvironmentCache;
+  const response = await fetch(buildApiUrl("/api/agent/system-environment"));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+  menuSystemEnvironmentCache = await response.json();
+  return menuSystemEnvironmentCache;
+}
+
+function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
+  if (!menuSystemEnvironmentNode) return;
+
+  menuSystemEnvironmentNode.replaceChildren();
+
+  const hostLine = document.createElement("div");
+  hostLine.className = "menu-system-environment-host";
+  hostLine.textContent = loading
+    ? "Среда: загрузка…"
+    : payload?.summaryLine || payload?.host?.hostname || "Среда";
+  if (!loading && payload?.app?.version) {
+    hostLine.title = `Agent CMS ${payload.app.version}`;
+  }
+  menuSystemEnvironmentNode.appendChild(hostLine);
+
+  const grid = document.createElement("div");
+  grid.className = "menu-system-environment-grid";
+
+  const items = loading
+    ? [
+        { label: "Node.js", value: "…", status: "loading" },
+        { label: "npm", value: "…", status: "loading" },
+        { label: "Git", value: "…", status: "loading" },
+        { label: "Python", value: "…", status: "loading" },
+        { label: "mkcert", value: "…", status: "loading" },
+        { label: "HTTPS", value: "…", status: "loading" }
+      ]
+    : (Array.isArray(payload?.dependencies) ? payload.dependencies : []).filter((item) => {
+        const id = String(item?.id || "");
+        const priority = new Set(["node", "npm", "git", "python", "mkcert", "https", "claude", "codex"]);
+        if (priority.has(id)) return true;
+        return item.status === "ok" || item.status === "warn";
+      });
+
+  for (const item of items) {
+    const chip = document.createElement("div");
+    chip.className = `menu-system-env-item is-${item.status || "missing"}`;
+    const titleParts = [item.label, item.value].filter(Boolean);
+    if (item.path) titleParts.push(item.path);
+    if (item.note) titleParts.push(item.note);
+    chip.title = titleParts.join(" · ");
+
+    const dot = document.createElement("span");
+    dot.className = "menu-system-env-dot";
+    dot.setAttribute("aria-hidden", "true");
+
+    const name = document.createElement("span");
+    name.className = "menu-system-env-name";
+    name.textContent = item.label || item.id || "—";
+
+    const value = document.createElement("span");
+    value.className = "menu-system-env-value";
+    value.textContent = item.value || "—";
+
+    chip.append(dot, name, value);
+    grid.appendChild(chip);
+  }
+
+  menuSystemEnvironmentNode.appendChild(grid);
+  menuSystemEnvironmentNode.classList.remove("hidden");
+}
+
+async function syncMenuSystemEnvironment({ force = false } = {}) {
+  if (!menuSystemEnvironmentNode) return;
+
+  const seq = ++menuSystemEnvironmentSeq;
+  if (!force && menuSystemEnvironmentCache) {
+    renderMenuSystemEnvironment(menuSystemEnvironmentCache);
+    return;
+  }
+
+  renderMenuSystemEnvironment(null, { loading: true });
+
+  try {
+    const payload = await fetchSystemEnvironment(force);
+    if (seq !== menuSystemEnvironmentSeq) return;
+    renderMenuSystemEnvironment(payload);
+  } catch {
+    if (seq !== menuSystemEnvironmentSeq) return;
+    renderMenuSystemEnvironment({
+      summaryLine: "Среда недоступна",
+      dependencies: [
+        { label: "Node.js", value: "—", status: "missing" },
+        { label: "npm", value: "—", status: "missing" }
+      ]
+    });
+  }
+}
+
 async function syncMenuAgentStats(menu = currentMenuData) {
   if (!menuAgentStatsNode) return;
 
@@ -80946,6 +81049,7 @@ async function syncMenuAgentStats(menu = currentMenuData) {
   const counts = countAgentMenuNodes(menu);
   menuAgentStatsNode.classList.remove("hidden");
   renderMenuAgentStatsContent({ counts, loading: true });
+  syncMenuSystemEnvironment();
 
   try {
     const [workspace, intakeTotals] = await Promise.all([
@@ -95032,3 +95136,4 @@ bindLandingFocusToolbar();
 initWorkspaceNotifications();
 initLiveFileSync();
 initNavPreviewHoverZoom();
+void syncMenuSystemEnvironment();

@@ -47,6 +47,7 @@ const {
 } = require("./sidecar-service");
 const { createWorkspaceBrainService } = require("./workspace-brain-service");
 const { parseCsvText } = require("./awn-data-csv");
+const { buildSystemEnvironment } = require("./lib/system-environment");
 const { createAppLockPasskeyService } = require("./lib/app-lock-passkey");
 const { createFingerprintScannerService } = require("./lib/fingerprint-scanner/service");
 const {
@@ -16751,6 +16752,18 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read storage summary",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/system-environment") {
+    try {
+      const environment = await buildSystemEnvironment(getProjectRoot());
+      return sendJson(res, 200, environment);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read system environment",
         details: String(error.message || error)
       });
     }

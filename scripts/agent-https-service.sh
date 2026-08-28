@@ -6,6 +6,8 @@ RUN_DIR="$ROOT/.run"
 PID_FILE="$RUN_DIR/agent-cms-https.pid"
 LOG_FILE="$RUN_DIR/agent-cms-https.log"
 
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 mkdir -p "$RUN_DIR"
 
 is_running() {
@@ -41,7 +43,7 @@ start_server() {
         echo "Agent CMS запущен в фоне (PID $(cat "$PID_FILE"))."
         echo "https://localhost:3443"
         echo "Лог: .run/agent-cms-https.log"
-        echo "Остановка: Stop Agent HTTPS.command"
+        echo "Остановка: _Stop Agent HTTPS.command"
         return 0
       fi
     fi
