@@ -12,14 +12,14 @@ const recordRef = z
 
 export function registerDataPropertyTools(reg, client) {
   reg(
-    "read_store_properties",
+    "zzz_read_store_properties",
     "Read full YAML frontmatter of infoblock manifest.md (awn-data store).",
     z.object({ store: storePath }),
     ({ store }) => client.get("/api/awn-data/store-properties", { store })
   );
 
   reg(
-    "write_store_properties",
+    "zzz_write_store_properties",
     "Patch YAML frontmatter of infoblock manifest.md. Send only keys to change — existing keys on disk are preserved.",
     z.object({
       store: storePath,
@@ -29,7 +29,7 @@ export function registerDataPropertyTools(reg, client) {
   );
 
   reg(
-    "read_store_property",
+    "zzz_read_store_property",
     "Read one property from infoblock manifest.md (e.g. awn-name, awn-description).",
     z.object({
       store: storePath,
@@ -39,7 +39,7 @@ export function registerDataPropertyTools(reg, client) {
   );
 
   reg(
-    "write_store_property",
+    "zzz_write_store_property",
     "Set one property on infoblock manifest.md. Other keys preserved.",
     z.object({
       store: storePath,
@@ -50,7 +50,7 @@ export function registerDataPropertyTools(reg, client) {
   );
 
   reg(
-    "read_record_properties",
+    "zzz_read_record_properties",
     "Read full YAML frontmatter of an infoblock element ({id}.md or singleton main.md).",
     z.object({
       store: storePath,
@@ -64,7 +64,7 @@ export function registerDataPropertyTools(reg, client) {
   );
 
   reg(
-    "write_record_properties",
+    "zzz_write_record_properties",
     "Patch YAML frontmatter of an infoblock element. Send only keys to change — body and other keys preserved; awn-updated bumped when present.",
     z.object({
       store: storePath,
@@ -80,7 +80,7 @@ export function registerDataPropertyTools(reg, client) {
   );
 
   reg(
-    "read_record_property",
+    "zzz_read_record_property",
     "Read one property from an infoblock element.",
     z.object({
       store: storePath,
@@ -96,7 +96,7 @@ export function registerDataPropertyTools(reg, client) {
   );
 
   reg(
-    "write_record_property",
+    "zzz_write_record_property",
     "Set one property on an infoblock element. Body and other keys preserved; awn-updated bumped when present.",
     z.object({
       store: storePath,

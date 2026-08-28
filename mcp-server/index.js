@@ -102,12 +102,12 @@ function createServer() {
 
   // ── AWN-DATA runtime (5) ───────────────────────────────────────────────────
 
-  reg("list_data_stores", "List structured data stores (awn-data): collections, singletons, groups.", z.object({}), () =>
+  reg("zzz_list_data_stores", "List structured data stores (awn-data): collections, singletons, groups.", z.object({}), () =>
     client.get("/api/awn-data")
   );
 
   reg(
-    "get_data_store",
+    "zzz_get_data_store",
     "One data store with schema, records and tree (MD or CSV).",
     z.object({
       store: z.string().min(1).describe("Store relPath, e.g. taxonomies/statuses, agents, tasks")
@@ -116,7 +116,7 @@ function createServer() {
   );
 
   reg(
-    "create_data_store",
+    "zzz_create_data_store",
     "Create awn-data store: group, collection (MD or CSV for taxonomies/), or singleton.",
     z.object({
       kind: z.enum(["group", "collection", "singleton"]).optional(),
@@ -130,7 +130,7 @@ function createServer() {
   );
 
   reg(
-    "read_data_store_schema",
+    "zzz_read_data_store_schema",
     "Read record field schema from awn-data store schema-mod.yml (instance override, not type catalog).",
     z.object({
       store: z.string().min(1).describe("Store relPath, e.g. tasks, taxonomies/statuses")
@@ -139,7 +139,7 @@ function createServer() {
   );
 
   reg(
-    "create_data_record",
+    "zzz_create_data_record",
     "Add record to a data collection (append CSV row or create {id}.md).",
     z.object({
       store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags"),
