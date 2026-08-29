@@ -212,10 +212,13 @@ export function createShellDialog(options = {}) {
       nodes.collapseHint.textContent = preview;
       nodes.collapseHint.classList.remove("hidden");
       nodes.collapseBtn?.setAttribute("title", preview);
+      nodes.collapseBtn?.setAttribute("aria-label", preview);
     } else {
       nodes.collapseHint.textContent = "";
       nodes.collapseHint.classList.add("hidden");
-      nodes.collapseBtn?.setAttribute("title", collapsed ? "Развернуть диалог" : "Свернуть диалог");
+      const label = collapsed ? "Развернуть диалог" : "Свернуть диалог";
+      nodes.collapseBtn?.setAttribute("title", label);
+      nodes.collapseBtn?.setAttribute("aria-label", label);
     }
   }
 

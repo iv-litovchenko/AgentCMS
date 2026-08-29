@@ -21,7 +21,8 @@ const DEFAULT_WINDOW_SETTINGS = {
   windowTopmost: true,
   windowTransparent: false,
   windowBackground: "wallpaper",
-  windowCompact: false
+  windowCompact: false,
+  windowPetOverlay: false
 };
 
 function windowSettingsPath(projectRoot) {
@@ -44,6 +45,7 @@ function normalizeWindowSettings(raw) {
     merged.windowBackground = "transparent";
   }
   merged.windowCompact = Boolean(merged.windowCompact);
+  merged.windowPetOverlay = Boolean(merged.windowPetOverlay);
   return merged;
 }
 

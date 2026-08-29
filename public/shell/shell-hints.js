@@ -28,10 +28,15 @@ export function updateVoiceModeHint(
   hintEl.dataset.hint = hints[next];
 }
 
-export function updateTtsPlaybackHint(mode = "dialog", hintEl = document.getElementById("shell-tts-playback-hint")) {
-  if (!hintEl) return;
-  const next = mode === "reading" ? "reading" : "dialog";
-  hintEl.dataset.hint = TTS_PLAYBACK_HINTS[next];
+export function bindTtsPlaybackOptionHints() {
+  document.querySelectorAll("[data-tts-playback]").forEach((el) => {
+    const mode = el.dataset.ttsPlayback;
+    if (TTS_PLAYBACK_HINTS[mode]) el.dataset.hint = TTS_PLAYBACK_HINTS[mode];
+  });
+}
+
+export function updateTtsPlaybackHint() {
+  /* подсказки на каждой кнопке — см. bindTtsPlaybackOptionHints */
 }
 
 export function initShellHints() {
@@ -73,6 +78,8 @@ export function initShellHints() {
     positionHint(anchor);
   }
 
+  bindTtsPlaybackOptionHints();
+
   document.querySelectorAll("[data-hint]").forEach((el) => {
     if (el.dataset.hintBound === "1") return;
     el.dataset.hintBound = "1";
@@ -93,9 +100,5 @@ export function initShellHints() {
     if (active) positionHint(active);
   });
 
-  updateTtsPlaybackHint(
-    document.querySelector('#shell-tts-playback-mode input[name="shell-tts-playback-mode"]:checked')?.value ||
-      "dialog"
-  );
   updateVoiceModeHint(document.getElementById("shell-voice-mode")?.value || "hold");
 }

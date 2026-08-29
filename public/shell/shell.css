@@ -447,114 +447,6 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-version-badge {
   gap: 8px;
 }
 
-body.shell-desktop .shell-path-block--title .shell-path-row {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-}
-
-.shell-window-controls {
-  display: none;
-  align-items: center;
-  gap: 7px;
-  flex: 0 0 auto;
-  padding: 2px 4px 2px 0;
-  -webkit-app-region: no-drag;
-}
-
-body.shell-desktop .shell-window-controls {
-  display: inline-flex;
-}
-
-.shell-window-ctrl {
-  width: 12px;
-  height: 12px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  cursor: pointer;
-  position: relative;
-  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
-}
-
-.shell-window-ctrl--close {
-  background: #ff5f57;
-}
-
-.shell-window-ctrl--min {
-  background: #febc2e;
-}
-
-.shell-window-ctrl--max {
-  background: #28c840;
-}
-
-.shell-window-ctrl:hover {
-  filter: brightness(1.06);
-}
-
-.shell-window-ctrl:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
-  outline-offset: 2px;
-}
-
-.shell-window-ctrl::before,
-.shell-window-ctrl::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.shell-window-controls:hover .shell-window-ctrl::before,
-.shell-window-controls:hover .shell-window-ctrl::after,
-.shell-window-ctrl:focus-visible::before,
-.shell-window-ctrl:focus-visible::after {
-  opacity: 0.72;
-}
-
-.shell-window-ctrl--close::before,
-.shell-window-ctrl--close::after {
-  width: 7px;
-  height: 1px;
-  background: #4a0503;
-}
-
-.shell-window-ctrl--close::before {
-  transform: rotate(45deg);
-}
-
-.shell-window-ctrl--close::after {
-  transform: rotate(-45deg);
-}
-
-.shell-window-ctrl--min::before {
-  width: 7px;
-  height: 1px;
-  background: #5b3b00;
-}
-
-.shell-window-ctrl--max::before {
-  width: 5px;
-  height: 5px;
-  border: 1px solid #0b4a16;
-  border-radius: 1px;
-  background: transparent;
-}
-
-.shell-window-ctrl--max[aria-pressed="true"]::before {
-  width: 4px;
-  height: 4px;
-}
-
-.shell-window-ctrl--max[aria-pressed="true"]::after {
-  width: 4px;
-  height: 4px;
-  border: 1px solid #0b4a16;
-  border-radius: 1px;
-  transform: translate(1px, -1px);
-}
-
 body.shell-desktop .shell-path-header {
   -webkit-app-region: drag;
 }
@@ -874,8 +766,11 @@ body.shell-desktop .shell-path-header textarea {
   border: 0;
   border-right: 1px solid var(--shell-surface-divider);
   background: rgba(148, 163, 184, 0.06);
-  font-size: 10px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 400;
   line-height: 1.1;
+  letter-spacing: 0;
   color: #cbd5e1;
   white-space: nowrap;
   overflow: hidden;
@@ -888,26 +783,65 @@ body.shell-desktop .shell-path-header textarea {
 
 .shell-path-context-row--device button.shell-meta-chip {
   cursor: pointer;
-  font: inherit;
   appearance: none;
-}
-
-.shell-path-context-row--device .shell-meta-icon {
-  flex-shrink: 0;
+  font-family: inherit;
   font-size: 11px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0;
 }
 
+.shell-path-context-row--device .shell-battery {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.shell-path-context-row--device .shell-meta-icon,
 .shell-path-context-row--device .shell-battery-level,
 .shell-path-context-row--device .shell-clock,
 .shell-path-context-row--device .shell-orient-value,
 .shell-path-context-row--device .shell-location-value {
+  display: inline-block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  vertical-align: baseline;
+}
+
+.shell-path-context-row--device .shell-meta-icon {
+  flex-shrink: 0;
+  width: 11px;
+  text-align: center;
 }
 
 .shell-path-context-row--device .shell-location-value {
   max-width: none;
+}
+
+.shell-path-context-row--device .shell-battery-icon {
+  display: none;
+}
+
+.shell-path-context-row--device .shell-orient-chip[data-active="0"],
+.shell-path-context-row--device .shell-location-chip[data-active="0"] {
+  color: #94a3b8;
+}
+
+.shell-path-context-row--device .shell-orient-chip[data-active="1"],
+.shell-path-context-row--device .shell-location-chip[data-active="1"] {
+  color: #cbd5e1;
+}
+
+.shell-path-context-row--device .shell-orient-chip[data-active="1"] .shell-orient-value,
+.shell-path-context-row--device .shell-location-chip[data-active="1"] .shell-location-value {
+  color: inherit;
 }
 
 .shell-path-context-row--device .shell-tts-download-label {
@@ -1251,57 +1185,100 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 
 .shell-settings-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  padding: var(--shell-surface-inset-y) var(--shell-surface-inset-x);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0;
+  padding: 0;
   border-radius: 0;
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--shell-surface-divider);
+  overflow: hidden;
 }
 
 .shell-settings-tab {
-  min-height: 34px;
-  padding: 7px 8px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 4px;
   border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.2;
+  border-radius: 0;
+  border-right: 1px solid var(--shell-surface-divider);
+  background: rgba(148, 163, 184, 0.06);
+  color: #94a3b8;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
+  appearance: none;
   transition:
     background 0.15s ease,
     color 0.15s ease,
     box-shadow 0.15s ease;
 }
 
+.shell-settings-tab:last-child {
+  border-right: 0;
+}
+
 .shell-settings-tab:hover {
-  color: var(--text);
+  background: rgba(148, 163, 184, 0.1);
+  color: #cbd5e1;
 }
 
 .shell-settings-tab[aria-selected="true"] {
   background: rgba(148, 163, 184, 0.16);
-  color: #1e293b;
-  box-shadow: none;
+  color: #e2e8f0;
+  box-shadow: inset 0 -2px 0 rgba(124, 108, 255, 0.75);
 }
 
-body.shell-bg-dark .shell-settings-tab[aria-selected="true"],
-body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e2e8f0;
+.shell-settings-tab[data-settings-tab="tts"] {
+  color: rgba(125, 211, 252, 0.72);
+}
+
+.shell-settings-tab[data-settings-tab="tts"]:hover {
+  background: rgba(56, 189, 248, 0.08);
+  color: rgba(125, 211, 252, 0.88);
+}
+
+.shell-settings-tab[data-settings-tab="tts"][aria-selected="true"] {
+  background: rgba(56, 189, 248, 0.14);
+  color: rgba(125, 211, 252, 0.96);
+  box-shadow: inset 0 -2px 0 rgba(56, 189, 248, 0.85);
+}
+
+.shell-settings-tab[data-settings-tab="stt"] {
+  color: rgba(134, 239, 172, 0.72);
+}
+
+.shell-settings-tab[data-settings-tab="stt"]:hover {
+  background: rgba(34, 197, 94, 0.08);
+  color: rgba(134, 239, 172, 0.88);
+}
+
+.shell-settings-tab[data-settings-tab="stt"][aria-selected="true"] {
+  background: rgba(34, 197, 94, 0.14);
+  color: rgba(134, 239, 172, 0.96);
+  box-shadow: inset 0 -2px 0 rgba(34, 197, 94, 0.85);
 }
 
 .shell-settings-tab.has-unsaved::after {
   content: "";
-  display: inline-block;
+  position: absolute;
+  top: 5px;
+  right: 5px;
   width: 6px;
   height: 6px;
-  margin-left: 5px;
+  margin: 0;
   border-radius: 50%;
   background: #ef4444;
-  vertical-align: middle;
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
 }
 
@@ -1314,6 +1291,8 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
 .shell-settings-shell .shell-window-panel,
 .shell-settings-shell .shell-route-panel,
 .shell-settings-shell .shell-proactive-panel,
+.shell-settings-shell .shell-tts-panel,
+.shell-settings-shell .shell-stt-panel,
 .shell-settings-shell .shell-todo-panel {
   padding: 10px var(--shell-surface-inset-x);
   border: 0;
@@ -1327,6 +1306,8 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
 .shell-settings-shell .shell-window-panel[hidden],
 .shell-settings-shell .shell-route-panel[hidden],
 .shell-settings-shell .shell-proactive-panel[hidden],
+.shell-settings-shell .shell-tts-panel[hidden],
+.shell-settings-shell .shell-stt-panel[hidden],
 .shell-settings-shell .shell-todo-panel[hidden] {
   display: none !important;
 }
@@ -1351,9 +1332,7 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
 }
 
 .shell-main-view > .shell-hero,
-.shell-main-view > .shell-voice-settings-panel,
-.shell-main-view > .shell-reply-panel,
-.shell-main-view > .shell-compose-panel,
+.shell-main-view > .shell-chat-section,
 .shell-main-view > .shell-tools-panel,
 .shell-route-panel,
 .shell-proactive-panel {
@@ -1367,8 +1346,75 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
   box-shadow: none;
 }
 
+.shell-chat-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.shell-chat-section-head {
+  flex-shrink: 0;
+  margin: 0 0 8px;
+  padding: 0 2px;
+}
+
+.shell-chat-section-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.shell-chat-section--reply {
+  flex: 1 1 auto;
+  min-height: 0;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.04) 0%, transparent 48px);
+  box-shadow: inset 3px 0 0 rgba(56, 189, 248, 0.35);
+}
+
+.shell-chat-section--compose {
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.04) 0%, transparent 48px);
+  box-shadow: inset 3px 0 0 rgba(34, 197, 94, 0.35);
+}
+
+.shell-chat-section .shell-voice-settings-panel,
+.shell-chat-section .shell-reply-panel,
+.shell-chat-section .shell-compose-panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.shell-chat-section .shell-voice-settings-panel {
+  padding-top: 0;
+  padding-bottom: 6px;
+}
+
+.shell-chat-section .shell-reply-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-chat-section--reply .shell-reply-panel .shell-dialog-scroll {
+  flex: 1 1 auto;
+  min-height: 120px;
+  max-height: min(42vh, 360px);
+}
+
+.shell-chat-section--compose .shell-compose-panel {
+  padding-top: 4px;
+}
+
 .shell-main-view > :last-child:not(.shell-compact-stage),
-.shell-settings-shell > .shell-settings-panels > :last-child {
+.shell-settings-shell > .shell-settings-panels > :last-child,
+.shell-chat-section > :last-child {
   border-bottom: 0;
 }
 
@@ -1580,41 +1626,157 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
   display: none;
 }
 
-.shell-hero-demo-bar {
-  display: flex;
-  flex-wrap: wrap;
+.shell-hero {
+  position: relative;
+}
+
+.shell-hero-voice-controls {
+  position: absolute;
+  top: 6px;
+  right: var(--shell-surface-inset-x, 12px);
+  z-index: 2;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: max-content;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.shell-hero-tts-toggle {
+  margin: 0;
+}
+
+.shell-hero-tts-playback .shell-tts-playback-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.shell-hero-tts-playback .shell-tts-playback-radio-option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.shell-hero-tts-playback .shell-tts-playback-radio-option .shell-tts-playback-emoji {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px 6px;
+  font-size: 16px;
+  line-height: 1;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.08);
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.shell-hero-tts-playback .shell-tts-playback-radio-option:hover .shell-tts-playback-emoji {
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.shell-hero-tts-playback .shell-tts-playback-radio-option:has(input:checked) .shell-tts-playback-emoji {
+  background: rgba(56, 189, 248, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.35);
+}
+
+.shell-hero-tts-playback .shell-tts-playback-radio-option:has(input:focus-visible) {
+  outline: 2px solid rgba(56, 189, 248, 0.55);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.shell-voice-panel-divider {
+  height: 1px;
+  margin: 14px 0 12px;
+  background: var(--shell-surface-divider);
+}
+
+.shell-voice-panel-head--tts {
+  margin-top: 0;
+}
+
+.shell-settings-shell .shell-tts-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.shell-tts-settings-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.shell-hero-demo-panel {
+  position: fixed;
+  top: 50%;
+  right: calc(10px + env(safe-area-inset-right, 0px));
+  z-index: 180;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 6px;
-  width: 100%;
-  margin-top: 2px;
+  width: min(152px, 38vw);
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(185, 28, 28, 0.94);
+  border: 2px solid rgba(252, 165, 165, 0.85);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+  transform: translateY(-50%);
+  pointer-events: auto;
 }
 
 .shell-hero-demo-label {
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: rgba(254, 242, 242, 0.92);
+  text-align: center;
 }
 
 .shell-hero-demo-btn {
-  border: 1px solid rgba(122, 108, 255, 0.28);
-  border-radius: 999px;
-  padding: 4px 10px;
-  background: rgba(12, 14, 28, 0.48);
-  color: rgba(226, 232, 240, 0.92);
+  border: 1px solid rgba(254, 202, 202, 0.45);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: rgba(127, 29, 29, 0.55);
+  color: rgba(254, 242, 242, 0.96);
   font: inherit;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  width: 100%;
+  text-align: center;
 }
 
 .shell-hero-demo-btn:hover {
-  border-color: rgba(124, 108, 255, 0.5);
-  background: rgba(124, 108, 255, 0.14);
+  border-color: rgba(254, 242, 242, 0.75);
+  background: rgba(153, 27, 27, 0.72);
 }
 
 .shell-hero-demo-btn.is-active {
@@ -1708,12 +1870,6 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
 
 .shell-agent-gate.hidden {
   display: none;
-}
-
-.shell-agent-gate > .shell-window-controls {
-  position: absolute;
-  top: 14px;
-  left: 16px;
 }
 
 body.shell-desktop .shell-agent-gate {
@@ -1886,10 +2042,6 @@ body.shell-desktop .shell-agent-gate select {
 .shell-voice-settings-panel {
   padding-top: 4px;
   padding-bottom: 6px;
-}
-
-.shell-voice-settings-panel--tts + .shell-voice-settings-panel--stt {
-  padding-top: 0;
 }
 
 .shell-voice-settings-details {
@@ -3435,7 +3587,26 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
   border: 1px solid rgba(122, 108, 255, 0.22);
 }
 
-.shell-stt-settings.hidden {
+.shell-voice-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.shell-settings-shell .shell-stt-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.shell-settings-shell .shell-stt-settings.hidden {
   display: none;
 }
 
@@ -4601,6 +4772,22 @@ body.shell-bg-wallpaper .shell-character-viewport {
   font-size: 10px;
 }
 
+.shell-window-panel .shell-character-stage {
+  margin: 0 0 12px;
+}
+
+.shell-window-panel .shell-character-viewport {
+  height: 180px;
+  border-radius: 12px;
+}
+
+.shell-window-panel .shell-character-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 .shell-window-options {
   display: grid;
   gap: 10px;
@@ -4736,10 +4923,6 @@ body.shell-embed .shell-version {
 .shell-app[data-compact="1"] .shell-path-actions,
 .shell-app[data-compact="1"] .shell-path-block--context {
   display: none;
-}
-
-.shell-app[data-compact="1"] .shell-window-controls {
-  display: inline-flex;
 }
 
 .shell-app[data-compact="1"] .shell-path-subtitle {
@@ -6711,6 +6894,17 @@ body.shell-embed .shell-main-view {
   overflow: hidden;
 }
 
+body.shell-embed .shell-chat-section--reply {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body.shell-embed .shell-chat-section--compose {
+  flex-shrink: 0;
+}
+
 body.shell-embed .shell-reply-panel {
   flex: 1;
   min-height: 0;
@@ -6752,4 +6946,69 @@ body.shell-embed.shell-keyboard-open .shell-dialog-scroll {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+html:has(body.shell-pet),
+body.shell-pet {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  padding: 0;
+  overflow: hidden;
+  background: transparent !important;
+  background-image: none !important;
+}
+
+.shell-pet-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  -webkit-app-region: drag;
+}
+
+.shell-pet-stage .shell-character-viewport {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.shell-pet-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 16, 32, 0.55);
+  color: #e2e8f0;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.shell-pet-close:hover {
+  background: rgba(185, 28, 28, 0.85);
+}
+
+.shell-pet-hint {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 10px 10px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.3;
+  color: rgba(226, 232, 240, 0.72);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
 }

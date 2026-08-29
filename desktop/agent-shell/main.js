@@ -11,6 +11,7 @@ const {
   getCmsBaseUrl,
   getVoiceBaseUrl,
   getProjectRoot,
+  loadConfig,
   saveConfig,
   loadSharedCmsConfig
 } = require("./config");
@@ -33,7 +34,11 @@ const WINDOW_PROFILE_COMPACT = {
 const REPO_ROOT = path.join(__dirname, "..", "..");
 const PROTOCOL = "agentshell";
 
+const PET_WINDOW_SIZE = { width: 220, height: 260 };
+const PET_WINDOW_MARGIN = 18;
+
 let mainWindow = null;
+let petWindow = null;
 let ownedServer = null;
 let cmsBaseUrl = getCmsBaseUrl();
 let voiceBaseUrl = getVoiceBaseUrl();
@@ -165,6 +170,110 @@ function buildShellUrl() {
   return new URL("/shell/index.html", `${cmsBaseUrl}/`).toString();
 }
 
+function buildPetUrl() {
+  const base = (voiceBaseUrl || cmsBaseUrl || "").replace(/\/+$/, "");
+  if (!base) return "about:blank";
+  return `${base}/shell/pet.html`;
+}
+
+function positionPetWindow(win = petWindow) {
+  if (!win || win.isDestroyed()) return;
+  const saved = loadConfig().petBounds;
+  if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+    win.setPosition(Math.round(saved.x), Math.round(saved.y));
+    return;
+  }
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const area = display.workArea;
+  const [winW, winH] = win.getSize();
+  const x = area.x + Math.max(0, area.width - winW - PET_WINDOW_MARGIN);
+  const y = area.y + Math.max(0, area.height - winH - PET_WINDOW_MARGIN);
+  win.setPosition(x, y);
+}
+
+function persistPetBounds() {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  const bounds = petWindow.getBounds();
+  saveConfig({ petBounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } });
+}
+
+async function createPetWindow() {
+  if (petWindow && !petWindow.isDestroyed()) {
+    positionPetWindow(petWindow);
+    petWindow.showInactive();
+    petWindow.setAlwaysOnTop(true, "screen-saver");
+    return petWindow;
+  }
+
+  petWindow = new BrowserWindow({
+    width: PET_WINDOW_SIZE.width,
+    height: PET_WINDOW_SIZE.height,
+    minWidth: 160,
+    minHeight: 180,
+    maxWidth: 360,
+    maxHeight: 420,
+    title: "Agent CMS Voice",
+    icon: getAppIcon(),
+    transparent: true,
+    backgroundColor: "#00000000",
+    frame: false,
+    hasShadow: false,
+    resizable: true,
+    fullscreenable: false,
+    minimizable: false,
+    maximizable: false,
+    closable: true,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    focusable: true,
+    show: false,
+    type: process.platform === "darwin" ? "panel" : undefined,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      additionalArguments: ["--shell-pet-overlay"],
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  });
+
+  if (process.platform === "darwin" && typeof petWindow.setVisibleOnAllWorkspaces === "function") {
+    petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
+  petWindow.setAlwaysOnTop(true, "screen-saver");
+  positionPetWindow(petWindow);
+
+  petWindow.on("moved", persistPetBounds);
+  petWindow.on("resized", persistPetBounds);
+  petWindow.on("close", (event) => {
+    if (shuttingDown) return;
+    event.preventDefault();
+    hidePetWindow();
+  });
+  petWindow.on("closed", () => {
+    petWindow = null;
+  });
+
+  await petWindow.loadURL(buildPetUrl());
+  petWindow.showInactive();
+  return petWindow;
+}
+
+function hidePetWindow() {
+  if (petWindow && !petWindow.isDestroyed()) {
+    persistPetBounds();
+    petWindow.hide();
+  }
+}
+
+function applyPetOverlay(enabled) {
+  if (enabled) {
+    void createPetWindow().catch((error) => console.error(error));
+    return;
+  }
+  hidePetWindow();
+}
+
 const WINDOW_BOTTOM_MARGIN = 16;
 
 function positionWindowBottomCenter(win = mainWindow) {
@@ -188,6 +297,8 @@ function applyNativeWindowSettings(settings = {}) {
   if (typeof mainWindow.setBackgroundColor === "function") {
     mainWindow.setBackgroundColor(transparent ? "#00000000" : "#0f1020");
   }
+
+  applyPetOverlay(Boolean(settings.windowPetOverlay));
 
   const compact = Boolean(settings.windowCompact);
   const profile = compact ? WINDOW_PROFILE_COMPACT : WINDOW_PROFILE_NORMAL;
@@ -220,12 +331,10 @@ async function createWindow() {
     minHeight: WINDOW_PROFILE_NORMAL.minHeight,
     title: "Agent Shell",
     icon: getAppIcon(),
-    transparent: true,
-    backgroundColor: "#00000000",
+    backgroundColor: "#0f1020",
     alwaysOnTop: true,
     show: false,
-    frame: false,
-    titleBarStyle: "hidden",
+    titleBarStyle: "default",
     autoHideMenuBar: true,
     fullscreenable: true,
     minimizable: true,
@@ -239,8 +348,8 @@ async function createWindow() {
     }
   });
 
-  if (typeof mainWindow.setWindowButtonVisibility === "function") {
-    mainWindow.setWindowButtonVisibility(false);
+  if (process.platform === "darwin" && typeof mainWindow.setWindowButtonVisibility === "function") {
+    mainWindow.setWindowButtonVisibility(true);
   }
 
   const sendWindowState = () => {
@@ -352,6 +461,17 @@ if (!gotLock) {
     ipcMain.handle("shell:window-state", () => ({
       maximized: Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isMaximized())
     }));
+    ipcMain.handle("shell:show-main-window", () => {
+      showMainWindow().catch((error) => console.error(error));
+      return { ok: true };
+    });
+    ipcMain.handle("shell:set-pet-overlay", (_event, enabled) => {
+      applyPetOverlay(Boolean(enabled));
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("shell:pet-overlay-changed", { enabled: Boolean(enabled) });
+      }
+      return { ok: true, enabled: Boolean(enabled) };
+    });
     bootstrap();
   });
 

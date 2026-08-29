@@ -165,6 +165,48 @@ export const RUNTIME_DEFAULTS = {
   }
 };
 
+/** Пресеты для select Model (пустое value = дефолт runtime / CLI). */
+export const RUNTIME_MODEL_PRESETS = {
+  claude: [
+    { value: "", label: "По умолчанию из CLI" },
+    { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
+    { value: "claude-opus-4-20250514", label: "Claude Opus 4" },
+    { value: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet" },
+    { value: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" }
+  ],
+  codex: [
+    { value: "", label: "По умолчанию из CLI" },
+    { value: "o3", label: "o3" },
+    { value: "o4-mini", label: "o4-mini" },
+    { value: "gpt-4o", label: "GPT-4o" },
+    { value: "gpt-4.1", label: "GPT-4.1" },
+    { value: "gpt-4.1-mini", label: "GPT-4.1 mini" }
+  ],
+  cursor: [
+    { value: "", label: "По умолчанию endpoint" },
+    { value: "default", label: "default" },
+    { value: "gpt-4o", label: "gpt-4o" },
+    { value: "claude-sonnet-4-20250514", label: "claude-sonnet-4" }
+  ],
+  openclaw: [
+    { value: "", label: "По умолчанию gateway" },
+    { value: "openclaw/default", label: "openclaw/default" }
+  ],
+  hermes: [
+    { value: "", label: "По умолчанию API" },
+    { value: "hermes-agent", label: "hermes-agent" }
+  ],
+  "agent-zero": [
+    { value: "", label: "По умолчанию gateway" },
+    { value: "agent-zero", label: "agent-zero" }
+  ]
+};
+
+export function runtimeModelPresets(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  return RUNTIME_MODEL_PRESETS[id] || [{ value: "", label: "По умолчанию" }];
+}
+
 export function runtimeField(runtime, suffix) {
   return `${runtime}${suffix}`;
 }

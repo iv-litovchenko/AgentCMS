@@ -29,10 +29,18 @@ export function createSettingsSaveController() {
         saveBtn.disabled = false;
       }
       toggleButtons[section]?.classList.toggle("has-unsaved", Boolean(dirty[section]));
-      if (["window", "route", "proactive"].includes(section)) {
+      const tabName =
+        section === "stt" || section === "tts"
+          ? section
+          : ["window", "route", "proactive"].includes(section)
+            ? section
+            : "";
+      if (tabName) {
         document
-          .querySelectorAll(`.shell-settings-tab[data-settings-tab="${section}"]`)
-          .forEach((tab) => tab.classList.toggle("has-unsaved", Boolean(dirty[section])));
+          .querySelectorAll(`.shell-settings-tab[data-settings-tab="${tabName}"]`)
+          .forEach((tab) => {
+            tab.classList.toggle("has-unsaved", Boolean(dirty[section]));
+          });
         if (dirty[section]) settingsPanelDirty = true;
       }
     }

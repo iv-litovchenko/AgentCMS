@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent CMS Voice · персонаж</title>
+    <link rel="stylesheet" href="/shell/shell.css?v=298" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/shell/vendor/three.module.js",
+          "@shell/character": "/shell/shell-character.js?v=207",
+          "@shell/character-models": "/shell/shell-character-models.js?v=207"
+        }
+      }
+    </script>
+  </head>
+  <body class="shell-pet">
+    <section class="shell-pet-stage shell-character-stage" id="shell-pet-stage" data-phase="waiting" aria-label="Персонаж Agent CMS Voice">
+      <button type="button" class="shell-pet-close" id="shell-pet-close" title="Скрыть персонажа" aria-label="Скрыть персонажа">
+        ×
+      </button>
+      <div class="shell-character-viewport" id="shell-pet-viewport"></div>
+      <p class="shell-pet-hint">Двойной клик — открыть Voice</p>
+    </section>
+    <script type="module" src="/shell/shell-pet.js?v=1"></script>
+  </body>
+</html>

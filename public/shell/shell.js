@@ -89,7 +89,8 @@ import {
   runtimeShowsAgentId,
   runtimeUsesCli,
   runtimeShowsApiKey,
-  runtimeShowsBaseUrl
+  runtimeShowsBaseUrl,
+  runtimeModelPresets
 } from "@shell/runtimes";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
@@ -696,6 +697,7 @@ const nodes = {
   bridgeApiKey: document.getElementById("shell-runtime-bridge-api-key"),
   bridgeApiKeyField: document.getElementById("shell-runtime-bridge-api-key-field"),
   bridgeModel: document.getElementById("shell-runtime-bridge-model"),
+  bridgeModelNote: document.getElementById("shell-runtime-bridge-model-note"),
   bridgeProfileField: document.getElementById("shell-runtime-bridge-profile-field"),
   bridgeProfile: document.getElementById("shell-runtime-bridge-profile"),
   bridgeAgentField: document.getElementById("shell-runtime-bridge-agent-field"),
@@ -704,8 +706,6 @@ const nodes = {
   ttsEnabled: document.getElementById("shell-tts-enabled"),
   ttsPlaybackModeGroup: document.getElementById("shell-tts-playback-mode"),
   ttsPlaybackHint: document.getElementById("shell-tts-playback-hint"),
-  ttsSettingsSummary: document.getElementById("shell-tts-settings-summary"),
-  ttsSettingsToggle: document.getElementById("shell-tts-settings-toggle"),
   ttsSettingsPanel: document.getElementById("shell-tts-settings"),
   ttsPrompt: document.getElementById("shell-tts-prompt"),
   ttsPromptInsert: document.getElementById("shell-tts-prompt-insert"),
@@ -725,8 +725,6 @@ const nodes = {
   ttsRate: document.getElementById("shell-tts-rate"),
   ttsRateValue: document.getElementById("shell-tts-rate-value"),
   sttEnabled: document.getElementById("shell-stt-enabled"),
-  sttSettingsSummary: document.getElementById("shell-stt-settings-summary"),
-  sttSettingsToggle: document.getElementById("shell-stt-settings-toggle"),
   sttSettingsPanel: document.getElementById("shell-stt-settings"),
   sttPrompt: document.getElementById("shell-stt-prompt"),
   sttPromptInsert: document.getElementById("shell-stt-prompt-insert"),
@@ -737,6 +735,7 @@ const nodes = {
   voiceWakeName: document.getElementById("shell-voice-wake-name"),
   topmost: document.getElementById("shell-topmost"),
   windowTransparent: document.getElementById("shell-window-transparent"),
+  windowPetOverlay: document.getElementById("shell-window-pet"),
   windowBackground: document.getElementById("shell-window-background"),
   windowCompact: document.getElementById("shell-compact-action"),
   voiceMode: document.getElementById("shell-voice-mode"),
@@ -2561,6 +2560,7 @@ function buildWindowSettingsPayload(overrides = {}) {
     windowTransparent,
     windowBackground: windowTransparent ? "transparent" : windowBackground,
     windowCompact: isWindowCompactEnabled(),
+    windowPetOverlay: nodes.windowPetOverlay?.checked === true,
     ...overrides
   };
 }
@@ -2907,6 +2907,7 @@ function applyWindowSettings(settings) {
   if (!settingsSave.isSectionDirty("window")) {
     if (nodes.topmost) nodes.topmost.checked = settings.windowTopmost !== false;
     if (nodes.windowTransparent) nodes.windowTransparent.checked = Boolean(settings.windowTransparent);
+    if (nodes.windowPetOverlay) nodes.windowPetOverlay.checked = Boolean(settings.windowPetOverlay);
     if (nodes.windowBackground) {
       nodes.windowBackground.value = settings.windowBackground || "wallpaper";
       nodes.windowBackground.disabled = Boolean(settings.windowTransparent);
@@ -3026,6 +3027,48 @@ function collectWindowSnapshot() {
   return buildWindowSettingsPayload();
 }
 
+function populateBridgeModelSelect(runtime, selected = "") {
+  const select = nodes.bridgeModel;
+  if (!select) return;
+  const id = normalizeMessageRuntime(runtime);
+  const presets = runtimeModelPresets(id);
+  const value = String(selected ?? "").trim();
+  select.replaceChildren();
+  const seen = new Set();
+  for (const item of presets) {
+    const opt = document.createElement("option");
+    opt.value = item.value;
+    opt.textContent = item.label;
+    select.append(opt);
+    seen.add(item.value);
+  }
+  if (value && !seen.has(value)) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = value;
+    select.append(opt);
+  }
+  select.value = value;
+}
+
+function setBridgeModelNote(runtime) {
+  const note = nodes.bridgeModelNote;
+  if (!note) return;
+  const id = normalizeMessageRuntime(runtime);
+  if (!runtimeUsesBridge(id)) {
+    note.textContent = "";
+    return;
+  }
+  if (runtimeUsesCli(id)) {
+    note.textContent =
+      id === "codex"
+        ? "«По умолчанию» — модель из codex login. Выбор выше → codex exec … -m <model>."
+        : "«По умолчанию» — модель из claude login. Выбор выше → claude -p … --model <model>.";
+    return;
+  }
+  note.textContent = "Model id для OpenAI-compatible endpoint. Свой id из /v1/models можно прописать в settings.json.";
+}
+
 function collectBridgeFormPatch(runtime) {
   const id = normalizeMessageRuntime(runtime);
   const defaults = RUNTIME_DEFAULTS[id] || {};
@@ -3058,7 +3101,8 @@ function applyBridgeForm(runtime, settings = state.settings || {}) {
     if (nodes.bridgeUrl) nodes.bridgeUrl.value = read("baseUrl") || defaults.baseUrl || "";
     if (nodes.bridgeApiKey) nodes.bridgeApiKey.value = read("apiKey");
   }
-  if (nodes.bridgeModel) nodes.bridgeModel.value = read("model") || defaults.model || "";
+  populateBridgeModelSelect(id, read("model") || defaults.model || "");
+  setBridgeModelNote(id);
   if (nodes.bridgeProfile) nodes.bridgeProfile.value = read("profile");
   if (nodes.bridgeAgentId) nodes.bridgeAgentId.value = read("agentId");
   if (nodes.bridgeSessionId) {
@@ -3493,6 +3537,7 @@ function updateRuntimeUi() {
     const showAgent = runtimeShowsAgentId(runtime);
     nodes.bridgeAgentField?.classList.toggle("hidden", !showAgent);
     if (nodes.bridgeAgentField) nodes.bridgeAgentField.hidden = !showAgent;
+    setBridgeModelNote(runtime);
   }
   syncDialogConnectionState();
 }
@@ -6034,12 +6079,14 @@ async function startBrowserMic() {
   await shellTapVoice.startSession({ viaTap: true });
 }
 
-const SETTINGS_TABS = ["route", "proactive", "window", "todo"];
+const SETTINGS_TABS = ["route", "proactive", "window", "tts", "stt", "todo"];
 
 const SETTINGS_TAB_PANELS = {
   route: "shell-route-panel",
   proactive: "shell-proactive-panel",
   window: "shell-window-panel",
+  tts: "shell-tts-panel",
+  stt: "shell-stt-panel",
   todo: "shell-todo-panel"
 };
 
@@ -6069,7 +6116,12 @@ function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
   }
   if (next === "settings") {
     const tabFromScroll =
-      scrollTo === "route" || scrollTo === "proactive" || scrollTo === "window" || scrollTo === "todo"
+      scrollTo === "route" ||
+      scrollTo === "proactive" ||
+      scrollTo === "window" ||
+      scrollTo === "tts" ||
+      scrollTo === "stt" ||
+      scrollTo === "todo"
         ? scrollTo
         : "";
     setSettingsTab(settingsTab || tabFromScroll || state.settingsTab || "route");
@@ -6123,6 +6175,24 @@ function bindWindowSettingsUi() {
   };
 
   nodes.topmost?.addEventListener("change", onWindowFieldChange);
+  nodes.windowPetOverlay?.addEventListener("change", () => {
+    onWindowFieldChange();
+    if (window.shellApp?.applyWindowSettings) {
+      void saveWindowSettings(buildWindowSettingsPayload()).catch((error) =>
+        renderPhase("waiting", error.message)
+      );
+    }
+  });
+  if (window.shellApp?.onPetOverlayChanged) {
+    window.shellApp.onPetOverlayChanged((payload) => {
+      if (!nodes.windowPetOverlay) return;
+      nodes.windowPetOverlay.checked = Boolean(payload?.enabled);
+      markSettingsDirty("window");
+      void saveWindowSettings(buildWindowSettingsPayload({ windowPetOverlay: Boolean(payload?.enabled) })).catch(
+        () => {}
+      );
+    });
+  }
   nodes.windowTransparent?.addEventListener("change", () => {
     if (!nodes.windowTransparent.checked && nodes.windowBackground?.value === "transparent") {
       nodes.windowBackground.value = "wallpaper";
@@ -6155,10 +6225,7 @@ function bindUi() {
       tts: nodes.ttsSave,
       stt: nodes.sttSave
     },
-    toggleButtons: {
-      tts: nodes.ttsSettingsToggle,
-      stt: nodes.sttSettingsToggle
-    },
+    toggleButtons: {},
     settingsMenuBtn: nodes.settingsBtn
   });
   const markRouteDirty = () => markSettingsDirty("route");
@@ -6354,12 +6421,6 @@ function bindUi() {
   preventDetailsToggleOnControl(nodes.ttsPlaybackHint);
   preventDetailsToggleOnControl(nodes.ttsEnabled);
   preventDetailsToggleOnControl(nodes.ttsEnabled?.closest("label"));
-  preventDetailsToggleOnControl(nodes.ttsSettingsSummary?.querySelector(".shell-voice-settings-summary-actions"));
-  preventDetailsToggleOnControl(nodes.sttEnabled);
-  preventDetailsToggleOnControl(nodes.sttEnabled?.closest("label"));
-  preventDetailsToggleOnControl(nodes.sttSettingsSummary?.querySelector(".shell-voice-settings-summary-actions"));
-  bindVoiceSettingsExpandToggle(nodes.ttsSettingsToggle);
-  bindVoiceSettingsExpandToggle(nodes.sttSettingsToggle);
   nodes.heroDemoBar?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-hero-demo]");
     if (!btn) return;
@@ -6665,7 +6726,7 @@ async function boot() {
   window.addEventListener("offline", syncDialogConnectionState);
   syncDialogConnectionState();
   void initBatteryMonitor();
-  void initShellCharacter(null, nodes.agentAvatar);
+  void initShellCharacter(nodes.characterStage, nodes.agentAvatar);
   try {
     await resolveShellAgent();
     shellPresenceController?.stop();
@@ -6688,7 +6749,8 @@ async function boot() {
         ...(state.windowSettings || {}),
         windowCompact: true,
         windowBackground: "wallpaper",
-        windowTransparent: false
+        windowTransparent: false,
+        windowPetOverlay: false
       });
     }
     await refreshStatus();

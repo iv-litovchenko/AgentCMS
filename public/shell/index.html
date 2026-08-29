@@ -12,15 +12,15 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=296" />
-    <link rel="stylesheet" href="/shell/shell-app-lock.css?v=2" />
+    <link rel="stylesheet" href="/shell/shell.css?v=313" />
+    <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
     <script type="importmap">
       {
         "imports": {
           "three": "/shell/vendor/three.module.js",
-          "@shell/settings-save": "/shell/shell-settings-save.js?v=292",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=312",
           "@shell/reply": "/shell/shell-reply.js?v=207",
           "@shell/markdown": "/shell/shell-markdown.js?v=207",
           "@shell/character": "/shell/shell-character.js?v=207",
@@ -44,7 +44,7 @@
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=207",
           "@shell/help": "/shell/shell-help.js?v=207",
-          "@shell/hints": "/shell/shell-hints.js?v=207",
+          "@shell/hints": "/shell/shell-hints.js?v=313",
           "@shell/proactive": "/shell/shell-proactive.js?v=207",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
           "@shell/voice": "/shell/shell-voice.js?v=207",
@@ -78,11 +78,6 @@
     </script>
     <div id="app-lock" class="app-lock hidden" role="dialog" aria-modal="true" aria-labelledby="app-lock-title" aria-describedby="app-lock-lead">
       <div class="app-lock-bg" aria-hidden="true"></div>
-      <div class="shell-window-controls">
-        <button type="button" class="shell-window-ctrl shell-window-ctrl--close" data-window-action="close" title="Закрыть" aria-label="Закрыть"></button>
-        <button type="button" class="shell-window-ctrl shell-window-ctrl--min" data-window-action="minimize" title="Свернуть" aria-label="Свернуть"></button>
-        <button type="button" class="shell-window-ctrl shell-window-ctrl--max" data-window-action="maximize" title="Развернуть" aria-label="Развернуть"></button>
-      </div>
       <div class="app-lock-panel">
         <div class="app-lock-inner">
           <div class="app-lock-brand">
@@ -118,11 +113,6 @@
     </div>
 
     <div id="shell-agent-gate" class="shell-agent-gate hidden" role="dialog" aria-modal="true" aria-labelledby="shell-agent-gate-title">
-      <div class="shell-window-controls">
-        <button type="button" class="shell-window-ctrl shell-window-ctrl--close" data-window-action="close" title="Закрыть" aria-label="Закрыть"></button>
-        <button type="button" class="shell-window-ctrl shell-window-ctrl--min" data-window-action="minimize" title="Свернуть" aria-label="Свернуть"></button>
-        <button type="button" class="shell-window-ctrl shell-window-ctrl--max" data-window-action="maximize" title="Развернуть" aria-label="Развернуть"></button>
-      </div>
       <div class="shell-agent-gate-panel">
         <h2 id="shell-agent-gate-title" class="shell-agent-gate-title">Agent CMS Voice</h2>
         <p class="shell-agent-gate-lead">Выберите workspace CMS — память и настройки Shell привязаны к агенту.</p>
@@ -143,11 +133,6 @@
       <header class="shell-path-header" id="shell-path-header" aria-label="Agent CMS Voice">
         <div class="shell-path-block shell-path-block--title">
           <div class="shell-path-row">
-            <div class="shell-window-controls">
-              <button type="button" class="shell-window-ctrl shell-window-ctrl--close" data-window-action="close" title="Закрыть" aria-label="Закрыть"></button>
-              <button type="button" class="shell-window-ctrl shell-window-ctrl--min" data-window-action="minimize" title="Свернуть" aria-label="Свернуть"></button>
-              <button type="button" class="shell-window-ctrl shell-window-ctrl--max" data-window-action="maximize" title="Развернуть" aria-label="Развернуть"></button>
-            </div>
             <button
               type="button"
               class="shell-path-title-btn"
@@ -328,6 +313,28 @@
             <button
               type="button"
               class="shell-settings-tab"
+              id="shell-settings-tab-tts"
+              role="tab"
+              data-settings-tab="tts"
+              aria-selected="false"
+              aria-controls="shell-tts-panel"
+            >
+              TTS
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-stt"
+              role="tab"
+              data-settings-tab="stt"
+              aria-selected="false"
+              aria-controls="shell-stt-panel"
+            >
+              STT
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
               id="shell-settings-tab-todo"
               role="tab"
               data-settings-tab="todo"
@@ -422,15 +429,10 @@
                 placeholder="Bearer token"
               />
             </label>
-            <label class="shell-field shell-field--compact">
+            <label class="shell-field shell-field--compact" id="shell-runtime-bridge-model-field">
               <span class="shell-label">Model</span>
-              <input
-                id="shell-runtime-bridge-model"
-                class="shell-input"
-                type="text"
-                spellcheck="false"
-                placeholder="по умолчанию из CLI"
-              />
+              <select id="shell-runtime-bridge-model" class="shell-select shell-select--full"></select>
+              <p class="shell-field-note" id="shell-runtime-bridge-model-note"></p>
             </label>
             <label class="shell-field shell-field--compact hidden" id="shell-runtime-bridge-profile-field" hidden>
               <span class="shell-label">Профиль Hermes</span>
@@ -543,6 +545,10 @@
         </section>
 
         <section class="shell-window-panel" id="shell-window-panel" role="tabpanel" aria-labelledby="shell-settings-tab-window" hidden>
+        <div class="shell-character-stage" id="shell-character-stage" data-phase="waiting">
+          <div class="shell-character-viewport"></div>
+          <div class="shell-character-picker" id="shell-character-picker"></div>
+        </div>
         <div class="shell-window-options">
           <label class="shell-check">
             <input id="shell-topmost" type="checkbox" checked />
@@ -552,10 +558,15 @@
             <input id="shell-window-transparent" type="checkbox" />
             <span>Прозрачный фон</span>
           </label>
+          <label class="shell-check" title="Отдельная моделька поверх всех окон, как pet у Codex. Не сворачивается вместе с Voice.">
+            <input id="shell-window-pet" type="checkbox" />
+            <span>Персонаж поверх окон</span>
+          </label>
           <label class="shell-check" title="Wake Lock API — экран не гаснет, пока Shell открыт">
             <input id="shell-keep-awake" type="checkbox" checked />
             <span>Не гасить экран</span>
           </label>
+          <p class="shell-window-note">Моделька сверху — сам персонаж. Галочка выносит его на рабочий стол отдельным окном (только Voice.app). Двойной клик по нему открывает Voice.</p>
           <p class="shell-window-note">Компактный режим — кнопка «Компакт» внизу экрана. Минимум окна: 320×500.</p>
           <p class="shell-window-note shell-window-note--local">«Не гасить экран» — на этом устройстве (не в awn-shell.json).</p>
           <label class="shell-field shell-field--compact">
@@ -576,6 +587,204 @@
             <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
           </div>
           <span class="shell-settings-save-hint" data-settings-save-hint="global"></span>
+        </div>
+        </section>
+
+        <section class="shell-tts-panel" id="shell-tts-panel" role="tabpanel" aria-labelledby="shell-settings-tab-tts" hidden>
+        <div class="shell-voice-panel-head">
+          <span class="shell-label">Голосовой ответ (TTS)</span>
+        </div>
+        <div class="shell-tts-settings" id="shell-tts-settings">
+          <p class="shell-tts-settings-note">
+            Движок, голос и промпт — в <code>settings.json</code>. Включение TTS и режим «Диалог / Чтение» — в hero на главном экране.
+          </p>
+          <label class="shell-field shell-field--compact">
+            <span class="shell-label shell-label-row shell-label-row--spread">
+              Промпт spoken-версии
+              <button type="button" class="shell-label-action" id="shell-tts-prompt-insert">
+                Вставить заготовку
+              </button>
+            </span>
+            <textarea
+              id="shell-tts-prompt"
+              class="shell-textarea shell-textarea--compact"
+              rows="3"
+              spellcheck="false"
+              placeholder="Инструкция для ответа: текст для голоса, затем ::: VOICE-END :::, затем полный текст. «Вставить заготовку» — шаблон."
+            ></textarea>
+          </label>
+          <label class="shell-field shell-field--compact shell-tts-engine-field">
+            <span class="shell-label shell-label-row shell-label-row--spread">
+              Движок TTS
+              <button type="button" class="shell-label-action" id="shell-tts-test" title="Озвучить пробную фразу выбранным движком">
+                Пробный текст
+              </button>
+              <button
+                type="button"
+                class="shell-label-action shell-tts-download-panel"
+                id="shell-tts-download-panel"
+                disabled
+                title="Скачать аудио последней озвучки"
+              >
+                ⬇ Скачать
+              </button>
+            </span>
+            <select id="shell-tts-engine" class="shell-select shell-select--full">
+              <optgroup label="На этом устройстве">
+                <option value="browser">Браузер · Web Speech (вкладка)</option>
+                <option value="say">macOS say · сервер Mac</option>
+                <option value="piper">Piper · офлайн-модель</option>
+              </optgroup>
+              <optgroup label="Онлайн / API">
+                <option value="edge">Edge TTS · Microsoft</option>
+                <option value="elevenlabs">ElevenLabs · API key</option>
+              </optgroup>
+            </select>
+          </label>
+          <p class="shell-tts-engine-hint" id="shell-tts-engine-hint"></p>
+          <p class="shell-tts-capabilities-note hidden" id="shell-tts-capabilities-note"></p>
+          <div class="shell-tts-engine-fields" id="shell-tts-engine-fields">
+            <label class="shell-field shell-field--compact" data-tts-engines="browser say">
+              <span class="shell-label">Язык</span>
+              <select id="shell-tts-lang" class="shell-select shell-select--full">
+                <option value="ru-RU">Русский</option>
+                <option value="en-US">English</option>
+              </select>
+            </label>
+            <label class="shell-field shell-field--compact" data-tts-engines="browser say">
+              <span class="shell-label" id="shell-tts-voice-label">Голос</span>
+              <select id="shell-tts-voice" class="shell-select shell-select--full">
+                <option value="">Системный по умолчанию</option>
+              </select>
+            </label>
+            <label class="shell-field shell-field--compact hidden" data-tts-engines="edge">
+              <span class="shell-label">Голос Edge</span>
+              <select id="shell-tts-edge-voice" class="shell-select shell-select--full"></select>
+            </label>
+            <label class="shell-field shell-field--compact hidden" data-tts-engines="piper">
+              <span class="shell-label">Модель Piper (.onnx)</span>
+              <input
+                id="shell-tts-piper-model"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                placeholder="/path/to/ru_RU-irina-medium.onnx"
+              />
+            </label>
+            <label class="shell-field shell-field--compact hidden" data-tts-engines="piper">
+              <span class="shell-label">Бинарник Piper</span>
+              <input id="shell-tts-piper-binary" class="shell-input" type="text" spellcheck="false" placeholder="piper" />
+            </label>
+            <label class="shell-field shell-field--compact hidden" data-tts-engines="elevenlabs">
+              <span class="shell-label">ElevenLabs API key</span>
+              <input
+                id="shell-tts-elevenlabs-key"
+                class="shell-input shell-input--mono"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="sk_…"
+              />
+            </label>
+            <label class="shell-field shell-field--compact hidden" data-tts-engines="elevenlabs">
+              <span class="shell-label">ElevenLabs Voice ID</span>
+              <input id="shell-tts-elevenlabs-voice-id" class="shell-input" type="text" spellcheck="false" placeholder="21m00Tcm4TlvDq8ikWAM" />
+            </label>
+            <label class="shell-field shell-field--compact" data-tts-engines="browser say edge piper elevenlabs">
+              <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
+              <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
+            </label>
+          </div>
+        </div>
+        <div class="shell-settings-save-row">
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-tts-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" id="shell-tts-save-hint"><code>.agent-shell/settings.json</code></span>
+        </div>
+        </section>
+
+        <section class="shell-stt-panel" id="shell-stt-panel" role="tabpanel" aria-labelledby="shell-settings-tab-stt" hidden>
+        <input id="shell-stt-enabled" type="checkbox" checked hidden aria-hidden="true" tabindex="-1" />
+        <div class="shell-voice-panel-head">
+          <span class="shell-label">Голосовой ввод (STT)</span>
+        </div>
+        <div class="shell-stt-settings" id="shell-stt-settings">
+          <p class="shell-stt-settings-note">
+            Язык и промпт сохраняются в <code>settings.json</code>. Режим ввода — у кнопки 🎤.
+            Sidecar: <code>npm run shell:sidecar</code>. Режим 🎤 — см. подсказку под полем ввода.
+            iPhone: <a href="#" id="shell-mic-help-link">Микрофон Safari</a>.
+            Если задан промпт пост-обработки — голос сначала проходит через отдельный чат QwenPaw
+            (<code>shell-stt-&lt;agent&gt;</code>), затем очищенный текст уходит в основной чат.
+          </p>
+          <label class="shell-field shell-field--compact">
+            <span class="shell-label shell-label-row shell-label-row--spread">
+              Промпт пост-обработки STT
+              <button type="button" class="shell-label-action" id="shell-stt-prompt-insert">
+                Вставить заготовку
+              </button>
+            </span>
+            <textarea
+              id="shell-stt-prompt"
+              class="shell-textarea shell-textarea--compact"
+              rows="4"
+              spellcheck="false"
+              placeholder="Исправь пунктуацию, убери «э-э» и «эээ», сохрани смысл. Верни только готовый текст для агента.&#10;&#10;Если поле пустое — сырой STT сразу уходит агенту без LLM-очистки."
+            ></textarea>
+          </label>
+          <label class="shell-check shell-stt-voice-confirm" title="Показать текст перед отправкой голосового сообщения">
+            <input id="shell-voice-confirm" type="checkbox" checked />
+            <span>Подтверждать голос перед отправкой</span>
+          </label>
+          <label class="shell-check shell-stt-global" title="Sidecar слушает микрофон в любом приложении (режимы Голосовое и Shift)">
+            <input id="shell-voice-global-listen" type="checkbox" />
+            <span>Глобально — слышу из любого приложения</span>
+          </label>
+          <label class="shell-field shell-field--compact">
+            <span class="shell-label">Wake-имя (режим «По имени»)</span>
+            <input
+              id="shell-voice-wake-name"
+              class="shell-input"
+              type="text"
+              spellcheck="false"
+              placeholder="Например: Ая"
+              autocomplete="off"
+            />
+          </label>
+          <div class="shell-stt-settings-grid">
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Язык STT</span>
+              <select id="shell-stt-lang" class="shell-select">
+                <option value="ru-RU">Русский</option>
+                <option value="en-US">English</option>
+              </select>
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Движок STT</span>
+              <select id="shell-stt-engine" class="shell-select shell-select--full">
+                <option value="auto">Авто — browser или sidecar по режиму</option>
+                <option value="browser">Web Speech (браузер)</option>
+                <option value="sidecar">Sidecar (Python)</option>
+              </select>
+              <p class="shell-stt-engine-note" id="shell-stt-engine-note">
+                Авто: Web Speech для «Голосовое», sidecar для Live / Встреча / «Глобально».
+              </p>
+            </label>
+          </div>
+        </div>
+        <div class="shell-settings-save-row">
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-stt-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" data-settings-save-hint="agent"><code>.agent-shell/settings.json</code> · режим 🎤</span>
         </div>
         </section>
 
@@ -1043,6 +1252,30 @@ aya_bar_v2 тоже читает те же файлы</pre>
         </div>
       </section>
       <section class="shell-hero" id="shell-hero">
+        <div class="shell-hero-voice-controls" aria-label="Голосовой ответ">
+          <label
+            class="shell-check shell-voice-settings-summary-option shell-reply-tts shell-hero-tts-toggle"
+            title="Текст ответа агента → голос"
+          >
+            <input id="shell-tts-enabled" type="checkbox" checked aria-label="Включить TTS" />
+            <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--tts">TTS</span>
+          </label>
+          <span
+            class="shell-hint shell-voice-settings-summary-control shell-hero-tts-playback"
+            id="shell-tts-playback-hint"
+          >
+            <span class="shell-tts-playback-radio" id="shell-tts-playback-mode" role="radiogroup" aria-label="Режим озвучки">
+              <label class="shell-check shell-tts-playback-radio-option" data-tts-playback="dialog">
+                <input type="radio" name="shell-tts-playback-mode" value="dialog" checked aria-label="Диалог" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">💬</span>
+              </label>
+              <label class="shell-check shell-tts-playback-radio-option" data-tts-playback="reading">
+                <input type="radio" name="shell-tts-playback-mode" value="reading" aria-label="Чтение" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">📖</span>
+              </label>
+            </span>
+          </span>
+        </div>
         <div class="shell-hero-layout">
           <div class="shell-hero-center">
             <div class="shell-hero-sensor-wrap">
@@ -1084,15 +1317,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
             <p class="shell-hero-status-badge is-ready" id="shell-phase-label" aria-live="polite">Готов к сообщению</p>
             <div class="shell-status-meta shell-hero-status-meta" id="shell-meta"></div>
-
-            <div class="shell-hero-demo-bar" id="shell-hero-demo-bar" aria-label="Примеры статусов">
-              <span class="shell-hero-demo-label">Пример</span>
-              <button type="button" class="shell-hero-demo-btn" data-hero-demo="ready">Готов</button>
-              <button type="button" class="shell-hero-demo-btn" data-hero-demo="idle">Ожидаю</button>
-              <button type="button" class="shell-hero-demo-btn" data-hero-demo="listening">Слушаю</button>
-              <button type="button" class="shell-hero-demo-btn" data-hero-demo="thinking">Думаю</button>
-              <button type="button" class="shell-hero-demo-btn" data-hero-demo="replying">Отвечаю</button>
-            </div>
             </div>
 
             <div class="shell-hero-toolbar" id="shell-tts-controls">
@@ -1156,255 +1380,10 @@ aya_bar_v2 тоже читает те же файлы</pre>
         </div>
       </section>
 
-      <section class="shell-voice-settings-panel shell-voice-settings-panel--tts" id="shell-voice-tts-panel">
-        <details class="shell-voice-settings-details">
-          <summary class="shell-voice-settings-summary" id="shell-tts-settings-summary">
-            <span class="shell-voice-settings-summary-title">Голосовой ответ</span>
-            <span class="shell-voice-settings-summary-actions">
-              <label
-                class="shell-check shell-voice-settings-summary-option shell-reply-tts"
-                title="Текст ответа агента → голос"
-              >
-                <input id="shell-tts-enabled" type="checkbox" checked aria-label="Включить TTS" />
-                <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--tts">TTS</span>
-              </label>
-              <span
-                class="shell-hint shell-voice-settings-summary-control"
-                id="shell-tts-playback-hint"
-                data-hint="Диалог — озвучка по мере печати ответа (как живой разговор)."
-              >
-                <span class="shell-tts-playback-radio" id="shell-tts-playback-mode" role="radiogroup" aria-label="Режим озвучки">
-                  <label class="shell-check shell-tts-playback-radio-option">
-                    <input type="radio" name="shell-tts-playback-mode" value="dialog" checked />
-                    <span>Диалог</span>
-                  </label>
-                  <label class="shell-check shell-tts-playback-radio-option">
-                    <input type="radio" name="shell-tts-playback-mode" value="reading" />
-                    <span>Чтение</span>
-                  </label>
-                </span>
-              </span>
-            </span>
-            <button
-              type="button"
-              class="shell-icon-btn shell-voice-settings-expand shell-tts-settings-toggle"
-              id="shell-tts-settings-toggle"
-              title="Настройки голосового ответа"
-              aria-label="Настройки голосового ответа"
-              aria-expanded="false"
-            >
-              ⚙️
-            </button>
-          </summary>
-          <div class="shell-voice-settings-body shell-voice-settings-body--single">
-            <div class="shell-tts-settings" id="shell-tts-settings">
-          <label class="shell-field shell-field--compact">
-            <span class="shell-label shell-label-row shell-label-row--spread">
-              Промпт spoken-версии
-              <button type="button" class="shell-label-action" id="shell-tts-prompt-insert">
-                Вставить заготовку
-              </button>
-            </span>
-            <textarea
-              id="shell-tts-prompt"
-              class="shell-textarea shell-textarea--compact"
-              rows="3"
-              spellcheck="false"
-              placeholder="Инструкция для ответа: текст для голоса, затем ::: VOICE-END :::, затем полный текст. «Вставить заготовку» — шаблон."
-            ></textarea>
-          </label>
-          <label class="shell-field shell-field--compact shell-tts-engine-field">
-            <span class="shell-label shell-label-row shell-label-row--spread">
-              Движок TTS
-              <button type="button" class="shell-label-action" id="shell-tts-test" title="Озвучить пробную фразу выбранным движком">
-                Пробный текст
-              </button>
-              <button
-                type="button"
-                class="shell-label-action shell-tts-download-panel"
-                id="shell-tts-download-panel"
-                disabled
-                title="Скачать аудио последней озвучки"
-              >
-                ⬇ Скачать
-              </button>
-            </span>
-            <select id="shell-tts-engine" class="shell-select shell-select--full">
-              <optgroup label="На этом устройстве">
-                <option value="browser">Браузер · Web Speech (вкладка)</option>
-                <option value="say">macOS say · сервер Mac</option>
-                <option value="piper">Piper · офлайн-модель</option>
-              </optgroup>
-              <optgroup label="Онлайн / API">
-                <option value="edge">Edge TTS · Microsoft</option>
-                <option value="elevenlabs">ElevenLabs · API key</option>
-              </optgroup>
-            </select>
-          </label>
-          <p class="shell-tts-engine-hint" id="shell-tts-engine-hint"></p>
-          <p class="shell-tts-capabilities-note hidden" id="shell-tts-capabilities-note"></p>
-          <div class="shell-tts-engine-fields" id="shell-tts-engine-fields">
-            <label class="shell-field shell-field--compact" data-tts-engines="browser say">
-              <span class="shell-label">Язык</span>
-              <select id="shell-tts-lang" class="shell-select shell-select--full">
-                <option value="ru-RU">Русский</option>
-                <option value="en-US">English</option>
-              </select>
-            </label>
-            <label class="shell-field shell-field--compact" data-tts-engines="browser say">
-              <span class="shell-label" id="shell-tts-voice-label">Голос</span>
-              <select id="shell-tts-voice" class="shell-select shell-select--full">
-                <option value="">Системный по умолчанию</option>
-              </select>
-            </label>
-            <label class="shell-field shell-field--compact hidden" data-tts-engines="edge">
-              <span class="shell-label">Голос Edge</span>
-              <select id="shell-tts-edge-voice" class="shell-select shell-select--full"></select>
-            </label>
-            <label class="shell-field shell-field--compact hidden" data-tts-engines="piper">
-              <span class="shell-label">Модель Piper (.onnx)</span>
-              <input
-                id="shell-tts-piper-model"
-                class="shell-input"
-                type="text"
-                spellcheck="false"
-                placeholder="/path/to/ru_RU-irina-medium.onnx"
-              />
-            </label>
-            <label class="shell-field shell-field--compact hidden" data-tts-engines="piper">
-              <span class="shell-label">Бинарник Piper</span>
-              <input id="shell-tts-piper-binary" class="shell-input" type="text" spellcheck="false" placeholder="piper" />
-            </label>
-            <label class="shell-field shell-field--compact hidden" data-tts-engines="elevenlabs">
-              <span class="shell-label">ElevenLabs API key</span>
-              <input
-                id="shell-tts-elevenlabs-key"
-                class="shell-input shell-input--mono"
-                type="text"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="sk_…"
-              />
-            </label>
-            <label class="shell-field shell-field--compact hidden" data-tts-engines="elevenlabs">
-              <span class="shell-label">ElevenLabs Voice ID</span>
-              <input id="shell-tts-elevenlabs-voice-id" class="shell-input" type="text" spellcheck="false" placeholder="21m00Tcm4TlvDq8ikWAM" />
-            </label>
-            <label class="shell-field shell-field--compact" data-tts-engines="browser say edge piper elevenlabs">
-              <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
-              <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
-            </label>
-          </div>
-          <div class="shell-settings-save-row">
-            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-tts-save">
-              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
-              Сохранить
-            </button>
-            <span class="shell-settings-save-hint" id="shell-tts-save-hint"><code>.agent-shell/settings.json</code></span>
-          </div>
-            </div>
-          </div>
-        </details>
-      </section>
-
-      <section class="shell-voice-settings-panel shell-voice-settings-panel--stt" id="shell-voice-stt-panel">
-        <details class="shell-voice-settings-details">
-          <summary class="shell-voice-settings-summary" id="shell-stt-settings-summary">
-            <span class="shell-voice-settings-summary-title">Голосовой ввод</span>
-            <span class="shell-voice-settings-summary-actions">
-              <label
-                class="shell-check shell-voice-settings-summary-option shell-compose-stt"
-                title="Ваш голос → текст сообщения"
-              >
-                <input id="shell-stt-enabled" type="checkbox" checked aria-label="Включить STT" />
-                <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--stt">STT</span>
-              </label>
-            </span>
-            <button
-              type="button"
-              class="shell-icon-btn shell-voice-settings-expand shell-stt-settings-toggle"
-              id="shell-stt-settings-toggle"
-              title="Настройки голосового ввода"
-              aria-label="Настройки голосового ввода"
-              aria-expanded="false"
-            >
-              ⚙️
-            </button>
-          </summary>
-          <div class="shell-voice-settings-body shell-voice-settings-body--single">
-            <div class="shell-stt-settings" id="shell-stt-settings">
-                <p class="shell-stt-settings-note">
-                  Язык и промпт сохраняются в <code>settings.json</code>. Режим ввода — у кнопки 🎤.
-                  Sidecar: <code>npm run shell:sidecar</code>. Режим 🎤 — см. подсказку под полем ввода.
-                  iPhone: <a href="#" id="shell-mic-help-link">Микрофон Safari</a>.
-                  Если задан промпт пост-обработки — голос сначала проходит через отдельный чат QwenPaw
-                  (<code>shell-stt-&lt;agent&gt;</code>), затем очищенный текст уходит в основной чат.
-                </p>
-                <label class="shell-field shell-field--compact">
-                  <span class="shell-label shell-label-row shell-label-row--spread">
-                    Промпт пост-обработки STT
-                    <button type="button" class="shell-label-action" id="shell-stt-prompt-insert">
-                      Вставить заготовку
-                    </button>
-                  </span>
-                  <textarea
-                    id="shell-stt-prompt"
-                    class="shell-textarea shell-textarea--compact"
-                    rows="4"
-                    spellcheck="false"
-                    placeholder="Исправь пунктуацию, убери «э-э» и «эээ», сохрани смысл. Верни только готовый текст для агента.&#10;&#10;Если поле пустое — сырой STT сразу уходит агенту без LLM-очистки."
-                  ></textarea>
-                </label>
-                <label class="shell-check shell-stt-voice-confirm" title="Показать текст перед отправкой голосового сообщения">
-                  <input id="shell-voice-confirm" type="checkbox" checked />
-                  <span>Подтверждать голос перед отправкой</span>
-                </label>
-                <label class="shell-check shell-stt-global" title="Sidecar слушает микрофон в любом приложении (режимы Голосовое и Shift)">
-                  <input id="shell-voice-global-listen" type="checkbox" />
-                  <span>Глобально — слышу из любого приложения</span>
-                </label>
-                <label class="shell-field shell-field--compact">
-                  <span class="shell-label">Wake-имя (режим «По имени»)</span>
-                  <input
-                    id="shell-voice-wake-name"
-                    class="shell-input"
-                    type="text"
-                    spellcheck="false"
-                    placeholder="Например: Ая"
-                    autocomplete="off"
-                  />
-                </label>
-                <div class="shell-stt-settings-grid">
-                  <label class="shell-field shell-field--compact">
-                    <span class="shell-label">Язык STT</span>
-                    <select id="shell-stt-lang" class="shell-select">
-                      <option value="ru-RU">Русский</option>
-                      <option value="en-US">English</option>
-                    </select>
-                  </label>
-                  <label class="shell-field shell-field--compact">
-                    <span class="shell-label">Движок STT</span>
-                    <select id="shell-stt-engine" class="shell-select shell-select--full">
-                      <option value="auto">Авто — browser или sidecar по режиму</option>
-                      <option value="browser">Web Speech (браузер)</option>
-                      <option value="sidecar">Sidecar (Python)</option>
-                    </select>
-                    <p class="shell-stt-engine-note" id="shell-stt-engine-note">
-                      Авто: Web Speech для «Голосовое», sidecar для Live / Встреча / «Глобально».
-                    </p>
-                  </label>
-                </div>
-                <div class="shell-settings-save-row">
-                  <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-stt-save">
-                    <span class="shell-save-btn-lamp" aria-hidden="true"></span>
-                    Сохранить
-                  </button>
-                  <span class="shell-settings-save-hint"><code>.agent-shell/settings.json</code> · режим 🎤</span>
-                </div>
-              </div>
-          </div>
-        </details>
-      </section>
+      <section class="shell-chat-section shell-chat-section--reply" aria-label="Диалог">
+      <header class="shell-chat-section-head">
+        <h2 class="shell-chat-section-title">Диалог</h2>
+      </header>
 
       <section class="shell-reply-panel" id="shell-reply-panel" data-collapsed="0">
         <div class="shell-dialog-toolbar shell-chat-head">
@@ -1414,16 +1393,13 @@ aya_bar_v2 тоже читает те же файлы</pre>
             id="shell-dialog-collapse"
             aria-expanded="true"
             aria-controls="shell-dialog-scroll"
+            aria-label="Свернуть диалог"
           >
             <span class="shell-status-dot" id="shell-status-dot" data-state="offline" aria-hidden="true"></span>
-            <span class="shell-dialog-collapse-title">Диалог</span>
             <span class="shell-dialog-collapse-hint hidden" id="shell-dialog-collapse-hint"></span>
             <span class="shell-dialog-collapse-chev" aria-hidden="true">▾</span>
           </button>
           <div class="shell-dialog-toolbar-actions">
-            <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-history-open" aria-haspopup="dialog">
-              История <span class="shell-history-count" id="shell-history-count"></span>
-            </button>
             <button type="button" class="shell-icon-btn shell-dialog-tool" id="shell-reconnect-btn" title="Переподключить" aria-label="Переподключить">↻</button>
             <button type="button" class="shell-icon-btn shell-dialog-tool hidden" id="shell-copy-reply" title="Копировать ответ" aria-label="Копировать ответ">⎘</button>
             <button type="button" class="shell-icon-btn shell-dialog-tool hidden" id="shell-share-reply" title="Поделиться ответом" aria-label="Поделиться">↗</button>
@@ -1447,7 +1423,9 @@ aya_bar_v2 тоже читает те же файлы</pre>
         </div>
         <p class="shell-dialog-error hidden" id="shell-dialog-error" role="alert"></p>
       </section>
+      </section>
 
+      <section class="shell-chat-section shell-chat-section--compose" aria-label="Ваше сообщение и голосовой ввод">
       <section class="shell-compose-panel" id="shell-compose-panel">
         <div class="shell-message-queue hidden" id="shell-message-queue" aria-live="polite">
           <div class="shell-message-queue-bar">
@@ -1745,6 +1723,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
         </div>
         <div class="shell-compose-expand-backdrop hidden" id="shell-compose-expand-backdrop" hidden></div>
       </section>
+      </section>
 
       <section class="shell-media shell-media--drawer hidden" id="shell-media-section" data-mode="">
         <div class="shell-media-head">
@@ -1838,15 +1817,14 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </footer>
     </div>
 
-    <dialog class="shell-dialog shell-dialog--sheet" id="shell-history-dialog">
-      <div class="shell-dialog-form shell-dialog-form--sheet">
-        <div class="shell-sheet-head">
-          <h2>История</h2>
-          <button type="button" class="shell-icon-btn" id="shell-history-close" aria-label="Закрыть">✕</button>
-        </div>
-        <ul class="shell-history-list" id="shell-history-list"></ul>
-      </div>
-    </dialog>
+    <aside class="shell-hero-demo-panel" id="shell-hero-demo-bar" aria-label="Примеры статусов">
+      <span class="shell-hero-demo-label">Пример</span>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="ready">Готов</button>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="idle">Ожидаю</button>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="listening">Слушаю</button>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="thinking">Думаю</button>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="replying">Отвечаю</button>
+    </aside>
 
     <div class="shell-mode-bar" id="shell-mode-bar" role="group" aria-label="Режимы Shell">
       <button
@@ -1941,45 +1919,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script>
-      (function () {
-        var app = window.shellApp;
-        if (!app || !app.isShellDesktop) return;
-        function syncMaximized(maximized) {
-          document.querySelectorAll('[data-window-action="maximize"]').forEach(function (btn) {
-            btn.setAttribute("aria-pressed", maximized ? "true" : "false");
-            btn.title = maximized ? "Восстановить" : "Развернуть";
-            btn.setAttribute("aria-label", maximized ? "Восстановить" : "Развернуть");
-          });
-        }
-        document.addEventListener("click", function (event) {
-          var btn = event.target.closest("[data-window-action]");
-          if (!btn || !app.windowControl) return;
-          event.preventDefault();
-          Promise.resolve(app.windowControl(btn.getAttribute("data-window-action"))).then(function (state) {
-            if (state && typeof state.maximized === "boolean") syncMaximized(state.maximized);
-          });
-        });
-        var header = document.getElementById("shell-path-header");
-        if (header) {
-          header.addEventListener("dblclick", function (event) {
-            if (event.target.closest("button, a, select, input, textarea, .shell-window-controls")) return;
-            if (!app.windowControl) return;
-            Promise.resolve(app.windowControl("maximize")).then(function (state) {
-              if (state && typeof state.maximized === "boolean") syncMaximized(state.maximized);
-            });
-          });
-        }
-        if (app.getWindowState) {
-          Promise.resolve(app.getWindowState()).then(function (state) {
-            if (state && typeof state.maximized === "boolean") syncMaximized(state.maximized);
-          });
-        }
-        if (app.onWindowState) app.onWindowState(function (state) {
-          if (state && typeof state.maximized === "boolean") syncMaximized(state.maximized);
-        });
-      })();
-    </script>
-    <script src="/shell/shell.js?v=296" type="module"></script>
+    <script src="/shell/shell.js?v=313" type="module"></script>
   </body>
 </html>
