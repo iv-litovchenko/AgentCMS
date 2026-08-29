@@ -69,7 +69,6 @@ import {
   VOICE_INPUT_MODES,
   VOICE_MODE_LABELS,
   VOICE_MODE_HINTS,
-  VOICE_MODE_OPTION_LABELS,
   voiceModeMicAction,
   voiceModeMicLabel,
   voiceModeRequiresSidecar,
@@ -1969,11 +1968,13 @@ function queuePhraseSuffix() {
 function updateSendButtonLabel() {
   if (!nodes.sendBtn) return;
   const draft = String(nodes.message?.value || "").trim();
+  let label = "Отправить";
   if (state.messagePipelineBusy && draft) {
-    nodes.sendBtn.textContent = outboundQueue.length ? `В очередь · ${outboundQueue.length}` : "В очередь";
-  } else {
-    nodes.sendBtn.textContent = "Отправить";
+    label = outboundQueue.length ? `В очередь · ${outboundQueue.length}` : "В очередь";
   }
+  nodes.sendBtn.title = label;
+  nodes.sendBtn.setAttribute("aria-label", label);
+  nodes.sendBtn.dataset.sendMode = state.messagePipelineBusy && draft ? "queue" : "send";
   const stopActive = Boolean(
     state.messagePipelineBusy ||
       state.processingMessage ||
@@ -4630,9 +4631,10 @@ function updateComposeVoiceBarHint(mode = getVoiceInputMode()) {
     nodes.fnPttHint.classList.add("shell-compose-voice-hint--warn");
   }
 
-  nodes.fnPttHint.classList.toggle("hidden", !show);
   const recording = isVoiceRecordingActive() && state.voiceRecordStartedAt > 0;
   nodes.fnPttHint.classList.toggle("shell-compose-voice-hint--recording", recording);
+  const hasWarn = nodes.fnPttHint.classList.contains("shell-compose-voice-hint--warn");
+  nodes.fnPttHint.classList.toggle("hidden", !show || (!hasWarn && !recording));
   if (show) {
     if (recording) {
       const elapsed = formatVoiceRecordElapsed(Date.now() - state.voiceRecordStartedAt);
@@ -4712,7 +4714,7 @@ function populateVoiceModeSelect(selected = getVoiceInputMode()) {
   for (const mode of VOICE_INPUT_MODES) {
     const opt = document.createElement("option");
     opt.value = mode;
-    opt.textContent = VOICE_MODE_OPTION_LABELS[mode] || VOICE_MODE_LABELS[mode] || mode;
+    opt.textContent = VOICE_MODE_LABELS[mode] || mode;
     if (mode === current) opt.selected = true;
     nodes.voiceMode.append(opt);
   }

@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=328" />
+    <link rel="stylesheet" href="/shell/shell.css?v=329" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -1515,107 +1515,14 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </div>
           </div>
           <div class="shell-compose-dock-inner">
-        <div class="shell-compose-field" id="shell-compose-field">
-          <div class="shell-compose-options" role="group" aria-label="Параметры запроса">
-            <span class="shell-hint" data-hint="Рассуждения — показывать ход мыслей агента (chain-of-thought) в шагах активности. Скоро.">
-            <button
-              type="button"
-              class="shell-compose-option"
-              data-compose-option="reasoning"
-              aria-pressed="false"
-              disabled
-              aria-label="Рассуждения — показывать ход мыслей агента. Скоро."
-            >
-              <span class="shell-compose-option-ico" aria-hidden="true">🧠</span>
-              <span class="shell-compose-option-label">Рассуждения</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Инструменты — разрешить агенту вызывать MCP-инструменты CMS (файлы, память, shell) в этом запросе. Скоро.">
-            <button
-              type="button"
-              class="shell-compose-option"
-              data-compose-option="tools"
-              aria-pressed="false"
-              disabled
-              aria-label="Инструменты — MCP-инструменты CMS в запросе. Скоро."
-            >
-              <span class="shell-compose-option-ico" aria-hidden="true">🔧</span>
-              <span class="shell-compose-option-label">Инструменты</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Визуальное — прикреплять кадр с камеры или снимок экрана к сообщению для агента. Скоро.">
-            <button
-              type="button"
-              class="shell-compose-option"
-              data-compose-option="vision"
-              aria-pressed="false"
-              disabled
-              aria-label="Визуальное — камера и экран в запросе. Скоро."
-            >
-              <span class="shell-compose-option-ico" aria-hidden="true">👁</span>
-              <span class="shell-compose-option-label">Визуальное</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Web — разрешить агенту искать в интернете и подмешивать свежие факты в ответ. Скоро.">
-            <button
-              type="button"
-              class="shell-compose-option"
-              data-compose-option="web"
-              aria-pressed="false"
-              disabled
-              aria-label="Web — поиск в интернете. Скоро."
-            >
-              <span class="shell-compose-option-ico" aria-hidden="true">🔍</span>
-              <span class="shell-compose-option-label">Web</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Memory — записывать и подтягивать долговременные заметки workspace в контекст запроса. Скоро.">
-            <button
-              type="button"
-              class="shell-compose-option"
-              data-compose-option="memory"
-              aria-pressed="false"
-              disabled
-              aria-label="Memory — долговременная память workspace. Скоро."
-            >
-              <span class="shell-compose-option-ico" aria-hidden="true">💾</span>
-              <span class="shell-compose-option-label">Memory</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Code — запуск кода в песочнице или computer control (вставка в активное поле). Скоро.">
-            <button
-              type="button"
-              class="shell-compose-option"
-              data-compose-option="code"
-              aria-pressed="false"
-              disabled
-              aria-label="Code — песочница и выполнение кода. Скоро."
-            >
-              <span class="shell-compose-option-ico" aria-hidden="true">⌨️</span>
-              <span class="shell-compose-option-label">Code</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Факты — автоматически подмешивать релевантные факты, диалоги и воспоминания из CMS в запрос. Скоро.">
-            <button
-              type="button"
-              class="shell-compose-option"
-              data-compose-option="recall"
-              aria-pressed="false"
-              disabled
-              aria-label="Факты — релевантный контекст из CMS. Скоро."
-            >
-              <span class="shell-compose-option-ico" aria-hidden="true">✨</span>
-              <span class="shell-compose-option-label">Факты</span>
-            </button>
-            </span>
-          </div>
+        <div class="shell-compose-field shell-compose-card" id="shell-compose-field">
           <div class="shell-compose-input-wrap">
             <textarea
               id="shell-message"
-              class="shell-textarea"
-              rows="3"
+              class="shell-textarea shell-textarea--compose"
+              rows="2"
               enterkeyhint="send"
-              placeholder="Напишите агенту…"
+              placeholder="Спросите агента…"
               aria-label="Ваше сообщение"
             ></textarea>
             <button
@@ -1656,88 +1563,64 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </svg>
             </button>
           </div>
-          <div class="shell-compose-field-meta">
-            <span
-              class="shell-compose-draft-status hidden"
-              id="shell-compose-draft-status"
-              aria-live="polite"
-            ></span>
-            <span class="shell-compose-draft-path hidden" id="shell-compose-draft-path">
-              <code>.agent-shell/compose-draft.md</code>
-            </span>
-          </div>
-          </div>
-        </div>
-        <div class="shell-compose-actions shell-compose-actions--chat">
-          <input
-            type="file"
-            id="shell-compose-camera-file"
-            class="shell-compose-camera-file"
-            accept="image/*"
-            capture="environment"
-            hidden
-            tabindex="-1"
-            aria-hidden="true"
-          />
-          <div class="shell-compose-chat-bar">
-            <div
-              class="shell-compose-voice"
-              id="shell-voice-control"
-              data-hint="Зажмите 🎤 — говорите — отпустите. Без «Глобально» — Web Speech в Shell. С «Глобально» — sidecar."
-            >
-              <button
-                type="button"
-                class="shell-icon-btn shell-compose-tool shell-compose-mic"
-                id="shell-mic-btn"
-                title="Говорить"
-                aria-label="Говорить"
-                aria-pressed="false"
+          <div class="shell-compose-toolbar" aria-label="Панель ввода">
+            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--voice">
+              <div
+                class="shell-compose-voice shell-compose-voice--compact"
+                id="shell-voice-control"
+                data-hint="Зажмите 🎤 — говорите — отпустите. Без «Глобально» — Web Speech в Shell. С «Глобально» — sidecar."
               >
-                <span class="shell-compose-tool-icon" aria-hidden="true">🎤</span>
-              </button>
-              <select
-                id="shell-voice-mode"
-                class="shell-select shell-compose-voice-select"
-                aria-label="Режим голосового ввода"
-                title="Режим голосового ввода"
-              >
-                <option value="live">Живой диалог</option>
-                <option value="wake_name">По имени</option>
-                <option value="meeting">Встреча</option>
-                <option value="hold" selected>Удерживать 🎤</option>
-                <option value="fn_button">Shift</option>
-              </select>
-              <label
-                id="shell-voice-to-compose-wrap"
-                class="shell-compose-voice-compose"
-                title="В поле ввода — речь попадает в текст, не отправляется агенту"
-              >
-                <input
-                  id="shell-voice-to-compose"
-                  class="shell-compose-voice-compose-input"
-                  type="checkbox"
-                  aria-label="В поле ввода — не отправлять агенту"
-                />
-                <span class="shell-compose-tool-icon" aria-hidden="true">✏️</span>
-              </label>
+                <button
+                  type="button"
+                  class="shell-icon-btn shell-compose-tool shell-compose-mic"
+                  id="shell-mic-btn"
+                  title="Говорить"
+                  aria-label="Говорить"
+                  aria-pressed="false"
+                >
+                  <span class="shell-compose-tool-icon" aria-hidden="true">🎤</span>
+                </button>
+                <select
+                  id="shell-voice-mode"
+                  class="shell-select shell-compose-voice-select"
+                  aria-label="Режим голосового ввода"
+                  title="Режим голосового ввода"
+                >
+                  <option value="live">Живой</option>
+                  <option value="wake_name">По имени</option>
+                  <option value="meeting">Встреча</option>
+                  <option value="hold" selected>Удержать</option>
+                  <option value="fn_button">Shift</option>
+                </select>
+                <label
+                  id="shell-voice-to-compose-wrap"
+                  class="shell-compose-voice-compose"
+                  title="В поле ввода — речь попадает в текст, не отправляется агенту"
+                >
+                  <input
+                    id="shell-voice-to-compose"
+                    class="shell-compose-voice-compose-input"
+                    type="checkbox"
+                    aria-label="В поле ввода — не отправлять агенту"
+                  />
+                  <span class="shell-compose-tool-icon" aria-hidden="true">✏️</span>
+                </label>
+              </div>
             </div>
-            <button type="button" class="shell-btn shell-btn--primary" id="shell-send-btn">Отправить</button>
-            <button
-              type="button"
-              class="shell-btn shell-btn--ghost shell-compose-stop"
-              id="shell-send-stop"
-              disabled
-              aria-label="Остановить ответ"
-            >
-              Стоп
-            </button>
-          </div>
-          <details class="shell-compose-more">
-            <summary class="shell-compose-more-summary" aria-label="Вложения и захват">⋯</summary>
-            <div class="shell-compose-media-tools" aria-label="Вложения и захват">
+            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--attach" aria-label="Вложения">
+              <input
+                type="file"
+                id="shell-compose-camera-file"
+                class="shell-compose-camera-file"
+                accept="image/*"
+                capture="environment"
+                hidden
+                tabindex="-1"
+                aria-hidden="true"
+              />
               <button
                 type="button"
-                class="shell-icon-btn shell-compose-tool shell-compose-camera-stub"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm shell-compose-camera-stub"
                 id="shell-compose-camera-stub"
                 aria-label="Снимок с камеры"
                 title="Сфотографировать и отправить агенту"
@@ -1746,7 +1629,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </button>
               <button
                 type="button"
-                class="shell-icon-btn shell-compose-tool"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm"
                 id="shell-screenshot-action"
                 aria-label="Сделать скриншот"
                 title="Снимок экрана или камеры для агента"
@@ -1755,7 +1638,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </button>
               <button
                 type="button"
-                class="shell-icon-btn shell-compose-tool shell-compose-attach"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm shell-compose-attach"
                 id="shell-attach-btn"
                 disabled
                 title="Прикрепить файл — скоро"
@@ -1765,7 +1648,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </button>
               <button
                 type="button"
-                class="shell-icon-btn shell-compose-tool"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm"
                 id="shell-watch-camera"
                 title="Камера"
                 aria-label="Камера"
@@ -1775,7 +1658,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </button>
               <button
                 type="button"
-                class="shell-icon-btn shell-compose-tool"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm"
                 id="shell-watch-screen"
                 title="Демонстрация экрана"
                 aria-label="Демонстрация экрана"
@@ -1784,11 +1667,88 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <span class="shell-compose-tool-icon" aria-hidden="true">🖥</span>
               </button>
             </div>
-          </details>
+            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--options" role="group" aria-label="Параметры запроса">
+              <div class="shell-compose-options">
+            <span class="shell-hint" data-hint="Рассуждения — показывать ход мыслей агента (chain-of-thought) в шагах активности. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="reasoning" aria-pressed="false" disabled aria-label="Рассуждения">
+              <span class="shell-compose-option-ico" aria-hidden="true">🧠</span>
+              <span class="shell-compose-option-label">Рассуждения</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Инструменты — разрешить агенту вызывать MCP-инструменты CMS (файлы, память, shell) в этом запросе. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="tools" aria-pressed="false" disabled aria-label="Инструменты">
+              <span class="shell-compose-option-ico" aria-hidden="true">🔧</span>
+              <span class="shell-compose-option-label">Инструменты</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Визуальное — прикреплять кадр с камеры или снимок экрана к сообщению для агента. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="vision" aria-pressed="false" disabled aria-label="Визуальное">
+              <span class="shell-compose-option-ico" aria-hidden="true">👁</span>
+              <span class="shell-compose-option-label">Визуальное</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Web — разрешить агенту искать в интернете и подмешивать свежие факты в ответ. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="web" aria-pressed="false" disabled aria-label="Web">
+              <span class="shell-compose-option-ico" aria-hidden="true">🔍</span>
+              <span class="shell-compose-option-label">Web</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Memory — записывать и подтягивать долговременные заметки workspace в контекст запроса. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="memory" aria-pressed="false" disabled aria-label="Memory">
+              <span class="shell-compose-option-ico" aria-hidden="true">💾</span>
+              <span class="shell-compose-option-label">Memory</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Code — запуск кода в песочнице или computer control (вставка в активное поле). Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="code" aria-pressed="false" disabled aria-label="Code">
+              <span class="shell-compose-option-ico" aria-hidden="true">⌨️</span>
+              <span class="shell-compose-option-label">Code</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Факты — автоматически подмешивать релевантные факты, диалоги и воспоминания из CMS в запрос. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="recall" aria-pressed="false" disabled aria-label="Факты">
+              <span class="shell-compose-option-ico" aria-hidden="true">✨</span>
+              <span class="shell-compose-option-label">Факты</span>
+            </button>
+            </span>
+              </div>
+            </div>
+            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--send">
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-stop shell-compose-tool--sm"
+                id="shell-send-stop"
+                disabled
+                aria-label="Остановить ответ"
+                title="Остановить"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">⏹</span>
+              </button>
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-send"
+                id="shell-send-btn"
+                title="Отправить (Enter)"
+                aria-label="Отправить"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 19V5" />
+                  <path d="m5 12 7-7 7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="shell-compose-field-meta">
+            <span class="shell-compose-draft-status hidden" id="shell-compose-draft-status" aria-live="polite"></span>
+            <span class="shell-compose-draft-path hidden" id="shell-compose-draft-path">
+              <code>.agent-shell/compose-draft.md</code>
+            </span>
+          </div>
+          <p id="shell-fn-ptt-hint" class="shell-compose-voice-hint hidden">
+            Удерживайте 🎤 — говорите — отпустите.
+          </p>
+          </div>
         </div>
-        <p id="shell-fn-ptt-hint" class="shell-compose-voice-hint">
-          Удерживайте 🎤 — говорите — отпустите.
-        </p>
         </div>
         <div class="shell-compose-expand-backdrop hidden" id="shell-compose-expand-backdrop" hidden></div>
       </section>
@@ -1974,6 +1934,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=328" type="module"></script>
+    <script src="/shell/shell.js?v=329" type="module"></script>
   </body>
 </html>
