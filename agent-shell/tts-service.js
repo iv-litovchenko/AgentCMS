@@ -96,9 +96,11 @@ async function getCapabilities(settings = {}) {
           : "Укажите путь к model.onnx и установите piper в PATH"
       },
       elevenlabs: {
-        available: Boolean(String(settings.ttsElevenlabsApiKey || "").trim()),
+        available: true,
         label: "ElevenLabs",
-        hint: "Нужен API key в настройках"
+        hint: String(settings.ttsElevenlabsApiKey || "").trim()
+          ? "API key сохранён — укажите Voice ID при необходимости"
+          : "Выберите движок, введите API key и Voice ID, затем «Сохранить»"
       }
     }
   };

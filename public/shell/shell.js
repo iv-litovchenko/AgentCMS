@@ -39,7 +39,12 @@ import { initShellComposeLayout } from "@shell/compose-layout";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "@shell/storage-keys";
 import { initShellHelp } from "@shell/help";
 import { initShellHints, updateTtsPlaybackHint, updateVoiceModeHint } from "@shell/hints";
-import { buildProactiveMessage, createShellProactive, DEFAULT_PROACTIVE_PROMPT } from "@shell/proactive";
+import {
+  normalizeWindowSettings,
+  readWindowSettingsFromStorage,
+  writeWindowSettingsToStorage
+} from "@shell/window-storage";
+import { buildProactiveMessage, createShellProactive, DEFAULT_PROACTIVE_PROMPT, normalizeQuietTime } from "@shell/proactive";
 import {
   buildComposeCameraMessage,
   captureOneShotCameraFrame,
@@ -774,6 +779,9 @@ const nodes = {
   proactiveEnabled: document.getElementById("shell-proactive-enabled"),
   proactiveIdleSeconds: document.getElementById("shell-proactive-idle-seconds"),
   proactiveCooldownSeconds: document.getElementById("shell-proactive-cooldown-seconds"),
+  proactiveQuietEnabled: document.getElementById("shell-proactive-quiet-enabled"),
+  proactiveQuietStart: document.getElementById("shell-proactive-quiet-start"),
+  proactiveQuietEnd: document.getElementById("shell-proactive-quiet-end"),
   proactivePrompt: document.getElementById("shell-proactive-prompt"),
   proactivePromptInsert: document.getElementById("shell-proactive-prompt-insert"),
   proactiveSave: document.getElementById("shell-proactive-save"),
@@ -824,6 +832,7 @@ const nodes = {
   mediaSection: document.getElementById("shell-media-section"),
   phaseLabel: document.getElementById("shell-phase-label"),
   heroDemoBar: document.getElementById("shell-hero-demo-bar"),
+  shellHero: document.getElementById("shell-hero"),
   battery: document.getElementById("shell-battery"),
   batteryFill: document.getElementById("shell-battery-fill"),
   batteryLevel: document.getElementById("shell-battery-level"),
@@ -1187,6 +1196,9 @@ function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false
       "aria-label",
       demoPhrase || HERO_STATE_LABELS[heroState] || HERO_STATE_LABELS.idle
     );
+  }
+  if (nodes.shellHero) {
+    nodes.shellHero.dataset.heroState = heroState;
   }
 
   if (nodes.voiceWave) {
@@ -3764,7 +3776,7 @@ function updateSettingsSaveHints(extra = {}) {
   const settingsFile = String(extra.settingsFile || state.settingsFile || "").trim();
   const agentFileLabel = formatSettingsFileLabel(settingsFile, agentId);
   const perAgentHtml = `${agentLabel} · <code>${agentFileLabel}</code>`;
-  const globalHtml = `глобально · <code>awn-shell.json</code>`;
+  const globalHtml = `этот браузер · <code>localStorage</code>`;
 
   document.querySelectorAll("[data-settings-save-hint='agent']").forEach((el) => {
     el.innerHTML = perAgentHtml;
@@ -3772,7 +3784,7 @@ function updateSettingsSaveHints(extra = {}) {
   });
   document.querySelectorAll("[data-settings-save-hint='global']").forEach((el) => {
     el.innerHTML = globalHtml;
-    el.title = "Общие настройки окна Shell для всего CMS";
+    el.title = "Настройки окна Shell — только в этом браузере (localStorage)";
   });
   if (nodes.ttsSaveHint) {
     nodes.ttsSaveHint.innerHTML = perAgentHtml;
@@ -3912,17 +3924,23 @@ async function refreshStatus() {
 }
 
 async function loadWindowSettings() {
-  const data = await apiFetch("/api/shell/window");
-  applyWindowSettings(data.settings);
+  let settings = readWindowSettingsFromStorage();
+  if (!settings) {
+    try {
+      const data = await apiFetch("/api/shell/window");
+      settings = normalizeWindowSettings(data.settings);
+      writeWindowSettingsToStorage(settings);
+    } catch {
+      settings = normalizeWindowSettings({});
+    }
+  }
+  applyWindowSettings(settings);
 }
 
 async function saveWindowSettings(patch) {
   try {
-    const data = await apiFetch("/api/shell/window", {
-      method: "POST",
-      body: JSON.stringify({ settings: patch })
-    });
-    applyWindowSettings(data.settings);
+    const settings = writeWindowSettingsToStorage(patch);
+    applyWindowSettings(settings);
   } catch (error) {
     renderPhase("waiting", error.message);
     throw error;
@@ -4842,6 +4860,15 @@ function applyProactiveFormUi(settings) {
   if (nodes.proactiveCooldownSeconds) {
     nodes.proactiveCooldownSeconds.value = String(settings.proactiveCooldownSeconds ?? 900);
   }
+  if (nodes.proactiveQuietEnabled) {
+    nodes.proactiveQuietEnabled.checked = Boolean(settings.proactiveQuietHoursEnabled);
+  }
+  if (nodes.proactiveQuietStart) {
+    nodes.proactiveQuietStart.value = normalizeQuietTime(settings.proactiveQuietStart, "23:00");
+  }
+  if (nodes.proactiveQuietEnd) {
+    nodes.proactiveQuietEnd.value = normalizeQuietTime(settings.proactiveQuietEnd, "07:00");
+  }
   if (nodes.proactivePrompt && document.activeElement !== nodes.proactivePrompt) {
     nodes.proactivePrompt.value = settings.proactivePrompt || "";
   }
@@ -4858,6 +4885,9 @@ function collectProactiveFormPatch() {
       86400,
       Math.max(60, Number(nodes.proactiveCooldownSeconds?.value) || 900)
     ),
+    proactiveQuietHoursEnabled: Boolean(nodes.proactiveQuietEnabled?.checked),
+    proactiveQuietStart: normalizeQuietTime(nodes.proactiveQuietStart?.value, "23:00"),
+    proactiveQuietEnd: normalizeQuietTime(nodes.proactiveQuietEnd?.value, "07:00"),
     proactivePrompt: nodes.proactivePrompt?.value || ""
   };
 }
@@ -4885,7 +4915,8 @@ async function persistSttEnabled(enabled) {
   if (state.settings) state.settings.voiceInputMode = voiceInputMode;
   try {
     await saveSettings({ voiceInputMode }, { apply: "stt" });
-    settingsSave.commitBaseline("stt", collectSttSettingsPatch());
+    settingsSave.patchBaseline("stt", { voiceInputMode, sttEnabled: enabled });
+    markSettingsDirty("stt");
   } catch (error) {
     renderPhase("waiting", error.message);
     markSettingsDirty("stt");
@@ -4916,7 +4947,8 @@ async function persistTtsEnabled(enabled) {
   if (state.settings) state.settings.ttsEnabled = enabled;
   try {
     await saveSettings({ ttsEnabled: enabled }, { apply: "tts" });
-    settingsSave.commitBaseline("tts", collectTtsSettingsPatch());
+    settingsSave.patchBaseline("tts", { ttsEnabled: enabled });
+    markSettingsDirty("tts");
   } catch (error) {
     renderPhase("waiting", error.message);
     markSettingsDirty("tts");
@@ -4929,7 +4961,8 @@ async function persistTtsPlaybackMode(mode) {
   ttsPlaybackModePersisting = true;
   try {
     await saveSettings({ ttsPlaybackMode: next }, { apply: "tts" });
-    settingsSave.commitBaseline("tts", collectTtsSettingsPatch());
+    settingsSave.patchBaseline("tts", { ttsPlaybackMode: next });
+    markSettingsDirty("tts");
   } catch (error) {
     renderPhase("waiting", error.message);
     markSettingsDirty("tts");
@@ -4942,15 +4975,17 @@ async function loadTtsCapabilities() {
   try {
     const data = await apiFetch("/api/shell/tts/capabilities");
     const engines = { ...(data?.engines || {}) };
-    const runtime = collectTtsRuntimeSettings();
-    if (String(runtime.ttsElevenlabsApiKey || "").trim()) {
-      engines.elevenlabs = { ...(engines.elevenlabs || {}), available: true, label: "ElevenLabs" };
-    }
     const engine = getTtsEngine();
     const current = engines[engine];
     if (nodes.ttsCapabilitiesNote) {
       const engineHint = ttsEngineDescription(engine);
-      if (current?.available === false) {
+      const missingElevenlabsKey =
+        engine === "elevenlabs" && !String(resolveElevenlabsApiKey() || "").trim();
+      if (missingElevenlabsKey) {
+        nodes.ttsCapabilitiesNote.textContent =
+          current?.hint || "ElevenLabs: введите API key и Voice ID, затем «Сохранить»";
+        nodes.ttsCapabilitiesNote.classList.remove("hidden");
+      } else if (current?.available === false) {
         nodes.ttsCapabilitiesNote.textContent = current.hint || "Движок недоступен на этом устройстве";
         nodes.ttsCapabilitiesNote.classList.remove("hidden");
       } else if (current?.hint && current.hint !== engineHint) {
@@ -4964,7 +4999,7 @@ async function loadTtsCapabilities() {
     if (nodes.ttsEngine) {
       for (const option of nodes.ttsEngine.options) {
         const meta = engines[option.value];
-        option.disabled = meta?.available === false;
+        option.disabled = option.value === "elevenlabs" ? false : meta?.available === false;
       }
     }
   } catch {
@@ -5137,7 +5172,7 @@ function collectTtsFormPatch() {
 
 function collectTtsSettingsPatch() {
   return {
-    ttsEnabled: nodes.ttsEnabled.checked,
+    ttsEnabled: nodes.ttsEnabled?.checked !== false,
     ...collectTtsFormPatch()
   };
 }
@@ -6079,7 +6114,7 @@ async function startBrowserMic() {
   await shellTapVoice.startSession({ viaTap: true });
 }
 
-const SETTINGS_TABS = ["route", "proactive", "window", "tts", "stt", "todo"];
+const SETTINGS_TABS = ["route", "tts", "stt", "proactive", "window", "todo"];
 
 const SETTINGS_TAB_PANELS = {
   route: "shell-route-panel",
@@ -6354,7 +6389,7 @@ function bindUi() {
   ]) {
     input?.addEventListener("change", markRouteDirty);
   }
-  nodes.ttsEnabled.addEventListener("change", () => {
+  nodes.ttsEnabled?.addEventListener("change", () => {
     const enabled = nodes.ttsEnabled.checked;
     if (state.settings) state.settings.ttsEnabled = enabled;
     if (!enabled) stopBrowserTts({ notifyServer: true });
@@ -6460,7 +6495,10 @@ function bindUi() {
   for (const el of [
     nodes.proactiveEnabled,
     nodes.proactiveIdleSeconds,
-    nodes.proactiveCooldownSeconds
+    nodes.proactiveCooldownSeconds,
+    nodes.proactiveQuietEnabled,
+    nodes.proactiveQuietStart,
+    nodes.proactiveQuietEnd
   ]) {
     el?.addEventListener("change", markProactiveDirty);
     el?.addEventListener("input", markProactiveDirty);
@@ -6475,7 +6513,10 @@ function bindUi() {
   });
   nodes.ttsPiperModel?.addEventListener("blur", markTtsDirty);
   nodes.ttsPiperBinary?.addEventListener("blur", markTtsDirty);
-  nodes.ttsElevenlabsKey?.addEventListener("input", markTtsDirty);
+  nodes.ttsElevenlabsKey?.addEventListener("input", () => {
+    markTtsDirty();
+    void loadTtsCapabilities();
+  });
   nodes.ttsElevenlabsKey?.addEventListener("blur", () => {
     markTtsDirty();
     void maybeAutoSaveElevenlabsCredentials();

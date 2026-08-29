@@ -9,6 +9,7 @@ export const SHELL_STORAGE = Object.freeze({
   history: "agentcms.shell.history.v1",
   locationShare: "agentcms.shell.locationShare.v1",
   characterBg: "agentcms.shell.characterBg.v1",
+  windowSettings: "agentcms.shell.window.v1",
   migratedFlag: "agentcms.shell.storageMigrated.v1"
 });
 

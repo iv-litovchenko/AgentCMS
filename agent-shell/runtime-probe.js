@@ -10,10 +10,13 @@ async function isCliRuntimeReady(runtime, settings = {}) {
 
 async function probeAvailableRuntimes(settings = {}) {
   const implemented = SHELL_RUNTIMES.filter((runtime) => isRuntimeImplemented(runtime));
-  const installed = [];
-  for (const runtime of ["claude", "codex"]) {
-    if (await isCliRuntimeReady(runtime, settings)) installed.push(runtime);
-  }
+  const probes = await Promise.all(
+    ["claude", "codex"].map(async (runtime) => {
+      const ok = await isCliRuntimeReady(runtime, settings);
+      return ok ? runtime : null;
+    })
+  );
+  const installed = probes.filter(Boolean);
   return { available: implemented, installed };
 }
 

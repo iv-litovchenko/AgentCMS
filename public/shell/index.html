@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=314" />
+    <link rel="stylesheet" href="/shell/shell.css?v=323" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -20,7 +20,7 @@
       {
         "imports": {
           "three": "/shell/vendor/three.module.js",
-          "@shell/settings-save": "/shell/shell-settings-save.js?v=312",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=316",
           "@shell/reply": "/shell/shell-reply.js?v=207",
           "@shell/markdown": "/shell/shell-markdown.js?v=207",
           "@shell/character": "/shell/shell-character.js?v=207",
@@ -42,10 +42,11 @@
           "@shell/permissions": "/shell/shell-permissions.js?v=207",
           "@shell/dialog": "/shell/shell-dialog.js?v=259",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
-          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=207",
+          "@shell/window-storage": "/shell/shell-window-storage.js?v=316",
+          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=316",
           "@shell/help": "/shell/shell-help.js?v=207",
           "@shell/hints": "/shell/shell-hints.js?v=313",
-          "@shell/proactive": "/shell/shell-proactive.js?v=207",
+          "@shell/proactive": "/shell/shell-proactive.js?v=322",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
           "@shell/voice": "/shell/shell-voice.js?v=207",
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=207",
@@ -143,7 +144,10 @@
             >
               <img class="shell-path-logo" src="/shell/favicon.svg" width="24" height="24" alt="" aria-hidden="true" />
               <span class="shell-path-title-stack">
-                <span class="shell-path-title">Agent CMS Voice</span>
+                <span class="shell-path-title-line">
+                  <span class="shell-path-title">Agent CMS Voice</span>
+                  <span class="app-project-version-badge shell-header-version-badge" aria-label="Версия проекта">v<span class="app-project-version"></span></span>
+                </span>
                 <span class="shell-path-subtitle" id="shell-subtitle">Голосовой клиент Agent CMS</span>
               </span>
             </button>
@@ -291,28 +295,6 @@
             <button
               type="button"
               class="shell-settings-tab"
-              id="shell-settings-tab-proactive"
-              role="tab"
-              data-settings-tab="proactive"
-              aria-selected="false"
-              aria-controls="shell-proactive-panel"
-            >
-              Проактив
-            </button>
-            <button
-              type="button"
-              class="shell-settings-tab"
-              id="shell-settings-tab-window"
-              role="tab"
-              data-settings-tab="window"
-              aria-selected="false"
-              aria-controls="shell-window-panel"
-            >
-              Окно
-            </button>
-            <button
-              type="button"
-              class="shell-settings-tab"
               id="shell-settings-tab-tts"
               role="tab"
               data-settings-tab="tts"
@@ -331,6 +313,28 @@
               aria-controls="shell-stt-panel"
             >
               STT
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-proactive"
+              role="tab"
+              data-settings-tab="proactive"
+              aria-selected="false"
+              aria-controls="shell-proactive-panel"
+            >
+              Проактив
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-window"
+              role="tab"
+              data-settings-tab="window"
+              aria-selected="false"
+              aria-controls="shell-window-panel"
+            >
+              Окно
             </button>
             <button
               type="button"
@@ -515,6 +519,36 @@
                 value="900"
               />
             </label>
+          </div>
+          <div class="shell-proactive-quiet">
+            <label class="shell-check shell-proactive-check shell-proactive-quiet-toggle">
+              <input id="shell-proactive-quiet-enabled" type="checkbox" />
+              <span>Не беспокоить по расписанию</span>
+            </label>
+            <p class="shell-proactive-quiet-note">
+              В это время проактивные пинги не отправляются — удобно для ночи.
+              Если «до» раньше «с» (например 23:00 → 07:00), окно идёт через полночь.
+            </p>
+            <div class="shell-proactive-grid shell-proactive-quiet-grid">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">С</span>
+                <input
+                  id="shell-proactive-quiet-start"
+                  class="shell-input shell-input--time"
+                  type="time"
+                  value="23:00"
+                />
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">До</span>
+                <input
+                  id="shell-proactive-quiet-end"
+                  class="shell-input shell-input--time"
+                  type="time"
+                  value="07:00"
+                />
+              </label>
+            </div>
           </div>
           <label class="shell-field shell-field--compact shell-proactive-prompt-field">
             <span class="shell-label shell-label-row shell-label-row--spread">
@@ -1251,34 +1285,65 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <p class="shell-compact-sensor-status" id="shell-compact-sensor-status">Ожидание касания…</p>
         </div>
       </section>
-      <section class="shell-hero" id="shell-hero">
+      <section class="shell-hero" id="shell-hero" data-hero-state="ready">
+        <div class="shell-hero-bg" aria-hidden="true">
+          <span class="shell-hero-orb shell-hero-orb--1"></span>
+          <span class="shell-hero-orb shell-hero-orb--2"></span>
+          <span class="shell-hero-orb shell-hero-orb--3"></span>
+        </div>
         <div class="shell-hero-voice-controls" aria-label="Голосовой ответ">
-          <label
-            class="shell-check shell-voice-settings-summary-option shell-reply-tts shell-hero-tts-toggle"
-            title="Текст ответа агента → голос"
-          >
-            <input id="shell-tts-enabled" type="checkbox" checked aria-label="Включить TTS" />
-            <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--tts">TTS</span>
-          </label>
-          <span
-            class="shell-hint shell-voice-settings-summary-control shell-hero-tts-playback"
-            id="shell-tts-playback-hint"
-          >
-            <span class="shell-tts-playback-radio" id="shell-tts-playback-mode" role="radiogroup" aria-label="Режим озвучки">
-              <label class="shell-check shell-tts-playback-radio-option" data-tts-playback="dialog">
-                <input type="radio" name="shell-tts-playback-mode" value="dialog" checked aria-label="Диалог" />
-                <span class="shell-tts-playback-emoji" aria-hidden="true">💬</span>
-              </label>
-              <label class="shell-check shell-tts-playback-radio-option" data-tts-playback="reading">
-                <input type="radio" name="shell-tts-playback-mode" value="reading" aria-label="Чтение" />
-                <span class="shell-tts-playback-emoji" aria-hidden="true">📖</span>
-              </label>
+          <div class="shell-hero-voice-row shell-hero-voice-row--tts">
+            <label
+              class="shell-check shell-voice-settings-summary-option shell-reply-tts shell-hero-tts-toggle"
+              title="Текст ответа агента → голос"
+            >
+              <input id="shell-tts-enabled" type="checkbox" checked aria-label="Включить TTS" />
+              <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--tts">TTS</span>
+            </label>
+            <span
+              class="shell-hint shell-voice-settings-summary-control shell-hero-tts-playback"
+              id="shell-tts-playback-hint"
+            >
+              <span class="shell-tts-playback-radio" id="shell-tts-playback-mode" role="radiogroup" aria-label="Режим озвучки">
+                <label class="shell-check shell-tts-playback-radio-option" data-tts-playback="dialog">
+                  <input type="radio" name="shell-tts-playback-mode" value="dialog" checked aria-label="Диалог" />
+                  <span class="shell-tts-playback-emoji" aria-hidden="true">💬</span>
+                </label>
+                <label class="shell-check shell-tts-playback-radio-option" data-tts-playback="reading">
+                  <input type="radio" name="shell-tts-playback-mode" value="reading" aria-label="Чтение" />
+                  <span class="shell-tts-playback-emoji" aria-hidden="true">📖</span>
+                </label>
+              </span>
             </span>
-          </span>
+          </div>
+          <div class="shell-hero-voice-row shell-hero-voice-row--proactive">
+            <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--proactive">Проактив</span>
+            <button
+              type="button"
+              class="shell-hint shell-hero-proactive-toggle"
+              id="shell-proactive-toggle"
+              data-hint="Проактивность — агент сам начнёт диалог при бездействии"
+              title="Проактивность — агент сам начнёт диалог при бездействии"
+              aria-label="Проактивность"
+              aria-pressed="false"
+            >
+              <svg class="shell-hero-proactive-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="shell-hero-layout">
           <div class="shell-hero-center">
             <div class="shell-hero-sensor-wrap">
+            <div class="shell-hero-think-orbs" aria-hidden="true">
+              <span class="shell-hero-think-orb shell-hero-think-orb--a"></span>
+              <span class="shell-hero-think-orb shell-hero-think-orb--b"></span>
+              <span class="shell-hero-think-orb shell-hero-think-orb--c"></span>
+            </div>
             <div class="shell-hero-avatar-stage">
             <button
               type="button"
@@ -1812,9 +1877,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
       </div>
 
-      <footer class="shell-version" id="shell-version" aria-label="Версия">
-        <span class="app-project-version-badge shell-version-badge">v<span class="app-project-version"></span></span>
-      </footer>
     </div>
 
     <aside class="shell-hero-demo-panel" id="shell-hero-demo-bar" aria-label="Примеры статусов">
@@ -1827,16 +1889,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
     </aside>
 
     <div class="shell-mode-bar" id="shell-mode-bar" role="group" aria-label="Режимы Shell">
-      <button
-        type="button"
-        class="shell-mode-segment shell-mode-segment--proactive"
-        id="shell-proactive-toggle"
-        title="Проактивность — агент сам начнёт диалог при бездействии"
-        aria-label="Проактивность"
-        aria-pressed="false"
-      >
-        ✨ Проактив
-      </button>
       <button
         type="button"
         class="shell-mode-segment shell-mode-segment--compact"
@@ -1919,6 +1971,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=314" type="module"></script>
+    <script src="/shell/shell.js?v=323" type="module"></script>
   </body>
 </html>

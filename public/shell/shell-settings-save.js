@@ -53,6 +53,18 @@ export function createSettingsSaveController() {
     syncUi();
   }
 
+  function patchBaseline(section, patch) {
+    if (!patch || typeof patch !== "object") return;
+    if (!Object.prototype.hasOwnProperty.call(baselines, section)) return;
+    let base = {};
+    try {
+      base = JSON.parse(baselines[section]);
+    } catch {
+      base = {};
+    }
+    baselines[section] = JSON.stringify({ ...base, ...patch });
+  }
+
   function commitAllBaselines(snapshots) {
     for (const section of SETTINGS_SECTIONS) {
       if (snapshots?.[section] !== undefined) {
@@ -77,6 +89,7 @@ export function createSettingsSaveController() {
     isSectionDirty,
     syncUi,
     commitBaseline,
+    patchBaseline,
     commitAllBaselines,
     markDirty
   };

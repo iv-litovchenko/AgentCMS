@@ -55,11 +55,11 @@ function extractCodexJsonText(event, previous = "") {
   return "";
 }
 
-async function checkCliRuntimeHealth({ runtime, binary, timeoutMs = 12000 } = {}) {
+async function checkCliRuntimeHealth({ runtime, binary, timeoutMs = 12000, quick = false } = {}) {
   const cmd = normalizeBinary(runtime, binary);
   const env = enrichShellPath();
   try {
-    if (runtime === "codex") {
+    if (runtime === "codex" && !quick) {
       await execFileAsync(cmd, ["doctor"], { timeout: timeoutMs, env });
       return { ok: true, binary: cmd };
     }

@@ -90,6 +90,9 @@ const DEFAULT_SETTINGS = {
   proactiveIdleSeconds: 180,
   proactiveCooldownSeconds: 900,
   proactivePrompt: "",
+  proactiveQuietHoursEnabled: false,
+  proactiveQuietStart: "23:00",
+  proactiveQuietEnd: "07:00",
   ...buildDefaultRuntimeSettings()
 };
 
@@ -198,6 +201,23 @@ function composeDraftRelativePath() {
   return path.join(SETTINGS_DIR, COMPOSE_DRAFT_FILE);
 }
 
+function parseProactiveQuietTimeMinutes(value) {
+  const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+function normalizeProactiveQuietTime(value, fallback = "23:00") {
+  const minutes = parseProactiveQuietTimeMinutes(value);
+  if (minutes === null) return fallback;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+}
+
 function normalizeSettings(raw) {
   const merged = { ...DEFAULT_SETTINGS, ...(raw && typeof raw === "object" ? raw : {}) };
   if (!String(merged.topicPath || "").trim()) merged.topicPath = DEFAULT_SETTINGS.topicPath;
@@ -257,6 +277,9 @@ function normalizeSettings(raw) {
     Math.max(60, Number(merged.proactiveCooldownSeconds) || 900)
   );
   merged.proactivePrompt = String(merged.proactivePrompt || "");
+  merged.proactiveQuietHoursEnabled = Boolean(merged.proactiveQuietHoursEnabled);
+  merged.proactiveQuietStart = normalizeProactiveQuietTime(merged.proactiveQuietStart, "23:00");
+  merged.proactiveQuietEnd = normalizeProactiveQuietTime(merged.proactiveQuietEnd, "07:00");
   for (const [key, value] of Object.entries(buildDefaultRuntimeSettings())) {
     if (key.endsWith("BaseUrl") || key.endsWith("Model") || key.endsWith("SessionId")) {
       merged[key] = String(merged[key] ?? value ?? "").trim() || value;
@@ -542,7 +565,8 @@ function getMessageRuntime(settings) {
   return normalizeMessageRuntime(settings?.messageTarget);
 }
 
-async function checkBridgeRuntimeHealth(settings, runtime = getMessageRuntime(settings)) {
+async function checkBridgeRuntimeHealth(settings, runtime = getMessageRuntime(settings), options = {}) {
+  const { timeoutMs, quick = false } = options;
   const id = normalizeMessageRuntime(runtime);
   if (id === "qwenpaw") {
     return { ok: false, configured: false, runtime: id };
@@ -553,7 +577,9 @@ async function checkBridgeRuntimeHealth(settings, runtime = getMessageRuntime(se
     const binary = await resolveCliBinary(id, settings);
     health = await checkCliRuntimeHealth({
       runtime: id,
-      binary: binary || endpoint.cliPath
+      binary: binary || endpoint.cliPath,
+      timeoutMs,
+      quick
     });
   } else {
     health = await checkOpenAiRuntimeHealth({
@@ -574,15 +600,26 @@ async function checkBridgeRuntimeHealth(settings, runtime = getMessageRuntime(se
 }
 
 async function probeAllRuntimeStatuses(settings) {
-  const probe = await probeAvailableRuntimes(settings);
-  const statuses = {};
+  const STATUS_CLI_TIMEOUT_MS = 3500;
+  const statusHealthOptions = { timeoutMs: STATUS_CLI_TIMEOUT_MS, quick: true };
 
-  let qwenHealth = { ok: false, error: "QwenPaw недоступен" };
-  try {
-    qwenHealth = await checkQwenPawHealth(settings.qwenpawBaseUrl);
-  } catch (error) {
-    qwenHealth = { ok: false, error: String(error?.message || error) };
-  }
+  const [probe, qwenHealth, claudeHealth, codexHealth] = await Promise.all([
+    probeAvailableRuntimes(settings),
+    checkQwenPawHealth(settings.qwenpawBaseUrl).catch((error) => ({
+      ok: false,
+      error: String(error?.message || error)
+    })),
+    checkBridgeRuntimeHealth(settings, "claude", statusHealthOptions).catch((error) => ({
+      ok: false,
+      error: String(error?.message || error)
+    })),
+    checkBridgeRuntimeHealth(settings, "codex", statusHealthOptions).catch((error) => ({
+      ok: false,
+      error: String(error?.message || error)
+    }))
+  ]);
+
+  const statuses = {};
 
   let qwenAgent = { ok: false, error: qwenHealth.error || "QwenPaw недоступен" };
   if (qwenHealth.ok) {
@@ -609,27 +646,15 @@ async function probeAllRuntimeStatuses(settings) {
 
   for (const runtime of ["claude", "codex"]) {
     const installed = probe.installed.includes(runtime);
-    const configured = installed;
-    let ok = false;
-    let error = installed
-      ? ""
-      : "CLI не найден процессом Shell — проверьте PATH или claudeCliPath/codexCliPath";
-    if (installed) {
-      try {
-        const health = await checkBridgeRuntimeHealth(settings, runtime);
-        ok = Boolean(health.ok);
-        error = health.error || error;
-      } catch (err) {
-        error = String(err?.message || err);
-      }
-    }
+    const health = runtime === "claude" ? claudeHealth : codexHealth;
+    const ok = installed && Boolean(health.ok);
     statuses[runtime] = {
       runtime,
-      configured,
+      configured: installed,
       installed,
       serverOk: ok,
       ok,
-      error
+      error: installed ? health.error || "" : "CLI не найден процессом Shell — проверьте PATH или claudeCliPath/codexCliPath"
     };
   }
 

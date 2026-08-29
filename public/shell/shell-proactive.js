@@ -20,6 +20,37 @@ export function buildProactiveMessage(idleSeconds, template = DEFAULT_PROACTIVE_
   return renderProactivePrompt(template, { idleSeconds });
 }
 
+export function parseQuietTimeMinutes(value) {
+  const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+export function normalizeQuietTime(value, fallback = "23:00") {
+  const minutes = parseQuietTimeMinutes(value);
+  if (minutes === null) return fallback;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+}
+
+/** true — сейчас в окне «не беспокоить» (в т.ч. через полночь, напр. 23:00–07:00). */
+export function isProactiveQuietHours(
+  now = new Date(),
+  { enabled = false, start = "23:00", end = "07:00" } = {}
+) {
+  if (!enabled) return false;
+  const startMin = parseQuietTimeMinutes(start);
+  const endMin = parseQuietTimeMinutes(end);
+  if (startMin === null || endMin === null || startMin === endMin) return false;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  if (startMin < endMin) return nowMin >= startMin && nowMin < endMin;
+  return nowMin >= startMin || nowMin < endMin;
+}
+
 export function createShellProactive(deps) {
   let lastActivityAt = Date.now();
   let lastTriggeredAt = 0;
@@ -27,6 +58,9 @@ export function createShellProactive(deps) {
   let enabled = false;
   let idleSeconds = 180;
   let cooldownSeconds = 900;
+  let quietHoursEnabled = false;
+  let quietStart = "23:00";
+  let quietEnd = "07:00";
   let listenersBound = false;
 
   function bumpActivity() {
@@ -37,9 +71,11 @@ export function createShellProactive(deps) {
     const btn = deps.toggleBtn;
     if (!btn) return;
     btn.setAttribute("aria-pressed", on ? "true" : "false");
-    btn.title = on
+    const hint = on
       ? `Проактивность включена — диалог после ${idleSeconds} с бездействия`
       : "Проактивность — агент сам начнёт диалог при бездействии";
+    btn.title = hint;
+    btn.dataset.hint = hint;
     deps.syncEnabledUi?.(on);
   }
 
@@ -47,6 +83,9 @@ export function createShellProactive(deps) {
     enabled = Boolean(settings.proactiveEnabled);
     idleSeconds = Math.max(30, Number(settings.proactiveIdleSeconds) || 180);
     cooldownSeconds = Math.max(60, Number(settings.proactiveCooldownSeconds) || 900);
+    quietHoursEnabled = Boolean(settings.proactiveQuietHoursEnabled);
+    quietStart = normalizeQuietTime(settings.proactiveQuietStart, "23:00");
+    quietEnd = normalizeQuietTime(settings.proactiveQuietEnd, "07:00");
     syncToggleUi(enabled);
   }
 
@@ -56,6 +95,15 @@ export function createShellProactive(deps) {
 
   function canTrigger() {
     if (!enabled) return false;
+    if (
+      isProactiveQuietHours(new Date(), {
+        enabled: quietHoursEnabled,
+        start: quietStart,
+        end: quietEnd
+      })
+    ) {
+      return false;
+    }
     if (document.visibilityState !== "visible") return false;
     if (deps.isPipelineBusy?.()) return false;
     if (deps.isTtsActive?.()) return false;
