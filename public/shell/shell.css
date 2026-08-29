@@ -2224,10 +2224,6 @@ body.shell-desktop .shell-agent-gate select {
   padding-left: 0;
 }
 
-.shell-compose-panel .shell-compose-options {
-  display: none;
-}
-
 .shell-compose-actions--chat {
   gap: 6px;
 }
