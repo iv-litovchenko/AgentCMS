@@ -9,7 +9,7 @@
   "qwenpawChatName": "Новый чат",
   "qwenpawSttSessionId": "",
   "qwenpawSttChatName": "Shell STT",
-  "voiceInputMode": "disabled",
+  "voiceInputMode": "meeting",
   "voiceGlobalListen": false,
   "voiceWakeName": "",
   "voiceToCompose": false,

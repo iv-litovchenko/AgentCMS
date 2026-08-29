@@ -38,6 +38,30 @@ const SETTINGS_FILE = "settings.json";
 const STATE_FILE = "state.json";
 const COMPOSE_DRAFT_FILE = "compose-draft.md";
 
+/** Serializes atomic writes per target path — avoids ENOENT on shared `.tmp` rename races. */
+const atomicWriteQueues = new Map();
+
+async function writeFileAtomicUnqueued(targetPath, data, encoding = "utf-8") {
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  const tmp = `${targetPath}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
+  await fs.writeFile(tmp, data, encoding);
+  try {
+    await fs.rename(tmp, targetPath);
+  } catch (error) {
+    await fs.unlink(tmp).catch(() => {});
+    throw error;
+  }
+}
+
+async function atomicWriteFile(targetPath, data, encoding = "utf-8") {
+  const previous = atomicWriteQueues.get(targetPath) || Promise.resolve();
+  const queued = previous.catch(() => {}).then(() => writeFileAtomicUnqueued(targetPath, data, encoding));
+  atomicWriteQueues.set(targetPath, queued);
+  return queued.finally(() => {
+    if (atomicWriteQueues.get(targetPath) === queued) atomicWriteQueues.delete(targetPath);
+  });
+}
+
 const PHASE_WAITING = "waiting";
 const PHASE_LISTENING = "listening";
 const PHASE_THINKING = "thinking";
@@ -300,14 +324,20 @@ async function readSettings(agentRoot) {
 }
 
 async function writeSettings(agentRoot, patch, agentId) {
-  const current = await readSettings(agentRoot);
-  const next = normalizeSettings({ ...current, ...(patch && typeof patch === "object" ? patch : {}) });
-  await fs.mkdir(path.join(agentRoot, SETTINGS_DIR), { recursive: true });
-  const tmp = `${settingsAbsolute(agentRoot)}.tmp`;
-  await fs.writeFile(tmp, `${JSON.stringify(next, null, 2)}\n`, "utf-8");
-  await fs.rename(tmp, settingsAbsolute(agentRoot));
-  emitShellEvent(agentId, "settings", next);
-  return next;
+  const target = settingsAbsolute(agentRoot);
+  const queueKey = `settings-write:${target}`;
+  const previous = atomicWriteQueues.get(queueKey) || Promise.resolve();
+  const queued = previous.catch(() => {}).then(async () => {
+    const current = await readSettings(agentRoot);
+    const next = normalizeSettings({ ...current, ...(patch && typeof patch === "object" ? patch : {}) });
+    await writeFileAtomicUnqueued(target, `${JSON.stringify(next, null, 2)}\n`, "utf-8");
+    emitShellEvent(agentId, "settings", next);
+    return next;
+  });
+  atomicWriteQueues.set(queueKey, queued);
+  return queued.finally(() => {
+    if (atomicWriteQueues.get(queueKey) === queued) atomicWriteQueues.delete(queueKey);
+  });
 }
 
 async function readComposeDraft(agentRoot) {
@@ -349,9 +379,7 @@ async function writeComposeDraft(agentRoot, body, agentId) {
     return payload;
   }
 
-  const tmp = `${target}.tmp`;
-  await fs.writeFile(tmp, text, "utf-8");
-  await fs.rename(tmp, target);
+  await atomicWriteFile(target, text, "utf-8");
   const stat = await fs.stat(target);
   const payload = {
     body: text,

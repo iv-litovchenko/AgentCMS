@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=323" />
+    <link rel="stylesheet" href="/shell/shell.css?v=326" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -1287,9 +1287,13 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </section>
       <section class="shell-hero" id="shell-hero" data-hero-state="ready">
         <div class="shell-hero-bg" aria-hidden="true">
+          <span class="shell-hero-aurora shell-hero-aurora--a"></span>
+          <span class="shell-hero-aurora shell-hero-aurora--b"></span>
+          <span class="shell-hero-aurora shell-hero-aurora--c"></span>
           <span class="shell-hero-orb shell-hero-orb--1"></span>
           <span class="shell-hero-orb shell-hero-orb--2"></span>
           <span class="shell-hero-orb shell-hero-orb--3"></span>
+          <span class="shell-hero-orb shell-hero-orb--4"></span>
         </div>
         <div class="shell-hero-voice-controls" aria-label="Голосовой ответ">
           <div class="shell-hero-voice-row shell-hero-voice-row--tts">
@@ -1886,26 +1890,25 @@ aya_bar_v2 тоже читает те же файлы</pre>
       <button type="button" class="shell-hero-demo-btn" data-hero-demo="listening">Слушаю</button>
       <button type="button" class="shell-hero-demo-btn" data-hero-demo="thinking">Думаю</button>
       <button type="button" class="shell-hero-demo-btn" data-hero-demo="replying">Отвечаю</button>
-    </aside>
-
-    <div class="shell-mode-bar" id="shell-mode-bar" role="group" aria-label="Режимы Shell">
+      <div class="shell-hero-demo-divider" aria-hidden="true"></div>
+      <span class="shell-hero-demo-label">Окно</span>
       <button
         type="button"
-        class="shell-mode-segment shell-mode-segment--compact"
+        class="shell-hero-demo-btn shell-hero-demo-btn--compact"
         id="shell-compact-action"
         title="Компактный режим окна"
         aria-label="Компактный режим"
         aria-pressed="false"
       >
-        <span class="shell-mode-segment-label">
-          <svg class="shell-mode-segment-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+        <span class="shell-hero-demo-btn-row">
+          <svg class="shell-hero-demo-btn-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
             <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.45" />
             <rect x="4" y="9" width="8" height="4" rx="1.2" fill="currentColor" />
           </svg>
           Компакт
         </span>
       </button>
-    </div>
+    </aside>
 
     <dialog class="shell-dialog" id="shell-voice-confirm-dialog">
       <form method="dialog" class="shell-dialog-form" id="shell-voice-confirm-form">
@@ -1971,6 +1974,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=323" type="module"></script>
+    <script src="/shell/shell.js?v=326" type="module"></script>
   </body>
 </html>

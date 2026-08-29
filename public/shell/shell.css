@@ -19,7 +19,7 @@
   --shell-compose-tool-h: 42px;
   --vv-keyboard: 0px;
   --shell-compose-dock-height: 96px;
-  --shell-proactive-bar: 60px;
+  --shell-proactive-bar: 12px;
   --shell-surface-bg: rgba(255, 255, 255, 0.92);
   --shell-surface-border: rgba(148, 163, 184, 0.35);
   --shell-surface-divider: rgba(148, 163, 184, 0.28);
@@ -76,6 +76,10 @@ body.shell-window-transparent {
 }
 
 body:not(.shell-embed) .shell-app {
+  height: calc(100dvh - 24px);
+  min-height: calc(100dvh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: hidden;
   padding-bottom: calc(var(--shell-proactive-bar) + env(safe-area-inset-bottom, 0px));
 }
 
@@ -255,6 +259,7 @@ body:not(.shell-embed) .shell-app {
 }
 
 .shell-mode-bar {
+  display: none;
   position: fixed;
   left: 50%;
   bottom: calc(10px + env(safe-area-inset-bottom, 0px));
@@ -1132,6 +1137,9 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 
 .shell-main-view {
   display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   box-sizing: border-box;
   border: 1px solid var(--shell-surface-border);
   border-top: 0;
@@ -1328,6 +1336,29 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   box-shadow: none;
 }
 
+.shell-main-view > .shell-hero {
+  flex-shrink: 0;
+}
+
+.shell-main-view > .shell-chat-section--reply {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-main-view > .shell-chat-section--compose {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  margin-top: auto;
+  border-top: 1px solid var(--shell-surface-divider);
+  background: rgba(18, 20, 38, 0.42);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+}
+
 .shell-chat-section {
   display: flex;
   flex-direction: column;
@@ -1358,7 +1389,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 
 .shell-chat-section--compose {
   flex: 0 0 auto;
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.04) 0%, transparent 48px);
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.05) 0%, transparent 32px);
   box-shadow: inset 3px 0 0 rgba(34, 197, 94, 0.35);
 }
 
@@ -1386,8 +1417,8 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 
 .shell-chat-section--reply .shell-reply-panel .shell-dialog-scroll {
   flex: 1 1 auto;
-  min-height: 120px;
-  max-height: min(42vh, 360px);
+  min-height: 0;
+  max-height: none;
 }
 
 .shell-chat-section--compose .shell-compose-panel {
@@ -1620,10 +1651,48 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   pointer-events: none;
   overflow: hidden;
   background:
-    radial-gradient(ellipse 85% 65% at 18% 12%, rgba(124, 108, 255, 0.2), transparent 58%),
-    radial-gradient(ellipse 72% 55% at 88% 78%, rgba(56, 189, 248, 0.16), transparent 52%),
-    radial-gradient(ellipse 58% 42% at 52% 105%, rgba(34, 197, 94, 0.1), transparent 48%);
-  animation: shell-hero-bg-shift 16s ease-in-out infinite alternate;
+    radial-gradient(ellipse 85% 65% at 18% 12%, rgba(124, 108, 255, 0.22), transparent 58%),
+    radial-gradient(ellipse 72% 55% at 88% 78%, rgba(56, 189, 248, 0.18), transparent 52%),
+    radial-gradient(ellipse 58% 42% at 52% 105%, rgba(34, 197, 94, 0.12), transparent 48%);
+  animation:
+    shell-hero-bg-shift 14s ease-in-out infinite alternate,
+    shell-hero-bg-scene 22s ease-in-out infinite;
+}
+
+.shell-hero-aurora {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(28px);
+  opacity: 0.55;
+  mix-blend-mode: screen;
+}
+
+.shell-hero-aurora--a {
+  width: 58%;
+  height: 42%;
+  left: -8%;
+  top: -6%;
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.55), transparent 68%);
+  animation: shell-hero-aurora-a 18s ease-in-out infinite;
+}
+
+.shell-hero-aurora--b {
+  width: 52%;
+  height: 48%;
+  right: -12%;
+  bottom: -10%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.45), transparent 70%);
+  animation: shell-hero-aurora-b 24s ease-in-out infinite;
+}
+
+.shell-hero-aurora--c {
+  width: 44%;
+  height: 36%;
+  left: 28%;
+  bottom: -4%;
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.38), transparent 72%);
+  animation: shell-hero-aurora-c 20s ease-in-out infinite;
 }
 
 .shell-hero-bg::before {
@@ -1695,6 +1764,17 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   animation-duration: 14s;
 }
 
+.shell-hero-orb--4 {
+  width: 22px;
+  height: 22px;
+  right: 22%;
+  bottom: 18%;
+  background: radial-gradient(circle at 30% 28%, rgba(253, 186, 116, 0.6), rgba(251, 146, 60, 0.08) 72%);
+  animation-delay: -2s;
+  animation-duration: 8s;
+  opacity: 0.65;
+}
+
 .shell-hero-layout,
 .shell-hero-voice-controls {
   position: relative;
@@ -1748,6 +1828,55 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
     rgba(134, 239, 172, 0.12) 50%,
     transparent 64%
   );
+}
+
+#shell-hero[data-hero-state="ready"] .shell-hero-bg {
+  animation-duration: 12s, 18s;
+}
+
+#shell-hero[data-hero-state="ready"] .shell-hero-aurora--c {
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.42), transparent 72%);
+}
+
+#shell-hero[data-hero-state="idle"] .shell-hero-bg {
+  animation-duration: 20s, 28s;
+  filter: saturate(0.82);
+}
+
+#shell-hero[data-hero-state="idle"] .shell-hero-aurora {
+  opacity: 0.38;
+}
+
+#shell-hero[data-hero-state="listening"] .shell-hero-bg {
+  animation:
+    shell-hero-bg-shift 8s ease-in-out infinite alternate,
+    shell-hero-bg-scene-listen 14s ease-in-out infinite;
+}
+
+#shell-hero[data-hero-state="listening"] .shell-hero-aurora--a {
+  background: radial-gradient(circle, rgba(248, 113, 113, 0.55), transparent 68%);
+}
+
+#shell-hero[data-hero-state="listening"] .shell-hero-aurora--b {
+  background: radial-gradient(circle, rgba(251, 146, 60, 0.42), transparent 70%);
+}
+
+#shell-hero[data-hero-state="replying"] .shell-hero-bg {
+  animation:
+    shell-hero-bg-shift 9s ease-in-out infinite alternate,
+    shell-hero-bg-scene-speak 16s ease-in-out infinite;
+}
+
+#shell-hero[data-hero-state="replying"] .shell-hero-aurora--a {
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.58), transparent 68%);
+}
+
+#shell-hero[data-hero-state="replying"] .shell-hero-aurora--b {
+  background: radial-gradient(circle, rgba(125, 211, 252, 0.48), transparent 70%);
+}
+
+#shell-hero[data-hero-state="replying"] .shell-hero-aurora--c {
+  background: radial-gradient(circle, rgba(124, 108, 255, 0.4), transparent 72%);
 }
 
 .shell-hero-sensor-wrap {
@@ -1821,11 +1950,97 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 @keyframes shell-hero-bg-shift {
   0% {
     transform: scale(1) translate(0, 0);
-    filter: hue-rotate(0deg);
+    filter: hue-rotate(0deg) saturate(1);
   }
   100% {
-    transform: scale(1.06) translate(-2%, 1%);
-    filter: hue-rotate(12deg);
+    transform: scale(1.08) translate(-2%, 1%);
+    filter: hue-rotate(28deg) saturate(1.08);
+  }
+}
+
+@keyframes shell-hero-bg-scene {
+  0%,
+  100% {
+    background:
+      radial-gradient(ellipse 85% 65% at 18% 12%, rgba(124, 108, 255, 0.24), transparent 58%),
+      radial-gradient(ellipse 72% 55% at 88% 78%, rgba(56, 189, 248, 0.18), transparent 52%),
+      radial-gradient(ellipse 58% 42% at 52% 105%, rgba(34, 197, 94, 0.12), transparent 48%);
+  }
+  33% {
+    background:
+      radial-gradient(ellipse 78% 60% at 82% 18%, rgba(244, 114, 182, 0.2), transparent 56%),
+      radial-gradient(ellipse 68% 52% at 12% 72%, rgba(251, 191, 36, 0.16), transparent 54%),
+      radial-gradient(ellipse 62% 44% at 48% 108%, rgba(124, 108, 255, 0.14), transparent 50%);
+  }
+  66% {
+    background:
+      radial-gradient(ellipse 80% 62% at 24% 82%, rgba(45, 212, 191, 0.18), transparent 55%),
+      radial-gradient(ellipse 70% 54% at 92% 28%, rgba(96, 165, 250, 0.2), transparent 52%),
+      radial-gradient(ellipse 56% 40% at 40% 8%, rgba(167, 139, 250, 0.16), transparent 48%);
+  }
+}
+
+@keyframes shell-hero-bg-scene-listen {
+  0%,
+  100% {
+    background:
+      radial-gradient(ellipse 88% 68% at 50% 42%, rgba(239, 68, 68, 0.2), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 12% 78%, rgba(251, 146, 60, 0.14), transparent 54%),
+      radial-gradient(ellipse 58% 42% at 88% 22%, rgba(248, 113, 113, 0.1), transparent 50%);
+  }
+  50% {
+    background:
+      radial-gradient(ellipse 92% 72% at 48% 38%, rgba(220, 38, 38, 0.22), transparent 62%),
+      radial-gradient(ellipse 74% 52% at 18% 68%, rgba(253, 186, 116, 0.16), transparent 56%),
+      radial-gradient(ellipse 60% 44% at 84% 28%, rgba(239, 68, 68, 0.12), transparent 52%);
+  }
+}
+
+@keyframes shell-hero-bg-scene-speak {
+  0%,
+  100% {
+    background:
+      radial-gradient(ellipse 86% 66% at 50% 38%, rgba(56, 189, 248, 0.22), transparent 60%),
+      radial-gradient(ellipse 72% 54% at 14% 80%, rgba(124, 108, 255, 0.14), transparent 54%),
+      radial-gradient(ellipse 58% 42% at 90% 18%, rgba(125, 211, 252, 0.12), transparent 50%);
+  }
+  50% {
+    background:
+      radial-gradient(ellipse 90% 70% at 52% 36%, rgba(88, 196, 255, 0.26), transparent 62%),
+      radial-gradient(ellipse 76% 56% at 10% 76%, rgba(99, 102, 241, 0.16), transparent 56%),
+      radial-gradient(ellipse 62% 44% at 88% 22%, rgba(56, 189, 248, 0.14), transparent 52%);
+  }
+}
+
+@keyframes shell-hero-aurora-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(12%, 8%) scale(1.12);
+  }
+}
+
+@keyframes shell-hero-aurora-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-10%, -6%) scale(1.08);
+  }
+}
+
+@keyframes shell-hero-aurora-c {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate(6%, -10%) scale(1.15);
+    opacity: 0.72;
   }
 }
 
@@ -2128,6 +2343,31 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 .shell-hero-demo-btn[data-hero-demo="replying"].is-active {
   border-color: rgba(88, 196, 255, 0.55);
   background: rgba(88, 196, 255, 0.18);
+}
+
+.shell-hero-demo-divider {
+  height: 1px;
+  margin: 2px 0;
+  background: rgba(254, 202, 202, 0.35);
+}
+
+.shell-hero-demo-btn-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.shell-hero-demo-btn-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.shell-hero-demo-btn--compact[aria-pressed="true"] {
+  border-color: rgba(125, 211, 252, 0.72);
+  background: rgba(56, 189, 248, 0.24);
+  color: #e0f2fe;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.16);
 }
 
 .shell-hero-center .shell-status-line {
@@ -2943,10 +3183,11 @@ body.shell-desktop .shell-agent-gate select {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
   margin-top: 0;
   padding: 0 4px 0 0;
-  min-height: 96px;
-  max-height: min(48vh, 420px);
   overflow: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
