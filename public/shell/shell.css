@@ -13,7 +13,7 @@
   --danger: #ff6b8a;
   --speak: #58c4ff;
   --shell-surface-inset-x: 16px;
-  --shell-surface-inset-y: 8px;
+  --shell-surface-inset-y: 4px;
   --shell-panel-inset-x: var(--shell-surface-inset-x);
   --shell-panel-inset-y: 12px;
   --shell-compose-tool-h: 42px;
@@ -40,7 +40,8 @@ body {
 body {
   display: flex;
   justify-content: center;
-  padding: 12px;
+  padding: 0;
+  min-height: 100dvh;
   background-color: #0a1020;
   background-repeat: no-repeat;
 }
@@ -76,11 +77,11 @@ body.shell-window-transparent {
 }
 
 body:not(.shell-embed) .shell-app {
-  height: calc(100dvh - 24px);
-  min-height: calc(100dvh - 24px);
-  max-height: calc(100dvh - 24px);
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
   overflow: hidden;
-  padding-bottom: calc(var(--shell-proactive-bar) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .shell-install-banner {
@@ -406,8 +407,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-header-version-badge {
   width: 100%;
   min-width: 0;
   margin: 0;
-  border: 1px solid var(--shell-surface-border);
-  border-bottom: 1px solid var(--shell-surface-divider);
+  border: 0;
   background: var(--shell-surface-bg);
   box-sizing: border-box;
 }
@@ -417,12 +417,12 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-header-version-badge {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  border-bottom: 1px solid var(--shell-surface-divider);
+  border-bottom: 0;
 }
 
 .shell-path-block--title {
-  padding: 10px var(--shell-surface-inset-x);
-  min-height: 49px;
+  padding: 6px var(--shell-surface-inset-x);
+  min-height: 44px;
 }
 
 .shell-path-block--title .shell-path-row {
@@ -1141,8 +1141,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
-  border: 1px solid var(--shell-surface-border);
-  border-top: 0;
+  border: 0;
   background: var(--shell-surface-bg);
 }
 
@@ -1332,12 +1331,13 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border: 0;
-  border-bottom: 1px solid var(--shell-surface-divider);
   box-shadow: none;
 }
 
 .shell-main-view > .shell-hero {
   flex-shrink: 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 .shell-main-view > .shell-chat-section--reply {
@@ -1346,17 +1346,21 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  padding-top: 4px;
+  padding-bottom: 0;
 }
 
 .shell-main-view > .shell-chat-section--compose {
   flex: 0 0 auto;
   flex-shrink: 0;
   margin-top: auto;
-  border-top: 1px solid var(--shell-surface-divider);
+  padding-top: 4px;
+  padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
+  border: 0;
   background: rgba(18, 20, 38, 0.42);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
 }
 
 .shell-chat-section {
