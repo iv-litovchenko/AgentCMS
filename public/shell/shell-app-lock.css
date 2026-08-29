@@ -11,6 +11,24 @@ body.app-locked {
   padding: 24px;
 }
 
+body.shell-desktop .app-lock {
+  -webkit-app-region: drag;
+}
+
+body.shell-desktop .app-lock .app-lock-inner,
+body.shell-desktop .app-lock button,
+body.shell-desktop .app-lock input,
+body.shell-desktop .app-lock a {
+  -webkit-app-region: no-drag;
+}
+
+.app-lock > .shell-window-controls {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  z-index: 2;
+}
+
 .app-lock.hidden {
   display: none;
 }

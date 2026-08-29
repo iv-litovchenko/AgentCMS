@@ -224,6 +224,13 @@ async function createWindow() {
     backgroundColor: "#00000000",
     alwaysOnTop: true,
     show: false,
+    frame: false,
+    titleBarStyle: "hidden",
+    autoHideMenuBar: true,
+    fullscreenable: true,
+    minimizable: true,
+    maximizable: true,
+    closable: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -231,6 +238,21 @@ async function createWindow() {
       sandbox: true
     }
   });
+
+  if (typeof mainWindow.setWindowButtonVisibility === "function") {
+    mainWindow.setWindowButtonVisibility(false);
+  }
+
+  const sendWindowState = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send("shell:window-state", {
+      maximized: Boolean(mainWindow.isMaximized())
+    });
+  };
+  mainWindow.on("maximize", sendWindowState);
+  mainWindow.on("unmaximize", sendWindowState);
+  mainWindow.on("enter-full-screen", sendWindowState);
+  mainWindow.on("leave-full-screen", sendWindowState);
 
   mainWindow.once("ready-to-show", () => {
     mainWindow?.show();
@@ -316,6 +338,20 @@ if (!gotLock) {
       positionWindowBottomCenter();
       return { ok: true };
     });
+    ipcMain.handle("shell:window-control", (_event, action) => {
+      if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, maximized: false };
+      const name = String(action || "").trim();
+      if (name === "minimize") mainWindow.minimize();
+      else if (name === "maximize") {
+        if (mainWindow.isMaximized()) mainWindow.unmaximize();
+        else mainWindow.maximize();
+      } else if (name === "close") mainWindow.close();
+      else return { ok: false, maximized: Boolean(mainWindow.isMaximized()) };
+      return { ok: true, maximized: Boolean(mainWindow.isMaximized()) };
+    });
+    ipcMain.handle("shell:window-state", () => ({
+      maximized: Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isMaximized())
+    }));
     bootstrap();
   });
 

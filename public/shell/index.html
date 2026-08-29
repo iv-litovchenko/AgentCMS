@@ -12,8 +12,8 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=293" />
-    <link rel="stylesheet" href="/shell/shell-app-lock.css?v=1" />
+    <link rel="stylesheet" href="/shell/shell.css?v=296" />
+    <link rel="stylesheet" href="/shell/shell-app-lock.css?v=2" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
     <script type="importmap">
@@ -68,11 +68,21 @@
           } else if (new URLSearchParams(location.search).get("embed") === "1") {
             document.body.classList.add("shell-embed");
           }
+          if (window.shellApp && window.shellApp.isShellDesktop) {
+            document.documentElement.classList.add("shell-desktop");
+            document.body.classList.add("shell-desktop");
+            document.body.classList.add("shell-desktop-" + String(window.shellApp.platform || "unknown"));
+          }
         } catch (e) {}
       })();
     </script>
     <div id="app-lock" class="app-lock hidden" role="dialog" aria-modal="true" aria-labelledby="app-lock-title" aria-describedby="app-lock-lead">
       <div class="app-lock-bg" aria-hidden="true"></div>
+      <div class="shell-window-controls">
+        <button type="button" class="shell-window-ctrl shell-window-ctrl--close" data-window-action="close" title="Закрыть" aria-label="Закрыть"></button>
+        <button type="button" class="shell-window-ctrl shell-window-ctrl--min" data-window-action="minimize" title="Свернуть" aria-label="Свернуть"></button>
+        <button type="button" class="shell-window-ctrl shell-window-ctrl--max" data-window-action="maximize" title="Развернуть" aria-label="Развернуть"></button>
+      </div>
       <div class="app-lock-panel">
         <div class="app-lock-inner">
           <div class="app-lock-brand">
@@ -108,6 +118,11 @@
     </div>
 
     <div id="shell-agent-gate" class="shell-agent-gate hidden" role="dialog" aria-modal="true" aria-labelledby="shell-agent-gate-title">
+      <div class="shell-window-controls">
+        <button type="button" class="shell-window-ctrl shell-window-ctrl--close" data-window-action="close" title="Закрыть" aria-label="Закрыть"></button>
+        <button type="button" class="shell-window-ctrl shell-window-ctrl--min" data-window-action="minimize" title="Свернуть" aria-label="Свернуть"></button>
+        <button type="button" class="shell-window-ctrl shell-window-ctrl--max" data-window-action="maximize" title="Развернуть" aria-label="Развернуть"></button>
+      </div>
       <div class="shell-agent-gate-panel">
         <h2 id="shell-agent-gate-title" class="shell-agent-gate-title">Agent CMS Voice</h2>
         <p class="shell-agent-gate-lead">Выберите workspace CMS — память и настройки Shell привязаны к агенту.</p>
@@ -128,6 +143,11 @@
       <header class="shell-path-header" id="shell-path-header" aria-label="Agent CMS Voice">
         <div class="shell-path-block shell-path-block--title">
           <div class="shell-path-row">
+            <div class="shell-window-controls">
+              <button type="button" class="shell-window-ctrl shell-window-ctrl--close" data-window-action="close" title="Закрыть" aria-label="Закрыть"></button>
+              <button type="button" class="shell-window-ctrl shell-window-ctrl--min" data-window-action="minimize" title="Свернуть" aria-label="Свернуть"></button>
+              <button type="button" class="shell-window-ctrl shell-window-ctrl--max" data-window-action="maximize" title="Развернуть" aria-label="Развернуть"></button>
+            </div>
             <button
               type="button"
               class="shell-path-title-btn"
@@ -1921,6 +1941,45 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=295" type="module"></script>
+    <script>
+      (function () {
+        var app = window.shellApp;
+        if (!app || !app.isShellDesktop) return;
+        function syncMaximized(maximized) {
+          document.querySelectorAll('[data-window-action="maximize"]').forEach(function (btn) {
+            btn.setAttribute("aria-pressed", maximized ? "true" : "false");
+            btn.title = maximized ? "Восстановить" : "Развернуть";
+            btn.setAttribute("aria-label", maximized ? "Восстановить" : "Развернуть");
+          });
+        }
+        document.addEventListener("click", function (event) {
+          var btn = event.target.closest("[data-window-action]");
+          if (!btn || !app.windowControl) return;
+          event.preventDefault();
+          Promise.resolve(app.windowControl(btn.getAttribute("data-window-action"))).then(function (state) {
+            if (state && typeof state.maximized === "boolean") syncMaximized(state.maximized);
+          });
+        });
+        var header = document.getElementById("shell-path-header");
+        if (header) {
+          header.addEventListener("dblclick", function (event) {
+            if (event.target.closest("button, a, select, input, textarea, .shell-window-controls")) return;
+            if (!app.windowControl) return;
+            Promise.resolve(app.windowControl("maximize")).then(function (state) {
+              if (state && typeof state.maximized === "boolean") syncMaximized(state.maximized);
+            });
+          });
+        }
+        if (app.getWindowState) {
+          Promise.resolve(app.getWindowState()).then(function (state) {
+            if (state && typeof state.maximized === "boolean") syncMaximized(state.maximized);
+          });
+        }
+        if (app.onWindowState) app.onWindowState(function (state) {
+          if (state && typeof state.maximized === "boolean") syncMaximized(state.maximized);
+        });
+      })();
+    </script>
+    <script src="/shell/shell.js?v=296" type="module"></script>
   </body>
 </html>

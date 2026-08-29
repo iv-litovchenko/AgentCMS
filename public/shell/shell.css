@@ -447,6 +447,126 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-version-badge {
   gap: 8px;
 }
 
+body.shell-desktop .shell-path-block--title .shell-path-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.shell-window-controls {
+  display: none;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding: 2px 4px 2px 0;
+  -webkit-app-region: no-drag;
+}
+
+body.shell-desktop .shell-window-controls {
+  display: inline-flex;
+}
+
+.shell-window-ctrl {
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+}
+
+.shell-window-ctrl--close {
+  background: #ff5f57;
+}
+
+.shell-window-ctrl--min {
+  background: #febc2e;
+}
+
+.shell-window-ctrl--max {
+  background: #28c840;
+}
+
+.shell-window-ctrl:hover {
+  filter: brightness(1.06);
+}
+
+.shell-window-ctrl:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.shell-window-ctrl::before,
+.shell-window-ctrl::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.shell-window-controls:hover .shell-window-ctrl::before,
+.shell-window-controls:hover .shell-window-ctrl::after,
+.shell-window-ctrl:focus-visible::before,
+.shell-window-ctrl:focus-visible::after {
+  opacity: 0.72;
+}
+
+.shell-window-ctrl--close::before,
+.shell-window-ctrl--close::after {
+  width: 7px;
+  height: 1px;
+  background: #4a0503;
+}
+
+.shell-window-ctrl--close::before {
+  transform: rotate(45deg);
+}
+
+.shell-window-ctrl--close::after {
+  transform: rotate(-45deg);
+}
+
+.shell-window-ctrl--min::before {
+  width: 7px;
+  height: 1px;
+  background: #5b3b00;
+}
+
+.shell-window-ctrl--max::before {
+  width: 5px;
+  height: 5px;
+  border: 1px solid #0b4a16;
+  border-radius: 1px;
+  background: transparent;
+}
+
+.shell-window-ctrl--max[aria-pressed="true"]::before {
+  width: 4px;
+  height: 4px;
+}
+
+.shell-window-ctrl--max[aria-pressed="true"]::after {
+  width: 4px;
+  height: 4px;
+  border: 1px solid #0b4a16;
+  border-radius: 1px;
+  transform: translate(1px, -1px);
+}
+
+body.shell-desktop .shell-path-header {
+  -webkit-app-region: drag;
+}
+
+body.shell-desktop .shell-path-header button,
+body.shell-desktop .shell-path-header a,
+body.shell-desktop .shell-path-header select,
+body.shell-desktop .shell-path-header input,
+body.shell-desktop .shell-path-header textarea {
+  -webkit-app-region: no-drag;
+}
+
 .shell-path-block--context {
   display: flex;
   flex-direction: column;
@@ -1588,6 +1708,22 @@ body.shell-bg-wallpaper .shell-settings-tab[aria-selected="true"] {
 
 .shell-agent-gate.hidden {
   display: none;
+}
+
+.shell-agent-gate > .shell-window-controls {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+}
+
+body.shell-desktop .shell-agent-gate {
+  -webkit-app-region: drag;
+}
+
+body.shell-desktop .shell-agent-gate-panel,
+body.shell-desktop .shell-agent-gate button,
+body.shell-desktop .shell-agent-gate select {
+  -webkit-app-region: no-drag;
 }
 
 .shell-agent-gate-panel {
@@ -4600,6 +4736,10 @@ body.shell-embed .shell-version {
 .shell-app[data-compact="1"] .shell-path-actions,
 .shell-app[data-compact="1"] .shell-path-block--context {
   display: none;
+}
+
+.shell-app[data-compact="1"] .shell-window-controls {
+  display: inline-flex;
 }
 
 .shell-app[data-compact="1"] .shell-path-subtitle {
