@@ -210,15 +210,19 @@ function createShellHandlers(deps) {
       try {
         const payload = await deps.readJsonBody(req);
         const record = shellPresence.upsertPresence(agentId, payload);
-        const statePatch = {
-          shellSurfaceHost: record.surfaceHost || undefined,
-          shellSurfaceHint: record.surfaceHint || undefined,
-          shellSurfaceBackend: record.surfaceBackend || undefined
-        };
+        let state;
+        // Heartbeat держит presence в памяти (shell-presence.js). На диск — только при interact
+        // (фокус вкладки, отправка сообщения), чтобы не перезаписывать state.json каждые 8 с.
         if (payload?.interact) {
-          statePatch.primaryClientId = record.clientId;
+          state = await shellService.patchState(agentRoot, agentId, {
+            primaryClientId: record.clientId,
+            shellSurfaceHost: record.surfaceHost || undefined,
+            shellSurfaceHint: record.surfaceHint || undefined,
+            shellSurfaceBackend: record.surfaceBackend || undefined
+          });
+        } else {
+          state = await shellService.getState(agentRoot);
         }
-        const state = await shellService.patchState(agentRoot, agentId, statePatch);
         deps.sendJson(res, 200, shellPresence.buildPresencePayload(agentId, state));
       } catch (error) {
         const message = String(error?.message || error);

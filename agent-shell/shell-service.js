@@ -98,6 +98,10 @@ const DEFAULT_SETTINGS = {
   ttsEnabled: true,
   ttsPlaybackMode: "dialog",
   ttsEngine: "browser",
+  ttsBrowserLang: "ru-RU",
+  ttsBrowserVoice: "",
+  ttsSayLang: "ru-RU",
+  ttsSayVoice: "",
   ttsEdgeVoice: "ru-RU-SvetlanaNeural",
   ttsElevenlabsApiKey: "",
   ttsElevenlabsVoiceId: "",
@@ -283,8 +287,22 @@ function normalizeSettings(raw) {
   merged.ttsPrompt = String(merged.ttsPrompt || "");
   merged.ttsRate = Math.min(2, Math.max(0.5, Number(merged.ttsRate) || 1));
   merged.ttsPitch = Math.min(2, Math.max(0, Number(merged.ttsPitch) || 1));
-  merged.ttsLang = String(merged.ttsLang || "ru-RU").trim() || "ru-RU";
-  merged.ttsVoice = String(merged.ttsVoice || "").trim();
+  const legacyLang = String(merged.ttsLang || "ru-RU").trim() || "ru-RU";
+  const legacyVoice = String(merged.ttsVoice || "").trim();
+  merged.ttsBrowserLang = String(merged.ttsBrowserLang || legacyLang).trim() || "ru-RU";
+  merged.ttsSayLang = String(merged.ttsSayLang || legacyLang).trim() || "ru-RU";
+  merged.ttsBrowserVoice = String(merged.ttsBrowserVoice ?? legacyVoice).trim();
+  merged.ttsSayVoice = String(merged.ttsSayVoice ?? legacyVoice).trim();
+  if (merged.ttsEngine === "say") {
+    merged.ttsLang = merged.ttsSayLang;
+    merged.ttsVoice = merged.ttsSayVoice;
+  } else if (merged.ttsEngine === "browser") {
+    merged.ttsLang = merged.ttsBrowserLang;
+    merged.ttsVoice = merged.ttsBrowserVoice;
+  } else {
+    merged.ttsLang = legacyLang;
+    merged.ttsVoice = legacyVoice;
+  }
   merged.ttsEdgeVoice = String(merged.ttsEdgeVoice || "ru-RU-SvetlanaNeural").trim();
   merged.ttsElevenlabsApiKey = String(merged.ttsElevenlabsApiKey || "").trim();
   merged.ttsElevenlabsVoiceId = String(merged.ttsElevenlabsVoiceId || "").trim();

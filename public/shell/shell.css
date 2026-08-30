@@ -2294,6 +2294,146 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   color: var(--muted);
 }
 
+.shell-tts-engines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-tts-field-gap, 10px);
+}
+
+.shell-tts-engines > .shell-field {
+  margin: 0;
+  gap: var(--shell-tts-label-gap, 6px);
+}
+
+.shell-tts-section-head {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: rgba(226, 232, 240, 0.94);
+}
+
+.shell-tts-common-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-tts-field-gap, 10px);
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--shell-surface-divider);
+}
+
+.shell-tts-common-settings > .shell-field {
+  margin: 0;
+}
+
+.shell-tts-panel-enable-field,
+.shell-tts-panel-playback-field {
+  margin: 0;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.shell-tts-panel-playback {
+  width: 100%;
+}
+
+.shell-tts-panel-playback .shell-tts-playback-radio--panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+
+.shell-tts-panel-playback .shell-tts-playback-radio-option--panel {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(100, 116, 139, 0.08);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.shell-tts-panel-playback .shell-tts-playback-radio-option--panel:hover {
+  border-color: rgba(148, 163, 184, 0.38);
+}
+
+.shell-tts-panel-playback .shell-tts-playback-radio-option--panel:has(input:checked) {
+  border-color: rgba(124, 108, 255, 0.55);
+  background: rgba(124, 108, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.1);
+}
+
+.shell-tts-panel-playback .shell-tts-playback-radio-option--panel input {
+  position: static;
+  opacity: 1;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
+.shell-tts-panel-playback .shell-tts-playback-radio-option--panel .shell-tts-playback-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  margin: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(100, 116, 139, 0.14);
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.shell-tts-panel-playback .shell-tts-playback-option-copy {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  min-width: 0;
+  text-align: left;
+}
+
+.shell-tts-panel-playback .shell-tts-playback-option-title {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: rgba(226, 232, 240, 0.96);
+  white-space: nowrap;
+}
+
+.shell-tts-panel-playback .shell-tts-playback-option-desc {
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--muted);
+}
+
+.shell-tts-panel-playback .shell-tts-playback-radio-option--panel:has(input:focus-visible) {
+  outline: 2px solid rgba(184, 173, 255, 0.55);
+  outline-offset: 2px;
+}
+
+.shell-tts-engine-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .shell-hero-demo-panel {
   position: fixed;
   top: 50%;
@@ -2987,6 +3127,81 @@ body.shell-desktop .shell-agent-gate select {
   width: 100%;
 }
 
+.shell-tts-panel {
+  --shell-tts-field-gap: 10px;
+  --shell-tts-label-gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-tts-field-gap);
+}
+
+.shell-tts-panel > .shell-field {
+  margin-bottom: 0;
+  gap: var(--shell-tts-label-gap);
+}
+
+.shell-tts-panel .shell-settings-save-row {
+  margin-top: 0;
+  padding-top: var(--shell-tts-field-gap);
+}
+
+.shell-tts-panel .shell-tts-engines .shell-tts-browser-panel,
+.shell-tts-panel .shell-tts-engines .shell-tts-say-panel,
+.shell-tts-panel .shell-tts-engines .shell-tts-edge-panel,
+.shell-tts-panel .shell-tts-engines .shell-tts-piper-panel,
+.shell-tts-panel .shell-tts-engines .shell-tts-elevenlabs-panel {
+  display: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.shell-tts-panel .shell-tts-engines .shell-tts-browser-panel[data-visible="1"],
+.shell-tts-panel .shell-tts-engines .shell-tts-say-panel[data-visible="1"],
+.shell-tts-panel .shell-tts-engines .shell-tts-edge-panel[data-visible="1"],
+.shell-tts-panel .shell-tts-engines .shell-tts-piper-panel[data-visible="1"],
+.shell-tts-panel .shell-tts-engines .shell-tts-elevenlabs-panel[data-visible="1"] {
+  display: block;
+}
+
+.shell-tts-panel .shell-tts-browser-panel,
+.shell-tts-panel .shell-tts-say-panel,
+.shell-tts-panel .shell-tts-edge-panel,
+.shell-tts-panel .shell-tts-piper-panel,
+.shell-tts-panel .shell-tts-elevenlabs-panel {
+  display: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.shell-tts-panel .shell-tts-browser-panel[data-visible="1"],
+.shell-tts-panel .shell-tts-say-panel[data-visible="1"],
+.shell-tts-panel .shell-tts-edge-panel[data-visible="1"],
+.shell-tts-panel .shell-tts-piper-panel[data-visible="1"],
+.shell-tts-panel .shell-tts-elevenlabs-panel[data-visible="1"] {
+  display: block;
+}
+
+.shell-tts-panel .shell-tts-engine-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-tts-field-gap);
+}
+
+.shell-tts-panel .shell-tts-engine-fields .shell-field {
+  gap: var(--shell-tts-label-gap);
+  margin-bottom: 0;
+}
+
+.shell-tts-rate-field {
+  margin-top: 0;
+}
+
 .shell-select--full {
   width: 100%;
 }
@@ -2998,28 +3213,6 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-tts-engine-fields .shell-field.hidden {
-  display: none;
-}
-
-.shell-tts-engine-hint {
-  margin: 4px 0 0;
-  font-size: 11px;
-  line-height: 1.45;
-  color: var(--muted);
-}
-
-.shell-tts-engine-hint:empty {
-  display: none;
-}
-
-.shell-tts-capabilities-note {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.45;
-  color: var(--muted);
-}
-
-.shell-tts-capabilities-note.hidden {
   display: none;
 }
 

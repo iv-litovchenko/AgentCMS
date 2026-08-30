@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=349" />
+    <link rel="stylesheet" href="/shell/shell.css?v=370" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -53,7 +53,8 @@
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=350",
-          "@shell/build": "/shell/shell-build.js?v=350"
+          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=366",
+          "@shell/build": "/shell/shell-build.js?v=370"
         }
       }
     </script>
@@ -629,111 +630,191 @@
         </section>
 
         <section class="shell-tts-panel" id="shell-tts-panel" role="tabpanel" aria-labelledby="shell-settings-tab-tts" hidden>
-        <div class="shell-voice-panel-head">
+        <div class="shell-voice-panel-head shell-voice-panel-head--tts">
           <span class="shell-label">Голосовой ответ (TTS)</span>
         </div>
-        <div class="shell-tts-settings" id="shell-tts-settings">
-          <p class="shell-tts-settings-note">
-            Движок, голос и промпт — в <code>settings.json</code>. Включение TTS и режим «Диалог / Чтение» — в hero на главном экране.
-          </p>
-          <label class="shell-field shell-field--compact">
+
+        <div class="shell-tts-engines" id="shell-tts-engines">
+          <label class="shell-field">
             <span class="shell-label shell-label-row shell-label-row--spread">
-              Промпт spoken-версии
-              <button type="button" class="shell-label-action" id="shell-tts-prompt-insert">
-                Вставить заготовку
-              </button>
+              Провайдер
+              <span class="shell-tts-engine-actions">
+                <button type="button" class="shell-label-action" id="shell-tts-test" title="Озвучить пробную фразу выбранным движком">
+                  Пробный текст
+                </button>
+                <button
+                  type="button"
+                  class="shell-label-action shell-tts-download-panel"
+                  id="shell-tts-download-panel"
+                  disabled
+                  title="Скачать аудио последней озвучки"
+                >
+                  ⬇ Скачать
+                </button>
+              </span>
             </span>
-            <textarea
-              id="shell-tts-prompt"
-              class="shell-textarea shell-textarea--compact"
-              rows="3"
-              spellcheck="false"
-              placeholder="Инструкция для ответа: текст для голоса, затем ::: VOICE-END :::, затем полный текст. «Вставить заготовку» — шаблон."
-            ></textarea>
+            <select id="shell-tts-engine" class="shell-select shell-select--full" aria-label="Провайдер TTS"></select>
           </label>
-          <label class="shell-field shell-field--compact shell-tts-engine-field">
-            <span class="shell-label shell-label-row shell-label-row--spread">
-              Движок TTS
-              <button type="button" class="shell-label-action" id="shell-tts-test" title="Озвучить пробную фразу выбранным движком">
-                Пробный текст
-              </button>
-              <button
-                type="button"
-                class="shell-label-action shell-tts-download-panel"
-                id="shell-tts-download-panel"
-                disabled
-                title="Скачать аудио последней озвучки"
-              >
-                ⬇ Скачать
-              </button>
-            </span>
-            <select id="shell-tts-engine" class="shell-select shell-select--full">
-              <optgroup label="На этом устройстве">
-                <option value="browser">Браузер · Web Speech (вкладка)</option>
-                <option value="say">macOS say · сервер Mac</option>
-                <option value="piper">Piper · офлайн-модель</option>
-              </optgroup>
-              <optgroup label="Онлайн / API">
-                <option value="edge">Edge TTS · Microsoft</option>
-                <option value="elevenlabs">ElevenLabs · API key</option>
-              </optgroup>
-            </select>
-          </label>
-          <p class="shell-tts-engine-hint" id="shell-tts-engine-hint"></p>
-          <p class="shell-tts-capabilities-note hidden" id="shell-tts-capabilities-note"></p>
-          <div class="shell-tts-engine-fields" id="shell-tts-engine-fields">
-            <label class="shell-field shell-field--compact" data-tts-engines="browser say">
-              <span class="shell-label">Язык</span>
-              <select id="shell-tts-lang" class="shell-select shell-select--full">
-                <option value="ru-RU">Русский</option>
-                <option value="en-US">English</option>
-              </select>
-            </label>
-            <label class="shell-field shell-field--compact" data-tts-engines="browser say">
-              <span class="shell-label" id="shell-tts-voice-label">Голос</span>
-              <select id="shell-tts-voice" class="shell-select shell-select--full">
-                <option value="">Системный по умолчанию</option>
-              </select>
-            </label>
-            <label class="shell-field shell-field--compact hidden" data-tts-engines="edge">
-              <span class="shell-label">Голос Edge</span>
-              <select id="shell-tts-edge-voice" class="shell-select shell-select--full"></select>
-            </label>
-            <label class="shell-field shell-field--compact hidden" data-tts-engines="piper">
-              <span class="shell-label">Модель Piper (.onnx)</span>
-              <input
-                id="shell-tts-piper-model"
-                class="shell-input"
-                type="text"
-                spellcheck="false"
-                placeholder="/path/to/ru_RU-irina-medium.onnx"
-              />
-            </label>
-            <label class="shell-field shell-field--compact hidden" data-tts-engines="piper">
-              <span class="shell-label">Бинарник Piper</span>
-              <input id="shell-tts-piper-binary" class="shell-input" type="text" spellcheck="false" placeholder="piper" />
-            </label>
-            <label class="shell-field shell-field--compact hidden" data-tts-engines="elevenlabs">
-              <span class="shell-label">ElevenLabs API key</span>
-              <input
-                id="shell-tts-elevenlabs-key"
-                class="shell-input shell-input--mono"
-                type="text"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="sk_…"
-              />
-            </label>
-            <label class="shell-field shell-field--compact hidden" data-tts-engines="elevenlabs">
-              <span class="shell-label">ElevenLabs Voice ID</span>
-              <input id="shell-tts-elevenlabs-voice-id" class="shell-input" type="text" spellcheck="false" placeholder="21m00Tcm4TlvDq8ikWAM" />
-            </label>
-            <label class="shell-field shell-field--compact" data-tts-engines="browser say edge piper elevenlabs">
-              <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
-              <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
-            </label>
+
+          <div class="shell-tts-browser-panel" id="shell-tts-browser-panel" data-visible="0">
+            <div class="shell-tts-engine-fields">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Язык</span>
+                <select id="shell-tts-lang" class="shell-select shell-select--full">
+                  <option value="ru-RU">Русский</option>
+                  <option value="en-US">English</option>
+                </select>
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Голос браузера</span>
+                <select id="shell-tts-voice" class="shell-select shell-select--full">
+                  <option value="">Системный по умолчанию</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="shell-tts-say-panel" id="shell-tts-say-panel" data-visible="0">
+            <div class="shell-tts-engine-fields">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Язык</span>
+                <select id="shell-tts-say-lang" class="shell-select shell-select--full">
+                  <option value="ru-RU">Русский</option>
+                  <option value="en-US">English</option>
+                </select>
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Голос macOS say</span>
+                <select id="shell-tts-say-voice" class="shell-select shell-select--full">
+                  <option value="">По умолчанию</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="shell-tts-edge-panel" id="shell-tts-edge-panel" data-visible="0">
+            <div class="shell-tts-engine-fields">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Голос Edge</span>
+                <select id="shell-tts-edge-voice" class="shell-select shell-select--full"></select>
+              </label>
+            </div>
+          </div>
+
+          <div class="shell-tts-piper-panel" id="shell-tts-piper-panel" data-visible="0">
+            <div class="shell-tts-engine-fields">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Модель Piper (.onnx)</span>
+                <input
+                  id="shell-tts-piper-model"
+                  class="shell-input"
+                  type="text"
+                  spellcheck="false"
+                  placeholder="/path/to/ru_RU-irina-medium.onnx"
+                />
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Бинарник Piper</span>
+                <input id="shell-tts-piper-binary" class="shell-input" type="text" spellcheck="false" placeholder="piper" />
+              </label>
+            </div>
+          </div>
+
+          <div class="shell-tts-elevenlabs-panel" id="shell-tts-elevenlabs-panel" data-visible="0">
+            <div class="shell-tts-engine-fields">
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">ElevenLabs API key</span>
+                <input
+                  id="shell-tts-elevenlabs-key"
+                  class="shell-input shell-input--mono"
+                  type="text"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="sk_…"
+                />
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">ElevenLabs Voice ID</span>
+                <input id="shell-tts-elevenlabs-voice-id" class="shell-input" type="text" spellcheck="false" placeholder="21m00Tcm4TlvDq8ikWAM" />
+              </label>
+              <label class="shell-field shell-field--compact">
+                <span class="shell-label">Модель ElevenLabs</span>
+                <input
+                  id="shell-tts-elevenlabs-model"
+                  class="shell-input"
+                  type="text"
+                  spellcheck="false"
+                  placeholder="eleven_multilingual_v2"
+                />
+              </label>
+            </div>
           </div>
         </div>
+
+        <div class="shell-tts-common-settings" id="shell-tts-common-settings">
+          <div class="shell-tts-section-head">Общие настройки</div>
+        <label class="shell-field shell-field--compact shell-tts-rate-field" id="shell-tts-rate-field">
+          <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
+          <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
+        </label>
+
+        <label class="shell-field shell-field--compact">
+          <span class="shell-label shell-label-row shell-label-row--spread">
+            Промпт spoken-версии
+            <button type="button" class="shell-label-action" id="shell-tts-prompt-insert">
+              Вставить заготовку
+            </button>
+          </span>
+          <textarea
+            id="shell-tts-prompt"
+            class="shell-textarea shell-textarea--compact"
+            rows="3"
+            spellcheck="false"
+            placeholder="Инструкция для ответа: текст для голоса, затем ::: VOICE-END :::, затем полный текст. «Вставить заготовку» — шаблон."
+          ></textarea>
+        </label>
+
+        <div class="shell-field shell-field--compact shell-tts-panel-enable-field">
+          <span class="shell-tts-panel-playback" role="presentation">
+            <label
+              class="shell-tts-panel-enable shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+              title="Текст ответа агента → голос"
+            >
+              <input id="shell-tts-panel-enabled" type="checkbox" checked aria-label="Включить озвучку ответа" />
+              <span class="shell-tts-playback-emoji" aria-hidden="true">🔊</span>
+              <span class="shell-tts-playback-option-copy">
+                <span class="shell-tts-playback-option-title">Включить озвучку ответа</span>
+                <span class="shell-tts-playback-option-desc">(текст ответа агента → голос)</span>
+              </span>
+            </label>
+          </span>
+        </div>
+
+        <div class="shell-field shell-field--compact shell-tts-panel-playback-field">
+          <span class="shell-label">Способ озвучки</span>
+          <span class="shell-tts-panel-playback" role="presentation">
+            <span class="shell-tts-playback-radio shell-tts-playback-radio--panel" role="radiogroup" aria-label="Способ озвучки">
+              <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-tts-playback="dialog">
+                <input type="radio" name="shell-tts-playback-mode-panel" value="dialog" checked aria-label="Диалог" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">💬</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Диалог</span>
+                  <span class="shell-tts-playback-option-desc">(озвучка по мере печати ответа)</span>
+                </span>
+              </label>
+              <label class="shell-tts-playback-radio-option shell-tts-playback-radio-option--panel" data-tts-playback="reading">
+                <input type="radio" name="shell-tts-playback-mode-panel" value="reading" aria-label="Чтение" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">📖</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Чтение</span>
+                  <span class="shell-tts-playback-option-desc">(после полного ответа и маркера VOICE-END)</span>
+                </span>
+              </label>
+            </span>
+          </span>
+        </div>
+        </div>
+
         <div class="shell-settings-save-row">
           <div class="shell-settings-save-actions">
             <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-tts-save">
@@ -1938,6 +2019,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=356" type="module"></script>
+    <script src="/shell/shell.js?v=370" type="module"></script>
   </body>
 </html>

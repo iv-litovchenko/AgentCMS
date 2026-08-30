@@ -1,6 +1,9 @@
 import { getShellClientId } from "@shell/client-id";
 import { getShellSurfacePayload } from "@shell/surface";
 
+/** Авто-ping (heartbeat / focus / visibility). Выключено — только ручной ping({ interact: true }). */
+const PRESENCE_AUTOPING_ENABLED = false;
+
 const HEARTBEAT_MS = 8000;
 
 function buildPresenceBody(options = {}) {
@@ -78,11 +81,12 @@ export function initShellPresence(options = {}) {
 
   function setAgentId(nextAgentId) {
     agentId = String(nextAgentId || "").trim();
-    void ping();
+    if (PRESENCE_AUTOPING_ENABLED) void ping();
   }
 
   function start() {
     stopped = false;
+    if (!PRESENCE_AUTOPING_ENABLED) return;
     void ping();
     scheduleHeartbeat();
     document.addEventListener("visibilitychange", onVisibilityChange);

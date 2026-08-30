@@ -29,6 +29,28 @@ function normalizeEngine(engine) {
   return TTS_ENGINES.includes(value) ? value : "browser";
 }
 
+function ttsEngineLang(settings = {}, engine = "browser") {
+  const id = normalizeEngine(engine);
+  if (id === "browser") {
+    return String(settings.ttsBrowserLang || settings.ttsLang || "ru-RU").trim() || "ru-RU";
+  }
+  if (id === "say") {
+    return String(settings.ttsSayLang || settings.ttsLang || "ru-RU").trim() || "ru-RU";
+  }
+  return String(settings.ttsLang || "ru-RU").trim() || "ru-RU";
+}
+
+function ttsEngineVoice(settings = {}, engine = "browser") {
+  const id = normalizeEngine(engine);
+  if (id === "browser") {
+    return String(settings.ttsBrowserVoice ?? settings.ttsVoice ?? "").trim();
+  }
+  if (id === "say") {
+    return String(settings.ttsSayVoice ?? settings.ttsVoice ?? "").trim();
+  }
+  return String(settings.ttsVoice || "").trim();
+}
+
 function speechRateToSayWpm(rate) {
   const numeric = Number(rate);
   if (!Number.isFinite(numeric)) return 175;
@@ -129,7 +151,7 @@ async function listVoices(engine, settings = {}) {
     return { engine: normalized, voices: [], note: "Голоса берутся из Web Speech API в браузере" };
   }
   if (normalized === "say") {
-    const voices = await listSayVoices(settings.ttsLang);
+    const voices = await listSayVoices(ttsEngineLang(settings, "say"));
     return { engine: normalized, voices };
   }
   if (normalized === "edge") {
@@ -154,9 +176,9 @@ async function listVoices(engine, settings = {}) {
 
 async function synthesizeSay(text, settings = {}) {
   if (!isDarwin()) throw new Error("macOS say доступен только на Mac");
-  const lang = String(settings.ttsLang || "ru-RU");
+  const lang = ttsEngineLang(settings, "say");
   const voice =
-    String(settings.ttsVoice || "").trim() ||
+    ttsEngineVoice(settings, "say") ||
     DEFAULT_SAY_VOICES[lang] ||
     DEFAULT_SAY_VOICES["ru-RU"];
   const tmpBase = path.join(os.tmpdir(), `shell-tts-${Date.now()}-${Math.random().toString(16).slice(2)}`);

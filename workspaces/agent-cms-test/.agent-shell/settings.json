@@ -1,5 +1,5 @@
 {
-  "formatVersion": 4,
+  "formatVersion": 5,
   "cms": {
     "topicPath": "awn-agent-kit/agent/manifest.md",
     "channel": "thread"
@@ -9,25 +9,19 @@
     "runtimes": {
       "qwenpaw": {
         "type": "agent",
-        "baseUrl": "http://127.0.0.1:8088111",
-        "agentId": "default1",
+        "baseUrl": "http://127.0.0.1:8088",
         "sessionId": "shell-agent-cms-test-mtfp5uns-jvo1jm"
       },
       "claude": {
         "type": "cli",
-        "model": "sonnet",
-        "sessionId": "333"
-      },
-      "codex": {
-        "type": "cli",
-        "model": "3",
-        "sessionId": "3"
+        "model": "1",
+        "sessionId": "2"
       }
     }
   },
   "voice": {
     "input": {
-      "mode": "meeting",
+      "mode": "hold",
       "globalListen": false,
       "toCompose": false,
       "responseEnabled": true
@@ -37,24 +31,28 @@
       "engine": "auto"
     },
     "tts": {
-      "enabled": false,
+      "enabled": true,
       "playbackMode": "reading",
-      "engine": "say",
-      "edgeVoice": "en-US-JennyNeural",
-      "prompt": "111 TTS2222",
-      "rate": 1,
+      "engine": "browser",
+      "prompt": "2222",
+      "rate": 1.4,
       "pitch": 1,
-      "lang": "en-US",
-      "voice": "Milena",
       "stripEmoji": true,
       "includeCaptions": true,
-      "elevenlabs": {
-        "apiKey": "ElevenLabs API key",
-        "voiceId": "ElevenLabs Voice ID",
-        "model": "eleven_multilingual_v2"
-      },
-      "piper": {
-        "binary": "Строим Дашборд"
+      "engines": {
+        "browser": {
+          "lang": "en-US",
+          "voice": "Aaron"
+        },
+        "say": {
+          "lang": "en-US"
+        },
+        "edge": {
+          "voice": "ru-RU-SvetlanaNeural"
+        },
+        "elevenlabs": {
+          "model": "eleven_multilingual_v2"
+        }
       }
     }
   },

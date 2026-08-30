@@ -2,7 +2,9 @@
 
 const { RUNTIME_DEFAULTS } = require("./runtime-bridge");
 
-const SETTINGS_FORMAT_VERSION = 4;
+const SETTINGS_FORMAT_VERSION = 5;
+
+const TTS_ENGINE_IDS = ["browser", "say", "edge", "piper", "elevenlabs"];
 
 /** Тип подключения runtime на диске: cli = терминал, agent = HTTP/gateway. */
 const RUNTIME_KIND = {
@@ -64,6 +66,89 @@ function flattenQwenpawRuntime(cfg, flat) {
   if (stt.chatName !== undefined) flat.qwenpawSttChatName = stt.chatName;
 }
 
+function flattenTtsEngines(tts, flat) {
+  const engines = tts.engines && typeof tts.engines === "object" ? tts.engines : {};
+
+  const browser = engines.browser || {};
+  if (browser.lang !== undefined) flat.ttsBrowserLang = browser.lang;
+  if (browser.voice !== undefined) flat.ttsBrowserVoice = browser.voice;
+
+  const say = engines.say || {};
+  if (say.lang !== undefined) flat.ttsSayLang = say.lang;
+  if (say.voice !== undefined) flat.ttsSayVoice = say.voice;
+
+  const edge = engines.edge || {};
+  if (edge.voice !== undefined) flat.ttsEdgeVoice = edge.voice;
+
+  const piperEng = engines.piper || {};
+  if (piperEng.model !== undefined) flat.ttsPiperModel = piperEng.model;
+  if (piperEng.binary !== undefined) flat.ttsPiperBinary = piperEng.binary;
+
+  const elevenEng = engines.elevenlabs || {};
+  if (elevenEng.apiKey !== undefined) flat.ttsElevenlabsApiKey = elevenEng.apiKey;
+  if (elevenEng.voiceId !== undefined) flat.ttsElevenlabsVoiceId = elevenEng.voiceId;
+  if (elevenEng.model !== undefined) flat.ttsElevenlabsModel = elevenEng.model;
+
+  // Legacy v4: поля провайдеров на корне tts / tts.elevenlabs / tts.piper
+  if (tts.lang !== undefined) {
+    if (flat.ttsBrowserLang === undefined) flat.ttsBrowserLang = tts.lang;
+    if (flat.ttsSayLang === undefined) flat.ttsSayLang = tts.lang;
+    flat.ttsLang = tts.lang;
+  }
+  if (tts.voice !== undefined) {
+    if (flat.ttsBrowserVoice === undefined) flat.ttsBrowserVoice = tts.voice;
+    if (flat.ttsSayVoice === undefined) flat.ttsSayVoice = tts.voice;
+    flat.ttsVoice = tts.voice;
+  }
+  if (tts.edgeVoice !== undefined && flat.ttsEdgeVoice === undefined) {
+    flat.ttsEdgeVoice = tts.edgeVoice;
+  }
+
+  const legacyEleven = tts.elevenlabs || {};
+  if (legacyEleven.apiKey !== undefined && flat.ttsElevenlabsApiKey === undefined) {
+    flat.ttsElevenlabsApiKey = legacyEleven.apiKey;
+  }
+  if (legacyEleven.voiceId !== undefined && flat.ttsElevenlabsVoiceId === undefined) {
+    flat.ttsElevenlabsVoiceId = legacyEleven.voiceId;
+  }
+  if (legacyEleven.model !== undefined && flat.ttsElevenlabsModel === undefined) {
+    flat.ttsElevenlabsModel = legacyEleven.model;
+  }
+
+  const legacyPiper = tts.piper || {};
+  if (legacyPiper.model !== undefined && flat.ttsPiperModel === undefined) {
+    flat.ttsPiperModel = legacyPiper.model;
+  }
+  if (legacyPiper.binary !== undefined && flat.ttsPiperBinary === undefined) {
+    flat.ttsPiperBinary = legacyPiper.binary;
+  }
+}
+
+function nestTtsEngines(source) {
+  return compactObject({
+    browser: compactObject({
+      lang: source.ttsBrowserLang,
+      voice: source.ttsBrowserVoice
+    }),
+    say: compactObject({
+      lang: source.ttsSayLang,
+      voice: source.ttsSayVoice
+    }),
+    edge: compactObject({
+      voice: source.ttsEdgeVoice
+    }),
+    piper: compactObject({
+      model: source.ttsPiperModel,
+      binary: source.ttsPiperBinary
+    }),
+    elevenlabs: compactObject({
+      apiKey: source.ttsElevenlabsApiKey,
+      voiceId: source.ttsElevenlabsVoiceId,
+      model: source.ttsElevenlabsModel
+    })
+  });
+}
+
 function flattenSettings(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   if (!isNestedSettings(raw)) return { ...raw };
@@ -113,21 +198,12 @@ function flattenSettings(raw) {
   if (tts.enabled !== undefined) flat.ttsEnabled = tts.enabled;
   if (tts.playbackMode !== undefined) flat.ttsPlaybackMode = tts.playbackMode;
   if (tts.engine !== undefined) flat.ttsEngine = tts.engine;
-  if (tts.edgeVoice !== undefined) flat.ttsEdgeVoice = tts.edgeVoice;
   if (tts.prompt !== undefined) flat.ttsPrompt = tts.prompt;
   if (tts.rate !== undefined) flat.ttsRate = tts.rate;
   if (tts.pitch !== undefined) flat.ttsPitch = tts.pitch;
-  if (tts.lang !== undefined) flat.ttsLang = tts.lang;
-  if (tts.voice !== undefined) flat.ttsVoice = tts.voice;
   if (tts.stripEmoji !== undefined) flat.ttsStripEmoji = tts.stripEmoji;
   if (tts.includeCaptions !== undefined) flat.ttsIncludeCaptions = tts.includeCaptions;
-  const eleven = tts.elevenlabs || {};
-  if (eleven.apiKey !== undefined) flat.ttsElevenlabsApiKey = eleven.apiKey;
-  if (eleven.voiceId !== undefined) flat.ttsElevenlabsVoiceId = eleven.voiceId;
-  if (eleven.model !== undefined) flat.ttsElevenlabsModel = eleven.model;
-  const piper = tts.piper || {};
-  if (piper.model !== undefined) flat.ttsPiperModel = piper.model;
-  if (piper.binary !== undefined) flat.ttsPiperBinary = piper.binary;
+  flattenTtsEngines(tts, flat);
 
   const proactive = raw.proactive || {};
   if (proactive.enabled !== undefined) flat.proactiveEnabled = proactive.enabled;
@@ -250,23 +326,12 @@ function nestSettings(flat) {
         enabled: source.ttsEnabled,
         playbackMode: source.ttsPlaybackMode,
         engine: source.ttsEngine,
-        edgeVoice: source.ttsEdgeVoice,
         prompt: source.ttsPrompt,
         rate: source.ttsRate,
         pitch: source.ttsPitch,
-        lang: source.ttsLang,
-        voice: source.ttsVoice,
         stripEmoji: source.ttsStripEmoji,
         includeCaptions: source.ttsIncludeCaptions,
-        elevenlabs: compactObject({
-          apiKey: source.ttsElevenlabsApiKey,
-          voiceId: source.ttsElevenlabsVoiceId,
-          model: source.ttsElevenlabsModel
-        }),
-        piper: compactObject({
-          model: source.ttsPiperModel,
-          binary: source.ttsPiperBinary
-        })
+        engines: nestTtsEngines(source)
       })
     }),
     proactive: compactObject({
@@ -302,6 +367,7 @@ function nestSettings(flat) {
 
 module.exports = {
   SETTINGS_FORMAT_VERSION,
+  TTS_ENGINE_IDS,
   RUNTIME_KIND,
   runtimeKind,
   normalizeRuntimeKind,
