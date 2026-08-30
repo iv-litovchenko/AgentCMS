@@ -1,88 +1,86 @@
 {
-  "topicPath": "awn-agent-kit/agent/manifest.md",
-  "messageChannel": "thread",
-  "messageTarget": "qwenpaw",
-  "qwenpawBaseUrl": "http://127.0.0.1:8088",
-  "qwenpawAgentId": "default",
-  "qwenpawSessionId": "shell-agent-cms-test-mtahhbgc-rw06u6",
-  "qwenpawUserId": "shell",
-  "qwenpawChatName": "Новый чат",
-  "qwenpawSttSessionId": "",
-  "qwenpawSttChatName": "Shell STT",
-  "voiceInputMode": "meeting",
-  "voiceGlobalListen": false,
-  "voiceWakeName": "",
-  "voiceToCompose": false,
-  "voiceResponseEnabled": true,
-  "sttLang": "ru-RU",
-  "sttEngine": "auto",
-  "sttPrompt": "",
-  "ttsEnabled": true,
-  "ttsPlaybackMode": "dialog",
-  "ttsEngine": "edge",
-  "ttsEdgeVoice": "ru-RU-DmitryNeural",
-  "ttsElevenlabsApiKey": "",
-  "ttsElevenlabsVoiceId": "",
-  "ttsElevenlabsModel": "eleven_multilingual_v2",
-  "ttsPiperModel": "",
-  "ttsPiperBinary": "Строим Дашборд",
-  "ttsPrompt": "Сформируй ответ в следующем формате. В начале ответа добавь блок [tts], в котором сформируй краткую версию текста для озвучки (предполагается, что ты работаешь в режиме голосового ассистента). Убери emoji, markdown и подробные детали, оставь только смысл и другие незначительные детали которые можно воспроизвести через TTS (text to speech). Закрой блок [/tts].\n\nДалее — полный текст ответа для экрана.",
-  "ttsRate": 1,
-  "ttsPitch": 1,
-  "ttsLang": "ru-RU",
-  "ttsVoice": "",
-  "ttsStripEmoji": true,
-  "ttsIncludeCaptions": true,
-  "windowTopmost": true,
-  "cameraEnabled": true,
-  "cameraOnSpeech": true,
-  "cameraFacing": "user",
-  "cameraDeviceId": "",
-  "screenEnabled": false,
-  "screenOnSpeech": true,
-  "proactiveEnabled": false,
-  "proactiveIdleSeconds": 180,
-  "proactiveCooldownSeconds": 900,
-  "proactivePrompt": "",
-  "proactiveQuietHoursEnabled": false,
-  "proactiveQuietStart": "23:00",
-  "proactiveQuietEnd": "07:00",
-  "hermesBaseUrl": "http://127.0.0.1:8642",
-  "hermesApiKey": "",
-  "hermesModel": "hermes-agent",
-  "hermesProfile": "",
-  "hermesAgentId": "",
-  "hermesSessionId": "agent-shell",
-  "openclawBaseUrl": "http://127.0.0.1:18789",
-  "openclawApiKey": "",
-  "openclawModel": "openclaw/default",
-  "openclawProfile": "",
-  "openclawAgentId": "",
-  "openclawSessionId": "agent-shell",
-  "cursorBaseUrl": "http://127.0.0.1:3210",
-  "cursorApiKey": "",
-  "cursorModel": "default",
-  "cursorProfile": "",
-  "cursorAgentId": "",
-  "cursorSessionId": "agent-shell",
-  "codexCliPath": "codex",
-  "codexModel": "",
-  "codexSessionId": "agent-shell",
-  "claudeCliPath": "claude",
-  "claudeModel": "claude-sonnet-4-20250514",
-  "claudeSessionId": "agent-shell",
-  "agent-zeroBaseUrl": "http://127.0.0.1:42617",
-  "agent-zeroApiKey": "",
-  "agent-zeroModel": "agent-zero",
-  "agent-zeroProfile": "",
-  "agent-zeroAgentId": "",
-  "agent-zeroSessionId": "agent-shell",
-  "codexBaseUrl": "https://api.openai.com",
-  "codexApiKey": "",
-  "codexProfile": "",
-  "codexAgentId": "",
-  "claudeBaseUrl": "https://api.anthropic.com",
-  "claudeApiKey": "",
-  "claudeProfile": "",
-  "claudeAgentId": ""
+  "formatVersion": 4,
+  "cms": {
+    "topicPath": "awn-agent-kit/agent/manifest.md",
+    "channel": "thread"
+  },
+  "route": {
+    "runtime": "claude",
+    "runtimes": {
+      "qwenpaw": {
+        "type": "agent",
+        "baseUrl": "http://127.0.0.1:8088111",
+        "agentId": "default1",
+        "sessionId": "shell-agent-cms-test-mtfp5uns-jvo1jm"
+      },
+      "claude": {
+        "type": "cli",
+        "model": "sonnet",
+        "sessionId": "333"
+      },
+      "codex": {
+        "type": "cli",
+        "model": "3",
+        "sessionId": "3"
+      }
+    }
+  },
+  "voice": {
+    "input": {
+      "mode": "meeting",
+      "globalListen": false,
+      "toCompose": false,
+      "responseEnabled": true
+    },
+    "stt": {
+      "lang": "ru-RU",
+      "engine": "auto"
+    },
+    "tts": {
+      "enabled": false,
+      "playbackMode": "reading",
+      "engine": "say",
+      "edgeVoice": "en-US-JennyNeural",
+      "prompt": "111 TTS2222",
+      "rate": 1,
+      "pitch": 1,
+      "lang": "en-US",
+      "voice": "Milena",
+      "stripEmoji": true,
+      "includeCaptions": true,
+      "elevenlabs": {
+        "apiKey": "ElevenLabs API key",
+        "voiceId": "ElevenLabs Voice ID",
+        "model": "eleven_multilingual_v2"
+      },
+      "piper": {
+        "binary": "Строим Дашборд"
+      }
+    }
+  },
+  "proactive": {
+    "enabled": false,
+    "idleSeconds": 100,
+    "cooldownSeconds": 901,
+    "prompt": "111",
+    "quietHours": {
+      "enabled": true,
+      "start": "21:00",
+      "end": "05:00"
+    }
+  },
+  "media": {
+    "camera": {
+      "enabled": false,
+      "onSpeech": true,
+      "facing": "user"
+    },
+    "screen": {
+      "enabled": false,
+      "onSpeech": true
+    }
+  },
+  "window": {
+    "topmost": true
+  }
 }

@@ -1,14 +1,23 @@
 /** Куда Shell отправляет сообщения (runtime / «кто думает»). */
 
-export const SHELL_RUNTIMES = [
-  "claude",
-  "codex",
-  "cursor",
-  "openclaw",
-  "hermes",
-  "agent-zero",
-  "qwenpaw"
+/** Группы runtime в select (optgroup). */
+export const SHELL_RUNTIME_GROUPS = [
+  {
+    id: "cli",
+    label: "CLI в терминале",
+    hint: "Локальные бинарники — Shell запускает claude / codex в каталоге workspace.",
+    runtimes: ["claude", "codex"]
+  },
+  {
+    id: "agents",
+    label: "Агентские системы",
+    hint: "Серверы и gateway — QwenPaw, OpenClaw, Hermes и др.; HTTP/API или свой runtime.",
+    runtimes: ["qwenpaw", "cursor", "openclaw", "hermes", "agent-zero"]
+  }
 ];
+
+/** Плоский список (порядок = группы). */
+export const SHELL_RUNTIMES = SHELL_RUNTIME_GROUPS.flatMap((group) => group.runtimes);
 
 /** Подключено в Shell (маршрутизация + настройки). */
 export const SHELL_RUNTIME_IMPLEMENTED = new Set(["qwenpaw", "claude", "codex"]);
@@ -66,26 +75,60 @@ export function formatRuntimeStatusEmoji(conn) {
   }
 }
 
-export function formatRuntimeSelectLabel(runtime, { implemented = true, status = null, conn = null } = {}) {
+export function runtimeShowsCliVersion(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  return id === "claude" || id === "codex" || id === "qwenpaw";
+}
+
+/** Короткая версия из вывода `claude --version` / `codex --version` / `qwen --version`. */
+export function formatShortCliVersion(raw) {
+  const line = String(raw || "")
+    .trim()
+    .split(/\r?\n/)[0]
+    .trim();
+  if (!line) return "";
+  const leading = line.match(/^(\d+\.\d+\.\d+(?:[-+][\w.]*)?)/);
+  if (leading) return leading[1];
+  const embedded = line.match(/(\d+\.\d+\.\d+(?:[-+][\w.]*)?)/);
+  if (embedded) return embedded[1];
+  return line.length <= 20 ? line : `${line.slice(0, 18)}…`;
+}
+
+export function formatRuntimeCliVersion(runtime, status) {
+  if (!runtimeShowsCliVersion(runtime)) return "";
+  return formatShortCliVersion(status?.version);
+}
+
+export function formatRuntimeSelectLabel(
+  runtime,
+  { implemented = true, status = null, conn = null, showVersion = false } = {}
+) {
   const id = String(runtime || "").trim();
   const label = SHELL_RUNTIME_LABELS[id] || id;
   const connection = conn || resolveRuntimeConnectionState(id, status, { implemented });
   const emoji = formatRuntimeStatusEmoji(connection);
   if (!implemented) return `${emoji} ${label} — скоро`;
-  return `${emoji} ${label}`;
+  const ver = showVersion ? formatRuntimeCliVersion(id, status) : "";
+  return ver ? `${emoji} ${label} · ${ver}` : `${emoji} ${label}`;
 }
 
 export function formatRuntimeStatusTitle(runtime, status, { implemented = true } = {}) {
   const id = String(runtime || "").trim();
   const label = SHELL_RUNTIME_LABELS[id] || id;
   const conn = resolveRuntimeConnectionState(id, status, { implemented });
+  const verRaw = String(status?.version || "").trim();
+  const verShort = formatRuntimeCliVersion(id, status);
+  const verDetail = verRaw && verRaw !== verShort ? ` (${verRaw})` : "";
+  const versionSuffix = verShort ? ` · v${verShort}${verDetail}` : "";
   if (!implemented) return `${label} — скоро`;
-  if (conn === "live") return `${label} · на связи`;
-  if (conn === "connecting") return `${label} · проверка…`;
-  if (conn === "unconfigured") return `${label} · CLI не установлен`;
+  if (conn === "live") return `${label}${versionSuffix} · на связи`;
+  if (conn === "connecting") return `${label}${versionSuffix} · проверка…`;
+  if (conn === "unconfigured") {
+    return verShort ? `${label} · v${verShort} · CLI не установлен` : `${label} · CLI не установлен`;
+  }
   if (conn === "soon") return `${label} — скоро`;
   const detail = String(status?.error || "").trim();
-  return detail ? `${label} · ${detail}` : `${label} · недоступен`;
+  return detail ? `${label}${versionSuffix} · ${detail}` : `${label}${versionSuffix} · недоступен`;
 }
 
 /** Короткая подсказка под select (1 строка). */
@@ -96,7 +139,7 @@ export const SHELL_RUNTIME_HINTS = {
   openclaw: "OpenClaw Gateway — локальный агент, :18789, heartbeat и каналы.",
   hermes: "Hermes Agent — Nous Research, профили, API :8642/v1.",
   "agent-zero": "Agent Zero — автономный агент, gateway :42617, bearer token.",
-  qwenpaw: "QwenPaw — локальный агент :8088, чаты и MCP к Agent CMS."
+  qwenpaw: "QwenPaw — qwen CLI в PATH (qwen --version), сервер :8088, чаты и MCP к Agent CMS."
 };
 
 /** Развёрнутое описание runtime для панели маршрута. */
@@ -250,12 +293,28 @@ export function runtimeUsesCli(runtime) {
   return id === "claude" || id === "codex";
 }
 
-export function runtimeShowsProfile(runtime) {
-  return normalizeMessageRuntime(runtime) === "hermes";
+export function runtimeShowsModel(runtime) {
+  return runtimeUsesCli(runtime);
 }
 
-export function runtimeShowsAgentId(runtime) {
-  return normalizeMessageRuntime(runtime) === "openclaw";
+/** Подпись поля «профиль / агент» для HTTP-runtime (не QwenPaw). */
+export function runtimeAgentFieldLabel(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  if (id === "hermes") return "Профиль";
+  if (id === "openclaw") return "Агент";
+  return "Профиль / агент";
+}
+
+/** Одно поле «профиль / агент» для HTTP-runtime (не QwenPaw, не CLI). */
+export function runtimeShowsAgentMeta(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  if (runtimeUsesCli(id) || runtimeUsesQwenPaw(id)) return false;
+  return id === "hermes" || id === "openclaw" || id === "cursor" || id === "agent-zero";
+}
+
+/** Ключ в settings для поля профиль/агент. */
+export function runtimeAgentMetaKey(runtime) {
+  return normalizeMessageRuntime(runtime) === "openclaw" ? "agentId" : "profile";
 }
 
 export function runtimeShowsApiKey(runtime) {

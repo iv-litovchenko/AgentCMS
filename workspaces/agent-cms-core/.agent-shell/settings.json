@@ -1,84 +1,68 @@
 {
-  "topicPath": "awn-agent-kit/agent/manifest.md",
-  "messageChannel": "thread",
-  "messageTarget": "qwenpaw",
-  "qwenpawBaseUrl": "http://127.0.0.1:8088",
-  "qwenpawAgentId": "Aya",
-  "qwenpawSessionId": "agent-shell",
-  "qwenpawUserId": "shell",
-  "qwenpawChatName": "",
-  "qwenpawSttSessionId": "",
-  "qwenpawSttChatName": "Shell STT",
-  "voiceInputMode": "hold",
-  "voiceGlobalListen": false,
-  "voiceWakeName": "",
-  "voiceToCompose": false,
-  "voiceResponseEnabled": true,
-  "sttLang": "ru-RU",
-  "sttEngine": "auto",
-  "sttPrompt": "",
-  "ttsEnabled": true,
-  "ttsPlaybackMode": "reading",
-  "ttsEngine": "edge",
-  "ttsEdgeVoice": "ru-RU-SvetlanaNeural",
-  "ttsElevenlabsApiKey": "",
-  "ttsElevenlabsVoiceId": "",
-  "ttsElevenlabsModel": "eleven_multilingual_v2",
-  "ttsPiperModel": "",
-  "ttsPiperBinary": "",
-  "ttsPrompt": "",
-  "ttsRate": 1,
-  "ttsPitch": 1,
-  "ttsLang": "ru-RU",
-  "ttsVoice": "",
-  "ttsStripEmoji": true,
-  "ttsIncludeCaptions": true,
-  "windowTopmost": true,
-  "cameraEnabled": false,
-  "cameraOnSpeech": true,
-  "cameraFacing": "user",
-  "cameraDeviceId": "",
-  "screenEnabled": false,
-  "screenOnSpeech": true,
-  "proactiveEnabled": false,
-  "proactiveIdleSeconds": 180,
-  "proactiveCooldownSeconds": 900,
-  "proactivePrompt": "",
-  "proactiveQuietHoursEnabled": false,
-  "proactiveQuietStart": "23:00",
-  "proactiveQuietEnd": "07:00",
-  "hermesBaseUrl": "http://127.0.0.1:8642",
-  "hermesApiKey": "",
-  "hermesModel": "hermes-agent",
-  "hermesProfile": "",
-  "hermesAgentId": "",
-  "hermesSessionId": "agent-shell",
-  "openclawBaseUrl": "http://127.0.0.1:18789",
-  "openclawApiKey": "",
-  "openclawModel": "openclaw/default",
-  "openclawProfile": "",
-  "openclawAgentId": "",
-  "openclawSessionId": "agent-shell",
-  "cursorBaseUrl": "http://127.0.0.1:3210",
-  "cursorApiKey": "",
-  "cursorModel": "default",
-  "cursorProfile": "",
-  "cursorAgentId": "",
-  "cursorSessionId": "agent-shell",
-  "codexCliPath": "codex",
-  "codexModel": "",
-  "codexSessionId": "",
-  "claudeCliPath": "claude",
-  "claudeModel": "",
-  "claudeSessionId": "",
-  "agent-zeroBaseUrl": "http://127.0.0.1:42617",
-  "agent-zeroApiKey": "",
-  "agent-zeroModel": "agent-zero",
-  "agent-zeroProfile": "",
-  "agent-zeroAgentId": "",
-  "agent-zeroSessionId": "agent-shell",
-  "codexProfile": "",
-  "codexAgentId": "",
-  "claudeProfile": "",
-  "claudeAgentId": ""
+  "formatVersion": 4,
+  "cms": {
+    "topicPath": "awn-agent-kit/agent/manifest.md",
+    "channel": "thread"
+  },
+  "route": {
+    "runtime": "qwenpaw",
+    "runtimes": {
+      "qwenpaw": {
+        "type": "agent",
+        "baseUrl": "http://127.0.0.1:8088",
+        "agentId": "Aya",
+        "sessionId": "agent-shell"
+      }
+    }
+  },
+  "voice": {
+    "input": {
+      "mode": "hold",
+      "globalListen": false,
+      "toCompose": false,
+      "responseEnabled": true
+    },
+    "stt": {
+      "lang": "ru-RU",
+      "engine": "auto"
+    },
+    "tts": {
+      "enabled": true,
+      "playbackMode": "reading",
+      "engine": "edge",
+      "edgeVoice": "ru-RU-SvetlanaNeural",
+      "rate": 1,
+      "pitch": 1,
+      "lang": "ru-RU",
+      "stripEmoji": true,
+      "includeCaptions": true,
+      "elevenlabs": {
+        "model": "eleven_multilingual_v2"
+      }
+    }
+  },
+  "proactive": {
+    "enabled": false,
+    "idleSeconds": 180,
+    "cooldownSeconds": 900,
+    "quietHours": {
+      "enabled": false,
+      "start": "23:00",
+      "end": "07:00"
+    }
+  },
+  "media": {
+    "camera": {
+      "enabled": false,
+      "onSpeech": true,
+      "facing": "user"
+    },
+    "screen": {
+      "enabled": false,
+      "onSpeech": true
+    }
+  },
+  "window": {
+    "topmost": true
+  }
 }

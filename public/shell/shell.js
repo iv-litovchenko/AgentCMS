@@ -77,6 +77,7 @@ import {
 } from "@shell/voice-modes";
 import {
   SHELL_RUNTIMES,
+  SHELL_RUNTIME_GROUPS,
   SHELL_RUNTIME_LABELS,
   SHELL_RUNTIME_HINTS,
   formatRuntimeSelectLabel,
@@ -89,16 +90,23 @@ import {
   runtimeUsesQwenPaw,
   runtimeUsesBridge,
   bridgeRuntimeField,
-  runtimeShowsProfile,
-  runtimeShowsAgentId,
+  runtimeShowsAgentMeta,
+  runtimeAgentMetaKey,
   runtimeUsesCli,
+  runtimeShowsModel,
+  runtimeAgentFieldLabel,
   runtimeShowsApiKey,
-  runtimeShowsBaseUrl,
-  runtimeModelPresets
+  runtimeShowsBaseUrl
 } from "@shell/runtimes";
 
 const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
 const VOICE_MODE_USER_GRACE_MS = 30000;
+/** Блокирует перезапись hero/header-контролов из SSE status во время autosave. */
+const heroAutosaveInFlight = {
+  messageTarget: false,
+  ttsEnabled: false,
+  ttsPlaybackMode: false
+};
 let ttsPlaybackModePersisting = false;
 let voiceInputModePersisting = false;
 let voiceModeUserChangedAt = 0;
@@ -120,8 +128,26 @@ function getTtsPlaybackMode() {
   return mode === "reading" ? "reading" : "dialog";
 }
 
+function beginHeroAutosave(field) {
+  if (field && Object.prototype.hasOwnProperty.call(heroAutosaveInFlight, field)) {
+    heroAutosaveInFlight[field] = true;
+  }
+}
+
+function endHeroAutosave(field) {
+  if (field && Object.prototype.hasOwnProperty.call(heroAutosaveInFlight, field)) {
+    heroAutosaveInFlight[field] = false;
+  }
+}
+
+function isHeroAutosaveActive(field) {
+  return Boolean(field && heroAutosaveInFlight[field]);
+}
+
 function syncTtsPlaybackModeUi(settings = state.settings) {
-  if (!nodes.ttsPlaybackModeGroup || ttsPlaybackModePersisting) return;
+  if (!nodes.ttsPlaybackModeGroup || ttsPlaybackModePersisting || isHeroAutosaveActive("ttsPlaybackMode")) {
+    return;
+  }
   const active = document.activeElement;
   if (active && nodes.ttsPlaybackModeGroup.contains(active)) return;
   const mode = settings?.ttsPlaybackMode === "reading" ? "reading" : "dialog";
@@ -701,11 +727,10 @@ const nodes = {
   bridgeApiKey: document.getElementById("shell-runtime-bridge-api-key"),
   bridgeApiKeyField: document.getElementById("shell-runtime-bridge-api-key-field"),
   bridgeModel: document.getElementById("shell-runtime-bridge-model"),
-  bridgeModelNote: document.getElementById("shell-runtime-bridge-model-note"),
-  bridgeProfileField: document.getElementById("shell-runtime-bridge-profile-field"),
-  bridgeProfile: document.getElementById("shell-runtime-bridge-profile"),
+  bridgeModelField: document.getElementById("shell-runtime-bridge-model-field"),
+  bridgeAgentLabel: document.getElementById("shell-runtime-bridge-agent-label"),
   bridgeAgentField: document.getElementById("shell-runtime-bridge-agent-field"),
-  bridgeAgentId: document.getElementById("shell-runtime-bridge-agent-id"),
+  bridgeAgentMeta: document.getElementById("shell-runtime-bridge-agent-meta"),
   bridgeSessionId: document.getElementById("shell-runtime-bridge-session-id"),
   ttsEnabled: document.getElementById("shell-tts-enabled"),
   ttsPlaybackModeGroup: document.getElementById("shell-tts-playback-mode"),
@@ -932,6 +957,7 @@ function initShellProactiveController() {
     persistEnabled: async (enabled) => {
       await saveSettings({ proactiveEnabled: enabled });
       if (nodes.proactiveEnabled) nodes.proactiveEnabled.checked = enabled;
+      settingsSave.patchBaseline("proactive", { proactiveEnabled: enabled });
     }
   });
   shellProactive.start();
@@ -3040,65 +3066,13 @@ function collectWindowSnapshot() {
   return buildWindowSettingsPayload();
 }
 
-function populateBridgeModelSelect(runtime, selected = "") {
-  const select = nodes.bridgeModel;
-  if (!select) return;
+function applyBridgeModelPlaceholder(runtime) {
+  const input = nodes.bridgeModel;
+  if (!input) return;
   const id = normalizeMessageRuntime(runtime);
-  const presets = runtimeModelPresets(id);
-  const value = String(selected ?? "").trim();
-  select.replaceChildren();
-  const seen = new Set();
-  for (const item of presets) {
-    const opt = document.createElement("option");
-    opt.value = item.value;
-    opt.textContent = item.label;
-    select.append(opt);
-    seen.add(item.value);
-  }
-  if (value && !seen.has(value)) {
-    const opt = document.createElement("option");
-    opt.value = value;
-    opt.textContent = value;
-    select.append(opt);
-  }
-  select.value = value;
-}
-
-function setBridgeModelNote(runtime) {
-  const note = nodes.bridgeModelNote;
-  if (!note) return;
-  const id = normalizeMessageRuntime(runtime);
-  if (!runtimeUsesBridge(id)) {
-    note.textContent = "";
-    return;
-  }
-  if (runtimeUsesCli(id)) {
-    note.textContent =
-      id === "codex"
-        ? "«По умолчанию» — модель из codex login. Выбор выше → codex exec … -m <model>."
-        : "«По умолчанию» — модель из claude login. Выбор выше → claude -p … --model <model>.";
-    return;
-  }
-  note.textContent = "Model id для OpenAI-compatible endpoint. Свой id из /v1/models можно прописать в settings.json.";
-}
-
-function collectBridgeFormPatch(runtime) {
-  const id = normalizeMessageRuntime(runtime);
-  const defaults = RUNTIME_DEFAULTS[id] || {};
-  const patch = {
-    [bridgeRuntimeField(id, "model")]: nodes.bridgeModel?.value.trim() || defaults.model || "",
-    [bridgeRuntimeField(id, "profile")]: nodes.bridgeProfile?.value.trim() || "",
-    [bridgeRuntimeField(id, "agentId")]: nodes.bridgeAgentId?.value.trim() || "",
-    [bridgeRuntimeField(id, "sessionId")]: nodes.bridgeSessionId?.value.trim() || defaults.sessionId || ""
-  };
-  if (runtimeUsesCli(id)) {
-    patch[bridgeRuntimeField(id, "cliPath")] =
-      nodes.bridgeUrl?.value.trim() || defaults.cliPath || (id === "codex" ? "codex" : "claude");
-  } else {
-    patch[bridgeRuntimeField(id, "baseUrl")] = nodes.bridgeUrl?.value.trim() || defaults.baseUrl || "";
-    patch[bridgeRuntimeField(id, "apiKey")] = nodes.bridgeApiKey?.value.trim() || "";
-  }
-  return patch;
+  if (!runtimeUsesCli(id)) return;
+  input.placeholder =
+    id === "codex" ? "По умолчанию из codex login" : "По умолчанию из claude login";
 }
 
 function applyBridgeForm(runtime, settings = state.settings || {}) {
@@ -3106,34 +3080,108 @@ function applyBridgeForm(runtime, settings = state.settings || {}) {
   const defaults = RUNTIME_DEFAULTS[id] || {};
   const read = (field) => String(settings[bridgeRuntimeField(id, field)] ?? "").trim();
   if (runtimeUsesCli(id)) {
-    if (nodes.bridgeUrl) {
+    if (nodes.bridgeUrl && document.activeElement !== nodes.bridgeUrl) {
       nodes.bridgeUrl.value =
         read("cliPath") || defaults.cliPath || (id === "codex" ? "codex" : "claude");
     }
   } else {
-    if (nodes.bridgeUrl) nodes.bridgeUrl.value = read("baseUrl") || defaults.baseUrl || "";
-    if (nodes.bridgeApiKey) nodes.bridgeApiKey.value = read("apiKey");
+    if (nodes.bridgeUrl && document.activeElement !== nodes.bridgeUrl) {
+      nodes.bridgeUrl.value = read("baseUrl") || defaults.baseUrl || "";
+    }
+    if (nodes.bridgeApiKey && document.activeElement !== nodes.bridgeApiKey) {
+      nodes.bridgeApiKey.value = read("apiKey");
+    }
   }
-  populateBridgeModelSelect(id, read("model") || defaults.model || "");
-  setBridgeModelNote(id);
-  if (nodes.bridgeProfile) nodes.bridgeProfile.value = read("profile");
-  if (nodes.bridgeAgentId) nodes.bridgeAgentId.value = read("agentId");
-  if (nodes.bridgeSessionId) {
+  if (nodes.bridgeModel && document.activeElement !== nodes.bridgeModel) {
+    nodes.bridgeModel.value = read("model") || defaults.model || "";
+  }
+  applyBridgeModelPlaceholder(id);
+  if (nodes.bridgeAgentMeta && document.activeElement !== nodes.bridgeAgentMeta) {
+    nodes.bridgeAgentMeta.value = read(runtimeAgentMetaKey(id));
+  }
+  if (nodes.bridgeSessionId && document.activeElement !== nodes.bridgeSessionId) {
     nodes.bridgeSessionId.value = read("sessionId") || defaults.sessionId || "";
   }
 }
 
-function collectRouteSnapshot() {
-  const runtime = getSelectedRuntime();
-  const patch = {
-    messageTarget: runtime,
-    qwenpawBaseUrl: nodes.qwenpawUrl?.value.trim() || "http://127.0.0.1:8088",
-    qwenpawAgentId: nodes.qwenpawAgentId?.value.trim() || "default"
+function applyQwenpawRouteForm(settings = state.settings || {}) {
+  if (nodes.qwenpawUrl && document.activeElement !== nodes.qwenpawUrl) {
+    nodes.qwenpawUrl.value = settings.qwenpawBaseUrl || "http://127.0.0.1:8088";
+  }
+  if (nodes.qwenpawAgentId && document.activeElement !== nodes.qwenpawAgentId) {
+    nodes.qwenpawAgentId.value = settings.qwenpawAgentId || "default";
+  }
+  void loadQwenPawAgents(settings.qwenpawAgentId || "default");
+}
+
+function routeRuntimeFlatFields(runtimeId) {
+  const id = normalizeMessageRuntime(runtimeId);
+  if (runtimeUsesCli(id)) return ["cliPath", "model", "sessionId"];
+  return ["baseUrl", "apiKey", "model", "profile", "agentId", "sessionId"];
+}
+
+function buildRouteSnapshotFromSettings(settings = state.settings || {}) {
+  const snap = {
+    messageTarget: normalizeMessageRuntime(settings.messageTarget || "qwenpaw"),
+    qwenpawBaseUrl: String(settings.qwenpawBaseUrl || "http://127.0.0.1:8088").trim() || "http://127.0.0.1:8088",
+    qwenpawAgentId: String(settings.qwenpawAgentId || "default").trim() || "default"
   };
-  if (runtimeUsesBridge(runtime)) {
-    Object.assign(patch, collectBridgeFormPatch(runtime));
+  for (const id of SHELL_RUNTIMES) {
+    if (id === "qwenpaw") continue;
+    for (const field of routeRuntimeFlatFields(id)) {
+      const key = bridgeRuntimeField(id, field);
+      snap[key] = String(settings[key] ?? "").trim();
+    }
+  }
+  return snap;
+}
+
+function applyRouteFormFromSettings(settings = state.settings || {}) {
+  if (!settings) return;
+  const available = getSelectableRuntimes();
+  const runtime = fillRuntimeSelect(
+    nodes.messageTarget,
+    normalizeMessageRuntime(settings.messageTarget || "qwenpaw"),
+    available
+  );
+  fillRuntimeSelect(nodes.routeRuntime, runtime, available);
+  syncRuntimeSelects();
+  if (state.settings) state.settings.messageTarget = runtime;
+  applyQwenpawRouteForm(settings);
+  applyBridgeForm(runtime, settings);
+  updateRuntimeUi({ reloadForms: false });
+}
+
+function collectBridgeFormPatch(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  const defaults = RUNTIME_DEFAULTS[id] || {};
+  const patch = {
+    [bridgeRuntimeField(id, "sessionId")]: nodes.bridgeSessionId?.value.trim() || defaults.sessionId || ""
+  };
+  if (runtimeShowsAgentMeta(id)) {
+    patch[bridgeRuntimeField(id, runtimeAgentMetaKey(id))] = nodes.bridgeAgentMeta?.value.trim() || "";
+  }
+  if (runtimeUsesCli(id)) {
+    patch[bridgeRuntimeField(id, "cliPath")] =
+      nodes.bridgeUrl?.value.trim() || defaults.cliPath || (id === "codex" ? "codex" : "claude");
+    patch[bridgeRuntimeField(id, "model")] = nodes.bridgeModel?.value.trim() || "";
+  } else {
+    patch[bridgeRuntimeField(id, "baseUrl")] = nodes.bridgeUrl?.value.trim() || defaults.baseUrl || "";
+    patch[bridgeRuntimeField(id, "apiKey")] = nodes.bridgeApiKey?.value.trim() || "";
   }
   return patch;
+}
+
+function collectRouteSnapshot() {
+  const runtime = getSelectedRuntime();
+  const snap = buildRouteSnapshotFromSettings(state.settings || {});
+  snap.messageTarget = runtime;
+  snap.qwenpawBaseUrl = nodes.qwenpawUrl?.value.trim() || snap.qwenpawBaseUrl;
+  snap.qwenpawAgentId = nodes.qwenpawAgentId?.value.trim() || snap.qwenpawAgentId;
+  if (runtimeUsesBridge(runtime)) {
+    Object.assign(snap, collectBridgeFormPatch(runtime));
+  }
+  return snap;
 }
 
 function getSettingsSnapshot(section) {
@@ -3166,6 +3214,16 @@ function previewWindowFromForm() {
   });
 }
 
+function isSettingsViewOpen() {
+  return document.getElementById("shell-app")?.dataset.view === "settings";
+}
+
+function isAnySettingsSectionDirty() {
+  return ["window", "route", "proactive", "tts", "stt"].some((section) =>
+    settingsSave.isSectionDirty(section)
+  );
+}
+
 async function saveSettingsSection(section) {
   if (section === "window") {
     await saveWindowSettings(collectWindowSnapshot());
@@ -3174,20 +3232,41 @@ async function saveSettingsSection(section) {
   }
 
   const patch = getSettingsSnapshot(section);
-  if (section === "route") updateRuntimeUi();
   if (section === "stt") {
     applyRecognitionLang(patch.sttLang);
   }
-  await saveSettings(patch);
+  const applyMode =
+    section === "route" || section === "tts" || section === "stt" ? "none" : "full";
+  await saveSettings(patch, { apply: applyMode });
+  applySavedSettingsSection(section, state.settings);
   settingsSave.commitBaseline(section, getSettingsSnapshot(section));
+}
+
+function applySavedSettingsSection(section, settings = state.settings) {
+  if (!settings) return;
+  if (section === "route") applyRouteFormFromSettings(settings);
+  else if (section === "proactive") applyProactiveFormUi(settings);
+  else if (section === "stt") applySttSettingsUi(settings);
+  else if (section === "tts") applyTtsSettingsUi(settings);
+}
+
+function applyRouteSummarySettings(settings = state.settings) {
+  if (!settings || settingsSave.isSectionDirty("route") || isHeroAutosaveActive("messageTarget")) return;
+  applyRouteFormFromSettings(settings);
+  refreshRuntimeSelectLabels();
 }
 
 function applyTtsSummarySettings(settings = state.settings) {
   if (!settings) return;
-  if (document.activeElement !== nodes.ttsEnabled) {
+  if (
+    !isHeroAutosaveActive("ttsEnabled") &&
+    document.activeElement !== nodes.ttsEnabled
+  ) {
     nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
   }
-  syncTtsPlaybackModeUi(settings);
+  if (!isHeroAutosaveActive("ttsPlaybackMode")) {
+    syncTtsPlaybackModeUi(settings);
+  }
 }
 
 function applySttSummarySettings(settings = state.settings) {
@@ -3196,28 +3275,29 @@ function applySttSummarySettings(settings = state.settings) {
 }
 
 function applySettings(settings) {
+  if (!settings) return;
   state.settings = settings;
 
-  if (!settingsSave.isSectionDirty("route")) {
-    populateRuntimeSelect(settings.messageTarget || "qwenpaw");
-    nodes.qwenpawUrl.value = settings.qwenpawBaseUrl || "http://127.0.0.1:8088";
-    nodes.qwenpawAgentId.value = settings.qwenpawAgentId || "default";
-    void loadQwenPawAgents(settings.qwenpawAgentId || "default");
-    applyBridgeForm(normalizeMessageRuntime(settings.messageTarget || "qwenpaw"), settings);
-    updateRuntimeUi();
+  if (!settingsSave.isSectionDirty("route") && !isHeroAutosaveActive("messageTarget")) {
+    applyRouteFormFromSettings(settings);
   }
 
-  if (!settingsSave.isSectionDirty("tts") && document.activeElement !== nodes.ttsEnabled) {
+  if (
+    !settingsSave.isSectionDirty("tts") &&
+    !isHeroAutosaveActive("ttsEnabled") &&
+    document.activeElement !== nodes.ttsEnabled
+  ) {
     nodes.ttsEnabled.checked = settings.ttsEnabled !== false;
   }
-  syncTtsPlaybackModeUi(settings);
+  if (!settingsSave.isSectionDirty("tts") && !isHeroAutosaveActive("ttsPlaybackMode")) {
+    syncTtsPlaybackModeUi(settings);
+  }
   if (!settingsSave.isSectionDirty("tts")) {
     applyTtsSettingsUi(settings);
   }
 
-  applySttToggleUi(settings);
   if (!settingsSave.isSectionDirty("stt")) {
-    applySttFormUi(settings);
+    applySttSettingsUi(settings);
   }
 
   if (nodes.cameraFacing) {
@@ -3434,63 +3514,114 @@ async function ensureShellAgentSelected() {
   return state.agentId;
 }
 
+function readRuntimeSelectValue(selectEl) {
+  if (!selectEl) return "";
+  const raw = String(selectEl.value ?? "").trim();
+  return raw ? normalizeMessageRuntime(raw) : "";
+}
+
+function setRuntimeSelectValue(selectEl, runtime, available = getSelectableRuntimes()) {
+  if (!selectEl) return normalizeMessageRuntime(runtime || "qwenpaw");
+  const wanted = normalizeMessageRuntime(runtime || "qwenpaw");
+  const value = available.includes(wanted)
+    ? wanted
+    : available.includes("qwenpaw")
+      ? "qwenpaw"
+      : available[0] || "qwenpaw";
+  let matched = false;
+  for (const opt of selectEl.options) {
+    if (!opt.value || opt.disabled) continue;
+    const hit = opt.value === value;
+    opt.selected = hit;
+    if (hit) matched = true;
+  }
+  if (matched) selectEl.value = value;
+  else if (selectEl.options.length) {
+    for (const opt of selectEl.options) {
+      if (opt.value && !opt.disabled) {
+        opt.selected = true;
+        selectEl.value = opt.value;
+        return normalizeMessageRuntime(opt.value);
+      }
+    }
+  }
+  return normalizeMessageRuntime(selectEl.value || value);
+}
+
 function syncRuntimeSelects(preferred = "") {
-  const raw =
-    preferred === "route"
-      ? nodes.routeRuntime?.value
-      : preferred === "header"
-        ? nodes.messageTarget?.value
-        : nodes.routeRuntime?.value || nodes.messageTarget?.value || state.settings?.messageTarget || "qwenpaw";
+  let raw = state.settings?.messageTarget || "qwenpaw";
+  if (preferred === "route") {
+    raw = readRuntimeSelectValue(nodes.routeRuntime) || nodes.routeRuntime?.value || raw;
+  } else if (preferred === "header") {
+    raw = readRuntimeSelectValue(nodes.messageTarget) || nodes.messageTarget?.value || raw;
+  } else {
+    raw =
+      readRuntimeSelectValue(nodes.routeRuntime) ||
+      readRuntimeSelectValue(nodes.messageTarget) ||
+      raw;
+  }
   const runtime = normalizeMessageRuntime(raw);
-  if (nodes.messageTarget) nodes.messageTarget.value = runtime;
-  if (nodes.routeRuntime) nodes.routeRuntime.value = runtime;
+  const available = getSelectableRuntimes();
+  setRuntimeSelectValue(nodes.messageTarget, runtime, available);
+  setRuntimeSelectValue(nodes.routeRuntime, runtime, available);
 }
 
 function getSelectedRuntime() {
-  const raw =
-    nodes.routeRuntime?.value ||
-    nodes.messageTarget?.value ||
-    state.settings?.messageTarget ||
-    "qwenpaw";
-  return normalizeMessageRuntime(raw);
+  const fromRoute = readRuntimeSelectValue(nodes.routeRuntime);
+  if (fromRoute) return fromRoute;
+  const fromHeader = readRuntimeSelectValue(nodes.messageTarget);
+  if (fromHeader) return fromHeader;
+  return normalizeMessageRuntime(state.settings?.messageTarget || "qwenpaw");
 }
 
 function getSelectableRuntimes() {
   return SHELL_RUNTIMES.filter((runtime) => isRuntimeImplemented(runtime));
 }
 
+function createRuntimeSelectOption(runtime, current, available, { showVersion = false } = {}) {
+  const opt = document.createElement("option");
+  const selectable = available.includes(runtime);
+  const status = selectable ? getRuntimeStatus(runtime) : null;
+  const conn = selectable
+    ? resolveRuntimeConnectionState(runtime, status, { implemented: true })
+    : "soon";
+  opt.value = runtime;
+  opt.textContent = formatRuntimeSelectLabel(runtime, {
+    implemented: selectable,
+    status,
+    conn,
+    showVersion
+  });
+  opt.title = formatRuntimeStatusTitle(runtime, status, { implemented: selectable });
+  opt.disabled = !selectable;
+  if (runtime === current) opt.selected = true;
+  return opt;
+}
+
 function fillRuntimeSelect(selectEl, selected, available) {
-  if (!selectEl) return;
+  if (!selectEl) return normalizeMessageRuntime(selected);
+  const showVersion =
+    selectEl.id === "shell-message-target" || selectEl.id === "shell-route-runtime";
   let current = normalizeMessageRuntime(selected);
   if (!available.includes(current)) current = available.includes("qwenpaw") ? "qwenpaw" : available[0] || "qwenpaw";
   selectEl.innerHTML = "";
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "— Runtime —";
-  placeholder.disabled = true;
-  selectEl.append(placeholder);
-  for (const runtime of SHELL_RUNTIMES) {
-    const opt = document.createElement("option");
-    const selectable = available.includes(runtime);
-    const status = selectable ? getRuntimeStatus(runtime) : null;
-    const conn = selectable
-      ? resolveRuntimeConnectionState(runtime, status, { implemented: true })
-      : "soon";
-    opt.value = runtime;
-    opt.textContent = formatRuntimeSelectLabel(runtime, { implemented: selectable, status, conn });
-    opt.title = formatRuntimeStatusTitle(runtime, status, { implemented: selectable });
-    opt.disabled = !selectable;
-    if (runtime === current) opt.selected = true;
-    selectEl.append(opt);
+  for (const group of SHELL_RUNTIME_GROUPS) {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = group.label;
+    if (group.hint) optgroup.title = group.hint;
+    for (const runtime of group.runtimes) {
+      optgroup.append(createRuntimeSelectOption(runtime, current, available, { showVersion }));
+    }
+    selectEl.append(optgroup);
   }
-  if (!available.includes(normalizeMessageRuntime(selectEl.value))) {
-    selectEl.value = current;
-  }
+  return setRuntimeSelectValue(selectEl, current, available);
 }
 
 function refreshRuntimeSelectLabels() {
   for (const selectEl of [nodes.messageTarget, nodes.routeRuntime]) {
     if (!selectEl) continue;
+    const showVersion =
+      selectEl.id === "shell-message-target" || selectEl.id === "shell-route-runtime";
     for (const opt of selectEl.options) {
       if (!opt.value) continue;
       const runtime = normalizeMessageRuntime(opt.value);
@@ -3500,7 +3631,12 @@ function refreshRuntimeSelectLabels() {
       const conn = selectable
         ? resolveRuntimeConnectionState(runtime, status, { implemented: true })
         : "soon";
-      opt.textContent = formatRuntimeSelectLabel(runtime, { implemented: selectable, status, conn });
+      opt.textContent = formatRuntimeSelectLabel(runtime, {
+        implemented: selectable,
+        status,
+        conn,
+        showVersion
+      });
       opt.title = formatRuntimeStatusTitle(runtime, status, { implemented: selectable });
     }
   }
@@ -3508,13 +3644,19 @@ function refreshRuntimeSelectLabels() {
 
 function populateRuntimeSelect(selected = normalizeMessageRuntime(state.settings?.messageTarget || "qwenpaw")) {
   const available = getSelectableRuntimes();
-  fillRuntimeSelect(nodes.messageTarget, selected, available);
-  fillRuntimeSelect(nodes.routeRuntime, selected, available);
+  const runtime = fillRuntimeSelect(nodes.messageTarget, selected, available);
+  fillRuntimeSelect(nodes.routeRuntime, runtime, available);
   syncRuntimeSelects();
   updateRuntimeUi();
 }
 
-function updateRuntimeUi() {
+function setBridgeFieldVisible(fieldEl, visible) {
+  if (!fieldEl) return;
+  fieldEl.hidden = !visible;
+  fieldEl.classList.toggle("hidden", !visible);
+}
+
+function updateRuntimeUi({ reloadForms = true } = {}) {
   const runtime = getSelectedRuntime();
   if (nodes.qwenpawPanel) {
     nodes.qwenpawPanel.dataset.visible = runtimeUsesQwenPaw(runtime) ? "1" : "0";
@@ -3522,35 +3664,42 @@ function updateRuntimeUi() {
   if (nodes.bridgePanel) {
     nodes.bridgePanel.dataset.visible = runtimeUsesBridge(runtime) ? "1" : "0";
   }
+  const settings = state.settings || {};
+  if (reloadForms) {
+    if (runtimeUsesQwenPaw(runtime)) applyQwenpawRouteForm(settings);
+    if (runtimeUsesBridge(runtime)) applyBridgeForm(runtime, settings);
+  }
   if (runtimeUsesBridge(runtime)) {
-    applyBridgeForm(runtime, state.settings || {});
     const usesCli = runtimeUsesCli(runtime);
-    const showBaseUrl = runtimeShowsBaseUrl(runtime);
+    const showModel = runtimeShowsModel(runtime);
     if (nodes.bridgeUrlLabel) {
-      nodes.bridgeUrlLabel.textContent = usesCli ? "CLI binary" : "Base URL (/v1 добавится автоматически)";
+      nodes.bridgeUrlLabel.textContent = usesCli ? "CLI binary" : "URL";
     }
     if (nodes.bridgeUrl) {
-      nodes.bridgeUrl.type = usesCli ? "text" : "url";
+      nodes.bridgeUrl.type = "text";
       nodes.bridgeUrl.placeholder = usesCli
         ? runtime === "codex"
           ? "codex"
           : "claude"
-        : "http://127.0.0.1:8642";
+        : "http://127.0.0.1:8088";
     }
     if (nodes.bridgeUrlField) {
-      nodes.bridgeUrlField.hidden = !showBaseUrl && !usesCli;
-      nodes.bridgeUrlField.classList.toggle("hidden", !showBaseUrl && !usesCli);
+      setBridgeFieldVisible(nodes.bridgeUrlField, usesCli || runtimeShowsBaseUrl(runtime));
     }
     const showApiKey = runtimeShowsApiKey(runtime);
-    nodes.bridgeApiKeyField?.classList.toggle("hidden", !showApiKey);
-    if (nodes.bridgeApiKeyField) nodes.bridgeApiKeyField.hidden = !showApiKey;
-    const showProfile = runtimeShowsProfile(runtime);
-    nodes.bridgeProfileField?.classList.toggle("hidden", !showProfile);
-    if (nodes.bridgeProfileField) nodes.bridgeProfileField.hidden = !showProfile;
-    const showAgent = runtimeShowsAgentId(runtime);
-    nodes.bridgeAgentField?.classList.toggle("hidden", !showAgent);
-    if (nodes.bridgeAgentField) nodes.bridgeAgentField.hidden = !showAgent;
-    setBridgeModelNote(runtime);
+    setBridgeFieldVisible(nodes.bridgeApiKeyField, showApiKey);
+    setBridgeFieldVisible(nodes.bridgeModelField, showModel);
+    const showAgentMeta = runtimeShowsAgentMeta(runtime);
+    setBridgeFieldVisible(nodes.bridgeAgentField, showAgentMeta);
+    if (nodes.bridgeAgentLabel && showAgentMeta) {
+      nodes.bridgeAgentLabel.textContent = runtimeAgentFieldLabel(runtime);
+    }
+    if (nodes.bridgeSessionId) {
+      nodes.bridgeSessionId.placeholder = usesCli
+        ? "для --resume (необязательно)"
+        : "идентификатор сессии на gateway";
+    }
+    applyBridgeModelPlaceholder(runtime);
   }
   syncDialogConnectionState();
 }
@@ -3578,49 +3727,28 @@ function cleanShellUrl() {
   }
 }
 
-function renderQwenPawAgents(agents, selectedAgentId) {
+function syncQwenPawAgentInput(agents, selectedAgentId) {
   if (!nodes.qwenpawAgentId) return;
-  const selected = String(selectedAgentId || nodes.qwenpawAgentId.value || state.settings?.qwenpawAgentId || "default");
+  const selected =
+    String(selectedAgentId || nodes.qwenpawAgentId.value || state.settings?.qwenpawAgentId || "default").trim() ||
+    "default";
+  if (document.activeElement !== nodes.qwenpawAgentId) {
+    nodes.qwenpawAgentId.value = selected;
+  }
   const items = Array.isArray(agents) ? agents : [];
   const knownIds = new Set(items.map((item) => item.id));
-  nodes.qwenpawAgentId.innerHTML = "";
-
-  if (selected && !knownIds.has(selected)) {
-    const missing = document.createElement("option");
-    missing.value = selected;
-    missing.textContent = `${selected} (не найден)`;
-    missing.dataset.invalid = "1";
-    missing.selected = true;
-    nodes.qwenpawAgentId.append(missing);
-  }
-
-  for (const agent of items) {
-    const opt = document.createElement("option");
-    opt.value = agent.id;
-    const suffix = agent.enabled === false ? " · выкл" : "";
-    opt.textContent = agent.name && agent.name !== agent.id ? `${agent.name} (${agent.id})${suffix}` : `${agent.id}${suffix}`;
-    if (agent.id === selected) opt.selected = true;
-    if (agent.enabled === false) opt.disabled = true;
-    nodes.qwenpawAgentId.append(opt);
-  }
-
-  if (!items.length && !selected) {
-    const fallback = document.createElement("option");
-    fallback.value = "default";
-    fallback.textContent = "default";
-    nodes.qwenpawAgentId.append(fallback);
-  }
-
-  nodes.qwenpawAgentId.dataset.invalid = selected && !knownIds.has(selected) ? "1" : "0";
+  const invalid = Boolean(selected && items.length && !knownIds.has(selected));
+  nodes.qwenpawAgentId.dataset.invalid = invalid ? "1" : "0";
+  nodes.qwenpawAgentId.title = invalid ? `${selected} — не найден в QwenPaw` : "";
 }
 
 async function loadQwenPawAgents(preferredId = "") {
   if (!usesQwenPawTarget(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw")) return;
   try {
     const data = await apiFetch("/api/shell/qwenpaw/agents");
-    renderQwenPawAgents(data.agents, preferredId || data.selectedAgentId || state.settings?.qwenpawAgentId);
+    syncQwenPawAgentInput(data.agents, preferredId || data.selectedAgentId || state.settings?.qwenpawAgentId);
   } catch {
-    renderQwenPawAgents([], preferredId || state.settings?.qwenpawAgentId || "default");
+    syncQwenPawAgentInput([], preferredId || state.settings?.qwenpawAgentId || "default");
   }
 }
 
@@ -3813,19 +3941,6 @@ function applyStatusPayload(payload) {
   }
   updateTtsSaveAgentHint(payload);
   syncAgentSelects();
-  if (payload?.settings) applySettings(payload.settings);
-  if (payload?.agentId && payload.agentId !== prevAgentId) {
-    commitAllSettingsBaselines();
-  }
-  state.sidecarConnected = Boolean(payload?.sidecarConnected);
-  syncCompactSensorAvailability();
-  updateFnPttHint(getVoiceInputMode());
-  updateSttEngineNote();
-  state.qwenpawServerOk = Boolean(payload?.qwenpaw?.serverOk);
-  state.qwenpawAgentOk = Boolean(payload?.qwenpaw?.agentOk);
-  state.qwenpawAgentName = String(payload?.qwenpaw?.agentName || "");
-  state.qwenpawAgentError = String(payload?.qwenpaw?.agentError || "");
-  state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
   if (Array.isArray(payload?.availableRuntimes) && payload.availableRuntimes.length) {
     state.availableRuntimes = payload.availableRuntimes.map((item) => normalizeMessageRuntime(item));
   }
@@ -3855,6 +3970,21 @@ function applyStatusPayload(payload) {
     }
     state.runtimeStatuses = next;
   }
+  if (payload?.settings && !isSettingsViewOpen()) {
+    applySettings(payload.settings);
+  }
+  if (payload?.agentId && payload.agentId !== prevAgentId) {
+    commitAllSettingsBaselines();
+  }
+  state.sidecarConnected = Boolean(payload?.sidecarConnected);
+  syncCompactSensorAvailability();
+  updateFnPttHint(getVoiceInputMode());
+  updateSttEngineNote();
+  state.qwenpawServerOk = Boolean(payload?.qwenpaw?.serverOk);
+  state.qwenpawAgentOk = Boolean(payload?.qwenpaw?.agentOk);
+  state.qwenpawAgentName = String(payload?.qwenpaw?.agentName || "");
+  state.qwenpawAgentError = String(payload?.qwenpaw?.agentError || "");
+  state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
   refreshRuntimeSelectLabels();
   state.runtimeServerOk = Boolean(payload?.runtime?.serverOk ?? payload?.runtime?.ok);
   state.runtimeConnected = Boolean(payload?.runtime?.ok);
@@ -3960,11 +4090,14 @@ async function saveSettings(patch, { apply = "full" } = {}) {
     updateTtsSaveAgentHint(data);
     const settings = data.settings;
     if (settings) {
-      state.settings = { ...(state.settings || {}), ...settings };
+      state.settings = settings;
     }
+    if (apply === "none") return settings;
     if (apply === "tts") applyTtsSummarySettings(settings);
     else if (apply === "stt") applySttSummarySettings(settings);
+    else if (apply === "route") applyRouteSummarySettings(settings);
     else if (apply === "full") applySettings(settings);
+    return settings;
   } catch (error) {
     renderPhase("waiting", error.message);
     throw error;
@@ -4846,8 +4979,9 @@ function collectSttFormPatch() {
 }
 
 function collectSttSettingsPatch() {
+  const uiMode = normalizeVoiceInputMode(nodes.voiceMode?.value || state.sttResumeMode || "hold");
   return {
-    sttEnabled: nodes.sttEnabled?.checked !== false,
+    voiceInputMode: nodes.sttEnabled?.checked === false ? "disabled" : uiMode,
     ...collectSttFormPatch()
   };
 }
@@ -4894,15 +5028,56 @@ function collectProactiveFormPatch() {
   };
 }
 
+async function persistAgentSettingsPatch(patch, { baselineSection = null, commitSection = false } = {}) {
+  if (!state.agentId) {
+    try {
+      await ensureShellAgentSelected();
+    } catch (error) {
+      renderPhase("waiting", error.message);
+      return false;
+    }
+  }
+  if (!state.agentId) {
+    renderPhase("waiting", "Выберите хранилище (агента) в шапке");
+    return false;
+  }
+  if (state.settings) Object.assign(state.settings, patch);
+  try {
+    await saveSettings(patch, { apply: "none" });
+    if (baselineSection) {
+      if (commitSection) {
+        settingsSave.commitBaseline(baselineSection, getSettingsSnapshot(baselineSection));
+        applySavedSettingsSection(baselineSection, state.settings);
+      } else {
+        settingsSave.patchBaseline(baselineSection, patch);
+        markSettingsDirty(baselineSection);
+      }
+    }
+    updateSettingsSaveHints();
+    return true;
+  } catch (error) {
+    if (baselineSection) markSettingsDirty(baselineSection);
+    renderPhase("waiting", error.message);
+    return false;
+  }
+}
+
 async function persistMessageTarget(runtime) {
   const target = normalizeMessageRuntime(runtime);
   if (state.settings) state.settings.messageTarget = target;
+  beginHeroAutosave("messageTarget");
   try {
-    await saveSettings({ messageTarget: target });
-    settingsSave.commitBaseline("route", collectRouteSnapshot());
-    refreshRuntimeSelectLabels();
-  } catch (error) {
-    markSettingsDirty("route");
+    const ok = await persistAgentSettingsPatch(
+      { messageTarget: target },
+      { baselineSection: "route", commitSection: !isSettingsViewOpen() }
+    );
+    if (ok) {
+      syncRuntimeSelects("header");
+      applyRouteFormFromSettings(state.settings);
+      refreshRuntimeSelectLabels();
+    }
+  } finally {
+    endHeroAutosave("messageTarget");
   }
 }
 
@@ -4916,8 +5091,8 @@ async function persistSttEnabled(enabled) {
   }
   if (state.settings) state.settings.voiceInputMode = voiceInputMode;
   try {
-    await saveSettings({ voiceInputMode }, { apply: "stt" });
-    settingsSave.patchBaseline("stt", { voiceInputMode, sttEnabled: enabled });
+    await saveSettings({ voiceInputMode }, { apply: "none" });
+    settingsSave.patchBaseline("stt", { voiceInputMode, ...collectSttFormPatch() });
     markSettingsDirty("stt");
   } catch (error) {
     renderPhase("waiting", error.message);
@@ -4934,7 +5109,7 @@ async function persistVoiceInputMode(mode) {
   if (state.settings) state.settings.voiceInputMode = stored;
   voiceInputModePersisting = true;
   try {
-    await saveSettings({ voiceInputMode: stored }, { apply: "stt" });
+    await saveSettings({ voiceInputMode: stored }, { apply: "none" });
     lastCommittedVoiceMode = stored;
     if (state.pendingVoiceInputMode === stored) state.pendingVoiceInputMode = null;
   } catch (error) {
@@ -4947,13 +5122,11 @@ async function persistVoiceInputMode(mode) {
 
 async function persistTtsEnabled(enabled) {
   if (state.settings) state.settings.ttsEnabled = enabled;
+  beginHeroAutosave("ttsEnabled");
   try {
-    await saveSettings({ ttsEnabled: enabled }, { apply: "tts" });
-    settingsSave.patchBaseline("tts", { ttsEnabled: enabled });
-    markSettingsDirty("tts");
-  } catch (error) {
-    renderPhase("waiting", error.message);
-    markSettingsDirty("tts");
+    await persistAgentSettingsPatch({ ttsEnabled: enabled }, { baselineSection: "tts" });
+  } finally {
+    endHeroAutosave("ttsEnabled");
   }
 }
 
@@ -4961,15 +5134,12 @@ async function persistTtsPlaybackMode(mode) {
   const next = mode === "reading" ? "reading" : "dialog";
   if (state.settings) state.settings.ttsPlaybackMode = next;
   ttsPlaybackModePersisting = true;
+  beginHeroAutosave("ttsPlaybackMode");
   try {
-    await saveSettings({ ttsPlaybackMode: next }, { apply: "tts" });
-    settingsSave.patchBaseline("tts", { ttsPlaybackMode: next });
-    markSettingsDirty("tts");
-  } catch (error) {
-    renderPhase("waiting", error.message);
-    markSettingsDirty("tts");
+    await persistAgentSettingsPatch({ ttsPlaybackMode: next }, { baselineSection: "tts" });
   } finally {
     ttsPlaybackModePersisting = false;
+    endHeroAutosave("ttsPlaybackMode");
   }
 }
 
@@ -5188,7 +5358,8 @@ async function persistTtsSettings() {
   else delete patch.ttsElevenlabsApiKey;
   patch.ttsElevenlabsVoiceId = voiceId;
 
-  await saveSettings(patch);
+  await saveSettings(patch, { apply: "none" });
+  applySavedSettingsSection("tts", state.settings);
   applyElevenlabsKeyUi(state.settings);
   if (nodes.ttsElevenlabsVoiceId && document.activeElement !== nodes.ttsElevenlabsVoiceId) {
     nodes.ttsElevenlabsVoiceId.value = String(state.settings?.ttsElevenlabsVoiceId || "");
@@ -6142,6 +6313,7 @@ function setSettingsTab(tab) {
 }
 
 function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
+  const prev = state.view;
   const next = view === "settings" ? "settings" : "main";
   state.view = next;
   if (nodes.shellApp) nodes.shellApp.dataset.view = next;
@@ -6162,7 +6334,19 @@ function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
         ? scrollTo
         : "";
     setSettingsTab(settingsTab || tabFromScroll || state.settingsTab || "route");
+    if (state.settings) {
+      applyRouteFormFromSettings(state.settings);
+      applyTtsSettingsUi(state.settings);
+      applySttSettingsUi(state.settings);
+      applyProactiveFormUi(state.settings);
+      commitAllSettingsBaselines();
+    }
     settingsSave.syncUi();
+  } else if (prev === "settings") {
+    void refreshStatus().then(() => {
+      if (state.settings) applySettings(state.settings);
+      commitAllSettingsBaselines();
+    });
   }
 }
 
@@ -6270,11 +6454,9 @@ function bindUi() {
   const markSttDirty = () => markSettingsDirty("stt");
   const markProactiveDirty = () => markSettingsDirty("proactive");
 
-  nodes.routeSave?.addEventListener("mousedown", () => markSettingsDirty("route"));
   nodes.routeSave?.addEventListener("click", () => {
     void saveSettingsSection("route").catch((error) => renderPhase("waiting", error.message));
   });
-  nodes.proactiveSave?.addEventListener("mousedown", () => markSettingsDirty("proactive"));
   nodes.proactiveSave?.addEventListener("click", () => {
     void saveSettingsSection("proactive").catch((error) => renderPhase("waiting", error.message));
   });
@@ -6366,34 +6548,45 @@ function bindUi() {
   initCompactSensor();
 
   nodes.messageTarget?.addEventListener("change", () => {
+    const runtime = normalizeMessageRuntime(nodes.messageTarget.value);
+    if (state.settings) state.settings.messageTarget = runtime;
+    markSettingsDirty("route");
     syncRuntimeSelects("header");
     updateRuntimeUi();
-    void persistMessageTarget(nodes.messageTarget.value);
+    if (!isSettingsViewOpen()) {
+      void persistMessageTarget(runtime);
+    }
   });
   nodes.routeRuntime?.addEventListener("change", () => {
+    const runtime = normalizeMessageRuntime(nodes.routeRuntime.value);
+    if (!runtime) return;
+    if (state.settings) state.settings.messageTarget = runtime;
     syncRuntimeSelects("route");
     updateRuntimeUi();
-    void persistMessageTarget(nodes.routeRuntime.value);
+    markSettingsDirty("route");
   });
+  nodes.qwenpawUrl.addEventListener("input", markRouteDirty);
   nodes.qwenpawUrl.addEventListener("change", () => {
     markRouteDirty();
     void loadQwenPawAgents(nodes.qwenpawAgentId?.value);
   });
   nodes.qwenpawOpenUrl?.addEventListener("click", openQwenPawInBrowser);
-  nodes.qwenpawAgentId.addEventListener("change", markRouteDirty);
+  nodes.qwenpawAgentId?.addEventListener("input", markRouteDirty);
+  nodes.qwenpawAgentId?.addEventListener("change", markRouteDirty);
   for (const input of [
     nodes.bridgeUrl,
     nodes.bridgeApiKey,
     nodes.bridgeModel,
-    nodes.bridgeProfile,
-    nodes.bridgeAgentId,
+    nodes.bridgeAgentMeta,
     nodes.bridgeSessionId
   ]) {
+    input?.addEventListener("input", markRouteDirty);
     input?.addEventListener("change", markRouteDirty);
   }
   nodes.ttsEnabled?.addEventListener("change", () => {
     const enabled = nodes.ttsEnabled.checked;
     if (state.settings) state.settings.ttsEnabled = enabled;
+    markSettingsDirty("tts");
     if (!enabled) stopBrowserTts({ notifyServer: true });
     void persistTtsEnabled(enabled);
   });
@@ -6402,6 +6595,7 @@ function bindUi() {
     if (!(input instanceof HTMLInputElement) || input.name !== "shell-tts-playback-mode") return;
     const mode = input.value === "reading" ? "reading" : "dialog";
     if (state.settings) state.settings.ttsPlaybackMode = mode;
+    markSettingsDirty("tts");
     updateTtsPlaybackHint(mode);
     void persistTtsPlaybackMode(mode);
   });
@@ -6527,9 +6721,6 @@ function bindUi() {
   nodes.ttsElevenlabsVoiceId?.addEventListener("blur", () => {
     markTtsDirty();
     void maybeAutoSaveElevenlabsCredentials();
-  });
-  nodes.ttsSave?.addEventListener("mousedown", () => {
-    markSettingsDirty("tts");
   });
   nodes.ttsRate?.addEventListener("input", () => {
     updateTtsRateLabel();

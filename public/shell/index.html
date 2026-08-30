@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=331" />
+    <link rel="stylesheet" href="/shell/shell.css?v=349" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -35,7 +35,7 @@
           "@shell/session": "/shell/shell-session.js?v=207",
           "@shell/client-id": "/shell/shell-client-id.js?v=207",
           "@shell/surface": "/shell/shell-surface.js?v=226",
-          "@shell/presence": "/shell/shell-presence.js?v=209",
+          "@shell/presence": "/shell/shell-presence.js?v=352",
           "@shell/voice-chpu": "/shell/voice-chpu.js?v=209",
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
@@ -52,8 +52,8 @@
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=207",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
-          "@shell/runtimes": "/shell/shell-runtimes.js?v=289",
-          "@shell/build": "/shell/shell-build.js?v=251"
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=350",
+          "@shell/build": "/shell/shell-build.js?v=350"
         }
       }
     </script>
@@ -357,36 +357,43 @@
         </label>
 
         <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
-            <div class="shell-qwenpaw-profile">
+          <div class="shell-qwenpaw-fields">
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">URL</span>
+              <div class="shell-input-row">
+                <input
+                  id="shell-qwenpaw-url"
+                  class="shell-input"
+                  type="url"
+                  spellcheck="false"
+                  placeholder="http://127.0.0.1:8088"
+                />
+                <button
+                  type="button"
+                  class="shell-icon-btn shell-input-action"
+                  id="shell-qwenpaw-open-url"
+                  title="Открыть QwenPaw в новом окне"
+                  aria-label="Открыть QwenPaw в новом окне"
+                >
+                  ↗
+                </button>
+              </div>
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Агент (профиль)</span>
+              <input
+                id="shell-qwenpaw-agent-id"
+                class="shell-input"
+                type="text"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="default"
+                aria-label="Агент (профиль) QwenPaw"
+              />
+            </label>
+            <div class="shell-qwenpaw-chat" id="shell-qwenpaw-chat">
               <label class="shell-field shell-field--compact">
-                <span class="shell-label">QwenPaw URL</span>
-                <div class="shell-input-row">
-                  <input
-                    id="shell-qwenpaw-url"
-                    class="shell-input"
-                    type="url"
-                    spellcheck="false"
-                    placeholder="http://127.0.0.1:8088"
-                  />
-                  <button
-                    type="button"
-                    class="shell-icon-btn shell-input-action"
-                    id="shell-qwenpaw-open-url"
-                    title="Открыть QwenPaw в новом окне"
-                    aria-label="Открыть QwenPaw в новом окне"
-                  >
-                    ↗
-                  </button>
-                </div>
-              </label>
-              <label class="shell-field shell-field--compact">
-                <span class="shell-label">Агент QwenPaw</span>
-                <select id="shell-qwenpaw-agent-id" class="shell-select"></select>
-              </label>
-            </div>
-            <div class="shell-field shell-field--compact shell-qwenpaw-chat" id="shell-qwenpaw-chat">
-              <span class="shell-label">Текущий чат</span>
-              <div class="shell-input-row shell-qwenpaw-chat-row">
+                <span class="shell-label">Текущий чат</span>
                 <input
                   id="shell-qwenpaw-chat-name"
                   class="shell-input shell-qwenpaw-chat-name"
@@ -396,19 +403,20 @@
                   placeholder="Название чата"
                   aria-label="Название чата QwenPaw"
                 />
-                <div class="shell-qwenpaw-chat-toolbar">
-                  <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-new-chat">
-                    + Новый
-                  </button>
-                  <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-chats-toggle">
-                    История
-                  </button>
-                </div>
+              </label>
+              <div class="shell-qwenpaw-chat-actions">
+                <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-new-chat">
+                  + Новый
+                </button>
+                <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-qwenpaw-chats-toggle">
+                  История
+                </button>
               </div>
               <div class="shell-qwenpaw-chat-session" id="shell-qwenpaw-chat-session"></div>
               <div class="shell-qwenpaw-chats hidden" id="shell-qwenpaw-chats-panel" role="listbox" aria-label="История чатов QwenPaw"></div>
             </div>
           </div>
+        </div>
 
         <div class="shell-runtime-bridge-panel" id="shell-runtime-bridge-panel" data-visible="0">
           <div class="shell-runtime-bridge-fields">
@@ -435,23 +443,19 @@
             </label>
             <label class="shell-field shell-field--compact" id="shell-runtime-bridge-model-field">
               <span class="shell-label">Model</span>
-              <select id="shell-runtime-bridge-model" class="shell-select shell-select--full"></select>
-              <p class="shell-field-note" id="shell-runtime-bridge-model-note"></p>
-            </label>
-            <label class="shell-field shell-field--compact hidden" id="shell-runtime-bridge-profile-field" hidden>
-              <span class="shell-label">Профиль Hermes</span>
               <input
-                id="shell-runtime-bridge-profile"
+                id="shell-runtime-bridge-model"
                 class="shell-input"
                 type="text"
                 spellcheck="false"
-                placeholder="default или alice"
+                autocomplete="off"
+                placeholder="По умолчанию из CLI"
               />
             </label>
             <label class="shell-field shell-field--compact hidden" id="shell-runtime-bridge-agent-field" hidden>
-              <span class="shell-label">Agent OpenClaw</span>
+              <span class="shell-label" id="shell-runtime-bridge-agent-label">Профиль / агент</span>
               <input
-                id="shell-runtime-bridge-agent-id"
+                id="shell-runtime-bridge-agent-meta"
                 class="shell-input"
                 type="text"
                 spellcheck="false"
@@ -465,7 +469,7 @@
                 class="shell-input"
                 type="text"
                 spellcheck="false"
-                placeholder="для --resume (необязательно)"
+                placeholder="идентификатор сессии"
               />
             </label>
           </div>
@@ -1934,6 +1938,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=331" type="module"></script>
+    <script src="/shell/shell.js?v=356" type="module"></script>
   </body>
 </html>

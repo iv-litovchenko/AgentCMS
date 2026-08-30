@@ -1,13 +1,13 @@
 const { spawn } = require("child_process");
 const { promisify } = require("util");
 const { execFile } = require("child_process");
-const { enrichShellPath, resolveCliBinary } = require("./runtime-cli-env");
+const { enrichShellPath, defaultCliBinary, resolveCliBinary } = require("./runtime-cli-env");
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 300000;
 
 function defaultBinary(runtime) {
-  return runtime === "codex" ? "codex" : "claude";
+  return defaultCliBinary(runtime);
 }
 
 function normalizeBinary(runtime, customPath) {
@@ -55,20 +55,25 @@ function extractCodexJsonText(event, previous = "") {
   return "";
 }
 
-async function checkCliRuntimeHealth({ runtime, binary, timeoutMs = 12000, quick = false } = {}) {
+async function checkCliRuntimeHealth({ runtime, binary, timeoutMs = 12000 } = {}) {
   const cmd = normalizeBinary(runtime, binary);
   const env = enrichShellPath();
   try {
-    if (runtime === "codex" && !quick) {
-      await execFileAsync(cmd, ["doctor"], { timeout: timeoutMs, env });
-      return { ok: true, binary: cmd };
-    }
-    await execFileAsync(cmd, ["--help"], { timeout: timeoutMs, env });
-    return { ok: true, binary: cmd };
+    const { stdout } = await execFileAsync(cmd, ["--version"], { timeout: timeoutMs, env });
+    const version = String(stdout || "")
+      .trim()
+      .split(/\r?\n/)[0]
+      .trim();
+    return { ok: true, binary: cmd, version: version || null };
   } catch (error) {
     const stderr = String(error?.stderr || "").trim();
     const message = String(stderr || error?.message || error).trim();
-    return { ok: false, binary: cmd, error: message.slice(0, 240) || "CLI недоступен" };
+    const label = defaultCliBinary(runtime);
+    return {
+      ok: false,
+      binary: cmd,
+      error: message.slice(0, 240) || `${label} недоступен (${label} --version)`
+    };
   }
 }
 

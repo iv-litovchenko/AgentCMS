@@ -32,18 +32,26 @@ const {
   RUNTIME_TRANSPORT
 } = require("./runtime-bridge");
 const { probeAvailableRuntimes } = require("./runtime-probe");
+const { probeCliBinary } = require("./runtime-cli-env");
+const { flattenSettings } = require("./shell-settings-format");
+
+function settingsFormatModule() {
+  const modPath = require.resolve("./shell-settings-format");
+  delete require.cache[modPath];
+  return require("./shell-settings-format");
+}
 
 const SETTINGS_DIR = ".agent-shell";
 const SETTINGS_FILE = "settings.json";
 const STATE_FILE = "state.json";
 const COMPOSE_DRAFT_FILE = "compose-draft.md";
 
-/** Serializes atomic writes per target path — avoids ENOENT on shared `.tmp` rename races. */
+/** Serializes atomic writes per target path — avoids rename races on shared `.tmp`. */
 const atomicWriteQueues = new Map();
 
 async function writeFileAtomicUnqueued(targetPath, data, encoding = "utf-8") {
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
-  const tmp = `${targetPath}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
+  const tmp = `${targetPath}.tmp`;
   await fs.writeFile(tmp, data, encoding);
   try {
     await fs.rename(tmp, targetPath);
@@ -243,7 +251,7 @@ function normalizeProactiveQuietTime(value, fallback = "23:00") {
 }
 
 function normalizeSettings(raw) {
-  const merged = { ...DEFAULT_SETTINGS, ...(raw && typeof raw === "object" ? raw : {}) };
+  const merged = { ...DEFAULT_SETTINGS, ...flattenSettings(raw && typeof raw === "object" ? raw : {}) };
   if (!String(merged.topicPath || "").trim()) merged.topicPath = DEFAULT_SETTINGS.topicPath;
   if (!["thread", "inbox"].includes(merged.messageChannel)) merged.messageChannel = "thread";
   merged.messageTarget = normalizeMessageRuntime(merged.messageTarget);
@@ -329,10 +337,11 @@ async function writeSettings(agentRoot, patch, agentId) {
   const previous = atomicWriteQueues.get(queueKey) || Promise.resolve();
   const queued = previous.catch(() => {}).then(async () => {
     const current = await readSettings(agentRoot);
-    const next = normalizeSettings({ ...current, ...(patch && typeof patch === "object" ? patch : {}) });
-    await writeFileAtomicUnqueued(target, `${JSON.stringify(next, null, 2)}\n`, "utf-8");
-    emitShellEvent(agentId, "settings", next);
-    return next;
+    const normalized = normalizeSettings({ ...current, ...(patch && typeof patch === "object" ? patch : {}) });
+    const nested = settingsFormatModule().nestSettings(normalized);
+    await writeFileAtomicUnqueued(target, `${JSON.stringify(nested, null, 2)}\n`, "utf-8");
+    emitShellEvent(agentId, "settings", normalized);
+    return normalized;
   });
   atomicWriteQueues.set(queueKey, queued);
   return queued.finally(() => {
@@ -434,20 +443,20 @@ async function readPersistedState(agentRoot) {
   }
 }
 
+function stateWithoutUpdatedAt(state) {
+  if (!state || typeof state !== "object") return state;
+  const { updatedAt, ...rest } = state;
+  return rest;
+}
+
+function persistedStateChanged(current, next) {
+  return JSON.stringify(stateWithoutUpdatedAt(current)) !== JSON.stringify(stateWithoutUpdatedAt(next));
+}
+
 async function writePersistedState(agentRoot, state) {
-  const dir = path.join(agentRoot, SETTINGS_DIR);
-  await fs.mkdir(dir, { recursive: true });
   const target = stateAbsolute(agentRoot);
   const payload = `${JSON.stringify(state, null, 2)}\n`;
-  const tmp = `${target}.tmp`;
-  await fs.writeFile(tmp, payload, "utf-8");
-  try {
-    await fs.rename(tmp, target);
-  } catch {
-    await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(target, payload, "utf-8");
-    await fs.unlink(tmp).catch(() => {});
-  }
+  await atomicWriteFile(target, payload, "utf-8");
 }
 
 async function getState(agentRoot) {
@@ -456,14 +465,25 @@ async function getState(agentRoot) {
   return state;
 }
 
+function compactStatePatch(patch) {
+  if (!patch || typeof patch !== "object") return {};
+  const out = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
 async function patchState(agentRoot, agentId, patch) {
   const current = await getState(agentRoot);
   const next = {
     ...current,
-    ...(patch && typeof patch === "object" ? patch : {}),
+    ...compactStatePatch(patch),
     updatedAt: new Date().toISOString()
   };
-  await writePersistedState(agentRoot, next);
+  if (persistedStateChanged(current, next)) {
+    await writePersistedState(agentRoot, next);
+  }
   emitShellEvent(agentId, "state", next);
   return next;
 }
@@ -629,9 +649,9 @@ async function checkBridgeRuntimeHealth(settings, runtime = getMessageRuntime(se
 
 async function probeAllRuntimeStatuses(settings) {
   const STATUS_CLI_TIMEOUT_MS = 3500;
-  const statusHealthOptions = { timeoutMs: STATUS_CLI_TIMEOUT_MS, quick: true };
+  const statusHealthOptions = { timeoutMs: STATUS_CLI_TIMEOUT_MS };
 
-  const [probe, qwenHealth, claudeHealth, codexHealth] = await Promise.all([
+  const [probe, qwenHealth, claudeHealth, codexHealth, qwenCli] = await Promise.all([
     probeAvailableRuntimes(settings),
     checkQwenPawHealth(settings.qwenpawBaseUrl).catch((error) => ({
       ok: false,
@@ -642,6 +662,10 @@ async function probeAllRuntimeStatuses(settings) {
       error: String(error?.message || error)
     })),
     checkBridgeRuntimeHealth(settings, "codex", statusHealthOptions).catch((error) => ({
+      ok: false,
+      error: String(error?.message || error)
+    })),
+    probeCliBinary("qwen", settings).catch((error) => ({
       ok: false,
       error: String(error?.message || error)
     }))
@@ -661,15 +685,20 @@ async function probeAllRuntimeStatuses(settings) {
     }
   }
 
+  const qwenInstalled = probe.installed.includes("qwenpaw");
   statuses.qwenpaw = {
     runtime: "qwenpaw",
-    configured: true,
-    installed: true,
+    configured: qwenInstalled,
+    installed: qwenInstalled,
     serverOk: Boolean(qwenHealth.ok),
     agentOk: Boolean(qwenAgent.ok),
-    ok: Boolean(qwenHealth.ok && qwenAgent.ok),
-    error: qwenAgent.error || qwenHealth.error || "",
-    agentName: qwenAgent.name || ""
+    ok: Boolean(qwenInstalled && qwenHealth.ok && qwenAgent.ok),
+    error: !qwenInstalled
+      ? "CLI не найден — проверьте PATH или qwenCliPath (qwen --version)"
+      : qwenAgent.error || qwenHealth.error || "",
+    agentName: qwenAgent.name || "",
+    version: qwenCli.ok ? String(qwenCli.version || "").trim() : "",
+    binary: qwenCli.binary || ""
   };
 
   for (const runtime of ["claude", "codex"]) {
@@ -682,7 +711,9 @@ async function probeAllRuntimeStatuses(settings) {
       installed,
       serverOk: ok,
       ok,
-      error: installed ? health.error || "" : "CLI не найден процессом Shell — проверьте PATH или claudeCliPath/codexCliPath"
+      error: installed ? health.error || "" : "CLI не найден — проверьте PATH или claudeCliPath/codexCliPath (claude/codex --version)",
+      version: installed ? String(health.version || "").trim() : "",
+      binary: health.binary || ""
     };
   }
 

@@ -20,11 +20,22 @@ function enrichShellPath(env = process.env) {
   return { ...env, PATH: parts.join(path.delimiter) };
 }
 
+function defaultCliBinary(runtime) {
+  const id = String(runtime || "").trim();
+  if (id === "codex") return "codex";
+  if (id === "qwen" || id === "qwenpaw") return "qwen";
+  return "claude";
+}
+
 function readCliPathFromSettings(settings, runtime) {
   const id = String(runtime || "").trim();
-  const custom = String(settings?.[`${id}CliPath`] || "").trim();
-  if (custom && !/^https?:\/\//i.test(custom)) return custom;
-  return id === "codex" ? "codex" : "claude";
+  const keys = [`${id}CliPath`];
+  if (id === "qwen" || id === "qwenpaw") keys.push("qwenCliPath", "qwenpawCliPath");
+  for (const key of keys) {
+    const custom = String(settings?.[key] || "").trim();
+    if (custom && !/^https?:\/\//i.test(custom)) return custom;
+  }
+  return defaultCliBinary(id);
 }
 
 async function whichBinary(name, env = enrichShellPath()) {
@@ -50,27 +61,29 @@ async function resolveCliBinary(runtime, settings = {}) {
 
 async function probeCliBinary(runtime, settings = {}) {
   const env = enrichShellPath();
-  const binary = await resolveCliBinary(runtime, settings);
+  const id = String(runtime || "").trim();
+  const binary = await resolveCliBinary(id, settings);
+  const label = defaultCliBinary(id);
   try {
-    await execFileAsync(binary, ["--help"], { timeout: 6000, env });
-    return { ok: true, binary };
+    const { stdout } = await execFileAsync(binary, ["--version"], { timeout: 6000, env });
+    const version = String(stdout || "")
+      .trim()
+      .split(/\r?\n/)[0]
+      .trim();
+    return { ok: true, binary, version: version || null };
   } catch (error) {
-    if (String(runtime) === "codex") {
-      try {
-        await execFileAsync(binary, ["doctor"], { timeout: 10000, env });
-        return { ok: true, binary };
-      } catch (doctorError) {
-        const message = String(doctorError?.stderr || doctorError?.message || doctorError).trim();
-        return { ok: false, binary, error: message.slice(0, 240) || "codex недоступен" };
-      }
-    }
     const message = String(error?.stderr || error?.message || error).trim();
-    return { ok: false, binary, error: message.slice(0, 240) || "claude недоступен" };
+    return {
+      ok: false,
+      binary,
+      error: message.slice(0, 240) || `${label} недоступен (${label} --version)`
+    };
   }
 }
 
 module.exports = {
   enrichShellPath,
+  defaultCliBinary,
   readCliPathFromSettings,
   resolveCliBinary,
   probeCliBinary

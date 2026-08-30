@@ -1,0 +1,311 @@
+/** Nested on-disk format ↔ flat runtime model for Shell settings. */
+
+const { RUNTIME_DEFAULTS } = require("./runtime-bridge");
+
+const SETTINGS_FORMAT_VERSION = 4;
+
+/** Тип подключения runtime на диске: cli = терминал, agent = HTTP/gateway. */
+const RUNTIME_KIND = {
+  claude: "cli",
+  codex: "cli",
+  qwenpaw: "agent",
+  cursor: "agent",
+  openclaw: "agent",
+  hermes: "agent",
+  "agent-zero": "agent"
+};
+
+const ALL_RUNTIME_IDS = ["qwenpaw", "claude", "codex", "cursor", "openclaw", "hermes", "agent-zero"];
+
+const RUNTIME_FLAT_SUFFIX = {
+  cliPath: "CliPath",
+  baseUrl: "BaseUrl",
+  apiKey: "ApiKey",
+  model: "Model",
+  profile: "Profile",
+  agentId: "AgentId",
+  sessionId: "SessionId"
+};
+
+const RUNTIME_FIELDS_BY_KIND = {
+  cli: ["cliPath", "model", "sessionId"],
+  agent: ["baseUrl", "apiKey", "model", "profile", "agentId", "sessionId"]
+};
+
+function runtimeKind(id) {
+  return RUNTIME_KIND[id] || "agent";
+}
+
+function normalizeRuntimeKind(value) {
+  const raw = String(value || "").trim();
+  if (raw === "cli") return "cli";
+  if (raw === "agent" || raw === "url") return "agent";
+  return "";
+}
+
+function isNestedSettings(raw) {
+  return Boolean(
+    raw &&
+      typeof raw === "object" &&
+      !Array.isArray(raw) &&
+      (raw.route || raw.cms || raw.voice || raw.formatVersion)
+  );
+}
+
+function flattenQwenpawRuntime(cfg, flat) {
+  if (!cfg || typeof cfg !== "object") return;
+  if (cfg.baseUrl !== undefined) flat.qwenpawBaseUrl = cfg.baseUrl;
+  if (cfg.agentId !== undefined) flat.qwenpawAgentId = cfg.agentId;
+  if (cfg.sessionId !== undefined) flat.qwenpawSessionId = cfg.sessionId;
+  if (cfg.userId !== undefined) flat.qwenpawUserId = cfg.userId;
+  if (cfg.chatName !== undefined) flat.qwenpawChatName = cfg.chatName;
+  const stt = cfg.stt || {};
+  if (stt.sessionId !== undefined) flat.qwenpawSttSessionId = stt.sessionId;
+  if (stt.chatName !== undefined) flat.qwenpawSttChatName = stt.chatName;
+}
+
+function flattenSettings(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  if (!isNestedSettings(raw)) return { ...raw };
+
+  const flat = {};
+  const cms = raw.cms || {};
+  const route = raw.route || {};
+
+  if (cms.topicPath !== undefined) flat.topicPath = cms.topicPath;
+  else if (route.topicPath !== undefined) flat.topicPath = route.topicPath;
+
+  if (cms.channel !== undefined) flat.messageChannel = cms.channel;
+  else if (route.messageChannel !== undefined) flat.messageChannel = route.messageChannel;
+
+  if (route.runtime !== undefined) flat.messageTarget = route.runtime;
+  else if (route.messageTarget !== undefined) flat.messageTarget = route.messageTarget;
+  else if (route.selectedRuntime !== undefined) flat.messageTarget = route.selectedRuntime;
+
+  const runtimes = route.runtimes || {};
+  flattenQwenpawRuntime(runtimes.qwenpaw, flat);
+  flattenQwenpawRuntime(route.qwenpaw, flat);
+
+  for (const id of ALL_RUNTIME_IDS) {
+    if (id === "qwenpaw") continue;
+    const cfg = runtimes[id];
+    if (!cfg || typeof cfg !== "object") continue;
+    for (const field of RUNTIME_FIELDS_BY_KIND.cli.concat(RUNTIME_FIELDS_BY_KIND.agent)) {
+      if (cfg[field] === undefined) continue;
+      flat[`${id}${RUNTIME_FLAT_SUFFIX[field]}`] = cfg[field];
+    }
+  }
+
+  const voice = raw.voice || {};
+  const input = voice.input || {};
+  if (input.mode !== undefined) flat.voiceInputMode = input.mode;
+  if (input.globalListen !== undefined) flat.voiceGlobalListen = input.globalListen;
+  if (input.wakeName !== undefined) flat.voiceWakeName = input.wakeName;
+  if (input.toCompose !== undefined) flat.voiceToCompose = input.toCompose;
+  if (input.responseEnabled !== undefined) flat.voiceResponseEnabled = input.responseEnabled;
+
+  const stt = voice.stt || {};
+  if (stt.lang !== undefined) flat.sttLang = stt.lang;
+  if (stt.engine !== undefined) flat.sttEngine = stt.engine;
+  if (stt.prompt !== undefined) flat.sttPrompt = stt.prompt;
+
+  const tts = voice.tts || {};
+  if (tts.enabled !== undefined) flat.ttsEnabled = tts.enabled;
+  if (tts.playbackMode !== undefined) flat.ttsPlaybackMode = tts.playbackMode;
+  if (tts.engine !== undefined) flat.ttsEngine = tts.engine;
+  if (tts.edgeVoice !== undefined) flat.ttsEdgeVoice = tts.edgeVoice;
+  if (tts.prompt !== undefined) flat.ttsPrompt = tts.prompt;
+  if (tts.rate !== undefined) flat.ttsRate = tts.rate;
+  if (tts.pitch !== undefined) flat.ttsPitch = tts.pitch;
+  if (tts.lang !== undefined) flat.ttsLang = tts.lang;
+  if (tts.voice !== undefined) flat.ttsVoice = tts.voice;
+  if (tts.stripEmoji !== undefined) flat.ttsStripEmoji = tts.stripEmoji;
+  if (tts.includeCaptions !== undefined) flat.ttsIncludeCaptions = tts.includeCaptions;
+  const eleven = tts.elevenlabs || {};
+  if (eleven.apiKey !== undefined) flat.ttsElevenlabsApiKey = eleven.apiKey;
+  if (eleven.voiceId !== undefined) flat.ttsElevenlabsVoiceId = eleven.voiceId;
+  if (eleven.model !== undefined) flat.ttsElevenlabsModel = eleven.model;
+  const piper = tts.piper || {};
+  if (piper.model !== undefined) flat.ttsPiperModel = piper.model;
+  if (piper.binary !== undefined) flat.ttsPiperBinary = piper.binary;
+
+  const proactive = raw.proactive || {};
+  if (proactive.enabled !== undefined) flat.proactiveEnabled = proactive.enabled;
+  if (proactive.idleSeconds !== undefined) flat.proactiveIdleSeconds = proactive.idleSeconds;
+  if (proactive.cooldownSeconds !== undefined) flat.proactiveCooldownSeconds = proactive.cooldownSeconds;
+  if (proactive.prompt !== undefined) flat.proactivePrompt = proactive.prompt;
+  const quiet = proactive.quietHours || {};
+  if (quiet.enabled !== undefined) flat.proactiveQuietHoursEnabled = quiet.enabled;
+  if (quiet.start !== undefined) flat.proactiveQuietStart = quiet.start;
+  if (quiet.end !== undefined) flat.proactiveQuietEnd = quiet.end;
+
+  const media = raw.media || {};
+  const camera = media.camera || {};
+  if (camera.enabled !== undefined) flat.cameraEnabled = camera.enabled;
+  if (camera.onSpeech !== undefined) flat.cameraOnSpeech = camera.onSpeech;
+  if (camera.facing !== undefined) flat.cameraFacing = camera.facing;
+  if (camera.deviceId !== undefined) flat.cameraDeviceId = camera.deviceId;
+  const screen = media.screen || {};
+  if (screen.enabled !== undefined) flat.screenEnabled = screen.enabled;
+  if (screen.onSpeech !== undefined) flat.screenOnSpeech = screen.onSpeech;
+
+  const window = raw.window || {};
+  if (window.topmost !== undefined) flat.windowTopmost = window.topmost;
+
+  return flat;
+}
+
+function compactObject(value) {
+  if (value === null || value === undefined) return undefined;
+  if (Array.isArray(value)) return value.length ? value : undefined;
+  if (typeof value !== "object") {
+    if (typeof value === "string" && value.trim() === "") return undefined;
+    return value;
+  }
+  const out = {};
+  for (const [key, item] of Object.entries(value)) {
+    const next = compactObject(item);
+    if (next === undefined) continue;
+    if (typeof next === "object" && !Array.isArray(next) && Object.keys(next).length === 0) continue;
+    out[key] = next;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function nestStringField(block, key, value, def = "") {
+  if (value === undefined) return;
+  const trimmed = String(value).trim();
+  if (!trimmed && !def) return;
+  if (trimmed === String(def ?? "").trim()) return;
+  block[key] = trimmed;
+}
+
+function nestQwenpawRuntime(flat) {
+  const block = { type: "agent" };
+  nestStringField(block, "baseUrl", flat.qwenpawBaseUrl);
+  nestStringField(block, "agentId", flat.qwenpawAgentId, "default");
+  nestStringField(block, "sessionId", flat.qwenpawSessionId);
+  nestStringField(block, "userId", flat.qwenpawUserId, "shell");
+  return Object.keys(block).length > 1 ? block : undefined;
+}
+
+function nestRuntimeBlock(flat, id) {
+  const kind = runtimeKind(id);
+  const defaults = RUNTIME_DEFAULTS[id] || {};
+  const block = { type: kind };
+  const fields = RUNTIME_FIELDS_BY_KIND[kind] || RUNTIME_FIELDS_BY_KIND.agent;
+
+  for (const field of fields) {
+    const flatKey = `${id}${RUNTIME_FLAT_SUFFIX[field]}`;
+    if (!(flatKey in flat)) continue;
+    const value = flat[flatKey];
+    const def = defaults[field];
+    if (typeof value === "string") {
+      nestStringField(block, field, value, def);
+      continue;
+    }
+    if (value !== undefined && value !== def) block[field] = value;
+  }
+
+  return Object.keys(block).length > 1 ? block : undefined;
+}
+
+function nestSettings(flat) {
+  const source = flat && typeof flat === "object" ? flat : {};
+  const runtimes = {};
+
+  const qwenpaw = nestQwenpawRuntime(source);
+  if (qwenpaw) runtimes.qwenpaw = qwenpaw;
+
+  for (const id of ALL_RUNTIME_IDS) {
+    if (id === "qwenpaw") continue;
+    const block = nestRuntimeBlock(source, id);
+    if (block) runtimes[id] = block;
+  }
+
+  const nested = {
+    formatVersion: SETTINGS_FORMAT_VERSION,
+    cms: compactObject({
+      topicPath: source.topicPath,
+      channel: source.messageChannel
+    }),
+    route: compactObject({
+      runtime: source.messageTarget,
+      runtimes: Object.keys(runtimes).length ? runtimes : undefined
+    }),
+    voice: compactObject({
+      input: compactObject({
+        mode: source.voiceInputMode,
+        globalListen: source.voiceGlobalListen,
+        wakeName: source.voiceWakeName,
+        toCompose: source.voiceToCompose,
+        responseEnabled: source.voiceResponseEnabled
+      }),
+      stt: compactObject({
+        lang: source.sttLang,
+        engine: source.sttEngine,
+        prompt: source.sttPrompt
+      }),
+      tts: compactObject({
+        enabled: source.ttsEnabled,
+        playbackMode: source.ttsPlaybackMode,
+        engine: source.ttsEngine,
+        edgeVoice: source.ttsEdgeVoice,
+        prompt: source.ttsPrompt,
+        rate: source.ttsRate,
+        pitch: source.ttsPitch,
+        lang: source.ttsLang,
+        voice: source.ttsVoice,
+        stripEmoji: source.ttsStripEmoji,
+        includeCaptions: source.ttsIncludeCaptions,
+        elevenlabs: compactObject({
+          apiKey: source.ttsElevenlabsApiKey,
+          voiceId: source.ttsElevenlabsVoiceId,
+          model: source.ttsElevenlabsModel
+        }),
+        piper: compactObject({
+          model: source.ttsPiperModel,
+          binary: source.ttsPiperBinary
+        })
+      })
+    }),
+    proactive: compactObject({
+      enabled: source.proactiveEnabled,
+      idleSeconds: source.proactiveIdleSeconds,
+      cooldownSeconds: source.proactiveCooldownSeconds,
+      prompt: source.proactivePrompt,
+      quietHours: compactObject({
+        enabled: source.proactiveQuietHoursEnabled,
+        start: source.proactiveQuietStart,
+        end: source.proactiveQuietEnd
+      })
+    }),
+    media: compactObject({
+      camera: compactObject({
+        enabled: source.cameraEnabled,
+        onSpeech: source.cameraOnSpeech,
+        facing: source.cameraFacing,
+        deviceId: source.cameraDeviceId
+      }),
+      screen: compactObject({
+        enabled: source.screenEnabled,
+        onSpeech: source.screenOnSpeech
+      })
+    }),
+    window: compactObject({
+      topmost: source.windowTopmost
+    })
+  };
+
+  return compactObject(nested) || { formatVersion: SETTINGS_FORMAT_VERSION };
+}
+
+module.exports = {
+  SETTINGS_FORMAT_VERSION,
+  RUNTIME_KIND,
+  runtimeKind,
+  normalizeRuntimeKind,
+  isNestedSettings,
+  flattenSettings,
+  nestSettings
+};
