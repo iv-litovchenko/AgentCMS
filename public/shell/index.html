@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=329" />
+    <link rel="stylesheet" href="/shell/shell.css?v=331" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -1563,6 +1563,52 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </svg>
             </button>
           </div>
+          <div class="shell-compose-options-row" role="group" aria-label="Параметры запроса">
+            <div class="shell-compose-options">
+            <span class="shell-hint" data-hint="Рассуждения — показывать ход мыслей агента (chain-of-thought) в шагах активности. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="reasoning" aria-pressed="false" disabled aria-label="Рассуждения">
+              <span class="shell-compose-option-ico" aria-hidden="true">🧠</span>
+              <span class="shell-compose-option-label">Рассуждения</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Инструменты — разрешить агенту вызывать MCP-инструменты CMS (файлы, память, shell) в этом запросе. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="tools" aria-pressed="false" disabled aria-label="Инструменты">
+              <span class="shell-compose-option-ico" aria-hidden="true">🔧</span>
+              <span class="shell-compose-option-label">Инструменты</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Визуальное — прикреплять кадр с камеры или снимок экрана к сообщению для агента. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="vision" aria-pressed="false" disabled aria-label="Визуальное">
+              <span class="shell-compose-option-ico" aria-hidden="true">👁</span>
+              <span class="shell-compose-option-label">Визуальное</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Web — разрешить агенту искать в интернете и подмешивать свежие факты в ответ. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="web" aria-pressed="false" disabled aria-label="Web">
+              <span class="shell-compose-option-ico" aria-hidden="true">🔍</span>
+              <span class="shell-compose-option-label">Web</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Memory — записывать и подтягивать долговременные заметки workspace в контекст запроса. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="memory" aria-pressed="false" disabled aria-label="Memory">
+              <span class="shell-compose-option-ico" aria-hidden="true">💾</span>
+              <span class="shell-compose-option-label">Memory</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Code — запуск кода в песочнице или computer control (вставка в активное поле). Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="code" aria-pressed="false" disabled aria-label="Code">
+              <span class="shell-compose-option-ico" aria-hidden="true">⌨️</span>
+              <span class="shell-compose-option-label">Code</span>
+            </button>
+            </span>
+            <span class="shell-hint" data-hint="Факты — автоматически подмешивать релевантные факты, диалоги и воспоминания из CMS в запрос. Скоро.">
+            <button type="button" class="shell-compose-option" data-compose-option="recall" aria-pressed="false" disabled aria-label="Факты">
+              <span class="shell-compose-option-ico" aria-hidden="true">✨</span>
+              <span class="shell-compose-option-label">Факты</span>
+            </button>
+            </span>
+            </div>
+          </div>
           <div class="shell-compose-toolbar" aria-label="Панель ввода">
             <div class="shell-compose-toolbar-group shell-compose-toolbar-group--voice">
               <div
@@ -1622,8 +1668,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 type="button"
                 class="shell-icon-btn shell-compose-tool shell-compose-tool--sm shell-compose-camera-stub"
                 id="shell-compose-camera-stub"
-                aria-label="Снимок с камеры"
-                title="Сфотографировать и отправить агенту"
+                aria-label="Снимок с камеры — отправить агенту"
+                title="Фото камерой → агенту"
               >
                 <span class="shell-compose-tool-icon" aria-hidden="true">📷</span>
               </button>
@@ -1650,8 +1696,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 type="button"
                 class="shell-icon-btn shell-compose-tool shell-compose-tool--sm"
                 id="shell-watch-camera"
-                title="Камера"
-                aria-label="Камера"
+                aria-label="Живая камера — вкл/выкл"
+                title="Живая камера — вкл/выкл"
                 aria-pressed="false"
               >
                 <span class="shell-compose-tool-icon" aria-hidden="true">📷</span>
@@ -1660,58 +1706,12 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 type="button"
                 class="shell-icon-btn shell-compose-tool shell-compose-tool--sm"
                 id="shell-watch-screen"
-                title="Демонстрация экрана"
-                aria-label="Демонстрация экрана"
+                title="Демонстрация экрана — вкл/выкл"
+                aria-label="Демонстрация экрана — вкл/выкл"
                 aria-pressed="false"
               >
                 <span class="shell-compose-tool-icon" aria-hidden="true">🖥</span>
               </button>
-            </div>
-            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--options" role="group" aria-label="Параметры запроса">
-              <div class="shell-compose-options">
-            <span class="shell-hint" data-hint="Рассуждения — показывать ход мыслей агента (chain-of-thought) в шагах активности. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="reasoning" aria-pressed="false" disabled aria-label="Рассуждения">
-              <span class="shell-compose-option-ico" aria-hidden="true">🧠</span>
-              <span class="shell-compose-option-label">Рассуждения</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Инструменты — разрешить агенту вызывать MCP-инструменты CMS (файлы, память, shell) в этом запросе. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="tools" aria-pressed="false" disabled aria-label="Инструменты">
-              <span class="shell-compose-option-ico" aria-hidden="true">🔧</span>
-              <span class="shell-compose-option-label">Инструменты</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Визуальное — прикреплять кадр с камеры или снимок экрана к сообщению для агента. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="vision" aria-pressed="false" disabled aria-label="Визуальное">
-              <span class="shell-compose-option-ico" aria-hidden="true">👁</span>
-              <span class="shell-compose-option-label">Визуальное</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Web — разрешить агенту искать в интернете и подмешивать свежие факты в ответ. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="web" aria-pressed="false" disabled aria-label="Web">
-              <span class="shell-compose-option-ico" aria-hidden="true">🔍</span>
-              <span class="shell-compose-option-label">Web</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Memory — записывать и подтягивать долговременные заметки workspace в контекст запроса. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="memory" aria-pressed="false" disabled aria-label="Memory">
-              <span class="shell-compose-option-ico" aria-hidden="true">💾</span>
-              <span class="shell-compose-option-label">Memory</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Code — запуск кода в песочнице или computer control (вставка в активное поле). Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="code" aria-pressed="false" disabled aria-label="Code">
-              <span class="shell-compose-option-ico" aria-hidden="true">⌨️</span>
-              <span class="shell-compose-option-label">Code</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Факты — автоматически подмешивать релевантные факты, диалоги и воспоминания из CMS в запрос. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="recall" aria-pressed="false" disabled aria-label="Факты">
-              <span class="shell-compose-option-ico" aria-hidden="true">✨</span>
-              <span class="shell-compose-option-label">Факты</span>
-            </button>
-            </span>
-              </div>
             </div>
             <div class="shell-compose-toolbar-group shell-compose-toolbar-group--send">
               <button
@@ -1934,6 +1934,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=329" type="module"></script>
+    <script src="/shell/shell.js?v=331" type="module"></script>
   </body>
 </html>

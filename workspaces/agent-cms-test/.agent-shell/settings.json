@@ -34,7 +34,7 @@
   "ttsStripEmoji": true,
   "ttsIncludeCaptions": true,
   "windowTopmost": true,
-  "cameraEnabled": false,
+  "cameraEnabled": true,
   "cameraOnSpeech": true,
   "cameraFacing": "user",
   "cameraDeviceId": "",
