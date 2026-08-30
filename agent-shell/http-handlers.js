@@ -4,6 +4,7 @@ const windowSettings = require("./window-settings");
 const { loadShellPromptTemplates } = require("./shell-prompt-presets");
 
 const ttsService = require("./tts-service");
+const sttService = require("./stt-service");
 
 function createShellHandlers(deps) {
   async function tryHandleShellApi(req, res, url, { agentId, agentRoot, projectRoot }) {
@@ -426,6 +427,20 @@ function createShellHandlers(deps) {
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to stop TTS",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/shell/stt/capabilities") {
+      try {
+        const settings = await shellService.readSettings(agentRoot);
+        const capabilities = await sttService.getCapabilities(settings);
+        deps.sendJson(res, 200, { agentId, ...capabilities });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to read STT capabilities",
           details: String(error?.message || error)
         });
       }

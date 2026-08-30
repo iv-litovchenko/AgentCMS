@@ -1,5 +1,5 @@
 {
-  "formatVersion": 5,
+  "formatVersion": 6,
   "cms": {
     "topicPath": "awn-agent-kit/agent/manifest.md",
     "channel": "thread"
@@ -14,19 +14,17 @@
       },
       "claude": {
         "type": "cli",
-        "model": "1",
-        "sessionId": "2"
+        "model": "sonnet",
+        "sessionId": "default"
       }
     }
   },
   "voice": {
-    "input": {
+    "stt": {
       "mode": "hold",
       "globalListen": false,
       "toCompose": false,
-      "responseEnabled": true
-    },
-    "stt": {
+      "responseEnabled": true,
       "lang": "ru-RU",
       "engine": "auto"
     },

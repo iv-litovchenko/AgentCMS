@@ -2,6 +2,16 @@
 
 export const VOICE_INPUT_MODES = ["live", "meeting", "hold", "fn_button"];
 
+export const STT_ENGINE_IDS = ["auto", "browser", "google", "whisper", "elevenlabs"];
+
+export const STT_ENGINE_LABELS = {
+  auto: "Авто",
+  browser: "Web Speech (браузер)",
+  google: "Google STT (sidecar)",
+  whisper: "Whisper локально",
+  elevenlabs: "ElevenLabs Scribe"
+};
+
 const LEGACY_MAP = {
   browser: "hold",
   sidecar: "hold",
@@ -32,7 +42,7 @@ export const VOICE_MODE_HINTS = {
   meeting:
     "🎤 — старт/стоп длинной записи. Аудио → awn-dialogs/records/, текст → агенту. Нужен sidecar.",
   hold:
-    "Зажмите 🎤 — говорите — отпустите. Без «Глобально» — Web Speech в Shell. С «Глобально» — sidecar.",
+    "Зажмите 🎤 — говорите — отпустите. Web Speech в браузере или sidecar (Google / Whisper / Scribe).",
   fn_button:
     "Удерживайте Shift. Без «Глобально» — когда Shell в фокусе (не в поле ввода). С «Глобально» + sidecar — в любом приложении."
 };
@@ -50,20 +60,26 @@ export function isVoiceInputEnabled(mode) {
 
 export function normalizeSttEngine(value) {
   const raw = String(value || "").trim();
-  if (raw === "browser" || raw === "sidecar") return raw;
+  if (raw === "sidecar") return "google";
+  if (STT_ENGINE_IDS.includes(raw)) return raw;
   return "auto";
 }
 
-/** Какой STT реально использовать: browser или sidecar. */
+export function isSidecarSttEngine(engine) {
+  const id = normalizeSttEngine(engine);
+  return id === "google" || id === "whisper" || id === "elevenlabs";
+}
+
+/** Маршрут микрофона: browser (Web Speech) или sidecar (Python). */
 export function resolveSttEngine(
   mode,
   { globalListen = false, sidecarConnected = false, sttEngine = "auto" } = {}
 ) {
   const m = normalizeVoiceInputMode(mode);
-  if (voiceModeRequiresSidecar(m)) return "sidecar";
   const engine = normalizeSttEngine(sttEngine);
+  if (voiceModeRequiresSidecar(m)) return "sidecar";
   if (engine === "browser") return "browser";
-  if (engine === "sidecar") return "sidecar";
+  if (isSidecarSttEngine(engine)) return "sidecar";
   if ((m === "hold" || m === "fn_button") && globalListen) return "sidecar";
   return "browser";
 }

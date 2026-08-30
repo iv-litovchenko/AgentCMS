@@ -34,6 +34,7 @@ const {
 const { probeAvailableRuntimes } = require("./runtime-probe");
 const { probeCliBinary } = require("./runtime-cli-env");
 const { flattenSettings } = require("./shell-settings-format");
+const { normalizeSttEngine: normalizeSttEngineId } = require("./stt-service");
 
 function settingsFormatModule() {
   const modPath = require.resolve("./shell-settings-format");
@@ -95,6 +96,9 @@ const DEFAULT_SETTINGS = {
   sttLang: "ru-RU",
   sttEngine: "auto",
   sttPrompt: "",
+  sttWhisperModel: "base",
+  sttElevenlabsApiKey: "",
+  sttElevenlabsModel: "scribe_v2",
   ttsEnabled: true,
   ttsPlaybackMode: "dialog",
   ttsEngine: "browser",
@@ -281,7 +285,11 @@ function normalizeSettings(raw) {
   if (merged.ttsEngine === "sidecar") merged.ttsEngine = "say";
   merged.voiceResponseEnabled = Boolean(merged.voiceResponseEnabled);
   merged.sttLang = String(merged.sttLang || "ru-RU").trim() || "ru-RU";
+  merged.sttEngine = normalizeSttEngineId(merged.sttEngine);
   merged.sttPrompt = String(merged.sttPrompt || "");
+  merged.sttWhisperModel = String(merged.sttWhisperModel || "base").trim() || "base";
+  merged.sttElevenlabsApiKey = String(merged.sttElevenlabsApiKey || "").trim();
+  merged.sttElevenlabsModel = String(merged.sttElevenlabsModel || "scribe_v2").trim() || "scribe_v2";
   merged.ttsEnabled = Boolean(merged.ttsEnabled);
   merged.ttsPlaybackMode = merged.ttsPlaybackMode === "reading" ? "reading" : "dialog";
   merged.ttsPrompt = String(merged.ttsPrompt || "");

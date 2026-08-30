@@ -14,7 +14,7 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-from stt import MicRecorder, rms, transcribe_pcm
+from stt import MicRecorder, normalize_stt_engine, rms, transcribe_pcm
 from ptt import PttGate
 
 
@@ -147,7 +147,12 @@ class Sidecar:
     def _process_pcm(self, pcm: bytes, *, settings: dict[str, Any] | None = None, save_record: bool = False, record_kind: str = "meeting") -> None:
         if save_record and pcm:
             self._upload_voice_record(pcm, record_kind)
-        result = transcribe_pcm(pcm, language=STT_LANGUAGE)
+        result = transcribe_pcm(
+            pcm,
+            language=str((settings or {}).get("sttLang") or STT_LANGUAGE),
+            engine=normalize_stt_engine((settings or {}).get("sttEngine")),
+            settings=settings or {},
+        )
         if result.error:
             self._patch_state({"phase": "waiting", "phrase": result.error, "metrics": f"{result.duration_sec:.2f}s rms={result.peak_rms:.0f}"})
             print(f"⚠️ {result.error}")

@@ -2,7 +2,7 @@
 
 const { RUNTIME_DEFAULTS } = require("./runtime-bridge");
 
-const SETTINGS_FORMAT_VERSION = 5;
+const SETTINGS_FORMAT_VERSION = 6;
 
 const TTS_ENGINE_IDS = ["browser", "say", "edge", "piper", "elevenlabs"];
 
@@ -188,17 +188,34 @@ function flattenSettings(raw) {
   }
 
   const voice = raw.voice || {};
-  const input = voice.input || {};
-  if (input.mode !== undefined) flat.voiceInputMode = input.mode;
-  if (input.globalListen !== undefined) flat.voiceGlobalListen = input.globalListen;
-  if (input.wakeName !== undefined) flat.voiceWakeName = input.wakeName;
-  if (input.toCompose !== undefined) flat.voiceToCompose = input.toCompose;
-  if (input.responseEnabled !== undefined) flat.voiceResponseEnabled = input.responseEnabled;
-
   const stt = voice.stt || {};
+  const input = voice.input || {};
+
+  if (stt.mode !== undefined) flat.voiceInputMode = stt.mode;
+  else if (input.mode !== undefined) flat.voiceInputMode = input.mode;
+
+  if (stt.globalListen !== undefined) flat.voiceGlobalListen = stt.globalListen;
+  else if (input.globalListen !== undefined) flat.voiceGlobalListen = input.globalListen;
+
+  if (stt.wakeName !== undefined) flat.voiceWakeName = stt.wakeName;
+  else if (input.wakeName !== undefined) flat.voiceWakeName = input.wakeName;
+
+  if (stt.toCompose !== undefined) flat.voiceToCompose = stt.toCompose;
+  else if (input.toCompose !== undefined) flat.voiceToCompose = input.toCompose;
+
+  if (stt.responseEnabled !== undefined) flat.voiceResponseEnabled = stt.responseEnabled;
+  else if (input.responseEnabled !== undefined) flat.voiceResponseEnabled = input.responseEnabled;
+
   if (stt.lang !== undefined) flat.sttLang = stt.lang;
   if (stt.engine !== undefined) flat.sttEngine = stt.engine;
   if (stt.prompt !== undefined) flat.sttPrompt = stt.prompt;
+
+  const whisper = stt.whisper || {};
+  if (whisper.model !== undefined) flat.sttWhisperModel = whisper.model;
+
+  const sttEleven = stt.elevenlabs || {};
+  if (sttEleven.apiKey !== undefined) flat.sttElevenlabsApiKey = sttEleven.apiKey;
+  if (sttEleven.model !== undefined) flat.sttElevenlabsModel = sttEleven.model;
 
   const tts = voice.tts || {};
   if (tts.enabled !== undefined) flat.ttsEnabled = tts.enabled;
@@ -315,17 +332,22 @@ function nestSettings(flat) {
       runtimes: Object.keys(runtimes).length ? runtimes : undefined
     }),
     voice: compactObject({
-      input: compactObject({
+      stt: compactObject({
         mode: source.voiceInputMode,
         globalListen: source.voiceGlobalListen,
         wakeName: source.voiceWakeName,
         toCompose: source.voiceToCompose,
-        responseEnabled: source.voiceResponseEnabled
-      }),
-      stt: compactObject({
+        responseEnabled: source.voiceResponseEnabled,
         lang: source.sttLang,
         engine: source.sttEngine,
-        prompt: source.sttPrompt
+        prompt: source.sttPrompt,
+        whisper: compactObject({
+          model: source.sttWhisperModel
+        }),
+        elevenlabs: compactObject({
+          apiKey: source.sttElevenlabsApiKey,
+          model: source.sttElevenlabsModel
+        })
       }),
       tts: compactObject({
         enabled: source.ttsEnabled,

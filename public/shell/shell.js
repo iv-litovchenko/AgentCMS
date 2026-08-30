@@ -73,6 +73,7 @@ import {
   normalizeSttEngine,
   resolveSttEngine,
   sttEngineIsAvailable,
+  isSidecarSttEngine,
   VOICE_INPUT_MODES,
   VOICE_MODE_LABELS,
   VOICE_MODE_HINTS,
@@ -133,6 +134,7 @@ const heroAutosaveInFlight = {
 };
 let ttsPlaybackModePersisting = false;
 let ttsEngineCapabilities = {};
+let sttEngineCapabilities = {};
 let voiceInputModePersisting = false;
 let voiceModeUserChangedAt = 0;
 let voiceModeHydratedFromServer = false;
@@ -874,6 +876,11 @@ const nodes = {
   sttLang: document.getElementById("shell-stt-lang"),
   sttEngine: document.getElementById("shell-stt-engine"),
   sttEngineNote: document.getElementById("shell-stt-engine-note"),
+  sttWhisperPanel: document.getElementById("shell-stt-whisper-panel"),
+  sttWhisperModel: document.getElementById("shell-stt-whisper-model"),
+  sttElevenlabsPanel: document.getElementById("shell-stt-elevenlabs-panel"),
+  sttElevenlabsKey: document.getElementById("shell-stt-elevenlabs-key"),
+  sttElevenlabsModel: document.getElementById("shell-stt-elevenlabs-model"),
   voiceGlobalListen: document.getElementById("shell-voice-global-listen"),
   topmost: document.getElementById("shell-topmost"),
   windowTransparent: document.getElementById("shell-window-transparent"),
@@ -5054,8 +5061,17 @@ function applySttFormUi(settings) {
   if (nodes.sttEngine && document.activeElement !== nodes.sttEngine) {
     nodes.sttEngine.value = normalizeSttEngine(settings.sttEngine);
   }
+  if (nodes.sttWhisperModel && document.activeElement !== nodes.sttWhisperModel) {
+    nodes.sttWhisperModel.value = settings.sttWhisperModel || "base";
+  }
+  if (nodes.sttElevenlabsKey && document.activeElement !== nodes.sttElevenlabsKey) {
+    nodes.sttElevenlabsKey.value = settings.sttElevenlabsApiKey || "";
+  }
+  if (nodes.sttElevenlabsModel && document.activeElement !== nodes.sttElevenlabsModel) {
+    nodes.sttElevenlabsModel.value = settings.sttElevenlabsModel || "scribe_v2";
+  }
   applyRecognitionLang(settings.sttLang);
-  updateSttEngineNote(settings);
+  updateSttEngineUi();
 }
 
 function updateSttEngineNote(settings = state.settings) {
@@ -5065,27 +5081,39 @@ function updateSttEngineNote(settings = state.settings) {
   const ctx = getVoiceModeContext(settings);
   const resolved = resolveSttEngine(mode, ctx);
   const picked = normalizeSttEngine(settings?.sttEngine);
-  let text = "";
+  const meta = sttEngineCapabilities[picked] || {};
+  let text = meta.hint || "";
 
   if (picked === "auto") {
     text =
       resolved === "sidecar"
-        ? "Авто → sidecar для текущего режима. Sidecar записывает и расшифровывает речь (Python)."
-        : "Авто → Web Speech в браузере. Нужен HTTPS; Chrome / Safari на Mac.";
+        ? "Авто → sidecar (Google / Whisper / Scribe по выбору в sidecar-режимах)."
+        : "Авто → Web Speech в браузере. Нужен HTTPS; Chrome / Safari.";
   } else if (picked === "browser") {
-    text = "Web Speech API в браузере. Удерживайте 🎤 или Shift (без sidecar). Нужен HTTPS.";
-  } else {
-    text = state.sidecarConnected
-      ? "Sidecar подключён — STT через Python (удержание 🎤 / Shift / Live / Встреча)."
-      : "Sidecar не запущен. В терминале: AGENT_CMS_AGENT=agent-cms-core npm run shell:sidecar";
+    text = "Web Speech API в браузере. Удерживайте 🎤 или Shift. Нужен HTTPS.";
+  } else if (picked === "google") {
+    text = "Google STT через sidecar (speech_recognition). Нужен интернет.";
+  } else if (picked === "whisper") {
+    text = meta.available
+      ? "Whisper локально в sidecar (faster-whisper). Первый запуск качает модель."
+      : meta.hint || "Whisper: pip install faster-whisper в voice-sidecar";
+  } else if (picked === "elevenlabs") {
+    text = meta.available
+      ? "ElevenLabs Scribe — облачная расшифровка через sidecar."
+      : meta.hint || "Укажите API key Scribe или TTS ElevenLabs.";
   }
 
-  if (resolved === "sidecar" && !state.sidecarConnected) {
-    text += " · Запустите sidecar.";
+  if (isSidecarSttEngine(picked) || resolved === "sidecar") {
+    text += state.sidecarConnected
+      ? " Sidecar подключён."
+      : " Запустите sidecar: npm run shell:sidecar";
   }
 
   el.textContent = text;
-  el.classList.toggle("shell-stt-engine-note--warn", resolved === "sidecar" && !state.sidecarConnected);
+  el.classList.toggle(
+    "shell-stt-engine-note--warn",
+    (isSidecarSttEngine(picked) || resolved === "sidecar") && !state.sidecarConnected
+  );
 }
 
 function applySttSettingsUi(settings) {
@@ -5098,6 +5126,9 @@ function collectSttFormPatch() {
     sttLang: nodes.sttLang?.value || "ru-RU",
     sttEngine: normalizeSttEngine(nodes.sttEngine?.value),
     sttPrompt: nodes.sttPrompt?.value || "",
+    sttWhisperModel: nodes.sttWhisperModel?.value || "base",
+    sttElevenlabsApiKey: nodes.sttElevenlabsKey?.value?.trim() || "",
+    sttElevenlabsModel: nodes.sttElevenlabsModel?.value || "scribe_v2",
     voiceGlobalListen: Boolean(nodes.voiceGlobalListen?.checked),
     voiceToCompose: Boolean(nodes.voiceToCompose?.checked)
   };
@@ -5321,6 +5352,37 @@ function updateTtsEngineUi({ reloadVoices = false } = {}) {
   if (reloadVoices) {
     void refreshTtsEngineVoices(engine);
   }
+}
+
+async function loadSttCapabilities() {
+  try {
+    const data = await apiFetch("/api/shell/stt/capabilities");
+    sttEngineCapabilities = { ...(data?.engines || {}) };
+    if (nodes.sttEngine) {
+      for (const option of nodes.sttEngine.options) {
+        const meta = sttEngineCapabilities[option.value];
+        if (!meta) continue;
+        option.disabled = meta.available === false;
+        if (meta.hint && option.value !== "auto") {
+          option.title = meta.hint;
+        }
+      }
+    }
+    updateSttEngineUi();
+  } catch {
+    // ignore
+  }
+}
+
+function updateSttEngineUi() {
+  const engine = normalizeSttEngine(nodes.sttEngine?.value || state.settings?.sttEngine || "auto");
+  if (nodes.sttWhisperPanel) {
+    nodes.sttWhisperPanel.dataset.visible = engine === "whisper" ? "1" : "0";
+  }
+  if (nodes.sttElevenlabsPanel) {
+    nodes.sttElevenlabsPanel.dataset.visible = engine === "elevenlabs" ? "1" : "0";
+  }
+  updateSttEngineNote(state.settings);
 }
 
 async function loadTtsCapabilities() {
@@ -6456,6 +6518,9 @@ function setSettingsTab(tab) {
     resetTtsTestButtonUi();
     void refreshTtsVoiceOptions();
   }
+  if (next === "stt") {
+    void loadSttCapabilities();
+  }
 }
 
 function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
@@ -6757,10 +6822,14 @@ function bindUi() {
   });
   nodes.sttEngine?.addEventListener("change", () => {
     if (state.settings) state.settings.sttEngine = normalizeSttEngine(nodes.sttEngine.value);
+    updateSttEngineUi();
     updateVoiceModeSelectUi();
-    updateSttEngineNote();
     markSttDirty();
   });
+  for (const el of [nodes.sttWhisperModel, nodes.sttElevenlabsKey, nodes.sttElevenlabsModel]) {
+    el?.addEventListener("input", markSttDirty);
+    el?.addEventListener("change", markSttDirty);
+  }
   nodes.voiceGlobalListen?.addEventListener("change", () => {
     if (state.settings) state.settings.voiceGlobalListen = nodes.voiceGlobalListen.checked;
     updateVoiceModeSelectUi();

@@ -3199,6 +3199,26 @@ body.shell-desktop .shell-agent-gate select {
   margin-bottom: 0;
 }
 
+.shell-stt-engine-note--warn {
+  color: #fbbf24;
+}
+
+.shell-stt-engine-panels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-tts-field-gap, 10px);
+}
+
+.shell-stt-panel .shell-stt-whisper-panel,
+.shell-stt-panel .shell-stt-elevenlabs-panel {
+  display: none;
+}
+
+.shell-stt-panel .shell-stt-whisper-panel[data-visible="1"],
+.shell-stt-panel .shell-stt-elevenlabs-panel[data-visible="1"] {
+  display: block;
+}
+
 .shell-tts-rate-field {
   margin-top: 0;
 }
