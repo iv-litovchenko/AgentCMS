@@ -1958,27 +1958,28 @@ function normalizeActivityStepLabel(payload = {}) {
   return "";
 }
 
-function renderAgentActivitySteps() {
+function hideAgentActivityPanel() {
   const wrap = nodes.agentActivity;
-  const list = nodes.agentActivityList;
-  if (!wrap || !list) return;
-  if (!agentActivitySteps.length) {
-    wrap.classList.add("hidden");
-    list.replaceChildren();
-    return;
-  }
-  wrap.classList.remove("hidden");
-  list.replaceChildren();
-  for (const step of agentActivitySteps) {
-    const li = document.createElement("li");
-    li.className = `shell-agent-activity-item shell-agent-activity-item--${step.kind || "run"}`;
-    if (step.active) li.classList.add("is-active");
-    li.textContent = step.label;
-    list.append(li);
-  }
-  if (agentActivitySteps.length && nodes.replyPanel?.classList.contains("is-streaming")) {
-    nodes.dialogScroll?.scrollTo?.({ top: nodes.dialogScroll.scrollHeight, behavior: "auto" });
-  }
+  if (!wrap) return;
+  wrap.classList.add("hidden");
+  wrap.hidden = true;
+  if (nodes.agentActivityList) nodes.agentActivityList.replaceChildren();
+}
+
+function activeAgentActivityLabel() {
+  const active = agentActivitySteps.find((step) => step.active) || agentActivitySteps[agentActivitySteps.length - 1];
+  return String(active?.label || "").trim();
+}
+
+function renderAgentActivitySteps() {
+  hideAgentActivityPanel();
+  const label = activeAgentActivityLabel();
+  if (!label || state.ttsPaused || !nodes.phaseLabel) return;
+  const phase = resolveDisplayPhase(state.shellState?.phase || "thinking");
+  if (phase !== "thinking") return;
+  nodes.phaseLabel.textContent = label;
+  nodes.phaseLabel.classList.remove("is-idle", "is-ready", "is-active", "is-busy", "is-speaking", "is-typing");
+  nodes.phaseLabel.classList.add("is-busy");
 }
 
 function resetAgentActivitySteps() {
@@ -2648,8 +2649,9 @@ function handleAgentActivity(payload = {}) {
   pushAgentActivityStep(payload);
   const phrase = String(payload.phrase || "").trim();
   const tool = String(payload.tool || "").trim();
-  if (!phrase) return;
-  renderPhase("thinking", phrase, tool || state.shellState?.metrics || "");
+  const label = phrase || tool;
+  if (!label) return;
+  renderPhase("thinking", phrase || tool, tool || state.shellState?.metrics || "");
 }
 
 function applyAssistantActivity(payload = {}) {

@@ -25,7 +25,7 @@
   },
   "voice": {
     "input": {
-      "mode": "hold",
+      "mode": "live",
       "source": "auto",
       "globalListen": false,
       "toCompose": false,

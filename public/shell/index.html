@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=426" />
+    <link rel="stylesheet" href="/shell/shell.css?v=429" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -1567,6 +1567,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </button>
             <p class="shell-hero-status-badge is-ready" id="shell-phase-label" aria-live="polite">Готов к сообщению</p>
             </div>
+            <div class="shell-hero-toolbar-row">
             <div class="shell-hero-toolbar" id="shell-tts-controls">
               <button
                 type="button"
@@ -1624,6 +1625,22 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <span class="shell-tts-btn-label">Отмена</span>
               </button>
             </div>
+            <div class="shell-hero-toolbar shell-hero-toolbar--dialog" role="group" aria-label="Диалог">
+              <span class="shell-hero-toolbar-dot-wrap" title="Связь с сервером">
+                <span class="shell-status-dot" id="shell-status-dot" data-state="offline" aria-label="Связь с сервером"></span>
+              </span>
+              <button
+                type="button"
+                class="shell-tts-btn shell-dialog-tool"
+                id="shell-dialog-refresh"
+                title="Обновить диалог"
+                aria-label="Обновить диалог"
+              >
+                <span class="shell-tts-btn-icon" aria-hidden="true">↻</span>
+                <span class="shell-tts-btn-label">Обновить</span>
+              </button>
+            </div>
+            </div>
             <div class="shell-status-meta shell-hero-status-meta" id="shell-meta"></div>
             </div>
           </div>
@@ -1632,10 +1649,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
       <section class="shell-chat-section shell-chat-section--reply" aria-label="Диалог">
       <section class="shell-reply-panel" id="shell-reply-panel">
-        <div class="shell-dialog-toolbar shell-chat-head">
-          <span class="shell-status-dot" id="shell-status-dot" data-state="offline" title="Связь с сервером" aria-label="Связь с сервером"></span>
-          <button type="button" class="shell-icon-btn shell-dialog-tool" id="shell-dialog-refresh" title="Обновить диалог" aria-label="Обновить диалог">↻</button>
-        </div>
         <div class="shell-pull-hint hidden" id="shell-pull-hint">Отпустите для обновления</div>
         <div class="shell-dialog-scroll" id="shell-dialog-scroll">
           <div class="shell-dialog-thread" id="shell-dialog-thread" aria-live="polite"></div>
@@ -1647,7 +1660,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <div class="shell-reply-text" id="shell-last-reply-text">—</div>
             <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
           </div>
-          <div class="shell-agent-activity hidden" id="shell-agent-activity" aria-live="polite">
+          <div class="shell-agent-activity hidden" id="shell-agent-activity" hidden aria-hidden="true">
             <div class="shell-agent-activity-label">Шаги агента</div>
             <ol class="shell-agent-activity-list" id="shell-agent-activity-list"></ol>
           </div>
@@ -2104,6 +2117,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=416" type="module"></script>
+    <script src="/shell/shell.js?v=417" type="module"></script>
   </body>
 </html>
