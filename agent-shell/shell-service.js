@@ -90,6 +90,7 @@ const DEFAULT_SETTINGS = {
   qwenpawSttSessionId: "",
   qwenpawSttChatName: "Shell STT",
   voiceInputMode: "hold",
+  voiceInputSource: "auto",
   voiceGlobalListen: false,
   voiceWakeName: "",
   voiceToCompose: false,
@@ -277,6 +278,9 @@ function normalizeSettings(raw) {
   merged.qwenpawSttChatName = String(merged.qwenpawSttChatName || DEFAULT_SETTINGS.qwenpawSttChatName).trim()
     || DEFAULT_SETTINGS.qwenpawSttChatName;
   merged.voiceInputMode = migrateVoiceInputMode(merged.voiceInputMode);
+  merged.voiceInputSource = ["auto", "browser", "sidecar"].includes(String(merged.voiceInputSource || "").trim())
+    ? String(merged.voiceInputSource).trim()
+    : "auto";
   merged.voiceGlobalListen = Boolean(merged.voiceGlobalListen);
   merged.voiceWakeName = String(merged.voiceWakeName || "").trim();
   merged.voiceToCompose = Boolean(merged.voiceToCompose);

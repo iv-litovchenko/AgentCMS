@@ -204,7 +204,10 @@ function flattenSettings(raw) {
   else if (input.toCompose !== undefined) flat.voiceToCompose = input.toCompose;
 
   if (stt.responseEnabled !== undefined) flat.voiceResponseEnabled = stt.responseEnabled;
-  else if (input.responseEnabled !== undefined) flat.voiceResponseEnabled = input.responseEnabled;
+  else   if (input.responseEnabled !== undefined) flat.voiceResponseEnabled = input.responseEnabled;
+
+  if (input.source !== undefined) flat.voiceInputSource = input.source;
+  else if (stt.source !== undefined) flat.voiceInputSource = stt.source;
 
   if (stt.lang !== undefined) flat.sttLang = stt.lang;
   if (stt.engine !== undefined) flat.sttEngine = stt.engine;
@@ -332,12 +335,15 @@ function nestSettings(flat) {
       runtimes: Object.keys(runtimes).length ? runtimes : undefined
     }),
     voice: compactObject({
-      stt: compactObject({
+      input: compactObject({
         mode: source.voiceInputMode,
+        source: source.voiceInputSource,
         globalListen: source.voiceGlobalListen,
         wakeName: source.voiceWakeName,
         toCompose: source.voiceToCompose,
-        responseEnabled: source.voiceResponseEnabled,
+        responseEnabled: source.voiceResponseEnabled
+      }),
+      stt: compactObject({
         lang: source.sttLang,
         engine: source.sttEngine,
         prompt: source.sttPrompt,

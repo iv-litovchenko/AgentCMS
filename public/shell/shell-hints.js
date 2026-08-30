@@ -5,22 +5,25 @@ const TTS_PLAYBACK_HINTS = {
 
 export function updateVoiceModeHint(
   mode = "hold",
-  hintEl = document.getElementById("shell-voice-control")
+  hintEl = document.getElementById("shell-voice-control"),
+  { resolvedSource = "browser", sidecarConnected = false } = {}
 ) {
   if (!hintEl) return;
   if (mode === "disabled") {
-    hintEl.dataset.hint = "Голосовой ввод выключен — включите «Голосовой ввод (STT)» в панели выше.";
+    hintEl.dataset.hint = "Голосовой ввод выключен";
     return;
   }
+  const source =
+    resolvedSource === "sidecar"
+      ? sidecarConnected
+        ? "sidecar"
+        : "sidecar (не запущен)"
+      : "микрофон браузера";
   const hints = {
-    live:
-      "Sidecar постоянно слушает. Фраза по паузе → агенту. Ваш голос останавливает TTS. Нужен npm run shell:sidecar.",
-    meeting:
-      "🎤 — старт/стоп длинной записи. Аудио → awn-dialogs/records/, текст → агенту. Нужен sidecar.",
-    hold:
-      "Зажмите 🎤 — говорите — отпустите. Без «Глобально» — Web Speech в Shell. С «Глобально» — sidecar.",
-    fn_button:
-      "Удерживайте Shift. Без «Глобально» — когда Shell в фокусе (не в поле ввода). С «Глобально» + sidecar — в любом приложении."
+    live: `Живой диалог · ${source}`,
+    meeting: `Запись встречи · ${source}`,
+    hold: `Удержать 🎤 · ${source}`,
+    fn_button: `Shift · ${source}`
   };
   const next = hints[mode] ? mode : "hold";
   hintEl.dataset.hint = hints[next];

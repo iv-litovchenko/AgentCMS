@@ -20,11 +20,13 @@
     }
   },
   "voice": {
-    "stt": {
-      "mode": "meeting",
+    "input": {
+      "mode": "hold",
       "globalListen": false,
       "toCompose": false,
-      "responseEnabled": true,
+      "responseEnabled": true
+    },
+    "stt": {
       "lang": "ru-RU",
       "engine": "auto",
       "whisper": {
@@ -36,7 +38,7 @@
     },
     "tts": {
       "enabled": false,
-      "playbackMode": "dialog",
+      "playbackMode": "reading",
       "engine": "browser",
       "prompt": "2222",
       "rate": 1,
@@ -60,7 +62,7 @@
     }
   },
   "proactive": {
-    "enabled": true,
+    "enabled": false,
     "idleSeconds": 100,
     "cooldownSeconds": 901,
     "prompt": "111",

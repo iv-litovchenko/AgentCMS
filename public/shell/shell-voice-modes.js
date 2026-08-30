@@ -2,12 +2,22 @@
 
 export const VOICE_INPUT_MODES = ["live", "meeting", "hold", "fn_button"];
 
+/** Откуда берётся звук (захват микрофона). */
+export const STT_SOURCE_IDS = ["auto", "browser", "sidecar"];
+
+export const STT_SOURCE_LABELS = {
+  auto: "Авто",
+  browser: "Микрофон браузера",
+  sidecar: "Sidecar (локальная программа)"
+};
+
+/** Как распознаётся речь (движок STT). */
 export const STT_ENGINE_IDS = ["auto", "browser", "google", "whisper", "elevenlabs"];
 
 export const STT_ENGINE_LABELS = {
   auto: "Авто",
-  browser: "Web Speech (браузер)",
-  google: "Google STT (sidecar)",
+  browser: "Web Speech",
+  google: "Google STT",
   whisper: "Whisper локально",
   elevenlabs: "ElevenLabs Scribe"
 };
@@ -58,6 +68,12 @@ export function isVoiceInputEnabled(mode) {
   return normalizeVoiceInputMode(mode) !== "disabled";
 }
 
+export function normalizeSttSource(value) {
+  const raw = String(value || "").trim();
+  if (STT_SOURCE_IDS.includes(raw)) return raw;
+  return "auto";
+}
+
 export function normalizeSttEngine(value) {
   const raw = String(value || "").trim();
   if (raw === "sidecar") return "google";
@@ -70,10 +86,9 @@ export function isSidecarSttEngine(engine) {
   return id === "google" || id === "whisper" || id === "elevenlabs";
 }
 
-/** Маршрут микрофона: browser (Web Speech) или sidecar (Python). */
-export function resolveSttEngine(
+function resolveSttSourceAuto(
   mode,
-  { globalListen = false, sidecarConnected = false, sttEngine = "auto" } = {}
+  { globalListen = false, sttEngine = "auto" } = {}
 ) {
   const m = normalizeVoiceInputMode(mode);
   const engine = normalizeSttEngine(sttEngine);
@@ -84,8 +99,30 @@ export function resolveSttEngine(
   return "browser";
 }
 
+/** Источник звука: browser (микрофон вкладки) или sidecar (Python). */
+export function resolveSttSource(
+  mode,
+  {
+    globalListen = false,
+    sidecarConnected = false,
+    sttEngine = "auto",
+    sttSource = "auto"
+  } = {}
+) {
+  const source = normalizeSttSource(sttSource);
+  if (source === "browser") return "browser";
+  if (source === "sidecar") return "sidecar";
+  void sidecarConnected;
+  return resolveSttSourceAuto(mode, { globalListen, sttEngine });
+}
+
+/** @deprecated Имя историческое — это источник звука, не движок STT. */
+export function resolveSttEngine(mode, context = {}) {
+  return resolveSttSource(mode, context);
+}
+
 export function sttEngineIsAvailable(mode, context = {}) {
-  const resolved = resolveSttEngine(mode, context);
+  const resolved = resolveSttSource(mode, context);
   if (resolved === "browser") return true;
   return Boolean(context.sidecarConnected);
 }
@@ -99,9 +136,9 @@ export function voiceModeRequiresSidecar(mode) {
 /** Микрофон через sidecar PTT / meeting / always. */
 export function voiceModeUsesSidecarMic(
   mode,
-  { globalListen = false, sidecarConnected = false, sttEngine = "auto" } = {}
+  { globalListen = false, sidecarConnected = false, sttEngine = "auto", sttSource = "auto" } = {}
 ) {
-  if (resolveSttEngine(mode, { globalListen, sidecarConnected, sttEngine }) !== "sidecar") {
+  if (resolveSttSource(mode, { globalListen, sidecarConnected, sttEngine, sttSource }) !== "sidecar") {
     return false;
   }
   const m = normalizeVoiceInputMode(mode);
@@ -113,21 +150,29 @@ export function voiceModeUsesSidecarMic(
 /** Web Speech в браузере. */
 export function voiceModeUsesBrowserStt(
   mode,
-  { globalListen = false, sidecarConnected = false, sttEngine = "auto" } = {}
+  { globalListen = false, sidecarConnected = false, sttEngine = "auto", sttSource = "auto" } = {}
 ) {
-  if (resolveSttEngine(mode, { globalListen, sidecarConnected, sttEngine }) !== "browser") {
+  if (resolveSttSource(mode, { globalListen, sidecarConnected, sttEngine, sttSource }) !== "browser") {
     return false;
   }
   const m = normalizeVoiceInputMode(mode);
   return m !== "disabled" && !voiceModeRequiresSidecar(m);
 }
 
-export function voiceModeMicAction(mode) {
+export function voiceModeMicAction(mode, context = {}) {
   const m = normalizeVoiceInputMode(mode);
+  if (m === "disabled") return "hint";
+
+  const resolved = resolveSttSource(m, context);
+  if (resolved === "browser") {
+    if (m === "fn_button") return "hint";
+    return "hold";
+  }
+
   if (m === "meeting") return "toggle-meeting";
-  if (m === "hold") return "hold";
   if (m === "live") return "sidecar-always";
   if (m === "fn_button") return "hint";
+  if (m === "hold") return "hold";
   return "hint";
 }
 

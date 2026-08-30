@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=397" />
+    <link rel="stylesheet" href="/shell/shell.css?v=414" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -30,13 +30,13 @@
           "@shell/tts-tab": "/shell/shell-tts-tab.js?v=207",
           "@shell/tts-player": "/shell/shell-tts-player.js?v=207",
           "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=207",
-          "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=397",
-          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=397",
+          "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=404",
+          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=404",
           "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=207",
           "@shell/session": "/shell/shell-session.js?v=207",
-          "@shell/client-id": "/shell/shell-client-id.js?v=397",
+          "@shell/client-id": "/shell/shell-client-id.js?v=404",
           "@shell/surface": "/shell/shell-surface.js?v=226",
-          "@shell/presence": "/shell/shell-presence.js?v=397",
+          "@shell/presence": "/shell/shell-presence.js?v=404",
           "@shell/voice-chpu": "/shell/voice-chpu.js?v=209",
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
@@ -50,12 +50,12 @@
           "@shell/proactive": "/shell/shell-proactive.js?v=322",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
           "@shell/voice": "/shell/shell-voice.js?v=207",
-          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=397",
+          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=414",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=350",
-          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=397",
-          "@shell/build": "/shell/shell-build.js?v=397"
+          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=414",
+          "@shell/build": "/shell/shell-build.js?v=414"
         }
       }
     </script>
@@ -308,17 +308,6 @@
             <button
               type="button"
               class="shell-settings-tab"
-              id="shell-settings-tab-tts"
-              role="tab"
-              data-settings-tab="tts"
-              aria-selected="false"
-              aria-controls="shell-tts-panel"
-            >
-              TTS
-            </button>
-            <button
-              type="button"
-              class="shell-settings-tab"
               id="shell-settings-tab-stt"
               role="tab"
               data-settings-tab="stt"
@@ -326,6 +315,17 @@
               aria-controls="shell-stt-panel"
             >
               STT
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-tts"
+              role="tab"
+              data-settings-tab="tts"
+              aria-selected="false"
+              aria-controls="shell-tts-panel"
+            >
+              TTS
             </button>
             <button
               type="button"
@@ -649,7 +649,7 @@
         <div class="shell-tts-engines" id="shell-tts-engines">
           <label class="shell-field">
             <span class="shell-label shell-label-row shell-label-row--spread">
-              Провайдер
+              Провайдер (движок)
               <span class="shell-tts-engine-actions">
                 <button type="button" class="shell-label-action" id="shell-tts-test" title="Озвучить пробную фразу выбранным движком">
                   Пробный текст
@@ -665,7 +665,7 @@
                 </button>
               </span>
             </span>
-            <select id="shell-tts-engine" class="shell-select shell-select--full" aria-label="Провайдер TTS"></select>
+            <select id="shell-tts-engine" class="shell-select shell-select--full" aria-label="Провайдер (движок) TTS"></select>
           </label>
 
           <div class="shell-tts-browser-panel" id="shell-tts-browser-panel" data-visible="0">
@@ -851,21 +851,90 @@
         </section>
 
         <section class="shell-stt-panel" id="shell-stt-panel" role="tabpanel" aria-labelledby="shell-settings-tab-stt" hidden>
-        <input id="shell-stt-enabled" type="checkbox" checked hidden aria-hidden="true" tabindex="-1" />
-        <div class="shell-voice-panel-head">
+        <div class="shell-voice-panel-head shell-voice-panel-head--stt">
           <span class="shell-label">Голосовой ввод (STT)</span>
         </div>
         <div class="shell-stt-settings" id="shell-stt-settings">
-          <p class="shell-stt-settings-note">
-            Язык и промпт сохраняются в <code>settings.json</code>. Режим ввода — у кнопки 🎤.
-            Sidecar: <code>npm run shell:sidecar</code>. Режим 🎤 — см. подсказку под полем ввода.
-            iPhone: <a href="#" id="shell-mic-help-link">Микрофон Safari</a>.
-            Если задан промпт пост-обработки — голос сначала проходит через отдельный чат QwenPaw
-            (<code>shell-stt-&lt;agent&gt;</code>), затем очищенный текст уходит в основной чат.
+          <div class="shell-stt-engines" id="shell-stt-engines">
+            <label class="shell-field">
+              <span class="shell-label shell-label-row shell-label-row--spread">Провайдер (движок)</span>
+              <select id="shell-stt-engine" class="shell-select shell-select--full" aria-label="Провайдер (движок) STT">
+                <option value="auto">Авто — Web Speech или Google</option>
+                <option value="browser">Web Speech</option>
+                <option value="google">Google STT</option>
+                <option value="whisper">Whisper локально</option>
+                <option value="elevenlabs">ElevenLabs Scribe</option>
+              </select>
+              <p class="shell-stt-engine-note" id="shell-stt-engine-note">Источник и движок выбираются отдельно.</p>
+            </label>
+
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">Источник звука</span>
+              <select id="shell-stt-source" class="shell-select shell-select--full" aria-label="Источник звука STT">
+                <option value="auto">Авто — по режиму 🎤 и движку</option>
+                <option value="browser">Микрофон браузера (вкладка Shell)</option>
+                <option value="sidecar">Sidecar — локальная программа</option>
+              </select>
+            </label>
+
+            <div class="shell-stt-engine-panels">
+              <div class="shell-stt-common-panel" id="shell-stt-common-panel">
+                <div class="shell-stt-engine-fields">
+                  <label class="shell-field shell-field--compact">
+                    <span class="shell-label">Язык STT</span>
+                    <select id="shell-stt-lang" class="shell-select shell-select--full">
+                      <option value="ru-RU">Русский</option>
+                      <option value="en-US">English</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="shell-stt-whisper-panel" id="shell-stt-whisper-panel" data-visible="0">
+                <div class="shell-stt-engine-fields">
+                  <label class="shell-field shell-field--compact">
+                    <span class="shell-label">Модель Whisper</span>
+                    <select id="shell-stt-whisper-model" class="shell-select shell-select--full">
+                      <option value="tiny">tiny — быстро, хуже качество</option>
+                      <option value="base" selected>base — баланс</option>
+                      <option value="small">small</option>
+                      <option value="medium">medium — медленнее, лучше</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="shell-stt-elevenlabs-panel" id="shell-stt-elevenlabs-panel" data-visible="0">
+                <div class="shell-stt-engine-fields">
+                  <label class="shell-field shell-field--compact">
+                    <span class="shell-label">API key · Scribe (если пусто — из TTS ElevenLabs)</span>
+                    <input
+                      id="shell-stt-elevenlabs-key"
+                      class="shell-input"
+                      type="password"
+                      autocomplete="off"
+                      spellcheck="false"
+                      placeholder="sk_…"
+                    />
+                  </label>
+                  <label class="shell-field shell-field--compact">
+                    <span class="shell-label">Модель Scribe</span>
+                    <select id="shell-stt-elevenlabs-model" class="shell-select shell-select--full">
+                      <option value="scribe_v2" selected>scribe_v2</option>
+                      <option value="scribe_v1">scribe_v1</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="shell-stt-settings-note shell-stt-settings-note--foot">
+            Режим 🎤 — у поля ввода. Sidecar: <code>npm run shell:sidecar</code>.
+            <a href="#" id="shell-mic-help-link">Микрофон Safari</a>
           </p>
+
           <label class="shell-field shell-field--compact">
             <span class="shell-label shell-label-row shell-label-row--spread">
-              Промпт пост-обработки STT
+              Промпт для обработки речи
               <button type="button" class="shell-label-action" id="shell-stt-prompt-insert">
                 Вставить заготовку
               </button>
@@ -878,68 +947,29 @@
               placeholder="Исправь пунктуацию, убери «э-э» и «эээ», сохрани смысл. Верни только готовый текст для агента.&#10;&#10;Если поле пустое — сырой STT сразу уходит агенту без LLM-очистки."
             ></textarea>
           </label>
-          <label class="shell-check shell-stt-voice-confirm" title="Показать текст перед отправкой голосового сообщения">
+          <label class="shell-check shell-stt-voice-confirm" title="Распознанная речь попадает в поле ввода; отправка — вручную">
+            <input id="shell-voice-to-compose" type="checkbox" aria-label="Вставлять текст в поле ввода" />
+            <span>Вставлять распознанный текст в поле ввода (не отправлять агенту)</span>
+          </label>
+          <label class="shell-check shell-stt-voice-confirm" title="Если выключено — перед отправкой показывается диалог с текстом для правки">
             <input id="shell-voice-confirm" type="checkbox" checked />
-            <span>Подтверждать голос перед отправкой</span>
+            <span>Отправлять агенту сразу после распознавания текста</span>
           </label>
-          <label class="shell-check shell-stt-global" title="Sidecar слушает микрофон в любом приложении (режимы Голосовое и Shift)">
-            <input id="shell-voice-global-listen" type="checkbox" />
-            <span>Глобально — слышу из любого приложения</span>
-          </label>
-          <div class="shell-stt-settings-grid">
-            <label class="shell-field shell-field--compact">
-              <span class="shell-label">Язык STT</span>
-              <select id="shell-stt-lang" class="shell-select">
-                <option value="ru-RU">Русский</option>
-                <option value="en-US">English</option>
-              </select>
-            </label>
-            <label class="shell-field shell-field--compact">
-              <span class="shell-label">Движок STT</span>
-              <select id="shell-stt-engine" class="shell-select shell-select--full">
-                <option value="auto">Авто — Web Speech или sidecar по режиму</option>
-                <option value="browser">Web Speech (браузер)</option>
-                <option value="google">Google STT (sidecar)</option>
-                <option value="whisper">Whisper локально (sidecar)</option>
-                <option value="elevenlabs">ElevenLabs Scribe (sidecar)</option>
-              </select>
-              <p class="shell-stt-engine-note" id="shell-stt-engine-note">
-                Авто: Web Speech для «Голосовое», sidecar для Live / Встреча / «Глобально».
-              </p>
-            </label>
-          </div>
-          <div class="shell-stt-engine-panels">
-            <div class="shell-stt-whisper-panel" id="shell-stt-whisper-panel" data-visible="0">
-              <label class="shell-field shell-field--compact">
-                <span class="shell-label">Модель Whisper</span>
-                <select id="shell-stt-whisper-model" class="shell-select shell-select--full">
-                  <option value="tiny">tiny — быстро, хуже качество</option>
-                  <option value="base" selected>base — баланс</option>
-                  <option value="small">small</option>
-                  <option value="medium">medium — медленнее, лучше</option>
-                </select>
+
+          <div class="shell-field shell-field--compact shell-tts-panel-enable-field shell-stt-panel-enable-field">
+            <span class="shell-tts-panel-playback" role="presentation">
+              <label
+                class="shell-stt-panel-enable shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+                title="Голосовой ввод — микрофон и режим 🎤"
+              >
+                <input id="shell-stt-panel-enabled" type="checkbox" checked aria-label="Включить голосовой ввод" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">🎤</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Включить голосовой ввод</span>
+                  <span class="shell-tts-playback-option-desc">(микрофон и режим 🎤 у поля ввода)</span>
+                </span>
               </label>
-            </div>
-            <div class="shell-stt-elevenlabs-panel" id="shell-stt-elevenlabs-panel" data-visible="0">
-              <label class="shell-field shell-field--compact">
-                <span class="shell-label">API key · Scribe (если пусто — из TTS ElevenLabs)</span>
-                <input
-                  id="shell-stt-elevenlabs-key"
-                  class="shell-input"
-                  type="password"
-                  autocomplete="off"
-                  spellcheck="false"
-                  placeholder="sk_…"
-                />
-              </label>
-              <label class="shell-field shell-field--compact">
-                <span class="shell-label">Модель Scribe</span>
-                <select id="shell-stt-elevenlabs-model" class="shell-select shell-select--full">
-                  <option value="scribe_v2" selected>scribe_v2</option>
-                  <option value="scribe_v1">scribe_v1</option>
-                </select>
-              </label>
-            </div>
+            </span>
           </div>
         </div>
         <div class="shell-settings-save-row">
@@ -1427,6 +1457,17 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <span class="shell-hero-orb shell-hero-orb--3"></span>
           <span class="shell-hero-orb shell-hero-orb--4"></span>
         </div>
+        <div class="shell-hero-stt-controls" aria-label="Голосовой ввод">
+          <div class="shell-hero-voice-row shell-hero-voice-row--stt">
+            <label
+              class="shell-check shell-voice-settings-summary-option shell-reply-stt shell-hero-stt-toggle"
+              title="Голосовой ввод — микрофон и режим 🎤"
+            >
+              <input id="shell-stt-enabled" type="checkbox" checked aria-label="Включить STT" />
+              <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--stt">STT</span>
+            </label>
+          </div>
+        </div>
         <div class="shell-hero-voice-controls" aria-label="Голосовой ответ">
           <div class="shell-hero-voice-row shell-hero-voice-row--tts">
             <label
@@ -1744,9 +1785,9 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <div class="shell-compose-toolbar" aria-label="Панель ввода">
             <div class="shell-compose-toolbar-group shell-compose-toolbar-group--voice">
               <div
-                class="shell-compose-voice shell-compose-voice--compact"
+                class="shell-hint shell-compose-voice shell-compose-voice--compact"
                 id="shell-voice-control"
-                data-hint="Зажмите 🎤 — говорите — отпустите. Без «Глобально» — Web Speech в Shell. С «Глобально» — sidecar."
+                data-stt-source="browser"
               >
                 <button
                   type="button"
@@ -1758,6 +1799,12 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 >
                   <span class="shell-compose-tool-icon" aria-hidden="true">🎤</span>
                 </button>
+                <span
+                  id="shell-voice-source-badge"
+                  class="shell-compose-voice-source"
+                  title="Источник звука"
+                  aria-hidden="true"
+                ></span>
                 <select
                   id="shell-voice-mode"
                   class="shell-select shell-compose-voice-select"
@@ -1770,17 +1817,17 @@ aya_bar_v2 тоже читает те же файлы</pre>
                   <option value="fn_button">Shift</option>
                 </select>
                 <label
-                  id="shell-voice-to-compose-wrap"
-                  class="shell-compose-voice-compose"
-                  title="В поле ввода — речь попадает в текст, не отправляется агенту"
+                  id="shell-voice-global-wrap"
+                  class="shell-compose-voice-global"
+                  title="Sidecar слушает 🎤 / Shift, даже когда Shell не в фокусе"
                 >
                   <input
-                    id="shell-voice-to-compose"
-                    class="shell-compose-voice-compose-input"
+                    id="shell-voice-global-listen"
+                    class="shell-compose-voice-global-input"
                     type="checkbox"
-                    aria-label="В поле ввода — не отправлять агенту"
+                    aria-label="Глобально через sidecar"
                   />
-                  <span class="shell-compose-tool-icon" aria-hidden="true">✏️</span>
+                  <span class="shell-compose-tool-icon" aria-hidden="true">🌐</span>
                 </label>
               </div>
             </div>
@@ -1875,9 +1922,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <code>.agent-shell/compose-draft.md</code>
             </span>
           </div>
-          <p id="shell-fn-ptt-hint" class="shell-compose-voice-hint hidden">
-            Удерживайте 🎤 — говорите — отпустите.
-          </p>
           </div>
         </div>
         </div>
@@ -2065,6 +2109,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=397" type="module"></script>
+    <script src="/shell/shell.js?v=414" type="module"></script>
   </body>
 </html>
