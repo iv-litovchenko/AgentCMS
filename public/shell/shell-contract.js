@@ -35,7 +35,7 @@ export const SHELL_PHASE = {
 export const SHELL_PHASE_LABELS = {
   waiting: "🟡 Ожидаю",
   listening: "🔴 Слушаю",
-  thinking: "🟢 Думаю",
+  thinking: "🟢 Обрабатываю",
   speaking: "🔊 Говорю",
   disabled: "⏸️ Отключено"
 };

@@ -224,7 +224,9 @@ function createShellHandlers(deps) {
         } else {
           state = await shellService.getState(agentRoot);
         }
-        deps.sendJson(res, 200, shellPresence.buildPresencePayload(agentId, state));
+        const presencePayload = shellPresence.buildPresencePayload(agentId, state);
+        shellService.emitShellEvent(agentId, "presence", presencePayload);
+        deps.sendJson(res, 200, presencePayload);
       } catch (error) {
         const message = String(error?.message || error);
         const status = /required/i.test(message) ? 400 : 500;

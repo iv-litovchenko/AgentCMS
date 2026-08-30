@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=383" />
+    <link rel="stylesheet" href="/shell/shell.css?v=397" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -30,12 +30,13 @@
           "@shell/tts-tab": "/shell/shell-tts-tab.js?v=207",
           "@shell/tts-player": "/shell/shell-tts-player.js?v=207",
           "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=207",
-          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=383",
+          "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=397",
+          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=397",
           "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=207",
           "@shell/session": "/shell/shell-session.js?v=207",
-          "@shell/client-id": "/shell/shell-client-id.js?v=207",
+          "@shell/client-id": "/shell/shell-client-id.js?v=397",
           "@shell/surface": "/shell/shell-surface.js?v=226",
-          "@shell/presence": "/shell/shell-presence.js?v=352",
+          "@shell/presence": "/shell/shell-presence.js?v=397",
           "@shell/voice-chpu": "/shell/voice-chpu.js?v=209",
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
@@ -49,12 +50,12 @@
           "@shell/proactive": "/shell/shell-proactive.js?v=322",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
           "@shell/voice": "/shell/shell-voice.js?v=207",
-          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=383",
+          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=397",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=350",
-          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=383",
-          "@shell/build": "/shell/shell-build.js?v=383"
+          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=397",
+          "@shell/build": "/shell/shell-build.js?v=397"
         }
       }
     </script>
@@ -180,6 +181,17 @@
                 aria-label="Открыть Agent CMS на localhost"
               >
                 <img class="shell-path-action-icon" src="/favicon.svg" width="16" height="16" alt="" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                class="shell-path-action-btn shell-voice-primary-star hidden"
+                id="shell-voice-primary-star"
+                title="Это окно активно для голоса"
+                aria-label="Это окно активно для голоса"
+                aria-pressed="false"
+                aria-hidden="true"
+              >
+                ★
               </button>
               <button
                 type="button"
@@ -1440,7 +1452,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </span>
             </span>
           </div>
-          <div class="shell-hero-voice-row shell-hero-voice-row--proactive">
+          <div class="shell-hero-voice-row shell-hero-voice-row--proactive" id="shell-proactive-row">
             <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--proactive">Проактив</span>
             <button
               type="button"
@@ -1906,7 +1918,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </label>
             <label class="shell-check shell-camera-speech">
               <input id="shell-camera-on-speech" type="checkbox" checked />
-              <span title="Когда вы закончили говорить и Shell переходит в «Думаю», сохраняется кадр с камеры для агента">
+              <span title="Когда вы закончили говорить и Shell переходит в «Обрабатываю», сохраняется кадр с камеры для агента">
                 Снимать при речи
               </span>
             </label>
@@ -1939,7 +1951,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <div class="shell-screen-options">
             <label class="shell-check shell-screen-speech">
               <input id="shell-screen-on-speech" type="checkbox" checked />
-              <span title="Когда вы закончили говорить и Shell переходит в «Думаю», сохраняется снимок экрана для агента">
+              <span title="Когда вы закончили говорить и Shell переходит в «Обрабатываю», сохраняется снимок экрана для агента">
                 Снимать при речи
               </span>
             </label>
@@ -1964,10 +1976,10 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
     <aside class="shell-hero-demo-panel" id="shell-hero-demo-bar" aria-label="Примеры статусов">
       <span class="shell-hero-demo-label">Пример</span>
-      <button type="button" class="shell-hero-demo-btn" data-hero-demo="ready">Готов</button>
       <button type="button" class="shell-hero-demo-btn" data-hero-demo="idle">Ожидаю</button>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="ready">Готов</button>
       <button type="button" class="shell-hero-demo-btn" data-hero-demo="listening">Слушаю</button>
-      <button type="button" class="shell-hero-demo-btn" data-hero-demo="thinking">Думаю</button>
+      <button type="button" class="shell-hero-demo-btn" data-hero-demo="thinking">Обрабатываю</button>
       <button type="button" class="shell-hero-demo-btn" data-hero-demo="replying">Отвечаю</button>
       <div class="shell-hero-demo-divider" aria-hidden="true"></div>
       <span class="shell-hero-demo-label">Окно</span>
@@ -2053,6 +2065,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=383" type="module"></script>
+    <script src="/shell/shell.js?v=397" type="module"></script>
   </body>
 </html>

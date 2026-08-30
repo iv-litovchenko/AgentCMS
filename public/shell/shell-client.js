@@ -5,7 +5,7 @@ import {
   unwrapAssistantMessage,
   unwrapShellState
 } from "@shell/contract";
-import { getShellClientId } from "@shell/client-id";
+import { getShellPresenceClientId } from "@shell/client-id";
 import { getShellSurfacePayload } from "@shell/surface";
 
 export class ShellClient {
@@ -63,7 +63,7 @@ export class ShellClient {
         body: String(body || "").trim(),
         author,
         voice: Boolean(voice),
-        shellClientId: getShellClientId(),
+        shellClientId: getShellPresenceClientId(),
         ...getShellSurfacePayload(),
         ...extra
       }),

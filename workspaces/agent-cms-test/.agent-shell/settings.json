@@ -21,15 +21,21 @@
   },
   "voice": {
     "stt": {
-      "mode": "hold",
+      "mode": "meeting",
       "globalListen": false,
       "toCompose": false,
       "responseEnabled": true,
       "lang": "ru-RU",
-      "engine": "auto"
+      "engine": "auto",
+      "whisper": {
+        "model": "base"
+      },
+      "elevenlabs": {
+        "model": "scribe_v2"
+      }
     },
     "tts": {
-      "enabled": true,
+      "enabled": false,
       "playbackMode": "dialog",
       "engine": "browser",
       "prompt": "2222",
@@ -38,8 +44,7 @@
       "includeCaptions": true,
       "engines": {
         "browser": {
-          "lang": "ru-RU",
-          "voice": "Google русский"
+          "lang": "ru-RU"
         },
         "say": {
           "lang": "ru-RU",
@@ -55,7 +60,7 @@
     }
   },
   "proactive": {
-    "enabled": false,
+    "enabled": true,
     "idleSeconds": 100,
     "cooldownSeconds": 901,
     "prompt": "111",

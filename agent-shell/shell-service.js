@@ -16,6 +16,7 @@ const {
   refineSttTranscript
 } = require("./stt-refine");
 const { syncLatestReplyFromQwenPaw } = require("./qwenpaw-sync");
+const shellPresence = require("./shell-presence");
 const {
   normalizeMessageRuntime,
   isRuntimeImplemented,
@@ -1528,7 +1529,8 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
           created: latestAgent.created,
           author: latestAgent.author
         }
-      : null
+      : null,
+    presence: shellPresence.buildPresencePayload(agentId, stateOut)
   };
 }
 
@@ -1604,6 +1606,10 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
       push("agent_activity", entry.payload || {});
       return;
     }
+    if (entry.type === "presence") {
+      push("presence", entry.payload || {});
+      return;
+    }
     push(entry.type, entry);
   };
   unsubscribe = subscribeShellEvents(onBus);
@@ -1622,7 +1628,9 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
         phase: status.state.phase,
         phrase: status.state.phrase,
         lastAgentMessageId: status.state.lastAgentMessageId,
-        stopTtsAt: status.state.stopTtsAt
+        stopTtsAt: status.state.stopTtsAt,
+        primaryClientId: status.presence?.primaryClientId || "",
+        clientCount: status.presence?.clientCount || 0
       });
       if (sig !== lastSig) {
         lastSig = sig;

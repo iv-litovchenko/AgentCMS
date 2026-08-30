@@ -714,6 +714,62 @@ body.shell-desktop .shell-path-header textarea {
   box-shadow: 0 0 0 2px rgba(8, 10, 22, 0.92);
 }
 
+.shell-voice-primary-star {
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
+.shell-voice-primary-star:not(.hidden) {
+  animation: shell-voice-primary-star-in 0.2s ease-out;
+}
+
+@keyframes shell-voice-primary-star-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.shell-voice-primary-star.is-primary {
+  color: #f59e0b;
+  border-color: #fcd34d;
+  background: #fffbeb;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.15);
+}
+
+.shell-voice-primary-star.is-secondary {
+  color: #94a3b8;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  opacity: 0.85;
+}
+
+.shell-voice-primary-star.is-secondary:hover:not(:disabled) {
+  color: #f59e0b;
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+body.shell-bg-dark .shell-voice-primary-star.is-primary,
+body.shell-bg-wallpaper .shell-voice-primary-star.is-primary {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.12);
+}
+
+body.shell-bg-dark .shell-voice-primary-star.is-secondary,
+body.shell-bg-wallpaper .shell-voice-primary-star.is-secondary {
+  color: rgba(255, 255, 255, 0.45);
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .shell-voice-settings-expand.has-unsaved::after {
   top: 3px;
   right: 3px;
@@ -2145,6 +2201,18 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 .shell-hero-voice-row--proactive {
   padding-top: 2px;
   border-top: 1px solid rgba(148, 163, 184, 0.14);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.shell-hero-voice-row--proactive:hover {
+  background: rgba(244, 114, 182, 0.06);
+}
+
+.shell-hero-voice-row--proactive:focus-visible {
+  outline: 2px solid rgba(244, 114, 182, 0.45);
+  outline-offset: 2px;
 }
 
 .shell-hero-tts-toggle {

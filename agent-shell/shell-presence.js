@@ -69,14 +69,26 @@ function listAliveClients(agentId) {
 
 function resolvePrimaryClientId(agentId, state = {}) {
   const clients = listAliveClients(agentId);
+  if (!clients.length) {
+    return String(state.primaryClientId || state.lastTtsClientId || "").trim();
+  }
+
+  const focused = clients.find((client) => client.visibility === "visible" && client.hasFocus);
+  if (focused) return focused.clientId;
+
+  const withInteract = clients
+    .filter((client) => client.lastInteractAt)
+    .sort((left, right) => parseTime(right.lastInteractAt) - parseTime(left.lastInteractAt));
+  if (withInteract.length) return withInteract[0].clientId;
+
   const fromState = String(state.primaryClientId || state.lastTtsClientId || "").trim();
   if (fromState && clients.some((client) => client.clientId === fromState)) {
     return fromState;
   }
-  const withInteract = clients.find((client) => client.lastInteractAt);
-  if (withInteract) return withInteract.clientId;
-  const focused = clients.find((client) => client.visibility === "visible" && client.hasFocus);
-  if (focused) return focused.clientId;
+  if (fromState && !fromState.includes(":")) {
+    const legacyTab = clients.find((client) => client.clientId.startsWith(`${fromState}:`));
+    if (legacyTab) return legacyTab.clientId;
+  }
   return clients[0]?.clientId || fromState || "";
 }
 

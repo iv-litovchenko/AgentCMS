@@ -1,43 +1,59 @@
 {
-  "formatVersion": 4,
+  "formatVersion": 6,
   "cms": {
     "topicPath": "awn-agent-kit/agent/manifest.md",
     "channel": "thread"
   },
   "route": {
-    "runtime": "qwenpaw",
+    "runtime": "codex",
     "runtimes": {
       "qwenpaw": {
         "type": "agent",
         "baseUrl": "http://127.0.0.1:8088",
         "agentId": "Aya",
         "sessionId": "agent-shell"
+      },
+      "codex": {
+        "type": "cli",
+        "cliPath": "codex2"
       }
     }
   },
   "voice": {
-    "input": {
+    "stt": {
       "mode": "hold",
       "globalListen": false,
       "toCompose": false,
-      "responseEnabled": true
-    },
-    "stt": {
-      "lang": "ru-RU",
-      "engine": "auto"
+      "responseEnabled": true,
+      "lang": "en-US",
+      "engine": "auto",
+      "whisper": {
+        "model": "base"
+      },
+      "elevenlabs": {
+        "model": "scribe_v2"
+      }
     },
     "tts": {
       "enabled": true,
-      "playbackMode": "reading",
+      "playbackMode": "dialog",
       "engine": "edge",
-      "edgeVoice": "ru-RU-SvetlanaNeural",
       "rate": 1,
       "pitch": 1,
-      "lang": "ru-RU",
-      "stripEmoji": true,
       "includeCaptions": true,
-      "elevenlabs": {
-        "model": "eleven_multilingual_v2"
+      "engines": {
+        "browser": {
+          "lang": "ru-RU"
+        },
+        "say": {
+          "lang": "ru-RU"
+        },
+        "edge": {
+          "voice": "ru-RU-SvetlanaNeural"
+        },
+        "elevenlabs": {
+          "model": "eleven_multilingual_v2"
+        }
       }
     }
   },
