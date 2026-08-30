@@ -5,7 +5,7 @@
     "channel": "thread"
   },
   "route": {
-    "runtime": "codex",
+    "runtime": "claude",
     "runtimes": {
       "qwenpaw": {
         "type": "agent",
@@ -20,11 +20,14 @@
     }
   },
   "voice": {
-    "stt": {
+    "input": {
       "mode": "hold",
+      "source": "auto",
       "globalListen": false,
       "toCompose": false,
-      "responseEnabled": true,
+      "responseEnabled": true
+    },
+    "stt": {
       "lang": "en-US",
       "engine": "auto",
       "whisper": {

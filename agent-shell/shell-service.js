@@ -18,6 +18,7 @@ const {
 const { syncLatestReplyFromQwenPaw } = require("./qwenpaw-sync");
 const shellPresence = require("./shell-presence");
 const {
+  SHELL_RUNTIMES,
   normalizeMessageRuntime,
   isRuntimeImplemented,
   runtimeUsesQwenPaw,
@@ -32,7 +33,6 @@ const {
   runtimeHealthPath,
   RUNTIME_TRANSPORT
 } = require("./runtime-bridge");
-const { probeAvailableRuntimes } = require("./runtime-probe");
 const { probeCliBinary } = require("./runtime-cli-env");
 const { flattenSettings } = require("./shell-settings-format");
 const { normalizeSttEngine: normalizeSttEngineId } = require("./stt-service");
@@ -90,6 +90,7 @@ const DEFAULT_SETTINGS = {
   qwenpawSttSessionId: "",
   qwenpawSttChatName: "Shell STT",
   voiceInputMode: "hold",
+  sttEnabled: true,
   voiceInputSource: "auto",
   voiceGlobalListen: false,
   voiceWakeName: "",
@@ -155,7 +156,12 @@ const DEFAULT_STATE = {
 
 const SIDECAR_TTL_MS = 8000;
 const VOICE_INPUT_MODES = new Set(["live", "meeting", "hold", "fn_button"]);
-const { appendShellDialogChat, readShellDialogHistory, saveShellVoiceRecord } = require("./shell-dialog-log");
+const {
+  appendShellDialogChat,
+  readShellDialogHistory,
+  saveShellVoiceRecord,
+  sessionIdFromSettings
+} = require("./shell-dialog-log");
 
 function migrateVoiceInputMode(mode) {
   const raw = String(mode || "").trim();
@@ -278,6 +284,13 @@ function normalizeSettings(raw) {
   merged.qwenpawSttChatName = String(merged.qwenpawSttChatName || DEFAULT_SETTINGS.qwenpawSttChatName).trim()
     || DEFAULT_SETTINGS.qwenpawSttChatName;
   merged.voiceInputMode = migrateVoiceInputMode(merged.voiceInputMode);
+  if (merged.voiceInputMode === "disabled") {
+    merged.sttEnabled = false;
+    merged.voiceInputMode = "hold";
+  } else if (merged.sttEnabled === undefined) {
+    merged.sttEnabled = true;
+  }
+  merged.sttEnabled = merged.sttEnabled !== false;
   merged.voiceInputSource = ["auto", "browser", "sidecar"].includes(String(merged.voiceInputSource || "").trim())
     ? String(merged.voiceInputSource).trim()
     : "auto";
@@ -690,25 +703,26 @@ async function checkBridgeRuntimeHealth(settings, runtime = getMessageRuntime(se
   };
 }
 
-async function probeAllRuntimeStatuses(settings) {
-  const STATUS_CLI_TIMEOUT_MS = 3500;
-  const statusHealthOptions = { timeoutMs: STATUS_CLI_TIMEOUT_MS };
+function cliStatusFromProbe(runtime, probe, missingHint) {
+  const ok = Boolean(probe?.ok);
+  return {
+    runtime,
+    configured: ok,
+    installed: ok,
+    serverOk: ok,
+    ok,
+    error: ok ? "" : probe?.error || missingHint,
+    version: ok ? String(probe?.version || "").trim() : "",
+    binary: probe?.binary || ""
+  };
+}
 
-  const [probe, qwenHealth, claudeHealth, codexHealth, qwenCli] = await Promise.all([
-    probeAvailableRuntimes(settings),
+async function probeAllRuntimeStatuses(settings) {
+  const [claudeCli, codexCli, qwenCli, qwenHealth] = await Promise.all([
+    probeCliBinary("claude", settings),
+    probeCliBinary("codex", settings),
+    probeCliBinary("qwen", settings),
     checkQwenPawHealth(settings.qwenpawBaseUrl).catch((error) => ({
-      ok: false,
-      error: String(error?.message || error)
-    })),
-    checkBridgeRuntimeHealth(settings, "claude", statusHealthOptions).catch((error) => ({
-      ok: false,
-      error: String(error?.message || error)
-    })),
-    checkBridgeRuntimeHealth(settings, "codex", statusHealthOptions).catch((error) => ({
-      ok: false,
-      error: String(error?.message || error)
-    })),
-    probeCliBinary("qwen", settings).catch((error) => ({
       ok: false,
       error: String(error?.message || error)
     }))
@@ -728,7 +742,7 @@ async function probeAllRuntimeStatuses(settings) {
     }
   }
 
-  const qwenInstalled = probe.installed.includes("qwenpaw");
+  const qwenInstalled = Boolean(qwenCli.ok);
   statuses.qwenpaw = {
     runtime: "qwenpaw",
     configured: qwenInstalled,
@@ -737,33 +751,31 @@ async function probeAllRuntimeStatuses(settings) {
     agentOk: Boolean(qwenAgent.ok),
     ok: Boolean(qwenInstalled && qwenHealth.ok && qwenAgent.ok),
     error: !qwenInstalled
-      ? "CLI не найден — проверьте PATH или qwenCliPath (qwen --version)"
+      ? qwenCli.error || "CLI не найден — проверьте PATH или qwenCliPath (qwen --version)"
       : qwenAgent.error || qwenHealth.error || "",
     agentName: qwenAgent.name || "",
     version: qwenCli.ok ? String(qwenCli.version || "").trim() : "",
     binary: qwenCli.binary || ""
   };
 
-  for (const runtime of ["claude", "codex"]) {
-    const installed = probe.installed.includes(runtime);
-    const health = runtime === "claude" ? claudeHealth : codexHealth;
-    const ok = installed && Boolean(health.ok);
-    statuses[runtime] = {
-      runtime,
-      configured: installed,
-      installed,
-      serverOk: ok,
-      ok,
-      error: installed ? health.error || "" : "CLI не найден — проверьте PATH или claudeCliPath/codexCliPath (claude/codex --version)",
-      version: installed ? String(health.version || "").trim() : "",
-      binary: health.binary || ""
-    };
-  }
+  statuses.claude = cliStatusFromProbe(
+    "claude",
+    claudeCli,
+    "CLI не найден — проверьте PATH или claudeCliPath (claude --version)"
+  );
+  statuses.codex = cliStatusFromProbe(
+    "codex",
+    codexCli,
+    "CLI не найден — проверьте PATH или codexCliPath (codex --version)"
+  );
+
+  const installed = ["claude", "codex", "qwenpaw"].filter((runtime) => statuses[runtime]?.installed);
+  const available = SHELL_RUNTIMES.filter((runtime) => isRuntimeImplemented(runtime));
 
   return {
     statuses,
-    available: probe.available,
-    installed: probe.installed
+    available,
+    installed
   };
 }
 
@@ -1188,8 +1200,7 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
 
   await patchState(agentRoot, agentId, {
     phase: PHASE_THINKING,
-    phrase: "Запускаю…",
-    metrics: runtime
+    phrase: "Запускаю…"
   });
 
   const messages = [{ role: "user", content: outboundText }];
@@ -1345,16 +1356,24 @@ async function setMeetingRecording(agentRoot, agentId, recording) {
 
 async function logShellDialogUser(agentRoot, text, runtime = "qwenpaw") {
   try {
-    return await appendShellDialogChat(agentRoot, { role: "user", text, runtime });
-  } catch {
+    const settings = await readSettings(agentRoot);
+    const id = normalizeMessageRuntime(runtime || getMessageRuntime(settings));
+    const sessionId = sessionIdFromSettings(settings, id);
+    return await appendShellDialogChat(agentRoot, { role: "user", text, runtime: id, sessionId });
+  } catch (error) {
+    console.error("[shell-dialog] failed to log user message", error);
     return null;
   }
 }
 
 async function logShellDialogAgent(agentRoot, text, runtime = "qwenpaw") {
   try {
-    return await appendShellDialogChat(agentRoot, { role: "agent", text, runtime });
-  } catch {
+    const settings = await readSettings(agentRoot);
+    const id = normalizeMessageRuntime(runtime || getMessageRuntime(settings));
+    const sessionId = sessionIdFromSettings(settings, id);
+    return await appendShellDialogChat(agentRoot, { role: "agent", text, runtime: id, sessionId });
+  } catch (error) {
+    console.error("[shell-dialog] failed to log agent message", error);
     return null;
   }
 }
@@ -1384,7 +1403,13 @@ async function fetchShellDialogHistory(agentRoot, agentId, options = {}) {
   }
 
   try {
-    const fromArchive = await readShellDialogHistory(agentRoot, { ...options, runtime, limit });
+    const sessionId = options.sessionId || sessionIdFromSettings(settings, runtime);
+    const fromArchive = await readShellDialogHistory(agentRoot, {
+      ...options,
+      runtime,
+      sessionId,
+      limit
+    });
     return fromArchive.map((item) => ({ ...item, source: item.source || "awn-dialogs" }));
   } catch {
     return [];

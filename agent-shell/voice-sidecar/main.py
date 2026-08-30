@@ -266,7 +266,14 @@ class Sidecar:
             try:
                 status = self._request_json("/api/shell/status")
                 settings = status.get("settings") or {}
+                stt_enabled = settings.get("sttEnabled", True)
                 mode = normalize_voice_mode(settings.get("voiceInputMode"))
+                if mode == "disabled":
+                    stt_enabled = False
+                    mode = "hold"
+                if not stt_enabled:
+                    time.sleep(0.5)
+                    continue
                 if mode not in LIVE_MODES:
                     time.sleep(0.5)
                     continue
@@ -291,7 +298,11 @@ class Sidecar:
         status = self._request_json("/api/shell/status")
         settings = status.get("settings") or {}
         state = status.get("state") or {}
+        stt_enabled = settings.get("sttEnabled", True)
         voice_mode = normalize_voice_mode(settings.get("voiceInputMode"))
+        if voice_mode == "disabled":
+            stt_enabled = False
+            voice_mode = "hold"
         global_listen = bool(settings.get("voiceGlobalListen"))
 
         self._patch_state({"sidecarSeenAt": int(time.time() * 1000)})
@@ -304,7 +315,9 @@ class Sidecar:
         held = bool(state.get("pttHeld"))
         meeting_rec = bool(state.get("meetingRecording"))
 
-        if voice_mode == "meeting":
+        if not stt_enabled:
+            self._reset_recorder()
+        elif voice_mode == "meeting":
             if meeting_rec != self._last_meeting_recording:
                 self._handle_meeting(meeting_rec, settings)
                 self._last_meeting_recording = meeting_rec

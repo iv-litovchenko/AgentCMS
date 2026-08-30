@@ -5,18 +5,26 @@ const { promisify } = require("util");
 
 const execFileAsync = promisify(execFile);
 
+const VERSION_TIMEOUT_MS = 8000;
+
+function preferredCliBinDirs(home = os.homedir()) {
+  return [path.join(home, ".npm-global", "bin"), path.join(home, ".local", "bin")];
+}
+
+function fallbackCliBinDirs() {
+  return ["/opt/homebrew/bin", "/usr/local/bin"];
+}
+
+/** User-local CLIs first. A stale Homebrew cask in /usr/local/bin must not win over npm-global. */
 function enrichShellPath(env = process.env) {
-  const home = os.homedir();
-  const extras = [
-    path.join(home, ".npm-global", "bin"),
-    path.join(home, ".local", "bin"),
-    "/usr/local/bin",
-    "/opt/homebrew/bin"
-  ];
-  const parts = String(env.PATH || "").split(path.delimiter).filter(Boolean);
-  for (const dir of extras) {
+  const existing = String(env.PATH || "").split(path.delimiter).filter(Boolean);
+  const parts = [];
+  const push = (dir) => {
     if (dir && !parts.includes(dir)) parts.push(dir);
-  }
+  };
+  for (const dir of preferredCliBinDirs()) push(dir);
+  for (const dir of existing) push(dir);
+  for (const dir of fallbackCliBinDirs()) push(dir);
   return { ...env, PATH: parts.join(path.delimiter) };
 }
 
@@ -38,35 +46,76 @@ function readCliPathFromSettings(settings, runtime) {
   return defaultCliBinary(id);
 }
 
-async function whichBinary(name, env = enrichShellPath()) {
-  const cmd = process.platform === "win32" ? "where" : "which";
-  const { stdout } = await execFileAsync(cmd, [name], { timeout: 4000, env });
-  const line = String(stdout || "")
-    .trim()
-    .split(/\r?\n/)[0]
-    .trim();
-  return line || null;
+function rankCliCandidate(filePath) {
+  const p = String(filePath || "");
+  if (p.includes(`${path.sep}.npm-global${path.sep}`)) return 0;
+  if (p.includes(`${path.sep}node_modules${path.sep}`)) return 1;
+  if (p.includes(`${path.sep}.local${path.sep}bin`)) return 2;
+  if (p.includes("Caskroom")) return 9;
+  if (p.startsWith(`/usr/local/bin${path.sep}`) || p === "/usr/local/bin") return 8;
+  return 5;
 }
 
-async function resolveCliBinary(runtime, settings = {}) {
-  const env = enrichShellPath();
-  const candidate = readCliPathFromSettings(settings, runtime);
-  if (candidate.includes("/") || candidate.includes("\\")) return candidate;
+function uniquePaths(paths) {
+  const seen = new Set();
+  const out = [];
+  for (const item of paths) {
+    const value = String(item || "").trim();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    out.push(value);
+  }
+  return out;
+}
+
+async function listWhichHits(name, env = enrichShellPath()) {
+  const cmd = process.platform === "win32" ? "where" : "which";
+  const args = process.platform === "win32" ? [name] : ["-a", name];
   try {
-    return (await whichBinary(candidate, env)) || candidate;
+    const { stdout } = await execFileAsync(cmd, args, { timeout: 4000, env });
+    return String(stdout || "")
+      .trim()
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
   } catch {
-    return candidate;
+    if (process.platform === "win32") return [];
+    try {
+      const { stdout } = await execFileAsync(cmd, [name], { timeout: 4000, env });
+      const line = String(stdout || "").trim().split(/\r?\n/)[0].trim();
+      return line ? [line] : [];
+    } catch {
+      return [];
+    }
   }
 }
 
-async function probeCliBinary(runtime, settings = {}) {
+async function whichBinary(name, env = enrichShellPath()) {
+  const hits = await listWhichHits(name, env);
+  return hits[0] || null;
+}
+
+async function listCliBinaryCandidates(runtime, settings = {}) {
+  const candidate = readCliPathFromSettings(settings, runtime);
+  if (candidate.includes("/") || candidate.includes("\\")) return [candidate];
   const env = enrichShellPath();
-  const id = String(runtime || "").trim();
-  const binary = await resolveCliBinary(id, settings);
-  const label = defaultCliBinary(id);
+  const hits = await listWhichHits(candidate, env);
+  const ranked = uniquePaths(hits).sort((a, b) => rankCliCandidate(a) - rankCliCandidate(b));
+  return ranked.length ? ranked : [candidate];
+}
+
+async function resolveCliBinary(runtime, settings = {}) {
+  const candidates = await listCliBinaryCandidates(runtime, settings);
+  return candidates[0] || defaultCliBinary(runtime);
+}
+
+async function probeOneBinary(binary, env, label) {
   try {
-    const { stdout } = await execFileAsync(binary, ["--version"], { timeout: 6000, env });
-    const version = String(stdout || "")
+    const { stdout, stderr } = await execFileAsync(binary, ["--version"], {
+      timeout: VERSION_TIMEOUT_MS,
+      env
+    });
+    const version = String(stdout || stderr || "")
       .trim()
       .split(/\r?\n/)[0]
       .trim();
@@ -79,6 +128,23 @@ async function probeCliBinary(runtime, settings = {}) {
       error: message.slice(0, 240) || `${label} недоступен (${label} --version)`
     };
   }
+}
+
+async function probeCliBinary(runtime, settings = {}) {
+  const env = enrichShellPath();
+  const id = String(runtime || "").trim();
+  const label = defaultCliBinary(id);
+  const candidates = await listCliBinaryCandidates(id, settings);
+  let last = {
+    ok: false,
+    binary: candidates[0] || label,
+    error: `${label} недоступен (${label} --version)`
+  };
+  for (const binary of candidates.slice(0, 3)) {
+    last = await probeOneBinary(binary, env, label);
+    if (last.ok) return last;
+  }
+  return last;
 }
 
 module.exports = {

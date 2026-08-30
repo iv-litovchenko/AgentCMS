@@ -1421,12 +1421,14 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 }
 
 .shell-main-view > .shell-chat-section--reply {
+  position: relative;
+  z-index: 1;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding-top: 4px;
+  padding-top: 8px;
   padding-bottom: 0;
 }
 
@@ -1467,8 +1469,13 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 .shell-chat-section--reply {
   flex: 1 1 auto;
   min-height: 0;
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.04) 0%, transparent 48px);
-  box-shadow: inset 3px 0 0 rgba(56, 189, 248, 0.35);
+  background: linear-gradient(
+    180deg,
+    rgba(124, 108, 255, 0.06) 0%,
+    rgba(56, 189, 248, 0.03) 22%,
+    transparent 58%
+  );
+  box-shadow: none;
 }
 
 .shell-chat-section--compose {
@@ -1493,6 +1500,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 }
 
 .shell-chat-section .shell-reply-panel {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -1503,6 +1511,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
+  padding-top: 18px;
 }
 
 .shell-chat-section--compose .shell-compose-panel {
@@ -1682,6 +1691,19 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   box-shadow: 0 4px 14px rgba(2, 6, 23, 0.28);
 }
 
+.shell-hero-avatar-stage .shell-hero-status-badge {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  z-index: 4;
+  max-width: min(220px, calc(100vw - 48px));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 .shell-hero-status-badge.is-ready {
   color: #fde68a;
   border-color: rgba(255, 209, 102, 0.62);
@@ -1714,25 +1736,18 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 }
 
 .shell-hero-status-meta {
-  margin: -8px 0 0;
-  min-height: 0;
-  font-size: 12px;
-  line-height: 1.4;
-  color: rgba(148, 163, 184, 0.88);
-}
-
-.shell-hero-status-meta:empty {
   display: none;
 }
 
 .shell-hero {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  z-index: 0;
 }
 
 .shell-hero-bg {
   position: absolute;
-  inset: 0;
+  inset: -12px -12px -78% -12px;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
@@ -1743,6 +1758,22 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   animation:
     shell-hero-bg-shift 14s ease-in-out infinite alternate,
     shell-hero-bg-scene 22s ease-in-out infinite;
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 0%,
+    #000 36%,
+    rgba(0, 0, 0, 0.72) 58%,
+    rgba(0, 0, 0, 0.32) 82%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    #000 0%,
+    #000 36%,
+    rgba(0, 0, 0, 0.72) 58%,
+    rgba(0, 0, 0, 0.32) 82%,
+    transparent 100%
+  );
 }
 
 .shell-hero-aurora {
@@ -2696,17 +2727,41 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 }
 
 .shell-hero-toolbar {
+  position: relative;
+  z-index: 2;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: 100%;
-  margin-top: 4px;
+  gap: 2px;
+  width: max-content;
+  max-width: none;
+  margin: 0 0 16px;
+  padding: 3px 4px;
+  border-radius: 999px;
+  background: rgba(12, 14, 28, 0.78);
+  border: 1px solid rgba(122, 108, 255, 0.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: auto;
 }
 
 .shell-hero-toolbar .shell-tts-btn {
-  min-width: 88px;
+  min-width: 22px;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  gap: 0;
+  border-radius: 999px;
+}
+
+.shell-hero-toolbar .shell-tts-btn-label {
+  display: none;
+}
+
+.shell-hero-toolbar .shell-tts-btn-icon {
+  font-size: 11px;
 }
 
 .shell-character-stage {
@@ -3104,14 +3159,9 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-chat-head {
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(122, 108, 255, 0.14);
-}
-
-.shell-chat-head .shell-dialog-collapse {
-  background: transparent;
-  padding-left: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .shell-compose-actions--chat {
@@ -3627,6 +3677,10 @@ body.shell-desktop .shell-agent-gate select {
   gap: 10px;
 }
 
+.shell-reply-panel {
+  position: relative;
+}
+
 .shell-reply-panel .shell-dialog-scroll {
   display: flex;
   flex-direction: column;
@@ -3635,12 +3689,11 @@ body.shell-desktop .shell-agent-gate select {
   min-height: 0;
   max-height: none;
   margin-top: 0;
-  padding: 0 4px 0 0;
+  padding: 0;
   overflow: auto;
   overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(124, 108, 255, 0.45) transparent;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .shell-dialog-thread {
@@ -3654,9 +3707,31 @@ body.shell-desktop .shell-agent-gate select {
   display: none;
 }
 
-.shell-chat-msg {
+.shell-chat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   max-width: min(92%, 520px);
-  padding: 8px 12px;
+}
+
+.shell-chat-row--user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.shell-chat-row--agent {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.shell-chat-bubble {
+  position: relative;
+  max-width: 100%;
+}
+
+.shell-chat-msg {
+  max-width: 100%;
+  padding: 8px 28px 8px 12px;
   border-radius: 12px;
   font-size: 13px;
   line-height: 1.45;
@@ -3665,14 +3740,12 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-chat-msg--user {
-  align-self: flex-end;
   background: rgba(56, 189, 248, 0.12);
   border: 1px solid rgba(88, 196, 255, 0.28);
   color: rgba(241, 245, 249, 0.96);
 }
 
 .shell-chat-msg--agent {
-  align-self: flex-start;
   background: rgba(12, 14, 28, 0.55);
   border: 1px solid rgba(122, 108, 255, 0.16);
 }
@@ -3683,6 +3756,43 @@ body.shell-desktop .shell-agent-gate select {
 
 .shell-chat-msg--agent.shell-md > :last-child {
   margin-bottom: 0;
+}
+
+.shell-chat-copy {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(12, 14, 28, 0.45);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.shell-chat-copy:hover,
+.shell-chat-row:hover .shell-chat-copy,
+.shell-chat-copy:focus-visible {
+  opacity: 1;
+  color: var(--text);
+}
+
+.shell-chat-copy.is-copied {
+  opacity: 1;
+  color: #35d07f;
+}
+
+.shell-chat-meta {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--muted);
+  padding: 0 4px;
+  user-select: none;
 }
 
 .shell-dialog-live-reply.hidden {
@@ -3701,72 +3811,56 @@ body.shell-desktop .shell-agent-gate select {
   line-height: 1.45;
 }
 
-.shell-reply-panel[data-collapsed="1"] .shell-dialog-scroll,
-.shell-reply-panel[data-collapsed="1"] .shell-dialog-error {
-  display: none;
-}
-
-.shell-reply-panel[data-collapsed="1"] .shell-dialog-collapse-chev {
-  transform: rotate(-90deg);
-}
-
 .shell-dialog-toolbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.shell-dialog-collapse {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  justify-content: flex-end;
+  gap: 4px;
   margin: 0;
-  padding: 4px 6px;
-  border: 0;
-  border-radius: 10px;
-  background: rgba(12, 14, 28, 0.45);
-  color: var(--text);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
-.shell-dialog-collapse-title {
-  font-weight: 600;
-}
-
-.shell-dialog-collapse-hint {
-  color: var(--muted);
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 140px;
-}
-
-.shell-dialog-collapse-chev {
-  color: var(--muted);
-  transition: transform 0.15s ease;
+.shell-main-view > .shell-chat-section--reply .shell-dialog-toolbar {
+  right: 6px;
 }
 
 .shell-dialog-toolbar-actions {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
-.shell-dialog-tool {
-  width: 28px;
-  height: 28px;
-  font-size: 14px;
+.shell-dialog-toolbar .shell-dialog-tool.shell-icon-btn {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.shell-dialog-toolbar .shell-dialog-tool.shell-icon-btn:hover {
+  color: var(--text);
 }
 
 .shell-status-dot {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: #888;
   flex-shrink: 0;
@@ -3774,7 +3868,7 @@ body.shell-desktop .shell-agent-gate select {
 
 .shell-status-dot[data-state="live"] {
   background: #35d07f;
-  box-shadow: 0 0 0 2px rgba(53, 208, 127, 0.25);
+  box-shadow: 0 0 0 1px rgba(53, 208, 127, 0.35);
 }
 
 .shell-status-dot[data-state="error"] {
@@ -3783,6 +3877,11 @@ body.shell-desktop .shell-agent-gate select {
 
 .shell-status-dot[data-state="offline"] {
   background: #ffd166;
+}
+
+.shell-status-dot[data-state="connecting"] {
+  background: #7aa2ff;
+  box-shadow: 0 0 0 1px rgba(122, 162, 255, 0.35);
 }
 
 .shell-last-ask {
@@ -3922,27 +4021,9 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-reply-panel .shell-dialog-scroll::-webkit-scrollbar {
-  width: 5px;
-}
-
-.shell-reply-panel .shell-dialog-scroll::-webkit-scrollbar-track {
-  background: transparent;
-  margin: 4px 0;
-}
-
-.shell-reply-panel .shell-dialog-scroll::-webkit-scrollbar-thumb {
-  background: rgba(124, 108, 255, 0.22);
-  border-radius: 999px;
-  transition: background 0.2s ease;
-}
-
-.shell-reply-panel .shell-dialog-scroll:hover::-webkit-scrollbar-thumb,
-.shell-reply-panel .shell-dialog-scroll:focus-within::-webkit-scrollbar-thumb {
-  background: rgba(124, 108, 255, 0.52);
-}
-
-.shell-reply-panel .shell-dialog-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(88, 196, 255, 0.55);
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .shell-compose-panel .shell-compose-actions {
@@ -4224,18 +4305,20 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-compose-options-row {
-  padding: 2px 6px 0;
+  padding: 0;
   min-width: 0;
 }
 
 .shell-compose-options-row .shell-compose-options {
   display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px 4px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -4439,7 +4522,7 @@ body.shell-desktop .shell-agent-gate select {
 .shell-compose-options {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   padding: 0;
   border-radius: 0;
   background: transparent;
@@ -4455,25 +4538,38 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-compose-option {
-  flex: 0 0 auto;
-  min-width: 26px;
-  width: 26px;
-  height: 26px;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0;
-  padding: 0;
-  border-radius: 7px;
+  gap: 5px;
+  padding: 4px 5px;
+  border-radius: 0;
   border: 1px solid transparent;
+  border-right-color: rgba(255, 255, 255, 0.08);
+  border-bottom: 2px solid transparent;
   background: transparent;
-  color: rgba(226, 232, 240, 0.48);
+  color: rgba(226, 232, 240, 0.52);
   font: inherit;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 650;
+  letter-spacing: 0.01em;
   white-space: nowrap;
-  cursor: not-allowed;
-  opacity: 0.72;
+  cursor: pointer;
+  opacity: 1;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.shell-compose-option:last-child {
+  border-right-color: transparent;
+}
+
+.shell-compose-option:hover {
+  color: rgba(241, 245, 249, 0.88);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .shell-compose-option:disabled {
@@ -4483,17 +4579,21 @@ body.shell-desktop .shell-agent-gate select {
 .shell-compose-option-ico {
   font-size: 13px;
   line-height: 1;
-  opacity: 0.82;
+  opacity: 0.9;
 }
 
 .shell-compose-option-label {
-  display: none;
+  display: inline;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .shell-compose-option[aria-pressed="true"] {
-  color: rgba(226, 232, 240, 0.95);
+  color: rgba(241, 245, 249, 0.98);
   background: rgba(124, 108, 255, 0.18);
-  border-color: rgba(147, 197, 253, 0.24);
+  border-color: rgba(147, 197, 253, 0.16);
+  border-bottom-color: rgba(167, 139, 250, 0.95);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   opacity: 1;
 }
@@ -4676,11 +4776,12 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 #shell-compose-dock.is-expanded .shell-compose-options-row {
-  display: none;
+  display: block;
+  padding: 0;
 }
 
 #shell-compose-dock.is-expanded .shell-compose-options {
-  display: none;
+  display: flex;
 }
 
 #shell-compose-dock.is-expanded .shell-textarea {
@@ -8202,9 +8303,22 @@ body.shell-embed .shell-path-header {
     height: 96px;
   }
 
+  .shell-hero-avatar-stage .shell-hero-status-badge {
+    bottom: 8px;
+    font-size: 12px;
+    padding: 3px 10px;
+  }
+
+  .shell-hero-toolbar {
+    padding: 2px 3px;
+  }
+
   .shell-hero-toolbar .shell-tts-btn {
-    min-width: 76px;
-    padding: 4px 8px;
+    min-width: 20px;
+    width: 20px;
+    height: 20px;
+    min-height: 20px;
+    padding: 0;
   }
 
   .shell-status-line {
@@ -8281,17 +8395,14 @@ body.shell-embed .shell-path-header {
     flex: 1 1 auto;
   }
 
-  .shell-compose-option-label {
-    display: none;
-  }
-
   .shell-compose-option {
-    min-width: 36px;
-    padding: 6px 7px;
+    height: 32px;
+    padding: 5px 6px;
+    font-size: 10px;
   }
 
   .shell-compose-option-ico {
-    font-size: 14px;
+    font-size: 13px;
   }
 }
 

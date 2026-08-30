@@ -67,6 +67,29 @@ function readRuntimeString(settings, runtime, suffix, fallback = "") {
   return String(fallback || "").trim();
 }
 
+const CLI_SESSION_PLACEHOLDERS = new Set([
+  "default",
+  "agent-shell",
+  "agent-cms-voice-default",
+  "cms"
+]);
+const CLI_SESSION_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isCliSessionPlaceholder(sessionId) {
+  const sid = String(sessionId || "").trim().toLowerCase();
+  return !sid || CLI_SESSION_PLACEHOLDERS.has(sid);
+}
+
+/** Для spawn: не подставлять заглушки в --resume. В поле настроек значение хранится как есть. */
+function normalizeCliSessionId(sessionId, runtime = "") {
+  const sid = String(sessionId || "").trim();
+  if (isCliSessionPlaceholder(sid)) return "";
+  const id = String(runtime || "").trim();
+  if (id === "codex" && !CLI_SESSION_UUID_RE.test(sid)) return "";
+  return sid;
+}
+
 function buildHermesBaseUrl(root, profile) {
   const base = String(root || RUNTIME_DEFAULTS.hermes.baseUrl).trim().replace(/\/+$/, "");
   const cleanProfile = String(profile || "").trim();
@@ -116,7 +139,10 @@ function resolveRuntimeEndpoint(settings, runtime) {
       model: readRuntimeString(settings, id, "Model", defaults.model),
       profile,
       agentId,
-      sessionId: readRuntimeString(settings, id, "SessionId", defaults.sessionId)
+      sessionId: normalizeCliSessionId(
+        readRuntimeString(settings, id, "SessionId", defaults.sessionId),
+        id
+      )
     };
   }
 
@@ -182,6 +208,7 @@ module.exports = {
   RUNTIME_TRANSPORT,
   RUNTIME_DEFAULTS,
   runtimeField,
+  normalizeCliSessionId,
   resolveRuntimeEndpoint,
   buildDefaultRuntimeSettings,
   buildRuntimeExtraHeaders,

@@ -5,6 +5,8 @@ const { normalizeMessageRuntime } = require("./shell-runtimes");
 const DIALOGS_DIR = "awn-dialogs";
 const LEGACY_CHATS_DIR = path.join(DIALOGS_DIR, "chats");
 const RECORDS_DIR = path.join(DIALOGS_DIR, "records");
+const LEGACY_SESSION_UID_DIR = "uid";
+const OPEN_SESSION = "open";
 const DIALOG_DAY_FILE_RE = /^\d{4}-\d{2}-\d{2}\.md$/;
 
 function dateStamp(d = new Date()) {
@@ -30,6 +32,26 @@ function runtimeDialogDir(runtime) {
   return path.join(DIALOGS_DIR, safe || "unknown");
 }
 
+function safeSessionDirName(sessionId) {
+  const safe = String(sessionId || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return safe || OPEN_SESSION;
+}
+
+/** awn-dialogs/<runtime>/<session-uuid>/ */
+function sessionDialogDir(runtime, sessionId) {
+  return path.join(runtimeDialogDir(runtime), safeSessionDirName(sessionId));
+}
+
+function sessionIdFromSettings(settings, runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  if (id === "qwenpaw") return String(settings?.qwenpawSessionId || "").trim();
+  return String(settings?.[`${id}SessionId`] || "").trim();
+}
+
 function dialogRoleMeta(role) {
   if (role === "agent") {
     return { role: "agent", author: "AI", label: "AI" };
@@ -46,20 +68,28 @@ function normalizeDialogRole(rawRole, rawAuthor = "") {
   return dialogRoleMeta("user");
 }
 
-function formatShellDialogBlock({ role = "user", text = "", runtime = "qwenpaw", created = new Date() } = {}) {
+function formatShellDialogBlock({
+  role = "user",
+  text = "",
+  runtime = "qwenpaw",
+  sessionId = "",
+  created = new Date()
+} = {}) {
   const body = String(text || "").trim();
   const runtimeId = normalizeMessageRuntime(runtime);
   const createdIso = created instanceof Date ? created.toISOString() : String(created || new Date().toISOString());
   const meta = dialogRoleMeta(role);
+  const sid = String(sessionId || "").trim();
   const frontmatter = [
     "---",
     `awn-role: ${meta.role}`,
     `awn-author: ${meta.author}`,
     `awn-created: ${createdIso}`,
     `awn-runtime: ${runtimeId}`,
+    sid ? `awn-session: ${sid}` : null,
     "---"
-  ].join("\n");
-  return `\n\n---\n\n${frontmatter}\n\n${body}\n`;
+  ].filter(Boolean);
+  return `\n\n---\n\n${frontmatter.join("\n")}\n\n${body}\n`;
 }
 
 function parseShellDialogBlock(block) {
@@ -76,6 +106,7 @@ function parseShellDialogBlock(block) {
       const authorRaw = (frontmatter.match(/^awn-author:\s*(.+)$/m) || [])[1] || "";
       const createdRaw = (frontmatter.match(/^awn-created:\s*(.+)$/m) || [])[1] || "";
       const runtimeRaw = (frontmatter.match(/^awn-runtime:\s*(.+)$/m) || [])[1] || "";
+      const sessionRaw = (frontmatter.match(/^awn-session:\s*(.+)$/m) || [])[1] || "";
       const meta = normalizeDialogRole(roleRaw, authorRaw);
       const at = Date.parse(String(createdRaw).trim()) || Date.now();
       return {
@@ -84,7 +115,8 @@ function parseShellDialogBlock(block) {
         label: meta.label,
         body,
         at,
-        runtime: normalizeMessageRuntime(runtimeRaw || "qwenpaw")
+        runtime: normalizeMessageRuntime(runtimeRaw || "qwenpaw"),
+        sessionId: String(sessionRaw || "").trim()
       };
     }
   }
@@ -130,21 +162,60 @@ async function listDialogDayFiles(dirAbsolute) {
   }
 }
 
-async function readShellDialogHistory(agentRoot, { runtime = "qwenpaw", limit = 25, days = 14 } = {}) {
+async function listSessionSubdirDayFiles(runtimeDir) {
+  const files = [];
+  try {
+    const entries = await fs.readdir(runtimeDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const full = path.join(runtimeDir, entry.name);
+      if (entry.name === LEGACY_SESSION_UID_DIR) {
+        try {
+          const nested = await fs.readdir(full, { withFileTypes: true });
+          for (const child of nested) {
+            if (!child.isDirectory()) continue;
+            files.push(...await listDialogDayFiles(path.join(full, child.name)));
+          }
+        } catch {
+          /* ignore */
+        }
+        continue;
+      }
+      files.push(...await listDialogDayFiles(full));
+    }
+  } catch {
+    /* no session folders yet */
+  }
+  return files;
+}
+
+async function collectDialogDayFiles(agentRoot, runtime, sessionId = "") {
+  const runtimeDir = path.join(agentRoot, runtimeDialogDir(runtime));
+  const files = new Set();
+  const sid = String(sessionId || "").trim();
+  if (sid) {
+    const sessionDir = path.join(agentRoot, sessionDialogDir(runtime, sid));
+    for (const filePath of await listDialogDayFiles(sessionDir)) files.add(filePath);
+    for (const filePath of await listDialogDayFiles(path.join(runtimeDir, LEGACY_SESSION_UID_DIR, safeSessionDirName(sid)))) {
+      files.add(filePath);
+    }
+    for (const filePath of await listDialogDayFiles(runtimeDir)) files.add(filePath);
+    return [...files];
+  }
+  for (const filePath of await listDialogDayFiles(runtimeDir)) files.add(filePath);
+  for (const filePath of await listSessionSubdirDayFiles(runtimeDir)) files.add(filePath);
+  return [...files];
+}
+
+async function readShellDialogHistory(agentRoot, { runtime = "qwenpaw", sessionId = "", limit = 25, days = 14 } = {}) {
   if (!agentRoot) return [];
 
   const runtimeId = normalizeMessageRuntime(runtime);
   const safeLimit = Math.min(100, Math.max(1, Number(limit) || 25));
   const safeDays = Math.min(30, Math.max(1, Number(days) || 14));
-  const scanDirs = [
-    path.join(agentRoot, runtimeDialogDir(runtimeId)),
-    path.join(agentRoot, LEGACY_CHATS_DIR)
-  ];
-
-  const filePaths = new Set();
-  for (const dirAbsolute of scanDirs) {
-    const files = await listDialogDayFiles(dirAbsolute);
-    for (const filePath of files) filePaths.add(filePath);
+  const filePaths = new Set(await collectDialogDayFiles(agentRoot, runtimeId, sessionId));
+  for (const filePath of await listDialogDayFiles(path.join(agentRoot, LEGACY_CHATS_DIR))) {
+    if (!sessionId) filePaths.add(filePath);
   }
 
   const sortedFiles = [...filePaths].sort((left, right) => path.basename(right).localeCompare(path.basename(left)));
@@ -160,16 +231,20 @@ async function readShellDialogHistory(agentRoot, { runtime = "qwenpaw", limit = 
   return messages.slice(-safeLimit);
 }
 
-async function appendShellDialogChat(agentRoot, { role = "user", text = "", runtime = "qwenpaw" } = {}) {
+async function appendShellDialogChat(
+  agentRoot,
+  { role = "user", text = "", runtime = "qwenpaw", sessionId = "" } = {}
+) {
   const body = String(text || "").trim();
   if (!body || !agentRoot) return null;
 
   const runtimeId = normalizeMessageRuntime(runtime);
-  const file = path.join(agentRoot, runtimeDialogDir(runtimeId), `${dateStamp()}.md`);
+  const sid = String(sessionId || "").trim();
+  const file = path.join(agentRoot, sessionDialogDir(runtimeId, sid), `${dateStamp()}.md`);
   await fs.mkdir(path.dirname(file), { recursive: true });
 
   const meta = dialogRoleMeta(role);
-  const block = formatShellDialogBlock({ role, text: body, runtime: runtimeId });
+  const block = formatShellDialogBlock({ role, text: body, runtime: runtimeId, sessionId: sid });
   await fs.appendFile(file, block, "utf-8");
   return {
     path: relPath(agentRoot, file),
@@ -177,6 +252,7 @@ async function appendShellDialogChat(agentRoot, { role = "user", text = "", runt
     author: meta.author,
     label: meta.label,
     runtime: runtimeId,
+    sessionId: sid || OPEN_SESSION,
     bytes: body.length
   };
 }
@@ -201,6 +277,8 @@ module.exports = {
   dialogRoleMeta,
   saveShellVoiceRecord,
   runtimeDialogDir,
+  sessionDialogDir,
+  sessionIdFromSettings,
   DIALOGS_DIR,
   LEGACY_CHATS_DIR,
   RECORDS_DIR

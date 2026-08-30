@@ -10,18 +10,23 @@
       "qwenpaw": {
         "type": "agent",
         "baseUrl": "http://127.0.0.1:8088",
-        "sessionId": "shell-agent-cms-test-mtfp5uns-jvo1jm"
+        "sessionId": "agent-shell"
       },
       "claude": {
         "type": "cli",
         "model": "sonnet",
-        "sessionId": "default"
+        "sessionId": "2784eb57-4c5d-4705-9ef9-58e7c0bbdddc"
+      },
+      "codex": {
+        "type": "cli",
+        "sessionId": "c71b596c-9e85-41d5-b36a-c2940f8f1181"
       }
     }
   },
   "voice": {
     "input": {
       "mode": "hold",
+      "source": "auto",
       "globalListen": false,
       "toCompose": false,
       "responseEnabled": true
@@ -37,10 +42,10 @@
       }
     },
     "tts": {
-      "enabled": false,
+      "enabled": true,
       "playbackMode": "reading",
       "engine": "browser",
-      "prompt": "2222",
+      "prompt": "Сформируй ответ в следующем формате (строго, в таком порядке):\n\n1) Голосовая версия для озвучки — без emoji и markdown, только то, что можно произнести вслух. Не включай секреты, ключи и пароли. Не используй HTML-комментарии <!-- -->.\n\n2) Отдельной строкой маркер:\n\n::: VOICE-END :::\n\n3) Полный текст ответа для экрана (можно markdown, списки, код и любые другие элементы). Без HTML-комментариев <!-- -->.",
       "rate": 1,
       "pitch": 1,
       "includeCaptions": true,
@@ -49,8 +54,7 @@
           "lang": "ru-RU"
         },
         "say": {
-          "lang": "ru-RU",
-          "voice": "Milena"
+          "lang": "ru-RU"
         },
         "edge": {
           "voice": "ru-RU-SvetlanaNeural"
@@ -63,13 +67,12 @@
   },
   "proactive": {
     "enabled": false,
-    "idleSeconds": 100,
-    "cooldownSeconds": 901,
-    "prompt": "111",
+    "idleSeconds": 180,
+    "cooldownSeconds": 900,
     "quietHours": {
-      "enabled": true,
-      "start": "21:00",
-      "end": "05:00"
+      "enabled": false,
+      "start": "23:00",
+      "end": "07:00"
     }
   },
   "media": {

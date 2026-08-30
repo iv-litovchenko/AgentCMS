@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=414" />
+    <link rel="stylesheet" href="/shell/shell.css?v=426" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -41,7 +41,7 @@
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=207",
-          "@shell/dialog": "/shell/shell-dialog.js?v=259",
+          "@shell/dialog": "/shell/shell-dialog.js?v=260",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=316",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=316",
@@ -55,7 +55,7 @@
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=350",
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=414",
-          "@shell/build": "/shell/shell-build.js?v=414"
+          "@shell/build": "/shell/shell-build.js?v=415"
         }
       }
     </script>
@@ -476,13 +476,23 @@
               />
             </label>
             <label class="shell-field shell-field--compact">
-              <span class="shell-label">Session ID</span>
+              <span class="shell-label shell-label-row shell-label-row--spread">
+                Session ID
+                <button
+                  type="button"
+                  class="shell-label-action"
+                  id="shell-runtime-bridge-session-generate"
+                  title="Сгенерировать UUID диалога"
+                >
+                  Новый UUID
+                </button>
+              </span>
               <input
                 id="shell-runtime-bridge-session-id"
                 class="shell-input"
                 type="text"
                 spellcheck="false"
-                placeholder="идентификатор сессии"
+                placeholder="UUID или название сессии, пусто = новая"
               />
             </label>
           </div>
@@ -1555,12 +1565,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <ellipse class="shell-compact-cloud-glow" cx="32" cy="52" rx="10" ry="3" />
               </svg>
             </button>
-            </div>
-
             <p class="shell-hero-status-badge is-ready" id="shell-phase-label" aria-live="polite">Готов к сообщению</p>
-            <div class="shell-status-meta shell-hero-status-meta" id="shell-meta"></div>
             </div>
-
             <div class="shell-hero-toolbar" id="shell-tts-controls">
               <button
                 type="button"
@@ -1618,34 +1624,17 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <span class="shell-tts-btn-label">Отмена</span>
               </button>
             </div>
+            <div class="shell-status-meta shell-hero-status-meta" id="shell-meta"></div>
+            </div>
           </div>
         </div>
       </section>
 
       <section class="shell-chat-section shell-chat-section--reply" aria-label="Диалог">
-      <header class="shell-chat-section-head">
-        <h2 class="shell-chat-section-title">Диалог</h2>
-      </header>
-
-      <section class="shell-reply-panel" id="shell-reply-panel" data-collapsed="0">
+      <section class="shell-reply-panel" id="shell-reply-panel">
         <div class="shell-dialog-toolbar shell-chat-head">
-          <button
-            type="button"
-            class="shell-dialog-collapse"
-            id="shell-dialog-collapse"
-            aria-expanded="true"
-            aria-controls="shell-dialog-scroll"
-            aria-label="Свернуть диалог"
-          >
-            <span class="shell-status-dot" id="shell-status-dot" data-state="offline" aria-hidden="true"></span>
-            <span class="shell-dialog-collapse-hint hidden" id="shell-dialog-collapse-hint"></span>
-            <span class="shell-dialog-collapse-chev" aria-hidden="true">▾</span>
-          </button>
-          <div class="shell-dialog-toolbar-actions">
-            <button type="button" class="shell-icon-btn shell-dialog-tool" id="shell-reconnect-btn" title="Переподключить" aria-label="Переподключить">↻</button>
-            <button type="button" class="shell-icon-btn shell-dialog-tool hidden" id="shell-copy-reply" title="Копировать ответ" aria-label="Копировать ответ">⎘</button>
-            <button type="button" class="shell-icon-btn shell-dialog-tool hidden" id="shell-share-reply" title="Поделиться ответом" aria-label="Поделиться">↗</button>
-          </div>
+          <span class="shell-status-dot" id="shell-status-dot" data-state="offline" title="Связь с сервером" aria-label="Связь с сервером"></span>
+          <button type="button" class="shell-icon-btn shell-dialog-tool" id="shell-dialog-refresh" title="Обновить диалог" aria-label="Обновить диалог">↻</button>
         </div>
         <div class="shell-pull-hint hidden" id="shell-pull-hint">Отпустите для обновления</div>
         <div class="shell-dialog-scroll" id="shell-dialog-scroll">
@@ -1689,6 +1678,58 @@ aya_bar_v2 тоже читает те же файлы</pre>
           </div>
           <div class="shell-compose-dock-inner">
         <div class="shell-compose-field shell-compose-card" id="shell-compose-field">
+          <div class="shell-compose-options-row" role="group" aria-label="Параметры запроса">
+            <div class="shell-compose-options">
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="reasoning"
+              aria-pressed="false"
+              aria-label="Рассуждения"
+              data-hint="Разрешить модели думать либо дать быстрый ответ"
+              title="Разрешить модели думать либо дать быстрый ответ"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">🧠</span>
+              <span class="shell-compose-option-label">Рассуждения</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="tools"
+              aria-pressed="false"
+              aria-label="Инструменты"
+              data-hint="Подключение скиллов и MCP tools"
+              title="Подключение скиллов и MCP tools"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">🔧</span>
+              <span class="shell-compose-option-label">Инструменты</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="memory"
+              aria-pressed="false"
+              aria-label="Воспоминания"
+              data-hint="Использовать память"
+              title="Использовать память"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">💾</span>
+              <span class="shell-compose-option-label">Воспоминания</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option"
+              data-compose-option="execute"
+              aria-pressed="false"
+              aria-label="Исполнение"
+              data-hint="Выполнение команд"
+              title="Выполнение команд"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">⚡</span>
+              <span class="shell-compose-option-label">Исполнение</span>
+            </button>
+            </div>
+          </div>
           <div class="shell-compose-input-wrap">
             <textarea
               id="shell-message"
@@ -1735,52 +1776,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
               </svg>
             </button>
-          </div>
-          <div class="shell-compose-options-row" role="group" aria-label="Параметры запроса">
-            <div class="shell-compose-options">
-            <span class="shell-hint" data-hint="Рассуждения — показывать ход мыслей агента (chain-of-thought) в шагах активности. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="reasoning" aria-pressed="false" disabled aria-label="Рассуждения">
-              <span class="shell-compose-option-ico" aria-hidden="true">🧠</span>
-              <span class="shell-compose-option-label">Рассуждения</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Инструменты — разрешить агенту вызывать MCP-инструменты CMS (файлы, память, shell) в этом запросе. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="tools" aria-pressed="false" disabled aria-label="Инструменты">
-              <span class="shell-compose-option-ico" aria-hidden="true">🔧</span>
-              <span class="shell-compose-option-label">Инструменты</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Визуальное — прикреплять кадр с камеры или снимок экрана к сообщению для агента. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="vision" aria-pressed="false" disabled aria-label="Визуальное">
-              <span class="shell-compose-option-ico" aria-hidden="true">👁</span>
-              <span class="shell-compose-option-label">Визуальное</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Web — разрешить агенту искать в интернете и подмешивать свежие факты в ответ. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="web" aria-pressed="false" disabled aria-label="Web">
-              <span class="shell-compose-option-ico" aria-hidden="true">🔍</span>
-              <span class="shell-compose-option-label">Web</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Memory — записывать и подтягивать долговременные заметки workspace в контекст запроса. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="memory" aria-pressed="false" disabled aria-label="Memory">
-              <span class="shell-compose-option-ico" aria-hidden="true">💾</span>
-              <span class="shell-compose-option-label">Memory</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Code — запуск кода в песочнице или computer control (вставка в активное поле). Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="code" aria-pressed="false" disabled aria-label="Code">
-              <span class="shell-compose-option-ico" aria-hidden="true">⌨️</span>
-              <span class="shell-compose-option-label">Code</span>
-            </button>
-            </span>
-            <span class="shell-hint" data-hint="Факты — автоматически подмешивать релевантные факты, диалоги и воспоминания из CMS в запрос. Скоро.">
-            <button type="button" class="shell-compose-option" data-compose-option="recall" aria-pressed="false" disabled aria-label="Факты">
-              <span class="shell-compose-option-ico" aria-hidden="true">✨</span>
-              <span class="shell-compose-option-label">Факты</span>
-            </button>
-            </span>
-            </div>
           </div>
           <div class="shell-compose-toolbar" aria-label="Панель ввода">
             <div class="shell-compose-toolbar-group shell-compose-toolbar-group--voice">
@@ -2109,6 +2104,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=414" type="module"></script>
+    <script src="/shell/shell.js?v=416" type="module"></script>
   </body>
 </html>

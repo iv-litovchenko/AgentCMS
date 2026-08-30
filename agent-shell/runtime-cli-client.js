@@ -2,6 +2,7 @@ const { spawn } = require("child_process");
 const { promisify } = require("util");
 const { execFile } = require("child_process");
 const { enrichShellPath, defaultCliBinary, resolveCliBinary } = require("./runtime-cli-env");
+const { normalizeCliSessionId } = require("./runtime-bridge");
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 300000;
@@ -25,34 +26,97 @@ function extractUserPrompt(messages) {
     .trim();
 }
 
-function extractClaudeStreamDelta(event) {
+function claudeStreamError(event) {
   if (!event || typeof event !== "object") return "";
+  if (event.is_error !== true && event.subtype !== "error_during_execution") return "";
+  if (Array.isArray(event.errors)) {
+    const joined = event.errors
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .join("\n");
+    if (joined) return joined;
+  }
+  if (typeof event.error === "string" && event.error.trim()) return event.error.trim();
+  if (typeof event.result === "string" && event.result.trim()) return event.result.trim();
+  return "Claude CLI вернул ошибку";
+}
+
+function extractClaudeAssistantDelta(event) {
+  if (!event || typeof event !== "object" || event.is_error) return "";
   if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
     return String(event.delta.text || "");
   }
-  if (typeof event.result === "string") return event.result;
+  if (event.type === "assistant") {
+    const content = event.message?.content;
+    if (Array.isArray(content)) {
+      return content
+        .filter((block) => block && block.type === "text")
+        .map((block) => String(block.text || ""))
+        .join("");
+    }
+    if (typeof content === "string") return content;
+  }
   return "";
+}
+
+function extractClaudeResultText(event) {
+  if (!event || typeof event !== "object" || event.is_error) return "";
+  if (event.type === "result" && typeof event.result === "string") return event.result;
+  return "";
+}
+
+function looksLikeJsonObject(text) {
+  const value = String(text || "").trim();
+  return value.startsWith("{") && value.endsWith("}");
+}
+
+function looksLikeCliError(text) {
+  const value = String(text || "").trim();
+  if (!value) return false;
+  if (/^error:/i.test(value)) return true;
+  if (/thread\/resume failed/i.test(value)) return true;
+  if (/no rollout found/i.test(value)) return true;
+  return false;
 }
 
 function extractCodexJsonText(event, previous = "") {
   if (!event || typeof event !== "object") return "";
   const type = String(event.type || event.event || "").toLowerCase();
-  const direct =
-    event.text ??
-    event.content ??
-    event.message?.content ??
-    event.item?.text ??
-    event.item?.content ??
-    event.delta?.content ??
-    event.delta?.text;
-  if (typeof direct === "string" && direct.trim()) {
-    if (direct.startsWith(previous)) return direct.slice(previous.length);
-    return direct;
+  if (type === "error" || type === "turn.failed" || type.endsWith(".failed")) return "";
+
+  const item = event.item && typeof event.item === "object" ? event.item : null;
+  const itemType = String(item?.type || "").toLowerCase();
+  if (itemType === "agent_message" && typeof item.text === "string" && item.text.trim()) {
+    return item.text.startsWith(previous) ? item.text.slice(previous.length) : item.text;
   }
-  if (type.includes("agent_message") && typeof event.message === "string") {
+  if (type.includes("agent_message") && typeof event.message === "string" && event.message.trim()) {
     return event.message.startsWith(previous) ? event.message.slice(previous.length) : event.message;
   }
   return "";
+}
+
+function codexStreamError(event) {
+  if (!event || typeof event !== "object") return "";
+  const type = String(event.type || event.event || "").toLowerCase();
+  if (type !== "error" && type !== "turn.failed" && !type.endsWith(".failed")) return "";
+  const nested = event.error && typeof event.error === "object" ? event.error : null;
+  const message =
+    (typeof event.message === "string" && event.message.trim()) ||
+    (typeof event.error === "string" && event.error.trim()) ||
+    (typeof nested?.message === "string" && nested.message.trim()) ||
+    (typeof event.text === "string" && event.text.trim()) ||
+    "";
+  return message || "Codex CLI вернул ошибку";
+}
+
+function firstErrorLine(text) {
+  return (
+    String(text || "")
+      .trim()
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean) || ""
+  );
 }
 
 async function checkCliRuntimeHealth({ runtime, binary, timeoutMs = 12000 } = {}) {
@@ -89,6 +153,16 @@ function runCliProcess({ binary, args, cwd, onStdout, signal, timeoutMs = DEFAUL
     let stderr = "";
     let settled = false;
 
+    const killChild = () => {
+      if (!child.killed) {
+        try {
+          child.kill("SIGTERM");
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+
     const finish = (fn, value) => {
       if (settled) return;
       settled = true;
@@ -98,12 +172,12 @@ function runCliProcess({ binary, args, cwd, onStdout, signal, timeoutMs = DEFAUL
     };
 
     const timer = setTimeout(() => {
-      child.kill("SIGTERM");
+      killChild();
       finish(reject, new Error("CLI timeout"));
     }, timeoutMs);
 
     const onAbort = () => {
-      child.kill("SIGTERM");
+      killChild();
       finish(reject, new Error("Aborted"));
     };
 
@@ -115,7 +189,13 @@ function runCliProcess({ binary, args, cwd, onStdout, signal, timeoutMs = DEFAUL
     child.stdout.on("data", (chunk) => {
       const piece = chunk.toString();
       stdout += piece;
-      if (typeof onStdout === "function") onStdout(piece, stdout);
+      if (typeof onStdout === "function") {
+        const stop = onStdout(piece, stdout);
+        if (stop) {
+          killChild();
+          finish(resolve, { stdout, stderr, code: 0 });
+        }
+      }
     });
     child.stderr.on("data", (chunk) => {
       stderr += chunk.toString();
@@ -159,14 +239,17 @@ async function chatClaudeCli({
   const prompt = extractUserPrompt(messages);
   if (!prompt) throw new Error("Пустое сообщение");
 
-  const sid = String(sessionId || "").trim();
+  const sid = normalizeCliSessionId(sessionId, "claude");
 
   const runOnce = async (resume) => {
     const args = ["-p", prompt, "--output-format", "stream-json", "--verbose"];
     if (model) args.push("--model", String(model));
     if (resume && sid) args.push("--resume", sid);
+    else if (sid) args.push("--session-id", sid);
 
     let text = "";
+    let resultText = "";
+    let lastError = "";
     let jsonBuffer = "";
     const result = await runCliProcess({
       binary: normalizeBinary("claude", binary),
@@ -174,29 +257,58 @@ async function chatClaudeCli({
       cwd,
       signal,
       timeoutMs,
-      onStdout: (piece, fullStdout) => {
+      onStdout: (piece) => {
         jsonBuffer += piece;
+        let complete = false;
         jsonBuffer = consumeJsonLines(jsonBuffer, (event) => {
-          const delta = extractClaudeStreamDelta(event);
+          const err = claudeStreamError(event);
+          if (err) {
+            lastError = err;
+            complete = true;
+            return;
+          }
+          const delta = extractClaudeAssistantDelta(event);
           if (delta) {
             text += delta;
             if (typeof onDelta === "function") onDelta(text);
           }
+          const full = extractClaudeResultText(event);
+          if (full) resultText = full;
+          if (event?.type === "result") complete = true;
         });
-        if (!text.trim() && typeof onDelta === "function") onDelta(fullStdout.trim());
+        return complete;
       }
     });
 
-    if (!text.trim()) {
-      jsonBuffer = consumeJsonLines(`${jsonBuffer}\n`, (event) => {
-        const delta = extractClaudeStreamDelta(event);
-        if (delta) text += delta;
-      });
-      if (!text.trim()) text = String(result.stdout || "").trim();
-      if (text && typeof onDelta === "function") onDelta(text);
+    jsonBuffer = consumeJsonLines(`${jsonBuffer}\n`, (event) => {
+      const err = claudeStreamError(event);
+      if (err) {
+        lastError = err;
+        return;
+      }
+      const delta = extractClaudeAssistantDelta(event);
+      if (delta) text += delta;
+      const full = extractClaudeResultText(event);
+      if (full) resultText = full;
+    });
+
+    if (lastError) {
+      const error = new Error(lastError.replace(/^Error:\s*/i, "").trim() || lastError);
+      error.resumeFailed = Boolean(resume && sid);
+      throw error;
     }
 
-    return { text: text.trim(), raw: null };
+    let reply = String(text || resultText || "").trim();
+    if (!reply) {
+      const stdout = String(result.stdout || "").trim();
+      if (stdout && !looksLikeJsonObject(stdout)) reply = stdout;
+    }
+    if (!reply) {
+      const stderr = String(result.stderr || "").trim();
+      throw new Error(stderr || "Claude CLI не вернул текст");
+    }
+    if (typeof onDelta === "function") onDelta(reply);
+    return { text: reply, raw: null };
   };
 
   try {
@@ -220,7 +332,7 @@ async function chatCodexCli({
   const prompt = extractUserPrompt(messages);
   if (!prompt) throw new Error("Пустое сообщение");
 
-  const sid = String(sessionId || "").trim();
+  const sid = normalizeCliSessionId(sessionId, "codex");
   const cmd = normalizeBinary("codex", binary);
 
   const runOnce = async (resume) => {
@@ -228,6 +340,7 @@ async function chatCodexCli({
     if (model) args.push("-m", String(model));
 
     let text = "";
+    let lastError = "";
     let jsonBuffer = "";
     const result = await runCliProcess({
       binary: cmd,
@@ -237,26 +350,57 @@ async function chatCodexCli({
       timeoutMs,
       onStdout: (piece) => {
         jsonBuffer += piece;
+        let complete = false;
         jsonBuffer = consumeJsonLines(jsonBuffer, (event) => {
+          const err = codexStreamError(event);
+          if (err) {
+            lastError = err;
+            complete = true;
+            return;
+          }
           const delta = extractCodexJsonText(event, text);
           if (delta) {
             text += delta;
             if (typeof onDelta === "function") onDelta(text);
           }
+          const type = String(event?.type || "").toLowerCase();
+          if (type === "turn.completed" || type === "turn.failed") complete = true;
         });
+        return complete;
       }
     });
 
-    if (!text.trim()) {
-      jsonBuffer = consumeJsonLines(`${jsonBuffer}\n`, (event) => {
-        const delta = extractCodexJsonText(event, text);
-        if (delta) text += delta;
-      });
-      if (!text.trim()) text = String(result.stdout || "").trim();
-      if (text && typeof onDelta === "function") onDelta(text);
+    jsonBuffer = consumeJsonLines(`${jsonBuffer}\n`, (event) => {
+      const err = codexStreamError(event);
+      if (err) {
+        lastError = err;
+        return;
+      }
+      const delta = extractCodexJsonText(event, text);
+      if (delta) text += delta;
+    });
+
+    const stdout = String(result.stdout || "").trim();
+    const stderr = String(result.stderr || "").trim();
+    if (!lastError && looksLikeCliError(stdout)) lastError = firstErrorLine(stdout);
+    if (!lastError && looksLikeCliError(stderr)) lastError = firstErrorLine(stderr);
+    if (!text.trim() && (lastError || result.code)) {
+      const detail =
+        lastError || firstErrorLine(stderr) || firstErrorLine(stdout) || `CLI exited with code ${result.code}`;
+      const error = new Error(detail.replace(/^Error:\s*/i, "").trim() || detail);
+      error.resumeFailed = Boolean(resume && sid);
+      throw error;
     }
 
-    return { text: text.trim(), raw: null };
+    let reply = String(text || "").trim();
+    if (!reply && stdout && !looksLikeJsonObject(stdout) && !looksLikeCliError(stdout)) {
+      reply = stdout;
+    }
+    if (!reply) {
+      throw new Error(stderr || "Codex CLI не вернул текст");
+    }
+    if (typeof onDelta === "function") onDelta(reply);
+    return { text: reply, raw: null };
   };
 
   try {

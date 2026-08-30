@@ -233,12 +233,23 @@ function readSttEnabledFromDom() {
   }
   if (nodes.sttEnabled) return nodes.sttEnabled.checked;
   if (nodes.sttPanelEnabled) return nodes.sttPanelEnabled.checked;
-  return normalizeVoiceInputMode(state.settings?.voiceInputMode) !== "disabled";
+  return isSttEnabled(state.settings);
+}
+
+function isSttEnabled(settings = state.settings) {
+  if (settings?.sttEnabled === false) return false;
+  if (settings?.sttEnabled === true) return true;
+  return normalizeVoiceInputMode(settings?.voiceInputMode) !== "disabled";
+}
+
+function resolveVoiceInputMode(settings = state.settings) {
+  const mode = normalizeVoiceInputMode(settings?.voiceInputMode || "hold");
+  return mode === "disabled" ? "hold" : mode;
 }
 
 function syncSttEnabledUi(settings = state.settings) {
   if (isHeroAutosaveActive("sttEnabled")) return;
-  const enabled = normalizeVoiceInputMode(settings?.voiceInputMode) !== "disabled";
+  const enabled = isSttEnabled(settings);
   if (nodes.sttEnabled && document.activeElement !== nodes.sttEnabled) {
     nodes.sttEnabled.checked = enabled;
   }
@@ -252,6 +263,7 @@ function handleSttEnabledChange(source) {
   const enabled = Boolean(source?.checked);
   if (nodes.sttEnabled && nodes.sttEnabled !== source) nodes.sttEnabled.checked = enabled;
   if (nodes.sttPanelEnabled && nodes.sttPanelEnabled !== source) nodes.sttPanelEnabled.checked = enabled;
+  if (state.settings) state.settings.sttEnabled = enabled;
   markSettingsDirty("stt");
   const fromPanel = source?.id === "shell-stt-panel-enabled";
   if (!(fromPanel && isSettingsViewOpen())) {
@@ -487,6 +499,16 @@ let ttsPlayer = null;
 let ttsPlaybackSeq = 0;
 const settingsSave = createSettingsSaveController();
 let onRouteSettingsDirty = () => {};
+let runtimeSelectSyncing = 0;
+
+function runRuntimeSelectSync(fn) {
+  runtimeSelectSyncing += 1;
+  try {
+    return fn();
+  } finally {
+    runtimeSelectSyncing -= 1;
+  }
+}
 
 function bumpTtsPlayback() {
   ttsPlaybackSeq += 1;
@@ -713,7 +735,7 @@ function getVoiceInputMode() {
     nodes.voiceMode?.value ||
     state.sttResumeMode ||
     lastCommittedVoiceMode ||
-    state.settings?.voiceInputMode ||
+    resolveVoiceInputMode(state.settings) ||
     "hold";
   const mode = normalizeVoiceInputMode(raw);
   return mode === "disabled" ? "hold" : mode;
@@ -992,6 +1014,7 @@ const nodes = {
   bridgeAgentField: document.getElementById("shell-runtime-bridge-agent-field"),
   bridgeAgentMeta: document.getElementById("shell-runtime-bridge-agent-meta"),
   bridgeSessionId: document.getElementById("shell-runtime-bridge-session-id"),
+  bridgeSessionGenerate: document.getElementById("shell-runtime-bridge-session-generate"),
   ttsEnabled: document.getElementById("shell-tts-enabled"),
   ttsPanelEnabled: document.getElementById("shell-tts-panel-enabled"),
   ttsPlaybackModeGroup: document.getElementById("shell-tts-playback-mode"),
@@ -1191,12 +1214,8 @@ const shellScreen = createShellScreen({
 const shellDialog = createShellDialog({
   panel: nodes.replyPanel,
   scroll: document.getElementById("shell-dialog-scroll"),
-  collapseBtn: document.getElementById("shell-dialog-collapse"),
-  collapseHint: document.getElementById("shell-dialog-collapse-hint"),
   statusDot: document.getElementById("shell-status-dot"),
-  reconnectBtn: document.getElementById("shell-reconnect-btn"),
-  copyBtn: document.getElementById("shell-copy-reply"),
-  shareBtn: document.getElementById("shell-share-reply"),
+  refreshBtn: document.getElementById("shell-dialog-refresh"),
   historyOpen: document.getElementById("shell-history-open"),
   historyCount: document.getElementById("shell-history-count"),
   historyDialog: document.getElementById("shell-history-dialog"),
@@ -1596,15 +1615,29 @@ function maybeResetStaleSpeakingPhase() {
   void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
 }
 
+function isRuntimeMetricsLabel(metrics) {
+  const extra = String(metrics || "").trim().toLowerCase();
+  return Boolean(extra && SHELL_RUNTIMES.includes(extra));
+}
+
+function composePhaseStatusText(phrase, metrics) {
+  const statusText = String(phrase || "").trim();
+  const extra = String(metrics || "").trim();
+  if (!extra || isRuntimeMetricsLabel(extra) || isHeroReadyPhrase(statusText)) return statusText;
+  if (!statusText) return extra;
+  if (statusText.includes(extra)) return statusText;
+  return `${statusText} · ${extra}`;
+}
+
 function renderPhase(phase, phrase = "", metrics = "") {
   if (shellSession?.shouldBlockPhaseUpdate(phase)) return;
   const displayPhase = resolveDisplayPhase(phase);
   lastRenderedDisplayPhase = displayPhase;
-  const statusText = String(phrase || "").trim();
+  const statusText = composePhaseStatusText(phrase, metrics);
   const skipLabel = shellSession?.shouldSkipDuplicatePhase(phase) && !statusText;
   if (!skipLabel) shellSession?.rememberPhase(phase);
   syncHeroAvatarVisuals(phase, { updateLabel: !skipLabel && !state.ttsPaused, phrase: statusText });
-  nodes.meta.textContent = metrics || "";
+  if (nodes.meta) nodes.meta.textContent = "";
   if (nodes.characterStage) nodes.characterStage.dataset.phase = resolveDisplayPhase(phase);
   updateTtsControlsUi(resolveDisplayPhase(phase));
   syncCompactSensorPhase(resolveDisplayPhase(phase), statusText);
@@ -3455,10 +3488,12 @@ function applyRouteFormFromSettings(settings = state.settings || {}) {
   if (!settings) return;
   const available = getSelectableRuntimes();
   const runtime = normalizeMessageRuntime(settings.messageTarget || "qwenpaw");
-  fillRuntimeSelect(nodes.messageTarget, runtime, available);
-  fillRuntimeSelect(nodes.routeRuntime, runtime, available);
-  setRuntimeSelectValue(nodes.messageTarget, runtime, available);
-  setRuntimeSelectValue(nodes.routeRuntime, runtime, available);
+  runRuntimeSelectSync(() => {
+    fillRuntimeSelect(nodes.messageTarget, runtime, available);
+    fillRuntimeSelect(nodes.routeRuntime, runtime, available);
+    setRuntimeSelectValue(nodes.messageTarget, runtime, available);
+    setRuntimeSelectValue(nodes.routeRuntime, runtime, available);
+  });
   if (state.settings) state.settings.messageTarget = runtime;
   applyQwenpawRouteForm(settings);
   applyBridgeForm(runtime, settings);
@@ -3468,8 +3503,9 @@ function applyRouteFormFromSettings(settings = state.settings || {}) {
 function collectBridgeFormPatch(runtime) {
   const id = normalizeMessageRuntime(runtime);
   const defaults = RUNTIME_DEFAULTS[id] || {};
+  const sessionId = nodes.bridgeSessionId?.value.trim() || defaults.sessionId || "";
   const patch = {
-    [bridgeRuntimeField(id, "sessionId")]: nodes.bridgeSessionId?.value.trim() || defaults.sessionId || ""
+    [bridgeRuntimeField(id, "sessionId")]: sessionId
   };
   if (runtimeShowsAgentMeta(id)) {
     patch[bridgeRuntimeField(id, runtimeAgentMetaKey(id))] = nodes.bridgeAgentMeta?.value.trim() || "";
@@ -3487,6 +3523,7 @@ function collectBridgeFormPatch(runtime) {
 
 function collectRouteSnapshot() {
   const runtime = getSelectedRuntime();
+  if (state.settings) state.settings.messageTarget = runtime;
   const snap = buildRouteSnapshotFromSettings(state.settings || {});
   snap.messageTarget = runtime;
   snap.qwenpawBaseUrl = nodes.qwenpawUrl?.value.trim() || snap.qwenpawBaseUrl;
@@ -3564,7 +3601,14 @@ function applySavedSettingsSection(section, settings = state.settings) {
 }
 
 function applyRouteSummarySettings(settings = state.settings) {
-  if (!settings || settingsSave.isSectionDirty("route") || isHeroAutosaveActive("messageTarget")) return;
+  if (
+    !settings ||
+    isSettingsViewOpen() ||
+    settingsSave.isSectionDirty("route") ||
+    isHeroAutosaveActive("messageTarget")
+  ) {
+    return;
+  }
   applyRouteFormFromSettings(settings);
   refreshRuntimeSelectLabels();
 }
@@ -3581,6 +3625,9 @@ function applyTtsSummarySettings(settings = state.settings) {
 
 function applySttSummarySettings(settings = state.settings) {
   if (!settings) return;
+  if (!isHeroAutosaveActive("sttEnabled")) {
+    syncSttEnabledUi(settings);
+  }
   applySttToggleUi(settings);
 }
 
@@ -3588,7 +3635,11 @@ function applySettings(settings) {
   if (!settings) return;
   state.settings = settings;
 
-  if (!settingsSave.isSectionDirty("route") && !isHeroAutosaveActive("messageTarget")) {
+  if (
+    !isSettingsViewOpen() &&
+    !settingsSave.isSectionDirty("route") &&
+    !isHeroAutosaveActive("messageTarget")
+  ) {
     applyRouteFormFromSettings(settings);
   }
 
@@ -3605,6 +3656,12 @@ function applySettings(settings) {
     applyTtsSettingsUi(settings);
   }
 
+  if (
+    !settingsSave.isSectionDirty("stt") &&
+    !isHeroAutosaveActive("sttEnabled")
+  ) {
+    syncSttEnabledUi(settings);
+  }
   if (!settingsSave.isSectionDirty("stt")) {
     applySttSettingsUi(settings);
   }
@@ -3823,9 +3880,21 @@ async function ensureShellAgentSelected() {
   return state.agentId;
 }
 
+function createCliSessionUuid() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (ch) => {
+    const nibble = (Math.random() * 16) | 0;
+    const value = ch === "x" ? nibble : (nibble & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
 function readRuntimeSelectValue(selectEl) {
   if (!selectEl) return "";
-  const raw = String(selectEl.value ?? "").trim();
+  const picked = selectEl.selectedOptions?.[0] || selectEl.options[selectEl.selectedIndex];
+  const raw = String(picked?.value || selectEl.value || "").trim();
   return raw ? normalizeMessageRuntime(raw) : "";
 }
 
@@ -3837,24 +3906,27 @@ function setRuntimeSelectValue(selectEl, runtime, available = getSelectableRunti
     : available.includes("qwenpaw")
       ? "qwenpaw"
       : available[0] || "qwenpaw";
-  let matched = false;
+  let match = null;
   for (const opt of selectEl.options) {
     if (!opt.value || opt.disabled) continue;
-    const hit = opt.value === value;
-    opt.selected = hit;
-    if (hit) matched = true;
+    if (opt.value === value) {
+      match = opt;
+      break;
+    }
   }
-  if (matched) selectEl.value = value;
-  else if (selectEl.options.length) {
+  if (!match) {
     for (const opt of selectEl.options) {
       if (opt.value && !opt.disabled) {
-        opt.selected = true;
-        selectEl.value = opt.value;
-        return normalizeMessageRuntime(opt.value);
+        match = opt;
+        break;
       }
     }
   }
-  return normalizeMessageRuntime(selectEl.value || value);
+  if (!match) return normalizeMessageRuntime(selectEl.value || value);
+  if (selectEl.selectedOptions?.[0] !== match) {
+    match.selected = true;
+  }
+  return normalizeMessageRuntime(match.value || value);
 }
 
 function syncRuntimeSelects(preferred = "") {
@@ -3866,17 +3938,27 @@ function syncRuntimeSelects(preferred = "") {
     raw = readRuntimeSelectValue(nodes.messageTarget) || saved;
   }
   const runtime = normalizeMessageRuntime(raw);
+  if (state.settings) state.settings.messageTarget = runtime;
   const available = getSelectableRuntimes();
-  setRuntimeSelectValue(nodes.messageTarget, runtime, available);
-  setRuntimeSelectValue(nodes.routeRuntime, runtime, available);
+  runRuntimeSelectSync(() => {
+    setRuntimeSelectValue(nodes.messageTarget, runtime, available);
+    setRuntimeSelectValue(nodes.routeRuntime, runtime, available);
+  });
+  return runtime;
 }
 
 function getSelectedRuntime() {
-  const fromRoute = readRuntimeSelectValue(nodes.routeRuntime);
-  if (fromRoute) return fromRoute;
+  if (isSettingsViewOpen()) {
+    const fromRoute = readRuntimeSelectValue(nodes.routeRuntime);
+    if (fromRoute && isRuntimeImplemented(fromRoute)) return fromRoute;
+  }
   const fromHeader = readRuntimeSelectValue(nodes.messageTarget);
-  if (fromHeader) return fromHeader;
-  return normalizeMessageRuntime(state.settings?.messageTarget || "qwenpaw");
+  if (fromHeader && isRuntimeImplemented(fromHeader)) return fromHeader;
+  const fromRoute = readRuntimeSelectValue(nodes.routeRuntime);
+  if (fromRoute && isRuntimeImplemented(fromRoute)) return fromRoute;
+  const saved = normalizeMessageRuntime(state.settings?.messageTarget || "");
+  if (saved && isRuntimeImplemented(saved)) return saved;
+  return "qwenpaw";
 }
 
 function getSelectableRuntimes() {
@@ -3905,21 +3987,23 @@ function createRuntimeSelectOption(runtime, current, available, { showVersion = 
 
 function fillRuntimeSelect(selectEl, selected, available) {
   if (!selectEl) return normalizeMessageRuntime(selected);
-  const showVersion =
-    selectEl.id === "shell-message-target" || selectEl.id === "shell-route-runtime";
-  let current = normalizeMessageRuntime(selected);
-  if (!available.includes(current)) current = available.includes("qwenpaw") ? "qwenpaw" : available[0] || "qwenpaw";
-  selectEl.innerHTML = "";
-  for (const group of SHELL_RUNTIME_GROUPS) {
-    const optgroup = document.createElement("optgroup");
-    optgroup.label = group.label;
-    if (group.hint) optgroup.title = group.hint;
-    for (const runtime of group.runtimes) {
-      optgroup.append(createRuntimeSelectOption(runtime, current, available, { showVersion }));
+  return runRuntimeSelectSync(() => {
+    const showVersion =
+      selectEl.id === "shell-message-target" || selectEl.id === "shell-route-runtime";
+    let current = normalizeMessageRuntime(selected);
+    if (!available.includes(current)) current = available.includes("qwenpaw") ? "qwenpaw" : available[0] || "qwenpaw";
+    selectEl.innerHTML = "";
+    for (const group of SHELL_RUNTIME_GROUPS) {
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = group.label;
+      if (group.hint) optgroup.title = group.hint;
+      for (const runtime of group.runtimes) {
+        optgroup.append(createRuntimeSelectOption(runtime, current, available, { showVersion }));
+      }
+      selectEl.append(optgroup);
     }
-    selectEl.append(optgroup);
-  }
-  return setRuntimeSelectValue(selectEl, current, available);
+    return setRuntimeSelectValue(selectEl, current, available);
+  });
 }
 
 function refreshRuntimeSelectLabels() {
@@ -3951,8 +4035,8 @@ function populateRuntimeSelect(selected = normalizeMessageRuntime(state.settings
   const available = getSelectableRuntimes();
   const runtime = fillRuntimeSelect(nodes.messageTarget, selected, available);
   fillRuntimeSelect(nodes.routeRuntime, runtime, available);
-  syncRuntimeSelects();
-  updateRuntimeUi();
+  if (state.settings) state.settings.messageTarget = runtime;
+  updateRuntimeUi({ reloadForms: true, runtime });
 }
 
 function setBridgeFieldVisible(fieldEl, visible) {
@@ -3961,8 +4045,8 @@ function setBridgeFieldVisible(fieldEl, visible) {
   fieldEl.classList.toggle("hidden", !visible);
 }
 
-function updateRuntimeUi({ reloadForms = true } = {}) {
-  const runtime = getSelectedRuntime();
+function updateRuntimeUi({ reloadForms = true, runtime: runtimeOverride } = {}) {
+  const runtime = normalizeMessageRuntime(runtimeOverride || getSelectedRuntime());
   if (nodes.qwenpawPanel) {
     nodes.qwenpawPanel.dataset.visible = runtimeUsesQwenPaw(runtime) ? "1" : "0";
   }
@@ -4001,7 +4085,9 @@ function updateRuntimeUi({ reloadForms = true } = {}) {
     }
     if (nodes.bridgeSessionId) {
       nodes.bridgeSessionId.placeholder = usesCli
-        ? "для --resume (необязательно)"
+        ? runtime === "codex"
+          ? "UUID сессии Codex, пусто = новая"
+          : "UUID или название сессии Claude, пусто = новая"
         : "идентификатор сессии на gateway";
     }
     applyBridgeModelPlaceholder(runtime);
@@ -4606,6 +4692,50 @@ function unlockComposePageScroll() {
   composeScrollLockY = 0;
 }
 
+const COMPOSE_OPTION_KEYS = ["reasoning", "tools", "memory", "execute"];
+const COMPOSE_OPTIONS_STORAGE = "shell-compose-option-toggles";
+
+function readComposeOptionToggles() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(COMPOSE_OPTIONS_STORAGE) || "{}");
+    return Object.fromEntries(COMPOSE_OPTION_KEYS.map((key) => [key, Boolean(raw?.[key])]));
+  } catch {
+    return Object.fromEntries(COMPOSE_OPTION_KEYS.map((key) => [key, false]));
+  }
+}
+
+function writeComposeOptionToggles(map) {
+  try {
+    localStorage.setItem(COMPOSE_OPTIONS_STORAGE, JSON.stringify(map));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function applyComposeOptionToggles() {
+  const map = readComposeOptionToggles();
+  document.querySelectorAll("[data-compose-option]").forEach((btn) => {
+    const key = btn.dataset.composeOption;
+    if (!COMPOSE_OPTION_KEYS.includes(key)) return;
+    const on = Boolean(map[key]);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+}
+
+function bindComposeOptionTabs() {
+  document.querySelectorAll("[data-compose-option]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.composeOption;
+      if (!COMPOSE_OPTION_KEYS.includes(key)) return;
+      const map = readComposeOptionToggles();
+      map[key] = !map[key];
+      writeComposeOptionToggles(map);
+      btn.setAttribute("aria-pressed", map[key] ? "true" : "false");
+    });
+  });
+  applyComposeOptionToggles();
+}
+
 function setComposeExpanded(next) {
   const expanded = Boolean(next);
   if (expanded === composeDraftExpanded) return;
@@ -5202,14 +5332,14 @@ function syncVoiceModeUi(settings = state.settings) {
     return;
   }
 
-  const stored = normalizeVoiceInputMode(settings?.voiceInputMode || "hold");
+  const stored = resolveVoiceInputMode(settings);
   const localMode = normalizeVoiceInputMode(
     nodes.voiceMode.value || state.sttResumeMode || lastCommittedVoiceMode || "hold"
   );
   const userLocked = isVoiceModeUserLocked();
 
   if (!voiceModeHydratedFromServer && !userLocked) {
-    if (stored !== "disabled" && stored !== localMode) {
+    if (stored !== localMode) {
       nodes.voiceMode.value = stored;
       state.sttResumeMode = stored;
       lastCommittedVoiceMode = stored;
@@ -5218,7 +5348,6 @@ function syncVoiceModeUi(settings = state.settings) {
     voiceModeHydratedFromServer = true;
   } else if (
     !userLocked &&
-    stored !== "disabled" &&
     stored !== localMode &&
     lastCommittedVoiceMode === localMode
   ) {
@@ -5378,7 +5507,8 @@ function collectSttFormPatch() {
 function collectSttSettingsPatch() {
   const uiMode = normalizeVoiceInputMode(nodes.voiceMode?.value || state.sttResumeMode || "hold");
   return {
-    voiceInputMode: readSttEnabledFromDom() === false ? "disabled" : uiMode,
+    sttEnabled: readSttEnabledFromDom() !== false,
+    voiceInputMode: uiMode,
     ...collectSttFormPatch()
   };
 }
@@ -5469,8 +5599,12 @@ async function persistMessageTarget(runtime) {
       { baselineSection: "route", commitSection: !isSettingsViewOpen() }
     );
     if (ok) {
-      syncRuntimeSelects("header");
-      applyRouteFormFromSettings(state.settings);
+      if (state.settings) state.settings.messageTarget = target;
+      const available = getSelectableRuntimes();
+      runRuntimeSelectSync(() => {
+        setRuntimeSelectValue(nodes.messageTarget, target, available);
+        setRuntimeSelectValue(nodes.routeRuntime, target, available);
+      });
       refreshRuntimeSelectLabels();
     }
   } finally {
@@ -5480,21 +5614,21 @@ async function persistMessageTarget(runtime) {
 
 async function persistSttEnabled(enabled) {
   const uiMode = normalizeVoiceInputMode(nodes.voiceMode?.value || state.sttResumeMode || "hold");
-  const voiceInputMode = enabled ? uiMode : "disabled";
   state.sttResumeMode = uiMode;
   if (!enabled) {
     shellTapVoice?.abortSession();
     if (state.meetingRecording) void setMeetingRecordingRemote(false);
   }
-  if (state.settings) state.settings.voiceInputMode = voiceInputMode;
+  if (state.settings) {
+    state.settings.sttEnabled = enabled;
+    state.settings.voiceInputMode = uiMode;
+  }
   beginHeroAutosave("sttEnabled");
   try {
-    await saveSettings({ voiceInputMode }, { apply: "none" });
-    settingsSave.patchBaseline("stt", { voiceInputMode, ...collectSttFormPatch() });
-    markSettingsDirty("stt");
-  } catch (error) {
-    renderPhase("waiting", error.message);
-    markSettingsDirty("stt");
+    await persistAgentSettingsPatch(
+      { sttEnabled: enabled, voiceInputMode: uiMode },
+      { baselineSection: "stt", commitSection: !isSettingsViewOpen() }
+    );
   } finally {
     endHeroAutosave("sttEnabled");
   }
@@ -5504,14 +5638,14 @@ async function persistSttEnabled(enabled) {
 
 async function persistVoiceInputMode(mode) {
   const next = normalizeVoiceInputMode(mode);
-  const stored = next === "disabled" ? "disabled" : next;
-  if (stored !== "disabled") state.pendingVoiceInputMode = stored;
-  if (state.settings) state.settings.voiceInputMode = stored;
+  if (next === "disabled") return;
+  if (state.settings) state.settings.voiceInputMode = next;
+  state.pendingVoiceInputMode = next;
   voiceInputModePersisting = true;
   try {
-    await saveSettings({ voiceInputMode: stored }, { apply: "none" });
-    lastCommittedVoiceMode = stored;
-    if (state.pendingVoiceInputMode === stored) state.pendingVoiceInputMode = null;
+    await saveSettings({ voiceInputMode: next }, { apply: "none" });
+    lastCommittedVoiceMode = next;
+    if (state.pendingVoiceInputMode === next) state.pendingVoiceInputMode = null;
   } catch (error) {
     state.pendingVoiceInputMode = null;
     renderPhase("waiting", error.message);
@@ -6905,6 +7039,7 @@ function bindWindowSettingsUi() {
 function bindUi() {
   populateVoiceModeSelect();
   populateTtsEngineSelect();
+  bindComposeOptionTabs();
   onRouteSettingsDirty = () => markSettingsDirty("route");
 
   settingsSave.attachUi({
@@ -7021,23 +7156,25 @@ function bindUi() {
   initCompactSensor();
 
   nodes.messageTarget?.addEventListener("change", () => {
+    if (runtimeSelectSyncing) return;
     void playShellUiSound("switch");
-    const runtime = normalizeMessageRuntime(nodes.messageTarget.value);
+    const runtime = readRuntimeSelectValue(nodes.messageTarget);
+    if (!runtime) return;
     if (state.settings) state.settings.messageTarget = runtime;
     markSettingsDirty("route");
     syncRuntimeSelects("header");
-    updateRuntimeUi();
-    if (!isSettingsViewOpen()) {
-      void persistMessageTarget(runtime);
-    }
+    updateRuntimeUi({ runtime });
+    void persistMessageTarget(runtime);
   });
   nodes.routeRuntime?.addEventListener("change", () => {
-    const runtime = normalizeMessageRuntime(nodes.routeRuntime.value);
+    if (runtimeSelectSyncing) return;
+    const runtime = readRuntimeSelectValue(nodes.routeRuntime);
     if (!runtime) return;
     if (state.settings) state.settings.messageTarget = runtime;
     syncRuntimeSelects("route");
-    updateRuntimeUi();
+    updateRuntimeUi({ runtime });
     markSettingsDirty("route");
+    void persistMessageTarget(runtime);
   });
   nodes.qwenpawUrl.addEventListener("input", markRouteDirty);
   nodes.qwenpawUrl.addEventListener("change", () => {
@@ -7057,6 +7194,12 @@ function bindUi() {
     input?.addEventListener("input", markRouteDirty);
     input?.addEventListener("change", markRouteDirty);
   }
+  nodes.bridgeSessionGenerate?.addEventListener("click", () => {
+    if (!nodes.bridgeSessionId) return;
+    nodes.bridgeSessionId.value = createCliSessionUuid();
+    nodes.bridgeSessionId.dispatchEvent(new Event("input", { bubbles: true }));
+    markSettingsDirty("route");
+  });
   nodes.ttsEnabled?.addEventListener("change", () => {
     handleTtsEnabledChange(nodes.ttsEnabled);
   });

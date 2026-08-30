@@ -1,9 +1,8 @@
-/** Mobile-style dialog: history, collapse, copy/share, reconnect, errors. */
+/** Mobile-style dialog: history, refresh, copy, errors. */
 
 import { renderShellReplyBody } from "@shell/markdown";
 
 const MAX_HISTORY = 25;
-const STREAM_PREVIEW_LEN = 120;
 
 function formatHistoryTime(at) {
   try {
@@ -13,10 +12,29 @@ function formatHistoryTime(at) {
   }
 }
 
-function formatHistoryPreview(text) {
-  const raw = String(text || "").replace(/\s+/g, " ").trim();
-  if (!raw) return "";
-  return raw.length > STREAM_PREVIEW_LEN ? `${raw.slice(0, STREAM_PREVIEW_LEN)}…` : raw;
+function formatReplyDuration(ms) {
+  const n = Number(ms);
+  if (!Number.isFinite(n) || n < 0) return "";
+  const sec = n / 1000;
+  if (sec < 10) {
+    const rounded = Math.round(sec * 10) / 10;
+    return `${String(rounded).replace(".", ",")} с`;
+  }
+  return `${Math.round(sec)} с`;
+}
+
+function withReplyDurations(items) {
+  let lastUserAt = 0;
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const next = { ...item };
+    const at = Number(next.at) || 0;
+    if (next.role === "user") {
+      lastUserAt = at;
+    } else if (lastUserAt && at) {
+      next.durationMs = Math.max(0, at - lastUserAt);
+    }
+    return next;
+  });
 }
 
 function historyRoleLabel(item) {
@@ -61,12 +79,8 @@ function connectionHint(error) {
  * @param {{
  *   panel?: HTMLElement | null,
  *   scroll?: HTMLElement | null,
- *   collapseBtn?: HTMLElement | null,
- *   collapseHint?: HTMLElement | null,
  *   statusDot?: HTMLElement | null,
- *   reconnectBtn?: HTMLElement | null,
- *   copyBtn?: HTMLElement | null,
- *   shareBtn?: HTMLElement | null,
+ *   refreshBtn?: HTMLElement | null,
  *   historyOpen?: HTMLElement | null,
  *   historyCount?: HTMLElement | null,
  *   historyDialog?: HTMLDialogElement | null,
@@ -83,12 +97,10 @@ function connectionHint(error) {
  * }} options
  */
 export function createShellDialog(options = {}) {
-  const CHAT_COLLAPSE_KEY = "agentcms.shell.chatCollapsed.v1";
   const nodes = options;
   const fetchHistory = typeof options.fetchHistory === "function" ? options.fetchHistory : null;
   let history = [];
   let historyLoading = false;
-  let collapsed = localStorage.getItem(CHAT_COLLAPSE_KEY) === "1";
   let lastReplyRaw = "";
   let lastAskRaw = "";
   let pullStartY = 0;
@@ -105,7 +117,7 @@ export function createShellDialog(options = {}) {
     historyLoading = true;
     return fetchHistory()
       .then((items) => {
-        history = Array.isArray(items) ? items.slice(-MAX_HISTORY) : [];
+        history = withReplyDurations(Array.isArray(items) ? items.slice(-MAX_HISTORY) : []);
         renderHistoryUi();
       })
       .catch(() => {
@@ -120,19 +132,48 @@ export function createShellDialog(options = {}) {
   function pushHistory(role, body) {
     const text = String(body || "").trim();
     if (!text) return;
-    history.push({
+    const item = {
       role,
       body: text,
       at: Date.now(),
       label: historyRoleLabel({ role })
-    });
+    };
+    if (role === "agent") {
+      const prevUser = [...history].reverse().find((entry) => entry.role === "user");
+      if (prevUser?.at) item.durationMs = Math.max(0, item.at - prevUser.at);
+    }
+    history.push(item);
     if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
     renderHistoryUi();
   }
 
+  async function copyMessageText(text, btn) {
+    const raw = String(text || "").trim();
+    if (!raw) return;
+    try {
+      await navigator.clipboard.writeText(raw);
+      if (btn) {
+        btn.classList.add("is-copied");
+        btn.title = "Скопировано";
+        window.setTimeout(() => {
+          btn.classList.remove("is-copied");
+          btn.title = "Копировать";
+        }, 1200);
+      }
+    } catch {
+      setError("Не удалось скопировать");
+    }
+  }
+
   function renderThreadMessage(item) {
-    const el = document.createElement("div");
     const role = item?.role === "agent" ? "agent" : "user";
+    const row = document.createElement("div");
+    row.className = `shell-chat-row shell-chat-row--${role}`;
+
+    const bubble = document.createElement("div");
+    bubble.className = "shell-chat-bubble";
+
+    const el = document.createElement("div");
     el.className = `shell-chat-msg shell-chat-msg--${role}`;
     el.dataset.role = role;
     if (role === "agent") {
@@ -140,7 +181,31 @@ export function createShellDialog(options = {}) {
     } else {
       el.textContent = String(item.body || "");
     }
-    return el;
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "shell-chat-copy";
+    copyBtn.title = "Копировать";
+    copyBtn.setAttribute("aria-label", "Копировать сообщение");
+    copyBtn.textContent = "⎘";
+    copyBtn.addEventListener("click", () => {
+      void copyMessageText(item.body, copyBtn);
+    });
+
+    bubble.append(el, copyBtn);
+    row.append(bubble);
+
+    const duration = role === "agent" ? formatReplyDuration(item.durationMs) : "";
+    const clock = formatHistoryTime(item.at);
+    const metaText = duration || clock;
+    if (metaText) {
+      const meta = document.createElement("div");
+      meta.className = "shell-chat-meta";
+      meta.textContent = metaText;
+      if (duration) meta.title = clock ? `Ответ за ${duration} · ${clock}` : `Ответ за ${duration}`;
+      row.append(meta);
+    }
+    return row;
   }
 
   function syncLiveReplySlot() {
@@ -167,59 +232,35 @@ export function createShellDialog(options = {}) {
       nodes.historyCount.textContent = history.length ? String(history.length) : "";
     }
     nodes.historyOpen?.classList.toggle("hidden", history.length === 0);
-    if (!nodes.historyList) return;
-    nodes.historyList.innerHTML = "";
-    for (const item of history) {
-      const li = document.createElement("li");
-      li.className = `shell-history-item shell-history-item--${item.role}`;
-      const avatar = document.createElement("span");
-      avatar.className = "shell-history-avatar";
-      avatar.textContent = historyAvatarLabel(item);
-      avatar.setAttribute("aria-hidden", "true");
-      const bodyWrap = document.createElement("div");
-      bodyWrap.className = "shell-history-body";
-      const head = document.createElement("div");
-      head.className = "shell-history-head";
-      const label = document.createElement("span");
-      label.className = "shell-history-role";
-      label.textContent = historyRoleLabel(item);
-      const time = document.createElement("time");
-      time.className = "shell-history-time";
-      time.textContent = formatHistoryTime(item.at);
-      head.append(label, time);
-      const body = document.createElement("div");
-      body.className = "shell-history-text";
-      body.textContent = item.body;
-      bodyWrap.append(head, body);
-      li.append(avatar, bodyWrap);
-      nodes.historyList.append(li);
+    if (nodes.historyList) {
+      nodes.historyList.innerHTML = "";
+      for (const item of history) {
+        const li = document.createElement("li");
+        li.className = `shell-history-item shell-history-item--${item.role}`;
+        const avatar = document.createElement("span");
+        avatar.className = "shell-history-avatar";
+        avatar.textContent = historyAvatarLabel(item);
+        avatar.setAttribute("aria-hidden", "true");
+        const bodyWrap = document.createElement("div");
+        bodyWrap.className = "shell-history-body";
+        const head = document.createElement("div");
+        head.className = "shell-history-head";
+        const label = document.createElement("span");
+        label.className = "shell-history-role";
+        label.textContent = historyRoleLabel(item);
+        const time = document.createElement("time");
+        time.className = "shell-history-time";
+        time.textContent = formatHistoryTime(item.at);
+        head.append(label, time);
+        const body = document.createElement("div");
+        body.className = "shell-history-text";
+        body.textContent = item.body;
+        bodyWrap.append(head, body);
+        li.append(avatar, bodyWrap);
+        nodes.historyList.append(li);
+      }
     }
     renderThread();
-  }
-
-  function setCollapsed(next) {
-    collapsed = Boolean(next);
-    nodes.panel?.setAttribute("data-collapsed", collapsed ? "1" : "0");
-    nodes.collapseBtn?.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    localStorage.setItem(CHAT_COLLAPSE_KEY, collapsed ? "1" : "0");
-    updateCollapseHint();
-  }
-
-  function updateCollapseHint() {
-    const preview = formatHistoryPreview(lastReplyRaw);
-    if (!nodes.collapseHint) return;
-    if (collapsed && preview) {
-      nodes.collapseHint.textContent = preview;
-      nodes.collapseHint.classList.remove("hidden");
-      nodes.collapseBtn?.setAttribute("title", preview);
-      nodes.collapseBtn?.setAttribute("aria-label", preview);
-    } else {
-      nodes.collapseHint.textContent = "";
-      nodes.collapseHint.classList.add("hidden");
-      const label = collapsed ? "Развернуть диалог" : "Свернуть диалог";
-      nodes.collapseBtn?.setAttribute("title", label);
-      nodes.collapseBtn?.setAttribute("aria-label", label);
-    }
   }
 
   function setLastAsk(text) {
@@ -237,12 +278,8 @@ export function createShellDialog(options = {}) {
   function onReplyRendered(rawText) {
     const raw = String(rawText || "").trim();
     lastReplyRaw = raw;
-    const hasReply = raw && raw !== "—";
-    nodes.copyBtn?.classList.toggle("hidden", !hasReply);
-    nodes.shareBtn?.classList.toggle("hidden", !hasReply || !navigator.share);
     syncLiveReplySlot();
-    updateCollapseHint();
-    if (hasReply) {
+    if (raw && raw !== "—") {
       nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "smooth" });
     }
   }
@@ -270,10 +307,10 @@ export function createShellDialog(options = {}) {
       stateName === "live" ? "live" : stateName === "error" ? "error" : stateName === "offline" ? "offline" : "connecting";
     nodes.statusDot.dataset.state = state;
     const labels = {
-      live: "На связи",
-      error: "Обрыв SSE",
-      offline: "Нет сети",
-      connecting: "Подключение…"
+      live: "Связь с сервером · на связи",
+      error: "Связь с сервером · обрыв",
+      offline: "Связь с сервером · нет сети",
+      connecting: "Связь с сервером · подключение…"
     };
     const title = labels[state] || labels.connecting;
     nodes.statusDot.title = title;
@@ -304,37 +341,13 @@ export function createShellDialog(options = {}) {
     if (typeof reconnectHandler === "function") reconnectHandler({ soft });
   }
 
+  function refreshDialog() {
+    return loadHistory().then(() => doReconnect({ soft: true }));
+  }
+
   function bindUi() {
-    nodes.collapseBtn?.addEventListener("click", () => setCollapsed(!collapsed));
-    nodes.reconnectBtn?.addEventListener("click", () => doReconnect());
-    nodes.historyOpen?.addEventListener("click", () => {
-      void loadHistory().then(() => nodes.historyDialog?.showModal());
-    });
-    nodes.historyClose?.addEventListener("click", () => nodes.historyDialog?.close());
-    nodes.historyDialog?.addEventListener("click", (event) => {
-      if (event.target === nodes.historyDialog) nodes.historyDialog.close();
-    });
-
-    nodes.copyBtn?.addEventListener("click", async () => {
-      if (!lastReplyRaw) return;
-      try {
-        await navigator.clipboard.writeText(lastReplyRaw);
-        nodes.copyBtn.title = "Скопировано";
-        setTimeout(() => {
-          if (nodes.copyBtn) nodes.copyBtn.title = "Копировать ответ";
-        }, 1200);
-      } catch {
-        setError("Не удалось скопировать");
-      }
-    });
-
-    nodes.shareBtn?.addEventListener("click", async () => {
-      if (!lastReplyRaw || !navigator.share) return;
-      try {
-        await navigator.share({ title: "Agent Shell", text: lastReplyRaw });
-      } catch (error) {
-        if (error?.name !== "AbortError") setError("Не удалось поделиться");
-      }
+    nodes.refreshBtn?.addEventListener("click", () => {
+      void refreshDialog();
     });
 
     const scrollRoot = nodes.scroll || nodes.panel;
@@ -364,7 +377,7 @@ export function createShellDialog(options = {}) {
         const show = !nodes.pullHint?.classList.contains("hidden");
         nodes.pullHint?.classList.add("hidden");
         pullActive = false;
-        if (show) doReconnect();
+        if (show) void refreshDialog();
       },
       { passive: true }
     );
@@ -375,7 +388,12 @@ export function createShellDialog(options = {}) {
   }
 
   function init() {
-    setCollapsed(collapsed);
+    nodes.panel?.removeAttribute("data-collapsed");
+    try {
+      localStorage.removeItem("agentcms.shell.chatCollapsed.v1");
+    } catch {
+      /* ignore */
+    }
     void loadHistory();
     bindUi();
   }
