@@ -15,8 +15,6 @@ export function updateVoiceModeHint(
   const hints = {
     live:
       "Sidecar постоянно слушает. Фраза по паузе → агенту. Ваш голос останавливает TTS. Нужен npm run shell:sidecar.",
-    wake_name:
-      "Sidecar слушает всегда, но шлёт агенту только если в речи есть wake-имя (поле в ⚙️ STT). Нужен sidecar.",
     meeting:
       "🎤 — старт/стоп длинной записи. Аудио → awn-dialogs/records/, текст → агенту. Нужен sidecar.",
     hold:

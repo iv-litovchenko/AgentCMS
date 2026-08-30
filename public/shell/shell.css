@@ -1490,6 +1490,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   justify-content: center;
   width: 132px;
   height: 132px;
+  margin-top: 14px;
   flex-shrink: 0;
   overflow: visible;
 }

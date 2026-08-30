@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=370" />
+    <link rel="stylesheet" href="/shell/shell.css?v=382" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -30,7 +30,7 @@
           "@shell/tts-tab": "/shell/shell-tts-tab.js?v=207",
           "@shell/tts-player": "/shell/shell-tts-player.js?v=207",
           "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=207",
-          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=207",
+          "@shell/browser-tts": "/shell/shell-browser-tts.js?v=382",
           "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=207",
           "@shell/session": "/shell/shell-session.js?v=207",
           "@shell/client-id": "/shell/shell-client-id.js?v=207",
@@ -49,12 +49,12 @@
           "@shell/proactive": "/shell/shell-proactive.js?v=322",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
           "@shell/voice": "/shell/shell-voice.js?v=207",
-          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=207",
+          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=382",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=350",
-          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=366",
-          "@shell/build": "/shell/shell-build.js?v=370"
+          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=382",
+          "@shell/build": "/shell/shell-build.js?v=382"
         }
       }
     </script>
@@ -666,7 +666,12 @@
                 </select>
               </label>
               <label class="shell-field shell-field--compact">
-                <span class="shell-label">Голос браузера</span>
+                <span class="shell-label shell-label-row shell-label-row--spread">
+                  Голос · Web Speech (вкладка)
+                  <button type="button" class="shell-label-action" id="shell-tts-voice-refresh" title="Перезагрузить список голосов браузера">
+                    Обновить
+                  </button>
+                </span>
                 <select id="shell-tts-voice" class="shell-select shell-select--full">
                   <option value="">Системный по умолчанию</option>
                 </select>
@@ -684,7 +689,7 @@
                 </select>
               </label>
               <label class="shell-field shell-field--compact">
-                <span class="shell-label">Голос macOS say</span>
+                <span class="shell-label">Голос · say (сервер Mac)</span>
                 <select id="shell-tts-say-voice" class="shell-select shell-select--full">
                   <option value="">По умолчанию</option>
                 </select>
@@ -758,9 +763,14 @@
           <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
         </label>
 
+        <label class="shell-field shell-field--compact shell-tts-pitch-field" id="shell-tts-pitch-field">
+          <span class="shell-label">Высота голоса · <span id="shell-tts-pitch-value">1.0</span>×</span>
+          <input id="shell-tts-pitch" class="shell-range" type="range" min="0.5" max="2" step="0.1" value="1" />
+        </label>
+
         <label class="shell-field shell-field--compact">
           <span class="shell-label shell-label-row shell-label-row--spread">
-            Промпт spoken-версии
+            Промпт на ответ с озвучкой
             <button type="button" class="shell-label-action" id="shell-tts-prompt-insert">
               Вставить заготовку
             </button>
@@ -770,7 +780,7 @@
             class="shell-textarea shell-textarea--compact"
             rows="3"
             spellcheck="false"
-            placeholder="Инструкция для ответа: текст для голоса, затем ::: VOICE-END :::, затем полный текст. «Вставить заготовку» — шаблон."
+            placeholder="Как агент формирует ответ: сначала текст для голоса, затем ::: VOICE-END :::, затем полный текст на экран. «Вставить заготовку» — шаблон."
           ></textarea>
         </label>
 
@@ -813,6 +823,7 @@
             </span>
           </span>
         </div>
+
         </div>
 
         <div class="shell-settings-save-row">
@@ -862,17 +873,6 @@
           <label class="shell-check shell-stt-global" title="Sidecar слушает микрофон в любом приложении (режимы Голосовое и Shift)">
             <input id="shell-voice-global-listen" type="checkbox" />
             <span>Глобально — слышу из любого приложения</span>
-          </label>
-          <label class="shell-field shell-field--compact">
-            <span class="shell-label">Wake-имя (режим «По имени»)</span>
-            <input
-              id="shell-voice-wake-name"
-              class="shell-input"
-              type="text"
-              spellcheck="false"
-              placeholder="Например: Ая"
-              autocomplete="off"
-            />
           </label>
           <div class="shell-stt-settings-grid">
             <label class="shell-field shell-field--compact">
@@ -1718,7 +1718,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
                   title="Режим голосового ввода"
                 >
                   <option value="live">Живой</option>
-                  <option value="wake_name">По имени</option>
                   <option value="meeting">Встреча</option>
                   <option value="hold" selected>Удержать</option>
                   <option value="fn_button">Shift</option>
@@ -2019,6 +2018,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=370" type="module"></script>
+    <script src="/shell/shell.js?v=382" type="module"></script>
   </body>
 </html>

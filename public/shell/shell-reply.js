@@ -318,7 +318,7 @@ export function prepareSpeechText(body, settings = {}) {
   let speech = toSpeechText(body, {
     includeCaptions: settings.ttsIncludeCaptions !== false
   });
-  if (settings.ttsStripEmoji !== false) {
+  if (settings.ttsStripEmoji === true) {
     speech = speech.replace(/\p{Extended_Pictographic}/gu, " ").replace(/\s+/g, " ").trim();
   }
   return speech;

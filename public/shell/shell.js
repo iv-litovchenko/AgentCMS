@@ -8,7 +8,14 @@ import { createShellScreen } from "@shell/screen";
 import { createShellTtsTabCoordinator } from "@shell/tts-tab";
 import { createShellTtsPlayer } from "@shell/tts-player";
 import { unlockShellAudio } from "@shell/audio-unlock";
-import { speakShellBrowserTts } from "@shell/browser-tts";
+import {
+  speakShellBrowserTts,
+  loadWebSpeechVoices,
+  compareWebSpeechVoices,
+  formatWebSpeechVoiceLabel,
+  filterLocalWebSpeechVoices,
+  voiceLangPrefix
+} from "@shell/browser-tts";
 import {
   formatTtsErrorHint,
   shellTtsFailureMessage,
@@ -464,16 +471,16 @@ function getTtsEngine() {
 
 function ttsSettingsLang(settings = {}, engine = getTtsEngine()) {
   const id = normalizeTtsEngine(engine);
-  if (id === "browser") return settings.ttsBrowserLang || settings.ttsLang || "ru-RU";
-  if (id === "say") return settings.ttsSayLang || settings.ttsLang || "ru-RU";
-  return settings.ttsLang || "ru-RU";
+  if (id === "browser") return settings.ttsBrowserLang || "ru-RU";
+  if (id === "say") return settings.ttsSayLang || "ru-RU";
+  return settings.ttsBrowserLang || "ru-RU";
 }
 
 function ttsSettingsVoice(settings = {}, engine = getTtsEngine()) {
   const id = normalizeTtsEngine(engine);
-  if (id === "browser") return String(settings.ttsBrowserVoice ?? settings.ttsVoice ?? "").trim();
-  if (id === "say") return String(settings.ttsSayVoice ?? settings.ttsVoice ?? "").trim();
-  return String(settings.ttsVoice || "").trim();
+  if (id === "browser") return String(settings.ttsBrowserVoice ?? "").trim();
+  if (id === "say") return String(settings.ttsSayVoice ?? "").trim();
+  return String(settings.ttsBrowserVoice ?? "").trim();
 }
 
 function resolveElevenlabsApiKey() {
@@ -852,11 +859,14 @@ const nodes = {
   ttsElevenlabsModel: document.getElementById("shell-tts-elevenlabs-model"),
   ttsLang: document.getElementById("shell-tts-lang"),
   ttsVoice: document.getElementById("shell-tts-voice"),
+  ttsVoiceRefresh: document.getElementById("shell-tts-voice-refresh"),
   ttsSayLang: document.getElementById("shell-tts-say-lang"),
   ttsSayVoice: document.getElementById("shell-tts-say-voice"),
   ttsRate: document.getElementById("shell-tts-rate"),
   ttsRateField: document.getElementById("shell-tts-rate-field"),
   ttsRateValue: document.getElementById("shell-tts-rate-value"),
+  ttsPitch: document.getElementById("shell-tts-pitch"),
+  ttsPitchValue: document.getElementById("shell-tts-pitch-value"),
   sttEnabled: document.getElementById("shell-stt-enabled"),
   sttSettingsPanel: document.getElementById("shell-stt-settings"),
   sttPrompt: document.getElementById("shell-stt-prompt"),
@@ -865,7 +875,6 @@ const nodes = {
   sttEngine: document.getElementById("shell-stt-engine"),
   sttEngineNote: document.getElementById("shell-stt-engine-note"),
   voiceGlobalListen: document.getElementById("shell-voice-global-listen"),
-  voiceWakeName: document.getElementById("shell-voice-wake-name"),
   topmost: document.getElementById("shell-topmost"),
   windowTransparent: document.getElementById("shell-window-transparent"),
   windowPetOverlay: document.getElementById("shell-window-pet"),
@@ -1841,7 +1850,7 @@ const STREAM_TTS_MERGE_FLUSH = { maxChars: 2000, maxParts: 32 };
 function prepareTtsStreamChunk(text) {
   let speech = String(text || "").trim();
   if (!speech) return "";
-  if (state.settings?.ttsStripEmoji !== false) {
+  if (state.settings?.ttsStripEmoji === true) {
     speech = speech.replace(/\p{Extended_Pictographic}/gu, " ").replace(/\s+/g, " ").trim();
   }
   return truncateForShellTts(speech);
@@ -4700,40 +4709,66 @@ function buildSpeechPayload(body, message = {}) {
 function createSpeechUtterance(text) {
   const settings = { ...(state.settings || {}), ...collectTtsFormPatch() };
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = settings.ttsBrowserLang || settings.ttsLang || "ru-RU";
+  utterance.lang = settings.ttsBrowserLang || "ru-RU";
   utterance.rate = Math.min(2, Math.max(0.5, Number(settings.ttsRate) || 1));
   utterance.pitch = Math.min(2, Math.max(0, Number(settings.ttsPitch) || 1));
-  const voiceName = String(settings.ttsBrowserVoice ?? settings.ttsVoice ?? "").trim();
+  const voiceName = String(settings.ttsBrowserVoice ?? "").trim();
   if (voiceName) {
-    const voices = getSpeechSynth()?.getVoices() || [];
+    const voices = filterLocalWebSpeechVoices(getSpeechSynth()?.getVoices() || []);
     const voice = voices.find((item) => item.name === voiceName || item.voiceURI === voiceName);
     if (voice) utterance.voice = voice;
   }
   return utterance;
 }
 
-function refreshTtsVoiceOptions() {
-  if (!nodes.ttsVoice) return;
-  const synth = getSpeechSynth();
-  const lang = String(nodes.ttsLang?.value || state.settings?.ttsBrowserLang || state.settings?.ttsLang || "ru-RU").toLowerCase();
-  const langPrefix = lang.split("-")[0];
-  const current = nodes.ttsVoice.value || state.settings?.ttsBrowserVoice || state.settings?.ttsVoice || "";
-  nodes.ttsVoice.innerHTML = '<option value="">Системный по умолчанию</option>';
-  const voices = (synth?.getVoices() || []).filter((voice) =>
-    voice.lang.toLowerCase().startsWith(langPrefix)
-  );
+function appendBrowserVoiceOptions(selectEl, voices, current) {
   for (const voice of voices) {
     const opt = document.createElement("option");
     opt.value = voice.name;
-    opt.textContent = `${voice.name} (${voice.lang})`;
+    opt.textContent = formatWebSpeechVoiceLabel(voice);
     if (voice.name === current) opt.selected = true;
-    nodes.ttsVoice.append(opt);
+    selectEl.append(opt);
+  }
+}
+
+let browserVoiceRefreshSeq = 0;
+
+async function refreshTtsVoiceOptions() {
+  if (!nodes.ttsVoice) return;
+  const seq = ++browserVoiceRefreshSeq;
+  const lang = String(nodes.ttsLang?.value || state.settings?.ttsBrowserLang || "ru-RU").toLowerCase();
+  const langPrefix = lang.split("-")[0];
+  const current = nodes.ttsVoice.value || state.settings?.ttsBrowserVoice || "";
+  nodes.ttsVoice.innerHTML = '<option value="">Системный по умолчанию</option>';
+
+  const allVoices = await loadWebSpeechVoices();
+  if (seq !== browserVoiceRefreshSeq) return;
+
+  const voices = allVoices
+    .filter((voice) => voiceLangPrefix(voice) === langPrefix)
+    .sort(compareWebSpeechVoices);
+
+  appendBrowserVoiceOptions(nodes.ttsVoice, voices, current);
+  if (current && !voices.some((voice) => voice.name === current)) {
+    nodes.ttsVoice.value = "";
+  }
+
+  if (!voices.length) {
+    const empty = document.createElement("option");
+    empty.disabled = true;
+    empty.textContent = "Нет локальных голосов для выбранного языка";
+    nodes.ttsVoice.append(empty);
   }
 }
 
 function updateTtsRateLabel() {
   if (!nodes.ttsRateValue || !nodes.ttsRate) return;
   nodes.ttsRateValue.textContent = Number(nodes.ttsRate.value || 1).toFixed(1);
+}
+
+function updateTtsPitchLabel() {
+  if (!nodes.ttsPitchValue || !nodes.ttsPitch) return;
+  nodes.ttsPitchValue.textContent = Number(nodes.ttsPitch.value || 1).toFixed(1);
 }
 
 function preventDetailsToggleOnControl(el) {
@@ -4834,8 +4869,8 @@ function updateComposeVoiceBarHint(mode = getVoiceInputMode()) {
         ? "Shift глобально — запусти sidecar: npm run shell:sidecar"
         : "Shift: удерживай для записи (окно Shell в фокусе, не в поле ввода).";
     if (globalOn && !sidecar) nodes.fnPttHint.classList.add("shell-compose-voice-hint--warn");
-  } else if (mode === "live" || mode === "wake_name") {
-    text = `${VOICE_MODE_HINTS[mode] || ""}${mode === "wake_name" && state.settings?.voiceWakeName ? ` Имя: «${state.settings.voiceWakeName}».` : ""} Нужен sidecar.`;
+  } else if (mode === "live") {
+    text = `${VOICE_MODE_HINTS.live || ""} Нужен sidecar.`;
     if (!sidecar) {
       text += " Запусти: npm run shell:sidecar";
       nodes.fnPttHint.classList.add("shell-compose-voice-hint--warn");
@@ -5003,9 +5038,6 @@ function applySttToggleUi(settings) {
   if (nodes.voiceGlobalListen && document.activeElement !== nodes.voiceGlobalListen) {
     nodes.voiceGlobalListen.checked = settings.voiceGlobalListen === true;
   }
-  if (nodes.voiceWakeName && document.activeElement !== nodes.voiceWakeName) {
-    nodes.voiceWakeName.value = settings.voiceWakeName || "";
-  }
   if (nodes.voiceToCompose && document.activeElement !== nodes.voiceToCompose) {
     nodes.voiceToCompose.checked = Boolean(settings.voiceToCompose);
   }
@@ -5067,7 +5099,6 @@ function collectSttFormPatch() {
     sttEngine: normalizeSttEngine(nodes.sttEngine?.value),
     sttPrompt: nodes.sttPrompt?.value || "",
     voiceGlobalListen: Boolean(nodes.voiceGlobalListen?.checked),
-    voiceWakeName: nodes.voiceWakeName?.value?.trim() || "",
     voiceToCompose: Boolean(nodes.voiceToCompose?.checked)
   };
 }
@@ -5311,10 +5342,12 @@ async function loadTtsCapabilities() {
 
 async function applyContrastVoiceDefaults(engine = getTtsEngine()) {
   if (engine === "browser") {
-    refreshTtsVoiceOptions();
+    await refreshTtsVoiceOptions();
     if (!nodes.ttsVoice) return;
     const langPrefix = String(nodes.ttsLang?.value || "ru-RU").split("-")[0].toLowerCase();
-    const voices = getSpeechSynth()?.getVoices() || [];
+    const voices = filterLocalWebSpeechVoices(getSpeechSynth()?.getVoices() || []).filter((voice) =>
+      voice.lang.toLowerCase().startsWith(langPrefix)
+    );
     const milena = voices.find(
       (voice) => /milena/i.test(voice.name) && voice.lang.toLowerCase().startsWith(langPrefix)
     );
@@ -5334,7 +5367,7 @@ async function applyContrastVoiceDefaults(engine = getTtsEngine()) {
 async function refreshTtsEngineVoices(engine = getTtsEngine()) {
   updateTtsEngineUi({ reloadVoices: false });
   if (engine === "browser") {
-    refreshTtsVoiceOptions();
+    void refreshTtsVoiceOptions();
     return;
   }
   if (engine === "edge") {
@@ -5358,18 +5391,21 @@ async function refreshTtsEngineVoices(engine = getTtsEngine()) {
   }
   if (engine !== "say" || !nodes.ttsSayVoice) return;
   try {
-    const data = await apiFetch(`/api/shell/tts/voices?engine=${encodeURIComponent(engine)}`);
-    const current = nodes.ttsSayVoice.value || state.settings?.ttsSayVoice || state.settings?.ttsVoice || "";
-    nodes.ttsSayVoice.innerHTML = '<option value="">По умолчанию</option>';
+    const sayLang = nodes.ttsSayLang?.value || state.settings?.ttsSayLang || "ru-RU";
+    const data = await apiFetch(
+      `/api/shell/tts/voices?engine=${encodeURIComponent(engine)}&lang=${encodeURIComponent(sayLang)}`
+    );
+    const current = nodes.ttsSayVoice.value || state.settings?.ttsSayVoice || "";
+    nodes.ttsSayVoice.innerHTML = '<option value="">По умолчанию (say)</option>';
     for (const voice of data.voices || []) {
       const opt = document.createElement("option");
       opt.value = voice.id;
-      opt.textContent = voice.label || voice.id;
+      opt.textContent = `${voice.label || voice.id} · say сервер`;
       if (voice.id === current) opt.selected = true;
       nodes.ttsSayVoice.append(opt);
     }
   } catch {
-    nodes.ttsSayVoice.innerHTML = '<option value="">По умолчанию</option>';
+    nodes.ttsSayVoice.innerHTML = '<option value="">say недоступен (нужен Mac-сервер)</option>';
   }
 }
 
@@ -5381,13 +5417,14 @@ function applyTtsSettingsUi(settings) {
   }
   const engine = normalizeTtsEngine(settings.ttsEngine === "sidecar" ? "say" : settings.ttsEngine || "browser");
   fillTtsEngineSelect(nodes.ttsEngine, engine);
-  const lang = settings.ttsBrowserLang || settings.ttsLang || "ru-RU";
-  const sayLang = settings.ttsSayLang || settings.ttsLang || "ru-RU";
-  const voice = settings.ttsBrowserVoice ?? settings.ttsVoice ?? "";
-  const sayVoice = settings.ttsSayVoice ?? settings.ttsVoice ?? "";
+  const lang = settings.ttsBrowserLang || "ru-RU";
+  const sayLang = settings.ttsSayLang || "ru-RU";
+  const voice = settings.ttsBrowserVoice ?? "";
+  const sayVoice = settings.ttsSayVoice ?? "";
   if (nodes.ttsLang) nodes.ttsLang.value = lang;
   if (nodes.ttsSayLang) nodes.ttsSayLang.value = sayLang;
   if (nodes.ttsRate) nodes.ttsRate.value = String(settings.ttsRate ?? 1);
+  if (nodes.ttsPitch) nodes.ttsPitch.value = String(settings.ttsPitch ?? 1);
   if (nodes.ttsEdgeVoice) nodes.ttsEdgeVoice.value = settings.ttsEdgeVoice || "ru-RU-SvetlanaNeural";
   if (nodes.ttsPiperModel) nodes.ttsPiperModel.value = settings.ttsPiperModel || "";
   if (nodes.ttsPiperBinary) nodes.ttsPiperBinary.value = settings.ttsPiperBinary || "";
@@ -5397,10 +5434,15 @@ function applyTtsSettingsUi(settings) {
     nodes.ttsElevenlabsModel.value = settings.ttsElevenlabsModel || "eleven_multilingual_v2";
   }
   updateTtsRateLabel();
+  updateTtsPitchLabel();
   if (nodes.ttsVoice) nodes.ttsVoice.value = voice;
   if (nodes.ttsSayVoice) nodes.ttsSayVoice.value = sayVoice;
   updateTtsEngineUi();
-  void refreshTtsEngineVoices(engine);
+  void refreshTtsEngineVoices("browser");
+  void refreshTtsEngineVoices("say");
+  if (!["browser", "say"].includes(engine)) {
+    void refreshTtsEngineVoices(engine);
+  }
   void loadTtsCapabilities();
 }
 
@@ -5448,7 +5490,8 @@ function collectTtsFormPatch() {
     ttsElevenlabsModel: nodes.ttsElevenlabsModel?.value || "",
     ttsPiperModel: nodes.ttsPiperModel?.value || "",
     ttsPiperBinary: nodes.ttsPiperBinary?.value || "",
-    ttsRate: Number(nodes.ttsRate?.value || 1)
+    ttsRate: Number(nodes.ttsRate?.value || 1),
+    ttsPitch: Number(nodes.ttsPitch?.value || 1)
   };
 }
 
@@ -5763,9 +5806,7 @@ async function testTtsEngine() {
   } finally {
     state.speaking = false;
     updateTtsControlsUi("waiting");
-    ttsTestBusy = false;
-    nodes.ttsTestBtn?.classList.remove("is-busy");
-    nodes.ttsTestBtn?.removeAttribute("disabled");
+    resetTtsTestButtonUi();
   }
 }
 
@@ -6282,11 +6323,7 @@ function handleMicPress() {
       return;
     }
     hapticTap();
-    const wake =
-      mode === "wake_name" && state.settings?.voiceWakeName
-        ? ` Wake: «${state.settings.voiceWakeName}».`
-        : "";
-    renderPhase("listening", `Sidecar слушает.${wake} Говорите — фраза уйдёт по паузе.`);
+    renderPhase("listening", "Sidecar слушает. Говорите — фраза уйдёт по паузе.");
     return;
   }
   if (action === "hint") {
@@ -6397,6 +6434,12 @@ const SETTINGS_TAB_PANELS = {
   todo: "shell-todo-panel"
 };
 
+function resetTtsTestButtonUi() {
+  ttsTestBusy = false;
+  nodes.ttsTestBtn?.classList.remove("is-busy");
+  nodes.ttsTestBtn?.removeAttribute("disabled");
+}
+
 function setSettingsTab(tab) {
   const next = SETTINGS_TABS.includes(tab) ? tab : "route";
   state.settingsTab = next;
@@ -6409,6 +6452,10 @@ function setSettingsTab(tab) {
     const active = btn.dataset.settingsTab === next;
     btn.setAttribute("aria-selected", active ? "true" : "false");
   });
+  if (next === "tts") {
+    resetTtsTestButtonUi();
+    void refreshTtsVoiceOptions();
+  }
 }
 
 function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
@@ -6727,8 +6774,6 @@ function bindUi() {
     updateVoiceToComposeUi();
     void saveSettings({ voiceToCompose: on }).catch(() => {});
   });
-  nodes.voiceWakeName?.addEventListener("input", markSttDirty);
-  nodes.voiceWakeName?.addEventListener("change", markSttDirty);
   if (nodes.voiceConfirm) {
     nodes.voiceConfirm.checked = readVoiceConfirmSetting();
     nodes.voiceConfirm.addEventListener("change", () => {
@@ -6775,7 +6820,8 @@ function bindUi() {
     nodes.ttsElevenlabsKey,
     nodes.ttsElevenlabsVoiceId,
     nodes.ttsElevenlabsModel,
-    nodes.ttsRate
+    nodes.ttsRate,
+    nodes.ttsPitch
   ]) {
     el?.addEventListener("change", markTtsDirty);
   }
@@ -6830,6 +6876,10 @@ function bindUi() {
     updateTtsRateLabel();
     markTtsDirty();
   });
+  nodes.ttsPitch?.addEventListener("input", () => {
+    updateTtsPitchLabel();
+    markTtsDirty();
+  });
   nodes.ttsEngine?.addEventListener("change", () => {
     const engine = normalizeTtsEngine(nodes.ttsEngine.value);
     state.settings = { ...(state.settings || {}), ttsEngine: engine };
@@ -6847,6 +6897,15 @@ function bindUi() {
   nodes.ttsLang?.addEventListener("change", () => {
     void refreshTtsEngineVoices("browser");
     markTtsDirty();
+  });
+  nodes.ttsVoiceRefresh?.addEventListener("click", () => {
+    const btn = nodes.ttsVoiceRefresh;
+    btn?.classList.add("is-busy");
+    btn?.setAttribute("disabled", "disabled");
+    void refreshTtsVoiceOptions().finally(() => {
+      btn?.classList.remove("is-busy");
+      btn?.removeAttribute("disabled");
+    });
   });
   nodes.ttsSayLang?.addEventListener("change", () => {
     void refreshTtsEngineVoices("say");

@@ -35,9 +35,9 @@ function ttsEngineLang(settings = {}, engine = "browser") {
     return String(settings.ttsBrowserLang || settings.ttsLang || "ru-RU").trim() || "ru-RU";
   }
   if (id === "say") {
-    return String(settings.ttsSayLang || settings.ttsLang || "ru-RU").trim() || "ru-RU";
+    return String(settings.ttsSayLang || "ru-RU").trim() || "ru-RU";
   }
-  return String(settings.ttsLang || "ru-RU").trim() || "ru-RU";
+  return String(settings.ttsBrowserLang || settings.ttsLang || "ru-RU").trim() || "ru-RU";
 }
 
 function ttsEngineVoice(settings = {}, engine = "browser") {
@@ -46,7 +46,7 @@ function ttsEngineVoice(settings = {}, engine = "browser") {
     return String(settings.ttsBrowserVoice ?? settings.ttsVoice ?? "").trim();
   }
   if (id === "say") {
-    return String(settings.ttsSayVoice ?? settings.ttsVoice ?? "").trim();
+    return String(settings.ttsSayVoice ?? "").trim();
   }
   return String(settings.ttsVoice || "").trim();
 }
@@ -137,22 +137,29 @@ async function listSayVoices(lang = "ru-RU") {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const match = line.match(/^([^\s]+)\s+([a-z]{2}_[A-Z]{2})/i);
+      const match = line.match(/^(.+?)\s+([a-z]{2}_[A-Z]{2})\b/i);
       if (!match) return null;
-      return { id: match[1], label: `${match[1]} (${match[2].replace("_", "-")})`, locale: match[2] };
+      const id = match[1].trim();
+      const locale = match[2].replace("_", "-");
+      return { id, label: `${id} (${locale})`, locale: match[2] };
     })
     .filter(Boolean)
-    .filter((voice) => voice.locale.toLowerCase().startsWith(prefix));
+    .filter((voice) => voice.locale.toLowerCase().replace("_", "-").startsWith(prefix));
 }
 
-async function listVoices(engine, settings = {}) {
+async function listVoices(engine, settings = {}, options = {}) {
   const normalized = normalizeEngine(engine);
   if (normalized === "browser") {
-    return { engine: normalized, voices: [], note: "Голоса берутся из Web Speech API в браузере" };
+    return {
+      engine: normalized,
+      voices: [],
+      source: "web-speech",
+      note: "Голоса берутся из Web Speech API в браузере"
+    };
   }
   if (normalized === "say") {
-    const voices = await listSayVoices(ttsEngineLang(settings, "say"));
-    return { engine: normalized, voices };
+    const voices = await listSayVoices(options.lang || ttsEngineLang(settings, "say"));
+    return { engine: normalized, voices, source: "macos-say" };
   }
   if (normalized === "edge") {
     return { engine: normalized, voices: EDGE_VOICE_PRESETS };

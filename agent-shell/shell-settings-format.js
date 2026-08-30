@@ -89,16 +89,22 @@ function flattenTtsEngines(tts, flat) {
   if (elevenEng.voiceId !== undefined) flat.ttsElevenlabsVoiceId = elevenEng.voiceId;
   if (elevenEng.model !== undefined) flat.ttsElevenlabsModel = elevenEng.model;
 
-  // Legacy v4: поля провайдеров на корне tts / tts.elevenlabs / tts.piper
+  // Legacy v4: одно lang/voice на корне tts — только для активного движка
   if (tts.lang !== undefined) {
-    if (flat.ttsBrowserLang === undefined) flat.ttsBrowserLang = tts.lang;
-    if (flat.ttsSayLang === undefined) flat.ttsSayLang = tts.lang;
     flat.ttsLang = tts.lang;
+    if (flat.ttsBrowserLang === undefined && flat.ttsSayLang === undefined) {
+      const engine = String(tts.engine || "browser").trim();
+      if (engine === "say") flat.ttsSayLang = tts.lang;
+      else flat.ttsBrowserLang = tts.lang;
+    }
   }
   if (tts.voice !== undefined) {
-    if (flat.ttsBrowserVoice === undefined) flat.ttsBrowserVoice = tts.voice;
-    if (flat.ttsSayVoice === undefined) flat.ttsSayVoice = tts.voice;
     flat.ttsVoice = tts.voice;
+    if (flat.ttsBrowserVoice === undefined && flat.ttsSayVoice === undefined) {
+      const engine = String(tts.engine || "browser").trim();
+      if (engine === "say") flat.ttsSayVoice = tts.voice;
+      else flat.ttsBrowserVoice = tts.voice;
+    }
   }
   if (tts.edgeVoice !== undefined && flat.ttsEdgeVoice === undefined) {
     flat.ttsEdgeVoice = tts.edgeVoice;
@@ -201,7 +207,6 @@ function flattenSettings(raw) {
   if (tts.prompt !== undefined) flat.ttsPrompt = tts.prompt;
   if (tts.rate !== undefined) flat.ttsRate = tts.rate;
   if (tts.pitch !== undefined) flat.ttsPitch = tts.pitch;
-  if (tts.stripEmoji !== undefined) flat.ttsStripEmoji = tts.stripEmoji;
   if (tts.includeCaptions !== undefined) flat.ttsIncludeCaptions = tts.includeCaptions;
   flattenTtsEngines(tts, flat);
 
@@ -329,7 +334,6 @@ function nestSettings(flat) {
         prompt: source.ttsPrompt,
         rate: source.ttsRate,
         pitch: source.ttsPitch,
-        stripEmoji: source.ttsStripEmoji,
         includeCaptions: source.ttsIncludeCaptions,
         engines: nestTtsEngines(source)
       })

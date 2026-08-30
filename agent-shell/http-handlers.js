@@ -450,7 +450,8 @@ function createShellHandlers(deps) {
       try {
         const settings = await shellService.readSettings(agentRoot);
         const engine = url.searchParams.get("engine") || settings.ttsEngine || "browser";
-        const payload = await ttsService.listVoices(engine, settings);
+        const lang = url.searchParams.get("lang") || "";
+        const payload = await ttsService.listVoices(engine, settings, { lang: lang || undefined });
         deps.sendJson(res, 200, { agentId, ...payload });
       } catch (error) {
         deps.sendJson(res, 500, {

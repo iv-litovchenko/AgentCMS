@@ -2,9 +2,14 @@
 
 export const SHELL_TTS_ENGINE_GROUPS = [
   {
-    id: "local",
-    label: "На этом устройстве",
-    engines: ["browser", "say", "piper"]
+    id: "browser",
+    label: "В браузере",
+    engines: ["browser"]
+  },
+  {
+    id: "server",
+    label: "На сервере (Mac)",
+    engines: ["say", "piper"]
   },
   {
     id: "online",
@@ -16,8 +21,8 @@ export const SHELL_TTS_ENGINE_GROUPS = [
 export const SHELL_TTS_ENGINES = SHELL_TTS_ENGINE_GROUPS.flatMap((group) => group.engines);
 
 export const SHELL_TTS_ENGINE_LABELS = {
-  browser: "Браузер · Web Speech",
-  say: "macOS say · сервер Mac",
+  browser: "Web Speech · во вкладке",
+  say: "macOS say · WAV с сервера",
   piper: "Piper · офлайн-модель",
   edge: "Edge TTS · Microsoft",
   elevenlabs: "ElevenLabs · API key"
@@ -25,9 +30,9 @@ export const SHELL_TTS_ENGINE_LABELS = {
 
 export const SHELL_TTS_ENGINE_DESCRIPTIONS = {
   browser:
-    "Озвучка во вкладке (Web Speech). На Mac часто тот же системный голос, что и say — для сравнения выберите другой голос ниже.",
+    "Озвучка во вкладке через Web Speech API. Голоса — из браузера на вашем устройстве, сервер не участвует.",
   say:
-    "Озвучка на сервере через macOS say (WAV с сервера). При том же голосе звучит почти как Web Speech — попробуйте Yuri или Katya.",
+    "Озвучка на сервере через macOS say (WAV с API). Нужен Mac на стороне сервера; голоса — системные macOS, не из браузера.",
   edge: "Онлайн-синтез Microsoft Edge TTS. Нужен интернет, API key не нужен.",
   piper: "Локальная нейромодель на сервере. Нужен путь к .onnx и бинарник piper.",
   elevenlabs: "Облачный синтез ElevenLabs. Нужны API key и Voice ID."
@@ -49,8 +54,7 @@ export function normalizeTtsEngine(value) {
 }
 
 export function ttsEngineUsesLocalVoice(engine = "browser") {
-  const id = normalizeTtsEngine(engine);
-  return id === "browser" || id === "say";
+  return normalizeTtsEngine(engine) === "browser";
 }
 
 export function ttsEngineDescription(engine = "browser") {

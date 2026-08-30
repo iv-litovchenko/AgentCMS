@@ -32,20 +32,20 @@
     },
     "tts": {
       "enabled": true,
-      "playbackMode": "reading",
+      "playbackMode": "dialog",
       "engine": "browser",
       "prompt": "2222",
-      "rate": 1.4,
+      "rate": 1,
       "pitch": 1,
-      "stripEmoji": true,
       "includeCaptions": true,
       "engines": {
         "browser": {
-          "lang": "en-US",
-          "voice": "Aaron"
+          "lang": "ru-RU",
+          "voice": "Google русский"
         },
         "say": {
-          "lang": "en-US"
+          "lang": "ru-RU",
+          "voice": "Milena"
         },
         "edge": {
           "voice": "ru-RU-SvetlanaNeural"

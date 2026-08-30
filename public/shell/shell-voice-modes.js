@@ -1,18 +1,18 @@
 /** Режимы голосового ввода Shell (voiceInputMode). */
 
-export const VOICE_INPUT_MODES = ["live", "wake_name", "meeting", "hold", "fn_button"];
+export const VOICE_INPUT_MODES = ["live", "meeting", "hold", "fn_button"];
 
 const LEGACY_MAP = {
   browser: "hold",
   sidecar: "hold",
   always: "live",
+  wake_name: "live",
   fn_button: "fn_button",
   disabled: "disabled"
 };
 
 export const VOICE_MODE_LABELS = {
   live: "Живой диалог",
-  wake_name: "По имени",
   meeting: "Запись встречи",
   hold: "Голосовое",
   fn_button: "Shift"
@@ -21,7 +21,6 @@ export const VOICE_MODE_LABELS = {
 /** Короткая подпись в `<option>` — режим + суть одной строкой. */
 export const VOICE_MODE_OPTION_LABELS = {
   live: "Живой диалог — sidecar, речь по паузе → агенту",
-  wake_name: "По имени — sidecar, wake-слово из ⚙️",
   meeting: "Запись встречи — 🎤 старт / стоп",
   hold: "Голосовое — удерживать 🎤",
   fn_button: "Shift — удерживать клавишу"
@@ -30,8 +29,6 @@ export const VOICE_MODE_OPTION_LABELS = {
 export const VOICE_MODE_HINTS = {
   live:
     "Sidecar постоянно слушает. Фраза по паузе → агенту. Ваш голос останавливает TTS. Нужен npm run shell:sidecar.",
-  wake_name:
-    "Sidecar слушает всегда, но шлёт агенту только если в речи есть wake-имя (поле в ⚙️ STT). Нужен sidecar.",
   meeting:
     "🎤 — старт/стоп длинной записи. Аудио → awn-dialogs/records/, текст → агенту. Нужен sidecar.",
   hold:
@@ -80,7 +77,7 @@ export function sttEngineIsAvailable(mode, context = {}) {
 /** Sidecar обязателен для режима (не считая глобальность). */
 export function voiceModeRequiresSidecar(mode) {
   const m = normalizeVoiceInputMode(mode);
-  return m === "live" || m === "wake_name" || m === "meeting";
+  return m === "live" || m === "meeting";
 }
 
 /** Микрофон через sidecar PTT / meeting / always. */
@@ -113,7 +110,7 @@ export function voiceModeMicAction(mode) {
   const m = normalizeVoiceInputMode(mode);
   if (m === "meeting") return "toggle-meeting";
   if (m === "hold") return "hold";
-  if (m === "live" || m === "wake_name") return "sidecar-always";
+  if (m === "live") return "sidecar-always";
   if (m === "fn_button") return "hint";
   return "hint";
 }
@@ -124,7 +121,6 @@ export function voiceModeMicLabel(mode, { meetingRecording = false } = {}) {
   if (m === "meeting") return meetingRecording ? "Стоп встречи" : "Запись встречи";
   if (m === "hold") return "Говорить";
   if (m === "live") return "Живой диалог";
-  if (m === "wake_name") return "По имени";
   if (m === "fn_button") return "Shift";
   return "Говорить";
 }

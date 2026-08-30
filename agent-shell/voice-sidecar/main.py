@@ -37,6 +37,7 @@ def normalize_voice_mode(mode: str) -> str:
         "browser": "hold",
         "sidecar": "hold",
         "always": "live",
+        "wake_name": "live",
         "fn_button": "fn_button",
         "disabled": "disabled",
     }
@@ -135,9 +136,9 @@ class Sidecar:
         self._patch_state({"phase": "waiting", "phrase": payload[:240]})
 
     def _should_send_transcript(self, text: str, settings: dict[str, Any]) -> bool:
-        mode = normalize_voice_mode(settings.get("voiceInputMode"))
         wake = str(settings.get("voiceWakeName") or "").strip()
-        if mode == "wake_name" and wake and wake.lower() not in text.lower():
+        mode = normalize_voice_mode(settings.get("voiceInputMode"))
+        if mode == "live" and wake and wake.lower() not in text.lower():
             print(f"⏭ wake skip (нет «{wake}»)")
             self._patch_state({"phase": "waiting", "phrase": f"Жду «{wake}»…"})
             return False
@@ -343,7 +344,7 @@ class Sidecar:
         print(f"Agent: {AGENT_ID or '(default)'}")
         print("STT: Google Speech (SpeechRecognition)")
         print("TTS: macOS say")
-        print("Режимы: live · wake_name · meeting · hold+global · fn_button+global")
+        print("Режимы: live · meeting · hold+global · fn_button+global")
         print("Ctrl+C — выход")
         print("=" * 50)
 

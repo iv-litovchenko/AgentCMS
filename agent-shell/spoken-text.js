@@ -83,7 +83,7 @@ function ruleBasedSpeechText(body, settings = {}) {
       speech = speech ? `${speech} ${caption}` : caption;
     }
   }
-  if (settings.ttsStripEmoji !== false) {
+  if (settings.ttsStripEmoji === true) {
     speech = speech.replace(/\p{Extended_Pictographic}/gu, " ").replace(/\s+/g, " ").trim();
   }
   return speech.trim();

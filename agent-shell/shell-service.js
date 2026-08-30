@@ -113,7 +113,6 @@ const DEFAULT_SETTINGS = {
   ttsPitch: 1,
   ttsLang: "ru-RU",
   ttsVoice: "",
-  ttsStripEmoji: true,
   ttsIncludeCaptions: true,
   windowTopmost: true,
   cameraEnabled: false,
@@ -149,12 +148,13 @@ const DEFAULT_STATE = {
 };
 
 const SIDECAR_TTL_MS = 8000;
-const VOICE_INPUT_MODES = new Set(["live", "wake_name", "meeting", "hold", "fn_button"]);
+const VOICE_INPUT_MODES = new Set(["live", "meeting", "hold", "fn_button"]);
 const { appendShellDialogChat, readShellDialogHistory, saveShellVoiceRecord } = require("./shell-dialog-log");
 
 function migrateVoiceInputMode(mode) {
   const raw = String(mode || "").trim();
   if (raw === "disabled") return "disabled";
+  if (raw === "wake_name") return "live";
   if (VOICE_INPUT_MODES.has(raw)) return raw;
   if (raw === "always") return "live";
   if (raw === "browser" || raw === "sidecar") return "hold";
@@ -287,12 +287,24 @@ function normalizeSettings(raw) {
   merged.ttsPrompt = String(merged.ttsPrompt || "");
   merged.ttsRate = Math.min(2, Math.max(0.5, Number(merged.ttsRate) || 1));
   merged.ttsPitch = Math.min(2, Math.max(0, Number(merged.ttsPitch) || 1));
-  const legacyLang = String(merged.ttsLang || "ru-RU").trim() || "ru-RU";
+  const legacyLang = String(merged.ttsLang || "").trim();
   const legacyVoice = String(merged.ttsVoice || "").trim();
-  merged.ttsBrowserLang = String(merged.ttsBrowserLang || legacyLang).trim() || "ru-RU";
-  merged.ttsSayLang = String(merged.ttsSayLang || legacyLang).trim() || "ru-RU";
-  merged.ttsBrowserVoice = String(merged.ttsBrowserVoice ?? legacyVoice).trim();
-  merged.ttsSayVoice = String(merged.ttsSayVoice ?? legacyVoice).trim();
+  const hasBrowserLang = merged.ttsBrowserLang !== undefined && String(merged.ttsBrowserLang).trim();
+  const hasSayLang = merged.ttsSayLang !== undefined && String(merged.ttsSayLang).trim();
+  if (!hasBrowserLang && !hasSayLang && legacyLang) {
+    if (merged.ttsEngine === "say") merged.ttsSayLang = legacyLang;
+    else merged.ttsBrowserLang = legacyLang;
+  }
+  merged.ttsBrowserLang = String(merged.ttsBrowserLang || "ru-RU").trim() || "ru-RU";
+  merged.ttsSayLang = String(merged.ttsSayLang || "ru-RU").trim() || "ru-RU";
+  if (merged.ttsBrowserVoice === undefined && legacyVoice && merged.ttsEngine !== "say") {
+    merged.ttsBrowserVoice = legacyVoice;
+  }
+  if (merged.ttsSayVoice === undefined && legacyVoice && merged.ttsEngine === "say") {
+    merged.ttsSayVoice = legacyVoice;
+  }
+  merged.ttsBrowserVoice = String(merged.ttsBrowserVoice ?? "").trim();
+  merged.ttsSayVoice = String(merged.ttsSayVoice ?? "").trim();
   if (merged.ttsEngine === "say") {
     merged.ttsLang = merged.ttsSayLang;
     merged.ttsVoice = merged.ttsSayVoice;
@@ -300,8 +312,8 @@ function normalizeSettings(raw) {
     merged.ttsLang = merged.ttsBrowserLang;
     merged.ttsVoice = merged.ttsBrowserVoice;
   } else {
-    merged.ttsLang = legacyLang;
-    merged.ttsVoice = legacyVoice;
+    merged.ttsLang = merged.ttsBrowserLang;
+    merged.ttsVoice = merged.ttsBrowserVoice;
   }
   merged.ttsEdgeVoice = String(merged.ttsEdgeVoice || "ru-RU-SvetlanaNeural").trim();
   merged.ttsElevenlabsApiKey = String(merged.ttsElevenlabsApiKey || "").trim();
@@ -309,7 +321,7 @@ function normalizeSettings(raw) {
   merged.ttsElevenlabsModel = String(merged.ttsElevenlabsModel || "eleven_multilingual_v2").trim();
   merged.ttsPiperModel = String(merged.ttsPiperModel || "").trim();
   merged.ttsPiperBinary = String(merged.ttsPiperBinary || "").trim();
-  merged.ttsStripEmoji = merged.ttsStripEmoji !== false;
+  merged.ttsStripEmoji = merged.ttsStripEmoji === true;
   merged.ttsIncludeCaptions = merged.ttsIncludeCaptions !== false;
   merged.windowTopmost = merged.windowTopmost !== false;
   merged.cameraEnabled = Boolean(merged.cameraEnabled);
