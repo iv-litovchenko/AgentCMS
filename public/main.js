@@ -3794,7 +3794,9 @@ const VOICE_CHAT_DRAG_SOURCE_SELECTOR = [
   ".node-overview-thumb-wrap",
   ".node-overview-thumb-actions",
   ".navigation-media-image-card",
-  ".folder-browse-image-card"
+  ".folder-browse-image-card",
+  "#app-footer-ideas-btn:not([disabled])",
+  "#agent-todo-preview-toggle:not([disabled])"
 ].join(", ");
 const VOICE_CHAT_DRAG_HINT =
   "Перетащите в редактор или чат Agent CMS Voice для ссылки или на другую тему/область для перемещения";
@@ -3804,6 +3806,23 @@ function buildSystemFileMarkdownLink(systemFile, displayLabel) {
   if (!name) return "";
   const kind = resolveFolderBrowseDragKind(name);
   return buildFolderBrowseEditorMarkdown(name, kind, displayLabel || name);
+}
+
+function buildSystemFileVoiceDragPayload(systemFile, displayLabel) {
+  const name = normalizeSystemFileName(systemFile);
+  if (!name) return null;
+  const label = sanitizeVoiceChatDragLabel(displayLabel || name.replace(/\.md$/i, ""));
+  const markdownLink = buildSystemFileMarkdownLink(name, label);
+  const voiceMarkdownLink = buildVoiceChatMarkdownLink(name, label);
+  if (!voiceMarkdownLink) return null;
+  return {
+    path: name,
+    systemFile: name,
+    label,
+    markdownLink,
+    voiceMarkdownLink,
+    source: "system-file"
+  };
 }
 
 function getWikilinkTargetFromNodePath(nodePath) {
@@ -4014,6 +4033,17 @@ function extractVoiceChatDragLabelFromElement(el, { fallback = "" } = {}) {
   const titleNode = el.querySelector(".nav-book-toc-title-text, .menu-tree-title-text");
   if (titleNode) {
     return sanitizeVoiceChatDragLabel(titleNode.textContent);
+  }
+
+  const footerIdeasLabel = el.querySelector(".app-footer-ideas-label");
+  if (footerIdeasLabel) {
+    return sanitizeVoiceChatDragLabel(footerIdeasLabel.textContent);
+  }
+
+  const notePreviewLabel = el.querySelector(".agent-todo-preview-label");
+  if (notePreviewLabel) {
+    const raw = String(notePreviewLabel.textContent || "").trim();
+    return sanitizeVoiceChatDragLabel(raw.replace(/\s*\([^)]*\)\s*$/, "").trim() || "NOTE");
   }
 
   const namedNode = el.querySelector(
@@ -4810,6 +4840,22 @@ function resolveVoiceChatDragPayload(target) {
 
   const mediaCard = target.closest(".navigation-media-image-card, .folder-browse-image-card");
   if (mediaCard) return buildMediaCardDragPayload(mediaCard);
+
+  const ideasBtn = target.closest("#app-footer-ideas-btn:not([disabled])");
+  if (ideasBtn) {
+    return buildSystemFileVoiceDragPayload(
+      ROOT_SYSTEM_TODO_FILE,
+      extractVoiceChatDragLabelFromElement(ideasBtn, { fallback: "TODO" })
+    );
+  }
+
+  const noteToggle = target.closest("#agent-todo-preview-toggle:not([disabled])");
+  if (noteToggle) {
+    return buildSystemFileVoiceDragPayload(
+      ROOT_SYSTEM_NOTE_FILE,
+      extractVoiceChatDragLabelFromElement(noteToggle, { fallback: "NOTE" })
+    );
+  }
 
   return null;
 }

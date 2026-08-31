@@ -1,7 +1,16 @@
 importScripts("companion-urls-global.js");
 
-const { DEFAULT_CMS_BASE_URL, CMS_PROBE_CANDIDATES, buildShellFrameUrl, isCmsReachable } =
-  globalThis.CompanionUrls;
+const {
+  DEFAULT_CMS_BASE_URL,
+  DEFAULT_VOICE_BASE_URL,
+  CMS_PROBE_CANDIDATES,
+  buildExtensionShellUrl,
+  resolveVoiceBaseUrl,
+  voiceBaseFromCmsHost,
+  normalizeVoiceBaseForBrowser,
+  isCmsReachable,
+  isVoiceReachable
+} = globalThis.CompanionUrls;
 
 function storageLocal() {
   const api = globalThis.chrome?.storage ?? globalThis.browser?.storage;
@@ -76,24 +85,178 @@ async function resolveCmsBase(preferredBase) {
   return preferred;
 }
 
-function buildPanelFrameUrl(voiceUrl) {
-  const host = chrome.runtime.getURL("panel-host.html");
-  return `${host}?url=${encodeURIComponent(voiceUrl)}`;
-}
-
 async function getShellFramePayload() {
-  let { cmsBaseUrl, agentId, _migratedFromSync } = await getSettings();
+  const stored = await storageLocal().get([
+    "cmsBaseUrl",
+    "agentId",
+    "_migratedFromSync",
+    "voiceBaseUrl"
+  ]);
+  let { cmsBaseUrl, agentId, _migratedFromSync, voiceBaseUrl } = stored;
+  cmsBaseUrl = String(cmsBaseUrl || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
+  agentId = String(agentId || "").trim();
+
   if (!_migratedFromSync) {
     await storageLocal().set({ cmsBaseUrl, agentId, _migratedFromSync: true });
   }
-  const shellUrl = buildShellFrameUrl(cmsBaseUrl, agentId);
+
+  const quickVoiceBase = normalizeVoiceBaseForBrowser(
+    voiceBaseUrl || voiceBaseFromCmsHost(cmsBaseUrl) || DEFAULT_VOICE_BASE_URL
+  );
+  const shellUrl = buildExtensionShellUrl(quickVoiceBase, agentId);
+  const voiceReachable = await isVoiceReachable(shellUrl);
+
+  void resolveVoiceBaseUrl(cmsBaseUrl)
+    .then((resolved) => {
+      const next = normalizeVoiceBaseForBrowser(resolved);
+      if (next && next !== voiceBaseUrl) {
+        return storageLocal().set({ voiceBaseUrl: next });
+      }
+    })
+    .catch(() => {});
+
   return {
     shellUrl,
-    panelUrl: buildPanelFrameUrl(shellUrl),
+    panelUrl: shellUrl,
     cmsBaseUrl,
-    agentId
+    agentId,
+    voiceReachable
   };
 }
+
+/** @type {Map<number, number>} */
+const pickerTabByWindow = new Map();
+
+function isPickerTargetUrl(url) {
+  const value = String(url || "").trim();
+  if (!value) return false;
+  if (value.startsWith("chrome://") || value.startsWith("chrome-extension://")) return false;
+  return /^https?:/i.test(value);
+}
+
+function isVoiceServiceUrl(url) {
+  try {
+    const parsed = new URL(String(url || ""));
+    return parsed.port === "3488";
+  } catch {
+    return false;
+  }
+}
+
+function isPreferredPickerTab(tab) {
+  return Boolean(tab?.id && isPickerTargetUrl(tab.url) && !isVoiceServiceUrl(tab.url));
+}
+
+function rememberPickerTab(tabId, windowId) {
+  const id = Number(tabId);
+  const winId = Number(windowId);
+  if (!Number.isFinite(id) || id <= 0) return;
+  if (!Number.isFinite(winId) || winId <= 0) return;
+  pickerTabByWindow.set(winId, id);
+}
+
+async function resolvePickerTargetTabId({ tabId = 0, windowId = 0 } = {}) {
+  const explicitWindowId = Number(windowId);
+  const hasWindow = Number.isFinite(explicitWindowId) && explicitWindowId > 0;
+
+  if (hasWindow) {
+    const remembered = pickerTabByWindow.get(explicitWindowId);
+    if (remembered) {
+      try {
+        const tab = await chrome.tabs.get(remembered);
+        if (isPreferredPickerTab(tab)) return tab.id;
+      } catch {
+        pickerTabByWindow.delete(explicitWindowId);
+      }
+    }
+
+    try {
+      const tabs = await chrome.tabs.query({ windowId: explicitWindowId });
+      const activePreferred = tabs.find((item) => item.active && isPreferredPickerTab(item));
+      if (activePreferred?.id) return activePreferred.id;
+      const anyPreferred = tabs.find((item) => isPreferredPickerTab(item));
+      if (anyPreferred?.id) return anyPreferred.id;
+    } catch {
+      // ignore
+    }
+  }
+
+  const explicitTabId = Number(tabId);
+  if (Number.isFinite(explicitTabId) && explicitTabId > 0) {
+    try {
+      const tab = await chrome.tabs.get(explicitTabId);
+      if (isPreferredPickerTab(tab)) return tab.id;
+      if (tab?.id && isPickerTargetUrl(tab.url)) return tab.id;
+    } catch {
+      // ignore invalid tab
+    }
+  }
+
+  try {
+    const [focusedTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (isPreferredPickerTab(focusedTab)) return focusedTab.id;
+    if (focusedTab?.id && isPickerTargetUrl(focusedTab.url)) return focusedTab.id;
+  } catch {
+    // ignore
+  }
+
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const preferred = tabs.find((item) => isPreferredPickerTab(item));
+    if (preferred?.id) return preferred.id;
+    const fallback = tabs.find((item) => isPickerTargetUrl(item.url));
+    if (fallback?.id) return fallback.id;
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+async function ensurePagePickerScript(tabId) {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: "COMPANION_PAGE_PICKER_PING" });
+    return;
+  } catch {
+    // inject below
+  }
+  await chrome.scripting.executeScript({
+    target: { tabId, allFrames: false },
+    files: ["page-picker.js"]
+  });
+}
+
+async function relayPagePickerSet(active, { tabId = 0, windowId = 0 } = {}) {
+  const targetTabId = await resolvePickerTargetTabId({ tabId, windowId });
+  if (!targetTabId) {
+    throw new Error("Нет вкладки сайта — откройте страницу и нажмите ⌖ снова");
+  }
+  if (active) {
+    await ensurePagePickerScript(targetTabId);
+  }
+  await chrome.tabs.sendMessage(targetTabId, {
+    type: "COMPANION_PAGE_PICKER_SET",
+    active: Boolean(active)
+  });
+}
+
+chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
+  rememberPickerTab(tabId, windowId);
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete" && tab?.active && tab.windowId) {
+    rememberPickerTab(tabId, tab.windowId);
+  }
+  if (changeInfo.status !== "complete" || !tab?.url) return;
+  try {
+    const parsed = new URL(tab.url);
+    if (parsed.port !== "3488") return;
+    chrome.runtime.sendMessage({ type: "COMPANION_VOICE_TAB_READY", url: tab.url }).catch(() => {});
+  } catch {
+    // ignore
+  }
+});
 
 async function sendToShell(body, agentIdOverride) {
   const { agentId } = await getSettings();
@@ -133,9 +296,10 @@ chrome.runtime.onInstalled.addListener(async () => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "COMPANION_OPEN_PANEL") {
     if (sender.tab?.id) {
+      rememberPickerTab(sender.tab.id, sender.tab.windowId);
       chrome.sidePanel
         .open({ tabId: sender.tab.id })
-        .then(() => sendResponse({ ok: true }))
+        .then(() => sendResponse({ ok: true, tabId: sender.tab.id }))
         .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     } else {
       sendResponse({ ok: false, error: "No active tab" });
@@ -155,6 +319,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendToShell(message.body, message.agentId)
       .then((result) => {
         if (sender.tab?.id) {
+          rememberPickerTab(sender.tab.id, sender.tab.windowId);
           chrome.sidePanel.open({ tabId: sender.tab.id }).catch(() => {});
         }
         sendResponse({ ok: true, result });
@@ -181,6 +346,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const settings = message.settings && typeof message.settings === "object" ? message.settings : {};
     storageLocal()
       .set(settings)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_REGISTER_PANEL") {
+    const windowId = Number(message.windowId);
+    const tabId = Number(message.tabId);
+    if (Number.isFinite(windowId) && windowId > 0 && Number.isFinite(tabId) && tabId > 0) {
+      rememberPickerTab(tabId, windowId);
+    }
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (message?.type === "COMPANION_PAGE_PICKER_SET") {
+    relayPagePickerSet(Boolean(message.active), {
+      tabId: message.tabId,
+      windowId: message.windowId
+    })
       .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     return true;

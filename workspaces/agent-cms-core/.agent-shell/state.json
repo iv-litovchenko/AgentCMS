@@ -10,8 +10,8 @@
   "pttHeld": false,
   "meetingRecording": false,
   "lastTtsClientId": "c738810b-3051-4e04-88ab-41ec56985e68:efd78e2a-5e29-4ef1-8940-58b2701d692f",
-  "primaryClientId": "91d28cd7-92fb-484b-9450-e70c6b8160b6:1e2a44cb-9c7d-40de-94a2-7406bb1ffdd9",
-  "updatedAt": "2026-08-31T22:53:07.872Z",
+  "primaryClientId": "91d28cd7-92fb-484b-9450-e70c6b8160b6:4dd098bf-17f2-4668-b410-2f8fae448be4",
+  "updatedAt": "2026-08-31T23:08:44.918Z",
   "shellSurfaceHost": "extension",
   "shellSurfaceHint": "Companion · Chrome",
   "shellSurfaceBackend": "local"

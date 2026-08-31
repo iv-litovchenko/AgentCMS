@@ -102,6 +102,28 @@
     }
   }
 
+  async function isVoiceReachable(voiceUrl) {
+    let origin = DEFAULT_VOICE_BASE_URL;
+    try {
+      origin = new URL(String(voiceUrl || DEFAULT_VOICE_BASE_URL)).origin;
+    } catch {
+      // keep default
+    }
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
+      const response = await fetch(`${origin}/`, {
+        method: "GET",
+        cache: "no-store",
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
   global.CompanionUrls = {
     DEFAULT_CMS_BASE_URL,
     DEFAULT_VOICE_BASE_URL,
@@ -112,6 +134,7 @@
     voiceBaseFromCmsHost,
     buildShellFrameUrl,
     resolveVoiceBaseUrl,
-    isCmsReachable
+    isCmsReachable,
+    isVoiceReachable
   };
 })(typeof globalThis !== "undefined" ? globalThis : self);

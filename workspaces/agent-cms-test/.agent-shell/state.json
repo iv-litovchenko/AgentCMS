@@ -10,9 +10,9 @@
   "pttHeld": false,
   "meetingRecording": false,
   "lastTtsClientId": "74198ef2-180e-4beb-8cbb-dffa9687344e:d79aec34-49ca-4a71-b3d0-2aeabfa3fa8c",
-  "primaryClientId": "a7c487f0-a72e-482a-b74c-475e020ddbf8:01e6d28a-e059-4e1a-9633-327c4e428214",
-  "updatedAt": "2026-08-31T22:39:28.948Z",
-  "shellSurfaceHost": "browser-embed",
-  "shellSurfaceHint": "Панель в Agent CMS",
+  "primaryClientId": "febf1aec-4e4d-431b-9638-201e46d1b075:4f9f8f88-a290-4d00-b34e-1837f47f4204",
+  "updatedAt": "2026-08-31T23:21:28.921Z",
+  "shellSurfaceHost": "extension",
+  "shellSurfaceHint": "Companion · Chrome",
   "shellSurfaceBackend": "local"
 }

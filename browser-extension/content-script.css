@@ -86,3 +86,55 @@
 #agent-shell-companion-toolbar .asc-status[data-kind="ok"] {
   color: #bbf7d0;
 }
+
+body.is-cms-page-picker-active {
+  cursor: crosshair;
+}
+
+body.is-cms-page-picker-active #agent-shell-companion-toolbar,
+body.is-cms-page-picker-active #agent-shell-companion-toolbar * {
+  cursor: default;
+}
+
+.cms-page-picker-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  pointer-events: none;
+  display: none;
+}
+
+.cms-page-picker-root.is-active {
+  display: block;
+}
+
+.cms-page-picker-hint {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  max-width: min(92vw, 520px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+}
+
+.cms-page-picker-highlight {
+  position: fixed;
+  z-index: 2147483646;
+  display: none;
+  border: 2px solid #6366f1;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  transition: top 0.05s ease, left 0.05s ease, width 0.05s ease, height 0.05s ease;
+}
