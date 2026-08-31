@@ -3794,7 +3794,7 @@ const VOICE_CHAT_DRAG_SOURCE_SELECTOR = [
   ".node-overview-thumb-wrap",
   ".node-overview-thumb-actions",
   ".navigation-media-image-card",
-  ".folder-browse-image-card[data-folder-browse-path]"
+  ".folder-browse-image-card"
 ].join(", ");
 const VOICE_CHAT_DRAG_HINT =
   "Перетащите в редактор или чат Agent CMS Voice для ссылки или на другую тему/область для перемещения";
@@ -3933,6 +3933,44 @@ function buildVoiceChatMarkdownLink(workspaceRelPath, displayLabel) {
     cleanLabel || targetRel.split("/").pop()?.replace(/\.md$/i, "") || targetRel
   );
   return `[${label}](${encodedHref})`;
+}
+
+function buildVoiceChatImageMarkdown(workspaceRelPath, displayLabel) {
+  const targetRel = normalizeLinkFilePath(workspaceRelPath);
+  if (!targetRel) return "";
+  const encodedHref = targetRel
+    .split("/")
+    .map((segment) => encodeMarkdownPathSegment(segment))
+    .join("/");
+  const cleanLabel = sanitizeVoiceChatDragLabel(displayLabel);
+  const alt = escapeMarkdownLinkLabel(
+    cleanLabel ||
+      targetRel.split("/").pop()?.replace(/\.[^.]+$/i, "") ||
+      targetRel
+  );
+  return `![${alt}](${encodedHref})`;
+}
+
+function resolveMediaCardWorkspaceRel(card) {
+  const filePath = String(
+    card?.dataset?.folderBrowsePath || card?.dataset?.mediaGridPath || ""
+  )
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!filePath) return "";
+
+  const nodePath =
+    card?.dataset?.mediaGridNodePath ||
+    card?.closest("[data-topic-node-path]")?.dataset?.topicNodePath ||
+    getResolvedNodePath(activePath);
+
+  if (card?.dataset?.mediaGridPath) {
+    const memoryKind = activeEntryOverviewContext?.memoryKind || "media";
+    return getMediaLibraryItemContextPath(filePath, memoryKind === "assets" ? "assets" : "media", nodePath);
+  }
+
+  return getExternalItemContextPath({ path: filePath }, nodePath);
 }
 
 const VOICE_CHAT_DRAG_LABEL_SKIP_SELECTOR = [
@@ -4731,13 +4769,22 @@ function buildOverviewThumbDragPayload(thumbWrap) {
 }
 
 function buildMediaCardDragPayload(card) {
-  const filePath = card.dataset.folderBrowsePath || "";
+  const filePath = String(
+    card?.dataset?.folderBrowsePath || card?.dataset?.mediaGridPath || ""
+  )
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
   if (!filePath) return null;
+  const workspaceRel = resolveMediaCardWorkspaceRel(card);
+  if (!workspaceRel) return null;
   const label = sanitizeVoiceChatDragLabel(card.title || filePath.split("/").pop() || filePath);
-  const nodePath = getResolvedNodePath(activePath);
-  const workspaceRel = getExternalItemContextPath({ path: filePath }, nodePath);
+  const kind = resolveFolderBrowseDragKind(filePath, "image");
+  const voiceMarkdownLink =
+    kind === "image"
+      ? buildVoiceChatImageMarkdown(workspaceRel, label)
+      : buildVoiceChatMarkdownLink(workspaceRel, label);
   const markdownLink = buildMarkdownLinkFromWorkspaceRel(workspaceRel, label);
-  const voiceMarkdownLink = buildVoiceChatMarkdownLink(workspaceRel, label);
   if (!voiceMarkdownLink) return null;
   return { path: workspaceRel, label, markdownLink, voiceMarkdownLink, source: "media-card" };
 }
@@ -4761,9 +4808,7 @@ function resolveVoiceChatDragPayload(target) {
   const thumbWrap = target.closest(".node-overview-thumb-wrap, .node-overview-thumb-actions");
   if (thumbWrap) return buildOverviewThumbDragPayload(thumbWrap.closest(".node-overview-thumb-wrap") || thumbWrap);
 
-  const mediaCard = target.closest(
-    ".navigation-media-image-card, .folder-browse-image-card[data-folder-browse-path]"
-  );
+  const mediaCard = target.closest(".navigation-media-image-card, .folder-browse-image-card");
   if (mediaCard) return buildMediaCardDragPayload(mediaCard);
 
   return null;
@@ -65671,6 +65716,7 @@ function createNavigationMediaGridCard(item, nodePath, onActivate) {
   const card = document.createElement("article");
   card.className = "folder-browse-image-card navigation-media-image-card";
   card.dataset.mediaGridPath = item.path || "";
+  card.dataset.folderBrowsePath = item.path || "";
   card.dataset.mediaGridNodePath = nodePath || "";
   card.title = item.displayName || item.name || item.path || "";
 

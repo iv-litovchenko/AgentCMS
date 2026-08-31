@@ -5,13 +5,13 @@
 ## Требования
 
 - Google Chrome (Manifest V3, Side Panel API)
-- Запущенный Agent CMS: из корня репозитория `npm start` → http://localhost:3000
+- Запущенный Agent CMS: `npm run start:https` → CMS `https://localhost:3443`, Voice `https://localhost:3488`
 
 ## Установка
 
 1. `chrome://extensions` → **Режим разработчика** → **Загрузить распакованное расширение**
 2. Выберите эту папку: `browser-extension/`
-3. **Параметры расширения** → URL CMS (`http://localhost:3000`) и при необходимости `agent` id
+3. **Параметры расширения** → URL CMS (`https://localhost:3443`) и при необходимости `agent` id
 
 Подробная инструкция также в CMS: кнопка с иконкой Shell в шапке (после **WEB**).
 
@@ -19,12 +19,12 @@
 
 | Действие | Результат |
 |----------|-----------|
-| Клик по иконке расширения | Side Panel с `/shell` |
+| Клик по иконке расширения | Side Panel с Voice `/{agent}/extension/` |
 | **Страница** на toolbar | URL, заголовок и excerpt → `/api/shell/message` |
 | **Выделение** | Выделенный текст + URL → Shell |
 | Иконка на toolbar | Открыть Side Panel |
 
-Toolbar **не** инжектится на `localhost:3000` — там уже есть встроенная панель Discuss → Agent Shell.
+Toolbar **не** инжектится на страницах CMS/Voice (`localhost:3443`, `localhost:3488`) — там уже есть встроенная панель.
 
 ## Структура
 
@@ -45,7 +45,7 @@ browser-extension/
 
 Тот же API, что и web Shell:
 
-- `POST /api/shell/message?agent=`
-- Side Panel: `GET /shell?agent=`
+- `POST /api/shell/message?agent=` (на CMS `:3443`)
+- Side Panel: `GET https://localhost:3488/{agent}/extension/`
 
 Автор сообщений из расширения: `companion`.

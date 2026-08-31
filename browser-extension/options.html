@@ -76,19 +76,21 @@
 
     <div class="field">
       <label for="cmsBaseUrl">Базовый URL Agent CMS</label>
-      <input id="cmsBaseUrl" type="url" placeholder="http://localhost:3000" />
+      <input id="cmsBaseUrl" type="url" placeholder="https://localhost:3443" />
       <code id="shell-url-preview"></code>
     </div>
 
     <div class="field">
       <label for="agentId">ID агента (необязательно)</label>
-      <input id="agentId" type="text" placeholder="оставьте пустым" />
+      <input id="agentId" type="text" placeholder="пусто = выбор хранилища при запуске" />
     </div>
 
     <button id="save-btn" type="button">Сохранить</button>
-    <button id="reset-btn" type="button">Сброс: localhost:3000</button>
+    <button id="reset-btn" type="button">Сброс: localhost:3443</button>
     <div id="status" aria-live="polite"></div>
 
+    <script src="companion-urls-global.js"></script>
+    <script src="companion-storage.js"></script>
     <script src="options.js"></script>
   </body>
 </html>

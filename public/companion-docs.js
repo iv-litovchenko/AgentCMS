@@ -64,8 +64,11 @@
       </p>
 
       <h2>1. Запустите Agent CMS</h2>
-      <pre><code class="language-bash">npm start</code></pre>
-      <p>Сервер должен быть доступен: <a href="${escapeHtml(cmsOrigin)}" target="_blank" rel="noopener">${escapeHtml(cmsOrigin)}</a></p>
+      <pre><code class="language-bash">npm run start:https</code></pre>
+      <p>
+        CMS: <a href="${escapeHtml(cmsOrigin)}" target="_blank" rel="noopener">${escapeHtml(cmsOrigin)}</a>
+        · Voice (Side Panel): <code>https://localhost:3488/{agent-id}/extension/</code>
+      </p>
 
       <h2>2. Установите расширение в Chrome</h2>
       <ol>
@@ -79,15 +82,16 @@
       <h2>3. Настройте подключение</h2>
       <ol>
         <li>На странице расширений откройте <strong>Подробнее → Параметры</strong> у Agent Shell Companion</li>
-        <li>URL Agent CMS: <code>${escapeHtml(cmsOrigin)}</code> — или LAN-адрес из вывода <code>npm start</code>, например <code>http://192.168.0.102:3000</code></li>
+        <li>URL Agent CMS: <code>${escapeHtml(cmsOrigin)}</code> — Side Panel сам откроет Voice на <code>:3488</code></li>
         ${agentBlock}
       </ol>
 
-      <h2>Если Side Panel пишет «CMS недоступен»</h2>
+      <h2>Если Side Panel пустой или «CMS недоступен»</h2>
       <ul>
-        <li>CMS в браузере открывается, но расширение иногда не достучится до <code>localhost</code> — укажите в настройках LAN URL (<code>http://192.168.x.x:3000</code>)</li>
-        <li>Оставьте поле <strong>ID агента</strong> пустым, если не уверены</li>
+        <li>В настройках расширения укажите <strong>HTTPS CMS</strong>: <code>https://localhost:3443</code> (не <code>http://localhost:3000</code>)</li>
+        <li>Side Panel грузит Agent Shell с Voice: <code>https://localhost:3488/…/extension/</code></li>
         <li>На <code>chrome://extensions</code> нажмите ↻ у Agent Shell Companion после обновления файлов</li>
+        <li>Если Voice просит логин — войдите в Side Panel (<code>admin</code> / пароль из <code>.env</code>)</li>
       </ul>
 
       <h2>4. Как пользоваться</h2>
@@ -101,7 +105,7 @@
       <ul>
         <li>CMS должен быть запущен локально (или доступен по сети, если указали другой URL)</li>
         <li>На HTTPS-сайтах mixed content не мешает iframe, но CMS должен отвечать по указанному URL</li>
-        <li>Toolbar не показывается на страницах самого CMS (<code>localhost:3000</code>) — там уже есть встроенная панель справа</li>
+        <li>Toolbar не показывается на страницах CMS/Voice (<code>localhost:3443</code>, <code>localhost:3488</code>) — там уже есть встроенная панель справа</li>
       </ul>
     `;
 

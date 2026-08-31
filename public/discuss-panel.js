@@ -297,11 +297,15 @@
     return window.AgentCmsLinkDrag?.extract(dataTransfer) || null;
   }
 
-  function insertIntoVoiceCompose(text) {
+  function insertIntoVoiceCompose(text, options = {}) {
     const trimmed = String(text || "").trim();
     if (!trimmed || !discussShellIframeNode?.contentWindow) return false;
     discussShellIframeNode.contentWindow.postMessage(
-      { type: "agent-cms-voice:compose-insert", text: trimmed },
+      {
+        type: "agent-cms-voice:compose-insert",
+        text: trimmed,
+        join: options.join || "space"
+      },
       getVoicePostMessageOrigin()
     );
     return true;
@@ -406,6 +410,7 @@
     toggle: () => setPanelHidden(!panelHidden),
     isCollapsed: () => panelHidden,
     setCollapsed: (next) => setPanelHidden(next),
-    getPresence: refreshShellPresence
+    getPresence: refreshShellPresence,
+    insertIntoCompose: insertIntoVoiceCompose
   };
 })();

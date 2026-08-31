@@ -4563,6 +4563,43 @@ body.shell-desktop .shell-agent-gate select {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.shell-compose-page-picker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(148, 163, 184, 0.88);
+  opacity: 1;
+  background: transparent;
+  box-shadow: none;
+}
+
+.shell-compose-page-picker .shell-compose-page-picker-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.shell-compose-toolbar .shell-icon-btn.shell-compose-page-picker:not([aria-pressed="true"]):not(.is-active):hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.shell-compose-toolbar .shell-icon-btn.shell-compose-page-picker.is-active,
+.shell-compose-toolbar .shell-icon-btn.shell-compose-page-picker[aria-pressed="true"] {
+  color: #1e293b;
+  background: #fff;
+  border: 0;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+  opacity: 1;
+}
+
+.shell-compose-toolbar .shell-icon-btn.shell-compose-page-picker.is-active:hover:not(:disabled),
+.shell-compose-toolbar .shell-icon-btn.shell-compose-page-picker[aria-pressed="true"]:hover:not(:disabled) {
+  color: #0f172a;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+}
+
 .shell-compose-send {
   width: auto;
   min-width: 32px;

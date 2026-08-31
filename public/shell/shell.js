@@ -3883,11 +3883,45 @@ function showShellAgentGate(selectable) {
   });
 }
 
+function isCompanionEmbedRequest() {
+  try {
+    return new URLSearchParams(window.location.search).get("companion") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function notifyCompanionAgentSelected(agentId) {
+  const id = String(agentId || "").trim();
+  if (!id) return;
+  try {
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: "agent-cms-voice:agent-selected", agentId: id }, "*");
+    }
+  } catch {
+    // ignore
+  }
+}
+
 function navigateToShellAgent(agentId) {
   const id = String(agentId || "").trim();
   if (!id) return;
   state.agentId = id;
   localStorage.setItem(SHELL_STORAGE.agent, id);
+  notifyCompanionAgentSelected(id);
+  if (shellVoiceStandalone && isCompanionEmbedRequest()) {
+    hideShellAgentGate();
+    if (shellAgentGateResolver) {
+      shellAgentGateResolver(id);
+      shellAgentGateResolver = null;
+    }
+    const url = new URL(window.location.href);
+    url.pathname = buildVoiceShellPath(id, "extension");
+    url.searchParams.delete("embed");
+    url.searchParams.set("companion", "1");
+    window.location.replace(`${url.pathname}${url.search}${url.hash}`);
+    return;
+  }
   syncShellAgentUrl(id);
   hideShellAgentGate();
   if (shellAgentGateResolver) {
@@ -3903,18 +3937,18 @@ function bindShellAgentGateUi() {
 }
 
 async function ensureShellAgentSelected() {
-  const fromPath = parseShellPathAgentId();
-  if (fromPath) {
-    state.agentId = fromPath;
-    localStorage.setItem(SHELL_STORAGE.agent, fromPath);
-    hideShellAgentGate();
-    return fromPath;
-  }
-
   const data = await loadAgentSelectData();
   const selectable = getSelectableAgents(data.agents);
   if (!selectable.length) {
     throw new Error("Нет доступных workspace-агентов в CMS");
+  }
+
+  const fromPath = parseShellPathAgentId();
+  if (fromPath && selectable.some((agent) => agent.id === fromPath)) {
+    state.agentId = fromPath;
+    localStorage.setItem(SHELL_STORAGE.agent, fromPath);
+    hideShellAgentGate();
+    return fromPath;
   }
 
   const remembered = selectable.find((agent) => agent.id === state.agentId);
@@ -4663,11 +4697,13 @@ function isVoiceToComposeEnabled() {
   return Boolean(nodes.voiceToCompose?.checked ?? state.settings?.voiceToCompose);
 }
 
-function appendVoiceToCompose(text) {
+function appendVoiceToCompose(text, options = {}) {
   const trimmed = String(text || "").trim();
   if (!trimmed || !nodes.message) return;
   const current = String(nodes.message.value || "").trimEnd();
-  const next = current ? `${current} ${trimmed}` : trimmed;
+  const separator =
+    options.join === "newline" ? (current.endsWith("\n") ? "" : "\n") : current ? " " : "";
+  const next = current ? `${current}${separator}${trimmed}` : trimmed;
   setComposeMessageValue(next);
   nodes.message.focus();
   const len = nodes.message.value.length;
@@ -4685,7 +4721,36 @@ function bindCmsComposeInsertBridge() {
     const data = event.data;
     if (!data || typeof data !== "object") return;
     if (data.type !== "agent-cms-voice:compose-insert") return;
-    appendVoiceToCompose(data.text);
+    appendVoiceToCompose(data.text, { join: data.join });
+  });
+}
+
+function bindCmsPagePickerBridge() {
+  if (!shellEmbedMode) return;
+  const btn = document.getElementById("shell-page-picker-btn");
+  if (!btn || btn.dataset.bound === "1") return;
+  btn.dataset.bound = "1";
+  btn.hidden = false;
+
+  let active = false;
+
+  const syncUi = (next) => {
+    active = Boolean(next);
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  };
+
+  btn.addEventListener("click", () => {
+    syncUi(!active);
+    window.parent.postMessage({ type: "agent-cms-voice:page-picker-set", active }, "*");
+  });
+
+  window.addEventListener("message", (event) => {
+    if (event.source !== window.parent) return;
+    const data = event.data;
+    if (!data || typeof data !== "object") return;
+    if (data.type !== "agent-cms-voice:page-picker-state") return;
+    syncUi(Boolean(data.active));
   });
 }
 
@@ -7627,6 +7692,7 @@ async function boot() {
     document.body.classList.add("shell-embed");
   }
   bindCmsComposeInsertBridge();
+  bindCmsPagePickerBridge();
   initShellSurface({ onSurface: renderHeaderHostChip });
   if (!shellEmbedMode) {
     initShellInstallBanner({

@@ -1,4 +1,5 @@
-const STORAGE = chrome.storage.local;
+const { DEFAULT_CMS_BASE_URL, buildExtensionShellUrl, resolveVoiceBaseUrl } = globalThis.CompanionUrls;
+
 const cmsBaseUrlInput = document.getElementById("cmsBaseUrl");
 const agentIdInput = document.getElementById("agentId");
 const saveBtn = document.getElementById("save-btn");
@@ -6,50 +7,104 @@ const resetBtn = document.getElementById("reset-btn");
 const previewNode = document.getElementById("shell-url-preview");
 const statusNode = document.getElementById("status");
 
-const DEFAULT_BASE_URL = "http://localhost:3000";
-
-function buildShellPreview(base, agentId) {
-  const url = new URL("/shell", base.replace(/\/$/, ""));
-  const agent = String(agentId || "").trim();
-  if (agent) url.searchParams.set("agent", agent);
-  return url.toString();
+function sendRuntimeMessage(message) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!chrome?.runtime?.sendMessage) {
+        reject(new Error("runtime.sendMessage unavailable"));
+        return;
+      }
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message || "runtime error"));
+          return;
+        }
+        resolve(response);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
-function updatePreview() {
-  const base = String(cmsBaseUrlInput.value || DEFAULT_BASE_URL).replace(/\/$/, "");
+async function readSettings() {
+  if (CompanionStorage.hasRuntimeMessaging()) {
+    try {
+      const response = await sendRuntimeMessage({ type: "COMPANION_GET_SETTINGS" });
+      if (response && typeof response === "object") return response;
+    } catch {
+      // fall through
+    }
+  }
+  return CompanionStorage.local().get(["cmsBaseUrl", "agentId"]);
+}
+
+async function writeSettings(settings) {
+  if (CompanionStorage.hasRuntimeMessaging()) {
+    try {
+      await sendRuntimeMessage({ type: "COMPANION_SAVE_SETTINGS", settings });
+      return;
+    } catch {
+      // fall through
+    }
+  }
+  await CompanionStorage.local().set(settings);
+}
+
+async function buildShellPreview(base, agentId) {
+  const voiceBase = await resolveVoiceBaseUrl(base);
+  return buildExtensionShellUrl(voiceBase, agentId);
+}
+
+async function updatePreview() {
+  const base = String(cmsBaseUrlInput.value || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
   const agentId = String(agentIdInput.value || "").trim();
-  if (previewNode) previewNode.textContent = buildShellPreview(base, agentId);
+  if (previewNode) previewNode.textContent = await buildShellPreview(base, agentId);
 }
 
 async function loadOptions() {
-  const stored = await STORAGE.get(["cmsBaseUrl", "agentId"]);
-  cmsBaseUrlInput.value = stored.cmsBaseUrl || DEFAULT_BASE_URL;
+  const stored = await readSettings();
+  cmsBaseUrlInput.value = stored.cmsBaseUrl || DEFAULT_CMS_BASE_URL;
   agentIdInput.value = stored.agentId || "";
-  updatePreview();
+  await updatePreview();
 }
 
 saveBtn?.addEventListener("click", async () => {
-  const cmsBaseUrl = String(cmsBaseUrlInput.value || DEFAULT_BASE_URL).replace(/\/$/, "");
+  const cmsBaseUrl = String(cmsBaseUrlInput.value || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
   const agentId = String(agentIdInput.value || "").trim();
-  await STORAGE.set({ cmsBaseUrl, agentId, _migratedFromSync: true });
-  statusNode.style.color = "#166534";
-  statusNode.textContent = "Сохранено";
-  updatePreview();
+  try {
+    await writeSettings({ cmsBaseUrl, agentId, _migratedFromSync: true });
+    statusNode.style.color = "#166534";
+    statusNode.textContent = "Сохранено";
+    await updatePreview();
+  } catch (error) {
+    statusNode.style.color = "#b91c1c";
+    statusNode.textContent = error instanceof Error ? error.message : "Ошибка сохранения";
+  }
   window.setTimeout(() => {
     statusNode.textContent = "";
   }, 2500);
 });
 
 resetBtn?.addEventListener("click", async () => {
-  cmsBaseUrlInput.value = DEFAULT_BASE_URL;
+  cmsBaseUrlInput.value = DEFAULT_CMS_BASE_URL;
   agentIdInput.value = "";
-  await STORAGE.set({ cmsBaseUrl: DEFAULT_BASE_URL, agentId: "", _migratedFromSync: true });
-  statusNode.style.color = "#166534";
-  statusNode.textContent = "Сброшено на http://localhost:3000/shell";
-  updatePreview();
+  try {
+    await writeSettings({ cmsBaseUrl: DEFAULT_CMS_BASE_URL, agentId: "", _migratedFromSync: true });
+    statusNode.style.color = "#166534";
+    statusNode.textContent = `Сброшено на ${DEFAULT_CMS_BASE_URL}`;
+    await updatePreview();
+  } catch (error) {
+    statusNode.style.color = "#b91c1c";
+    statusNode.textContent = error instanceof Error ? error.message : "Ошибка сброса";
+  }
 });
 
-cmsBaseUrlInput?.addEventListener("input", updatePreview);
-agentIdInput?.addEventListener("input", updatePreview);
+cmsBaseUrlInput?.addEventListener("input", () => {
+  void updatePreview();
+});
+agentIdInput?.addEventListener("input", () => {
+  void updatePreview();
+});
 
 void loadOptions();

@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=447" />
+    <link rel="stylesheet" href="/shell/shell.css?v=451" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -1845,6 +1845,33 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <div class="shell-compose-toolbar-group shell-compose-toolbar-group--attach" aria-label="Вложения">
               <button
                 type="button"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm shell-compose-page-picker"
+                id="shell-page-picker-btn"
+                hidden
+                title="Выбрать элемент на странице CMS"
+                aria-label="Выбрать элемент на странице CMS"
+                aria-pressed="false"
+              >
+                <svg
+                  class="shell-compose-tool-icon shell-compose-page-picker-icon"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M12 3v3"></path>
+                  <path d="M12 18v3"></path>
+                  <path d="M3 12h3"></path>
+                  <path d="M18 12h3"></path>
+                </svg>
+              </button>
+              <button
+                type="button"
                 class="shell-icon-btn shell-compose-tool shell-compose-tool--sm shell-compose-attach"
                 id="shell-attach-btn"
                 disabled
@@ -2149,6 +2176,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=435" type="module"></script>
+    <script src="/shell/shell.js?v=438" type="module"></script>
   </body>
 </html>
