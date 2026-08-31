@@ -3784,6 +3784,20 @@ const MENU_LINK_DRAG_SELECTOR =
 const MENU_LINK_DRAG_SOURCE_SELECTOR = ".menu-item[data-path], .menu-folder[data-path]";
 const MENU_ADOPT_FOLDER_DRAG_SELECTOR = ".menu-folder.menu-folder--adopt[data-folder-path]";
 const MENU_SYSTEM_FILE_DRAG_SELECTOR = ".system-file-item[data-system-file]";
+const VOICE_CHAT_DRAG_SOURCE_SELECTOR = [
+  ".node-navigation-workspace-counter:not([disabled])",
+  ".node-navigation-memory-title",
+  ".node-navigation-hub-rail-slot-summary",
+  ".nav-book-toc-link",
+  ".nav-book-toc-folder-head",
+  ".nav-book-toc-folder-label",
+  ".node-overview-thumb-wrap",
+  ".node-overview-thumb-actions",
+  ".navigation-media-image-card",
+  ".folder-browse-image-card[data-folder-browse-path]"
+].join(", ");
+const VOICE_CHAT_DRAG_HINT =
+  "Перетащите в редактор или чат Agent CMS Voice для ссылки или на другую тему/область для перемещения";
 
 function buildSystemFileMarkdownLink(systemFile, displayLabel) {
   const name = normalizeSystemFileName(systemFile);
@@ -3905,6 +3919,213 @@ function buildMarkdownLinkFromWorkspaceRel(workspaceRelPath, displayLabel, optio
     displayLabel || targetRel.split("/").pop()?.replace(/\.md$/i, "") || targetRel
   );
   return `[${label}](${encodedHref})`;
+}
+
+function buildVoiceChatMarkdownLink(workspaceRelPath, displayLabel) {
+  const targetRel = normalizeLinkFilePath(workspaceRelPath);
+  if (!targetRel) return "";
+  const encodedHref = targetRel
+    .split("/")
+    .map((segment) => encodeMarkdownPathSegment(segment))
+    .join("/");
+  const cleanLabel = sanitizeVoiceChatDragLabel(displayLabel);
+  const label = escapeMarkdownLinkLabel(
+    cleanLabel || targetRel.split("/").pop()?.replace(/\.md$/i, "") || targetRel
+  );
+  return `[${label}](${encodedHref})`;
+}
+
+const VOICE_CHAT_DRAG_LABEL_SKIP_SELECTOR = [
+  ".menu-tree-status",
+  ".nav-book-toc-status",
+  ".nav-book-toc-drag-handle",
+  ".nav-book-toc-leaders",
+  ".nav-book-toc-schema-badge",
+  ".nav-book-toc-folder-icon",
+  ".nav-book-toc-web-url-link",
+  ".nav-unread-badge",
+  ".menu-tree-preview-img",
+  ".nav-book-toc-link-preview",
+  ".node-navigation-workspace-counter-value",
+  "[aria-hidden='true']"
+].join(", ");
+
+function sanitizeVoiceChatDragLabel(label) {
+  return normalizeYamlDisplayString(
+    String(label || "")
+      .replace(/^[\s⠿]+/, "")
+      .replace(/[\u{1F534}\u{1F7E2}\u{1F7E1}\u{1F535}\u{1F7E0}\u{1F535}\u26AA-\u26AB\u{1F7E3}\u{1F7E4}]/gu, "")
+      .replace(/\s*!+\s*$/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+function parseNavBookTocLabelFromTitle(title) {
+  const raw = sanitizeVoiceChatDragLabel(String(title || "").trim());
+  if (!raw) return "";
+  const paren = raw.indexOf(" (");
+  const label = (paren >= 0 ? raw.slice(0, paren) : raw).trim();
+  if (!label || /\.md$/i.test(label) || label.includes("/")) return "";
+  return label;
+}
+
+function extractVoiceChatDragLabelFromElement(el, { fallback = "" } = {}) {
+  if (!el) return sanitizeVoiceChatDragLabel(fallback);
+
+  const titleNode = el.querySelector(".nav-book-toc-title-text, .menu-tree-title-text");
+  if (titleNode) {
+    return sanitizeVoiceChatDragLabel(titleNode.textContent);
+  }
+
+  const namedNode = el.querySelector(
+    ".menu-item-name, .menu-folder-name, .node-navigation-hub-rail-slot-label, .node-navigation-workspace-counter-label-main"
+  );
+  if (namedNode) {
+    return sanitizeVoiceChatDragLabel(namedNode.textContent);
+  }
+
+  if (el.matches(".node-navigation-memory-title")) {
+    return sanitizeVoiceChatDragLabel(
+      el.textContent || el.title?.replace(/^Открыть:\s*/i, "") || fallback
+    );
+  }
+
+  const titleFromAttr = parseNavBookTocLabelFromTitle(el.title);
+  if (titleFromAttr) return titleFromAttr;
+
+  if (typeof el.cloneNode === "function") {
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll(VOICE_CHAT_DRAG_LABEL_SKIP_SELECTOR).forEach((node) => node.remove());
+    const text = sanitizeVoiceChatDragLabel(clone.textContent);
+    if (text) return text;
+  }
+
+  return sanitizeVoiceChatDragLabel(fallback);
+}
+
+function resolveVoiceChatSlotSpec({ slotId = "", modeId = "", memoryKind = "" } = {}) {
+  const normalizedSlotId = normalizeStorageSlotCounterKey(String(slotId || "").trim());
+  if (normalizedSlotId) {
+    const spec = resolveStorageSlotSpecByCounterKey(normalizedSlotId);
+    if (spec && !spec.disabled) return spec;
+  }
+
+  const mode = String(modeId || memoryKind || "").trim();
+  if (!mode) return null;
+
+  const byMode = getDataStorageSlotForMode(mode);
+  if (byMode && !byMode.disabled) return byMode;
+
+  if (mode === "internal") {
+    return DATA_STORAGE_SLOT_SPECS.find((item) => item.key === "main-single") || null;
+  }
+  if (mode === "tabular") {
+    return DATA_STORAGE_SLOT_SPECS.find((item) => item.key === "main-single-csv") || null;
+  }
+  if (mode === "todo") {
+    return DATA_STORAGE_SLOT_SPECS.find((item) => item.key === "todo-single") || null;
+  }
+
+  return DATA_STORAGE_SLOT_SPECS.find((item) => item.key === mode && !item.disabled) || null;
+}
+
+function resolveVoiceChatSlotWorkspaceRel(
+  topicPath,
+  { slotId = "", modeId = "", memoryKind = "" } = {}
+) {
+  const resolvedTopic = getResolvedNodePath(topicPath || activePath);
+  if (!resolvedTopic) return "";
+
+  const spec = resolveVoiceChatSlotSpec({ slotId, modeId, memoryKind });
+  if (!spec) {
+    const mode = String(modeId || memoryKind || "").trim();
+    if (mode && getStorageSubfolderForMode(mode)) {
+      return normalizeLinkFilePath(getNodeStorageSubfolderPath(resolvedTopic, mode));
+    }
+    return "";
+  }
+
+  if (spec.sectionKind === "bundle" && spec.bundleFile) {
+    return normalizeLinkFilePath(getNamedStorageBundleRel(resolvedTopic, spec.bundleFile));
+  }
+
+  const mode = spec.defaultMode || getEntryOverviewMemoryKindForSlot(spec);
+  if (!mode) return "";
+  return normalizeLinkFilePath(getNodeStorageSubfolderPath(resolvedTopic, mode));
+}
+
+function buildVoiceChatSlotDragPayload(
+  topicPath,
+  { slotId = "", modeId = "", memoryKind = "", label = "", source = "workspace-counter" } = {}
+) {
+  const spec = resolveVoiceChatSlotSpec({ slotId, modeId, memoryKind });
+  const resolvedLabel = sanitizeVoiceChatDragLabel(
+    spec?.label ||
+      label ||
+      resolveDataStorageSlotDisplayLabel(slotId || modeId || memoryKind)
+  );
+  if (!resolvedLabel) return null;
+
+  const workspaceRel = resolveVoiceChatSlotWorkspaceRel(topicPath, { slotId, modeId, memoryKind });
+  if (!workspaceRel) return null;
+
+  const markdownLink = buildMarkdownLinkFromWorkspaceRel(workspaceRel, resolvedLabel);
+  const voiceMarkdownLink = buildVoiceChatMarkdownLink(workspaceRel, resolvedLabel);
+  return {
+    path: workspaceRel,
+    label: resolvedLabel,
+    slotId: slotId || spec?.key || "",
+    modeId: modeId || spec?.defaultMode || "",
+    memoryKind: memoryKind || getEntryOverviewMemoryKindForSlot(spec) || "",
+    markdownLink,
+    voiceMarkdownLink,
+    source
+  };
+}
+
+function resolveVoiceChatWorkspaceRelFromPayload(payload) {
+  if (!payload) return "";
+  if (payload.systemFile) return normalizeSystemFileName(payload.systemFile);
+  const folderPath = payload.folderPath || (payload.source === "adopt-folder" ? payload.path : "");
+  if (folderPath) return normalizeCreateParentPath(folderPath);
+  if (payload.path) {
+    const path = normalizeLinkFilePath(payload.path);
+    if (!path) return "";
+    if (
+      /\.md$/i.test(path) ||
+      payload.source === "nav-toc-file" ||
+      payload.source === "nav-toc-folder" ||
+      payload.source === "media-card" ||
+      payload.source === "workspace-counter" ||
+      payload.source === "memory-title" ||
+      payload.source === "rail-slot" ||
+      /\/awn-storage(?:\/|$)/i.test(path)
+    ) {
+      return path;
+    }
+    return getLinkTargetFileRelPath(path);
+  }
+  if (payload.slotId || payload.modeId || payload.memoryKind) {
+    return resolveVoiceChatSlotWorkspaceRel(getResolvedNodePath(activePath), {
+      slotId: payload.slotId,
+      modeId: payload.modeId,
+      memoryKind: payload.memoryKind
+    });
+  }
+  return "";
+}
+
+function resolveVoiceChatInsertText(payload) {
+  if (!payload) return "";
+  const explicit = String(payload.voiceMarkdownLink || "").trim();
+  if (explicit) return explicit;
+  const workspaceRel = resolveVoiceChatWorkspaceRelFromPayload(payload);
+  const label = String(payload.label || "").trim();
+  if (workspaceRel) {
+    return buildVoiceChatMarkdownLink(workspaceRel, label) || "";
+  }
+  return String(payload.markdownLink || payload.wikilink || payload.text || "").trim();
 }
 
 function buildAdoptFolderMarkdownLink(folderPath, displayLabel) {
@@ -4313,13 +4534,20 @@ function dataTransferHasMenuLink(dataTransfer) {
   return types.includes(MENU_LINK_DRAG_MIME) || types.includes("text/plain");
 }
 
+function dataTransferHasVoiceChatLink(dataTransfer) {
+  if (!dataTransfer?.types) return false;
+  const types = [...dataTransfer.types];
+  if (types.includes("Files")) return false;
+  return types.includes(MENU_LINK_DRAG_MIME);
+}
+
 function extractMenuLinkFromDataTransfer(dataTransfer) {
   if (!dataTransfer) return null;
   const raw = dataTransfer.getData(MENU_LINK_DRAG_MIME);
   if (raw) {
     try {
       const payload = JSON.parse(raw);
-      if (payload?.path || payload?.markdownLink || payload?.wikilink) return payload;
+      if (payload?.path || payload?.markdownLink || payload?.wikilink || payload?.text) return payload;
     } catch {
       // ignore malformed payload
     }
@@ -4342,6 +4570,202 @@ function extractMenuLinkFromDataTransfer(dataTransfer) {
       };
     }
   }
+  if (plain) {
+    return { text: plain, markdownLink: plain, label: plain };
+  }
+  return null;
+}
+
+function setMenuLinkDragPayload(event, payload) {
+  const linkText = String(payload?.markdownLink || payload?.wikilink || payload?.text || "").trim();
+  if (!linkText || !event?.dataTransfer) return false;
+  const workspaceRel = resolveVoiceChatWorkspaceRelFromPayload(payload);
+  const voiceMarkdownLink =
+    String(payload?.voiceMarkdownLink || "").trim() ||
+    (workspaceRel ? buildVoiceChatMarkdownLink(workspaceRel, payload?.label || linkText) : linkText);
+  event.dataTransfer.effectAllowed = "copy";
+  event.dataTransfer.setData(
+    MENU_LINK_DRAG_MIME,
+    JSON.stringify({ ...payload, markdownLink: linkText, voiceMarkdownLink })
+  );
+  event.dataTransfer.setData("text/plain", linkText);
+  return true;
+}
+
+function markVoiceChatDropActive(dataTransfer) {
+  queueMicrotask(() => {
+    if (dataTransferHasVoiceChatLink(dataTransfer)) {
+      document.body.classList.add("is-voice-chat-drop-active");
+    }
+  });
+}
+
+function parseNavBookTocPathFromTitle(title) {
+  const raw = String(title || "").trim();
+  if (!raw) return "";
+  const paren = raw.indexOf(" (");
+  return (paren >= 0 ? raw.slice(0, paren) : raw).trim();
+}
+
+function buildNavigationTocFileWorkspaceRel(filePath, memoryKind = "external", nodePath = activePath) {
+  const rel = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!rel) return "";
+  const kind = String(memoryKind || "external").trim() || "external";
+  if (kind === "external") {
+    return getExternalItemContextPath({ path: rel }, nodePath);
+  }
+  const resolvedNode = getResolvedNodePath(nodePath);
+  const storageRel = buildNodeReadContentStoragePath(rel, kind);
+  return resolvedNode ? `${resolvedNode}/${storageRel}`.replace(/\/+/g, "/") : storageRel;
+}
+
+function buildWorkspaceCounterDragPayload(btn) {
+  const card = btn.closest("[data-entry-overview-slot-key]");
+  const slotId = card?.dataset.entryOverviewSlotKey || btn.dataset.workspaceSlotId || "";
+  const topicPath =
+    btn.closest("[data-topic-node-path]")?.dataset.topicNodePath || getResolvedNodePath(activePath);
+  const spec = resolveVoiceChatSlotSpec({ slotId });
+  const label = extractVoiceChatDragLabelFromElement(btn, {
+    fallback:
+      spec?.label ||
+      btn.title ||
+      btn.querySelector(".node-navigation-workspace-counter-label-main")?.textContent ||
+      ""
+  });
+  return buildVoiceChatSlotDragPayload(topicPath, {
+    slotId,
+    label,
+    source: "workspace-counter"
+  });
+}
+
+function buildMemoryTitleDragPayload(titleEl) {
+  const modeId = titleEl.dataset.navigationViewModeId || "";
+  const spec = resolveVoiceChatSlotSpec({ modeId });
+  const label = extractVoiceChatDragLabelFromElement(titleEl, {
+    fallback: spec?.label || titleEl.title?.replace(/^Открыть:\s*/i, "") || ""
+  });
+  const topicPath = getResolvedNodePath(activePath);
+  return buildVoiceChatSlotDragPayload(topicPath, {
+    modeId,
+    label,
+    source: "memory-title"
+  });
+}
+
+function buildRailSlotDragPayload(summaryEl) {
+  const slotEl = summaryEl.closest(".node-navigation-hub-rail-slot");
+  const slotId = slotEl?.dataset.railSlotId || "";
+  const memoryKind = slotEl?.dataset.railSlotMemoryKind || "";
+  const spec = resolveVoiceChatSlotSpec({ slotId, memoryKind });
+  const label = extractVoiceChatDragLabelFromElement(summaryEl, {
+    fallback:
+      spec?.label ||
+      summaryEl.querySelector(".node-navigation-hub-rail-slot-label")?.textContent ||
+      ""
+  });
+  const topicPath = getResolvedNodePath(activePath);
+  return buildVoiceChatSlotDragPayload(topicPath, {
+    slotId,
+    memoryKind,
+    label,
+    source: "rail-slot"
+  });
+}
+
+function buildNavBookTocLinkDragPayload(linkEl) {
+  const rel =
+    linkEl.dataset.railFilePath ||
+    linkEl.dataset.navFilePath ||
+    parseNavBookTocPathFromTitle(linkEl.title);
+  if (!rel) return null;
+  const label = extractVoiceChatDragLabelFromElement(linkEl, {
+    fallback: rel.split("/").pop()?.replace(/\.md$/i, "") || rel
+  });
+  const memoryKind = linkEl.dataset.railMemoryKind || "external";
+  const workspaceRel = buildNavigationTocFileWorkspaceRel(rel, memoryKind);
+  const markdownLink = buildMarkdownLinkFromWorkspaceRel(workspaceRel, label);
+  const voiceMarkdownLink = buildVoiceChatMarkdownLink(workspaceRel, label);
+  if (!voiceMarkdownLink) return null;
+  return { path: workspaceRel, label, markdownLink, voiceMarkdownLink, source: "nav-toc-file" };
+}
+
+function buildNavBookTocFolderDragPayload(folderEl) {
+  const head = folderEl.closest(".nav-book-toc-folder-head") || folderEl;
+  const folderPath = head.dataset.navFolderPath || folderEl.dataset.navFolderPath || "";
+  if (!folderPath) return null;
+  const folderLabel = head.querySelector(".nav-book-toc-folder-label") || folderEl;
+  const label = extractVoiceChatDragLabelFromElement(folderLabel, {
+    fallback: folderPath.split("/").pop() || folderPath
+  });
+  const nodePath = getResolvedNodePath(activePath);
+  const readmeRel = getSectionReadmeRelPath(folderPath);
+  const workspaceRel = getExternalItemContextPath({ path: readmeRel || folderPath }, nodePath);
+  const markdownLink = buildMarkdownLinkFromWorkspaceRel(workspaceRel, label);
+  const voiceMarkdownLink = buildVoiceChatMarkdownLink(workspaceRel, label);
+  if (!voiceMarkdownLink) return null;
+  return {
+    path: workspaceRel,
+    label,
+    folderPath,
+    markdownLink,
+    voiceMarkdownLink,
+    source: "nav-toc-folder"
+  };
+}
+
+function buildOverviewThumbDragPayload(thumbWrap) {
+  const nodePath = getResolvedNodePath(activePath);
+  if (!nodePath) return null;
+  const title = sanitizeVoiceChatDragLabel(
+    thumbWrap.dataset.overviewTitle || getLabelFromPath(nodePath)
+  );
+  const workspaceRel = getLinkTargetFileRelPath(nodePath);
+  const markdownLink = buildMarkdownLinkFromWorkspaceRel(workspaceRel, title || getLabelFromPath(nodePath));
+  const voiceMarkdownLink = buildVoiceChatMarkdownLink(
+    workspaceRel,
+    title || getLabelFromPath(nodePath)
+  );
+  if (!voiceMarkdownLink) return null;
+  return { path: nodePath, label: title, markdownLink, voiceMarkdownLink, source: "overview-thumb" };
+}
+
+function buildMediaCardDragPayload(card) {
+  const filePath = card.dataset.folderBrowsePath || "";
+  if (!filePath) return null;
+  const label = sanitizeVoiceChatDragLabel(card.title || filePath.split("/").pop() || filePath);
+  const nodePath = getResolvedNodePath(activePath);
+  const workspaceRel = getExternalItemContextPath({ path: filePath }, nodePath);
+  const markdownLink = buildMarkdownLinkFromWorkspaceRel(workspaceRel, label);
+  const voiceMarkdownLink = buildVoiceChatMarkdownLink(workspaceRel, label);
+  if (!voiceMarkdownLink) return null;
+  return { path: workspaceRel, label, markdownLink, voiceMarkdownLink, source: "media-card" };
+}
+
+function resolveVoiceChatDragPayload(target) {
+  const counter = target.closest(".node-navigation-workspace-counter:not([disabled])");
+  if (counter) return buildWorkspaceCounterDragPayload(counter);
+
+  const memoryTitle = target.closest(".node-navigation-memory-title");
+  if (memoryTitle) return buildMemoryTitleDragPayload(memoryTitle);
+
+  const railSummary = target.closest(".node-navigation-hub-rail-slot-summary");
+  if (railSummary) return buildRailSlotDragPayload(railSummary);
+
+  const tocLink = target.closest(".nav-book-toc-link");
+  if (tocLink) return buildNavBookTocLinkDragPayload(tocLink);
+
+  const folderTarget = target.closest(".nav-book-toc-folder-head, .nav-book-toc-folder-label");
+  if (folderTarget) return buildNavBookTocFolderDragPayload(folderTarget);
+
+  const thumbWrap = target.closest(".node-overview-thumb-wrap, .node-overview-thumb-actions");
+  if (thumbWrap) return buildOverviewThumbDragPayload(thumbWrap.closest(".node-overview-thumb-wrap") || thumbWrap);
+
+  const mediaCard = target.closest(
+    ".navigation-media-image-card, .folder-browse-image-card[data-folder-browse-path]"
+  );
+  if (mediaCard) return buildMediaCardDragPayload(mediaCard);
+
   return null;
 }
 
@@ -56318,6 +56742,7 @@ function createNavigationSectionHead(title, options = {}) {
   titleNode.className = "node-navigation-memory-title";
   if (viewModeId) {
     titleNode.type = "button";
+    titleNode.dataset.navigationViewModeId = viewModeId;
     titleNode.title = `Открыть: ${title}`;
     titleNode.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -62531,6 +62956,7 @@ function renderEntryOverviewWorkspaceCounterButton(slot, { isActive = false, onC
     ? "Репозитории — откажемся от этого слота"
     : slot.title;
   btn.title = baseTitle || "";
+  btn.dataset.workspaceSlotId = slot.id || slot.spec?.key || "";
   btn.setAttribute("aria-selected", isActive ? "true" : "false");
   if (isDeprecatedRepositoryCounterSlot(slot)) {
     btn.disabled = true;
@@ -63759,6 +64185,10 @@ function appendEntryOverviewMediaBookTocList(parentList, node, depth = 0, handle
 
     const head = document.createElement("div");
     head.className = "nav-book-toc-folder-head";
+    if (folderNode.folderPath) {
+      head.dataset.navFolderPath = folderNode.folderPath;
+      folderLabel.dataset.navFolderPath = folderNode.folderPath;
+    }
     const { toggleBtn, countNode } = mountNavBookTocFolderToggle({
       folderItem,
       folderNode,
@@ -64792,6 +65222,8 @@ function syncNavigationHubRailSlotToggleButton(toggleBtn, slot, expanded) {
 function renderNavigationHubRailFlatSlot(slot, slotIndex, activeCtx) {
   const row = document.createElement("div");
   row.className = "node-navigation-hub-rail-slot node-navigation-hub-rail-slot--flat";
+  row.dataset.railSlotId = slot.id;
+  if (slotIndex.memoryKind) row.dataset.railSlotMemoryKind = slotIndex.memoryKind;
   if (slotIndex.kind === "bundle") row.classList.add("node-navigation-hub-rail-slot--bundle");
   if (isNavigationHubRailSlotSelected(slot, slotIndex, activeCtx)) {
     row.classList.add("is-active-slot");
@@ -64907,6 +65339,10 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
 
     const head = document.createElement("div");
     head.className = "nav-book-toc-folder-head";
+    if (folderNode.folderPath) {
+      head.dataset.navFolderPath = folderNode.folderPath;
+      folderLabel.dataset.navFolderPath = folderNode.folderPath;
+    }
     const { toggleBtn, countNode } = mountNavBookTocFolderToggle({
       folderItem,
       folderNode,
@@ -64962,6 +65398,7 @@ function appendNavigationBookTocList(parentList, node, depth = 0, handlers = {})
     link.className = "nav-book-toc-link";
     const itemDescription = getNavigationAwnDescription(item);
     link.title = itemDescription ? `${item.path} (${itemDescription})` : item.path;
+    link.dataset.navFilePath = String(item.path || "").replace(/\\/g, "/").replace(/^\/+/, "");
 
     const text = document.createElement("span");
     text.className = "nav-book-toc-link-text";
@@ -80274,12 +80711,11 @@ function applyMenuSortRow(row, kind, options = {}) {
 
 function enableMenuLinkDragSources(root = getMenuQueryRoot()) {
   if (!root) return;
-  const hint = "Перетащите в редактор для ссылки или на другую тему/область для перемещения";
   const markDraggable = (btn) => {
     btn.draggable = true;
     if (!btn.dataset.linkDragHint) {
       btn.dataset.linkDragHint = "1";
-      btn.title = btn.title ? `${btn.title}. ${hint}` : hint;
+      btn.title = btn.title ? `${btn.title}. ${VOICE_CHAT_DRAG_HINT}` : VOICE_CHAT_DRAG_HINT;
     }
   };
   root.querySelectorAll(MENU_LINK_DRAG_SOURCE_SELECTOR).forEach((btn) => {
@@ -80469,6 +80905,67 @@ function setupMenuSortDragDrop() {
 }
 
 let menuLinkDragBtn = null;
+let voiceChatDragEl = null;
+
+function enableVoiceChatDragSources(root = document) {
+  if (!root) return;
+  const markDraggable = (el) => {
+    if (!el || el.disabled || el.draggable) return;
+    if (el.closest(".nav-book-toc-drag-handle")) return;
+    el.draggable = true;
+    if (!el.dataset.voiceChatDragHint) {
+      el.dataset.voiceChatDragHint = "1";
+      const hint = "Перетащите в чат Agent CMS Voice или редактор для ссылки";
+      el.title = el.title ? `${el.title}. ${hint}` : hint;
+    }
+  };
+  root.querySelectorAll(VOICE_CHAT_DRAG_SOURCE_SELECTOR).forEach(markDraggable);
+}
+
+function bindVoiceChatDragSourceObserver() {
+  const host = nodeOverviewContentNode;
+  if (!host || host.dataset.voiceChatDragObs === "1") return;
+  host.dataset.voiceChatDragObs = "1";
+  enableVoiceChatDragSources(host);
+  if (typeof MutationObserver === "undefined") return;
+  const observer = new MutationObserver(() => enableVoiceChatDragSources(host));
+  observer.observe(host, { childList: true, subtree: true });
+}
+
+function setupVoiceChatContextDrag() {
+  if (document.body.dataset.voiceChatDragBound === "1") return;
+  document.body.dataset.voiceChatDragBound = "1";
+
+  document.addEventListener(
+    "dragstart",
+    (event) => {
+      if (event.target.closest("#menu, .menu-sort-handle, .nav-book-toc-drag-handle")) return;
+
+      const payload = resolveVoiceChatDragPayload(event.target);
+      if (!payload || !setMenuLinkDragPayload(event, payload)) return;
+
+      voiceChatDragEl =
+        event.target.closest(VOICE_CHAT_DRAG_SOURCE_SELECTOR) || event.target;
+      voiceChatDragEl?.classList.add("is-dragging-voice-chat-context");
+
+      markVoiceChatDropActive(event.dataTransfer);
+    },
+    true
+  );
+
+  document.addEventListener(
+    "dragend",
+    () => {
+      voiceChatDragEl?.classList.remove("is-dragging-voice-chat-context");
+      voiceChatDragEl = null;
+      document.body.classList.remove("is-voice-chat-drop-active");
+    },
+    true
+  );
+
+  bindVoiceChatDragSourceObserver();
+  enableVoiceChatDragSources(document);
+}
 
 function setupMenuLinkDragToEditor() {
   if (!menuNode || menuNode.dataset.linkDragBound === "1") return;
@@ -80487,10 +80984,8 @@ function setupMenuLinkDragToEditor() {
         folderPath;
       const markdownLink = buildAdoptFolderMarkdownLink(folderPath, label);
       if (!markdownLink) return;
-      event.dataTransfer.effectAllowed = "copy";
-      event.dataTransfer.setData(
-        MENU_LINK_DRAG_MIME,
-        JSON.stringify({
+      if (
+        !setMenuLinkDragPayload(event, {
           path: folderPath,
           folderPath,
           label,
@@ -80498,10 +80993,12 @@ function setupMenuLinkDragToEditor() {
           markdownLink,
           source: "adopt-folder"
         })
-      );
-      event.dataTransfer.setData("text/plain", markdownLink);
+      ) {
+        return;
+      }
       menuLinkDragBtn = adoptBtn;
       adoptBtn.classList.add("is-dragging-menu-link");
+      markVoiceChatDropActive(event.dataTransfer);
       return;
     }
 
@@ -80512,10 +81009,8 @@ function setupMenuLinkDragToEditor() {
       const label = systemFileBtn.textContent?.trim() || systemFile;
       const markdownLink = buildSystemFileMarkdownLink(systemFile, label);
       if (!markdownLink) return;
-      event.dataTransfer.effectAllowed = "copy";
-      event.dataTransfer.setData(
-        MENU_LINK_DRAG_MIME,
-        JSON.stringify({
+      if (
+        !setMenuLinkDragPayload(event, {
           path: systemFile,
           systemFile,
           label,
@@ -80523,10 +81018,12 @@ function setupMenuLinkDragToEditor() {
           markdownLink,
           source: "system-file"
         })
-      );
-      event.dataTransfer.setData("text/plain", markdownLink);
+      ) {
+        return;
+      }
       menuLinkDragBtn = systemFileBtn;
       systemFileBtn.classList.add("is-dragging-menu-link");
+      markVoiceChatDropActive(event.dataTransfer);
       return;
     }
 
@@ -80539,13 +81036,12 @@ function setupMenuLinkDragToEditor() {
     const label = resolveMenuEntryLabel(nodePath);
     const markdownLink = buildMarkdownFileLink(nodePath, label);
     event.dataTransfer.effectAllowed = isMenuContextMenuTarget(linkBtn) ? "copyMove" : "copy";
-    event.dataTransfer.setData(
-      MENU_LINK_DRAG_MIME,
-      JSON.stringify({ path: nodePath, label, wikilink: markdownLink, markdownLink })
-    );
-    event.dataTransfer.setData("text/plain", markdownLink);
+    if (!setMenuLinkDragPayload(event, { path: nodePath, label, wikilink: markdownLink, markdownLink })) {
+      return;
+    }
     menuLinkDragBtn = linkBtn;
     linkBtn.classList.add("is-dragging-menu-link");
+    markVoiceChatDropActive(event.dataTransfer);
   });
 
   menuNode.addEventListener("dragend", () => {
@@ -80553,6 +81049,7 @@ function setupMenuLinkDragToEditor() {
     menuLinkDragBtn.classList.remove("is-dragging-menu-link");
     menuLinkDragBtn = null;
     clearMenuMoveDropTarget();
+    document.body.classList.remove("is-voice-chat-drop-active");
   });
 }
 
@@ -93963,6 +94460,7 @@ setupMenuScrollTopButton();
 setupWorkspaceScrollChrome();
 setupLandingGroupsSortDragDrop();
 setupMenuLinkDragToEditor();
+setupVoiceChatContextDrag();
 setupMenuNodeMoveDragDrop();
 setupMemoryListDragDrop();
 setupEditorMenuLinkDrop();
@@ -95207,6 +95705,16 @@ initAgentLargeFilesToolbar();
 initAgentBrokenLinksToolbar();
 bindLandingFocusToolbar();
 initWorkspaceNotifications();
+
+window.AgentCmsLinkDrag = {
+  MIME: MENU_LINK_DRAG_MIME,
+  has: dataTransferHasVoiceChatLink,
+  hasMenuLink: dataTransferHasMenuLink,
+  extract: extractMenuLinkFromDataTransfer,
+  setPayload: setMenuLinkDragPayload,
+  buildLink: buildVoiceChatMarkdownLink,
+  resolveInsertText: resolveVoiceChatInsertText
+};
 initLiveFileSync();
 initNavPreviewHoverZoom();
 void syncMenuSystemEnvironment();

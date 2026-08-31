@@ -8,6 +8,7 @@
   const discussAsideNode = document.getElementById("discuss-aside");
   const discussResizerNode = document.getElementById("discuss-aside-resizer");
   const discussPanelToggleBtnNode = document.getElementById("discuss-panel-toggle-btn");
+  const discussPanelShellNode = document.getElementById("discuss-panel-shell");
   const discussShellIframeNode = document.getElementById("discuss-shell-iframe");
   const workspacePaneNode = document.querySelector(".workspace-pane");
   const discussAsideHeightMq = window.matchMedia("(max-width: 960px)");
@@ -278,6 +279,110 @@
     });
   }
 
+  function getVoicePostMessageOrigin() {
+    const src = discussShellIframeNode?.getAttribute("src") || discussShellIframeNode?.src || "";
+    if (!src) return "*";
+    try {
+      return new URL(src, window.location.href).origin;
+    } catch {
+      return "*";
+    }
+  }
+
+  function hasVoiceChatDrag(dataTransfer) {
+    return Boolean(window.AgentCmsLinkDrag?.has(dataTransfer));
+  }
+
+  function extractVoiceChatDrag(dataTransfer) {
+    return window.AgentCmsLinkDrag?.extract(dataTransfer) || null;
+  }
+
+  function insertIntoVoiceCompose(text) {
+    const trimmed = String(text || "").trim();
+    if (!trimmed || !discussShellIframeNode?.contentWindow) return false;
+    discussShellIframeNode.contentWindow.postMessage(
+      { type: "agent-cms-voice:compose-insert", text: trimmed },
+      getVoicePostMessageOrigin()
+    );
+    return true;
+  }
+
+  function bindVoiceChatDropZone() {
+    if (!discussPanelShellNode || discussPanelShellNode.dataset.voiceChatDropBound === "1") return;
+    discussPanelShellNode.dataset.voiceChatDropBound = "1";
+
+    const dropOverlay = document.createElement("div");
+    dropOverlay.className = "discuss-voice-chat-dropzone";
+    dropOverlay.setAttribute("aria-hidden", "true");
+    dropOverlay.textContent = "Отпустите для вставки в чат";
+    discussPanelShellNode.appendChild(dropOverlay);
+
+    let dropDepth = 0;
+
+    const setDropTarget = (active) => {
+      dropOverlay.classList.toggle("is-active", active);
+      discussAsideNode?.classList.toggle("is-voice-chat-drop-target", active);
+    };
+
+    const maybeOpenPanelForDrop = () => {
+      if (!panelHidden) return;
+      setPanelHidden(false);
+    };
+
+    const onDragEnter = (event) => {
+      if (!hasVoiceChatDrag(event.dataTransfer)) return;
+      event.preventDefault();
+      dropDepth += 1;
+      setDropTarget(true);
+      maybeOpenPanelForDrop();
+    };
+
+    const onDragOver = (event) => {
+      if (!hasVoiceChatDrag(event.dataTransfer)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      setDropTarget(true);
+    };
+
+    const onDragLeave = () => {
+      dropDepth = Math.max(0, dropDepth - 1);
+      if (dropDepth === 0) setDropTarget(false);
+    };
+
+    const onDrop = (event) => {
+      if (!hasVoiceChatDrag(event.dataTransfer)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dropDepth = 0;
+      setDropTarget(false);
+      document.body.classList.remove("is-voice-chat-drop-active");
+      const payload = extractVoiceChatDrag(event.dataTransfer);
+      const text =
+        window.AgentCmsLinkDrag?.resolveInsertText(payload) ||
+        payload?.voiceMarkdownLink ||
+        payload?.markdownLink ||
+        payload?.wikilink ||
+        payload?.text;
+      if (text) insertIntoVoiceCompose(text);
+    };
+
+    for (const target of [dropOverlay, discussAsideNode, discussPanelShellNode]) {
+      if (!target) continue;
+      target.addEventListener("dragenter", onDragEnter);
+      target.addEventListener("dragover", onDragOver);
+      target.addEventListener("dragleave", onDragLeave);
+      target.addEventListener("drop", onDrop);
+    }
+
+    window.addEventListener("dragover", (event) => {
+      if (!document.body.classList.contains("is-voice-chat-drop-active")) return;
+      if (!hasVoiceChatDrag(event.dataTransfer)) return;
+      if (panelHidden && event.clientX > window.innerWidth - 96) {
+        maybeOpenPanelForDrop();
+      }
+    });
+  }
+
   function syncFromApp() {
     const agentId = getActiveAgentIdFromUrl();
     ensureShellIframeLoaded(agentId);
@@ -287,6 +392,7 @@
   bindResize();
   bindHeaderToggle();
   bindDiscussAsideHeightSync();
+  bindVoiceChatDropZone();
   bindPresencePolling();
   applyPanelWidth();
   updatePanelUi();

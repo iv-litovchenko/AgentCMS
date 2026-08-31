@@ -4678,6 +4678,17 @@ function appendVoiceToCompose(text) {
   }
 }
 
+function bindCmsComposeInsertBridge() {
+  if (!shellEmbedMode) return;
+  window.addEventListener("message", (event) => {
+    if (event.source !== window.parent) return;
+    const data = event.data;
+    if (!data || typeof data !== "object") return;
+    if (data.type !== "agent-cms-voice:compose-insert") return;
+    appendVoiceToCompose(data.text);
+  });
+}
+
 function applyRemoteComposeDraft(body) {
   const text = String(body ?? "");
   composeDraftSavedText = text;
@@ -7615,6 +7626,7 @@ async function boot() {
   if (shellEmbedMode) {
     document.body.classList.add("shell-embed");
   }
+  bindCmsComposeInsertBridge();
   initShellSurface({ onSurface: renderHeaderHostChip });
   if (!shellEmbedMode) {
     initShellInstallBanner({
