@@ -35,6 +35,8 @@ body {
   min-height: 100%;
   color: var(--text);
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -1433,15 +1435,17 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 }
 
 .shell-main-view > .shell-chat-section--compose {
+  position: relative;
+  z-index: 40;
   flex: 0 0 auto;
   flex-shrink: 0;
   margin-top: auto;
   padding-top: 2px;
   padding-bottom: max(2px, env(safe-area-inset-bottom, 0px));
   border: 0;
-  background: rgba(18, 20, 38, 0.42);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: #0a0c16;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   box-shadow: none;
 }
 
@@ -1735,6 +1739,12 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   background: rgba(88, 196, 255, 0.12);
 }
 
+.shell-hero-status-badge.is-typing {
+  color: #6ee7b7;
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(52, 211, 153, 0.12);
+}
+
 .shell-hero-status-meta {
   display: none;
 }
@@ -1899,7 +1909,8 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   z-index: 1;
 }
 
-#shell-hero[data-hero-state="thinking"] .shell-hero-bg {
+#shell-hero[data-hero-state="thinking"] .shell-hero-bg,
+#shell-hero[data-hero-state="typing"] .shell-hero-bg {
   background:
     radial-gradient(ellipse 90% 70% at 50% 40%, rgba(34, 197, 94, 0.22), transparent 62%),
     radial-gradient(ellipse 75% 55% at 15% 85%, rgba(124, 108, 255, 0.14), transparent 55%),
@@ -2010,7 +2021,8 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 }
 
 .shell-hero-sensor-wrap:has(.shell-hero-sensor[data-activity="thinking"]) .shell-hero-think-orbs,
-.shell-hero-sensor-wrap:has(.shell-hero-sensor[data-hero-state="thinking"]) .shell-hero-think-orbs {
+.shell-hero-sensor-wrap:has(.shell-hero-sensor[data-hero-state="thinking"]) .shell-hero-think-orbs,
+.shell-hero-sensor-wrap:has(.shell-hero-sensor[data-hero-state="typing"]) .shell-hero-think-orbs {
   opacity: 1;
 }
 
@@ -2617,6 +2629,11 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   margin-left: auto;
 }
 
+.shell-hero-demo-panel,
+.shell-hero-demo-panel--hidden {
+  display: none !important;
+}
+
 .shell-hero-demo-panel {
   position: fixed;
   top: 50%;
@@ -2627,6 +2644,8 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   align-items: stretch;
   gap: 6px;
   width: min(152px, 38vw);
+  max-height: min(86vh, 740px);
+  overflow-y: auto;
   padding: 10px;
   border-radius: 12px;
   background: rgba(185, 28, 28, 0.94);
@@ -2695,6 +2714,79 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 .shell-hero-demo-btn[data-hero-demo="replying"].is-active {
   border-color: rgba(88, 196, 255, 0.55);
   background: rgba(88, 196, 255, 0.18);
+}
+
+.shell-thinking-sounds {
+  display: grid;
+  gap: 8px;
+}
+
+.shell-thinking-sound-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.shell-thinking-sound-btn {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  padding: 7px 8px;
+  background: rgba(15, 23, 42, 0.42);
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+
+.shell-thinking-sound-btn small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.shell-thinking-sound-btn:hover {
+  border-color: rgba(184, 173, 255, 0.45);
+  background: rgba(124, 108, 255, 0.12);
+}
+
+.shell-thinking-sound-btn.is-active {
+  border-color: rgba(53, 208, 127, 0.55);
+  background: rgba(53, 208, 127, 0.16);
+}
+
+.shell-hero-demo-sounds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.shell-hero-demo-sounds .shell-thinking-sound-btn {
+  padding: 4px 5px;
+  background: rgba(127, 29, 29, 0.55);
+  border-color: rgba(254, 202, 202, 0.4);
+  color: rgba(254, 242, 242, 0.96);
+  font-size: 10px;
+}
+
+.shell-hero-demo-sounds .shell-thinking-sound-btn small {
+  display: none;
+}
+
+.shell-hero-demo-sounds .shell-thinking-sound-btn:hover {
+  border-color: rgba(254, 242, 242, 0.75);
+  background: rgba(153, 27, 27, 0.72);
+}
+
+.shell-hero-demo-sounds .shell-thinking-sound-btn.is-active {
+  border-color: rgba(53, 208, 127, 0.7);
+  background: rgba(53, 208, 127, 0.22);
 }
 
 .shell-hero-demo-divider {
@@ -3249,7 +3341,7 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-compose-panel .shell-compose-input-wrap .shell-textarea {
-  min-height: 40px;
+  min-height: 48px;
 }
 
 @media (max-width: 640px) {
@@ -4326,9 +4418,9 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-compose-tool[aria-pressed="true"]:not(.shell-compose-mic) {
-  border-color: rgba(124, 108, 255, 0.65);
+  border-color: transparent;
   background: rgba(124, 108, 255, 0.22);
-  box-shadow: 0 0 0 1px rgba(124, 108, 255, 0.15);
+  box-shadow: none;
 }
 
 .shell-compose-field,
@@ -4340,23 +4432,32 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-compose-card {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 14px;
-  background: rgba(10, 12, 24, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  background: #0c0e1c;
   overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+  isolation: isolate;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .shell-textarea--compose {
-  min-height: 40px;
-  max-height: 140px;
-  padding: 10px 36px 4px 12px;
+  min-height: 48px;
+  max-height: 132px;
+  padding: 13px 40px 18px 16px;
   border: 0;
   border-radius: 0;
   background: transparent;
   resize: none;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.45;
+  color: var(--text);
+}
+
+.shell-textarea--compose::placeholder {
+  color: rgba(148, 163, 184, 0.58);
 }
 
 .shell-compose-options-row {
@@ -4385,39 +4486,60 @@ body.shell-desktop .shell-agent-gate select {
 .shell-compose-toolbar {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 6px 6px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 6px 8px 8px;
   min-width: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.shell-compose-toolbar .shell-icon-btn:not(.shell-compose-send) {
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 
 .shell-compose-toolbar-group {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   min-width: 0;
   flex-shrink: 0;
 }
 
 .shell-compose-toolbar-group--voice {
-  flex: 0 1 auto;
-  max-width: 42%;
+  flex: 1 1 148px;
+  max-width: none;
+  min-width: 0;
 }
 
-.shell-compose-toolbar-group--attach {
-  flex: 0 1 auto;
+.shell-compose-toolbar-group--attach,
+.shell-compose-toolbar-group--media {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  gap: 0;
   min-width: 0;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.shell-compose-toolbar-group--media {
   overflow-x: auto;
   scrollbar-width: none;
 }
 
-.shell-compose-toolbar-group--attach::-webkit-scrollbar {
+.shell-compose-toolbar-group--media::-webkit-scrollbar {
   display: none;
 }
 
 .shell-compose-toolbar-group--send {
   flex: 0 0 auto;
-  margin-left: auto;
-  gap: 4px;
+  margin-left: 4px;
+  gap: 2px;
 }
 
 .shell-compose-tool--sm {
@@ -4425,25 +4547,57 @@ body.shell-desktop .shell-agent-gate select {
   height: 28px;
   min-height: 28px;
   padding: 0;
-  border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.72);
+  opacity: 0.78;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.shell-compose-tool--sm:hover:not(:disabled) {
+  opacity: 1;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .shell-compose-send {
-  width: 32px;
+  width: auto;
+  min-width: 32px;
   height: 32px;
   min-height: 32px;
-  padding: 0;
+  padding: 0 8px 0 7px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  gap: 4px;
+  border-radius: 999px;
   border: 0;
-  background: linear-gradient(135deg, #5f4bff, #8b5cf6);
+  background: linear-gradient(165deg, #8b7cff, #6d28d9);
   color: #fff;
   flex-shrink: 0;
-  box-shadow: 0 2px 10px rgba(95, 75, 255, 0.35);
+  box-shadow: 0 3px 12px rgba(109, 40, 217, 0.38);
+}
+
+.shell-compose-send-kbd {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  font-family: inherit;
+  opacity: 0.9;
+}
+
+.shell-compose-send-kbd:empty {
+  display: none;
+}
+
+.shell-compose-send:not(:has(.shell-compose-send-kbd:not(:empty))) {
+  width: 32px;
+  padding: 0;
+  gap: 0;
 }
 
 .shell-compose-send:hover:not(:disabled) {
@@ -4470,40 +4624,103 @@ body.shell-desktop .shell-agent-gate select {
   display: none;
 }
 
+.shell-compose-toolbar .shell-compose-stop {
+  min-width: 32px;
+  width: 32px;
+}
+
 .shell-compose-voice--compact {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) 28px;
-  align-items: stretch;
-  height: 28px;
-  min-height: 28px;
-  max-height: 28px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  padding: 0 2px 0 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.shell-compose-voice--compact:focus-within {
+  outline: none;
 }
 
 .shell-compose-voice--compact #shell-mic-btn {
-  width: 30px;
-  height: 100%;
-  min-height: 0;
+  order: 1;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
   border: 0;
-  border-radius: 0;
-  border-right: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 999px;
+  border-right: 0;
   background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.shell-compose-voice--compact #shell-mic-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .shell-compose-voice--compact .shell-compose-voice-select,
-.shell-compose-voice--compact #shell-voice-mode {
-  height: 100%;
-  min-height: 0;
-  padding: 0 22px 0 6px;
-  font-size: 11px;
-  line-height: 28px;
+.shell-compose-voice--compact #shell-voice-mode,
+.shell-compose-voice--compact select.shell-select.shell-compose-voice-select {
+  order: 2;
+  flex: 0 1 auto;
+  grid-column: auto;
+  grid-row: auto;
+  width: auto;
+  max-width: 92px;
+  min-width: 52px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 18px 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 32px;
   border: 0;
-  border-radius: 0;
+  border-radius: 8px;
   background-color: transparent;
-  background-position: right 4px center;
+  background-position: right 2px center;
+  color: rgba(226, 232, 240, 0.88);
+  box-shadow: none;
+}
+
+.shell-compose-voice--compact .shell-compose-voice-source {
+  order: 3;
+  width: auto;
+  min-width: 22px;
+  height: 16px;
+  padding: 0 5px;
+  margin: 0 2px 0 0;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  color: inherit;
+  overflow: hidden;
+}
+
+.shell-compose-voice--compact .shell-compose-voice-global {
+  order: 4;
+  width: 28px;
+  height: 28px;
+  border-left: 0;
+  border-radius: 999px;
+  opacity: 0.62;
+}
+
+.shell-compose-voice--compact .shell-compose-voice-global:hover,
+.shell-compose-voice--compact .shell-compose-voice-global.is-active {
+  opacity: 1;
+  background: rgba(74, 222, 128, 0.14);
 }
 
 .shell-compose-voice-source {
@@ -4541,8 +4758,8 @@ body.shell-desktop .shell-agent-gate select {
 
 .shell-compose-voice--compact .shell-compose-voice-compose {
   width: 28px;
-  height: 100%;
-  border-left: 1px solid rgba(148, 163, 184, 0.14);
+  height: 28px;
+  border-left: 0;
 }
 
 .shell-compose-voice-global {
@@ -4658,11 +4875,11 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-compose-input-wrap .shell-textarea {
-  padding-right: 36px;
+  padding-right: 40px;
 }
 
 .shell-compose-panel .shell-compose-input-wrap .shell-textarea {
-  min-height: 40px;
+  min-height: 48px;
   border-radius: 0;
 }
 
@@ -4673,6 +4890,11 @@ body.shell-desktop .shell-agent-gate select {
   gap: 8px;
   min-height: 0;
   padding: 0 8px 4px;
+}
+
+.shell-compose-field-meta:not(:has(:not(.hidden))) {
+  display: none;
+  padding: 0;
 }
 
 .shell-compose-voice-hint {
@@ -4695,15 +4917,30 @@ body.shell-desktop .shell-agent-gate select {
 
 .shell-compose-expand-toggle {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(148, 163, 184, 0.72);
+  opacity: 0.55;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.shell-compose-expand-toggle:hover {
+  opacity: 1;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .shell-compose-expand-toggle svg {
@@ -4725,14 +4962,24 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-compose-expand-toggle[aria-pressed="true"] {
-  border-color: rgba(124, 108, 255, 0.65);
+  opacity: 1;
+  color: var(--text);
   background: rgba(124, 108, 255, 0.2);
 }
 
 .shell-compose-draft-status {
-  font-size: 11px;
+  position: absolute;
+  right: 10px;
+  bottom: 5px;
+  z-index: 1;
+  max-width: calc(100% - 20px);
+  font-size: 10px;
+  line-height: 1;
   color: var(--muted);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 
 .shell-compose-draft-status.hidden,
@@ -4745,16 +4992,11 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-compose-draft-status.is-saved {
-  color: #22c55e;
+  color: rgba(74, 222, 128, 0.85);
 }
 
 .shell-compose-draft-status.is-error {
-  color: #ef4444;
-}
-
-.shell-compose-draft-path {
-  font-size: 10px;
-  color: var(--muted);
+  color: #f87171;
 }
 
 .shell-compose-field.is-expanded .shell-compose-input-wrap,
@@ -4767,28 +5009,6 @@ body.shell-desktop .shell-agent-gate select {
 
 .shell-compose-fullscreen-head {
   display: none;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: max(10px, env(safe-area-inset-top)) var(--shell-surface-inset-x) 8px;
-  border-bottom: 1px solid rgba(122, 108, 255, 0.22);
-  background: rgba(8, 10, 20, 0.98);
-}
-
-.shell-compose-fullscreen-head-main {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  min-width: 0;
-}
-
-.shell-compose-fullscreen-kbd {
-  font-size: 11px;
-  color: var(--muted);
-  white-space: nowrap;
 }
 
 #shell-compose-dock.is-expanded {
@@ -4808,10 +5028,6 @@ body.shell-desktop .shell-agent-gate select {
   background: #070812;
   box-shadow: none;
   gap: 0;
-}
-
-#shell-compose-dock.is-expanded .shell-compose-fullscreen-head {
-  display: flex;
 }
 
 #shell-compose-dock.is-expanded .shell-compose-dock-inner {
@@ -4855,11 +5071,6 @@ body.shell-desktop .shell-agent-gate select {
   background: #0a0c18;
 }
 
-#shell-compose-dock.is-expanded .shell-compose-field-meta {
-  flex-shrink: 0;
-  padding: 6px var(--shell-surface-inset-x) 0;
-}
-
 #shell-compose-dock.is-expanded .shell-compose-toolbar {
   flex-shrink: 0;
   margin-top: 0;
@@ -4882,14 +5093,6 @@ body.shell-desktop .shell-agent-gate select {
   padding: 0 var(--shell-surface-inset-x) 10px;
 }
 
-#shell-compose-dock.is-expanded .shell-compose-expand-toggle {
-  top: max(10px, env(safe-area-inset-top));
-  right: var(--shell-surface-inset-x);
-  width: 32px;
-  height: 32px;
-  z-index: 3;
-}
-
 .shell-compose-field.is-expanded {
   /* legacy hook — layout driven by #shell-compose-dock.is-expanded */
 }
@@ -4905,6 +5108,12 @@ body.shell-desktop .shell-agent-gate select {
 #shell-compose-dock.is-expanded .shell-compose-expand-toggle {
   top: max(10px, env(safe-area-inset-top));
   right: var(--shell-surface-inset-x);
+}
+
+#shell-compose-dock.is-expanded .shell-compose-draft-status {
+  top: auto;
+  right: var(--shell-surface-inset-x);
+  bottom: 10px;
 }
 
 .shell-compose-expand-backdrop {
@@ -6383,7 +6592,15 @@ body.shell-bg-wallpaper .shell-character-viewport {
 }
 
 body.shell-compact:not(.shell-embed) {
-  padding: 6px;
+  padding: 0;
+  background-color: #f4f7ff;
+  background-image: none;
+}
+
+body.shell-compact.shell-bg-wallpaper,
+body.shell-compact.shell-bg-dark {
+  background-color: #f4f7ff;
+  background-image: none;
 }
 
 body.shell-embed {
@@ -6434,8 +6651,14 @@ body.shell-embed .shell-path-header {
 
 .shell-app[data-compact="1"] {
   min-height: 0;
-  width: min(320px, 100%);
-  gap: 8px;
+  width: 100%;
+  max-width: none;
+  gap: 0;
+  background: transparent;
+}
+
+.shell-app[data-compact="1"] .shell-path-header {
+  display: none;
 }
 
 .shell-app[data-compact="1"] .shell-path-actions,
@@ -6467,21 +6690,180 @@ body.shell-embed .shell-path-header {
 
 .shell-compact-stage {
   display: none;
+  position: relative;
   flex: 1 1 auto;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 220px;
-  padding: 20px var(--shell-surface-inset-x);
+  overflow: hidden;
+  padding: 24px var(--shell-surface-inset-x);
   border-radius: 0;
-  background: transparent;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 38%, rgba(255, 255, 255, 0.55) 0%, #eef2ff 46%, #dce6ff 100%);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border: 0;
   box-shadow: none;
 }
 
+.shell-compact-cosmos {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.shell-compact-cosmos-veil {
+  position: absolute;
+  inset: -24%;
+  background:
+    radial-gradient(ellipse 68% 52% at 28% 22%, rgba(167, 139, 250, 0.34), transparent 58%),
+    radial-gradient(ellipse 62% 48% at 78% 68%, rgba(56, 189, 248, 0.28), transparent 54%),
+    radial-gradient(ellipse 54% 42% at 52% 88%, rgba(251, 191, 36, 0.18), transparent 56%);
+  animation: shell-compact-cosmos-veil 18s ease-in-out infinite;
+}
+
+.shell-compact-cosmos-aurora {
+  position: absolute;
+  left: -22%;
+  width: 144%;
+  height: 38%;
+  border-radius: 50%;
+  filter: blur(32px);
+  opacity: 0.5;
+}
+
+.shell-compact-cosmos-aurora--a {
+  top: 16%;
+  background: linear-gradient(90deg, transparent, rgba(196, 181, 253, 0.62), rgba(125, 211, 252, 0.42), transparent);
+  animation: shell-compact-cosmos-aurora 16s ease-in-out infinite;
+}
+
+.shell-compact-cosmos-aurora--b {
+  top: 56%;
+  background: linear-gradient(90deg, transparent, rgba(253, 224, 171, 0.42), rgba(196, 181, 253, 0.38), transparent);
+  animation: shell-compact-cosmos-aurora 22s ease-in-out infinite reverse;
+}
+
+.shell-compact-cosmos-nebula {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(48px);
+  opacity: 0.86;
+}
+
+.shell-compact-cosmos-nebula--a {
+  width: 48%;
+  height: 42%;
+  left: -8%;
+  top: 8%;
+  background: radial-gradient(circle, rgba(196, 181, 253, 0.82), transparent 70%);
+  animation: shell-compact-cosmos-drift 22s ease-in-out infinite;
+}
+
+.shell-compact-cosmos-nebula--b {
+  width: 42%;
+  height: 38%;
+  right: -6%;
+  top: 28%;
+  background: radial-gradient(circle, rgba(125, 211, 252, 0.7), transparent 70%);
+  animation: shell-compact-cosmos-drift 26s ease-in-out infinite reverse;
+}
+
+.shell-compact-cosmos-nebula--c {
+  width: 52%;
+  height: 36%;
+  left: 24%;
+  bottom: -8%;
+  background: radial-gradient(circle, rgba(254, 243, 226, 0.86), transparent 68%);
+  animation: shell-compact-cosmos-drift 30s ease-in-out infinite;
+}
+
+.shell-compact-cosmos-nebula--d {
+  width: 36%;
+  height: 30%;
+  right: 18%;
+  bottom: 12%;
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.28), transparent 70%);
+  animation: shell-compact-cosmos-drift 20s ease-in-out infinite reverse;
+}
+
+.shell-compact-cosmos-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.7);
+  box-shadow: 0 0 10px rgba(167, 139, 250, 0.8);
+  animation: shell-compact-cosmos-twinkle 3.4s ease-in-out infinite;
+}
+
+.shell-compact-cosmos-star--1 { top: 14%; left: 18%; animation-delay: 0s; }
+.shell-compact-cosmos-star--2 { top: 22%; left: 72%; width: 2px; height: 2px; animation-delay: 0.6s; }
+.shell-compact-cosmos-star--3 { top: 48%; left: 12%; animation-delay: 1.1s; }
+.shell-compact-cosmos-star--4 { top: 36%; left: 88%; width: 2px; height: 2px; animation-delay: 1.7s; }
+.shell-compact-cosmos-star--5 { top: 68%; left: 28%; animation-delay: 0.4s; }
+.shell-compact-cosmos-star--6 { top: 78%; left: 64%; width: 2px; height: 2px; animation-delay: 2.1s; }
+.shell-compact-cosmos-star--7 { top: 12%; left: 46%; animation-delay: 2.6s; }
+.shell-compact-cosmos-star--8 { top: 58%; left: 80%; animation-delay: 1.4s; }
+
+.shell-compact-cosmos-mote {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 14px rgba(167, 139, 250, 0.55);
+  animation: shell-compact-cosmos-mote 13s ease-in-out infinite;
+}
+
+.shell-compact-cosmos-mote--1 { top: 24%; left: 22%; animation-delay: 0s; }
+.shell-compact-cosmos-mote--2 { top: 62%; left: 16%; width: 5px; height: 5px; animation-delay: 2.2s; animation-duration: 16s; }
+.shell-compact-cosmos-mote--3 { top: 18%; left: 78%; animation-delay: 1.1s; animation-duration: 15s; }
+.shell-compact-cosmos-mote--4 { top: 72%; left: 74%; width: 4px; height: 4px; animation-delay: 3.4s; }
+.shell-compact-cosmos-mote--5 { top: 40%; left: 8%; width: 5px; height: 5px; animation-delay: 4.6s; animation-duration: 18s; }
+.shell-compact-cosmos-mote--6 { top: 52%; left: 88%; animation-delay: 0.8s; animation-duration: 14s; }
+
+@keyframes shell-compact-cosmos-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(22px, -18px) scale(1.1); }
+}
+
+@keyframes shell-compact-cosmos-twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.35); }
+}
+
+@keyframes shell-compact-cosmos-veil {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.78; }
+  50% { transform: translate(-3%, 2%) rotate(10deg); opacity: 1; }
+}
+
+@keyframes shell-compact-cosmos-aurora {
+  0%, 100% { transform: translateX(-8%) rotate(-8deg); }
+  50% { transform: translateX(8%) rotate(6deg); }
+}
+
+@keyframes shell-compact-cosmos-mote {
+  0%, 100% { transform: translate3d(0, 14px, 0); opacity: 0.12; }
+  50% { transform: translate3d(10px, -30px, 0); opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-compact-cosmos-veil,
+  .shell-compact-cosmos-aurora,
+  .shell-compact-cosmos-nebula,
+  .shell-compact-cosmos-star,
+  .shell-compact-cosmos-mote {
+    animation: none;
+  }
+}
+
 .shell-compact-sensor-wrap {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -6490,10 +6872,43 @@ body.shell-embed .shell-path-header {
   text-align: center;
 }
 
+.shell-compact-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 0;
+  padding: 4px 10px 4px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 6px 18px rgba(148, 163, 184, 0.18);
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.shell-compact-brand:hover {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.shell-compact-brand-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
 .shell-compact-sensor-hint {
   font-size: 12px;
   line-height: 1.45;
-  color: rgba(148, 163, 184, 0.95);
+  color: rgba(51, 65, 85, 0.72);
+}
+
+.shell-compact-status-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
 .shell-compact-sensor-status {
@@ -6502,7 +6917,33 @@ body.shell-embed .shell-path-header {
   font-size: 13px;
   font-weight: 600;
   line-height: 1.4;
-  color: rgba(148, 163, 184, 0.95);
+  color: rgba(51, 65, 85, 0.78);
+}
+
+.shell-compact-exit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 4px 12px rgba(148, 163, 184, 0.18);
+  color: #334155;
+  cursor: pointer;
+}
+
+.shell-compact-exit:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: #0f172a;
+}
+
+.shell-compact-exit:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.7);
+  outline-offset: 2px;
 }
 
 .shell-compact-sensor-status.is-active {
@@ -6515,6 +6956,10 @@ body.shell-embed .shell-path-header {
 
 .shell-compact-sensor-status.is-speaking {
   color: #7dd3fc;
+}
+
+.shell-compact-sensor-status.is-idle {
+  color: rgba(51, 65, 85, 0.78);
 }
 
 .shell-compact-sensor-status.is-typing {
@@ -7042,6 +7487,36 @@ body.shell-embed .shell-path-header {
 .shell-hero-sensor.shell-compact-sensor[data-hero-state="thinking"] .shell-compact-sensor-typing,
 .shell-hero-sensor.shell-compact-sensor[data-activity="thinking"] .shell-compact-sensor-typing {
   display: none;
+}
+
+.shell-hero-sensor.shell-compact-sensor[data-hero-state="typing"],
+.shell-hero-sensor.shell-compact-sensor[data-activity="typing"] {
+  box-shadow:
+    inset 0 0 0 3px rgba(52, 211, 153, 0.55),
+    0 0 0 8px rgba(52, 211, 153, 0.12),
+    0 12px 28px rgba(2, 6, 23, 0.45);
+}
+
+.shell-hero-sensor.shell-compact-sensor[data-hero-state="typing"] .shell-compact-sensor-ring,
+.shell-hero-sensor.shell-compact-sensor[data-activity="typing"] .shell-compact-sensor-ring {
+  border-color: rgba(52, 211, 153, 0.55);
+  animation: shell-compact-think-ring 1.6s ease-in-out infinite;
+}
+
+.shell-hero-sensor.shell-compact-sensor[data-hero-state="typing"] .shell-compact-sensor-cloud,
+.shell-hero-sensor.shell-compact-sensor[data-activity="typing"] .shell-compact-sensor-cloud {
+  opacity: 1;
+  animation: shell-compact-type-jitter 0.55s ease-in-out infinite;
+}
+
+.shell-hero-sensor.shell-compact-sensor[data-hero-state="typing"] .shell-compact-cloud-mouth,
+.shell-hero-sensor.shell-compact-sensor[data-activity="typing"] .shell-compact-cloud-mouth {
+  animation: shell-compact-talk 0.35s ease-in-out infinite alternate;
+}
+
+.shell-hero-sensor.shell-compact-sensor[data-hero-state="typing"] .shell-compact-sensor-typing,
+.shell-hero-sensor.shell-compact-sensor[data-activity="typing"] .shell-compact-sensor-typing {
+  display: flex;
 }
 
 .shell-hero-sensor.shell-compact-sensor[data-hero-state="replying"],
@@ -7647,6 +8122,53 @@ body.shell-embed .shell-path-header {
 .shell-textarea {
   resize: vertical;
   min-height: 84px;
+}
+
+#shell-compose-field .shell-textarea.shell-textarea--compose,
+.shell-compose-panel .shell-compose-input-wrap .shell-textarea.shell-textarea--compose {
+  resize: none;
+  min-height: 48px;
+  max-height: 132px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 13px 40px 18px 16px;
+}
+
+#shell-compose-field .shell-textarea.shell-textarea--compose:focus {
+  outline: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.shell-compose-voice--compact select.shell-select.shell-compose-voice-select {
+  appearance: none;
+  width: auto;
+  max-width: 92px;
+  min-width: 52px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 18px 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 32px;
+  grid-column: auto;
+  grid-row: auto;
+  border: 0;
+  border-radius: 8px;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' stroke='%239aa0c3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+  box-shadow: none;
+}
+
+.shell-compose-voice--compact select.shell-select.shell-compose-voice-select:hover,
+.shell-compose-voice--compact select.shell-select.shell-compose-voice-select:focus {
+  border: 0;
+  background-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
 }
 
 .shell-row {
@@ -8333,6 +8855,12 @@ body.shell-embed .shell-path-header {
 }
 
 @media (max-width: 480px) {
+  html,
+  body {
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+
   body {
     padding: 8px;
   }
@@ -8392,18 +8920,29 @@ body.shell-embed .shell-path-header {
     font-size: 16px;
   }
 
+  body.shell-layout-mobile .shell-compose-send-kbd {
+    display: none;
+  }
+
+  body.shell-layout-mobile .shell-compose-send {
+    width: 32px;
+    padding: 0;
+    gap: 0;
+  }
+
   body.shell-keyboard-open.shell-layout-mobile #shell-compose-dock {
     position: fixed;
     left: 50%;
-    z-index: 120;
+    z-index: 400;
     width: min(calc(100vw - 16px), 480px);
     transform: translateX(-50%);
     bottom: calc(var(--vv-keyboard, 0px) + max(6px, env(safe-area-inset-bottom)));
     padding: 8px 10px max(8px, env(safe-area-inset-bottom));
-    border-radius: 14px 14px 0 0;
-    background: rgba(7, 8, 18, 0.96);
+    border-radius: 16px 16px 0 0;
+    background: #070812;
+    isolation: isolate;
     border: 1px solid rgba(122, 108, 255, 0.28);
-    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.72);
   }
 
   body.shell-keyboard-open.shell-layout-mobile .shell-reply-panel .shell-dialog-scroll,
@@ -8522,14 +9061,15 @@ body.shell-embed.shell-keyboard-open .shell-compose-dock {
   position: fixed;
   left: 0;
   right: 0;
-  z-index: 120;
+  z-index: 400;
   width: auto;
   transform: none;
   bottom: calc(var(--vv-keyboard, 0px) + env(safe-area-inset-bottom, 0px));
   margin: 0;
   border-radius: 12px 12px 0 0;
-  background: rgba(7, 8, 18, 0.96);
-  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.4);
+  background: #070812;
+  isolation: isolate;
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.55);
 }
 
 body.shell-embed.shell-keyboard-open .shell-dialog-scroll {
@@ -8540,6 +9080,11 @@ body.shell-embed.shell-keyboard-open .shell-dialog-scroll {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.shell-compose-dock-inner {
+  border-radius: 20px 20px 0 0;
+  overflow: hidden;
 }
 
 html:has(body.shell-pet),

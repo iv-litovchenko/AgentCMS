@@ -38,6 +38,14 @@ export const VOICE_MODE_LABELS = {
   fn_button: "Shift"
 };
 
+/** Короткие подписи для компактного select в панели ввода. */
+export const VOICE_MODE_COMPACT_LABELS = {
+  live: "Живой",
+  meeting: "Встреча",
+  hold: "Голос",
+  fn_button: "Shift"
+};
+
 /** Короткая подпись в `<option>` — режим + суть одной строкой. */
 export const VOICE_MODE_OPTION_LABELS = {
   live: "Живой диалог — sidecar, речь по паузе → агенту",

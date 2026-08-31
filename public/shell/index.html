@@ -2,7 +2,7 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content" />
     <meta name="theme-color" content="#070812" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=429" />
+    <link rel="stylesheet" href="/shell/shell.css?v=447" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -23,14 +23,14 @@
           "@shell/settings-save": "/shell/shell-settings-save.js?v=316",
           "@shell/reply": "/shell/shell-reply.js?v=207",
           "@shell/markdown": "/shell/shell-markdown.js?v=207",
-          "@shell/character": "/shell/shell-character.js?v=207",
+          "@shell/character": "/shell/shell-character.js?v=208",
           "@shell/character-models": "/shell/shell-character-models.js?v=207",
           "@shell/camera": "/shell/shell-camera.js?v=207",
           "@shell/screen": "/shell/shell-screen.js?v=207",
           "@shell/tts-tab": "/shell/shell-tts-tab.js?v=207",
           "@shell/tts-player": "/shell/shell-tts-player.js?v=207",
           "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=207",
-          "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=404",
+          "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=411",
           "@shell/browser-tts": "/shell/shell-browser-tts.js?v=404",
           "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=207",
           "@shell/session": "/shell/shell-session.js?v=207",
@@ -50,7 +50,7 @@
           "@shell/proactive": "/shell/shell-proactive.js?v=322",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
           "@shell/voice": "/shell/shell-voice.js?v=207",
-          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=414",
+          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=415",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=350",
@@ -628,7 +628,7 @@
             <span>Не гасить экран</span>
           </label>
           <p class="shell-window-note">Моделька сверху — сам персонаж. Галочка выносит его на рабочий стол отдельным окном (только Voice.app). Двойной клик по нему открывает Voice.</p>
-          <p class="shell-window-note">Компактный режим — кнопка «Компакт» внизу экрана. Минимум окна: 320×500.</p>
+          <p class="shell-window-note">Компактный режим — нажмите на облачко. Свернуть — кнопка рядом со статусом. Минимум окна: 320×500.</p>
           <p class="shell-window-note shell-window-note--local">«Не гасить экран» — на этом устройстве (не в awn-shell.json).</p>
           <label class="shell-field shell-field--compact">
             <span class="shell-label">Фон</span>
@@ -638,6 +638,11 @@
               <option value="transparent">Прозрачный</option>
             </select>
           </label>
+          <div class="shell-thinking-sounds">
+            <span class="shell-label">Звук «думаю»</span>
+            <div class="shell-thinking-sound-grid" id="shell-thinking-sound-grid"></div>
+            <p class="shell-window-note">Играет, пока агент обрабатывает запрос. Нажмите, чтобы послушать.</p>
+          </div>
         </div>
         <div class="shell-settings-save-row">
           <div class="shell-settings-save-actions">
@@ -1420,6 +1425,29 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
       <div class="shell-main-view" id="shell-main-view" data-chat-open="1" data-route-open="0" data-media-open="0">
       <section class="shell-compact-stage" id="shell-compact-stage" aria-label="Компактный режим">
+        <div class="shell-compact-cosmos" aria-hidden="true">
+          <span class="shell-compact-cosmos-veil"></span>
+          <span class="shell-compact-cosmos-aurora shell-compact-cosmos-aurora--a"></span>
+          <span class="shell-compact-cosmos-aurora shell-compact-cosmos-aurora--b"></span>
+          <span class="shell-compact-cosmos-nebula shell-compact-cosmos-nebula--a"></span>
+          <span class="shell-compact-cosmos-nebula shell-compact-cosmos-nebula--b"></span>
+          <span class="shell-compact-cosmos-nebula shell-compact-cosmos-nebula--c"></span>
+          <span class="shell-compact-cosmos-nebula shell-compact-cosmos-nebula--d"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--1"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--2"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--3"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--4"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--5"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--6"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--7"></span>
+          <span class="shell-compact-cosmos-star shell-compact-cosmos-star--8"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--1"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--2"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--3"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--4"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--5"></span>
+          <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--6"></span>
+        </div>
         <div class="shell-compact-sensor-wrap">
           <button
             type="button"
@@ -1453,11 +1481,34 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <ellipse class="shell-compact-cloud-glow" cx="32" cy="52" rx="10" ry="3" />
             </svg>
           </button>
+          <button
+            type="button"
+            class="shell-compact-brand"
+            id="shell-compact-brand"
+            title="На главную"
+            aria-label="Agent CMS Voice — на главную"
+          >
+            <img class="shell-path-logo" src="/shell/favicon.svg" width="28" height="28" alt="" aria-hidden="true" />
+            <span class="shell-compact-brand-title">Agent CMS Voice</span>
+          </button>
           <span class="shell-compact-sensor-hint">Удерживай круг — говори, отпусти — отправлю</span>
-          <p class="shell-compact-sensor-status" id="shell-compact-sensor-status">Ожидание касания…</p>
+          <div class="shell-compact-status-row">
+            <p class="shell-compact-sensor-status" id="shell-compact-sensor-status">Ожидание касания…</p>
+            <button
+              type="button"
+              class="shell-compact-exit"
+              id="shell-compact-exit"
+              title="Свернуть компакт"
+              aria-label="Свернуть компакт"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+              </svg>
+            </button>
+          </div>
         </div>
       </section>
-      <section class="shell-hero" id="shell-hero" data-hero-state="ready">
+      <section class="shell-hero" id="shell-hero" data-hero-state="idle">
         <div class="shell-hero-bg" aria-hidden="true">
           <span class="shell-hero-aurora shell-hero-aurora--a"></span>
           <span class="shell-hero-aurora shell-hero-aurora--b"></span>
@@ -1537,9 +1588,9 @@ aya_bar_v2 тоже читает те же файлы</pre>
               class="shell-compact-sensor shell-hero-sensor shell-agent-avatar"
               id="shell-agent-avatar"
               data-phase="waiting"
-              data-hero-state="ready"
-              data-activity="ready"
-              aria-label="Готов к сообщению"
+              data-hero-state="idle"
+              data-activity="idle"
+              aria-label="Ожидаю"
             >
               <span class="shell-compact-sensor-ripple" aria-hidden="true"></span>
               <span class="shell-compact-sensor-ripple shell-compact-sensor-ripple--echo" aria-hidden="true"></span>
@@ -1565,7 +1616,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <ellipse class="shell-compact-cloud-glow" cx="32" cy="52" rx="10" ry="3" />
               </svg>
             </button>
-            <p class="shell-hero-status-badge is-ready" id="shell-phase-label" aria-live="polite">Готов к сообщению</p>
+            <p class="shell-hero-status-badge is-idle" id="shell-phase-label" aria-live="polite">Ожидаю</p>
             </div>
             <div class="shell-hero-toolbar-row">
             <div class="shell-hero-toolbar" id="shell-tts-controls">
@@ -1683,12 +1734,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <ul class="shell-message-queue-list" id="shell-message-queue-list"></ul>
         </div>
         <div class="shell-compose-dock" id="shell-compose-dock">
-          <div class="shell-compose-fullscreen-head" aria-hidden="true">
-            <div class="shell-compose-fullscreen-head-main">
-              <span class="shell-section-label">Ваше сообщение</span>
-              <span class="shell-compose-fullscreen-kbd">Esc — свернуть · ⌘↵ — отправить</span>
-            </div>
-          </div>
           <div class="shell-compose-dock-inner">
         <div class="shell-compose-field shell-compose-card" id="shell-compose-field">
           <div class="shell-compose-options-row" role="group" aria-label="Параметры запроса">
@@ -1752,6 +1797,12 @@ aya_bar_v2 тоже читает те же файлы</pre>
               placeholder="Спросите агента…"
               aria-label="Ваше сообщение"
             ></textarea>
+            <span
+              class="shell-compose-draft-status hidden"
+              id="shell-compose-draft-status"
+              aria-live="polite"
+              title=".agent-shell/compose-draft.md"
+            ></span>
             <button
               type="button"
               class="shell-icon-btn shell-compose-expand-toggle"
@@ -1791,6 +1842,18 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </button>
           </div>
           <div class="shell-compose-toolbar" aria-label="Панель ввода">
+            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--attach" aria-label="Вложения">
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm shell-compose-attach"
+                id="shell-attach-btn"
+                disabled
+                title="Прикрепить файл — скоро"
+                aria-label="Прикрепить файл (скоро)"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">📎</span>
+              </button>
+            </div>
             <div class="shell-compose-toolbar-group shell-compose-toolbar-group--voice">
               <div
                 class="shell-hint shell-compose-voice shell-compose-voice--compact"
@@ -1821,7 +1884,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 >
                   <option value="live">Живой</option>
                   <option value="meeting">Встреча</option>
-                  <option value="hold" selected>Удержать</option>
+                  <option value="hold" selected>Голос</option>
                   <option value="fn_button">Shift</option>
                 </select>
                 <label
@@ -1839,7 +1902,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 </label>
               </div>
             </div>
-            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--attach" aria-label="Вложения">
+            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--media" aria-label="Камера и экран">
               <input
                 type="file"
                 id="shell-compose-camera-file"
@@ -1867,16 +1930,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 title="Снимок экрана или камеры для агента"
               >
                 <span class="shell-compose-tool-icon" aria-hidden="true">📸</span>
-              </button>
-              <button
-                type="button"
-                class="shell-icon-btn shell-compose-tool shell-compose-tool--sm shell-compose-attach"
-                id="shell-attach-btn"
-                disabled
-                title="Прикрепить файл — скоро"
-                aria-label="Прикрепить файл (скоро)"
-              >
-                <span class="shell-compose-tool-icon" aria-hidden="true">📎</span>
               </button>
               <button
                 type="button"
@@ -1914,21 +1967,16 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 type="button"
                 class="shell-icon-btn shell-compose-send"
                 id="shell-send-btn"
-                title="Отправить (Enter)"
+                title="Отправить (⌘↵)"
                 aria-label="Отправить"
               >
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 19V5" />
                   <path d="m5 12 7-7 7 7" />
                 </svg>
+                <kbd class="shell-compose-send-kbd" aria-hidden="true">⌘↵</kbd>
               </button>
             </div>
-          </div>
-          <div class="shell-compose-field-meta">
-            <span class="shell-compose-draft-status hidden" id="shell-compose-draft-status" aria-live="polite"></span>
-            <span class="shell-compose-draft-path hidden" id="shell-compose-draft-path">
-              <code>.agent-shell/compose-draft.md</code>
-            </span>
           </div>
           </div>
         </div>
@@ -2026,31 +2074,15 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
     </div>
 
-    <aside class="shell-hero-demo-panel" id="shell-hero-demo-bar" aria-label="Примеры статусов">
+    <aside class="shell-hero-demo-panel shell-hero-demo-panel--hidden" id="shell-hero-demo-bar" aria-label="Примеры статусов" hidden>
       <span class="shell-hero-demo-label">Пример</span>
       <button type="button" class="shell-hero-demo-btn" data-hero-demo="idle">Ожидаю</button>
       <button type="button" class="shell-hero-demo-btn" data-hero-demo="ready">Готов</button>
       <button type="button" class="shell-hero-demo-btn" data-hero-demo="listening">Слушаю</button>
       <button type="button" class="shell-hero-demo-btn" data-hero-demo="thinking">Обрабатываю</button>
       <button type="button" class="shell-hero-demo-btn" data-hero-demo="replying">Отвечаю</button>
-      <div class="shell-hero-demo-divider" aria-hidden="true"></div>
-      <span class="shell-hero-demo-label">Окно</span>
-      <button
-        type="button"
-        class="shell-hero-demo-btn shell-hero-demo-btn--compact"
-        id="shell-compact-action"
-        title="Компактный режим окна"
-        aria-label="Компактный режим"
-        aria-pressed="false"
-      >
-        <span class="shell-hero-demo-btn-row">
-          <svg class="shell-hero-demo-btn-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-            <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.45" />
-            <rect x="4" y="9" width="8" height="4" rx="1.2" fill="currentColor" />
-          </svg>
-          Компакт
-        </span>
-      </button>
+      <span class="shell-hero-demo-label">Звук думаю</span>
+      <div class="shell-hero-demo-sounds" id="shell-thinking-sound-demo"></div>
     </aside>
 
     <dialog class="shell-dialog" id="shell-voice-confirm-dialog">
@@ -2117,6 +2149,6 @@ CMS workspace</pre>
     <script src="/markdown-github-alerts.js"></script>
     <script src="/markdown-it-task-lists.js"></script>
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=417" type="module"></script>
+    <script src="/shell/shell.js?v=434" type="module"></script>
   </body>
 </html>

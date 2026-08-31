@@ -2576,6 +2576,7 @@ function syncAppRouteToUrl({ push = false, replace = !push } = {}) {
   const current = `${location.pathname}${location.search}${location.hash}`;
   if (next === current) {
     scheduleActivePageContextSync();
+    window.AgentDiscussPanel?.sync?.();
     return;
   }
 
@@ -2589,6 +2590,7 @@ function syncAppRouteToUrl({ push = false, replace = !push } = {}) {
   }
   updateWorkspaceShareLinkButton();
   scheduleActivePageContextSync();
+  window.AgentDiscussPanel?.sync?.();
 }
 
 let activePageContextSyncTimer = null;
@@ -80878,6 +80880,51 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
 let menuAgentStatsSeq = 0;
 let menuSystemEnvironmentSeq = 0;
 let menuSystemEnvironmentCache = null;
+const MENU_SYSTEM_ENVIRONMENT_OPEN_KEY = "agentcms.menuSystemEnvironment.open.v1";
+
+function readMenuSystemEnvironmentOpen() {
+  try {
+    return localStorage.getItem(MENU_SYSTEM_ENVIRONMENT_OPEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function isMenuSystemEnvironmentOpen() {
+  return Boolean(menuSystemEnvironmentNode?.classList.contains("is-open"));
+}
+
+function setMenuSystemEnvironmentOpen(open, { persist = true } = {}) {
+  if (!menuSystemEnvironmentNode) return;
+  const next = Boolean(open);
+  menuSystemEnvironmentNode.classList.toggle("is-open", next);
+  const hostLine = menuSystemEnvironmentNode.querySelector(":scope > .menu-system-environment-host");
+  hostLine?.setAttribute("aria-expanded", next ? "true" : "false");
+  if (!persist) return;
+  try {
+    localStorage.setItem(MENU_SYSTEM_ENVIRONMENT_OPEN_KEY, next ? "1" : "0");
+  } catch {
+    // ignore
+  }
+}
+
+function bindMenuSystemEnvironmentAccordion() {
+  if (!menuSystemEnvironmentNode || menuSystemEnvironmentNode.dataset.accordionBound === "1") return;
+  menuSystemEnvironmentNode.dataset.accordionBound = "1";
+  setMenuSystemEnvironmentOpen(readMenuSystemEnvironmentOpen(), { persist: false });
+  document.addEventListener(
+    "click",
+    (event) => {
+      const hostLine = event.target?.closest?.(".menu-system-environment-host");
+      if (!hostLine || !menuSystemEnvironmentNode.contains(hostLine)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+      setMenuSystemEnvironmentOpen(!isMenuSystemEnvironmentOpen());
+    },
+    true
+  );
+}
 
 async function fetchAgentWorkspaceStats() {
   const response = await fetch(buildApiUrl("/api/agent/workspace-stats"));
@@ -80953,20 +81000,37 @@ async function fetchSystemEnvironment(force = false) {
 function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
   if (!menuSystemEnvironmentNode) return;
 
-  menuSystemEnvironmentNode.replaceChildren();
+  bindMenuSystemEnvironmentAccordion();
 
-  const hostLine = document.createElement("div");
-  hostLine.className = "menu-system-environment-host";
-  hostLine.textContent = loading
+  let hostLine = menuSystemEnvironmentNode.querySelector(":scope > .menu-system-environment-host");
+  if (!hostLine) {
+    hostLine = document.createElement("button");
+    hostLine.type = "button";
+    hostLine.className = "menu-system-environment-host";
+    const hostText = document.createElement("span");
+    hostText.className = "menu-system-environment-host-text";
+    hostLine.appendChild(hostText);
+    menuSystemEnvironmentNode.prepend(hostLine);
+  }
+
+  const hostText =
+    hostLine.querySelector(".menu-system-environment-host-text") || hostLine;
+  hostText.textContent = loading
     ? "Среда: загрузка…"
     : payload?.summaryLine || payload?.host?.hostname || "Среда";
-  if (!loading && payload?.app?.version) {
-    hostLine.title = `Agent CMS ${payload.app.version}`;
-  }
-  menuSystemEnvironmentNode.appendChild(hostLine);
+  hostLine.title =
+    !loading && payload?.app?.version ? `Agent CMS ${payload.app.version}` : hostText.textContent;
+  hostLine.setAttribute("aria-expanded", isMenuSystemEnvironmentOpen() ? "true" : "false");
+  hostLine.setAttribute("aria-controls", "menu-system-environment-grid");
 
-  const grid = document.createElement("div");
-  grid.className = "menu-system-environment-grid";
+  let grid = menuSystemEnvironmentNode.querySelector(":scope > .menu-system-environment-grid");
+  if (!grid) {
+    grid = document.createElement("div");
+    grid.id = "menu-system-environment-grid";
+    grid.className = "menu-system-environment-grid";
+    menuSystemEnvironmentNode.appendChild(grid);
+  }
+  grid.replaceChildren();
 
   const items = loading
     ? [
@@ -81008,7 +81072,6 @@ function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
     grid.appendChild(chip);
   }
 
-  menuSystemEnvironmentNode.appendChild(grid);
   menuSystemEnvironmentNode.classList.remove("hidden");
 }
 

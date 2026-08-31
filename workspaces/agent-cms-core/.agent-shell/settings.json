@@ -21,7 +21,7 @@
   },
   "voice": {
     "input": {
-      "mode": "hold",
+      "mode": "meeting",
       "source": "auto",
       "globalListen": false,
       "toCompose": false,

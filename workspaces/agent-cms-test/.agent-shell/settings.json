@@ -25,7 +25,7 @@
   },
   "voice": {
     "input": {
-      "mode": "live",
+      "mode": "meeting",
       "source": "auto",
       "globalListen": false,
       "toCompose": false,
@@ -43,8 +43,8 @@
     },
     "tts": {
       "enabled": true,
-      "playbackMode": "reading",
-      "engine": "browser",
+      "playbackMode": "dialog",
+      "engine": "edge",
       "prompt": "Сформируй ответ в следующем формате (строго, в таком порядке):\n\n1) Голосовая версия для озвучки — без emoji и markdown, только то, что можно произнести вслух. Не включай секреты, ключи и пароли. Не используй HTML-комментарии <!-- -->.\n\n2) Отдельной строкой маркер:\n\n::: VOICE-END :::\n\n3) Полный текст ответа для экрана (можно markdown, списки, код и любые другие элементы). Без HTML-комментариев <!-- -->.",
       "rate": 1,
       "pitch": 1,
@@ -57,7 +57,7 @@
           "lang": "ru-RU"
         },
         "edge": {
-          "voice": "ru-RU-SvetlanaNeural"
+          "voice": "ru-RU-DmitryNeural"
         },
         "elevenlabs": {
           "model": "eleven_multilingual_v2"

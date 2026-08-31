@@ -11,8 +11,12 @@ import { unlockShellAudio } from "@shell/audio-unlock";
 import {
   playShellUiSound,
   primeShellProcessingAudio,
+  previewShellProcessingAmbient,
+  PROCESSING_SOUND_OPTIONS,
+  readProcessingSound,
   startShellProcessingAmbient,
-  stopShellProcessingAmbient
+  stopShellProcessingAmbient,
+  writeProcessingSound
 } from "@shell/ui-sounds";
 import {
   speakShellBrowserTts,
@@ -86,6 +90,7 @@ import {
   STT_ENGINE_LABELS,
   VOICE_INPUT_MODES,
   VOICE_MODE_LABELS,
+  VOICE_MODE_COMPACT_LABELS,
   VOICE_MODE_HINTS,
   voiceModeMicAction,
   voiceModeMicLabel,
@@ -353,23 +358,16 @@ const PHASE_LABELS = {
   disabled: "⏸️ Ожидаю"
 };
 
+const HERO_IDLE_PHRASE = "Ожидаю";
+
 const HERO_STATE_LABELS = {
-  ready: "Готов к сообщению",
-  idle: "Ожидаю",
+  idle: HERO_IDLE_PHRASE,
   listening: "Слушаю",
   thinking: "Обрабатываю",
+  typing: "Печатаю",
   replying: "Отвечаю"
 };
 
-const HERO_DEMO_PRESETS = {
-  ready: { phase: "waiting", heroState: "ready", phrase: "Готов к сообщению" },
-  idle: { phase: "waiting", heroState: "idle", phrase: "Ожидаю" },
-  listening: { phase: "listening", heroState: "listening", phrase: "Слушаю" },
-  thinking: { phase: "thinking", heroState: "thinking", phrase: "Обрабатываю" },
-  replying: { phase: "speaking", heroState: "replying", phrase: "Отвечаю" }
-};
-
-let heroStatusDemo = null;
 let lastRenderedDisplayPhase = "waiting";
 let processingSoundPhase = "";
 
@@ -538,8 +536,8 @@ function yieldLocalTtsPlayback(reason = "yield") {
   state.streamTtsActive = false;
   renderPhase(state.shellState?.phase || "waiting", state.shellState?.phrase || "", state.shellState?.metrics || "");
   if (reason === "remote-stop" && !state.pttHeld && !state.micActive) {
-    void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).then(() => {
-      renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
+    void patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE }).then(() => {
+      renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
     });
   }
 }
@@ -865,7 +863,7 @@ function setPttHeldRemote(held) {
     setMicButtonState(state.pttHeld ? "Стоп" : "Говорить", { active: state.pttHeld });
     renderPhase(
       state.pttHeld ? "listening" : "waiting",
-      state.pttHeld ? "Sidecar слушает…" : "Готов к сообщению"
+      state.pttHeld ? "Sidecar слушает…" : HERO_IDLE_PHRASE
     );
     syncVoiceRecordTimer();
   });
@@ -883,7 +881,7 @@ function setMeetingRecordingRemote(recording) {
     });
     renderPhase(
       state.meetingRecording ? "listening" : "waiting",
-      state.meetingRecording ? "Запись встречи…" : "Готов к сообщению"
+      state.meetingRecording ? "Запись встречи…" : HERO_IDLE_PHRASE
     );
     syncVoiceRecordTimer();
   });
@@ -1065,7 +1063,9 @@ const nodes = {
   windowTransparent: document.getElementById("shell-window-transparent"),
   windowPetOverlay: document.getElementById("shell-window-pet"),
   windowBackground: document.getElementById("shell-window-background"),
-  windowCompact: document.getElementById("shell-compact-action"),
+  thinkingSoundGrid: document.getElementById("shell-thinking-sound-grid"),
+  thinkingSoundDemo: document.getElementById("shell-thinking-sound-demo"),
+  windowCompact: document.getElementById("shell-compact-exit"),
   voiceMode: document.getElementById("shell-voice-mode"),
   voiceSourceBadge: document.getElementById("shell-voice-source-badge"),
   voiceControl: document.getElementById("shell-voice-control"),
@@ -1149,7 +1149,7 @@ const nodes = {
   composeCameraFile: document.getElementById("shell-compose-camera-file"),
   watchScreen: document.getElementById("shell-watch-screen"),
   screenshotAction: document.getElementById("shell-screenshot-action"),
-  compactAction: document.getElementById("shell-compact-action"),
+  compactAction: document.getElementById("shell-compact-exit"),
   compactStage: document.getElementById("shell-compact-stage"),
   compactSensor: document.getElementById("shell-compact-sensor"),
   compactSensorStatus: document.getElementById("shell-compact-sensor-status"),
@@ -1472,8 +1472,26 @@ function livePhraseFromStatus(shellState, latestAgentMessage) {
   if (replyBody && phrase && phrase === replyBody.slice(0, 240)) {
     phrase = "";
   }
-  if (!phrase && phase === "waiting") return "Готов к сообщению";
+  if (!phrase && phase === "waiting") return HERO_IDLE_PHRASE;
   return phrase;
+}
+
+function heroIdlePhrase() {
+  return `${HERO_IDLE_PHRASE}${queuePhraseSuffix()}`;
+}
+
+function isAssistantStreaming() {
+  return Boolean(state.assistantStream && !state.assistantStream.finalized);
+}
+
+function isHeroIdlePhrase(phrase = "") {
+  const text = String(phrase || "").trim();
+  if (!text) return true;
+  return (
+    text === HERO_IDLE_PHRASE ||
+    text.startsWith(`${HERO_IDLE_PHRASE} ·`) ||
+    text.startsWith("Готов к сообщению")
+  );
 }
 
 function resolveDisplayPhase(requestedPhase = "waiting") {
@@ -1492,35 +1510,45 @@ function resolveDisplayPhase(requestedPhase = "waiting") {
 function resolveHeroStatusBadgeClass(displayPhase, heroState) {
   if (displayPhase === "listening") return "is-active";
   if (heroState === "thinking") return "is-busy";
+  if (heroState === "typing") return "is-typing";
   if (heroState === "replying") return "is-speaking";
-  if (heroState === "ready") return "is-ready";
   return "is-idle";
 }
 
 function resolveHeroSensorActivity(displayPhase, heroState) {
   if (displayPhase === "listening") return "listening";
   if (heroState === "replying") return "speaking";
+  if (heroState === "typing") return "typing";
   if (heroState === "thinking") return "thinking";
-  if (heroState === "ready") return "ready";
   return "idle";
 }
 
-function isHeroReadyPhrase(phrase = "") {
-  const text = String(phrase || "").trim();
-  if (!text) return true;
-  return text.startsWith("Готов к сообщению");
-}
-
-function resolveHeroAvatarState(requestedPhase = "waiting", phrase = "") {
-  if (heroStatusDemo?.heroState) return heroStatusDemo.heroState;
-  if (isTtsPlaybackActive()) return "replying";
-  if (state.assistantStream && !state.assistantStream.finalized) return "replying";
+function resolveHeroAvatarState(requestedPhase = "waiting") {
   const displayPhase = resolveDisplayPhase(requestedPhase);
   if (displayPhase === "listening") return "listening";
-  if (displayPhase === "thinking") return "thinking";
-  if (state.messagePipelineBusy) return "thinking";
-  if (displayPhase === "waiting" && isHeroReadyPhrase(phrase)) return "ready";
+  if (isTtsPlaybackActive()) return "replying";
+  if (isAssistantStreaming()) {
+    if (!isTtsEnabledSetting()) return "typing";
+    if (state.streamTtsActive || state.streamTtsQueue.length || state.speaking) return "replying";
+    return "typing";
+  }
+  if (displayPhase === "thinking" || state.messagePipelineBusy) return "thinking";
   return "idle";
+}
+
+function resolveHeroStatusLabel(requestedPhase = "waiting", phrase = "") {
+  const heroState = resolveHeroAvatarState(requestedPhase);
+  const statusText = String(phrase || "").trim();
+  const displayPhase = resolveDisplayPhase(requestedPhase);
+  if (displayPhase === "disabled") return PHASE_LABELS.disabled;
+  if (heroState === "listening") return HERO_STATE_LABELS.listening;
+  if (heroState === "typing") return HERO_STATE_LABELS.typing;
+  if (heroState === "replying") return HERO_STATE_LABELS.replying;
+  if (heroState === "thinking") {
+    if (statusText && !isHeroIdlePhrase(statusText)) return statusText;
+    return HERO_STATE_LABELS.thinking;
+  }
+  return HERO_IDLE_PHRASE;
 }
 
 function syncProcessingSound(displayPhase) {
@@ -1534,11 +1562,62 @@ function syncProcessingSound(displayPhase) {
   if (leaving) stopShellProcessingAmbient();
 }
 
+function syncThinkingSoundButtons() {
+  const selected = readProcessingSound();
+  document.querySelectorAll("[data-thinking-sound]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.thinkingSound === selected);
+  });
+}
+
+function populateThinkingSoundPickers() {
+  const hosts = [nodes.thinkingSoundGrid, nodes.thinkingSoundDemo].filter(Boolean);
+  for (const host of hosts) {
+    if (host.dataset.ready === "1") continue;
+    host.dataset.ready = "1";
+    const compact = host === nodes.thinkingSoundDemo;
+    host.replaceChildren(
+      ...PROCESSING_SOUND_OPTIONS.map((option, index) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "shell-thinking-sound-btn";
+        btn.dataset.thinkingSound = option.id;
+        btn.title = option.hint;
+        btn.setAttribute("aria-label", `${option.label}. ${option.hint}`);
+        const caption = document.createElement("span");
+        caption.textContent = compact ? `${index + 1} ${option.label}` : `${index + 1}. ${option.label}`;
+        btn.append(caption);
+        if (!compact) {
+          const hint = document.createElement("small");
+          hint.textContent = option.hint;
+          btn.append(hint);
+        }
+        btn.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          pickThinkingSound(option.id);
+        });
+        return btn;
+      })
+    );
+  }
+  syncThinkingSoundButtons();
+}
+
+function pickThinkingSound(id) {
+  primeShellProcessingAudio();
+  writeProcessingSound(id);
+  syncThinkingSoundButtons();
+  if (processingSoundPhase === "thinking") {
+    void startShellProcessingAmbient(id);
+    return;
+  }
+  void previewShellProcessingAmbient(id);
+}
+
 function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false, phrase = "" } = {}) {
-  const displayPhase = heroStatusDemo?.phase || resolveDisplayPhase(requestedPhase);
+  const displayPhase = resolveDisplayPhase(requestedPhase);
   const statusText = String(phrase || "").trim();
-  const demoPhrase = heroStatusDemo?.phrase || "";
-  const heroState = resolveHeroAvatarState(requestedPhase, demoPhrase || statusText);
+  const heroState = resolveHeroAvatarState(requestedPhase);
 
   if (nodes.agentAvatar) {
     nodes.agentAvatar.dataset.phase = displayPhase;
@@ -1546,7 +1625,7 @@ function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false
     nodes.agentAvatar.dataset.activity = resolveHeroSensorActivity(displayPhase, heroState);
     nodes.agentAvatar.setAttribute(
       "aria-label",
-      demoPhrase || HERO_STATE_LABELS[heroState] || HERO_STATE_LABELS.idle
+      resolveHeroStatusLabel(requestedPhase, statusText)
     );
   }
   if (nodes.shellHero) {
@@ -1561,58 +1640,17 @@ function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false
 
   if (updateLabel && !state.ttsPaused && nodes.phaseLabel) {
     nodes.phaseLabel.classList.remove("is-idle", "is-ready", "is-active", "is-busy", "is-speaking", "is-typing");
-    let labelText = demoPhrase;
-    if (!labelText) {
-      if (statusText) {
-        labelText = statusText;
-      } else if (displayPhase === "listening") {
-        labelText = "Слушаю";
-      } else if (displayPhase === "disabled") {
-        labelText = PHASE_LABELS.disabled;
-      } else {
-        labelText = HERO_STATE_LABELS[heroState] || HERO_STATE_LABELS.idle;
-      }
-    }
-    nodes.phaseLabel.textContent = labelText;
+    nodes.phaseLabel.textContent = resolveHeroStatusLabel(requestedPhase, statusText);
     nodes.phaseLabel.classList.add(resolveHeroStatusBadgeClass(displayPhase, heroState));
   }
 
-  nodes.heroDemoBar?.querySelectorAll("[data-hero-demo]").forEach((btn) => {
-    btn.classList.toggle("is-active", Boolean(heroStatusDemo && btn.dataset.heroDemo === heroStatusDemo.key));
-  });
   syncProcessingSound(displayPhase);
-}
-
-function clearHeroStatusDemo() {
-  heroStatusDemo = null;
-  nodes.heroDemoBar?.querySelectorAll("[data-hero-demo].is-active").forEach((btn) => {
-    btn.classList.remove("is-active");
-  });
-  lastRenderedDisplayPhase = resolveDisplayPhase(state.shellState?.phase || "waiting");
-}
-
-function applyHeroStatusDemo(key) {
-  const preset = HERO_DEMO_PRESETS[key];
-  if (!preset) return;
-  if (heroStatusDemo?.key === key) {
-    clearHeroStatusDemo();
-    syncHeroAvatarVisuals(state.shellState?.phase || "waiting", {
-      updateLabel: true,
-      phrase: state.shellState?.phrase || ""
-    });
-    return;
-  }
-  heroStatusDemo = { key, ...preset };
-  if (preset.phase === "thinking") {
-    lastRenderedDisplayPhase = "thinking";
-  }
-  syncHeroAvatarVisuals(preset.phase, { updateLabel: true, phrase: preset.phrase });
 }
 
 function maybeResetStaleSpeakingPhase() {
   if (state.shellState?.phase !== "speaking") return;
   if (isTtsPlaybackActive()) return;
-  void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" });
+  void patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE });
 }
 
 function isRuntimeMetricsLabel(metrics) {
@@ -1623,7 +1661,7 @@ function isRuntimeMetricsLabel(metrics) {
 function composePhaseStatusText(phrase, metrics) {
   const statusText = String(phrase || "").trim();
   const extra = String(metrics || "").trim();
-  if (!extra || isRuntimeMetricsLabel(extra) || isHeroReadyPhrase(statusText)) return statusText;
+  if (!extra || isRuntimeMetricsLabel(extra) || isHeroIdlePhrase(statusText)) return statusText;
   if (!statusText) return extra;
   if (statusText.includes(extra)) return statusText;
   return `${statusText} · ${extra}`;
@@ -1973,13 +2011,15 @@ function activeAgentActivityLabel() {
 
 function renderAgentActivitySteps() {
   hideAgentActivityPanel();
-  const label = activeAgentActivityLabel();
+  const active = agentActivitySteps.find((step) => step.active) || agentActivitySteps[agentActivitySteps.length - 1];
+  const label = String(active?.label || "").trim();
   if (!label || state.ttsPaused || !nodes.phaseLabel) return;
   const phase = resolveDisplayPhase(state.shellState?.phase || "thinking");
   if (phase !== "thinking") return;
   nodes.phaseLabel.textContent = label;
   nodes.phaseLabel.classList.remove("is-idle", "is-ready", "is-active", "is-busy", "is-speaking", "is-typing");
-  nodes.phaseLabel.classList.add("is-busy");
+  const isTyping = active?.kind === "typing" || /печатает/i.test(label);
+  nodes.phaseLabel.classList.add(isTyping ? "is-typing" : "is-busy");
 }
 
 function resetAgentActivitySteps() {
@@ -2340,14 +2380,21 @@ function queuePhraseSuffix() {
   return n > 0 ? ` · в очереди: ${n}` : "";
 }
 
+function composeSendShortcutLabel() {
+  return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "") ? "⌘↵" : "Ctrl+↵";
+}
+
 function updateSendButtonLabel() {
   if (!nodes.sendBtn) return;
   const draft = String(nodes.message?.value || "").trim();
+  const shortcut = composeSendShortcutLabel();
   let label = "Отправить";
   if (state.messagePipelineBusy && draft) {
     label = outboundQueue.length ? `В очередь · ${outboundQueue.length}` : "В очередь";
   }
-  nodes.sendBtn.title = label;
+  const kbd = nodes.sendBtn.querySelector(".shell-compose-send-kbd");
+  if (kbd) kbd.textContent = state.messagePipelineBusy && draft ? "" : shortcut;
+  nodes.sendBtn.title = state.messagePipelineBusy && draft ? label : `${label} (${shortcut})`;
   nodes.sendBtn.setAttribute("aria-label", label);
   nodes.sendBtn.dataset.sendMode = state.messagePipelineBusy && draft ? "queue" : "send";
   const stopActive = Boolean(
@@ -2420,7 +2467,7 @@ async function stopActiveMessage() {
   releaseMessagePipeline();
   const phrase = stoppingSpeech && !stoppingGeneration ? "Озвучка остановлена" : "Остановлено";
   await patchShellState({ phase: "waiting", phrase }).catch(() => {});
-  renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
+  renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
   updateSendButtonLabel();
   clearPendingReplyTtsClientId();
   shellSession?.setSessionUiLocked(false);
@@ -2616,10 +2663,10 @@ function syncWaitingUiAfterPlayback() {
   if (state.micActive || state.pttHeld) return;
   if (state.messagePipelineBusy) return;
   if (state.assistantStream && !state.assistantStream.finalized) return;
-  const phrase = `Готов к сообщению${queuePhraseSuffix()}`;
+  const phrase = heroIdlePhrase();
   const metrics = state.shellState?.metrics || "";
   if (state.shellState?.phase === "speaking") {
-    state.shellState = { ...state.shellState, phase: "waiting", phrase: "Готов к сообщению" };
+    state.shellState = { ...state.shellState, phase: "waiting", phrase: HERO_IDLE_PHRASE };
   }
   renderPhase("waiting", phrase, metrics);
 }
@@ -2637,7 +2684,7 @@ async function finishStreamTtsWhenIdle({ sourceMessage = null, spokenText = "" }
     state.assistantStream = null;
     updateTtsControlsUi("waiting");
     if (!state.pttHeld && !state.micActive) {
-      await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).catch(() => {});
+      await patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE }).catch(() => {});
     }
     syncWaitingUiAfterPlayback();
     releaseMessagePipeline();
@@ -2701,7 +2748,7 @@ function handleAssistantDelta(payload) {
       ttsClientId: payload.ttsClientId
     });
     if (!state.settings?.ttsEnabled || !shouldPlayReplyTts(payload)) {
-      renderPhase("waiting", "Готов к сообщению", state.shellState?.metrics || "");
+      renderPhase("waiting", HERO_IDLE_PHRASE, state.shellState?.metrics || "");
     }
   } else if (shouldShowTypingActivity(rawText, displayText)) {
     if (state.streamTtsActive || state.speaking || state.streamTtsQueue.length) {
@@ -2969,34 +3016,19 @@ function isCompactSensorScanning() {
   return Boolean(nodes.compactSensor?.classList.contains("is-scanning"));
 }
 
-function resolveCompactSensorActivity(displayPhase, phrase = "") {
-  const text = String(phrase || "").trim();
-  if (displayPhase === "listening") return "listening";
-  if (displayPhase === "speaking") return "speaking";
-  if (displayPhase === "thinking") {
-    if (/печатает|typing|пишет/i.test(text)) return "typing";
-    return "thinking";
-  }
-  if (displayPhase === "disabled") return "disabled";
-  return "idle";
-}
-
 function syncCompactSensorPhase(phase, phrase = "") {
   const displayPhase = resolveDisplayPhase(phase);
+  const heroState = resolveHeroAvatarState(phase);
   const sensor = nodes.compactSensor;
   const status = nodes.compactSensorStatus;
   if (!sensor || !status || !isWindowCompactEnabled()) return;
   if (isCompactSensorScanning()) return;
 
   sensor.dataset.phase = displayPhase;
-  const text = String(phrase || "").trim() || PHASE_LABELS[displayPhase] || "Ожидание касания…";
-  sensor.dataset.activity = resolveCompactSensorActivity(displayPhase, text);
-  status.textContent = text;
-  status.classList.remove("is-active", "is-busy", "is-speaking", "is-typing");
-  if (sensor.dataset.activity === "listening") status.classList.add("is-active");
-  else if (sensor.dataset.activity === "typing") status.classList.add("is-typing");
-  else if (sensor.dataset.activity === "thinking") status.classList.add("is-busy");
-  else if (sensor.dataset.activity === "speaking") status.classList.add("is-speaking");
+  sensor.dataset.activity = resolveHeroSensorActivity(displayPhase, heroState);
+  status.textContent = resolveHeroStatusLabel(phase, phrase);
+  status.classList.remove("is-active", "is-busy", "is-speaking", "is-typing", "is-idle");
+  status.classList.add(resolveHeroStatusBadgeClass(displayPhase, heroState));
 }
 
 function setCompactSensorScanning(active) {
@@ -3154,18 +3186,37 @@ function syncCompactActionUi(compact = isWindowCompactEnabled()) {
   const pressed = compact ? "true" : "false";
   nodes.windowCompact?.setAttribute("aria-pressed", pressed);
   nodes.compactAction?.setAttribute("aria-pressed", pressed);
+  nodes.agentAvatar?.setAttribute("title", compact ? "Выйти из компакта" : "Компактный режим");
   syncCompactSensorUi(compact);
 }
 
-function toggleCompactMode() {
-  const next = !isWindowCompactEnabled();
-  applyWindowAppearance({ ...(state.windowSettings || {}), windowCompact: next });
-  syncCompactActionUi(next);
-  if (next) setShellView("main");
-  void saveWindowSettings(buildWindowSettingsPayload({ windowCompact: next })).catch((error) =>
+function setWindowCompactMode(next) {
+  const compact = Boolean(next);
+  const nextSettings = { ...(state.windowSettings || {}), windowCompact: compact };
+  state.windowSettings = nextSettings;
+  applyWindowAppearance(nextSettings);
+  syncCompactActionUi(compact);
+  if (compact) setShellView("main");
+  void saveWindowSettings(buildWindowSettingsPayload({ windowCompact: compact })).catch((error) =>
     renderPhase("waiting", error.message)
   );
 }
+
+function toggleCompactMode() {
+  setWindowCompactMode(!isWindowCompactEnabled());
+}
+
+function exitCompactMode() {
+  setWindowCompactMode(false);
+}
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (target.closest("#shell-compact-exit") || target.closest("#shell-compact-brand")) {
+    exitCompactMode();
+  }
+});
 
 async function handleCameraSnapshotRequest(payload) {
   if (state.cameraSnapshotBusy) return;
@@ -3285,10 +3336,9 @@ function applyWindowAppearance(settings) {
 }
 
 function isWindowCompactEnabled() {
-  if (state.windowSettings && Object.prototype.hasOwnProperty.call(state.windowSettings, "windowCompact")) {
-    return Boolean(state.windowSettings.windowCompact);
-  }
-  return nodes.compactAction?.getAttribute("aria-pressed") === "true";
+  if (nodes.shellApp?.dataset.compact === "1") return true;
+  if (document.body.classList.contains("shell-compact")) return true;
+  return Boolean(state.windowSettings?.windowCompact);
 }
 
 function applyWindowSettings(settings) {
@@ -4503,25 +4553,28 @@ function renderComposeDraftStatus(kind = "idle") {
   const el = nodes.composeDraftStatus;
   if (!el) return;
   el.classList.remove("is-saving", "is-saved", "is-error");
+  const pathTitle = ".agent-shell/compose-draft.md";
   if (kind === "idle") {
     el.textContent = "";
     el.classList.add("hidden");
-    nodes.composeDraftPath?.classList.add("hidden");
     return;
   }
   el.classList.remove("hidden");
   if (kind === "saving") {
     el.textContent = "сохранение…";
     el.classList.add("is-saving");
+    el.title = `Сохранение · ${pathTitle}`;
   } else if (kind === "saved") {
-    el.textContent = "(сохранено)";
+    el.textContent = "сохранено";
     el.classList.add("is-saved");
-    nodes.composeDraftPath?.classList.remove("hidden");
+    el.title = `Сохранено · ${pathTitle}`;
   } else if (kind === "error") {
     el.textContent = "не сохранено";
     el.classList.add("is-error");
+    el.title = `Не сохранено · ${pathTitle}`;
   } else if (kind === "dirty") {
     el.textContent = "изменено";
+    el.title = `Изменено · ${pathTitle}`;
   }
 }
 
@@ -4765,8 +4818,6 @@ function setComposeExpanded(next) {
   );
   document.body.classList.toggle("shell-compose-expanded", expanded);
   document.body.classList.toggle("shell-compose-fullscreen", expanded);
-  const fullscreenHead = nodes.composeDock?.querySelector(".shell-compose-fullscreen-head");
-  fullscreenHead?.setAttribute("aria-hidden", expanded ? "false" : "true");
   if (expanded) {
     nodes.message?.focus();
   }
@@ -4829,7 +4880,6 @@ async function sendMessageDirect(
 ) {
   const text = String(body || "").trim();
   if (!text) return;
-  clearHeroStatusDemo();
   shellProactive?.bumpActivity();
   void unlockShellAudio();
   shellSession?.setSessionUiLocked(true);
@@ -5319,7 +5369,7 @@ function populateVoiceModeSelect(selected = getVoiceInputMode()) {
   for (const mode of VOICE_INPUT_MODES) {
     const opt = document.createElement("option");
     opt.value = mode;
-    opt.textContent = VOICE_MODE_LABELS[mode] || mode;
+    opt.textContent = VOICE_MODE_COMPACT_LABELS[mode] || VOICE_MODE_LABELS[mode] || mode;
     if (mode === current) opt.selected = true;
     nodes.voiceMode.append(opt);
   }
@@ -6266,7 +6316,7 @@ function stopBrowserTts({ notifyServer = true, resetPhase = true, broadcast = tr
   updateTtsControlsUi("waiting");
   if (broadcast) ttsTabCoordinator?.requestGlobalStop();
   if (resetPhase && !state.pttHeld && !state.micActive) {
-    void patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).then(() => {
+    void patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE }).then(() => {
       syncWaitingUiAfterPlayback();
     });
   }
@@ -6307,7 +6357,7 @@ async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {})
         hint: "Обновите страницу и проверьте, что TTS включён в настройках"
       });
     }
-    renderPhase(state.shellState?.phase || "waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
+    renderPhase(state.shellState?.phase || "waiting", heroIdlePhrase(), state.shellState?.metrics || "");
     return;
   }
 
@@ -6343,7 +6393,7 @@ async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {})
   rememberLastTtsSpoken(list.join("\n\n"));
   if (sourceMessage) shellSession?.markReplySpoken(sourceMessage);
   state.pendingReplyTtsClientId = "";
-  await patchShellState({ phase: "waiting", phrase: "Готов к сообщению" }).catch(() => {});
+  await patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE }).catch(() => {});
   syncWaitingUiAfterPlayback();
 }
 
@@ -6404,7 +6454,7 @@ async function handleAssistantMessage(message) {
 
   const phase = state.shellState?.phase || "waiting";
   if (phase === "waiting" && !state.pttHeld && !state.micActive && !state.speaking) {
-    renderPhase(phase, "Готов к сообщению", state.shellState?.metrics || "");
+    renderPhase(phase, HERO_IDLE_PHRASE, state.shellState?.metrics || "");
   }
   if (shouldPlayMessageTts(message)) {
     const parts = buildSpeechParts(body, message);
@@ -6607,7 +6657,7 @@ let shellKeepAwake = null;
 let composeLayout = null;
 
 function renderWaitingPhrase() {
-  renderPhase("waiting", `Готов к сообщению${queuePhraseSuffix()}`, state.shellState?.metrics || "");
+  renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
 }
 
 function isSttDisabled() {
@@ -7025,6 +7075,13 @@ function bindWindowSettingsUi() {
     onWindowFieldChange();
   });
   nodes.windowBackground?.addEventListener("change", onWindowFieldChange);
+  const onThinkingSoundClick = (event) => {
+    const btn = event.target.closest("[data-thinking-sound]");
+    if (!btn) return;
+    pickThinkingSound(btn.dataset.thinkingSound);
+  };
+  nodes.thinkingSoundGrid?.addEventListener("click", onThinkingSoundClick);
+  nodes.thinkingSoundDemo?.addEventListener("click", onThinkingSoundClick);
   if (nodes.keepAwake) {
     nodes.keepAwake.checked = readKeepAwakeSetting();
     nodes.keepAwake.addEventListener("change", () => {
@@ -7151,9 +7208,18 @@ function bindUi() {
     void takeManualScreenshot();
   });
 
-  nodes.compactAction?.addEventListener("click", () => {
+  nodes.agentAvatar?.addEventListener("click", () => {
     toggleCompactMode();
   });
+  nodes.agentAvatar?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggleCompactMode();
+  });
+  if (nodes.agentAvatar && !nodes.agentAvatar.getAttribute("title")) {
+    nodes.agentAvatar.setAttribute("title", "Компактный режим");
+    nodes.agentAvatar.setAttribute("aria-label", "Компактный режим");
+  }
 
   initCompactSensor();
 
@@ -7292,12 +7358,6 @@ function bindUi() {
   preventDetailsToggleOnControl(nodes.sttPanelEnabled);
   preventDetailsToggleOnControl(nodes.sttPanelEnabled?.closest("label"));
   preventDetailsToggleOnControl(document.querySelector("#shell-tts-panel .shell-tts-panel-playback-field"));
-  nodes.heroDemoBar?.addEventListener("click", (event) => {
-    const btn = event.target.closest("[data-hero-demo]");
-    if (!btn) return;
-    primeShellProcessingAudio();
-    applyHeroStatusDemo(btn.dataset.heroDemo);
-  });
   nodes.ttsTestBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     void testTtsEngine();
@@ -7616,6 +7676,7 @@ async function boot() {
   bindNavigationUi();
   setSettingsTab(state.settingsTab || "route");
   bindWindowSettingsUi();
+  populateThinkingSoundPickers();
   updateTtsDownloadUi();
   setupSpeechRecognition();
   shellKeepAwake = initShellKeepAwake(state, { getEnabled: readKeepAwakeSetting });
@@ -7623,6 +7684,8 @@ async function boot() {
     nodes,
     getSessionUiLocked: () => state.sessionUiLocked
   });
+  document.addEventListener("gesturestart", (event) => event.preventDefault());
+  document.addEventListener("gesturechange", (event) => event.preventDefault());
   setupPttKeyboard();
   startClock();
   window.addEventListener("online", syncDialogConnectionState);

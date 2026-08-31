@@ -2,17 +2,17 @@
   "phase": "waiting",
   "phrase": "",
   "metrics": "",
-  "lastAgentMessageId": "claude-1788103124570-b6zvtc",
-  "lastShellReply": "У нас только что началась новая сессия, поэтому предыдущих сообщений в этом разговоре нет. Это ваше первое сообщение.\n\nЧем могу помочь?",
+  "lastAgentMessageId": "claude-1788108587711-bcqm9m",
+  "lastShellReply": "Готов. Что делаем?",
   "qwenpawChatUpdatedAt": "2026-08-18T00:24:06.877009Z",
   "stopTtsAt": 1788095521361,
   "sidecarSeenAt": 1787209867988,
   "pttHeld": false,
   "meetingRecording": false,
-  "lastTtsClientId": "372a2b9a-9ecf-4e64-93a4-12c1f48532aa:c3e0bd60-998b-4410-85e4-11aab2cc82c5",
-  "primaryClientId": "372a2b9a-9ecf-4e64-93a4-12c1f48532aa:c3e0bd60-998b-4410-85e4-11aab2cc82c5",
-  "updatedAt": "2026-08-30T15:18:58.517Z",
+  "lastTtsClientId": "c738810b-3051-4e04-88ab-41ec56985e68:efd78e2a-5e29-4ef1-8940-58b2701d692f",
+  "primaryClientId": "74198ef2-180e-4beb-8cbb-dffa9687344e:d79aec34-49ca-4a71-b3d0-2aeabfa3fa8c",
+  "updatedAt": "2026-08-30T21:08:52.798Z",
   "shellSurfaceHost": "browser-tab",
   "shellSurfaceHint": "Вкладка браузера",
-  "shellSurfaceBackend": "server"
+  "shellSurfaceBackend": "local"
 }

@@ -121,6 +121,7 @@
     } catch {
       // ignore
     }
+    if (!panelHidden) ensureShellIframeLoaded(getActiveAgentIdFromUrl());
   }
 
   function bindHeaderToggle() {
@@ -131,7 +132,15 @@
     });
   }
 
-  const CHPU_RESERVED_ROOT_SEGMENTS = new Set(["api", "shell", "vendor", "a", "shared", "cms"]);
+  const CHPU_RESERVED_ROOT_SEGMENTS = new Set([
+    "api",
+    "shell",
+    "vendor",
+    "a",
+    "shared",
+    "cms",
+    "index.html"
+  ]);
 
   function getActiveAgentIdFromUrl() {
     try {
@@ -151,21 +160,45 @@
     return "";
   }
 
+  function getVoiceBaseUrl() {
+    const injected = String(window.__AGENT_CMS_VOICE_URL__ || "").trim();
+    if (!injected) return "";
+    try {
+      const voiceUrl = new URL(injected);
+      const pageHost = String(window.location.hostname || "").trim();
+      if (pageHost && pageHost !== "0.0.0.0") voiceUrl.hostname = pageHost;
+      return voiceUrl.toString().replace(/\/+$/, "");
+    } catch {
+      return injected.replace(/\/+$/, "");
+    }
+  }
+
   function buildShellIframeUrl(agentId) {
     const id = String(agentId || "").trim();
     const host = window.desktopApp?.isDesktop ? "desktop-cms" : "browser-embed";
-    const path = id ? `/${encodeURIComponent(id)}/${host}/` : "/";
-    return new URL(path, window.location.origin).toString();
+    const voicePath = id ? `/${encodeURIComponent(id)}/${host}/` : "/";
+    const voiceBase = getVoiceBaseUrl();
+    if (voiceBase) {
+      return new URL(voicePath, `${voiceBase}/`).toString();
+    }
+    // Без Voice URL никогда не грузим CMS `/` — `/shell/` это Voice (или редирект на него).
+    const fallbackPath = id ? voicePath : "/shell/";
+    return new URL(fallbackPath, window.location.origin).toString();
+  }
+
+  function shellIframeLocationKey(urlValue) {
+    try {
+      const url = new URL(urlValue, window.location.origin);
+      return `${url.origin}${url.pathname.replace(/\/+$/, "") || "/"}`;
+    } catch {
+      return String(urlValue || "");
+    }
   }
 
   function shouldReloadShellIframe(currentSrc, nextUrl, nextAgentId) {
     if (!currentSrc) return true;
     if (shellIframeAgentId !== nextAgentId) return true;
-    try {
-      return new URL(currentSrc).pathname.replace(/\/+$/, "") !== new URL(nextUrl).pathname.replace(/\/+$/, "");
-    } catch {
-      return currentSrc !== nextUrl;
-    }
+    return shellIframeLocationKey(currentSrc) !== shellIframeLocationKey(nextUrl);
   }
 
   function ensureShellIframeLoaded(agentId) {
@@ -257,6 +290,7 @@
   bindPresencePolling();
   applyPanelWidth();
   updatePanelUi();
+  window.addEventListener("popstate", syncFromApp);
   ensureShellIframeLoaded(getActiveAgentIdFromUrl());
 
   window.AgentDiscussPanel = {

@@ -199,24 +199,7 @@ export async function initShellCharacter(stageEl, avatarEl) {
   if (avatarEl) {
     avatarEl.setAttribute("role", "button");
     avatarEl.setAttribute("tabindex", "0");
-    avatarEl.setAttribute("title", "Облачко");
-    avatarEl.setAttribute("aria-label", "Облачко");
     avatarEl.removeAttribute("aria-hidden");
-    const pickCloud = () => {
-      if (loadModelFn) void loadModelFn(HERO_CHARACTER_ID);
-      else {
-        activeModelId = HERO_CHARACTER_ID;
-        saveStoredCharacterId(HERO_CHARACTER_ID);
-        updateSelectionUi(pickerEl, avatarEl, HERO_CHARACTER_ID);
-      }
-    };
-    avatarEl.addEventListener("click", pickCloud);
-    avatarEl.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        pickCloud();
-      }
-    });
   }
 
   updateSelectionUi(pickerEl, avatarEl, activeModelId);
