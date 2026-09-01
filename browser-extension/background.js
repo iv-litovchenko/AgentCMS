@@ -5,11 +5,9 @@ const {
   DEFAULT_VOICE_BASE_URL,
   CMS_PROBE_CANDIDATES,
   buildExtensionShellUrl,
-  resolveVoiceBaseUrl,
   voiceBaseFromCmsHost,
   normalizeVoiceBaseForBrowser,
-  isCmsReachable,
-  isVoiceReachable
+  isCmsReachable
 } = globalThis.CompanionUrls;
 
 function storageLocal() {
@@ -86,42 +84,15 @@ async function resolveCmsBase(preferredBase) {
 }
 
 async function getShellFramePayload() {
-  const stored = await storageLocal().get([
-    "cmsBaseUrl",
-    "agentId",
-    "_migratedFromSync",
-    "voiceBaseUrl"
-  ]);
-  let { cmsBaseUrl, agentId, _migratedFromSync, voiceBaseUrl } = stored;
-  cmsBaseUrl = String(cmsBaseUrl || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
-  agentId = String(agentId || "").trim();
-
+  const { cmsBaseUrl, agentId, _migratedFromSync } = await getSettings();
   if (!_migratedFromSync) {
     await storageLocal().set({ cmsBaseUrl, agentId, _migratedFromSync: true });
   }
-
-  const quickVoiceBase = normalizeVoiceBaseForBrowser(
-    voiceBaseUrl || voiceBaseFromCmsHost(cmsBaseUrl) || DEFAULT_VOICE_BASE_URL
+  const voiceBase = normalizeVoiceBaseForBrowser(
+    voiceBaseFromCmsHost(cmsBaseUrl) || DEFAULT_VOICE_BASE_URL
   );
-  const shellUrl = buildExtensionShellUrl(quickVoiceBase, agentId);
-  const voiceReachable = await isVoiceReachable(shellUrl);
-
-  void resolveVoiceBaseUrl(cmsBaseUrl)
-    .then((resolved) => {
-      const next = normalizeVoiceBaseForBrowser(resolved);
-      if (next && next !== voiceBaseUrl) {
-        return storageLocal().set({ voiceBaseUrl: next });
-      }
-    })
-    .catch(() => {});
-
-  return {
-    shellUrl,
-    panelUrl: shellUrl,
-    cmsBaseUrl,
-    agentId,
-    voiceReachable
-  };
+  const shellUrl = buildExtensionShellUrl(voiceBase, agentId);
+  return { shellUrl, panelUrl: shellUrl, cmsBaseUrl, agentId };
 }
 
 /** @type {Map<number, number>} */
@@ -247,14 +218,6 @@ chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab?.active && tab.windowId) {
     rememberPickerTab(tabId, tab.windowId);
-  }
-  if (changeInfo.status !== "complete" || !tab?.url) return;
-  try {
-    const parsed = new URL(tab.url);
-    if (parsed.port !== "3488") return;
-    chrome.runtime.sendMessage({ type: "COMPANION_VOICE_TAB_READY", url: tab.url }).catch(() => {});
-  } catch {
-    // ignore
   }
 });
 

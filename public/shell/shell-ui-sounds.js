@@ -1021,3 +1021,24 @@ export async function playShellUiSound(kind = "saved") {
     // ignore
   }
 }
+
+/** PTT-микрофон: короткий «тик» при нажатии, «так» при отпускании (как mobile Shell). */
+export function playShellMicSound(phase = "press") {
+  try {
+    primeShellProcessingAudio();
+    const ctx = getShellAudioContext();
+    if (!ctx) return;
+    const output = ctx.destination;
+    const isPress = phase !== "release";
+    playSoftClockClick(ctx, output, isPress ? "tick" : "tak");
+    playSoftTone(
+      ctx,
+      output,
+      isPress
+        ? { frequency: 622, duration: 0.055, gain: 0.05, type: "sine", slideTo: 880 }
+        : { frequency: 494, duration: 0.07, gain: 0.042, type: "sine", slideTo: 349 }
+    );
+  } catch {
+    // ignore
+  }
+}

@@ -1,4 +1,5 @@
 import { MOBILE_STORAGE_LEGACY, SHELL_STORAGE } from "@shell/storage-keys";
+import { playShellMicSound, primeShellProcessingAudio } from "@shell/ui-sounds";
 
 const VOICE_CONFIRM_KEY = SHELL_STORAGE.voiceConfirm;
 const VOICE_CONFIRM_MOBILE_KEY = MOBILE_STORAGE_LEGACY.voiceConfirm;
@@ -321,6 +322,8 @@ export function createShellTapVoice(deps) {
       if (micTapHeld || micStarting) return false;
       micTapHeld = true;
       deps.state.micTapHeld = true;
+      primeShellProcessingAudio();
+      playShellMicSound("press");
       hapticTap();
     } else if (!deps.state.pttKeyboardHeld) {
       return false;
@@ -391,7 +394,10 @@ export function createShellTapVoice(deps) {
     const wasTap = micTapHeld;
     micTapHeld = false;
     deps.state.micTapHeld = false;
-    if (wasTap) hapticTap();
+    if (wasTap) {
+      playShellMicSound("release");
+      hapticTap();
+    }
     try {
       deps.recognition?.stop();
     } catch {

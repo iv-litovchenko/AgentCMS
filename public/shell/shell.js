@@ -10,6 +10,7 @@ import { createShellTtsPlayer } from "@shell/tts-player";
 import { unlockShellAudio } from "@shell/audio-unlock";
 import {
   playShellUiSound,
+  playShellMicSound,
   primeShellProcessingAudio,
   previewShellProcessingAmbient,
   PROCESSING_SOUND_OPTIONS,
@@ -4725,33 +4726,6 @@ function bindCmsComposeInsertBridge() {
   });
 }
 
-function bindCompanionHostBridge() {
-  if (!shellEmbedMode) return;
-  window.addEventListener("message", (event) => {
-    if (event.source !== window.parent) return;
-    const data = event.data;
-    if (!data || typeof data !== "object") return;
-    if (data.type === "agent-shell-companion:ping") {
-      notifyCompanionHostReady();
-    }
-  });
-}
-
-function notifyCompanionHostReady() {
-  if (!shellEmbedMode || window.parent === window) return;
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const host = readVoiceSurfaceHostFromLocation();
-    if (params.get("companion") !== "1" && host !== "extension") return;
-    window.parent.postMessage(
-      { type: "agent-shell-companion:voice-loaded", url: window.location.href },
-      "*"
-    );
-  } catch {
-    // ignore
-  }
-}
-
 function bindCmsPagePickerBridge() {
   if (!shellEmbedMode) return;
   const btn = document.getElementById("shell-page-picker-btn");
@@ -6887,6 +6861,7 @@ function beginMicHold() {
   }
   interruptTtsForUserVoice();
   if (usesSidecarMic(mode)) {
+    playShellMicSound("press");
     hapticTap();
     void setPttHeldRemote(true).catch((error) => renderPhase("waiting", error.message));
     return true;
@@ -6907,6 +6882,9 @@ function beginMicHold() {
 function endMicHold() {
   const mode = getVoiceInputMode();
   if (micActionForMode(mode) !== "hold") return;
+  if (usesSidecarMic(mode)) {
+    playShellMicSound("release");
+  }
   schedulePttReleaseTail(() => {
     if (usesSidecarMic(mode)) {
       void setPttHeldRemote(false).catch((error) => renderPhase("waiting", error.message));
@@ -7719,9 +7697,7 @@ async function boot() {
     document.body.classList.add("shell-embed");
   }
   bindCmsComposeInsertBridge();
-  bindCompanionHostBridge();
   bindCmsPagePickerBridge();
-  notifyCompanionHostReady();
   initShellSurface({ onSurface: renderHeaderHostChip });
   if (!shellEmbedMode) {
     initShellInstallBanner({
@@ -7842,7 +7818,6 @@ async function boot() {
     commitAllSettingsBaselines();
     void loadQwenPawAgents();
     connectStream();
-    notifyCompanionHostReady();
   } catch (error) {
     renderPhase("waiting", error.message);
   }
