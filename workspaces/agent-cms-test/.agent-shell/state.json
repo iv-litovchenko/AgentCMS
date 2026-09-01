@@ -10,8 +10,8 @@
   "pttHeld": false,
   "meetingRecording": false,
   "lastTtsClientId": "74198ef2-180e-4beb-8cbb-dffa9687344e:d79aec34-49ca-4a71-b3d0-2aeabfa3fa8c",
-  "primaryClientId": "a7c487f0-a72e-482a-b74c-475e020ddbf8:0ce9e208-b091-4da2-896a-4249cacffab1",
-  "updatedAt": "2026-09-01T17:47:58.604Z",
+  "primaryClientId": "a7c487f0-a72e-482a-b74c-475e020ddbf8:af196607-cef3-4d00-9a7d-1b8eb1a62065",
+  "updatedAt": "2026-09-01T18:16:23.230Z",
   "shellSurfaceHost": "browser-tab",
   "shellSurfaceHint": "Вкладка браузера",
   "shellSurfaceBackend": "local"

@@ -193,7 +193,7 @@ async function ensurePagePickerScript(tabId) {
   }
   await chrome.scripting.executeScript({
     target: { tabId, allFrames: false },
-    files: ["page-picker.js"]
+    files: ["page-picker-extract.js", "page-picker.js"]
   });
 }
 

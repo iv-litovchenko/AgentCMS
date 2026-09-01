@@ -40,7 +40,11 @@
     ".node-overview-content",
     "button",
     "a",
-    "label"
+    "img",
+    "label",
+    "input",
+    "textarea",
+    "select"
   ].join(", ");
 
   const discussShellIframeNode = document.getElementById("discuss-shell-iframe");
@@ -138,6 +142,9 @@
   function resolvePickerTarget(raw) {
     if (!raw || isPickerExcluded(raw)) return null;
 
+    const priority = window.PagePickerExtract?.findPickerPriorityElement?.(raw, isPickerExcluded);
+    if (priority) return priority;
+
     let el = raw.closest(PICKER_BLOCK_SELECTOR) || raw;
     if (isPickerExcluded(el)) return null;
 
@@ -152,7 +159,13 @@
       break;
     }
 
-    return extractPickerText(el).length >= 1 ? el : null;
+    return extractPickerText(el).length >= 1 || window.PagePickerExtract?.isFormField?.(el) ? el : null;
+  }
+
+  function extractPickerPayload(el) {
+    const special = window.PagePickerExtract?.extractPickerInsertValue?.(el);
+    if (special) return special;
+    return extractPickerText(el);
   }
 
   function hideHighlight() {
@@ -197,7 +210,7 @@
 
     const raw = document.elementFromPoint(event.clientX, event.clientY);
     const target = resolvePickerTarget(raw);
-    const text = extractPickerText(target);
+    const text = extractPickerPayload(target);
     if (text) insertIntoVoiceCompose(text);
   }
 
@@ -218,7 +231,7 @@
 
     hintNode = document.createElement("div");
     hintNode.className = "cms-page-picker-hint";
-    hintNode.textContent = "Выберите блок на странице · Esc или ⌖ — выключить";
+    hintNode.textContent = "Блок, ссылка, картинка или поле формы · Esc или ⌖ — выключить";
 
     highlightNode = document.createElement("div");
     highlightNode.className = "cms-page-picker-highlight";
