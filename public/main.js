@@ -34,6 +34,10 @@ const menuStaticFooterBodyNode = document.getElementById("menu-static-footer-bod
 const menuStaticFooterActionNode = document.getElementById("menu-static-footer-action");
 const menuGoogleDriveStatsNode = document.getElementById("menu-google-drive-stats");
 const menuGoogleDriveFilesNode = document.getElementById("menu-google-drive-files");
+const menuAwnDialogsStatsNode = document.getElementById("menu-awn-dialogs-stats");
+const menuAwnDialogsRuntimesNode = document.getElementById("menu-awn-dialogs-runtimes");
+const menuAwnDialogsOpenBtn = document.getElementById("menu-awn-dialogs-open-btn");
+const menuAwnDialogsRefreshBtn = document.getElementById("menu-awn-dialogs-refresh-btn");
 const menuGoogleDriveRepairBtn = document.getElementById("menu-google-drive-repair-btn");
 const menuGoogleDriveRefreshBtn = document.getElementById("menu-google-drive-refresh-btn");
 const menuAwnDataStoresNode = document.getElementById("menu-awn-data-stores");
@@ -11486,6 +11490,7 @@ async function switchActiveAgent(nextAgentId) {
     void loadAppFooterIdeasPreview();
     void refreshMenuGoogleDriveStats(activeAgentId);
     void refreshMenuAwnDataStores(activeAgentId);
+    void refreshMenuAwnDialogsStats(activeAgentId);
   } finally {
     setMenuLoading(false);
   }
@@ -13044,6 +13049,7 @@ const FOLDER_BROWSE_MODE = "folder-browse";
 const FOLDER_BROWSE_FILE_MODE = "folder-browse-file";
 const AWN_DATA_VIEW_MODE = "awn-data-view";
 const FREE_MEMORY_LABEL = "Свободная память";
+const AWN_DIALOGS_FOLDER = "awn-dialogs";
 const FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY = "yamlcms.folderBrowseImagesColumns";
 const FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS = [1, 3, 5];
 const NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY = "yamlcms.navigationMediaImagesLayout";
@@ -90338,11 +90344,14 @@ function setupMenuStaticFooterGroup() {
   );
   void refreshMenuGoogleDriveStats();
   void refreshMenuAwnDataStores();
+  void refreshMenuAwnDialogsStats();
   loadAwnDataViewRecordsLayout();
   setupAwnDataStoresUi();
+  setupMenuAwnDialogsUi();
 }
 
 let menuGoogleDriveStatsLoadSeq = 0;
+let menuAwnDialogsStatsLoadSeq = 0;
 let menuAwnDataStoresLoadSeq = 0;
 let awnDataCatalogAgentId = null;
 let awnDataViewCatalogAgentId = null;
@@ -93084,6 +93093,157 @@ function setupMenuGoogleDriveRepairButton() {
     event.preventDefault();
     event.stopPropagation();
     void repairMenuGoogleDriveSymlinks();
+  });
+}
+
+function renderMenuAwnDialogsStats(payload = null, { loading = false, error = false } = {}) {
+  if (menuAwnDialogsStatsNode) {
+    if (loading) {
+      menuAwnDialogsStatsNode.textContent = "…";
+      menuAwnDialogsStatsNode.classList.remove("is-empty", "is-error");
+    } else if (error || !payload) {
+      menuAwnDialogsStatsNode.textContent = "—";
+      menuAwnDialogsStatsNode.classList.add("is-error");
+      menuAwnDialogsStatsNode.classList.remove("is-empty");
+    } else if (!payload.exists) {
+      menuAwnDialogsStatsNode.textContent = "0 · —";
+      menuAwnDialogsStatsNode.classList.add("is-empty");
+      menuAwnDialogsStatsNode.classList.remove("is-error");
+    } else {
+      const runtimeCount = Number(payload.runtimeCount) || 0;
+      const dayFiles = Number(payload.dayFileCount) || 0;
+      menuAwnDialogsStatsNode.textContent =
+        runtimeCount > 0 || dayFiles > 0 ? `${runtimeCount} rt · ${dayFiles} md` : "0 · —";
+      menuAwnDialogsStatsNode.classList.toggle("is-empty", runtimeCount === 0 && dayFiles === 0);
+      menuAwnDialogsStatsNode.classList.remove("is-error");
+    }
+  }
+
+  if (!menuAwnDialogsRuntimesNode) return;
+  menuAwnDialogsRuntimesNode.replaceChildren();
+
+  if (loading) {
+    const item = document.createElement("li");
+    item.className = "menu-awn-dialogs-runtimes-empty";
+    item.textContent = "Загрузка…";
+    menuAwnDialogsRuntimesNode.appendChild(item);
+    return;
+  }
+
+  if (error || !payload) {
+    const item = document.createElement("li");
+    item.className = "menu-awn-dialogs-runtimes-empty is-error";
+    item.textContent = "Не удалось прочитать";
+    menuAwnDialogsRuntimesNode.appendChild(item);
+    return;
+  }
+
+  const runtimes = Array.isArray(payload.runtimes) ? payload.runtimes : [];
+  if (!payload.exists || !runtimes.length) {
+    const item = document.createElement("li");
+    item.className = "menu-awn-dialogs-runtimes-empty";
+    item.textContent = payload.exists ? "Папка пуста" : "Папка не создана";
+    menuAwnDialogsRuntimesNode.appendChild(item);
+    return;
+  }
+
+  for (const runtime of runtimes) {
+    const row = document.createElement("li");
+    row.className = "menu-awn-dialogs-runtime-row";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-awn-dialogs-runtime-btn";
+    btn.textContent = String(runtime.name || "—");
+    btn.title = String(runtime.folderPath || "");
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      void openFolderBrowseFromMenu(runtime.name, runtime.folderPath, { agentId: activeAgentId });
+    });
+
+    const meta = document.createElement("span");
+    meta.className = "menu-awn-dialogs-runtime-meta";
+    const parts = [];
+    if (Number(runtime.itemCount) > 0) parts.push(`${runtime.itemCount} эл.`);
+    if (Number(runtime.dayFiles) > 0) parts.push(`${runtime.dayFiles} md`);
+    meta.textContent = parts.join(" · ") || "—";
+
+    row.append(btn, meta);
+    menuAwnDialogsRuntimesNode.appendChild(row);
+  }
+}
+
+async function refreshMenuAwnDialogsStats(agentId = activeAgentId) {
+  if (!menuAwnDialogsStatsNode && !menuAwnDialogsRuntimesNode) return;
+  if (!agentId) {
+    renderMenuAwnDialogsStats({ exists: false, runtimeCount: 0, dayFileCount: 0, runtimes: [] });
+    return;
+  }
+
+  const seq = ++menuAwnDialogsStatsLoadSeq;
+  renderMenuAwnDialogsStats(null, { loading: true });
+
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/workspace/folder/browse", { folderPath: AWN_DIALOGS_FOLDER }, agentId)
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (seq !== menuAwnDialogsStatsLoadSeq) return;
+
+    const folders = Array.isArray(data.folders) ? data.folders : [];
+    const pages = Array.isArray(data.pages) ? data.pages : [];
+    const runtimes = folders.map((folder) => ({
+      name: folder.name,
+      folderPath: folder.folderPath,
+      itemCount: Number(folder.itemCount) || 0,
+      dayFiles: 0
+    }));
+
+    let dayFileCount = pages.length;
+    for (const runtime of runtimes) {
+      try {
+        const childResponse = await fetch(
+          buildApiUrl("/api/workspace/folder/browse", { folderPath: runtime.folderPath }, agentId)
+        );
+        if (!childResponse.ok) continue;
+        const childData = await childResponse.json();
+        const childPages = Array.isArray(childData.pages) ? childData.pages.length : 0;
+        const childFolders = Array.isArray(childData.folders) ? childData.folders : [];
+        runtime.dayFiles = childPages + childFolders.reduce((sum, entry) => {
+          const name = String(entry.name || "");
+          return sum + (/^\d{4}-\d{2}-\d{2}\.md$/i.test(name) ? 1 : 0);
+        }, 0);
+        dayFileCount += runtime.dayFiles;
+      } catch {
+        // ignore per-runtime errors
+      }
+    }
+
+    renderMenuAwnDialogsStats({
+      exists: Boolean(data.exists),
+      runtimeCount: runtimes.length,
+      dayFileCount,
+      runtimes
+    });
+  } catch {
+    if (seq !== menuAwnDialogsStatsLoadSeq) return;
+    renderMenuAwnDialogsStats(null, { error: true });
+  }
+}
+
+function setupMenuAwnDialogsUi() {
+  menuAwnDialogsOpenBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void openFolderBrowseFromMenu("Диалоги с ИИ", AWN_DIALOGS_FOLDER, { agentId: activeAgentId });
+  });
+  menuAwnDialogsRefreshBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    menuAwnDialogsRefreshBtn.classList.add("is-spinning");
+    void refreshMenuAwnDialogsStats(activeAgentId).finally(() => {
+      menuAwnDialogsRefreshBtn?.classList.remove("is-spinning");
+    });
   });
 }
 

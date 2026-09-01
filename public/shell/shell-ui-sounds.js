@@ -1028,15 +1028,16 @@ export function playShellMicSound(phase = "press") {
     primeShellProcessingAudio();
     const ctx = getShellAudioContext();
     if (!ctx) return;
+    if (ctx.state === "suspended") void ctx.resume();
     const output = ctx.destination;
     const isPress = phase !== "release";
-    playSoftClockClick(ctx, output, isPress ? "tick" : "tak");
+    playSoftClockClick(ctx, output, isPress ? "tick" : "tock");
     playSoftTone(
       ctx,
       output,
       isPress
-        ? { frequency: 622, duration: 0.055, gain: 0.05, type: "sine", slideTo: 880 }
-        : { frequency: 494, duration: 0.07, gain: 0.042, type: "sine", slideTo: 349 }
+        ? { frequency: 622, duration: 0.065, gain: 0.075, type: "sine", slideTo: 920 }
+        : { frequency: 494, duration: 0.085, gain: 0.065, type: "sine", slideTo: 330 }
     );
   } catch {
     // ignore

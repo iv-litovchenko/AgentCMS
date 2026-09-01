@@ -9188,3 +9188,120 @@ body.shell-pet {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   pointer-events: none;
 }
+
+.shell-path-action-btn.is-active {
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.18);
+}
+
+.shell-debug-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 92vw);
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  background: rgba(8, 10, 22, 0.94);
+  border-left: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  color: #e2e8f0;
+}
+
+.shell-debug-panel.hidden {
+  display: none;
+}
+
+.shell-debug-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.shell-debug-panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.shell-debug-panel-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.shell-debug-panel-btn {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.72);
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.shell-debug-panel-btn:hover {
+  background: rgba(51, 65, 85, 0.9);
+}
+
+.shell-debug-panel-btn--close {
+  width: 28px;
+  padding-inline: 0;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.shell-debug-panel-body {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 10px 16px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.shell-debug-entry {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.shell-debug-entry-meta {
+  color: #94a3b8;
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+
+.shell-debug-entry-msg {
+  color: #f1f5f9;
+  word-break: break-word;
+}
+
+.shell-debug-entry-detail {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #cbd5e1;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 10px;
+}
+
+.shell-debug-entry[data-category="error"] .shell-debug-entry-msg {
+  color: #fca5a5;
+}
+
+.shell-debug-entry[data-category="proactive"] .shell-debug-entry-msg {
+  color: #fde68a;
+}
+
+.shell-debug-entry[data-category="click"] .shell-debug-entry-msg {
+  color: #a5f3fc;
+}

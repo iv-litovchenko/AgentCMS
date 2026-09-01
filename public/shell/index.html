@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=451" />
+    <link rel="stylesheet" href="/shell/shell.css?v=452" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -22,7 +22,7 @@
           "three": "/shell/vendor/three.module.js",
           "@shell/settings-save": "/shell/shell-settings-save.js?v=316",
           "@shell/reply": "/shell/shell-reply.js?v=207",
-          "@shell/markdown": "/shell/shell-markdown.js?v=207",
+          "@shell/markdown": "/shell/shell-markdown.js?v=416",
           "@shell/character": "/shell/shell-character.js?v=208",
           "@shell/character-models": "/shell/shell-character-models.js?v=207",
           "@shell/camera": "/shell/shell-camera.js?v=207",
@@ -30,7 +30,7 @@
           "@shell/tts-tab": "/shell/shell-tts-tab.js?v=207",
           "@shell/tts-player": "/shell/shell-tts-player.js?v=207",
           "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=207",
-          "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=412",
+          "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=413",
           "@shell/browser-tts": "/shell/shell-browser-tts.js?v=404",
           "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=207",
           "@shell/session": "/shell/shell-session.js?v=207",
@@ -44,18 +44,19 @@
           "@shell/dialog": "/shell/shell-dialog.js?v=260",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=316",
-          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=316",
+          "@shell/storage-keys": "/shell/shell-storage-keys.js?v=416",
           "@shell/help": "/shell/shell-help.js?v=207",
           "@shell/hints": "/shell/shell-hints.js?v=313",
-          "@shell/proactive": "/shell/shell-proactive.js?v=322",
+          "@shell/proactive": "/shell/shell-proactive.js?v=323",
+          "@shell/debug": "/shell/shell-debug.js?v=416",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
-          "@shell/voice": "/shell/shell-voice.js?v=208",
+          "@shell/voice": "/shell/shell-voice.js?v=209",
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=415",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=350",
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=414",
-          "@shell/build": "/shell/shell-build.js?v=415"
+          "@shell/build": "/shell/shell-build.js?v=416"
         }
       }
     </script>
@@ -192,6 +193,16 @@
                 aria-hidden="true"
               >
                 ★
+              </button>
+              <button
+                type="button"
+                class="shell-path-action-btn"
+                id="shell-debug-btn"
+                title="Журнал отладки"
+                aria-label="Журнал отладки"
+                aria-pressed="false"
+              >
+                ⎈
               </button>
               <button
                 type="button"
@@ -2172,10 +2183,18 @@ CMS workspace</pre>
       </div>
     </dialog>
 
-    <script src="/vendor/markdown-it.min.js"></script>
-    <script src="/markdown-github-alerts.js"></script>
-    <script src="/markdown-it-task-lists.js"></script>
+    <div id="shell-debug-panel" class="shell-debug-panel hidden" aria-hidden="true">
+      <header class="shell-debug-panel-head">
+        <span class="shell-debug-panel-title">Журнал Shell</span>
+        <div class="shell-debug-panel-actions">
+          <button type="button" class="shell-debug-panel-btn" id="shell-debug-clear">Очистить</button>
+          <button type="button" class="shell-debug-panel-btn shell-debug-panel-btn--close" id="shell-debug-close" aria-label="Закрыть">×</button>
+        </div>
+      </header>
+      <div class="shell-debug-panel-body" id="shell-debug-log" role="log" aria-live="polite" aria-relevant="additions"></div>
+    </div>
+
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=439" type="module"></script>
+    <script src="/shell/shell.js?v=441" type="module"></script>
   </body>
 </html>

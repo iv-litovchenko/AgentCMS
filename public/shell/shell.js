@@ -1,7 +1,7 @@
 import { loadAgentSelectData, getSelectableAgents, populateAgentSelect } from "/shared/agent-select.js";
 import { createSettingsSaveController } from "@shell/settings-save";
 import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, mergeSpeechStreamChunks, parseDualReply, extractStreamingTtsBody, extractStreamingReplyBody, hasVoiceEndDelimiter, stripAllTtsBlocks } from "@shell/reply";
-import { renderShellReplyMarkdown, renderShellReplyBody } from "@shell/markdown";
+import { renderShellReplyMarkdown, renderShellReplyBody, preloadShellMarkdown } from "@shell/markdown";
 import { initShellCharacter } from "@shell/character";
 import { createShellCamera } from "@shell/camera";
 import { createShellScreen } from "@shell/screen";
@@ -63,6 +63,7 @@ import {
   writeWindowSettingsToStorage
 } from "@shell/window-storage";
 import { buildProactiveMessage, createShellProactive, DEFAULT_PROACTIVE_PROMPT, normalizeQuietTime } from "@shell/proactive";
+import { createShellDebugLog } from "@shell/debug";
 import {
   buildComposeCameraMessage,
   captureOneShotCameraFrame,
@@ -370,6 +371,7 @@ const HERO_STATE_LABELS = {
 };
 
 let lastRenderedDisplayPhase = "waiting";
+let lastLoggedPhase = "";
 let processingSoundPhase = "";
 
 const VOICE_MODE_TITLES = VOICE_MODE_LABELS;
@@ -1087,6 +1089,10 @@ const nodes = {
   micDialogCheck: document.getElementById("shell-mic-dialog-check"),
   micHelpLink: document.getElementById("shell-mic-help-link"),
   helpBtn: document.getElementById("shell-help-btn"),
+  debugBtn: document.getElementById("shell-debug-btn"),
+  debugPanel: document.getElementById("shell-debug-panel"),
+  debugClear: document.getElementById("shell-debug-clear"),
+  debugClose: document.getElementById("shell-debug-close"),
   voicePrimaryStar: document.getElementById("shell-voice-primary-star"),
   helpDialog: document.getElementById("shell-help-dialog"),
   helpClose: document.getElementById("shell-help-close"),
@@ -1237,6 +1243,11 @@ const shellDialog = createShellDialog({
 
 let shellSession = null;
 let shellProactive = null;
+const shellDebug = createShellDebugLog({ storageKey: SHELL_STORAGE.debugLog });
+
+function shellLog(category, message, detail) {
+  shellDebug.log(category, message, detail);
+}
 
 function initShellProactiveController() {
   shellProactive = createShellProactive({
@@ -1260,6 +1271,7 @@ function initShellProactiveController() {
   });
   shellProactive.start();
   if (state.settings) shellProactive.syncSettings(state.settings);
+  shellDebug.watchProactive(shellProactive);
 }
 
 async function toggleProactiveFromHero() {
@@ -1271,6 +1283,7 @@ async function toggleProactiveFromHero() {
   void playShellUiSound("toggle");
   try {
     const enabled = await shellProactive.toggleEnabled();
+    shellLog("proactive", enabled ? "Включена из hero" : "Выключена из hero");
     renderPhase("waiting", enabled ? "Проактивность включена" : "Проактивность выключена");
   } catch (error) {
     btn.setAttribute("aria-pressed", prev ? "true" : "false");
@@ -1673,6 +1686,10 @@ function renderPhase(phase, phrase = "", metrics = "") {
   const displayPhase = resolveDisplayPhase(phase);
   lastRenderedDisplayPhase = displayPhase;
   const statusText = composePhaseStatusText(phrase, metrics);
+  if (displayPhase !== lastLoggedPhase) {
+    shellLog("phase", displayPhase, statusText || undefined);
+    lastLoggedPhase = displayPhase;
+  }
   const skipLabel = shellSession?.shouldSkipDuplicatePhase(phase) && !statusText;
   if (!skipLabel) shellSession?.rememberPhase(phase);
   syncHeroAvatarVisuals(phase, { updateLabel: !skipLabel && !state.ttsPaused, phrase: statusText });
@@ -3313,6 +3330,7 @@ function onShellPhaseChange(nextState) {
   const prev = state.previousPhase || "waiting";
   const next = nextState?.phase || "waiting";
   if (prev === next) return;
+  shellLog("state", `phase ${prev} → ${next}`);
   if (prev === "listening" && next === "thinking") {
     if (state.settings?.cameraOnSpeech && shellCamera.isActive()) {
       void uploadCameraSnapshot("speech").catch(() => {});
@@ -3686,7 +3704,12 @@ function applySttSummarySettings(settings = state.settings) {
 
 function applySettings(settings) {
   if (!settings) return;
+  const prevProactive = Boolean(state.settings?.proactiveEnabled);
   state.settings = settings;
+  shellLog("settings", "applySettings", {
+    proactiveEnabled: settings.proactiveEnabled,
+    proactiveDirty: settingsSave.isSectionDirty("proactive")
+  });
 
   if (
     !isSettingsViewOpen() &&
@@ -3758,9 +3781,17 @@ function applySettings(settings) {
   }
   if (!settingsSave.isSectionDirty("proactive")) {
     applyProactiveFormUi(settings);
+    shellProactive?.syncSettings(settings);
+  } else if (shellProactive) {
+    shellProactive.syncSettings({
+      ...(settings || {}),
+      ...collectProactiveFormPatch()
+    });
+  }
+  if (prevProactive !== Boolean(settings.proactiveEnabled)) {
+    shellLog("proactive", `С сервера: ${settings.proactiveEnabled ? "вкл" : "выкл"}`);
   }
   syncCompactSensorAvailability();
-  shellProactive?.syncSettings(settings);
 }
 
 function getQwenPawUrlValue() {
@@ -4941,6 +4972,7 @@ async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
 
 async function sendProactiveMessage(idleSeconds) {
   hapticTap();
+  shellLog("proactive", `Отправка (idle ${idleSeconds}s)`);
   const template = resolveProactivePromptTemplate();
   await sendMessageDirect(buildProactiveMessage(idleSeconds, template), {
     fromCompose: false,
@@ -4957,6 +4989,7 @@ async function sendMessageDirect(
 ) {
   const text = String(body || "").trim();
   if (!text) return;
+  shellLog("message", `${author}${voice ? " · voice" : ""}`, text.slice(0, 160));
   shellProactive?.bumpActivity();
   void unlockShellAudio();
   shellSession?.setSessionUiLocked(true);
@@ -6562,22 +6595,43 @@ function connectStream() {
   }
   if (!state.agentId || typeof EventSource === "undefined") {
     syncDialogConnectionState();
+    shellLog("sse", "stream skipped", { agentId: state.agentId || null });
     return;
   }
 
+  shellLog("sse", "connect", { agentId: state.agentId });
   const source = new EventSource(apiUrl("/api/shell/stream"));
   state.eventSource = source;
   syncDialogConnectionState("connecting");
   source.onopen = () => {
     syncDialogConnectionState("live");
+    shellLog("sse", "open");
   };
   source.onerror = () => {
     syncDialogConnectionState("error");
+    shellLog("error", "SSE error");
+  };
+
+  const logSse = (type, detail) => {
+    if (type === "status") {
+      const now = Date.now();
+      if (!logSse.lastStatusAt || now - logSse.lastStatusAt > 30000) {
+        logSse.lastStatusAt = now;
+        shellLog("sse", type, detail);
+      }
+      return;
+    }
+    shellLog("sse", type, detail);
   };
 
   source.addEventListener("status", (event) => {
     try {
-      applyStatusPayload(JSON.parse(event.data));
+      const payload = JSON.parse(event.data);
+      logSse("status", {
+        phase: payload?.state?.phase,
+        proactiveEnabled: payload?.settings?.proactiveEnabled
+      });
+      applyStatusPayload(payload);
     } catch {
       // ignore malformed event
     }
@@ -6585,6 +6639,7 @@ function connectStream() {
 
   source.addEventListener("presence", (event) => {
     try {
+      logSse("presence");
       applyVoicePresence(JSON.parse(event.data));
     } catch {
       // ignore malformed event
@@ -6593,6 +6648,7 @@ function connectStream() {
 
   source.addEventListener("assistant_message", (event) => {
     try {
+      logSse("assistant_message");
       const payload = JSON.parse(event.data);
       void handleAssistantMessage(payload.message || payload.payload || payload);
     } catch {
@@ -6602,6 +6658,7 @@ function connectStream() {
 
   source.addEventListener("assistant_delta", (event) => {
     try {
+      logSse("assistant_delta");
       const payload = JSON.parse(event.data);
       handleAssistantDelta(payload);
     } catch {
@@ -6611,6 +6668,7 @@ function connectStream() {
 
   source.addEventListener("agent_activity", (event) => {
     try {
+      logSse("agent_activity");
       const payload = JSON.parse(event.data);
       handleAgentActivity(payload);
     } catch {
@@ -6620,6 +6678,7 @@ function connectStream() {
 
   source.addEventListener("camera_snapshot_request", (event) => {
     try {
+      logSse("camera_snapshot_request");
       const payload = JSON.parse(event.data);
       void handleCameraSnapshotRequest(payload);
     } catch {
@@ -6629,6 +6688,7 @@ function connectStream() {
 
   source.addEventListener("screen_snapshot_request", (event) => {
     try {
+      logSse("screen_snapshot_request");
       const payload = JSON.parse(event.data);
       void handleScreenSnapshotRequest(payload);
     } catch {
@@ -6638,6 +6698,7 @@ function connectStream() {
 
   source.addEventListener("window_settings", (event) => {
     try {
+      logSse("window_settings");
       const entry = JSON.parse(event.data);
       applyWindowSettings(entry.payload || entry);
     } catch {
@@ -6647,6 +6708,7 @@ function connectStream() {
 
   source.addEventListener("compose_draft", (event) => {
     try {
+      logSse("compose_draft");
       const entry = JSON.parse(event.data);
       const draft = entry.payload || entry;
       applyRemoteComposeDraft(String(draft.body || ""));
@@ -6660,6 +6722,7 @@ function connectStream() {
 
   source.addEventListener("state", (event) => {
     try {
+      logSse("state");
       const entry = JSON.parse(event.data);
       const nextState = entry.payload || entry;
       onShellPhaseChange(nextState);
@@ -6685,11 +6748,13 @@ function connectStream() {
   });
 
   source.addEventListener("stop_tts", () => {
+    logSse("stop_tts");
     stopBrowserTts({ notifyServer: false, broadcast: false });
     releaseMessagePipeline();
   });
 
   source.addEventListener("reconnect", () => {
+    logSse("reconnect");
     source.close();
     setTimeout(connectStream, 500);
   });
@@ -6871,8 +6936,10 @@ function beginMicHold() {
     return false;
   }
   if (usesBrowserStt(mode)) {
+    playShellMicSound("press");
+    hapticTap();
     shellTapVoice.prepareSession();
-    void shellTapVoice.startSession({ viaTap: true });
+    void shellTapVoice.startSession({ viaTap: true, skipPressSound: true });
     return true;
   }
   renderPhase("waiting", "Голос недоступен — проверьте режим и «Глобально»");
@@ -6882,7 +6949,7 @@ function beginMicHold() {
 function endMicHold() {
   const mode = getVoiceInputMode();
   if (micActionForMode(mode) !== "hold") return;
-  if (usesSidecarMic(mode)) {
+  if (state.micPointerHeld || shellTapVoice?.isTapHeld?.() || state.pttHeld) {
     playShellMicSound("release");
   }
   schedulePttReleaseTail(() => {
@@ -6890,7 +6957,7 @@ function endMicHold() {
       void setPttHeldRemote(false).catch((error) => renderPhase("waiting", error.message));
       return;
     }
-    shellTapVoice?.stopSession();
+    shellTapVoice?.stopSession({ skipReleaseSound: true });
   });
 }
 
@@ -7488,10 +7555,17 @@ function bindUi() {
   nodes.proactivePrompt?.addEventListener("input", markProactiveDirty);
   nodes.proactivePrompt?.addEventListener("change", markProactiveDirty);
   nodes.proactiveEnabled?.addEventListener("change", () => {
-    shellProactive?.syncSettings({
-      ...(state.settings || {}),
-      ...collectProactiveFormPatch()
-    });
+    const patch = collectProactiveFormPatch();
+    shellProactive?.syncSettings({ ...(state.settings || {}), ...patch });
+    const enabled = Boolean(patch.proactiveEnabled);
+    if (enabled === Boolean(state.settings?.proactiveEnabled)) return;
+    shellLog("proactive", enabled ? "Включена в настройках" : "Выключена в настройках");
+    void saveSettings({ proactiveEnabled: enabled }, { apply: "none" })
+      .then(() => {
+        state.settings = { ...(state.settings || {}), proactiveEnabled: enabled };
+        settingsSave.patchBaseline("proactive", { proactiveEnabled: enabled });
+      })
+      .catch((error) => shellLog("error", "Не сохранилась проактивность", error.message));
   });
   nodes.ttsPiperModel?.addEventListener("blur", markTtsDirty);
   nodes.ttsPiperBinary?.addEventListener("blur", markTtsDirty);
@@ -7755,6 +7829,12 @@ async function boot() {
     onYieldSpeech: (reason) => yieldLocalTtsPlayback(reason)
   });
   initShellProactiveController();
+  shellDebug.mount({
+    btn: nodes.debugBtn,
+    panel: nodes.debugPanel,
+    clearBtn: nodes.debugClear,
+    closeBtn: nodes.debugClose
+  });
   bindUi();
   bindNavigationUi();
   setSettingsTab(state.settingsTab || "route");
@@ -7781,6 +7861,8 @@ async function boot() {
     if (processingSoundPhase === "thinking") void startShellProcessingAmbient();
   });
   syncDialogConnectionState();
+  shellLog("boot", "Shell UI готов", { agentId: state.agentId || null, embed: shellEmbedMode });
+  preloadShellMarkdown();
   void initBatteryMonitor();
   void initShellCharacter(nodes.characterStage, nodes.agentAvatar);
   try {
@@ -7818,13 +7900,19 @@ async function boot() {
     commitAllSettingsBaselines();
     void loadQwenPawAgents();
     connectStream();
+    shellLog("boot", "Агент подключён", {
+      agentId: state.agentId,
+      proactiveEnabled: Boolean(state.settings?.proactiveEnabled)
+    });
   } catch (error) {
+    shellLog("error", "Ошибка boot", error.message);
     renderPhase("waiting", error.message);
   }
 }
 
 void boot().catch((error) => {
   const msg = String(error?.message || error || "Ошибка загрузки Shell");
+  shellLog("error", "Критическая ошибка boot", msg);
   console.error("[shell boot]", error);
   try {
     renderPhase("waiting", msg);

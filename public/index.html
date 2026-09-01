@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.719" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.721" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -1125,6 +1125,60 @@
                     <p id="menu-workspace-index-monitor-summary" class="menu-index-monitor-summary" aria-live="polite"></p>
                     <div id="menu-workspace-index-monitor-grid" class="menu-index-monitor-grid"></div>
                   </div>
+                </div>
+              </details>
+              <details class="menu-static-section menu-static-section--awn-dialogs menu-static-accordion">
+                <summary class="menu-static-summary" title="Диалоги с ИИ — архив переписки Shell / Voice (awn-dialogs)">
+                  <span class="menu-static-title menu-static-title--awn-dialogs">
+                    <span aria-hidden="true">🟢</span>
+                    <span class="menu-static-title-text">
+                      Диалоги с ИИ
+                      <span class="menu-static-subtitle">awn-dialogs · Shell / Voice</span>
+                    </span>
+                  </span>
+                  <span class="menu-static-summary-actions">
+                    <button
+                      id="menu-awn-dialogs-refresh-btn"
+                      type="button"
+                      class="menu-static-summary-refresh-btn"
+                      title="Обновить диалоги"
+                      aria-label="Обновить диалоги"
+                    >
+                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                          stroke="currentColor"
+                          stroke-width="2.25"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <p
+                    id="menu-awn-dialogs-stats"
+                    class="menu-awn-dialogs-stats is-empty"
+                    aria-live="polite"
+                  ></p>
+                  <p class="menu-static-description">
+                    Локальный архив переписки Voice/Shell: <code>qwenpaw/</code>, <code>claude/</code>,
+                    <code>codex/</code> по дням и сессиям. Отдельно от thread темы CMS.
+                  </p>
+                  <button
+                    id="menu-awn-dialogs-open-btn"
+                    type="button"
+                    class="menu-static-action-btn"
+                    title="Открыть папку awn-dialogs"
+                  >
+                    Открыть архив
+                  </button>
+                  <ul
+                    id="menu-awn-dialogs-runtimes"
+                    class="menu-awn-dialogs-runtimes"
+                    aria-label="Runtime-папки awn-dialogs"
+                  ></ul>
                 </div>
               </details>
               </div>
@@ -4158,7 +4212,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.725"></script>
+    <script src="/main.js?v=0.5.727"></script>
     <script src="/discuss-panel.js?v=0.5.253"></script>
     <script src="/page-picker-extract.js?v=0.5.2"></script>
     <script src="/cms-page-picker.js?v=0.5.4"></script>

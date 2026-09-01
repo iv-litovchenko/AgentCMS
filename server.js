@@ -14,6 +14,7 @@ const apiDocs = require("./api-docs");
 const mcpDocs = require("./mcp-docs");
 const { createGdriveSyncHelpers, getGoogleDriveSymlinkMeta } = require("./gdrive-sync");
 const { createShellHandlers } = require("./agent-shell/http-handlers");
+const { DIALOGS_DIR: SHELL_DIALOGS_DIR } = require("./agent-shell/shell-dialog-log");
 const { startVoiceServer, stopVoiceServer, shellLegacyRedirectTarget } = require("./voice-server");
 const voiceChpu = require("./lib/voice-chpu");
 const {
@@ -8785,6 +8786,9 @@ function isHiddenMenuEntry(name) {
 
 function shouldSkipMenuDirectory(name) {
   if (isPlatformDataRootFolderName(name)) return true;
+  if (String(name || "").toLowerCase() === String(SHELL_DIALOGS_DIR || "awn-dialogs").toLowerCase()) {
+    return true;
+  }
   return MENU_SKIP_DIRS.has(String(name || "").toLowerCase());
 }
 

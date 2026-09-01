@@ -6,6 +6,47 @@ import {
 } from "@shell/reply";
 
 let shellMarkdownIt = null;
+let markdownLibsPromise = null;
+
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-shell-md="${src}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === "1") resolve();
+      else existing.addEventListener("load", () => resolve(), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.dataset.shellMd = src;
+    script.addEventListener("load", () => {
+      script.dataset.loaded = "1";
+      resolve();
+    }, { once: true });
+    script.addEventListener("error", () => reject(new Error(`Не удалось загрузить ${src}`)), { once: true });
+    document.head.appendChild(script);
+  });
+}
+
+export function preloadShellMarkdown() {
+  void ensureShellMarkdownLibs();
+}
+
+function ensureShellMarkdownLibs() {
+  if (typeof window.markdownit === "function") return Promise.resolve();
+  if (!markdownLibsPromise) {
+    markdownLibsPromise = Promise.all([
+      loadScriptOnce("/vendor/markdown-it.min.js"),
+      loadScriptOnce("/markdown-github-alerts.js"),
+      loadScriptOnce("/markdown-it-task-lists.js")
+    ]).catch((error) => {
+      markdownLibsPromise = null;
+      throw error;
+    });
+  }
+  return markdownLibsPromise;
+}
 
 function getShellMarkdownIt() {
   if (shellMarkdownIt) return shellMarkdownIt;
@@ -77,6 +118,11 @@ export function renderShellReplyMarkdown(element, markdown) {
   const md = getShellMarkdownIt();
   if (!md) {
     element.textContent = source;
+    void ensureShellMarkdownLibs()
+      .then(() => {
+        if (element.isConnected) renderShellReplyMarkdown(element, markdown);
+      })
+      .catch(() => {});
     return;
   }
 

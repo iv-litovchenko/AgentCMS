@@ -49233,6 +49233,12 @@ body.is-cms-page-picker-active #discuss-aside * {
   overflow: visible;
 }
 
+.menu-static-section--awn-dialogs {
+  border: 1px solid #c4b5fd;
+  background: #f5f3ff;
+  overflow: visible;
+}
+
 .menu-awn-data-stores {
   list-style: none;
   margin: 0.5rem 0 0;
@@ -51177,6 +51183,12 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #f5f3ff;
 }
 
+.menu-static-section--awn-dialogs .menu-static-summary-refresh-btn:hover:not(.is-spinning) {
+  border-color: #c4b5fd;
+  color: #6d28d9;
+  background: #f5f3ff;
+}
+
 .menu-static-summary-refresh-btn.is-spinning {
   pointer-events: none;
   cursor: wait;
@@ -51231,6 +51243,83 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-static-section--indexing[open] > .menu-static-summary {
   border-bottom: 1px solid rgba(249, 168, 212, 0.55);
+}
+
+.menu-static-section--awn-dialogs[open] > .menu-static-summary {
+  border-bottom: 1px solid rgba(196, 181, 253, 0.55);
+}
+
+.menu-awn-dialogs-stats {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #6d28d9;
+}
+
+.menu-awn-dialogs-stats.is-empty {
+  color: #8b5cf6;
+}
+
+.menu-awn-dialogs-stats.is-error {
+  color: #dc2626;
+}
+
+.menu-awn-dialogs-runtimes {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.menu-awn-dialogs-runtimes-empty {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(196, 181, 253, 0.45);
+  color: #64748b;
+  font-size: 12px;
+}
+
+.menu-awn-dialogs-runtimes-empty.is-error {
+  color: #fca5a5;
+}
+
+.menu-awn-dialogs-runtime-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+}
+
+.menu-awn-dialogs-runtime-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid rgba(196, 181, 253, 0.55);
+  background: rgba(255, 255, 255, 0.82);
+  color: #5b21b6;
+  border-radius: 8px;
+  padding: 7px 10px;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.menu-awn-dialogs-runtime-btn:hover {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.menu-awn-dialogs-runtime-meta {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: #7c3aed;
+  white-space: nowrap;
 }
 
 .menu-static-body {
@@ -51305,6 +51394,10 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-static-title--storage-schemes {
+  color: #6d28d9;
+}
+
+.menu-static-title--awn-dialogs {
   color: #6d28d9;
 }
 

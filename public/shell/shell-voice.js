@@ -300,7 +300,7 @@ export function createShellTapVoice(deps) {
     stopWhenReady = false;
   };
 
-  const startSession = async ({ viaTap = false } = {}) => {
+  const startSession = async ({ viaTap = false, skipPressSound = false } = {}) => {
     if (!deps.recognition) return false;
     if (!usesBrowserRecognition(deps.getVoiceInputMode?.())) return false;
     if (deps.getVoiceInputMode?.() === "disabled" || deps.isSttDisabled?.()) {
@@ -323,8 +323,10 @@ export function createShellTapVoice(deps) {
       micTapHeld = true;
       deps.state.micTapHeld = true;
       primeShellProcessingAudio();
-      playShellMicSound("press");
-      hapticTap();
+      if (!skipPressSound) {
+        playShellMicSound("press");
+        hapticTap();
+      }
     } else if (!deps.state.pttKeyboardHeld) {
       return false;
     }
@@ -384,7 +386,7 @@ export function createShellTapVoice(deps) {
     }
   };
 
-  const stopSession = () => {
+  const stopSession = ({ skipReleaseSound = false } = {}) => {
     clearMicRestartTimer();
     if (micStarting) {
       stopWhenReady = true;
@@ -394,7 +396,7 @@ export function createShellTapVoice(deps) {
     const wasTap = micTapHeld;
     micTapHeld = false;
     deps.state.micTapHeld = false;
-    if (wasTap) {
+    if (wasTap && !skipReleaseSound) {
       playShellMicSound("release");
       hapticTap();
     }

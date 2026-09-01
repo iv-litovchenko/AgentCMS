@@ -93,8 +93,8 @@ export function createShellProactive(deps) {
     return deps.getPhase?.() || "waiting";
   }
 
-  function canTrigger() {
-    if (!enabled) return false;
+  function getBlockReason() {
+    if (!enabled) return "disabled";
     if (
       isProactiveQuietHours(new Date(), {
         enabled: quietHoursEnabled,
@@ -102,17 +102,26 @@ export function createShellProactive(deps) {
         end: quietEnd
       })
     ) {
-      return false;
+      return "quiet-hours";
     }
-    if (document.visibilityState !== "visible") return false;
-    if (deps.isPipelineBusy?.()) return false;
-    if (deps.isTtsActive?.()) return false;
-    if (deps.isMicActive?.()) return false;
-    if (getPhase() !== "waiting") return false;
+    if (document.visibilityState !== "visible") return "tab-hidden";
+    if (deps.isPipelineBusy?.()) return "pipeline-busy";
+    if (deps.isTtsActive?.()) return "tts-active";
+    if (deps.isMicActive?.()) return "mic-active";
+    const phase = getPhase();
+    if (phase !== "waiting") return `phase-${phase}`;
     const idleMs = Date.now() - lastActivityAt;
-    if (idleMs < idleSeconds * 1000) return false;
-    if (lastTriggeredAt && Date.now() - lastTriggeredAt < cooldownSeconds * 1000) return false;
-    return true;
+    if (idleMs < idleSeconds * 1000) {
+      return `idle-${Math.max(1, Math.ceil((idleSeconds * 1000 - idleMs) / 1000))}s`;
+    }
+    if (lastTriggeredAt && Date.now() - lastTriggeredAt < cooldownSeconds * 1000) {
+      return `cooldown-${Math.max(1, Math.ceil((cooldownSeconds * 1000 - (Date.now() - lastTriggeredAt)) / 1000))}s`;
+    }
+    return "ready";
+  }
+
+  function canTrigger() {
+    return getBlockReason() === "ready";
   }
 
   async function maybeTrigger() {
@@ -137,7 +146,6 @@ export function createShellProactive(deps) {
     document.addEventListener("pointerdown", onActivity, { passive: true });
     document.addEventListener("keydown", onActivity, { passive: true });
     document.addEventListener("touchstart", onActivity, { passive: true });
-    document.addEventListener("visibilitychange", onActivity, { passive: true });
     deps.composeEl?.addEventListener("input", onActivity);
   }
 
@@ -147,7 +155,6 @@ export function createShellProactive(deps) {
     document.removeEventListener("pointerdown", onActivity);
     document.removeEventListener("keydown", onActivity);
     document.removeEventListener("touchstart", onActivity);
-    document.removeEventListener("visibilitychange", onActivity);
     deps.composeEl?.removeEventListener("input", onActivity);
   }
 
@@ -184,6 +191,7 @@ export function createShellProactive(deps) {
     syncSettings,
     toggleEnabled,
     canTrigger,
+    getBlockReason,
     maybeTrigger
   };
 }
