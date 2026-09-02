@@ -52,7 +52,7 @@ export const SHELL_RUNTIME_EMOJIS = {
 export function resolveRuntimeConnectionState(runtime, status, { implemented = true } = {}) {
   const id = normalizeMessageRuntime(runtime);
   if (!implemented) return "soon";
-  if (!status) return "connecting";
+  if (!status) return "unknown";
   if (status.ok) return "live";
   if (status.installed === false || status.configured === false) return "unconfigured";
   return "error";
@@ -64,6 +64,8 @@ export function formatRuntimeStatusEmoji(conn) {
       return "🟢";
     case "connecting":
       return "🟡";
+    case "unknown":
+      return "⚪";
     case "unconfigured":
       return "⚪";
     case "error":
@@ -123,6 +125,7 @@ export function formatRuntimeStatusTitle(runtime, status, { implemented = true }
   if (!implemented) return `${label} — скоро`;
   if (conn === "live") return `${label}${versionSuffix} · на связи`;
   if (conn === "connecting") return `${label}${versionSuffix} · проверка…`;
+  if (conn === "unknown") return verShort ? `${label} · v${verShort}` : label;
   if (conn === "unconfigured") {
     return verShort ? `${label} · v${verShort} · CLI не установлен` : `${label} · CLI не установлен`;
   }

@@ -25,6 +25,7 @@
   },
   "voice": {
     "input": {
+      "enabled": false,
       "mode": "hold",
       "source": "auto",
       "globalListen": false,

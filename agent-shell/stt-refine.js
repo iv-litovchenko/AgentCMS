@@ -5,8 +5,8 @@ const STT_CHAT_NAME = "Shell STT";
 
 const ensuredSttChats = new Set();
 
-function shouldRefineStt(settings) {
-  return Boolean(String(settings?.sttPrompt || "").trim());
+function shouldRefineStt(_settings) {
+  return false;
 }
 
 function buildSttSessionId(settings, agentId) {

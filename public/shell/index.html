@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=452" />
+    <link rel="stylesheet" href="/shell/shell.css?v=454" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -47,14 +47,14 @@
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=416",
           "@shell/help": "/shell/shell-help.js?v=207",
           "@shell/hints": "/shell/shell-hints.js?v=313",
-          "@shell/proactive": "/shell/shell-proactive.js?v=323",
+          "@shell/proactive": "/shell/shell-proactive.js?v=324",
           "@shell/debug": "/shell/shell-debug.js?v=416",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
           "@shell/voice": "/shell/shell-voice.js?v=209",
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=415",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
-          "@shell/runtimes": "/shell/shell-runtimes.js?v=350",
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=351",
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=414",
           "@shell/build": "/shell/shell-build.js?v=416"
         }
@@ -524,7 +524,9 @@
         <section class="shell-proactive-panel" id="shell-proactive-panel" role="tabpanel" aria-labelledby="shell-settings-tab-proactive" hidden>
         <div class="shell-proactive-options">
           <p class="shell-proactive-note">
-            При бездействии Shell отправляет агенту сообщение по тому же маршруту, что и обычный ввод.
+            Выключено — никаких фоновых проверок и вызовов агента.
+            Включено — после бездействия Shell отправляет сообщение по тому же маршруту, что и обычный ввод
+            (в чат не попадает, <code>author: shell/proactive</code>).
             Включение — кнопка <strong>✨ Проактив</strong> внизу экрана или чекбокс ниже.
             Плейсхолдеры: <code>{{idle_seconds}}</code>, <code>{{idle_minutes}}</code>.
           </p>
@@ -1990,17 +1992,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <span class="shell-compose-tool-icon" aria-hidden="true">🖥</span>
               </button>
             </div>
-            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--send">
-              <button
-                type="button"
-                class="shell-icon-btn shell-compose-stop shell-compose-tool--sm"
-                id="shell-send-stop"
-                disabled
-                aria-label="Остановить ответ"
-                title="Остановить"
-              >
-                <span class="shell-compose-tool-icon" aria-hidden="true">⏹</span>
-              </button>
+            <div class="shell-compose-toolbar-group shell-compose-toolbar-group--send" aria-label="Отправка и остановка">
               <button
                 type="button"
                 class="shell-icon-btn shell-compose-send"
@@ -2013,6 +2005,16 @@ aya_bar_v2 тоже читает те же файлы</pre>
                   <path d="m5 12 7-7 7 7" />
                 </svg>
                 <kbd class="shell-compose-send-kbd" aria-hidden="true">⌘↵</kbd>
+              </button>
+              <button
+                type="button"
+                class="shell-icon-btn shell-compose-stop shell-compose-tool--sm"
+                id="shell-send-stop"
+                disabled
+                aria-label="Остановить ответ"
+                title="Остановить"
+              >
+                <span class="shell-compose-tool-icon" aria-hidden="true">⏹</span>
               </button>
             </div>
           </div>
@@ -2195,6 +2197,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=441" type="module"></script>
+    <script src="/shell/shell.js?v=449" type="module"></script>
   </body>
 </html>

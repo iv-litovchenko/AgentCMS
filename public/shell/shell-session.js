@@ -1,4 +1,4 @@
-export const STREAM_RENDER_MS = 240;
+export const STREAM_RENDER_MS = 16;
 const MAX_REPLY_IDS = 24;
 
 export function createShellSession(state, deps = {}) {

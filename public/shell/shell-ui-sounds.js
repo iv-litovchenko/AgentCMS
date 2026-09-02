@@ -1,9 +1,10 @@
 import { getShellAudioContext, unlockShellAudio } from "@shell/audio-unlock";
 
 const PROCESSING_SOUND_KEY = "agentcms.shell.processingSound.v1";
-const DEFAULT_PROCESSING_SOUND = "gurgle";
+const DEFAULT_PROCESSING_SOUND = "off";
 
 export const PROCESSING_SOUND_IDS = [
+  "off",
   "clock",
   "heartbeat",
   "sonar",
@@ -39,6 +40,7 @@ export const PROCESSING_SOUND_IDS = [
 ];
 
 export const PROCESSING_SOUND_OPTIONS = [
+  { id: "off", label: "Выкл", hint: "Без звука" },
   { id: "clock", label: "Тик-так", hint: "Мягкие часы" },
   { id: "heartbeat", label: "Сердце", hint: "Двойной пульс" },
   { id: "sonar", label: "Сонар", hint: "Тихий пинг" },
@@ -78,11 +80,18 @@ export function normalizeProcessingSound(id) {
   return PROCESSING_SOUND_IDS.includes(raw) ? raw : DEFAULT_PROCESSING_SOUND;
 }
 
+const DEPRECATED_PROCESSING_SOUNDS = new Set(["gurgle", "bubbles"]);
+
 export function readProcessingSound() {
   try {
     const stored = localStorage.getItem(PROCESSING_SOUND_KEY);
     if (stored == null || stored === "") return DEFAULT_PROCESSING_SOUND;
-    return normalizeProcessingSound(stored);
+    const normalized = normalizeProcessingSound(stored);
+    if (DEPRECATED_PROCESSING_SOUNDS.has(normalized)) {
+      writeProcessingSound("off");
+      return "off";
+    }
+    return normalized;
   } catch {
     return DEFAULT_PROCESSING_SOUND;
   }
@@ -932,9 +941,14 @@ function connectMaster(ctx) {
 }
 
 function beginProcessing(ctx, id) {
+  const soundId = normalizeProcessingSound(id);
+  if (soundId === "off") {
+    return { stop() {} };
+  }
   const master = connectMaster(ctx);
   const ctl = { stopped: false, timer: null, nodes: [] };
-  const start = PROCESSING_STARTERS[normalizeProcessingSound(id)] || startGurgle;
+  const start = PROCESSING_STARTERS[soundId];
+  if (!start) return { stop() {} };
   start(ctx, master, ctl);
 
   return {
@@ -968,6 +982,10 @@ function beginProcessing(ctx, id) {
 
 /** Мягкий ритм, пока идёт «Обрабатываю». */
 export async function startShellProcessingAmbient(id = readProcessingSound()) {
+  if (normalizeProcessingSound(id) === "off") {
+    stopShellProcessingAmbient();
+    return;
+  }
   if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
   stopShellProcessingAmbient();
 

@@ -12,7 +12,12 @@ function createShellHandlers(deps) {
 
     if (req.method === "GET" && url.pathname === "/api/shell/status") {
       try {
-        const payload = await shellService.buildStatusPayload(deps, agentRoot, agentId);
+        const includeRuntimeProbe = url.searchParams.get("probe") === "1";
+        const includeQwenSync = url.searchParams.get("sync") === "1";
+        const payload = await shellService.buildStatusPayload(deps, agentRoot, agentId, {
+          includeRuntimeProbe,
+          includeQwenSync
+        });
         deps.sendJson(res, 200, payload);
       } catch (error) {
         deps.sendJson(res, 500, {
@@ -337,7 +342,6 @@ function createShellHandlers(deps) {
           return true;
         }
 
-        let result;
         if (!shellService.isRuntimeImplemented(runtime)) {
           deps.sendJson(res, 501, {
             error: "Runtime not implemented",
@@ -345,24 +349,39 @@ function createShellHandlers(deps) {
           });
           return true;
         }
-        result = await shellService.sendToRuntime(deps, {
-          agentRoot,
-          agentId,
-          settings: outboundSettings,
-          body,
-          ttsClientId,
-          author
-        });
 
-        deps.sendJson(res, 200, {
+        deps.sendJson(res, 202, {
           agentId,
-          ...result,
+          accepted: true,
+          runtime,
           sttRaw: sttRefine?.raw || undefined,
           sttRefined: sttRefine?.refined || undefined,
           sttRefineApplied: sttRefine?.applied || undefined,
           sttRefineError: sttRefine?.error || undefined,
           sttSessionId: sttRefine?.sessionId || undefined
         });
+
+        void (async () => {
+          try {
+            await shellService.sendToRuntime(deps, {
+              agentRoot,
+              agentId,
+              settings: outboundSettings,
+              body,
+              ttsClientId,
+              author
+            });
+          } catch (error) {
+            await shellService.patchState(agentRoot, agentId, {
+              phase: shellService.PHASE_WAITING,
+              phrase: String(error?.message || error).slice(0, 200)
+            });
+            shellService.emitShellEvent(agentId, "message_error", {
+              message: String(error?.message || error)
+            });
+          }
+        })();
+        return true;
       } catch (error) {
         await shellService.patchState(agentRoot, agentId, {
           phase: shellService.PHASE_WAITING,

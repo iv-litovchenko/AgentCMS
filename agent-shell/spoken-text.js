@@ -89,8 +89,8 @@ function ruleBasedSpeechText(body, settings = {}) {
   return speech.trim();
 }
 
-function shouldRequestDualReply(settings = {}) {
-  return settings.ttsEnabled !== false && Boolean(String(settings.ttsPrompt || "").trim());
+function shouldRequestDualReply(_settings = {}) {
+  return false;
 }
 
 function buildDualReplyInstruction(userText, settings = {}) {

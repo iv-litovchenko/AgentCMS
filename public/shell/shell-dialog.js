@@ -2,7 +2,7 @@
 
 import { renderShellReplyBody } from "@shell/markdown";
 
-const MAX_HISTORY = 25;
+const MAX_HISTORY = 50;
 
 function formatHistoryTime(at) {
   try {
@@ -101,6 +101,7 @@ export function createShellDialog(options = {}) {
   const fetchHistory = typeof options.fetchHistory === "function" ? options.fetchHistory : null;
   let history = [];
   let historyLoading = false;
+  let historyLoadPromise = null;
   let lastReplyRaw = "";
   let lastAskRaw = "";
   let pullStartY = 0;
@@ -113,20 +114,24 @@ export function createShellDialog(options = {}) {
       renderHistoryUi();
       return Promise.resolve();
     }
-    if (historyLoading) return Promise.resolve();
+    if (historyLoadPromise) return historyLoadPromise;
     historyLoading = true;
-    return fetchHistory()
+    historyLoadPromise = fetchHistory()
       .then((items) => {
         history = withReplyDurations(Array.isArray(items) ? items.slice(-MAX_HISTORY) : []);
+        clearError();
         renderHistoryUi();
       })
-      .catch(() => {
-        history = [];
+      .catch((error) => {
+        const hint = connectionHint(error);
+        setError("Не удалось загрузить историю", { hint });
         renderHistoryUi();
       })
       .finally(() => {
         historyLoading = false;
+        historyLoadPromise = null;
       });
+    return historyLoadPromise;
   }
 
   function pushHistory(role, body) {
@@ -394,7 +399,6 @@ export function createShellDialog(options = {}) {
     } catch {
       /* ignore */
     }
-    void loadHistory();
     bindUi();
   }
 

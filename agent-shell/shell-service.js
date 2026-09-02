@@ -1,7 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { EventEmitter } = require("events");
-const { chatWithQwenPaw, checkQwenPawHealth, checkQwenPawAgent, listQwenPawAgents, listQwenPawChats, createQwenPawChat, updateQwenPawChat, buildNewShellSessionId, fetchQwenPawChatHistory } = require("./qwenpaw-client");
+const { chatWithQwenPaw, checkQwenPawHealth, checkQwenPawAgent, listQwenPawAgents, listQwenPawChats, createQwenPawChat, updateQwenPawChat, buildNewShellSessionId } = require("./qwenpaw-client");
 const {
   buildDualReplyInstruction,
   extractStreamingReplyBody,
@@ -396,6 +396,7 @@ async function writeSettings(agentRoot, patch, agentId) {
     const normalized = normalizeSettings({ ...current, ...(patch && typeof patch === "object" ? patch : {}) });
     const nested = settingsFormatModule().nestSettings(normalized);
     await writeFileAtomicUnqueued(target, `${JSON.stringify(nested, null, 2)}\n`, "utf-8");
+    invalidateRuntimeProbeCache();
     emitShellEvent(agentId, "settings", normalized);
     return normalized;
   });
@@ -779,6 +780,35 @@ async function probeAllRuntimeStatuses(settings) {
   };
 }
 
+const RUNTIME_PROBE_TTL_MS = 45000;
+/** @type {Map<string, { at: number, result: Awaited<ReturnType<typeof probeAllRuntimeStatuses>> }>} */
+const runtimeProbeCache = new Map();
+
+function runtimeProbeCacheKey(settings = {}) {
+  return [
+    settings.claudeCliPath || "",
+    settings.codexCliPath || "",
+    settings.qwenCliPath || "",
+    settings.qwenpawBaseUrl || "",
+    settings.qwenpawAgentId || ""
+  ].join("|");
+}
+
+function invalidateRuntimeProbeCache() {
+  runtimeProbeCache.clear();
+}
+
+async function probeAllRuntimeStatusesCached(settings) {
+  const key = runtimeProbeCacheKey(settings);
+  const cached = runtimeProbeCache.get(key);
+  if (cached && Date.now() - cached.at < RUNTIME_PROBE_TTL_MS) {
+    return cached.result;
+  }
+  const result = await probeAllRuntimeStatuses(settings);
+  runtimeProbeCache.set(key, { at: Date.now(), result });
+  return result;
+}
+
 function formatDeviceContextBlock(deviceContext) {
   if (!deviceContext || typeof deviceContext !== "object") return "";
   const lines = [];
@@ -1028,7 +1058,6 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     const replyText = String(nextText || "");
     const now = Date.now();
     if (!done && !force && replyText === lastEmittedText) return;
-    if (!done && !force && now - lastEmitAt < 60) return;
     lastEmittedText = replyText;
     lastEmitAt = now;
 
@@ -1162,7 +1191,6 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
     const replyText = String(nextText || "");
     const now = Date.now();
     if (!done && !force && replyText === lastEmittedText) return;
-    if (!done && !force && now - lastEmitAt < 60) return;
     lastEmittedText = replyText;
     lastEmitAt = now;
 
@@ -1383,25 +1411,6 @@ async function fetchShellDialogHistory(agentRoot, agentId, options = {}) {
   const runtime = options.runtime || getMessageRuntime(settings);
   const limit = options.limit || 25;
 
-  if (usesQwenPaw(settings) && normalizeMessageRuntime(runtime) === "qwenpaw") {
-    try {
-      const sessionId = buildQwenPawSessionId(settings, agentId);
-      const fromQwenPaw = await fetchQwenPawChatHistory({
-        baseUrl: settings.qwenpawBaseUrl,
-        agentId: settings.qwenpawAgentId,
-        userId: settings.qwenpawUserId,
-        channel: "console",
-        sessionId,
-        limit
-      });
-      if (fromQwenPaw.length) {
-        return fromQwenPaw;
-      }
-    } catch {
-      // Fall back to local awn-dialogs archive.
-    }
-  }
-
   try {
     const sessionId = options.sessionId || sessionIdFromSettings(settings, runtime);
     const fromArchive = await readShellDialogHistory(agentRoot, {
@@ -1430,11 +1439,16 @@ async function storeShellVoiceRecord(agentRoot, payload = {}) {
   }
 }
 
-async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = false } = {}) {
+async function buildStatusPayload(
+  deps,
+  agentRoot,
+  agentId,
+  { emitLiveUpdate = false, includeRuntimeProbe = false, includeQwenSync = false } = {}
+) {
   const [settings, initialState] = await Promise.all([readSettings(agentRoot), getState(agentRoot)]);
   let state = initialState;
 
-  if (usesQwenPaw(settings)) {
+  if (includeQwenSync && usesQwenPaw(settings)) {
     try {
       const synced = await syncLatestReplyFromQwenPaw({
         settings,
@@ -1493,10 +1507,26 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
     stateOut = { ...stateOut, phrase: "", lastAgentMessageId: "" };
   }
 
+  if (stateOut.pttHeld && !isSidecarConnected(state)) {
+    stateOut = {
+      ...stateOut,
+      pttHeld: false,
+      ...(stateOut.phase === PHASE_LISTENING ? { phase: PHASE_WAITING, phrase: "" } : {})
+    };
+  }
+
   let qwenpaw = { ok: false, configured: usesQwenPaw(settings) };
   let bridgeRuntime = { ok: false, configured: usesBridgeRuntime(settings), runtime: getMessageRuntime(settings) };
-  const runtimeProbe = await probeAllRuntimeStatuses(settings);
-  const runtimeStatuses = runtimeProbe.statuses;
+  let runtimeStatuses = {};
+  let installedRuntimes = SHELL_RUNTIMES.filter((runtime) => isRuntimeImplemented(runtime));
+  let availableRuntimes = installedRuntimes;
+
+  if (includeRuntimeProbe) {
+    const runtimeProbe = await probeAllRuntimeStatusesCached(settings);
+    runtimeStatuses = runtimeProbe.statuses;
+    installedRuntimes = runtimeProbe.installed;
+    availableRuntimes = runtimeProbe.available;
+  }
 
   const qwenStatus = runtimeStatuses.qwenpaw || { ok: false, configured: false };
   if (usesQwenPaw(settings)) {
@@ -1538,8 +1568,8 @@ async function buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate = f
     qwenpaw,
     runtime: bridgeRuntime,
     runtimeStatuses,
-    availableRuntimes: runtimeProbe.available,
-    installedRuntimes: runtimeProbe.installed,
+    availableRuntimes,
+    installedRuntimes,
     camera: {
       speech: await cameraSnapshots.readLatestMeta(agentRoot, "camera", "speech"),
       manual: await cameraSnapshots.readLatestMeta(agentRoot, "camera", "manual")
@@ -1643,39 +1673,26 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
   };
   unsubscribe = subscribeShellEvents(onBus);
 
-  let lastSig = "";
   const tick = async () => {
     if (closed || res.writableEnded || res.destroyed) return;
     try {
-      const settings = await readSettings(agentRoot);
-      const reply = await pollAssistantReply(deps, agentRoot, agentId, settings);
-      if (reply) {
-        push("assistant_message", { message: reply });
-      }
-      const status = await buildStatusPayload(deps, agentRoot, agentId, { emitLiveUpdate: true });
-      const sig = JSON.stringify({
-        phase: status.state.phase,
-        phrase: status.state.phrase,
-        lastAgentMessageId: status.state.lastAgentMessageId,
-        stopTtsAt: status.state.stopTtsAt,
-        primaryClientId: status.presence?.primaryClientId || "",
-        clientCount: status.presence?.clientCount || 0
-      });
-      if (sig !== lastSig) {
-        lastSig = sig;
-        push("status", status);
-      } else {
-        push("ping", { at: new Date().toISOString() });
-      }
+      const status = await buildStatusPayload(deps, agentRoot, agentId);
+      push("status", status);
     } catch (error) {
       push("error", { message: String(error?.message || error) });
     }
   };
 
   await tick();
+
   interval = setInterval(() => {
-    void tick();
-  }, 1500);
+    if (closed || res.writableEnded || res.destroyed) return;
+    try {
+      res.write(`: keepalive ${Date.now()}\n\n`);
+    } catch {
+      closeStream();
+    }
+  }, 30000);
 
   reconnectTimer = setTimeout(() => {
     if (!closed) {
