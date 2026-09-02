@@ -277,6 +277,18 @@ module.exports = {
           description: "Сообщение в диалог темы.",
           parameters: "path, body, role?, …",
           http: "POST /api/dialogs"
+        },
+        {
+          name: "zzz_read_discuss_session",
+          description: "Discuss panel session (multi-context chat). Stub.",
+          parameters: "sessionId?",
+          http: "GET /api/agent/discuss (planned)"
+        },
+        {
+          name: "zzz_append_discuss_message",
+          description: "Сообщение в Discuss panel. Stub.",
+          parameters: "body, role?, author?, sessionId?, context?",
+          http: "POST /api/agent/discuss (planned)"
         }
       ]
     },
