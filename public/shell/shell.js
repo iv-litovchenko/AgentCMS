@@ -1290,22 +1290,58 @@ const shellScreen = createShellScreen({
 let dialogScrollSaveTimer = 0;
 let lastSavedDialogScrollRatio = null;
 
-function readDialogScrollRatioFromSettings(settings = state.settings) {
-  const ratio = Number(settings?.dialogScrollRatio);
+function dialogScrollRatioStorageKey(agentId = state.agentId) {
+  const id = String(agentId || "default").trim() || "default";
+  return `${SHELL_STORAGE.dialogScrollRatio}:${id}`;
+}
+
+function normalizeDialogScrollRatio(value) {
+  const ratio = Number(value);
   return Number.isFinite(ratio) ? Math.round(Math.min(1, Math.max(0, ratio)) * 10000) / 10000 : null;
 }
 
+function readLocalDialogScrollRatio(agentId = state.agentId) {
+  try {
+    return normalizeDialogScrollRatio(localStorage.getItem(dialogScrollRatioStorageKey(agentId)));
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalDialogScrollRatio(agentId, ratio) {
+  const normalized = normalizeDialogScrollRatio(ratio);
+  if (normalized == null) return;
+  try {
+    localStorage.setItem(dialogScrollRatioStorageKey(agentId), String(normalized));
+  } catch {
+    /* ignore */
+  }
+}
+
+function readDialogScrollRatioFromSettings(settings = state.settings, agentId = state.agentId) {
+  const localRatio = readLocalDialogScrollRatio(agentId);
+  if (localRatio != null) return localRatio;
+  return normalizeDialogScrollRatio(settings?.dialogScrollRatio);
+}
+
 function syncDialogScrollFromSettings(settings = state.settings) {
-  const ratio = readDialogScrollRatioFromSettings(settings);
+  const agentId = state.agentId;
+  const ratio = readDialogScrollRatioFromSettings(settings, agentId);
+  const serverRatio = normalizeDialogScrollRatio(settings?.dialogScrollRatio);
+  if (readLocalDialogScrollRatio(agentId) == null && serverRatio != null) {
+    writeLocalDialogScrollRatio(agentId, serverRatio);
+  }
   lastSavedDialogScrollRatio = ratio;
   shellDialog.scheduleScrollRestore?.(ratio);
 }
 
 function persistDialogScrollRatio(ratio) {
-  const normalized = Math.round(Math.min(1, Math.max(0, Number(ratio) || 0)) * 10000) / 10000;
+  const normalized = normalizeDialogScrollRatio(ratio);
+  if (normalized == null) return;
   if (lastSavedDialogScrollRatio === normalized) return;
   lastSavedDialogScrollRatio = normalized;
   state.settings = { ...(state.settings || {}), dialogScrollRatio: normalized };
+  writeLocalDialogScrollRatio(state.agentId, normalized);
   shellDialog.scheduleScrollRestore?.(normalized);
   if (dialogScrollSaveTimer) window.clearTimeout(dialogScrollSaveTimer);
   dialogScrollSaveTimer = window.setTimeout(() => {
@@ -1320,11 +1356,12 @@ function flushDialogScrollRatioSave() {
     dialogScrollSaveTimer = 0;
   }
   const ratio = shellDialog.getScrollRatio?.();
-  if (ratio == null || !Number.isFinite(ratio)) return;
-  const normalized = Math.round(Math.min(1, Math.max(0, ratio)) * 10000) / 10000;
+  const normalized = normalizeDialogScrollRatio(ratio);
+  if (normalized == null) return;
   if (lastSavedDialogScrollRatio === normalized) return;
   lastSavedDialogScrollRatio = normalized;
   state.settings = { ...(state.settings || {}), dialogScrollRatio: normalized };
+  writeLocalDialogScrollRatio(state.agentId, normalized);
   if (!state.agentId) return;
   try {
     fetch(apiUrl("/api/shell/settings"), {
@@ -1348,6 +1385,8 @@ function bindDialogScrollPersistence() {
 }
 
 function prepareDialogScrollRestore({ restoreOnLoad = false } = {}) {
+  const ratio = readLocalDialogScrollRatio(state.agentId);
+  if (ratio != null) shellDialog.scheduleScrollRestore?.(ratio);
   syncDialogScrollFromSettings();
   if (restoreOnLoad) shellDialog.requestScrollRestoreOnLoad?.();
 }
