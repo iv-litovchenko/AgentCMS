@@ -213,10 +213,10 @@ class ClaudeToolActivityTracker {
       const blockType = String(block?.type || "");
       const index = Number(event.index);
 
-      if (blockType === "tool_use") {
+      if (blockType === "tool_use" || blockType === "server_tool_use") {
         const toolId = String(block.id || `claude-tool-${index}`).trim();
-        const tool = String(block.name || "tool").trim() || "tool";
-        const args = formatToolArgs(block.input || {});
+        const tool = String(block.name || block.tool || "tool").trim() || "tool";
+        const args = formatToolArgs(block.input ?? block.query ?? block.arguments ?? null);
         this.blocks.set(index, { toolId, tool, inputJson: args ? "" : JSON.stringify(block.input || {}) });
         this.emit({
           kind: "tool",
@@ -230,11 +230,13 @@ class ClaudeToolActivityTracker {
         return;
       }
 
-      if (blockType === "tool_result") {
-        const toolId = String(block.tool_use_id || "").trim();
+      if (blockType === "tool_result" || blockType === "web_search_tool_result" || blockType === "web_fetch_tool_result") {
+        const toolId = String(block.tool_use_id || block.id || "").trim();
         const mapped = [...this.blocks.values()].find((entry) => entry.toolId === toolId);
-        const tool = String(mapped?.tool || toolId || "tool").trim() || "tool";
-        const result = extractClaudeToolResultContent(block.content);
+        const tool =
+          String(mapped?.tool || block.name || "").trim() ||
+          (blockType === "web_search_tool_result" ? "WebSearch" : blockType === "web_fetch_tool_result" ? "WebFetch" : toolId || "tool");
+        const result = extractClaudeToolResultContent(block.content ?? block.results ?? block.output);
         this.emit({
           kind: "tool",
           phase: "end",
@@ -244,7 +246,9 @@ class ClaudeToolActivityTracker {
           status: block.is_error ? "error" : "ok",
           priority: 35
         });
+        return;
       }
+
       return;
     }
 

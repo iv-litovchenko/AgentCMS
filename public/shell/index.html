@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=496" />
+    <link rel="stylesheet" href="/shell/shell.css?v=499" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -41,12 +41,13 @@
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=207",
-          "@shell/dialog": "/shell/shell-dialog.js?v=273",
+          "@shell/dialog": "/shell/shell-dialog.js?v=279",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=316",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=417",
           "@shell/help": "/shell/shell-help.js?v=207",
           "@shell/hints": "/shell/shell-hints.js?v=313",
+          "@shell/image-lightbox": "/shell/shell-image-lightbox.js?v=1",
           "@shell/proactive": "/shell/shell-proactive.js?v=326",
           "@shell/debug": "/shell/shell-debug.js?v=417",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
@@ -1810,6 +1811,9 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
       <section class="shell-chat-section shell-chat-section--reply" aria-label="Диалог">
       <section class="shell-reply-panel" id="shell-reply-panel">
+        <div class="shell-dialog-scroll-progress" id="shell-dialog-scroll-progress" aria-hidden="true">
+          <span class="shell-dialog-scroll-progress-fill" id="shell-dialog-scroll-progress-fill"></span>
+        </div>
         <div class="shell-pull-hint hidden" id="shell-pull-hint">Отпустите для обновления</div>
         <div class="shell-dialog-scroll" id="shell-dialog-scroll">
           <div class="shell-dialog-thread" id="shell-dialog-thread" aria-live="polite"></div>
@@ -1895,6 +1899,18 @@ aya_bar_v2 тоже читает те же файлы</pre>
             >
               <span class="shell-compose-option-ico" aria-hidden="true">⚡</span>
               <span class="shell-compose-option-label">Исполнение</span>
+            </button>
+            <button
+              type="button"
+              class="shell-compose-option shell-compose-option--params"
+              data-compose-action="params-preview"
+              aria-haspopup="dialog"
+              aria-label="Параметры запроса"
+              data-hint="Плейсхолдеры, которые Shell добавляет к сообщению"
+              title="Параметры запроса (предпросмотр)"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">📋</span>
+              <span class="shell-compose-option-label">Параметры</span>
             </button>
             </div>
           </div>
@@ -2222,6 +2238,31 @@ aya_bar_v2 тоже читает те же файлы</pre>
       <div class="shell-hero-demo-sounds" id="shell-thinking-sound-demo"></div>
     </aside>
 
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-compose-params-dialog">
+      <div class="shell-dialog-form">
+        <h2>Параметры запроса</h2>
+        <p class="shell-dialog-note shell-compose-params-note">
+          Предпросмотр плейсхолдеров, которые Shell <em>может</em> автоматически подставлять в сообщение агенту.
+          Сейчас только для просмотра — на отправку не влияет.
+        </p>
+        <div class="shell-compose-params-table-wrap">
+          <table class="shell-compose-params-table" id="shell-compose-params-table">
+            <thead>
+              <tr>
+                <th scope="col">Плейсхолдер</th>
+                <th scope="col">Сейчас</th>
+                <th scope="col">Куда</th>
+              </tr>
+            </thead>
+            <tbody id="shell-compose-params-body"></tbody>
+          </table>
+        </div>
+        <div class="shell-dialog-actions">
+          <button type="button" class="shell-btn" id="shell-compose-params-close">Закрыть</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog class="shell-dialog" id="shell-voice-confirm-dialog">
       <form method="dialog" class="shell-dialog-form" id="shell-voice-confirm-form">
         <h2>Отправить?</h2>
@@ -2294,6 +2335,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=507" type="module"></script>
+    <script src="/shell/shell.js?v=512" type="module"></script>
   </body>
 </html>

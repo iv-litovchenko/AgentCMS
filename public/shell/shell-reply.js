@@ -300,9 +300,6 @@ export function renderShellReplyMedia(containerEl, shows, agentId) {
       img.decoding = "async";
       img.alt = item.caption || "Изображение от агента";
       img.src = mediaSrc;
-      img.addEventListener("click", () => {
-        window.open(img.src, "_blank", "noopener,noreferrer");
-      });
       wrap.append(img);
     } else {
       const link = document.createElement("a");

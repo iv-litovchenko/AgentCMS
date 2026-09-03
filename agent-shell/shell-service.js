@@ -142,6 +142,7 @@ const DEFAULT_SETTINGS = {
   proactiveQuietHoursEnabled: false,
   proactiveQuietStart: "23:00",
   proactiveQuietEnd: "07:00",
+  dialogScrollRatio: null,
   ...buildDefaultRuntimeSettings()
 };
 
@@ -384,6 +385,14 @@ function normalizeSettings(raw) {
   merged.proactiveQuietHoursEnabled = Boolean(merged.proactiveQuietHoursEnabled);
   merged.proactiveQuietStart = normalizeProactiveQuietTime(merged.proactiveQuietStart, "23:00");
   merged.proactiveQuietEnd = normalizeProactiveQuietTime(merged.proactiveQuietEnd, "07:00");
+  if (merged.dialogScrollRatio == null || merged.dialogScrollRatio === "") {
+    merged.dialogScrollRatio = null;
+  } else {
+    const ratio = Number(merged.dialogScrollRatio);
+    merged.dialogScrollRatio = Number.isFinite(ratio)
+      ? Math.round(Math.min(1, Math.max(0, ratio)) * 10000) / 10000
+      : null;
+  }
   for (const [key, value] of Object.entries(buildDefaultRuntimeSettings())) {
     if (
       key.endsWith("BaseUrl") ||
@@ -1112,10 +1121,20 @@ function shellToolActivityPayload(streamId, activity) {
 function emitShellToolActivity(agentId, agentRoot, streamId, activity, runtime, sessionId) {
   const normalized = normalizeToolActivity(activity);
   emitShellEvent(agentId, "agent_activity", shellToolActivityPayload(streamId, normalized));
-  if (normalized.kind === "tool" && (normalized.phase === "end" || normalized.phase === "start")) {
-    void logShellDialogTool(agentRoot, normalized, runtime, sessionId);
+  if (normalized.kind === "tool") {
+    const shouldLog =
+      normalized.phase === "end" ||
+      (normalized.phase === "progress" && isMeaningfulToolArgs(normalized.args));
+    if (shouldLog) {
+      void logShellDialogTool(agentRoot, normalized, runtime, sessionId);
+    }
   }
   return normalized;
+}
+
+function isMeaningfulToolArgs(value) {
+  const text = String(value ?? "").trim();
+  return Boolean(text && text !== "{}" && text !== "[]");
 }
 
 async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgress, ttsClientId = "", author = "shell" }) {
@@ -1385,11 +1404,17 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
     if (!activity) return;
     const normalized = normalizeToolActivity(activity);
     if (normalized.kind === "tool") {
-      emitShellToolActivity(agentId, agentRoot, streamId, activity, runtime, endpoint.sessionId);
+      emitShellToolActivity(agentId, agentRoot, streamId, normalized, runtime, endpoint.sessionId);
       if (normalized.phase !== "end") {
         patchStateAsync(agentRoot, agentId, {
           phase: PHASE_THINKING,
           phrase: normalized.phrase,
+          metrics: normalized.tool || ""
+        });
+      } else {
+        patchStateAsync(agentRoot, agentId, {
+          phase: PHASE_THINKING,
+          phrase: normalized.phrase || `✓ ${normalized.tool}`,
           metrics: normalized.tool || ""
         });
       }

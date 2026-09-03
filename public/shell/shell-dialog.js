@@ -41,6 +41,55 @@ function isToolHistoryItem(item) {
   return item?.role === "tool";
 }
 
+function isMeaningfulToolArgs(value) {
+  const text = String(value ?? "").trim();
+  return Boolean(text && text !== "{}" && text !== "[]");
+}
+
+function pickRicherToolArgs(next, prev) {
+  const n = String(next ?? "").trim();
+  const p = String(prev ?? "").trim();
+  if (!isMeaningfulToolArgs(n)) return p;
+  if (!isMeaningfulToolArgs(p)) return n;
+  return n.length >= p.length ? n : p;
+}
+
+function mergeToolHistoryItem(left, right) {
+  const merged = { ...left };
+  merged.args = pickRicherToolArgs(right.args, merged.args);
+  const nextResult = String(right.result ?? "").trim();
+  const prevResult = String(merged.result ?? "").trim();
+  if (nextResult && nextResult.length >= prevResult.length) merged.result = right.result;
+  const leftDone = left.status !== "running";
+  const rightDone = right.status !== "running";
+  if (!leftDone && rightDone) merged.status = right.status;
+  else if (leftDone && rightDone) merged.status = right.status;
+  merged.at = Math.max(Number(left.at) || 0, Number(right.at) || 0);
+  if (right.tool) merged.tool = right.tool;
+  if (right.toolId) merged.toolId = right.toolId;
+  return merged;
+}
+
+function finalizeStaleRunningTools(items) {
+  const out = (Array.isArray(items) ? items : []).map((item) => ({ ...item }));
+  for (let i = 0; i < out.length; i += 1) {
+    const item = out[i];
+    if (!isToolHistoryItem(item) || item.status !== "running") continue;
+    let hasAgentAfter = false;
+    for (let j = i + 1; j < out.length; j += 1) {
+      if (out[j].role === "user") break;
+      if (out[j].role === "agent") {
+        hasAgentAfter = true;
+        break;
+      }
+    }
+    if (!hasAgentAfter) continue;
+    item.status = "ok";
+    if (!isMeaningfulToolArgs(item.args)) item.args = "";
+  }
+  return out;
+}
+
 function toolHistoryKey(item) {
   return String(item?.toolId || item?.tool || "tool").trim() || "tool";
 }
@@ -75,16 +124,11 @@ function mergeDialogHistory(archived, preserved = []) {
       byToolId.set(key, item);
       continue;
     }
-    const prevDone = prev.status !== "running";
-    const nextDone = item.status !== "running";
-    if (!prevDone && nextDone) byToolId.set(key, item);
-    else if (prevDone && nextDone && (Number(item.at) || 0) >= (Number(prev.at) || 0)) {
-      byToolId.set(key, item);
-    }
+    byToolId.set(key, mergeToolHistoryItem(prev, item));
   }
   const merged = dedupeAdjacentHistory([
     ...plain,
-    ...byToolId.values()
+    ...finalizeStaleRunningTools([...byToolId.values()])
   ]).sort((left, right) => (Number(left.at) || 0) - (Number(right.at) || 0));
   return withReplyDurations(merged.slice(-MAX_HISTORY));
 }
@@ -134,6 +178,16 @@ function toolStatusLabel(status) {
   return "готово";
 }
 
+function toolBubbleStorageKey(item) {
+  const toolId = String(item?.toolId || item?.tool || "tool").trim() || "tool";
+  const at = Number(item?.at) || 0;
+  return `${toolId}:${at}`;
+}
+
+function toolBubbleHasBody(item) {
+  return isMeaningfulToolArgs(item?.args) || Boolean(String(item?.result || "").trim());
+}
+
 function connectionHint(error) {
   const msg = String(error?.message || error || "").toLowerCase();
   const host = String(window.location?.hostname || "").toLowerCase();
@@ -170,6 +224,8 @@ function connectionHint(error) {
  * @param {{
  *   panel?: HTMLElement | null,
  *   scroll?: HTMLElement | null,
+ *   scrollProgress?: HTMLElement | null,
+ *   scrollProgressFill?: HTMLElement | null,
  *   statusDot?: HTMLElement | null,
  *   refreshBtn?: HTMLElement | null,
  *   historyOpen?: HTMLElement | null,
@@ -184,12 +240,15 @@ function connectionHint(error) {
  *   errorEl?: HTMLElement | null,
  *   pullHint?: HTMLElement | null,
  *   onReconnect?: () => void,
+ *   onScrollPositionChange?: (ratio: number) => void,
  *   fetchHistory?: () => Promise<Array<{ role?: string, body?: string, at?: number, label?: string }>>
  * }} options
  */
 export function createShellDialog(options = {}) {
   const nodes = options;
   const fetchHistory = typeof options.fetchHistory === "function" ? options.fetchHistory : null;
+  const onScrollPositionChange =
+    typeof options.onScrollPositionChange === "function" ? options.onScrollPositionChange : null;
   let history = [];
   let historyLoading = false;
   let historyLoadError = null;
@@ -199,8 +258,69 @@ export function createShellDialog(options = {}) {
   let lastAskRaw = "";
   let pullStartY = 0;
   let liveStreamTools = [];
+  let liveActivityHint = "";
   let pullActive = false;
   let reconnectHandler = options.onReconnect || null;
+  let suppressScrollPersist = false;
+  let pendingScrollRestoreRatio = null;
+  let scrollRestoreOnNextLoad = false;
+  const toolBubbleFoldState = new Map();
+
+  function isToolBubbleExpanded(item) {
+    const key = toolBubbleStorageKey(item);
+    if (toolBubbleFoldState.has(key)) return toolBubbleFoldState.get(key);
+    return String(item?.status || "").trim().toLowerCase() === "running";
+  }
+
+  function setToolBubbleExpanded(item, expanded) {
+    toolBubbleFoldState.set(toolBubbleStorageKey(item), Boolean(expanded));
+  }
+
+  function getScrollRatio() {
+    const scrollEl = nodes.scroll;
+    if (!scrollEl) return 0;
+    const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+    if (maxScroll <= 1) return 0;
+    return Math.min(1, Math.max(0, scrollEl.scrollTop / maxScroll));
+  }
+
+  function applyScrollRatio(ratio) {
+    const scrollEl = nodes.scroll;
+    if (!scrollEl) return;
+    const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+    if (maxScroll <= 1) return;
+    const normalized = Math.min(1, Math.max(0, Number(ratio) || 0));
+    suppressScrollPersist = true;
+    scrollEl.scrollTop = normalized * maxScroll;
+    window.requestAnimationFrame(() => {
+      suppressScrollPersist = false;
+    });
+    updateScrollProgress();
+  }
+
+  function scheduleScrollRestore(ratio) {
+    if (ratio == null || !Number.isFinite(Number(ratio))) {
+      pendingScrollRestoreRatio = null;
+      return;
+    }
+    pendingScrollRestoreRatio = Math.min(1, Math.max(0, Number(ratio)));
+  }
+
+  function requestScrollRestoreOnLoad() {
+    scrollRestoreOnNextLoad = true;
+  }
+
+  function tryApplyPendingScrollRestore() {
+    if (pendingScrollRestoreRatio == null) return;
+    if (nodes.panel?.classList.contains("is-streaming")) return;
+    applyScrollRatio(pendingScrollRestoreRatio);
+    if (scrollRestoreOnNextLoad) scrollRestoreOnNextLoad = false;
+  }
+
+  function noteScrollPositionChange() {
+    if (suppressScrollPersist || !onScrollPositionChange) return;
+    onScrollPositionChange(getScrollRatio());
+  }
 
   function syncHistoryPanelState() {
     if (!nodes.panel) return;
@@ -295,15 +415,13 @@ export function createShellDialog(options = {}) {
     nodes.lastAskWrap?.classList.add("hidden");
   }
 
-  function loadHistory({ replace = false } = {}) {
+  function loadHistory({ replace = false, restoreScroll = false } = {}) {
     if (!fetchHistory) {
       history = [];
       historyLoadError = null;
       renderHistoryUi();
       return Promise.resolve();
     }
-
-    const generation = (historyLoadGeneration += 1);
 
     if (replace) {
       history = [];
@@ -317,6 +435,9 @@ export function createShellDialog(options = {}) {
       return historyLoadPromise;
     }
 
+    if (restoreScroll) scrollRestoreOnNextLoad = true;
+
+    const generation = (historyLoadGeneration += 1);
     historyLoading = true;
     if (!replace) historyLoadError = null;
     renderHistoryUi();
@@ -326,7 +447,9 @@ export function createShellDialog(options = {}) {
         if (generation !== historyLoadGeneration) return;
         const preserved = replace ? [] : history.slice();
         const archived = withReplyDurations(Array.isArray(items) ? items : []);
-        history = replace ? archived.slice(-MAX_HISTORY) : mergeDialogHistory(archived, preserved);
+        history = replace
+          ? finalizeStaleRunningTools(archived.slice(-MAX_HISTORY))
+          : mergeDialogHistory(archived, preserved);
         historyLoadError = null;
         clearError();
         syncLiveReplySlot();
@@ -345,6 +468,12 @@ export function createShellDialog(options = {}) {
         historyLoadPromise = null;
         try {
           renderHistoryUi();
+          if (scrollRestoreOnNextLoad) {
+            window.requestAnimationFrame(() => {
+              tryApplyPendingScrollRestore();
+              window.requestAnimationFrame(() => tryApplyPendingScrollRestore());
+            });
+          }
         } catch (error) {
           historyLoadError = error;
           console.error("[shell-dialog] renderHistoryUi failed", error);
@@ -398,10 +527,23 @@ export function createShellDialog(options = {}) {
     bubble.className = "shell-chat-bubble shell-chat-bubble--tool";
 
     const el = document.createElement("div");
-    el.className = `shell-chat-msg shell-chat-msg--tool is-${String(item.status || "running").trim() || "running"}`;
+    const statusName = String(item.status || "running").trim() || "running";
+    const hasBody = toolBubbleHasBody(item);
+    const expanded = hasBody ? isToolBubbleExpanded(item) : true;
+    el.className = `shell-chat-msg shell-chat-msg--tool is-${statusName}${hasBody && !expanded ? " is-collapsed" : ""}`;
 
-    const head = document.createElement("div");
+    const head = document.createElement("button");
+    head.type = "button";
     head.className = "shell-tool-bubble-head";
+    head.setAttribute("aria-expanded", hasBody ? String(expanded) : "true");
+    if (!hasBody) head.disabled = true;
+
+    const chevron = document.createElement("span");
+    chevron.className = "shell-tool-bubble-chevron";
+    chevron.textContent = "▾";
+    chevron.setAttribute("aria-hidden", "true");
+    if (!hasBody) chevron.hidden = true;
+
     const icon = document.createElement("span");
     icon.className = "shell-tool-bubble-icon";
     icon.textContent = item.status === "error" ? "⚠️" : item.status === "running" ? "🔧" : "✓";
@@ -412,15 +554,19 @@ export function createShellDialog(options = {}) {
     const status = document.createElement("span");
     status.className = "shell-tool-bubble-status";
     status.textContent = toolStatusLabel(item.status);
-    head.append(icon, title, status);
+    head.append(chevron, icon, title, status);
     el.append(head);
 
+    const body = document.createElement("div");
+    body.className = "shell-tool-bubble-body";
+    if (hasBody && !expanded) body.hidden = true;
+
     const args = String(item.args || "").trim();
-    if (args) {
+    if (isMeaningfulToolArgs(args)) {
       const argsEl = document.createElement("pre");
       argsEl.className = "shell-tool-bubble-section shell-tool-bubble-args";
       argsEl.textContent = args;
-      el.append(argsEl);
+      body.append(argsEl);
     }
 
     const result = String(item.result || "").trim();
@@ -428,7 +574,18 @@ export function createShellDialog(options = {}) {
       const resultEl = document.createElement("pre");
       resultEl.className = "shell-tool-bubble-section shell-tool-bubble-result";
       resultEl.textContent = result;
-      el.append(resultEl);
+      body.append(resultEl);
+    }
+
+    if (hasBody) {
+      el.append(body);
+      head.addEventListener("click", () => {
+        const nextExpanded = !isToolBubbleExpanded(item);
+        setToolBubbleExpanded(item, nextExpanded);
+        el.classList.toggle("is-collapsed", !nextExpanded);
+        body.hidden = !nextExpanded;
+        head.setAttribute("aria-expanded", String(nextExpanded));
+      });
     }
 
     const copyBtn = document.createElement("button");
@@ -486,7 +643,7 @@ export function createShellDialog(options = {}) {
         item.result = result || item.result || "";
         item.status = status || (payload.error ? "error" : "ok");
         item.at = Date.now();
-        if (args && !item.args) item.args = args;
+        item.args = pickRicherToolArgs(args, item.args);
         return;
       }
       list.push({
@@ -504,9 +661,15 @@ export function createShellDialog(options = {}) {
     if (phase === "progress") {
       const index = findOpenToolIndexIn(list, payload);
       if (index >= 0) {
-        if (args) list[index].args = args;
+        if (isMeaningfulToolArgs(args)) list[index].args = pickRicherToolArgs(args, list[index].args);
         list[index].at = Date.now();
       }
+      return;
+    }
+
+    const openIndex = findOpenToolIndexIn(list, payload);
+    if (openIndex >= 0 && !isMeaningfulToolArgs(args)) {
+      list[openIndex].at = Date.now();
       return;
     }
 
@@ -521,9 +684,50 @@ export function createShellDialog(options = {}) {
     });
   }
 
+  function finalizeRunningTools() {
+    let changed = false;
+    for (const item of history) {
+      if (!isToolHistoryItem(item) || item.status !== "running") continue;
+      item.status = "ok";
+      item.at = Date.now();
+      if (!isMeaningfulToolArgs(item.args)) item.args = "";
+      changed = true;
+    }
+    if (changed) renderHistoryUi();
+  }
+
   function clearLiveStreamTools() {
     liveStreamTools = [];
+    liveActivityHint = "";
     renderLiveToolStrip();
+  }
+
+  function setLiveActivityHint(text) {
+    const hint = String(text || "").trim();
+    if (!hint) return;
+    liveActivityHint = hint;
+    if (nodes.panel?.classList.contains("is-streaming")) renderLiveToolStrip();
+  }
+
+  function noteAgentActivity(payload = {}) {
+    const phrase = String(payload.phrase || "").trim();
+    const tool = String(payload.tool || "").trim();
+    const kind = String(payload.kind || "").trim().toLowerCase();
+    const isTool =
+      kind === "tool" ||
+      Boolean(tool) ||
+      /^🔧|^✓/.test(phrase) ||
+      payload.args != null ||
+      payload.result != null;
+
+    if (isTool) {
+      upsertToolActivity({ ...payload, kind: "tool" });
+      if (phrase) liveActivityHint = phrase;
+      else if (tool) liveActivityHint = `🔧 ${tool}…`;
+      return;
+    }
+
+    if (phrase) setLiveActivityHint(phrase);
   }
 
   function upsertToolActivity(payload = {}) {
@@ -620,7 +824,7 @@ export function createShellDialog(options = {}) {
     if (streaming) {
       const pending = document.createElement("div");
       pending.className = "shell-live-tools-pending";
-      pending.textContent = "🔧 Ожидаем вызов инструментов…";
+      pending.textContent = liveActivityHint || "Запускаю агента…";
       nodes.liveTools.append(pending);
       nodes.liveTools.classList.remove("hidden");
       return;
@@ -640,6 +844,7 @@ export function createShellDialog(options = {}) {
     }
     renderLiveToolStrip();
     syncLiveReplySlot();
+    updateScrollProgress();
   }
 
   function renderHistoryUi() {
@@ -777,6 +982,45 @@ export function createShellDialog(options = {}) {
     return loadHistory().then(() => doReconnect({ soft: true }));
   }
 
+  function updateScrollProgress() {
+    const scrollEl = nodes.scroll;
+    const fillEl = nodes.scrollProgressFill;
+    const trackEl = nodes.scrollProgress;
+    if (!scrollEl || !fillEl) return;
+    const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+    if (maxScroll <= 1) {
+      fillEl.style.width = "0%";
+      trackEl?.classList.add("is-hidden");
+      return;
+    }
+    trackEl?.classList.remove("is-hidden");
+    const ratio = Math.min(1, Math.max(0, scrollEl.scrollTop / maxScroll));
+    fillEl.style.width = `${Math.round(ratio * 1000) / 10}%`;
+  }
+
+  function bindScrollProgress() {
+    const scrollEl = nodes.scroll;
+    if (!scrollEl) return;
+    scrollEl.addEventListener(
+      "scroll",
+      () => {
+        updateScrollProgress();
+        noteScrollPositionChange();
+      },
+      { passive: true }
+    );
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => {
+        updateScrollProgress();
+        if (scrollRestoreOnNextLoad) tryApplyPendingScrollRestore();
+      });
+      observer.observe(scrollEl);
+      if (nodes.thread) observer.observe(nodes.thread);
+      if (nodes.lastReply) observer.observe(nodes.lastReply);
+    }
+    updateScrollProgress();
+  }
+
   function bindUi() {
     nodes.refreshBtn?.addEventListener("click", () => {
       void refreshDialog();
@@ -817,6 +1061,8 @@ export function createShellDialog(options = {}) {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") doReconnect({ soft: true });
     });
+
+    bindScrollProgress();
   }
 
   function init() {
@@ -844,8 +1090,15 @@ export function createShellDialog(options = {}) {
     pushHistory,
     upsertToolActivity,
     clearLiveStreamTools,
+    finalizeRunningTools,
+    noteAgentActivity,
+    setLiveActivityHint,
     renderLiveToolStrip,
+    scheduleScrollRestore,
+    requestScrollRestoreOnLoad,
+    tryApplyPendingScrollRestore,
     refreshHistory: (options) => loadHistory(options),
-    syncLiveReplySlot
+    syncLiveReplySlot,
+    updateScrollProgress
   };
 }

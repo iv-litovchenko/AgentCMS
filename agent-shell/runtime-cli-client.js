@@ -273,7 +273,7 @@ async function chatClaudeCli({
   const system = String(systemPrompt || extractSystemPrompt(messages) || "").trim();
 
   const runOnce = async (resume) => {
-    const args = ["-p", prompt, "--output-format", "stream-json", "--verbose"];
+    const args = ["-p", prompt, "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
     if (model) args.push("--model", String(model));
     if (permission) args.push("--permission-mode", permission);
     if (!resume && system) args.push("--system-prompt", system);

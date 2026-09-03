@@ -258,6 +258,9 @@ function flattenSettings(raw) {
   if (screen.enabled !== undefined) flat.screenEnabled = screen.enabled;
   if (screen.onSpeech !== undefined) flat.screenOnSpeech = screen.onSpeech;
 
+  const ui = raw.ui || {};
+  if (ui.dialogScrollRatio !== undefined) flat.dialogScrollRatio = ui.dialogScrollRatio;
+
   const window = raw.window || {};
   if (window.topmost !== undefined) flat.windowTopmost = window.topmost;
 
@@ -406,6 +409,9 @@ function nestSettings(flat) {
     }),
     window: compactObject({
       topmost: source.windowTopmost
+    }),
+    ui: compactObject({
+      dialogScrollRatio: source.dialogScrollRatio
     })
   };
 

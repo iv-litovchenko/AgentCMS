@@ -57,6 +57,7 @@ import { initShellComposeLayout } from "@shell/compose-layout";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "@shell/storage-keys";
 import { initShellHelp } from "@shell/help";
 import { initShellHints, updateTtsPlaybackHint, updateVoiceModeHint } from "@shell/hints";
+import { initShellImageLightbox } from "@shell/image-lightbox";
 import {
   normalizeWindowSettings,
   readWindowSettingsFromStorage,
@@ -443,6 +444,7 @@ let lastStreamHandledBody = "";
 let agentActivitySteps = [];
 let streamWaitTimer = 0;
 let streamWaitStartedAt = 0;
+let pipelineStatusPollTimer = 0;
 const recentAgentStreamIds = new Set();
 
 function rememberAgentStreamId(streamId) {
@@ -1158,6 +1160,9 @@ const nodes = {
   voicePrimaryStar: document.getElementById("shell-voice-primary-star"),
   helpDialog: document.getElementById("shell-help-dialog"),
   helpClose: document.getElementById("shell-help-close"),
+  composeParamsDialog: document.getElementById("shell-compose-params-dialog"),
+  composeParamsBody: document.getElementById("shell-compose-params-body"),
+  composeParamsClose: document.getElementById("shell-compose-params-close"),
   helpMicLink: document.getElementById("shell-help-mic-link"),
   voiceConfirm: document.getElementById("shell-voice-confirm"),
   voiceConfirmDialog: document.getElementById("shell-voice-confirm-dialog"),
@@ -1282,9 +1287,42 @@ const shellScreen = createShellScreen({
   }
 });
 
+let dialogScrollSaveTimer = 0;
+let lastSavedDialogScrollRatio = null;
+
+function readDialogScrollRatioFromSettings(settings = state.settings) {
+  const ratio = Number(settings?.dialogScrollRatio);
+  return Number.isFinite(ratio) ? Math.round(Math.min(1, Math.max(0, ratio)) * 10000) / 10000 : null;
+}
+
+function syncDialogScrollFromSettings(settings = state.settings) {
+  const ratio = readDialogScrollRatioFromSettings(settings);
+  lastSavedDialogScrollRatio = ratio;
+  shellDialog.scheduleScrollRestore?.(ratio);
+}
+
+function persistDialogScrollRatio(ratio) {
+  const normalized = Math.round(Math.min(1, Math.max(0, Number(ratio) || 0)) * 10000) / 10000;
+  if (lastSavedDialogScrollRatio === normalized) return;
+  lastSavedDialogScrollRatio = normalized;
+  state.settings = { ...(state.settings || {}), dialogScrollRatio: normalized };
+  if (dialogScrollSaveTimer) window.clearTimeout(dialogScrollSaveTimer);
+  dialogScrollSaveTimer = window.setTimeout(() => {
+    dialogScrollSaveTimer = 0;
+    void saveSettings({ dialogScrollRatio: normalized }, { apply: "none" }).catch(() => {});
+  }, 400);
+}
+
+function prepareDialogScrollRestore({ restoreOnLoad = false } = {}) {
+  syncDialogScrollFromSettings();
+  if (restoreOnLoad) shellDialog.requestScrollRestoreOnLoad?.();
+}
+
 const shellDialog = createShellDialog({
   panel: nodes.replyPanel,
   scroll: document.getElementById("shell-dialog-scroll"),
+  scrollProgress: document.getElementById("shell-dialog-scroll-progress"),
+  scrollProgressFill: document.getElementById("shell-dialog-scroll-progress-fill"),
   statusDot: document.getElementById("shell-status-dot"),
   refreshBtn: document.getElementById("shell-dialog-refresh"),
   historyOpen: document.getElementById("shell-history-open"),
@@ -1299,6 +1337,7 @@ const shellDialog = createShellDialog({
   lastReply: document.getElementById("shell-last-reply"),
   errorEl: document.getElementById("shell-dialog-error"),
   pullHint: document.getElementById("shell-pull-hint"),
+  onScrollPositionChange: persistDialogScrollRatio,
   fetchHistory: async () => {
     const runtime = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
     const data = await apiFetch(`/api/shell/dialogs/history?runtime=${encodeURIComponent(runtime)}&limit=50`, {
@@ -1594,7 +1633,8 @@ async function onAgentSelectChange(next) {
   await bootstrapRuntimeSelect();
   resetRuntimeStatusProbe();
   await pullRuntimeStatuses();
-  await shellDialog.refreshHistory?.({ replace: true });
+  prepareDialogScrollRestore({ restoreOnLoad: true });
+  await shellDialog.refreshHistory?.({ replace: true, restoreScroll: true });
   await loadComposeDraft();
   commitAllSettingsBaselinesIfSafe();
   syncComposeReadyStatus();
@@ -2279,14 +2319,21 @@ function syncAgentActivityFromPhrase(phrase = "", metrics = "") {
 
 function syncToolActivityFromStatus({ phrase = "", metrics = "" } = {}) {
   if (!isShellAgentWorkActive()) return;
-  const tool = String(metrics || "")
-    .trim()
-    .replace(/^🔧\s*/, "");
   const text = String(phrase || "").trim();
+  const metricsText = String(metrics || "").trim();
+  if (text || metricsText) shellDialog.setLiveActivityHint?.(text || metricsText);
+
+  const tool = metricsText.replace(/^🔧\s*/, "");
   let inferredTool =
     tool ||
     (/^🔧\s*(.+?)(?:…|$)/u.exec(text)?.[1] || "").trim() ||
     (/^✓\s*(.+)$/u.exec(text)?.[1] || "").trim();
+  if (!inferredTool) {
+    const known = text.match(
+      /\b(WebSearch|WebFetch|Bash|Read|Write|Edit|Grep|Glob|Task|NotebookEdit|Skill)\b/i
+    );
+    if (known) inferredTool = known[1];
+  }
   if (!inferredTool && /web\s*search|поиск/i.test(text)) inferredTool = "WebSearch";
   if (!inferredTool && /web\s*fetch|fetch/i.test(text)) inferredTool = "WebFetch";
   if (!inferredTool && /\bbash\b|команд/i.test(text)) inferredTool = "Bash";
@@ -2303,6 +2350,23 @@ function syncToolActivityFromStatus({ phrase = "", metrics = "" } = {}) {
   });
 }
 
+function startPipelineStatusPoll() {
+  stopPipelineStatusPoll();
+  pipelineStatusPollTimer = window.setInterval(() => {
+    if (!isShellAgentWorkActive()) {
+      stopPipelineStatusPoll();
+      return;
+    }
+    void refreshStatus({ timeoutMs: 4000 }).catch(() => {});
+  }, 500);
+}
+
+function stopPipelineStatusPoll() {
+  if (!pipelineStatusPollTimer) return;
+  clearInterval(pipelineStatusPollTimer);
+  pipelineStatusPollTimer = 0;
+}
+
 function inferToolActivityPayload(payload = {}) {
   const activity = normalizeAgentActivityPayload(payload);
   const phrase = String(activity.phrase || "").trim();
@@ -2313,6 +2377,12 @@ function inferToolActivityPayload(payload = {}) {
   }
   if (!tool && /^✓\s*(.+)$/u.test(phrase)) {
     tool = phrase.replace(/^✓\s*/, "").trim();
+  }
+  if (!tool && phrase) {
+    const known = phrase.match(
+      /\b(WebSearch|WebFetch|Bash|Read|Write|Edit|Grep|Glob|Task|NotebookEdit|Skill)\b/i
+    );
+    if (known) tool = known[1];
   }
   if (!tool) return null;
   return {
@@ -2481,10 +2551,14 @@ function setReplyPanelStreaming(active) {
   nodes.replyPanel?.classList.toggle("is-streaming", Boolean(active));
   if (active) {
     shellDialog.clearLiveStreamTools?.();
+    shellDialog.setLiveActivityHint?.("Запускаю…");
     startStreamWaitTimer();
+    startPipelineStatusPoll();
   } else {
     stopStreamWaitTimer();
+    stopPipelineStatusPoll();
     shellDialog.renderLiveToolStrip?.();
+    shellDialog.tryApplyPendingScrollRestore?.();
   }
 }
 
@@ -2531,6 +2605,7 @@ function renderStreamingAssistantText(text) {
     return;
   }
   renderShellReplyBody(nodes.lastReplyText, value);
+  shellDialog.updateScrollProgress?.();
   shellDialog.onReplyRendered(value);
   if (state.assistantStream && !state.assistantStream.finalized) {
     syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
@@ -2708,6 +2783,7 @@ function finalizeAssistantStream(message) {
 
   state.assistantStream = { id: streamId, text: body, spokenText, spokenParts, done: true, finalized: true };
   setReplyPanelStreaming(false);
+  shellDialog.finalizeRunningTools?.();
   shellDialog.syncLiveReplySlot?.();
   shellSession?.flushStreamingRender(renderStreamingAssistantText);
   renderShellReply({ ...message, body, spokenText, spokenParts });
@@ -2758,6 +2834,7 @@ function disarmMessagePipelineWatchdog() {
 
 function releaseMessagePipeline() {
   disarmMessagePipelineWatchdog();
+  stopPipelineStatusPoll();
   state.messagePipelineBusy = false;
   state.processingMessage = "";
   state.activeAgentStreamId = "";
@@ -3192,10 +3269,9 @@ function handleAgentActivity(payload = {}) {
   const activity = normalizeAgentActivityPayload(payload);
   if (activity.streamId) rememberAgentStreamId(activity.streamId);
 
-  const toolActivity = inferToolActivityPayload(payload) ||
-    (activity.kind === "tool" ? activity : null);
-  if (toolActivity) {
-    shellDialog.upsertToolActivity?.(toolActivity);
+  if (isShellAgentWorkActive()) {
+    const toolActivity = inferToolActivityPayload(payload);
+    shellDialog.noteAgentActivity?.(toolActivity || activity);
   }
 
   if (!shouldShowAgentActivity(activity)) return;
@@ -4954,6 +5030,7 @@ async function bootstrapRuntimeSelect() {
     const settings = data?.settings;
     if (!settings) return;
     state.settings = { ...(state.settings || {}), ...settings };
+    syncDialogScrollFromSettings(settings);
     populateRuntimeSelect(settings.messageTarget);
     refreshRuntimeSelectLabels();
     syncShellAgentReadyUi();
@@ -5700,7 +5777,10 @@ async function saveSettings(patch, { apply = "full" } = {}) {
     updateTtsSaveAgentHint(data);
     const settings = data.settings;
     if (settings) {
-      state.settings = settings;
+      state.settings = { ...(state.settings || {}), ...settings };
+      if (Object.prototype.hasOwnProperty.call(patch || {}, "dialogScrollRatio")) {
+        lastSavedDialogScrollRatio = readDialogScrollRatioFromSettings(settings);
+      }
     }
     if (apply === "none") return settings;
     if (apply === "tts") applyTtsSummarySettings(settings);
@@ -5997,7 +6077,187 @@ function bindComposeOptionTabs() {
       btn.setAttribute("aria-pressed", map[key] ? "true" : "false");
     });
   });
+  document.querySelectorAll("[data-compose-action='params-preview']").forEach((btn) => {
+    if (btn.dataset.shellBound === "1") return;
+    btn.dataset.shellBound = "1";
+    btn.addEventListener("click", () => {
+      void openComposeParamsPreview(btn);
+    });
+  });
   applyComposeOptionToggles();
+}
+
+function detectComposeDeviceSurface() {
+  const ua = String(navigator.userAgent || "");
+  const mobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+  let os = "desktop";
+  if (/iPhone|iPad|iPod/i.test(ua)) os = "iOS";
+  else if (/Android/i.test(ua)) os = "Android";
+  else if (/Mac/i.test(ua)) os = "macOS";
+  else if (/Win/i.test(ua)) os = "Windows";
+  else if (/Linux/i.test(ua)) os = "Linux";
+
+  let browser = "browser";
+  if (/Edg\//i.test(ua)) browser = "Edge";
+  else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browser = "Chrome";
+  else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = "Safari";
+  else if (/Firefox/i.test(ua)) browser = "Firefox";
+
+  const form = mobile ? "mobile" : "desktop";
+  return `${form} · ${os} · ${browser}`;
+}
+
+function summarizePromptSetting(value) {
+  const text = String(value || "").trim();
+  if (!text) return "— (пусто)";
+  if (text.length <= 48) return text;
+  return `задан (${text.length} симв.)`;
+}
+
+function buildComposeParamsPreviewRows() {
+  const settings = state.settings || {};
+  const toggles = readComposeOptionToggles();
+  const outbound = collectOutboundMessageSettings();
+  const runtime = normalizeMessageRuntime(settings.messageTarget || nodes.messageTarget?.value || "qwenpaw");
+  const voiceMode = String(settings.voiceInputMode || nodes.voiceMode?.value || "hold").trim() || "hold";
+  const locationEnabled = isShellLocationShareEnabled();
+  const location = locationEnabled ? getShellDeviceLocation() : null;
+
+  return [
+    {
+      key: "{{device}}",
+      value: detectComposeDeviceSurface(),
+      target: "контекст устройства"
+    },
+    {
+      key: "{{tts_enabled}}",
+      value: outbound.ttsEnabled ? "true" : "false",
+      target: "Shell → озвучка ответа"
+    },
+    {
+      key: "{{stt_enabled}}",
+      value: settings.sttEnabled !== false ? "true" : "false",
+      target: "Shell → голосовой ввод"
+    },
+    {
+      key: "{{voice_mode}}",
+      value: voiceMode,
+      target: "режим микрофона"
+    },
+    {
+      key: "{{runtime}}",
+      value: runtime,
+      target: "маршрут / runtime"
+    },
+    {
+      key: "{{proactive_enabled}}",
+      value: settings.proactiveEnabled ? "true" : "false",
+      target: "таймер Shell (не агенту)"
+    },
+    {
+      key: "{{system_prompt}}",
+      value: summarizePromptSetting(settings.systemPrompt || nodes.systemPrompt?.value),
+      target: "system → агент"
+    },
+    {
+      key: "{{tts_prompt}}",
+      value: summarizePromptSetting(settings.ttsPrompt || nodes.ttsPrompt?.value),
+      target: "формат ответа (идея)"
+    },
+    {
+      key: "{{stt_prompt}}",
+      value: summarizePromptSetting(settings.sttPrompt || nodes.sttPrompt?.value),
+      target: "очистка STT до агента"
+    },
+    {
+      key: "{{reasoning}}",
+      value: toggles.reasoning ? "true" : "false",
+      target: "кнопка compose (идея)"
+    },
+    {
+      key: "{{tools}}",
+      value: toggles.tools ? "true" : "false",
+      target: "кнопка compose (идея)"
+    },
+    {
+      key: "{{memory}}",
+      value: toggles.memory ? "true" : "false",
+      target: "кнопка compose (идея)"
+    },
+    {
+      key: "{{execute}}",
+      value: toggles.execute ? "true" : "false",
+      target: "кнопка compose (идея)"
+    },
+    {
+      key: "{{location}}",
+      value: location
+        ? `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`
+        : locationEnabled
+          ? "ожидание GPS"
+          : "false",
+      target: "блок [Контекст устройства]"
+    },
+    {
+      key: "{{host_url}}",
+      value: String(outbound.hostUrl || window.location.href || "").trim(),
+      target: "метаданные запроса"
+    }
+  ];
+}
+
+function renderComposeParamsPreview() {
+  const body = nodes.composeParamsBody;
+  if (!body) return;
+  body.replaceChildren();
+  for (const row of buildComposeParamsPreviewRows()) {
+    const tr = document.createElement("tr");
+    const keyCell = document.createElement("td");
+    const valueCell = document.createElement("td");
+    const targetCell = document.createElement("td");
+    keyCell.innerHTML = `<code>${escapeHtml(row.key)}</code>`;
+    valueCell.textContent = row.value;
+    targetCell.textContent = row.target;
+    tr.append(keyCell, valueCell, targetCell);
+    body.append(tr);
+  }
+}
+
+async function openComposeParamsPreview(triggerBtn = null) {
+  const dialog = nodes.composeParamsDialog;
+  if (!dialog) return;
+  renderComposeParamsPreview();
+  triggerBtn?.setAttribute("aria-expanded", "true");
+  try {
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+  } catch {
+    dialog.setAttribute("open", "");
+  }
+}
+
+function closeComposeParamsPreview() {
+  const dialog = nodes.composeParamsDialog;
+  if (!dialog) return;
+  dialog.close?.();
+  dialog.removeAttribute("open");
+  document
+    .querySelectorAll("[data-compose-action='params-preview']")
+    .forEach((btn) => btn.setAttribute("aria-expanded", "false"));
+}
+
+function bindComposeParamsPreview() {
+  nodes.composeParamsClose?.addEventListener("click", () => closeComposeParamsPreview());
+  nodes.composeParamsDialog?.addEventListener("close", () => closeComposeParamsPreview());
+  nodes.composeParamsDialog?.addEventListener("cancel", () => closeComposeParamsPreview());
+}
+
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function setComposeExpanded(next) {
@@ -8370,6 +8630,7 @@ function bindShellClickHandlers() {
   document.body.dataset.shellClickBound = "1";
   bindNavigationUi();
   bindComposeOptionTabs();
+  bindComposeParamsPreview();
   bindComposeSendUi();
 }
 
@@ -8943,6 +9204,7 @@ function bindShellInteractiveUi() {
       onMicHelp: showMicPermissionDialog
     });
     initShellHints();
+    initShellImageLightbox();
     if (nodes.micDialogUrl) {
       nodes.micDialogUrl.textContent = getShellHttpsUrl();
     }
@@ -9026,7 +9288,8 @@ async function connectShellAgentData() {
   void pullRuntimeStatuses();
   try {
     connectStream();
-    await shellDialog.refreshHistory?.();
+    prepareDialogScrollRestore({ restoreOnLoad: true });
+    await shellDialog.refreshHistory?.({ restoreScroll: true });
     await syncShellReplyAfterConnect("agent connect");
     await loadComposeDraft();
     syncComposeReadyStatus();
