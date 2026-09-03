@@ -92,12 +92,14 @@ function formatShellDialogBlock({
   return `\n\n---\n\n${frontmatter.join("\n")}\n\n${body}\n`;
 }
 
+const SHELL_DIALOG_BLOCK_SPLIT_RE = /\n\n---\r?\n\r?\n(?=---\r?\nawn-role:)/;
+
 function parseShellDialogBlock(block) {
   const trimmed = String(block || "").trim();
   if (!trimmed) return null;
 
   if (trimmed.startsWith("---")) {
-    const match = trimmed.match(/^---\n([\s\S]*?)\n---\n\n([\s\S]*)$/);
+    const match = trimmed.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n\r?\n([\s\S]*)$/);
     if (match) {
       const frontmatter = match[1];
       const body = match[2].trim();
@@ -146,7 +148,7 @@ function parseShellDialogFile(content) {
   const text = String(content || "");
   if (!text.trim()) return [];
   return text
-    .split(/\n\n---\n\n/)
+    .split(SHELL_DIALOG_BLOCK_SPLIT_RE)
     .map(parseShellDialogBlock)
     .filter(Boolean);
 }

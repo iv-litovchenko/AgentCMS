@@ -7,6 +7,30 @@ import {
 
 let shellMarkdownIt = null;
 let markdownLibsPromise = null;
+let highlightLibsPromise = null;
+
+const SHELL_HLJS_STYLE = "/vendor/vditor/js/highlight.js/styles/androidstudio.min.css";
+
+function loadStylesheetOnce(href) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`link[data-shell-md="${href}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === "1") resolve();
+      else existing.addEventListener("load", () => resolve(), { once: true });
+      return;
+    }
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.dataset.shellMd = href;
+    link.addEventListener("load", () => {
+      link.dataset.loaded = "1";
+      resolve();
+    }, { once: true });
+    link.addEventListener("error", () => reject(new Error(`Не удалось загрузить ${href}`)), { once: true });
+    document.head.appendChild(link);
+  });
+}
 
 function loadScriptOnce(src) {
   return new Promise((resolve, reject) => {
@@ -31,6 +55,21 @@ function loadScriptOnce(src) {
 
 export function preloadShellMarkdown() {
   void ensureShellMarkdownLibs();
+  void ensureShellHighlightLibs();
+}
+
+function ensureShellHighlightLibs() {
+  if (typeof window.hljs?.highlightElement === "function") return Promise.resolve();
+  if (!highlightLibsPromise) {
+    highlightLibsPromise = Promise.all([
+      loadScriptOnce("/vendor/highlight.min.js"),
+      loadStylesheetOnce(SHELL_HLJS_STYLE)
+    ]).catch((error) => {
+      highlightLibsPromise = null;
+      throw error;
+    });
+  }
+  return highlightLibsPromise;
 }
 
 function ensureShellMarkdownLibs() {
@@ -48,12 +87,169 @@ function ensureShellMarkdownLibs() {
   return markdownLibsPromise;
 }
 
+function sanitizeRenderedShellHtml(html) {
+  const raw = String(html || "");
+  if (!raw || typeof DOMParser === "undefined") return raw;
+
+  const blockedTags = new Set(["script", "iframe", "object", "embed", "form", "base", "link", "meta", "style"]);
+  const doc = new DOMParser().parseFromString(raw, "text/html");
+
+  doc.querySelectorAll("*").forEach((el) => {
+    const tag = el.tagName.toLowerCase();
+    if (blockedTags.has(tag)) {
+      el.remove();
+      return;
+    }
+    for (const attr of [...el.attributes]) {
+      const name = attr.name.toLowerCase();
+      if (name.startsWith("on") || name === "srcdoc") {
+        el.removeAttribute(attr.name);
+      }
+    }
+  });
+
+  return doc.body.innerHTML;
+}
+
+function applyShellMarkHighlight(md) {
+  md.inline.ruler.before("emphasis", "shell_mark", (state, silent) => {
+    const marker = "==";
+    const start = state.pos;
+    if (state.src.slice(start, start + 2) !== marker) return false;
+
+    const match = state.src.slice(start).match(/^==([^=\n]+?)==/);
+    if (!match) return false;
+
+    if (!silent) {
+      const tokenOpen = state.push("shell_mark_open", "mark", 1);
+      tokenOpen.markup = marker;
+      const tokenText = state.push("text", "", 0);
+      tokenText.content = match[1];
+      const tokenClose = state.push("shell_mark_close", "mark", -1);
+      tokenClose.markup = marker;
+    }
+
+    state.pos += match[0].length;
+    return true;
+  });
+
+  md.renderer.rules.shell_mark_open = () => '<mark class="md-highlight">';
+  md.renderer.rules.shell_mark_close = () => "</mark>";
+}
+
+function isShellCodeLabel(text) {
+  const value = String(text || "").trim();
+  if (!value || value.length > 48 || !value.endsWith(":")) return false;
+  if (value.includes("\n")) return false;
+  return /^[\p{L}\d][\p{L}\d\s./#+\-_()]*:$/u.test(value);
+}
+
+async function copyShellCodeText(text, button) {
+  const value = String(text || "");
+  if (!value) return;
+
+  const markCopied = () => {
+    button.classList.add("is-copied");
+    button.title = "Скопировано";
+    window.setTimeout(() => {
+      button.classList.remove("is-copied");
+      button.title = "Копировать код";
+    }, 1200);
+  };
+
+  try {
+    await navigator.clipboard.writeText(value);
+    markCopied();
+    return;
+  } catch {
+    /* fallback below */
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
+  try {
+    document.execCommand("copy");
+    markCopied();
+  } catch {
+    /* ignore */
+  } finally {
+    textarea.remove();
+  }
+}
+
+function ensurePreCodeElement(pre) {
+  let code = pre.querySelector("code");
+  if (code) return code;
+
+  code = document.createElement("code");
+  code.textContent = pre.textContent;
+  pre.textContent = "";
+  pre.append(code);
+  return code;
+}
+
+function enhanceShellMarkdownBlocks(root) {
+  if (!root) return;
+
+  root.querySelectorAll("pre").forEach((pre) => {
+    if (pre.closest(".shell-md-code-block")) return;
+
+    let labelEl = null;
+    const prev = pre.previousElementSibling;
+    if (prev?.matches("p") && isShellCodeLabel(prev.textContent)) {
+      labelEl = document.createElement("div");
+      labelEl.className = "shell-md-code-label";
+      labelEl.textContent = prev.textContent.trim().replace(/:$/, "");
+      prev.remove();
+    }
+
+    const block = document.createElement("div");
+    block.className = "shell-md-code-block";
+    pre.parentNode.insertBefore(block, pre);
+    block.append(pre);
+
+    const code = ensurePreCodeElement(pre);
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "shell-md-code-copy";
+    copyBtn.title = "Копировать код";
+    copyBtn.setAttribute("aria-label", "Копировать код");
+    copyBtn.textContent = "⎘";
+    copyBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      void copyShellCodeText(code.textContent, copyBtn);
+    });
+    block.append(copyBtn);
+
+    if (labelEl) {
+      const group = document.createElement("div");
+      group.className = "shell-md-code-group";
+      block.parentNode.insertBefore(group, block);
+      group.append(labelEl, block);
+    }
+  });
+
+  void ensureShellHighlightLibs()
+    .then(() => {
+      if (!root.isConnected || typeof window.hljs?.highlightElement !== "function") return;
+      root.querySelectorAll(".shell-md-code-block pre code").forEach((code) => {
+        window.hljs.highlightElement(code);
+      });
+    })
+    .catch(() => {});
+}
+
 function getShellMarkdownIt() {
   if (shellMarkdownIt) return shellMarkdownIt;
   if (typeof window.markdownit !== "function") return null;
 
   shellMarkdownIt = window.markdownit({
-    html: false,
+    html: true,
     linkify: true,
     breaks: true,
     typographer: false
@@ -66,6 +262,8 @@ function getShellMarkdownIt() {
   if (typeof window.markdownItTaskLists === "function") {
     shellMarkdownIt.use(window.markdownItTaskLists);
   }
+
+  applyShellMarkHighlight(shellMarkdownIt);
 
   const defaultLinkOpen =
     shellMarkdownIt.renderer.rules.link_open ||
@@ -101,6 +299,20 @@ function getShellMarkdownIt() {
     return `${defaultTableClose(tokens, idx, options, env, self)}</div>`;
   };
 
+  const defaultImage =
+    shellMarkdownIt.renderer.rules.image ||
+    function renderImage(tokens, idx, options, env, self) {
+      return self.renderToken(tokens, idx, options);
+    };
+
+  shellMarkdownIt.renderer.rules.image = function renderShellImage(tokens, idx, options, env, self) {
+    const token = tokens[idx];
+    token.attrSet("loading", "lazy");
+    token.attrSet("referrerpolicy", "no-referrer");
+    token.attrSet("decoding", "async");
+    return defaultImage(tokens, idx, options, env, self);
+  };
+
   return shellMarkdownIt;
 }
 
@@ -128,7 +340,8 @@ export function renderShellReplyMarkdown(element, markdown) {
 
   try {
     element.classList.add("shell-md");
-    element.innerHTML = md.render(source);
+    element.innerHTML = sanitizeRenderedShellHtml(md.render(source));
+    enhanceShellMarkdownBlocks(element);
   } catch {
     element.textContent = source;
   }

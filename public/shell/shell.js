@@ -1688,6 +1688,10 @@ function isAssistantStreaming() {
   return Boolean(state.assistantStream && !state.assistantStream.finalized);
 }
 
+function isShellAgentWorkActive() {
+  return Boolean(state.messagePipelineBusy || state.processingMessage || isAssistantStreaming());
+}
+
 function hasAssistantStreamText() {
   return Boolean(String(state.assistantStream?.text || "").trim());
 }
@@ -1735,10 +1739,13 @@ function resolveDisplayPhase(requestedPhase = "waiting") {
 
   if (phase === "disabled") return "disabled";
   if (isTtsPlaybackActive()) return "speaking";
-  if (state.assistantStream && !state.assistantStream.finalized) return "thinking";
-  if (state.messagePipelineBusy) return "thinking";
+  if (isAssistantStreaming()) return "thinking";
+  if (state.messagePipelineBusy || state.processingMessage) return "thinking";
   if (phase === "speaking" && !isTtsPlaybackActive()) return "waiting";
   if (isUserComposingInput()) return "waiting";
+  if ((phase === "thinking" || phase === "speaking") && !isShellAgentWorkActive() && !isTtsPlaybackActive()) {
+    return "waiting";
+  }
 
   return phase;
 }
@@ -1760,13 +1767,13 @@ function resolveHeroSensorActivity(displayPhase, heroState) {
 }
 
 function resolveHeroAvatarState(requestedPhase = "waiting") {
+  const displayPhase = resolveDisplayPhase(requestedPhase);
   if (isTtsPlaybackActive()) return "typing";
   if (isAgentReplyStreaming()) return "typing";
-  if (state.messagePipelineBusy || isAssistantStreaming() || requestedPhase === "thinking") return "thinking";
-  if (isComposeReady()) return "ready";
-  const displayPhase = resolveDisplayPhase(requestedPhase);
   if (displayPhase === "thinking") return "thinking";
   if (displayPhase === "listening") return "listening";
+  if (displayPhase === "speaking") return "typing";
+  if (isComposeReady()) return "ready";
   return "idle";
 }
 
@@ -1903,18 +1910,23 @@ function renderPhase(phase, phrase = "", metrics = "") {
   if (shellSession?.shouldBlockPhaseUpdate(phase)) return;
   const displayPhase = resolveDisplayPhase(phase);
   lastRenderedDisplayPhase = displayPhase;
-  const statusText = composePhaseStatusText(phrase, metrics);
+  let statusText = composePhaseStatusText(phrase, metrics);
+  if (displayPhase === "waiting" && !isShellAgentWorkActive() && !isTtsPlaybackActive()) {
+    if (!statusText || /печатает|думаю|запускаю|работаю|размышляю/i.test(statusText)) {
+      statusText = heroIdlePhrase();
+    }
+  }
   if (displayPhase !== lastLoggedPhase) {
     shellLog("phase", displayPhase, statusText || undefined);
     lastLoggedPhase = displayPhase;
   }
-  const skipLabel = shellSession?.shouldSkipDuplicatePhase(phase) && !statusText;
-  if (!skipLabel) shellSession?.rememberPhase(phase);
-  syncHeroAvatarVisuals(phase, { updateLabel: !skipLabel && !state.ttsPaused, phrase: statusText });
+  const skipLabel = shellSession?.shouldSkipDuplicatePhase(displayPhase) && !statusText;
+  if (!skipLabel) shellSession?.rememberPhase(displayPhase);
+  syncHeroAvatarVisuals(displayPhase, { updateLabel: !skipLabel && !state.ttsPaused, phrase: statusText });
   if (nodes.meta) nodes.meta.textContent = "";
-  if (nodes.characterStage) nodes.characterStage.dataset.phase = resolveDisplayPhase(phase);
-  updateTtsControlsUi(resolveDisplayPhase(phase));
-  syncCompactSensorPhase(resolveDisplayPhase(phase), statusText);
+  if (nodes.characterStage) nodes.characterStage.dataset.phase = displayPhase;
+  updateTtsControlsUi(displayPhase);
+  syncCompactSensorPhase(displayPhase, statusText);
 }
 
 function isTtsPlaybackActive() {
@@ -2247,7 +2259,7 @@ function renderAgentActivitySteps() {
     return;
   }
 
-  const phase = resolveDisplayPhase(state.shellState?.phase || "thinking");
+  const phase = resolveDisplayPhase(state.shellState?.phase || "waiting");
   if (phase !== "thinking" && phase !== "speaking") {
     hideAgentActivityPanel();
     return;
@@ -2255,12 +2267,13 @@ function renderAgentActivitySteps() {
 
   hideAgentActivityPanel();
 
-  const active = agentActivitySteps.find((step) => step.active) || agentActivitySteps[agentActivitySteps.length - 1];
-  const label = String(active?.label || "").trim();
+  const active = agentActivitySteps.find((step) => step.active);
+  if (!active) return;
+  const label = String(active.label || "").trim();
   if (!label || state.ttsPaused || !nodes.phaseLabel) return;
   nodes.phaseLabel.textContent = label;
   nodes.phaseLabel.classList.remove("is-idle", "is-ready", "is-active", "is-busy", "is-speaking", "is-typing");
-  const isTyping = active?.kind === "typing" || /печатает/i.test(label);
+  const isTyping = active.kind === "typing" || /печатает/i.test(label);
   nodes.phaseLabel.classList.add(isTyping ? "is-typing" : "is-busy");
 }
 
@@ -2284,9 +2297,7 @@ function resetAgentActivitySteps() {
 }
 
 function finalizeAgentActivitySteps() {
-  for (const step of agentActivitySteps) step.active = false;
-  renderAgentActivitySteps();
-  hideAgentActivityPanel();
+  resetAgentActivitySteps();
 }
 
 function pushAgentActivityStep(payload = {}) {
@@ -2946,6 +2957,7 @@ async function finishStreamTtsWhenIdle({ sourceMessage = null, spokenText = "" }
 
 function handleAgentActivity(payload = {}) {
   if (state.messageStopped) return;
+  if (!isShellAgentWorkActive()) return;
   pushAgentActivityStep(payload);
   const phrase = String(payload.phrase || "").trim();
   const tool = String(payload.tool || "").trim();
@@ -2999,9 +3011,17 @@ function handleAssistantDelta(payload) {
       spokenParts,
       ttsClientId: payload.ttsClientId
     });
-    if (!state.settings?.ttsEnabled || !shouldPlayReplyTts(payload)) {
-      renderPhase("waiting", HERO_IDLE_PHRASE, state.shellState?.metrics || "");
-    } else if (!state.speaking && !state.streamTtsActive) {
+    state.shellState = {
+      ...(state.shellState || {}),
+      phase: "waiting",
+      phrase: HERO_IDLE_PHRASE,
+      metrics: isRuntimeMetricsLabel(state.shellState?.metrics) ? state.shellState.metrics : ""
+    };
+    const willSpeak =
+      state.settings?.ttsEnabled &&
+      shouldPlayReplyTts(payload) &&
+      (state.speaking || state.streamTtsActive || state.streamTtsQueue.length);
+    if (!willSpeak) {
       renderPhase("waiting", HERO_IDLE_PHRASE, state.shellState?.metrics || "");
     }
   } else if (shouldShowTypingActivity(rawText, displayText)) {
@@ -5218,7 +5238,7 @@ function applyStatusPayload(payload) {
     state.stopTtsAt = Number(payload.state.stopTtsAt) || 0;
     state.pttHeld = Boolean(payload.state.pttHeld) && Boolean(payload.sidecarConnected);
     renderPhase(
-      payload.state.phase,
+      resolveDisplayPhase(payload.state.phase),
       livePhraseFromStatus(payload.state, payload.latestAgentMessage),
       payload.state.metrics
     );
@@ -7468,7 +7488,7 @@ function connectStream() {
       onShellPhaseChange(nextState);
       if (nextState?.phase) {
         state.shellState = { ...(state.shellState || {}), ...nextState };
-        const phase = nextState.phase;
+        const phase = resolveDisplayPhase(nextState.phase);
         const phrase = String(nextState.phrase || "").trim();
         const metrics = String(nextState.metrics || "").trim();
         const shouldRender =
