@@ -73,7 +73,7 @@ export const SHELL_RUNTIME_CLI_SETUP = {
   claude: {
     install: "npm i -g @anthropic-ai/claude-code",
     auth: "claude login",
-    check: "claude --version"
+    check: "claude auth status"
   },
   codex: {
     install: "npm i -g @openai/codex",

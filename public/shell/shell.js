@@ -106,7 +106,6 @@ import {
   SHELL_RUNTIME_LABELS,
   SHELL_RUNTIME_HINTS,
   formatRuntimeRouteNote,
-  SHELL_ROUTE_NOTE_RUNTIMES,
   SHELL_RUNTIME_ROUTE_INTROS,
   runtimeShowsRouteNote,
   formatRuntimeSelectLabel,
@@ -1005,9 +1004,10 @@ const nodes = {
   messageTarget: document.getElementById("shell-message-target"),
   routeRuntime: document.getElementById("shell-route-runtime"),
   routeRuntimeNotes: document.getElementById("shell-route-runtime-notes"),
-  routeRuntimeNoteClaude: document.getElementById("shell-route-runtime-note-claude"),
-  routeRuntimeNoteCodex: document.getElementById("shell-route-runtime-note-codex"),
-  routeRuntimeNoteQwenpaw: document.getElementById("shell-route-runtime-note-qwenpaw"),
+  routeRuntimeNote: document.getElementById("shell-route-runtime-note"),
+  routeRuntimeNoteIntro: document.getElementById("shell-route-runtime-note-intro"),
+  routeRuntimeNoteTitle: document.getElementById("shell-route-runtime-note-title"),
+  routeRuntimeNoteBody: document.getElementById("shell-route-runtime-note-body"),
   qwenpawPanel: document.getElementById("shell-qwenpaw-panel"),
   qwenpawUrl: document.getElementById("shell-qwenpaw-url"),
   qwenpawOpenUrl: document.getElementById("shell-qwenpaw-open-url"),
@@ -4457,7 +4457,7 @@ function refreshRuntimeSelectLabels() {
     }
   }
   if (state.view === "settings") {
-    updateRuntimeRouteNotes(readRuntimeSelectValue(nodes.routeRuntime) || getSelectedRuntime());
+    updateRuntimeRouteNotes(readRouteRuntimeSelectValue() || getSelectedRuntime());
   }
 }
 
@@ -4543,65 +4543,71 @@ function setBridgeFieldVisible(fieldEl, visible) {
 }
 
 function refreshRoutePanelNodes() {
+  nodes.routeRuntime = document.getElementById("shell-route-runtime") || nodes.routeRuntime;
   nodes.routeRuntimeNotes = document.getElementById("shell-route-runtime-notes") || nodes.routeRuntimeNotes;
-  nodes.routeRuntimeNoteClaude =
-    document.getElementById("shell-route-runtime-note-claude") || nodes.routeRuntimeNoteClaude;
-  nodes.routeRuntimeNoteCodex =
-    document.getElementById("shell-route-runtime-note-codex") || nodes.routeRuntimeNoteCodex;
-  nodes.routeRuntimeNoteQwenpaw =
-    document.getElementById("shell-route-runtime-note-qwenpaw") || nodes.routeRuntimeNoteQwenpaw;
+  nodes.routeRuntimeNote = document.getElementById("shell-route-runtime-note") || nodes.routeRuntimeNote;
+  nodes.routeRuntimeNoteIntro =
+    document.getElementById("shell-route-runtime-note-intro") || nodes.routeRuntimeNoteIntro;
+  nodes.routeRuntimeNoteTitle =
+    document.getElementById("shell-route-runtime-note-title") || nodes.routeRuntimeNoteTitle;
+  nodes.routeRuntimeNoteBody =
+    document.getElementById("shell-route-runtime-note-body") || nodes.routeRuntimeNoteBody;
 }
 
-function getRouteRuntimeNoteBlock(runtime) {
-  const id = normalizeMessageRuntime(runtime);
-  if (id === "claude") return nodes.routeRuntimeNoteClaude;
-  if (id === "codex") return nodes.routeRuntimeNoteCodex;
-  if (id === "qwenpaw") return nodes.routeRuntimeNoteQwenpaw;
-  return null;
+function readRouteRuntimeSelectValue() {
+  refreshRoutePanelNodes();
+  return readRuntimeSelectValue(nodes.routeRuntime);
 }
 
-function fillRouteRuntimeNoteBlock(runtime) {
-  const id = normalizeMessageRuntime(runtime);
-  const block = getRouteRuntimeNoteBlock(id);
-  if (!block) return "";
-  const introEl = block.querySelector(".shell-runtime-route-note-intro");
-  const bodyEl = block.querySelector(".shell-runtime-route-note-body");
-  const intro = String(SHELL_RUNTIME_ROUTE_INTROS[id] || "").trim();
-  const body = formatRuntimeRouteNote(id, getRuntimeStatus(id));
-  if (introEl) introEl.textContent = intro;
-  if (bodyEl) bodyEl.textContent = body;
-  block.dataset.active = body ? "1" : "0";
-  return body;
-}
-
-function setRouteRuntimeNoteVisible(block, visible) {
-  if (!block) return;
-  block.hidden = !visible;
-  block.classList.toggle("hidden", !visible);
-  block.dataset.visible = visible ? "1" : "0";
-}
-
-function updateRuntimeRouteNotes(runtime = getSelectedRuntime()) {
+function updateRuntimeRouteNotes(runtime = readRouteRuntimeSelectValue() || getSelectedRuntime()) {
   refreshRoutePanelNodes();
   const container = nodes.routeRuntimeNotes;
-  if (!container) return;
+  const block = nodes.routeRuntimeNote;
+  const introEl = nodes.routeRuntimeNoteIntro;
+  const titleEl = nodes.routeRuntimeNoteTitle;
+  const bodyEl = nodes.routeRuntimeNoteBody;
+  if (!container || !block || !introEl || !titleEl || !bodyEl) return;
 
   const selected = normalizeMessageRuntime(runtime);
-  const showNotes = runtimeShowsRouteNote(selected);
-  let anyVisible = false;
-
-  for (const id of SHELL_ROUTE_NOTE_RUNTIMES) {
-    const block = getRouteRuntimeNoteBlock(id);
-    if (!block) continue;
-    const showBlock = showNotes && id === selected;
-    if (showBlock) fillRouteRuntimeNoteBlock(id);
-    setRouteRuntimeNoteVisible(block, showBlock);
-    if (showBlock) anyVisible = true;
+  const show = runtimeShowsRouteNote(selected);
+  if (!show) {
+    container.hidden = true;
+    container.classList.add("hidden");
+    container.dataset.runtime = "";
+    block.dataset.runtime = "";
+    block.dataset.active = "0";
+    return;
   }
 
-  container.hidden = !anyVisible;
-  container.classList.toggle("hidden", !anyVisible);
-  container.dataset.runtime = anyVisible ? selected : "";
+  const intro = String(SHELL_RUNTIME_ROUTE_INTROS[selected] || "").trim();
+  const body = formatRuntimeRouteNote(selected, getRuntimeStatus(selected));
+  introEl.textContent = intro;
+  titleEl.textContent = SHELL_RUNTIME_LABELS[selected] || selected;
+  bodyEl.textContent = body;
+  block.dataset.runtime = selected;
+  block.dataset.active = body ? "1" : "0";
+  block.classList.toggle("shell-runtime-route-note--cli", runtimeUsesCli(selected));
+  block.classList.toggle("shell-runtime-route-note--agent", runtimeUsesQwenPaw(selected));
+
+  container.hidden = false;
+  container.classList.remove("hidden");
+  container.dataset.runtime = selected;
+}
+
+function bindRoutePanelUi() {
+  const panel = document.getElementById("shell-route-panel");
+  if (!panel || panel.dataset.shellRouteBound === "1") return;
+  panel.dataset.shellRouteBound = "1";
+  panel.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement) || target.id !== "shell-route-runtime") return;
+    handleRouteRuntimeChange();
+  });
+  panel.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement) || target.id !== "shell-route-runtime") return;
+    updateRuntimeRouteNotes(readRuntimeSelectValue(target));
+  });
 }
 
 function updateRuntimeUi({ reloadForms = true, runtime: runtimeOverride } = {}) {
@@ -7576,7 +7582,8 @@ function setSettingsTab(tab) {
     void loadSttCapabilities();
   }
   if (next === "route") {
-    updateRuntimeRouteNotes(readRuntimeSelectValue(nodes.routeRuntime) || getSelectedRuntime());
+    bindRoutePanelUi();
+    updateRuntimeRouteNotes(readRouteRuntimeSelectValue() || getSelectedRuntime());
   }
 }
 
@@ -7602,6 +7609,7 @@ function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
         ? scrollTo
         : "";
     setSettingsTab(settingsTab || tabFromScroll || state.settingsTab || "route");
+    bindRoutePanelUi();
     if (state.settings) {
       applyRouteFormFromSettings(state.settings);
       applyTtsSettingsUi(state.settings);
@@ -7609,7 +7617,7 @@ function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
       applyProactiveFormUi(state.settings);
       commitAllSettingsBaselines();
     }
-    updateRuntimeRouteNotes(getSelectedRuntime());
+    updateRuntimeRouteNotes(readRouteRuntimeSelectValue() || getSelectedRuntime());
     settingsSave.syncUi();
   } else if (prev === "settings") {
     void refreshStatus().then(() => {
@@ -7797,11 +7805,13 @@ function handleMessageTargetChange() {
 
 function handleRouteRuntimeChange() {
   if (runtimeSelectSuppressChange) return;
+  refreshRoutePanelNodes();
   const runtime = readRuntimeSelectValue(nodes.routeRuntime);
   if (!runtime) return;
+  updateRuntimeRouteNotes(runtime);
   if (state.settings) state.settings.messageTarget = runtime;
   syncRuntimeSelects("route");
-  updateRuntimeUi({ runtime });
+  updateRuntimeUi({ runtime, reloadForms: true });
   markSettingsDirty("route");
   void persistMessageTarget(runtime);
 }
@@ -7937,7 +7947,7 @@ function bindUi() {
   initCompactSensor();
 
   bindRuntimeSelectUi(nodes.messageTarget);
-  nodes.routeRuntime?.addEventListener("change", handleRouteRuntimeChange);
+  bindRoutePanelUi();
   nodes.qwenpawUrl?.addEventListener("input", markRouteDirty);
   nodes.qwenpawUrl?.addEventListener("change", () => {
     markRouteDirty();

@@ -250,7 +250,7 @@ async function chatClaudeCli({
   const sid = normalizeCliSessionId(sessionId, "claude");
 
   const runOnce = async (resume) => {
-    const args = ["-p", prompt, "--output-format", "stream-json", "--verbose", "--bare"];
+    const args = ["-p", prompt, "--output-format", "stream-json", "--verbose"];
     if (model) args.push("--model", String(model));
     if (resume && sid) args.push("--resume", sid);
     else if (sid) args.push("--session-id", sid);
@@ -279,10 +279,15 @@ async function chatClaudeCli({
           if (delta) {
             text += delta;
             if (typeof onDelta === "function") onDelta(text);
+            if (event?.type === "assistant" && text.trim()) complete = true;
           }
           const full = extractClaudeResultText(event);
-          if (full) resultText = full;
-          if (event?.type === "result") complete = true;
+          if (full) {
+            resultText = full;
+            complete = true;
+          } else if (event?.type === "result") {
+            complete = true;
+          }
         });
         return complete;
       }
