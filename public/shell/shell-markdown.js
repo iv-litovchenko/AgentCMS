@@ -6,7 +6,6 @@ let markdownLibsPromise = null;
 let highlightLibsPromise = null;
 let mermaidLibsPromise = null;
 let mathLibsPromise = null;
-let mermaidTypesetSeq = 0;
 
 const SHELL_HLJS_STYLE = "/vendor/vditor/js/highlight.js/styles/androidstudio.min.css";
 const SHELL_MERMAID_SRC = "/vendor/mermaid.min.js";
@@ -22,6 +21,54 @@ const MERMAID_BASE_CONFIG = {
   fontFamily:
     'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
 };
+
+const MERMAID_SOURCE_START_RE =
+  /^(?:graph\s+(?:TD|TB|BT|RL|LR|DT)|flowchart\s+(?:TD|TB|BT|RL|LR|DT)|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|gantt|pie(?:\s|$)|mindmap|timeline|gitGraph|journey|quadrantChart|xychart(?:-beta)?|block(?:-beta)?|sankey(?:-beta)?|C4Context|C4Container|C4Component|C4Dynamic|C4Deployment)/im;
+
+function getPreBlockSourceText(pre) {
+  const code = pre?.querySelector?.("code");
+  return String(code?.textContent ?? pre?.textContent ?? "").trim();
+}
+
+function getPreBlockLanguage(pre) {
+  const code = pre?.querySelector?.("code");
+  if (!code) return "";
+  for (const cls of code.classList) {
+    const match = cls.match(/^language-(.+)$/);
+    if (match) return String(match[1] || "").trim().toLowerCase();
+  }
+  return "";
+}
+
+function looksLikeMermaidSource(text) {
+  const source = String(text || "").trim();
+  if (!source) return false;
+  if (MERMAID_SOURCE_START_RE.test(source)) return true;
+  const firstLine = source.split(/\r?\n/, 1)[0]?.trim() || "";
+  if (/^graph\s+\w+/i.test(firstLine) || /^flowchart\s+\w+/i.test(firstLine)) return true;
+  if (/(?:-->|==>|---|\|\|)/.test(source) && /\[.+]|\{.+\}|\(\(.+\)\)/.test(source)) {
+    return /^(?:graph|flowchart|subgraph)\b/im.test(source);
+  }
+  return false;
+}
+
+function shouldPromotePreToMermaid(pre) {
+  if (!pre || pre.classList.contains("mermaid")) return false;
+  const lang = getPreBlockLanguage(pre);
+  const source = getPreBlockSourceText(pre);
+  if (!source) return false;
+  if (lang === "mermaid") return true;
+  if (lang && !["", "text", "plaintext", "txt"].includes(lang)) return false;
+  return looksLikeMermaidSource(source);
+}
+
+function promotePreToMermaid(pre) {
+  const source = getPreBlockSourceText(pre);
+  if (!source) return;
+  pre.classList.add("mermaid");
+  pre.setAttribute("data-mermaid-source", encodeURIComponent(source));
+  pre.textContent = source;
+}
 
 function escapeHtml(value) {
   return String(value || "")
@@ -76,7 +123,14 @@ function loadScriptOnce(src) {
 export function preloadShellMarkdown() {
   void ensureShellMarkdownLibs();
   void ensureShellHighlightLibs();
+  void ensureShellMermaidLibs();
 }
+
+const mermaidTypesetRoots = new Set();
+let mermaidTypesetTimer = 0;
+let mermaidTypesetRunning = false;
+let mermaidTypesetQueued = false;
+let mermaidLightboxNode = null;
 
 function ensureShellHighlightLibs() {
   if (typeof window.hljs?.highlightElement === "function") return Promise.resolve();
@@ -451,6 +505,114 @@ function syncMermaidThemeToggleUi(frame) {
   btn.setAttribute("aria-pressed", isDark ? "true" : "false");
 }
 
+function ensureMermaidCopyButton(frame, block) {
+  let btn = frame.querySelector(".mermaid-diagram-copy-btn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mermaid-diagram-copy-btn";
+    btn.title = "Копировать код";
+    btn.setAttribute("aria-label", "Копировать код Mermaid");
+    btn.textContent = "⎘";
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void copyShellCodeText(getMermaidBlockSource(block), btn);
+    });
+    frame.appendChild(btn);
+  }
+  return btn;
+}
+
+function ensureMermaidExpandButton(frame, block) {
+  let btn = frame.querySelector(".mermaid-diagram-expand-btn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mermaid-diagram-expand-btn";
+    btn.title = "На весь экран";
+    btn.setAttribute("aria-label", "Развернуть диаграмму");
+    btn.textContent = "⛶";
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void openMermaidLightbox(frame, block);
+    });
+    frame.appendChild(btn);
+  }
+  return btn;
+}
+
+function ensureMermaidLightbox() {
+  if (mermaidLightboxNode) return mermaidLightboxNode;
+
+  const overlay = document.createElement("div");
+  overlay.className = "shell-mermaid-lightbox hidden";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Диаграмма");
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "shell-mermaid-lightbox-close";
+  closeBtn.setAttribute("aria-label", "Закрыть");
+  closeBtn.textContent = "×";
+
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.className = "shell-mermaid-lightbox-copy";
+  copyBtn.title = "Копировать код";
+  copyBtn.setAttribute("aria-label", "Копировать код Mermaid");
+  copyBtn.textContent = "⎘";
+
+  const stage = document.createElement("div");
+  stage.className = "shell-mermaid-lightbox-stage";
+
+  overlay.append(closeBtn, copyBtn, stage);
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.classList.add("hidden");
+  closeBtn.addEventListener("click", close);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) close();
+  });
+  stage.addEventListener("click", (event) => event.stopPropagation());
+  copyBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void copyShellCodeText(overlay.dataset.mermaidSource || "", copyBtn);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (overlay.classList.contains("hidden")) return;
+    if (event.key === "Escape") close();
+  });
+
+  mermaidLightboxNode = overlay;
+  return overlay;
+}
+
+async function openMermaidLightbox(frame, block) {
+  const source = getMermaidBlockSource(block);
+  if (!source) return;
+
+  if (!block.querySelector("svg")?.querySelector("g")) {
+    const theme = frame?.dataset.mermaidTheme === "light" ? "light" : "dark";
+    await renderMermaidBlock(block, theme);
+  }
+
+  const overlay = ensureMermaidLightbox();
+  const stage = overlay.querySelector(".shell-mermaid-lightbox-stage");
+  const svg = block.querySelector("svg");
+  if (!stage || !svg) return;
+
+  overlay.dataset.mermaidSource = source;
+  stage.replaceChildren();
+  const clone = svg.cloneNode(true);
+  clone.removeAttribute("style");
+  stage.appendChild(clone);
+  overlay.classList.toggle("is-dark", frame?.classList.contains("is-dark") !== false);
+  overlay.classList.remove("hidden");
+}
+
 function ensureMermaidThemeToggle(frame, block) {
   let btn = frame.querySelector(".mermaid-diagram-theme-btn");
   if (!btn) {
@@ -479,6 +641,8 @@ async function renderMermaidBlock(block, theme = "dark") {
   frame.dataset.mermaidTheme = theme;
   frame.classList.toggle("is-dark", theme === "dark");
   ensureMermaidThemeToggle(frame, block);
+  ensureMermaidCopyButton(frame, block);
+  ensureMermaidExpandButton(frame, block);
 
   block.dataset.mermaidSource = source;
   block.removeAttribute("data-processed");
@@ -515,18 +679,50 @@ async function typesetShellMermaidDiagrams(root) {
   });
   if (!blocks.length) return;
 
+  let libsReady = true;
   try {
     await ensureShellMermaidLibs();
   } catch {
-    return;
+    libsReady = false;
   }
 
-  const seq = ++mermaidTypesetSeq;
   for (const block of blocks) {
-    if (seq !== mermaidTypesetSeq || !root.isConnected) return;
-    const frame = block.closest(".mermaid-diagram-frame");
+    if (!root.isConnected || !block.isConnected) continue;
+    const frame = ensureMermaidDiagramFrame(block);
+    ensureMermaidCopyButton(frame, block);
+    ensureMermaidExpandButton(frame, block);
+    if (!libsReady) continue;
     const theme = frame?.dataset.mermaidTheme === "light" ? "light" : "dark";
     await renderMermaidBlock(block, theme);
+  }
+}
+
+export function scheduleShellMermaidTypeset(root) {
+  if (root?.isConnected) mermaidTypesetRoots.add(root);
+  if (mermaidTypesetTimer) window.clearTimeout(mermaidTypesetTimer);
+  mermaidTypesetTimer = window.setTimeout(() => {
+    mermaidTypesetTimer = 0;
+    void flushScheduledShellMermaidTypeset();
+  }, 32);
+}
+
+async function flushScheduledShellMermaidTypeset() {
+  if (mermaidTypesetRunning) {
+    mermaidTypesetQueued = true;
+    return;
+  }
+  mermaidTypesetRunning = true;
+  try {
+    do {
+      mermaidTypesetQueued = false;
+      const roots = [...mermaidTypesetRoots];
+      mermaidTypesetRoots.clear();
+      for (const root of roots) {
+        if (root?.isConnected) await typesetShellMermaidDiagrams(root);
+      }
+    } while (mermaidTypesetQueued || mermaidTypesetRoots.size > 0);
+  } finally {
+    mermaidTypesetRunning = false;
   }
 }
 
@@ -709,6 +905,12 @@ function enhanceShellMarkdownBlocks(root) {
   root.querySelectorAll("pre").forEach((pre) => {
     if (pre.classList.contains("mermaid") || pre.querySelector("code.language-math")) return;
     if (pre.closest(".shell-md-code-block")) return;
+    if (shouldPromotePreToMermaid(pre)) promotePreToMermaid(pre);
+  });
+
+  root.querySelectorAll("pre").forEach((pre) => {
+    if (pre.classList.contains("mermaid") || pre.querySelector("code.language-math")) return;
+    if (pre.closest(".shell-md-code-block")) return;
 
     let labelEl = null;
     const prev = pre.previousElementSibling;
@@ -772,7 +974,7 @@ function enhanceShellMarkdownBlocks(root) {
 
   embedShellMediaLinks(root);
   void typesetShellMath(root);
-  void typesetShellMermaidDiagrams(root);
+  scheduleShellMermaidTypeset(root);
 }
 
 function getShellMarkdownIt() {

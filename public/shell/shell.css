@@ -9475,6 +9475,32 @@ body.shell-embed .shell-path-header {
   white-space: normal;
 }
 
+.shell-reply-text.shell-md pre.mermaid:not([data-mermaid-rendered="1"]),
+.shell-chat-msg .shell-md pre.mermaid:not([data-mermaid-rendered="1"]),
+.shell-reply-segment.shell-md pre.mermaid:not([data-mermaid-rendered="1"]),
+.shell-reply-tts-block-text.shell-md pre.mermaid:not([data-mermaid-rendered="1"]) {
+  min-height: 72px;
+  color: transparent;
+  user-select: none;
+  position: relative;
+}
+
+.shell-reply-text.shell-md pre.mermaid:not([data-mermaid-rendered="1"])::before,
+.shell-chat-msg .shell-md pre.mermaid:not([data-mermaid-rendered="1"])::before,
+.shell-reply-segment.shell-md pre.mermaid:not([data-mermaid-rendered="1"])::before,
+.shell-reply-tts-block-text.shell-md pre.mermaid:not([data-mermaid-rendered="1"])::before {
+  content: "Загружаю диаграмму…";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(148, 163, 184, 0.88);
+  font-size: 12px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  white-space: normal;
+}
+
 .shell-reply-text.shell-md .mermaid-diagram-frame pre.mermaid,
 .shell-chat-msg .shell-md .mermaid-diagram-frame pre.mermaid,
 .shell-reply-segment.shell-md .mermaid-diagram-frame pre.mermaid,
@@ -9495,10 +9521,17 @@ body.shell-embed .shell-path-header {
 .shell-reply-text.shell-md .mermaid-diagram-theme-btn,
 .shell-chat-msg .shell-md .mermaid-diagram-theme-btn,
 .shell-reply-segment.shell-md .mermaid-diagram-theme-btn,
-.shell-reply-tts-block-text.shell-md .mermaid-diagram-theme-btn {
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-theme-btn,
+.shell-reply-text.shell-md .mermaid-diagram-copy-btn,
+.shell-chat-msg .shell-md .mermaid-diagram-copy-btn,
+.shell-reply-segment.shell-md .mermaid-diagram-copy-btn,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-copy-btn,
+.shell-reply-text.shell-md .mermaid-diagram-expand-btn,
+.shell-chat-msg .shell-md .mermaid-diagram-expand-btn,
+.shell-reply-segment.shell-md .mermaid-diagram-expand-btn,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-expand-btn {
   position: absolute;
   top: 8px;
-  right: 8px;
   z-index: 1;
   display: inline-flex;
   align-items: center;
@@ -9511,15 +9544,54 @@ body.shell-embed .shell-path-header {
   background: rgba(15, 23, 42, 0.88);
   color: #e2e8f0;
   cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-copy-btn,
+.shell-chat-msg .shell-md .mermaid-diagram-copy-btn,
+.shell-reply-segment.shell-md .mermaid-diagram-copy-btn,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-copy-btn {
+  right: 72px;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-expand-btn,
+.shell-chat-msg .shell-md .mermaid-diagram-expand-btn,
+.shell-reply-segment.shell-md .mermaid-diagram-expand-btn,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-expand-btn {
+  right: 40px;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-theme-btn,
+.shell-chat-msg .shell-md .mermaid-diagram-theme-btn,
+.shell-reply-segment.shell-md .mermaid-diagram-theme-btn,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-theme-btn {
+  right: 8px;
 }
 
 .shell-reply-text.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-theme-btn,
 .shell-chat-msg .shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-theme-btn,
 .shell-reply-segment.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-theme-btn,
-.shell-reply-tts-block-text.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-theme-btn {
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-theme-btn,
+.shell-reply-text.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-copy-btn,
+.shell-chat-msg .shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-copy-btn,
+.shell-reply-segment.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-copy-btn,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-copy-btn,
+.shell-reply-text.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-expand-btn,
+.shell-chat-msg .shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-expand-btn,
+.shell-reply-segment.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-expand-btn,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-expand-btn {
   border-color: #cbd5e1;
   background: rgba(255, 255, 255, 0.92);
   color: #475569;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-copy-btn.is-copied,
+.shell-chat-msg .shell-md .mermaid-diagram-copy-btn.is-copied,
+.shell-reply-segment.shell-md .mermaid-diagram-copy-btn.is-copied,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-copy-btn.is-copied {
+  color: #86efac;
+  border-color: rgba(74, 222, 128, 0.45);
 }
 
 .shell-reply-text.shell-md .mermaid-diagram-theme-icon,
@@ -10780,15 +10852,111 @@ body.shell-pet {
   display: none;
 }
 
+.shell-image-lightbox-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: min(96vw, 1200px);
+  max-height: calc(100vh - 48px);
+}
+
 .shell-image-lightbox-img {
   display: block;
   max-width: min(96vw, 1200px);
-  max-height: 90vh;
+  max-height: calc(100vh - 120px);
   width: auto;
   height: auto;
   object-fit: contain;
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.shell-image-lightbox-caption {
+  margin: 10px 0 0;
+  padding: 0 12px;
+  max-width: min(96vw, 720px);
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.shell-image-lightbox-caption[hidden] {
+  display: none;
+}
+
+.shell-mermaid-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 12010;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.92);
+}
+
+.shell-mermaid-lightbox.hidden {
+  display: none;
+}
+
+.shell-mermaid-lightbox.is-dark {
+  background: rgba(15, 23, 42, 0.94);
+}
+
+.shell-mermaid-lightbox:not(.is-dark) {
+  background: rgba(248, 250, 252, 0.96);
+}
+
+.shell-mermaid-lightbox-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: min(96vw, 1400px);
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+}
+
+.shell-mermaid-lightbox-stage svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.shell-mermaid-lightbox-close,
+.shell-mermaid-lightbox-copy {
+  position: absolute;
+  top: 16px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.shell-mermaid-lightbox-close {
+  right: 16px;
+}
+
+.shell-mermaid-lightbox-copy {
+  right: 64px;
+  font-size: 18px;
+}
+
+.shell-mermaid-lightbox:not(.is-dark) .shell-mermaid-lightbox-close,
+.shell-mermaid-lightbox:not(.is-dark) .shell-mermaid-lightbox-copy {
+  background: rgba(15, 23, 42, 0.12);
+  color: #334155;
+}
+
+.shell-mermaid-lightbox-copy.is-copied {
+  color: #86efac;
 }
 
 .shell-image-lightbox-close {

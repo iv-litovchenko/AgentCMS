@@ -10,10 +10,27 @@ function getShellImageSrc(img) {
   return String(img.dataset.fullSrc || img.currentSrc || img.getAttribute("src") || "").trim();
 }
 
-function buildShellLightboxGallery(triggerImg, activeSrc, alt = "") {
+function getShellImageCaption(img) {
+  if (!(img instanceof HTMLImageElement)) return "";
+
+  const showCaption = img.closest(".shell-show-item")?.querySelector(".shell-show-caption");
+  if (showCaption) return String(showCaption.textContent || "").trim();
+
+  const figureCaption = img.closest("figure")?.querySelector("figcaption");
+  if (figureCaption) return String(figureCaption.textContent || "").trim();
+
+  const title = String(img.getAttribute("title") || "").trim();
+  if (title) return title;
+
+  const alt = String(img.alt || "").trim();
+  if (alt && !/^(image|изображение|img|photo|picture)$/i.test(alt)) return alt;
+  return "";
+}
+
+function buildShellLightboxGallery(triggerImg, activeSrc, alt = "", caption = "") {
   const galleryRoot = triggerImg?.closest?.(SHELL_IMAGE_ROOT_SELECTOR);
   if (!galleryRoot) {
-    return { images: [{ src: activeSrc, alt }], index: 0 };
+    return { images: [{ src: activeSrc, alt, caption: caption || alt }], index: 0 };
   }
 
   const images = [];
@@ -22,11 +39,12 @@ function buildShellLightboxGallery(triggerImg, activeSrc, alt = "") {
     if (img.closest(".shell-image-lightbox")) continue;
     const src = getShellImageSrc(img);
     if (!src) continue;
-    images.push({ src, alt: img.alt || "" });
+    const itemCaption = getShellImageCaption(img);
+    images.push({ src, alt: img.alt || "", caption: itemCaption });
   }
 
   if (images.length === 0) {
-    return { images: [{ src: activeSrc, alt }], index: 0 };
+    return { images: [{ src: activeSrc, alt, caption: caption || alt }], index: 0 };
   }
 
   let index = images.findIndex((item) => item.src === activeSrc);
@@ -64,9 +82,15 @@ function showShellLightboxSlide(index) {
   lightboxGallery.index = index;
   const item = images[index];
   const img = lightboxNode.querySelector(".shell-image-lightbox-img");
+  const captionEl = lightboxNode.querySelector(".shell-image-lightbox-caption");
   if (img) {
     img.src = item.src;
-    img.alt = item.alt;
+    img.alt = item.alt || item.caption || "";
+  }
+  if (captionEl) {
+    const caption = String(item.caption || item.alt || "").trim();
+    captionEl.textContent = caption;
+    captionEl.hidden = !caption;
   }
   updateShellLightboxNav();
 }
@@ -115,11 +139,19 @@ function ensureShellImageLightbox() {
   counter.className = "shell-image-lightbox-counter";
   counter.hidden = true;
 
+  const stage = document.createElement("div");
+  stage.className = "shell-image-lightbox-stage";
+
   const img = document.createElement("img");
   img.className = "shell-image-lightbox-img";
   img.alt = "";
 
-  overlay.append(closeBtn, prevBtn, nextBtn, counter, img);
+  const caption = document.createElement("figcaption");
+  caption.className = "shell-image-lightbox-caption";
+  caption.hidden = true;
+
+  stage.append(img, caption);
+  overlay.append(closeBtn, prevBtn, nextBtn, counter, stage);
   document.body.appendChild(overlay);
 
   closeBtn.addEventListener("click", closeShellImageLightbox);
@@ -135,6 +167,7 @@ function ensureShellImageLightbox() {
     if (event.target === overlay) closeShellImageLightbox();
   });
   img.addEventListener("click", (event) => event.stopPropagation());
+  stage.addEventListener("click", (event) => event.stopPropagation());
 
   let touchStartX = 0;
   overlay.addEventListener(
@@ -173,11 +206,15 @@ function ensureShellImageLightbox() {
   return overlay;
 }
 
-export function openShellImageLightbox(src, alt = "", { trigger } = {}) {
+export function openShellImageLightbox(src, alt = "", { trigger, caption = "" } = {}) {
   const normalizedSrc = String(src || "").trim();
   if (!normalizedSrc) return;
+  const resolvedCaption =
+    String(caption || "").trim() ||
+    (trigger instanceof HTMLImageElement ? getShellImageCaption(trigger) : "") ||
+    String(alt || "").trim();
   ensureShellImageLightbox();
-  lightboxGallery = buildShellLightboxGallery(trigger, normalizedSrc, alt);
+  lightboxGallery = buildShellLightboxGallery(trigger, normalizedSrc, alt, resolvedCaption);
   showShellLightboxSlide(lightboxGallery.index);
   lightboxNode.classList.remove("hidden");
 }
@@ -205,6 +242,9 @@ export function initShellImageLightbox(root = document) {
     if (!isShellLightboxImageTarget(target)) return;
     event.preventDefault();
     event.stopPropagation();
-    openShellImageLightbox(getShellImageSrc(target), target.alt || "", { trigger: target });
+    openShellImageLightbox(getShellImageSrc(target), target.alt || "", {
+      trigger: target,
+      caption: getShellImageCaption(target)
+    });
   });
 }

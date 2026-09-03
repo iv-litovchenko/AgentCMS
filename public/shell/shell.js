@@ -1313,6 +1313,39 @@ function persistDialogScrollRatio(ratio) {
   }, 400);
 }
 
+function flushDialogScrollRatioSave() {
+  if (dialogScrollSaveTimer) {
+    window.clearTimeout(dialogScrollSaveTimer);
+    dialogScrollSaveTimer = 0;
+  }
+  const ratio = shellDialog.getScrollRatio?.();
+  if (ratio == null || !Number.isFinite(ratio)) return;
+  const normalized = Math.round(Math.min(1, Math.max(0, ratio)) * 10000) / 10000;
+  if (lastSavedDialogScrollRatio === normalized) return;
+  lastSavedDialogScrollRatio = normalized;
+  state.settings = { ...(state.settings || {}), dialogScrollRatio: normalized };
+  if (!state.agentId) return;
+  try {
+    fetch(apiUrl("/api/shell/settings"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings: { dialogScrollRatio: normalized } }),
+      keepalive: true
+    }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
+function bindDialogScrollPersistence() {
+  if (document.documentElement.dataset.shellDialogScrollBound === "1") return;
+  document.documentElement.dataset.shellDialogScrollBound = "1";
+  window.addEventListener("pagehide", flushDialogScrollRatioSave);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushDialogScrollRatioSave();
+  });
+}
+
 function prepareDialogScrollRestore({ restoreOnLoad = false } = {}) {
   syncDialogScrollFromSettings();
   if (restoreOnLoad) shellDialog.requestScrollRestoreOnLoad?.();
@@ -9352,6 +9385,7 @@ async function boot() {
     });
   }
   shellDialog.init();
+  bindDialogScrollPersistence();
   shellSession = createShellSession(state, {
     nodes,
     shellDialog,

@@ -1,6 +1,6 @@
 /** Mobile-style dialog: history, refresh, copy, errors. */
 
-import { renderShellReplyBody } from "@shell/markdown";
+import { renderShellReplyBody, scheduleShellMermaidTypeset } from "@shell/markdown";
 
 const MAX_HISTORY = 50;
 
@@ -264,6 +264,8 @@ export function createShellDialog(options = {}) {
   let suppressScrollPersist = false;
   let pendingScrollRestoreRatio = null;
   let scrollRestoreOnNextLoad = false;
+  let scrollRestoreWatchTimer = 0;
+  let scrollRestoreApplying = false;
   const toolBubbleFoldState = new Map();
 
   function isToolBubbleExpanded(item) {
@@ -291,9 +293,13 @@ export function createShellDialog(options = {}) {
     if (maxScroll <= 1) return;
     const normalized = Math.min(1, Math.max(0, Number(ratio) || 0));
     suppressScrollPersist = true;
+    scrollRestoreApplying = true;
     scrollEl.scrollTop = normalized * maxScroll;
     window.requestAnimationFrame(() => {
-      suppressScrollPersist = false;
+      window.requestAnimationFrame(() => {
+        scrollRestoreApplying = false;
+        suppressScrollPersist = false;
+      });
     });
     updateScrollProgress();
   }
@@ -306,19 +312,65 @@ export function createShellDialog(options = {}) {
     pendingScrollRestoreRatio = Math.min(1, Math.max(0, Number(ratio)));
   }
 
+  function stopScrollRestoreWatch() {
+    if (!scrollRestoreWatchTimer) return;
+    window.clearInterval(scrollRestoreWatchTimer);
+    scrollRestoreWatchTimer = 0;
+  }
+
+  function tryApplyPendingScrollRestore() {
+    if (pendingScrollRestoreRatio == null) return false;
+    if (nodes.panel?.classList.contains("is-streaming")) return false;
+    const scrollEl = nodes.scroll;
+    if (!scrollEl) return false;
+    const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+    if (maxScroll <= 1) return false;
+    applyScrollRatio(pendingScrollRestoreRatio);
+    return true;
+  }
+
+  function finishScrollRestoreWatch() {
+    scrollRestoreOnNextLoad = false;
+    stopScrollRestoreWatch();
+  }
+
+  function clearPendingScrollRestore() {
+    pendingScrollRestoreRatio = null;
+    finishScrollRestoreWatch();
+  }
+
+  function startScrollRestoreWatch() {
+    if (pendingScrollRestoreRatio == null) return;
+    stopScrollRestoreWatch();
+    let attempts = 0;
+    const tick = () => {
+      if (pendingScrollRestoreRatio == null || !scrollRestoreOnNextLoad) {
+        stopScrollRestoreWatch();
+        return;
+      }
+      tryApplyPendingScrollRestore();
+      attempts += 1;
+      if (attempts >= 50) finishScrollRestoreWatch();
+    };
+    tick();
+    scrollRestoreWatchTimer = window.setInterval(tick, 100);
+  }
+
   function requestScrollRestoreOnLoad() {
     scrollRestoreOnNextLoad = true;
   }
 
-  function tryApplyPendingScrollRestore() {
-    if (pendingScrollRestoreRatio == null) return;
-    if (nodes.panel?.classList.contains("is-streaming")) return;
-    applyScrollRatio(pendingScrollRestoreRatio);
-    if (scrollRestoreOnNextLoad) scrollRestoreOnNextLoad = false;
-  }
-
   function noteScrollPositionChange() {
-    if (suppressScrollPersist || !onScrollPositionChange) return;
+    if (suppressScrollPersist || scrollRestoreApplying) return;
+    if (pendingScrollRestoreRatio != null) {
+      const scrollEl = nodes.scroll;
+      const maxScroll = scrollEl ? scrollEl.scrollHeight - scrollEl.clientHeight : 0;
+      if (maxScroll > 1) {
+        const expected = pendingScrollRestoreRatio * maxScroll;
+        if (Math.abs(scrollEl.scrollTop - expected) > 24) clearPendingScrollRestore();
+      }
+    }
+    if (!onScrollPositionChange) return;
     onScrollPositionChange(getScrollRatio());
   }
 
@@ -468,11 +520,8 @@ export function createShellDialog(options = {}) {
         historyLoadPromise = null;
         try {
           renderHistoryUi();
-          if (scrollRestoreOnNextLoad) {
-            window.requestAnimationFrame(() => {
-              tryApplyPendingScrollRestore();
-              window.requestAnimationFrame(() => tryApplyPendingScrollRestore());
-            });
+          if (scrollRestoreOnNextLoad && pendingScrollRestoreRatio != null) {
+            startScrollRestoreWatch();
           }
         } catch (error) {
           historyLoadError = error;
@@ -845,6 +894,8 @@ export function createShellDialog(options = {}) {
     renderLiveToolStrip();
     syncLiveReplySlot();
     updateScrollProgress();
+    scheduleShellMermaidTypeset(nodes.thread);
+    scheduleShellMermaidTypeset(nodes.lastReply);
   }
 
   function renderHistoryUi() {
@@ -1012,7 +1063,7 @@ export function createShellDialog(options = {}) {
     if (typeof ResizeObserver !== "undefined") {
       const observer = new ResizeObserver(() => {
         updateScrollProgress();
-        if (scrollRestoreOnNextLoad) tryApplyPendingScrollRestore();
+        if (pendingScrollRestoreRatio != null) tryApplyPendingScrollRestore();
       });
       observer.observe(scrollEl);
       if (nodes.thread) observer.observe(nodes.thread);
@@ -1096,7 +1147,9 @@ export function createShellDialog(options = {}) {
     renderLiveToolStrip,
     scheduleScrollRestore,
     requestScrollRestoreOnLoad,
+    startScrollRestoreWatch,
     tryApplyPendingScrollRestore,
+    getScrollRatio,
     refreshHistory: (options) => loadHistory(options),
     syncLiveReplySlot,
     updateScrollProgress
