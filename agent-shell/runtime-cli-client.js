@@ -1,3 +1,4 @@
+const { ClaudeToolActivityTracker, extractCodexToolActivity } = require("./tool-activity");
 const { spawn } = require("child_process");
 const { promisify } = require("util");
 const { execFile } = require("child_process");
@@ -248,6 +249,7 @@ async function chatClaudeCli({
   sessionId = "",
   permissionMode = "",
   onDelta,
+  onActivity,
   signal,
   cwd,
   timeoutMs = DEFAULT_TIMEOUT_MS
@@ -270,6 +272,7 @@ async function chatClaudeCli({
     let resultText = "";
     let lastError = "";
     let jsonBuffer = "";
+    const toolTracker = new ClaudeToolActivityTracker(onActivity);
     const result = await runCliProcess({
       binary: normalizeBinary("claude", binary),
       args,
@@ -280,6 +283,7 @@ async function chatClaudeCli({
         jsonBuffer += piece;
         let complete = false;
         jsonBuffer = consumeJsonLines(jsonBuffer, (event) => {
+          toolTracker.handleEvent(event);
           const err = claudeStreamError(event);
           if (err) {
             lastError = err;
@@ -305,6 +309,7 @@ async function chatClaudeCli({
     });
 
     jsonBuffer = consumeJsonLines(`${jsonBuffer}\n`, (event) => {
+      toolTracker.handleEvent(event);
       const err = claudeStreamError(event);
       if (err) {
         lastError = err;
@@ -361,6 +366,7 @@ async function chatCodexCli({
   sessionId = "",
   permissionMode = "",
   onDelta,
+  onActivity,
   signal,
   cwd,
   timeoutMs = DEFAULT_TIMEOUT_MS
@@ -391,6 +397,8 @@ async function chatCodexCli({
         jsonBuffer += piece;
         let complete = false;
         jsonBuffer = consumeJsonLines(jsonBuffer, (event) => {
+          const toolActivity = extractCodexToolActivity(event);
+          if (toolActivity && typeof onActivity === "function") onActivity(toolActivity);
           const err = codexStreamError(event);
           if (err) {
             lastError = err;
@@ -410,6 +418,8 @@ async function chatCodexCli({
     });
 
     jsonBuffer = consumeJsonLines(`${jsonBuffer}\n`, (event) => {
+      const toolActivity = extractCodexToolActivity(event);
+      if (toolActivity && typeof onActivity === "function") onActivity(toolActivity);
       const err = codexStreamError(event);
       if (err) {
         lastError = err;

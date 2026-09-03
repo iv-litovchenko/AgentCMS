@@ -16,6 +16,7 @@ const {
   refineSttTranscript
 } = require("./stt-refine");
 const { syncLatestReplyFromQwenPaw } = require("./qwenpaw-sync");
+const { normalizeToolActivity } = require("./tool-activity");
 const shellPresence = require("./shell-presence");
 const {
   SHELL_RUNTIMES,
@@ -195,26 +196,18 @@ function shellShowDemoKind(text) {
 
 function buildShellShowDemoReply(kind = "image") {
   if (kind === "video") {
-    return `Пример: агент может показать видео прямо в Shell.
+    return `Пример: видео в ответе через markdown-ссылку.
 
-[show]
-type: video
-src: /shell/demo.mp4
-caption: Демо-ролик Agent Shell
-[/show]
+[Демо-ролик Agent Shell](/shell/demo.mp4)
 
-Блок [show] не попадает в озвучку — только текст выше.`;
+Используй обычные ссылки или markdown — блок [show] больше не нужен.`;
   }
 
-  return `Пример: агент может показать картинку прямо в Shell.
+  return `Пример: картинка в ответе через markdown.
 
-[show]
-type: image
-src: /shell/wallpaper.png
-caption: Горы и храм — обои Agent Shell
-[/show]
+![Горы и храм — обои Agent Shell](/shell/wallpaper.png)
 
-Блок [show] не попадает в озвучку — только текст выше.`;
+Используй \`![подпись](url)\` — блок [show] больше не нужен.`;
 }
 
 function buildShellShowDemoResult(text) {
@@ -1094,6 +1087,22 @@ async function appendAgentReplyToCms(deps, settings, body, { partial = false } =
   });
 }
 
+function shellToolActivityPayload(streamId, activity) {
+  const normalized = normalizeToolActivity(activity);
+  return {
+    streamId,
+    kind: normalized.kind,
+    phase: normalized.phase,
+    tool: normalized.tool,
+    toolId: normalized.toolId,
+    args: normalized.args || undefined,
+    result: normalized.result || undefined,
+    status: normalized.status,
+    phrase: normalized.phrase,
+    error: normalized.error
+  };
+}
+
 async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgress, ttsClientId = "", author = "shell" }) {
   const text = String(body || "").trim();
   if (!text) throw new Error("Message body is required");
@@ -1113,18 +1122,38 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
 
   const emitAgentActivity = async (activity) => {
     if (!activity || typeof activity !== "object") return;
-    const priority = Number(activity.priority) || 0;
-    const phrase = String(activity.phrase || "").trim();
-    const tool = String(activity.tool || "").trim();
+    const normalized = normalizeToolActivity(activity);
+    const priority = Number(normalized.priority) || 0;
+    const phrase = String(normalized.phrase || "").trim();
+    const tool = String(normalized.tool || "").trim();
 
-    if (activity.phase === "end") {
+    if (normalized.kind === "tool") {
+      emitShellEvent(agentId, "agent_activity", shellToolActivityPayload(streamId, normalized));
+      if (normalized.phase !== "end") {
+        activityPriority = Math.max(activityPriority, priority);
+        lastActivityPhrase = phrase;
+        lastActivityPayload = {
+          kind: "tool",
+          phrase,
+          tool: tool || undefined
+        };
+        const now = Date.now();
+        const shouldPatch = priority >= 10 || now - lastStatePatchAt >= STREAM_STATE_PATCH_MS;
+        if (shouldPatch) {
+          lastStatePatchAt = now;
+          patchStateAsync(agentRoot, agentId, {
+            phase: PHASE_THINKING,
+            phrase,
+            metrics: tool || ""
+          });
+        }
+      }
+      return;
+    }
+
+    if (normalized.phase === "end") {
       if (tool) {
-        emitShellEvent(agentId, "agent_activity", {
-          streamId,
-          kind: activity.kind || "tool",
-          phase: "end",
-          tool
-        });
+        emitShellEvent(agentId, "agent_activity", shellToolActivityPayload(streamId, normalized));
       }
       return;
     }
@@ -1134,20 +1163,14 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     activityPriority = priority;
     lastActivityPhrase = phrase;
     lastActivityPayload = {
-      kind: activity.kind || "run",
+      kind: normalized.kind || "run",
       phrase,
       tool: tool || undefined
     };
 
     const now = Date.now();
     const shouldPatch = priority >= 10 || now - lastStatePatchAt >= STREAM_STATE_PATCH_MS;
-    emitShellEvent(agentId, "agent_activity", {
-      streamId,
-      kind: lastActivityPayload.kind,
-      phase: activity.phase || "start",
-      tool: lastActivityPayload.tool,
-      phrase
-    });
+    emitShellEvent(agentId, "agent_activity", shellToolActivityPayload(streamId, normalized));
     if (shouldPatch) {
       lastStatePatchAt = now;
       patchStateAsync(agentRoot, agentId, {
@@ -1340,6 +1363,18 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
   const onDelta = (partial) => {
     if (String(partial || "").trim()) void emitAssistantDelta(partial);
   };
+  const onActivity = (activity) => {
+    if (!activity) return;
+    emitShellEvent(agentId, "agent_activity", shellToolActivityPayload(streamId, activity));
+    const normalized = normalizeToolActivity(activity);
+    if (normalized.kind === "tool" && normalized.phase !== "end") {
+      patchStateAsync(agentRoot, agentId, {
+        phase: PHASE_THINKING,
+        phrase: normalized.phrase,
+        metrics: normalized.tool || ""
+      });
+    }
+  };
   const extraHeaders = buildRuntimeExtraHeaders(runtime, endpoint);
 
   let reply;
@@ -1360,7 +1395,8 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         sessionId: endpoint.sessionId,
         permissionMode: endpoint.permissionMode || "",
         cwd: agentRoot,
-        onDelta
+        onDelta,
+        onActivity
       });
       if (reply?.resumeWarning) {
         emitShellEvent(agentId, "agent_activity", {

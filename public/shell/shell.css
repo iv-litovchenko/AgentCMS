@@ -3978,6 +3978,105 @@ body.shell-desktop .shell-agent-gate select {
   display: none;
 }
 
+.shell-reply-panel[data-history-state="loading"] .shell-dialog-live-reply,
+.shell-reply-panel[data-history-state="loading"] .shell-last-ask,
+.shell-reply-panel[data-history-state="error"] .shell-dialog-live-reply,
+.shell-reply-panel[data-history-state="error"] .shell-last-ask {
+  display: none !important;
+}
+
+.shell-reply-panel[data-history-state="loading"] #shell-dialog-refresh .shell-tts-btn-icon {
+  animation: shell-history-refresh-spin 0.9s linear infinite;
+}
+
+.shell-dialog-history-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 120px;
+  padding: 24px 16px;
+  margin: 0 auto;
+  text-align: center;
+  color: rgba(226, 232, 240, 0.88);
+}
+
+.shell-dialog-history-loading--error {
+  min-height: 140px;
+  gap: 12px;
+}
+
+.shell-dialog-history-loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 10px;
+}
+
+.shell-dialog-history-loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(125, 211, 252, 0.95);
+  animation: shell-history-dot-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes shell-history-dot-pulse {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0) scale(0.82);
+    opacity: 0.45;
+  }
+  40% {
+    transform: translateY(-4px) scale(1);
+    opacity: 1;
+  }
+}
+
+.shell-dialog-history-loading-text {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.shell-dialog-history-loading-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  color: #fecaca;
+  font-size: 16px;
+}
+
+.shell-dialog-history-loading-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 320px;
+}
+
+.shell-dialog-history-loading-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(203, 213, 225, 0.82);
+}
+
+.shell-dialog-history-retry {
+  margin-top: 2px;
+}
+
+@keyframes shell-history-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .shell-chat-row {
   display: flex;
   flex-direction: column;
@@ -3993,6 +4092,89 @@ body.shell-desktop .shell-agent-gate select {
 .shell-chat-row--agent {
   align-self: flex-start;
   align-items: flex-start;
+}
+
+.shell-chat-row--tool {
+  align-self: flex-start;
+  align-items: flex-start;
+  max-width: min(96%, 560px);
+}
+
+.shell-chat-bubble--tool .shell-chat-msg--tool {
+  padding: 8px 28px 8px 10px;
+  background: rgba(18, 22, 38, 0.72);
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.shell-chat-msg--tool.is-running {
+  border-color: rgba(250, 204, 21, 0.28);
+}
+
+.shell-chat-msg--tool.is-ok {
+  border-color: rgba(74, 222, 128, 0.24);
+}
+
+.shell-chat-msg--tool.is-error {
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.shell-tool-bubble-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.shell-tool-bubble-icon {
+  flex: 0 0 auto;
+}
+
+.shell-tool-bubble-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-tool-bubble-status {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.72;
+}
+
+.shell-tool-bubble-section {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.shell-tool-bubble-args {
+  color: rgba(191, 219, 254, 0.92);
+}
+
+.shell-tool-bubble-result {
+  color: rgba(226, 232, 240, 0.88);
+}
+
+.shell-history-item--tool .shell-history-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
 }
 
 .shell-chat-bubble {

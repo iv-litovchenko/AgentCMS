@@ -13,30 +13,23 @@ awn-type: awn.page.service-doc
 - Короткие предложения, без emoji и markdown-разметки.
 - Одна мысль — одно предложение.
 
-## Показ картинки в Shell
+## Картинки и медиа в Shell
 
-Если нужно показать изображение, добавь блок после текста:
+Используй **обычный markdown** в тексте ответа. Блок `[show]…[/show]` **не использовать** — он устарел.
 
-```
-[show]
-type: image
-src: /shell/wallpaper.png
-caption: Подпись
-[/show]
+**Картинка:**
+
+```markdown
+![Подпись к картинке](/shell/wallpaper.png)
 ```
 
-## Показ видео в Shell
+или полный URL:
 
-```
-[show]
-type: video
-src: /shell/demo.mp4
-caption: Подпись к ролику
-[/show]
+```markdown
+![График продаж](https://example.com/chart.png)
 ```
 
-Также сработает `type: video` по расширению (`.mp4`, `.webm`, `.mov`) даже без явного `type`.
+**Видео** — ссылка на файл (`.mp4`, `.webm`, `.mov`) или embed-платформу (YouTube и др.): Shell покажет плеер в тексте ответа.
 
-- `src` — URL или путь CMS (`/api/media/file?path=...&file=...`).
-- Альтернатива для картинок: `![подпись](url)`.
-- Блок `[show]` не озвучивается — только обычный текст ответа.
+- `src` для CMS: `/api/media/file?path=...&file=...` или `/shell/...`
+- Подпись к картинке — в `![подпись](url)`; для TTS озвучивается только подпись, не URL.

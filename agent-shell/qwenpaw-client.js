@@ -1,5 +1,6 @@
 const DEFAULT_BASE_URL = "http://127.0.0.1:8088";
 const DEFAULT_TIMEOUT_MS = 300000;
+const { enrichQwenPawActivity } = require("./tool-activity");
 
 function normalizeBaseUrl(raw) {
   const value = String(raw || DEFAULT_BASE_URL).trim();
@@ -102,13 +103,16 @@ function extractActivityFromEvent(event) {
       type === "function"
     ) {
       const tool = extractToolName(event);
-      return {
-        kind: "tool",
-        phase: "start",
-        priority: 40,
-        tool: tool || "tool",
-        phrase: tool ? `🔧 ${tool}…` : "🔧 Инструмент…"
-      };
+      return enrichQwenPawActivity(
+        {
+          kind: "tool",
+          phase: "start",
+          priority: 40,
+          tool: tool || "tool",
+          phrase: tool ? `🔧 ${tool}…` : "🔧 Инструмент…"
+        },
+        event
+      );
     }
     if (
       type === "plugin_call_output" ||
@@ -117,7 +121,16 @@ function extractActivityFromEvent(event) {
       type === "tool_output"
     ) {
       const tool = extractToolName(event);
-      return { kind: "tool", phase: "end", priority: 35, tool: tool || undefined };
+      return enrichQwenPawActivity(
+        {
+          kind: "tool",
+          phase: "end",
+          priority: 35,
+          tool: tool || "tool",
+          phrase: tool ? `✓ ${tool}` : "✓ tool"
+        },
+        event
+      );
     }
   }
 
@@ -132,7 +145,36 @@ function extractActivityFromEvent(event) {
     ) {
       const tool = extractToolName(event);
       if (tool) {
-        return { kind: "tool", phase: "start", priority: 40, tool, phrase: `🔧 ${tool}…` };
+        return enrichQwenPawActivity(
+          {
+            kind: "tool",
+            phase: "start",
+            priority: 40,
+            tool,
+            phrase: `🔧 ${tool}…`
+          },
+          event
+        );
+      }
+    }
+    if (
+      type === "tool_result" ||
+      type === "tool_output" ||
+      type === "function_call_output" ||
+      type === "mcp_call_output"
+    ) {
+      const tool = extractToolName(event);
+      if (tool) {
+        return enrichQwenPawActivity(
+          {
+            kind: "tool",
+            phase: "end",
+            priority: 35,
+            tool,
+            phrase: `✓ ${tool}`
+          },
+          event
+        );
       }
     }
   }

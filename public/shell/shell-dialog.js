@@ -38,13 +38,22 @@ function withReplyDurations(items) {
 }
 
 function historyRoleLabel(item) {
+  if (item?.role === "tool") return item?.tool || "Tool";
   if (item?.label) return item.label;
   if (item?.role === "agent") return "AI";
   return "Human (человек)";
 }
 
 function historyAvatarLabel(item) {
+  if (item?.role === "tool") return "🔧";
   return item?.role === "agent" ? "AI" : "H";
+}
+
+function toolStatusLabel(status) {
+  const value = String(status || "").trim().toLowerCase();
+  if (value === "running") return "выполняется";
+  if (value === "error") return "ошибка";
+  return "готово";
 }
 
 function connectionHint(error) {
@@ -105,6 +114,7 @@ export function createShellDialog(options = {}) {
   const fetchHistory = typeof options.fetchHistory === "function" ? options.fetchHistory : null;
   let history = [];
   let historyLoading = false;
+  let historyLoadError = null;
   let historyLoadPromise = null;
   let lastReplyRaw = "";
   let lastAskRaw = "";
@@ -112,28 +122,127 @@ export function createShellDialog(options = {}) {
   let pullActive = false;
   let reconnectHandler = options.onReconnect || null;
 
+  function syncHistoryPanelState() {
+    if (!nodes.panel) return;
+    if (historyLoading) {
+      nodes.panel.dataset.historyState = "loading";
+      return;
+    }
+    if (historyLoadError && !history.length) {
+      nodes.panel.dataset.historyState = "error";
+      return;
+    }
+    nodes.panel.dataset.historyState = history.length ? "ready" : "empty";
+  }
+
+  function renderHistoryLoading() {
+    syncHistoryPanelState();
+    clearError();
+    if (!nodes.thread) return;
+    nodes.thread.replaceChildren();
+
+    const row = document.createElement("div");
+    row.className = "shell-dialog-history-loading";
+    row.setAttribute("role", "status");
+    row.setAttribute("aria-live", "polite");
+    row.setAttribute("aria-busy", "true");
+
+    const dots = document.createElement("span");
+    dots.className = "shell-dialog-history-loading-dots";
+    dots.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < 3; i += 1) {
+      const dot = document.createElement("span");
+      dot.className = "shell-dialog-history-loading-dot";
+      dot.style.animationDelay = `${i * 0.15}s`;
+      dots.append(dot);
+    }
+
+    const text = document.createElement("span");
+    text.className = "shell-dialog-history-loading-text";
+    text.textContent = "Загружаю историю";
+
+    row.append(dots, text);
+    nodes.thread.append(row);
+    nodes.lastReply?.classList.add("hidden");
+    nodes.lastAskWrap?.classList.add("hidden");
+  }
+
+  function renderHistoryLoadError(error) {
+    syncHistoryPanelState();
+    clearError();
+    if (!nodes.thread) {
+      const hint = connectionHint(error);
+      setError("Не удалось загрузить историю", { hint });
+      return;
+    }
+
+    nodes.thread.replaceChildren();
+    const row = document.createElement("div");
+    row.className = "shell-dialog-history-loading shell-dialog-history-loading--error";
+    row.setAttribute("role", "alert");
+
+    const icon = document.createElement("span");
+    icon.className = "shell-dialog-history-loading-icon";
+    icon.textContent = "↻";
+    icon.setAttribute("aria-hidden", "true");
+
+    const copy = document.createElement("div");
+    copy.className = "shell-dialog-history-loading-copy";
+
+    const title = document.createElement("span");
+    title.className = "shell-dialog-history-loading-text";
+    title.textContent = "Не удалось загрузить историю";
+
+    const hintEl = document.createElement("span");
+    hintEl.className = "shell-dialog-history-loading-hint";
+    const hint = connectionHint(error);
+    hintEl.textContent =
+      hint || String(error?.message || error || "Проверьте связь с сервером и нажмите «Обновить»");
+
+    copy.append(title, hintEl);
+
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "shell-btn shell-btn--ghost shell-btn--compact shell-dialog-history-retry";
+    retry.textContent = "Повторить";
+    retry.addEventListener("click", () => {
+      void loadHistory();
+    });
+
+    row.append(icon, copy, retry);
+    nodes.thread.append(row);
+    nodes.lastReply?.classList.add("hidden");
+    nodes.lastAskWrap?.classList.add("hidden");
+  }
+
   function loadHistory() {
     if (!fetchHistory) {
       history = [];
+      historyLoadError = null;
       renderHistoryUi();
       return Promise.resolve();
     }
     if (historyLoadPromise) return historyLoadPromise;
     historyLoading = true;
+    historyLoadError = null;
+    renderHistoryUi();
     historyLoadPromise = fetchHistory()
       .then((items) => {
         history = withReplyDurations(Array.isArray(items) ? items.slice(-MAX_HISTORY) : []);
+        historyLoadError = null;
         clearError();
-        renderHistoryUi();
       })
       .catch((error) => {
-        const hint = connectionHint(error);
-        setError("Не удалось загрузить историю", { hint });
-        renderHistoryUi();
+        historyLoadError = error;
+        if (history.length) {
+          const hint = connectionHint(error);
+          setError("Не удалось обновить историю", { hint });
+        }
       })
       .finally(() => {
         historyLoading = false;
         historyLoadPromise = null;
+        renderHistoryUi();
       });
     return historyLoadPromise;
   }
@@ -174,7 +283,142 @@ export function createShellDialog(options = {}) {
     }
   }
 
+  function renderToolThreadMessage(item) {
+    const row = document.createElement("div");
+    row.className = "shell-chat-row shell-chat-row--tool";
+    row.dataset.toolId = String(item.toolId || item.tool || "");
+
+    const bubble = document.createElement("div");
+    bubble.className = "shell-chat-bubble shell-chat-bubble--tool";
+
+    const el = document.createElement("div");
+    el.className = `shell-chat-msg shell-chat-msg--tool is-${String(item.status || "running").trim() || "running"}`;
+
+    const head = document.createElement("div");
+    head.className = "shell-tool-bubble-head";
+    const icon = document.createElement("span");
+    icon.className = "shell-tool-bubble-icon";
+    icon.textContent = item.status === "error" ? "⚠️" : item.status === "running" ? "🔧" : "✓";
+    icon.setAttribute("aria-hidden", "true");
+    const title = document.createElement("span");
+    title.className = "shell-tool-bubble-title";
+    title.textContent = String(item.tool || "tool");
+    const status = document.createElement("span");
+    status.className = "shell-tool-bubble-status";
+    status.textContent = toolStatusLabel(item.status);
+    head.append(icon, title, status);
+    el.append(head);
+
+    const args = String(item.args || "").trim();
+    if (args) {
+      const argsEl = document.createElement("pre");
+      argsEl.className = "shell-tool-bubble-section shell-tool-bubble-args";
+      argsEl.textContent = args;
+      el.append(argsEl);
+    }
+
+    const result = String(item.result || "").trim();
+    if (result) {
+      const resultEl = document.createElement("pre");
+      resultEl.className = "shell-tool-bubble-section shell-tool-bubble-result";
+      resultEl.textContent = result;
+      el.append(resultEl);
+    }
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "shell-chat-copy";
+    copyBtn.title = "Копировать";
+    copyBtn.setAttribute("aria-label", "Копировать tool");
+    copyBtn.textContent = "⎘";
+    const copyText = [item.tool, args, result].filter(Boolean).join("\n\n");
+    copyBtn.addEventListener("click", () => {
+      void copyMessageText(copyText, copyBtn);
+    });
+
+    bubble.append(el, copyBtn);
+    row.append(bubble);
+
+    const clock = formatHistoryTime(item.at);
+    if (clock) {
+      const meta = document.createElement("div");
+      meta.className = "shell-chat-meta";
+      meta.textContent = clock;
+      row.append(meta);
+    }
+    return row;
+  }
+
+  function findOpenToolIndex(payload = {}) {
+    const toolId = String(payload.toolId || "").trim();
+    const tool = String(payload.tool || "").trim();
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+      const item = history[i];
+      if (item.role !== "tool") continue;
+      if (toolId && item.toolId === toolId) return i;
+      if (tool && item.tool === tool && item.status === "running") return i;
+    }
+    return -1;
+  }
+
+  function upsertToolActivity(payload = {}) {
+    const phase = String(payload.phase || "start").trim().toLowerCase();
+    const tool = String(payload.tool || "tool").trim() || "tool";
+    const toolId = String(payload.toolId || tool).trim() || tool;
+    const args = String(payload.args || "").trim();
+    const result = String(payload.result || "").trim();
+    const status = String(payload.status || "").trim().toLowerCase();
+
+    if (phase === "end") {
+      const index = findOpenToolIndex(payload);
+      if (index >= 0) {
+        const item = history[index];
+        item.result = result || item.result || "";
+        item.status = status || (payload.error ? "error" : "ok");
+        item.at = Date.now();
+        if (args && !item.args) item.args = args;
+        renderHistoryUi();
+        return;
+      }
+      history.push({
+        role: "tool",
+        tool,
+        toolId,
+        args,
+        result,
+        status: status || (payload.error ? "error" : "ok"),
+        at: Date.now()
+      });
+      if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+      renderHistoryUi();
+      return;
+    }
+
+    if (phase === "progress") {
+      const index = findOpenToolIndex(payload);
+      if (index >= 0) {
+        if (args) history[index].args = args;
+        history[index].at = Date.now();
+        renderHistoryUi();
+        return;
+      }
+    }
+
+    history.push({
+      role: "tool",
+      tool,
+      toolId,
+      args,
+      result: "",
+      status: "running",
+      at: Date.now()
+    });
+    if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+    renderHistoryUi();
+  }
+
   function renderThreadMessage(item) {
+    if (item?.role === "tool") return renderToolThreadMessage(item);
     const role = item?.role === "agent" ? "agent" : "user";
     const row = document.createElement("div");
     row.className = `shell-chat-row shell-chat-row--${role}`;
@@ -237,6 +481,16 @@ export function createShellDialog(options = {}) {
   }
 
   function renderHistoryUi() {
+    if (historyLoading) {
+      renderHistoryLoading();
+      return;
+    }
+    if (historyLoadError && !history.length) {
+      renderHistoryLoadError(historyLoadError);
+      return;
+    }
+
+    syncHistoryPanelState();
     if (nodes.historyCount) {
       nodes.historyCount.textContent = history.length ? String(history.length) : "";
     }
@@ -263,7 +517,10 @@ export function createShellDialog(options = {}) {
         head.append(label, time);
         const body = document.createElement("div");
         body.className = "shell-history-text";
-        if (item.role === "agent") {
+        if (item.role === "tool") {
+          const parts = [`🔧 ${item.tool || "tool"}`, item.args, item.result].filter(Boolean);
+          body.textContent = parts.join("\n\n");
+        } else if (item.role === "agent") {
           renderShellReplyBody(body, String(item.body || ""));
         } else {
           body.textContent = String(item.body || "");
@@ -423,6 +680,7 @@ export function createShellDialog(options = {}) {
     bindReconnect,
     connectionHint,
     pushHistory,
+    upsertToolActivity,
     refreshHistory: loadHistory,
     syncLiveReplySlot
   };

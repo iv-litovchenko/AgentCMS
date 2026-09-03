@@ -1267,7 +1267,9 @@ const shellDialog = createShellDialog({
   pullHint: document.getElementById("shell-pull-hint"),
   fetchHistory: async () => {
     const runtime = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
-    const data = await apiFetch(`/api/shell/dialogs/history?runtime=${encodeURIComponent(runtime)}&limit=50`);
+    const data = await apiFetch(`/api/shell/dialogs/history?runtime=${encodeURIComponent(runtime)}&limit=50`, {
+      timeoutMs: 15000
+    });
     return Array.isArray(data?.messages) ? data.messages : [];
   }
 });
@@ -2967,6 +2969,9 @@ function handleAgentActivity(payload = {}) {
   if (state.messageStopped) return;
   if (!isShellAgentWorkActive()) return;
   pushAgentActivityStep(payload);
+  if (payload.kind === "tool") {
+    shellDialog.upsertToolActivity?.(payload);
+  }
   const phrase = String(payload.phrase || "").trim();
   const tool = String(payload.tool || "").trim();
   const label = phrase || tool;

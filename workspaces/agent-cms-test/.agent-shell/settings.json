@@ -5,12 +5,11 @@
     "channel": "thread"
   },
   "route": {
-    "runtime": "qwenpaw",
+    "runtime": "claude",
     "runtimes": {
       "qwenpaw": {
         "type": "agent",
         "baseUrl": "http://127.0.0.1:8088",
-        "agentId": "Aya",
         "sessionId": "shell-agent-cms-test-mtlwybop-v3mgrh"
       },
       "claude": {
@@ -37,6 +36,7 @@
     "stt": {
       "lang": "ru-RU",
       "engine": "auto",
+      "prompt": "Исправь пунктуацию и регистр, убери слова-паразиты («э-э», «эээ», «мм», «ну»), сохрани смысл. Верни только готовый текст для отправки агенту — без пояснений и обёрток.",
       "whisper": {
         "model": "base"
       },
