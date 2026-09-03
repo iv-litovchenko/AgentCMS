@@ -1,5 +1,12 @@
 export const SETTINGS_SECTIONS = ["window", "route", "proactive", "tts", "stt"];
 
+function stableStringify(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  const keys = Object.keys(value).sort();
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+}
+
 export function createSettingsSaveController() {
   const baselines = {};
   const dirty = { window: false, route: false, proactive: false, tts: false, stt: false };
@@ -18,8 +25,15 @@ export function createSettingsSaveController() {
     return Boolean(dirty[section]);
   }
 
+  function forceDirty(section) {
+    if (!SETTINGS_SECTIONS.includes(section)) return;
+    dirty[section] = true;
+    syncUi();
+  }
+
   function syncUi() {
     let settingsPanelDirty = false;
+    const menuBtn = settingsMenuBtn || document.getElementById("shell-settings-btn");
     for (const section of SETTINGS_SECTIONS) {
       const saveBtn = saveButtons[section];
       if (saveBtn) {
@@ -44,11 +58,11 @@ export function createSettingsSaveController() {
         if (dirty[section]) settingsPanelDirty = true;
       }
     }
-    settingsMenuBtn?.classList.toggle("has-unsaved", settingsPanelDirty);
+    menuBtn?.classList.toggle("has-unsaved", settingsPanelDirty);
   }
 
   function commitBaseline(section, snapshot) {
-    baselines[section] = JSON.stringify(snapshot ?? {});
+    baselines[section] = stableStringify(snapshot ?? {});
     dirty[section] = false;
     syncUi();
   }
@@ -62,7 +76,7 @@ export function createSettingsSaveController() {
     } catch {
       base = {};
     }
-    baselines[section] = JSON.stringify({ ...base, ...patch });
+    baselines[section] = stableStringify({ ...base, ...patch });
   }
 
   function commitAllBaselines(snapshots) {
@@ -76,21 +90,34 @@ export function createSettingsSaveController() {
   function markDirty(section, snapshot, getSnapshot) {
     const current = snapshot ?? getSnapshot?.(section);
     if (current === undefined) return;
-    if (!Object.prototype.hasOwnProperty.call(baselines, section)) {
-      commitBaseline(section, current);
+    if (current && typeof current === "object" && current.__dirtyFallback) {
+      dirty[section] = true;
+      syncUi();
       return;
     }
-    dirty[section] = JSON.stringify(current) !== baselines[section];
+    if (!Object.prototype.hasOwnProperty.call(baselines, section)) {
+      dirty[section] = true;
+      syncUi();
+      return;
+    }
+    dirty[section] = stableStringify(current) !== baselines[section];
     syncUi();
+  }
+
+  function ensureBaseline(section, snapshot) {
+    if (Object.prototype.hasOwnProperty.call(baselines, section)) return;
+    commitBaseline(section, snapshot ?? {});
   }
 
   return {
     attachUi,
     isSectionDirty,
+    forceDirty,
     syncUi,
     commitBaseline,
     patchBaseline,
     commitAllBaselines,
-    markDirty
+    markDirty,
+    ensureBaseline
   };
 }

@@ -276,7 +276,7 @@ function handleSttEnabledChange(source) {
   if (nodes.sttEnabled && nodes.sttEnabled !== source) nodes.sttEnabled.checked = enabled;
   if (nodes.sttPanelEnabled && nodes.sttPanelEnabled !== source) nodes.sttPanelEnabled.checked = enabled;
   if (state.settings) state.settings.sttEnabled = enabled;
-  markSettingsDirty("stt");
+  markSettingsDirty("stt", { force: true });
   const fromPanel = source?.id === "shell-stt-panel-enabled";
   if (!(fromPanel && isSettingsViewOpen())) {
     void persistSttEnabled(enabled);
@@ -294,7 +294,7 @@ function handleTtsEnabledChange(source) {
   if (nodes.ttsEnabled && nodes.ttsEnabled !== source) nodes.ttsEnabled.checked = enabled;
   if (nodes.ttsPanelEnabled && nodes.ttsPanelEnabled !== source) nodes.ttsPanelEnabled.checked = enabled;
   if (state.settings) state.settings.ttsEnabled = enabled;
-  markSettingsDirty("tts");
+  markSettingsDirty("tts", { force: true });
   if (!enabled) stopBrowserTts({ notifyServer: true });
   const fromPanel = source?.id === "shell-tts-panel-enabled";
   if (!(fromPanel && isSettingsViewOpen())) {
@@ -314,7 +314,7 @@ function handleTtsPlaybackModeChange(source) {
     }
   }
   if (state.settings) state.settings.ttsPlaybackMode = mode;
-  markSettingsDirty("tts");
+  markSettingsDirty("tts", { force: true });
   updateTtsPlaybackHint(mode);
   const fromPanel = source.name === "shell-tts-playback-mode-panel";
   if (!(fromPanel && isSettingsViewOpen())) {
@@ -2241,18 +2241,7 @@ function hideAgentActivityPanel() {
   if (nodes.agentActivityList) nodes.agentActivityList.replaceChildren();
 }
 
-function showAgentActivityPanel() {
-  const wrap = nodes.agentActivity;
-  if (!wrap) return;
-  wrap.classList.remove("hidden");
-  wrap.hidden = false;
-  wrap.setAttribute("aria-hidden", "false");
-}
-
 function renderAgentActivitySteps() {
-  const listEl = nodes.agentActivityList;
-  if (!listEl) return;
-
   if (!agentActivitySteps.length) {
     hideAgentActivityPanel();
     return;
@@ -2264,14 +2253,7 @@ function renderAgentActivitySteps() {
     return;
   }
 
-  showAgentActivityPanel();
-  listEl.replaceChildren();
-  for (const step of agentActivitySteps) {
-    const li = document.createElement("li");
-    li.className = `shell-agent-activity-item${step.active ? " is-active" : ""}${step.kind === "tool" ? " shell-agent-activity-item--tool" : ""}`;
-    li.textContent = step.label;
-    listEl.append(li);
-  }
+  hideAgentActivityPanel();
 
   const active = agentActivitySteps.find((step) => step.active) || agentActivitySteps[agentActivitySteps.length - 1];
   const label = String(active?.label || "").trim();
@@ -3777,8 +3759,7 @@ function applyBridgeForm(runtime, settings = state.settings || {}) {
   }
   if (
     runtimeUsesCli(id) &&
-    nodes.bridgePermissionMode &&
-    document.activeElement !== nodes.bridgePermissionMode
+    nodes.bridgePermissionMode
   ) {
     const mode = read("permissionMode") || defaults.permissionMode || "";
     nodes.bridgePermissionMode.checked = mode === "bypassPermissions";
@@ -3842,11 +3823,11 @@ function applyRouteFormFromSettings(settings = state.settings || {}) {
   updateRuntimeUi({ reloadForms: false });
 }
 
-function collectBridgeFormPatch(runtime) {
+function collectBridgeFormPatch(runtime, { validate = true } = {}) {
   const id = normalizeMessageRuntime(runtime);
   const defaults = RUNTIME_DEFAULTS[id] || {};
   const sessionId = nodes.bridgeSessionId?.value.trim() || defaults.sessionId || "";
-  if (id === "codex" && sessionId) {
+  if (validate && id === "codex" && sessionId) {
     const check = validateCodexSessionId(sessionId);
     if (!check.ok) throw new Error(check.message);
   }
@@ -3872,30 +3853,42 @@ function collectBridgeFormPatch(runtime) {
   return patch;
 }
 
-function collectRouteSnapshot() {
+function collectRouteSettingsPatch({ validate = false } = {}) {
   const runtime = getSelectedRuntime();
-  if (state.settings) state.settings.messageTarget = runtime;
-  const snap = buildRouteSnapshotFromSettings(state.settings || {});
-  snap.messageTarget = runtime;
-  snap.qwenpawBaseUrl = nodes.qwenpawUrl?.value.trim() || snap.qwenpawBaseUrl;
-  snap.qwenpawAgentId = nodes.qwenpawAgentId?.value.trim() || snap.qwenpawAgentId;
+  const patch = {
+    messageTarget: runtime,
+    qwenpawBaseUrl: nodes.qwenpawUrl?.value.trim() || "http://127.0.0.1:8088",
+    qwenpawAgentId: nodes.qwenpawAgentId?.value.trim() || "default"
+  };
   if (runtimeUsesBridge(runtime)) {
-    Object.assign(snap, collectBridgeFormPatch(runtime));
+    Object.assign(patch, collectBridgeFormPatch(runtime, { validate }));
   }
-  return snap;
+  return patch;
 }
 
 function getSettingsSnapshot(section) {
   if (section === "window") return collectWindowSnapshot();
-  if (section === "route") return collectRouteSnapshot();
+  if (section === "route") return collectRouteSettingsPatch();
   if (section === "proactive") return collectProactiveFormPatch();
   if (section === "tts") return collectTtsSettingsPatch();
   if (section === "stt") return collectSttSettingsPatch();
   return {};
 }
 
-function markSettingsDirty(section) {
-  settingsSave.markDirty(section, getSettingsSnapshot(section));
+function markSettingsDirty(section, { force = false } = {}) {
+  if (force) {
+    settingsSave.forceDirty(section);
+    return;
+  }
+  let snapshot;
+  try {
+    snapshot = getSettingsSnapshot(section);
+  } catch (error) {
+    shellLog("settings", "markSettingsDirty snapshot failed", section, error.message);
+    settingsSave.forceDirty(section);
+    return;
+  }
+  settingsSave.markDirty(section, snapshot);
 }
 
 function bindSettingsSaveButton(btn, section) {
@@ -3967,11 +3960,17 @@ function applySettingsSectionForm(section, settings = state.settings) {
 function syncSettingsFormsOnOpen(settings = state.settings) {
   for (const section of ["window", "route", "tts", "stt", "proactive"]) {
     if (settingsSave.isSectionDirty(section)) continue;
-    if (section !== "window") {
-      if (!settings) continue;
-      applySettingsSectionForm(section, settings);
+    try {
+      if (section !== "window") {
+        if (!settings) continue;
+        applySettingsSectionForm(section, settings);
+      }
+    } catch (error) {
+      shellLog("settings", "syncSettingsFormsOnOpen apply failed", section, error.message);
     }
-    settingsSave.commitBaseline(section, getSettingsSnapshot(section));
+  }
+  if (!isAnySettingsSectionDirty()) {
+    commitAllSettingsBaselines();
   }
   settingsSave.syncUi();
 }
@@ -4055,7 +4054,7 @@ function bindSettingsDirtyTracking() {
   const onFieldChange = (event) => {
     const section = settingsSectionFromTarget(event.target);
     if (!section) return;
-    markSettingsDirty(section);
+    markSettingsDirty(section, { force: true });
   };
   root.addEventListener("input", onFieldChange, true);
   root.addEventListener("change", onFieldChange, true);
@@ -4094,7 +4093,7 @@ function bindSettingsSaveHandlers() {
 function commitAllSettingsBaselines() {
   settingsSave.commitAllBaselines({
     window: collectWindowSnapshot(),
-    route: collectRouteSnapshot(),
+    route: collectRouteSettingsPatch(),
     proactive: collectProactiveFormPatch(),
     tts: collectTtsSettingsPatch(),
     stt: collectSttSettingsPatch()
@@ -4122,6 +4121,19 @@ function isAnySettingsSectionDirty() {
   );
 }
 
+async function persistRoutePermissionMode() {
+  const runtime = getSelectedRuntime();
+  if (!runtimeUsesCli(runtime)) return;
+  const permissionKey = bridgeRuntimeField(runtime, "permissionMode");
+  const patch = {
+    [permissionKey]: nodes.bridgePermissionMode?.checked ? "bypassPermissions" : ""
+  };
+  await persistAgentSettingsPatch(patch, {
+    baselineSection: "route",
+    commitSection: false
+  });
+}
+
 async function saveSettingsSection(section) {
   if (section === "window") {
     await saveWindowSettings(collectWindowSnapshot());
@@ -4129,7 +4141,8 @@ async function saveSettingsSection(section) {
     return;
   }
 
-  const patch = getSettingsSnapshot(section);
+  const patch =
+    section === "route" ? collectRouteSettingsPatch({ validate: true }) : getSettingsSnapshot(section);
   if (section === "stt") {
     applyRecognitionLang(patch.sttLang);
   }
@@ -4232,7 +4245,6 @@ function applySettings(settings) {
     shellLog("proactive", `С сервера: ${settings.proactiveEnabled ? "вкл" : "выкл"}`);
   }
   syncCompactSensorAvailability();
-  commitCleanSettingsBaselines();
 }
 
 function getQwenPawUrlValue() {
@@ -4752,6 +4764,31 @@ function refreshRoutePanelNodes() {
     document.getElementById("shell-route-runtime-note-title") || nodes.routeRuntimeNoteTitle;
   nodes.routeRuntimeNoteBody =
     document.getElementById("shell-route-runtime-note-body") || nodes.routeRuntimeNoteBody;
+  nodes.bridgePermissionMode =
+    document.getElementById("shell-runtime-bridge-permission-mode") || nodes.bridgePermissionMode;
+  nodes.bridgePermissionField =
+    document.getElementById("shell-runtime-bridge-permission-field") || nodes.bridgePermissionField;
+  nodes.bridgePermissionLabel =
+    document.getElementById("shell-runtime-bridge-permission-label") || nodes.bridgePermissionLabel;
+  nodes.bridgePermissionEmoji =
+    document.getElementById("shell-runtime-bridge-permission-emoji") || nodes.bridgePermissionEmoji;
+  nodes.bridgePermissionTitle =
+    document.getElementById("shell-runtime-bridge-permission-title") || nodes.bridgePermissionTitle;
+  nodes.bridgePermissionDesc =
+    document.getElementById("shell-runtime-bridge-permission-desc") || nodes.bridgePermissionDesc;
+  nodes.bridgeSessionId =
+    document.getElementById("shell-runtime-bridge-session-id") || nodes.bridgeSessionId;
+  nodes.bridgeSessionGenerate =
+    document.getElementById("shell-runtime-bridge-session-generate") || nodes.bridgeSessionGenerate;
+}
+
+function generateBridgeSessionUuid() {
+  refreshRoutePanelNodes();
+  const sessionInput = nodes.bridgeSessionId || document.getElementById("shell-runtime-bridge-session-id");
+  if (!sessionInput) return;
+  sessionInput.value = createCliSessionUuid();
+  sessionInput.dispatchEvent(new Event("input", { bubbles: true }));
+  markSettingsDirty("route", { force: true });
 }
 
 function readRouteRuntimeSelectValue() {
@@ -4798,6 +4835,13 @@ function bindRoutePanelUi() {
   const panel = document.getElementById("shell-route-panel");
   if (!panel || panel.dataset.shellRouteBound === "1") return;
   panel.dataset.shellRouteBound = "1";
+  panel.addEventListener("click", (event) => {
+    const generateBtn = event.target.closest("#shell-runtime-bridge-session-generate");
+    if (!generateBtn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    generateBridgeSessionUuid();
+  });
   panel.addEventListener("change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement) || target.id !== "shell-route-runtime") return;
@@ -5780,7 +5824,7 @@ function insertTtsPromptTemplate() {
   const template = String(shellPromptTemplates.ttsPrompt || DEFAULT_TTS_PROMPT).trim() || DEFAULT_TTS_PROMPT;
   nodes.ttsPrompt.value = template;
   state.settings = { ...(state.settings || {}), ttsPrompt: template };
-  markSettingsDirty("tts");
+  markSettingsDirty("tts", { force: true });
 }
 
 function insertSttPromptTemplate() {
@@ -5788,7 +5832,7 @@ function insertSttPromptTemplate() {
   const template = String(shellPromptTemplates.sttPrompt || DEFAULT_STT_PROMPT).trim() || DEFAULT_STT_PROMPT;
   nodes.sttPrompt.value = template;
   state.settings = { ...(state.settings || {}), sttPrompt: template };
-  markSettingsDirty("stt");
+  markSettingsDirty("stt", { force: true });
 }
 
 function insertProactivePromptTemplate() {
@@ -5798,7 +5842,7 @@ function insertProactivePromptTemplate() {
     DEFAULT_PROACTIVE_PROMPT;
   nodes.proactivePrompt.value = template;
   state.settings = { ...(state.settings || {}), proactivePrompt: template };
-  markSettingsDirty("proactive");
+  markSettingsDirty("proactive", { force: true });
 }
 
 function resolveProactivePromptTemplate() {
@@ -7062,7 +7106,7 @@ async function testTtsEngine() {
     }
     if (engine === "browser" || engine === "say") {
       await applyContrastVoiceDefaults(engine);
-      markSettingsDirty("tts");
+      markSettingsDirty("tts", { force: true });
     }
     const phrase = getTtsTestPhrase(engine);
     renderPhase("thinking", `Пробная озвучка · ${ttsEngineLabel(engine)}…`);
@@ -7951,7 +7995,7 @@ function bindWindowSettingsUi() {
       nodes.windowBackground.disabled = windowTransparent && nodes.windowTransparent?.checked === true;
     }
     previewWindowFromForm();
-    markSettingsDirty("window");
+    markSettingsDirty("window", { force: true });
   };
 
   nodes.topmost?.addEventListener("change", onWindowFieldChange);
@@ -7967,7 +8011,7 @@ function bindWindowSettingsUi() {
     window.shellApp.onPetOverlayChanged((payload) => {
       if (!nodes.windowPetOverlay) return;
       nodes.windowPetOverlay.checked = Boolean(payload?.enabled);
-      markSettingsDirty("window");
+      markSettingsDirty("window", { force: true });
       void saveWindowSettings(buildWindowSettingsPayload({ windowPetOverlay: Boolean(payload?.enabled) })).catch(
         () => {}
       );
@@ -8002,7 +8046,7 @@ function handleMessageTargetChange() {
   const runtime = readRuntimeSelectValue(nodes.messageTarget);
   if (!runtime) return;
   if (state.settings) state.settings.messageTarget = runtime;
-  markSettingsDirty("route");
+  markSettingsDirty("route", { force: true });
   syncRuntimeSelects("header");
   updateRuntimeUi({ runtime });
   void persistMessageTarget(runtime).then(() => shellDialog.refreshHistory?.());
@@ -8017,7 +8061,7 @@ function handleRouteRuntimeChange() {
   if (state.settings) state.settings.messageTarget = runtime;
   syncRuntimeSelects("route");
   updateRuntimeUi({ runtime, reloadForms: true });
-  markSettingsDirty("route");
+  markSettingsDirty("route", { force: true });
   void persistMessageTarget(runtime);
 }
 
@@ -8027,15 +8071,15 @@ function bindUi() {
   try {
   populateVoiceModeSelect();
   populateTtsEngineSelect();
-  onRouteSettingsDirty = () => markSettingsDirty("route");
+  onRouteSettingsDirty = () => markSettingsDirty("route", { force: true });
 
   refreshSettingsSaveUi();
   bindSettingsDirtyTracking();
   bindSettingsSaveHandlers();
-  const markRouteDirty = () => markSettingsDirty("route");
-  const markTtsDirty = () => markSettingsDirty("tts");
-  const markSttDirty = () => markSettingsDirty("stt");
-  const markProactiveDirty = () => markSettingsDirty("proactive");
+  const markRouteDirty = () => markSettingsDirty("route", { force: true });
+  const markTtsDirty = () => markSettingsDirty("tts", { force: true });
+  const markSttDirty = () => markSettingsDirty("stt", { force: true });
+  const markProactiveDirty = () => markSettingsDirty("proactive", { force: true });
 
   nodes.cameraEnabled?.addEventListener("change", () => {
     const enabled = nodes.cameraEnabled.checked;
@@ -8141,17 +8185,14 @@ function bindUi() {
     nodes.bridgeApiKey,
     nodes.bridgeModel,
     nodes.bridgeAgentMeta,
-    nodes.bridgeSessionId,
-    nodes.bridgePermissionMode
+    nodes.bridgeSessionId
   ]) {
     input?.addEventListener("input", markRouteDirty);
     input?.addEventListener("change", markRouteDirty);
   }
-  nodes.bridgeSessionGenerate?.addEventListener("click", () => {
-    if (!nodes.bridgeSessionId) return;
-    nodes.bridgeSessionId.value = createCliSessionUuid();
-    nodes.bridgeSessionId.dispatchEvent(new Event("input", { bubbles: true }));
-    markSettingsDirty("route");
+  nodes.bridgePermissionMode?.addEventListener("change", () => {
+    markSettingsDirty("route", { force: true });
+    void persistRoutePermissionMode().catch((error) => renderPhase("waiting", error.message));
   });
   nodes.ttsEnabled?.addEventListener("change", () => {
     handleTtsEnabledChange(nodes.ttsEnabled);

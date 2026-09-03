@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=479" />
+    <link rel="stylesheet" href="/shell/shell.css?v=480" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -20,7 +20,7 @@
       {
         "imports": {
           "three": "/shell/vendor/three.module.js",
-          "@shell/settings-save": "/shell/shell-settings-save.js?v=317",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=320",
           "@shell/reply": "/shell/shell-reply.js?v=207",
           "@shell/markdown": "/shell/shell-markdown.js?v=416",
           "@shell/character": "/shell/shell-character.js?v=208",
@@ -499,9 +499,9 @@
                 placeholder="default"
               />
             </label>
-            <label class="shell-field shell-field--compact">
-              <span class="shell-label shell-label-row shell-label-row--spread">
-                Session ID
+            <div class="shell-field shell-field--compact">
+              <div class="shell-label shell-label-row shell-label-row--spread">
+                <span>Session ID</span>
                 <button
                   type="button"
                   class="shell-label-action"
@@ -510,7 +510,7 @@
                 >
                   Новый UUID
                 </button>
-              </span>
+              </div>
               <input
                 id="shell-runtime-bridge-session-id"
                 class="shell-input"
@@ -518,7 +518,7 @@
                 spellcheck="false"
                 placeholder="UUID или название сессии, пусто = новая"
               />
-            </label>
+            </div>
             <div
               class="shell-field shell-field--compact shell-runtime-bridge-permission-field hidden"
               id="shell-runtime-bridge-permission-field"
@@ -1782,10 +1782,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <div class="shell-reply-text" id="shell-last-reply-text">—</div>
             <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
           </div>
-          <div class="shell-agent-activity hidden" id="shell-agent-activity" hidden aria-hidden="true">
-            <div class="shell-agent-activity-label">Шаги агента</div>
-            <ol class="shell-agent-activity-list" id="shell-agent-activity-list"></ol>
-          </div>
         </div>
         <p class="shell-dialog-error hidden" id="shell-dialog-error" role="alert"></p>
       </section>
@@ -2255,6 +2251,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=485" type="module"></script>
+    <script src="/shell/shell.js?v=490" type="module"></script>
   </body>
 </html>

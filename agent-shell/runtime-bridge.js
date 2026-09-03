@@ -177,7 +177,8 @@ function buildRuntimeSettingsPatch(runtime) {
     return {
       [runtimeField(id, "CliPath")]: defaults.cliPath || id,
       [runtimeField(id, "Model")]: defaults.model || "",
-      [runtimeField(id, "SessionId")]: defaults.sessionId || ""
+      [runtimeField(id, "SessionId")]: defaults.sessionId || "",
+      [runtimeField(id, "PermissionMode")]: defaults.permissionMode || ""
     };
   }
   return {

@@ -386,7 +386,13 @@ function normalizeSettings(raw) {
   merged.proactiveQuietStart = normalizeProactiveQuietTime(merged.proactiveQuietStart, "23:00");
   merged.proactiveQuietEnd = normalizeProactiveQuietTime(merged.proactiveQuietEnd, "07:00");
   for (const [key, value] of Object.entries(buildDefaultRuntimeSettings())) {
-    if (key.endsWith("BaseUrl") || key.endsWith("Model") || key.endsWith("SessionId")) {
+    if (
+      key.endsWith("BaseUrl") ||
+      key.endsWith("Model") ||
+      key.endsWith("SessionId") ||
+      key.endsWith("CliPath") ||
+      key.endsWith("PermissionMode")
+    ) {
       merged[key] = String(merged[key] ?? value ?? "").trim() || value;
     } else if (key.endsWith("ApiKey") || key.endsWith("Profile") || key.endsWith("AgentId")) {
       merged[key] = String(merged[key] ?? "").trim();

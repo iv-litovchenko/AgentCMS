@@ -14,14 +14,13 @@
       },
       "claude": {
         "type": "cli",
-        "cliPath": "claude2",
-        "model": "sonnet2",
-        "sessionId": "2784eb57-4c5d-4705-9ef9-58e7c0bbdddc",
+        "sessionId": "924375f6-b5a0-4fab-a5dc-3740d514cb7a",
         "permissionMode": "bypassPermissions"
       },
       "codex": {
         "type": "cli",
-        "sessionId": "c71b596c-9e85-41d5-b36a-c2940f8f1181"
+        "sessionId": "c71b596c-9e85-41d5-b36a-c2940f8f1181",
+        "permissionMode": "bypassPermissions"
       }
     }
   },
@@ -29,7 +28,7 @@
     "input": {
       "enabled": false,
       "mode": "meeting",
-      "source": "auto",
+      "source": "browser",
       "globalListen": false,
       "toCompose": false,
       "responseEnabled": true
@@ -60,7 +59,7 @@
           "lang": "ru-RU"
         },
         "edge": {
-          "voice": "ru-RU-DmitryNeural"
+          "voice": "ru-RU-SvetlanaNeural"
         },
         "elevenlabs": {
           "model": "eleven_multilingual_v2"
@@ -69,13 +68,13 @@
     }
   },
   "proactive": {
-    "enabled": false,
+    "enabled": true,
     "idleSecondsMin": 120,
     "idleSecondsMax": 240,
     "idleSeconds": 120,
     "cooldownSeconds": 900,
     "quietHours": {
-      "enabled": false,
+      "enabled": true,
       "start": "23:00",
       "end": "07:00"
     }

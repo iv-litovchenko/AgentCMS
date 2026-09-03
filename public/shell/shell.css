@@ -874,6 +874,16 @@ body.shell-bg-wallpaper .shell-voice-primary-star.is-secondary {
   display: none;
 }
 
+.shell-path-context-row--device .shell-battery[data-level="critical"] {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.16);
+}
+
+.shell-path-context-row--device .shell-battery[data-level="critical"] .shell-meta-icon,
+.shell-path-context-row--device .shell-battery[data-level="critical"] .shell-battery-level {
+  color: #f87171;
+}
+
 .shell-path-context-row--device .shell-orient-chip[data-active="0"],
 .shell-path-context-row--device .shell-location-chip[data-active="0"] {
   color: #94a3b8;
@@ -3817,21 +3827,21 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-save-btn.is-dirty {
-  background: #dc2626;
-  color: #fff7f7;
-  border-color: #ef4444;
-  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18);
+  background: rgba(34, 197, 94, 0.16);
+  color: rgba(187, 247, 208, 0.98);
+  border-color: rgba(34, 197, 94, 0.42);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
 }
 
 .shell-save-btn.is-dirty:hover:not(:disabled) {
-  background: #b91c1c;
-  color: #fff;
-  border-color: #f87171;
+  background: rgba(34, 197, 94, 0.24);
+  color: #ecfdf5;
+  border-color: rgba(74, 222, 128, 0.55);
 }
 
 .shell-save-btn.is-dirty .shell-save-btn-lamp {
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
 }
 
 .shell-save-btn.is-saving {
@@ -6392,6 +6402,14 @@ body.shell-bg-wallpaper .shell-character-viewport {
   fill: #ff6b6b;
 }
 
+.shell-battery[data-level="critical"] {
+  color: #f87171;
+}
+
+.shell-battery[data-level="critical"] .shell-battery-level {
+  color: #f87171;
+}
+
 .shell-battery[data-level="unknown"] .shell-battery-fill {
   fill: rgba(148, 163, 184, 0.35);
 }
@@ -8599,16 +8617,16 @@ body.shell-embed .shell-path-header {
 }
 
 .shell-btn.shell-btn--ghost.shell-save-btn.is-dirty {
-  background: #dc2626;
-  color: #fff7f7;
-  border-color: #ef4444;
-  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18);
+  background: rgba(34, 197, 94, 0.16);
+  color: rgba(187, 247, 208, 0.98);
+  border-color: rgba(34, 197, 94, 0.42);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
 }
 
 .shell-btn.shell-btn--ghost.shell-save-btn.is-dirty:hover:not(:disabled) {
-  background: #b91c1c;
-  color: #fff;
-  border-color: #f87171;
+  background: rgba(34, 197, 94, 0.24);
+  color: #ecfdf5;
+  border-color: rgba(74, 222, 128, 0.55);
 }
 
 .shell-btn:disabled,
