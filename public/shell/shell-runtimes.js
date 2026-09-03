@@ -82,6 +82,39 @@ export const SHELL_RUNTIME_CLI_SETUP = {
   }
 };
 
+/** Runtime с блоком подсказок на вкладке «Маршрут». */
+export const SHELL_ROUTE_NOTE_RUNTIMES = ["claude", "codex", "qwenpaw"];
+
+/** Краткое пояснение над инструкцией для каждого runtime. */
+export const SHELL_RUNTIME_ROUTE_INTROS = {
+  claude: "Локальный CLI Claude. Shell запускает claude в каталоге workspace.",
+  codex: "Локальный CLI Codex. Shell запускает codex в каталоге workspace.",
+  qwenpaw: "HTTP-агент QwenPaw. Shell отправляет сообщения на сервер и стримит ответ через SSE."
+};
+
+export function runtimeShowsRouteNote(runtime) {
+  return SHELL_ROUTE_NOTE_RUNTIMES.includes(normalizeMessageRuntime(runtime));
+}
+
+export function formatQwenpawRuntimeRouteNote(status = null) {
+  const lines = [
+    "URL и agentId — в полях ниже.",
+    "Проверка: статус в списке runtime (🟢 / ⚪ / 🔴)."
+  ];
+  const err = String(status?.error || "").trim();
+  if (err) lines.push(`Сейчас: ${err}`);
+  else if (status?.version) lines.push(`Найдено: ${formatShortCliVersion(status.version)}`);
+  else if (status?.ok) lines.push("Подключение: OK");
+  return lines.join("\n");
+}
+
+export function formatRuntimeRouteNote(runtime, status = null) {
+  const id = normalizeMessageRuntime(runtime);
+  if (id === "claude" || id === "codex") return formatCliRuntimeRouteNote(id, status);
+  if (id === "qwenpaw") return formatQwenpawRuntimeRouteNote(status);
+  return "";
+}
+
 export function formatCliRuntimeRouteNote(runtime, status = null) {
   const id = normalizeMessageRuntime(runtime);
   if (!runtimeUsesCli(id)) return "";
