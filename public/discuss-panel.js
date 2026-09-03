@@ -2,6 +2,7 @@
  * Правая панель CMS — встроенный Agent CMS Voice (iframe).
  */
 (function initDiscussPanel() {
+  const SHELL_PRESENCE_ENABLED = false;
   const STORAGE_WIDTH_KEY = "agent-cms-discuss-width";
   const STORAGE_HIDDEN_KEY = "agent-cms-discuss-collapsed";
 
@@ -76,6 +77,11 @@
   }
 
   async function refreshShellPresence() {
+    if (!SHELL_PRESENCE_ENABLED) {
+      lastPresence = null;
+      applyPresenceToChatButton(null);
+      return null;
+    }
     const agentId = getActiveAgentIdFromUrl();
     if (!agentId) {
       lastPresence = null;
@@ -97,6 +103,7 @@
   }
 
   function bindPresencePolling() {
+    if (!SHELL_PRESENCE_ENABLED) return;
     void refreshShellPresence();
     presencePollTimer = window.setInterval(() => {
       void refreshShellPresence();

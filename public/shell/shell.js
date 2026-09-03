@@ -43,7 +43,7 @@ import {
   parseVoiceShellPath,
   readVoiceSurfaceHostFromLocation
 } from "@shell/voice-chpu";
-import { initShellPresence } from "@shell/presence";
+import { initShellPresence, SHELL_PRESENCE_ENABLED } from "@shell/presence";
 import { initShellOrientationChip, initShellLocationChip, getShellDeviceLocation, isShellLocationShareEnabled, refreshShellLocationForSend } from "@shell/device-chips";
 import { initShellInstallBanner } from "@shell/pwa";
 import {
@@ -688,6 +688,7 @@ function releaseVoiceCaptureOnPrimaryLoss() {
 }
 
 function applyVoicePresence(payload) {
+  if (!SHELL_PRESENCE_ENABLED) return;
   if (!payload || typeof payload !== "object") return;
   const primaryClientId = String(payload.primaryClientId || "").trim();
   const clientCount = Number(payload.clientCount) || 0;
@@ -704,6 +705,11 @@ function applyVoicePresence(payload) {
 function updateVoicePrimaryStar() {
   const star = nodes.voicePrimaryStar;
   if (!star) return;
+  if (!SHELL_PRESENCE_ENABLED) {
+    star.classList.add("hidden");
+    star.setAttribute("aria-hidden", "true");
+    return;
+  }
   const count = state.voicePresence?.clientCount ?? 0;
   if (count <= 1) {
     star.classList.add("hidden");
@@ -8084,14 +8090,16 @@ function connectStream() {
     }
   });
 
-  source.addEventListener("presence", (event) => {
-    try {
-      logSse("presence");
-      applyVoicePresence(JSON.parse(event.data));
-    } catch {
-      // ignore malformed event
-    }
-  });
+  if (SHELL_PRESENCE_ENABLED) {
+    source.addEventListener("presence", (event) => {
+      try {
+        logSse("presence");
+        applyVoicePresence(JSON.parse(event.data));
+      } catch {
+        // ignore malformed event
+      }
+    });
+  }
 
   source.addEventListener("assistant_message", (event) => {
     try {

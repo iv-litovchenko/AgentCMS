@@ -1,7 +1,16 @@
 import { getShellPresenceClientId } from "@shell/client-id";
 import { getShellSurfacePayload } from "@shell/surface";
 
+/** Временно выключено — heartbeat /api/shell/presence каждые ~2.5 с. */
+export const SHELL_PRESENCE_ENABLED = false;
+
 const HEARTBEAT_MS = 2500;
+
+const disabledPresenceController = {
+  ping: async () => null,
+  setAgentId: () => {},
+  stop: () => {}
+};
 const PRESENCE_CHANNEL = "agentcms-shell-presence";
 
 function buildPresenceBody(options = {}) {
@@ -28,6 +37,8 @@ function buildPresenceBody(options = {}) {
  * }} options
  */
 export function initShellPresence(options = {}) {
+  if (!SHELL_PRESENCE_ENABLED) return disabledPresenceController;
+
   let agentId = String(options.agentId || "").trim();
   let timer = null;
   let stopped = false;
