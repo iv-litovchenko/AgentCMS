@@ -34,8 +34,15 @@ export function createSettingsSaveController() {
   function syncUi() {
     let settingsPanelDirty = false;
     const menuBtn = settingsMenuBtn || document.getElementById("shell-settings-btn");
+    const saveBtnIds = {
+      window: "shell-window-save",
+      route: "shell-route-save",
+      proactive: "shell-proactive-save",
+      tts: "shell-tts-save",
+      stt: "shell-stt-save"
+    };
     for (const section of SETTINGS_SECTIONS) {
-      const saveBtn = saveButtons[section];
+      const saveBtn = saveButtons[section] || document.getElementById(saveBtnIds[section]);
       if (saveBtn) {
         const hasBaseline = Object.prototype.hasOwnProperty.call(baselines, section);
         saveBtn.classList.toggle("is-dirty", Boolean(dirty[section]));

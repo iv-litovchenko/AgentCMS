@@ -3878,17 +3878,19 @@ function getSettingsSnapshot(section) {
 function markSettingsDirty(section, { force = false } = {}) {
   if (force) {
     settingsSave.forceDirty(section);
-    return;
+  } else {
+    let snapshot;
+    try {
+      snapshot = getSettingsSnapshot(section);
+    } catch (error) {
+      shellLog("settings", "markSettingsDirty snapshot failed", section, error.message);
+      settingsSave.forceDirty(section);
+      settingsSave.syncUi();
+      return;
+    }
+    settingsSave.markDirty(section, snapshot);
   }
-  let snapshot;
-  try {
-    snapshot = getSettingsSnapshot(section);
-  } catch (error) {
-    shellLog("settings", "markSettingsDirty snapshot failed", section, error.message);
-    settingsSave.forceDirty(section);
-    return;
-  }
-  settingsSave.markDirty(section, snapshot);
+  settingsSave.syncUi();
 }
 
 function bindSettingsSaveButton(btn, section) {
@@ -4047,17 +4049,23 @@ function refreshSettingsSaveUi() {
   bindSettingsSaveButton(nodes.sttSave, "stt");
 }
 
+function bindSettingsDirtyUi() {
+  refreshSettingsSaveUi();
+  bindSettingsDirtyTracking();
+  bindSettingsSaveHandlers();
+}
+
 function bindSettingsDirtyTracking() {
-  const root = document.getElementById("shell-settings-view");
-  if (!root || root.dataset.shellDirtyBound === "1") return;
-  root.dataset.shellDirtyBound = "1";
+  if (document.body.dataset.shellDirtyDocBound === "1") return;
+  document.body.dataset.shellDirtyDocBound = "1";
   const onFieldChange = (event) => {
+    if (!isSettingsViewOpen()) return;
     const section = settingsSectionFromTarget(event.target);
     if (!section) return;
     markSettingsDirty(section, { force: true });
   };
-  root.addEventListener("input", onFieldChange, true);
-  root.addEventListener("change", onFieldChange, true);
+  document.addEventListener("input", onFieldChange, true);
+  document.addEventListener("change", onFieldChange, true);
 }
 
 function bindSettingsSaveHandlers() {
@@ -4112,6 +4120,7 @@ function previewWindowFromForm() {
 }
 
 function isSettingsViewOpen() {
+  if (state.view === "settings") return true;
   return document.getElementById("shell-app")?.dataset.view === "settings";
 }
 
@@ -6827,7 +6836,7 @@ function collectTtsSettingsPatch() {
   };
 }
 
-async function persistTtsSettings() {
+async function persistTtsSettings({ commitBaseline: shouldCommitBaseline = true } = {}) {
   const patch = collectTtsSettingsPatch();
   patch.ttsEngine = getTtsEngine();
   const apiKey = String(nodes.ttsElevenlabsKey?.value || "").trim();
@@ -6842,7 +6851,9 @@ async function persistTtsSettings() {
   if (nodes.ttsElevenlabsVoiceId && document.activeElement !== nodes.ttsElevenlabsVoiceId) {
     nodes.ttsElevenlabsVoiceId.value = String(state.settings?.ttsElevenlabsVoiceId || "");
   }
-  settingsSave.commitBaseline("tts", collectTtsSettingsPatch());
+  if (shouldCommitBaseline) {
+    settingsSave.commitBaseline("tts", collectTtsSettingsPatch());
+  }
   void loadTtsCapabilities();
 
   const savedKey = String(state.settings?.ttsElevenlabsApiKey || "").trim();
@@ -6867,6 +6878,7 @@ async function persistTtsSettings() {
 }
 
 async function maybeAutoSaveElevenlabsCredentials() {
+  if (isSettingsViewOpen()) return;
   if (getTtsEngine() !== "elevenlabs") return;
   const apiKey = String(nodes.ttsElevenlabsKey?.value || "").trim();
   const voiceId = String(nodes.ttsElevenlabsVoiceId?.value || "").trim();
@@ -7866,7 +7878,7 @@ function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
         : "";
     setSettingsTab(settingsTab || tabFromScroll || state.settingsTab || "route");
     bindRoutePanelUi();
-    refreshSettingsSaveUi();
+    bindSettingsDirtyUi();
     syncSettingsFormsOnOpen(state.settings);
     updateRuntimeRouteNotes(readRouteRuntimeSelectValue() || getSelectedRuntime());
     settingsSave.syncUi();
@@ -8073,9 +8085,7 @@ function bindUi() {
   populateTtsEngineSelect();
   onRouteSettingsDirty = () => markSettingsDirty("route", { force: true });
 
-  refreshSettingsSaveUi();
-  bindSettingsDirtyTracking();
-  bindSettingsSaveHandlers();
+  bindSettingsDirtyUi();
   const markRouteDirty = () => markSettingsDirty("route", { force: true });
   const markTtsDirty = () => markSettingsDirty("tts", { force: true });
   const markSttDirty = () => markSettingsDirty("stt", { force: true });
@@ -8565,7 +8575,13 @@ function bindShellInteractiveUi() {
       clearBtn: nodes.debugClear,
       closeBtn: nodes.debugClose
     });
-    bindUi();
+    try {
+      bindUi();
+    } catch (bindUiError) {
+      window.__shellBindUiError = String(bindUiError?.message || bindUiError);
+      shellLog("error", "bindUi failed", bindUiError.message);
+      console.error("[shell bindUi]", bindUiError);
+    }
     setSettingsTab(state.settingsTab || "route");
     bindWindowSettingsUi();
     populateThinkingSoundPickers();
@@ -8595,6 +8611,7 @@ function bindShellInteractiveUi() {
     document.body.dataset.shellInteractiveBound = "1";
   } catch (error) {
     window.__shellUiReady = false;
+    window.__shellBindError = String(error?.message || error);
     delete document.body.dataset.shellInteractiveBound;
     shellLog("error", "bindShellInteractiveUi failed", error.message);
     console.error("[shell bindShellInteractiveUi]", error);
@@ -8646,6 +8663,7 @@ async function boot() {
   renderHeaderHostChip();
   bindShellAgentGateUi();
   bindHeaderContextUi();
+  bindSettingsDirtyUi();
   bindShellInteractiveUi();
   shellLog("boot", "Shell UI готов", { agentId: state.agentId || null, embed: shellEmbedMode });
   try {

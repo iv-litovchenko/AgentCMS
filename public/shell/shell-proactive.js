@@ -65,8 +65,7 @@ export function pickProactiveIdleTarget(min, max) {
 export function formatProactiveIdleRangeHint(min, max) {
   const { min: lo, max: hi } = normalizeProactiveIdleRange({
     proactiveIdleSecondsMin: min,
-    proactiveIdleSecondsMax: max,
-    proactiveIdleSeconds: lo
+    proactiveIdleSecondsMax: max
   });
   return lo === hi ? `${lo} с` : `${lo}–${hi} с`;
 }

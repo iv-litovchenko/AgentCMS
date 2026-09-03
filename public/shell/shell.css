@@ -8629,6 +8629,11 @@ body.shell-embed .shell-path-header {
   border-color: rgba(74, 222, 128, 0.55);
 }
 
+.shell-btn.shell-btn--ghost.shell-save-btn.is-dirty .shell-save-btn-lamp {
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+}
+
 .shell-btn:disabled,
 .shell-icon-btn:disabled {
   opacity: 0.45;
