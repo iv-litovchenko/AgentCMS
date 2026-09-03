@@ -8919,8 +8919,264 @@ body.shell-embed .shell-path-header {
   line-height: inherit;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+}
+
+.shell-reply-text.shell-md .md-highlight--yellow,
+.shell-reply-text.shell-md mark:not([class*="md-highlight--"]),
+.shell-chat-msg .shell-md .md-highlight--yellow,
+.shell-chat-msg .shell-md mark:not([class*="md-highlight--"]),
+.shell-reply-segment.shell-md .md-highlight--yellow,
+.shell-reply-segment.shell-md mark:not([class*="md-highlight--"]),
+.shell-reply-tts-block-text.shell-md .md-highlight--yellow,
+.shell-reply-tts-block-text.shell-md mark:not([class*="md-highlight--"]) {
   background: rgba(254, 240, 138, 0.32);
   color: #fef08a;
+}
+
+.shell-reply-text.shell-md .md-highlight--red,
+.shell-chat-msg .shell-md .md-highlight--red,
+.shell-reply-segment.shell-md .md-highlight--red,
+.shell-reply-tts-block-text.shell-md .md-highlight--red {
+  background: rgba(254, 202, 202, 0.28);
+  color: #fecaca;
+}
+
+.shell-reply-text.shell-md .md-highlight--green,
+.shell-chat-msg .shell-md .md-highlight--green,
+.shell-reply-segment.shell-md .md-highlight--green,
+.shell-reply-tts-block-text.shell-md .md-highlight--green {
+  background: rgba(187, 247, 208, 0.22);
+  color: #bbf7d0;
+}
+
+.shell-reply-text.shell-md .md-highlight--blue,
+.shell-chat-msg .shell-md .md-highlight--blue,
+.shell-reply-segment.shell-md .md-highlight--blue,
+.shell-reply-tts-block-text.shell-md .md-highlight--blue {
+  background: rgba(191, 219, 254, 0.24);
+  color: #bfdbfe;
+}
+
+.shell-reply-text.shell-md .md-highlight--gray,
+.shell-chat-msg .shell-md .md-highlight--gray,
+.shell-reply-segment.shell-md .md-highlight--gray,
+.shell-reply-tts-block-text.shell-md .md-highlight--gray {
+  background: rgba(226, 232, 240, 0.18);
+  color: #cbd5e1;
+}
+
+.shell-reply-text.shell-md .md-highlight--orange,
+.shell-chat-msg .shell-md .md-highlight--orange,
+.shell-reply-segment.shell-md .md-highlight--orange,
+.shell-reply-tts-block-text.shell-md .md-highlight--orange {
+  background: rgba(254, 215, 170, 0.24);
+  color: #fed7aa;
+}
+
+.shell-reply-text.shell-md .md-highlight--purple,
+.shell-chat-msg .shell-md .md-highlight--purple,
+.shell-reply-segment.shell-md .md-highlight--purple,
+.shell-reply-tts-block-text.shell-md .md-highlight--purple {
+  background: rgba(233, 213, 255, 0.22);
+  color: #e9d5ff;
+}
+
+.shell-reply-text.shell-md .shell-md-math-block,
+.shell-chat-msg .shell-md .shell-md-math-block,
+.shell-reply-segment.shell-md .shell-md-math-block,
+.shell-reply-tts-block-text.shell-md .shell-md-math-block {
+  margin: 0.75em 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  overflow-x: auto;
+}
+
+.shell-reply-text.shell-md .shell-md-math-display,
+.shell-chat-msg .shell-md .shell-md-math-display,
+.shell-reply-segment.shell-md .shell-md-math-display,
+.shell-reply-tts-block-text.shell-md .shell-md-math-display {
+  display: block;
+  text-align: center;
+  margin: 0.85em auto;
+  max-width: 100%;
+}
+
+.shell-reply-text.shell-md .shell-md-math-display .language-math,
+.shell-chat-msg .shell-md .shell-md-math-display .language-math,
+.shell-reply-segment.shell-md .shell-md-math-display .language-math,
+.shell-reply-tts-block-text.shell-md .shell-md-math-display .language-math {
+  display: inline-block;
+  text-align: initial;
+}
+
+.shell-reply-text.shell-md .language-math,
+.shell-chat-msg .shell-md .language-math,
+.shell-reply-segment.shell-md .language-math,
+.shell-reply-tts-block-text.shell-md .language-math {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+}
+
+.shell-reply-text.shell-md .shell-md-math-inline,
+.shell-chat-msg .shell-md .shell-md-math-inline,
+.shell-reply-segment.shell-md .shell-md-math-inline,
+.shell-reply-tts-block-text.shell-md .shell-md-math-inline {
+  background: transparent;
+  border: 0;
+  padding: 0 0.1em;
+}
+
+.shell-reply-text.shell-md .shell-md-math-error,
+.shell-chat-msg .shell-md .shell-md-math-error,
+.shell-reply-segment.shell-md .shell-md-math-error,
+.shell-reply-tts-block-text.shell-md .shell-md-math-error {
+  color: #fca5a5;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-frame,
+.shell-chat-msg .shell-md .mermaid-diagram-frame,
+.shell-reply-segment.shell-md .mermaid-diagram-frame,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-frame {
+  position: relative;
+  margin: 0.85em 0;
+  padding: 34px 12px 14px;
+  border: 1px solid rgba(122, 108, 255, 0.24);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(15, 18, 34, 0.92) 0%, rgba(8, 10, 22, 0.96) 100%);
+  overflow-x: auto;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-frame:not(.is-dark),
+.shell-chat-msg .shell-md .mermaid-diagram-frame:not(.is-dark),
+.shell-reply-segment.shell-md .mermaid-diagram-frame:not(.is-dark),
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-frame:not(.is-dark) {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(241, 245, 249, 0.98) 100%);
+}
+
+.shell-reply-text.shell-md pre.mermaid,
+.shell-chat-msg .shell-md pre.mermaid,
+.shell-reply-segment.shell-md pre.mermaid,
+.shell-reply-tts-block-text.shell-md pre.mermaid {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  overflow: visible;
+  white-space: normal;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-frame pre.mermaid,
+.shell-chat-msg .shell-md .mermaid-diagram-frame pre.mermaid,
+.shell-reply-segment.shell-md .mermaid-diagram-frame pre.mermaid,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-frame pre.mermaid {
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-frame .mermaid svg,
+.shell-chat-msg .shell-md .mermaid-diagram-frame .mermaid svg,
+.shell-reply-segment.shell-md .mermaid-diagram-frame .mermaid svg,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-frame .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-theme-btn,
+.shell-chat-msg .shell-md .mermaid-diagram-theme-btn,
+.shell-reply-segment.shell-md .mermaid-diagram-theme-btn,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-theme-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-theme-btn,
+.shell-chat-msg .shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-theme-btn,
+.shell-reply-segment.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-theme-btn,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-frame:not(.is-dark) .mermaid-diagram-theme-btn {
+  border-color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.92);
+  color: #475569;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-theme-icon,
+.shell-chat-msg .shell-md .mermaid-diagram-theme-icon,
+.shell-reply-segment.shell-md .mermaid-diagram-theme-icon,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-theme-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-theme-icon--sun,
+.shell-chat-msg .shell-md .mermaid-diagram-theme-icon--sun,
+.shell-reply-segment.shell-md .mermaid-diagram-theme-icon--sun,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-theme-icon--sun {
+  display: none;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--moon,
+.shell-chat-msg .shell-md .mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--moon,
+.shell-reply-segment.shell-md .mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--moon,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--moon {
+  display: none;
+}
+
+.shell-reply-text.shell-md .mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--sun,
+.shell-chat-msg .shell-md .mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--sun,
+.shell-reply-segment.shell-md .mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--sun,
+.shell-reply-tts-block-text.shell-md .mermaid-diagram-theme-btn.is-dark-active .mermaid-diagram-theme-icon--sun {
+  display: block;
+}
+
+.shell-reply-text.shell-md .shell-md-embed,
+.shell-chat-msg .shell-md .shell-md-embed,
+.shell-reply-segment.shell-md .shell-md-embed,
+.shell-reply-tts-block-text.shell-md .shell-md-embed {
+  margin: 0.85em 0;
+}
+
+.shell-reply-text.shell-md .shell-md-embed-iframe,
+.shell-chat-msg .shell-md .shell-md-embed-iframe,
+.shell-reply-segment.shell-md .shell-md-embed-iframe,
+.shell-reply-tts-block-text.shell-md .shell-md-embed-iframe,
+.shell-reply-text.shell-md .shell-md-embed-video,
+.shell-chat-msg .shell-md .shell-md-embed-video,
+.shell-reply-segment.shell-md .shell-md-embed-video,
+.shell-reply-tts-block-text.shell-md .shell-md-embed-video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 10px;
+  background: #000;
+}
+
+.shell-reply-text.shell-md .shell-md-embed-audio,
+.shell-chat-msg .shell-md .shell-md-embed-audio,
+.shell-reply-segment.shell-md .shell-md-embed-audio,
+.shell-reply-tts-block-text.shell-md .shell-md-embed-audio {
+  display: block;
+  width: 100%;
+  max-width: 100%;
 }
 
 .shell-reply-text.shell-md .footnote-ref,

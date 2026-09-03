@@ -1,15 +1,35 @@
-import {
-  splitReplyDisplayParts,
-  cleanReplyTextSegment,
-  hasReplyTtsBlocks,
-  stripHtmlComments
-} from "@shell/reply";
+import { cleanReplyTextSegment, stripHtmlComments } from "@shell/reply";
+import { splitVoiceEndReply } from "@shell/voice-end-format";
 
 let shellMarkdownIt = null;
 let markdownLibsPromise = null;
 let highlightLibsPromise = null;
+let mermaidLibsPromise = null;
+let mathLibsPromise = null;
+let mermaidTypesetSeq = 0;
 
 const SHELL_HLJS_STYLE = "/vendor/vditor/js/highlight.js/styles/androidstudio.min.css";
+const SHELL_MERMAID_SRC = "/vendor/mermaid.min.js";
+const SHELL_KATEX_CSS = "/vendor/vditor/js/katex/katex.min.css";
+const SHELL_KATEX_JS = "/vendor/vditor/js/katex/katex.min.js";
+const SHELL_KATEX_MHCHEM = "/vendor/vditor/js/katex/mhchem.min.js";
+
+const HIGHLIGHT_TONES = new Set(["yellow", "red", "green", "blue", "gray", "orange", "purple"]);
+
+const MERMAID_BASE_CONFIG = {
+  startOnLoad: false,
+  securityLevel: "loose",
+  fontFamily:
+    'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+};
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 function loadStylesheetOnce(href) {
   return new Promise((resolve, reject) => {
@@ -72,6 +92,32 @@ function ensureShellHighlightLibs() {
   return highlightLibsPromise;
 }
 
+function ensureShellMermaidLibs() {
+  if (typeof window.mermaid?.render === "function") return Promise.resolve();
+  if (!mermaidLibsPromise) {
+    mermaidLibsPromise = loadScriptOnce(SHELL_MERMAID_SRC).catch((error) => {
+      mermaidLibsPromise = null;
+      throw error;
+    });
+  }
+  return mermaidLibsPromise;
+}
+
+function ensureShellMathLibs() {
+  if (typeof window.katex?.renderToString === "function") return Promise.resolve();
+  if (!mathLibsPromise) {
+    mathLibsPromise = Promise.all([
+      loadStylesheetOnce(SHELL_KATEX_CSS),
+      loadScriptOnce(SHELL_KATEX_JS),
+      loadScriptOnce(SHELL_KATEX_MHCHEM)
+    ]).catch((error) => {
+      mathLibsPromise = null;
+      throw error;
+    });
+  }
+  return mathLibsPromise;
+}
+
 function ensureShellMarkdownLibs() {
   if (typeof window.markdownit === "function") return Promise.resolve();
   if (!markdownLibsPromise) {
@@ -114,28 +160,127 @@ function sanitizeRenderedShellHtml(html) {
 
 function applyShellMarkHighlight(md) {
   md.inline.ruler.before("emphasis", "shell_mark", (state, silent) => {
-    const marker = "==";
     const start = state.pos;
-    if (state.src.slice(start, start + 2) !== marker) return false;
+    if (state.src.charCodeAt(start) !== 0x3d /* = */) return false;
+    if (state.src.charCodeAt(start + 1) !== 0x3d) return false;
 
-    const match = state.src.slice(start).match(/^==([^=\n]+?)==/);
+    const match = state.src.slice(start).match(/^==(?:\{([a-z]+)\})?([^=\n][^=]*?)==/i);
     if (!match) return false;
 
     if (!silent) {
-      const tokenOpen = state.push("shell_mark_open", "mark", 1);
-      tokenOpen.markup = marker;
-      const tokenText = state.push("text", "", 0);
-      tokenText.content = match[1];
-      const tokenClose = state.push("shell_mark_close", "mark", -1);
-      tokenClose.markup = marker;
+      const token = state.push("shell_mark", "", 0);
+      token.content = match[2];
+      token.meta = { tone: String(match[1] || "yellow").toLowerCase() };
     }
 
     state.pos += match[0].length;
     return true;
   });
 
-  md.renderer.rules.shell_mark_open = () => '<mark class="md-highlight">';
-  md.renderer.rules.shell_mark_close = () => "</mark>";
+  md.renderer.rules.shell_mark = (tokens, idx) => {
+    const token = tokens[idx];
+    const tone = String(token.meta?.tone || "yellow").toLowerCase();
+    const toneClass = HIGHLIGHT_TONES.has(tone) ? tone : "yellow";
+    return `<mark class="md-highlight md-highlight--${toneClass}">${escapeHtml(token.content)}</mark>`;
+  };
+}
+
+function applyShellDisplayMath(md) {
+  md.block.ruler.before("fence", "shell_math_display", (state, startLine, endLine, silent) => {
+    const start = state.bMarks[startLine] + state.tShift[startLine];
+    const max = state.eMarks[startLine];
+    const line = state.src.slice(start, max).trim();
+
+    if (!line.startsWith("$$")) return false;
+
+    let content = "";
+    let end = startLine;
+
+    if (line.length > 4 && line.endsWith("$$") && line.lastIndexOf("$$") === line.length - 2) {
+      content = line.slice(2, -2).trim();
+      end = startLine;
+    } else if (line === "$$") {
+      let found = false;
+      for (let next = startLine + 1; next < endLine; next += 1) {
+        const lineStart = state.bMarks[next] + state.tShift[next];
+        const lineMax = state.eMarks[next];
+        const nextLine = state.src.slice(lineStart, lineMax).trim();
+        if (nextLine === "$$") {
+          found = true;
+          end = next;
+          break;
+        }
+      }
+      if (!found) return false;
+
+      const lines = [];
+      for (let i = startLine + 1; i < end; i += 1) {
+        lines.push(state.src.slice(state.bMarks[i] + state.tShift[i], state.eMarks[i]));
+      }
+      content = lines.join("\n").trim();
+    } else {
+      return false;
+    }
+
+    if (!content) return false;
+
+    if (!silent) {
+      const token = state.push("shell_math_display", "div", 0);
+      token.content = content;
+      token.map = [startLine, end];
+      token.markup = "$$";
+    }
+
+    state.line = end + 1;
+    return true;
+  });
+
+  md.inline.ruler.before("shell_math_inline", "shell_math_display_inline", (state, silent) => {
+    const start = state.pos;
+    if (state.src.charCodeAt(start) !== 0x24 /* $ */) return false;
+    if (state.src.charCodeAt(start + 1) !== 0x24) return false;
+
+    const match = state.src.slice(start).match(/^\$\$([\s\S]+?)\$\$/);
+    if (!match || !String(match[1] || "").trim()) return false;
+
+    if (!silent) {
+      const token = state.push("shell_math_display_inline", "", 0);
+      token.content = match[1].trim();
+    }
+
+    state.pos += match[0].length;
+    return true;
+  });
+
+  const renderDisplayMath = (content) =>
+    `<div class="shell-md-math-block shell-md-math-display"><code class="language-math">${escapeHtml(content)}</code></div>`;
+
+  md.renderer.rules.shell_math_display = (tokens, idx) => renderDisplayMath(tokens[idx].content || "");
+  md.renderer.rules.shell_math_display_inline = (tokens, idx) => renderDisplayMath(tokens[idx].content || "");
+}
+
+function applyShellInlineMath(md) {
+  md.inline.ruler.before("emphasis", "shell_math_inline", (state, silent) => {
+    const start = state.pos;
+    if (state.src.charCodeAt(start) !== 0x24 /* $ */) return false;
+    if (state.src.charCodeAt(start + 1) === 0x24) return false;
+
+    const match = state.src.slice(start).match(/^\$([^$\n]+?)\$/);
+    if (!match) return false;
+
+    if (!silent) {
+      const token = state.push("shell_math_inline", "", 0);
+      token.content = match[1];
+    }
+
+    state.pos += match[0].length;
+    return true;
+  });
+
+  md.renderer.rules.shell_math_inline = (tokens, idx) => {
+    const content = escapeHtml(tokens[idx].content || "");
+    return `<code class="language-math shell-md-math-inline">${content}</code>`;
+  };
 }
 
 function applyShellSupSub(md) {
@@ -255,10 +400,314 @@ function ensurePreCodeElement(pre) {
   return code;
 }
 
+function initShellMermaid(theme = "neutral") {
+  if (typeof window.mermaid?.initialize !== "function") return false;
+  window.mermaid.initialize({
+    ...MERMAID_BASE_CONFIG,
+    theme: theme === "dark" ? "dark" : "neutral"
+  });
+  return true;
+}
+
+function getMermaidBlockSource(block) {
+  if (!block) return "";
+  const stored = block.getAttribute("data-mermaid-source");
+  if (stored) {
+    try {
+      return decodeURIComponent(stored).trim();
+    } catch {
+      /* fall through */
+    }
+  }
+  const text = String(block.textContent || "").trim();
+  if (!text || text.startsWith("#mermaid-")) return "";
+  return text;
+}
+
+function mermaidBlockHasRenderedDiagram(block) {
+  const g = block?.querySelector("svg g");
+  return Boolean(g?.innerHTML?.trim());
+}
+
+function ensureMermaidDiagramFrame(block) {
+  const existing = block.closest(".mermaid-diagram-frame");
+  if (existing) return existing;
+
+  const frame = document.createElement("div");
+  frame.className = "mermaid-diagram-frame is-dark";
+  frame.dataset.mermaidTheme = "dark";
+  block.parentNode?.insertBefore(frame, block);
+  frame.appendChild(block);
+  return frame;
+}
+
+function syncMermaidThemeToggleUi(frame) {
+  const btn = frame.querySelector(".mermaid-diagram-theme-btn");
+  if (!btn) return;
+  const isDark = frame.dataset.mermaidTheme === "dark";
+  btn.classList.toggle("is-dark-active", isDark);
+  btn.title = isDark ? "Светлый фон" : "Тёмный фон";
+  btn.setAttribute("aria-label", btn.title);
+  btn.setAttribute("aria-pressed", isDark ? "true" : "false");
+}
+
+function ensureMermaidThemeToggle(frame, block) {
+  let btn = frame.querySelector(".mermaid-diagram-theme-btn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mermaid-diagram-theme-btn";
+    btn.innerHTML =
+      '<svg class="mermaid-diagram-theme-icon mermaid-diagram-theme-icon--moon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M9.5 1.8a5.2 5.2 0 1 0 4.7 4.7 4.1 4.1 0 0 1-4.7-4.7z"/></svg>' +
+      '<svg class="mermaid-diagram-theme-icon mermaid-diagram-theme-icon--sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="3.1"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.3 3.3l1.3 1.3M11.4 11.4l1.3 1.3M3.3 12.7l1.3-1.3M11.4 4.6l1.3-1.3"/></svg>';
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void toggleMermaidDiagramTheme(frame, block);
+    });
+    frame.appendChild(btn);
+  }
+  syncMermaidThemeToggleUi(frame);
+  return btn;
+}
+
+async function renderMermaidBlock(block, theme = "dark") {
+  const source = getMermaidBlockSource(block);
+  if (!source) return false;
+
+  const frame = ensureMermaidDiagramFrame(block);
+  frame.dataset.mermaidTheme = theme;
+  frame.classList.toggle("is-dark", theme === "dark");
+  ensureMermaidThemeToggle(frame, block);
+
+  block.dataset.mermaidSource = source;
+  block.removeAttribute("data-processed");
+  block.dataset.mermaidRendered = "0";
+
+  if (!initShellMermaid(theme === "dark" ? "dark" : "neutral")) return false;
+
+  try {
+    const renderId = `shell-mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const { svg, bindFunctions } = await window.mermaid.render(renderId, source);
+    block.innerHTML = svg;
+    bindFunctions?.(block);
+    block.dataset.mermaidRendered = "1";
+    block.setAttribute("data-processed", "true");
+    return true;
+  } catch (error) {
+    console.warn("Shell mermaid render failed:", error);
+    block.textContent = source;
+    return false;
+  }
+}
+
+async function toggleMermaidDiagramTheme(frame, block) {
+  const nextTheme = frame.dataset.mermaidTheme === "dark" ? "light" : "dark";
+  block.dataset.mermaidRendered = "0";
+  await renderMermaidBlock(block, nextTheme);
+}
+
+async function typesetShellMermaidDiagrams(root) {
+  if (!root?.isConnected) return;
+  const blocks = [...root.querySelectorAll("pre.mermaid")].filter((block) => {
+    if (block.dataset.mermaidRendered === "1" && mermaidBlockHasRenderedDiagram(block)) return false;
+    return Boolean(getMermaidBlockSource(block));
+  });
+  if (!blocks.length) return;
+
+  try {
+    await ensureShellMermaidLibs();
+  } catch {
+    return;
+  }
+
+  const seq = ++mermaidTypesetSeq;
+  for (const block of blocks) {
+    if (seq !== mermaidTypesetSeq || !root.isConnected) return;
+    const frame = block.closest(".mermaid-diagram-frame");
+    const theme = frame?.dataset.mermaidTheme === "light" ? "light" : "dark";
+    await renderMermaidBlock(block, theme);
+  }
+}
+
+function renderShellMathElement(element) {
+  if (!element || element.dataset.mathRendered === "1") return;
+  const math = String(element.textContent || "").replace(/\u00a0/g, " ").trim();
+  if (!math || typeof window.katex?.renderToString !== "function") return;
+
+  const displayMode =
+    element.classList.contains("shell-md-math-display") ||
+    element.closest(".shell-md-math-display") ||
+    element.classList.contains("shell-md-math-block") ||
+    element.closest(".shell-md-math-block") ||
+    element.tagName === "PRE";
+
+  try {
+    element.innerHTML = window.katex.renderToString(math, {
+      displayMode,
+      throwOnError: false,
+      output: "html"
+    });
+    element.dataset.mathRendered = "1";
+    element.classList.remove("shell-md-math-error");
+  } catch (error) {
+    element.classList.add("shell-md-math-error");
+    element.textContent = math;
+    console.warn("Shell katex render failed:", error);
+  }
+}
+
+async function typesetShellMath(root) {
+  if (!root?.isConnected) return;
+  const elements = [...root.querySelectorAll(".language-math")].filter((el) => el.dataset.mathRendered !== "1");
+  if (!elements.length) return;
+
+  try {
+    await ensureShellMathLibs();
+  } catch {
+    return;
+  }
+
+  if (!root.isConnected) return;
+  for (const element of elements) {
+    renderShellMathElement(element);
+  }
+}
+
+function replaceLinkWithShellMedia(link, html) {
+  const wrap = document.createElement("div");
+  wrap.className = "shell-md-embed";
+  wrap.innerHTML = html;
+  const media = wrap.firstElementChild;
+  if (!media) return;
+  link.replaceWith(media);
+}
+
+function getUrlSearchParam(rawUrl, key) {
+  const url = String(rawUrl || "");
+  try {
+    const parsed = new URL(url, "https://local.invalid");
+    return parsed.searchParams.get(key) || "";
+  } catch {
+    const match = url.match(new RegExp(`[?&]${key}=([^&#]+)`));
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+}
+
+function shellEmbedIframe(src, title = "Embedded media") {
+  return `<iframe class="shell-md-embed-iframe" src="${escapeHtml(src)}" title="${escapeHtml(title)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
+}
+
+function buildShellEmbedMediaHtml(rawUrl) {
+  const url = String(rawUrl || "").trim();
+  if (!url) return "";
+
+  if (/^.+\.(mp4|m4v|ogg|ogv|webm)(\?|#|$)/i.test(url)) {
+    return `<video class="shell-md-embed-video" controls playsinline preload="metadata" src="${escapeHtml(url)}"></video>`;
+  }
+
+  if (/^.+\.(mp3|wav|flac)(\?|#|$)/i.test(url)) {
+    return `<audio class="shell-md-embed-audio" controls preload="metadata" src="${escapeHtml(url)}"></audio>`;
+  }
+
+  const youtubeMatch = url.match(
+    /\/\/(?:www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w|-]{11})(?:(?:[\?&]t=)([^&\s]+))?/
+  );
+  if (youtubeMatch?.[1]) {
+    const start = youtubeMatch[2] ? `?start=${encodeURIComponent(youtubeMatch[2])}` : "";
+    return shellEmbedIframe(
+      `https://www.youtube.com/embed/${encodeURIComponent(youtubeMatch[1])}${start}`,
+      "YouTube video"
+    );
+  }
+
+  const vimeoMatch = url.match(/\/\/(?:www\.)?vimeo\.com\/(\d+)/);
+  if (vimeoMatch?.[1]) {
+    return shellEmbedIframe(
+      `https://player.vimeo.com/video/${encodeURIComponent(vimeoMatch[1])}`,
+      "Vimeo video"
+    );
+  }
+
+  const youkuMatch = url.match(/\/\/v\.youku\.com\/v_show\/id_(\w+)=*\.html/);
+  if (youkuMatch?.[1]) {
+    return shellEmbedIframe(`https://player.youku.com/embed/${encodeURIComponent(youkuMatch[1])}`, "Youku video");
+  }
+
+  const qqMatch = url.match(/\/\/v\.qq\.com\/x\/cover\/.*\/([^/]+)\.html/i);
+  if (qqMatch?.[1]) {
+    return shellEmbedIframe(
+      `https://v.qq.com/txp/iframe/player.html?vid=${encodeURIComponent(qqMatch[1])}`,
+      "QQ video"
+    );
+  }
+
+  const coubMatch = url.match(/(?:www\.|\/)coub\.com\/view\/(\w+)/i);
+  if (coubMatch?.[1]) {
+    return shellEmbedIframe(
+      `https://coub.com/embed/${encodeURIComponent(coubMatch[1])}?muted=false&autostart=false&originalSize=true&startWithHD=true`,
+      "Coub video"
+    );
+  }
+
+  const facebookMatch = url.match(/(?:www\.|\/)facebook\.com\/([^/]+)\/videos\/(\d+)/i);
+  if (facebookMatch?.[0]) {
+    return shellEmbedIframe(
+      `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(facebookMatch[0])}`,
+      "Facebook video"
+    );
+  }
+
+  const dailymotionMatch = url.match(/dailymotion\.com\/(?:video|hub)\/(\w+)/i);
+  if (dailymotionMatch?.[1]) {
+    return shellEmbedIframe(
+      `https://www.dailymotion.com/embed/video/${encodeURIComponent(dailymotionMatch[1])}`,
+      "Dailymotion video"
+    );
+  }
+
+  const bilibiliMatch = url.match(/(?:www\.|\/)bilibili\.com\/video\/(\w+)/i);
+  if (/bilibili\.com/i.test(url) && (url.includes("bvid=") || bilibiliMatch?.[1])) {
+    const params = new URLSearchParams({
+      bvid: getUrlSearchParam(url, "bvid") || bilibiliMatch?.[1] || "",
+      page: getUrlSearchParam(url, "page") || "1",
+      high_quality: "1",
+      as_wide: "1",
+      allowfullscreen: "true",
+      autoplay: "0"
+    });
+    return shellEmbedIframe(`https://player.bilibili.com/player.html?${params.toString()}`, "Bilibili video");
+  }
+
+  const tedMatch = url.match(/(?:www\.|\/)ted\.com\/talks\/([\w-]+)/i);
+  if (tedMatch?.[1]) {
+    return shellEmbedIframe(`https://embed.ted.com/talks/${encodeURIComponent(tedMatch[1])}`, "TED talk");
+  }
+
+  return "";
+}
+
+function embedShellMediaLink(link) {
+  const url = String(link.getAttribute("href") || "").trim();
+  if (!url) return;
+
+  const html = buildShellEmbedMediaHtml(url);
+  if (html) replaceLinkWithShellMedia(link, html);
+}
+
+function embedShellMediaLinks(root) {
+  if (!root) return;
+  root.querySelectorAll("a[href]").forEach((link) => {
+    if (link.closest(".shell-md-code-block, .shell-reply-tts-block, .footnotes")) return;
+    embedShellMediaLink(link);
+  });
+}
+
 function enhanceShellMarkdownBlocks(root) {
   if (!root) return;
 
   root.querySelectorAll("pre").forEach((pre) => {
+    if (pre.classList.contains("mermaid") || pre.querySelector("code.language-math")) return;
     if (pre.closest(".shell-md-code-block")) return;
 
     let labelEl = null;
@@ -320,6 +769,10 @@ function enhanceShellMarkdownBlocks(root) {
       { once: true }
     );
   });
+
+  embedShellMediaLinks(root);
+  void typesetShellMath(root);
+  void typesetShellMermaidDiagrams(root);
 }
 
 function getShellMarkdownIt() {
@@ -346,6 +799,8 @@ function getShellMarkdownIt() {
   }
 
   applyShellMarkHighlight(shellMarkdownIt);
+  applyShellDisplayMath(shellMarkdownIt);
+  applyShellInlineMath(shellMarkdownIt);
   applyShellSupSub(shellMarkdownIt);
 
   const defaultLinkOpen =
@@ -362,6 +817,29 @@ function getShellMarkdownIt() {
       token.attrSet("rel", "noopener noreferrer");
     }
     return defaultLinkOpen(tokens, idx, options, env, self);
+  };
+
+  const defaultFence =
+    shellMarkdownIt.renderer.rules.fence ||
+    function renderFence(tokens, idx, options, env, self) {
+      return self.renderToken(tokens, idx, options);
+    };
+
+  shellMarkdownIt.renderer.rules.fence = function renderShellFence(tokens, idx, options, env, self) {
+    const token = tokens[idx];
+    const language = (token.info || "").trim().split(/\s+/g)[0].toLowerCase();
+    const source = token.content.trimEnd();
+
+    if (language === "mermaid") {
+      const encodedSource = encodeURIComponent(source);
+      return `<pre class="mermaid" data-mermaid-source="${encodedSource}">${escapeHtml(source)}</pre>\n`;
+    }
+
+    if (language === "math") {
+      return `<pre class="shell-md-math-block"><code class="language-math">${escapeHtml(source)}</code></pre>\n`;
+    }
+
+    return defaultFence(tokens, idx, options, env, self);
   };
 
   const defaultTableOpen =
@@ -435,14 +913,13 @@ export function renderShellReplyMarkdown(element, markdown) {
   }
 }
 
-function prependTtsDisplayBlock(container, text, { open = false } = {}) {
+function prependTtsDisplayBlock(container, text) {
   const aside = document.createElement("aside");
   aside.className = "shell-reply-tts-block";
-  if (open) aside.classList.add("shell-reply-tts-block--open");
 
   const label = document.createElement("div");
   label.className = "shell-reply-tts-block-label";
-  label.textContent = open ? "Озвучка · печатает…" : "Озвучка";
+  label.textContent = "Озвучка";
 
   const content = document.createElement("div");
   content.className = "shell-reply-tts-block-text shell-md";
@@ -452,21 +929,11 @@ function prependTtsDisplayBlock(container, text, { open = false } = {}) {
   container.prepend(aside);
 }
 
-function appendTtsDisplayBlock(container, text, { open = false } = {}) {
-  const aside = document.createElement("aside");
-  aside.className = "shell-reply-tts-block";
-  if (open) aside.classList.add("shell-reply-tts-block--open");
-
-  const label = document.createElement("div");
-  label.className = "shell-reply-tts-block-label";
-  label.textContent = open ? "Озвучка · печатает…" : "Озвучка";
-
-  const content = document.createElement("div");
-  content.className = "shell-reply-tts-block-text shell-md";
-  renderShellReplyMarkdown(content, text);
-
-  aside.append(label, content);
-  container.append(aside);
+function renderReplyBodySegment(container, text) {
+  const segment = document.createElement("div");
+  segment.className = "shell-reply-segment shell-md";
+  renderShellReplyMarkdown(segment, text);
+  container.append(segment);
 }
 
 function resolveSpokenDisplayText(spokenParts = [], spokenText = "") {
@@ -476,51 +943,29 @@ function resolveSpokenDisplayText(spokenParts = [], spokenText = "") {
   return parts.length ? parts.join("\n\n") : String(spokenText || "").trim();
 }
 
-function renderReplyBodySegment(container, text) {
-  const segment = document.createElement("div");
-  segment.className = "shell-reply-segment shell-md";
-  renderShellReplyMarkdown(segment, text);
-  container.append(segment);
-}
-
 export function renderShellReplyBody(element, rawBody, { spokenParts = [], spokenText = "" } = {}) {
   if (!element) return;
   const source = String(rawBody || "").trim();
-  const spoken = resolveSpokenDisplayText(spokenParts, spokenText);
+  const externalSpoken = resolveSpokenDisplayText(spokenParts, spokenText);
+  const voiceSplit = splitVoiceEndReply(source);
+  const displaySpoken = externalSpoken || (voiceSplit?.spoken ? cleanReplyTextSegment(voiceSplit.spoken) : "");
+  const displayBody = cleanReplyTextSegment(voiceSplit?.body ?? source);
 
   element.classList.remove("shell-reply-text--stub");
   element.dataset.replyKind = "message";
 
-  if (!source || source === "—") {
-    if (spoken) {
-      element.innerHTML = "";
-      element.classList.add("shell-md", "shell-reply-body-formatted");
-      prependTtsDisplayBlock(element, spoken);
-      renderReplyBodySegment(element, "—");
-    } else {
-      renderShellReplyMarkdown(element, "—");
-    }
+  if (!displaySpoken && (!displayBody || displayBody === "—")) {
+    renderShellReplyMarkdown(element, displayBody || "—");
     return;
   }
 
-  if (!hasReplyTtsBlocks(source)) {
-    const bodyText = cleanReplyTextSegment(source);
-    element.innerHTML = "";
-    element.classList.add("shell-md", "shell-reply-body-formatted");
-    if (spoken) prependTtsDisplayBlock(element, spoken);
-    if (bodyText) renderReplyBodySegment(element, bodyText);
-    return;
-  }
-
-  const parts = splitReplyDisplayParts(source);
   element.innerHTML = "";
   element.classList.add("shell-md", "shell-reply-body-formatted");
 
-  for (const part of parts) {
-    if (part.kind === "tts") {
-      appendTtsDisplayBlock(element, part.text, { open: Boolean(part.open) });
-      continue;
-    }
-    renderReplyBodySegment(element, part.text);
+  if (displaySpoken) prependTtsDisplayBlock(element, displaySpoken);
+  if (displayBody && displayBody !== "—") {
+    renderReplyBodySegment(element, displayBody);
+  } else if (!displaySpoken) {
+    renderReplyBodySegment(element, "—");
   }
 }

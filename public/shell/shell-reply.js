@@ -142,93 +142,23 @@ export function toSpeechText(body, options = {}) {
   return speech.trim();
 }
 
-export function findFirstTtsBlock(text) {
-  const source = String(text || "");
-  const leading = source.match(/^\s*/)?.[0]?.length || 0;
-  const openMatch = /\[tts\]/i.exec(source.slice(leading));
-  if (!openMatch || openMatch.index !== 0) return null;
-
-  const openStart = leading;
-  const contentStart = openStart + openMatch[0].length;
-  const afterOpen = source.slice(contentStart);
-  const closeMatch = /\[\/tts\]/i.exec(afterOpen);
-  if (!closeMatch || closeMatch.index === undefined) return null;
-
-  return {
-    content: String(afterOpen.slice(0, closeMatch.index)).trim(),
-    start: openStart,
-    end: contentStart + closeMatch.index + closeMatch[0].length
-  };
-}
-
-export function extractAllTtsBlocks(text) {
-  const block = findFirstTtsBlock(text);
-  if (!block?.content) return [];
-  return [block.content];
-}
+const LEGACY_TTS_BLOCK_RE = /\[tts\][\s\S]*?\[\/tts\]/gi;
+const LEGACY_TEXT_BLOCK_RE = /\[text\]([\s\S]*?)\[\/text\]/gi;
 
 export function stripAllTtsBlocks(text) {
-  const block = findFirstTtsBlock(text);
-  const source = String(text || "");
-  if (!block) return source.replace(/\n{3,}/g, "\n\n").trim();
-  return (source.slice(0, block.start) + source.slice(block.end)).replace(/\n{3,}/g, "\n\n").trim();
+  return stripLegacyReplyTags(String(text || ""));
+}
+
+export function stripLegacyReplyTags(text) {
+  let value = String(text || "");
+  value = value.replace(LEGACY_TTS_BLOCK_RE, "");
+  value = value.replace(LEGACY_TEXT_BLOCK_RE, (_, inner) => inner);
+  value = value.replace(/^\s*\[text\]\s*/i, "").replace(/\[\/text\]\s*$/i, "");
+  return stripHtmlComments(value);
 }
 
 export function cleanReplyTextSegment(text) {
-  let value = stripHtmlComments(String(text || "").trim());
-  if (!value) return value;
-
-  const closed = value.match(/^\[text\]([\s\S]*?)\[\/text\]$/i);
-  if (closed) return closed[1].trim();
-
-  const open = value.match(/^\[text\]\s*([\s\S]*)/i);
-  if (open) return open[1].replace(/\[\/text\]\s*$/i, "").trim();
-
-  return value;
-}
-
-export function hasReplyTtsBlocks(text) {
-  const raw = String(text || "");
-  return hasVoiceEndDelimiter(raw) || /\[tts\]/i.test(raw);
-}
-
-export function splitReplyDisplayParts(text) {
-  const source = String(text || "");
-  const voiceSplit = splitVoiceEndReply(source);
-  if (voiceSplit) {
-    const parts = [];
-    if (voiceSplit.spoken) parts.push({ kind: "tts", text: cleanReplyTextSegment(voiceSplit.spoken) });
-    if (voiceSplit.body) parts.push({ kind: "markdown", text: cleanReplyTextSegment(voiceSplit.body) });
-    return parts.length ? parts : [{ kind: "markdown", text: cleanReplyTextSegment(source) }];
-  }
-
-  const parts = [];
-  const block = findFirstTtsBlock(source);
-
-  if (block) {
-    const before = cleanReplyTextSegment(source.slice(0, block.start));
-    if (before) parts.push({ kind: "markdown", text: before });
-    if (block.content) parts.push({ kind: "tts", text: block.content });
-    const after = cleanReplyTextSegment(source.slice(block.end));
-    if (after) parts.push({ kind: "markdown", text: after });
-    return parts;
-  }
-
-  const firstOpen = /^\s*\[tts\]/i.exec(source);
-  if (firstOpen) {
-    const beforeOpen = cleanReplyTextSegment(source.slice(0, firstOpen.index));
-    if (beforeOpen) parts.push({ kind: "markdown", text: beforeOpen });
-    const openTail = source.slice(firstOpen.index + firstOpen[0].length);
-    const openTts = String(openTail || "")
-      .replace(/\n*\[text\][\s\S]*$/i, "")
-      .trim();
-    if (openTts) parts.push({ kind: "tts", text: openTts, open: true });
-    return parts.length ? parts : [{ kind: "markdown", text: cleanReplyTextSegment(source) }];
-  }
-
-  const fallback = cleanReplyTextSegment(source);
-  if (fallback) parts.push({ kind: "markdown", text: fallback });
-  return parts;
+  return stripLegacyReplyTags(text);
 }
 
 export function parseDualReply(text) {
@@ -241,77 +171,27 @@ export function parseDualReply(text) {
       .map((part) => stripHtmlComments(part))
       .filter(Boolean);
     return {
-      body: stripHtmlComments(voiceSplit.body || ""),
+      body: stripLegacyReplyTags(voiceSplit.body || ""),
       spoken: stripHtmlComments(voiceSplit.spoken || "") || null,
       spokenParts,
       parsed: true
     };
   }
 
-  const spokenParts = extractAllTtsBlocks(raw);
-  const spoken = spokenParts.length ? spokenParts.join("\n\n") : null;
-
-  const closedText = raw.match(/\[text\]([\s\S]*?)\[\/text\]/i);
-  if (closedText) {
-    return { body: stripHtmlComments(closedText[1].trim()), spoken, spokenParts, parsed: true };
-  }
-
-  const openText = raw.match(/\[text\]\s*([\s\S]*)/i);
-  if (openText) {
-    const body = stripHtmlComments(openText[1].replace(/\[\/text\]\s*$/i, "").trim());
-    return { body, spoken, spokenParts, parsed: true };
-  }
-
-  if (spokenParts.length) {
-    return { body: stripHtmlComments(stripAllTtsBlocks(raw)), spoken, spokenParts, parsed: true };
-  }
-
-  if (/^\s*\[tts\]/i.test(raw) && !findFirstTtsBlock(raw)) {
-    return { body: "", spoken: null, spokenParts: [], parsed: true };
-  }
-
-  return { body: stripHtmlComments(raw), spoken: null, spokenParts: [], parsed: false };
+  return { body: stripLegacyReplyTags(raw), spoken: null, spokenParts: [], parsed: false };
 }
 
 export function extractStreamingTtsBody(partialText) {
-  const raw = String(partialText || "");
-  if (hasVoiceEndDelimiter(raw) || !/^\s*\[tts\]/i.test(raw)) {
-    const voiceSpeech = extractStreamingVoiceSpeech(raw);
-    if (voiceSpeech || hasVoiceEndDelimiter(raw) || !/\[tts\]/i.test(raw)) {
-      return stripHtmlComments(voiceSpeech);
-    }
-  }
-
-  const leading = raw.match(/^\s*/)?.[0]?.length || 0;
-  const openMatch = /\[tts\]\s*/i.exec(raw.slice(leading));
-  if (!openMatch || openMatch.index !== 0) return "";
-  const afterOpen = raw.slice(leading + openMatch[0].length);
-  const closeMatch = afterOpen.match(/\[\/tts\]/i);
-  if (closeMatch && closeMatch.index !== undefined) {
-    return afterOpen.slice(0, closeMatch.index).trim();
-  }
-  return stripHtmlComments(afterOpen.replace(/\n*\[text\][\s\S]*$/i, "").trim());
+  return stripHtmlComments(extractStreamingVoiceSpeech(String(partialText || "")));
 }
 
 export function extractStreamingReplyBody(partialText) {
   const raw = String(partialText || "");
-  if (hasVoiceEndDelimiter(raw) || (!/\[tts\]/i.test(raw) && !/\[text\]/i.test(raw))) {
-    const display = extractStreamingVoiceDisplay(raw);
-    if (display || hasVoiceEndDelimiter(raw)) return stripHtmlComments(display);
+  const display = extractStreamingVoiceDisplay(raw);
+  if (display || hasVoiceEndDelimiter(raw)) {
+    return stripLegacyReplyTags(display);
   }
-
-  if (/\[text\]/i.test(raw)) {
-    return stripHtmlComments(parseDualReply(raw).body || "");
-  }
-  const block = findFirstTtsBlock(raw);
-  if (block) {
-    return stripHtmlComments((raw.slice(0, block.start) + raw.slice(block.end)).trim());
-  }
-  const firstOpen = /^\s*\[tts\]/i.exec(raw);
-  if (firstOpen) {
-    return stripHtmlComments(raw.slice(0, firstOpen.index).trim());
-  }
-  return stripHtmlComments(raw.trim());
+  return stripLegacyReplyTags(raw.trim());
 }
 
 export function prepareSpeechText(body, settings = {}) {

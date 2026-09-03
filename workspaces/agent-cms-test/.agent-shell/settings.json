@@ -10,7 +10,8 @@
       "qwenpaw": {
         "type": "agent",
         "baseUrl": "http://127.0.0.1:8088",
-        "sessionId": "agent-shell"
+        "agentId": "Aya",
+        "sessionId": "shell-agent-cms-test-mtlwybop-v3mgrh"
       },
       "claude": {
         "type": "cli",

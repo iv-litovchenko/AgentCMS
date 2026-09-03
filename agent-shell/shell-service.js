@@ -772,20 +772,25 @@ async function probeAllRuntimeStatuses(settings) {
     }
   }
 
-  const qwenInstalled = Boolean(qwenCli.ok);
+  const qwenServerOk = Boolean(qwenHealth.ok);
+  const qwenAgentOk = Boolean(qwenAgent.ok);
   statuses.qwenpaw = {
     runtime: "qwenpaw",
-    configured: qwenInstalled,
-    installed: qwenInstalled,
-    serverOk: Boolean(qwenHealth.ok),
-    agentOk: Boolean(qwenAgent.ok),
-    ok: Boolean(qwenInstalled && qwenHealth.ok && qwenAgent.ok),
-    error: !qwenInstalled
-      ? qwenCli.error || "CLI не найден — проверьте PATH или qwenCliPath (qwen --version)"
+    configured: true,
+    installed: qwenServerOk && qwenAgentOk,
+    serverOk: qwenServerOk,
+    agentOk: qwenAgentOk,
+    ok: qwenServerOk && qwenAgentOk,
+    error: !qwenServerOk
+      ? qwenHealth.error || "QwenPaw сервер недоступен"
       : qwenAgent.error || qwenHealth.error || "",
     agentName: qwenAgent.name || "",
-    version: qwenCli.ok ? String(qwenCli.version || "").trim() : "",
-    binary: qwenCli.binary || ""
+    version: qwenCli.ok
+      ? String(qwenCli.version || "").trim()
+      : String(qwenHealth.version || "").trim(),
+    binary: qwenCli.binary || "",
+    cliOk: Boolean(qwenCli.ok),
+    cliError: qwenCli.ok ? "" : qwenCli.error || ""
   };
 
   statuses.claude = cliStatusFromProbe(
@@ -810,9 +815,59 @@ async function probeAllRuntimeStatuses(settings) {
 }
 
 const RUNTIME_PROBE_TTL_MS = 120000;
+const QWENPAW_HTTP_PROBE_TTL_MS = 30000;
 const STREAM_STATE_PATCH_MS = 600;
 /** @type {Map<string, { at: number, result: Awaited<ReturnType<typeof probeAllRuntimeStatuses>> }>} */
 const runtimeProbeCache = new Map();
+/** @type {{ key: string, at: number, status: object | null }} */
+let qwenpawHttpProbeCache = { key: "", at: 0, status: null };
+
+async function probeQwenPawHttpStatus(settings = {}) {
+  const key = `${settings.qwenpawBaseUrl || ""}|${settings.qwenpawAgentId || ""}`;
+  if (
+    qwenpawHttpProbeCache.key === key &&
+    qwenpawHttpProbeCache.status &&
+    Date.now() - qwenpawHttpProbeCache.at < QWENPAW_HTTP_PROBE_TTL_MS
+  ) {
+    return qwenpawHttpProbeCache.status;
+  }
+
+  const qwenHealth = await checkQwenPawHealth(settings.qwenpawBaseUrl).catch((error) => ({
+    ok: false,
+    error: String(error?.message || error)
+  }));
+
+  let qwenAgent = { ok: false, error: qwenHealth.error || "QwenPaw недоступен" };
+  if (qwenHealth.ok) {
+    try {
+      qwenAgent = await checkQwenPawAgent({
+        baseUrl: settings.qwenpawBaseUrl,
+        agentId: settings.qwenpawAgentId
+      });
+    } catch (error) {
+      qwenAgent = { ok: false, error: String(error?.message || error) };
+    }
+  }
+
+  const serverOk = Boolean(qwenHealth.ok);
+  const agentOk = Boolean(qwenAgent.ok);
+  const status = {
+    runtime: "qwenpaw",
+    configured: true,
+    installed: serverOk && agentOk,
+    serverOk,
+    agentOk,
+    ok: serverOk && agentOk,
+    error: !serverOk
+      ? qwenHealth.error || "QwenPaw сервер недоступен"
+      : qwenAgent.error || "",
+    agentName: qwenAgent.name || "",
+    version: String(qwenHealth.version || "").trim()
+  };
+
+  qwenpawHttpProbeCache = { key, at: Date.now(), status };
+  return status;
+}
 
 function runtimeProbeCacheKey(settings = {}) {
   return [
@@ -826,6 +881,7 @@ function runtimeProbeCacheKey(settings = {}) {
 
 function invalidateRuntimeProbeCache() {
   runtimeProbeCache.clear();
+  qwenpawHttpProbeCache = { key: "", at: 0, status: null };
 }
 
 async function probeAllRuntimeStatusesCached(settings) {
@@ -1575,6 +1631,8 @@ async function buildStatusPayload(
     runtimeStatuses = runtimeProbe.statuses;
     installedRuntimes = runtimeProbe.installed;
     availableRuntimes = runtimeProbe.available;
+  } else if (usesQwenPaw(settings)) {
+    runtimeStatuses.qwenpaw = await probeQwenPawHttpStatus(settings);
   }
 
   const qwenStatus = runtimeStatuses.qwenpaw || { ok: false, configured: false };
