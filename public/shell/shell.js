@@ -53,6 +53,7 @@ import {
   warmUpMicrophone
 } from "@shell/permissions";
 import { createShellDialog } from "@shell/dialog";
+import { createShellCompactQa } from "@shell/compact-qa";
 import { initShellComposeLayout } from "@shell/compose-layout";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "@shell/storage-keys";
 import { initShellHelp } from "@shell/help";
@@ -1199,6 +1200,7 @@ const nodes = {
   voiceWave: document.getElementById("shell-voice-wave"),
   settingsBtn: document.getElementById("shell-settings-btn"),
   windowSave: document.getElementById("shell-window-save"),
+  compactDialogQa: document.getElementById("shell-compact-dialog-qa"),
   routeSave: document.getElementById("shell-route-save"),
   ttsSave: document.getElementById("shell-tts-save"),
   ttsSaveHint: document.getElementById("shell-tts-save-hint"),
@@ -1232,6 +1234,9 @@ const nodes = {
   screenshotAction: document.getElementById("shell-screenshot-action"),
   compactAction: document.getElementById("shell-compact-exit"),
   compactStage: document.getElementById("shell-compact-stage"),
+  compactQa: document.getElementById("shell-compact-qa"),
+  compactQaFrame: document.getElementById("shell-compact-qa-frame"),
+  compactQaPane: document.getElementById("shell-compact-qa-pane"),
   compactSensor: document.getElementById("shell-compact-sensor"),
   compactSensorStatus: document.getElementById("shell-compact-sensor-status"),
   mediaSection: document.getElementById("shell-media-section"),
@@ -1399,6 +1404,14 @@ function prepareDialogScrollRestore({ restoreOnLoad = false } = {}) {
   if (restoreOnLoad) shellDialog.requestScrollRestoreOnLoad?.();
 }
 
+function syncCompactQa() {
+  shellCompactQa.render?.();
+}
+
+function isCompactDialogQaEnabled() {
+  return state.windowSettings?.compactDialogQa !== false;
+}
+
 const shellDialog = createShellDialog({
   panel: nodes.replyPanel,
   scroll: document.getElementById("shell-dialog-scroll"),
@@ -1419,6 +1432,7 @@ const shellDialog = createShellDialog({
   errorEl: document.getElementById("shell-dialog-error"),
   pullHint: document.getElementById("shell-pull-hint"),
   onScrollPositionChange: persistDialogScrollRatio,
+  onHistoryChange: syncCompactQa,
   fetchHistory: async () => {
     const runtime = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
     const data = await apiFetch(`/api/shell/dialogs/history?runtime=${encodeURIComponent(runtime)}&limit=50`, {
@@ -1427,6 +1441,18 @@ const shellDialog = createShellDialog({
     lastDialogHistoryLoadedAt = Date.now();
     return Array.isArray(data?.messages) ? data.messages : [];
   }
+});
+
+const shellCompactQa = createShellCompactQa({
+  root: nodes.compactQa,
+  frame: nodes.compactQaFrame,
+  pane: nodes.compactQaPane,
+  getHistory: () => shellDialog.getHistory?.() || [],
+  getLastAsk: () => shellDialog.getLastAskText?.() || "",
+  getLiveReply: () => shellDialog.getLastReplyRaw?.() || "",
+  isStreaming: () => nodes.replyPanel?.classList.contains("is-streaming"),
+  isEnabled: () => isWindowCompactEnabled() && isCompactDialogQaEnabled(),
+  isCompact: () => isWindowCompactEnabled()
 });
 
 let shellSession = null;
@@ -2642,6 +2668,7 @@ function setReplyPanelStreaming(active) {
     shellDialog.renderLiveToolStrip?.();
     shellDialog.tryApplyPendingScrollRestore?.();
   }
+  syncCompactQa();
 }
 
 function beginAssistantStream({ streamId } = {}) {
@@ -2675,6 +2702,7 @@ function beginAssistantStream({ streamId } = {}) {
   }
   pushAgentActivityStep({ kind: "run", phrase: "Запускаю…" });
   renderPhase("thinking", "Запускаю…");
+  syncCompactQa();
 }
 
 function renderStreamingAssistantText(text) {
@@ -2689,6 +2717,7 @@ function renderStreamingAssistantText(text) {
   renderShellReplyBody(nodes.lastReplyText, value);
   shellDialog.updateScrollProgress?.();
   shellDialog.onReplyRendered(value);
+  syncCompactQa();
   if (state.assistantStream && !state.assistantStream.finalized) {
     syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
       updateLabel: true,
@@ -3670,12 +3699,16 @@ function buildWindowSettingsPayload(overrides = {}) {
   const windowBackground = nodes.windowBackground?.value || "wallpaper";
   const windowTransparent =
     nodes.windowTransparent?.checked === true || windowBackground === "transparent";
+  const compactDialogQa = settingsSave.isSectionDirty("window")
+    ? nodes.compactDialogQa?.checked !== false
+    : state.windowSettings?.compactDialogQa !== false;
   return {
     windowTopmost: nodes.topmost?.checked !== false,
     windowTransparent,
     windowBackground: windowTransparent ? "transparent" : windowBackground,
     windowCompact: isWindowCompactEnabled(),
     windowPetOverlay: nodes.windowPetOverlay?.checked === true,
+    compactDialogQa,
     ...overrides
   };
 }
@@ -3867,18 +3900,31 @@ function syncCompactActionUi(compact = isWindowCompactEnabled()) {
   nodes.compactAction?.setAttribute("aria-pressed", pressed);
   nodes.agentAvatar?.setAttribute("title", compact ? "Выйти из компакта" : "Компактный режим");
   syncCompactSensorUi(compact);
+  syncCompactQa();
 }
 
 function setWindowCompactMode(next) {
   const compact = Boolean(next);
-  const nextSettings = { ...(state.windowSettings || {}), windowCompact: compact };
+  const nextSettings = {
+    ...(state.windowSettings || {}),
+    windowCompact: compact,
+    compactDialogQa: isCompactDialogQaEnabled()
+  };
   state.windowSettings = nextSettings;
   applyWindowAppearance(nextSettings);
   syncCompactActionUi(compact);
-  if (compact) setShellView("main");
-  void saveWindowSettings(buildWindowSettingsPayload({ windowCompact: compact })).catch((error) =>
-    renderPhase("waiting", error.message)
-  );
+  if (compact) {
+    setShellView("main");
+    void shellDialog.refreshHistory?.().then(() => syncCompactQa());
+  } else {
+    syncCompactQa();
+  }
+  void saveWindowSettings(
+    buildWindowSettingsPayload({
+      windowCompact: compact,
+      compactDialogQa: nextSettings.compactDialogQa
+    })
+  ).catch((error) => renderPhase("waiting", error.message));
 }
 
 function toggleCompactMode() {
@@ -4010,9 +4056,11 @@ function applyWindowAppearance(settings) {
   document.body.classList.toggle("shell-window-transparent", transparent);
   document.body.classList.toggle("shell-compact", compact);
   if (nodes.shellApp) nodes.shellApp.dataset.compact = compact ? "1" : "0";
+  if (nodes.shellApp) nodes.shellApp.dataset.compactQa = isCompactDialogQaEnabled() && compact ? "1" : "0";
   document.body.classList.remove("shell-bg-wallpaper", "shell-bg-dark", "shell-bg-transparent");
   const bg = transparent ? "transparent" : ws.windowBackground || "wallpaper";
   document.body.classList.add(`shell-bg-${bg}`);
+  syncCompactQa();
 }
 
 function isWindowCompactEnabled() {
@@ -4027,6 +4075,7 @@ function applyWindowSettings(settings) {
     if (nodes.topmost) nodes.topmost.checked = settings.windowTopmost !== false;
     if (nodes.windowTransparent) nodes.windowTransparent.checked = Boolean(settings.windowTransparent);
     if (nodes.windowPetOverlay) nodes.windowPetOverlay.checked = Boolean(settings.windowPetOverlay);
+    if (nodes.compactDialogQa) nodes.compactDialogQa.checked = settings.compactDialogQa !== false;
     if (nodes.windowBackground) {
       nodes.windowBackground.value = settings.windowBackground || "wallpaper";
       nodes.windowBackground.disabled = Boolean(settings.windowTransparent);
@@ -5818,14 +5867,13 @@ async function refreshStatus({ probe = false, sync = false, timeoutMs = 0 } = {}
 
 async function loadWindowSettings() {
   let settings = readWindowSettingsFromStorage();
-  if (!settings) {
-    try {
-      const data = await apiFetch("/api/shell/window");
-      settings = normalizeWindowSettings(data.settings);
-      writeWindowSettingsToStorage(settings);
-    } catch {
-      settings = normalizeWindowSettings({});
-    }
+  try {
+    const data = await apiFetch("/api/shell/window");
+    const remote = normalizeWindowSettings(data.settings);
+    settings = normalizeWindowSettings({ ...(settings || {}), ...remote });
+    writeWindowSettingsToStorage(settings);
+  } catch {
+    settings = normalizeWindowSettings(settings || {});
   }
   applyWindowSettings(settings);
   if (!settingsSave.isSectionDirty("window")) {

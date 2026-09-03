@@ -46,6 +46,46 @@ function isMeaningfulToolArgs(value) {
   return Boolean(text && text !== "{}" && text !== "[]");
 }
 
+function isGenericToolName(name) {
+  const value = String(name || "").trim().toLowerCase();
+  return !value || value === "tool";
+}
+
+function toolItemHasBody(item) {
+  return isMeaningfulToolArgs(item?.args) || Boolean(String(item?.result || "").trim());
+}
+
+function toolItemIsNamed(item) {
+  return !isGenericToolName(item?.tool) || (!isGenericToolName(item?.toolId) && item?.toolId !== item?.tool);
+}
+
+function isMeaningfulToolItem(item) {
+  if (!isToolHistoryItem(item)) return false;
+  const status = String(item?.status || "").trim().toLowerCase();
+  if (status === "error") return toolItemHasBody(item) || toolItemIsNamed(item);
+  if (status === "running") return toolItemHasBody(item) || toolItemIsNamed(item);
+  return toolItemHasBody(item) || toolItemIsNamed(item);
+}
+
+function shouldPersistToolPayload(payload = {}) {
+  const tool = String(payload.tool || "").trim();
+  const toolId = String(payload.toolId || "").trim();
+  const phase = String(payload.phase || "start").trim().toLowerCase();
+  const status = String(payload.status || "").trim().toLowerCase();
+  const stub = {
+    role: "tool",
+    tool: tool || "tool",
+    toolId: toolId || tool || "tool",
+    args: payload.args != null ? String(payload.args) : "",
+    result: payload.result != null ? String(payload.result) : "",
+    status: status || (phase === "end" ? "ok" : "running")
+  };
+  if (payload.error || status === "error") return isMeaningfulToolItem(stub);
+  if (phase === "progress") return toolItemHasBody(stub) || toolItemIsNamed(stub);
+  if (phase === "end") return isMeaningfulToolItem(stub);
+  return isMeaningfulToolItem(stub);
+}
+
 function pickRicherToolArgs(next, prev) {
   const n = String(next ?? "").trim();
   const p = String(prev ?? "").trim();
@@ -118,6 +158,7 @@ function mergeDialogHistory(archived, preserved = []) {
       plain.push(item);
       continue;
     }
+    if (!isMeaningfulToolItem(item)) continue;
     const key = toolHistoryKey(item);
     const prev = byToolId.get(key);
     if (!prev) {
@@ -145,7 +186,10 @@ function preservedOptimisticItems(archived, preserved = []) {
       .map(toolHistoryKey)
   );
   return (Array.isArray(preserved) ? preserved : []).filter((item) => {
-    if (isToolHistoryItem(item)) return !archivedToolKeys.has(toolHistoryKey(item));
+    if (isToolHistoryItem(item)) {
+      if (!isMeaningfulToolItem(item)) return false;
+      return !archivedToolKeys.has(toolHistoryKey(item));
+    }
     const key = messageHistoryKey(item);
     if (!key) return true;
     return !archivedMessageKeys.has(key);
@@ -246,6 +290,7 @@ function connectionHint(error) {
  *   pullHint?: HTMLElement | null,
  *   onReconnect?: () => void,
  *   onScrollPositionChange?: (ratio: number) => void,
+ *   onHistoryChange?: () => void,
  *   fetchHistory?: () => Promise<Array<{ role?: string, body?: string, at?: number, label?: string }>>
  * }} options
  */
@@ -254,6 +299,7 @@ export function createShellDialog(options = {}) {
   const fetchHistory = typeof options.fetchHistory === "function" ? options.fetchHistory : null;
   const onScrollPositionChange =
     typeof options.onScrollPositionChange === "function" ? options.onScrollPositionChange : null;
+  const onHistoryChange = typeof options.onHistoryChange === "function" ? options.onHistoryChange : null;
   let history = [];
   let historyLoading = false;
   let historyLoadError = null;
@@ -275,13 +321,21 @@ export function createShellDialog(options = {}) {
   let scrollRestoreDeadline = 0;
   let scrollRestoreActive = false;
   let scrollRestoreSuppressUntil = 0;
+
+  function notifyHistoryChange() {
+    try {
+      onHistoryChange?.();
+    } catch (error) {
+      console.error("[shell-dialog] onHistoryChange failed", error);
+    }
+  }
   const SCROLL_RESTORE_MAX_MS = 12000;
   const toolBubbleFoldState = new Map();
 
   function isToolBubbleExpanded(item) {
     const key = toolBubbleStorageKey(item);
     if (toolBubbleFoldState.has(key)) return toolBubbleFoldState.get(key);
-    return String(item?.status || "").trim().toLowerCase() === "running";
+    return false;
   }
 
   function setToolBubbleExpanded(item, expanded) {
@@ -760,17 +814,19 @@ export function createShellDialog(options = {}) {
     const args = String(payload.args || "").trim();
     const result = String(payload.result || "").trim();
     const status = String(payload.status || "").trim().toLowerCase();
+    const openIndex = findOpenToolIndexIn(list, payload);
 
     if (phase === "end") {
-      const index = findOpenToolIndexIn(list, payload);
-      if (index >= 0) {
-        const item = list[index];
+      if (openIndex >= 0) {
+        const item = list[openIndex];
         item.result = result || item.result || "";
         item.status = status || (payload.error ? "error" : "ok");
         item.at = Date.now();
         item.args = pickRicherToolArgs(args, item.args);
+        if (!isMeaningfulToolItem(item)) list.splice(openIndex, 1);
         return;
       }
+      if (!shouldPersistToolPayload(payload)) return;
       list.push({
         role: "tool",
         tool,
@@ -784,19 +840,19 @@ export function createShellDialog(options = {}) {
     }
 
     if (phase === "progress") {
-      const index = findOpenToolIndexIn(list, payload);
-      if (index >= 0) {
-        if (isMeaningfulToolArgs(args)) list[index].args = pickRicherToolArgs(args, list[index].args);
-        list[index].at = Date.now();
+      if (openIndex >= 0) {
+        if (isMeaningfulToolArgs(args)) list[openIndex].args = pickRicherToolArgs(args, list[openIndex].args);
+        list[openIndex].at = Date.now();
       }
       return;
     }
 
-    const openIndex = findOpenToolIndexIn(list, payload);
     if (openIndex >= 0 && !isMeaningfulToolArgs(args)) {
       list[openIndex].at = Date.now();
       return;
     }
+
+    if (!shouldPersistToolPayload(payload)) return;
 
     list.push({
       role: "tool",
@@ -811,11 +867,15 @@ export function createShellDialog(options = {}) {
 
   function finalizeRunningTools() {
     let changed = false;
-    for (const item of history) {
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+      const item = history[i];
       if (!isToolHistoryItem(item) || item.status !== "running") continue;
       item.status = "ok";
       item.at = Date.now();
       if (!isMeaningfulToolArgs(item.args)) item.args = "";
+      if (!isMeaningfulToolItem(item)) {
+        history.splice(i, 1);
+      }
       changed = true;
     }
     if (changed) renderHistoryUi();
@@ -846,7 +906,11 @@ export function createShellDialog(options = {}) {
       payload.result != null;
 
     if (isTool) {
-      upsertToolActivity({ ...payload, kind: "tool" });
+      const toolPayload = { ...payload, kind: "tool" };
+      const canUpdateOpen = findOpenToolIndexIn(history, toolPayload) >= 0;
+      if (shouldPersistToolPayload(toolPayload) || canUpdateOpen) {
+        upsertToolActivity(toolPayload);
+      }
       if (phrase) liveActivityHint = phrase;
       else if (tool) liveActivityHint = `🔧 ${tool}…`;
       return;
@@ -869,7 +933,10 @@ export function createShellDialog(options = {}) {
   }
 
   function renderThreadMessage(item) {
-    if (item?.role === "tool") return renderToolThreadMessage(item);
+    if (item?.role === "tool") {
+      if (!isMeaningfulToolItem(item)) return null;
+      return renderToolThreadMessage(item);
+    }
     const role = item?.role === "agent" ? "agent" : "user";
     const row = document.createElement("div");
     row.className = `shell-chat-row shell-chat-row--${role}`;
@@ -940,6 +1007,7 @@ export function createShellDialog(options = {}) {
     nodes.liveTools.replaceChildren();
     if (tools.length) {
       for (const item of tools) {
+        if (!isMeaningfulToolItem(item)) continue;
         nodes.liveTools.append(renderToolThreadMessage(item));
       }
       nodes.liveTools.classList.remove("hidden");
@@ -970,7 +1038,8 @@ export function createShellDialog(options = {}) {
     nodes.thread.replaceChildren();
     for (let i = 0; i < history.length; i += 1) {
       const item = history[i];
-      nodes.thread.append(renderThreadMessage(item));
+      const row = renderThreadMessage(item);
+      if (row) nodes.thread.append(row);
     }
     renderLiveToolStrip();
     syncLiveReplySlot();
@@ -1009,6 +1078,7 @@ export function createShellDialog(options = {}) {
     if (nodes.historyList) {
       nodes.historyList.innerHTML = "";
       for (const item of history) {
+        if (item.role === "tool" && !isMeaningfulToolItem(item)) continue;
         const li = document.createElement("li");
         li.className = `shell-history-item shell-history-item--${item.role}`;
         const avatar = document.createElement("span");
@@ -1042,6 +1112,7 @@ export function createShellDialog(options = {}) {
       }
     }
     renderThread();
+    notifyHistoryChange();
   }
 
   function setLastAsk(text) {
@@ -1054,6 +1125,7 @@ export function createShellDialog(options = {}) {
     }
     nodes.lastAskWrap?.classList.remove("hidden");
     if (nodes.lastAsk) nodes.lastAsk.textContent = raw;
+    notifyHistoryChange();
   }
 
   function onReplyRendered(rawText) {
@@ -1076,6 +1148,14 @@ export function createShellDialog(options = {}) {
 
   function getLastReplyRaw() {
     return lastReplyRaw;
+  }
+
+  function getHistory() {
+    return history.slice();
+  }
+
+  function getLastAskText() {
+    return lastAskRaw;
   }
 
   function setConnectionState(stateName) {
@@ -1230,6 +1310,8 @@ export function createShellDialog(options = {}) {
     onAgentReply,
     onReplyRendered,
     getLastReplyRaw,
+    getHistory,
+    getLastAskText,
     setConnectionState,
     setError,
     clearError,

@@ -31,6 +31,13 @@ const WINDOW_PROFILE_COMPACT = {
   minHeight: 120
 };
 
+const WINDOW_PROFILE_COMPACT_QA = {
+  width: 340,
+  height: 460,
+  minWidth: 300,
+  minHeight: 320
+};
+
 const REPO_ROOT = path.join(__dirname, "..", "..");
 const PROTOCOL = "agentshell";
 
@@ -301,7 +308,12 @@ function applyNativeWindowSettings(settings = {}) {
   applyPetOverlay(Boolean(settings.windowPetOverlay));
 
   const compact = Boolean(settings.windowCompact);
-  const profile = compact ? WINDOW_PROFILE_COMPACT : WINDOW_PROFILE_NORMAL;
+  const compactQa = settings.compactDialogQa !== false;
+  const profile = compact
+    ? compactQa
+      ? WINDOW_PROFILE_COMPACT_QA
+      : WINDOW_PROFILE_COMPACT
+    : WINDOW_PROFILE_NORMAL;
   mainWindow.setMinimumSize(profile.minWidth, profile.minHeight);
   if (compact) {
     mainWindow.setSize(profile.width, profile.height);

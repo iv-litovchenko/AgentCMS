@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=503" />
+    <link rel="stylesheet" href="/shell/shell.css?v=511" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -41,9 +41,10 @@
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=207",
-          "@shell/dialog": "/shell/shell-dialog.js?v=287",
+          "@shell/dialog": "/shell/shell-dialog.js?v=290",
+          "@shell/compact-qa": "/shell/shell-compact-qa.js?v=7",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
-          "@shell/window-storage": "/shell/shell-window-storage.js?v=316",
+          "@shell/window-storage": "/shell/shell-window-storage.js?v=318",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=418",
           "@shell/help": "/shell/shell-help.js?v=207",
           "@shell/hints": "/shell/shell-hints.js?v=313",
@@ -734,12 +735,16 @@
             <input id="shell-window-pet" type="checkbox" />
             <span>Персонаж поверх окон</span>
           </label>
+          <label class="shell-check" title="В компактном режиме — один последний вопрос и ответ агента">
+            <input id="shell-compact-dialog-qa" type="checkbox" checked />
+            <span>Последний вопрос и ответ</span>
+          </label>
           <label class="shell-check" title="Wake Lock API — экран не гаснет, пока Shell открыт">
             <input id="shell-keep-awake" type="checkbox" checked />
             <span>Не гасить экран</span>
           </label>
           <p class="shell-window-note">Моделька сверху — сам персонаж. Галочка выносит его на рабочий стол отдельным окном (только Voice.app). Двойной клик по нему открывает Voice.</p>
-          <p class="shell-window-note">Компактный режим — нажмите на облачко. Свернуть — кнопка рядом со статусом. Минимум окна: 320×500.</p>
+          <p class="shell-window-note">Компактный режим — нажмите на облачко. Над микрофоном — последний вопрос и ответ. Свернуть — кнопка рядом со статусом.</p>
           <p class="shell-window-note shell-window-note--local">«Не гасить экран» — на этом устройстве (не в awn-shell.json).</p>
           <label class="shell-field shell-field--compact">
             <span class="shell-label">Фон</span>
@@ -1559,6 +1564,11 @@ aya_bar_v2 тоже читает те же файлы</pre>
           <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--5"></span>
           <span class="shell-compact-cosmos-mote shell-compact-cosmos-mote--6"></span>
         </div>
+        <div class="shell-compact-qa" id="shell-compact-qa" hidden aria-label="Последний вопрос и ответ">
+          <div class="shell-compact-qa-frame" id="shell-compact-qa-frame">
+            <div class="shell-compact-qa-pane" id="shell-compact-qa-pane"></div>
+          </div>
+        </div>
         <div class="shell-compact-sensor-wrap">
           <button
             type="button"
@@ -2335,6 +2345,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=518" type="module"></script>
+    <script src="/shell/shell.js?v=524" type="module"></script>
   </body>
 </html>

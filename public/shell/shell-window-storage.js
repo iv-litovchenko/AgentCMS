@@ -5,7 +5,8 @@ export const DEFAULT_WINDOW_SETTINGS = {
   windowTransparent: false,
   windowBackground: "wallpaper",
   windowCompact: false,
-  windowPetOverlay: false
+  windowPetOverlay: false,
+  compactDialogQa: true
 };
 
 export function normalizeWindowSettings(raw) {
@@ -25,6 +26,7 @@ export function normalizeWindowSettings(raw) {
   }
   merged.windowCompact = Boolean(merged.windowCompact);
   merged.windowPetOverlay = Boolean(merged.windowPetOverlay);
+  merged.compactDialogQa = Boolean(merged.compactDialogQa);
   return merged;
 }
 

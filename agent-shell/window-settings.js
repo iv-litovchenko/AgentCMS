@@ -17,12 +17,20 @@ const WINDOW_PROFILE_COMPACT = {
   minHeight: 120
 };
 
+const WINDOW_PROFILE_COMPACT_QA = {
+  width: 340,
+  height: 460,
+  minWidth: 300,
+  minHeight: 320
+};
+
 const DEFAULT_WINDOW_SETTINGS = {
   windowTopmost: true,
   windowTransparent: false,
   windowBackground: "wallpaper",
   windowCompact: false,
-  windowPetOverlay: false
+  windowPetOverlay: false,
+  compactDialogQa: true
 };
 
 function windowSettingsPath(projectRoot) {
@@ -46,6 +54,7 @@ function normalizeWindowSettings(raw) {
   }
   merged.windowCompact = Boolean(merged.windowCompact);
   merged.windowPetOverlay = Boolean(merged.windowPetOverlay);
+  merged.compactDialogQa = Boolean(merged.compactDialogQa);
   return merged;
 }
 
@@ -85,6 +94,7 @@ module.exports = {
   AWN_SHELL_FILE,
   WINDOW_PROFILE_NORMAL,
   WINDOW_PROFILE_COMPACT,
+  WINDOW_PROFILE_COMPACT_QA,
   DEFAULT_WINDOW_SETTINGS,
   normalizeWindowSettings,
   readWindowSettings,
