@@ -172,6 +172,42 @@ class ClaudeToolActivityTracker {
 
     const type = String(event.type || "");
 
+    if (type === "stream_event" && event.event && typeof event.event === "object") {
+      this.handleEvent(event.event);
+      return;
+    }
+
+    if (type === "tool_use") {
+      const toolId = String(event.id || event.tool_use_id || event.name || "tool").trim();
+      const tool = String(event.name || event.tool || "tool").trim() || "tool";
+      this.emit({
+        kind: "tool",
+        phase: "start",
+        tool,
+        toolId,
+        args: formatToolArgs(event.input ?? event.arguments ?? event.args ?? null),
+        status: "running",
+        priority: 40
+      });
+      return;
+    }
+
+    if (type === "tool_result") {
+      const toolId = String(event.tool_use_id || event.id || "").trim();
+      const mapped = [...this.blocks.values()].find((entry) => entry.toolId === toolId);
+      const tool = String(mapped?.tool || event.name || toolId || "tool").trim() || "tool";
+      this.emit({
+        kind: "tool",
+        phase: "end",
+        tool,
+        toolId: toolId || tool,
+        result: extractClaudeToolResultContent(event.content ?? event.result ?? event.output),
+        status: event.is_error ? "error" : "ok",
+        priority: 35
+      });
+      return;
+    }
+
     if (type === "content_block_start") {
       const block = event.content_block;
       const blockType = String(block?.type || "");
@@ -196,12 +232,14 @@ class ClaudeToolActivityTracker {
 
       if (blockType === "tool_result") {
         const toolId = String(block.tool_use_id || "").trim();
+        const mapped = [...this.blocks.values()].find((entry) => entry.toolId === toolId);
+        const tool = String(mapped?.tool || toolId || "tool").trim() || "tool";
         const result = extractClaudeToolResultContent(block.content);
         this.emit({
           kind: "tool",
           phase: "end",
-          tool: toolId || "tool",
-          toolId: toolId || "tool",
+          tool,
+          toolId: toolId || tool,
           result,
           status: block.is_error ? "error" : "ok",
           priority: 35
@@ -243,23 +281,26 @@ class ClaudeToolActivityTracker {
     if (type === "assistant" && Array.isArray(event.message?.content)) {
       for (const block of event.message.content) {
         if (!block || typeof block !== "object") continue;
-        if (block.type === "tool_use") {
+        if (block.type === "tool_use" || block.type === "server_tool_use") {
           this.emit({
             kind: "tool",
             phase: "start",
-            tool: String(block.name || "tool"),
-            toolId: String(block.id || block.name || "tool"),
-            args: formatToolArgs(block.input || {}),
+            tool: String(block.name || block.tool || "tool"),
+            toolId: String(block.id || block.tool_use_id || block.name || "tool"),
+            args: formatToolArgs(block.input ?? block.query ?? block.arguments ?? null),
             status: "running",
             priority: 40
           });
         }
-        if (block.type === "tool_result") {
+        if (block.type === "tool_result" || block.type === "web_search_tool_result") {
+          const toolId = String(block.tool_use_id || "").trim();
+          const mapped = [...this.blocks.values()].find((entry) => entry.toolId === toolId);
+          const tool = String(mapped?.tool || toolId || "tool").trim() || "tool";
           this.emit({
             kind: "tool",
             phase: "end",
-            tool: String(block.tool_use_id || "tool"),
-            toolId: String(block.tool_use_id || "tool"),
+            tool,
+            toolId: toolId || tool,
             result: extractClaudeToolResultContent(block.content),
             status: block.is_error ? "error" : "ok",
             priority: 35

@@ -3978,6 +3978,23 @@ body.shell-desktop .shell-agent-gate select {
   display: none;
 }
 
+.shell-live-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: 6px 0 2px;
+}
+
+.shell-live-tools.hidden {
+  display: none;
+}
+
+.shell-reply-panel.is-streaming .shell-live-tools:not(.hidden) + .shell-last-ask + .shell-dialog-live-reply,
+.shell-reply-panel.is-streaming .shell-live-tools:not(.hidden) + .shell-dialog-live-reply {
+  margin-top: 4px;
+}
+
 .shell-reply-panel[data-history-state="loading"] .shell-dialog-live-reply,
 .shell-reply-panel[data-history-state="loading"] .shell-last-ask,
 .shell-reply-panel[data-history-state="error"] .shell-dialog-live-reply,
@@ -4283,6 +4300,64 @@ body.shell-desktop .shell-agent-gate select {
   color: var(--muted);
   padding: 0 4px;
   user-select: none;
+}
+
+.shell-dialog-live-reply {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  max-width: min(96%, 560px);
+  align-self: flex-start;
+}
+
+.shell-dialog-live-reply .shell-live-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+}
+
+.shell-dialog-live-reply .shell-live-tools.hidden {
+  display: none;
+}
+
+.shell-live-tools-pending {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--muted);
+  padding: 2px 2px 4px;
+}
+
+.shell-dialog-live-reply .shell-chat-row--tool {
+  width: 100%;
+}
+
+.shell-dialog-live-reply .shell-reply-text {
+  width: 100%;
+}
+
+.shell-live-reply-stream {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  width: 100%;
+}
+
+.shell-live-reply-wait {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--muted);
+  white-space: nowrap;
+  user-select: none;
+  margin-left: auto;
+}
+
+.shell-live-reply-wait.hidden {
+  display: none;
 }
 
 .shell-dialog-live-reply.hidden {

@@ -161,6 +161,7 @@ const SIDECAR_TTL_MS = 8000;
 const VOICE_INPUT_MODES = new Set(["live", "meeting", "hold", "fn_button"]);
 const {
   appendShellDialogChat,
+  appendShellDialogTool,
   readShellDialogHistory,
   saveShellVoiceRecord,
   sessionIdFromSettings
@@ -1103,6 +1104,15 @@ function shellToolActivityPayload(streamId, activity) {
   };
 }
 
+function emitShellToolActivity(agentId, agentRoot, streamId, activity, runtime, sessionId) {
+  const normalized = normalizeToolActivity(activity);
+  emitShellEvent(agentId, "agent_activity", shellToolActivityPayload(streamId, normalized));
+  if (normalized.kind === "tool" && (normalized.phase === "end" || normalized.phase === "start")) {
+    void logShellDialogTool(agentRoot, normalized, runtime, sessionId);
+  }
+  return normalized;
+}
+
 async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgress, ttsClientId = "", author = "shell" }) {
   const text = String(body || "").trim();
   if (!text) throw new Error("Message body is required");
@@ -1128,7 +1138,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     const tool = String(normalized.tool || "").trim();
 
     if (normalized.kind === "tool") {
-      emitShellEvent(agentId, "agent_activity", shellToolActivityPayload(streamId, normalized));
+      emitShellToolActivity(agentId, agentRoot, streamId, normalized, "qwenpaw", sessionId);
       if (normalized.phase !== "end") {
         activityPriority = Math.max(activityPriority, priority);
         lastActivityPhrase = phrase;
@@ -1365,15 +1375,19 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
   };
   const onActivity = (activity) => {
     if (!activity) return;
-    emitShellEvent(agentId, "agent_activity", shellToolActivityPayload(streamId, activity));
     const normalized = normalizeToolActivity(activity);
-    if (normalized.kind === "tool" && normalized.phase !== "end") {
-      patchStateAsync(agentRoot, agentId, {
-        phase: PHASE_THINKING,
-        phrase: normalized.phrase,
-        metrics: normalized.tool || ""
-      });
+    if (normalized.kind === "tool") {
+      emitShellToolActivity(agentId, agentRoot, streamId, activity, runtime, endpoint.sessionId);
+      if (normalized.phase !== "end") {
+        patchStateAsync(agentRoot, agentId, {
+          phase: PHASE_THINKING,
+          phrase: normalized.phrase,
+          metrics: normalized.tool || ""
+        });
+      }
+      return;
     }
+    emitShellEvent(agentId, "agent_activity", shellToolActivityPayload(streamId, activity));
   };
   const extraHeaders = buildRuntimeExtraHeaders(runtime, endpoint);
 
@@ -1558,6 +1572,28 @@ async function logShellDialogAgent(agentRoot, text, runtime = "qwenpaw") {
     return await appendShellDialogChat(agentRoot, { role: "agent", text, runtime: id, sessionId });
   } catch (error) {
     console.error("[shell-dialog] failed to log agent message", error);
+    return null;
+  }
+}
+
+async function logShellDialogTool(agentRoot, activity, runtime = "qwenpaw", sessionId = "") {
+  try {
+    const normalized = normalizeToolActivity(activity);
+    if (normalized.kind !== "tool") return null;
+    const settings = await readSettings(agentRoot);
+    const id = normalizeMessageRuntime(runtime || getMessageRuntime(settings));
+    const sid = String(sessionId || sessionIdFromSettings(settings, id) || "").trim();
+    return await appendShellDialogTool(agentRoot, {
+      tool: normalized.tool,
+      toolId: normalized.toolId,
+      args: normalized.args,
+      result: normalized.result,
+      status: normalized.status,
+      runtime: id,
+      sessionId: sid
+    });
+  } catch (error) {
+    console.error("[shell-dialog] failed to log tool activity", error);
     return null;
   }
 }

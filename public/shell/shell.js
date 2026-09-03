@@ -425,6 +425,19 @@ let lastHandledStreamId = "";
 let lastStreamHandledBody = "";
 /** @type {{ kind: string, label: string, tool?: string, active?: boolean, at: number }[]} */
 let agentActivitySteps = [];
+let streamWaitTimer = 0;
+let streamWaitStartedAt = 0;
+const recentAgentStreamIds = new Set();
+
+function rememberAgentStreamId(streamId) {
+  const id = String(streamId || "").trim();
+  if (!id) return;
+  recentAgentStreamIds.add(id);
+  if (recentAgentStreamIds.size > 12) {
+    const first = recentAgentStreamIds.values().next().value;
+    recentAgentStreamIds.delete(first);
+  }
+}
 let agentActivityTypingAdded = false;
 /** @type {{ text: string, blob: Blob | null, mimeType: string, blobText: string }} */
 let lastTtsSpoken = { text: "", blob: null, mimeType: "", blobText: "" };
@@ -482,6 +495,7 @@ const state = {
   mediaMode: "",
   clockTimer: null,
   assistantStream: null,
+  activeAgentStreamId: "",
   streamTtsQueue: [],
   streamTtsActive: false,
   streamTtsCursor: 0,
@@ -1212,6 +1226,7 @@ const nodes = {
   meta: document.getElementById("shell-meta"),
   lastReply: document.getElementById("shell-last-reply"),
   lastReplyText: document.getElementById("shell-last-reply-text"),
+  lastReplyWait: document.getElementById("shell-last-reply-wait"),
   lastReplyMedia: document.getElementById("shell-last-reply-media"),
   agentActivity: document.getElementById("shell-agent-activity"),
   agentActivityList: document.getElementById("shell-agent-activity-list"),
@@ -1262,6 +1277,7 @@ const shellDialog = createShellDialog({
   lastAskWrap: document.getElementById("shell-last-ask-wrap"),
   lastAsk: document.getElementById("shell-last-ask"),
   thread: document.getElementById("shell-dialog-thread"),
+  liveTools: document.getElementById("shell-live-tools"),
   lastReply: document.getElementById("shell-last-reply"),
   errorEl: document.getElementById("shell-dialog-error"),
   pullHint: document.getElementById("shell-pull-hint"),
@@ -1551,13 +1567,16 @@ async function onAgentSelectChange(next) {
   await resolveShellAgent();
   state.runtimeStatuses = {};
   resetRuntimeStatusProbe();
+  releaseMessagePipeline();
+  state.assistantStream = null;
+  clearShellReply();
   populateRuntimeSelect();
   refreshRuntimeSelectLabels();
   syncShellAgentReadyUi();
   await bootstrapRuntimeSelect();
   resetRuntimeStatusProbe();
   await pullRuntimeStatuses();
-  await shellDialog.refreshHistory?.();
+  await shellDialog.refreshHistory?.({ replace: true });
   await loadComposeDraft();
   commitAllSettingsBaselinesIfSafe();
   syncComposeReadyStatus();
@@ -2181,7 +2200,7 @@ function clearShellReply() {
     applyReplyTextPresentation(nodes.lastReply, { text: "", stub: false });
   }
   renderShellReplyMedia(nodes.lastReplyMedia, [], state.agentId);
-  nodes.replyPanel?.classList.remove("is-streaming");
+  setReplyPanelStreaming(false);
   shellDialog.syncLiveReplySlot?.();
   resetAgentActivitySteps();
 }
@@ -2236,6 +2255,30 @@ function syncAgentActivityFromPhrase(phrase = "", metrics = "") {
     kind,
     phrase: text,
     tool: String(metrics || "").trim() || undefined
+  });
+  syncToolActivityFromStatus({ phrase: text, metrics, kind });
+}
+
+function syncToolActivityFromStatus({ phrase = "", metrics = "" } = {}) {
+  if (!isShellAgentWorkActive()) return;
+  const tool = String(metrics || "")
+    .trim()
+    .replace(/^🔧\s*/, "");
+  const text = String(phrase || "").trim();
+  const inferredTool =
+    tool ||
+    (/^🔧\s*(.+?)(?:…|$)/u.exec(text)?.[1] || "").trim() ||
+    (/^✓\s*(.+)$/u.exec(text)?.[1] || "").trim();
+  if (!inferredTool) return;
+  const phase = /^✓/.test(text) ? "end" : "start";
+  shellDialog.upsertToolActivity?.({
+    streamId: state.activeAgentStreamId || state.assistantStream?.id || "",
+    kind: "tool",
+    phase,
+    tool: inferredTool,
+    toolId: inferredTool,
+    phrase: text,
+    status: phase === "end" ? "ok" : "running"
   });
 }
 
@@ -2350,6 +2393,49 @@ function pushAgentActivityStep(payload = {}) {
   renderAgentActivitySteps();
 }
 
+function formatStreamWaitDuration(ms) {
+  const n = Number(ms);
+  if (!Number.isFinite(n) || n < 0) return "0 с";
+  const sec = n / 1000;
+  if (sec < 10) {
+    const rounded = Math.round(sec * 10) / 10;
+    return `${String(rounded).replace(".", ",")} с`;
+  }
+  return `${Math.round(sec)} с`;
+}
+
+function updateStreamWaitLabel() {
+  if (!nodes.lastReplyWait || !streamWaitStartedAt) return;
+  const elapsed = Date.now() - streamWaitStartedAt;
+  nodes.lastReplyWait.textContent = `Ждём ${formatStreamWaitDuration(elapsed)}`;
+}
+
+function startStreamWaitTimer() {
+  stopStreamWaitTimer();
+  streamWaitStartedAt = Date.now();
+  if (!nodes.lastReplyWait) return;
+  nodes.lastReplyWait.classList.remove("hidden");
+  updateStreamWaitLabel();
+  streamWaitTimer = window.setInterval(updateStreamWaitLabel, 200);
+}
+
+function stopStreamWaitTimer() {
+  if (streamWaitTimer) {
+    clearInterval(streamWaitTimer);
+    streamWaitTimer = 0;
+  }
+  streamWaitStartedAt = 0;
+  if (!nodes.lastReplyWait) return;
+  nodes.lastReplyWait.classList.add("hidden");
+  nodes.lastReplyWait.textContent = "";
+}
+
+function setReplyPanelStreaming(active) {
+  nodes.replyPanel?.classList.toggle("is-streaming", Boolean(active));
+  if (active) startStreamWaitTimer();
+  else stopStreamWaitTimer();
+}
+
 function beginAssistantStream({ streamId } = {}) {
   shellSession?.resetStreamRenderState();
   resetAgentActivitySteps();
@@ -2361,6 +2447,8 @@ function beginAssistantStream({ streamId } = {}) {
     done: false,
     finalized: false
   };
+  state.activeAgentStreamId = state.assistantStream.id;
+  rememberAgentStreamId(state.activeAgentStreamId);
   state.streamTtsCursor = 0;
   state.streamTtsQueue = [];
   state.streamTtsVoiceEnded = false;
@@ -2370,8 +2458,9 @@ function beginAssistantStream({ streamId } = {}) {
   }
   lastStreamHandledBody = "";
   lastHandledStreamId = "";
-  nodes.replyPanel?.classList.add("is-streaming");
+  setReplyPanelStreaming(true);
   shellDialog.syncLiveReplySlot?.();
+  shellDialog.renderLiveToolStrip?.();
   if (nodes.lastReplyText) {
     nodes.lastReplyText.classList.remove("shell-md");
     nodes.lastReplyText.textContent = "…";
@@ -2567,12 +2656,12 @@ function finalizeAssistantStream(message) {
   if (!spokenParts.length && spokenText) spokenParts = [spokenText];
 
   state.assistantStream = { id: streamId, text: body, spokenText, spokenParts, done: true, finalized: true };
-  nodes.replyPanel?.classList.remove("is-streaming");
+  setReplyPanelStreaming(false);
   shellDialog.syncLiveReplySlot?.();
   shellSession?.flushStreamingRender(renderStreamingAssistantText);
   renderShellReply({ ...message, body, spokenText, spokenParts });
   shellDialog.onAgentReply(body);
-  void shellDialog.refreshHistory?.();
+  void shellDialog.refreshHistory?.().then(() => shellDialog.syncLiveReplySlot?.());
   finalizeAgentActivitySteps();
   shellSession?.markReplyDisplayed({ ...message, body, streamId });
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
@@ -2620,6 +2709,7 @@ function releaseMessagePipeline() {
   disarmMessagePipelineWatchdog();
   state.messagePipelineBusy = false;
   state.processingMessage = "";
+  state.activeAgentStreamId = "";
   renderMessageQueue();
   updateSendButtonLabel();
   shellSession?.releaseSessionUiLock();
@@ -2628,19 +2718,65 @@ function releaseMessagePipeline() {
 
 function recoverStuckMessagePipeline(reason = "") {
   if (!state.messagePipelineBusy && !state.processingMessage) return false;
-  const phase = resolveDisplayPhase(state.shellState?.phase || "waiting");
-  const streaming = Boolean(state.assistantStream && !state.assistantStream.finalized);
-  if (streaming || isTtsPlaybackActive() || phase === "thinking" || phase === "speaking") {
-    return false;
-  }
-  shellLog("message", `Pipeline reset${reason ? `: ${reason}` : ""}`);
-  state.messageStopped = false;
-  if (state.assistantStream && !state.assistantStream.finalized) {
-    nodes.replyPanel?.classList.remove("is-streaming");
+  if (isTtsPlaybackActive()) return false;
+
+  const stream = state.assistantStream;
+  const streaming = Boolean(stream && !stream.finalized);
+  const streamHasText = Boolean(String(stream?.text || "").trim());
+  const serverPhase = state.shellState?.phase || "waiting";
+
+  // Зависло на «Запускаю…» — stream открыт, но текста ещё нет.
+  if (streaming && !streamHasText) {
+    shellLog("message", `Empty stream reset${reason ? `: ${reason}` : ""}`);
+    setReplyPanelStreaming(false);
     state.assistantStream = null;
+    releaseMessagePipeline();
+    renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
+    return true;
   }
-  releaseMessagePipeline();
-  return true;
+
+  if (streaming && streamHasText) return false;
+
+  // Сервер уже waiting, а клиентский pipeline ещё busy — типично после reload или пропущенных SSE.
+  if (serverPhase === "waiting" || serverPhase === "disabled") {
+    shellLog("message", `Pipeline reset${reason ? `: ${reason}` : ""}`);
+    state.messageStopped = false;
+    releaseMessagePipeline();
+    renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
+    return true;
+  }
+
+  return false;
+}
+
+async function syncShellReplyAfterConnect(reason = "connect") {
+  if (!state.agentId) return;
+  try {
+    const payload = await refreshStatus({
+      sync: usesQwenPawTarget(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw"),
+      timeoutMs: 20000
+    });
+    const latest = payload?.latestAgentMessage;
+    if (
+      isShellAgentWorkActive() &&
+      latest?.body &&
+      !shellSession?.isReplyAlreadyDisplayed(latest)
+    ) {
+      if (state.assistantStream && !state.assistantStream.finalized) {
+        finalizeAssistantStream(latest);
+      } else {
+        await handleAssistantMessage(latest);
+      }
+      return;
+    }
+    recoverStuckMessagePipeline(reason);
+    if (!isShellAgentWorkActive() && (payload?.state?.phase || "waiting") === "waiting") {
+      renderPhase("waiting", heroIdlePhrase(), payload?.state?.metrics || "");
+    }
+  } catch (error) {
+    shellLog("error", "syncShellReplyAfterConnect failed", error.message);
+    recoverStuckMessagePipeline(`${reason} error`);
+  }
 }
 
 function queuePhraseSuffix() {
@@ -2730,7 +2866,7 @@ async function stopActiveMessage() {
   state.queueEditingId = "";
   state.processingMessage = "";
   if (state.assistantStream && !state.assistantStream.finalized) {
-    nodes.replyPanel?.classList.remove("is-streaming");
+    setReplyPanelStreaming(false);
     state.assistantStream = null;
   }
   state.streamTtsQueue = [];
@@ -2965,15 +3101,55 @@ async function finishStreamTtsWhenIdle({ sourceMessage = null, spokenText = "" }
   }
 }
 
+function normalizeAgentActivityPayload(payload = {}) {
+  const root =
+    payload?.activity && typeof payload.activity === "object" && !Array.isArray(payload.activity)
+      ? payload.activity
+      : payload;
+  const tool = String(root.tool || "").trim();
+  const phrase = String(root.phrase || "").trim();
+  let kind = String(root.kind || "").trim().toLowerCase();
+  if (!kind && tool) kind = "tool";
+  if (kind !== "tool" && tool && (root.args != null || root.result != null || /^🔧|^✓/.test(phrase))) {
+    kind = "tool";
+  }
+  return {
+    ...root,
+    streamId: String(root.streamId || payload.streamId || "").trim(),
+    kind,
+    phase: String(root.phase || "start").trim().toLowerCase(),
+    tool,
+    toolId: String(root.toolId || tool || "").trim(),
+    args: root.args != null ? String(root.args) : "",
+    result: root.result != null ? String(root.result) : "",
+    status: String(root.status || "").trim().toLowerCase(),
+    phrase,
+    error: root.error
+  };
+}
+
+function shouldShowAgentActivity(payload = {}) {
+  if (isShellAgentWorkActive()) return true;
+  const streamId = String(payload.streamId || "").trim();
+  if (streamId && recentAgentStreamIds.has(streamId)) return true;
+  const active = String(state.activeAgentStreamId || state.assistantStream?.id || "").trim();
+  return Boolean(streamId && active && streamId === active);
+}
+
 function handleAgentActivity(payload = {}) {
   if (state.messageStopped) return;
-  if (!isShellAgentWorkActive()) return;
-  pushAgentActivityStep(payload);
-  if (payload.kind === "tool") {
-    shellDialog.upsertToolActivity?.(payload);
+  const activity = normalizeAgentActivityPayload(payload);
+  if (activity.streamId) rememberAgentStreamId(activity.streamId);
+
+  if (activity.kind === "tool") {
+    shellDialog.upsertToolActivity?.(activity);
   }
-  const phrase = String(payload.phrase || "").trim();
-  const tool = String(payload.tool || "").trim();
+
+  if (!shouldShowAgentActivity(activity)) return;
+
+  pushAgentActivityStep(activity);
+  const phrase = String(activity.phrase || "").trim();
+  const tool = String(activity.tool || "").trim();
   const label = phrase || tool;
   if (!label) return;
   renderPhase("thinking", phrase || tool, tool || state.shellState?.metrics || "");
@@ -2998,6 +3174,8 @@ function handleAssistantDelta(payload) {
   } else if (streamId && state.assistantStream.id !== streamId) {
     if (String(state.assistantStream.id).startsWith("local-")) {
       state.assistantStream.id = streamId;
+      state.activeAgentStreamId = streamId;
+      rememberAgentStreamId(streamId);
     } else {
       beginAssistantStream({ streamId });
     }
@@ -5338,6 +5516,15 @@ function applyStatusPayload(payload) {
 
   if (payload?.presence) applyVoicePresence(payload.presence);
 
+  if (payload?.state && isShellAgentWorkActive()) {
+    const phase = resolveDisplayPhase(payload.state.phase);
+    const phrase = String(payload.state.phrase || "").trim();
+    const metrics = String(payload.state.metrics || "").trim();
+    if (phase === "thinking" && (phrase || metrics)) {
+      syncAgentActivityFromPhrase(phrase, metrics);
+    }
+  }
+
   if (state.sessionUiLocked) return;
 
   if (payload?.state) {
@@ -5850,7 +6037,7 @@ function handleSendMessageError(error, { streamingQwenPaw = false } = {}) {
     return;
   }
   if (streamingQwenPaw && state.assistantStream && !state.assistantStream.finalized) {
-    nodes.replyPanel?.classList.remove("is-streaming");
+    setReplyPanelStreaming(false);
     state.assistantStream = null;
   }
   if (state.assistantStream?.finalized) return;
@@ -5862,7 +6049,6 @@ function handleSendMessageError(error, { streamingQwenPaw = false } = {}) {
 }
 
 function handleSendMessageResult(result, { streamingQwenPaw = false } = {}) {
-  void shellDialog.refreshHistory?.();
   if (result?.sttRefined && nodes.message && String(result.sttRefined) !== state.processingMessage) {
     setComposeMessageValue(String(result.sttRefined));
   }
@@ -5876,6 +6062,7 @@ function handleSendMessageResult(result, { streamingQwenPaw = false } = {}) {
     return;
   }
   if (result?.reply || result?.message?.body) {
+    void shellDialog.refreshHistory?.();
     void handleAssistantMessage(
       result.message || {
         body: result.reply,
@@ -7414,7 +7601,7 @@ async function handleAssistantMessage(message) {
   markAssistantReplyHandled(message, body);
   renderShellReply(message);
   shellDialog.onAgentReply(body);
-  void shellDialog.refreshHistory?.();
+  void shellDialog.refreshHistory?.().then(() => shellDialog.syncLiveReplySlot?.());
   shellSession?.markReplyDisplayed(message);
 
   const phase = state.shellState?.phase || "waiting";
@@ -7459,8 +7646,8 @@ function connectStream() {
     } else {
       void pullRuntimeStatuses();
     }
-    void shellDialog.refreshHistory?.();
-    recoverStuckMessagePipeline("sse open");
+    void (isShellAgentWorkActive() ? Promise.resolve() : shellDialog.refreshHistory?.());
+    void syncShellReplyAfterConnect("sse open");
   };
   source.onerror = () => {
     syncDialogConnectionState("error");
@@ -8762,16 +8949,13 @@ async function connectShellAgentData() {
   }
   void pullRuntimeStatuses();
   try {
+    connectStream();
     await shellDialog.refreshHistory?.();
-    if (state.messagePipelineBusy && !isTtsPlaybackActive() && (state.shellState?.phase || "waiting") === "waiting") {
-      releaseMessagePipeline();
-    }
+    await syncShellReplyAfterConnect("agent connect");
     await loadComposeDraft();
     syncComposeReadyStatus();
     commitAllSettingsBaselinesIfSafe();
-    recoverStuckMessagePipeline("agent connect");
     void loadQwenPawAgents();
-    connectStream();
     shellLog("boot", "Агент подключён", {
       agentId: state.agentId,
       messageTarget: state.settings?.messageTarget || getSelectedRuntime(),

@@ -53,6 +53,9 @@ function sessionIdFromSettings(settings, runtime) {
 }
 
 function dialogRoleMeta(role) {
+  if (role === "tool") {
+    return { role: "tool", author: "Tool", label: "Tool" };
+  }
   if (role === "agent") {
     return { role: "agent", author: "AI", label: "AI" };
   }
@@ -62,10 +65,27 @@ function dialogRoleMeta(role) {
 function normalizeDialogRole(rawRole, rawAuthor = "") {
   const roleText = String(rawRole || "").trim().toLowerCase();
   const authorText = String(rawAuthor || "").trim().toLowerCase();
+  if (roleText === "tool") return dialogRoleMeta("tool");
   if (roleText === "agent" || roleText === "assistant" || authorText === "ai" || authorText === "агент") {
     return dialogRoleMeta("agent");
   }
   return dialogRoleMeta("user");
+}
+
+function parseToolDialogBody(body) {
+  try {
+    const parsed = JSON.parse(String(body || "").trim());
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      tool: String(parsed.tool || "tool").trim() || "tool",
+      toolId: String(parsed.toolId || parsed.tool || "tool").trim() || "tool",
+      args: String(parsed.args ?? ""),
+      result: String(parsed.result ?? ""),
+      status: String(parsed.status || "ok").trim() || "ok"
+    };
+  } catch {
+    return null;
+  }
 }
 
 function formatShellDialogBlock({
@@ -111,7 +131,7 @@ function parseShellDialogBlock(block) {
       const sessionRaw = (frontmatter.match(/^awn-session:\s*(.+)$/m) || [])[1] || "";
       const meta = normalizeDialogRole(roleRaw, authorRaw);
       const at = Date.parse(String(createdRaw).trim()) || Date.now();
-      return {
+      const base = {
         role: meta.role,
         author: authorRaw.trim() || meta.author,
         label: meta.label,
@@ -120,6 +140,20 @@ function parseShellDialogBlock(block) {
         runtime: normalizeMessageRuntime(runtimeRaw || "qwenpaw"),
         sessionId: String(sessionRaw || "").trim()
       };
+      if (meta.role === "tool") {
+        const tool = parseToolDialogBody(body);
+        if (tool) {
+          return {
+            ...base,
+            tool: tool.tool,
+            toolId: tool.toolId,
+            args: tool.args,
+            result: tool.result,
+            status: tool.status
+          };
+        }
+      }
+      return base;
     }
   }
 
@@ -201,7 +235,6 @@ async function collectDialogDayFiles(agentRoot, runtime, sessionId = "") {
     for (const filePath of await listDialogDayFiles(path.join(runtimeDir, LEGACY_SESSION_UID_DIR, safeSessionDirName(sid)))) {
       files.add(filePath);
     }
-    for (const filePath of await listDialogDayFiles(runtimeDir)) files.add(filePath);
     return [...files];
   }
   for (const filePath of await listDialogDayFiles(runtimeDir)) files.add(filePath);
@@ -231,6 +264,25 @@ async function readShellDialogHistory(agentRoot, { runtime = "qwenpaw", sessionI
 
   messages.sort((left, right) => left.at - right.at);
   return messages.slice(-safeLimit);
+}
+
+async function appendShellDialogTool(
+  agentRoot,
+  { tool = "tool", toolId = "", args = "", result = "", status = "ok", runtime = "qwenpaw", sessionId = "" } = {}
+) {
+  const payload = {
+    tool: String(tool || "tool").trim() || "tool",
+    toolId: String(toolId || tool || "tool").trim() || "tool",
+    args: String(args ?? ""),
+    result: String(result ?? ""),
+    status: String(status || "ok").trim() || "ok"
+  };
+  return appendShellDialogChat(agentRoot, {
+    role: "tool",
+    text: JSON.stringify(payload),
+    runtime,
+    sessionId
+  });
 }
 
 async function appendShellDialogChat(
@@ -273,6 +325,7 @@ async function saveShellVoiceRecord(agentRoot, { kind = "meeting", data, ext = "
 
 module.exports = {
   appendShellDialogChat,
+  appendShellDialogTool,
   readShellDialogHistory,
   parseShellDialogFile,
   formatShellDialogBlock,

@@ -37,6 +37,84 @@ function withReplyDurations(items) {
   });
 }
 
+function isToolHistoryItem(item) {
+  return item?.role === "tool";
+}
+
+function toolHistoryKey(item) {
+  return String(item?.toolId || item?.tool || "tool").trim() || "tool";
+}
+
+function messageHistoryKey(item) {
+  const role = String(item?.role || "").trim();
+  if (role !== "user" && role !== "agent") return "";
+  const body = String(item.body || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!body) return "";
+  return `${role}:${body}`;
+}
+
+function mergeDialogHistory(archived, preserved = []) {
+  const byToolId = new Map();
+  const plainKeys = new Set();
+  const plain = [];
+  for (const item of [...archived, ...preservedOptimisticItems(archived, preserved)]) {
+    if (!isToolHistoryItem(item)) {
+      const key = messageHistoryKey(item);
+      if (key) {
+        if (plainKeys.has(key)) continue;
+        plainKeys.add(key);
+      }
+      plain.push(item);
+      continue;
+    }
+    const key = toolHistoryKey(item);
+    const prev = byToolId.get(key);
+    if (!prev) {
+      byToolId.set(key, item);
+      continue;
+    }
+    const prevDone = prev.status !== "running";
+    const nextDone = item.status !== "running";
+    if (!prevDone && nextDone) byToolId.set(key, item);
+    else if (prevDone && nextDone && (Number(item.at) || 0) >= (Number(prev.at) || 0)) {
+      byToolId.set(key, item);
+    }
+  }
+  const merged = dedupeAdjacentHistory([
+    ...plain,
+    ...byToolId.values()
+  ]).sort((left, right) => (Number(left.at) || 0) - (Number(right.at) || 0));
+  return withReplyDurations(merged.slice(-MAX_HISTORY));
+}
+
+function preservedOptimisticItems(archived, preserved = []) {
+  const archivedKeys = new Set(
+    (Array.isArray(archived) ? archived : [])
+      .map(messageHistoryKey)
+      .filter(Boolean)
+  );
+  return (Array.isArray(preserved) ? preserved : []).filter((item) => {
+    if (isToolHistoryItem(item)) return item.status === "running";
+    const key = messageHistoryKey(item);
+    if (!key) return true;
+    return !archivedKeys.has(key);
+  });
+}
+
+function dedupeAdjacentHistory(items) {
+  const out = [];
+  let prevKey = "";
+  for (const item of Array.isArray(items) ? items : []) {
+    const key = isToolHistoryItem(item) ? toolHistoryKey(item) : messageHistoryKey(item);
+    if (key && key === prevKey) continue;
+    out.push(item);
+    prevKey = key || prevKey;
+  }
+  return out;
+}
+
 function historyRoleLabel(item) {
   if (item?.role === "tool") return item?.tool || "Tool";
   if (item?.label) return item.label;
@@ -116,6 +194,7 @@ export function createShellDialog(options = {}) {
   let historyLoading = false;
   let historyLoadError = null;
   let historyLoadPromise = null;
+  let historyLoadGeneration = 0;
   let lastReplyRaw = "";
   let lastAskRaw = "";
   let pullStartY = 0;
@@ -215,24 +294,44 @@ export function createShellDialog(options = {}) {
     nodes.lastAskWrap?.classList.add("hidden");
   }
 
-  function loadHistory() {
+  function loadHistory({ replace = false } = {}) {
     if (!fetchHistory) {
       history = [];
       historyLoadError = null;
       renderHistoryUi();
       return Promise.resolve();
     }
-    if (historyLoadPromise) return historyLoadPromise;
+
+    const generation = (historyLoadGeneration += 1);
+
+    if (replace) {
+      history = [];
+      lastReplyRaw = "";
+      lastAskRaw = "";
+      historyLoadError = null;
+      historyLoadPromise = null;
+      clearError();
+      setLastAsk("");
+    } else if (historyLoadPromise) {
+      return historyLoadPromise;
+    }
+
     historyLoading = true;
-    historyLoadError = null;
+    if (!replace) historyLoadError = null;
     renderHistoryUi();
+
     historyLoadPromise = fetchHistory()
       .then((items) => {
-        history = withReplyDurations(Array.isArray(items) ? items.slice(-MAX_HISTORY) : []);
+        if (generation !== historyLoadGeneration) return;
+        const preserved = replace ? [] : history.slice();
+        const archived = withReplyDurations(Array.isArray(items) ? items : []);
+        history = replace ? archived.slice(-MAX_HISTORY) : mergeDialogHistory(archived, preserved);
         historyLoadError = null;
         clearError();
+        syncLiveReplySlot();
       })
       .catch((error) => {
+        if (generation !== historyLoadGeneration) return;
         historyLoadError = error;
         if (history.length) {
           const hint = connectionHint(error);
@@ -240,9 +339,15 @@ export function createShellDialog(options = {}) {
         }
       })
       .finally(() => {
+        if (generation !== historyLoadGeneration) return;
         historyLoading = false;
         historyLoadPromise = null;
-        renderHistoryUi();
+        try {
+          renderHistoryUi();
+        } catch (error) {
+          historyLoadError = error;
+          console.error("[shell-dialog] renderHistoryUi failed", error);
+        }
       });
     return historyLoadPromise;
   }
@@ -377,7 +482,9 @@ export function createShellDialog(options = {}) {
         item.status = status || (payload.error ? "error" : "ok");
         item.at = Date.now();
         if (args && !item.args) item.args = args;
+        renderLiveToolStrip();
         renderHistoryUi();
+        nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "smooth" });
         return;
       }
       history.push({
@@ -390,7 +497,9 @@ export function createShellDialog(options = {}) {
         at: Date.now()
       });
       if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+      renderLiveToolStrip();
       renderHistoryUi();
+      nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "smooth" });
       return;
     }
 
@@ -399,6 +508,7 @@ export function createShellDialog(options = {}) {
       if (index >= 0) {
         if (args) history[index].args = args;
         history[index].at = Date.now();
+        renderLiveToolStrip();
         renderHistoryUi();
         return;
       }
@@ -414,7 +524,9 @@ export function createShellDialog(options = {}) {
       at: Date.now()
     });
     if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+    renderLiveToolStrip();
     renderHistoryUi();
+    nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "smooth" });
   }
 
   function renderThreadMessage(item) {
@@ -464,16 +576,59 @@ export function createShellDialog(options = {}) {
   function syncLiveReplySlot() {
     const streaming = nodes.panel?.classList.contains("is-streaming");
     const hasThread = history.length > 0;
-    nodes.lastReply?.classList.toggle("hidden", hasThread && !streaming);
+    const hideLiveReply = hasThread && !streaming;
+    nodes.lastReply?.classList.toggle("hidden", hideLiveReply);
     nodes.lastAskWrap?.classList.toggle("hidden", hasThread || !lastAskRaw);
+  }
+
+  function findLastUserIndex() {
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+      if (history[i]?.role === "user") return i;
+    }
+    return -1;
+  }
+
+  function getCurrentTurnTools() {
+    const lastUserIndex = findLastUserIndex();
+    if (lastUserIndex < 0) return [];
+    return history.slice(lastUserIndex + 1).filter(isToolHistoryItem);
+  }
+
+  function renderLiveToolStrip() {
+    if (!nodes.liveTools) return;
+    const streaming = nodes.panel?.classList.contains("is-streaming");
+    const tools = streaming ? getCurrentTurnTools() : [];
+    nodes.liveTools.replaceChildren();
+    if (tools.length) {
+      for (const item of tools) {
+        nodes.liveTools.append(renderToolThreadMessage(item));
+      }
+      nodes.liveTools.classList.remove("hidden");
+      nodes.lastReply?.classList.remove("shell-dialog-live-reply--stub");
+      return;
+    }
+    if (streaming) {
+      const pending = document.createElement("div");
+      pending.className = "shell-live-tools-pending";
+      pending.textContent = "🔧 Агент вызывает инструменты…";
+      nodes.liveTools.append(pending);
+      nodes.liveTools.classList.remove("hidden");
+      return;
+    }
+    nodes.liveTools.classList.add("hidden");
   }
 
   function renderThread() {
     if (!nodes.thread) return;
     nodes.thread.replaceChildren();
-    for (const item of history) {
+    const streaming = nodes.panel?.classList.contains("is-streaming");
+    const lastUserIndex = findLastUserIndex();
+    for (let i = 0; i < history.length; i += 1) {
+      const item = history[i];
+      if (streaming && isToolHistoryItem(item) && i > lastUserIndex) continue;
       nodes.thread.append(renderThreadMessage(item));
     }
+    renderLiveToolStrip();
     syncLiveReplySlot();
     if (history.length) {
       nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "auto" });
@@ -481,8 +636,12 @@ export function createShellDialog(options = {}) {
   }
 
   function renderHistoryUi() {
-    if (historyLoading) {
+    if (historyLoading && !history.length) {
       renderHistoryLoading();
+      return;
+    }
+    if (historyLoading && history.length) {
+      renderThread();
       return;
     }
     if (historyLoadError && !history.length) {
@@ -563,7 +722,6 @@ export function createShellDialog(options = {}) {
   function onAgentReply(body) {
     const raw = String(body || "").trim();
     if (!raw) return;
-    pushHistory("agent", raw);
     onReplyRendered(raw);
   }
 
@@ -681,7 +839,8 @@ export function createShellDialog(options = {}) {
     connectionHint,
     pushHistory,
     upsertToolActivity,
-    refreshHistory: loadHistory,
+    renderLiveToolStrip,
+    refreshHistory: (options) => loadHistory(options),
     syncLiveReplySlot
   };
 }

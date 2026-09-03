@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=491" />
+    <link rel="stylesheet" href="/shell/shell.css?v=495" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -41,7 +41,7 @@
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=207",
-          "@shell/dialog": "/shell/shell-dialog.js?v=265",
+          "@shell/dialog": "/shell/shell-dialog.js?v=272",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=316",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=417",
@@ -1802,7 +1802,11 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <div class="shell-last-ask-text" id="shell-last-ask"></div>
           </div>
           <div class="shell-reply-body shell-dialog-live-reply" id="shell-last-reply">
-            <div class="shell-reply-text" id="shell-last-reply-text">—</div>
+            <div class="shell-live-tools hidden" id="shell-live-tools" aria-live="polite" aria-label="Вызовы инструментов"></div>
+            <div class="shell-live-reply-stream">
+              <div class="shell-reply-text" id="shell-last-reply-text">—</div>
+              <span class="shell-live-reply-wait hidden" id="shell-last-reply-wait" aria-live="polite"></span>
+            </div>
             <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
           </div>
         </div>
@@ -2274,6 +2278,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=498" type="module"></script>
+    <script src="/shell/shell.js?v=506" type="module"></script>
   </body>
 </html>
