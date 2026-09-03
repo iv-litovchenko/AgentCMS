@@ -276,7 +276,7 @@ function handleSttEnabledChange(source) {
   if (nodes.sttEnabled && nodes.sttEnabled !== source) nodes.sttEnabled.checked = enabled;
   if (nodes.sttPanelEnabled && nodes.sttPanelEnabled !== source) nodes.sttPanelEnabled.checked = enabled;
   if (state.settings) state.settings.sttEnabled = enabled;
-  markSettingsDirty("stt", { force: true });
+  markSettingsDirty("stt");
   const fromPanel = source?.id === "shell-stt-panel-enabled";
   if (!(fromPanel && isSettingsViewOpen())) {
     void persistSttEnabled(enabled);
@@ -294,7 +294,7 @@ function handleTtsEnabledChange(source) {
   if (nodes.ttsEnabled && nodes.ttsEnabled !== source) nodes.ttsEnabled.checked = enabled;
   if (nodes.ttsPanelEnabled && nodes.ttsPanelEnabled !== source) nodes.ttsPanelEnabled.checked = enabled;
   if (state.settings) state.settings.ttsEnabled = enabled;
-  markSettingsDirty("tts", { force: true });
+  markSettingsDirty("tts");
   if (!enabled) stopBrowserTts({ notifyServer: true });
   const fromPanel = source?.id === "shell-tts-panel-enabled";
   if (!(fromPanel && isSettingsViewOpen())) {
@@ -314,7 +314,7 @@ function handleTtsPlaybackModeChange(source) {
     }
   }
   if (state.settings) state.settings.ttsPlaybackMode = mode;
-  markSettingsDirty("tts", { force: true });
+  markSettingsDirty("tts");
   updateTtsPlaybackHint(mode);
   const fromPanel = source.name === "shell-tts-playback-mode-panel";
   if (!(fromPanel && isSettingsViewOpen())) {
@@ -3875,22 +3875,16 @@ function getSettingsSnapshot(section) {
   return {};
 }
 
-function markSettingsDirty(section, { force = false } = {}) {
-  if (force) {
+function markSettingsDirty(section) {
+  let snapshot;
+  try {
+    snapshot = getSettingsSnapshot(section);
+  } catch (error) {
+    shellLog("settings", "markSettingsDirty snapshot failed", section, error.message);
     settingsSave.forceDirty(section);
-  } else {
-    let snapshot;
-    try {
-      snapshot = getSettingsSnapshot(section);
-    } catch (error) {
-      shellLog("settings", "markSettingsDirty snapshot failed", section, error.message);
-      settingsSave.forceDirty(section);
-      settingsSave.syncUi();
-      return;
-    }
-    settingsSave.markDirty(section, snapshot);
+    return;
   }
-  settingsSave.syncUi();
+  settingsSave.markDirty(section, snapshot);
 }
 
 function bindSettingsSaveButton(btn, section) {
@@ -4062,7 +4056,7 @@ function bindSettingsDirtyTracking() {
     if (!isSettingsViewOpen()) return;
     const section = settingsSectionFromTarget(event.target);
     if (!section) return;
-    markSettingsDirty(section, { force: true });
+    markSettingsDirty(section);
   };
   document.addEventListener("input", onFieldChange, true);
   document.addEventListener("change", onFieldChange, true);
@@ -4797,7 +4791,7 @@ function generateBridgeSessionUuid() {
   if (!sessionInput) return;
   sessionInput.value = createCliSessionUuid();
   sessionInput.dispatchEvent(new Event("input", { bubbles: true }));
-  markSettingsDirty("route", { force: true });
+  markSettingsDirty("route");
 }
 
 function readRouteRuntimeSelectValue() {
@@ -5833,7 +5827,7 @@ function insertTtsPromptTemplate() {
   const template = String(shellPromptTemplates.ttsPrompt || DEFAULT_TTS_PROMPT).trim() || DEFAULT_TTS_PROMPT;
   nodes.ttsPrompt.value = template;
   state.settings = { ...(state.settings || {}), ttsPrompt: template };
-  markSettingsDirty("tts", { force: true });
+  markSettingsDirty("tts");
 }
 
 function insertSttPromptTemplate() {
@@ -5841,7 +5835,7 @@ function insertSttPromptTemplate() {
   const template = String(shellPromptTemplates.sttPrompt || DEFAULT_STT_PROMPT).trim() || DEFAULT_STT_PROMPT;
   nodes.sttPrompt.value = template;
   state.settings = { ...(state.settings || {}), sttPrompt: template };
-  markSettingsDirty("stt", { force: true });
+  markSettingsDirty("stt");
 }
 
 function insertProactivePromptTemplate() {
@@ -5851,7 +5845,7 @@ function insertProactivePromptTemplate() {
     DEFAULT_PROACTIVE_PROMPT;
   nodes.proactivePrompt.value = template;
   state.settings = { ...(state.settings || {}), proactivePrompt: template };
-  markSettingsDirty("proactive", { force: true });
+  markSettingsDirty("proactive");
 }
 
 function resolveProactivePromptTemplate() {
@@ -6813,7 +6807,7 @@ function collectTtsFormPatch() {
   return {
     ttsPlaybackMode: getTtsPlaybackMode(),
     ttsPrompt: nodes.ttsPrompt?.value || "",
-    ttsEngine: nodes.ttsEngine?.value || "browser",
+    ttsEngine: getTtsEngine(),
     ttsBrowserLang: nodes.ttsLang?.value || "ru-RU",
     ttsBrowserVoice: nodes.ttsVoice?.value || "",
     ttsSayLang: nodes.ttsSayLang?.value || "ru-RU",
@@ -7118,7 +7112,7 @@ async function testTtsEngine() {
     }
     if (engine === "browser" || engine === "say") {
       await applyContrastVoiceDefaults(engine);
-      markSettingsDirty("tts", { force: true });
+      markSettingsDirty("tts");
     }
     const phrase = getTtsTestPhrase(engine);
     renderPhase("thinking", `Пробная озвучка · ${ttsEngineLabel(engine)}…`);
@@ -8007,7 +8001,7 @@ function bindWindowSettingsUi() {
       nodes.windowBackground.disabled = windowTransparent && nodes.windowTransparent?.checked === true;
     }
     previewWindowFromForm();
-    markSettingsDirty("window", { force: true });
+    markSettingsDirty("window");
   };
 
   nodes.topmost?.addEventListener("change", onWindowFieldChange);
@@ -8023,7 +8017,7 @@ function bindWindowSettingsUi() {
     window.shellApp.onPetOverlayChanged((payload) => {
       if (!nodes.windowPetOverlay) return;
       nodes.windowPetOverlay.checked = Boolean(payload?.enabled);
-      markSettingsDirty("window", { force: true });
+      markSettingsDirty("window");
       void saveWindowSettings(buildWindowSettingsPayload({ windowPetOverlay: Boolean(payload?.enabled) })).catch(
         () => {}
       );
@@ -8058,7 +8052,7 @@ function handleMessageTargetChange() {
   const runtime = readRuntimeSelectValue(nodes.messageTarget);
   if (!runtime) return;
   if (state.settings) state.settings.messageTarget = runtime;
-  markSettingsDirty("route", { force: true });
+  markSettingsDirty("route");
   syncRuntimeSelects("header");
   updateRuntimeUi({ runtime });
   void persistMessageTarget(runtime).then(() => shellDialog.refreshHistory?.());
@@ -8073,7 +8067,7 @@ function handleRouteRuntimeChange() {
   if (state.settings) state.settings.messageTarget = runtime;
   syncRuntimeSelects("route");
   updateRuntimeUi({ runtime, reloadForms: true });
-  markSettingsDirty("route", { force: true });
+  markSettingsDirty("route");
   void persistMessageTarget(runtime);
 }
 
@@ -8083,13 +8077,13 @@ function bindUi() {
   try {
   populateVoiceModeSelect();
   populateTtsEngineSelect();
-  onRouteSettingsDirty = () => markSettingsDirty("route", { force: true });
+  onRouteSettingsDirty = () => markSettingsDirty("route");
 
   bindSettingsDirtyUi();
-  const markRouteDirty = () => markSettingsDirty("route", { force: true });
-  const markTtsDirty = () => markSettingsDirty("tts", { force: true });
-  const markSttDirty = () => markSettingsDirty("stt", { force: true });
-  const markProactiveDirty = () => markSettingsDirty("proactive", { force: true });
+  const markRouteDirty = () => markSettingsDirty("route");
+  const markTtsDirty = () => markSettingsDirty("tts");
+  const markSttDirty = () => markSettingsDirty("stt");
+  const markProactiveDirty = () => markSettingsDirty("proactive");
 
   nodes.cameraEnabled?.addEventListener("change", () => {
     const enabled = nodes.cameraEnabled.checked;
@@ -8201,7 +8195,7 @@ function bindUi() {
     input?.addEventListener("change", markRouteDirty);
   }
   nodes.bridgePermissionMode?.addEventListener("change", () => {
-    markSettingsDirty("route", { force: true });
+    markSettingsDirty("route");
     void persistRoutePermissionMode().catch((error) => renderPhase("waiting", error.message));
   });
   nodes.ttsEnabled?.addEventListener("change", () => {
