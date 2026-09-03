@@ -6,6 +6,7 @@ const { promisify } = require("util");
 const execFileAsync = promisify(execFile);
 
 const VERSION_TIMEOUT_MS = 8000;
+const cliBinaryCache = new Map();
 
 function preferredCliBinDirs(home = os.homedir()) {
   return [path.join(home, ".npm-global", "bin"), path.join(home, ".local", "bin")];
@@ -105,8 +106,16 @@ async function listCliBinaryCandidates(runtime, settings = {}) {
 }
 
 async function resolveCliBinary(runtime, settings = {}) {
+  const key = `${String(runtime || "").trim()}:${readCliPathFromSettings(settings, runtime)}`;
+  if (cliBinaryCache.has(key)) return cliBinaryCache.get(key);
   const candidates = await listCliBinaryCandidates(runtime, settings);
-  return candidates[0] || defaultCliBinary(runtime);
+  const binary = candidates[0] || defaultCliBinary(runtime);
+  cliBinaryCache.set(key, binary);
+  return binary;
+}
+
+function clearCliBinaryCache() {
+  cliBinaryCache.clear();
 }
 
 async function probeOneBinary(binary, env, label) {
@@ -152,5 +161,6 @@ module.exports = {
   defaultCliBinary,
   readCliPathFromSettings,
   resolveCliBinary,
+  clearCliBinaryCache,
   probeCliBinary
 };

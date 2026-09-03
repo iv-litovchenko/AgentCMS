@@ -562,6 +562,12 @@ async function patchState(agentRoot, agentId, patch) {
   return next;
 }
 
+function patchStateAsync(agentRoot, agentId, patch) {
+  void patchState(agentRoot, agentId, patch).catch((error) => {
+    console.warn("[shell] patchState failed:", error?.message || error);
+  });
+}
+
 function emitShellEvent(agentId, type, payload) {
   bus.emit("event", {
     agentId: String(agentId || ""),
@@ -1057,14 +1063,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     };
 
     const now = Date.now();
-    if (priority >= 10 || now - lastStatePatchAt >= STREAM_STATE_PATCH_MS) {
-      lastStatePatchAt = now;
-      await patchState(agentRoot, agentId, {
-        phase: PHASE_THINKING,
-        phrase,
-        metrics: tool || ""
-      });
-    }
+    const shouldPatch = priority >= 10 || now - lastStatePatchAt >= STREAM_STATE_PATCH_MS;
     emitShellEvent(agentId, "agent_activity", {
       streamId,
       kind: lastActivityPayload.kind,
@@ -1072,6 +1071,14 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
       tool: lastActivityPayload.tool,
       phrase
     });
+    if (shouldPatch) {
+      lastStatePatchAt = now;
+      patchStateAsync(agentRoot, agentId, {
+        phase: PHASE_THINKING,
+        phrase,
+        metrics: tool || ""
+      });
+    }
   };
 
   const emitAssistantDelta = async (
@@ -1109,10 +1116,8 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
         });
       }
     }
-    if (done || force || now - lastStatePatchAt >= STREAM_STATE_PATCH_MS) {
-      lastStatePatchAt = now;
-      await patchState(agentRoot, agentId, patch);
-    }
+    const shouldPatch = done || force || now - lastStatePatchAt >= STREAM_STATE_PATCH_MS;
+    if (shouldPatch) lastStatePatchAt = now;
     emitShellEvent(agentId, "assistant_delta", {
       streamId,
       text: replyText,
@@ -1133,9 +1138,8 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
         spokenParts
       });
     }
+    if (shouldPatch) patchStateAsync(agentRoot, agentId, patch);
   };
-
-  await emitAgentActivity({ kind: "run", phase: "start", priority: 10, phrase: "Запускаю…" });
 
   let reply;
   try {
@@ -1231,10 +1235,8 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
     } else if (replyText.trim()) {
       patch.phrase = "Печатает…";
     }
-    if (done || force || now - lastStatePatchAt >= STREAM_STATE_PATCH_MS) {
-      lastStatePatchAt = now;
-      await patchState(agentRoot, agentId, patch);
-    }
+    const shouldPatch = done || force || now - lastStatePatchAt >= STREAM_STATE_PATCH_MS;
+    if (shouldPatch) lastStatePatchAt = now;
     emitShellEvent(agentId, "assistant_delta", {
       streamId,
       text: replyText,
@@ -1254,12 +1256,8 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         spokenParts
       });
     }
+    if (shouldPatch) patchStateAsync(agentRoot, agentId, patch);
   };
-
-  await patchState(agentRoot, agentId, {
-    phase: PHASE_THINKING,
-    phrase: "Запускаю…"
-  });
 
   const messages = [{ role: "user", content: outboundText }];
   const onDelta = (partial) => {
@@ -1272,6 +1270,12 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
     if (endpoint.transport === RUNTIME_TRANSPORT.cli) {
       const binary = await resolveCliBinary(runtime, settings);
       const cliChat = runtime === "codex" ? chatCodexCli : chatClaudeCli;
+      emitShellEvent(agentId, "agent_activity", {
+        streamId,
+        kind: "run",
+        phase: "start",
+        phrase: runtime === "codex" ? "Codex…" : "Claude…"
+      });
       reply = await cliChat({
         binary: binary || endpoint.cliPath,
         model: endpoint.model,
@@ -1750,6 +1754,7 @@ module.exports = {
   mergeTtsSynthSettings,
   getState,
   patchState,
+  patchStateAsync,
   sendUserMessage,
   sendToQwenPaw,
   sendToBridgeRuntime,

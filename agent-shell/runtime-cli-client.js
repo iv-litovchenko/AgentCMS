@@ -226,6 +226,14 @@ function consumeJsonLines(buffer, onEvent) {
   return rest;
 }
 
+function isSessionInUseError(message) {
+  return /session id .* is already in use/i.test(String(message || ""));
+}
+
+function isResumeUnavailableError(message) {
+  return /no rollout|thread\/resume failed|session not found|invalid session/i.test(String(message || ""));
+}
+
 async function chatClaudeCli({
   binary = "claude",
   model,
@@ -242,7 +250,7 @@ async function chatClaudeCli({
   const sid = normalizeCliSessionId(sessionId, "claude");
 
   const runOnce = async (resume) => {
-    const args = ["-p", prompt, "--output-format", "stream-json", "--verbose"];
+    const args = ["-p", prompt, "--output-format", "stream-json", "--verbose", "--bare"];
     if (model) args.push("--model", String(model));
     if (resume && sid) args.push("--resume", sid);
     else if (sid) args.push("--session-id", sid);
@@ -312,9 +320,20 @@ async function chatClaudeCli({
   };
 
   try {
-    return await runOnce(Boolean(sid));
+    if (sid) {
+      try {
+        return await runOnce(true);
+      } catch (error) {
+        const msg = String(error?.message || error);
+        if (isSessionInUseError(msg)) throw error;
+        if (error.resumeFailed || isResumeUnavailableError(msg)) {
+          return await runOnce(false);
+        }
+        throw error;
+      }
+    }
+    return await runOnce(false);
   } catch (error) {
-    if (sid) return runOnce(false);
     throw error;
   }
 }

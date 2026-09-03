@@ -303,7 +303,7 @@ function createShellHandlers(deps) {
         const author = String(payload?.author || "shell").trim() || "shell";
         void shellService.logShellDialogUser(agentRoot, body, runtime);
 
-        await shellService.patchState(agentRoot, agentId, {
+        shellService.patchStateAsync(agentRoot, agentId, {
           phase: shellService.PHASE_THINKING,
           phrase: String(payload?.displayPhrase || body).slice(0, 240),
           lastTtsClientId: ttsClientId || undefined,

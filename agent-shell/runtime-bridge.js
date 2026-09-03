@@ -44,7 +44,7 @@ const RUNTIME_DEFAULTS = {
   },
   claude: {
     cliPath: "claude",
-    model: "",
+    model: "sonnet",
     profile: "",
     sessionId: ""
   },

@@ -103,10 +103,12 @@ import {
 import {
   SHELL_RUNTIMES,
   SHELL_RUNTIME_GROUPS,
-  SHELL_CLI_RUNTIMES,
   SHELL_RUNTIME_LABELS,
   SHELL_RUNTIME_HINTS,
-  formatCliRuntimeRouteNote,
+  formatRuntimeRouteNote,
+  SHELL_ROUTE_NOTE_RUNTIMES,
+  SHELL_RUNTIME_ROUTE_INTROS,
+  runtimeShowsRouteNote,
   formatRuntimeSelectLabel,
   formatRuntimeStatusTitle,
   resolveRuntimeConnectionState,
@@ -1002,9 +1004,10 @@ function toggleTtsPauseResume() {
 const nodes = {
   messageTarget: document.getElementById("shell-message-target"),
   routeRuntime: document.getElementById("shell-route-runtime"),
-  routeRuntimeCliNotes: document.getElementById("shell-route-cli-notes"),
-  routeRuntimeCliNoteClaude: document.getElementById("shell-route-runtime-cli-note-claude"),
-  routeRuntimeCliNoteCodex: document.getElementById("shell-route-runtime-cli-note-codex"),
+  routeRuntimeNotes: document.getElementById("shell-route-runtime-notes"),
+  routeRuntimeNoteClaude: document.getElementById("shell-route-runtime-note-claude"),
+  routeRuntimeNoteCodex: document.getElementById("shell-route-runtime-note-codex"),
+  routeRuntimeNoteQwenpaw: document.getElementById("shell-route-runtime-note-qwenpaw"),
   qwenpawPanel: document.getElementById("shell-qwenpaw-panel"),
   qwenpawUrl: document.getElementById("shell-qwenpaw-url"),
   qwenpawOpenUrl: document.getElementById("shell-qwenpaw-open-url"),
@@ -1405,12 +1408,21 @@ const SHELL_CLOCK_LOCALE = "ru-RU";
 const BATTERY_FILL_MAX = 16;
 
 function formatShellClock(date = new Date()) {
-  return new Intl.DateTimeFormat(SHELL_CLOCK_LOCALE, {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(date);
+  try {
+    return new Intl.DateTimeFormat(SHELL_CLOCK_LOCALE, {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(date);
+  } catch {
+    return date.toLocaleString(SHELL_CLOCK_LOCALE, {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
 }
 
 function syncAgentSelects() {
@@ -1546,6 +1558,7 @@ function refreshShellHeaderNodes() {
   nodes.headerAgent = document.getElementById("shell-header-agent") || nodes.headerAgent;
   nodes.headerHost = document.getElementById("shell-header-host") || nodes.headerHost;
   nodes.settingsBtn = document.getElementById("shell-settings-btn") || nodes.settingsBtn;
+  nodes.clock = document.getElementById("shell-clock") || nodes.clock;
 }
 
 function renderHeaderHostChip() {
@@ -1602,6 +1615,7 @@ function renderClock() {
 }
 
 function startClock() {
+  refreshShellHeaderNodes();
   renderClock();
   if (state.clockTimer) clearInterval(state.clockTimer);
   state.clockTimer = setInterval(renderClock, 1000);
@@ -4442,7 +4456,9 @@ function refreshRuntimeSelectLabels() {
       if (runtime === current) opt.selected = true;
     }
   }
-  if (state.view === "settings") updateRuntimeRouteCliNote();
+  if (state.view === "settings") {
+    updateRuntimeRouteNotes(readRuntimeSelectValue(nodes.routeRuntime) || getSelectedRuntime());
+  }
 }
 
 function populateRuntimeSelect(selected = normalizeMessageRuntime(state.settings?.messageTarget || "qwenpaw")) {
@@ -4526,30 +4542,66 @@ function setBridgeFieldVisible(fieldEl, visible) {
   fieldEl.classList.toggle("hidden", !visible);
 }
 
-function updateRuntimeRouteCliNote(runtime = getSelectedRuntime()) {
-  const container = nodes.routeRuntimeCliNotes;
-  if (!container) return;
-  const selected = normalizeMessageRuntime(runtime);
-  const showCliNotes = runtimeUsesCli(selected);
-  const blocks = {
-    claude: nodes.routeRuntimeCliNoteClaude,
-    codex: nodes.routeRuntimeCliNoteCodex
-  };
+function refreshRoutePanelNodes() {
+  nodes.routeRuntimeNotes = document.getElementById("shell-route-runtime-notes") || nodes.routeRuntimeNotes;
+  nodes.routeRuntimeNoteClaude =
+    document.getElementById("shell-route-runtime-note-claude") || nodes.routeRuntimeNoteClaude;
+  nodes.routeRuntimeNoteCodex =
+    document.getElementById("shell-route-runtime-note-codex") || nodes.routeRuntimeNoteCodex;
+  nodes.routeRuntimeNoteQwenpaw =
+    document.getElementById("shell-route-runtime-note-qwenpaw") || nodes.routeRuntimeNoteQwenpaw;
+}
 
-  for (const id of SHELL_CLI_RUNTIMES) {
-    const block = blocks[id];
+function getRouteRuntimeNoteBlock(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  if (id === "claude") return nodes.routeRuntimeNoteClaude;
+  if (id === "codex") return nodes.routeRuntimeNoteCodex;
+  if (id === "qwenpaw") return nodes.routeRuntimeNoteQwenpaw;
+  return null;
+}
+
+function fillRouteRuntimeNoteBlock(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  const block = getRouteRuntimeNoteBlock(id);
+  if (!block) return "";
+  const introEl = block.querySelector(".shell-runtime-route-note-intro");
+  const bodyEl = block.querySelector(".shell-runtime-route-note-body");
+  const intro = String(SHELL_RUNTIME_ROUTE_INTROS[id] || "").trim();
+  const body = formatRuntimeRouteNote(id, getRuntimeStatus(id));
+  if (introEl) introEl.textContent = intro;
+  if (bodyEl) bodyEl.textContent = body;
+  block.dataset.active = body ? "1" : "0";
+  return body;
+}
+
+function setRouteRuntimeNoteVisible(block, visible) {
+  if (!block) return;
+  block.hidden = !visible;
+  block.classList.toggle("hidden", !visible);
+  block.dataset.visible = visible ? "1" : "0";
+}
+
+function updateRuntimeRouteNotes(runtime = getSelectedRuntime()) {
+  refreshRoutePanelNodes();
+  const container = nodes.routeRuntimeNotes;
+  if (!container) return;
+
+  const selected = normalizeMessageRuntime(runtime);
+  const showNotes = runtimeShowsRouteNote(selected);
+  let anyVisible = false;
+
+  for (const id of SHELL_ROUTE_NOTE_RUNTIMES) {
+    const block = getRouteRuntimeNoteBlock(id);
     if (!block) continue;
-    const noteEl = block.querySelector(".shell-runtime-cli-note");
-    const text = formatCliRuntimeRouteNote(id, getRuntimeStatus(id));
-    if (noteEl) noteEl.textContent = text;
-    const showBlock = showCliNotes && id === selected && Boolean(text);
-    block.dataset.active = showBlock ? "1" : "0";
-    block.hidden = !showBlock;
-    block.classList.toggle("hidden", !showBlock);
+    const showBlock = showNotes && id === selected;
+    if (showBlock) fillRouteRuntimeNoteBlock(id);
+    setRouteRuntimeNoteVisible(block, showBlock);
+    if (showBlock) anyVisible = true;
   }
 
-  container.classList.toggle("hidden", !showCliNotes);
-  container.hidden = !showCliNotes;
+  container.hidden = !anyVisible;
+  container.classList.toggle("hidden", !anyVisible);
+  container.dataset.runtime = anyVisible ? selected : "";
 }
 
 function updateRuntimeUi({ reloadForms = true, runtime: runtimeOverride } = {}) {
@@ -4560,7 +4612,7 @@ function updateRuntimeUi({ reloadForms = true, runtime: runtimeOverride } = {}) 
   if (nodes.bridgePanel) {
     nodes.bridgePanel.dataset.visible = runtimeUsesBridge(runtime) ? "1" : "0";
   }
-  updateRuntimeRouteCliNote(runtime);
+  updateRuntimeRouteNotes(runtime);
   const settings = state.settings || {};
   if (reloadForms) {
     if (runtimeUsesQwenPaw(runtime)) applyQwenpawRouteForm(settings);
@@ -5473,11 +5525,10 @@ async function sendMessageDirect(
   const { signal } = messageSendAbortController;
   try {
     if (isShellLocationShareEnabled()) {
-      await refreshShellLocationForSend();
+      void refreshShellLocationForSend();
     }
     shellDialog.clearError();
     if (showInDialog) shellDialog.onUserMessage(text);
-    void patchShellState({ phase: "thinking", phrase: String(displayPhrase || text).slice(0, 240) });
     void apiFetch("/api/shell/message", {
       method: "POST",
       body: JSON.stringify({
@@ -7524,6 +7575,9 @@ function setSettingsTab(tab) {
   if (next === "stt") {
     void loadSttCapabilities();
   }
+  if (next === "route") {
+    updateRuntimeRouteNotes(readRuntimeSelectValue(nodes.routeRuntime) || getSelectedRuntime());
+  }
 }
 
 function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
@@ -7555,6 +7609,7 @@ function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
       applyProactiveFormUi(state.settings);
       commitAllSettingsBaselines();
     }
+    updateRuntimeRouteNotes(getSelectedRuntime());
     settingsSave.syncUi();
   } else if (prev === "settings") {
     void refreshStatus().then(() => {
@@ -8298,6 +8353,8 @@ function bindShellInteractiveUi() {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") {
         stopShellProcessingAmbient();
+      } else {
+        renderClock();
       }
     });
     syncDialogConnectionState();
@@ -8350,6 +8407,7 @@ async function connectShellAgentData() {
 
 async function boot() {
   refreshShellHeaderNodes();
+  startClock();
   setComposeExpanded(false);
   populateVoiceModeSelect();
   populateRuntimeSelect();

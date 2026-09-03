@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=476" />
+    <link rel="stylesheet" href="/shell/shell.css?v=478" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -54,7 +54,7 @@
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=415",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
-          "@shell/runtimes": "/shell/shell-runtimes.js?v=355",
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=356",
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=414",
           "@shell/build": "/shell/shell-build.js?v=416"
         }
@@ -379,27 +379,39 @@
           <span class="shell-label">Runtime</span>
           <select id="shell-route-runtime" class="shell-select" aria-label="Runtime"></select>
         </label>
-        <div class="shell-runtime-cli-notes hidden" id="shell-route-cli-notes" hidden>
-          <p class="shell-runtime-cli-notes-intro">
-            Локальный CLI в терминале. Shell запускает бинарь в каталоге workspace.
-          </p>
+        <div class="shell-runtime-route-notes hidden" id="shell-route-runtime-notes" hidden>
           <section
-            class="shell-runtime-cli-note-block"
-            id="shell-route-runtime-cli-note-claude"
+            class="shell-runtime-route-note shell-runtime-route-note--cli hidden"
+            id="shell-route-runtime-note-claude"
             data-runtime="claude"
-            aria-labelledby="shell-route-runtime-cli-note-claude-title"
+            aria-labelledby="shell-route-runtime-note-claude-title"
+            hidden
           >
-            <h3 class="shell-runtime-cli-note-title" id="shell-route-runtime-cli-note-claude-title">Claude</h3>
-            <p class="shell-runtime-cli-note" role="status"></p>
+            <p class="shell-runtime-route-note-intro" id="shell-route-runtime-note-claude-intro"></p>
+            <h3 class="shell-runtime-route-note-title" id="shell-route-runtime-note-claude-title">Claude</h3>
+            <p class="shell-runtime-route-note-body" id="shell-route-runtime-note-claude-body" role="status"></p>
           </section>
           <section
-            class="shell-runtime-cli-note-block"
-            id="shell-route-runtime-cli-note-codex"
+            class="shell-runtime-route-note shell-runtime-route-note--cli hidden"
+            id="shell-route-runtime-note-codex"
             data-runtime="codex"
-            aria-labelledby="shell-route-runtime-cli-note-codex-title"
+            aria-labelledby="shell-route-runtime-note-codex-title"
+            hidden
           >
-            <h3 class="shell-runtime-cli-note-title" id="shell-route-runtime-cli-note-codex-title">Codex (ChatGPT)</h3>
-            <p class="shell-runtime-cli-note" role="status"></p>
+            <p class="shell-runtime-route-note-intro" id="shell-route-runtime-note-codex-intro"></p>
+            <h3 class="shell-runtime-route-note-title" id="shell-route-runtime-note-codex-title">Codex (ChatGPT)</h3>
+            <p class="shell-runtime-route-note-body" id="shell-route-runtime-note-codex-body" role="status"></p>
+          </section>
+          <section
+            class="shell-runtime-route-note shell-runtime-route-note--agent hidden"
+            id="shell-route-runtime-note-qwenpaw"
+            data-runtime="qwenpaw"
+            aria-labelledby="shell-route-runtime-note-qwenpaw-title"
+            hidden
+          >
+            <p class="shell-runtime-route-note-intro" id="shell-route-runtime-note-qwenpaw-intro"></p>
+            <h3 class="shell-runtime-route-note-title" id="shell-route-runtime-note-qwenpaw-title">QwenPaw</h3>
+            <p class="shell-runtime-route-note-body" id="shell-route-runtime-note-qwenpaw-body" role="status"></p>
           </section>
         </div>
 
@@ -2232,6 +2244,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=474" type="module"></script>
+    <script src="/shell/shell.js?v=478" type="module"></script>
   </body>
 </html>

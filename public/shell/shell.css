@@ -2975,6 +2975,82 @@ body.shell-desktop .shell-agent-gate select {
   color: var(--muted);
 }
 
+.shell-runtime-route-notes {
+  margin: 8px 0 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.shell-runtime-route-notes.hidden,
+.shell-runtime-route-notes[hidden] {
+  display: none !important;
+}
+
+.shell-runtime-route-note {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.shell-runtime-route-note--agent {
+  border-color: rgba(124, 108, 255, 0.32);
+  background: rgba(124, 108, 255, 0.1);
+}
+
+.shell-runtime-route-note[data-active="1"] {
+  border-color: rgba(251, 191, 36, 0.52);
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.shell-runtime-route-note--agent[data-active="1"] {
+  border-color: rgba(124, 108, 255, 0.48);
+  background: rgba(124, 108, 255, 0.14);
+}
+
+.shell-runtime-route-note.hidden,
+.shell-runtime-route-note[hidden] {
+  display: none !important;
+}
+
+.shell-runtime-route-note-intro {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(253, 230, 138, 0.82);
+}
+
+.shell-runtime-route-note--agent .shell-runtime-route-note-intro {
+  color: rgba(196, 181, 253, 0.88);
+}
+
+.shell-runtime-route-note-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #fde68a;
+}
+
+.shell-runtime-route-note--agent .shell-runtime-route-note-title {
+  color: #c4b5fd;
+}
+
+.shell-runtime-route-note-body {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fde68a;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.shell-runtime-route-note--agent .shell-runtime-route-note-body {
+  color: rgba(196, 181, 253, 0.92);
+}
+
 .shell-runtime-cli-notes {
   margin: 8px 0 12px;
   display: grid;
@@ -3002,6 +3078,11 @@ body.shell-desktop .shell-agent-gate select {
 .shell-runtime-cli-note-block[data-active="1"] {
   border-color: rgba(251, 191, 36, 0.52);
   background: rgba(251, 191, 36, 0.12);
+}
+
+.shell-runtime-cli-note-block.hidden,
+.shell-runtime-cli-note-block[hidden] {
+  display: none !important;
 }
 
 .shell-runtime-cli-note-title {
