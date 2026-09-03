@@ -3834,6 +3834,11 @@ body.shell-desktop .shell-agent-gate select {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
+.shell-save-btn.is-saving {
+  opacity: 0.72;
+  cursor: wait;
+}
+
 .shell-save-btn.is-saved,
 .shell-save-btn:not(.is-dirty) {
   background: rgba(100, 116, 139, 0.22);
@@ -5888,6 +5893,62 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
 .shell-runtime-bridge-fields .shell-field[hidden],
 .shell-runtime-bridge-fields .shell-field.hidden {
   display: none !important;
+}
+
+.shell-runtime-bridge-permission-field {
+  margin: 0;
+}
+
+.shell-runtime-bridge-permission-field .shell-tts-panel-playback {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+
+.shell-runtime-bridge-permission-field .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel input {
+  position: static;
+  opacity: 1;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  pointer-events: auto;
+  flex-shrink: 0;
+  accent-color: #7c6cff;
+}
+
+.shell-runtime-bridge-permission-field[data-runtime="claude"]
+  .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel:has(input:checked) {
+  border-color: rgba(251, 146, 60, 0.52);
+  background: rgba(251, 146, 60, 0.12);
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.1);
+}
+
+.shell-runtime-bridge-permission-field[data-runtime="claude"]
+  .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel:has(input:checked)
+  .shell-tts-playback-emoji {
+  border-color: rgba(251, 146, 60, 0.45);
+  background: rgba(251, 146, 60, 0.16);
+}
+
+.shell-runtime-bridge-permission-field[data-runtime="codex"]
+  .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel:has(input:checked) {
+  border-color: rgba(74, 222, 128, 0.42);
+  background: rgba(74, 222, 128, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.18);
+}
+
+.shell-runtime-bridge-permission-field[data-runtime="codex"]
+  .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel:has(input:checked)
+  .shell-tts-playback-emoji {
+  border-color: rgba(74, 222, 128, 0.42);
+  background: rgba(74, 222, 128, 0.14);
+}
+
+.shell-runtime-bridge-permission-field .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel:has(input:focus-visible) {
+  outline: 2px solid rgba(124, 108, 255, 0.55);
+  outline-offset: 2px;
 }
 
 .shell-section-label {

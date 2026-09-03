@@ -26,11 +26,12 @@ const RUNTIME_FLAT_SUFFIX = {
   model: "Model",
   profile: "Profile",
   agentId: "AgentId",
-  sessionId: "SessionId"
+  sessionId: "SessionId",
+  permissionMode: "PermissionMode"
 };
 
 const RUNTIME_FIELDS_BY_KIND = {
-  cli: ["cliPath", "model", "sessionId"],
+  cli: ["cliPath", "model", "sessionId", "permissionMode"],
   agent: ["baseUrl", "apiKey", "model", "profile", "agentId", "sessionId"]
 };
 

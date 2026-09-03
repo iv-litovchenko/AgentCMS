@@ -1281,6 +1281,7 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         model: endpoint.model,
         messages,
         sessionId: endpoint.sessionId,
+        permissionMode: endpoint.permissionMode || "",
         cwd: agentRoot,
         onDelta
       });

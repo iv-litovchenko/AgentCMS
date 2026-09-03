@@ -234,11 +234,19 @@ function isResumeUnavailableError(message) {
   return /no rollout|thread\/resume failed|session not found|invalid session/i.test(String(message || ""));
 }
 
+const CLAUDE_PERMISSION_MODES = new Set(["bypassPermissions", "dontAsk", "auto", "manual", "plan"]);
+
+function normalizeClaudePermissionMode(value) {
+  const mode = String(value || "").trim();
+  return CLAUDE_PERMISSION_MODES.has(mode) ? mode : "";
+}
+
 async function chatClaudeCli({
   binary = "claude",
   model,
   messages,
   sessionId = "",
+  permissionMode = "",
   onDelta,
   signal,
   cwd,
@@ -249,9 +257,12 @@ async function chatClaudeCli({
 
   const sid = normalizeCliSessionId(sessionId, "claude");
 
+  const permission = normalizeClaudePermissionMode(permissionMode);
+
   const runOnce = async (resume) => {
     const args = ["-p", prompt, "--output-format", "stream-json", "--verbose"];
     if (model) args.push("--model", String(model));
+    if (permission) args.push("--permission-mode", permission);
     if (resume && sid) args.push("--resume", sid);
     else if (sid) args.push("--session-id", sid);
 
@@ -348,6 +359,7 @@ async function chatCodexCli({
   model,
   messages,
   sessionId = "",
+  permissionMode = "",
   onDelta,
   signal,
   cwd,
@@ -362,6 +374,9 @@ async function chatCodexCli({
   const runOnce = async (resume) => {
     const args = resume && sid ? ["exec", "resume", sid, prompt, "--json"] : ["exec", prompt, "--json"];
     if (model) args.push("-m", String(model));
+    if (normalizeClaudePermissionMode(permissionMode) === "bypassPermissions") {
+      args.push("--dangerously-bypass-approvals-and-sandbox");
+    }
 
     let text = "";
     let lastError = "";

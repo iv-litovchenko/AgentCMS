@@ -40,13 +40,15 @@ const RUNTIME_DEFAULTS = {
     cliPath: "codex",
     model: "",
     profile: "",
-    sessionId: ""
+    sessionId: "",
+    permissionMode: ""
   },
   claude: {
     cliPath: "claude",
     model: "sonnet",
     profile: "",
-    sessionId: ""
+    sessionId: "",
+    permissionMode: ""
   },
   "agent-zero": {
     baseUrl: "http://127.0.0.1:42617",
@@ -132,7 +134,7 @@ function resolveRuntimeEndpoint(settings, runtime) {
 
   if (id === "claude" || id === "codex") {
     const cliPath = readRuntimeString(settings, id, "CliPath", defaults.cliPath || id);
-    return {
+    const endpoint = {
       transport: RUNTIME_TRANSPORT.cli,
       runtime: id,
       cliPath: /^https?:\/\//i.test(cliPath) ? defaults.cliPath || id : cliPath,
@@ -144,6 +146,15 @@ function resolveRuntimeEndpoint(settings, runtime) {
         id
       )
     };
+    if (id === "claude" || id === "codex") {
+      endpoint.permissionMode = readRuntimeString(
+        settings,
+        id,
+        "PermissionMode",
+        defaults.permissionMode || ""
+      );
+    }
+    return endpoint;
   }
 
   const root = baseUrl.replace(/\/+$/, "");

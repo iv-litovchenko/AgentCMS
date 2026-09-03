@@ -20,7 +20,7 @@
       {
         "imports": {
           "three": "/shell/vendor/three.module.js",
-          "@shell/settings-save": "/shell/shell-settings-save.js?v=316",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=317",
           "@shell/reply": "/shell/shell-reply.js?v=207",
           "@shell/markdown": "/shell/shell-markdown.js?v=416",
           "@shell/character": "/shell/shell-character.js?v=208",
@@ -54,7 +54,7 @@
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=415",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
-          "@shell/runtimes": "/shell/shell-runtimes.js?v=358",
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=360",
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=414",
           "@shell/build": "/shell/shell-build.js?v=416"
         }
@@ -519,6 +519,39 @@
                 placeholder="UUID или название сессии, пусто = новая"
               />
             </label>
+            <div
+              class="shell-field shell-field--compact shell-runtime-bridge-permission-field hidden"
+              id="shell-runtime-bridge-permission-field"
+              hidden
+              data-runtime=""
+            >
+              <span class="shell-tts-panel-playback" role="presentation">
+                <label
+                  class="shell-runtime-bridge-permission shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+                  id="shell-runtime-bridge-permission-label"
+                  title="Разрешить инструменты CLI без подтверждения"
+                >
+                  <input
+                    id="shell-runtime-bridge-permission-mode"
+                    type="checkbox"
+                    aria-label="Разрешить инструменты без подтверждения"
+                  />
+                  <span
+                    class="shell-tts-playback-emoji"
+                    id="shell-runtime-bridge-permission-emoji"
+                    aria-hidden="true"
+                  >🔓</span>
+                  <span class="shell-tts-playback-option-copy">
+                    <span class="shell-tts-playback-option-title" id="shell-runtime-bridge-permission-title">
+                      Разрешить инструменты без подтверждения
+                    </span>
+                    <span class="shell-tts-playback-option-desc" id="shell-runtime-bridge-permission-desc">
+                      (WebSearch, Bash и другие — без окна «Разрешить?»)
+                    </span>
+                  </span>
+                </label>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -2222,6 +2255,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=479" type="module"></script>
+    <script src="/shell/shell.js?v=485" type="module"></script>
   </body>
 </html>

@@ -14,7 +14,10 @@
       },
       "claude": {
         "type": "cli",
-        "sessionId": "2784eb57-4c5d-4705-9ef9-58e7c0bbdddc"
+        "cliPath": "claude2",
+        "model": "sonnet2",
+        "sessionId": "2784eb57-4c5d-4705-9ef9-58e7c0bbdddc",
+        "permissionMode": "bypassPermissions"
       },
       "codex": {
         "type": "cli",

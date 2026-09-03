@@ -128,6 +128,11 @@ export function formatCliRuntimeRouteNote(runtime, status = null) {
   const err = String(status?.error || "").trim();
   if (err) lines.push(`Сейчас: ${err}`);
   else if (status?.version) lines.push(`Найдено: ${formatShortCliVersion(status.version)}`);
+  if (id === "claude" || id === "codex") {
+    lines.push(
+      "Инструменты CLI: в Shell нет окна подтверждения — включите переключатель ниже и сохраните настройки."
+    );
+  }
   return lines.join("\n");
 }
 
@@ -270,12 +275,14 @@ export const RUNTIME_DEFAULTS = {
   codex: {
     cliPath: "codex",
     model: "",
-    sessionId: ""
+    sessionId: "",
+    permissionMode: ""
   },
   claude: {
     cliPath: "claude",
     model: "",
-    sessionId: ""
+    sessionId: "",
+    permissionMode: ""
   },
   "agent-zero": {
     baseUrl: "http://127.0.0.1:42617",
@@ -359,7 +366,8 @@ export function bridgeRuntimeField(runtime, field) {
     model: "Model",
     profile: "Profile",
     agentId: "AgentId",
-    sessionId: "SessionId"
+    sessionId: "SessionId",
+    permissionMode: "PermissionMode"
   };
   return runtimeField(id, map[field] || field);
 }
@@ -367,6 +375,30 @@ export function bridgeRuntimeField(runtime, field) {
 export function runtimeUsesCli(runtime) {
   const id = normalizeMessageRuntime(runtime);
   return id === "claude" || id === "codex";
+}
+
+export function runtimeShowsPermissionMode(runtime) {
+  return runtimeUsesCli(normalizeMessageRuntime(runtime));
+}
+
+export function runtimePermissionModeCopy(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  if (id === "codex") {
+    return {
+      emoji: "⚡",
+      title: "Разрешить команды без подтверждения",
+      desc: "(shell, правки файлов и др. — без окна «Разрешить?»)",
+      titleAttr: "Codex CLI — без подтверждения команд и sandbox-запросов",
+      ariaLabel: "Разрешить Codex выполнять команды без подтверждения"
+    };
+  }
+  return {
+    emoji: "🔓",
+    title: "Разрешить инструменты без подтверждения",
+    desc: "(WebSearch, Bash и другие — без окна «Разрешить?»)",
+    titleAttr: "Claude CLI — WebSearch, Bash и другие инструменты без подтверждения",
+    ariaLabel: "Разрешить Claude использовать инструменты без подтверждения"
+  };
 }
 
 export function runtimeShowsModel(runtime) {

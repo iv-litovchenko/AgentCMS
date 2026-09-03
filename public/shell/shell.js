@@ -122,6 +122,8 @@ import {
   runtimeAgentMetaKey,
   runtimeUsesCli,
   runtimeShowsModel,
+  runtimeShowsPermissionMode,
+  runtimePermissionModeCopy,
   runtimeAgentFieldLabel,
   runtimeShowsApiKey,
   runtimeShowsBaseUrl
@@ -1030,6 +1032,12 @@ const nodes = {
   bridgeAgentMeta: document.getElementById("shell-runtime-bridge-agent-meta"),
   bridgeSessionId: document.getElementById("shell-runtime-bridge-session-id"),
   bridgeSessionGenerate: document.getElementById("shell-runtime-bridge-session-generate"),
+  bridgePermissionField: document.getElementById("shell-runtime-bridge-permission-field"),
+  bridgePermissionLabel: document.getElementById("shell-runtime-bridge-permission-label"),
+  bridgePermissionMode: document.getElementById("shell-runtime-bridge-permission-mode"),
+  bridgePermissionEmoji: document.getElementById("shell-runtime-bridge-permission-emoji"),
+  bridgePermissionTitle: document.getElementById("shell-runtime-bridge-permission-title"),
+  bridgePermissionDesc: document.getElementById("shell-runtime-bridge-permission-desc"),
   ttsEnabled: document.getElementById("shell-tts-enabled"),
   ttsPanelEnabled: document.getElementById("shell-tts-panel-enabled"),
   ttsPlaybackModeGroup: document.getElementById("shell-tts-playback-mode"),
@@ -1541,7 +1549,7 @@ async function onAgentSelectChange(next) {
   await pullRuntimeStatuses();
   await shellDialog.refreshHistory?.();
   await loadComposeDraft();
-  commitAllSettingsBaselines();
+  commitAllSettingsBaselinesIfSafe();
   syncComposeReadyStatus();
   connectStream();
 }
@@ -3767,6 +3775,14 @@ function applyBridgeForm(runtime, settings = state.settings || {}) {
   if (nodes.bridgeSessionId && document.activeElement !== nodes.bridgeSessionId) {
     nodes.bridgeSessionId.value = read("sessionId") || defaults.sessionId || "";
   }
+  if (
+    runtimeUsesCli(id) &&
+    nodes.bridgePermissionMode &&
+    document.activeElement !== nodes.bridgePermissionMode
+  ) {
+    const mode = read("permissionMode") || defaults.permissionMode || "";
+    nodes.bridgePermissionMode.checked = mode === "bypassPermissions";
+  }
 }
 
 function applyQwenpawRouteForm(settings = state.settings || {}) {
@@ -3781,7 +3797,11 @@ function applyQwenpawRouteForm(settings = state.settings || {}) {
 
 function routeRuntimeFlatFields(runtimeId) {
   const id = normalizeMessageRuntime(runtimeId);
-  if (runtimeUsesCli(id)) return ["cliPath", "model", "sessionId"];
+  if (runtimeUsesCli(id)) {
+    const fields = ["cliPath", "model", "sessionId"];
+    if (runtimeUsesCli(id)) fields.push("permissionMode");
+    return fields;
+  }
   return ["baseUrl", "apiKey", "model", "profile", "agentId", "sessionId"];
 }
 
@@ -3840,6 +3860,11 @@ function collectBridgeFormPatch(runtime) {
     patch[bridgeRuntimeField(id, "cliPath")] =
       nodes.bridgeUrl?.value.trim() || defaults.cliPath || (id === "codex" ? "codex" : "claude");
     patch[bridgeRuntimeField(id, "model")] = nodes.bridgeModel?.value.trim() || "";
+    if (runtimeUsesCli(id)) {
+      patch[bridgeRuntimeField(id, "permissionMode")] = nodes.bridgePermissionMode?.checked
+        ? "bypassPermissions"
+        : "";
+    }
   } else {
     patch[bridgeRuntimeField(id, "baseUrl")] = nodes.bridgeUrl?.value.trim() || defaults.baseUrl || "";
     patch[bridgeRuntimeField(id, "apiKey")] = nodes.bridgeApiKey?.value.trim() || "";
@@ -3873,6 +3898,199 @@ function markSettingsDirty(section) {
   settingsSave.markDirty(section, getSettingsSnapshot(section));
 }
 
+function bindSettingsSaveButton(btn, section) {
+  if (!btn || btn.dataset.shellSaveBound === "1") return;
+  btn.dataset.shellSaveBound = "1";
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    void handleSettingsSaveClick(section, btn);
+  });
+}
+
+function applySettingsFormsFromServer(settings = state.settings) {
+  if (!settings) return;
+  if (
+    !isSettingsViewOpen() &&
+    !settingsSave.isSectionDirty("route") &&
+    !isHeroAutosaveActive("messageTarget")
+  ) {
+    applyRouteFormFromSettings(settings);
+  }
+  if (
+    !isSettingsViewOpen() &&
+    !settingsSave.isSectionDirty("tts") &&
+    !isHeroAutosaveActive("ttsEnabled")
+  ) {
+    syncTtsEnabledUi(settings);
+  }
+  if (
+    !isSettingsViewOpen() &&
+    !settingsSave.isSectionDirty("tts") &&
+    !isHeroAutosaveActive("ttsPlaybackMode")
+  ) {
+    syncTtsPlaybackModeUi(settings);
+  }
+  if (!isSettingsViewOpen() && !settingsSave.isSectionDirty("tts")) {
+    applyTtsSettingsUi(settings);
+  }
+  if (
+    !isSettingsViewOpen() &&
+    !settingsSave.isSectionDirty("stt") &&
+    !isHeroAutosaveActive("sttEnabled")
+  ) {
+    syncSttEnabledUi(settings);
+  }
+  if (!isSettingsViewOpen() && !settingsSave.isSectionDirty("stt")) {
+    applySttSettingsUi(settings);
+  }
+  if (!isSettingsViewOpen() && !settingsSave.isSectionDirty("proactive")) {
+    applyProactiveFormUi(settings);
+    shellProactive?.syncSettings(settings);
+  } else if (isSettingsViewOpen() && settingsSave.isSectionDirty("proactive") && shellProactive) {
+    shellProactive.syncSettings({
+      ...(settings || {}),
+      ...collectProactiveFormPatch()
+    });
+  } else if (!isSettingsViewOpen()) {
+    shellProactive?.syncSettings(settings);
+  }
+}
+
+function applySettingsSectionForm(section, settings = state.settings) {
+  if (!settings && section !== "window") return;
+  if (section === "route") applyRouteFormFromSettings(settings);
+  else if (section === "tts") applyTtsSettingsUi(settings);
+  else if (section === "stt") applySttSettingsUi(settings);
+  else if (section === "proactive") applyProactiveFormUi(settings);
+}
+
+function syncSettingsFormsOnOpen(settings = state.settings) {
+  for (const section of ["window", "route", "tts", "stt", "proactive"]) {
+    if (settingsSave.isSectionDirty(section)) continue;
+    if (section !== "window") {
+      if (!settings) continue;
+      applySettingsSectionForm(section, settings);
+    }
+    settingsSave.commitBaseline(section, getSettingsSnapshot(section));
+  }
+  settingsSave.syncUi();
+}
+
+function commitCleanSettingsBaselines() {
+  if (isSettingsViewOpen() || isAnySettingsSectionDirty()) {
+    settingsSave.syncUi();
+    return;
+  }
+  commitAllSettingsBaselines();
+}
+
+async function handleSettingsSaveClick(section, btn) {
+  if (!section) return;
+  if (!state.agentId) {
+    try {
+      await ensureShellAgentSelected();
+    } catch (error) {
+      renderPhase("waiting", error.message);
+      return;
+    }
+  }
+  if (!state.agentId) {
+    renderPhase("waiting", "Выберите хранилище (агента) в шапке");
+    return;
+  }
+  btn?.classList.add("is-saving");
+  btn?.setAttribute("disabled", "disabled");
+  try {
+    if (section === "tts") await persistTtsSettings();
+    else await saveSettingsSection(section);
+    void playShellUiSound("saved");
+  } catch (error) {
+    renderPhase("waiting", error.message);
+  } finally {
+    btn?.classList.remove("is-saving");
+    btn?.removeAttribute("disabled");
+    settingsSave.syncUi();
+  }
+}
+
+function settingsSectionFromTarget(target) {
+  if (!(target instanceof Element)) return "";
+  if (target.closest("#shell-window-panel")) return "window";
+  if (target.closest("#shell-route-panel")) return "route";
+  if (target.closest("#shell-proactive-panel")) return "proactive";
+  if (target.closest("#shell-tts-panel")) return "tts";
+  if (target.closest("#shell-stt-panel")) return "stt";
+  return "";
+}
+
+function refreshSettingsSaveUi() {
+  nodes.settingsBtn = document.getElementById("shell-settings-btn") || nodes.settingsBtn;
+  nodes.windowSave = document.getElementById("shell-window-save") || nodes.windowSave;
+  nodes.routeSave = document.getElementById("shell-route-save") || nodes.routeSave;
+  nodes.proactiveSave = document.getElementById("shell-proactive-save") || nodes.proactiveSave;
+  nodes.ttsSave = document.getElementById("shell-tts-save") || nodes.ttsSave;
+  nodes.sttSave = document.getElementById("shell-stt-save") || nodes.sttSave;
+  settingsSave.attachUi({
+    saveButtons: {
+      window: nodes.windowSave,
+      route: nodes.routeSave,
+      proactive: nodes.proactiveSave,
+      tts: nodes.ttsSave,
+      stt: nodes.sttSave
+    },
+    toggleButtons: {},
+    settingsMenuBtn: nodes.settingsBtn
+  });
+  bindSettingsSaveButton(nodes.windowSave, "window");
+  bindSettingsSaveButton(nodes.routeSave, "route");
+  bindSettingsSaveButton(nodes.proactiveSave, "proactive");
+  bindSettingsSaveButton(nodes.ttsSave, "tts");
+  bindSettingsSaveButton(nodes.sttSave, "stt");
+}
+
+function bindSettingsDirtyTracking() {
+  const root = document.getElementById("shell-settings-view");
+  if (!root || root.dataset.shellDirtyBound === "1") return;
+  root.dataset.shellDirtyBound = "1";
+  const onFieldChange = (event) => {
+    const section = settingsSectionFromTarget(event.target);
+    if (!section) return;
+    markSettingsDirty(section);
+  };
+  root.addEventListener("input", onFieldChange, true);
+  root.addEventListener("change", onFieldChange, true);
+}
+
+function bindSettingsSaveHandlers() {
+  const root = document.getElementById("shell-settings-view") || document.querySelector(".shell-settings-panels");
+  if (!root || root.dataset.shellSaveBound === "1") return;
+  root.dataset.shellSaveBound = "1";
+  root.addEventListener("click", (event) => {
+    const btn = event.target.closest(".shell-save-btn");
+    if (!btn) return;
+    event.preventDefault();
+    if (btn.id === "shell-window-save") {
+      void handleSettingsSaveClick("window", btn);
+      return;
+    }
+    if (btn.id === "shell-route-save") {
+      void handleSettingsSaveClick("route", btn);
+      return;
+    }
+    if (btn.id === "shell-proactive-save") {
+      void handleSettingsSaveClick("proactive", btn);
+      return;
+    }
+    if (btn.id === "shell-tts-save") {
+      void handleSettingsSaveClick("tts", btn);
+      return;
+    }
+    if (btn.id === "shell-stt-save") {
+      void handleSettingsSaveClick("stt", btn);
+    }
+  });
+}
+
 function commitAllSettingsBaselines() {
   settingsSave.commitAllBaselines({
     window: collectWindowSnapshot(),
@@ -3881,6 +4099,10 @@ function commitAllSettingsBaselines() {
     tts: collectTtsSettingsPatch(),
     stt: collectSttSettingsPatch()
   });
+}
+
+function commitAllSettingsBaselinesIfSafe() {
+  commitCleanSettingsBaselines();
 }
 
 function previewWindowFromForm() {
@@ -3963,39 +4185,11 @@ function applySettings(settings) {
   state.settings = settings;
   shellLog("settings", "applySettings", {
     proactiveEnabled: settings.proactiveEnabled,
-    proactiveDirty: settingsSave.isSectionDirty("proactive")
+    proactiveDirty: settingsSave.isSectionDirty("proactive"),
+    settingsOpen: isSettingsViewOpen()
   });
 
-  if (
-    !isSettingsViewOpen() &&
-    !settingsSave.isSectionDirty("route") &&
-    !isHeroAutosaveActive("messageTarget")
-  ) {
-    applyRouteFormFromSettings(settings);
-  }
-
-  if (
-    !settingsSave.isSectionDirty("tts") &&
-    !isHeroAutosaveActive("ttsEnabled")
-  ) {
-    syncTtsEnabledUi(settings);
-  }
-  if (!settingsSave.isSectionDirty("tts") && !isHeroAutosaveActive("ttsPlaybackMode")) {
-    syncTtsPlaybackModeUi(settings);
-  }
-  if (!settingsSave.isSectionDirty("tts")) {
-    applyTtsSettingsUi(settings);
-  }
-
-  if (
-    !settingsSave.isSectionDirty("stt") &&
-    !isHeroAutosaveActive("sttEnabled")
-  ) {
-    syncSttEnabledUi(settings);
-  }
-  if (!settingsSave.isSectionDirty("stt")) {
-    applySttSettingsUi(settings);
-  }
+  applySettingsFormsFromServer(settings);
 
   if (nodes.cameraFacing) {
     nodes.cameraFacing.value = settings.cameraFacing || "user";
@@ -4034,19 +4228,11 @@ function applySettings(settings) {
       }
     }
   }
-  if (!settingsSave.isSectionDirty("proactive")) {
-    applyProactiveFormUi(settings);
-    shellProactive?.syncSettings(settings);
-  } else if (shellProactive) {
-    shellProactive.syncSettings({
-      ...(settings || {}),
-      ...collectProactiveFormPatch()
-    });
-  }
   if (prevProactive !== Boolean(settings.proactiveEnabled)) {
     shellLog("proactive", `С сервера: ${settings.proactiveEnabled ? "вкл" : "выкл"}`);
   }
   syncCompactSensorAvailability();
+  commitCleanSettingsBaselines();
 }
 
 function getQwenPawUrlValue() {
@@ -4542,6 +4728,20 @@ function setBridgeFieldVisible(fieldEl, visible) {
   fieldEl.classList.toggle("hidden", !visible);
 }
 
+function updateBridgePermissionFieldUi(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  const show = runtimeShowsPermissionMode(id);
+  setBridgeFieldVisible(nodes.bridgePermissionField, show);
+  if (!show || !nodes.bridgePermissionField) return;
+  nodes.bridgePermissionField.dataset.runtime = id;
+  const copy = runtimePermissionModeCopy(id);
+  if (nodes.bridgePermissionEmoji) nodes.bridgePermissionEmoji.textContent = copy.emoji;
+  if (nodes.bridgePermissionTitle) nodes.bridgePermissionTitle.textContent = copy.title;
+  if (nodes.bridgePermissionDesc) nodes.bridgePermissionDesc.textContent = copy.desc;
+  if (nodes.bridgePermissionLabel) nodes.bridgePermissionLabel.title = copy.titleAttr;
+  if (nodes.bridgePermissionMode) nodes.bridgePermissionMode.setAttribute("aria-label", copy.ariaLabel);
+}
+
 function refreshRoutePanelNodes() {
   nodes.routeRuntime = document.getElementById("shell-route-runtime") || nodes.routeRuntime;
   nodes.routeRuntimeNotes = document.getElementById("shell-route-runtime-notes") || nodes.routeRuntimeNotes;
@@ -4656,6 +4856,7 @@ function updateRuntimeUi({ reloadForms = true, runtime: runtimeOverride } = {}) 
           : "UUID или название сессии Claude, пусто = новая"
         : "идентификатор сессии на gateway";
     }
+    updateBridgePermissionFieldUi(runtime);
     applyBridgeModelPlaceholder(runtime);
   }
   syncDialogConnectionState();
@@ -4933,7 +5134,7 @@ function applyStatusPayload(payload) {
     applySettings(payload.settings);
   }
   if (payload?.agentId && payload.agentId !== prevAgentId) {
-    commitAllSettingsBaselines();
+    commitAllSettingsBaselinesIfSafe();
   }
   state.sidecarConnected = Boolean(payload?.sidecarConnected);
   syncCompactSensorAvailability();
@@ -5044,12 +5245,23 @@ async function loadWindowSettings() {
     }
   }
   applyWindowSettings(settings);
+  if (!settingsSave.isSectionDirty("window")) {
+    settingsSave.commitBaseline("window", collectWindowSnapshot());
+  }
 }
 
 async function saveWindowSettings(patch) {
   try {
-    const settings = writeWindowSettingsToStorage(patch);
+    const local = writeWindowSettingsToStorage(patch);
+    applyWindowSettings(local);
+    const data = await apiFetch("/api/shell/window", {
+      method: "POST",
+      body: JSON.stringify({ settings: patch })
+    });
+    const settings = normalizeWindowSettings(data?.settings || local);
+    writeWindowSettingsToStorage(settings);
     applyWindowSettings(settings);
+    return settings;
   } catch (error) {
     renderPhase("waiting", error.message);
     throw error;
@@ -7610,19 +7822,14 @@ function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
         : "";
     setSettingsTab(settingsTab || tabFromScroll || state.settingsTab || "route");
     bindRoutePanelUi();
-    if (state.settings) {
-      applyRouteFormFromSettings(state.settings);
-      applyTtsSettingsUi(state.settings);
-      applySttSettingsUi(state.settings);
-      applyProactiveFormUi(state.settings);
-      commitAllSettingsBaselines();
-    }
+    refreshSettingsSaveUi();
+    syncSettingsFormsOnOpen(state.settings);
     updateRuntimeRouteNotes(readRouteRuntimeSelectValue() || getSelectedRuntime());
     settingsSave.syncUi();
   } else if (prev === "settings") {
     void refreshStatus().then(() => {
       if (state.settings) applySettings(state.settings);
-      commitAllSettingsBaselines();
+      commitAllSettingsBaselinesIfSafe();
     });
   }
 }
@@ -7731,6 +7938,8 @@ function bindShellClickHandlers() {
 }
 
 function bindWindowSettingsUi() {
+  if (document.body.dataset.shellWindowBound === "1") return;
+  document.body.dataset.shellWindowBound = "1";
   const onWindowFieldChange = () => {
     const windowBackground = nodes.windowBackground?.value || "wallpaper";
     const windowTransparent =
@@ -7785,10 +7994,6 @@ function bindWindowSettingsUi() {
       shellKeepAwake?.sync();
     });
   }
-  nodes.windowSave?.addEventListener("click", () => {
-    void playShellUiSound("saved");
-    void saveSettingsSection("window").catch((error) => renderPhase("waiting", error.message));
-  });
 }
 
 function handleMessageTargetChange() {
@@ -7824,38 +8029,13 @@ function bindUi() {
   populateTtsEngineSelect();
   onRouteSettingsDirty = () => markSettingsDirty("route");
 
-  settingsSave.attachUi({
-    saveButtons: {
-      window: nodes.windowSave,
-      route: nodes.routeSave,
-      proactive: nodes.proactiveSave,
-      tts: nodes.ttsSave,
-      stt: nodes.sttSave
-    },
-    toggleButtons: {},
-    settingsMenuBtn: nodes.settingsBtn
-  });
+  refreshSettingsSaveUi();
+  bindSettingsDirtyTracking();
+  bindSettingsSaveHandlers();
   const markRouteDirty = () => markSettingsDirty("route");
   const markTtsDirty = () => markSettingsDirty("tts");
   const markSttDirty = () => markSettingsDirty("stt");
   const markProactiveDirty = () => markSettingsDirty("proactive");
-
-  nodes.routeSave?.addEventListener("click", () => {
-    void playShellUiSound("saved");
-    void saveSettingsSection("route").catch((error) => renderPhase("waiting", error.message));
-  });
-  nodes.proactiveSave?.addEventListener("click", () => {
-    void playShellUiSound("saved");
-    void saveSettingsSection("proactive").catch((error) => renderPhase("waiting", error.message));
-  });
-  nodes.ttsSave?.addEventListener("click", () => {
-    void playShellUiSound("saved");
-    void persistTtsSettings().catch((error) => renderPhase("waiting", error.message));
-  });
-  nodes.sttSave?.addEventListener("click", () => {
-    void playShellUiSound("saved");
-    void saveSettingsSection("stt").catch((error) => renderPhase("waiting", error.message));
-  });
 
   nodes.cameraEnabled?.addEventListener("change", () => {
     const enabled = nodes.cameraEnabled.checked;
@@ -7961,7 +8141,8 @@ function bindUi() {
     nodes.bridgeApiKey,
     nodes.bridgeModel,
     nodes.bridgeAgentMeta,
-    nodes.bridgeSessionId
+    nodes.bridgeSessionId,
+    nodes.bridgePermissionMode
   ]) {
     input?.addEventListener("input", markRouteDirty);
     input?.addEventListener("change", markRouteDirty);
@@ -8400,7 +8581,7 @@ async function connectShellAgentData() {
     }
     await loadComposeDraft();
     syncComposeReadyStatus();
-    commitAllSettingsBaselines();
+    commitAllSettingsBaselinesIfSafe();
     recoverStuckMessagePipeline("agent connect");
     void loadQwenPawAgents();
     connectStream();
