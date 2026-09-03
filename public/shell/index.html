@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=487" />
+    <link rel="stylesheet" href="/shell/shell.css?v=488" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -418,16 +418,39 @@
             </label>
             <label class="shell-field shell-field--compact">
               <span class="shell-label">Агент (профиль)</span>
-              <input
+              <select
                 id="shell-qwenpaw-agent-id"
-                class="shell-input"
-                type="text"
-                spellcheck="false"
-                autocomplete="off"
-                placeholder="default"
+                class="shell-select shell-select--full"
                 aria-label="Агент (профиль) QwenPaw"
-              />
+              ></select>
             </label>
+            <div
+              class="shell-field shell-field--compact shell-qwenpaw-permission-field"
+              id="shell-qwenpaw-permission-field"
+            >
+              <span class="shell-tts-panel-playback" role="presentation">
+                <label
+                  class="shell-qwenpaw-permission shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+                  id="shell-qwenpaw-permission-label"
+                  title="QwenPaw — инструменты без подтверждения (approval_level OFF)"
+                >
+                  <input
+                    id="shell-qwenpaw-permission-mode"
+                    type="checkbox"
+                    aria-label="Разрешить QwenPaw выполнять инструменты без подтверждения"
+                  />
+                  <span class="shell-tts-playback-emoji" id="shell-qwenpaw-permission-emoji" aria-hidden="true">🔓</span>
+                  <span class="shell-tts-playback-option-copy">
+                    <span class="shell-tts-playback-option-title" id="shell-qwenpaw-permission-title">
+                      Разрешить инструменты без подтверждения
+                    </span>
+                    <span class="shell-tts-playback-option-desc" id="shell-qwenpaw-permission-desc">
+                      (bash, файлы, MCP и другие — без окна «Разрешить?»)
+                    </span>
+                  </span>
+                </label>
+              </span>
+            </div>
             <div class="shell-qwenpaw-chat" id="shell-qwenpaw-chat">
               <label class="shell-field shell-field--compact">
                 <span class="shell-label">Текущий чат</span>
@@ -2251,6 +2274,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=494" type="module"></script>
+    <script src="/shell/shell.js?v=496" type="module"></script>
   </body>
 </html>

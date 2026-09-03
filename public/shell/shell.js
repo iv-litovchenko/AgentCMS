@@ -124,6 +124,7 @@ import {
   runtimeShowsModel,
   runtimeShowsPermissionMode,
   runtimePermissionModeCopy,
+  runtimeQwenpawPermissionModeCopy,
   runtimeAgentFieldLabel,
   runtimeShowsApiKey,
   runtimeShowsBaseUrl
@@ -454,6 +455,7 @@ const state = {
   qwenpawConnected: false,
   qwenpawServerOk: false,
   qwenpawAgentOk: false,
+  qwenpawAgentsReachable: false,
   qwenpawAgentName: "",
   qwenpawAgentError: "",
   qwenpawSessionId: "",
@@ -1014,6 +1016,12 @@ const nodes = {
   qwenpawUrl: document.getElementById("shell-qwenpaw-url"),
   qwenpawOpenUrl: document.getElementById("shell-qwenpaw-open-url"),
   qwenpawAgentId: document.getElementById("shell-qwenpaw-agent-id"),
+  qwenpawPermissionField: document.getElementById("shell-qwenpaw-permission-field"),
+  qwenpawPermissionLabel: document.getElementById("shell-qwenpaw-permission-label"),
+  qwenpawPermissionMode: document.getElementById("shell-qwenpaw-permission-mode"),
+  qwenpawPermissionEmoji: document.getElementById("shell-qwenpaw-permission-emoji"),
+  qwenpawPermissionTitle: document.getElementById("shell-qwenpaw-permission-title"),
+  qwenpawPermissionDesc: document.getElementById("shell-qwenpaw-permission-desc"),
   qwenpawChatName: document.getElementById("shell-qwenpaw-chat-name"),
   qwenpawChatSession: document.getElementById("shell-qwenpaw-chat-session"),
   qwenpawNewChat: document.getElementById("shell-qwenpaw-new-chat"),
@@ -4888,7 +4896,10 @@ function updateRuntimeUi({ reloadForms = true, runtime: runtimeOverride } = {}) 
   updateRuntimeRouteNotes(runtime);
   const settings = state.settings || {};
   if (reloadForms) {
-    if (runtimeUsesQwenPaw(runtime)) applyQwenpawRouteForm(settings);
+    if (runtimeUsesQwenPaw(runtime)) {
+      applyQwenpawRouteForm(settings);
+      updateQwenPawPermissionFieldUi();
+    }
     if (runtimeUsesBridge(runtime)) applyBridgeForm(runtime, settings);
   }
   if (runtimeUsesBridge(runtime)) {
@@ -4952,29 +4963,115 @@ function cleanShellUrl() {
   }
 }
 
+function formatQwenPawAgentOptionLabel(agent) {
+  const id = String(agent?.id || "").trim();
+  const name = String(agent?.name || id).trim() || id;
+  if (!id) return name;
+  if (name && name !== id) return `${name} (${id})`;
+  return name;
+}
+
+function isQwenPawPanelAvailable() {
+  if (state.qwenpawAgentsReachable) return true;
+  if (state.qwenpawServerOk || state.qwenpawConnected) return true;
+  const status = getRuntimeStatus("qwenpaw");
+  return Boolean(status?.serverOk || status?.ok);
+}
+
+function syncQwenPawPanelAvailability() {
+  const available = isQwenPawPanelAvailable();
+  if (nodes.qwenpawAgentId) nodes.qwenpawAgentId.disabled = !available;
+  if (nodes.qwenpawChatName && !state.qwenpawRenameBusy) {
+    nodes.qwenpawChatName.disabled = !available;
+  }
+  if (nodes.qwenpawPermissionMode) nodes.qwenpawPermissionMode.disabled = !available;
+}
+
+function updateQwenPawPermissionFieldUi() {
+  const copy = runtimeQwenpawPermissionModeCopy();
+  if (nodes.qwenpawPermissionEmoji) nodes.qwenpawPermissionEmoji.textContent = copy.emoji;
+  if (nodes.qwenpawPermissionTitle) nodes.qwenpawPermissionTitle.textContent = copy.title;
+  if (nodes.qwenpawPermissionDesc) nodes.qwenpawPermissionDesc.textContent = copy.desc;
+  if (nodes.qwenpawPermissionLabel) nodes.qwenpawPermissionLabel.title = copy.titleAttr;
+  if (nodes.qwenpawPermissionMode) nodes.qwenpawPermissionMode.setAttribute("aria-label", copy.ariaLabel);
+}
+
+function syncQwenPawApprovalCheckbox(approvalLevel) {
+  if (!nodes.qwenpawPermissionMode || document.activeElement === nodes.qwenpawPermissionMode) return;
+  const level = String(approvalLevel || "AUTO").trim().toUpperCase() || "AUTO";
+  nodes.qwenpawPermissionMode.checked = level === "OFF";
+}
+
 function syncQwenPawAgentInput(agents, selectedAgentId) {
   if (!nodes.qwenpawAgentId) return;
   const selected =
     String(selectedAgentId || nodes.qwenpawAgentId.value || state.settings?.qwenpawAgentId || "default").trim() ||
     "default";
-  if (document.activeElement !== nodes.qwenpawAgentId) {
-    nodes.qwenpawAgentId.value = selected;
-  }
-  const items = Array.isArray(agents) ? agents : [];
+  const items = Array.isArray(agents) ? agents.filter((item) => item?.id) : [];
   const knownIds = new Set(items.map((item) => item.id));
   const invalid = Boolean(selected && items.length && !knownIds.has(selected));
+
+  if (document.activeElement !== nodes.qwenpawAgentId) {
+    nodes.qwenpawAgentId.innerHTML = "";
+    if (!items.length) {
+      const option = document.createElement("option");
+      option.value = selected;
+      option.textContent = invalid ? `${selected} — недоступен` : selected;
+      nodes.qwenpawAgentId.append(option);
+    } else {
+      for (const agent of items) {
+        const option = document.createElement("option");
+        option.value = agent.id;
+        option.textContent = formatQwenPawAgentOptionLabel(agent);
+        if (agent.enabled === false) option.disabled = true;
+        nodes.qwenpawAgentId.append(option);
+      }
+      if (selected && !knownIds.has(selected)) {
+        const orphan = document.createElement("option");
+        orphan.value = selected;
+        orphan.textContent = `${selected} — не найден`;
+        nodes.qwenpawAgentId.append(orphan);
+      }
+    }
+    nodes.qwenpawAgentId.value = selected;
+  }
+
   nodes.qwenpawAgentId.dataset.invalid = invalid ? "1" : "0";
   nodes.qwenpawAgentId.title = invalid ? `${selected} — не найден в QwenPaw` : "";
 }
 
 async function loadQwenPawAgents(preferredId = "") {
   if (!usesQwenPawTarget(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw")) return;
+  const lookupId =
+    String(preferredId || nodes.qwenpawAgentId?.value || state.settings?.qwenpawAgentId || "default").trim() ||
+    "default";
   try {
-    const data = await apiFetch("/api/shell/qwenpaw/agents");
-    syncQwenPawAgentInput(data.agents, preferredId || data.selectedAgentId || state.settings?.qwenpawAgentId);
+    const data = await apiFetch(
+      `/api/shell/qwenpaw/agents?agentId=${encodeURIComponent(lookupId)}`
+    );
+    state.qwenpawAgentsReachable = Array.isArray(data.agents) && data.agents.length > 0;
+    syncQwenPawAgentInput(data.agents, lookupId || data.selectedAgentId || state.settings?.qwenpawAgentId);
+    syncQwenPawApprovalCheckbox(data.selectedAgentApproval);
   } catch {
-    syncQwenPawAgentInput([], preferredId || state.settings?.qwenpawAgentId || "default");
+    state.qwenpawAgentsReachable = false;
+    syncQwenPawAgentInput([], lookupId || state.settings?.qwenpawAgentId || "default");
+  } finally {
+    syncQwenPawPanelAvailability();
   }
+}
+
+async function persistQwenPawApprovalMode() {
+  if (!usesQwenPawTarget(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw")) return;
+  const agentId =
+    String(nodes.qwenpawAgentId?.value || state.settings?.qwenpawAgentId || "default").trim() || "default";
+  const data = await apiFetch("/api/shell/qwenpaw/agent-approval", {
+    method: "POST",
+    body: JSON.stringify({
+      agentId,
+      bypass: Boolean(nodes.qwenpawPermissionMode?.checked)
+    })
+  });
+  syncQwenPawApprovalCheckbox(data.approvalLevel);
 }
 
 function updateQwenPawChatUi(payload) {
@@ -5027,6 +5124,7 @@ async function renameQwenPawChatName({ force = false } = {}) {
   } finally {
     nodes.qwenpawChatName.disabled = false;
     state.qwenpawRenameBusy = false;
+    syncQwenPawPanelAvailability();
   }
 }
 
@@ -5207,11 +5305,16 @@ function applyStatusPayload(payload) {
   syncCompactSensorAvailability();
   updateFnPttHint(getVoiceInputMode());
   updateSttEngineNote();
-  state.qwenpawServerOk = Boolean(payload?.qwenpaw?.serverOk);
-  state.qwenpawAgentOk = Boolean(payload?.qwenpaw?.agentOk);
-  state.qwenpawAgentName = String(payload?.qwenpaw?.agentName || "");
-  state.qwenpawAgentError = String(payload?.qwenpaw?.agentError || "");
-  state.qwenpawConnected = Boolean(payload?.qwenpaw?.ok);
+  state.qwenpawServerOk =
+    payload?.qwenpaw?.serverOk != null ? Boolean(payload.qwenpaw.serverOk) : state.qwenpawServerOk;
+  state.qwenpawAgentOk =
+    payload?.qwenpaw?.agentOk != null ? Boolean(payload.qwenpaw.agentOk) : state.qwenpawAgentOk;
+  state.qwenpawAgentName =
+    payload?.qwenpaw?.agentName != null ? String(payload.qwenpaw.agentName || "") : state.qwenpawAgentName;
+  state.qwenpawAgentError =
+    payload?.qwenpaw?.agentError != null ? String(payload.qwenpaw.agentError || "") : state.qwenpawAgentError;
+  state.qwenpawConnected = payload?.qwenpaw?.ok != null ? Boolean(payload.qwenpaw.ok) : state.qwenpawConnected;
+  syncQwenPawPanelAvailability();
   refreshRuntimeSelectLabels();
   syncShellAgentReadyUi();
   const activeRuntime = normalizeMessageRuntime(
@@ -8202,8 +8305,15 @@ function bindUi() {
     void loadQwenPawAgents(nodes.qwenpawAgentId?.value);
   });
   nodes.qwenpawOpenUrl?.addEventListener("click", openQwenPawInBrowser);
-  nodes.qwenpawAgentId?.addEventListener("input", markRouteDirty);
-  nodes.qwenpawAgentId?.addEventListener("change", markRouteDirty);
+  nodes.qwenpawAgentId?.addEventListener("change", () => {
+    markRouteDirty();
+    void loadQwenPawAgents(nodes.qwenpawAgentId?.value);
+  });
+  nodes.qwenpawPermissionMode?.addEventListener("change", () => {
+    void persistQwenPawApprovalMode().catch((error) => renderPhase("waiting", error.message));
+  });
+  updateQwenPawPermissionFieldUi();
+  syncQwenPawPanelAvailability();
   for (const input of [
     nodes.bridgeUrl,
     nodes.bridgeApiKey,

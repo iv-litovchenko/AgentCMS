@@ -262,6 +262,78 @@ async function listQwenPawAgents({ baseUrl, timeoutMs = 4000 } = {}) {
   }
 }
 
+async function getQwenPawAgent({ baseUrl, agentId, timeoutMs = 4000 } = {}) {
+  const root = normalizeBaseUrl(baseUrl);
+  const id = String(agentId || "default").trim() || "default";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${root}/api/agents/${encodeURIComponent(id)}`, {
+      method: "GET",
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+      let message = `HTTP ${response.status}`;
+      try {
+        const parsed = JSON.parse(details);
+        message = String(parsed?.detail || parsed?.error || message);
+      } catch {
+        if (details) message = details.slice(0, 180);
+      }
+      throw new Error(message);
+    }
+    const data = await response.json().catch(() => ({}));
+    return {
+      id: String(data?.id || id),
+      name: String(data?.name || id),
+      approvalLevel: String(data?.approval_level || "AUTO").trim() || "AUTO",
+      enabled: data?.enabled !== false
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function updateQwenPawAgentApproval({ baseUrl, agentId, approvalLevel, timeoutMs = 8000 } = {}) {
+  const root = normalizeBaseUrl(baseUrl);
+  const id = String(agentId || "default").trim() || "default";
+  const level = String(approvalLevel || "AUTO").trim().toUpperCase() || "AUTO";
+  const profile = await getQwenPawAgent({ baseUrl: root, agentId: id, timeoutMs });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${root}/api/agents/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: profile.id,
+        name: profile.name,
+        approval_level: level
+      }),
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+      let message = `HTTP ${response.status}`;
+      try {
+        const parsed = JSON.parse(details);
+        message = String(parsed?.detail || parsed?.error || message);
+      } catch {
+        if (details) message = details.slice(0, 180);
+      }
+      throw new Error(message);
+    }
+    const data = await response.json().catch(() => ({}));
+    return {
+      agentId: id,
+      approvalLevel: String(data?.approval_level || level).trim() || level
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function checkQwenPawAgent({ baseUrl, agentId, timeoutMs = 4000 } = {}) {
   const root = normalizeBaseUrl(baseUrl);
   const id = String(agentId || "default").trim() || "default";
@@ -296,6 +368,7 @@ async function checkQwenPawAgent({ baseUrl, agentId, timeoutMs = 4000 } = {}) {
       ok: true,
       agentId: id,
       name: String(data?.name || id),
+      approvalLevel: String(data?.approval_level || "AUTO").trim() || "AUTO",
       enabled: data?.enabled !== false
     };
   } catch (error) {
@@ -634,6 +707,8 @@ module.exports = {
   normalizeBaseUrl,
   checkQwenPawHealth,
   checkQwenPawAgent,
+  getQwenPawAgent,
+  updateQwenPawAgentApproval,
   listQwenPawAgents,
   chatWithQwenPaw,
   listQwenPawChats,

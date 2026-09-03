@@ -1,7 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { EventEmitter } = require("events");
-const { chatWithQwenPaw, checkQwenPawHealth, checkQwenPawAgent, listQwenPawAgents, listQwenPawChats, createQwenPawChat, updateQwenPawChat, buildNewShellSessionId } = require("./qwenpaw-client");
+const { chatWithQwenPaw, checkQwenPawHealth, checkQwenPawAgent, getQwenPawAgent, updateQwenPawAgentApproval, listQwenPawAgents, listQwenPawChats, createQwenPawChat, updateQwenPawChat, buildNewShellSessionId } = require("./qwenpaw-client");
 const {
   buildDualReplyInstruction,
   extractStreamingReplyBody,
@@ -941,6 +941,21 @@ async function fetchQwenPawAgents(settings) {
   return listQwenPawAgents({ baseUrl: settings.qwenpawBaseUrl });
 }
 
+async function fetchQwenPawAgentProfile(settings, agentId) {
+  return getQwenPawAgent({
+    baseUrl: settings.qwenpawBaseUrl,
+    agentId: agentId || settings.qwenpawAgentId
+  });
+}
+
+async function setQwenPawAgentApprovalLevel(settings, agentId, approvalLevel) {
+  return updateQwenPawAgentApproval({
+    baseUrl: settings.qwenpawBaseUrl,
+    agentId: agentId || settings.qwenpawAgentId,
+    approvalLevel
+  });
+}
+
 async function resolveQwenPawChatName(settings, sessionId) {
   const chats = await fetchQwenPawChats(settings);
   const match = chats.find((chat) => String(chat?.session_id || "") === String(sessionId || ""));
@@ -1836,6 +1851,8 @@ module.exports = {
   refineSttTranscript,
   fetchQwenPawChats,
   fetchQwenPawAgents,
+  fetchQwenPawAgentProfile,
+  setQwenPawAgentApprovalLevel,
   startNewQwenPawChat,
   selectQwenPawChat,
   renameQwenPawChat,

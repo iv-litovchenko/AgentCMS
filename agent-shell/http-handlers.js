@@ -709,9 +709,20 @@ function createShellHandlers(deps) {
           return true;
         }
         const agents = await shellService.fetchQwenPawAgents(settings);
+        const lookupAgentId =
+          String(url.searchParams.get("agentId") || settings.qwenpawAgentId || "default").trim() || "default";
+        let selectedAgentApproval = null;
+        try {
+          const profile = await shellService.fetchQwenPawAgentProfile(settings, lookupAgentId);
+          selectedAgentApproval = profile.approvalLevel;
+        } catch {
+          selectedAgentApproval = null;
+        }
         deps.sendJson(res, 200, {
           agentId,
           selectedAgentId: settings.qwenpawAgentId,
+          lookupAgentId,
+          selectedAgentApproval,
           agents
         });
       } catch (error) {
@@ -771,6 +782,28 @@ function createShellHandlers(deps) {
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to select QwenPaw chat",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/qwenpaw/agent-approval") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const settings = await shellService.readSettings(agentRoot);
+        if (!shellService.usesQwenPaw(settings)) {
+          deps.sendJson(res, 400, { error: "QwenPaw mode is not enabled" });
+          return true;
+        }
+        const agentId = String(payload?.agentId || settings.qwenpawAgentId || "default").trim() || "default";
+        const bypass = Boolean(payload?.bypass);
+        const approvalLevel = bypass ? "OFF" : "AUTO";
+        const result = await shellService.setQwenPawAgentApprovalLevel(settings, agentId, approvalLevel);
+        deps.sendJson(res, 200, { agentId, approvalLevel: result.approvalLevel, bypass });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to update QwenPaw agent approval",
           details: String(error?.message || error)
         });
       }

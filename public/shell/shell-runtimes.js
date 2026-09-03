@@ -381,6 +381,16 @@ export function runtimeShowsPermissionMode(runtime) {
   return runtimeUsesCli(normalizeMessageRuntime(runtime));
 }
 
+export function runtimeQwenpawPermissionModeCopy() {
+  return {
+    emoji: "🔓",
+    title: "Разрешить инструменты без подтверждения",
+    desc: "(bash, файлы, MCP и другие — без окна «Разрешить?»)",
+    titleAttr: "QwenPaw — approval_level OFF, guard инструментов отключён",
+    ariaLabel: "Разрешить QwenPaw выполнять инструменты без подтверждения"
+  };
+}
+
 export function runtimePermissionModeCopy(runtime) {
   const id = normalizeMessageRuntime(runtime);
   if (id === "codex") {

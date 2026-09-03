@@ -8275,6 +8275,12 @@ body.shell-embed .shell-path-header {
   opacity: 0.65;
 }
 
+.shell-route-panel .shell-qwenpaw-fields select.shell-select:disabled,
+.shell-route-panel .shell-qwenpaw-permission-field input:disabled + .shell-tts-playback-emoji,
+.shell-route-panel .shell-qwenpaw-permission-field input:disabled ~ .shell-tts-playback-option-copy {
+  opacity: 0.65;
+}
+
 .shell-qwenpaw-chat-row {
   align-items: stretch;
 }
