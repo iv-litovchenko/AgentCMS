@@ -10,9 +10,9 @@
   "pttHeld": false,
   "meetingRecording": false,
   "lastTtsClientId": "c738810b-3051-4e04-88ab-41ec56985e68:efd78e2a-5e29-4ef1-8940-58b2701d692f",
-  "primaryClientId": "91d28cd7-92fb-484b-9450-e70c6b8160b6:4dd098bf-17f2-4668-b410-2f8fae448be4",
-  "updatedAt": "2026-08-31T23:08:44.918Z",
-  "shellSurfaceHost": "extension",
-  "shellSurfaceHint": "Companion · Chrome",
+  "primaryClientId": "b663d6b3-e700-4d72-9366-5aa330441526:b165f8e9-f344-4515-befb-beea43d712d5",
+  "updatedAt": "2026-09-03T11:48:36.525Z",
+  "shellSurfaceHost": "browser-tab",
+  "shellSurfaceHint": "Вкладка браузера",
   "shellSurfaceBackend": "local"
 }

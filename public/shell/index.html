@@ -12,8 +12,8 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=454" />
-    <link rel="stylesheet" href="/shell/shell-app-lock.css?v=3" />
+    <link rel="stylesheet" href="/shell/shell.css?v=476" />
+    <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
     <script type="importmap">
@@ -33,7 +33,7 @@
           "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=413",
           "@shell/browser-tts": "/shell/shell-browser-tts.js?v=404",
           "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=207",
-          "@shell/session": "/shell/shell-session.js?v=207",
+          "@shell/session": "/shell/shell-session.js?v=208",
           "@shell/client-id": "/shell/shell-client-id.js?v=404",
           "@shell/surface": "/shell/shell-surface.js?v=226",
           "@shell/presence": "/shell/shell-presence.js?v=404",
@@ -41,20 +41,20 @@
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=207",
-          "@shell/dialog": "/shell/shell-dialog.js?v=260",
+          "@shell/dialog": "/shell/shell-dialog.js?v=262",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=316",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=416",
           "@shell/help": "/shell/shell-help.js?v=207",
           "@shell/hints": "/shell/shell-hints.js?v=313",
-          "@shell/proactive": "/shell/shell-proactive.js?v=324",
+          "@shell/proactive": "/shell/shell-proactive.js?v=325",
           "@shell/debug": "/shell/shell-debug.js?v=416",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
           "@shell/voice": "/shell/shell-voice.js?v=209",
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=415",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
           "@shell/contract": "/shell/shell-contract.js?v=209",
-          "@shell/runtimes": "/shell/shell-runtimes.js?v=351",
+          "@shell/runtimes": "/shell/shell-runtimes.js?v=355",
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=414",
           "@shell/build": "/shell/shell-build.js?v=416"
         }
@@ -379,6 +379,29 @@
           <span class="shell-label">Runtime</span>
           <select id="shell-route-runtime" class="shell-select" aria-label="Runtime"></select>
         </label>
+        <div class="shell-runtime-cli-notes hidden" id="shell-route-cli-notes" hidden>
+          <p class="shell-runtime-cli-notes-intro">
+            Локальный CLI в терминале. Shell запускает бинарь в каталоге workspace.
+          </p>
+          <section
+            class="shell-runtime-cli-note-block"
+            id="shell-route-runtime-cli-note-claude"
+            data-runtime="claude"
+            aria-labelledby="shell-route-runtime-cli-note-claude-title"
+          >
+            <h3 class="shell-runtime-cli-note-title" id="shell-route-runtime-cli-note-claude-title">Claude</h3>
+            <p class="shell-runtime-cli-note" role="status"></p>
+          </section>
+          <section
+            class="shell-runtime-cli-note-block"
+            id="shell-route-runtime-cli-note-codex"
+            data-runtime="codex"
+            aria-labelledby="shell-route-runtime-cli-note-codex-title"
+          >
+            <h3 class="shell-runtime-cli-note-title" id="shell-route-runtime-cli-note-codex-title">Codex (ChatGPT)</h3>
+            <p class="shell-runtime-cli-note" role="status"></p>
+          </section>
+        </div>
 
         <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
           <div class="shell-qwenpaw-fields">
@@ -525,7 +548,7 @@
         <div class="shell-proactive-options">
           <p class="shell-proactive-note">
             Выключено — никаких фоновых проверок и вызовов агента.
-            Включено — после бездействия Shell отправляет сообщение по тому же маршруту, что и обычный ввод
+            Включено — после бездействия Shell ждёт случайный интервал в диапазоне «от–до» и отправляет сообщение агенту
             (в чат не попадает, <code>author: shell/proactive</code>).
             Включение — кнопка <strong>✨ Проактив</strong> внизу экрана или чекбокс ниже.
             Плейсхолдеры: <code>{{idle_seconds}}</code>, <code>{{idle_minutes}}</code>.
@@ -536,15 +559,27 @@
           </label>
           <div class="shell-proactive-grid">
             <label class="shell-field shell-field--compact">
-              <span class="shell-label">Бездействие, сек</span>
+              <span class="shell-label">Бездействие, от (сек)</span>
               <input
-                id="shell-proactive-idle-seconds"
+                id="shell-proactive-idle-min"
                 class="shell-input"
                 type="number"
                 min="30"
                 max="3600"
                 step="30"
-                value="180"
+                value="120"
+              />
+            </label>
+            <label class="shell-field shell-field--compact">
+              <span class="shell-label">до (сек)</span>
+              <input
+                id="shell-proactive-idle-max"
+                class="shell-input"
+                type="number"
+                min="30"
+                max="3600"
+                step="30"
+                value="240"
               />
             </label>
             <label class="shell-field shell-field--compact">
@@ -2196,7 +2231,7 @@ CMS workspace</pre>
       <div class="shell-debug-panel-body" id="shell-debug-log" role="log" aria-live="polite" aria-relevant="additions"></div>
     </div>
 
-    <script src="/app-lock.js?v=13"></script>
-    <script src="/shell/shell.js?v=449" type="module"></script>
+    <script src="/app-lock.js?v=14"></script>
+    <script src="/shell/shell.js?v=474" type="module"></script>
   </body>
 </html>

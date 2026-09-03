@@ -1,5 +1,36 @@
 export const STREAM_RENDER_MS = 16;
 const MAX_REPLY_IDS = 24;
+const EVENT_SOURCE_OPEN = 1;
+
+function waitForEventSourceOpen(getEventSource, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    const es = typeof getEventSource === "function" ? getEventSource() : getEventSource;
+    if (!es) {
+      resolve(false);
+      return;
+    }
+    if (es.readyState === EVENT_SOURCE_OPEN) {
+      resolve(true);
+      return;
+    }
+    let settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      es.removeEventListener("open", onOpen);
+      es.removeEventListener("error", onError);
+      resolve(ok);
+    };
+    const onOpen = () => finish(true);
+    const onError = () => {
+      if (es.readyState === EVENT_SOURCE_OPEN) finish(true);
+    };
+    es.addEventListener("open", onOpen);
+    es.addEventListener("error", onError);
+    const timer = setTimeout(() => finish(es.readyState === EVENT_SOURCE_OPEN), timeoutMs);
+  });
+}
 
 export function createShellSession(state, deps = {}) {
   const displayedReplyIds = new Set();
@@ -120,7 +151,12 @@ export function createShellSession(state, deps = {}) {
       deps.shellDialog?.clearError?.();
       deps.closeStream?.();
       deps.connectStream?.();
-      await deps.refreshStatus?.();
+      const opened = await waitForEventSourceOpen(() => state.eventSource, soft ? 5000 : 8000);
+      try {
+        await deps.refreshStatus?.({ timeoutMs: soft ? 8000 : 12000 });
+      } catch (statusError) {
+        if (!opened) throw statusError;
+      }
       deps.syncConnectionState?.();
     } catch (error) {
       deps.shellDialog?.setError?.("Не удалось переподключиться", {

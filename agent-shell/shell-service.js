@@ -130,6 +130,8 @@ const DEFAULT_SETTINGS = {
   screenOnSpeech: true,
   proactiveEnabled: false,
   proactiveIdleSeconds: 180,
+  proactiveIdleSecondsMin: 120,
+  proactiveIdleSecondsMax: 240,
   proactiveCooldownSeconds: 900,
   proactivePrompt: "",
   proactiveQuietHoursEnabled: false,
@@ -359,7 +361,22 @@ function normalizeSettings(raw) {
   merged.screenEnabled = Boolean(merged.screenEnabled);
   merged.screenOnSpeech = merged.screenOnSpeech !== false;
   merged.proactiveEnabled = Boolean(merged.proactiveEnabled);
-  merged.proactiveIdleSeconds = Math.min(3600, Math.max(30, Number(merged.proactiveIdleSeconds) || 180));
+  const legacyIdle = Math.min(3600, Math.max(30, Number(merged.proactiveIdleSeconds) || 180));
+  let idleMin = Number(merged.proactiveIdleSecondsMin);
+  let idleMax = Number(merged.proactiveIdleSecondsMax);
+  if (!Number.isFinite(idleMin) && !Number.isFinite(idleMax)) {
+    idleMin = legacyIdle;
+    idleMax = legacyIdle;
+  } else {
+    if (!Number.isFinite(idleMin)) idleMin = Number.isFinite(idleMax) ? Math.min(legacyIdle, idleMax) : legacyIdle;
+    if (!Number.isFinite(idleMax)) idleMax = Number.isFinite(idleMin) ? Math.max(legacyIdle, idleMin) : legacyIdle;
+  }
+  idleMin = Math.min(3600, Math.max(30, idleMin));
+  idleMax = Math.min(3600, Math.max(30, idleMax));
+  if (idleMin > idleMax) [idleMin, idleMax] = [idleMax, idleMin];
+  merged.proactiveIdleSecondsMin = idleMin;
+  merged.proactiveIdleSecondsMax = idleMax;
+  merged.proactiveIdleSeconds = idleMin;
   merged.proactiveCooldownSeconds = Math.min(
     86400,
     Math.max(60, Number(merged.proactiveCooldownSeconds) || 900)
@@ -780,7 +797,8 @@ async function probeAllRuntimeStatuses(settings) {
   };
 }
 
-const RUNTIME_PROBE_TTL_MS = 45000;
+const RUNTIME_PROBE_TTL_MS = 120000;
+const STREAM_STATE_PATCH_MS = 600;
 /** @type {Map<string, { at: number, result: Awaited<ReturnType<typeof probeAllRuntimeStatuses>> }>} */
 const runtimeProbeCache = new Map();
 
@@ -1005,6 +1023,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
   const outboundText = buildDualReplyInstruction(text, settings);
   let lastEmittedText = "";
   let lastEmitAt = 0;
+  let lastStatePatchAt = 0;
   let activityPriority = 0;
   let lastActivityPhrase = "";
   let lastActivityPayload = null;
@@ -1037,11 +1056,15 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
       tool: tool || undefined
     };
 
-    await patchState(agentRoot, agentId, {
-      phase: PHASE_THINKING,
-      phrase,
-      metrics: tool || ""
-    });
+    const now = Date.now();
+    if (priority >= 10 || now - lastStatePatchAt >= STREAM_STATE_PATCH_MS) {
+      lastStatePatchAt = now;
+      await patchState(agentRoot, agentId, {
+        phase: PHASE_THINKING,
+        phrase,
+        metrics: tool || ""
+      });
+    }
     emitShellEvent(agentId, "agent_activity", {
       streamId,
       kind: lastActivityPayload.kind,
@@ -1086,7 +1109,10 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
         });
       }
     }
-    await patchState(agentRoot, agentId, patch);
+    if (done || force || now - lastStatePatchAt >= STREAM_STATE_PATCH_MS) {
+      lastStatePatchAt = now;
+      await patchState(agentRoot, agentId, patch);
+    }
     emitShellEvent(agentId, "assistant_delta", {
       streamId,
       text: replyText,
@@ -1183,6 +1209,7 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
   const outboundText = buildDualReplyInstruction(text, settings);
   let lastEmittedText = "";
   let lastEmitAt = 0;
+  let lastStatePatchAt = 0;
 
   const emitAssistantDelta = async (
     nextText,
@@ -1204,7 +1231,10 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
     } else if (replyText.trim()) {
       patch.phrase = "Печатает…";
     }
-    await patchState(agentRoot, agentId, patch);
+    if (done || force || now - lastStatePatchAt >= STREAM_STATE_PATCH_MS) {
+      lastStatePatchAt = now;
+      await patchState(agentRoot, agentId, patch);
+    }
     emitShellEvent(agentId, "assistant_delta", {
       streamId,
       text: replyText,
@@ -1250,6 +1280,14 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         cwd: agentRoot,
         onDelta
       });
+      if (reply?.resumeWarning) {
+        emitShellEvent(agentId, "agent_activity", {
+          streamId,
+          kind: "run",
+          phase: "start",
+          phrase: reply.resumeWarning
+        });
+      }
     } else {
       reply = await chatOpenAiCompletions({
         baseUrl: endpoint.baseUrl,
@@ -1567,7 +1605,7 @@ async function buildStatusPayload(
     sidecarConnected: isSidecarConnected(state),
     qwenpaw,
     runtime: bridgeRuntime,
-    runtimeStatuses,
+    ...(Object.keys(runtimeStatuses).length > 0 ? { runtimeStatuses } : {}),
     availableRuntimes,
     installedRuntimes,
     camera: {
@@ -1642,15 +1680,7 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
       return;
     }
     if (entry.type === "state") {
-      void (async () => {
-        try {
-          const status = await buildStatusPayload(deps, agentRoot, agentId);
-          status.state = { ...status.state, ...(entry.payload || {}) };
-          push("status", status);
-        } catch (error) {
-          push("error", { message: String(error?.message || error) });
-        }
-      })();
+      push("state", { payload: entry.payload || {} });
       return;
     }
     if (entry.type === "assistant_message") {

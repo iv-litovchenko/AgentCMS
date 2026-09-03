@@ -64,6 +64,10 @@ function connectionHint(error) {
     return "Ошибка модели QwenPaw — смените модель у агента в http://127.0.0.1:8088 (free-модели часто падают по лимиту)";
   }
 
+  if (msg.includes("cms backend unavailable") || msg.includes("502")) {
+    return "CMS на порту 3000 недоступен. Запустите: npm start";
+  }
+
   if (msg === "failed to fetch" || msg.includes("networkerror") || msg.includes("load failed")) {
     if (onLocalHost) {
       return "Сервер не отвечает. Запустите: npm run start:https";
@@ -259,7 +263,11 @@ export function createShellDialog(options = {}) {
         head.append(label, time);
         const body = document.createElement("div");
         body.className = "shell-history-text";
-        body.textContent = item.body;
+        if (item.role === "agent") {
+          renderShellReplyBody(body, String(item.body || ""));
+        } else {
+          body.textContent = String(item.body || "");
+        }
         bodyWrap.append(head, body);
         li.append(avatar, bodyWrap);
         nodes.historyList.append(li);

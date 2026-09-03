@@ -24,6 +24,7 @@ body.shell-desktop .app-lock a {
 
 .app-lock.hidden {
   display: none;
+  pointer-events: none;
 }
 
 .app-lock-bg {

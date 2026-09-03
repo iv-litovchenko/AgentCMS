@@ -16,6 +16,12 @@ export const SHELL_RUNTIME_GROUPS = [
   }
 ];
 
+/** CLI runtimes в терминале (claude, codex). */
+export const SHELL_CLI_RUNTIMES = SHELL_RUNTIME_GROUPS.find((group) => group.id === "cli")?.runtimes || [
+  "claude",
+  "codex"
+];
+
 /** Плоский список (порядок = группы). */
 export const SHELL_RUNTIMES = SHELL_RUNTIME_GROUPS.flatMap((group) => group.runtimes);
 
@@ -54,8 +60,42 @@ export function resolveRuntimeConnectionState(runtime, status, { implemented = t
   if (!implemented) return "soon";
   if (!status) return "unknown";
   if (status.ok) return "live";
+  // CLI: version from probe survives even if lightweight SSE status sent ok:false
+  if (runtimeUsesCli(id) && status.installed !== false && String(status.version || "").trim()) {
+    if (!String(status.error || "").trim()) return "live";
+  }
   if (status.installed === false || status.configured === false) return "unconfigured";
   return "error";
+}
+
+/** Команды установки CLI-runtime в терминале. */
+export const SHELL_RUNTIME_CLI_SETUP = {
+  claude: {
+    install: "npm i -g @anthropic-ai/claude-code",
+    auth: "claude login",
+    check: "claude --version"
+  },
+  codex: {
+    install: "npm i -g @openai/codex",
+    auth: "codex login",
+    check: "codex --version"
+  }
+};
+
+export function formatCliRuntimeRouteNote(runtime, status = null) {
+  const id = normalizeMessageRuntime(runtime);
+  if (!runtimeUsesCli(id)) return "";
+  const setup = SHELL_RUNTIME_CLI_SETUP[id];
+  if (!setup) return "";
+  const lines = [
+    `Установка: ${setup.install}`,
+    `Вход: ${setup.auth}`,
+    `Проверка: ${setup.check}`
+  ];
+  const err = String(status?.error || "").trim();
+  if (err) lines.push(`Сейчас: ${err}`);
+  else if (status?.version) lines.push(`Найдено: ${formatShortCliVersion(status.version)}`);
+  return lines.join("\n");
 }
 
 export function formatRuntimeStatusEmoji(conn) {

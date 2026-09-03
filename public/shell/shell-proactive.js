@@ -37,6 +37,40 @@ export function normalizeQuietTime(value, fallback = "23:00") {
   return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
+/** Нормализует диапазон бездействия (сек). Legacy: proactiveIdleSeconds → min=max. */
+export function normalizeProactiveIdleRange(settings = {}) {
+  const legacy = Math.min(3600, Math.max(30, Number(settings.proactiveIdleSeconds) || 180));
+  let min = Number(settings.proactiveIdleSecondsMin);
+  let max = Number(settings.proactiveIdleSecondsMax);
+  if (!Number.isFinite(min) && !Number.isFinite(max)) {
+    min = legacy;
+    max = legacy;
+  } else {
+    if (!Number.isFinite(min)) min = Number.isFinite(max) ? Math.min(legacy, max) : legacy;
+    if (!Number.isFinite(max)) max = Number.isFinite(min) ? Math.max(legacy, min) : legacy;
+  }
+  min = Math.min(3600, Math.max(30, min));
+  max = Math.min(3600, Math.max(30, max));
+  if (min > max) [min, max] = [max, min];
+  return { min, max };
+}
+
+export function pickProactiveIdleTarget(min, max) {
+  const lo = Math.max(30, Number(min) || 180);
+  const hi = Math.max(lo, Number(max) || lo);
+  if (lo >= hi) return lo;
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+export function formatProactiveIdleRangeHint(min, max) {
+  const { min: lo, max: hi } = normalizeProactiveIdleRange({
+    proactiveIdleSecondsMin: min,
+    proactiveIdleSecondsMax: max,
+    proactiveIdleSeconds: lo
+  });
+  return lo === hi ? `${lo} с` : `${lo}–${hi} с`;
+}
+
 /** true — сейчас в окне «не беспокоить» (в т.ч. через полночь, напр. 23:00–07:00). */
 export function isProactiveQuietHours(
   now = new Date(),
@@ -56,23 +90,31 @@ export function createShellProactive(deps) {
   let lastTriggeredAt = 0;
   let timer = null;
   let enabled = false;
-  let idleSeconds = 180;
+  let idleSecondsMin = 120;
+  let idleSecondsMax = 240;
+  let idleTargetSeconds = 180;
   let cooldownSeconds = 900;
   let quietHoursEnabled = false;
   let quietStart = "23:00";
   let quietEnd = "07:00";
   let listenersBound = false;
 
+  function pickIdleTarget() {
+    idleTargetSeconds = pickProactiveIdleTarget(idleSecondsMin, idleSecondsMax);
+  }
+
   function bumpActivity() {
     lastActivityAt = Date.now();
+    pickIdleTarget();
   }
 
   function syncToggleUi(on) {
     const btn = deps.toggleBtn;
     if (!btn) return;
     btn.setAttribute("aria-pressed", on ? "true" : "false");
+    const rangeHint = formatProactiveIdleRangeHint(idleSecondsMin, idleSecondsMax);
     const hint = on
-      ? `Проактивность включена — диалог после ${idleSeconds} с бездействия`
+      ? `Проактивность включена — диалог через ${rangeHint} бездействия (случайно в диапазоне)`
       : "Проактивность — агент сам начнёт диалог при бездействии";
     btn.title = hint;
     btn.dataset.hint = hint;
@@ -81,12 +123,16 @@ export function createShellProactive(deps) {
 
   function syncSettings(settings = {}) {
     enabled = Boolean(settings.proactiveEnabled);
-    idleSeconds = Math.max(30, Number(settings.proactiveIdleSeconds) || 180);
+    const range = normalizeProactiveIdleRange(settings);
+    idleSecondsMin = range.min;
+    idleSecondsMax = range.max;
     cooldownSeconds = Math.max(60, Number(settings.proactiveCooldownSeconds) || 900);
     quietHoursEnabled = Boolean(settings.proactiveQuietHoursEnabled);
     quietStart = normalizeQuietTime(settings.proactiveQuietStart, "23:00");
     quietEnd = normalizeQuietTime(settings.proactiveQuietEnd, "07:00");
+    pickIdleTarget();
     syncToggleUi(enabled);
+    syncRunningState();
   }
 
   function getPhase() {
@@ -111,8 +157,8 @@ export function createShellProactive(deps) {
     const phase = getPhase();
     if (phase !== "waiting") return `phase-${phase}`;
     const idleMs = Date.now() - lastActivityAt;
-    if (idleMs < idleSeconds * 1000) {
-      return `idle-${Math.max(1, Math.ceil((idleSeconds * 1000 - idleMs) / 1000))}s`;
+    if (idleMs < idleTargetSeconds * 1000) {
+      return `idle-${Math.max(1, Math.ceil((idleTargetSeconds * 1000 - idleMs) / 1000))}s`;
     }
     if (lastTriggeredAt && Date.now() - lastTriggeredAt < cooldownSeconds * 1000) {
       return `cooldown-${Math.max(1, Math.ceil((cooldownSeconds * 1000 - (Date.now() - lastTriggeredAt)) / 1000))}s`;
@@ -158,10 +204,10 @@ export function createShellProactive(deps) {
     deps.composeEl?.removeEventListener("input", onActivity);
   }
 
-  function start() {
-    stop();
-    bumpActivity();
+  function ensureRunning() {
+    if (!enabled) return;
     bindActivityListeners();
+    if (timer) return;
     timer = window.setInterval(() => {
       void maybeTrigger();
     }, TICK_MS);
@@ -175,23 +221,32 @@ export function createShellProactive(deps) {
     unbindActivityListeners();
   }
 
+  function syncRunningState() {
+    if (enabled) {
+      bumpActivity();
+      ensureRunning();
+    } else {
+      stop();
+    }
+  }
+
   async function toggleEnabled() {
     const next = !enabled;
     await deps.persistEnabled(next);
     enabled = next;
     syncToggleUi(enabled);
-    bumpActivity();
+    syncRunningState();
     return next;
   }
 
   return {
-    start,
     stop,
     bumpActivity,
     syncSettings,
     toggleEnabled,
     canTrigger,
     getBlockReason,
-    maybeTrigger
+    maybeTrigger,
+    isEnabled: () => enabled
   };
 }

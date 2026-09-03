@@ -144,8 +144,9 @@ export function createShellDebugLog({ storageKey = "agentcms.shell.debugLog.v1" 
   function watchProactive(shellProactive, intervalMs = 15000) {
     if (proactiveTimer) window.clearInterval(proactiveTimer);
     proactiveTimer = window.setInterval(() => {
-      if (!enabled || !shellProactive?.getBlockReason) return;
+      if (!enabled || !shellProactive?.isEnabled?.() || !shellProactive?.getBlockReason) return;
       const reason = shellProactive.getBlockReason();
+      if (reason === "disabled") return;
       log("proactive", reason === "ready" ? "Готов к срабатыванию" : `Заблокировано: ${reason}`);
     }, intervalMs);
   }

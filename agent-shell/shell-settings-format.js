@@ -235,6 +235,8 @@ function flattenSettings(raw) {
 
   const proactive = raw.proactive || {};
   if (proactive.enabled !== undefined) flat.proactiveEnabled = proactive.enabled;
+  if (proactive.idleSecondsMin !== undefined) flat.proactiveIdleSecondsMin = proactive.idleSecondsMin;
+  if (proactive.idleSecondsMax !== undefined) flat.proactiveIdleSecondsMax = proactive.idleSecondsMax;
   if (proactive.idleSeconds !== undefined) flat.proactiveIdleSeconds = proactive.idleSeconds;
   if (proactive.cooldownSeconds !== undefined) flat.proactiveCooldownSeconds = proactive.cooldownSeconds;
   if (proactive.prompt !== undefined) flat.proactivePrompt = proactive.prompt;
@@ -375,6 +377,8 @@ function nestSettings(flat) {
     }),
     proactive: compactObject({
       enabled: source.proactiveEnabled,
+      idleSecondsMin: source.proactiveIdleSecondsMin,
+      idleSecondsMax: source.proactiveIdleSecondsMax,
       idleSeconds: source.proactiveIdleSeconds,
       cooldownSeconds: source.proactiveCooldownSeconds,
       prompt: source.proactivePrompt,

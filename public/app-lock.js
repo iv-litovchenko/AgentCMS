@@ -224,6 +224,7 @@
   function hideLockScreen() {
     lockNode?.classList.add("hidden");
     document.body.classList.remove("app-locked");
+    document.getElementById("shell-app")?.removeAttribute("inert");
     updateLogoutButton();
   }
 
@@ -239,6 +240,7 @@
     hideSplashForLock();
     lockNode?.classList.remove("hidden");
     document.body.classList.add("app-locked");
+    document.getElementById("shell-app")?.setAttribute("inert", "");
     updateLogoutButton();
     updateBiometricButton();
     window.setTimeout(() => {

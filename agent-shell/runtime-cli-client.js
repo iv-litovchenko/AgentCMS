@@ -406,6 +406,13 @@ async function chatCodexCli({
   try {
     return await runOnce(Boolean(sid));
   } catch (error) {
+    if (sid && error?.resumeFailed) {
+      const retry = await runOnce(false);
+      retry.resumeFallback = true;
+      retry.resumeWarning =
+        "Codex не смог продолжить сессию по UUID — ответ начат в новой сессии. Проверьте SessionId в настройках.";
+      return retry;
+    }
     if (sid) return runOnce(false);
     throw error;
   }
