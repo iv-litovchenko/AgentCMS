@@ -78,7 +78,8 @@ function ensureShellMarkdownLibs() {
     markdownLibsPromise = Promise.all([
       loadScriptOnce("/vendor/markdown-it.min.js"),
       loadScriptOnce("/markdown-github-alerts.js"),
-      loadScriptOnce("/markdown-it-task-lists.js")
+      loadScriptOnce("/markdown-it-task-lists.js"),
+      loadScriptOnce("/markdown-it-footnote.min.js")
     ]).catch((error) => {
       markdownLibsPromise = null;
       throw error;
@@ -136,6 +137,67 @@ function applyShellMarkHighlight(md) {
   md.renderer.rules.shell_mark_open = () => '<mark class="md-highlight">';
   md.renderer.rules.shell_mark_close = () => "</mark>";
 }
+
+function applyShellSupSub(md) {
+  md.inline.ruler.before("emphasis", "shell_sup", (state, silent) => {
+    const start = state.pos;
+    if (state.src.charCodeAt(start) !== 0x5e /* ^ */) return false;
+
+    const match = state.src.slice(start).match(/^\^([^\^\n]+?)\^/);
+    if (!match) return false;
+
+    if (!silent) {
+      state.push("shell_sup_open", "sup", 1);
+      state.push("text", "", 0).content = match[1];
+      state.push("shell_sup_close", "sup", -1);
+    }
+
+    state.pos += match[0].length;
+    return true;
+  });
+
+  md.inline.ruler.before("emphasis", "shell_sub", (state, silent) => {
+    const start = state.pos;
+    if (state.src.charCodeAt(start) !== 0x7e /* ~ */) return false;
+    if (state.src.charCodeAt(start + 1) === 0x7e) return false;
+
+    const match = state.src.slice(start).match(/^~([^~\n]+?)~/);
+    if (!match) return false;
+
+    if (!silent) {
+      state.push("shell_sub_open", "sub", 1);
+      state.push("text", "", 0).content = match[1];
+      state.push("shell_sub_close", "sub", -1);
+    }
+
+    state.pos += match[0].length;
+    return true;
+  });
+
+  md.renderer.rules.shell_sup_open = () => "<sup>";
+  md.renderer.rules.shell_sup_close = () => "</sup>";
+  md.renderer.rules.shell_sub_open = () => "<sub>";
+  md.renderer.rules.shell_sub_close = () => "</sub>";
+}
+
+function normalizeShellImageSrc(src) {
+  const url = String(src || "").trim();
+  if (!url) return url;
+
+  try {
+    const parsed = new URL(url, "https://local.invalid");
+    if (/via\.placeholder\.com$/i.test(parsed.hostname)) {
+      const size = parsed.pathname.replace(/\D/g, "") || "150";
+      return `https://placehold.co/${size}x${size}/1e1b4b/a78bfa?text=Img`;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return url;
+}
+
+const SHELL_IMAGE_FALLBACK = "https://placehold.co/150x150/1e1b4b/a78bfa?text=Image";
 
 function isShellCodeLabel(text) {
   const value = String(text || "").trim();
@@ -242,6 +304,22 @@ function enhanceShellMarkdownBlocks(root) {
       });
     })
     .catch(() => {});
+
+  root.querySelectorAll("img").forEach((img) => {
+    const normalized = normalizeShellImageSrc(img.getAttribute("src"));
+    if (normalized && normalized !== img.getAttribute("src")) {
+      img.setAttribute("src", normalized);
+    }
+    img.addEventListener(
+      "error",
+      () => {
+        if (img.dataset.shellImgFallback) return;
+        img.dataset.shellImgFallback = "1";
+        img.src = SHELL_IMAGE_FALLBACK;
+      },
+      { once: true }
+    );
+  });
 }
 
 function getShellMarkdownIt() {
@@ -263,7 +341,12 @@ function getShellMarkdownIt() {
     shellMarkdownIt.use(window.markdownItTaskLists);
   }
 
+  if (typeof window.markdownitFootnote === "function") {
+    shellMarkdownIt.use(window.markdownitFootnote);
+  }
+
   applyShellMarkHighlight(shellMarkdownIt);
+  applyShellSupSub(shellMarkdownIt);
 
   const defaultLinkOpen =
     shellMarkdownIt.renderer.rules.link_open ||
@@ -307,6 +390,11 @@ function getShellMarkdownIt() {
 
   shellMarkdownIt.renderer.rules.image = function renderShellImage(tokens, idx, options, env, self) {
     const token = tokens[idx];
+    const srcIdx = token.attrIndex("src");
+    if (srcIdx >= 0) {
+      const attrs = token.attrs[srcIdx];
+      attrs[1] = normalizeShellImageSrc(attrs[1]);
+    }
     token.attrSet("loading", "lazy");
     token.attrSet("referrerpolicy", "no-referrer");
     token.attrSet("decoding", "async");

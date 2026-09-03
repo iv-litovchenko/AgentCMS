@@ -8852,32 +8852,49 @@ body.shell-embed .shell-path-header {
   line-height: 1.25;
   font-size: 1em;
   font-weight: 600;
+  padding-left: 0.55em;
+  border-left: 3px solid #fef08a;
 }
 
 .shell-reply-text.shell-md h1,
 .shell-chat-msg .shell-md h1,
 .shell-reply-segment.shell-md h1,
-.shell-reply-tts-block-text.shell-md h1 { font-size: 1.28em; }
+.shell-reply-tts-block-text.shell-md h1 {
+  font-size: 1.28em;
+  border-left-color: #fef08a;
+}
 
 .shell-reply-text.shell-md h2,
 .shell-chat-msg .shell-md h2,
 .shell-reply-segment.shell-md h2,
-.shell-reply-tts-block-text.shell-md h2 { font-size: 1.18em; }
+.shell-reply-tts-block-text.shell-md h2 {
+  font-size: 1.18em;
+  border-left-color: #fde047;
+}
 
 .shell-reply-text.shell-md h3,
 .shell-chat-msg .shell-md h3,
 .shell-reply-segment.shell-md h3,
-.shell-reply-tts-block-text.shell-md h3 { font-size: 1.1em; }
+.shell-reply-tts-block-text.shell-md h3 {
+  font-size: 1.1em;
+  border-left-color: #facc15;
+}
 
 .shell-reply-text.shell-md h4,
 .shell-chat-msg .shell-md h4,
 .shell-reply-segment.shell-md h4,
-.shell-reply-tts-block-text.shell-md h4 { font-size: 1.04em; }
+.shell-reply-tts-block-text.shell-md h4 {
+  font-size: 1.04em;
+  border-left-color: #eab308;
+}
 
 .shell-reply-text.shell-md h5,
 .shell-chat-msg .shell-md h5,
 .shell-reply-segment.shell-md h5,
-.shell-reply-tts-block-text.shell-md h5 { font-size: 0.98em; }
+.shell-reply-tts-block-text.shell-md h5 {
+  font-size: 0.98em;
+  border-left-color: #d97706;
+}
 
 .shell-reply-text.shell-md h6,
 .shell-chat-msg .shell-md h6,
@@ -8885,6 +8902,7 @@ body.shell-embed .shell-path-header {
 .shell-reply-tts-block-text.shell-md h6 {
   font-size: 0.94em;
   color: rgba(226, 232, 255, 0.88);
+  border-left-color: #b45309;
 }
 
 .shell-reply-text.shell-md mark,
@@ -8903,6 +8921,69 @@ body.shell-embed .shell-path-header {
   -webkit-box-decoration-break: clone;
   background: rgba(254, 240, 138, 0.32);
   color: #fef08a;
+}
+
+.shell-reply-text.shell-md .footnote-ref,
+.shell-chat-msg .shell-md .footnote-ref,
+.shell-reply-segment.shell-md .footnote-ref,
+.shell-reply-tts-block-text.shell-md .footnote-ref {
+  font-size: 0.78em;
+  line-height: 0;
+}
+
+.shell-reply-text.shell-md .footnote-ref a,
+.shell-chat-msg .shell-md .footnote-ref a,
+.shell-reply-segment.shell-md .footnote-ref a,
+.shell-reply-tts-block-text.shell-md .footnote-ref a {
+  color: #fde047;
+  text-decoration: none;
+}
+
+.shell-reply-text.shell-md .footnotes,
+.shell-chat-msg .shell-md .footnotes,
+.shell-reply-segment.shell-md .footnotes,
+.shell-reply-tts-block-text.shell-md .footnotes {
+  margin: 0.75em 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(122, 108, 255, 0.22);
+  background: rgba(8, 10, 22, 0.45);
+  font-size: 0.88em;
+  line-height: 1.45;
+  color: rgba(226, 232, 255, 0.9);
+}
+
+.shell-reply-text.shell-md .footnotes-sep,
+.shell-chat-msg .shell-md .footnotes-sep,
+.shell-reply-segment.shell-md .footnotes-sep,
+.shell-reply-tts-block-text.shell-md .footnotes-sep {
+  margin: 0.75em 0;
+  border: 0;
+  border-top: 1px dashed rgba(122, 108, 255, 0.28);
+}
+
+.shell-reply-text.shell-md .footnotes-list,
+.shell-chat-msg .shell-md .footnotes-list,
+.shell-reply-segment.shell-md .footnotes-list,
+.shell-reply-tts-block-text.shell-md .footnotes-list {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.shell-reply-text.shell-md .footnote-item,
+.shell-chat-msg .shell-md .footnote-item,
+.shell-reply-segment.shell-md .footnote-item,
+.shell-reply-tts-block-text.shell-md .footnote-item {
+  margin: 0 0 0.35em;
+}
+
+.shell-reply-text.shell-md .footnote-backref,
+.shell-chat-msg .shell-md .footnote-backref,
+.shell-reply-segment.shell-md .footnote-backref,
+.shell-reply-tts-block-text.shell-md .footnote-backref {
+  color: #b8adff;
+  text-decoration: none;
+  margin-left: 0.25em;
 }
 
 .shell-reply-text.shell-md a,

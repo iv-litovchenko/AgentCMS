@@ -69,6 +69,7 @@ const VOICE_RESERVED_ROOT = new Set([
   "app-lock-scanner.js",
   "markdown-github-alerts.js",
   "markdown-it-task-lists.js",
+  "markdown-it-footnote.min.js",
   "index.html",
   "404.html",
   "preview.html"
