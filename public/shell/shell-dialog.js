@@ -198,6 +198,7 @@ export function createShellDialog(options = {}) {
   let lastReplyRaw = "";
   let lastAskRaw = "";
   let pullStartY = 0;
+  let liveStreamTools = [];
   let pullActive = false;
   let reconnectHandler = options.onReconnect || null;
 
@@ -454,11 +455,11 @@ export function createShellDialog(options = {}) {
     return row;
   }
 
-  function findOpenToolIndex(payload = {}) {
+  function findOpenToolIndexIn(list, payload = {}) {
     const toolId = String(payload.toolId || "").trim();
     const tool = String(payload.tool || "").trim();
-    for (let i = history.length - 1; i >= 0; i -= 1) {
-      const item = history[i];
+    for (let i = list.length - 1; i >= 0; i -= 1) {
+      const item = list[i];
       if (item.role !== "tool") continue;
       if (toolId && item.toolId === toolId) return i;
       if (tool && item.tool === tool && item.status === "running") return i;
@@ -466,7 +467,11 @@ export function createShellDialog(options = {}) {
     return -1;
   }
 
-  function upsertToolActivity(payload = {}) {
+  function findOpenToolIndex(payload = {}) {
+    return findOpenToolIndexIn(history, payload);
+  }
+
+  function upsertToolInList(list, payload = {}) {
     const phase = String(payload.phase || "start").trim().toLowerCase();
     const tool = String(payload.tool || "tool").trim() || "tool";
     const toolId = String(payload.toolId || tool).trim() || tool;
@@ -475,19 +480,16 @@ export function createShellDialog(options = {}) {
     const status = String(payload.status || "").trim().toLowerCase();
 
     if (phase === "end") {
-      const index = findOpenToolIndex(payload);
+      const index = findOpenToolIndexIn(list, payload);
       if (index >= 0) {
-        const item = history[index];
+        const item = list[index];
         item.result = result || item.result || "";
         item.status = status || (payload.error ? "error" : "ok");
         item.at = Date.now();
         if (args && !item.args) item.args = args;
-        renderLiveToolStrip();
-        renderHistoryUi();
-        nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "smooth" });
         return;
       }
-      history.push({
+      list.push({
         role: "tool",
         tool,
         toolId,
@@ -496,25 +498,19 @@ export function createShellDialog(options = {}) {
         status: status || (payload.error ? "error" : "ok"),
         at: Date.now()
       });
-      if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
-      renderLiveToolStrip();
-      renderHistoryUi();
-      nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "smooth" });
       return;
     }
 
     if (phase === "progress") {
-      const index = findOpenToolIndex(payload);
+      const index = findOpenToolIndexIn(list, payload);
       if (index >= 0) {
-        if (args) history[index].args = args;
-        history[index].at = Date.now();
-        renderLiveToolStrip();
-        renderHistoryUi();
-        return;
+        if (args) list[index].args = args;
+        list[index].at = Date.now();
       }
+      return;
     }
 
-    history.push({
+    list.push({
       role: "tool",
       tool,
       toolId,
@@ -523,10 +519,24 @@ export function createShellDialog(options = {}) {
       status: "running",
       at: Date.now()
     });
-    if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+  }
+
+  function clearLiveStreamTools() {
+    liveStreamTools = [];
     renderLiveToolStrip();
+  }
+
+  function upsertToolActivity(payload = {}) {
+    upsertToolInList(history, payload);
+    if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+    upsertToolInList(liveStreamTools, payload);
+    if (liveStreamTools.length > MAX_HISTORY) liveStreamTools = liveStreamTools.slice(-MAX_HISTORY);
+
+    if (nodes.panel?.classList.contains("is-streaming")) {
+      renderLiveToolStrip();
+      return;
+    }
     renderHistoryUi();
-    nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "smooth" });
   }
 
   function renderThreadMessage(item) {
@@ -597,7 +607,7 @@ export function createShellDialog(options = {}) {
   function renderLiveToolStrip() {
     if (!nodes.liveTools) return;
     const streaming = nodes.panel?.classList.contains("is-streaming");
-    const tools = streaming ? getCurrentTurnTools() : [];
+    const tools = streaming ? liveStreamTools : [];
     nodes.liveTools.replaceChildren();
     if (tools.length) {
       for (const item of tools) {
@@ -610,7 +620,7 @@ export function createShellDialog(options = {}) {
     if (streaming) {
       const pending = document.createElement("div");
       pending.className = "shell-live-tools-pending";
-      pending.textContent = "🔧 Агент вызывает инструменты…";
+      pending.textContent = "🔧 Ожидаем вызов инструментов…";
       nodes.liveTools.append(pending);
       nodes.liveTools.classList.remove("hidden");
       return;
@@ -630,9 +640,6 @@ export function createShellDialog(options = {}) {
     }
     renderLiveToolStrip();
     syncLiveReplySlot();
-    if (history.length) {
-      nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "auto" });
-    }
   }
 
   function renderHistoryUi() {
@@ -708,9 +715,6 @@ export function createShellDialog(options = {}) {
     const raw = String(rawText || "").trim();
     lastReplyRaw = raw;
     syncLiveReplySlot();
-    if (raw && raw !== "—") {
-      nodes.scroll?.scrollTo?.({ top: nodes.scroll.scrollHeight, behavior: "smooth" });
-    }
   }
 
   function onUserMessage(text) {
@@ -839,6 +843,7 @@ export function createShellDialog(options = {}) {
     connectionHint,
     pushHistory,
     upsertToolActivity,
+    clearLiveStreamTools,
     renderLiveToolStrip,
     refreshHistory: (options) => loadHistory(options),
     syncLiveReplySlot

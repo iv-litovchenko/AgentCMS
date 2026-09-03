@@ -4332,7 +4332,13 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-dialog-live-reply .shell-chat-row--tool {
+  max-width: 100%;
   width: 100%;
+}
+
+.shell-dialog-live-reply .shell-tool-bubble-section {
+  max-height: 160px;
+  overflow: auto;
 }
 
 .shell-dialog-live-reply .shell-reply-text {

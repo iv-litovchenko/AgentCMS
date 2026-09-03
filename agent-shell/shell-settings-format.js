@@ -174,6 +174,8 @@ function flattenSettings(raw) {
   else if (route.messageTarget !== undefined) flat.messageTarget = route.messageTarget;
   else if (route.selectedRuntime !== undefined) flat.messageTarget = route.selectedRuntime;
 
+  if (route.systemPrompt !== undefined) flat.systemPrompt = route.systemPrompt;
+
   const runtimes = route.runtimes || {};
   flattenQwenpawRuntime(runtimes.qwenpaw, flat);
   flattenQwenpawRuntime(route.qwenpaw, flat);
@@ -338,6 +340,7 @@ function nestSettings(flat) {
     }),
     route: compactObject({
       runtime: source.messageTarget,
+      systemPrompt: source.systemPrompt,
       runtimes: Object.keys(runtimes).length ? runtimes : undefined
     }),
     voice: compactObject({

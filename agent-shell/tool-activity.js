@@ -279,6 +279,31 @@ class ClaudeToolActivityTracker {
     }
 
     if (type === "assistant" && Array.isArray(event.message?.content)) {
+      const serverUsage = event.message?.usage?.server_tool_use;
+      if (serverUsage && typeof serverUsage === "object") {
+        if (Number(serverUsage.web_search_requests) > 0) {
+          this.emit({
+            kind: "tool",
+            phase: "start",
+            tool: "WebSearch",
+            toolId: "WebSearch",
+            args: "",
+            status: "running",
+            priority: 42
+          });
+        }
+        if (Number(serverUsage.web_fetch_requests) > 0) {
+          this.emit({
+            kind: "tool",
+            phase: "start",
+            tool: "WebFetch",
+            toolId: "WebFetch",
+            args: "",
+            status: "running",
+            priority: 42
+          });
+        }
+      }
       for (const block of event.message.content) {
         if (!block || typeof block !== "object") continue;
         if (block.type === "tool_use" || block.type === "server_tool_use") {

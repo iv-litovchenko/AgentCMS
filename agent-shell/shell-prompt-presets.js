@@ -3,7 +3,8 @@ const { loadSystemFilePresets } = require("../awn-system-presets-loader");
 const SHELL_PROMPT_SLUGS = {
   ttsPrompt: "shell-tts-prompt",
   sttPrompt: "shell-stt-prompt",
-  proactivePrompt: "shell-proactive-prompt"
+  proactivePrompt: "shell-proactive-prompt",
+  systemPrompt: "shell-system-prompt"
 };
 
 function presetBodyBySlug(presets, slug) {
@@ -16,14 +17,17 @@ function loadShellPromptTemplates(projectRoot, agentRoot = "") {
   const ttsPreset = presets.find((item) => item.slug === SHELL_PROMPT_SLUGS.ttsPrompt);
   const sttPreset = presets.find((item) => item.slug === SHELL_PROMPT_SLUGS.sttPrompt);
   const proactivePreset = presets.find((item) => item.slug === SHELL_PROMPT_SLUGS.proactivePrompt);
+  const systemPreset = presets.find((item) => item.slug === SHELL_PROMPT_SLUGS.systemPrompt);
   return {
     ttsPrompt: presetBodyBySlug(presets, SHELL_PROMPT_SLUGS.ttsPrompt),
     sttPrompt: presetBodyBySlug(presets, SHELL_PROMPT_SLUGS.sttPrompt),
     proactivePrompt: presetBodyBySlug(presets, SHELL_PROMPT_SLUGS.proactivePrompt),
+    systemPrompt: presetBodyBySlug(presets, SHELL_PROMPT_SLUGS.systemPrompt),
     sources: {
       ttsPrompt: ttsPreset?.catalogFile || null,
       sttPrompt: sttPreset?.catalogFile || null,
-      proactivePrompt: proactivePreset?.catalogFile || null
+      proactivePrompt: proactivePreset?.catalogFile || null,
+      systemPrompt: systemPreset?.catalogFile || null
     }
   };
 }

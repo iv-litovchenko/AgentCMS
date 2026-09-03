@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=495" />
+    <link rel="stylesheet" href="/shell/shell.css?v=496" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -41,7 +41,7 @@
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=207",
-          "@shell/dialog": "/shell/shell-dialog.js?v=272",
+          "@shell/dialog": "/shell/shell-dialog.js?v=273",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=316",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=417",
@@ -577,6 +577,22 @@
             </div>
           </div>
         </div>
+
+        <label class="shell-field shell-field--compact shell-route-system-prompt-field">
+          <span class="shell-label shell-label-row shell-label-row--spread">
+            Системный промпт (основной)
+            <button type="button" class="shell-label-action" id="shell-system-prompt-insert">
+              Вставить заготовку
+            </button>
+          </span>
+          <textarea
+            id="shell-system-prompt"
+            class="shell-textarea shell-textarea--compact"
+            rows="6"
+            spellcheck="false"
+            placeholder="Роль и правила агента для всех сообщений из Shell. Память и workspace — через MCP Agent CMS.&#10;&#10;Если поле пустое — агент работает без дополнительных инструкций."
+          ></textarea>
+        </label>
 
         <div class="shell-settings-save-row">
           <div class="shell-settings-save-actions">
@@ -2278,6 +2294,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=506" type="module"></script>
+    <script src="/shell/shell.js?v=507" type="module"></script>
   </body>
 </html>

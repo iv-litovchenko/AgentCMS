@@ -4,8 +4,11 @@ const { EventEmitter } = require("events");
 const { chatWithQwenPaw, checkQwenPawHealth, checkQwenPawAgent, getQwenPawAgent, updateQwenPawAgentApproval, listQwenPawAgents, listQwenPawChats, createQwenPawChat, updateQwenPawChat, buildNewShellSessionId } = require("./qwenpaw-client");
 const {
   buildDualReplyInstruction,
+  buildOpenAiMessages,
+  buildQwenPawChatInput,
   extractStreamingReplyBody,
   finalizeDualReply,
+  getSystemPrompt,
   shouldRequestDualReply
 } = require("./spoken-text");
 const { hasVoiceEndDelimiter } = require("./voice-end-format");
@@ -135,6 +138,7 @@ const DEFAULT_SETTINGS = {
   proactiveIdleSecondsMax: 240,
   proactiveCooldownSeconds: 900,
   proactivePrompt: "",
+  systemPrompt: "",
   proactiveQuietHoursEnabled: false,
   proactiveQuietStart: "23:00",
   proactiveQuietEnd: "07:00",
@@ -376,6 +380,7 @@ function normalizeSettings(raw) {
     Math.max(60, Number(merged.proactiveCooldownSeconds) || 900)
   );
   merged.proactivePrompt = String(merged.proactivePrompt || "");
+  merged.systemPrompt = String(merged.systemPrompt || "");
   merged.proactiveQuietHoursEnabled = Boolean(merged.proactiveQuietHoursEnabled);
   merged.proactiveQuietStart = normalizeProactiveQuietTime(merged.proactiveQuietStart, "23:00");
   merged.proactiveQuietEnd = normalizeProactiveQuietTime(merged.proactiveQuietEnd, "07:00");
@@ -1123,6 +1128,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
   const sessionId = buildQwenPawSessionId(settings, agentId);
   const streamId = `qwenpaw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const outboundText = buildDualReplyInstruction(text, settings);
+  const qwenInput = buildQwenPawChatInput(text, settings);
   let lastEmittedText = "";
   let lastEmitAt = 0;
   let lastStatePatchAt = 0;
@@ -1259,6 +1265,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
       sessionId,
       userId: settings.qwenpawUserId,
       text: outboundText,
+      input: qwenInput,
       onEvent: ({ text: partialText, activity }) => {
         if (activity) void emitAgentActivity(activity);
         if (String(partialText || "").trim()) void emitAssistantDelta(partialText);
@@ -1321,6 +1328,8 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
   const replyTtsClientId = String(ttsClientId || "").trim();
   const streamId = `${runtime}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const outboundText = buildDualReplyInstruction(text, settings);
+  const messages = buildOpenAiMessages(text, settings);
+  const systemPrompt = getSystemPrompt(settings);
   let lastEmittedText = "";
   let lastEmitAt = 0;
   let lastStatePatchAt = 0;
@@ -1369,7 +1378,6 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
     if (shouldPatch) patchStateAsync(agentRoot, agentId, patch);
   };
 
-  const messages = [{ role: "user", content: outboundText }];
   const onDelta = (partial) => {
     if (String(partial || "").trim()) void emitAssistantDelta(partial);
   };
@@ -1408,6 +1416,7 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         messages,
         sessionId: endpoint.sessionId,
         permissionMode: endpoint.permissionMode || "",
+        systemPrompt,
         cwd: agentRoot,
         onDelta,
         onActivity

@@ -338,12 +338,28 @@ const DEFAULT_TTS_PROMPT = `Сформируй ответ в следующем 
 
 const DEFAULT_STT_PROMPT = `Исправь пунктуацию и регистр, убери слова-паразиты («э-э», «эээ», «мм», «ну»), сохрани смысл. Верни только готовый текст для отправки агенту — без пояснений и обёрток.`;
 
-/** @type {{ ttsPrompt: string, sttPrompt: string, proactivePrompt: string, sources: Record<string, string | null> }} */
+const DEFAULT_SYSTEM_PROMPT = `Ты — мой личный ассистент. Мы работаем вместе с мобильного устройства через браузер (Agent CMS Voice).
+
+Контекст:
+- У тебя есть доступ к нашей совместной памяти и workspace через MCP-инструменты Agent CMS (поиск, страницы, заметки, диалоги, файлы).
+- Пользователь часто общается голосом: отвечай коротко и по делу, без лишней воды.
+- Если нужны данные из памяти или workspace — сначала найди их инструментами, не выдумывай.
+
+Стиль:
+- Русский язык, если пользователь не переключился на другой.
+- Проактивность умеренная: предлагай следующий шаг, но не навязывайся.
+- Не показывай сырой JSON, ID инструментов и технические детали MCP — только результат.
+
+Безопасность:
+- Не озвучивай и не выводи секреты, ключи API, пароли.`;
+
+/** @type {{ ttsPrompt: string, sttPrompt: string, proactivePrompt: string, systemPrompt: string, sources: Record<string, string | null> }} */
 let shellPromptTemplates = {
   ttsPrompt: DEFAULT_TTS_PROMPT,
   sttPrompt: DEFAULT_STT_PROMPT,
   proactivePrompt: DEFAULT_PROACTIVE_PROMPT,
-  sources: { ttsPrompt: null, sttPrompt: null, proactivePrompt: null }
+  systemPrompt: DEFAULT_SYSTEM_PROMPT,
+  sources: { ttsPrompt: null, sttPrompt: null, proactivePrompt: null, systemPrompt: null }
 };
 
 const TTS_TEST_PHRASES = {
@@ -1060,6 +1076,8 @@ const nodes = {
   bridgePermissionEmoji: document.getElementById("shell-runtime-bridge-permission-emoji"),
   bridgePermissionTitle: document.getElementById("shell-runtime-bridge-permission-title"),
   bridgePermissionDesc: document.getElementById("shell-runtime-bridge-permission-desc"),
+  systemPrompt: document.getElementById("shell-system-prompt"),
+  systemPromptInsert: document.getElementById("shell-system-prompt-insert"),
   ttsEnabled: document.getElementById("shell-tts-enabled"),
   ttsPanelEnabled: document.getElementById("shell-tts-panel-enabled"),
   ttsPlaybackModeGroup: document.getElementById("shell-tts-playback-mode"),
@@ -2265,10 +2283,13 @@ function syncToolActivityFromStatus({ phrase = "", metrics = "" } = {}) {
     .trim()
     .replace(/^🔧\s*/, "");
   const text = String(phrase || "").trim();
-  const inferredTool =
+  let inferredTool =
     tool ||
     (/^🔧\s*(.+?)(?:…|$)/u.exec(text)?.[1] || "").trim() ||
     (/^✓\s*(.+)$/u.exec(text)?.[1] || "").trim();
+  if (!inferredTool && /web\s*search|поиск/i.test(text)) inferredTool = "WebSearch";
+  if (!inferredTool && /web\s*fetch|fetch/i.test(text)) inferredTool = "WebFetch";
+  if (!inferredTool && /\bbash\b|команд/i.test(text)) inferredTool = "Bash";
   if (!inferredTool) return;
   const phase = /^✓/.test(text) ? "end" : "start";
   shellDialog.upsertToolActivity?.({
@@ -2280,6 +2301,28 @@ function syncToolActivityFromStatus({ phrase = "", metrics = "" } = {}) {
     phrase: text,
     status: phase === "end" ? "ok" : "running"
   });
+}
+
+function inferToolActivityPayload(payload = {}) {
+  const activity = normalizeAgentActivityPayload(payload);
+  const phrase = String(activity.phrase || "").trim();
+  const metrics = String(payload.metrics || state.shellState?.metrics || "").trim();
+  let tool = String(activity.tool || metrics || "").trim();
+  if (!tool && /^🔧\s*(.+?)(?:…|$)/u.test(phrase)) {
+    tool = phrase.replace(/^🔧\s*/, "").replace(/…+$/u, "").trim();
+  }
+  if (!tool && /^✓\s*(.+)$/u.test(phrase)) {
+    tool = phrase.replace(/^✓\s*/, "").trim();
+  }
+  if (!tool) return null;
+  return {
+    ...activity,
+    kind: "tool",
+    tool,
+    toolId: String(activity.toolId || tool).trim() || tool,
+    phase: activity.phase || (/^✓/.test(phrase) ? "end" : "start"),
+    status: activity.status || (/^✓/.test(phrase) ? "ok" : "running")
+  };
 }
 
 function normalizeActivityStepLabel(payload = {}) {
@@ -2408,6 +2451,10 @@ function updateStreamWaitLabel() {
   if (!nodes.lastReplyWait || !streamWaitStartedAt) return;
   const elapsed = Date.now() - streamWaitStartedAt;
   nodes.lastReplyWait.textContent = `Ждём ${formatStreamWaitDuration(elapsed)}`;
+  syncToolActivityFromStatus({
+    phrase: state.shellState?.phrase || "",
+    metrics: state.shellState?.metrics || ""
+  });
 }
 
 function startStreamWaitTimer() {
@@ -2432,8 +2479,13 @@ function stopStreamWaitTimer() {
 
 function setReplyPanelStreaming(active) {
   nodes.replyPanel?.classList.toggle("is-streaming", Boolean(active));
-  if (active) startStreamWaitTimer();
-  else stopStreamWaitTimer();
+  if (active) {
+    shellDialog.clearLiveStreamTools?.();
+    startStreamWaitTimer();
+  } else {
+    stopStreamWaitTimer();
+    shellDialog.renderLiveToolStrip?.();
+  }
 }
 
 function beginAssistantStream({ streamId } = {}) {
@@ -2479,7 +2531,6 @@ function renderStreamingAssistantText(text) {
     return;
   }
   renderShellReplyBody(nodes.lastReplyText, value);
-  nodes.dialogScroll?.scrollTo?.({ top: nodes.dialogScroll.scrollHeight, behavior: "auto" });
   shellDialog.onReplyRendered(value);
   if (state.assistantStream && !state.assistantStream.finalized) {
     syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
@@ -3141,8 +3192,10 @@ function handleAgentActivity(payload = {}) {
   const activity = normalizeAgentActivityPayload(payload);
   if (activity.streamId) rememberAgentStreamId(activity.streamId);
 
-  if (activity.kind === "tool") {
-    shellDialog.upsertToolActivity?.(activity);
+  const toolActivity = inferToolActivityPayload(payload) ||
+    (activity.kind === "tool" ? activity : null);
+  if (toolActivity) {
+    shellDialog.upsertToolActivity?.(toolActivity);
   }
 
   if (!shouldShowAgentActivity(activity)) return;
@@ -4001,7 +4054,8 @@ function buildRouteSnapshotFromSettings(settings = state.settings || {}) {
   const snap = {
     messageTarget: normalizeMessageRuntime(settings.messageTarget || "qwenpaw"),
     qwenpawBaseUrl: String(settings.qwenpawBaseUrl || "http://127.0.0.1:8088").trim() || "http://127.0.0.1:8088",
-    qwenpawAgentId: String(settings.qwenpawAgentId || "default").trim() || "default"
+    qwenpawAgentId: String(settings.qwenpawAgentId || "default").trim() || "default",
+    systemPrompt: String(settings.systemPrompt || "").trim()
   };
   for (const id of SHELL_RUNTIMES) {
     if (id === "qwenpaw") continue;
@@ -4031,6 +4085,9 @@ function applyRouteFormFromSettings(settings = state.settings || {}) {
   if (state.settings) state.settings.messageTarget = runtime;
   applyQwenpawRouteForm(settings);
   applyBridgeForm(runtime, settings);
+  if (nodes.systemPrompt && document.activeElement !== nodes.systemPrompt) {
+    nodes.systemPrompt.value = settings.systemPrompt || "";
+  }
   updateRuntimeUi({ reloadForms: false });
 }
 
@@ -4069,7 +4126,8 @@ function collectRouteSettingsPatch({ validate = false } = {}) {
   const patch = {
     messageTarget: runtime,
     qwenpawBaseUrl: nodes.qwenpawUrl?.value.trim() || "http://127.0.0.1:8088",
-    qwenpawAgentId: nodes.qwenpawAgentId?.value.trim() || "default"
+    qwenpawAgentId: nodes.qwenpawAgentId?.value.trim() || "default",
+    systemPrompt: nodes.systemPrompt?.value || ""
   };
   if (runtimeUsesBridge(runtime)) {
     Object.assign(patch, collectBridgeFormPatch(runtime, { validate }));
@@ -6153,6 +6211,15 @@ function insertSttPromptTemplate() {
   markSettingsDirty("stt");
 }
 
+function insertSystemPromptTemplate() {
+  if (!nodes.systemPrompt) return;
+  const template =
+    String(shellPromptTemplates.systemPrompt || DEFAULT_SYSTEM_PROMPT).trim() || DEFAULT_SYSTEM_PROMPT;
+  nodes.systemPrompt.value = template;
+  state.settings = { ...(state.settings || {}), systemPrompt: template };
+  markSettingsDirty("route");
+}
+
 function insertProactivePromptTemplate() {
   if (!nodes.proactivePrompt) return;
   const template =
@@ -6180,10 +6247,13 @@ async function loadShellPromptTemplates() {
       sttPrompt: String(data.sttPrompt || DEFAULT_STT_PROMPT).trim() || DEFAULT_STT_PROMPT,
       proactivePrompt:
         String(data.proactivePrompt || DEFAULT_PROACTIVE_PROMPT).trim() || DEFAULT_PROACTIVE_PROMPT,
+      systemPrompt:
+        String(data.systemPrompt || DEFAULT_SYSTEM_PROMPT).trim() || DEFAULT_SYSTEM_PROMPT,
       sources: {
         ttsPrompt: data.sources?.ttsPrompt || null,
         sttPrompt: data.sources?.sttPrompt || null,
-        proactivePrompt: data.sources?.proactivePrompt || null
+        proactivePrompt: data.sources?.proactivePrompt || null,
+        systemPrompt: data.sources?.systemPrompt || null
       }
     };
   } catch {
@@ -6191,7 +6261,8 @@ async function loadShellPromptTemplates() {
       ttsPrompt: DEFAULT_TTS_PROMPT,
       sttPrompt: DEFAULT_STT_PROMPT,
       proactivePrompt: DEFAULT_PROACTIVE_PROMPT,
-      sources: { ttsPrompt: null, sttPrompt: null, proactivePrompt: null }
+      systemPrompt: DEFAULT_SYSTEM_PROMPT,
+      sources: { ttsPrompt: null, sttPrompt: null, proactivePrompt: null, systemPrompt: null }
     };
   }
 }
@@ -8519,6 +8590,11 @@ function bindUi() {
   nodes.bridgePermissionMode?.addEventListener("change", () => {
     markSettingsDirty("route");
     void persistRoutePermissionMode().catch((error) => renderPhase("waiting", error.message));
+  });
+  nodes.systemPrompt?.addEventListener("input", markRouteDirty);
+  nodes.systemPromptInsert?.addEventListener("click", (event) => {
+    event.preventDefault();
+    insertSystemPromptTemplate();
   });
   nodes.ttsEnabled?.addEventListener("change", () => {
     handleTtsEnabledChange(nodes.ttsEnabled);

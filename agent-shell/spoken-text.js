@@ -142,10 +142,51 @@ function isInternalTtsPrepSession(sessionId) {
   return value.includes("-tts-prep-") || value.startsWith("__shell-tts-prep-");
 }
 
+function getSystemPrompt(settings = {}) {
+  return String(settings.systemPrompt || "").trim();
+}
+
+function buildOpenAiMessages(userText, settings = {}) {
+  const system = getSystemPrompt(settings);
+  const user = buildDualReplyInstruction(userText, settings);
+  const messages = [];
+  if (system) messages.push({ role: "system", content: system });
+  messages.push({ role: "user", content: user });
+  return messages;
+}
+
+function buildQwenPawChatInput(userText, settings = {}) {
+  const system = getSystemPrompt(settings);
+  const user = buildDualReplyInstruction(userText, settings);
+  const input = [];
+  if (system) {
+    input.push({
+      role: "system",
+      content: [{ type: "text", text: system }]
+    });
+  }
+  input.push({
+    role: "user",
+    content: [{ type: "text", text: user }]
+  });
+  return input;
+}
+
+function buildCliUserPrompt(userText, settings = {}) {
+  const system = getSystemPrompt(settings);
+  const user = buildDualReplyInstruction(userText, settings);
+  if (!system) return user;
+  return `${system}\n\n---\n\n${user}`;
+}
+
 module.exports = {
   ruleBasedSpeechText,
   shouldRequestDualReply,
   buildDualReplyInstruction,
+  getSystemPrompt,
+  buildOpenAiMessages,
+  buildQwenPawChatInput,
+  buildCliUserPrompt,
   stripAllTtsBlocks,
   parseDualReply,
   extractStreamingReplyBody,

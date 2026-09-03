@@ -27,6 +27,15 @@ function extractUserPrompt(messages) {
     .trim();
 }
 
+function extractSystemPrompt(messages) {
+  return (Array.isArray(messages) ? messages : [])
+    .filter((item) => item && item.role === "system")
+    .map((item) => String(item.content || "").trim())
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+}
+
 function claudeStreamError(event) {
   if (!event || typeof event !== "object") return "";
   if (event.is_error !== true && event.subtype !== "error_during_execution") return "";
@@ -248,6 +257,7 @@ async function chatClaudeCli({
   messages,
   sessionId = "",
   permissionMode = "",
+  systemPrompt = "",
   onDelta,
   onActivity,
   signal,
@@ -260,11 +270,13 @@ async function chatClaudeCli({
   const sid = normalizeCliSessionId(sessionId, "claude");
 
   const permission = normalizeClaudePermissionMode(permissionMode);
+  const system = String(systemPrompt || extractSystemPrompt(messages) || "").trim();
 
   const runOnce = async (resume) => {
     const args = ["-p", prompt, "--output-format", "stream-json", "--verbose"];
     if (model) args.push("--model", String(model));
     if (permission) args.push("--permission-mode", permission);
+    if (!resume && system) args.push("--system-prompt", system);
     if (resume && sid) args.push("--resume", sid);
     else if (sid) args.push("--session-id", sid);
 
@@ -365,14 +377,18 @@ async function chatCodexCli({
   messages,
   sessionId = "",
   permissionMode = "",
+  systemPrompt = "",
   onDelta,
   onActivity,
   signal,
   cwd,
   timeoutMs = DEFAULT_TIMEOUT_MS
 } = {}) {
-  const prompt = extractUserPrompt(messages);
+  let prompt = extractUserPrompt(messages);
   if (!prompt) throw new Error("Пустое сообщение");
+
+  const system = String(systemPrompt || extractSystemPrompt(messages) || "").trim();
+  if (system) prompt = `${system}\n\n---\n\n${prompt}`;
 
   const sid = normalizeCliSessionId(sessionId, "codex");
   const cmd = normalizeBinary("codex", binary);

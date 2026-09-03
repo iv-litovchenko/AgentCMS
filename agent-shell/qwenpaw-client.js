@@ -430,13 +430,25 @@ async function chatWithQwenPaw({
   sessionId = "agent-shell",
   userId = "shell",
   text,
+  input,
   onEvent,
   signal,
   timeoutMs = DEFAULT_TIMEOUT_MS
 }) {
   const root = normalizeBaseUrl(baseUrl);
   const message = String(text || "").trim();
-  if (!message) throw new Error("Message body is required");
+  const chatInput =
+    Array.isArray(input) && input.length
+      ? input
+      : message
+        ? [
+            {
+              role: "user",
+              content: [{ type: "text", text: message }]
+            }
+          ]
+        : [];
+  if (!chatInput.length) throw new Error("Message body is required");
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -455,12 +467,7 @@ async function chatWithQwenPaw({
         "X-Agent-Id": String(agentId || "default")
       },
       body: JSON.stringify({
-        input: [
-          {
-            role: "user",
-            content: [{ type: "text", text: message }]
-          }
-        ],
+        input: chatInput,
         session_id: String(sessionId || "agent-shell"),
         user_id: String(userId || "shell"),
         channel: "console"
