@@ -93,5 +93,8 @@
   },
   "window": {
     "topmost": true
+  },
+  "ui": {
+    "dialogScrollRatio": 1
   }
 }

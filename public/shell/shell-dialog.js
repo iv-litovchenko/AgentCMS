@@ -134,16 +134,21 @@ function mergeDialogHistory(archived, preserved = []) {
 }
 
 function preservedOptimisticItems(archived, preserved = []) {
-  const archivedKeys = new Set(
+  const archivedMessageKeys = new Set(
     (Array.isArray(archived) ? archived : [])
       .map(messageHistoryKey)
       .filter(Boolean)
   );
+  const archivedToolKeys = new Set(
+    (Array.isArray(archived) ? archived : [])
+      .filter(isToolHistoryItem)
+      .map(toolHistoryKey)
+  );
   return (Array.isArray(preserved) ? preserved : []).filter((item) => {
-    if (isToolHistoryItem(item)) return item.status === "running";
+    if (isToolHistoryItem(item)) return !archivedToolKeys.has(toolHistoryKey(item));
     const key = messageHistoryKey(item);
     if (!key) return true;
-    return !archivedKeys.has(key);
+    return !archivedMessageKeys.has(key);
   });
 }
 
@@ -276,7 +281,7 @@ export function createShellDialog(options = {}) {
   function isToolBubbleExpanded(item) {
     const key = toolBubbleStorageKey(item);
     if (toolBubbleFoldState.has(key)) return toolBubbleFoldState.get(key);
-    return false;
+    return String(item?.status || "").trim().toLowerCase() === "running";
   }
 
   function setToolBubbleExpanded(item, expanded) {
@@ -560,6 +565,7 @@ export function createShellDialog(options = {}) {
     }
 
     const generation = (historyLoadGeneration += 1);
+    const restoreScrollForLoad = Boolean(restoreScroll);
     historyLoading = true;
     if (!replace) historyLoadError = null;
     renderHistoryUi();
@@ -590,7 +596,7 @@ export function createShellDialog(options = {}) {
         historyLoadPromise = null;
         try {
           renderHistoryUi();
-          if (pendingScrollRestoreRatio != null) {
+          if (restoreScrollForLoad && pendingScrollRestoreRatio != null) {
             startScrollRestoreWatch();
           }
         } catch (error) {
@@ -962,11 +968,8 @@ export function createShellDialog(options = {}) {
         : null;
 
     nodes.thread.replaceChildren();
-    const streaming = nodes.panel?.classList.contains("is-streaming");
-    const lastUserIndex = findLastUserIndex();
     for (let i = 0; i < history.length; i += 1) {
       const item = history[i];
-      if (streaming && isToolHistoryItem(item) && i > lastUserIndex) continue;
       nodes.thread.append(renderThreadMessage(item));
     }
     renderLiveToolStrip();
@@ -989,6 +992,7 @@ export function createShellDialog(options = {}) {
       return;
     }
     if (historyLoading && history.length) {
+      syncHistoryPanelState();
       renderThread();
       return;
     }

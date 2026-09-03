@@ -1295,6 +1295,8 @@ const shellScreen = createShellScreen({
 
 let dialogScrollSaveTimer = 0;
 let lastSavedDialogScrollRatio = null;
+let lastDialogHistoryLoadedAt = 0;
+const DIALOG_HISTORY_REFRESH_MIN_MS = 30000;
 
 function dialogScrollRatioStorageKey(agentId = state.agentId) {
   const id = String(agentId || "default").trim() || "default";
@@ -1422,6 +1424,7 @@ const shellDialog = createShellDialog({
     const data = await apiFetch(`/api/shell/dialogs/history?runtime=${encodeURIComponent(runtime)}&limit=50`, {
       timeoutMs: 15000
     });
+    lastDialogHistoryLoadedAt = Date.now();
     return Array.isArray(data?.messages) ? data.messages : [];
   }
 });
@@ -3348,9 +3351,12 @@ function handleAgentActivity(payload = {}) {
   const activity = normalizeAgentActivityPayload(payload);
   if (activity.streamId) rememberAgentStreamId(activity.streamId);
 
-  if (isShellAgentWorkActive()) {
-    const toolActivity = inferToolActivityPayload(payload);
-    shellDialog.noteAgentActivity?.(toolActivity || activity);
+  const toolActivity =
+    inferToolActivityPayload(payload) || (activity.kind === "tool" || activity.tool ? activity : null);
+  if (toolActivity) {
+    shellDialog.noteAgentActivity?.(toolActivity);
+  } else if (isShellAgentWorkActive()) {
+    shellDialog.noteAgentActivity?.(activity);
   }
 
   if (!shouldShowAgentActivity(activity)) return;
@@ -8032,6 +8038,12 @@ async function handleAssistantMessage(message) {
   }
 }
 
+function shouldRefreshDialogHistoryOnSseOpen() {
+  if (isShellAgentWorkActive()) return false;
+  if (!lastDialogHistoryLoadedAt) return true;
+  return Date.now() - lastDialogHistoryLoadedAt >= DIALOG_HISTORY_REFRESH_MIN_MS;
+}
+
 function connectStream() {
   if (state.eventSource) {
     state.eventSource.close();
@@ -8057,7 +8069,7 @@ function connectStream() {
     } else {
       void pullRuntimeStatuses();
     }
-    void (isShellAgentWorkActive() ? Promise.resolve() : shellDialog.refreshHistory?.());
+    void (shouldRefreshDialogHistoryOnSseOpen() ? shellDialog.refreshHistory?.() : Promise.resolve());
     void syncShellReplyAfterConnect("sse open");
   };
   source.onerror = () => {
