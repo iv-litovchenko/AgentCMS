@@ -4234,6 +4234,7 @@ body.shell-desktop .shell-agent-gate select {
   align-items: center;
   gap: 6px;
   width: 100%;
+  min-height: 18px;
   margin: 0 0 4px;
   padding: 0;
   border: 0;
@@ -4259,16 +4260,34 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-tool-bubble-chevron {
-  flex: 0 0 auto;
-  width: 12px;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  font-size: 11px;
   line-height: 1;
   opacity: 0.65;
+  transform-origin: center center;
   transition: transform 0.15s ease;
 }
 
 .shell-chat-msg--tool.is-collapsed .shell-tool-bubble-chevron {
   transform: rotate(-90deg);
+}
+
+.shell-tool-bubble-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .shell-tool-bubble-body {
@@ -4279,10 +4298,6 @@ body.shell-desktop .shell-agent-gate select {
 
 .shell-chat-msg--tool.is-collapsed .shell-tool-bubble-body {
   display: none;
-}
-
-.shell-tool-bubble-icon {
-  flex: 0 0 auto;
 }
 
 .shell-tool-bubble-title {
@@ -9499,6 +9514,14 @@ body.shell-embed .shell-path-header {
   font-size: 12px;
   font-family: ui-sans-serif, system-ui, sans-serif;
   white-space: normal;
+}
+
+.shell-reply-text.shell-md pre.mermaid[data-mermaid-rendered="error"]::before,
+.shell-chat-msg .shell-md pre.mermaid[data-mermaid-rendered="error"]::before,
+.shell-reply-segment.shell-md pre.mermaid[data-mermaid-rendered="error"]::before,
+.shell-reply-tts-block-text.shell-md pre.mermaid[data-mermaid-rendered="error"]::before {
+  content: "Не удалось отрисовать диаграмму";
+  color: rgba(248, 113, 113, 0.92);
 }
 
 .shell-reply-text.shell-md .mermaid-diagram-frame pre.mermaid,

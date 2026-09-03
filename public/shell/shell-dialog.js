@@ -265,13 +265,17 @@ export function createShellDialog(options = {}) {
   let pendingScrollRestoreRatio = null;
   let scrollRestoreOnNextLoad = false;
   let scrollRestoreWatchTimer = 0;
+  let scrollRestoreRetryTimer = 0;
   let scrollRestoreApplying = false;
+  let scrollRestoreDeadline = 0;
+  let scrollRestoreActive = false;
+  const SCROLL_RESTORE_MAX_MS = 45000;
   const toolBubbleFoldState = new Map();
 
   function isToolBubbleExpanded(item) {
     const key = toolBubbleStorageKey(item);
     if (toolBubbleFoldState.has(key)) return toolBubbleFoldState.get(key);
-    return String(item?.status || "").trim().toLowerCase() === "running";
+    return false;
   }
 
   function setToolBubbleExpanded(item, expanded) {
@@ -312,10 +316,73 @@ export function createShellDialog(options = {}) {
     pendingScrollRestoreRatio = Math.min(1, Math.max(0, Number(ratio)));
   }
 
+  function stopScrollRestoreRetry() {
+    if (scrollRestoreRetryTimer) {
+      window.clearTimeout(scrollRestoreRetryTimer);
+      scrollRestoreRetryTimer = 0;
+    }
+  }
+
   function stopScrollRestoreWatch() {
     if (!scrollRestoreWatchTimer) return;
     window.clearInterval(scrollRestoreWatchTimer);
     scrollRestoreWatchTimer = 0;
+  }
+
+  function finishScrollRestoreWatch() {
+    scrollRestoreOnNextLoad = false;
+    scrollRestoreActive = false;
+    scrollRestoreDeadline = 0;
+    stopScrollRestoreWatch();
+    stopScrollRestoreRetry();
+  }
+
+  function clearPendingScrollRestore() {
+    pendingScrollRestoreRatio = null;
+    finishScrollRestoreWatch();
+  }
+
+  function ensureScrollRestoreDeadline() {
+    if (!scrollRestoreDeadline) {
+      scrollRestoreDeadline = Date.now() + SCROLL_RESTORE_MAX_MS;
+    }
+    return scrollRestoreDeadline;
+  }
+
+  function applyPendingScrollOnce() {
+    if (pendingScrollRestoreRatio == null) return;
+    if (nodes.panel?.classList.contains("is-streaming")) return;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => tryApplyPendingScrollRestore());
+    });
+  }
+
+  function queueScrollRestoreAfterLayout() {
+    if (pendingScrollRestoreRatio == null || !scrollRestoreActive) return;
+    if (nodes.panel?.classList.contains("is-streaming")) return;
+    const deadline = ensureScrollRestoreDeadline();
+    if (Date.now() > deadline) {
+      finishScrollRestoreWatch();
+      return;
+    }
+
+    stopScrollRestoreRetry();
+    const attempt = () => {
+      if (pendingScrollRestoreRatio == null || nodes.panel?.classList.contains("is-streaming")) {
+        finishScrollRestoreWatch();
+        return;
+      }
+      if (Date.now() > deadline) {
+        finishScrollRestoreWatch();
+        return;
+      }
+      tryApplyPendingScrollRestore();
+      scrollRestoreRetryTimer = window.setTimeout(attempt, 80);
+    };
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(attempt);
+    });
   }
 
   function tryApplyPendingScrollRestore() {
@@ -329,49 +396,32 @@ export function createShellDialog(options = {}) {
     return true;
   }
 
-  function finishScrollRestoreWatch() {
-    scrollRestoreOnNextLoad = false;
-    stopScrollRestoreWatch();
-  }
-
-  function clearPendingScrollRestore() {
-    pendingScrollRestoreRatio = null;
-    finishScrollRestoreWatch();
-  }
-
   function startScrollRestoreWatch() {
     if (pendingScrollRestoreRatio == null) return;
-    stopScrollRestoreWatch();
-    let attempts = 0;
-    const tick = () => {
-      if (pendingScrollRestoreRatio == null || !scrollRestoreOnNextLoad) {
-        stopScrollRestoreWatch();
-        return;
-      }
-      tryApplyPendingScrollRestore();
-      attempts += 1;
-      if (attempts >= 50) finishScrollRestoreWatch();
-    };
-    tick();
-    scrollRestoreWatchTimer = window.setInterval(tick, 100);
+    scrollRestoreOnNextLoad = true;
+    scrollRestoreActive = true;
+    ensureScrollRestoreDeadline();
+    queueScrollRestoreAfterLayout();
   }
 
   function requestScrollRestoreOnLoad() {
     scrollRestoreOnNextLoad = true;
+    scrollRestoreActive = true;
+    ensureScrollRestoreDeadline();
   }
 
   function noteScrollPositionChange() {
     if (suppressScrollPersist || scrollRestoreApplying) return;
-    if (pendingScrollRestoreRatio != null) {
-      const scrollEl = nodes.scroll;
-      const maxScroll = scrollEl ? scrollEl.scrollHeight - scrollEl.clientHeight : 0;
-      if (maxScroll > 1) {
-        const expected = pendingScrollRestoreRatio * maxScroll;
-        if (Math.abs(scrollEl.scrollTop - expected) > 24) clearPendingScrollRestore();
-      }
+    if (scrollRestoreActive) {
+      scrollRestoreActive = false;
+      scrollRestoreOnNextLoad = false;
+      scrollRestoreDeadline = 0;
+      stopScrollRestoreRetry();
     }
     if (!onScrollPositionChange) return;
-    onScrollPositionChange(getScrollRatio());
+    const ratio = getScrollRatio();
+    onScrollPositionChange(ratio);
+    pendingScrollRestoreRatio = Math.min(1, Math.max(0, Number(ratio) || 0));
   }
 
   function syncHistoryPanelState() {
@@ -487,7 +537,11 @@ export function createShellDialog(options = {}) {
       return historyLoadPromise;
     }
 
-    if (restoreScroll) scrollRestoreOnNextLoad = true;
+    if (restoreScroll) {
+      scrollRestoreOnNextLoad = true;
+      scrollRestoreActive = true;
+      ensureScrollRestoreDeadline();
+    }
 
     const generation = (historyLoadGeneration += 1);
     historyLoading = true;
@@ -520,7 +574,7 @@ export function createShellDialog(options = {}) {
         historyLoadPromise = null;
         try {
           renderHistoryUi();
-          if (scrollRestoreOnNextLoad && pendingScrollRestoreRatio != null) {
+          if (pendingScrollRestoreRatio != null) {
             startScrollRestoreWatch();
           }
         } catch (error) {
@@ -896,6 +950,8 @@ export function createShellDialog(options = {}) {
     updateScrollProgress();
     scheduleShellMermaidTypeset(nodes.thread);
     scheduleShellMermaidTypeset(nodes.lastReply);
+    applyPendingScrollOnce();
+    if (scrollRestoreActive) queueScrollRestoreAfterLayout();
   }
 
   function renderHistoryUi() {
@@ -1063,7 +1119,7 @@ export function createShellDialog(options = {}) {
     if (typeof ResizeObserver !== "undefined") {
       const observer = new ResizeObserver(() => {
         updateScrollProgress();
-        if (pendingScrollRestoreRatio != null) tryApplyPendingScrollRestore();
+        if (pendingScrollRestoreRatio != null) queueScrollRestoreAfterLayout();
       });
       observer.observe(scrollEl);
       if (nodes.thread) observer.observe(nodes.thread);

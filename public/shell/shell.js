@@ -1306,6 +1306,7 @@ function persistDialogScrollRatio(ratio) {
   if (lastSavedDialogScrollRatio === normalized) return;
   lastSavedDialogScrollRatio = normalized;
   state.settings = { ...(state.settings || {}), dialogScrollRatio: normalized };
+  shellDialog.scheduleScrollRestore?.(normalized);
   if (dialogScrollSaveTimer) window.clearTimeout(dialogScrollSaveTimer);
   dialogScrollSaveTimer = window.setTimeout(() => {
     dialogScrollSaveTimer = 0;
@@ -4626,6 +4627,7 @@ function applySettings(settings) {
     shellLog("proactive", `С сервера: ${settings.proactiveEnabled ? "вкл" : "выкл"}`);
   }
   syncCompactSensorAvailability();
+  syncDialogScrollFromSettings(settings);
 }
 
 function getQwenPawUrlValue() {

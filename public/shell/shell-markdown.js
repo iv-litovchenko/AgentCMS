@@ -131,6 +131,8 @@ let mermaidTypesetTimer = 0;
 let mermaidTypesetRunning = false;
 let mermaidTypesetQueued = false;
 let mermaidLightboxNode = null;
+const mermaidTypesetRetryCounts = new WeakMap();
+const MERMAID_TYPESET_MAX_RETRIES = 16;
 
 function ensureShellHighlightLibs() {
   if (typeof window.hljs?.highlightElement === "function") return Promise.resolve();
@@ -660,7 +662,8 @@ async function renderMermaidBlock(block, theme = "dark") {
     return true;
   } catch (error) {
     console.warn("Shell mermaid render failed:", error);
-    block.textContent = source;
+    block.textContent = "";
+    block.dataset.mermaidRendered = "error";
     return false;
   }
 }
@@ -682,18 +685,39 @@ async function typesetShellMermaidDiagrams(root) {
   let libsReady = true;
   try {
     await ensureShellMermaidLibs();
-  } catch {
+  } catch (error) {
     libsReady = false;
+    console.warn("Shell mermaid libs failed to load:", error);
   }
 
+  let pending = 0;
   for (const block of blocks) {
     if (!root.isConnected || !block.isConnected) continue;
     const frame = ensureMermaidDiagramFrame(block);
     ensureMermaidCopyButton(frame, block);
     ensureMermaidExpandButton(frame, block);
-    if (!libsReady) continue;
+    if (!libsReady) {
+      pending += 1;
+      continue;
+    }
     const theme = frame?.dataset.mermaidTheme === "light" ? "light" : "dark";
-    await renderMermaidBlock(block, theme);
+    const ok = await renderMermaidBlock(block, theme);
+    if (!ok) pending += 1;
+  }
+
+  if (pending > 0 && root.isConnected) {
+    const retries = (mermaidTypesetRetryCounts.get(root) || 0) + 1;
+    mermaidTypesetRetryCounts.set(root, retries);
+    if (retries <= MERMAID_TYPESET_MAX_RETRIES) {
+      window.setTimeout(() => scheduleShellMermaidTypeset(root), Math.min(1200, 80 * retries));
+    } else {
+      for (const block of blocks) {
+        if (block.dataset.mermaidRendered === "1") continue;
+        block.dataset.mermaidRendered = "error";
+      }
+    }
+  } else {
+    mermaidTypesetRetryCounts.delete(root);
   }
 }
 
@@ -1170,4 +1194,5 @@ export function renderShellReplyBody(element, rawBody, { spokenParts = [], spoke
   } else if (!displaySpoken) {
     renderReplyBodySegment(element, "—");
   }
+  scheduleShellMermaidTypeset(element);
 }
