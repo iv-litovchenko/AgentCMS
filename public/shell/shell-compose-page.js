@@ -82,12 +82,48 @@ export function mergePagePreview(local, remote) {
     title: String(remote.title || local.title || "").trim(),
     description: String(remote.description || local.description || "").trim(),
     siteName: String(remote.siteName || local.siteName || "").trim(),
-    faviconUrl: local.faviconUrl,
+    faviconUrl: local.faviconUrl || String(remote.faviconUrl || "").trim(),
     canonicalUrl: String(remote.canonicalUrl || local.canonicalUrl || local.url).trim(),
     imageUrl: String(remote.imageUrl || local.imageUrl || "").trim(),
-    source: "link-preview",
+    source: local.source || "link-preview",
     previewStatus: "remote"
   };
+}
+
+function formatSnapshotSource(snapshot, loading = false) {
+  if (loading) return "загрузка…";
+  switch (snapshot?.source) {
+    case "agent-cms":
+      return "Agent CMS";
+    case "host-document":
+      return "Вкладка";
+    case "link-preview":
+      return "OpenGraph";
+    case "local-document":
+      return "Shell";
+    case "unavailable":
+      return "Недоступно";
+    default:
+      return "Shell";
+  }
+}
+
+function describeSnapshotStatus(snapshot, remote) {
+  if (snapshot?.source === "unavailable") {
+    return snapshot.description || "Не удалось получить страницу хоста.";
+  }
+  if (snapshot?.source === "agent-cms") {
+    return remote
+      ? "Страница Agent CMS — OpenGraph дополнил карточку."
+      : "Страница Agent CMS — заголовок, URL и meta с основной страницы.";
+  }
+  if (snapshot?.source === "host-document") {
+    return remote
+      ? "Страница вкладки браузера — OpenGraph дополнил карточку."
+      : "Страница вкладки браузера — заголовок, URL и meta с активной вкладки.";
+  }
+  if (remote) return "Карточка собрана через OpenGraph/meta (как превью ссылки).";
+  return "Показан документ Shell — родительская страница недоступна.";
 }
 
 export function formatPageContextBlock(snapshot) {
@@ -167,7 +203,7 @@ function renderPagePreviewCard(container, snapshot, { escapeHtml, loading = fals
   const rows = [
     ["Путь", snapshot.pathname || "—"],
     ["Канон.", snapshot.canonicalUrl || "—"],
-    ["Источник", loading ? "загрузка…" : snapshot.source === "link-preview" ? "OpenGraph" : "DOM"]
+    ["Источник", formatSnapshotSource(snapshot, loading)]
   ];
   for (const [label, value] of rows) {
     const dt = document.createElement("dt");
@@ -187,7 +223,8 @@ export function createShellComposePageContext({
   readComposeOptionToggles,
   writeComposeOptionToggles,
   applyComposeOptionToggles,
-  escapeHtml
+  escapeHtml,
+  resolvePageSnapshot
 } = {}) {
   let cachedSnapshot = null;
 
@@ -211,18 +248,37 @@ export function createShellComposePageContext({
     syncToggleUi(Boolean(enabled));
   }
 
+  async function loadPageSnapshot() {
+    if (typeof resolvePageSnapshot === "function") {
+      try {
+        const snapshot = await resolvePageSnapshot();
+        if (snapshot) return snapshot;
+      } catch {
+        // fall through
+      }
+    }
+    return collectLocalPageSnapshot();
+  }
+
   async function refreshPreview() {
     const card = nodes.composePageCard;
     if (!card) return;
-    const local = collectLocalPageSnapshot();
+    renderPagePreviewCard(card, { title: "Загрузка…", pathname: "—", source: "host-document" }, { escapeHtml, loading: true });
+    const local = await loadPageSnapshot();
+    if (local.source === "unavailable") {
+      cachedSnapshot = local;
+      renderPagePreviewCard(card, cachedSnapshot, { escapeHtml, loading: false });
+      if (nodes.composePageStatus) {
+        nodes.composePageStatus.textContent = describeSnapshotStatus(cachedSnapshot, null);
+      }
+      return;
+    }
     renderPagePreviewCard(card, local, { escapeHtml, loading: true });
     const remote = await fetchPageLinkPreview(apiFetch, local.url);
     cachedSnapshot = mergePagePreview(local, remote);
     renderPagePreviewCard(card, cachedSnapshot, { escapeHtml, loading: false });
     if (nodes.composePageStatus) {
-      nodes.composePageStatus.textContent = remote
-        ? "Карточка собрана через OpenGraph/meta (как превью ссылки)."
-        : "Пока только локальные meta из текущего документа Shell.";
+      nodes.composePageStatus.textContent = describeSnapshotStatus(cachedSnapshot, remote);
     }
   }
 
@@ -250,10 +306,11 @@ export function createShellComposePageContext({
       .forEach((btn) => btn.setAttribute("aria-expanded", "false"));
   }
 
-  function appendPageContextIfEnabled(body) {
+  async function appendPageContextIfEnabled(body) {
     const text = String(body || "").trim();
     if (!text || !readEnabled()) return text;
-    if (!cachedSnapshot) cachedSnapshot = collectLocalPageSnapshot();
+    if (!cachedSnapshot) cachedSnapshot = await loadPageSnapshot();
+    if (cachedSnapshot?.source === "unavailable") return text;
     const block = formatPageContextBlock(cachedSnapshot);
     if (!block || text.includes("[Контекст страницы]")) return text;
     return `${text}\n\n${block}`;
@@ -269,7 +326,11 @@ export function createShellComposePageContext({
     });
 
     nodes.composePageEnabled?.addEventListener("change", () => {
-      writeEnabled(Boolean(nodes.composePageEnabled.checked));
+      const enabled = Boolean(nodes.composePageEnabled.checked);
+      writeEnabled(enabled);
+      if (enabled) void loadPageSnapshot().then((snapshot) => {
+        cachedSnapshot = snapshot;
+      });
     });
 
     nodes.composePageClose?.addEventListener("click", () => closePreview());

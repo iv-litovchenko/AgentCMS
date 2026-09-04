@@ -116,8 +116,12 @@ function isVoiceServiceUrl(url) {
   }
 }
 
-function isPreferredPickerTab(tab) {
+function isAllowedSnapshotTab(tab) {
   return Boolean(tab?.id && isPickerTargetUrl(tab.url) && !isVoiceServiceUrl(tab.url));
+}
+
+function isPreferredPickerTab(tab) {
+  return isAllowedSnapshotTab(tab);
 }
 
 function rememberPickerTab(tabId, windowId) {
@@ -159,7 +163,7 @@ async function resolvePickerTargetTabId({ tabId = 0, windowId = 0 } = {}) {
     try {
       const tab = await chrome.tabs.get(explicitTabId);
       if (isPreferredPickerTab(tab)) return tab.id;
-      if (tab?.id && isPickerTargetUrl(tab.url)) return tab.id;
+      if (isAllowedSnapshotTab(tab)) return tab.id;
     } catch {
       // ignore invalid tab
     }
@@ -168,7 +172,7 @@ async function resolvePickerTargetTabId({ tabId = 0, windowId = 0 } = {}) {
   try {
     const [focusedTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     if (isPreferredPickerTab(focusedTab)) return focusedTab.id;
-    if (focusedTab?.id && isPickerTargetUrl(focusedTab.url)) return focusedTab.id;
+    if (isAllowedSnapshotTab(focusedTab)) return focusedTab.id;
   } catch {
     // ignore
   }
@@ -177,7 +181,7 @@ async function resolvePickerTargetTabId({ tabId = 0, windowId = 0 } = {}) {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     const preferred = tabs.find((item) => isPreferredPickerTab(item));
     if (preferred?.id) return preferred.id;
-    const fallback = tabs.find((item) => isPickerTargetUrl(item.url));
+    const fallback = tabs.find((item) => isAllowedSnapshotTab(item));
     if (fallback?.id) return fallback.id;
   } catch {
     // ignore
@@ -195,8 +199,96 @@ async function ensurePagePickerScript(tabId) {
   }
   await chrome.scripting.executeScript({
     target: { tabId, allFrames: false },
-    files: ["page-picker-extract.js", "page-picker.js"]
+    files: ["page-picker-extract.js", "page-snapshot.js", "page-picker.js"]
   });
+}
+
+async function collectTabPageSnapshot(tabId) {
+  const [injection] = await chrome.scripting.executeScript({
+    target: { tabId, allFrames: false },
+    func: () => {
+      function readMeta(name) {
+        const el = document.querySelector(`meta[name="${name}"], meta[property="${name}"]`);
+        return String(el?.getAttribute("content") || "").trim();
+      }
+      function readFaviconHref() {
+        const icon = document.querySelector(
+          'link[rel="icon"][href], link[rel="shortcut icon"][href], link[rel="apple-touch-icon"][href]'
+        );
+        if (!icon) return "";
+        try {
+          return new URL(icon.getAttribute("href") || "", location.href).href;
+        } catch {
+          return "";
+        }
+      }
+      function readCanonicalHref() {
+        const link = document.querySelector('link[rel="canonical"][href]');
+        if (!link) return "";
+        try {
+          return new URL(link.getAttribute("href") || "", location.href).href;
+        } catch {
+          return "";
+        }
+      }
+
+      let url = location.href;
+      let hostname = "";
+      let pathname = "";
+      try {
+        const parsed = new URL(url);
+        url = parsed.href;
+        hostname = parsed.hostname;
+        pathname = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+      } catch {
+        // ignore
+      }
+
+      const title = String(document.title || "").trim();
+      const description =
+        readMeta("og:description") || readMeta("description") || readMeta("twitter:description");
+      const siteName = readMeta("og:site_name") || hostname;
+      const imageUrl = readMeta("og:image") || readMeta("twitter:image");
+      const isCms = Boolean(
+        document.getElementById("discuss-aside") ||
+          document.getElementById("app-root") ||
+          location.port === "3443" ||
+          location.port === "3000"
+      );
+
+      return {
+        url,
+        hostname,
+        pathname,
+        title: title || hostname || url,
+        description,
+        siteName,
+        faviconUrl: readFaviconHref(),
+        canonicalUrl: readCanonicalHref() || url,
+        imageUrl,
+        source: isCms ? "agent-cms" : "host-document"
+      };
+    }
+  });
+  return injection?.result || null;
+}
+
+async function relayPageSnapshotRequest({ tabId = 0, windowId = 0 } = {}) {
+  const targetTabId = await resolvePickerTargetTabId({ tabId, windowId });
+  if (!targetTabId) {
+    throw new Error("Нет вкладки сайта — откройте Agent CMS или сайт во вкладке браузера");
+  }
+  try {
+    const tab = await chrome.tabs.get(targetTabId);
+    if (isVoiceServiceUrl(tab.url)) {
+      throw new Error("Откройте Agent CMS или сайт во вкладке — не страницу Voice");
+    }
+  } catch (error) {
+    if (String(error?.message || "").includes("Voice")) throw error;
+  }
+  const snapshot = await collectTabPageSnapshot(targetTabId);
+  if (!snapshot) throw new Error("Не удалось собрать meta со страницы вкладки");
+  return { ok: true, snapshot };
 }
 
 async function relayPagePickerSet(active, { tabId = 0, windowId = 0 } = {}) {
@@ -332,6 +424,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       windowId: message.windowId
     })
       .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_PAGE_SNAPSHOT_REQUEST") {
+    relayPageSnapshotRequest({
+      tabId: message.tabId,
+      windowId: message.windowId
+    })
+      .then((result) => sendResponse({ ok: Boolean(result?.snapshot), snapshot: result?.snapshot || null }))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     return true;
   }

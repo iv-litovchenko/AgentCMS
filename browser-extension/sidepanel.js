@@ -258,8 +258,38 @@
     });
   }
 
+  async function relayPageSnapshotRequest(requestId) {
+    await registerPanelTab();
+    const ctx = await resolvePickerTabContext();
+    try {
+      const response = await sendRuntimeMessage({
+        type: "COMPANION_PAGE_SNAPSHOT_REQUEST",
+        requestId,
+        tabId: ctx.tabId,
+        windowId: ctx.windowId
+      });
+      return response && typeof response === "object" ? response : { ok: false };
+    } catch (error) {
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
+
   window.addEventListener("message", (event) => {
     if (event.source !== frame?.contentWindow) return;
+    if (event.data?.type === "agent-cms-voice:page-snapshot-request") {
+      const requestId = String(event.data.requestId || "").trim();
+      if (!requestId) return;
+      void relayPageSnapshotRequest(requestId).then((response) => {
+        postToVoiceFrame({
+          type: "agent-cms-voice:page-snapshot-response",
+          requestId,
+          ok: Boolean(response?.ok && response?.snapshot),
+          snapshot: response?.snapshot || null,
+          error: response?.error || ""
+        });
+      });
+      return;
+    }
     if (event.data?.type === "agent-cms-voice:page-picker-set") {
       void relayPagePickerSet(Boolean(event.data.active));
       return;

@@ -9,6 +9,7 @@
   const MESSAGE_PING = "COMPANION_PAGE_PICKER_PING";
   const MESSAGE_STATE = "COMPANION_PAGE_PICKER_STATE";
   const MESSAGE_INSERT = "COMPANION_COMPOSE_INSERT";
+  const MESSAGE_SNAPSHOT_REQUEST = "COMPANION_PAGE_SNAPSHOT_REQUEST";
   const VOICE_MESSAGE_SET = "agent-cms-voice:page-picker-set";
   const VOICE_MESSAGE_INSERT = "agent-cms-voice:compose-insert";
   const MAX_TEXT_LENGTH = 12000;
@@ -224,6 +225,34 @@
     document.body.appendChild(rootNode);
   }
 
+  function relayTopLevelVoicePageSnapshotRequest(event) {
+    if (event.source !== window) return;
+    const data = event.data;
+    if (!data || data.type !== "agent-cms-voice:page-snapshot-request") return;
+    if (window.parent !== window) return;
+
+    const requestId = String(data.requestId || "").trim();
+    if (!requestId) return;
+
+    try {
+      chrome.runtime.sendMessage({ type: "COMPANION_PAGE_SNAPSHOT_REQUEST" }, (response) => {
+        const lastError = chrome.runtime.lastError;
+        window.postMessage(
+          {
+            type: "agent-cms-voice:page-snapshot-response",
+            requestId,
+            ok: Boolean(!lastError && response?.ok && response?.snapshot),
+            snapshot: response?.snapshot || null,
+            error: lastError?.message || response?.error || ""
+          },
+          "*"
+        );
+      });
+    } catch {
+      // ignore
+    }
+  }
+
   function bindPicker() {
     ensureDom();
     document.addEventListener("mousemove", onPointerMove, true);
@@ -236,6 +265,11 @@
       chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         if (message?.type === MESSAGE_PING) {
           sendResponse({ ok: true });
+          return true;
+        }
+        if (message?.type === MESSAGE_SNAPSHOT_REQUEST) {
+          const snapshot = window.PageSnapshot?.collect?.() || null;
+          sendResponse({ ok: Boolean(snapshot), snapshot });
           return true;
         }
         if (message?.type !== MESSAGE_SET) return;
@@ -257,6 +291,7 @@
   }
 
   bindPicker();
+  window.addEventListener("message", relayTopLevelVoicePageSnapshotRequest);
 
   window.AgentCompanionPagePicker = {
     setActive: syncPickerState,

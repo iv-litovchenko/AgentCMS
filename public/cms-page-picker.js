@@ -5,6 +5,8 @@
   const MESSAGE_SET = "agent-cms-voice:page-picker-set";
   const MESSAGE_STATE = "agent-cms-voice:page-picker-state";
   const MESSAGE_INSERT = "agent-cms-voice:compose-insert";
+  const MESSAGE_SNAPSHOT_REQUEST = "agent-cms-voice:page-snapshot-request";
+  const MESSAGE_SNAPSHOT_RESPONSE = "agent-cms-voice:page-snapshot-response";
   const MAX_TEXT_LENGTH = 12000;
 
   const PICKER_BLOCK_SELECTOR = [
@@ -240,6 +242,72 @@
     document.body.appendChild(rootNode);
   }
 
+  function collectHostPageSnapshotInline() {
+    if (window.PageSnapshot?.collect) return window.PageSnapshot.collect();
+
+    function readMeta(name) {
+      const el = document.querySelector(`meta[name="${name}"], meta[property="${name}"]`);
+      return String(el?.getAttribute("content") || "").trim();
+    }
+    function readFaviconHref() {
+      const icon = document.querySelector(
+        'link[rel="icon"][href], link[rel="shortcut icon"][href], link[rel="apple-touch-icon"][href]'
+      );
+      if (!icon) return null;
+      try {
+        return new URL(icon.getAttribute("href") || "", location.href).href;
+      } catch {
+        return String(icon.getAttribute("href") || "").trim();
+      }
+    }
+    function readCanonicalHref() {
+      const link = document.querySelector('link[rel="canonical"][href]');
+      if (!link) return "";
+      try {
+        return new URL(link.getAttribute("href") || "", location.href).href;
+      } catch {
+        return "";
+      }
+    }
+
+    let url = location.href;
+    let hostname = "";
+    let pathname = "";
+    try {
+      const parsed = new URL(url);
+      url = parsed.href;
+      hostname = parsed.hostname;
+      pathname = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+      // ignore
+    }
+
+    const title = String(document.title || "").trim();
+    const description =
+      readMeta("og:description") || readMeta("description") || readMeta("twitter:description");
+    const siteName = readMeta("og:site_name") || hostname;
+    const imageUrl = readMeta("og:image") || readMeta("twitter:image");
+    const isCms = Boolean(
+      document.getElementById("discuss-aside") ||
+        document.getElementById("app-root") ||
+        location.port === "3443" ||
+        location.port === "3000"
+    );
+
+    return {
+      url,
+      hostname,
+      pathname,
+      title: title || hostname || url,
+      description,
+      siteName,
+      faviconUrl: readFaviconHref() || "",
+      canonicalUrl: readCanonicalHref() || url,
+      imageUrl,
+      source: isCms ? "agent-cms" : "host-document"
+    };
+  }
+
   function bindPicker() {
     ensureDom();
     document.addEventListener("mousemove", onPointerMove, true);
@@ -252,6 +320,18 @@
       if (!isVoiceIframeMessage(event)) return;
       const data = event.data;
       if (!data || typeof data !== "object") return;
+      if (data.type === MESSAGE_SNAPSHOT_REQUEST) {
+        const requestId = String(data.requestId || "").trim();
+        if (!requestId) return;
+        const snapshot = collectHostPageSnapshotInline();
+        postToVoiceIframe({
+          type: MESSAGE_SNAPSHOT_RESPONSE,
+          requestId,
+          ok: Boolean(snapshot),
+          snapshot
+        });
+        return;
+      }
       if (data.type !== MESSAGE_SET) return;
       syncPickerState(Boolean(data.active));
     });

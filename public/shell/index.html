@@ -45,7 +45,7 @@
           "@shell/compact-qa": "/shell/shell-compact-qa.js?v=7",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=209",
           "@shell/compose-context-meter": "/shell/shell-compose-context-meter.js?v=1",
-          "@shell/compose-page": "/shell/shell-compose-page.js?v=1",
+          "@shell/compose-page": "/shell/shell-compose-page.js?v=3",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=318",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=418",
           "@shell/help": "/shell/shell-help.js?v=207",
@@ -2296,8 +2296,8 @@ aya_bar_v2 тоже читает те же файлы</pre>
       <div class="shell-dialog-form">
         <h2>Страница</h2>
         <p class="shell-dialog-note shell-compose-page-note">
-          Карточка текущей страницы — как превью ссылки в Telegram. Если включено, Shell добавит блок
-          <code>[Контекст страницы]</code> к сообщению агенту.
+          Карточка основной страницы — Agent CMS или вкладка браузера (не Voice Shell). Если включено,
+          Shell добавит блок <code>[Контекст страницы]</code> к сообщению агенту.
         </p>
         <div id="shell-compose-page-card" class="shell-compose-page-card-wrap" aria-live="polite"></div>
         <label class="shell-check shell-compose-page-toggle">
@@ -2408,6 +2408,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=529" type="module"></script>
+    <script src="/shell/shell.js?v=531" type="module"></script>
   </body>
 </html>

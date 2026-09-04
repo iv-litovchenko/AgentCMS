@@ -56,7 +56,7 @@ import { createShellDialog } from "@shell/dialog";
 import { createShellCompactQa } from "@shell/compact-qa";
 import { initShellComposeLayout } from "@shell/compose-layout";
 import { initShellComposeContextMeter } from "@shell/compose-context-meter";
-import { createShellComposePageContext } from "@shell/compose-page";
+import { collectLocalPageSnapshot, createShellComposePageContext } from "@shell/compose-page";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "@shell/storage-keys";
 import { initShellHelp } from "@shell/help";
 import { initShellHints, updateTtsPlaybackHint, updateVoiceModeHint } from "@shell/hints";
@@ -438,6 +438,61 @@ function isVoiceStandaloneApp() {
 
 const shellEmbedMode = isShellEmbedMode();
 const shellVoiceStandalone = isVoiceStandaloneApp();
+const shellHostedInIframe = (() => {
+  try {
+    return window.parent !== window;
+  } catch {
+    return false;
+  }
+})();
+
+/** @type {Map<string, { resolve: (value: unknown) => void, timer: number }>} */
+const hostPageSnapshotWaiters = new Map();
+let hostPageSnapshotRequestSeq = 0;
+
+function requestHostPageSnapshot(timeoutMs = 4000) {
+  if (!shellEmbedMode) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const requestId = `ps-${Date.now()}-${++hostPageSnapshotRequestSeq}`;
+    const timer = window.setTimeout(() => {
+      hostPageSnapshotWaiters.delete(requestId);
+      resolve(null);
+    }, timeoutMs);
+    hostPageSnapshotWaiters.set(requestId, { resolve, timer });
+    try {
+      if (shellHostedInIframe) {
+        window.parent.postMessage({ type: "agent-cms-voice:page-snapshot-request", requestId }, "*");
+      } else {
+        window.postMessage({ type: "agent-cms-voice:page-snapshot-request", requestId }, "*");
+      }
+    } catch {
+      clearTimeout(timer);
+      hostPageSnapshotWaiters.delete(requestId);
+      resolve(null);
+    }
+  });
+}
+
+async function resolveHostPageSnapshot() {
+  if (!shellEmbedMode) return collectLocalPageSnapshot();
+  const host = await requestHostPageSnapshot();
+  if (host && typeof host === "object") return host;
+  return {
+    url: "",
+    hostname: "",
+    pathname: "",
+    title: "Страница хоста недоступна",
+    description:
+      shellHostedInIframe
+        ? "Откройте Agent CMS или сайт во вкладке браузера и обновите карточку."
+        : "Откройте Companion Side Panel или Agent CMS с панелью Discuss — не вкладку Voice напрямую.",
+    siteName: "",
+    faviconUrl: "",
+    canonicalUrl: "",
+    imageUrl: "",
+    source: "unavailable"
+  };
+}
 
 let lastHandledAssistantId = "";
 let lastSpokenBody = "";
@@ -6069,14 +6124,30 @@ function appendVoiceToCompose(text, options = {}) {
   }
 }
 
+function isHostBridgeMessageSource(source) {
+  if (!source) return false;
+  if (source === window.parent) return true;
+  if (!shellHostedInIframe && source === window) return true;
+  return false;
+}
+
 function bindCmsComposeInsertBridge() {
   if (!shellEmbedMode) return;
   window.addEventListener("message", (event) => {
-    if (event.source !== window.parent) return;
+    if (!isHostBridgeMessageSource(event.source)) return;
     const data = event.data;
     if (!data || typeof data !== "object") return;
     if (data.type === "agent-cms-voice:compose-insert") {
       appendVoiceToCompose(data.text, { join: data.join });
+      return;
+    }
+    if (data.type === "agent-cms-voice:page-snapshot-response") {
+      const requestId = String(data.requestId || "").trim();
+      const waiter = hostPageSnapshotWaiters.get(requestId);
+      if (!waiter) return;
+      hostPageSnapshotWaiters.delete(requestId);
+      clearTimeout(waiter.timer);
+      waiter.resolve(data.ok ? data.snapshot : null);
       return;
     }
     if (data.type === "agent-cms-voice:refresh-dialog") {
@@ -6589,7 +6660,7 @@ async function sendMessageDirect(
   { fromCompose = false, voice = false, author = "shell", displayPhrase = "", showInDialog = true } = {}
 ) {
   const rawText = String(body || "").trim();
-  const text = shellComposePage?.appendPageContextIfEnabled?.(rawText) || rawText;
+  const text = (await shellComposePage?.appendPageContextIfEnabled?.(rawText)) || rawText;
   if (!text) return;
   shellLog("message", `${author}${voice ? " · voice" : ""}`, rawText.slice(0, 160));
   shellProactive?.bumpActivity();
@@ -8835,7 +8906,8 @@ function bindShellClickHandlers() {
     readComposeOptionToggles,
     writeComposeOptionToggles,
     applyComposeOptionToggles,
-    escapeHtml
+    escapeHtml,
+    resolvePageSnapshot: resolveHostPageSnapshot
   });
   shellComposePage.bindUi();
   bindComposeSendUi();
