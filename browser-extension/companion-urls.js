@@ -45,6 +45,14 @@ export function buildExtensionShellUrl(voiceBase, agentId) {
   return `${base}/${encodeURIComponent(agent)}/extension/`;
 }
 
+/** Full tab: обычный Voice /{agent}/ без companion/extension. */
+export function buildVoiceShellTabUrl(voiceBase, agentId) {
+  const base = normalizeVoiceBaseForBrowser(voiceBase);
+  const agent = String(agentId || "").trim();
+  if (!agent) return `${base}/`;
+  return `${base}/${encodeURIComponent(agent)}/`;
+}
+
 export function voiceBaseFromCmsHost(cmsBase) {
   try {
     const url = new URL(String(cmsBase || DEFAULT_CMS_BASE_URL).replace(/\/$/, ""));

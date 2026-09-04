@@ -44,6 +44,13 @@
     return `${base}/${encodeURIComponent(agent)}/extension/`;
   }
 
+  function buildVoiceShellTabUrl(voiceBase, agentId) {
+    const base = normalizeVoiceBaseForBrowser(voiceBase);
+    const agent = String(agentId || "").trim();
+    if (!agent) return `${base}/`;
+    return `${base}/${encodeURIComponent(agent)}/`;
+  }
+
   function voiceBaseFromCmsHost(cmsBase) {
     try {
       const url = new URL(String(cmsBase || DEFAULT_CMS_BASE_URL).replace(/\/$/, ""));

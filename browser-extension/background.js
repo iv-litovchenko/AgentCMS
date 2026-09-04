@@ -5,6 +5,7 @@ const {
   DEFAULT_VOICE_BASE_URL,
   CMS_PROBE_CANDIDATES,
   buildExtensionShellUrl,
+  buildVoiceShellTabUrl,
   voiceBaseFromCmsHost,
   normalizeVoiceBaseForBrowser,
   isCmsReachable

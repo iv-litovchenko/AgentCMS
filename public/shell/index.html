@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=511" />
+    <link rel="stylesheet" href="/shell/shell.css?v=514" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -35,15 +35,16 @@
           "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=207",
           "@shell/session": "/shell/shell-session.js?v=208",
           "@shell/client-id": "/shell/shell-client-id.js?v=404",
-          "@shell/surface": "/shell/shell-surface.js?v=226",
+          "@shell/surface": "/shell/shell-surface.js?v=227",
           "@shell/presence": "/shell/shell-presence.js?v=405",
           "@shell/voice-chpu": "/shell/voice-chpu.js?v=209",
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=207",
-          "@shell/dialog": "/shell/shell-dialog.js?v=290",
+          "@shell/dialog": "/shell/shell-dialog.js?v=293",
           "@shell/compact-qa": "/shell/shell-compact-qa.js?v=7",
-          "@shell/compose-layout": "/shell/shell-compose-layout.js?v=207",
+          "@shell/compose-layout": "/shell/shell-compose-layout.js?v=209",
+          "@shell/compose-context-meter": "/shell/shell-compose-context-meter.js?v=1",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=318",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=418",
           "@shell/help": "/shell/shell-help.js?v=207",
@@ -1840,6 +1841,29 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <div class="shell-reply-media hidden" id="shell-last-reply-media"></div>
           </div>
         </div>
+        <button
+          type="button"
+          class="shell-dialog-scroll-bottom hidden"
+          id="shell-dialog-scroll-bottom"
+          aria-label="Вниз чата"
+          title="Вниз чата"
+        >
+          <svg
+            class="shell-dialog-scroll-bottom-icon"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+          <span class="shell-dialog-scroll-bottom-label">Вниз чата</span>
+        </button>
         <p class="shell-dialog-error hidden" id="shell-dialog-error" role="alert"></p>
       </section>
       </section>
@@ -1933,6 +1957,11 @@ aya_bar_v2 тоже читает те же файлы</pre>
               placeholder="Спросите агента…"
               aria-label="Ваше сообщение"
             ></textarea>
+            <div
+              id="shell-compose-context-meter"
+              class="shell-compose-context-meter hidden"
+              aria-hidden="true"
+            ></div>
             <span
               class="shell-compose-draft-status hidden"
               id="shell-compose-draft-status"
@@ -2345,6 +2374,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=524" type="module"></script>
+    <script src="/shell/shell.js?v=526" type="module"></script>
   </body>
 </html>

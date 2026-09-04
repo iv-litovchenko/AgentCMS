@@ -30,11 +30,39 @@ function withReplyDurations(items) {
     const at = Number(next.at) || 0;
     if (next.role === "user") {
       lastUserAt = at;
-    } else if (lastUserAt && at) {
+    } else if (next.role === "agent" && lastUserAt && at) {
       next.durationMs = Math.max(0, at - lastUserAt);
     }
     return next;
   });
+}
+
+/** Per user turn: user → tools → agent (tools must not jump after the reply). */
+function normalizeThreadOrder(items) {
+  const list = Array.isArray(items) ? items : [];
+  if (list.length < 2) return list.slice();
+
+  const out = [];
+  let i = 0;
+  while (i < list.length) {
+    const item = list[i];
+    out.push(item);
+    i += 1;
+    if (item?.role !== "user") continue;
+
+    const turnRest = [];
+    while (i < list.length && list[i]?.role !== "user") {
+      turnRest.push(list[i]);
+      i += 1;
+    }
+    if (!turnRest.length) continue;
+
+    const tools = turnRest.filter(isToolHistoryItem);
+    const agents = turnRest.filter((entry) => entry?.role === "agent");
+    const other = turnRest.filter((entry) => !isToolHistoryItem(entry) && entry?.role !== "agent");
+    out.push(...tools, ...agents, ...other);
+  }
+  return out;
 }
 
 function isToolHistoryItem(item) {
@@ -104,7 +132,9 @@ function mergeToolHistoryItem(left, right) {
   const rightDone = right.status !== "running";
   if (!leftDone && rightDone) merged.status = right.status;
   else if (leftDone && rightDone) merged.status = right.status;
-  merged.at = Math.max(Number(left.at) || 0, Number(right.at) || 0);
+  const leftAt = Number(left.at) || 0;
+  const rightAt = Number(right.at) || 0;
+  merged.at = leftAt && rightAt ? Math.min(leftAt, rightAt) : leftAt || rightAt || Date.now();
   if (right.tool) merged.tool = right.tool;
   if (right.toolId) merged.toolId = right.toolId;
   return merged;
@@ -167,10 +197,12 @@ function mergeDialogHistory(archived, preserved = []) {
     }
     byToolId.set(key, mergeToolHistoryItem(prev, item));
   }
-  const merged = dedupeAdjacentHistory([
-    ...plain,
-    ...finalizeStaleRunningTools([...byToolId.values()])
-  ]).sort((left, right) => (Number(left.at) || 0) - (Number(right.at) || 0));
+  const merged = normalizeThreadOrder(
+    dedupeAdjacentHistory([
+      ...plain,
+      ...finalizeStaleRunningTools([...byToolId.values()])
+    ]).sort((left, right) => (Number(left.at) || 0) - (Number(right.at) || 0))
+  );
   return withReplyDurations(merged.slice(-MAX_HISTORY));
 }
 
@@ -275,6 +307,7 @@ function connectionHint(error) {
  *   scroll?: HTMLElement | null,
  *   scrollProgress?: HTMLElement | null,
  *   scrollProgressFill?: HTMLElement | null,
+ *   scrollBottomBtn?: HTMLElement | null,
  *   statusDot?: HTMLElement | null,
  *   refreshBtn?: HTMLElement | null,
  *   historyOpen?: HTMLElement | null,
@@ -348,6 +381,46 @@ export function createShellDialog(options = {}) {
     const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
     if (maxScroll <= 1) return 0;
     return Math.min(1, Math.max(0, scrollEl.scrollTop / maxScroll));
+  }
+
+  function isScrollNearBottom(threshold = 56) {
+    const scrollEl = nodes.scroll;
+    if (!scrollEl) return true;
+    const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+    if (maxScroll <= 1) return true;
+    return scrollEl.scrollTop >= maxScroll - threshold;
+  }
+
+  function updateScrollBottomButton() {
+    const btn = nodes.scrollBottomBtn;
+    if (!btn) return;
+    const scrollEl = nodes.scroll;
+    if (!scrollEl) {
+      btn.classList.add("hidden");
+      btn.setAttribute("aria-hidden", "true");
+      return;
+    }
+    const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+    const show = maxScroll > 1 && !isScrollNearBottom();
+    btn.classList.toggle("hidden", !show);
+    btn.setAttribute("aria-hidden", show ? "false" : "true");
+  }
+
+  function scrollDialogToBottom({ smooth = true } = {}) {
+    const scrollEl = nodes.scroll;
+    if (!scrollEl) return;
+    finishScrollRestoreWatch();
+    const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+    if (maxScroll <= 1) return;
+    suppressScrollPersist = true;
+    scrollEl.scrollTo({ top: maxScroll, behavior: smooth ? "smooth" : "auto" });
+    window.setTimeout(
+      () => {
+        suppressScrollPersist = false;
+        updateScrollProgress();
+      },
+      smooth ? 320 : 0
+    );
   }
 
   function applyScrollRatio(ratio) {
@@ -821,7 +894,6 @@ export function createShellDialog(options = {}) {
         const item = list[openIndex];
         item.result = result || item.result || "";
         item.status = status || (payload.error ? "error" : "ok");
-        item.at = Date.now();
         item.args = pickRicherToolArgs(args, item.args);
         if (!isMeaningfulToolItem(item)) list.splice(openIndex, 1);
         return;
@@ -840,15 +912,13 @@ export function createShellDialog(options = {}) {
     }
 
     if (phase === "progress") {
-      if (openIndex >= 0) {
-        if (isMeaningfulToolArgs(args)) list[openIndex].args = pickRicherToolArgs(args, list[openIndex].args);
-        list[openIndex].at = Date.now();
+      if (openIndex >= 0 && isMeaningfulToolArgs(args)) {
+        list[openIndex].args = pickRicherToolArgs(args, list[openIndex].args);
       }
       return;
     }
 
     if (openIndex >= 0 && !isMeaningfulToolArgs(args)) {
-      list[openIndex].at = Date.now();
       return;
     }
 
@@ -871,7 +941,6 @@ export function createShellDialog(options = {}) {
       const item = history[i];
       if (!isToolHistoryItem(item) || item.status !== "running") continue;
       item.status = "ok";
-      item.at = Date.now();
       if (!isMeaningfulToolArgs(item.args)) item.args = "";
       if (!isMeaningfulToolItem(item)) {
         history.splice(i, 1);
@@ -1027,6 +1096,7 @@ export function createShellDialog(options = {}) {
 
   function renderThread() {
     if (!nodes.thread) return;
+    history = normalizeThreadOrder(history);
     const scrollEl = nodes.scroll;
     const preserveRatio =
       !scrollRestoreActive &&
@@ -1211,11 +1281,13 @@ export function createShellDialog(options = {}) {
     if (maxScroll <= 1) {
       fillEl.style.width = "0%";
       trackEl?.classList.add("is-hidden");
+      updateScrollBottomButton();
       return;
     }
     trackEl?.classList.remove("is-hidden");
     const ratio = Math.min(1, Math.max(0, scrollEl.scrollTop / maxScroll));
     fillEl.style.width = `${Math.round(ratio * 1000) / 10}%`;
+    updateScrollBottomButton();
   }
 
   function bindScrollProgress() {
@@ -1252,6 +1324,10 @@ export function createShellDialog(options = {}) {
   function bindUi() {
     nodes.refreshBtn?.addEventListener("click", () => {
       void refreshDialog();
+    });
+
+    nodes.scrollBottomBtn?.addEventListener("click", () => {
+      scrollDialogToBottom({ smooth: true });
     });
 
     const scrollRoot = nodes.scroll || nodes.panel;
@@ -1329,6 +1405,7 @@ export function createShellDialog(options = {}) {
     startScrollRestoreWatch,
     tryApplyPendingScrollRestore,
     getScrollRatio,
+    refreshDialog,
     refreshHistory: (options) => loadHistory(options),
     syncLiveReplySlot,
     updateScrollProgress

@@ -55,6 +55,7 @@ import {
 import { createShellDialog } from "@shell/dialog";
 import { createShellCompactQa } from "@shell/compact-qa";
 import { initShellComposeLayout } from "@shell/compose-layout";
+import { initShellComposeContextMeter } from "@shell/compose-context-meter";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "@shell/storage-keys";
 import { initShellHelp } from "@shell/help";
 import { initShellHints, updateTtsPlaybackHint, updateVoiceModeHint } from "@shell/hints";
@@ -1145,6 +1146,7 @@ const nodes = {
   voiceControl: document.getElementById("shell-voice-control"),
   voiceToCompose: document.getElementById("shell-voice-to-compose"),
   message: document.getElementById("shell-message"),
+  composeContextMeter: document.getElementById("shell-compose-context-meter"),
   composeField: document.getElementById("shell-compose-field"),
   composeExpandToggle: document.getElementById("shell-compose-expand-toggle"),
   composeExpandBackdrop: document.getElementById("shell-compose-expand-backdrop"),
@@ -1417,6 +1419,7 @@ const shellDialog = createShellDialog({
   scroll: document.getElementById("shell-dialog-scroll"),
   scrollProgress: document.getElementById("shell-dialog-scroll-progress"),
   scrollProgressFill: document.getElementById("shell-dialog-scroll-progress-fill"),
+  scrollBottomBtn: document.getElementById("shell-dialog-scroll-bottom"),
   statusDot: document.getElementById("shell-status-dot"),
   refreshBtn: document.getElementById("shell-dialog-refresh"),
   historyOpen: document.getElementById("shell-history-open"),
@@ -6035,6 +6038,7 @@ function setComposeMessageValue(value, { save = true } = {}) {
   if (!nodes.message) return;
   nodes.message.value = String(value ?? "");
   updateSendButtonLabel();
+  composeContextMeter?.update?.();
   if (save) scheduleComposeDraftSave();
 }
 
@@ -6065,8 +6069,27 @@ function bindCmsComposeInsertBridge() {
     if (event.source !== window.parent) return;
     const data = event.data;
     if (!data || typeof data !== "object") return;
-    if (data.type !== "agent-cms-voice:compose-insert") return;
-    appendVoiceToCompose(data.text, { join: data.join });
+    if (data.type === "agent-cms-voice:compose-insert") {
+      appendVoiceToCompose(data.text, { join: data.join });
+      return;
+    }
+    if (data.type === "agent-cms-voice:refresh-dialog") {
+      void shellDialog
+        .refreshDialog?.()
+        .then(() => {
+          event.source.postMessage({ type: "agent-cms-voice:refresh-dialog-done", ok: true }, event.origin || "*");
+        })
+        .catch((error) => {
+          event.source.postMessage(
+            {
+              type: "agent-cms-voice:refresh-dialog-done",
+              ok: false,
+              error: String(error?.message || error || "refresh failed")
+            },
+            event.origin || "*"
+          );
+        });
+    }
   });
 }
 
@@ -6451,6 +6474,7 @@ async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
   if (fromCompose && nodes.message) {
     nodes.message.value = "";
     updateSendButtonLabel();
+    composeContextMeter?.update?.();
     void clearComposeDraft();
     refocusComposeInput();
     composeLayout?.syncKeyboardViewport?.();
@@ -8325,6 +8349,7 @@ let shellTapVoice = null;
 let showVoiceConfirmDialog = null;
 let shellKeepAwake = null;
 let composeLayout = null;
+let composeContextMeter = null;
 
 function renderWaitingPhrase() {
   renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
@@ -9387,6 +9412,10 @@ function bindShellInteractiveUi() {
     composeLayout = initShellComposeLayout({
       nodes,
       getSessionUiLocked: () => state.sessionUiLocked
+    });
+    composeContextMeter = initShellComposeContextMeter({
+      textarea: nodes.message,
+      mountEl: nodes.composeContextMeter
     });
     document.addEventListener("gesturestart", (event) => event.preventDefault());
     document.addEventListener("gesturechange", (event) => event.preventDefault());

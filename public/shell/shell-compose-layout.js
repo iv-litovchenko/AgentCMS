@@ -23,7 +23,7 @@ export function initShellComposeLayout({ nodes, getSessionUiLocked = () => false
     if (!vv) return;
 
     const overlap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    const keyboardOpen = overlap > 40 || document.activeElement === input;
+    const keyboardOpen = overlap > 80;
 
     document.documentElement.style.setProperty("--vv-keyboard", keyboardOpen ? `${overlap}px` : "0px");
     document.body.classList.toggle("shell-keyboard-open", keyboardOpen);

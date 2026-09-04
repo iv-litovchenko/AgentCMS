@@ -246,6 +246,9 @@ export function getShellSurfacePayload() {
  */
 export function initShellSurface(options = {}) {
   activeSurface = detectShellSurface();
+  if (activeSurface.host === "extension") {
+    document.body.classList.add("shell-surface-extension");
+  }
   options.onSurface?.(activeSurface);
   return activeSurface;
 }

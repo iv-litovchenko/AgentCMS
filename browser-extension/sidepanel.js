@@ -19,6 +19,12 @@
         const agent = String(agentId || "").trim();
         if (!agent) return `${base}/?embed=1&companion=1`;
         return `${base}/${encodeURIComponent(agent)}/extension/`;
+      },
+      buildVoiceShellTabUrl(voiceBase, agentId) {
+        const base = String(voiceBase || "https://localhost:3488").replace(/\/$/, "");
+        const agent = String(agentId || "").trim();
+        if (!agent) return `${base}/`;
+        return `${base}/${encodeURIComponent(agent)}/`;
       }
     };
     return globalThis.CompanionUrls;
@@ -122,8 +128,42 @@
     chrome.tabs?.create?.({ url, active: true });
   }
 
+  async function refreshDialogInFrame() {
+    if (!frame?.contentWindow) return false;
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const onMessage = (event) => {
+        if (event.source !== frame.contentWindow) return;
+        if (event.data?.type !== "agent-cms-voice:refresh-dialog-done") return;
+        settled = true;
+        window.removeEventListener("message", onMessage);
+        resolve(Boolean(event.data.ok));
+      };
+
+      window.addEventListener("message", onMessage);
+      frame.contentWindow.postMessage({ type: "agent-cms-voice:refresh-dialog" }, "*");
+      window.setTimeout(() => {
+        if (settled) return;
+        window.removeEventListener("message", onMessage);
+        resolve(false);
+      }, 2500);
+    });
+  }
+
   retryBtn?.addEventListener("click", () => {
-    void loadShellFrame(true);
+    if (retryBtn.disabled) return;
+    retryBtn.disabled = true;
+    retryBtn.classList.add("is-busy");
+    void (async () => {
+      try {
+        const refreshed = await refreshDialogInFrame();
+        if (!refreshed) void loadShellFrame(true);
+      } finally {
+        retryBtn.disabled = false;
+        retryBtn.classList.remove("is-busy");
+      }
+    })();
   });
 
   openTabBtn?.addEventListener("click", () => {
