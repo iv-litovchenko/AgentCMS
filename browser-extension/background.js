@@ -93,7 +93,8 @@ async function getShellFramePayload() {
     voiceBaseFromCmsHost(cmsBaseUrl) || DEFAULT_VOICE_BASE_URL
   );
   const shellUrl = buildExtensionShellUrl(voiceBase, agentId);
-  return { shellUrl, panelUrl: shellUrl, cmsBaseUrl, agentId };
+  const tabUrl = buildVoiceShellTabUrl(voiceBase, agentId);
+  return { shellUrl, tabUrl, panelUrl: shellUrl, cmsBaseUrl, agentId };
 }
 
 /** @type {Map<number, number>} */
@@ -273,7 +274,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === "COMPANION_OPEN_VOICE_TAB") {
     getShellFramePayload()
-      .then(({ shellUrl }) => chrome.tabs.create({ url: shellUrl, active: true }))
+      .then(({ tabUrl }) => chrome.tabs.create({ url: tabUrl, active: true }))
       .then((tab) => sendResponse({ ok: true, tabId: tab.id }))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     return true;

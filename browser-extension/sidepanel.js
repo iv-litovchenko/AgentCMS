@@ -30,7 +30,8 @@
     return globalThis.CompanionUrls;
   }
 
-  const { DEFAULT_CMS_BASE_URL, DEFAULT_VOICE_BASE_URL, buildExtensionShellUrl } = ensureCompanionUrls();
+  const { DEFAULT_CMS_BASE_URL, DEFAULT_VOICE_BASE_URL, buildExtensionShellUrl, buildVoiceShellTabUrl } =
+    ensureCompanionUrls();
 
   function sendRuntimeMessage(message) {
     return new Promise((resolve, reject) => {
@@ -115,8 +116,23 @@
     frame.src = shellUrl;
   }
 
+  async function resolveVoiceTabUrl() {
+    if (globalThis.CompanionStorage?.hasRuntimeMessaging?.()) {
+      try {
+        const response = await sendRuntimeMessage({ type: "COMPANION_GET_SHELL_URL" });
+        if (response?.tabUrl) return response.tabUrl;
+      } catch {
+        // fall through
+      }
+    }
+
+    const stored = await readSettings();
+    const agentId = String(stored.agentId || "").trim();
+    return buildVoiceShellTabUrl(DEFAULT_VOICE_BASE_URL, agentId);
+  }
+
   async function openVoiceTab() {
-    const url = lastVoiceUrl || (await resolveShellUrl());
+    const url = await resolveVoiceTabUrl();
     if (globalThis.CompanionStorage?.hasRuntimeMessaging?.()) {
       try {
         await sendRuntimeMessage({ type: "COMPANION_OPEN_VOICE_TAB" });

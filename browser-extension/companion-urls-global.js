@@ -138,6 +138,7 @@
     uniqueUrls,
     normalizeVoiceBaseForBrowser,
     buildExtensionShellUrl,
+    buildVoiceShellTabUrl,
     voiceBaseFromCmsHost,
     buildShellFrameUrl,
     resolveVoiceBaseUrl,
