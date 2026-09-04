@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=515" />
+    <link rel="stylesheet" href="/shell/shell.css?v=516" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -45,6 +45,7 @@
           "@shell/compact-qa": "/shell/shell-compact-qa.js?v=7",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=209",
           "@shell/compose-context-meter": "/shell/shell-compose-context-meter.js?v=1",
+          "@shell/compose-page": "/shell/shell-compose-page.js?v=1",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=318",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=418",
           "@shell/help": "/shell/shell-help.js?v=207",
@@ -1888,6 +1889,20 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <div class="shell-compose-options">
             <button
               type="button"
+              class="shell-compose-option shell-compose-option--params"
+              data-compose-action="page-preview"
+              data-compose-option="page"
+              aria-pressed="false"
+              aria-haspopup="dialog"
+              aria-label="Страница"
+              data-hint="Контекст текущей страницы: заголовок, URL, meta, favicon"
+              title="Страница — контекст открытой вкладки"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">📄</span>
+              <span class="shell-compose-option-label">Страница</span>
+            </button>
+            <button
+              type="button"
               class="shell-compose-option"
               data-compose-option="reasoning"
               aria-pressed="false"
@@ -2149,14 +2164,14 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 type="button"
                 class="shell-icon-btn shell-compose-send"
                 id="shell-send-btn"
-                title="Отправить (⌘↵)"
+                title="Отправить (↵)"
                 aria-label="Отправить"
               >
                 <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 19V5" />
                   <path d="m5 12 7-7 7 7" />
                 </svg>
-                <kbd class="shell-compose-send-kbd" aria-hidden="true">⌘↵</kbd>
+                <kbd class="shell-compose-send-kbd" aria-hidden="true">↵</kbd>
               </button>
               <button
                 type="button"
@@ -2277,6 +2292,25 @@ aya_bar_v2 тоже читает те же файлы</pre>
       <div class="shell-hero-demo-sounds" id="shell-thinking-sound-demo"></div>
     </aside>
 
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-compose-page-dialog">
+      <div class="shell-dialog-form">
+        <h2>Страница</h2>
+        <p class="shell-dialog-note shell-compose-page-note">
+          Карточка текущей страницы — как превью ссылки в Telegram. Если включено, Shell добавит блок
+          <code>[Контекст страницы]</code> к сообщению агенту.
+        </p>
+        <div id="shell-compose-page-card" class="shell-compose-page-card-wrap" aria-live="polite"></div>
+        <label class="shell-check shell-compose-page-toggle">
+          <input id="shell-compose-page-enabled" type="checkbox" />
+          <span>Добавлять страницу в контекст сообщения</span>
+        </label>
+        <p class="shell-dialog-note shell-compose-page-status" id="shell-compose-page-status"></p>
+        <div class="shell-dialog-actions">
+          <button type="button" class="shell-btn" id="shell-compose-page-close">Закрыть</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog class="shell-dialog shell-dialog--wide" id="shell-compose-params-dialog">
       <div class="shell-dialog-form">
         <h2>Параметры запроса</h2>
@@ -2374,6 +2408,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=526" type="module"></script>
+    <script src="/shell/shell.js?v=528" type="module"></script>
   </body>
 </html>

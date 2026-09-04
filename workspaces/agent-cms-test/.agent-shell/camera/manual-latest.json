@@ -1,10 +1,10 @@
 {
-  "id": "manual-1788110942864.jpg",
+  "id": "manual-1788481270258.jpg",
   "domain": "camera",
   "kind": "manual",
   "mimeType": "image/jpeg",
-  "width": 480,
-  "height": 640,
-  "capturedAt": "2026-08-30T17:29:02.867Z",
-  "path": ".agent-shell/camera/manual-1788110942864.jpg"
+  "width": 640,
+  "height": 480,
+  "capturedAt": "2026-09-04T00:21:10.259Z",
+  "path": ".agent-shell/camera/manual-1788481270258.jpg"
 }

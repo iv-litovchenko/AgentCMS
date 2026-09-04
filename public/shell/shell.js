@@ -56,6 +56,7 @@ import { createShellDialog } from "@shell/dialog";
 import { createShellCompactQa } from "@shell/compact-qa";
 import { initShellComposeLayout } from "@shell/compose-layout";
 import { initShellComposeContextMeter } from "@shell/compose-context-meter";
+import { createShellComposePageContext } from "@shell/compose-page";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "@shell/storage-keys";
 import { initShellHelp } from "@shell/help";
 import { initShellHints, updateTtsPlaybackHint, updateVoiceModeHint } from "@shell/hints";
@@ -1172,6 +1173,11 @@ const nodes = {
   composeParamsDialog: document.getElementById("shell-compose-params-dialog"),
   composeParamsBody: document.getElementById("shell-compose-params-body"),
   composeParamsClose: document.getElementById("shell-compose-params-close"),
+  composePageDialog: document.getElementById("shell-compose-page-dialog"),
+  composePageCard: document.getElementById("shell-compose-page-card"),
+  composePageEnabled: document.getElementById("shell-compose-page-enabled"),
+  composePageStatus: document.getElementById("shell-compose-page-status"),
+  composePageClose: document.getElementById("shell-compose-page-close"),
   helpMicLink: document.getElementById("shell-help-mic-link"),
   voiceConfirm: document.getElementById("shell-voice-confirm"),
   voiceConfirmDialog: document.getElementById("shell-voice-confirm-dialog"),
@@ -3027,7 +3033,7 @@ function queuePhraseSuffix() {
 }
 
 function composeSendShortcutLabel() {
-  return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "") ? "⌘↵" : "Ctrl+↵";
+  return "↵";
 }
 
 function updateSendButtonLabel() {
@@ -6191,7 +6197,7 @@ function unlockComposePageScroll() {
   composeScrollLockY = 0;
 }
 
-const COMPOSE_OPTION_KEYS = ["reasoning", "tools", "memory", "execute"];
+const COMPOSE_OPTION_KEYS = ["reasoning", "tools", "memory", "execute", "page"];
 const COMPOSE_OPTIONS_STORAGE = "shell-compose-option-toggles";
 
 function readComposeOptionToggles() {
@@ -6224,6 +6230,7 @@ function applyComposeOptionToggles() {
 function bindComposeOptionTabs() {
   document.querySelectorAll("[data-compose-option]").forEach((btn) => {
     if (btn.dataset.shellBound === "1") return;
+    if (btn.dataset.composeAction === "page-preview") return;
     btn.dataset.shellBound = "1";
     btn.addEventListener("click", () => {
       const key = btn.dataset.composeOption;
@@ -6345,6 +6352,11 @@ function buildComposeParamsPreviewRows() {
       key: "{{execute}}",
       value: toggles.execute ? "true" : "false",
       target: "кнопка compose (идея)"
+    },
+    {
+      key: "{{page}}",
+      value: toggles.page ? "true" : "false",
+      target: "кнопка «Страница»"
     },
     {
       key: "{{location}}",
@@ -6559,16 +6571,17 @@ async function sendMessageDirect(
   body,
   { fromCompose = false, voice = false, author = "shell", displayPhrase = "", showInDialog = true } = {}
 ) {
-  const text = String(body || "").trim();
+  const rawText = String(body || "").trim();
+  const text = shellComposePage?.appendPageContextIfEnabled?.(rawText) || rawText;
   if (!text) return;
-  shellLog("message", `${author}${voice ? " · voice" : ""}`, text.slice(0, 160));
+  shellLog("message", `${author}${voice ? " · voice" : ""}`, rawText.slice(0, 160));
   shellProactive?.bumpActivity();
   void unlockShellAudio();
   shellSession?.setSessionUiLocked(true);
   shellSession?.resetStreamRenderState();
   state.messageStopped = false;
   state.messagePipelineBusy = true;
-  state.processingMessage = text;
+  state.processingMessage = rawText;
   state.pendingReplyTtsClientId = getShellPresenceClientId();
   shellPresenceController?.ping({ interact: true });
   renderMessageQueue();
@@ -6584,7 +6597,7 @@ async function sendMessageDirect(
       void refreshShellLocationForSend();
     }
     shellDialog.clearError();
-    if (showInDialog) shellDialog.onUserMessage(text);
+    if (showInDialog) shellDialog.onUserMessage(rawText);
     void apiFetch("/api/shell/message", {
       method: "POST",
       body: JSON.stringify({
@@ -8350,6 +8363,7 @@ let showVoiceConfirmDialog = null;
 let shellKeepAwake = null;
 let composeLayout = null;
 let composeContextMeter = null;
+let shellComposePage = null;
 
 function renderWaitingPhrase() {
   renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
@@ -8780,7 +8794,7 @@ function bindComposeSendUi() {
       syncComposeReadyStatus();
     });
     nodes.message.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      if (event.key === "Enter" && !event.shiftKey && !event.altKey && !event.isComposing) {
         event.preventDefault();
         void sendMessage(nodes.message?.value || "");
       }
@@ -8798,6 +8812,15 @@ function bindShellClickHandlers() {
   bindNavigationUi();
   bindComposeOptionTabs();
   bindComposeParamsPreview();
+  shellComposePage = createShellComposePageContext({
+    nodes,
+    apiFetch,
+    readComposeOptionToggles,
+    writeComposeOptionToggles,
+    applyComposeOptionToggles,
+    escapeHtml
+  });
+  shellComposePage.bindUi();
   bindComposeSendUi();
 }
 
