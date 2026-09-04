@@ -6114,9 +6114,15 @@ function bindCmsPagePickerBridge() {
     btn.setAttribute("aria-pressed", active ? "true" : "false");
   };
 
+  const setPagePickerActive = (next) => {
+    const value = Boolean(next);
+    if (value === active) return;
+    syncUi(value);
+    window.parent.postMessage({ type: "agent-cms-voice:page-picker-set", active: value }, "*");
+  };
+
   btn.addEventListener("click", () => {
-    syncUi(!active);
-    window.parent.postMessage({ type: "agent-cms-voice:page-picker-set", active }, "*");
+    setPagePickerActive(!active);
   });
 
   window.addEventListener("message", (event) => {
@@ -6126,6 +6132,17 @@ function bindCmsPagePickerBridge() {
     if (data.type !== "agent-cms-voice:page-picker-state") return;
     syncUi(Boolean(data.active));
   });
+
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (!active || event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setPagePickerActive(false);
+    },
+    true
+  );
 }
 
 function applyRemoteComposeDraft(body) {
