@@ -43,7 +43,7 @@ start_server() {
         echo "Agent CMS запущен в фоне (PID $(cat "$PID_FILE"))."
         echo "https://localhost:3443"
         echo "Лог: .run/agent-cms-https.log"
-        echo "Остановка: _Stop Agent HTTPS.command"
+        echo "Остановка: _A-CMS Server Stop.command"
         return 0
       fi
     fi
