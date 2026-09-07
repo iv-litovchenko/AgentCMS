@@ -1,26 +1,49 @@
 /** HTTPS / mic permissions for iPhone Safari (shared desktop + mobile). */
 
-const HTTPS_SHELL_PORT = 3443;
+import { buildVoiceShellPath, parseVoiceShellPath } from "./voice-chpu.js";
 
-function normalizeShellPath(shellPath = "/shell/") {
-  const path = String(shellPath || "/shell/").trim();
+const VOICE_TLS_PORT = 3488;
+
+function resolveHostname(hostname = window.location.hostname) {
+  const host = String(hostname || "").trim();
+  if (!host || host === "localhost" || host === "127.0.0.1") return "127.0.0.1";
+  return host;
+}
+
+function pathnameForVoiceUrl(pathname = window.location.pathname) {
+  let path = String(pathname || "/").trim();
+  if (path === "/shell" || path === "/shell/") return "/";
+  if (path.startsWith("/shell/")) {
+    path = path.slice("/shell".length);
+    if (!path.startsWith("/")) path = `/${path}`;
+  }
+  if (path !== "/" && !path.endsWith("/")) path = `${path}/`;
+  return path;
+}
+
+function defaultVoiceShellPath() {
+  const { agentId } = parseVoiceShellPath(pathnameForVoiceUrl());
+  return buildVoiceShellPath(agentId);
+}
+
+function normalizeShellPath(shellPath) {
+  if (shellPath == null || shellPath === "") return defaultVoiceShellPath();
+  const path = String(shellPath).trim();
   const withSlash = path.startsWith("/") ? path : `/${path}`;
   return withSlash.endsWith("/") ? withSlash : `${withSlash}/`;
 }
 
-export function getShellHttpsUrl(hostname = window.location.hostname, shellPath = "/shell/") {
+export function getShellHttpsUrl(hostname = window.location.hostname, shellPath) {
+  const host = resolveHostname(hostname);
   const path = normalizeShellPath(shellPath);
-  if (!hostname || hostname === "localhost" || hostname === "127.0.0.1") {
-    return `https://127.0.0.1:${HTTPS_SHELL_PORT}${path}`;
-  }
-  return `https://${hostname}:${HTTPS_SHELL_PORT}${path}`;
+  return `https://${host}:${VOICE_TLS_PORT}${path}`;
 }
 
 export function isShellSecureContext() {
   return window.isSecureContext === true;
 }
 
-export function shellPermissionIssue({ shellPath = "/shell/" } = {}) {
+export function shellPermissionIssue({ shellPath } = {}) {
   if (isShellSecureContext()) return null;
   const host = window.location.hostname;
   if (host === "localhost" || host === "127.0.0.1") return null;
@@ -29,13 +52,13 @@ export function shellPermissionIssue({ shellPath = "/shell/" } = {}) {
     title: "Нужен HTTPS",
     body:
       "Safari на iPhone не спрашивает микрофон по http://. " +
-      "Откройте ссылку ниже (порт 3443). На Mac: npm run start:https",
+      "Откройте ссылку ниже (порт 3488, Agent CMS Voice). На Mac: npm run start:https",
     hint: "Сертификат: Подробнее → Перейти на сайт.",
     httpsUrl
   };
 }
 
-export function renderShellPermissionBanner(bannerEl, { shellPath = "/shell/" } = {}) {
+export function renderShellPermissionBanner(bannerEl, { shellPath } = {}) {
   if (!bannerEl) return;
   const issue = shellPermissionIssue({ shellPath });
   if (!issue) {
@@ -74,7 +97,7 @@ export async function warmUpMicrophone() {
   return true;
 }
 
-export async function runShellPermissionCheck({ micDialog, shellPath = "/shell/" } = {}) {
+export async function runShellPermissionCheck({ micDialog, shellPath } = {}) {
   const issue = shellPermissionIssue({ shellPath });
   if (issue) {
     window.alert(`${issue.title}\n\n${issue.body}\n\n${issue.httpsUrl}\n\n${issue.hint}`);
@@ -118,7 +141,7 @@ export async function runShellPermissionCheck({ micDialog, shellPath = "/shell/"
   return { secure: true, mic, orient };
 }
 
-export function initShellPermissions({ bannerEl, micDialog, shellPath = "/shell/" } = {}) {
+export function initShellPermissions({ bannerEl, micDialog, shellPath } = {}) {
   renderShellPermissionBanner(bannerEl, { shellPath });
   return { runCheck: () => runShellPermissionCheck({ micDialog, shellPath }) };
 }

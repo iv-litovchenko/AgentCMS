@@ -12,7 +12,7 @@ export function truncateForShellTts(text, maxLen = SHELL_TTS_MAX_LEN) {
 export function formatTtsErrorHint({ serverReason = "", browserReason = "", useServerTts = true } = {}) {
   const parts = [];
   if (serverReason === "synthesize-fetch" || /fetch|network|failed/i.test(serverReason)) {
-    parts.push("Нет связи с CMS — Wi‑Fi и https://IP:3443");
+    parts.push("Нет связи с Voice — Wi‑Fi и https://IP:3488");
   } else if (serverReason === "play-not-allowed") {
     parts.push("iPhone заблокировал звук — нажмите 🎤 или «Отправить» и сразу задайте вопрос");
   } else if (serverReason === "play-failed" || serverReason === "audio-element-error") {

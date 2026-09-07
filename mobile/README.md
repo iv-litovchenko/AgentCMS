@@ -35,7 +35,8 @@ HOST=0.0.0.0 npm start
 ```bash
 npm start
 # на iPhone:
-# https://<IP-Mac>:3443/shell/
+# https://<IP-Mac>:3488/
+# или https://<IP-Mac>:3488/<agent-id>/
 ```
 
 ## Связь с desktop

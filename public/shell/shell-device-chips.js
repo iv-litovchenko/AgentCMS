@@ -101,7 +101,7 @@ export function initShellOrientationChip({ button, valueEl } = {}) {
     if (!window.isSecureContext) {
       valueNode.textContent = "HTTPS";
       buttonEl.title =
-        "Компас на iPhone нужен HTTPS — npm run start:https на Mac (порт 3443)";
+        "Компас на iPhone нужен HTTPS — npm run start:https на Mac (Voice :3488)";
       buttonEl.dataset.active = "0";
       return false;
     }
@@ -229,7 +229,7 @@ export function initShellLocationChip({ button, valueEl, shareBtn, onUpdate } = 
       buttonEl.dataset.active = "0";
       buttonEl.title =
         unavailable === "HTTPS"
-          ? "GPS на iPhone нужен HTTPS — npm run start:https (порт 3443)"
+          ? "GPS на iPhone нужен HTTPS — npm run start:https (Voice :3488)"
           : "Геолокация недоступна в этом браузере";
       return;
     }

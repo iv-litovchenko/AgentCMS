@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=518" />
+    <link rel="stylesheet" href="/shell/shell.css?v=519" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -40,7 +40,8 @@
           "@shell/voice-chpu": "/shell/voice-chpu.js?v=209",
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
-          "@shell/permissions": "/shell/shell-permissions.js?v=207",
+          "@shell/permissions": "/shell/shell-permissions.js?v=210",
+          "@shell/mobile-link": "/shell/shell-mobile-link.js?v=1",
           "@shell/dialog": "/shell/shell-dialog.js?v=293",
           "@shell/compact-qa": "/shell/shell-compact-qa.js?v=7",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=209",
@@ -1651,6 +1652,18 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--stt">STT</span>
             </label>
           </div>
+          <div class="shell-hero-voice-row shell-hero-voice-row--mobile">
+            <button
+              type="button"
+              class="shell-hero-mobile-btn"
+              id="shell-mobile-link-btn"
+              title="Ссылка для открытия на iPhone"
+              aria-label="Мобила — ссылка для iPhone"
+            >
+              <span class="shell-hero-mobile-btn-icon" aria-hidden="true">📱</span>
+              <span class="shell-hero-mobile-btn-label">Мобила</span>
+            </button>
+          </div>
         </div>
         <div class="shell-hero-voice-controls" aria-label="Голосовой ответ">
           <div class="shell-hero-voice-row shell-hero-voice-row--tts">
@@ -2374,14 +2387,38 @@ CMS workspace</pre>
       </div>
     </dialog>
 
+    <dialog class="shell-dialog" id="shell-mobile-dialog">
+      <div class="shell-dialog-form">
+        <h2>Открыть на iPhone</h2>
+        <p class="shell-dialog-note" id="shell-mobile-dialog-note">
+          Mac и iPhone — одна Wi‑Fi. Скопируйте ссылку и откройте в Safari.
+        </p>
+        <label class="shell-mobile-url-field">
+          <span class="shell-mobile-url-label">Agent CMS Voice (HTTPS :3488)</span>
+          <input
+            id="shell-mobile-url"
+            class="shell-mobile-url-input"
+            type="text"
+            readonly
+            spellcheck="false"
+            aria-label="Ссылка для iPhone"
+          />
+        </label>
+        <div class="shell-dialog-actions">
+          <button type="button" class="shell-btn shell-btn--ghost" id="shell-mobile-copy">Копировать</button>
+          <button type="button" class="shell-btn" id="shell-mobile-dialog-close">OK</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog class="shell-dialog" id="shell-mic-dialog">
       <div class="shell-dialog-form">
         <h2>Микрофон в Safari</h2>
         <ol class="shell-help-list shell-help-list--ol">
           <li>
             <strong>Важно:</strong> по <code>http://192.168…</code> Safari <strong>не спрашивает</strong> микрофон.
-            Нужен <strong>HTTPS на порту 3443</strong> — на Mac: <code>npm run start:https</code>, на iPhone:
-            <code id="shell-mic-dialog-url">https://IP:3443/shell/</code>.
+            Нужен <strong>HTTPS на порту 3488</strong> (Agent CMS Voice) — на Mac: <code>npm run start:https</code>, на iPhone:
+            <code id="shell-mic-dialog-url">https://IP:3488/</code>.
           </li>
           <li>Нажмите 🎤 — начнётся запись; нажмите ещё раз — стоп и отправка.</li>
           <li>Нажмите <strong>Разрешить</strong>, если Safari спросит.</li>
@@ -2408,6 +2445,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=531" type="module"></script>
+    <script src="/shell/shell.js?v=532" type="module"></script>
   </body>
 </html>

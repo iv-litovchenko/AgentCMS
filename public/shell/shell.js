@@ -52,6 +52,7 @@ import {
   shellPermissionIssue,
   warmUpMicrophone
 } from "@shell/permissions";
+import { initShellMobileLink } from "@shell/mobile-link";
 import { createShellDialog } from "@shell/dialog";
 import { createShellCompactQa } from "@shell/compact-qa";
 import { initShellComposeLayout } from "@shell/compose-layout";
@@ -1217,6 +1218,12 @@ const nodes = {
   micDialogClose: document.getElementById("shell-mic-dialog-close"),
   micDialogCheck: document.getElementById("shell-mic-dialog-check"),
   micHelpLink: document.getElementById("shell-mic-help-link"),
+  mobileLinkBtn: document.getElementById("shell-mobile-link-btn"),
+  mobileDialog: document.getElementById("shell-mobile-dialog"),
+  mobileDialogUrl: document.getElementById("shell-mobile-url"),
+  mobileDialogNote: document.getElementById("shell-mobile-dialog-note"),
+  mobileDialogCopy: document.getElementById("shell-mobile-copy"),
+  mobileDialogClose: document.getElementById("shell-mobile-dialog-close"),
   helpBtn: document.getElementById("shell-help-btn"),
   debugBtn: document.getElementById("shell-debug-btn"),
   debugPanel: document.getElementById("shell-debug-panel"),
@@ -9484,6 +9491,15 @@ function bindShellInteractiveUi() {
     });
     initShellHints();
     initShellImageLightbox();
+    initShellMobileLink({
+      button: nodes.mobileLinkBtn,
+      dialog: nodes.mobileDialog,
+      urlInput: nodes.mobileDialogUrl,
+      noteEl: nodes.mobileDialogNote,
+      copyBtn: nodes.mobileDialogCopy,
+      closeBtn: nodes.mobileDialogClose,
+      getAgentId: () => state.agentId
+    });
     if (nodes.micDialogUrl) {
       nodes.micDialogUrl.textContent = getShellHttpsUrl();
     }
