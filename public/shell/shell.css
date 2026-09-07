@@ -11136,8 +11136,8 @@ body.shell-embed .shell-path-header {
     overscroll-behavior: none;
   }
 
-  body {
-    padding: 8px;
+  body:not(.shell-embed) {
+    padding: 0;
   }
 
   .shell-hero-center {
