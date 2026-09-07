@@ -49,6 +49,7 @@ const {
 const { createWorkspaceBrainService } = require("./workspace-brain-service");
 const { parseCsvText } = require("./awn-data-csv");
 const { buildSystemEnvironment } = require("./lib/system-environment");
+const { getLanIPv4 } = require("./lib/lan-ip");
 const { createAppLockPasskeyService } = require("./lib/app-lock-passkey");
 const { createFingerprintScannerService } = require("./lib/fingerprint-scanner/service");
 const {
@@ -627,6 +628,7 @@ const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
+  ".mjs": "application/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".webmanifest": "application/manifest+json; charset=utf-8",
   ".yaml": "text/yaml; charset=utf-8",
@@ -24073,15 +24075,6 @@ function listenServer(server, { host, port, tryNextPort = false }) {
   });
 }
 
-function getLanIPv4() {
-  for (const nets of Object.values(os.networkInterfaces())) {
-    for (const net of nets || []) {
-      if (net && net.family === "IPv4" && !net.internal) return net.address;
-    }
-  }
-  return "";
-}
-
 function isTlsEnabled() {
   return Boolean(readTlsCredentials());
 }
@@ -24100,7 +24093,7 @@ async function startServer(options = {}) {
   const tlsPort = Number(process.env.TLS_PORT ?? 3443);
   const tryNextPort = Boolean(options.tryNextPort);
   const handler = createRequestHandler();
-  const lanIp = getLanIPv4();
+  const lanIp = getLanIPv4(options.root || __dirname);
   const attachHttpsOnly = process.env.HTTPS_ATTACH === "1";
   const voiceAutostart = process.env.VOICE_AUTOSTART !== "0";
 
@@ -24223,7 +24216,29 @@ async function stopServer() {
   if (closes.length) await Promise.all(closes);
 }
 
+function attachProcessDiagnostics() {
+  const log = (label, detail) => {
+    const text =
+      detail instanceof Error
+        ? detail.stack || detail.message || String(detail)
+        : String(detail ?? "");
+    console.error(`[agent-cms] ${label}: ${text}`);
+  };
+
+  process.on("SIGTERM", () => {
+    log("signal", "SIGTERM");
+    stopServer().finally(() => process.exit(0));
+  });
+  process.on("SIGINT", () => {
+    log("signal", "SIGINT");
+    stopServer().finally(() => process.exit(0));
+  });
+  process.on("uncaughtException", (error) => log("uncaughtException", error));
+  process.on("unhandledRejection", (reason) => log("unhandledRejection", reason));
+}
+
 if (require.main === module) {
+  attachProcessDiagnostics();
   startServer({ root: __dirname, tryNextPort: false })
     .then((info) => {
       if (info.httpUrl) {

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CERT_DIR="$ROOT/.dev-certs"
 KEY="$CERT_DIR/key.pem"
@@ -40,4 +41,9 @@ export DEV_CERT_PROVIDER="$(cat "$PROVIDER_FILE" 2>/dev/null || echo openssl)"
 export VOICE_TLS_PORT="${VOICE_TLS_PORT:-3488}"
 export VOICE_PORT="${VOICE_PORT:-3088}"
 export VOICE_REDIRECT_SHELL="${VOICE_REDIRECT_SHELL:-1}"
-exec node server.js
+NODE_BIN="$(command -v node || true)"
+if [[ -z "$NODE_BIN" ]]; then
+  echo "node не найден в PATH" >&2
+  exit 127
+fi
+exec "$NODE_BIN" server.js

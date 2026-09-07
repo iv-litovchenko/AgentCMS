@@ -233,6 +233,26 @@ body:not(.shell-embed) .shell-app {
   max-width: min(92vw, 520px);
 }
 
+#shell-mobile-dialog.shell-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-height: min(92vh, 680px);
+  overflow: hidden;
+}
+
+#shell-mobile-dialog .shell-dialog-form {
+  max-height: min(92vh, 680px);
+  overflow: auto;
+}
+
+#shell-mobile-dialog .shell-dialog-actions {
+  position: sticky;
+  bottom: 0;
+  padding-top: 8px;
+  background: linear-gradient(to bottom, rgba(23, 24, 44, 0), #17182c 28%);
+}
+
 .shell-compose-params-note {
   margin: 0 0 12px;
 }
@@ -2543,6 +2563,38 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   color: #e2e8f0;
   font: inherit;
   font-size: 13px;
+}
+
+.shell-mobile-qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.shell-mobile-qr-wrap canvas,
+.shell-mobile-qr-wrap .shell-mobile-qr-image {
+  display: block;
+  width: 220px;
+  height: 220px;
+  border-radius: 8px;
+}
+
+.shell-mobile-qr-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #475569;
+  text-align: center;
+}
+
+.shell-mobile-qr-wrap[hidden] {
+  display: none !important;
 }
 
 .shell-hero-voice-row--stt {

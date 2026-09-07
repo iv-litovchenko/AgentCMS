@@ -1219,10 +1219,15 @@ const nodes = {
   micDialogCheck: document.getElementById("shell-mic-dialog-check"),
   micHelpLink: document.getElementById("shell-mic-help-link"),
   mobileLinkBtn: document.getElementById("shell-mobile-link-btn"),
+  mobileHeaderBtn: document.getElementById("shell-mobile-header-btn"),
   mobileDialog: document.getElementById("shell-mobile-dialog"),
   mobileDialogUrl: document.getElementById("shell-mobile-url"),
   mobileDialogNote: document.getElementById("shell-mobile-dialog-note"),
+  mobileQrWrap: document.getElementById("shell-mobile-qr-wrap"),
+  mobileQrImage: document.getElementById("shell-mobile-qr"),
+  mobileQrHint: document.getElementById("shell-mobile-qr-hint"),
   mobileDialogCopy: document.getElementById("shell-mobile-copy"),
+  mobileDialogShare: document.getElementById("shell-mobile-share"),
   mobileDialogClose: document.getElementById("shell-mobile-dialog-close"),
   helpBtn: document.getElementById("shell-help-btn"),
   debugBtn: document.getElementById("shell-debug-btn"),
@@ -9492,11 +9497,15 @@ function bindShellInteractiveUi() {
     initShellHints();
     initShellImageLightbox();
     initShellMobileLink({
-      button: nodes.mobileLinkBtn,
+      buttons: [nodes.mobileLinkBtn, nodes.mobileHeaderBtn],
       dialog: nodes.mobileDialog,
       urlInput: nodes.mobileDialogUrl,
       noteEl: nodes.mobileDialogNote,
+      qrWrap: nodes.mobileQrWrap,
+      qrImage: nodes.mobileQrImage,
+      qrHint: nodes.mobileQrHint,
       copyBtn: nodes.mobileDialogCopy,
+      shareBtn: nodes.mobileDialogShare,
       closeBtn: nodes.mobileDialogClose,
       getAgentId: () => state.agentId
     });

@@ -10,8 +10,8 @@ const https = require("https");
 const fs = require("fs/promises");
 const fsSync = require("fs");
 const path = require("path");
-const os = require("os");
 const agentRegistry = require("./agent-registry");
+const { getLanIPv4 } = require("./lib/lan-ip");
 const voiceChpu = require("./lib/voice-chpu");
 const {
   isHttpsRedirectEnabled,
@@ -23,6 +23,7 @@ const ROOT = __dirname;
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
+  ".mjs": "application/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
@@ -321,15 +322,6 @@ function listenServer(server, { host, port, tryNextPort = false }) {
   });
 }
 
-function getLanIPv4() {
-  for (const nets of Object.values(os.networkInterfaces())) {
-    for (const net of nets || []) {
-      if (net && net.family === "IPv4" && !net.internal) return net.address;
-    }
-  }
-  return "";
-}
-
 function shellLegacyRedirectTarget(pathname) {
   if (pathname === "/shell" || pathname === "/shell/") return "/";
   const match = String(pathname || "").match(/^\/shell\/([^/]+)\/?$/);
@@ -350,7 +342,7 @@ async function startVoiceServer(options = {}) {
   const tlsPort = Number(options.tlsPort ?? process.env.VOICE_TLS_PORT ?? 3488);
   const tryNextPort = Boolean(options.tryNextPort);
   const handler = createVoiceRequestHandler();
-  const lanIp = getLanIPv4();
+  const lanIp = getLanIPv4(options.root || ROOT);
   const tls = readTlsCredentials();
 
   if (process.env.VOICE_TLS_ONLY === "1" && tls) {

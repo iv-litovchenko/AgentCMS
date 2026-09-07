@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=519" />
+    <link rel="stylesheet" href="/shell/shell.css?v=521" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -41,7 +41,7 @@
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=210",
-          "@shell/mobile-link": "/shell/shell-mobile-link.js?v=1",
+          "@shell/mobile-link": "/shell/shell-mobile-link.js?v=6",
           "@shell/dialog": "/shell/shell-dialog.js?v=293",
           "@shell/compact-qa": "/shell/shell-compact-qa.js?v=7",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=209",
@@ -198,6 +198,15 @@
                 aria-hidden="true"
               >
                 ★
+              </button>
+              <button
+                type="button"
+                class="shell-path-action-btn"
+                id="shell-mobile-header-btn"
+                title="Открыть на iPhone"
+                aria-label="Мобила — ссылка для iPhone"
+              >
+                📱
               </button>
               <button
                 type="button"
@@ -2404,8 +2413,19 @@ CMS workspace</pre>
             aria-label="Ссылка для iPhone"
           />
         </label>
-        <div class="shell-dialog-actions">
+        <div class="shell-mobile-qr-wrap" id="shell-mobile-qr-wrap" hidden>
+          <img
+            id="shell-mobile-qr"
+            class="shell-mobile-qr-image"
+            width="220"
+            height="220"
+            alt="QR-код для iPhone"
+          />
+          <p class="shell-mobile-qr-hint" id="shell-mobile-qr-hint">Наведите камеру iPhone → откроется в Safari</p>
+        </div>
+        <div class="shell-dialog-actions shell-dialog-actions--spread">
           <button type="button" class="shell-btn shell-btn--ghost" id="shell-mobile-copy">Копировать</button>
+          <button type="button" class="shell-btn shell-btn--ghost" id="shell-mobile-share">Поделиться</button>
           <button type="button" class="shell-btn" id="shell-mobile-dialog-close">OK</button>
         </div>
       </div>
@@ -2445,6 +2465,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=532" type="module"></script>
+    <script src="/shell/shell.js?v=537" type="module"></script>
   </body>
 </html>

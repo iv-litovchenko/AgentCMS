@@ -6,7 +6,7 @@ RUN_DIR="$ROOT/.run"
 PID_FILE="$RUN_DIR/agent-cms-https.pid"
 LOG_FILE="$RUN_DIR/agent-cms-https.log"
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 
 mkdir -p "$RUN_DIR"
 
@@ -25,27 +25,67 @@ is_running() {
   return 1
 }
 
+server_listening() {
+  lsof -ti :3443 >/dev/null 2>&1 && lsof -ti :3488 >/dev/null 2>&1
+}
+
 start_server() {
   cd "$ROOT"
 
-  if is_running; then
-    echo "Уже запущен (PID $(cat "$PID_FILE"))."
+  if is_running && server_listening; then
+    echo "Уже запущен (supervisor PID $(cat "$PID_FILE"))."
     echo "https://localhost:3443"
+    echo "https://localhost:3488"
     return 0
   fi
 
-  nohup bash "$ROOT/scripts/start-mobile-https.sh" >>"$LOG_FILE" 2>&1 &
-  echo $! >"$PID_FILE"
+  if server_listening; then
+    echo "Agent CMS уже работает."
+    echo "https://localhost:3443"
+    echo "https://localhost:3488"
+    return 0
+  fi
 
-  for _ in {1..20}; do
-    if is_running; then
-      if lsof -ti :3443 >/dev/null 2>&1; then
-        echo "Agent CMS запущен в фоне (PID $(cat "$PID_FILE"))."
+  if [[ "$(uname -s)" == "Darwin" && -z "${AGENT_CMS_DIRECT_START:-}" ]]; then
+    echo "Запуск через Terminal (стабильный фоновый режим)..."
+    open "$ROOT/_A-CMS Server Run Background.command"
+    for _ in {1..60}; do
+      if server_listening; then
+        echo "Agent CMS запущен."
         echo "https://localhost:3443"
-        echo "Лог: .run/agent-cms-https.log"
-        echo "Остановка: _A-CMS Server Stop.command"
+        echo "https://localhost:3488"
         return 0
       fi
+      sleep 0.5
+    done
+    echo "Сервер ещё стартует. Откройте вручную:"
+    echo "https://localhost:3488"
+    return 1
+  fi
+
+  nohup bash -c '
+    export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    while true; do
+      echo "[$(date "+%Y-%m-%dT%H:%M:%S%z")] starting server" >>"'"$LOG_FILE"'"
+      bash "'"$ROOT"'/scripts/start-mobile-https.sh" >>"'"$LOG_FILE"'" 2>&1 || true
+      echo "[$(date "+%Y-%m-%dT%H:%M:%S%z")] server exited ($?), restart in 3s" >>"'"$LOG_FILE"'"
+      sleep 3
+    done
+  ' >>"$LOG_FILE" 2>&1 &
+  echo $! >"$PID_FILE"
+  disown 2>/dev/null || true
+
+  for _ in {1..40}; do
+    if server_listening; then
+      echo "Agent CMS запущен в фоне (supervisor PID $(cat "$PID_FILE"))."
+      echo "https://localhost:3443"
+      echo "https://localhost:3488"
+      echo "Лог: .run/agent-cms-https.log"
+      echo "Остановка: _A-CMS Server Stop.command"
+      return 0
+    fi
+    if ! is_running; then
+      break
     fi
     sleep 0.25
   done
@@ -60,7 +100,7 @@ stop_by_port() {
   local stopped=0
   local port
 
-  for port in 3443 3000; do
+  for port in 3488 3088 3443 3000; do
     local pids
     pids="$(lsof -ti :"$port" 2>/dev/null || true)"
     if [[ -n "$pids" ]]; then
@@ -80,28 +120,24 @@ stop_by_port() {
 }
 
 stop_server() {
-  if ! is_running; then
+  if is_running; then
+    local pid
+    pid="$(cat "$PID_FILE")"
+    kill "$pid" 2>/dev/null || true
+
+    for _ in {1..20}; do
+      if ! kill -0 "$pid" 2>/dev/null; then
+        break
+      fi
+      sleep 0.25
+    done
+
+    kill -9 "$pid" 2>/dev/null || true
     rm -f "$PID_FILE"
-    stop_by_port
-    return 0
   fi
 
-  local pid
-  pid="$(cat "$PID_FILE")"
-  kill "$pid" 2>/dev/null || true
-
-  for _ in {1..20}; do
-    if ! kill -0 "$pid" 2>/dev/null; then
-      rm -f "$PID_FILE"
-      echo "Остановлено."
-      return 0
-    fi
-    sleep 0.25
-  done
-
-  kill -9 "$pid" 2>/dev/null || true
-  rm -f "$PID_FILE"
   stop_by_port
+  echo "Остановлено."
 }
 
 case "${1:-}" in
@@ -113,7 +149,13 @@ case "${1:-}" in
     ;;
   status)
     if is_running; then
-      echo "running $(cat "$PID_FILE")"
+      if server_listening; then
+        echo "running $(cat "$PID_FILE") listening"
+      else
+        echo "running $(cat "$PID_FILE") starting"
+      fi
+    elif server_listening; then
+      echo "listening orphan"
     else
       echo "stopped"
     fi
