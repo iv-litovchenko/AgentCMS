@@ -41,7 +41,7 @@
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=210",
-          "@shell/mobile-link": "/shell/shell-mobile-link.js?v=6",
+          "@shell/mobile-link": "/shell/shell-mobile-link.js?v=7",
           "@shell/dialog": "/shell/shell-dialog.js?v=293",
           "@shell/compact-qa": "/shell/shell-compact-qa.js?v=7",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=209",
@@ -2422,6 +2422,28 @@ CMS workspace</pre>
             alt="QR-код для iPhone"
           />
           <p class="shell-mobile-qr-hint" id="shell-mobile-qr-hint">Наведите камеру iPhone → откроется в Safari</p>
+        </div>
+        <div class="shell-mobile-cert-block" id="shell-mobile-cert-block" hidden>
+          <p class="shell-mobile-cert-title">🔒 Доверенный HTTPS на iPhone (один раз)</p>
+          <ol class="shell-help-list shell-help-list--ol shell-mobile-cert-steps">
+            <li>Откройте ссылку по <strong>HTTP</strong> (без «s») и установите профиль.</li>
+            <li><strong>Настройки → Основные → Об этом устройстве → Доверие сертификатам</strong> → включите «mkcert …».</li>
+            <li>Затем откройте Voice по HTTPS — без предупреждений.</li>
+          </ol>
+          <label class="shell-mobile-url-field">
+            <span class="shell-mobile-url-label">mkcert CA для iPhone (HTTP :3088)</span>
+            <input
+              id="shell-mobile-cert-url"
+              class="shell-mobile-url-input"
+              type="text"
+              readonly
+              spellcheck="false"
+              aria-label="Ссылка для установки CA на iPhone"
+            />
+          </label>
+          <div class="shell-dialog-actions shell-dialog-actions--tight">
+            <button type="button" class="shell-btn shell-btn--ghost" id="shell-mobile-cert-copy">Копировать CA</button>
+          </div>
         </div>
         <div class="shell-dialog-actions shell-dialog-actions--spread">
           <button type="button" class="shell-btn shell-btn--ghost" id="shell-mobile-copy">Копировать</button>

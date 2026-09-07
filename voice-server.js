@@ -17,6 +17,7 @@ const {
   isHttpsRedirectEnabled,
   createHttpToHttpsRedirectHandler
 } = require("./lib/https-redirect");
+const { wrapHttpHandler } = require("./lib/mkcert-ios-ca");
 
 const ROOT = __dirname;
 
@@ -377,9 +378,14 @@ async function startVoiceServer(options = {}) {
     boundTlsPort = await listenServer(httpsServer, { host, port: tlsPort, tryNextPort: false });
     httpsUrl = `https://${hostname}:${boundTlsPort}`;
 
-    const httpHandler = isHttpsRedirectEnabled()
+    const redirectHandler = isHttpsRedirectEnabled()
       ? createHttpToHttpsRedirectHandler({ tlsPort: boundTlsPort, hostname })
-      : handler;
+      : null;
+    const httpHandler = wrapHttpHandler({
+      handler,
+      redirectHandler,
+      projectRoot: options.root || ROOT
+    });
     httpServer = http.createServer(httpHandler);
     boundPort = await listenServer(httpServer, { host, port, tryNextPort });
     httpUrl = `http://${hostname}:${boundPort}`;

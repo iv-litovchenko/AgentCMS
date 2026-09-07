@@ -9,6 +9,7 @@
     "start": "node server.js",
     "start:https": "bash scripts/start-mobile-https.sh",
     "setup:certs": "bash scripts/setup-dev-certs.sh",
+    "setup:certs:iphone": "bash scripts/export-mkcert-ca-for-ios.sh",
     "voice:start": "node voice-server.js",
     "voice:https": "bash scripts/start-voice-https.sh",
     "mcp": "node mcp-server/index.js",

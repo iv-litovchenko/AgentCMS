@@ -4,6 +4,7 @@ import { buildVoiceShellPath } from "./voice-chpu.js";
 import { renderMobileQr } from "./shell-qr.js";
 
 export const VOICE_TLS_PORT = 3488;
+export const VOICE_HTTP_PORT = 3088;
 
 function isPrivateLanHost(host) {
   const value = String(host || "").trim();
@@ -36,6 +37,14 @@ export function resolveMobileHost(lanIp, fallbackHostname = window.location.host
   return current || "127.0.0.1";
 }
 
+export function buildMkcertCaHttpUrl({
+  lanIp = null,
+  hostname = window.location.hostname,
+  port = VOICE_HTTP_PORT
+} = {}) {
+  const host = resolveMobileHost(lanIp, hostname);
+  return `http://${host}:${port}/dev/mkcert-root-ca.pem`;
+}
 export function buildMobileVoiceUrl({
   agentId = "",
   lanIp = null,
@@ -132,6 +141,9 @@ export function initShellMobileLink({
   dialog,
   urlInput,
   noteEl,
+  certBlock,
+  certUrlInput,
+  certCopyBtn,
   qrWrap,
   qrImage,
   qrHint,
@@ -149,9 +161,17 @@ export function initShellMobileLink({
 
   async function refreshDialogContent() {
     const info = await resolveMobileVoiceUrl(getAgentId());
+    const caUrl = buildMkcertCaHttpUrl({ lanIp: info.lanIp });
     if (urlInput) {
       urlInput.value = info.url;
       urlInput.dataset.url = info.url;
+    }
+    if (certUrlInput) {
+      certUrlInput.value = caUrl;
+      certUrlInput.dataset.url = caUrl;
+    }
+    if (certBlock) {
+      certBlock.hidden = info.usesLoopback;
     }
     if (noteEl) {
       const lines = [
@@ -165,6 +185,11 @@ export function initShellMobileLink({
             ? `Откроется агент «${info.agentId}».`
             : "Откроется выбор хранилища (агента)."
       ];
+      if (!info.usesLoopback) {
+        lines.push(
+          "Safari на iPhone: один раз установите mkcert CA (блок ниже) — тогда HTTPS без предупреждений."
+        );
+      }
       noteEl.textContent = lines.join(" ");
     }
     if (qrWrap) {
@@ -198,6 +223,15 @@ export function initShellMobileLink({
     const prev = copyBtn.textContent;
     void copyText(value).then((ok) => {
       flashButtonLabel(copyBtn, ok ? "Скопировано" : "Не удалось", prev);
+    });
+  });
+
+  certCopyBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const value = certUrlInput?.value || certUrlInput?.dataset.url || "";
+    const prev = certCopyBtn.textContent;
+    void copyText(value).then((ok) => {
+      flashButtonLabel(certCopyBtn, ok ? "Скопировано" : "Не удалось", prev);
     });
   });
 

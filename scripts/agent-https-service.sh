@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_DIR="$ROOT/.run"
 PID_FILE="$RUN_DIR/agent-cms-https.pid"
 LOG_FILE="$RUN_DIR/agent-cms-https.log"
+LOCK_FILE="$RUN_DIR/agent-cms-https.starting"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 
@@ -29,7 +30,7 @@ server_listening() {
   lsof -ti :3443 >/dev/null 2>&1 && lsof -ti :3488 >/dev/null 2>&1
 }
 
-start_server() {
+start_direct() {
   cd "$ROOT"
 
   if is_running && server_listening; then
@@ -46,23 +47,6 @@ start_server() {
     return 0
   fi
 
-  if [[ "$(uname -s)" == "Darwin" && -z "${AGENT_CMS_DIRECT_START:-}" ]]; then
-    echo "Запуск через Terminal (стабильный фоновый режим)..."
-    open "$ROOT/_A-CMS Server Run Background.command"
-    for _ in {1..60}; do
-      if server_listening; then
-        echo "Agent CMS запущен."
-        echo "https://localhost:3443"
-        echo "https://localhost:3488"
-        return 0
-      fi
-      sleep 0.5
-    done
-    echo "Сервер ещё стартует. Откройте вручную:"
-    echo "https://localhost:3488"
-    return 1
-  fi
-
   nohup bash -c '
     export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     while true; do
@@ -77,6 +61,7 @@ start_server() {
 
   for _ in {1..40}; do
     if server_listening; then
+      rm -f "$LOCK_FILE"
       echo "Agent CMS запущен в фоне (supervisor PID $(cat "$PID_FILE"))."
       echo "https://localhost:3443"
       echo "https://localhost:3488"
@@ -90,9 +75,57 @@ start_server() {
     sleep 0.25
   done
 
-  rm -f "$PID_FILE"
+  rm -f "$PID_FILE" "$LOCK_FILE"
   echo "Не удалось запустить сервер. Последние строки лога:"
   tail -n 20 "$LOG_FILE" 2>/dev/null || true
+  return 1
+}
+
+start_via_terminal() {
+  cd "$ROOT"
+
+  if server_listening; then
+    echo "Agent CMS уже работает."
+    echo "https://localhost:3443"
+    echo "https://localhost:3488"
+    return 0
+  fi
+
+  if [[ -f "$LOCK_FILE" ]]; then
+    local lock_age=$SECONDS
+    if [[ -f "$LOCK_FILE" ]]; then
+      echo "Запуск уже идёт — жду..."
+      for _ in {1..40}; do
+        if server_listening; then
+          rm -f "$LOCK_FILE"
+          echo "Agent CMS запущен."
+          echo "https://localhost:3443"
+          echo "https://localhost:3488"
+          return 0
+        fi
+        sleep 0.5
+      done
+    fi
+  fi
+
+  date +%s >"$LOCK_FILE"
+  echo "Открываю Terminal для запуска (один раз)..."
+  open "$ROOT/_A-CMS Server Run Background.command"
+
+  for _ in {1..60}; do
+    if server_listening; then
+      rm -f "$LOCK_FILE"
+      echo "Agent CMS запущен."
+      echo "https://localhost:3443"
+      echo "https://localhost:3488"
+      return 0
+    fi
+    sleep 0.5
+  done
+
+  rm -f "$LOCK_FILE"
+  echo "Сервер ещё стартует. Если открылось несколько окон Terminal — закройте лишние."
+  echo "https://localhost:3488"
   return 1
 }
 
@@ -111,12 +144,7 @@ stop_by_port() {
 
   if [[ "$stopped" -eq 1 ]]; then
     sleep 0.5
-    echo "Остановлено (по порту)."
-    return 0
   fi
-
-  echo "Сервер не запущен."
-  return 0
 }
 
 stop_server() {
@@ -137,12 +165,20 @@ stop_server() {
   fi
 
   stop_by_port
+  rm -f "$LOCK_FILE"
   echo "Остановлено."
 }
 
 case "${1:-}" in
   start)
-    start_server
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      start_via_terminal
+    else
+      start_direct
+    fi
+    ;;
+  start-direct)
+    start_direct
     ;;
   stop)
     stop_server
@@ -161,7 +197,7 @@ case "${1:-}" in
     fi
     ;;
   *)
-    echo "Usage: $0 {start|stop|status}"
+    echo "Usage: $0 {start|start-direct|stop|status}"
     exit 1
     ;;
 esac

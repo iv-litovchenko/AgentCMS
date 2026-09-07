@@ -50,6 +50,7 @@ const { createWorkspaceBrainService } = require("./workspace-brain-service");
 const { parseCsvText } = require("./awn-data-csv");
 const { buildSystemEnvironment } = require("./lib/system-environment");
 const { getLanIPv4 } = require("./lib/lan-ip");
+const { wrapHttpHandler } = require("./lib/mkcert-ios-ca");
 const { createAppLockPasskeyService } = require("./lib/app-lock-passkey");
 const { createFingerprintScannerService } = require("./lib/fingerprint-scanner/service");
 const {
@@ -24151,9 +24152,14 @@ async function startServer(options = {}) {
     boundTlsPort = await listenServer(httpsServer, { host, port: tlsPort, tryNextPort: false });
     httpsUrl = `https://${hostname}:${boundTlsPort}`;
 
-    const httpHandler = isHttpsRedirectEnabled()
+    const redirectHandler = isHttpsRedirectEnabled()
       ? createHttpToHttpsRedirectHandler({ tlsPort: boundTlsPort, hostname })
-      : handler;
+      : null;
+    const httpHandler = wrapHttpHandler({
+      handler,
+      redirectHandler,
+      projectRoot: options.root || __dirname
+    });
     httpServer = http.createServer(httpHandler);
     boundPort = await listenServer(httpServer, { host, port, tryNextPort });
     httpUrl = `http://${hostname}:${boundPort}`;

@@ -39,6 +39,22 @@ npm start
 # или https://<IP-Mac>:3488/<agent-id>/
 ```
 
+### Доверенный HTTPS на iPhone (mkcert)
+
+На Mac сертификат доверен автоматически. На iPhone — **один раз** установите корневой CA:
+
+```bash
+npm run setup:certs:iphone
+```
+
+На iPhone откройте **по HTTP** (без `s`):
+
+`http://<IP-Mac>:3088/dev/mkcert-root-ca.pem`
+
+Затем: **Настройки → Основные → Об этом устройстве → Доверие сертификатам** → включить «mkcert …».
+
+Или в Shell на Mac: кнопка **📱 Мобила** → блок «Доверенный HTTPS на iPhone».
+
 ## Связь с desktop
 
 | | Mac | iPhone |

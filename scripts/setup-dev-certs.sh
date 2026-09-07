@@ -48,6 +48,9 @@ if command -v mkcert >/dev/null 2>&1; then
     localhost 127.0.0.1 ::1 agent-cms.local "$IP"
   echo "mkcert" > "$PROVIDER_FILE"
   echo "$IP" > "$IP_FILE"
+  if command -v node >/dev/null 2>&1; then
+    node -e "require('./lib/mkcert-ios-ca').exportMkcertRootCa(process.argv[1])" "$ROOT" >/dev/null 2>&1 || true
+  fi
   echo "Trusted certificate ready — Safari/Chrome will not show warnings."
   echo "CMS https://localhost:3443  ·  Voice https://localhost:3488"
   exit 0

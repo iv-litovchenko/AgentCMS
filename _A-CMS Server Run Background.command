@@ -5,8 +5,7 @@ launch_setup_certs
 
 cd "$(dirname "$0")"
 echo ""
-export AGENT_CMS_DIRECT_START=1
-bash scripts/agent-https-service.sh start
+bash scripts/agent-https-service.sh start-direct
 
 if command -v open >/dev/null 2>&1; then
   open "https://localhost:3488/" 2>/dev/null || true
