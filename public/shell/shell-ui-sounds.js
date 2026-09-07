@@ -5,6 +5,10 @@ const DEFAULT_PROCESSING_SOUND = "off";
 
 export const PROCESSING_SOUND_IDS = [
   "off",
+  "tick",
+  "glide",
+  "drive",
+  "ascent",
   "clock",
   "heartbeat",
   "sonar",
@@ -41,6 +45,10 @@ export const PROCESSING_SOUND_IDS = [
 
 export const PROCESSING_SOUND_OPTIONS = [
   { id: "off", label: "Выкл", hint: "Без звука" },
+  { id: "tick", label: "Тик", hint: "Один удар печатной машинки" },
+  { id: "glide", label: "Старт", hint: "Тихий восходящий свист" },
+  { id: "drive", label: "Диск", hint: "Приглушённый гул привода" },
+  { id: "ascent", label: "Ноты", hint: "2–3 нарастающие ноты" },
   { id: "clock", label: "Тик-так", hint: "Мягкие часы" },
   { id: "heartbeat", label: "Сердце", hint: "Двойной пульс" },
   { id: "sonar", label: "Сонар", hint: "Тихий пинг" },
@@ -234,6 +242,138 @@ function playSoftClockClick(ctx, output, kind = "tick") {
   source.start(t0);
   tone.start(t0);
   tone.stop(t0 + duration + 0.01);
+}
+
+/** Один мягкий удар — как печатная машинка, без частой печати. */
+function playTypewriterTick(ctx, output) {
+  playFilteredNoise(ctx, output, {
+    frequency: 1180,
+    q: 1.6,
+    gain: 0.048,
+    duration: 0.022
+  });
+  playWarmTone(ctx, output, {
+    frequency: 820,
+    duration: 0.034,
+    gain: 0.02,
+    attack: 0.002,
+    lowpass: 1300
+  });
+}
+
+function startTick(ctx, output, ctl) {
+  scheduleLoop(
+    ctl,
+    () => 760 + Math.random() * 220,
+    () => {
+      playTypewriterTick(ctx, output);
+    }
+  );
+}
+
+/** Короткий восходящий глисс — «процесс пошёл». */
+function startGlide(ctx, output, ctl) {
+  scheduleLoop(
+    ctl,
+    () => 1380 + Math.random() * 240,
+    () => {
+      playWarmTone(ctx, output, {
+        frequency: 380,
+        slideTo: 920,
+        duration: 0.34,
+        gain: 0.026,
+        attack: 0.035,
+        lowpass: 1100
+      });
+      playFilteredNoise(ctx, output, {
+        frequency: 860,
+        q: 0.95,
+        gain: 0.011,
+        duration: 0.26
+      });
+    }
+  );
+}
+
+/** Тихий ретро-гул дискового привода + редкий «щелчок» головки. */
+function startDrive(ctx, output, ctl) {
+  const osc = ctx.createOscillator();
+  const harmonic = ctx.createOscillator();
+  const filter = ctx.createBiquadFilter();
+  const g = ctx.createGain();
+  osc.type = "sawtooth";
+  osc.frequency.value = 74;
+  harmonic.type = "sine";
+  harmonic.frequency.value = 148;
+  filter.type = "lowpass";
+  filter.frequency.value = 280;
+  filter.Q.value = 0.75;
+  g.gain.value = 0.007;
+  osc.connect(filter);
+  harmonic.connect(filter);
+  filter.connect(g);
+  g.connect(output);
+  osc.start();
+  harmonic.start();
+  ctl.nodes.push(osc, harmonic, filter, g);
+
+  const spin = () => {
+    if (ctl.stopped) return;
+    const t = ctx.currentTime;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(Math.max(0.001, g.gain.value), t);
+    g.gain.linearRampToValueAtTime(0.014, t + 0.9);
+    g.gain.linearRampToValueAtTime(0.006, t + 1.85);
+    filter.frequency.cancelScheduledValues(t);
+    filter.frequency.setValueAtTime(filter.frequency.value, t);
+    filter.frequency.linearRampToValueAtTime(340, t + 0.9);
+    filter.frequency.linearRampToValueAtTime(250, t + 1.85);
+    ctl.timer = window.setTimeout(spin, 1850);
+  };
+  spin();
+
+  const clickLoop = () => {
+    if (ctl.stopped) return;
+    playFilteredNoise(ctx, output, {
+      frequency: 2100,
+      q: 2.8,
+      gain: 0.016,
+      duration: 0.014
+    });
+    playWarmTone(ctx, output, {
+      frequency: 620,
+      duration: 0.02,
+      gain: 0.012,
+      attack: 0.001,
+      lowpass: 900
+    });
+    later(ctl, 920 + Math.random() * 480, clickLoop);
+  };
+  clickLoop();
+}
+
+const ASCENT_NOTES = [329.63, 392, 440];
+
+/** Короткая цепочка из 2–3 нарастающих нот, без резких высоких. */
+function startAscent(ctx, output, ctl) {
+  scheduleLoop(
+    ctl,
+    () => 1680 + Math.random() * 280,
+    () => {
+      const count = 2 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < count; i++) {
+        later(ctl, i * 145, () => {
+          playWarmTone(ctx, output, {
+            frequency: ASCENT_NOTES[i],
+            duration: 0.3,
+            gain: 0.024,
+            attack: 0.042,
+            lowpass: 820
+          });
+        });
+      }
+    }
+  );
 }
 
 function startClock(ctx, output, ctl) {
@@ -888,6 +1028,10 @@ function startSigh(ctx, output, ctl) {
 }
 
 const PROCESSING_STARTERS = {
+  tick: startTick,
+  glide: startGlide,
+  drive: startDrive,
+  ascent: startAscent,
   clock: startClock,
   heartbeat: startHeartbeat,
   sonar: startSonar,
