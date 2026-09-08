@@ -1536,6 +1536,7 @@ const shellCompactQa = createShellCompactQa({
   getHistory: () => shellDialog.getHistory?.() || [],
   getLastAsk: () => shellDialog.getLastAskText?.() || "",
   getLiveReply: () => shellDialog.getLastReplyRaw?.() || "",
+  getProcessingMessage: () => String(state.processingMessage || "").trim(),
   isStreaming: () => nodes.replyPanel?.classList.contains("is-streaming"),
   isEnabled: () => isWindowCompactEnabled() && isCompactDialogQaEnabled(),
   isCompact: () => isWindowCompactEnabled()
@@ -2044,18 +2045,18 @@ function resolveHeroStatusBadgeClass(displayPhase, heroState) {
 function resolveHeroSensorActivity(displayPhase, heroState) {
   if (displayPhase === "listening") return "listening";
   if (heroState === "ready") return "ready";
-  if (heroState === "typing" || heroState === "replying") return "typing";
+  if (heroState === "typing" || heroState === "replying") return "speaking";
   if (heroState === "thinking") return "thinking";
   return "idle";
 }
 
 function resolveHeroAvatarState(requestedPhase = "waiting") {
   const displayPhase = resolveDisplayPhase(requestedPhase);
-  if (isTtsPlaybackActive()) return "typing";
-  if (isAgentReplyStreaming()) return "typing";
+  if (isTtsPlaybackActive()) return "replying";
+  if (isAgentReplyStreaming()) return "replying";
   if (displayPhase === "thinking") return "thinking";
   if (displayPhase === "listening") return "listening";
-  if (displayPhase === "speaking") return "typing";
+  if (displayPhase === "speaking") return "replying";
   if (isComposeReady()) return "ready";
   return "idle";
 }
@@ -2067,11 +2068,11 @@ function resolveHeroStatusLabel(requestedPhase = "waiting", phrase = "") {
   if (displayPhase === "disabled") return PHASE_LABELS.disabled;
   if (heroState === "listening") return HERO_STATE_LABELS.listening;
   if (heroState === "ready") return HERO_STATE_LABELS.ready;
-  if (heroState === "typing") {
-    if (isTtsPlaybackActive() && !isAssistantStreaming()) return HERO_STATE_LABELS.replying;
-    return HERO_STATE_LABELS.typing;
+  if (heroState === "replying") {
+    if (isAgentReplyStreaming()) return HERO_STATE_LABELS.typing;
+    return HERO_STATE_LABELS.replying;
   }
-  if (heroState === "replying") return HERO_STATE_LABELS.replying;
+  if (heroState === "typing") return HERO_STATE_LABELS.typing;
   if (heroState === "thinking") {
     if (statusText && !isHeroIdlePhrase(statusText)) return statusText;
     return HERO_STATE_LABELS.thinking;
@@ -2156,7 +2157,7 @@ function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false
   }
 
   if (nodes.voiceWave) {
-    const showWave = heroState === "typing" && isTtsPlaybackActive();
+    const showWave = heroState === "replying" && isTtsPlaybackActive();
     nodes.voiceWave.classList.toggle("hidden", !showWave);
     nodes.voiceWave.classList.toggle("is-paused", Boolean(state.ttsPaused));
   }
@@ -3073,12 +3074,14 @@ function beginQueuedTurnStream(processing) {
   state.messagePipelineBusy = true;
   state.processingMessage = text || state.processingMessage;
   state.pendingReplyTtsClientId = getShellPresenceClientId();
+  if (text) shellDialog.setLastAsk?.(text);
   shellSession?.setSessionUiLocked(true);
   shellSession?.resetStreamRenderState();
   shellDialog.clearLiveStreamTools?.();
   finalizeAgentActivitySteps();
   beginAssistantStream({});
   armMessagePipelineWatchdog();
+  syncCompactQa();
 }
 
 function syncQueueDialogTurn(queue) {
@@ -3091,6 +3094,7 @@ function syncQueueDialogTurn(queue) {
   void shellDialog.refreshHistory?.().then(() => {
     shellDialog.syncLiveReplySlot?.();
     shellDialog.scrollToBottomIfNear?.();
+    syncCompactQa();
   });
 }
 
@@ -6886,6 +6890,7 @@ async function sendMessageDirect(
     state.messageStopped = false;
     state.messagePipelineBusy = true;
     state.pendingReplyTtsClientId = getShellPresenceClientId();
+    if (showInDialog) shellDialog.setLastAsk?.(fromCompose ? composeRaw : expandedText);
     beginAssistantStream({});
   }
   state.processingMessage = state.processingMessage || expandedText;

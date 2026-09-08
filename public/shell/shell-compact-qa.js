@@ -8,22 +8,26 @@ function questionBody(item) {
 
 function extractLatestPair(history) {
   const items = Array.isArray(history) ? history : [];
-  let answer = null;
-  let question = null;
-
+  let lastUserIndex = -1;
   for (let i = items.length - 1; i >= 0; i -= 1) {
-    const item = items[i];
-    if (item?.role === "tool") continue;
-    if (!answer && item?.role === "agent") {
-      answer = item;
-      continue;
-    }
-    if (item?.role === "user") {
-      question = item;
+    if (items[i]?.role === "user") {
+      lastUserIndex = i;
       break;
     }
   }
+  if (lastUserIndex < 0) return { question: null, answer: null };
 
+  const question = items[lastUserIndex];
+  let answer = null;
+  for (let i = lastUserIndex + 1; i < items.length; i += 1) {
+    const item = items[i];
+    if (item?.role === "tool") continue;
+    if (item?.role === "agent") {
+      answer = item;
+      break;
+    }
+    if (item?.role === "user") break;
+  }
   return { question, answer };
 }
 
@@ -32,8 +36,10 @@ function buildLatestPair(options) {
   const streaming = Boolean(options.isStreaming?.());
   const liveReply = String(options.getLiveReply?.() || "").trim();
   const lastAsk = String(options.getLastAsk?.() || "").trim();
+  const processingAsk = String(options.getProcessingMessage?.() || "").trim();
 
-  const qText = questionBody(question) || (streaming ? lastAsk : "");
+  const qText =
+    questionBody(question) || (streaming ? lastAsk || processingAsk : "") || processingAsk;
   let aText = questionBody(answer);
   let pending = false;
 
@@ -51,7 +57,7 @@ function buildLatestPair(options) {
 
 function pairKey(pair) {
   if (!pair) return "";
-  return String(pair.question || "").trim();
+  return `${String(pair.question || "").trim()}|${pair.pending ? "pending" : String(pair.answer || "").trim()}`;
 }
 
 export function createShellCompactQa(options = {}) {
