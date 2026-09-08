@@ -1,5 +1,5 @@
 id: awn.slot.agent-queue
-name: Очередь задач агента
+name: Очередь задач для агента
 kind: slot
 domain: slots
 status: active

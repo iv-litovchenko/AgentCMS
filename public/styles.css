@@ -29957,8 +29957,33 @@ button.node-navigation-hub-rail-slot-summary {
 
 .node-navigation-workspace-fullwidth-slot-row .node-navigation-workspace-counter-label {
   flex: 1 1 auto;
+  max-width: none;
+  overflow: visible;
   text-align: left;
-  min-width: 0;
+  min-width: auto;
+}
+
+.node-navigation-workspace-fullwidth-slot-row .node-navigation-workspace-counter-label--stacked {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  text-align: left;
+  white-space: nowrap;
+  min-width: auto;
+}
+
+.node-navigation-workspace-fullwidth-slot-row .node-navigation-workspace-counter-label-main {
+  flex: 0 0 auto;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.node-navigation-workspace-fullwidth-slot-row .node-navigation-workspace-counter-types-trigger {
+  flex: 0 0 auto;
+  margin-top: 0;
 }
 
 .node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-item--outside-slots {

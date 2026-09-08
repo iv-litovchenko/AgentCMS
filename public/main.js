@@ -13629,7 +13629,7 @@ const DATA_STORAGE_SLOT_SPECS = [
   },
   {
     key: "agent-queue",
-    label: "Очередь задач агента",
+    label: "Очередь задач для агента",
     icon: "⏳",
     modes: new Set(["agent-queue"]),
     defaultMode: "agent-queue",
@@ -17230,7 +17230,7 @@ function getContentModeLabel(mode) {
   if (mode === "templates") return "Шаблоны";
   if (mode === "base") return "База";
   if (mode === "notebooklm") return "NotebookLM";
-  if (mode === "agent-queue") return "Очередь задач агента";
+  if (mode === "agent-queue") return "Очередь задач для агента";
   if (mode === "todo") return "TODO";
   if (mode === "references") return "Источники";
   if (mode === "artefacts") return "Артефакты";
@@ -62533,7 +62533,14 @@ function applyWorkspaceCounterLabelForSlot(labelNode, slot) {
       labelNode.classList.add("node-navigation-workspace-counter-label--stacked");
       const main = document.createElement("span");
       main.className = "node-navigation-workspace-counter-label-main";
-      setWorkspaceCounterLabelText(main, title);
+      const isFullWidthCounter = Boolean(
+        slot?.counterFullWidth || slot?.spec?.counterFullWidth
+      );
+      if (isFullWidthCounter) {
+        main.textContent = title;
+      } else {
+        setWorkspaceCounterLabelText(main, title);
+      }
       labelNode.append(main, typesTrigger);
       return;
     }
