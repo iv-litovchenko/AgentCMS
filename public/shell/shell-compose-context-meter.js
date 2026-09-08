@@ -1,8 +1,8 @@
 /** Compact context-size meter for compose textarea (Agent CMS-style). */
 
-const COMPOSE_CONTEXT_SOFT_WORDS = 1200;
-const COMPOSE_CONTEXT_WARN_WORDS = 2500;
-const COMPOSE_CONTEXT_MAX_WORDS = 5000;
+const COMPOSE_CONTEXT_SOFT_WORDS = 300;
+const COMPOSE_CONTEXT_WARN_WORDS = 600;
+const COMPOSE_CONTEXT_MAX_WORDS = 1000;
 
 function countWords(text) {
   const normalized = String(text || "").trim();
@@ -42,6 +42,10 @@ function formatTokenEstimate(tokens) {
   return `~${value.toLocaleString("ru-RU")} ток.`;
 }
 
+function formatContextStatsInline(stats) {
+  return `(${stats.words.toLocaleString("ru-RU")} сл · ${formatByteSize(stats.bytes)} · ${formatTokenEstimate(stats.tokensEstimate)})`;
+}
+
 function contextLevelLabel(level) {
   switch (level) {
     case "overflow":
@@ -55,34 +59,44 @@ function contextLevelLabel(level) {
   }
 }
 
-function renderComposeContextMeter(mountEl, text) {
+function renderComposeContextMeter(mountEl, text, draftStatusEl = null) {
   if (!mountEl) return;
 
   const stats = analyzeComposeContextStats(text);
-  if (!stats.words && !stats.chars) {
-    mountEl.classList.add("hidden");
-    mountEl.replaceChildren();
-    mountEl.setAttribute("aria-hidden", "true");
-    return;
-  }
-
   mountEl.classList.remove("hidden");
   mountEl.setAttribute("aria-hidden", "false");
   mountEl.className = `shell-compose-context-meter shell-compose-context-meter--${stats.level}`;
-  mountEl.setAttribute("aria-label", "Размер контекста сообщения");
+  mountEl.setAttribute(
+    "aria-label",
+    `Контекст сообщения ${formatContextStatsInline(stats)} · ${contextLevelLabel(stats.level)}`
+  );
 
   const head = document.createElement("div");
   head.className = "shell-compose-context-meter-head";
 
   const label = document.createElement("span");
   label.className = "shell-compose-context-meter-label";
-  label.textContent = "Контекст";
+
+  const labelTitle = document.createElement("span");
+  labelTitle.className = "shell-compose-context-meter-label-title";
+  labelTitle.textContent = "Контекст ";
+
+  const labelStats = document.createElement("span");
+  labelStats.className = "shell-compose-context-meter-label-stats";
+  labelStats.textContent = formatContextStatsInline(stats);
+
+  label.append(labelTitle, labelStats);
 
   const status = document.createElement("span");
   status.className = "shell-compose-context-meter-status";
   status.textContent = contextLevelLabel(stats.level);
 
-  head.append(label, status);
+  const badges = document.createElement("div");
+  badges.className = "shell-compose-context-meter-badges";
+  badges.append(status);
+  if (draftStatusEl) badges.append(draftStatusEl);
+
+  head.append(label, badges);
 
   const track = document.createElement("div");
   track.className = "shell-compose-context-meter-track";
@@ -94,21 +108,18 @@ function renderComposeContextMeter(mountEl, text) {
 
   const fill = document.createElement("div");
   fill.className = "shell-compose-context-meter-fill";
-  fill.style.width = `${Math.max(3, Math.round(stats.fillRatio * 100))}%`;
+  const fillPct = Math.round(stats.fillRatio * 100);
+  fill.style.width = fillPct > 0 ? `${Math.max(2, fillPct)}%` : "0%";
   track.appendChild(fill);
 
-  const meta = document.createElement("div");
-  meta.className = "shell-compose-context-meter-meta";
-  meta.textContent = `${stats.words.toLocaleString("ru-RU")} сл · ${formatByteSize(stats.bytes)} · ${formatTokenEstimate(stats.tokensEstimate)}`;
-
-  mountEl.replaceChildren(head, track, meta);
+  mountEl.replaceChildren(head, track);
 }
 
-export function initShellComposeContextMeter({ textarea, mountEl } = {}) {
+export function initShellComposeContextMeter({ textarea, mountEl, draftStatusEl } = {}) {
   if (!textarea || !mountEl) return {};
 
   const update = () => {
-    renderComposeContextMeter(mountEl, textarea.value);
+    renderComposeContextMeter(mountEl, textarea.value, draftStatusEl || null);
   };
 
   textarea.addEventListener("input", update);
@@ -118,5 +129,8 @@ export function initShellComposeContextMeter({ textarea, mountEl } = {}) {
 
   update();
 
-  return { update, clear: () => renderComposeContextMeter(mountEl, "") };
-}
+  return {
+    update,
+    clear: () => renderComposeContextMeter(mountEl, "", draftStatusEl || null)
+  };
+};

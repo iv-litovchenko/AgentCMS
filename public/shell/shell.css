@@ -5872,17 +5872,14 @@ body.shell-agent-locked #shell-message-target:disabled {
 
 .shell-compose-field-meta {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 10px;
   min-height: 0;
-  padding: 3px 16px 5px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.shell-compose-field-meta:not(:has(:not(.hidden))) {
-  display: none;
-  padding: 0;
-  border-top: 0;
+  padding: 6px 12px 6px 14px;
+  background: rgba(12, 15, 28, 0.82);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .shell-compose-voice-hint {
@@ -5957,15 +5954,15 @@ body.shell-agent-locked #shell-message-target:disabled {
 
 .shell-compose-draft-status {
   flex: 0 0 auto;
-  margin-left: auto;
-  max-width: 42%;
-  font-size: 10px;
+  font-size: 9px;
+  font-weight: 700;
   line-height: 1.2;
-  color: var(--muted);
+  padding: 1px 6px;
+  border-radius: 999px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   pointer-events: none;
+  color: rgba(148, 163, 184, 0.82);
+  background: rgba(148, 163, 184, 0.12);
 }
 
 .shell-compose-draft-status.hidden,
@@ -5974,15 +5971,23 @@ body.shell-agent-locked #shell-message-target:disabled {
 }
 
 .shell-compose-draft-status.is-saving {
-  color: #94a3b8;
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, 0.16);
 }
 
 .shell-compose-draft-status.is-saved {
-  color: rgba(74, 222, 128, 0.85);
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.14);
 }
 
 .shell-compose-draft-status.is-error {
-  color: #f87171;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.16);
+}
+
+.shell-compose-draft-status.is-dirty {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.16);
 }
 
 .shell-compose-fullscreen-head {
@@ -6108,8 +6113,10 @@ body.shell-agent-locked #shell-message-target:disabled {
 
 #shell-compose-dock.is-expanded .shell-compose-field-meta {
   flex-shrink: 0;
-  padding: 4px var(--shell-surface-inset-x) 6px;
-  border-top-color: rgba(255, 255, 255, 0.06);
+  padding: 6px var(--shell-surface-inset-x);
+  background: rgba(8, 10, 20, 0.94);
+  border-top-color: rgba(255, 255, 255, 0.07);
+  border-bottom-color: rgba(255, 255, 255, 0.05);
 }
 
 .shell-compose-expand-backdrop {
@@ -9917,13 +9924,9 @@ body.shell-embed .shell-path-header {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   pointer-events: none;
   box-sizing: border-box;
-}
-
-.shell-compose-context-meter.hidden {
-  display: none;
 }
 
 .shell-compose-context-meter-head {
@@ -9931,23 +9934,46 @@ body.shell-embed .shell-path-header {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 
 .shell-compose-context-meter-label {
-  font-size: 9px;
+  min-width: 0;
+  font-size: 10px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shell-compose-context-meter-label-title {
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: rgba(203, 213, 225, 0.88);
+}
+
+.shell-compose-context-meter-label-stats {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: rgba(148, 163, 184, 0.72);
 }
 
 .shell-compose-context-meter-status {
+  flex: 0 0 auto;
   font-size: 9px;
   font-weight: 700;
   line-height: 1.2;
   padding: 1px 6px;
   border-radius: 999px;
   white-space: nowrap;
+}
+
+.shell-compose-context-meter-badges {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  flex: 0 0 auto;
 }
 
 .shell-compose-context-meter--comfort .shell-compose-context-meter-status {
@@ -9995,13 +10021,6 @@ body.shell-embed .shell-path-header {
 
 .shell-compose-context-meter--overflow .shell-compose-context-meter-fill {
   background: linear-gradient(90deg, #f87171, #ef4444);
-}
-
-.shell-compose-context-meter-meta {
-  font-size: 9px;
-  line-height: 1.2;
-  color: rgba(148, 163, 184, 0.68);
-  font-variant-numeric: tabular-nums;
 }
 
 .shell-compose-voice--compact select.shell-select.shell-compose-voice-select {

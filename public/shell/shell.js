@@ -6106,11 +6106,12 @@ async function saveSettings(patch, { apply = "full" } = {}) {
 function renderComposeDraftStatus(kind = "idle") {
   const el = nodes.composeDraftStatus;
   if (!el) return;
-  el.classList.remove("is-saving", "is-saved", "is-error");
+  el.classList.remove("is-saving", "is-saved", "is-error", "is-dirty");
   const pathTitle = ".agent-shell/compose-draft.md";
   if (kind === "idle") {
     el.textContent = "";
     el.classList.add("hidden");
+    composeContextMeter?.update?.();
     return;
   }
   el.classList.remove("hidden");
@@ -6128,8 +6129,10 @@ function renderComposeDraftStatus(kind = "idle") {
     el.title = `Не сохранено · ${pathTitle}`;
   } else if (kind === "dirty") {
     el.textContent = "изменено";
+    el.classList.add("is-dirty");
     el.title = `Изменено · ${pathTitle}`;
   }
+  composeContextMeter?.update?.();
 }
 
 function scheduleComposeDraftSave() {
@@ -9689,7 +9692,8 @@ function bindShellInteractiveUi() {
     });
     composeContextMeter = initShellComposeContextMeter({
       textarea: nodes.message,
-      mountEl: nodes.composeContextMeter
+      mountEl: nodes.composeContextMeter,
+      draftStatusEl: nodes.composeDraftStatus
     });
     composeTemplates = initComposeTemplates({
       dialog: document.getElementById("shell-compose-templates-dialog"),
