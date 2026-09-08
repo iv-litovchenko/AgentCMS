@@ -56,6 +56,7 @@ import { initShellMobileLink } from "@shell/mobile-link";
 import { createShellDialog } from "@shell/dialog";
 import { createShellCompactQa } from "@shell/compact-qa";
 import { initShellComposeLayout } from "@shell/compose-layout";
+import { initComposeTemplates, expandComposeTemplateMarkers } from "@shell/compose-templates";
 import { initShellComposeContextMeter } from "@shell/compose-context-meter";
 import { collectLocalPageSnapshot, createShellComposePageContext } from "@shell/compose-page";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "@shell/storage-keys";
@@ -337,7 +338,7 @@ const DEFAULT_TTS_PROMPT = `Сформируй ответ в следующем 
 1) Краткая версия для озвучки — 1–4 предложения, без emoji и markdown, только то, что можно произнести вслух. Не включай секреты, ключи и пароли. Не используй HTML-комментарии <!-- -->.
 
 2) Отдельной строкой маркер:
-::: VOICE-END :::
+{{shell:voice-end}}
 
 3) Полный текст ответа для экрана (можно markdown, списки, код). Без HTML-комментариев <!-- -->.`;
 
@@ -1269,6 +1270,7 @@ const nodes = {
   proactivePrompt: document.getElementById("shell-proactive-prompt"),
   proactivePromptInsert: document.getElementById("shell-proactive-prompt-insert"),
   proactiveSave: document.getElementById("shell-proactive-save"),
+  templatesSave: document.getElementById("shell-templates-save"),
   ttsControls: document.getElementById("shell-tts-controls"),
   ttsPauseBtn: document.getElementById("shell-tts-pause"),
   ttsResumeBtn: document.getElementById("shell-tts-resume"),
@@ -4428,6 +4430,7 @@ function getSettingsSnapshot(section) {
   if (section === "window") return collectWindowSnapshot();
   if (section === "route") return collectRouteSettingsPatch();
   if (section === "proactive") return collectProactiveFormPatch();
+  if (section === "templates") return collectTemplatesFormPatch();
   if (section === "tts") return collectTtsSettingsPatch();
   if (section === "stt") return collectSttSettingsPatch();
   return {};
@@ -4501,6 +4504,9 @@ function applySettingsFormsFromServer(settings = state.settings) {
   } else if (!isSettingsViewOpen()) {
     shellProactive?.syncSettings(settings);
   }
+  if (!isSettingsViewOpen() && !settingsSave.isSectionDirty("templates")) {
+    applyTemplatesFormUi(settings);
+  }
 }
 
 function applySettingsSectionForm(section, settings = state.settings) {
@@ -4509,10 +4515,11 @@ function applySettingsSectionForm(section, settings = state.settings) {
   else if (section === "tts") applyTtsSettingsUi(settings);
   else if (section === "stt") applySttSettingsUi(settings);
   else if (section === "proactive") applyProactiveFormUi(settings);
+  else if (section === "templates") applyTemplatesFormUi(settings);
 }
 
 function syncSettingsFormsOnOpen(settings = state.settings) {
-  for (const section of ["window", "route", "tts", "stt", "proactive"]) {
+  for (const section of ["window", "route", "tts", "stt", "proactive", "templates"]) {
     if (settingsSave.isSectionDirty(section)) continue;
     try {
       if (section !== "window") {
@@ -4571,6 +4578,7 @@ function settingsSectionFromTarget(target) {
   if (target.closest("#shell-window-panel")) return "window";
   if (target.closest("#shell-route-panel")) return "route";
   if (target.closest("#shell-proactive-panel")) return "proactive";
+  if (target.closest("#shell-templates-panel")) return "templates";
   if (target.closest("#shell-tts-panel")) return "tts";
   if (target.closest("#shell-stt-panel")) return "stt";
   return "";
@@ -4581,6 +4589,7 @@ function refreshSettingsSaveUi() {
   nodes.windowSave = document.getElementById("shell-window-save") || nodes.windowSave;
   nodes.routeSave = document.getElementById("shell-route-save") || nodes.routeSave;
   nodes.proactiveSave = document.getElementById("shell-proactive-save") || nodes.proactiveSave;
+  nodes.templatesSave = document.getElementById("shell-templates-save") || nodes.templatesSave;
   nodes.ttsSave = document.getElementById("shell-tts-save") || nodes.ttsSave;
   nodes.sttSave = document.getElementById("shell-stt-save") || nodes.sttSave;
   settingsSave.attachUi({
@@ -4588,6 +4597,7 @@ function refreshSettingsSaveUi() {
       window: nodes.windowSave,
       route: nodes.routeSave,
       proactive: nodes.proactiveSave,
+      templates: nodes.templatesSave,
       tts: nodes.ttsSave,
       stt: nodes.sttSave
     },
@@ -4597,6 +4607,7 @@ function refreshSettingsSaveUi() {
   bindSettingsSaveButton(nodes.windowSave, "window");
   bindSettingsSaveButton(nodes.routeSave, "route");
   bindSettingsSaveButton(nodes.proactiveSave, "proactive");
+  bindSettingsSaveButton(nodes.templatesSave, "templates");
   bindSettingsSaveButton(nodes.ttsSave, "tts");
   bindSettingsSaveButton(nodes.sttSave, "stt");
 }
@@ -4640,6 +4651,10 @@ function bindSettingsSaveHandlers() {
       void handleSettingsSaveClick("proactive", btn);
       return;
     }
+    if (btn.id === "shell-templates-save") {
+      void handleSettingsSaveClick("templates", btn);
+      return;
+    }
     if (btn.id === "shell-tts-save") {
       void handleSettingsSaveClick("tts", btn);
       return;
@@ -4655,6 +4670,7 @@ function commitAllSettingsBaselines() {
     window: collectWindowSnapshot(),
     route: collectRouteSettingsPatch(),
     proactive: collectProactiveFormPatch(),
+    templates: collectTemplatesFormPatch(),
     tts: collectTtsSettingsPatch(),
     stt: collectSttSettingsPatch()
   });
@@ -4677,7 +4693,7 @@ function isSettingsViewOpen() {
 }
 
 function isAnySettingsSectionDirty() {
-  return ["window", "route", "proactive", "tts", "stt"].some((section) =>
+  return ["window", "route", "proactive", "templates", "tts", "stt"].some((section) =>
     settingsSave.isSectionDirty(section)
   );
 }
@@ -4708,7 +4724,9 @@ async function saveSettingsSection(section) {
     applyRecognitionLang(patch.sttLang);
   }
   const applyMode =
-    section === "route" || section === "tts" || section === "stt" ? "none" : "full";
+    section === "route" || section === "tts" || section === "stt" || section === "templates"
+      ? "none"
+      : "full";
   await saveSettings(patch, { apply: applyMode });
   applySavedSettingsSection(section, state.settings);
   settingsSave.commitBaseline(section, getSettingsSnapshot(section));
@@ -4718,6 +4736,7 @@ function applySavedSettingsSection(section, settings = state.settings) {
   if (!settings) return;
   if (section === "route") applyRouteFormFromSettings(settings);
   else if (section === "proactive") applyProactiveFormUi(settings);
+  else if (section === "templates") applyTemplatesFormUi(settings);
   else if (section === "stt") applySttSettingsUi(settings);
   else if (section === "tts") applyTtsSettingsUi(settings);
 }
@@ -6674,17 +6693,21 @@ async function sendMessageDirect(
   body,
   { fromCompose = false, voice = false, author = "shell", displayPhrase = "", showInDialog = true } = {}
 ) {
-  const rawText = String(body || "").trim();
-  const text = (await shellComposePage?.appendPageContextIfEnabled?.(rawText)) || rawText;
+  const composeRaw = String(body || "").trim();
+  const expandedText = expandComposeTemplateMarkers(
+    composeRaw,
+    state.settings?.composePromptTemplates
+  );
+  const text = (await shellComposePage?.appendPageContextIfEnabled?.(expandedText)) || expandedText;
   if (!text) return;
-  shellLog("message", `${author}${voice ? " · voice" : ""}`, rawText.slice(0, 160));
+  shellLog("message", `${author}${voice ? " · voice" : ""}`, expandedText.slice(0, 160));
   shellProactive?.bumpActivity();
   void unlockShellAudio();
   shellSession?.setSessionUiLocked(true);
   shellSession?.resetStreamRenderState();
   state.messageStopped = false;
   state.messagePipelineBusy = true;
-  state.processingMessage = rawText;
+  state.processingMessage = expandedText;
   state.pendingReplyTtsClientId = getShellPresenceClientId();
   shellPresenceController?.ping({ interact: true });
   renderMessageQueue();
@@ -6700,7 +6723,7 @@ async function sendMessageDirect(
       void refreshShellLocationForSend();
     }
     shellDialog.clearError();
-    if (showInDialog) shellDialog.onUserMessage(rawText);
+    if (showInDialog) shellDialog.onUserMessage(fromCompose ? composeRaw : expandedText);
     void apiFetch("/api/shell/message", {
       method: "POST",
       body: JSON.stringify({
@@ -7339,6 +7362,16 @@ function applyProactiveFormUi(settings) {
   if (nodes.proactivePrompt && document.activeElement !== nodes.proactivePrompt) {
     nodes.proactivePrompt.value = settings.proactivePrompt || "";
   }
+}
+
+function applyTemplatesFormUi(settings) {
+  composeTemplates?.applyFromSettings?.(settings?.composePromptTemplates);
+}
+
+function collectTemplatesFormPatch() {
+  return {
+    composePromptTemplates: composeTemplates?.collectForSave?.() ?? state.settings?.composePromptTemplates
+  };
 }
 
 function collectProactiveFormPatch() {
@@ -8466,6 +8499,7 @@ let showVoiceConfirmDialog = null;
 let shellKeepAwake = null;
 let composeLayout = null;
 let composeContextMeter = null;
+let composeTemplates = null;
 let shellComposePage = null;
 
 function renderWaitingPhrase() {
@@ -8737,11 +8771,12 @@ async function startBrowserMic() {
   await shellTapVoice.startSession({ viaTap: true });
 }
 
-const SETTINGS_TABS = ["route", "tts", "stt", "proactive", "window", "todo"];
+const SETTINGS_TABS = ["route", "tts", "stt", "proactive", "templates", "window", "todo"];
 
 const SETTINGS_TAB_PANELS = {
   route: "shell-route-panel",
   proactive: "shell-proactive-panel",
+  templates: "shell-templates-panel",
   window: "shell-window-panel",
   tts: "shell-tts-panel",
   stt: "shell-stt-panel",
@@ -8794,6 +8829,7 @@ function setShellView(view, { scrollTo = "", settingsTab = "" } = {}) {
     const tabFromScroll =
       scrollTo === "route" ||
       scrollTo === "proactive" ||
+      scrollTo === "templates" ||
       scrollTo === "window" ||
       scrollTo === "tts" ||
       scrollTo === "stt" ||
@@ -9560,6 +9596,21 @@ function bindShellInteractiveUi() {
       textarea: nodes.message,
       mountEl: nodes.composeContextMeter
     });
+    composeTemplates = initComposeTemplates({
+      dialog: document.getElementById("shell-compose-templates-dialog"),
+      pickerList: document.getElementById("shell-compose-templates-picker-list"),
+      activeList: document.getElementById("shell-compose-templates-active-list"),
+      insertBtn: document.getElementById("shell-compose-templates-insert"),
+      closeBtn: document.getElementById("shell-compose-templates-close"),
+      editorRoot: document.getElementById("shell-compose-templates-editor-root"),
+      editorAddBtn: document.getElementById("shell-compose-templates-add"),
+      editorAddGroupBtn: document.getElementById("shell-compose-templates-add-group"),
+      textarea: nodes.message,
+      getTemplates: () => state.settings?.composePromptTemplates,
+      onEditorChange: () => markSettingsDirty("templates"),
+      insertText: (text) => appendVoiceToCompose(text, { join: "newline" })
+    });
+    composeTemplates?.applyFromSettings?.(state.settings?.composePromptTemplates);
     document.addEventListener("gesturestart", (event) => event.preventDefault());
     document.addEventListener("gesturechange", (event) => event.preventDefault());
     setupPttKeyboard();

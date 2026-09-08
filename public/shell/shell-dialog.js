@@ -1,6 +1,6 @@
 /** Mobile-style dialog: history, refresh, copy, errors. */
 
-import { renderShellReplyBody, scheduleShellMermaidTypeset } from "@shell/markdown";
+import { renderShellReplyBody, renderUserMessageBody, scheduleShellMermaidTypeset } from "@shell/markdown";
 
 const MAX_HISTORY = 50;
 
@@ -1019,7 +1019,7 @@ export function createShellDialog(options = {}) {
     if (role === "agent") {
       renderShellReplyBody(el, String(item.body || ""));
     } else {
-      el.textContent = String(item.body || "");
+      renderUserMessageBody(el, String(item.body || ""));
     }
 
     const copyBtn = document.createElement("button");
@@ -1174,7 +1174,7 @@ export function createShellDialog(options = {}) {
         } else if (item.role === "agent") {
           renderShellReplyBody(body, String(item.body || ""));
         } else {
-          body.textContent = String(item.body || "");
+          renderUserMessageBody(body, String(item.body || ""));
         }
         bodyWrap.append(head, body);
         li.append(avatar, bodyWrap);
@@ -1190,11 +1190,11 @@ export function createShellDialog(options = {}) {
     lastAskRaw = raw;
     if (!raw) {
       nodes.lastAskWrap?.classList.add("hidden");
-      if (nodes.lastAsk) nodes.lastAsk.textContent = "";
+      if (nodes.lastAsk) nodes.lastAsk.replaceChildren();
       return;
     }
     nodes.lastAskWrap?.classList.remove("hidden");
-    if (nodes.lastAsk) nodes.lastAsk.textContent = raw;
+    if (nodes.lastAsk) renderUserMessageBody(nodes.lastAsk, raw);
     notifyHistoryChange();
   }
 

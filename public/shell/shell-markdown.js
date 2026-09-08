@@ -1,5 +1,5 @@
 import { cleanReplyTextSegment, stripHtmlComments } from "@shell/reply";
-import { splitVoiceEndReply } from "@shell/voice-end-format";
+import { createVoiceEndMarkerElement, splitVoiceEndReply } from "@shell/voice-end-format";
 
 let shellMarkdownIt = null;
 let markdownLibsPromise = null;
@@ -76,6 +76,28 @@ function escapeHtml(value) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+const SHELL_MARKER_INLINE_RE = /(\{\{(?:tpl:[a-z0-9_-]+|shell:voice-end)\}\})/gi;
+
+export function renderUserMessageBody(element, text) {
+  if (!element) return;
+  const raw = String(text || "");
+  element.replaceChildren();
+  element.classList.add("shell-user-msg-body");
+  if (!raw) return;
+  const parts = raw.split(SHELL_MARKER_INLINE_RE);
+  for (const part of parts) {
+    if (!part) continue;
+    if (/^\{\{(?:tpl:|shell:)/i.test(part)) {
+      const code = document.createElement("code");
+      code.className = "shell-compose-templates-marker";
+      code.textContent = part;
+      element.appendChild(code);
+    } else {
+      element.appendChild(document.createTextNode(part));
+    }
+  }
 }
 
 function loadStylesheetOnce(href) {
@@ -1189,6 +1211,9 @@ export function renderShellReplyBody(element, rawBody, { spokenParts = [], spoke
   element.classList.add("shell-md", "shell-reply-body-formatted");
 
   if (displaySpoken) prependTtsDisplayBlock(element, displaySpoken);
+  if (voiceSplit && (displaySpoken || displayBody)) {
+    element.appendChild(createVoiceEndMarkerElement(voiceSplit.marker));
+  }
   if (displayBody && displayBody !== "—") {
     renderReplyBodySegment(element, displayBody);
   } else if (!displaySpoken) {

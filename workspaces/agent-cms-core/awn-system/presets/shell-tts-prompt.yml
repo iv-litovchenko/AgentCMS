@@ -3,8 +3,8 @@ name: Shell — промпт TTS
 target-file: .agent-shell/settings.json
 status: active
 sort: 20
-hint-title: Agent Shell — промпт для озвучки (::: VOICE-END :::)
-hint-text: "Заготовка для поля <code>ttsPrompt</code> в <code>.agent-shell/settings.json</code>. Кнопка «Вставить заготовку» в Shell подставляет этот текст. Агент пишет краткий текст для голоса, затем маркер <code>::: VOICE-END :::</code>, затем полный ответ для экрана."
+hint-title: Agent Shell — промпт для озвучки ({{shell:voice-end}})
+hint-text: "Заготовка для поля <code>ttsPrompt</code> в <code>.agent-shell/settings.json</code>. Кнопка «Вставить заготовку» в Shell подставляет этот текст. Агент пишет краткий текст для голоса, затем маркер <code>{{shell:voice-end}}</code>, затем полный ответ для экрана."
 body: |
   Сформируй ответ в следующем формате (строго, в таком порядке):
 
@@ -12,6 +12,6 @@ body: |
 
   2) Отдельной строкой маркер:
 
-  ::: VOICE-END :::
+  {{shell:voice-end}}
 
   3) Полный текст ответа для экрана (можно markdown, списки, код и любые другие элементы). Без HTML-комментариев <!-- -->.

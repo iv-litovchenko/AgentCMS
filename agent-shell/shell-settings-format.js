@@ -261,6 +261,9 @@ function flattenSettings(raw) {
   const ui = raw.ui || {};
   if (ui.dialogScrollRatio !== undefined) flat.dialogScrollRatio = ui.dialogScrollRatio;
 
+  const compose = raw.compose || {};
+  if (compose.promptTemplates !== undefined) flat.composePromptTemplates = compose.promptTemplates;
+
   const window = raw.window || {};
   if (window.topmost !== undefined) flat.windowTopmost = window.topmost;
 
@@ -412,6 +415,9 @@ function nestSettings(flat) {
     }),
     ui: compactObject({
       dialogScrollRatio: source.dialogScrollRatio
+    }),
+    compose: compactObject({
+      promptTemplates: source.composePromptTemplates
     })
   };
 

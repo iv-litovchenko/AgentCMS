@@ -1567,6 +1567,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 .shell-settings-shell .shell-window-panel,
 .shell-settings-shell .shell-route-panel,
 .shell-settings-shell .shell-proactive-panel,
+.shell-settings-shell .shell-templates-panel,
 .shell-settings-shell .shell-tts-panel,
 .shell-settings-shell .shell-stt-panel,
 .shell-settings-shell .shell-todo-panel {
@@ -1582,6 +1583,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 .shell-settings-shell .shell-window-panel:not([hidden]),
 .shell-settings-shell .shell-route-panel:not([hidden]),
 .shell-settings-shell .shell-proactive-panel:not([hidden]),
+.shell-settings-shell .shell-templates-panel:not([hidden]),
 .shell-settings-shell .shell-tts-panel:not([hidden]),
 .shell-settings-shell .shell-stt-panel:not([hidden]),
 .shell-settings-shell .shell-todo-panel:not([hidden]) {
@@ -1599,6 +1601,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 .shell-settings-shell .shell-window-panel[hidden],
 .shell-settings-shell .shell-route-panel[hidden],
 .shell-settings-shell .shell-proactive-panel[hidden],
+.shell-settings-shell .shell-templates-panel[hidden],
 .shell-settings-shell .shell-tts-panel[hidden],
 .shell-settings-shell .shell-stt-panel[hidden],
 .shell-settings-shell .shell-todo-panel[hidden] {
@@ -7642,6 +7645,313 @@ body.shell-bg-wallpaper .shell-character-viewport {
 
 .shell-proactive-quiet-grid {
   margin-top: 0;
+}
+
+.shell-compose-templates-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shell-templates-panel .shell-compose-templates-settings {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.shell-compose-templates-note {
+  margin: 0;
+}
+
+.shell-compose-templates-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.shell-compose-templates-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.shell-compose-templates-editor-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(122, 108, 255, 0.18);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.shell-compose-templates-editor-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shell-compose-templates-editor-group-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.shell-compose-templates-editor-group-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.shell-compose-templates-editor-group-remove {
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.shell-compose-templates-editor-group-remove:hover {
+  color: #ff8a8a;
+}
+
+.shell-compose-templates-editor-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shell-compose-templates-editor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shell-compose-templates-editor-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.shell-compose-templates-editor-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.shell-compose-templates-editor-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.shell-compose-templates-editor-text-field {
+  grid-column: 1 / -1;
+}
+
+.shell-compose-templates-editor-marker {
+  font-size: 12px;
+}
+
+.shell-compose-templates-editor-remove {
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.shell-compose-templates-editor-remove:hover {
+  color: #ff8a8a;
+}
+
+.shell-compose-templates-add {
+  align-self: auto;
+}
+
+.shell-compose-templates-picker-group {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shell-compose-templates-picker-group-title {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.shell-compose-templates-picker-group-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shell-compose-option--templates[aria-expanded="true"],
+.shell-compose-option[data-compose-action="templates-preview"][aria-expanded="true"] {
+  background: rgba(122, 108, 255, 0.18);
+  border-color: rgba(122, 108, 255, 0.45);
+}
+
+.shell-compose-templates-marker {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: rgba(122, 108, 255, 0.16);
+  color: #c4b5fd;
+  border: 1px solid rgba(122, 108, 255, 0.28);
+}
+
+.shell-marker-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 10px 0;
+  padding: 4px 0;
+  border-top: 1px dashed rgba(122, 108, 255, 0.22);
+  border-bottom: 1px dashed rgba(122, 108, 255, 0.22);
+}
+
+.shell-marker-divider-label {
+  font-size: 10px;
+  opacity: 0.92;
+}
+
+.shell-compose-templates-dialog-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.shell-compose-templates-active-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.shell-compose-templates-active-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.shell-compose-templates-active-remove {
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.shell-compose-templates-active-remove:hover {
+  color: #ff8a8a;
+}
+
+.shell-compose-templates-active-empty {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 0;
+}
+
+.shell-compose-templates-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(240px, 40vh);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shell-compose-templates-picker-item {
+  margin: 0;
+}
+
+.shell-compose-templates-picker-label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 2px 8px;
+  align-items: start;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.shell-compose-templates-picker-label:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.shell-compose-templates-picker-check {
+  grid-row: 1 / span 3;
+  margin-top: 2px;
+}
+
+.shell-compose-templates-picker-name {
+  grid-column: 2;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.shell-compose-templates-picker-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.shell-compose-templates-picker-text {
+  grid-column: 2;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.shell-compose-templates-picker-empty {
+  padding: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+#shell-compose-templates-dialog .shell-compose-templates-picker-list {
+  max-height: min(240px, 38vh);
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 4px;
+}
+
+@media (max-width: 640px) {
+  .shell-compose-templates-editor-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .shell-compose-templates-editor-group-head {
+    flex-wrap: wrap;
+  }
 }
 
 .shell-input--time {

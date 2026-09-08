@@ -1,4 +1,4 @@
-export const SETTINGS_SECTIONS = ["window", "route", "proactive", "tts", "stt"];
+export const SETTINGS_SECTIONS = ["window", "route", "proactive", "templates", "tts", "stt"];
 
 function stableStringify(value) {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
@@ -9,7 +9,7 @@ function stableStringify(value) {
 
 export function createSettingsSaveController() {
   const baselines = {};
-  const dirty = { window: false, route: false, proactive: false, tts: false, stt: false };
+  const dirty = { window: false, route: false, proactive: false, templates: false, tts: false, stt: false };
   let saveButtons = {};
   let toggleButtons = {};
   let settingsMenuBtn = null;
@@ -38,6 +38,7 @@ export function createSettingsSaveController() {
       window: "shell-window-save",
       route: "shell-route-save",
       proactive: "shell-proactive-save",
+      templates: "shell-templates-save",
       tts: "shell-tts-save",
       stt: "shell-stt-save"
     };
@@ -53,7 +54,7 @@ export function createSettingsSaveController() {
       const tabName =
         section === "stt" || section === "tts"
           ? section
-          : ["window", "route", "proactive"].includes(section)
+          : ["window", "route", "proactive", "templates"].includes(section)
             ? section
             : "";
       if (tabName) {

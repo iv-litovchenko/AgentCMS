@@ -1,6 +1,6 @@
 const TTS_PLAYBACK_HINTS = {
   dialog: "Диалог — озвучка по мере печати ответа (как живой разговор).",
-  reading: "Чтение — ждёт полный текст на экране и маркер ::: VOICE-END :::, затем читает целиком."
+  reading: "Чтение — ждёт полный текст на экране и маркер {{shell:voice-end}}, затем читает целиком."
 };
 
 export function updateVoiceModeHint(

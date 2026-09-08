@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=522" />
+    <link rel="stylesheet" href="/shell/shell.css?v=529" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -20,9 +20,9 @@
       {
         "imports": {
           "three": "/shell/vendor/three.module.js",
-          "@shell/settings-save": "/shell/shell-settings-save.js?v=322",
+          "@shell/settings-save": "/shell/shell-settings-save.js?v=323",
           "@shell/reply": "/shell/shell-reply.js?v=422",
-          "@shell/markdown": "/shell/shell-markdown.js?v=425",
+          "@shell/markdown": "/shell/shell-markdown.js?v=426",
           "@shell/character": "/shell/shell-character.js?v=208",
           "@shell/character-models": "/shell/shell-character-models.js?v=207",
           "@shell/camera": "/shell/shell-camera.js?v=207",
@@ -42,11 +42,12 @@
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=210",
           "@shell/mobile-link": "/shell/shell-mobile-link.js?v=7",
-          "@shell/dialog": "/shell/shell-dialog.js?v=293",
+          "@shell/dialog": "/shell/shell-dialog.js?v=294",
           "@shell/compact-qa": "/shell/shell-compact-qa.js?v=7",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=209",
           "@shell/compose-context-meter": "/shell/shell-compose-context-meter.js?v=1",
           "@shell/compose-page": "/shell/shell-compose-page.js?v=3",
+          "@shell/compose-templates": "/shell/shell-compose-templates.js?v=5",
           "@shell/window-storage": "/shell/shell-window-storage.js?v=318",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=418",
           "@shell/help": "/shell/shell-help.js?v=207",
@@ -57,7 +58,7 @@
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
           "@shell/voice": "/shell/shell-voice.js?v=209",
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=415",
-          "@shell/voice-end-format": "/shell/voice-end-format.js?v=207",
+          "@shell/voice-end-format": "/shell/voice-end-format.js?v=208",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=360",
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=414",
@@ -362,6 +363,17 @@
               aria-controls="shell-proactive-panel"
             >
               Проактив
+            </button>
+            <button
+              type="button"
+              class="shell-settings-tab"
+              id="shell-settings-tab-templates"
+              role="tab"
+              data-settings-tab="templates"
+              aria-selected="false"
+              aria-controls="shell-templates-panel"
+            >
+              Шаблоны
             </button>
             <button
               type="button"
@@ -729,6 +741,35 @@
         </div>
         </section>
 
+        <section class="shell-templates-panel" id="shell-templates-panel" role="tabpanel" aria-labelledby="shell-settings-tab-templates" hidden>
+        <div class="shell-compose-templates-settings">
+          <p class="shell-proactive-note shell-compose-templates-note">
+            Быстрые команды для поля сообщения в чате. Вставляются как <code>{{tpl:brief}}</code> — при отправке
+            раскрываются в текст команды. Ключ стабилен, название можно менять. Хранится в
+            <code>.agent-shell/settings.json</code>.
+          </p>
+          <div class="shell-compose-templates-editor" id="shell-compose-templates-editor-root"></div>
+          <div class="shell-compose-templates-editor-toolbar">
+            <button type="button" class="shell-label-action" id="shell-compose-templates-add-group">
+              + Группа
+            </button>
+            <button type="button" class="shell-label-action shell-compose-templates-add" id="shell-compose-templates-add">
+              + Шаблон
+            </button>
+          </div>
+        </div>
+        <div class="shell-settings-save-row">
+          <div class="shell-settings-save-actions">
+            <button type="button" class="shell-btn shell-btn--ghost shell-save-btn" id="shell-templates-save">
+              <span class="shell-save-btn-lamp" aria-hidden="true"></span>
+              Сохранить
+            </button>
+            <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
+          </div>
+          <span class="shell-settings-save-hint" data-settings-save-hint="agent"></span>
+        </div>
+        </section>
+
         <section class="shell-window-panel" id="shell-window-panel" role="tabpanel" aria-labelledby="shell-settings-tab-window" hidden>
         <div class="shell-character-stage" id="shell-character-stage" data-phase="waiting">
           <div class="shell-character-viewport"></div>
@@ -935,7 +976,7 @@
             class="shell-textarea shell-textarea--compact"
             rows="3"
             spellcheck="false"
-            placeholder="Как агент формирует ответ: сначала текст для голоса, затем ::: VOICE-END :::, затем полный текст на экран. «Вставить заготовку» — шаблон."
+            placeholder="Как агент формирует ответ: сначала текст для голоса, затем {{shell:voice-end}}, затем полный текст на экран. «Вставить заготовку» — шаблон."
           ></textarea>
         </label>
 
@@ -972,7 +1013,7 @@
                 <span class="shell-tts-playback-emoji" aria-hidden="true">📖</span>
                 <span class="shell-tts-playback-option-copy">
                   <span class="shell-tts-playback-option-title">Чтение</span>
-                  <span class="shell-tts-playback-option-desc">(после полного ответа и маркера VOICE-END)</span>
+                  <span class="shell-tts-playback-option-desc">(после полного ответа и маркера {{shell:voice-end}})</span>
                 </span>
               </label>
             </span>
@@ -1983,6 +2024,20 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <span class="shell-compose-option-ico" aria-hidden="true">📋</span>
               <span class="shell-compose-option-label">Параметры</span>
             </button>
+            <button
+              type="button"
+              class="shell-compose-option shell-compose-option--params"
+              data-compose-action="templates-preview"
+              aria-haspopup="dialog"
+              aria-expanded="false"
+              aria-controls="shell-compose-templates-dialog"
+              aria-label="Шаблоны промптов"
+              data-hint="Быстрые команды — {{tpl:ключ}}, при отправке раскрываются"
+              title="Шаблоны промптов"
+            >
+              <span class="shell-compose-option-ico" aria-hidden="true">✨</span>
+              <span class="shell-compose-option-label">Шаблоны</span>
+            </button>
             </div>
           </div>
           <div class="shell-compose-input-wrap">
@@ -2358,6 +2413,30 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </div>
     </dialog>
 
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-compose-templates-dialog">
+      <div class="shell-dialog-form">
+        <h2>Шаблоны</h2>
+        <p class="shell-dialog-note shell-compose-templates-note">
+          В сообщение вставляются метки <code>{{tpl:ключ}}</code> — их видно и можно убрать.
+          При отправке Shell подставит текст команды. Старый формат <code>[[…]]</code> тоже поддерживается.
+        </p>
+        <div class="shell-compose-templates-dialog-section">
+          <span class="shell-label">В сообщении</span>
+          <ul class="shell-compose-templates-active-list" id="shell-compose-templates-active-list"></ul>
+        </div>
+        <div class="shell-compose-templates-dialog-section">
+          <span class="shell-label">Добавить</span>
+          <ul class="shell-compose-templates-picker-list" id="shell-compose-templates-picker-list"></ul>
+        </div>
+        <div class="shell-dialog-actions shell-dialog-actions--spread">
+          <button type="button" class="shell-btn shell-btn--primary" id="shell-compose-templates-insert">
+            Вставить выбранные
+          </button>
+          <button type="button" class="shell-btn" id="shell-compose-templates-close">Закрыть</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog class="shell-dialog" id="shell-voice-confirm-dialog">
       <form method="dialog" class="shell-dialog-form" id="shell-voice-confirm-form">
         <h2>Отправить?</h2>
@@ -2487,6 +2566,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=537" type="module"></script>
+    <script src="/shell/shell.js?v=541" type="module"></script>
   </body>
 </html>
