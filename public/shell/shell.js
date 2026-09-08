@@ -523,6 +523,8 @@ let lastTtsSpoken = { text: "", blob: null, mimeType: "", blobText: "" };
 /** @type {{ blob: Blob, mimeType: string, text: string } | null} */
 let lastTtsChunkRecording = null;
 const outboundQueue = [];
+/** @type {(() => void) | null} */
+let messageTurnDone = null;
 
 const state = {
   agentId: localStorage.getItem(SHELL_STORAGE.agent) || "",
@@ -3017,6 +3019,26 @@ function finalizeAssistantStream(message) {
 
 let messagePipelineWatchdog = 0;
 
+function beginMessageTurn() {
+  return new Promise((resolve) => {
+    messageTurnDone = resolve;
+  });
+}
+
+function finishMessageTurn() {
+  if (!messageTurnDone) return;
+  const resolve = messageTurnDone;
+  messageTurnDone = null;
+  resolve();
+}
+
+function isActiveMessageTurn() {
+  if (!state.messagePipelineBusy && !state.processingMessage) return false;
+  const stream = state.assistantStream;
+  if (stream && !stream.finalized) return true;
+  return Boolean(state.processingMessage);
+}
+
 function armMessagePipelineWatchdog() {
   if (messagePipelineWatchdog) window.clearTimeout(messagePipelineWatchdog);
   messagePipelineWatchdog = window.setTimeout(() => {
@@ -3040,20 +3062,23 @@ function releaseMessagePipeline() {
   renderMessageQueue();
   updateSendButtonLabel();
   shellSession?.releaseSessionUiLock();
+  finishMessageTurn();
   void drainOutboundQueue();
 }
 
 function recoverStuckMessagePipeline(reason = "") {
   if (!state.messagePipelineBusy && !state.processingMessage) return false;
   if (isTtsPlaybackActive()) return false;
+  if (isActiveMessageTurn()) return false;
 
   const stream = state.assistantStream;
   const streaming = Boolean(stream && !stream.finalized);
   const streamHasText = Boolean(String(stream?.text || "").trim());
   const serverPhase = state.shellState?.phase || "waiting";
 
-  // Зависло на «Запускаю…» — stream открыт, но текста ещё нет.
+  // Зависло на «Запускаю…» — только по watchdog, не при старте хода или stale status.
   if (streaming && !streamHasText) {
+    if (reason !== "watchdog") return false;
     shellLog("message", `Empty stream reset${reason ? `: ${reason}` : ""}`);
     setReplyPanelStreaming(false);
     state.assistantStream = null;
@@ -3096,7 +3121,9 @@ async function syncShellReplyAfterConnect(reason = "connect") {
       }
       return;
     }
-    recoverStuckMessagePipeline(reason);
+    if (!isActiveMessageTurn()) {
+      recoverStuckMessagePipeline(reason);
+    }
     if (!isShellAgentWorkActive() && (payload?.state?.phase || "waiting") === "waiting") {
       renderPhase("waiting", heroIdlePhrase(), payload?.state?.metrics || "");
     }
@@ -5982,7 +6009,7 @@ function applyStatusPayload(payload) {
       livePhraseFromStatus(payload.state, payload.latestAgentMessage),
       payload.state.metrics
     );
-    if ((payload.state.phase || "waiting") === "waiting") {
+    if ((payload.state.phase || "waiting") === "waiting" && !isActiveMessageTurn()) {
       recoverStuckMessagePipeline("status waiting");
     }
     maybeResetStaleSpeakingPhase();
@@ -6780,6 +6807,7 @@ async function sendMessageDirect(
   );
   const text = (await shellComposePage?.appendPageContextIfEnabled?.(expandedText)) || expandedText;
   if (!text) return;
+  const turnComplete = beginMessageTurn();
   shellLog("message", `${author}${voice ? " · voice" : ""}`, expandedText.slice(0, 160));
   shellProactive?.bumpActivity();
   void unlockShellAudio();
@@ -6826,6 +6854,7 @@ async function sendMessageDirect(
     }
     updateSendButtonLabel();
   }
+  await turnComplete;
 }
 
 function getSpeechSynth() {
