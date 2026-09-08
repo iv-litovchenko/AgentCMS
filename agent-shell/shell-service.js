@@ -30,6 +30,7 @@ const {
 } = require("./shell-runtimes");
 const { checkOpenAiRuntimeHealth, chatOpenAiCompletions } = require("./runtime-openai-client");
 const { checkCliRuntimeHealth, chatClaudeCli, chatCodexCli, resolveCliBinary } = require("./runtime-cli-client");
+const { ensureCliSandbox, cliSandboxMeta, resolveProjectRootFromPath } = require("./cli-sandbox");
 const {
   resolveRuntimeEndpoint,
   buildDefaultRuntimeSettings,
@@ -1482,11 +1483,24 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
   };
 }
 
+function resolveShellProjectRoot(deps, agentRoot) {
+  if (typeof deps?.getProjectRoot === "function") {
+    return deps.getProjectRoot();
+  }
+  return resolveProjectRootFromPath(agentRoot);
+}
+
 async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, onProgress, ttsClientId = "", author = "shell" }) {
   const text = String(body || "").trim();
   if (!text) throw new Error("Message body is required");
   const runtime = getMessageRuntime(settings);
   if (!usesBridgeRuntime(settings)) throw new Error(`Runtime ${runtime} is not a bridge runtime`);
+
+  const projectRoot = resolveShellProjectRoot(deps, agentRoot);
+  const cliCwd =
+    runtime === "claude" || runtime === "codex"
+      ? await ensureCliSandbox(projectRoot)
+      : agentRoot;
 
   const endpoint = resolveRuntimeEndpoint(settings, runtime);
   const replyTtsClientId = String(ttsClientId || "").trim();
@@ -1587,7 +1601,7 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         sessionId: endpoint.sessionId,
         permissionMode: endpoint.permissionMode || "",
         systemPrompt,
-        cwd: agentRoot,
+        cwd: cliCwd,
         onDelta,
         onActivity
       });
@@ -2077,9 +2091,13 @@ async function buildStatusPayload(
     };
   }
 
+  const projectRoot = resolveShellProjectRoot(deps, agentRoot);
+  void ensureCliSandbox(projectRoot).catch(() => {});
+
   return {
     agentId,
     agentRoot,
+    cliSandbox: cliSandboxMeta(projectRoot),
     settingsFile: settingsAbsolute(agentRoot),
     settings,
     state: stateOut,

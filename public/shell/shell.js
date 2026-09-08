@@ -531,6 +531,7 @@ const state = {
   agentId: localStorage.getItem(SHELL_STORAGE.agent) || "",
   agentLabel: "",
   agentRoot: "",
+  cliSandboxPath: "",
   settingsFile: "",
   settings: null,
   windowSettings: null,
@@ -5675,7 +5676,9 @@ function updateRuntimeRouteNotes(runtime = readRouteRuntimeSelectValue() || getS
   }
 
   const intro = String(SHELL_RUNTIME_ROUTE_INTROS[selected] || "").trim();
-  const body = formatRuntimeRouteNote(selected, getRuntimeStatus(selected));
+  const body = formatRuntimeRouteNote(selected, getRuntimeStatus(selected), {
+    cliSandboxPath: state.cliSandboxPath || ""
+  });
   introEl.textContent = intro;
   titleEl.textContent = SHELL_RUNTIME_LABELS[selected] || selected;
   bodyEl.textContent = body;
@@ -6082,6 +6085,7 @@ function applyStatusPayload(payload) {
   }
   if (payload?.settingsFile) state.settingsFile = payload.settingsFile;
   if (payload?.agentRoot) state.agentRoot = payload.agentRoot;
+  if (payload?.cliSandbox?.absolute) state.cliSandboxPath = String(payload.cliSandbox.absolute);
   if (payload?.state?.meetingRecording != null) {
     state.meetingRecording = Boolean(payload.state.meetingRecording);
     updateVoiceModeSelectUi();

@@ -5,7 +5,7 @@ export const SHELL_RUNTIME_GROUPS = [
   {
     id: "cli",
     label: "CLI в терминале",
-    hint: "Локальные бинарники — Shell запускает claude / codex в каталоге workspace.",
+    hint: "Claude / Codex — cwd: workspaces/cli-sandbox/ (общая песочница, не хранилище).",
     runtimes: ["claude", "codex"]
   },
   {
@@ -85,12 +85,24 @@ export const SHELL_RUNTIME_CLI_SETUP = {
 /** Runtime с блоком подсказок на вкладке «Маршрут». */
 export const SHELL_ROUTE_NOTE_RUNTIMES = ["claude", "codex", "qwenpaw"];
 
+export const CLI_SANDBOX_REL = "workspaces/cli-sandbox";
+
 /** Краткое пояснение над инструкцией для каждого runtime. */
 export const SHELL_RUNTIME_ROUTE_INTROS = {
-  claude: "Локальный CLI Claude. Shell запускает claude в каталоге workspace.",
-  codex: "Локальный CLI Codex. Shell запускает codex в каталоге workspace.",
+  claude:
+    "Локальный CLI Claude. Shell запускает claude в общей песочнице workspaces/cli-sandbox/ — не в корне workspace и не в awn-container/. К CMS — через MCP.",
+  codex:
+    "Локальный CLI Codex. Shell запускает codex exec в workspaces/cli-sandbox/ — не в хранилище workspace. К CMS — через MCP.",
   qwenpaw: "HTTP-агент QwenPaw. Shell отправляет сообщения на сервер и стримит ответ через SSE."
 };
+
+export function formatCliSandboxCwdLine(absolutePath = "") {
+  const abs = String(absolutePath || "").trim();
+  if (abs) {
+    return `Каталог запуска (cwd): ${abs}`;
+  }
+  return `Каталог запуска (cwd): ${CLI_SANDBOX_REL}/ — общая песочница проекта YamlCMS.`;
+}
 
 export function runtimeShowsRouteNote(runtime) {
   return SHELL_ROUTE_NOTE_RUNTIMES.includes(normalizeMessageRuntime(runtime));
@@ -108,19 +120,21 @@ export function formatQwenpawRuntimeRouteNote(status = null) {
   return lines.join("\n");
 }
 
-export function formatRuntimeRouteNote(runtime, status = null) {
+export function formatRuntimeRouteNote(runtime, status = null, { cliSandboxPath = "" } = {}) {
   const id = normalizeMessageRuntime(runtime);
-  if (id === "claude" || id === "codex") return formatCliRuntimeRouteNote(id, status);
+  if (id === "claude" || id === "codex") return formatCliRuntimeRouteNote(id, status, { cliSandboxPath });
   if (id === "qwenpaw") return formatQwenpawRuntimeRouteNote(status);
   return "";
 }
 
-export function formatCliRuntimeRouteNote(runtime, status = null) {
+export function formatCliRuntimeRouteNote(runtime, status = null, { cliSandboxPath = "" } = {}) {
   const id = normalizeMessageRuntime(runtime);
   if (!runtimeUsesCli(id)) return "";
   const setup = SHELL_RUNTIME_CLI_SETUP[id];
   if (!setup) return "";
   const lines = [
+    formatCliSandboxCwdLine(cliSandboxPath),
+    "Workspace агента (хранилище CMS) сюда не монтируется — только MCP-инструменты.",
     `Установка: ${setup.install}`,
     `Вход: ${setup.auth}`,
     `Проверка: ${setup.check}`
@@ -227,11 +241,11 @@ export const SHELL_RUNTIME_HINTS = {
 export const SHELL_RUNTIME_DESCRIPTIONS = {
   claude: `Claude Code (@anthropic-ai/claude-code) — локальный CLI-агент Anthropic.
 Подключение: бинарь claude в PATH (npm i -g @anthropic-ai/claude-code), авторизация claude login.
-Shell запускает claude -p … в каталоге workspace → ответ стримится в диалог.`,
+Shell запускает claude -p … с cwd workspaces/cli-sandbox/ → ответ стримится в диалог.`,
 
   codex: `Codex CLI (@openai/codex) — локальный CLI-агент OpenAI.
 Подключение: бинарь codex в PATH (npm i -g @openai/codex), авторизация codex login.
-Shell запускает codex exec … — сессии через Session ID (codex exec resume).`,
+Shell запускает codex exec … с cwd workspaces/cli-sandbox/ — сессии через Session ID.`,
 
   cursor: `Cursor — агент из экосистемы Cursor IDE (локально или cloud).
 Подключение: OpenAI-compatible endpoint (если у вас поднят Cursor agent / proxy).

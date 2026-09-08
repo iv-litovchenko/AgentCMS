@@ -3161,7 +3161,8 @@ const shellHandlers = createShellHandlers({
   readJsonBody,
   appendTopicThreadMessage,
   listTopicThread,
-  createInboxItem
+  createInboxItem,
+  getProjectRoot
 });
 
 async function listFileHistoryVersions({ manifestRelPath, mode, file, systemName }) {
