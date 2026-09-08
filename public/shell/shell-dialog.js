@@ -1206,8 +1206,16 @@ export function createShellDialog(options = {}) {
 
   function onUserMessage(text) {
     clearError();
+    const stickToBottom = isScrollNearBottom();
     setLastAsk(text);
     pushHistory("user", text);
+    if (stickToBottom) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          scrollDialogToBottom({ smooth: true });
+        });
+      });
+    }
   }
 
   function onAgentReply(body) {

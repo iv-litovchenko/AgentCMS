@@ -2328,15 +2328,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
             </button>
             </div>
           </div>
-          <div class="shell-compose-input-wrap">
-            <textarea
-              id="shell-message"
-              class="shell-textarea shell-textarea--compose"
-              rows="2"
-              enterkeyhint="send"
-              placeholder="Спросите агента…"
-              aria-label="Ваше сообщение"
-            ></textarea>
+          <div class="shell-compose-field-meta" id="shell-compose-field-meta" aria-live="polite">
             <div
               id="shell-compose-context-meter"
               class="shell-compose-context-meter hidden"
@@ -2348,6 +2340,16 @@ aya_bar_v2 тоже читает те же файлы</pre>
               aria-live="polite"
               title=".agent-shell/compose-draft.md"
             ></span>
+          </div>
+          <div class="shell-compose-input-wrap">
+            <textarea
+              id="shell-message"
+              class="shell-textarea shell-textarea--compose"
+              rows="2"
+              enterkeyhint="send"
+              placeholder="Спросите агента…"
+              aria-label="Ваше сообщение"
+            ></textarea>
             <button
               type="button"
               class="shell-icon-btn shell-compose-expand-toggle"

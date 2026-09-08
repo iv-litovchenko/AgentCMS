@@ -4,9 +4,26 @@ const { promisify } = require("util");
 const { execFile } = require("child_process");
 const { enrichShellPath, defaultCliBinary, resolveCliBinary } = require("./runtime-cli-env");
 const { normalizeCliSessionId } = require("./runtime-bridge");
+const { getCliSessionPool, isPersistentCliEnabled } = require("./runtime-cli-session");
+const {
+  DEFAULT_TIMEOUT_MS,
+  normalizeClaudePermissionMode,
+  extractUserPrompt,
+  extractSystemPrompt,
+  claudeStreamError,
+  extractClaudeAssistantDelta,
+  extractClaudeResultText,
+  looksLikeJsonObject,
+  looksLikeCliError,
+  extractCodexJsonText,
+  codexStreamError,
+  firstErrorLine,
+  consumeJsonLinesFromBuffer,
+  isSessionInUseError,
+  isResumeUnavailableError
+} = require("./runtime-cli-shared");
 
 const execFileAsync = promisify(execFile);
-const DEFAULT_TIMEOUT_MS = 300000;
 
 function defaultBinary(runtime) {
   return defaultCliBinary(runtime);
@@ -16,117 +33,6 @@ function normalizeBinary(runtime, customPath) {
   const value = String(customPath || "").trim();
   if (value && !/^https?:\/\//i.test(value)) return value;
   return defaultBinary(runtime);
-}
-
-function extractUserPrompt(messages) {
-  return (Array.isArray(messages) ? messages : [])
-    .filter((item) => item && item.role === "user")
-    .map((item) => String(item.content || "").trim())
-    .filter(Boolean)
-    .join("\n\n")
-    .trim();
-}
-
-function extractSystemPrompt(messages) {
-  return (Array.isArray(messages) ? messages : [])
-    .filter((item) => item && item.role === "system")
-    .map((item) => String(item.content || "").trim())
-    .filter(Boolean)
-    .join("\n\n")
-    .trim();
-}
-
-function claudeStreamError(event) {
-  if (!event || typeof event !== "object") return "";
-  if (event.is_error !== true && event.subtype !== "error_during_execution") return "";
-  if (Array.isArray(event.errors)) {
-    const joined = event.errors
-      .map((item) => String(item || "").trim())
-      .filter(Boolean)
-      .join("\n");
-    if (joined) return joined;
-  }
-  if (typeof event.error === "string" && event.error.trim()) return event.error.trim();
-  if (typeof event.result === "string" && event.result.trim()) return event.result.trim();
-  return "Claude CLI вернул ошибку";
-}
-
-function extractClaudeAssistantDelta(event) {
-  if (!event || typeof event !== "object" || event.is_error) return "";
-  if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
-    return String(event.delta.text || "");
-  }
-  if (event.type === "assistant") {
-    const content = event.message?.content;
-    if (Array.isArray(content)) {
-      return content
-        .filter((block) => block && block.type === "text")
-        .map((block) => String(block.text || ""))
-        .join("");
-    }
-    if (typeof content === "string") return content;
-  }
-  return "";
-}
-
-function extractClaudeResultText(event) {
-  if (!event || typeof event !== "object" || event.is_error) return "";
-  if (event.type === "result" && typeof event.result === "string") return event.result;
-  return "";
-}
-
-function looksLikeJsonObject(text) {
-  const value = String(text || "").trim();
-  return value.startsWith("{") && value.endsWith("}");
-}
-
-function looksLikeCliError(text) {
-  const value = String(text || "").trim();
-  if (!value) return false;
-  if (/^error:/i.test(value)) return true;
-  if (/thread\/resume failed/i.test(value)) return true;
-  if (/no rollout found/i.test(value)) return true;
-  return false;
-}
-
-function extractCodexJsonText(event, previous = "") {
-  if (!event || typeof event !== "object") return "";
-  const type = String(event.type || event.event || "").toLowerCase();
-  if (type === "error" || type === "turn.failed" || type.endsWith(".failed")) return "";
-
-  const item = event.item && typeof event.item === "object" ? event.item : null;
-  const itemType = String(item?.type || "").toLowerCase();
-  if (itemType === "agent_message" && typeof item.text === "string" && item.text.trim()) {
-    return item.text.startsWith(previous) ? item.text.slice(previous.length) : item.text;
-  }
-  if (type.includes("agent_message") && typeof event.message === "string" && event.message.trim()) {
-    return event.message.startsWith(previous) ? event.message.slice(previous.length) : event.message;
-  }
-  return "";
-}
-
-function codexStreamError(event) {
-  if (!event || typeof event !== "object") return "";
-  const type = String(event.type || event.event || "").toLowerCase();
-  if (type !== "error" && type !== "turn.failed" && !type.endsWith(".failed")) return "";
-  const nested = event.error && typeof event.error === "object" ? event.error : null;
-  const message =
-    (typeof event.message === "string" && event.message.trim()) ||
-    (typeof event.error === "string" && event.error.trim()) ||
-    (typeof nested?.message === "string" && nested.message.trim()) ||
-    (typeof event.text === "string" && event.text.trim()) ||
-    "";
-  return message || "Codex CLI вернул ошибку";
-}
-
-function firstErrorLine(text) {
-  return (
-    String(text || "")
-      .trim()
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .find(Boolean) || ""
-  );
 }
 
 async function checkCliRuntimeHealth({ runtime, binary, timeoutMs = 12000 } = {}) {
@@ -221,37 +127,99 @@ function runCliProcess({ binary, args, cwd, onStdout, signal, timeoutMs = DEFAUL
   });
 }
 
-function consumeJsonLines(buffer, onEvent) {
-  const parts = buffer.split("\n");
-  const rest = parts.pop() || "";
-  for (const line of parts) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try {
-      onEvent(JSON.parse(trimmed));
-    } catch {
-      // ignore malformed chunks
-    }
+function buildPersistentSessionConfig({
+  runtime,
+  binary,
+  model,
+  sessionId,
+  permissionMode,
+  systemPrompt,
+  cwd
+}) {
+  const sid = normalizeCliSessionId(sessionId, runtime);
+  return {
+    binary: normalizeBinary(runtime, binary),
+    model,
+    sessionId: sid,
+    permissionMode,
+    systemPrompt: String(systemPrompt || "").trim(),
+    cwd: cwd || process.cwd(),
+    resume: Boolean(sid)
+  };
+}
+
+async function chatClaudeCliPersistent(options = {}) {
+  const prompt = extractUserPrompt(options.messages);
+  if (!prompt) throw new Error("Пустое сообщение");
+
+  const system = String(
+    options.systemPrompt || extractSystemPrompt(options.messages) || ""
+  ).trim();
+  const config = buildPersistentSessionConfig({
+    runtime: "claude",
+    binary: options.binary,
+    model: options.model,
+    sessionId: options.sessionId,
+    permissionMode: options.permissionMode,
+    systemPrompt: system,
+    cwd: options.cwd
+  });
+
+  const pool = getCliSessionPool();
+  const session = pool.getSession("claude", config);
+  try {
+    const reply = await session.chat({
+      prompt,
+      onDelta: options.onDelta,
+      onActivity: options.onActivity,
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
+    });
+    if (typeof options.onDelta === "function" && reply.text) options.onDelta(reply.text);
+    return { text: reply.text, raw: null, persistent: true };
+  } catch (error) {
+    session.dispose("error");
+    throw error;
   }
-  return rest;
 }
 
-function isSessionInUseError(message) {
-  return /session id .* is already in use/i.test(String(message || ""));
+async function chatCodexCliPersistent(options = {}) {
+  let prompt = extractUserPrompt(options.messages);
+  if (!prompt) throw new Error("Пустое сообщение");
+
+  const system = String(
+    options.systemPrompt || extractSystemPrompt(options.messages) || ""
+  ).trim();
+  if (system) prompt = `${system}\n\n---\n\n${prompt}`;
+
+  const config = buildPersistentSessionConfig({
+    runtime: "codex",
+    binary: options.binary,
+    model: options.model,
+    sessionId: options.sessionId,
+    permissionMode: options.permissionMode,
+    cwd: options.cwd
+  });
+
+  const pool = getCliSessionPool();
+  const session = pool.getSession("codex", config);
+  try {
+    const reply = await session.chat({
+      prompt,
+      onDelta: options.onDelta,
+      onActivity: options.onActivity,
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
+    });
+    if (typeof options.onDelta === "function" && reply.text) options.onDelta(reply.text);
+    return { text: reply.text, raw: null, persistent: true };
+  } catch (error) {
+    session.dispose("error");
+    throw error;
+  }
 }
 
-function isResumeUnavailableError(message) {
-  return /no rollout|thread\/resume failed|session not found|invalid session/i.test(String(message || ""));
-}
-
-const CLAUDE_PERMISSION_MODES = new Set(["bypassPermissions", "dontAsk", "auto", "manual", "plan"]);
-
-function normalizeClaudePermissionMode(value) {
-  const mode = String(value || "").trim();
-  return CLAUDE_PERMISSION_MODES.has(mode) ? mode : "";
-}
-
-async function chatClaudeCli({
+async function chatClaudeCliOnce({
   binary = "claude",
   model,
   messages,
@@ -268,7 +236,6 @@ async function chatClaudeCli({
   if (!prompt) throw new Error("Пустое сообщение");
 
   const sid = normalizeCliSessionId(sessionId, "claude");
-
   const permission = normalizeClaudePermissionMode(permissionMode);
   const system = String(systemPrompt || extractSystemPrompt(messages) || "").trim();
 
@@ -294,7 +261,7 @@ async function chatClaudeCli({
       onStdout: (piece) => {
         jsonBuffer += piece;
         let complete = false;
-        jsonBuffer = consumeJsonLines(jsonBuffer, (event) => {
+        jsonBuffer = consumeJsonLinesFromBuffer(jsonBuffer, (event) => {
           toolTracker.handleEvent(event);
           const err = claudeStreamError(event);
           if (err) {
@@ -320,7 +287,7 @@ async function chatClaudeCli({
       }
     });
 
-    jsonBuffer = consumeJsonLines(`${jsonBuffer}\n`, (event) => {
+    jsonBuffer = consumeJsonLinesFromBuffer(`${jsonBuffer}\n`, (event) => {
       toolTracker.handleEvent(event);
       const err = claudeStreamError(event);
       if (err) {
@@ -352,26 +319,22 @@ async function chatClaudeCli({
     return { text: reply, raw: null };
   };
 
-  try {
-    if (sid) {
-      try {
-        return await runOnce(true);
-      } catch (error) {
-        const msg = String(error?.message || error);
-        if (isSessionInUseError(msg)) throw error;
-        if (error.resumeFailed || isResumeUnavailableError(msg)) {
-          return await runOnce(false);
-        }
-        throw error;
+  if (sid) {
+    try {
+      return await runOnce(true);
+    } catch (error) {
+      const msg = String(error?.message || error);
+      if (isSessionInUseError(msg)) throw error;
+      if (error.resumeFailed || isResumeUnavailableError(msg)) {
+        return await runOnce(false);
       }
+      throw error;
     }
-    return await runOnce(false);
-  } catch (error) {
-    throw error;
   }
+  return runOnce(false);
 }
 
-async function chatCodexCli({
+async function chatCodexCliOnce({
   binary = "codex",
   model,
   messages,
@@ -412,7 +375,7 @@ async function chatCodexCli({
       onStdout: (piece) => {
         jsonBuffer += piece;
         let complete = false;
-        jsonBuffer = consumeJsonLines(jsonBuffer, (event) => {
+        jsonBuffer = consumeJsonLinesFromBuffer(jsonBuffer, (event) => {
           const toolActivity = extractCodexToolActivity(event);
           if (toolActivity && typeof onActivity === "function") onActivity(toolActivity);
           const err = codexStreamError(event);
@@ -433,7 +396,7 @@ async function chatCodexCli({
       }
     });
 
-    jsonBuffer = consumeJsonLines(`${jsonBuffer}\n`, (event) => {
+    jsonBuffer = consumeJsonLinesFromBuffer(`${jsonBuffer}\n`, (event) => {
       const toolActivity = extractCodexToolActivity(event);
       if (toolActivity && typeof onActivity === "function") onActivity(toolActivity);
       const err = codexStreamError(event);
@@ -483,10 +446,36 @@ async function chatCodexCli({
   }
 }
 
+async function chatClaudeCli(options = {}) {
+  if (isPersistentCliEnabled()) {
+    try {
+      return await chatClaudeCliPersistent(options);
+    } catch (error) {
+      const msg = String(error?.message || error);
+      if (isSessionInUseError(msg)) throw error;
+      return chatClaudeCliOnce(options);
+    }
+  }
+  return chatClaudeCliOnce(options);
+}
+
+async function chatCodexCli(options = {}) {
+  if (isPersistentCliEnabled()) {
+    try {
+      return await chatCodexCliPersistent(options);
+    } catch (error) {
+      return chatCodexCliOnce(options);
+    }
+  }
+  return chatCodexCliOnce(options);
+}
+
 module.exports = {
   checkCliRuntimeHealth,
   chatClaudeCli,
   chatCodexCli,
+  chatClaudeCliOnce,
+  chatCodexCliOnce,
   normalizeBinary,
   resolveCliBinary
 };

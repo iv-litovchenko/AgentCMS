@@ -93,6 +93,9 @@
     "keepAwake": true,
     "processingSound": "off"
   },
+  "ui": {
+    "dialogScrollRatio": 1
+  },
   "compose": {
     "promptTemplates": [
       {

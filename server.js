@@ -24207,6 +24207,11 @@ async function startServer(options = {}) {
 async function stopServer() {
   await stopVoiceServer().catch(() => null);
   voiceServerInfo = null;
+  try {
+    require("./agent-shell/runtime-cli-session").shutdownCliSessionPool();
+  } catch {
+    /* ignore */
+  }
   const closes = [];
   if (httpServer) {
     closes.push(
