@@ -360,6 +360,8 @@ export function createShellDialog(options = {}) {
   let scrollRestoreDeadline = 0;
   let scrollRestoreActive = false;
   let scrollRestoreSuppressUntil = 0;
+  let stickToBottom = true;
+  let suppressStickUpdate = false;
 
   function notifyHistoryChange() {
     try {
@@ -397,6 +399,25 @@ export function createShellDialog(options = {}) {
     return scrollEl.scrollTop >= maxScroll - threshold;
   }
 
+  function syncStickToBottomFromScroll() {
+    if (suppressStickUpdate || scrollRestoreApplying || Date.now() < scrollRestoreSuppressUntil) return;
+    stickToBottom = isScrollNearBottom();
+  }
+
+  function enableStickToBottom() {
+    stickToBottom = true;
+  }
+
+  function maintainStickScroll({ smooth = false } = {}) {
+    if (!stickToBottom) return;
+    scrollDialogToBottom({ smooth, force: true });
+  }
+
+  function stickToBottomAndScroll({ smooth = true } = {}) {
+    enableStickToBottom();
+    scrollDialogToBottom({ smooth, force: true });
+  }
+
   function updateScrollBottomButton() {
     const btn = nodes.scrollBottomBtn;
     if (!btn) return;
@@ -412,17 +433,21 @@ export function createShellDialog(options = {}) {
     btn.setAttribute("aria-hidden", show ? "false" : "true");
   }
 
-  function scrollDialogToBottom({ smooth = true } = {}) {
+  function scrollDialogToBottom({ smooth = true, force = false } = {}) {
     const scrollEl = nodes.scroll;
     if (!scrollEl) return;
+    if (!force && !stickToBottom) return;
     finishScrollRestoreWatch();
     const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
     if (maxScroll <= 1) return;
+    stickToBottom = true;
     suppressScrollPersist = true;
+    suppressStickUpdate = true;
     scrollEl.scrollTo({ top: maxScroll, behavior: smooth ? "smooth" : "auto" });
     window.setTimeout(
       () => {
         suppressScrollPersist = false;
+        suppressStickUpdate = false;
         updateScrollProgress();
       },
       smooth ? 320 : 0
@@ -475,6 +500,7 @@ export function createShellDialog(options = {}) {
     scrollRestoreDeadline = 0;
     stopScrollRestoreWatch();
     stopScrollRestoreRetry();
+    syncStickToBottomFromScroll();
   }
 
   function clearPendingScrollRestore() {
@@ -766,15 +792,9 @@ export function createShellDialog(options = {}) {
     const body = hint ? `${text} — ${hint}` : text;
     const last = history[history.length - 1];
     if (last?.role === "error" && last.body === body) return;
-    const stickToBottom = isScrollNearBottom();
+    const stickToBottomBefore = stickToBottom;
     pushHistory("error", body);
-    if (stickToBottom) {
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          scrollDialogToBottom({ smooth: true });
-        });
-      });
-    }
+    if (stickToBottomBefore) maintainStickScroll({ smooth: true });
   }
 
   async function copyMessageText(text, btn) {
@@ -1143,6 +1163,7 @@ export function createShellDialog(options = {}) {
       }
       nodes.liveTools.classList.remove("hidden");
       nodes.lastReply?.classList.remove("shell-dialog-live-reply--stub");
+      maintainStickScroll({ smooth: false });
       return;
     }
     if (streaming) {
@@ -1151,6 +1172,7 @@ export function createShellDialog(options = {}) {
       pending.textContent = liveActivityHint || "Запускаю агента…";
       nodes.liveTools.append(pending);
       nodes.liveTools.classList.remove("hidden");
+      maintainStickScroll({ smooth: false });
       return;
     }
     nodes.liveTools.classList.add("hidden");
@@ -1161,6 +1183,7 @@ export function createShellDialog(options = {}) {
     history = normalizeThreadOrder(history);
     const scrollEl = nodes.scroll;
     const preserveRatio =
+      !stickToBottom &&
       !scrollRestoreActive &&
       scrollEl &&
       scrollEl.scrollHeight - scrollEl.clientHeight > 1
@@ -1182,6 +1205,10 @@ export function createShellDialog(options = {}) {
     if (scrollRestoreActive && pendingScrollRestoreRatio != null) {
       applyPendingScrollOnce();
       queueScrollRestoreAfterLayout();
+    } else if (stickToBottom) {
+      window.requestAnimationFrame(() => {
+        scrollDialogToBottom({ smooth: false, force: true });
+      });
     } else if (preserveRatio != null) {
       window.requestAnimationFrame(() => applyScrollRatio(preserveRatio));
     }
@@ -1260,6 +1287,7 @@ export function createShellDialog(options = {}) {
     nodes.lastAskWrap?.classList.remove("hidden");
     if (nodes.lastAsk) renderUserMessageBody(nodes.lastAsk, raw);
     notifyHistoryChange();
+    maintainStickScroll({ smooth: true });
   }
 
   function onReplyRendered(rawText) {
@@ -1270,16 +1298,10 @@ export function createShellDialog(options = {}) {
 
   function onUserMessage(text) {
     clearError();
-    const stickToBottom = isScrollNearBottom();
+    enableStickToBottom();
     setLastAsk(text);
     pushHistory("user", text);
-    if (stickToBottom) {
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          scrollDialogToBottom({ smooth: true });
-        });
-      });
-    }
+    stickToBottomAndScroll({ smooth: true });
   }
 
   function onAgentReply(body) {
@@ -1374,6 +1396,7 @@ export function createShellDialog(options = {}) {
       "scroll",
       () => {
         updateScrollProgress();
+        syncStickToBottomFromScroll();
         noteScrollPositionChange();
       },
       { passive: true }
@@ -1389,11 +1412,17 @@ export function createShellDialog(options = {}) {
     if (typeof ResizeObserver !== "undefined") {
       const observer = new ResizeObserver(() => {
         updateScrollProgress();
-        if (scrollRestoreActive && pendingScrollRestoreRatio != null) queueScrollRestoreAfterLayout();
+        if (scrollRestoreActive && pendingScrollRestoreRatio != null) {
+          queueScrollRestoreAfterLayout();
+        } else if (stickToBottom) {
+          maintainStickScroll({ smooth: false });
+        }
       });
       observer.observe(scrollEl);
       if (nodes.thread) observer.observe(nodes.thread);
       if (nodes.lastReply) observer.observe(nodes.lastReply);
+      if (nodes.lastAskWrap) observer.observe(nodes.lastAskWrap);
+      if (nodes.liveTools) observer.observe(nodes.liveTools);
     }
     updateScrollProgress();
   }
@@ -1404,7 +1433,7 @@ export function createShellDialog(options = {}) {
     });
 
     nodes.scrollBottomBtn?.addEventListener("click", () => {
-      scrollDialogToBottom({ smooth: true });
+      stickToBottomAndScroll({ smooth: true });
     });
 
     const scrollRoot = nodes.scroll || nodes.panel;
@@ -1457,12 +1486,8 @@ export function createShellDialog(options = {}) {
   }
 
   function scrollToBottomIfNear(threshold = 56) {
-    if (!isScrollNearBottom(threshold)) return;
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        scrollDialogToBottom({ smooth: true });
-      });
-    });
+    if (!stickToBottom && !isScrollNearBottom(threshold)) return;
+    maintainStickScroll({ smooth: true });
   }
 
   return {
@@ -1498,6 +1523,9 @@ export function createShellDialog(options = {}) {
     updateScrollProgress,
     isScrollNearBottom,
     scrollDialogToBottom,
-    scrollToBottomIfNear
+    scrollToBottomIfNear,
+    stickToBottomAndScroll,
+    enableStickToBottom,
+    maintainStickScroll
   };
 }

@@ -6301,9 +6301,23 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
 }
 
 .shell-compose-panel .shell-message-queue.is-single {
-  margin-bottom: 0;
+  margin: 4px 0 0;
   gap: 0;
-  padding-bottom: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.shell-message-queue.is-single .shell-message-queue-bar {
+  gap: 0;
+}
+
+.shell-message-queue.is-single .shell-message-queue-active {
+  width: 100%;
+  padding: 6px 8px;
+  min-height: 28px;
+  border-radius: 10px;
 }
 
 .shell-message-queue-list:empty {
@@ -9001,7 +9015,17 @@ body.shell-embed .shell-path-header {
   animation: shell-compact-speak-pulse 0.85s ease-in-out infinite;
 }
 
-.shell-compact-sensor[data-activity="typing"] .shell-compact-cloud-mouth,
+.shell-compact-sensor[data-activity="typing"] .shell-compact-cloud-mouth {
+  animation: shell-compact-type-mouth 1.15s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  opacity: 1;
+}
+
+.shell-compact-sensor[data-activity="typing"] .shell-compact-cloud-eye {
+  animation: shell-compact-type-eye 2.4s ease-in-out infinite;
+}
+
 .shell-compact-sensor[data-activity="speaking"] .shell-compact-cloud-mouth {
   animation: shell-compact-talk 0.35s ease-in-out infinite alternate;
   transform-box: fill-box;
@@ -9272,8 +9296,24 @@ body.shell-embed .shell-path-header {
 }
 
 .shell-hero-sensor.shell-compact-sensor[data-hero-state="typing"] .shell-compact-cloud-mouth,
+.shell-hero-sensor.shell-compact-sensor[data-activity="typing"] .shell-compact-cloud-mouth {
+  animation: shell-compact-type-mouth 1.15s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  opacity: 1;
+}
+
+.shell-hero-sensor.shell-compact-sensor[data-hero-state="typing"] .shell-compact-cloud-eye,
+.shell-hero-sensor.shell-compact-sensor[data-activity="typing"] .shell-compact-cloud-eye {
+  animation: shell-compact-type-eye 2.4s ease-in-out infinite;
+}
+
+.shell-hero-sensor.shell-compact-sensor[data-hero-state="typing"] .shell-compact-sensor-waves,
+.shell-hero-sensor.shell-compact-sensor[data-activity="typing"] .shell-compact-sensor-waves {
+  display: inline-flex;
+}
+
 .shell-hero-sensor.shell-compact-sensor[data-hero-state="replying"] .shell-compact-cloud-mouth,
-.shell-hero-sensor.shell-compact-sensor[data-activity="typing"] .shell-compact-cloud-mouth,
 .shell-hero-sensor.shell-compact-sensor[data-activity="speaking"] .shell-compact-cloud-mouth {
   animation: shell-compact-talk 0.35s ease-in-out infinite alternate;
   transform-box: fill-box;
@@ -9468,6 +9508,16 @@ body.shell-embed .shell-path-header {
   }
   50% {
     stroke: rgba(125, 211, 252, 0.98);
+  }
+}
+
+@keyframes shell-compact-type-mouth {
+  0%,
+  100% {
+    transform: scale(1, 0.94);
+  }
+  50% {
+    transform: scale(1.04, 1.02);
   }
 }
 

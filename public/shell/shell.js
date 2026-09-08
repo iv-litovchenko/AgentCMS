@@ -1819,18 +1819,13 @@ async function onAgentSelectChange(next) {
   await resolveShellAgent();
   state.runtimeStatuses = {};
   resetRuntimeStatusProbe();
-  releaseMessagePipeline();
-  state.assistantStream = null;
-  clearShellReply();
   populateRuntimeSelect();
   refreshRuntimeSelectLabels();
   syncShellAgentReadyUi();
   await bootstrapRuntimeSelect();
   resetRuntimeStatusProbe();
   await pullRuntimeStatuses();
-  await refreshOutboundQueueFromServer();
-  prepareDialogScrollRestore({ restoreOnLoad: true });
-  await shellDialog.refreshHistory?.({ replace: true, restoreScroll: true });
+  await reloadShellDialogContext({ restoreScroll: true });
   await loadComposeDraft();
   await loadWindowSettings();
   commitAllSettingsBaselinesIfSafe();
@@ -2037,7 +2032,8 @@ function resolveDisplayPhase(requestedPhase = "waiting") {
 function resolveHeroStatusBadgeClass(displayPhase, heroState) {
   if (displayPhase === "listening") return "is-active";
   if (heroState === "thinking") return "is-busy";
-  if (heroState === "typing" || heroState === "replying") return "is-typing";
+  if (heroState === "typing") return "is-typing";
+  if (heroState === "replying") return "is-speaking";
   if (heroState === "ready") return "is-ready";
   return "is-idle";
 }
@@ -2045,7 +2041,8 @@ function resolveHeroStatusBadgeClass(displayPhase, heroState) {
 function resolveHeroSensorActivity(displayPhase, heroState) {
   if (displayPhase === "listening") return "listening";
   if (heroState === "ready") return "ready";
-  if (heroState === "typing" || heroState === "replying") return "speaking";
+  if (heroState === "typing") return "typing";
+  if (heroState === "replying") return "speaking";
   if (heroState === "thinking") return "thinking";
   return "idle";
 }
@@ -2053,7 +2050,7 @@ function resolveHeroSensorActivity(displayPhase, heroState) {
 function resolveHeroAvatarState(requestedPhase = "waiting") {
   const displayPhase = resolveDisplayPhase(requestedPhase);
   if (isTtsPlaybackActive()) return "replying";
-  if (isAgentReplyStreaming()) return "replying";
+  if (isAgentReplyStreaming()) return "typing";
   if (displayPhase === "thinking") return "thinking";
   if (displayPhase === "listening") return "listening";
   if (displayPhase === "speaking") return "replying";
@@ -2068,11 +2065,8 @@ function resolveHeroStatusLabel(requestedPhase = "waiting", phrase = "") {
   if (displayPhase === "disabled") return PHASE_LABELS.disabled;
   if (heroState === "listening") return HERO_STATE_LABELS.listening;
   if (heroState === "ready") return HERO_STATE_LABELS.ready;
-  if (heroState === "replying") {
-    if (isAgentReplyStreaming()) return HERO_STATE_LABELS.typing;
-    return HERO_STATE_LABELS.replying;
-  }
   if (heroState === "typing") return HERO_STATE_LABELS.typing;
+  if (heroState === "replying") return HERO_STATE_LABELS.replying;
   if (heroState === "thinking") {
     if (statusText && !isHeroIdlePhrase(statusText)) return statusText;
     return HERO_STATE_LABELS.thinking;
@@ -2157,8 +2151,9 @@ function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false
   }
 
   if (nodes.voiceWave) {
-    const showWave = heroState === "replying" && isTtsPlaybackActive();
-    nodes.voiceWave.classList.toggle("hidden", !showWave);
+    const showSpeakWave = heroState === "replying" && isTtsPlaybackActive();
+    const showTypeWave = heroState === "typing" && isAgentReplyStreaming();
+    nodes.voiceWave.classList.toggle("hidden", !(showSpeakWave || showTypeWave));
     nodes.voiceWave.classList.toggle("is-paused", Boolean(state.ttsPaused));
   }
 
@@ -2641,7 +2636,12 @@ function renderAgentActivitySteps() {
   nodes.phaseLabel.textContent = label;
   nodes.phaseLabel.classList.remove("is-idle", "is-ready", "is-active", "is-busy", "is-speaking", "is-typing");
   const isTyping = active.kind === "typing" || /печатает/i.test(label);
-  nodes.phaseLabel.classList.add(isTyping ? "is-typing" : "is-busy");
+  const isSpeaking = /озвуч|говор|отвеч/i.test(label);
+  nodes.phaseLabel.classList.add(isTyping ? "is-typing" : isSpeaking ? "is-speaking" : "is-busy");
+  syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
+    updateLabel: false,
+    phrase: label
+  });
 }
 
 function bindComposeReadyStatus() {
@@ -2789,6 +2789,7 @@ function beginAssistantStream({ streamId } = {}) {
   setReplyPanelStreaming(true);
   shellDialog.syncLiveReplySlot?.();
   shellDialog.renderLiveToolStrip?.();
+  shellDialog.stickToBottomAndScroll?.({ smooth: true });
   if (nodes.lastReplyText) {
     nodes.lastReplyText.classList.remove("shell-md");
     nodes.lastReplyText.textContent = "…";
@@ -2808,8 +2809,12 @@ function renderStreamingAssistantText(text) {
     return;
   }
   renderShellReplyBody(nodes.lastReplyText, value);
-  shellDialog.updateScrollProgress?.();
+  shellDialog.maintainStickScroll?.({ smooth: false });
   shellDialog.onReplyRendered(value);
+  syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
+    updateLabel: false,
+    phrase: nodes.phaseLabel?.textContent || ""
+  });
   syncCompactQa();
   if (state.assistantStream && !state.assistantStream.finalized) {
     syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
@@ -3068,6 +3073,34 @@ function releaseMessagePipeline() {
   finishMessageTurn();
 }
 
+function getDialogContextKey() {
+  const runtime = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
+  return `${String(state.agentId || "").trim()}::${runtime}`;
+}
+
+async function reloadShellDialogContext({ restoreScroll = false } = {}) {
+  const contextKey = getDialogContextKey();
+  shellLog("dialog", "reload", contextKey);
+  lastQueueProcessingId = "";
+  releaseMessagePipeline();
+  state.assistantStream = null;
+  clearShellReply();
+  shellDialog.clearLiveStreamTools?.();
+  shellDialog.setLastAsk?.("");
+  shellDialog.enableStickToBottom?.();
+  if (restoreScroll) {
+    prepareDialogScrollRestore({ restoreOnLoad: true });
+  } else {
+    shellDialog.scheduleScrollRestore?.(null);
+  }
+  await refreshOutboundQueueFromServer();
+  await shellDialog.refreshHistory?.({ replace: true, restoreScroll });
+  if (!restoreScroll) {
+    shellDialog.stickToBottomAndScroll?.({ smooth: false });
+  }
+  syncCompactQa();
+}
+
 function beginQueuedTurnStream(processing) {
   const text = String(processing?.text || processing?.body || "").trim();
   state.messageStopped = false;
@@ -3093,7 +3126,7 @@ function syncQueueDialogTurn(queue) {
   if (!streamActive) beginQueuedTurnStream(processing);
   void shellDialog.refreshHistory?.().then(() => {
     shellDialog.syncLiveReplySlot?.();
-    shellDialog.scrollToBottomIfNear?.();
+    shellDialog.stickToBottomAndScroll?.({ smooth: true });
     syncCompactQa();
   });
 }
@@ -6881,7 +6914,6 @@ async function sendMessageDirect(
   const text = (await shellComposePage?.appendPageContextIfEnabled?.(expandedText)) || expandedText;
   if (!text) return;
   const alreadyBusy = isActiveMessageTurn();
-  const stickScroll = shellDialog.isScrollNearBottom?.() ?? false;
   const turnComplete = alreadyBusy ? null : beginMessageTurn();
   shellLog("message", `${author}${voice ? " · voice" : ""}`, expandedText.slice(0, 160));
   shellProactive?.bumpActivity();
@@ -6899,7 +6931,7 @@ async function sendMessageDirect(
   shellPresenceController?.ping({ interact: true });
   renderMessageQueue();
   updateSendButtonLabel();
-  if (stickScroll) shellDialog.scrollToBottomIfNear?.();
+  if (showInDialog) shellDialog.stickToBottomAndScroll?.({ smooth: true });
   const target = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
   const streamingQwenPaw = usesQwenPawTarget(target);
   messageSendAbortController?.abort();
@@ -7632,7 +7664,7 @@ async function persistMessageTarget(runtime) {
       { baselineSection: "route", commitSection: !isSettingsViewOpen() }
     );
     refreshRuntimeSelectLabels();
-    void shellDialog.refreshHistory?.();
+    await reloadShellDialogContext({ restoreScroll: false });
   } finally {
     endHeroAutosave("messageTarget");
   }
@@ -9255,7 +9287,7 @@ function handleMessageTargetChange() {
   markSettingsDirty("route");
   syncRuntimeSelects("header");
   updateRuntimeUi({ runtime });
-  void persistMessageTarget(runtime).then(() => shellDialog.refreshHistory?.());
+  void persistMessageTarget(runtime);
 }
 
 function handleRouteRuntimeChange() {
@@ -9877,9 +9909,7 @@ async function connectShellAgentData() {
   void pullRuntimeStatuses();
   try {
     connectStream();
-    prepareDialogScrollRestore({ restoreOnLoad: true });
-    await refreshOutboundQueueFromServer();
-    await shellDialog.refreshHistory?.({ restoreScroll: true });
+    await reloadShellDialogContext({ restoreScroll: true });
     await syncShellReplyAfterConnect("agent connect");
     await loadComposeDraft();
     syncComposeReadyStatus();
