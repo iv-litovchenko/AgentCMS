@@ -3387,6 +3387,8 @@ function renderMessageQueue() {
 
   nodes.messageQueue?.classList.toggle("hidden", !showQueue);
   nodes.messageQueueActive?.classList.toggle("hidden", !hasActive);
+  const totalMessages = (hasActive ? 1 : 0) + outboundQueue.length;
+  nodes.messageQueue?.classList.toggle("is-single", showQueue && totalMessages === 1);
   if (nodes.messageQueueActiveText) {
     nodes.messageQueueActiveText.textContent = state.processingMessage || "";
   }

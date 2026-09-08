@@ -6300,6 +6300,16 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
   border: 1px solid rgba(122, 108, 255, 0.2);
 }
 
+.shell-compose-panel .shell-message-queue.is-single {
+  margin-bottom: 0;
+  gap: 0;
+  padding-bottom: 8px;
+}
+
+.shell-message-queue-list:empty {
+  display: none;
+}
+
 .shell-message-queue.hidden {
   display: none;
 }
