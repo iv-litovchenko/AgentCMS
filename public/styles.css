@@ -21430,6 +21430,57 @@ a.header-tool-btn {
   color: #94a3b8;
 }
 
+.create-display-name-hint {
+  margin: 4px 0 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #b91c1c;
+}
+
+.create-display-name-hint.hidden {
+  display: none;
+}
+
+.popover-input.is-display-name-long,
+.title-input.is-display-name-long {
+  border-color: rgba(185, 28, 28, 0.58);
+  background: linear-gradient(180deg, rgba(254, 242, 242, 0.82), #fff);
+  color: #991b1b;
+}
+
+.popover-input.is-display-name-long:focus,
+.title-input.is-display-name-long:focus {
+  border-color: rgba(185, 28, 28, 0.78);
+  box-shadow: 0 0 0 3px rgba(254, 202, 202, 0.42);
+}
+
+.editor-title-bar .title-input.is-display-name-long:focus {
+  box-shadow: 0 0 0 3px rgba(254, 202, 202, 0.42);
+}
+
+#create-section-modal .create-display-name-hint {
+  margin-bottom: 8px;
+}
+
+.editor-title-field-value > .create-display-name-hint {
+  margin: 4px 0 8px;
+}
+
+.create-memory-name-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.create-memory-name-field .create-display-name-hint {
+  margin: 0;
+}
+
+.create-node-manual-section .create-display-name-hint {
+  margin-bottom: 8px;
+}
+
 .create-node-manual-section .slug-field-row {
   margin-top: 8px;
 }

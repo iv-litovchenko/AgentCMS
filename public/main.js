@@ -19468,6 +19468,7 @@ function prepareRenameModalFields({ message, nameLabel, slugLabel, displayName, 
   createSectionModalNode.classList.remove("hidden");
   createSectionNameInputNode.focus();
   createSectionNameInputNode.select();
+  syncDisplayNameLengthHint(createSectionNameInputNode);
 }
 
 function openRenameMenuNodeModal(state) {
@@ -24258,6 +24259,7 @@ function closeCreateNodeModal() {
   createModalAdoptFolder = false;
   if (createNameInputNode) createNameInputNode.value = "";
   if (createSlugInputNode) createSlugInputNode.value = "";
+  syncDisplayNameLengthHint(createNameInputNode);
   setCreateSlugLinked(true);
   createNodeRootWrapNode?.classList.add("hidden");
   createNodeReservedWrapNode?.classList.add("hidden");
@@ -24286,6 +24288,7 @@ function openCreateNodeModal(parentPath, options = {}) {
     createNameInputNode.focus();
   }
   syncCreateSlugFromDisplayName();
+  syncDisplayNameLengthHint(createNameInputNode);
 }
 
 function toggleFolderCollapsed(folderPath, agentId = activeAgentId) {
@@ -36759,6 +36762,7 @@ function setTitleLockedInput(label) {
     titleDescriptionInputNode.value = "";
     titleDescriptionInputNode.disabled = true;
   }
+  syncDisplayNameLengthHint(titleInputNode);
 }
 
 function syncTitleInputEditableState() {
@@ -36835,6 +36839,7 @@ function syncMediaSidecarTitleFields() {
     applyTitleSlugLinkedUi();
     titleSlugRowNode?.classList.add("hidden");
     syncTitleDescriptionFromNode(filePath);
+    syncDisplayNameLengthHint(titleInputNode);
     return;
   }
   if (!isMediaSidecarEditing() || !activeMediaSidecarSourcePath || !titleInputNode) return;
@@ -36857,6 +36862,7 @@ function syncMediaSidecarTitleFields() {
   applyTitleSlugLinkedUi();
   showTitleSlugRow(filePath);
   syncTitleDescriptionFromNode(filePath);
+  syncDisplayNameLengthHint(titleInputNode);
 }
 
 function getMediaSidecarFileName(filePath = activeMediaSidecarSourcePath) {
@@ -51523,6 +51529,7 @@ async function openFlatStorageFileFromOverview(memoryKind, relativePath) {
 function resetCreateMemoryNameInputs() {
   for (const input of createMemoryNameInputNodes) input.value = "";
   for (const controller of createMemorySlugControllers) controller.reset();
+  for (const input of createMemoryNameInputNodes) syncDisplayNameLengthHint(input);
 }
 
 function shouldShowCreateMemoryFormatFieldset() {
@@ -51909,6 +51916,7 @@ async function openCreateMemoryModal(entryOverviewContext = null) {
   createMemoryOkBtn.textContent = "Создать";
   createMemoryModalNode.classList.remove("hidden");
   createMemoryNameInputNodes[0]?.focus();
+  for (const input of createMemoryNameInputNodes) syncDisplayNameLengthHint(input);
 }
 
 function closeCreateMemoryModal() {
@@ -52150,12 +52158,14 @@ function openCreateSectionModal(targetMode = "external", { entryOverviewContext 
   syncCreateSectionAfterFieldsetVisibility();
   createSectionModalNode.classList.remove("hidden");
   createSectionNameInputNode.focus();
+  syncDisplayNameLengthHint(createSectionNameInputNode);
 }
 
 function closeCreateSectionModal() {
   createSectionModalNode.classList.add("hidden");
   createSectionNameInputNode.value = "";
   createSectionSlugController?.reset();
+  syncDisplayNameLengthHint(createSectionNameInputNode);
   createSectionParentFolder = null;
   renameSectionState = null;
   renameMenuNodeState = null;
@@ -77031,6 +77041,78 @@ function getSlugTranslitApi() {
   return typeof SlugTranslit !== "undefined" ? SlugTranslit : null;
 }
 
+const CREATE_DISPLAY_NAME_SOFT_MAX = 32;
+const CREATE_DISPLAY_NAME_HINT_TEXT = `Название длиннее ${CREATE_DISPLAY_NAME_SOFT_MAX} символов — в меню и карточках будет обрезаться. Лучше короче.`;
+
+function findDisplayNameHintElement(input) {
+  if (!input) return null;
+  const directNext = input.nextElementSibling;
+  if (directNext?.classList?.contains("create-display-name-hint")) return directNext;
+  const fieldValue = input.closest(".editor-title-field-value");
+  if (fieldValue) {
+    const hint = fieldValue.querySelector(":scope > .create-display-name-hint");
+    if (hint) return hint;
+  }
+  return input.parentElement?.querySelector(":scope > .create-display-name-hint") || null;
+}
+
+function syncDisplayNameLengthHint(input) {
+  if (!input) return;
+  const len = String(input.value || "").length;
+  const isLong = len > CREATE_DISPLAY_NAME_SOFT_MAX;
+  input.classList.toggle("is-display-name-long", isLong);
+  const hint = findDisplayNameHintElement(input);
+  if (hint) hint.classList.toggle("hidden", !isLong);
+}
+
+function ensureDisplayNameLengthHint(input, { wrapMemoryField = false, insertAfter = null } = {}) {
+  if (!input) return;
+  let host = input.parentElement;
+  if (wrapMemoryField && !host?.classList.contains("create-memory-name-field")) {
+    const wrap = document.createElement("div");
+    wrap.className = "create-memory-name-field";
+    input.parentNode?.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    host = wrap;
+  }
+  let hint = findDisplayNameHintElement(input);
+  if (!hint) {
+    hint = document.createElement("p");
+    hint.className = "create-display-name-hint hidden";
+    hint.textContent = CREATE_DISPLAY_NAME_HINT_TEXT;
+    if (insertAfter) {
+      insertAfter.insertAdjacentElement("afterend", hint);
+    } else {
+      input.insertAdjacentElement("afterend", hint);
+    }
+  }
+  if (input.dataset.displayNameHintBound !== "1") {
+    input.dataset.displayNameHintBound = "1";
+    input.addEventListener("input", () => syncDisplayNameLengthHint(input));
+  }
+  syncDisplayNameLengthHint(input);
+}
+
+function ensureCreateDisplayNameHint(input, options = {}) {
+  ensureDisplayNameLengthHint(input, options);
+}
+
+function initTitleDisplayNameHint() {
+  if (!titleInputNode) return;
+  const fieldValue = titleInputNode.closest(".editor-title-field-value");
+  const titleRow = fieldValue?.querySelector(".title-row");
+  ensureDisplayNameLengthHint(titleInputNode, { insertAfter: titleRow || null });
+}
+
+function initCreateDisplayNameHints() {
+  ensureDisplayNameLengthHint(createNameInputNode);
+  ensureDisplayNameLengthHint(createSectionNameInputNode);
+  for (const input of createMemoryNameInputNodes) {
+    ensureDisplayNameLengthHint(input, { wrapMemoryField: true });
+  }
+  initTitleDisplayNameHint();
+}
+
 function createSlugFieldController({ nameInput, slugInput, unlinkBtn }) {
   let linked = true;
 
@@ -77324,6 +77406,7 @@ function syncTitleFieldsFromNode(nodePath = getActiveTitleEditorPath()) {
   applyTitleSlugLinkedUi();
   showTitleSlugRow(nodePath);
   syncTitleDescriptionFromNode(nodePath);
+  syncDisplayNameLengthHint(titleInputNode);
 }
 
 function getNodeSlugFromPath(filePath) {
@@ -95171,6 +95254,7 @@ propsInputNode?.addEventListener("input", () => {
 });
 titleInputNode?.addEventListener("input", () => {
   syncTitleSlugFromDisplayName();
+  syncDisplayNameLengthHint(titleInputNode);
   const titlePath = getActiveTitleEditorPath();
   if (activeContentMode === "description" && activePath && !isPartNodePath(activePath)) {
     syncDisplayNameIntoAwnNameProp(activePath);
@@ -95213,6 +95297,7 @@ titleDescriptionInputNode?.addEventListener("input", () => {
 });
 createNameInputNode?.addEventListener("input", () => {
   syncCreateSlugFromDisplayName();
+  syncDisplayNameLengthHint(createNameInputNode);
 });
 createSlugInputNode?.addEventListener("input", () => {
   if (!createSlugLinked && createSlugInputNode) {
@@ -95719,6 +95804,7 @@ applyTitleSlugLinkedUi();
 applyCreateSlugLinkedUi();
 initCreateSectionSlugController();
 initCreateMemorySlugControllers();
+initCreateDisplayNameHints();
 initCreateMemoryFormatPicker();
 void fetchDocsMeta()
   .then(() => syncAllDocVersionSelects(readStoredDocVersion()))
