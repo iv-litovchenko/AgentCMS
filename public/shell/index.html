@@ -1581,6 +1581,290 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <li>Capabilities manifest: разные наборы для macOS vs iOS</li>
           </ul>
         </div>
+        <hr class="shell-footer-divider" />
+        <div class="shell-label">TODO · маркеры vs метки (дословно из чата)</div>
+        <div class="shell-footer-prose">
+          <p>Понял разницу:</p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Тип</th>
+                  <th scope="col">Пример</th>
+                  <th scope="col">Смысл</th>
+                  <th scope="col">Что с ним делать</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Маркер замены</strong></td>
+                  <td><code>{{tpl:brief}}</code></td>
+                  <td>«подставь инструкцию»</td>
+                  <td>Развернуть для агента, в чате показать <strong>исходник</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Метка структуры</strong></td>
+                  <td><code>{{shell:voice-end}}</code></td>
+                  <td>«здесь граница блоков»</td>
+                  <td>Не трогать, всегда видна в чате</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Ниже — варианты, как это можно было бы оформить <strong>по-другому</strong>, чтобы путаницы не было.</p>
+
+          <p><strong>1. Разные синтаксисы (самое наглядное)</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Вариант</th>
+                  <th scope="col">Замена (compose)</th>
+                  <th scope="col">Метка (структура)</th>
+                  <th scope="col">Плюсы</th>
+                  <th scope="col">Минусы</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>A. Сейчас</strong></td>
+                  <td><code>{{tpl:brief}}</code></td>
+                  <td><code>{{shell:voice-end}}</code></td>
+                  <td>Один стиль <code>{{…}}</code>, namespace отличает</td>
+                  <td>Визуально похожи — легко перепутать</td>
+                </tr>
+                <tr>
+                  <td><strong>B. Разные скобки</strong></td>
+                  <td><code>[[tpl:brief]]</code> или <code>@brief</code></td>
+                  <td><code>{{shell:voice-end}}</code></td>
+                  <td>Сразу видно: «это другое»</td>
+                  <td>Два формата в голове</td>
+                </tr>
+                <tr>
+                  <td><strong>C. Префикс-команда</strong></td>
+                  <td><code>/brief</code> в начале строки</td>
+                  <td><code>--- voice-end ---</code></td>
+                  <td>Как slash-команды в чатах</td>
+                  <td>Сложнее парсить в markdown</td>
+                </tr>
+                <tr>
+                  <td><strong>D. HTML-like</strong></td>
+                  <td><code>&lt;cmd tpl="brief"/&gt;</code></td>
+                  <td><code>&lt;voice-end/&gt;</code></td>
+                  <td>Явно «тег vs команда»</td>
+                  <td>Некрасиво в plain text</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p><strong>2. Разное поведение при отправке (один синтаксис, разные правила)</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Правило</th>
+                  <th scope="col"><code>tpl:*</code></th>
+                  <th scope="col"><code>shell:*</code></th>
+                  <th scope="col">В чате</th>
+                  <th scope="col">Агенту</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Expand-on-send</strong></td>
+                  <td>✅ заменить на текст</td>
+                  <td>❌ не трогать</td>
+                  <td>Оба как в compose</td>
+                  <td><code>tpl</code> → текст, <code>shell</code> → как есть</td>
+                </tr>
+                <tr>
+                  <td><strong>Expand + chip</strong></td>
+                  <td>✅ + chip «было: brief»</td>
+                  <td>❌</td>
+                  <td>Chip под сообщением</td>
+                  <td>Как выше</td>
+                </tr>
+                <tr>
+                  <td><strong>Dual storage</strong></td>
+                  <td>хранить <code>raw</code> + <code>expanded</code></td>
+                  <td>только <code>raw</code></td>
+                  <td>Всегда <code>raw</code></td>
+                  <td><code>expanded</code> для API · Лучше для «восстановить потом»</td>
+                </tr>
+                <tr>
+                  <td><strong>Toggle в UI</strong></td>
+                  <td>«Показать развёрнутое»</td>
+                  <td>всегда метка</td>
+                  <td>Переключатель</td>
+                  <td>Без изменений</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p><strong>3. Разные namespace / префиксы (логика в имени)</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Namespace</th>
+                  <th scope="col">Семантика</th>
+                  <th scope="col">Пример</th>
+                  <th scope="col">Поведение</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>tpl:</code></td>
+                  <td>шаблон → замена</td>
+                  <td><code>{{tpl:brief}}</code></td>
+                  <td>expand</td>
+                </tr>
+                <tr>
+                  <td><code>shell:</code></td>
+                  <td>системная метка</td>
+                  <td><code>{{shell:voice-end}}</code></td>
+                  <td>passthrough</td>
+                </tr>
+                <tr>
+                  <td><code>page:</code></td>
+                  <td>контекст страницы</td>
+                  <td><code>{{page:current}}</code></td>
+                  <td>expand (скрытый блок)</td>
+                </tr>
+                <tr>
+                  <td><code>var:</code></td>
+                  <td>переменная сессии</td>
+                  <td><code>{{var:last_topic}}</code></td>
+                  <td>expand</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Идея: <strong>по префиксу</strong> код знает: «заменять или оставить».</p>
+
+          <p><strong>4. Как показывать в чате (чтобы не потерять смысл)</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Подход</th>
+                  <th scope="col">Замена <code>{{tpl:brief}}</code></th>
+                  <th scope="col">Метка <code>{{shell:voice-end}}</code></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Только raw</strong></td>
+                  <td><code>{{tpl:brief}}</code> chip</td>
+                  <td>разделитель с меткой</td>
+                </tr>
+                <tr>
+                  <td><strong>Raw + tooltip</strong></td>
+                  <td>chip, hover → «Ответ кратко»</td>
+                  <td>tooltip «голос / экран»</td>
+                </tr>
+                <tr>
+                  <td><strong>Raw + footnote</strong></td>
+                  <td>«Отправлено как: …» мелким текстом</td>
+                  <td>не нужно</td>
+                </tr>
+                <tr>
+                  <td><strong>Свернуть expanded</strong></td>
+                  <td>кнопка «показать, что ушло агенту»</td>
+                  <td>метка всегда на месте</td>
+                </tr>
+                <tr>
+                  <td><strong>Два слоя истории</strong></td>
+                  <td><code>displayBody</code> / <code>apiBody</code></td>
+                  <td>один слой, метка в <code>displayBody</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p><strong>5. Что я бы рекомендовал (если переделывать «чисто»)</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Роль</th>
+                  <th scope="col">Синтаксис</th>
+                  <th scope="col">Отправка</th>
+                  <th scope="col">В чате</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Шаблон (замена)</strong></td>
+                  <td><code>{{tpl:brief}}</code></td>
+                  <td>→ текст из settings</td>
+                  <td><strong>всегда маркер</strong>, expanded — по клику</td>
+                </tr>
+                <tr>
+                  <td><strong>Метка (структура)</strong></td>
+                  <td><code>{{shell:voice-end}}</code></td>
+                  <td>как есть</td>
+                  <td><strong>разделитель</strong>, не удалять</td>
+                </tr>
+                <tr>
+                  <td><strong>Правило в коде</strong></td>
+                  <td><code>tpl:*</code> = expand</td>
+                  <td colspan="2"><code>shell:*</code> = passthrough</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>То есть не один «маркер на всё», а <strong>два класса</strong>:</p>
+          <pre class="shell-footer-diagram">{{tpl:*}}     → macro (макрос, подставляется)
+{{shell:*}}   → marker (метка, остаётся)</pre>
+
+          <p><strong>6. Альтернатива: вообще убрать замену из текста</strong></p>
+          <div class="shell-todo-table-wrap">
+            <table class="shell-todo-table">
+              <thead>
+                <tr>
+                  <th scope="col">Вариант</th>
+                  <th scope="col">Как работает</th>
+                  <th scope="col">Плюс</th>
+                  <th scope="col">Минус</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Chips над полем</strong></td>
+                  <td>шаблоны не в тексте, а badges над compose</td>
+                  <td>В тексте нет «исчезающих» маркеров</td>
+                  <td>Не видно в копируемом тексте</td>
+                </tr>
+                <tr>
+                  <td><strong>Отдельное поле API</strong></td>
+                  <td><code>message</code> + <code>instructions[]</code></td>
+                  <td>Чистое разделение</td>
+                  <td>Сложнее UI и протокол</td>
+                </tr>
+                <tr>
+                  <td><strong>Системный prompt</strong></td>
+                  <td>шаблоны → в system, не в user message</td>
+                  <td>История чата чистая</td>
+                  <td>Меньше контроля «на это сообщение»</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            <strong>Кратко:</strong> проблема не в <code>{{…}}</code> как таковых, а в том, что
+            <strong>один формат смешивает два разных смысла</strong>. Либо развести синтаксис
+            (<code>tpl</code> vs <code>shell</code>), либо развести поведение (expand vs passthrough)
+            и <strong>всегда хранить raw в чате</strong>, а expanded — отдельно или по клику.
+          </p>
+          <p>
+            Если скажешь, какой столбец из таблицы ближе (B — разные скобки, dual storage, chips без текста и т.д.),
+            можно спроектировать это точечно под Shell.
+          </p>
+        </div>
         <p class="shell-footer-note">
           Mac-приложение: <code>npm run shell:dist</code>, затем
           <code>npm run shell:open</code>
