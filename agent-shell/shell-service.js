@@ -954,7 +954,10 @@ async function probeAllRuntimeStatuses(settings) {
     "CLI не найден — проверьте PATH или codexCliPath (codex --version)"
   );
 
-  const installed = ["claude", "codex", "qwenpaw"].filter((runtime) => statuses[runtime]?.installed);
+  const installed = ["claude", "codex", "qwenpaw"].filter((runtime) => {
+    if (runtime === "qwenpaw") return isRuntimeImplemented(runtime);
+    return statuses[runtime]?.installed;
+  });
   const available = SHELL_RUNTIMES.filter((runtime) => isRuntimeImplemented(runtime));
 
   return {

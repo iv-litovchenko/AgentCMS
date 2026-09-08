@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=543" />
+    <link rel="stylesheet" href="/shell/shell.css?v=544" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -633,10 +633,16 @@
             Включение — кнопка <strong>✨ Проактив</strong> внизу экрана или чекбокс ниже.
             Плейсхолдеры: <code>{{idle_seconds}}</code>, <code>{{idle_minutes}}</code>.
           </p>
-          <label class="shell-check shell-proactive-check">
-            <input id="shell-proactive-enabled" type="checkbox" />
-            <span>Включить проактивность</span>
-          </label>
+          <div class="shell-proactive-enable-block">
+            <label class="shell-check shell-proactive-check">
+              <input id="shell-proactive-enabled" type="checkbox" />
+              <span>Включить проактивность</span>
+            </label>
+            <p class="shell-proactive-natural-note">
+              <span class="shell-proactive-future-badge">скоро</span>
+              Пока галочка выключена — естественная проактивность: по звукам, действиям пользователя и контексту, без пингов по таймеру.
+            </p>
+          </div>
           <div class="shell-proactive-grid">
             <label class="shell-field shell-field--compact">
               <span class="shell-label">Бездействие, от (сек)</span>
@@ -2862,6 +2868,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=556" type="module"></script>
+    <script src="/shell/shell.js?v=558" type="module"></script>
   </body>
 </html>

@@ -5421,11 +5421,11 @@ function getSelectedRuntime() {
 
 function getSelectableRuntimes() {
   const implemented = SHELL_RUNTIMES.filter((runtime) => isRuntimeImplemented(runtime));
-  const installed = Array.isArray(state.installedRuntimes)
-    ? state.installedRuntimes.map((item) => normalizeMessageRuntime(item))
+  const fromServer = Array.isArray(state.availableRuntimes)
+    ? state.availableRuntimes.map((item) => normalizeMessageRuntime(item)).filter((runtime) => isRuntimeImplemented(runtime))
     : [];
-  if (!installed.length) return implemented;
-  return implemented.filter((runtime) => installed.includes(runtime));
+  if (fromServer.length) return fromServer;
+  return implemented;
 }
 
 function createRuntimeSelectOption(runtime, current, available, { showVersion = false } = {}) {
@@ -5439,20 +5439,16 @@ function createRuntimeSelectOption(runtime, current, available, { showVersion = 
     return opt;
   }
   const status = getRuntimeStatus(runtime);
-  const installed =
-    !status ||
-    status.installed !== false ||
-    (runtimeUsesCli(runtime) && String(status.version || "").trim());
-  const selectable = available.includes(runtime) && installed;
+  const selectable = available.includes(runtime);
   const conn = resolveRuntimeConnectionState(runtime, status, { implemented: true });
   opt.value = runtime;
   opt.textContent = formatRuntimeSelectLabel(runtime, {
-    implemented: selectable,
+    implemented: true,
     status,
     conn,
     showVersion
   });
-  opt.title = formatRuntimeStatusTitle(runtime, status, { implemented: selectable });
+  opt.title = formatRuntimeStatusTitle(runtime, status, { implemented: true });
   opt.disabled = !selectable;
   if (runtime === current) opt.selected = true;
   return opt;
@@ -5500,23 +5496,17 @@ function refreshRuntimeSelectLabels() {
       if (!SHELL_RUNTIMES.includes(runtime)) continue;
       const implemented = isRuntimeImplemented(runtime);
       const status = implemented ? getRuntimeStatus(runtime) : null;
-      const installed =
-        !status ||
-        status.installed !== false ||
-        (runtimeUsesCli(runtime) && String(status.version || "").trim());
-      const selectable = implemented && available.includes(runtime) && installed;
-      const conn = selectable
+      const selectable = implemented && available.includes(runtime);
+      const conn = implemented
         ? resolveRuntimeConnectionState(runtime, status, { implemented: true })
-        : implemented
-          ? resolveRuntimeConnectionState(runtime, status, { implemented: true })
-          : "soon";
+        : "soon";
       opt.textContent = formatRuntimeSelectLabel(runtime, {
-        implemented: selectable,
+        implemented,
         status,
         conn,
         showVersion
       });
-      opt.title = formatRuntimeStatusTitle(runtime, status, { implemented: selectable });
+      opt.title = formatRuntimeStatusTitle(runtime, status, { implemented });
       opt.disabled = !selectable;
       if (runtime === current) opt.selected = true;
     }
@@ -6027,10 +6017,9 @@ async function startNewQwenPawChat() {
   });
   applySettings(data.settings);
   updateQwenPawChatUi({ settings: data.settings, qwenpaw: { sessionId: data.sessionId, chatName: data.chatName } });
-  clearShellReply();
   lastHandledAssistantId = "";
   renderPhase("waiting", "Новый чат QwenPaw");
-  void shellDialog.refreshHistory?.();
+  await reloadShellDialogContext({ restoreScroll: false });
   nodes.qwenpawChatName?.focus();
   nodes.qwenpawChatName?.select();
   if (state.qwenpawChatsOpen) await loadQwenPawChats();
@@ -6043,11 +6032,10 @@ async function selectQwenPawChat(sessionId, chatName) {
   });
   applySettings(data.settings);
   updateQwenPawChatUi({ settings: data.settings, qwenpaw: { sessionId: data.sessionId, chatName: data.chatName } });
-  clearShellReply();
   lastHandledAssistantId = "";
   setQwenPawChatsOpen(false);
   renderPhase("waiting", `Чат: ${data.chatName || data.sessionId}`);
-  void shellDialog.refreshHistory?.();
+  await reloadShellDialogContext({ restoreScroll: false });
   if (state.qwenpawChatsOpen) await loadQwenPawChats();
 }
 
@@ -7734,12 +7722,12 @@ async function persistMessageTarget(runtime) {
   });
   beginHeroAutosave("messageTarget");
   try {
+    await reloadShellDialogContext({ restoreScroll: false });
     await persistAgentSettingsPatch(
       { messageTarget: target },
       { baselineSection: "route", commitSection: !isSettingsViewOpen() }
     );
     refreshRuntimeSelectLabels();
-    await reloadShellDialogContext({ restoreScroll: false });
   } finally {
     endHeroAutosave("messageTarget");
   }

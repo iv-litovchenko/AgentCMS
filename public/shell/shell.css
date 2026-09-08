@@ -7728,6 +7728,40 @@ body.shell-bg-wallpaper .shell-character-viewport {
   border: 1px solid rgba(124, 108, 255, 0.12);
 }
 
+.shell-proactive-enable-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shell-proactive-natural-note {
+  display: none;
+  margin: 0;
+  padding: 0 10px 2px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.shell-proactive-enable-block:has(#shell-proactive-enabled:not(:checked)) .shell-proactive-natural-note {
+  display: block;
+}
+
+.shell-proactive-future-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+  background: rgba(124, 108, 255, 0.12);
+  border: 1px solid rgba(124, 108, 255, 0.2);
+  vertical-align: 0.05em;
+}
+
 .shell-proactive-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
