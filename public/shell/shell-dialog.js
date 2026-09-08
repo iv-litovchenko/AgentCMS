@@ -59,8 +59,11 @@ function normalizeThreadOrder(items) {
 
     const tools = turnRest.filter(isToolHistoryItem);
     const agents = turnRest.filter((entry) => entry?.role === "agent");
-    const other = turnRest.filter((entry) => !isToolHistoryItem(entry) && entry?.role !== "agent");
-    out.push(...tools, ...agents, ...other);
+    const errors = turnRest.filter((entry) => entry?.role === "error");
+    const other = turnRest.filter(
+      (entry) => !isToolHistoryItem(entry) && entry?.role !== "agent" && entry?.role !== "error"
+    );
+    out.push(...tools, ...agents, ...errors, ...other);
   }
   return out;
 }
@@ -166,12 +169,13 @@ function toolHistoryKey(item) {
 
 function messageHistoryKey(item) {
   const role = String(item?.role || "").trim();
-  if (role !== "user" && role !== "agent") return "";
+  if (role !== "user" && role !== "agent" && role !== "error") return "";
   const body = String(item.body || "")
     .replace(/\s+/g, " ")
     .trim();
   if (!body) return "";
-  return `${role}:${body}`;
+  const at = Number(item.at) || 0;
+  return `${role}:${at}:${body}`;
 }
 
 function mergeDialogHistory(archived, preserved = []) {
@@ -242,6 +246,7 @@ function dedupeAdjacentHistory(items) {
 
 function historyRoleLabel(item) {
   if (item?.role === "tool") return item?.tool || "Tool";
+  if (item?.role === "error") return "Ошибка";
   if (item?.label) return item.label;
   if (item?.role === "agent") return "AI";
   return "Human (человек)";
@@ -249,6 +254,7 @@ function historyRoleLabel(item) {
 
 function historyAvatarLabel(item) {
   if (item?.role === "tool") return "🔧";
+  if (item?.role === "error") return "⚠";
   return item?.role === "agent" ? "AI" : "H";
 }
 
@@ -737,6 +743,8 @@ export function createShellDialog(options = {}) {
   function pushHistory(role, body) {
     const text = String(body || "").trim();
     if (!text) return;
+    const last = history[history.length - 1];
+    if (last?.role === role && String(last.body || "").trim() === text) return;
     const item = {
       role,
       body: text,
@@ -750,6 +758,23 @@ export function createShellDialog(options = {}) {
     history.push(item);
     if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
     renderHistoryUi();
+  }
+
+  function pushThreadError(message, { hint = "" } = {}) {
+    const text = String(message || "").trim();
+    if (!text) return;
+    const body = hint ? `${text} — ${hint}` : text;
+    const last = history[history.length - 1];
+    if (last?.role === "error" && last.body === body) return;
+    const stickToBottom = isScrollNearBottom();
+    pushHistory("error", body);
+    if (stickToBottom) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          scrollDialogToBottom({ smooth: true });
+        });
+      });
+    }
   }
 
   async function copyMessageText(text, btn) {
@@ -1001,11 +1026,48 @@ export function createShellDialog(options = {}) {
     renderHistoryUi();
   }
 
+  function renderErrorThreadMessage(item) {
+    const row = document.createElement("div");
+    row.className = "shell-chat-row shell-chat-row--error";
+
+    const bubble = document.createElement("div");
+    bubble.className = "shell-chat-bubble shell-chat-bubble--error";
+
+    const el = document.createElement("div");
+    el.className = "shell-chat-msg shell-chat-msg--error";
+    el.dataset.role = "error";
+    el.setAttribute("role", "alert");
+    el.textContent = String(item.body || "").trim();
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "shell-chat-copy";
+    copyBtn.title = "Копировать";
+    copyBtn.setAttribute("aria-label", "Копировать ошибку");
+    copyBtn.textContent = "⎘";
+    copyBtn.addEventListener("click", () => {
+      void copyMessageText(item.body, copyBtn);
+    });
+
+    bubble.append(el, copyBtn);
+    row.append(bubble);
+
+    const clock = formatHistoryTime(item.at);
+    if (clock) {
+      const meta = document.createElement("div");
+      meta.className = "shell-chat-meta";
+      meta.textContent = clock;
+      row.append(meta);
+    }
+    return row;
+  }
+
   function renderThreadMessage(item) {
     if (item?.role === "tool") {
       if (!isMeaningfulToolItem(item)) return null;
       return renderToolThreadMessage(item);
     }
+    if (item?.role === "error") return renderErrorThreadMessage(item);
     const role = item?.role === "agent" ? "agent" : "user";
     const row = document.createElement("div");
     row.className = `shell-chat-row shell-chat-row--${role}`;
@@ -1173,6 +1235,8 @@ export function createShellDialog(options = {}) {
           body.textContent = parts.join("\n\n");
         } else if (item.role === "agent") {
           renderShellReplyBody(body, String(item.body || ""));
+        } else if (item.role === "error") {
+          body.textContent = String(item.body || "");
         } else {
           renderUserMessageBody(body, String(item.body || ""));
         }
@@ -1252,15 +1316,20 @@ export function createShellDialog(options = {}) {
     nodes.statusDot.setAttribute("aria-label", title);
   }
 
-  function setError(message, { hint = "" } = {}) {
-    if (!nodes.errorEl) return;
+  function setError(message, { hint = "", inThread = true } = {}) {
     if (!message) {
-      nodes.errorEl.classList.add("hidden");
-      nodes.errorEl.textContent = "";
+      if (nodes.errorEl) {
+        nodes.errorEl.classList.add("hidden");
+        nodes.errorEl.textContent = "";
+      }
       return;
     }
-    nodes.errorEl.textContent = hint ? `${message} — ${hint}` : message;
-    nodes.errorEl.classList.remove("hidden");
+    const text = hint ? `${message} — ${hint}` : message;
+    if (nodes.errorEl) {
+      nodes.errorEl.textContent = text;
+      nodes.errorEl.classList.remove("hidden");
+    }
+    if (inThread) pushThreadError(message, { hint });
   }
 
   function clearError() {
@@ -1402,6 +1471,7 @@ export function createShellDialog(options = {}) {
     bindReconnect,
     connectionHint,
     pushHistory,
+    pushThreadError,
     upsertToolActivity,
     clearLiveStreamTools,
     finalizeRunningTools,

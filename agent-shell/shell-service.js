@@ -202,6 +202,17 @@ const {
   saveShellVoiceRecord,
   sessionIdFromSettings
 } = require("./shell-dialog-log");
+const {
+  listShellMessageQueue,
+  enqueueShellMessage,
+  claimNextShellQueueItem,
+  finishShellQueueItem,
+  updateShellQueueItem,
+  removeShellQueueItem,
+  clearShellMessageQueue
+} = require("./shell-message-queue");
+
+const queueDrainJobs = new Map();
 
 function migrateVoiceInputMode(mode) {
   const raw = String(mode || "").trim();
@@ -1648,6 +1659,141 @@ async function sendToRuntime(deps, opts) {
   throw new Error(`Runtime ${getMessageRuntime(settings)} is not supported`);
 }
 
+async function resolveQueueScope(agentRoot, settings) {
+  const resolvedSettings = settings || (await readSettings(agentRoot));
+  const runtime = getMessageRuntime(resolvedSettings);
+  const sessionId = sessionIdFromSettings(resolvedSettings, runtime);
+  return { agentRoot, runtime, sessionId };
+}
+
+function emitShellQueueUpdate(agentId, scope) {
+  void listShellMessageQueue(scope)
+    .then((queue) => {
+      emitShellEvent(agentId, "queue_update", { queue });
+    })
+    .catch((error) => {
+      console.warn("[shell-queue] queue_update failed:", error?.message || error);
+    });
+}
+
+async function processShellQueueItem(deps, agentRoot, agentId, item, scope) {
+  const settings = await readSettings(agentRoot);
+  const outboundSettings = applyOutboundSettings(settings, {
+    ttsEnabled: item.ttsEnabled,
+    ttsPrompt: item.ttsPrompt
+  });
+  const runtime = getMessageRuntime(outboundSettings);
+  const body = applyDeviceContextToBody(String(item.body || "").trim(), item.deviceContext);
+  const ttsClientId = String(item.shellClientId || "").trim();
+  const author = String(item.author || "shell").trim() || "shell";
+
+  if (!/proactive/i.test(author)) {
+    await logShellDialogUser(agentRoot, body, runtime);
+  }
+  emitShellQueueUpdate(agentId, scope);
+
+  await patchState(agentRoot, agentId, {
+    phase: PHASE_THINKING,
+    phrase: String(item.displayPhrase || body).slice(0, 240),
+    lastTtsClientId: ttsClientId || undefined,
+    primaryClientId: ttsClientId || undefined,
+    shellSurfaceHost: item.surfaceHost || undefined,
+    shellSurfaceHint: item.surfaceHint || undefined,
+    shellSurfaceBackend: item.surfaceBackend || undefined
+  });
+
+  if (ttsClientId) {
+    shellPresence.upsertPresence(agentId, {
+      shellClientId: ttsClientId,
+      surfaceHost: item.surfaceHost,
+      surfaceHint: item.surfaceHint,
+      surfaceBackend: item.surfaceBackend,
+      hostUrl: item.hostUrl,
+      interact: true
+    });
+  }
+
+  await sendToRuntime(deps, {
+    agentRoot,
+    agentId,
+    settings: outboundSettings,
+    body,
+    ttsClientId,
+    author
+  });
+}
+
+async function drainShellMessageQueue(deps, agentRoot, agentId) {
+  const settings = await readSettings(agentRoot);
+  const scope = await resolveQueueScope(agentRoot, settings);
+  while (true) {
+    const item = await claimNextShellQueueItem(scope);
+    if (!item) break;
+
+    emitShellQueueUpdate(agentId, scope);
+
+    try {
+      await processShellQueueItem(deps, agentRoot, agentId, item, scope);
+      await finishShellQueueItem(scope, item.id);
+    } catch (error) {
+      const message = String(error?.message || error);
+      await finishShellQueueItem(scope, item.id, { error: message });
+      await patchState(agentRoot, agentId, {
+        phase: PHASE_WAITING,
+        phrase: message.slice(0, 200)
+      });
+      emitShellEvent(agentId, "message_error", { message, queueId: item.id });
+    }
+
+    emitShellQueueUpdate(agentId, scope);
+  }
+}
+
+function scheduleShellMessageQueueDrain(deps, agentRoot, agentId) {
+  const key = String(agentId || "");
+  if (queueDrainJobs.has(key)) return queueDrainJobs.get(key);
+  const job = drainShellMessageQueue(deps, agentRoot, agentId).finally(() => {
+    if (queueDrainJobs.get(key) === job) queueDrainJobs.delete(key);
+  });
+  queueDrainJobs.set(key, job);
+  return job;
+}
+
+async function submitShellMessage(deps, agentRoot, agentId, payload = {}) {
+  const settings = await readSettings(agentRoot);
+  const scope = await resolveQueueScope(agentRoot, settings);
+  const { item, queue } = await enqueueShellMessage(scope, payload);
+  emitShellQueueUpdate(agentId, scope);
+  scheduleShellMessageQueueDrain(deps, agentRoot, agentId);
+  return { item, queue };
+}
+
+async function getShellMessageQueue(agentRoot, settings) {
+  const scope = await resolveQueueScope(agentRoot, settings);
+  return listShellMessageQueue(scope);
+}
+
+async function patchShellQueueItem(agentRoot, agentId, id, patch = {}, settings) {
+  const scope = await resolveQueueScope(agentRoot, settings);
+  const result = await updateShellQueueItem(scope, id, patch);
+  emitShellQueueUpdate(agentId, scope);
+  return result;
+}
+
+async function deleteShellQueueItem(agentRoot, agentId, id, settings) {
+  const scope = await resolveQueueScope(agentRoot, settings);
+  const result = await removeShellQueueItem(scope, id);
+  emitShellQueueUpdate(agentId, scope);
+  return result;
+}
+
+async function resetShellMessageQueue(agentRoot, agentId, options = {}, settings) {
+  const scope = await resolveQueueScope(agentRoot, settings);
+  const result = await clearShellMessageQueue(scope, options);
+  emitShellQueueUpdate(agentId, scope);
+  return result;
+}
+
 async function findLatestAgentMessage(deps, settings) {
   const topicPath = String(settings.topicPath || DEFAULT_SETTINGS.topicPath).trim();
   const payload = await deps.listTopicThread({
@@ -1872,6 +2018,17 @@ async function buildStatusPayload(
     };
   }
 
+  const queue = await resolveQueueScope(agentRoot, settings)
+    .then((scope) => listShellMessageQueue(scope))
+    .catch(() => ({
+      processingId: null,
+      processing: null,
+      items: []
+    }));
+  if (queue.processing || queue.items.length) {
+    scheduleShellMessageQueueDrain(deps, agentRoot, agentId);
+  }
+
   let qwenpaw = { ok: false, configured: usesQwenPaw(settings) };
   let bridgeRuntime = { ok: false, configured: usesBridgeRuntime(settings), runtime: getMessageRuntime(settings) };
   let runtimeStatuses = {};
@@ -1948,6 +2105,7 @@ async function buildStatusPayload(
           author: latestAgent.author
         }
       : null,
+    queue,
     presence: shellPresence.buildPresencePayload(agentId, stateOut)
   };
 }
@@ -2014,6 +2172,14 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
     }
     if (entry.type === "agent_activity") {
       push("agent_activity", entry.payload || {});
+      return;
+    }
+    if (entry.type === "queue_update") {
+      push("queue_update", entry.payload || {});
+      return;
+    }
+    if (entry.type === "message_error") {
+      push("message_error", entry.payload || {});
       return;
     }
     if (entry.type === "presence") {
@@ -2116,5 +2282,11 @@ module.exports = {
   requestScreenSnapshot,
   completeScreenSnapshotRequest,
   saveSpeechScreenSnapshot,
-  getLatestScreenSnapshot
+  getLatestScreenSnapshot,
+  submitShellMessage,
+  getShellMessageQueue,
+  patchShellQueueItem,
+  deleteShellQueueItem,
+  resetShellMessageQueue,
+  scheduleShellMessageQueueDrain
 };

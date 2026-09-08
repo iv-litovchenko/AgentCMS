@@ -251,6 +251,68 @@ function createShellHandlers(deps) {
       return true;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/shell/queue") {
+      try {
+        const settings = await shellService.readSettings(agentRoot);
+        const queue = await shellService.getShellMessageQueue(agentRoot, settings);
+        deps.sendJson(res, 200, { agentId, queue });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to read shell queue",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "DELETE" && url.pathname === "/api/shell/queue") {
+      try {
+        const settings = await shellService.readSettings(agentRoot);
+        const payload = await deps.readJsonBody(req).catch(() => ({}));
+        const result = await shellService.resetShellMessageQueue(agentRoot, agentId, {
+          pendingOnly: payload?.pendingOnly !== false
+        }, settings);
+        deps.sendJson(res, 200, { agentId, ...result });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to clear shell queue",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "PATCH" && url.pathname.startsWith("/api/shell/queue/")) {
+      try {
+        const settings = await shellService.readSettings(agentRoot);
+        const id = decodeURIComponent(url.pathname.slice("/api/shell/queue/".length)).trim();
+        const payload = await deps.readJsonBody(req);
+        const result = await shellService.patchShellQueueItem(agentRoot, agentId, id, payload || {}, settings);
+        deps.sendJson(res, 200, { agentId, ...result });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to update shell queue item",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "DELETE" && url.pathname.startsWith("/api/shell/queue/")) {
+      try {
+        const settings = await shellService.readSettings(agentRoot);
+        const id = decodeURIComponent(url.pathname.slice("/api/shell/queue/".length)).trim();
+        const result = await shellService.deleteShellQueueItem(agentRoot, agentId, id, settings);
+        deps.sendJson(res, 200, { agentId, ...result });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to delete shell queue item",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/shell/message") {
       try {
         const payload = await deps.readJsonBody(req);
@@ -260,10 +322,6 @@ function createShellHandlers(deps) {
           return true;
         }
         const settings = await shellService.readSettings(agentRoot);
-        const outboundSettings = shellService.applyOutboundSettings(settings, {
-          ttsEnabled: payload?.ttsEnabled,
-          ttsPrompt: payload?.ttsPrompt
-        });
         const voiceInput = Boolean(payload?.voice) || String(payload?.author || "") === "sidecar";
         const deviceContext =
           payload?.deviceContext && typeof payload.deviceContext === "object" ? payload.deviceContext : null;
@@ -309,28 +367,6 @@ function createShellHandlers(deps) {
         const runtime = shellService.getMessageRuntime(settings);
         const ttsClientId = String(payload?.shellClientId || payload?.clientId || "").trim();
         const author = String(payload?.author || "shell").trim() || "shell";
-        void shellService.logShellDialogUser(agentRoot, body, runtime);
-
-        shellService.patchStateAsync(agentRoot, agentId, {
-          phase: shellService.PHASE_THINKING,
-          phrase: String(payload?.displayPhrase || body).slice(0, 240),
-          lastTtsClientId: ttsClientId || undefined,
-          primaryClientId: ttsClientId || undefined,
-          shellSurfaceHost: String(payload?.surfaceHost || "").trim() || undefined,
-          shellSurfaceHint: String(payload?.surfaceHint || "").trim() || undefined,
-          shellSurfaceBackend: String(payload?.surfaceBackend || "").trim() || undefined
-        });
-        if (ttsClientId) {
-          shellPresence.upsertPresence(agentId, {
-            shellClientId: ttsClientId,
-            surfaceHost: payload?.surfaceHost,
-            surfaceHint: payload?.surfaceHint,
-            surfaceEmbedded: payload?.surfaceEmbedded,
-            surfaceBackend: payload?.surfaceBackend,
-            hostUrl: payload?.hostUrl,
-            interact: true
-          });
-        }
 
         if (shellService.isShellShowDemoRequest(body)) {
           const result = shellService.buildShellShowDemoResult(body);
@@ -358,37 +394,38 @@ function createShellHandlers(deps) {
           return true;
         }
 
+        const submitted = await shellService.submitShellMessage(deps, agentRoot, agentId, {
+          body,
+          author,
+          voice: voiceInput,
+          displayPhrase: String(payload?.displayPhrase || "").trim(),
+          shellClientId: ttsClientId,
+          surfaceHost: String(payload?.surfaceHost || "").trim(),
+          surfaceHint: String(payload?.surfaceHint || "").trim(),
+          surfaceBackend: String(payload?.surfaceBackend || "").trim(),
+          hostUrl: String(payload?.hostUrl || "").trim(),
+          ttsEnabled: payload?.ttsEnabled,
+          ttsPrompt: payload?.ttsPrompt,
+          deviceContext,
+          sttRaw: sttRefine?.raw,
+          sttRefined: sttRefine?.refined,
+          sttRefineApplied: sttRefine?.applied,
+          sttRefineError: sttRefine?.error
+        });
+
         deps.sendJson(res, 202, {
           agentId,
           accepted: true,
+          queued: true,
+          queueId: submitted.item.id,
           runtime,
+          queue: submitted.queue,
           sttRaw: sttRefine?.raw || undefined,
           sttRefined: sttRefine?.refined || undefined,
           sttRefineApplied: sttRefine?.applied || undefined,
           sttRefineError: sttRefine?.error || undefined,
           sttSessionId: sttRefine?.sessionId || undefined
         });
-
-        void (async () => {
-          try {
-            await shellService.sendToRuntime(deps, {
-              agentRoot,
-              agentId,
-              settings: outboundSettings,
-              body,
-              ttsClientId,
-              author
-            });
-          } catch (error) {
-            await shellService.patchState(agentRoot, agentId, {
-              phase: shellService.PHASE_WAITING,
-              phrase: String(error?.message || error).slice(0, 200)
-            });
-            shellService.emitShellEvent(agentId, "message_error", {
-              message: String(error?.message || error)
-            });
-          }
-        })();
         return true;
       } catch (error) {
         await shellService.patchState(agentRoot, agentId, {

@@ -525,6 +525,7 @@ let lastTtsChunkRecording = null;
 const outboundQueue = [];
 /** @type {(() => void) | null} */
 let messageTurnDone = null;
+let lastQueueProcessingId = "";
 
 const state = {
   agentId: localStorage.getItem(SHELL_STORAGE.agent) || "",
@@ -1826,6 +1827,7 @@ async function onAgentSelectChange(next) {
   await bootstrapRuntimeSelect();
   resetRuntimeStatusProbe();
   await pullRuntimeStatuses();
+  await refreshOutboundQueueFromServer();
   prepareDialogScrollRestore({ restoreOnLoad: true });
   await shellDialog.refreshHistory?.({ replace: true, restoreScroll: true });
   await loadComposeDraft();
@@ -3063,7 +3065,54 @@ function releaseMessagePipeline() {
   updateSendButtonLabel();
   shellSession?.releaseSessionUiLock();
   finishMessageTurn();
-  void drainOutboundQueue();
+}
+
+function syncQueueDialogTurn(queue) {
+  const processing = queue?.processing;
+  const id = String(processing?.id || "").trim();
+  if (!id || id === lastQueueProcessingId) return;
+  lastQueueProcessingId = id;
+  void shellDialog.refreshHistory?.();
+}
+
+function applyServerQueue(queue) {
+  if (!queue || typeof queue !== "object") return;
+  const prevProcessingId = lastQueueProcessingId;
+  outboundQueue.length = 0;
+  for (const item of Array.isArray(queue.items) ? queue.items : []) {
+    const text = String(item.text || item.body || "").trim();
+    if (!text) continue;
+    outboundQueue.push({
+      id: String(item.id || `q-${Date.now()}`),
+      text,
+      voice: Boolean(item.voice)
+    });
+  }
+  const processing = queue.processing;
+  if (processing) {
+    state.processingMessage = String(processing.text || processing.body || "").trim();
+    if (!state.messagePipelineBusy) state.messagePipelineBusy = true;
+    syncQueueDialogTurn(queue);
+  } else {
+    state.processingMessage = "";
+    if (!state.assistantStream || state.assistantStream.finalized) {
+      lastQueueProcessingId = "";
+    } else if (prevProcessingId) {
+      lastQueueProcessingId = "";
+    }
+  }
+  renderMessageQueue();
+  updateSendButtonLabel();
+}
+
+async function refreshOutboundQueueFromServer() {
+  if (!state.agentId) return;
+  try {
+    const data = await apiFetch("/api/shell/queue", { timeoutMs: 10000 });
+    applyServerQueue(data?.queue);
+  } catch (error) {
+    shellLog("error", "queue sync failed", error.message);
+  }
 }
 
 function recoverStuckMessagePipeline(reason = "") {
@@ -3216,7 +3265,12 @@ async function stopActiveMessage() {
   shellSession?.resetStreamRenderState();
   messageSendAbortController?.abort();
   messageSendAbortController = null;
-  outboundQueue.length = 0;
+  void apiFetch("/api/shell/queue", {
+    method: "DELETE",
+    body: JSON.stringify({ pendingOnly: true })
+  })
+    .then((data) => applyServerQueue(data?.queue))
+    .catch(() => {});
   state.queueEditingId = "";
   state.processingMessage = "";
   if (state.assistantStream && !state.assistantStream.finalized) {
@@ -3239,9 +3293,9 @@ async function stopActiveMessage() {
 
 function removeOutboundMessage(id) {
   if (state.queueEditingId === id) state.queueEditingId = "";
-  const idx = outboundQueue.findIndex((item) => item.id === id);
-  if (idx >= 0) outboundQueue.splice(idx, 1);
-  renderMessageQueue();
+  void apiFetch(`/api/shell/queue/${encodeURIComponent(id)}`, { method: "DELETE" })
+    .then((data) => applyServerQueue(data?.queue))
+    .catch((error) => shellDialog.setError(error.message));
 }
 
 function startEditOutboundMessage(id) {
@@ -3266,9 +3320,16 @@ function saveEditOutboundMessage(id, nextText) {
     removeOutboundMessage(id);
     return;
   }
-  item.text = text;
   state.queueEditingId = "";
-  renderMessageQueue();
+  void apiFetch(`/api/shell/queue/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ body: text })
+  })
+    .then((data) => applyServerQueue(data?.queue))
+    .catch((error) => {
+      shellDialog.setError(error.message);
+      renderMessageQueue();
+    });
 }
 
 function cancelEditOutboundMessage() {
@@ -3412,14 +3473,6 @@ function renderMessageQueue() {
     const field = nodes.messageQueueList.querySelector(`[data-queue-edit="${state.queueEditingId}"]`);
     field?.focus();
   }
-}
-
-async function drainOutboundQueue() {
-  if (state.messagePipelineBusy || !outboundQueue.length) return;
-  const next = outboundQueue.shift();
-  renderMessageQueue();
-  if (!next?.text) return;
-  await sendMessageDirect(next.text, { voice: Boolean(next.voice) });
 }
 
 function syncWaitingUiAfterPlayback() {
@@ -5983,6 +6036,7 @@ function applyStatusPayload(payload) {
     resolveRuntimeConnectionState(activeRuntime, activeStatus, { implemented: isRuntimeImplemented(activeRuntime) }) ===
     "live";
   state.runtimeError = String(activeStatus?.error || payload?.runtime?.error || "");
+  if (payload?.queue) applyServerQueue(payload.queue);
   syncDialogConnectionState();
   updateQwenPawChatUi(payload);
 
@@ -6721,16 +6775,6 @@ async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
     composeLayout?.syncKeyboardViewport?.();
   }
 
-  if (state.messagePipelineBusy) {
-    outboundQueue.push({ id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text, voice });
-    renderMessageQueue();
-    renderPhase(
-      state.shellState?.phase || "thinking",
-      `Печатает…${queuePhraseSuffix()}`
-    );
-    return;
-  }
-
   await sendMessageDirect(text, { fromCompose, voice });
 }
 
@@ -6760,7 +6804,10 @@ function handleSendMessageError(error, { streamingQwenPaw = false } = {}) {
   if (state.assistantStream?.finalized) return;
   state.processingMessage = "";
   renderMessageQueue();
-  shellDialog.setError(error.message, { hint: shellDialog.connectionHint(error) });
+  const runtime = getSelectedRuntime();
+  const runtimeLabel = SHELL_RUNTIME_LABELS[runtime] || runtime;
+  const hint = shellDialog.connectionHint(error);
+  shellDialog.setError(`${runtimeLabel}: ${error.message}`, { hint });
   renderPhase("waiting", error.message);
   releaseMessagePipeline();
 }
@@ -6774,6 +6821,7 @@ function handleSendMessageResult(result, { streamingQwenPaw = false } = {}) {
     return;
   }
   if (result?.accepted) {
+    applyServerQueue(result.queue);
     updateSendButtonLabel();
     armMessagePipelineWatchdog();
     return;
@@ -6807,22 +6855,25 @@ async function sendMessageDirect(
   );
   const text = (await shellComposePage?.appendPageContextIfEnabled?.(expandedText)) || expandedText;
   if (!text) return;
-  const turnComplete = beginMessageTurn();
+  const alreadyBusy = isActiveMessageTurn();
+  const turnComplete = alreadyBusy ? null : beginMessageTurn();
   shellLog("message", `${author}${voice ? " · voice" : ""}`, expandedText.slice(0, 160));
   shellProactive?.bumpActivity();
   void unlockShellAudio();
-  shellSession?.setSessionUiLocked(true);
-  shellSession?.resetStreamRenderState();
-  state.messageStopped = false;
-  state.messagePipelineBusy = true;
-  state.processingMessage = expandedText;
-  state.pendingReplyTtsClientId = getShellPresenceClientId();
+  if (!alreadyBusy) {
+    shellSession?.setSessionUiLocked(true);
+    shellSession?.resetStreamRenderState();
+    state.messageStopped = false;
+    state.messagePipelineBusy = true;
+    state.pendingReplyTtsClientId = getShellPresenceClientId();
+    beginAssistantStream({});
+  }
+  state.processingMessage = state.processingMessage || expandedText;
   shellPresenceController?.ping({ interact: true });
   renderMessageQueue();
   updateSendButtonLabel();
   const target = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
   const streamingQwenPaw = usesQwenPawTarget(target);
-  beginAssistantStream({});
   messageSendAbortController?.abort();
   messageSendAbortController = new AbortController();
   const { signal } = messageSendAbortController;
@@ -6831,7 +6882,6 @@ async function sendMessageDirect(
       void refreshShellLocationForSend();
     }
     shellDialog.clearError();
-    if (showInDialog) shellDialog.onUserMessage(fromCompose ? composeRaw : expandedText);
     void apiFetch("/api/shell/message", {
       method: "POST",
       body: JSON.stringify({
@@ -6854,7 +6904,7 @@ async function sendMessageDirect(
     }
     updateSendButtonLabel();
   }
-  await turnComplete;
+  if (turnComplete) await turnComplete;
 }
 
 function getSpeechSynth() {
@@ -8463,13 +8513,31 @@ function connectStream() {
     }
   });
 
+  source.addEventListener("queue_update", (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      const queue = payload?.queue || payload?.payload?.queue;
+      applyServerQueue(queue);
+    } catch {
+      // ignore malformed event
+    }
+  });
+
   source.addEventListener("message_error", (event) => {
     try {
       const payload = JSON.parse(event.data);
       const message = String(payload?.message || payload?.details || "Ошибка отправки").trim();
-      if (!message || state.assistantStream?.finalized) return;
-      shellDialog.setError(message);
+      if (!message) return;
+      if (state.assistantStream && !state.assistantStream.finalized) {
+        setReplyPanelStreaming(false);
+        shellDialog.finalizeRunningTools?.();
+        state.assistantStream = null;
+      }
+      const runtime = getSelectedRuntime();
+      const runtimeLabel = SHELL_RUNTIME_LABELS[runtime] || runtime;
+      shellDialog.setError(`${runtimeLabel}: ${message}`);
       renderPhase("waiting", message);
+      void shellDialog.refreshHistory?.();
       releaseMessagePipeline();
     } catch {
       // ignore malformed event
@@ -9782,6 +9850,7 @@ async function connectShellAgentData() {
   try {
     connectStream();
     prepareDialogScrollRestore({ restoreOnLoad: true });
+    await refreshOutboundQueueFromServer();
     await shellDialog.refreshHistory?.({ restoreScroll: true });
     await syncShellReplyAfterConnect("agent connect");
     await loadComposeDraft();

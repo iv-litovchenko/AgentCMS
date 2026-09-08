@@ -4543,6 +4543,24 @@ body.shell-surface-extension #shell-dialog-refresh {
   max-width: min(96%, 560px);
 }
 
+.shell-chat-row--error {
+  align-self: flex-start;
+  align-items: flex-start;
+  max-width: min(96%, 560px);
+}
+
+.shell-chat-bubble--error .shell-chat-msg--error {
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.28);
+  color: #ffd7d7;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.shell-history-item--error .shell-history-text {
+  color: #fecaca;
+}
+
 .shell-chat-bubble--tool .shell-chat-msg--tool {
   padding: 8px 28px 8px 10px;
   background: rgba(18, 22, 38, 0.72);
