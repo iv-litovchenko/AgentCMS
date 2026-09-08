@@ -142,8 +142,61 @@ function loadScriptOnce(src) {
   });
 }
 
+export function ensureShellMarkdownReady() {
+  return ensureShellMarkdownLibs().then(() => {
+    getShellMarkdownIt();
+  });
+}
+
+function markPendingMarkdown(element, source) {
+  if (!element) return;
+  element.dataset.shellMdPending = "1";
+  element.dataset.shellMdSource = source;
+}
+
+function clearPendingMarkdown(element) {
+  if (!element) return;
+  delete element.dataset.shellMdPending;
+  delete element.dataset.shellMdSource;
+}
+
+function looksLikeMarkdownSource(source) {
+  const text = String(source || "").trim();
+  if (!text) return false;
+  return /(?:^|\n)\s{0,3}#{1,6}\s|(?:^|\n)\s{0,3}[-*+]\s|(?:^|\n)\s{0,3}\d+\.\s|\*\*[^*\n]|__[^_\n]|!\[[^\]]*\]\(|`[^`]+`|```|\[[^\]]+\]\([^)]+\)/m.test(
+    text
+  );
+}
+
+export function rehydrateShellMarkdownIn(root) {
+  const scope = root instanceof Element ? root : root ? document.querySelector(String(root)) : null;
+  if (!scope) return;
+
+  scope.querySelectorAll('[data-shell-md-pending="1"]').forEach((element) => {
+    const source = element.dataset.shellMdSource || element.textContent || "";
+    renderShellReplyMarkdown(element, source);
+  });
+
+  scope.querySelectorAll(".shell-reply-segment:not(.shell-md)").forEach((element) => {
+    const source = element.dataset.shellMdSource || element.textContent || "";
+    if (!source.trim() || !looksLikeMarkdownSource(source)) return;
+    renderShellReplyMarkdown(element, source);
+  });
+
+  scope.querySelectorAll(".shell-chat-msg--agent:not(.shell-reply-body-formatted)").forEach((element) => {
+    if (element.querySelector(".shell-reply-segment, p, ul, ol, h1, h2, h3, pre")) return;
+    const source = element.dataset.shellMdSource || element.textContent || "";
+    if (!source.trim() || !looksLikeMarkdownSource(source)) return;
+    renderShellReplyMarkdown(element, source);
+  });
+}
+
 export function preloadShellMarkdown() {
-  void ensureShellMarkdownLibs();
+  void ensureShellMarkdownReady().then(() => {
+    rehydrateShellMarkdownIn(document.getElementById("shell-dialog-thread"));
+    rehydrateShellMarkdownIn(document.getElementById("shell-last-reply"));
+    rehydrateShellMarkdownIn(document.getElementById("shell-compact-qa"));
+  });
   void ensureShellHighlightLibs();
   void ensureShellMermaidLibs();
 }
@@ -1143,12 +1196,16 @@ export function renderShellReplyMarkdown(element, markdown) {
 
   const md = getShellMarkdownIt();
   if (!md) {
+    markPendingMarkdown(element, source);
     element.textContent = source;
-    void ensureShellMarkdownLibs()
+    void ensureShellMarkdownReady()
       .then(() => {
         if (element.isConnected) renderShellReplyMarkdown(element, markdown);
+        rehydrateShellMarkdownIn(element.closest("#shell-dialog-thread, #shell-last-reply, #shell-compact-qa"));
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.warn("[shell-markdown] libs failed to load", error);
+      });
     return;
   }
 
@@ -1156,8 +1213,11 @@ export function renderShellReplyMarkdown(element, markdown) {
     element.classList.add("shell-md");
     element.innerHTML = sanitizeRenderedShellHtml(md.render(source));
     enhanceShellMarkdownBlocks(element);
-  } catch {
+    clearPendingMarkdown(element);
+  } catch (error) {
+    markPendingMarkdown(element, source);
     element.textContent = source;
+    console.warn("[shell-markdown] render failed", error);
   }
 }
 

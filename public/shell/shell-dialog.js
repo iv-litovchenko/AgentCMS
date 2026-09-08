@@ -1,6 +1,12 @@
 /** Mobile-style dialog: history, refresh, copy, errors. */
 
-import { renderShellReplyBody, renderUserMessageBody, scheduleShellMermaidTypeset } from "@shell/markdown";
+import {
+  ensureShellMarkdownReady,
+  rehydrateShellMarkdownIn,
+  renderShellReplyBody,
+  renderUserMessageBody,
+  scheduleShellMermaidTypeset
+} from "@shell/markdown";
 
 const MAX_HISTORY = 50;
 
@@ -1201,6 +1207,10 @@ export function createShellDialog(options = {}) {
     updateScrollProgress();
     scheduleShellMermaidTypeset(nodes.thread);
     scheduleShellMermaidTypeset(nodes.lastReply);
+    void ensureShellMarkdownReady().then(() => {
+      rehydrateShellMarkdownIn(nodes.thread);
+      rehydrateShellMarkdownIn(nodes.lastReply);
+    });
 
     if (scrollRestoreActive && pendingScrollRestoreRatio != null) {
       applyPendingScrollOnce();
