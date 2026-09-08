@@ -5,9 +5,10 @@ domain: content
 status: active
 extends: awn.base
 description: >
-  Запись, категория, sidecar, dialog, comment — без nav/runtime страниц дерева.
+  Запись, категория, sidecar, dialog, comment — без nav-полей страниц дерева.
+  Runtime (always/cron/heartbeat) — на record, category, sidecar через awn.mixin.runtime.
 
-# Свои field-groups: не наследуем nav/runtime из awn.base (см. resolveTypeFieldGroups).
+# Свои field-groups: не наследуем nav из awn.base (см. resolveTypeFieldGroups).
 
 form:
   panel-title: "{A2!} Свойства записи"
@@ -21,6 +22,10 @@ field-groups:
     name: "{A2!} Служебная заметка"
     description: На чём остановились — для вас и агента
     collapsed: false
+  - id: runtime
+    name: "{A2!} Runtime агента"
+    description: Загрузка в контекст, cron, heartbeat
+    collapsed: true
   - id: taxonomy
     name: "{A2!} Таксономия"
     description: Категории, теги, приоритет, цвет, владелец

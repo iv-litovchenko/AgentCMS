@@ -5,6 +5,8 @@ domain: content
 status: active
 extends: awn.content.base
 description: Метаданные медиафайла (*.sidecar.md)
+mixins:
+  - awn.mixin.runtime
 
 fields:
   awn-preview:

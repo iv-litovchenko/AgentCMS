@@ -6,3 +6,5 @@ status: active
 extends: awn.content.base
 description: Папка-категория для группировки контента в любом слоте
 allow-children: true
+mixins:
+  - awn.mixin.runtime
