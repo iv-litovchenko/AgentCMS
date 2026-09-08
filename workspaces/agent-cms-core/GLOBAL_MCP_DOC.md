@@ -28,7 +28,7 @@
 | **Slot** | Место хранения на странице | `slot` → `main`, `inbox`, `media`… |
 | **Content** | Файл внутри слота | `path` + `slot` + `ref` |
 
-**Page ≠ Content.** Слот — не файл; контент живёт *в* слоте.
+**Page ≠ Content.** Слот — не файл; контент живёт *в* слоте. У **темы** тело `manifest.md` — инструкция для человека и агента (см. раздел «Страницы»).
 
 ### Ключи (обязательно)
 
@@ -217,6 +217,16 @@ search_workspace_content({
 | `awn.page.area` | Область | Папка-раздел в меню (legacy; новые — `awn.page.section.*`) |
 | `awn.page.topic` | Тема | Рабочая страница со слотами (main, inbox, media…) |
 | `awn.page.section.*` | Секция | Служебные разделы: `agent-kit`, `shared`, `container` |
+
+### Тема — инструкция в `manifest.md`
+
+Тело темы (`read_page_body` → markdown **после** frontmatter в `{topic}/manifest.md`) — по задумке **инструкция для человека и агента**:
+
+- **о чём** эта тема — если она определена (назначение, контекст, границы);
+- **как с ней работать** — правила, соглашения, workflow, что класть в какие слоты.
+
+Это **не** контент памяти: записи и материалы живут в слотах (`main/`, `inbox/`, `media/`…), а manifest — «шапка» темы и on-boarding.  
+Frontmatter (`awn-name`, `awn-description`, …) — краткие метаданные для меню и реестров; развёрнутая инструкция — в **теле** manifest. Пустое тело допустимо (тема работает только через слоты), но для «живых» тем его стоит заполнять.
 
 - карта страниц: `get_page_map` → оглавление страниц: `get_workspace_page_index` / `refresh_workspace_page_index`
 - оглавление контента: `get_content_index(path)` → обновить: `refresh_content_index(path)` → полная meta-карта: `get_content_map(path)`
