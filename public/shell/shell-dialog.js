@@ -1456,6 +1456,15 @@ export function createShellDialog(options = {}) {
     bindUi();
   }
 
+  function scrollToBottomIfNear(threshold = 56) {
+    if (!isScrollNearBottom(threshold)) return;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        scrollDialogToBottom({ smooth: true });
+      });
+    });
+  }
+
   return {
     init,
     setLastAsk,
@@ -1486,6 +1495,9 @@ export function createShellDialog(options = {}) {
     refreshDialog,
     refreshHistory: (options) => loadHistory(options),
     syncLiveReplySlot,
-    updateScrollProgress
+    updateScrollProgress,
+    isScrollNearBottom,
+    scrollDialogToBottom,
+    scrollToBottomIfNear
   };
 }

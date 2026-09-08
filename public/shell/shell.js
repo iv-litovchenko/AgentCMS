@@ -3067,12 +3067,31 @@ function releaseMessagePipeline() {
   finishMessageTurn();
 }
 
+function beginQueuedTurnStream(processing) {
+  const text = String(processing?.text || processing?.body || "").trim();
+  state.messageStopped = false;
+  state.messagePipelineBusy = true;
+  state.processingMessage = text || state.processingMessage;
+  state.pendingReplyTtsClientId = getShellPresenceClientId();
+  shellSession?.setSessionUiLocked(true);
+  shellSession?.resetStreamRenderState();
+  shellDialog.clearLiveStreamTools?.();
+  finalizeAgentActivitySteps();
+  beginAssistantStream({});
+  armMessagePipelineWatchdog();
+}
+
 function syncQueueDialogTurn(queue) {
   const processing = queue?.processing;
   const id = String(processing?.id || "").trim();
   if (!id || id === lastQueueProcessingId) return;
   lastQueueProcessingId = id;
-  void shellDialog.refreshHistory?.();
+  const streamActive = Boolean(state.assistantStream && !state.assistantStream.finalized);
+  if (!streamActive) beginQueuedTurnStream(processing);
+  void shellDialog.refreshHistory?.().then(() => {
+    shellDialog.syncLiveReplySlot?.();
+    shellDialog.scrollToBottomIfNear?.();
+  });
 }
 
 function applyServerQueue(queue) {
@@ -6856,6 +6875,7 @@ async function sendMessageDirect(
   const text = (await shellComposePage?.appendPageContextIfEnabled?.(expandedText)) || expandedText;
   if (!text) return;
   const alreadyBusy = isActiveMessageTurn();
+  const stickScroll = shellDialog.isScrollNearBottom?.() ?? false;
   const turnComplete = alreadyBusy ? null : beginMessageTurn();
   shellLog("message", `${author}${voice ? " · voice" : ""}`, expandedText.slice(0, 160));
   shellProactive?.bumpActivity();
@@ -6872,6 +6892,7 @@ async function sendMessageDirect(
   shellPresenceController?.ping({ interact: true });
   renderMessageQueue();
   updateSendButtonLabel();
+  if (stickScroll) shellDialog.scrollToBottomIfNear?.();
   const target = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
   const streamingQwenPaw = usesQwenPawTarget(target);
   messageSendAbortController?.abort();
