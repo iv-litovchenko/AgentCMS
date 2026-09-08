@@ -22,5 +22,6 @@ storage-slots:
   - templates
   - base
   - notebooklm
+  - agent-queue
   - todo-single
   - log-single

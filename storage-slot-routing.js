@@ -28,6 +28,7 @@ const STORAGE_SLOT_ROUTING = [
   { slotKey: "templates", storageFolder: "templates", sectionKind: "flat" },
   { slotKey: "base", storageFolder: "base", sectionKind: "flat" },
   { slotKey: "notebooklm", storageFolder: "notebooklm", sectionKind: "flat" },
+  { slotKey: "agent-queue", storageFolder: "agent-queue", sectionKind: "flat" },
   { slotKey: "quick-notes", storageFolder: "quick-notes", sectionKind: "flat", disabled: true },
   { slotKey: "main-single", storageFolder: STORAGE_SUBFOLDER_MAIN, sectionKind: "bundle" },
   { slotKey: "main-single-csv", storageFolder: STORAGE_SUBFOLDER_MAIN, sectionKind: "bundle" },

@@ -29926,6 +29926,41 @@ button.node-navigation-hub-rail-slot-summary {
   margin-top: 8px;
 }
 
+.node-navigation-workspace-fullwidth-slot-row {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.node-navigation-workspace-fullwidth-slot-row .node-navigation-workspace-counter-item--fullwidth-slot {
+  width: 100%;
+  min-width: 0;
+}
+
+.node-navigation-workspace-fullwidth-slot-row .node-navigation-workspace-counter-card {
+  width: 100%;
+}
+
+.node-navigation-workspace-fullwidth-slot-row .node-navigation-workspace-counter {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 0;
+  padding: 8px 14px;
+  text-align: left;
+}
+
+.node-navigation-workspace-fullwidth-slot-row .node-navigation-workspace-counter-value {
+  flex: 0 0 auto;
+  font-size: 16px;
+}
+
+.node-navigation-workspace-fullwidth-slot-row .node-navigation-workspace-counter-label {
+  flex: 1 1 auto;
+  text-align: left;
+  min-width: 0;
+}
+
 .node-navigation-workspace-outside-slots-row .node-navigation-workspace-counter-item--outside-slots {
   width: 100%;
   min-width: 0;

@@ -201,6 +201,17 @@
         }
       },
       {
+        slotKey: "agent-queue",
+        label: "Очередь задач агента",
+        tabGroup: "workspace",
+        defaultKind: "record",
+        targets: {
+          record: { id: "slot_agent_queue" },
+          category: { id: "slot_agent_queue_category" },
+          sidecar: { id: "slot_agent_queue_sidecar" }
+        }
+      },
+      {
         slotKey: "todo-single",
         label: "TODO",
         tabGroup: "todo",

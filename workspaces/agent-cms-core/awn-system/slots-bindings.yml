@@ -58,6 +58,10 @@ bindings:
     path: notebooklm/
     content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
+  agent-queue:
+    path: agent-queue/
+    content: [awn.content.record, awn.content.category, awn.content.sidecar]
+    files: ["*"]
   todo-single:
     path: todo.md
     content: [awn.content.record, awn.content.category, awn.content.sidecar]

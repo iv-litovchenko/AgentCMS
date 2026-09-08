@@ -148,6 +148,7 @@ const {
   STORAGE_SUBFOLDER_TEMPLATES,
   STORAGE_SUBFOLDER_BASE,
   STORAGE_SUBFOLDER_NOTEBOOKLM,
+  STORAGE_SUBFOLDER_AGENT_QUEUE,
   STORAGE_SUBFOLDER_PREVIEW,
   STORAGE_SUBFOLDER_HISTORY,
   STORAGE_SUBFOLDER_COMMENTS,
@@ -4088,6 +4089,9 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   if (mode === "notebooklm") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_NOTEBOOKLM);
   }
+  if (mode === "agent-queue") {
+    return path.join(storageRoot, STORAGE_SUBFOLDER_AGENT_QUEUE);
+  }
   return nodeAbsolute;
 }
 
@@ -4962,7 +4966,7 @@ async function readWorkspaceTextFile(fileRelPath, options = {}) {
 }
 
 const WORKSPACE_FS_BLOCKED_WRITE_PREFIXES = ["awn-system/"];
-const WORKSPACE_FS_TYPED_MD_LAYERS = new Set(["main", "inbox", "notes", "references", "templates", "base", "notebooklm", "quick-notes"]);
+const WORKSPACE_FS_TYPED_MD_LAYERS = new Set(["main", "inbox", "notes", "references", "templates", "base", "notebooklm", "agent-queue", "quick-notes"]);
 const WORKSPACE_FS_SYSTEM_LAYERS = new Set(["thread", "comments", "history", "temp", "volume"]);
 const WORKSPACE_FS_TEXT_EXTENSIONS = new Set([
   ".md",
@@ -9647,6 +9651,7 @@ const RUNTIME_CONTENT_SCAN_SLOTS = [
   { folder: STORAGE_SUBFOLDER_TEMPLATES, slot: "templates" },
   { folder: STORAGE_SUBFOLDER_BASE, slot: "base" },
   { folder: STORAGE_SUBFOLDER_NOTEBOOKLM, slot: "notebooklm" },
+  { folder: STORAGE_SUBFOLDER_AGENT_QUEUE, slot: "agent-queue" },
   { folder: STORAGE_SUBFOLDER_REPOSITORY, slot: "repository" }
 ];
 

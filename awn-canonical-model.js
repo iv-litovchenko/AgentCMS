@@ -33,6 +33,7 @@ const CANONICAL_PRIMARY_SLOT_TYPES = [
   "awn.slot.templates",
   "awn.slot.base",
   "awn.slot.notebooklm",
+  "awn.slot.agent-queue",
   "awn.slot.todo-single",
   "awn.slot.log-single"
 ];

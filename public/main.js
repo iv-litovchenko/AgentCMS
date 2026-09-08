@@ -1476,6 +1476,7 @@ const APP_ROUTE_VIEW_IDS = new Set([
   "templates",
   "base",
   "notebooklm",
+  "agent-queue",
   "artefacts",
   "assets",
   "repository",
@@ -1507,6 +1508,7 @@ const CHPU_LEGACY_SLOT_VIEW_TO_FOLDER = {
   templates: "templates",
   base: "base",
   notebooklm: "notebooklm",
+  "agent-queue": "agent-queue",
   temp: "temp"
 };
 
@@ -1524,6 +1526,7 @@ const CHPU_SLOT_FOLDER_TO_MODE = {
   templates: "templates",
   base: "base",
   notebooklm: "notebooklm",
+  "agent-queue": "agent-queue",
   temp: "temp"
 };
 
@@ -13098,7 +13101,8 @@ const ENTRY_OVERVIEW_KIND_LABELS = {
   "awn.scripts.toc.root": "Оглавление",
   "awn.templates.toc.root": "Оглавление",
   "awn.base.toc.root": "Оглавление",
-  "awn.notebooklm.toc.root": "Оглавление"
+  "awn.notebooklm.toc.root": "Оглавление",
+  "awn.agent-queue.toc.root": "Оглавление"
 };
 
 const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
@@ -13112,7 +13116,8 @@ const FLAT_ENTRY_OVERVIEW_MEMORY_KINDS = new Set([
   "scripts",
   "templates",
   "base",
-  "notebooklm"
+  "notebooklm",
+  "agent-queue"
 ]);
 const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "external",
@@ -13128,6 +13133,7 @@ const ENTRY_OVERVIEW_ROUTE_KINDS = new Set([
   "templates",
   "base",
   "notebooklm",
+  "agent-queue",
   "todo"
 ]);
 const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
@@ -13143,7 +13149,8 @@ const ENTRY_OVERVIEW_TOC_ROOT_KINDS = new Set([
   "awn.scripts.toc.root",
   "awn.templates.toc.root",
   "awn.base.toc.root",
-  "awn.notebooklm.toc.root"
+  "awn.notebooklm.toc.root",
+  "awn.agent-queue.toc.root"
 ]);
 
 /** @type {Record<string, "overview"|"document"|"browser"|"asset"|"canvas">} */
@@ -13621,6 +13628,16 @@ const DATA_STORAGE_SLOT_SPECS = [
     treeGroup: STORAGE_SLOT_TREE_GROUP_FILES
   },
   {
+    key: "agent-queue",
+    label: "Очередь задач агента",
+    icon: "⏳",
+    modes: new Set(["agent-queue"]),
+    defaultMode: "agent-queue",
+    sectionKind: "flat",
+    treeGroup: STORAGE_SLOT_TREE_GROUP_FOLDER,
+    counterFullWidth: true
+  },
+  {
     key: "main-single",
     label: "Память (однофайловая)",
     icon: "📄",
@@ -13789,6 +13806,7 @@ const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
   templates: "Markdown (.md) — шаблоны записей и manifest",
   base: "Markdown (.md) — строки структурированных данных",
   notebooklm: "Markdown (.md) — материалы NotebookLM",
+  "agent-queue": "Markdown (.md) — задачи агента",
   media:
     "Изображения, видео, аудио, документы, архивы; метаданные медиа — .sidecar.md",
   "main-single": "Markdown (.md) — main.md",
@@ -15343,6 +15361,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
     templates: ["templates"],
     base: ["base"],
     notebooklm: ["notebooklm"],
+    "agent-queue": ["agent-queue"],
     thread: ["thread"],
     temp: ["temp"],
     volume: ["volume"],
@@ -17057,6 +17076,7 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
     mode === "templates" ||
     mode === "base" ||
     mode === "notebooklm" ||
+    mode === "agent-queue" ||
     mode === "todo" ||
     mode === NODE_THREAD_MODE
   ) {
@@ -17210,6 +17230,7 @@ function getContentModeLabel(mode) {
   if (mode === "templates") return "Шаблоны";
   if (mode === "base") return "База";
   if (mode === "notebooklm") return "NotebookLM";
+  if (mode === "agent-queue") return "Очередь задач агента";
   if (mode === "todo") return "TODO";
   if (mode === "references") return "Источники";
   if (mode === "artefacts") return "Артефакты";
@@ -34170,6 +34191,7 @@ function getFlatStorageSectionTreeLabel(mode) {
   if (mode === "templates") return "Разделы шаблонов";
   if (mode === "base") return "Разделы базы";
   if (mode === "notebooklm") return "Разделы NotebookLM";
+  if (mode === "agent-queue") return "Разделы очереди задач";
   return "Разделы";
 }
 
@@ -35894,6 +35916,7 @@ function isFlatStorageListMode(mode = activeContentMode) {
     mode === "templates" ||
     mode === "base" ||
     mode === "notebooklm" ||
+    mode === "agent-queue" ||
     mode === "artefacts" ||
     mode === "repository" ||
     mode === "temp"
@@ -42280,7 +42303,7 @@ function inferAwnTypeFromRelPath(relPath, options = {}) {
     return inferContentTypeFromStoragePath(normalized, lower);
   }
 
-  const flatStorageModes = ["inbox", "note", "references", "templates", "base", "notebooklm"];
+  const flatStorageModes = ["inbox", "note", "references", "templates", "base", "notebooklm", "agent-queue"];
   const isFlatStorageContentFile =
     flatStorageModes.includes(options.contentMode) ||
     flatStorageModes.some((mode) => new RegExp(`/(?:awn-storage|storage)/${mode}/`, "i").test(normalized));
@@ -56256,7 +56279,7 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
   }
 
   const threadUnread = getThreadUnreadCount(manifestPath, intake);
-  const flatCounterModes = ["notes", "references", "artefacts", "repository", "scripts", "templates", "base", "notebooklm"];
+  const flatCounterModes = ["notes", "references", "artefacts", "repository", "scripts", "templates", "base", "notebooklm", "agent-queue"];
   const [todoData, mediaOverview, assetsOverview, storageScan, flatNavigationIndexes] = await Promise.all([
     fetchTodoForOverview(nodePath).catch(() => null),
     fetchMediaLibraryOverview(nodePath, "media").catch(() => null),
@@ -56393,7 +56416,10 @@ function renderNodeNavigationWorkspaceCounterStrip(
     list.classList.add("node-navigation-workspace-counter-list--area-single");
   }
 
-  for (const slot of slots) {
+  const gridSlots = slots.filter((slot) => !isStorageSlotCounterFullWidth(slot));
+  const fullWidthSlots = slots.filter((slot) => isStorageSlotCounterFullWidth(slot));
+
+  for (const slot of gridSlots) {
     const item = document.createElement("li");
     item.className = "node-navigation-workspace-counter-item";
     item.appendChild(
@@ -56407,6 +56433,13 @@ function renderNodeNavigationWorkspaceCounterStrip(
   }
 
   wrap.appendChild(list);
+  for (const slot of fullWidthSlots) {
+    appendWorkspaceFullWidthCounterRow(wrap, slot, {
+      isActive: entryOverview && activeSlotKey === slot.id,
+      topicPath: resolvedTopicPath,
+      onClick: () => openNodeNavigationCounterSlot(slot)
+    });
+  }
   appendWorkspaceOutsideSlotsCounterRow(wrap);
   appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
   return wrap;
@@ -62644,7 +62677,10 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicP
   list.className = "node-navigation-workspace-counter-list";
   list.setAttribute("role", "tablist");
 
-  for (const slot of slots) {
+  const gridSlots = slots.filter((slot) => !isStorageSlotCounterFullWidth(slot));
+  const fullWidthSlots = slots.filter((slot) => isStorageSlotCounterFullWidth(slot));
+
+  for (const slot of gridSlots) {
     const item = document.createElement("li");
     item.className = "node-navigation-workspace-counter-item";
     const card = createWorkspaceCounterCard(slot, {
@@ -62658,6 +62694,14 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicP
   }
 
   wrap.appendChild(list);
+  for (const slot of fullWidthSlots) {
+    appendWorkspaceFullWidthCounterRow(wrap, slot, {
+      isActive: activeSlotKey === slot.id,
+      topicPath: resolvedTopicPath,
+      entryOverviewSlotKey: slot.id,
+      onClick: () => setActiveDataStorageSlotFromOverview(slot.spec)
+    });
+  }
   appendWorkspaceOutsideSlotsCounterRow(wrap);
   appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
 }
@@ -62812,6 +62856,34 @@ function createStaticWorkspaceCounterStubItem({
   card.append(body);
   item.append(card);
   return item;
+}
+
+function isStorageSlotCounterFullWidth(slot) {
+  return Boolean(slot?.counterFullWidth || slot?.spec?.counterFullWidth);
+}
+
+function appendWorkspaceFullWidthCounterRow(
+  wrap,
+  slot,
+  { isActive = false, topicPath = null, onClick, entryOverviewSlotKey = null } = {}
+) {
+  if (!wrap || !slot) return;
+  const row = document.createElement("div");
+  row.className = "node-navigation-workspace-fullwidth-slot-row";
+  const item = document.createElement("div");
+  item.className = "node-navigation-workspace-counter-item node-navigation-workspace-counter-item--fullwidth-slot";
+  const card = createWorkspaceCounterCard(slot, {
+    isActive,
+    topicPath,
+    onClick
+  });
+  if (entryOverviewSlotKey) {
+    card.dataset.entryOverviewSlotKey = entryOverviewSlotKey;
+  }
+  item.appendChild(card);
+  row.appendChild(item);
+  wrap.appendChild(row);
+  wrap.classList.add("has-fullwidth-slot-counter");
 }
 
 function createOutsideSlotsStaticCounterItem() {
@@ -77041,7 +77113,7 @@ function getSlugTranslitApi() {
   return typeof SlugTranslit !== "undefined" ? SlugTranslit : null;
 }
 
-const CREATE_DISPLAY_NAME_SOFT_MAX = 32;
+const CREATE_DISPLAY_NAME_SOFT_MAX = 48;
 const CREATE_DISPLAY_NAME_HINT_TEXT = `Название длиннее ${CREATE_DISPLAY_NAME_SOFT_MAX} символов — в меню и карточках будет обрезаться. Лучше короче.`;
 
 function findDisplayNameHintElement(input) {
@@ -82394,7 +82466,7 @@ function deleteTypeFieldFromYaml(fieldKey) {
 }
 
 function buildTypeStorageSlotsEditor(currentSlots) {
-  const KNOWN_SLOTS = ["main", "media", "inbox", "thread", "references", "scripts", "templates", "base", "notebooklm", "artefacts", "assets", "repository"];
+  const KNOWN_SLOTS = ["main", "media", "inbox", "thread", "references", "scripts", "templates", "base", "notebooklm", "agent-queue", "artefacts", "assets", "repository"];
   const slots = Array.isArray(currentSlots) ? [...currentSlots] : [];
 
   const wrap = document.createElement("div");
