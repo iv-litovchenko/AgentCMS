@@ -31,11 +31,13 @@ function createShellHandlers(deps) {
     if (req.method === "GET" && url.pathname === "/api/shell/window") {
       try {
         const agentSettings = await shellService.readSettings(agentRoot);
-        const settings = await windowSettings.migrateWindowSettingsFromAgent(projectRoot, agentSettings);
+        await windowSettings.migrateWindowSettingsFromAgent(projectRoot, agentSettings);
+        const settings = await windowSettings.readMergedWindowSettings(projectRoot, agentSettings);
         deps.sendJson(res, 200, {
           agentId,
           projectRoot,
-          settingsFile: windowSettings.AWN_SHELL_FILE,
+          settingsFile: ".agent-shell/settings.json",
+          globalSettingsFile: windowSettings.AWN_SHELL_FILE,
           settings
         });
       } catch (error) {
@@ -50,12 +52,18 @@ function createShellHandlers(deps) {
     if (req.method === "POST" && url.pathname === "/api/shell/window") {
       try {
         const payload = await deps.readJsonBody(req);
-        const settings = await windowSettings.writeWindowSettings(projectRoot, payload?.settings || payload);
+        const settings = await windowSettings.writeMergedWindowSettings(
+          projectRoot,
+          agentRoot,
+          shellService,
+          payload?.settings || payload
+        );
         shellService.emitShellEvent(agentId, "window_settings", settings);
         deps.sendJson(res, 200, {
           agentId,
           projectRoot,
-          settingsFile: windowSettings.AWN_SHELL_FILE,
+          settingsFile: ".agent-shell/settings.json",
+          globalSettingsFile: windowSettings.AWN_SHELL_FILE,
           settings
         });
       } catch (error) {

@@ -5,7 +5,7 @@ if (!electron.app) {
   process.exit(1);
 }
 
-const { app, BrowserWindow, dialog, shell, ipcMain, screen } = electron;
+const { app, BrowserWindow, dialog, shell, ipcMain, screen, powerSaveBlocker } = electron;
 const path = require("path");
 const {
   getCmsBaseUrl,
@@ -41,7 +41,7 @@ const WINDOW_PROFILE_COMPACT_QA = {
 const REPO_ROOT = path.join(__dirname, "..", "..");
 const PROTOCOL = "agentshell";
 
-const PET_WINDOW_SIZE = { width: 220, height: 260 };
+const PET_WINDOW_SIZE = { width: 240, height: 320 };
 const PET_WINDOW_MARGIN = 18;
 
 let mainWindow = null;
@@ -50,6 +50,26 @@ let ownedServer = null;
 let cmsBaseUrl = getCmsBaseUrl();
 let voiceBaseUrl = getVoiceBaseUrl();
 let shuttingDown = false;
+let keepAwakeBlocker = null;
+
+function applyKeepAwake(enabled) {
+  const on = Boolean(enabled);
+  if (on) {
+    if (keepAwakeBlocker == null) {
+      keepAwakeBlocker = powerSaveBlocker.start("prevent-display-sleep");
+    }
+    return;
+  }
+  if (keepAwakeBlocker != null) {
+    powerSaveBlocker.stop(keepAwakeBlocker);
+    keepAwakeBlocker = null;
+  }
+}
+
+function broadcastPetPhase(payload = {}) {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  petWindow.webContents.send("shell:pet-phase", payload);
+}
 
 function getRepoRoot() {
   return getProjectRoot(REPO_ROOT);
@@ -180,14 +200,58 @@ function buildShellUrl() {
 function buildPetUrl() {
   const base = (voiceBaseUrl || cmsBaseUrl || "").replace(/\/+$/, "");
   if (!base) return "about:blank";
-  return `${base}/shell/pet.html`;
+  return `${base}/shell/pet.html?v=5&cb=534`;
+}
+
+async function syncPetCharacterFromMain() {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  let modelId = "robot";
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      const payload = await mainWindow.webContents.executeJavaScript(
+        `(function(){try{var id=localStorage.getItem("shell-character-model")||"robot";return id==="cloud"||id==="minifig"?(id==="minifig"?"lego":"robot"):id;}catch(e){return"robot";}})()`,
+        true
+      );
+      if (typeof payload === "string" && payload.trim()) modelId = payload.trim();
+    } catch {
+      // ignore
+    }
+  }
+  broadcastPetPhase({ characterModel: modelId });
+  await petWindow.webContents
+    .executeJavaScript(
+      `(function(){var s=document.getElementById("shell-pet-stage");if(!s||!s.shellCharacterApi)return;s.shellCharacterApi.setModel(${JSON.stringify(modelId)});s.shellCharacterApi.refresh();})()`,
+      true
+    )
+    .catch(() => {});
+}
+
+function getPetWorkArea(win = petWindow) {
+  if (!win || win.isDestroyed()) return screen.getPrimaryDisplay().workArea;
+  const bounds = win.getBounds();
+  const display = screen.getDisplayMatching(bounds);
+  return display?.workArea || screen.getPrimaryDisplay().workArea;
+}
+
+function clampPetPosition(win, x, y) {
+  const area = getPetWorkArea(win);
+  const [winW, winH] = win.getSize();
+  const minX = area.x + PET_WINDOW_MARGIN;
+  const minY = area.y + PET_WINDOW_MARGIN;
+  const maxX = area.x + area.width - winW - PET_WINDOW_MARGIN;
+  const maxY = area.y + area.height - winH - PET_WINDOW_MARGIN;
+  return {
+    x: Math.min(Math.max(Math.round(x), minX), Math.max(minX, maxX)),
+    y: Math.min(Math.max(Math.round(y), minY), Math.max(minY, maxY))
+  };
 }
 
 function positionPetWindow(win = petWindow) {
   if (!win || win.isDestroyed()) return;
   const saved = loadConfig().petBounds;
   if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
-    win.setPosition(Math.round(saved.x), Math.round(saved.y));
+    const { x, y } = clampPetPosition(win, saved.x, saved.y);
+    win.setPosition(x, y);
     return;
   }
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
@@ -198,15 +262,53 @@ function positionPetWindow(win = petWindow) {
   win.setPosition(x, y);
 }
 
+let petMoveProgrammatic = false;
+let petBoundsSaveTimer = null;
+
 function persistPetBounds() {
   if (!petWindow || petWindow.isDestroyed()) return;
   const bounds = petWindow.getBounds();
-  saveConfig({ petBounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } });
+  saveConfig({
+    petBounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+  });
+}
+
+function schedulePetBoundsSave() {
+  if (petBoundsSaveTimer) clearTimeout(petBoundsSaveTimer);
+  petBoundsSaveTimer = setTimeout(() => {
+    petBoundsSaveTimer = null;
+    persistPetBounds();
+  }, 150);
+}
+
+function handlePetWillMove(event, newBounds) {
+  if (petMoveProgrammatic || !petWindow || petWindow.isDestroyed()) return;
+  const { x, y } = clampPetPosition(petWindow, newBounds.x, newBounds.y);
+  if (x === newBounds.x && y === newBounds.y) return;
+  event.preventDefault();
+  const current = petWindow.getBounds();
+  if (current.x === x && current.y === y) return;
+  petMoveProgrammatic = true;
+  petWindow.setPosition(x, y);
+  petMoveProgrammatic = false;
+}
+
+function syncPetWindowBoundsAfterResize() {
+  if (!petWindow || petWindow.isDestroyed() || petMoveProgrammatic) return;
+  const bounds = petWindow.getBounds();
+  const { x, y } = clampPetPosition(petWindow, bounds.x, bounds.y);
+  if (x !== bounds.x || y !== bounds.y) {
+    petMoveProgrammatic = true;
+    petWindow.setPosition(x, y);
+    petMoveProgrammatic = false;
+  }
+  persistPetBounds();
 }
 
 async function createPetWindow() {
   if (petWindow && !petWindow.isDestroyed()) {
     positionPetWindow(petWindow);
+    await syncPetCharacterFromMain();
     petWindow.showInactive();
     petWindow.setAlwaysOnTop(true, "screen-saver");
     return petWindow;
@@ -234,13 +336,15 @@ async function createPetWindow() {
     alwaysOnTop: true,
     focusable: true,
     show: false,
+    paintWhenInitiallyHidden: true,
     type: process.platform === "darwin" ? "panel" : undefined,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       additionalArguments: ["--shell-pet-overlay"],
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: true,
+      backgroundThrottling: false
     }
   });
 
@@ -250,8 +354,9 @@ async function createPetWindow() {
   petWindow.setAlwaysOnTop(true, "screen-saver");
   positionPetWindow(petWindow);
 
-  petWindow.on("moved", persistPetBounds);
-  petWindow.on("resized", persistPetBounds);
+  petWindow.on("will-move", handlePetWillMove);
+  petWindow.on("moved", schedulePetBoundsSave);
+  petWindow.on("resized", syncPetWindowBoundsAfterResize);
   petWindow.on("close", (event) => {
     if (shuttingDown) return;
     event.preventDefault();
@@ -262,13 +367,17 @@ async function createPetWindow() {
   });
 
   await petWindow.loadURL(buildPetUrl());
+  await syncPetCharacterFromMain();
   petWindow.showInactive();
+  setTimeout(() => {
+    if (petWindow && !petWindow.isDestroyed()) void syncPetCharacterFromMain();
+  }, 250);
   return petWindow;
 }
 
 function hidePetWindow() {
   if (petWindow && !petWindow.isDestroyed()) {
-    persistPetBounds();
+    syncPetWindowBoundsAfterResize();
     petWindow.hide();
   }
 }
@@ -306,6 +415,7 @@ function applyNativeWindowSettings(settings = {}) {
   }
 
   applyPetOverlay(Boolean(settings.windowPetOverlay));
+  applyKeepAwake(settings.windowKeepAwake !== false);
 
   const compact = Boolean(settings.windowCompact);
   const compactQa = settings.compactDialogQa !== false;
@@ -477,12 +587,42 @@ if (!gotLock) {
       showMainWindow().catch((error) => console.error(error));
       return { ok: true };
     });
-    ipcMain.handle("shell:set-pet-overlay", (_event, enabled) => {
-      applyPetOverlay(Boolean(enabled));
+    ipcMain.handle("shell:set-pet-overlay", async (_event, enabled) => {
+      const next = Boolean(enabled);
+      applyPetOverlay(next);
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("shell:pet-overlay-changed", { enabled: Boolean(enabled) });
+        mainWindow.webContents.send("shell:pet-overlay-changed", { enabled: next });
+        if (!next) {
+          await mainWindow.webContents
+            .executeJavaScript(
+              `(function(){var cb=document.getElementById("shell-window-pet");if(cb)cb.checked=false;})()`,
+              true
+            )
+            .catch(() => {});
+        }
       }
+      return { ok: true, enabled: next };
+    });
+    ipcMain.handle("shell:move-pet-window-by", (_event, dx, dy) => {
+      if (!petWindow || petWindow.isDestroyed()) return { ok: false };
+      const deltaX = Math.round(Number(dx) || 0);
+      const deltaY = Math.round(Number(dy) || 0);
+      if (!deltaX && !deltaY) return { ok: true };
+      const bounds = petWindow.getBounds();
+      const { x, y } = clampPetPosition(petWindow, bounds.x + deltaX, bounds.y + deltaY);
+      petMoveProgrammatic = true;
+      petWindow.setPosition(x, y);
+      petMoveProgrammatic = false;
+      schedulePetBoundsSave();
+      return { ok: true };
+    });
+    ipcMain.handle("shell:set-keep-awake", (_event, enabled) => {
+      applyKeepAwake(Boolean(enabled));
       return { ok: true, enabled: Boolean(enabled) };
+    });
+    ipcMain.handle("shell:broadcast-pet-phase", (_event, payload) => {
+      broadcastPetPhase(payload && typeof payload === "object" ? payload : {});
+      return { ok: true };
     });
     bootstrap();
   });
@@ -493,6 +633,7 @@ if (!gotLock) {
 
   app.on("before-quit", async () => {
     shuttingDown = true;
+    applyKeepAwake(false);
     if (ownedServer?.stop) {
       try {
         await ownedServer.stop();

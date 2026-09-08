@@ -1,8 +1,12 @@
 {
-  "windowTopmost": false,
+  "windowTopmost": true,
   "windowTransparent": false,
   "windowBackground": "wallpaper",
+  "windowBackgroundImageUrl": "",
   "windowCompact": false,
-  "windowPetOverlay": false,
-  "compactDialogQa": true
+  "windowPetOverlay": true,
+  "compactDialogQa": true,
+  "windowCharacterModel": "robot",
+  "windowKeepAwake": true,
+  "windowProcessingSound": "off"
 }

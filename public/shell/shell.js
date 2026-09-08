@@ -3,6 +3,7 @@ import { createSettingsSaveController } from "@shell/settings-save";
 import { parseShellReply, renderShellReplyMedia, prepareSpeechText, pullSpeechSentences, mergeSpeechStreamChunks, parseDualReply, extractStreamingTtsBody, extractStreamingReplyBody, hasVoiceEndDelimiter, stripAllTtsBlocks } from "@shell/reply";
 import { renderShellReplyMarkdown, renderShellReplyBody, preloadShellMarkdown } from "@shell/markdown";
 import { initShellCharacter } from "@shell/character";
+import { loadStoredCharacterId, saveStoredCharacterId } from "@shell/character-models";
 import { createShellCamera } from "@shell/camera";
 import { createShellScreen } from "@shell/screen";
 import { createShellTtsTabCoordinator } from "@shell/tts-tab";
@@ -1196,6 +1197,8 @@ const nodes = {
   windowTransparent: document.getElementById("shell-window-transparent"),
   windowPetOverlay: document.getElementById("shell-window-pet"),
   windowBackground: document.getElementById("shell-window-background"),
+  windowBackgroundImage: document.getElementById("shell-window-background-image"),
+  windowBgCustomWrap: document.getElementById("shell-window-bg-custom-wrap"),
   thinkingSoundGrid: document.getElementById("shell-thinking-sound-grid"),
   thinkingSoundDemo: document.getElementById("shell-thinking-sound-demo"),
   windowCompact: document.getElementById("shell-compact-exit"),
@@ -1220,7 +1223,6 @@ const nodes = {
   micDialogCheck: document.getElementById("shell-mic-dialog-check"),
   micHelpLink: document.getElementById("shell-mic-help-link"),
   mobileLinkBtn: document.getElementById("shell-mobile-link-btn"),
-  mobileHeaderBtn: document.getElementById("shell-mobile-header-btn"),
   mobileDialog: document.getElementById("shell-mobile-dialog"),
   mobileDialogUrl: document.getElementById("shell-mobile-url"),
   mobileDialogNote: document.getElementById("shell-mobile-dialog-note"),
@@ -1825,6 +1827,7 @@ async function onAgentSelectChange(next) {
   prepareDialogScrollRestore({ restoreOnLoad: true });
   await shellDialog.refreshHistory?.({ replace: true, restoreScroll: true });
   await loadComposeDraft();
+  await loadWindowSettings();
   commitAllSettingsBaselinesIfSafe();
   syncComposeReadyStatus();
   connectStream();
@@ -2122,6 +2125,7 @@ function pickThinkingSound(id) {
   primeShellProcessingAudio();
   writeProcessingSound(id);
   syncThinkingSoundButtons();
+  markSettingsDirty("window");
   if (processingSoundPhase === "thinking") {
     void startShellProcessingAmbient(id);
     return;
@@ -2160,6 +2164,9 @@ function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false
   }
 
   syncProcessingSound(displayPhase);
+  if (window.shellApp?.broadcastPetPhase) {
+    void window.shellApp.broadcastPetPhase({ phase: displayPhase });
+  }
 }
 
 function maybeResetStaleSpeakingPhase() {
@@ -3787,11 +3794,65 @@ function buildWindowSettingsPayload(overrides = {}) {
     windowTopmost: nodes.topmost?.checked !== false,
     windowTransparent,
     windowBackground: windowTransparent ? "transparent" : windowBackground,
+    windowBackgroundImageUrl: String(nodes.windowBackgroundImage?.value || "").trim(),
     windowCompact: isWindowCompactEnabled(),
     windowPetOverlay: nodes.windowPetOverlay?.checked === true,
     compactDialogQa,
+    windowCharacterModel: loadStoredCharacterId(),
+    windowKeepAwake: nodes.keepAwake?.checked !== false,
+    windowProcessingSound: readProcessingSound(),
     ...overrides
   };
+}
+
+function syncWindowBackgroundCustomUi(background = nodes.windowBackground?.value || "wallpaper") {
+  const bg = String(background || "wallpaper").trim();
+  const showCustom = bg === "custom" && !nodes.windowTransparent?.checked;
+  nodes.windowBgCustomWrap?.toggleAttribute("hidden", !showCustom);
+  if (nodes.windowBackgroundImage) {
+    nodes.windowBackgroundImage.disabled = !showCustom;
+  }
+}
+
+let shellCharacterInitPromise = null;
+
+function ensureShellCharacter() {
+  if (!nodes.characterStage) return Promise.resolve(null);
+  if (nodes.characterStage.shellCharacterApi) {
+    nodes.characterStage.shellCharacterApi.refresh?.();
+    return Promise.resolve(nodes.characterStage.shellCharacterApi);
+  }
+  if (!shellCharacterInitPromise) {
+    shellCharacterInitPromise = initShellCharacter(nodes.characterStage, nodes.agentAvatar);
+  }
+  return shellCharacterInitPromise;
+}
+
+function applyWindowCharacterModel(modelId) {
+  const next = String(modelId || "").trim();
+  if (!next) return;
+  saveStoredCharacterId(next);
+  if (state.settingsTab === "window" || nodes.characterStage?.shellCharacterApi) {
+    void ensureShellCharacter().then(() => {
+      nodes.characterStage?.shellCharacterApi?.setModel?.(next);
+    });
+  }
+  if (window.shellApp?.broadcastPetPhase) {
+    void window.shellApp.broadcastPetPhase({ characterModel: next });
+  }
+}
+
+function applyWindowSoundAndAwake(settings = {}) {
+  const sound = String(settings.windowProcessingSound || "off").trim() || "off";
+  writeProcessingSound(sound);
+  syncThinkingSoundButtons();
+  const keepAwake = settings.windowKeepAwake !== false;
+  if (nodes.keepAwake) nodes.keepAwake.checked = keepAwake;
+  writeKeepAwakeSetting(keepAwake);
+  shellKeepAwake?.sync?.();
+  if (window.shellApp?.setKeepAwake) {
+    void window.shellApp.setKeepAwake(keepAwake);
+  }
 }
 
 function syncCompactSensorUi(compact = isWindowCompactEnabled()) {
@@ -4138,9 +4199,19 @@ function applyWindowAppearance(settings) {
   document.body.classList.toggle("shell-compact", compact);
   if (nodes.shellApp) nodes.shellApp.dataset.compact = compact ? "1" : "0";
   if (nodes.shellApp) nodes.shellApp.dataset.compactQa = isCompactDialogQaEnabled() && compact ? "1" : "0";
-  document.body.classList.remove("shell-bg-wallpaper", "shell-bg-dark", "shell-bg-transparent");
-  const bg = transparent ? "transparent" : ws.windowBackground || "wallpaper";
-  document.body.classList.add(`shell-bg-${bg}`);
+  document.body.classList.remove("shell-bg-wallpaper", "shell-bg-dark", "shell-bg-transparent", "shell-bg-custom");
+  document.body.style.removeProperty("--shell-bg-image");
+  let bg = transparent ? "transparent" : ws.windowBackground || "wallpaper";
+  if (bg === "custom") {
+    const imageUrl = String(ws.windowBackgroundImageUrl || "").trim();
+    if (imageUrl) {
+      document.body.style.setProperty("--shell-bg-image", `url("${imageUrl.replace(/"/g, '\\"')}")`);
+      document.body.classList.add("shell-bg-custom");
+    } else {
+      bg = "wallpaper";
+    }
+  }
+  if (bg !== "custom") document.body.classList.add(`shell-bg-${bg}`);
   syncCompactQa();
 }
 
@@ -4152,6 +4223,8 @@ function isWindowCompactEnabled() {
 
 function applyWindowSettings(settings) {
   state.windowSettings = settings;
+  applyWindowCharacterModel(settings.windowCharacterModel);
+  applyWindowSoundAndAwake(settings);
   if (!settingsSave.isSectionDirty("window")) {
     if (nodes.topmost) nodes.topmost.checked = settings.windowTopmost !== false;
     if (nodes.windowTransparent) nodes.windowTransparent.checked = Boolean(settings.windowTransparent);
@@ -4161,6 +4234,10 @@ function applyWindowSettings(settings) {
       nodes.windowBackground.value = settings.windowBackground || "wallpaper";
       nodes.windowBackground.disabled = Boolean(settings.windowTransparent);
     }
+    if (nodes.windowBackgroundImage) {
+      nodes.windowBackgroundImage.value = String(settings.windowBackgroundImageUrl || "");
+    }
+    syncWindowBackgroundCustomUi(settings.windowBackground);
   }
   if (nodes.windowCompact) {
     nodes.windowCompact.setAttribute("aria-pressed", settings.windowCompact ? "true" : "false");
@@ -8801,6 +8878,14 @@ function setSettingsTab(tab) {
     const active = btn.dataset.settingsTab === next;
     btn.setAttribute("aria-selected", active ? "true" : "false");
   });
+  if (next === "window") {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        void ensureShellCharacter();
+        window.dispatchEvent(new Event("resize"));
+      });
+    });
+  }
   if (next === "tts") {
     resetTtsTestButtonUi();
     void refreshTtsVoiceOptions();
@@ -8874,7 +8959,7 @@ function bindNavigationUi() {
     nodes.characterToggle.dataset.shellBound = "1";
     nodes.characterToggle.addEventListener("click", () => setCharacterPicker(!state.characterPickerOpen));
   }
-  if (nodes.characterPicker && nodes.characterPicker.dataset.shellBound !== "1") {
+  if (nodes.characterPickerWrap && nodes.characterPicker && nodes.characterPicker.dataset.shellBound !== "1") {
     nodes.characterPicker.dataset.shellBound = "1";
     nodes.characterPicker.addEventListener("click", (event) => {
       if (event.target.closest(".shell-character-option")) setCharacterPicker(false);
@@ -8977,6 +9062,7 @@ function bindWindowSettingsUi() {
     if (nodes.windowBackground) {
       nodes.windowBackground.disabled = windowTransparent && nodes.windowTransparent?.checked === true;
     }
+    syncWindowBackgroundCustomUi(windowBackground);
     previewWindowFromForm();
     markSettingsDirty("window");
   };
@@ -8993,11 +9079,12 @@ function bindWindowSettingsUi() {
   if (window.shellApp?.onPetOverlayChanged) {
     window.shellApp.onPetOverlayChanged((payload) => {
       if (!nodes.windowPetOverlay) return;
-      nodes.windowPetOverlay.checked = Boolean(payload?.enabled);
-      markSettingsDirty("window");
-      void saveWindowSettings(buildWindowSettingsPayload({ windowPetOverlay: Boolean(payload?.enabled) })).catch(
-        () => {}
-      );
+      const enabled = Boolean(payload?.enabled);
+      nodes.windowPetOverlay.checked = enabled;
+      if (!enabled) {
+        markSettingsDirty("window");
+        void saveWindowSettings(buildWindowSettingsPayload({ windowPetOverlay: false })).catch(() => {});
+      }
     });
   }
   nodes.windowTransparent?.addEventListener("change", () => {
@@ -9007,6 +9094,10 @@ function bindWindowSettingsUi() {
     onWindowFieldChange();
   });
   nodes.windowBackground?.addEventListener("change", onWindowFieldChange);
+  nodes.windowBackgroundImage?.addEventListener("input", onWindowFieldChange);
+  nodes.characterStage?.addEventListener("shell-character-model", () => {
+    markSettingsDirty("window");
+  });
   const onThinkingSoundClick = (event) => {
     const btn = event.target.closest("[data-thinking-sound]");
     if (!btn) return;
@@ -9019,6 +9110,10 @@ function bindWindowSettingsUi() {
     nodes.keepAwake.addEventListener("change", () => {
       writeKeepAwakeSetting(nodes.keepAwake.checked);
       shellKeepAwake?.sync();
+      if (window.shellApp?.setKeepAwake) {
+        void window.shellApp.setKeepAwake(nodes.keepAwake.checked);
+      }
+      markSettingsDirty("window");
     });
   }
 }
@@ -9536,7 +9631,7 @@ function bindShellInteractiveUi() {
     initShellHints();
     initShellImageLightbox();
     initShellMobileLink({
-      buttons: [nodes.mobileLinkBtn, nodes.mobileHeaderBtn],
+      buttons: [nodes.mobileLinkBtn],
       dialog: nodes.mobileDialog,
       urlInput: nodes.mobileDialogUrl,
       noteEl: nodes.mobileDialogNote,
@@ -9738,7 +9833,6 @@ async function boot() {
   void bootShellAgentLayer();
   preloadShellMarkdown();
   void initBatteryMonitor();
-  void initShellCharacter(nodes.characterStage, nodes.agentAvatar);
 }
 
 async function bootShellAgentLayer() {

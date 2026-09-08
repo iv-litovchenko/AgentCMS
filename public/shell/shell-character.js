@@ -1,3 +1,5 @@
+import * as THREE from "three";
+import { GLTFLoader } from "/shell/vendor/loaders/GLTFLoader.js";
 import {
   HERO_CHARACTER_ID,
   PICKER_CHARACTER_MODELS,
@@ -7,8 +9,23 @@ import {
   saveStoredCharacterId
 } from "@shell/character-models";
 
-const THREE_MODULE = "/shell/vendor/three.module.js";
-const GLTF_LOADER_MODULE = "/shell/vendor/loaders/GLTFLoader.js";
+function setViewportStatus(viewport, kind = "") {
+  if (!viewport) return;
+  viewport.classList.toggle("is-loading", kind === "loading");
+  viewport.classList.toggle("is-error", kind === "error");
+  let el = viewport.querySelector(".shell-character-status");
+  if (!kind) {
+    el?.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "shell-character-status";
+    viewport.appendChild(el);
+  }
+  el.textContent =
+    kind === "loading" ? "Загрузка модели…" : kind === "error" ? "Не удалось загрузить 3D" : "";
+}
 
 function showCloudFallback(viewport, canvas) {
   if (!viewport.querySelector(".shell-character-fallback")) {
@@ -150,7 +167,7 @@ function renderCharacterOptionIcon(model) {
   return `<span class="shell-character-option-icon" aria-hidden="true">${model.icon || ""}</span>`;
 }
 
-function renderPicker(pickerEl, activeId, onPick) {
+function renderPicker(pickerEl, activeId) {
   if (!pickerEl) return;
   pickerEl.replaceChildren();
   for (const model of PICKER_CHARACTER_MODELS) {
@@ -162,7 +179,6 @@ function renderPicker(pickerEl, activeId, onPick) {
     btn.setAttribute("aria-label", model.label);
     btn.setAttribute("aria-pressed", model.id === activeId ? "true" : "false");
     btn.innerHTML = `${renderCharacterOptionIcon(model)}<span class="shell-character-option-label">${model.label}</span>`;
-    btn.addEventListener("click", () => onPick(model.id));
     pickerEl.appendChild(btn);
   }
 }
@@ -172,7 +188,7 @@ function updateSelectionUi(pickerEl, avatarEl, activeId) {
   avatarEl?.setAttribute("data-character-selected", isCloud ? "1" : "0");
   avatarEl?.setAttribute("aria-pressed", isCloud ? "true" : "false");
   pickerEl?.querySelectorAll(".shell-character-option").forEach((btn) => {
-    btn.setAttribute("aria-pressed", !isCloud && btn.dataset.modelId === activeId ? "true" : "false");
+    btn.setAttribute("aria-pressed", btn.dataset.modelId === activeId ? "true" : "false");
   });
 }
 
@@ -187,14 +203,32 @@ export async function initShellCharacter(stageEl, avatarEl) {
   let loadedModelId = "";
   let loadModelFn = null;
 
-  renderPicker(pickerEl, activeModelId, (modelId) => {
-    if (loadModelFn) void loadModelFn(modelId);
+  function pickModel(modelId) {
+    const nextId = String(modelId || "").trim();
+    if (!nextId) return;
+    if (loadModelFn) void loadModelFn(nextId);
     else {
-      activeModelId = modelId;
-      saveStoredCharacterId(modelId);
-      updateSelectionUi(pickerEl, avatarEl, modelId);
+      activeModelId = nextId;
+      saveStoredCharacterId(nextId);
+      updateSelectionUi(pickerEl, avatarEl, nextId);
     }
-  });
+    stageEl.dispatchEvent(
+      new CustomEvent("shell-character-model", { bubbles: true, detail: { modelId: nextId } })
+    );
+  }
+
+  if (pickerEl && pickerEl.dataset.shellPickerBound !== "1") {
+    pickerEl.dataset.shellPickerBound = "1";
+    pickerEl.addEventListener("click", (event) => {
+      const btn = event.target.closest(".shell-character-option");
+      if (!btn?.dataset.modelId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      pickModel(btn.dataset.modelId);
+    });
+  }
+
+  renderPicker(pickerEl, activeModelId);
 
   if (avatarEl) {
     avatarEl.setAttribute("role", "button");
@@ -204,41 +238,16 @@ export async function initShellCharacter(stageEl, avatarEl) {
 
   updateSelectionUi(pickerEl, avatarEl, activeModelId);
 
-  let THREE = null;
-  let GLTFLoader = null;
-  try {
-    THREE = await import(THREE_MODULE);
-    ({ GLTFLoader } = await import(GLTF_LOADER_MODULE));
-  } catch {
-    buildFallback(viewport);
-    return null;
-  }
+  const isPetStage =
+    stageEl.classList.contains("shell-pet-stage") || document.body.classList.contains("shell-pet");
 
-  const canvas = document.createElement("canvas");
-  canvas.className = "shell-character-canvas";
-  viewport.append(canvas);
-
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    alpha: true,
-    antialias: true,
-    powerPreference: "low-power"
-  });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setClearColor(0x000000, 0);
-  if ("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 30);
-  addStageFloor(THREE, scene);
-  addStageLights(THREE, scene);
-
-  const rig = new THREE.Group();
-  scene.add(rig);
-
-  const clock = new THREE.Clock();
-  const loader = new GLTFLoader();
-
+  let renderer = null;
+  let scene = null;
+  let camera = null;
+  let canvas = null;
+  let rig = null;
+  let clock = null;
+  let loader = null;
   let mixer = null;
   let actions = {};
   let activeAction = null;
@@ -249,14 +258,108 @@ export async function initShellCharacter(stageEl, avatarEl) {
   let frameId = 0;
   let currentModelRoot = null;
   let cloudMode = isFallbackCharacter(activeModelSpec);
+  let webglReady = false;
+  let pendingModelId = activeModelId;
 
   function resize() {
+    if (!renderer || !camera) return;
     const width = viewport.clientWidth;
     const height = viewport.clientHeight;
     if (!width || !height) return;
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
+    if (modelReady && currentModelRoot) {
+      fitModelToStage(THREE, camera, currentModelRoot, activeModelSpec.transform || {});
+    }
+  }
+
+  function mountWebGL() {
+    if (webglReady) return true;
+    const width = viewport.clientWidth;
+    const height = viewport.clientHeight;
+    if (width < 16 || height < 16) return false;
+
+    canvas = document.createElement("canvas");
+    canvas.className = "shell-character-canvas";
+    if (isPetStage) {
+      viewport.querySelector(".shell-pet-drag-layer")?.remove();
+      viewport.appendChild(canvas);
+    } else {
+      viewport.prepend(canvas);
+    }
+
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        alpha: true,
+        antialias: true,
+        premultipliedAlpha: !isPetStage,
+        preserveDrawingBuffer: isPetStage,
+        powerPreference: "high-performance"
+      });
+    } catch {
+      setViewportStatus(viewport, "error");
+      buildFallback(viewport);
+      return false;
+    }
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
+    if (isPetStage && "setClearAlpha" in renderer) renderer.setClearAlpha(0);
+    if ("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 30);
+    addStageFloor(THREE, scene);
+    addStageLights(THREE, scene);
+    rig = new THREE.Group();
+    scene.add(rig);
+    clock = new THREE.Clock();
+    loader = new GLTFLoader();
+    webglReady = true;
+    resize();
+    animate();
+    void loadModel(pendingModelId || activeModelId);
+    return true;
+  }
+
+  function ensureWebGL() {
+    if (mountWebGL()) return;
+    requestAnimationFrame(ensureWebGL);
+  }
+
+  const resizeObserver =
+    typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(() => {
+          if (!webglReady) ensureWebGL();
+          else resize();
+        })
+      : null;
+  resizeObserver?.observe(viewport);
+
+  const visibilityObserver =
+    !isPetStage && typeof IntersectionObserver !== "undefined"
+      ? new IntersectionObserver(
+          (entries) => {
+            if (!entries.some((entry) => entry.isIntersecting)) return;
+            ensureWebGL();
+            stageEl.shellCharacterApi?.refresh?.();
+          },
+          { threshold: 0.01 }
+        )
+      : null;
+  visibilityObserver?.observe(viewport);
+
+  if (isPetStage) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        ensureWebGL();
+        stageEl.shellCharacterApi?.refresh?.();
+      });
+    });
+  } else {
+    ensureWebGL();
   }
 
   function disposeCurrentModel() {
@@ -268,7 +371,7 @@ export async function initShellCharacter(stageEl, avatarEl) {
       mixer.stopAllAction();
       mixer = null;
     }
-    if (currentModelRoot) {
+    if (currentModelRoot && rig) {
       rig.remove(currentModelRoot);
       currentModelRoot.traverse((node) => {
         if (node.isMesh) {
@@ -297,25 +400,45 @@ export async function initShellCharacter(stageEl, avatarEl) {
     activeAction = next;
   }
 
-  function loadModel(modelId) {
-    if (loadingModel) return Promise.resolve();
-    const spec = getCharacterModel(modelId);
-    if (modelId === loadedModelId && (modelReady || cloudMode)) return Promise.resolve();
-
-    loadingModel = true;
-    disposeCurrentModel();
+  function queueModelSelection(modelId) {
+    pendingModelId = modelId;
     activeModelId = modelId;
-    loadedModelId = "";
-    activeModelSpec = spec;
-    cloudMode = isFallbackCharacter(spec);
     saveStoredCharacterId(modelId);
     updateSelectionUi(pickerEl, avatarEl, modelId);
+  }
+
+  function maybeLoadQueuedModel() {
+    const nextId = pendingModelId;
+    if (!nextId || nextId === loadedModelId) return;
+    void loadModel(nextId);
+  }
+
+  function loadModel(modelId) {
+    const nextId = String(modelId || "").trim();
+    if (!nextId) return Promise.resolve();
+    queueModelSelection(nextId);
+
+    if (!webglReady || !loader) {
+      ensureWebGL();
+      return Promise.resolve();
+    }
+    if (nextId === loadedModelId && (modelReady || cloudMode)) return Promise.resolve();
+    if (loadingModel) return Promise.resolve();
+
+    loadingModel = true;
+    setViewportStatus(viewport, "loading");
+    disposeCurrentModel();
+    loadedModelId = "";
+    activeModelSpec = getCharacterModel(nextId);
+    cloudMode = isFallbackCharacter(activeModelSpec);
 
     if (cloudMode) {
       showCloudFallback(viewport, canvas);
+      setViewportStatus(viewport, "");
       modelReady = false;
-      loadedModelId = modelId;
+      loadedModelId = nextId;
       loadingModel = false;
+      maybeLoadQueuedModel();
       return Promise.resolve();
     }
 
@@ -323,15 +446,14 @@ export async function initShellCharacter(stageEl, avatarEl) {
 
     return new Promise((resolve) => {
       loader.load(
-        spec.file,
+        activeModelSpec.file,
         (gltf) => {
           const model = gltf.scene;
           prepareModelMaterials(THREE, model);
           rig.add(model);
           currentModelRoot = model;
-          fitModelToStage(THREE, camera, model, spec.transform || {});
           resize();
-          if (currentModelRoot) fitModelToStage(THREE, camera, currentModelRoot, spec.transform || {});
+          fitModelToStage(THREE, camera, model, activeModelSpec.transform || {});
 
           mixer = new THREE.AnimationMixer(model);
           for (const clip of gltf.animations || []) {
@@ -339,20 +461,23 @@ export async function initShellCharacter(stageEl, avatarEl) {
             actions[key] = mixer.clipAction(clip);
           }
           modelReady = true;
-          loadedModelId = modelId;
+          loadedModelId = nextId;
           loadingModel = false;
+          setViewportStatus(viewport, "");
           playPhaseAnimation(stageEl.dataset.phase || "waiting");
+          maybeLoadQueuedModel();
           resolve();
         },
         undefined,
         () => {
           loadingModel = false;
-          if (modelId !== "robot") {
+          setViewportStatus(viewport, "error");
+          if (nextId !== "robot") {
             void loadModel("robot");
           } else {
-            renderer.dispose();
             buildFallback(viewport);
           }
+          maybeLoadQueuedModel();
           resolve();
         }
       );
@@ -361,6 +486,7 @@ export async function initShellCharacter(stageEl, avatarEl) {
 
   function animate() {
     frameId = requestAnimationFrame(animate);
+    if (!webglReady || !renderer || !scene || !camera) return;
     if (!cloudMode) {
       playPhaseAnimation(stageEl.dataset.phase || "waiting");
       if (mixer) mixer.update(clock.getDelta());
@@ -373,18 +499,29 @@ export async function initShellCharacter(stageEl, avatarEl) {
   }
 
   loadModelFn = loadModel;
-
-  resize();
-  animate();
-  void loadModel(activeModelId);
-
-  const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => resize()) : null;
-  observer?.observe(viewport);
+  stageEl.shellCharacterApi = {
+    setModel: (modelId) => {
+      if (loadModelFn) void loadModelFn(String(modelId || "").trim() || activeModelId);
+    },
+    setPhase: (phase) => {
+      stageEl.dataset.phase = String(phase || "waiting").trim() || "waiting";
+    },
+    refresh: () => {
+      ensureWebGL();
+      resize();
+      if (modelReady && currentModelRoot) {
+        fitModelToStage(THREE, camera, currentModelRoot, activeModelSpec.transform || {});
+      } else if (!loadingModel && webglReady) {
+        void loadModel(pendingModelId || activeModelId);
+      }
+    }
+  };
 
   return () => {
     cancelAnimationFrame(frameId);
-    observer?.disconnect();
+    resizeObserver?.disconnect();
+    visibilityObserver?.disconnect();
     disposeCurrentModel();
-    renderer.dispose();
+    renderer?.dispose();
   };
 }

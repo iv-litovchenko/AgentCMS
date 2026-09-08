@@ -128,11 +128,11 @@ export const SHELL_CHARACTER_MODELS = [
     icon: "☁️",
     heroPick: true,
     fallback: true,
-    credit: "Клик по аватару вверху"
+    credit: "SVG-облачко · главный экран и pet без 3D"
   }
 ];
 
-export const PICKER_CHARACTER_MODELS = SHELL_CHARACTER_MODELS.filter((item) => !item.heroPick);
+export const PICKER_CHARACTER_MODELS = SHELL_CHARACTER_MODELS;
 
 export function getCharacterModel(id) {
   return SHELL_CHARACTER_MODELS.find((item) => item.id === id) || SHELL_CHARACTER_MODELS[0];

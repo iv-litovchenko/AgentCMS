@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=529" />
+    <link rel="stylesheet" href="/shell/shell.css?v=536" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -23,8 +23,8 @@
           "@shell/settings-save": "/shell/shell-settings-save.js?v=323",
           "@shell/reply": "/shell/shell-reply.js?v=422",
           "@shell/markdown": "/shell/shell-markdown.js?v=426",
-          "@shell/character": "/shell/shell-character.js?v=208",
-          "@shell/character-models": "/shell/shell-character-models.js?v=207",
+          "@shell/character": "/shell/shell-character.js?v=214",
+          "@shell/character-models": "/shell/shell-character-models.js?v=208",
           "@shell/camera": "/shell/shell-camera.js?v=207",
           "@shell/screen": "/shell/shell-screen.js?v=207",
           "@shell/tts-tab": "/shell/shell-tts-tab.js?v=207",
@@ -200,15 +200,7 @@
               >
                 ★
               </button>
-              <button
-                type="button"
-                class="shell-path-action-btn"
-                id="shell-mobile-header-btn"
-                title="Открыть на iPhone"
-                aria-label="Мобила — ссылка для iPhone"
-              >
-                📱
-              </button>
+
               <button
                 type="button"
                 class="shell-path-action-btn"
@@ -771,6 +763,7 @@
         </section>
 
         <section class="shell-window-panel" id="shell-window-panel" role="tabpanel" aria-labelledby="shell-settings-tab-window" hidden>
+        <p class="shell-window-hint shell-window-hint--lead">3D-персонаж — превью ниже. На главном экране пока только облачко; отдельное окно — галочка «Персонаж поверх окон» (Voice.app).</p>
         <div class="shell-character-stage" id="shell-character-stage" data-phase="waiting">
           <div class="shell-character-viewport"></div>
           <div class="shell-character-picker" id="shell-character-picker"></div>
@@ -796,16 +789,27 @@
             <input id="shell-keep-awake" type="checkbox" checked />
             <span>Не гасить экран</span>
           </label>
-          <p class="shell-window-note">Моделька сверху — сам персонаж. Галочка выносит его на рабочий стол отдельным окном (только Voice.app). Двойной клик по нему открывает Voice.</p>
+          <p class="shell-window-note">Моделька сверху — сам персонаж. Галочка «Персонаж поверх окон» выносит его на рабочий стол отдельным окном (Voice.app). Двойной клик — открыть Voice. Перетаскивание — за персонажа.</p>
           <p class="shell-window-note">Компактный режим — нажмите на облачко. Над микрофоном — последний вопрос и ответ. Свернуть — кнопка рядом со статусом.</p>
-          <p class="shell-window-note shell-window-note--local">«Не гасить экран» — на этом устройстве (не в awn-shell.json).</p>
           <label class="shell-field shell-field--compact">
             <span class="shell-label">Фон</span>
             <select id="shell-window-background" class="shell-select">
               <option value="wallpaper" selected>Обои (горы)</option>
+              <option value="custom">Своя картинка</option>
               <option value="dark">Тёмный</option>
               <option value="transparent">Прозрачный</option>
             </select>
+          </label>
+          <label class="shell-field shell-field--compact shell-window-bg-custom" id="shell-window-bg-custom-wrap" hidden>
+            <span class="shell-label">URL картинки фона</span>
+            <input
+              id="shell-window-background-image"
+              class="shell-input shell-input--full"
+              type="url"
+              inputmode="url"
+              placeholder="/shell/wallpaper.png или https://…"
+              autocomplete="off"
+            />
           </label>
           <div class="shell-thinking-sounds">
             <span class="shell-label">Звук «думаю»</span>
@@ -821,7 +825,7 @@
             </button>
             <button type="button" class="shell-btn shell-btn--ghost shell-settings-close-btn">Закрыть</button>
           </div>
-          <span class="shell-settings-save-hint" data-settings-save-hint="global"></span>
+          <span class="shell-settings-save-hint" data-settings-save-hint="window"><code>.agent-shell/settings.json</code> · window</span>
         </div>
         </section>
 
@@ -2767,14 +2771,19 @@ CMS workspace</pre>
         </p>
         <label class="shell-mobile-url-field">
           <span class="shell-mobile-url-label">Agent CMS Voice (HTTPS :3488)</span>
-          <input
-            id="shell-mobile-url"
-            class="shell-mobile-url-input"
-            type="text"
-            readonly
-            spellcheck="false"
-            aria-label="Ссылка для iPhone"
-          />
+          <div class="shell-mobile-url-row">
+            <input
+              id="shell-mobile-url"
+              class="shell-mobile-url-input"
+              type="text"
+              readonly
+              spellcheck="false"
+              aria-label="Ссылка для iPhone"
+            />
+            <button type="button" class="shell-btn shell-btn--ghost shell-mobile-url-copy" id="shell-mobile-copy">
+              Копировать
+            </button>
+          </div>
         </label>
         <div class="shell-mobile-qr-wrap" id="shell-mobile-qr-wrap" hidden>
           <img
@@ -2795,21 +2804,22 @@ CMS workspace</pre>
           </ol>
           <label class="shell-mobile-url-field">
             <span class="shell-mobile-url-label">mkcert CA для iPhone (HTTP :3088)</span>
-            <input
-              id="shell-mobile-cert-url"
-              class="shell-mobile-url-input"
-              type="text"
-              readonly
-              spellcheck="false"
-              aria-label="Ссылка для установки CA на iPhone"
-            />
+            <div class="shell-mobile-url-row">
+              <input
+                id="shell-mobile-cert-url"
+                class="shell-mobile-url-input"
+                type="text"
+                readonly
+                spellcheck="false"
+                aria-label="Ссылка для установки CA на iPhone"
+              />
+              <button type="button" class="shell-btn shell-btn--ghost shell-mobile-url-copy" id="shell-mobile-cert-copy">
+                Копировать
+              </button>
+            </div>
           </label>
-          <div class="shell-dialog-actions shell-dialog-actions--tight">
-            <button type="button" class="shell-btn shell-btn--ghost" id="shell-mobile-cert-copy">Копировать CA</button>
-          </div>
         </div>
         <div class="shell-dialog-actions shell-dialog-actions--spread">
-          <button type="button" class="shell-btn shell-btn--ghost" id="shell-mobile-copy">Копировать</button>
           <button type="button" class="shell-btn shell-btn--ghost" id="shell-mobile-share">Поделиться</button>
           <button type="button" class="shell-btn" id="shell-mobile-dialog-close">OK</button>
         </div>
@@ -2850,6 +2860,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=541" type="module"></script>
+    <script src="/shell/shell.js?v=542" type="module"></script>
   </body>
 </html>

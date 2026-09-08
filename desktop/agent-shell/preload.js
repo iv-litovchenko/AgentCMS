@@ -18,6 +18,15 @@ contextBridge.exposeInMainWorld("shellApp", {
   },
   showMainWindow: () => ipcRenderer.invoke("shell:show-main-window"),
   setPetOverlay: (enabled) => ipcRenderer.invoke("shell:set-pet-overlay", enabled),
+  movePetWindowBy: (dx, dy) => ipcRenderer.invoke("shell:move-pet-window-by", dx, dy),
+  setKeepAwake: (enabled) => ipcRenderer.invoke("shell:set-keep-awake", Boolean(enabled)),
+  broadcastPetPhase: (payload) => ipcRenderer.invoke("shell:broadcast-pet-phase", payload),
+  onPetPhase: (callback) => {
+    if (typeof callback !== "function") return () => {};
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("shell:pet-phase", handler);
+    return () => ipcRenderer.removeListener("shell:pet-phase", handler);
+  },
   onPetOverlayChanged: (callback) => {
     if (typeof callback !== "function") return () => {};
     const handler = (_event, payload) => callback(payload);

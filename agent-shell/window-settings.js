@@ -28,10 +28,25 @@ const DEFAULT_WINDOW_SETTINGS = {
   windowTopmost: true,
   windowTransparent: false,
   windowBackground: "wallpaper",
+  windowBackgroundImageUrl: "",
   windowCompact: false,
   windowPetOverlay: false,
   compactDialogQa: true
 };
+
+const AGENT_WINDOW_KEYS = new Set([
+  "windowTopmost",
+  "windowTransparent",
+  "windowBackground",
+  "windowBackgroundImageUrl",
+  "windowPetOverlay",
+  "compactDialogQa",
+  "windowCharacterModel",
+  "windowKeepAwake",
+  "windowProcessingSound"
+]);
+
+const GLOBAL_WINDOW_KEYS = new Set(["windowCompact"]);
 
 function windowSettingsPath(projectRoot) {
   return path.join(projectRoot, AWN_SHELL_FILE);
@@ -45,9 +60,10 @@ function normalizeWindowSettings(raw) {
   merged.windowTopmost = merged.windowTopmost !== false;
   merged.windowTransparent = Boolean(merged.windowTransparent);
   const bg = String(merged.windowBackground || "wallpaper").trim();
-  if (!["wallpaper", "dark", "transparent"].includes(bg)) {
+  if (!["wallpaper", "dark", "transparent", "custom"].includes(bg)) {
     merged.windowBackground = "wallpaper";
   }
+  merged.windowBackgroundImageUrl = String(merged.windowBackgroundImageUrl || "").trim();
   if (merged.windowTransparent || merged.windowBackground === "transparent") {
     merged.windowTransparent = true;
     merged.windowBackground = "transparent";
@@ -55,7 +71,72 @@ function normalizeWindowSettings(raw) {
   merged.windowCompact = Boolean(merged.windowCompact);
   merged.windowPetOverlay = Boolean(merged.windowPetOverlay);
   merged.compactDialogQa = Boolean(merged.compactDialogQa);
+  if (merged.windowCharacterModel !== undefined) {
+    merged.windowCharacterModel = String(merged.windowCharacterModel || "").trim();
+  }
+  if (merged.windowKeepAwake !== undefined) merged.windowKeepAwake = merged.windowKeepAwake !== false;
+  if (merged.windowProcessingSound !== undefined) {
+    merged.windowProcessingSound = String(merged.windowProcessingSound || "off").trim() || "off";
+  }
   return merged;
+}
+
+function splitWindowPatch(patch = {}) {
+  const agentPatch = {};
+  const globalPatch = {};
+  for (const [key, value] of Object.entries(patch || {})) {
+    if (AGENT_WINDOW_KEYS.has(key)) agentPatch[key] = value;
+    else if (GLOBAL_WINDOW_KEYS.has(key)) globalPatch[key] = value;
+    else globalPatch[key] = value;
+  }
+  return { agentPatch, globalPatch };
+}
+
+function mergeAgentWindowSettings(agentSettings = {}) {
+  const src = agentSettings && typeof agentSettings === "object" ? agentSettings : {};
+  return normalizeWindowSettings({
+    windowTopmost: src.windowTopmost,
+    windowTransparent: src.windowTransparent,
+    windowBackground: src.windowBackground,
+    windowBackgroundImageUrl: src.windowBackgroundImageUrl,
+    windowPetOverlay: src.windowPetOverlay,
+    compactDialogQa: src.compactDialogQa,
+    windowCharacterModel: src.windowCharacterModel,
+    windowKeepAwake: src.windowKeepAwake,
+    windowProcessingSound: src.windowProcessingSound
+  });
+}
+
+async function readMergedWindowSettings(projectRoot, agentSettings = {}) {
+  const global = await readWindowSettings(projectRoot);
+  const agent = mergeAgentWindowSettings(agentSettings);
+  return normalizeWindowSettings({
+    ...agent,
+    windowCompact: global.windowCompact,
+    windowTopmost: agent.windowTopmost ?? global.windowTopmost,
+    windowTransparent: agent.windowTransparent ?? global.windowTransparent,
+    windowBackground: agent.windowBackground || global.windowBackground,
+    windowBackgroundImageUrl: agent.windowBackgroundImageUrl || global.windowBackgroundImageUrl,
+    windowPetOverlay: agent.windowPetOverlay ?? global.windowPetOverlay,
+    compactDialogQa: agent.compactDialogQa ?? global.compactDialogQa
+  });
+}
+
+async function writeMergedWindowSettings(projectRoot, agentRoot, shellService, patch = {}) {
+  const { agentPatch, globalPatch } = splitWindowPatch(patch);
+  let agentSettings = null;
+  if (Object.keys(agentPatch).length && shellService?.writeSettings) {
+    agentSettings = await shellService.writeSettings(agentRoot, agentPatch);
+  } else if (shellService?.readSettings) {
+    agentSettings = await shellService.readSettings(agentRoot);
+  }
+  let global = null;
+  if (Object.keys(globalPatch).length) {
+    global = await writeWindowSettings(projectRoot, globalPatch);
+  } else {
+    global = await readWindowSettings(projectRoot);
+  }
+  return readMergedWindowSettings(projectRoot, agentSettings || {});
 }
 
 async function readWindowSettings(projectRoot) {
@@ -96,7 +177,13 @@ module.exports = {
   WINDOW_PROFILE_COMPACT,
   WINDOW_PROFILE_COMPACT_QA,
   DEFAULT_WINDOW_SETTINGS,
+  AGENT_WINDOW_KEYS,
+  GLOBAL_WINDOW_KEYS,
   normalizeWindowSettings,
+  splitWindowPatch,
+  mergeAgentWindowSettings,
+  readMergedWindowSettings,
+  writeMergedWindowSettings,
   readWindowSettings,
   writeWindowSettings,
   migrateWindowSettingsFromAgent

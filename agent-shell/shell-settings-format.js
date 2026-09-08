@@ -266,6 +266,14 @@ function flattenSettings(raw) {
 
   const window = raw.window || {};
   if (window.topmost !== undefined) flat.windowTopmost = window.topmost;
+  if (window.transparent !== undefined) flat.windowTransparent = window.transparent;
+  if (window.background !== undefined) flat.windowBackground = window.background;
+  if (window.backgroundImageUrl !== undefined) flat.windowBackgroundImageUrl = window.backgroundImageUrl;
+  if (window.petOverlay !== undefined) flat.windowPetOverlay = window.petOverlay;
+  if (window.compactDialogQa !== undefined) flat.compactDialogQa = window.compactDialogQa;
+  if (window.characterModel !== undefined) flat.windowCharacterModel = window.characterModel;
+  if (window.keepAwake !== undefined) flat.windowKeepAwake = window.keepAwake;
+  if (window.processingSound !== undefined) flat.windowProcessingSound = window.processingSound;
 
   return flat;
 }
@@ -411,7 +419,15 @@ function nestSettings(flat) {
       })
     }),
     window: compactObject({
-      topmost: source.windowTopmost
+      topmost: source.windowTopmost,
+      transparent: source.windowTransparent,
+      background: source.windowBackground,
+      backgroundImageUrl: source.windowBackgroundImageUrl,
+      petOverlay: source.windowPetOverlay,
+      compactDialogQa: source.compactDialogQa,
+      characterModel: source.windowCharacterModel,
+      keepAwake: source.windowKeepAwake,
+      processingSound: source.windowProcessingSound
     }),
     ui: compactObject({
       dialogScrollRatio: source.dialogScrollRatio

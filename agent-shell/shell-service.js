@@ -126,6 +126,14 @@ const DEFAULT_SETTINGS = {
   ttsVoice: "",
   ttsIncludeCaptions: true,
   windowTopmost: true,
+  windowTransparent: false,
+  windowBackground: "wallpaper",
+  windowBackgroundImageUrl: "",
+  windowPetOverlay: false,
+  compactDialogQa: true,
+  windowCharacterModel: "robot",
+  windowKeepAwake: true,
+  windowProcessingSound: "off",
   cameraEnabled: false,
   cameraOnSpeech: true,
   cameraFacing: "user",
@@ -462,6 +470,17 @@ function normalizeSettings(raw) {
   merged.ttsStripEmoji = merged.ttsStripEmoji === true;
   merged.ttsIncludeCaptions = merged.ttsIncludeCaptions !== false;
   merged.windowTopmost = merged.windowTopmost !== false;
+  merged.windowTransparent = Boolean(merged.windowTransparent);
+  const windowBg = String(merged.windowBackground || "wallpaper").trim();
+  merged.windowBackground = ["wallpaper", "dark", "transparent", "custom"].includes(windowBg)
+    ? windowBg
+    : "wallpaper";
+  merged.windowBackgroundImageUrl = String(merged.windowBackgroundImageUrl || "").trim();
+  merged.windowPetOverlay = Boolean(merged.windowPetOverlay);
+  merged.compactDialogQa = merged.compactDialogQa !== false;
+  merged.windowCharacterModel = String(merged.windowCharacterModel || "robot").trim() || "robot";
+  merged.windowKeepAwake = merged.windowKeepAwake !== false;
+  merged.windowProcessingSound = String(merged.windowProcessingSound || "off").trim() || "off";
   merged.cameraEnabled = Boolean(merged.cameraEnabled);
   merged.cameraOnSpeech = merged.cameraOnSpeech !== false;
   if (!["user", "environment", "device"].includes(merged.cameraFacing)) {
