@@ -365,7 +365,10 @@ function buildDefaultFrontmatter(typeName, options = {}) {
   const seen = new Set();
   for (const key of orderedKeys) {
     if (seen.has(key)) continue;
-    if (isContentType && pageOnlyFields.has(key)) continue;
+    if (isContentType && pageOnlyFields.has(key)) {
+      const runtimeFieldDef = fields[key];
+      if (!runtimeFieldDef || runtimeFieldDef.hidden === true) continue;
+    }
     seen.add(key);
 
     if (key === "awn-type") {

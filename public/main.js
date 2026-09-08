@@ -41820,12 +41820,53 @@ function getOverviewCustomSchemaFieldKeys(nodePath = getResolvedNodePath(activeP
   return Object.keys(customFields).filter((key) => acceptKey(key));
 }
 
-function isOrphanPropsFieldKey(key) {
+function isOrphanPropsFieldKey(key, nodePath = getPropsContextPath()) {
   const entryKey = normalizePropsKey(key);
-  if (entryKey === "awn-preview" || entryKey === "awn-attachments" || entryKey === "awn-materials") return false;
+  if (entryKey === "awn-preview" || entryKey === "awn-attachments" || entryKey === "awn-materials") {
+    return false;
+  }
   if (entryKey && HIDDEN_PROPS_FIELD_KEYS.has(entryKey)) return false;
   if (!entryKey) return true;
-  return !isOverviewCustomSchemaFieldKey(entryKey) && !isOverviewSettingsFieldKey(entryKey) && !isAwnFieldKey(entryKey);
+  return !isPropsFieldDefinedInSchema(entryKey, nodePath);
+}
+
+function isPropsFieldDefinedInSchema(key, nodePath = getPropsContextPath()) {
+  const normalized = normalizePropsKey(key);
+  if (!normalized) return false;
+  if (getPropsFieldDef(normalized)) return true;
+  if (isOverviewCustomFieldDefinedInSchema(normalized, nodePath)) return true;
+  if (isOverviewSettingsFieldDefinedInSchema(normalized, nodePath)) return true;
+  return false;
+}
+
+const PROPS_ASIDE_ORPHAN_GROUP_ID = "orphan";
+
+function collectPropsAsideOrphanItems(asideItems = [], nodePath = getPropsContextPath()) {
+  const renderedKeys = new Set(
+    asideItems.map(({ entry }) => normalizePropsKey(entry?.key)).filter(Boolean)
+  );
+  const orphans = [];
+  for (let index = 0; index < propsFormEntries.length; index += 1) {
+    const entry = propsFormEntries[index];
+    const key = normalizePropsKey(entry?.key);
+    if (!key) continue;
+    if (renderedKeys.has(key)) continue;
+    if (isPropsHiddenStorageKey(key)) continue;
+    if (!shouldIncludePropsFieldKey(key, nodePath)) continue;
+    if (isPropsAsideDedicatedBlockField(key)) continue;
+    if (isPropsFieldDefinedInSchema(key, nodePath)) continue;
+    orphans.push({ entry, index });
+  }
+  const typeDef = getActiveAwnTypeDef();
+  const fields = typeDef?.fields || {};
+  orphans.sort((a, b) => comparePropsFieldSchemaOrder(a.entry.key, b.entry.key, fields));
+  return orphans;
+}
+
+function decoratePropsAsideOrphanRow(row) {
+  row.classList.add("is-schema-undefined");
+  const hint = "Свойство не определено в схеме";
+  row.title = row.title ? `${row.title} · ${hint}` : hint;
 }
 
 function isEditorCustomPropsFieldKey(key, nodePath = getPropsContextPath()) {
@@ -46232,10 +46273,81 @@ function renderPropsForm() {
     return;
   }
 
+  const asideItems = collectPropsFormItemsForPlacement("aside-body");
+  const orphanItems = collectPropsAsideOrphanItems(asideItems);
+  const collapseState = loadPropsGroupCollapseState();
+
+  const appendPropsAsideOrphanGroup = (container, items, { readOnly: readOnlyMode = false } = {}) => {
+    if (!items.length || !container) return;
+
+    const group = document.createElement("section");
+    group.className = "props-form-group props-form-group--orphan props-form-group--collapsible";
+    group.dataset.group = PROPS_ASIDE_ORPHAN_GROUP_ID;
+    const defaultCollapsed = true;
+    const collapsed =
+      Object.prototype.hasOwnProperty.call(collapseState, PROPS_ASIDE_ORPHAN_GROUP_ID)
+        ? Boolean(collapseState[PROPS_ASIDE_ORPHAN_GROUP_ID])
+        : defaultCollapsed;
+    group.classList.toggle("is-collapsed", collapsed);
+
+    const header = document.createElement("button");
+    header.type = "button";
+    header.className = "props-form-group-toggle";
+    header.setAttribute("aria-expanded", String(!collapsed));
+
+    const caret = document.createElement("span");
+    caret.className = "props-form-group-caret";
+    caret.textContent = "▸";
+    caret.setAttribute("aria-hidden", "true");
+    const title = document.createElement("span");
+    title.className = "props-form-group-title";
+    title.textContent = "Вне схемы";
+    const count = document.createElement("span");
+    count.className = "props-form-group-count";
+    count.textContent = String(items.length);
+    header.append(caret, title, count);
+
+    const groupBody = document.createElement("div");
+    groupBody.className = "props-form-group-body";
+    for (const { entry, index } of items) {
+      if (readOnlyMode) {
+        const meta = getPropsFieldMeta(entry.key);
+        const displayValue = getPropsEntryDisplayValue(entry);
+        const field = document.createElement("div");
+        field.className = "props-preview-field props-preview-field--compact";
+        field.dataset.index = String(index);
+        decoratePropsAsideOrphanRow(field);
+        const label = buildPropsFieldKeyLabelElement(entry.key, meta, {
+          tag: "span",
+          className: "props-preview-label props-preview-label--with-key"
+        });
+        const value = document.createElement("span");
+        value.className = "props-preview-value";
+        value.textContent = displayValue.trim() ? displayValue : "—";
+        value.classList.toggle("is-empty", !displayValue.trim());
+        field.append(label, value);
+        groupBody.appendChild(field);
+      } else {
+        const row = createPropsFormFieldRow(entry, index, { showFieldKey: true, editorCompact: true });
+        decoratePropsAsideOrphanRow(row);
+        groupBody.appendChild(row);
+      }
+    }
+
+    header.addEventListener("click", () => {
+      const nowCollapsed = !group.classList.contains("is-collapsed");
+      group.classList.toggle("is-collapsed", nowCollapsed);
+      header.setAttribute("aria-expanded", String(!nowCollapsed));
+      savePropsGroupCollapseState(PROPS_ASIDE_ORPHAN_GROUP_ID, nowCollapsed);
+    });
+
+    group.append(header, groupBody);
+    container.appendChild(group);
+  };
+
   if (readOnly) {
     const list = document.createElement("div");
     list.className = "props-preview-list props-preview-list--compact";
-    const asideItems = collectPropsFormItemsForPlacement("aside-body");
 
     for (const { entry, index } of asideItems) {
       const meta = getPropsFieldMeta(entry.key);
@@ -46262,20 +46374,17 @@ function renderPropsForm() {
       field.append(label, value);
       list.appendChild(field);
     }
-    if (!list.childElementCount) {
+    if (!list.childElementCount && !orphanItems.length) {
       const empty = document.createElement("p");
       empty.className = "props-form-empty props-form-empty--editor-custom-hint";
       empty.textContent = "Свойств в панели пока нет.";
       propsFormFieldsNode.appendChild(empty);
     } else {
-      propsFormFieldsNode.appendChild(list);
+      if (list.childElementCount) propsFormFieldsNode.appendChild(list);
+      appendPropsAsideOrphanGroup(propsFormFieldsNode, orphanItems, { readOnly: true });
     }
     return;
   }
-
-  const asideItems = collectPropsFormItemsForPlacement("aside-body");
-
-  const collapseState = loadPropsGroupCollapseState();
 
   const appendPropsFieldGroup = (groupDef, items, { collapsible = false } = {}) => {
     if (!items.length) return;
@@ -46375,7 +46484,9 @@ function renderPropsForm() {
     appendPropsFieldGroup({ id: gid, name: null }, items, { collapsible: false });
   }
 
-  if (!asideItems.length) {
+  appendPropsAsideOrphanGroup(propsFormFieldsNode, orphanItems);
+
+  if (!asideItems.length && !orphanItems.length) {
     const empty = document.createElement("p");
     empty.className = "props-form-empty props-form-empty--editor-custom-hint";
     empty.textContent = readOnly

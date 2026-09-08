@@ -33867,6 +33867,10 @@ button.node-navigation-memory-title:focus-visible {
   background: linear-gradient(180deg, rgba(254, 242, 242, 0.72), rgba(255, 251, 251, 0.45));
 }
 
+.doc-props-aside .props-form-group--orphan > .props-form-group-toggle .props-form-group-title {
+  color: #b91c1c;
+}
+
 .doc-props-aside .props-form-group--orphan .props-form-row.is-schema-undefined .props-form-field-key-id,
 .doc-props-aside .props-form-group--orphan .props-preview-field.is-schema-undefined .props-form-field-key-id {
   color: #b91c1c;
