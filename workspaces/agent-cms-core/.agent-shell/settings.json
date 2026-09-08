@@ -84,6 +84,38 @@
     }
   },
   "window": {
-    "topmost": true
+    "topmost": true,
+    "transparent": false,
+    "background": "wallpaper",
+    "petOverlay": false,
+    "compactDialogQa": true,
+    "characterModel": "robot",
+    "keepAwake": true,
+    "processingSound": "off"
+  },
+  "compose": {
+    "promptTemplates": [
+      {
+        "id": "very-brief",
+        "key": "very-brief",
+        "group": "Стиль ответа",
+        "label": "Ответ очень кратко",
+        "text": "Ответь очень кратко — одним-двумя предложениями."
+      },
+      {
+        "id": "brief",
+        "key": "brief",
+        "group": "Стиль ответа",
+        "label": "Ответ кратко",
+        "text": "Ответь кратко, без лишних деталей."
+      },
+      {
+        "id": "detailed",
+        "key": "detailed",
+        "group": "Стиль ответа",
+        "label": "Ответ развернуто",
+        "text": "Ответь развёрнуто, с подробностями и примерами."
+      }
+    ]
   }
 }
