@@ -4700,10 +4700,12 @@ body.shell-surface-extension #shell-dialog-refresh {
 .shell-chat-bubble {
   position: relative;
   max-width: 100%;
+  min-width: 0;
 }
 
 .shell-chat-msg {
   max-width: 100%;
+  min-width: 0;
   padding: 10px 30px 10px 14px;
   border-radius: 12px;
   font-size: 16px;
@@ -4728,6 +4730,7 @@ body.shell-surface-extension #shell-dialog-refresh {
 .shell-chat-msg .shell-reply-segment,
 .shell-chat-msg .shell-md {
   white-space: normal;
+  min-width: 0;
 }
 
 .shell-chat-msg .shell-md p,
@@ -11059,20 +11062,46 @@ body.shell-embed .shell-path-header {
 .shell-reply-text.shell-md .shell-md-table-wrap,
 .shell-chat-msg .shell-md .shell-md-table-wrap,
 .shell-reply-segment.shell-md .shell-md-table-wrap,
-.shell-reply-tts-block-text.shell-md .shell-md-table-wrap {
-  margin: 0 0 0.65em;
+.shell-reply-tts-block-text.shell-md .shell-md-table-wrap,
+.shell-compact-qa-answer.shell-md .shell-md-table-wrap {
+  display: block;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
+  margin: 0 0 0.65em;
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   border-radius: 8px;
   border: 1px solid rgba(122, 108, 255, 0.22);
   background: rgba(8, 10, 22, 0.55);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 108, 255, 0.45) transparent;
+}
+
+.shell-reply-text.shell-md .shell-md-table-wrap::-webkit-scrollbar,
+.shell-chat-msg .shell-md .shell-md-table-wrap::-webkit-scrollbar,
+.shell-reply-segment.shell-md .shell-md-table-wrap::-webkit-scrollbar,
+.shell-reply-tts-block-text.shell-md .shell-md-table-wrap::-webkit-scrollbar,
+.shell-compact-qa-answer.shell-md .shell-md-table-wrap::-webkit-scrollbar {
+  height: 6px;
+}
+
+.shell-reply-text.shell-md .shell-md-table-wrap::-webkit-scrollbar-thumb,
+.shell-chat-msg .shell-md .shell-md-table-wrap::-webkit-scrollbar-thumb,
+.shell-reply-segment.shell-md .shell-md-table-wrap::-webkit-scrollbar-thumb,
+.shell-reply-tts-block-text.shell-md .shell-md-table-wrap::-webkit-scrollbar-thumb,
+.shell-compact-qa-answer.shell-md .shell-md-table-wrap::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(124, 108, 255, 0.45);
 }
 
 .shell-reply-text.shell-md table,
 .shell-chat-msg .shell-md table,
 .shell-reply-segment.shell-md table,
-.shell-reply-tts-block-text.shell-md table {
+.shell-reply-tts-block-text.shell-md table,
+.shell-compact-qa-answer.shell-md table {
   width: 100%;
   min-width: max-content;
   border-collapse: collapse;
@@ -11162,7 +11191,9 @@ body.shell-embed .shell-path-header {
 .shell-reply-segment.shell-md ul.contains-task-list,
 .shell-reply-segment.shell-md ol.contains-task-list,
 .shell-reply-tts-block-text.shell-md ul.contains-task-list,
-.shell-reply-tts-block-text.shell-md ol.contains-task-list {
+.shell-reply-tts-block-text.shell-md ol.contains-task-list,
+.shell-compact-qa-answer.shell-md ul.contains-task-list,
+.shell-compact-qa-answer.shell-md ol.contains-task-list {
   list-style: none;
   padding-left: 0;
 }
@@ -11170,33 +11201,56 @@ body.shell-embed .shell-path-header {
 .shell-reply-text.shell-md li.task-list-item,
 .shell-chat-msg .shell-md li.task-list-item,
 .shell-reply-segment.shell-md li.task-list-item,
-.shell-reply-tts-block-text.shell-md li.task-list-item {
-  position: relative;
+.shell-reply-tts-block-text.shell-md li.task-list-item,
+.shell-compact-qa-answer.shell-md li.task-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55em;
   list-style: none;
-  padding-left: 1.65em;
+  margin: 0 0 0.35em;
+  padding-left: 0;
+}
+
+.shell-reply-text.shell-md li.task-list-item:last-child,
+.shell-chat-msg .shell-md li.task-list-item:last-child,
+.shell-reply-segment.shell-md li.task-list-item:last-child,
+.shell-reply-tts-block-text.shell-md li.task-list-item:last-child,
+.shell-compact-qa-answer.shell-md li.task-list-item:last-child {
+  margin-bottom: 0;
 }
 
 .shell-reply-text.shell-md li.task-list-item .task-list-item-checkbox,
 .shell-chat-msg .shell-md li.task-list-item .task-list-item-checkbox,
 .shell-reply-segment.shell-md li.task-list-item .task-list-item-checkbox,
-.shell-reply-tts-block-text.shell-md li.task-list-item .task-list-item-checkbox {
-  position: absolute;
-  left: 0;
-  top: 0.15em;
-  width: 1em;
-  height: 1em;
-  margin: 0;
+.shell-reply-tts-block-text.shell-md li.task-list-item .task-list-item-checkbox,
+.shell-compact-qa-answer.shell-md li.task-list-item .task-list-item-checkbox {
+  position: static;
+  flex: 0 0 auto;
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0.32em 0 0;
+  padding: 0;
   accent-color: #7c6cff;
   pointer-events: none;
+  vertical-align: top;
 }
 
 .shell-reply-text.shell-md li.task-list-item.checked,
 .shell-chat-msg .shell-md li.task-list-item.checked,
 .shell-reply-segment.shell-md li.task-list-item.checked,
-.shell-reply-tts-block-text.shell-md li.task-list-item.checked {
+.shell-reply-tts-block-text.shell-md li.task-list-item.checked,
+.shell-compact-qa-answer.shell-md li.task-list-item.checked {
   color: rgba(148, 163, 184, 0.88);
   text-decoration: line-through;
   text-decoration-color: rgba(148, 163, 184, 0.55);
+}
+
+.shell-reply-text.shell-md li.task-list-item.checked .task-list-item-checkbox,
+.shell-chat-msg .shell-md li.task-list-item.checked .task-list-item-checkbox,
+.shell-reply-segment.shell-md li.task-list-item.checked .task-list-item-checkbox,
+.shell-reply-tts-block-text.shell-md li.task-list-item.checked .task-list-item-checkbox,
+.shell-compact-qa-answer.shell-md li.task-list-item.checked .task-list-item-checkbox {
+  opacity: 0.72;
 }
 
 .shell-reply-text.shell-md details,

@@ -1007,9 +1007,18 @@ export function createShellDialog(options = {}) {
     renderLiveToolStrip();
   }
 
+  function isEchoOfLastAsk(hint) {
+    const text = String(hint || "").trim();
+    const ask = String(lastAskRaw || "").trim();
+    if (!text || !ask) return false;
+    if (text === ask) return true;
+    const askShort = ask.slice(0, 240);
+    return text === askShort || ask.startsWith(text) || text.startsWith(askShort);
+  }
+
   function setLiveActivityHint(text) {
     const hint = String(text || "").trim();
-    if (!hint) return;
+    if (!hint || isEchoOfLastAsk(hint)) return;
     liveActivityHint = hint;
     if (nodes.panel?.classList.contains("is-streaming")) renderLiveToolStrip();
   }
@@ -1136,10 +1145,22 @@ export function createShellDialog(options = {}) {
     return row;
   }
 
+  function isLiveReplyStub(text = "") {
+    const raw = String(text || "").trim();
+    return !raw || raw === "…" || raw === "—";
+  }
+
   function syncLiveReplySlot() {
     const streaming = nodes.panel?.classList.contains("is-streaming");
     const hasThread = history.length > 0;
-    const hideLiveReply = hasThread && !streaming;
+    const replyReady = !isLiveReplyStub(lastReplyRaw);
+
+    let hideLiveReply = false;
+    if (!streaming) {
+      if (hasThread) hideLiveReply = true;
+      else if (!replyReady) hideLiveReply = true;
+    }
+
     nodes.lastReply?.classList.toggle("hidden", hideLiveReply);
     nodes.lastAskWrap?.classList.toggle("hidden", hasThread || !lastAskRaw);
   }

@@ -189,6 +189,8 @@ export function rehydrateShellMarkdownIn(root) {
     if (!source.trim() || !looksLikeMarkdownSource(source)) return;
     renderShellReplyMarkdown(element, source);
   });
+
+  wrapShellMarkdownTables(scope);
 }
 
 export function preloadShellMarkdown() {
@@ -998,8 +1000,21 @@ function embedShellMediaLinks(root) {
   });
 }
 
+function wrapShellMarkdownTables(root) {
+  if (!root) return;
+  root.querySelectorAll("table").forEach((table) => {
+    if (table.closest(".shell-md-table-wrap")) return;
+    const wrap = document.createElement("div");
+    wrap.className = "shell-md-table-wrap";
+    table.parentNode.insertBefore(wrap, table);
+    wrap.append(table);
+  });
+}
+
 function enhanceShellMarkdownBlocks(root) {
   if (!root) return;
+
+  wrapShellMarkdownTables(root);
 
   root.querySelectorAll("pre").forEach((pre) => {
     if (pre.classList.contains("mermaid") || pre.querySelector("code.language-math")) return;

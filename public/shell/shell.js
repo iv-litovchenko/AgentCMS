@@ -2513,11 +2513,30 @@ function syncAgentActivityFromPhrase(phrase = "", metrics = "") {
   syncToolActivityFromStatus({ phrase: text, metrics, kind });
 }
 
+function isEchoOfUserTurnPhrase(phrase = "") {
+  const hint = String(phrase || "").trim();
+  if (!hint) return false;
+  const processing = String(state.processingMessage || "").trim();
+  if (processing) {
+    if (hint === processing) return true;
+    const short = processing.slice(0, 240);
+    if (hint === short || processing.startsWith(hint) || hint.startsWith(short)) return true;
+  }
+  const lastAsk = String(shellDialog.getLastAskText?.() || "").trim();
+  if (lastAsk) {
+    if (hint === lastAsk) return true;
+    const short = lastAsk.slice(0, 240);
+    if (hint === short || lastAsk.startsWith(hint) || hint.startsWith(short)) return true;
+  }
+  return false;
+}
+
 function syncToolActivityFromStatus({ phrase = "", metrics = "" } = {}) {
   if (!isShellAgentWorkActive()) return;
   const text = String(phrase || "").trim();
   const metricsText = String(metrics || "").trim();
-  if (text || metricsText) shellDialog.setLiveActivityHint?.(text || metricsText);
+  const hint = metricsText || text;
+  if (hint && !isEchoOfUserTurnPhrase(hint)) shellDialog.setLiveActivityHint?.(hint);
 
   const tool = metricsText.replace(/^🔧\s*/, "");
   let inferredTool =
@@ -2759,6 +2778,7 @@ function setReplyPanelStreaming(active) {
     stopStreamWaitTimer();
     stopPipelineStatusPoll();
     shellDialog.renderLiveToolStrip?.();
+    shellDialog.syncLiveReplySlot?.();
     shellDialog.tryApplyPendingScrollRestore?.();
   }
   syncCompactQa();
@@ -2809,6 +2829,7 @@ function renderStreamingAssistantText(text) {
     return;
   }
   renderShellReplyBody(nodes.lastReplyText, value);
+  stopStreamWaitTimer();
   shellDialog.maintainStickScroll?.({ smooth: false });
   shellDialog.onReplyRendered(value);
   syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
@@ -3171,15 +3192,67 @@ async function refreshOutboundQueueFromServer() {
   }
 }
 
+function isServerReplyComplete(payload = {}) {
+  const serverPhase = String(payload?.state?.phase || state.shellState?.phase || "waiting").trim();
+  if (serverPhase !== "waiting" && serverPhase !== "disabled") return false;
+  return !payload?.queue?.processing;
+}
+
+function reconcileAssistantStreamFromStatus(payload = {}, reason = "status") {
+  const stream = state.assistantStream;
+  if (!stream || stream.finalized) return false;
+  if (!isServerReplyComplete(payload)) return false;
+
+  const latest = payload?.latestAgentMessage;
+  const latestBody = String(latest?.body || "").trim();
+  const streamText = String(stream.text || "").trim();
+  if (!latestBody && !streamText) return false;
+
+  if (latestBody && shellSession?.isReplyAlreadyDisplayed(latest)) {
+    setReplyPanelStreaming(false);
+    state.assistantStream = null;
+    releaseMessagePipeline();
+    renderPhase("waiting", heroIdlePhrase(), payload?.state?.metrics || state.shellState?.metrics || "");
+    return true;
+  }
+
+  const streamId = String(stream.id || "").trim();
+  const latestId = String(latest?.streamId || latest?.id || "").trim();
+  if (latestBody && latestId && streamId && !streamId.startsWith("local-") && latestId !== streamId) {
+    return false;
+  }
+
+  shellLog("message", `Stream finalize via ${reason}`);
+  if (latestBody) {
+    finalizeAssistantStream(latest);
+  } else {
+    finalizeAssistantStream({ body: streamText, streamId: stream.id || latestId || undefined });
+  }
+  return true;
+}
+
 function recoverStuckMessagePipeline(reason = "") {
   if (!state.messagePipelineBusy && !state.processingMessage) return false;
   if (isTtsPlaybackActive()) return false;
-  if (isActiveMessageTurn()) return false;
 
   const stream = state.assistantStream;
   const streaming = Boolean(stream && !stream.finalized);
   const streamHasText = Boolean(String(stream?.text || "").trim());
   const serverPhase = state.shellState?.phase || "waiting";
+
+  if (
+    streaming &&
+    streamHasText &&
+    (serverPhase === "waiting" || serverPhase === "disabled") &&
+    !state.processingMessage
+  ) {
+    return reconcileAssistantStreamFromStatus(
+      { state: state.shellState, latestAgentMessage: { body: stream.text, streamId: stream.id } },
+      reason || "recovery"
+    );
+  }
+
+  if (isActiveMessageTurn()) return false;
 
   // Зависло на «Запускаю…» — только по watchdog, не при старте хода или stale status.
   if (streaming && !streamHasText) {
@@ -3191,8 +3264,6 @@ function recoverStuckMessagePipeline(reason = "") {
     renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
     return true;
   }
-
-  if (streaming && streamHasText) return false;
 
   // Сервер уже waiting, а клиентский pipeline ещё busy — типично после reload или пропущенных SSE.
   if (serverPhase === "waiting" || serverPhase === "disabled") {
@@ -6109,6 +6180,8 @@ function applyStatusPayload(payload) {
     }
   }
 
+  reconcileAssistantStreamFromStatus(payload, "status poll");
+
   if (state.sessionUiLocked) return;
 
   if (payload?.state) {
@@ -6131,7 +6204,9 @@ function applyStatusPayload(payload) {
   }
   if (payload?.latestAgentMessage?.body) {
     const streaming = state.assistantStream && !state.assistantStream.finalized;
-    if (!streaming && !shellSession?.isReplyAlreadyDisplayed(payload.latestAgentMessage)) {
+    if (streaming && isServerReplyComplete(payload)) {
+      reconcileAssistantStreamFromStatus(payload, "status message");
+    } else if (!streaming && !shellSession?.isReplyAlreadyDisplayed(payload.latestAgentMessage)) {
       renderShellReply(payload.latestAgentMessage);
       shellSession?.markReplyDisplayed(payload.latestAgentMessage);
     }
