@@ -422,7 +422,7 @@ class CodexAppServerSession {
         const resumed = await this.request("thread/resume", {
           threadId: sessionId,
           cwd,
-          excludeTurns: true,
+          excludeTurns: false,
           approvalPolicy: threadParams.approvalPolicy,
           sandbox: threadParams.sandbox,
           ...(model ? { model } : {})

@@ -185,13 +185,12 @@ async function chatClaudeCliPersistent(options = {}) {
 }
 
 async function chatCodexCliPersistent(options = {}) {
-  let prompt = extractUserPrompt(options.messages);
-  if (!prompt) throw new Error("Пустое сообщение");
+  const userPrompt = extractUserPrompt(options.messages);
+  if (!userPrompt) throw new Error("Пустое сообщение");
 
   const system = String(
     options.systemPrompt || extractSystemPrompt(options.messages) || ""
   ).trim();
-  if (system) prompt = `${system}\n\n---\n\n${prompt}`;
 
   const config = buildPersistentSessionConfig({
     runtime: "codex",
@@ -205,6 +204,9 @@ async function chatCodexCliPersistent(options = {}) {
   const pool = getCliSessionPool();
   const session = pool.getSession("codex", config);
   try {
+    await session.ensureThread();
+    const includeSystem = Boolean(system) && (session.resumeFallback || !config.sessionId);
+    const prompt = includeSystem ? `${system}\n\n---\n\n${userPrompt}` : userPrompt;
     const reply = await session.chat({
       prompt,
       onDelta: options.onDelta,
@@ -354,17 +356,19 @@ async function chatCodexCliOnce({
   cwd,
   timeoutMs = DEFAULT_TIMEOUT_MS
 } = {}) {
-  let prompt = extractUserPrompt(messages);
-  if (!prompt) throw new Error("Пустое сообщение");
+  const userPrompt = extractUserPrompt(messages);
+  if (!userPrompt) throw new Error("Пустое сообщение");
 
   const system = String(systemPrompt || extractSystemPrompt(messages) || "").trim();
-  if (system) prompt = `${system}\n\n---\n\n${prompt}`;
 
   const sid = normalizeCliSessionId(sessionId, "codex");
   const cmd = normalizeBinary("codex", binary);
 
   const runOnce = async (resume) => {
-    const args = resume && sid ? ["exec", "resume", sid, prompt, "--json"] : ["exec", prompt, "--json"];
+    const turnPrompt =
+      system && !(resume && sid) ? `${system}\n\n---\n\n${userPrompt}` : userPrompt;
+    const args =
+      resume && sid ? ["exec", "resume", sid, turnPrompt, "--json"] : ["exec", turnPrompt, "--json"];
     if (model) args.push("-m", String(model));
     if (normalizeClaudePermissionMode(permissionMode) === "bypassPermissions") {
       args.push("--dangerously-bypass-approvals-and-sandbox");
