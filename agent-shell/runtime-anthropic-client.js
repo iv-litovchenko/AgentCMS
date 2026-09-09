@@ -1,3 +1,5 @@
+const { joinTextContentBlocks } = require("./runtime-cli-shared");
+
 const DEFAULT_TIMEOUT_MS = 300000;
 const ANTHROPIC_VERSION = "2023-06-01";
 
@@ -7,10 +9,11 @@ function normalizeBaseUrl(raw) {
 
 function extractAnthropicText(payload) {
   const blocks = Array.isArray(payload?.content) ? payload.content : [];
-  return blocks
-    .map((part) => (String(part?.type || "") === "text" && typeof part.text === "string" ? part.text : ""))
-    .join("")
-    .trim();
+  return joinTextContentBlocks(
+    blocks.map((part) =>
+      String(part?.type || "") === "text" && typeof part.text === "string" ? part.text : ""
+    )
+  ).trim();
 }
 
 function extractAnthropicDelta(event) {

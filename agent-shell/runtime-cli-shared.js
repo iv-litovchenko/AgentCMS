@@ -25,6 +25,19 @@ function extractSystemPrompt(messages) {
     .trim();
 }
 
+/** Склеивает text-блоки API: вставляет пробел, если на стыке его нет. */
+function joinTextContentBlocks(parts) {
+  const blocks = (Array.isArray(parts) ? parts : [])
+    .map((part) => String(part ?? ""))
+    .filter((part) => part.length > 0);
+  if (!blocks.length) return "";
+  return blocks.reduce((acc, part, index) => {
+    if (index === 0) return part;
+    if (/\s$/.test(acc) || /^\s/.test(part)) return acc + part;
+    return `${acc} ${part}`;
+  });
+}
+
 function claudeStreamError(event) {
   if (!event || typeof event !== "object") return "";
   if (event.is_error !== true && event.subtype !== "error_during_execution") return "";
@@ -48,10 +61,11 @@ function extractClaudeAssistantDelta(event) {
   if (event.type === "assistant") {
     const content = event.message?.content;
     if (Array.isArray(content)) {
-      return content
-        .filter((block) => block && block.type === "text")
-        .map((block) => String(block.text || ""))
-        .join("");
+      return joinTextContentBlocks(
+        content
+          .filter((block) => block && block.type === "text")
+          .map((block) => String(block.text || ""))
+      );
     }
     if (typeof content === "string") return content;
   }
@@ -159,6 +173,7 @@ module.exports = {
   extractUserPrompt,
   extractSystemPrompt,
   claudeStreamError,
+  joinTextContentBlocks,
   extractClaudeAssistantDelta,
   extractClaudeResultText,
   looksLikeJsonObject,

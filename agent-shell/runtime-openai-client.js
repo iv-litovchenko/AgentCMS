@@ -1,3 +1,5 @@
+const { joinTextContentBlocks } = require("./runtime-cli-shared");
+
 const DEFAULT_TIMEOUT_MS = 300000;
 
 function normalizeBaseUrl(raw, { stripV1 = false } = {}) {
@@ -11,9 +13,11 @@ function extractOpenAiDeltaText(chunk) {
   const delta = choice?.delta?.content;
   if (typeof delta === "string") return delta;
   if (Array.isArray(delta)) {
-    return delta
-      .map((part) => (typeof part?.text === "string" ? part.text : typeof part === "string" ? part : ""))
-      .join("");
+    return joinTextContentBlocks(
+      delta.map((part) =>
+        typeof part?.text === "string" ? part.text : typeof part === "string" ? part : ""
+      )
+    );
   }
   const message = choice?.message?.content;
   if (typeof message === "string") return message;
@@ -25,10 +29,9 @@ function extractOpenAiFinalText(payload) {
   const message = choice?.message?.content;
   if (typeof message === "string") return message.trim();
   if (Array.isArray(message)) {
-    return message
-      .map((part) => (typeof part?.text === "string" ? part.text : ""))
-      .join("")
-      .trim();
+    return joinTextContentBlocks(
+      message.map((part) => (typeof part?.text === "string" ? part.text : ""))
+    ).trim();
   }
   return String(payload?.output_text || payload?.reply || "").trim();
 }
