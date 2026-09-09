@@ -316,7 +316,7 @@
       postToVoiceFrame({ type: "agent-cms-voice:page-picker-state", active: Boolean(message.active) });
       return;
     }
-    if (message?.type === "COMPANION_COMPOSE_INSERT") {
+    if (message?.type === "COMPANION_COMPOSE_INSERT_TO_SHELL") {
       const text = String(message.text || "").trim();
       if (!text) return;
       postToVoiceFrame({

@@ -295,10 +295,151 @@
     return null;
   }
 
+  const DEFAULT_PICKER_BLOCK_SELECTOR = [
+    "section",
+    "article",
+    "nav",
+    "aside",
+    "main",
+    "p",
+    "li",
+    "td",
+    "th",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "blockquote",
+    "pre",
+    "details",
+    "summary",
+    "figure",
+    "figcaption",
+    "dl",
+    "dt",
+    "dd",
+    "caption",
+    "div",
+    "span",
+    "[role='paragraph']",
+    "[role='heading']",
+    "[role='listitem']",
+    "[role='article']",
+    "[contenteditable='true']",
+    "button",
+    "a",
+    "img",
+    "label",
+    "input",
+    "textarea",
+    "select"
+  ].join(", ");
+
+  const INLINE_TAGS = new Set([
+    "SPAN",
+    "B",
+    "I",
+    "EM",
+    "STRONG",
+    "SMALL",
+    "SUB",
+    "SUP",
+    "CODE",
+    "MARK",
+    "U",
+    "TIME",
+    "ABBR",
+    "CITE",
+    "Q",
+    "FONT"
+  ]);
+
+  function deepElementFromPoint(x, y, root) {
+    const scope = root || document;
+    if (!scope?.elementFromPoint) return null;
+
+    let el = scope.elementFromPoint(x, y);
+    if (!el) return null;
+
+    if (el.shadowRoot) {
+      const inner = deepElementFromPoint(x, y, el.shadowRoot);
+      if (inner) return inner;
+    }
+
+    return el;
+  }
+
+  function resolveTextBlockTarget(raw, { isExcluded, extractText, isFormField: isField, blockSelector } = {}) {
+    if (!raw || isExcluded?.(raw)) return null;
+
+    const priority = findPickerPriorityElement(raw, isExcluded);
+    if (priority) return priority;
+
+    const selector = String(blockSelector || DEFAULT_PICKER_BLOCK_SELECTOR).trim();
+
+    let el = raw;
+    while (el && el !== document.body && !isExcluded?.(el)) {
+      const text = extractText?.(el) || "";
+      if (text.length >= 1 || isField?.(el)) break;
+      el = el.parentElement;
+    }
+    if (!el || isExcluded?.(el)) return null;
+    if (isField?.(el)) return el;
+
+    let blockMatch = null;
+    let cursor = el;
+    while (cursor && cursor !== document.body && !isExcluded?.(cursor)) {
+      if (
+        cursor.matches?.(selector) &&
+        !INLINE_TAGS.has(cursor.tagName) &&
+        (extractText?.(cursor) || "").length >= 1
+      ) {
+        blockMatch = cursor;
+        break;
+      }
+      cursor = cursor.parentElement;
+    }
+    if (!blockMatch) {
+      blockMatch = el.closest?.(selector);
+    }
+    if (blockMatch && !isExcluded?.(blockMatch) && (extractText?.(blockMatch) || "").length >= 1) {
+      el = blockMatch;
+    }
+
+    while (el.parentElement && !isExcluded?.(el.parentElement)) {
+      const parent = el.parentElement;
+      const parentText = extractText?.(parent) || "";
+      const elText = extractText?.(el) || "";
+      if (parentText && parentText === elText) {
+        el = parent;
+        continue;
+      }
+      break;
+    }
+
+    if (INLINE_TAGS.has(el.tagName)) {
+      const block = el.closest?.(selector);
+      if (block && !isExcluded?.(block)) {
+        const blockText = extractText?.(block) || "";
+        const inlineText = extractText?.(el) || "";
+        if (blockText && inlineText && blockText.includes(inlineText)) {
+          el = block;
+        }
+      }
+    }
+
+    return (extractText?.(el) || "").length >= 1 ? el : null;
+  }
+
   global.PagePickerExtract = {
     isAgentCmsHost,
     isFormField,
     extractPickerInsertValue,
-    findPickerPriorityElement
+    findPickerPriorityElement,
+    deepElementFromPoint,
+    resolveTextBlockTarget,
+    DEFAULT_PICKER_BLOCK_SELECTOR
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

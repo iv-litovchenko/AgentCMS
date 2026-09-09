@@ -2,19 +2,10 @@
   "manifest_version": 3,
   "name": "Agent Shell Companion",
   "short_name": "Agent Shell",
-  "version": "0.1.23",
+  "version": "0.1.26",
   "description": "Side panel Agent Shell on any website — connects to local Agent CMS.",
   "permissions": ["storage", "sidePanel", "activeTab", "tabs", "scripting"],
-  "host_permissions": [
-    "http://localhost:3000/*",
-    "http://127.0.0.1:3000/*",
-    "https://localhost:3443/*",
-    "https://127.0.0.1:3443/*",
-    "https://localhost:3488/*",
-    "https://127.0.0.1:3488/*",
-    "http://*/*",
-    "https://*/*"
-  ],
+  "host_permissions": ["<all_urls>"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; frame-src 'self' http://localhost:* http://127.0.0.1:* https://localhost:* https://127.0.0.1:*;"
   },

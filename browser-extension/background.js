@@ -291,8 +291,19 @@ async function relayPageSnapshotRequest({ tabId = 0, windowId = 0 } = {}) {
   return { ok: true, snapshot };
 }
 
-async function relayPagePickerSet(active, { tabId = 0, windowId = 0 } = {}) {
-  const targetTabId = await resolvePickerTargetTabId({ tabId, windowId });
+async function relayPagePickerSet(active, { tabId = 0, windowId = 0, senderTabId = 0 } = {}) {
+  let targetTabId = Number(senderTabId) || 0;
+  if (targetTabId) {
+    try {
+      const tab = await chrome.tabs.get(targetTabId);
+      if (!isAllowedSnapshotTab(tab)) targetTabId = 0;
+    } catch {
+      targetTabId = 0;
+    }
+  }
+  if (!targetTabId) {
+    targetTabId = await resolvePickerTargetTabId({ tabId, windowId });
+  }
   if (!targetTabId) {
     throw new Error("Нет вкладки сайта — откройте страницу и нажмите ⌖ снова");
   }
@@ -303,6 +314,106 @@ async function relayPagePickerSet(active, { tabId = 0, windowId = 0 } = {}) {
     type: "COMPANION_PAGE_PICKER_SET",
     active: Boolean(active)
   });
+}
+
+async function relayComposeInsert({ text, join = "newline", tabId = 0, windowId = 0 } = {}) {
+  const body = String(text || "").trim();
+  if (!body) throw new Error("Empty compose text");
+
+  if (tabId) {
+    rememberPickerTab(tabId, windowId);
+    await chrome.sidePanel.open({ tabId }).catch(() => {});
+  }
+
+  const payload = { type: "COMPANION_COMPOSE_INSERT_TO_SHELL", text: body, join: join || "newline" };
+  try {
+    await chrome.runtime.sendMessage(payload);
+  } catch {
+    // side panel may still be opening — retry once
+    await new Promise((resolve) => setTimeout(resolve, 320));
+    await chrome.runtime.sendMessage(payload).catch(() => {});
+  }
+
+  return { ok: true };
+}
+
+async function captureTabImage(tab) {
+  const options = { format: "png" };
+  if (typeof chrome.tabs.captureTab === "function") {
+    try {
+      return await chrome.tabs.captureTab(tab.id, options);
+    } catch (error) {
+      const message = String(error?.message || error);
+      if (!/captureVisibleTab|permission|Cannot access/i.test(message)) {
+        throw error;
+      }
+    }
+  }
+  return chrome.tabs.captureVisibleTab(tab.windowId, options);
+}
+
+async function captureTabScreenshot({ tabId = 0, windowId = 0, senderTabId = 0 } = {}) {
+  let targetTabId = Number(senderTabId) || Number(tabId) || 0;
+  if (targetTabId) {
+    try {
+      const tab = await chrome.tabs.get(targetTabId);
+      if (!isAllowedSnapshotTab(tab)) targetTabId = 0;
+      else {
+        const dataUrl = await captureTabImage(tab);
+        return { tab, dataUrl };
+      }
+    } catch (error) {
+      const message = String(error?.message || error);
+      if (/permission|Cannot access|<all_urls>|activeTab/i.test(message)) {
+        throw new Error(
+          "Нет доступа к вкладке для скриншота. Перезагрузите расширение на chrome://extensions и подтвердите доступ ко всем сайтам."
+        );
+      }
+      targetTabId = 0;
+    }
+  }
+
+  targetTabId = await resolvePickerTargetTabId({ tabId, windowId });
+  if (!targetTabId) throw new Error("Нет вкладки для скриншота");
+
+  const tab = await chrome.tabs.get(targetTabId);
+  try {
+    const dataUrl = await captureTabImage(tab);
+    return { tab, dataUrl };
+  } catch (error) {
+    const message = String(error?.message || error);
+    if (/permission|Cannot access|<all_urls>|activeTab/i.test(message)) {
+      throw new Error(
+        "Нет доступа к вкладке для скриншота. Перезагрузите расширение на chrome://extensions и подтвердите доступ ко всем сайтам."
+      );
+    }
+    throw error;
+  }
+}
+
+async function uploadTabScreenshot({ dataUrl, tabUrl = "" } = {}) {
+  const { agentId } = await getSettings();
+  const baseUrl = await resolveCmsBase();
+  const url = new URL("/api/shell/screen/speech-snapshot", baseUrl);
+  if (agentId) url.searchParams.set("agent", agentId);
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dataUrl, kind: "manual", width: 0, height: 0 })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.details || data.error || `HTTP ${response.status}`);
+  }
+
+  const path = String(data.path || "").trim();
+  const pageUrl = String(tabUrl || "").trim();
+  const lines = ["[Снимок вкладки]"];
+  if (pageUrl) lines.push(pageUrl);
+  if (path) lines.push(`Файл: ${path}`);
+  lines.push("---", "Что на этом скриншоте?");
+  return lines.join("\n");
 }
 
 chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
@@ -418,10 +529,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "COMPANION_COMPOSE_INSERT") {
+    relayComposeInsert({
+      text: message.text,
+      join: message.join,
+      tabId: sender.tab?.id,
+      windowId: sender.tab?.windowId
+    })
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_CAPTURE_TAB_SCREENSHOT") {
+    captureTabScreenshot({
+      tabId: message.tabId,
+      windowId: message.windowId,
+      senderTabId: sender.tab?.id
+    })
+      .then(({ tab, dataUrl }) => uploadTabScreenshot({ dataUrl, tabUrl: tab?.url || "" }))
+      .then((text) => sendResponse({ ok: true, text }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
   if (message?.type === "COMPANION_PAGE_PICKER_SET") {
     relayPagePickerSet(Boolean(message.active), {
       tabId: message.tabId,
-      windowId: message.windowId
+      windowId: message.windowId,
+      senderTabId: message.useSenderTab ? sender.tab?.id : 0
     })
       .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));

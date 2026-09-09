@@ -9,26 +9,8 @@
   const MESSAGE_SNAPSHOT_RESPONSE = "agent-cms-voice:page-snapshot-response";
   const MAX_TEXT_LENGTH = 12000;
 
-  const PICKER_BLOCK_SELECTOR = [
-    "section",
-    "article",
-    "nav",
-    "aside",
-    "main",
-    "p",
-    "li",
-    "td",
-    "th",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "blockquote",
-    "pre",
-    "details",
-    "summary",
+  const CMS_PICKER_BLOCK_SELECTOR = [
+    window.PagePickerExtract?.DEFAULT_PICKER_BLOCK_SELECTOR || "",
     ".menu-item",
     ".menu-folder",
     ".nav-book-toc-link",
@@ -39,15 +21,10 @@
     ".doc-body-main",
     ".editor-surface",
     ".file-content-input",
-    ".node-overview-content",
-    "button",
-    "a",
-    "img",
-    "label",
-    "input",
-    "textarea",
-    "select"
-  ].join(", ");
+    ".node-overview-content"
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const discussShellIframeNode = document.getElementById("discuss-shell-iframe");
 
@@ -141,27 +118,22 @@
     return text;
   }
 
+  function elementAtPoint(x, y) {
+    return (
+      window.PagePickerExtract?.deepElementFromPoint?.(x, y) ||
+      document.elementFromPoint(x, y)
+    );
+  }
+
   function resolvePickerTarget(raw) {
-    if (!raw || isPickerExcluded(raw)) return null;
-
-    const priority = window.PagePickerExtract?.findPickerPriorityElement?.(raw, isPickerExcluded);
-    if (priority) return priority;
-
-    let el = raw.closest(PICKER_BLOCK_SELECTOR) || raw;
-    if (isPickerExcluded(el)) return null;
-
-    while (el.parentElement && !isPickerExcluded(el.parentElement)) {
-      const parent = el.parentElement;
-      const parentText = extractPickerText(parent);
-      const elText = extractPickerText(el);
-      if (parentText && parentText === elText && parentText.length <= 600) {
-        el = parent;
-        continue;
-      }
-      break;
-    }
-
-    return extractPickerText(el).length >= 1 || window.PagePickerExtract?.isFormField?.(el) ? el : null;
+    return (
+      window.PagePickerExtract?.resolveTextBlockTarget?.(raw, {
+        isExcluded: isPickerExcluded,
+        extractText: extractPickerText,
+        isFormField: (el) => window.PagePickerExtract?.isFormField?.(el),
+        blockSelector: CMS_PICKER_BLOCK_SELECTOR
+      }) || null
+    );
   }
 
   function extractPickerPayload(el) {
@@ -191,7 +163,7 @@
 
   function onPointerMove(event) {
     if (!active) return;
-    const raw = document.elementFromPoint(event.clientX, event.clientY);
+    const raw = elementAtPoint(event.clientX, event.clientY);
     const target = resolvePickerTarget(raw);
     if (target === hoveredTarget) return;
     hoveredTarget = target;
@@ -210,7 +182,7 @@
     event.preventDefault();
     event.stopPropagation();
 
-    const raw = document.elementFromPoint(event.clientX, event.clientY);
+    const raw = elementAtPoint(event.clientX, event.clientY);
     const target = resolvePickerTarget(raw);
     const text = extractPickerPayload(target);
     if (text) insertIntoVoiceCompose(text);
@@ -233,7 +205,7 @@
 
     hintNode = document.createElement("div");
     hintNode.className = "cms-page-picker-hint";
-    hintNode.textContent = "Блок, ссылка, картинка или поле формы · Esc или ⌖ — выключить";
+    hintNode.textContent = "Наведите на текст, ссылку или картинку · Esc или ⌖ — выключить";
 
     highlightNode = document.createElement("div");
     highlightNode.className = "cms-page-picker-highlight";
