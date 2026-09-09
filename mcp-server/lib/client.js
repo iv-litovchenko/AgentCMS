@@ -1,3 +1,5 @@
+import { getActiveAgentIdFromContext } from "./agent-scope.js";
+
 const DEFAULT_BASE_URL = "http://localhost:3000";
 
 function isLocalCmsHost(hostname) {
@@ -48,21 +50,27 @@ export class AgentCmsClient {
     this.defaultAgent = options.agent ?? cfg.defaultAgent;
   }
 
-  buildUrl(path, query = {}, { agentScope = true } = {}) {
+  buildUrl(path, query = {}, { agentScope = true, agentId } = {}) {
     const url = new URL(path, this.baseUrl);
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined && value !== null && value !== "") {
         url.searchParams.set(key, String(value));
       }
     }
-    if (agentScope && this.defaultAgent) {
-      url.searchParams.set("agent", this.defaultAgent);
+    if (agentScope) {
+      const scopedAgent =
+        String(agentId || "").trim() ||
+        getActiveAgentIdFromContext() ||
+        String(this.defaultAgent || "").trim();
+      if (scopedAgent) {
+        url.searchParams.set("agent", scopedAgent);
+      }
     }
     return url;
   }
 
-  async request(method, path, { query, body, agentScope = true } = {}) {
-    const url = this.buildUrl(path, query, { agentScope });
+  async request(method, path, { query, body, agentScope = true, agentId } = {}) {
+    const url = this.buildUrl(path, query, { agentScope, agentId });
     const init = {
       method,
       headers: {

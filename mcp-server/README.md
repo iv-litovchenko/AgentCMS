@@ -1,4 +1,4 @@
-# Agent CMS — MCP Server v0.3.7 (slim · 73 tools)
+# Agent CMS — MCP Server v0.3.8 (per-chat agentId · 99 tools)
 
 MCP-сервер для [Agent CMS](..): доступ к workspace через HTTP API для Cursor, Claude Desktop, CoPaw / QwenPaw.
 
@@ -21,22 +21,33 @@ npm install
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
 | `AGENT_CMS_BASE_URL` | `https://localhost:3443` при HTTPS | Базовый URL CMS (см. кнопку **MCP** в UI) |
-| `AGENT_CMS_AGENT` | — | id агента (`?agent=`); если пусто — default из `awn-agents.json` |
+| `AGENT_CMS_AGENT` | — | **Не задавайте в Claude/Cursor config.** Только dev-fallback, если agentId не передан в tool |
 | `AGENT_CMS_TLS_INSECURE` | `1` для self-signed localhost | `0` если сертификат доверенный (mkcert) |
 
-## Старт сессии
+## Термины (синонимы `agentId`)
+
+**workspace** · **agent** · **vault** · **хранилище** · **рабочее пространство** — одно и то же: id из `list_workspaces` (alias `list_vaults`).
+
+## Старт нового чата
 
 ```
-get_session_context
+list_workspaces
+get_session_context({ agentId: "<выбранный-id>" })
 ```
+
+Дальше **каждый** workspace-scoped tool с тем же `agentId`. Пример фразы пользователя:
+
+> Работай с хранилищем MedCenter. Сначала list_workspaces, потом get_session_context с нужным agentId, дальше всегда передавай этот agentId во все MCP tools.
 
 Затем при необходимости: `get_user_active_context_now` → `read_*` / `write_*` по задаче.
+
+**Без `agentId`:** только `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview` (+ discuss stubs).
 
 ### Канон (PAGE · SLOT · CONTENT)
 
 | Группа | Tools |
 |--------|-------|
-| Старт | `get_session_context`, `get_user_active_context_now`, `list_workspace_*`, `test_mcp_connection`, `get_workspace_storage_info` |
+| Старт | `list_workspaces` (`list_vaults`), `get_session_context`, `get_user_active_context_now`, `list_workspace_*`, `test_mcp_connection`, `get_workspace_storage_info` — **с `agentId`** |
 | Навигация | `get_page_map`, `get_content_index`, `refresh_content_index`, `get_workspace_page_index`, `refresh_workspace_page_index`, `get_content_map`, `resolve_workspace_path`, `search_workspace_content`, `search_workspace_semantic` (оба с опц. `pathPrefix`) |
 | Страница | `read/write_page_*`, `read/write_page_property`, `read/write_page_config`, `page_exists`, `get_page_meta`, `read/write_page_env`, `create_page`, `delete_page`, `rename_page`, `move_page` |
 | Слот | `list_page_slots` |

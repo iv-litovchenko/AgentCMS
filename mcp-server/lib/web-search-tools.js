@@ -26,7 +26,8 @@ export function registerWebSearchTools(reg, client) {
       ...searchCommon
     }),
     ({ query, limit, lang, country, gl, safe }) =>
-      client.get("/api/web/search", { q: query, limit, lang, country, gl, safe })
+      client.get("/api/web/search", { q: query, limit, lang, country, gl, safe }),
+    { agentScope: false }
   );
 
   reg(
@@ -45,7 +46,8 @@ export function registerWebSearchTools(reg, client) {
         .describe("Used only in WEB_SEARCH_MODE=api")
     }),
     ({ query, limit, lang, country, gl, safe, size, type }) =>
-      client.get("/api/web/images", { q: query, limit, lang, country, gl, safe, size, type })
+      client.get("/api/web/images", { q: query, limit, lang, country, gl, safe, size, type }),
+    { agentScope: false }
   );
 
   reg(
@@ -68,6 +70,7 @@ export function registerWebSearchTools(reg, client) {
         .optional()
         .describe("Max downloaded bytes, default 512000")
     }),
-    ({ url, maxChars, maxBytes }) => client.get("/api/web/page", { url, maxChars, maxBytes })
+    ({ url, maxChars, maxBytes }) => client.get("/api/web/page", { url, maxChars, maxBytes }),
+    { agentScope: false }
   );
 }

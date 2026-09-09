@@ -21,7 +21,8 @@ export function registerDiscussTools(reg) {
       messages: [],
       context: [],
       message: STUB_NOTE
-    })
+    }),
+    { agentScope: false }
   );
 
   reg(
@@ -58,6 +59,7 @@ export function registerDiscussTools(reg) {
         context: context || []
       },
       message: STUB_NOTE
-    })
+    }),
+    { agentScope: false }
   );
 }

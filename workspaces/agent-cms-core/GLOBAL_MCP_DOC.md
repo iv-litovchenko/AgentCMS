@@ -11,7 +11,21 @@
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
 Этот файл — шпаргалка (**73 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
-Перед работой: `get_session_context` → `get_user_active_context_now`.  
+### Новый чат — выбор хранилища (`agentId`)
+
+**Синонимы одного поля:** workspace · agent · vault · хранилище · рабочее пространство → **`agentId`**.
+
+MCP подключается **без** фиксированного хранилища в конфиге. Каждый чат начинай так:
+
+1. `list_workspaces` (alias `list_vaults`) — список id и имён  
+2. `get_session_context({ agentId: "…" })` — контекст выбранного workspace  
+3. **Все** workspace-tools с тем же `agentId` в параметрах
+
+Пример фразы: *«Работай с хранилищем MedCenter. Сначала list_workspaces, потом get_session_context с нужным agentId, дальше всегда передавай этот agentId во все MCP tools.»*
+
+Селектор «Хранилище (агент)» в Shell UI **не** меняет MCP в Claude Desktop — только tools с явным `agentId`.
+
+Перед работой внутри выбранного workspace: `get_session_context({ agentId })` → `get_user_active_context_now({ agentId })`.  
 Поиск по содержимому workspace: `search_workspace_content` (scope, fileType, **`pathPrefix`** — как шапка UI); по смыслу: `search_workspace_semantic` (тоже **`pathPrefix`**).  
 Произвольный путь → тема/область: `resolve_workspace_path({ path })` → `topic.folderPath` для ограничения поиска.  
 Поиск в интернете: `search_web`, `search_web_images`, `read_web_page`, `get_link_preview`, `extract_document_text`.  

@@ -56,7 +56,8 @@ export function registerAgentUtilsTools(reg, client) {
     z.object({
       url: pageUrl
     }),
-    ({ url }) => client.get("/api/web/preview", { url })
+    ({ url }) => client.get("/api/web/preview", { url }),
+    { agentScope: false }
   );
 
   reg(

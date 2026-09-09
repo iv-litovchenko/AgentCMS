@@ -6,10 +6,13 @@ module.exports = {
   packagePath: "mcp-server/",
   generatedAt: "2026-08-08",
   notes: [
-    "MCP slim v0.3.7 — 73 tools · PAGE · SLOT · CONTENT + path-based FS + exec.",
+    "MCP slim v0.3.8 — per-chat agentId · list_workspaces · PAGE · SLOT · CONTENT + FS + exec.",
     "Перед запуском: npm start → http://localhost:3000.",
     "GET /api/mcp-docs?version=0.0.2 — этот документ (HTTP, не MCP tool).",
-    "AGENT_CMS_BASE_URL, AGENT_CMS_AGENT (YAMLCMS_* — legacy).",
+    "AGENT_CMS_BASE_URL (обязательно). AGENT_CMS_AGENT — только dev-fallback (YAMLCMS_* — legacy).",
+    "Термины (синонимы поля agentId): workspace · agent · vault · хранилище · рабочее пространство.",
+    "Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → все tools с тем же agentId.",
+    "list_vaults — alias для list_workspaces.",
     "path → manifest.md; slot → main|inbox|media|…; ref → путь внутри слота.",
     "Карта tools: workspaces/agent-cms-core/temp2/examples/mcp-optimiz.md",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
@@ -19,8 +22,7 @@ module.exports = {
     command: "node",
     args: ["<ABS_PATH>/mcp-server/index.js"],
     env: {
-      AGENT_CMS_BASE_URL: "http://localhost:3000",
-      AGENT_CMS_AGENT: "agent-cms-test"
+      AGENT_CMS_BASE_URL: "http://localhost:3000"
     }
   },
   copawConfig: {
@@ -30,8 +32,7 @@ module.exports = {
         command: "node",
         args: ["<ABS_PATH>/mcp-server/index.js"],
         env: {
-          AGENT_CMS_BASE_URL: "http://localhost:3000",
-          AGENT_CMS_AGENT: "agent-cms-test"
+          AGENT_CMS_BASE_URL: "http://localhost:3000"
         }
       }
     }
@@ -42,10 +43,23 @@ module.exports = {
       title: "Старт / контекст",
       tools: [
         {
-          name: "get_session_context",
-          description: "START HERE: topicRegistry, alwaysContext, service manifests.",
+          name: "list_workspaces",
+          description:
+            "START NEW CHAT: все workspace (agent / vault / хранилище). Синоним tool: list_vaults.",
           parameters: "—",
-          http: "GET /api/agent/session-context"
+          http: "GET /api/agents"
+        },
+        {
+          name: "list_vaults",
+          description: "Alias list_workspaces.",
+          parameters: "—",
+          http: "GET /api/agents"
+        },
+        {
+          name: "get_session_context",
+          description: "После list_workspaces: topicRegistry, alwaysContext для выбранного agentId.",
+          parameters: "agentId",
+          http: "GET /api/agent/session-context?agent="
         },
         {
           name: "get_user_active_context_now",

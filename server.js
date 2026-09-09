@@ -13492,7 +13492,7 @@ function buildAgentMcpPing() {
     agentId: getActiveAgentId(),
     agentRootRel: path.relative(getProjectRoot(), agentRoot).replace(/\\/g, "/") || ".",
     cmsVersion: require("./package.json").version,
-    mcpVersion: "0.3.7",
+    mcpVersion: "0.3.8",
     hint: "MCP connection OK. Call get_workspace_storage_info for sidebar storage stats."
   };
 }

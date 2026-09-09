@@ -3,6 +3,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { AgentCmsClient, getConfig, jsonText } from "./lib/client.js";
+import {
+  resolveAgentId,
+  runWithAgentId,
+  withAgentIdSchema,
+  WORKSPACE_ID_SYNONYMS
+} from "./lib/agent-scope.js";
 import { registerPageTools } from "./lib/page-tools.js";
 import { registerSlotTools } from "./lib/slot-tools.js";
 import { registerContentTools } from "./lib/content-tools.js";
@@ -46,15 +52,45 @@ function wrap(handler) {
 function createServer() {
   const cfg = getConfig();
   const client = new AgentCmsClient(cfg);
-  const agentNote = cfg.defaultAgent
-    ? ` Agent: ${cfg.defaultAgent}.`
-    : " Uses default agent from registry.";
 
-  const server = new McpServer({ name: "agent-cms", version: "0.3.7" });
+  const server = new McpServer({ name: "agent-cms", version: "0.3.8" });
 
-  const reg = (name, description, schema, fn) => {
-    server.registerTool(name, { description: description + agentNote, inputSchema: schema }, wrap(fn));
+  const reg = (name, description, schema, fn, { agentScope = true } = {}) => {
+    const inputSchema = agentScope ? withAgentIdSchema(schema) : schema;
+    const scopeNote = agentScope
+      ? ` Required: agentId (${WORKSPACE_ID_SYNONYMS}).` +
+        (cfg.defaultAgent ? ` Dev-only env fallback: ${cfg.defaultAgent}.` : "")
+      : "";
+    server.registerTool(
+      name,
+      { description: description + scopeNote, inputSchema },
+      wrap(async (args) => {
+        if (!agentScope) return fn(args);
+        const agentId = resolveAgentId(args, cfg.defaultAgent);
+        return runWithAgentId(agentId, () => fn(args));
+      })
+    );
   };
+
+  // ── Workspaces (no agentId) ─────────────────────────────────────────────────
+
+  const listWorkspacesHandler = () => client.get("/api/agents", {}, { agentScope: false });
+
+  reg(
+    "list_workspaces",
+    "START NEW CHAT: list all workspaces (agents / vaults / хранилища / рабочие пространства). Returns id, name, path, defaultAgentId. Pick agentId before get_session_context.",
+    z.object({}),
+    listWorkspacesHandler,
+    { agentScope: false }
+  );
+
+  reg(
+    "list_vaults",
+    "Alias for list_workspaces — same registry of agents / vaults / хранилища.",
+    z.object({}),
+    listWorkspacesHandler,
+    { agentScope: false }
+  );
 
   // ── Старт / контекст (5) ───────────────────────────────────────────────────
 
