@@ -31,8 +31,8 @@ awn-mindmap-direction: auto
 awn-attachments: []
 awn-materials: ""
 awn-status: open
-awn-update: 2026-09-09T22:37:19.354Z
-awn-version: 6
+awn-update: 2026-09-09T22:35:46.590Z
+awn-version: 3
 ---
 
 Где размещаться.
@@ -67,4 +67,3 @@ awn-version: 6
 - GitHub Topics: `mcp`, `mcp-server`, `agent-memory`
 
 Порядок: реестры → Reddit → Show HN. Show HN последним — второй попытки не будет.
-

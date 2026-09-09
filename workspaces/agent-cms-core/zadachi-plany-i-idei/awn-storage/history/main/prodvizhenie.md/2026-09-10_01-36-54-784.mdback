@@ -31,40 +31,11 @@ awn-mindmap-direction: auto
 awn-attachments: []
 awn-materials: ""
 awn-status: open
-awn-update: 2026-09-09T22:37:19.354Z
-awn-version: 6
+awn-update: 2026-09-09T22:36:05.385Z
+awn-version: 4
 ---
 
-Где размещаться.
-
-**Реестры MCP**
-
-- modelcontextprotocol/servers
-- awesome-mcp-servers
-- mcp.so
-- Smithery
-- Glama
-- Каталог MCP у Anthropic
-
-**Форумы**
-
-- Show HN
-- r/LocalLLaMA
-- r/mcp
-- r/ClaudeAI
-- r/ObsidianMD
-- r/selfhosted
-
-**Соцсети и чаты**
-
-- X с тегом MCP
-- Discord MCP
-- Discord и форум Obsidian
-
-**Витрины**
-
-- Product Hunt
-- GitHub Topics: `mcp`, `mcp-server`, `agent-memory`
-
-Порядок: реестры → Reddit → Show HN. Show HN последним — второй попытки не будет.
-
+- Реестры MCP — modelcontextprotocol/servers, awesome-mcp-servers, mcp.so, Smithery, Glama, каталог Anthropic
+- Форумы — Show HN, r/LocalLLaMA, r/mcp, r/ClaudeAI, r/ObsidianMD, r/selfhosted
+- Соцсети и чаты — X с тегом MCP, Discord MCP, Discord и форум Obsidian
+- Витрины — Product Hunt, GitHub Topics
