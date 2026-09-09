@@ -70,7 +70,7 @@
     }
   },
   "proactive": {
-    "enabled": true,
+    "enabled": false,
     "idleSecondsMin": 120,
     "idleSecondsMax": 240,
     "idleSeconds": 120,
@@ -103,7 +103,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0.9238
+    "dialogScrollRatio": 1
   },
   "compose": {
     "promptTemplates": [

@@ -4524,6 +4524,12 @@ body.shell-surface-extension #shell-dialog-refresh {
   flex-direction: column;
   gap: 3px;
   max-width: min(92%, 520px);
+  scroll-margin-bottom: 16px;
+}
+
+.shell-dialog-live-reply,
+.shell-last-ask {
+  scroll-margin-bottom: 16px;
 }
 
 .shell-chat-row--user {
@@ -4540,6 +4546,8 @@ body.shell-surface-extension #shell-dialog-refresh {
   align-self: flex-start;
   align-items: flex-start;
   max-width: min(96%, 560px);
+  scroll-margin-top: 8px;
+  scroll-margin-bottom: 16px;
 }
 
 .shell-chat-row--error {

@@ -173,6 +173,47 @@ function toolHistoryKey(item) {
   return String(item?.toolId || item?.tool || "tool").trim() || "tool";
 }
 
+function formatMessageDomId(anchorId) {
+  const raw = String(anchorId || "").trim();
+  if (!raw) return "";
+  const safe = raw.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+  return safe ? `shell-msg-${safe}` : "";
+}
+
+function buildMessageAnchorId(item, index = 0) {
+  if (item?.anchorId) return String(item.anchorId);
+  const role = String(item?.role || "msg");
+  const at = Number(item?.at) || 0;
+  if (role === "tool") {
+    return `tool-${at}-${toolHistoryKey(item)}`;
+  }
+  const bodySlug = String(item?.body || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 32)
+    .replace(/[^a-zA-Z0-9\u0400-\u04FF]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 16);
+  return bodySlug ? `${role}-${at}-${bodySlug}` : `${role}-${at}-${index}`;
+}
+
+function ensureHistoryAnchorIds(items) {
+  return (Array.isArray(items) ? items : []).map((item, index) => {
+    if (item?.anchorId) return item;
+    return { ...item, anchorId: buildMessageAnchorId(item, index) };
+  });
+}
+
+function applyMessageRowAnchor(row, item) {
+  const anchorId = buildMessageAnchorId(item);
+  const domId = formatMessageDomId(anchorId);
+  if (domId) {
+    row.id = domId;
+    row.dataset.messageAnchor = anchorId;
+  }
+  return row;
+}
+
 function messageHistoryKey(item) {
   const role = String(item?.role || "").trim();
   if (role !== "user" && role !== "agent" && role !== "error") return "";
@@ -439,6 +480,51 @@ export function createShellDialog(options = {}) {
     btn.setAttribute("aria-hidden", show ? "false" : "true");
   }
 
+  function getLastAnchoredRowInScroll() {
+    const scrollRoot = nodes.scroll;
+    if (!scrollRoot) return null;
+    const rows = scrollRoot.querySelectorAll(".shell-chat-row[data-message-anchor]");
+    if (!rows.length) return null;
+    return rows[rows.length - 1];
+  }
+
+  function getDialogScrollAnchor() {
+    const streaming = nodes.panel?.classList.contains("is-streaming");
+    const lastAnchored = getLastAnchoredRowInScroll();
+    const liveReply = nodes.lastReply;
+    const liveReplyVisible = liveReply && !liveReply.classList.contains("hidden");
+    const liveToolsVisible =
+      nodes.liveTools &&
+      !nodes.liveTools.classList.contains("hidden") &&
+      nodes.liveTools.querySelector(".shell-chat-row[data-message-anchor]");
+
+    // Текущий ход: tool-бubbles (live) + стрим ответа — якорь на весь блок
+    if (streaming && liveReplyVisible && (liveToolsVisible || !isLiveReplyStub(lastReplyRaw))) {
+      return liveReply;
+    }
+
+    // Tool / user / agent / error — любая строка с data-message-anchor
+    if (lastAnchored) return lastAnchored;
+
+    if (liveReplyVisible) return liveReply;
+    if (nodes.lastAskWrap && !nodes.lastAskWrap.classList.contains("hidden")) return nodes.lastAskWrap;
+    return null;
+  }
+
+  function scrollDialogToAnchor(anchorEl, { smooth = true } = {}) {
+    const scrollEl = nodes.scroll;
+    if (!scrollEl || !anchorEl) return false;
+    const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+    if (maxScroll <= 1) return true;
+    const scrollRect = scrollEl.getBoundingClientRect();
+    const anchorRect = anchorEl.getBoundingClientRect();
+    const paddingBottom = 12;
+    let targetTop = scrollEl.scrollTop + (anchorRect.bottom - scrollRect.bottom) + paddingBottom;
+    targetTop = Math.max(0, Math.min(targetTop, maxScroll));
+    scrollEl.scrollTo({ top: targetTop, behavior: smooth ? "smooth" : "auto" });
+    return true;
+  }
+
   function scrollDialogToBottom({ smooth = true, force = false } = {}) {
     const scrollEl = nodes.scroll;
     if (!scrollEl) return;
@@ -449,7 +535,10 @@ export function createShellDialog(options = {}) {
     stickToBottom = true;
     suppressScrollPersist = true;
     suppressStickUpdate = true;
-    scrollEl.scrollTo({ top: maxScroll, behavior: smooth ? "smooth" : "auto" });
+    const anchor = getDialogScrollAnchor();
+    if (!anchor || !scrollDialogToAnchor(anchor, { smooth })) {
+      scrollEl.scrollTo({ top: maxScroll, behavior: smooth ? "smooth" : "auto" });
+    }
     window.setTimeout(
       () => {
         suppressScrollPersist = false;
@@ -458,6 +547,26 @@ export function createShellDialog(options = {}) {
       },
       smooth ? 320 : 0
     );
+  }
+
+  function scrollToMessageAnchor(anchorId, { smooth = true } = {}) {
+    const domId = formatMessageDomId(anchorId);
+    if (!domId) return false;
+    const anchor =
+      nodes.thread?.querySelector(`#${CSS.escape(domId)}`) ||
+      nodes.scroll?.querySelector(`#${CSS.escape(domId)}`);
+    if (!anchor) return false;
+    enableStickToBottom();
+    finishScrollRestoreWatch();
+    suppressScrollPersist = true;
+    suppressStickUpdate = true;
+    const ok = scrollDialogToAnchor(anchor, { smooth });
+    window.setTimeout(() => {
+      suppressScrollPersist = false;
+      suppressStickUpdate = false;
+      updateScrollProgress();
+    }, smooth ? 320 : 0);
+    return ok;
   }
 
   function applyScrollRatio(ratio) {
@@ -777,10 +886,12 @@ export function createShellDialog(options = {}) {
     if (!text) return;
     const last = history[history.length - 1];
     if (last?.role === role && String(last.body || "").trim() === text) return;
+    const at = Date.now();
     const item = {
       role,
       body: text,
-      at: Date.now(),
+      at,
+      anchorId: buildMessageAnchorId({ role, body: text, at }, history.length),
       label: historyRoleLabel({ role })
     };
     if (role === "agent") {
@@ -888,6 +999,9 @@ export function createShellDialog(options = {}) {
         el.classList.toggle("is-collapsed", !nextExpanded);
         body.hidden = !nextExpanded;
         head.setAttribute("aria-expanded", String(nextExpanded));
+        if (stickToBottom) {
+          window.requestAnimationFrame(() => maintainStickScroll({ smooth: false }));
+        }
       });
     }
 
@@ -912,7 +1026,7 @@ export function createShellDialog(options = {}) {
       meta.textContent = clock;
       row.append(meta);
     }
-    return row;
+    return applyMessageRowAnchor(row, item);
   }
 
   function findOpenToolIndexIn(list, payload = {}) {
@@ -946,10 +1060,14 @@ export function createShellDialog(options = {}) {
         item.result = result || item.result || "";
         item.status = status || (payload.error ? "error" : "ok");
         item.args = pickRicherToolArgs(args, item.args);
+        if (!item.anchorId) {
+          item.anchorId = buildMessageAnchorId(item, openIndex);
+        }
         if (!isMeaningfulToolItem(item)) list.splice(openIndex, 1);
         return;
       }
       if (!shouldPersistToolPayload(payload)) return;
+      const at = Date.now();
       list.push({
         role: "tool",
         tool,
@@ -957,7 +1075,8 @@ export function createShellDialog(options = {}) {
         args,
         result,
         status: status || (payload.error ? "error" : "ok"),
-        at: Date.now()
+        at,
+        anchorId: `tool-${at}-${toolId}`
       });
       return;
     }
@@ -975,6 +1094,7 @@ export function createShellDialog(options = {}) {
 
     if (!shouldPersistToolPayload(payload)) return;
 
+    const at = Date.now();
     list.push({
       role: "tool",
       tool,
@@ -982,7 +1102,8 @@ export function createShellDialog(options = {}) {
       args,
       result: "",
       status: "running",
-      at: Date.now()
+      at,
+      anchorId: `tool-${at}-${toolId}`
     });
   }
 
@@ -1094,7 +1215,7 @@ export function createShellDialog(options = {}) {
       meta.textContent = clock;
       row.append(meta);
     }
-    return row;
+    return applyMessageRowAnchor(row, item);
   }
 
   function renderThreadMessage(item) {
@@ -1142,7 +1263,7 @@ export function createShellDialog(options = {}) {
       if (duration) meta.title = clock ? `Ответ за ${duration} · ${clock}` : `Ответ за ${duration}`;
       row.append(meta);
     }
-    return row;
+    return applyMessageRowAnchor(row, item);
   }
 
   function isLiveReplyStub(text = "") {
@@ -1181,7 +1302,8 @@ export function createShellDialog(options = {}) {
   function renderLiveToolStrip() {
     if (!nodes.liveTools) return;
     const streaming = nodes.panel?.classList.contains("is-streaming");
-    const tools = streaming ? liveStreamTools : [];
+    const tools = streaming ? ensureHistoryAnchorIds(liveStreamTools) : [];
+    if (streaming) liveStreamTools = tools;
     nodes.liveTools.replaceChildren();
     if (tools.length) {
       for (const item of tools) {
@@ -1207,7 +1329,7 @@ export function createShellDialog(options = {}) {
 
   function renderThread() {
     if (!nodes.thread) return;
-    history = normalizeThreadOrder(history);
+    history = ensureHistoryAnchorIds(normalizeThreadOrder(history));
     const scrollEl = nodes.scroll;
     const preserveRatio =
       !stickToBottom &&
@@ -1218,8 +1340,11 @@ export function createShellDialog(options = {}) {
         : null;
 
     nodes.thread.replaceChildren();
+    const streaming = nodes.panel?.classList.contains("is-streaming");
     for (let i = 0; i < history.length; i += 1) {
       const item = history[i];
+      // Tool-бubbles текущего хода — только в live-полосе, не дублировать в thread
+      if (streaming && isToolHistoryItem(item)) continue;
       const row = renderThreadMessage(item);
       if (row) nodes.thread.append(row);
     }
@@ -1554,9 +1679,11 @@ export function createShellDialog(options = {}) {
     updateScrollProgress,
     isScrollNearBottom,
     scrollDialogToBottom,
+    scrollToMessageAnchor,
     scrollToBottomIfNear,
     stickToBottomAndScroll,
     enableStickToBottom,
-    maintainStickScroll
+    maintainStickScroll,
+    getDialogScrollAnchor
   };
 }
