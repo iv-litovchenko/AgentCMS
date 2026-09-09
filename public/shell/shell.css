@@ -6316,6 +6316,50 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
   border: 1px solid rgba(122, 108, 255, 0.2);
 }
 
+.shell-message-queue.is-collapsed {
+  gap: 0;
+}
+
+.shell-message-queue.is-collapsed .shell-message-queue-list {
+  display: none;
+}
+
+.shell-message-queue-accordion-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(155, 89, 255, 0.12);
+  color: #c4b8ff;
+  cursor: pointer;
+}
+
+.shell-message-queue-accordion-btn:hover {
+  background: rgba(155, 89, 255, 0.22);
+}
+
+.shell-message-queue-accordion-btn:focus-visible {
+  outline: 2px solid rgba(155, 89, 255, 0.55);
+  outline-offset: 1px;
+}
+
+.shell-message-queue-chevron {
+  display: block;
+  font-size: 12px;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+.shell-message-queue.is-collapsed .shell-message-queue-chevron {
+  transform: rotate(-90deg);
+}
+
 .shell-compose-panel .shell-message-queue.is-single {
   margin: 4px 0 0;
   gap: 0;

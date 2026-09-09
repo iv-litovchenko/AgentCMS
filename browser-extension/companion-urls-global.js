@@ -39,7 +39,7 @@
     const base = normalizeVoiceBaseForBrowser(voiceBase);
     const agent = String(agentId || "").trim();
     if (!agent) {
-      return `${base}/?embed=1&companion=1`;
+      return `${base}/extension/`;
     }
     return `${base}/${encodeURIComponent(agent)}/extension/`;
   }

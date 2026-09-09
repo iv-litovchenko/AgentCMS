@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=546" />
+    <link rel="stylesheet" href="/shell/shell.css?v=547" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -35,7 +35,7 @@
           "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=207",
           "@shell/session": "/shell/shell-session.js?v=208",
           "@shell/client-id": "/shell/shell-client-id.js?v=404",
-          "@shell/surface": "/shell/shell-surface.js?v=227",
+          "@shell/surface": "/shell/shell-surface.js?v=230",
           "@shell/presence": "/shell/shell-presence.js?v=405",
           "@shell/voice-chpu": "/shell/voice-chpu.js?v=209",
           "@shell/device-chips": "/shell/shell-device-chips.js?v=207",
@@ -68,6 +68,7 @@
     </script>
   </head>
   <body class="shell-bg-wallpaper">
+    <script src="/shell/shell-surface-boot.js?v=1"></script>
     <script>
       (function () {
         try {
@@ -2228,8 +2229,18 @@ aya_bar_v2 тоже читает те же файлы</pre>
 
       <section class="shell-chat-section shell-chat-section--compose" aria-label="Ваше сообщение и голосовой ввод">
       <section class="shell-compose-panel" id="shell-compose-panel">
-        <div class="shell-message-queue hidden" id="shell-message-queue" aria-live="polite">
+        <div class="shell-message-queue hidden is-collapsed" id="shell-message-queue" aria-live="polite">
           <div class="shell-message-queue-bar">
+            <button
+              type="button"
+              class="shell-message-queue-accordion-btn"
+              id="shell-message-queue-toggle"
+              aria-expanded="false"
+              aria-controls="shell-message-queue-list"
+              title="Развернуть очередь"
+            >
+              <span class="shell-message-queue-chevron" aria-hidden="true">▾</span>
+            </button>
             <div class="shell-message-queue-active hidden" id="shell-message-queue-active">
               <span class="shell-message-queue-badge" aria-hidden="true">●</span>
               <span class="shell-message-queue-active-label">Сейчас</span>
@@ -2868,6 +2879,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=563" type="module"></script>
+    <script src="/shell/shell.js?v=564" type="module"></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-/** Read-only surface indicator — host (where UI runs) + backend badge. */
+/** Read-only surface indicator — where Agent CMS Voice UI runs. */
 
 import {
   VOICE_DEFAULT_HOST,
@@ -7,52 +7,139 @@ import {
   readVoiceSurfaceHostFromLocation
 } from "@shell/voice-chpu";
 
-export const SHELL_HOSTS = [
-  "desktop-cms",
-  "desktop-shell",
-  "browser-embed",
-  "browser-tab",
-  "mobile-native",
-  "mobile-web",
-  "extension"
-];
-
-const HOST_META = {
-  "desktop-shell": { icon: "🖥", short: "Shell", hint: "Agent Shell.app" },
-  "desktop-cms": { icon: "🖥", short: "CMS", hint: "Agent CMS.app · панель" },
-  "browser-embed": { icon: "🌐", short: "Embed", hint: "Панель в Agent CMS" },
-  "browser-tab": { icon: "🌐", short: "Tab", hint: "Вкладка браузера" },
-  "mobile-native": { icon: "📱", short: "iOS", hint: "iOS app (SwiftUI)" },
-  "mobile-web": { icon: "📱", short: "Mobile", hint: "Safari / PWA" },
-  extension: { icon: "🧩", short: "Companion", hint: "Companion · Chrome" }
+/** Legacy path segments (URL) → canonical surface id. */
+export const SURFACE_PATH_SEGMENTS = {
+  "browser-tab": "browser-tab",
+  "browser-embed": "cms-dialog",
+  "desktop-cms": "cms-dialog",
+  extension: "chrome-panel",
+  "desktop-shell": "electron-app",
+  "mobile-native": "mobile",
+  "mobile-web": "mobile"
 };
 
-export function getShellHostLabel(hostId) {
-  const meta = HOST_META[String(hostId || "").trim()];
-  return meta?.hint || hostId || "—";
+/** Canonical surfaces shown in header chip (5 modes). */
+export const SHELL_SURFACES = ["electron-app", "chrome-panel", "cms-dialog", "mobile", "browser-tab"];
+
+const SURFACE_META = {
+  "electron-app": {
+    icon: "🎙️",
+    label: "Голосовой ассистент",
+    hint: "Agent CMS Voice · приложение на компьютере"
+  },
+  "chrome-panel": {
+    icon: "📌",
+    label: "Панель в браузере",
+    hint: "Chrome · боковая панель Companion"
+  },
+  "cms-dialog": {
+    icon: "🏠",
+    label: "Диалог в Agent CMS",
+    hint: "Встроенная панель в Agent CMS"
+  },
+  mobile: {
+    icon: "📲",
+    label: "Мобильное устройство",
+    hint: "Телефон или планшет"
+  },
+  "browser-tab": {
+    icon: "🌐",
+    label: "Вкладка браузера",
+    hint: "Отдельная вкладка браузера"
+  }
+};
+
+/** @deprecated use SHELL_SURFACES */
+export const SHELL_HOSTS = Object.keys(SURFACE_PATH_SEGMENTS);
+
+let trustedSurfaceHost = "";
+let surfaceRefreshHandler = null;
+
+function normalizePathSegment(segment) {
+  const raw = String(segment || "").trim();
+  return SURFACE_PATH_SEGMENTS[raw] || "";
 }
 
-export function getShellHostShortLabel(hostId) {
-  const meta = HOST_META[String(hostId || "").trim()];
-  return meta?.short || hostId || "—";
+function readPathSurfaceId() {
+  if (!isVoiceStandaloneAppLocation()) return "";
+  const legacy = readVoiceSurfaceHostFromLocation();
+  if (!legacy || legacy === VOICE_DEFAULT_HOST) return "";
+  return normalizePathSegment(legacy) || "";
 }
 
-/** Короткая подпись для шапки Shell — с emoji из HOST_META. */
-export function getShellHostHeaderLabel(hostId) {
-  const id = String(hostId || "").trim();
-  const meta = HOST_META[id];
-  const labels = {
-    "browser-embed": "Панель CMS",
-    "browser-tab": "Вкладка",
-    "desktop-cms": "CMS.app",
-    "desktop-shell": "Shell.app",
-    "mobile-native": "iOS",
-    "mobile-web": "Mobile",
-    extension: "Companion"
-  };
-  const text = labels[id] || getShellHostLabel(id);
-  const icon = meta?.icon || "📍";
-  return `${icon} ${text}`;
+function isChromeExtensionOrigin(origin) {
+  return /^chrome-extension:\/\//i.test(String(origin || ""));
+}
+
+function isSameSiteOrigin(origin) {
+  try {
+    return String(origin || "") === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+export function noteShellSurfaceHost(message, origin = "") {
+  const host = String(message?.host || message?.surface || "").trim();
+  if (!host) return;
+
+  if (host === "chrome-side-panel" || host === "chrome-panel") {
+    if (isChromeExtensionOrigin(origin)) {
+      trustedSurfaceHost = "chrome-panel";
+      window.shellCompanion = { isCompanion: true, surface: "side-panel" };
+    }
+    return;
+  }
+
+  if (host === "cms-dialog") {
+    if (isSameSiteOrigin(origin) || isChromeExtensionOrigin(origin)) {
+      trustedSurfaceHost = "cms-dialog";
+      window.shellCmsEmbed = {
+        isEmbed: true,
+        desktop: Boolean(message?.desktop)
+      };
+    }
+  }
+}
+
+function bindShellSurfaceMessages() {
+  if (bindShellSurfaceMessages.bound) return;
+  bindShellSurfaceMessages.bound = true;
+  window.addEventListener("message", (event) => {
+    const data = event?.data;
+    if (!data || typeof data !== "object") return;
+    if (data.type !== "agent-cms-voice:surface-host") return;
+    const prev = trustedSurfaceHost;
+    noteShellSurfaceHost(data, event.origin);
+    if (trustedSurfaceHost && trustedSurfaceHost !== prev) {
+      activeSurface = detectShellSurface();
+      surfaceRefreshHandler?.(activeSurface);
+    }
+  });
+}
+
+export function getShellHostLabel(surfaceId) {
+  const id = normalizeSurfaceId(surfaceId);
+  return SURFACE_META[id]?.hint || surfaceId || "—";
+}
+
+export function getShellHostShortLabel(surfaceId) {
+  const id = normalizeSurfaceId(surfaceId);
+  return SURFACE_META[id]?.label || surfaceId || "—";
+}
+
+export function normalizeSurfaceId(surfaceId) {
+  const raw = String(surfaceId || "").trim();
+  if (SHELL_SURFACES.includes(raw)) return raw;
+  return normalizePathSegment(raw) || raw;
+}
+
+/** Header chip: emoji + short label. */
+export function getShellHostHeaderLabel(surfaceId) {
+  const id = normalizeSurfaceId(surfaceId);
+  const meta = SURFACE_META[id];
+  if (!meta) return `📍 ${id || "—"}`;
+  return `${meta.icon} ${meta.label}`;
 }
 
 let activeSurface = null;
@@ -85,23 +172,6 @@ function isShellEmbedQuery() {
   }
 }
 
-function readHostQuery() {
-  try {
-    const host = String(new URLSearchParams(window.location.search).get("host") || "").trim();
-    return SHELL_HOSTS.includes(host) ? host : "";
-  } catch {
-    return "";
-  }
-}
-
-function readSurfaceHost() {
-  if (isVoiceStandaloneAppLocation()) {
-    return readVoiceSurfaceHostFromLocation();
-  }
-  const fromQuery = readHostQuery();
-  return fromQuery || "";
-}
-
 function isParentDesktopCms() {
   try {
     return window.parent !== window && Boolean(window.parent.desktopApp?.isDesktop);
@@ -110,20 +180,10 @@ function isParentDesktopCms() {
   }
 }
 
-function isExtensionContext() {
-  if (readSurfaceHost() === "extension") return true;
-  if (readHostQuery() === "extension") return true;
-  try {
-    if (new URLSearchParams(window.location.search).get("companion") === "1") return true;
-  } catch {
-    // ignore
-  }
-  return Boolean(window.shellCompanion?.isCompanion);
-}
-
 function isMobileNativeContext() {
-  if (readSurfaceHost() === "mobile-native") return true;
-  if (readHostQuery() === "mobile-native") return true;
+  if (readVoiceSurfaceHostFromLocation() === "mobile-native") {
+    return true;
+  }
   if (Boolean(window.shellNative?.isNative)) return true;
   try {
     return /AgentShell-iOS/i.test(navigator.userAgent || "");
@@ -155,76 +215,56 @@ export function detectShellBackend() {
   return { id: "server", label: "server", disabled: true };
 }
 
+function detectCmsDialog(inIframe) {
+  if (trustedSurfaceHost === "cms-dialog") return true;
+  if (window.shellCmsEmbed?.isEmbed) return true;
+  const pathId = readPathSurfaceId();
+  if (pathId === "cms-dialog") return true;
+  if (!inIframe && !isShellEmbedQuery()) return false;
+  if (isParentDesktopCms()) return true;
+  if (inIframe || isShellEmbedQuery()) return true;
+  return false;
+}
+
+function detectChromePanel(inIframe) {
+  if (trustedSurfaceHost === "chrome-panel") return true;
+  if (window.shellCompanion?.isCompanion) return true;
+  if (readPathSurfaceId() === "chrome-panel") return true;
+  return inIframe && readVoiceSurfaceHostFromLocation() === "extension";
+}
+
 /** @returns {{ host: string, hint: string, embedded: boolean, backend: ReturnType<typeof detectShellBackend> }} */
 export function detectShellSurface() {
+  bindShellSurfaceMessages();
   const inIframe = window.parent !== window;
-  const pathHost = isVoiceStandaloneAppLocation() ? readVoiceSurfaceHostFromLocation() : "";
-  const queryHost = readHostQuery();
-  const surfaceHost = pathHost || queryHost;
-  const mobileWebPath = isMobileWebShellPath() && isMobileWebUserAgent();
+  const backend = detectShellBackend();
 
-  if (isExtensionContext()) {
-    return {
-      host: "extension",
-      hint: HOST_META.extension.hint,
-      embedded: true,
-      backend: detectShellBackend()
-    };
+  if (Boolean(window.shellApp?.isShellDesktop) || readPathSurfaceId() === "electron-app") {
+    const host = "electron-app";
+    return { host, hint: SURFACE_META[host].hint, embedded: false, backend };
   }
 
-  if (surfaceHost) {
-    const meta = HOST_META[surfaceHost];
-    return {
-      host: surfaceHost,
-      hint: meta?.hint || surfaceHost,
-      embedded: isEmbeddedVoiceHost(surfaceHost) || (!pathHost && isShellEmbedQuery()),
-      backend: detectShellBackend()
-    };
+  if (detectChromePanel(inIframe)) {
+    const host = "chrome-panel";
+    return { host, hint: SURFACE_META[host].hint, embedded: true, backend };
   }
 
-  if (isMobileNativeContext()) {
-    return {
-      host: "mobile-native",
-      hint: HOST_META["mobile-native"].hint,
-      embedded: inIframe || isShellEmbedQuery(),
-      backend: detectShellBackend()
-    };
+  if (detectCmsDialog(inIframe)) {
+    const host = "cms-dialog";
+    return { host, hint: SURFACE_META[host].hint, embedded: true, backend };
   }
 
-  if (mobileWebPath && !inIframe && !isShellEmbedQuery()) {
-    return {
-      host: "mobile-web",
-      hint: HOST_META["mobile-web"].hint,
-      embedded: false,
-      backend: detectShellBackend()
-    };
+  if (
+    isMobileNativeContext() ||
+    readPathSurfaceId() === "mobile" ||
+    (isMobileWebShellPath() && isMobileWebUserAgent() && !inIframe && !isShellEmbedQuery())
+  ) {
+    const host = "mobile";
+    return { host, hint: SURFACE_META[host].hint, embedded: inIframe, backend };
   }
 
-  if (Boolean(window.shellApp?.isShellDesktop)) {
-    return {
-      host: "desktop-shell",
-      hint: HOST_META["desktop-shell"].hint,
-      embedded: false,
-      backend: detectShellBackend()
-    };
-  }
-
-  if (inIframe || isShellEmbedQuery()) {
-    const host = isParentDesktopCms() ? "desktop-cms" : "browser-embed";
-    return {
-      host,
-      hint: HOST_META[host].hint,
-      embedded: true,
-      backend: detectShellBackend()
-    };
-  }
-
-  return {
-    host: "browser-tab",
-    hint: HOST_META["browser-tab"].hint,
-    embedded: false,
-    backend: detectShellBackend()
-  };
+  const host = "browser-tab";
+  return { host, hint: SURFACE_META[host].hint, embedded: false, backend };
 }
 
 export function getShellSurface() {
@@ -245,10 +285,18 @@ export function getShellSurfacePayload() {
  * @param {{ onSurface?: (surface: ReturnType<typeof detectShellSurface>) => void }} options
  */
 export function initShellSurface(options = {}) {
+  bindShellSurfaceMessages();
+  surfaceRefreshHandler = options.onSurface || null;
   activeSurface = detectShellSurface();
-  if (activeSurface.host === "extension") {
+  if (activeSurface.host === "chrome-panel") {
     document.body.classList.add("shell-surface-extension");
   }
   options.onSurface?.(activeSurface);
   return activeSurface;
+}
+
+/** Legacy helper — embedded Voice in CMS / Chrome. */
+export function isEmbeddedSurfaceHost(hostId) {
+  const id = normalizeSurfaceId(hostId);
+  return id === "cms-dialog" || id === "chrome-panel" || isEmbeddedVoiceHost(hostId);
 }

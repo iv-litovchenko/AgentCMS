@@ -209,6 +209,22 @@
     return shellIframeLocationKey(currentSrc) !== shellIframeLocationKey(nextUrl);
   }
 
+  function announceShellSurfaceHost() {
+    if (!discussShellIframeNode?.contentWindow) return;
+    try {
+      discussShellIframeNode.contentWindow.postMessage(
+        {
+          type: "agent-cms-voice:surface-host",
+          host: "cms-dialog",
+          desktop: Boolean(window.desktopApp?.isDesktop)
+        },
+        "*"
+      );
+    } catch {
+      // ignore
+    }
+  }
+
   function ensureShellIframeLoaded(agentId) {
     if (!discussShellIframeNode) return;
     const nextAgentId = String(agentId || "").trim();
@@ -398,6 +414,11 @@
     const agentId = getActiveAgentIdFromUrl();
     ensureShellIframeLoaded(agentId);
     void refreshShellPresence();
+  }
+
+  if (discussShellIframeNode && discussShellIframeNode.dataset.shellSurfaceBound !== "1") {
+    discussShellIframeNode.dataset.shellSurfaceBound = "1";
+    discussShellIframeNode.addEventListener("load", announceShellSurfaceHost);
   }
 
   bindResize();

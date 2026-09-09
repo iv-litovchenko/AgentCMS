@@ -17,7 +17,7 @@
       buildExtensionShellUrl(voiceBase, agentId) {
         const base = String(voiceBase || "https://localhost:3488").replace(/\/$/, "");
         const agent = String(agentId || "").trim();
-        if (!agent) return `${base}/?embed=1&companion=1`;
+        if (!agent) return `${base}/extension/`;
         return `${base}/${encodeURIComponent(agent)}/extension/`;
       },
       buildVoiceShellTabUrl(voiceBase, agentId) {
@@ -114,6 +114,17 @@
     if (!force && currentSrc === shellUrl) return;
 
     frame.src = shellUrl;
+  }
+
+  function announceSurfaceHost() {
+    try {
+      frame?.contentWindow?.postMessage(
+        { type: "agent-cms-voice:surface-host", host: "chrome-side-panel" },
+        "*"
+      );
+    } catch {
+      // ignore
+    }
   }
 
   async function resolveVoiceTabUrl() {
@@ -315,6 +326,8 @@
       });
     }
   });
+
+  frame?.addEventListener("load", announceSurfaceHost);
 
   void registerPanelTab();
   void loadShellFrame();

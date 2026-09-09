@@ -5,7 +5,7 @@
     "channel": "thread"
   },
   "route": {
-    "runtime": "claude",
+    "runtime": "codex",
     "runtimes": {
       "qwenpaw": {
         "type": "agent",
@@ -103,7 +103,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0.9829
+    "dialogScrollRatio": 0
   },
   "compose": {
     "promptTemplates": [

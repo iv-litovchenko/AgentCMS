@@ -526,6 +526,7 @@ const outboundQueue = [];
 /** @type {(() => void) | null} */
 let messageTurnDone = null;
 let lastQueueProcessingId = "";
+let messageQueueExpanded = false;
 
 const state = {
   agentId: localStorage.getItem(SHELL_STORAGE.agent) || "",
@@ -1371,6 +1372,7 @@ const nodes = {
   messageQueueActiveText: document.getElementById("shell-message-queue-active-text"),
   messageQueueCount: document.getElementById("shell-message-queue-count"),
   messageQueueList: document.getElementById("shell-message-queue-list"),
+  messageQueueToggle: document.getElementById("shell-message-queue-toggle"),
   routePanel: document.getElementById("shell-route-panel"),
   watchCamera: document.getElementById("shell-watch-camera"),
   composeCameraStub: document.getElementById("shell-compose-camera-stub"),
@@ -1931,7 +1933,7 @@ function refreshShellHeaderNodes() {
 function renderHeaderHostChip() {
   if (!nodes.headerHost) return;
   const surface = getShellSurface();
-  const host = surface?.host || readVoiceSurfaceHostFromLocation() || "browser-embed";
+  const host = surface?.host || "browser-tab";
   nodes.headerHost.textContent = getShellHostHeaderLabel(host);
   nodes.headerHost.title = `${getShellHostLabel(host)} · где открыт Agent CMS Voice`;
 }
@@ -3507,6 +3509,7 @@ function removeOutboundMessage(id) {
 
 function startEditOutboundMessage(id) {
   state.queueEditingId = id;
+  messageQueueExpanded = true;
   renderMessageQueue();
   const field = nodes.messageQueueList?.querySelector(`[data-queue-edit="${id}"]`);
   field?.focus();
@@ -3564,12 +3567,35 @@ function createQueueAction(label, { variant = "", onClick, ariaLabel = label, co
   return btn;
 }
 
+function syncMessageQueueAccordion() {
+  const expanded = Boolean(messageQueueExpanded);
+  nodes.messageQueue?.classList.toggle("is-collapsed", !expanded);
+  nodes.messageQueue?.classList.toggle("is-expanded", expanded);
+  if (nodes.messageQueueToggle) {
+    nodes.messageQueueToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+    nodes.messageQueueToggle.title = expanded ? "Свернуть очередь" : "Развернуть очередь";
+  }
+}
+
+function bindMessageQueueAccordion() {
+  const toggle = nodes.messageQueueToggle;
+  if (!toggle || toggle.dataset.shellBound === "1") return;
+  toggle.dataset.shellBound = "1";
+  toggle.addEventListener("click", (event) => {
+    event.stopPropagation();
+    messageQueueExpanded = !messageQueueExpanded;
+    syncMessageQueueAccordion();
+  });
+  syncMessageQueueAccordion();
+}
+
 function renderMessageQueue() {
   const hasActive = Boolean(state.processingMessage);
   const hasQueued = outboundQueue.length > 0;
   const showQueue = hasActive || hasQueued;
 
   nodes.messageQueue?.classList.toggle("hidden", !showQueue);
+  syncMessageQueueAccordion();
   nodes.messageQueueActive?.classList.toggle("hidden", !hasActive);
   const totalMessages = (hasActive ? 1 : 0) + outboundQueue.length;
   nodes.messageQueue?.classList.toggle("is-single", showQueue && totalMessages === 1);
@@ -9986,6 +10012,7 @@ function bindShellInteractiveUi() {
   if (document.body.dataset.shellInteractiveBound === "1") return;
   try {
     bindShellClickHandlers();
+    bindMessageQueueAccordion();
     const permissionApi = initShellPermissions({
       bannerEl: nodes.permissionBanner,
       micDialog: nodes.micDialog
