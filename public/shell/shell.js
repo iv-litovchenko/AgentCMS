@@ -3567,11 +3567,14 @@ function createQueueAction(label, { variant = "", onClick, ariaLabel = label, co
   return btn;
 }
 
-function syncMessageQueueAccordion() {
-  const expanded = Boolean(messageQueueExpanded);
+function syncMessageQueueAccordion(totalMessages = 0) {
+  const needsAccordion = totalMessages > 1;
+  const expanded = needsAccordion ? Boolean(messageQueueExpanded) : true;
   nodes.messageQueue?.classList.toggle("is-collapsed", !expanded);
   nodes.messageQueue?.classList.toggle("is-expanded", expanded);
   if (nodes.messageQueueToggle) {
+    nodes.messageQueueToggle.hidden = !needsAccordion;
+    nodes.messageQueueToggle.setAttribute("aria-hidden", needsAccordion ? "false" : "true");
     nodes.messageQueueToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
     nodes.messageQueueToggle.title = expanded ? "Свернуть очередь" : "Развернуть очередь";
   }
@@ -3595,10 +3598,10 @@ function renderMessageQueue() {
   const showQueue = hasActive || hasQueued;
 
   nodes.messageQueue?.classList.toggle("hidden", !showQueue);
-  syncMessageQueueAccordion();
-  nodes.messageQueueActive?.classList.toggle("hidden", !hasActive);
   const totalMessages = (hasActive ? 1 : 0) + outboundQueue.length;
   nodes.messageQueue?.classList.toggle("is-single", showQueue && totalMessages === 1);
+  syncMessageQueueAccordion(totalMessages);
+  nodes.messageQueueActive?.classList.toggle("hidden", !hasActive);
   if (nodes.messageQueueActiveText) {
     nodes.messageQueueActiveText.textContent = state.processingMessage || "";
   }
@@ -5457,7 +5460,8 @@ function validateCodexSessionId(value) {
   return {
     ok: false,
     normalized: "",
-    message: "Codex resume: укажите UUID сессии или оставьте поле пустым для новой сессии"
+    message:
+      "Codex resume: укажите thread id из Codex или оставьте поле пустым — id подставится после первого сообщения"
   };
 }
 
@@ -5799,7 +5803,9 @@ function generateBridgeSessionUuid() {
   refreshRoutePanelNodes();
   const sessionInput = nodes.bridgeSessionId || document.getElementById("shell-runtime-bridge-session-id");
   if (!sessionInput) return;
-  sessionInput.value = createCliSessionUuid();
+  const runtime = normalizeMessageRuntime(readRouteRuntimeSelectValue() || getSelectedRuntime());
+  // Codex выдаёт свой thread id после первого сообщения — случайный UUID только мешает resume.
+  sessionInput.value = runtime === "codex" ? "" : createCliSessionUuid();
   sessionInput.dispatchEvent(new Event("input", { bubbles: true }));
   markSettingsDirty("route");
 }

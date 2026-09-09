@@ -6373,6 +6373,18 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
   gap: 0;
 }
 
+.shell-message-queue.is-single:not(:has(.shell-message-queue-active:not(.hidden))) .shell-message-queue-bar {
+  display: none;
+}
+
+.shell-message-queue.is-single .shell-message-queue-accordion-btn {
+  display: none;
+}
+
+.shell-message-queue.is-single .shell-message-queue-count {
+  display: none;
+}
+
 .shell-message-queue.is-single .shell-message-queue-active {
   width: 100%;
   padding: 6px 8px;

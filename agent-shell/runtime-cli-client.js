@@ -15,6 +15,7 @@ const {
   extractClaudeResultText,
   looksLikeJsonObject,
   looksLikeCliError,
+  extractCodexThreadId,
   extractCodexJsonText,
   codexStreamError,
   firstErrorLine,
@@ -212,7 +213,13 @@ async function chatCodexCliPersistent(options = {}) {
       timeoutMs: options.timeoutMs
     });
     if (typeof options.onDelta === "function" && reply.text) options.onDelta(reply.text);
-    return { text: reply.text, raw: null, persistent: true };
+    return {
+      text: reply.text,
+      raw: null,
+      persistent: true,
+      codexThreadId: String(session.threadId || "").trim(),
+      resumeFallback: Boolean(session.resumeFallback)
+    };
   } catch (error) {
     session.dispose("error");
     throw error;
@@ -365,7 +372,25 @@ async function chatCodexCliOnce({
 
     let text = "";
     let lastError = "";
+    let codexThreadId = "";
     let jsonBuffer = "";
+    const handleCodexEvent = (event) => {
+      const threadId = extractCodexThreadId(event);
+      if (threadId) codexThreadId = threadId;
+      const toolActivity = extractCodexToolActivity(event);
+      if (toolActivity && typeof onActivity === "function") onActivity(toolActivity);
+      const err = codexStreamError(event);
+      if (err) {
+        lastError = err;
+        return err;
+      }
+      const delta = extractCodexJsonText(event, text);
+      if (delta) {
+        text += delta;
+        if (typeof onDelta === "function") onDelta(text);
+      }
+      return "";
+    };
     const result = await runCliProcess({
       binary: cmd,
       args,
@@ -376,19 +401,8 @@ async function chatCodexCliOnce({
         jsonBuffer += piece;
         let complete = false;
         jsonBuffer = consumeJsonLinesFromBuffer(jsonBuffer, (event) => {
-          const toolActivity = extractCodexToolActivity(event);
-          if (toolActivity && typeof onActivity === "function") onActivity(toolActivity);
-          const err = codexStreamError(event);
-          if (err) {
-            lastError = err;
-            complete = true;
-            return;
-          }
-          const delta = extractCodexJsonText(event, text);
-          if (delta) {
-            text += delta;
-            if (typeof onDelta === "function") onDelta(text);
-          }
+          const err = handleCodexEvent(event);
+          if (err) complete = true;
           const type = String(event?.type || "").toLowerCase();
           if (type === "turn.completed" || type === "turn.failed") complete = true;
         });
@@ -397,15 +411,7 @@ async function chatCodexCliOnce({
     });
 
     jsonBuffer = consumeJsonLinesFromBuffer(`${jsonBuffer}\n`, (event) => {
-      const toolActivity = extractCodexToolActivity(event);
-      if (toolActivity && typeof onActivity === "function") onActivity(toolActivity);
-      const err = codexStreamError(event);
-      if (err) {
-        lastError = err;
-        return;
-      }
-      const delta = extractCodexJsonText(event, text);
-      if (delta) text += delta;
+      handleCodexEvent(event);
     });
 
     const stdout = String(result.stdout || "").trim();
@@ -428,22 +434,31 @@ async function chatCodexCliOnce({
       throw new Error(stderr || "Codex CLI не вернул текст");
     }
     if (typeof onDelta === "function") onDelta(reply);
-    return { text: reply, raw: null };
+    return {
+      text: reply,
+      raw: null,
+      codexThreadId: codexThreadId || (resume && sid ? sid : "")
+    };
   };
 
-  try {
-    return await runOnce(Boolean(sid));
-  } catch (error) {
-    if (sid && error?.resumeFailed) {
-      const retry = await runOnce(false);
-      retry.resumeFallback = true;
-      retry.resumeWarning =
-        "Codex не смог продолжить сессию по UUID — ответ начат в новой сессии. Проверьте SessionId в настройках.";
-      return retry;
+  const resumeWarning =
+    "Codex не нашёл сохранённую сессию — начата новая, Session ID обновлён автоматически.";
+
+  if (sid) {
+    try {
+      return await runOnce(true);
+    } catch (error) {
+      const msg = String(error?.message || error);
+      if (error?.resumeFailed || isResumeUnavailableError(msg)) {
+        const retry = await runOnce(false);
+        retry.resumeFallback = true;
+        retry.resumeWarning = resumeWarning;
+        return retry;
+      }
+      throw error;
     }
-    if (sid) return runOnce(false);
-    throw error;
   }
+  return runOnce(false);
 }
 
 async function chatClaudeCli(options = {}) {

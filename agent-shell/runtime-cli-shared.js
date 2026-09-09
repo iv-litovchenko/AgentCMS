@@ -78,6 +78,17 @@ function looksLikeCliError(text) {
   return false;
 }
 
+function extractCodexThreadId(event) {
+  if (!event || typeof event !== "object") return "";
+  const type = String(event.type || event.event || "").toLowerCase();
+  if (type === "thread.started") {
+    return String(event.thread_id || event.threadId || "").trim();
+  }
+  const thread = event.thread && typeof event.thread === "object" ? event.thread : null;
+  if (thread?.id) return String(thread.id).trim();
+  return "";
+}
+
 function extractCodexJsonText(event, previous = "") {
   if (!event || typeof event !== "object") return "";
   const type = String(event.type || event.event || "").toLowerCase();
@@ -152,6 +163,7 @@ module.exports = {
   extractClaudeResultText,
   looksLikeJsonObject,
   looksLikeCliError,
+  extractCodexThreadId,
   extractCodexJsonText,
   codexStreamError,
   firstErrorLine,

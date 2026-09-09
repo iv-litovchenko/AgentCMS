@@ -20,7 +20,7 @@
       "codex": {
         "type": "cli",
         "model": "gpt-6-astra",
-        "sessionId": "c71b596c-9e85-41d5-b36a-c2940f8f1181",
+        "sessionId": "01a08615-e047-74b2-8d13-905c0c82c565",
         "permissionMode": "bypassPermissions"
       }
     }
@@ -103,7 +103,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0
+    "dialogScrollRatio": 1
   },
   "compose": {
     "promptTemplates": [

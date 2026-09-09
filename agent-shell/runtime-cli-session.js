@@ -284,6 +284,7 @@ class CodexAppServerSession {
     this.nextId = 1;
     this.initialized = false;
     this.threadId = "";
+    this.resumeFallback = false;
     this.pendingTurn = null;
     this.turnQueue = [];
     this.busy = false;
@@ -316,6 +317,7 @@ class CodexAppServerSession {
     this.process = null;
     this.initialized = false;
     this.threadId = "";
+    this.resumeFallback = false;
     getCliSessionPool().remove(this);
   }
 
@@ -428,7 +430,7 @@ class CodexAppServerSession {
         this.threadId = String(resumed?.thread?.id || sessionId);
         return this.threadId;
       } catch {
-        /* fall through to fresh thread */
+        this.resumeFallback = true;
       }
     }
 

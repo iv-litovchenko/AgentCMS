@@ -41,7 +41,8 @@ const {
   buildDefaultRuntimeSettings,
   buildRuntimeExtraHeaders,
   runtimeHealthPath,
-  RUNTIME_TRANSPORT
+  RUNTIME_TRANSPORT,
+  normalizeCliSessionId
 } = require("./runtime-bridge");
 const { probeCliBinary } = require("./runtime-cli-env");
 const { flattenSettings } = require("./shell-settings-format");
@@ -1495,6 +1496,30 @@ function resolveShellProjectRoot(deps, agentRoot) {
   return resolveProjectRootFromPath(agentRoot);
 }
 
+async function maybePersistCodexThreadSessionId(agentRoot, agentId, settings, runtime, reply) {
+  if (runtime !== "codex") {
+    return {
+      settings,
+      sessionId: sessionIdFromSettings(settings, runtime)
+    };
+  }
+
+  const nextId = String(reply?.codexThreadId || "").trim();
+  const currentId = normalizeCliSessionId(sessionIdFromSettings(settings, runtime), "codex");
+  if (!nextId || nextId === currentId) {
+    return {
+      settings,
+      sessionId: currentId || nextId
+    };
+  }
+
+  const nextSettings = await writeSettings(agentRoot, { codexSessionId: nextId }, agentId);
+  return {
+    settings: nextSettings,
+    sessionId: nextId
+  };
+}
+
 async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, onProgress, ttsClientId = "", author = "shell" }) {
   const text = String(body || "").trim();
   if (!text) throw new Error("Message body is required");
@@ -1589,6 +1614,7 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
   const extraHeaders = buildRuntimeExtraHeaders(runtime, endpoint);
 
   let reply;
+  let persistedCodexSession = null;
   try {
     if (endpoint.transport === RUNTIME_TRANSPORT.cli) {
       const binary = await resolveCliBinary(runtime, settings);
@@ -1610,6 +1636,18 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         onDelta,
         onActivity
       });
+      persistedCodexSession = await maybePersistCodexThreadSessionId(
+        agentRoot,
+        agentId,
+        settings,
+        runtime,
+        reply
+      );
+      settings = persistedCodexSession.settings;
+      if (reply?.resumeFallback && !reply?.resumeWarning) {
+        reply.resumeWarning =
+          "Codex не нашёл сохранённую сессию — начата новая, Session ID обновлён автоматически.";
+      }
       if (reply?.resumeWarning) {
         emitShellEvent(agentId, "agent_activity", {
           streamId,
@@ -1662,9 +1700,14 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
   emitShellEvent(agentId, "assistant_message", assistantMessage);
   void logShellDialogAgent(agentRoot, finalized.body, runtime);
 
+  const effectiveSessionId =
+    runtime === "codex"
+      ? persistedCodexSession?.sessionId || endpoint.sessionId
+      : endpoint.sessionId;
+
   return {
     channel: runtime,
-    sessionId: endpoint.sessionId,
+    sessionId: effectiveSessionId,
     streamId,
     reply: finalized.body,
     spokenText: finalized.spoken || null,
