@@ -167,6 +167,52 @@
     return el.matches(FORM_FIELD_SELECTOR);
   }
 
+  function escapeMarkdownLabel(text) {
+    return String(text || "")
+      .replace(/\\/g, "\\\\")
+      .replace(/\[/g, "\\[")
+      .replace(/\]/g, "\\]");
+  }
+
+  function formatMarkdownLink(label, url) {
+    const href = String(url || "").trim();
+    if (!href) return "";
+    const text = escapeMarkdownLabel(String(label || href).trim() || href);
+    return `[${text}](${href})`;
+  }
+
+  function formatMarkdownImage(alt, url) {
+    const src = String(url || "").trim();
+    if (!src) return "";
+    const label = escapeMarkdownLabel(String(alt || "").trim());
+    return `![${label}](${src})`;
+  }
+
+  function readLinkLabel(anchor) {
+    const text = String(anchor.innerText || anchor.textContent || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text) return text;
+    const title = String(anchor.getAttribute("title") || anchor.getAttribute("aria-label") || "").trim();
+    if (title) return title;
+    return extractLinkValue(anchor);
+  }
+
+  function readImageAlt(img) {
+    const alt = String(img.getAttribute("alt") || "").trim();
+    if (alt) return alt;
+    const title = String(img.getAttribute("title") || "").trim();
+    if (title) return title;
+    const src = extractImageValue(img);
+    if (!src) return "";
+    try {
+      const name = decodeURIComponent(String(src).split("/").pop()?.split("?")[0] || "");
+      return name.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").trim();
+    } catch {
+      return "";
+    }
+  }
+
   function extractFormFieldValue(el) {
     if (!isFormField(el)) return "";
 
@@ -206,11 +252,11 @@
     if (!el) return "";
     if (el.tagName === "IMG") {
       const imageValue = extractImageValue(el);
-      if (imageValue) return imageValue;
+      if (imageValue) return formatMarkdownImage(readImageAlt(el), imageValue);
     }
     if (el.tagName === "A") {
       const linkValue = extractLinkValue(el);
-      if (linkValue) return linkValue;
+      if (linkValue) return formatMarkdownLink(readLinkLabel(el), linkValue);
     }
     if (isFormField(el)) {
       return extractFormFieldValue(el);

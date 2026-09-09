@@ -32,11 +32,11 @@
       "source": "browser",
       "globalListen": false,
       "toCompose": false,
-      "responseEnabled": true
+      "responseEnabled": false
     },
     "stt": {
       "lang": "ru-RU",
-      "engine": "auto",
+      "engine": "browser",
       "prompt": "Исправь пунктуацию и регистр, убери слова-паразиты («э-э», «эээ», «мм», «ну»), сохрани смысл. Верни только готовый текст для отправки агенту — без пояснений и обёрток.",
       "whisper": {
         "model": "base"
@@ -47,7 +47,7 @@
     },
     "tts": {
       "enabled": false,
-      "playbackMode": "dialog",
+      "playbackMode": "reading",
       "engine": "edge",
       "prompt": "Сформируй ответ в следующем формате (строго, в таком порядке):\n\n1) Голосовая версия для озвучки — без emoji и markdown, только то, что можно произнести вслух. Не включай секреты, ключи и пароли. Не используй HTML-комментарии <!-- -->.\n\n2) Отдельной строкой маркер:\n\n::: VOICE-END :::\n\n3) Полный текст ответа для экрана (можно markdown, списки, код и любые другие элементы). Без HTML-комментариев <!-- -->.",
       "rate": 1,
@@ -55,13 +55,15 @@
       "includeCaptions": true,
       "engines": {
         "browser": {
-          "lang": "ru-RU"
+          "lang": "ru-RU",
+          "voice": "Милена"
         },
         "say": {
-          "lang": "ru-RU"
+          "lang": "en-US",
+          "voice": "Albert"
         },
         "edge": {
-          "voice": "ru-RU-SvetlanaNeural"
+          "voice": "en-US-JennyNeural"
         },
         "elevenlabs": {
           "model": "eleven_multilingual_v2"
@@ -96,14 +98,14 @@
     "topmost": false,
     "transparent": false,
     "background": "wallpaper",
-    "petOverlay": true,
+    "petOverlay": false,
     "compactDialogQa": true,
     "characterModel": "kimono",
     "keepAwake": false,
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0.8476
+    "dialogScrollRatio": 0.9754
   },
   "compose": {
     "promptTemplates": [

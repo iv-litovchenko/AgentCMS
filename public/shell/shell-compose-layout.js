@@ -8,6 +8,30 @@ export function initShellComposeLayout({ nodes, getSessionUiLocked = () => false
 
   const mobileMq = window.matchMedia("(max-width: 480px)");
 
+  function isComposeFullscreen() {
+    return dock.classList.contains("is-expanded");
+  }
+
+  function syncComposeInputHeight() {
+    if (isComposeFullscreen()) {
+      input.style.height = "";
+      input.style.overflowY = "";
+      measureDockHeight();
+      return;
+    }
+
+    input.style.height = "0px";
+    const styles = getComputedStyle(input);
+    const minHeight = Number.parseFloat(styles.minHeight) || 0;
+    const maxHeight = Number.parseFloat(styles.maxHeight);
+    const contentHeight = input.scrollHeight;
+    const cappedMax = Number.isFinite(maxHeight) && maxHeight > 0 ? maxHeight : contentHeight;
+    const next = Math.min(cappedMax, Math.max(minHeight, contentHeight));
+    input.style.height = `${next}px`;
+    input.style.overflowY = contentHeight > next + 1 ? "auto" : "hidden";
+    measureDockHeight();
+  }
+
   function syncMobileLayoutClass() {
     document.body.classList.toggle("shell-layout-mobile", mobileMq.matches);
   }
@@ -50,8 +74,10 @@ export function initShellComposeLayout({ nodes, getSessionUiLocked = () => false
     { passive: true }
   );
 
+  input.addEventListener("input", syncComposeInputHeight);
+
   input.addEventListener("focus", () => {
-    measureDockHeight();
+    syncComposeInputHeight();
     syncKeyboardViewport();
     window.setTimeout(syncKeyboardViewport, 60);
     window.setTimeout(syncKeyboardViewport, 280);
@@ -65,7 +91,7 @@ export function initShellComposeLayout({ nodes, getSessionUiLocked = () => false
     "orientationchange",
     () => {
       window.setTimeout(() => {
-        measureDockHeight();
+        syncComposeInputHeight();
         syncKeyboardViewport();
       }, 120);
     },
@@ -74,13 +100,13 @@ export function initShellComposeLayout({ nodes, getSessionUiLocked = () => false
 
   mobileMq.addEventListener("change", () => {
     syncMobileLayoutClass();
-    measureDockHeight();
+    syncComposeInputHeight();
   });
 
-  window.addEventListener("resize", measureDockHeight, { passive: true });
+  window.addEventListener("resize", syncComposeInputHeight, { passive: true });
 
   syncMobileLayoutClass();
-  measureDockHeight();
+  syncComposeInputHeight();
 
-  return { resetViewport, measureDockHeight, syncKeyboardViewport };
+  return { resetViewport, measureDockHeight, syncKeyboardViewport, syncComposeInputHeight };
 }

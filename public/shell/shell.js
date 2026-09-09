@@ -4038,8 +4038,7 @@ async function captureAndSendComposePhoto() {
 
     const body = buildComposeCameraMessage(userText, meta?.path);
     if (userText && nodes.message) {
-      nodes.message.value = "";
-      updateSendButtonLabel();
+      setComposeMessageValue("", { save: false });
       void clearComposeDraft();
     }
 
@@ -6569,8 +6568,7 @@ async function loadComposeDraft() {
     const body = String(data.body || "");
     composeDraftSavedText = body;
     if (body && nodes.message && !String(nodes.message.value || "").trim()) {
-      nodes.message.value = body;
-      updateSendButtonLabel();
+      setComposeMessageValue(body, { save: false });
     }
     renderComposeDraftStatus(body ? "saved" : "idle");
   } catch {
@@ -6592,11 +6590,16 @@ async function clearComposeDraft() {
   }
 }
 
+function syncComposeInputHeight() {
+  composeLayout?.syncComposeInputHeight?.();
+}
+
 function setComposeMessageValue(value, { save = true } = {}) {
   if (!nodes.message) return;
   nodes.message.value = String(value ?? "");
   updateSendButtonLabel();
   composeContextMeter?.update?.();
+  syncComposeInputHeight();
   if (save) scheduleComposeDraftSave();
 }
 
@@ -6604,12 +6607,23 @@ function isVoiceToComposeEnabled() {
   return Boolean(nodes.voiceToCompose?.checked ?? state.settings?.voiceToCompose);
 }
 
+function composeBlockSeparator(current, join = "space") {
+  const base = String(current || "").trimEnd();
+  if (!base) return "";
+  if (join === "newline") {
+    if (base.endsWith("\n\n")) return "";
+    if (base.endsWith("\n")) return "\n";
+    return "\n\n";
+  }
+  return " ";
+}
+
 function appendVoiceToCompose(text, options = {}) {
   const trimmed = String(text || "").trim();
   if (!trimmed || !nodes.message) return;
   const current = String(nodes.message.value || "").trimEnd();
-  const separator =
-    options.join === "newline" ? (current.endsWith("\n") ? "" : "\n") : current ? " " : "";
+  const join = options.join === "newline" ? "newline" : "space";
+  const separator = composeBlockSeparator(current, join);
   const next = current ? `${current}${separator}${trimmed}` : trimmed;
   setComposeMessageValue(next);
   nodes.message.focus();
@@ -6716,10 +6730,7 @@ function bindCmsPagePickerBridge() {
 function applyRemoteComposeDraft(body) {
   const text = String(body ?? "");
   composeDraftSavedText = text;
-  if (nodes.message) {
-    nodes.message.value = text;
-    updateSendButtonLabel();
-  }
+  setComposeMessageValue(text, { save: false });
   renderComposeDraftStatus(text ? "saved" : "idle");
   if (text) {
     nodes.message?.focus();
@@ -7041,6 +7052,9 @@ function setComposeExpanded(next) {
   );
   document.body.classList.toggle("shell-compose-expanded", expanded);
   document.body.classList.toggle("shell-compose-fullscreen", expanded);
+  requestAnimationFrame(() => {
+    syncComposeInputHeight();
+  });
   if (expanded) {
     nodes.message?.focus();
   }
@@ -7069,9 +7083,7 @@ async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
   shellProactive?.bumpActivity();
 
   if (fromCompose && nodes.message) {
-    nodes.message.value = "";
-    updateSendButtonLabel();
-    composeContextMeter?.update?.();
+    setComposeMessageValue("", { save: false });
     void clearComposeDraft();
     refocusComposeInput();
     composeLayout?.syncKeyboardViewport?.();
@@ -9420,6 +9432,7 @@ function bindComposeSendUi() {
       updateSendButtonLabel();
       scheduleComposeDraftSave();
       syncComposeReadyStatus();
+      syncComposeInputHeight();
     });
     nodes.message.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && !event.shiftKey && !event.altKey && !event.isComposing) {

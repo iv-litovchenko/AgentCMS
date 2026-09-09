@@ -19,6 +19,8 @@
   --shell-compose-tool-h: 32px;
   --vv-keyboard: 0px;
   --shell-compose-dock-height: 96px;
+  --shell-compose-input-min-h: 48px;
+  --shell-compose-input-max-h: min(256px, 40vh);
   --shell-proactive-bar: 12px;
   --shell-surface-bg: rgba(255, 255, 255, 0.92);
   --shell-surface-border: rgba(148, 163, 184, 0.35);
@@ -3848,7 +3850,7 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-compose-panel .shell-compose-input-wrap .shell-textarea {
-  min-height: 48px;
+  min-height: var(--shell-compose-input-min-h);
 }
 
 @media (max-width: 640px) {
@@ -4569,7 +4571,7 @@ body.shell-surface-extension #shell-dialog-refresh {
   background: rgba(255, 107, 107, 0.12);
   border: 1px solid rgba(255, 107, 107, 0.28);
   color: #ffd7d7;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -4581,7 +4583,7 @@ body.shell-surface-extension #shell-dialog-refresh {
   padding: 8px 28px 8px 10px;
   background: rgba(18, 22, 38, 0.72);
   border: 1px solid rgba(96, 165, 250, 0.22);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.35;
 }
 
@@ -4725,8 +4727,8 @@ body.shell-surface-extension #shell-dialog-refresh {
   min-width: 0;
   padding: 10px 30px 10px 14px;
   border-radius: 12px;
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -5372,13 +5374,15 @@ body.shell-surface-extension #shell-dialog-refresh {
 }
 
 .shell-textarea--compose {
-  min-height: 48px;
-  max-height: 132px;
+  min-height: var(--shell-compose-input-min-h);
+  max-height: var(--shell-compose-input-max-h);
   padding: 13px 40px 13px 16px;
   border: 0;
   border-radius: 0;
   background: transparent;
   resize: none;
+  overflow-x: hidden;
+  overflow-y: hidden;
   font-size: 15px;
   line-height: 1.45;
   color: var(--text);
@@ -5903,7 +5907,7 @@ body.shell-agent-locked #shell-message-target:disabled {
 }
 
 .shell-compose-panel .shell-compose-input-wrap .shell-textarea {
-  min-height: 48px;
+  min-height: var(--shell-compose-input-min-h);
   border-radius: 0;
 }
 
@@ -8468,9 +8472,9 @@ body.shell-embed .shell-path-header {
 
 .shell-compact-qa-question {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  line-height: 1.6;
+  line-height: 1.55;
   letter-spacing: -0.01em;
   color: #312e81;
 }
@@ -8478,8 +8482,8 @@ body.shell-embed .shell-path-header {
 .shell-compact-qa-answer {
   flex: 1 1 auto;
   min-height: 0;
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.55;
   color: #1e293b;
 }
 
@@ -8520,7 +8524,7 @@ body.shell-embed .shell-path-header {
 }
 
 .shell-compact-qa-answer.shell-md {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .shell-compact-qa-answer.shell-md p {
@@ -8551,7 +8555,7 @@ body.shell-embed .shell-path-header {
 .shell-compact-qa-answer.shell-md h1,
 .shell-compact-qa-answer.shell-md h2,
 .shell-compact-qa-answer.shell-md h3 {
-  font-size: 16px;
+  font-size: 14px;
   margin: 0 0 0.35em;
 }
 
@@ -10061,8 +10065,10 @@ body.shell-desktop .shell-compact-stage .shell-compact-sensor {
 #shell-compose-field .shell-textarea.shell-textarea--compose,
 .shell-compose-panel .shell-compose-input-wrap .shell-textarea.shell-textarea--compose {
   resize: none;
-  min-height: 48px;
-  max-height: 132px;
+  min-height: var(--shell-compose-input-min-h);
+  max-height: var(--shell-compose-input-max-h);
+  overflow-x: hidden;
+  overflow-y: hidden;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -10298,8 +10304,8 @@ body.shell-desktop .shell-compact-stage .shell-compact-sensor {
 }
 
 .shell-reply-body {
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 .shell-reply-text {
