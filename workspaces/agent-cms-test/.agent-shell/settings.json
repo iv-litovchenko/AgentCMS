@@ -97,13 +97,13 @@
     "transparent": false,
     "background": "wallpaper",
     "petOverlay": true,
-    "compactDialogQa": false,
+    "compactDialogQa": true,
     "characterModel": "kimono",
     "keepAwake": false,
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 1
+    "dialogScrollRatio": 0.9829
   },
   "compose": {
     "promptTemplates": [

@@ -610,6 +610,64 @@ let onRouteSettingsDirty = () => {};
 let runtimeSelectSyncing = 0;
 let runtimeSelectSuppressChange = false;
 let runtimeStatusProbePromise = null;
+let refreshRuntimeSelectLabelsTimer = null;
+
+const SHELL_SELECT_LOADING_VALUE = "__loading__";
+const SHELL_SELECT_LOADING_LABEL = "— Загружаем —";
+
+function isHeaderSelectLoading(selectEl) {
+  return selectEl?.dataset?.shellLoading === "1";
+}
+
+function setHeaderSelectLoading(selectEl, { label = SHELL_SELECT_LOADING_LABEL } = {}) {
+  if (!selectEl) return;
+  selectEl.dataset.shellLoading = "1";
+  selectEl.classList.add("shell-path-select--loading");
+  selectEl.disabled = true;
+  selectEl.innerHTML = "";
+  const option = document.createElement("option");
+  option.value = SHELL_SELECT_LOADING_VALUE;
+  option.textContent = label;
+  option.selected = true;
+  selectEl.appendChild(option);
+}
+
+function clearHeaderSelectLoading(selectEl) {
+  if (!selectEl) return;
+  delete selectEl.dataset.shellLoading;
+  selectEl.classList.remove("shell-path-select--loading");
+  selectEl.disabled = false;
+}
+
+function setRuntimeHeaderSelectsLoading({ label = SHELL_SELECT_LOADING_LABEL } = {}) {
+  refreshShellHeaderNodes();
+  for (const selectEl of [nodes.messageTarget, nodes.routeRuntime]) {
+    setHeaderSelectLoading(selectEl, { label });
+  }
+}
+
+function clearRuntimeHeaderSelectsLoading() {
+  for (const selectEl of [nodes.messageTarget, nodes.routeRuntime]) {
+    clearHeaderSelectLoading(selectEl);
+  }
+}
+
+function scheduleRefreshRuntimeSelectLabels() {
+  if (isHeaderSelectLoading(nodes.messageTarget)) return;
+  if (refreshRuntimeSelectLabelsTimer) clearTimeout(refreshRuntimeSelectLabelsTimer);
+  refreshRuntimeSelectLabelsTimer = setTimeout(() => {
+    refreshRuntimeSelectLabelsTimer = null;
+    refreshRuntimeSelectLabels();
+  }, 150);
+}
+
+function refreshRuntimeSelectLabelsNow() {
+  if (refreshRuntimeSelectLabelsTimer) {
+    clearTimeout(refreshRuntimeSelectLabelsTimer);
+    refreshRuntimeSelectLabelsTimer = null;
+  }
+  refreshRuntimeSelectLabels();
+}
 
 function runRuntimeSelectSync(fn) {
   runtimeSelectSyncing += 1;
@@ -1320,6 +1378,8 @@ const nodes = {
   watchScreen: document.getElementById("shell-watch-screen"),
   screenshotAction: document.getElementById("shell-screenshot-action"),
   compactAction: document.getElementById("shell-compact-exit"),
+  compactExit: document.getElementById("shell-compact-exit"),
+  compactBrand: document.getElementById("shell-compact-brand"),
   compactStage: document.getElementById("shell-compact-stage"),
   compactQa: document.getElementById("shell-compact-qa"),
   compactQaFrame: document.getElementById("shell-compact-qa-frame"),
@@ -1730,6 +1790,7 @@ function isShellAgentReady() {
 function isShellRuntimeSelectReady() {
   const select = nodes.messageTarget;
   if (!select) return false;
+  if (isHeaderSelectLoading(select)) return false;
   if (select.options.length > 0) return true;
   return Boolean(select.querySelector("optgroup option"));
 }
@@ -1792,17 +1853,35 @@ function syncShellAgentReadyUi() {
   updateSendButtonLabel();
 }
 
-async function populateAgentSelects() {
+function isAgentSelectPopulated(selectEl) {
+  if (!selectEl || selectEl.options.length === 0) return false;
+  if (isHeaderSelectLoading(selectEl)) return false;
+  return Array.from(selectEl.options).some(
+    (option) => String(option.value || "").trim() && option.value !== SHELL_SELECT_LOADING_VALUE
+  );
+}
+
+async function populateAgentSelects({ forceLoading = false } = {}) {
   refreshShellHeaderNodes();
-  const data = await loadAgentSelectData();
-  const selected = String(state.agentId || "").trim();
-  populateAgentSelect(nodes.headerAgent, {
-    agents: data.agents,
-    groups: data.groups,
-    selectedId: selected,
-    placeholder: "— Хранилище (агент) —",
-    includePlaceholder: true
-  });
+  const selectEl = nodes.headerAgent;
+  if (!selectEl) return;
+  const showLoading = forceLoading || !isAgentSelectPopulated(selectEl);
+  if (showLoading) setHeaderSelectLoading(selectEl);
+  try {
+    const data = await loadAgentSelectData();
+    clearHeaderSelectLoading(selectEl);
+    const selected = String(state.agentId || "").trim();
+    populateAgentSelect(selectEl, {
+      agents: data.agents,
+      groups: data.groups,
+      selectedId: selected,
+      placeholder: "— Хранилище (агент) —",
+      includePlaceholder: true
+    });
+  } catch (error) {
+    shellLog("error", "Не удалось загрузить список агентов", error.message);
+    setHeaderSelectLoading(selectEl, { label: "— Ошибка загрузки —" });
+  }
 }
 
 async function populateHeaderAgentSelect() {
@@ -1821,8 +1900,7 @@ async function onAgentSelectChange(next) {
   await resolveShellAgent();
   state.runtimeStatuses = {};
   resetRuntimeStatusProbe();
-  populateRuntimeSelect();
-  refreshRuntimeSelectLabels();
+  setRuntimeHeaderSelectsLoading();
   syncShellAgentReadyUi();
   await bootstrapRuntimeSelect();
   resetRuntimeStatusProbe();
@@ -4288,13 +4366,33 @@ function exitCompactMode() {
   setWindowCompactMode(false);
 }
 
-document.addEventListener("click", (event) => {
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-  if (target.closest("#shell-compact-exit") || target.closest("#shell-compact-brand")) {
-    exitCompactMode();
+function bindCompactStageUi() {
+  refreshShellHeaderNodes();
+  const exitBtn = nodes.compactExit || document.getElementById("shell-compact-exit");
+  const brandBtn = nodes.compactBrand || document.getElementById("shell-compact-brand");
+  nodes.compactExit = exitBtn;
+  nodes.compactBrand = brandBtn;
+  nodes.compactAction = exitBtn;
+  nodes.windowCompact = exitBtn;
+
+  if (exitBtn && exitBtn.dataset.shellBound !== "1") {
+    exitBtn.dataset.shellBound = "1";
+    exitBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      exitCompactMode();
+    });
   }
-});
+
+  if (brandBtn && brandBtn.dataset.shellBound !== "1") {
+    brandBtn.dataset.shellBound = "1";
+    brandBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      exitCompactMode();
+    });
+  }
+}
 
 async function handleCameraSnapshotRequest(payload) {
   if (state.cameraSnapshotBusy) return;
@@ -5486,10 +5584,11 @@ function ensureRuntimeSelectOptions(available = getSelectableRuntimes()) {
 
 function refreshRuntimeSelectLabels() {
   refreshShellHeaderNodes();
+  if (isHeaderSelectLoading(nodes.messageTarget)) return;
   ensureRuntimeSelectOptions();
   const available = getSelectableRuntimes();
   for (const selectEl of [nodes.messageTarget, nodes.routeRuntime]) {
-    if (!selectEl) continue;
+    if (!selectEl || isHeaderSelectLoading(selectEl)) continue;
     const showVersion = selectEl.id === "shell-route-runtime";
     const current = normalizeMessageRuntime(selectEl.value || state.settings?.messageTarget || "qwenpaw");
     for (const opt of selectEl.options) {
@@ -5502,15 +5601,17 @@ function refreshRuntimeSelectLabels() {
       const conn = implemented
         ? resolveRuntimeConnectionState(runtime, status, { implemented: true })
         : "soon";
-      opt.textContent = formatRuntimeSelectLabel(runtime, {
+      const nextLabel = formatRuntimeSelectLabel(runtime, {
         implemented,
         status,
         conn,
         showVersion
       });
-      opt.title = formatRuntimeStatusTitle(runtime, status, { implemented });
+      const nextTitle = formatRuntimeStatusTitle(runtime, status, { implemented });
+      if (opt.textContent !== nextLabel) opt.textContent = nextLabel;
+      if (opt.title !== nextTitle) opt.title = nextTitle;
       opt.disabled = !selectable;
-      if (runtime === current) opt.selected = true;
+      opt.selected = runtime === current;
     }
   }
   if (state.view === "settings") {
@@ -5521,11 +5622,13 @@ function refreshRuntimeSelectLabels() {
 function populateRuntimeSelect(selected = normalizeMessageRuntime(state.settings?.messageTarget || "qwenpaw")) {
   refreshShellHeaderNodes();
   bindRuntimeSelectUi(nodes.messageTarget);
+  clearRuntimeHeaderSelectsLoading();
   const available = getSelectableRuntimes();
   const runtime = fillRuntimeSelect(nodes.messageTarget, selected, available);
   fillRuntimeSelect(nodes.routeRuntime, runtime, available);
   if (state.settings) state.settings.messageTarget = runtime;
   updateRuntimeUi({ reloadForms: true, runtime });
+  refreshRuntimeSelectLabelsNow();
   syncShellAgentReadyUi();
 }
 
@@ -5533,20 +5636,44 @@ function populateRuntimeSelect(selected = normalizeMessageRuntime(state.settings
 async function bootstrapRuntimeSelect() {
   refreshShellHeaderNodes();
   bindRuntimeSelectUi(nodes.messageTarget);
-  const fallback = normalizeMessageRuntime(state.settings?.messageTarget || "qwenpaw");
-  populateRuntimeSelect(fallback);
-  if (!state.agentId) return;
+  if (!state.agentId) {
+    setRuntimeHeaderSelectsLoading();
+    syncShellAgentReadyUi();
+    return;
+  }
+
+  const runtimeSelectReady =
+    nodes.messageTarget &&
+    !isHeaderSelectLoading(nodes.messageTarget) &&
+    nodes.messageTarget.querySelector("optgroup option");
+
+  if (!runtimeSelectReady) {
+    setRuntimeHeaderSelectsLoading();
+  }
+
   try {
     const data = await apiFetch("/api/shell/settings");
     const settings = data?.settings;
-    if (!settings) return;
-    state.settings = { ...(state.settings || {}), ...settings };
-    syncDialogScrollFromSettings(settings);
-    populateRuntimeSelect(settings.messageTarget);
-    refreshRuntimeSelectLabels();
+    if (settings) {
+      state.settings = { ...(state.settings || {}), ...settings };
+      syncDialogScrollFromSettings(settings);
+    }
+    const selected = normalizeMessageRuntime(
+      settings?.messageTarget || state.settings?.messageTarget || "qwenpaw"
+    );
+    if (runtimeSelectReady) {
+      clearRuntimeHeaderSelectsLoading();
+      syncRuntimeSelects();
+      refreshRuntimeSelectLabelsNow();
+    } else {
+      populateRuntimeSelect(selected);
+    }
     syncShellAgentReadyUi();
   } catch (error) {
     shellLog("error", "runtime settings bootstrap failed", error.message);
+    if (!runtimeSelectReady) {
+      populateRuntimeSelect(normalizeMessageRuntime(state.settings?.messageTarget || "qwenpaw"));
+    }
   }
 }
 
@@ -5562,7 +5689,7 @@ async function pullRuntimeStatuses({ probe = true } = {}) {
       shellLog("error", "status fallback failed", fallbackError.message);
     }
   } finally {
-    refreshRuntimeSelectLabels();
+    scheduleRefreshRuntimeSelectLabels();
     syncShellAgentReadyUi();
   }
 }
@@ -5586,7 +5713,7 @@ function ensureRuntimeStatusProbe({ force = false } = {}) {
           shellLog("error", "status fallback failed", fallbackError.message);
         }
       } finally {
-        refreshRuntimeSelectLabels();
+        scheduleRefreshRuntimeSelectLabels();
         syncShellAgentReadyUi();
       }
     })();
@@ -6159,7 +6286,7 @@ function applyStatusPayload(payload) {
     payload?.qwenpaw?.agentError != null ? String(payload.qwenpaw.agentError || "") : state.qwenpawAgentError;
   state.qwenpawConnected = payload?.qwenpaw?.ok != null ? Boolean(payload.qwenpaw.ok) : state.qwenpawConnected;
   syncQwenPawPanelAvailability();
-  refreshRuntimeSelectLabels();
+  scheduleRefreshRuntimeSelectLabels();
   syncShellAgentReadyUi();
   const activeRuntime = normalizeMessageRuntime(
     payload?.runtime?.runtime || payload?.settings?.messageTarget || state.settings?.messageTarget
@@ -8586,7 +8713,7 @@ function connectStream() {
     shellLog("sse", "open");
     const hasStatuses = Object.keys(state.runtimeStatuses || {}).length > 0;
     if (hasStatuses) {
-      refreshRuntimeSelectLabels();
+      scheduleRefreshRuntimeSelectLabels();
       syncDialogConnectionState();
     } else {
       void pullRuntimeStatuses();
@@ -9487,6 +9614,7 @@ function bindUi() {
   }
 
   initCompactSensor();
+  bindCompactStageUi();
 
   bindRuntimeSelectUi(nodes.messageTarget);
   bindRoutePanelUi();
@@ -10013,7 +10141,9 @@ async function boot() {
   startClock();
   setComposeExpanded(false);
   populateVoiceModeSelect();
-  populateRuntimeSelect();
+  refreshShellHeaderNodes();
+  setHeaderSelectLoading(nodes.headerAgent);
+  setRuntimeHeaderSelectsLoading();
   renderHeaderHostChip();
   bindShellAgentGateUi();
   bindHeaderContextUi();

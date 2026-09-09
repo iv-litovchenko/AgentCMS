@@ -1217,6 +1217,11 @@ body.shell-bg-wallpaper .shell-voice-primary-star.is-secondary {
   background-color: rgba(255, 255, 255, 0.04);
 }
 
+.shell-path-select.shell-path-select--loading {
+  cursor: wait;
+  color: #94a3b8;
+}
+
 .shell-path-select option {
   background: #0f1020;
   color: #e2e8f0;
@@ -8266,6 +8271,7 @@ body.shell-embed .shell-path-header {
   align-self: stretch;
   padding: 0 12px;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .shell-app[data-compact="1"][data-compact-qa="1"] .shell-compact-qa[data-visible="1"] {
@@ -8288,6 +8294,7 @@ body.shell-embed .shell-path-header {
     0 12px 32px rgba(15, 23, 42, 0.11),
     0 0 0 1px rgba(148, 163, 184, 0.2);
   overflow: hidden;
+  pointer-events: auto;
 }
 
 .shell-compact-qa-frame.is-empty {
@@ -8662,13 +8669,14 @@ body.shell-embed .shell-path-header {
 
 .shell-compact-sensor-wrap {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
   width: 100%;
   text-align: center;
+  pointer-events: auto;
 }
 
 .shell-compact-brand {
@@ -8704,10 +8712,12 @@ body.shell-embed .shell-path-header {
 
 .shell-compact-status-row {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  position: relative;
+  z-index: 4;
 }
 
 .shell-compact-sensor-status {
@@ -8724,8 +8734,8 @@ body.shell-embed .shell-path-header {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 0;
   border-radius: 999px;
@@ -8733,6 +8743,16 @@ body.shell-embed .shell-path-header {
   box-shadow: 0 4px 12px rgba(148, 163, 184, 0.18);
   color: #334155;
   cursor: pointer;
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+body.shell-desktop .shell-compact-stage .shell-compact-exit,
+body.shell-desktop .shell-compact-stage .shell-compact-brand,
+body.shell-desktop .shell-compact-stage .shell-compact-sensor {
+  -webkit-app-region: no-drag;
 }
 
 .shell-compact-exit:hover {
