@@ -20,6 +20,10 @@ export function initShellComposeLayout({ nodes, getSessionUiLocked = () => false
       return;
     }
 
+    const preserveSelection = document.activeElement === input;
+    const selectionStart = preserveSelection ? input.selectionStart : null;
+    const selectionEnd = preserveSelection ? input.selectionEnd : null;
+
     input.style.height = "0px";
     const styles = getComputedStyle(input);
     const minHeight = Number.parseFloat(styles.minHeight) || 0;
@@ -29,6 +33,15 @@ export function initShellComposeLayout({ nodes, getSessionUiLocked = () => false
     const next = Math.min(cappedMax, Math.max(minHeight, contentHeight));
     input.style.height = `${next}px`;
     input.style.overflowY = contentHeight > next + 1 ? "auto" : "hidden";
+
+    if (preserveSelection && selectionStart != null && selectionEnd != null) {
+      try {
+        input.setSelectionRange(selectionStart, selectionEnd);
+      } catch {
+        // ignore
+      }
+    }
+
     measureDockHeight();
   }
 

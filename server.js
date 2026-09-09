@@ -23403,7 +23403,8 @@ async function handleApi(req, res, url) {
     const version = docsRegistry.normalizeDocVersion(url.searchParams.get("version"));
     const docs = docsRegistry.getMcpDocs(version);
     const reqHost = String(req.headers.host || "").trim();
-    return sendJson(res, 200, enrichMcpDocsForClient(docs, reqHost));
+    res.setHeader("Cache-Control", "no-store");
+    return sendJson(res, 200, enrichMcpDocsForClient(docs, reqHost, { projectRoot: getProjectRoot() }));
   }
 
   if (req.method === "GET" && url.pathname === "/api/user-docs") {

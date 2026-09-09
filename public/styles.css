@@ -45320,6 +45320,12 @@ button.node-navigation-memory-title:focus-visible {
 .mcp-docs-notes {
   background: #f5f3ff;
   color: #5b21b6;
+  flex: 0 0 200px;
+  height: 200px;
+  min-height: 200px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .mcp-docs-config {
@@ -45330,7 +45336,12 @@ button.node-navigation-memory-title:focus-visible {
   color: #e2e8f0;
   font-size: 11px;
   line-height: 1.45;
-  overflow: visible;
+  flex: 0 0 200px;
+  height: 200px;
+  min-height: 200px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-sizing: border-box;
   white-space: pre-wrap;
   word-break: break-word;
 }

@@ -1,8 +1,8 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Slim · 73 tools",
+  versionLabel: "Per-chat agentId · 99 tools",
   title: "Agent CMS MCP Server",
-  subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.0",
+  subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.8",
   packagePath: "mcp-server/",
   generatedAt: "2026-08-08",
   notes: [

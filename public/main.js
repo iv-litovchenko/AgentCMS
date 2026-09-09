@@ -94615,14 +94615,49 @@ function renderMcpDocsModal(data) {
   if (mcpDocsNotesNode) {
     mcpDocsNotesNode.innerHTML = (data.notes || []).map((note) => `<p>${escapeHtml(note)}</p>`).join("");
   }
-  if (mcpDocsConfigNode && data.cursorConfig) {
-    const example = {
-      mcpServers: {
-        "agent-cms": data.cursorConfig
-      }
-    };
-    mcpDocsConfigNode.textContent = JSON.stringify(example, null, 2);
-    mcpDocsConfigNode.classList.remove("hidden");
+  if (mcpDocsConfigNode) {
+    let handoff = String(data.configHandoff || "").trim();
+    if (!handoff && data.cursorConfig) {
+      const example = data.cursorConfigExample || {
+        mcpServers: {
+          "agent-cms": data.cursorConfig
+        }
+      };
+      const cmsBaseUrl = String(data.cmsBaseUrl || data.cursorConfig?.env?.AGENT_CMS_BASE_URL || "").trim();
+      handoff = [
+        "Задача: подключить MCP Agent CMS в Claude Desktop или Cursor.",
+        "",
+        cmsBaseUrl ? `1. Agent CMS должен быть запущен (${cmsBaseUrl}).` : "1. Agent CMS должен быть запущен.",
+        "2. AGENT_CMS_AGENT в env НЕ добавляй — agentId выбирается в каждом чате (list_workspaces).",
+        "3. Вставь JSON ниже в конфиг MCP (Cursor / Claude Desktop).",
+        "   Замени <ABS_PATH> на абсолютный путь к корню репозитория YamlCMS на машине.",
+        "",
+        JSON.stringify(example, null, 2),
+        "",
+        "4. Новый чат: list_workspaces → agentId → get_session_context({ agentId }) → тот же agentId во всех tools."
+      ].join("\n");
+    }
+    if (handoff) {
+      mcpDocsConfigNode.textContent = handoff;
+      mcpDocsConfigNode.dataset.mode = "handoff";
+      mcpDocsConfigNode.setAttribute(
+        "aria-label",
+        "Скопируй агенту: подключение MCP и JSON конфиг"
+      );
+      mcpDocsConfigNode.classList.remove("hidden");
+    } else if (data.cursorConfig) {
+      const example = data.cursorConfigExample || {
+        mcpServers: {
+          "agent-cms": data.cursorConfig
+        }
+      };
+      mcpDocsConfigNode.textContent = JSON.stringify(example, null, 2);
+      mcpDocsConfigNode.dataset.mode = "json";
+      mcpDocsConfigNode.setAttribute("aria-label", "Пример конфигурации Cursor");
+      mcpDocsConfigNode.classList.remove("hidden");
+    } else {
+      mcpDocsConfigNode.classList.add("hidden");
+    }
   }
   if (!mcpDocsContentNode) return;
   mcpDocsContentNode.innerHTML = "";
@@ -94657,7 +94692,7 @@ async function openMcpDocsModal() {
     await fetchDocsMeta();
     mcpDocsVersion = readStoredDocVersion();
     syncAllDocVersionSelects(mcpDocsVersion);
-    renderMcpDocsModal(await fetchMcpDocs(mcpDocsVersion));
+    renderMcpDocsModal(await fetchMcpDocs(mcpDocsVersion, true));
     mcpDocsModalNode.classList.remove("hidden");
   } catch (error) {
     showToast(`Не удалось загрузить MCP docs: ${error.message}`, "error");

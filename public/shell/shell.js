@@ -6596,7 +6596,12 @@ function syncComposeInputHeight() {
 
 function setComposeMessageValue(value, { save = true } = {}) {
   if (!nodes.message) return;
-  nodes.message.value = String(value ?? "");
+  const next = String(value ?? "");
+  if (nodes.message.value === next) {
+    if (save) scheduleComposeDraftSave();
+    return;
+  }
+  nodes.message.value = next;
   updateSendButtonLabel();
   composeContextMeter?.update?.();
   syncComposeInputHeight();
@@ -6729,14 +6734,34 @@ function bindCmsPagePickerBridge() {
 
 function applyRemoteComposeDraft(body) {
   const text = String(body ?? "");
+  const el = nodes.message;
   composeDraftSavedText = text;
+
+  if (!el) {
+    renderComposeDraftStatus(text ? "saved" : "idle");
+    return;
+  }
+
+  const local = String(el.value || "");
+  // SSE echo of our own save — do not rewrite value or move the caret.
+  if (local === text) {
+    renderComposeDraftStatus(text ? "saved" : "idle");
+    return;
+  }
+
+  // External draft while the user is editing — keep local text and selection.
+  if (document.activeElement === el) {
+    renderComposeDraftStatus(text ? "saved" : "idle");
+    return;
+  }
+
   setComposeMessageValue(text, { save: false });
   renderComposeDraftStatus(text ? "saved" : "idle");
   if (text) {
-    nodes.message?.focus();
+    el.focus();
     const len = text.length;
     try {
-      nodes.message?.setSelectionRange(len, len);
+      el.setSelectionRange(len, len);
     } catch {
       // ignore
     }
