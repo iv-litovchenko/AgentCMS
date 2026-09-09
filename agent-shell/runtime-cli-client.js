@@ -135,7 +135,8 @@ function buildPersistentSessionConfig({
   sessionId,
   permissionMode,
   systemPrompt,
-  cwd
+  cwd,
+  onPermissionRequest
 }) {
   const sid = normalizeCliSessionId(sessionId, runtime);
   return {
@@ -145,7 +146,8 @@ function buildPersistentSessionConfig({
     permissionMode,
     systemPrompt: String(systemPrompt || "").trim(),
     cwd: cwd || process.cwd(),
-    resume: Boolean(sid)
+    resume: Boolean(sid),
+    onPermissionRequest: typeof onPermissionRequest === "function" ? onPermissionRequest : null
   };
 }
 
@@ -163,7 +165,8 @@ async function chatClaudeCliPersistent(options = {}) {
     sessionId: options.sessionId,
     permissionMode: options.permissionMode,
     systemPrompt: system,
-    cwd: options.cwd
+    cwd: options.cwd,
+    onPermissionRequest: options.onPermissionRequest
   });
 
   const pool = getCliSessionPool();
@@ -173,6 +176,7 @@ async function chatClaudeCliPersistent(options = {}) {
       prompt,
       onDelta: options.onDelta,
       onActivity: options.onActivity,
+      onPermissionRequest: options.onPermissionRequest,
       signal: options.signal,
       timeoutMs: options.timeoutMs
     });

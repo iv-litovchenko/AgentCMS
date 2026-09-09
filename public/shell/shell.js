@@ -53,6 +53,7 @@ import {
   shellPermissionIssue,
   warmUpMicrophone
 } from "@shell/permissions";
+import { initShellToolPermission } from "@shell/tool-permission";
 import { initShellMobileLink } from "@shell/mobile-link";
 import { createShellDialog } from "@shell/dialog";
 import { createShellCompactQa } from "@shell/compact-qa";
@@ -605,6 +606,8 @@ let messageSendAbortController = null;
 let ttsTabCoordinator = null;
 let shellPresenceController = null;
 let ttsPlayer = null;
+let shellToolPermission = null;
+let queueSyncTimer = 0;
 let ttsPlaybackSeq = 0;
 const settingsSave = createSettingsSaveController();
 let onRouteSettingsDirty = () => {};
@@ -1282,6 +1285,14 @@ const nodes = {
   micBtn: document.getElementById("shell-mic-btn"),
   permissionBanner: document.getElementById("shell-permission-banner"),
   micDialog: document.getElementById("shell-mic-dialog"),
+  toolPermissionDialog: document.getElementById("shell-tool-permission-dialog"),
+  toolPermissionTitle: document.getElementById("shell-tool-permission-title"),
+  toolPermissionTool: document.getElementById("shell-tool-permission-tool"),
+  toolPermissionInput: document.getElementById("shell-tool-permission-input"),
+  toolPermissionInputField: document.getElementById("shell-tool-permission-input-field"),
+  toolPermissionAllow: document.getElementById("shell-tool-permission-allow"),
+  toolPermissionDeny: document.getElementById("shell-tool-permission-deny"),
+  toolPermissionAllowSession: document.getElementById("shell-tool-permission-allow-session"),
   micDialogUrl: document.getElementById("shell-mic-dialog-url"),
   micDialogClose: document.getElementById("shell-mic-dialog-close"),
   micDialogCheck: document.getElementById("shell-mic-dialog-check"),
@@ -3262,9 +3273,32 @@ function applyServerQueue(queue) {
     } else if (prevProcessingId) {
       lastQueueProcessingId = "";
     }
+    if (
+      outboundQueue.length === 0 &&
+      state.messagePipelineBusy &&
+      !(state.assistantStream && !state.assistantStream.finalized)
+    ) {
+      releaseMessagePipeline();
+    }
   }
   renderMessageQueue();
   updateSendButtonLabel();
+  armOrphanQueueSync();
+}
+
+function armOrphanQueueSync() {
+  if (queueSyncTimer) return;
+  const hasQueued = outboundQueue.length > 0;
+  const hasActive = Boolean(state.processingMessage);
+  if (!hasQueued || hasActive) return;
+  queueSyncTimer = window.setTimeout(() => {
+    queueSyncTimer = 0;
+    void refreshOutboundQueueFromServer().finally(() => {
+      if (outboundQueue.length > 0 && !state.processingMessage) {
+        armOrphanQueueSync();
+      }
+    });
+  }, 4000);
 }
 
 async function refreshOutboundQueueFromServer() {
@@ -8895,6 +8929,16 @@ function connectStream() {
     }
   });
 
+  source.addEventListener("tool_permission_request", (event) => {
+    try {
+      logSse("tool_permission_request");
+      const payload = JSON.parse(event.data);
+      shellToolPermission?.handleRequest?.(payload);
+    } catch {
+      // ignore malformed event
+    }
+  });
+
   source.addEventListener("camera_snapshot_request", (event) => {
     try {
       logSse("camera_snapshot_request");
@@ -10065,6 +10109,19 @@ function bindShellInteractiveUi() {
       micDialog: nodes.micDialog
     });
     bindMicPermissionsUi(permissionApi);
+    shellToolPermission = initShellToolPermission({
+      dialog: nodes.toolPermissionDialog,
+      titleEl: nodes.toolPermissionTitle,
+      toolEl: nodes.toolPermissionTool,
+      inputEl: nodes.toolPermissionInput,
+      allowBtn: nodes.toolPermissionAllow,
+      denyBtn: nodes.toolPermissionDeny,
+      allowSessionBtn: nodes.toolPermissionAllowSession,
+      apiFetch,
+      onStatus: (text) => {
+        if (text) renderPhase(state.shellState?.phase || "thinking", text);
+      }
+    });
     initShellHelp({
       helpBtn: nodes.helpBtn,
       helpDialog: nodes.helpDialog,

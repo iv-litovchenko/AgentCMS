@@ -255,6 +255,9 @@ function createShellHandlers(deps) {
       try {
         const settings = await shellService.readSettings(agentRoot);
         const queue = await shellService.getShellMessageQueue(agentRoot, settings);
+        if (!queue.processing && Array.isArray(queue.items) && queue.items.length > 0) {
+          shellService.scheduleShellMessageQueueDrain(deps, agentRoot, agentId);
+        }
         deps.sendJson(res, 200, { agentId, queue });
       } catch (error) {
         deps.sendJson(res, 500, {
@@ -581,6 +584,31 @@ function createShellHandlers(deps) {
       } catch (error) {
         deps.sendJson(res, 504, {
           error: "Camera snapshot failed",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/tool-permission/complete") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const requestId = String(payload?.requestId || "").trim();
+        if (!requestId) {
+          deps.sendJson(res, 400, { error: "requestId is required" });
+          return true;
+        }
+        const allow = Boolean(payload?.allow);
+        const scope = String(payload?.scope || "once").trim() === "session" ? "session" : "once";
+        const ok = shellService.completeClaudeToolPermissionRequest(agentId, requestId, { allow, scope });
+        if (!ok) {
+          deps.sendJson(res, 404, { error: "Unknown or expired permission request" });
+          return true;
+        }
+        deps.sendJson(res, 200, { agentId, ok: true, requestId, allow, scope });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to complete tool permission",
           details: String(error?.message || error)
         });
       }

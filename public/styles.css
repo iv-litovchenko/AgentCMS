@@ -51498,13 +51498,13 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-static-title {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 5px;
   min-width: 0;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.25;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .menu-static-title > span[aria-hidden="true"] {
@@ -51514,8 +51514,17 @@ body.is-cms-page-picker-active #discuss-aside * {
   justify-content: center;
   width: 14px;
   min-width: 14px;
+  margin-top: 2px;
   font-size: 10px;
   line-height: 1;
+}
+
+.menu-static-title:not(:has(.menu-static-title-text)) {
+  align-items: center;
+}
+
+.menu-static-title:not(:has(.menu-static-title-text)) > span[aria-hidden="true"] {
+  margin-top: 0;
 }
 
 .menu-static-summary > .menu-static-title {

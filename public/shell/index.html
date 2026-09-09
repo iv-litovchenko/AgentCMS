@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=550" />
+    <link rel="stylesheet" href="/shell/shell.css?v=551" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -62,6 +62,7 @@
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=363",
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=414",
+          "@shell/tool-permission": "/shell/shell-tool-permission.js?v=1",
           "@shell/build": "/shell/shell-build.js?v=425"
         }
       }
@@ -2844,6 +2845,39 @@ CMS workspace</pre>
       </div>
     </dialog>
 
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-tool-permission-dialog">
+      <div class="shell-dialog-form shell-tool-permission-form">
+        <h2 id="shell-tool-permission-title">Разрешить инструмент?</h2>
+        <p class="shell-dialog-note shell-tool-permission-note">
+          Claude CLI запрашивает разрешение. Текст «да» в чате не срабатывает — нужна кнопка здесь.
+        </p>
+        <div class="shell-tool-permission-tool-wrap">
+          <span class="shell-label">Инструмент</span>
+          <code class="shell-tool-permission-tool" id="shell-tool-permission-tool">—</code>
+        </div>
+        <label class="shell-field hidden" id="shell-tool-permission-input-field">
+          <span class="shell-label">Параметры</span>
+          <textarea
+            id="shell-tool-permission-input"
+            class="shell-textarea shell-tool-permission-input"
+            rows="6"
+            readonly
+          ></textarea>
+        </label>
+        <div class="shell-dialog-actions shell-dialog-actions--spread shell-tool-permission-actions">
+          <button type="button" class="shell-btn shell-btn--ghost shell-btn--danger" id="shell-tool-permission-deny">
+            Отклонить
+          </button>
+          <button type="button" class="shell-btn shell-btn--ghost" id="shell-tool-permission-allow-session">
+            На сессию
+          </button>
+          <button type="button" class="shell-btn shell-btn--primary" id="shell-tool-permission-allow">
+            Разрешить
+          </button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog class="shell-dialog" id="shell-mic-dialog">
       <div class="shell-dialog-form">
         <h2>Микрофон в Safari</h2>
@@ -2878,6 +2912,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=567" type="module"></script>
+    <script src="/shell/shell.js?v=569" type="module"></script>
   </body>
 </html>

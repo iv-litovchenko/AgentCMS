@@ -235,6 +235,24 @@ async function clearShellMessageQueue(scope, { pendingOnly = true } = {}) {
   });
 }
 
+async function recoverStaleProcessingQueueItems(scope, { maxAgeMs = 6 * 60 * 1000 } = {}) {
+  return withQueueLock(scope, async () => {
+    const all = await listQueueFiles(scope);
+    const now = Date.now();
+    const stale = [];
+    for (const item of all) {
+      if (item.status !== "processing") continue;
+      const startedAt = Date.parse(String(item.startedAt || ""));
+      if (!Number.isFinite(startedAt) || now - startedAt <= maxAgeMs) continue;
+      stale.push(item);
+    }
+    for (const item of stale) {
+      await fs.unlink(queueFilePath(scope, item.id)).catch(() => {});
+    }
+    return stale;
+  });
+}
+
 module.exports = {
   QUEUE_DIR_NAME,
   queueDir,
@@ -245,6 +263,7 @@ module.exports = {
   updateShellQueueItem,
   removeShellQueueItem,
   clearShellMessageQueue,
+  recoverStaleProcessingQueueItems,
   serializeQueueItem,
   normalizeQueueScope
 };

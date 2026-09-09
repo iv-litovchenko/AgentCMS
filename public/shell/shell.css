@@ -468,6 +468,43 @@ body:not(.shell-embed) .shell-app {
   justify-content: space-between;
 }
 
+.shell-tool-permission-note {
+  margin-top: 0;
+}
+
+.shell-tool-permission-tool-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.shell-tool-permission-tool {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.shell-tool-permission-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.shell-tool-permission-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shell-btn--danger {
+  color: #fca5a5;
+}
+
 .shell-stt-voice-confirm {
   margin: 0 0 10px;
 }

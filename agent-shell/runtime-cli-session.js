@@ -9,6 +9,11 @@ const {
   normalizeClaudePermissionMode,
   DEFAULT_TIMEOUT_MS
 } = require("./runtime-cli-shared");
+const {
+  parseClaudeCanUseToolRequest,
+  buildClaudeControlAllowResponse,
+  buildClaudeControlDenyResponse
+} = require("./shell-tool-permission");
 
 const IDLE_MS = Number(process.env.AGENT_SHELL_CLI_IDLE_MS || 30 * 60 * 1000);
 const PERSISTENT_ENABLED = String(process.env.AGENT_SHELL_CLI_PERSISTENT ?? "1").trim() !== "0";
@@ -82,6 +87,103 @@ class ClaudePersistentSession {
     this.idleTimer = null;
     this.disposed = false;
     this.toolTracker = null;
+    this.sessionAllowedTools = new Set();
+  }
+
+  usesInteractivePermissions() {
+    return normalizeClaudePermissionMode(this.config.permissionMode) !== "bypassPermissions";
+  }
+
+  appendClaudePermissionArgs(args) {
+    if (!this.usesInteractivePermissions()) return;
+    args.push("--permission-prompt-tool", "stdio");
+    const permission = normalizeClaudePermissionMode(this.config.permissionMode);
+    if (permission && permission !== "bypassPermissions") {
+      args.push("--permission-mode", permission);
+    }
+  }
+
+  writeControlMessage(message) {
+    if (!this.process?.stdin?.writable) throw new Error("Claude stdin недоступен");
+    this.process.stdin.write(`${JSON.stringify(message)}\n`);
+  }
+
+  writeControlDecision(requestId, allow) {
+    const frame = allow
+      ? buildClaudeControlAllowResponse(requestId)
+      : buildClaudeControlDenyResponse(requestId, allow ? "" : "Отклонено пользователем");
+    this.writeControlMessage(frame);
+  }
+
+  isToolAllowedForSession(toolName) {
+    const name = String(toolName || "").trim();
+    if (!name) return false;
+    if (this.sessionAllowedTools.has(name)) return true;
+    if (this.sessionAllowedTools.has("*")) return true;
+    const mcpPrefix = name.startsWith("mcp__") ? name.split("__").slice(0, 2).join("__") + "__" : "";
+    if (mcpPrefix && this.sessionAllowedTools.has(`${mcpPrefix}*`)) return true;
+    return false;
+  }
+
+  rememberSessionToolAllow(toolName) {
+    const name = String(toolName || "").trim();
+    if (!name) return;
+    this.sessionAllowedTools.add(name);
+  }
+
+  async resolveCanUseTool(parsed, turn) {
+    const requestId = parsed.requestId;
+    const toolName = parsed.toolName;
+
+    if (this.isToolAllowedForSession(toolName)) {
+      this.writeControlDecision(requestId, true);
+      return;
+    }
+
+    const handler =
+      typeof turn?.onPermissionRequest === "function"
+        ? turn.onPermissionRequest
+        : typeof this.config.onPermissionRequest === "function"
+          ? this.config.onPermissionRequest
+          : null;
+
+    if (!handler) {
+      this.writeControlDecision(requestId, false);
+      return;
+    }
+
+    try {
+      const decision = await handler({
+        cliRequestId: requestId,
+        toolName,
+        toolInput: parsed.toolInput,
+        toolUseId: parsed.toolUseId,
+        permissionSuggestions: parsed.permissionSuggestions
+      });
+      const allow = Boolean(decision?.allow);
+      if (allow && String(decision?.scope || "") === "session") {
+        this.rememberSessionToolAllow(toolName);
+      }
+      const updatedPermissions =
+        allow && Array.isArray(parsed.permissionSuggestions) && parsed.permissionSuggestions.length
+          ? parsed.permissionSuggestions
+          : undefined;
+      this.writeControlMessage(
+        allow
+          ? buildClaudeControlAllowResponse(requestId, { updatedPermissions })
+          : buildClaudeControlDenyResponse(requestId, "Отклонено пользователем")
+      );
+    } catch {
+      this.writeControlDecision(requestId, false);
+    }
+  }
+
+  handleControlRequest(event) {
+    const parsed = parseClaudeCanUseToolRequest(event);
+    if (!parsed) return false;
+    const turn = this.pendingTurn;
+    void this.resolveCanUseTool(parsed, turn);
+    return true;
   }
 
   buildArgs() {
@@ -96,8 +198,7 @@ class ClaudePersistentSession {
       "--include-partial-messages"
     ];
     if (model) args.push("--model", String(model));
-    const permission = normalizeClaudePermissionMode(permissionMode);
-    if (permission) args.push("--permission-mode", permission);
+    this.appendClaudePermissionArgs(args);
     if (resume && sessionId) args.push("--resume", sessionId);
     else if (sessionId) args.push("--session-id", sessionId);
     if (systemPrompt && !(this.config.resume && this.config.sessionId)) {
@@ -175,6 +276,8 @@ class ClaudePersistentSession {
   }
 
   handleEvent(event) {
+    if (this.handleControlRequest(event)) return;
+
     const turn = this.pendingTurn;
     if (!turn) return;
 

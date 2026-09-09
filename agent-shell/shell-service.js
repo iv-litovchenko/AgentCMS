@@ -13,6 +13,7 @@ const {
 } = require("./spoken-text");
 const { hasVoiceEndDelimiter } = require("./voice-end-format");
 const { createSnapshotRequestService, parseDataUrl } = require("./shell-snapshot");
+const { createToolPermissionService } = require("./shell-tool-permission");
 const {
   shouldRefineStt,
   buildSttSessionId,
@@ -30,6 +31,7 @@ const {
 } = require("./shell-runtimes");
 const { checkOpenAiRuntimeHealth, chatOpenAiCompletions } = require("./runtime-openai-client");
 const { checkCliRuntimeHealth, chatClaudeCli, chatCodexCli, resolveCliBinary } = require("./runtime-cli-client");
+const { normalizeClaudePermissionMode } = require("./runtime-cli-shared");
 const {
   ensureCliSandbox,
   cliSandboxMeta,
@@ -216,7 +218,8 @@ const {
   finishShellQueueItem,
   updateShellQueueItem,
   removeShellQueueItem,
-  clearShellMessageQueue
+  clearShellMessageQueue,
+  recoverStaleProcessingQueueItems
 } = require("./shell-message-queue");
 
 const queueDrainJobs = new Map();
@@ -761,6 +764,8 @@ const screenSnapshots = createSnapshotRequestService({
     "Screen snapshot timed out — откройте Agent Shell, включите демонстрацию экрана и выберите окно"
 });
 
+const toolPermissions = createToolPermissionService({ emitShellEvent });
+
 async function requestCameraSnapshot(agentId, agentRoot, options = {}) {
   const snapshot = await cameraSnapshots.requestSnapshot(agentId, options);
   const meta = await cameraSnapshots.saveSnapshotFile(agentRoot, "camera", "manual", snapshot);
@@ -791,6 +796,14 @@ function completeCameraSnapshotRequest(agentId, requestId, snapshot) {
 
 function completeScreenSnapshotRequest(agentId, requestId, snapshot) {
   return screenSnapshots.completeSnapshot(agentId, requestId, snapshot);
+}
+
+function requestClaudeToolPermission(agentId, details = {}) {
+  return toolPermissions.requestPermission(agentId, details);
+}
+
+function completeClaudeToolPermissionRequest(agentId, requestId, decision = {}) {
+  return toolPermissions.completePermission(agentId, requestId, decision);
 }
 
 async function saveStoredSnapshot(agentRoot, domain, snapshot) {
@@ -1625,6 +1638,14 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         phase: "start",
         phrase: runtime === "codex" ? "Codex…" : "Claude…"
       });
+      const onPermissionRequest =
+        runtime === "claude" && normalizeClaudePermissionMode(endpoint.permissionMode || "") !== "bypassPermissions"
+          ? (details) =>
+              requestClaudeToolPermission(agentId, {
+                ...details,
+                streamId
+              })
+          : null;
       reply = await cliChat({
         binary: binary || endpoint.cliPath,
         model: endpoint.model,
@@ -1634,7 +1655,8 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         systemPrompt,
         cwd: cliCwd,
         onDelta,
-        onActivity
+        onActivity,
+        onPermissionRequest
       });
       persistedCodexSession = await maybePersistCodexThreadSessionId(
         agentRoot,
@@ -1791,6 +1813,18 @@ async function processShellQueueItem(deps, agentRoot, agentId, item, scope) {
 async function drainShellMessageQueue(deps, agentRoot, agentId) {
   const settings = await readSettings(agentRoot);
   const scope = await resolveQueueScope(agentRoot, settings);
+  const stale = await recoverStaleProcessingQueueItems(scope);
+  if (stale.length) {
+    const message = "Сессия агента зависла — сообщение снято с обработки. Отправьте снова.";
+    for (const item of stale) {
+      emitShellEvent(agentId, "message_error", { message, queueId: item.id });
+    }
+    await patchState(agentRoot, agentId, {
+      phase: PHASE_WAITING,
+      phrase: message.slice(0, 200)
+    });
+    emitShellQueueUpdate(agentId, scope);
+  }
   while (true) {
     const item = await claimNextShellQueueItem(scope);
     if (!item) break;
@@ -2231,6 +2265,10 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
       push("camera_snapshot_request", entry.payload || {});
       return;
     }
+    if (entry.type === "tool_permission_request") {
+      push("tool_permission_request", entry.payload || {});
+      return;
+    }
     if (entry.type === "state") {
       push("state", { payload: entry.payload || {} });
       return;
@@ -2354,6 +2392,7 @@ module.exports = {
   getLatestCameraSnapshot,
   requestScreenSnapshot,
   completeScreenSnapshotRequest,
+  completeClaudeToolPermissionRequest,
   saveSpeechScreenSnapshot,
   getLatestScreenSnapshot,
   submitShellMessage,
