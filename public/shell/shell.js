@@ -532,6 +532,7 @@ const state = {
   agentLabel: "",
   agentRoot: "",
   cliSandboxPath: "",
+  cliSandboxes: null,
   settingsFile: "",
   settings: null,
   windowSettings: null,
@@ -5655,6 +5656,16 @@ function readRouteRuntimeSelectValue() {
   return readRuntimeSelectValue(nodes.routeRuntime);
 }
 
+function resolveCliSandboxPathForRuntime(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  const fromMap = state.cliSandboxes?.[id]?.absolute;
+  if (fromMap) return String(fromMap);
+  if (id === normalizeMessageRuntime(state.settings?.messageTarget) && state.cliSandboxPath) {
+    return state.cliSandboxPath;
+  }
+  return "";
+}
+
 function updateRuntimeRouteNotes(runtime = readRouteRuntimeSelectValue() || getSelectedRuntime()) {
   refreshRoutePanelNodes();
   const container = nodes.routeRuntimeNotes;
@@ -5677,7 +5688,8 @@ function updateRuntimeRouteNotes(runtime = readRouteRuntimeSelectValue() || getS
 
   const intro = String(SHELL_RUNTIME_ROUTE_INTROS[selected] || "").trim();
   const body = formatRuntimeRouteNote(selected, getRuntimeStatus(selected), {
-    cliSandboxPath: state.cliSandboxPath || ""
+    cliSandboxPath: resolveCliSandboxPathForRuntime(selected),
+    agentId: state.agentId || ""
   });
   introEl.textContent = intro;
   titleEl.textContent = SHELL_RUNTIME_LABELS[selected] || selected;
@@ -6085,6 +6097,9 @@ function applyStatusPayload(payload) {
   }
   if (payload?.settingsFile) state.settingsFile = payload.settingsFile;
   if (payload?.agentRoot) state.agentRoot = payload.agentRoot;
+  if (payload?.cliSandboxes && typeof payload.cliSandboxes === "object") {
+    state.cliSandboxes = payload.cliSandboxes;
+  }
   if (payload?.cliSandbox?.absolute) state.cliSandboxPath = String(payload.cliSandbox.absolute);
   if (payload?.state?.meetingRecording != null) {
     state.meetingRecording = Boolean(payload.state.meetingRecording);

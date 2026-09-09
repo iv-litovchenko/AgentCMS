@@ -1,9 +1,16 @@
 # CLI sandbox (Agent CMS Shell)
 
-Общая рабочая папка для **Claude Code** и **Codex CLI**, когда Shell отправляет сообщения.
+Песочницы для **Claude Code** и **Codex CLI** — отдельная папка на каждый runtime и агента CMS:
 
-- Shell запускает `claude` / `codex` с `cwd` здесь — **не** в корне workspace агента.
-- Локальные Read/Write/Bash CLI видят только эту папку (и вложенные `scratch/`).
-- Доступ к хранилищу CMS (`awn-container/`, темы, слоты) — через **MCP Agent CMS**, не напрямую с диска.
+```
+workspaces/cli-sandbox/
+├── claude/
+│   ├── agent-cms-test/
+│   └── …
+└── codex/
+    ├── agent-cms-test/
+    └── …
+```
 
-Временные файлы агента кладите в `scratch/`.
+Shell запускает CLI с `cwd` в `cli-sandbox/<runtime>/<agent-id>/`, не в корне workspace и не в `awn-container/`.
+Доступ к хранилищу CMS — через **MCP Agent CMS**.

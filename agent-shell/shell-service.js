@@ -30,7 +30,12 @@ const {
 } = require("./shell-runtimes");
 const { checkOpenAiRuntimeHealth, chatOpenAiCompletions } = require("./runtime-openai-client");
 const { checkCliRuntimeHealth, chatClaudeCli, chatCodexCli, resolveCliBinary } = require("./runtime-cli-client");
-const { ensureCliSandbox, cliSandboxMeta, resolveProjectRootFromPath } = require("./cli-sandbox");
+const {
+  ensureCliSandbox,
+  cliSandboxMeta,
+  cliSandboxesMeta,
+  resolveProjectRootFromPath
+} = require("./cli-sandbox");
 const {
   resolveRuntimeEndpoint,
   buildDefaultRuntimeSettings,
@@ -1499,7 +1504,7 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
   const projectRoot = resolveShellProjectRoot(deps, agentRoot);
   const cliCwd =
     runtime === "claude" || runtime === "codex"
-      ? await ensureCliSandbox(projectRoot)
+      ? await ensureCliSandbox(projectRoot, agentId, runtime)
       : agentRoot;
 
   const endpoint = resolveRuntimeEndpoint(settings, runtime);
@@ -2092,12 +2097,16 @@ async function buildStatusPayload(
   }
 
   const projectRoot = resolveShellProjectRoot(deps, agentRoot);
-  void ensureCliSandbox(projectRoot).catch(() => {});
+  const messageRuntime = getMessageRuntime(settings);
+  const cliRuntime =
+    messageRuntime === "claude" || messageRuntime === "codex" ? messageRuntime : "claude";
+  void ensureCliSandbox(projectRoot, agentId, cliRuntime).catch(() => {});
 
   return {
     agentId,
     agentRoot,
-    cliSandbox: cliSandboxMeta(projectRoot),
+    cliSandboxes: cliSandboxesMeta(projectRoot, agentId),
+    cliSandbox: cliSandboxMeta(projectRoot, agentId, cliRuntime),
     settingsFile: settingsAbsolute(agentRoot),
     settings,
     state: stateOut,

@@ -5,7 +5,7 @@
     "channel": "thread"
   },
   "route": {
-    "runtime": "codex",
+    "runtime": "claude",
     "runtimes": {
       "qwenpaw": {
         "type": "agent",

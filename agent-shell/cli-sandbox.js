@@ -3,17 +3,51 @@ const path = require("path");
 
 const CLI_SANDBOX_REL = path.join("workspaces", "cli-sandbox");
 const CLI_SANDBOX_SCRATCH = "scratch";
+const CLI_SANDBOX_RUNTIMES = ["claude", "codex"];
 
-const README = `# CLI sandbox (Agent CMS Shell)
+const ROOT_README = `# CLI sandbox (Agent CMS Shell)
 
-Общая рабочая папка для **Claude Code** и **Codex CLI**, когда Shell отправляет сообщения.
+Песочницы для **Claude Code** и **Codex CLI** — отдельная папка на каждый runtime и агента CMS:
 
-- Shell запускает \`claude\` / \`codex\` с \`cwd\` здесь — **не** в корне workspace агента.
-- Локальные Read/Write/Bash CLI видят только эту папку (и вложенные \`scratch/\`).
-- Доступ к хранилищу CMS (\`awn-container/\`, темы, слоты) — через **MCP Agent CMS**, не напрямую с диска.
+\`\`\`
+workspaces/cli-sandbox/
+├── claude/
+│   ├── agent-cms-test/
+│   └── …
+└── codex/
+    ├── agent-cms-test/
+    └── …
+\`\`\`
 
-Временные файлы агента кладите в \`scratch/\`.
+Shell запускает CLI с \`cwd\` в \`cli-sandbox/<runtime>/<agent-id>/\`, не в корне workspace и не в \`awn-container/\`.
+Доступ к хранилищу CMS — через **MCP Agent CMS**.
 `;
+
+function agentReadme(runtime, agentId) {
+  const rt = sanitizeCliRuntime(runtime);
+  const id = sanitizeCliAgentId(agentId);
+  return `# CLI sandbox — ${rt} / ${id}
+
+Рабочая папка **${rt}** для агента \`${id}\` в Agent CMS Shell.
+
+- \`cwd\` CLI — только эта папка и \`scratch/\`.
+- Хранилище workspace (\`awn-container/\`, темы) — через MCP, не с диска напрямую.
+
+Временные файлы — в \`scratch/\`.
+`;
+}
+
+function sanitizeCliAgentId(agentId) {
+  const raw = String(agentId || "").trim();
+  const safe = raw.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return safe || "default";
+}
+
+function sanitizeCliRuntime(runtime) {
+  const raw = String(runtime || "").trim().toLowerCase();
+  if (CLI_SANDBOX_RUNTIMES.includes(raw)) return raw;
+  return "claude";
+}
 
 function resolveProjectRootFromPath(hintPath = process.cwd()) {
   let current = path.resolve(String(hintPath || process.cwd()));
@@ -42,36 +76,69 @@ function fsSyncExists(filePath) {
   }
 }
 
-function resolveCliSandboxRoot(projectRoot) {
+function resolveCliSandboxRoot(projectRoot, agentId, runtime) {
   const root = resolveProjectRootFromPath(projectRoot);
-  return path.join(root, CLI_SANDBOX_REL);
+  const id = sanitizeCliAgentId(agentId);
+  const rt = sanitizeCliRuntime(runtime);
+  return path.join(root, CLI_SANDBOX_REL, rt, id);
 }
 
-async function ensureCliSandbox(projectRoot) {
-  const sandboxRoot = resolveCliSandboxRoot(projectRoot);
+async function ensureCliSandboxRootReadme(projectRoot) {
+  const root = path.join(resolveProjectRootFromPath(projectRoot), CLI_SANDBOX_REL);
+  await fs.mkdir(root, { recursive: true });
+  const readmePath = path.join(root, "README.md");
+  try {
+    await fs.access(readmePath);
+  } catch {
+    await fs.writeFile(readmePath, ROOT_README, "utf-8");
+  }
+}
+
+async function ensureCliSandbox(projectRoot, agentId, runtime) {
+  const id = sanitizeCliAgentId(agentId);
+  const rt = sanitizeCliRuntime(runtime);
+  await ensureCliSandboxRootReadme(projectRoot);
+  const sandboxRoot = resolveCliSandboxRoot(projectRoot, id, rt);
   await fs.mkdir(path.join(sandboxRoot, CLI_SANDBOX_SCRATCH), { recursive: true });
   const readmePath = path.join(sandboxRoot, "README.md");
   try {
     await fs.access(readmePath);
   } catch {
-    await fs.writeFile(readmePath, README, "utf-8");
+    await fs.writeFile(readmePath, agentReadme(rt, id), "utf-8");
   }
   return sandboxRoot;
 }
 
-function cliSandboxMeta(projectRoot) {
-  const absolute = resolveCliSandboxRoot(projectRoot);
+function cliSandboxMeta(projectRoot, agentId, runtime) {
+  const id = sanitizeCliAgentId(agentId);
+  const rt = sanitizeCliRuntime(runtime);
+  const absolute = resolveCliSandboxRoot(projectRoot, id, rt);
+  const relative = path.posix.join(CLI_SANDBOX_REL.replace(/\\/g, "/"), rt, id);
   return {
-    relative: CLI_SANDBOX_REL.replace(/\\/g, "/"),
+    agentId: id,
+    runtime: rt,
+    relative,
     absolute
   };
+}
+
+function cliSandboxesMeta(projectRoot, agentId) {
+  const sandboxes = {};
+  for (const runtime of CLI_SANDBOX_RUNTIMES) {
+    sandboxes[runtime] = cliSandboxMeta(projectRoot, agentId, runtime);
+  }
+  return sandboxes;
 }
 
 module.exports = {
   CLI_SANDBOX_REL,
   CLI_SANDBOX_SCRATCH,
+  CLI_SANDBOX_RUNTIMES,
+  sanitizeCliAgentId,
+  sanitizeCliRuntime,
   resolveProjectRootFromPath,
   resolveCliSandboxRoot,
   ensureCliSandbox,
-  cliSandboxMeta
+  cliSandboxMeta,
+  cliSandboxesMeta
 };
