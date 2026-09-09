@@ -37,13 +37,30 @@ const LEGACY_TARGET_MAP = {
 
 export const SHELL_RUNTIME_LABELS = {
   claude: "Claude",
-  codex: "Codex (ChatGPT)",
+  codex: "Codex (ChatGPT/OpenAI)",
   cursor: "Cursor",
   openclaw: "OpenClaw",
   hermes: "Hermes Agent",
   "agent-zero": "Agent Zero",
   qwenpaw: "QwenPaw"
 };
+
+/** Компания / автор runtime — показывается в select как «Claude (Anthropic)». */
+export const SHELL_RUNTIME_VENDORS = {
+  claude: "Anthropic",
+  cursor: "Anysphere",
+  openclaw: "Steinberger",
+  hermes: "Nous Research",
+  "agent-zero": "frdel",
+  qwenpaw: "Agent CMS"
+};
+
+export function formatRuntimeBaseLabel(runtime) {
+  const id = String(runtime || "").trim();
+  const label = SHELL_RUNTIME_LABELS[id] || id;
+  const vendor = SHELL_RUNTIME_VENDORS[id];
+  return vendor ? `${label} (${vendor})` : label;
+}
 
 export const SHELL_RUNTIME_EMOJIS = {
   claude: "🟠",
@@ -198,7 +215,7 @@ export function formatRuntimeSelectLabel(
   { implemented = true, status = null, conn = null, showVersion = false } = {}
 ) {
   const id = String(runtime || "").trim();
-  const label = SHELL_RUNTIME_LABELS[id] || id;
+  const label = formatRuntimeBaseLabel(id);
   const connection = conn || resolveRuntimeConnectionState(id, status, { implemented });
   const emoji = formatRuntimeStatusEmoji(connection);
   if (!implemented) return `${emoji} ${label} — скоро`;
@@ -208,7 +225,7 @@ export function formatRuntimeSelectLabel(
 
 export function formatRuntimeStatusTitle(runtime, status, { implemented = true } = {}) {
   const id = String(runtime || "").trim();
-  const label = SHELL_RUNTIME_LABELS[id] || id;
+  const label = formatRuntimeBaseLabel(id);
   const conn = resolveRuntimeConnectionState(id, status, { implemented });
   const verRaw = String(status?.version || "").trim();
   const verShort = formatRuntimeCliVersion(id, status);

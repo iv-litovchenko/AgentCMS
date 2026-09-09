@@ -5,7 +5,7 @@
     "channel": "thread"
   },
   "route": {
-    "runtime": "claude",
+    "runtime": "codex",
     "runtimes": {
       "qwenpaw": {
         "type": "agent",
@@ -19,6 +19,7 @@
       },
       "codex": {
         "type": "cli",
+        "model": "gpt-6-astra",
         "sessionId": "c71b596c-9e85-41d5-b36a-c2940f8f1181",
         "permissionMode": "bypassPermissions"
       }
@@ -102,7 +103,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 1
+    "dialogScrollRatio": 0.9238
   },
   "compose": {
     "promptTemplates": [
