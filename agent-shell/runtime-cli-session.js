@@ -14,6 +14,7 @@ const {
   buildClaudeControlAllowResponse,
   buildClaudeControlDenyResponse
 } = require("./shell-tool-permission");
+const { isAskUserQuestionTool } = require("./shell-user-question");
 
 const IDLE_MS = Number(process.env.AGENT_SHELL_CLI_IDLE_MS || 30 * 60 * 1000);
 const PERSISTENT_ENABLED = String(process.env.AGENT_SHELL_CLI_PERSISTENT ?? "1").trim() !== "0";
@@ -131,9 +132,70 @@ class ClaudePersistentSession {
     this.sessionAllowedTools.add(name);
   }
 
+  async resolveAskUserQuestion(parsed, turn) {
+    const requestId = parsed.requestId;
+    const handler =
+      typeof turn?.onUserQuestionRequest === "function"
+        ? turn.onUserQuestionRequest
+        : typeof this.config.onUserQuestionRequest === "function"
+          ? this.config.onUserQuestionRequest
+          : null;
+
+    if (!handler) {
+      this.writeControlDecision(requestId, false, {
+        toolInput: parsed.toolInput,
+        toolUseId: parsed.toolUseId
+      });
+      return;
+    }
+
+    try {
+      const decision = await handler({
+        cliRequestId: requestId,
+        toolName: parsed.toolName,
+        toolInput: parsed.toolInput,
+        toolUseId: parsed.toolUseId,
+        questions: Array.isArray(parsed.toolInput?.questions) ? parsed.toolInput.questions : []
+      });
+      const allow = Boolean(decision?.allow);
+      const updatedInput =
+        decision?.updatedInput && typeof decision.updatedInput === "object"
+          ? decision.updatedInput
+          : null;
+      if (!allow || !updatedInput) {
+        this.writeControlMessage(
+          buildClaudeControlDenyResponse(requestId, "Отклонено пользователем", {
+            toolUseId: parsed.toolUseId
+          })
+        );
+        return;
+      }
+      this.writeControlMessage(
+        buildClaudeControlAllowResponse(requestId, {
+          updatedInput,
+          toolUseId: parsed.toolUseId
+        })
+      );
+    } catch {
+      this.writeControlDecision(requestId, false, {
+        toolInput: parsed.toolInput,
+        toolUseId: parsed.toolUseId
+      });
+    }
+  }
+
   async resolveCanUseTool(parsed, turn) {
     const requestId = parsed.requestId;
     const toolName = parsed.toolName;
+
+    if (
+      isAskUserQuestionTool(toolName, parsed.toolInput, {
+        requires_user_interaction: parsed.requiresUserInteraction
+      })
+    ) {
+      await this.resolveAskUserQuestion(parsed, turn);
+      return;
+    }
 
     if (this.isToolAllowedForSession(toolName)) {
       this.writeControlDecision(requestId, true, {

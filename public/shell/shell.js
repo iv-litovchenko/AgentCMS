@@ -54,6 +54,7 @@ import {
   warmUpMicrophone
 } from "@shell/permissions";
 import { initShellToolPermission } from "@shell/tool-permission";
+import { initShellUserQuestion } from "@shell/user-question";
 import { initShellMobileLink } from "@shell/mobile-link";
 import { createShellDialog } from "@shell/dialog";
 import { createShellCompactQa } from "@shell/compact-qa";
@@ -607,6 +608,7 @@ let ttsTabCoordinator = null;
 let shellPresenceController = null;
 let ttsPlayer = null;
 let shellToolPermission = null;
+let shellUserQuestion = null;
 let queueSyncTimer = 0;
 let ttsPlaybackSeq = 0;
 const settingsSave = createSettingsSaveController();
@@ -1293,6 +1295,12 @@ const nodes = {
   toolPermissionAllow: document.getElementById("shell-tool-permission-allow"),
   toolPermissionDeny: document.getElementById("shell-tool-permission-deny"),
   toolPermissionAllowSession: document.getElementById("shell-tool-permission-allow-session"),
+  userQuestionDialog: document.getElementById("shell-user-question-dialog"),
+  userQuestionTitle: document.getElementById("shell-user-question-title"),
+  userQuestionList: document.getElementById("shell-user-question-list"),
+  userQuestionForm: document.getElementById("shell-user-question-form"),
+  userQuestionSubmit: document.getElementById("shell-user-question-submit"),
+  userQuestionCancel: document.getElementById("shell-user-question-cancel"),
   micDialogUrl: document.getElementById("shell-mic-dialog-url"),
   micDialogClose: document.getElementById("shell-mic-dialog-close"),
   micDialogCheck: document.getElementById("shell-mic-dialog-check"),
@@ -8939,6 +8947,16 @@ function connectStream() {
     }
   });
 
+  source.addEventListener("user_question_request", (event) => {
+    try {
+      logSse("user_question_request");
+      const payload = JSON.parse(event.data);
+      shellUserQuestion?.handleRequest?.(payload);
+    } catch {
+      // ignore malformed event
+    }
+  });
+
   source.addEventListener("camera_snapshot_request", (event) => {
     try {
       logSse("camera_snapshot_request");
@@ -10117,6 +10135,18 @@ function bindShellInteractiveUi() {
       allowBtn: nodes.toolPermissionAllow,
       denyBtn: nodes.toolPermissionDeny,
       allowSessionBtn: nodes.toolPermissionAllowSession,
+      apiFetch,
+      onStatus: (text) => {
+        if (text) renderPhase(state.shellState?.phase || "thinking", text);
+      }
+    });
+    shellUserQuestion = initShellUserQuestion({
+      dialog: nodes.userQuestionDialog,
+      titleEl: nodes.userQuestionTitle,
+      listEl: nodes.userQuestionList,
+      formEl: nodes.userQuestionForm,
+      submitBtn: nodes.userQuestionSubmit,
+      cancelBtn: nodes.userQuestionCancel,
       apiFetch,
       onStatus: (text) => {
         if (text) renderPhase(state.shellState?.phase || "thinking", text);

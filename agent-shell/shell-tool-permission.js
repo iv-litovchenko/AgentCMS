@@ -81,13 +81,23 @@ function parseClaudeCanUseToolRequest(event) {
   const toolName = String(req.tool_name || req.toolName || "").trim() || "tool";
   const toolInput = req.input ?? req.tool_input ?? req.toolInput ?? null;
   const toolUseId = String(req.tool_use_id || req.toolUseId || "").trim();
+  const requiresUserInteraction = Boolean(
+    req.requires_user_interaction ?? req.requiresUserInteraction
+  );
   const permissionSuggestions = Array.isArray(req.permission_suggestions)
     ? req.permission_suggestions
     : Array.isArray(req.permissionSuggestions)
       ? req.permissionSuggestions
       : [];
 
-  return { requestId, toolName, toolInput, toolUseId, permissionSuggestions };
+  return {
+    requestId,
+    toolName,
+    toolInput,
+    toolUseId,
+    requiresUserInteraction,
+    permissionSuggestions
+  };
 }
 
 function normalizeToolInput(toolInput) {

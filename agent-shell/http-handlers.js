@@ -590,6 +590,37 @@ function createShellHandlers(deps) {
       return true;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/shell/user-question/complete") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const requestId = String(payload?.requestId || "").trim();
+        if (!requestId) {
+          deps.sendJson(res, 400, { error: "requestId is required" });
+          return true;
+        }
+        const cancelled = Boolean(payload?.cancelled);
+        const answers =
+          payload?.answers && typeof payload.answers === "object" && !Array.isArray(payload.answers)
+            ? payload.answers
+            : {};
+        const ok = shellService.completeClaudeUserQuestionRequest(agentId, requestId, {
+          cancelled,
+          answers
+        });
+        if (!ok) {
+          deps.sendJson(res, 404, { error: "Unknown or expired question request" });
+          return true;
+        }
+        deps.sendJson(res, 200, { agentId, ok: true, requestId, cancelled });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to complete user question",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/shell/tool-permission/complete") {
       try {
         const payload = await deps.readJsonBody(req);

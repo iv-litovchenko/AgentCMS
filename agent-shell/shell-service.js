@@ -14,6 +14,7 @@ const {
 const { hasVoiceEndDelimiter } = require("./voice-end-format");
 const { createSnapshotRequestService, parseDataUrl } = require("./shell-snapshot");
 const { createToolPermissionService } = require("./shell-tool-permission");
+const { createUserQuestionService } = require("./shell-user-question");
 const {
   shouldRefineStt,
   buildSttSessionId,
@@ -765,6 +766,7 @@ const screenSnapshots = createSnapshotRequestService({
 });
 
 const toolPermissions = createToolPermissionService({ emitShellEvent });
+const userQuestions = createUserQuestionService({ emitShellEvent });
 
 async function requestCameraSnapshot(agentId, agentRoot, options = {}) {
   const snapshot = await cameraSnapshots.requestSnapshot(agentId, options);
@@ -804,6 +806,14 @@ function requestClaudeToolPermission(agentId, details = {}) {
 
 function completeClaudeToolPermissionRequest(agentId, requestId, decision = {}) {
   return toolPermissions.completePermission(agentId, requestId, decision);
+}
+
+function requestClaudeUserQuestion(agentId, details = {}) {
+  return userQuestions.requestQuestion(agentId, details);
+}
+
+function completeClaudeUserQuestionRequest(agentId, requestId, payload = {}) {
+  return userQuestions.completeQuestion(agentId, requestId, payload);
 }
 
 async function saveStoredSnapshot(agentRoot, domain, snapshot) {
@@ -1638,14 +1648,23 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         phase: "start",
         phrase: runtime === "codex" ? "Codex…" : "Claude…"
       });
-      const onPermissionRequest =
-        runtime === "claude" && normalizeClaudePermissionMode(endpoint.permissionMode || "") !== "bypassPermissions"
-          ? (details) =>
-              requestClaudeToolPermission(agentId, {
-                ...details,
-                streamId
-              })
-          : null;
+      const interactiveClaude =
+        runtime === "claude" &&
+        normalizeClaudePermissionMode(endpoint.permissionMode || "") !== "bypassPermissions";
+      const onPermissionRequest = interactiveClaude
+        ? (details) =>
+            requestClaudeToolPermission(agentId, {
+              ...details,
+              streamId
+            })
+        : null;
+      const onUserQuestionRequest = interactiveClaude
+        ? (details) =>
+            requestClaudeUserQuestion(agentId, {
+              ...details,
+              streamId
+            })
+        : null;
       reply = await cliChat({
         binary: binary || endpoint.cliPath,
         model: endpoint.model,
@@ -1656,7 +1675,8 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         cwd: cliCwd,
         onDelta,
         onActivity,
-        onPermissionRequest
+        onPermissionRequest,
+        onUserQuestionRequest
       });
       persistedCodexSession = await maybePersistCodexThreadSessionId(
         agentRoot,
@@ -2269,6 +2289,10 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
       push("tool_permission_request", entry.payload || {});
       return;
     }
+    if (entry.type === "user_question_request") {
+      push("user_question_request", entry.payload || {});
+      return;
+    }
     if (entry.type === "state") {
       push("state", { payload: entry.payload || {} });
       return;
@@ -2393,6 +2417,7 @@ module.exports = {
   requestScreenSnapshot,
   completeScreenSnapshotRequest,
   completeClaudeToolPermissionRequest,
+  completeClaudeUserQuestionRequest,
   saveSpeechScreenSnapshot,
   getLatestScreenSnapshot,
   submitShellMessage,

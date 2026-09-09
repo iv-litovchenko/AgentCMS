@@ -63,6 +63,7 @@
           "@shell/runtimes": "/shell/shell-runtimes.js?v=363",
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=414",
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=1",
+          "@shell/user-question": "/shell/shell-user-question.js?v=1",
           "@shell/build": "/shell/shell-build.js?v=425"
         }
       }
@@ -2845,6 +2846,24 @@ CMS workspace</pre>
       </div>
     </dialog>
 
+    <dialog class="shell-dialog shell-dialog--wide" id="shell-user-question-dialog">
+      <form class="shell-dialog-form shell-user-question-form" id="shell-user-question-form">
+        <h2 id="shell-user-question-title">Claude задаёт вопрос</h2>
+        <p class="shell-dialog-note shell-user-question-note">
+          Выберите вариант — это не разрешение инструмента, а ответ на уточняющий вопрос Claude.
+        </p>
+        <div id="shell-user-question-list" class="shell-user-question-list"></div>
+        <div class="shell-dialog-actions shell-dialog-actions--spread shell-user-question-actions">
+          <button type="button" class="shell-btn shell-btn--ghost shell-btn--danger" id="shell-user-question-cancel">
+            Отмена
+          </button>
+          <button type="submit" class="shell-btn shell-btn--primary" id="shell-user-question-submit">
+            Ответить
+          </button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog class="shell-dialog shell-dialog--wide" id="shell-tool-permission-dialog">
       <div class="shell-dialog-form shell-tool-permission-form">
         <h2 id="shell-tool-permission-title">Разрешить инструмент?</h2>
@@ -2912,6 +2931,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=569" type="module"></script>
+    <script src="/shell/shell.js?v=570" type="module"></script>
   </body>
 </html>
