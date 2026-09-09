@@ -2514,38 +2514,38 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 }
 
 .shell-hero-voice-row--stt,
-.shell-hero-voice-row--tts,
-.shell-hero-voice-row--mobile {
+.shell-hero-voice-row--tts {
   min-height: 28px;
   align-items: center;
 }
 
 .shell-hero-voice-row--mobile {
-  justify-content: flex-start;
-  margin-top: 2px;
+  justify-content: flex-end;
+  min-height: 0;
+  padding-top: 2px;
 }
 
 .shell-hero-mobile-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 34px;
   margin: 0;
-  padding: 4px 8px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.35);
+  padding: 5px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.08);
   color: var(--muted);
   font: inherit;
-  font-size: 11px;
   line-height: 1;
   cursor: pointer;
   user-select: none;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
 .shell-hero-mobile-btn:hover {
   background: rgba(124, 58, 237, 0.18);
-  border-color: rgba(167, 139, 250, 0.45);
   color: #ede9fe;
 }
 
@@ -2554,8 +2554,12 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   outline-offset: 2px;
 }
 
+.shell-hero-mobile-btn:active {
+  transform: scale(0.96);
+}
+
 .shell-hero-mobile-btn-icon {
-  font-size: 13px;
+  font-size: 22px;
   line-height: 1;
 }
 

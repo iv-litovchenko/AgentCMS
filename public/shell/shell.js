@@ -3100,7 +3100,10 @@ function finalizeAssistantStream(message) {
   shellSession?.flushStreamingRender(renderStreamingAssistantText);
   renderShellReply({ ...message, body, spokenText, spokenParts });
   shellDialog.onAgentReply(body);
-  void shellDialog.refreshHistory?.().then(() => shellDialog.syncLiveReplySlot?.());
+  void shellDialog.refreshHistory?.().then(() => {
+    shellDialog.syncLiveReplySlot?.();
+    shellDialog.maintainStickScroll?.({ smooth: true });
+  });
   finalizeAgentActivitySteps();
   shellSession?.markReplyDisplayed({ ...message, body, streamId });
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });

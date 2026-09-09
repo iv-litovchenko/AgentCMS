@@ -488,6 +488,18 @@ export function createShellDialog(options = {}) {
     return rows[rows.length - 1];
   }
 
+  function findAnchoredRowByItem(item, index = 0) {
+    const domId = formatMessageDomId(buildMessageAnchorId(item, index));
+    if (!domId) return null;
+    return nodes.thread?.querySelector(`#${CSS.escape(domId)}`) || null;
+  }
+
+  function getCurrentTurnUserRow() {
+    const lastUserIndex = findLastUserIndex();
+    if (lastUserIndex < 0) return null;
+    return findAnchoredRowByItem(history[lastUserIndex], lastUserIndex);
+  }
+
   function getDialogScrollAnchor() {
     const streaming = nodes.panel?.classList.contains("is-streaming");
     const lastAnchored = getLastAnchoredRowInScroll();
@@ -503,6 +515,12 @@ export function createShellDialog(options = {}) {
       return liveReply;
     }
 
+    // После ответа — к началу текущего хода (вопрос + ответ в кадре), не в самый низ ленты
+    if (!streaming) {
+      const turnUser = getCurrentTurnUserRow();
+      if (turnUser) return turnUser;
+    }
+
     // Tool / user / agent / error — любая строка с data-message-anchor
     if (lastAnchored) return lastAnchored;
 
@@ -511,15 +529,20 @@ export function createShellDialog(options = {}) {
     return null;
   }
 
-  function scrollDialogToAnchor(anchorEl, { smooth = true } = {}) {
+  function scrollDialogToAnchor(anchorEl, { smooth = true, align = "bottom" } = {}) {
     const scrollEl = nodes.scroll;
     if (!scrollEl || !anchorEl) return false;
     const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
     if (maxScroll <= 1) return true;
     const scrollRect = scrollEl.getBoundingClientRect();
     const anchorRect = anchorEl.getBoundingClientRect();
-    const paddingBottom = 12;
-    let targetTop = scrollEl.scrollTop + (anchorRect.bottom - scrollRect.bottom) + paddingBottom;
+    const padding = 12;
+    let targetTop;
+    if (align === "start") {
+      targetTop = scrollEl.scrollTop + (anchorRect.top - scrollRect.top) - padding;
+    } else {
+      targetTop = scrollEl.scrollTop + (anchorRect.bottom - scrollRect.bottom) + padding;
+    }
     targetTop = Math.max(0, Math.min(targetTop, maxScroll));
     scrollEl.scrollTo({ top: targetTop, behavior: smooth ? "smooth" : "auto" });
     return true;
@@ -535,8 +558,10 @@ export function createShellDialog(options = {}) {
     stickToBottom = true;
     suppressScrollPersist = true;
     suppressStickUpdate = true;
+    const streaming = nodes.panel?.classList.contains("is-streaming");
     const anchor = getDialogScrollAnchor();
-    if (!anchor || !scrollDialogToAnchor(anchor, { smooth })) {
+    const align = streaming ? "bottom" : "start";
+    if (!anchor || !scrollDialogToAnchor(anchor, { smooth, align })) {
       scrollEl.scrollTo({ top: maxScroll, behavior: smooth ? "smooth" : "auto" });
     }
     window.setTimeout(
@@ -560,7 +585,7 @@ export function createShellDialog(options = {}) {
     finishScrollRestoreWatch();
     suppressScrollPersist = true;
     suppressStickUpdate = true;
-    const ok = scrollDialogToAnchor(anchor, { smooth });
+    const ok = scrollDialogToAnchor(anchor, { smooth, align: "start" });
     window.setTimeout(() => {
       suppressScrollPersist = false;
       suppressStickUpdate = false;
