@@ -108,10 +108,10 @@ class ClaudePersistentSession {
     this.process.stdin.write(`${JSON.stringify(message)}\n`);
   }
 
-  writeControlDecision(requestId, allow) {
+  writeControlDecision(requestId, allow, { toolInput, toolUseId } = {}) {
     const frame = allow
-      ? buildClaudeControlAllowResponse(requestId)
-      : buildClaudeControlDenyResponse(requestId, allow ? "" : "Отклонено пользователем");
+      ? buildClaudeControlAllowResponse(requestId, { updatedInput: toolInput, toolUseId })
+      : buildClaudeControlDenyResponse(requestId, "Отклонено пользователем", { toolUseId });
     this.writeControlMessage(frame);
   }
 
@@ -136,7 +136,10 @@ class ClaudePersistentSession {
     const toolName = parsed.toolName;
 
     if (this.isToolAllowedForSession(toolName)) {
-      this.writeControlDecision(requestId, true);
+      this.writeControlDecision(requestId, true, {
+        toolInput: parsed.toolInput,
+        toolUseId: parsed.toolUseId
+      });
       return;
     }
 
@@ -148,7 +151,10 @@ class ClaudePersistentSession {
           : null;
 
     if (!handler) {
-      this.writeControlDecision(requestId, false);
+      this.writeControlDecision(requestId, false, {
+        toolInput: parsed.toolInput,
+        toolUseId: parsed.toolUseId
+      });
       return;
     }
 
@@ -165,16 +171,28 @@ class ClaudePersistentSession {
         this.rememberSessionToolAllow(toolName);
       }
       const updatedPermissions =
-        allow && Array.isArray(parsed.permissionSuggestions) && parsed.permissionSuggestions.length
+        allow &&
+        String(decision?.scope || "") === "session" &&
+        Array.isArray(parsed.permissionSuggestions) &&
+        parsed.permissionSuggestions.length
           ? parsed.permissionSuggestions
           : undefined;
       this.writeControlMessage(
         allow
-          ? buildClaudeControlAllowResponse(requestId, { updatedPermissions })
-          : buildClaudeControlDenyResponse(requestId, "Отклонено пользователем")
+          ? buildClaudeControlAllowResponse(requestId, {
+              updatedInput: parsed.toolInput,
+              toolUseId: parsed.toolUseId,
+              updatedPermissions
+            })
+          : buildClaudeControlDenyResponse(requestId, "Отклонено пользователем", {
+              toolUseId: parsed.toolUseId
+            })
       );
     } catch {
-      this.writeControlDecision(requestId, false);
+      this.writeControlDecision(requestId, false, {
+        toolInput: parsed.toolInput,
+        toolUseId: parsed.toolUseId
+      });
     }
   }
 

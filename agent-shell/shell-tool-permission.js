@@ -90,27 +90,41 @@ function parseClaudeCanUseToolRequest(event) {
   return { requestId, toolName, toolInput, toolUseId, permissionSuggestions };
 }
 
-function buildClaudeControlAllowResponse(requestId, { updatedPermissions } = {}) {
-  const response = {
-    subtype: "can_use_tool",
-    allow: true
+function normalizeToolInput(toolInput) {
+  return toolInput && typeof toolInput === "object" && !Array.isArray(toolInput) ? toolInput : {};
+}
+
+function buildClaudeControlAllowResponse(
+  requestId,
+  { updatedInput, toolUseId, updatedPermissions } = {}
+) {
+  const decision = {
+    behavior: "allow",
+    updatedInput: normalizeToolInput(updatedInput)
   };
-  if (updatedPermissions) response.updatedPermissions = updatedPermissions;
+  const useId = String(toolUseId || "").trim();
+  if (useId) decision.toolUseID = useId;
+  if (updatedPermissions) decision.updatedPermissions = updatedPermissions;
   return {
     type: "control_response",
-    request_id: requestId,
-    response
+    response: {
+      subtype: "success",
+      request_id: requestId,
+      response: decision
+    }
   };
 }
 
-function buildClaudeControlDenyResponse(requestId, reason = "") {
+function buildClaudeControlDenyResponse(requestId, reason = "", { toolUseId } = {}) {
+  const decision = { behavior: "deny", message: String(reason || "Отклонено") };
+  const useId = String(toolUseId || "").trim();
+  if (useId) decision.toolUseID = useId;
   return {
     type: "control_response",
-    request_id: requestId,
     response: {
-      subtype: "can_use_tool",
-      allow: false,
-      ...(reason ? { message: String(reason) } : {})
+      subtype: "success",
+      request_id: requestId,
+      response: decision
     }
   };
 }
