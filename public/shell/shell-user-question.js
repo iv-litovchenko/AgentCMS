@@ -1,5 +1,12 @@
 /** Claude CLI AskUserQuestion modal (SSE → pick options → answers back to CLI). */
 
+const OTHER_OPTION_VALUE = "__shell_other__";
+const OTHER_OPTION_LABEL = "Other";
+
+function isOtherOptionLabel(label) {
+  return /^other\b/i.test(String(label || "").trim());
+}
+
 function normalizeQuestions(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -12,7 +19,7 @@ function normalizeQuestions(raw) {
             .map((opt) => {
               if (!opt || typeof opt !== "object") return null;
               const label = String(opt.label || "").trim();
-              if (!label) return null;
+              if (!label || isOtherOptionLabel(label)) return null;
               return {
                 label,
                 description: String(opt.description || "").trim()
@@ -30,26 +37,48 @@ function normalizeQuestions(raw) {
     .filter(Boolean);
 }
 
+function readOtherText(form, questionKey) {
+  const field = form.querySelector(`[data-other-for="${questionKey}"]`);
+  return String(field?.value || "").trim();
+}
+
 function collectAnswers(form, questions) {
   const answers = {};
   for (const q of questions) {
     const name = `auq-${encodeURIComponent(q.question)}`;
+    const otherText = readOtherText(form, name);
     if (q.multiSelect) {
-      const checked = [...form.querySelectorAll(`input[name="${name}"]:checked`)].map(
-        (el) => el.value
+      const checked = [...form.querySelectorAll(`input[name="${name}"]:checked`)]
+        .map((el) => el.value)
+        .filter((value) => value !== OTHER_OPTION_VALUE);
+      const parts = [...checked];
+      const otherChecked = form.querySelector(
+        `input[name="${name}"][value="${OTHER_OPTION_VALUE}"]:checked`
       );
-      if (checked.length) answers[q.question] = checked.join(", ");
+      if (otherChecked && otherText) parts.push(otherText);
+      if (parts.length) answers[q.question] = parts.join(", ");
       continue;
     }
     const picked = form.querySelector(`input[name="${name}"]:checked`);
-    if (picked) answers[q.question] = picked.value;
+    if (!picked) continue;
+    if (picked.value === OTHER_OPTION_VALUE) {
+      if (otherText) answers[q.question] = otherText;
+    } else {
+      answers[q.question] = picked.value;
+    }
   }
   return answers;
 }
 
-function validateAnswers(questions, answers) {
+function validateAnswers(form, questions, answers) {
   for (const q of questions) {
+    const name = `auq-${encodeURIComponent(q.question)}`;
     const value = String(answers[q.question] || "").trim();
+    if (value) continue;
+    const otherPicked = q.multiSelect
+      ? form.querySelector(`input[name="${name}"][value="${OTHER_OPTION_VALUE}"]:checked`)
+      : form.querySelector(`input[name="${name}"]:checked`)?.value === OTHER_OPTION_VALUE;
+    if (otherPicked) return `${q.question}:other-empty`;
     if (!value) return q.question;
   }
   return "";
@@ -73,6 +102,19 @@ function renderQuestionBlock(q, index) {
   optionsWrap.className = "shell-user-question-options";
 
   const inputName = `auq-${encodeURIComponent(q.question)}`;
+  const syncOtherField = () => {
+    const otherInput = block.querySelector(`[data-other-for="${inputName}"]`);
+    if (!otherInput) return;
+    const otherSelected = q.multiSelect
+      ? Boolean(
+          block.querySelector(`input[name="${inputName}"][value="${OTHER_OPTION_VALUE}"]:checked`)
+        )
+      : block.querySelector(`input[name="${inputName}"]:checked`)?.value === OTHER_OPTION_VALUE;
+    otherInput.disabled = !otherSelected;
+    otherInput.required = Boolean(otherSelected);
+    if (otherSelected) otherInput.focus();
+  };
+
   q.options.forEach((opt, optIndex) => {
     const label = document.createElement("label");
     label.className = "shell-user-question-option";
@@ -81,8 +123,7 @@ function renderQuestionBlock(q, index) {
     input.type = q.multiSelect ? "checkbox" : "radio";
     input.name = inputName;
     input.value = opt.label;
-    input.required = !q.multiSelect;
-    if (!q.multiSelect && optIndex === 0) input.checked = true;
+    input.addEventListener("change", syncOtherField);
 
     const text = document.createElement("span");
     text.className = "shell-user-question-option-text";
@@ -96,9 +137,50 @@ function renderQuestionBlock(q, index) {
       label.append(desc);
     }
     optionsWrap.append(label);
+
+    if (!q.multiSelect && optIndex === 0) input.checked = true;
   });
 
+  const otherLabel = document.createElement("label");
+  otherLabel.className = "shell-user-question-option shell-user-question-option--other";
+
+  const otherInput = document.createElement("input");
+  otherInput.type = q.multiSelect ? "checkbox" : "radio";
+  otherInput.name = inputName;
+  otherInput.value = OTHER_OPTION_VALUE;
+  otherInput.addEventListener("change", syncOtherField);
+
+  const otherText = document.createElement("span");
+  otherText.className = "shell-user-question-option-text";
+  otherText.textContent = OTHER_OPTION_LABEL;
+
+  otherLabel.append(otherInput, otherText);
+
+  const customField = document.createElement("textarea");
+  customField.className = "shell-user-question-other-input shell-textarea";
+  customField.dataset.otherFor = inputName;
+  customField.placeholder = "Свой вариант…";
+  customField.rows = 3;
+  customField.disabled = true;
+  customField.addEventListener("input", () => {
+    if (!q.multiSelect && !otherInput.checked) otherInput.checked = true;
+    if (q.multiSelect && !otherInput.checked) otherInput.checked = true;
+    syncOtherField();
+  });
+  customField.addEventListener("focus", () => {
+    otherInput.checked = true;
+    if (!q.multiSelect) {
+      for (const el of optionsWrap.querySelectorAll(`input[name="${inputName}"]`)) {
+        if (el !== otherInput) el.checked = false;
+      }
+    }
+    syncOtherField();
+  });
+
+  otherLabel.append(customField);
+  optionsWrap.append(otherLabel);
   block.append(optionsWrap);
+  syncOtherField();
   return block;
 }
 
@@ -176,9 +258,13 @@ export function initShellUserQuestion({
     event.preventDefault();
     if (!active) return;
     const answers = collectAnswers(formEl, active.questions);
-    const missing = validateAnswers(active.questions, answers);
+    const missing = validateAnswers(formEl, active.questions, answers);
     if (missing) {
-      setStatus(`Выберите ответ: ${missing}`);
+      if (missing.endsWith(":other-empty")) {
+        setStatus("Введите свой вариант в поле Other");
+      } else {
+        setStatus(`Выберите ответ: ${missing}`);
+      }
       return;
     }
     void complete({ answers, cancelled: false });

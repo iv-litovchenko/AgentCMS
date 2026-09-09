@@ -577,6 +577,37 @@ body:not(.shell-embed) .shell-app {
   color: rgba(226, 232, 240, 0.72);
 }
 
+.shell-user-question-option--other {
+  grid-template-columns: auto 1fr;
+}
+
+.shell-user-question-other-input {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 4.5em;
+  box-sizing: border-box;
+  margin-top: 2px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+  resize: vertical;
+}
+
+.shell-user-question-other-input:disabled {
+  opacity: 0.45;
+}
+
+.shell-user-question-other-input:focus {
+  outline: 2px solid rgba(129, 140, 248, 0.45);
+  outline-offset: 1px;
+  border-color: rgba(129, 140, 248, 0.55);
+}
+
 .shell-user-question-actions {
   flex-wrap: wrap;
   gap: 8px;
