@@ -2007,6 +2007,7 @@ async function cancelShellProcessing(deps, agentRoot, agentId, { reason = "Ос�
 
   emitShellQueueUpdate(agentId, scope);
 
+  await stopTts(agentRoot, agentId);
   await patchState(agentRoot, agentId, {
     phase: PHASE_WAITING,
     phrase: "",

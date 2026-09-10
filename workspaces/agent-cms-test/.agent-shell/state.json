@@ -11,7 +11,7 @@
   "meetingRecording": false,
   "lastTtsClientId": "dcda3b37-d24b-49f0-b5de-3f8087247b3f:5aebd62a-8fb6-4fb5-8b5f-a6bfa52a7cc9",
   "primaryClientId": "dcda3b37-d24b-49f0-b5de-3f8087247b3f:5aebd62a-8fb6-4fb5-8b5f-a6bfa52a7cc9",
-  "updatedAt": "2026-09-10T18:20:39.807Z",
+  "updatedAt": "2026-09-10T18:22:42.367Z",
   "shellSurfaceHost": "browser-tab",
   "shellSurfaceHint": "Отдельная вкладка браузера",
   "shellSurfaceBackend": "local"

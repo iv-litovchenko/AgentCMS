@@ -4692,18 +4692,16 @@ body.shell-desktop .shell-agent-gate select {
   z-index: 6;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 13px 7px 11px;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
   border: 1px solid rgba(122, 108, 255, 0.34);
   border-radius: 999px;
   background: rgba(10, 12, 24, 0.9);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: rgba(226, 232, 240, 0.94);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.01em;
   cursor: pointer;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.42);
   transform: translateX(-50%);
@@ -4730,10 +4728,6 @@ body.shell-desktop .shell-agent-gate select {
   display: block;
   flex: 0 0 auto;
   opacity: 0.92;
-}
-
-.shell-dialog-scroll-bottom-label {
-  white-space: nowrap;
 }
 
 .shell-reply-panel .shell-dialog-scroll {

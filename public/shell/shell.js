@@ -3651,7 +3651,7 @@ function updateSendButtonLabel() {
   }
 }
 
-async function stopActiveMessage() {
+async function stopActiveMessage({ remote = false } = {}) {
   const heroCancelActive = Boolean(
     state.messagePipelineBusy ||
       state.processingMessage ||
@@ -3679,21 +3679,23 @@ async function stopActiveMessage() {
   messageSendAbortController = null;
   shellToolPermission?.dismissAll?.();
   shellUserQuestion?.dismissAll?.();
-  void apiFetch("/api/shell/cancel", {
-    method: "POST",
-    body: JSON.stringify({ reason: "Остановлено" })
-  })
-    .then((data) => {
-      if (data?.queue) applyServerQueue(data.queue);
+  if (!remote) {
+    void apiFetch("/api/shell/cancel", {
+      method: "POST",
+      body: JSON.stringify({ reason: "Остановлено" })
     })
-    .catch(() => {
-      void apiFetch("/api/shell/queue", {
-        method: "DELETE",
-        body: JSON.stringify({ pendingOnly: true })
+      .then((data) => {
+        if (data?.queue) applyServerQueue(data.queue);
       })
-        .then((data) => applyServerQueue(data?.queue))
-        .catch(() => {});
-    });
+      .catch(() => {
+        void apiFetch("/api/shell/queue", {
+          method: "DELETE",
+          body: JSON.stringify({ pendingOnly: true })
+        })
+          .then((data) => applyServerQueue(data?.queue))
+          .catch(() => {});
+      });
+  }
   state.queueEditingId = "";
   state.processingMessage = "";
   if (state.assistantStream && !state.assistantStream.finalized) {
@@ -9503,6 +9505,15 @@ function connectStream() {
       renderPhase("waiting", message);
       void shellDialog.refreshHistory?.();
       releaseMessagePipeline();
+    } catch {
+      // ignore malformed event
+    }
+  });
+
+  source.addEventListener("run_cancelled", (event) => {
+    try {
+      logSse("run_cancelled");
+      void stopActiveMessage({ remote: true });
     } catch {
       // ignore malformed event
     }
