@@ -475,8 +475,9 @@ export function createShellDialog(options = {}) {
   let scrollRestoreDeadline = 0;
   let scrollRestoreActive = false;
   let scrollRestoreSuppressUntil = 0;
-  let stickToBottom = false;
   let suppressStickUpdate = false;
+  let pendingScrollToItem = null;
+  let liveStreamScrollMark = "";
 
   function notifyHistoryChange() {
     try {
@@ -514,18 +515,11 @@ export function createShellDialog(options = {}) {
     return scrollEl.scrollTop >= maxScroll - threshold;
   }
 
-  function syncStickToBottomFromScroll() {
-    if (suppressStickUpdate || scrollRestoreApplying || Date.now() < scrollRestoreSuppressUntil) return;
-    stickToBottom = isScrollNearBottom();
-  }
-
-  function enableStickToBottom() {
-    stickToBottom = true;
-  }
+  function syncStickToBottomFromScroll() {}
 
   function captureScrollAnchor() {
     const scrollEl = nodes.scroll;
-    if (!scrollEl || stickToBottom) return null;
+    if (!scrollEl) return null;
     const scrollRect = scrollEl.getBoundingClientRect();
     const rows = scrollEl.querySelectorAll(".shell-chat-row[id], .shell-chat-row[data-message-anchor]");
     for (const row of rows) {
@@ -560,14 +554,56 @@ export function createShellDialog(options = {}) {
     window.requestAnimationFrame(() => restoreScrollAnchor(anchor));
   }
 
-  function maintainStickScroll() {
-    if (!stickToBottom) return;
-    scrollToChatBottom({ smooth: false });
+  function revealScrollTarget(anchorEl, { smooth = true, block = "start" } = {}) {
+    if (!anchorEl) return false;
+    finishScrollRestoreWatch();
+    suppressScrollPersist = true;
+    suppressStickUpdate = true;
+    const ok = revealDialogAnchor(anchorEl, { smooth, block });
+    window.setTimeout(
+      () => {
+        suppressScrollPersist = false;
+        suppressStickUpdate = false;
+        updateScrollProgress();
+        updateScrollBottomButton();
+      },
+      smooth ? 320 : 0
+    );
+    return ok;
   }
 
+  function scrollToLiveReply({ smooth = true } = {}) {
+    const anchor = getLatestLiveActivityAnchor() || nodes.lastReply;
+    if (!anchor || anchor.classList.contains("hidden")) return false;
+    return revealScrollTarget(anchor, { smooth, block: "start" });
+  }
+
+  function scrollToLiveStreamOnce(streamId) {
+    const id = String(streamId || "live").trim();
+    if (!id || liveStreamScrollMark === id) return;
+    liveStreamScrollMark = id;
+    window.requestAnimationFrame(() => {
+      scrollToLiveReply({ smooth: true });
+    });
+  }
+
+  function resetLiveStreamScrollMark() {
+    liveStreamScrollMark = "";
+  }
+
+  function scrollToHistoryItem(item, { smooth = true } = {}) {
+    if (!item) return false;
+    const index = history.indexOf(item);
+    const row = findAnchoredRowByItem(item, index >= 0 ? index : history.length - 1);
+    if (row) return revealScrollTarget(row, { smooth, block: "start" });
+    if (item.role === "agent") return scrollToLiveReply({ smooth });
+    return false;
+  }
+
+  function maintainStickScroll() {}
+
   function stickToBottomAndScroll() {
-    enableStickToBottom();
-    scrollToChatBottom({ smooth: false });
+    scrollToChatBottom({ smooth: true });
   }
 
   function scrollToChatBottom({ smooth = true } = {}) {
@@ -712,17 +748,7 @@ export function createShellDialog(options = {}) {
       nodes.thread?.querySelector(`#${CSS.escape(domId)}`) ||
       nodes.scroll?.querySelector(`#${CSS.escape(domId)}`);
     if (!anchor) return false;
-    enableStickToBottom();
-    finishScrollRestoreWatch();
-    suppressScrollPersist = true;
-    suppressStickUpdate = true;
-    const ok = scrollDialogToAnchor(anchor, { smooth, align: "start" });
-    window.setTimeout(() => {
-      suppressScrollPersist = false;
-      suppressStickUpdate = false;
-      updateScrollProgress();
-    }, smooth ? 320 : 0);
-    return ok;
+    return revealScrollTarget(anchor, { smooth, block: "start" });
   }
 
   function applyScrollRatio(ratio) {
@@ -1079,6 +1105,7 @@ export function createShellDialog(options = {}) {
     }
     history.push(item);
     if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+    pendingScrollToItem = item;
     renderHistoryUi();
   }
 
@@ -1525,8 +1552,7 @@ export function createShellDialog(options = {}) {
   function renderThread() {
     if (!nodes.thread) return;
     history = ensureHistoryAnchorIds(normalizeThreadOrder(history));
-    const scrollAnchor =
-      !scrollRestoreActive && !stickToBottom ? captureScrollAnchor() : null;
+    const scrollAnchor = !scrollRestoreActive && !pendingScrollToItem ? captureScrollAnchor() : null;
 
     nodes.thread.replaceChildren();
     const streaming = nodes.panel?.classList.contains("is-streaming");
@@ -1544,11 +1570,13 @@ export function createShellDialog(options = {}) {
     scheduleShellMermaidTypeset(nodes.lastReply);
 
     function finishThreadScrollLayout() {
-      if (scrollRestoreActive && pendingScrollRestoreRatio != null) {
+      if (pendingScrollToItem) {
+        const item = pendingScrollToItem;
+        pendingScrollToItem = null;
+        scrollToHistoryItem(item, { smooth: true });
+      } else if (scrollRestoreActive && pendingScrollRestoreRatio != null) {
         applyPendingScrollOnce();
         queueScrollRestoreAfterLayout();
-      } else if (stickToBottom) {
-        scrollToChatBottom({ smooth: false });
       } else if (scrollAnchor) {
         preserveScrollAnchorAfterLayout(scrollAnchor);
       } else {
@@ -1649,12 +1677,10 @@ export function createShellDialog(options = {}) {
 
   function onUserMessage(text) {
     clearError();
-    enableStickToBottom();
     const raw = String(text || "").trim();
     if (!raw) return;
     lastAskRaw = raw;
     pushHistory("user", raw);
-    maintainStickScroll();
     updateScrollBottomButton();
   }
 
@@ -1666,7 +1692,6 @@ export function createShellDialog(options = {}) {
       pushHistory("agent", raw);
     } else {
       syncLiveReplySlot();
-      maintainStickScroll();
       updateScrollBottomButton();
     }
   }
@@ -1794,7 +1819,6 @@ export function createShellDialog(options = {}) {
     });
 
     nodes.scrollBottomBtn?.addEventListener("click", () => {
-      enableStickToBottom();
       scrollToChatBottom({ smooth: true });
     });
 
@@ -1847,9 +1871,7 @@ export function createShellDialog(options = {}) {
     bindUi();
   }
 
-  function scrollToBottomIfNear() {
-    if (isScrollNearBottom()) maintainStickScroll();
-  }
+  function scrollToBottomIfNear() {}
 
   return {
     init,
@@ -1887,8 +1909,10 @@ export function createShellDialog(options = {}) {
     scrollToMessageAnchor,
     scrollToBottomIfNear,
     stickToBottomAndScroll,
-    enableStickToBottom,
     maintainStickScroll,
+    scrollToLiveReply,
+    scrollToLiveStreamOnce,
+    resetLiveStreamScrollMark,
     getDialogScrollAnchor
   };
 }

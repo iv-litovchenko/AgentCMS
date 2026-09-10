@@ -3055,6 +3055,7 @@ function beginAssistantStream({ streamId } = {}) {
   lastStreamHandledBody = "";
   lastHandledStreamId = "";
   setReplyPanelStreaming(true);
+  shellDialog.resetLiveStreamScrollMark?.();
   shellDialog.syncLiveReplySlot?.();
   shellDialog.renderLiveToolStrip?.();
   if (nodes.lastReplyText) {
@@ -3083,7 +3084,7 @@ function renderStreamingAssistantText(text) {
   nodes.lastReplyText.textContent = value;
   stopStreamWaitTimer();
   shellDialog.onReplyRendered(value);
-  shellDialog.maintainStickScroll?.();
+  shellDialog.scrollToLiveStreamOnce?.(state.assistantStream?.id);
   syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
     updateLabel: false,
     phrase: nodes.phaseLabel?.textContent || ""
@@ -3374,7 +3375,6 @@ async function reloadShellDialogContext({ restoreScroll = false } = {}) {
   clearShellReply();
   shellDialog.clearLiveStreamTools?.();
   shellDialog.setLastAsk?.("");
-  shellDialog.enableStickToBottom?.();
   if (restoreScroll) {
     prepareDialogScrollRestore({ restoreOnLoad: true });
   } else {
@@ -3387,7 +3387,6 @@ async function reloadShellDialogContext({ restoreScroll = false } = {}) {
 
 function beginQueuedTurnStream(processing) {
   const text = String(processing?.text || processing?.body || "").trim();
-  shellDialog.enableStickToBottom?.();
   state.messageStopped = false;
   state.messagePipelineBusy = true;
   state.processingMessage = text || state.processingMessage;
