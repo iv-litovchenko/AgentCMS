@@ -160,11 +160,60 @@ class ClaudeToolActivityTracker {
   constructor(onActivity) {
     this.onActivity = typeof onActivity === "function" ? onActivity : null;
     this.blocks = new Map();
+    this.activeTools = new Map();
   }
 
   emit(activity) {
     if (!activity || !this.onActivity) return;
     this.onActivity(normalizeToolActivity(activity));
+  }
+
+  emitToolStart({ toolId, tool, args, priority = 40 }) {
+    const id = String(toolId || tool || "tool").trim() || "tool";
+    const name = String(tool || "tool").trim() || "tool";
+    const formattedArgs = formatToolArgs(args);
+    const existing = this.activeTools.get(id);
+    if (existing) {
+      if (formattedArgs && !existing.args) {
+        existing.args = formattedArgs;
+        this.emit({
+          kind: "tool",
+          phase: "progress",
+          tool: existing.tool || name,
+          toolId: id,
+          args: formattedArgs,
+          status: "running",
+          priority: Math.max(priority, 38)
+        });
+      }
+      return;
+    }
+    this.activeTools.set(id, { tool: name, args: formattedArgs });
+    this.emit({
+      kind: "tool",
+      phase: "start",
+      tool: name,
+      toolId: id,
+      args: formattedArgs,
+      status: "running",
+      priority
+    });
+  }
+
+  emitToolEnd({ toolId, tool, result, status = "ok", priority = 35 }) {
+    const id = String(toolId || tool || "tool").trim() || "tool";
+    const existing = this.activeTools.get(id);
+    const name = String(tool || existing?.tool || id || "tool").trim() || "tool";
+    this.activeTools.delete(id);
+    this.emit({
+      kind: "tool",
+      phase: "end",
+      tool: name,
+      toolId: id,
+      result: extractClaudeToolResultContent(result),
+      status,
+      priority
+    });
   }
 
   handleEvent(event) {
@@ -180,13 +229,10 @@ class ClaudeToolActivityTracker {
     if (type === "tool_use") {
       const toolId = String(event.id || event.tool_use_id || event.name || "tool").trim();
       const tool = String(event.name || event.tool || "tool").trim() || "tool";
-      this.emit({
-        kind: "tool",
-        phase: "start",
-        tool,
+      this.emitToolStart({
         toolId,
-        args: formatToolArgs(event.input ?? event.arguments ?? event.args ?? null),
-        status: "running",
+        tool,
+        args: event.input ?? event.arguments ?? event.args ?? null,
         priority: 40
       });
       return;
@@ -196,12 +242,10 @@ class ClaudeToolActivityTracker {
       const toolId = String(event.tool_use_id || event.id || "").trim();
       const mapped = [...this.blocks.values()].find((entry) => entry.toolId === toolId);
       const tool = String(mapped?.tool || event.name || toolId || "tool").trim() || "tool";
-      this.emit({
-        kind: "tool",
-        phase: "end",
-        tool,
+      this.emitToolEnd({
         toolId: toolId || tool,
-        result: extractClaudeToolResultContent(event.content ?? event.result ?? event.output),
+        tool,
+        result: event.content ?? event.result ?? event.output,
         status: event.is_error ? "error" : "ok",
         priority: 35
       });
@@ -218,13 +262,10 @@ class ClaudeToolActivityTracker {
         const tool = String(block.name || block.tool || "tool").trim() || "tool";
         const args = formatToolArgs(block.input ?? block.query ?? block.arguments ?? null);
         this.blocks.set(index, { toolId, tool, inputJson: args ? "" : JSON.stringify(block.input || {}) });
-        this.emit({
-          kind: "tool",
-          phase: "start",
-          tool,
+        this.emitToolStart({
           toolId,
-          args: args || formatToolArgs(block.input || {}),
-          status: "running",
+          tool,
+          args: args || block.input || {},
           priority: 40
         });
         return;
@@ -236,13 +277,10 @@ class ClaudeToolActivityTracker {
         const tool =
           String(mapped?.tool || block.name || "").trim() ||
           (blockType === "web_search_tool_result" ? "WebSearch" : blockType === "web_fetch_tool_result" ? "WebFetch" : toolId || "tool");
-        const result = extractClaudeToolResultContent(block.content ?? block.results ?? block.output);
-        this.emit({
-          kind: "tool",
-          phase: "end",
-          tool,
+        this.emitToolEnd({
           toolId: toolId || tool,
-          result,
+          tool,
+          result: block.content ?? block.results ?? block.output,
           status: block.is_error ? "error" : "ok",
           priority: 35
         });
@@ -268,12 +306,15 @@ class ClaudeToolActivityTracker {
       const entry = this.blocks.get(index);
       if (!entry) return;
       if (entry.inputJson) {
+        const args = formatToolArgs(entry.inputJson);
+        const active = this.activeTools.get(entry.toolId);
+        if (active) active.args = args;
         this.emit({
           kind: "tool",
           phase: "progress",
           tool: entry.tool,
           toolId: entry.toolId,
-          args: formatToolArgs(entry.inputJson),
+          args,
           status: "running",
           priority: 38
         });
@@ -286,38 +327,19 @@ class ClaudeToolActivityTracker {
       const serverUsage = event.message?.usage?.server_tool_use;
       if (serverUsage && typeof serverUsage === "object") {
         if (Number(serverUsage.web_search_requests) > 0) {
-          this.emit({
-            kind: "tool",
-            phase: "start",
-            tool: "WebSearch",
-            toolId: "WebSearch",
-            args: "",
-            status: "running",
-            priority: 42
-          });
+          this.emitToolStart({ toolId: "WebSearch", tool: "WebSearch", args: "", priority: 42 });
         }
         if (Number(serverUsage.web_fetch_requests) > 0) {
-          this.emit({
-            kind: "tool",
-            phase: "start",
-            tool: "WebFetch",
-            toolId: "WebFetch",
-            args: "",
-            status: "running",
-            priority: 42
-          });
+          this.emitToolStart({ toolId: "WebFetch", tool: "WebFetch", args: "", priority: 42 });
         }
       }
       for (const block of event.message.content) {
         if (!block || typeof block !== "object") continue;
         if (block.type === "tool_use" || block.type === "server_tool_use") {
-          this.emit({
-            kind: "tool",
-            phase: "start",
-            tool: String(block.name || block.tool || "tool"),
+          this.emitToolStart({
             toolId: String(block.id || block.tool_use_id || block.name || "tool"),
-            args: formatToolArgs(block.input ?? block.query ?? block.arguments ?? null),
-            status: "running",
+            tool: String(block.name || block.tool || "tool"),
+            args: block.input ?? block.query ?? block.arguments ?? null,
             priority: 40
           });
         }
@@ -325,12 +347,10 @@ class ClaudeToolActivityTracker {
           const toolId = String(block.tool_use_id || "").trim();
           const mapped = [...this.blocks.values()].find((entry) => entry.toolId === toolId);
           const tool = String(mapped?.tool || toolId || "tool").trim() || "tool";
-          this.emit({
-            kind: "tool",
-            phase: "end",
-            tool,
+          this.emitToolEnd({
             toolId: toolId || tool,
-            result: extractClaudeToolResultContent(block.content),
+            tool,
+            result: block.content,
             status: block.is_error ? "error" : "ok",
             priority: 35
           });

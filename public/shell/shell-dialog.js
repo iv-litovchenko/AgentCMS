@@ -85,7 +85,25 @@ function isMeaningfulToolArgs(value) {
 
 function isGenericToolName(name) {
   const value = String(name || "").trim().toLowerCase();
-  return !value || value === "tool";
+  return !value || value === "tool" || value === "agent";
+}
+
+function isStructuredToolPayload(payload = {}) {
+  const toolId = String(payload.toolId || "").trim();
+  const tool = String(payload.tool || "").trim();
+  const phase = String(payload.phase || "start").trim().toLowerCase();
+  if (String(payload.kind || "").trim() === "tool") {
+    if (toolId && toolId !== tool) return true;
+    if (toolId.startsWith("toolu_")) return true;
+    if (payload.args != null || payload.result != null) return true;
+    if (phase === "end" || phase === "progress") return true;
+  }
+  return false;
+}
+
+function displayToolName(name) {
+  const raw = String(name || "tool").trim() || "tool";
+  return raw.replace(/^mcp__[^_]+__/, "");
 }
 
 function toolItemHasBody(item) {
@@ -989,7 +1007,7 @@ export function createShellDialog(options = {}) {
     icon.setAttribute("aria-hidden", "true");
     const title = document.createElement("span");
     title.className = "shell-tool-bubble-title";
-    title.textContent = String(item.tool || "tool");
+    title.textContent = displayToolName(item.tool || "tool");
     const status = document.createElement("span");
     status.className = "shell-tool-bubble-status";
     status.textContent = toolStatusLabel(item.status);
@@ -1113,7 +1131,11 @@ export function createShellDialog(options = {}) {
       return;
     }
 
-    if (openIndex >= 0 && !isMeaningfulToolArgs(args)) {
+    if (openIndex >= 0) {
+      const item = list[openIndex];
+      if (isMeaningfulToolArgs(args)) item.args = pickRicherToolArgs(args, item.args);
+      if (tool && !isGenericToolName(tool)) item.tool = tool;
+      if (toolId && toolId !== tool) item.toolId = toolId;
       return;
     }
 
@@ -1182,12 +1204,13 @@ export function createShellDialog(options = {}) {
 
     if (isTool) {
       const toolPayload = { ...payload, kind: "tool" };
+      const structured = isStructuredToolPayload(toolPayload);
       const canUpdateOpen = findOpenToolIndexIn(history, toolPayload) >= 0;
-      if (shouldPersistToolPayload(toolPayload) || canUpdateOpen) {
+      if (structured && (shouldPersistToolPayload(toolPayload) || canUpdateOpen)) {
         upsertToolActivity(toolPayload);
       }
       if (phrase) liveActivityHint = phrase;
-      else if (tool) liveActivityHint = `🔧 ${tool}…`;
+      else if (tool) liveActivityHint = `🔧 ${displayToolName(tool)}…`;
       return;
     }
 

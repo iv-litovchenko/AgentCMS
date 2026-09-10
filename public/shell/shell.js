@@ -2659,32 +2659,6 @@ function syncToolActivityFromStatus({ phrase = "", metrics = "" } = {}) {
   const metricsText = String(metrics || "").trim();
   const hint = metricsText || text;
   if (hint && !isEchoOfUserTurnPhrase(hint)) shellDialog.setLiveActivityHint?.(hint);
-
-  const tool = metricsText.replace(/^🔧\s*/, "");
-  let inferredTool =
-    tool ||
-    (/^🔧\s*(.+?)(?:…|$)/u.exec(text)?.[1] || "").trim() ||
-    (/^✓\s*(.+)$/u.exec(text)?.[1] || "").trim();
-  if (!inferredTool) {
-    const known = text.match(
-      /\b(WebSearch|WebFetch|Bash|Read|Write|Edit|Grep|Glob|Task|NotebookEdit|Skill)\b/i
-    );
-    if (known) inferredTool = known[1];
-  }
-  if (!inferredTool && /web\s*search|поиск/i.test(text)) inferredTool = "WebSearch";
-  if (!inferredTool && /web\s*fetch|fetch/i.test(text)) inferredTool = "WebFetch";
-  if (!inferredTool && /\bbash\b|команд/i.test(text)) inferredTool = "Bash";
-  if (!inferredTool) return;
-  const phase = /^✓/.test(text) ? "end" : "start";
-  shellDialog.upsertToolActivity?.({
-    streamId: state.activeAgentStreamId || state.assistantStream?.id || "",
-    kind: "tool",
-    phase,
-    tool: inferredTool,
-    toolId: inferredTool,
-    phrase: text,
-    status: phase === "end" ? "ok" : "running"
-  });
 }
 
 function startPipelineStatusPoll() {
@@ -2899,6 +2873,7 @@ function setReplyPanelStreaming(active) {
   } else {
     stopStreamWaitTimer();
     stopPipelineStatusPoll();
+    shellDialog.clearLiveStreamTools?.();
     shellDialog.renderLiveToolStrip?.();
     shellDialog.syncLiveReplySlot?.();
     shellDialog.tryApplyPendingScrollRestore?.();
