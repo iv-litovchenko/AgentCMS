@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=553" />
+    <link rel="stylesheet" href="/shell/shell.css?v=554" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -42,7 +42,7 @@
           "@shell/pwa": "/shell/shell-pwa.js?v=207",
           "@shell/permissions": "/shell/shell-permissions.js?v=210",
           "@shell/mobile-link": "/shell/shell-mobile-link.js?v=7",
-          "@shell/dialog": "/shell/shell-dialog.js?v=310",
+          "@shell/dialog": "/shell/shell-dialog.js?v=311",
           "@shell/compact-qa": "/shell/shell-compact-qa.js?v=8",
           "@shell/compose-layout": "/shell/shell-compose-layout.js?v=210",
           "@shell/compose-context-meter": "/shell/shell-compose-context-meter.js?v=4",
@@ -62,7 +62,7 @@
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=208",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=363",
-          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=414",
+          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=415",
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=6",
           "@shell/user-question": "/shell/shell-user-question.js?v=4",
           "@shell/build": "/shell/shell-build.js?v=425"
@@ -849,17 +849,8 @@
             <span class="shell-label shell-label-row shell-label-row--spread">
               Провайдер (движок)
               <span class="shell-tts-engine-actions">
-                <button type="button" class="shell-label-action" id="shell-tts-test" title="Озвучить пробную фразу выбранным движком">
+                <button type="button" class="shell-label-action" id="shell-tts-test" title="Озвучить пробную фразу: русский и английский">
                   Пробный текст
-                </button>
-                <button
-                  type="button"
-                  class="shell-label-action shell-tts-download-panel"
-                  id="shell-tts-download-panel"
-                  disabled
-                  title="Скачать аудио последней озвучки"
-                >
-                  ⬇ Скачать
                 </button>
               </span>
             </span>
@@ -2202,9 +2193,11 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 aria-label="Скачать аудио озвучки"
                 disabled
               >
-                <span class="shell-tts-btn-icon" aria-hidden="true">⬇</span>
-                <span class="shell-tts-btn-label">Скачать</span>
+                <span class="shell-tts-btn-icon" aria-hidden="true">💾</span>
+                <span class="shell-tts-btn-label">Сохранить</span>
               </button>
+            </div>
+            <div class="shell-hero-toolbar shell-hero-toolbar--cancel" role="group" aria-label="Отмена отправки">
               <button
                 type="button"
                 class="shell-tts-btn shell-tts-btn--cancel"
@@ -2977,6 +2970,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=581" type="module"></script>
+    <script src="/shell/shell.js?v=583" type="module"></script>
   </body>
 </html>

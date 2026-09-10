@@ -443,6 +443,7 @@ function connectionHint(error) {
  *   onReconnect?: () => void,
  *   onScrollPositionChange?: (ratio: number) => void,
  *   onHistoryChange?: () => void,
+ *   onSpeakMessage?: (item: { role?: string, body?: string }) => void | Promise<void>,
  *   fetchHistory?: () => Promise<Array<{ role?: string, body?: string, at?: number, label?: string }>>
  * }} options
  */
@@ -454,6 +455,7 @@ export function createShellDialog(options = {}) {
   const onScrollPositionChange =
     typeof options.onScrollPositionChange === "function" ? options.onScrollPositionChange : null;
   const onHistoryChange = typeof options.onHistoryChange === "function" ? options.onHistoryChange : null;
+  const onSpeakMessage = typeof options.onSpeakMessage === "function" ? options.onSpeakMessage : null;
   let history = [];
   let historyLoading = false;
   let historyLoadError = null;
@@ -1449,6 +1451,20 @@ export function createShellDialog(options = {}) {
       renderUserMessageBody(el, String(item.body || ""));
     }
 
+    const actions = document.createElement("div");
+    actions.className = "shell-chat-message-actions";
+    actions.setAttribute("aria-label", "Озвучка в сообщении");
+
+    const speakBtn = document.createElement("button");
+    speakBtn.type = "button";
+    speakBtn.className = "shell-chat-speak";
+    speakBtn.title = "Озвучить сообщение";
+    speakBtn.setAttribute("aria-label", "Озвучить сообщение");
+    speakBtn.textContent = "🔊";
+    speakBtn.addEventListener("click", () => {
+      void onSpeakMessage?.(item);
+    });
+
     const copyBtn = document.createElement("button");
     copyBtn.type = "button";
     copyBtn.className = "shell-chat-copy";
@@ -1459,7 +1475,8 @@ export function createShellDialog(options = {}) {
       void copyMessageText(item.body, copyBtn);
     });
 
-    bubble.append(el, copyBtn);
+    actions.append(speakBtn, copyBtn);
+    bubble.append(el, actions);
     row.append(bubble);
 
     let metaInfo = null;

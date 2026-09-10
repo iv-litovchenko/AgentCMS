@@ -5071,7 +5071,7 @@ body.shell-surface-extension #shell-dialog-refresh {
 .shell-chat-msg {
   max-width: 100%;
   min-width: 0;
-  padding: 10px 30px 10px 14px;
+  padding: 10px 52px 10px 14px;
   border-radius: 12px;
   font-size: 14px;
   line-height: 1.55;
@@ -5136,10 +5136,17 @@ body.shell-surface-extension #shell-dialog-refresh {
   margin-bottom: 0;
 }
 
-.shell-chat-copy {
+.shell-chat-message-actions {
   position: absolute;
   top: 4px;
   right: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.shell-chat-speak,
+.shell-chat-copy {
   width: 22px;
   height: 22px;
   padding: 0;
@@ -5153,11 +5160,19 @@ body.shell-surface-extension #shell-dialog-refresh {
   opacity: 0.55;
 }
 
+.shell-chat-speak:hover,
 .shell-chat-copy:hover,
+.shell-chat-row:hover .shell-chat-speak,
 .shell-chat-row:hover .shell-chat-copy,
+.shell-chat-speak:focus-visible,
 .shell-chat-copy:focus-visible {
   opacity: 1;
   color: var(--text);
+}
+
+.shell-chat-speak.is-speaking {
+  opacity: 1;
+  color: #7c9cff;
 }
 
 .shell-chat-copy.is-copied {

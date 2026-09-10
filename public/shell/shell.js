@@ -391,16 +391,46 @@ let shellPromptTemplates = {
   sources: { ttsPrompt: null, sttPrompt: null, proactivePrompt: null, systemPrompt: null }
 };
 
-const TTS_TEST_PHRASES = {
-  browser: "Это Web Speech в браузере. Озвучивает вкладка, не сервер.",
-  say: "Это macOS say на сервере Mac. Озвучивает команда say.",
-  edge: "Привет! Это проверка Edge TTS онлайн.",
-  piper: "Привет! Это проверка Piper офлайн.",
-  elevenlabs: "Привет! Это проверка ElevenLabs."
-};
+const TTS_TEST_PHRASE_RU = "Привет, мир.";
+const TTS_TEST_PHRASE_EN = "Hello, world.";
+
+function describeTtsVoiceForTest(engine = getTtsEngine(), patch = collectTtsFormPatch()) {
+  const id = normalizeTtsEngine(engine);
+  if (id === "browser") {
+    const voiceId = String(patch.ttsBrowserVoice || nodes.ttsVoice?.value || "").trim();
+    const label = String(nodes.ttsVoice?.selectedOptions?.[0]?.text || voiceId || "по умолчанию").trim();
+    return { label };
+  }
+  if (id === "say") {
+    const voiceId = String(patch.ttsSayVoice || nodes.ttsSayVoice?.value || "").trim();
+    const label = String(nodes.ttsSayVoice?.selectedOptions?.[0]?.text || voiceId || "по умолчанию").trim();
+    return { label };
+  }
+  if (id === "edge") {
+    const voiceId = String(patch.ttsEdgeVoice || nodes.ttsEdgeVoice?.value || "").trim();
+    const label = String(nodes.ttsEdgeVoice?.selectedOptions?.[0]?.text || voiceId || "Edge").trim();
+    return { label };
+  }
+  if (id === "piper") {
+    const model = String(patch.ttsPiperModel || nodes.ttsPiperModel?.value || "").trim();
+    const label = model ? model.split(/[/\\]/).pop() || model : "модель не задана";
+    return { label };
+  }
+  if (id === "elevenlabs") {
+    const voiceId = String(patch.ttsElevenlabsVoiceId || resolveElevenlabsVoiceId() || "").trim();
+    const model = String(patch.ttsElevenlabsModel || nodes.ttsElevenlabsModel?.value || "").trim();
+    const label = voiceId ? `${voiceId.slice(0, 18)}${voiceId.length > 18 ? "…" : ""}` : "Voice ID не задан";
+    return { label: model ? `${label} · ${model}` : label };
+  }
+  return { label: id };
+}
 
 function getTtsTestPhrase(engine = getTtsEngine()) {
-  return TTS_TEST_PHRASES[engine] || TTS_TEST_PHRASES.browser;
+  const id = normalizeTtsEngine(engine);
+  const voice = describeTtsVoiceForTest(id, collectTtsFormPatch());
+  const label = String(voice.label || "").trim();
+  const core = `${TTS_TEST_PHRASE_RU} ${TTS_TEST_PHRASE_EN}`;
+  return label ? `${core} · ${label}` : core;
 }
 
 const PHASE_LABELS = {
@@ -1486,7 +1516,6 @@ const nodes = {
   ttsResumeBtn: document.getElementById("shell-tts-resume"),
   ttsStopBtn: document.getElementById("shell-tts-stop"),
   ttsDownloadBtn: document.getElementById("shell-tts-download"),
-  ttsDownloadPanelBtn: document.getElementById("shell-tts-download-panel"),
   voiceWave: document.getElementById("shell-voice-wave"),
   settingsBtn: document.getElementById("shell-settings-btn"),
   windowSave: document.getElementById("shell-window-save"),
@@ -1734,7 +1763,8 @@ const shellDialog = createShellDialog({
     lastDialogHistoryLoadedAt = Date.now();
     return Array.isArray(data?.messages) ? data.messages : [];
   },
-  getAgentTurnMetrics
+  getAgentTurnMetrics,
+  onSpeakMessage: (item) => speakHistoryMessage(item)
 });
 
 const shellCompactQa = createShellCompactQa({
@@ -2534,20 +2564,12 @@ function updateTtsDownloadUi() {
   const title = hasText
     ? `Скачать аудио озвучки: ${text.slice(0, 160)}${text.length > 160 ? "…" : ""}`
     : "Пока нечего скачивать — сначала «Пробный текст» или ответ агента с озвучкой";
-  const busy = Boolean(
-    nodes.ttsDownloadBtn?.classList.contains("is-busy") ||
-      nodes.ttsDownloadPanelBtn?.classList.contains("is-busy")
-  );
+  const busy = Boolean(nodes.ttsDownloadBtn?.classList.contains("is-busy"));
 
   nodes.ttsDownloadBtn?.classList.remove("hidden");
   if (nodes.ttsDownloadBtn) {
     nodes.ttsDownloadBtn.disabled = !hasText || busy;
     nodes.ttsDownloadBtn.title = title;
-  }
-  if (nodes.ttsDownloadPanelBtn) {
-    nodes.ttsDownloadPanelBtn.disabled = !hasText || busy;
-    nodes.ttsDownloadPanelBtn.title = title;
-    nodes.ttsDownloadPanelBtn.classList.toggle("is-ready", hasText);
   }
 }
 
@@ -2606,10 +2628,9 @@ async function resolveTtsDownloadBlob(text) {
 
 async function downloadLastTtsAudio() {
   const text = String(lastTtsSpoken.text || "").trim();
-  if (!text || (!nodes.ttsDownloadBtn && !nodes.ttsDownloadPanelBtn)) return;
+  if (!text || !nodes.ttsDownloadBtn) return;
 
   nodes.ttsDownloadBtn?.classList.add("is-busy");
-  nodes.ttsDownloadPanelBtn?.classList.add("is-busy");
   updateTtsDownloadUi();
   try {
     const { blob, mimeType } = await resolveTtsDownloadBlob(text);
@@ -2630,7 +2651,6 @@ async function downloadLastTtsAudio() {
     renderPhase("waiting", `Не удалось скачать озвучку: ${error.message}`);
   } finally {
     nodes.ttsDownloadBtn?.classList.remove("is-busy");
-    nodes.ttsDownloadPanelBtn?.classList.remove("is-busy");
     updateTtsDownloadUi();
   }
 }
@@ -3277,7 +3297,7 @@ function finalizeAssistantStream(message) {
   state.assistantStream = null;
   releaseMessagePipeline();
 
-  if (state.settings?.ttsEnabled && shouldPlayReplyTts(message) && !state.messageStopped) {
+  if (state.settings?.ttsEnabled && shouldPlayMessageTts(message) && !state.messageStopped) {
     const parts = spokenParts
       .map((part) => prepareTtsStreamChunk(String(part || "").trim()))
       .filter(Boolean);
@@ -4051,6 +4071,15 @@ function handleAssistantDelta(payload) {
   state.assistantStream.done = done;
   const displayText = rawText;
   shellSession?.queueStreamingRender(displayText, renderStreamingAssistantText);
+  if (
+    !state.messageStopped &&
+    state.settings?.ttsEnabled &&
+    usesStreamingReplyTts() &&
+    shouldPlayReplyTts(payload) &&
+    String(rawText || "").trim()
+  ) {
+    queueStreamSpeech(rawText, { flush: done });
+  }
   applyAssistantActivity(payload);
   if (!done && shouldShowTypingActivity(rawText, displayText) && !agentActivityTypingAdded) {
     agentActivityTypingAdded = true;
@@ -7585,6 +7614,36 @@ function buildSpeechPayload(body, message = {}) {
   return parts.length ? parts.join("\n\n") : "";
 }
 
+async function speakHistoryMessage(item = {}) {
+  const body = String(item?.body || "").trim();
+  if (!body) return;
+  if (!isTtsEnabledSetting()) {
+    shellDialog.setError("Озвучка выключена", { hint: "Включите TTS в настройках" });
+    return;
+  }
+  if (isActiveMessageTurn()) {
+    shellDialog.setError("Сначала дождитесь ответа", { hint: "Или нажмите ⏹ / ✕ для отмены" });
+    return;
+  }
+  void unlockShellAudio();
+  bumpTtsPlayback();
+  stopBrowserTts({ notifyServer: true, resetPhase: false, broadcast: true });
+  const message =
+    item?.role === "agent"
+      ? { body, spokenText: item.spokenText, spokenParts: item.spokenParts }
+      : { body };
+  const parts = buildSpeechParts(body, message);
+  if (!parts.length) {
+    shellDialog.setError("Нечего озвучивать", {
+      hint: hasTtsPrompt()
+        ? "Нет spoken-текста до маркера {{shell:voice-end}}"
+        : "Пустой текст сообщения"
+    });
+    return;
+  }
+  await speakTextParts(parts, { sourceMessage: message });
+}
+
 function createSpeechUtterance(text) {
   const settings = { ...(state.settings || {}), ...collectTtsFormPatch() };
   const utterance = new SpeechSynthesisUtterance(text);
@@ -10708,10 +10767,8 @@ function bindUi() {
     event.stopPropagation();
     bumpTtsPlayback();
     stopBrowserTts({ bumpPlayback: false });
-    releaseMessagePipeline();
   });
   nodes.ttsDownloadBtn?.addEventListener("click", () => void downloadLastTtsAudio());
-  nodes.ttsDownloadPanelBtn?.addEventListener("click", () => void downloadLastTtsAudio());
 
   nodes.ttsPauseBtn?.addEventListener("click", (event) => {
     event.stopPropagation();

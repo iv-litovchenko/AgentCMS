@@ -65,17 +65,9 @@ export function ttsEngineLabel(engine = "browser") {
   return SHELL_TTS_ENGINE_SHORT_LABELS[normalizeTtsEngine(engine)] || String(engine || "").trim();
 }
 
-export function formatTtsEngineStatusEmoji({ available = true, configured = true } = {}) {
-  if (available === false) return "🔴";
-  if (configured === false) return "⚪";
-  return "🟢";
-}
-
-export function formatTtsEngineSelectLabel(engine, meta = {}) {
+export function formatTtsEngineSelectLabel(engine, _meta = {}) {
   const id = normalizeTtsEngine(engine);
-  const label = SHELL_TTS_ENGINE_LABELS[id] || id;
-  const emoji = formatTtsEngineStatusEmoji(meta);
-  return `${emoji} ${label}`;
+  return SHELL_TTS_ENGINE_LABELS[id] || id;
 }
 
 export function formatTtsEngineSelectTitle(engine, meta = {}) {

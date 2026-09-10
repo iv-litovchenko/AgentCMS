@@ -43,24 +43,24 @@
       }
     },
     "tts": {
-      "enabled": false,
+      "enabled": true,
       "playbackMode": "reading",
-      "engine": "edge",
+      "engine": "browser",
       "prompt": "Сформируй ответ в следующем формате (строго, в таком порядке):\n\n1) Голосовая версия для озвучки — без emoji и markdown, только то, что можно произнести вслух. Не включай секреты, ключи и пароли. Не используй HTML-комментарии <!-- -->.\n\n2) Отдельной строкой маркер:\n\n::: VOICE-END :::\n\n3) Полный текст ответа для экрана (можно markdown, списки, код и любые другие элементы). Без HTML-комментариев <!-- -->.",
       "rate": 1,
       "pitch": 1,
       "includeCaptions": true,
       "engines": {
         "browser": {
-          "lang": "ru-RU",
-          "voice": "Милена"
+          "lang": "en-US",
+          "voice": "Риши"
         },
         "say": {
           "lang": "en-US",
           "voice": "Albert"
         },
         "edge": {
-          "voice": "en-US-JennyNeural"
+          "voice": "ru-RU-SvetlanaNeural"
         },
         "elevenlabs": {
           "model": "eleven_multilingual_v2"
@@ -102,7 +102,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 1
+    "dialogScrollRatio": 0
   },
   "compose": {
     "promptTemplates": [
