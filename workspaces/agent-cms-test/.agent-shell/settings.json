@@ -30,7 +30,7 @@
       "capture": "microphone",
       "globalListen": false,
       "toCompose": false,
-      "responseEnabled": true
+      "responseEnabled": false
     },
     "stt": {
       "lang": "ru-RU",
@@ -102,7 +102,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 1
+    "dialogScrollRatio": 0
   },
   "compose": {
     "promptTemplates": [

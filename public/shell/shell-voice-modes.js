@@ -300,3 +300,13 @@ export function voiceModeMicLabel(mode, { meetingRecording = false } = {}) {
   if (m === "fn_button") return "Shift";
   return "Говорить";
 }
+
+/** Иконка на 🎤 в compose: idle по режиму, ⏹ при записи. */
+export function resolveMicIcon(mode, { recording = false } = {}) {
+  const m = normalizeVoiceInputMode(mode);
+  if (recording) return "⏹";
+  if (m === "fn_button") return "⇧";
+  if (m === "meeting") return "⏺";
+  if (m === "live") return "🎙";
+  return "🎤";
+}

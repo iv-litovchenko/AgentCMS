@@ -233,9 +233,9 @@ export function createShellTapVoice(deps) {
   const isSessionActive = () =>
     Boolean(micTapHeld || deps.state.pttKeyboardHeld || deps.state.micPointerHeld);
 
-  const syncMicUi = (active) => {
+  const syncMicUi = () => {
     deps.state.micTapHeld = micTapHeld;
-    deps.setMicButtonState(active ? "Стоп" : "Говорить", { active });
+    deps.syncMicButtonUi?.({ force: true });
     deps.syncVoiceRecordTimer?.();
   };
 
@@ -247,7 +247,7 @@ export function createShellTapVoice(deps) {
       if (!isSessionActive()) return;
       try {
         deps.recognition.start();
-        syncMicUi(true);
+        syncMicUi();
       } catch {
         if (isSessionActive()) scheduleRecognitionRestart(260);
       }
@@ -261,7 +261,7 @@ export function createShellTapVoice(deps) {
     micTapHeld = false;
     deps.state.micTapHeld = false;
     deps.state.micActive = false;
-    syncMicUi(false);
+    syncMicUi();
     await releaseShellWakeLock(deps.state, "recording");
 
     const text = String(finalText || "").trim();
@@ -283,7 +283,7 @@ export function createShellTapVoice(deps) {
   const bindHandlers = (recognition) => {
     recognition.onstart = () => {
       deps.state.micActive = true;
-      syncMicUi(true);
+      syncMicUi();
     };
 
     recognition.onresult = (event) => {
@@ -311,7 +311,7 @@ export function createShellTapVoice(deps) {
       micTapHeld = false;
       deps.state.micTapHeld = false;
       deps.state.micActive = false;
-      syncMicUi(false);
+      syncMicUi();
       deps.setVoiceSttProcessing?.(false);
       void releaseShellWakeLock(deps.state, "recording");
 
@@ -380,7 +380,7 @@ export function createShellTapVoice(deps) {
 
     prepareSession();
     micStarting = true;
-    syncMicUi(true);
+    syncMicUi();
     deps.renderPhase("listening", "Запись…");
     deps.clearShellError?.();
     void acquireShellWakeLock(deps.state, "recording");
@@ -394,7 +394,7 @@ export function createShellTapVoice(deps) {
         micTapHeld = false;
         deps.state.micTapHeld = false;
         micStarting = false;
-        syncMicUi(false);
+        syncMicUi();
         deps.renderWaitingPhrase?.();
         void releaseShellWakeLock(deps.state, "recording");
         return false;
@@ -412,7 +412,7 @@ export function createShellTapVoice(deps) {
       stopWhenReady = false;
       micTapHeld = false;
       deps.state.micTapHeld = false;
-      syncMicUi(false);
+      syncMicUi();
       deps.setVoiceSttProcessing?.(false);
       void releaseShellWakeLock(deps.state, "recording");
       deps.state.micWarmed = false;
@@ -474,7 +474,7 @@ export function createShellTapVoice(deps) {
     micTapHeld = false;
     deps.state.micTapHeld = false;
     finalText = "";
-    syncMicUi(false);
+    syncMicUi();
     deps.setVoiceSttProcessing?.(false);
     void releaseShellWakeLock(deps.state, "recording");
     if (deps.recognition) {

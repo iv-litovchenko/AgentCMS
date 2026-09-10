@@ -116,6 +116,7 @@ import {
   VOICE_MODE_HINTS,
   voiceModeMicAction,
   voiceModeMicLabel,
+  resolveMicIcon,
   voiceModeRequiresSidecar,
   voiceModeUsesBrowserStt,
   voiceModeUsesSidecarMic
@@ -4798,26 +4799,14 @@ function armMicHoldDocRelease(releaseFn) {
   });
 }
 
-function setMicButtonState(label, { active = false, force = false } = {}) {
-  if (!nodes.micBtn) return;
-  if (!force && !active && isMicPhysicalHold()) return;
-  const prevLabel = nodes.micBtn.getAttribute("aria-label") || "";
-  const prevActive = nodes.micBtn.classList.contains("is-active");
-  if (!force && prevLabel === label && prevActive === active) {
-    refreshComposeMicTitle();
-    return;
-  }
-  const icon =
-    nodes.micBtn.querySelector(".shell-compose-tool-icon") ||
-    nodes.micBtn.querySelector(".shell-compose-mic-icon");
-  if (icon && !isVoiceSttProcessing()) {
-    icon.hidden = false;
-    icon.textContent = active ? "⏹" : "🎤";
-  }
-  nodes.micBtn.setAttribute("aria-label", label);
-  nodes.micBtn.classList.toggle("is-active", active);
-  nodes.micBtn.setAttribute("aria-pressed", active ? "true" : "false");
-  refreshComposeMicTitle();
+function getMicBtnParts() {
+  if (!nodes.micBtn) return { icon: null, spinner: null };
+  return {
+    icon:
+      nodes.micBtn.querySelector(".shell-compose-mic-icon") ||
+      nodes.micBtn.querySelector(".shell-compose-tool-icon"),
+    spinner: nodes.micBtn.querySelector(".shell-compose-mic-spinner")
+  };
 }
 
 function setChatPanel(open) {
@@ -7668,36 +7657,7 @@ function isVoiceSttProcessing() {
 
 function setVoiceSttProcessing(active) {
   state.voiceSttProcessing = Boolean(active);
-  updateVoiceSttProcessingUi();
-}
-
-function updateVoiceSttProcessingUi() {
-  const active = isVoiceSttProcessing();
-  nodes.voiceControl?.classList.toggle("is-stt-processing", active);
-  if (nodes.micBtn) {
-    const icon =
-      nodes.micBtn.querySelector(".shell-compose-mic-icon") ||
-      nodes.micBtn.querySelector(".shell-compose-tool-icon");
-    const spinner = nodes.micBtn.querySelector(".shell-compose-mic-spinner");
-    nodes.micBtn.classList.toggle("is-stt-processing", active);
-    if (icon) icon.hidden = active;
-    if (spinner) {
-      spinner.hidden = !active;
-      spinner.setAttribute("aria-hidden", active ? "false" : "true");
-    }
-    if (active) {
-      nodes.micBtn.disabled = true;
-      nodes.micBtn.setAttribute("aria-busy", "true");
-      nodes.micBtn.setAttribute("aria-label", "Распознаю…");
-      nodes.micBtn.title = "Распознаю…";
-    } else {
-      nodes.micBtn.removeAttribute("aria-busy");
-    }
-  }
-  if (nodes.voiceMode) {
-    nodes.voiceMode.disabled = active || readSttEnabledFromDom() === false;
-  }
-  if (!active) syncMicButtonUi();
+  syncMicButtonUi({ force: true });
 }
 
 function formatVoiceRecordElapsed(ms) {
@@ -7993,32 +7953,86 @@ function micButtonLabel(mode = getVoiceInputMode()) {
 
 function syncMicButtonUi({ force = false } = {}) {
   if (!nodes.micBtn) return;
+  void force;
   const sttOff = readSttEnabledFromDom() === false;
+  const processing = isVoiceSttProcessing();
   const mode = sttOff ? "disabled" : getVoiceInputMode();
   const micVisible = !sttOff;
+  const { icon, spinner } = getMicBtnParts();
+
   nodes.micBtn.hidden = !micVisible;
-  nodes.micBtn.disabled = sttOff || isVoiceSttProcessing();
   nodes.micBtn.classList.toggle("is-voice-locked", sttOff);
-  nodes.micBtn.classList.toggle("is-stt-processing", isVoiceSttProcessing());
   nodes.micBtn.setAttribute("aria-disabled", sttOff ? "true" : "false");
   nodes.micBtn.dataset.voiceAction = micActionForMode(mode);
-  nodes.micBtn.classList.toggle("is-meeting-active", Boolean(state.meetingRecording));
+  nodes.micBtn.dataset.voiceMode = mode;
+  nodes.micBtn.classList.toggle("is-shift-mode", mode === "fn_button");
+  nodes.micBtn.classList.toggle("is-meeting-mode", mode === "meeting");
   nodes.voiceControl?.classList.toggle("has-mic", micVisible);
+  nodes.voiceControl?.classList.toggle("is-stt-processing", processing);
+  if (nodes.voiceMode) {
+    nodes.voiceMode.disabled = sttOff || processing;
+  }
 
   if (sttOff) {
-    setMicButtonState("Голосовой ввод выключен", { active: false, force: true });
+    nodes.micBtn.disabled = true;
+    nodes.micBtn.classList.remove("is-stt-processing", "is-active", "is-meeting-active");
+    nodes.micBtn.removeAttribute("aria-busy");
+    if (icon) {
+      icon.hidden = false;
+      icon.textContent = "🎤";
+    }
+    if (spinner) spinner.hidden = true;
+    nodes.micBtn.setAttribute("aria-label", "Голосовой ввод выключен");
+    nodes.micBtn.title = "Голосовой ввод выключен";
+    nodes.micBtn.setAttribute("aria-pressed", "false");
     updateVoiceRecordTimerUi(false);
     return;
   }
 
+  if (processing) {
+    nodes.micBtn.disabled = true;
+    nodes.micBtn.classList.add("is-stt-processing");
+    nodes.micBtn.classList.remove("is-active", "is-meeting-active");
+    nodes.micBtn.setAttribute("aria-busy", "true");
+    nodes.micBtn.setAttribute("aria-label", "Распознаю…");
+    nodes.micBtn.title = "Распознаю…";
+    nodes.micBtn.setAttribute("aria-pressed", "false");
+    if (icon) icon.hidden = true;
+    if (spinner) {
+      spinner.hidden = false;
+      spinner.setAttribute("aria-hidden", "false");
+    }
+    updateVoiceRecordTimerUi(false);
+    return;
+  }
+
+  nodes.micBtn.disabled = false;
+  nodes.micBtn.classList.remove("is-stt-processing");
+  nodes.micBtn.removeAttribute("aria-busy");
+  if (icon) icon.hidden = false;
+  if (spinner) {
+    spinner.hidden = true;
+    spinner.setAttribute("aria-hidden", "true");
+  }
+
   const recording = isVoiceRecordingActive();
+  const meetingActive = mode === "meeting" && Boolean(state.meetingRecording);
+  nodes.micBtn.classList.toggle("is-meeting-active", meetingActive);
+  nodes.micBtn.classList.toggle("is-active", recording && !meetingActive);
+
+  if (icon) {
+    icon.textContent = resolveMicIcon(mode, { recording });
+  }
+
   const label = micButtonLabel(mode);
-  setMicButtonState(label, { active: recording, force: force || recording });
+  nodes.micBtn.setAttribute("aria-label", label);
+  nodes.micBtn.setAttribute("aria-pressed", recording ? "true" : "false");
+  refreshComposeMicTitle(mode);
   updateVoiceRecordTimerUi(recording);
 }
 
 function refreshComposeMicTitle(mode = getVoiceInputMode()) {
-  if (!nodes.micBtn || isMicPhysicalHold()) return;
+  if (!nodes.micBtn || isMicPhysicalHold() || isVoiceSttProcessing()) return;
   if (readSttEnabledFromDom() === false) {
     nodes.micBtn.title = "Голосовой ввод выключен";
     return;
@@ -9736,7 +9750,7 @@ function setupSpeechRecognition() {
     getShellHttpsUrl,
     warmUpMicrophone,
     showMicPermissionDialog,
-    setMicButtonState,
+    syncMicButtonUi,
     renderPhase,
     renderWaitingPhrase,
     getLivePhrase: () => livePhraseFromStatus(state.shellState, null),
