@@ -52,8 +52,7 @@
       "includeCaptions": true,
       "engines": {
         "browser": {
-          "lang": "ru-RU",
-          "voice": "Милена"
+          "lang": "ru-RU"
         },
         "edge": {
           "voice": "ru-RU-SvetlanaNeural"

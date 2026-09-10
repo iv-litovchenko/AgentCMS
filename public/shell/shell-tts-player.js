@@ -163,17 +163,39 @@ export function createShellTtsPlayer({
 
     return new Promise((resolve) => {
       let settled = false;
-      const maxMs = Math.min(180_000, Math.max(20_000, bytes.length * 8 + 5000));
+      const mobileCap = isIosDevice() ? 45_000 : 180_000;
+      const maxMs = Math.min(mobileCap, Math.max(isIosDevice() ? 12_000 : 20_000, bytes.length * 8 + 5000));
       const maxTimer = setTimeout(() => {
         if (settled) return;
         settled = true;
         cleanupAudio();
         resolve({ ok: false, reason: "audio-playback-timeout" });
       }, maxMs);
+      let lastProgressAt = Date.now();
+      let lastCurrentTime = 0;
+      const stallTimer = window.setInterval(() => {
+        if (settled || !audio) return;
+        if (audio.paused || audio.ended) return;
+        const now = Date.now();
+        if (audio.currentTime > lastCurrentTime + 0.01) {
+          lastCurrentTime = audio.currentTime;
+          lastProgressAt = now;
+          return;
+        }
+        if (now - lastProgressAt > (isIosDevice() ? 3500 : 6000)) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(maxTimer);
+          window.clearInterval(stallTimer);
+          cleanupAudio();
+          resolve({ ok: false, reason: "audio-playback-stall" });
+        }
+      }, 900);
       const finish = (result) => {
         if (settled) return;
         settled = true;
         clearTimeout(maxTimer);
+        window.clearInterval(stallTimer);
         resolve(result);
       };
 

@@ -19,8 +19,8 @@ export function formatTtsErrorHint({ serverReason = "", browserReason = "", useS
     );
   } else if (serverReason === "play-failed" || serverReason === "audio-element-error") {
     parts.push("Выключите беззвучный режим, громкость вверх");
-  } else if (serverReason === "audio-playback-timeout") {
-    parts.push("Воспроизведение зависло — выберите Edge TTS в настройках");
+  } else if (serverReason === "audio-playback-stall" || serverReason === "audio-playback-timeout") {
+    parts.push("Воспроизведение зависло — нажмите ▶ «Сначала» или выберите Edge TTS");
   } else if (serverReason === "audio-load-timeout") {
     parts.push("Аудио не загрузилось — проверьте сеть или выберите Edge TTS");
   } else if (serverReason === "engine-browser" && useServerTts) {

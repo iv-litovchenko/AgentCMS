@@ -291,13 +291,39 @@ function messageContentKey(item) {
   return `${role}:${body}`;
 }
 
+function isPlainDialogMessage(item) {
+  const role = String(item?.role || "").trim();
+  return role === "user" || role === "agent" || role === "error";
+}
+
+/** Match server archive entries to local optimistic bubbles (ignore timestamp). */
+function messageArchiveMatchKey(item) {
+  if (isToolHistoryItem(item)) return toolHistoryKey(item);
+  if (isPlainDialogMessage(item)) return messageContentKey(item);
+  return messageHistoryKey(item) || messageContentKey(item);
+}
+
+function collapseResolvedOptimistic(items) {
+  const confirmed = new Set(
+    (Array.isArray(items) ? items : [])
+      .filter((item) => !item?.optimistic && isPlainDialogMessage(item))
+      .map((item) => messageContentKey(item))
+      .filter(Boolean)
+  );
+  if (!confirmed.size) return items;
+  return items.filter((item) => {
+    if (!item?.optimistic || !isPlainDialogMessage(item)) return true;
+    return !confirmed.has(messageContentKey(item));
+  });
+}
+
 function mergeDialogHistory(archived, preserved = []) {
   const byToolId = new Map();
   const plainContentKeys = new Set();
   const plain = [];
   for (const item of [...archived, ...preservedOptimisticItems(archived, preserved)]) {
     if (!isToolHistoryItem(item)) {
-      const contentKey = messageContentKey(item);
+      const contentKey = messageHistoryKey(item) || messageContentKey(item);
       if (contentKey) {
         if (plainContentKeys.has(contentKey)) continue;
         plainContentKeys.add(contentKey);
@@ -320,13 +346,13 @@ function mergeDialogHistory(archived, preserved = []) {
       ...finalizeStaleRunningTools([...byToolId.values()])
     ]).sort((left, right) => (Number(left.at) || 0) - (Number(right.at) || 0))
   );
-  return withReplyDurations(merged.slice(-MAX_HISTORY));
+  return withReplyDurations(collapseResolvedOptimistic(merged).slice(-MAX_HISTORY));
 }
 
 function preservedOptimisticItems(archived, preserved = []) {
   const archivedMessageKeys = new Set(
     (Array.isArray(archived) ? archived : [])
-      .map((item) => messageHistoryKey(item) || messageContentKey(item))
+      .map((item) => messageArchiveMatchKey(item))
       .filter(Boolean)
   );
   const archivedToolKeys = new Set(
@@ -339,7 +365,7 @@ function preservedOptimisticItems(archived, preserved = []) {
       if (!isMeaningfulToolItem(item)) return false;
       return !archivedToolKeys.has(toolHistoryKey(item));
     }
-    const key = messageHistoryKey(item) || messageContentKey(item);
+    const key = item?.optimistic ? messageContentKey(item) : messageArchiveMatchKey(item);
     if (!key) return true;
     return !archivedMessageKeys.has(key);
   });
@@ -1131,6 +1157,7 @@ export function createShellDialog(options = {}) {
       role,
       body: text,
       at,
+      optimistic: role === "user" || role === "agent",
       anchorId: buildMessageAnchorId({ role, body: text, at }, history.length),
       label: historyRoleLabel({ role })
     };

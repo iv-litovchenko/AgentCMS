@@ -643,6 +643,11 @@ const outboundQueue = [];
 /** @type {(() => void) | null} */
 let messageTurnDone = null;
 let lastQueueProcessingId = "";
+let streamTtsChunksPlayed = 0;
+/** @type {Record<string, unknown> | null} */
+let pendingQueueProcessing = null;
+/** @type {{ items?: unknown[]; processing?: Record<string, unknown> } | null} */
+let lastKnownServerQueue = null;
 let messageQueueExpanded = false;
 
 const state = {
@@ -1017,6 +1022,10 @@ function shouldPlayReplyTts(meta = {}) {
   const target = String(meta.ttsClientId || "").trim();
 
   if (matchesTtsClientId(pending) || matchesTtsClientId(target)) {
+    ttsTabCoordinator?.claimLeader({ force: true });
+    return true;
+  }
+  if (pending && isLocalMessagePipelineActive()) {
     ttsTabCoordinator?.claimLeader({ force: true });
     return true;
   }
@@ -2728,6 +2737,12 @@ function clearStreamTtsWatchdog() {
   streamTtsWatchdog = 0;
 }
 
+function clearReplyTtsWatchdog() {
+  if (!replyTtsWatchdog) return;
+  clearTimeout(replyTtsWatchdog);
+  replyTtsWatchdog = 0;
+}
+
 function armStreamTtsWatchdog() {
   clearStreamTtsWatchdog();
   streamTtsWatchdog = window.setTimeout(() => {
@@ -2737,7 +2752,29 @@ function armStreamTtsWatchdog() {
   }, STREAM_TTS_STALE_MS);
 }
 
+function armReplyTtsWatchdog() {
+  clearReplyTtsWatchdog();
+  replyTtsWatchdog = window.setTimeout(() => {
+    replyTtsWatchdog = 0;
+    if (!isTtsPlaybackActive()) return;
+    shellLog("tts", "reply watchdog — сброс зависшей озвучки");
+    abortAllTtsPlayback({ reason: "audio-playback-timeout", notify: true });
+  }, REPLY_TTS_STALE_MS);
+}
+
+function rememberPendingReplyForTtsReplay() {
+  const fromStream = String(state.assistantStream?.spokenText || state.assistantStream?.text || "").trim();
+  const fromDialog = String(shellDialog.getLastReplyRaw?.() || "").trim();
+  const text = fromStream || fromDialog || String(lastTtsSpoken.text || "").trim();
+  if (text) rememberLastTtsSpoken(text);
+}
+
 function maybeResetStaleSpeakingPhase() {
+  const synth = getSpeechSynth();
+  if (synth && (synth.speaking || synth.pending) && !isTtsAudioOutputActive() && !state.streamTtsActive) {
+    synth.cancel();
+    state.speaking = false;
+  }
   if (state.shellState?.phase !== "speaking") return;
   if (isTtsAudioOutputActive() || isStreamTtsUiBusy()) return;
   state.shellState = { ...(state.shellState || {}), phase: "waiting", phrase: HERO_IDLE_PHRASE };
@@ -2898,8 +2935,14 @@ function isTtsPlaybackActive() {
   return false;
 }
 
-function abortStreamTtsPlayback({ reason = "", notify = true } = {}) {
+function isTtsSupersededReason(reason = "") {
+  const value = String(reason || "").trim().toLowerCase();
+  return value === "cancelled" || value === "superseded";
+}
+
+function abortAllTtsPlayback({ reason = "", notify = true } = {}) {
   clearStreamTtsWatchdog();
+  clearReplyTtsWatchdog();
   state.streamTtsQueue = [];
   state.streamTtsVoiceEnded = true;
   if (queueStreamSpeech._timer) {
@@ -2912,12 +2955,21 @@ function abortStreamTtsPlayback({ reason = "", notify = true } = {}) {
   if (synth) synth.cancel();
   state.streamTtsActive = false;
   state.speaking = false;
-  if (notify && reason) {
+  state.ttsPaused = false;
+  rememberPendingReplyForTtsReplay();
+  if (notify && reason && !isTtsSupersededReason(reason)) {
     const mappedReason = reason === "blocked" ? "play-not-allowed" : reason;
     const { title, hint } = shellTtsFailureMessage(mappedReason, "", getTtsEngine() !== "browser");
     shellDialog.setError(title, { hint });
+  } else if (isTtsSupersededReason(reason) && isTtsActuallyPlaying()) {
+    shellDialog.clearError();
   }
   resetTtsUiAfterPlayback({ patchServer: !isShellAgentWorkActive() });
+  updateTtsControlsUi("waiting");
+}
+
+function abortStreamTtsPlayback(options = {}) {
+  abortAllTtsPlayback(options);
 }
 
 function waitWhileTtsPaused() {
@@ -3183,7 +3235,11 @@ function shouldSkipAssistantSpeech(message) {
 }
 
 function usesStreamingReplyTts() {
-  return !isReadingTtsMode();
+  return !isReadingTtsMode() && getTtsEngine() !== "browser";
+}
+
+function isTtsActuallyPlaying() {
+  return isTtsAudioOutputActive();
 }
 
 function shouldPlayMessageTts(message = {}) {
@@ -3484,6 +3540,7 @@ function beginAssistantStream({ streamId } = {}) {
   state.streamTtsCursor = 0;
   state.streamTtsQueue = [];
   state.streamTtsVoiceEnded = false;
+  streamTtsChunksPlayed = 0;
   if (queueStreamSpeech._timer) {
     clearTimeout(queueStreamSpeech._timer);
     queueStreamSpeech._timer = 0;
@@ -3627,9 +3684,6 @@ async function speakStreamChunk(text, prepared = null) {
   const payload = String(text || "").trim();
   if (!payload || !canPlayTts()) return { ok: false, reason: "blocked" };
 
-  if (isIosDevice() && !isShellAudioGestureFresh()) {
-    return { ok: false, reason: "play-not-allowed" };
-  }
   markShellAudioGesture();
   await unlockShellAudio({ markGesture: true });
 
@@ -3644,11 +3698,15 @@ async function speakStreamChunk(text, prepared = null) {
           refreshHeroTtsVisuals();
         }
       });
-      if (result?.ok) shellDialog.clearError();
+      if (result?.ok) {
+        shellDialog.clearError();
+        streamTtsChunksPlayed += 1;
+      }
     } else {
       await playTtsPayload(payload, { allowBrowserFallback: false, streamChunk: true });
       result = { ok: true };
       shellDialog.clearError();
+      streamTtsChunksPlayed += 1;
     }
   } catch (error) {
     result = { ok: false, reason: String(error?.message || "play-failed") };
@@ -3685,6 +3743,8 @@ async function drainStreamTtsQueue() {
         prepared = null;
         if (!played?.ok) {
           const reason = String(played?.reason || "play-failed");
+          if (isTtsSupersededReason(reason)) break;
+          if (reason === "play-not-allowed" || reason === "engine-browser" || reason === "blocked") break;
           abortStreamTtsPlayback({ reason, notify: true });
           break;
         }
@@ -3745,7 +3805,12 @@ function finalizeAssistantStream(message) {
   state.assistantStream = null;
   releaseMessagePipeline();
 
-  if (state.settings?.ttsEnabled && shouldPlayMessageTts(message) && !state.messageStopped) {
+  if (
+    state.settings?.ttsEnabled &&
+    shouldPlayReplyTts(message) &&
+    !state.messageStopped &&
+    !shouldSkipAssistantSpeech(message)
+  ) {
     const parts = spokenParts
       .map((part) => prepareTtsStreamChunk(String(part || "").trim()))
       .filter(Boolean);
@@ -3755,11 +3820,19 @@ function finalizeAssistantStream(message) {
     }
     if (parts.length) {
       lastSpokenBody = parts.join("\0");
-      shellSession?.markReplySpoken({ ...message, body, streamId });
-      void speakTextParts(parts, {
-        ttsClientId: message.ttsClientId,
-        sourceMessage: { ...message, body, streamId }
-      });
+      const sourceMessage = { ...message, body, streamId };
+      if (usesStreamingReplyTts()) {
+        void finalizeStreamReplyTts({
+          sourceMessage,
+          spokenText: parts.join("\n\n"),
+          parts
+        });
+      } else if (shouldPlayMessageTts(message)) {
+        void speakTextParts(parts, {
+          ttsClientId: message.ttsClientId,
+          sourceMessage
+        });
+      }
     }
   }
   return true;
@@ -3767,8 +3840,10 @@ function finalizeAssistantStream(message) {
 
 let messagePipelineWatchdog = 0;
 let streamTtsWatchdog = 0;
+let replyTtsWatchdog = 0;
 const STREAM_TTS_STALE_MS = 70_000;
 const STREAM_TTS_SYNTH_TIMEOUT_MS = 40_000;
+const REPLY_TTS_STALE_MS = 55_000;
 const turnMetrics = { sentAt: 0, ttftMs: 0 };
 
 function beginTurnMetrics() {
@@ -3820,9 +3895,60 @@ function disarmMessagePipelineWatchdog() {
   messagePipelineWatchdog = 0;
 }
 
-function releaseMessagePipeline() {
+function flushPendingQueueTurn() {
+  if (!pendingQueueProcessing) return false;
+  const processing = pendingQueueProcessing;
+  pendingQueueProcessing = null;
+  const id = String(processing?.id || "").trim();
+  if (!id || id === lastQueueProcessingId) return false;
+  lastQueueProcessingId = id;
+  beginQueuedTurnStream(processing);
+  void shellDialog.refreshHistory?.().then(() => {
+    shellDialog.syncLiveReplySlot?.();
+    syncCompactQa();
+  });
+  return true;
+}
+
+function resumeServerQueueTurn() {
+  const processing = lastKnownServerQueue?.processing;
+  if (!processing) return false;
+  const id = String(processing?.id || "").trim();
+  if (!id || id === lastQueueProcessingId) return false;
+  lastQueueProcessingId = id;
+  beginQueuedTurnStream(processing);
+  void shellDialog.refreshHistory?.().then(() => {
+    shellDialog.syncLiveReplySlot?.();
+    syncCompactQa();
+  });
+  return true;
+}
+
+function releaseMessagePipeline({ force = false } = {}) {
   disarmMessagePipelineWatchdog();
   stopPipelineStatusPoll();
+
+  if (!force) {
+    if (flushPendingQueueTurn()) {
+      armMessagePipelineWatchdog();
+      return;
+    }
+    const streamActive = Boolean(state.assistantStream && !state.assistantStream.finalized);
+    if (!streamActive && lastKnownServerQueue?.processing) {
+      if (resumeServerQueueTurn()) {
+        armMessagePipelineWatchdog();
+        return;
+      }
+      const proc = lastKnownServerQueue.processing;
+      state.messagePipelineBusy = true;
+      state.processingMessage = String(proc.text || proc.body || "").trim();
+      renderMessageQueue();
+      updateSendButtonLabel();
+      return;
+    }
+  }
+
+  pendingQueueProcessing = null;
   state.messagePipelineBusy = false;
   state.processingMessage = "";
   state.activeAgentStreamId = "";
@@ -3841,7 +3967,9 @@ async function reloadShellDialogContext({ restoreScroll = false } = {}) {
   const contextKey = getDialogContextKey();
   shellLog("dialog", "reload", contextKey);
   lastQueueProcessingId = "";
-  releaseMessagePipeline();
+  pendingQueueProcessing = null;
+  lastKnownServerQueue = null;
+  releaseMessagePipeline({ force: true });
   state.assistantStream = null;
   clearShellReply();
   shellDialog.clearLiveStreamTools?.();
@@ -3881,8 +4009,17 @@ function syncQueueDialogTurn(queue) {
   const processing = queue?.processing;
   const id = String(processing?.id || "").trim();
   if (!id || id === lastQueueProcessingId) return;
-  lastQueueProcessingId = id;
   const streamActive = Boolean(state.assistantStream && !state.assistantStream.finalized);
+  if (streamActive && lastQueueProcessingId) {
+    pendingQueueProcessing = processing;
+    void shellDialog.refreshHistory?.().then(() => {
+      shellDialog.syncLiveReplySlot?.();
+      syncCompactQa();
+    });
+    return;
+  }
+  lastQueueProcessingId = id;
+  pendingQueueProcessing = null;
   if (!streamActive) beginQueuedTurnStream(processing);
   void shellDialog.refreshHistory?.().then(() => {
     shellDialog.syncLiveReplySlot?.();
@@ -3892,6 +4029,7 @@ function syncQueueDialogTurn(queue) {
 
 function applyServerQueue(queue) {
   if (!queue || typeof queue !== "object") return;
+  lastKnownServerQueue = queue;
   const prevProcessingId = lastQueueProcessingId;
   outboundQueue.length = 0;
   for (const item of Array.isArray(queue.items) ? queue.items : []) {
@@ -3909,6 +4047,7 @@ function applyServerQueue(queue) {
     if (!state.messagePipelineBusy) state.messagePipelineBusy = true;
     syncQueueDialogTurn(queue);
   } else {
+    pendingQueueProcessing = null;
     state.processingMessage = "";
     if (!state.assistantStream || state.assistantStream.finalized) {
       lastQueueProcessingId = "";
@@ -4028,6 +4167,7 @@ function recoverStuckMessagePipeline(reason = "") {
 
   // Сервер уже waiting, а клиентский pipeline ещё busy — типично после reload или пропущенных SSE.
   if (serverPhase === "waiting" || serverPhase === "disabled") {
+    if (lastKnownServerQueue?.processing || pendingQueueProcessing) return false;
     shellLog("message", `Pipeline reset${reason ? `: ${reason}` : ""}`);
     state.messageStopped = false;
     releaseMessagePipeline();
@@ -4411,6 +4551,42 @@ function syncWaitingUiAfterPlayback() {
   resetTtsUiAfterPlayback({ patchServer: !isShellAgentWorkActive() });
 }
 
+async function finalizeStreamReplyTts({ sourceMessage = null, spokenText = "", parts = [] } = {}) {
+  const partsList = (Array.isArray(parts) ? parts : [spokenText])
+    .map((part) => String(part || "").trim())
+    .filter(Boolean);
+  const speech = partsList.join("\n\n");
+  let playedViaStream = false;
+
+  try {
+    if (state.streamTtsQueue.length || state.streamTtsActive) {
+      await drainStreamTtsQueue();
+    }
+    playedViaStream = streamTtsChunksPlayed > 0;
+    if (speech) rememberLastTtsSpoken(speech);
+
+    if (!playedViaStream && partsList.length && shouldPlayReplyTts(sourceMessage || {})) {
+      await speakTextParts(partsList, {
+        ttsClientId: sourceMessage?.ttsClientId,
+        sourceMessage
+      });
+      return;
+    }
+
+    if (sourceMessage && playedViaStream) shellSession?.markReplySpoken(sourceMessage);
+    state.pendingReplyTtsClientId = "";
+    if (playedViaStream) shellDialog.clearError();
+  } finally {
+    state.speaking = false;
+    state.ttsPaused = false;
+    if (!isTtsAudioOutputActive() && !state.streamTtsQueue.length) {
+      resetTtsUiAfterPlayback({ patchServer: !isShellAgentWorkActive() });
+    } else {
+      updateTtsControlsUi("speaking");
+    }
+  }
+}
+
 async function finishStreamTtsWhenIdle({ sourceMessage = null, spokenText = "" } = {}) {
   try {
     await drainStreamTtsQueue();
@@ -4528,6 +4704,7 @@ function handleAssistantDelta(payload) {
     shouldPlayReplyTts(payload) &&
     String(rawText || "").trim()
   ) {
+    markShellAudioGesture({ extendMs: isIosDevice() ? 300_000 : 120_000 });
     queueStreamSpeech(rawText, { flush: done });
   }
   applyAssistantActivity(payload);
@@ -7887,7 +8064,7 @@ async function sendMessageDirect(
   shellProactive?.bumpActivity();
   markShellAudioGesture();
   void unlockShellAudio({ markGesture: true });
-  if (showInDialog) {
+  if (showInDialog && !alreadyBusy) {
     shellDialog.onUserMessage?.(text);
   }
   if (!alreadyBusy) {
@@ -9497,9 +9674,7 @@ function resolveReplyTtsEngines() {
 async function speakReplyAudio(text) {
   const payload = String(text || "").trim();
   if (!payload) throw new Error("empty-tts-payload");
-  if (isIosDevice() && !isShellAudioGestureFresh()) {
-    throw new Error("play-not-allowed");
-  }
+  rememberLastTtsSpoken(payload);
   markShellAudioGesture();
   await unlockShellAudio({ markGesture: true });
 
@@ -9545,12 +9720,25 @@ async function speakReplyAudio(text) {
           transport: result.mimeType ? `сервер · ${result.mimeType}` : "сервер"
         };
       }
+      if (isTtsSupersededReason(result?.reason) && isTtsActuallyPlaying()) {
+        shellDialog.clearError();
+        return {
+          engine: result?.engine || engine,
+          voice: result?.voice || "",
+          transport: "superseded"
+        };
+      }
       if (result?.reason) serverReason = String(result.reason);
     }
   }
 
   const configuredEngine = normalizeTtsEngine(getTtsEngine() || state.settings?.ttsEngine || "browser");
   const allowBrowserFallback = configuredEngine === "browser";
+
+  if (isTtsSupersededReason(serverReason) && isTtsActuallyPlaying()) {
+    shellDialog.clearError();
+    return { engine: configuredEngine, transport: "superseded" };
+  }
 
   if (allowBrowserFallback && getSpeechSynth()) {
     renderPhase("speaking", "Озвучиваю · Web Speech…", state.shellState?.metrics || "");
@@ -9855,10 +10043,13 @@ async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {})
     return;
   }
 
+  const spokenText = list.join("\n\n");
+  rememberLastTtsSpoken(spokenText);
   lastTtsChunkRecording = null;
   const seq = bumpTtsPlayback();
   stopBrowserTts({ notifyServer: false, resetPhase: false, broadcast: false, bumpPlayback: false });
   state.ttsPaused = false;
+  armReplyTtsWatchdog();
 
   try {
     for (let i = 0; i < list.length; i++) {
@@ -9871,12 +10062,25 @@ async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {})
       if (!isTtsPlaybackCurrent(seq)) break;
     }
   } catch (error) {
+    clearReplyTtsWatchdog();
     if (!isTtsPlaybackCurrent(seq)) return;
     const reason = String(error?.message || "Ошибка озвучки");
+    if (isTtsSupersededReason(reason) && isTtsActuallyPlaying()) {
+      shellDialog.clearError();
+      return;
+    }
+    const blocked = /play-not-allowed|notallowed|interact/i.test(reason);
     const { title, hint } = shellTtsFailureMessage(reason, "", getTtsEngine() !== "browser");
-    shellDialog.setError(title, { hint: hint || formatTtsErrorHint({ serverReason: reason }) });
+    shellDialog.setError(title, {
+      hint: blocked
+        ? `${hint} · Нажмите ▶ «Сначала» над полем ввода`
+        : hint || formatTtsErrorHint({ serverReason: reason })
+    });
     resetTtsUiAfterPlayback({ patchServer: true });
+    updateTtsControlsUi("waiting");
     return;
+  } finally {
+    clearReplyTtsWatchdog();
   }
 
   if (!isTtsPlaybackCurrent(seq)) {
@@ -9884,7 +10088,7 @@ async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {})
     return;
   }
 
-  rememberLastTtsSpoken(list.join("\n\n"));
+  rememberLastTtsSpoken(spokenText);
   if (sourceMessage) shellSession?.markReplySpoken(sourceMessage);
   state.pendingReplyTtsClientId = "";
   resetTtsUiAfterPlayback({ patchServer: true });
