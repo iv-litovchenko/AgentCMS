@@ -688,17 +688,33 @@ export function createShellDialog(options = {}) {
     const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
     if (maxScroll <= 1) return;
     const normalized = Math.min(1, Math.max(0, Number(ratio) || 0));
+    applyScrollTop(normalized * maxScroll);
+  }
+
+  function applyScrollTop(scrollTop) {
+    const scrollEl = nodes.scroll;
+    if (!scrollEl) return;
+    const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
+    if (maxScroll <= 1) return;
+    const target = Math.min(Math.max(0, Number(scrollTop) || 0), maxScroll);
     suppressScrollPersist = true;
     scrollRestoreApplying = true;
     scrollRestoreSuppressUntil = Date.now() + 180;
-    scrollEl.scrollTop = normalized * maxScroll;
+    scrollEl.scrollTop = target;
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         scrollRestoreApplying = false;
         suppressScrollPersist = false;
+        updateScrollProgress();
       });
     });
     updateScrollProgress();
+  }
+
+  function preserveScrollTopAfterLayout(savedScrollTop) {
+    if (savedScrollTop == null || !Number.isFinite(savedScrollTop)) return;
+    applyScrollTop(savedScrollTop);
+    window.requestAnimationFrame(() => applyScrollTop(savedScrollTop));
   }
 
   function scheduleScrollRestore(ratio) {
@@ -823,9 +839,7 @@ export function createShellDialog(options = {}) {
     if (suppressScrollPersist || scrollRestoreApplying || Date.now() < scrollRestoreSuppressUntil) return;
     finishScrollRestoreWatch();
     if (!onScrollPositionChange) return;
-    const ratio = getScrollRatio();
-    onScrollPositionChange(ratio);
-    pendingScrollRestoreRatio = Math.min(1, Math.max(0, Number(ratio) || 0));
+    onScrollPositionChange(getScrollRatio());
   }
 
   function markUserScrollIntent() {
@@ -1459,12 +1473,9 @@ export function createShellDialog(options = {}) {
     if (!nodes.thread) return;
     history = ensureHistoryAnchorIds(normalizeThreadOrder(history));
     const scrollEl = nodes.scroll;
-    const preserveRatio =
-      !stickToBottom &&
-      !scrollRestoreActive &&
-      scrollEl &&
-      scrollEl.scrollHeight - scrollEl.clientHeight > 1
-        ? getScrollRatio()
+    const savedScrollTop =
+      !scrollRestoreActive && scrollEl && scrollEl.scrollHeight - scrollEl.clientHeight > 1
+        ? scrollEl.scrollTop
         : null;
 
     nodes.thread.replaceChildren();
@@ -1481,20 +1492,24 @@ export function createShellDialog(options = {}) {
     updateScrollProgress();
     scheduleShellMermaidTypeset(nodes.thread);
     scheduleShellMermaidTypeset(nodes.lastReply);
+
+    function finishThreadScrollLayout() {
+      if (scrollRestoreActive && pendingScrollRestoreRatio != null) {
+        applyPendingScrollOnce();
+        queueScrollRestoreAfterLayout();
+      } else if (savedScrollTop != null) {
+        preserveScrollTopAfterLayout(savedScrollTop);
+      } else {
+        updateScrollBottomButton();
+      }
+    }
+
+    finishThreadScrollLayout();
     void ensureShellMarkdownReady().then(() => {
       rehydrateShellMarkdownIn(nodes.thread);
       rehydrateShellMarkdownIn(nodes.lastReply);
-      updateScrollBottomButton();
+      finishThreadScrollLayout();
     });
-
-    if (scrollRestoreActive && pendingScrollRestoreRatio != null) {
-      applyPendingScrollOnce();
-      queueScrollRestoreAfterLayout();
-    } else if (preserveRatio != null) {
-      window.requestAnimationFrame(() => applyScrollRatio(preserveRatio));
-    } else {
-      updateScrollBottomButton();
-    }
   }
 
   function renderHistoryUi() {
@@ -1582,6 +1597,7 @@ export function createShellDialog(options = {}) {
 
   function onUserMessage(text) {
     clearError();
+    finishScrollRestoreWatch();
     const raw = String(text || "").trim();
     if (!raw) return;
     lastAskRaw = raw;

@@ -1648,7 +1648,6 @@ function persistDialogScrollRatio(ratio) {
   lastSavedDialogScrollRatio = normalized;
   state.settings = { ...(state.settings || {}), dialogScrollRatio: normalized };
   writeLocalDialogScrollRatio(state.agentId, normalized);
-  shellDialog.scheduleScrollRestore?.(normalized);
   if (dialogScrollSaveTimer) window.clearTimeout(dialogScrollSaveTimer);
   dialogScrollSaveTimer = window.setTimeout(() => {
     dialogScrollSaveTimer = 0;
@@ -3029,7 +3028,6 @@ function setReplyPanelStreaming(active) {
     shellDialog.clearLiveStreamTools?.();
     shellDialog.renderLiveToolStrip?.();
     shellDialog.syncLiveReplySlot?.();
-    shellDialog.tryApplyPendingScrollRestore?.();
   }
   syncCompactQa();
 }
