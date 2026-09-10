@@ -221,10 +221,45 @@ const {
   updateShellQueueItem,
   removeShellQueueItem,
   clearShellMessageQueue,
+  abortProcessingShellQueueItem,
   recoverStaleProcessingQueueItems
 } = require("./shell-message-queue");
 
 const queueDrainJobs = new Map();
+const activeRunAbort = new Map();
+
+function registerActiveRun(agentId) {
+  const id = String(agentId || "").trim();
+  if (!id) return new AbortController();
+  const prev = activeRunAbort.get(id);
+  if (prev) prev.abort();
+  const controller = new AbortController();
+  activeRunAbort.set(id, controller);
+  return controller;
+}
+
+function clearActiveRun(agentId, controller) {
+  const id = String(agentId || "").trim();
+  if (!id) return;
+  if (activeRunAbort.get(id) === controller) activeRunAbort.delete(id);
+}
+
+function abortActiveRun(agentId) {
+  const id = String(agentId || "").trim();
+  const controller = activeRunAbort.get(id);
+  if (!controller) return false;
+  controller.abort();
+  return true;
+}
+
+function isRunCancelledError(error) {
+  const message = String(error?.message || error || "");
+  return (
+    error?.code === "CANCELLED" ||
+    error?.name === "AbortError" ||
+    /abort|cancel/i.test(message)
+  );
+}
 
 function migrateVoiceInputMode(mode) {
   const raw = String(mode || "").trim();
@@ -1476,6 +1511,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     if (shouldPatch) patchStateAsync(agentRoot, agentId, patch);
   };
 
+  const runAbort = registerActiveRun(agentId);
   let reply;
   try {
     reply = await chatWithQwenPaw({
@@ -1485,6 +1521,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
       userId: settings.qwenpawUserId,
       text: outboundText,
       input: qwenInput,
+      signal: runAbort.signal,
       onEvent: ({ text: partialText, activity }) => {
         if (activity) void emitAgentActivity(activity);
         if (String(partialText || "").trim()) void emitAssistantDelta(partialText);
@@ -1493,7 +1530,14 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
   } catch (error) {
     const partial = String(lastEmittedText || "").trim();
     await emitAssistantDelta(partial, { done: true, force: true });
+    if (isRunCancelledError(error) || runAbort.signal.aborted) {
+      const cancelled = new Error("Cancelled");
+      cancelled.code = "CANCELLED";
+      throw cancelled;
+    }
     throw error;
+  } finally {
+    clearActiveRun(agentId, runAbort);
   }
 
   const finalized = finalizeDualReply(reply.text, settings);
@@ -1663,6 +1707,7 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
 
   let reply;
   let persistedCodexSession = null;
+  const runAbort = registerActiveRun(agentId);
   try {
     if (endpoint.transport === RUNTIME_TRANSPORT.cli) {
       const binary = await resolveCliBinary(runtime, settings);
@@ -1701,7 +1746,8 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         onDelta,
         onActivity,
         onPermissionRequest,
-        onUserQuestionRequest
+        onUserQuestionRequest,
+        signal: runAbort.signal
       });
       persistedCodexSession = await maybePersistCodexThreadSessionId(
         agentRoot,
@@ -1730,13 +1776,21 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         model: endpoint.model,
         messages,
         extraHeaders,
-        onDelta
+        onDelta,
+        signal: runAbort.signal
       });
     }
   } catch (error) {
     const partial = String(lastEmittedText || "").trim();
     await emitAssistantDelta(partial, { done: true, force: true });
+    if (isRunCancelledError(error) || runAbort.signal.aborted) {
+      const cancelled = new Error("Cancelled");
+      cancelled.code = "CANCELLED";
+      throw cancelled;
+    }
     throw error;
+  } finally {
+    clearActiveRun(agentId, runAbort);
   }
 
   const finalized = finalizeDualReply(reply.text, settings);
@@ -1880,13 +1934,16 @@ async function drainShellMessageQueue(deps, agentRoot, agentId) {
       await processShellQueueItem(deps, agentRoot, agentId, item, scope);
       await finishShellQueueItem(scope, item.id);
     } catch (error) {
+      const cancelled = isRunCancelledError(error);
       const message = String(error?.message || error);
-      await finishShellQueueItem(scope, item.id, { error: message });
-      await patchState(agentRoot, agentId, {
-        phase: PHASE_WAITING,
-        phrase: message.slice(0, 200)
-      });
-      emitShellEvent(agentId, "message_error", { message, queueId: item.id });
+      if (!cancelled) {
+        await finishShellQueueItem(scope, item.id, { error: message });
+        await patchState(agentRoot, agentId, {
+          phase: PHASE_WAITING,
+          phrase: message.slice(0, 200)
+        });
+        emitShellEvent(agentId, "message_error", { message, queueId: item.id });
+      }
     }
 
     emitShellQueueUpdate(agentId, scope);
@@ -1936,6 +1993,34 @@ async function resetShellMessageQueue(agentRoot, agentId, options = {}, settings
   const result = await clearShellMessageQueue(scope, options);
   emitShellQueueUpdate(agentId, scope);
   return result;
+}
+
+async function cancelShellProcessing(deps, agentRoot, agentId, { reason = "Остановлено" } = {}) {
+  const settings = await readSettings(agentRoot);
+  const scope = await resolveQueueScope(agentRoot, settings);
+  const note = String(reason || "Остановлено").trim() || "Остановлено";
+
+  cancelPendingInteractiveRequests(agentId, note);
+  const abortedRun = abortActiveRun(agentId);
+  await clearShellMessageQueue(scope, { pendingOnly: true });
+  const processing = await abortProcessingShellQueueItem(scope);
+
+  emitShellQueueUpdate(agentId, scope);
+
+  await patchState(agentRoot, agentId, {
+    phase: PHASE_WAITING,
+    phrase: "",
+    metrics: ""
+  });
+  emitShellEvent(agentId, "assistant_delta", {
+    streamId: `cancel-${Date.now()}`,
+    text: "",
+    done: true
+  });
+  emitShellEvent(agentId, "run_cancelled", { reason: note, queueId: processing?.id || undefined });
+
+  const queue = await listShellMessageQueue(scope);
+  return { ok: true, aborted: abortedRun || Boolean(processing), queue };
 }
 
 async function findLatestAgentMessage(deps, settings) {
@@ -2483,5 +2568,6 @@ module.exports = {
   patchShellQueueItem,
   deleteShellQueueItem,
   resetShellMessageQueue,
+  cancelShellProcessing,
   scheduleShellMessageQueueDrain
 };

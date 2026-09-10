@@ -3059,7 +3059,6 @@ function beginAssistantStream({ streamId } = {}) {
   setReplyPanelStreaming(true);
   shellDialog.syncLiveReplySlot?.();
   shellDialog.renderLiveToolStrip?.();
-  shellDialog.stickToBottomAndScroll?.({ smooth: true });
   if (nodes.lastReplyText) {
     nodes.lastReplyText.classList.remove("shell-md");
     nodes.lastReplyText.textContent = "…";
@@ -3081,7 +3080,6 @@ function renderStreamingAssistantText(text) {
   markTurnFirstToken();
   renderShellReplyBody(nodes.lastReplyText, value);
   stopStreamWaitTimer();
-  shellDialog.maintainStickScroll?.({ smooth: false });
   shellDialog.onReplyRendered(value);
   syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
     updateLabel: false,
@@ -3271,7 +3269,6 @@ function finalizeAssistantStream(message) {
   shellDialog.onAgentReply(body);
   void shellDialog.refreshHistory?.().then(() => {
     shellDialog.syncLiveReplySlot?.();
-    shellDialog.maintainStickScroll?.({ smooth: true });
   });
   finalizeAgentActivitySteps();
   shellSession?.markReplyDisplayed({ ...message, body, streamId });
@@ -3386,9 +3383,6 @@ async function reloadShellDialogContext({ restoreScroll = false } = {}) {
   }
   await refreshOutboundQueueFromServer();
   await shellDialog.refreshHistory?.({ replace: true, restoreScroll });
-  if (!restoreScroll) {
-    shellDialog.stickToBottomAndScroll?.({ smooth: false });
-  }
   syncCompactQa();
 }
 
@@ -3417,7 +3411,6 @@ function syncQueueDialogTurn(queue) {
   if (!streamActive) beginQueuedTurnStream(processing);
   void shellDialog.refreshHistory?.().then(() => {
     shellDialog.syncLiveReplySlot?.();
-    shellDialog.stickToBottomAndScroll?.({ smooth: true });
     syncCompactQa();
   });
 }
@@ -3639,7 +3632,7 @@ function updateSendButtonLabel() {
       state.speaking
   );
   if (nodes.sendStopBtn) {
-    nodes.sendStopBtn.disabled = !messagingReady || !stopActive;
+    nodes.sendStopBtn.disabled = !stopActive;
     if (state.speaking || state.streamTtsActive || state.streamTtsQueue.length) {
       nodes.sendStopBtn.title = "Остановить озвучку";
       nodes.sendStopBtn.setAttribute("aria-label", "Остановить озвучку");
@@ -3673,7 +3666,6 @@ async function stopActiveMessage() {
       state.speaking
   );
   if (!stopActive && !heroCancelActive) return;
-  if (nodes.sendStopBtn?.disabled && nodes.heroCancelSend?.disabled) return;
   const stoppingSpeech = Boolean(state.speaking || state.streamTtsActive || state.streamTtsQueue.length);
   const stoppingGeneration = Boolean(
     state.messagePipelineBusy ||
@@ -3685,12 +3677,23 @@ async function stopActiveMessage() {
   shellSession?.resetStreamRenderState();
   messageSendAbortController?.abort();
   messageSendAbortController = null;
-  void apiFetch("/api/shell/queue", {
-    method: "DELETE",
-    body: JSON.stringify({ pendingOnly: true })
+  shellToolPermission?.dismissAll?.();
+  shellUserQuestion?.dismissAll?.();
+  void apiFetch("/api/shell/cancel", {
+    method: "POST",
+    body: JSON.stringify({ reason: "Остановлено" })
   })
-    .then((data) => applyServerQueue(data?.queue))
-    .catch(() => {});
+    .then((data) => {
+      if (data?.queue) applyServerQueue(data.queue);
+    })
+    .catch(() => {
+      void apiFetch("/api/shell/queue", {
+        method: "DELETE",
+        body: JSON.stringify({ pendingOnly: true })
+      })
+        .then((data) => applyServerQueue(data?.queue))
+        .catch(() => {});
+    });
   state.queueEditingId = "";
   state.processingMessage = "";
   if (state.assistantStream && !state.assistantStream.finalized) {
@@ -7432,7 +7435,6 @@ async function sendMessageDirect(
   shellPresenceController?.ping({ interact: true });
   renderMessageQueue();
   updateSendButtonLabel();
-  if (showInDialog) shellDialog.stickToBottomAndScroll?.({ smooth: true });
   const target = normalizeMessageRuntime(state.settings?.messageTarget || nodes.messageTarget?.value || "qwenpaw");
   const streamingQwenPaw = usesQwenPawTarget(target);
   messageSendAbortController?.abort();

@@ -235,6 +235,16 @@ async function clearShellMessageQueue(scope, { pendingOnly = true } = {}) {
   });
 }
 
+async function abortProcessingShellQueueItem(scope) {
+  return withQueueLock(scope, async () => {
+    const all = await listQueueFiles(scope);
+    const processing = all.find((item) => item.status === "processing") || null;
+    if (!processing) return null;
+    await fs.unlink(queueFilePath(scope, processing.id)).catch(() => {});
+    return processing;
+  });
+}
+
 async function recoverStaleProcessingQueueItems(scope, { maxAgeMs = 6 * 60 * 1000 } = {}) {
   return withQueueLock(scope, async () => {
     const all = await listQueueFiles(scope);
@@ -263,6 +273,7 @@ module.exports = {
   updateShellQueueItem,
   removeShellQueueItem,
   clearShellMessageQueue,
+  abortProcessingShellQueueItem,
   recoverStaleProcessingQueueItems,
   serializeQueueItem,
   normalizeQueueScope
