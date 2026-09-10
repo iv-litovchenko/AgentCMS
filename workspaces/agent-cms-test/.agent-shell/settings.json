@@ -30,7 +30,7 @@
       "capture": "microphone",
       "globalListen": false,
       "toCompose": false,
-      "responseEnabled": false
+      "responseEnabled": true
     },
     "stt": {
       "lang": "ru-RU",

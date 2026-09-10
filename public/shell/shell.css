@@ -6084,27 +6084,33 @@ body.shell-agent-locked #shell-message-target:disabled {
   display: none;
 }
 
-.shell-compose-voice-loader {
-  order: 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-}
-
-.shell-compose-voice-loader[hidden] {
-  display: none;
-}
-
-.shell-compose-voice-loader-spinner {
-  width: 14px;
-  height: 14px;
+.shell-compose-voice-loader-spinner,
+.shell-compose-mic-spinner {
+  width: 16px;
+  height: 16px;
   border: 2px solid rgba(148, 163, 184, 0.28);
   border-top-color: rgba(134, 239, 172, 0.95);
   border-radius: 50%;
   animation: shell-voice-stt-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+.shell-compose-mic-spinner[hidden] {
+  display: none;
+}
+
+#shell-mic-btn.is-stt-processing {
+  pointer-events: none;
+  cursor: wait;
+}
+
+#shell-mic-btn.is-stt-processing .shell-compose-mic-icon,
+#shell-mic-btn.is-stt-processing .shell-compose-tool-icon {
+  display: none;
+}
+
+#shell-mic-btn.is-stt-processing .shell-compose-mic-spinner:not([hidden]) {
+  display: block;
 }
 
 @keyframes shell-voice-stt-spin {
@@ -6113,15 +6119,9 @@ body.shell-agent-locked #shell-message-target:disabled {
   }
 }
 
-.shell-compose-voice.is-stt-processing #shell-mic-btn,
 .shell-compose-voice.is-stt-processing #shell-voice-mode {
   opacity: 0.55;
   pointer-events: none;
-}
-
-.shell-compose-voice--compact:has(.shell-compose-voice-loader:not([hidden])) .shell-compose-voice-select,
-.shell-compose-voice--compact:has(.shell-compose-voice-loader:not([hidden])) #shell-voice-mode {
-  order: 3;
 }
 
 .shell-compose-voice--compact:has(.shell-compose-voice-timer:not([hidden])) .shell-compose-voice-select,

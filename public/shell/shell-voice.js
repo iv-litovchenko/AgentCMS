@@ -146,9 +146,58 @@ export function createVoiceConfirmDialog(nodes) {
       return Promise.resolve({ action: "insert", text: initial });
     }
 
+    const dialog = nodes.voiceConfirmDialog;
+
     return new Promise((resolve) => {
+      let settled = false;
+
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        dialog.removeEventListener("close", onDialogClose);
+        dialog.removeEventListener("cancel", onDialogCancel);
+        nodes.voiceConfirmForm?.removeEventListener("submit", onSubmit);
+        nodes.voiceInsert?.removeEventListener("click", onInsert);
+        nodes.voiceSend?.removeEventListener("click", onSend);
+        nodes.voiceCancel?.removeEventListener("click", onCancel);
+        if (dialog.open) dialog.close();
+        resolve(result);
+      };
+
+      const onDialogClose = () => finish(null);
+      const onDialogCancel = (event) => {
+        event.preventDefault();
+        finish(null);
+      };
+
+      const readText = () => String(nodes.voiceConfirmText.value || "").trim();
+
+      const onSubmit = (event) => {
+        event.preventDefault();
+        const value = readText();
+        finish(value ? { action: "send", text: value } : null);
+      };
+      const onInsert = () => {
+        const value = readText();
+        finish(value ? { action: "insert", text: value } : null);
+      };
+      const onSend = () => {
+        const value = readText();
+        finish(value ? { action: "send", text: value } : null);
+      };
+      const onCancel = () => finish(null);
+
+      if (dialog.open) dialog.close();
+
       nodes.voiceConfirmText.value = initial;
-      nodes.voiceConfirmDialog.showModal();
+      dialog.addEventListener("close", onDialogClose);
+      dialog.addEventListener("cancel", onDialogCancel);
+      nodes.voiceConfirmForm?.addEventListener("submit", onSubmit);
+      nodes.voiceInsert?.addEventListener("click", onInsert);
+      nodes.voiceSend?.addEventListener("click", onSend);
+      nodes.voiceCancel?.addEventListener("click", onCancel);
+
+      dialog.showModal();
       window.setTimeout(() => {
         try {
           nodes.voiceConfirmText.focus();
@@ -158,52 +207,6 @@ export function createVoiceConfirmDialog(nodes) {
           // ignore
         }
       }, 40);
-
-      const cleanup = (result) => {
-        nodes.voiceConfirmForm?.removeEventListener("submit", onSubmit);
-        nodes.voiceInsert?.removeEventListener("click", onInsert);
-        nodes.voiceSend?.removeEventListener("click", onSend);
-        nodes.voiceCancel?.removeEventListener("click", onCancel);
-        nodes.voiceRetry?.removeEventListener("click", onRetry);
-        nodes.voiceConfirmDialog.close();
-        resolve(result);
-      };
-
-      const readText = () => String(nodes.voiceConfirmText.value || "").trim();
-
-      const onSubmit = (event) => {
-        event.preventDefault();
-        const value = readText();
-        if (!value) {
-          cleanup(null);
-          return;
-        }
-        cleanup({ action: "send", text: value });
-      };
-      const onInsert = () => {
-        const value = readText();
-        if (!value) {
-          cleanup(null);
-          return;
-        }
-        cleanup({ action: "insert", text: value });
-      };
-      const onSend = () => {
-        const value = readText();
-        if (!value) {
-          cleanup(null);
-          return;
-        }
-        cleanup({ action: "send", text: value });
-      };
-      const onCancel = () => cleanup(null);
-      const onRetry = () => cleanup("__retry__");
-
-      nodes.voiceConfirmForm?.addEventListener("submit", onSubmit);
-      nodes.voiceInsert?.addEventListener("click", onInsert);
-      nodes.voiceSend?.addEventListener("click", onSend);
-      nodes.voiceCancel?.addEventListener("click", onCancel);
-      nodes.voiceRetry?.addEventListener("click", onRetry);
     });
   };
 }
@@ -309,6 +312,7 @@ export function createShellTapVoice(deps) {
       deps.state.micTapHeld = false;
       deps.state.micActive = false;
       syncMicUi(false);
+      deps.setVoiceSttProcessing?.(false);
       void releaseShellWakeLock(deps.state, "recording");
 
       if (errorCode === "not-allowed") {
@@ -409,6 +413,7 @@ export function createShellTapVoice(deps) {
       micTapHeld = false;
       deps.state.micTapHeld = false;
       syncMicUi(false);
+      deps.setVoiceSttProcessing?.(false);
       void releaseShellWakeLock(deps.state, "recording");
       deps.state.micWarmed = false;
 
@@ -470,6 +475,7 @@ export function createShellTapVoice(deps) {
     deps.state.micTapHeld = false;
     finalText = "";
     syncMicUi(false);
+    deps.setVoiceSttProcessing?.(false);
     void releaseShellWakeLock(deps.state, "recording");
     if (deps.recognition) {
       try {

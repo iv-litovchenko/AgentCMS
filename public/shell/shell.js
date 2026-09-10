@@ -101,6 +101,10 @@ import {
   STT_CAPTURE_LABELS,
   STT_CAPTURE_HINTS,
   STT_ENGINE_LABELS,
+  STT_LANG_AUTO,
+  sttLangSupportsAuto,
+  normalizeSttLang,
+  resolveBrowserRecognitionLang,
   VOICE_INPUT_MODES,
   VOICE_MODE_LABELS,
   VOICE_MODE_COMPACT_LABELS,
@@ -997,6 +1001,12 @@ function readSttEngineFromDom(settings = state.settings) {
   return normalizeSttEngine(settings?.sttEngine, { legacySource: legacy });
 }
 
+function readSttLangFromDom(settings = state.settings) {
+  const engine = readSttEngineFromDom(settings);
+  const raw = nodes.sttLang?.value || settings?.sttLang || "ru-RU";
+  return normalizeSttLang(raw, { engine });
+}
+
 function readSttCaptureFromDom(settings = state.settings) {
   const checked = document.querySelector('input[name="shell-stt-capture"]:checked');
   if (checked?.value) {
@@ -1367,7 +1377,6 @@ const nodes = {
   micBtn: document.getElementById("shell-mic-btn"),
   voiceRecordTimer: document.getElementById("shell-voice-record-timer"),
   voiceControl: document.getElementById("shell-voice-control"),
-  voiceSttLoader: document.getElementById("shell-voice-stt-loader"),
   voiceResponseEnabled: document.getElementById("shell-voice-response-enabled"),
   voiceResponseEnabledToggle: document.getElementById("shell-voice-response-enabled-toggle"),
   voiceResponseEnabledRow: document.getElementById("shell-voice-response-enabled-row"),
@@ -1435,7 +1444,6 @@ const nodes = {
   voiceConfirmDialog: document.getElementById("shell-voice-confirm-dialog"),
   voiceConfirmForm: document.getElementById("shell-voice-confirm-form"),
   voiceConfirmText: document.getElementById("shell-voice-confirm-text"),
-  voiceRetry: document.getElementById("shell-voice-retry"),
   voiceCancel: document.getElementById("shell-voice-cancel"),
   voiceInsert: document.getElementById("shell-voice-insert"),
   voiceSend: document.getElementById("shell-voice-send"),
@@ -4802,7 +4810,10 @@ function setMicButtonState(label, { active = false, force = false } = {}) {
   const icon =
     nodes.micBtn.querySelector(".shell-compose-tool-icon") ||
     nodes.micBtn.querySelector(".shell-compose-mic-icon");
-  if (icon) icon.textContent = active ? "⏹" : "🎤";
+  if (icon && !isVoiceSttProcessing()) {
+    icon.hidden = false;
+    icon.textContent = active ? "⏹" : "🎤";
+  }
   nodes.micBtn.setAttribute("aria-label", label);
   nodes.micBtn.classList.toggle("is-active", active);
   nodes.micBtn.setAttribute("aria-pressed", active ? "true" : "false");
@@ -7631,8 +7642,11 @@ function bindVoiceSettingsExpandToggle(button) {
 }
 
 function applyRecognitionLang(lang) {
-  const code = lang || nodes.sttLang?.value || state.settings?.sttLang || "ru-RU";
+  const code = resolveBrowserRecognitionLang(
+    lang || nodes.sttLang?.value || state.settings?.sttLang || "ru-RU"
+  );
   if (state.recognition) state.recognition.lang = code;
+  if (browserMeetingRecognition) browserMeetingRecognition.lang = code;
 }
 
 let voiceRecordTimerId = 0;
@@ -7659,16 +7673,23 @@ function setVoiceSttProcessing(active) {
 
 function updateVoiceSttProcessingUi() {
   const active = isVoiceSttProcessing();
-  if (nodes.voiceSttLoader) {
-    nodes.voiceSttLoader.hidden = !active;
-    nodes.voiceSttLoader.setAttribute("aria-hidden", active ? "false" : "true");
-  }
   nodes.voiceControl?.classList.toggle("is-stt-processing", active);
   if (nodes.micBtn) {
+    const icon =
+      nodes.micBtn.querySelector(".shell-compose-mic-icon") ||
+      nodes.micBtn.querySelector(".shell-compose-tool-icon");
+    const spinner = nodes.micBtn.querySelector(".shell-compose-mic-spinner");
     nodes.micBtn.classList.toggle("is-stt-processing", active);
+    if (icon) icon.hidden = active;
+    if (spinner) {
+      spinner.hidden = !active;
+      spinner.setAttribute("aria-hidden", active ? "false" : "true");
+    }
     if (active) {
       nodes.micBtn.disabled = true;
       nodes.micBtn.setAttribute("aria-busy", "true");
+      nodes.micBtn.setAttribute("aria-label", "Распознаю…");
+      nodes.micBtn.title = "Распознаю…";
     } else {
       nodes.micBtn.removeAttribute("aria-busy");
     }
@@ -7789,8 +7810,9 @@ function startBrowserMeetingTranscript() {
   if (!SpeechRecognition || shellPermissionIssue()) return;
   browserMeetingTranscript = "";
   browserMeetingRecognition = new SpeechRecognition();
-  browserMeetingRecognition.lang =
-    state.settings?.sttLang || nodes.sttLang?.value || "ru-RU";
+  browserMeetingRecognition.lang = resolveBrowserRecognitionLang(
+    readSttLangFromDom()
+  );
   browserMeetingRecognition.continuous = true;
   browserMeetingRecognition.interimResults = true;
   browserMeetingRecognition.onresult = (event) => {
@@ -8196,7 +8218,12 @@ function applySttFormUi(settings) {
   if (nodes.sttPrompt && document.activeElement !== nodes.sttPrompt) {
     nodes.sttPrompt.value = settings.sttPrompt || "";
   }
-  if (nodes.sttLang) nodes.sttLang.value = settings.sttLang || "ru-RU";
+  if (nodes.sttLang && document.activeElement !== nodes.sttLang) {
+    nodes.sttLang.value = normalizeSttLang(settings.sttLang, {
+      engine: readSttEngineFromDom(settings)
+    });
+  }
+  updateSttLangUi(settings);
   if (nodes.sttEngine && document.activeElement !== nodes.sttEngine) {
     nodes.sttEngine.value = normalizeSttEngine(settings.sttEngine, {
       legacySource: settings.voiceInputSource
@@ -8228,7 +8255,7 @@ function applySttFormUi(settings) {
 function updateSttSummaries(settings = state.settings) {
   const capture = readSttCaptureFromDom(settings);
   const engine = readSttEngineFromDom(settings);
-  const summary = formatSttSummary(capture, engine);
+  const summary = formatSttSummary(capture, engine, readSttLangFromDom(settings));
   if (nodes.sttHeroSummaryText) nodes.sttHeroSummaryText.textContent = summary;
   if (nodes.sttPanelSummaryText) nodes.sttPanelSummaryText.textContent = summary;
 }
@@ -8244,6 +8271,13 @@ function updateSttEngineNote(settings = state.settings) {
   const meta = sttEngineCapabilities[engine] || {};
   const captureMeta = sttCaptureCapabilities[capture] || {};
   const parts = [];
+
+  const sttLang = readSttLangFromDom(settings);
+  if (sttLang === STT_LANG_AUTO && sttLangSupportsAuto(engine)) {
+    parts.push("Язык STT: авто — Whisper/Scribe определят язык сами.");
+  } else if (sttLang === STT_LANG_AUTO) {
+    parts.push("«Авто» здесь недоступно — для Web Speech/Google выберите ru-RU или en-US.");
+  }
 
   if (resolvedSource === "browser") {
     if (mode === "meeting") {
@@ -8308,7 +8342,7 @@ function applySttSettingsUi(settings) {
 
 function collectSttFormPatch() {
   return {
-    sttLang: nodes.sttLang?.value || "ru-RU",
+    sttLang: readSttLangFromDom(),
     sttEngine: normalizeSttEngine(nodes.sttEngine?.value),
     sttInputCapture: readSttCaptureFromDom(),
     sttPrompt: nodes.sttPrompt?.value || "",
@@ -8633,8 +8667,33 @@ function updateSttEngineUi() {
   if (nodes.sttElevenlabsPanel) {
     nodes.sttElevenlabsPanel.dataset.visible = engine === "elevenlabs" ? "1" : "0";
   }
+  updateSttLangUi(state.settings);
   updateComposeVoiceUi(state.settings ? getVoiceInputMode() : "hold");
   updateSttEngineNote(state.settings);
+}
+
+function updateSttLangUi(settings = state.settings) {
+  if (!nodes.sttLang) return;
+  const engine = readSttEngineFromDom(settings);
+  const supportsAuto = sttLangSupportsAuto(engine);
+  const autoOpt = nodes.sttLang.querySelector(`option[value="${STT_LANG_AUTO}"]`);
+  if (autoOpt) {
+    autoOpt.disabled = !supportsAuto;
+    autoOpt.title = supportsAuto
+      ? "Whisper / Scribe сами определят язык речи"
+      : "Только для Whisper и ElevenLabs Scribe";
+  }
+  if (!supportsAuto && nodes.sttLang.value === STT_LANG_AUTO) {
+    nodes.sttLang.value = "ru-RU";
+    if (state.settings) state.settings.sttLang = "ru-RU";
+    applyRecognitionLang("ru-RU");
+  }
+  const langLabel = nodes.sttLang.closest(".shell-field")?.querySelector(".shell-label");
+  if (langLabel) {
+    langLabel.title = supportsAuto
+      ? "«Авто» — мультиязыч для Whisper и Scribe; Web Speech / Google — ru или en"
+      : "Web Speech и Google STT — выберите ru-RU или en-US";
+  }
 }
 
 async function loadTtsCapabilities() {
@@ -9629,11 +9688,6 @@ async function handleVoiceTranscript(text) {
 
     setVoiceSttProcessing(false);
     const outcome = await showVoiceConfirmDialog(trimmed);
-    if (outcome === "__retry__") {
-      renderPhase("waiting", "Удерживайте 🎤 или Shift и повторите");
-      hapticTap();
-      return;
-    }
     if (!outcome || !outcome.text) {
       renderWaitingPhrase();
       return;
@@ -9670,7 +9724,7 @@ function setupSpeechRecognition() {
   }
 
   const recognition = new SpeechRecognition();
-  recognition.lang = state.settings?.sttLang || nodes.sttLang?.value || "ru-RU";
+  recognition.lang = resolveBrowserRecognitionLang(readSttLangFromDom());
   state.recognition = recognition;
 
   showVoiceConfirmDialog = createVoiceConfirmDialog(nodes);
@@ -10377,7 +10431,9 @@ function bindUi() {
   }
   nodes.sttPrompt?.addEventListener("input", markSttDirty);
   nodes.sttLang?.addEventListener("change", () => {
-    applyRecognitionLang();
+    const lang = readSttLangFromDom();
+    if (state.settings) state.settings.sttLang = lang;
+    applyRecognitionLang(lang);
     markSttDirty();
   });
   nodes.sttEngine?.addEventListener("change", () => {

@@ -2517,7 +2517,12 @@ aya_bar_v2 тоже читает те же файлы</pre>
                   aria-label="Говорить"
                   aria-pressed="false"
                 >
-                  <span class="shell-compose-tool-icon" aria-hidden="true">🎤</span>
+                  <span class="shell-compose-tool-icon shell-compose-mic-icon" aria-hidden="true">🎤</span>
+                  <span
+                    class="shell-compose-mic-spinner shell-compose-voice-loader-spinner"
+                    hidden
+                    aria-hidden="true"
+                  ></span>
                 </button>
                 <span
                   id="shell-voice-record-timer"
@@ -2525,16 +2530,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
                   hidden
                   aria-hidden="true"
                 ></span>
-                <span
-                  id="shell-voice-stt-loader"
-                  class="shell-compose-voice-loader"
-                  hidden
-                  aria-hidden="true"
-                  aria-label="Распознавание речи"
-                  title="Распознаю…"
-                >
-                  <span class="shell-compose-voice-loader-spinner" aria-hidden="true"></span>
-                </span>
                 <select
                   id="shell-voice-mode"
                   class="shell-select shell-compose-voice-select"
@@ -2810,7 +2805,6 @@ aya_bar_v2 тоже читает те же файлы</pre>
         ></textarea>
         <div class="shell-voice-confirm-actions">
           <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-voice-cancel" title="Отмена">✕</button>
-          <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-voice-retry" title="Записать заново">🎤</button>
           <span class="shell-voice-confirm-spacer"></span>
           <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-voice-insert">В поле</button>
           <button type="button" class="shell-btn shell-btn--compact" id="shell-voice-send">Отправить</button>

@@ -60,7 +60,7 @@ export function normalizeSttLang(value, { engine = "browser", fallback = "ru-RU"
 export function resolveBrowserRecognitionLang(sttLang, { fallback = "ru-RU" } = {}) {
   const raw = String(sttLang || "").trim();
   if (raw.toLowerCase() === STT_LANG_AUTO) {
-    const nav = String(typeof navigator !== "undefined" ? navigator.language : "" || "").trim();
+    const nav = String((typeof navigator !== "undefined" && navigator.language) || "").trim();
     if (nav && nav.includes("-")) return nav;
     if (nav) return `${nav}-${nav.toUpperCase()}`;
     return fallback;
@@ -263,11 +263,15 @@ export function voiceModeUsesBrowserStt(mode, context = {}) {
   return m !== "disabled";
 }
 
-export function formatSttSummary(capture, engine) {
+export function formatSttSummary(capture, engine, lang) {
   const cap = normalizeSttCapture(capture);
   const eng = normalizeSttEngine(engine);
   const capLabel = STT_CAPTURE_SHORT_LABELS[cap] || STT_CAPTURE_LABELS[cap] || cap;
   const engLabel = STT_ENGINE_SHORT_LABELS[eng] || STT_ENGINE_LABELS[eng] || eng;
+  const langRaw = String(lang || "").trim().toLowerCase();
+  if (langRaw === STT_LANG_AUTO && sttLangSupportsAuto(eng)) {
+    return `${capLabel} · ${engLabel} · авто`;
+  }
   return `${capLabel} · ${engLabel}`;
 }
 
