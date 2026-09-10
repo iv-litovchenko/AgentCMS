@@ -468,6 +468,54 @@ body:not(.shell-embed) .shell-app {
   justify-content: space-between;
 }
 
+.shell-dialog--voice-confirm {
+  max-width: min(92vw, 420px);
+}
+
+.shell-dialog--voice-confirm h2 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.shell-voice-confirm-text {
+  min-height: 4.5rem;
+  max-height: 40vh;
+  resize: vertical;
+  margin-bottom: 10px;
+}
+
+.shell-voice-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.shell-voice-confirm-spacer {
+  flex: 1 1 auto;
+  min-width: 4px;
+}
+
+.shell-btn--compact {
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+}
+
+.shell-compose-mic,
+#shell-voice-control,
+.shell-compose-toolbar-group--voice {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.shell-compose-mic {
+  -webkit-user-select: none;
+}
+
 .shell-tool-permission-note {
   margin-top: 0;
 }
@@ -617,8 +665,19 @@ body:not(.shell-embed) .shell-app {
   color: #fca5a5;
 }
 
-.shell-stt-voice-confirm {
+.shell-stt-voice-response-field {
   margin: 0 0 10px;
+}
+
+.shell-stt-voice-response.shell-tts-playback-radio-option--panel:has(input:checked) {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(56, 189, 248, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.18);
+}
+
+.shell-stt-voice-response.shell-tts-playback-radio-option--panel:has(input:checked) .shell-tts-playback-emoji {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: rgba(56, 189, 248, 0.14);
 }
 
 .shell-mode-bar {
@@ -2665,9 +2724,15 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 }
 
 .shell-hero-voice-row--stt,
-.shell-hero-voice-row--tts {
+.shell-hero-voice-row--tts,
+.shell-hero-voice-row--autosend {
   min-height: 28px;
   align-items: center;
+}
+
+.shell-hero-voice-row--autosend {
+  padding-top: 2px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
 }
 
 .shell-hero-voice-row--mobile {
@@ -2816,6 +2881,103 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 
 .shell-hero-voice-row--stt {
   justify-content: flex-start;
+  width: auto;
+  max-width: 100%;
+}
+
+.shell-hero-stt-summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.28);
+  font-size: 10px;
+  line-height: 1;
+  color: rgba(226, 232, 240, 0.88);
+  white-space: nowrap;
+}
+
+.shell-stt-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.22);
+}
+
+.shell-stt-summary-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.92);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.shell-stt-summary-value {
+  font-size: 12px;
+  line-height: 1.2;
+  color: rgba(226, 232, 240, 0.94);
+}
+
+.shell-stt-capture-field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.shell-stt-capture-field > legend.shell-label {
+  margin-bottom: 6px;
+}
+
+.shell-stt-capture-radio {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shell-stt-capture-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.18);
+  cursor: pointer;
+}
+
+.shell-stt-capture-option.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.shell-stt-capture-option:has(input:checked) {
+  border-color: rgba(96, 165, 250, 0.42);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.shell-stt-capture-option-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shell-stt-capture-option-title {
+  font-size: 12px;
+  line-height: 1.25;
+  color: rgba(226, 232, 240, 0.94);
+}
+
+.shell-stt-capture-option-desc {
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(148, 163, 184, 0.92);
 }
 
 .shell-hero-voice-row--tts {
@@ -2850,7 +3012,9 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   margin: 0;
 }
 
-.shell-hero-stt-controls:has(#shell-stt-enabled:not(:checked)) .shell-voice-settings-summary-option-label--stt {
+.shell-hero-stt-controls:has(#shell-stt-enabled:not(:checked)) .shell-voice-settings-summary-option-label--stt,
+.shell-hero-stt-controls:has(#shell-stt-enabled:not(:checked)) .shell-hero-stt-summary,
+.shell-hero-stt-controls:has(#shell-stt-enabled:not(:checked)) .shell-hero-voice-row--autosend {
   opacity: 0.45;
 }
 
@@ -2864,7 +3028,8 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.18);
 }
 
-.shell-hero-proactive-toggle {
+.shell-hero-proactive-toggle,
+.shell-hero-autosend-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2875,7 +3040,6 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   border: 0;
   border-radius: 8px;
   background: rgba(148, 163, 184, 0.08);
-  color: rgba(251, 113, 133, 0.82);
   cursor: pointer;
   transition:
     background 0.15s ease,
@@ -2884,14 +3048,33 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
     transform 0.15s ease;
 }
 
+.shell-hero-proactive-toggle {
+  color: rgba(251, 113, 133, 0.82);
+}
+
+.shell-hero-autosend-toggle {
+  color: rgba(125, 211, 252, 0.82);
+}
+
 .shell-hero-proactive-toggle:hover {
   background: rgba(244, 114, 182, 0.12);
   color: rgba(251, 113, 133, 0.95);
 }
 
+.shell-hero-autosend-toggle:hover {
+  background: rgba(56, 189, 248, 0.12);
+  color: rgba(125, 211, 252, 0.96);
+}
+
 .shell-hero-proactive-toggle[aria-pressed="true"] {
   background: rgba(34, 197, 94, 0.18);
   color: #fb7185;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.35);
+}
+
+.shell-hero-autosend-toggle[aria-pressed="true"] {
+  background: rgba(34, 197, 94, 0.18);
+  color: rgba(134, 239, 172, 0.98);
   box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.35);
 }
 
@@ -2905,12 +3088,19 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   outline-offset: 2px;
 }
 
-.shell-hero-proactive-toggle.is-busy {
+.shell-hero-autosend-toggle:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.55);
+  outline-offset: 2px;
+}
+
+.shell-hero-proactive-toggle.is-busy,
+.shell-hero-autosend-toggle.is-busy {
   opacity: 0.65;
   pointer-events: none;
 }
 
-.shell-hero-proactive-toggle:active {
+.shell-hero-proactive-toggle:active,
+.shell-hero-autosend-toggle:active {
   transform: scale(0.96);
 }
 
@@ -3830,6 +4020,14 @@ body.shell-desktop .shell-agent-gate select {
 
 .shell-voice-settings-summary-option-label--proactive {
   color: rgba(251, 113, 133, 0.88);
+}
+
+.shell-voice-settings-summary-option-label--autosend {
+  color: rgba(125, 211, 252, 0.88);
+}
+
+.shell-hero-stt-controls:has(#shell-voice-response-enabled-toggle[aria-pressed="true"]) .shell-voice-settings-summary-option-label--autosend {
+  color: rgba(134, 239, 172, 0.95);
 }
 
 .shell-hero-voice-controls:has(#shell-proactive-toggle[aria-pressed="true"]) .shell-voice-settings-summary-option-label--proactive {
@@ -5653,6 +5851,7 @@ body.shell-agent-locked .shell-hero-voice-row--proactive.is-disabled {
 }
 
 body.shell-agent-locked .shell-hero-proactive-toggle:disabled,
+body.shell-agent-locked .shell-hero-autosend-toggle:disabled,
 body.shell-agent-locked .shell-hero-stt-toggle:has(input:disabled),
 body.shell-agent-locked .shell-hero-tts-toggle:has(input:disabled),
 body.shell-agent-locked .shell-tts-playback-radio-option:has(input:disabled) {
@@ -5826,6 +6025,22 @@ body.shell-agent-locked #shell-message-target:disabled {
   outline: none;
 }
 
+.shell-compose-voice--mode-only {
+  width: auto;
+  max-width: none;
+  padding: 0 4px 0 8px;
+}
+
+.shell-compose-voice--mode-only .shell-compose-voice-select,
+.shell-compose-voice--mode-only #shell-voice-mode {
+  order: unset;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 108px;
+  max-width: 168px;
+  padding: 0 18px 0 2px;
+}
+
 .shell-compose-voice--compact #shell-mic-btn {
   order: 1;
   width: 32px;
@@ -5844,6 +6059,76 @@ body.shell-agent-locked #shell-message-target:disabled {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.shell-compose-voice--compact #shell-mic-btn[hidden] {
+  display: none;
+}
+
+.shell-compose-voice-timer {
+  order: 2;
+  display: inline-flex;
+  align-items: center;
+  min-width: 36px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: rgba(248, 113, 113, 0.96);
+  background: rgba(248, 113, 113, 0.12);
+  flex-shrink: 0;
+}
+
+.shell-compose-voice-timer[hidden] {
+  display: none;
+}
+
+.shell-compose-voice-loader {
+  order: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.shell-compose-voice-loader[hidden] {
+  display: none;
+}
+
+.shell-compose-voice-loader-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(148, 163, 184, 0.28);
+  border-top-color: rgba(134, 239, 172, 0.95);
+  border-radius: 50%;
+  animation: shell-voice-stt-spin 0.75s linear infinite;
+}
+
+@keyframes shell-voice-stt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.shell-compose-voice.is-stt-processing #shell-mic-btn,
+.shell-compose-voice.is-stt-processing #shell-voice-mode {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.shell-compose-voice--compact:has(.shell-compose-voice-loader:not([hidden])) .shell-compose-voice-select,
+.shell-compose-voice--compact:has(.shell-compose-voice-loader:not([hidden])) #shell-voice-mode {
+  order: 3;
+}
+
+.shell-compose-voice--compact:has(.shell-compose-voice-timer:not([hidden])) .shell-compose-voice-select,
+.shell-compose-voice--compact:has(.shell-compose-voice-timer:not([hidden])) #shell-voice-mode {
+  order: 3;
+}
+
 .shell-compose-voice--compact .shell-compose-voice-select,
 .shell-compose-voice--compact #shell-voice-mode,
 .shell-compose-voice--compact select.shell-select.shell-compose-voice-select {
@@ -5852,8 +6137,8 @@ body.shell-agent-locked #shell-message-target:disabled {
   grid-column: auto;
   grid-row: auto;
   width: auto;
-  max-width: 92px;
-  min-width: 52px;
+  max-width: 168px;
+  min-width: 108px;
   height: 32px;
   min-height: 32px;
   padding: 0 18px 0 2px;
@@ -5869,24 +6154,8 @@ body.shell-agent-locked #shell-message-target:disabled {
   box-shadow: none;
 }
 
-.shell-compose-voice--compact .shell-compose-voice-source {
-  order: 3;
-  width: auto;
-  min-width: 22px;
-  height: 16px;
-  padding: 0 5px;
-  margin: 0 2px 0 0;
-  border-radius: 999px;
-  font-size: 8px;
-  font-weight: 700;
-  line-height: 16px;
-  letter-spacing: 0.06em;
-  color: inherit;
-  overflow: hidden;
-}
-
 .shell-compose-voice--compact .shell-compose-voice-global {
-  order: 4;
+  order: 3;
   width: 28px;
   height: 28px;
   border-left: 0;
@@ -5898,39 +6167,6 @@ body.shell-agent-locked #shell-message-target:disabled {
 .shell-compose-voice--compact .shell-compose-voice-global.is-active {
   opacity: 1;
   background: rgba(74, 222, 128, 0.14);
-}
-
-.shell-compose-voice-source {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 26px;
-  height: 20px;
-  padding: 0 5px;
-  margin: 0 2px;
-  border-radius: 6px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgba(148, 163, 184, 0.92);
-  background: rgba(148, 163, 184, 0.12);
-  flex-shrink: 0;
-}
-
-.shell-compose-voice-source.is-browser {
-  color: rgba(56, 189, 248, 0.95);
-  background: rgba(56, 189, 248, 0.12);
-}
-
-.shell-compose-voice-source.is-sidecar {
-  color: rgba(74, 222, 128, 0.95);
-  background: rgba(74, 222, 128, 0.12);
-}
-
-.shell-compose-voice-source.is-warn {
-  color: rgba(251, 191, 36, 0.98);
-  background: rgba(251, 191, 36, 0.14);
 }
 
 .shell-compose-voice--compact .shell-compose-voice-compose {

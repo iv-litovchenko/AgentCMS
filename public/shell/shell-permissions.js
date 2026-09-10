@@ -46,15 +46,75 @@ export function isShellSecureContext() {
 export function shellPermissionIssue({ shellPath } = {}) {
   if (isShellSecureContext()) return null;
   const host = window.location.hostname;
-  if (host === "localhost" || host === "127.0.0.1") return null;
-  const httpsUrl = getShellHttpsUrl(host, shellPath);
+  const httpsUrl = getShellHttpsUrl(
+    host === "localhost" || host === "127.0.0.1" ? "127.0.0.1" : host,
+    shellPath
+  );
+  const onLan = /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
   return {
     title: "Нужен HTTPS",
-    body:
-      "Safari на iPhone не спрашивает микрофон по http://. " +
-      "Откройте ссылку ниже (порт 3488, Agent CMS Voice). На Mac: npm run start:https",
-    hint: "Сертификат: Подробнее → Перейти на сайт.",
-    httpsUrl
+    body: onLan
+      ? "Сейчас страница открыта по HTTP (например http://192.168…). Браузер не даст микрофон без HTTPS."
+      : "Сейчас страница не в защищённом контексте (HTTPS). Без этого микрофон и Web Speech недоступны.",
+    hint: "Запустите npm run start:https и откройте ссылку ниже (порт 3488).",
+    httpsUrl,
+    currentUrl: window.location.href
+  };
+}
+
+function detectBrowserKind() {
+  const ua = String(navigator.userAgent || "");
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
+  const isMac = /Macintosh|Mac OS X/i.test(ua) && !isMobile;
+  const isChrome = /Chrome|CriOS/i.test(ua) && !/Edg/i.test(ua);
+  const isSafari = /Safari/i.test(ua) && !isChrome && !/Edg/i.test(ua);
+  return { isMobile, isMac, isChrome, isSafari };
+}
+
+export function describeMicPermissionDialog({ shellPath, reason = "insecure" } = {}) {
+  const issue = shellPermissionIssue({ shellPath });
+  const httpsUrl = issue?.httpsUrl || getShellHttpsUrl();
+  const currentUrl = window.location.href;
+  const { isMobile, isMac, isChrome, isSafari } = detectBrowserKind();
+
+  if (reason === "denied") {
+    const steps = ["Браузер отклонил доступ к микрофону для этого сайта."];
+    if (isChrome) {
+      steps.push(
+        "Chrome: нажмите 🔒 слева от адреса → «Микрофон» → «Разрешить», затем обновите страницу.",
+        "Или chrome://settings/content/microphone — уберите сайт из «Запрещено».",
+        "macOS: Системные настройки → Конфиденциальность → Микрофон — Google Chrome включён."
+      );
+    } else if (isSafari && isMac) {
+      steps.push(
+        "Safari → Настройки → Веб-сайты → Микрофон — разрешите для этого сайта.",
+        "macOS: Конфиденциальность → Микрофон — Safari включён."
+      );
+    } else if (isMobile) {
+      steps.push("Настройки → Safari/Chrome → Микрофон → «Спросить» или «Разрешить».");
+    } else {
+      steps.push("Разрешите микрофон в настройках сайта (иконка замка в адресной строке).");
+    }
+    steps.push("Обновите страницу и нажмите 🎤 снова.");
+    return { title: "Микрофон заблокирован", steps, httpsUrl, currentUrl };
+  }
+
+  const browserLabel = isChrome ? "Chrome" : isSafari ? "Safari" : "браузер";
+  return {
+    title: "Нужен HTTPS для микрофона",
+    steps: [
+      `Сейчас: ${currentUrl}`,
+      issue?.body ||
+        `${browserLabel} не даёт микрофон по HTTP — только по HTTPS.`,
+      `Откройте: ${httpsUrl}`,
+      "На Mac: npm run start:https (Voice на порту 3488).",
+      isMobile
+        ? "iPhone и Mac — одна Wi‑Fi; с телефона: https://IP-Mac:3488/…"
+        : "http://192.168… в Chrome тоже без микрофона — нужен https://…:3488",
+      `После HTTPS ${browserLabel} спросит «Разрешить микрофон?» — нажмите Разрешить.`
+    ],
+    httpsUrl,
+    currentUrl
   };
 }
 

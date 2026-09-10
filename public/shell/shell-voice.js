@@ -140,31 +140,68 @@ export function initShellKeepAwake(state, { getEnabled = readKeepAwakeSetting } 
 
 export function createVoiceConfirmDialog(nodes) {
   return function showVoiceConfirmDialog(text) {
-    if (!nodes.voiceConfirmDialog || !nodes.voiceConfirmForm || !nodes.voiceConfirmText) {
-      return Promise.resolve(String(text || "").trim() || null);
+    const initial = String(text || "").trim();
+    if (!initial) return Promise.resolve(null);
+    if (!nodes.voiceConfirmDialog || !nodes.voiceConfirmText) {
+      return Promise.resolve({ action: "insert", text: initial });
     }
 
     return new Promise((resolve) => {
-      nodes.voiceConfirmText.value = text;
+      nodes.voiceConfirmText.value = initial;
       nodes.voiceConfirmDialog.showModal();
-      nodes.voiceConfirmText.focus();
+      window.setTimeout(() => {
+        try {
+          nodes.voiceConfirmText.focus();
+          const len = nodes.voiceConfirmText.value.length;
+          nodes.voiceConfirmText.setSelectionRange(len, len);
+        } catch {
+          // ignore
+        }
+      }, 40);
 
       const cleanup = (result) => {
-        nodes.voiceConfirmForm.removeEventListener("submit", onSubmit);
+        nodes.voiceConfirmForm?.removeEventListener("submit", onSubmit);
+        nodes.voiceInsert?.removeEventListener("click", onInsert);
+        nodes.voiceSend?.removeEventListener("click", onSend);
         nodes.voiceCancel?.removeEventListener("click", onCancel);
         nodes.voiceRetry?.removeEventListener("click", onRetry);
         nodes.voiceConfirmDialog.close();
         resolve(result);
       };
 
+      const readText = () => String(nodes.voiceConfirmText.value || "").trim();
+
       const onSubmit = (event) => {
         event.preventDefault();
-        cleanup(nodes.voiceConfirmText.value.trim() || null);
+        const value = readText();
+        if (!value) {
+          cleanup(null);
+          return;
+        }
+        cleanup({ action: "send", text: value });
+      };
+      const onInsert = () => {
+        const value = readText();
+        if (!value) {
+          cleanup(null);
+          return;
+        }
+        cleanup({ action: "insert", text: value });
+      };
+      const onSend = () => {
+        const value = readText();
+        if (!value) {
+          cleanup(null);
+          return;
+        }
+        cleanup({ action: "send", text: value });
       };
       const onCancel = () => cleanup(null);
       const onRetry = () => cleanup("__retry__");
 
-      nodes.voiceConfirmForm.addEventListener("submit", onSubmit);
+      nodes.voiceConfirmForm?.addEventListener("submit", onSubmit);
+      nodes.voiceInsert?.addEventListener("click", onInsert);
+      nodes.voiceSend?.addEventListener("click", onSend);
       nodes.voiceCancel?.addEventListener("click", onCancel);
       nodes.voiceRetry?.addEventListener("click", onRetry);
     });
@@ -190,7 +227,8 @@ export function createShellTapVoice(deps) {
     }
   };
 
-  const isSessionActive = () => Boolean(micTapHeld || deps.state.pttKeyboardHeld);
+  const isSessionActive = () =>
+    Boolean(micTapHeld || deps.state.pttKeyboardHeld || deps.state.micPointerHeld);
 
   const syncMicUi = (active) => {
     deps.state.micTapHeld = micTapHeld;
@@ -223,12 +261,13 @@ export function createShellTapVoice(deps) {
     syncMicUi(false);
     await releaseShellWakeLock(deps.state, "recording");
 
-    const text = (finalText || deps.getLivePhrase?.() || "").trim();
+    const text = String(finalText || "").trim();
     finalText = "";
     if (text) {
       await deps.handleVoiceTranscript(text);
       return;
     }
+    deps.setVoiceSttProcessing?.(false);
     deps.renderWaitingPhrase?.();
   };
 
@@ -273,13 +312,13 @@ export function createShellTapVoice(deps) {
       void releaseShellWakeLock(deps.state, "recording");
 
       if (errorCode === "not-allowed") {
-        deps.renderPhase("waiting", "Нет доступа к микрофону · Настройки → Safari → Микрофон");
-        deps.showMicPermissionDialog?.();
+        deps.renderPhase("waiting", "Нет доступа к микрофону · разрешите в Safari");
+        deps.showMicPermissionDialog?.("denied");
         return;
       }
       if (errorCode === "service-not-allowed" || deps.shellPermissionIssue?.()) {
-        deps.renderPhase("waiting", `Микрофон заблокирован · откройте ${deps.getShellHttpsUrl?.()}`);
-        deps.showMicPermissionDialog?.();
+        deps.renderPhase("waiting", `Нужен HTTPS · ${deps.getShellHttpsUrl?.()}`);
+        deps.showMicPermissionDialog?.("insecure");
         return;
       }
       deps.renderPhase("waiting", errorCode || "Ошибка распознавания");
@@ -302,6 +341,10 @@ export function createShellTapVoice(deps) {
 
   const startSession = async ({ viaTap = false, skipPressSound = false } = {}) => {
     if (!deps.recognition) return false;
+    if (deps.state?.voiceSttProcessing) {
+      deps.renderPhase?.("thinking", "Распознаю…");
+      return false;
+    }
     if (!usesBrowserRecognition(deps.getVoiceInputMode?.())) return false;
     if (deps.getVoiceInputMode?.() === "disabled" || deps.isSttDisabled?.()) {
       deps.renderPhase("disabled", "Голосовой ввод выключен");
@@ -313,8 +356,8 @@ export function createShellTapVoice(deps) {
     }
 
     if (deps.shellPermissionIssue?.()) {
-      deps.renderPhase("waiting", `Safari не спрашивает микрофон по HTTP · ${deps.getShellHttpsUrl?.()}`);
-      deps.showMicPermissionDialog?.();
+      deps.renderPhase("waiting", `Нужен HTTPS для микрофона · ${deps.getShellHttpsUrl?.()}`);
+      deps.showMicPermissionDialog?.("insecure");
       return false;
     }
 
@@ -370,13 +413,13 @@ export function createShellTapVoice(deps) {
       deps.state.micWarmed = false;
 
       if (error?.code === "insecure-context") {
-        deps.renderPhase("waiting", "Нужен HTTPS для микрофона · npm run start:https");
-        deps.showMicPermissionDialog?.();
+        deps.renderPhase("waiting", `Нужен HTTPS · ${deps.getShellHttpsUrl?.()}`);
+        deps.showMicPermissionDialog?.("insecure");
         return false;
       }
       if (error?.name === "NotAllowedError") {
-        deps.renderPhase("waiting", "Нет доступа к микрофону · Настройки → Safari → Микрофон");
-        deps.showMicPermissionDialog?.();
+        deps.renderPhase("waiting", "Нет доступа к микрофону · разрешите в Safari");
+        deps.showMicPermissionDialog?.("denied");
         return false;
       }
       deps.renderPhase("waiting", error?.message || "Не удалось включить микрофон");
@@ -390,6 +433,8 @@ export function createShellTapVoice(deps) {
     clearMicRestartTimer();
     if (micStarting) {
       stopWhenReady = true;
+      deps.setVoiceSttProcessing?.(true);
+      deps.renderPhase?.("thinking", "Распознаю…");
       return;
     }
     if (!isSessionActive()) return;
@@ -400,6 +445,8 @@ export function createShellTapVoice(deps) {
       playShellMicSound("release");
       hapticTap();
     }
+    deps.setVoiceSttProcessing?.(true);
+    deps.renderPhase?.("thinking", "Распознаю…");
     try {
       deps.recognition?.stop();
     } catch {

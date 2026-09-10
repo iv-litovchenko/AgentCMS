@@ -1052,26 +1052,52 @@
           <span class="shell-label">Голосовой ввод (STT)</span>
         </div>
         <div class="shell-stt-settings" id="shell-stt-settings">
+          <div class="shell-stt-summary-row" id="shell-stt-panel-summary" aria-live="polite">
+            <span class="shell-stt-summary-label">Сейчас</span>
+            <span class="shell-stt-summary-value" id="shell-stt-panel-summary-text">🎤 · Web Speech</span>
+          </div>
           <div class="shell-stt-engines" id="shell-stt-engines">
+            <fieldset class="shell-field shell-field--compact shell-stt-capture-field">
+              <legend class="shell-label">Что слушать</legend>
+              <div
+                class="shell-stt-capture-radio"
+                id="shell-stt-capture-group"
+                role="radiogroup"
+                aria-label="Что слушать"
+              >
+                <label class="shell-check shell-stt-capture-option" data-stt-capture="microphone">
+                  <input type="radio" name="shell-stt-capture" value="microphone" checked />
+                  <span class="shell-stt-capture-option-copy">
+                    <span class="shell-stt-capture-option-title">🎤 Микрофон</span>
+                    <span class="shell-stt-capture-option-desc">Обычный физический микрофон</span>
+                  </span>
+                </label>
+                <label class="shell-check shell-stt-capture-option" data-stt-capture="system">
+                  <input type="radio" name="shell-stt-capture" value="system" />
+                  <span class="shell-stt-capture-option-copy">
+                    <span class="shell-stt-capture-option-title">🖥 Системный звук</span>
+                    <span class="shell-stt-capture-option-desc">То, что происходит на компьютере</span>
+                  </span>
+                </label>
+                <label class="shell-check shell-stt-capture-option" data-stt-capture="mix">
+                  <input type="radio" name="shell-stt-capture" value="mix" />
+                  <span class="shell-stt-capture-option-copy">
+                    <span class="shell-stt-capture-option-title">🔀 Смешать потоки</span>
+                    <span class="shell-stt-capture-option-desc">Микрофон + система программно</span>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
             <label class="shell-field">
-              <span class="shell-label shell-label-row shell-label-row--spread">Провайдер (движок)</span>
-              <select id="shell-stt-engine" class="shell-select shell-select--full" aria-label="Провайдер (движок) STT">
-                <option value="auto">Авто — Web Speech или Google</option>
-                <option value="browser">Web Speech</option>
+              <span class="shell-label shell-label-row shell-label-row--spread">Движок STT</span>
+              <select id="shell-stt-engine" class="shell-select shell-select--full" aria-label="Движок STT">
+                <option value="browser">Web Speech — в браузере</option>
                 <option value="google">Google STT</option>
                 <option value="whisper">Whisper локально</option>
                 <option value="elevenlabs">ElevenLabs Scribe</option>
               </select>
-              <p class="shell-stt-engine-note" id="shell-stt-engine-note">Источник и движок выбираются отдельно.</p>
-            </label>
-
-            <label class="shell-field shell-field--compact">
-              <span class="shell-label">Источник звука</span>
-              <select id="shell-stt-source" class="shell-select shell-select--full" aria-label="Источник звука STT">
-                <option value="auto">Авто — по режиму 🎤 и движку</option>
-                <option value="browser">Микрофон браузера (вкладка Shell)</option>
-                <option value="sidecar">Sidecar — локальная программа</option>
-              </select>
+              <p class="shell-stt-engine-note" id="shell-stt-engine-note">Web Speech — в браузере без sidecar. Google / Whisper / Scribe — через npm run shell:sidecar.</p>
             </label>
 
             <div class="shell-stt-engine-panels">
@@ -1080,6 +1106,7 @@
                   <label class="shell-field shell-field--compact">
                     <span class="shell-label">Язык STT</span>
                     <select id="shell-stt-lang" class="shell-select shell-select--full">
+                      <option value="auto">Авто — мультиязыч (Whisper / Scribe)</option>
                       <option value="ru-RU">Русский</option>
                       <option value="en-US">English</option>
                     </select>
@@ -1125,7 +1152,7 @@
           </div>
 
           <p class="shell-stt-settings-note shell-stt-settings-note--foot">
-            Режим 🎤 — у поля ввода. Sidecar: <code>npm run shell:sidecar</code>.
+            Режим 🎤 — у поля ввода. Локальные движки: <code>npm run shell:sidecar</code>.
             <a href="#" id="shell-mic-help-link">Микрофон Safari</a>
           </p>
 
@@ -1144,14 +1171,21 @@
               placeholder="Исправь пунктуацию, убери «э-э» и «эээ», сохрани смысл. Верни только готовый текст для агента.&#10;&#10;Если поле пустое — сырой STT сразу уходит агенту без LLM-очистки."
             ></textarea>
           </label>
-          <label class="shell-check shell-stt-voice-confirm" title="Распознанная речь попадает в поле ввода; отправка — вручную">
-            <input id="shell-voice-to-compose" type="checkbox" aria-label="Вставлять текст в поле ввода" />
-            <span>Вставлять распознанный текст в поле ввода (не отправлять агенту)</span>
-          </label>
-          <label class="shell-check shell-stt-voice-confirm" title="Если выключено — перед отправкой показывается диалог с текстом для правки">
-            <input id="shell-voice-confirm" type="checkbox" checked />
-            <span>Отправлять агенту сразу после распознавания текста</span>
-          </label>
+          <div class="shell-field shell-field--compact shell-tts-panel-enable-field shell-stt-voice-response-field">
+            <span class="shell-tts-panel-playback" role="presentation">
+              <label
+                class="shell-stt-voice-response shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
+                title="Если выключено — перед отправкой показывается диалог «Распознано»"
+              >
+                <input id="shell-voice-response-enabled" type="checkbox" checked aria-label="Автоотправка распознанного текста" />
+                <span class="shell-tts-playback-emoji" aria-hidden="true">➤</span>
+                <span class="shell-tts-playback-option-copy">
+                  <span class="shell-tts-playback-option-title">Автоотправка</span>
+                  <span class="shell-tts-playback-option-desc">(сразу после 🎤 — агенту; выключите, чтобы править текст в диалоге)</span>
+                </span>
+              </label>
+            </span>
+          </div>
 
           <div class="shell-field shell-field--compact shell-tts-panel-enable-field shell-stt-panel-enable-field">
             <span class="shell-tts-panel-playback" role="presentation">
@@ -1998,6 +2032,29 @@ aya_bar_v2 тоже читает те же файлы</pre>
               <input id="shell-stt-enabled" type="checkbox" checked aria-label="Включить STT" />
               <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--stt">STT</span>
             </label>
+            <span
+              class="shell-hint shell-voice-settings-summary-control shell-hero-stt-summary"
+              id="shell-stt-hero-summary"
+              title="Что слушать · движок STT"
+            >
+              <span class="shell-stt-summary-value" id="shell-stt-hero-summary-text">🎤 · Web</span>
+            </span>
+          </div>
+          <div class="shell-hero-voice-row shell-hero-voice-row--autosend" id="shell-voice-response-enabled-row">
+            <span class="shell-voice-settings-summary-option-label shell-voice-settings-summary-option-label--autosend">Автоотправка</span>
+            <button
+              type="button"
+              class="shell-hint shell-hero-autosend-toggle"
+              id="shell-voice-response-enabled-toggle"
+              data-hint="voiceResponseEnabled — отправлять агенту сразу после распознавания"
+              title="Автоотправка — без диалога подтверждения"
+              aria-label="Автоотправка"
+              aria-pressed="false"
+            >
+              <svg class="shell-hero-autosend-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            </button>
           </div>
         </div>
         <div class="shell-hero-voice-controls" aria-label="Голосовой ответ">
@@ -2463,35 +2520,32 @@ aya_bar_v2 тоже читает те же файлы</pre>
                   <span class="shell-compose-tool-icon" aria-hidden="true">🎤</span>
                 </button>
                 <span
-                  id="shell-voice-source-badge"
-                  class="shell-compose-voice-source"
-                  title="Источник звука"
+                  id="shell-voice-record-timer"
+                  class="shell-compose-voice-timer"
+                  hidden
                   aria-hidden="true"
                 ></span>
+                <span
+                  id="shell-voice-stt-loader"
+                  class="shell-compose-voice-loader"
+                  hidden
+                  aria-hidden="true"
+                  aria-label="Распознавание речи"
+                  title="Распознаю…"
+                >
+                  <span class="shell-compose-voice-loader-spinner" aria-hidden="true"></span>
+                </span>
                 <select
                   id="shell-voice-mode"
                   class="shell-select shell-compose-voice-select"
-                  aria-label="Режим голосового ввода"
-                  title="Режим голосового ввода"
+                  aria-label="Как вводить голос"
+                  title="Как вводить голос"
                 >
-                  <option value="live">Живой</option>
-                  <option value="meeting">Встреча</option>
-                  <option value="hold" selected>Голос</option>
-                  <option value="fn_button">Shift</option>
+                  <option value="live" disabled>Живой диалог (скоро)</option>
+                  <option value="meeting">Встреча (запись)</option>
+                  <option value="hold" selected>Голосовое</option>
+                  <option value="fn_button">По кнопке Shift</option>
                 </select>
-                <label
-                  id="shell-voice-global-wrap"
-                  class="shell-compose-voice-global"
-                  title="Sidecar слушает 🎤 / Shift, даже когда Shell не в фокусе"
-                >
-                  <input
-                    id="shell-voice-global-listen"
-                    class="shell-compose-voice-global-input"
-                    type="checkbox"
-                    aria-label="Глобально через sidecar"
-                  />
-                  <span class="shell-compose-tool-icon" aria-hidden="true">🌐</span>
-                </label>
               </div>
             </div>
             <div class="shell-compose-toolbar-group shell-compose-toolbar-group--media" aria-label="Камера и экран">
@@ -2745,17 +2799,21 @@ aya_bar_v2 тоже читает те же файлы</pre>
       </div>
     </dialog>
 
-    <dialog class="shell-dialog" id="shell-voice-confirm-dialog">
+    <dialog class="shell-dialog shell-dialog--voice-confirm" id="shell-voice-confirm-dialog">
       <form method="dialog" class="shell-dialog-form" id="shell-voice-confirm-form">
-        <h2>Отправить?</h2>
-        <label class="shell-field">
-          <span class="shell-label">Распознано</span>
-          <textarea id="shell-voice-confirm-text" class="shell-textarea" rows="4"></textarea>
-        </label>
-        <div class="shell-dialog-actions shell-dialog-actions--spread">
-          <button type="button" class="shell-btn shell-btn--ghost" id="shell-voice-retry">🎤 Заново</button>
-          <button type="button" class="shell-btn shell-btn--ghost" id="shell-voice-cancel">Отмена</button>
-          <button type="submit" class="shell-btn">Отправить</button>
+        <h2>Распознано</h2>
+        <textarea
+          id="shell-voice-confirm-text"
+          class="shell-textarea shell-voice-confirm-text"
+          rows="3"
+          aria-label="Распознанный текст"
+        ></textarea>
+        <div class="shell-voice-confirm-actions">
+          <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-voice-cancel" title="Отмена">✕</button>
+          <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-voice-retry" title="Записать заново">🎤</button>
+          <span class="shell-voice-confirm-spacer"></span>
+          <button type="button" class="shell-btn shell-btn--ghost shell-btn--compact" id="shell-voice-insert">В поле</button>
+          <button type="button" class="shell-btn shell-btn--compact" id="shell-voice-send">Отправить</button>
         </div>
       </form>
     </dialog>
@@ -2899,19 +2957,12 @@ CMS workspace</pre>
 
     <dialog class="shell-dialog" id="shell-mic-dialog">
       <div class="shell-dialog-form">
-        <h2>Микрофон в Safari</h2>
-        <ol class="shell-help-list shell-help-list--ol">
-          <li>
-            <strong>Важно:</strong> по <code>http://192.168…</code> Safari <strong>не спрашивает</strong> микрофон.
-            Нужен <strong>HTTPS на порту 3488</strong> (Agent CMS Voice) — на Mac: <code>npm run start:https</code>, на iPhone:
-            <code id="shell-mic-dialog-url">https://IP:3488/</code>.
-          </li>
-          <li>Нажмите 🎤 — начнётся запись; нажмите ещё раз — стоп и отправка.</li>
-          <li>Нажмите <strong>Разрешить</strong>, если Safari спросит.</li>
-          <li>Если отказали: <strong>Настройки → Safari → Микрофон</strong> → «Спросить» или «Разрешить».</li>
-          <li><strong>Настройки → Конфиденциальность → Микрофон</strong> — Safari включён.</li>
-        </ol>
-        <p class="shell-dialog-note">Mac и iPhone — одна Wi‑Fi. CMS: <code>HOST=0.0.0.0 npm start</code></p>
+        <h2 id="shell-mic-dialog-title">Микрофон</h2>
+        <ol class="shell-help-list shell-help-list--ol" id="shell-mic-dialog-steps"></ol>
+        <p class="shell-dialog-note">
+          HTTPS Voice:
+          <a id="shell-mic-dialog-url" href="#" target="_blank" rel="noopener">https://127.0.0.1:3488/</a>
+        </p>
         <div class="shell-dialog-actions">
           <button type="button" class="shell-btn shell-btn--ghost" id="shell-mic-dialog-check">Проверить доступ</button>
           <button type="button" class="shell-btn" id="shell-mic-dialog-close">OK</button>

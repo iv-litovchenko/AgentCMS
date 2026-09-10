@@ -94,22 +94,33 @@ class Sidecar:
         except Exception:  # noqa: BLE001
             pass
 
-    def _upload_voice_record(self, pcm: bytes, kind: str = "meeting") -> None:
-        if not pcm:
+    def _save_stt_record(
+        self,
+        pcm: bytes,
+        text: str,
+        *,
+        engine: str = "",
+        mode: str = "hold",
+    ) -> None:
+        if not pcm or not str(text or "").strip():
             return
         try:
             saved = self._request_json(
                 "/api/shell/voice-record",
                 method="POST",
                 body={
-                    "kind": kind,
+                    "channel": "stt",
                     "dataBase64": base64.b64encode(pcm).decode("ascii"),
                     "ext": "pcm",
+                    "text": str(text).strip(),
+                    "engine": str(engine or "").strip(),
+                    "mode": str(mode or "hold").strip() or "hold",
                 },
             )
-            path = (saved.get("saved") or {}).get("path")
-            if path:
-                print(f"💾 {path}")
+            audio = (saved.get("saved") or {}).get("path")
+            md = (saved.get("saved") or {}).get("mdPath")
+            if audio:
+                print(f"💾 {audio}" + (f" + {md}" if md else ""))
         except Exception as exc:  # noqa: BLE001
             print(f"⚠️ voice-record: {exc}")
 
@@ -144,9 +155,7 @@ class Sidecar:
             return False
         return True
 
-    def _process_pcm(self, pcm: bytes, *, settings: dict[str, Any] | None = None, save_record: bool = False, record_kind: str = "meeting") -> None:
-        if save_record and pcm:
-            self._upload_voice_record(pcm, record_kind)
+    def _process_pcm(self, pcm: bytes, *, settings: dict[str, Any] | None = None, record_kind: str = "hold") -> None:
         result = transcribe_pcm(
             pcm,
             language=str((settings or {}).get("sttLang") or STT_LANGUAGE),
@@ -161,6 +170,8 @@ class Sidecar:
         if not text:
             self._patch_state({"phase": "waiting", "phrase": "Пустая расшифровка"})
             return
+        if pcm and text:
+            self._save_stt_record(pcm, text, engine=result.engine, mode=record_kind)
         if settings and not self._should_send_transcript(text, settings):
             return
         print(f"📝 {text}")
@@ -178,7 +189,7 @@ class Sidecar:
         self._patch_state({"phase": "thinking", "phrase": text[:240], "metrics": f"{result.duration_sec:.2f}s"})
         self._send_message(text)
 
-    def _handle_ptt(self, held: bool, *, settings: dict[str, Any] | None = None, save_record: bool = False) -> None:
+    def _handle_ptt(self, held: bool, *, settings: dict[str, Any] | None = None, record_kind: str = "hold") -> None:
         if held and not self._recorder.active:
             self._stop_user_tts()
             self._recorder.start()
@@ -189,7 +200,7 @@ class Sidecar:
             self._patch_state({"pttHeld": False})
             pcm = self._recorder.stop()
             print("✅ Обработка PTT…")
-            self._process_pcm(pcm, settings=settings or {}, save_record=save_record)
+            self._process_pcm(pcm, settings=settings or {}, record_kind=record_kind)
 
     def _handle_meeting(self, recording: bool, settings: dict[str, Any]) -> None:
         if recording and not self._recorder.active:
@@ -203,7 +214,7 @@ class Sidecar:
             self._patch_state({"meetingRecording": False, "phase": "thinking", "phrase": "Обрабатываю встречу…"})
             print("⏹ Meeting OFF")
             if pcm:
-                self._process_pcm(pcm, settings=settings, save_record=True, record_kind="meeting")
+                self._process_pcm(pcm, settings=settings, record_kind="meeting")
 
     def _ensure_ptt_gate(self) -> None:
         if self._ptt_gate is None:
@@ -257,7 +268,7 @@ class Sidecar:
 
         pcm = self._recorder.stop()
         if speech_started and pcm:
-            self._process_pcm(pcm, settings=settings)
+            self._process_pcm(pcm, settings=settings, record_kind="live")
         else:
             self._patch_state({"phase": "waiting", "phrase": "Ожидаю речь…"})
 
@@ -324,14 +335,14 @@ class Sidecar:
             self._pump_ptt()
         elif voice_mode == "hold" and global_listen:
             if held != self._last_ptt_held:
-                self._handle_ptt(held, settings=settings)
+                self._handle_ptt(held, settings=settings, record_kind="hold")
                 self._last_ptt_held = held
             self._pump_ptt()
         elif voice_mode == "fn_button" and global_listen:
             self._ensure_ptt_gate()
             fn_held = self._ptt_gate.is_held() if self._ptt_gate else False
             if fn_held != self._last_ptt_held:
-                self._handle_ptt(fn_held, settings=settings)
+                self._handle_ptt(fn_held, settings=settings, record_kind="fn_button")
                 self._last_ptt_held = fn_held
             self._pump_ptt()
             if fn_held != bool(state.get("pttHeld")):

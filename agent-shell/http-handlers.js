@@ -563,7 +563,14 @@ function createShellHandlers(deps) {
           synthSettings.ttsEngine = engineOverride;
         }
         const result = await ttsService.synthesize(text, synthSettings);
-        deps.sendJson(res, 200, { agentId, ok: true, ...result });
+        const saved = await shellService.storeShellTtsRecord(agentRoot, {
+          text,
+          audioBase64: result.audio,
+          mimeType: result.mimeType,
+          engine: result.engine,
+          voice: result.voice
+        });
+        deps.sendJson(res, 200, { agentId, ok: true, saved, ...result });
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "TTS synthesis failed",

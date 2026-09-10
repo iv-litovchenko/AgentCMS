@@ -54,8 +54,20 @@ def normalize_stt_engine(value: str | None) -> str:
     return "google"
 
 
-def _lang_code(language: str) -> str:
+def _lang_is_auto(language: str) -> bool:
+    return str(language or "").strip().lower() in ("auto", "")
+
+
+def _lang_code(language: str) -> str | None:
+    if _lang_is_auto(language):
+        return None
     return (language or "ru-RU").split("-")[0].lower()
+
+
+def _google_language(language: str) -> str:
+    if _lang_is_auto(language):
+        return "ru-RU"
+    return language or "ru-RU"
 
 
 def _empty_pcm_result(pcm: bytes) -> TranscribeResult:
@@ -130,6 +142,7 @@ def transcribe_whisper(pcm: bytes, language: str = "ru-RU", settings: dict[str, 
     settings = settings or {}
     model_name = str(settings.get("sttWhisperModel") or "base").strip() or "base"
     lang = _lang_code(language)
+    auto_lang = lang is None
 
     with _whisper_lock:
         if model_name not in _whisper_models:
@@ -143,7 +156,13 @@ def transcribe_whisper(pcm: bytes, language: str = "ru-RU", settings: dict[str, 
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             tmp.write(wav_bytes)
             tmp_path = tmp.name
-        segments, _info = model.transcribe(tmp_path, language=lang, vad_filter=True)
+        if auto_lang:
+            segments, info = model.transcribe(tmp_path, vad_filter=True)
+            detected = getattr(info, "language", None) or ""
+            if detected:
+                print(f"🌐 Whisper auto: язык ≈ {detected}")
+        else:
+            segments, info = model.transcribe(tmp_path, language=lang, vad_filter=True)
         text = " ".join((segment.text or "").strip() for segment in segments).strip()
         if not text:
             return TranscribeResult(
@@ -207,6 +226,8 @@ def transcribe_elevenlabs(pcm: bytes, language: str = "ru-RU", settings: dict[st
     fields = {"model_id": model_id}
     if lang:
         fields["language_code"] = lang
+    elif _lang_is_auto(language):
+        print("🌐 ElevenLabs Scribe: автоопределение языка")
 
     body, boundary = _multipart_encode(fields, {"file": ("audio.wav", _pcm_to_wav(pcm), "audio/wav")})
     request = urllib.request.Request(
@@ -261,7 +282,7 @@ def transcribe_pcm(
         return transcribe_whisper(pcm, language, settings)
     if picked == "elevenlabs":
         return transcribe_elevenlabs(pcm, language, settings)
-    return transcribe_google(pcm, language)
+    return transcribe_google(pcm, _google_language(language))
 
 
 class MicRecorder:

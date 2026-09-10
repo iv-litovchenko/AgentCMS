@@ -2,27 +2,81 @@
 
 export const VOICE_INPUT_MODES = ["live", "meeting", "hold", "fn_button"];
 
-/** Откуда берётся звук (захват микрофона). */
-export const STT_SOURCE_IDS = ["auto", "browser", "sidecar"];
+/** Что слушать (захват аудио). */
+export const STT_CAPTURE_IDS = ["microphone", "system", "mix"];
 
-export const STT_SOURCE_LABELS = {
-  auto: "Авто",
-  browser: "Микрофон браузера",
-  sidecar: "Sidecar (локальная программа)"
+export const STT_CAPTURE_LABELS = {
+  microphone: "Микрофон",
+  system: "Системный звук",
+  mix: "Микрофон + система"
 };
 
-/** Как распознаётся речь (движок STT). */
-export const STT_ENGINE_IDS = ["auto", "browser", "google", "whisper", "elevenlabs"];
+export const STT_CAPTURE_SHORT_LABELS = {
+  microphone: "🎤",
+  system: "🖥",
+  mix: "🔀"
+};
+
+export const STT_CAPTURE_HINTS = {
+  microphone: "Обычный физический микрофон",
+  system: "То, что происходит на компьютере (колонки / приложения)",
+  mix: "Смешать два потока программно — для продвинутых сценариев"
+};
+
+/** Движок распознавания речи (STT driver). */
+export const STT_ENGINE_IDS = ["browser", "google", "whisper", "elevenlabs"];
 
 export const STT_ENGINE_LABELS = {
-  auto: "Авто",
   browser: "Web Speech",
   google: "Google STT",
   whisper: "Whisper локально",
   elevenlabs: "ElevenLabs Scribe"
 };
 
-const LEGACY_MAP = {
+export const STT_ENGINE_SHORT_LABELS = {
+  browser: "Web",
+  google: "Google",
+  whisper: "Whisper",
+  elevenlabs: "Scribe"
+};
+
+/** Язык STT: автоопределение (Whisper / ElevenLabs Scribe). */
+export const STT_LANG_AUTO = "auto";
+
+export function sttLangSupportsAuto(engine) {
+  const id = normalizeSttEngine(engine);
+  return id === "whisper" || id === "elevenlabs";
+}
+
+export function normalizeSttLang(value, { engine = "browser", fallback = "ru-RU" } = {}) {
+  const raw = String(value || "").trim();
+  if (!raw || raw.toLowerCase() === STT_LANG_AUTO) {
+    return sttLangSupportsAuto(engine) ? STT_LANG_AUTO : fallback;
+  }
+  return raw;
+}
+
+/** Web Speech / Google не умеют «авто» — подставляем локаль браузера или ru-RU. */
+export function resolveBrowserRecognitionLang(sttLang, { fallback = "ru-RU" } = {}) {
+  const raw = String(sttLang || "").trim();
+  if (raw.toLowerCase() === STT_LANG_AUTO) {
+    const nav = String(typeof navigator !== "undefined" ? navigator.language : "" || "").trim();
+    if (nav && nav.includes("-")) return nav;
+    if (nav) return `${nav}-${nav.toUpperCase()}`;
+    return fallback;
+  }
+  return raw || fallback;
+}
+
+/** @deprecated Старый transport-слой; в UI не показываем. */
+export const STT_SOURCE_IDS = ["browser", "sidecar"];
+
+export const STT_SOURCE_LABELS = {
+  browser: "Браузер",
+  sidecar: "Локальный агент"
+};
+
+const LEGACY_MODE_MAP = {
   browser: "hold",
   sidecar: "hold",
   always: "live",
@@ -38,7 +92,6 @@ export const VOICE_MODE_LABELS = {
   fn_button: "Shift"
 };
 
-/** Короткие подписи для компактного select в панели ввода. */
 export const VOICE_MODE_COMPACT_LABELS = {
   live: "Живой",
   meeting: "Встреча",
@@ -46,130 +99,183 @@ export const VOICE_MODE_COMPACT_LABELS = {
   fn_button: "Shift"
 };
 
-/** Короткая подпись в `<option>` — режим + суть одной строкой. */
+/** Порядок и подписи режима 🎤 в compose. */
+export const COMPOSE_VOICE_MODE_ORDER = ["live", "meeting", "hold", "fn_button"];
+
+/** Живой диалог — в списке, но пока disabled. */
+export const LIVE_VOICE_MODE_ENABLED = false;
+
+export function isComposeVoiceModeDisabled(mode) {
+  const m = normalizeVoiceInputMode(mode);
+  if (m === "live" && !LIVE_VOICE_MODE_ENABLED) return true;
+  return false;
+}
+
+export function composeVoiceModeSelectLabel(mode) {
+  const m = normalizeVoiceInputMode(mode);
+  const base = COMPOSE_VOICE_MODE_LABELS[m] || VOICE_MODE_LABELS[m] || m;
+  if (isComposeVoiceModeDisabled(m)) return `${base} (скоро)`;
+  return base;
+}
+
+export const COMPOSE_VOICE_MODE_LABELS = {
+  live: "Живой диалог",
+  meeting: "Встреча (запись)",
+  hold: "Голосовое",
+  fn_button: "По кнопке Shift"
+};
+
 export const VOICE_MODE_OPTION_LABELS = {
-  live: "Живой диалог — sidecar, речь по паузе → агенту",
+  live: "Живой диалог — речь по паузе → агенту",
   meeting: "Запись встречи — 🎤 старт / стоп",
   hold: "Голосовое — удерживать 🎤",
   fn_button: "Shift — удерживать клавишу"
 };
 
 export const VOICE_MODE_HINTS = {
-  live:
-    "Sidecar постоянно слушает. Фраза по паузе → агенту. Ваш голос останавливает TTS. Нужен npm run shell:sidecar.",
-  meeting:
-    "🎤 — старт/стоп длинной записи. Аудио → awn-dialogs/records/, текст → агенту. Нужен sidecar.",
-  hold:
-    "Зажмите 🎤 — говорите — отпустите. Web Speech в браузере или sidecar (Google / Whisper / Scribe).",
-  fn_button:
-    "Удерживайте Shift. Без «Глобально» — когда Shell в фокусе (не в поле ввода). С «Глобально» + sidecar — в любом приложении."
+  live: "Постоянно слушает. Фраза по паузе → агенту. Ваш голос останавливает TTS.",
+  meeting: "🎤 — старт/стоп длинной записи. Аудио и текст сохраняются в awn-dialogs/audio/stt/.",
+  hold: "Зажмите 🎤 — говорите — отпустите. Web Speech в браузере или локальный движок.",
+  fn_button: "Удерживайте Shift. С «Глобально» — когда Shell не в фокусе."
 };
 
 export function normalizeVoiceInputMode(mode) {
   const raw = String(mode || "").trim();
   if (raw === "disabled") return "disabled";
   if (VOICE_INPUT_MODES.includes(raw)) return raw;
-  return LEGACY_MAP[raw] || "hold";
+  return LEGACY_MODE_MAP[raw] || "hold";
 }
 
 export function isVoiceInputEnabled(mode) {
   return normalizeVoiceInputMode(mode) !== "disabled";
 }
 
+export function normalizeSttCapture(value, { legacySource = "" } = {}) {
+  const raw = String(value || "").trim();
+  if (STT_CAPTURE_IDS.includes(raw)) return raw;
+  const legacy = String(legacySource || raw).trim();
+  if (legacy === "browser" || legacy === "sidecar" || legacy === "auto") return "microphone";
+  return "microphone";
+}
+
+/** @deprecated Используйте normalizeSttCapture. */
 export function normalizeSttSource(value) {
   const raw = String(value || "").trim();
-  if (STT_SOURCE_IDS.includes(raw)) return raw;
-  return "auto";
+  if (raw === "browser") return "browser";
+  if (raw === "sidecar") return "sidecar";
+  return "browser";
 }
 
-export function normalizeSttEngine(value) {
+export function normalizeSttEngine(value, { legacySource = "" } = {}) {
   const raw = String(value || "").trim();
   if (raw === "sidecar") return "google";
+  if (raw === "auto") {
+    const legacy = String(legacySource || "").trim();
+    return legacy === "sidecar" ? "google" : "browser";
+  }
   if (STT_ENGINE_IDS.includes(raw)) return raw;
-  return "auto";
+  return "browser";
 }
 
-export function isSidecarSttEngine(engine) {
+export function isLocalSttEngine(engine) {
   const id = normalizeSttEngine(engine);
   return id === "google" || id === "whisper" || id === "elevenlabs";
 }
 
-function resolveSttSourceAuto(
-  mode,
-  { globalListen = false, sttEngine = "auto" } = {}
-) {
-  const m = normalizeVoiceInputMode(mode);
-  const engine = normalizeSttEngine(sttEngine);
-  if (voiceModeRequiresSidecar(m)) return "sidecar";
-  if (engine === "browser") return "browser";
-  if (isSidecarSttEngine(engine)) return "sidecar";
-  if ((m === "hold" || m === "fn_button") && globalListen) return "sidecar";
-  return "browser";
+/** @deprecated alias */
+export function isSidecarSttEngine(engine) {
+  return isLocalSttEngine(engine);
 }
 
-/** Источник звука: browser (микрофон вкладки) или sidecar (Python). */
+export function sttCaptureRequiresLocalAgent(capture) {
+  const id = normalizeSttCapture(capture);
+  return id === "system" || id === "mix";
+}
+
+export function sttEngineRequiresLocalAgent(engine, capture = "microphone") {
+  if (sttCaptureRequiresLocalAgent(capture)) return true;
+  return isLocalSttEngine(engine);
+}
+
+/** browser = Web Speech во вкладке; sidecar = локальный голосовой агент (Python). */
 export function resolveSttSource(
   mode,
   {
     globalListen = false,
     sidecarConnected = false,
-    sttEngine = "auto",
-    sttSource = "auto"
+    sttEngine = "browser",
+    sttCapture = "microphone",
+    sttSource = null
   } = {}
 ) {
-  const source = normalizeSttSource(sttSource);
-  if (source === "browser") return "browser";
-  if (source === "sidecar") return "sidecar";
   void sidecarConnected;
-  return resolveSttSourceAuto(mode, { globalListen, sttEngine });
+  const capture = normalizeSttCapture(sttCapture, {
+    legacySource: sttSource != null ? String(sttSource) : ""
+  });
+  const engine = normalizeSttEngine(sttEngine);
+  const m = normalizeVoiceInputMode(mode);
+
+  if (m === "live") return "sidecar";
+  if (m === "meeting" && engine !== "browser") return "sidecar";
+  if (sttCaptureRequiresLocalAgent(capture)) return "sidecar";
+  if (isLocalSttEngine(engine)) return "sidecar";
+  if ((m === "hold" || m === "fn_button") && globalListen) return "sidecar";
+  if (capture === "microphone" && engine === "browser") return "browser";
+  return "sidecar";
 }
 
-/** @deprecated Имя историческое — это источник звука, не движок STT. */
+/** @deprecated */
 export function resolveSttEngine(mode, context = {}) {
   return resolveSttSource(mode, context);
 }
 
 export function sttEngineIsAvailable(mode, context = {}) {
+  const m = normalizeVoiceInputMode(mode);
+  if (m === "meeting" && normalizeSttEngine(context.sttEngine ?? "browser") === "browser") {
+    return true;
+  }
   const resolved = resolveSttSource(mode, context);
   if (resolved === "browser") return true;
   return Boolean(context.sidecarConnected);
 }
 
-/** Sidecar обязателен для режима (не считая глобальность). */
-export function voiceModeRequiresSidecar(mode) {
+export function voiceModeRequiresSidecar(mode, context = {}) {
   const m = normalizeVoiceInputMode(mode);
-  return m === "live" || m === "meeting";
-}
-
-/** Микрофон через sidecar PTT / meeting / always. */
-export function voiceModeUsesSidecarMic(
-  mode,
-  { globalListen = false, sidecarConnected = false, sttEngine = "auto", sttSource = "auto" } = {}
-) {
-  if (resolveSttSource(mode, { globalListen, sidecarConnected, sttEngine, sttSource }) !== "sidecar") {
-    return false;
+  if (m === "live") return true;
+  if (m === "meeting") {
+    return normalizeSttEngine(context.sttEngine ?? "browser") !== "browser";
   }
-  const m = normalizeVoiceInputMode(mode);
-  if (voiceModeRequiresSidecar(m)) return Boolean(sidecarConnected);
-  if (m === "hold" || m === "fn_button") return Boolean(sidecarConnected);
   return false;
 }
 
-/** Web Speech в браузере. */
-export function voiceModeUsesBrowserStt(
-  mode,
-  { globalListen = false, sidecarConnected = false, sttEngine = "auto", sttSource = "auto" } = {}
-) {
-  if (resolveSttSource(mode, { globalListen, sidecarConnected, sttEngine, sttSource }) !== "browser") {
-    return false;
-  }
+export function voiceModeUsesSidecarMic(mode, context = {}) {
+  if (resolveSttSource(mode, context) !== "sidecar") return false;
   const m = normalizeVoiceInputMode(mode);
-  return m !== "disabled" && !voiceModeRequiresSidecar(m);
+  if (voiceModeRequiresSidecar(m)) return Boolean(context.sidecarConnected);
+  if (m === "hold" || m === "fn_button") return Boolean(context.sidecarConnected);
+  return false;
+}
+
+export function voiceModeUsesBrowserStt(mode, context = {}) {
+  if (resolveSttSource(mode, context) !== "browser") return false;
+  const m = normalizeVoiceInputMode(mode);
+  if (m === "live") return false;
+  return m !== "disabled";
+}
+
+export function formatSttSummary(capture, engine) {
+  const cap = normalizeSttCapture(capture);
+  const eng = normalizeSttEngine(engine);
+  const capLabel = STT_CAPTURE_SHORT_LABELS[cap] || STT_CAPTURE_LABELS[cap] || cap;
+  const engLabel = STT_ENGINE_SHORT_LABELS[eng] || STT_ENGINE_LABELS[eng] || eng;
+  return `${capLabel} · ${engLabel}`;
 }
 
 export function voiceModeMicAction(mode, context = {}) {
   const m = normalizeVoiceInputMode(mode);
   if (m === "disabled") return "hint";
+  if (m === "meeting") return "toggle-meeting";
+  if (m === "live") return "disabled-hint";
 
   const resolved = resolveSttSource(m, context);
   if (resolved === "browser") {
@@ -177,14 +283,11 @@ export function voiceModeMicAction(mode, context = {}) {
     return "hold";
   }
 
-  if (m === "meeting") return "toggle-meeting";
-  if (m === "live") return "sidecar-always";
   if (m === "fn_button") return "hint";
   if (m === "hold") return "hold";
   return "hint";
 }
 
-/** Подпись кнопки 🎤 для режима. */
 export function voiceModeMicLabel(mode, { meetingRecording = false } = {}) {
   const m = normalizeVoiceInputMode(mode);
   if (m === "meeting") return meetingRecording ? "Стоп встречи" : "Запись встречи";

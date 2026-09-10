@@ -6,24 +6,28 @@ const TTS_PLAYBACK_HINTS = {
 export function updateVoiceModeHint(
   mode = "hold",
   hintEl = document.getElementById("shell-voice-control"),
-  { resolvedSource = "browser", sidecarConnected = false } = {}
+  { resolvedSource = "browser", sidecarConnected = false, sttCapture = "microphone" } = {}
 ) {
   if (!hintEl) return;
   if (mode === "disabled") {
     hintEl.dataset.hint = "Голосовой ввод выключен";
     return;
   }
-  const source =
-    resolvedSource === "sidecar"
-      ? sidecarConnected
-        ? "sidecar"
-        : "sidecar (не запущен)"
-      : "микрофон браузера";
+  const modeHints = {
+    live: "Живой диалог — фраза по паузе",
+    meeting: "Встреча — 🎤 старт / стоп записи",
+    hold: "Голосовое — удерживать 🎤",
+    fn_button: "Shift — удерживать клавишу или 🎤"
+  };
+  let hint = modeHints[mode] || modeHints.hold;
+  if (resolvedSource === "sidecar" && !sidecarConnected) {
+    hint += " · нужен локальный агент";
+  }
   const hints = {
-    live: `Живой диалог · ${source}`,
-    meeting: `Запись встречи · ${source}`,
-    hold: `Удержать 🎤 · ${source}`,
-    fn_button: `Shift · ${source}`
+    live: hint,
+    meeting: hint,
+    hold: hint,
+    fn_button: hint
   };
   const next = hints[mode] ? mode : "hold";
   hintEl.dataset.hint = hints[next];

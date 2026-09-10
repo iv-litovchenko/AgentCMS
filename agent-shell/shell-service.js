@@ -105,13 +105,13 @@ const DEFAULT_SETTINGS = {
   qwenpawSttChatName: "Shell STT",
   voiceInputMode: "hold",
   sttEnabled: true,
-  voiceInputSource: "auto",
+  sttInputCapture: "microphone",
   voiceGlobalListen: false,
   voiceWakeName: "",
   voiceToCompose: false,
   voiceResponseEnabled: true,
   sttLang: "ru-RU",
-  sttEngine: "auto",
+  sttEngine: "browser",
   sttPrompt: "",
   sttWhisperModel: "base",
   sttElevenlabsApiKey: "",
@@ -210,6 +210,7 @@ const {
   appendShellDialogTool,
   readShellDialogHistory,
   saveShellVoiceRecord,
+  saveShellAudioPair,
   sessionIdFromSettings
 } = require("./shell-dialog-log");
 const {
@@ -433,9 +434,17 @@ function normalizeSettings(raw) {
     merged.sttEnabled = true;
   }
   merged.sttEnabled = merged.sttEnabled !== false;
-  merged.voiceInputSource = ["auto", "browser", "sidecar"].includes(String(merged.voiceInputSource || "").trim())
-    ? String(merged.voiceInputSource).trim()
-    : "auto";
+  const captureRaw = String(merged.sttInputCapture || "").trim();
+  if (["microphone", "system", "mix"].includes(captureRaw)) {
+    merged.sttInputCapture = captureRaw;
+  } else {
+    const legacySource = String(merged.voiceInputSource || "").trim();
+    merged.sttInputCapture =
+      legacySource === "browser" || legacySource === "sidecar" || legacySource === "auto"
+        ? "microphone"
+        : "microphone";
+  }
+  delete merged.voiceInputSource;
   merged.voiceGlobalListen = Boolean(merged.voiceGlobalListen);
   merged.voiceWakeName = String(merged.voiceWakeName || "").trim();
   merged.voiceToCompose = Boolean(merged.voiceToCompose);
@@ -444,7 +453,8 @@ function normalizeSettings(raw) {
   }
   if (merged.ttsEngine === "sidecar") merged.ttsEngine = "say";
   merged.voiceResponseEnabled = Boolean(merged.voiceResponseEnabled);
-  merged.sttLang = String(merged.sttLang || "ru-RU").trim() || "ru-RU";
+  const sttLangRaw = String(merged.sttLang || "ru-RU").trim() || "ru-RU";
+  merged.sttLang = sttLangRaw.toLowerCase() === "auto" ? "auto" : sttLangRaw;
   merged.sttEngine = normalizeSttEngineId(merged.sttEngine);
   merged.sttPrompt = String(merged.sttPrompt || "");
   merged.sttWhisperModel = String(merged.sttWhisperModel || "base").trim() || "base";
@@ -2055,18 +2065,46 @@ async function fetchShellDialogHistory(agentRoot, agentId, options = {}) {
   }
 }
 
-async function storeShellVoiceRecord(agentRoot, payload = {}) {
+async function storeShellAudioRecord(agentRoot, payload = {}) {
   try {
     const raw = payload?.dataBase64 || payload?.data || "";
     const buffer = Buffer.from(String(raw), payload?.dataBase64 ? "base64" : undefined);
-    return await saveShellVoiceRecord(agentRoot, {
-      kind: String(payload?.kind || "meeting").trim() || "meeting",
+    const channel = String(payload?.channel || payload?.kind || "stt").trim().toLowerCase();
+    const meta = {};
+    for (const key of ["engine", "voice", "mode", "mimeType"]) {
+      const value = String(payload?.[key] || "").trim();
+      if (value) meta[key] = value;
+    }
+    if (payload?.kind && channel === "stt" && !meta.mode) {
+      meta.mode = String(payload.kind).trim();
+    }
+    return await saveShellAudioPair(agentRoot, {
+      channel: channel === "tts" ? "tts" : "stt",
       data: buffer,
-      ext: String(payload?.ext || "pcm").trim() || "pcm"
+      ext: String(payload?.ext || "").trim(),
+      mimeType: String(payload?.mimeType || meta.mimeType || "").trim(),
+      text: String(payload?.text || "").trim(),
+      meta
     });
   } catch {
     return null;
   }
+}
+
+async function storeShellVoiceRecord(agentRoot, payload = {}) {
+  return storeShellAudioRecord(agentRoot, { ...payload, channel: "stt" });
+}
+
+async function storeShellTtsRecord(agentRoot, { text = "", audioBase64 = "", mimeType = "", engine = "", voice = "" } = {}) {
+  return storeShellAudioRecord(agentRoot, {
+    channel: "tts",
+    dataBase64: audioBase64,
+    ext: "",
+    mimeType,
+    text,
+    engine,
+    voice
+  });
 }
 
 async function buildStatusPayload(
@@ -2410,6 +2448,8 @@ module.exports = {
   logShellDialogAgent,
   fetchShellDialogHistory,
   storeShellVoiceRecord,
+  storeShellAudioRecord,
+  storeShellTtsRecord,
   migrateVoiceInputMode,
   isSidecarConnected,
   buildStatusPayload,

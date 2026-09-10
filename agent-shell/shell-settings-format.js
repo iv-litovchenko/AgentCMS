@@ -212,8 +212,13 @@ function flattenSettings(raw) {
   if (input.enabled !== undefined) flat.sttEnabled = input.enabled;
   else if (stt.enabled !== undefined) flat.sttEnabled = stt.enabled;
 
-  if (input.source !== undefined) flat.voiceInputSource = input.source;
-  else if (stt.source !== undefined) flat.voiceInputSource = stt.source;
+  if (input.capture !== undefined) flat.sttInputCapture = input.capture;
+  else if (stt.capture !== undefined) flat.sttInputCapture = stt.capture;
+  else if (input.source !== undefined || stt.source !== undefined) {
+    const legacy = String(input.source ?? stt.source ?? "").trim();
+    flat.sttInputCapture =
+      legacy === "browser" || legacy === "sidecar" || legacy === "auto" ? "microphone" : "microphone";
+  }
 
   if (stt.lang !== undefined) flat.sttLang = stt.lang;
   if (stt.engine !== undefined) flat.sttEngine = stt.engine;
@@ -364,7 +369,7 @@ function nestSettings(flat) {
           source.voiceInputMode === "disabled"
             ? "hold"
             : source.voiceInputMode,
-        source: source.voiceInputSource,
+        capture: source.sttInputCapture,
         globalListen: source.voiceGlobalListen,
         wakeName: source.voiceWakeName,
         toCompose: source.voiceToCompose,

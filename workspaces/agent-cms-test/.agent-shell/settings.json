@@ -26,9 +26,8 @@
   },
   "voice": {
     "input": {
-      "enabled": false,
-      "mode": "meeting",
-      "source": "browser",
+      "mode": "fn_button",
+      "capture": "microphone",
       "globalListen": false,
       "toCompose": false,
       "responseEnabled": false
@@ -36,7 +35,6 @@
     "stt": {
       "lang": "ru-RU",
       "engine": "browser",
-      "prompt": "Исправь пунктуацию и регистр, убери слова-паразиты («э-э», «эээ», «мм», «ну»), сохрани смысл. Верни только готовый текст для отправки агенту — без пояснений и обёрток.",
       "whisper": {
         "model": "base"
       },
@@ -104,7 +102,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0.9105
+    "dialogScrollRatio": 1
   },
   "compose": {
     "promptTemplates": [

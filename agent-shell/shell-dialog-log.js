@@ -5,6 +5,8 @@ const { normalizeMessageRuntime } = require("./shell-runtimes");
 const DIALOGS_DIR = "awn-dialogs";
 const LEGACY_CHATS_DIR = path.join(DIALOGS_DIR, "chats");
 const RECORDS_DIR = path.join(DIALOGS_DIR, "records");
+const AUDIO_DIR = path.join(DIALOGS_DIR, "audio");
+const AUDIO_CHANNELS = new Set(["stt", "tts"]);
 const LEGACY_SESSION_UID_DIR = "uid";
 const OPEN_SESSION = "open";
 const DIALOG_DAY_FILE_RE = /^\d{4}-\d{2}-\d{2}\.md$/;
@@ -311,16 +313,99 @@ async function appendShellDialogChat(
   };
 }
 
-async function saveShellVoiceRecord(agentRoot, { kind = "meeting", data, ext = "pcm" } = {}) {
+function normalizeAudioChannel(value) {
+  const channel = String(value || "stt").trim().toLowerCase();
+  return AUDIO_CHANNELS.has(channel) ? channel : "stt";
+}
+
+function normalizeAudioExt(ext, mimeType = "") {
+  const raw = String(ext || "").trim().toLowerCase().replace(/^\./, "");
+  if (raw) return raw;
+  const mime = String(mimeType || "").toLowerCase();
+  if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
+  if (mime.includes("wav")) return "wav";
+  if (mime.includes("pcm")) return "pcm";
+  return "bin";
+}
+
+function formatShellAudioMarkdown({
+  channel = "stt",
+  audioFile = "",
+  text = "",
+  created = new Date(),
+  meta = {}
+} = {}) {
+  const createdIso = created instanceof Date ? created.toISOString() : String(created || new Date().toISOString());
+  const body = String(text || "").trim();
+  const frontmatter = [
+    "---",
+    `awn-kind: ${normalizeAudioChannel(channel)}`,
+    `awn-created: ${createdIso}`,
+    audioFile ? `awn-audio: ${audioFile}` : null,
+    ...Object.entries(meta || {})
+      .map(([key, value]) => {
+        const normalized = String(value ?? "").trim();
+        if (!normalized) return null;
+        return `awn-${key}: ${normalized}`;
+      })
+      .filter(Boolean),
+    "---"
+  ].filter(Boolean);
+  return `${frontmatter.join("\n")}\n\n${body}\n`;
+}
+
+/** Пара файлов: awn-dialogs/audio/{stt|tts}/<stamp>.<ext> + <stamp>.md */
+async function saveShellAudioPair(
+  agentRoot,
+  { channel = "stt", data, ext = "", mimeType = "", text = "", meta = {}, created = new Date() } = {}
+) {
   if (!agentRoot || !data) return null;
   const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
   if (!buffer.length) return null;
 
-  const dir = path.join(agentRoot, RECORDS_DIR, kind);
+  const kind = normalizeAudioChannel(channel);
+  const dir = path.join(agentRoot, AUDIO_DIR, kind);
   await fs.mkdir(dir, { recursive: true });
-  const file = path.join(dir, `${timeStamp()}.${ext}`);
-  await fs.writeFile(file, buffer);
-  return { path: relPath(agentRoot, file), bytes: buffer.length, kind };
+
+  const stamp = timeStamp(created instanceof Date ? created : new Date());
+  const audioExt = normalizeAudioExt(ext, mimeType);
+  const audioName = `${stamp}.${audioExt}`;
+  const mdName = `${stamp}.md`;
+  const audioPath = path.join(dir, audioName);
+  const mdPath = path.join(dir, mdName);
+
+  await fs.writeFile(audioPath, buffer);
+  await fs.writeFile(
+    mdPath,
+    formatShellAudioMarkdown({
+      channel: kind,
+      audioFile: audioName,
+      text,
+      created,
+      meta
+    }),
+    "utf-8"
+  );
+
+  return {
+    channel: kind,
+    path: relPath(agentRoot, audioPath),
+    mdPath: relPath(agentRoot, mdPath),
+    audioFile: audioName,
+    mdFile: mdName,
+    bytes: buffer.length,
+    ext: audioExt
+  };
+}
+
+/** @deprecated Используйте saveShellAudioPair — старый путь records/{kind}/ */
+async function saveShellVoiceRecord(agentRoot, { kind = "meeting", data, ext = "pcm" } = {}) {
+  return saveShellAudioPair(agentRoot, {
+    channel: "stt",
+    data,
+    ext,
+    meta: { mode: String(kind || "meeting").trim() || "meeting" }
+  });
 }
 
 module.exports = {
@@ -331,10 +416,13 @@ module.exports = {
   formatShellDialogBlock,
   dialogRoleMeta,
   saveShellVoiceRecord,
+  saveShellAudioPair,
+  formatShellAudioMarkdown,
   runtimeDialogDir,
   sessionDialogDir,
   sessionIdFromSettings,
   DIALOGS_DIR,
   LEGACY_CHATS_DIR,
-  RECORDS_DIR
+  RECORDS_DIR,
+  AUDIO_DIR
 };
