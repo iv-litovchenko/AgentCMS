@@ -4,7 +4,7 @@ const { RUNTIME_DEFAULTS } = require("./runtime-bridge");
 
 const SETTINGS_FORMAT_VERSION = 6;
 
-const TTS_ENGINE_IDS = ["browser", "say", "edge", "piper", "elevenlabs"];
+const TTS_ENGINE_IDS = ["browser", "edge", "piper", "elevenlabs"];
 
 /** Тип подключения runtime на диске: cli = терминал, agent = HTTP/gateway. */
 const RUNTIME_KIND = {
@@ -74,9 +74,9 @@ function flattenTtsEngines(tts, flat) {
   if (browser.lang !== undefined) flat.ttsBrowserLang = browser.lang;
   if (browser.voice !== undefined) flat.ttsBrowserVoice = browser.voice;
 
-  const say = engines.say || {};
-  if (say.lang !== undefined) flat.ttsSayLang = say.lang;
-  if (say.voice !== undefined) flat.ttsSayVoice = say.voice;
+  const legacySay = engines.say || {};
+  if (legacySay.lang !== undefined && flat.ttsBrowserLang === undefined) flat.ttsBrowserLang = legacySay.lang;
+  if (legacySay.voice !== undefined && flat.ttsBrowserVoice === undefined) flat.ttsBrowserVoice = legacySay.voice;
 
   const edge = engines.edge || {};
   if (edge.voice !== undefined) flat.ttsEdgeVoice = edge.voice;
@@ -93,19 +93,15 @@ function flattenTtsEngines(tts, flat) {
   // Legacy v4: одно lang/voice на корне tts — только для активного движка
   if (tts.lang !== undefined) {
     flat.ttsLang = tts.lang;
-    if (flat.ttsBrowserLang === undefined && flat.ttsSayLang === undefined) {
-      const engine = String(tts.engine || "browser").trim();
-      if (engine === "say") flat.ttsSayLang = tts.lang;
-      else flat.ttsBrowserLang = tts.lang;
-    }
+    if (flat.ttsBrowserLang === undefined) flat.ttsBrowserLang = tts.lang;
   }
   if (tts.voice !== undefined) {
     flat.ttsVoice = tts.voice;
-    if (flat.ttsBrowserVoice === undefined && flat.ttsSayVoice === undefined) {
-      const engine = String(tts.engine || "browser").trim();
-      if (engine === "say") flat.ttsSayVoice = tts.voice;
-      else flat.ttsBrowserVoice = tts.voice;
-    }
+    if (flat.ttsBrowserVoice === undefined) flat.ttsBrowserVoice = tts.voice;
+  }
+  if (tts.engine !== undefined) {
+    const engine = String(tts.engine || "browser").trim();
+    if (engine === "say" || engine === "sidecar") flat.ttsEngine = "browser";
   }
   if (tts.edgeVoice !== undefined && flat.ttsEdgeVoice === undefined) {
     flat.ttsEdgeVoice = tts.edgeVoice;
@@ -136,10 +132,6 @@ function nestTtsEngines(source) {
     browser: compactObject({
       lang: source.ttsBrowserLang,
       voice: source.ttsBrowserVoice
-    }),
-    say: compactObject({
-      lang: source.ttsSayLang,
-      voice: source.ttsSayVoice
     }),
     edge: compactObject({
       voice: source.ttsEdgeVoice

@@ -6,7 +6,7 @@ const path = require("path");
 
 const execFileAsync = promisify(execFile);
 
-const TTS_ENGINES = ["browser", "say", "edge", "piper", "elevenlabs"];
+const TTS_ENGINES = ["browser", "edge", "piper", "elevenlabs"];
 
 const EDGE_VOICE_PRESETS = [
   { id: "ru-RU-SvetlanaNeural", label: "Svetlana (ru-RU, ж)" },
@@ -15,46 +15,21 @@ const EDGE_VOICE_PRESETS = [
   { id: "en-US-GuyNeural", label: "Guy (en-US, м)" }
 ];
 
-const DEFAULT_SAY_VOICES = {
-  "ru-RU": "Milena",
-  "en-US": "Samantha"
-};
-
-function isDarwin() {
-  return process.platform === "darwin";
-}
-
 function normalizeEngine(engine) {
   const value = String(engine || "browser").trim();
+  if (value === "say" || value === "sidecar") return "browser";
   return TTS_ENGINES.includes(value) ? value : "browser";
 }
 
 function ttsEngineLang(settings = {}, engine = "browser") {
-  const id = normalizeEngine(engine);
-  if (id === "browser") {
-    return String(settings.ttsBrowserLang || settings.ttsLang || "ru-RU").trim() || "ru-RU";
-  }
-  if (id === "say") {
-    return String(settings.ttsSayLang || "ru-RU").trim() || "ru-RU";
-  }
   return String(settings.ttsBrowserLang || settings.ttsLang || "ru-RU").trim() || "ru-RU";
 }
 
 function ttsEngineVoice(settings = {}, engine = "browser") {
-  const id = normalizeEngine(engine);
-  if (id === "browser") {
+  if (normalizeEngine(engine) === "browser") {
     return String(settings.ttsBrowserVoice ?? settings.ttsVoice ?? "").trim();
   }
-  if (id === "say") {
-    return String(settings.ttsSayVoice ?? "").trim();
-  }
   return String(settings.ttsVoice || "").trim();
-}
-
-function speechRateToSayWpm(rate) {
-  const numeric = Number(rate);
-  if (!Number.isFinite(numeric)) return 175;
-  return Math.round(Math.min(350, Math.max(80, 175 * numeric)));
 }
 
 function speechRateToEdgePercent(rate) {
@@ -100,11 +75,6 @@ async function getCapabilities(settings = {}) {
   return {
     engines: {
       browser: { available: true, label: "Браузер (Web Speech)" },
-      say: {
-        available: isDarwin(),
-        label: "macOS say",
-        hint: isDarwin() ? "Встроено в macOS" : "Только macOS"
-      },
       edge: {
         available: true,
         label: "Edge TTS",
@@ -128,25 +98,6 @@ async function getCapabilities(settings = {}) {
   };
 }
 
-async function listSayVoices(lang = "ru-RU") {
-  if (!isDarwin()) return [];
-  const { stdout } = await execFileAsync("say", ["-v", "?"], { maxBuffer: 1024 * 1024 });
-  const prefix = String(lang || "ru-RU").split("-")[0].toLowerCase();
-  return stdout
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const match = line.match(/^(.+?)\s+([a-z]{2}_[A-Z]{2})\b/i);
-      if (!match) return null;
-      const id = match[1].trim();
-      const locale = match[2].replace("_", "-");
-      return { id, label: `${id} (${locale})`, locale: match[2] };
-    })
-    .filter(Boolean)
-    .filter((voice) => voice.locale.toLowerCase().replace("_", "-").startsWith(prefix));
-}
-
 async function listVoices(engine, settings = {}, options = {}) {
   const normalized = normalizeEngine(engine);
   if (normalized === "browser") {
@@ -156,10 +107,6 @@ async function listVoices(engine, settings = {}, options = {}) {
       source: "web-speech",
       note: "Голоса берутся из Web Speech API в браузере"
     };
-  }
-  if (normalized === "say") {
-    const voices = await listSayVoices(options.lang || ttsEngineLang(settings, "say"));
-    return { engine: normalized, voices, source: "macos-say" };
   }
   if (normalized === "edge") {
     return { engine: normalized, voices: EDGE_VOICE_PRESETS };
@@ -179,30 +126,6 @@ async function listVoices(engine, settings = {}, options = {}) {
     };
   }
   return { engine: normalized, voices: [] };
-}
-
-async function synthesizeSay(text, settings = {}) {
-  if (!isDarwin()) throw new Error("macOS say доступен только на Mac");
-  const lang = ttsEngineLang(settings, "say");
-  const voice =
-    ttsEngineVoice(settings, "say") ||
-    DEFAULT_SAY_VOICES[lang] ||
-    DEFAULT_SAY_VOICES["ru-RU"];
-  const tmpBase = path.join(os.tmpdir(), `shell-tts-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  const aiffPath = `${tmpBase}.aiff`;
-  const wavPath = `${tmpBase}.wav`;
-  const args = ["-v", voice, "-r", String(speechRateToSayWpm(settings.ttsRate)), "-o", aiffPath, text];
-  try {
-    await execFileAsync("say", args, { maxBuffer: 1024 * 1024, timeout: 120000 });
-    await execFileAsync("afconvert", ["-f", "WAVE", "-d", "LEI16", aiffPath, wavPath], {
-      timeout: 30000
-    });
-    const audio = await fs.readFile(wavPath);
-    return { engine: "say", mimeType: "audio/wav", audio: audio.toString("base64"), voice };
-  } finally {
-    await fs.unlink(aiffPath).catch(() => {});
-    await fs.unlink(wavPath).catch(() => {});
-  }
 }
 
 async function synthesizeEdge(text, settings = {}) {
@@ -306,7 +229,6 @@ async function synthesize(text, settings = {}) {
   if (engine === "browser") {
     throw new Error("Движок browser синтезируется в UI, не на сервере");
   }
-  if (engine === "say") return synthesizeSay(payload, settings);
   if (engine === "edge") return synthesizeEdge(payload, settings);
   if (engine === "piper") return synthesizePiper(payload, settings);
   if (engine === "elevenlabs") return synthesizeElevenLabs(payload, settings);

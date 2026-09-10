@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=554" />
+    <link rel="stylesheet" href="/shell/shell.css?v=555" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -62,7 +62,7 @@
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=208",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=363",
-          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=415",
+          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=416",
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=6",
           "@shell/user-question": "/shell/shell-user-question.js?v=4",
           "@shell/build": "/shell/shell-build.js?v=425"
@@ -875,24 +875,6 @@
                 </span>
                 <select id="shell-tts-voice" class="shell-select shell-select--full">
                   <option value="">Системный по умолчанию</option>
-                </select>
-              </label>
-            </div>
-          </div>
-
-          <div class="shell-tts-say-panel" id="shell-tts-say-panel" data-visible="0">
-            <div class="shell-tts-engine-fields">
-              <label class="shell-field shell-field--compact">
-                <span class="shell-label">Язык</span>
-                <select id="shell-tts-say-lang" class="shell-select shell-select--full">
-                  <option value="ru-RU">Русский</option>
-                  <option value="en-US">English</option>
-                </select>
-              </label>
-              <label class="shell-field shell-field--compact">
-                <span class="shell-label">Голос · say (сервер Mac)</span>
-                <select id="shell-tts-say-voice" class="shell-select shell-select--full">
-                  <option value="">По умолчанию</option>
                 </select>
               </label>
             </div>
@@ -2970,6 +2952,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=583" type="module"></script>
+    <script src="/shell/shell.js?v=584" type="module"></script>
   </body>
 </html>

@@ -4332,7 +4332,6 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-tts-panel .shell-tts-engines .shell-tts-browser-panel,
-.shell-tts-panel .shell-tts-engines .shell-tts-say-panel,
 .shell-tts-panel .shell-tts-engines .shell-tts-edge-panel,
 .shell-tts-panel .shell-tts-engines .shell-tts-piper-panel,
 .shell-tts-panel .shell-tts-engines .shell-tts-elevenlabs-panel {
@@ -4345,7 +4344,6 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-tts-panel .shell-tts-engines .shell-tts-browser-panel[data-visible="1"],
-.shell-tts-panel .shell-tts-engines .shell-tts-say-panel[data-visible="1"],
 .shell-tts-panel .shell-tts-engines .shell-tts-edge-panel[data-visible="1"],
 .shell-tts-panel .shell-tts-engines .shell-tts-piper-panel[data-visible="1"],
 .shell-tts-panel .shell-tts-engines .shell-tts-elevenlabs-panel[data-visible="1"] {
@@ -4353,7 +4351,6 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-tts-panel .shell-tts-browser-panel,
-.shell-tts-panel .shell-tts-say-panel,
 .shell-tts-panel .shell-tts-edge-panel,
 .shell-tts-panel .shell-tts-piper-panel,
 .shell-tts-panel .shell-tts-elevenlabs-panel {
@@ -4366,7 +4363,6 @@ body.shell-desktop .shell-agent-gate select {
 }
 
 .shell-tts-panel .shell-tts-browser-panel[data-visible="1"],
-.shell-tts-panel .shell-tts-say-panel[data-visible="1"],
 .shell-tts-panel .shell-tts-edge-panel[data-visible="1"],
 .shell-tts-panel .shell-tts-piper-panel[data-visible="1"],
 .shell-tts-panel .shell-tts-elevenlabs-panel[data-visible="1"] {

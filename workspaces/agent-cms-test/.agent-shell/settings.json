@@ -53,11 +53,7 @@
       "engines": {
         "browser": {
           "lang": "en-US",
-          "voice": "Риши"
-        },
-        "say": {
-          "lang": "en-US",
-          "voice": "Albert"
+          "voice": "Aaron"
         },
         "edge": {
           "voice": "ru-RU-SvetlanaNeural"

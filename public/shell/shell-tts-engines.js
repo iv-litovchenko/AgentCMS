@@ -8,8 +8,8 @@ export const SHELL_TTS_ENGINE_GROUPS = [
   },
   {
     id: "server",
-    label: "На сервере (Mac)",
-    engines: ["say", "piper"]
+    label: "На сервере",
+    engines: ["piper"]
   },
   {
     id: "online",
@@ -22,7 +22,6 @@ export const SHELL_TTS_ENGINES = SHELL_TTS_ENGINE_GROUPS.flatMap((group) => grou
 
 export const SHELL_TTS_ENGINE_LABELS = {
   browser: "Web Speech · во вкладке",
-  say: "macOS say · WAV с сервера",
   piper: "Piper · офлайн-модель",
   edge: "Edge TTS · Microsoft",
   elevenlabs: "ElevenLabs · API key"
@@ -31,8 +30,6 @@ export const SHELL_TTS_ENGINE_LABELS = {
 export const SHELL_TTS_ENGINE_DESCRIPTIONS = {
   browser:
     "Озвучка во вкладке через Web Speech API. Голоса — из браузера на вашем устройстве, сервер не участвует.",
-  say:
-    "Озвучка на сервере через macOS say (WAV с API). Нужен Mac на стороне сервера; голоса — системные macOS, не из браузера.",
   edge: "Онлайн-синтез Microsoft Edge TTS. Нужен интернет, API key не нужен.",
   piper: "Локальная нейромодель на сервере. Нужен путь к .onnx и бинарник piper.",
   elevenlabs: "Облачный синтез ElevenLabs. Нужны API key и Voice ID."
@@ -40,7 +37,6 @@ export const SHELL_TTS_ENGINE_DESCRIPTIONS = {
 
 export const SHELL_TTS_ENGINE_SHORT_LABELS = {
   browser: "Браузер",
-  say: "macOS say",
   edge: "Edge TTS",
   piper: "Piper",
   elevenlabs: "ElevenLabs"
@@ -48,7 +44,7 @@ export const SHELL_TTS_ENGINE_SHORT_LABELS = {
 
 export function normalizeTtsEngine(value) {
   const raw = String(value || "").trim();
-  if (raw === "sidecar") return "say";
+  if (raw === "sidecar" || raw === "say") return "browser";
   if (SHELL_TTS_ENGINES.includes(raw)) return raw;
   return "browser";
 }

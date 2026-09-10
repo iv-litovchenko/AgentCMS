@@ -164,11 +164,10 @@ import {
   formatTtsEngineSelectTitle
 } from "@shell/tts-engines";
 
-const SERVER_TTS_ENGINES = new Set(["say", "edge", "piper", "elevenlabs"]);
+const SERVER_TTS_ENGINES = new Set(["edge", "piper", "elevenlabs"]);
 
 const TTS_ENGINE_PANEL_NODES = {
   browser: () => nodes.ttsBrowserPanel,
-  say: () => nodes.ttsSayPanel,
   edge: () => nodes.ttsEdgePanel,
   piper: () => nodes.ttsPiperPanel,
   elevenlabs: () => nodes.ttsElevenlabsPanel
@@ -399,11 +398,6 @@ function describeTtsVoiceForTest(engine = getTtsEngine(), patch = collectTtsForm
   if (id === "browser") {
     const voiceId = String(patch.ttsBrowserVoice || nodes.ttsVoice?.value || "").trim();
     const label = String(nodes.ttsVoice?.selectedOptions?.[0]?.text || voiceId || "по умолчанию").trim();
-    return { label };
-  }
-  if (id === "say") {
-    const voiceId = String(patch.ttsSayVoice || nodes.ttsSayVoice?.value || "").trim();
-    const label = String(nodes.ttsSayVoice?.selectedOptions?.[0]?.text || voiceId || "по умолчанию").trim();
     return { label };
   }
   if (id === "edge") {
@@ -780,14 +774,12 @@ function getTtsEngine() {
 function ttsSettingsLang(settings = {}, engine = getTtsEngine()) {
   const id = normalizeTtsEngine(engine);
   if (id === "browser") return settings.ttsBrowserLang || "ru-RU";
-  if (id === "say") return settings.ttsSayLang || "ru-RU";
   return settings.ttsBrowserLang || "ru-RU";
 }
 
 function ttsSettingsVoice(settings = {}, engine = getTtsEngine()) {
   const id = normalizeTtsEngine(engine);
   if (id === "browser") return String(settings.ttsBrowserVoice ?? "").trim();
-  if (id === "say") return String(settings.ttsSayVoice ?? "").trim();
   return String(settings.ttsBrowserVoice ?? "").trim();
 }
 
@@ -1377,7 +1369,6 @@ const nodes = {
   ttsEngine: document.getElementById("shell-tts-engine"),
   ttsTestBtn: document.getElementById("shell-tts-test"),
   ttsBrowserPanel: document.getElementById("shell-tts-browser-panel"),
-  ttsSayPanel: document.getElementById("shell-tts-say-panel"),
   ttsEdgePanel: document.getElementById("shell-tts-edge-panel"),
   ttsPiperPanel: document.getElementById("shell-tts-piper-panel"),
   ttsElevenlabsPanel: document.getElementById("shell-tts-elevenlabs-panel"),
@@ -1390,8 +1381,6 @@ const nodes = {
   ttsLang: document.getElementById("shell-tts-lang"),
   ttsVoice: document.getElementById("shell-tts-voice"),
   ttsVoiceRefresh: document.getElementById("shell-tts-voice-refresh"),
-  ttsSayLang: document.getElementById("shell-tts-say-lang"),
-  ttsSayVoice: document.getElementById("shell-tts-say-voice"),
   ttsRate: document.getElementById("shell-tts-rate"),
   ttsRateField: document.getElementById("shell-tts-rate-field"),
   ttsRateValue: document.getElementById("shell-tts-rate-value"),
@@ -8802,27 +8791,18 @@ async function loadTtsCapabilities() {
 }
 
 async function applyContrastVoiceDefaults(engine = getTtsEngine()) {
-  if (engine === "browser") {
-    await refreshTtsVoiceOptions();
-    if (!nodes.ttsVoice) return;
-    const langPrefix = String(nodes.ttsLang?.value || "ru-RU").split("-")[0].toLowerCase();
-    const voices = filterLocalWebSpeechVoices(getSpeechSynth()?.getVoices() || []).filter((voice) =>
-      voice.lang.toLowerCase().startsWith(langPrefix)
-    );
-    const milena = voices.find(
-      (voice) => /milena/i.test(voice.name) && voice.lang.toLowerCase().startsWith(langPrefix)
-    );
-    const fallback = voices.find((voice) => voice.lang.toLowerCase().startsWith(langPrefix));
-    nodes.ttsVoice.value = milena?.name || fallback?.name || "";
-    return;
-  }
-  if (engine !== "say") return;
-  await refreshTtsEngineVoices("say");
-  if (!nodes.ttsSayVoice) return;
-  const options = [...nodes.ttsSayVoice.options].map((option) => option.value).filter(Boolean);
-  const preferred = ["Yuri", "Katya", "Milena"];
-  const next = preferred.find((name) => options.includes(name)) || options[0] || "";
-  if (next) nodes.ttsSayVoice.value = next;
+  if (engine !== "browser") return;
+  await refreshTtsVoiceOptions();
+  if (!nodes.ttsVoice) return;
+  const langPrefix = String(nodes.ttsLang?.value || "ru-RU").split("-")[0].toLowerCase();
+  const voices = filterLocalWebSpeechVoices(getSpeechSynth()?.getVoices() || []).filter((voice) =>
+    voice.lang.toLowerCase().startsWith(langPrefix)
+  );
+  const milena = voices.find(
+    (voice) => /milena/i.test(voice.name) && voice.lang.toLowerCase().startsWith(langPrefix)
+  );
+  const fallback = voices.find((voice) => voice.lang.toLowerCase().startsWith(langPrefix));
+  nodes.ttsVoice.value = milena?.name || fallback?.name || "";
 }
 
 async function refreshTtsEngineVoices(engine = getTtsEngine()) {
@@ -8850,24 +8830,6 @@ async function refreshTtsEngineVoices(engine = getTtsEngine()) {
     }
     return;
   }
-  if (engine !== "say" || !nodes.ttsSayVoice) return;
-  try {
-    const sayLang = nodes.ttsSayLang?.value || state.settings?.ttsSayLang || "ru-RU";
-    const data = await apiFetch(
-      `/api/shell/tts/voices?engine=${encodeURIComponent(engine)}&lang=${encodeURIComponent(sayLang)}`
-    );
-    const current = nodes.ttsSayVoice.value || state.settings?.ttsSayVoice || "";
-    nodes.ttsSayVoice.innerHTML = '<option value="">По умолчанию (say)</option>';
-    for (const voice of data.voices || []) {
-      const opt = document.createElement("option");
-      opt.value = voice.id;
-      opt.textContent = `${voice.label || voice.id} · say сервер`;
-      if (voice.id === current) opt.selected = true;
-      nodes.ttsSayVoice.append(opt);
-    }
-  } catch {
-    nodes.ttsSayVoice.innerHTML = '<option value="">say недоступен (нужен Mac-сервер)</option>';
-  }
 }
 
 function applyTtsSettingsUi(settings) {
@@ -8876,14 +8838,11 @@ function applyTtsSettingsUi(settings) {
   if (nodes.ttsPrompt && document.activeElement !== nodes.ttsPrompt) {
     nodes.ttsPrompt.value = settings.ttsPrompt || "";
   }
-  const engine = normalizeTtsEngine(settings.ttsEngine === "sidecar" ? "say" : settings.ttsEngine || "browser");
+  const engine = normalizeTtsEngine(settings.ttsEngine || "browser");
   fillTtsEngineSelect(nodes.ttsEngine, engine);
   const lang = settings.ttsBrowserLang || "ru-RU";
-  const sayLang = settings.ttsSayLang || "ru-RU";
   const voice = settings.ttsBrowserVoice ?? "";
-  const sayVoice = settings.ttsSayVoice ?? "";
   if (nodes.ttsLang) nodes.ttsLang.value = lang;
-  if (nodes.ttsSayLang) nodes.ttsSayLang.value = sayLang;
   if (nodes.ttsRate) nodes.ttsRate.value = String(settings.ttsRate ?? 1);
   if (nodes.ttsPitch) nodes.ttsPitch.value = String(settings.ttsPitch ?? 1);
   if (nodes.ttsEdgeVoice) nodes.ttsEdgeVoice.value = settings.ttsEdgeVoice || "ru-RU-SvetlanaNeural";
@@ -8897,11 +8856,9 @@ function applyTtsSettingsUi(settings) {
   updateTtsRateLabel();
   updateTtsPitchLabel();
   if (nodes.ttsVoice) nodes.ttsVoice.value = voice;
-  if (nodes.ttsSayVoice) nodes.ttsSayVoice.value = sayVoice;
   updateTtsEngineUi();
   void refreshTtsEngineVoices("browser");
-  void refreshTtsEngineVoices("say");
-  if (!["browser", "say"].includes(engine)) {
+  if (engine !== "browser") {
     void refreshTtsEngineVoices(engine);
   }
   void loadTtsCapabilities();
@@ -8943,8 +8900,6 @@ function collectTtsFormPatch() {
     ttsEngine: getTtsEngine(),
     ttsBrowserLang: nodes.ttsLang?.value || "ru-RU",
     ttsBrowserVoice: nodes.ttsVoice?.value || "",
-    ttsSayLang: nodes.ttsSayLang?.value || "ru-RU",
-    ttsSayVoice: nodes.ttsSayVoice?.value || "",
     ttsEdgeVoice: nodes.ttsEdgeVoice?.value || "ru-RU-SvetlanaNeural",
     ttsElevenlabsApiKey: resolveElevenlabsApiKey(),
     ttsElevenlabsVoiceId: resolveElevenlabsVoiceId(),
@@ -9027,7 +8982,6 @@ function resolveReplyTtsEngines() {
   };
   if (SERVER_TTS_ENGINES.has(configured)) push(configured);
   push("edge");
-  if (/Mac/i.test(navigator.platform || "")) push("say");
   return order;
 }
 
@@ -9243,7 +9197,7 @@ async function testTtsEngine() {
         throw new Error("ElevenLabs: укажите Voice ID");
       }
     }
-    if (engine === "browser" || engine === "say") {
+    if (engine === "browser") {
       await applyContrastVoiceDefaults(engine);
       markSettingsDirty("tts");
     }
@@ -10613,8 +10567,6 @@ function bindUi() {
     nodes.ttsEngine,
     nodes.ttsLang,
     nodes.ttsVoice,
-    nodes.ttsSayLang,
-    nodes.ttsSayVoice,
     nodes.ttsEdgeVoice,
     nodes.ttsPiperModel,
     nodes.ttsPiperBinary,
@@ -10694,7 +10646,7 @@ function bindUi() {
     state.settings = { ...(state.settings || {}), ttsEngine: engine };
     void (async () => {
       updateTtsEngineUi();
-      if (engine === "browser" || engine === "say") {
+      if (engine === "browser") {
         await applyContrastVoiceDefaults(engine);
       } else {
         await refreshTtsEngineVoices(engine);
@@ -10715,10 +10667,6 @@ function bindUi() {
       btn?.classList.remove("is-busy");
       btn?.removeAttribute("disabled");
     });
-  });
-  nodes.ttsSayLang?.addEventListener("change", () => {
-    void refreshTtsEngineVoices("say");
-    markTtsDirty();
   });
   if (typeof speechSynthesis !== "undefined") {
     speechSynthesis.addEventListener("voiceschanged", refreshTtsVoiceOptions);

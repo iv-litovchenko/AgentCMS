@@ -28,11 +28,11 @@ export function formatTtsErrorHint({ serverReason = "", browserReason = "", useS
   }
 
   if (browserReason === "speech-not-allowed" || browserReason === "speech-no-start") {
-    parts.push("Браузер заблокировал TTS — нажмите «Пробная озвучка» или выберите Edge/say");
+    parts.push("Браузер заблокировал TTS — нажмите «Пробная озвучка» или выберите Edge TTS");
   } else if (browserReason === "speech-cut-short") {
-    parts.push("Safari оборвал TTS — выберите Edge TTS или macOS say");
+    parts.push("Safari оборвал TTS — выберите Edge TTS в настройках");
   } else if (browserReason === "speech-timeout" || browserReason === "speech-end-timeout") {
-    parts.push("Safari TTS завис — для ответов агента выберите Edge TTS или macOS say");
+    parts.push("Safari TTS завис — для ответов агента выберите Edge TTS");
   } else if (browserReason && browserReason !== "no-speech-synthesis") {
     parts.push(`Safari: ${browserReason}`);
   }
