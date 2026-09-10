@@ -556,11 +556,10 @@ export function createShellDialog(options = {}) {
     btn.setAttribute("aria-hidden", show ? "false" : "true");
   }
 
-  function getLastAnchoredRowInScroll() {
-    const scrollRoot = nodes.scroll;
-    if (!scrollRoot) return null;
-    const rows = scrollRoot.querySelectorAll(".shell-chat-row[data-message-anchor]");
-    if (!rows.length) return null;
+  function getLastThreadRow(role = "") {
+    const selector = role ? `.shell-chat-row--${role}` : ".shell-chat-row";
+    const rows = nodes.thread?.querySelectorAll(selector);
+    if (!rows?.length) return null;
     return rows[rows.length - 1];
   }
 
@@ -570,9 +569,16 @@ export function createShellDialog(options = {}) {
     return nodes.thread?.querySelector(`#${CSS.escape(domId)}`) || null;
   }
 
+  function getLiveReplyTextEl() {
+    return document.getElementById("shell-last-reply-text");
+  }
+
   function getLatestLiveActivityAnchor() {
     const liveReply = nodes.lastReply;
     if (!liveReply || liveReply.classList.contains("hidden")) return null;
+
+    const replyText = getLiveReplyTextEl();
+    if (replyText && !isLiveReplyStub(lastReplyRaw)) return replyText;
 
     const liveTools = nodes.liveTools;
     if (liveTools && !liveTools.classList.contains("hidden")) {
@@ -582,10 +588,7 @@ export function createShellDialog(options = {}) {
       if (pending) return pending;
     }
 
-    const replyText = document.getElementById("shell-last-reply-text");
-    if (replyText && !isLiveReplyStub(lastReplyRaw)) return replyText;
-
-    return liveReply;
+    return replyText || liveReply;
   }
 
   function getDialogScrollAnchor() {
@@ -598,31 +601,56 @@ export function createShellDialog(options = {}) {
       if (live) return live;
     }
 
-    const lastAnchored = getLastAnchoredRowInScroll();
-    if (lastAnchored) return lastAnchored;
+    const lastAgent = getLastThreadRow("agent");
+    if (lastAgent) return lastAgent;
 
-    if (liveReplyVisible) return liveReply;
+    const lastUser = getLastThreadRow("user");
+    if (lastUser) return lastUser;
+
+    if (liveReplyVisible) return getLatestLiveActivityAnchor() || liveReply;
     if (nodes.lastAskWrap && !nodes.lastAskWrap.classList.contains("hidden")) return nodes.lastAskWrap;
-    return null;
+    return getLastThreadRow();
   }
 
-  function scrollDialogToAnchor(anchorEl, { smooth = true, align = "bottom" } = {}) {
+  function shouldFollowStreamTail(anchorEl) {
+    const scrollEl = nodes.scroll;
+    if (!scrollEl || !anchorEl) return false;
+    const scrollRect = scrollEl.getBoundingClientRect();
+    const anchorRect = anchorEl.getBoundingClientRect();
+    return anchorRect.bottom > scrollRect.bottom - 10;
+  }
+
+  function resolveScrollBlock(anchorEl) {
+    const streaming = nodes.panel?.classList.contains("is-streaming");
+    const replyText = getLiveReplyTextEl();
+    if (streaming && anchorEl === replyText && shouldFollowStreamTail(anchorEl)) {
+      return "end";
+    }
+    return "start";
+  }
+
+  function revealDialogAnchor(anchorEl, { smooth = false, block = "start" } = {}) {
     const scrollEl = nodes.scroll;
     if (!scrollEl || !anchorEl) return false;
     const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
     if (maxScroll <= 1) return true;
+
+    const padding = 10;
     const scrollRect = scrollEl.getBoundingClientRect();
     const anchorRect = anchorEl.getBoundingClientRect();
-    const padding = 12;
     let targetTop;
-    if (align === "start") {
-      targetTop = scrollEl.scrollTop + (anchorRect.top - scrollRect.top) - padding;
-    } else {
+    if (block === "end") {
       targetTop = scrollEl.scrollTop + (anchorRect.bottom - scrollRect.bottom) + padding;
+    } else {
+      targetTop = scrollEl.scrollTop + (anchorRect.top - scrollRect.top) - padding;
     }
     targetTop = Math.max(0, Math.min(targetTop, maxScroll));
     scrollEl.scrollTo({ top: targetTop, behavior: smooth ? "smooth" : "auto" });
     return true;
+  }
+
+  function scrollDialogToAnchor(anchorEl, { smooth = true, align = "start" } = {}) {
+    return revealDialogAnchor(anchorEl, { smooth, block: align === "end" ? "end" : "start" });
   }
 
   function scrollDialogToBottom({ smooth = true, force = false } = {}) {
@@ -630,22 +658,19 @@ export function createShellDialog(options = {}) {
     if (!scrollEl) return;
     if (!force && !stickToBottom) return;
     finishScrollRestoreWatch();
-    const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
-    if (maxScroll <= 1) return;
     stickToBottom = true;
     suppressScrollPersist = true;
     suppressStickUpdate = true;
-    const streaming = nodes.panel?.classList.contains("is-streaming");
     const anchor = getDialogScrollAnchor();
-    const align = streaming ? "start" : "bottom";
-    if (!anchor || !scrollDialogToAnchor(anchor, { smooth, align })) {
-      scrollEl.scrollTo({ top: maxScroll, behavior: smooth ? "smooth" : "auto" });
+    if (anchor) {
+      revealDialogAnchor(anchor, { smooth, block: resolveScrollBlock(anchor) });
     }
     window.setTimeout(
       () => {
         suppressScrollPersist = false;
         suppressStickUpdate = false;
         updateScrollProgress();
+        updateScrollBottomButton();
       },
       smooth ? 320 : 0
     );
@@ -1476,6 +1501,7 @@ export function createShellDialog(options = {}) {
     void ensureShellMarkdownReady().then(() => {
       rehydrateShellMarkdownIn(nodes.thread);
       rehydrateShellMarkdownIn(nodes.lastReply);
+      if (stickToBottom) queueStickToBottomAfterLayout({ smooth: false });
     });
 
     if (scrollRestoreActive && pendingScrollRestoreRatio != null) {
@@ -1568,6 +1594,7 @@ export function createShellDialog(options = {}) {
     const raw = String(rawText || "").trim();
     lastReplyRaw = raw;
     syncLiveReplySlot();
+    if (stickToBottom) queueStickToBottomAfterLayout({ smooth: false });
   }
 
   function onUserMessage(text) {
