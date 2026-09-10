@@ -3083,6 +3083,7 @@ function renderStreamingAssistantText(text) {
   nodes.lastReplyText.textContent = value;
   stopStreamWaitTimer();
   shellDialog.onReplyRendered(value);
+  shellDialog.maintainStickScroll?.();
   syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
     updateLabel: false,
     phrase: nodes.phaseLabel?.textContent || ""
@@ -3265,15 +3266,9 @@ function finalizeAssistantStream(message) {
   state.assistantStream = { id: streamId, text: body, spokenText, spokenParts, done: true, finalized: true };
   setReplyPanelStreaming(false);
   shellDialog.finalizeRunningTools?.();
-  shellDialog.syncLiveReplySlot?.();
+  shellDialog.onAgentReply(body);
   shellSession?.resetStreamRenderState();
   renderShellReply({ ...message, body, spokenText, spokenParts });
-  shellDialog.onAgentReply(body);
-  window.setTimeout(() => {
-    void shellDialog.refreshHistory?.().then(() => {
-      shellDialog.syncLiveReplySlot?.();
-    });
-  }, 0);
   finalizeAgentActivitySteps();
   shellSession?.markReplyDisplayed({ ...message, body, streamId });
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
@@ -3392,6 +3387,7 @@ async function reloadShellDialogContext({ restoreScroll = false } = {}) {
 
 function beginQueuedTurnStream(processing) {
   const text = String(processing?.text || processing?.body || "").trim();
+  shellDialog.enableStickToBottom?.();
   state.messageStopped = false;
   state.messagePipelineBusy = true;
   state.processingMessage = text || state.processingMessage;
@@ -9365,9 +9361,9 @@ async function handleAssistantMessage(message) {
 
   shellSession?.flushStreamingRender(renderStreamingAssistantText);
   markAssistantReplyHandled(message, body);
+  setReplyPanelStreaming(false);
   renderShellReply(message);
   shellDialog.onAgentReply(body);
-  void shellDialog.refreshHistory?.().then(() => shellDialog.syncLiveReplySlot?.());
   shellSession?.markReplyDisplayed(message);
 
   const phase = state.shellState?.phase || "waiting";
