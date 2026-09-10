@@ -1,42 +1,28 @@
 /** Движки озвучки ответа (TTS). */
 
-export const SHELL_TTS_ENGINE_GROUPS = [
-  {
-    id: "browser",
-    label: "В браузере",
-    engines: ["browser"]
-  },
-  {
-    id: "server",
-    label: "На сервере",
-    engines: ["piper"]
-  },
-  {
-    id: "online",
-    label: "Онлайн / API",
-    engines: ["edge", "elevenlabs"]
-  }
-];
+/** Единая подпись Web Speech в селектах STT и TTS. */
+export const WEB_SPEECH_ENGINE_LABEL = "Web Speech — в браузере (устройство)";
 
-export const SHELL_TTS_ENGINES = SHELL_TTS_ENGINE_GROUPS.flatMap((group) => group.engines);
+export const SHELL_TTS_ENGINES = ["browser", "edge", "piper", "elevenlabs"];
 
+/** Формат: название — где работает (провайдер). Симметрично STT_ENGINE_LABELS. */
 export const SHELL_TTS_ENGINE_LABELS = {
-  browser: "Web Speech · во вкладке",
-  piper: "Piper · офлайн-модель",
-  edge: "Edge TTS · Microsoft",
-  elevenlabs: "ElevenLabs · API key"
+  browser: WEB_SPEECH_ENGINE_LABEL,
+  edge: "Edge TTS — облако (Microsoft)",
+  piper: "Piper — локально (сервер)",
+  elevenlabs: "ElevenLabs — облако (ElevenLabs)"
 };
 
 export const SHELL_TTS_ENGINE_DESCRIPTIONS = {
   browser:
-    "Озвучка во вкладке через Web Speech API. Голоса — из браузера на вашем устройстве, сервер не участвует.",
+    "Озвучка в браузере через Web Speech API. Голоса — из ОС/браузера на вашем устройстве, сервер не участвует.",
   edge: "Онлайн-синтез Microsoft Edge TTS. Нужен интернет, API key не нужен.",
   piper: "Локальная нейромодель на сервере. Нужен путь к .onnx и бинарник piper.",
   elevenlabs: "Облачный синтез ElevenLabs. Нужны API key и Voice ID."
 };
 
 export const SHELL_TTS_ENGINE_SHORT_LABELS = {
-  browser: "Браузер",
+  browser: "Web Speech",
   edge: "Edge TTS",
   piper: "Piper",
   elevenlabs: "ElevenLabs"

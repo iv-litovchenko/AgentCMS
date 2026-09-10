@@ -478,7 +478,7 @@ function normalizeSettings(raw) {
         : "microphone";
   }
   delete merged.voiceInputSource;
-  merged.voiceGlobalListen = Boolean(merged.voiceGlobalListen);
+  merged.voiceGlobalListen = false;
   merged.voiceWakeName = String(merged.voiceWakeName || "").trim();
   merged.voiceToCompose = Boolean(merged.voiceToCompose);
   if (!["browser", "edge", "piper", "elevenlabs"].includes(merged.ttsEngine)) {
@@ -2259,7 +2259,7 @@ async function buildStatusPayload(
     stateOut = { ...stateOut, phrase: "", lastAgentMessageId: "" };
   }
 
-  if (stateOut.pttHeld && !isSidecarConnected(state)) {
+  if (stateOut.pttHeld) {
     stateOut = {
       ...stateOut,
       pttHeld: false,
@@ -2337,7 +2337,7 @@ async function buildStatusPayload(
     settingsFile: settingsAbsolute(agentRoot),
     settings,
     state: stateOut,
-    sidecarConnected: isSidecarConnected(state),
+    sidecarConnected: false,
     qwenpaw,
     runtime: bridgeRuntime,
     ...(Object.keys(runtimeStatuses).length > 0 ? { runtimeStatuses } : {}),

@@ -6,7 +6,7 @@ const TTS_PLAYBACK_HINTS = {
 export function updateVoiceModeHint(
   mode = "hold",
   hintEl = document.getElementById("shell-voice-control"),
-  { resolvedSource = "browser", sidecarConnected = false, sttCapture = "microphone" } = {}
+  { resolvedSource = "browser", sttCapture = "microphone" } = {}
 ) {
   if (!hintEl) return;
   if (mode === "disabled") {
@@ -21,7 +21,6 @@ export function updateVoiceModeHint(
   };
   let hint = modeHints[mode] || modeHints.hold;
   void resolvedSource;
-  void sidecarConnected;
   void sttCapture;
   const hints = {
     live: hint,

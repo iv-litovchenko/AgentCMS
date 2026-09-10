@@ -45,20 +45,22 @@
     "tts": {
       "enabled": true,
       "playbackMode": "reading",
-      "engine": "browser",
+      "engine": "elevenlabs",
       "prompt": "Сформируй ответ в следующем формате (строго, в таком порядке):\n\n1) Голосовая версия для озвучки — без emoji и markdown, только то, что можно произнести вслух. Не включай секреты, ключи и пароли. Не используй HTML-комментарии <!-- -->.\n\n2) Отдельной строкой маркер:\n\n::: VOICE-END :::\n\n3) Полный текст ответа для экрана (можно markdown, списки, код и любые другие элементы). Без HTML-комментариев <!-- -->.",
       "rate": 1,
       "pitch": 1,
       "includeCaptions": true,
       "engines": {
         "browser": {
-          "lang": "en-US",
-          "voice": "Aaron"
+          "lang": "ru-RU",
+          "voice": "Милена"
         },
         "edge": {
           "voice": "ru-RU-SvetlanaNeural"
         },
         "elevenlabs": {
+          "apiKey": "f412a58c22fe6c250f9c7c0dc88a52ba21058f66d142aa2c4bddf231309d8259",
+          "voiceId": "6KFibqPgTIYbhbJyJ4eD",
           "model": "eleven_multilingual_v2"
         }
       }
@@ -98,7 +100,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0
+    "dialogScrollRatio": 1
   },
   "compose": {
     "promptTemplates": [

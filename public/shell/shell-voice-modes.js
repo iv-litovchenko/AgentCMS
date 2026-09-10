@@ -29,12 +29,18 @@ export const STT_ENGINE_IDS = ["browser", "google", "whisper", "elevenlabs"];
 /** Пока в UI доступен только Web Speech; остальные видны, но disabled. */
 export const STT_SERVER_ENGINES_SELECTABLE = false;
 
+/** Формат: название — где работает (провайдер). Симметрично SHELL_TTS_ENGINE_LABELS. */
 export const STT_ENGINE_LABELS = {
-  browser: "Web Speech",
-  google: "Google STT",
-  whisper: "Whisper локально",
-  elevenlabs: "ElevenLabs Scribe"
+  browser: "Web Speech — в браузере (устройство)",
+  google: "Google STT — облако (Google)",
+  whisper: "Whisper — локально (сервер)",
+  elevenlabs: "ElevenLabs Scribe — облако (ElevenLabs)"
 };
+
+export function formatSttEngineSelectLabel(engine = "browser") {
+  const id = normalizeSttEngine(engine);
+  return STT_ENGINE_LABELS[id] || id;
+}
 
 export const STT_ENGINE_SHORT_LABELS = {
   browser: "Web",
@@ -208,32 +214,25 @@ export function sttEngineUsesServer(engine) {
   return isLocalSttEngine(engine);
 }
 
-/** @deprecated browser = Web Speech; server = микрофон → API сервера; sidecar = legacy PTT */
+/** browser = Web Speech в вкладке; server = запись в браузере → STT API на сервере */
 export function resolveSttSource(
   mode,
   {
-    globalListen = false,
-    sidecarConnected = false,
     sttEngine = "browser",
     sttCapture = "microphone",
     sttSource = null
   } = {}
 ) {
-  void globalListen;
-  void sidecarConnected;
   const capture = normalizeSttCapture(sttCapture, {
     legacySource: sttSource != null ? String(sttSource) : ""
   });
   const engine = normalizeSttEngine(sttEngine);
-  const m = normalizeVoiceInputMode(mode);
 
   if (capture === "microphone") {
     return sttEngineUsesWebSpeech(engine) ? "browser" : "server";
   }
 
-  if (m === "live") return "sidecar";
-  if (sttCaptureRequiresLocalAgent(capture)) return "sidecar";
-  if (isLocalSttEngine(engine)) return "server";
+  if (sttCaptureRequiresLocalAgent(capture) || isLocalSttEngine(engine)) return "server";
   return "browser";
 }
 
@@ -249,19 +248,6 @@ export function sttEngineIsAvailable(mode, context = {}) {
   if (engine === "elevenlabs" && context.elevenlabsAvailable === false) return false;
   void mode;
   return true;
-}
-
-export function voiceModeRequiresSidecar(mode, context = {}) {
-  void context;
-  return normalizeVoiceInputMode(mode) === "live";
-}
-
-export function voiceModeUsesSidecarMic(mode, context = {}) {
-  if (resolveSttSource(mode, context) !== "sidecar") return false;
-  const m = normalizeVoiceInputMode(mode);
-  if (voiceModeRequiresSidecar(m)) return Boolean(context.sidecarConnected);
-  if (m === "hold" || m === "fn_button") return Boolean(context.sidecarConnected);
-  return false;
 }
 
 export function voiceModeUsesBrowserStt(mode, context = {}) {
@@ -298,15 +284,8 @@ export function voiceModeMicAction(mode, context = {}) {
   if (m === "meeting") return "toggle-meeting";
   if (m === "live") return "disabled-hint";
 
-  const resolved = resolveSttSource(m, context);
-  if (resolved === "browser" || resolved === "server") {
-    if (m === "fn_button") return "hint";
-    return "hold";
-  }
-
   if (m === "fn_button") return "hint";
-  if (m === "hold") return "hold";
-  return "hint";
+  return "hold";
 }
 
 export function voiceModeMicLabel(mode, { meetingRecording = false } = {}) {
@@ -353,7 +332,7 @@ export function formatSttEngineNote({
   if (cap === "microphone") {
     parts.push(`Микрофон → ${engLabel}.`);
     if (eng === "browser") {
-      parts.push("Web Speech в этой вкладке.");
+      parts.push("Web Speech — в браузере (устройство).");
     } else if (eng === "google") {
       parts.push("Запись в браузере → распознавание Google STT на сервере (нужен интернет).");
     } else if (eng === "whisper") {

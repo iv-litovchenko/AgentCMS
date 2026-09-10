@@ -102,6 +102,7 @@ import {
   STT_CAPTURE_LABELS,
   STT_CAPTURE_HINTS,
   STT_ENGINE_LABELS,
+  formatSttEngineSelectLabel,
   STT_LANG_AUTO,
   sttLangSupportsAuto,
   normalizeSttLang,
@@ -118,10 +119,8 @@ import {
   voiceModeMicAction,
   voiceModeMicLabel,
   resolveMicIcon,
-  voiceModeRequiresSidecar,
   voiceModeUsesBrowserStt,
   voiceModeUsesServerStt,
-  voiceModeUsesSidecarMic,
   sttEngineUsesWebSpeech,
   STT_SERVER_ENGINES_SELECTABLE
 } from "@shell/voice-modes";
@@ -156,7 +155,6 @@ import {
   runtimeShowsBaseUrl
 } from "@shell/runtimes";
 import {
-  SHELL_TTS_ENGINE_GROUPS,
   SHELL_TTS_ENGINES,
   normalizeTtsEngine,
   ttsEngineLabel,
@@ -311,7 +309,7 @@ function handleSttEnabledChange(source) {
     void persistSttEnabled(enabled);
   } else if (!enabled) {
     shellTapVoice?.abortSession();
-    if (state.meetingRecording) void setMeetingRecordingRemote(false);
+    if (state.meetingRecording) void stopMeetingRecordingIfActive();
     updateVoiceModeSelectUi();
     syncCompactSensorAvailability();
   }
@@ -393,11 +391,19 @@ let shellPromptTemplates = {
 const TTS_TEST_PHRASE_RU = "Привет, мир.";
 const TTS_TEST_PHRASE_EN = "Hello, world.";
 
+function describeTtsLangForTest(engine = getTtsEngine(), patch = collectTtsFormPatch()) {
+  const id = normalizeTtsEngine(engine);
+  if (id !== "browser") return "";
+  const lang = String(patch.ttsBrowserLang || nodes.ttsLang?.value || "ru-RU").trim();
+  const opt = nodes.ttsLang?.querySelector(`option[value="${CSS.escape(lang)}"]`);
+  return String(opt?.textContent || lang).trim();
+}
+
 function describeTtsVoiceForTest(engine = getTtsEngine(), patch = collectTtsFormPatch()) {
   const id = normalizeTtsEngine(engine);
   if (id === "browser") {
     const voiceId = String(patch.ttsBrowserVoice || nodes.ttsVoice?.value || "").trim();
-    const label = String(nodes.ttsVoice?.selectedOptions?.[0]?.text || voiceId || "по умолчанию").trim();
+    const label = String(nodes.ttsVoice?.selectedOptions?.[0]?.text || voiceId || "системный по умолчанию").trim();
     return { label };
   }
   if (id === "edge") {
@@ -421,10 +427,21 @@ function describeTtsVoiceForTest(engine = getTtsEngine(), patch = collectTtsForm
 
 function getTtsTestPhrase(engine = getTtsEngine()) {
   const id = normalizeTtsEngine(engine);
-  const voice = describeTtsVoiceForTest(id, collectTtsFormPatch());
-  const label = String(voice.label || "").trim();
-  const core = `${TTS_TEST_PHRASE_RU} ${TTS_TEST_PHRASE_EN}`;
-  return label ? `${core} · ${label}` : core;
+  const patch = collectTtsFormPatch();
+  const voice = describeTtsVoiceForTest(id, patch);
+  const parts = [`${TTS_TEST_PHRASE_RU} ${TTS_TEST_PHRASE_EN}`];
+  parts.push(`Движок ${formatTtsEngineSelectLabel(id)}`);
+  const langLabel = describeTtsLangForTest(id, patch);
+  if (langLabel) parts.push(`Язык ${langLabel}`);
+  parts.push(`Голос ${voice.label}`);
+  return `${parts.join(". ")}.`;
+}
+
+function updateTtsTestBtnHint() {
+  if (!nodes.ttsTestBtn) return;
+  const phrase = getTtsTestPhrase();
+  nodes.ttsTestBtn.title = phrase;
+  nodes.ttsTestBtn.setAttribute("aria-label", `Пробная озвучка: ${phrase}`);
 }
 
 const PHASE_LABELS = {
@@ -597,7 +614,6 @@ const state = {
   voiceSttProcessing: false,
   pttHeld: false,
   pttKeyboardHeld: false,
-  sidecarConnected: false,
   qwenpawConnected: false,
   qwenpawServerOk: false,
   qwenpawAgentOk: false,
@@ -998,7 +1014,7 @@ function commitVoiceModeSelection({ persist = true } = {}) {
   if (state.settings) state.settings.voiceInputMode = mode;
 
   if (!usesBrowserStt(mode)) shellTapVoice?.abortSession();
-  if (state.meetingRecording) void setMeetingRecordingRemote(false);
+  if (state.meetingRecording) void stopMeetingRecordingIfActive();
 
   updateVoiceModeSelectUi();
   syncCompactSensorAvailability();
@@ -1015,10 +1031,6 @@ function syncVoiceModeSelectFromDom() {
     return;
   }
   commitVoiceModeSelection();
-}
-
-function isVoiceGlobalListen(settings = state.settings) {
-  return Boolean(settings?.voiceGlobalListen);
 }
 
 function readSttEngineFromDom(settings = state.settings) {
@@ -1048,8 +1060,6 @@ function getVoiceModeContext(settings = state.settings) {
   const whisperMeta = sttEngineCapabilities.whisper || {};
   const elevenMeta = sttEngineCapabilities.elevenlabs || {};
   return {
-    globalListen: isVoiceGlobalListen(settings),
-    sidecarConnected: state.sidecarConnected,
     sttEngine: engine,
     sttCapture: readSttCaptureFromDom(settings),
     whisperAvailable: whisperMeta.available !== false,
@@ -1081,10 +1091,6 @@ function readVoiceResponseEnabledFromDom(settings = state.settings) {
 
 function shouldSendVoiceImmediately(settings = state.settings) {
   return readVoiceResponseEnabledFromDom(settings);
-}
-
-function usesSidecarMic(mode = getVoiceInputMode()) {
-  return voiceModeUsesSidecarMic(mode, getVoiceModeContext());
 }
 
 function usesBrowserStt(mode = getVoiceInputMode()) {
@@ -1123,31 +1129,12 @@ function isFnButtonMode() {
   return getVoiceInputMode() === "fn_button";
 }
 
-function usesSidecarPtt(mode = getVoiceInputMode()) {
-  return usesSidecarMic(mode);
-}
-
 function isPttKeyEvent(event) {
   if (!event) return false;
   const code = String(event.code || "");
   if (code === "ShiftLeft" || code === "ShiftRight") return true;
   if (code === "F18" || code === "Fn") return true;
   return event.keyCode === 128;
-}
-
-function setPttHeldRemote(held) {
-  return apiFetch("/api/shell/ptt", {
-    method: "POST",
-    body: JSON.stringify({ held: Boolean(held) })
-  }).then((data) => {
-    state.pttHeld = Boolean(data.held);
-    syncMicButtonUi({ force: true });
-    renderPhase(
-      state.pttHeld ? "listening" : "waiting",
-      state.pttHeld ? "Слушаю…" : HERO_IDLE_PHRASE
-    );
-    syncVoiceRecordTimer();
-  });
 }
 
 function setMeetingRecordingRemote(recording) {
@@ -1226,15 +1213,6 @@ function beginPttHold() {
   renderPhase("listening", voiceRecordingHeroPhrase());
   syncVoiceRecordTimer();
 
-  if (usesSidecarMic(mode)) {
-    void setPttHeldRemote(true).catch((error) => {
-      state.pttKeyboardHeld = false;
-      syncVoiceRecordTimer();
-      renderPhase("waiting", error.message);
-    });
-    return;
-  }
-
   if (!shellTapVoice) {
     state.pttKeyboardHeld = false;
     syncVoiceRecordTimer();
@@ -1255,15 +1233,6 @@ function endPttHold() {
   const mode = getVoiceInputMode();
   playShellMicSound("release");
   hapticTap();
-
-  if (usesSidecarMic(mode)) {
-    schedulePttReleaseTail(() => {
-      void setPttHeldRemote(false).catch((error) => renderPhase("waiting", error.message));
-    });
-    state.pttKeyboardHeld = false;
-    syncVoiceRecordTimer();
-    return;
-  }
 
   if (shellTapVoice) {
     shellTapVoice.stopSession({ skipReleaseSound: true });
@@ -4469,16 +4438,7 @@ function beginCompactSensorVoice() {
   void unlockShellAudio();
   hapticTap();
 
-  if (usesSidecarPtt(mode)) {
-    if (!state.sidecarConnected) {
-      return Promise.resolve(false);
-    }
-    return setPttHeldRemote(true)
-      .then(() => true)
-      .catch(() => false);
-  }
-
-  if (shellTapVoice && usesBrowserStt(mode)) {
+  if (shellTapVoice && (usesBrowserStt(mode) || usesServerStt(mode))) {
     shellTapVoice.prepareSession();
     return shellTapVoice.startSession({ viaTap: true }).then((ok) => Boolean(ok));
   }
@@ -4487,13 +4447,6 @@ function beginCompactSensorVoice() {
 }
 
 function endCompactSensorHold() {
-  const mode = getVoiceInputMode();
-  if (usesSidecarPtt(mode)) {
-    if (state.pttHeld) {
-      void setPttHeldRemote(false).catch((error) => renderPhase("waiting", error.message));
-    }
-    return;
-  }
   if (shellTapVoice && (state.micActive || state.micTapHeld || shellTapVoice.isTapHeld?.())) {
     shellTapVoice.stopSession();
   }
@@ -4503,11 +4456,9 @@ function syncCompactSensorAvailability() {
   const sensor = nodes.compactSensor;
   if (!sensor) return;
   const mode = getVoiceInputMode();
-  const needsSidecar =
-    voiceModeRequiresSidecar(mode, getVoiceModeContext()) ||
-    (isVoiceGlobalListen() && (mode === "hold" || mode === "fn_button"));
+  const ctx = getVoiceModeContext();
   const voiceUnavailable =
-    mode === "disabled" || (needsSidecar && !state.sidecarConnected);
+    mode === "disabled" || isSttDisabled() || !sttEngineIsAvailable(mode, ctx);
   sensor.dataset.voiceReady = voiceUnavailable ? "0" : "1";
   sensor.setAttribute("aria-disabled", voiceUnavailable ? "true" : "false");
 }
@@ -4826,9 +4777,6 @@ function resetMicHoldUi({ force = true } = {}) {
   state.micPointerHeld = false;
   disarmMicHoldDocRelease();
   shellTapVoice?.abortSession();
-  if (usesSidecarMic() && state.pttHeld) {
-    void setPttHeldRemote(false).catch(() => {});
-  }
   syncMicButtonUi({ force });
   syncVoiceRecordTimer();
 }
@@ -6544,7 +6492,6 @@ function applyStatusPayload(payload) {
   if (payload?.agentId && payload.agentId !== prevAgentId) {
     commitAllSettingsBaselinesIfSafe();
   }
-  state.sidecarConnected = Boolean(payload?.sidecarConnected);
   syncCompactSensorAvailability();
   updateFnPttHint(getVoiceInputMode());
   updateSttEngineNote();
@@ -6594,7 +6541,6 @@ function applyStatusPayload(payload) {
     onShellPhaseChange(payload.state);
     state.shellState = payload.state;
     state.stopTtsAt = Number(payload.state.stopTtsAt) || 0;
-    state.pttHeld = Boolean(payload.state.pttHeld) && Boolean(payload.sidecarConnected);
     if (isVoiceRecordingActive()) {
       renderPhase("listening", voiceRecordingHeroPhrase());
     } else {
@@ -6620,12 +6566,6 @@ function applyStatusPayload(payload) {
       shellSession?.markReplyDisplayed(payload.latestAgentMessage);
     }
   }
-}
-
-function needsSidecar(mode = getVoiceInputMode()) {
-  const m = normalizeVoiceInputMode(mode);
-  if (voiceModeRequiresSidecar(m, getVoiceModeContext())) return true;
-  return isVoiceGlobalListen() && (m === "hold" || m === "fn_button");
 }
 
 async function resolveShellAgent() {
@@ -7686,6 +7626,7 @@ async function refreshTtsVoiceOptions() {
     empty.textContent = "Нет локальных голосов для выбранного языка";
     nodes.ttsVoice.append(empty);
   }
+  updateTtsTestBtnHint();
 }
 
 function updateTtsRateLabel() {
@@ -7702,6 +7643,29 @@ function preventDetailsToggleOnControl(el) {
   if (!el) return;
   for (const type of ["click", "mousedown", "pointerdown"]) {
     el.addEventListener(type, (event) => event.stopPropagation());
+  }
+}
+
+function bindShellSecretInputs(root = document) {
+  for (const wrap of root.querySelectorAll("[data-shell-secret]")) {
+    const input = wrap.querySelector("input");
+    const btn = wrap.querySelector(".shell-secret-toggle");
+    if (!input || !btn || btn.dataset.bound === "1") continue;
+    btn.dataset.bound = "1";
+    input.type = "password";
+    btn.setAttribute("aria-pressed", "false");
+    const showLabel = btn.getAttribute("aria-label") || "Показать";
+    const hideLabel = showLabel.startsWith("Показать") ? showLabel.replace(/^Показать/, "Скрыть") : `Скрыть ${showLabel}`;
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      btn.setAttribute("aria-pressed", show ? "true" : "false");
+      btn.title = show ? "Скрыть" : "Показать";
+      btn.setAttribute("aria-label", show ? hideLabel : showLabel);
+    });
+    preventDetailsToggleOnControl(btn);
   }
 }
 
@@ -8029,20 +7993,23 @@ async function stopBrowserMeetingRecording() {
   renderPhase("waiting", chunks.length ? "Запись сохранена (текст не распознан)" : "Запись пуста");
 }
 
+function stopMeetingRecordingIfActive() {
+  if (!state.meetingRecording) return Promise.resolve();
+  if (browserMeetingLocalActive || meetingUsesBrowserRecorder()) {
+    return stopBrowserMeetingRecording().catch(() => {});
+  }
+  state.meetingRecording = false;
+  syncMicButtonUi({ force: true });
+  syncVoiceRecordTimer();
+  return setMeetingRecordingRemote(false).catch(() => {});
+}
+
 async function toggleMeetingRecording() {
-  if (state.meetingRecording && meetingUsesBrowserRecorder()) {
+  if (state.meetingRecording) {
     await stopBrowserMeetingRecording();
     return;
   }
-  if (state.meetingRecording) {
-    await setMeetingRecordingRemote(false);
-    return;
-  }
-  if (meetingUsesBrowserRecorder()) {
-    await startBrowserMeetingRecording();
-    return;
-  }
-  await setMeetingRecordingRemote(true);
+  await startBrowserMeetingRecording();
 }
 
 function micButtonLabel(mode = getVoiceInputMode()) {
@@ -8157,11 +8124,7 @@ function updateComposeVoiceUi(mode = getVoiceInputMode()) {
   if (nodes.voiceControl) {
     nodes.voiceControl.dataset.sttSource = resolvedSource;
     nodes.voiceControl.dataset.sttCapture = capture;
-    updateVoiceModeHint(mode, nodes.voiceControl, {
-      resolvedSource,
-      sidecarConnected: state.sidecarConnected,
-      sttCapture: capture
-    });
+    updateVoiceModeHint(mode, nodes.voiceControl, { resolvedSource, sttCapture: capture });
   }
 
   if (nodes.voiceMode && mode !== "disabled") {
@@ -8405,7 +8368,7 @@ function collectSttFormPatch() {
     sttWhisperModel: nodes.sttWhisperModel?.value || "base",
     sttElevenlabsApiKey: nodes.sttElevenlabsKey?.value?.trim() || "",
     sttElevenlabsModel: nodes.sttElevenlabsModel?.value || "scribe_v2",
-    voiceGlobalListen: Boolean(state.settings?.voiceGlobalListen),
+    voiceGlobalListen: false,
     voiceResponseEnabled: readVoiceResponseEnabledFromDom()
   };
 }
@@ -8553,7 +8516,7 @@ async function persistSttEnabled(enabled) {
   state.sttResumeMode = uiMode;
   if (!enabled) {
     shellTapVoice?.abortSession();
-    if (state.meetingRecording) void setMeetingRecordingRemote(false);
+    if (state.meetingRecording) void stopMeetingRecordingIfActive();
   }
   if (state.settings) {
     state.settings.sttEnabled = enabled;
@@ -8617,21 +8580,16 @@ function fillTtsEngineSelect(selectEl, selected, capabilities = ttsEngineCapabil
   if (!selectEl) return normalizeTtsEngine(selected);
   const current = normalizeTtsEngine(selected);
   selectEl.innerHTML = "";
-  for (const group of SHELL_TTS_ENGINE_GROUPS) {
-    const optgroup = document.createElement("optgroup");
-    optgroup.label = group.label;
-    for (const engine of group.engines) {
-      const meta = capabilities?.[engine] || {};
-      const available = engine === "elevenlabs" ? meta.available !== false : meta.available !== false;
-      const opt = document.createElement("option");
-      opt.value = engine;
-      opt.textContent = formatTtsEngineSelectLabel(engine, { available });
-      opt.title = formatTtsEngineSelectTitle(engine, meta);
-      opt.disabled = engine === "elevenlabs" ? false : meta.available === false;
-      if (engine === current) opt.selected = true;
-      optgroup.append(opt);
-    }
-    selectEl.append(optgroup);
+  for (const engine of SHELL_TTS_ENGINES) {
+    const meta = capabilities?.[engine] || {};
+    const available = engine === "elevenlabs" ? meta.available !== false : meta.available !== false;
+    const opt = document.createElement("option");
+    opt.value = engine;
+    opt.textContent = formatTtsEngineSelectLabel(engine, { available });
+    opt.title = formatTtsEngineSelectTitle(engine, meta);
+    opt.disabled = engine === "elevenlabs" ? false : meta.available === false;
+    if (engine === current) opt.selected = true;
+    selectEl.append(opt);
   }
   selectEl.value = current;
   return normalizeTtsEngine(selectEl.value || current);
@@ -8655,6 +8613,14 @@ function populateTtsEngineSelect(selected = normalizeTtsEngine(state.settings?.t
   const engine = fillTtsEngineSelect(nodes.ttsEngine, selected);
   if (state.settings) state.settings.ttsEngine = engine;
   updateTtsEngineUi();
+}
+
+function refreshSttEngineSelectLabels() {
+  if (!nodes.sttEngine) return;
+  for (const option of nodes.sttEngine.options) {
+    if (!option.value) continue;
+    option.textContent = formatSttEngineSelectLabel(option.value);
+  }
 }
 
 function updateTtsEngineUi({ reloadVoices = false } = {}) {
@@ -8828,6 +8794,7 @@ async function refreshTtsEngineVoices(engine = getTtsEngine()) {
       if (voice.id === current) opt.selected = true;
       nodes.ttsEdgeVoice.append(opt);
     }
+    updateTtsTestBtnHint();
     return;
   }
 }
@@ -8862,6 +8829,7 @@ function applyTtsSettingsUi(settings) {
     void refreshTtsEngineVoices(engine);
   }
   void loadTtsCapabilities();
+  updateTtsTestBtnHint();
 }
 
 function collectDeviceContextForMessage() {
@@ -9838,13 +9806,6 @@ function beginMicHold() {
     renderPhase("disabled", `STT недоступен · откройте Shell по HTTPS · ${getShellHttpsUrl()}`);
     return false;
   }
-  if (usesSidecarMic(mode)) {
-    playShellMicSound("press");
-    hapticTap();
-    renderPhase("listening", voiceRecordingHeroPhrase());
-    void setPttHeldRemote(true).catch((error) => renderPhase("waiting", error.message));
-    return true;
-  }
   if (!shellTapVoice) {
     renderPhase("waiting", `SpeechRecognition недоступен · ${getShellHttpsUrl()}`);
     return false;
@@ -9870,12 +9831,6 @@ function endMicHold() {
   if (!micUsesHoldGesture(mode)) return;
   if (state.micPointerHeld || shellTapVoice?.isTapHeld?.() || state.pttHeld) {
     playShellMicSound("release");
-  }
-  if (usesSidecarMic(mode)) {
-    schedulePttReleaseTail(() => {
-      void setPttHeldRemote(false).catch((error) => renderPhase("waiting", error.message));
-    });
-    return;
   }
   if (shellTapVoice?.isSessionActive?.() || shellTapVoice?.isTapHeld?.() || state.micActive) {
     shellTapVoice.stopSession({ skipReleaseSound: true });
@@ -10330,6 +10285,8 @@ function bindUi() {
   try {
   populateVoiceModeSelect();
   populateTtsEngineSelect();
+  refreshSttEngineSelectLabels();
+  bindShellSecretInputs();
   onRouteSettingsDirty = () => markSettingsDirty("route");
 
   bindSettingsDirtyUi();
@@ -10562,6 +10519,7 @@ function bindUi() {
     event.preventDefault();
     void testTtsEngine();
   });
+  updateTtsTestBtnHint();
   for (const el of [
     nodes.ttsPrompt,
     nodes.ttsEngine,
@@ -10576,7 +10534,10 @@ function bindUi() {
     nodes.ttsRate,
     nodes.ttsPitch
   ]) {
-    el?.addEventListener("change", markTtsDirty);
+    el?.addEventListener("change", () => {
+      updateTtsTestBtnHint();
+      markTtsDirty();
+    });
   }
   nodes.ttsPrompt?.addEventListener("input", markTtsDirty);
   nodes.ttsPromptInsert?.addEventListener("click", (event) => {
@@ -10635,6 +10596,7 @@ function bindUi() {
   });
   nodes.ttsRate?.addEventListener("input", () => {
     updateTtsRateLabel();
+    updateTtsTestBtnHint();
     markTtsDirty();
   });
   nodes.ttsPitch?.addEventListener("input", () => {
@@ -10652,6 +10614,7 @@ function bindUi() {
         await refreshTtsEngineVoices(engine);
       }
       void loadTtsCapabilities();
+      updateTtsTestBtnHint();
       markTtsDirty();
     })();
   });

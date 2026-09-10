@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=555" />
+    <link rel="stylesheet" href="/shell/shell.css?v=556" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -62,7 +62,7 @@
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=208",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=363",
-          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=416",
+          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=418",
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=6",
           "@shell/user-question": "/shell/shell-user-question.js?v=4",
           "@shell/build": "/shell/shell-build.js?v=425"
@@ -849,7 +849,7 @@
             <span class="shell-label shell-label-row shell-label-row--spread">
               Провайдер (движок)
               <span class="shell-tts-engine-actions">
-                <button type="button" class="shell-label-action" id="shell-tts-test" title="Озвучить пробную фразу: русский и английский">
+                <button type="button" class="shell-label-action" id="shell-tts-test">
                   Пробный текст
                 </button>
               </span>
@@ -868,7 +868,7 @@
               </label>
               <label class="shell-field shell-field--compact">
                 <span class="shell-label shell-label-row shell-label-row--spread">
-                  Голос · Web Speech (вкладка)
+                  Голос
                   <button type="button" class="shell-label-action" id="shell-tts-voice-refresh" title="Перезагрузить список голосов браузера">
                     Обновить
                   </button>
@@ -911,29 +911,65 @@
           <div class="shell-tts-elevenlabs-panel" id="shell-tts-elevenlabs-panel" data-visible="0">
             <div class="shell-tts-engine-fields">
               <label class="shell-field shell-field--compact">
-                <span class="shell-label">ElevenLabs API key</span>
-                <input
-                  id="shell-tts-elevenlabs-key"
-                  class="shell-input shell-input--mono"
-                  type="text"
-                  autocomplete="off"
-                  spellcheck="false"
-                  placeholder="sk_…"
-                />
+                <span class="shell-label">ElevenLabs API key · обязательно</span>
+                <div class="shell-secret-input" data-shell-secret>
+                  <input
+                    id="shell-tts-elevenlabs-key"
+                    class="shell-input shell-input--mono"
+                    type="password"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="sk_…"
+                  />
+                  <button
+                    type="button"
+                    class="shell-secret-toggle"
+                    aria-label="Показать API key"
+                    title="Показать"
+                  >
+                    👁
+                  </button>
+                </div>
               </label>
               <label class="shell-field shell-field--compact">
-                <span class="shell-label">ElevenLabs Voice ID</span>
-                <input id="shell-tts-elevenlabs-voice-id" class="shell-input" type="text" spellcheck="false" placeholder="21m00Tcm4TlvDq8ikWAM" />
+                <span class="shell-label">ElevenLabs Voice ID · обязательно</span>
+                <div class="shell-secret-input" data-shell-secret>
+                  <input
+                    id="shell-tts-elevenlabs-voice-id"
+                    class="shell-input shell-input--mono"
+                    type="password"
+                    spellcheck="false"
+                    placeholder="21m00Tcm4TlvDq8ikWAM"
+                  />
+                  <button
+                    type="button"
+                    class="shell-secret-toggle"
+                    aria-label="Показать Voice ID"
+                    title="Показать"
+                  >
+                    👁
+                  </button>
+                </div>
               </label>
               <label class="shell-field shell-field--compact">
-                <span class="shell-label">Модель ElevenLabs</span>
-                <input
-                  id="shell-tts-elevenlabs-model"
-                  class="shell-input"
-                  type="text"
-                  spellcheck="false"
-                  placeholder="eleven_multilingual_v2"
-                />
+                <span class="shell-label">Модель ElevenLabs · по умолчанию eleven_multilingual_v2</span>
+                <div class="shell-secret-input" data-shell-secret>
+                  <input
+                    id="shell-tts-elevenlabs-model"
+                    class="shell-input shell-input--mono"
+                    type="password"
+                    spellcheck="false"
+                    placeholder="eleven_multilingual_v2"
+                  />
+                  <button
+                    type="button"
+                    class="shell-secret-toggle"
+                    aria-label="Показать модель"
+                    title="Показать"
+                  >
+                    👁
+                  </button>
+                </div>
               </label>
             </div>
           </div>
@@ -1066,12 +1102,12 @@
             <label class="shell-field">
               <span class="shell-label shell-label-row shell-label-row--spread">Движок STT</span>
               <select id="shell-stt-engine" class="shell-select shell-select--full" aria-label="Движок STT">
-                <option value="browser">Web Speech — в браузере</option>
-                <option value="google" disabled title="Скоро">Google STT</option>
-                <option value="whisper" disabled title="Скоро">Whisper локально</option>
-                <option value="elevenlabs" disabled title="Скоро">ElevenLabs Scribe</option>
+                <option value="browser">Web Speech — в браузере (устройство)</option>
+                <option value="google" disabled title="Скоро">Google STT — облако (Google)</option>
+                <option value="whisper" disabled title="Скоро">Whisper — локально (сервер)</option>
+                <option value="elevenlabs" disabled title="Скоро">ElevenLabs Scribe — облако (ElevenLabs)</option>
               </select>
-              <p class="shell-stt-engine-note" id="shell-stt-engine-note">Микрофон → Web Speech в этой вкладке. Нужен HTTPS.</p>
+              <p class="shell-stt-engine-note" id="shell-stt-engine-note">Микрофон → Web Speech — в браузере (устройство). Нужен HTTPS.</p>
             </label>
 
             <div class="shell-stt-engine-panels">
@@ -2952,6 +2988,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=584" type="module"></script>
+    <script src="/shell/shell.js?v=588" type="module"></script>
   </body>
 </html>
