@@ -192,6 +192,7 @@ export function initShellUserQuestion({
   submitBtn,
   cancelBtn,
   apiFetch,
+  getAgentId,
   onStatus
 } = {}) {
   if (!dialog || !listEl || !formEl || !submitBtn || !cancelBtn) return {};
@@ -200,8 +201,23 @@ export function initShellUserQuestion({
   let active = null;
   let busy = false;
 
+  function resolveAgentId(fallback = "") {
+    if (typeof getAgentId === "function") {
+      const id = String(getAgentId() || "").trim();
+      if (id) return id;
+    }
+    return String(fallback || "").trim();
+  }
+
   function setStatus(text) {
     if (typeof onStatus === "function") onStatus(String(text || "").trim());
+  }
+
+  function dismissAll() {
+    queue.length = 0;
+    active = null;
+    busy = false;
+    if (dialog.open && typeof dialog.close === "function") dialog.close();
   }
 
   function renderRequest(item) {
@@ -222,10 +238,12 @@ export function initShellUserQuestion({
     if (!active || busy) return;
     busy = true;
     const requestId = active.requestId;
+    const agentId = active.agentId;
     try {
       await apiFetch("/api/shell/user-question/complete", {
+        agentId,
         method: "POST",
-        body: JSON.stringify({ requestId, ...payload })
+        body: JSON.stringify({ agentId, requestId, ...payload })
       });
       if (payload.cancelled) setStatus("Вопрос отменён");
       else setStatus("Ответ отправлен");
@@ -250,7 +268,10 @@ export function initShellUserQuestion({
     const requestId = String(payload?.requestId || "").trim();
     const questions = normalizeQuestions(payload?.questions);
     if (!requestId || !questions.length) return;
-    queue.push({ requestId, questions });
+    const requestAgentId = String(payload?.agentId || resolveAgentId() || "").trim();
+    const currentAgentId = resolveAgentId();
+    if (currentAgentId && requestAgentId && requestAgentId !== currentAgentId) return;
+    queue.push({ agentId: requestAgentId || currentAgentId, requestId, questions });
     showNext();
   }
 
@@ -281,5 +302,5 @@ export function initShellUserQuestion({
     void complete({ cancelled: true, answers: {} });
   });
 
-  return { handleRequest };
+  return { handleRequest, dismissAll, hasPending: () => Boolean(active || queue.length) };
 }

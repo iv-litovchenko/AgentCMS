@@ -24,6 +24,7 @@ export function initShellToolPermission({
   denyBtn,
   allowSessionBtn,
   apiFetch,
+  getAgentId,
   onStatus
 } = {}) {
   if (!dialog || !allowBtn || !denyBtn) return {};
@@ -32,8 +33,23 @@ export function initShellToolPermission({
   let active = null;
   let busy = false;
 
+  function resolveAgentId(fallback = "") {
+    if (typeof getAgentId === "function") {
+      const id = String(getAgentId() || "").trim();
+      if (id) return id;
+    }
+    return String(fallback || "").trim();
+  }
+
   function setStatus(text) {
     if (typeof onStatus === "function") onStatus(String(text || "").trim());
+  }
+
+  function dismissAll() {
+    queue.length = 0;
+    active = null;
+    busy = false;
+    if (dialog.open && typeof dialog.close === "function") dialog.close();
   }
 
   function renderRequest(item) {
@@ -57,10 +73,13 @@ export function initShellToolPermission({
     if (!active || busy) return;
     busy = true;
     const requestId = active.requestId;
+    const agentId = active.agentId;
     try {
       await apiFetch("/api/shell/tool-permission/complete", {
+        agentId,
         method: "POST",
         body: JSON.stringify({
+          agentId,
           requestId,
           allow: Boolean(decision.allow),
           scope: decision.scope === "session" ? "session" : "once"
@@ -87,7 +106,11 @@ export function initShellToolPermission({
   function handleRequest(payload) {
     const requestId = String(payload?.requestId || "").trim();
     if (!requestId) return;
+    const requestAgentId = String(payload?.agentId || resolveAgentId() || "").trim();
+    const currentAgentId = resolveAgentId();
+    if (currentAgentId && requestAgentId && requestAgentId !== currentAgentId) return;
     queue.push({
+      agentId: requestAgentId || currentAgentId,
       requestId,
       cliRequestId: String(payload?.cliRequestId || "").trim(),
       toolName: String(payload?.toolName || "tool").trim() || "tool",
@@ -118,5 +141,5 @@ export function initShellToolPermission({
     void complete({ allow: false, scope: "once" });
   });
 
-  return { handleRequest };
+  return { handleRequest, dismissAll, hasPending: () => Boolean(active || queue.length) };
 }

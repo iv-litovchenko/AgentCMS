@@ -67,6 +67,7 @@ function createUserQuestionService({ emitShellEvent, timeoutMs = 300000 } = {}) 
       });
 
       emitShellEvent(agentId, "user_question_request", {
+        agentId: String(agentId || "").trim(),
         requestId,
         cliRequestId,
         toolUseId: String(details.toolUseId || "").trim(),

@@ -35,6 +35,7 @@ function createToolPermissionService({ emitShellEvent, timeoutMs = 120000 } = {}
       });
 
       emitShellEvent(agentId, "tool_permission_request", {
+        agentId: String(agentId || "").trim(),
         requestId,
         cliRequestId,
         toolName,

@@ -1730,9 +1730,10 @@ function mergeRuntimeStatusEntry(prev = {}, incoming = {}, { fullProbe = false }
   return merged;
 }
 
-function apiUrl(path, params = {}) {
+function apiUrl(path, params = {}, agentIdOverride) {
   const url = new URL(path, window.location.origin);
-  if (state.agentId) url.searchParams.set("agent", state.agentId);
+  const agent = agentIdOverride ?? state.agentId;
+  if (agent) url.searchParams.set("agent", agent);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && value !== "") {
       url.searchParams.set(key, value);
@@ -1743,14 +1744,14 @@ function apiUrl(path, params = {}) {
 
 async function apiFetch(path, options = {}) {
   const timeoutMs = Number(options.timeoutMs) || 0;
-  const { timeoutMs: _timeoutMs, ...fetchOptions } = options;
+  const { timeoutMs: _timeoutMs, agentId: agentIdOverride, ...fetchOptions } = options;
   const controller = timeoutMs > 0 ? new AbortController() : null;
   let timer;
   try {
     if (controller) {
       timer = setTimeout(() => controller.abort(), timeoutMs);
     }
-    const response = await fetch(apiUrl(path), {
+    const response = await fetch(apiUrl(path, {}, agentIdOverride), {
       headers: {
         "Content-Type": "application/json",
         ...(fetchOptions.headers || {})
@@ -1909,10 +1910,30 @@ async function populateHeaderAgentSelect() {
   await populateAgentSelects();
 }
 
+async function cancelInteractiveRequestsForAgent(agentId, reason = "Agent switched") {
+  const id = String(agentId || "").trim();
+  if (!id) return;
+  shellToolPermission?.dismissAll?.();
+  shellUserQuestion?.dismissAll?.();
+  try {
+    await apiFetch("/api/shell/interactive/cancel-pending", {
+      agentId: id,
+      method: "POST",
+      body: JSON.stringify({ agentId: id, reason })
+    });
+  } catch {
+    // ignore — server-side pending may already have expired
+  }
+}
+
 async function onAgentSelectChange(next) {
   const agentId = String(next || "").trim();
   if (!agentId || agentId === state.agentId) return;
+  const previousAgentId = String(state.agentId || "").trim();
   void playShellUiSound("switch");
+  if (previousAgentId) {
+    await cancelInteractiveRequestsForAgent(previousAgentId);
+  }
   navigateToShellAgent(agentId);
   if (state.eventSource) {
     state.eventSource.close();
@@ -10136,6 +10157,7 @@ function bindShellInteractiveUi() {
       denyBtn: nodes.toolPermissionDeny,
       allowSessionBtn: nodes.toolPermissionAllowSession,
       apiFetch,
+      getAgentId: () => state.agentId,
       onStatus: (text) => {
         if (text) renderPhase(state.shellState?.phase || "thinking", text);
       }
@@ -10148,6 +10170,7 @@ function bindShellInteractiveUi() {
       submitBtn: nodes.userQuestionSubmit,
       cancelBtn: nodes.userQuestionCancel,
       apiFetch,
+      getAgentId: () => state.agentId,
       onStatus: (text) => {
         if (text) renderPhase(state.shellState?.phase || "thinking", text);
       }

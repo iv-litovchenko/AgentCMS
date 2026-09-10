@@ -816,6 +816,14 @@ function completeClaudeUserQuestionRequest(agentId, requestId, payload = {}) {
   return userQuestions.completeQuestion(agentId, requestId, payload);
 }
 
+function cancelPendingInteractiveRequests(agentId, reason = "Agent switched") {
+  const id = String(agentId || "").trim();
+  if (!id) return { agentId: "", ok: true };
+  toolPermissions.rejectAllForAgent(id, reason);
+  userQuestions.rejectAllForAgent(id, reason);
+  return { agentId: id, ok: true };
+}
+
 async function saveStoredSnapshot(agentRoot, domain, snapshot) {
   const kind = snapshot?.kind === "manual" ? "manual" : "speech";
   const service = domain === "screen" ? screenSnapshots : cameraSnapshots;
@@ -2418,6 +2426,7 @@ module.exports = {
   completeScreenSnapshotRequest,
   completeClaudeToolPermissionRequest,
   completeClaudeUserQuestionRequest,
+  cancelPendingInteractiveRequests,
   saveSpeechScreenSnapshot,
   getLatestScreenSnapshot,
   submitShellMessage,

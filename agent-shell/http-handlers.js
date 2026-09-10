@@ -590,6 +590,26 @@ function createShellHandlers(deps) {
       return true;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/shell/interactive/cancel-pending") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const targetAgentId = String(payload?.agentId || agentId || "").trim();
+        if (!targetAgentId) {
+          deps.sendJson(res, 400, { error: "agentId is required" });
+          return true;
+        }
+        const reason = String(payload?.reason || "Agent switched").trim() || "Agent switched";
+        const result = shellService.cancelPendingInteractiveRequests(targetAgentId, reason);
+        deps.sendJson(res, 200, result);
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to cancel pending interactive requests",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/shell/user-question/complete") {
       try {
         const payload = await deps.readJsonBody(req);
@@ -598,12 +618,13 @@ function createShellHandlers(deps) {
           deps.sendJson(res, 400, { error: "requestId is required" });
           return true;
         }
+        const targetAgentId = String(payload?.agentId || agentId || "").trim();
         const cancelled = Boolean(payload?.cancelled);
         const answers =
           payload?.answers && typeof payload.answers === "object" && !Array.isArray(payload.answers)
             ? payload.answers
             : {};
-        const ok = shellService.completeClaudeUserQuestionRequest(agentId, requestId, {
+        const ok = shellService.completeClaudeUserQuestionRequest(targetAgentId, requestId, {
           cancelled,
           answers
         });
@@ -611,7 +632,7 @@ function createShellHandlers(deps) {
           deps.sendJson(res, 404, { error: "Unknown or expired question request" });
           return true;
         }
-        deps.sendJson(res, 200, { agentId, ok: true, requestId, cancelled });
+        deps.sendJson(res, 200, { agentId: targetAgentId, ok: true, requestId, cancelled });
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to complete user question",
@@ -629,14 +650,18 @@ function createShellHandlers(deps) {
           deps.sendJson(res, 400, { error: "requestId is required" });
           return true;
         }
+        const targetAgentId = String(payload?.agentId || agentId || "").trim();
         const allow = Boolean(payload?.allow);
         const scope = String(payload?.scope || "once").trim() === "session" ? "session" : "once";
-        const ok = shellService.completeClaudeToolPermissionRequest(agentId, requestId, { allow, scope });
+        const ok = shellService.completeClaudeToolPermissionRequest(targetAgentId, requestId, {
+          allow,
+          scope
+        });
         if (!ok) {
           deps.sendJson(res, 404, { error: "Unknown or expired permission request" });
           return true;
         }
-        deps.sendJson(res, 200, { agentId, ok: true, requestId, allow, scope });
+        deps.sendJson(res, 200, { agentId: targetAgentId, ok: true, requestId, allow, scope });
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to complete tool permission",
