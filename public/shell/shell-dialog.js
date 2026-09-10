@@ -1021,6 +1021,7 @@ export function createShellDialog(options = {}) {
     const text = String(body || "").trim();
     if (!text) return;
     if (hasHistoryContent(role, text)) return;
+    finishScrollRestoreWatch();
     const at = Date.now();
     const item = {
       role,
@@ -1597,7 +1598,6 @@ export function createShellDialog(options = {}) {
 
   function onUserMessage(text) {
     clearError();
-    finishScrollRestoreWatch();
     const raw = String(text || "").trim();
     if (!raw) return;
     lastAskRaw = raw;
