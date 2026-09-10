@@ -3624,7 +3624,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin: 0;
+  margin: -10px 0 0;
 }
 
 .shell-hero-toolbar {
@@ -8015,13 +8015,40 @@ body.shell-bg-wallpaper .shell-character-viewport {
 .shell-tts-controls {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   flex: 0 0 auto;
   max-width: 100%;
   margin: 0;
-  padding: 0;
+  padding: 4px 6px;
+}
+
+.shell-hero-toolbar--cancel.hidden {
+  display: none !important;
+}
+
+#shell-tts-controls.shell-hero-toolbar .shell-tts-btn {
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 26px;
+  padding: 3px 8px;
+  gap: 4px;
+  border-radius: 8px;
+}
+
+#shell-tts-controls .shell-tts-btn-label {
+  display: inline;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+#shell-tts-controls .shell-tts-btn-icon {
+  font-size: 12px;
+  line-height: 1;
 }
 
 .shell-tts-btn:disabled,

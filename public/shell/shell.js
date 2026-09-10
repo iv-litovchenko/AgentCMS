@@ -1352,6 +1352,73 @@ function toggleTtsPauseResume() {
   else pauseTtsPlayback();
 }
 
+function canReplayLastTts() {
+  const text = String(lastTtsSpoken.text || lastTtsChunkRecording?.text || "").trim();
+  if (!text) return false;
+  if (lastTtsChunkRecording?.blob || lastTtsSpoken.blob) return true;
+  return isBrowserTtsEngine() && Boolean(getSpeechSynth());
+}
+
+async function replayLastTtsAudio() {
+  const text = String(lastTtsSpoken.text || lastTtsChunkRecording?.text || "").trim();
+  if (!text) return;
+  await unlockShellAudio();
+  const seq = bumpTtsPlayback();
+  stopBrowserTts({ notifyServer: false, resetPhase: false, broadcast: false, bumpPlayback: false });
+  state.ttsPaused = false;
+
+  const recording =
+    lastTtsChunkRecording ||
+    (lastTtsSpoken.blob
+      ? { blob: lastTtsSpoken.blob, mimeType: lastTtsSpoken.mimeType, text: lastTtsSpoken.text }
+      : null);
+
+  if (recording?.blob && ttsPlayer?.playPrepared && !isBrowserTtsEngine()) {
+    state.speaking = true;
+    updateTtsControlsUi("speaking");
+    renderPhase("speaking", "Озвучиваю…", state.shellState?.metrics || "");
+    try {
+      const bytes = new Uint8Array(await recording.blob.arrayBuffer());
+      const result = await ttsPlayer.playPrepared(
+        {
+          ok: true,
+          bytes,
+          mimeType: recording.mimeType || recording.blob.type || "audio/mpeg",
+          text
+        },
+        {
+          onPhase(phase) {
+            if (phase === "playing") {
+              renderPhase("speaking", "Озвучиваю…", state.shellState?.metrics || "");
+            }
+          }
+        }
+      );
+      if (!isTtsPlaybackCurrent(seq)) return;
+      if (!result?.ok) throw new Error(result?.reason || "replay-failed");
+      rememberLastTtsSpoken(text);
+    } finally {
+      state.speaking = false;
+      updateTtsControlsUi("waiting");
+      if (!isTtsPlaybackCurrent(seq)) return;
+      await patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE }).catch(() => {});
+      syncWaitingUiAfterPlayback();
+    }
+    return;
+  }
+
+  await speakTextParts([text]);
+}
+
+async function toggleTtsPlayback() {
+  await unlockShellAudio();
+  if (isTtsPlaybackActive()) {
+    toggleTtsPauseResume();
+    return;
+  }
+  await replayLastTtsAudio();
+}
+
 const nodes = {
   messageTarget: document.getElementById("shell-message-target"),
   routeRuntime: document.getElementById("shell-route-runtime"),
@@ -1543,8 +1610,7 @@ const nodes = {
   proactiveSave: document.getElementById("shell-proactive-save"),
   templatesSave: document.getElementById("shell-templates-save"),
   ttsControls: document.getElementById("shell-tts-controls"),
-  ttsPauseBtn: document.getElementById("shell-tts-pause"),
-  ttsResumeBtn: document.getElementById("shell-tts-resume"),
+  ttsToggleBtn: document.getElementById("shell-tts-toggle"),
   ttsStopBtn: document.getElementById("shell-tts-stop"),
   ttsDownloadBtn: document.getElementById("shell-tts-download"),
   voiceWave: document.getElementById("shell-voice-wave"),
@@ -2369,7 +2435,6 @@ function resolveHeroAvatarState(requestedPhase = "waiting") {
   if (isAgentReplyStreaming()) return "typing";
   if (displayPhase === "thinking") return "thinking";
   if (displayPhase === "listening") return "listening";
-  if (displayPhase === "speaking") return "replying";
   if (isComposeReady()) return "ready";
   return "idle";
 }
@@ -2571,12 +2636,30 @@ function waitWhileTtsPaused() {
 
 function updateTtsControlsUi(phase = resolveDisplayPhase(state.shellState?.phase || nodes.agentAvatar?.dataset.phase || "waiting")) {
   const playbackActive = isTtsPlaybackActive();
+  const canReplay = canReplayLastTts();
 
-  if (nodes.ttsPauseBtn) {
-    nodes.ttsPauseBtn.disabled = !playbackActive || state.ttsPaused;
-  }
-  if (nodes.ttsResumeBtn) {
-    nodes.ttsResumeBtn.disabled = !playbackActive || !state.ttsPaused;
+  if (nodes.ttsToggleBtn) {
+    const playing = playbackActive && !state.ttsPaused;
+    const paused = playbackActive && state.ttsPaused;
+    nodes.ttsToggleBtn.disabled = !playbackActive && !canReplay;
+    nodes.ttsToggleBtn.dataset.mode = playing ? "pause" : paused ? "resume" : canReplay ? "replay" : "idle";
+    const icon = nodes.ttsToggleBtn.querySelector(".shell-tts-btn-icon");
+    const label = nodes.ttsToggleBtn.querySelector(".shell-tts-btn-label");
+    if (icon) icon.textContent = playing ? "⏸" : "▶";
+    if (label) {
+      label.textContent = playing ? "Пауза" : paused ? "Продолжить" : "Сначала";
+    }
+    nodes.ttsToggleBtn.title = playing
+      ? "Пауза (Space)"
+      : paused
+        ? "Продолжить (Space)"
+        : canReplay
+          ? "Озвучить сначала"
+          : "Нет записи для повтора";
+    nodes.ttsToggleBtn.setAttribute(
+      "aria-label",
+      playing ? "Пауза озвучки" : paused ? "Продолжить озвучку" : "Озвучить сначала"
+    );
   }
   if (nodes.ttsStopBtn) {
     nodes.ttsStopBtn.disabled = !playbackActive;
@@ -3284,7 +3367,11 @@ async function drainStreamTtsQueue() {
       if (!state.streamTtsQueue.length) {
         state.speaking = false;
       }
-      updateTtsControlsUi(state.shellState?.phase || "waiting");
+      updateTtsControlsUi("waiting");
+      if (!isTtsPlaybackActive()) {
+        maybeResetStaleSpeakingPhase();
+        syncWaitingUiAfterPlayback();
+      }
     }
   });
   return drainStreamTtsQueue._chain;
@@ -9438,8 +9525,10 @@ async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {})
   rememberLastTtsSpoken(list.join("\n\n"));
   if (sourceMessage) shellSession?.markReplySpoken(sourceMessage);
   state.pendingReplyTtsClientId = "";
+  state.speaking = false;
   await patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE }).catch(() => {});
   syncWaitingUiAfterPlayback();
+  updateTtsControlsUi("waiting");
 }
 
 async function speakText(text) {
@@ -10827,27 +10916,27 @@ function bindUi() {
   bindMicUi();
   nodes.ttsStopBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
-    bumpTtsPlayback();
-    stopBrowserTts({ bumpPlayback: false });
+    void unlockShellAudio().then(() => {
+      bumpTtsPlayback();
+      stopBrowserTts({ bumpPlayback: false });
+    });
   });
-  nodes.ttsDownloadBtn?.addEventListener("click", () => void downloadLastTtsAudio());
+  nodes.ttsDownloadBtn?.addEventListener("click", () => {
+    void unlockShellAudio().then(() => downloadLastTtsAudio());
+  });
 
-  nodes.ttsPauseBtn?.addEventListener("click", (event) => {
+  nodes.ttsToggleBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
-    pauseTtsPlayback();
-  });
-  nodes.ttsResumeBtn?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    resumeTtsPlayback();
+    void toggleTtsPlayback();
   });
 
   document.addEventListener("keydown", (event) => {
     if (event.code !== "Space" || event.repeat) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (isTypingTarget(event.target)) return;
-    if (!isTtsPlaybackActive()) return;
+    if (!isTtsPlaybackActive() && !canReplayLastTts()) return;
     event.preventDefault();
-    toggleTtsPauseResume();
+    void toggleTtsPlayback();
   });
 
   nodes.openCmsBtn?.addEventListener("click", () => {

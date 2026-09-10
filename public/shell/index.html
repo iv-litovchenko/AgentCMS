@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=560" />
+    <link rel="stylesheet" href="/shell/shell.css?v=562" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -2204,25 +2204,14 @@ aya_bar_v2 тоже читает те же файлы</pre>
             <div class="shell-hero-toolbar" id="shell-tts-controls">
               <button
                 type="button"
-                class="shell-tts-btn"
-                id="shell-tts-pause"
+                class="shell-tts-btn shell-tts-btn--toggle"
+                id="shell-tts-toggle"
                 title="Пауза (Space)"
                 aria-label="Пауза озвучки"
                 disabled
               >
                 <span class="shell-tts-btn-icon" aria-hidden="true">⏸</span>
                 <span class="shell-tts-btn-label">Пауза</span>
-              </button>
-              <button
-                type="button"
-                class="shell-tts-btn"
-                id="shell-tts-resume"
-                title="Продолжить (Space)"
-                aria-label="Продолжить озвучку"
-                disabled
-              >
-                <span class="shell-tts-btn-icon" aria-hidden="true">▶</span>
-                <span class="shell-tts-btn-label">Продолжить</span>
               </button>
               <button
                 type="button"
@@ -2247,7 +2236,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <span class="shell-tts-btn-label">Сохранить</span>
               </button>
             </div>
-            <div class="shell-hero-toolbar shell-hero-toolbar--cancel" role="group" aria-label="Отмена отправки">
+            <div class="shell-hero-toolbar shell-hero-toolbar--cancel hidden" role="group" aria-label="Отмена отправки">
               <button
                 type="button"
                 class="shell-tts-btn shell-tts-btn--cancel"
@@ -3020,6 +3009,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=596" type="module"></script>
+    <script src="/shell/shell.js?v=597" type="module"></script>
   </body>
 </html>
