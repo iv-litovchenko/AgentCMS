@@ -31,7 +31,8 @@ const DEFAULT_WINDOW_SETTINGS = {
   windowBackgroundImageUrl: "",
   windowCompact: false,
   windowPetOverlay: false,
-  compactDialogQa: true
+  compactDialogQa: true,
+  dialogAutoScroll: true
 };
 
 const AGENT_WINDOW_KEYS = new Set([
@@ -41,6 +42,7 @@ const AGENT_WINDOW_KEYS = new Set([
   "windowBackgroundImageUrl",
   "windowPetOverlay",
   "compactDialogQa",
+  "dialogAutoScroll",
   "windowCharacterModel",
   "windowKeepAwake",
   "windowProcessingSound"
@@ -71,6 +73,7 @@ function normalizeWindowSettings(raw) {
   merged.windowCompact = Boolean(merged.windowCompact);
   merged.windowPetOverlay = Boolean(merged.windowPetOverlay);
   merged.compactDialogQa = Boolean(merged.compactDialogQa);
+  merged.dialogAutoScroll = merged.dialogAutoScroll !== false;
   if (merged.windowCharacterModel !== undefined) {
     merged.windowCharacterModel = String(merged.windowCharacterModel || "").trim();
   }
@@ -101,6 +104,7 @@ function mergeAgentWindowSettings(agentSettings = {}) {
     windowBackgroundImageUrl: src.windowBackgroundImageUrl,
     windowPetOverlay: src.windowPetOverlay,
     compactDialogQa: src.compactDialogQa,
+    dialogAutoScroll: src.dialogAutoScroll,
     windowCharacterModel: src.windowCharacterModel,
     windowKeepAwake: src.windowKeepAwake,
     windowProcessingSound: src.windowProcessingSound
@@ -109,7 +113,14 @@ function mergeAgentWindowSettings(agentSettings = {}) {
 
 async function readMergedWindowSettings(projectRoot, agentSettings = {}) {
   const global = await readWindowSettings(projectRoot);
+  const flatAgent = agentSettings && typeof agentSettings === "object" ? agentSettings : {};
   const agent = mergeAgentWindowSettings(agentSettings);
+  const dialogAutoScroll =
+    flatAgent.dialogAutoScroll !== undefined
+      ? flatAgent.dialogAutoScroll !== false
+      : global.dialogAutoScroll !== undefined
+        ? global.dialogAutoScroll !== false
+        : true;
   return normalizeWindowSettings({
     ...agent,
     windowCompact: global.windowCompact,
@@ -118,7 +129,8 @@ async function readMergedWindowSettings(projectRoot, agentSettings = {}) {
     windowBackground: agent.windowBackground || global.windowBackground,
     windowBackgroundImageUrl: agent.windowBackgroundImageUrl || global.windowBackgroundImageUrl,
     windowPetOverlay: agent.windowPetOverlay ?? global.windowPetOverlay,
-    compactDialogQa: agent.compactDialogQa ?? global.compactDialogQa
+    compactDialogQa: agent.compactDialogQa ?? global.compactDialogQa,
+    dialogAutoScroll
   });
 }
 

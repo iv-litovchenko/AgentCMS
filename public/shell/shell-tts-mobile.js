@@ -13,8 +13,10 @@ export function formatTtsErrorHint({ serverReason = "", browserReason = "", useS
   const parts = [];
   if (serverReason === "synthesize-fetch" || /fetch|network|failed/i.test(serverReason)) {
     parts.push("Нет связи с Voice — Wi‑Fi и https://IP:3488");
-  } else if (serverReason === "play-not-allowed") {
-    parts.push("iPhone заблокировал звук — нажмите 🎤 или «Отправить» и сразу задайте вопрос");
+  } else if (serverReason === "play-not-allowed" || serverReason === "blocked") {
+    parts.push(
+      "Safari блокирует звук — нажмите ▶ «Сначала» над полем ввода (или 🎤 и сразу задайте вопрос)"
+    );
   } else if (serverReason === "play-failed" || serverReason === "audio-element-error") {
     parts.push("Выключите беззвучный режим, громкость вверх");
   } else if (serverReason === "audio-playback-timeout") {

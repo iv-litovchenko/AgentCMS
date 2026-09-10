@@ -276,6 +276,20 @@ export function createShellTapVoice(deps) {
     }
   };
 
+  const cancelPendingMicStart = ({ renderWaiting = true } = {}) => {
+    clearMicRestartTimer();
+    micStarting = false;
+    stopWhenReady = false;
+    micTapHeld = false;
+    deps.state.micTapHeld = false;
+    deps.state.micActive = false;
+    syncMicUi();
+    cleanupMediaCapture();
+    deps.setVoiceSttProcessing?.(false);
+    if (renderWaiting) deps.renderWaitingPhrase?.();
+    void releaseShellWakeLock(deps.state, "recording");
+  };
+
   const finishServerRecordingSession = async () => {
     clearMicRestartTimer();
     micStarting = false;
@@ -472,25 +486,43 @@ export function createShellTapVoice(deps) {
         deps.state.micWarmed = true;
       }
       if (stopWhenReady || !isSessionActive()) {
-        micTapHeld = false;
-        deps.state.micTapHeld = false;
-        micStarting = false;
-        syncMicUi();
-        cleanupMediaCapture();
-        deps.renderWaitingPhrase?.();
-        void releaseShellWakeLock(deps.state, "recording");
+        cancelPendingMicStart();
         return false;
       }
       if (serverStt) {
         await startMediaSession();
+        if (stopWhenReady || !isSessionActive()) {
+          await finishRecordingSession();
+          return false;
+        }
         return true;
       }
       try {
         deps.recognition.start();
       } catch (error) {
         const msg = String(error?.message || error?.name || "");
-        if (/already/i.test(msg) || error?.name === "InvalidStateError") return true;
+        if (/already/i.test(msg) || error?.name === "InvalidStateError") {
+          if (stopWhenReady || !isSessionActive()) {
+            try {
+              deps.recognition?.stop();
+            } catch {
+              // ignore
+            }
+            cancelPendingMicStart();
+            return false;
+          }
+          return true;
+        }
         throw error;
+      }
+      if (stopWhenReady || !isSessionActive()) {
+        try {
+          deps.recognition?.stop();
+        } catch {
+          // ignore
+        }
+        cancelPendingMicStart();
+        return false;
       }
       return true;
     } catch (error) {
@@ -524,8 +556,6 @@ export function createShellTapVoice(deps) {
     clearMicRestartTimer();
     if (micStarting) {
       stopWhenReady = true;
-      deps.setVoiceSttProcessing?.(true);
-      deps.renderPhase?.("thinking", "Распознаю…");
       return;
     }
     if (!isSessionActive()) return;

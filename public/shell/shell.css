@@ -1970,6 +1970,47 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   gap: 8px;
 }
 
+.shell-compose-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.28);
+  color: #ffd7d7;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.shell-compose-error.hidden {
+  display: none;
+}
+
+.shell-compose-error-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.shell-compose-error-dismiss {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.72;
+}
+
+.shell-compose-error-dismiss:hover {
+  opacity: 1;
+}
+
 .shell-main-view > :last-child:not(.shell-compact-stage),
 .shell-settings-shell > .shell-settings-panels > :last-child,
 .shell-chat-section > :last-child {
@@ -3677,6 +3718,14 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 .shell-hero-toolbar .shell-status-dot {
   width: 7px;
   height: 7px;
+}
+
+.shell-hero-toolbar--dialog .shell-dialog-autoscroll-toggle.is-off {
+  opacity: 0.42;
+}
+
+.shell-hero-toolbar--dialog .shell-dialog-autoscroll-toggle.is-off .shell-tts-btn-icon {
+  opacity: 0.75;
 }
 
 .shell-hero-band {
@@ -8017,15 +8066,20 @@ body.shell-bg-wallpaper .shell-character-viewport {
   align-items: center;
   flex-wrap: nowrap;
   justify-content: center;
-  gap: 4px;
+  gap: 0;
   flex: 0 0 auto;
   max-width: 100%;
   margin: 0;
-  padding: 4px 6px;
+  padding: 0;
 }
 
 .shell-hero-toolbar--cancel.hidden {
   display: none !important;
+}
+
+#shell-tts-controls.shell-hero-toolbar {
+  gap: 0;
+  padding: 3px 4px;
 }
 
 #shell-tts-controls.shell-hero-toolbar .shell-tts-btn {
@@ -8033,9 +8087,38 @@ body.shell-bg-wallpaper .shell-character-viewport {
   min-width: 0;
   height: auto;
   min-height: 26px;
-  padding: 3px 8px;
+  padding: 3px 10px;
   gap: 4px;
-  border-radius: 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: inset 1px 0 0 rgba(122, 108, 255, 0.22);
+}
+
+#shell-tts-controls.shell-hero-toolbar .shell-tts-btn:first-child {
+  box-shadow: none;
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+
+#shell-tts-controls.shell-hero-toolbar .shell-tts-btn:last-child {
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+#shell-tts-controls.shell-hero-toolbar .shell-tts-btn:hover:not(:disabled) {
+  border-color: transparent;
+  background: rgba(124, 108, 255, 0.14);
+}
+
+#shell-tts-controls.shell-hero-toolbar .shell-tts-btn--stop:hover:not(:disabled) {
+  border-color: transparent;
+  background: rgba(255, 107, 138, 0.14);
+}
+
+#shell-tts-controls.shell-hero-toolbar .shell-tts-btn:disabled:hover {
+  border-color: transparent;
+  background: transparent;
 }
 
 #shell-tts-controls .shell-tts-btn-label {

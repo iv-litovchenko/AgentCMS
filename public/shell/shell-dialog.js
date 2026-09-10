@@ -456,6 +456,8 @@ export function createShellDialog(options = {}) {
     typeof options.onScrollPositionChange === "function" ? options.onScrollPositionChange : null;
   const onHistoryChange = typeof options.onHistoryChange === "function" ? options.onHistoryChange : null;
   const onSpeakMessage = typeof options.onSpeakMessage === "function" ? options.onSpeakMessage : null;
+  const getDialogAutoScroll =
+    typeof options.getDialogAutoScroll === "function" ? options.getDialogAutoScroll : () => true;
   let history = [];
   let historyLoading = false;
   let historyLoadError = null;
@@ -556,12 +558,42 @@ export function createShellDialog(options = {}) {
     window.requestAnimationFrame(() => restoreScrollAnchor(anchor));
   }
 
+  function isDialogAutoScrollEnabled() {
+    try {
+      return getDialogAutoScroll() !== false;
+    } catch {
+      return true;
+    }
+  }
+
+  function resolveMessageScrollTarget(anchorEl) {
+    if (!anchorEl) return null;
+    const id = String(anchorEl.id || "").trim();
+    if (id === "shell-last-reply" || id === "shell-last-reply-text") {
+      return document.getElementById("shell-last-reply-text") || anchorEl;
+    }
+    if (anchorEl.classList?.contains("shell-chat-msg")) return anchorEl;
+    const msg = anchorEl.querySelector?.(".shell-chat-msg");
+    if (msg) return msg;
+    const bubble = anchorEl.querySelector?.(".shell-chat-bubble");
+    if (bubble) return bubble;
+    return anchorEl;
+  }
+
   function revealScrollTarget(anchorEl, { smooth = true, block = "start" } = {}) {
-    if (!anchorEl) return false;
+    const target = resolveMessageScrollTarget(anchorEl);
+    if (!target) return false;
     finishScrollRestoreWatch();
     suppressScrollPersist = true;
     suppressStickUpdate = true;
-    const ok = revealDialogAnchor(anchorEl, { smooth, block });
+    const runScroll = () => revealDialogAnchor(target, { smooth, block });
+    let ok = false;
+    window.requestAnimationFrame(() => {
+      ok = runScroll();
+      window.requestAnimationFrame(() => {
+        runScroll();
+      });
+    });
     window.setTimeout(
       () => {
         suppressScrollPersist = false;
@@ -581,6 +613,7 @@ export function createShellDialog(options = {}) {
   }
 
   function scrollToLiveStreamOnce(streamId) {
+    if (!isDialogAutoScrollEnabled()) return;
     const id = String(streamId || "live").trim();
     if (!id || liveStreamScrollMark === id) return;
     liveStreamScrollMark = id;
@@ -594,7 +627,7 @@ export function createShellDialog(options = {}) {
   }
 
   function scrollToHistoryItem(item, { smooth = true } = {}) {
-    if (!item) return false;
+    if (!item || !isDialogAutoScrollEnabled()) return false;
     const index = history.indexOf(item);
     const row = findAnchoredRowByItem(item, index >= 0 ? index : history.length - 1);
     if (row) return revealScrollTarget(row, { smooth, block: "start" });
@@ -1107,7 +1140,7 @@ export function createShellDialog(options = {}) {
     }
     history.push(item);
     if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
-    pendingScrollToItem = item;
+    if (isDialogAutoScrollEnabled()) pendingScrollToItem = item;
     renderHistoryUi();
   }
 
@@ -1741,25 +1774,51 @@ export function createShellDialog(options = {}) {
     nodes.statusDot.setAttribute("aria-label", title);
   }
 
-  function setError(message, { hint = "", inThread = true } = {}) {
+  function hideComposeError() {
+    nodes.composeErrorEl?.classList.add("hidden");
+    if (nodes.composeErrorText) nodes.composeErrorText.textContent = "";
+    if (nodes.errorEl) {
+      nodes.errorEl.classList.add("hidden");
+      nodes.errorEl.textContent = "";
+    }
+  }
+
+  function showComposeError(text) {
+    const banner = nodes.composeErrorEl;
+    const body = nodes.composeErrorText;
+    if (!banner || !body) return false;
+    body.textContent = String(text || "").trim();
+    if (!body.textContent) {
+      hideComposeError();
+      return false;
+    }
+    banner.classList.remove("hidden");
+    if (nodes.errorEl) {
+      nodes.errorEl.classList.add("hidden");
+      nodes.errorEl.textContent = "";
+    }
+    return true;
+  }
+
+  function setError(message, { hint = "", inThread = false } = {}) {
     if (!message) {
-      if (nodes.errorEl) {
-        nodes.errorEl.classList.add("hidden");
-        nodes.errorEl.textContent = "";
-      }
+      hideComposeError();
       return;
     }
     const text = hint ? `${message} — ${hint}` : message;
-    if (nodes.errorEl) {
-      nodes.errorEl.textContent = text;
-      nodes.errorEl.classList.remove("hidden");
-    }
+    showComposeError(text);
     if (inThread) pushThreadError(message, { hint });
   }
 
   function clearError() {
     setError("");
   }
+
+  nodes.composeErrorDismiss?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    clearError();
+  });
 
   function bindReconnect(fn) {
     reconnectHandler = fn;

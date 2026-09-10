@@ -6,7 +6,8 @@ export const DEFAULT_WINDOW_SETTINGS = {
   windowBackground: "wallpaper",
   windowCompact: false,
   windowPetOverlay: false,
-  compactDialogQa: true
+  compactDialogQa: true,
+  dialogAutoScroll: true
 };
 
 export function normalizeWindowSettings(raw) {
@@ -27,6 +28,7 @@ export function normalizeWindowSettings(raw) {
   merged.windowCompact = Boolean(merged.windowCompact);
   merged.windowPetOverlay = Boolean(merged.windowPetOverlay);
   merged.compactDialogQa = Boolean(merged.compactDialogQa);
+  merged.dialogAutoScroll = merged.dialogAutoScroll !== false;
   return merged;
 }
 

@@ -1,5 +1,8 @@
 /** Shared AudioContext — unlock/resume on user gesture (iOS Safari). */
 let audioCtx = null;
+/** Последний user-gesture unlock — iOS разрешает play() только «рядом» с нажатием. */
+let gestureUnlockedUntil = 0;
+const GESTURE_UNLOCK_MS = 120_000;
 
 export function getShellAudioContext() {
   if (!audioCtx) {
@@ -9,7 +12,15 @@ export function getShellAudioContext() {
   return audioCtx;
 }
 
-export async function unlockShellAudio() {
+export function markShellAudioGesture({ extendMs = GESTURE_UNLOCK_MS } = {}) {
+  gestureUnlockedUntil = Math.max(gestureUnlockedUntil, Date.now() + Math.max(1000, extendMs));
+}
+
+export function isShellAudioGestureFresh() {
+  return Date.now() < gestureUnlockedUntil;
+}
+
+export async function unlockShellAudio({ markGesture = true } = {}) {
   const timeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const ctx = getShellAudioContext();
@@ -20,6 +31,7 @@ export async function unlockShellAudio() {
       // ignore
     }
   }
+  let unlocked = false;
   try {
     const audio = new Audio();
     audio.preload = "auto";
@@ -30,9 +42,14 @@ export async function unlockShellAudio() {
     audio.volume = 0.01;
     await Promise.race([audio.play(), timeout(400)]);
     audio.pause();
+    unlocked = true;
   } catch {
     // ignore — Web Audio path may still work
   }
+  if (markGesture && (unlocked || ctx?.state === "running")) {
+    markShellAudioGesture();
+  }
+  return unlocked || ctx?.state === "running";
 }
 
 export function isIosDevice() {

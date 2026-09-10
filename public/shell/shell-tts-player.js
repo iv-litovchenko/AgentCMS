@@ -1,15 +1,46 @@
-import { getShellAudioContext, isIosDevice, unlockShellAudio } from "@shell/audio-unlock";
+import {
+  getShellAudioContext,
+  isIosDevice,
+  isShellAudioGestureFresh,
+  markShellAudioGesture,
+  unlockShellAudio
+} from "@shell/audio-unlock";
 
-export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), synthTimeoutMs = 45000 }) {
+export function createShellTtsPlayer({
+  apiFetch,
+  getTtsSettings = () => ({}),
+  synthTimeoutMs = 45000,
+  onPlaybackStart = null,
+  onPlaybackEnd = null
+} = {}) {
   /** @type {HTMLAudioElement | null} */
   let audio = null;
   let objectUrl = "";
   let webSource = null;
   let speakGeneration = 0;
+  let playbackLive = false;
   /** @type {{ blob: Blob, mimeType: string, text: string } | null} */
   let lastRecording = null;
 
-  function cleanupAudio() {
+  function notifyPlaybackStart() {
+    try {
+      onPlaybackStart?.();
+    } catch {
+      // ignore
+    }
+  }
+
+  function notifyPlaybackEnd() {
+    try {
+      onPlaybackEnd?.();
+    } catch {
+      // ignore
+    }
+  }
+
+  function cleanupAudio({ notifyEnd = false } = {}) {
+    const wasLive = playbackLive || Boolean(webSource) || Boolean(audio && !audio.ended && audio.currentTime > 0);
+    playbackLive = false;
     if (webSource) {
       try {
         webSource.stop();
@@ -32,10 +63,13 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
       URL.revokeObjectURL(objectUrl);
       objectUrl = "";
     }
+    if (notifyEnd && wasLive) notifyPlaybackEnd();
   }
 
   function isPlaying() {
-    return Boolean((audio && !audio.paused && !audio.ended) || webSource);
+    if (playbackLive || webSource) return true;
+    if (!audio || audio.ended) return false;
+    return !audio.paused || audio.currentTime > 0;
   }
 
   function isPaused() {
@@ -48,7 +82,7 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
 
   function stop() {
     speakGeneration += 1;
-    cleanupAudio();
+    cleanupAudio({ notifyEnd: true });
   }
 
   function pause() {
@@ -90,15 +124,21 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
   async function playViaElement(bytes, mimeType, gen, { base64 = "" } = {}) {
     if (gen !== speakGeneration) return { ok: false, reason: "cancelled" };
 
-    await unlockShellAudio();
+    await unlockShellAudio({ markGesture: isShellAudioGestureFresh() });
     if (gen !== speakGeneration) return { ok: false, reason: "cancelled" };
 
     cleanupAudio();
 
-    if (isIosDevice() && base64) {
+    const blob = new Blob([bytes], { type: mimeType });
+    const useDataUri =
+      isIosDevice() &&
+      base64 &&
+      bytes.length <= 180_000 &&
+      !mimeType.includes("wav");
+    if (useDataUri) {
       audio = new Audio(`data:${mimeType};base64,${base64}`);
     } else {
-      objectUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+      objectUrl = URL.createObjectURL(blob);
       audio = new Audio(objectUrl);
     }
 
@@ -138,21 +178,28 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
       };
 
       audio.onended = () => {
-        cleanupAudio();
+        cleanupAudio({ notifyEnd: true });
         finish({ ok: true, reason: "audio-element" });
       };
       audio.onerror = () => {
         cleanupAudio();
         finish({ ok: false, reason: "audio-element-error" });
       };
+      const markLive = () => {
+        playbackLive = true;
+        markShellAudioGesture();
+        notifyPlaybackStart();
+      };
+      audio.addEventListener("playing", markLive, { once: true });
       void audio
         .play()
         .then(() => {
+          markLive();
           // wait for onended
         })
         .catch(async (error) => {
           for (let attempt = 0; attempt < 2; attempt += 1) {
-            await unlockShellAudio();
+            await unlockShellAudio({ markGesture: attempt === 0 && isShellAudioGestureFresh() });
             if (gen !== speakGeneration) {
               cleanupAudio();
               finish({ ok: false, reason: "cancelled" });
@@ -160,6 +207,7 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
             }
             try {
               await audio.play();
+              markLive();
               return;
             } catch (retryError) {
               if (attempt === 1) {
@@ -202,10 +250,14 @@ export function createShellTtsPlayer({ apiFetch, getTtsSettings = () => ({}), sy
             return;
           }
           webSource = null;
+          playbackLive = false;
+          notifyPlaybackEnd();
           resolve({ ok: true, reason: "web-audio" });
         };
         try {
           source.start(0);
+          playbackLive = true;
+          notifyPlaybackStart();
         } catch (error) {
           webSource = null;
           resolve({ ok: false, reason: error?.message || "web-audio-start" });

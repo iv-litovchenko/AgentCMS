@@ -8,5 +8,6 @@
   "compactDialogQa": true,
   "windowCharacterModel": "robot",
   "windowKeepAwake": true,
-  "windowProcessingSound": "off"
+  "windowProcessingSound": "off",
+  "dialogAutoScroll": false
 }

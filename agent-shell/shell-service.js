@@ -139,6 +139,7 @@ const DEFAULT_SETTINGS = {
   windowBackgroundImageUrl: "",
   windowPetOverlay: false,
   compactDialogQa: true,
+  dialogAutoScroll: true,
   windowCharacterModel: "robot",
   windowKeepAwake: true,
   windowProcessingSound: "off",
@@ -536,6 +537,7 @@ function normalizeSettings(raw) {
   merged.windowBackgroundImageUrl = String(merged.windowBackgroundImageUrl || "").trim();
   merged.windowPetOverlay = Boolean(merged.windowPetOverlay);
   merged.compactDialogQa = merged.compactDialogQa !== false;
+  merged.dialogAutoScroll = merged.dialogAutoScroll !== false;
   merged.windowCharacterModel = String(merged.windowCharacterModel || "robot").trim() || "robot";
   merged.windowKeepAwake = merged.windowKeepAwake !== false;
   merged.windowProcessingSound = String(merged.windowProcessingSound || "off").trim() || "off";

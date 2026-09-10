@@ -268,6 +268,7 @@ function flattenSettings(raw) {
   if (window.backgroundImageUrl !== undefined) flat.windowBackgroundImageUrl = window.backgroundImageUrl;
   if (window.petOverlay !== undefined) flat.windowPetOverlay = window.petOverlay;
   if (window.compactDialogQa !== undefined) flat.compactDialogQa = window.compactDialogQa;
+  if (window.dialogAutoScroll !== undefined) flat.dialogAutoScroll = window.dialogAutoScroll;
   if (window.characterModel !== undefined) flat.windowCharacterModel = window.characterModel;
   if (window.keepAwake !== undefined) flat.windowKeepAwake = window.keepAwake;
   if (window.processingSound !== undefined) flat.windowProcessingSound = window.processingSound;
@@ -422,6 +423,7 @@ function nestSettings(flat) {
       backgroundImageUrl: source.windowBackgroundImageUrl,
       petOverlay: source.windowPetOverlay,
       compactDialogQa: source.compactDialogQa,
+      dialogAutoScroll: source.dialogAutoScroll,
       characterModel: source.windowCharacterModel,
       keepAwake: source.windowKeepAwake,
       processingSound: source.windowProcessingSound
