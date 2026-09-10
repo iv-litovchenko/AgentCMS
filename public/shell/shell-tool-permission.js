@@ -15,6 +15,12 @@ function shortenToolName(name) {
   return raw.replace(/^mcp__[^_]+__/, "");
 }
 
+function permissionFingerprint(item = {}) {
+  const tool = String(item?.toolName || "tool").trim() || "tool";
+  const input = formatToolInput(item?.toolInput);
+  return `${tool}\0${input}`;
+}
+
 export function initShellToolPermission({
   dialog,
   titleEl,
@@ -35,6 +41,7 @@ export function initShellToolPermission({
 
   const actionBtns = [allowBtn, denyBtn, allowSessionBtn].filter(Boolean);
   const queue = [];
+  const seenRequestIds = new Set();
   let active = null;
   let busy = false;
 
@@ -57,6 +64,10 @@ export function initShellToolPermission({
     }
   }
 
+  function isDialogVisible() {
+    return Boolean(dialog.open && !dialog.classList.contains("shell-tool-permission--closing"));
+  }
+
   function closeDialogImmediately() {
     dialog.classList.add("shell-tool-permission--closing");
     dialog.inert = true;
@@ -73,18 +84,32 @@ export function initShellToolPermission({
   function openDialog() {
     dialog.classList.remove("shell-tool-permission--closing");
     dialog.inert = false;
-    if (!dialog.open && typeof dialog.showModal === "function") dialog.showModal();
+    if (!dialog.open && typeof dialog.showModal === "function") {
+      try {
+        dialog.showModal();
+      } catch (error) {
+        console.warn("[shell-tool-permission] showModal failed", error);
+      }
+    }
   }
 
-  function isRequestTracked(requestId, cliRequestId = "") {
+  function isRequestTracked(requestId, cliRequestId = "", fingerprint = "") {
     const id = String(requestId || "").trim();
     const cliId = String(cliRequestId || "").trim();
+    const fp = String(fingerprint || "").trim();
+    if (id && seenRequestIds.has(id)) return true;
     if (id && (active?.requestId === id || queue.some((item) => item?.requestId === id))) {
       return true;
     }
     if (
       cliId &&
       (active?.cliRequestId === cliId || queue.some((item) => item?.cliRequestId === cliId))
+    ) {
+      return true;
+    }
+    if (
+      fp &&
+      (active?.fingerprint === fp || queue.some((item) => item?.fingerprint === fp))
     ) {
       return true;
     }
@@ -107,13 +132,15 @@ export function initShellToolPermission({
     const batch = [item];
     const toolName = String(item?.toolName || "").trim();
     const cliRequestId = String(item?.cliRequestId || "").trim();
+    const fingerprint = String(item?.fingerprint || "").trim();
     const sameSessionTool = Boolean(decision.allow && decision.scope === "session" && toolName);
     for (let i = queue.length - 1; i >= 0; i -= 1) {
       const queued = queue[i];
       if (!queued) continue;
       const sameRequest = cliRequestId && queued.cliRequestId === cliRequestId;
+      const sameFingerprint = fingerprint && queued.fingerprint === fingerprint;
       const sameTool = sameSessionTool && queued.toolName === toolName;
-      if (!sameRequest && !sameTool) continue;
+      if (!sameRequest && !sameFingerprint && !sameTool) continue;
       batch.push(queued);
       queue.splice(i, 1);
     }
@@ -138,6 +165,7 @@ export function initShellToolPermission({
     queue.length = 0;
     active = null;
     busy = false;
+    seenRequestIds.clear();
     setActionsEnabled(true);
     closeDialogImmediately();
   }
@@ -159,24 +187,26 @@ export function initShellToolPermission({
     setStatus(`Claude запрашивает: ${shortenToolName(toolName)}`);
   }
 
-  function beginDecision(decision) {
-    if (!active || busy) return null;
-    const item = active;
-    const batch = collectCompletionBatch(item, decision);
-    active = null;
-    busy = true;
-    closeDialogImmediately();
-    setActionsEnabled(false);
-    purgeRequestIds(batch.map((entry) => entry.requestId));
-    return { batch, decision, toolName: item.toolName };
+  function reconcileActiveState() {
+    if (!active || busy) return;
+    if (isDialogVisible()) return;
+    openDialog();
+    renderRequest(active);
+    setActionsEnabled(true);
   }
 
   async function complete(decision) {
-    const started = beginDecision(decision);
-    if (!started) return;
-    const { batch, toolName } = started;
+    if (!active || busy) return;
+    busy = true;
+    setActionsEnabled(false);
+    const item = active;
+    const batch = collectCompletionBatch(item, decision);
+    const { toolName } = item;
+    active = null;
+    closeDialogImmediately();
+    purgeRequestIds(batch.map((entry) => entry.requestId));
     try {
-      await Promise.all(batch.map((item) => postDecision(item, decision)));
+      await Promise.all(batch.map((entry) => postDecision(entry, decision)));
       setStatus(
         decision.allow ? `Разрешено: ${shortenToolName(toolName)}` : "Инструмент отклонён"
       );
@@ -190,7 +220,12 @@ export function initShellToolPermission({
   }
 
   function showNext() {
-    if (active || busy || queue.length === 0) return;
+    if (busy) return;
+    if (active) {
+      reconcileActiveState();
+      return;
+    }
+    if (queue.length === 0) return;
     active = queue.shift();
     renderRequest(active);
     setActionsEnabled(true);
@@ -201,14 +236,17 @@ export function initShellToolPermission({
     const requestId = String(payload?.requestId || "").trim();
     if (!requestId) return;
     const cliRequestId = String(payload?.cliRequestId || "").trim();
+    const fingerprint = permissionFingerprint(payload);
     const requestAgentId = String(payload?.agentId || resolveAgentId() || "").trim();
     const currentAgentId = resolveAgentId();
     if (currentAgentId && requestAgentId && requestAgentId !== currentAgentId) return;
-    if (isRequestTracked(requestId, cliRequestId)) return;
+    if (isRequestTracked(requestId, cliRequestId, fingerprint)) return;
+    seenRequestIds.add(requestId);
     queue.push({
       agentId: requestAgentId || currentAgentId,
       requestId,
-      cliRequestId: String(payload?.cliRequestId || "").trim(),
+      cliRequestId,
+      fingerprint,
       toolName: String(payload?.toolName || "tool").trim() || "tool",
       toolInput: payload?.toolInput ?? null,
       toolUseId: String(payload?.toolUseId || "").trim()
@@ -216,25 +254,20 @@ export function initShellToolPermission({
     showNext();
   }
 
-  function bindInstantDecision(btn, decision) {
-    if (!btn) return;
-    btn.addEventListener(
-      "pointerdown",
-      (event) => {
-        if (event.button !== 0 || !active || busy) return;
-        closeDialogImmediately();
-      },
-      { capture: true }
-    );
-    btn.addEventListener("click", (event) => {
-      event.preventDefault();
-      void complete(decision);
-    });
-  }
+  allowBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    void complete({ allow: true, scope: "once" });
+  });
 
-  bindInstantDecision(allowBtn, { allow: true, scope: "once" });
-  bindInstantDecision(denyBtn, { allow: false, scope: "once" });
-  bindInstantDecision(allowSessionBtn, { allow: true, scope: "session" });
+  denyBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    void complete({ allow: false, scope: "once" });
+  });
+
+  allowSessionBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void complete({ allow: true, scope: "session" });
+  });
 
   dialog.addEventListener("cancel", (event) => {
     if (!active || busy) return;

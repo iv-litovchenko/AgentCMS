@@ -281,16 +281,26 @@ function messageHistoryKey(item) {
   return `${role}:${at}:${body}`;
 }
 
+function messageContentKey(item) {
+  const role = String(item?.role || "").trim();
+  if (role !== "user" && role !== "agent" && role !== "error") return "";
+  const body = String(item.body || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!body) return "";
+  return `${role}:${body}`;
+}
+
 function mergeDialogHistory(archived, preserved = []) {
   const byToolId = new Map();
-  const plainKeys = new Set();
+  const plainContentKeys = new Set();
   const plain = [];
   for (const item of [...archived, ...preservedOptimisticItems(archived, preserved)]) {
     if (!isToolHistoryItem(item)) {
-      const key = messageHistoryKey(item);
-      if (key) {
-        if (plainKeys.has(key)) continue;
-        plainKeys.add(key);
+      const contentKey = messageContentKey(item);
+      if (contentKey) {
+        if (plainContentKeys.has(contentKey)) continue;
+        plainContentKeys.add(contentKey);
       }
       plain.push(item);
       continue;
@@ -316,7 +326,7 @@ function mergeDialogHistory(archived, preserved = []) {
 function preservedOptimisticItems(archived, preserved = []) {
   const archivedMessageKeys = new Set(
     (Array.isArray(archived) ? archived : [])
-      .map(messageHistoryKey)
+      .map((item) => messageHistoryKey(item) || messageContentKey(item))
       .filter(Boolean)
   );
   const archivedToolKeys = new Set(
@@ -329,7 +339,7 @@ function preservedOptimisticItems(archived, preserved = []) {
       if (!isMeaningfulToolItem(item)) return false;
       return !archivedToolKeys.has(toolHistoryKey(item));
     }
-    const key = messageHistoryKey(item);
+    const key = messageHistoryKey(item) || messageContentKey(item);
     if (!key) return true;
     return !archivedMessageKeys.has(key);
   });
@@ -513,14 +523,22 @@ export function createShellDialog(options = {}) {
     stickToBottom = true;
   }
 
+  function queueStickToBottomAfterLayout({ smooth = false } = {}) {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        scrollDialogToBottom({ smooth, force: true });
+      });
+    });
+  }
+
   function maintainStickScroll({ smooth = false } = {}) {
     if (!stickToBottom) return;
-    scrollDialogToBottom({ smooth, force: true });
+    queueStickToBottomAfterLayout({ smooth });
   }
 
   function stickToBottomAndScroll({ smooth = true } = {}) {
     enableStickToBottom();
-    scrollDialogToBottom({ smooth, force: true });
+    queueStickToBottomAfterLayout({ smooth });
   }
 
   function updateScrollBottomButton() {
@@ -552,34 +570,35 @@ export function createShellDialog(options = {}) {
     return nodes.thread?.querySelector(`#${CSS.escape(domId)}`) || null;
   }
 
-  function getCurrentTurnUserRow() {
-    const lastUserIndex = findLastUserIndex();
-    if (lastUserIndex < 0) return null;
-    return findAnchoredRowByItem(history[lastUserIndex], lastUserIndex);
+  function getLatestLiveActivityAnchor() {
+    const liveReply = nodes.lastReply;
+    if (!liveReply || liveReply.classList.contains("hidden")) return null;
+
+    const liveTools = nodes.liveTools;
+    if (liveTools && !liveTools.classList.contains("hidden")) {
+      const toolRows = liveTools.querySelectorAll(".shell-chat-row[data-message-anchor]");
+      if (toolRows.length) return toolRows[toolRows.length - 1];
+      const pending = liveTools.querySelector(".shell-live-tools-pending");
+      if (pending) return pending;
+    }
+
+    const replyText = document.getElementById("shell-last-reply-text");
+    if (replyText && !isLiveReplyStub(lastReplyRaw)) return replyText;
+
+    return liveReply;
   }
 
   function getDialogScrollAnchor() {
     const streaming = nodes.panel?.classList.contains("is-streaming");
-    const lastAnchored = getLastAnchoredRowInScroll();
     const liveReply = nodes.lastReply;
     const liveReplyVisible = liveReply && !liveReply.classList.contains("hidden");
-    const liveToolsVisible =
-      nodes.liveTools &&
-      !nodes.liveTools.classList.contains("hidden") &&
-      nodes.liveTools.querySelector(".shell-chat-row[data-message-anchor]");
 
-    // Текущий ход: tool-бubbles (live) + стрим ответа — якорь на весь блок
-    if (streaming && liveReplyVisible && (liveToolsVisible || !isLiveReplyStub(lastReplyRaw))) {
-      return liveReply;
+    if (streaming) {
+      const live = getLatestLiveActivityAnchor();
+      if (live) return live;
     }
 
-    // После ответа — к началу текущего хода (вопрос + ответ в кадре), не в самый низ ленты
-    if (!streaming) {
-      const turnUser = getCurrentTurnUserRow();
-      if (turnUser) return turnUser;
-    }
-
-    // Tool / user / agent / error — любая строка с data-message-anchor
+    const lastAnchored = getLastAnchoredRowInScroll();
     if (lastAnchored) return lastAnchored;
 
     if (liveReplyVisible) return liveReply;
@@ -618,7 +637,7 @@ export function createShellDialog(options = {}) {
     suppressStickUpdate = true;
     const streaming = nodes.panel?.classList.contains("is-streaming");
     const anchor = getDialogScrollAnchor();
-    const align = streaming ? "bottom" : "start";
+    const align = streaming ? "start" : "bottom";
     if (!anchor || !scrollDialogToAnchor(anchor, { smooth, align })) {
       scrollEl.scrollTo({ top: maxScroll, behavior: smooth ? "smooth" : "auto" });
     }
@@ -805,7 +824,7 @@ export function createShellDialog(options = {}) {
   function syncHistoryPanelState() {
     if (!nodes.panel) return;
     if (historyLoading) {
-      nodes.panel.dataset.historyState = "loading";
+      nodes.panel.dataset.historyState = history.length ? "ready" : "loading";
       return;
     }
     if (historyLoadError && !history.length) {
@@ -967,11 +986,16 @@ export function createShellDialog(options = {}) {
     return historyLoadPromise;
   }
 
+  function hasHistoryContent(role, body) {
+    const key = messageContentKey({ role, body });
+    if (!key) return false;
+    return history.some((item) => messageContentKey(item) === key);
+  }
+
   function pushHistory(role, body) {
     const text = String(body || "").trim();
     if (!text) return;
-    const last = history[history.length - 1];
-    if (last?.role === role && String(last.body || "").trim() === text) return;
+    if (hasHistoryContent(role, text)) return;
     const at = Date.now();
     const item = {
       role,
@@ -1268,6 +1292,7 @@ export function createShellDialog(options = {}) {
 
     if (nodes.panel?.classList.contains("is-streaming")) {
       renderLiveToolStrip();
+      maintainStickScroll({ smooth: false });
       return;
     }
     renderHistoryUi();
@@ -1457,9 +1482,7 @@ export function createShellDialog(options = {}) {
       applyPendingScrollOnce();
       queueScrollRestoreAfterLayout();
     } else if (stickToBottom) {
-      window.requestAnimationFrame(() => {
-        scrollDialogToBottom({ smooth: false, force: true });
-      });
+      queueStickToBottomAfterLayout({ smooth: false });
     } else if (preserveRatio != null) {
       window.requestAnimationFrame(() => applyScrollRatio(preserveRatio));
     }
@@ -1550,8 +1573,10 @@ export function createShellDialog(options = {}) {
   function onUserMessage(text) {
     clearError();
     enableStickToBottom();
-    setLastAsk(text);
-    pushHistory("user", text);
+    const raw = String(text || "").trim();
+    if (!raw) return;
+    lastAskRaw = raw;
+    pushHistory("user", raw);
     stickToBottomAndScroll({ smooth: true });
   }
 

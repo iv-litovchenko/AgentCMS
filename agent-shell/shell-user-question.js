@@ -50,6 +50,15 @@ function createUserQuestionService({ emitShellEvent, timeoutMs = 300000 } = {}) 
         reject(new Error("AskUserQuestion timed out — откройте Shell и выберите вариант"));
       }, Math.max(10000, Math.min(Number(timeoutMs) || 300000, 600000)));
 
+      const payload = {
+        agentId: String(agentId || "").trim(),
+        requestId,
+        cliRequestId,
+        toolUseId: String(details.toolUseId || "").trim(),
+        streamId: String(details.streamId || "").trim(),
+        questions
+      };
+
       pending.set(key, {
         resolve: (value) => {
           clearTimeout(timer);
@@ -63,17 +72,11 @@ function createUserQuestionService({ emitShellEvent, timeoutMs = 300000 } = {}) 
         },
         cliRequestId,
         questions,
-        toolInput: details.toolInput ?? null
+        toolInput: details.toolInput ?? null,
+        payload
       });
 
-      emitShellEvent(agentId, "user_question_request", {
-        agentId: String(agentId || "").trim(),
-        requestId,
-        cliRequestId,
-        toolUseId: String(details.toolUseId || "").trim(),
-        streamId: String(details.streamId || "").trim(),
-        questions
-      });
+      emitShellEvent(agentId, "user_question_request", payload);
     });
   }
 
@@ -113,7 +116,21 @@ function createUserQuestionService({ emitShellEvent, timeoutMs = 300000 } = {}) 
     }
   }
 
-  return { requestQuestion, completeQuestion, rejectAllForAgent, normalizeQuestions };
+  function replayPendingForAgent(agentId) {
+    const prefix = `${String(agentId || "").trim()}:`;
+    for (const [key, entry] of pending.entries()) {
+      if (!key.startsWith(prefix) || !entry?.payload) continue;
+      emitShellEvent(agentId, "user_question_request", entry.payload);
+    }
+  }
+
+  return {
+    requestQuestion,
+    completeQuestion,
+    rejectAllForAgent,
+    replayPendingForAgent,
+    normalizeQuestions
+  };
 }
 
 function isAskUserQuestionTool(toolName, toolInput, req = {}) {

@@ -7,17 +7,41 @@ function requestKey(agentId, requestId) {
 function createToolPermissionService({ emitShellEvent, timeoutMs = 120000 } = {}) {
   const pending = new Map();
 
+  function findPendingByCliRequestId(agentId, cliRequestId) {
+    const cliId = String(cliRequestId || "").trim();
+    const prefix = `${String(agentId || "").trim()}:`;
+    if (!cliId || !prefix.trim()) return null;
+    for (const [key, entry] of pending.entries()) {
+      if (!key.startsWith(prefix)) continue;
+      if (entry?.cliRequestId === cliId && entry?.promise) return entry;
+    }
+    return null;
+  }
+
   function requestPermission(agentId, details = {}) {
     const cliRequestId = String(details.cliRequestId || "").trim();
+    const existing = findPendingByCliRequestId(agentId, cliRequestId);
+    if (existing?.promise) return existing.promise;
+
     const toolName = String(details.toolName || "tool").trim() || "tool";
     const requestId = `perm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const key = requestKey(agentId, requestId);
 
-    return new Promise((resolve, reject) => {
+    const promise = new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         pending.delete(key);
         reject(new Error("Tool permission timed out — откройте Shell и подтвердите инструмент"));
       }, Math.max(5000, Math.min(Number(timeoutMs) || 120000, 300000)));
+
+      const payload = {
+        agentId: String(agentId || "").trim(),
+        requestId,
+        cliRequestId,
+        toolName,
+        toolInput: details.toolInput ?? null,
+        toolUseId: String(details.toolUseId || "").trim(),
+        streamId: String(details.streamId || "").trim()
+      };
 
       pending.set(key, {
         resolve: (value) => {
@@ -31,19 +55,17 @@ function createToolPermissionService({ emitShellEvent, timeoutMs = 120000 } = {}
           reject(error);
         },
         cliRequestId,
-        toolName
+        toolName,
+        payload,
+        promise: null
       });
 
-      emitShellEvent(agentId, "tool_permission_request", {
-        agentId: String(agentId || "").trim(),
-        requestId,
-        cliRequestId,
-        toolName,
-        toolInput: details.toolInput ?? null,
-        toolUseId: String(details.toolUseId || "").trim(),
-        streamId: String(details.streamId || "").trim()
-      });
+      emitShellEvent(agentId, "tool_permission_request", payload);
     });
+
+    const entry = pending.get(key);
+    if (entry) entry.promise = promise;
+    return promise;
   }
 
   function completePermission(agentId, requestId, decision = {}) {
@@ -64,7 +86,15 @@ function createToolPermissionService({ emitShellEvent, timeoutMs = 120000 } = {}
     }
   }
 
-  return { requestPermission, completePermission, rejectAllForAgent };
+  function replayPendingForAgent(agentId) {
+    const prefix = `${String(agentId || "").trim()}:`;
+    for (const [key, entry] of pending.entries()) {
+      if (!key.startsWith(prefix) || !entry?.payload) continue;
+      emitShellEvent(agentId, "tool_permission_request", entry.payload);
+    }
+  }
+
+  return { requestPermission, completePermission, rejectAllForAgent, replayPendingForAgent };
 }
 
 function parseClaudeCanUseToolRequest(event) {

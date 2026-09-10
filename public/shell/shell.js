@@ -7416,6 +7416,9 @@ async function sendMessageDirect(
   shellLog("message", `${author}${voice ? " · voice" : ""}`, expandedText.slice(0, 160));
   shellProactive?.bumpActivity();
   void unlockShellAudio();
+  if (showInDialog) {
+    shellDialog.onUserMessage?.(text);
+  }
   if (!alreadyBusy) {
     beginTurnMetrics();
     shellSession?.setSessionUiLocked(true);
@@ -7423,7 +7426,6 @@ async function sendMessageDirect(
     state.messageStopped = false;
     state.messagePipelineBusy = true;
     state.pendingReplyTtsClientId = getShellPresenceClientId();
-    if (showInDialog) shellDialog.setLastAsk?.(fromCompose ? composeRaw : expandedText);
     beginAssistantStream({});
   }
   state.processingMessage = state.processingMessage || expandedText;

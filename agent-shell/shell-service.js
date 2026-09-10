@@ -834,6 +834,13 @@ function cancelPendingInteractiveRequests(agentId, reason = "Agent switched") {
   return { agentId: id, ok: true };
 }
 
+function replayPendingInteractiveRequests(agentId) {
+  const id = String(agentId || "").trim();
+  if (!id) return;
+  toolPermissions.replayPendingForAgent(id);
+  userQuestions.replayPendingForAgent(id);
+}
+
 async function saveStoredSnapshot(agentRoot, domain, snapshot) {
   const kind = snapshot?.kind === "manual" ? "manual" : "speech";
   const service = domain === "screen" ? screenSnapshots : cameraSnapshots;
@@ -2370,6 +2377,7 @@ async function streamShellEvents(req, res, { agentId, agentRoot, deps }) {
     push(entry.type, entry);
   };
   unsubscribe = subscribeShellEvents(onBus);
+  replayPendingInteractiveRequests(agentId);
 
   const tick = async () => {
     if (closed || res.writableEnded || res.destroyed) return;
@@ -2467,6 +2475,7 @@ module.exports = {
   completeClaudeToolPermissionRequest,
   completeClaudeUserQuestionRequest,
   cancelPendingInteractiveRequests,
+  replayPendingInteractiveRequests,
   saveSpeechScreenSnapshot,
   getLatestScreenSnapshot,
   submitShellMessage,
