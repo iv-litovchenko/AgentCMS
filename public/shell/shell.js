@@ -1015,7 +1015,8 @@ function shouldPlayReplyTts(meta = {}) {
     ttsTabCoordinator?.claimLeader({ force: true });
     return true;
   }
-  if (state.micActive || state.pttHeld || isLocalMessagePipelineActive()) {
+  // Локальный голос без явного client id (legacy) — только на активном primary-клиенте.
+  if ((state.micActive || state.pttHeld) && !target && !pending) {
     if (!ensureVoicePrimaryClient()) return false;
     ttsTabCoordinator?.claimLeader({ force: true });
     return true;
@@ -3523,12 +3524,17 @@ async function reloadShellDialogContext({ restoreScroll = false } = {}) {
   syncCompactQa();
 }
 
+function resolveQueueItemTtsClientId(processing) {
+  return String(processing?.shellClientId || processing?.ttsClientId || "").trim();
+}
+
 function beginQueuedTurnStream(processing) {
   const text = String(processing?.text || processing?.body || "").trim();
+  const senderClientId = resolveQueueItemTtsClientId(processing);
   state.messageStopped = false;
   state.messagePipelineBusy = true;
   state.processingMessage = text || state.processingMessage;
-  state.pendingReplyTtsClientId = getShellPresenceClientId();
+  state.pendingReplyTtsClientId = senderClientId || getShellPresenceClientId();
   if (text) shellDialog.setLastAsk?.(text);
   shellSession?.setSessionUiLocked(true);
   shellSession?.resetStreamRenderState();

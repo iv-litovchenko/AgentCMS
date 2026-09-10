@@ -122,6 +122,7 @@ function serializeQueueItem(item, position = 0) {
     body: item.body,
     voice: Boolean(item.voice),
     author: item.author || "shell",
+    shellClientId: String(item.shellClientId || "").trim() || undefined,
     status: item.status || "pending",
     createdAt: item.createdAt,
     startedAt: item.startedAt || null,
