@@ -14,8 +14,7 @@
       },
       "claude": {
         "type": "cli",
-        "sessionId": "924375f6-b5a0-4fab-a5dc-3740d514cb7a",
-        "permissionMode": "bypassPermissions"
+        "sessionId": "924375f6-b5a0-4fab-a5dc-3740d514cb7a"
       },
       "codex": {
         "type": "cli",
@@ -105,7 +104,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0.9051
+    "dialogScrollRatio": 0.9105
   },
   "compose": {
     "promptTemplates": [
