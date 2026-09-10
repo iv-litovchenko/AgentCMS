@@ -136,6 +136,10 @@ async function readMergedWindowSettings(projectRoot, agentSettings = {}) {
 
 async function writeMergedWindowSettings(projectRoot, agentRoot, shellService, patch = {}) {
   const { agentPatch, globalPatch } = splitWindowPatch(patch);
+  if (Object.prototype.hasOwnProperty.call(patch || {}, "dialogAutoScroll")) {
+    agentPatch.dialogAutoScroll = patch.dialogAutoScroll;
+    globalPatch.dialogAutoScroll = patch.dialogAutoScroll;
+  }
   let agentSettings = null;
   if (Object.keys(agentPatch).length && shellService?.writeSettings) {
     agentSettings = await shellService.writeSettings(agentRoot, agentPatch);

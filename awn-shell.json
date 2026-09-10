@@ -6,8 +6,8 @@
   "windowCompact": false,
   "windowPetOverlay": true,
   "compactDialogQa": true,
+  "dialogAutoScroll": false,
   "windowCharacterModel": "robot",
   "windowKeepAwake": true,
-  "windowProcessingSound": "off",
-  "dialogAutoScroll": false
+  "windowProcessingSound": "off"
 }

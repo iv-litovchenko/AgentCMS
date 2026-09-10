@@ -1818,9 +1818,15 @@ function flushDialogScrollRatioSave() {
 function bindDialogScrollPersistence() {
   if (document.documentElement.dataset.shellDialogScrollBound === "1") return;
   document.documentElement.dataset.shellDialogScrollBound = "1";
-  window.addEventListener("pagehide", flushDialogScrollRatioSave);
+  window.addEventListener("pagehide", () => {
+    flushDialogScrollRatioSave();
+    flushDialogAutoScrollSave();
+  });
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") flushDialogScrollRatioSave();
+    if (document.visibilityState === "hidden") {
+      flushDialogScrollRatioSave();
+      flushDialogAutoScrollSave();
+    }
   });
 }
 
@@ -1839,8 +1845,111 @@ function isCompactDialogQaEnabled() {
   return state.windowSettings?.compactDialogQa !== false;
 }
 
+function dialogAutoScrollStorageKey(agentId = state.agentId) {
+  const id = String(agentId || "default").trim() || "default";
+  return `${SHELL_STORAGE.dialogAutoScroll}:${id}`;
+}
+
+function readLocalDialogAutoScroll(agentId = state.agentId) {
+  try {
+    const raw = localStorage.getItem(dialogAutoScrollStorageKey(agentId));
+    if (raw === null) return null;
+    return raw !== "0" && raw !== "false";
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalDialogAutoScroll(agentId, enabled) {
+  try {
+    localStorage.setItem(dialogAutoScrollStorageKey(agentId), enabled ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
+function resolveDialogAutoScrollPreference(
+  windowSettings = state.windowSettings,
+  agentSettings = state.settings,
+  agentId = state.agentId
+) {
+  const local = readLocalDialogAutoScroll(agentId);
+  if (local !== null) return local;
+  if (windowSettings?.dialogAutoScroll !== undefined) {
+    return windowSettings.dialogAutoScroll !== false;
+  }
+  if (agentSettings?.dialogAutoScroll !== undefined) {
+    return agentSettings.dialogAutoScroll !== false;
+  }
+  return true;
+}
+
+function readDialogAutoScrollFromSettings(settings = state.windowSettings, agentId = state.agentId) {
+  return resolveDialogAutoScrollPreference(settings, state.settings, agentId);
+}
+
 function isDialogAutoScrollEnabled() {
-  return state.windowSettings?.dialogAutoScroll !== false;
+  return resolveDialogAutoScrollPreference(state.windowSettings, state.settings, state.agentId);
+}
+
+function syncDialogAutoScrollFromSettings(
+  windowSettings = state.windowSettings,
+  agentSettings = state.settings
+) {
+  const agentId = state.agentId;
+  const fromServer =
+    windowSettings?.dialogAutoScroll !== undefined
+      ? windowSettings.dialogAutoScroll !== false
+      : agentSettings?.dialogAutoScroll !== undefined
+        ? agentSettings.dialogAutoScroll !== false
+        : true;
+  if (readLocalDialogAutoScroll(agentId) === null) {
+    writeLocalDialogAutoScroll(agentId, fromServer);
+  }
+  const enabled = resolveDialogAutoScrollPreference(windowSettings, agentSettings, agentId);
+  if (state.windowSettings) {
+    state.windowSettings.dialogAutoScroll = enabled;
+  }
+  syncDialogAutoScrollUi();
+  return enabled;
+}
+
+function syncDialogAutoScrollFromWindowSettings(settings = state.windowSettings) {
+  syncDialogAutoScrollFromSettings(settings, state.settings);
+}
+
+function persistDialogAutoScroll(enabled) {
+  const next = enabled !== false;
+  if (state.agentId) {
+    writeLocalDialogAutoScroll(state.agentId, next);
+  }
+  if (state.windowSettings) {
+    state.windowSettings.dialogAutoScroll = next;
+  }
+  syncDialogAutoScrollUi();
+  void saveWindowSettings({ dialogAutoScroll: next }).catch((error) => renderPhase("waiting", error.message));
+}
+
+function flushDialogAutoScrollSave() {
+  if (!state.agentId) return;
+  const enabled = isDialogAutoScrollEnabled();
+  writeLocalDialogAutoScroll(state.agentId, enabled);
+  try {
+    fetch(apiUrl("/api/shell/window"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings: { dialogAutoScroll: enabled } }),
+      keepalive: true
+    }).catch(() => {});
+    fetch(apiUrl("/api/shell/settings"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings: { dialogAutoScroll: enabled } }),
+      keepalive: true
+    }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
 }
 
 function syncDialogAutoScrollUi() {
@@ -1870,7 +1979,7 @@ const shellDialog = createShellDialog({
   scrollBottomBtn: document.getElementById("shell-dialog-scroll-bottom"),
   statusDot: document.getElementById("shell-status-dot"),
   refreshBtn: document.getElementById("shell-dialog-refresh"),
-  getDialogAutoScroll: isDialogAutoScrollEnabled,
+  getDialogAutoScroll: () => isDialogAutoScrollEnabled(),
   historyOpen: document.getElementById("shell-history-open"),
   historyCount: document.getElementById("shell-history-count"),
   historyDialog: document.getElementById("shell-history-dialog"),
@@ -2463,9 +2572,7 @@ function resolveHeroStatusBadgeClass(displayPhase, heroState) {
 function resolveHeroBackdropState(requestedPhase = "waiting") {
   const displayPhase = resolveDisplayPhase(requestedPhase);
   if (isAgentReplyStreaming()) return "typing";
-  if (displayPhase === "speaking" || isTtsAudioOutputActive() || state.speaking || isStreamTtsUiBusy()) {
-    return "replying";
-  }
+  if (isTtsPlaybackActive()) return "replying";
   if (displayPhase === "thinking") return "thinking";
   if (displayPhase === "listening") return "listening";
   if (isComposeReady()) return "ready";
@@ -2497,8 +2604,8 @@ function resolveHeroStatusLabel(requestedPhase = "waiting", phrase = "") {
   if (displayPhase === "disabled") return PHASE_LABELS.disabled;
   if (heroState === "listening") return HERO_STATE_LABELS.listening;
   if (heroState === "ready") return HERO_STATE_LABELS.ready;
-  if (heroState === "typing") return HERO_STATE_LABELS.typing;
-  if (displayPhase === "speaking") {
+  if (heroState === "typing" && isAgentReplyStreaming()) return HERO_STATE_LABELS.typing;
+  if (displayPhase === "speaking" && isTtsPlaybackActive()) {
     if (statusText && !isHeroIdlePhrase(statusText)) return statusText;
     return HERO_STATE_LABELS.replying;
   }
@@ -2658,7 +2765,7 @@ function resetTtsUiAfterPlayback({ patchServer = true } = {}) {
     return;
   }
   if (state.micActive || state.pttHeld) {
-    refreshHeroTtsVisuals();
+    renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
     return;
   }
   if (state.shellState?.phase === "speaking") {
@@ -2718,8 +2825,11 @@ function renderPhase(phase, phrase = "", metrics = "") {
     displayPhase = "waiting";
     statusText = heroIdlePhrase();
   }
-  if (displayPhase === "waiting" && !isShellAgentWorkActive() && !isTtsPlaybackActive()) {
-    if (!statusText || /печатает|думаю|запускаю|работаю|размышляю|озвуч|готовлю/i.test(statusText)) {
+  if (!isShellAgentWorkActive() && !isTtsPlaybackActive()) {
+    if (displayPhase === "speaking" || displayPhase === "thinking") {
+      displayPhase = "waiting";
+    }
+    if (!statusText || /печатает|думаю|запускаю|работаю|размышляю|озвуч|готовлю|отвеч/i.test(statusText)) {
       statusText = heroIdlePhrase();
     }
   }
@@ -2749,8 +2859,12 @@ function isTtsAudioOutputActive() {
 }
 
 function refreshHeroTtsVisuals() {
-  const phase = state.shellState?.phase || nodes.agentAvatar?.dataset.phase || "waiting";
-  const phrase = nodes.phaseLabel?.textContent || "";
+  if (!isTtsPlaybackActive() && !isShellAgentWorkActive()) {
+    renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
+    return;
+  }
+  const phase = resolveDisplayPhase(state.shellState?.phase || nodes.agentAvatar?.dataset.phase || "waiting");
+  const phrase = nodes.phaseLabel?.textContent || state.shellState?.phrase || "";
   syncHeroAvatarVisuals(phase, { updateLabel: false, phrase });
   syncCompactSensorPhase(phase, phrase);
 }
@@ -3205,6 +3319,12 @@ function hideAgentActivityPanel() {
 function renderAgentActivitySteps() {
   if (!agentActivitySteps.length) {
     hideAgentActivityPanel();
+    if (!isTtsPlaybackActive() && !isShellAgentWorkActive()) {
+      const cur = String(nodes.phaseLabel?.textContent || "");
+      if (/печата|озвуч|готовлю|думаю|запуска|отвеч/i.test(cur)) {
+        renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
+      }
+    }
     return;
   }
 
@@ -3220,15 +3340,11 @@ function renderAgentActivitySteps() {
   if (!active) return;
   const label = String(active.label || "").trim();
   if (!label || state.ttsPaused || !nodes.phaseLabel) return;
-  nodes.phaseLabel.textContent = label;
-  nodes.phaseLabel.classList.remove("is-idle", "is-ready", "is-active", "is-busy", "is-speaking", "is-typing");
-  const isTyping = active.kind === "typing" || /печатает/i.test(label);
-  const isSpeaking = /озвуч|говор|отвеч/i.test(label);
-  nodes.phaseLabel.classList.add(isTyping ? "is-typing" : isSpeaking ? "is-speaking" : "is-busy");
-  syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
-    updateLabel: false,
-    phrase: label
-  });
+  if (active.kind === "typing" && !isAgentReplyStreaming()) {
+    renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
+    return;
+  }
+  renderPhase(phase, label, state.shellState?.metrics || "");
 }
 
 function bindComposeReadyStatus() {
@@ -5127,7 +5243,7 @@ function applyWindowSettings(settings) {
   state.windowSettings = settings;
   applyWindowCharacterModel(settings.windowCharacterModel);
   applyWindowSoundAndAwake(settings);
-  syncDialogAutoScrollUi();
+  syncDialogAutoScrollFromWindowSettings(settings);
   if (!settingsSave.isSectionDirty("window")) {
     if (nodes.topmost) nodes.topmost.checked = settings.windowTopmost !== false;
     if (nodes.windowTransparent) nodes.windowTransparent.checked = Boolean(settings.windowTransparent);
@@ -5806,6 +5922,7 @@ function applySettings(settings) {
   }
   syncCompactSensorAvailability();
   syncDialogScrollFromSettings(settings);
+  syncDialogAutoScrollFromSettings(state.windowSettings, settings);
 }
 
 function getQwenPawUrlValue() {
@@ -6990,9 +7107,11 @@ async function loadWindowSettings() {
     const data = await apiFetch("/api/shell/window");
     const remote = normalizeWindowSettings(data.settings);
     settings = normalizeWindowSettings({ ...(settings || {}), ...remote });
+    settings.dialogAutoScroll = readDialogAutoScrollFromSettings(settings, state.agentId);
     writeWindowSettingsToStorage(settings);
   } catch {
     settings = normalizeWindowSettings(settings || {});
+    settings.dialogAutoScroll = readDialogAutoScrollFromSettings(settings, state.agentId);
   }
   applyWindowSettings(settings);
   if (!settingsSave.isSectionDirty("window")) {
@@ -7002,6 +7121,9 @@ async function loadWindowSettings() {
 
 async function saveWindowSettings(patch) {
   try {
+    if (Object.prototype.hasOwnProperty.call(patch || {}, "dialogAutoScroll")) {
+      writeLocalDialogAutoScroll(state.agentId, patch.dialogAutoScroll !== false);
+    }
     const local = writeWindowSettingsToStorage(patch);
     applyWindowSettings(local);
     const data = await apiFetch("/api/shell/window", {
@@ -7009,6 +7131,11 @@ async function saveWindowSettings(patch) {
       body: JSON.stringify({ settings: patch })
     });
     const settings = normalizeWindowSettings(data?.settings || local);
+    if (Object.prototype.hasOwnProperty.call(patch || {}, "dialogAutoScroll")) {
+      settings.dialogAutoScroll = patch.dialogAutoScroll !== false;
+      writeLocalDialogAutoScroll(state.agentId, settings.dialogAutoScroll);
+      void saveSettings({ dialogAutoScroll: settings.dialogAutoScroll }, { apply: "none" }).catch(() => {});
+    }
     writeWindowSettingsToStorage(settings);
     applyWindowSettings(settings);
     return settings;
@@ -11185,8 +11312,7 @@ function bindUi() {
 
   nodes.dialogAutoscrollToggle?.addEventListener("click", (event) => {
     event.stopPropagation();
-    const next = !isDialogAutoScrollEnabled();
-    void saveWindowSettings({ dialogAutoScroll: next }).catch((error) => renderPhase("waiting", error.message));
+    persistDialogAutoScroll(!isDialogAutoScrollEnabled());
   });
 
   document.addEventListener("keydown", (event) => {
@@ -11470,6 +11596,7 @@ async function boot() {
   cleanShellUrl();
   try {
     await ensureShellAgentSelected();
+    syncDialogAutoScrollUi();
     await populateHeaderAgentSelect();
     syncAgentSelects();
     await bootstrapRuntimeSelect();

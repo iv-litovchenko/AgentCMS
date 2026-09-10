@@ -11,7 +11,8 @@ export const SHELL_STORAGE = Object.freeze({
   characterBg: "agentcms.shell.characterBg.v1",
   windowSettings: "agentcms.shell.window.v1",
   debugLog: "agentcms.shell.debugLog.v1",
-  dialogScrollRatio: "agentcms.shell.dialogScrollRatio.v1"
+  dialogScrollRatio: "agentcms.shell.dialogScrollRatio.v1",
+  dialogAutoScroll: "agentcms.shell.dialogAutoScroll.v1"
 });
 
 export const MOBILE_STORAGE_LEGACY = Object.freeze({
