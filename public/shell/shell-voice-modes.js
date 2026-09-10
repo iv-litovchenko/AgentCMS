@@ -111,8 +111,8 @@ export const VOICE_MODE_COMPACT_LABELS = {
 /** Порядок и подписи режима 🎤 в compose. */
 export const COMPOSE_VOICE_MODE_ORDER = ["live", "meeting", "hold", "fn_button"];
 
-/** Живой диалог — в списке, но пока disabled. */
-export const LIVE_VOICE_MODE_ENABLED = false;
+/** Живой диалог v1 — Web Speech + пауза + barge-in. */
+export const LIVE_VOICE_MODE_ENABLED = true;
 
 export function isComposeVoiceModeDisabled(mode) {
   const m = normalizeVoiceInputMode(mode);
@@ -252,7 +252,7 @@ export function sttEngineIsAvailable(mode, context = {}) {
 
 export function voiceModeUsesBrowserStt(mode, context = {}) {
   const m = normalizeVoiceInputMode(mode);
-  if (m === "live" || m === "disabled") return false;
+  if (m === "disabled") return false;
   const capture = normalizeSttCapture(context.sttCapture ?? "microphone");
   if (capture !== "microphone") return false;
   return sttEngineUsesWebSpeech(context.sttEngine ?? "browser");
@@ -282,17 +282,17 @@ export function voiceModeMicAction(mode, context = {}) {
   const m = normalizeVoiceInputMode(mode);
   if (m === "disabled") return "hint";
   if (m === "meeting") return "toggle-meeting";
-  if (m === "live") return "disabled-hint";
+  if (m === "live") return "toggle-live";
 
   if (m === "fn_button") return "hint";
   return "hold";
 }
 
-export function voiceModeMicLabel(mode, { meetingRecording = false } = {}) {
+export function voiceModeMicLabel(mode, { meetingRecording = false, liveDialogActive = false } = {}) {
   const m = normalizeVoiceInputMode(mode);
   if (m === "meeting") return meetingRecording ? "Стоп встречи" : "Запись встречи";
   if (m === "hold") return "Говорить";
-  if (m === "live") return "Живой диалог";
+  if (m === "live") return liveDialogActive ? "Стоп живого диалога" : "Живой диалог";
   if (m === "fn_button") return "Shift";
   return "Говорить";
 }
@@ -352,6 +352,9 @@ export function formatSttEngineNote({
     }
     if (normalizeVoiceInputMode(mode) === "meeting") {
       parts.push("Встреча: MediaRecorder + выбранный движок, файлы в awn-dialogs/audio/stt/.");
+    }
+    if (normalizeVoiceInputMode(mode) === "live") {
+      parts.push("Живой диалог: Web Speech, фраза по паузе, перебивание останавливает озвучку и ответ.");
     }
     parts.push("Нужен HTTPS (localhost или https://…:3488).");
     return {

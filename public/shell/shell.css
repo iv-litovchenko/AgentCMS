@@ -5820,10 +5820,17 @@ body.shell-surface-extension #shell-dialog-refresh {
 }
 
 .shell-compose-mic.is-meeting-active,
+.shell-compose-mic.is-live-active,
 .shell-compose-mic.is-active {
   border-color: rgba(248, 113, 113, 0.75);
   background: rgba(248, 113, 113, 0.16);
   color: #fecaca;
+}
+
+.shell-compose-mic.is-live-active {
+  border-color: rgba(56, 189, 248, 0.75);
+  background: rgba(56, 189, 248, 0.16);
+  color: #bae6fd;
 }
 
 .shell-compose-mic.is-active {
@@ -6181,9 +6188,13 @@ body.shell-agent-locked #shell-message-target:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 32px;
   width: 32px;
+  min-width: 32px;
+  max-width: 32px;
   height: 32px;
   min-height: 32px;
+  max-height: 32px;
   padding: 0;
   border: 0;
   border-radius: 999px;
@@ -6192,6 +6203,19 @@ body.shell-agent-locked #shell-message-target:disabled {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.shell-compose-voice--compact #shell-mic-btn .shell-compose-mic-icon,
+.shell-compose-voice--compact #shell-mic-btn .shell-compose-tool-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .shell-compose-voice--compact #shell-mic-btn:hover:not(:disabled) {
@@ -6255,8 +6279,9 @@ body.shell-agent-locked #shell-message-target:disabled {
   margin: 0 auto;
 }
 
-#shell-mic-btn.is-meeting-mode:not(.is-meeting-active):not(.is-stt-processing) .shell-compose-mic-icon {
-  font-size: 14px;
+#shell-mic-btn.is-meeting-mode:not(.is-meeting-active):not(.is-stt-processing) .shell-compose-mic-icon,
+#shell-mic-btn.is-live-mode:not(.is-live-active):not(.is-stt-processing) .shell-compose-mic-icon {
+  font-size: 16px;
 }
 
 .shell-compose-voice.is-stt-processing .shell-compose-voice-timer {
@@ -10690,10 +10715,17 @@ body.shell-desktop .shell-compact-stage .shell-compact-sensor {
 }
 
 .shell-compose-voice .shell-compose-mic.is-meeting-active,
+.shell-compose-voice .shell-compose-mic.is-live-active,
 .shell-compose-voice .shell-compose-mic.is-active {
   border-right-color: rgba(248, 113, 113, 0.45);
   background: rgba(248, 113, 113, 0.16);
   color: #fecaca;
+}
+
+.shell-compose-voice .shell-compose-mic.is-live-active {
+  border-right-color: rgba(56, 189, 248, 0.45);
+  background: rgba(56, 189, 248, 0.16);
+  color: #bae6fd;
 }
 
 .shell-compose-voice .shell-compose-mic.is-active {
