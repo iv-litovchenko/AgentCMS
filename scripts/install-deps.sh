@@ -45,8 +45,7 @@ install_npm_root() {
 ensure_brew_pkg() {
   local pkg="$1"
   if ! command -v brew >/dev/null 2>&1; then
-    echo "Homebrew не найден — пропускаю: $pkg"
-    echo "  Установка: https://brew.sh/"
+    echo "  Homebrew не найден — пропускаю: $pkg"
     return 1
   fi
   if brew list "$pkg" >/dev/null 2>&1; then
@@ -92,55 +91,82 @@ install_certs() {
   esac
 }
 
-install_mcp() {
-  echo ""
-  echo "→ MCP для Cursor..."
-  if [ ! -f "mcp-server/package.json" ]; then
-    echo "  mcp-server/package.json не найден — пропуск."
+pick_stt_python() {
+  if command -v python3.12 >/dev/null 2>&1; then
+    echo python3.12
     return 0
   fi
-  npm install --prefix mcp-server
-  echo "  Готово. См. mcp-server/README.md"
+  if command -v python3.13 >/dev/null 2>&1; then
+    echo python3.13
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    local minor=""
+    minor="$(python3 -c 'import sys; print(sys.version_info.minor)' 2>/dev/null || echo 99)"
+    if [ "$minor" -ge 14 ] && command -v brew >/dev/null 2>&1; then
+      echo "  Python 3.${minor}: для Whisper нужен пакет av — на 3.14+ часто нет wheel." >&2
+      echo "  Пробую: brew install python@3.12 …" >&2
+      brew install python@3.12 || true
+      if command -v python3.12 >/dev/null 2>&1; then
+        echo python3.12
+        return 0
+      fi
+    fi
+    echo python3
+    return 0
+  fi
+  return 1
 }
 
-install_voice_sidecar() {
+install_stt_python() {
   echo ""
-  echo "→ Python sidecar (голос PTT)..."
-  if ! command -v python3 >/dev/null 2>&1; then
+  echo "→ Python STT (Whisper / Google) — agent-shell/voice-sidecar/.venv …"
+
+  local py=""
+  if ! py="$(pick_stt_python)"; then
     echo "  python3 не найден."
     if command -v brew >/dev/null 2>&1; then
-      echo "  brew install python"
-      brew install python
+      echo "  brew install python@3.12"
+      brew install python@3.12 || true
+      py="$(pick_stt_python)" || {
+        echo "  Установите Python 3.12+: https://www.python.org/downloads/"
+        return 1
+      }
     else
-      echo "  Установите Python 3: https://www.python.org/downloads/"
+      echo "  Установите Python 3.12+"
       return 1
     fi
   fi
+  echo "  Python: $($py -V 2>&1)"
 
-  ensure_brew_pkg portaudio || true
+  ensure_brew_pkg ffmpeg || true
+  ensure_brew_pkg pkg-config || true
 
-  local sidecar="$ROOT/agent-shell/voice-sidecar"
-  cd "$sidecar"
-
-  if [ ! -d ".venv" ]; then
-    echo "  python3 -m venv .venv"
-    python3 -m venv .venv
+  local venv_dir="$ROOT/agent-shell/voice-sidecar/.venv"
+  if [ ! -d "$venv_dir" ]; then
+    echo "  $py -m venv .venv"
+    "$py" -m venv "$venv_dir"
   fi
   # shellcheck disable=SC1091
-  source .venv/bin/activate
+  source "$venv_dir/bin/activate"
 
-  echo "  pip install -r requirements.txt"
-  pip install -r requirements.txt
+  echo "  pip install --upgrade pip"
+  pip install --upgrade pip
+
+  echo "  pip install SpeechRecognition …"
+  pip install "SpeechRecognition>=3.10.0"
+
+  echo "  pip install faster-whisper (зависимость av; нужен ffmpeg) …"
+  if ! pip install "faster-whisper>=1.1.0"; then
+    echo ""
+    echo "  ⚠ Whisper не установился (часто av на Python 3.14+)."
+    echo "    Google STT через сервер всё равно будет работать."
+    echo "    Для Whisper: brew install python@3.12, удалите .venv и запустите скрипт снова."
+    echo ""
+  fi
 
   cd "$ROOT"
-  echo "  Sidecar готов. Запуск: npm run shell:sidecar"
-}
-
-ask_yes_no() {
-  local prompt="$1"
-  local reply=""
-  read -r -p "$prompt [y/N] " reply
-  [[ "$reply" =~ ^[Yy]$ ]]
+  echo "  STT Python готов — движки подключаются через сервер Shell (Web Speech — в браузере)."
 }
 
 echo "Agent CMS — установка зависимостей"
@@ -151,13 +177,7 @@ install_npm_root
 install_mkcert
 install_certs
 
-if ask_yes_no "Установить MCP для Cursor?"; then
-  install_mcp
-fi
-
-if ask_yes_no "Установить Python sidecar для голоса (PTT)?"; then
-  install_voice_sidecar || echo "  Sidecar не установлен — можно повторить позже."
-fi
+install_stt_python || echo "  Python STT не установлен — повторите: bash scripts/install-deps.sh"
 
 echo ""
 echo "Готово. Дальше:"

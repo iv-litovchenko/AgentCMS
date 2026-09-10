@@ -26,6 +26,9 @@ export const STT_CAPTURE_HINTS = {
 /** Движок распознавания речи (STT driver). */
 export const STT_ENGINE_IDS = ["browser", "google", "whisper", "elevenlabs"];
 
+/** Пока в UI доступен только Web Speech; остальные видны, но disabled. */
+export const STT_SERVER_ENGINES_SELECTABLE = false;
+
 export const STT_ENGINE_LABELS = {
   browser: "Web Speech",
   google: "Google STT",
@@ -135,8 +138,8 @@ export const VOICE_MODE_OPTION_LABELS = {
 export const VOICE_MODE_HINTS = {
   live: "Постоянно слушает. Фраза по паузе → агенту. Ваш голос останавливает TTS.",
   meeting: "🎤 — старт/стоп длинной записи. Аудио и текст сохраняются в awn-dialogs/audio/stt/.",
-  hold: "Зажмите 🎤 — говорите — отпустите. Web Speech в браузере или локальный движок.",
-  fn_button: "Удерживайте Shift. С «Глобально» — когда Shell не в фокусе."
+  hold: "Зажмите 🎤 — говорите — отпустите.",
+  fn_button: "Удерживайте Shift (вне поля ввода)."
 };
 
 export function normalizeVoiceInputMode(mode) {
@@ -197,7 +200,15 @@ export function sttEngineRequiresLocalAgent(engine, capture = "microphone") {
   return isLocalSttEngine(engine);
 }
 
-/** browser = Web Speech во вкладке; sidecar = локальный голосовой агент (Python). */
+export function sttEngineUsesWebSpeech(engine) {
+  return normalizeSttEngine(engine) === "browser";
+}
+
+export function sttEngineUsesServer(engine) {
+  return isLocalSttEngine(engine);
+}
+
+/** @deprecated browser = Web Speech; server = микрофон → API сервера; sidecar = legacy PTT */
 export function resolveSttSource(
   mode,
   {
@@ -208,6 +219,7 @@ export function resolveSttSource(
     sttSource = null
   } = {}
 ) {
+  void globalListen;
   void sidecarConnected;
   const capture = normalizeSttCapture(sttCapture, {
     legacySource: sttSource != null ? String(sttSource) : ""
@@ -215,13 +227,14 @@ export function resolveSttSource(
   const engine = normalizeSttEngine(sttEngine);
   const m = normalizeVoiceInputMode(mode);
 
+  if (capture === "microphone") {
+    return sttEngineUsesWebSpeech(engine) ? "browser" : "server";
+  }
+
   if (m === "live") return "sidecar";
-  if (m === "meeting" && engine !== "browser") return "sidecar";
   if (sttCaptureRequiresLocalAgent(capture)) return "sidecar";
-  if (isLocalSttEngine(engine)) return "sidecar";
-  if ((m === "hold" || m === "fn_button") && globalListen) return "sidecar";
-  if (capture === "microphone" && engine === "browser") return "browser";
-  return "sidecar";
+  if (isLocalSttEngine(engine)) return "server";
+  return "browser";
 }
 
 /** @deprecated */
@@ -230,22 +243,17 @@ export function resolveSttEngine(mode, context = {}) {
 }
 
 export function sttEngineIsAvailable(mode, context = {}) {
-  const m = normalizeVoiceInputMode(mode);
-  if (m === "meeting" && normalizeSttEngine(context.sttEngine ?? "browser") === "browser") {
-    return true;
-  }
-  const resolved = resolveSttSource(mode, context);
-  if (resolved === "browser") return true;
-  return Boolean(context.sidecarConnected);
+  const engine = normalizeSttEngine(context.sttEngine ?? "browser");
+  if (sttEngineUsesWebSpeech(engine)) return true;
+  if (engine === "whisper" && context.whisperAvailable === false) return false;
+  if (engine === "elevenlabs" && context.elevenlabsAvailable === false) return false;
+  void mode;
+  return true;
 }
 
 export function voiceModeRequiresSidecar(mode, context = {}) {
-  const m = normalizeVoiceInputMode(mode);
-  if (m === "live") return true;
-  if (m === "meeting") {
-    return normalizeSttEngine(context.sttEngine ?? "browser") !== "browser";
-  }
-  return false;
+  void context;
+  return normalizeVoiceInputMode(mode) === "live";
 }
 
 export function voiceModeUsesSidecarMic(mode, context = {}) {
@@ -257,10 +265,19 @@ export function voiceModeUsesSidecarMic(mode, context = {}) {
 }
 
 export function voiceModeUsesBrowserStt(mode, context = {}) {
-  if (resolveSttSource(mode, context) !== "browser") return false;
   const m = normalizeVoiceInputMode(mode);
-  if (m === "live") return false;
-  return m !== "disabled";
+  if (m === "live" || m === "disabled") return false;
+  const capture = normalizeSttCapture(context.sttCapture ?? "microphone");
+  if (capture !== "microphone") return false;
+  return sttEngineUsesWebSpeech(context.sttEngine ?? "browser");
+}
+
+export function voiceModeUsesServerStt(mode, context = {}) {
+  const m = normalizeVoiceInputMode(mode);
+  if (m === "live" || m === "disabled") return false;
+  const capture = normalizeSttCapture(context.sttCapture ?? "microphone");
+  if (capture !== "microphone") return false;
+  return sttEngineUsesServer(context.sttEngine ?? "browser");
 }
 
 export function formatSttSummary(capture, engine, lang) {
@@ -282,7 +299,7 @@ export function voiceModeMicAction(mode, context = {}) {
   if (m === "live") return "disabled-hint";
 
   const resolved = resolveSttSource(m, context);
-  if (resolved === "browser") {
+  if (resolved === "browser" || resolved === "server") {
     if (m === "fn_button") return "hint";
     return "hold";
   }
@@ -301,12 +318,88 @@ export function voiceModeMicLabel(mode, { meetingRecording = false } = {}) {
   return "Говорить";
 }
 
-/** Иконка на 🎤 в compose: idle по режиму, ⏹ при записи. */
+/**
+ * Подсказка под «Движок STT»: источник (микрофон/система) → движок обработки.
+ * Не смешиваем с подсказками режима 🎤 (Shift / удержание) — они у селекта режима.
+ */
+export function formatSttEngineNote({
+  capture = "microphone",
+  engine = "browser",
+  mode = "hold",
+  engineMeta = {},
+  captureMeta = {},
+  sttLang = "ru-RU"
+} = {}) {
+  const cap = normalizeSttCapture(capture);
+  const eng = normalizeSttEngine(engine);
+  const capLabel = STT_CAPTURE_LABELS[cap] || cap;
+  const engLabel = STT_ENGINE_LABELS[eng] || eng;
+  const parts = [];
+  let warn = false;
+
+  const langRaw = String(sttLang || "").trim().toLowerCase();
+  if (langRaw === STT_LANG_AUTO && sttLangSupportsAuto(eng)) {
+    parts.push("Язык: авто — Whisper/Scribe определят язык сами.");
+  } else if (langRaw === STT_LANG_AUTO) {
+    parts.push("«Авто» только для Whisper и Scribe — для Web Speech выберите ru-RU или en-US.");
+    warn = true;
+  }
+
+  if (captureMeta.available === false) {
+    parts.push(captureMeta.hint || STT_CAPTURE_HINTS[cap] || "Этот источник пока недоступен.");
+    warn = true;
+  }
+
+  if (cap === "microphone") {
+    parts.push(`Микрофон → ${engLabel}.`);
+    if (eng === "browser") {
+      parts.push("Web Speech в этой вкладке.");
+    } else if (eng === "google") {
+      parts.push("Запись в браузере → распознавание Google STT на сервере (нужен интернет).");
+    } else if (eng === "whisper") {
+      if (engineMeta.available === false) {
+        parts.push("Whisper не установлен — _Install-deps.command в корне проекта.");
+        warn = true;
+      } else {
+        parts.push("Запись в браузере → Whisper (faster-whisper) на сервере, локально.");
+      }
+    } else if (eng === "elevenlabs") {
+      if (engineMeta.available === false) {
+        parts.push("Укажите API key ElevenLabs (поле ниже или ключ из TTS).");
+        warn = true;
+      } else {
+        parts.push("Запись в браузере → ElevenLabs Scribe API.");
+      }
+    }
+    if (normalizeVoiceInputMode(mode) === "meeting") {
+      parts.push("Встреча: MediaRecorder + выбранный движок, файлы в awn-dialogs/audio/stt/.");
+    }
+    parts.push("Нужен HTTPS (localhost или https://…:3488).");
+    return {
+      text: parts.join(" ").replace(/\s+/g, " ").trim(),
+      warn
+    };
+  }
+
+  parts.push(`${capLabel} → ${engLabel}.`);
+  if (eng === "whisper" && engineMeta.available === false) {
+    parts.push("Whisper не установлен — _Install-deps.command в корне проекта.");
+    warn = true;
+  } else if (eng === "elevenlabs" && engineMeta.available === false) {
+    parts.push("Укажите API key ElevenLabs (поле ниже или ключ из TTS).");
+    warn = true;
+  }
+  parts.push("Системный звук и смешанный поток — в разработке.");
+
+  return {
+    text: parts.join(" ").replace(/\s+/g, " ").trim(),
+    warn: warn || captureMeta.available === false
+  };
+}
+
+/** Иконка на 🎤 в compose: всегда 🎤 в покое, ⏹ при записи. */
 export function resolveMicIcon(mode, { recording = false } = {}) {
-  const m = normalizeVoiceInputMode(mode);
+  void mode;
   if (recording) return "⏹";
-  if (m === "fn_button") return "⇧";
-  if (m === "meeting") return "⏺";
-  if (m === "live") return "🎙";
   return "🎤";
 }

@@ -98,6 +98,7 @@ import {
   resolveSttEngine,
   sttEngineIsAvailable,
   formatSttSummary,
+  formatSttEngineNote,
   STT_CAPTURE_LABELS,
   STT_CAPTURE_HINTS,
   STT_ENGINE_LABELS,
@@ -119,8 +120,12 @@ import {
   resolveMicIcon,
   voiceModeRequiresSidecar,
   voiceModeUsesBrowserStt,
-  voiceModeUsesSidecarMic
+  voiceModeUsesServerStt,
+  voiceModeUsesSidecarMic,
+  sttEngineUsesWebSpeech,
+  STT_SERVER_ENGINES_SELECTABLE
 } from "@shell/voice-modes";
+import { blobToPcm16MonoBase64 } from "@shell/audio-pcm";
 import {
   SHELL_RUNTIMES,
   SHELL_RUNTIME_GROUPS,
@@ -1017,11 +1022,16 @@ function readSttCaptureFromDom(settings = state.settings) {
 }
 
 function getVoiceModeContext(settings = state.settings) {
+  const engine = readSttEngineFromDom(settings);
+  const whisperMeta = sttEngineCapabilities.whisper || {};
+  const elevenMeta = sttEngineCapabilities.elevenlabs || {};
   return {
     globalListen: isVoiceGlobalListen(settings),
     sidecarConnected: state.sidecarConnected,
-    sttEngine: readSttEngineFromDom(settings),
-    sttCapture: readSttCaptureFromDom(settings)
+    sttEngine: engine,
+    sttCapture: readSttCaptureFromDom(settings),
+    whisperAvailable: whisperMeta.available !== false,
+    elevenlabsAvailable: elevenMeta.available !== false
   };
 }
 
@@ -1057,6 +1067,19 @@ function usesSidecarMic(mode = getVoiceInputMode()) {
 
 function usesBrowserStt(mode = getVoiceInputMode()) {
   return voiceModeUsesBrowserStt(mode, getVoiceModeContext());
+}
+
+function usesServerStt(mode = getVoiceInputMode()) {
+  return voiceModeUsesServerStt(mode, getVoiceModeContext());
+}
+
+async function transcribeMicBlob(blob) {
+  const pcmBase64 = await blobToPcm16MonoBase64(blob);
+  const data = await apiFetch("/api/shell/stt/transcribe", {
+    method: "POST",
+    body: JSON.stringify({ pcmBase64 })
+  });
+  return String(data?.text || "").trim();
 }
 
 function isMicPhysicalHold() {
@@ -1171,12 +1194,7 @@ function beginPttHold() {
   if (!ensureVoicePrimaryClient()) return;
   const ctx = getVoiceModeContext();
   if (!sttEngineIsAvailable(mode, ctx)) {
-    renderPhase(
-      "disabled",
-      resolveSttSource(mode, ctx) === "sidecar"
-        ? "Shift — нужен локальный агент STT"
-        : "STT браузера недоступен · откройте Shell по HTTPS"
-    );
+    renderPhase("disabled", `STT недоступен · откройте Shell по HTTPS · ${getShellHttpsUrl()}`);
     return;
   }
   cancelPttReleaseTail();
@@ -7726,10 +7744,11 @@ let browserMeetingRecognition = null;
 let browserMeetingTranscript = "";
 
 function meetingUsesBrowserRecorder(mode = getVoiceInputMode()) {
-  return (
-    normalizeVoiceInputMode(mode) === "meeting" &&
-    !voiceModeRequiresSidecar(mode, getVoiceModeContext())
-  );
+  return normalizeVoiceInputMode(mode) === "meeting";
+}
+
+function meetingUsesWebSpeechStt(settings = state.settings) {
+  return sttEngineUsesWebSpeech(readSttEngineFromDom(settings));
 }
 
 function cleanupBrowserMeetingMediaStream() {
@@ -7843,7 +7862,7 @@ async function startBrowserMeetingRecording() {
     syncMicButtonUi({ force: true });
     renderPhase("listening", "Запись встречи…");
     syncVoiceRecordTimer();
-    startBrowserMeetingTranscript();
+    if (meetingUsesWebSpeechStt()) startBrowserMeetingTranscript();
     playShellMicSound("press");
     hapticTap();
     void apiFetch("/api/shell/meeting", {
@@ -7886,9 +7905,12 @@ async function stopBrowserMeetingRecording() {
 
   setVoiceSttProcessing(true);
   renderPhase("thinking", "Распознаю…");
-  const transcript = await stopBrowserMeetingTranscript();
-  cleanupBrowserMeetingMediaStream();
-  browserMeetingTranscript = "";
+  let transcript = "";
+  if (meetingUsesWebSpeechStt()) {
+    transcript = await stopBrowserMeetingTranscript();
+    cleanupBrowserMeetingMediaStream();
+    browserMeetingTranscript = "";
+  }
   playShellMicSound("release");
   hapticTap();
 
@@ -7900,6 +7922,9 @@ async function stopBrowserMeetingRecording() {
   if (chunks.length) {
     try {
       const blob = new Blob(chunks, { type: mimeType });
+      if (!transcript && !meetingUsesWebSpeechStt()) {
+        transcript = await transcribeMicBlob(blob);
+      }
       const dataBase64 = await blobToBase64(blob);
       const ext = mimeType.includes("webm") ? "webm" : "m4a";
       await apiFetch("/api/shell/voice-record", {
@@ -7914,11 +7939,13 @@ async function stopBrowserMeetingRecording() {
         })
       });
     } catch (error) {
+      cleanupBrowserMeetingMediaStream();
       setVoiceSttProcessing(false);
       renderPhase("waiting", error.message || "Не удалось сохранить запись");
       return;
     }
   }
+  if (!meetingUsesWebSpeechStt()) cleanupBrowserMeetingMediaStream();
 
   if (transcript) {
     await handleVoiceTranscript(transcript);
@@ -8044,11 +8071,7 @@ function refreshComposeMicTitle(mode = getVoiceInputMode()) {
   parts.push(micButtonLabel(mode));
   const ctx = getVoiceModeContext();
   if (!sttEngineIsAvailable(mode, ctx)) {
-    parts.push(
-      resolveSttSource(mode, ctx) === "sidecar"
-        ? "нужен локальный агент (npm run shell:sidecar)"
-        : "нужен HTTPS для Web Speech"
-    );
+    parts.push(`нужен HTTPS · ${getShellHttpsUrl()}`);
   }
   nodes.micBtn.title = parts.join(" · ");
 }
@@ -8281,70 +8304,16 @@ function updateSttEngineNote(settings = state.settings) {
   const capture = readSttCaptureFromDom(settings);
   const engine = readSttEngineFromDom(settings);
   const ctx = getVoiceModeContext(settings);
-  const resolvedSource = resolveSttSource(mode, ctx);
-  const meta = sttEngineCapabilities[engine] || {};
-  const captureMeta = sttCaptureCapabilities[capture] || {};
-  const parts = [];
-
-  const sttLang = readSttLangFromDom(settings);
-  if (sttLang === STT_LANG_AUTO && sttLangSupportsAuto(engine)) {
-    parts.push("Язык STT: авто — Whisper/Scribe определят язык сами.");
-  } else if (sttLang === STT_LANG_AUTO) {
-    parts.push("«Авто» здесь недоступно — для Web Speech/Google выберите ru-RU или en-US.");
-  }
-
-  if (resolvedSource === "browser") {
-    if (mode === "meeting") {
-      parts.push(
-        "Встреча в браузере: запись + Web Speech. Аудио и текст сохраняются в awn-dialogs/audio/stt/. Sidecar не нужен."
-      );
-    } else if (mode === "hold") {
-      parts.push("Голосовое: удерживайте 🎤 — Web Speech в этой вкладке. Sidecar не нужен.");
-    } else if (mode === "fn_button") {
-      parts.push("Shift: Web Speech в этой вкладке. Sidecar не нужен.");
-    } else {
-      parts.push("Web Speech в браузере. Sidecar не нужен.");
-    }
-    parts.push("Нужен HTTPS (localhost или https://…:3488).");
-  } else {
-    const captureLabel = STT_CAPTURE_LABELS[capture] || capture;
-    const engineLabel = STT_ENGINE_LABELS[engine] || engine;
-    parts.push(`${captureLabel} → ${engineLabel} через локальный агент (sidecar).`);
-
-    if (captureMeta.available === false) {
-      parts.push(captureMeta.hint || STT_CAPTURE_HINTS[capture] || "Скоро.");
-    } else if (engine === "whisper" && meta.available === false) {
-      parts.push(meta.hint || "pip install faster-whisper");
-    } else if (engine === "elevenlabs" && meta.available === false) {
-      parts.push(meta.hint || "Нужен API key ElevenLabs.");
-    }
-
-    if (state.sidecarConnected) {
-      parts.push("Локальный агент подключён.");
-    } else {
-      parts.push("Запустите: npm run shell:sidecar");
-      if (capture === "microphone" && (mode === "meeting" || mode === "hold" || mode === "fn_button")) {
-        parts.push("Или выберите «Web Speech» — работает без sidecar.");
-      }
-    }
-
-    const modeHint = VOICE_MODE_HINTS[mode];
-    if (modeHint) parts.push(modeHint);
-  }
-
-  if (engine === "browser" && capture !== "microphone") {
-    parts.unshift("Web Speech работает только с микрофоном.");
-  }
-
-  el.textContent = parts.join(" ").replace(/\s+/g, " ").trim();
-  el.classList.toggle(
-    "shell-stt-engine-note--warn",
-    (resolvedSource === "sidecar" && !state.sidecarConnected) ||
-      (engine === "browser" && capture !== "microphone") ||
-      (captureMeta.available === false) ||
-      (engine === "whisper" && meta.available === false) ||
-      (engine === "elevenlabs" && meta.available === false)
-  );
+  const note = formatSttEngineNote({
+    capture,
+    engine,
+    mode,
+    engineMeta: sttEngineCapabilities[engine] || {},
+    captureMeta: sttCaptureCapabilities[capture] || {},
+    sttLang: readSttLangFromDom(settings)
+  });
+  el.textContent = note.text;
+  el.classList.toggle("shell-stt-engine-note--warn", note.warn);
   updateSttSummaries(settings);
 }
 
@@ -8635,8 +8604,7 @@ async function loadSttCapabilities() {
       for (const option of nodes.sttEngine.options) {
         const meta = sttEngineCapabilities[option.value];
         if (!meta) continue;
-        option.disabled = false;
-        if (meta.hint) {
+        if (meta.hint && STT_SERVER_ENGINES_SELECTABLE) {
           option.title = meta.available === false ? `${meta.hint} (можно выбрать заранее)` : meta.hint;
         }
       }
@@ -8665,12 +8633,34 @@ function updateSttEngineUi() {
   const engine = normalizeSttEngine(nodes.sttEngine?.value || state.settings?.sttEngine || "browser");
   if (nodes.sttEngine) {
     for (const option of nodes.sttEngine.options) {
-      if (option.value === "browser") {
+      const isBrowser = option.value === "browser";
+      if (isBrowser) {
         option.disabled = capture !== "microphone";
         option.hidden = capture !== "microphone";
+        continue;
       }
+      if (!STT_SERVER_ENGINES_SELECTABLE) {
+        option.disabled = true;
+        option.hidden = false;
+        option.title = "Скоро";
+        continue;
+      }
+      option.disabled = false;
+      option.hidden = false;
     }
-    if (capture !== "microphone" && nodes.sttEngine.value === "browser" && document.activeElement !== nodes.sttEngine) {
+    if (
+      !STT_SERVER_ENGINES_SELECTABLE &&
+      nodes.sttEngine.value !== "browser" &&
+      document.activeElement !== nodes.sttEngine
+    ) {
+      nodes.sttEngine.value = "browser";
+      if (state.settings) state.settings.sttEngine = "browser";
+    } else if (
+      STT_SERVER_ENGINES_SELECTABLE &&
+      capture !== "microphone" &&
+      nodes.sttEngine.value === "browser" &&
+      document.activeElement !== nodes.sttEngine
+    ) {
       nodes.sttEngine.value = "google";
       if (state.settings) state.settings.sttEngine = "google";
     }
@@ -9723,23 +9713,37 @@ async function handleVoiceTranscript(text) {
 function setupSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const insecure = Boolean(shellPermissionIssue());
-  if (!SpeechRecognition) {
+  const needsWebSpeech = usesBrowserStt();
+  const needsMediaRecorder = usesServerStt();
+  const canCaptureMic = Boolean(
+    (needsWebSpeech && SpeechRecognition) || (needsMediaRecorder && typeof MediaRecorder !== "undefined")
+  );
+
+  if (!canCaptureMic) {
     if (nodes.micBtn) {
-      nodes.micBtn.title = insecure
-        ? `Web Speech недоступен · sidecar/HTTPS · ${getShellHttpsUrl()}`
-        : "Web Speech недоступен · для sidecar запустите npm run shell:sidecar";
+      if (needsWebSpeech && !SpeechRecognition) {
+        nodes.micBtn.title = insecure
+          ? `Web Speech недоступен · нужен HTTPS · ${getShellHttpsUrl()}`
+          : "Web Speech недоступен в этом браузере";
+      } else {
+        nodes.micBtn.title = "Запись с микрофона недоступна в этом браузере";
+      }
     }
     updateVoiceModeSelectUi();
     return;
   }
 
-  if (insecure) {
+  if (insecure && needsWebSpeech) {
     syncMicPermissionUi();
   }
 
-  const recognition = new SpeechRecognition();
-  recognition.lang = resolveBrowserRecognitionLang(readSttLangFromDom());
-  state.recognition = recognition;
+  const recognition = needsWebSpeech && SpeechRecognition ? new SpeechRecognition() : null;
+  if (recognition) {
+    recognition.lang = resolveBrowserRecognitionLang(readSttLangFromDom());
+    state.recognition = recognition;
+  } else {
+    state.recognition = null;
+  }
 
   showVoiceConfirmDialog = createVoiceConfirmDialog(nodes);
   shellTapVoice = createShellTapVoice({
@@ -9756,13 +9760,17 @@ function setupSpeechRecognition() {
     getLivePhrase: () => livePhraseFromStatus(state.shellState, null),
     handleVoiceTranscript,
     setVoiceSttProcessing,
+    usesServerStt,
+    transcribeMicBlob,
     isSttDisabled,
     isMessageBusy: isMessagePipelineActive,
     clearShellError: () => shellDialog?.clearError?.(),
     syncVoiceRecordTimer
   });
-  shellTapVoice.configureRecognition(recognition);
-  shellTapVoice.bindHandlers(recognition);
+  if (recognition) {
+    shellTapVoice.configureRecognition(recognition);
+    shellTapVoice.bindHandlers(recognition);
+  }
   updateVoiceModeSelectUi();
 }
 
@@ -9780,12 +9788,7 @@ function beginMicHold() {
   if (!micUsesHoldGesture(mode)) return false;
   const ctx = getVoiceModeContext();
   if (!sttEngineIsAvailable(mode, ctx)) {
-    renderPhase(
-      "disabled",
-      resolveSttEngine(mode, ctx) === "sidecar"
-        ? "Локальный агент STT — AGENT_CMS_AGENT=agent-cms-core npm run shell:sidecar"
-        : "STT браузера недоступен · откройте Shell по HTTPS"
-    );
+    renderPhase("disabled", `STT недоступен · откройте Shell по HTTPS · ${getShellHttpsUrl()}`);
     return false;
   }
   if (usesSidecarMic(mode)) {
@@ -9799,7 +9802,7 @@ function beginMicHold() {
     renderPhase("waiting", `SpeechRecognition недоступен · ${getShellHttpsUrl()}`);
     return false;
   }
-  if (usesBrowserStt(mode)) {
+  if (usesBrowserStt(mode) || usesServerStt(mode)) {
     playShellMicSound("press");
     hapticTap();
     shellTapVoice.prepareSession();
@@ -9811,7 +9814,7 @@ function beginMicHold() {
     });
     return true;
   }
-  renderPhase("waiting", "Голос недоступен — проверьте режим и «Глобально»");
+  renderPhase("waiting", "Голос недоступен — проверьте режим STT");
   return false;
 }
 
@@ -9852,9 +9855,7 @@ function handleMicPress() {
       "waiting",
       mode === "fn_button"
         ? "Удерживайте Shift для записи (не в поле ввода)"
-        : usesSidecarMic(mode)
-          ? "Удерживай Shift. Локальный агент слушает глобально."
-          : "Удерживайте 🎤 для записи"
+        : "Удерживайте 🎤 для записи"
     );
     return;
   }
@@ -9862,10 +9863,7 @@ function handleMicPress() {
     if (!ensureVoicePrimaryClient()) return;
     const ctx = getVoiceModeContext();
     if (!sttEngineIsAvailable(mode, ctx)) {
-      renderPhase(
-        "disabled",
-        "Встреча (запись) — запустите локальный агент: npm run shell:sidecar"
-      );
+      renderPhase("disabled", `Встреча: нужен HTTPS и Web Speech · ${getShellHttpsUrl()}`);
       return;
     }
     hapticTap();
@@ -10454,6 +10452,7 @@ function bindUi() {
     if (state.settings) state.settings.sttEngine = normalizeSttEngine(nodes.sttEngine.value);
     updateSttEngineUi();
     updateVoiceModeSelectUi();
+    setupSpeechRecognition();
     markSttDirty();
   });
   document.querySelectorAll('input[name="shell-stt-capture"]').forEach((input) => {
@@ -10465,6 +10464,7 @@ function bindUi() {
       updateSttEngineUi();
       updateVoiceModeSelectUi();
       updateComposeVoiceUi();
+      setupSpeechRecognition();
       markSttDirty();
     });
   });

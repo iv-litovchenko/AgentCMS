@@ -1,4 +1,5 @@
 import { MOBILE_STORAGE_LEGACY, SHELL_STORAGE } from "@shell/storage-keys";
+import { blobToPcm16MonoBase64, pickMicRecorderMimeType } from "@shell/audio-pcm";
 import { playShellMicSound, primeShellProcessingAudio } from "@shell/ui-sounds";
 
 const VOICE_CONFIRM_KEY = SHELL_STORAGE.voiceConfirm;
@@ -222,6 +223,10 @@ export function createShellTapVoice(deps) {
   let micStarting = false;
   let stopWhenReady = false;
   let micRestartTimer = null;
+  let mediaStream = null;
+  let mediaRecorder = null;
+  let mediaChunks = [];
+  let mediaMimeType = "";
 
   const clearMicRestartTimer = () => {
     if (micRestartTimer) {
@@ -254,7 +259,65 @@ export function createShellTapVoice(deps) {
     }, delayMs);
   };
 
+  const cleanupMediaCapture = () => {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      try {
+        mediaRecorder.stop();
+      } catch {
+        // ignore
+      }
+    }
+    mediaRecorder = null;
+    mediaChunks = [];
+    mediaMimeType = "";
+    if (mediaStream) {
+      for (const track of mediaStream.getTracks()) track.stop();
+      mediaStream = null;
+    }
+  };
+
+  const finishServerRecordingSession = async () => {
+    clearMicRestartTimer();
+    micStarting = false;
+    stopWhenReady = false;
+    micTapHeld = false;
+    deps.state.micTapHeld = false;
+    deps.state.micActive = false;
+    syncMicUi();
+    await releaseShellWakeLock(deps.state, "recording");
+
+    const recorder = mediaRecorder;
+    const chunks = mediaChunks.slice();
+    const mimeType = mediaMimeType || "audio/webm";
+    cleanupMediaCapture();
+
+    if (!chunks.length) {
+      deps.setVoiceSttProcessing?.(false);
+      deps.renderWaitingPhrase?.();
+      return;
+    }
+
+    deps.setVoiceSttProcessing?.(true);
+    deps.renderPhase?.("thinking", "Распознаю…");
+    try {
+      const blob = new Blob(chunks, { type: mimeType });
+      const text = String((await deps.transcribeMicBlob?.(blob)) || "").trim();
+      if (text) await deps.handleVoiceTranscript(text);
+      else {
+        deps.setVoiceSttProcessing?.(false);
+        deps.renderPhase?.("waiting", "Речь не распознана");
+      }
+    } catch (error) {
+      deps.setVoiceSttProcessing?.(false);
+      deps.renderPhase?.("waiting", error?.message || "Не удалось распознать речь");
+    }
+  };
+
   const finishRecordingSession = async () => {
+    if (deps.usesServerStt?.()) {
+      await finishServerRecordingSession();
+      return;
+    }
     clearMicRestartTimer();
     micStarting = false;
     stopWhenReady = false;
@@ -343,8 +406,26 @@ export function createShellTapVoice(deps) {
     stopWhenReady = false;
   };
 
+  const startMediaSession = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Запись с микрофона недоступна в этом браузере");
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaStream = stream;
+    mediaChunks = [];
+    mediaMimeType = pickMicRecorderMimeType() || "audio/webm";
+    mediaRecorder = new MediaRecorder(stream, { mimeType: mediaMimeType });
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data?.size) mediaChunks.push(event.data);
+    };
+    mediaRecorder.start(400);
+    deps.state.micActive = true;
+    syncMicUi();
+  };
+
   const startSession = async ({ viaTap = false, skipPressSound = false } = {}) => {
-    if (!deps.recognition) return false;
+    const serverStt = Boolean(deps.usesServerStt?.());
+    if (!serverStt && !deps.recognition) return false;
     if (deps.state?.voiceSttProcessing) {
       deps.renderPhase?.("thinking", "Распознаю…");
       return false;
@@ -395,9 +476,14 @@ export function createShellTapVoice(deps) {
         deps.state.micTapHeld = false;
         micStarting = false;
         syncMicUi();
+        cleanupMediaCapture();
         deps.renderWaitingPhrase?.();
         void releaseShellWakeLock(deps.state, "recording");
         return false;
+      }
+      if (serverStt) {
+        await startMediaSession();
+        return true;
       }
       try {
         deps.recognition.start();
@@ -452,6 +538,22 @@ export function createShellTapVoice(deps) {
     }
     deps.setVoiceSttProcessing?.(true);
     deps.renderPhase?.("thinking", "Распознаю…");
+    if (deps.usesServerStt?.()) {
+      const recorder = mediaRecorder;
+      if (!recorder || recorder.state === "inactive") {
+        void finishRecordingSession();
+        return;
+      }
+      recorder.onstop = () => {
+        void finishRecordingSession();
+      };
+      try {
+        recorder.stop();
+      } catch {
+        void finishRecordingSession();
+      }
+      return;
+    }
     try {
       deps.recognition?.stop();
     } catch {
@@ -477,6 +579,7 @@ export function createShellTapVoice(deps) {
     syncMicUi();
     deps.setVoiceSttProcessing?.(false);
     void releaseShellWakeLock(deps.state, "recording");
+    cleanupMediaCapture();
     if (deps.recognition) {
       try {
         deps.recognition.stop();

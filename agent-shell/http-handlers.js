@@ -5,6 +5,7 @@ const { loadShellPromptTemplates } = require("./shell-prompt-presets");
 
 const ttsService = require("./tts-service");
 const sttService = require("./stt-service");
+const sttTranscribe = require("./stt-transcribe");
 
 function createShellHandlers(deps) {
   async function tryHandleShellApi(req, res, url, { agentId, agentRoot, projectRoot }) {
@@ -510,6 +511,27 @@ function createShellHandlers(deps) {
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to read STT capabilities",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/stt/transcribe") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const settings = await shellService.readSettings(agentRoot);
+        const result = await sttTranscribe.transcribeFromRequest(payload, settings);
+        deps.sendJson(res, 200, {
+          agentId,
+          text: String(result?.text || "").trim(),
+          engine: String(result?.engine || settings.sttEngine || "").trim(),
+          durationSec: Number(result?.durationSec) || 0,
+          peakRms: Number(result?.peakRms) || 0
+        });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "Failed to transcribe audio",
           details: String(error?.message || error)
         });
       }

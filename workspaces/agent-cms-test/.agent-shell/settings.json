@@ -26,11 +26,11 @@
   },
   "voice": {
     "input": {
-      "mode": "fn_button",
+      "mode": "meeting",
       "capture": "microphone",
       "globalListen": false,
       "toCompose": false,
-      "responseEnabled": false
+      "responseEnabled": true
     },
     "stt": {
       "lang": "ru-RU",
@@ -102,7 +102,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0
+    "dialogScrollRatio": 1
   },
   "compose": {
     "promptTemplates": [

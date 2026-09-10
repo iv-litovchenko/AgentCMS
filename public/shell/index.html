@@ -56,8 +56,9 @@
           "@shell/proactive": "/shell/shell-proactive.js?v=326",
           "@shell/debug": "/shell/shell-debug.js?v=417",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
-          "@shell/voice": "/shell/shell-voice.js?v=209",
-          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=415",
+          "@shell/voice": "/shell/shell-voice.js?v=210",
+          "@shell/voice-modes": "/shell/shell-voice-modes.js?v=421",
+          "@shell/audio-pcm": "/shell/shell-audio-pcm.js?v=1",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=208",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=363",
@@ -1093,11 +1094,11 @@
               <span class="shell-label shell-label-row shell-label-row--spread">Движок STT</span>
               <select id="shell-stt-engine" class="shell-select shell-select--full" aria-label="Движок STT">
                 <option value="browser">Web Speech — в браузере</option>
-                <option value="google">Google STT</option>
-                <option value="whisper">Whisper локально</option>
-                <option value="elevenlabs">ElevenLabs Scribe</option>
+                <option value="google" disabled title="Скоро">Google STT</option>
+                <option value="whisper" disabled title="Скоро">Whisper локально</option>
+                <option value="elevenlabs" disabled title="Скоро">ElevenLabs Scribe</option>
               </select>
-              <p class="shell-stt-engine-note" id="shell-stt-engine-note">Web Speech — в браузере без sidecar. Google / Whisper / Scribe — через npm run shell:sidecar.</p>
+              <p class="shell-stt-engine-note" id="shell-stt-engine-note">Микрофон → Web Speech в этой вкладке. Нужен HTTPS.</p>
             </label>
 
             <div class="shell-stt-engine-panels">
@@ -1152,7 +1153,8 @@
           </div>
 
           <p class="shell-stt-settings-note shell-stt-settings-note--foot">
-            Режим 🎤 — у поля ввода. Локальные движки: <code>npm run shell:sidecar</code>.
+            Микрофон в браузере → выбранный движок STT. Режим 🎤 (Shift / удержание) — у поля ввода.
+            Whisper: <code>_Install-deps.command</code>.
             <a href="#" id="shell-mic-help-link">Микрофон Safari</a>
           </p>
 

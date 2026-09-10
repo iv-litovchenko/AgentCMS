@@ -6120,13 +6120,6 @@ body.shell-agent-locked #shell-message-target:disabled {
   margin: 0 auto;
 }
 
-#shell-mic-btn.is-shift-mode:not(.is-active):not(.is-stt-processing) .shell-compose-mic-icon {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.04em;
-}
-
 #shell-mic-btn.is-meeting-mode:not(.is-meeting-active):not(.is-stt-processing) .shell-compose-mic-icon {
   font-size: 14px;
 }

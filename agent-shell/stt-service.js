@@ -1,8 +1,5 @@
-const { execFile } = require("child_process");
-const { promisify } = require("util");
 const path = require("path");
-
-const execFileAsync = promisify(execFile);
+const { probeFasterWhisper } = require("../lib/voice-sidecar-probe");
 
 const STT_ENGINES = ["browser", "google", "whisper", "elevenlabs"];
 
@@ -21,16 +18,8 @@ function readElevenlabsSttApiKey(settings = {}) {
 }
 
 async function probeWhisperInstalled() {
-  const sidecarDir = path.join(__dirname, "voice-sidecar");
-  try {
-    await execFileAsync("python3", ["-c", "import faster_whisper"], {
-      cwd: sidecarDir,
-      timeout: 8000
-    });
-    return true;
-  } catch {
-    return false;
-  }
+  const probe = await probeFasterWhisper(path.join(__dirname, ".."));
+  return probe.installed;
 }
 
 async function getCapabilities(settings = {}) {
@@ -41,19 +30,19 @@ async function getCapabilities(settings = {}) {
       browser: {
         available: true,
         label: "Web Speech",
-        hint: "Chrome / Safari, нужен HTTPS · только микрофон"
+        hint: "Микрофон браузера · Chrome / Safari · HTTPS"
       },
       google: {
         available: true,
         label: "Google STT",
-        hint: "Локальный агент + интернет (speech_recognition)"
+        hint: "Системный звук (скоро) · speech_recognition"
       },
       whisper: {
         available: whisperInstalled,
         label: "Whisper локально",
         hint: whisperInstalled
-          ? "faster-whisper в локальном агенте"
-          : "pip install faster-whisper в voice-sidecar"
+          ? "faster-whisper на сервере Shell"
+          : "_Install-deps.command (Python 3.12 + ffmpeg)"
       },
       elevenlabs: {
         available: Boolean(elevenKey),
@@ -66,12 +55,12 @@ async function getCapabilities(settings = {}) {
       system: {
         available: false,
         label: "Системный звук",
-        hint: "Скоро — нужен локальный голосовой агент"
+        hint: "Скоро — захват звука с компьютера"
       },
       mix: {
         available: false,
         label: "Микрофон + система",
-        hint: "Скоро — программное микширование потоков"
+        hint: "Скоро — смешанный поток"
       }
     },
     whisperModels: WHISPER_MODELS,

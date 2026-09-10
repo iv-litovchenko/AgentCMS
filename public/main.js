@@ -81911,7 +81911,17 @@ function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
       ]
     : (Array.isArray(payload?.dependencies) ? payload.dependencies : []).filter((item) => {
         const id = String(item?.id || "");
-        const priority = new Set(["node", "npm", "git", "python", "mkcert", "https", "claude", "codex"]);
+        const priority = new Set([
+          "node",
+          "npm",
+          "git",
+          "python",
+          "mkcert",
+          "https",
+          "whisper",
+          "claude",
+          "codex"
+        ]);
         if (priority.has(id)) return true;
         return item.status === "ok" || item.status === "warn";
       });

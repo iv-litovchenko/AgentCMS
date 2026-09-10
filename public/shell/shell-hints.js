@@ -20,9 +20,9 @@ export function updateVoiceModeHint(
     fn_button: "Shift — удерживать клавишу или 🎤"
   };
   let hint = modeHints[mode] || modeHints.hold;
-  if (resolvedSource === "sidecar" && !sidecarConnected) {
-    hint += " · нужен локальный агент";
-  }
+  void resolvedSource;
+  void sidecarConnected;
+  void sttCapture;
   const hints = {
     live: hint,
     meeting: hint,
