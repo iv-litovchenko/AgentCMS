@@ -544,6 +544,11 @@ body:not(.shell-embed) .shell-app {
   font-size: 12px;
 }
 
+#shell-tool-permission-dialog.shell-tool-permission--closing,
+#shell-tool-permission-dialog.shell-tool-permission--closing::backdrop {
+  display: none !important;
+}
+
 .shell-tool-permission-actions {
   flex-wrap: wrap;
   gap: 8px;

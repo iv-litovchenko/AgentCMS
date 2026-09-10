@@ -1734,7 +1734,8 @@ const shellDialog = createShellDialog({
     });
     lastDialogHistoryLoadedAt = Date.now();
     return Array.isArray(data?.messages) ? data.messages : [];
-  }
+  },
+  getAgentTurnMetrics
 });
 
 const shellCompactQa = createShellCompactQa({
@@ -3077,6 +3078,7 @@ function renderStreamingAssistantText(text) {
     renderShellReplyMarkdown(nodes.lastReplyText, "…");
     return;
   }
+  markTurnFirstToken();
   renderShellReplyBody(nodes.lastReplyText, value);
   stopStreamWaitTimer();
   shellDialog.maintainStickScroll?.({ smooth: false });
@@ -3299,6 +3301,22 @@ function finalizeAssistantStream(message) {
 }
 
 let messagePipelineWatchdog = 0;
+const turnMetrics = { sentAt: 0, ttftMs: 0 };
+
+function beginTurnMetrics() {
+  turnMetrics.sentAt = Date.now();
+  turnMetrics.ttftMs = 0;
+}
+
+function markTurnFirstToken() {
+  if (turnMetrics.ttftMs || !turnMetrics.sentAt) return;
+  turnMetrics.ttftMs = Date.now() - turnMetrics.sentAt;
+}
+
+function getAgentTurnMetrics() {
+  const ttftMs = Number(turnMetrics.ttftMs) || 0;
+  return ttftMs > 0 ? { ttftMs } : null;
+}
 
 function beginMessageTurn() {
   return new Promise((resolve) => {
@@ -7389,7 +7407,9 @@ async function sendMessageDirect(
     composeRaw,
     state.settings?.composePromptTemplates
   );
-  const text = (await shellComposePage?.appendPageContextIfEnabled?.(expandedText)) || expandedText;
+  const text = voice
+    ? expandedText
+    : (await shellComposePage?.appendPageContextIfEnabled?.(expandedText)) || expandedText;
   if (!text) return;
   const alreadyBusy = isActiveMessageTurn();
   const turnComplete = alreadyBusy ? null : beginMessageTurn();
@@ -7397,6 +7417,7 @@ async function sendMessageDirect(
   shellProactive?.bumpActivity();
   void unlockShellAudio();
   if (!alreadyBusy) {
+    beginTurnMetrics();
     shellSession?.setSessionUiLocked(true);
     shellSession?.resetStreamRenderState();
     state.messageStopped = false;
@@ -7442,7 +7463,7 @@ async function sendMessageDirect(
     }
     updateSendButtonLabel();
   }
-  if (turnComplete) await turnComplete;
+  if (turnComplete && !voice) await turnComplete;
 }
 
 function getSpeechSynth() {
@@ -9664,10 +9685,10 @@ function isMessagePipelineActive() {
 
 async function sendVoiceMessage(text) {
   if (state.settings?.cameraOnSpeech && shellCamera.isActive()) {
-    await uploadCameraSnapshot("speech").catch(() => {});
+    void uploadCameraSnapshot("speech").catch(() => {});
   }
   if (state.settings?.screenOnSpeech && shellScreen.isActive()) {
-    await uploadScreenSnapshot("speech").catch(() => {});
+    void uploadScreenSnapshot("speech").catch(() => {});
   }
   await sendMessage(text, { fromCompose: false, voice: true });
 }

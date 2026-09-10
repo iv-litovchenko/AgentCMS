@@ -57,23 +57,81 @@ export function initShellToolPermission({
     }
   }
 
-  function closeDialog() {
-    if (dialog.open && typeof dialog.close === "function") dialog.close();
-  }
-
-  function isRequestTracked(requestId) {
-    const id = String(requestId || "").trim();
-    if (!id) return false;
-    if (active?.requestId === id) return true;
-    return queue.some((item) => item?.requestId === id);
-  }
-
-  function purgeRequestId(requestId) {
-    const id = String(requestId || "").trim();
-    if (!id) return;
-    for (let i = queue.length - 1; i >= 0; i -= 1) {
-      if (queue[i]?.requestId === id) queue.splice(i, 1);
+  function closeDialogImmediately() {
+    dialog.classList.add("shell-tool-permission--closing");
+    dialog.inert = true;
+    if (typeof dialog.close === "function") {
+      try {
+        dialog.close();
+      } catch {
+        /* ignore */
+      }
     }
+    dialog.removeAttribute("open");
+  }
+
+  function openDialog() {
+    dialog.classList.remove("shell-tool-permission--closing");
+    dialog.inert = false;
+    if (!dialog.open && typeof dialog.showModal === "function") dialog.showModal();
+  }
+
+  function isRequestTracked(requestId, cliRequestId = "") {
+    const id = String(requestId || "").trim();
+    const cliId = String(cliRequestId || "").trim();
+    if (id && (active?.requestId === id || queue.some((item) => item?.requestId === id))) {
+      return true;
+    }
+    if (
+      cliId &&
+      (active?.cliRequestId === cliId || queue.some((item) => item?.cliRequestId === cliId))
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  function purgeRequestIds(ids) {
+    const drop = new Set(
+      (Array.isArray(ids) ? ids : [ids])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean)
+    );
+    if (!drop.size) return;
+    for (let i = queue.length - 1; i >= 0; i -= 1) {
+      if (drop.has(queue[i]?.requestId)) queue.splice(i, 1);
+    }
+  }
+
+  function collectCompletionBatch(item, decision) {
+    const batch = [item];
+    const toolName = String(item?.toolName || "").trim();
+    const cliRequestId = String(item?.cliRequestId || "").trim();
+    const sameSessionTool = Boolean(decision.allow && decision.scope === "session" && toolName);
+    for (let i = queue.length - 1; i >= 0; i -= 1) {
+      const queued = queue[i];
+      if (!queued) continue;
+      const sameRequest = cliRequestId && queued.cliRequestId === cliRequestId;
+      const sameTool = sameSessionTool && queued.toolName === toolName;
+      if (!sameRequest && !sameTool) continue;
+      batch.push(queued);
+      queue.splice(i, 1);
+    }
+    return batch;
+  }
+
+  async function postDecision(item, decision) {
+    const { requestId, agentId } = item;
+    await apiFetch("/api/shell/tool-permission/complete", {
+      agentId,
+      method: "POST",
+      body: JSON.stringify({
+        agentId,
+        requestId,
+        allow: Boolean(decision.allow),
+        scope: decision.scope === "session" ? "session" : "once"
+      })
+    });
   }
 
   function dismissAll() {
@@ -81,7 +139,7 @@ export function initShellToolPermission({
     active = null;
     busy = false;
     setActionsEnabled(true);
-    closeDialog();
+    closeDialogImmediately();
   }
 
   function renderRequest(item) {
@@ -101,26 +159,24 @@ export function initShellToolPermission({
     setStatus(`Claude запрашивает: ${shortenToolName(toolName)}`);
   }
 
-  async function complete(decision) {
-    if (!active || busy) return;
-    busy = true;
-    setActionsEnabled(false);
+  function beginDecision(decision) {
+    if (!active || busy) return null;
     const item = active;
-    const { requestId, agentId, toolName } = item;
+    const batch = collectCompletionBatch(item, decision);
     active = null;
-    closeDialog();
-    purgeRequestId(requestId);
+    busy = true;
+    closeDialogImmediately();
+    setActionsEnabled(false);
+    purgeRequestIds(batch.map((entry) => entry.requestId));
+    return { batch, decision, toolName: item.toolName };
+  }
+
+  async function complete(decision) {
+    const started = beginDecision(decision);
+    if (!started) return;
+    const { batch, toolName } = started;
     try {
-      await apiFetch("/api/shell/tool-permission/complete", {
-        agentId,
-        method: "POST",
-        body: JSON.stringify({
-          agentId,
-          requestId,
-          allow: Boolean(decision.allow),
-          scope: decision.scope === "session" ? "session" : "once"
-        })
-      });
+      await Promise.all(batch.map((item) => postDecision(item, decision)));
       setStatus(
         decision.allow ? `Разрешено: ${shortenToolName(toolName)}` : "Инструмент отклонён"
       );
@@ -138,16 +194,17 @@ export function initShellToolPermission({
     active = queue.shift();
     renderRequest(active);
     setActionsEnabled(true);
-    if (!dialog.open && typeof dialog.showModal === "function") dialog.showModal();
+    openDialog();
   }
 
   function handleRequest(payload) {
     const requestId = String(payload?.requestId || "").trim();
     if (!requestId) return;
+    const cliRequestId = String(payload?.cliRequestId || "").trim();
     const requestAgentId = String(payload?.agentId || resolveAgentId() || "").trim();
     const currentAgentId = resolveAgentId();
     if (currentAgentId && requestAgentId && requestAgentId !== currentAgentId) return;
-    if (isRequestTracked(requestId)) return;
+    if (isRequestTracked(requestId, cliRequestId)) return;
     queue.push({
       agentId: requestAgentId || currentAgentId,
       requestId,
@@ -159,20 +216,25 @@ export function initShellToolPermission({
     showNext();
   }
 
-  allowBtn.addEventListener("click", (event) => {
-    event.preventDefault();
-    void complete({ allow: true, scope: "once" });
-  });
+  function bindInstantDecision(btn, decision) {
+    if (!btn) return;
+    btn.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (event.button !== 0 || !active || busy) return;
+        closeDialogImmediately();
+      },
+      { capture: true }
+    );
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      void complete(decision);
+    });
+  }
 
-  denyBtn.addEventListener("click", (event) => {
-    event.preventDefault();
-    void complete({ allow: false, scope: "once" });
-  });
-
-  allowSessionBtn?.addEventListener("click", (event) => {
-    event.preventDefault();
-    void complete({ allow: true, scope: "session" });
-  });
+  bindInstantDecision(allowBtn, { allow: true, scope: "once" });
+  bindInstantDecision(denyBtn, { allow: false, scope: "once" });
+  bindInstantDecision(allowSessionBtn, { allow: true, scope: "session" });
 
   dialog.addEventListener("cancel", (event) => {
     if (!active || busy) return;

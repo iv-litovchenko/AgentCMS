@@ -29,6 +29,44 @@ function formatReplyDuration(ms) {
   return `${Math.round(sec)} с`;
 }
 
+function formatAgentReplyMeta(item = {}) {
+  const duration = formatReplyDuration(item.durationMs);
+  const ttft = formatReplyDuration(item.ttftMs);
+  const clock = formatHistoryTime(item.at);
+  const ttftMs = Number(item.ttftMs) || 0;
+  const durationMs = Number(item.durationMs) || 0;
+  if (ttft && ttftMs > 0 && durationMs > 0 && ttftMs < durationMs - 300) {
+    return {
+      text: ttft,
+      title: clock
+        ? `Первые слова за ${ttft} · полный ответ ${duration} · ${clock}`
+        : `Первые слова за ${ttft} · полный ответ ${duration}`
+    };
+  }
+  if (duration) {
+    return {
+      text: duration,
+      title: clock ? `Ответ за ${duration} · ${clock}` : `Ответ за ${duration}`
+    };
+  }
+  if (clock) return { text: clock, title: clock };
+  return null;
+}
+
+function applyAgentTurnMetrics(items, getMetrics) {
+  const metrics =
+    typeof getMetrics === "function" ? getMetrics() : null;
+  const ttftMs = Number(metrics?.ttftMs) || 0;
+  if (!ttftMs || !Array.isArray(items) || !items.length) return items;
+  const out = items.slice();
+  for (let i = out.length - 1; i >= 0; i -= 1) {
+    if (out[i]?.role !== "agent") continue;
+    out[i] = { ...out[i], ttftMs };
+    break;
+  }
+  return out;
+}
+
 function withReplyDurations(items) {
   let lastUserAt = 0;
   return (Array.isArray(items) ? items : []).map((item) => {
@@ -401,6 +439,8 @@ function connectionHint(error) {
 export function createShellDialog(options = {}) {
   const nodes = options;
   const fetchHistory = typeof options.fetchHistory === "function" ? options.fetchHistory : null;
+  const getAgentTurnMetrics =
+    typeof options.getAgentTurnMetrics === "function" ? options.getAgentTurnMetrics : null;
   const onScrollPositionChange =
     typeof options.onScrollPositionChange === "function" ? options.onScrollPositionChange : null;
   const onHistoryChange = typeof options.onHistoryChange === "function" ? options.onHistoryChange : null;
@@ -891,7 +931,10 @@ export function createShellDialog(options = {}) {
       .then((items) => {
         if (generation !== historyLoadGeneration) return;
         const preserved = replace ? [] : history.slice();
-        const archived = withReplyDurations(Array.isArray(items) ? items : []);
+        const archived = applyAgentTurnMetrics(
+          withReplyDurations(Array.isArray(items) ? items : []),
+          getAgentTurnMetrics
+        );
         history = replace
           ? finalizeStaleRunningTools(archived.slice(-MAX_HISTORY))
           : mergeDialogHistory(archived, preserved);
@@ -1301,14 +1344,18 @@ export function createShellDialog(options = {}) {
     bubble.append(el, copyBtn);
     row.append(bubble);
 
-    const duration = role === "agent" ? formatReplyDuration(item.durationMs) : "";
-    const clock = formatHistoryTime(item.at);
-    const metaText = duration || clock;
-    if (metaText) {
+    let metaInfo = null;
+    if (role === "agent") {
+      metaInfo = formatAgentReplyMeta(item);
+    } else {
+      const clock = formatHistoryTime(item.at);
+      if (clock) metaInfo = { text: clock, title: clock };
+    }
+    if (metaInfo?.text) {
       const meta = document.createElement("div");
       meta.className = "shell-chat-meta";
-      meta.textContent = metaText;
-      if (duration) meta.title = clock ? `Ответ за ${duration} · ${clock}` : `Ответ за ${duration}`;
+      meta.textContent = metaInfo.text;
+      if (metaInfo.title) meta.title = metaInfo.title;
       row.append(meta);
     }
     return applyMessageRowAnchor(row, item);
