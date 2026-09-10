@@ -1524,7 +1524,7 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
       signal: runAbort.signal,
       onEvent: ({ text: partialText, activity }) => {
         if (activity) void emitAgentActivity(activity);
-        if (String(partialText || "").trim()) void emitAssistantDelta(partialText);
+        if (String(partialText ?? "").length) void emitAssistantDelta(partialText);
       }
     });
   } catch (error) {
@@ -1679,7 +1679,7 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
   };
 
   const onDelta = (partial) => {
-    if (String(partial || "").trim()) void emitAssistantDelta(partial);
+    if (String(partial ?? "").length) void emitAssistantDelta(partial);
   };
   const onActivity = (activity) => {
     if (!activity) return;
@@ -1874,7 +1874,7 @@ async function processShellQueueItem(deps, agentRoot, agentId, item, scope) {
   const author = String(item.author || "shell").trim() || "shell";
 
   if (!/proactive/i.test(author)) {
-    await logShellDialogUser(agentRoot, body, runtime);
+    void logShellDialogUser(agentRoot, body, runtime);
   }
   emitShellQueueUpdate(agentId, scope);
 

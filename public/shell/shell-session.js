@@ -116,15 +116,26 @@ export function createShellSession(state, deps = {}) {
   }
 
   function queueStreamingRender(text, renderFn) {
-    pendingStreamText = String(text || "");
+    const value = String(text || "");
+    pendingStreamText = value;
+    const renderKey = `s:${value.length}:${value.slice(-120)}`;
+    if (!value || renderKey === lastRenderedStreamKey) return;
+
+    // First paint immediately — TTFT matters more than batching the opening tokens.
+    if (!lastRenderedStreamKey) {
+      lastRenderedStreamKey = renderKey;
+      renderFn(value);
+      return;
+    }
+
     if (streamRenderTimer) return;
     streamRenderTimer = window.setTimeout(() => {
       streamRenderTimer = 0;
-      const value = pendingStreamText;
-      const renderKey = `s:${value.length}:${value.slice(-120)}`;
-      if (!value || renderKey === lastRenderedStreamKey) return;
-      lastRenderedStreamKey = renderKey;
-      renderFn(value);
+      const next = pendingStreamText;
+      const nextKey = `s:${next.length}:${next.slice(-120)}`;
+      if (!next || nextKey === lastRenderedStreamKey) return;
+      lastRenderedStreamKey = nextKey;
+      renderFn(next);
     }, STREAM_RENDER_MS);
   }
 

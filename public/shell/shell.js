@@ -3072,11 +3072,15 @@ function renderStreamingAssistantText(text) {
   nodes.lastReplyText.classList.remove("shell-reply-text--stub");
   nodes.lastReplyText.dataset.replyKind = "stream";
   if (!value) {
-    renderShellReplyMarkdown(nodes.lastReplyText, "…");
+    nodes.lastReplyText.classList.remove("shell-md", "shell-reply-body-formatted", "shell-reply-text--streaming");
+    nodes.lastReplyText.textContent = "…";
     return;
   }
   markTurnFirstToken();
-  renderShellReplyBody(nodes.lastReplyText, value);
+  // Plain text while streaming — full markdown only on finalize (much faster TTFT).
+  nodes.lastReplyText.classList.remove("shell-md", "shell-reply-body-formatted");
+  nodes.lastReplyText.classList.add("shell-reply-text--streaming");
+  nodes.lastReplyText.textContent = value;
   stopStreamWaitTimer();
   shellDialog.onReplyRendered(value);
   syncHeroAvatarVisuals(state.shellState?.phase || "thinking", {
@@ -3262,12 +3266,14 @@ function finalizeAssistantStream(message) {
   setReplyPanelStreaming(false);
   shellDialog.finalizeRunningTools?.();
   shellDialog.syncLiveReplySlot?.();
-  shellSession?.flushStreamingRender(renderStreamingAssistantText);
+  shellSession?.resetStreamRenderState();
   renderShellReply({ ...message, body, spokenText, spokenParts });
   shellDialog.onAgentReply(body);
-  void shellDialog.refreshHistory?.().then(() => {
-    shellDialog.syncLiveReplySlot?.();
-  });
+  window.setTimeout(() => {
+    void shellDialog.refreshHistory?.().then(() => {
+      shellDialog.syncLiveReplySlot?.();
+    });
+  }, 0);
   finalizeAgentActivitySteps();
   shellSession?.markReplyDisplayed({ ...message, body, streamId });
   markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
@@ -7415,7 +7421,7 @@ async function sendMessageDirect(
     : (await shellComposePage?.appendPageContextIfEnabled?.(expandedText)) || expandedText;
   if (!text) return;
   const alreadyBusy = isActiveMessageTurn();
-  const turnComplete = alreadyBusy ? null : beginMessageTurn();
+  if (!alreadyBusy) beginMessageTurn();
   shellLog("message", `${author}${voice ? " · voice" : ""}`, expandedText.slice(0, 160));
   shellProactive?.bumpActivity();
   void unlockShellAudio();
@@ -7467,7 +7473,6 @@ async function sendMessageDirect(
     }
     updateSendButtonLabel();
   }
-  if (turnComplete && !voice) await turnComplete;
 }
 
 function getSpeechSynth() {
