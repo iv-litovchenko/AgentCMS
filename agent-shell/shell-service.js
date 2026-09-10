@@ -123,7 +123,7 @@ const DEFAULT_SETTINGS = {
   ttsBrowserVoice: "",
   ttsEdgeVoice: "ru-RU-SvetlanaNeural",
   ttsElevenlabsApiKey: "",
-  ttsElevenlabsVoiceId: "",
+  ttsElevenlabsVoiceId: "EXAVITQu4vr4xnSDxMaL",
   ttsElevenlabsModel: "eleven_multilingual_v2",
   ttsPiperModel: "",
   ttsPiperBinary: "",
@@ -521,7 +521,7 @@ function normalizeSettings(raw) {
   merged.ttsVoice = merged.ttsBrowserVoice;
   merged.ttsEdgeVoice = String(merged.ttsEdgeVoice || "ru-RU-SvetlanaNeural").trim();
   merged.ttsElevenlabsApiKey = String(merged.ttsElevenlabsApiKey || "").trim();
-  merged.ttsElevenlabsVoiceId = String(merged.ttsElevenlabsVoiceId || "").trim();
+  merged.ttsElevenlabsVoiceId = String(merged.ttsElevenlabsVoiceId || "EXAVITQu4vr4xnSDxMaL").trim();
   merged.ttsElevenlabsModel = String(merged.ttsElevenlabsModel || "eleven_multilingual_v2").trim();
   merged.ttsPiperModel = String(merged.ttsPiperModel || "").trim();
   merged.ttsPiperBinary = String(merged.ttsPiperBinary || "").trim();

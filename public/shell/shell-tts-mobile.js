@@ -23,6 +23,12 @@ export function formatTtsErrorHint({ serverReason = "", browserReason = "", useS
     parts.push("Аудио не загрузилось — проверьте сеть или выберите Edge TTS");
   } else if (serverReason === "engine-browser" && useServerTts) {
     parts.push("Настройки TTS не загрузились — обновите страницу");
+  } else if (/invalid_api_key|API key ID used as API key/i.test(serverReason)) {
+    parts.push("ElevenLabs: вставьте API key (sk_…), а не ID ключа из профиля");
+  } else if (/free_users_not_allowed|creator tier|paid_plan_required/i.test(serverReason)) {
+    parts.push(
+      "ElevenLabs: этот Voice ID недоступен на free-плане — выберите premade-голос из библиотеки или смените тариф"
+    );
   } else if (serverReason && serverReason !== "engine-browser") {
     parts.push(`Сервер: ${serverReason}`);
   }

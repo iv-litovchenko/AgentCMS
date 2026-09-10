@@ -156,7 +156,11 @@ import {
 } from "@shell/runtimes";
 import {
   SHELL_TTS_ENGINES,
+  ELEVENLABS_DEFAULT_VOICE_ID,
+  ELEVENLABS_DEFAULT_MODEL,
   normalizeTtsEngine,
+  isTtsEngineUiDisabled,
+  resolveTtsEngineForUi,
   ttsEngineLabel,
   formatTtsEngineSelectLabel,
   formatTtsEngineSelectTitle
@@ -169,6 +173,23 @@ const TTS_ENGINE_PANEL_NODES = {
   edge: () => nodes.ttsEdgePanel,
   piper: () => nodes.ttsPiperPanel,
   elevenlabs: () => nodes.ttsElevenlabsPanel
+};
+
+const TTS_PROSODY_BY_ENGINE = {
+  browser: { rate: true, pitch: true, rateHint: "Web Speech", pitchHint: "Web Speech" },
+  edge: { rate: true, pitch: false, rateHint: "Edge TTS", pitchHint: "Не используется Edge TTS" },
+  elevenlabs: {
+    rate: true,
+    pitch: false,
+    rateHint: "ElevenLabs · speed (voice_settings)",
+    pitchHint: "Нет в API ElevenLabs (есть stability, similarity)"
+  },
+  piper: {
+    rate: false,
+    pitch: false,
+    rateHint: "Не используется Piper",
+    pitchHint: "Не используется Piper"
+  }
 };
 
 const VOICE_MODE_USER_GRACE_MS = 30000;
@@ -442,6 +463,34 @@ function updateTtsTestBtnHint() {
   const phrase = getTtsTestPhrase();
   nodes.ttsTestBtn.title = phrase;
   nodes.ttsTestBtn.setAttribute("aria-label", `Пробная озвучка: ${phrase}`);
+}
+
+function setTtsTestStatus(message = "", { error = false, ok = false } = {}) {
+  const el = nodes.ttsTestStatus;
+  const box = nodes.ttsTestStatusBox;
+  if (!el) return;
+  const text = String(message || "").trim();
+  el.textContent = text;
+  if (box) {
+    box.hidden = !text;
+    box.classList.toggle("is-error", Boolean(error && text));
+    box.classList.toggle("is-ok", Boolean(ok && text));
+  }
+  el.classList.toggle("is-error", Boolean(error && text));
+  el.classList.toggle("is-ok", Boolean(ok && text));
+}
+
+function formatTtsTestErrorMessage(reason = "", engine = getTtsEngine()) {
+  const serverReason = String(reason || "").trim();
+  if (!serverReason) return "Не удалось озвучить пробный текст";
+  const hint = formatTtsErrorHint({
+    serverReason,
+    browserReason: "",
+    useServerTts: normalizeTtsEngine(engine) !== "browser"
+  });
+  if (!hint || hint === serverReason) return serverReason;
+  if (serverReason.includes(hint) || hint.includes(serverReason)) return serverReason;
+  return `${serverReason} — ${hint}`;
 }
 
 const PHASE_LABELS = {
@@ -804,7 +853,25 @@ function resolveElevenlabsApiKey() {
 }
 
 function resolveElevenlabsVoiceId() {
-  return String(nodes.ttsElevenlabsVoiceId?.value || state.settings?.ttsElevenlabsVoiceId || "").trim();
+  const value = String(nodes.ttsElevenlabsVoiceId?.value || state.settings?.ttsElevenlabsVoiceId || "").trim();
+  return value || ELEVENLABS_DEFAULT_VOICE_ID;
+}
+
+function isValidElevenlabsApiKey(key = "") {
+  const value = String(key || "").trim();
+  return value.startsWith("sk_") && value.length > 8;
+}
+
+function assertElevenlabsCredentials(settings = collectTtsRuntimeSettings()) {
+  const apiKey = String(settings.ttsElevenlabsApiKey || "").trim();
+  const voiceId = String(settings.ttsElevenlabsVoiceId || "").trim();
+  if (!apiKey) throw new Error("ElevenLabs: укажите API key");
+  if (!voiceId) throw new Error("ElevenLabs: укажите Voice ID");
+  if (!isValidElevenlabsApiKey(apiKey)) {
+    throw new Error(
+      "ElevenLabs: нужен API key (начинается с sk_), а не ID ключа из профиля"
+    );
+  }
 }
 
 function applyElevenlabsKeyUi(settings = state.settings || {}) {
@@ -819,6 +886,7 @@ function collectTtsRuntimeSettings() {
   const runtime = { ...patch, ttsEngine: getTtsEngine() };
   const apiKey = resolveElevenlabsApiKey();
   if (apiKey) runtime.ttsElevenlabsApiKey = apiKey;
+  else if (stored.ttsElevenlabsApiKey) runtime.ttsElevenlabsApiKey = stored.ttsElevenlabsApiKey;
   if (!String(runtime.ttsElevenlabsVoiceId || "").trim() && stored.ttsElevenlabsVoiceId) {
     runtime.ttsElevenlabsVoiceId = stored.ttsElevenlabsVoiceId;
   }
@@ -1337,6 +1405,8 @@ const nodes = {
   ttsPromptInsert: document.getElementById("shell-tts-prompt-insert"),
   ttsEngine: document.getElementById("shell-tts-engine"),
   ttsTestBtn: document.getElementById("shell-tts-test"),
+  ttsTestStatusBox: document.getElementById("shell-tts-test-status-box"),
+  ttsTestStatus: document.getElementById("shell-tts-test-status"),
   ttsBrowserPanel: document.getElementById("shell-tts-browser-panel"),
   ttsEdgePanel: document.getElementById("shell-tts-edge-panel"),
   ttsPiperPanel: document.getElementById("shell-tts-piper-panel"),
@@ -1352,8 +1422,11 @@ const nodes = {
   ttsVoiceRefresh: document.getElementById("shell-tts-voice-refresh"),
   ttsRate: document.getElementById("shell-tts-rate"),
   ttsRateField: document.getElementById("shell-tts-rate-field"),
+  ttsRateHint: document.getElementById("shell-tts-rate-hint"),
   ttsRateValue: document.getElementById("shell-tts-rate-value"),
   ttsPitch: document.getElementById("shell-tts-pitch"),
+  ttsPitchField: document.getElementById("shell-tts-pitch-field"),
+  ttsPitchHint: document.getElementById("shell-tts-pitch-hint"),
   ttsPitchValue: document.getElementById("shell-tts-pitch-value"),
   sttEnabled: document.getElementById("shell-stt-enabled"),
   sttPanelEnabled: document.getElementById("shell-stt-panel-enabled"),
@@ -8576,22 +8649,39 @@ async function persistTtsPlaybackMode(mode) {
   }
 }
 
+function ttsEngineSelectMeta(engine, capabilities = ttsEngineCapabilities) {
+  const meta = { ...(capabilities?.[engine] || {}) };
+  if (isTtsEngineUiDisabled(engine)) {
+    return { ...meta, available: false, hint: "Пока недоступен" };
+  }
+  return meta;
+}
+
+function isTtsEngineSelectDisabled(engine, meta = {}) {
+  if (isTtsEngineUiDisabled(engine)) return true;
+  if (engine === "elevenlabs") return false;
+  return meta.available === false;
+}
+
 function fillTtsEngineSelect(selectEl, selected, capabilities = ttsEngineCapabilities) {
-  if (!selectEl) return normalizeTtsEngine(selected);
-  const current = normalizeTtsEngine(selected);
+  if (!selectEl) return resolveTtsEngineForUi(selected);
+  const current = resolveTtsEngineForUi(selected);
   selectEl.innerHTML = "";
   for (const engine of SHELL_TTS_ENGINES) {
-    const meta = capabilities?.[engine] || {};
+    const meta = ttsEngineSelectMeta(engine, capabilities);
     const available = engine === "elevenlabs" ? meta.available !== false : meta.available !== false;
     const opt = document.createElement("option");
     opt.value = engine;
     opt.textContent = formatTtsEngineSelectLabel(engine, { available });
     opt.title = formatTtsEngineSelectTitle(engine, meta);
-    opt.disabled = engine === "elevenlabs" ? false : meta.available === false;
+    opt.disabled = isTtsEngineSelectDisabled(engine, meta);
     if (engine === current) opt.selected = true;
     selectEl.append(opt);
   }
   selectEl.value = current;
+  if (!selectEl.value || isTtsEngineUiDisabled(selectEl.value)) {
+    selectEl.value = "browser";
+  }
   return normalizeTtsEngine(selectEl.value || current);
 }
 
@@ -8601,11 +8691,11 @@ function refreshTtsEngineSelectLabels(capabilities = ttsEngineCapabilities) {
     if (!opt.value) continue;
     const engine = normalizeTtsEngine(opt.value);
     if (!SHELL_TTS_ENGINES.includes(engine)) continue;
-    const meta = capabilities?.[engine] || {};
+    const meta = ttsEngineSelectMeta(engine, capabilities);
     const available = engine === "elevenlabs" ? meta.available !== false : meta.available !== false;
     opt.textContent = formatTtsEngineSelectLabel(engine, { available });
     opt.title = formatTtsEngineSelectTitle(engine, meta);
-    opt.disabled = engine === "elevenlabs" ? false : meta.available === false;
+    opt.disabled = isTtsEngineSelectDisabled(engine, meta);
   }
 }
 
@@ -8623,12 +8713,27 @@ function refreshSttEngineSelectLabels() {
   }
 }
 
+function updateTtsProsodyUi(engine = normalizeTtsEngine(getTtsEngine())) {
+  const meta = TTS_PROSODY_BY_ENGINE[engine] || TTS_PROSODY_BY_ENGINE.browser;
+  if (nodes.ttsRateField) {
+    nodes.ttsRateField.dataset.applies = meta.rate ? "1" : "0";
+    if (nodes.ttsRate) nodes.ttsRate.disabled = !meta.rate;
+  }
+  if (nodes.ttsPitchField) {
+    nodes.ttsPitchField.dataset.applies = meta.pitch ? "1" : "0";
+    if (nodes.ttsPitch) nodes.ttsPitch.disabled = !meta.pitch;
+  }
+  if (nodes.ttsRateHint) nodes.ttsRateHint.textContent = meta.rateHint;
+  if (nodes.ttsPitchHint) nodes.ttsPitchHint.textContent = meta.pitchHint;
+}
+
 function updateTtsEngineUi({ reloadVoices = false } = {}) {
   const engine = normalizeTtsEngine(getTtsEngine());
   for (const [id, getPanel] of Object.entries(TTS_ENGINE_PANEL_NODES)) {
     const panel = getPanel();
     if (panel) panel.dataset.visible = id === engine ? "1" : "0";
   }
+  updateTtsProsodyUi(engine);
   if (reloadVoices) {
     void refreshTtsEngineVoices(engine);
   }
@@ -8816,9 +8921,11 @@ function applyTtsSettingsUi(settings) {
   if (nodes.ttsPiperModel) nodes.ttsPiperModel.value = settings.ttsPiperModel || "";
   if (nodes.ttsPiperBinary) nodes.ttsPiperBinary.value = settings.ttsPiperBinary || "";
   applyElevenlabsKeyUi(settings);
-  if (nodes.ttsElevenlabsVoiceId) nodes.ttsElevenlabsVoiceId.value = settings.ttsElevenlabsVoiceId || "";
+  if (nodes.ttsElevenlabsVoiceId) {
+    nodes.ttsElevenlabsVoiceId.value = settings.ttsElevenlabsVoiceId || ELEVENLABS_DEFAULT_VOICE_ID;
+  }
   if (nodes.ttsElevenlabsModel) {
-    nodes.ttsElevenlabsModel.value = settings.ttsElevenlabsModel || "eleven_multilingual_v2";
+    nodes.ttsElevenlabsModel.value = settings.ttsElevenlabsModel || ELEVENLABS_DEFAULT_MODEL;
   }
   updateTtsRateLabel();
   updateTtsPitchLabel();
@@ -8889,8 +8996,8 @@ function collectTtsSettingsPatch() {
 async function persistTtsSettings({ commitBaseline: shouldCommitBaseline = true } = {}) {
   const patch = collectTtsSettingsPatch();
   patch.ttsEngine = getTtsEngine();
-  const apiKey = String(nodes.ttsElevenlabsKey?.value || "").trim();
-  const voiceId = String(nodes.ttsElevenlabsVoiceId?.value || "").trim();
+  const apiKey = resolveElevenlabsApiKey();
+  const voiceId = resolveElevenlabsVoiceId();
   if (apiKey) patch.ttsElevenlabsApiKey = apiKey;
   else delete patch.ttsElevenlabsApiKey;
   patch.ttsElevenlabsVoiceId = voiceId;
@@ -8918,6 +9025,9 @@ async function persistTtsSettings({ commitBaseline: shouldCommitBaseline = true 
   if (getTtsEngine() === "elevenlabs" && (!savedKey || !savedVoice)) {
     throw new Error("ElevenLabs: заполните API key и Voice ID, затем «Сохранить»");
   }
+  if (getTtsEngine() === "elevenlabs" && savedKey && !isValidElevenlabsApiKey(savedKey)) {
+    throw new Error("ElevenLabs: нужен API key (sk_…), а не ID ключа из профиля");
+  }
   const hint =
     savedKey && savedVoice
       ? ` · ElevenLabs ✓ (${savedKey.length} + ${savedVoice.length} симв.)`
@@ -8943,14 +9053,9 @@ async function maybeAutoSaveElevenlabsCredentials() {
 }
 
 function resolveReplyTtsEngines() {
-  const configured = String(state.settings?.ttsEngine || getTtsEngine() || "").trim();
-  const order = [];
-  const push = (engine) => {
-    if (SERVER_TTS_ENGINES.has(engine) && !order.includes(engine)) order.push(engine);
-  };
-  if (SERVER_TTS_ENGINES.has(configured)) push(configured);
-  push("edge");
-  return order;
+  const configured = normalizeTtsEngine(getTtsEngine() || state.settings?.ttsEngine || "browser");
+  if (SERVER_TTS_ENGINES.has(configured)) return [configured];
+  return [];
 }
 
 async function speakReplyAudio(text) {
@@ -8999,7 +9104,10 @@ async function speakReplyAudio(text) {
     }
   }
 
-  if (getSpeechSynth()) {
+  const configuredEngine = normalizeTtsEngine(getTtsEngine() || state.settings?.ttsEngine || "browser");
+  const allowBrowserFallback = configuredEngine === "browser";
+
+  if (allowBrowserFallback && getSpeechSynth()) {
     renderPhase("speaking", "Озвучиваю · Web Speech…", state.shellState?.metrics || "");
     state.speaking = true;
     updateTtsControlsUi("speaking");
@@ -9024,7 +9132,7 @@ async function speakReplyAudio(text) {
     throw new Error(browserReason || serverReason || "tts-failed");
   }
 
-  const { title, hint } = shellTtsFailureMessage(serverReason, "", true);
+  const { title, hint } = shellTtsFailureMessage(serverReason, "", configuredEngine !== "browser");
   shellDialog.setError(title, { hint });
   throw new Error(serverReason || "tts-failed");
 }
@@ -9140,6 +9248,7 @@ async function testTtsEngine() {
   ttsTestBusy = true;
   nodes.ttsTestBtn?.classList.add("is-busy");
   nodes.ttsTestBtn?.setAttribute("disabled", "true");
+  setTtsTestStatus("");
 
   bumpTtsPlayback();
   stopBrowserTts({ notifyServer: false, resetPhase: false, broadcast: false, bumpPlayback: false });
@@ -9157,13 +9266,7 @@ async function testTtsEngine() {
       await persistTtsSettings();
     }
     if (engine === "elevenlabs") {
-      const ready = collectTtsRuntimeSettings();
-      if (!String(ready.ttsElevenlabsApiKey || "").trim()) {
-        throw new Error("ElevenLabs: укажите API key");
-      }
-      if (!String(ready.ttsElevenlabsVoiceId || "").trim()) {
-        throw new Error("ElevenLabs: укажите Voice ID");
-      }
+      assertElevenlabsCredentials(collectTtsRuntimeSettings());
     }
     if (engine === "browser") {
       await applyContrastVoiceDefaults(engine);
@@ -9172,23 +9275,71 @@ async function testTtsEngine() {
     const phrase = getTtsTestPhrase(engine);
     renderPhase("thinking", `Пробная озвучка · ${ttsEngineLabel(engine)}…`);
 
-    const result = await playTtsPayload(phrase, { allowBrowserFallback: true });
-    const usedEngine = result?.engine || engine;
-    const voiceHint = result?.voice ? ` · ${result.voice}` : "";
-    const transportHint = result?.transport ? ` · ${result.transport}` : "";
-    const mismatch = usedEngine !== engine ? ` (выбран ${ttsEngineLabel(engine)})` : "";
-    renderPhase(
-      "waiting",
-      `Пробная · ${ttsEngineLabel(usedEngine)}${voiceHint}${transportHint}${mismatch} — готово`
-    );
-    if (result?.engine !== "browser" && ttsPlayer) {
+    const settings = { ...(state.settings || {}), ...collectTtsFormPatch() };
+    const lang = ttsSettingsLang(settings, engine);
+    const rate = settings.ttsRate || 1;
+    const voiceName = ttsSettingsVoice(settings, engine);
+    let result;
+
+    if (engine === "browser") {
+      state.speaking = true;
+      updateTtsControlsUi("speaking");
+      renderPhase("speaking", "Озвучиваю · Web Speech…");
+      try {
+        result = await speakShellBrowserTts(phrase, { lang, rate, voiceName });
+      } finally {
+        state.speaking = false;
+        updateTtsControlsUi("waiting");
+      }
+      if (!result?.ok) {
+        throw new Error(formatTtsTestErrorMessage(result?.reason || "speech-error", engine));
+      }
+      result = {
+        engine: "browser",
+        voice: result.voice || voiceName || "системный",
+        transport: "Web Speech (вкладка)"
+      };
+    } else {
+      if (!ttsPlayer) throw new Error("TTS-плеер не инициализирован");
+      result = await ttsPlayer.speak(phrase, {
+        engine,
+        onPhase(phase) {
+          if (phase === "synthesizing") {
+            renderPhase("thinking", `Синтез · ${ttsEngineLabel(engine)}…`);
+            return;
+          }
+          state.speaking = true;
+          updateTtsControlsUi("speaking");
+          renderPhase("speaking", `Озвучиваю · ${ttsEngineLabel(engine)}…`);
+        }
+      });
+      state.speaking = false;
+      updateTtsControlsUi("waiting");
+      if (!result?.ok) {
+        throw new Error(formatTtsTestErrorMessage(result?.reason || "tts-failed", engine));
+      }
+      result = {
+        engine: result.engine || engine,
+        voice: result.voice || "",
+        transport: result.mimeType ? `сервер · ${result.mimeType}` : "сервер"
+      };
+    }
+
+    const voiceHint = result.voice ? ` · ${result.voice}` : "";
+    const okMessage = `${ttsEngineLabel(result.engine || engine)}${voiceHint} — готово`;
+    setTtsTestStatus(okMessage, { ok: true });
+    renderPhase("waiting", `Пробная · ${okMessage}`);
+    shellDialog.clearError();
+    if (result.engine !== "browser" && ttsPlayer) {
       lastTtsChunkRecording = ttsPlayer.getLastRecording?.() || null;
     } else {
       lastTtsChunkRecording = null;
     }
     rememberLastTtsSpoken(phrase);
   } catch (error) {
-    renderPhase("waiting", `Пробная озвучка · ${ttsEngineLabel(engine)}: ${error.message}`);
+    const message = formatTtsTestErrorMessage(error?.message || error, engine);
+    setTtsTestStatus(message, { error: true });
+    renderPhase("waiting", `Пробная озвучка · ${ttsEngineLabel(engine)}: ${message}`);
   } finally {
     state.speaking = false;
     updateTtsControlsUi("waiting");

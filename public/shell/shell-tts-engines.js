@@ -5,6 +5,13 @@ export const WEB_SPEECH_ENGINE_LABEL = "Web Speech — в браузере (ус
 
 export const SHELL_TTS_ENGINES = ["browser", "edge", "piper", "elevenlabs"];
 
+/** Движки, скрытые в UI селекта (код на сервере может остаться). */
+export const SHELL_TTS_UI_DISABLED_ENGINES = new Set(["piper"]);
+
+/** Premade-голос Sarah — доступен на free-плане ElevenLabs. */
+export const ELEVENLABS_DEFAULT_VOICE_ID = "EXAVITQu4vr4xnSDxMaL";
+export const ELEVENLABS_DEFAULT_MODEL = "eleven_multilingual_v2";
+
 /** Формат: название — где работает (провайдер). Симметрично STT_ENGINE_LABELS. */
 export const SHELL_TTS_ENGINE_LABELS = {
   browser: WEB_SPEECH_ENGINE_LABEL,
@@ -33,6 +40,15 @@ export function normalizeTtsEngine(value) {
   if (raw === "sidecar" || raw === "say") return "browser";
   if (SHELL_TTS_ENGINES.includes(raw)) return raw;
   return "browser";
+}
+
+export function isTtsEngineUiDisabled(engine = "browser") {
+  return SHELL_TTS_UI_DISABLED_ENGINES.has(normalizeTtsEngine(engine));
+}
+
+export function resolveTtsEngineForUi(engine = "browser") {
+  const id = normalizeTtsEngine(engine);
+  return isTtsEngineUiDisabled(id) ? "browser" : id;
 }
 
 export function ttsEngineUsesLocalVoice(engine = "browser") {

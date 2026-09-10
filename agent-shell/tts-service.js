@@ -7,6 +7,8 @@ const path = require("path");
 const execFileAsync = promisify(execFile);
 
 const TTS_ENGINES = ["browser", "edge", "piper", "elevenlabs"];
+const ELEVENLABS_DEFAULT_VOICE_ID = "EXAVITQu4vr4xnSDxMaL";
+const ELEVENLABS_DEFAULT_MODEL = "eleven_multilingual_v2";
 
 const EDGE_VOICE_PRESETS = [
   { id: "ru-RU-SvetlanaNeural", label: "Svetlana (ru-RU, ж)" },
@@ -119,7 +121,7 @@ async function listVoices(engine, settings = {}, options = {}) {
     };
   }
   if (normalized === "elevenlabs") {
-    const voiceId = String(settings.ttsElevenlabsVoiceId || "").trim();
+    const voiceId = String(settings.ttsElevenlabsVoiceId || ELEVENLABS_DEFAULT_VOICE_ID).trim();
     return {
       engine: normalized,
       voices: voiceId ? [{ id: voiceId, label: voiceId }] : []
@@ -161,12 +163,19 @@ async function synthesizeEdge(text, settings = {}) {
   }
 }
 
+function elevenlabsSpeedFromSettings(settings = {}) {
+  const raw = Number(settings.ttsRate);
+  const speed = Number.isFinite(raw) && raw > 0 ? raw : 1;
+  return Math.min(4, Math.max(0.25, speed));
+}
+
 async function synthesizeElevenLabs(text, settings = {}) {
   const apiKey = String(settings.ttsElevenlabsApiKey || "").trim();
   if (!apiKey) throw new Error("ElevenLabs: укажите API key в настройках TTS");
-  const voiceId = String(settings.ttsElevenlabsVoiceId || settings.ttsVoice || "").trim();
+  const voiceId = String(settings.ttsElevenlabsVoiceId || settings.ttsVoice || ELEVENLABS_DEFAULT_VOICE_ID).trim();
   if (!voiceId) throw new Error("ElevenLabs: укажите Voice ID");
   const ELEVENLABS_TIMEOUT_MS = 30000;
+  const speed = elevenlabsSpeedFromSettings(settings);
 
   const run = async () => {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`, {
@@ -178,12 +187,33 @@ async function synthesizeElevenLabs(text, settings = {}) {
       },
       body: JSON.stringify({
         text,
-        model_id: String(settings.ttsElevenlabsModel || "eleven_multilingual_v2")
+        model_id: String(settings.ttsElevenlabsModel || ELEVENLABS_DEFAULT_MODEL),
+        voice_settings: {
+          speed,
+          stability: 0.5,
+          similarity_boost: 0.75,
+          use_speaker_boost: true
+        }
       })
     });
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
-      throw new Error(`ElevenLabs: HTTP ${response.status}${detail ? ` — ${detail.slice(0, 180)}` : ""}`);
+      let message = detail;
+      try {
+        const parsed = JSON.parse(detail);
+        message = String(parsed?.detail?.message || parsed?.message || detail);
+      } catch {
+        // keep raw detail
+      }
+      if (/free_users_not_allowed|creator tier/i.test(message)) {
+        throw new Error(
+          `ElevenLabs: голос «${voiceId}» недоступен на free-плане — выберите premade-голос из библиотеки`
+        );
+      }
+      if (/paid_plan_required/i.test(message)) {
+        throw new Error("ElevenLabs: этот голос недоступен на free-плане — выберите другой Voice ID");
+      }
+      throw new Error(`ElevenLabs: HTTP ${response.status}${message ? ` — ${message.slice(0, 180)}` : ""}`);
     }
     const audio = Buffer.from(await response.arrayBuffer());
     return { engine: "elevenlabs", mimeType: "audio/mpeg", audio: audio.toString("base64"), voice: voiceId };

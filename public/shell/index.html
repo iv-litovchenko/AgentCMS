@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=556" />
+    <link rel="stylesheet" href="/shell/shell.css?v=560" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -32,7 +32,7 @@
           "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=207",
           "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=413",
           "@shell/browser-tts": "/shell/shell-browser-tts.js?v=404",
-          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=207",
+          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=209",
           "@shell/session": "/shell/shell-session.js?v=209",
           "@shell/client-id": "/shell/shell-client-id.js?v=404",
           "@shell/surface": "/shell/shell-surface.js?v=230",
@@ -62,7 +62,7 @@
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=208",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=363",
-          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=418",
+          "@shell/tts-engines": "/shell/shell-tts-engines.js?v=420",
           "@shell/tool-permission": "/shell/shell-tool-permission.js?v=6",
           "@shell/user-question": "/shell/shell-user-question.js?v=4",
           "@shell/build": "/shell/shell-build.js?v=425"
@@ -845,7 +845,7 @@
         </div>
 
         <div class="shell-tts-engines" id="shell-tts-engines">
-          <label class="shell-field">
+          <div class="shell-field shell-tts-engine-field">
             <span class="shell-label shell-label-row shell-label-row--spread">
               Провайдер (движок)
               <span class="shell-tts-engine-actions">
@@ -855,7 +855,11 @@
               </span>
             </span>
             <select id="shell-tts-engine" class="shell-select shell-select--full" aria-label="Провайдер (движок) TTS"></select>
-          </label>
+            <aside class="shell-tts-test-status-box" id="shell-tts-test-status-box" hidden>
+              <span class="shell-tts-test-status-kicker">Пробная озвучка</span>
+              <p id="shell-tts-test-status" class="shell-tts-test-status" aria-live="polite"></p>
+            </aside>
+          </div>
 
           <div class="shell-tts-browser-panel" id="shell-tts-browser-panel" data-visible="0">
             <div class="shell-tts-engine-fields">
@@ -927,19 +931,27 @@
                     aria-label="Показать API key"
                     title="Показать"
                   >
-                    👁
+                    <svg class="shell-secret-icon shell-secret-icon--show" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.75" />
+                    </svg>
+                    <svg class="shell-secret-icon shell-secret-icon--hide" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9.9 5.1A10.8 10.8 0 0 1 12 5c7 0 10 7 10 7a16.2 16.2 0 0 1-3.8 4.8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M6.1 6.1 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+                      <path d="M2 12s2.4 4.8 6 6.7M22 12s-2.4-4.8-6-6.7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
                   </button>
                 </div>
               </label>
               <label class="shell-field shell-field--compact">
-                <span class="shell-label">ElevenLabs Voice ID · обязательно</span>
+                <span class="shell-label">ElevenLabs Voice ID · по умолчанию EXAVITQu4vr4xnSDxMaL</span>
                 <div class="shell-secret-input" data-shell-secret>
                   <input
                     id="shell-tts-elevenlabs-voice-id"
                     class="shell-input shell-input--mono"
                     type="password"
                     spellcheck="false"
-                    placeholder="21m00Tcm4TlvDq8ikWAM"
+                    placeholder="EXAVITQu4vr4xnSDxMaL"
                   />
                   <button
                     type="button"
@@ -947,7 +959,15 @@
                     aria-label="Показать Voice ID"
                     title="Показать"
                   >
-                    👁
+                    <svg class="shell-secret-icon shell-secret-icon--show" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.75" />
+                    </svg>
+                    <svg class="shell-secret-icon shell-secret-icon--hide" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9.9 5.1A10.8 10.8 0 0 1 12 5c7 0 10 7 10 7a16.2 16.2 0 0 1-3.8 4.8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M6.1 6.1 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+                      <path d="M2 12s2.4 4.8 6 6.7M22 12s-2.4-4.8-6-6.7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
                   </button>
                 </div>
               </label>
@@ -967,7 +987,15 @@
                     aria-label="Показать модель"
                     title="Показать"
                   >
-                    👁
+                    <svg class="shell-secret-icon shell-secret-icon--show" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.75" />
+                    </svg>
+                    <svg class="shell-secret-icon shell-secret-icon--hide" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9.9 5.1A10.8 10.8 0 0 1 12 5c7 0 10 7 10 7a16.2 16.2 0 0 1-3.8 4.8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M6.1 6.1 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+                      <path d="M2 12s2.4 4.8 6 6.7M22 12s-2.4-4.8-6-6.7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
                   </button>
                 </div>
               </label>
@@ -977,15 +1005,19 @@
 
         <div class="shell-tts-common-settings" id="shell-tts-common-settings">
           <div class="shell-tts-section-head">Общие настройки</div>
-        <label class="shell-field shell-field--compact shell-tts-rate-field" id="shell-tts-rate-field">
-          <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
-          <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
-        </label>
+        <div class="shell-tts-prosody-row" id="shell-tts-prosody-row">
+          <label class="shell-field shell-field--compact shell-tts-rate-field" id="shell-tts-rate-field">
+            <span class="shell-label">Скорость · <span id="shell-tts-rate-value">1.0</span>×</span>
+            <span class="shell-tts-prosody-hint" id="shell-tts-rate-hint">Web Speech и Edge TTS</span>
+            <input id="shell-tts-rate" class="shell-range" type="range" min="0.7" max="1.4" step="0.1" value="1" />
+          </label>
 
-        <label class="shell-field shell-field--compact shell-tts-pitch-field" id="shell-tts-pitch-field">
-          <span class="shell-label">Высота голоса · <span id="shell-tts-pitch-value">1.0</span>×</span>
-          <input id="shell-tts-pitch" class="shell-range" type="range" min="0.5" max="2" step="0.1" value="1" />
-        </label>
+          <label class="shell-field shell-field--compact shell-tts-pitch-field" id="shell-tts-pitch-field">
+            <span class="shell-label">Высота голоса · <span id="shell-tts-pitch-value">1.0</span>×</span>
+            <span class="shell-tts-prosody-hint" id="shell-tts-pitch-hint">Только Web Speech</span>
+            <input id="shell-tts-pitch" class="shell-range" type="range" min="0.5" max="2" step="0.1" value="1" />
+          </label>
+        </div>
 
         <label class="shell-field shell-field--compact">
           <span class="shell-label shell-label-row shell-label-row--spread">
@@ -2988,6 +3020,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=588" type="module"></script>
+    <script src="/shell/shell.js?v=596" type="module"></script>
   </body>
 </html>
