@@ -109,6 +109,54 @@
     }
   }
 
+  function decodeUrlSegment(segment) {
+    const value = String(segment || "");
+    if (!value) return value;
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+
+  function decodeReadableUrl(raw) {
+    const value = String(raw || "").trim();
+    if (!value) return value;
+    try {
+      const parsed = new URL(value);
+      const pathname = parsed.pathname
+        .split("/")
+        .map(decodeUrlSegment)
+        .join("/");
+      let search = "";
+      if (parsed.search.length > 1) {
+        search =
+          "?" +
+          parsed.search
+            .slice(1)
+            .split("&")
+            .map((pair) => {
+              const idx = pair.indexOf("=");
+              if (idx === -1) return decodeUrlSegment(pair);
+              return `${decodeUrlSegment(pair.slice(0, idx))}=${decodeUrlSegment(pair.slice(idx + 1))}`;
+            })
+            .join("&");
+      }
+      let hash = "";
+      if (parsed.hash.length > 1) {
+        hash = `#${decodeUrlSegment(parsed.hash.slice(1))}`;
+      }
+      // Do not use parsed.href here — URL API re-encodes Cyrillic back to %D0%…
+      return `${parsed.origin}${pathname}${search}${hash}`;
+    } catch {
+      try {
+        return decodeURI(value);
+      } catch {
+        return value;
+      }
+    }
+  }
+
   async function isVoiceReachable(voiceUrl) {
     let origin = DEFAULT_VOICE_BASE_URL;
     try {
@@ -143,6 +191,7 @@
     buildShellFrameUrl,
     resolveVoiceBaseUrl,
     isCmsReachable,
-    isVoiceReachable
+    isVoiceReachable,
+    decodeReadableUrl
   };
 })(typeof globalThis !== "undefined" ? globalThis : self);

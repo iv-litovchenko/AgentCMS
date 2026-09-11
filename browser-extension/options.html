@@ -66,6 +66,30 @@
         min-height: 1.2em;
         color: #166534;
       }
+      .checkbox-field label {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .checkbox-field input[type="checkbox"] {
+        width: auto;
+        max-width: none;
+        margin-top: 3px;
+        flex: 0 0 auto;
+      }
+      .checkbox-field .hint {
+        display: block;
+        margin-top: 4px;
+        font-weight: 400;
+        color: #6b21a8;
+        font-size: 13px;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 24px 0 12px;
+      }
     </style>
   </head>
   <body>
@@ -83,6 +107,32 @@
     <div class="field">
       <label for="agentId">ID агента (необязательно)</label>
       <input id="agentId" type="text" placeholder="пусто = выбор хранилища при запуске" />
+    </div>
+
+    <h2>URL и копирование</h2>
+
+    <div class="field checkbox-field">
+      <label for="decodeUrlsInCompanion">
+        <input id="decodeUrlsInCompanion" type="checkbox" checked />
+        <span>
+          Читаемые URL в Agent Shell
+          <span class="hint">
+            Декодировать %D0%… в кириллицу, когда панель отправляет страницу, ссылки и markdown в чат.
+          </span>
+        </span>
+      </label>
+    </div>
+
+    <div class="field checkbox-field">
+      <label for="decodeUrlsOnCopy">
+        <input id="decodeUrlsOnCopy" type="checkbox" />
+        <span>
+          Читаемые URL при копировании на сайте
+          <span class="hint">
+            Как «Copy URL Simply»: при Ctrl+C / Copy заменять percent-encoding на нормальный текст в буфере.
+          </span>
+        </span>
+      </label>
     </div>
 
     <button id="save-btn" type="button">Сохранить</button>

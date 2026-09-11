@@ -2,6 +2,8 @@ const { DEFAULT_CMS_BASE_URL, buildExtensionShellUrl, resolveVoiceBaseUrl } = gl
 
 const cmsBaseUrlInput = document.getElementById("cmsBaseUrl");
 const agentIdInput = document.getElementById("agentId");
+const decodeUrlsInCompanionInput = document.getElementById("decodeUrlsInCompanion");
+const decodeUrlsOnCopyInput = document.getElementById("decodeUrlsOnCopy");
 const saveBtn = document.getElementById("save-btn");
 const resetBtn = document.getElementById("reset-btn");
 const previewNode = document.getElementById("shell-url-preview");
@@ -36,7 +38,12 @@ async function readSettings() {
       // fall through
     }
   }
-  return CompanionStorage.local().get(["cmsBaseUrl", "agentId"]);
+  return CompanionStorage.local().get([
+    "cmsBaseUrl",
+    "agentId",
+    "decodeUrlsInCompanion",
+    "decodeUrlsOnCopy"
+  ]);
 }
 
 async function writeSettings(settings) {
@@ -66,6 +73,12 @@ async function loadOptions() {
   const stored = await readSettings();
   cmsBaseUrlInput.value = stored.cmsBaseUrl || DEFAULT_CMS_BASE_URL;
   agentIdInput.value = stored.agentId || "";
+  if (decodeUrlsInCompanionInput) {
+    decodeUrlsInCompanionInput.checked = stored.decodeUrlsInCompanion !== false;
+  }
+  if (decodeUrlsOnCopyInput) {
+    decodeUrlsOnCopyInput.checked = Boolean(stored.decodeUrlsOnCopy);
+  }
   await updatePreview();
 }
 
@@ -73,7 +86,13 @@ saveBtn?.addEventListener("click", async () => {
   const cmsBaseUrl = String(cmsBaseUrlInput.value || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
   const agentId = String(agentIdInput.value || "").trim();
   try {
-    await writeSettings({ cmsBaseUrl, agentId, _migratedFromSync: true });
+    await writeSettings({
+      cmsBaseUrl,
+      agentId,
+      _migratedFromSync: true,
+      decodeUrlsInCompanion: Boolean(decodeUrlsInCompanionInput?.checked),
+      decodeUrlsOnCopy: Boolean(decodeUrlsOnCopyInput?.checked)
+    });
     statusNode.style.color = "#166534";
     statusNode.textContent = "Сохранено";
     await updatePreview();
@@ -89,8 +108,16 @@ saveBtn?.addEventListener("click", async () => {
 resetBtn?.addEventListener("click", async () => {
   cmsBaseUrlInput.value = DEFAULT_CMS_BASE_URL;
   agentIdInput.value = "";
+  if (decodeUrlsInCompanionInput) decodeUrlsInCompanionInput.checked = true;
+  if (decodeUrlsOnCopyInput) decodeUrlsOnCopyInput.checked = false;
   try {
-    await writeSettings({ cmsBaseUrl: DEFAULT_CMS_BASE_URL, agentId: "", _migratedFromSync: true });
+    await writeSettings({
+      cmsBaseUrl: DEFAULT_CMS_BASE_URL,
+      agentId: "",
+      _migratedFromSync: true,
+      decodeUrlsInCompanion: true,
+      decodeUrlsOnCopy: false
+    });
     statusNode.style.color = "#166534";
     statusNode.textContent = `Сброшено на ${DEFAULT_CMS_BASE_URL}`;
     await updatePreview();

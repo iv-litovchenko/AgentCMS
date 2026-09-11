@@ -73,6 +73,7 @@
   const PAGE_MENU = [
     { head: "Страница" },
     { key: "page", label: "Заголовок и ссылка", hint: "Название страницы и URL" },
+    { key: "page-url-copy", label: "Копировать ссылку", hint: "URL страницы в буфер (кириллица, не %D0%…)" },
     { key: "clean", label: "Текст страницы", hint: "Статья абзацами, без меню и рекламы" },
     { key: "markdown", label: "Как Markdown", hint: "Заголовки, ссылки и списки в MD" }
   ];
@@ -293,14 +294,96 @@
     return String(text || "").replace(/([\\`*_[\]()#+\-.!|>])/g, "\\$1");
   }
 
+  let urlDecodeInCompanion = true;
+  let urlDecodeOnCopy = false;
+  let copyDecodeAttached = false;
+
+  function formatCompanionUrl(raw) {
+    const value = String(raw || "").trim();
+    if (!value || !urlDecodeInCompanion) return value;
+    const decode = globalThis.CompanionUrls?.decodeReadableUrl;
+    return typeof decode === "function" ? decode(value) : value;
+  }
+
+  function currentPageUrl() {
+    return formatCompanionUrl(location.href);
+  }
+
   function resolveAbsoluteUrl(raw) {
     const value = String(raw || "").trim();
     if (!value) return "";
     try {
-      return new URL(value, location.href).href;
+      return formatCompanionUrl(new URL(value, location.href).href);
     } catch {
-      return value;
+      return formatCompanionUrl(value);
     }
+  }
+
+  function syncUrlDecodeCopyListener() {
+    if (urlDecodeOnCopy) {
+      if (!copyDecodeAttached) {
+        document.addEventListener("copy", onCopyDecodeUrl, true);
+        copyDecodeAttached = true;
+      }
+      return;
+    }
+    if (copyDecodeAttached) {
+      document.removeEventListener("copy", onCopyDecodeUrl, true);
+      copyDecodeAttached = false;
+    }
+  }
+
+  function onCopyDecodeUrl(event) {
+    if (!urlDecodeOnCopy) return;
+    const decode = globalThis.CompanionUrls?.decodeReadableUrl;
+    if (typeof decode !== "function") return;
+
+    let text = "";
+    try {
+      text = String(event.clipboardData?.getData("text/plain") || "").trim();
+    } catch {
+      // ignore
+    }
+    if (!text) text = String(window.getSelection?.()?.toString() || "").trim();
+    if (!text) return;
+
+    const looksLikeUrl = /^https?:\/\//i.test(text) || text.startsWith(location.origin);
+    if (!looksLikeUrl && !/%[0-9A-Fa-f]{2}/.test(text)) return;
+
+    let decoded = decode(text);
+    if ((!decoded || decoded === text) && looksLikeUrl) {
+      try {
+        decoded = decodeURI(text);
+      } catch {
+        // ignore
+      }
+    }
+    if (!decoded || decoded === text) return;
+
+    event.preventDefault();
+    event.clipboardData.setData("text/plain", decoded);
+  }
+
+  async function loadUrlDecodeSettings() {
+    try {
+      const response = await sendRuntimeMessage({ type: "COMPANION_GET_SETTINGS" });
+      if (response && typeof response === "object") {
+        urlDecodeInCompanion = response.decodeUrlsInCompanion !== false;
+        urlDecodeOnCopy = Boolean(response.decodeUrlsOnCopy);
+        syncUrlDecodeCopyListener();
+        return;
+      }
+    } catch {
+      // fall through
+    }
+    try {
+      const stored = await chrome.storage.local.get(["decodeUrlsInCompanion", "decodeUrlsOnCopy"]);
+      urlDecodeInCompanion = stored.decodeUrlsInCompanion !== false;
+      urlDecodeOnCopy = Boolean(stored.decodeUrlsOnCopy);
+    } catch {
+      // ignore
+    }
+    syncUrlDecodeCopyListener();
   }
 
   function nodeToMarkdown(node, depth = 0) {
@@ -373,7 +456,8 @@
   function extractPageMarkdown(maxLen = MAX_PAGE_LEN) {
     const body = normalizeLines(nodeToMarkdown(pageRoot()));
     const title = String(document.title || location.hostname).trim();
-    const header = `# ${title}\n\n[${location.href}](${location.href})\n\n`;
+    const pageUrl = currentPageUrl();
+    const header = `# ${title}\n\n[${pageUrl}](${pageUrl})\n\n`;
     const text = `${header}${body}`.trim();
     if (text.length <= maxLen) return text;
     return `${text.slice(0, maxLen).trimEnd()}…`;
@@ -381,7 +465,7 @@
 
   function buildPagePayload(mode = "plain") {
     const title = document.title || location.hostname;
-    const url = location.href;
+    const url = currentPageUrl();
     if (mode === "markdown") {
       const body = extractPageMarkdown();
       return ["[Страница · Markdown]", url, `Заголовок: ${title}`, "---", body].join("\n");
@@ -402,9 +486,30 @@
 
   function buildSelectionPayload(selection = readSelectionText()) {
     if (!selection) return null;
-    return ["[Выделение]", location.href, `Заголовок: ${document.title || location.hostname}`, "---", selection].join(
+    return ["[Выделение]", currentPageUrl(), `Заголовок: ${document.title || location.hostname}`, "---", selection].join(
       "\n"
     );
+  }
+
+  async function copyPageUrlToClipboard() {
+    const url = currentPageUrl();
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      return;
+    }
+    await new Promise((resolve, reject) => {
+      const onCopy = (event) => {
+        event.preventDefault();
+        event.clipboardData.setData("text/plain", url);
+        resolve();
+      };
+      document.addEventListener("copy", onCopy, { once: true, capture: true });
+      const copied = document.execCommand("copy");
+      if (!copied) {
+        document.removeEventListener("copy", onCopy, { capture: true });
+        reject(new Error("Буфер обмена недоступен"));
+      }
+    });
   }
 
   function insertIntoCompose(text) {
@@ -472,6 +577,14 @@
   function handleMenuAction(key) {
     if (key === "page") {
       void insertIntoCompose(buildPagePayload("plain"));
+      return;
+    }
+    if (key === "page-url-copy") {
+      closeMenus();
+      setStatus("Копирование…", "busy");
+      void copyPageUrlToClipboard()
+        .then(() => setStatus("Ссылка скопирована", "ok"))
+        .catch((error) => setStatus(error?.message || "Не удалось скопировать", "error"));
       return;
     }
     if (key === "clean") {
@@ -806,7 +919,7 @@
       const upload = await sendRuntimeMessage({
         type: "COMPANION_UPLOAD_TAB_SCREENSHOT",
         dataUrl,
-        tabUrl: capture.tabUrl || location.href
+        tabUrl: formatCompanionUrl(capture.tabUrl || location.href)
       });
       if (!upload?.ok) {
         setStatus(upload?.error || "Не удалось сохранить скрин", "error");
@@ -972,5 +1085,22 @@
     setExpanded(localStorage.getItem(STORAGE_EXPANDED) === "1");
   } catch {
     setExpanded(false);
+  }
+
+  void loadUrlDecodeSettings();
+
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local") return;
+      if (changes.decodeUrlsInCompanion) {
+        urlDecodeInCompanion = changes.decodeUrlsInCompanion.newValue !== false;
+      }
+      if (changes.decodeUrlsOnCopy) {
+        urlDecodeOnCopy = Boolean(changes.decodeUrlsOnCopy.newValue);
+        syncUrlDecodeCopyListener();
+      }
+    });
+  } catch {
+    // ignore
   }
 })();

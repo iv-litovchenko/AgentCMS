@@ -8,7 +8,8 @@ const {
   buildVoiceShellTabUrl,
   voiceBaseFromCmsHost,
   normalizeVoiceBaseForBrowser,
-  isCmsReachable
+  isCmsReachable,
+  decodeReadableUrl
 } = globalThis.CompanionUrls;
 
 function storageLocal() {
@@ -20,10 +21,30 @@ function storageLocal() {
 }
 
 async function getSettings() {
-  const stored = await storageLocal().get(["cmsBaseUrl", "agentId", "_migratedFromSync"]);
+  const stored = await storageLocal().get([
+    "cmsBaseUrl",
+    "agentId",
+    "_migratedFromSync",
+    "decodeUrlsInCompanion",
+    "decodeUrlsOnCopy"
+  ]);
   const cmsBaseUrl = String(stored.cmsBaseUrl || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
   const agentId = String(stored.agentId || "").trim();
-  return { cmsBaseUrl, agentId, _migratedFromSync: Boolean(stored._migratedFromSync) };
+  return {
+    cmsBaseUrl,
+    agentId,
+    _migratedFromSync: Boolean(stored._migratedFromSync),
+    decodeUrlsInCompanion: stored.decodeUrlsInCompanion !== false,
+    decodeUrlsOnCopy: Boolean(stored.decodeUrlsOnCopy)
+  };
+}
+
+function applyReadableUrlFields(snapshot, enabled) {
+  if (!enabled || !snapshot || typeof decodeReadableUrl !== "function") return snapshot;
+  for (const key of ["url", "canonicalUrl", "pathname"]) {
+    if (snapshot[key]) snapshot[key] = decodeReadableUrl(snapshot[key]);
+  }
+  return snapshot;
 }
 
 function uniqueUrls(urls) {
@@ -288,6 +309,8 @@ async function relayPageSnapshotRequest({ tabId = 0, windowId = 0 } = {}) {
   }
   const snapshot = await collectTabPageSnapshot(targetTabId);
   if (!snapshot) throw new Error("Не удалось собрать meta со страницы вкладки");
+  const { decodeUrlsInCompanion } = await getSettings();
+  applyReadableUrlFields(snapshot, decodeUrlsInCompanion);
   return { ok: true, snapshot };
 }
 
