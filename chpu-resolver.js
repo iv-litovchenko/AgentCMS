@@ -575,6 +575,65 @@ function workspacePathFromFileRel(fileRelPath) {
     .replace(/\.md$/i, "");
 }
 
+const CHPU_OMITTED_DEFAULT_UI_VIEWS = new Set(["nav", "preview"]);
+
+function appendChpuViewToPath(basePath, view, { force = false } = {}) {
+  const normalizedView = normalizeChpuViewCandidate(view === "quick-notes" ? "notes" : view);
+  if (!normalizedView) {
+    return String(basePath || "")
+      .replace(/\\/g, "/")
+      .replace(/\/$/, "");
+  }
+  if (!force && CHPU_OMITTED_DEFAULT_UI_VIEWS.has(normalizedView)) {
+    return String(basePath || "")
+      .replace(/\\/g, "/")
+      .replace(/\/$/, "");
+  }
+  const trimmed = String(basePath || "")
+    .replace(/\\/g, "/")
+    .replace(/\/$/, "");
+  const viewSegment = `~${normalizedView}`;
+  if (!trimmed) return viewSegment;
+  return `${trimmed}/${viewSegment}`;
+}
+
+function workspaceRelToChpuPath(relPath) {
+  const normalized = String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  if (!normalized || normalized === ".") return "";
+
+  if (SYSTEM_FILE_TO_CHPU_PATH.has(normalized)) {
+    return SYSTEM_FILE_TO_CHPU_PATH.get(normalized);
+  }
+
+  const baseName = path.posix.basename(normalized);
+  if (SYSTEM_FILE_TO_CHPU_PATH.has(baseName)) {
+    return SYSTEM_FILE_TO_CHPU_PATH.get(baseName);
+  }
+
+  return normalized
+    .replace(/\/manifest\.md$/i, "")
+    .replace(/\.sidecar\.md$/i, "")
+    .replace(/\.md$/i, "");
+}
+
+function buildAppPathname(agentId, chpuPath) {
+  const id = String(agentId || "").trim();
+  if (!id) throw new Error("agentId is required");
+  const base = `/${encodeURIComponent(id)}`;
+  const pathValue = String(chpuPath || "")
+    .trim()
+    .replace(/^\/+|\/+$/g, "");
+  if (!pathValue) return `${base}/`;
+  return `${base}/${pathValue
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/")}`;
+}
+
 function isChpuReservedRootSegment(segment) {
   const value = String(segment || "").trim().toLowerCase();
   return (
@@ -596,6 +655,9 @@ module.exports = {
   splitChpuPath,
   resolveChpuPath,
   workspacePathFromFileRel,
+  workspaceRelToChpuPath,
+  appendChpuViewToPath,
+  buildAppPathname,
   isChpuReservedRootSegment,
   isProjectSettingsChpuPath
 };

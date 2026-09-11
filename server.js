@@ -21,8 +21,10 @@ const {
   isHttpsRedirectEnabled,
   createHttpToHttpsRedirectHandler,
   resolveInternalCmsApiUrl,
+  getClientCmsBaseUrl,
   enrichMcpDocsForClient
 } = require("./lib/https-redirect");
+const { buildPageUrlPayload } = require("./lib/page-url");
 const {
   clampThumbMax,
   readOrCreateImageThumb,
@@ -11045,6 +11047,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла",
   workspaceIndexMonitor: "GET /api/workspace-index/monitor — мониторинг индексов (stale, размер, время сборки)",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
+  pageUrl:
+    "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_page_url",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
@@ -17148,6 +17152,36 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to resolve workspace path",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/page-url") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    const view = String(url.searchParams.get("view") || "").trim();
+    const forceView = ["1", "true", "yes"].includes(
+      String(url.searchParams.get("forceView") || "").trim().toLowerCase()
+    );
+    const baseUrlParam = String(url.searchParams.get("baseUrl") || "").trim();
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const agentId = getActiveAgentId();
+      if (!agentId) return sendJson(res, 400, { error: "Agent not selected" });
+      const baseUrl =
+        baseUrlParam.replace(/\/+$/, "") ||
+        getClientCmsBaseUrl(req.headers.host) ||
+        resolveInternalCmsApiUrl();
+      const payload = await buildPageUrlPayload(agentRoot, agentId, relPath, {
+        baseUrl,
+        view: view || undefined,
+        forceView
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to build page URL",
         details: String(error.message || error)
       });
     }

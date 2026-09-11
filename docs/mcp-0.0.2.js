@@ -146,6 +146,12 @@ module.exports = {
           http: "GET /api/agent/resolve-path"
         },
         {
+          name: "get_page_url",
+          description: "Web-адрес страницы Agent CMS для открытия в браузере (CHPU). path — manifest, файл, слот; view — edit/todo/nav/…",
+          parameters: "path?, view?, forceView?",
+          http: "GET /api/agent/page-url"
+        },
+        {
           name: "search_workspace_content",
           description: "Полнотекстовый поиск workspace (paths, frontmatter, body). scope=all по умолчанию.",
           parameters: "query, scope?, fileType?, match?, limit?",

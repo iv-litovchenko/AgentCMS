@@ -260,6 +260,30 @@ export function registerMapTools(reg, client, pagePath) {
     }),
     ({ path }) => client.get("/api/agent/resolve-path", { path })
   );
+
+  reg(
+    "get_page_url",
+    "Build a browser URL to open a workspace page in Agent CMS (CHPU route). path: manifest.md, slot file, system file, or folder. view: optional UI suffix (edit, todo, nav, list, …). Returns url + pathname.",
+    z.object({
+      path: workspaceRelPath
+        .optional()
+        .describe("Workspace-relative path; empty = workspace home"),
+      view: z
+        .string()
+        .optional()
+        .describe("Optional CHPU UI view, e.g. edit, todo, nav, list, preview, hub"),
+      forceView: z
+        .boolean()
+        .optional()
+        .describe("Append view even for default-omitted views like nav/preview")
+    }),
+    ({ path, view, forceView }) =>
+      client.get("/api/agent/page-url", {
+        path: path || "",
+        view: view || undefined,
+        forceView: forceView ? true : undefined
+      })
+  );
 }
 
 export { registerSearchWorkspaceTools };
