@@ -48,6 +48,9 @@ const {
   getRepository,
   writeRepositoryIndex,
   registerRepository,
+  updateRepository,
+  readRepositoryGroups,
+  writeRepositoryGroups,
   shouldSkipAwnRepositoriesSearch
 } = require("./awn-repositories-service");
 const {
@@ -17233,6 +17236,66 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to register repository",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/agent/repositories") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const manifestPath = String(payload.path || payload.manifestPath || "").trim();
+      if (!manifestPath) return sendJson(res, 400, { error: "Missing path" });
+      const result = await updateRepository(agentRoot, manifestPath, payload);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to update repository",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/repository-groups") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const catalog = await readRepositoryGroups(agentRoot);
+      return sendJson(res, 200, {
+        version: 1,
+        model: "awn-repository-groups",
+        hint: "Логические группы sidebar — файл awn-repositories/groups.yml, папки не двигаются.",
+        ...catalog
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read repository groups",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/agent/repository-groups") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = await writeRepositoryGroups(agentRoot, {
+        groups: payload.groups,
+        assignments: payload.assignments
+      });
+      return sendJson(res, 200, {
+        version: 1,
+        model: "awn-repository-groups-write",
+        hint: "groups.yml сохранён. GET /api/agent/repositories — обновлённый sidebar.",
+        ...result
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write repository groups",
         details: String(error.message || error)
       });
     }

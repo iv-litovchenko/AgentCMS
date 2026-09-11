@@ -337,19 +337,82 @@ async function relayComposeInsert({ text, join = "newline", tabId = 0, windowId 
   return { ok: true };
 }
 
+const CAPTURE_JPEG_QUALITIES = [80, 62, 44];
+const CAPTURE_UPLOAD_MAX_CHARS = 900_000;
+
+function isCaptureTooLarge(error) {
+  return /too large/i.test(String(error?.message || error));
+}
+
+async function blobToJpegDataUrl(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return `data:image/jpeg;base64,${btoa(binary)}`;
+}
+
+async function shrinkJpegDataUrl(dataUrl, quality, maxEdge) {
+  const blob = await (await fetch(dataUrl)).blob();
+  const bitmap = await createImageBitmap(blob);
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return dataUrl;
+  }
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+  const out = await canvas.convertToBlob({ type: "image/jpeg", quality });
+  return blobToJpegDataUrl(out);
+}
+
+async function maybeShrinkCapture(dataUrl) {
+  let current = String(dataUrl || "");
+  if (current.length <= CAPTURE_UPLOAD_MAX_CHARS) return current;
+  if (typeof OffscreenCanvas !== "function" || typeof createImageBitmap !== "function") {
+    return current;
+  }
+
+  let quality = 0.72;
+  let maxEdge = 1600;
+  for (let i = 0; i < 3 && current.length > CAPTURE_UPLOAD_MAX_CHARS; i += 1) {
+    current = await shrinkJpegDataUrl(current, quality, maxEdge);
+    quality = Math.max(0.4, quality - 0.14);
+    maxEdge = Math.max(1024, Math.round(maxEdge * 0.82));
+  }
+  return current;
+}
+
 async function captureTabImage(tab) {
-  const options = { format: "png" };
-  if (typeof chrome.tabs.captureTab === "function") {
+  const windowId = Number(tab?.windowId);
+  if (!Number.isFinite(windowId) || windowId <= 0) {
+    throw new Error("Нет окна для скриншота видимой области");
+  }
+  if (tab?.id && tab.active === false) {
+    await chrome.tabs.update(tab.id, { active: true });
+  }
+
+  let lastError = null;
+  for (const quality of CAPTURE_JPEG_QUALITIES) {
     try {
-      return await chrome.tabs.captureTab(tab.id, options);
+      const dataUrl = await chrome.tabs.captureVisibleTab(windowId, {
+        format: "jpeg",
+        quality
+      });
+      return await maybeShrinkCapture(dataUrl);
     } catch (error) {
-      const message = String(error?.message || error);
-      if (!/captureVisibleTab|permission|Cannot access/i.test(message)) {
-        throw error;
-      }
+      lastError = error;
+      if (!isCaptureTooLarge(error)) throw error;
     }
   }
-  return chrome.tabs.captureVisibleTab(tab.windowId, options);
+
+  throw new Error(String(lastError?.message || lastError || "Скриншот слишком большой"));
 }
 
 async function captureTabScreenshot({ tabId = 0, windowId = 0, senderTabId = 0 } = {}) {
@@ -364,6 +427,7 @@ async function captureTabScreenshot({ tabId = 0, windowId = 0, senderTabId = 0 }
       }
     } catch (error) {
       const message = String(error?.message || error);
+      if (isCaptureTooLarge(error)) throw error;
       if (/permission|Cannot access|<all_urls>|activeTab/i.test(message)) {
         throw new Error(
           "Нет доступа к вкладке для скриншота. Перезагрузите расширение на chrome://extensions и подтвердите доступ ко всем сайтам."

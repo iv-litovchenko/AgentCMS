@@ -3,16 +3,21 @@
   window.__agentShellCompanionMounted = true;
 
   const STORAGE_EXPANDED = "asc-toolbar-expanded";
+  const STORAGE_OFFSET = "asc-toolbar-offset";
   const MAX_PAGE_LEN = 4000;
+  const BASE_BOTTOM = 18;
+  const EDGE_MARGIN = 12;
+  const DRAG_THRESHOLD = 5;
+  const SNAP_DISTANCE = 10;
 
   const BRAND_ICON_SVG =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">' +
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="32" height="32" aria-hidden="true">' +
     '<defs><linearGradient id="asc-bg" x1="0%" y1="0%" x2="100%" y2="100%">' +
     '<stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#c026d3"/></linearGradient>' +
-    '<linearGradient id="asc-shine" x1="0%" y1="0%" x2="0%" y2="100%">' +
+    '<linearGradient id="asc-sheen-grad" x1="0%" y1="0%" x2="0%" y2="100%">' +
     '<stop offset="0%" stop-color="#fff" stop-opacity="0.28"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>' +
     '<rect width="64" height="64" rx="14" fill="url(#asc-bg)"/>' +
-    '<rect width="64" height="64" rx="14" fill="url(#asc-shine)"/>' +
+    '<rect class="asc-brand-sheen" width="64" height="64" rx="14" fill="url(#asc-sheen-grad)"/>' +
     '<rect x="13" y="15" width="38" height="26" rx="5" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.38)" stroke-width="1.5"/>' +
     '<circle cx="19.5" cy="21.5" r="2.2" fill="#fecaca"/><circle cx="26.5" cy="21.5" r="2.2" fill="#fde68a"/><circle cx="33.5" cy="21.5" r="2.2" fill="#bbf7d0"/>' +
     '<rect x="17" y="27" width="30" height="3.5" rx="1.75" fill="rgba(255,255,255,0.42)"/>' +
@@ -20,27 +25,68 @@
     '<path d="M14 50 L22 50 L26 42 L30 54 L34 46 L38 50 L50 50" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' +
     "</svg>";
 
+  const ICONS = {
+    element:
+      '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>',
+    page:
+      '<svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>',
+    selection:
+      '<svg viewBox="0 0 24 24"><path d="M6 4h4M6 4v4"/><path d="M14 4h4v4"/><path d="M6 16v4h4"/><path d="M18 16v4h-4"/><path d="M9 9h6v6H9z"/></svg>',
+    screenshot:
+      '<svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>',
+    collapse: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>'
+  };
+
   const SELECTION_PROMPTS = [
     {
+      key: "prompt-read",
+      label: "Прочитай",
+      title: "Прочитай этот текст",
+      build: (sel) => `Прочитай этот текст:\n\n${sel}`
+    },
+    {
+      key: "prompt-explain",
       label: "Объясни",
       title: "Объясни простыми словами",
       build: (sel) => `Объясни простыми словами:\n\n${sel}`
     },
     {
+      key: "prompt-notes",
       label: "Конспект",
       title: "Сделай краткий конспект",
       build: (sel) => `Сделай краткий конспект:\n\n${sel}`
     },
     {
+      key: "prompt-translate",
       label: "Перевод",
       title: "Переведи на русский",
       build: (sel) => `Переведи на русский:\n\n${sel}`
     },
     {
+      key: "prompt-task",
       label: "Задача",
       title: "Преврати в задачу для CMS",
       build: (sel) => `Преврати это в задачу для CMS (заголовок + шаги):\n\n${sel}`
     }
+  ];
+
+  const PAGE_MENU = [
+    { head: "Страница" },
+    { key: "page", label: "Заголовок и ссылка", hint: "Название страницы и URL" },
+    { key: "clean", label: "Текст страницы", hint: "Статья абзацами, без меню и рекламы" },
+    { key: "markdown", label: "Как Markdown", hint: "Заголовки, ссылки и списки в MD" }
+  ];
+
+  const TEXT_MENU = [
+    { head: "Выделение" },
+    { key: "selection", label: "Вставить выделение" },
+    { sep: true },
+    { head: "Промпты" },
+    { key: "prompt-read", label: "Прочитай" },
+    { key: "prompt-explain", label: "Объясни" },
+    { key: "prompt-notes", label: "Конспект" },
+    { key: "prompt-translate", label: "Перевод" },
+    { key: "prompt-task", label: "Задача" }
   ];
 
   const root = document.createElement("div");
@@ -51,98 +97,155 @@
   const brand = document.createElement("button");
   brand.type = "button";
   brand.className = "asc-brand";
-  brand.title = "Открыть Agent Shell";
-  brand.setAttribute("aria-label", "Открыть Agent Shell");
+  brand.title = "Развернуть панель";
+  brand.setAttribute("aria-label", "Развернуть панель");
+  brand.setAttribute("aria-expanded", "false");
   brand.innerHTML = BRAND_ICON_SVG;
-
-  const toggleBtn = document.createElement("button");
-  toggleBtn.type = "button";
-  toggleBtn.className = "asc-btn asc-btn--toggle";
-  toggleBtn.innerHTML =
-    '<span class="asc-btn-icon asc-toggle-icon" aria-hidden="true">▸</span><span class="asc-btn-label asc-toggle-label">Ещё</span>';
-  toggleBtn.title = "Показать кнопки";
-  toggleBtn.setAttribute("aria-expanded", "false");
-  toggleBtn.setAttribute("aria-label", "Развернуть панель");
 
   const actions = document.createElement("div");
   actions.className = "asc-actions";
+  const menus = [];
+  let pickerActive = false;
+  let offsetX = 0;
+  let offsetY = 0;
+  let dragState = null;
+  let skipBrandClick = false;
 
-  const elementBtn = createBtn("asc-btn--element", "⌖", "Элемент", "Выбрать блок на странице (Esc — выключить)");
-  const pageBtn = createBtn("asc-btn--page", "📄", "Страница", "Вставить информацию о странице в поле ввода");
-  const cleanBtn = createBtn("asc-btn--clean", "✨", "Чище", "Вставить текст страницы с сохранением абзацев");
-  const markdownBtn = createBtn("asc-btn--markdown", "MD", "Markdown", "Вставить страницу в формате Markdown");
-  const selectionBtn = createBtn("asc-btn--selection", "✂️", "Выделение", "Вставить выделенный текст в поле ввода");
-  const screenshotBtn = createBtn("asc-btn--screenshot", "📷", "Скрин", "Скриншот вкладки в поле ввода");
-
-  const promptWrap = document.createElement("div");
-  promptWrap.className = "asc-menu";
-  const promptBtn = createBtn("asc-btn--prompts", "⚡", "Промпты", "Быстрые промпты для выделенного текста");
-  promptBtn.classList.add("asc-btn--menu");
-  const promptPop = document.createElement("div");
-  promptPop.className = "asc-menu-pop hidden";
-  promptPop.setAttribute("role", "menu");
-  for (const item of SELECTION_PROMPTS) {
+  function createBtn(key, label, title) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "asc-menu-item";
-    btn.textContent = item.label;
-    btn.title = item.title;
-    btn.setAttribute("role", "menuitem");
-    btn.addEventListener("click", () => {
-      closePromptMenu();
-      applySelectionPrompt(item);
-    });
-    promptPop.append(btn);
+    btn.className = `asc-btn asc-btn--${key}`;
+    btn.title = title;
+    btn.setAttribute("aria-label", label);
+    btn.innerHTML = `${ICONS[key]}<span class="asc-label">${label}</span>`;
+    return btn;
   }
-  promptWrap.append(promptBtn, promptPop);
+
+  function closeMenus(except) {
+    for (const menu of menus) {
+      if (menu.wrap === except) continue;
+      menu.wrap.classList.remove("is-open");
+      menu.btn.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  function createMenu(key, label, title, items) {
+    const wrap = document.createElement("div");
+    wrap.className = "asc-menu";
+    const btn = createBtn(key, label, title);
+    btn.classList.add("asc-btn--menu");
+    btn.setAttribute("aria-haspopup", "menu");
+    btn.setAttribute("aria-expanded", "false");
+    const caret = document.createElement("span");
+    caret.className = "asc-caret";
+    caret.setAttribute("aria-hidden", "true");
+    caret.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';
+    btn.append(caret);
+    const pop = document.createElement("div");
+    pop.className = "asc-menu-pop";
+    pop.setAttribute("role", "menu");
+    for (const item of items) {
+      if (item.head) {
+        const head = document.createElement("div");
+        head.className = "asc-menu-head";
+        head.textContent = item.head;
+        pop.append(head);
+        continue;
+      }
+      if (item.sep) {
+        const line = document.createElement("div");
+        line.className = "asc-menu-sep";
+        pop.append(line);
+        continue;
+      }
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "asc-menu-item";
+      option.textContent = item.label;
+      if (item.hint) option.title = item.hint;
+      option.setAttribute("role", "menuitem");
+      option.addEventListener("click", (event) => {
+        event.stopPropagation();
+        closeMenus();
+        handleMenuAction(item.key);
+      });
+      pop.append(option);
+    }
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const open = !wrap.classList.contains("is-open");
+      closeMenus(open ? wrap : null);
+      wrap.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    wrap.append(btn, pop);
+    menus.push({ wrap, pop, btn });
+    return wrap;
+  }
+
+  const left = document.createElement("div");
+  left.className = "asc-cluster asc-cluster--left";
+  const elementBtn = createBtn("element", "Выбор", "Выбрать блок на странице (Esc — выключить)");
+  const screenshotBtn = createBtn("screenshot", "Скрин", "Скриншот видимой области");
+  left.append(elementBtn, screenshotBtn);
+
+  const divider = document.createElement("span");
+  divider.className = "asc-divider";
+  divider.setAttribute("aria-hidden", "true");
+
+  const right = document.createElement("div");
+  right.className = "asc-cluster asc-cluster--right";
+  right.append(
+    createMenu("page", "Страница", "Вставить страницу", PAGE_MENU),
+    createMenu("selection", "Текст", "Выделение и промпты", TEXT_MENU)
+  );
+
+  const collapseBtn = createBtn("collapse", "Свернуть", "Свернуть панель");
+  collapseBtn.classList.add("asc-btn--collapse");
+
+  actions.append(left, divider, right, collapseBtn);
 
   const status = document.createElement("span");
   status.className = "asc-status";
   status.setAttribute("aria-live", "polite");
 
-  actions.append(elementBtn, pageBtn, cleanBtn, markdownBtn, selectionBtn, screenshotBtn, promptWrap);
-  root.append(brand, toggleBtn, actions, status);
+  const shell = document.createElement("div");
+  shell.className = "asc-shell";
+  shell.append(brand, actions, status);
+
+  const shadow = root.attachShadow({ mode: "open" });
+  const style = document.createElement("style");
+  style.textContent = String(globalThis.__agentShellToolbarCss || "");
+  shadow.append(style, shell);
   document.documentElement.appendChild(root);
-
-  let pickerActive = false;
-  let promptOpen = false;
-
-  function createBtn(className, icon, label, title) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `asc-btn ${className}`;
-    btn.title = title;
-    btn.setAttribute("aria-label", label);
-    btn.innerHTML = `<span class="asc-btn-icon" aria-hidden="true">${icon}</span><span class="asc-btn-label">${label}</span>`;
-    return btn;
-  }
 
   function setExpanded(expanded) {
     const next = Boolean(expanded);
     root.classList.toggle("is-expanded", next);
-    toggleBtn.setAttribute("aria-expanded", next ? "true" : "false");
-    toggleBtn.title = next ? "Свернуть панель" : "Развернуть панель";
-    toggleBtn.setAttribute("aria-label", next ? "Свернуть панель" : "Развернуть панель");
-    const icon = toggleBtn.querySelector(".asc-toggle-icon");
-    const label = toggleBtn.querySelector(".asc-toggle-label");
-    if (icon) icon.textContent = next ? "▾" : "▸";
-    if (label) label.textContent = next ? "Свернуть" : "Ещё";
+    brand.setAttribute("aria-expanded", next ? "true" : "false");
+    brand.title = next
+      ? "Открыть Agent Shell · можно перетащить"
+      : "Развернуть панель · можно перетащить";
+    brand.setAttribute("aria-label", next ? "Открыть Agent Shell" : "Развернуть панель");
+    window.requestAnimationFrame(() => applyOffset({ x: offsetX, y: offsetY }, false));
     try {
       localStorage.setItem(STORAGE_EXPANDED, next ? "1" : "0");
     } catch {
       // ignore
     }
-    if (!next) closePromptMenu();
+    if (!next) closeMenus();
   }
 
   function setStatus(text, kind) {
     status.textContent = text || "";
     status.dataset.kind = kind || "";
+    status.classList.toggle("is-on", Boolean(text));
+    window.clearTimeout(setStatus._timer);
     if (text) {
-      window.clearTimeout(setStatus._timer);
       setStatus._timer = window.setTimeout(() => {
         status.textContent = "";
         status.dataset.kind = "";
+        status.classList.remove("is-on");
       }, 3200);
     }
   }
@@ -351,96 +454,219 @@
     );
   }
 
-  function closePromptMenu() {
-    promptOpen = false;
-    promptPop.classList.add("hidden");
-    promptBtn.setAttribute("aria-expanded", "false");
-  }
-
-  function togglePromptMenu() {
-    if (!readSelectionText()) {
-      setStatus("Сначала выделите текст", "error");
-      return;
-    }
-    promptOpen = !promptOpen;
-    promptPop.classList.toggle("hidden", !promptOpen);
-    promptBtn.setAttribute("aria-expanded", promptOpen ? "true" : "false");
-  }
-
   function applySelectionPrompt(item) {
     const selection = readSelectionText();
     if (!selection) {
-      setStatus("Нет выделения", "error");
+      setStatus("Сначала выделите текст", "error");
       return;
     }
     void insertIntoCompose(item.build(selection));
   }
 
-  brand.addEventListener("click", openPanel);
+  function handleMenuAction(key) {
+    if (key === "page") {
+      void insertIntoCompose(buildPagePayload("plain"));
+      return;
+    }
+    if (key === "clean") {
+      void insertIntoCompose(buildPagePayload("clean"));
+      return;
+    }
+    if (key === "markdown") {
+      void insertIntoCompose(buildPagePayload("markdown"));
+      return;
+    }
+    if (key === "selection") {
+      const payload = buildSelectionPayload();
+      if (!payload) {
+        setStatus("Нет выделения", "error");
+        return;
+      }
+      void insertIntoCompose(payload);
+      return;
+    }
+    const prompt = SELECTION_PROMPTS.find((item) => item.key === key);
+    if (prompt) applySelectionPrompt(prompt);
+  }
 
-  toggleBtn.addEventListener("click", () => {
-    setExpanded(!root.classList.contains("is-expanded"));
+  function waitPaint() {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.setTimeout(resolve, 40);
+        });
+      });
+    });
+  }
+
+  async function captureViewportScreenshot() {
+    closeMenus();
+    setStatus("Скриншот…", "busy");
+    document.documentElement.classList.add("asc-capturing-viewport");
+    try {
+      await waitPaint();
+      await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: "COMPANION_CAPTURE_TAB_SCREENSHOT" }, (response) => {
+          if (chrome.runtime.lastError) {
+            setStatus("Ошибка расширения", "error");
+            resolve();
+            return;
+          }
+          if (!response?.ok) {
+            setStatus(response?.error || "Не удалось сделать скрин", "error");
+            resolve();
+            return;
+          }
+          if (response.text) {
+            void insertIntoCompose(response.text);
+            resolve();
+            return;
+          }
+          setStatus("Скриншот готов", "ok");
+          resolve();
+        });
+      });
+    } finally {
+      document.documentElement.classList.remove("asc-capturing-viewport");
+    }
+  }
+
+  function readStoredOffset() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_OFFSET) || "");
+      const x = Number(raw?.x);
+      const y = Number(raw?.y);
+      if (Number.isFinite(x) && Number.isFinite(y)) return { x, y };
+    } catch {
+      // ignore
+    }
+    return { x: 0, y: 0 };
+  }
+
+  function clampOffset(x, y) {
+    const rect = root.getBoundingClientRect();
+    const width = Math.max(40, rect.width || 40);
+    const height = Math.max(40, rect.height || 40);
+    const maxX = Math.max(0, (window.innerWidth - width) / 2 - EDGE_MARGIN);
+    const maxY = Math.max(0, window.innerHeight - height - BASE_BOTTOM - EDGE_MARGIN);
+    return {
+      x: Math.min(maxX, Math.max(-maxX, x)),
+      y: Math.min(maxY, Math.max(0, y))
+    };
+  }
+
+  function applyOffset(next, persist) {
+    const clamped = clampOffset(Number(next?.x) || 0, Number(next?.y) || 0);
+    offsetX = clamped.x;
+    offsetY = clamped.y;
+    root.style.setProperty("--asc-x", `${offsetX}px`);
+    root.style.setProperty("--asc-y", `${offsetY}px`);
+    if (!persist) return;
+    try {
+      if (Math.abs(offsetX) < SNAP_DISTANCE) offsetX = 0;
+      if (offsetY < SNAP_DISTANCE) offsetY = 0;
+      root.style.setProperty("--asc-x", `${offsetX}px`);
+      root.style.setProperty("--asc-y", `${offsetY}px`);
+      localStorage.setItem(STORAGE_OFFSET, JSON.stringify({ x: offsetX, y: offsetY }));
+    } catch {
+      // ignore
+    }
+  }
+
+  function isDragHandle(target) {
+    if (!(target instanceof Element)) return false;
+    if (target.closest(".asc-brand")) return true;
+    if (target.closest(".asc-btn, .asc-menu-pop, .asc-menu-item, .asc-caret")) return false;
+    return Boolean(target.closest(".asc-shell"));
+  }
+
+  function onPointerDown(event) {
+    if (event.button !== 0) return;
+    if (!isDragHandle(event.target)) return;
+    dragState = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: offsetX,
+      originY: offsetY,
+      moved: false
+    };
+  }
+
+  function onPointerMove(event) {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    const dx = event.clientX - dragState.startX;
+    const dy = dragState.startY - event.clientY;
+    if (!dragState.moved) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      dragState.moved = true;
+      skipBrandClick = true;
+      root.classList.add("is-dragging");
+      closeMenus();
+    }
+    applyOffset({ x: dragState.originX + dx, y: dragState.originY + dy }, false);
+    event.preventDefault();
+  }
+
+  function onPointerUp(event) {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    const moved = dragState.moved;
+    dragState = null;
+    root.classList.remove("is-dragging");
+    if (moved) {
+      applyOffset({ x: offsetX, y: offsetY }, true);
+      window.setTimeout(() => {
+        skipBrandClick = false;
+      }, 0);
+    }
+  }
+
+  brand.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (skipBrandClick) {
+      skipBrandClick = false;
+      return;
+    }
+    if (!root.classList.contains("is-expanded")) {
+      setExpanded(true);
+      return;
+    }
+    openPanel();
+  });
+
+  collapseBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setExpanded(false);
   });
 
   elementBtn.addEventListener("click", togglePagePicker);
-
-  pageBtn.addEventListener("click", () => {
-    void insertIntoCompose(buildPagePayload("plain"));
-  });
-
-  cleanBtn.addEventListener("click", () => {
-    void insertIntoCompose(buildPagePayload("clean"));
-  });
-
-  markdownBtn.addEventListener("click", () => {
-    void insertIntoCompose(buildPagePayload("markdown"));
-  });
-
-  selectionBtn.addEventListener("click", () => {
-    const payload = buildSelectionPayload();
-    if (!payload) {
-      setStatus("Нет выделения", "error");
-      return;
-    }
-    void insertIntoCompose(payload);
-  });
-
   screenshotBtn.addEventListener("click", () => {
-    setStatus("Скриншот…", "busy");
-    chrome.runtime.sendMessage({ type: "COMPANION_CAPTURE_TAB_SCREENSHOT" }, (response) => {
-      if (chrome.runtime.lastError) {
-        setStatus("Ошибка расширения", "error");
-        return;
-      }
-      if (!response?.ok) {
-        setStatus(response?.error || "Не удалось сделать скрин", "error");
-        return;
-      }
-      if (response.text) {
-        void insertIntoCompose(response.text);
-        return;
-      }
-      setStatus("Скриншот готов", "ok");
-    });
+    void captureViewportScreenshot();
   });
 
-  promptBtn.addEventListener("click", (event) => {
-    event.stopPropagation();
-    togglePromptMenu();
-  });
+  shell.addEventListener("pointerdown", onPointerDown);
+  window.addEventListener("pointermove", onPointerMove, { passive: false });
+  window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointercancel", onPointerUp);
+  window.addEventListener("resize", () => applyOffset({ x: offsetX, y: offsetY }, true));
 
   document.addEventListener(
     "click",
     (event) => {
-      if (!promptOpen) return;
-      if (promptWrap.contains(event.target)) return;
-      closePromptMenu();
+      if (event.composedPath().includes(root)) return;
+      closeMenus();
     },
     true
   );
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closePromptMenu();
+    if (event.key !== "Escape") return;
+    const anyOpen = menus.some((menu) => menu.wrap.classList.contains("is-open"));
+    if (anyOpen) {
+      closeMenus();
+      return;
+    }
+    if (root.classList.contains("is-expanded")) setExpanded(false);
   });
 
   try {
@@ -453,6 +679,7 @@
     // ignore
   }
 
+  applyOffset(readStoredOffset(), false);
   try {
     setExpanded(localStorage.getItem(STORAGE_EXPANDED) === "1");
   } catch {

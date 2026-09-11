@@ -1,0 +1,8 @@
+# Группы sidebar для awn-repositories (без физических подпапок)
+groups:
+  - id: cms
+    title: "CMS и платформа"
+  - id: clients
+    title: "Клиентские сайты"
+assignments:
+  yamlcms-core: cms

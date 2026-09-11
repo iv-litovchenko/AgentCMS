@@ -63,8 +63,22 @@ const repositoryCreateNameInputNode = document.getElementById("repository-create
 const repositoryCreateSlugInputNode = document.getElementById("repository-create-slug-input");
 const repositoryCreateDescriptionInputNode = document.getElementById("repository-create-description-input");
 const repositoryCreateOriginInputNode = document.getElementById("repository-create-origin-input");
+const repositoryCreateGroupInputNode = document.getElementById("repository-create-group-input");
+const repositoryCreateModalTitleNode = document.getElementById("repository-create-modal-title");
+const repositoryCreateOpenManifestBtn = document.getElementById("repository-create-open-manifest-btn");
 const repositoryCreateCancelBtn = document.getElementById("repository-create-cancel-btn");
 const repositoryCreateSubmitBtn = document.getElementById("repository-create-submit-btn");
+const menuRepositoriesGroupsBtn = document.getElementById("menu-repositories-groups-btn");
+const menuRepositoriesIndexRow = document.getElementById("menu-repositories-index-row");
+const menuRepositoriesIndexOpenBtn = document.getElementById("menu-repositories-index-open-btn");
+const menuRepositoriesIndexRefreshBtn = document.getElementById("menu-repositories-index-refresh-btn");
+const REPOSITORY_INDEX_REL = "awn-repositories/INDEX.md";
+const repositoryGroupsModalNode = document.getElementById("repository-groups-modal");
+const repositoryGroupsListNode = document.getElementById("repository-groups-list");
+const repositoryGroupsAddBtn = document.getElementById("repository-groups-add-btn");
+const repositoryGroupsCancelBtn = document.getElementById("repository-groups-cancel-btn");
+const repositoryGroupsSaveBtn = document.getElementById("repository-groups-save-btn");
+const repositoryGroupsCloseBtn = document.getElementById("repository-groups-close-btn");
 let awnDataViewRoot = null;
 let awnDataViewIblockLayoutNode = null;
 let awnDataViewIblockDescriptionBlockNode = null;
@@ -2131,6 +2145,10 @@ async function applyChpuResolvedRoute(resolved) {
   if (resolved?.kind === "adoptFolder") {
     hideHomeView();
     const folderPath = String(resolved.folderPath || resolved.workspacePath || "").replace(/\\/g, "/");
+    if (isRepositoryWorkspaceRel(folderPath)) {
+      await openRepositoryWorkspacePath(folderPath, { skipRouteSync: true });
+      return;
+    }
     if (/^awn-data(?:\/|$)/i.test(folderPath)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         folderPath,
@@ -2150,6 +2168,10 @@ async function applyChpuResolvedRoute(resolved) {
   if (resolved?.kind === "adoptFile") {
     hideHomeView();
     const filePath = String(resolved.filePath || resolved.workspacePath || "").replace(/\\/g, "/");
+    if (isRepositoryWorkspaceRel(filePath)) {
+      await openRepositoryWorkspacePath(filePath, { skipRouteSync: true });
+      return;
+    }
     if (/^awn-data\//i.test(filePath)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         filePath.replace(/\.md$/i, ""),
@@ -2196,6 +2218,11 @@ async function applyChpuResolvedRoute(resolved) {
       showNotFoundView(formatNotFoundRequestPath(topicPath));
       return;
     }
+    if (isRepositoryWorkspaceRel(topicPath)) {
+      hideHomeView();
+      await openRepositoryWorkspacePath(`${topicPath}/manifest.md`, { skipRouteSync: true });
+      return;
+    }
     const entry = resolveMenuEntryByDisplayPath(resolved.workspacePath);
     const topicEntry = entry?.path ? entry : await resolveChpuTopicEntry(resolved);
     if (!topicEntry?.path) {
@@ -2223,6 +2250,10 @@ async function applyChpuResolvedRoute(resolved) {
   if (resolved?.kind === "file" && resolved.fileRelPath) {
     hideHomeView();
     const fileRel = String(resolved.fileRelPath).replace(/\\/g, "/");
+    if (isRepositoryWorkspaceRel(fileRel)) {
+      await openRepositoryWorkspacePath(fileRel, { skipRouteSync: true });
+      return;
+    }
     if (/^awn-data\//i.test(fileRel)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         fileRel.replace(/\.md$/i, ""),
@@ -3818,7 +3849,8 @@ const VOICE_CHAT_DRAG_SOURCE_SELECTOR = [
   ".navigation-media-image-card",
   ".folder-browse-image-card",
   "#app-footer-ideas-btn:not([disabled])",
-  "#agent-todo-preview-toggle:not([disabled])"
+  "#agent-todo-preview-toggle:not([disabled])",
+  ".menu-repository-item[data-repository-folder-path]"
 ].join(", ");
 const VOICE_CHAT_DRAG_HINT =
   "Перетащите в редактор или чат Agent CMS Voice для ссылки или на другую тему/область для перемещения";
@@ -4230,6 +4262,39 @@ function buildAdoptFolderMarkdownLink(folderPath, displayLabel) {
   return buildMarkdownLinkFromWorkspaceRel(targetRel, label);
 }
 
+function isRepositoryWorkspaceRel(workspaceRel) {
+  return /^awn-repositories(?:\/|$)/i.test(normalizeLinkFilePath(workspaceRel));
+}
+
+async function openRepositoryWorkspacePath(workspaceRel, options = {}) {
+  const normalized = normalizeLinkFilePath(workspaceRel);
+  if (!normalized || !isRepositoryWorkspaceRel(normalized)) return false;
+
+  if (/\/manifest\.md$/i.test(normalized) || /^awn-repositories\/INDEX\.md$/i.test(normalized)) {
+    const folderPath = normalizeCreateParentPath(getFolderBrowseParentPath(normalized));
+    const label =
+      normalized.split("/").filter(Boolean).pop()?.replace(/\.md$/i, "") ||
+      getLabelFromPath(normalized);
+    await openFolderBrowseFile(label, normalized, {
+      folderPath,
+      skipRouteSync: Boolean(options.skipRouteSync)
+    });
+    return true;
+  }
+
+  if (await tryOpenAdoptWorkspaceRel(normalized, options)) return true;
+
+  if (/^awn-repositories\/[^/]+$/i.test(normalized)) {
+    const label = normalized.split("/").filter(Boolean).pop() || normalized;
+    await openFolderBrowseFromMenu(label, normalized, {
+      skipRouteSync: Boolean(options.skipRouteSync)
+    });
+    return true;
+  }
+
+  return false;
+}
+
 async function tryOpenAdoptWorkspaceRel(targetRel, options = {}) {
   const normalized = normalizeLinkFilePath(targetRel);
   if (!normalized || normalized === ".") return false;
@@ -4371,6 +4436,10 @@ async function openMarkdownLinkIndexItem(item, options = {}) {
 async function tryOpenMarkdownLinkByWorkspaceRel(targetRel, options = {}) {
   const normalized = normalizeLinkFilePath(targetRel);
   if (!normalized) return false;
+
+  if (isRepositoryWorkspaceRel(normalized)) {
+    return openRepositoryWorkspacePath(normalized, options);
+  }
 
   const parsed = parseStorageLayerRef(normalized);
   if (parsed?.relativePath) {
@@ -4879,7 +4948,40 @@ function resolveVoiceChatDragPayload(target) {
     );
   }
 
+  const repositoryItem = target.closest(".menu-repository-item[data-repository-folder-path]");
+  if (repositoryItem) return buildRepositoryItemDragPayload(repositoryItem);
+
   return null;
+}
+
+function buildRepositoryItemDragPayload(row) {
+  const folderPath = String(row.dataset.repositoryFolderPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!folderPath) return null;
+  const manifestPath = String(row.dataset.repositoryManifestPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  const label = sanitizeVoiceChatDragLabel(
+    row.dataset.repositoryLabel ||
+      row.querySelector(".menu-repository-name")?.textContent?.trim() ||
+      folderPath.split("/").filter(Boolean).pop() ||
+      folderPath
+  );
+  const workspaceRel = manifestPath || folderPath;
+  const markdownLink = buildMarkdownLinkFromWorkspaceRel(workspaceRel, label);
+  const voiceMarkdownLink = buildVoiceChatMarkdownLink(workspaceRel, label);
+  if (!voiceMarkdownLink) return null;
+  return {
+    path: workspaceRel,
+    folderPath,
+    label,
+    markdownLink,
+    voiceMarkdownLink,
+    source: "repository-item"
+  };
 }
 
 function resolveManifestPathForNodeApi(nodePath) {
@@ -81791,13 +81893,27 @@ function setupVoiceChatContextDrag() {
   document.addEventListener(
     "dragstart",
     (event) => {
-      if (event.target.closest("#menu, .menu-sort-handle, .nav-book-toc-drag-handle")) return;
+      const repositoryItem = event.target.closest(".menu-repository-item[data-repository-folder-path]");
+      if (
+        !repositoryItem &&
+        event.target.closest("#menu, .menu-sort-handle, .nav-book-toc-drag-handle")
+      ) {
+        return;
+      }
+      if (repositoryItem && event.target.closest(".menu-repository-adopt-btn")) {
+        event.preventDefault();
+        return;
+      }
 
-      const payload = resolveVoiceChatDragPayload(event.target);
+      const payload = repositoryItem
+        ? buildRepositoryItemDragPayload(repositoryItem)
+        : resolveVoiceChatDragPayload(event.target);
       if (!payload || !setMenuLinkDragPayload(event, payload)) return;
 
       voiceChatDragEl =
-        event.target.closest(VOICE_CHAT_DRAG_SOURCE_SELECTOR) || event.target;
+        event.target.closest(VOICE_CHAT_DRAG_SOURCE_SELECTOR) ||
+        repositoryItem ||
+        event.target;
       voiceChatDragEl?.classList.add("is-dragging-voice-chat-context");
 
       markVoiceChatDropActive(event.dataTransfer);
@@ -91120,6 +91236,11 @@ let menuGoogleDriveStatsLoadSeq = 0;
 let menuAwnDialogsStatsLoadSeq = 0;
 let menuAwnDataStoresLoadSeq = 0;
 let menuRepositoriesLoadSeq = 0;
+let menuRepositoriesLastPayload = null;
+let menuRepositoriesCachedAgentId = "";
+/** @type {{ mode: "create"|"edit"|"adopt", manifestPath?: string, slug?: string }} */
+let repositoryModalState = { mode: "create" };
+let repositoryGroupsDraft = { groups: [], assignments: {} };
 let awnDataCatalogAgentId = null;
 let awnDataViewCatalogAgentId = null;
 let activeFolderBrowseAgentId = null;
@@ -93469,8 +93590,221 @@ function slugifyRepositorySlug(name) {
   return slugifyAwnDataStoreName(name).replace(/\//g, "-").replace(/^-+|-+$/g, "");
 }
 
+const DEFAULT_REPOSITORY_GROUPS = [
+  { id: "study", title: "Изучение" },
+  { id: "new", title: "Новый" },
+  { id: "archived", title: "Архив" },
+  { id: "vendored", title: "Вендор" }
+];
+const DEFAULT_REPOSITORY_GROUP_IDS = new Set(DEFAULT_REPOSITORY_GROUPS.map((group) => group.id));
+
+function resolveRepositoryGroupsCatalog(groupsCatalog) {
+  const defs = Array.isArray(groupsCatalog?.groups) ? groupsCatalog.groups : [];
+  const byId = new Map(DEFAULT_REPOSITORY_GROUPS.map((group) => [group.id, { ...group }]));
+  for (const group of defs) {
+    const id = String(group?.id || "").trim();
+    if (!id) continue;
+    byId.set(id, {
+      id,
+      title: String(group.title || byId.get(id)?.title || id).trim() || id
+    });
+  }
+  const merged = DEFAULT_REPOSITORY_GROUPS.map((group) => byId.get(group.id));
+  for (const group of defs) {
+    const id = String(group?.id || "").trim();
+    if (!id || DEFAULT_REPOSITORY_GROUPS.some((item) => item.id === id)) continue;
+    merged.push({ id, title: String(group.title || id).trim() || id });
+  }
+  return merged;
+}
+
+function populateRepositoryGroupSelect(groupsCatalog, selectedGroup = "study") {
+  if (!repositoryCreateGroupInputNode) return;
+  const groups = resolveRepositoryGroupsCatalog(groupsCatalog);
+  repositoryCreateGroupInputNode.replaceChildren();
+  for (const group of groups) {
+    const option = document.createElement("option");
+    option.value = String(group.id || "").trim();
+    option.textContent = String(group.title || group.id || "").trim() || group.id;
+    repositoryCreateGroupInputNode.appendChild(option);
+  }
+  const normalized = String(selectedGroup || "study").trim() || "study";
+  repositoryCreateGroupInputNode.value = groups.some((group) => group.id === normalized)
+    ? normalized
+    : "study";
+}
+
+function syncRepositoryModalUi() {
+  const mode = repositoryModalState.mode || "create";
+  if (repositoryCreateModalTitleNode) {
+    repositoryCreateModalTitleNode.textContent =
+      mode === "edit" ? "Репозиторий" : mode === "adopt" ? "Подхватить репозиторий" : "Новый репозиторий";
+  }
+  if (repositoryCreateSubmitBtn) {
+    repositoryCreateSubmitBtn.textContent =
+      mode === "edit" ? "Сохранить" : mode === "adopt" ? "Подхватить" : "Создать";
+  }
+  if (repositoryCreateSlugInputNode) {
+    repositoryCreateSlugInputNode.readOnly = mode === "edit" || mode === "adopt";
+    repositoryCreateSlugInputNode.classList.toggle(
+      "is-readonly",
+      mode === "edit" || mode === "adopt"
+    );
+  }
+  repositoryCreateOpenManifestBtn?.classList.toggle("hidden", mode !== "edit" || !repositoryModalState.manifestPath);
+}
+
+function normalizeRepositoryGroupId(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9._-]/g, "")
+    .replace(/^-+|-+$/g, "");
+}
+
+function renderRepositoryGroupsEditor() {
+  if (!repositoryGroupsListNode) return;
+  repositoryGroupsListNode.replaceChildren();
+  const groups = Array.isArray(repositoryGroupsDraft.groups) ? repositoryGroupsDraft.groups : [];
+  const visibleGroups = groups.length
+    ? groups
+    : DEFAULT_REPOSITORY_GROUPS.map((group) => ({ ...group }));
+
+  for (const group of visibleGroups) {
+    const groupId = normalizeRepositoryGroupId(group.id);
+    const isDefaultGroup = DEFAULT_REPOSITORY_GROUP_IDS.has(groupId);
+    const row = document.createElement("li");
+    row.className = "repository-groups-row";
+    if (isDefaultGroup) row.classList.add("repository-groups-row--default");
+
+    const idCell = document.createElement("div");
+    idCell.className = "repository-groups-cell repository-groups-cell--id";
+    const idInput = document.createElement("input");
+    idInput.type = "text";
+    idInput.placeholder = "cms, clients";
+    idInput.spellcheck = false;
+    idInput.autocomplete = "off";
+    idInput.value = groupId || String(group.id || "").trim();
+    idInput.readOnly = isDefaultGroup;
+    idInput.classList.toggle("is-readonly", isDefaultGroup);
+    idInput.title = isDefaultGroup ? "Системная группа — ключ нельзя менять" : "Ключ группы (латиница)";
+    idInput.addEventListener("input", () => {
+      group.id = normalizeRepositoryGroupId(idInput.value);
+    });
+    idCell.appendChild(idInput);
+
+    const titleCell = document.createElement("div");
+    titleCell.className = "repository-groups-cell repository-groups-cell--title";
+    const titleInput = document.createElement("input");
+    titleInput.type = "text";
+    titleInput.placeholder = "Название в sidebar";
+    titleInput.spellcheck = false;
+    titleInput.autocomplete = "off";
+    titleInput.value = String(group.title || "").trim();
+    titleInput.addEventListener("input", () => {
+      group.title = titleInput.value;
+    });
+    titleCell.appendChild(titleInput);
+
+    const actionsCell = document.createElement("div");
+    actionsCell.className = "repository-groups-cell repository-groups-cell--actions";
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "repository-groups-row-remove";
+    removeBtn.title = isDefaultGroup ? "Системную группу нельзя удалить" : "Удалить группу";
+    removeBtn.setAttribute("aria-label", isDefaultGroup ? "Системная группа" : "Удалить группу");
+    removeBtn.textContent = "×";
+    removeBtn.disabled = isDefaultGroup;
+    removeBtn.addEventListener("click", () => {
+      const normalizedId = normalizeRepositoryGroupId(group.id);
+      repositoryGroupsDraft.groups = repositoryGroupsDraft.groups.filter((item) => item !== group);
+      if (normalizedId && repositoryGroupsDraft.assignments) {
+        for (const [slug, assignedId] of Object.entries(repositoryGroupsDraft.assignments)) {
+          if (assignedId === normalizedId) delete repositoryGroupsDraft.assignments[slug];
+        }
+      }
+      renderRepositoryGroupsEditor();
+    });
+    actionsCell.appendChild(removeBtn);
+
+    row.append(idCell, titleCell, actionsCell);
+    repositoryGroupsListNode.appendChild(row);
+  }
+
+  if (!groups.length) {
+    repositoryGroupsDraft.groups = visibleGroups.map((group) => ({ ...group }));
+  }
+}
+
+async function openRepositoryGroupsModal(agentId = activeAgentId) {
+  if (!repositoryGroupsModalNode) return;
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) {
+    showToast("Выберите агента", "error");
+    return;
+  }
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/repository-groups", {}, resolvedAgent));
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
+    repositoryGroupsDraft = {
+      groups: resolveRepositoryGroupsCatalog(data).map((group) => ({ ...group })),
+      assignments:
+        data.assignments && typeof data.assignments === "object" ? { ...data.assignments } : {}
+    };
+    renderRepositoryGroupsEditor();
+    repositoryGroupsModalNode.classList.remove("hidden");
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  }
+}
+
+function closeRepositoryGroupsModal() {
+  repositoryGroupsModalNode?.classList.add("hidden");
+  repositoryGroupsDraft = { groups: [], assignments: {} };
+}
+
+async function saveRepositoryGroups(agentId = activeAgentId) {
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) {
+    showToast("Выберите агента", "error");
+    return;
+  }
+  const groups = [];
+  const seen = new Set();
+  for (const group of repositoryGroupsDraft.groups || []) {
+    const id = normalizeRepositoryGroupId(group.id);
+    const title = String(group.title || "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    groups.push({ id, title: title || id });
+  }
+  repositoryGroupsSaveBtn.disabled = true;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/repository-groups", {}, resolvedAgent), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        groups,
+        assignments: repositoryGroupsDraft.assignments || {}
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || data.details || `HTTP ${response.status}`);
+    closeRepositoryGroupsModal();
+    await refreshMenuRepositories(resolvedAgent);
+    showToast("Группы сохранены", "success");
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+  } finally {
+    repositoryGroupsSaveBtn.disabled = false;
+  }
+}
+
 function openRepositoryCreateModal() {
   if (!repositoryCreateModalNode) return;
+  repositoryModalState = { mode: "create" };
   if (repositoryCreateNameInputNode) repositoryCreateNameInputNode.value = "";
   if (repositoryCreateSlugInputNode) {
     repositoryCreateSlugInputNode.value = "";
@@ -93478,12 +93812,58 @@ function openRepositoryCreateModal() {
   }
   if (repositoryCreateDescriptionInputNode) repositoryCreateDescriptionInputNode.value = "";
   if (repositoryCreateOriginInputNode) repositoryCreateOriginInputNode.value = "";
+  populateRepositoryGroupSelect(menuRepositoriesLastPayload?.groupsCatalog, "study");
+  syncRepositoryModalUi();
+  repositoryCreateModalNode.classList.remove("hidden");
+  repositoryCreateNameInputNode?.focus();
+}
+
+function openRepositoryEditModal(repo) {
+  if (!repositoryCreateModalNode || !repo) return;
+  repositoryModalState = {
+    mode: "edit",
+    manifestPath: String(repo.manifestPath || "").trim(),
+    slug: String(repo.slug || "").trim()
+  };
+  if (repositoryCreateNameInputNode) {
+    repositoryCreateNameInputNode.value = String(repo.name || repo.slug || "").trim();
+  }
+  if (repositoryCreateSlugInputNode) {
+    repositoryCreateSlugInputNode.value = String(repo.slug || "").trim();
+    repositoryCreateSlugInputNode.dataset.manual = "1";
+  }
+  if (repositoryCreateDescriptionInputNode) {
+    repositoryCreateDescriptionInputNode.value = String(repo.description || "").trim();
+  }
+  if (repositoryCreateOriginInputNode) {
+    repositoryCreateOriginInputNode.value = String(repo.origin || "").trim();
+  }
+  populateRepositoryGroupSelect(menuRepositoriesLastPayload?.groupsCatalog, repo.group || "study");
+  syncRepositoryModalUi();
+  repositoryCreateModalNode.classList.remove("hidden");
+  repositoryCreateNameInputNode?.focus();
+}
+
+function openRepositoryAdoptModal(entry) {
+  if (!repositoryCreateModalNode || !entry) return;
+  const slug = String(entry.slug || "").trim();
+  repositoryModalState = { mode: "adopt", slug };
+  if (repositoryCreateNameInputNode) repositoryCreateNameInputNode.value = slug;
+  if (repositoryCreateSlugInputNode) {
+    repositoryCreateSlugInputNode.value = slug;
+    repositoryCreateSlugInputNode.dataset.manual = "1";
+  }
+  if (repositoryCreateDescriptionInputNode) repositoryCreateDescriptionInputNode.value = "";
+  if (repositoryCreateOriginInputNode) repositoryCreateOriginInputNode.value = "";
+  populateRepositoryGroupSelect(menuRepositoriesLastPayload?.groupsCatalog, "new");
+  syncRepositoryModalUi();
   repositoryCreateModalNode.classList.remove("hidden");
   repositoryCreateNameInputNode?.focus();
 }
 
 function closeRepositoryCreateModal() {
   repositoryCreateModalNode?.classList.add("hidden");
+  repositoryModalState = { mode: "create" };
 }
 
 async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
@@ -93498,7 +93878,8 @@ async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
     slug,
     ...(payload.name ? { name: payload.name } : {}),
     ...(payload.description ? { description: payload.description } : {}),
-    ...(payload.origin ? { origin: payload.origin } : {})
+    ...(payload.origin ? { origin: payload.origin } : {}),
+    ...(payload.group ? { group: payload.group } : {})
   };
   const response = await fetch(buildApiUrl("/api/agent/repositories", {}, resolvedAgent), {
     method: "POST",
@@ -93516,19 +93897,68 @@ async function registerMenuRepository(payload = {}, agentId = activeAgentId) {
   return data;
 }
 
-async function adoptMenuRepository(slug, agentId = activeAgentId) {
-  try {
-    const data = await registerMenuRepository({ slug }, agentId);
-    if (!data) return;
-    showToast(
-      data.adopted
-        ? `Подхвачен ${slug} — допишите manifest.md`
-        : `Создан ${slug}/manifest.md`,
-      "success"
-    );
-  } catch (error) {
-    showToast(`Не удалось подхватить: ${error.message || error}`, "error");
+async function updateMenuRepository(manifestPath, payload = {}, agentId = activeAgentId) {
+  const path = String(manifestPath || "").trim();
+  if (!path) return null;
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) {
+    showToast("Выберите агента", "error");
+    return null;
   }
+  const response = await fetch(buildApiUrl("/api/agent/repositories", {}, resolvedAgent), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, ...payload })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || data.details || `HTTP ${response.status}`);
+  }
+  await refreshMenuRepositories(resolvedAgent);
+  return data;
+}
+
+async function openRepositoryFolderOverview(entry) {
+  if (!entry) return;
+  const folderPath = String(entry.folderPath || `awn-repositories/${entry.slug || ""}`)
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  const manifestPath = String(entry.manifestPath || `${folderPath}/manifest.md`)
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  const targetRel = entry.registered === false ? folderPath : manifestPath;
+  if (await openRepositoryWorkspacePath(targetRel)) {
+    syncAppRouteToUrl({ push: true });
+    return;
+  }
+  showToast(`Не удалось открыть ${targetRel}`, "error");
+}
+
+async function openRepositoryManifestFromModal() {
+  const manifestPath = String(repositoryModalState.manifestPath || "").trim();
+  if (!manifestPath) return;
+  closeRepositoryCreateModal();
+  if (await openRepositoryWorkspacePath(manifestPath)) {
+    syncAppRouteToUrl({ push: true });
+    return;
+  }
+  showToast(`Не удалось открыть ${manifestPath}`, "error");
+}
+
+function readRepositoryModalForm() {
+  const name = String(repositoryCreateNameInputNode?.value || "").trim();
+  let slug = String(repositoryCreateSlugInputNode?.value || "").trim() || slugifyRepositorySlug(name);
+  slug = slug.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "").split("/").pop() || "";
+  slug = slugifyRepositorySlug(slug);
+  return {
+    name,
+    slug,
+    description: String(repositoryCreateDescriptionInputNode?.value || "").trim(),
+    origin: String(repositoryCreateOriginInputNode?.value || "").trim(),
+    group: String(repositoryCreateGroupInputNode?.value || "study").trim() || "study"
+  };
 }
 
 async function submitRepositoryCreate(agentId = activeAgentId) {
@@ -93536,30 +93966,53 @@ async function submitRepositoryCreate(agentId = activeAgentId) {
     showToast("Выберите агента", "error");
     return;
   }
-  const name = String(repositoryCreateNameInputNode?.value || "").trim();
-  let slug = String(repositoryCreateSlugInputNode?.value || "").trim() || slugifyRepositorySlug(name);
-  slug = slug.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "").split("/").pop() || "";
-  slug = slugifyRepositorySlug(slug);
-  const description = String(repositoryCreateDescriptionInputNode?.value || "").trim();
-  const origin = String(repositoryCreateOriginInputNode?.value || "").trim();
-  if (!name || !slug) {
+  const form = readRepositoryModalForm();
+  const mode = repositoryModalState.mode || "create";
+  if (!form.name || !form.slug) {
     showToast("Укажите название и папку (slug)", "error");
     return;
   }
-  if (slug.includes("/") || slug.includes("..")) {
+  if (form.slug.includes("/") || form.slug.includes("..")) {
     showToast("Slug — одна папка без / и ..", "error");
     return;
   }
 
   repositoryCreateSubmitBtn.disabled = true;
   try {
-    const data = await registerMenuRepository({ slug, name, description, origin }, agentId);
+    if (mode === "edit") {
+      const manifestPath = String(repositoryModalState.manifestPath || "").trim();
+      if (!manifestPath) throw new Error("Не указан manifest");
+      await updateMenuRepository(
+        manifestPath,
+        {
+          name: form.name,
+          description: form.description,
+          origin: form.origin,
+          group: form.group
+        },
+        agentId
+      );
+      closeRepositoryCreateModal();
+      showToast(`Сохранено: «${form.name}»`, "success");
+      return;
+    }
+
+    const data = await registerMenuRepository(
+      {
+        slug: form.slug,
+        name: form.name,
+        description: form.description,
+        origin: form.origin,
+        group: form.group
+      },
+      agentId
+    );
     if (!data) return;
     closeRepositoryCreateModal();
     showToast(
-      data.adopted
-        ? `Подхвачен «${name}» — допишите manifest.md`
-        : `Репозиторий «${name}» создан`,
+      mode === "adopt" || data.adopted
+        ? `Подхвачен «${form.name}»`
+        : `Репозиторий «${form.name}» создан`,
       "success"
     );
   } catch (error) {
@@ -93569,42 +94022,117 @@ async function submitRepositoryCreate(agentId = activeAgentId) {
   }
 }
 
-function createMenuRepositoryUnregisteredRow(entry) {
-  const row = document.createElement("li");
-  row.className = "menu-repository-item menu-repository-item--unregistered";
+const REPOSITORY_MENU_BOOK_ICON =
+  DATA_STORAGE_SLOT_SPECS.find((spec) => spec.key === "repository")?.icon || "📚";
 
-  const statusNode = document.createElement("span");
-  statusNode.className = "menu-repository-status is-unregistered";
-  statusNode.textContent = "новый";
-  statusNode.setAttribute("aria-hidden", "true");
+function createMenuRepositoryBookIcon() {
+  const icon = document.createElement("span");
+  icon.className = "menu-repository-book-icon media-section-tree-icon";
+  icon.textContent = REPOSITORY_MENU_BOOK_ICON;
+  icon.title = "Репозиторий";
+  icon.setAttribute("aria-hidden", "true");
+  return icon;
+}
 
+function formatMenuRepositoryFileCount(entryCount) {
+  if (entryCount == null || Number(entryCount) < 0) return "";
+  return `${entryCount} файлов`;
+}
+
+function createMenuRepositoryRowBody(entry) {
+  const name = String(entry.name || entry.slug || "Репозиторий").trim();
+  const slug = String(entry.slug || "").trim();
   const body = document.createElement("span");
   body.className = "menu-repository-body";
 
+  const nameRow = document.createElement("span");
+  nameRow.className = "menu-repository-name-row";
+  nameRow.append(createMenuRepositoryBookIcon());
   const nameNode = document.createElement("span");
   nameNode.className = "menu-repository-name";
-  nameNode.textContent = String(entry.slug || "репозиторий").trim();
+  nameNode.textContent = name;
+  nameRow.appendChild(nameNode);
 
-  const metaNode = document.createElement("span");
-  metaNode.className = "menu-repository-meta";
-  const hints = [entry.hasGit ? "git" : null, entry.entryCount ? `${entry.entryCount} файлов` : null]
-    .filter(Boolean)
-    .join(" · ");
-  metaNode.textContent = hints || "manifest.md нет";
+  const metaRow = document.createElement("span");
+  metaRow.className = "menu-repository-meta-row";
+  const slugNode = document.createElement("span");
+  slugNode.className = "menu-repository-slug";
+  slugNode.textContent = slug || "—";
+  const filesNode = document.createElement("span");
+  filesNode.className = "menu-repository-files";
+  filesNode.textContent = formatMenuRepositoryFileCount(entry.entryCount);
+  metaRow.append(slugNode, filesNode);
 
-  body.append(nameNode, metaNode);
+  body.append(nameRow, metaRow);
+  return body;
+}
+
+function attachRepositoryRowDragMetadata(row, entry, { registered = true } = {}) {
+  const slug = String(entry.slug || "").trim();
+  const folderPath = String(entry.folderPath || `awn-repositories/${slug}`)
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!folderPath) return;
+  const manifestPath = String(entry.manifestPath || `${folderPath}/manifest.md`)
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  row.dataset.repositoryFolderPath = folderPath;
+  row.dataset.repositoryManifestPath = registered ? manifestPath : folderPath;
+  row.dataset.repositoryLabel = String(entry.name || entry.slug || slug).trim();
+  row.draggable = true;
+}
+
+function createMenuRepositoryGitIcon({ hasGit = false } = {}) {
+  const git = document.createElement("span");
+  git.className = "menu-repository-git-icon menu-marker menu-marker-git";
+  git.classList.toggle("is-active", hasGit);
+  git.classList.toggle("is-inactive", !hasGit);
+  git.title = hasGit ? "Git-репозиторий" : "Нет .git";
+  git.setAttribute("aria-label", hasGit ? "Git" : "Нет Git");
+  git.appendChild(createGitMarkerSvg());
+  return git;
+}
+
+function createMenuRepositoryUnregisteredRow(entry) {
+  const row = document.createElement("li");
+  row.className = "menu-repository-item menu-repository-item--unregistered";
+  row.title = entry.hint || "manifest.md нет — перетащите в чат или подхватите";
+
+  const leading = document.createElement("span");
+  leading.className = "menu-repository-leading";
+  leading.appendChild(createMenuRepositoryGitIcon({ hasGit: Boolean(entry.hasGit) }));
 
   const adoptBtn = document.createElement("button");
   adoptBtn.type = "button";
   adoptBtn.className = "menu-repository-adopt-btn";
-  adoptBtn.textContent = "Подхватить";
-  adoptBtn.title = "Создать manifest.md для существующей папки";
+  adoptBtn.title = "Подхватить — создать manifest.md";
+  adoptBtn.setAttribute("aria-label", "Подхватить");
+  adoptBtn.draggable = false;
+  adoptBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
   adoptBtn.addEventListener("click", (event) => {
     event.stopPropagation();
-    void adoptMenuRepository(entry.slug);
+    openRepositoryAdoptModal(entry);
   });
 
-  row.append(statusNode, body, adoptBtn);
+  row.append(
+    leading,
+    createMenuRepositoryRowBody({ ...entry, name: entry.slug || "репозиторий" }),
+    adoptBtn
+  );
+  attachRepositoryRowDragMetadata(row, entry, { registered: false });
+
+  row.addEventListener("click", (event) => {
+    if (event.target.closest(".menu-repository-adopt-btn")) return;
+    openRepositoryAdoptModal(entry);
+  });
+  row.addEventListener("dragstart", (event) => {
+    if (event.target.closest(".menu-repository-adopt-btn")) {
+      event.preventDefault();
+    }
+  });
   return row;
 }
 
@@ -93615,36 +94143,14 @@ function createMenuRepositoryRow(repo) {
   row.tabIndex = 0;
   row.title = repo.description || repo.manifestPath || "";
 
-  const statusNode = document.createElement("span");
-  statusNode.className = `menu-repository-status is-${String(repo.status || "study").toLowerCase()}`;
-  statusNode.textContent = repositoryStatusLabel(repo.status);
-  statusNode.setAttribute("aria-hidden", "true");
+  const leading = document.createElement("span");
+  leading.className = "menu-repository-leading";
+  leading.appendChild(createMenuRepositoryGitIcon({ hasGit: Boolean(repo.hasGit) }));
 
-  const body = document.createElement("span");
-  body.className = "menu-repository-body";
+  row.append(leading, createMenuRepositoryRowBody(repo));
+  attachRepositoryRowDragMetadata(row, repo, { registered: true });
 
-  const nameNode = document.createElement("span");
-  nameNode.className = "menu-repository-name";
-  nameNode.textContent = String(repo.name || repo.slug || "Репозиторий").trim();
-
-  const metaNode = document.createElement("span");
-  metaNode.className = "menu-repository-meta";
-  const tech = Array.isArray(repo.tech) ? repo.tech.filter(Boolean).slice(0, 3).join(", ") : "";
-  metaNode.textContent = [repo.slug, tech].filter(Boolean).join(" · ");
-
-  body.append(nameNode, metaNode);
-  row.append(statusNode, body);
-
-  const openRepository = () => {
-    void (async () => {
-      if (await tryOpenMarkdownLinkByWorkspaceRel(repo.manifestPath)) {
-        syncAppRouteToUrl({ push: true });
-        return;
-      }
-      showToast(`Не удалось открыть ${repo.manifestPath}`, "error");
-    })();
-  };
-
+  const openRepository = () => openRepositoryEditModal(repo);
   row.addEventListener("click", openRepository);
   row.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -93655,19 +94161,103 @@ function createMenuRepositoryRow(repo) {
   return row;
 }
 
+function sortMenuRepositoryItems(items) {
+  items.sort((a, b) =>
+    String(a.name || a.slug || "").localeCompare(String(b.name || b.slug || ""), "ru", {
+      sensitivity: "base",
+      numeric: true
+    })
+  );
+  return items;
+}
+
+function groupMenuRepositories(repositories = [], unregistered = [], groupsCatalog = null) {
+  const defs = resolveRepositoryGroupsCatalog(groupsCatalog);
+  const buckets = new Map(defs.map((group) => [group.id, []]));
+
+  for (const repo of repositories) {
+    const groupId = String(repo.group || "study").trim() || "study";
+    if (!buckets.has(groupId)) buckets.set(groupId, []);
+    buckets.get(groupId).push({ kind: "registered", entry: repo });
+  }
+
+  for (const entry of unregistered) {
+    if (!buckets.has("new")) buckets.set("new", []);
+    buckets.get("new").push({ kind: "unregistered", entry });
+  }
+
+  return defs.map((group) => {
+    const items = buckets.get(group.id) || [];
+    items.sort((a, b) =>
+      String(a.entry?.name || a.entry?.slug || "").localeCompare(
+        String(b.entry?.name || b.entry?.slug || ""),
+        "ru",
+        { sensitivity: "base", numeric: true }
+      )
+    );
+    return {
+      id: group.id,
+      title: group.title || group.id,
+      items,
+      highlightUnregistered: group.id === "new"
+    };
+  });
+}
+
+function createMenuRepositoryGroupNode(title, items, { highlightUnregistered = false } = {}) {
+  const item = document.createElement("li");
+  item.className = highlightUnregistered
+    ? "menu-repository-group menu-repository-group--unregistered"
+    : "menu-repository-group";
+
+  const details = document.createElement("details");
+  details.className = "menu-repository-group-details";
+  details.open = items.length > 0;
+
+  const summary = document.createElement("summary");
+  summary.className = highlightUnregistered
+    ? "menu-repository-group-summary menu-repository-group-summary--unregistered"
+    : "menu-repository-group-summary";
+  summary.textContent = title;
+
+  const count = document.createElement("span");
+  count.className = "menu-repository-group-count";
+  count.textContent = String(items.length);
+  summary.appendChild(count);
+
+  const body = document.createElement("div");
+  body.className = "menu-repository-group-body";
+
+  const list = document.createElement("ul");
+  list.className = "menu-repository-group-children";
+  for (const row of items) {
+    if (row.kind === "unregistered") {
+      list.appendChild(createMenuRepositoryUnregisteredRow(row.entry));
+    } else {
+      list.appendChild(createMenuRepositoryRow(row.entry));
+    }
+  }
+
+  body.appendChild(list);
+  details.append(summary, body);
+  item.appendChild(details);
+  return item;
+}
+
 function renderMenuRepositories(payload = null, { loading = false, error = false } = {}) {
   if (!menuRepositoriesListNode) return;
+  menuRepositoriesListNode.classList.remove("is-loading");
   menuRepositoriesListNode.replaceChildren();
 
-  if (loading) {
+  if (loading && !menuRepositoriesLastPayload) {
     const item = document.createElement("li");
-    item.className = "menu-repository-item menu-repository-item--empty";
+    item.className = "menu-repository-item menu-repository-item--empty menu-repository-item--skeleton";
     item.textContent = "Загрузка…";
     menuRepositoriesListNode.appendChild(item);
     return;
   }
 
-  if (error || !payload) {
+  if (error && !menuRepositoriesLastPayload) {
     const item = document.createElement("li");
     item.className = "menu-repository-item menu-repository-item--empty is-error";
     item.textContent = "Не удалось прочитать";
@@ -93675,38 +94265,150 @@ function renderMenuRepositories(payload = null, { loading = false, error = false
     return;
   }
 
-  const repositories = Array.isArray(payload.repositories) ? payload.repositories : [];
-  const unregistered = Array.isArray(payload.unregistered) ? payload.unregistered : [];
+  const data = payload || menuRepositoriesLastPayload;
+  if (!data) return;
 
-  if (!repositories.length && !unregistered.length) {
+  if (data.emptyHint === "select-agent") {
     const item = document.createElement("li");
     item.className = "menu-repository-item menu-repository-item--empty";
-    item.textContent =
-      payload.emptyHint === "select-agent"
-        ? "Выберите агента"
-        : "Нажмите «+ Репозиторий» или положите клон и «Подхватить»";
+    item.textContent = "Выберите агента";
     menuRepositoriesListNode.appendChild(item);
     return;
   }
 
-  for (const entry of unregistered) {
-    menuRepositoriesListNode.appendChild(createMenuRepositoryUnregisteredRow(entry));
+  const repositories = Array.isArray(data.repositories) ? data.repositories : [];
+  const unregistered = Array.isArray(data.unregistered) ? data.unregistered : [];
+  const sections = groupMenuRepositories(repositories, unregistered, data.groupsCatalog);
+  for (const section of sections) {
+    menuRepositoriesListNode.appendChild(
+      createMenuRepositoryGroupNode(section.title, section.items, {
+        highlightUnregistered: section.highlightUnregistered
+      })
+    );
   }
-  for (const repo of repositories) {
-    menuRepositoriesListNode.appendChild(createMenuRepositoryRow(repo));
+  enableVoiceChatDragSources(menuRepositoriesListNode);
+}
+
+function syncRepositoriesIndexRowState(payload = menuRepositoriesLastPayload) {
+  if (!menuRepositoriesIndexOpenBtn || !menuRepositoriesIndexRefreshBtn) return;
+  const hasAgent = Boolean(String(activeAgentId || "").trim());
+  menuRepositoriesIndexRow?.classList.toggle("hidden", !hasAgent);
+  const indexFile = payload?.indexFile;
+  const hasIndex = Boolean(indexFile?.exists);
+  const indexPath = String(indexFile?.path || REPOSITORY_INDEX_REL).trim() || REPOSITORY_INDEX_REL;
+  menuRepositoriesIndexOpenBtn.textContent = "Индекс репозиториев";
+  menuRepositoriesIndexOpenBtn.classList.toggle("is-available", hasIndex);
+  menuRepositoriesIndexOpenBtn.classList.toggle("is-generated", !hasIndex);
+  menuRepositoriesIndexOpenBtn.title = hasIndex
+    ? `Открыть ${indexPath}`
+    : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для обновления ${indexPath})`;
+  menuRepositoriesIndexRefreshBtn.title = `Обновить и сохранить ${indexPath}`;
+}
+
+function setRepositoryIndexRefreshLoading(loading) {
+  if (!menuRepositoriesIndexOpenBtn || !menuRepositoriesIndexRefreshBtn) return;
+  menuRepositoriesIndexOpenBtn.disabled = loading;
+  menuRepositoriesIndexRefreshBtn.disabled = loading;
+  menuRepositoriesIndexRefreshBtn.classList.toggle("is-loading", loading);
+  menuRepositoriesIndexRefreshBtn.textContent = loading ? "" : "⟲";
+  let spinner = menuRepositoriesIndexRefreshBtn.querySelector(
+    ".node-navigation-workspace-counter-topic-index-refresh-spinner"
+  );
+  if (loading) {
+    if (!spinner) {
+      spinner = document.createElement("span");
+      spinner.className = "node-navigation-workspace-counter-topic-index-refresh-spinner";
+      spinner.setAttribute("aria-hidden", "true");
+      menuRepositoriesIndexRefreshBtn.appendChild(spinner);
+    }
+  } else if (spinner) {
+    spinner.remove();
+  }
+}
+
+async function refreshRepositoryIndex(agentId = activeAgentId) {
+  const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (!resolvedAgent) {
+    showToast("Выберите агента", "error");
+    return false;
+  }
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/repository-index", {}, resolvedAgent), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ overwrite: true })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.details || `HTTP ${response.status}`);
+    }
+    if (menuRepositoriesLastPayload) {
+      menuRepositoriesLastPayload.indexFile = {
+        path: data.indexFile?.path || data.written?.path || REPOSITORY_INDEX_REL,
+        exists: true
+      };
+    }
+    syncRepositoriesIndexRowState(menuRepositoriesLastPayload);
+    return true;
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+    return false;
+  }
+}
+
+async function openRepositoryIndexOverview() {
+  const indexPath =
+    String(menuRepositoriesLastPayload?.indexFile?.path || REPOSITORY_INDEX_REL).trim() ||
+    REPOSITORY_INDEX_REL;
+  if (await tryOpenMarkdownLinkByWorkspaceRel(indexPath)) {
+    syncAppRouteToUrl({ push: true });
+    return;
+  }
+  showToast(`Не удалось открыть ${indexPath}`, "error");
+}
+
+async function handleRepositoryIndexRefreshClick() {
+  if (
+    !menuRepositoriesIndexRefreshBtn ||
+    menuRepositoriesIndexRefreshBtn.disabled ||
+    menuRepositoriesIndexRefreshBtn.classList.contains("is-loading")
+  ) {
+    return;
+  }
+  setRepositoryIndexRefreshLoading(true);
+  try {
+    const ok = await refreshRepositoryIndex();
+    if (ok) {
+      showToast("Индекс репозиториев обновлён", "success");
+      await refreshMenuRepositories();
+    }
+  } finally {
+    setRepositoryIndexRefreshLoading(false);
   }
 }
 
 async function refreshMenuRepositories(agentId = activeAgentId) {
   if (!menuRepositoriesListNode) return;
 
-  const seq = ++menuRepositoriesLoadSeq;
-  renderMenuRepositories(null, { loading: true });
-
   const resolvedAgent = String(agentId || activeAgentId || "").trim();
+  if (resolvedAgent !== menuRepositoriesCachedAgentId) {
+    menuRepositoriesLastPayload = null;
+    menuRepositoriesCachedAgentId = resolvedAgent;
+  }
+
+  const seq = ++menuRepositoriesLoadSeq;
+  const hasCached = Boolean(menuRepositoriesLastPayload);
+  if (hasCached) {
+    menuRepositoriesListNode.classList.add("is-loading");
+  } else {
+    renderMenuRepositories(null, { loading: true });
+  }
+
   if (!resolvedAgent) {
     if (seq !== menuRepositoriesLoadSeq) return;
-    renderMenuRepositories({ repositories: [], emptyHint: "select-agent" });
+    menuRepositoriesLastPayload = { repositories: [], emptyHint: "select-agent" };
+    renderMenuRepositories(menuRepositoriesLastPayload);
+    syncRepositoriesIndexRowState(menuRepositoriesLastPayload);
     return;
   }
 
@@ -93715,10 +94417,18 @@ async function refreshMenuRepositories(agentId = activeAgentId) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (seq !== menuRepositoriesLoadSeq) return;
+    menuRepositoriesLastPayload = data;
     renderMenuRepositories(data);
+    syncRepositoriesIndexRowState(data);
   } catch {
     if (seq !== menuRepositoriesLoadSeq) return;
-    renderMenuRepositories(null, { error: true });
+    if (!menuRepositoriesLastPayload) {
+      renderMenuRepositories(null, { error: true });
+    } else {
+      menuRepositoriesListNode.classList.remove("is-loading");
+      showToast("Не удалось обновить каталог репозиториев", "error");
+    }
+    syncRepositoriesIndexRowState(menuRepositoriesLastPayload);
   }
 }
 
@@ -93736,7 +94446,30 @@ function setupRepositoriesUi() {
   setupRepositoriesUi.initialized = true;
   wireMenuStaticSummaryRefreshButton(menuRepositoriesRefreshBtn, handleMenuRepositoriesRefreshClick);
   menuRepositoriesCreateBtn?.addEventListener("click", openRepositoryCreateModal);
+  menuRepositoriesGroupsBtn?.addEventListener("click", () => void openRepositoryGroupsModal());
+  menuRepositoriesIndexOpenBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (menuRepositoriesIndexOpenBtn.disabled) return;
+    void openRepositoryIndexOverview();
+  });
+  menuRepositoriesIndexRefreshBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void handleRepositoryIndexRefreshClick();
+  });
+  repositoryGroupsAddBtn?.addEventListener("click", () => {
+    repositoryGroupsDraft.groups.push({ id: "", title: "" });
+    renderRepositoryGroupsEditor();
+  });
+  repositoryGroupsCancelBtn?.addEventListener("click", closeRepositoryGroupsModal);
+  repositoryGroupsCloseBtn?.addEventListener("click", closeRepositoryGroupsModal);
+  repositoryGroupsSaveBtn?.addEventListener("click", () => void saveRepositoryGroups());
+  repositoryGroupsModalNode?.addEventListener("click", (event) => {
+    if (event.target === repositoryGroupsModalNode) closeRepositoryGroupsModal();
+  });
   repositoryCreateCancelBtn?.addEventListener("click", closeRepositoryCreateModal);
+  repositoryCreateOpenManifestBtn?.addEventListener("click", () => void openRepositoryManifestFromModal());
   repositoryCreateSubmitBtn?.addEventListener("click", () => void submitRepositoryCreate());
   repositoryCreateNameInputNode?.addEventListener("input", () => {
     if (!repositoryCreateSlugInputNode) return;

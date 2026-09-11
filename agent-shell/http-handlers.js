@@ -763,7 +763,7 @@ function createShellHandlers(deps) {
 
     if (req.method === "POST" && url.pathname === "/api/shell/camera/snapshot/complete") {
       try {
-        const payload = await deps.readJsonBody(req);
+        const payload = await deps.readJsonBody(req, 12_000_000);
         const requestId = String(payload?.requestId || "").trim();
         const dataUrl = String(payload?.dataUrl || payload?.image || "").trim();
         if (!requestId || !dataUrl) {
@@ -791,7 +791,7 @@ function createShellHandlers(deps) {
 
     if (req.method === "POST" && url.pathname === "/api/shell/camera/speech-snapshot") {
       try {
-        const payload = await deps.readJsonBody(req);
+        const payload = await deps.readJsonBody(req, 12_000_000);
         const dataUrl = String(payload?.dataUrl || "").trim();
         if (!dataUrl) {
           deps.sendJson(res, 400, { error: "dataUrl is required" });
@@ -851,7 +851,7 @@ function createShellHandlers(deps) {
 
     if (req.method === "POST" && url.pathname === "/api/shell/screen/snapshot/complete") {
       try {
-        const payload = await deps.readJsonBody(req);
+        const payload = await deps.readJsonBody(req, 12_000_000);
         const requestId = String(payload?.requestId || "").trim();
         const dataUrl = String(payload?.dataUrl || payload?.image || "").trim();
         if (!requestId || !dataUrl) {
@@ -879,7 +879,7 @@ function createShellHandlers(deps) {
 
     if (req.method === "POST" && url.pathname === "/api/shell/screen/speech-snapshot") {
       try {
-        const payload = await deps.readJsonBody(req);
+        const payload = await deps.readJsonBody(req, 12_000_000);
         const dataUrl = String(payload?.dataUrl || "").trim();
         if (!dataUrl) {
           deps.sendJson(res, 400, { error: "dataUrl is required" });

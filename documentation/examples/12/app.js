@@ -1,5 +1,5 @@
 const VARIANTS = [
-  { id: "01", slug: "01-capsule", name: "Capsule", note: "Нижняя капсула: иконка → ряд кнопок" },
+  { id: "01", slug: "01-capsule", name: "Capsule", note: "Капсула: слева захват, справа вставка" },
   { id: "02", slug: "02-corner-fab", name: "Corner FAB", note: "Круг справа снизу, раскрывается влево" },
   { id: "03", slug: "03-vertical-rail", name: "Vertical rail", note: "Узкая колонка вверх от иконки" },
   { id: "04", slug: "04-glass-sheet", name: "Glass sheet", note: "Стекло-карточка сеткой 4×2" },
@@ -8,7 +8,7 @@ const VARIANTS = [
   { id: "07", slug: "07-edge-chip", name: "Edge chip", note: "Чип у правого края" },
   { id: "08", slug: "08-arc-fan", name: "Arc fan", note: "Веер кружков вокруг иконки" },
   { id: "09", slug: "09-morph-bar", name: "Morph bar", note: "Иконка расширяется в бар" },
-  { id: "10", slug: "10-quiet-menu", name: "Quiet menu", note: "Тихое меню со подписями" }
+  { id: "10", slug: "10-quiet-menu", name: "Quiet menu", note: "Тихое меню с подписями" }
 ];
 
 const BRAND_SVG =
@@ -39,20 +39,29 @@ const ICONS = {
   screenshot:
     '<svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>',
   prompts:
-    '<svg viewBox="0 0 24 24"><path d="M13 3L6 14h5l-1 7 8-12h-5z"/></svg>'
+    '<svg viewBox="0 0 24 24"><path d="M13 3L6 14h5l-1 7 8-12h-5z"/></svg>',
+  collapse:
+    '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>'
 };
 
-const ACTIONS = [
-  { key: "element", label: "Элемент", title: "Выбрать блок на странице" },
-  { key: "page", label: "Страница", title: "Вставить информацию о странице" },
-  { key: "clean", label: "Чище", title: "Текст страницы с абзацами" },
-  { key: "markdown", label: "Markdown", title: "Страница в Markdown" },
-  { key: "selection", label: "Выделение", title: "Вставить выделенный текст" },
-  { key: "screenshot", label: "Скрин", title: "Скриншот вкладки" },
-  { key: "prompts", label: "Промпты", title: "Быстрые промпты", menu: true }
+const PAGE_MENU = [
+  { head: "Страница" },
+  { key: "page", label: "Заголовок и ссылка", hint: "Название страницы и URL" },
+  { key: "clean", label: "Текст страницы", hint: "Статья абзацами, без меню и рекламы" },
+  { key: "markdown", label: "Как Markdown", hint: "Заголовки, ссылки и списки в MD" }
 ];
 
-const PROMPTS = ["Объясни", "Конспект", "Перевод", "Задача"];
+const TEXT_MENU = [
+  { head: "Выделение" },
+  { key: "selection", label: "Вставить выделение" },
+  { sep: true },
+  { head: "Промпты" },
+  { key: "prompt-read", label: "Прочитай" },
+  { key: "prompt-explain", label: "Объясни" },
+  { key: "prompt-notes", label: "Конспект" },
+  { key: "prompt-translate", label: "Перевод" },
+  { key: "prompt-task", label: "Задача" }
+];
 
 function currentVariant() {
   return VARIANTS.find((item) => item.id === document.body.dataset.variant) || VARIANTS[0];
@@ -68,7 +77,7 @@ function injectChrome() {
   bar.innerHTML =
     `<a class="demo-back" href="${rootPrefix}index.html">← Каталог</a>` +
     `<div><h1>Companion toolbar · ${variant.name}</h1><p>${variant.note}</p></div>` +
-    `<span class="demo-hint">клик по иконке</span>`;
+    `<span class="demo-hint">иконка → Shell · стрелка свернуть</span>`;
   document.body.prepend(bar);
 
   if (isPlayground) {
@@ -122,47 +131,99 @@ function injectToolbar() {
   const actions = document.createElement("div");
   actions.className = "asc-actions";
 
-  let promptWrap = null;
-  let promptPop = null;
-  let promptBtn = null;
+  const menus = [];
 
-  for (const action of ACTIONS) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `asc-btn asc-btn--${action.key}`;
-    btn.title = action.title;
-    btn.setAttribute("aria-label", action.label);
-    btn.innerHTML = `${ICONS[action.key]}<span class="asc-label">${action.label}</span>`;
-    if (action.menu) {
-      promptWrap = document.createElement("div");
-      promptWrap.className = "asc-menu";
-      promptBtn = btn;
-      promptBtn.classList.add("asc-btn--menu");
-      promptPop = document.createElement("div");
-      promptPop.className = "asc-menu-pop hidden";
-      promptPop.setAttribute("role", "menu");
-      for (const label of PROMPTS) {
-        const item = document.createElement("button");
-        item.type = "button";
-        item.className = "asc-menu-item";
-        item.textContent = label;
-        item.addEventListener("click", (event) => {
-          event.stopPropagation();
-          promptPop.classList.add("hidden");
-          setStatus(`Промпт: ${label}`, "ok");
-        });
-        promptPop.append(item);
-      }
-      promptWrap.append(btn, promptPop);
-      actions.append(promptWrap);
-    } else {
-      btn.addEventListener("click", () => {
-        if (action.key === "element") btn.classList.toggle("is-active");
-        setStatus(action.label, "ok");
-      });
-      actions.append(btn);
+  function closeMenus(except) {
+    for (const menu of menus) {
+      if (menu !== except) menu.classList.add("hidden");
     }
   }
+
+  function createBtn(key, label, title) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `asc-btn asc-btn--${key}`;
+    btn.title = title;
+    btn.setAttribute("aria-label", label);
+    btn.innerHTML = `${ICONS[key]}<span class="asc-label">${label}</span>`;
+    return btn;
+  }
+
+  function createMenu(key, label, title, items) {
+    const wrap = document.createElement("div");
+    wrap.className = "asc-menu";
+    const btn = createBtn(key, label, title);
+    btn.classList.add("asc-btn--menu");
+    btn.setAttribute("aria-haspopup", "menu");
+    btn.setAttribute("aria-expanded", "false");
+    const pop = document.createElement("div");
+    pop.className = "asc-menu-pop hidden";
+    pop.setAttribute("role", "menu");
+    for (const item of items) {
+      if (item.head) {
+        const head = document.createElement("div");
+        head.className = "asc-menu-head";
+        head.textContent = item.head;
+        pop.append(head);
+        continue;
+      }
+      if (item.sep) {
+        const line = document.createElement("div");
+        line.className = "asc-menu-sep";
+        pop.append(line);
+        continue;
+      }
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "asc-menu-item";
+      option.textContent = item.label;
+      if (item.hint) option.title = item.hint;
+      option.addEventListener("click", (event) => {
+        event.stopPropagation();
+        closeMenus();
+        setStatus(item.label, "ok");
+      });
+      pop.append(option);
+    }
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const open = pop.classList.contains("hidden");
+      closeMenus(pop);
+      pop.classList.toggle("hidden", !open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    wrap.append(btn, pop);
+    menus.push(pop);
+    return wrap;
+  }
+
+  const left = document.createElement("div");
+  left.className = "asc-cluster asc-cluster--left";
+  const elementBtn = createBtn("element", "Выбор", "Выбрать блок на странице");
+  const shotBtn = createBtn("screenshot", "Скрин", "Скриншот вкладки");
+  elementBtn.addEventListener("click", () => {
+    elementBtn.classList.toggle("is-active");
+    setStatus(elementBtn.classList.contains("is-active") ? "Выбор элемента" : "Выбор выключен", "ok");
+  });
+  shotBtn.addEventListener("click", () => setStatus("Скрин", "ok"));
+  left.append(elementBtn, shotBtn);
+
+  const divider = document.createElement("span");
+  divider.className = "asc-divider";
+  divider.setAttribute("aria-hidden", "true");
+
+  const right = document.createElement("div");
+  right.className = "asc-cluster asc-cluster--right";
+  right.append(
+    createMenu("page", "Страница", "Вставить страницу", PAGE_MENU),
+    createMenu("selection", "Текст", "Выделение и промпты", TEXT_MENU)
+  );
+
+  actions.append(left, divider, right);
+
+  const collapseBtn = createBtn("collapse", "Свернуть", "Свернуть панель");
+  collapseBtn.classList.add("asc-btn--collapse");
+  actions.append(collapseBtn);
 
   const status = document.createElement("span");
   status.className = "asc-status";
@@ -171,12 +232,31 @@ function injectToolbar() {
   root.append(brand, actions, status);
   document.body.append(root);
 
+  const sidebar = document.createElement("aside");
+  sidebar.className = "asc-sidebar";
+  sidebar.setAttribute("aria-label", "Agent Shell");
+  sidebar.innerHTML =
+    '<header class="asc-sidebar-head">' +
+    '<strong>Agent Shell</strong>' +
+    '<button type="button" class="asc-sidebar-close" aria-label="Закрыть сайдбар">✕</button>' +
+    "</header>" +
+    '<div class="asc-sidebar-body">' +
+    "<p>Side Panel Companion. Сюда вставляются страница, выделение и скрины.</p>" +
+    '<div class="asc-sidebar-compose">Напишите сообщение…</div>' +
+    "</div>";
+  document.body.append(sidebar);
+
+  function setSidebar(open) {
+    sidebar.classList.toggle("is-open", open);
+    brand.classList.toggle("is-active", open);
+  }
+
   function setExpanded(next) {
     root.classList.toggle("is-expanded", next);
     brand.setAttribute("aria-expanded", next ? "true" : "false");
-    brand.title = next ? "Свернуть панель" : "Развернуть панель";
-    brand.setAttribute("aria-label", next ? "Свернуть панель" : "Развернуть панель");
-    if (!next && promptPop) promptPop.classList.add("hidden");
+    brand.title = next ? "Открыть Agent Shell" : "Развернуть панель";
+    brand.setAttribute("aria-label", next ? "Открыть Agent Shell" : "Развернуть панель");
+    if (!next) closeMenus();
   }
 
   function setStatus(text, kind) {
@@ -195,23 +275,39 @@ function injectToolbar() {
 
   brand.addEventListener("click", (event) => {
     event.stopPropagation();
-    setExpanded(!root.classList.contains("is-expanded"));
+    if (!root.classList.contains("is-expanded")) {
+      setExpanded(true);
+      return;
+    }
+    const next = !sidebar.classList.contains("is-open");
+    setSidebar(next);
+    setStatus(next ? "Agent Shell открыт" : "Agent Shell закрыт", "ok");
   });
 
-  if (promptBtn && promptPop) {
-    promptBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      promptPop.classList.toggle("hidden");
-    });
-  }
+  collapseBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setExpanded(false);
+  });
+
+  sidebar.querySelector(".asc-sidebar-close").addEventListener("click", () => {
+    setSidebar(false);
+  });
 
   document.addEventListener("click", (event) => {
-    if (!root.contains(event.target)) {
-      setExpanded(false);
-    }
+    if (!root.contains(event.target)) closeMenus();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") setExpanded(false);
+    if (event.key !== "Escape") return;
+    const anyOpen = menus.some((menu) => !menu.classList.contains("hidden"));
+    if (anyOpen) {
+      closeMenus();
+      return;
+    }
+    if (sidebar.classList.contains("is-open")) {
+      setSidebar(false);
+      return;
+    }
+    setExpanded(false);
   });
 
   window.__ascSetExpanded = setExpanded;
@@ -232,6 +328,8 @@ function setVariant(id, pushUrl) {
   });
   const toolbar = document.getElementById("agent-shell-companion-toolbar");
   if (toolbar) toolbar.classList.remove("is-expanded");
+  document.querySelector(".asc-sidebar")?.classList.remove("is-open");
+  document.querySelector(".asc-brand")?.classList.remove("is-active");
   if (pushUrl) {
     const url = new URL(location.href);
     url.searchParams.set("v", item.id);
@@ -240,10 +338,9 @@ function setVariant(id, pushUrl) {
 }
 
 function boot() {
-  if (!document.body.dataset.variant) {
-    const fromQuery = new URLSearchParams(location.search).get("v");
-    document.body.dataset.variant = fromQuery || "01";
-  }
+  const fromQuery = new URLSearchParams(location.search).get("v");
+  if (fromQuery) document.body.dataset.variant = fromQuery;
+  if (!document.body.dataset.variant) document.body.dataset.variant = "01";
   injectChrome();
   injectToolbar();
 }

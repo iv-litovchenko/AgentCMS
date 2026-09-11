@@ -1,180 +1,37 @@
 #agent-shell-companion-toolbar {
-  all: initial;
-  position: fixed;
-  left: 50%;
-  bottom: 16px;
-  transform: translateX(-50%);
-  z-index: 2147483646;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: 999px;
-  background: rgba(15, 10, 30, 0.92);
-  border: 1px solid rgba(124, 58, 237, 0.55);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 12px;
-  color: #f5f3ff;
-  backdrop-filter: blur(8px);
+  position: fixed !important;
+  left: calc(50% + var(--asc-x, 0px)) !important;
+  bottom: calc(18px + var(--asc-y, 0px)) !important;
+  transform: translateX(-50%) !important;
+  z-index: 2147483646 !important;
+  display: block !important;
+  width: max-content !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: visible !important;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  color: #f5f3ff !important;
+  pointer-events: auto !important;
 }
 
-#agent-shell-companion-toolbar.is-expanded {
-  flex-wrap: wrap;
-  align-items: flex-start;
-  max-width: min(96vw, 680px);
-  border-radius: 16px;
-  padding: 8px 10px 6px;
-}
-
-#agent-shell-companion-toolbar button {
-  all: unset;
-  box-sizing: border-box;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#agent-shell-companion-toolbar .asc-brand {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  overflow: hidden;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.45);
-}
-
-#agent-shell-companion-toolbar .asc-brand svg {
-  display: block;
-  width: 28px;
-  height: 28px;
-}
-
-#agent-shell-companion-toolbar .asc-brand:hover {
-  filter: brightness(1.08);
-}
-
-#agent-shell-companion-toolbar .asc-actions {
-  display: none;
-  flex: 1 1 100%;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-#agent-shell-companion-toolbar.is-expanded .asc-actions {
-  display: flex;
-}
-
-#agent-shell-companion-toolbar .asc-btn {
-  gap: 4px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(167, 139, 250, 0.45);
-  color: #ede9fe;
-  white-space: nowrap;
-}
-
-#agent-shell-companion-toolbar .asc-btn-icon {
-  font-size: 13px;
-  line-height: 1;
-}
-
-#agent-shell-companion-toolbar .asc-btn-label {
-  font-size: 12px;
-  line-height: 1;
-}
-
-#agent-shell-companion-toolbar .asc-btn:hover {
-  background: rgba(124, 58, 237, 0.28);
-}
-
-#agent-shell-companion-toolbar .asc-btn.is-active {
-  background: rgba(99, 102, 241, 0.34);
-  border-color: rgba(129, 140, 248, 0.75);
-  color: #fff;
-}
-
-#agent-shell-companion-toolbar .asc-btn--markdown .asc-btn-icon {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-
-#agent-shell-companion-toolbar .asc-menu {
-  position: relative;
-  display: inline-flex;
-}
-
-#agent-shell-companion-toolbar .asc-menu-pop {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 8px);
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 132px;
-  padding: 6px;
-  border-radius: 12px;
-  border: 1px solid rgba(167, 139, 250, 0.45);
-  background: rgba(15, 10, 30, 0.98);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
-}
-
-#agent-shell-companion-toolbar .asc-menu-pop.hidden {
-  display: none;
-}
-
-#agent-shell-companion-toolbar .asc-menu-item {
-  width: 100%;
-  padding: 7px 10px;
-  border-radius: 8px;
-  border: 0;
-  background: transparent;
-  color: #ede9fe;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-#agent-shell-companion-toolbar .asc-menu-item:hover {
-  background: rgba(124, 58, 237, 0.28);
-}
-
-#agent-shell-companion-toolbar .asc-status {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  opacity: 0.85;
-  font-size: 11px;
-  padding-right: 4px;
-}
-
-#agent-shell-companion-toolbar.is-expanded .asc-status {
-  flex-basis: 100%;
-  padding-top: 2px;
-}
-
-#agent-shell-companion-toolbar .asc-status[data-kind="error"] {
-  color: #fecaca;
-}
-
-#agent-shell-companion-toolbar .asc-status[data-kind="ok"] {
-  color: #bbf7d0;
+html.asc-capturing-viewport #agent-shell-companion-toolbar,
+html.asc-capturing-viewport .cms-page-picker-root {
+  visibility: hidden !important;
+  opacity: 0 !important;
 }
 
 body.is-cms-page-picker-active {
   cursor: crosshair;
 }
 
-body.is-cms-page-picker-active #agent-shell-companion-toolbar,
-body.is-cms-page-picker-active #agent-shell-companion-toolbar * {
+body.is-cms-page-picker-active #agent-shell-companion-toolbar {
   cursor: default;
 }
 

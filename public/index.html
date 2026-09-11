@@ -991,12 +991,51 @@
                 <div class="menu-static-body">
                   <div class="menu-repositories-toolbar">
                     <button
+                      id="menu-repositories-groups-btn"
+                      type="button"
+                      class="menu-static-action-btn menu-repositories-groups-btn"
+                      title="Группы sidebar — awn-repositories/groups.yml"
+                    >
+                      <svg class="menu-repositories-groups-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M4 6h16M4 12h10M4 18h16"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                        />
+                        <circle cx="18" cy="12" r="2.5" stroke="currentColor" stroke-width="2" />
+                      </svg>
+                      <span class="menu-repositories-groups-label">Группы</span>
+                    </button>
+                    <button
                       id="menu-repositories-create-btn"
                       type="button"
                       class="menu-static-action-btn menu-repositories-create-btn"
                       title="Создать awn-repositories/{slug}/ с manifest.md"
                     >
                       + Репозиторий
+                    </button>
+                  </div>
+                  <div
+                    id="menu-repositories-index-row"
+                    class="menu-repositories-index-row node-navigation-workspace-counter-topic-index-row hidden"
+                  >
+                    <button
+                      id="menu-repositories-index-open-btn"
+                      type="button"
+                      class="menu-repositories-index-open node-navigation-workspace-counter-topic-index is-generated"
+                      title="Открыть awn-repositories/INDEX.md"
+                    >
+                      Индекс репозиториев
+                    </button>
+                    <button
+                      id="menu-repositories-index-refresh-btn"
+                      type="button"
+                      class="menu-repositories-index-refresh node-navigation-workspace-counter-topic-index-refresh"
+                      aria-label="Обновить INDEX.md репозиториев"
+                      title="Обновить и сохранить awn-repositories/INDEX.md"
+                    >
+                      ⟲
                     </button>
                   </div>
                   <ul
@@ -3793,6 +3832,45 @@
       </div>
     </div>
 
+    <div id="repository-groups-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+      <div class="modal-card repository-groups-modal-card">
+        <div class="repository-groups-modal-header">
+          <div class="repository-groups-modal-heading">
+            <div class="modal-message">Группы репозиториев</div>
+            <p class="repository-groups-modal-subtitle">
+              Файл <code>awn-repositories/groups.yml</code> — группировка sidebar без физических подпапок.
+            </p>
+          </div>
+          <button
+            id="repository-groups-close-btn"
+            class="modal-close-btn repository-groups-modal-close"
+            type="button"
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
+        </div>
+        <div class="repository-groups-modal-toolbar">
+          <span class="repository-groups-modal-toolbar-label">Список групп</span>
+          <button id="repository-groups-add-btn" type="button" class="repository-groups-add-btn">
+            + Группа
+          </button>
+        </div>
+        <div class="repository-groups-modal-body">
+          <div class="repository-groups-table-head" aria-hidden="true">
+            <span>Ключ</span>
+            <span>Название в sidebar</span>
+            <span></span>
+          </div>
+          <ul id="repository-groups-list" class="repository-groups-list" aria-label="Список групп"></ul>
+        </div>
+        <div class="modal-actions repository-groups-modal-actions">
+          <button id="repository-groups-cancel-btn" class="save-btn" type="button">Отмена</button>
+          <button id="repository-groups-save-btn" class="external-create-section-btn" type="button">Сохранить</button>
+        </div>
+      </div>
+    </div>
+
     <div id="repository-create-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
       <div class="modal-card awn-data-modal-card">
         <div class="modal-message" id="repository-create-modal-title">Новый репозиторий</div>
@@ -3816,7 +3894,15 @@
           <span>Git origin (необязательно)</span>
           <input id="repository-create-origin-input" type="url" placeholder="https://github.com/org/repo" spellcheck="false" autocomplete="off" />
         </label>
+        <label class="agents-registry-field agents-registry-create-field">
+          <span>Группа</span>
+          <select id="repository-create-group-input">
+            <option value="study">Изучение</option>
+          </select>
+          <p class="agents-registry-create-footnote">Sidebar-группа из <code>awn-repositories/groups.yml</code></p>
+        </label>
         <div class="modal-actions">
+          <button id="repository-create-open-manifest-btn" class="save-btn hidden" type="button">Открыть manifest.md</button>
           <button id="repository-create-cancel-btn" class="save-btn" type="button">Отмена</button>
           <button id="repository-create-submit-btn" class="external-create-section-btn" type="button">Создать</button>
         </div>

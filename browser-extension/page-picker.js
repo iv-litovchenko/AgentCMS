@@ -65,6 +65,9 @@
     ) {
       return true;
     }
+    const host = el.getRootNode?.()?.host;
+    if (host?.id === "agent-shell-companion-toolbar") return true;
+    if (host?.closest?.("#agent-shell-companion-toolbar, .cms-page-picker-root")) return true;
     return false;
   }
 

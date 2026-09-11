@@ -49,4 +49,19 @@ export function registerRepositoryTools(reg, client) {
     }),
     (payload) => client.post("/api/agent/repositories", payload)
   );
+
+  reg(
+    "update_repository",
+    "Update manifest frontmatter for an existing awn-repositories/{slug}/manifest.md card.",
+    z.object({
+      path: workspaceRelPath,
+      name: z.string().optional(),
+      description: z.string().optional(),
+      origin: z.string().optional(),
+      group: z.string().optional().describe("awn-repository-group sidebar grouping label"),
+      status: z.enum(["active", "study", "archived", "vendored"]).optional(),
+      body: z.string().optional()
+    }),
+    (payload) => client.put("/api/agent/repositories", payload)
+  );
 }
