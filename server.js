@@ -4222,6 +4222,7 @@ async function collectExternalContentFolders(folderAbsolute, prefix = "", option
     if (entry.name.startsWith(".")) continue;
     if (!entry.isDirectory()) continue;
     if (shouldSkipDirectory(entry.name)) continue;
+    if (shouldSkipRecordPartsPackageDirectoryForCollect(entry.name, options)) continue;
     const absolute = path.join(folderAbsolute, entry.name);
     const relative = path.join(prefix, entry.name).replace(/\\/g, "/");
     folders.push({ path: relative, name: entry.name });
@@ -8734,6 +8735,50 @@ async function renameRecordPartsFolderForMarkdownRename(parentFolderAbsolute, ol
     renamed: true,
     from: `${parentRelPrefix}${path.basename(sourceAbsolute)}`.replace(/\\/g, "/"),
     to: `${parentRelPrefix}${nextFolderName}`.replace(/\\/g, "/")
+  };
+}
+
+async function resolveRecordTitleForPartsFolder(folderAbsolute, slug) {
+  const normalizedSlug = String(slug || "").trim();
+  if (!normalizedSlug) return "";
+  const recordAbsolute = path.join(path.dirname(folderAbsolute), `${normalizedSlug}.md`);
+  try {
+    const raw = await fs.readFile(recordAbsolute, "utf-8");
+    const { frontmatter } = splitNodeFrontmatter(raw);
+    return String(getYamlScalar(frontmatter, "awn-name") || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+async function ensureRecordPartsFolderManifest(folderAbsolute) {
+  const folderName = path.basename(String(folderAbsolute || ""));
+  const slug = getRecordSlugFromPartsFolderName(folderName);
+  if (!slug) return { created: false };
+
+  const manifestAbsolute = path.join(folderAbsolute, MANIFEST_FILE);
+  try {
+    await fs.access(manifestAbsolute);
+    return { created: false, exists: true, manifestPath: manifestAbsolute };
+  } catch {
+    // create manifest below
+  }
+
+  const recordTitle = await resolveRecordTitleForPartsFolder(folderAbsolute, slug);
+  const label = recordTitle || slug;
+  const title = buildRecordPartsFolderTitle(label, true);
+  const parentRecordRef = `${slug}.md`;
+  const content = buildStorageSectionReadmeContent(title, null, slug).replace(
+    "> Описание раздела.",
+    `> Доп. материалы записи ${parentRecordRef}.`
+  );
+  await fs.writeFile(manifestAbsolute, content, "utf-8");
+  return {
+    created: true,
+    exists: true,
+    manifestPath: manifestAbsolute,
+    title,
+    parentRecordRef
   };
 }
 
@@ -22608,9 +22653,11 @@ async function handleApiForAgent(req, res, url) {
       if (!stat.isDirectory()) {
         return sendJson(res, 400, { error: "Path exists and is not a directory" });
       }
+      const recordPartsManifest = await ensureRecordPartsFolderManifest(folderAbsolute);
       return sendJson(res, 200, {
         ok: true,
-        folderPath: folderPath.replace(/\\/g, "/").replace(/\/+$/, "")
+        folderPath: folderPath.replace(/\\/g, "/").replace(/\/+$/, ""),
+        recordPartsManifest
       });
     } catch (error) {
       return sendJson(res, 500, {
