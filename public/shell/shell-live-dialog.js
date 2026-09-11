@@ -1,4 +1,4 @@
-/** Живой диалог v10: half-duplex TTS + VAD barge-in (говорите — перебить). */
+/** Живой диалог v11: half-duplex TTS + надёжный VAD barge-in. */
 
 import { playShellMicSound, primeShellProcessingAudio } from "@shell/ui-sounds";
 import { acquireShellWakeLock, hapticTap, releaseShellWakeLock } from "@shell/voice";
@@ -6,11 +6,16 @@ import { acquireShellWakeLock, hapticTap, releaseShellWakeLock } from "@shell/vo
 export const LIVE_UTTERANCE_END_MS = 1400;
 export const LIVE_BARGE_IN_MIN_CHARS = 3;
 export const LIVE_RESTART_MS = 120;
-const BARGE_VAD_INTERVAL_MS = 50;
-const BARGE_VAD_WARMUP_MS = 750;
-const BARGE_VAD_HOT_FRAMES = 7;
-const BARGE_VAD_MIN_RMS = 0.032;
-const BARGE_VAD_START_DELAY_MS = 350;
+const BARGE_VAD_INTERVAL_MS = 40;
+const BARGE_VAD_WARMUP_MS = 480;
+const BARGE_VAD_HOT_FRAMES = 5;
+const BARGE_VAD_MIN_RMS = 0.028;
+const BARGE_VAD_SPIKE_RATIO = 1.48;
+const BARGE_VAD_START_DELAY_MS = 120;
+const BARGE_MIC_RETRY_MS = 160;
+const BARGE_MIC_MAX_ATTEMPTS = 4;
+
+const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 export function createShellLiveDialog(deps) {
   let recognition = null;
@@ -32,6 +37,9 @@ export function createShellLiveDialog(deps) {
   let bargeBaseline = 0;
   let bargeHotFrames = 0;
   let bargeStartedAt = 0;
+  let bargeRecentPeak = 0;
+  let bargeMonitorStarting = false;
+  let bargeArmTimer = 0;
 
   const clearEndTimer = () => {
     if (!endTimer) return;
@@ -116,10 +124,18 @@ export function createShellLiveDialog(deps) {
     releaseMic({ abort: false });
   };
 
+  function clearBargeArmTimer() {
+    if (!bargeArmTimer) return;
+    clearInterval(bargeArmTimer);
+    bargeArmTimer = 0;
+  }
+
   function stopBargeMonitor() {
+    clearBargeArmTimer();
     bargeMonitorActive = false;
     bargeHotFrames = 0;
     bargeBaseline = 0;
+    bargeRecentPeak = 0;
     if (bargeTimer) {
       clearInterval(bargeTimer);
       bargeTimer = 0;
@@ -170,13 +186,16 @@ export function createShellLiveDialog(deps) {
       return;
     }
 
-    const threshold = Math.max(BARGE_VAD_MIN_RMS, bargeBaseline * 2.6 + 0.014);
-    if (rms > threshold) {
+    const prevPeak = bargeRecentPeak;
+    bargeRecentPeak = Math.max(bargeRecentPeak * 0.988, rms);
+    const spikeThreshold = Math.max(BARGE_VAD_MIN_RMS, prevPeak * BARGE_VAD_SPIKE_RATIO + 0.01);
+    const voiceDetected = rms > spikeThreshold;
+    if (voiceDetected) {
       bargeHotFrames += 1;
       if (bargeHotFrames >= BARGE_VAD_HOT_FRAMES) {
         const now = Date.now();
         if (now < bargeCooldownUntil) return;
-        bargeCooldownUntil = now + 1200;
+        bargeCooldownUntil = now + 1000;
         stopBargeMonitor();
         void deps.bargeInLiveDialog?.({ phrase: "", voice: true });
       }
@@ -185,20 +204,45 @@ export function createShellLiveDialog(deps) {
     }
   }
 
+  async function acquireBargeMicStream() {
+    if (!navigator.mediaDevices?.getUserMedia) return null;
+    let lastError = null;
+    for (let attempt = 0; attempt < BARGE_MIC_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        return await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+      } catch (error) {
+        lastError = error;
+        if (attempt + 1 < BARGE_MIC_MAX_ATTEMPTS) {
+          await sleep(BARGE_MIC_RETRY_MS * (attempt + 1));
+        }
+      }
+    }
+    deps.shellLog?.("live", "barge mic failed", String(lastError?.message || lastError?.name || "unknown"));
+    return null;
+  }
+
   async function startBargeMonitor() {
-    stopBargeMonitor();
     if (!isActive() || !deps.shouldBargeIn?.()) return;
+    if (bargeMonitorActive || bargeMonitorStarting) return;
     if (!navigator.mediaDevices?.getUserMedia) return;
 
+    bargeMonitorStarting = true;
+    stopBargeMonitor();
+
     try {
-      bargeStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
+      bargeStream = await acquireBargeMicStream();
+      if (!bargeStream || !isActive() || !listeningPausedForAgent) return;
+
       bargeAudioCtx = new AudioContext();
+      if (bargeAudioCtx.state === "suspended") {
+        await bargeAudioCtx.resume().catch(() => {});
+      }
       bargeSource = bargeAudioCtx.createMediaStreamSource(bargeStream);
       bargeAnalyser = bargeAudioCtx.createAnalyser();
       bargeAnalyser.fftSize = 2048;
@@ -206,11 +250,16 @@ export function createShellLiveDialog(deps) {
       bargeStartedAt = Date.now();
       bargeBaseline = 0;
       bargeHotFrames = 0;
+      bargeRecentPeak = 0;
       bargeMonitorActive = true;
       bargeTimer = window.setInterval(tickBargeMonitor, BARGE_VAD_INTERVAL_MS);
       deps.syncMicButtonUi?.({ force: true });
-    } catch {
+      deps.shellLog?.("live", "barge monitor on");
+    } catch (error) {
+      deps.shellLog?.("live", "barge monitor failed", String(error?.message || error));
       stopBargeMonitor();
+    } finally {
+      bargeMonitorStarting = false;
     }
   }
 
@@ -220,10 +269,22 @@ export function createShellLiveDialog(deps) {
     flushCapture();
     releaseMic({ abort: true });
     deps.state.micActive = false;
-    window.setTimeout(() => {
+    const armBargeMonitor = () => {
       if (!isActive() || !listeningPausedForAgent) return;
       void startBargeMonitor();
-    }, BARGE_VAD_START_DELAY_MS);
+    };
+    clearBargeArmTimer();
+    window.setTimeout(armBargeMonitor, BARGE_VAD_START_DELAY_MS);
+    window.setTimeout(armBargeMonitor, BARGE_VAD_START_DELAY_MS + BARGE_MIC_RETRY_MS * 2);
+    bargeArmTimer = window.setInterval(() => {
+      if (!isActive() || !listeningPausedForAgent) {
+        clearBargeArmTimer();
+        return;
+      }
+      if (!bargeMonitorActive && !bargeMonitorStarting && deps.shouldBargeIn?.()) {
+        void startBargeMonitor();
+      }
+    }, 900);
     deps.syncMicButtonUi?.({ force: true });
     deps.syncVoiceRecordTimer?.();
   }
@@ -417,6 +478,7 @@ export function createShellLiveDialog(deps) {
   async function stop({ notify = true } = {}) {
     if (!isActive() && !starting) return;
     clearRestartTimer();
+    bargeMonitorStarting = false;
     stopBargeMonitor();
     listeningPausedForAgent = false;
     deps.state.liveDialogActive = false;

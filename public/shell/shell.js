@@ -1393,7 +1393,7 @@ function syncLiveDialogForTtsPlayback() {
     shellLiveDialog.suspendCapture?.();
     return;
   }
-  if (isLiveHalfDuplexPause()) {
+  if (isLiveAgentTurnActive()) {
     flushLiveDialogCapture();
     shellLiveDialog.pauseListeningDuringAgent?.();
     renderLiveDialogHeroStatus();
@@ -1490,30 +1490,34 @@ function shouldBargeInLiveDialog() {
   );
 }
 
-async function bargeInLiveDialog({ phrase = "", voice = false } = {}) {
-  if (!shouldBargeInLiveDialog() && !state.liveUserBarging) return;
+async function bargeInLiveDialog({ phrase = "", voice = false, force = false } = {}) {
+  if (!force && !shouldBargeInLiveDialog() && !state.liveUserBarging) return;
   shellLog("live", voice ? "barge-in voice" : "barge-in", String(phrase || "").slice(0, 80));
 
+  clearLiveDialogResumeTimer();
   liveEchoGuardUntil = 0;
   state.liveUserBarging = true;
   state.messageStopped = true;
   bumpTtsPlayback();
-  messageSendAbortController?.abort();
-  messageSendAbortController = null;
-  shellToolPermission?.dismissAll?.();
-  shellUserQuestion?.dismissAll?.();
   state.streamTtsQueue = [];
   state.streamTtsCursor = 0;
   state.streamTtsActive = false;
   state.speaking = false;
   state.ttsPaused = false;
   state.ttsPausedForVoice = false;
+  const synth = getSpeechSynth();
+  if (synth) synth.cancel();
+  ttsPlayer?.stop();
+  stopBrowserTts({ notifyServer: true, resetPhase: false, broadcast: true, bumpPlayback: false });
+  messageSendAbortController?.abort();
+  messageSendAbortController = null;
+  shellToolPermission?.dismissAll?.();
+  shellUserQuestion?.dismissAll?.();
   if (state.assistantStream && !state.assistantStream.finalized) {
     setReplyPanelStreaming(false);
     state.assistantStream = null;
   }
   state.processingMessage = "";
-  stopBrowserTts({ notifyServer: true, resetPhase: false, broadcast: true, bumpPlayback: false });
   releaseMessagePipeline({ force: true });
   void apiFetch("/api/shell/cancel", {
     method: "POST",
@@ -1534,6 +1538,9 @@ async function bargeInLiveDialog({ phrase = "", voice = false } = {}) {
 async function handleLiveUtterance(text) {
   const trimmed = String(text || "").trim();
   if (!trimmed || !state.liveDialogActive) return;
+  if (!state.liveUserBarging && shouldBlockLiveUtterance()) {
+    await bargeInLiveDialog({ phrase: trimmed, voice: false, force: true });
+  }
   const barged = state.liveUserBarging;
   if (!barged && shouldBlockLiveUtterance()) {
     flushLiveDialogCapture();
@@ -9379,7 +9386,7 @@ function refreshComposeMicTitle(mode = getVoiceInputMode()) {
   } else if (liveGated) {
     parts.push(
       isLiveHalfDuplexPause() || shellLiveDialog?.isRecognitionPaused?.()
-        ? "мик выкл · 🎤 — перебить"
+        ? "агент говорит · говорите или 🎤 — перебить"
         : "игнорирую ответ"
     );
   }
@@ -10278,6 +10285,7 @@ async function speakReplyAudio(text) {
       renderPhase("thinking", `Синтез · ${ttsEngineLabel(engine)}…`, state.shellState?.metrics || "");
       state.speaking = true;
       updateTtsControlsUi("speaking");
+      syncLiveDialogForTtsPlayback();
       let result;
       try {
         result = await ttsPlayer.speak(payload, {
@@ -10333,6 +10341,7 @@ async function speakReplyAudio(text) {
     renderPhase("speaking", "Озвучиваю · Web Speech…", state.shellState?.metrics || "");
     state.speaking = true;
     updateTtsControlsUi("speaking");
+    syncLiveDialogForTtsPlayback();
     let browserReason = "";
     try {
       const browser = await speakShellBrowserTts(payload, { lang, rate, voiceName });
@@ -11211,7 +11220,8 @@ function setupSpeechRecognition() {
         renderLiveHeroStatus: () => renderLiveDialogHeroStatus(),
         onEchoSuppressed: (text) => {
           shellLog("live", "echo suppressed", String(text || "").slice(0, 120));
-        }
+        },
+        shellLog
       });
     }
     shellLiveDialog.bindRecognition(liveDialogRecognition);
@@ -11319,8 +11329,8 @@ function handleMicPress() {
       return;
     }
     hapticTap();
-    if (state.liveDialogActive && isLiveAgentSpeakingUi()) {
-      void bargeInLiveDialog();
+    if (state.liveDialogActive && shouldBargeInLiveDialog()) {
+      void bargeInLiveDialog({ force: true });
       return;
     }
     void toggleLiveDialog().catch((error) => renderPhase("waiting", error.message));

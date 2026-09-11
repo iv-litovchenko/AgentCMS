@@ -67,7 +67,7 @@
     }
   },
   "proactive": {
-    "enabled": true,
+    "enabled": false,
     "idleSecondsMin": 120,
     "idleSecondsMax": 240,
     "idleSeconds": 120,
