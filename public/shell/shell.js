@@ -162,6 +162,8 @@ import {
   runtimeShowsModel,
   runtimeShowsPermissionMode,
   runtimePermissionModeCopy,
+  runtimePermissionModeOptions,
+  normalizeRuntimePermissionMode,
   runtimeQwenpawPermissionModeCopy,
   runtimeAgentFieldLabel,
   runtimeShowsApiKey,
@@ -1835,8 +1837,6 @@ const nodes = {
   bridgePermissionField: document.getElementById("shell-runtime-bridge-permission-field"),
   bridgePermissionLabel: document.getElementById("shell-runtime-bridge-permission-label"),
   bridgePermissionMode: document.getElementById("shell-runtime-bridge-permission-mode"),
-  bridgePermissionEmoji: document.getElementById("shell-runtime-bridge-permission-emoji"),
-  bridgePermissionTitle: document.getElementById("shell-runtime-bridge-permission-title"),
   bridgePermissionDesc: document.getElementById("shell-runtime-bridge-permission-desc"),
   systemPrompt: document.getElementById("shell-system-prompt"),
   systemPromptInsert: document.getElementById("shell-system-prompt-insert"),
@@ -6196,12 +6196,8 @@ function applyBridgeForm(runtime, settings = state.settings || {}) {
   if (nodes.bridgeSessionId && document.activeElement !== nodes.bridgeSessionId) {
     nodes.bridgeSessionId.value = read("sessionId") || defaults.sessionId || "";
   }
-  if (
-    runtimeUsesCli(id) &&
-    nodes.bridgePermissionMode
-  ) {
-    const mode = read("permissionMode") || defaults.permissionMode || "";
-    nodes.bridgePermissionMode.checked = mode === "bypassPermissions";
+  if (runtimeUsesCli(id) && nodes.bridgePermissionMode) {
+    syncBridgePermissionModeSelect(id, read("permissionMode") || defaults.permissionMode || "");
   }
 }
 
@@ -6285,9 +6281,10 @@ function collectBridgeFormPatch(runtime, { validate = true } = {}) {
       nodes.bridgeUrl?.value.trim() || defaults.cliPath || (id === "codex" ? "codex" : "claude");
     patch[bridgeRuntimeField(id, "model")] = nodes.bridgeModel?.value.trim() || "";
     if (runtimeUsesCli(id)) {
-      patch[bridgeRuntimeField(id, "permissionMode")] = nodes.bridgePermissionMode?.checked
-        ? "bypassPermissions"
-        : "";
+      patch[bridgeRuntimeField(id, "permissionMode")] = normalizeRuntimePermissionMode(
+        id,
+        nodes.bridgePermissionMode?.value ?? ""
+      );
     }
   } else {
     patch[bridgeRuntimeField(id, "baseUrl")] = nodes.bridgeUrl?.value.trim() || defaults.baseUrl || "";
@@ -6587,12 +6584,31 @@ async function persistRoutePermissionMode() {
   if (!runtimeUsesCli(runtime)) return;
   const permissionKey = bridgeRuntimeField(runtime, "permissionMode");
   const patch = {
-    [permissionKey]: nodes.bridgePermissionMode?.checked ? "bypassPermissions" : ""
+    [permissionKey]: normalizeRuntimePermissionMode(runtime, nodes.bridgePermissionMode?.value ?? "")
   };
   await persistAgentSettingsPatch(patch, {
     baselineSection: "route",
     commitSection: false
   });
+}
+
+function syncBridgePermissionModeSelect(runtime, value = "") {
+  const select = nodes.bridgePermissionMode;
+  if (!select) return;
+  const id = normalizeMessageRuntime(runtime);
+  const options = runtimePermissionModeOptions(id);
+  const normalized = normalizeRuntimePermissionMode(id, value);
+  if (select.dataset.runtimeOptionsFor !== id) {
+    select.replaceChildren();
+    for (const option of options) {
+      const el = document.createElement("option");
+      el.value = option.value;
+      el.textContent = option.label;
+      select.appendChild(el);
+    }
+    select.dataset.runtimeOptionsFor = id;
+  }
+  select.value = normalized;
 }
 
 async function saveSettingsSection(section) {
@@ -7240,11 +7256,17 @@ function updateBridgePermissionFieldUi(runtime) {
   if (!show || !nodes.bridgePermissionField) return;
   nodes.bridgePermissionField.dataset.runtime = id;
   const copy = runtimePermissionModeCopy(id);
-  if (nodes.bridgePermissionEmoji) nodes.bridgePermissionEmoji.textContent = copy.emoji;
-  if (nodes.bridgePermissionTitle) nodes.bridgePermissionTitle.textContent = copy.title;
+  if (nodes.bridgePermissionLabel) {
+    nodes.bridgePermissionLabel.textContent = id === "codex" ? "Подтверждение команд" : "Подтверждение инструментов";
+    nodes.bridgePermissionLabel.title = copy.titleAttr;
+  }
   if (nodes.bridgePermissionDesc) nodes.bridgePermissionDesc.textContent = copy.desc;
-  if (nodes.bridgePermissionLabel) nodes.bridgePermissionLabel.title = copy.titleAttr;
-  if (nodes.bridgePermissionMode) nodes.bridgePermissionMode.setAttribute("aria-label", copy.ariaLabel);
+  if (nodes.bridgePermissionMode) {
+    nodes.bridgePermissionMode.setAttribute("aria-label", copy.ariaLabel);
+    const settings = state.settings || {};
+    const mode = String(settings[bridgeRuntimeField(id, "permissionMode")] ?? "").trim();
+    syncBridgePermissionModeSelect(id, mode);
+  }
 }
 
 function refreshRoutePanelNodes() {
@@ -7263,10 +7285,6 @@ function refreshRoutePanelNodes() {
     document.getElementById("shell-runtime-bridge-permission-field") || nodes.bridgePermissionField;
   nodes.bridgePermissionLabel =
     document.getElementById("shell-runtime-bridge-permission-label") || nodes.bridgePermissionLabel;
-  nodes.bridgePermissionEmoji =
-    document.getElementById("shell-runtime-bridge-permission-emoji") || nodes.bridgePermissionEmoji;
-  nodes.bridgePermissionTitle =
-    document.getElementById("shell-runtime-bridge-permission-title") || nodes.bridgePermissionTitle;
   nodes.bridgePermissionDesc =
     document.getElementById("shell-runtime-bridge-permission-desc") || nodes.bridgePermissionDesc;
   nodes.bridgeSessionId =

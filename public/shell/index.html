@@ -580,31 +580,16 @@
               hidden
               data-runtime=""
             >
-              <span class="shell-tts-panel-playback" role="presentation">
-                <label
-                  class="shell-runtime-bridge-permission shell-tts-playback-radio-option shell-tts-playback-radio-option--panel"
-                  id="shell-runtime-bridge-permission-label"
-                  title="Разрешить инструменты CLI без подтверждения"
-                >
-                  <input
-                    id="shell-runtime-bridge-permission-mode"
-                    type="checkbox"
-                    aria-label="Разрешить инструменты без подтверждения"
-                  />
-                  <span
-                    class="shell-tts-playback-emoji"
-                    id="shell-runtime-bridge-permission-emoji"
-                    aria-hidden="true"
-                  >🔓</span>
-                  <span class="shell-tts-playback-option-copy">
-                    <span class="shell-tts-playback-option-title" id="shell-runtime-bridge-permission-title">
-                      Разрешить инструменты без подтверждения
-                    </span>
-                    <span class="shell-tts-playback-option-desc" id="shell-runtime-bridge-permission-desc">
-                      (WebSearch, Bash и другие — без окна «Разрешить?»)
-                    </span>
-                  </span>
-                </label>
+              <label class="shell-label" id="shell-runtime-bridge-permission-label" for="shell-runtime-bridge-permission-mode">
+                Подтверждение инструментов
+              </label>
+              <select
+                id="shell-runtime-bridge-permission-mode"
+                class="shell-select shell-select--compact"
+                aria-label="Режим подтверждения инструментов CLI"
+              ></select>
+              <span class="shell-field-hint" id="shell-runtime-bridge-permission-desc">
+                Спрашивать перед Bash, правками файлов и MCP.
               </span>
             </div>
           </div>

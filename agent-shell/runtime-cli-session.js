@@ -1,5 +1,5 @@
 const { spawn } = require("child_process");
-const { ClaudeToolActivityTracker, extractCodexToolActivity } = require("./tool-activity");
+const { ClaudeToolActivityTracker, CodexToolActivityTracker } = require("./tool-activity");
 const { enrichShellPath } = require("./runtime-cli-env");
 const {
   consumeJsonLinesFromBuffer,
@@ -74,6 +74,33 @@ function codexNotificationToExecEvent(message) {
   }
   if (method === "turn/completed") {
     return { type: "turn.completed", turn: params.turn || null };
+  }
+  if (method === "item/mcpToolCall/progress") {
+    return {
+      type: "item.mcp_tool_call.progress",
+      itemId: String(params.itemId || ""),
+      message: String(params.message || ""),
+      threadId: params.threadId,
+      turnId: params.turnId
+    };
+  }
+  if (method === "item/fileChange/patchUpdated") {
+    return {
+      type: "item.file_change.patch_updated",
+      itemId: String(params.itemId || ""),
+      changes: params.changes,
+      threadId: params.threadId,
+      turnId: params.turnId
+    };
+  }
+  if (method === "item/commandExecution/outputDelta") {
+    return {
+      type: "item.command_execution.output_delta",
+      itemId: String(params.itemId || ""),
+      delta: String(params.delta || params.output || ""),
+      threadId: params.threadId,
+      turnId: params.turnId
+    };
   }
   if (method.startsWith("item/")) {
     const mapped = method.replace(/\//g, ".");
@@ -480,6 +507,7 @@ class CodexAppServerSession {
     this.disposed = false;
     this.pendingRequests = new Map();
     this.sessionApprovalKeys = new Set();
+    this.toolTracker = null;
   }
 
   usesBypass() {
@@ -785,8 +813,7 @@ class CodexAppServerSession {
       }
     }
 
-    const toolActivity = extractCodexToolActivity(mapped);
-    if (toolActivity && typeof turn.onActivity === "function") turn.onActivity(toolActivity);
+    if (this.toolTracker) this.toolTracker.handleEvent(mapped);
 
     if (mapped.type === "turn.completed") {
       const status = String(mapped.turn?.status || "").toLowerCase();
@@ -807,6 +834,7 @@ class CodexAppServerSession {
     if (!turn) return;
     this.pendingTurn = null;
     this.busy = false;
+    this.toolTracker = null;
     if (turn.signal) turn.signal.removeEventListener("abort", turn.onAbort);
     clearTimeout(turn.timer);
     if (error) turn.reject(error);
@@ -855,6 +883,7 @@ class CodexAppServerSession {
       else job.signal.addEventListener("abort", turn.onAbort, { once: true });
     }
 
+    this.toolTracker = new CodexToolActivityTracker(job.onActivity);
     this.pendingTurn = turn;
 
     const started = await this.request("turn/start", {

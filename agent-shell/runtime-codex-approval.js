@@ -11,6 +11,7 @@ const USER_INPUT_METHOD = "item/tool/requestUserInput";
 function resolveCodexApprovalPolicy(permissionMode) {
   const mode = String(permissionMode || "").trim();
   if (mode === "bypassPermissions") return "never";
+  if (mode === "untrusted") return "untrusted";
   return "on-request";
 }
 

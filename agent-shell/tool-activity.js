@@ -360,17 +360,117 @@ class ClaudeToolActivityTracker {
   }
 }
 
-function extractCodexToolActivity(event) {
+function normalizeCodexActionType(value) {
+  return String(value || "")
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/-/g, "_")
+    .toLowerCase();
+}
+
+function summarizeCodexWebAction(item = {}) {
+  const action = item.action && typeof item.action === "object" ? item.action : null;
+  const actionType = normalizeCodexActionType(action?.type);
+  if (actionType === "open_page") {
+    return {
+      tool: "WebFetch",
+      args: truncateToolText(String(action.url || item.url || ""))
+    };
+  }
+  if (actionType === "find_in_page") {
+    return {
+      tool: "WebFetch",
+      args: truncateToolText(`${action.url || item.url || ""} ${action.pattern || ""}`.trim())
+    };
+  }
+  const query =
+    truncateToolText(String(action?.query || item.query || "").trim()) ||
+    truncateToolText((Array.isArray(action?.queries) ? action.queries : []).join(", "));
+  return { tool: "WebSearch", args: query };
+}
+
+function summarizeCodexFileChanges(changes = []) {
+  return (Array.isArray(changes) ? changes : [])
+    .map((change) => {
+      if (!change || typeof change !== "object") return "";
+      const path = String(change.path || change.file || "").trim();
+      const kind = String(change.kind?.type || change.kind || "update").trim();
+      const diff = String(change.diff || "").trim();
+      if (diff) return `${kind} ${path}\n${truncateToolText(diff, 240)}`.trim();
+      return `${kind} ${path}`.trim();
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function extractCodexToolActivity(event, trackerState = null) {
   if (!event || typeof event !== "object") return null;
 
   const type = String(event.type || event.event || "").toLowerCase();
+
+  if (type === "item.mcp_tool_call.progress") {
+    const toolId = String(event.itemId || event.item_id || "mcp").trim() || "mcp";
+    const tracked = trackerState?.get?.(toolId);
+    const tool = String(tracked?.tool || "MCP").trim() || "MCP";
+    const message = truncateToolText(String(event.message || ""));
+    const args = message || tracked?.args || "";
+    if (trackerState && args) trackerState.set(toolId, { ...tracked, tool, args });
+    return normalizeToolActivity({
+      kind: "tool",
+      phase: "progress",
+      tool,
+      toolId,
+      args,
+      status: "running",
+      priority: 38
+    });
+  }
+
+  if (type === "item.file_change.patch_updated") {
+    const toolId = String(event.itemId || event.item_id || "edit").trim() || "edit";
+    const summary = truncateToolText(summarizeCodexFileChanges(event.changes));
+    const tracked = trackerState?.get?.(toolId);
+    const tool = String(tracked?.tool || "Edit").trim() || "Edit";
+    const args = summary || tracked?.args || "";
+    if (trackerState && args) trackerState.set(toolId, { ...tracked, tool, args });
+    return normalizeToolActivity({
+      kind: "tool",
+      phase: "progress",
+      tool,
+      toolId,
+      args,
+      status: "running",
+      priority: 38
+    });
+  }
+
+  if (type === "item.command_execution.output_delta") {
+    const toolId = String(event.itemId || event.item_id || "bash").trim() || "bash";
+    const tracked = trackerState?.get?.(toolId);
+    const tool = String(tracked?.tool || "Bash").trim() || "Bash";
+    const delta = truncateToolText(String(event.delta || event.output || ""));
+    if (!delta) return null;
+    const result = truncateToolText(`${tracked?.result || ""}${delta}`);
+    if (trackerState) trackerState.set(toolId, { ...tracked, tool, result });
+    return normalizeToolActivity({
+      kind: "tool",
+      phase: "progress",
+      tool,
+      toolId,
+      args: tracked?.args || "",
+      result,
+      status: "running",
+      priority: 36
+    });
+  }
+
   if (!type.startsWith("item.")) return null;
 
   const phase = type === "item.completed" ? "end" : "start";
   const item = event.item && typeof event.item === "object" ? event.item : null;
   if (!item) return null;
 
-  const itemType = String(item.type || "").trim();
+  const itemType = normalizeCodexActionType(item.type);
   const toolId = String(item.id || itemType).trim() || itemType;
   const statusRaw = String(item.status || "").toLowerCase();
 
@@ -379,6 +479,8 @@ function extractCodexToolActivity(event) {
     const args = truncateToolText(String(item.command || ""));
     const result = truncateToolText(String(item.aggregated_output || ""));
     const failed = statusRaw === "failed" || (item.exit_code != null && Number(item.exit_code) !== 0);
+    if (trackerState && phase === "start") trackerState.set(toolId, { tool, args, result: "" });
+    if (trackerState && phase === "end") trackerState.delete(toolId);
     return normalizeToolActivity({
       kind: "tool",
       phase,
@@ -404,6 +506,8 @@ function extractCodexToolActivity(event) {
     }
     if (!result && item.error?.message) result = String(item.error.message);
     const failed = statusRaw === "failed" || Boolean(item.error);
+    if (trackerState && phase === "start") trackerState.set(toolId, { tool: label, args, result: "" });
+    if (trackerState && phase === "end") trackerState.delete(toolId);
     return normalizeToolActivity({
       kind: "tool",
       phase,
@@ -417,40 +521,56 @@ function extractCodexToolActivity(event) {
     });
   }
 
-  if (itemType === "web_search") {
-    const query = truncateToolText(String(item.query || ""));
+  if (itemType === "web_search" || itemType === "web_search_call") {
+    const { tool, args } = summarizeCodexWebAction(item);
     return normalizeToolActivity({
       kind: "tool",
-      phase: "end",
-      tool: "WebSearch",
+      phase: phase === "end" ? "end" : "start",
+      tool,
       toolId,
-      args: query,
-      result: query,
-      status: "ok",
-      priority: 35
+      args,
+      result: phase === "end" ? args : "",
+      status: phase === "end" ? (statusRaw === "failed" ? "error" : "ok") : "running",
+      priority: tool === "WebFetch" ? 42 : 35
     });
   }
 
-  if (itemType === "file_change" && phase === "end") {
+  if (itemType === "file_change") {
     const changes = Array.isArray(item.changes) ? item.changes : [];
-    const summary = changes
-      .map((change) => `${change?.kind || "update"} ${change?.path || ""}`.trim())
-      .filter(Boolean)
-      .join("\n");
+    const summary = truncateToolText(summarizeCodexFileChanges(changes));
     const failed = statusRaw === "failed";
+    if (trackerState && phase === "start") trackerState.set(toolId, { tool: "Edit", args: summary, result: "" });
+    if (trackerState && phase === "end") trackerState.delete(toolId);
     return normalizeToolActivity({
       kind: "tool",
-      phase: "end",
+      phase: phase === "end" ? "end" : "start",
       tool: "Edit",
       toolId,
-      args: truncateToolText(summary),
-      result: truncateToolText(summary),
-      status: failed ? "error" : "ok",
+      args: summary,
+      result: phase === "end" ? summary : "",
+      status: phase === "end" ? (failed ? "error" : "ok") : "running",
       priority: 35
     });
   }
 
   return null;
+}
+
+class CodexToolActivityTracker {
+  constructor(onActivity) {
+    this.onActivity = typeof onActivity === "function" ? onActivity : null;
+    this.items = new Map();
+  }
+
+  emit(activity) {
+    if (!activity || !this.onActivity) return;
+    this.onActivity(normalizeToolActivity(activity));
+  }
+
+  handleEvent(event) {
+    const activity = extractCodexToolActivity(event, this.items);
+    if (activity) this.emit(activity);
+  }
 }
 
 module.exports = {
@@ -460,5 +580,6 @@ module.exports = {
   enrichQwenPawActivity,
   extractQwenPawToolDetails,
   ClaudeToolActivityTracker,
+  CodexToolActivityTracker,
   extractCodexToolActivity
 };

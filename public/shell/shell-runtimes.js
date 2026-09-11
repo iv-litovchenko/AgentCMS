@@ -424,6 +424,34 @@ export function runtimeShowsPermissionMode(runtime) {
   return runtimeUsesCli(normalizeMessageRuntime(runtime));
 }
 
+export const RUNTIME_PERMISSION_MODE_OPTIONS = {
+  claude: [
+    { value: "", label: "Спрашивать (модалка)" },
+    { value: "manual", label: "Manual — всегда спрашивать" },
+    { value: "plan", label: "Plan — сначала план" },
+    { value: "auto", label: "Auto — решать самому" },
+    { value: "dontAsk", label: "Don't ask — без окон" },
+    { value: "bypassPermissions", label: "Bypass — полный доступ" }
+  ],
+  codex: [
+    { value: "", label: "Спрашивать (on-request)" },
+    { value: "untrusted", label: "Untrusted — только рискованные" },
+    { value: "bypassPermissions", label: "Never — без подтверждения" }
+  ]
+};
+
+export function runtimePermissionModeOptions(runtime) {
+  const id = normalizeMessageRuntime(runtime);
+  return RUNTIME_PERMISSION_MODE_OPTIONS[id] || RUNTIME_PERMISSION_MODE_OPTIONS.claude;
+}
+
+export function normalizeRuntimePermissionMode(runtime, value) {
+  const id = normalizeMessageRuntime(runtime);
+  const mode = String(value ?? "").trim();
+  const allowed = new Set(runtimePermissionModeOptions(id).map((item) => item.value));
+  return allowed.has(mode) ? mode : "";
+}
+
 export function runtimeQwenpawPermissionModeCopy() {
   return {
     emoji: "🔓",

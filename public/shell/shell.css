@@ -7436,6 +7436,18 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
   margin: 0;
 }
 
+.shell-runtime-bridge-permission-field .shell-select {
+  width: 100%;
+}
+
+.shell-runtime-bridge-permission-field .shell-field-hint {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--shell-muted, #8b949e);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
 .shell-runtime-bridge-permission-field .shell-tts-panel-playback {
   display: flex;
   flex-direction: column;
