@@ -618,6 +618,8 @@ async function resolveHostPageSnapshot() {
 
 let lastHandledAssistantId = "";
 let lastSpokenBody = "";
+let lastAgentReplyEchoRef = "";
+let liveEchoGuardUntil = 0;
 let lastHandledStreamId = "";
 let lastStreamHandledBody = "";
 /** @type {{ kind: string, label: string, tool?: string, active?: boolean, at: number }[]} */
@@ -720,6 +722,10 @@ const state = {
   liveDialogActive: false,
   /** Пользователь говорит в живом диалоге (interim/final STT). */
   liveUserSpeaking: false,
+  /** Текущая фраза пользователя в живом диалоге (interim/final). */
+  liveUserPhrase: "",
+  /** Перебивание агента — принимаем речь, не фильтруем как эхо. */
+  liveUserBarging: false,
   /** shellClientId отправителя текущего вопроса — для надёжной маршрутизации TTS */
   pendingReplyTtsClientId: "",
   voicePresence: {
@@ -1034,6 +1040,10 @@ function shouldPlayReplyTts(meta = {}) {
     ttsTabCoordinator?.claimLeader({ force: true });
     return true;
   }
+  if (state.liveDialogActive && (pending || isLocalMessagePipelineActive())) {
+    ttsTabCoordinator?.claimLeader({ force: true });
+    return true;
+  }
   // Локальный голос без явного client id (legacy) — только на активном primary-клиенте.
   if ((state.micActive || state.pttHeld) && !target && !pending) {
     if (!ensureVoicePrimaryClient()) return false;
@@ -1250,29 +1260,210 @@ function setMeetingRecordingRemote(recording) {
 }
 
 function shouldPauseTtsForVoiceCapture() {
-  if (state.liveUserSpeaking) return true;
+  if (state.liveUserSpeaking || state.liveUserBarging) return true;
   if (state.meetingRecording) return true;
   if (state.pttHeld || state.pttKeyboardHeld || state.micPointerHeld || state.micTapHeld) return true;
   if (state.micActive && getVoiceInputMode() !== "live") return true;
   return false;
 }
 
-function shouldSuspendLiveListening() {
+let liveDialogResumeTimer = 0;
+let liveDialogKeepAliveTimer = 0;
+const LIVE_DIALOG_RESUME_DELAY_MS = 400;
+const LIVE_DIALOG_RESUME_RETRY_MS = 120;
+const LIVE_STT_RESUME_AFTER_TTS_MS = 900;
+const LIVE_DIALOG_KEEPALIVE_MS = 1200;
+const LIVE_ECHO_TAIL_MS = 2200;
+const LIVE_ECHO_DURING_TTS_MS = 4500;
+
+function armLiveEchoGuard(ms = LIVE_ECHO_TAIL_MS) {
+  liveEchoGuardUntil = Math.max(liveEchoGuardUntil, Date.now() + ms);
+}
+
+function isLiveEchoGuardActive() {
+  return Date.now() < liveEchoGuardUntil;
+}
+
+/** Агент печатает / озвучивает ответ. */
+function isLiveAgentTurnActive() {
   return Boolean(
-    isTtsAudioOutputActive() ||
-      isBrowserSynthActive() ||
-      state.streamTtsActive ||
-      state.streamTtsQueue.length
+    isShellAgentWorkActive() ||
+      isTtsPlaybackActive() ||
+      isTtsAudioOutputActive()
   );
+}
+
+/** Live: блокировать onresult только пока отправляем фразу. */
+function shouldGateLiveSttInput() {
+  return Boolean(isVoiceSttProcessing());
+}
+
+/** Half-duplex: пока идёт звук TTS — mic-сессия жива, но STT выключен (Safari: recognition прерывает TTS). */
+function isLiveHalfDuplexPause() {
+  return Boolean(isTtsPlaybackActive() || isTtsAudioOutputActive());
+}
+
+/** Агент озвучивает / пауза STT — для hero и mic UI. */
+function isLiveAgentSpeakingUi() {
+  return Boolean(
+    isLiveHalfDuplexPause() ||
+      shellLiveDialog?.isRecognitionPaused?.() ||
+      shellLiveDialog?.isBargeMonitorActive?.()
+  );
+}
+
+/** Жёсткий блок commit (эхо / работа агента без перебивания). */
+function isLiveAgentEchoHardBlock() {
+  return isLiveAgentTurnActive();
+}
+
+/** Хвост после TTS — фильтруем эхо, но можно говорить. */
+function isLiveEchoTailPhase() {
+  return isLiveEchoGuardActive() && !isLiveAgentTurnActive();
+}
+
+function isAgentEchoCapturePhase() {
+  return Boolean(isLiveAgentEchoHardBlock() || isLiveEchoTailPhase());
+}
+
+/** Live: не коммитить фразу. */
+function shouldBlockLiveUtterance() {
+  if (state.liveUserBarging) return isVoiceSttProcessing();
+  if (isVoiceSttProcessing() || isLiveAgentEchoHardBlock()) return true;
+  return false;
+}
+
+function shouldSuspendLiveListening() {
+  return shouldGateLiveSttInput();
+}
+
+function isLiveInputGated() {
+  return shouldGateLiveSttInput();
+}
+
+function clearLiveDialogKeepAliveTimer() {
+  if (!liveDialogKeepAliveTimer) return;
+  clearInterval(liveDialogKeepAliveTimer);
+  liveDialogKeepAliveTimer = 0;
+}
+
+function syncLiveDialogKeepAlive() {
+  clearLiveDialogKeepAliveTimer();
+  if (!shellLiveDialog?.isActive?.()) return;
+  liveDialogKeepAliveTimer = window.setInterval(() => {
+    if (!shellLiveDialog?.isActive?.()) {
+      clearLiveDialogKeepAliveTimer();
+      return;
+    }
+    if (isLiveHalfDuplexPause()) return;
+    shellLiveDialog.ensureListening?.();
+    if (isLiveDialogSessionActive() && !state.liveUserSpeaking) {
+      renderLiveDialogHeroStatus();
+    }
+  }, LIVE_DIALOG_KEEPALIVE_MS);
+}
+
+function clearLiveDialogResumeTimer() {
+  if (!liveDialogResumeTimer) return;
+  clearTimeout(liveDialogResumeTimer);
+  liveDialogResumeTimer = 0;
+}
+
+function scheduleLiveDialogResume(delayMs = LIVE_STT_RESUME_AFTER_TTS_MS) {
+  clearLiveDialogResumeTimer();
+  liveDialogResumeTimer = window.setTimeout(() => {
+    liveDialogResumeTimer = 0;
+    if (!shellLiveDialog?.isActive?.()) return;
+    if (isLiveHalfDuplexPause() || isVoiceSttProcessing()) {
+      scheduleLiveDialogResume(LIVE_DIALOG_RESUME_RETRY_MS);
+      return;
+    }
+    shellLiveDialog.resumeListeningAfterAgent?.();
+  }, delayMs);
 }
 
 function syncLiveDialogForTtsPlayback() {
   if (!shellLiveDialog?.isActive?.()) return;
-  if (shouldSuspendLiveListening()) {
-    shellLiveDialog.suspendRecognition?.();
+  if (state.liveUserBarging || state.liveUserSpeaking) {
+    shellLiveDialog.ensureListening?.();
+    renderLiveDialogHeroStatus();
     return;
   }
-  shellLiveDialog.resumeRecognition?.();
+  if (shouldGateLiveSttInput()) {
+    shellLiveDialog.suspendCapture?.();
+    return;
+  }
+  if (isLiveHalfDuplexPause()) {
+    flushLiveDialogCapture();
+    shellLiveDialog.pauseListeningDuringAgent?.();
+    renderLiveDialogHeroStatus();
+    return;
+  }
+  scheduleLiveDialogResume(LIVE_STT_RESUME_AFTER_TTS_MS);
+  syncLiveDialogKeepAlive();
+}
+
+function flushLiveDialogCapture() {
+  shellLiveDialog?.flushCapture?.();
+}
+
+function normalizeLiveEchoText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function liveEchoWordOverlap(a, b) {
+  const wordsA = normalizeLiveEchoText(a).split(" ").filter((w) => w.length > 2);
+  const wordsB = new Set(normalizeLiveEchoText(b).split(" ").filter((w) => w.length > 2));
+  if (!wordsA.length || !wordsB.size) return 0;
+  let hit = 0;
+  for (const word of wordsA) {
+    if (wordsB.has(word)) hit += 1;
+  }
+  return hit / wordsA.length;
+}
+
+function liveUtteranceLooksLikeAgentEcho(text) {
+  const utterance = normalizeLiveEchoText(text);
+  if (!utterance || utterance.length < 4) return false;
+  const candidates = [
+    lastTtsSpoken.text,
+    lastAgentReplyEchoRef,
+    shellDialog?.getLastReplyRaw?.(),
+    state.assistantStream?.spokenText,
+    state.assistantStream?.text,
+    state.processingMessage,
+    ...String(lastSpokenBody || "").split("\0")
+  ]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean);
+  for (const raw of candidates) {
+    const candidate = normalizeLiveEchoText(raw);
+    if (!candidate || candidate.length < 4) continue;
+    if (utterance === candidate) return true;
+    if (candidate.includes(utterance) && utterance.length >= 8) return true;
+    if (utterance.includes(candidate) && candidate.length >= 12) return true;
+    if (liveEchoWordOverlap(utterance, candidate) >= 0.45 && utterance.split(" ").length >= 2) return true;
+    if (liveEchoWordOverlap(utterance, candidate) >= 0.32 && utterance.split(" ").length >= 4) return true;
+  }
+  return false;
+}
+
+function rememberAgentReplyForEchoGuard(text) {
+  const trimmed = String(text || "").trim();
+  if (trimmed) lastAgentReplyEchoRef = trimmed.slice(0, 2400);
+}
+
+function isLiveDialogSessionActive() {
+  return Boolean(state.liveDialogActive && getVoiceInputMode() === "live");
+}
+
+/** Принимаем речь пользователя (не игнорируем gate). */
+function isLiveDialogAcceptingSpeech() {
+  return isLiveDialogSessionActive() && !shouldBlockLiveUtterance();
 }
 
 function pauseTtsForUserVoice() {
@@ -1299,9 +1490,12 @@ function shouldBargeInLiveDialog() {
   );
 }
 
-async function bargeInLiveDialog() {
-  if (!shouldBargeInLiveDialog()) return;
-  pauseTtsForUserVoice();
+async function bargeInLiveDialog({ phrase = "", voice = false } = {}) {
+  if (!shouldBargeInLiveDialog() && !state.liveUserBarging) return;
+  shellLog("live", voice ? "barge-in voice" : "barge-in", String(phrase || "").slice(0, 80));
+
+  liveEchoGuardUntil = 0;
+  state.liveUserBarging = true;
   state.messageStopped = true;
   bumpTtsPlayback();
   messageSendAbortController?.abort();
@@ -1311,39 +1505,70 @@ async function bargeInLiveDialog() {
   state.streamTtsQueue = [];
   state.streamTtsCursor = 0;
   state.streamTtsActive = false;
+  state.speaking = false;
+  state.ttsPaused = false;
+  state.ttsPausedForVoice = false;
   if (state.assistantStream && !state.assistantStream.finalized) {
     setReplyPanelStreaming(false);
     state.assistantStream = null;
   }
   state.processingMessage = "";
   stopBrowserTts({ notifyServer: true, resetPhase: false, broadcast: true, bumpPlayback: false });
-  releaseMessagePipeline();
+  releaseMessagePipeline({ force: true });
   void apiFetch("/api/shell/cancel", {
     method: "POST",
     body: JSON.stringify({ reason: "Перебито" })
   }).catch(() => {});
   shellDialog?.clearError?.();
   state.messageStopped = false;
+
+  shellLiveDialog?.clearDiscardWindow?.();
+  shellLiveDialog?.resumeListeningAfterAgent?.();
+  syncLiveDialogKeepAlive();
+
   if (state.liveDialogActive) {
-    renderPhase("waiting", voiceRecordingHeroPhrase());
+    renderPhase("listening", voice ? "Говорю…" : voiceRecordingHeroPhrase());
   }
 }
 
 async function handleLiveUtterance(text) {
   const trimmed = String(text || "").trim();
   if (!trimmed || !state.liveDialogActive) return;
+  const barged = state.liveUserBarging;
+  if (!barged && shouldBlockLiveUtterance()) {
+    flushLiveDialogCapture();
+    shellLog("live", "blocked during agent turn", trimmed.slice(0, 120));
+    return;
+  }
+  if (liveUtteranceLooksLikeAgentEcho(trimmed)) {
+    flushLiveDialogCapture();
+    shellLog("live", "echo suppressed", trimmed.slice(0, 120));
+    return;
+  }
+  state.liveUserBarging = false;
+  state.liveUserSpeaking = false;
+  state.liveUserPhrase = "";
+  armLiveEchoGuard(LIVE_ECHO_TAIL_MS);
   markShellAudioGesture();
   await unlockShellAudio({ markGesture: true });
   setVoiceSttProcessing(true);
+  syncLiveDialogForTtsPlayback();
+  renderPhase("thinking", "Отправляю…");
   try {
     state.messageStopped = false;
     await sendVoiceMessage(trimmed);
   } finally {
     setVoiceSttProcessing(false);
+    syncLiveDialogForTtsPlayback();
+    if (state.liveDialogActive && !state.liveUserSpeaking) {
+      renderLiveDialogHeroStatus();
+    }
   }
 }
 
 function stopLiveDialogIfActive() {
+  clearLiveDialogResumeTimer();
+  clearLiveDialogKeepAliveTimer();
   if (!shellLiveDialog?.isActive?.()) return Promise.resolve();
   return shellLiveDialog.stop().catch(() => {});
 }
@@ -1358,6 +1583,7 @@ async function toggleLiveDialog() {
     throw new Error("Web Speech недоступен — живой диалог не поддерживается в этом браузере");
   }
   await shellLiveDialog.toggle();
+  if (state.liveDialogActive) syncLiveDialogKeepAlive();
 }
 
 const PTT_RELEASE_TAIL_MS = 180;
@@ -2601,6 +2827,13 @@ function heroIdlePhrase() {
   return `${HERO_IDLE_PHRASE}${queuePhraseSuffix()}`;
 }
 
+/** Фраза «ожидание» с учётом живого диалога и других voice-режимов. */
+function heroWaitingPhrase() {
+  if (isLiveDialogIdle()) return voiceRecordingHeroPhrase();
+  if (isVoiceCaptureHeroActive()) return voiceRecordingHeroPhrase();
+  return heroIdlePhrase();
+}
+
 function isAssistantStreaming() {
   return Boolean(state.assistantStream && !state.assistantStream.finalized);
 }
@@ -2655,20 +2888,39 @@ function syncComposeReadyStatus() {
   });
 }
 
+/** Live включён, пользователь молчит и агент не отвечает — можно говорить. */
 function isLiveDialogIdle() {
-  return Boolean(state.liveDialogActive && getVoiceInputMode() === "live" && !state.liveUserSpeaking);
+  return Boolean(
+    state.liveDialogActive &&
+      getVoiceInputMode() === "live" &&
+      !state.liveUserSpeaking &&
+      !state.liveUserBarging &&
+      !isShellAgentWorkActive() &&
+      !isTtsPlaybackActive() &&
+      !isLiveAgentSpeakingUi()
+  );
 }
 
-function setLiveUserSpeaking(active) {
+function setLiveUserSpeaking(active, phrase = "") {
   state.liveUserSpeaking = Boolean(active);
+  state.liveUserPhrase = state.liveUserSpeaking ? String(phrase || "").trim() : "";
+  syncVoiceRecordTimer();
 }
 
 function resolveDisplayPhase(requestedPhase = "waiting") {
   const phase = PHASE_LABELS[requestedPhase] ? requestedPhase : "waiting";
 
   if (phase === "disabled") return "disabled";
+  if (
+    state.liveDialogActive &&
+    getVoiceInputMode() === "live" &&
+    (isTtsPlaybackActive() || isTtsAudioOutputActive() || isLiveAgentSpeakingUi())
+  ) {
+    return "speaking";
+  }
+  if (isTtsPlaybackActive() || isTtsAudioOutputActive()) return "speaking";
   if (isVoiceSttProcessing()) return "thinking";
-  if (isTtsAudioOutputActive()) return "speaking";
+  if (state.liveDialogActive && getVoiceInputMode() === "live" && isShellAgentWorkActive()) return "thinking";
   if (state.streamTtsActive || state.streamTtsQueue.length) return "thinking";
   if (isAssistantStreaming()) return "thinking";
   if (state.messagePipelineBusy || state.processingMessage) return "thinking";
@@ -2699,9 +2951,16 @@ function resolveHeroStatusBadgeClass(displayPhase, heroState) {
 function resolveHeroBackdropState(requestedPhase = "waiting") {
   const displayPhase = resolveDisplayPhase(requestedPhase);
   if (isAgentReplyStreaming()) return "typing";
-  if (isTtsPlaybackActive()) return "replying";
+  if (
+    (state.liveDialogActive && getVoiceInputMode() === "live" && isLiveAgentSpeakingUi()) ||
+    isTtsPlaybackActive() ||
+    isTtsAudioOutputActive()
+  ) {
+    return "replying";
+  }
   if (displayPhase === "thinking") return "thinking";
   if (displayPhase === "listening") return "listening";
+  if (isLiveDialogIdle()) return "ready";
   if (isComposeReady()) return "ready";
   return "idle";
 }
@@ -2718,6 +2977,13 @@ function resolveHeroSensorActivity(displayPhase, heroState) {
 function resolveHeroAvatarState(requestedPhase = "waiting") {
   const displayPhase = resolveDisplayPhase(requestedPhase);
   if (isAgentReplyStreaming()) return "typing";
+  if (
+    (state.liveDialogActive && getVoiceInputMode() === "live" && isLiveAgentSpeakingUi()) ||
+    isTtsPlaybackActive() ||
+    isTtsAudioOutputActive()
+  ) {
+    return "replying";
+  }
   if (displayPhase === "thinking") return "thinking";
   if (displayPhase === "listening") return "listening";
   if (isLiveDialogIdle()) return "ready";
@@ -2731,18 +2997,24 @@ function resolveHeroStatusLabel(requestedPhase = "waiting", phrase = "") {
   const displayPhase = resolveDisplayPhase(requestedPhase);
   if (displayPhase === "disabled") return PHASE_LABELS.disabled;
   if (heroState === "listening") {
-    if (state.liveDialogActive) return statusText || voiceRecordingHeroPhrase();
+    if (state.liveDialogActive && state.liveUserSpeaking) {
+      return statusText || state.liveUserPhrase || "Говорю";
+    }
+    if (isLiveDialogIdle()) return statusText || voiceRecordingHeroPhrase();
     return HERO_STATE_LABELS.listening;
   }
   if (heroState === "ready") {
-    if (isLiveDialogIdle() && statusText) return statusText;
+    if (isLiveDialogIdle()) return statusText || voiceRecordingHeroPhrase();
     return HERO_STATE_LABELS.ready;
   }
-  if (heroState === "typing" && isAgentReplyStreaming()) return HERO_STATE_LABELS.typing;
-  if (displayPhase === "speaking" && isTtsPlaybackActive()) {
-    if (statusText && !isHeroIdlePhrase(statusText)) return statusText;
+  if (
+    heroState === "replying" ||
+    (displayPhase === "speaking" && (isTtsPlaybackActive() || isLiveAgentSpeakingUi()))
+  ) {
+    if (statusText && !isHeroIdlePhrase(statusText) && !/жду$/i.test(statusText)) return statusText;
     return HERO_STATE_LABELS.replying;
   }
+  if (heroState === "typing" && isAgentReplyStreaming()) return HERO_STATE_LABELS.typing;
   if (heroState === "thinking") {
     if (statusText && !isHeroIdlePhrase(statusText)) return statusText;
     return HERO_STATE_LABELS.thinking;
@@ -2830,7 +3102,8 @@ function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false
 
   if (nodes.voiceWave) {
     const showSpeakWave =
-      heroBackdropState === "replying" && (isTtsAudioOutputActive() || displayPhase === "speaking");
+      heroBackdropState === "replying" &&
+      (isTtsAudioOutputActive() || displayPhase === "speaking" || isLiveAgentSpeakingUi());
     const showTypeWave = heroBackdropState === "typing" && isAgentReplyStreaming();
     nodes.voiceWave.classList.toggle("hidden", !(showSpeakWave || showTypeWave));
     nodes.voiceWave.classList.toggle("is-paused", Boolean(state.ttsPaused));
@@ -2900,10 +3173,16 @@ function maybeResetStaleSpeakingPhase() {
     synth.cancel();
     state.speaking = false;
   }
+  if (state.liveDialogActive && getVoiceInputMode() === "live") {
+    if (isLiveAgentSpeakingUi() || isTtsPlaybackActive()) {
+      renderLiveDialogHeroStatus();
+      return;
+    }
+  }
   if (state.shellState?.phase !== "speaking") return;
   if (isTtsAudioOutputActive() || isStreamTtsUiBusy()) return;
   state.shellState = { ...(state.shellState || {}), phase: "waiting", phrase: HERO_IDLE_PHRASE };
-  renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
+  renderPhase("waiting", heroWaitingPhrase(), state.shellState?.metrics || "");
   void patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE }).catch(() => {});
 }
 
@@ -2922,22 +3201,24 @@ function resetTtsUiAfterPlayback({ patchServer = true } = {}) {
     refreshHeroTtsVisuals();
     return;
   }
+  if (state.liveDialogActive && getVoiceInputMode() === "live") {
+    renderLiveDialogHeroStatus();
+    syncLiveDialogForTtsPlayback();
+    return;
+  }
   if (state.assistantStream && !state.assistantStream.finalized) {
     renderPhase("thinking", state.shellState?.phrase || "Печатает…", state.shellState?.metrics || "");
     return;
   }
   if (state.micActive || state.pttHeld) {
-    renderPhase(
-      "waiting",
-      state.liveDialogActive ? voiceRecordingHeroPhrase() : heroIdlePhrase(),
-      state.shellState?.metrics || ""
-    );
+    renderPhase("waiting", heroWaitingPhrase(), state.shellState?.metrics || "");
     return;
   }
   if (state.shellState?.phase === "speaking") {
     state.shellState = { ...(state.shellState || {}), phase: "waiting", phrase: HERO_IDLE_PHRASE };
   }
-  renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
+  const idlePhrase = heroWaitingPhrase();
+  renderPhase("waiting", idlePhrase, state.shellState?.metrics || "");
   if (patchServer && !isShellAgentWorkActive()) {
     void patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE }).catch(() => {});
   }
@@ -2961,14 +3242,74 @@ function composePhaseStatusText(phrase, metrics) {
 function voiceRecordingHeroPhrase() {
   const mode = getVoiceInputMode();
   if (state.meetingRecording) return "Запись встречи…";
-  if (mode === "live" && state.liveDialogActive && state.liveUserSpeaking) return "Живой диалог · слушаю";
+  if (mode === "live" && state.liveDialogActive && state.liveUserSpeaking) {
+    return state.liveUserPhrase || "Говорю";
+  }
   if (mode === "live" && state.liveDialogActive) return "Живой диалог · жду";
   if (mode === "live") return "Нажмите 🎤 — включить живой диалог";
   return "Слушаю…";
 }
 
+/** Клиентский статус живого диалога — приоритетнее server phase в status poll. */
+function renderLiveDialogHeroStatus({ metrics = state.shellState?.metrics || "" } = {}) {
+  if (!state.liveDialogActive || getVoiceInputMode() !== "live") return false;
+  if (state.liveUserSpeaking || state.liveUserBarging) {
+    renderPhase("listening", voiceRecordingHeroPhrase(), metrics);
+    return true;
+  }
+  if (isTtsPlaybackActive() || isTtsAudioOutputActive() || isLiveAgentSpeakingUi()) {
+    renderPhase("speaking", HERO_STATE_LABELS.replying, metrics);
+    return true;
+  }
+  if (isShellAgentWorkActive()) {
+    const phrase = String(state.shellState?.phrase || "").trim();
+    renderPhase("thinking", phrase || HERO_STATE_LABELS.thinking, metrics);
+    return true;
+  }
+  if (isVoiceSttProcessing()) {
+    renderPhase("thinking", "Отправляю…", metrics);
+    return true;
+  }
+  renderPhase("waiting", voiceRecordingHeroPhrase(), metrics);
+  return true;
+}
+
+/** Единая точка: server/SSE status → hero с учётом live, записи и локального TTS. */
+function applyHeroStatusFromServer(serverState = {}, { latestAgentMessage = null } = {}) {
+  const metrics = String(serverState?.metrics || state.shellState?.metrics || "").trim();
+  if (renderLiveDialogHeroStatus({ metrics })) return;
+  if (isVoiceCaptureHeroActive()) {
+    renderPhase("listening", voiceRecordingHeroPhrase(), metrics);
+    return;
+  }
+  let phase = resolveDisplayPhase(serverState?.phase || "waiting");
+  let phrase = livePhraseFromStatus(serverState, latestAgentMessage);
+  if (phase === "speaking" && !isTtsPlaybackActive()) {
+    phase = "waiting";
+    phrase = heroWaitingPhrase();
+  }
+  renderPhase(phase, phrase, metrics);
+}
+
 function resolveRenderedPhase(phase, phrase = "") {
-  if (isLiveDialogIdle() && !isShellAgentWorkActive()) {
+  if (state.liveDialogActive && getVoiceInputMode() === "live") {
+    if (state.liveUserSpeaking || state.liveUserBarging) {
+      return { phase: "listening", phrase: phrase || voiceRecordingHeroPhrase() };
+    }
+    if (isTtsPlaybackActive() || isTtsAudioOutputActive() || isLiveAgentSpeakingUi()) {
+      return { phase: "speaking", phrase: HERO_STATE_LABELS.replying };
+    }
+    if (isShellAgentWorkActive()) {
+      return { phase: "thinking", phrase: phrase || HERO_STATE_LABELS.thinking };
+    }
+    if (isVoiceSttProcessing()) {
+      return { phase: "thinking", phrase: "Отправляю…" };
+    }
+    if (isLiveDialogIdle()) {
+      return { phase: "waiting", phrase: voiceRecordingHeroPhrase() };
+    }
+  }
+  if (isLiveDialogIdle()) {
     return { phase: "waiting", phrase: voiceRecordingHeroPhrase() };
   }
   if (
@@ -2998,7 +3339,7 @@ function renderPhase(phase, phrase = "", metrics = "") {
     displayPhase = "waiting";
     statusText = heroIdlePhrase();
   }
-  if (!isShellAgentWorkActive() && !isTtsPlaybackActive()) {
+  if (!isShellAgentWorkActive() && !isTtsPlaybackActive() && !isLiveAgentSpeakingUi()) {
     if (!state.liveDialogActive && (displayPhase === "speaking" || displayPhase === "thinking")) {
       displayPhase = "waiting";
     }
@@ -3007,7 +3348,7 @@ function renderPhase(phase, phrase = "", metrics = "") {
       (/печатает|думаю|запускаю|работаю|размышляю|озвуч|готовлю|отвеч/i.test(statusText) &&
         !state.liveDialogActive)
     ) {
-      statusText = state.liveDialogActive ? voiceRecordingHeroPhrase() : heroIdlePhrase();
+      statusText = heroWaitingPhrase();
     }
   }
   if (displayPhase !== lastLoggedPhase) {
@@ -3037,12 +3378,12 @@ function isTtsAudioOutputActive() {
 
 function refreshHeroTtsVisuals() {
   syncLiveDialogForTtsPlayback();
+  if (state.liveDialogActive && getVoiceInputMode() === "live") {
+    renderLiveDialogHeroStatus();
+    return;
+  }
   if (!isTtsPlaybackActive() && !isShellAgentWorkActive()) {
-    renderPhase(
-      "waiting",
-      state.liveDialogActive ? voiceRecordingHeroPhrase() : heroIdlePhrase(),
-      state.shellState?.metrics || ""
-    );
+    renderPhase("waiting", heroWaitingPhrase(), state.shellState?.metrics || "");
     return;
   }
   const phase = resolveDisplayPhase(state.shellState?.phase || nodes.agentAvatar?.dataset.phase || "waiting");
@@ -3054,6 +3395,7 @@ function refreshHeroTtsVisuals() {
 function syncHeroAfterTtsPlaybackEnd() {
   state.speaking = false;
   state.ttsPaused = false;
+  armLiveEchoGuard(LIVE_ECHO_TAIL_MS);
   syncLiveDialogForTtsPlayback();
   if (isTtsAudioOutputActive() || isStreamTtsUiBusy()) {
     refreshHeroTtsVisuals();
@@ -3066,10 +3408,14 @@ function syncHeroAfterTtsPlaybackEnd() {
   if (state.shellState?.phase === "speaking") {
     state.shellState = { ...(state.shellState || {}), phase: "waiting", phrase: HERO_IDLE_PHRASE };
   }
-  const idlePhrase = state.liveDialogActive ? voiceRecordingHeroPhrase() : heroIdlePhrase();
-  renderPhase("waiting", idlePhrase, state.shellState?.metrics || "");
+  if (state.liveDialogActive && getVoiceInputMode() === "live") {
+    renderLiveDialogHeroStatus();
+  } else {
+    const idlePhrase = heroWaitingPhrase();
+    renderPhase("waiting", idlePhrase, state.shellState?.metrics || "");
+  }
   if (!isShellAgentWorkActive()) {
-    void patchShellState({ phase: "waiting", phrase: idlePhrase }).catch(() => {});
+    void patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE }).catch(() => {});
   }
 }
 
@@ -3084,7 +3430,12 @@ function isTtsPlaybackActive() {
 
 function isTtsSupersededReason(reason = "") {
   const value = String(reason || "").trim().toLowerCase();
-  return value === "cancelled" || value === "superseded";
+  return (
+    value === "cancelled" ||
+    value === "canceled" ||
+    value === "superseded" ||
+    value === "interrupted"
+  );
 }
 
 function abortAllTtsPlayback({ reason = "", notify = true } = {}) {
@@ -3189,6 +3540,9 @@ function updateTtsDownloadUi() {
 function rememberLastTtsSpoken(text) {
   const spoken = String(text || "").trim();
   if (!spoken) return;
+  rememberAgentReplyForEchoGuard(spoken);
+  armLiveEchoGuard(LIVE_ECHO_DURING_TTS_MS);
+  if (state.liveDialogActive) flushLiveDialogCapture();
   const chunk = lastTtsChunkRecording;
   const useChunkBlob = chunk?.blob && chunk.text === spoken;
   lastTtsSpoken = {
@@ -3348,6 +3702,7 @@ function renderShellReply(message) {
   }
 
   renderShellReplyMedia(nodes.lastReplyMedia, shows, state.agentId);
+  if (!stub && rawText) rememberAgentReplyForEchoGuard(rawText);
   shellDialog.onReplyRendered(stub ? "" : rawText);
   return { ...parsed, shows };
 }
@@ -3390,7 +3745,7 @@ function isTtsActuallyPlaying() {
 }
 
 function shouldPlayMessageTts(message = {}) {
-  if (!state.settings?.ttsEnabled) return false;
+  if (!isTtsEnabledSetting()) return false;
   if (!shouldPlayReplyTts(message)) return false;
   if (shouldSkipAssistantSpeech(message)) return false;
   const body = String(message?.body || message?.message?.body || "").trim();
@@ -3960,13 +4315,12 @@ function finalizeAssistantStream(message) {
   renderShellReply({ ...message, body, spokenText, spokenParts });
   finalizeAgentActivitySteps();
   shellSession?.markReplyDisplayed({ ...message, body, streamId });
-  markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
 
   state.assistantStream = null;
   releaseMessagePipeline();
 
   if (
-    state.settings?.ttsEnabled &&
+    isTtsEnabledSetting() &&
     shouldPlayReplyTts(message) &&
     !state.messageStopped &&
     !shouldSkipAssistantSpeech(message)
@@ -3987,7 +4341,7 @@ function finalizeAssistantStream(message) {
           spokenText: parts.join("\n\n"),
           parts
         });
-      } else if (shouldPlayMessageTts(message)) {
+      } else {
         void speakTextParts(parts, {
           ttsClientId: message.ttsClientId,
           sourceMessage
@@ -3995,6 +4349,7 @@ function finalizeAssistantStream(message) {
       }
     }
   }
+  markAssistantReplyHandled({ ...message, body, streamId }, body, { streamTts: true });
   return true;
 }
 
@@ -4116,6 +4471,7 @@ function releaseMessagePipeline({ force = false } = {}) {
   updateSendButtonLabel();
   shellSession?.releaseSessionUiLock();
   finishMessageTurn();
+  syncLiveDialogForTtsPlayback();
 }
 
 function getDialogContextKey() {
@@ -4841,6 +5197,8 @@ function handleAssistantDelta(payload) {
 
   if (!state.assistantStream) {
     beginAssistantStream({ streamId: streamId || undefined });
+    armLiveEchoGuard(LIVE_ECHO_TAIL_MS);
+    syncLiveDialogForTtsPlayback();
   } else if (streamId && state.assistantStream.id !== streamId) {
     if (String(state.assistantStream.id).startsWith("local-")) {
       state.assistantStream.id = streamId;
@@ -4855,6 +5213,10 @@ function handleAssistantDelta(payload) {
   if (spokenText) state.assistantStream.spokenText = spokenText;
   if (spokenParts.length) state.assistantStream.spokenParts = spokenParts;
   state.assistantStream.done = done;
+  if (String(rawText || "").trim()) {
+    rememberAgentReplyForEchoGuard(rawText);
+    syncLiveDialogForTtsPlayback();
+  }
   const displayText = rawText;
   shellSession?.queueStreamingRender(displayText, renderStreamingAssistantText);
   if (
@@ -7375,15 +7737,7 @@ function applyStatusPayload(payload) {
     onShellPhaseChange(payload.state);
     state.shellState = payload.state;
     state.stopTtsAt = Number(payload.state.stopTtsAt) || 0;
-    if (isVoiceCaptureHeroActive()) {
-      renderPhase("listening", voiceRecordingHeroPhrase());
-    } else {
-      renderPhase(
-        resolveDisplayPhase(payload.state.phase),
-        livePhraseFromStatus(payload.state, payload.latestAgentMessage),
-        payload.state.metrics
-      );
-    }
+    applyHeroStatusFromServer(payload.state, { latestAgentMessage: payload.latestAgentMessage });
     if ((payload.state.phase || "waiting") === "waiting" && !isActiveMessageTurn()) {
       recoverStuckMessagePipeline("status waiting");
     }
@@ -8235,6 +8589,7 @@ async function sendMessageDirect(
     state.messagePipelineBusy = true;
     state.pendingReplyTtsClientId = getShellPresenceClientId();
     beginAssistantStream({});
+    syncLiveDialogForTtsPlayback();
   }
   state.processingMessage = state.processingMessage || expandedText;
   shellPresenceController?.ping({ interact: true });
@@ -8555,6 +8910,16 @@ function isVoiceCaptureHeroActive() {
   );
 }
 
+function isLiveMicHot() {
+  return Boolean(
+    state.liveDialogActive &&
+      getVoiceInputMode() === "live" &&
+      state.micActive &&
+      !isLiveHalfDuplexPause() &&
+      !shellLiveDialog?.isRecognitionPaused?.()
+  );
+}
+
 function isVoiceRecordingActive() {
   const mode = getVoiceInputMode();
   if (mode === "live" && state.liveDialogActive) return true;
@@ -8633,11 +8998,14 @@ function syncVoiceRecordTimer() {
     resumeTtsAfterUserVoice();
   } else {
     state.ttsPausedForVoice = false;
+    if (state.ttsPaused && !isTtsAudioOutputActive()) state.ttsPaused = false;
   }
 
   if (isVoiceRecordingActive()) {
     startVoiceRecordTimer();
-    if (state.liveUserSpeaking || !state.liveDialogActive) {
+    if (state.liveDialogActive) {
+      renderLiveDialogHeroStatus();
+    } else {
       renderPhase("listening", voiceRecordingHeroPhrase());
     }
   } else {
@@ -8963,21 +9331,33 @@ function syncMicButtonUi({ force = false } = {}) {
   }
 
   const meetingActive = mode === "meeting" && Boolean(state.meetingRecording);
-  const liveActive = mode === "live" && Boolean(state.liveDialogActive);
+  const liveSession = isLiveDialogSessionActive();
+  const liveBargeListen = Boolean(liveSession && shellLiveDialog?.isBargeMonitorActive?.());
+  const liveMicPaused = Boolean(
+    liveSession &&
+      (isLiveHalfDuplexPause() || shellLiveDialog?.isRecognitionPaused?.()) &&
+      !liveBargeListen
+  );
+  const liveGated = liveSession && (liveMicPaused || liveBargeListen || isLiveInputGated());
+  const liveMicHot = isLiveMicHot();
   const recording = isVoiceRecordingActive();
-  const toggleActive = meetingActive || liveActive;
+  const toggleActive = meetingActive || liveSession;
   nodes.micBtn.classList.toggle("is-meeting-active", meetingActive);
-  nodes.micBtn.classList.toggle("is-live-active", liveActive);
+  nodes.micBtn.classList.toggle("is-live-active", liveSession);
+  nodes.micBtn.classList.toggle("is-live-gated", liveGated);
+  nodes.micBtn.classList.toggle("is-live-barge", liveBargeListen);
   nodes.micBtn.classList.toggle("is-active", recording && !toggleActive);
   nodes.micBtn.classList.toggle("is-stt-processing", processing && isMicToggleMode(mode));
 
   if (icon) {
-    icon.textContent = resolveMicIcon(mode, { recording: recording || toggleActive });
+    icon.textContent = resolveMicIcon(mode, {
+      recording: meetingActive || liveMicHot || (recording && !liveSession)
+    });
   }
 
   const label = micButtonLabel(mode);
   nodes.micBtn.setAttribute("aria-label", label);
-  nodes.micBtn.setAttribute("aria-pressed", recording || toggleActive ? "true" : "false");
+  nodes.micBtn.setAttribute("aria-pressed", toggleActive ? "true" : "false");
   refreshComposeMicTitle(mode);
   updateVoiceRecordTimerUi(recording);
 }
@@ -8988,9 +9368,20 @@ function refreshComposeMicTitle(mode = getVoiceInputMode()) {
     nodes.micBtn.title = "Голосовой ввод выключен";
     return;
   }
+  const liveGated =
+    isLiveDialogSessionActive() && (isLiveHalfDuplexPause() || isLiveInputGated());
   const parts = [];
   if (isVoiceRecordingActive() && state.voiceRecordStartedAt > 0) {
     parts.push(`🔴 ${formatVoiceRecordElapsed(Date.now() - state.voiceRecordStartedAt)}`);
+  }
+  if (shellLiveDialog?.isBargeMonitorActive?.()) {
+    parts.push("говорите — перебью");
+  } else if (liveGated) {
+    parts.push(
+      isLiveHalfDuplexPause() || shellLiveDialog?.isRecognitionPaused?.()
+        ? "мик выкл · 🎤 — перебить"
+        : "игнорирую ответ"
+    );
   }
   parts.push(micButtonLabel(mode));
   const ctx = getVoiceModeContext();
@@ -10253,6 +10644,7 @@ async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {})
   if (sourceMessage) shellSession?.markReplySpoken(sourceMessage);
   rememberLastTtsSpoken(spokenText);
   lastTtsChunkRecording = null;
+  syncLiveDialogForTtsPlayback();
   const seq = bumpTtsPlayback();
   stopBrowserTts({ notifyServer: false, resetPhase: false, broadcast: false, bumpPlayback: false });
   state.ttsPaused = false;
@@ -10339,7 +10731,6 @@ async function handleAssistantMessage(message) {
   }
 
   shellSession?.flushStreamingRender(renderStreamingAssistantText);
-  markAssistantReplyHandled(message, body);
   setReplyPanelStreaming(false);
   renderShellReply(message);
   shellDialog.onAgentReply(body);
@@ -10351,6 +10742,7 @@ async function handleAssistantMessage(message) {
   }
   releaseMessagePipeline();
   trySpeakAssistantReply(message, body);
+  markAssistantReplyHandled(message, body);
 }
 
 function shouldRefreshDialogHistoryOnSseOpen() {
@@ -10579,8 +10971,9 @@ function connectStream() {
           phase === "speaking" ||
           phase === "listening";
         if (shouldRender) {
-          renderPhase(phase, phrase, metrics);
-          if (phase === "thinking" && phrase) syncAgentActivityFromPhrase(phrase, metrics);
+          applyHeroStatusFromServer(nextState);
+          const resolvedPhase = resolveDisplayPhase(nextState.phase);
+          if (resolvedPhase === "thinking" && phrase) syncAgentActivityFromPhrase(phrase, metrics);
         }
         maybeResetStaleSpeakingPhase();
         maybeResetStaleStreamTtsUi();
@@ -10808,7 +11201,17 @@ function setupSpeechRecognition() {
         clearShellError: () => shellDialog?.clearError?.(),
         markShellAudioGesture,
         unlockShellAudio,
-        shouldSuspendLiveListening
+        shouldSuspendLiveListening,
+        shouldGateLiveInput: shouldGateLiveSttInput,
+        shouldBlockLiveUtterance,
+        isAgentEchoCapturePhase,
+        isAgentEchoHardBlock: isLiveAgentEchoHardBlock,
+        isHalfDuplexPause: isLiveHalfDuplexPause,
+        utteranceLooksLikeEcho: liveUtteranceLooksLikeAgentEcho,
+        renderLiveHeroStatus: () => renderLiveDialogHeroStatus(),
+        onEchoSuppressed: (text) => {
+          shellLog("live", "echo suppressed", String(text || "").slice(0, 120));
+        }
       });
     }
     shellLiveDialog.bindRecognition(liveDialogRecognition);
@@ -10916,6 +11319,10 @@ function handleMicPress() {
       return;
     }
     hapticTap();
+    if (state.liveDialogActive && isLiveAgentSpeakingUi()) {
+      void bargeInLiveDialog();
+      return;
+    }
     void toggleLiveDialog().catch((error) => renderPhase("waiting", error.message));
   }
 }
@@ -11920,8 +12327,11 @@ function bindShellInteractiveUi() {
       apiFetch,
       getTtsSettings: collectTtsRuntimeSettings,
       onPlaybackStart: () => {
+        flushLiveDialogCapture();
+        armLiveEchoGuard(LIVE_ECHO_DURING_TTS_MS);
         syncLiveDialogForTtsPlayback();
-        refreshHeroTtsVisuals();
+        if (state.liveDialogActive && getVoiceInputMode() === "live") renderLiveDialogHeroStatus();
+        else refreshHeroTtsVisuals();
       },
       onPlaybackEnd: () => {
         syncLiveDialogForTtsPlayback();

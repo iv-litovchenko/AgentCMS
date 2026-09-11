@@ -147,7 +147,14 @@ export async function speakShellBrowserTts(text, { lang = "ru-RU", rate = 1, voi
       started = true;
     };
     utterance.onend = () => finish(started);
-    utterance.onerror = (event) => finish(false, event?.error || "speech-error");
+    utterance.onerror = (event) => {
+      const err = String(event?.error || "speech-error").toLowerCase();
+      if (err === "interrupted" || err === "canceled" || err === "cancelled") {
+        finish(true, err);
+        return;
+      }
+      finish(false, event?.error || "speech-error");
+    };
 
     synth.speak(utterance);
 

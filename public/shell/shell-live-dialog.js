@@ -1,11 +1,16 @@
-/** Живой диалог v1: непрерывный Web Speech, отправка по паузе, barge-in при перебивании. */
+/** Живой диалог v10: half-duplex TTS + VAD barge-in (говорите — перебить). */
 
 import { playShellMicSound, primeShellProcessingAudio } from "@shell/ui-sounds";
 import { acquireShellWakeLock, hapticTap, releaseShellWakeLock } from "@shell/voice";
 
 export const LIVE_UTTERANCE_END_MS = 1400;
-export const LIVE_BARGE_IN_MIN_CHARS = 2;
-export const LIVE_RESTART_MS = 180;
+export const LIVE_BARGE_IN_MIN_CHARS = 3;
+export const LIVE_RESTART_MS = 120;
+const BARGE_VAD_INTERVAL_MS = 50;
+const BARGE_VAD_WARMUP_MS = 750;
+const BARGE_VAD_HOT_FRAMES = 7;
+const BARGE_VAD_MIN_RMS = 0.032;
+const BARGE_VAD_START_DELAY_MS = 350;
 
 export function createShellLiveDialog(deps) {
   let recognition = null;
@@ -14,8 +19,19 @@ export function createShellLiveDialog(deps) {
   let endTimer = 0;
   let restartTimer = 0;
   let starting = false;
-  let recognitionPaused = false;
   let bargeCooldownUntil = 0;
+  /** Half-duplex: STT остановлен, пока агент озвучивает (Safari: recognition ломает TTS). */
+  let listeningPausedForAgent = false;
+  /** VAD-монитор для barge-in (без Web Speech — не рвёт TTS). */
+  let bargeMonitorActive = false;
+  let bargeStream = null;
+  let bargeAudioCtx = null;
+  let bargeAnalyser = null;
+  let bargeSource = null;
+  let bargeTimer = 0;
+  let bargeBaseline = 0;
+  let bargeHotFrames = 0;
+  let bargeStartedAt = 0;
 
   const clearEndTimer = () => {
     if (!endTimer) return;
@@ -31,13 +47,22 @@ export function createShellLiveDialog(deps) {
 
   const isActive = () => Boolean(deps.state?.liveDialogActive);
 
+  const isSendLocked = () => Boolean(deps.isVoiceSttProcessing?.());
+
+  const shouldHoldStt = () =>
+    Boolean(
+      listeningPausedForAgent ||
+        deps.isHalfDuplexPause?.() ||
+        deps.isAgentEchoHardBlock?.() && deps.isHalfDuplexPause?.()
+    );
+
   const currentPhrase = () => (utteranceFinal + utteranceInterim).replace(/\s+/g, " ").trim();
 
   const resetUtterance = () => {
     utteranceFinal = "";
     utteranceInterim = "";
     clearEndTimer();
-    deps.setLiveUserSpeaking?.(false);
+    if (!deps.state?.liveUserBarging) deps.setLiveUserSpeaking?.(false);
   };
 
   const scheduleUtteranceEnd = () => {
@@ -48,38 +73,181 @@ export function createShellLiveDialog(deps) {
     }, LIVE_UTTERANCE_END_MS);
   };
 
+  function ensureListening() {
+    if (!isActive() || !recognition) return;
+    if (shouldHoldStt()) return;
+    try {
+      recognition.start();
+      deps.state.micActive = true;
+    } catch (error) {
+      const msg = String(error?.message || error?.name || "");
+      if (/already/i.test(msg) || error?.name === "InvalidStateError") {
+        deps.state.micActive = true;
+        return;
+      }
+      scheduleRestart(80);
+    }
+  }
+
   const scheduleRestart = (delayMs = LIVE_RESTART_MS) => {
     clearRestartTimer();
-    if (!isActive() || recognitionPaused) return;
+    if (!isActive() || shouldHoldStt()) return;
     restartTimer = window.setTimeout(() => {
       restartTimer = 0;
-      if (!isActive() || recognitionPaused || deps.shouldSuspendLiveListening?.()) return;
-      try {
-        recognition?.start();
-      } catch {
-        scheduleRestart(Math.min(delayMs + 120, 900));
-      }
+      if (!isActive() || shouldHoldStt()) return;
+      ensureListening();
     }, delayMs);
   };
 
-  const stopRecognition = () => {
+  const releaseMic = ({ abort = false } = {}) => {
     clearEndTimer();
     clearRestartTimer();
     if (!recognition) return;
     try {
-      recognition.stop();
+      if (abort) recognition.abort();
+      else recognition.stop();
     } catch {
       // ignore
     }
   };
 
-  function onLiveSpeechActivity(phrase, { interim = false } = {}) {
-    if (!isActive() || !interim) return;
-    const now = Date.now();
-    if (now < bargeCooldownUntil) return;
+  const stopRecognition = () => {
+    listeningPausedForAgent = false;
+    releaseMic({ abort: false });
+  };
+
+  function stopBargeMonitor() {
+    bargeMonitorActive = false;
+    bargeHotFrames = 0;
+    bargeBaseline = 0;
+    if (bargeTimer) {
+      clearInterval(bargeTimer);
+      bargeTimer = 0;
+    }
+    try {
+      bargeSource?.disconnect();
+    } catch {
+      // ignore
+    }
+    bargeSource = null;
+    bargeAnalyser = null;
+    if (bargeAudioCtx) {
+      void bargeAudioCtx.close().catch(() => {});
+      bargeAudioCtx = null;
+    }
+    if (bargeStream) {
+      for (const track of bargeStream.getTracks()) track.stop();
+      bargeStream = null;
+    }
+  }
+
+  function measureMicRms(analyser) {
+    const data = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 1) {
+      const v = (data[i] - 128) / 128;
+      sum += v * v;
+    }
+    return Math.sqrt(sum / data.length);
+  }
+
+  function tickBargeMonitor() {
+    if (!bargeMonitorActive || !bargeAnalyser || !isActive()) {
+      stopBargeMonitor();
+      return;
+    }
+    if (!listeningPausedForAgent && !deps.isHalfDuplexPause?.()) {
+      stopBargeMonitor();
+      return;
+    }
     if (!deps.shouldBargeIn?.()) return;
-    bargeCooldownUntil = now + 900;
-    void deps.bargeInLiveDialog?.();
+
+    const rms = measureMicRms(bargeAnalyser);
+    const elapsed = Date.now() - bargeStartedAt;
+    if (elapsed < BARGE_VAD_WARMUP_MS) {
+      bargeBaseline = bargeBaseline ? bargeBaseline * 0.82 + rms * 0.18 : rms;
+      return;
+    }
+
+    const threshold = Math.max(BARGE_VAD_MIN_RMS, bargeBaseline * 2.6 + 0.014);
+    if (rms > threshold) {
+      bargeHotFrames += 1;
+      if (bargeHotFrames >= BARGE_VAD_HOT_FRAMES) {
+        const now = Date.now();
+        if (now < bargeCooldownUntil) return;
+        bargeCooldownUntil = now + 1200;
+        stopBargeMonitor();
+        void deps.bargeInLiveDialog?.({ phrase: "", voice: true });
+      }
+    } else {
+      bargeHotFrames = Math.max(0, bargeHotFrames - 1);
+    }
+  }
+
+  async function startBargeMonitor() {
+    stopBargeMonitor();
+    if (!isActive() || !deps.shouldBargeIn?.()) return;
+    if (!navigator.mediaDevices?.getUserMedia) return;
+
+    try {
+      bargeStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      bargeAudioCtx = new AudioContext();
+      bargeSource = bargeAudioCtx.createMediaStreamSource(bargeStream);
+      bargeAnalyser = bargeAudioCtx.createAnalyser();
+      bargeAnalyser.fftSize = 2048;
+      bargeSource.connect(bargeAnalyser);
+      bargeStartedAt = Date.now();
+      bargeBaseline = 0;
+      bargeHotFrames = 0;
+      bargeMonitorActive = true;
+      bargeTimer = window.setInterval(tickBargeMonitor, BARGE_VAD_INTERVAL_MS);
+      deps.syncMicButtonUi?.({ force: true });
+    } catch {
+      stopBargeMonitor();
+    }
+  }
+
+  function pauseListeningDuringAgent() {
+    if (!isActive()) return;
+    listeningPausedForAgent = true;
+    flushCapture();
+    releaseMic({ abort: true });
+    deps.state.micActive = false;
+    window.setTimeout(() => {
+      if (!isActive() || !listeningPausedForAgent) return;
+      void startBargeMonitor();
+    }, BARGE_VAD_START_DELAY_MS);
+    deps.syncMicButtonUi?.({ force: true });
+    deps.syncVoiceRecordTimer?.();
+  }
+
+  function resumeListeningAfterAgent() {
+    if (!isActive()) return;
+    stopBargeMonitor();
+    listeningPausedForAgent = false;
+    flushCapture();
+    deps.state.micActive = false;
+    ensureListening();
+    deps.syncMicButtonUi?.({ force: true });
+    deps.syncVoiceRecordTimer?.();
+    deps.renderLiveHeroStatus?.();
+  }
+
+  function acceptUserPhrase(phrase) {
+    deps.setLiveUserSpeaking?.(Boolean(phrase), phrase);
+    if (phrase) {
+      deps.renderPhase?.("listening", phrase);
+      scheduleUtteranceEnd();
+    } else {
+      deps.renderLiveHeroStatus?.();
+    }
   }
 
   const bindRecognition = (rec) => {
@@ -91,13 +259,17 @@ export function createShellLiveDialog(deps) {
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
-      deps.state.micActive = true;
+      if (isActive()) deps.state.micActive = true;
       deps.syncMicButtonUi?.({ force: true });
       deps.syncVoiceRecordTimer?.();
     };
 
     recognition.onresult = (event) => {
-      if (!isActive() || recognitionPaused || deps.shouldSuspendLiveListening?.()) return;
+      if (!isActive() || shouldHoldStt() || isSendLocked()) {
+        flushCapture();
+        return;
+      }
+
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const part = event.results[i][0]?.transcript || "";
@@ -105,23 +277,21 @@ export function createShellLiveDialog(deps) {
         else interim += part;
       }
       utteranceInterim = interim;
+
       const phrase = currentPhrase();
-      if (phrase.length >= LIVE_BARGE_IN_MIN_CHARS) {
-        onLiveSpeechActivity(phrase, { interim: Boolean(interim) });
+      if (phrase && deps.utteranceLooksLikeEcho?.(phrase)) {
+        flushCapture();
+        return;
       }
-      deps.setLiveUserSpeaking?.(Boolean(phrase));
-      if (phrase) deps.renderPhase?.("listening", phrase);
-      else deps.renderPhase?.("waiting", deps.getLiveListeningPhrase?.() || "Живой диалог · жду");
-      if (phrase) scheduleUtteranceEnd();
+      acceptUserPhrase(phrase);
     };
 
     recognition.onerror = (event) => {
       const code = String(event.error || "unknown");
       if (isActive() && (code === "no-speech" || code === "aborted")) {
-        scheduleRestart();
+        if (!shouldHoldStt()) scheduleRestart();
         return;
       }
-      deps.state.micActive = false;
       if (code === "not-allowed") {
         void stop({ notify: false });
         deps.renderPhase?.("waiting", "Нет доступа к микрофону · разрешите в Safari");
@@ -134,52 +304,67 @@ export function createShellLiveDialog(deps) {
         deps.showMicPermissionDialog?.("insecure");
         return;
       }
-      if (isActive()) scheduleRestart(320);
-      else deps.renderPhase?.("waiting", code || "Ошибка распознавания");
+      if (isActive() && !shouldHoldStt()) scheduleRestart(320);
+      else if (!isActive()) {
+        deps.state.micActive = false;
+        deps.renderPhase?.("waiting", code || "Ошибка распознавания");
+      }
     };
 
     recognition.onend = () => {
-      deps.state.micActive = false;
-      if (recognitionPaused) {
+      if (isActive()) {
+        if (shouldHoldStt()) {
+          deps.state.micActive = false;
+          deps.syncMicButtonUi?.({ force: true });
+          return;
+        }
+        scheduleRestart(80);
         deps.syncMicButtonUi?.({ force: true });
         return;
       }
-      if (isActive()) scheduleRestart();
-      else deps.syncMicButtonUi?.({ force: true });
+      deps.state.micActive = false;
+      deps.syncMicButtonUi?.({ force: true });
     };
   };
 
-  function suspendRecognition() {
-    if (!isActive() || recognitionPaused) return;
-    recognitionPaused = true;
+  function flushCapture() {
     clearEndTimer();
     resetUtterance();
-    stopRecognition();
-    deps.state.micActive = false;
+  }
+
+  function clearDiscardWindow() {}
+
+  function suspendCapture() {
+    if (!isActive()) return;
+    flushCapture();
+    deps.state.micActive = true;
+    if (!shouldHoldStt()) ensureListening();
     deps.syncMicButtonUi?.({ force: true });
-    deps.syncVoiceRecordTimer?.();
   }
 
   function resumeRecognition() {
-    if (!isActive()) return;
-    if (deps.shouldSuspendLiveListening?.()) return;
-    recognitionPaused = false;
-    scheduleRestart(80);
+    resumeListeningAfterAgent();
   }
 
   async function commitUtterance() {
-    if (!isActive() || deps.isVoiceSttProcessing?.()) return;
+    if (!isActive() || shouldHoldStt() || deps.isVoiceSttProcessing?.() || deps.shouldBlockLiveUtterance?.()) {
+      flushCapture();
+      return;
+    }
     const text = currentPhrase();
-    resetUtterance();
+    flushCapture();
     if (!text) return;
+    if (deps.utteranceLooksLikeEcho?.(text)) {
+      deps.onEchoSuppressed?.(text);
+      return;
+    }
     try {
       await deps.handleLiveUtterance?.(text);
     } catch (error) {
       deps.renderPhase?.("waiting", error?.message || "Не удалось отправить фразу");
     } finally {
-      if (isActive()) {
-        deps.renderPhase?.("waiting", deps.getLiveListeningPhrase?.() || "Живой диалог · жду");
-      }
+      deps.state.liveUserBarging = false;
+      if (isActive()) deps.renderLiveHeroStatus?.();
     }
   }
 
@@ -194,6 +379,8 @@ export function createShellLiveDialog(deps) {
 
     starting = true;
     deps.shellTapVoice?.abortSession?.();
+    deps.state.liveUserBarging = false;
+    listeningPausedForAgent = false;
     resetUtterance();
     primeShellProcessingAudio();
     playShellMicSound("press");
@@ -211,14 +398,9 @@ export function createShellLiveDialog(deps) {
       deps.state.liveDialogActive = true;
       deps.syncMicButtonUi?.({ force: true });
       deps.syncVoiceRecordTimer?.();
-      deps.renderPhase?.("waiting", deps.getLiveListeningPhrase?.() || "Живой диалог · жду");
+      deps.renderLiveHeroStatus?.();
       void acquireShellWakeLock(deps.state, "live-dialog");
-      try {
-        recognition.start();
-      } catch (error) {
-        const msg = String(error?.message || error?.name || "");
-        if (!/already/i.test(msg) && error?.name !== "InvalidStateError") throw error;
-      }
+      ensureListening();
       return true;
     } catch (error) {
       deps.state.liveDialogActive = false;
@@ -234,8 +416,11 @@ export function createShellLiveDialog(deps) {
 
   async function stop({ notify = true } = {}) {
     if (!isActive() && !starting) return;
-    recognitionPaused = false;
+    clearRestartTimer();
+    stopBargeMonitor();
+    listeningPausedForAgent = false;
     deps.state.liveDialogActive = false;
+    deps.state.liveUserBarging = false;
     deps.state.micActive = false;
     deps.setLiveUserSpeaking?.(false);
     resetUtterance();
@@ -265,8 +450,15 @@ export function createShellLiveDialog(deps) {
     stop,
     toggle,
     isActive,
-    suspendRecognition,
+    suspendRecognition: suspendCapture,
+    suspendCapture,
     resumeRecognition,
-    isRecognitionPaused: () => recognitionPaused
+    pauseListeningDuringAgent,
+    resumeListeningAfterAgent,
+    flushCapture,
+    clearDiscardWindow,
+    ensureListening,
+    isRecognitionPaused: () => listeningPausedForAgent,
+    isBargeMonitorActive: () => bargeMonitorActive
   };
 }

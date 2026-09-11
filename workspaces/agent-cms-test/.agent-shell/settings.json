@@ -101,7 +101,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0.9928
+    "dialogScrollRatio": 0.9999
   },
   "compose": {
     "promptTemplates": [
