@@ -101,7 +101,17 @@
     { head: "Область" },
     { key: "screenshot-region-compose", label: "В чат", hint: "Выделить прямоугольник → compose" },
     { key: "screenshot-region-clipboard", label: "В буфер", hint: "Выделить прямоугольник → буфер обмена" },
-    { key: "screenshot-region-download", label: "Скачать", hint: "Выделить прямоугольник → файл PNG" }
+    { key: "screenshot-region-download", label: "Скачать", hint: "Выделить прямоугольник → файл PNG" },
+    { sep: true },
+    { head: "Блок" },
+    { key: "screenshot-element-compose", label: "В чат", hint: "Клик по блоку на странице → compose" },
+    { key: "screenshot-element-clipboard", label: "В буфер", hint: "Клик по блоку → буфер обмена" },
+    { key: "screenshot-element-download", label: "Скачать", hint: "Клик по блоку → файл PNG" },
+    { sep: true },
+    { head: "Вся страница" },
+    { key: "screenshot-fullpage-compose", label: "В чат", hint: "Скролл и склейка всей страницы → compose" },
+    { key: "screenshot-fullpage-clipboard", label: "В буфер", hint: "Скролл и склейка всей страницы → буфер" },
+    { key: "screenshot-fullpage-download", label: "Скачать", hint: "Скролл и склейка всей страницы → PNG" }
   ];
 
   const root = document.createElement("div");
@@ -543,16 +553,22 @@
     return false;
   }
 
-  async function recordClipboardHistory(text, { kind = "text" } = {}) {
+  async function recordClipboardHistory(
+    text,
+    { kind = "text", thumbDataUrl = "", imageDataUrl = "" } = {}
+  ) {
     if (!clipboardHistoryEnabled) return;
     const body = String(text || "").trim();
-    if (!body) return;
+    if (!body && kind !== "image") return;
+    if (kind === "image" && !body && !imageDataUrl && !thumbDataUrl) return;
     try {
       await sendRuntimeMessage({
         type: "COMPANION_CLIPBOARD_HISTORY_ADD",
         entry: {
           kind,
-          text: body,
+          text: body || "[Изображение]",
+          thumbDataUrl: String(thumbDataUrl || ""),
+          imageDataUrl: String(imageDataUrl || ""),
           sourceUrl: location.href,
           pageTitle: document.title || ""
         }
@@ -560,6 +576,22 @@
     } catch {
       // ignore
     }
+  }
+
+  async function insertClipboardHistoryItem(item) {
+    if (item?.kind === "image" && item.imageDataUrl) {
+      setStatus("Вставка…", "busy");
+      const upload = await sendRuntimeMessage({
+        type: "COMPANION_UPLOAD_TAB_SCREENSHOT",
+        dataUrl: item.imageDataUrl,
+        tabUrl: formatCompanionUrl(location.href)
+      });
+      if (upload?.ok && upload.text) {
+        void insertIntoCompose(upload.text);
+        return;
+      }
+    }
+    void insertIntoCompose(item?.text || "");
   }
 
   function createClipboardHistoryRow(item) {
@@ -570,12 +602,25 @@
     main.type = "button";
     main.className = "asc-clip-item-main";
     main.title = "Вставить в чат";
-    main.textContent = item.preview || item.text || "Запись";
     main.setAttribute("role", "menuitem");
+
+    if (item.kind === "image" && item.thumbDataUrl) {
+      const thumb = document.createElement("img");
+      thumb.className = "asc-clip-thumb";
+      thumb.src = item.thumbDataUrl;
+      thumb.alt = "";
+      main.append(thumb);
+    }
+
+    const label = document.createElement("span");
+    label.className = "asc-clip-label";
+    label.textContent = item.preview || item.text || "Запись";
+    main.append(label);
+
     main.addEventListener("click", (event) => {
       event.stopPropagation();
       closeMenus();
-      void insertIntoCompose(item.text || "");
+      void insertClipboardHistoryItem(item);
     });
 
     const copyBtn = document.createElement("button");
@@ -587,8 +632,14 @@
     copyBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       closeMenus();
+      if (item.kind === "image" && item.imageDataUrl) {
+        void copyScreenshotToClipboard(item.imageDataUrl)
+          .then(() => setStatus("Скопировано", "ok"))
+          .catch((error) => setStatus(error?.message || "Не удалось скопировать", "error"));
+        return;
+      }
       if (item.kind === "image") {
-        setStatus("Изображение — только через чат", "error");
+        setStatus("Изображение — только в чат", "error");
         return;
       }
       if (writeClipboardSync(item.text || "")) {
@@ -967,6 +1018,30 @@
       void runScreenshot({ region: true, destination: "download" });
       return;
     }
+    if (key === "screenshot-element-compose") {
+      void runScreenshot({ element: true, destination: "compose" });
+      return;
+    }
+    if (key === "screenshot-element-clipboard") {
+      void runScreenshot({ element: true, destination: "clipboard" });
+      return;
+    }
+    if (key === "screenshot-element-download") {
+      void runScreenshot({ element: true, destination: "download" });
+      return;
+    }
+    if (key === "screenshot-fullpage-compose") {
+      void runScreenshot({ fullPage: true, destination: "compose" });
+      return;
+    }
+    if (key === "screenshot-fullpage-clipboard") {
+      void runScreenshot({ fullPage: true, destination: "clipboard" });
+      return;
+    }
+    if (key === "screenshot-fullpage-download") {
+      void runScreenshot({ fullPage: true, destination: "download" });
+      return;
+    }
     const prompt = SELECTION_PROMPTS.find((item) => item.key === key);
     if (prompt) applySelectionPrompt(prompt);
   }
@@ -1017,6 +1092,150 @@
       binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
     }
     return `data:image/jpeg;base64,${btoa(binary)}`;
+  }
+
+  function isScreenshotElementExcluded(el) {
+    if (!el) return true;
+    if (
+      el.closest(
+        "#agent-shell-companion-toolbar, .asc-screenshot-element-root, .asc-screenshot-region-root, script, style, noscript, iframe"
+      )
+    ) {
+      return true;
+    }
+    const host = el.getRootNode?.()?.host;
+    if (host?.id === "agent-shell-companion-toolbar") return true;
+    if (host?.closest?.("#agent-shell-companion-toolbar, .asc-screenshot-element-root")) return true;
+    return false;
+  }
+
+  function extractElementTextForScreenshot(el) {
+    if (!el) return "";
+    try {
+      return String(el.innerText || el.textContent || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function elementAtPointForScreenshot(x, y) {
+    return window.PagePickerExtract?.deepElementFromPoint?.(x, y) || document.elementFromPoint(x, y);
+  }
+
+  function resolveScreenshotElement(raw) {
+    if (!raw || isScreenshotElementExcluded(raw)) return null;
+
+    if (window.PagePickerExtract?.resolveTextBlockTarget) {
+      const block = window.PagePickerExtract.resolveTextBlockTarget(raw, {
+        isExcluded: isScreenshotElementExcluded,
+        extractText: extractElementTextForScreenshot,
+        isFormField: (el) => window.PagePickerExtract?.isFormField?.(el)
+      });
+      if (block) return block;
+    }
+
+    const visual = raw.closest?.(
+      "img, picture, video, canvas, svg, table, pre, article, section, main, aside, figure, [role='article']"
+    );
+    if (visual && !isScreenshotElementExcluded(visual)) return visual;
+
+    let el = raw;
+    while (el && el !== document.body) {
+      if (isScreenshotElementExcluded(el)) return null;
+      const rect = el.getBoundingClientRect();
+      if (rect.width >= 24 && rect.height >= 24) return el;
+      el = el.parentElement;
+    }
+    return isScreenshotElementExcluded(raw) ? null : raw;
+  }
+
+  function elementCropRect(el) {
+    if (!el?.getBoundingClientRect) return null;
+    const rect = el.getBoundingClientRect();
+    const left = Math.max(0, rect.left);
+    const top = Math.max(0, rect.top);
+    const right = Math.min(window.innerWidth, rect.right);
+    const bottom = Math.min(window.innerHeight, rect.bottom);
+    const width = right - left;
+    const height = bottom - top;
+    if (width < 8 || height < 8) return null;
+    return { left, top, width, height };
+  }
+
+  function pickScreenshotElement() {
+    return new Promise((resolve) => {
+      const rootNode = document.createElement("div");
+      rootNode.className = "asc-screenshot-element-root";
+      rootNode.setAttribute("aria-hidden", "true");
+
+      const hint = document.createElement("div");
+      hint.className = "asc-screenshot-element-hint";
+      hint.textContent = "Наведите на блок и кликните · Esc — отмена";
+
+      const highlight = document.createElement("div");
+      highlight.className = "asc-screenshot-element-highlight";
+
+      rootNode.append(hint, highlight);
+      document.documentElement.classList.add("asc-screenshot-element-active");
+      document.body.appendChild(rootNode);
+
+      let hoveredTarget = null;
+
+      function hideHighlight() {
+        highlight.style.display = "none";
+      }
+
+      function showHighlight(target) {
+        const rect = elementCropRect(target);
+        if (!rect) {
+          hideHighlight();
+          return;
+        }
+        highlight.style.display = "block";
+        highlight.style.left = `${rect.left}px`;
+        highlight.style.top = `${rect.top}px`;
+        highlight.style.width = `${rect.width}px`;
+        highlight.style.height = `${rect.height}px`;
+      }
+
+      function cleanup(result) {
+        document.removeEventListener("keydown", onKeyDown, true);
+        document.removeEventListener("pointermove", onPointerMove, true);
+        document.removeEventListener("click", onClick, true);
+        rootNode.remove();
+        document.documentElement.classList.remove("asc-screenshot-element-active");
+        resolve(result);
+      }
+
+      function onKeyDown(event) {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        cleanup(null);
+      }
+
+      function onPointerMove(event) {
+        const raw = elementAtPointForScreenshot(event.clientX, event.clientY);
+        const target = resolveScreenshotElement(raw);
+        if (target === hoveredTarget) return;
+        hoveredTarget = target;
+        if (target) showHighlight(target);
+        else hideHighlight();
+      }
+
+      function onClick(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const raw = elementAtPointForScreenshot(event.clientX, event.clientY);
+        const target = resolveScreenshotElement(raw);
+        const rect = target ? elementCropRect(target) : null;
+        cleanup(rect);
+      }
+
+      document.addEventListener("keydown", onKeyDown, true);
+      document.addEventListener("pointermove", onPointerMove, true);
+      document.addEventListener("click", onClick, true);
+    });
   }
 
   function pickScreenshotRegion() {
@@ -1159,18 +1378,79 @@
     });
   }
 
-  function buildScreenshotFilename(region = false) {
+  async function dataUrlToJpeg(dataUrl, quality = 0.88) {
+    const pngDataUrl = await dataUrlToPng(dataUrl);
+    const blob = await (await fetch(pngDataUrl)).blob();
+    const bitmap = await createImageBitmap(blob);
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      throw new Error("Не удалось подготовить изображение");
+    }
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const out = await canvas.convertToBlob({ type: "image/jpeg", quality });
+    const bytes = new Uint8Array(await out.arrayBuffer());
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return `data:image/jpeg;base64,${btoa(binary)}`;
+  }
+
+  async function makeImageThumb(dataUrl, maxSize = 120) {
+    const source = String(dataUrl || "").trim();
+    if (!source.startsWith("data:image/")) return "";
+    const blob = await (await fetch(source)).blob();
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height, 1));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return "";
+    }
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+    const out = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.72 });
+    const bytes = new Uint8Array(await out.arrayBuffer());
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return `data:image/jpeg;base64,${btoa(binary)}`;
+  }
+
+  async function recordScreenshotInClipboardHistory(dataUrl) {
+    try {
+      const jpegDataUrl = await dataUrlToJpeg(dataUrl);
+      const thumbDataUrl = await makeImageThumb(jpegDataUrl);
+      void recordClipboardHistory(`[Изображение] ${currentPageUrl()}`, {
+        kind: "image",
+        thumbDataUrl,
+        imageDataUrl: jpegDataUrl
+      });
+    } catch {
+      void recordClipboardHistory(`[Изображение] ${currentPageUrl()}`, { kind: "image" });
+    }
+  }
+
+  function buildScreenshotFilename(kind = "screen") {
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    const kind = region ? "region" : "screen";
     return `agent-shell-${kind}-${stamp}.png`;
   }
 
-  async function downloadScreenshot(dataUrl, { region = false } = {}) {
+  async function downloadScreenshot(dataUrl, { kind = "screen" } = {}) {
     const pngDataUrl = await dataUrlToPng(dataUrl);
     const blob = await (await fetch(pngDataUrl)).blob();
     if (!blob?.size) throw new Error("Пустой скриншот");
 
-    const filename = buildScreenshotFilename(region);
+    const filename = buildScreenshotFilename(kind);
     const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = objectUrl;
@@ -1180,6 +1460,146 @@
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  }
+
+  const FULLPAGE_MAX_SLICES = 50;
+  const FULLPAGE_MAX_HEIGHT = 24000;
+
+  function getPageScrollMetrics() {
+    const root = document.documentElement;
+    const body = document.body;
+    return {
+      scrollWidth: Math.max(root.scrollWidth, body?.scrollWidth || 0, window.innerWidth),
+      scrollHeight: Math.max(root.scrollHeight, body?.scrollHeight || 0, window.innerHeight),
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      devicePixelRatio: window.devicePixelRatio || 1
+    };
+  }
+
+  function buildFullPageScrollPositions(metrics) {
+    const viewportH = Math.max(1, metrics.viewportHeight);
+    const maxScroll = Math.max(0, metrics.scrollHeight - viewportH);
+    if (maxScroll <= 0) return [0];
+
+    const positions = [0];
+    let y = 0;
+    while (y < maxScroll && positions.length < FULLPAGE_MAX_SLICES - 1) {
+      y += viewportH;
+      if (y > maxScroll) y = maxScroll;
+      if (positions[positions.length - 1] !== y) positions.push(y);
+      if (y >= maxScroll) break;
+    }
+    if (positions[positions.length - 1] !== maxScroll) {
+      if (positions.length >= FULLPAGE_MAX_SLICES) positions[positions.length - 1] = maxScroll;
+      else positions.push(maxScroll);
+    }
+    return positions;
+  }
+
+  function hideFixedElementsForCapture() {
+    const hidden = [];
+    for (const el of document.querySelectorAll("body *")) {
+      if (!(el instanceof Element)) continue;
+      if (el.closest("#agent-shell-companion-toolbar")) continue;
+      let position = "";
+      try {
+        position = getComputedStyle(el).position;
+      } catch {
+        continue;
+      }
+      if (position !== "fixed" && position !== "sticky") continue;
+      hidden.push({ el, visibility: el.style.visibility });
+      el.style.setProperty("visibility", "hidden", "important");
+    }
+    return () => {
+      for (const item of hidden) {
+        if (item.visibility) item.el.style.visibility = item.visibility;
+        else item.el.style.removeProperty("visibility");
+      }
+    };
+  }
+
+  async function stitchFullPageSlices(slices, metrics) {
+    const dpr = metrics.devicePixelRatio || 1;
+    const canvasW = Math.max(1, Math.round(metrics.viewportWidth * dpr));
+    const canvasH = Math.max(1, Math.round(metrics.scrollHeight * dpr));
+    if (canvasH > 16384) {
+      throw new Error("Страница слишком длинная для склейки (лимит ~16 000 px)");
+    }
+
+    const canvas = new OffscreenCanvas(canvasW, canvasH);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Не удалось склеить скриншот");
+
+    for (const slice of slices) {
+      const blob = await (await fetch(String(slice.dataUrl || ""))).blob();
+      const bitmap = await createImageBitmap(blob);
+      const destY = Math.round(Math.max(0, slice.scrollY) * dpr);
+      const remainingCss = Math.max(0, metrics.scrollHeight - slice.scrollY);
+      const drawHeight = Math.min(Math.round(remainingCss * dpr), bitmap.height, canvasH - destY);
+      if (drawHeight <= 0) {
+        bitmap.close();
+        continue;
+      }
+      ctx.drawImage(bitmap, 0, 0, bitmap.width, drawHeight, 0, destY, bitmap.width, drawHeight);
+      bitmap.close();
+    }
+
+    const out = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.88 });
+    const bytes = new Uint8Array(await out.arrayBuffer());
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return `data:image/jpeg;base64,${btoa(binary)}`;
+  }
+
+  async function captureFullPageScreenshot() {
+    const metrics = getPageScrollMetrics();
+    if (metrics.scrollHeight > FULLPAGE_MAX_HEIGHT) {
+      throw new Error(`Страница слишком длинная (>${FULLPAGE_MAX_HEIGHT}px)`);
+    }
+
+    const positions = buildFullPageScrollPositions(metrics);
+    if (positions.length > FULLPAGE_MAX_SLICES) {
+      throw new Error("Слишком много фрагментов — укоротите страницу или используйте «Область»");
+    }
+
+    const originalScroll = { x: window.scrollX, y: window.scrollY };
+    const restoreFixed = hideFixedElementsForCapture();
+    document.documentElement.classList.add("asc-capturing-fullpage");
+
+    try {
+      const slices = [];
+      for (let i = 0; i < positions.length; i += 1) {
+        setStatus(`Скрин страницы ${i + 1}/${positions.length}…`, "busy");
+        window.scrollTo(0, positions[i]);
+        await waitPaint();
+        await new Promise((resolve) => window.setTimeout(resolve, 120));
+
+        const capture = await sendRuntimeMessage({ type: "COMPANION_CAPTURE_TAB_SCREENSHOT" });
+        if (!capture?.ok || !capture.dataUrl) {
+          throw new Error(capture?.error || "Не удалось сделать фрагмент скрина");
+        }
+
+        slices.push({
+          dataUrl: capture.dataUrl,
+          scrollY: window.scrollY
+        });
+      }
+
+      setStatus("Склейка…", "busy");
+      return {
+        dataUrl: await stitchFullPageSlices(slices, metrics),
+        tabUrl: location.href
+      };
+    } finally {
+      window.scrollTo(originalScroll.x, originalScroll.y);
+      restoreFixed();
+      document.documentElement.classList.remove("asc-capturing-fullpage");
+    }
   }
 
   async function copyScreenshotToClipboard(dataUrl) {
@@ -1202,13 +1622,30 @@
     }
   }
 
-  async function runScreenshot({ region = false, destination = "compose" } = {}) {
+  async function runScreenshot({
+    region = false,
+    element = false,
+    fullPage = false,
+    destination = "compose"
+  } = {}) {
     closeMenus();
-    setStatus(region ? "Выделите область…" : "Скриншот…", "busy");
+    setStatus(
+      element ? "Выберите блок…" : region ? "Выделите область…" : fullPage ? "Скрин страницы…" : "Скриншот…",
+      "busy"
+    );
 
     let cropRect = null;
-    if (region) {
+    let shotKind = "screen";
+    if (element) {
+      cropRect = await pickScreenshotElement();
+      shotKind = "block";
+      if (!cropRect) {
+        setStatus("Отменено", "ok");
+        return;
+      }
+    } else if (region) {
       cropRect = await pickScreenshotRegion();
+      shotKind = "region";
       if (!cropRect) {
         setStatus("Отменено", "ok");
         return;
@@ -1218,11 +1655,22 @@
     setStatus("Скриншот…", "busy");
     document.documentElement.classList.add("asc-capturing-viewport");
     try {
-      await waitPaint();
-      const capture = await sendRuntimeMessage({ type: "COMPANION_CAPTURE_TAB_SCREENSHOT" });
-      if (!capture?.ok || !capture.dataUrl) {
-        setStatus(capture?.error || "Не удалось сделать скрин", "error");
-        return;
+      let capture;
+      if (fullPage) {
+        shotKind = "fullpage";
+        try {
+          capture = await captureFullPageScreenshot();
+        } catch (error) {
+          setStatus(error?.message || "Не удалось сделать скрин страницы", "error");
+          return;
+        }
+      } else {
+        await waitPaint();
+        capture = await sendRuntimeMessage({ type: "COMPANION_CAPTURE_TAB_SCREENSHOT" });
+        if (!capture?.ok || !capture.dataUrl) {
+          setStatus(capture?.error || "Не удалось сделать скрин", "error");
+          return;
+        }
       }
 
       let dataUrl = capture.dataUrl;
@@ -1238,7 +1686,7 @@
       if (destination === "clipboard") {
         try {
           await copyScreenshotToClipboard(dataUrl);
-          void recordClipboardHistory(`[Изображение] ${currentPageUrl()}`, { kind: "image" });
+          void recordScreenshotInClipboardHistory(dataUrl);
           setStatus("Скопировано", "ok");
         } catch (error) {
           setStatus(error?.message || "Не удалось скопировать", "error");
@@ -1248,7 +1696,7 @@
 
       if (destination === "download") {
         try {
-          await downloadScreenshot(dataUrl, { region: Boolean(cropRect) });
+          await downloadScreenshot(dataUrl, { kind: shotKind });
           setStatus("Скачано", "ok");
         } catch (error) {
           setStatus(error?.message || "Не удалось скачать", "error");

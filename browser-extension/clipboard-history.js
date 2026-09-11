@@ -4,6 +4,8 @@
   const STORAGE_KEY = "ascClipboardHistory";
   const MAX_ITEMS = 25;
   const MAX_TEXT = 8000;
+  const MAX_THUMB_DATA_URL = 48000;
+  const MAX_IMAGE_DATA_URL = 480000;
   const PREVIEW_LEN = 72;
 
   function makeEntryId() {
@@ -11,7 +13,11 @@
   }
 
   function buildPreview(text, kind = "text") {
-    if (kind === "image") return "🖼 Изображение";
+    if (kind === "image") {
+      const label = String(text || "").replace(/\s+/g, " ").trim();
+      if (label && !/^\[Изображение\]/i.test(label)) return label.slice(0, PREVIEW_LEN);
+      return "Изображение";
+    }
     const value = String(text || "").replace(/\s+/g, " ").trim();
     if (!value) return "Пусто";
     if (value.length <= PREVIEW_LEN) return value;
@@ -23,11 +29,18 @@
     const text = String(raw.text || "").slice(0, MAX_TEXT);
     if (!text && kind === "text") return null;
     if (kind === "image" && !text) return null;
+    const thumbDataUrl =
+      kind === "image" ? String(raw.thumbDataUrl || "").slice(0, MAX_THUMB_DATA_URL) : "";
+    const imageDataUrl =
+      kind === "image" ? String(raw.imageDataUrl || "").slice(0, MAX_IMAGE_DATA_URL) : "";
+
     return {
       id: String(raw.id || makeEntryId()),
       kind,
       text,
       preview: buildPreview(text, kind),
+      thumbDataUrl,
+      imageDataUrl,
       sourceUrl: String(raw.sourceUrl || "").slice(0, 2048),
       pageTitle: String(raw.pageTitle || "").slice(0, 240),
       createdAt: Number(raw.createdAt) || Date.now()
@@ -51,7 +64,11 @@
     if (!normalized) return { ok: false, error: "empty entry" };
 
     const items = await listClipboardHistory(storage);
-    if (items[0]?.text === normalized.text && items[0]?.kind === normalized.kind) {
+    if (
+      items[0]?.text === normalized.text &&
+      items[0]?.kind === normalized.kind &&
+      (normalized.kind !== "image" || items[0]?.imageDataUrl === normalized.imageDataUrl)
+    ) {
       return { ok: true, items, skipped: true };
     }
 

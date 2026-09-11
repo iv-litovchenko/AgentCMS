@@ -23,7 +23,10 @@
 
 html.asc-capturing-viewport #agent-shell-companion-toolbar,
 html.asc-capturing-viewport .cms-page-picker-root,
-html.asc-screenshot-region-active #agent-shell-companion-toolbar {
+html.asc-capturing-viewport .asc-screenshot-element-root,
+html.asc-capturing-viewport .asc-screenshot-region-root,
+html.asc-screenshot-region-active #agent-shell-companion-toolbar,
+html.asc-screenshot-element-active #agent-shell-companion-toolbar {
   visibility: hidden !important;
   opacity: 0 !important;
 }
@@ -116,4 +119,50 @@ body.is-cms-page-picker-active #agent-shell-companion-toolbar {
   box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
   pointer-events: none;
   transition: top 0.05s ease, left 0.05s ease, width 0.05s ease, height 0.05s ease;
+}
+
+.asc-screenshot-element-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+}
+
+.asc-screenshot-element-hint {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  max-width: min(92vw, 520px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+}
+
+.asc-screenshot-element-highlight {
+  position: fixed;
+  z-index: 2;
+  display: none;
+  border: 2px solid #22d3ee;
+  border-radius: 6px;
+  background: rgba(34, 211, 238, 0.1);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  pointer-events: none;
+  transition: top 0.05s ease, left 0.05s ease, width 0.05s ease, height 0.05s ease;
+}
+
+html.asc-screenshot-element-active {
+  cursor: crosshair;
+}
+
+html.asc-capturing-fullpage {
+  scroll-behavior: auto !important;
 }

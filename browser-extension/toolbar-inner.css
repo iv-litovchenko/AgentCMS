@@ -339,6 +339,9 @@
 }
 
 .asc-clip-item-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
   height: auto;
@@ -354,6 +357,21 @@
   color: #f3e8ff;
   white-space: normal;
   word-break: break-word;
+}
+
+.asc-clip-thumb {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.asc-clip-label {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .asc-clip-item-main:hover {
