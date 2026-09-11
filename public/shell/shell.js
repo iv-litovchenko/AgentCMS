@@ -37,7 +37,7 @@ import {
   formatTtsErrorHint,
   isTtsIosUnlockIssue,
   shellTtsFailureMessage,
-  truncateForShellTts
+  splitTextForShellTts
 } from "@shell/tts-mobile";
 import { createShellSession } from "@shell/session";
 import { getShellClientId, getShellPresenceClientId } from "@shell/client-id";
@@ -137,7 +137,7 @@ import {
   sttEngineUsesWebSpeech,
   STT_SERVER_ENGINES_SELECTABLE
 } from "@shell/voice-modes";
-import { blobToPcm16MonoBase64 } from "@shell/audio-pcm";
+import { blobToPcm16MonoBase64, pickMicRecorderMimeType } from "@shell/audio-pcm";
 import {
   SHELL_RUNTIMES,
   SHELL_RUNTIME_GROUPS,
@@ -2037,6 +2037,7 @@ const nodes = {
   compactSensorStatus: document.getElementById("shell-compact-sensor-status"),
   mediaSection: document.getElementById("shell-media-section"),
   phaseLabel: document.getElementById("shell-phase-label"),
+  ttsProgressClock: document.getElementById("shell-tts-progress-clock"),
   heroDemoBar: document.getElementById("shell-hero-demo-bar"),
   shellHero: document.getElementById("shell-hero"),
   battery: document.getElementById("shell-battery"),
@@ -3138,7 +3139,14 @@ function syncHeroAvatarVisuals(requestedPhase = "waiting", { updateLabel = false
 
   if (updateLabel && !state.ttsPaused && nodes.phaseLabel) {
     nodes.phaseLabel.classList.remove("is-idle", "is-ready", "is-active", "is-busy", "is-speaking", "is-typing");
-    nodes.phaseLabel.textContent = resolveHeroStatusLabel(requestedPhase, statusText);
+    let label = resolveHeroStatusLabel(requestedPhase, statusText);
+    if (
+      shouldShowTtsProgressInHero() &&
+      (heroBackdropState === "replying" || displayPhase === "speaking")
+    ) {
+      label = buildTtsProgressLabel(label);
+    }
+    nodes.phaseLabel.textContent = label;
     nodes.phaseLabel.classList.add(badgeClass);
   }
 
@@ -3177,14 +3185,22 @@ function armStreamTtsWatchdog() {
   }, STREAM_TTS_STALE_MS);
 }
 
-function armReplyTtsWatchdog() {
+function armReplyTtsWatchdog(extraMs = REPLY_TTS_STALE_MS) {
   clearReplyTtsWatchdog();
+  const budget = Math.max(120_000, extraMs);
   replyTtsWatchdog = window.setTimeout(() => {
     replyTtsWatchdog = 0;
     if (!isTtsPlaybackActive()) return;
+    if (isTtsAudioOutputActive()) {
+      const remaining = ttsPlayer?.getPlaybackProgress?.()?.remaining || 0;
+      if (remaining > 0) {
+        armReplyTtsWatchdog(Math.ceil(remaining * 1000) + 60_000);
+        return;
+      }
+    }
     shellLog("tts", "reply watchdog — сброс зависшей озвучки");
     abortAllTtsPlayback({ reason: "audio-playback-timeout", notify: true });
-  }, REPLY_TTS_STALE_MS);
+  }, budget);
 }
 
 function rememberPendingReplyForTtsReplay() {
@@ -3221,6 +3237,7 @@ function maybeResetStaleStreamTtsUi() {
 }
 
 function resetTtsUiAfterPlayback({ patchServer = true } = {}) {
+  stopTtsProgressUi();
   state.speaking = false;
   state.ttsPaused = false;
   updateTtsControlsUi("waiting");
@@ -4175,7 +4192,13 @@ function prepareTtsStreamChunk(text) {
   if (state.settings?.ttsStripEmoji === true) {
     speech = speech.replace(/\p{Extended_Pictographic}/gu, " ").replace(/\s+/g, " ").trim();
   }
-  return truncateForShellTts(speech);
+  return speech.replace(/\s+/g, " ").trim();
+}
+
+function expandTtsSpeechParts(text) {
+  const speech = prepareTtsStreamChunk(text);
+  if (!speech) return [];
+  return splitTextForShellTts(speech);
 }
 
 function queueStreamSpeech(fullBody, { flush = false } = {}) {
@@ -4319,7 +4342,10 @@ async function drainStreamTtsQueue() {
         if (!played?.ok) {
           const reason = String(played?.reason || "play-failed");
           if (isTtsSupersededReason(reason)) break;
-          if (reason === "play-not-allowed" || reason === "engine-browser" || reason === "blocked") break;
+          if (reason === "play-not-allowed" || reason === "engine-browser" || reason === "blocked") {
+            armIosPendingTtsPlayback();
+            break;
+          }
           abortStreamTtsPlayback({ reason, notify: true });
           break;
         }
@@ -4385,12 +4411,9 @@ function finalizeAssistantStream(message) {
     !state.messageStopped &&
     !shouldSkipAssistantSpeech(message)
   ) {
-    const parts = spokenParts
-      .map((part) => prepareTtsStreamChunk(String(part || "").trim()))
-      .filter(Boolean);
+    let parts = spokenParts.flatMap((part) => expandTtsSpeechParts(String(part || "").trim()));
     if (!parts.length) {
-      const fallback = prepareTtsStreamChunk(buildSpeechPayloadSync(body));
-      if (fallback) parts.push(fallback);
+      parts = expandTtsSpeechParts(buildSpeechPayloadSync(body));
     }
     if (parts.length) {
       lastSpokenBody = parts.join("\0");
@@ -4416,9 +4439,13 @@ function finalizeAssistantStream(message) {
 let messagePipelineWatchdog = 0;
 let streamTtsWatchdog = 0;
 let replyTtsWatchdog = 0;
-const STREAM_TTS_STALE_MS = 70_000;
+let ttsProgressTimer = 0;
+let ttsProgressPhrase = "";
+let ttsProgressStartedAt = 0;
+let ttsProgressEstimateSec = 0;
+const STREAM_TTS_STALE_MS = 900_000;
 const STREAM_TTS_SYNTH_TIMEOUT_MS = 40_000;
-const REPLY_TTS_STALE_MS = 55_000;
+const REPLY_TTS_STALE_MS = 900_000;
 const turnMetrics = { sentAt: 0, ttftMs: 0 };
 
 function beginTurnMetrics() {
@@ -5652,7 +5679,14 @@ function syncCompactSensorPhase(phase, phrase = "") {
 
   sensor.dataset.phase = displayPhase;
   sensor.dataset.activity = resolveHeroSensorActivity(displayPhase, heroState);
-  status.textContent = resolveHeroStatusLabel(phase, phrase);
+  let label = resolveHeroStatusLabel(phase, phrase);
+  if (
+    shouldShowTtsProgressInHero() &&
+    (heroBackdropState === "replying" || displayPhase === "speaking")
+  ) {
+    label = buildTtsProgressLabel(label);
+  }
+  status.textContent = label;
   status.classList.remove("is-active", "is-busy", "is-speaking", "is-typing", "is-idle", "is-ready");
   status.classList.add(resolveHeroStatusBadgeClass(displayPhase, heroBackdropState));
 }
@@ -8775,28 +8809,19 @@ function buildSpeechPayloadSync(body) {
 
 function buildSpeechParts(body, message = {}) {
   if (Array.isArray(message?.spokenParts) && message.spokenParts.length) {
-    return message.spokenParts
-      .map((part) => prepareTtsStreamChunk(String(part || "").trim()))
-      .filter(Boolean);
+    return message.spokenParts.flatMap((part) => expandTtsSpeechParts(String(part || "").trim()));
   }
   const spoken = String(message?.spokenText || "").trim();
-  if (spoken) {
-    const chunk = prepareTtsStreamChunk(spoken);
-    return chunk ? [chunk] : [];
-  }
+  if (spoken) return expandTtsSpeechParts(spoken);
   if (hasTtsPrompt()) {
     const parsed = parseDualReply(body);
     if (parsed.spokenParts?.length) {
-      return parsed.spokenParts.map((part) => prepareTtsStreamChunk(part)).filter(Boolean);
+      return parsed.spokenParts.flatMap((part) => expandTtsSpeechParts(part));
     }
-    if (parsed.spoken) {
-      const chunk = prepareTtsStreamChunk(parsed.spoken);
-      return chunk ? [chunk] : [];
-    }
+    if (parsed.spoken) return expandTtsSpeechParts(parsed.spoken);
     return [];
   }
-  const fallback = prepareTtsStreamChunk(buildSpeechPayloadSync(body));
-  return fallback ? [fallback] : [];
+  return expandTtsSpeechParts(buildSpeechPayloadSync(body));
 }
 
 function buildSpeechPayload(body, message = {}) {
@@ -9012,6 +9037,129 @@ function formatVoiceRecordElapsed(ms) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+function formatTtsRemainingClock(totalSec) {
+  const sec = Math.max(0, Math.ceil(totalSec));
+  const minutes = Math.floor(sec / 60);
+  const seconds = sec % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function estimateTtsSpeechSeconds(text, rate = 1) {
+  const len = String(text || "").trim().length;
+  if (!len) return 0;
+  const pace = Math.max(0.5, Math.min(2, Number(rate) || 1));
+  return Math.max(4, len / (13 * pace));
+}
+
+function getTtsProgressSnapshot() {
+  const progress = ttsPlayer?.getPlaybackProgress?.();
+  if (progress && (progress.duration > 0 || progress.current > 0)) return progress;
+  if (ttsProgressStartedAt > 0) {
+    const elapsed = Math.max(0, (Date.now() - ttsProgressStartedAt) / 1000);
+    if (ttsProgressEstimateSec > 0) {
+      const duration = ttsProgressEstimateSec;
+      return { current: elapsed, duration, remaining: Math.max(0, duration - elapsed) };
+    }
+    if (elapsed > 0 && (isBrowserSynthActive() || isTtsAudioOutputActive())) {
+      return { current: elapsed, duration: 0, remaining: 0 };
+    }
+  }
+  return progress || null;
+}
+
+function shouldShowTtsProgressInHero() {
+  return Boolean(ttsProgressTimer || isTtsAudioOutputActive() || isBrowserSynthActive());
+}
+
+function buildTtsProgressLabel(baseLabel = HERO_STATE_LABELS.replying) {
+  const base = String(baseLabel || HERO_STATE_LABELS.replying)
+    .split(" · ")[0]
+    .trim();
+  const progress = getTtsProgressSnapshot();
+  if (!progress) return base;
+  if (progress.duration > 0) {
+    return `${base} · ${formatTtsRemainingClock(progress.remaining)}`;
+  }
+  if (progress.current > 0) {
+    return `${base} · ${formatTtsRemainingClock(progress.current)}`;
+  }
+  return base;
+}
+
+function logBrowserTtsTranscript(text, { engine = "browser", voice = "" } = {}) {
+  const payload = String(text || "").trim();
+  if (!payload) return;
+  void apiFetch("/api/shell/tts/transcript", {
+    method: "POST",
+    body: JSON.stringify({ text: payload, engine, voice })
+  }).catch(() => {});
+}
+
+function refreshTtsProgressHeroLabels() {
+  if (!shouldShowTtsProgressInHero()) return;
+  const label = buildTtsProgressLabel(ttsProgressPhrase || HERO_STATE_LABELS.replying);
+  if (nodes.phaseLabel) {
+    nodes.phaseLabel.textContent = label;
+  }
+  if (nodes.compactSensorStatus && isWindowCompactEnabled() && !isCompactSensorScanning()) {
+    nodes.compactSensorStatus.textContent = label;
+  }
+}
+
+function hideTtsProgressClock() {
+  if (!nodes.ttsProgressClock) return;
+  nodes.ttsProgressClock.textContent = "";
+  nodes.ttsProgressClock.classList.add("hidden");
+}
+
+function stopTtsProgressUi() {
+  if (ttsProgressTimer) {
+    clearInterval(ttsProgressTimer);
+    ttsProgressTimer = 0;
+  }
+  ttsProgressPhrase = "";
+  ttsProgressStartedAt = 0;
+  ttsProgressEstimateSec = 0;
+  hideTtsProgressClock();
+}
+
+function tickTtsProgressUi() {
+  if (state.ttsPaused) return;
+  if (!isTtsAudioOutputActive()) {
+    stopTtsProgressUi();
+    return;
+  }
+  const progress = ttsPlayer?.getPlaybackProgress?.();
+  if (!progress) return;
+
+  refreshTtsProgressHeroLabels();
+
+  if (progress.duration > 0) {
+    armReplyTtsWatchdog(Math.ceil(progress.remaining * 1000) + 90_000);
+  }
+}
+
+function startTtsProgressUi({ text = "", rate = 1 } = {}) {
+  if (ttsProgressTimer) {
+    clearInterval(ttsProgressTimer);
+    ttsProgressTimer = 0;
+  }
+  ttsProgressPhrase = HERO_STATE_LABELS.replying;
+  ttsProgressStartedAt = Date.now();
+  ttsProgressEstimateSec = estimateTtsSpeechSeconds(text, rate);
+  tickTtsProgressUi();
+  ttsProgressTimer = window.setInterval(tickTtsProgressUi, 250);
+}
+
+function handleTtsPlayerProgress(progress) {
+  if (!progress) return;
+  if (!ttsProgressTimer && isTtsAudioOutputActive()) {
+    startTtsProgressUi();
+    return;
+  }
+  tickTtsProgressUi();
+}
+
 function updateVoiceRecordTimerUi(recording = isVoiceRecordingActive()) {
   const el = nodes.voiceRecordTimer;
   if (!el) return;
@@ -9121,6 +9269,50 @@ async function blobToBase64(blob) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+async function saveSttVoiceRecord({
+  blob = null,
+  text = "",
+  mode = "voice",
+  mimeType = "",
+  ext = "",
+  engine = ""
+} = {}) {
+  const transcript = String(text || "").trim();
+  const voiceMode = String(mode || "voice").trim() || "voice";
+  const sttEngine = String(engine || state.settings?.stt?.engine || state.settings?.sttEngine || "browser").trim();
+
+  try {
+    if (blob && blob.size > 0) {
+      const mt = String(mimeType || blob.type || "audio/webm").trim() || "audio/webm";
+      const dataBase64 = await blobToBase64(blob);
+      const audioExt =
+        String(ext || "").trim() ||
+        (mt.includes("webm") ? "webm" : mt.includes("mp4") || mt.includes("m4a") ? "m4a" : "bin");
+      await apiFetch("/api/shell/voice-record", {
+        method: "POST",
+        body: JSON.stringify({
+          dataBase64,
+          mimeType: mt,
+          ext: audioExt,
+          kind: voiceMode,
+          mode: voiceMode,
+          text: transcript,
+          engine: sttEngine
+        })
+      });
+      return;
+    }
+    if (transcript) {
+      await apiFetch("/api/shell/stt/transcript", {
+        method: "POST",
+        body: JSON.stringify({ text: transcript, mode: voiceMode, engine: sttEngine })
+      });
+    }
+  } catch (error) {
+    shellLog("stt", "save failed", String(error?.message || error));
+  }
 }
 
 function startBrowserMeetingTranscript() {
@@ -9265,18 +9457,12 @@ async function stopBrowserMeetingRecording() {
       if (!transcript && !meetingUsesWebSpeechStt()) {
         transcript = await transcribeMicBlob(blob);
       }
-      const dataBase64 = await blobToBase64(blob);
-      const ext = mimeType.includes("webm") ? "webm" : "m4a";
-      await apiFetch("/api/shell/voice-record", {
-        method: "POST",
-        body: JSON.stringify({
-          dataBase64,
-          mimeType,
-          ext,
-          kind: "meeting",
-          mode: "meeting",
-          text: transcript
-        })
+      await saveSttVoiceRecord({
+        blob,
+        text: transcript,
+        mode: "meeting",
+        mimeType,
+        ext: mimeType.includes("webm") ? "webm" : "m4a"
       });
     } catch (error) {
       cleanupBrowserMeetingMediaStream();
@@ -10391,7 +10577,8 @@ async function speakReplyAudio(text) {
   }
 
   if (allowBrowserFallback && getSpeechSynth()) {
-    renderPhase("speaking", "Озвучиваю · Web Speech…", state.shellState?.metrics || "");
+    renderPhase("speaking", HERO_STATE_LABELS.replying, state.shellState?.metrics || "");
+    startTtsProgressUi({ text: payload, rate });
     state.speaking = true;
     updateTtsControlsUi("speaking");
     syncLiveDialogForTtsPlayback();
@@ -10400,6 +10587,10 @@ async function speakReplyAudio(text) {
       const browser = await speakShellBrowserTts(payload, { lang, rate, voiceName });
       if (browser.ok) {
         shellDialog.clearError();
+        logBrowserTtsTranscript(payload, {
+          engine: "browser",
+          voice: browser.voice || voiceName || "системный"
+        });
         return {
           engine: "browser",
           voice: browser.voice || voiceName || "системный",
@@ -10408,6 +10599,7 @@ async function speakReplyAudio(text) {
       }
       browserReason = String(browser.reason || "speech-error");
     } finally {
+      stopTtsProgressUi();
       state.speaking = false;
       updateTtsControlsUi("waiting");
       if (!state.streamTtsActive && !state.streamTtsQueue.length) {
@@ -10442,9 +10634,10 @@ async function playTtsPayload(text, { allowBrowserFallback = true, streamChunk =
   const useServerTts = engine !== "browser" && SERVER_TTS_ENGINES.has(engine);
 
   if (engine === "browser") {
+    renderPhase("speaking", HERO_STATE_LABELS.replying, state.shellState?.metrics || "");
+    startTtsProgressUi({ text: payload, rate });
     state.speaking = true;
     updateTtsControlsUi("speaking");
-    renderPhase("speaking", "Озвучиваю · Web Speech…");
     try {
       const browser = await speakShellBrowserTts(payload, { lang, rate, voiceName });
       if (!browser.ok) {
@@ -10453,12 +10646,17 @@ async function playTtsPayload(text, { allowBrowserFallback = true, streamChunk =
         throw new Error(browser.reason || "speech-error");
       }
       shellDialog.clearError();
+      logBrowserTtsTranscript(payload, {
+        engine: "browser",
+        voice: browser.voice || voiceName || "системный"
+      });
       return {
         engine: "browser",
         voice: browser.voice || voiceName || "системный",
         transport: "Web Speech (вкладка)"
       };
     } finally {
+      stopTtsProgressUi();
       if (!keepSpeakingState()) {
         state.speaking = false;
         updateTtsControlsUi("waiting");
@@ -11231,6 +11429,7 @@ function setupSpeechRecognition() {
     setVoiceSttProcessing,
     usesServerStt,
     transcribeMicBlob,
+    saveSttVoiceRecord,
     isSttDisabled,
     isMessageBusy: isMessagePipelineActive,
     clearShellError: () => shellDialog?.clearError?.(),
@@ -11278,6 +11477,8 @@ function setupSpeechRecognition() {
         onEchoSuppressed: (text) => {
           shellLog("live", "echo suppressed", String(text || "").slice(0, 120));
         },
+        saveSttVoiceRecord,
+        pickMicRecorderMimeType,
         shellLog
       });
     }
@@ -12394,16 +12595,22 @@ function bindShellInteractiveUi() {
       apiFetch,
       getTtsSettings: collectTtsRuntimeSettings,
       onPlaybackBlocked: showIosAudioUnlockPrompt,
+      onProgress: handleTtsPlayerProgress,
       onPlaybackStart: () => {
         markShellAudioGesture({ extendMs: isIosDevice() ? 8 * 60 * 60 * 1000 : 120_000 });
         syncShellAudioUnlockBanner();
         flushLiveDialogCapture();
         armLiveEchoGuard(LIVE_ECHO_DURING_TTS_MS);
         syncLiveDialogForTtsPlayback();
+        startTtsProgressUi({
+          text: lastTtsSpoken.text || lastTtsChunkRecording?.text || "",
+          rate: state.settings?.ttsRate || 1
+        });
         if (state.liveDialogActive && getVoiceInputMode() === "live") renderLiveDialogHeroStatus();
         else refreshHeroTtsVisuals();
       },
       onPlaybackEnd: () => {
+        stopTtsProgressUi();
         syncLiveDialogForTtsPlayback();
         if (state.streamTtsActive || state.streamTtsQueue.length) return;
         syncHeroAfterTtsPlaybackEnd();

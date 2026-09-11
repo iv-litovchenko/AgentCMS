@@ -35,6 +35,25 @@ export function truncateForShellTts(text, maxLen = SHELL_TTS_MAX_LEN) {
   return `${cut.replace(/\s+\S*$/, "").trim()}…`;
 }
 
+/** Разбивает длинный текст на части для последовательной озвучки (без обрезки хвоста). */
+export function splitTextForShellTts(text, maxLen = SHELL_TTS_MAX_LEN) {
+  const value = String(text || "").replace(/\s+/g, " ").trim();
+  if (!value) return [];
+  if (value.length <= maxLen) return [value];
+
+  const parts = [];
+  let rest = value;
+  while (rest.length > maxLen) {
+    const cut = rest.slice(0, maxLen);
+    let chunk = cut.replace(/\s+\S*$/, "").trim();
+    if (!chunk) chunk = rest.slice(0, maxLen).trim();
+    parts.push(chunk);
+    rest = rest.slice(chunk.length).trim();
+  }
+  if (rest) parts.push(rest);
+  return parts;
+}
+
 export function formatTtsErrorHint({ serverReason = "", browserReason = "", useServerTts = true } = {}) {
   const parts = [];
   const sr = String(serverReason || "");

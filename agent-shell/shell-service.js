@@ -210,6 +210,8 @@ const {
   readShellDialogHistory,
   saveShellVoiceRecord,
   saveShellAudioPair,
+  saveShellSttTranscript,
+  saveShellTtsTranscript,
   sessionIdFromSettings
 } = require("./shell-dialog-log");
 const {
@@ -2195,6 +2197,14 @@ async function storeShellTtsRecord(agentRoot, { text = "", audioBase64 = "", mim
   });
 }
 
+async function storeShellTtsTranscript(agentRoot, { text = "", engine = "browser", voice = "" } = {}) {
+  return saveShellTtsTranscript(agentRoot, { text, engine, voice });
+}
+
+async function storeShellSttTranscript(agentRoot, { text = "", engine = "browser", mode = "live" } = {}) {
+  return saveShellSttTranscript(agentRoot, { text, engine, mode });
+}
+
 async function buildStatusPayload(
   deps,
   agentRoot,
@@ -2539,6 +2549,8 @@ module.exports = {
   storeShellVoiceRecord,
   storeShellAudioRecord,
   storeShellTtsRecord,
+  storeShellTtsTranscript,
+  storeShellSttTranscript,
   migrateVoiceInputMode,
   isSidecarConnected,
   buildStatusPayload,

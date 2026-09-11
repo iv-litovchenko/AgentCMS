@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=575" />
+    <link rel="stylesheet" href="/shell/shell.css?v=577" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -28,10 +28,10 @@
           "@shell/camera": "/shell/shell-camera.js?v=207",
           "@shell/screen": "/shell/shell-screen.js?v=207",
           "@shell/tts-tab": "/shell/shell-tts-tab.js?v=207",
-          "@shell/tts-player": "/shell/shell-tts-player.js?v=215",
+          "@shell/tts-player": "/shell/shell-tts-player.js?v=217",
           "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=208",
           "@shell/audio-unlock-banner": "/shell/shell-audio-unlock-banner.js?v=7",
-          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=215",
+          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=216",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=419",
           "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=413",
           "@shell/browser-tts": "/shell/shell-browser-tts.js?v=404",
@@ -58,9 +58,9 @@
           "@shell/prompt-placeholders": "/shell/shell-prompt-placeholders.js?v=1",
           "@shell/debug": "/shell/shell-debug.js?v=417",
           "@shell/compose-camera": "/shell/shell-compose-camera.js?v=207",
-          "@shell/voice": "/shell/shell-voice.js?v=211",
+          "@shell/voice": "/shell/shell-voice.js?v=212",
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=423",
-          "@shell/live-dialog": "/shell/shell-live-dialog.js?v=23",
+          "@shell/live-dialog": "/shell/shell-live-dialog.js?v=24",
           "@shell/audio-pcm": "/shell/shell-audio-pcm.js?v=1",
           "@shell/voice-end-format": "/shell/voice-end-format.js?v=208",
           "@shell/contract": "/shell/shell-contract.js?v=209",
@@ -2210,6 +2210,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
               </svg>
             </button>
             <p class="shell-hero-status-badge is-idle" id="shell-phase-label" aria-live="polite">Ожидаю</p>
+            <p class="shell-tts-progress-clock hidden" id="shell-tts-progress-clock" aria-live="polite"></p>
             </div>
             <div class="shell-hero-toolbar-row">
             <div class="shell-hero-toolbar" id="shell-tts-controls">
@@ -3042,6 +3043,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=654" type="module"></script>
+    <script src="/shell/shell.js?v=660" type="module"></script>
   </body>
 </html>

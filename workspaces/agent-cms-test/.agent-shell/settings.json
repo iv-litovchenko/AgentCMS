@@ -66,11 +66,11 @@
     }
   },
   "proactive": {
-    "enabled": false,
-    "idleSecondsMin": 120,
-    "idleSecondsMax": 240,
-    "idleSeconds": 120,
-    "cooldownSeconds": 900,
+    "enabled": true,
+    "idleSecondsMin": 30,
+    "idleSecondsMax": 60,
+    "idleSeconds": 30,
+    "cooldownSeconds": 180,
     "quietHours": {
       "enabled": true,
       "start": "23:00",
@@ -95,12 +95,13 @@
     "background": "wallpaper",
     "petOverlay": false,
     "compactDialogQa": true,
+    "dialogAutoScroll": true,
     "characterModel": "kimono",
     "keepAwake": false,
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0.9999
+    "dialogScrollRatio": 0.9934
   },
   "compose": {
     "promptTemplates": [

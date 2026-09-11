@@ -6,13 +6,30 @@ import {
   unlockShellAudio
 } from "@shell/audio-unlock";
 
+const PLAYBACK_MAX_CAP_MS = 900_000;
+
+function estimatePlaybackMs(bytes, mimeType = "audio/mpeg") {
+  const bytesPerSec = mimeType.includes("wav") ? 88_000 : 16_000;
+  const estMs = (bytes.length / bytesPerSec) * 1000;
+  return Math.min(PLAYBACK_MAX_CAP_MS, Math.max(90_000, estMs + 45_000));
+}
+
+function playbackBudgetMs(element, bytes, mimeType) {
+  const duration = element?.duration;
+  if (Number.isFinite(duration) && duration > 0) {
+    return Math.min(PLAYBACK_MAX_CAP_MS, Math.ceil(duration * 1000) + 45_000);
+  }
+  return estimatePlaybackMs(bytes, mimeType);
+}
+
 export function createShellTtsPlayer({
   apiFetch,
   getTtsSettings = () => ({}),
   synthTimeoutMs = 45000,
   onPlaybackBlocked = null,
   onPlaybackStart = null,
-  onPlaybackEnd = null
+  onPlaybackEnd = null,
+  onProgress = null
 } = {}) {
   /** @type {HTMLAudioElement | null} */
   let audio = null;
@@ -20,8 +37,10 @@ export function createShellTtsPlayer({
   let webSource = null;
   let speakGeneration = 0;
   let playbackLive = false;
+  let playbackEstimateSec = 0;
   /** @type {{ blob: Blob, mimeType: string, text: string } | null} */
   let lastRecording = null;
+  let detachProgressListeners = null;
 
   function notifyPlaybackStart() {
     try {
@@ -39,9 +58,35 @@ export function createShellTtsPlayer({
     }
   }
 
+  function getPlaybackProgress() {
+    if (!audio) return null;
+    let duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+    const current = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    if (!(duration > 0) && playbackEstimateSec > 0) {
+      duration = playbackEstimateSec;
+    }
+    return {
+      current,
+      duration,
+      remaining: duration > 0 ? Math.max(0, duration - current) : 0
+    };
+  }
+
+  function notifyProgress() {
+    try {
+      const progress = getPlaybackProgress();
+      if (progress) onProgress?.(progress);
+    } catch {
+      // ignore
+    }
+  }
+
   function cleanupAudio({ notifyEnd = false } = {}) {
+    detachProgressListeners?.();
+    detachProgressListeners = null;
     const wasLive = playbackLive || Boolean(webSource) || Boolean(audio && !audio.ended && audio.currentTime > 0);
     playbackLive = false;
+    playbackEstimateSec = 0;
     if (webSource) {
       try {
         webSource.stop();
@@ -96,6 +141,7 @@ export function createShellTtsPlayer({
   function pause() {
     if (!audio || audio.paused) return;
     audio.pause();
+    notifyProgress();
   }
 
   function resume() {
@@ -113,6 +159,7 @@ export function createShellTtsPlayer({
         .then(() => {
           playbackLive = true;
           notifyPlaybackStart();
+          notifyProgress();
         })
         .catch(() => {
           playbackLive = false;
@@ -158,6 +205,7 @@ export function createShellTtsPlayer({
     cleanupAudio();
 
     const blob = new Blob([bytes], { type: mimeType });
+    playbackEstimateSec = estimatePlaybackMs(bytes, mimeType) / 1000;
     const useDataUri =
       isIosDevice() &&
       base64 &&
@@ -190,41 +238,83 @@ export function createShellTtsPlayer({
 
     return new Promise((resolve) => {
       let settled = false;
-      const mobileCap = isIosDevice() ? 45_000 : 180_000;
-      const maxMs = Math.min(mobileCap, Math.max(isIosDevice() ? 12_000 : 20_000, bytes.length * 8 + 5000));
-      const maxTimer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        cleanupAudio();
-        resolve({ ok: false, reason: "audio-playback-timeout" });
-      }, maxMs);
+      let maxTimer = 0;
+      let stallTimer = 0;
       let lastProgressAt = Date.now();
       let lastCurrentTime = 0;
-      const stallTimer = window.setInterval(() => {
+
+      const clearMaxTimer = () => {
+        if (maxTimer) clearTimeout(maxTimer);
+        maxTimer = 0;
+      };
+
+      const armMaxTimer = (ms) => {
+        clearMaxTimer();
+        maxTimer = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanupAudio();
+          resolve({ ok: false, reason: "audio-playback-timeout" });
+        }, Math.min(PLAYBACK_MAX_CAP_MS, Math.max(60_000, ms)));
+      };
+
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        clearMaxTimer();
+        if (stallTimer) window.clearInterval(stallTimer);
+        detachProgressListeners?.();
+        detachProgressListeners = null;
+        resolve(result);
+      };
+
+      const onTimeUpdate = () => {
         if (settled || !audio) return;
-        if (audio.paused || audio.ended) return;
         const now = Date.now();
-        if (audio.currentTime > lastCurrentTime + 0.01) {
+        if (audio.currentTime > lastCurrentTime + 0.005) {
+          lastCurrentTime = audio.currentTime;
+          lastProgressAt = now;
+        }
+        notifyProgress();
+        if (Number.isFinite(audio.duration) && audio.duration > 0) {
+          const remainingMs = (audio.duration - audio.currentTime) * 1000 + 30_000;
+          armMaxTimer(Math.max(60_000, remainingMs));
+        }
+      };
+
+      const onMeta = () => {
+        if (!audio || settled) return;
+        armMaxTimer(playbackBudgetMs(audio, bytes, mimeType));
+        notifyProgress();
+      };
+
+      audio.addEventListener("timeupdate", onTimeUpdate);
+      audio.addEventListener("loadedmetadata", onMeta);
+      audio.addEventListener("durationchange", onMeta);
+      detachProgressListeners = () => {
+        audio?.removeEventListener("timeupdate", onTimeUpdate);
+        audio?.removeEventListener("loadedmetadata", onMeta);
+        audio?.removeEventListener("durationchange", onMeta);
+      };
+
+      armMaxTimer(playbackBudgetMs(audio, bytes, mimeType));
+
+      stallTimer = window.setInterval(() => {
+        if (settled || !audio) return;
+        if (audio.paused || audio.ended || audio.seeking) return;
+        if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) return;
+        const now = Date.now();
+        if (audio.currentTime > lastCurrentTime + 0.005) {
           lastCurrentTime = audio.currentTime;
           lastProgressAt = now;
           return;
         }
-        if (now - lastProgressAt > (isIosDevice() ? 3500 : 6000)) {
-          if (settled) return;
-          settled = true;
-          clearTimeout(maxTimer);
-          window.clearInterval(stallTimer);
+        const stallMs = isIosDevice() ? 12_000 : 8_000;
+        if (now - lastProgressAt > stallMs) {
           cleanupAudio();
-          resolve({ ok: false, reason: "audio-playback-stall" });
+          finish({ ok: false, reason: "audio-playback-stall" });
         }
-      }, 900);
-      const finish = (result) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(maxTimer);
-        window.clearInterval(stallTimer);
-        resolve(result);
-      };
+      }, 1000);
 
       audio.onended = () => {
         playbackLive = false;
@@ -241,6 +331,7 @@ export function createShellTtsPlayer({
         playbackLive = true;
         markShellAudioGesture();
         notifyPlaybackStart();
+        notifyProgress();
       };
       audio.addEventListener("playing", markLive, { once: true });
       void audio
@@ -305,7 +396,19 @@ export function createShellTtsPlayer({
         source.buffer = audioBuffer;
         source.connect(ctx.destination);
         webSource = source;
+        const startedAt = ctx.currentTime;
+        const duration = audioBuffer.duration;
+        const progressTimer = window.setInterval(() => {
+          if (gen !== speakGeneration || !webSource) return;
+          const elapsed = Math.max(0, ctx.currentTime - startedAt);
+          onProgress?.({
+            current: Math.min(duration, elapsed),
+            duration,
+            remaining: Math.max(0, duration - elapsed)
+          });
+        }, 250);
         source.onended = () => {
+          window.clearInterval(progressTimer);
           if (gen !== speakGeneration) {
             resolve({ ok: false, reason: "cancelled" });
             return;
@@ -319,7 +422,9 @@ export function createShellTtsPlayer({
           source.start(0);
           playbackLive = true;
           notifyPlaybackStart();
+          onProgress?.({ current: 0, duration, remaining: duration });
         } catch (error) {
+          window.clearInterval(progressTimer);
           webSource = null;
           resolve({ ok: false, reason: error?.message || "web-audio-start" });
         }
@@ -434,6 +539,7 @@ export function createShellTtsPlayer({
     hasAwaitingPlay,
     hasAudio,
     startFromUserGesture,
+    getPlaybackProgress,
     cleanupAudio,
     getLastRecording
   };

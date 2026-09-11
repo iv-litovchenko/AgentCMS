@@ -2257,7 +2257,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   left: 50%;
   bottom: 10px;
   z-index: 4;
-  max-width: min(220px, calc(100vw - 48px));
+  max-width: min(280px, calc(100vw - 32px));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2288,6 +2288,20 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
   color: #86efac;
   border-color: rgba(53, 208, 127, 0.42);
   background: rgba(53, 208, 127, 0.12);
+}
+
+.shell-tts-progress-clock {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  color: rgba(147, 197, 253, 0.95);
+  text-align: center;
+}
+
+.shell-tts-progress-clock.hidden {
+  display: none;
 }
 
 .shell-hero-status-badge.is-speaking {

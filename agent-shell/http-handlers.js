@@ -532,6 +532,29 @@ function createShellHandlers(deps) {
       return true;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/shell/stt/transcript") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const text = String(payload?.text || "").trim();
+        if (!text) {
+          deps.sendJson(res, 400, { error: "Text is required" });
+          return true;
+        }
+        const saved = await shellService.storeShellSttTranscript(agentRoot, {
+          text,
+          engine: String(payload?.engine || "browser").trim() || "browser",
+          mode: String(payload?.mode || payload?.kind || "live").trim() || "live"
+        });
+        deps.sendJson(res, 200, { agentId, ok: true, saved });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "STT transcript save failed",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/shell/stt/transcribe") {
       try {
         const payload = await deps.readJsonBody(req);
@@ -577,6 +600,29 @@ function createShellHandlers(deps) {
       } catch (error) {
         deps.sendJson(res, 500, {
           error: "Failed to list TTS voices",
+          details: String(error?.message || error)
+        });
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/shell/tts/transcript") {
+      try {
+        const payload = await deps.readJsonBody(req);
+        const text = String(payload?.text || "").trim();
+        if (!text) {
+          deps.sendJson(res, 400, { error: "Text is required" });
+          return true;
+        }
+        const saved = await shellService.storeShellTtsTranscript(agentRoot, {
+          text,
+          engine: String(payload?.engine || "browser").trim() || "browser",
+          voice: String(payload?.voice || "").trim()
+        });
+        deps.sendJson(res, 200, { agentId, ok: true, saved });
+      } catch (error) {
+        deps.sendJson(res, 500, {
+          error: "TTS transcript save failed",
           details: String(error?.message || error)
         });
       }

@@ -408,6 +408,86 @@ async function saveShellVoiceRecord(agentRoot, { kind = "meeting", data, ext = "
   });
 }
 
+/** Browser/live STT: только транскрипт в awn-dialogs/audio/stt/<stamp>.md (без аудио). */
+async function saveShellSttTranscript(
+  agentRoot,
+  { text = "", engine = "browser", mode = "live", meta = {}, created = new Date() } = {}
+) {
+  const body = String(text || "").trim();
+  if (!agentRoot || !body) return null;
+
+  const dir = path.join(agentRoot, AUDIO_DIR, "stt");
+  await fs.mkdir(dir, { recursive: true });
+
+  const stamp = timeStamp(created instanceof Date ? created : new Date());
+  const mdName = `${stamp}.md`;
+  const mdPath = path.join(dir, mdName);
+
+  await fs.writeFile(
+    mdPath,
+    formatShellAudioMarkdown({
+      channel: "stt",
+      text: body,
+      created,
+      meta: {
+        engine: String(engine || "browser").trim() || "browser",
+        mode: String(mode || "live").trim() || "live",
+        transport: "stt-transcript",
+        ...meta
+      }
+    }),
+    "utf-8"
+  );
+
+  return {
+    channel: "stt",
+    path: relPath(agentRoot, mdPath),
+    mdPath: relPath(agentRoot, mdPath),
+    mdFile: mdName,
+    transcriptOnly: true
+  };
+}
+
+/** Browser TTS: только транскрипт в awn-dialogs/audio/tts/<stamp>.md (без mp3). */
+async function saveShellTtsTranscript(
+  agentRoot,
+  { text = "", engine = "browser", voice = "", meta = {}, created = new Date() } = {}
+) {
+  const body = String(text || "").trim();
+  if (!agentRoot || !body) return null;
+
+  const dir = path.join(agentRoot, AUDIO_DIR, "tts");
+  await fs.mkdir(dir, { recursive: true });
+
+  const stamp = timeStamp(created instanceof Date ? created : new Date());
+  const mdName = `${stamp}.md`;
+  const mdPath = path.join(dir, mdName);
+
+  await fs.writeFile(
+    mdPath,
+    formatShellAudioMarkdown({
+      channel: "tts",
+      text: body,
+      created,
+      meta: {
+        engine: String(engine || "browser").trim() || "browser",
+        voice: String(voice || "").trim(),
+        transport: "browser-transcript",
+        ...meta
+      }
+    }),
+    "utf-8"
+  );
+
+  return {
+    channel: "tts",
+    path: relPath(agentRoot, mdPath),
+    mdPath: relPath(agentRoot, mdPath),
+    mdFile: mdName,
+    transcriptOnly: true
+  };
+}
+
 module.exports = {
   appendShellDialogChat,
   appendShellDialogTool,
@@ -417,6 +497,8 @@ module.exports = {
   dialogRoleMeta,
   saveShellVoiceRecord,
   saveShellAudioPair,
+  saveShellSttTranscript,
+  saveShellTtsTranscript,
   formatShellAudioMarkdown,
   runtimeDialogDir,
   sessionDialogDir,

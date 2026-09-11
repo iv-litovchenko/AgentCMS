@@ -50,6 +50,11 @@ export function createShellLiveDialog(deps) {
   let bargeRecentPeak = 0;
   let bargeMonitorStarting = false;
   let bargeArmTimer = 0;
+  let utteranceStream = null;
+  let utteranceRecorder = null;
+  let utteranceChunks = [];
+  let utteranceMimeType = "";
+  let utteranceRecording = false;
 
   const clearEndTimer = () => {
     if (!endTimer) return;
@@ -76,10 +81,102 @@ export function createShellLiveDialog(deps) {
 
   const currentPhrase = () => (utteranceFinal + utteranceInterim).replace(/\s+/g, " ").trim();
 
+  const discardUtteranceRecording = () => {
+    if (!utteranceRecorder || utteranceRecorder.state === "inactive") {
+      utteranceRecording = false;
+      utteranceChunks = [];
+      utteranceRecorder = null;
+      return;
+    }
+    try {
+      utteranceRecorder.onstop = () => {
+        utteranceRecording = false;
+        utteranceChunks = [];
+        utteranceRecorder = null;
+      };
+      utteranceRecorder.stop();
+    } catch {
+      utteranceRecording = false;
+      utteranceChunks = [];
+      utteranceRecorder = null;
+    }
+  };
+
+  async function ensureUtteranceStream() {
+    if (utteranceStream) return utteranceStream;
+    if (!navigator.mediaDevices?.getUserMedia) return null;
+    utteranceStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+    return utteranceStream;
+  }
+
+  async function startUtteranceRecording() {
+    if (utteranceRecording || !deps.saveSttVoiceRecord) return;
+    try {
+      const stream = await ensureUtteranceStream();
+      if (!stream) return;
+      utteranceChunks = [];
+      utteranceMimeType = deps.pickMicRecorderMimeType?.() || "audio/webm";
+      utteranceRecorder = new MediaRecorder(stream, { mimeType: utteranceMimeType });
+      utteranceRecorder.ondataavailable = (event) => {
+        if (event.data?.size) utteranceChunks.push(event.data);
+      };
+      utteranceRecorder.start(250);
+      utteranceRecording = true;
+    } catch (error) {
+      deps.shellLog?.("live", "utterance record failed", String(error?.message || error));
+    }
+  }
+
+  function stopUtteranceRecording() {
+    return new Promise((resolve) => {
+      if (!utteranceRecorder || utteranceRecorder.state === "inactive") {
+        utteranceRecording = false;
+        utteranceChunks = [];
+        utteranceRecorder = null;
+        resolve(null);
+        return;
+      }
+      utteranceRecorder.onstop = () => {
+        utteranceRecording = false;
+        const chunks = utteranceChunks.slice();
+        utteranceChunks = [];
+        utteranceRecorder = null;
+        if (!chunks.length) {
+          resolve(null);
+          return;
+        }
+        resolve(new Blob(chunks, { type: utteranceMimeType || "audio/webm" }));
+      };
+      try {
+        utteranceRecorder.stop();
+      } catch {
+        utteranceRecording = false;
+        utteranceChunks = [];
+        utteranceRecorder = null;
+        resolve(null);
+      }
+    });
+  }
+
+  function cleanupUtteranceStream() {
+    discardUtteranceRecording();
+    if (utteranceStream) {
+      for (const track of utteranceStream.getTracks()) track.stop();
+      utteranceStream = null;
+    }
+  }
+
   const resetUtterance = () => {
     utteranceFinal = "";
     utteranceInterim = "";
     clearEndTimer();
+    discardUtteranceRecording();
     if (!deps.state?.liveUserBarging) deps.setLiveUserSpeaking?.(false);
   };
 
@@ -321,6 +418,7 @@ export function createShellLiveDialog(deps) {
   function acceptUserPhrase(phrase) {
     deps.setLiveUserSpeaking?.(Boolean(phrase), phrase);
     if (phrase) {
+      if (!utteranceRecording) void startUtteranceRecording();
       deps.renderPhase?.("listening", phrase);
       scheduleUtteranceEnd(phrase);
     } else {
@@ -430,12 +528,21 @@ export function createShellLiveDialog(deps) {
       return;
     }
     const text = currentPhrase();
+    const blob = await stopUtteranceRecording();
     flushCapture();
     if (!text) return;
     if (deps.utteranceLooksLikeEcho?.(text)) {
       deps.onEchoSuppressed?.(text);
       return;
     }
+    void deps.saveSttVoiceRecord?.({
+      blob,
+      text,
+      mode: "live",
+      mimeType: utteranceMimeType,
+      ext: utteranceMimeType.includes("webm") ? "webm" : "m4a",
+      engine: "browser"
+    });
     try {
       await deps.handleLiveUtterance?.(text);
     } catch (error) {
@@ -505,6 +612,7 @@ export function createShellLiveDialog(deps) {
     deps.state.micActive = false;
     deps.setLiveUserSpeaking?.(false);
     resetUtterance();
+    cleanupUtteranceStream();
     stopRecognition();
     void releaseShellWakeLock(deps.state, "live-dialog");
     deps.syncMicButtonUi?.({ force: true });

@@ -316,8 +316,16 @@ export function createShellTapVoice(deps) {
     try {
       const blob = new Blob(chunks, { type: mimeType });
       const text = String((await deps.transcribeMicBlob?.(blob)) || "").trim();
-      if (text) await deps.handleVoiceTranscript(text);
-      else {
+      if (text) {
+        void deps.saveSttVoiceRecord?.({
+          blob,
+          text,
+          mode: deps.getVoiceInputMode?.() || "hold",
+          mimeType,
+          ext: mimeType.includes("webm") ? "webm" : "m4a"
+        });
+        await deps.handleVoiceTranscript(text);
+      } else {
         deps.setVoiceSttProcessing?.(false);
         deps.renderPhase?.("waiting", "Речь не распознана");
       }
@@ -344,6 +352,11 @@ export function createShellTapVoice(deps) {
     const text = String(finalText || "").trim();
     finalText = "";
     if (text) {
+      void deps.saveSttVoiceRecord?.({
+        text,
+        mode: deps.getVoiceInputMode?.() || "hold",
+        engine: "browser"
+      });
       await deps.handleVoiceTranscript(text);
       return;
     }
