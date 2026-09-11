@@ -8100,7 +8100,8 @@ function appendVoiceToCompose(text, options = {}) {
   const current = String(nodes.message.value || "").trimEnd();
   const join = options.join === "newline" ? "newline" : "space";
   const separator = composeBlockSeparator(current, join);
-  const next = current ? `${current}${separator}${trimmed}` : trimmed;
+  let next = current ? `${current}${separator}${trimmed}` : trimmed;
+  if (join === "newline") next = `${next}\n\n`;
   setComposeMessageValue(next);
   nodes.message.focus();
   const len = nodes.message.value.length;

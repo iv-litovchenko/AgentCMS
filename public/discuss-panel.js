@@ -327,7 +327,7 @@
       {
         type: "agent-cms-voice:compose-insert",
         text: trimmed,
-        join: options.join || "space"
+        join: options.join || "newline"
       },
       getVoicePostMessageOrigin()
     );

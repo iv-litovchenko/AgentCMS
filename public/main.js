@@ -3848,12 +3848,15 @@ const VOICE_CHAT_DRAG_SOURCE_SELECTOR = [
   ".node-overview-thumb-actions",
   ".navigation-media-image-card",
   ".folder-browse-image-card",
+  ".props-form-attachment-item[data-path]",
   "#app-footer-ideas-btn:not([disabled])",
   "#agent-todo-preview-toggle:not([disabled])",
   ".menu-repository-item[data-repository-folder-path]"
 ].join(", ");
 const VOICE_CHAT_DRAG_HINT =
   "Перетащите в редактор или чат Agent CMS Voice для ссылки или на другую тему/область для перемещения";
+const VOICE_CHAT_DRAG_TITLE_HINT =
+  "Перетащите в чат Agent CMS Voice или редактор для ссылки";
 
 function buildSystemFileMarkdownLink(systemFile, displayLabel) {
   const name = normalizeSystemFileName(systemFile);
@@ -4043,6 +4046,10 @@ function resolveMediaCardWorkspaceRel(card) {
     return getMediaLibraryItemContextPath(filePath, memoryKind === "assets" ? "assets" : "media", nodePath);
   }
 
+  if (/\/awn-storage\//i.test(filePath) || /^awn-storage\//i.test(filePath)) {
+    return normalizeLinkFilePath(filePath);
+  }
+
   return getExternalItemContextPath({ path: filePath }, nodePath);
 }
 
@@ -4222,6 +4229,7 @@ function resolveVoiceChatWorkspaceRelFromPayload(payload) {
       payload.source === "workspace-counter" ||
       payload.source === "memory-title" ||
       payload.source === "rail-slot" ||
+      payload.source === "attachment" ||
       /\/awn-storage(?:\/|$)/i.test(path)
     ) {
       return path;
@@ -4889,6 +4897,43 @@ function buildOverviewThumbDragPayload(thumbWrap) {
   return { path: nodePath, label: title, markdownLink, voiceMarkdownLink, source: "overview-thumb" };
 }
 
+function extractMediaCardDragLabel(card, filePath = "") {
+  const footerName = card?.querySelector?.(".folder-browse-image-name");
+  if (footerName) {
+    return sanitizeVoiceChatDragLabel(footerName.textContent);
+  }
+  const imgAlt = card?.querySelector?.(".folder-browse-image-thumb img")?.getAttribute("alt");
+  if (imgAlt) return sanitizeVoiceChatDragLabel(imgAlt);
+  const savedTitle = String(card?.dataset?.voiceChatDragTitle || "").trim();
+  if (savedTitle) return sanitizeVoiceChatDragLabel(savedTitle);
+  const title = String(card?.title || "").trim();
+  const hintSuffix = `. ${VOICE_CHAT_DRAG_TITLE_HINT}`;
+  if (title.endsWith(hintSuffix)) {
+    return sanitizeVoiceChatDragLabel(title.slice(0, -hintSuffix.length).trim());
+  }
+  return sanitizeVoiceChatDragLabel(title || filePath.split("/").pop() || filePath);
+}
+
+function buildAttachmentVoiceDragPayload(itemEl) {
+  const path = String(itemEl?.dataset?.path || "").trim();
+  if (!path) return null;
+  const fileName = path.split("/").pop() || path;
+  const isImage = ATTACHMENTS_IMAGE_EXT_RE.test(fileName);
+  const workspaceRel = toCanonicalAssetsUploadRef(path, ATTACHMENTS_ASSETS_SUBDIR);
+  if (!workspaceRel) return null;
+  const label = sanitizeVoiceChatDragLabel(
+    itemEl.querySelector(".props-form-attachment-name")?.textContent?.trim() ||
+      getAttachmentDisplayLabelFromPath(path) ||
+      fileName
+  );
+  const voiceMarkdownLink = isImage
+    ? buildVoiceChatImageMarkdown(workspaceRel, label)
+    : buildVoiceChatMarkdownLink(workspaceRel, label);
+  const markdownLink = buildMarkdownLinkFromWorkspaceRel(workspaceRel, label);
+  if (!voiceMarkdownLink) return null;
+  return { path: workspaceRel, label, markdownLink, voiceMarkdownLink, source: "attachment" };
+}
+
 function buildMediaCardDragPayload(card) {
   const filePath = String(
     card?.dataset?.folderBrowsePath || card?.dataset?.mediaGridPath || ""
@@ -4899,7 +4944,7 @@ function buildMediaCardDragPayload(card) {
   if (!filePath) return null;
   const workspaceRel = resolveMediaCardWorkspaceRel(card);
   if (!workspaceRel) return null;
-  const label = sanitizeVoiceChatDragLabel(card.title || filePath.split("/").pop() || filePath);
+  const label = extractMediaCardDragLabel(card, filePath);
   const kind = resolveFolderBrowseDragKind(filePath, "image");
   const voiceMarkdownLink =
     kind === "image"
@@ -4931,6 +4976,11 @@ function resolveVoiceChatDragPayload(target) {
 
   const mediaCard = target.closest(".navigation-media-image-card, .folder-browse-image-card");
   if (mediaCard) return buildMediaCardDragPayload(mediaCard);
+
+  const attachmentItem = target.closest(".props-form-attachment-item[data-path]");
+  if (attachmentItem && !target.closest(".props-form-attachment-sort-handle")) {
+    return buildAttachmentVoiceDragPayload(attachmentItem);
+  }
 
   const ideasBtn = target.closest("#app-footer-ideas-btn:not([disabled])");
   if (ideasBtn) {
@@ -50144,7 +50194,7 @@ function createPropsAttachmentItemSimple(path, wrap, { locked = false, inBody = 
   item.classList.toggle("is-in-body", inBody);
   item.classList.toggle("is-unlinked", !inBody);
   item.dataset.path = path;
-  if (!locked) item.draggable = true;
+  item.draggable = true;
 
   const fileName = path.split("/").pop() || path;
   const isImage = ATTACHMENTS_IMAGE_EXT_RE.test(fileName);
@@ -50215,14 +50265,6 @@ function createPropsAttachmentItemSimple(path, wrap, { locked = false, inBody = 
         }
       )
     );
-
-    item.addEventListener("dragstart", (event) => {
-      event.dataTransfer.setData(
-        "text/plain",
-        buildAttachmentMarkdownSnippet(path, { mode: isImage ? "embed" : "link" })
-      );
-      event.dataTransfer.effectAllowed = "copy";
-    });
   }
 
   if (actions.childElementCount) {
@@ -50238,7 +50280,7 @@ function createPropsAttachmentItemExtended(path, wrap, { locked = false, inBody 
   item.classList.toggle("is-in-body", inBody);
   item.classList.toggle("is-unlinked", !inBody);
   item.dataset.path = path;
-  if (!locked) item.draggable = true;
+  item.draggable = true;
 
   const fileName = path.split("/").pop() || path;
   const isImage = ATTACHMENTS_IMAGE_EXT_RE.test(fileName);
@@ -50362,14 +50404,6 @@ function createPropsAttachmentItemExtended(path, wrap, { locked = false, inBody 
     );
 
     item.appendChild(toolbar);
-
-    item.addEventListener("dragstart", (event) => {
-      event.dataTransfer.setData(
-        "text/plain",
-        buildAttachmentMarkdownSnippet(path, { mode: isImage ? "embed" : "link" })
-      );
-      event.dataTransfer.effectAllowed = "copy";
-    });
   }
 
   return item;
@@ -50436,7 +50470,7 @@ function createPropsAttachmentOrphanItem(path, wrap, { locked = false } = {}) {
   item.className =
     "props-form-attachment-item props-form-attachment-item--simple props-form-attachment-item--orphan is-unlinked";
   item.dataset.path = path;
-  if (!locked) item.draggable = true;
+  item.draggable = true;
 
   const fileName = path.split("/").pop() || path;
   const isImage = ATTACHMENTS_IMAGE_EXT_RE.test(fileName);
@@ -50497,18 +50531,6 @@ function createPropsAttachmentOrphanItem(path, wrap, { locked = false } = {}) {
       )
     );
     item.appendChild(actions);
-
-    item.addEventListener("dragstart", (event) => {
-      event.dataTransfer.setData(
-        "text/plain",
-        buildAttachmentMarkdownSnippet(path, { mode: isImage ? "embed" : "link" })
-      );
-      event.dataTransfer.setData(
-        "application/x-agentcms-attachment-ref",
-        normalizeAttachmentRefForCompare(path) || path
-      );
-      event.dataTransfer.effectAllowed = "copy";
-    });
   }
 
   return item;
@@ -81897,13 +81919,15 @@ let voiceChatDragEl = null;
 function enableVoiceChatDragSources(root = document) {
   if (!root) return;
   const markDraggable = (el) => {
-    if (!el || el.disabled || el.draggable) return;
+    if (!el || el.disabled) return;
     if (el.closest(".nav-book-toc-drag-handle")) return;
     el.draggable = true;
     if (!el.dataset.voiceChatDragHint) {
       el.dataset.voiceChatDragHint = "1";
-      const hint = "Перетащите в чат Agent CMS Voice или редактор для ссылки";
-      el.title = el.title ? `${el.title}. ${hint}` : hint;
+      if (!el.dataset.voiceChatDragTitle && el.title) {
+        el.dataset.voiceChatDragTitle = el.title;
+      }
+      el.title = el.title ? `${el.title}. ${VOICE_CHAT_DRAG_TITLE_HINT}` : VOICE_CHAT_DRAG_TITLE_HINT;
     }
   };
   root.querySelectorAll(VOICE_CHAT_DRAG_SOURCE_SELECTOR).forEach(markDraggable);
@@ -81937,6 +81961,7 @@ function setupVoiceChatContextDrag() {
         event.preventDefault();
         return;
       }
+      if (event.target.closest(".props-form-attachment-sort-handle")) return;
 
       const payload = repositoryItem
         ? buildRepositoryItemDragPayload(repositoryItem)
