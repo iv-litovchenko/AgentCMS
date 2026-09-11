@@ -9,7 +9,8 @@ const {
   voiceBaseFromCmsHost,
   normalizeVoiceBaseForBrowser,
   isCmsReachable,
-  decodeReadableUrl
+  decodeReadableUrl,
+  readDecodeUrlsSetting
 } = globalThis.CompanionUrls;
 
 function storageLocal() {
@@ -25,6 +26,7 @@ async function getSettings() {
     "cmsBaseUrl",
     "agentId",
     "_migratedFromSync",
+    "decodeUrls",
     "decodeUrlsInCompanion",
     "decodeUrlsOnCopy"
   ]);
@@ -34,8 +36,7 @@ async function getSettings() {
     cmsBaseUrl,
     agentId,
     _migratedFromSync: Boolean(stored._migratedFromSync),
-    decodeUrlsInCompanion: stored.decodeUrlsInCompanion !== false,
-    decodeUrlsOnCopy: Boolean(stored.decodeUrlsOnCopy)
+    decodeUrls: readDecodeUrlsSetting(stored)
   };
 }
 
@@ -309,8 +310,8 @@ async function relayPageSnapshotRequest({ tabId = 0, windowId = 0 } = {}) {
   }
   const snapshot = await collectTabPageSnapshot(targetTabId);
   if (!snapshot) throw new Error("Не удалось собрать meta со страницы вкладки");
-  const { decodeUrlsInCompanion } = await getSettings();
-  applyReadableUrlFields(snapshot, decodeUrlsInCompanion);
+  const { decodeUrls } = await getSettings();
+  applyReadableUrlFields(snapshot, decodeUrls);
   return { ok: true, snapshot };
 }
 

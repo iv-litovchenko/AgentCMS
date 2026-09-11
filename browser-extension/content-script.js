@@ -294,15 +294,56 @@
     return String(text || "").replace(/([\\`*_[\]()#+\-.!|>])/g, "\\$1");
   }
 
-  let urlDecodeInCompanion = true;
-  let urlDecodeOnCopy = false;
+  let decodeUrls = true;
   let copyDecodeAttached = false;
+  let clipboardFixAttached = false;
+  let clipboardFixBusy = false;
+  let windowHadBlur = false;
+  let addressBarReplacing = false;
+
+  function readDecodeUrlsSetting(stored = {}) {
+    const reader = globalThis.CompanionUrls?.readDecodeUrlsSetting;
+    return typeof reader === "function" ? reader(stored) : stored.decodeUrls !== false;
+  }
+
+  function decodeUrlText(raw) {
+    const value = String(raw || "").trim();
+    if (!value) return value;
+    const decode = globalThis.CompanionUrls?.decodeReadableUrl;
+    if (typeof decode !== "function") return value;
+    let decoded = decode(value);
+    if ((!decoded || decoded === value) && /^https?:\/\//i.test(value)) {
+      try {
+        decoded = decodeURI(value);
+      } catch {
+        // ignore
+      }
+    }
+    return decoded || value;
+  }
+
+  function normalizeUrlForCompare(raw) {
+    const value = String(raw || "").trim();
+    if (!value) return "";
+    try {
+      const parsed = new URL(decodeUrlText(value));
+      return `${parsed.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+      return value;
+    }
+  }
+
+  function isCurrentPageUrl(candidate) {
+    const value = String(candidate || "").trim();
+    if (!value) return false;
+    if (value === location.href) return true;
+    return normalizeUrlForCompare(value) === normalizeUrlForCompare(location.href);
+  }
 
   function formatCompanionUrl(raw) {
     const value = String(raw || "").trim();
-    if (!value || !urlDecodeInCompanion) return value;
-    const decode = globalThis.CompanionUrls?.decodeReadableUrl;
-    return typeof decode === "function" ? decode(value) : value;
+    if (!value || !decodeUrls) return value;
+    return decodeUrlText(value);
   }
 
   function currentPageUrl() {
@@ -319,11 +360,52 @@
     }
   }
 
-  function syncUrlDecodeCopyListener() {
-    if (urlDecodeOnCopy) {
+  function readClipboardSync() {
+    const node = document.createElement("textarea");
+    node.setAttribute("readonly", "");
+    node.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none";
+    document.body.appendChild(node);
+    node.focus();
+    let text = "";
+    try {
+      if (document.execCommand("paste")) text = node.value;
+    } catch {
+      // ignore
+    }
+    node.remove();
+    return String(text || "").trim();
+  }
+
+  function writeClipboardSync(text) {
+    const value = String(text || "");
+    if (!value) return false;
+    const node = document.createElement("textarea");
+    node.value = value;
+    node.setAttribute("readonly", "");
+    node.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none";
+    document.body.appendChild(node);
+    node.focus();
+    node.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch {
+      // ignore
+    }
+    node.remove();
+    return ok;
+  }
+
+  function syncUrlDecodeListeners() {
+    if (decodeUrls) {
       if (!copyDecodeAttached) {
         document.addEventListener("copy", onCopyDecodeUrl, true);
         copyDecodeAttached = true;
+      }
+      if (!clipboardFixAttached) {
+        window.addEventListener("blur", onWindowBlurForClipboard, true);
+        document.addEventListener("pointerdown", onPointerDownFixClipboard, true);
+        clipboardFixAttached = true;
       }
       return;
     }
@@ -331,12 +413,98 @@
       document.removeEventListener("copy", onCopyDecodeUrl, true);
       copyDecodeAttached = false;
     }
+    if (clipboardFixAttached) {
+      window.removeEventListener("blur", onWindowBlurForClipboard, true);
+      document.removeEventListener("pointerdown", onPointerDownFixClipboard, true);
+      clipboardFixAttached = false;
+    }
+  }
+
+  function onWindowBlurForClipboard() {
+    windowHadBlur = true;
+  }
+
+  function onPointerDownFixClipboard(event) {
+    if (!decodeUrls) return;
+    if (event.target instanceof Element && event.target.closest("#agent-shell-companion-toolbar")) return;
+    fixClipboardOnUserGesture();
+  }
+
+  function fixClipboardOnUserGesture() {
+    if (!decodeUrls || clipboardFixBusy) return;
+
+    const decodedPageUrl = decodeUrlText(location.href);
+    const pageHasEncoding = /%[0-9A-Fa-f]{2}/.test(location.href);
+    if (!pageHasEncoding && decodedPageUrl === location.href) {
+      windowHadBlur = false;
+      return;
+    }
+
+    clipboardFixBusy = true;
+    try {
+      const clip = readClipboardSync();
+      const clipLooksLikePage =
+        clip && isCurrentPageUrl(clip) && /^https?:\/\//i.test(clip) && /%[0-9A-Fa-f]{2}/.test(clip);
+      const afterAddressBar = windowHadBlur && pageHasEncoding;
+
+      if (!clipLooksLikePage && !afterAddressBar) {
+        windowHadBlur = false;
+        return;
+      }
+
+      const source = clipLooksLikePage ? clip : location.href;
+      const decoded = decodeUrlText(source);
+      if (!decoded || decoded === source) {
+        windowHadBlur = false;
+        return;
+      }
+
+      if (writeClipboardSync(decoded)) {
+        if (afterAddressBar) setStatus("Ссылка в буфере исправлена", "ok");
+        windowHadBlur = false;
+        return;
+      }
+
+      if (navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(decoded).then(() => {
+          if (afterAddressBar) setStatus("Ссылка в буфере исправлена", "ok");
+        });
+      }
+      windowHadBlur = false;
+    } finally {
+      clipboardFixBusy = false;
+    }
+  }
+
+  function replaceAddressBarUrlIfEncoded() {
+    if (!decodeUrls || addressBarReplacing) return;
+    const href = location.href;
+    if (!/%[0-9A-Fa-f]{2}/.test(href)) return;
+
+    const decoded = decodeUrlText(href);
+    if (!decoded || decoded === href) return;
+
+    try {
+      const before = new URL(href);
+      const after = new URL(decoded);
+      if (before.origin !== after.origin) return;
+      if (before.protocol !== after.protocol) return;
+    } catch {
+      return;
+    }
+
+    addressBarReplacing = true;
+    try {
+      history.replaceState(history.state, document.title, decoded);
+    } catch {
+      // Some sites block replaceState for decoded paths.
+    } finally {
+      addressBarReplacing = false;
+    }
   }
 
   function onCopyDecodeUrl(event) {
-    if (!urlDecodeOnCopy) return;
-    const decode = globalThis.CompanionUrls?.decodeReadableUrl;
-    if (typeof decode !== "function") return;
+    if (!decodeUrls) return;
 
     let text = "";
     try {
@@ -350,14 +518,7 @@
     const looksLikeUrl = /^https?:\/\//i.test(text) || text.startsWith(location.origin);
     if (!looksLikeUrl && !/%[0-9A-Fa-f]{2}/.test(text)) return;
 
-    let decoded = decode(text);
-    if ((!decoded || decoded === text) && looksLikeUrl) {
-      try {
-        decoded = decodeURI(text);
-      } catch {
-        // ignore
-      }
-    }
+    const decoded = decodeUrlText(text);
     if (!decoded || decoded === text) return;
 
     event.preventDefault();
@@ -368,22 +529,26 @@
     try {
       const response = await sendRuntimeMessage({ type: "COMPANION_GET_SETTINGS" });
       if (response && typeof response === "object") {
-        urlDecodeInCompanion = response.decodeUrlsInCompanion !== false;
-        urlDecodeOnCopy = Boolean(response.decodeUrlsOnCopy);
-        syncUrlDecodeCopyListener();
+        decodeUrls = response.decodeUrls !== false;
+        syncUrlDecodeListeners();
+        replaceAddressBarUrlIfEncoded();
         return;
       }
     } catch {
       // fall through
     }
     try {
-      const stored = await chrome.storage.local.get(["decodeUrlsInCompanion", "decodeUrlsOnCopy"]);
-      urlDecodeInCompanion = stored.decodeUrlsInCompanion !== false;
-      urlDecodeOnCopy = Boolean(stored.decodeUrlsOnCopy);
+      const stored = await chrome.storage.local.get([
+        "decodeUrls",
+        "decodeUrlsInCompanion",
+        "decodeUrlsOnCopy"
+      ]);
+      decodeUrls = readDecodeUrlsSetting(stored);
     } catch {
       // ignore
     }
-    syncUrlDecodeCopyListener();
+    syncUrlDecodeListeners();
+    replaceAddressBarUrlIfEncoded();
   }
 
   function nodeToMarkdown(node, depth = 0) {
@@ -493,6 +658,7 @@
 
   async function copyPageUrlToClipboard() {
     const url = currentPageUrl();
+    if (writeClipboardSync(url)) return;
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(url);
       return;
@@ -1088,16 +1254,15 @@
   }
 
   void loadUrlDecodeSettings();
+  window.addEventListener("pageshow", () => replaceAddressBarUrlIfEncoded());
 
   try {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "local") return;
-      if (changes.decodeUrlsInCompanion) {
-        urlDecodeInCompanion = changes.decodeUrlsInCompanion.newValue !== false;
-      }
-      if (changes.decodeUrlsOnCopy) {
-        urlDecodeOnCopy = Boolean(changes.decodeUrlsOnCopy.newValue);
-        syncUrlDecodeCopyListener();
+      if (changes.decodeUrls) {
+        decodeUrls = changes.decodeUrls.newValue !== false;
+        syncUrlDecodeListeners();
+        replaceAddressBarUrlIfEncoded();
       }
     });
   } catch {

@@ -119,6 +119,12 @@
     }
   }
 
+  function readDecodeUrlsSetting(stored = {}) {
+    if (typeof stored.decodeUrls === "boolean") return stored.decodeUrls;
+    if (stored.decodeUrlsInCompanion === false && !stored.decodeUrlsOnCopy) return false;
+    return stored.decodeUrlsInCompanion !== false || Boolean(stored.decodeUrlsOnCopy);
+  }
+
   function decodeReadableUrl(raw) {
     const value = String(raw || "").trim();
     if (!value) return value;
@@ -192,6 +198,7 @@
     resolveVoiceBaseUrl,
     isCmsReachable,
     isVoiceReachable,
-    decodeReadableUrl
+    decodeReadableUrl,
+    readDecodeUrlsSetting
   };
 })(typeof globalThis !== "undefined" ? globalThis : self);

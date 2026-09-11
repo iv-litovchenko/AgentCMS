@@ -112,24 +112,13 @@
     <h2>URL и копирование</h2>
 
     <div class="field checkbox-field">
-      <label for="decodeUrlsInCompanion">
-        <input id="decodeUrlsInCompanion" type="checkbox" checked />
+      <label for="decodeUrls">
+        <input id="decodeUrls" type="checkbox" checked />
         <span>
-          Читаемые URL в Agent Shell
+          Читаемые URL (кириллица вместо %D0%…)
           <span class="hint">
-            Декодировать %D0%… в кириллицу, когда панель отправляет страницу, ссылки и markdown в чат.
-          </span>
-        </span>
-      </label>
-    </div>
-
-    <div class="field checkbox-field">
-      <label for="decodeUrlsOnCopy">
-        <input id="decodeUrlsOnCopy" type="checkbox" />
-        <span>
-          Читаемые URL при копировании на сайте
-          <span class="hint">
-            Как «Copy URL Simply»: при Ctrl+C / Copy заменять percent-encoding на нормальный текст в буфере.
+            Адресная строка, чат Agent Shell и «Страница ▾» показывают нормальный текст — Cmd+C из адресной строки
+            сразу копирует читаемую ссылку.
           </span>
         </span>
       </label>
