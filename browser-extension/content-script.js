@@ -98,9 +98,9 @@
 
   const SCREENSHOT_ROWS = [
     { id: "screen", label: "Экран", hint: "Видимая область" },
-    { id: "region", label: "Обл.", hint: "Выделить прямоугольник" },
+    { id: "region", label: "Область", hint: "Выделить прямоугольник" },
     { id: "element", label: "Блок", hint: "Клик по элементу" },
-    { id: "fullpage", label: "Стр.", hint: "Вся страница" }
+    { id: "fullpage", label: "Страница", hint: "Вся страница" }
   ];
 
   const SCREENSHOT_COLS = [
