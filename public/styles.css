@@ -26827,11 +26827,12 @@ img.is-svg-media,
 
 .node-entry-overview-browse-toolbar .node-navigation-list-sort {
   flex: 0 0 auto;
-  margin-left: auto;
+  margin-left: 0;
 }
 
-.node-entry-overview-browse-toolbar:has(.node-entry-overview-browse-actions) .node-navigation-list-sort {
-  margin-left: 0;
+.node-entry-overview-browse-toolbar .node-navigation-list-sort-toggle {
+  min-height: 34px;
+  box-sizing: border-box;
 }
 
 .node-entry-overview-browse-toolbar .node-entry-overview-browse-actions {
@@ -26907,6 +26908,8 @@ img.is-svg-media,
 
 .node-entry-overview-search-wrap .menu-search-bar {
   min-height: 34px;
+  height: 34px;
+  box-sizing: border-box;
 }
 
 .node-entry-overview-section-list-anchor {
@@ -27060,9 +27063,9 @@ img.is-svg-media,
 }
 
 .node-navigation-memory-head .folder-browse-images-cols-btn {
-  min-width: 22px;
-  height: 22px;
-  font-size: 11px;
+  min-width: 0;
+  height: 26px;
+  font-size: 10px;
 }
 
 .navigation-media-images-layout-btn[data-layout="strip"] {
@@ -31474,8 +31477,10 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .node-navigation-section-search .menu-search-bar {
-  min-height: 28px;
+  min-height: 30px;
+  height: 30px;
   padding: 0 8px;
+  box-sizing: border-box;
 }
 
 .node-navigation-section-search .menu-search-input {
@@ -31499,19 +31504,61 @@ button.node-navigation-memory-title:focus-visible {
 
 .node-navigation-memory-head .node-navigation-list-sort {
   margin-left: 0;
+  flex-shrink: 0;
 }
 
 .node-navigation-list-sort-toggle {
+  display: inline-flex;
+  align-items: center;
   gap: 1px;
   padding: 1px;
+  min-height: 30px;
+  box-sizing: border-box;
 }
 
-.node-navigation-memory-head .node-navigation-list-sort-btn,
-.node-entry-overview-browse-toolbar .node-navigation-list-sort-btn {
-  min-width: 24px;
-  height: 22px;
-  padding: 0 6px;
+.node-navigation-list-sort-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.node-navigation-list-sort-icon svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.node-navigation-list-sort-label {
+  line-height: 1;
+}
+
+.node-navigation-list-sort-btn.folder-browse-images-cols-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 7px;
   font-size: 10px;
+  line-height: 1;
+}
+
+.node-navigation-memory-head .node-navigation-list-sort-toggle {
+  min-height: 30px;
+}
+
+.node-navigation-memory-head .node-navigation-list-sort-btn.folder-browse-images-cols-btn {
+  height: 26px;
+  min-height: 26px;
+}
+
+.node-entry-overview-browse-toolbar .node-navigation-list-sort-btn.folder-browse-images-cols-btn {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
 }
 
 .folder-browse-hero-body .node-navigation-list-sort {
@@ -31521,15 +31568,20 @@ button.node-navigation-memory-title:focus-visible {
 
 .node-navigation-memory-badge {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 36px;
-  padding: 6px 10px;
+  min-height: 30px;
+  padding: 0 10px;
   border-radius: 999px;
   border: 1px solid transparent;
   font-size: 13px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1;
   text-align: center;
   font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
 }
 
 .node-navigation-memory-badge--internal {

@@ -57153,6 +57153,14 @@ function createNavigationSectionHead(title, options = {}) {
     );
   }
 
+  if (options.sort?.scope) {
+    head.appendChild(
+      createNavigationListSortSelect(options.sort.scope, {
+        onChange: options.sort.onChange
+      })
+    );
+  }
+
   if (options.badgeText != null) {
     const badge = document.createElement("span");
     badge.className = `node-navigation-memory-badge node-navigation-memory-badge--${options.badgeModeId || viewModeId || "default"}`;
@@ -57162,14 +57170,6 @@ function createNavigationSectionHead(title, options = {}) {
 
   if (options.imageColumnsToggle) {
     head.appendChild(createNavigationMediaImagesLayoutToggle());
-  }
-
-  if (options.sort?.scope) {
-    head.appendChild(
-      createNavigationListSortSelect(options.sort.scope, {
-        onChange: options.sort.onChange
-      })
-    );
   }
 
   if (viewModeId) {
@@ -57514,6 +57514,20 @@ function sortBrowseFolderItems(items, sortMode = "name") {
   return list;
 }
 
+function createNavigationListSortIcon(kind) {
+  const icon = document.createElement("span");
+  icon.className = "node-navigation-list-sort-icon";
+  icon.setAttribute("aria-hidden", "true");
+  if (kind === "created") {
+    icon.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  } else {
+    icon.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none"><path d="M4 7h8M4 12h12M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 7l2 2-2 2M18 17l2-2-2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  return icon;
+}
+
 function createNavigationListSortSelect(scope, { onChange } = {}) {
   const wrap = document.createElement("div");
   wrap.className = "node-navigation-list-sort";
@@ -57541,9 +57555,13 @@ function createNavigationListSortSelect(scope, { onChange } = {}) {
     btn.type = "button";
     btn.className = "node-navigation-list-sort-btn folder-browse-images-cols-btn";
     btn.dataset.sortValue = spec.value;
-    btn.textContent = spec.label;
     btn.title = spec.title;
     btn.setAttribute("aria-label", spec.title);
+    btn.append(createNavigationListSortIcon(spec.value));
+    const label = document.createElement("span");
+    label.className = "node-navigation-list-sort-label";
+    label.textContent = spec.label;
+    btn.appendChild(label);
     btn.addEventListener("mousedown", (event) => event.stopPropagation());
     btn.addEventListener("click", (event) => {
       event.stopPropagation();
