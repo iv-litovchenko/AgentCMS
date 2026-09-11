@@ -34,6 +34,8 @@
       '<svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v12M9 18h6"/></svg>',
     screenshot:
       '<svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>',
+    clipboard:
+      '<svg viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><rect x="5" y="4" width="14" height="16" rx="2"/></svg>',
     collapse: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>'
   };
 
@@ -191,6 +193,29 @@
     return wrap;
   }
 
+  function createClipboardHistoryMenu() {
+    const wrap = document.createElement("div");
+    wrap.className = "asc-menu asc-menu--clipboard";
+    const btn = createBtn("clipboard", "Буфер", "История буфера обмена");
+    btn.classList.add("asc-btn--menu");
+    btn.setAttribute("aria-haspopup", "menu");
+    btn.setAttribute("aria-expanded", "false");
+    const pop = document.createElement("div");
+    pop.className = "asc-menu-pop asc-menu-pop--clipboard";
+    pop.setAttribute("role", "menu");
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const open = !wrap.classList.contains("is-open");
+      closeMenus(open ? wrap : null);
+      wrap.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) void renderClipboardHistoryMenu(pop);
+    });
+    wrap.append(btn, pop);
+    menus.push({ wrap, pop, btn });
+    return wrap;
+  }
+
   const left = document.createElement("div");
   left.className = "asc-cluster asc-cluster--left";
   const elementBtn = createBtn("element", "Выбор", "Выбрать блок на странице (Esc — выключить)");
@@ -203,6 +228,7 @@
   const right = document.createElement("div");
   right.className = "asc-cluster asc-cluster--right";
   right.append(
+    createClipboardHistoryMenu(),
     createMenu("page", "Страница", "Вставить страницу", PAGE_MENU),
     createMenu("selection", "Текст", "Выделение и промпты", TEXT_MENU)
   );
@@ -295,6 +321,7 @@
   }
 
   let decodeUrls = true;
+  let clipboardHistoryEnabled = false;
   let copyDecodeAttached = false;
   let clipboardFixAttached = false;
   let clipboardFixBusy = false;
@@ -397,7 +424,7 @@
   }
 
   function syncUrlDecodeListeners() {
-    if (decodeUrls) {
+    if (decodeUrls || clipboardHistoryEnabled) {
       if (!copyDecodeAttached) {
         document.addEventListener("copy", onCopyDecodeUrl, true);
         copyDecodeAttached = true;
@@ -503,8 +530,140 @@
     }
   }
 
+  function isToolbarCopyTarget(target) {
+    return target instanceof Element && Boolean(target.closest("#agent-shell-companion-toolbar"));
+  }
+
+  function isSensitiveCopyTarget(target) {
+    if (!(target instanceof Element)) return false;
+    const field = target.closest("input, textarea");
+    if (!field) return false;
+    if (field.type === "password") return true;
+    if (String(field.autocomplete || "").includes("password")) return true;
+    return false;
+  }
+
+  async function recordClipboardHistory(text, { kind = "text" } = {}) {
+    if (!clipboardHistoryEnabled) return;
+    const body = String(text || "").trim();
+    if (!body) return;
+    try {
+      await sendRuntimeMessage({
+        type: "COMPANION_CLIPBOARD_HISTORY_ADD",
+        entry: {
+          kind,
+          text: body,
+          sourceUrl: location.href,
+          pageTitle: document.title || ""
+        }
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  function createClipboardHistoryRow(item) {
+    const row = document.createElement("div");
+    row.className = "asc-clip-item";
+
+    const main = document.createElement("button");
+    main.type = "button";
+    main.className = "asc-clip-item-main";
+    main.title = "Вставить в чат";
+    main.textContent = item.preview || item.text || "Запись";
+    main.setAttribute("role", "menuitem");
+    main.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeMenus();
+      void insertIntoCompose(item.text || "");
+    });
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "asc-clip-item-copy";
+    copyBtn.title = "Снова в буфер";
+    copyBtn.setAttribute("aria-label", "Снова в буфер");
+    copyBtn.textContent = "⧉";
+    copyBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeMenus();
+      if (item.kind === "image") {
+        setStatus("Изображение — только через чат", "error");
+        return;
+      }
+      if (writeClipboardSync(item.text || "")) {
+        setStatus("Скопировано", "ok");
+        return;
+      }
+      if (navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(item.text || "").then(
+          () => setStatus("Скопировано", "ok"),
+          () => setStatus("Не удалось скопировать", "error")
+        );
+      }
+    });
+
+    row.append(main, copyBtn);
+    return row;
+  }
+
+  async function renderClipboardHistoryMenu(pop) {
+    pop.replaceChildren();
+
+    const head = document.createElement("div");
+    head.className = "asc-menu-head";
+    head.textContent = "История буфера";
+    pop.append(head);
+
+    if (!clipboardHistoryEnabled) {
+      const empty = document.createElement("div");
+      empty.className = "asc-clip-empty";
+      empty.textContent = "Выключено — включите в настройках расширения";
+      pop.append(empty);
+      return;
+    }
+
+    let items = [];
+    try {
+      const response = await sendRuntimeMessage({ type: "COMPANION_CLIPBOARD_HISTORY_LIST" });
+      items = response?.items || [];
+    } catch {
+      items = [];
+    }
+
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "asc-clip-empty";
+      empty.textContent = "Пока пусто — скопируйте текст на странице";
+      pop.append(empty);
+      return;
+    }
+
+    for (const item of items) {
+      pop.append(createClipboardHistoryRow(item));
+    }
+
+    const sep = document.createElement("div");
+    sep.className = "asc-menu-sep";
+    pop.append(sep);
+
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.className = "asc-menu-item asc-menu-item--muted";
+    clearBtn.textContent = "Очистить";
+    clearBtn.setAttribute("role", "menuitem");
+    clearBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeMenus();
+      void sendRuntimeMessage({ type: "COMPANION_CLIPBOARD_HISTORY_CLEAR" }).then(() => {
+        setStatus("История очищена", "ok");
+      });
+    });
+    pop.append(clearBtn);
+  }
+
   function onCopyDecodeUrl(event) {
-    if (!decodeUrls) return;
+    if (isToolbarCopyTarget(event.target) || isSensitiveCopyTarget(event.target)) return;
 
     let text = "";
     try {
@@ -513,23 +672,31 @@
       // ignore
     }
     if (!text) text = String(window.getSelection?.()?.toString() || "").trim();
-    if (!text) return;
 
-    const looksLikeUrl = /^https?:\/\//i.test(text) || text.startsWith(location.origin);
-    if (!looksLikeUrl && !/%[0-9A-Fa-f]{2}/.test(text)) return;
+    let finalText = text;
+    if (decodeUrls && text) {
+      const looksLikeUrl = /^https?:\/\//i.test(text) || text.startsWith(location.origin);
+      if (looksLikeUrl || /%[0-9A-Fa-f]{2}/.test(text)) {
+        const decoded = decodeUrlText(text);
+        if (decoded && decoded !== text) {
+          event.preventDefault();
+          event.clipboardData.setData("text/plain", decoded);
+          finalText = decoded;
+        }
+      }
+    }
 
-    const decoded = decodeUrlText(text);
-    if (!decoded || decoded === text) return;
-
-    event.preventDefault();
-    event.clipboardData.setData("text/plain", decoded);
+    if (clipboardHistoryEnabled && finalText) {
+      void recordClipboardHistory(finalText);
+    }
   }
 
-  async function loadUrlDecodeSettings() {
+  async function loadCompanionSettings() {
     try {
       const response = await sendRuntimeMessage({ type: "COMPANION_GET_SETTINGS" });
       if (response && typeof response === "object") {
         decodeUrls = response.decodeUrls !== false;
+        clipboardHistoryEnabled = Boolean(response.clipboardHistoryEnabled);
         syncUrlDecodeListeners();
         replaceAddressBarUrlIfEncoded();
         return;
@@ -541,9 +708,11 @@
       const stored = await chrome.storage.local.get([
         "decodeUrls",
         "decodeUrlsInCompanion",
-        "decodeUrlsOnCopy"
+        "decodeUrlsOnCopy",
+        "clipboardHistoryEnabled"
       ]);
       decodeUrls = readDecodeUrlsSetting(stored);
+      clipboardHistoryEnabled = Boolean(stored.clipboardHistoryEnabled);
     } catch {
       // ignore
     }
@@ -658,9 +827,13 @@
 
   async function copyPageUrlToClipboard() {
     const url = currentPageUrl();
-    if (writeClipboardSync(url)) return;
+    if (writeClipboardSync(url)) {
+      void recordClipboardHistory(url);
+      return;
+    }
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(url);
+      void recordClipboardHistory(url);
       return;
     }
     await new Promise((resolve, reject) => {
@@ -1065,6 +1238,7 @@
       if (destination === "clipboard") {
         try {
           await copyScreenshotToClipboard(dataUrl);
+          void recordClipboardHistory(`[Изображение] ${currentPageUrl()}`, { kind: "image" });
           setStatus("Скопировано", "ok");
         } catch (error) {
           setStatus(error?.message || "Не удалось скопировать", "error");
@@ -1253,7 +1427,7 @@
     setExpanded(false);
   }
 
-  void loadUrlDecodeSettings();
+  void loadCompanionSettings();
   window.addEventListener("pageshow", () => replaceAddressBarUrlIfEncoded());
 
   try {
@@ -1263,6 +1437,10 @@
         decodeUrls = changes.decodeUrls.newValue !== false;
         syncUrlDecodeListeners();
         replaceAddressBarUrlIfEncoded();
+      }
+      if (changes.clipboardHistoryEnabled) {
+        clipboardHistoryEnabled = Boolean(changes.clipboardHistoryEnabled.newValue);
+        syncUrlDecodeListeners();
       }
     });
   } catch {

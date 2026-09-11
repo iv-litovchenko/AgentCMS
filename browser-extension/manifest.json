@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Agent Shell Companion",
   "short_name": "Agent Shell",
-  "version": "0.1.46",
+  "version": "0.1.47",
   "description": "Side panel Agent Shell on any website — connects to local Agent CMS.",
   "permissions": ["storage", "sidePanel", "activeTab", "tabs", "scripting", "clipboardRead", "clipboardWrite"],
   "host_permissions": ["<all_urls>"],
@@ -36,7 +36,7 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["companion-urls-global.js", "toolbar-css.js", "content-script.js"],
+      "js": ["companion-urls-global.js", "clipboard-history.js", "toolbar-css.js", "content-script.js"],
       "css": ["content-script.css"],
       "run_at": "document_idle"
     },

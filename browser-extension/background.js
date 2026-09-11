@@ -1,4 +1,4 @@
-importScripts("companion-urls-global.js");
+importScripts("companion-urls-global.js", "clipboard-history.js");
 
 const {
   DEFAULT_CMS_BASE_URL,
@@ -12,6 +12,13 @@ const {
   decodeReadableUrl,
   readDecodeUrlsSetting
 } = globalThis.CompanionUrls;
+
+const {
+  listClipboardHistory,
+  addClipboardHistoryEntry,
+  clearClipboardHistory,
+  removeClipboardHistoryEntry
+} = globalThis.CompanionClipboardHistory;
 
 function storageLocal() {
   const api = globalThis.chrome?.storage ?? globalThis.browser?.storage;
@@ -28,7 +35,8 @@ async function getSettings() {
     "_migratedFromSync",
     "decodeUrls",
     "decodeUrlsInCompanion",
-    "decodeUrlsOnCopy"
+    "decodeUrlsOnCopy",
+    "clipboardHistoryEnabled"
   ]);
   const cmsBaseUrl = String(stored.cmsBaseUrl || DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
   const agentId = String(stored.agentId || "").trim();
@@ -36,7 +44,8 @@ async function getSettings() {
     cmsBaseUrl,
     agentId,
     _migratedFromSync: Boolean(stored._migratedFromSync),
-    decodeUrls: readDecodeUrlsSetting(stored)
+    decodeUrls: readDecodeUrlsSetting(stored),
+    clipboardHistoryEnabled: Boolean(stored.clipboardHistoryEnabled)
   };
 }
 
@@ -698,6 +707,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const tabId = Number(sender.tab?.id || message.tabId || 0);
     writeImageDataUrlToClipboardInTab(tabId, message.dataUrl)
       .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_CLIPBOARD_HISTORY_LIST") {
+    listClipboardHistory(storageLocal())
+      .then((items) => sendResponse({ ok: true, items }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error), items: [] }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_CLIPBOARD_HISTORY_ADD") {
+    addClipboardHistoryEntry(message.entry || {}, storageLocal())
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_CLIPBOARD_HISTORY_CLEAR") {
+    clearClipboardHistory(storageLocal())
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_CLIPBOARD_HISTORY_REMOVE") {
+    removeClipboardHistoryEntry(String(message.id || ""), storageLocal())
+      .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     return true;
   }
