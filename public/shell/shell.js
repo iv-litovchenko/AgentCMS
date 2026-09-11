@@ -52,6 +52,7 @@ import {
 import { initShellPresence, SHELL_PRESENCE_ENABLED } from "@shell/presence";
 import { initShellOrientationChip, initShellLocationChip, getShellDeviceLocation, isShellLocationShareEnabled, refreshShellLocationForSend } from "@shell/device-chips";
 import { initShellInstallBanner } from "@shell/pwa";
+import { initShellAudioUnlockBanner, syncShellAudioUnlockBanner } from "@shell/audio-unlock-banner";
 import {
   describeMicPermissionDialog,
   getShellHttpsUrl,
@@ -78,6 +79,7 @@ import {
   writeWindowSettingsToStorage
 } from "@shell/window-storage";
 import { buildProactiveMessage, createShellProactive, DEFAULT_PROACTIVE_PROMPT, normalizeProactiveIdleRange, normalizeQuietTime } from "@shell/proactive";
+import { shellVoicePlaceholder } from "@shell/prompt-placeholders";
 import { createShellDebugLog } from "@shell/debug";
 import {
   buildComposeCameraMessage,
@@ -392,20 +394,14 @@ const DEFAULT_TTS_PROMPT = `Сформируй ответ в следующем 
 
 const DEFAULT_STT_PROMPT = `Исправь пунктуацию и регистр, убери слова-паразиты («э-э», «эээ», «мм», «ну»), сохрани смысл. Верни только готовый текст для отправки агенту — без пояснений и обёрток.`;
 
-const DEFAULT_SYSTEM_PROMPT = `Ты — мой личный ассистент. Мы работаем вместе с мобильного устройства через браузер (Agent CMS Voice).
+const DEFAULT_SYSTEM_PROMPT = `Ты — личный ассистент пользователя в Agent CMS Voice.
 
-Контекст:
-- У тебя есть доступ к нашей совместной памяти и workspace через MCP-инструменты Agent CMS (поиск, страницы, заметки, диалоги, файлы).
-- Пользователь часто общается голосом: отвечай коротко и по делу, без лишней воды.
-- Если нужны данные из памяти или workspace — сначала найди их инструментами, не выдумывай.
-
-Стиль:
-- Русский язык, если пользователь не переключился на другой.
-- Проактивность умеренная: предлагай следующий шаг, но не навязывайся.
-- Не показывай сырой JSON, ID инструментов и технические детали MCP — только результат.
-
-Безопасность:
-- Не озвучивай и не выводи секреты, ключи API, пароли.`;
+Правила:
+1. Факты о workspace и памяти — только через MCP Agent CMS (поиск, страницы, заметки, файлы). Не выдумывай.
+2. Ответы короткие и разговорные: пользователь часто на мобильном и говорит голосом.
+3. Язык ответа — как у пользователя (если не просит иного).
+4. Показывай результат, не сырой JSON, не имена инструментов и не детали MCP.
+5. Секреты, ключи API и пароли — не выводи и не озвучивай.`;
 
 /** @type {{ ttsPrompt: string, sttPrompt: string, proactivePrompt: string, systemPrompt: string, sources: Record<string, string | null> }} */
 let shellPromptTemplates = {
@@ -934,10 +930,17 @@ function matchesTtsClientId(id) {
   const mine = getShellPresenceClientId();
   const browser = getShellClientId();
   if (trimmed === mine) return true;
-  if (trimmed === browser && !trimmed.includes(":")) {
-    return Boolean(ttsTabCoordinator?.isLeader());
-  }
+  if (trimmed === browser) return true;
+  const browserPrefix = `${browser}:`;
+  if (trimmed.startsWith(browserPrefix)) return trimmed === mine;
+  if (trimmed === mine.split(":")[0]) return true;
   return false;
+}
+
+function isLocalTtsTurn(meta = {}) {
+  const pending = String(state.pendingReplyTtsClientId || "").trim();
+  const target = String(meta.ttsClientId || meta.shellClientId || "").trim();
+  return matchesTtsClientId(pending) || matchesTtsClientId(target);
 }
 
 function isVoicePrimaryClient() {
@@ -1010,9 +1013,17 @@ function updateVoicePrimaryStar() {
 
 function canPlayTts() {
   if (!state.settings?.ttsEnabled) return false;
+  if (document.visibilityState !== "visible") return false;
+  if (
+    isLocalTtsTurn() ||
+    state.liveDialogActive ||
+    isLocalMessagePipelineActive()
+  ) {
+    ttsTabCoordinator?.claimLeader({ force: true });
+    return true;
+  }
   if (document.visibilityState === "visible") ttsTabCoordinator?.claimLeader();
-  if (!ttsTabCoordinator?.isLeader()) return false;
-  return document.visibilityState === "visible";
+  return Boolean(ttsTabCoordinator?.isLeader());
 }
 
 function isLocalMessagePipelineActive() {
@@ -1029,23 +1040,18 @@ function shouldPlayReplyTts(meta = {}) {
   if (state.messageStopped) return false;
   if (document.visibilityState !== "visible") return false;
 
-  const pending = String(state.pendingReplyTtsClientId || "").trim();
-  const target = String(meta.ttsClientId || "").trim();
+  if (state.liveDialogActive && getVoiceInputMode() === "live") {
+    ttsTabCoordinator?.claimLeader({ force: true });
+    return true;
+  }
 
-  if (matchesTtsClientId(pending) || matchesTtsClientId(target)) {
+  if (isLocalTtsTurn(meta) || isLocalMessagePipelineActive()) {
     ttsTabCoordinator?.claimLeader({ force: true });
     return true;
   }
-  if (pending && isLocalMessagePipelineActive()) {
-    ttsTabCoordinator?.claimLeader({ force: true });
-    return true;
-  }
-  if (state.liveDialogActive && (pending || isLocalMessagePipelineActive())) {
-    ttsTabCoordinator?.claimLeader({ force: true });
-    return true;
-  }
-  // Локальный голос без явного client id (legacy) — только на активном primary-клиенте.
-  if ((state.micActive || state.pttHeld) && !target && !pending) {
+
+  const target = String(meta.ttsClientId || meta.shellClientId || "").trim();
+  if ((state.micActive || state.pttHeld) && !target) {
     if (!ensureVoicePrimaryClient()) return false;
     ttsTabCoordinator?.claimLeader({ force: true });
     return true;
@@ -1269,12 +1275,12 @@ function shouldPauseTtsForVoiceCapture() {
 
 let liveDialogResumeTimer = 0;
 let liveDialogKeepAliveTimer = 0;
-const LIVE_DIALOG_RESUME_DELAY_MS = 400;
-const LIVE_DIALOG_RESUME_RETRY_MS = 120;
-const LIVE_STT_RESUME_AFTER_TTS_MS = 900;
-const LIVE_DIALOG_KEEPALIVE_MS = 1200;
-const LIVE_ECHO_TAIL_MS = 2200;
-const LIVE_ECHO_DURING_TTS_MS = 4500;
+const LIVE_DIALOG_RESUME_RETRY_MS = 60;
+/** Fallback, если мгновенный resume не удался. */
+const LIVE_STT_RESUME_AFTER_TTS_MS = 260;
+const LIVE_DIALOG_KEEPALIVE_MS = 2000;
+const LIVE_ECHO_TAIL_MS = 1200;
+const LIVE_ECHO_DURING_TTS_MS = 3000;
 
 function armLiveEchoGuard(ms = LIVE_ECHO_TAIL_MS) {
   liveEchoGuardUntil = Math.max(liveEchoGuardUntil, Date.now() + ms);
@@ -1355,10 +1361,11 @@ function syncLiveDialogKeepAlive() {
       clearLiveDialogKeepAliveTimer();
       return;
     }
-    if (isLiveHalfDuplexPause()) return;
-    shellLiveDialog.ensureListening?.();
-    if (isLiveDialogSessionActive() && !state.liveUserSpeaking) {
-      renderLiveDialogHeroStatus();
+    if (isLiveHalfDuplexPause() || isVoiceSttProcessing()) return;
+    if (shellLiveDialog?.isRecognitionPaused?.()) {
+      shellLiveDialog.resumeListeningAfterAgent?.();
+    } else {
+      shellLiveDialog.ensureListening?.();
     }
   }, LIVE_DIALOG_KEEPALIVE_MS);
 }
@@ -1393,14 +1400,22 @@ function syncLiveDialogForTtsPlayback() {
     shellLiveDialog.suspendCapture?.();
     return;
   }
-  if (isLiveAgentTurnActive()) {
+  if (isLiveHalfDuplexPause()) {
     flushLiveDialogCapture();
     shellLiveDialog.pauseListeningDuringAgent?.();
     renderLiveDialogHeroStatus();
     return;
   }
-  scheduleLiveDialogResume(LIVE_STT_RESUME_AFTER_TTS_MS);
+  clearLiveDialogResumeTimer();
+  if (shellLiveDialog?.isRecognitionPaused?.()) {
+    shellLiveDialog.resumeListeningAfterAgent?.();
+  } else {
+    shellLiveDialog.ensureListening?.();
+  }
   syncLiveDialogKeepAlive();
+  if (isLiveDialogSessionActive() && !state.liveUserSpeaking) {
+    renderLiveDialogHeroStatus();
+  }
 }
 
 function flushLiveDialogCapture() {
@@ -3464,6 +3479,7 @@ function abortAllTtsPlayback({ reason = "", notify = true } = {}) {
   rememberPendingReplyForTtsReplay();
   if (notify && reason && !isTtsSupersededReason(reason)) {
     const mappedReason = reason === "blocked" ? "play-not-allowed" : reason;
+    if (isTtsAutoplayBlocked(mappedReason)) showIosAudioUnlockPrompt();
     const { title, hint } = shellTtsFailureMessage(mappedReason, "", getTtsEngine() !== "browser");
     shellDialog.setError(title, { hint });
   } else if (isTtsSupersededReason(reason) && isTtsActuallyPlaying()) {
@@ -3527,6 +3543,16 @@ function updateTtsControlsUi(phase = resolveDisplayPhase(state.shellState?.phase
   nodes.voiceWave?.classList.toggle("is-paused", Boolean(state.ttsPaused));
   updateSendButtonLabel();
   updateTtsDownloadUi();
+}
+
+function showIosAudioUnlockPrompt() {
+  if (!isIosDevice()) return;
+  document.getElementById("shell-audio-unlock-banner")?.classList.remove("hidden");
+}
+
+function isTtsAutoplayBlocked(reason = "") {
+  const value = String(reason || "");
+  return value === "play-not-allowed" || value === "blocked" || /notallowed|interact/i.test(value);
 }
 
 function updateTtsDownloadUi() {
@@ -8293,77 +8319,77 @@ function buildComposeParamsPreviewRows() {
 
   return [
     {
-      key: "{{device}}",
+      key: shellVoicePlaceholder("device"),
       value: detectComposeDeviceSurface(),
       target: "контекст устройства"
     },
     {
-      key: "{{tts_enabled}}",
+      key: shellVoicePlaceholder("tts_enabled"),
       value: outbound.ttsEnabled ? "true" : "false",
       target: "Shell → озвучка ответа"
     },
     {
-      key: "{{stt_enabled}}",
+      key: shellVoicePlaceholder("stt_enabled"),
       value: settings.sttEnabled !== false ? "true" : "false",
       target: "Shell → голосовой ввод"
     },
     {
-      key: "{{voice_mode}}",
+      key: shellVoicePlaceholder("voice_mode"),
       value: voiceMode,
       target: "режим микрофона"
     },
     {
-      key: "{{runtime}}",
+      key: shellVoicePlaceholder("runtime"),
       value: runtime,
       target: "маршрут / runtime"
     },
     {
-      key: "{{proactive_enabled}}",
+      key: shellVoicePlaceholder("proactive_enabled"),
       value: settings.proactiveEnabled ? "true" : "false",
       target: "таймер Shell (не агенту)"
     },
     {
-      key: "{{system_prompt}}",
+      key: shellVoicePlaceholder("system_prompt"),
       value: summarizePromptSetting(settings.systemPrompt || nodes.systemPrompt?.value),
       target: "system → агент"
     },
     {
-      key: "{{tts_prompt}}",
+      key: shellVoicePlaceholder("tts_prompt"),
       value: summarizePromptSetting(settings.ttsPrompt || nodes.ttsPrompt?.value),
       target: "формат ответа (идея)"
     },
     {
-      key: "{{stt_prompt}}",
+      key: shellVoicePlaceholder("stt_prompt"),
       value: summarizePromptSetting(settings.sttPrompt || nodes.sttPrompt?.value),
       target: "очистка STT до агента"
     },
     {
-      key: "{{reasoning}}",
+      key: shellVoicePlaceholder("reasoning"),
       value: toggles.reasoning ? "true" : "false",
       target: "кнопка compose (идея)"
     },
     {
-      key: "{{tools}}",
+      key: shellVoicePlaceholder("tools"),
       value: toggles.tools ? "true" : "false",
       target: "кнопка compose (идея)"
     },
     {
-      key: "{{memory}}",
+      key: shellVoicePlaceholder("memory"),
       value: toggles.memory ? "true" : "false",
       target: "кнопка compose (идея)"
     },
     {
-      key: "{{execute}}",
+      key: shellVoicePlaceholder("execute"),
       value: toggles.execute ? "true" : "false",
       target: "кнопка compose (идея)"
     },
     {
-      key: "{{page}}",
+      key: shellVoicePlaceholder("page"),
       value: toggles.page ? "true" : "false",
       target: "кнопка «Страница»"
     },
     {
-      key: "{{location}}",
+      key: shellVoicePlaceholder("location"),
       value: location
         ? `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`
         : locationEnabled
@@ -8372,7 +8398,7 @@ function buildComposeParamsPreviewRows() {
       target: "блок [Контекст устройства]"
     },
     {
-      key: "{{host_url}}",
+      key: shellVoicePlaceholder("host_url"),
       value: String(outbound.hostUrl || window.location.href || "").trim(),
       target: "метаданные запроса"
     }
@@ -10473,8 +10499,10 @@ async function playTtsPayload(text, { allowBrowserFallback = true, streamChunk =
     }
   }
 
+  if (isTtsAutoplayBlocked(serverReason)) showIosAudioUnlockPrompt();
   const { title, hint } = shellTtsFailureMessage(serverReason, "", useServerTts);
   shellDialog.setError(title, { hint });
+  if (isTtsAutoplayBlocked(serverReason)) return null;
   throw new Error(serverReason || "tts-failed");
 }
 
@@ -10677,13 +10705,9 @@ async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {})
       shellDialog.clearError();
       return;
     }
-    const blocked = /play-not-allowed|notallowed|interact/i.test(reason);
+    if (isTtsAutoplayBlocked(reason)) showIosAudioUnlockPrompt();
     const { title, hint } = shellTtsFailureMessage(reason, "", getTtsEngine() !== "browser");
-    shellDialog.setError(title, {
-      hint: blocked
-        ? `${hint} · Нажмите ▶ «Сначала» над полем ввода`
-        : hint || formatTtsErrorHint({ serverReason: reason })
-    });
+    shellDialog.setError(title, { hint: hint || formatTtsErrorHint({ serverReason: reason }) });
     resetTtsUiAfterPlayback({ patchServer: true });
     updateTtsControlsUi("waiting");
     return;
@@ -11210,6 +11234,7 @@ function setupSpeechRecognition() {
         clearShellError: () => shellDialog?.clearError?.(),
         markShellAudioGesture,
         unlockShellAudio,
+        syncShellAudioUnlockBanner,
         shouldSuspendLiveListening,
         shouldGateLiveInput: shouldGateLiveSttInput,
         shouldBlockLiveUtterance,
@@ -12336,7 +12361,9 @@ function bindShellInteractiveUi() {
     ttsPlayer = createShellTtsPlayer({
       apiFetch,
       getTtsSettings: collectTtsRuntimeSettings,
+      onPlaybackBlocked: showIosAudioUnlockPrompt,
       onPlaybackStart: () => {
+        syncShellAudioUnlockBanner();
         flushLiveDialogCapture();
         armLiveEchoGuard(LIVE_ECHO_DURING_TTS_MS);
         syncLiveDialogForTtsPlayback();
@@ -12501,6 +12528,10 @@ async function boot() {
     initShellInstallBanner({
       bannerEl: document.getElementById("shell-install-banner"),
       dismissBtn: document.getElementById("shell-install-dismiss")
+    });
+    initShellAudioUnlockBanner({
+      bannerEl: document.getElementById("shell-audio-unlock-banner"),
+      enableBtn: document.getElementById("shell-audio-unlock-btn")
     });
   }
   shellDialog.init();

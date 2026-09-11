@@ -1,19 +1,29 @@
-/** Живой диалог v11: half-duplex TTS + надёжный VAD barge-in. */
+/** Живой диалог v12: быстрые паузы, resume, barge-in. */
 
 import { playShellMicSound, primeShellProcessingAudio } from "@shell/ui-sounds";
 import { acquireShellWakeLock, hapticTap, releaseShellWakeLock } from "@shell/voice";
 
-export const LIVE_UTTERANCE_END_MS = 1400;
+export const LIVE_UTTERANCE_END_MS = 920;
 export const LIVE_BARGE_IN_MIN_CHARS = 3;
-export const LIVE_RESTART_MS = 120;
-const BARGE_VAD_INTERVAL_MS = 40;
-const BARGE_VAD_WARMUP_MS = 480;
-const BARGE_VAD_HOT_FRAMES = 5;
+export const LIVE_RESTART_MS = 50;
+const BARGE_VAD_INTERVAL_MS = 32;
+const BARGE_VAD_WARMUP_MS = 280;
+const BARGE_VAD_HOT_FRAMES = 4;
 const BARGE_VAD_MIN_RMS = 0.028;
-const BARGE_VAD_SPIKE_RATIO = 1.48;
-const BARGE_VAD_START_DELAY_MS = 120;
-const BARGE_MIC_RETRY_MS = 160;
-const BARGE_MIC_MAX_ATTEMPTS = 4;
+const BARGE_VAD_SPIKE_RATIO = 1.42;
+const BARGE_VAD_START_DELAY_MS = 40;
+const BARGE_MIC_RETRY_MS = 90;
+const BARGE_MIC_MAX_ATTEMPTS = 3;
+const BARGE_ARM_POLL_MS = 550;
+const BARGE_ANALYSER_FFT = 1024;
+
+function resolveUtteranceEndMs(phrase = "") {
+  const text = String(phrase || "").trim();
+  const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+  if (words <= 2 && text.length < 20) return 640;
+  if (words >= 5 || text.length >= 44) return 1180;
+  return LIVE_UTTERANCE_END_MS;
+}
 
 const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -73,12 +83,12 @@ export function createShellLiveDialog(deps) {
     if (!deps.state?.liveUserBarging) deps.setLiveUserSpeaking?.(false);
   };
 
-  const scheduleUtteranceEnd = () => {
+  const scheduleUtteranceEnd = (phrase = currentPhrase()) => {
     clearEndTimer();
     endTimer = window.setTimeout(() => {
       endTimer = 0;
       void commitUtterance();
-    }, LIVE_UTTERANCE_END_MS);
+    }, resolveUtteranceEndMs(phrase));
   };
 
   function ensureListening() {
@@ -93,7 +103,7 @@ export function createShellLiveDialog(deps) {
         deps.state.micActive = true;
         return;
       }
-      scheduleRestart(80);
+      scheduleRestart(40);
     }
   }
 
@@ -195,7 +205,7 @@ export function createShellLiveDialog(deps) {
       if (bargeHotFrames >= BARGE_VAD_HOT_FRAMES) {
         const now = Date.now();
         if (now < bargeCooldownUntil) return;
-        bargeCooldownUntil = now + 1000;
+        bargeCooldownUntil = now + 700;
         stopBargeMonitor();
         void deps.bargeInLiveDialog?.({ phrase: "", voice: true });
       }
@@ -245,7 +255,7 @@ export function createShellLiveDialog(deps) {
       }
       bargeSource = bargeAudioCtx.createMediaStreamSource(bargeStream);
       bargeAnalyser = bargeAudioCtx.createAnalyser();
-      bargeAnalyser.fftSize = 2048;
+      bargeAnalyser.fftSize = BARGE_ANALYSER_FFT;
       bargeSource.connect(bargeAnalyser);
       bargeStartedAt = Date.now();
       bargeBaseline = 0;
@@ -265,17 +275,24 @@ export function createShellLiveDialog(deps) {
 
   function pauseListeningDuringAgent() {
     if (!isActive()) return;
+    const alreadyPaused = listeningPausedForAgent;
     listeningPausedForAgent = true;
     flushCapture();
-    releaseMic({ abort: true });
-    deps.state.micActive = false;
+    if (!alreadyPaused) {
+      releaseMic({ abort: true });
+      deps.state.micActive = false;
+    }
     const armBargeMonitor = () => {
       if (!isActive() || !listeningPausedForAgent) return;
-      void startBargeMonitor();
+      if (!bargeMonitorActive && !bargeMonitorStarting) void startBargeMonitor();
     };
+    if (bargeMonitorActive || bargeMonitorStarting || bargeArmTimer) {
+      deps.syncMicButtonUi?.({ force: true });
+      return;
+    }
     clearBargeArmTimer();
     window.setTimeout(armBargeMonitor, BARGE_VAD_START_DELAY_MS);
-    window.setTimeout(armBargeMonitor, BARGE_VAD_START_DELAY_MS + BARGE_MIC_RETRY_MS * 2);
+    window.setTimeout(armBargeMonitor, BARGE_VAD_START_DELAY_MS + BARGE_MIC_RETRY_MS);
     bargeArmTimer = window.setInterval(() => {
       if (!isActive() || !listeningPausedForAgent) {
         clearBargeArmTimer();
@@ -284,7 +301,7 @@ export function createShellLiveDialog(deps) {
       if (!bargeMonitorActive && !bargeMonitorStarting && deps.shouldBargeIn?.()) {
         void startBargeMonitor();
       }
-    }, 900);
+    }, BARGE_ARM_POLL_MS);
     deps.syncMicButtonUi?.({ force: true });
     deps.syncVoiceRecordTimer?.();
   }
@@ -305,7 +322,7 @@ export function createShellLiveDialog(deps) {
     deps.setLiveUserSpeaking?.(Boolean(phrase), phrase);
     if (phrase) {
       deps.renderPhase?.("listening", phrase);
-      scheduleUtteranceEnd();
+      scheduleUtteranceEnd(phrase);
     } else {
       deps.renderLiveHeroStatus?.();
     }
@@ -365,7 +382,7 @@ export function createShellLiveDialog(deps) {
         deps.showMicPermissionDialog?.("insecure");
         return;
       }
-      if (isActive() && !shouldHoldStt()) scheduleRestart(320);
+      if (isActive() && !shouldHoldStt()) scheduleRestart(180);
       else if (!isActive()) {
         deps.state.micActive = false;
         deps.renderPhase?.("waiting", code || "Ошибка распознавания");
@@ -379,7 +396,7 @@ export function createShellLiveDialog(deps) {
           deps.syncMicButtonUi?.({ force: true });
           return;
         }
-        scheduleRestart(80);
+        scheduleRestart(40);
         deps.syncMicButtonUi?.({ force: true });
         return;
       }
@@ -447,7 +464,9 @@ export function createShellLiveDialog(deps) {
     playShellMicSound("press");
     hapticTap();
     deps.markShellAudioGesture?.();
-    void deps.unlockShellAudio?.({ markGesture: true });
+    void deps.unlockShellAudio?.({ markGesture: true }).then(() => {
+      deps.syncShellAudioUnlockBanner?.();
+    });
     deps.clearShellError?.();
 
     try {

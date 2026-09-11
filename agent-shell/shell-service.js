@@ -1375,7 +1375,8 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
   const sessionId = buildQwenPawSessionId(settings, agentId);
   const streamId = `qwenpaw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const outboundText = buildDualReplyInstruction(text, settings);
-  const qwenInput = buildQwenPawChatInput(text, settings);
+  const promptContext = { agentId, runtime: getMessageRuntime(settings) };
+  const qwenInput = buildQwenPawChatInput(text, settings, promptContext);
   let lastEmittedText = "";
   let lastEmitAt = 0;
   let lastStatePatchAt = 0;
@@ -1621,8 +1622,9 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
   const replyTtsClientId = String(ttsClientId || "").trim();
   const streamId = `${runtime}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const outboundText = buildDualReplyInstruction(text, settings);
-  const messages = buildOpenAiMessages(text, settings);
-  const systemPrompt = getSystemPrompt(settings);
+  const promptContext = { agentId, runtime };
+  const messages = buildOpenAiMessages(text, settings, promptContext);
+  const systemPrompt = getSystemPrompt(settings, promptContext);
   let lastEmittedText = "";
   let lastEmitAt = 0;
   let lastStatePatchAt = 0;

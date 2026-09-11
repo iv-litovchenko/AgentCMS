@@ -11,14 +11,17 @@ export function truncateForShellTts(text, maxLen = SHELL_TTS_MAX_LEN) {
 
 export function formatTtsErrorHint({ serverReason = "", browserReason = "", useServerTts = true } = {}) {
   const parts = [];
-  if (serverReason === "synthesize-fetch" || /fetch|network|failed/i.test(serverReason)) {
-    parts.push("Нет связи с Voice — Wi‑Fi и https://IP:3488");
-  } else if (serverReason === "play-not-allowed" || serverReason === "blocked") {
-    parts.push(
-      "Safari блокирует звук — нажмите ▶ «Сначала» над полем ввода (или 🎤 и сразу задайте вопрос)"
-    );
-  } else if (serverReason === "play-failed" || serverReason === "audio-element-error") {
-    parts.push("Выключите беззвучный режим, громкость вверх");
+  const sr = String(serverReason || "");
+
+  if (sr === "play-not-allowed" || sr === "blocked") {
+    return "Safari блокирует автозвук — нажмите «🔊 Включить звук» вверху или ▶ «Сначала» под облаком";
+  }
+  if (sr === "play-failed" || sr === "audio-element-error") {
+    parts.push("Проверьте громкость и беззвучный режим на телефоне");
+  } else if (sr === "synthesize-fetch") {
+    parts.push("Не удалось связаться с сервером озвучки — проверьте интернет");
+  } else if (/^(fetch failed|network error|failed to fetch)$/i.test(sr)) {
+    parts.push("Нет связи с сервером — проверьте интернет");
   } else if (serverReason === "audio-playback-stall" || serverReason === "audio-playback-timeout") {
     parts.push("Воспроизведение зависло — нажмите ▶ «Сначала» или выберите Edge TTS");
   } else if (serverReason === "audio-load-timeout") {
@@ -52,8 +55,15 @@ export function formatTtsErrorHint({ serverReason = "", browserReason = "", useS
 }
 
 export function shellTtsFailureMessage(serverReason = "", browserReason = "", useServerTts = true) {
+  const sr = String(serverReason || "");
+  if (sr === "play-not-allowed" || sr === "blocked") {
+    return {
+      title: "Разрешите звук",
+      hint: formatTtsErrorHint({ serverReason: sr, browserReason, useServerTts })
+    };
+  }
   return {
     title: "Не удалось озвучить ответ",
-    hint: formatTtsErrorHint({ serverReason, browserReason, useServerTts })
+    hint: formatTtsErrorHint({ serverReason: sr, browserReason, useServerTts })
   };
 }

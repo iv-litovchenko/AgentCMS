@@ -10,6 +10,7 @@ export function createShellTtsPlayer({
   apiFetch,
   getTtsSettings = () => ({}),
   synthTimeoutMs = 45000,
+  onPlaybackBlocked = null,
   onPlaybackStart = null,
   onPlaybackEnd = null
 } = {}) {
@@ -141,7 +142,6 @@ export function createShellTtsPlayer({
       objectUrl = URL.createObjectURL(blob);
       audio = new Audio(objectUrl);
     }
-
     audio.playsInline = true;
     audio.setAttribute("playsinline", "true");
     audio.setAttribute("webkit-playsinline", "true");
@@ -200,7 +200,10 @@ export function createShellTtsPlayer({
       };
 
       audio.onended = () => {
-        cleanupAudio({ notifyEnd: true });
+        playbackLive = false;
+        audio.onended = null;
+        audio.onerror = null;
+        notifyPlaybackEnd();
         finish({ ok: true, reason: "audio-element" });
       };
       audio.onerror = () => {
@@ -217,7 +220,6 @@ export function createShellTtsPlayer({
         .play()
         .then(() => {
           markLive();
-          // wait for onended
         })
         .catch(async (error) => {
           for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -233,12 +235,20 @@ export function createShellTtsPlayer({
               return;
             } catch (retryError) {
               if (attempt === 1) {
-                cleanupAudio();
                 const msg = String(retryError?.message || error?.message || "play-failed");
-                finish({
-                  ok: false,
-                  reason: /notallowed|interact/i.test(msg) ? "play-not-allowed" : "play-failed"
-                });
+                const blocked = /notallowed|interact/i.test(msg);
+                if (blocked) {
+                  playbackLive = false;
+                  try {
+                    onPlaybackBlocked?.();
+                  } catch {
+                    // ignore
+                  }
+                  finish({ ok: false, reason: "play-not-allowed" });
+                } else {
+                  cleanupAudio();
+                  finish({ ok: false, reason: "play-failed" });
+                }
               }
             }
           }

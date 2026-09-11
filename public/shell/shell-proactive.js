@@ -1,19 +1,30 @@
+import { renderShellVoicePlaceholders } from "./shell-prompt-placeholders.js";
+
 const TICK_MS = 5000;
 
-export const DEFAULT_PROACTIVE_PROMPT = `Пользователь неактивен {{idle_seconds}} секунд. Shell в режиме ожидания.
-Представь, что ты живой человек рядом — не бот и не автоответчик.
-Если уместно, мягко начни разговор: коротко, по-человечески, без канцелярита.
-Если повода нет — не навязывайся: минимальный ответ или одна лёгкая фраза «Я рядом, если нужен».`;
+export const DEFAULT_PROACTIVE_PROMPT = `Фоновый пинг: пользователь молчит {{agent-cms-voice:idle_minutes}} мин ({{agent-cms-voice:idle_seconds}} сек).
+
+Загляни в хранилище Agent CMS (MCP): заметки, задачи, расписание, недавние темы.
+Если найдёшь повод — коротко поделись: интересный факт, напоминание по расписанию, открытый вопрос из workspace.
+Если повода нет — одна фраза: «Я рядом, если понадоблюсь.»
+
+Ответ 1–2 предложения, живо, по-человечески. Не напоминай про таймер и не начинай монолог.`;
+
+function stripLegacyProactiveTags(text) {
+  return String(text || "")
+    .replace(/^\[proactive\]\s*/i, "")
+    .replace(/\s*\[\/proactive\]\s*$/i, "")
+    .trim();
+}
 
 export function renderProactivePrompt(template, { idleSeconds = 0 } = {}) {
   const sec = Math.max(1, Math.round(Number(idleSeconds) || 0));
   const minutes = Math.max(1, Math.round(sec / 60));
-  const body = String(template || DEFAULT_PROACTIVE_PROMPT)
-    .trim()
-    .replace(/\{\{idle_seconds\}\}/g, String(sec))
-    .replace(/\{\{idle_minutes\}\}/g, String(minutes));
-  if (/^\[proactive\]/i.test(body)) return body;
-  return `[proactive]\n${body}\n[/proactive]`;
+  const raw = stripLegacyProactiveTags(template || DEFAULT_PROACTIVE_PROMPT);
+  return renderShellVoicePlaceholders(raw, {
+    idle_seconds: sec,
+    idle_minutes: minutes
+  });
 }
 
 export function buildProactiveMessage(idleSeconds, template = DEFAULT_PROACTIVE_PROMPT) {

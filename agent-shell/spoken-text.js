@@ -142,12 +142,23 @@ function isInternalTtsPrepSession(sessionId) {
   return value.includes("-tts-prep-") || value.startsWith("__shell-tts-prep-");
 }
 
-function getSystemPrompt(settings = {}) {
-  return String(settings.systemPrompt || "").trim();
+const { renderShellVoicePlaceholders } = require("./shell-prompt-placeholders");
+
+function buildSystemPromptContext(settings = {}, context = {}) {
+  const agentName = String(context.agentId || context.agent_name || settings.agentId || "agent").trim() || "agent";
+  const runtime = String(context.runtime || settings.messageTarget || "qwenpaw").trim() || "qwenpaw";
+  const language = String(context.language || settings.sttLang || "ru-RU").trim() || "ru-RU";
+  return { agent_name: agentName, runtime, language };
 }
 
-function buildOpenAiMessages(userText, settings = {}) {
-  const system = getSystemPrompt(settings);
+function getSystemPrompt(settings = {}, context = {}) {
+  const raw = String(settings.systemPrompt || "").trim();
+  if (!raw) return "";
+  return renderShellVoicePlaceholders(raw, buildSystemPromptContext(settings, context));
+}
+
+function buildOpenAiMessages(userText, settings = {}, context = {}) {
+  const system = getSystemPrompt(settings, context);
   const user = buildDualReplyInstruction(userText, settings);
   const messages = [];
   if (system) messages.push({ role: "system", content: system });
@@ -155,8 +166,8 @@ function buildOpenAiMessages(userText, settings = {}) {
   return messages;
 }
 
-function buildQwenPawChatInput(userText, settings = {}) {
-  const system = getSystemPrompt(settings);
+function buildQwenPawChatInput(userText, settings = {}, context = {}) {
+  const system = getSystemPrompt(settings, context);
   const user = buildDualReplyInstruction(userText, settings);
   const input = [];
   if (system) {
@@ -172,8 +183,8 @@ function buildQwenPawChatInput(userText, settings = {}) {
   return input;
 }
 
-function buildCliUserPrompt(userText, settings = {}) {
-  const system = getSystemPrompt(settings);
+function buildCliUserPrompt(userText, settings = {}, context = {}) {
+  const system = getSystemPrompt(settings, context);
   const user = buildDualReplyInstruction(userText, settings);
   if (!system) return user;
   return `${system}\n\n---\n\n${user}`;

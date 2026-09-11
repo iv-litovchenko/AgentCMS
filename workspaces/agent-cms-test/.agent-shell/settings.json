@@ -26,6 +26,7 @@
   },
   "voice": {
     "input": {
+      "enabled": false,
       "mode": "live",
       "capture": "microphone",
       "globalListen": false,
@@ -45,7 +46,7 @@
     "tts": {
       "enabled": true,
       "playbackMode": "dialog",
-      "engine": "browser",
+      "engine": "edge",
       "prompt": "Сформируй ответ в следующем формате (строго, в таком порядке):\n\n1) Голосовая версия для озвучки — без emoji и markdown, только то, что можно произнести вслух. Не включай секреты, ключи и пароли. Не используй HTML-комментарии <!-- -->.\n\n2) Отдельной строкой маркер:\n\n::: VOICE-END :::\n\n3) Полный текст ответа для экрана (можно markdown, списки, код и любые другие элементы). Без HTML-комментариев <!-- -->.",
       "rate": 1,
       "pitch": 2,
@@ -56,7 +57,7 @@
           "voice": "Милена"
         },
         "edge": {
-          "voice": "ru-RU-SvetlanaNeural"
+          "voice": "ru-RU-DmitryNeural"
         },
         "elevenlabs": {
           "apiKey": "sk_4aa9fb58faddf21a3156b9e98175bd0709bf310e6c61b370",
@@ -101,7 +102,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0.9999
+    "dialogScrollRatio": 1
   },
   "compose": {
     "promptTemplates": [
