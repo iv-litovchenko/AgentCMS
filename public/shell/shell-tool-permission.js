@@ -1,4 +1,4 @@
-/** Claude CLI tool permission modal (SSE → Allow / Deny / session). */
+/** CLI tool permission modal (Claude / Codex — SSE → Allow / Deny / session). */
 
 function formatToolInput(value) {
   if (value == null || value === "") return "";
@@ -184,7 +184,7 @@ export function initShellToolPermission({
       inputEl.value = body;
       inputEl.closest(".shell-field")?.classList.toggle("hidden", !body);
     }
-    setStatus(`Claude запрашивает: ${shortenToolName(toolName)}`);
+    setStatus(`Запрос инструмента: ${shortenToolName(toolName)}`);
   }
 
   function reconcileActiveState() {

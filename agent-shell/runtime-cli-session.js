@@ -15,15 +15,20 @@ const {
   buildClaudeControlDenyResponse
 } = require("./shell-tool-permission");
 const { isAskUserQuestionTool } = require("./shell-user-question");
+const {
+  APPROVAL_METHODS,
+  USER_INPUT_METHOD,
+  resolveCodexApprovalPolicy,
+  usesCodexBypass,
+  approvalCacheKey,
+  parseCodexApprovalRequest,
+  buildCodexApprovalResponse,
+  normalizeCodexUserQuestions,
+  buildCodexUserInputResponse
+} = require("./runtime-codex-approval");
 
 const IDLE_MS = Number(process.env.AGENT_SHELL_CLI_IDLE_MS || 30 * 60 * 1000);
 const PERSISTENT_ENABLED = String(process.env.AGENT_SHELL_CLI_PERSISTENT ?? "1").trim() !== "0";
-
-const APPROVAL_METHODS = new Set([
-  "item/commandExecution/requestApproval",
-  "item/fileChange/requestApproval",
-  "item/permissions/requestApproval"
-]);
 
 function sessionPoolKey(runtime, config) {
   return [
@@ -474,6 +479,108 @@ class CodexAppServerSession {
     this.idleTimer = null;
     this.disposed = false;
     this.pendingRequests = new Map();
+    this.sessionApprovalKeys = new Set();
+  }
+
+  usesBypass() {
+    return usesCodexBypass(this.config.permissionMode);
+  }
+
+  codexApprovalPolicy() {
+    return resolveCodexApprovalPolicy(this.config.permissionMode);
+  }
+
+  codexSandboxMode() {
+    return this.usesBypass() ? "dangerFullAccess" : "workspaceWrite";
+  }
+
+  isApprovalCached(method, params) {
+    return this.sessionApprovalKeys.has(approvalCacheKey(method, params));
+  }
+
+  rememberApproval(method, params) {
+    this.sessionApprovalKeys.add(approvalCacheKey(method, params));
+  }
+
+  resolvePermissionHandler(turn) {
+    if (typeof turn?.onPermissionRequest === "function") return turn.onPermissionRequest;
+    if (typeof this.config.onPermissionRequest === "function") return this.config.onPermissionRequest;
+    return null;
+  }
+
+  resolveUserQuestionHandler(turn) {
+    if (typeof turn?.onUserQuestionRequest === "function") return turn.onUserQuestionRequest;
+    if (typeof this.config.onUserQuestionRequest === "function") return this.config.onUserQuestionRequest;
+    return null;
+  }
+
+  async handleApprovalRequest(message) {
+    const method = String(message?.method || "").trim();
+    const params = message?.params && typeof message.params === "object" ? message.params : {};
+    const requestId = message.id;
+
+    if (this.usesBypass() || this.isApprovalCached(method, params)) {
+      this.respond(
+        requestId,
+        buildCodexApprovalResponse(method, params, { allow: true, scope: "session" })
+      );
+      return;
+    }
+
+    const handler = this.resolvePermissionHandler(this.pendingTurn);
+    if (!handler) {
+      this.respond(requestId, buildCodexApprovalResponse(method, params, { allow: false }));
+      return;
+    }
+
+    try {
+      const decision = await handler(parseCodexApprovalRequest(method, params, requestId));
+      const allow = Boolean(decision?.allow);
+      const scope = String(decision?.scope || "once").trim() === "session" ? "session" : "once";
+      if (allow && scope === "session") this.rememberApproval(method, params);
+      this.respond(requestId, buildCodexApprovalResponse(method, params, { allow, scope }));
+    } catch {
+      this.respond(requestId, buildCodexApprovalResponse(method, params, { allow: false }));
+    }
+  }
+
+  async handleUserInputRequest(message) {
+    const params = message?.params && typeof message.params === "object" ? message.params : {};
+    const requestId = message.id;
+    const codexQuestions = Array.isArray(params.questions) ? params.questions : [];
+    const { questions, idByQuestion } = normalizeCodexUserQuestions(codexQuestions);
+    const handler = this.resolveUserQuestionHandler(this.pendingTurn);
+
+    if (!handler || !questions.length) {
+      this.respond(requestId, { answers: {} });
+      return;
+    }
+
+    try {
+      const decision = await handler({
+        cliRequestId: String(requestId ?? ""),
+        toolName: "request_user_input",
+        toolInput: { questions },
+        toolUseId: String(params.itemId || ""),
+        questions
+      });
+      if (!decision?.allow) {
+        this.respond(requestId, { answers: {} });
+        return;
+      }
+      const answersByQuestion =
+        decision?.updatedInput?.answers && typeof decision.updatedInput.answers === "object"
+          ? decision.updatedInput.answers
+          : {};
+      const mappedQuestions = codexQuestions.map((item) => ({
+        ...item,
+        question: String(item?.question || "").trim(),
+        id: String(item?.id || idByQuestion.get(String(item?.question || "").trim()) || "").trim()
+      }));
+      this.respond(requestId, buildCodexUserInputResponse(mappedQuestions, answersByQuestion));
+    } catch {
+      this.respond(requestId, { answers: {} });
+    }
   }
 
   dispose(reason = "dispose") {
@@ -588,17 +695,16 @@ class CodexAppServerSession {
     await this.ensureProcess();
     if (this.threadId) return this.threadId;
 
-    const { cwd, model, sessionId, permissionMode } = this.config;
+    const { cwd, model, sessionId, permissionMode, systemPrompt } = this.config;
     const threadParams = {
       cwd,
-      approvalPolicy: "never",
-      sandbox: "workspaceWrite",
+      approvalPolicy: this.codexApprovalPolicy(),
+      sandbox: this.codexSandboxMode(),
       excludeTurns: true
     };
     if (model) threadParams.model = String(model);
-    if (normalizeClaudePermissionMode(permissionMode) === "bypassPermissions") {
-      threadParams.sandbox = "dangerFullAccess";
-    }
+    const instructions = String(systemPrompt || "").trim();
+    if (instructions) threadParams.developerInstructions = instructions;
 
     if (sessionId) {
       try {
@@ -608,6 +714,7 @@ class CodexAppServerSession {
           excludeTurns: false,
           approvalPolicy: threadParams.approvalPolicy,
           sandbox: threadParams.sandbox,
+          ...(instructions ? { developerInstructions: instructions } : {}),
           ...(model ? { model } : {})
         });
         this.threadId = String(resumed?.thread?.id || sessionId);
@@ -628,7 +735,12 @@ class CodexAppServerSession {
 
     if (message.id != null && message.method) {
       if (APPROVAL_METHODS.has(message.method)) {
-        this.respond(message.id, { decision: "acceptForSession" });
+        void this.handleApprovalRequest(message);
+        return;
+      }
+      if (message.method === USER_INPUT_METHOD) {
+        void this.handleUserInputRequest(message);
+        return;
       }
       return;
     }
@@ -749,11 +861,8 @@ class CodexAppServerSession {
       threadId: this.threadId,
       input: [{ type: "text", text: job.prompt }],
       cwd: this.config.cwd,
-      approvalPolicy: "never",
-      sandbox:
-        normalizeClaudePermissionMode(this.config.permissionMode) === "bypassPermissions"
-          ? "dangerFullAccess"
-          : "workspaceWrite",
+      approvalPolicy: this.codexApprovalPolicy(),
+      sandbox: this.codexSandboxMode(),
       ...(this.config.model ? { model: this.config.model } : {})
     });
     turn.turnId = String(started?.turn?.id || "");

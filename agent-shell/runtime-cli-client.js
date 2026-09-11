@@ -207,19 +207,22 @@ async function chatCodexCliPersistent(options = {}) {
     model: options.model,
     sessionId: options.sessionId,
     permissionMode: options.permissionMode,
-    cwd: options.cwd
+    systemPrompt: system,
+    cwd: options.cwd,
+    onPermissionRequest: options.onPermissionRequest,
+    onUserQuestionRequest: options.onUserQuestionRequest
   });
 
   const pool = getCliSessionPool();
   const session = pool.getSession("codex", config);
   try {
     await session.ensureThread();
-    const includeSystem = Boolean(system) && (session.resumeFallback || !config.sessionId);
-    const prompt = includeSystem ? `${system}\n\n---\n\n${userPrompt}` : userPrompt;
     const reply = await session.chat({
-      prompt,
+      prompt: userPrompt,
       onDelta: options.onDelta,
       onActivity: options.onActivity,
+      onPermissionRequest: options.onPermissionRequest,
+      onUserQuestionRequest: options.onUserQuestionRequest,
       signal: options.signal,
       timeoutMs: options.timeoutMs
     });

@@ -1,4 +1,4 @@
-/** Claude CLI AskUserQuestion modal (SSE → pick options → answers back to CLI). */
+/** CLI user-question modal (Claude AskUserQuestion / Codex request_user_input). */
 
 const OTHER_OPTION_VALUE = "__shell_other__";
 const OTHER_OPTION_LABEL = "Other";
@@ -222,7 +222,7 @@ export function initShellUserQuestion({
 
   function renderRequest(item) {
     const questions = normalizeQuestions(item?.questions);
-    if (titleEl) titleEl.textContent = "Claude задаёт вопрос";
+    if (titleEl) titleEl.textContent = "Агент задаёт вопрос";
     listEl.replaceChildren();
     for (let i = 0; i < questions.length; i += 1) {
       listEl.append(renderQuestionBlock(questions[i], i));

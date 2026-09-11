@@ -1715,21 +1715,23 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
         phase: "start",
         phrase: runtime === "codex" ? "Codex…" : "Claude…"
       });
-      const interactiveClaude =
-        runtime === "claude" &&
+      const interactiveCli =
+        (runtime === "claude" || runtime === "codex") &&
         normalizeClaudePermissionMode(endpoint.permissionMode || "") !== "bypassPermissions";
-      const onPermissionRequest = interactiveClaude
+      const onPermissionRequest = interactiveCli
         ? (details) =>
             requestClaudeToolPermission(agentId, {
               ...details,
-              streamId
+              streamId,
+              runtime
             })
         : null;
-      const onUserQuestionRequest = interactiveClaude
+      const onUserQuestionRequest = interactiveCli
         ? (details) =>
             requestClaudeUserQuestion(agentId, {
               ...details,
-              streamId
+              streamId,
+              runtime
             })
         : null;
       reply = await cliChat({
