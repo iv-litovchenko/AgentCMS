@@ -22,9 +22,49 @@
 }
 
 html.asc-capturing-viewport #agent-shell-companion-toolbar,
-html.asc-capturing-viewport .cms-page-picker-root {
+html.asc-capturing-viewport .cms-page-picker-root,
+html.asc-screenshot-region-active #agent-shell-companion-toolbar {
   visibility: hidden !important;
   opacity: 0 !important;
+}
+
+.asc-screenshot-region-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.asc-screenshot-region-hint {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  max-width: min(92vw, 520px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+}
+
+.asc-screenshot-region-box {
+  position: fixed;
+  display: none;
+  z-index: 2;
+  border: 2px solid #a78bfa;
+  border-radius: 4px;
+  background: rgba(167, 139, 250, 0.12);
+  box-shadow: 0 0 0 9999px rgba(15, 10, 30, 0.28);
+  pointer-events: none;
 }
 
 body.is-cms-page-picker-active {

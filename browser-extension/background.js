@@ -455,6 +455,53 @@ async function captureTabScreenshot({ tabId = 0, windowId = 0, senderTabId = 0 }
   }
 }
 
+async function writeImageDataUrlToClipboardInTab(tabId, dataUrl) {
+  if (!tabId) throw new Error("Нет вкладки для копирования");
+
+  const results = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: async (pngDataUrl) => {
+      try {
+        const blob = await (await fetch(String(pngDataUrl || ""))).blob();
+        if (!blob?.size) throw new Error("Пустой скриншот");
+        const imageBlob =
+          blob.type === "image/png" ? blob : new Blob([await blob.arrayBuffer()], { type: "image/png" });
+
+        if (typeof ClipboardItem === "function" && navigator.clipboard?.write) {
+          await navigator.clipboard.write([new ClipboardItem({ "image/png": imageBlob })]);
+          return { ok: true };
+        }
+
+        await new Promise((resolve, reject) => {
+          const onCopy = (event) => {
+            event.preventDefault();
+            try {
+              event.clipboardData.items.add(imageBlob, "image/png");
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          };
+          document.addEventListener("copy", onCopy, { once: true, capture: true });
+          const copied = document.execCommand("copy");
+          if (!copied) {
+            document.removeEventListener("copy", onCopy, { capture: true });
+            reject(new Error("Буфер обмена недоступен"));
+          }
+        });
+        return { ok: true };
+      } catch (error) {
+        return { ok: false, error: error?.message || String(error) };
+      }
+    },
+    args: [String(dataUrl || "")]
+  });
+
+  const result = results?.[0]?.result;
+  if (result?.ok) return;
+  throw new Error(result?.error || "Не удалось скопировать");
+}
+
 async function uploadTabScreenshot({ dataUrl, tabUrl = "" } = {}) {
   const { agentId } = await getSettings();
   const baseUrl = await resolveCmsBase();
@@ -611,8 +658,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       windowId: message.windowId,
       senderTabId: sender.tab?.id
     })
-      .then(({ tab, dataUrl }) => uploadTabScreenshot({ dataUrl, tabUrl: tab?.url || "" }))
+      .then(({ tab, dataUrl }) => sendResponse({ ok: true, dataUrl, tabUrl: tab?.url || "" }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_UPLOAD_TAB_SCREENSHOT") {
+    uploadTabScreenshot({ dataUrl: message.dataUrl, tabUrl: message.tabUrl || "" })
       .then((text) => sendResponse({ ok: true, text }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
+  if (message?.type === "COMPANION_CLIPBOARD_WRITE_IMAGE") {
+    const tabId = Number(sender.tab?.id || message.tabId || 0);
+    writeImageDataUrlToClipboardInTab(tabId, message.dataUrl)
+      .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     return true;
   }
