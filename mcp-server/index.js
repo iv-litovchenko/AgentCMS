@@ -15,6 +15,7 @@ import { registerContentTools } from "./lib/content-tools.js";
 import { registerTypeListTools } from "./lib/type-list-tools.js";
 import { registerWorkspaceFsTools } from "./lib/workspace-fs-tools.js";
 import { registerMapTools, registerSearchWorkspaceTools } from "./lib/map-tools.js";
+import { registerRepositoryTools } from "./lib/repository-tools.js";
 import { registerDataPropertyTools } from "./lib/data-property-tools.js";
 import { registerExecTools } from "./lib/exec-tools.js";
 import { registerWebSearchTools } from "./lib/web-search-tools.js";
@@ -134,6 +135,8 @@ function createServer() {
   registerMapTools(reg, client, pagePath);
 
   registerSearchWorkspaceTools(reg, client);
+
+  registerRepositoryTools(reg, client);
 
   registerBrainTools(reg, client);
 

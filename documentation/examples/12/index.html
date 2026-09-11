@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Example12 — companion toolbar</title>
+    <style>
+      :root { --bg: #f5f7fb; --panel: #fff; --border: #d7deeb; --text: #1f2937; --muted: #6b7280; --accent: #6d28d9; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 32px 24px 48px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .lead { color: var(--muted); max-width: 820px; line-height: 1.55; margin: 0 0 18px; }
+      .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+      .pill { font-size: 12px; padding: 6px 12px; border-radius: 999px; background: #f3e8ff; color: #6d28d9; border: 1px solid #e9d5ff; }
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+      a.demo { display: inline-flex; padding: 8px 14px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font-size: 13px; font-weight: 700; }
+      a.ghost { background: #fff; color: #4c1d95; border: 1px solid #ddd6fe; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+      .card h2 { margin: 0; font-size: 15px; }
+      .card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
+      .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #f3e8ff; color: #6d28d9; width: fit-content; }
+      a.open { display: inline-flex; padding: 7px 12px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font-size: 12px; font-weight: 700; width: fit-content; }
+      .vision { max-width: 820px; margin-bottom: 24px; padding: 16px 18px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; font-size: 14px; line-height: 1.55; }
+      .vision h2 { margin: 0 0 8px; font-size: 15px; }
+      .vision ul { margin: 8px 0 0; padding-left: 18px; }
+      code { font-size: 12px; background: #eef2ff; padding: 2px 6px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <p><a href="../index.html" style="color:#6d28d9;font-size:13px">← Все примеры</a></p>
+    <h1>Example12 — companion toolbar</h1>
+    <p class="lead">
+      10 компактных вариантов плавающей панели Agent Shell Companion.
+      Свёрнуто — одна иконка. Клик по иконке раскрывает действия, повторный клик или Esc сворачивает.
+    </p>
+    <div class="pill-row">
+      <span class="pill">клик по иконке</span>
+      <span class="pill">icon-first</span>
+      <span class="pill">overlay</span>
+      <span class="pill">#agent-shell-companion-toolbar</span>
+    </div>
+    <div class="actions">
+      <a class="demo" href="./playground.html">Playground — все 10</a>
+      <a class="demo ghost" href="./compare.html">Сетка сравнения</a>
+    </div>
+    <section class="vision">
+      <h2>Контекст</h2>
+      <ul>
+        <li>Прод сейчас: отдельная кнопка «Ещё», иконка открывает Side Panel.</li>
+        <li>Эти макеты: иконка = toggle самой панели. Side Panel можно повесить на второй жест позже.</li>
+        <li>Кнопки те же: элемент, страница, чище, markdown, выделение, скрин, промпты.</li>
+      </ul>
+    </section>
+    <p class="lead" style="font-size:13px">
+      Запуск: <code>cd documentation/examples/12 && python3 -m http.server 8773</code>
+    </p>
+    <div class="grid">
+      <article class="card"><span class="tag">01</span><h2>Capsule</h2><p>Нижняя капсула: иконка расширяется в ряд круглых кнопок.</p><a class="open" href="./01-capsule/">Открыть</a></article>
+      <article class="card"><span class="tag">02</span><h2>Corner FAB</h2><p>Круг в правом нижнем углу, панель выезжает влево.</p><a class="open" href="./02-corner-fab/">Открыть</a></article>
+      <article class="card"><span class="tag">03</span><h2>Vertical rail</h2><p>Узкая колонка: кнопки складываются вверх от иконки.</p><a class="open" href="./03-vertical-rail/">Открыть</a></article>
+      <article class="card"><span class="tag">04</span><h2>Glass sheet</h2><p>Матовая карточка-сетка 4×2 с короткими подписями.</p><a class="open" href="./04-glass-sheet/">Открыть</a></article>
+      <article class="card"><span class="tag">05</span><h2>Light island</h2><p>Светлый островок сверху, как Dynamic Island.</p><a class="open" href="./05-light-island/">Открыть</a></article>
+      <article class="card"><span class="tag">06</span><h2>Icon dock</h2><p>Док: иконки чуть поднимаются при наведении.</p><a class="open" href="./06-icon-dock/">Открыть</a></article>
+      <article class="card"><span class="tag">07</span><h2>Edge chip</h2><p>Чип у правого края, рельс вниз по клику.</p><a class="open" href="./07-edge-chip/">Открыть</a></article>
+      <article class="card"><span class="tag">08</span><h2>Arc fan</h2><p>Веер кружков полукругом над иконкой.</p><a class="open" href="./08-arc-fan/">Открыть</a></article>
+      <article class="card"><span class="tag">09</span><h2>Morph bar</h2><p>Сама иконка расширяется в сегментированный бар.</p><a class="open" href="./09-morph-bar/">Открыть</a></article>
+      <article class="card"><span class="tag">10</span><h2>Quiet menu</h2><p>Тихое меню со подписями — самый «инструментальный».</p><a class="open" href="./10-quiet-menu/">Открыть</a></article>
+    </div>
+  </body>
+</html>

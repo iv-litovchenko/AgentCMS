@@ -1,0 +1,8 @@
+id: awn.repository
+name: Репозиторий (workspace)
+kind: type
+domain: pages
+status: active
+extends: awn.page.base
+description: Карточка исходников в awn-repositories/{slug}/ — manifest индексируется, код рядом нет
+manifest-pattern: "awn-repositories/{slug}/manifest.md"

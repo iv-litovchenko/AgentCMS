@@ -960,15 +960,54 @@
                 </div>
               </details>
               <details class="menu-static-section menu-static-section--vendor menu-static-accordion">
-                <summary class="menu-static-summary" title="Зависимости и репозитории агента (скоро)">
+                <summary class="menu-static-summary" title="Каталог исходников workspace (awn-repositories)">
                   <span class="menu-static-title menu-static-title--vendor">
                     <span aria-hidden="true">🟢</span>
-                    <span>Зависимости и репозитории</span>
-                    <span class="stub-static-mark">(static)</span>
+                    <span class="menu-static-title-text">
+                      Зависимости и репозитории
+                      <span class="menu-static-subtitle">awn-repositories</span>
+                    </span>
+                  </span>
+                  <span class="menu-static-summary-actions">
+                    <button
+                      id="menu-repositories-refresh-btn"
+                      type="button"
+                      class="menu-static-summary-refresh-btn"
+                      title="Обновить каталог репозиториев"
+                      aria-label="Обновить каталог репозиториев"
+                    >
+                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                          stroke="currentColor"
+                          stroke-width="2.25"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
                   </span>
                 </summary>
                 <div class="menu-static-body">
-                  <div class="menu-static-path">awn-vendor</div>
+                  <div class="menu-repositories-toolbar">
+                    <button
+                      id="menu-repositories-create-btn"
+                      type="button"
+                      class="menu-static-action-btn menu-repositories-create-btn"
+                      title="Создать awn-repositories/{slug}/ с manifest.md"
+                    >
+                      + Репозиторий
+                    </button>
+                  </div>
+                  <ul
+                    id="menu-repositories-list"
+                    class="menu-repositories-list"
+                    aria-label="Репозитории workspace"
+                  ></ul>
+                  <p class="menu-repositories-footer-caption">
+                    Карточки manifest — код не в поиске CMS.
+                    awn-repositories — где код; awn-vendor — из чего собрано.
+                  </p>
                 </div>
               </details>
               <details class="menu-static-section menu-static-section--settings menu-static-accordion">
@@ -3751,6 +3790,36 @@
           <button id="agents-registry-discover-scan-btn" class="agents-registry-sort-btn" type="button">Сканировать снова</button>
         </div>
         <div id="agents-registry-discover-list" class="agents-registry-discover-list"></div>
+      </div>
+    </div>
+
+    <div id="repository-create-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+      <div class="modal-card awn-data-modal-card">
+        <div class="modal-message" id="repository-create-modal-title">Новый репозиторий</div>
+        <p class="agents-registry-hint" id="repository-create-modal-hint">
+          Папка в <code>awn-repositories/{slug}/</code> с <code>manifest.md</code>. Код клонируйте отдельно — в поиск CMS не попадёт.
+        </p>
+        <label class="agents-registry-field agents-registry-create-field">
+          <span>Название</span>
+          <input id="repository-create-name-input" type="text" placeholder="Voice Shell fork" spellcheck="false" autocomplete="off" required />
+        </label>
+        <label class="agents-registry-field agents-registry-create-field">
+          <span>Папка (slug)</span>
+          <input id="repository-create-slug-input" type="text" placeholder="voice-shell-fork" spellcheck="false" autocomplete="off" required />
+          <p class="agents-registry-create-footnote">kebab-case, одна папка — без <code>/</code></p>
+        </label>
+        <label class="agents-registry-field agents-registry-create-field">
+          <span>Описание</span>
+          <textarea id="repository-create-description-input" class="agents-registry-create-description-input" rows="2" placeholder="Зачем клон, что смотреть"></textarea>
+        </label>
+        <label class="agents-registry-field agents-registry-create-field">
+          <span>Git origin (необязательно)</span>
+          <input id="repository-create-origin-input" type="url" placeholder="https://github.com/org/repo" spellcheck="false" autocomplete="off" />
+        </label>
+        <div class="modal-actions">
+          <button id="repository-create-cancel-btn" class="save-btn" type="button">Отмена</button>
+          <button id="repository-create-submit-btn" class="external-create-section-btn" type="button">Создать</button>
+        </div>
       </div>
     </div>
 

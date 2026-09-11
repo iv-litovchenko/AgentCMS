@@ -42,7 +42,16 @@ const CONFIGURATION_ROOT_FOLDER = "configuration";
 const AWN_DATA_ROOT_FOLDER = "awn-data";
 /** Google Drive sync — отдельный UI, не в дереве тем */
 const AWN_GOOGLE_DRIVE_ROOT_FOLDER = "awn-google-drive";
-const PLATFORM_DATA_ROOT_FOLDERS = [AWN_DATA_ROOT_FOLDER, AWN_GOOGLE_DRIVE_ROOT_FOLDER];
+/** Каталог исходников — sidebar «Репозитории», не в дереве тем */
+const AWN_REPOSITORIES_ROOT_FOLDER = "awn-repositories";
+/** Зависимости (npm/cargo…) — sidebar vendor, не в дереве тем */
+const AWN_VENDOR_ROOT_FOLDER = "awn-vendor";
+const PLATFORM_DATA_ROOT_FOLDERS = [
+  AWN_DATA_ROOT_FOLDER,
+  AWN_GOOGLE_DRIVE_ROOT_FOLDER,
+  AWN_REPOSITORIES_ROOT_FOLDER,
+  AWN_VENDOR_ROOT_FOLDER
+];
 const SERVICE_AREA_NAME = "Служебные темы и компоненты";
 
 function isAwnDataFolderName(name) {
@@ -1384,6 +1393,8 @@ module.exports = {
   isConfigurationFolderName,
   AWN_DATA_ROOT_FOLDER,
   AWN_GOOGLE_DRIVE_ROOT_FOLDER,
+  AWN_REPOSITORIES_ROOT_FOLDER,
+  AWN_VENDOR_ROOT_FOLDER,
   PLATFORM_DATA_ROOT_FOLDERS,
   isAwnDataFolderName,
   isAwnGoogleDriveFolderName,

@@ -152,6 +152,30 @@ module.exports = {
           http: "GET /api/agent/page-url"
         },
         {
+          name: "list_repositories",
+          description: "Каталог awn-repositories: manifest-ы клонов/полупроектов (код не в semantic index).",
+          parameters: "—",
+          http: "GET /api/agent/repositories"
+        },
+        {
+          name: "get_repository",
+          description: "Карточка одного репозитория (manifest + body).",
+          parameters: "path",
+          http: "GET /api/agent/repository"
+        },
+        {
+          name: "refresh_repository_index",
+          description: "Пересобрать awn-repositories/INDEX.md из manifest-ов.",
+          parameters: "overwrite?",
+          http: "POST /api/agent/repository-index"
+        },
+        {
+          name: "register_repository",
+          description: "Создать awn-repositories/{slug}/manifest.md (шаблон карточки).",
+          parameters: "slug, name?, description?, origin?, body?",
+          http: "POST /api/agent/repositories"
+        },
+        {
           name: "search_workspace_content",
           description: "Полнотекстовый поиск workspace (paths, frontmatter, body). scope=all по умолчанию.",
           parameters: "query, scope?, fileType?, match?, limit?",

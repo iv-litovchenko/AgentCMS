@@ -44,6 +44,13 @@ const { createIdentityService } = require("./identity-service");
 const { createDocumentExtractService } = require("./document-extract-service");
 const { buildWorkspacePathResolvePayload } = require("./workspace-path-resolver");
 const {
+  listRepositories,
+  getRepository,
+  writeRepositoryIndex,
+  registerRepository,
+  shouldSkipAwnRepositoriesSearch
+} = require("./awn-repositories-service");
+const {
   createSidecarService,
   toSidecarRelativePath,
   resolveSidecarAbsoluteFromSourceAbsolute
@@ -175,6 +182,8 @@ const {
   isConfigurationFolderName,
   AWN_DATA_ROOT_FOLDER,
   AWN_GOOGLE_DRIVE_ROOT_FOLDER,
+  AWN_REPOSITORIES_ROOT_FOLDER,
+  AWN_VENDOR_ROOT_FOLDER,
   isPlatformDataRootFolderName,
   isPlatformDataMenuFolderPath,
   getHistoryRelativeTargetPath,
@@ -4563,6 +4572,7 @@ async function enrichWorkspaceFolderMarkdownPage(fileRelPath) {
       status: getFrontmatterPropValue(props, "awn-status") || getYamlScalar(frontmatter, "awn-status") || null,
       tags: getFrontmatterPropValue(props, "awn-tags") || getYamlScalar(frontmatter, "awn-tags") || null,
       manifestPath: isManifest ? normalizedRel : null,
+      createdAt: stat.birthtime ? stat.birthtime.toISOString() : null,
       updatedAt: stat.mtime ? stat.mtime.toISOString() : null
     };
   } catch {
@@ -4574,6 +4584,7 @@ async function enrichWorkspaceFolderMarkdownPage(fileRelPath) {
       status: null,
       tags: null,
       manifestPath: base.isManifest ? normalizedRel : null,
+      createdAt: null,
       updatedAt: null
     };
   }
@@ -4616,7 +4627,14 @@ async function browseWorkspaceFolderImmediate(folderRelPath) {
       const childRel = isAgentRoot ? entry.name : path.posix.join(normalizedFolder, entry.name);
       const childAbsolute = path.join(folderAbsolute, entry.name);
       const itemCount = await countFolderImmediateEntries(childAbsolute);
-      folders.push({ name: entry.name, folderPath: childRel, itemCount });
+      const dirStat = await fs.stat(childAbsolute);
+      folders.push({
+        name: entry.name,
+        folderPath: childRel,
+        itemCount,
+        createdAt: dirStat.birthtime ? dirStat.birthtime.toISOString() : null,
+        updatedAt: dirStat.mtime ? dirStat.mtime.toISOString() : null
+      });
       continue;
     }
 
@@ -4632,6 +4650,7 @@ async function browseWorkspaceFolderImmediate(folderRelPath) {
       name: entry.name,
       path: fileRel,
       size: fileStat.size,
+      createdAt: fileStat.birthtime ? fileStat.birthtime.toISOString() : null,
       updatedAt: fileStat.mtime ? fileStat.mtime.toISOString() : null
     };
 
@@ -5866,13 +5885,24 @@ async function collectMediaFilesStructured(
 
     if (entry.isDirectory()) {
       if (shouldSkipDirectoryListing(entry.name) || shouldSkipExternalMemoryDirectory(entry.name)) continue;
+      let folderCreatedAt = null;
+      let folderUpdatedAt = null;
+      try {
+        const dirStat = await fs.stat(absolute);
+        folderCreatedAt = dirStat.birthtime ? dirStat.birthtime.toISOString() : null;
+        folderUpdatedAt = dirStat.mtime ? dirStat.mtime.toISOString() : null;
+      } catch {
+        // ignore stat errors
+      }
       items.push({
         path: `${relPath}/`,
         name: entry.name,
         group: "Folders",
         isFolder: true,
         size: 0,
-        ext: ""
+        ext: "",
+        createdAt: folderCreatedAt,
+        updatedAt: folderUpdatedAt
       });
       await collectMediaFilesStructured(absolute, relPath, items, sectionManifests);
       continue;
@@ -5883,7 +5913,12 @@ async function collectMediaFilesStructured(
     if (isAreaManifestFileName(entry.name)) {
       let displayName = "";
       let status = null;
+      let createdAt = null;
+      let updatedAt = null;
       try {
+        const manifestStat = await fs.stat(absolute);
+        createdAt = manifestStat.birthtime ? manifestStat.birthtime.toISOString() : null;
+        updatedAt = manifestStat.mtime ? manifestStat.mtime.toISOString() : null;
         const raw = await fs.readFile(absolute, "utf-8");
         const { frontmatter } = splitNodeFrontmatter(raw);
         const props = parseFrontmatterProps(frontmatter);
@@ -5896,7 +5931,7 @@ async function collectMediaFilesStructured(
       } catch {
         // manifest may be unreadable
       }
-      sectionManifests.push({ path: relPath, displayName, status });
+      sectionManifests.push({ path: relPath, displayName, status, createdAt, updatedAt });
       continue;
     }
 
@@ -5904,9 +5939,13 @@ async function collectMediaFilesStructured(
     let size = 0;
     let displayName = "";
     let status = null;
+    let createdAt = null;
+    let updatedAt = null;
     try {
       const stat = await fs.stat(absolute);
       size = stat.size;
+      createdAt = stat.birthtime ? stat.birthtime.toISOString() : null;
+      updatedAt = stat.mtime ? stat.mtime.toISOString() : null;
       const sidecarRel = toMediaSidecarRelativePath(relPath);
       if (sidecarRel) {
         const sidecarAbsolute = path.join(folderAbsolute, sidecarRel);
@@ -5965,7 +6004,9 @@ async function collectMediaFilesStructured(
       size,
       ext,
       gdriveSynced,
-      gdriveBlob
+      gdriveBlob,
+      createdAt,
+      updatedAt
     });
   }
 
@@ -8043,7 +8084,9 @@ function dedupeReservedRootMenuSections(menu) {
       getAgentContainerFolder(),
       AGENT_SYSTEM_REL,
       AWN_DATA_ROOT_FOLDER,
-      AWN_GOOGLE_DRIVE_ROOT_FOLDER
+      AWN_GOOGLE_DRIVE_ROOT_FOLDER,
+      AWN_REPOSITORIES_ROOT_FOLDER,
+      AWN_VENDOR_ROOT_FOLDER
     ]
       .filter(Boolean)
       .map((folder) => String(folder).toLowerCase())
@@ -11049,6 +11092,13 @@ const SESSION_CONTEXT_API_MAP = {
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
     "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_page_url",
+  repositories: "GET /api/agent/repositories — каталог awn-repositories (manifest-ы); MCP: list_repositories",
+  repository:
+    "GET /api/agent/repository?path= — одна карточка репозитория; MCP: get_repository",
+  repositoryIndex:
+    "POST /api/agent/repository-index — обновить awn-repositories/INDEX.md; MCP: refresh_repository_index",
+  repositoryRegister:
+    "POST /api/agent/repositories — создать awn-repositories/{slug}/manifest.md; MCP: register_repository",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
   alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
@@ -14648,9 +14698,10 @@ async function collectSearchableFiles(dirAbsolute, prefix = "", files = []) {
   }
 
   for (const entry of entries) {
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (shouldSkipAwnRepositoriesSearch(prefix, entry.name, entry.isDirectory())) continue;
     if (shouldSkipSearchEntry(entry.name, entry.isDirectory())) continue;
     const absolute = path.join(dirAbsolute, entry.name);
-    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
 
     if (entry.isDirectory()) {
       await collectSearchableFiles(absolute, relative.replace(/\\/g, "/"), files);
@@ -17152,6 +17203,68 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to resolve workspace path",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/repositories") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await listRepositories(agentRoot);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list repositories",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/repositories") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = await registerRepository(agentRoot, payload);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 201, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to register repository",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/repository") {
+    const relPath = String(url.searchParams.get("path") || "").trim();
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const result = await getRepository(agentRoot, relPath);
+      if (result.error) return sendJson(res, result.status || 400, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read repository",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/repository-index") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const result = await writeRepositoryIndex(agentRoot, payload);
+      if (result.error) return sendJson(res, result.status || 409, result);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to refresh repository index",
         details: String(error.message || error)
       });
     }
