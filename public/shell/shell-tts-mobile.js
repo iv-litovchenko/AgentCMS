@@ -1,6 +1,32 @@
 /** Mobile/iOS TTS helpers — truncate, error hints (#23–24). */
 
+import { isIosDevice } from "@shell/audio-unlock";
+
 export const SHELL_TTS_MAX_LEN = 700;
+
+const IOS_UNLOCK_REASONS = new Set([
+  "play-not-allowed",
+  "blocked",
+  "play-failed",
+  "audio-element-error",
+  "audio-playback-stall",
+  "audio-playback-timeout",
+  "audio-load-timeout",
+  "audio-load-failed",
+  "web-audio-start",
+  "web-audio-decode"
+]);
+
+/** На iPhone почти любой сбой воспроизведения — блокировка Safari, не «громкость». */
+export function isTtsIosUnlockIssue(reason = "") {
+  if (!isIosDevice()) return false;
+  const sr = String(reason || "").trim();
+  if (!sr || sr === "cancelled" || sr === "empty") return false;
+  if (sr === "play-not-allowed" || sr === "blocked") return true;
+  if (/notallowed|interact|user gesture|not supported/i.test(sr)) return true;
+  if (IOS_UNLOCK_REASONS.has(sr)) return true;
+  return false;
+}
 
 export function truncateForShellTts(text, maxLen = SHELL_TTS_MAX_LEN) {
   const value = String(text || "").replace(/\s+/g, " ").trim();
@@ -13,11 +39,14 @@ export function formatTtsErrorHint({ serverReason = "", browserReason = "", useS
   const parts = [];
   const sr = String(serverReason || "");
 
+  if (isTtsIosUnlockIssue(sr)) {
+    return "";
+  }
   if (sr === "play-not-allowed" || sr === "blocked") {
-    return "Safari блокирует автозвук — нажмите «🔊 Включить звук» вверху или ▶ «Сначала» под облаком";
+    return "";
   }
   if (sr === "play-failed" || sr === "audio-element-error") {
-    parts.push("Проверьте громкость и беззвучный режим на телефоне");
+    parts.push("Не удалось запустить воспроизведение — попробуйте ▶ «Сначала»");
   } else if (sr === "synthesize-fetch") {
     parts.push("Не удалось связаться с сервером озвучки — проверьте интернет");
   } else if (/^(fetch failed|network error|failed to fetch)$/i.test(sr)) {
@@ -56,11 +85,8 @@ export function formatTtsErrorHint({ serverReason = "", browserReason = "", useS
 
 export function shellTtsFailureMessage(serverReason = "", browserReason = "", useServerTts = true) {
   const sr = String(serverReason || "");
-  if (sr === "play-not-allowed" || sr === "blocked") {
-    return {
-      title: "Разрешите звук",
-      hint: formatTtsErrorHint({ serverReason: sr, browserReason, useServerTts })
-    };
+  if (isTtsIosUnlockIssue(sr) || sr === "play-not-allowed" || sr === "blocked") {
+    return { title: "", hint: "" };
   }
   return {
     title: "Не удалось озвучить ответ",

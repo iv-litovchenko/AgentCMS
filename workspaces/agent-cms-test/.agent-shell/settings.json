@@ -26,7 +26,6 @@
   },
   "voice": {
     "input": {
-      "enabled": false,
       "mode": "live",
       "capture": "microphone",
       "globalListen": false,
@@ -46,15 +45,14 @@
     "tts": {
       "enabled": true,
       "playbackMode": "dialog",
-      "engine": "edge",
+      "engine": "browser",
       "prompt": "Сформируй ответ в следующем формате (строго, в таком порядке):\n\n1) Голосовая версия для озвучки — без emoji и markdown, только то, что можно произнести вслух. Не включай секреты, ключи и пароли. Не используй HTML-комментарии <!-- -->.\n\n2) Отдельной строкой маркер:\n\n::: VOICE-END :::\n\n3) Полный текст ответа для экрана (можно markdown, списки, код и любые другие элементы). Без HTML-комментариев <!-- -->.",
       "rate": 1,
       "pitch": 2,
       "includeCaptions": true,
       "engines": {
         "browser": {
-          "lang": "ru-RU",
-          "voice": "Милена"
+          "lang": "ru-RU"
         },
         "edge": {
           "voice": "ru-RU-DmitryNeural"
@@ -102,7 +100,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 1
+    "dialogScrollRatio": 0.9999
   },
   "compose": {
     "promptTemplates": [

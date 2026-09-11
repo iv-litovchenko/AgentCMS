@@ -77,6 +77,13 @@ export function createShellTtsPlayer({
     return Boolean(audio && audio.paused && !audio.ended && audio.currentTime > 0);
   }
 
+  /** Аудio загружено, но Safari ждёт нажатия (autoplay block). */
+  function hasAwaitingPlay() {
+    if (!audio || audio.ended) return false;
+    if (!audio.paused) return false;
+    return Boolean(String(audio.currentSrc || audio.src || "").trim());
+  }
+
   function hasAudio() {
     return Boolean(audio);
   }
@@ -94,6 +101,26 @@ export function createShellTtsPlayer({
   function resume() {
     if (!audio) return;
     void audio.play().catch(() => {});
+  }
+
+  /** Запуск в том же user-gesture, что и кнопка «Включить звук» / ▶. */
+  function startFromUserGesture() {
+    if (!hasAwaitingPlay()) return { ok: false, reason: "no-audio" };
+    markShellAudioGesture();
+    try {
+      void audio
+        .play()
+        .then(() => {
+          playbackLive = true;
+          notifyPlaybackStart();
+        })
+        .catch(() => {
+          playbackLive = false;
+        });
+      return { ok: true, reason: "resumed" };
+    } catch (error) {
+      return { ok: false, reason: error?.message || "play-failed" };
+    }
   }
 
   function waitForAudioReady(element, gen, timeoutMs = 8000) {
@@ -236,7 +263,9 @@ export function createShellTtsPlayer({
             } catch (retryError) {
               if (attempt === 1) {
                 const msg = String(retryError?.message || error?.message || "play-failed");
-                const blocked = /notallowed|interact/i.test(msg);
+                const blocked =
+                  /notallowed|interact|user gesture|not supported/i.test(msg) ||
+                  (isIosDevice() && !isShellAudioGestureFresh());
                 if (blocked) {
                   playbackLive = false;
                   try {
@@ -402,7 +431,9 @@ export function createShellTtsPlayer({
     resume,
     isPlaying,
     isPaused,
+    hasAwaitingPlay,
     hasAudio,
+    startFromUserGesture,
     cleanupAudio,
     getLastRecording
   };

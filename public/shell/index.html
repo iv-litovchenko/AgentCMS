@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/shell/favicon.png" />
     <link rel="apple-touch-icon" href="/shell/apple-touch-icon.png" />
     <link rel="manifest" href="/shell/manifest.webmanifest" />
-    <link rel="stylesheet" href="/shell/shell.css?v=574" />
+    <link rel="stylesheet" href="/shell/shell.css?v=575" />
     <link rel="stylesheet" href="/shell/shell-app-lock.css?v=4" />
     <script src="/project-version.js?v=1"></script>
     <!-- Shell BUILD: см. public/shell/shell-build.js — тот же номер в ?v= ниже и в importmap -->
@@ -28,13 +28,13 @@
           "@shell/camera": "/shell/shell-camera.js?v=207",
           "@shell/screen": "/shell/shell-screen.js?v=207",
           "@shell/tts-tab": "/shell/shell-tts-tab.js?v=207",
-          "@shell/tts-player": "/shell/shell-tts-player.js?v=213",
+          "@shell/tts-player": "/shell/shell-tts-player.js?v=215",
           "@shell/audio-unlock": "/shell/shell-audio-unlock.js?v=208",
-          "@shell/audio-unlock-banner": "/shell/shell-audio-unlock-banner.js?v=3",
+          "@shell/audio-unlock-banner": "/shell/shell-audio-unlock-banner.js?v=7",
+          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=215",
           "@shell/storage-keys": "/shell/shell-storage-keys.js?v=419",
           "@shell/ui-sounds": "/shell/shell-ui-sounds.js?v=413",
           "@shell/browser-tts": "/shell/shell-browser-tts.js?v=404",
-          "@shell/tts-mobile": "/shell/shell-tts-mobile.js?v=213",
           "@shell/session": "/shell/shell-session.js?v=209",
           "@shell/client-id": "/shell/shell-client-id.js?v=404",
           "@shell/surface": "/shell/shell-surface.js?v=230",
@@ -149,10 +149,10 @@
       <div class="shell-permission-banner hidden" id="shell-permission-banner" role="alert"></div>
       <div class="shell-audio-unlock-banner hidden" id="shell-audio-unlock-banner" role="dialog" aria-labelledby="shell-audio-unlock-title">
         <div class="shell-audio-unlock-banner__main">
-          <p id="shell-audio-unlock-title"><strong>Разрешите звук</strong></p>
-          <p class="shell-audio-unlock-banner__hint">Safari не озвучивает ответы без нажатия. Нажмите — услышите короткий сигнал, значит звук включён.</p>
+          <p id="shell-audio-unlock-title"><strong>Озвучка на iPhone</strong></p>
+          <p class="shell-audio-unlock-banner__hint">Коснитесь экрана в любом месте один раз — дальше ответы озвучиваются сами.</p>
         </div>
-        <button type="button" class="shell-audio-unlock-banner__btn" id="shell-audio-unlock-btn">🔊 Включить звук</button>
+        <button type="button" class="shell-audio-unlock-banner__btn" id="shell-audio-unlock-btn" aria-label="Включить звук">OK</button>
       </div>
       <header class="shell-path-header" id="shell-path-header" aria-label="Agent CMS Voice">
         <div class="shell-path-block shell-path-block--title">
@@ -3042,6 +3042,6 @@ CMS workspace</pre>
     </div>
 
     <script src="/app-lock.js?v=14"></script>
-    <script src="/shell/shell.js?v=649" type="module"></script>
+    <script src="/shell/shell.js?v=654" type="module"></script>
   </body>
 </html>

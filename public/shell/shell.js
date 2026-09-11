@@ -35,6 +35,7 @@ import {
 } from "@shell/browser-tts";
 import {
   formatTtsErrorHint,
+  isTtsIosUnlockIssue,
   shellTtsFailureMessage,
   truncateForShellTts
 } from "@shell/tts-mobile";
@@ -52,7 +53,11 @@ import {
 import { initShellPresence, SHELL_PRESENCE_ENABLED } from "@shell/presence";
 import { initShellOrientationChip, initShellLocationChip, getShellDeviceLocation, isShellLocationShareEnabled, refreshShellLocationForSend } from "@shell/device-chips";
 import { initShellInstallBanner } from "@shell/pwa";
-import { initShellAudioUnlockBanner, syncShellAudioUnlockBanner } from "@shell/audio-unlock-banner";
+import {
+  armIosPendingTtsPlayback,
+  initShellAudioUnlockBanner,
+  syncShellAudioUnlockBanner
+} from "@shell/audio-unlock-banner";
 import {
   describeMicPermissionDialog,
   getShellHttpsUrl,
@@ -1571,7 +1576,7 @@ async function handleLiveUtterance(text) {
   state.liveUserSpeaking = false;
   state.liveUserPhrase = "";
   armLiveEchoGuard(LIVE_ECHO_TAIL_MS);
-  markShellAudioGesture();
+  markShellAudioGesture({ extendMs: isIosDevice() ? 8 * 60 * 60 * 1000 : 120_000 });
   await unlockShellAudio({ markGesture: true });
   setVoiceSttProcessing(true);
   syncLiveDialogForTtsPlayback();
@@ -3393,7 +3398,7 @@ function isBrowserSynthActive() {
 
 /** Реально идёт звук из динамика (не просто синтез/очередь). */
 function isTtsAudioOutputActive() {
-  if (ttsPlayer?.isPlaying() || ttsPlayer?.isPaused()) return true;
+  if (ttsPlayer?.isPlaying() || ttsPlayer?.isPaused() || ttsPlayer?.hasAwaitingPlay?.()) return true;
   if (isBrowserSynthActive()) return true;
   return false;
 }
@@ -3479,9 +3484,7 @@ function abortAllTtsPlayback({ reason = "", notify = true } = {}) {
   rememberPendingReplyForTtsReplay();
   if (notify && reason && !isTtsSupersededReason(reason)) {
     const mappedReason = reason === "blocked" ? "play-not-allowed" : reason;
-    if (isTtsAutoplayBlocked(mappedReason)) showIosAudioUnlockPrompt();
-    const { title, hint } = shellTtsFailureMessage(mappedReason, "", getTtsEngine() !== "browser");
-    shellDialog.setError(title, { hint });
+    notifyTtsPlaybackIssue(mappedReason, { useServerTts: getTtsEngine() !== "browser" });
   } else if (isTtsSupersededReason(reason) && isTtsActuallyPlaying()) {
     shellDialog.clearError();
   }
@@ -3546,13 +3549,37 @@ function updateTtsControlsUi(phase = resolveDisplayPhase(state.shellState?.phase
 }
 
 function showIosAudioUnlockPrompt() {
-  if (!isIosDevice()) return;
-  document.getElementById("shell-audio-unlock-banner")?.classList.remove("hidden");
+  armIosPendingTtsPlayback();
 }
 
-function isTtsAutoplayBlocked(reason = "") {
-  const value = String(reason || "");
-  return value === "play-not-allowed" || value === "blocked" || /notallowed|interact/i.test(value);
+/** В том же tap, что «Включить звук» — play() на уже загруженном TTS. */
+function resumeShellTtsFromGesture() {
+  if (isBrowserTtsEngine()) return false;
+  const started = ttsPlayer?.startFromUserGesture?.();
+  if (started?.ok) {
+    state.ttsPaused = false;
+    state.speaking = true;
+    shellDialog.clearError();
+    updateTtsControlsUi("speaking");
+    renderPhase("speaking", "Озвучиваю…", state.shellState?.metrics || "");
+    return true;
+  }
+  if (canReplayLastTts()) {
+    void replayLastTtsAudio();
+    return true;
+  }
+  return false;
+}
+
+function notifyTtsPlaybackIssue(reason = "", { useServerTts = true, browserReason = "" } = {}) {
+  if (isTtsIosUnlockIssue(reason)) {
+    armIosPendingTtsPlayback();
+    shellDialog.clearError();
+    return true;
+  }
+  const { title, hint } = shellTtsFailureMessage(reason, browserReason, useServerTts);
+  shellDialog.setError(title, { hint });
+  return false;
 }
 
 function updateTtsDownloadUi() {
@@ -8609,7 +8636,7 @@ async function sendMessageDirect(
   if (!alreadyBusy) beginMessageTurn();
   shellLog("message", `${author}${voice ? " · voice" : ""}`, expandedText.slice(0, 160));
   shellProactive?.bumpActivity();
-  markShellAudioGesture();
+  markShellAudioGesture({ extendMs: isIosDevice() ? 8 * 60 * 60 * 1000 : 120_000 });
   void unlockShellAudio({ markGesture: true });
   if (showInDialog && !alreadyBusy) {
     shellDialog.onUserMessage?.(text);
@@ -10472,9 +10499,16 @@ async function playTtsPayload(text, { allowBrowserFallback = true, streamChunk =
   } catch (serverError) {
     serverReason = String(serverError?.message || serverError);
   } finally {
-    if (!keepSpeakingState()) {
+    const awaitingGesture = isTtsIosUnlockIssue(serverReason) && ttsPlayer?.hasAwaitingPlay?.();
+    if (!keepSpeakingState() && !awaitingGesture) {
       state.speaking = false;
       updateTtsControlsUi("waiting");
+    } else if (awaitingGesture) {
+      state.speaking = true;
+      state.ttsPaused = true;
+      armIosPendingTtsPlayback();
+      updateTtsControlsUi("speaking");
+      renderPhase("speaking", "Озвучиваю…", state.shellState?.metrics || "");
     }
   }
 
@@ -10499,10 +10533,7 @@ async function playTtsPayload(text, { allowBrowserFallback = true, streamChunk =
     }
   }
 
-  if (isTtsAutoplayBlocked(serverReason)) showIosAudioUnlockPrompt();
-  const { title, hint } = shellTtsFailureMessage(serverReason, "", useServerTts);
-  shellDialog.setError(title, { hint });
-  if (isTtsAutoplayBlocked(serverReason)) return null;
+  if (notifyTtsPlaybackIssue(serverReason, { useServerTts })) return null;
   throw new Error(serverReason || "tts-failed");
 }
 
@@ -10705,9 +10736,10 @@ async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {})
       shellDialog.clearError();
       return;
     }
-    if (isTtsAutoplayBlocked(reason)) showIosAudioUnlockPrompt();
-    const { title, hint } = shellTtsFailureMessage(reason, "", getTtsEngine() !== "browser");
-    shellDialog.setError(title, { hint: hint || formatTtsErrorHint({ serverReason: reason }) });
+    notifyTtsPlaybackIssue(reason, {
+      useServerTts: getTtsEngine() !== "browser",
+      browserReason: ""
+    });
     resetTtsUiAfterPlayback({ patchServer: true });
     updateTtsControlsUi("waiting");
     return;
@@ -12363,6 +12395,7 @@ function bindShellInteractiveUi() {
       getTtsSettings: collectTtsRuntimeSettings,
       onPlaybackBlocked: showIosAudioUnlockPrompt,
       onPlaybackStart: () => {
+        markShellAudioGesture({ extendMs: isIosDevice() ? 8 * 60 * 60 * 1000 : 120_000 });
         syncShellAudioUnlockBanner();
         flushLiveDialogCapture();
         armLiveEchoGuard(LIVE_ECHO_DURING_TTS_MS);
@@ -12531,7 +12564,8 @@ async function boot() {
     });
     initShellAudioUnlockBanner({
       bannerEl: document.getElementById("shell-audio-unlock-banner"),
-      enableBtn: document.getElementById("shell-audio-unlock-btn")
+      enableBtn: document.getElementById("shell-audio-unlock-btn"),
+      onUnlockGesture: resumeShellTtsFromGesture
     });
   }
   shellDialog.init();
