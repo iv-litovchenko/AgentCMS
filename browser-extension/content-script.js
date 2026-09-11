@@ -93,10 +93,12 @@
     { head: "Экран" },
     { key: "screenshot-compose", label: "В чат", hint: "Вся видимая область → compose" },
     { key: "screenshot-clipboard", label: "В буфер", hint: "Вся видимая область → буфер обмена" },
+    { key: "screenshot-download", label: "Скачать", hint: "Вся видимая область → файл PNG" },
     { sep: true },
     { head: "Область" },
     { key: "screenshot-region-compose", label: "В чат", hint: "Выделить прямоугольник → compose" },
-    { key: "screenshot-region-clipboard", label: "В буфер", hint: "Выделить прямоугольник → буфер обмена" }
+    { key: "screenshot-region-clipboard", label: "В буфер", hint: "Выделить прямоугольник → буфер обмена" },
+    { key: "screenshot-region-download", label: "Скачать", hint: "Выделить прямоугольник → файл PNG" }
   ];
 
   const root = document.createElement("div");
@@ -497,12 +499,20 @@
       void runScreenshot({ region: false, destination: "clipboard" });
       return;
     }
+    if (key === "screenshot-download") {
+      void runScreenshot({ region: false, destination: "download" });
+      return;
+    }
     if (key === "screenshot-region-compose") {
       void runScreenshot({ region: true, destination: "compose" });
       return;
     }
     if (key === "screenshot-region-clipboard") {
       void runScreenshot({ region: true, destination: "clipboard" });
+      return;
+    }
+    if (key === "screenshot-region-download") {
+      void runScreenshot({ region: true, destination: "download" });
       return;
     }
     const prompt = SELECTION_PROMPTS.find((item) => item.key === key);
@@ -697,6 +707,29 @@
     });
   }
 
+  function buildScreenshotFilename(region = false) {
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const kind = region ? "region" : "screen";
+    return `agent-shell-${kind}-${stamp}.png`;
+  }
+
+  async function downloadScreenshot(dataUrl, { region = false } = {}) {
+    const pngDataUrl = await dataUrlToPng(dataUrl);
+    const blob = await (await fetch(pngDataUrl)).blob();
+    if (!blob?.size) throw new Error("Пустой скриншот");
+
+    const filename = buildScreenshotFilename(region);
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  }
+
   async function copyScreenshotToClipboard(dataUrl) {
     const pngDataUrl = await dataUrlToPng(dataUrl);
     const blob = await (await fetch(pngDataUrl)).blob();
@@ -756,6 +789,16 @@
           setStatus("Скопировано", "ok");
         } catch (error) {
           setStatus(error?.message || "Не удалось скопировать", "error");
+        }
+        return;
+      }
+
+      if (destination === "download") {
+        try {
+          await downloadScreenshot(dataUrl, { region: Boolean(cropRect) });
+          setStatus("Скачано", "ok");
+        } catch (error) {
+          setStatus(error?.message || "Не удалось скачать", "error");
         }
         return;
       }
