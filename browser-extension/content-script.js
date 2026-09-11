@@ -97,10 +97,10 @@
   ];
 
   const SCREENSHOT_ROWS = [
+    { id: "fullpage", label: "Страница", hint: "Вся страница" },
     { id: "screen", label: "Экран", hint: "Видимая область" },
     { id: "region", label: "Область", hint: "Выделить прямоугольник" },
-    { id: "element", label: "Блок", hint: "Клик по элементу" },
-    { id: "fullpage", label: "Страница", hint: "Вся страница" }
+    { id: "element", label: "Блок", hint: "Клик по элементу" }
   ];
 
   const SCREENSHOT_COLS = [
