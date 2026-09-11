@@ -17,8 +17,8 @@
       buildExtensionShellUrl(voiceBase, agentId) {
         const base = String(voiceBase || "https://localhost:3488").replace(/\/$/, "");
         const agent = String(agentId || "").trim();
-        if (!agent) return `${base}/extension/`;
-        return `${base}/${encodeURIComponent(agent)}/extension/`;
+        if (!agent) return `${base}/?companion=1`;
+        return `${base}/${encodeURIComponent(agent)}/extension/?companion=1`;
       },
       buildVoiceShellTabUrl(voiceBase, agentId) {
         const base = String(voiceBase || "https://localhost:3488").replace(/\/$/, "");

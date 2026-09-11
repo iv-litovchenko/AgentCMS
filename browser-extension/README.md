@@ -20,7 +20,7 @@
 
 | Действие | Результат |
 |----------|-----------|
-| Клик по иконке расширения | Side Panel с Voice `/{agent}/extension/` |
+| Клик по иконке расширения | Side Panel с Voice `/{agent}/extension/` (без ID агента — выбор vault на `/?companion=1`) |
 | Иконка на toolbar (свёрнута) | Развернуть капсулу |
 | Иконка на toolbar (уже открыта) | Открыть Side Panel |
 | Перетащить иконку / капсулу | Сдвинуть влево, вправо или вверх, если перекрывает текст |
@@ -60,6 +60,6 @@ browser-extension/
 Тот же API, что и web Shell:
 
 - `POST /api/shell/message?agent=` (на CMS `:3443`)
-- Side Panel: `GET https://localhost:3488/{agent}/extension/`
+- Side Panel: `GET https://localhost:3488/{agent}/extension/?companion=1` (без agent — `/?companion=1`)
 
 Автор сообщений из расширения: `companion`.

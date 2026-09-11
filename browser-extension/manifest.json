@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Agent Shell Companion",
   "short_name": "Agent Shell",
-  "version": "0.1.49",
+  "version": "0.1.50",
   "description": "Side panel Agent Shell on any website — connects to local Agent CMS.",
   "permissions": ["storage", "sidePanel", "activeTab", "tabs", "scripting", "clipboardRead", "clipboardWrite"],
   "host_permissions": ["<all_urls>"],
