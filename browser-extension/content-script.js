@@ -36,6 +36,10 @@
       '<svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>',
     clipboard:
       '<svg viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><rect x="5" y="4" width="14" height="16" rx="2"/></svg>',
+    compose:
+      '<svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
+    download:
+      '<svg viewBox="0 0 24 24"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>',
     collapse: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>'
   };
 
@@ -92,27 +96,23 @@
     { key: "prompt-task", label: "Задача" }
   ];
 
-  const SCREENSHOT_MENU = [
-    { head: "Экран" },
-    { key: "screenshot-compose", label: "В чат", hint: "Вся видимая область → compose" },
-    { key: "screenshot-clipboard", label: "В буфер", hint: "Вся видимая область → буфер обмена" },
-    { key: "screenshot-download", label: "Скачать", hint: "Вся видимая область → файл PNG" },
-    { sep: true },
-    { head: "Область" },
-    { key: "screenshot-region-compose", label: "В чат", hint: "Выделить прямоугольник → compose" },
-    { key: "screenshot-region-clipboard", label: "В буфер", hint: "Выделить прямоугольник → буфер обмена" },
-    { key: "screenshot-region-download", label: "Скачать", hint: "Выделить прямоугольник → файл PNG" },
-    { sep: true },
-    { head: "Блок" },
-    { key: "screenshot-element-compose", label: "В чат", hint: "Клик по блоку на странице → compose" },
-    { key: "screenshot-element-clipboard", label: "В буфер", hint: "Клик по блоку → буфер обмена" },
-    { key: "screenshot-element-download", label: "Скачать", hint: "Клик по блоку → файл PNG" },
-    { sep: true },
-    { head: "Вся страница" },
-    { key: "screenshot-fullpage-compose", label: "В чат", hint: "Скролл и склейка всей страницы → compose" },
-    { key: "screenshot-fullpage-clipboard", label: "В буфер", hint: "Скролл и склейка всей страницы → буфер" },
-    { key: "screenshot-fullpage-download", label: "Скачать", hint: "Скролл и склейка всей страницы → PNG" }
+  const SCREENSHOT_ROWS = [
+    { id: "screen", label: "Экран", hint: "Видимая область" },
+    { id: "region", label: "Обл.", hint: "Выделить прямоугольник" },
+    { id: "element", label: "Блок", hint: "Клик по элементу" },
+    { id: "fullpage", label: "Стр.", hint: "Вся страница" }
   ];
+
+  const SCREENSHOT_COLS = [
+    { id: "compose", icon: "compose", title: "В чат" },
+    { id: "clipboard", icon: "clipboard", title: "В буфер" },
+    { id: "download", icon: "download", title: "Скачать PNG" }
+  ];
+
+  function screenshotActionKey(rowId, colId) {
+    const base = rowId === "screen" ? "screenshot" : `screenshot-${rowId}`;
+    return `${base}-${colId}`;
+  }
 
   const root = document.createElement("div");
   root.id = "agent-shell-companion-toolbar";
@@ -203,6 +203,68 @@
     return wrap;
   }
 
+  function createScreenshotMenu() {
+    const wrap = document.createElement("div");
+    wrap.className = "asc-menu asc-menu--screenshot";
+    const btn = createBtn("screenshot", "Скрин", "Скриншот");
+    btn.classList.add("asc-btn--menu");
+    btn.setAttribute("aria-haspopup", "menu");
+    btn.setAttribute("aria-expanded", "false");
+
+    const pop = document.createElement("div");
+    pop.className = "asc-menu-pop asc-menu-pop--screenshot";
+    pop.setAttribute("role", "menu");
+
+    const grid = document.createElement("div");
+    grid.className = "asc-shot-grid";
+
+    grid.append(document.createElement("div"));
+
+    for (const col of SCREENSHOT_COLS) {
+      const head = document.createElement("div");
+      head.className = "asc-shot-col";
+      head.title = col.title;
+      head.innerHTML = ICONS[col.icon];
+      grid.append(head);
+    }
+
+    for (const row of SCREENSHOT_ROWS) {
+      const rowLabel = document.createElement("div");
+      rowLabel.className = "asc-shot-row";
+      rowLabel.textContent = row.label;
+      rowLabel.title = row.hint;
+      grid.append(rowLabel);
+
+      for (const col of SCREENSHOT_COLS) {
+        const key = screenshotActionKey(row.id, col.id);
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "asc-shot-cell";
+        cell.title = `${row.hint} → ${col.title}`;
+        cell.setAttribute("role", "menuitem");
+        cell.innerHTML = ICONS[col.icon];
+        cell.addEventListener("click", (event) => {
+          event.stopPropagation();
+          closeMenus();
+          handleMenuAction(key);
+        });
+        grid.append(cell);
+      }
+    }
+
+    pop.append(grid);
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const open = !wrap.classList.contains("is-open");
+      closeMenus(open ? wrap : null);
+      wrap.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    wrap.append(btn, pop);
+    menus.push({ wrap, pop, btn });
+    return wrap;
+  }
+
   function createClipboardHistoryMenu() {
     const wrap = document.createElement("div");
     wrap.className = "asc-menu asc-menu--clipboard";
@@ -229,7 +291,7 @@
   const left = document.createElement("div");
   left.className = "asc-cluster asc-cluster--left";
   const elementBtn = createBtn("element", "Выбор", "Выбрать блок на странице (Esc — выключить)");
-  left.append(elementBtn, createMenu("screenshot", "Скрин", "Скриншот видимой области", SCREENSHOT_MENU));
+  left.append(elementBtn, createScreenshotMenu());
 
   const divider = document.createElement("span");
   divider.className = "asc-divider";

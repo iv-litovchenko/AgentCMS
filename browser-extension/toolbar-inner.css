@@ -316,6 +316,76 @@
   font-size: 12px;
 }
 
+.asc-menu-pop--screenshot {
+  left: 0;
+  right: auto;
+  width: max-content;
+  padding: 6px 8px;
+}
+
+.asc-shot-grid {
+  display: grid;
+  grid-template-columns: 42px repeat(3, 28px);
+  gap: 2px;
+  align-items: center;
+  justify-items: center;
+}
+
+.asc-shot-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 18px;
+  color: rgba(237, 233, 254, 0.55);
+}
+
+.asc-shot-col svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.asc-shot-row {
+  justify-self: stretch;
+  padding-right: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  text-align: right;
+  white-space: nowrap;
+  color: rgba(237, 233, 254, 0.72);
+}
+
+.asc-shot-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: #ede9fe;
+}
+
+.asc-shot-cell svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.asc-shot-cell:hover {
+  color: #fff;
+  background: rgba(124, 58, 237, 0.38);
+}
+
 .asc-menu-pop--clipboard {
   left: auto;
   right: 0;
