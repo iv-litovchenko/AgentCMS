@@ -29,9 +29,9 @@
     element:
       '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>',
     page:
-      '<svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>',
+      '<svg viewBox="0 0 24 24"><path d="M7 4h7l5 5v11H7z"/><path d="M14 4v5h5"/><path d="M9 13h6M9 17h4"/></svg>',
     selection:
-      '<svg viewBox="0 0 24 24"><path d="M6 4h4M6 4v4"/><path d="M14 4h4v4"/><path d="M6 16v4h4"/><path d="M18 16v4h-4"/><path d="M9 9h6v6H9z"/></svg>',
+      '<svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v12M9 18h6"/></svg>',
     screenshot:
       '<svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>',
     collapse: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>'
@@ -136,11 +136,6 @@
     btn.classList.add("asc-btn--menu");
     btn.setAttribute("aria-haspopup", "menu");
     btn.setAttribute("aria-expanded", "false");
-    const caret = document.createElement("span");
-    caret.className = "asc-caret";
-    caret.setAttribute("aria-hidden", "true");
-    caret.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';
-    btn.append(caret);
     const pop = document.createElement("div");
     pop.className = "asc-menu-pop";
     pop.setAttribute("role", "menu");
@@ -576,7 +571,7 @@
   function isDragHandle(target) {
     if (!(target instanceof Element)) return false;
     if (target.closest(".asc-brand")) return true;
-    if (target.closest(".asc-btn, .asc-menu-pop, .asc-menu-item, .asc-caret")) return false;
+    if (target.closest(".asc-btn, .asc-menu-pop, .asc-menu-item")) return false;
     return Boolean(target.closest(".asc-shell"));
   }
 

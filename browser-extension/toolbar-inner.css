@@ -47,7 +47,8 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  font: inherit;
+  font-family: inherit;
+  font-weight: inherit;
   line-height: 1;
   color: inherit;
   pointer-events: auto;
@@ -55,11 +56,6 @@
 
 .asc-shell .asc-brand {
   cursor: grab;
-}
-
-.asc-shell svg {
-  display: block;
-  overflow: visible;
 }
 
 .asc-brand {
@@ -82,6 +78,11 @@
 :host(.is-dragging) .asc-brand,
 :host(.is-dragging) .asc-brand::after {
   animation: none;
+}
+
+.asc-shell svg {
+  display: block;
+  overflow: visible;
 }
 
 .asc-brand svg {
@@ -197,24 +198,22 @@
   background: rgba(99, 102, 241, 0.38);
 }
 
-.asc-caret {
-  position: absolute;
-  right: 2px;
-  bottom: 1px;
-  width: 9px;
-  height: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  color: rgba(255, 255, 255, 0.55);
-  transform-origin: center;
-  transition: transform 0.16s ease, color 0.16s ease;
+.asc-btn--menu svg {
+  transform: translateY(-1px);
 }
 
-.asc-caret svg {
-  width: 9px;
-  height: 9px;
+.asc-btn--menu::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 7px;
+  height: 2px;
+  border-radius: 99px;
+  background: currentColor;
+  opacity: 0.45;
+  transform: translateX(-50%);
+  transition: width 0.16s ease, opacity 0.16s ease, background 0.16s ease;
 }
 
 .asc-btn--collapse {
@@ -235,9 +234,9 @@
   background: rgba(124, 58, 237, 0.4);
 }
 
-.asc-menu.is-open .asc-caret {
-  color: #fff;
-  transform: rotate(180deg);
+.asc-menu.is-open .asc-btn--menu::after {
+  width: 12px;
+  opacity: 1;
 }
 
 .asc-menu-pop {
@@ -276,6 +275,8 @@
   padding: 5px 10px 2px;
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
   color: rgba(237, 233, 254, 0.5);
 }
 
@@ -285,20 +286,22 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-.asc-menu-item {
+.asc-shell .asc-menu-item {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   width: 100%;
   height: 30px;
   padding: 0 10px;
   border-radius: 8px;
   background: transparent;
+  font-family: inherit;
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
-  text-align: left;
+  letter-spacing: 0;
+  text-align: center;
   color: #f3e8ff;
   white-space: nowrap;
 }
@@ -383,8 +386,7 @@
   :host(:not(.is-expanded)) .asc-shell,
   :host(:not(.is-expanded)) .asc-brand,
   :host(:not(.is-expanded)) .asc-brand::after,
-  .asc-menu-pop,
-  .asc-caret {
+  .asc-menu-pop {
     animation: none;
     transition: none;
   }

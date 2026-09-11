@@ -94126,7 +94126,7 @@ function createMenuRepositoryUnregisteredRow(entry) {
 
   row.addEventListener("click", (event) => {
     if (event.target.closest(".menu-repository-adopt-btn")) return;
-    openRepositoryAdoptModal(entry);
+    void openRepositoryFolderOverview({ ...entry, registered: false });
   });
   row.addEventListener("dragstart", (event) => {
     if (event.target.closest(".menu-repository-adopt-btn")) {
