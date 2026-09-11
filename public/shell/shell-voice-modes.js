@@ -253,6 +253,8 @@ export function sttEngineIsAvailable(mode, context = {}) {
 export function voiceModeUsesBrowserStt(mode, context = {}) {
   const m = normalizeVoiceInputMode(mode);
   if (m === "disabled") return false;
+  // Живой диалог всегда через Web Speech API, независимо от движка STT в настройках.
+  if (m === "live") return true;
   const capture = normalizeSttCapture(context.sttCapture ?? "microphone");
   if (capture !== "microphone") return false;
   return sttEngineUsesWebSpeech(context.sttEngine ?? "browser");

@@ -1249,6 +1249,32 @@ function setMeetingRecordingRemote(recording) {
   });
 }
 
+function shouldPauseTtsForVoiceCapture() {
+  if (state.liveUserSpeaking) return true;
+  if (state.meetingRecording) return true;
+  if (state.pttHeld || state.pttKeyboardHeld || state.micPointerHeld || state.micTapHeld) return true;
+  if (state.micActive && getVoiceInputMode() !== "live") return true;
+  return false;
+}
+
+function shouldSuspendLiveListening() {
+  return Boolean(
+    isTtsAudioOutputActive() ||
+      isBrowserSynthActive() ||
+      state.streamTtsActive ||
+      state.streamTtsQueue.length
+  );
+}
+
+function syncLiveDialogForTtsPlayback() {
+  if (!shellLiveDialog?.isActive?.()) return;
+  if (shouldSuspendLiveListening()) {
+    shellLiveDialog.suspendRecognition?.();
+    return;
+  }
+  shellLiveDialog.resumeRecognition?.();
+}
+
 function pauseTtsForUserVoice() {
   if (!isTtsPlaybackActive() || state.ttsPaused) return;
   pauseTtsPlayback();
@@ -1328,10 +1354,10 @@ async function toggleLiveDialog() {
     return;
   }
   if (state.meetingRecording) await stopMeetingRecordingIfActive();
-  if (!usesBrowserStt("live")) {
-    throw new Error("Живой диалог: выберите движок STT «Web Speech» и микрофон");
+  if (!liveDialogEngineReady()) {
+    throw new Error("Web Speech недоступен — живой диалог не поддерживается в этом браузере");
   }
-  await shellLiveDialog?.toggle?.();
+  await shellLiveDialog.toggle();
 }
 
 const PTT_RELEASE_TAIL_MS = 180;
@@ -2603,6 +2629,9 @@ function isHeroIdlePhrase(phrase = "") {
 
 function isUserComposingInput() {
   if (String(nodes.message?.value || "").trim()) return true;
+  if (state.liveDialogActive) {
+    return Boolean(state.liveUserSpeaking || state.meetingRecording);
+  }
   return Boolean(
     state.micActive ||
     state.micTapHeld ||
@@ -2644,7 +2673,7 @@ function resolveDisplayPhase(requestedPhase = "waiting") {
   if (isAssistantStreaming()) return "thinking";
   if (state.messagePipelineBusy || state.processingMessage) return "thinking";
   if (state.liveUserSpeaking) return "listening";
-  if (phase === "listening" || isVoiceRecordingActive()) return "listening";
+  if (phase === "listening" || isVoiceCaptureHeroActive()) return "listening";
   if (phase === "speaking" && !isTtsAudioOutputActive()) {
     if (state.streamTtsActive || state.streamTtsQueue.length || isShellAgentWorkActive()) return "thinking";
     return "waiting";
@@ -2701,7 +2730,10 @@ function resolveHeroStatusLabel(requestedPhase = "waiting", phrase = "") {
   const statusText = String(phrase || "").trim();
   const displayPhase = resolveDisplayPhase(requestedPhase);
   if (displayPhase === "disabled") return PHASE_LABELS.disabled;
-  if (heroState === "listening") return HERO_STATE_LABELS.listening;
+  if (heroState === "listening") {
+    if (state.liveDialogActive) return statusText || voiceRecordingHeroPhrase();
+    return HERO_STATE_LABELS.listening;
+  }
   if (heroState === "ready") {
     if (isLiveDialogIdle() && statusText) return statusText;
     return HERO_STATE_LABELS.ready;
@@ -2895,7 +2927,11 @@ function resetTtsUiAfterPlayback({ patchServer = true } = {}) {
     return;
   }
   if (state.micActive || state.pttHeld) {
-    renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
+    renderPhase(
+      "waiting",
+      state.liveDialogActive ? voiceRecordingHeroPhrase() : heroIdlePhrase(),
+      state.shellState?.metrics || ""
+    );
     return;
   }
   if (state.shellState?.phase === "speaking") {
@@ -2905,6 +2941,7 @@ function resetTtsUiAfterPlayback({ patchServer = true } = {}) {
   if (patchServer && !isShellAgentWorkActive()) {
     void patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE }).catch(() => {});
   }
+  syncLiveDialogForTtsPlayback();
 }
 
 function isRuntimeMetricsLabel(metrics) {
@@ -2962,10 +2999,14 @@ function renderPhase(phase, phrase = "", metrics = "") {
     statusText = heroIdlePhrase();
   }
   if (!isShellAgentWorkActive() && !isTtsPlaybackActive()) {
-    if (displayPhase === "speaking" || displayPhase === "thinking") {
+    if (!state.liveDialogActive && (displayPhase === "speaking" || displayPhase === "thinking")) {
       displayPhase = "waiting";
     }
-    if (!statusText || /печатает|думаю|запускаю|работаю|размышляю|озвуч|готовлю|отвеч/i.test(statusText)) {
+    if (
+      !statusText ||
+      (/печатает|думаю|запускаю|работаю|размышляю|озвуч|готовлю|отвеч/i.test(statusText) &&
+        !state.liveDialogActive)
+    ) {
       statusText = state.liveDialogActive ? voiceRecordingHeroPhrase() : heroIdlePhrase();
     }
   }
@@ -2995,6 +3036,7 @@ function isTtsAudioOutputActive() {
 }
 
 function refreshHeroTtsVisuals() {
+  syncLiveDialogForTtsPlayback();
   if (!isTtsPlaybackActive() && !isShellAgentWorkActive()) {
     renderPhase(
       "waiting",
@@ -3011,11 +3053,12 @@ function refreshHeroTtsVisuals() {
 
 function syncHeroAfterTtsPlaybackEnd() {
   state.speaking = false;
+  state.ttsPaused = false;
+  syncLiveDialogForTtsPlayback();
   if (isTtsAudioOutputActive() || isStreamTtsUiBusy()) {
     refreshHeroTtsVisuals();
     return;
   }
-  if (state.micActive || state.pttHeld) return;
   if (state.assistantStream && !state.assistantStream.finalized) {
     renderPhase("thinking", state.shellState?.phrase || "Печатает…", state.shellState?.metrics || "");
     return;
@@ -3023,9 +3066,10 @@ function syncHeroAfterTtsPlaybackEnd() {
   if (state.shellState?.phase === "speaking") {
     state.shellState = { ...(state.shellState || {}), phase: "waiting", phrase: HERO_IDLE_PHRASE };
   }
-  renderPhase("waiting", heroIdlePhrase(), state.shellState?.metrics || "");
+  const idlePhrase = state.liveDialogActive ? voiceRecordingHeroPhrase() : heroIdlePhrase();
+  renderPhase("waiting", idlePhrase, state.shellState?.metrics || "");
   if (!isShellAgentWorkActive()) {
-    void patchShellState({ phase: "waiting", phrase: HERO_IDLE_PHRASE }).catch(() => {});
+    void patchShellState({ phase: "waiting", phrase: idlePhrase }).catch(() => {});
   }
 }
 
@@ -3349,13 +3393,26 @@ function shouldPlayMessageTts(message = {}) {
   if (!state.settings?.ttsEnabled) return false;
   if (!shouldPlayReplyTts(message)) return false;
   if (shouldSkipAssistantSpeech(message)) return false;
+  const body = String(message?.body || message?.message?.body || "").trim();
+  if (body && lastStreamHandledBody && body === lastStreamHandledBody) return false;
+  const streamId = String(message?.streamId || message?.id || "").trim();
+  if (streamId && lastHandledStreamId && streamId === lastHandledStreamId) return false;
   if (usesStreamingReplyTts()) {
     if (state.assistantStream && !state.assistantStream.finalized) return false;
     if (state.streamTtsActive || state.streamTtsQueue.length) return false;
-    const streamId = String(message?.streamId || message?.id || "").trim();
     if (streamId.startsWith("qwenpaw-")) return false;
   }
   return true;
+}
+
+function trySpeakAssistantReply(message, body) {
+  if (!shouldPlayMessageTts(message)) return;
+  const parts = buildSpeechParts(body, message);
+  if (!parts.length) return;
+  const speechKey = parts.join("\0");
+  if (speechKey === lastSpokenBody || shouldSkipAssistantSpeech(message)) return;
+  lastSpokenBody = speechKey;
+  void speakTextParts(parts, { ttsClientId: message.ttsClientId, sourceMessage: message });
 }
 
 function shouldShowTypingActivity(rawText, displayText) {
@@ -7318,7 +7375,7 @@ function applyStatusPayload(payload) {
     onShellPhaseChange(payload.state);
     state.shellState = payload.state;
     state.stopTtsAt = Number(payload.state.stopTtsAt) || 0;
-    if (isVoiceRecordingActive()) {
+    if (isVoiceCaptureHeroActive()) {
       renderPhase("listening", voiceRecordingHeroPhrase());
     } else {
       renderPhase(
@@ -8485,10 +8542,10 @@ function applyRecognitionLang(lang) {
 
 let voiceRecordTimerId = 0;
 
-function isVoiceRecordingActive() {
+function isVoiceCaptureHeroActive() {
+  if (state.liveDialogActive) return Boolean(state.liveUserSpeaking);
   return Boolean(
     state.meetingRecording ||
-      state.liveDialogActive ||
       state.liveUserSpeaking ||
       state.pttHeld ||
       state.pttKeyboardHeld ||
@@ -8496,6 +8553,22 @@ function isVoiceRecordingActive() {
       state.micTapHeld ||
       state.micActive
   );
+}
+
+function isVoiceRecordingActive() {
+  const mode = getVoiceInputMode();
+  if (mode === "live" && state.liveDialogActive) return true;
+  if (state.meetingRecording) return true;
+  return isVoiceCaptureHeroActive();
+}
+
+function isMicToggleMode(mode = getVoiceInputMode()) {
+  const action = micActionForMode(mode);
+  return action === "toggle-meeting" || action === "toggle-live";
+}
+
+function liveDialogEngineReady() {
+  return Boolean(shellLiveDialog && liveDialogRecognition);
 }
 
 function isVoiceSttProcessing() {
@@ -8554,13 +8627,22 @@ function startVoiceRecordTimer() {
 }
 
 function syncVoiceRecordTimer() {
-  if (isVoiceRecordingActive()) {
+  if (shouldPauseTtsForVoiceCapture()) {
     pauseTtsForUserVoice();
+  } else if (!state.liveDialogActive || state.liveUserSpeaking) {
+    resumeTtsAfterUserVoice();
+  } else {
+    state.ttsPausedForVoice = false;
+  }
+
+  if (isVoiceRecordingActive()) {
     startVoiceRecordTimer();
-    renderPhase("listening", voiceRecordingHeroPhrase());
+    if (state.liveUserSpeaking || !state.liveDialogActive) {
+      renderPhase("listening", voiceRecordingHeroPhrase());
+    }
   } else {
     stopVoiceRecordTimer();
-    resumeTtsAfterUserVoice();
+    if (!state.liveDialogActive) resumeTtsAfterUserVoice();
   }
 }
 
@@ -8854,10 +8936,10 @@ function syncMicButtonUi({ force = false } = {}) {
     return;
   }
 
-  if (processing) {
+  if (processing && !isMicToggleMode(mode)) {
     nodes.micBtn.disabled = true;
     nodes.micBtn.classList.add("is-stt-processing");
-    nodes.micBtn.classList.remove("is-active", "is-meeting-active");
+    nodes.micBtn.classList.remove("is-active", "is-meeting-active", "is-live-active");
     nodes.micBtn.setAttribute("aria-busy", "true");
     nodes.micBtn.setAttribute("aria-label", "Распознаю…");
     nodes.micBtn.title = "Распознаю…";
@@ -8880,20 +8962,22 @@ function syncMicButtonUi({ force = false } = {}) {
     spinner.setAttribute("aria-hidden", "true");
   }
 
-  const recording = isVoiceRecordingActive();
   const meetingActive = mode === "meeting" && Boolean(state.meetingRecording);
   const liveActive = mode === "live" && Boolean(state.liveDialogActive);
+  const recording = isVoiceRecordingActive();
+  const toggleActive = meetingActive || liveActive;
   nodes.micBtn.classList.toggle("is-meeting-active", meetingActive);
   nodes.micBtn.classList.toggle("is-live-active", liveActive);
-  nodes.micBtn.classList.toggle("is-active", recording && !meetingActive && !liveActive);
+  nodes.micBtn.classList.toggle("is-active", recording && !toggleActive);
+  nodes.micBtn.classList.toggle("is-stt-processing", processing && isMicToggleMode(mode));
 
   if (icon) {
-    icon.textContent = resolveMicIcon(mode, { recording });
+    icon.textContent = resolveMicIcon(mode, { recording: recording || toggleActive });
   }
 
   const label = micButtonLabel(mode);
   nodes.micBtn.setAttribute("aria-label", label);
-  nodes.micBtn.setAttribute("aria-pressed", recording ? "true" : "false");
+  nodes.micBtn.setAttribute("aria-pressed", recording || toggleActive ? "true" : "false");
   refreshComposeMicTitle(mode);
   updateVoiceRecordTimerUi(recording);
 }
@@ -10158,6 +10242,15 @@ async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {})
   }
 
   const spokenText = list.join("\n\n");
+  const speechKey = list.join("\0");
+  if (
+    speechKey === lastSpokenBody &&
+    (isTtsPlaybackActive() || shouldSkipAssistantSpeech(sourceMessage || ttsMeta))
+  ) {
+    return;
+  }
+  lastSpokenBody = speechKey;
+  if (sourceMessage) shellSession?.markReplySpoken(sourceMessage);
   rememberLastTtsSpoken(spokenText);
   lastTtsChunkRecording = null;
   const seq = bumpTtsPlayback();
@@ -10203,7 +10296,6 @@ async function speakTextParts(parts, { ttsClientId, sourceMessage = null } = {})
   }
 
   rememberLastTtsSpoken(spokenText);
-  if (sourceMessage) shellSession?.markReplySpoken(sourceMessage);
   state.pendingReplyTtsClientId = "";
   resetTtsUiAfterPlayback({ patchServer: true });
 }
@@ -10230,12 +10322,7 @@ async function handleAssistantMessage(message) {
       stream.id === resolveAssistantMessageKey(message, body) ||
       stream.text === body)
   ) {
-    if (shouldPlayMessageTts(message)) {
-      const parts = buildSpeechParts(body, message);
-      if (parts.length) {
-        void speakTextParts(parts, { ttsClientId: message.ttsClientId, sourceMessage: message });
-      }
-    }
+    trySpeakAssistantReply(message, body);
     releaseMessagePipeline();
     return;
   }
@@ -10246,12 +10333,7 @@ async function handleAssistantMessage(message) {
   }
 
   if (shellSession?.isReplyAlreadyDisplayed(message)) {
-    if (shouldPlayMessageTts(message)) {
-      const parts = buildSpeechParts(body, message);
-      if (parts.length) {
-        void speakTextParts(parts, { ttsClientId: message.ttsClientId, sourceMessage: message });
-      }
-    }
+    trySpeakAssistantReply(message, body);
     releaseMessagePipeline();
     return;
   }
@@ -10268,16 +10350,7 @@ async function handleAssistantMessage(message) {
     renderPhase(phase, HERO_IDLE_PHRASE, state.shellState?.metrics || "");
   }
   releaseMessagePipeline();
-  if (shouldPlayMessageTts(message)) {
-    const parts = buildSpeechParts(body, message);
-    if (parts.length) {
-      const speechKey = parts.join("\0");
-      if (speechKey !== lastSpokenBody || !state.speaking) {
-        lastSpokenBody = speechKey;
-        void speakTextParts(parts, { ttsClientId: message.ttsClientId, sourceMessage: message });
-      }
-    }
-  }
+  trySpeakAssistantReply(message, body);
 }
 
 function shouldRefreshDialogHistoryOnSseOpen() {
@@ -10734,7 +10807,8 @@ function setupSpeechRecognition() {
         syncVoiceRecordTimer,
         clearShellError: () => shellDialog?.clearError?.(),
         markShellAudioGesture,
-        unlockShellAudio
+        unlockShellAudio,
+        shouldSuspendLiveListening
       });
     }
     shellLiveDialog.bindRecognition(liveDialogRecognition);
@@ -10797,16 +10871,16 @@ function endMicHold() {
 }
 
 function handleMicPress() {
-  if (isVoiceSttProcessing()) {
+  const mode = getVoiceInputMode();
+  const action = micActionForMode(mode);
+  if (!isMicToggleMode(mode) && isVoiceSttProcessing()) {
     renderPhase("thinking", "Распознаю…");
     return;
   }
-  const mode = getVoiceInputMode();
   if (mode === "disabled" || readSttEnabledFromDom() === false) {
     renderPhase("disabled", "Голосовой ввод отключён");
     return;
   }
-  const action = micActionForMode(mode);
   if (action === "disabled-hint") {
     renderPhase("waiting", "Живой диалог временно недоступен");
     return;
@@ -10833,12 +10907,11 @@ function handleMicPress() {
   }
   if (action === "toggle-live") {
     if (!ensureVoicePrimaryClient()) return;
-    const ctx = getVoiceModeContext();
-    if (!usesBrowserStt(mode)) {
-      renderPhase("disabled", "Живой диалог: выберите Web Speech и микрофон в настройках STT");
+    if (!liveDialogEngineReady()) {
+      renderPhase("disabled", "Web Speech недоступен — живой диалог не поддерживается в этом браузере");
       return;
     }
-    if (!sttEngineIsAvailable(mode, ctx)) {
+    if (shellPermissionIssue()) {
       renderPhase("disabled", `Живой диалог: нужен HTTPS · ${getShellHttpsUrl()}`);
       return;
     }
@@ -10879,9 +10952,21 @@ function bindMicUi() {
     syncVoiceRecordTimer();
   };
 
+  let lastMicToggleAt = 0;
+  const invokeMicToggle = (event) => {
+    event?.preventDefault?.();
+    const now = Date.now();
+    if (now - lastMicToggleAt < 350) return;
+    lastMicToggleAt = now;
+    handleMicPress();
+  };
+
   const routeMicPress = (event) => {
     if (event?.button !== undefined && event.button !== 0) return false;
-    if (isVoiceSttProcessing()) {
+    const mode = getVoiceInputMode();
+    const action = micActionForMode(mode);
+    const toggleMode = action === "toggle-meeting" || action === "toggle-live";
+    if (!toggleMode && isVoiceSttProcessing()) {
       renderPhase("thinking", "Распознаю…");
       return true;
     }
@@ -10889,12 +10974,11 @@ function bindMicUi() {
       renderPhase("disabled", "Голосовой ввод отключён");
       return true;
     }
-    const action = micActionForMode(getVoiceInputMode());
-    if (action === "toggle-meeting" || action === "toggle-live") {
-      event?.preventDefault?.();
+    if (toggleMode) {
+      invokeMicToggle(event);
       return true;
     }
-    if (action === "hold" || micUsesHoldGesture(getVoiceInputMode())) return false;
+    if (action === "hold" || micUsesHoldGesture(mode)) return false;
     event?.preventDefault?.();
     handleMicPress();
     return true;
@@ -10913,8 +10997,7 @@ function bindMicUi() {
     const mode = getVoiceInputMode();
     const action = micActionForMode(mode);
     if (action === "toggle-meeting" || action === "toggle-live") {
-      event.preventDefault();
-      handleMicPress();
+      invokeMicToggle(event);
       return;
     }
     if (!micUsesHoldGesture(mode)) return;
@@ -11836,8 +11919,12 @@ function bindShellInteractiveUi() {
     ttsPlayer = createShellTtsPlayer({
       apiFetch,
       getTtsSettings: collectTtsRuntimeSettings,
-      onPlaybackStart: refreshHeroTtsVisuals,
+      onPlaybackStart: () => {
+        syncLiveDialogForTtsPlayback();
+        refreshHeroTtsVisuals();
+      },
       onPlaybackEnd: () => {
+        syncLiveDialogForTtsPlayback();
         if (state.streamTtsActive || state.streamTtsQueue.length) return;
         syncHeroAfterTtsPlaybackEnd();
       }

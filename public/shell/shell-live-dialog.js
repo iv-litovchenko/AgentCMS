@@ -14,6 +14,7 @@ export function createShellLiveDialog(deps) {
   let endTimer = 0;
   let restartTimer = 0;
   let starting = false;
+  let recognitionPaused = false;
   let bargeCooldownUntil = 0;
 
   const clearEndTimer = () => {
@@ -49,10 +50,10 @@ export function createShellLiveDialog(deps) {
 
   const scheduleRestart = (delayMs = LIVE_RESTART_MS) => {
     clearRestartTimer();
-    if (!isActive()) return;
+    if (!isActive() || recognitionPaused) return;
     restartTimer = window.setTimeout(() => {
       restartTimer = 0;
-      if (!isActive()) return;
+      if (!isActive() || recognitionPaused || deps.shouldSuspendLiveListening?.()) return;
       try {
         recognition?.start();
       } catch {
@@ -96,7 +97,7 @@ export function createShellLiveDialog(deps) {
     };
 
     recognition.onresult = (event) => {
-      if (!isActive()) return;
+      if (!isActive() || recognitionPaused || deps.shouldSuspendLiveListening?.()) return;
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const part = event.results[i][0]?.transcript || "";
@@ -139,10 +140,32 @@ export function createShellLiveDialog(deps) {
 
     recognition.onend = () => {
       deps.state.micActive = false;
+      if (recognitionPaused) {
+        deps.syncMicButtonUi?.({ force: true });
+        return;
+      }
       if (isActive()) scheduleRestart();
       else deps.syncMicButtonUi?.({ force: true });
     };
   };
+
+  function suspendRecognition() {
+    if (!isActive() || recognitionPaused) return;
+    recognitionPaused = true;
+    clearEndTimer();
+    resetUtterance();
+    stopRecognition();
+    deps.state.micActive = false;
+    deps.syncMicButtonUi?.({ force: true });
+    deps.syncVoiceRecordTimer?.();
+  }
+
+  function resumeRecognition() {
+    if (!isActive()) return;
+    if (deps.shouldSuspendLiveListening?.()) return;
+    recognitionPaused = false;
+    scheduleRestart(80);
+  }
 
   async function commitUtterance() {
     if (!isActive() || deps.isVoiceSttProcessing?.()) return;
@@ -211,6 +234,7 @@ export function createShellLiveDialog(deps) {
 
   async function stop({ notify = true } = {}) {
     if (!isActive() && !starting) return;
+    recognitionPaused = false;
     deps.state.liveDialogActive = false;
     deps.state.micActive = false;
     deps.setLiveUserSpeaking?.(false);
@@ -240,6 +264,9 @@ export function createShellLiveDialog(deps) {
     start,
     stop,
     toggle,
-    isActive
+    isActive,
+    suspendRecognition,
+    resumeRecognition,
+    isRecognitionPaused: () => recognitionPaused
   };
 }
