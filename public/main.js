@@ -92016,6 +92016,14 @@ function setupMenuTreeBandGroup() {
   menuTreeBandToggleBtn?.addEventListener("click", () => {
     toggleMenuTreeBandExpanded();
   });
+  menuRefreshBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void refreshMenuTree();
+  });
+  menuCollapseAllBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleCollapseAllMenuTreeBranches();
+  });
 }
 
 function setupMenuStaticFooterGroup() {
@@ -98098,12 +98106,6 @@ menuViewTreeBtn?.addEventListener("click", () => setMenuViewMode("tree"));
 menuViewFlatBtn?.addEventListener("click", () => setMenuViewMode("flat"));
 menuViewBookmarksBtn?.addEventListener("click", () => setMenuViewMode("bookmarks"));
 menuViewCardsBtn?.addEventListener("click", () => setMenuViewMode("cards"));
-menuRefreshBtn?.addEventListener("click", () => {
-  void refreshMenuTree();
-});
-menuCollapseAllBtn?.addEventListener("click", () => {
-  toggleCollapseAllMenuTreeBranches();
-});
 
 menuPinBranchBtn?.addEventListener("click", () => {
   const folder = getActiveMenuFolderPath();

@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.807" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.809" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -1051,13 +1051,28 @@
                 title="Обновить дерево"
               >
                 <svg class="menu-refresh-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M1 4v6h6" />
-                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  <path
+                    d="M1 4v6h6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
                 </svg>
               </button>
             </div>
           </div>
           <div id="menu-tree-band-body" class="sidebar-tree-band-body">
+            <div class="sidebar-tree-band-panel">
             <div class="sidebar-slab-menu-tools sidebar-tree-band-tools">
               <div class="menu-view-wrap menu-tools-row">
             <div class="menu-view-toggle menu-tools-view-cluster" role="tablist" aria-label="Режим отображения меню">
@@ -1171,6 +1186,7 @@
                   <span>Только с превью</span>
                 </label>
               </div>
+            </div>
             </div>
           </div>
         </section>
@@ -4678,7 +4694,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.772"></script>
+    <script src="/main.js?v=0.5.773"></script>
     <script src="/discuss-panel.js?v=0.5.257"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>
