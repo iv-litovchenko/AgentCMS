@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>08 · Узкая колонка</title>
+    <link rel="stylesheet" href="../shared.css" />
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>08 · Узкая колонка</h1><p>Агент слева 92px, дерево справа на всю высоту</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock stack stack--v08">
+<!-- Shared mock: agent toolbar + avatar + tools + search + tree -->
+<div class="stack-slab stack-slab--agent">
+  <div class="stack-toolbar">
+    <div class="stack-row stack-row--agent">
+      <select class="stack-select stack-select--agent" aria-label="Хранилище (агент)">
+        <option>🟢 Aya — мой агент</option>
+        <option>🟢 [Agent CMS] Песочница и тесты</option>
+        <option>🟢 MedCenter</option>
+        <option>🔴 moikomp</option>
+      </select>
+      <button class="stack-btn stack-btn--picker" type="button" title="Сетка агентов">≡</button>
+    </div>
+    <div class="stack-row stack-row--view">
+      <select class="stack-select stack-select--view" aria-label="Вид workspace">
+        <option selected>Главная</option>
+        <option>Дашборд</option>
+        <option>Граф связей</option>
+        <option>Таблица</option>
+      </select>
+      <div class="stack-view-chips" aria-label="Вид workspace">
+        <button type="button" class="stack-view-chip is-active">Главная</button>
+        <button type="button" class="stack-view-chip">Дашборд</button>
+        <button type="button" class="stack-view-chip">Граф</button>
+        <button type="button" class="stack-view-chip">Таблица</button>
+      </div>
+      <div class="stack-util-btns" aria-hidden="true">
+        <span class="stack-util-btn" title="Git">⎇</span>
+        <span class="stack-util-btn" title="Типы">T</span>
+        <span class="stack-util-btn" title="Реестр">R</span>
+        <span class="stack-util-btn" title="Крупные">MB</span>
+        <span class="stack-util-btn" title="Ссылки">🔗</span>
+      </div>
+    </div>
+  </div>
+  <div class="stack-divider" role="presentation"></div>
+  <div class="stack-avatar-block">
+    <div class="stack-avatar-preview" aria-hidden="true"></div>
+    <button type="button" class="stack-note-toggle">
+      <span class="stack-note-chevron" aria-hidden="true">▸</span>
+      NOTE.md (заметки)
+    </button>
+  </div>
+</div>
+<div class="stack-slab stack-slab--tools">
+  <div class="stack-tools-row">
+    <button type="button" class="stack-tool-btn is-active" title="Дерево">🌳</button>
+    <button type="button" class="stack-tool-btn" title="Закладки">⭐</button>
+    <button type="button" class="stack-tool-btn" title="Обновить">🔄</button>
+    <button type="button" class="stack-tool-btn" title="Свернуть">−</button>
+    <button type="button" class="stack-tool-btn" title="Закрепить">📍</button>
+    <button type="button" class="stack-tool-btn stack-tool-btn--wide" title="Индекс">Индекс ⟲</button>
+  </div>
+</div>
+<div class="stack-slab stack-slab--menu">
+  <div class="stack-before-tree">
+    <div class="stack-search">Поиск тем по дереву…</div>
+    <div class="stack-tools-inline" aria-label="Инструменты дерева">
+      <button type="button" class="stack-tool-btn is-active" title="Дерево">🌳</button>
+      <button type="button" class="stack-tool-btn" title="Закладки">⭐</button>
+      <button type="button" class="stack-tool-btn" title="Обновить">🔄</button>
+      <button type="button" class="stack-tool-btn" title="Закрепить">📍</button>
+    </div>
+  </div>
+  <nav class="stack-tree" aria-label="Дерево тем">
+    <ul>
+      <li class="stack-tree-branch">
+        <div class="stack-tree-node is-active">
+          <button type="button" class="stack-tree-toggle" data-stack-tree-toggle aria-expanded="true">▾</button>
+          <span class="stack-tree-label">🟢 [Agent CMS] Песочница и тесты</span>
+          <span class="stack-tree-badge">📍</span>
+        </div>
+        <ul>
+          <li class="stack-tree-branch">
+            <div class="stack-tree-node">
+              <button type="button" class="stack-tree-toggle" data-stack-tree-toggle aria-expanded="true">▾</button>
+              <span class="stack-tree-label">🟢 Агентские темы и ресурсы</span>
+            </div>
+            <ul>
+              <li><div class="stack-tree-node"><span class="stack-tree-toggle" aria-hidden="true">·</span><span class="stack-tree-label">🟢 PHP</span><span class="stack-tree-badge">6</span></div></li>
+              <li><div class="stack-tree-node"><span class="stack-tree-toggle" aria-hidden="true">·</span><span class="stack-tree-label">🟢 Личная жизнь</span></div></li>
+            </ul>
+          </li>
+          <li><div class="stack-tree-node"><span class="stack-tree-toggle" aria-hidden="true">·</span><span class="stack-tree-label">🟢 Общие темы и ресурсы</span></div></li>
+        </ul>
+      </li>
+    </ul>
+  </nav>
+</div>
+<p class="stack-hint">Верхний стек сайдбара: агент → заметки → инструменты → поиск → дерево</p>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>
