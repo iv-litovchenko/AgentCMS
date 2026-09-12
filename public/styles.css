@@ -16406,12 +16406,12 @@ a.header-tool-btn {
 .agents-picker-popover {
   position: fixed;
   z-index: 1100;
-  width: min(300px, calc(100vw - 24px));
-  padding: 10px;
+  width: min(240px, calc(100vw - 24px));
+  padding: 8px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--panel);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
 }
 
 .agents-picker-popover.hidden {
@@ -16419,23 +16419,19 @@ a.header-tool-btn {
 }
 
 .agents-picker-popover-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+  position: relative;
+  margin: 0 0 2px;
 }
 
 .agents-picker-popover-title {
   margin: 0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #64748b;
+  padding-right: 28px;
 }
 
 .agents-picker-popover-close {
+  position: absolute;
+  top: 2px;
+  right: 2px;
   border: none;
   background: transparent;
   color: #64748b;
@@ -16500,6 +16496,71 @@ a.header-tool-btn {
   min-height: auto;
   background: #f8fafc;
   padding: 6px;
+}
+
+.agents-picker-stage--tools {
+  min-height: 0;
+  background: transparent;
+  padding: 0;
+  overflow: visible;
+}
+
+.agents-picker-tools-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agents-picker-tools-grid .header-profile-menu-item {
+  gap: 8px;
+}
+
+.agents-picker-tools-grid .header-profile-menu-item.is-active {
+  background: #eef2ff;
+  color: #1e3a8a;
+}
+
+.agents-picker-tool-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.agents-picker-tool-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.agents-picker-tool-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-picker-tools-grid .agent-git-btn .agents-picker-tool-icon {
+  color: #de4c36;
+}
+
+.agents-picker-tools-grid .agent-awn-types-btn .agents-picker-tool-icon {
+  color: #2563eb;
+}
+
+.agents-picker-tools-grid .agent-registry-btn .agents-picker-tool-icon {
+  color: #0f766e;
+}
+
+.agents-picker-tools-grid .agent-large-files-btn .agents-picker-tool-icon {
+  color: #7c3aed;
+}
+
+.agents-picker-tools-grid .agent-broken-links-btn .agents-picker-tool-icon {
+  color: #dc2626;
 }
 
 .agents-picker-stage--stack,
@@ -18312,18 +18373,18 @@ a.header-tool-btn {
   min-width: 0;
 }
 
-.sidebar-slab-agent .agent-awn-types-btn {
+.sidebar-slab-agent .agent-awn-types-btn:not(.agents-picker-tool-btn) {
   flex: 0 0 28px;
   color: #2563eb;
 }
 
-.sidebar-slab-agent .agent-awn-types-btn:hover {
+.sidebar-slab-agent .agent-awn-types-btn:not(.agents-picker-tool-btn):hover {
   color: #1d4ed8;
   border-color: #93c5fd;
   background: #eff6ff;
 }
 
-.sidebar-slab-agent .agent-awn-types-btn.is-active {
+.sidebar-slab-agent .agent-awn-types-btn:not(.agents-picker-tool-btn).is-active {
   border-color: #2563eb;
   background: #eff6ff;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
@@ -18334,18 +18395,18 @@ a.header-tool-btn {
   height: 15px;
 }
 
-.sidebar-slab-agent .agent-git-btn {
+.sidebar-slab-agent .agent-git-btn:not(.agents-picker-tool-btn) {
   flex: 0 0 28px;
   color: #de4c36;
 }
 
-.sidebar-slab-agent .agent-git-btn:hover {
+.sidebar-slab-agent .agent-git-btn:not(.agents-picker-tool-btn):hover {
   color: #c2410c;
   border-color: #fdba74;
   background: #fff7ed;
 }
 
-.sidebar-slab-agent .agent-git-btn.is-active {
+.sidebar-slab-agent .agent-git-btn:not(.agents-picker-tool-btn).is-active {
   border-color: #de4c36;
   background: #fff7ed;
   box-shadow: 0 0 0 2px rgba(222, 76, 54, 0.12);
@@ -18356,18 +18417,18 @@ a.header-tool-btn {
   height: 15px;
 }
 
-.sidebar-slab-agent .agent-large-files-btn {
+.sidebar-slab-agent .agent-large-files-btn:not(.agents-picker-tool-btn) {
   flex: 0 0 28px;
   color: #7c3aed;
 }
 
-.sidebar-slab-agent .agent-large-files-btn:hover {
+.sidebar-slab-agent .agent-large-files-btn:not(.agents-picker-tool-btn):hover {
   color: #6d28d9;
   border-color: #c4b5fd;
   background: #f5f3ff;
 }
 
-.sidebar-slab-agent .agent-large-files-btn.is-active {
+.sidebar-slab-agent .agent-large-files-btn:not(.agents-picker-tool-btn).is-active {
   border-color: #7c3aed;
   background: #f5f3ff;
   box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.12);
@@ -18543,18 +18604,18 @@ a.header-tool-btn {
   }
 }
 
-.sidebar-slab-agent .agent-broken-links-btn {
+.sidebar-slab-agent .agent-broken-links-btn:not(.agents-picker-tool-btn) {
   flex: 0 0 28px;
   color: #dc2626;
 }
 
-.sidebar-slab-agent .agent-broken-links-btn:hover {
+.sidebar-slab-agent .agent-broken-links-btn:not(.agents-picker-tool-btn):hover {
   color: #b91c1c;
   border-color: #fca5a5;
   background: #fef2f2;
 }
 
-.sidebar-slab-agent .agent-broken-links-btn.is-active {
+.sidebar-slab-agent .agent-broken-links-btn:not(.agents-picker-tool-btn).is-active {
   border-color: #dc2626;
   background: #fef2f2;
   box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
@@ -18565,18 +18626,18 @@ a.header-tool-btn {
   height: 14px;
 }
 
-.sidebar-slab-agent .agent-registry-btn {
+.sidebar-slab-agent .agent-registry-btn:not(.agents-picker-tool-btn) {
   flex: 0 0 28px;
   color: #0f766e;
 }
 
-.sidebar-slab-agent .agent-registry-btn:hover {
+.sidebar-slab-agent .agent-registry-btn:not(.agents-picker-tool-btn):hover {
   color: #0d9488;
   border-color: #5eead4;
   background: #f0fdfa;
 }
 
-.sidebar-slab-agent .agent-registry-btn.is-active {
+.sidebar-slab-agent .agent-registry-btn:not(.agents-picker-tool-btn).is-active {
   border-color: #0f766e;
   background: #f0fdfa;
   box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
@@ -19122,6 +19183,29 @@ a.header-tool-btn {
   min-width: 0;
 }
 
+.sidebar-agent-action-cluster {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 1px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sidebar-agent-action-cluster::-webkit-scrollbar {
+  height: 3px;
+}
+
+.sidebar-agent-action-cluster::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
 .sidebar-slab-agent .agent-select-wrap,
 .sidebar-slab-agent .agent-view-select-wrap {
   flex: 1 1 auto;
@@ -19136,23 +19220,23 @@ a.header-tool-btn {
 }
 
 .sidebar-slab-agent .agents-picker-btn,
-.sidebar-slab-agent .agents-manage-btn,
-.sidebar-slab-agent .agent-awn-types-btn,
-.sidebar-slab-agent .agent-git-btn,
-.sidebar-slab-agent .agent-large-files-btn,
-.sidebar-slab-agent .agent-broken-links-btn,
-.sidebar-slab-agent .agent-registry-btn {
+.sidebar-slab-agent .agents-manage-btn:not(.agents-picker-tool-btn),
+.sidebar-slab-agent .agent-awn-types-btn:not(.agents-picker-tool-btn),
+.sidebar-slab-agent .agent-git-btn:not(.agents-picker-tool-btn),
+.sidebar-slab-agent .agent-large-files-btn:not(.agents-picker-tool-btn),
+.sidebar-slab-agent .agent-broken-links-btn:not(.agents-picker-tool-btn),
+.sidebar-slab-agent .agent-registry-btn:not(.agents-picker-tool-btn) {
   flex: 0 0 28px;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .sidebar-slab-agent .agents-picker-btn:focus-visible,
-.sidebar-slab-agent .agents-manage-btn:focus-visible,
-.sidebar-slab-agent .agent-awn-types-btn:focus-visible,
-.sidebar-slab-agent .agent-git-btn:focus-visible,
-.sidebar-slab-agent .agent-large-files-btn:focus-visible,
-.sidebar-slab-agent .agent-broken-links-btn:focus-visible,
-.sidebar-slab-agent .agent-registry-btn:focus-visible {
+.sidebar-slab-agent .agents-manage-btn:not(.agents-picker-tool-btn):focus-visible,
+.sidebar-slab-agent .agent-awn-types-btn:not(.agents-picker-tool-btn):focus-visible,
+.sidebar-slab-agent .agent-git-btn:not(.agents-picker-tool-btn):focus-visible,
+.sidebar-slab-agent .agent-large-files-btn:not(.agents-picker-tool-btn):focus-visible,
+.sidebar-slab-agent .agent-broken-links-btn:not(.agents-picker-tool-btn):focus-visible,
+.sidebar-slab-agent .agent-registry-btn:not(.agents-picker-tool-btn):focus-visible {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);

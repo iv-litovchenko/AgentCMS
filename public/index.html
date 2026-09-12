@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.775" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.781" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -845,8 +845,8 @@
                     id="agents-picker-btn"
                     class="agents-picker-btn"
                     type="button"
-                    title="Сетка агентов — вкл/выкл и переключение"
-                    aria-label="Сетка агентов"
+                    title="Инструменты workspace — Git, типы, реестр и др."
+                    aria-label="Инструменты workspace"
                     aria-expanded="false"
                     aria-controls="agents-picker-popover"
                   >
@@ -873,51 +873,21 @@
                     <option value="timeline-vertical" hidden>Timeline ↓</option>
                   </select>
                   </div>
-                  <button
-                    id="agent-git-btn"
-                    class="agents-manage-btn agent-git-btn"
-                    type="button"
-                    title="Git-репозиторий — изменения в workspace"
-                    aria-label="Git-репозиторий"
-                  ></button>
-                  <button
-                    id="agent-awn-types-btn"
-                    class="agents-manage-btn agent-awn-types-btn"
-                    type="button"
-                    title="Типы YAML — схемы полей frontmatter"
-                    aria-label="Типы YAML"
-                  ></button>
-                  <button
-                    id="agent-registry-btn"
-                    class="agents-manage-btn agent-registry-btn"
-                    type="button"
-                    title="Реестр — always, cron и heartbeat"
-                    aria-label="Реестр"
-                  ></button>
-                  <button
-                    id="agent-large-files-btn"
-                    class="agents-manage-btn agent-large-files-btn"
-                    type="button"
-                    title="Крупные файлы — список файлов больше 45 МБ"
-                    aria-label="Крупные файлы"
-                  ></button>
-                  <button
-                    id="agent-broken-links-btn"
-                    class="agents-manage-btn agent-broken-links-btn"
-                    type="button"
-                    title="Битые ссылки — проверка ссылок в YAML, markdown и content.csv"
-                    aria-label="Битые ссылки"
-                  ></button>
                 </div>
               </div>
               <div
                 id="agents-picker-popover"
                 class="agents-picker-popover hidden"
                 role="dialog"
-                aria-label="Выбор агента"
+                aria-label="Инструменты workspace"
               >
                 <div class="agents-picker-popover-head">
-                  <p class="agents-picker-popover-title" id="agents-picker-popover-title">Сетка агентов</p>
+                  <p
+                    id="agents-picker-popover-title"
+                    class="agents-picker-popover-title header-profile-menu-section-title"
+                  >
+                    Инструменты workspace
+                  </p>
                   <button
                     id="agents-picker-popover-close"
                     class="agents-picker-popover-close"
@@ -927,7 +897,55 @@
                     ×
                   </button>
                 </div>
-                <div id="agents-picker-stage" class="agents-picker-stage"></div>
+                <div id="agents-picker-stage" class="agents-picker-stage agents-picker-stage--tools">
+                  <div class="agents-picker-tools-grid" role="menu" aria-label="Инструменты workspace">
+                    <button
+                      id="agent-git-btn"
+                      class="header-profile-menu-item agents-picker-tool-btn agent-git-btn"
+                      type="button"
+                      role="menuitem"
+                      title="Git-репозиторий — изменения в workspace"
+                    >
+                      <span class="agents-picker-tool-label">Git-репозиторий</span>
+                    </button>
+                    <button
+                      id="agent-awn-types-btn"
+                      class="header-profile-menu-item agents-picker-tool-btn agent-awn-types-btn"
+                      type="button"
+                      role="menuitem"
+                      title="Типы YAML — схемы полей frontmatter"
+                    >
+                      <span class="agents-picker-tool-label">Типы YAML</span>
+                    </button>
+                    <button
+                      id="agent-registry-btn"
+                      class="header-profile-menu-item agents-picker-tool-btn agent-registry-btn"
+                      type="button"
+                      role="menuitem"
+                      title="Реестр — always, cron и heartbeat"
+                    >
+                      <span class="agents-picker-tool-label">Реестр</span>
+                    </button>
+                    <button
+                      id="agent-large-files-btn"
+                      class="header-profile-menu-item agents-picker-tool-btn agent-large-files-btn"
+                      type="button"
+                      role="menuitem"
+                      title="Крупные файлы — список файлов больше 45 МБ"
+                    >
+                      <span class="agents-picker-tool-label">Крупные файлы</span>
+                    </button>
+                    <button
+                      id="agent-broken-links-btn"
+                      class="header-profile-menu-item agents-picker-tool-btn agent-broken-links-btn"
+                      type="button"
+                      role="menuitem"
+                      title="Битые ссылки — проверка ссылок в YAML, markdown и content.csv"
+                    >
+                      <span class="agents-picker-tool-label">Битые ссылки</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="sidebar-agent-toolbar-divider" role="presentation"></div>
@@ -4633,7 +4651,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.762"></script>
+    <script src="/main.js?v=0.5.764"></script>
     <script src="/discuss-panel.js?v=0.5.257"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>

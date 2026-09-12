@@ -8431,15 +8431,40 @@ function openAgentsPickerPopover() {
   }
   closeMenuSettingsPopover();
   agentsPickerIsOpen = true;
-  renderAgentsPickerGrid();
   agentsPickerPopoverNode.classList.remove("hidden");
   syncAgentsPickerButtonState();
   positionAgentsPickerPopover();
 }
 
 function refreshAgentsPickerIfOpen() {
-  if (!agentsPickerIsOpen) return;
-  renderAgentsPickerGrid();
+  // Agent grid removed from popover — tools are static in HTML.
+}
+
+function mountAgentToolbarBtnIcon(btn, icon, iconClass) {
+  if (!btn || !icon) return;
+  const label = btn.querySelector(".agents-picker-tool-label");
+  btn.replaceChildren();
+  icon.classList.add(iconClass);
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "agents-picker-tool-icon";
+  iconWrap.setAttribute("aria-hidden", "true");
+  iconWrap.appendChild(icon);
+  btn.appendChild(iconWrap);
+  if (label) btn.appendChild(label);
+}
+
+function wireAgentsPickerToolButtons() {
+  for (const btn of [
+    agentGitBtn,
+    agentAwnTypesBtn,
+    agentRegistryBtn,
+    agentLargeFilesBtn,
+    agentBrokenLinksBtn
+  ]) {
+    if (!btn || btn.dataset.pickerCloseBound === "1") continue;
+    btn.dataset.pickerCloseBound = "1";
+    btn.addEventListener("click", () => closeAgentsPickerPopover());
+  }
 }
 
 function getActiveAgentLabel() {
@@ -86784,10 +86809,7 @@ function renderAgentMap2View() {
 
 function initAgentAwnTypesToolbar() {
   if (!agentAwnTypesBtn) return;
-  agentAwnTypesBtn.replaceChildren();
-  const icon = createAwnTypesMarkerSvg();
-  icon.classList.add("agent-awn-types-btn-icon");
-  agentAwnTypesBtn.appendChild(icon);
+  mountAgentToolbarBtnIcon(agentAwnTypesBtn, createAwnTypesMarkerSvg(), "agent-awn-types-btn-icon");
   syncAgentAwnTypesToolbarUi();
 }
 
@@ -86800,10 +86822,7 @@ function syncAgentAwnTypesToolbarUi() {
 
 function initAgentGitToolbar() {
   if (!agentGitBtn) return;
-  agentGitBtn.replaceChildren();
-  const icon = createGitMarkerSvg();
-  icon.classList.add("agent-git-btn-icon");
-  agentGitBtn.appendChild(icon);
+  mountAgentToolbarBtnIcon(agentGitBtn, createGitMarkerSvg(), "agent-git-btn-icon");
   syncAgentGitToolbarUi();
 }
 
@@ -86813,10 +86832,7 @@ function syncAgentGitToolbarUi() {
 
 function initAgentLargeFilesToolbar() {
   if (!agentLargeFilesBtn) return;
-  agentLargeFilesBtn.replaceChildren();
-  const icon = createLargeFilesMarkerSvg();
-  icon.classList.add("agent-large-files-btn-icon");
-  agentLargeFilesBtn.appendChild(icon);
+  mountAgentToolbarBtnIcon(agentLargeFilesBtn, createLargeFilesMarkerSvg(), "agent-large-files-btn-icon");
   syncAgentLargeFilesToolbarUi();
 }
 
@@ -86829,10 +86845,7 @@ function syncAgentLargeFilesToolbarUi() {
 
 function initAgentBrokenLinksToolbar() {
   if (!agentBrokenLinksBtn) return;
-  agentBrokenLinksBtn.replaceChildren();
-  const icon = createBrokenLinksMarkerSvg();
-  icon.classList.add("agent-broken-links-btn-icon");
-  agentBrokenLinksBtn.appendChild(icon);
+  mountAgentToolbarBtnIcon(agentBrokenLinksBtn, createBrokenLinksMarkerSvg(), "agent-broken-links-btn-icon");
   syncAgentBrokenLinksToolbarUi();
 }
 
@@ -86845,10 +86858,7 @@ function syncAgentBrokenLinksToolbarUi() {
 
 function initAgentRegistryToolbar() {
   if (!agentRegistryBtn) return;
-  agentRegistryBtn.replaceChildren();
-  const icon = createRegistryMarkerSvg();
-  icon.classList.add("agent-registry-btn-icon");
-  agentRegistryBtn.appendChild(icon);
+  mountAgentToolbarBtnIcon(agentRegistryBtn, createRegistryMarkerSvg(), "agent-registry-btn-icon");
   if (agentRegistryBtn.dataset.bound === "1") return;
   agentRegistryBtn.dataset.bound = "1";
   agentRegistryBtn.addEventListener("click", handleAgentRegistryClick);
@@ -97444,6 +97454,7 @@ agentRuntimeRegistryRefreshBtn?.addEventListener("click", () => {
 
 initAgentRegistryToolbar();
 initAgentRuntimeRegistryFilter();
+wireAgentsPickerToolButtons();
 
 agentGitRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "git") {
