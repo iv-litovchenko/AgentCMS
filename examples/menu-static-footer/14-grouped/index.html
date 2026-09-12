@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>14 — Grouped</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v14-toggle { display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:0;background:linear-gradient(135deg,#4f46e5,#818cf8);color:#fff;cursor:pointer;font:inherit;font-size:10px;font-weight:700; }
+      .v14-body { padding:8px 10px 10px;background:#f8fafc; }
+      .v14-group { margin-bottom:10px; }
+      .v14-group:last-child { margin-bottom:0; }
+      .v14-label { margin:0 0 4px 4px;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8; }
+      .v14-group .mock-section { margin-bottom:4px; }
+      .v14-group .mock-section:last-child { margin-bottom:0; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top"><div><h1>14 · Grouped</h1><p>Группы «Инфраструктура» и «Интеграции» с подзаголовками</p></div><a href="../index.html">← Все варианты</a></header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel">
+            <button type="button" class="v14-toggle" data-footer-toggle aria-expanded="true"><span class="chevron" style="border-color:#fff"></span> Системные и дополнительные секции</button>
+            <div class="footer-body v14-body">
+              <div class="v14-group">
+                <p class="v14-label">Инфраструктура</p>
+                <details class="mock-section mock-section--purple" open><summary>🟢 Накопители информации</summary><div class="mock-section-body">Domains (модели)</div></details>
+                <details class="mock-section mock-section--slate"><summary>🟢 Настройки и параметры</summary><div class="mock-section-body">(static)</div></details>
+              </div>
+              <div class="v14-group">
+                <p class="v14-label">Интеграции</p>
+                <details class="mock-section mock-section--blue"><summary>🟢 Зависимости и репозитории</summary><div class="mock-section-body">awn-repositories</div></details>
+                <details class="mock-section mock-section--blue"><summary>🟢 Синхронизация с сервером</summary><div class="mock-section-body">(static)</div></details>
+                <details class="mock-section mock-section--purple"><summary>🟢 Google Drive</summary><div class="mock-section-body">(выгрузка файлов)</div></details>
+              </div>
+            </div>
+          </section>
+          <div class="mock-env-band">MacBook Pro — macOS x64 · 192.168.0.102</div>
+          <div class="mock-stats-band">39 тем · 625 файлов · 28.1 MB</div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

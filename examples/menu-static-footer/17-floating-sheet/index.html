@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>17 — Floating sheet</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .sidebar-mock-bottom { padding:0 8px 8px;background:transparent;border-top:0; }
+      .v17-panel { border-radius:14px 14px 0 0;overflow:hidden;box-shadow:0 -8px 24px rgba(15,23,42,.12);border:1px solid var(--border);border-bottom:0;background:#fff; }
+      .v17-toggle { display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:0;background:linear-gradient(135deg,#4f46e5,#818cf8);color:#fff;cursor:pointer;font:inherit;font-size:10px;font-weight:700; }
+      .v17-body { padding:8px 10px 12px;background:#fff; }
+      .v17-handle { width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.45);margin:0 auto 6px; }
+      .mock-env-band,.mock-stats-band { border-radius:0;margin:0 -8px;width:calc(100% + 16px); }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top"><div><h1>17 · Floating sheet</h1><p>«Лист» с закруглением и тенью — отрыв от дерева</p></div><a href="../index.html">← Все варианты</a></header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel v17-panel">
+            <button type="button" class="v17-toggle" data-footer-toggle aria-expanded="true">
+              <div style="width:100%"><div class="v17-handle"></div><span class="chevron" style="border-color:#fff;vertical-align:middle"></span> Системные и дополнительные секции</div>
+            </button>
+            <div class="footer-body v17-body">
+              <details class="mock-section mock-section--purple" open><summary>🟢 Накопители информации</summary><div class="mock-section-body">Domains (модели)</div></details>
+              <details class="mock-section mock-section--blue"><summary>🟢 Зависимости и репозитории</summary><div class="mock-section-body">awn-repositories</div></details>
+              <details class="mock-section mock-section--slate"><summary>🟢 Настройки и параметры</summary><div class="mock-section-body">(static)</div></details>
+            </div>
+          </section>
+          <div class="mock-env-band">MacBook Pro — macOS x64 · 192.168.0.102</div>
+          <div class="mock-stats-band">39 тем · 625 файлов · 28.1 MB</div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

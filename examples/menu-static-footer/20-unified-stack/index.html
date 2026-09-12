@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>20 — Unified stack</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v20-stack { display:flex;flex-direction:column;border-top:1px solid var(--border); }
+      .v20-band { display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:0;border-bottom:1px solid rgba(255,255,255,.12);cursor:pointer;font:inherit;text-align:left;color:#fff; }
+      .v20-band--sections { background:linear-gradient(135deg,#4f46e5,#818cf8);font-size:10px;font-weight:700; }
+      .v20-band--env { background:linear-gradient(135deg,#4338ca,#6366f1);font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+      .v20-band--stats { background:linear-gradient(135deg,#64748b,#94a3b8);font-size:10px;font-weight:600;cursor:default; }
+      .v20-body { padding:8px 10px 10px;background:#f5f3ff; }
+      .footer-panel.is-collapsed .v20-body { display:none; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top"><div><h1>20 · Unified stack</h1><p>Единый стек: секции + среда + статистика — как в production сейчас</p></div><a href="../index.html">← Все варианты</a></header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom" style="padding:0;border:0;background:transparent">
+          <div class="v20-stack">
+            <section class="footer-panel">
+              <button type="button" class="v20-band v20-band--sections" data-footer-toggle aria-expanded="true">
+                <span class="chevron" style="border-color:#fff"></span>
+                Системные и дополнительные секции
+              </button>
+              <div class="footer-body v20-body">
+                <details class="mock-section mock-section--purple" open><summary>🟢 Накопители информации</summary><div class="mock-section-body">Domains (модели)</div></details>
+                <details class="mock-section mock-section--blue"><summary>🟢 Зависимости и репозитории</summary><div class="mock-section-body">awn-repositories</div></details>
+                <details class="mock-section mock-section--slate"><summary>🟢 Настройки и параметры</summary><div class="mock-section-body">(static)</div></details>
+                <details class="mock-section mock-section--blue"><summary>🟢 Синхронизация с сервером</summary><div class="mock-section-body">(static)</div></details>
+                <details class="mock-section mock-section--purple"><summary>🟢 Google Drive</summary><div class="mock-section-body">(выгрузка файлов)</div></details>
+              </div>
+            </section>
+            <button type="button" class="v20-band v20-band--env">MacBook Pro — MacBook · macOS x64 · 192.168.0.102</button>
+            <div class="v20-band v20-band--stats">39 тем · 625 файлов · 28.1 MB</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

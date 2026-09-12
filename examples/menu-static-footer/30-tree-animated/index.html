@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>30 — Tree animated</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v-toggle { display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:0;background:linear-gradient(135deg,#4f46e5,#818cf8);color:#fff;cursor:pointer;font:inherit;font-size:10px;font-weight:700; }
+      .v30-tree .mock-tree-branch > ul {
+        padding-left:14px;
+        overflow:hidden;
+        max-height:240px;
+        transition:max-height .28s ease, opacity .22s ease;
+        opacity:1;
+      }
+      .v30-tree .mock-tree-branch.is-collapsed > ul { display:block; max-height:0; opacity:0; }
+      .v30-tree .mock-tree-toggle { transition:transform .2s ease; }
+      .v30-tree .mock-tree-branch:not(.is-collapsed) > .mock-tree-node .mock-tree-toggle { transform:rotate(90deg); }
+      .v30-tree .mock-tree-branch > .mock-tree-node .mock-tree-toggle { font-size:10px; }
+      .v30-tree .mock-tree-node.is-active { background:#eef2ff;color:#4338ca;font-weight:600; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top"><div><h1>30 · Tree animated</h1><p>Плавное раскрытие веток + подсветка активного узла</p></div><a href="../index.html">← Все варианты</a></header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel">
+            <button type="button" class="v-toggle" data-footer-toggle aria-expanded="true"><span class="chevron" style="border-color:#fff"></span> Системные и дополнительные секции</button>
+            <div class="footer-body mock-tree-body">
+              <ul class="mock-tree v30-tree">
+                <li class="mock-tree-branch">
+                  <div class="mock-tree-node is-active"><button type="button" class="mock-tree-toggle" data-tree-toggle aria-expanded="true">▶</button><span class="mock-tree-label">Инфраструктура</span></div>
+                  <ul>
+                    <li><div class="mock-tree-node is-active"><span class="mock-tree-toggle" style="visibility:hidden"></span><span class="mock-tree-label">Накопители информации</span></div></li>
+                    <li><div class="mock-tree-node"><span class="mock-tree-toggle" style="visibility:hidden"></span><span class="mock-tree-label">Настройки и параметры</span></div></li>
+                  </ul>
+                </li>
+                <li class="mock-tree-branch is-collapsed">
+                  <div class="mock-tree-node"><button type="button" class="mock-tree-toggle" data-tree-toggle aria-expanded="false">▶</button><span class="mock-tree-label">Интеграции</span></div>
+                  <ul>
+                    <li><div class="mock-tree-node"><span class="mock-tree-label">awn-repositories</span></div></li>
+                    <li><div class="mock-tree-node"><span class="mock-tree-label">Синхронизация</span></div></li>
+                    <li><div class="mock-tree-node"><span class="mock-tree-label">Google Drive</span></div></li>
+                  </ul>
+                </li>
+                <li><div class="mock-tree-node"><span class="mock-tree-toggle" style="visibility:hidden"></span><span class="mock-tree-label">Диалоги runtime</span></div></li>
+              </ul>
+            </div>
+          </section>
+          <div class="mock-env-band">MacBook Pro — macOS x64 · 192.168.0.102</div>
+          <div class="mock-stats-band">39 тем · 625 файлов · 28.1 MB</div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

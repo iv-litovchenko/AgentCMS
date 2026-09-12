@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>11 — Rail list</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v11-toggle { display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:0;background:linear-gradient(135deg,#4f46e5,#818cf8);color:#fff;cursor:pointer;font:inherit;text-align:left; }
+      .v11-body { padding:8px 0 10px; background:#fafafa; }
+      .v11-row { display:flex;align-items:flex-start;gap:8px;padding:7px 12px 7px 10px;border-left:3px solid transparent;font-size:11px;cursor:pointer; }
+      .v11-row:hover { background:#f1f5f9; }
+      .v11-row.is-purple { border-left-color:#a78bfa; }
+      .v11-row.is-blue { border-left-color:#818cf8; }
+      .v11-row.is-slate { border-left-color:#94a3b8; }
+      .v11-row b { display:block;font-size:11px; }
+      .v11-row span { display:block;font-size:9px;color:var(--muted);margin-top:1px; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top"><div><h1>11 · Rail list</h1><p>Цветная полоса слева вместо рамок — плоский список</p></div><a href="../index.html">← Все варианты</a></header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel">
+            <button type="button" class="v11-toggle" data-footer-toggle aria-expanded="true"><span class="chevron" style="border-color:#fff"></span> Системные и дополнительные секции</button>
+            <div class="footer-body v11-body">
+              <div class="v11-row is-purple"><div><b>🟢 Накопители информации</b><span>Domains (модели)</span></div></div>
+              <div class="v11-row is-blue"><div><b>🟢 Зависимости и репозитории</b><span>awn-repositories</span></div></div>
+              <div class="v11-row is-slate"><div><b>🟢 Настройки и параметры</b><span>(static)</span></div></div>
+              <div class="v11-row is-blue"><div><b>🟢 Синхронизация с сервером</b><span>(static)</span></div></div>
+              <div class="v11-row is-purple"><div><b>🟢 Google Drive</b><span>(выгрузка файлов)</span></div></div>
+            </div>
+          </section>
+          <div class="mock-env-band">MacBook Pro — macOS x64 · 192.168.0.102</div>
+          <div class="mock-stats-band">39 тем · 625 файлов · 28.1 MB</div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

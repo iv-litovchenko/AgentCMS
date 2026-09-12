@@ -83008,7 +83008,7 @@ function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = 
     },
     {
       value: loading ? "…" : workspace?.totalSizeLabel || "—",
-      label: "размер"
+      label: ""
     }
   ];
 
@@ -83020,15 +83020,7 @@ function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = 
   const line = document.createElement("div");
   line.className = "menu-agent-stats-line";
 
-  items.forEach((item, index) => {
-    if (index > 0) {
-      const sep = document.createElement("span");
-      sep.className = "menu-agent-stat-sep";
-      sep.setAttribute("aria-hidden", "true");
-      sep.textContent = "·";
-      line.appendChild(sep);
-    }
-
+  items.forEach((item) => {
     const stat = document.createElement("span");
     stat.className = "menu-agent-stat";
 
@@ -83036,11 +83028,13 @@ function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = 
     value.className = "menu-agent-stat-value";
     value.textContent = item.value;
 
-    const label = document.createElement("span");
-    label.className = "menu-agent-stat-label";
-    label.textContent = item.label;
-
-    stat.append(value, label);
+    stat.appendChild(value);
+    if (item.label) {
+      const label = document.createElement("span");
+      label.className = "menu-agent-stat-label";
+      label.textContent = item.label;
+      stat.appendChild(label);
+    }
     line.appendChild(stat);
   });
 

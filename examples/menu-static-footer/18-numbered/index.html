@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>18 — Numbered</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v18-toggle { display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:0;background:linear-gradient(135deg,#4f46e5,#818cf8);color:#fff;cursor:pointer;font:inherit;font-size:10px;font-weight:700; }
+      .v18-body { padding:8px 10px;background:#f8fafc;gap:4px; }
+      .v18-item { display:flex;align-items:flex-start;gap:10px;padding:7px 8px;border-radius:8px;background:#fff;border:1px solid var(--border); }
+      .v18-num { flex-shrink:0;width:22px;height:22px;border-radius:6px;background:#eef2ff;color:#4338ca;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center; }
+      .v18-copy b { display:block;font-size:11px; }
+      .v18-copy span { font-size:9px;color:var(--muted); }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top"><div><h1>18 · Numbered</h1><p>Нумерация 01–05 — порядок и структура</p></div><a href="../index.html">← Все варианты</a></header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel">
+            <button type="button" class="v18-toggle" data-footer-toggle aria-expanded="true"><span class="chevron" style="border-color:#fff"></span> Системные и дополнительные секции</button>
+            <div class="footer-body v18-body">
+              <div class="v18-item"><span class="v18-num">01</span><div class="v18-copy"><b>Накопители информации</b><span>Domains (модели)</span></div></div>
+              <div class="v18-item"><span class="v18-num">02</span><div class="v18-copy"><b>Зависимости и репозитории</b><span>awn-repositories</span></div></div>
+              <div class="v18-item"><span class="v18-num">03</span><div class="v18-copy"><b>Настройки и параметры</b><span>(static)</span></div></div>
+              <div class="v18-item"><span class="v18-num">04</span><div class="v18-copy"><b>Синхронизация с сервером</b><span>(static)</span></div></div>
+              <div class="v18-item"><span class="v18-num">05</span><div class="v18-copy"><b>Google Drive</b><span>(выгрузка файлов)</span></div></div>
+            </div>
+          </section>
+          <div class="mock-env-band">MacBook Pro — macOS x64 · 192.168.0.102</div>
+          <div class="mock-stats-band">39 тем · 625 файлов · 28.1 MB</div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>
