@@ -1238,9 +1238,6 @@ body.app-locked {
   z-index: 1;
 }
 
-.app-landing-focus-toolbar--dock {
-  margin-top: -8px;
-}
 
 .app-landing-pane.is-screensaver .app-landing-body {
   position: relative;
@@ -1302,7 +1299,8 @@ body.app-locked {
 }
 
 .agent-focus-panel--landing,
-.app-landing-focus {
+.app-landing-focus,
+.app-landing-focus-strip {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1315,6 +1313,57 @@ body.app-locked {
   max-width: 100%;
   overflow: hidden;
   box-sizing: border-box;
+}
+
+.app-landing-focus-strip {
+  position: relative;
+  z-index: 35;
+  gap: 8px;
+  margin-top: -10px;
+  padding: 10px 12px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.app-landing-focus-strip.hidden {
+  display: none;
+}
+
+.app-landing-focus-strip-track {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.app-landing-focus-strip-track::-webkit-scrollbar {
+  height: 6px;
+}
+
+.app-landing-focus-strip-track::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.app-landing-focus-strip-empty {
+  margin: 0;
+  padding: 6px 2px 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.app-landing-focus-strip-empty code {
+  font-size: 11px;
 }
 
 .app-landing-focus-head {
@@ -1333,11 +1382,11 @@ body.app-locked {
 
 .app-landing-focus-title {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #64748b;
+  color: #475569;
 }
 
 .app-landing-focus-sub {
@@ -1420,6 +1469,11 @@ body.app-locked {
   flex-wrap: wrap;
 }
 
+.app-landing-focus-grid,
+.app-landing-focus-strip-track {
+  min-width: 0;
+}
+
 .app-landing-focus-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
@@ -1447,6 +1501,32 @@ body.app-locked {
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.app-landing-focus-tile--strip {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: min(240px, 72vw);
+  min-width: 180px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  scroll-snap-align: start;
+}
+
+.app-landing-focus-tile--strip .app-landing-focus-tile-media {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+}
+
+.app-landing-focus-tile--strip .app-landing-focus-tile-title {
+  -webkit-line-clamp: 1;
+}
+
+.app-landing-focus-tile--strip .app-landing-focus-tile-status {
+  display: none;
 }
 
 .app-landing-focus-tile:hover {
@@ -6915,9 +6995,42 @@ body.app-locked {
   color: #94a3b8;
 }
 
-.app-landing-pane.is-screensaver .app-landing-focus,
 .app-landing-pane.is-screensaver .agent-focus-panel--landing {
   display: none;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-focus-strip {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(15, 23, 42, 0.42);
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.18);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-focus-title {
+  color: rgba(226, 232, 240, 0.88);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-focus-sub,
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-focus-strip-empty {
+  color: rgba(203, 213, 225, 0.72);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-focus-tile--strip {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-focus-tile--strip .app-landing-focus-tile-title {
+  color: #f8fafc;
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-focus-tile--strip .app-landing-focus-tile-meta {
+  color: rgba(203, 213, 225, 0.72);
+}
+
+.app-landing-pane.is-screensaver.is-landing-bg-light .app-landing-focus-strip {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
 }
 
 .app-landing-pane.is-screensaver.is-landing-bg-sky .app-landing-header {

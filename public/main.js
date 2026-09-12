@@ -7855,7 +7855,7 @@ function createLandingFocusTile(focusItem) {
 
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "app-landing-focus-tile";
+  btn.className = "app-landing-focus-tile app-landing-focus-tile--strip";
   btn.setAttribute("role", "listitem");
   if (nodePath) btn.dataset.focusPath = nodePath;
   if (isFocusItemActive(focusItem)) btn.classList.add("is-active");
@@ -7908,22 +7908,33 @@ function createLandingFocusTile(focusItem) {
   return btn;
 }
 
-function renderLandingFocusGrid(items) {
-  if (!appLandingFocusNode || !appLandingFocusListNode) return;
+function syncLandingFocusStripVisibility() {
+  if (!appLandingFocusNode) return;
+  const view = getLandingAgentsView();
+  const showStrip = view === "orbit" || view === "hub" || view === "grid" || view === "flow";
+  appLandingFocusNode.classList.toggle("hidden", !showStrip);
+  appLandingFocusNode.setAttribute("aria-hidden", showStrip ? "false" : "true");
+}
+
+function renderLandingFocusStrip(items) {
+  syncLandingFocusStripVisibility();
+  if (!appLandingFocusListNode) return;
 
   appLandingFocusListNode.replaceChildren();
 
   if (!globalFocusItemsCache.length) {
-    appLandingFocusNode.classList.add("hidden");
     setLandingFocusFiltersOpen(false);
+    const empty = document.createElement("p");
+    empty.className = "app-landing-focus-strip-empty";
+    empty.textContent =
+      "Пока нет тем на главной — отметьте в свойствах: ⭐ На главной (awn-main).";
+    appLandingFocusListNode.appendChild(empty);
     return;
   }
 
-  appLandingFocusNode.classList.remove("hidden");
-
   if (!items.length) {
     const empty = document.createElement("p");
-    empty.className = "app-landing-focus-empty";
+    empty.className = "app-landing-focus-strip-empty";
     empty.textContent = "Нет записей по выбранным фильтрам";
     appLandingFocusListNode.appendChild(empty);
     return;
@@ -7953,9 +7964,8 @@ function renderGlobalFocusPanel() {
   }
   if (getLandingAgentsView() === "flow") {
     renderAppLandingFlow(globalFlowItemsCache);
-    return;
   }
-  renderLandingFocusGrid(processed);
+  renderLandingFocusStrip(processed);
 }
 
 function renderSidebarFocusPanel(panelNode, listNode, items) {
@@ -10011,7 +10021,7 @@ function syncLandingAgentsViewUi() {
   appLandingFlowNode?.setAttribute("aria-hidden", isFlow ? "false" : "true");
 
   appLandingAgentsNode?.classList.toggle("hidden", !isGrid);
-  appLandingFocusNode?.classList.add("hidden");
+  syncLandingFocusStripVisibility();
   appLandingAttentionNode?.classList.toggle("hidden", !(isHub || isOrbit || isFlow));
 
   appLandingGroupsNode?.classList.toggle("hidden", !isSettings);
@@ -10030,7 +10040,6 @@ function syncLandingAgentsViewUi() {
   appLandingViewHubBtn?.setAttribute("aria-selected", isHub ? "true" : "false");
   appLandingViewFlowBtn?.setAttribute("aria-selected", isFlow ? "true" : "false");
   appLandingSettingsBtn?.classList.toggle("is-active", isSettings);
-  appLandingFocusFiltersBtnNode?.classList.toggle("hidden", true);
 
   if (isSettings) {
     void renderAppLandingGroups();
