@@ -121,22 +121,27 @@
     return document.getElementById("app-root")?.classList.contains("home-view") ?? false;
   }
 
+  function isDiscussEffectivelyHidden() {
+    return panelHidden || isLandingView();
+  }
+
   function syncAlternateDiscussLayout() {
     const appRootNode = document.getElementById("app-root");
     if (!appRootNode) return;
-    const discussOpen = !panelHidden;
+    const discussOpen = !isDiscussEffectivelyHidden();
     appRootNode.classList.toggle("app-landing-discuss-open", isLandingView() && discussOpen);
     appRootNode.classList.toggle("app-home-discuss-open", isHomeView() && discussOpen);
   }
 
   function updatePanelUi() {
     if (!discussAsideNode) return;
-    discussAsideNode.classList.toggle("is-hidden", panelHidden);
-    discussPanelToggleBtnNode?.classList.toggle("is-active", !panelHidden);
-    discussPanelToggleBtnNode?.setAttribute("aria-expanded", panelHidden ? "false" : "true");
+    const effectivelyHidden = isDiscussEffectivelyHidden();
+    discussAsideNode.classList.toggle("is-hidden", effectivelyHidden);
+    discussPanelToggleBtnNode?.classList.toggle("is-active", !effectivelyHidden);
+    discussPanelToggleBtnNode?.setAttribute("aria-expanded", effectivelyHidden ? "false" : "true");
     syncAlternateDiscussLayout();
     applyPresenceToChatButton(lastPresence);
-    if (!panelHidden) {
+    if (!effectivelyHidden) {
       requestAnimationFrame(() => syncDiscussAsideHeight());
     } else {
       syncDiscussAsideHeight();
@@ -279,7 +284,7 @@
 
   function syncDiscussAsideHeight() {
     if (!discussAsideNode) return;
-    if (panelHidden || discussAsideHeightMq.matches) {
+    if (isDiscussEffectivelyHidden() || discussAsideHeightMq.matches) {
       discussAsideNode.classList.remove("is-viewport-sized");
       discussAsideNode.style.height = "";
       discussAsideNode.style.maxHeight = "";
@@ -411,7 +416,7 @@
     };
 
     const maybeOpenPanelForDrop = () => {
-      if (!panelHidden) return;
+      if (!panelHidden || isLandingView()) return;
       setPanelHidden(false);
     };
 
@@ -470,7 +475,7 @@
   }
 
   function syncFromApp() {
-    syncAlternateDiscussLayout();
+    updatePanelUi();
     const agentId = getActiveAgentIdFromUrl();
     ensureShellIframeLoaded(agentId);
     void refreshShellPresence();
@@ -483,7 +488,7 @@
 
   const appRootNode = document.getElementById("app-root");
   if (appRootNode && typeof MutationObserver !== "undefined") {
-    const landingClassObserver = new MutationObserver(() => syncAlternateDiscussLayout());
+    const landingClassObserver = new MutationObserver(() => updatePanelUi());
     landingClassObserver.observe(appRootNode, { attributes: true, attributeFilter: ["class"] });
   }
 
@@ -499,10 +504,10 @@
 
   window.AgentDiscussPanel = {
     sync: syncFromApp,
-    isHidden: () => panelHidden,
+    isHidden: () => isDiscussEffectivelyHidden(),
     setHidden: (next) => setPanelHidden(next),
     toggle: () => setPanelHidden(!panelHidden),
-    isCollapsed: () => panelHidden,
+    isCollapsed: () => isDiscussEffectivelyHidden(),
     setCollapsed: (next) => setPanelHidden(next),
     getPresence: refreshShellPresence,
     insertIntoCompose: insertIntoVoiceCompose

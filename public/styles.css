@@ -14877,7 +14877,8 @@ body.app-locked {
 
 .app.app-landing-view .header-tool-buttons > .header-focus-wrap,
 .app.app-landing-view .header-tool-buttons > .header-notifications-wrap,
-.app.app-landing-view .header-tool-buttons > .header-profile-wrap {
+.app.app-landing-view .header-tool-buttons > .header-profile-wrap,
+.app.app-landing-view .header-tool-buttons > #discuss-panel-toggle-btn {
   display: none;
 }
 
