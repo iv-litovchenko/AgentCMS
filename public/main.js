@@ -8214,20 +8214,12 @@ function openHeaderWelcomePopover() {
 
 let headerConnectOpen = false;
 
-function getHeaderConnectStorageLabel() {
-  const agents = getAgentsForLandingGrid();
-  const namedAgent = agents.find((agent) => String(agent?.name || "").trim());
-  if (namedAgent?.name) return String(namedAgent.name).trim();
-  const titleNode =
-    document.querySelector(".app-home-title-display") || document.getElementById("app-home-title");
-  const title = String(titleNode?.textContent || "").trim();
-  return title && title !== "Agent CMS" ? title : "Название";
-}
+const HEADER_CONNECT_PROMPT_TEXT =
+  "Выбери хранилище <Название хранилища> и загрузи контекст";
 
 function syncHeaderConnectPrompt() {
   if (!headerConnectPromptTextNode) return;
-  const storageLabel = getHeaderConnectStorageLabel();
-  headerConnectPromptTextNode.textContent = `Выбери хранилище ${storageLabel} и загрузи контекст`;
+  headerConnectPromptTextNode.textContent = HEADER_CONNECT_PROMPT_TEXT;
 }
 
 function syncHeaderConnectState() {
