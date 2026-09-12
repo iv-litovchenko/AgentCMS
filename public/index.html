@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.809" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.812" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -1023,6 +1023,16 @@
             </button>
             <div class="sidebar-tree-band-head-actions" aria-label="Действия дерева">
               <button
+                id="menu-pin-branch-btn"
+                class="menu-pin-branch-btn workspace-reveal-folder-btn sidebar-tree-band-action-btn"
+                type="button"
+                aria-label="Закрепить текущую ветку"
+                title="Закрепить ветку (остальные свернуть)"
+                aria-pressed="false"
+              >
+                📍
+              </button>
+              <button
                 id="menu-collapse-all-btn"
                 class="menu-collapse-all-btn workspace-reveal-folder-btn sidebar-tree-band-action-btn"
                 type="button"
@@ -1043,6 +1053,55 @@
                   </svg>
                 </span>
               </button>
+              <div id="menu-settings-wrap" class="menu-settings-wrap">
+                <button
+                  id="menu-settings-btn"
+                  class="menu-settings-btn workspace-reveal-folder-btn sidebar-tree-band-action-btn"
+                  type="button"
+                  aria-label="Настройки дерева"
+                  aria-expanded="false"
+                  aria-controls="menu-settings-popover"
+                  title="Настройки дерева"
+                >
+                  <svg class="menu-settings-icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path
+                      fill="currentColor"
+                      d="M6.6 1.6h2.8l.25 1.55a4.7 4.7 0 0 1 1.2.7l1.5-.55 1.4 2.4-1.25 1a4.8 4.8 0 0 1 0 1.4l1.25 1-1.4 2.4-1.5-.55a4.7 4.7 0 0 1-1.2.7L9.4 14.4H6.6l-.25-1.55a4.7 4.7 0 0 1-1.2-.7l-1.5.55-1.4-2.4 1.25-1a4.8 4.8 0 0 1 0-1.4l-1.25-1 1.4-2.4 1.5.55a4.7 4.7 0 0 1 1.2-.7L6.6 1.6zm1.4 4.15A2.25 2.25 0 1 0 8 10.25 2.25 2.25 0 0 0 8 5.75z"
+                    />
+                  </svg>
+                </button>
+                <div id="menu-settings-popover" class="menu-settings-popover hidden" role="dialog" aria-label="Настройки дерева">
+                  <p class="menu-settings-popover-title">Настройки дерева</p>
+                  <label class="menu-settings-option" for="menu-tree-show-empty-folders">
+                    <input id="menu-tree-show-empty-folders" type="checkbox" />
+                    <span>Показывать свободную память</span>
+                  </label>
+                  <label class="menu-settings-option" for="menu-tree-show-active-topics-only">
+                    <input id="menu-tree-show-active-topics-only" type="checkbox" />
+                    <span>Выводить только активные темы</span>
+                  </label>
+                  <label class="menu-settings-option" for="menu-tree-pad-sort-indexes">
+                    <input id="menu-tree-pad-sort-indexes" type="checkbox" />
+                    <span>Добавлять ведущие нули к названиям (при сортировке)</span>
+                  </label>
+                  <label class="menu-settings-option menu-settings-option--number" for="menu-tree-max-depth">
+                    <span>Макс. уровень загрузки</span>
+                    <input id="menu-tree-max-depth" type="number" min="1" max="20" step="1" inputmode="numeric" />
+                  </label>
+                  <div class="menu-settings-pin-block">
+                    <p class="menu-settings-pin-title">Закрепление ветки</p>
+                    <p id="menu-pinned-status" class="menu-settings-pin-status">Ветка не закреплена</p>
+                    <div class="menu-settings-pin-actions">
+                      <button id="menu-pin-current-btn" class="menu-settings-pin-action" type="button">
+                        Закрепить текущую
+                      </button>
+                      <button id="menu-unpin-branch-btn" class="menu-settings-pin-action" type="button" hidden>
+                        Открепить
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <button
                 id="menu-refresh-btn"
                 class="menu-refresh-btn workspace-reveal-folder-btn sidebar-tree-band-action-btn"
@@ -1091,65 +1150,6 @@
               <button id="menu-view-bookmarks-btn" class="menu-view-btn menu-tools-action-btn" type="button" data-menu-view="bookmarks" data-tooltip="Закладки" aria-label="Закладки">
                 <span class="menu-view-btn-icon" aria-hidden="true">⭐</span>
               </button>
-            </div>
-            <button
-              id="menu-pin-branch-btn"
-              class="menu-pin-branch-btn workspace-reveal-folder-btn menu-tools-action-btn"
-              type="button"
-              aria-label="Закрепить текущую ветку"
-              title="Закрепить ветку (остальные свернуть)"
-              aria-pressed="false"
-            >
-              📍
-            </button>
-            <div id="menu-settings-wrap" class="menu-settings-wrap">
-              <button
-                id="menu-settings-btn"
-                class="menu-settings-btn workspace-reveal-folder-btn menu-tools-action-btn"
-                type="button"
-                aria-label="Настройки дерева"
-                aria-expanded="false"
-                aria-controls="menu-settings-popover"
-                title="Настройки дерева"
-              >
-                <svg class="menu-settings-icon" viewBox="0 0 16 16" aria-hidden="true">
-                  <path
-                    fill="currentColor"
-                    d="M6.6 1.6h2.8l.25 1.55a4.7 4.7 0 0 1 1.2.7l1.5-.55 1.4 2.4-1.25 1a4.8 4.8 0 0 1 0 1.4l1.25 1-1.4 2.4-1.5-.55a4.7 4.7 0 0 1-1.2.7L9.4 14.4H6.6l-.25-1.55a4.7 4.7 0 0 1-1.2-.7l-1.5.55-1.4-2.4 1.25-1a4.8 4.8 0 0 1 0-1.4l-1.25-1 1.4-2.4 1.5.55a4.7 4.7 0 0 1 1.2-.7L6.6 1.6zm1.4 4.15A2.25 2.25 0 1 0 8 10.25 2.25 2.25 0 0 0 8 5.75z"
-                  />
-                </svg>
-              </button>
-              <div id="menu-settings-popover" class="menu-settings-popover hidden" role="dialog" aria-label="Настройки дерева">
-                <p class="menu-settings-popover-title">Настройки дерева</p>
-                <label class="menu-settings-option" for="menu-tree-show-empty-folders">
-                  <input id="menu-tree-show-empty-folders" type="checkbox" />
-                  <span>Показывать свободную память</span>
-                </label>
-                <label class="menu-settings-option" for="menu-tree-show-active-topics-only">
-                  <input id="menu-tree-show-active-topics-only" type="checkbox" />
-                  <span>Выводить только активные темы</span>
-                </label>
-                <label class="menu-settings-option" for="menu-tree-pad-sort-indexes">
-                  <input id="menu-tree-pad-sort-indexes" type="checkbox" />
-                  <span>Добавлять ведущие нули к названиям (при сортировке)</span>
-                </label>
-                <label class="menu-settings-option menu-settings-option--number" for="menu-tree-max-depth">
-                  <span>Макс. уровень загрузки</span>
-                  <input id="menu-tree-max-depth" type="number" min="1" max="20" step="1" inputmode="numeric" />
-                </label>
-                <div class="menu-settings-pin-block">
-                  <p class="menu-settings-pin-title">Закрепление ветки</p>
-                  <p id="menu-pinned-status" class="menu-settings-pin-status">Ветка не закреплена</p>
-                  <div class="menu-settings-pin-actions">
-                    <button id="menu-pin-current-btn" class="menu-settings-pin-action" type="button">
-                      Закрепить текущую
-                    </button>
-                    <button id="menu-unpin-branch-btn" class="menu-settings-pin-action" type="button" hidden>
-                      Открепить
-                    </button>
-                  </div>
-                </div>
-              </div>
             </div>
               </div>
             </div>
@@ -4694,7 +4694,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.773"></script>
+    <script src="/main.js?v=0.5.774"></script>
     <script src="/discuss-panel.js?v=0.5.257"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>

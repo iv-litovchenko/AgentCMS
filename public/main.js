@@ -18129,7 +18129,7 @@ function resetMenuSettingsPopoverPosition() {
 
 function positionMenuSettingsPopover() {
   const popover = menuSettingsPopoverNode;
-  const anchor = menuSettingsBtn?.closest(".menu-view-wrap");
+  const anchor = menuSettingsBtn?.closest("#menu-settings-wrap") || menuSettingsBtn;
   if (!popover || !anchor || popover.classList.contains("hidden")) return;
 
   const rect = anchor.getBoundingClientRect();
@@ -92023,6 +92023,12 @@ function setupMenuTreeBandGroup() {
   menuCollapseAllBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     toggleCollapseAllMenuTreeBranches();
+  });
+  menuPinBranchBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+  menuSettingsBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
   });
 }
 
