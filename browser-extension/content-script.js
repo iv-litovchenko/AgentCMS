@@ -395,9 +395,6 @@
   let decodeUrls = true;
   let clipboardHistoryEnabled = false;
   let copyDecodeAttached = false;
-  let clipboardFixAttached = false;
-  let clipboardFixBusy = false;
-  let windowHadBlur = false;
   let addressBarReplacing = false;
 
   function readDecodeUrlsSetting(stored = {}) {
@@ -459,22 +456,6 @@
     }
   }
 
-  function readClipboardSync() {
-    const node = document.createElement("textarea");
-    node.setAttribute("readonly", "");
-    node.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none";
-    document.body.appendChild(node);
-    node.focus();
-    let text = "";
-    try {
-      if (document.execCommand("paste")) text = node.value;
-    } catch {
-      // ignore
-    }
-    node.remove();
-    return String(text || "").trim();
-  }
-
   function writeClipboardSync(text) {
     const value = String(text || "");
     if (!value) return false;
@@ -501,77 +482,11 @@
         document.addEventListener("copy", onCopyDecodeUrl, true);
         copyDecodeAttached = true;
       }
-      if (!clipboardFixAttached) {
-        window.addEventListener("blur", onWindowBlurForClipboard, true);
-        document.addEventListener("pointerdown", onPointerDownFixClipboard, true);
-        clipboardFixAttached = true;
-      }
       return;
     }
     if (copyDecodeAttached) {
       document.removeEventListener("copy", onCopyDecodeUrl, true);
       copyDecodeAttached = false;
-    }
-    if (clipboardFixAttached) {
-      window.removeEventListener("blur", onWindowBlurForClipboard, true);
-      document.removeEventListener("pointerdown", onPointerDownFixClipboard, true);
-      clipboardFixAttached = false;
-    }
-  }
-
-  function onWindowBlurForClipboard() {
-    windowHadBlur = true;
-  }
-
-  function onPointerDownFixClipboard(event) {
-    if (!decodeUrls) return;
-    if (event.target instanceof Element && event.target.closest("#agent-shell-companion-toolbar")) return;
-    fixClipboardOnUserGesture();
-  }
-
-  function fixClipboardOnUserGesture() {
-    if (!decodeUrls || clipboardFixBusy) return;
-
-    const decodedPageUrl = decodeUrlText(location.href);
-    const pageHasEncoding = /%[0-9A-Fa-f]{2}/.test(location.href);
-    if (!pageHasEncoding && decodedPageUrl === location.href) {
-      windowHadBlur = false;
-      return;
-    }
-
-    clipboardFixBusy = true;
-    try {
-      const clip = readClipboardSync();
-      const clipLooksLikePage =
-        clip && isCurrentPageUrl(clip) && /^https?:\/\//i.test(clip) && /%[0-9A-Fa-f]{2}/.test(clip);
-      const afterAddressBar = windowHadBlur && pageHasEncoding;
-
-      if (!clipLooksLikePage && !afterAddressBar) {
-        windowHadBlur = false;
-        return;
-      }
-
-      const source = clipLooksLikePage ? clip : location.href;
-      const decoded = decodeUrlText(source);
-      if (!decoded || decoded === source) {
-        windowHadBlur = false;
-        return;
-      }
-
-      if (writeClipboardSync(decoded)) {
-        if (afterAddressBar) setStatus("Ссылка в буфере исправлена", "ok");
-        windowHadBlur = false;
-        return;
-      }
-
-      if (navigator.clipboard?.writeText) {
-        void navigator.clipboard.writeText(decoded).then(() => {
-          if (afterAddressBar) setStatus("Ссылка в буфере исправлена", "ok");
-        });
-      }
-      windowHadBlur = false;
-    } finally {
-      clipboardFixBusy = false;
     }
   }
 
@@ -788,8 +703,11 @@
 
     let finalText = text;
     if (decodeUrls && text) {
-      const looksLikeUrl = /^https?:\/\//i.test(text) || text.startsWith(location.origin);
-      if (looksLikeUrl || /%[0-9A-Fa-f]{2}/.test(text)) {
+      const looksLikeUrl =
+        /^https?:\/\//i.test(text) ||
+        text.startsWith(location.origin) ||
+        isCurrentPageUrl(text);
+      if (looksLikeUrl && /%[0-9A-Fa-f]{2}/.test(text)) {
         const decoded = decodeUrlText(text);
         if (decoded && decoded !== text) {
           event.preventDefault();

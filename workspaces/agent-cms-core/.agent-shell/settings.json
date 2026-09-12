@@ -22,14 +22,14 @@
   "voice": {
     "input": {
       "mode": "meeting",
-      "source": "auto",
+      "capture": "microphone",
       "globalListen": false,
       "toCompose": false,
       "responseEnabled": true
     },
     "stt": {
       "lang": "en-US",
-      "engine": "auto",
+      "engine": "browser",
       "whisper": {
         "model": "base"
       },
@@ -48,13 +48,11 @@
         "browser": {
           "lang": "ru-RU"
         },
-        "say": {
-          "lang": "ru-RU"
-        },
         "edge": {
           "voice": "ru-RU-SvetlanaNeural"
         },
         "elevenlabs": {
+          "voiceId": "EXAVITQu4vr4xnSDxMaL",
           "model": "eleven_multilingual_v2"
         }
       }
@@ -89,6 +87,7 @@
     "background": "wallpaper",
     "petOverlay": false,
     "compactDialogQa": true,
+    "dialogAutoScroll": true,
     "characterModel": "robot",
     "keepAwake": true,
     "processingSound": "off"
