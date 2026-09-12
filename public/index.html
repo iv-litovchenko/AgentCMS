@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.801" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.807" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -1002,8 +1002,64 @@
           </div>
         </section>
 
-        <section class="sidebar-slab sidebar-slab-menu-tools" aria-label="Инструменты дерева">
-          <div class="menu-view-wrap menu-tools-row">
+        <section
+          id="menu-tree-band"
+          class="sidebar-slab sidebar-slab-menu-tree-band"
+          aria-label="Дерево и поиск"
+        >
+          <div class="sidebar-tree-band-head">
+            <button
+              id="menu-tree-band-toggle"
+              type="button"
+              class="sidebar-tree-band-toggle sidebar-accent-band-toggle sidebar-accent-band-toggle--tree"
+              aria-expanded="true"
+              aria-controls="menu-tree-band-body"
+              title="Дерево и поиск — свернуть или показать"
+            >
+              <span class="sidebar-accent-band-toggle-main">
+                <span class="sidebar-accent-band-chevron" aria-hidden="true"></span>
+                <span class="sidebar-accent-band-title">Дерево и поиск</span>
+              </span>
+            </button>
+            <div class="sidebar-tree-band-head-actions" aria-label="Действия дерева">
+              <button
+                id="menu-collapse-all-btn"
+                class="menu-collapse-all-btn workspace-reveal-folder-btn sidebar-tree-band-action-btn"
+                type="button"
+                aria-label="Свернуть все ветки"
+                title="Свернуть все ветки"
+              >
+                <span class="menu-collapse-all-icon" aria-hidden="true">
+                  <svg class="menu-collapse-all-icon--collapse" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <rect x="2.5" y="7" width="11" height="2" rx="0.5" />
+                    <path d="M5.5 4.75 8 6.75 10.5 4.75Z" />
+                    <path d="M5.5 11.25 8 9.25 10.5 11.25Z" />
+                  </svg>
+                  <svg class="menu-collapse-all-icon--expand" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <rect x="2.5" y="2" width="11" height="2" rx="0.5" />
+                    <rect x="2.5" y="12" width="11" height="2" rx="0.5" />
+                    <path d="M5.5 7.25 8 5.25 10.5 7.25Z" />
+                    <path d="M5.5 8.75 8 10.75 10.5 8.75Z" />
+                  </svg>
+                </span>
+              </button>
+              <button
+                id="menu-refresh-btn"
+                class="menu-refresh-btn workspace-reveal-folder-btn sidebar-tree-band-action-btn"
+                type="button"
+                aria-label="Обновить дерево"
+                title="Обновить дерево"
+              >
+                <svg class="menu-refresh-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M1 4v6h6" />
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="menu-tree-band-body" class="sidebar-tree-band-body">
+            <div class="sidebar-slab-menu-tools sidebar-tree-band-tools">
+              <div class="menu-view-wrap menu-tools-row">
             <div class="menu-view-toggle menu-tools-view-cluster" role="tablist" aria-label="Режим отображения меню">
               <button id="menu-view-tree-btn" class="menu-view-btn menu-tools-action-btn active" type="button" data-menu-view="tree" data-tooltip="Древовидная" aria-label="Древовидная">
                 <span class="menu-view-btn-icon" aria-hidden="true">🌳</span>
@@ -1021,27 +1077,6 @@
                 <span class="menu-view-btn-icon" aria-hidden="true">⭐</span>
               </button>
             </div>
-            <button
-              id="menu-collapse-all-btn"
-              class="menu-collapse-all-btn workspace-reveal-folder-btn menu-tools-action-btn"
-              type="button"
-              aria-label="Свернуть все ветки"
-              title="Свернуть все ветки"
-            >
-              <span class="menu-collapse-all-icon" aria-hidden="true">
-                <svg class="menu-collapse-all-icon--collapse" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                  <rect x="2.5" y="7" width="11" height="2" rx="0.5" />
-                  <path d="M5.5 4.75 8 6.75 10.5 4.75Z" />
-                  <path d="M5.5 11.25 8 9.25 10.5 11.25Z" />
-                </svg>
-                <svg class="menu-collapse-all-icon--expand" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                  <rect x="2.5" y="2" width="11" height="2" rx="0.5" />
-                  <rect x="2.5" y="12" width="11" height="2" rx="0.5" />
-                  <path d="M5.5 7.25 8 5.25 10.5 7.25Z" />
-                  <path d="M5.5 8.75 8 10.75 10.5 8.75Z" />
-                </svg>
-              </span>
-            </button>
             <button
               id="menu-pin-branch-btn"
               class="menu-pin-branch-btn workspace-reveal-folder-btn menu-tools-action-btn"
@@ -1101,53 +1136,46 @@
                 </div>
               </div>
             </div>
+              </div>
+            </div>
+            <div class="sidebar-menu-before-tree">
+              <div id="menu-pinned-banner" class="menu-pinned-banner hidden" role="status" aria-live="polite">
+                <span class="menu-pinned-banner-label">Закреплено:</span>
+                <span id="menu-pinned-banner-path" class="menu-pinned-banner-path"></span>
+                <button id="menu-pinned-banner-unpin" class="menu-pinned-banner-unpin" type="button" title="Открепить ветку">
+                  ×
+                </button>
+              </div>
+              <div class="menu-search-wrap">
+                <label class="menu-search-bar" for="menu-search-input">
+                  <span class="menu-search-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="11" cy="11" r="7"></circle>
+                      <path d="M20 20l-3.5-3.5"></path>
+                    </svg>
+                  </span>
+                  <input
+                    id="menu-search-input"
+                    class="menu-search-input"
+                    type="search"
+                    placeholder="Поиск тем по дереву..."
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-label="Поиск тем по дереву"
+                />
+              </label>
+            </div>
+              <div id="menu-cards-filter-wrap" class="menu-cards-filter-wrap hidden">
+                <label class="menu-cards-filter" for="menu-cards-preview-only">
+                  <input id="menu-cards-preview-only" type="checkbox" />
+                  <span>Только с превью</span>
+                </label>
+              </div>
+            </div>
           </div>
         </section>
 
         <section class="sidebar-slab sidebar-slab-menu" aria-label="Дерево нод">
-          <div class="sidebar-menu-before-tree">
-            <div id="menu-pinned-banner" class="menu-pinned-banner hidden" role="status" aria-live="polite">
-              <span class="menu-pinned-banner-label">Закреплено:</span>
-              <span id="menu-pinned-banner-path" class="menu-pinned-banner-path"></span>
-              <button id="menu-pinned-banner-unpin" class="menu-pinned-banner-unpin" type="button" title="Открепить ветку">
-                ×
-              </button>
-            </div>
-            <div class="menu-search-wrap">
-              <label class="menu-search-bar" for="menu-search-input">
-                <span class="menu-search-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="7"></circle>
-                    <path d="M20 20l-3.5-3.5"></path>
-                  </svg>
-                </span>
-                <input
-                  id="menu-search-input"
-                  class="menu-search-input"
-                  type="search"
-                  placeholder="Поиск тем по дереву..."
-                  autocomplete="off"
-                  spellcheck="false"
-                  aria-label="Поиск тем по дереву"
-                />
-              </label>
-              <button
-                id="menu-refresh-btn"
-                class="menu-refresh-btn workspace-reveal-folder-btn menu-search-refresh-btn"
-                type="button"
-                aria-label="Обновить дерево"
-                title="Обновить дерево"
-              >
-                🔄
-              </button>
-            </div>
-            <div id="menu-cards-filter-wrap" class="menu-cards-filter-wrap hidden">
-              <label class="menu-cards-filter" for="menu-cards-preview-only">
-                <input id="menu-cards-preview-only" type="checkbox" />
-                <span>Только с превью</span>
-              </label>
-            </div>
-          </div>
           <div class="menu-scroll-shell">
             <nav id="menu" class="menu">
               <div id="menu-loading" class="menu-loading hidden" aria-live="polite" aria-busy="false">
@@ -4650,7 +4678,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.771"></script>
+    <script src="/main.js?v=0.5.772"></script>
     <script src="/discuss-panel.js?v=0.5.257"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>

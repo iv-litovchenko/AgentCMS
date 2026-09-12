@@ -31,6 +31,9 @@ const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
 const menuStaticFooterNode = document.getElementById("menu-static-footer");
 const menuStaticFooterToggleBtn = document.getElementById("menu-static-footer-toggle");
 const menuStaticFooterBodyNode = document.getElementById("menu-static-footer-body");
+const menuTreeBandNode = document.getElementById("menu-tree-band");
+const menuTreeBandToggleBtn = document.getElementById("menu-tree-band-toggle");
+const menuTreeBandBodyNode = document.getElementById("menu-tree-band-body");
 const menuGoogleDriveStatsNode = document.getElementById("menu-google-drive-stats");
 const menuGoogleDriveFilesNode = document.getElementById("menu-google-drive-files");
 const menuAwnDialogsStatsNode = document.getElementById("menu-awn-dialogs-stats");
@@ -114,6 +117,7 @@ let awnDataViewRecordFieldsNode = null;
 let awnDataViewRecordBodyNode = null;
 let awnDataViewLayoutToggleNode = null;
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
+const MENU_TREE_BAND_OPEN_KEY = "yamlcms.menuTreeBandOpen.v1";
 const appSplashNode = document.getElementById("app-splash");
 const APP_SPLASH_MIN_MS = 900;
 const APP_SPLASH_HIDE_MS = 460;
@@ -91972,6 +91976,48 @@ function setupMenuStaticFooterExclusiveAccordions() {
   }
 }
 
+function isMenuTreeBandExpanded() {
+  try {
+    const saved = localStorage.getItem(MENU_TREE_BAND_OPEN_KEY);
+    if (saved === "0") return false;
+    if (saved === "1") return true;
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+function syncMenuTreeBandAccordionUi() {
+  if (!menuTreeBandNode) return;
+  const expanded = isMenuTreeBandExpanded();
+  menuTreeBandNode.classList.toggle("is-collapsed", !expanded);
+  menuTreeBandToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
+  if (menuTreeBandBodyNode) {
+    menuTreeBandBodyNode.hidden = !expanded;
+    menuTreeBandBodyNode.classList.toggle("is-collapsed", !expanded);
+  }
+}
+
+function setMenuTreeBandExpanded(expanded) {
+  try {
+    localStorage.setItem(MENU_TREE_BAND_OPEN_KEY, expanded ? "1" : "0");
+  } catch {
+    // ignore storage errors
+  }
+  syncMenuTreeBandAccordionUi();
+}
+
+function toggleMenuTreeBandExpanded() {
+  setMenuTreeBandExpanded(!isMenuTreeBandExpanded());
+}
+
+function setupMenuTreeBandGroup() {
+  syncMenuTreeBandAccordionUi();
+  menuTreeBandToggleBtn?.addEventListener("click", () => {
+    toggleMenuTreeBandExpanded();
+  });
+}
+
 function setupMenuStaticFooterGroup() {
   syncMenuStaticFooterAccordionUi();
   setupMenuStaticFooterExclusiveAccordions();
@@ -97377,6 +97423,7 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 
 setupMenuSortDragDrop();
 setupAppFooterToggle();
+setupMenuTreeBandGroup();
 setupMenuStaticFooterGroup();
 setupMenuGoogleDriveRepairButton();
 setupAppFooterIdeasPopover();
