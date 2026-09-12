@@ -1304,6 +1304,8 @@ const SCHEMA_MOD_FILE = "schema-mod.yml";
 const BUNDLE_TODO_FILE = "todo.md";
 const BUNDLE_LOG_FILE = "log.md";
 const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
+const PREVIEW_LOAD_TIMEOUT_EXTERNAL_MS = 3500;
+const PREVIEW_LOAD_TIMEOUT_DEFAULT_MS = 5000;
 const ROOT_SYSTEM_TODO_FILE = "TODO.md";
 const ROOT_SYSTEM_NOTE_FILE = "NOTE.md";
 const MENU_TREE_VISIBLE_SYSTEM_MD = new Set([
@@ -6681,6 +6683,74 @@ function createPreviewFallbackNode({ emoji = "", fallbackText = "?", emojiClass,
   return node;
 }
 
+function resolvePreviewLoadTimeoutMs(imageUrl) {
+  const url = String(imageUrl || "").trim();
+  if (!url) return PREVIEW_LOAD_TIMEOUT_DEFAULT_MS;
+  if (/^https?:\/\//i.test(url)) {
+    try {
+      const parsed = new URL(url, window.location.origin);
+      if (parsed.origin !== window.location.origin) {
+        return PREVIEW_LOAD_TIMEOUT_EXTERNAL_MS;
+      }
+    } catch {
+      return PREVIEW_LOAD_TIMEOUT_EXTERNAL_MS;
+    }
+  }
+  return PREVIEW_LOAD_TIMEOUT_DEFAULT_MS;
+}
+
+function bindPreviewImageLifecycle(
+  img,
+  {
+    loadingClassTarget = null,
+    timeoutMs = PREVIEW_LOAD_TIMEOUT_DEFAULT_MS,
+    onSuccess = () => {},
+    onFail = () => {}
+  } = {}
+) {
+  let settled = false;
+  let timeoutId = 0;
+
+  const clearLoading = () => {
+    loadingClassTarget?.classList?.remove("is-preview-loading");
+  };
+
+  const settle = (outcome) => {
+    if (settled) return;
+    settled = true;
+    if (timeoutId) window.clearTimeout(timeoutId);
+    clearLoading();
+    if (outcome === "success") onSuccess(img);
+    else onFail(img);
+  };
+
+  if (loadingClassTarget && timeoutMs > 0) {
+    loadingClassTarget.classList.add("is-preview-loading");
+  }
+
+  img.addEventListener(
+    "load",
+    () => {
+      if (img.naturalWidth > 0) settle("success");
+      else settle("fail");
+    },
+    { once: true }
+  );
+  img.addEventListener("error", () => settle("fail"), { once: true });
+
+  if (timeoutMs > 0) {
+    timeoutId = window.setTimeout(() => settle("fail"), timeoutMs);
+  }
+
+  return {
+    checkAlreadyLoaded() {
+      if (!img.complete) return;
+      if (img.naturalWidth > 0) settle("success");
+      else settle("fail");
+    }
+  };
+}
+
 function mountPreviewOrFallback(container, {
   previewUrl = "",
   emoji = "",
@@ -6724,23 +6794,15 @@ function mountPreviewOrFallback(container, {
     const img = document.createElement("img");
     img.alt = "";
     img.draggable = false;
-    const clearPreviewLoading = () => {
-      container.classList.remove("is-preview-loading");
-    };
-    const handlePreviewError = () => {
-      clearPreviewLoading();
-      mountFallback();
-    };
-    container.classList.add("is-preview-loading");
-    img.addEventListener("load", clearPreviewLoading, { once: true });
-    img.addEventListener("error", handlePreviewError, { once: true });
     container.replaceChildren();
     container.appendChild(img);
+    const lifecycle = bindPreviewImageLifecycle(img, {
+      loadingClassTarget: container,
+      timeoutMs: resolvePreviewLoadTimeoutMs(previewUrl),
+      onFail: () => mountFallback()
+    });
     img.src = previewUrl;
-    if (img.complete) {
-      if (img.naturalWidth > 0) clearPreviewLoading();
-      else handlePreviewError();
-    }
+    lifecycle.checkAlreadyLoaded();
     return;
   }
 
@@ -22176,16 +22238,35 @@ function createMenuTreeTypeIcon(host) {
 }
 
 function createMenuTreePreviewNode(source) {
-  if (!source?.hasPreview || !source?.previewUrl) return null;
+  if (!source?.hasPreview) return null;
+
   const wrap = document.createElement("span");
   wrap.className = "menu-tree-preview";
-  const appended = appendNavigationItemPreviewThumb(
-    wrap,
-    source,
-    { imageUrl: source.previewUrl },
-    { className: "menu-tree-preview-img", cacheBust: false, loading: "eager" }
+
+  const previewUrl = String(source.previewUrl || "").trim();
+  const nodePath = String(source.path || source.relativePath || "").trim();
+  if (previewUrl && !isBrokenImageSrc(previewUrl, nodePath)) {
+    const appended = appendNavigationItemPreviewThumb(
+      wrap,
+      source,
+      { imageUrl: previewUrl },
+      {
+        className: "menu-tree-preview-img",
+        cacheBust: false,
+        loading: "lazy",
+        timeoutMs: resolvePreviewLoadTimeoutMs(previewUrl)
+      }
+    );
+    if (appended) return wrap;
+  }
+
+  wrap.appendChild(
+    createBrokenImagePlaceholder({
+      className: "menu-tree-preview-img",
+      label: "Превью не найдено"
+    })
   );
-  return appended ? wrap : null;
+  return wrap;
 }
 
 function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-folder-name", options = {}) {
@@ -32577,13 +32658,22 @@ function appendExternalItemPreviewThumb(parent, item, { className = "" } = {}) {
   img.alt = "";
   img.loading = "lazy";
   img.draggable = false;
-  img.src = imageUrl;
-  img.onerror = () => {
+
+  const handlePreviewFail = () => {
     parent.replaceChildren(
       createBrokenImagePlaceholder({ label: "Превью не найдено", className })
     );
   };
+
+  const lifecycle = bindPreviewImageLifecycle(img, {
+    loadingClassTarget: parent,
+    timeoutMs: resolvePreviewLoadTimeoutMs(imageUrl),
+    onFail: handlePreviewFail
+  });
+
   parent.appendChild(img);
+  img.src = imageUrl;
+  lifecycle.checkAlreadyLoaded();
   return true;
 }
 
@@ -49587,25 +49677,37 @@ async function setPropsPreviewValue(
 
 function populatePreviewThumbWrap(thumbWrap, preview, title, nodePath = activePath) {
   const imageUrl = resolvePreviewThumbImageSrc(preview, nodePath);
+  const populationId = `${Date.now()}-${Math.random()}`;
+  thumbWrap.dataset.previewPopulationId = populationId;
   thumbWrap.replaceChildren();
+  thumbWrap.classList.remove("is-preview-loading");
   thumbWrap.dataset.overviewTitle = title;
   thumbWrap.dataset.hasPreview = imageUrl ? "1" : "0";
+
+  const handlePreviewFail = () => {
+    if (thumbWrap.dataset.previewPopulationId !== populationId) return;
+    populatePreviewThumbWrap(
+      thumbWrap,
+      { broken: true, previewPath: preview?.previewPath || "" },
+      title,
+      nodePath
+    );
+  };
 
   if (imageUrl) {
     const img = document.createElement("img");
     img.className = "node-overview-thumb";
     img.alt = title ? `Превью: ${title}` : "Превью";
-    img.src = imageUrl;
     img.draggable = false;
-    img.onerror = () => {
-      populatePreviewThumbWrap(
-        thumbWrap,
-        { broken: true, previewPath: preview?.previewPath || "" },
-        title,
-        nodePath
-      );
-    };
+    img.loading = "lazy";
     thumbWrap.appendChild(img);
+    const lifecycle = bindPreviewImageLifecycle(img, {
+      loadingClassTarget: thumbWrap,
+      timeoutMs: resolvePreviewLoadTimeoutMs(imageUrl),
+      onFail: handlePreviewFail
+    });
+    img.src = imageUrl;
+    lifecycle.checkAlreadyLoaded();
   } else if (preview?.broken) {
     const emoji = getPropsFormAwnEmoji(nodePath);
     if (emoji) {
@@ -59234,7 +59336,13 @@ function appendNavigationItemPreviewThumb(
   parent,
   item,
   preview,
-  { className = "", cacheBust = true, loading = "lazy", clearOnError = false } = {}
+  {
+    className = "",
+    cacheBust = true,
+    loading = "lazy",
+    clearOnError = false,
+    timeoutMs = null
+  } = {}
 ) {
   if (!preview || preview.broken) return false;
 
@@ -59252,20 +59360,25 @@ function appendNavigationItemPreviewThumb(
   img.alt = "";
   img.loading = loading;
   img.decoding = "async";
-  img.src = imageUrl;
-  img.addEventListener(
-    "error",
-    () => {
-      if (clearOnError) {
-        img.remove();
-        if (!parent.childElementCount) parent.remove();
-        return;
-      }
-      applyBrokenImagePlaceholder(img, "Превью не найдено");
-    },
-    { once: true }
-  );
+
+  const handlePreviewFail = () => {
+    if (clearOnError) {
+      img.remove();
+      if (!parent.childElementCount) parent.remove();
+      return;
+    }
+    applyBrokenImagePlaceholder(img, "Превью не найдено");
+  };
+
+  const lifecycle = bindPreviewImageLifecycle(img, {
+    loadingClassTarget: parent,
+    timeoutMs: timeoutMs ?? resolvePreviewLoadTimeoutMs(imageUrl),
+    onFail: handlePreviewFail
+  });
+
   parent.appendChild(img);
+  img.src = imageUrl;
+  lifecycle.checkAlreadyLoaded();
   return true;
 }
 
@@ -65380,8 +65493,18 @@ function renderEntryOverviewTopicPreviewMediaSection(context, preview) {
   img.alt = "Превью темы";
   img.loading = "lazy";
   img.draggable = false;
-  img.src = preview.imageUrl;
   imgWrap.appendChild(img);
+  const lifecycle = bindPreviewImageLifecycle(img, {
+    loadingClassTarget: imgWrap,
+    timeoutMs: resolvePreviewLoadTimeoutMs(preview.imageUrl),
+    onFail: () => {
+      img.replaceWith(
+        createBrokenImagePlaceholder({ label: "Превью не найдено" })
+      );
+    }
+  });
+  img.src = preview.imageUrl;
+  lifecycle.checkAlreadyLoaded();
   open.appendChild(imgWrap);
   appendFolderBrowseImageFooter(open, { name: "Превью темы" });
   card.appendChild(open);
