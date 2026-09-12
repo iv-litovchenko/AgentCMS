@@ -229,6 +229,7 @@ const appLandingGroupBgRemoveBtn = document.getElementById("app-landing-group-bg
 const appLandingGroupBgCloseBtn = document.getElementById("app-landing-group-bg-close-btn");
 const appLandingOrbitNode = document.getElementById("app-landing-orbit");
 const appLandingOrbitBubblesNode = document.getElementById("app-landing-orbit-bubbles");
+const appLandingOrbitAgentsNode = document.getElementById("app-landing-orbit-agents");
 const appLandingOrbitAttentionNode = document.getElementById("app-landing-orbit-attention");
 const appLandingOrbitLinksNode = document.getElementById("app-landing-orbit-links");
 const appLandingOrbitFocusLinksNode = document.getElementById("app-landing-orbit-focus-links");
@@ -7855,7 +7856,7 @@ function createLandingFocusTile(focusItem) {
 
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "app-landing-focus-tile app-landing-focus-tile--strip";
+  btn.className = "app-landing-focus-tile";
   btn.setAttribute("role", "listitem");
   if (nodePath) btn.dataset.focusPath = nodePath;
   if (isFocusItemActive(focusItem)) btn.classList.add("is-active");
@@ -7908,40 +7909,97 @@ function createLandingFocusTile(focusItem) {
   return btn;
 }
 
-function syncLandingFocusStripVisibility() {
+function syncLandingMainTopicsVisibility(hasItems = globalFocusItemsCache.length > 0) {
   if (!appLandingFocusNode) return;
-  const view = getLandingAgentsView();
-  const showStrip = view === "orbit" || view === "hub" || view === "grid" || view === "flow";
-  appLandingFocusNode.classList.toggle("hidden", !showStrip);
-  appLandingFocusNode.setAttribute("aria-hidden", showStrip ? "false" : "true");
+  const show = getLandingAgentsView() === "orbit" && hasItems;
+  const wasShown = !appLandingFocusNode.classList.contains("hidden");
+  appLandingFocusNode.classList.toggle("hidden", !show);
+  appLandingFocusNode.setAttribute("aria-hidden", show ? "false" : "true");
+  appLandingOrbitBubblesNode?.classList.toggle("has-main-dock", show);
+  if (show !== wasShown && getLandingAgentsView() === "orbit") {
+    renderAppLandingOrbit();
+  }
 }
 
-function renderLandingFocusStrip(items) {
-  syncLandingFocusStripVisibility();
+function createLandingMainTopicChip(focusItem) {
+  const agent =
+    agentsCache.find((entry) => entry.id === focusItem.agentId) || {
+      id: focusItem.agentId,
+      name: focusItem.agentName,
+      path: focusItem.agentPath
+    };
+  const registryActive = focusItem.agentActive !== false && isAgentRegistryActive(agent);
+  const label = focusItem.name || focusItem.agentName || focusItem.agentId;
+  const agentLabel = agent.name || focusItem.agentName || focusItem.agentId;
+  const nodePath = String(focusItem.nodePath || "").trim();
+  const awnProps = focusItem.awnProps && typeof focusItem.awnProps === "object" ? focusItem.awnProps : {};
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "app-landing-main-topic-card";
+  btn.setAttribute("role", "listitem");
+  if (nodePath) btn.dataset.focusPath = nodePath;
+  if (isFocusItemActive(focusItem)) btn.classList.add("is-active");
+  if (!registryActive) btn.classList.add("is-registry-off");
+  btn.title = registryActive ? `${label} · ${agentLabel}` : `${label} — агент неактивен`;
+  btn.setAttribute("aria-label", btn.title);
+
+  const media = document.createElement("span");
+  media.className = "app-landing-main-topic-card-media";
+  const nodeEmoji = resolveAwnEmoji(awnProps);
+  const agentEmoji = resolveAwnEmoji(agent.awnProps);
+  const previewUrl = resolveFocusPreviewUrl(focusItem.nodePreviewUrl, focusItem.agentId);
+  mountPreviewOrFallback(media, {
+    previewUrl,
+    emoji: nodeEmoji || agentEmoji,
+    fallbackText: getAgentPickerInitials({ name: label, id: focusItem.agentId }),
+    emojiClass: "app-landing-main-topic-card-emoji",
+    initialsClass: "app-landing-main-topic-card-fallback",
+    nodePath,
+    iconClass: "node-cover-icon--in-focus-card"
+  });
+
+  const copy = document.createElement("span");
+  copy.className = "app-landing-main-topic-card-copy";
+
+  const titleNode = document.createElement("span");
+  titleNode.className = "app-landing-main-topic-card-title";
+  titleNode.textContent = label;
+
+  const metaNode = document.createElement("span");
+  metaNode.className = "app-landing-main-topic-card-agent";
+  metaNode.textContent = agentLabel;
+
+  copy.append(titleNode, metaNode);
+  btn.append(media, copy);
+  btn.addEventListener("click", () => {
+    void openFocusItem(focusItem);
+  });
+  return btn;
+}
+
+function renderLandingMainTopics(items) {
   if (!appLandingFocusListNode) return;
 
+  const visibleItems = Array.isArray(items) ? items : [];
+  syncLandingMainTopicsVisibility(visibleItems.length > 0);
   appLandingFocusListNode.replaceChildren();
 
-  if (!globalFocusItemsCache.length) {
-    setLandingFocusFiltersOpen(false);
-    const empty = document.createElement("p");
-    empty.className = "app-landing-focus-strip-empty";
-    empty.textContent =
-      "Пока нет тем на главной — отметьте в свойствах: ⭐ На главной (awn-main).";
-    appLandingFocusListNode.appendChild(empty);
+  if (!visibleItems.length) {
+    if (appLandingFocusCountNode) {
+      appLandingFocusCountNode.textContent = "";
+      appLandingFocusCountNode.classList.add("hidden");
+    }
     return;
   }
 
-  if (!items.length) {
-    const empty = document.createElement("p");
-    empty.className = "app-landing-focus-strip-empty";
-    empty.textContent = "Нет записей по выбранным фильтрам";
-    appLandingFocusListNode.appendChild(empty);
-    return;
+  if (appLandingFocusCountNode) {
+    appLandingFocusCountNode.textContent = String(visibleItems.length);
+    appLandingFocusCountNode.classList.remove("hidden");
   }
 
-  for (const focusItem of items) {
-    appLandingFocusListNode.appendChild(createLandingFocusTile(focusItem));
+  for (const focusItem of visibleItems) {
+    appLandingFocusListNode.appendChild(createLandingMainTopicChip(focusItem));
   }
   syncFocusPanelActiveState();
 }
@@ -7952,20 +8010,14 @@ function renderGlobalFocusPanel() {
   const hubOrbitTopics = getLandingHubOrbitTopicItems();
   if (getLandingAgentsView() === "hub") {
     renderAppLandingHub(hubOrbitTopics);
-    return;
-  }
-  if (getLandingAgentsView() === "orbit") {
+  } else if (getLandingAgentsView() === "orbit") {
     setLandingOrbitFocusCache(hubOrbitTopics);
-    return;
-  }
-  if (getLandingAgentsView() === "grid") {
+  } else if (getLandingAgentsView() === "grid") {
     renderAppLandingList(processed);
-    return;
-  }
-  if (getLandingAgentsView() === "flow") {
+  } else if (getLandingAgentsView() === "flow") {
     renderAppLandingFlow(globalFlowItemsCache);
   }
-  renderLandingFocusStrip(processed);
+  renderLandingMainTopics(processed);
 }
 
 function renderSidebarFocusPanel(panelNode, listNode, items) {
@@ -9986,9 +10038,11 @@ function getOrbitBubbleLayout(index, total, agentId) {
   const angle = t * golden + (hash % 360) * (Math.PI / 180) * 0.08;
   const x = 50 + Math.cos(angle) * radius * (0.92 + (hash % 7) * 0.015);
   const y = 48 + Math.sin(angle) * radius * 0.72;
+  const hasMainDock = globalFocusItemsCache.length > 0 && getLandingAgentsView() === "orbit";
+  const yMax = hasMainDock ? 78 : 88;
   return {
     x: Math.min(90, Math.max(8, x)),
-    y: Math.min(88, Math.max(10, y)),
+    y: Math.min(yMax, Math.max(10, y)),
     size: 58 + (hash % 28),
     duration: 7 + (hash % 6),
     delay: ((hash % 50) / 10).toFixed(1),
@@ -10021,7 +10075,7 @@ function syncLandingAgentsViewUi() {
   appLandingFlowNode?.setAttribute("aria-hidden", isFlow ? "false" : "true");
 
   appLandingAgentsNode?.classList.toggle("hidden", !isGrid);
-  syncLandingFocusStripVisibility();
+  syncLandingMainTopicsVisibility(globalFocusItemsCache.length > 0);
   appLandingAttentionNode?.classList.toggle("hidden", !(isHub || isOrbit || isFlow));
 
   appLandingGroupsNode?.classList.toggle("hidden", !isSettings);
@@ -10067,6 +10121,7 @@ function syncLandingAgentsViewUi() {
   }
 
   syncLandingBgUi();
+  renderLandingMainTopics(getProcessedLandingFocusItems());
 }
 
 const HUB_FOCUS_TWIG_LIMIT = 8;
@@ -10788,8 +10843,9 @@ function renderAppLandingOrbitLinks(agents) {
 }
 
 function renderAppLandingOrbit() {
-  if (!appLandingOrbitBubblesNode) return;
-  appLandingOrbitBubblesNode.replaceChildren();
+  const orbitAgentsNode = appLandingOrbitAgentsNode || appLandingOrbitBubblesNode;
+  if (!orbitAgentsNode) return;
+  orbitAgentsNode.replaceChildren();
   clearOrbitAttentionHighlight();
 
   const agents = getAgentsForLandingGrid();
@@ -10797,7 +10853,7 @@ function renderAppLandingOrbit() {
     const empty = document.createElement("p");
     empty.className = "app-landing-orbit-empty";
     empty.textContent = "Нет агентов. Нажмите «+» или откройте реестр.";
-    appLandingOrbitBubblesNode.appendChild(empty);
+    orbitAgentsNode.appendChild(empty);
     renderAppLandingAttention([]);
     return;
   }
@@ -10806,7 +10862,7 @@ function renderAppLandingOrbit() {
   const shareByAgentId = new Map(shares.map((share) => [share.agent.id, share]));
 
   agents.forEach((agent, index) => {
-    appLandingOrbitBubblesNode.appendChild(
+    orbitAgentsNode.appendChild(
       createAppLandingOrbitBubble(agent, index, agents.length, shareByAgentId.get(agent.id))
     );
   });
@@ -11605,7 +11661,7 @@ function scheduleOrbitDiveLinksDraw() {
 }
 
 function syncOrbitDiveSelection() {
-  for (const item of appLandingOrbitBubblesNode?.querySelectorAll(".app-landing-orbit-item") || []) {
+  for (const item of (appLandingOrbitAgentsNode || appLandingOrbitBubblesNode)?.querySelectorAll(".app-landing-orbit-item") || []) {
     const selected = landingOrbitDiveAgentId && item.dataset.agentId === landingOrbitDiveAgentId;
     item.classList.toggle("is-dive-selected", Boolean(selected));
   }
@@ -11729,7 +11785,7 @@ function bindOrbitAttentionHover(node, agentId) {
 function setOrbitAttentionHighlight(agentId) {
   const hasHighlight = Boolean(agentId);
 
-  appLandingOrbitBubblesNode
+  (appLandingOrbitAgentsNode || appLandingOrbitBubblesNode)
     ?.querySelectorAll(".app-landing-orbit-item[data-agent-id]")
     .forEach((item) => {
       const isMatch = item.dataset.agentId === agentId;
