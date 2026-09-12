@@ -113,11 +113,28 @@
     });
   }
 
+  function isLandingView() {
+    return document.getElementById("app-root")?.classList.contains("app-landing-view") ?? false;
+  }
+
+  function isHomeView() {
+    return document.getElementById("app-root")?.classList.contains("home-view") ?? false;
+  }
+
+  function syncAlternateDiscussLayout() {
+    const appRootNode = document.getElementById("app-root");
+    if (!appRootNode) return;
+    const discussOpen = !panelHidden;
+    appRootNode.classList.toggle("app-landing-discuss-open", isLandingView() && discussOpen);
+    appRootNode.classList.toggle("app-home-discuss-open", isHomeView() && discussOpen);
+  }
+
   function updatePanelUi() {
     if (!discussAsideNode) return;
     discussAsideNode.classList.toggle("is-hidden", panelHidden);
     discussPanelToggleBtnNode?.classList.toggle("is-active", !panelHidden);
     discussPanelToggleBtnNode?.setAttribute("aria-expanded", panelHidden ? "false" : "true");
+    syncAlternateDiscussLayout();
     applyPresenceToChatButton(lastPresence);
     if (!panelHidden) {
       requestAnimationFrame(() => syncDiscussAsideHeight());
@@ -453,6 +470,7 @@
   }
 
   function syncFromApp() {
+    syncAlternateDiscussLayout();
     const agentId = getActiveAgentIdFromUrl();
     ensureShellIframeLoaded(agentId);
     void refreshShellPresence();
@@ -461,6 +479,12 @@
   if (discussShellIframeNode && discussShellIframeNode.dataset.shellSurfaceBound !== "1") {
     discussShellIframeNode.dataset.shellSurfaceBound = "1";
     discussShellIframeNode.addEventListener("load", announceShellSurfaceHost);
+  }
+
+  const appRootNode = document.getElementById("app-root");
+  if (appRootNode && typeof MutationObserver !== "undefined") {
+    const landingClassObserver = new MutationObserver(() => syncAlternateDiscussLayout());
+    landingClassObserver.observe(appRootNode, { attributes: true, attributeFilter: ["class"] });
   }
 
   bindResize();

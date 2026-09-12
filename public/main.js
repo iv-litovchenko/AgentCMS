@@ -10178,6 +10178,8 @@ function setLandingAgentsView(view) {
   syncLandingAgentsViewUi();
 }
 
+const ORBIT_LINK_CENTER = { x: 50, y: 50 };
+
 function getOrbitBubbleLayout(index, total, agentId) {
   const hash = hashAgentIdForOrbit(String(agentId || index));
   const golden = 2.399963229728653;
@@ -10185,7 +10187,7 @@ function getOrbitBubbleLayout(index, total, agentId) {
   const radius = 24 + (t / Math.max(total, 1)) * 24 + (hash % 12);
   const angle = t * golden + (hash % 360) * (Math.PI / 180) * 0.08;
   const x = 50 + Math.cos(angle) * radius * (0.92 + (hash % 7) * 0.015);
-  const y = 48 + Math.sin(angle) * radius * 0.72;
+  const y = ORBIT_LINK_CENTER.y + Math.sin(angle) * radius * 0.72;
   return {
     x: Math.min(90, Math.max(8, x)),
     y: Math.min(88, Math.max(10, y)),
@@ -10851,7 +10853,6 @@ function renderAppLandingFlow(focusItems = globalFlowItemsCache) {
   syncFocusPanelActiveState();
 }
 
-const ORBIT_LINK_CENTER = { x: 50, y: 48 };
 /** Orbit: клик по пузырю сразу открывает workspace; twigs на hover и dive-дерево — отложены */
 const ORBIT_BUBBLE_OPENS_WORKSPACE = true;
 
