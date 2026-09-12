@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.760" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.768" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -1148,18 +1148,17 @@
               <button
                 id="menu-static-footer-toggle"
                 type="button"
-                class="menu-static-footer-toggle-btn sidebar-focus-toggle agent-focus-head agent-focus-head--compact"
+                class="menu-static-footer-toggle-btn sidebar-accent-band-toggle"
                 aria-expanded="true"
                 aria-controls="menu-static-footer-body"
                 title="Системные и дополнительные секции — свернуть или показать"
               >
-                <span class="sidebar-focus-toggle-main">
-                  <span class="sidebar-focus-chevron" aria-hidden="true"></span>
-                  <span class="menu-static-footer-title agent-focus-title">
+                <span class="sidebar-accent-band-toggle-main">
+                  <span class="sidebar-accent-band-chevron" aria-hidden="true"></span>
+                  <span class="menu-static-footer-title sidebar-accent-band-title">
                     Системные и дополнительные секции
                   </span>
                 </span>
-                <span id="menu-static-footer-action" class="menu-static-footer-action">Свернуть</span>
               </button>
               <div id="menu-static-footer-body" class="menu-static-footer-body">
               <details class="menu-static-section menu-static-section--storage-schemes menu-static-accordion">
@@ -1552,13 +1551,13 @@
               </details>
               </div>
             </section>
-            <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
             <div
               id="menu-system-environment"
               class="menu-system-environment hidden"
               aria-live="polite"
               aria-label="Среда и зависимости"
             ></div>
+            <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
           </div>
         </section>
       </aside>
@@ -2234,7 +2233,7 @@
         <div id="agent-git-content" class="agent-tool-body agent-git-content"></div>
       </main>
 
-      <main id="agent-awn-types-pane" class="agent-canvas-pane agent-awn-types-pane hidden" aria-label="Типы YAML свойств">
+      <main id="agent-awn-types-pane" class="agent-canvas-pane agent-tool-pane agent-awn-types-pane hidden" aria-label="Типы YAML свойств">
         <div class="agent-canvas-head">
           <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
@@ -4630,7 +4629,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.753"></script>
+    <script src="/main.js?v=0.5.758"></script>
     <script src="/discuss-panel.js?v=0.5.257"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>

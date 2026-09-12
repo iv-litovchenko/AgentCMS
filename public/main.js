@@ -31,7 +31,6 @@ const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
 const menuStaticFooterNode = document.getElementById("menu-static-footer");
 const menuStaticFooterToggleBtn = document.getElementById("menu-static-footer-toggle");
 const menuStaticFooterBodyNode = document.getElementById("menu-static-footer-body");
-const menuStaticFooterActionNode = document.getElementById("menu-static-footer-action");
 const menuGoogleDriveStatsNode = document.getElementById("menu-google-drive-stats");
 const menuGoogleDriveFilesNode = document.getElementById("menu-google-drive-files");
 const menuAwnDialogsStatsNode = document.getElementById("menu-awn-dialogs-stats");
@@ -26968,7 +26967,24 @@ function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
 
 function getGraphNodePreviewSize(node, showPreviews = false) {
   if (!showPreviews || !node.previewUrl) return 0;
+  const nodePath = node.nodePath || node.filePath || "";
+  if (isBrokenImageSrc(node.previewUrl, nodePath)) return 0;
   return node.type === "folder" ? 28 : 22;
+}
+
+function markGraphNodePreviewMissing(group, nodeState, node, degrees) {
+  if (!group || !nodeState || group.classList.contains("preview-missing")) return;
+  group.classList.remove("has-preview");
+  group.classList.add("preview-missing");
+  if (nodeState.previewGroup) {
+    nodeState.previewGroup.setAttribute("visibility", "hidden");
+  }
+  nodeState.circle.removeAttribute("visibility");
+  const fallbackRadius = getGraphNodeRadius(node, degrees, false);
+  nodeState.radius = fallbackRadius;
+  nodeState.previewSize = 0;
+  nodeState.glow.setAttribute("r", String(fallbackRadius + 7));
+  nodeState.circle.setAttribute("r", String(fallbackRadius));
 }
 
 function getGraphNodeRadius(node, degrees, showPreviews = false) {
@@ -27475,7 +27491,7 @@ function renderGraphCanvas(container, graph, options = {}) {
     group.dataset.nodeId = node.id;
     group.setAttribute(
       "class",
-      `external-graph-node${isActive ? " active" : ""}${isDisabled ? " disabled" : ""}${previewSize ? " has-preview" : ""}`.trim()
+      `external-graph-node${isActive ? " active" : ""}${isDisabled ? " disabled" : ""}${previewSize ? " has-preview" : ""}${showPreviews && !previewSize ? " preview-missing" : ""}`.trim()
     );
     group.style.cursor = clickable ? "pointer" : "grab";
 
@@ -27549,7 +27565,7 @@ function renderGraphCanvas(container, graph, options = {}) {
     group.appendChild(label);
 
     const lines = linkElements.filter((line) => line.from === node.id || line.to === node.id);
-    nodeElements.set(node.id, {
+    const nodeState = {
       el: group,
       glow,
       circle,
@@ -27560,7 +27576,17 @@ function renderGraphCanvas(container, graph, options = {}) {
       previewFrame,
       previewImage,
       lines
-    });
+    };
+
+    if (previewImage) {
+      previewImage.addEventListener(
+        "error",
+        () => markGraphNodePreviewMissing(group, nodeState, node, degrees),
+        { once: true }
+      );
+    }
+
+    nodeElements.set(node.id, nodeState);
 
     group.addEventListener("mouseenter", () => {
       group.classList.add("hovered");
@@ -82987,15 +83013,39 @@ function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = 
   ];
 
   menuAgentStatsNode.replaceChildren();
-  for (const item of items) {
-    const chip = document.createElement("div");
-    chip.className = "menu-agent-stat";
-    chip.innerHTML = `
-      <span class="menu-agent-stat-value">${escapeHtml(item.value)}</span>
-      <span class="menu-agent-stat-label">${escapeHtml(item.label)}</span>
-    `;
-    menuAgentStatsNode.appendChild(chip);
-  }
+
+  const band = document.createElement("div");
+  band.className = "menu-agent-stats-band sidebar-accent-band sidebar-accent-band--muted";
+
+  const line = document.createElement("div");
+  line.className = "menu-agent-stats-line";
+
+  items.forEach((item, index) => {
+    if (index > 0) {
+      const sep = document.createElement("span");
+      sep.className = "menu-agent-stat-sep";
+      sep.setAttribute("aria-hidden", "true");
+      sep.textContent = "·";
+      line.appendChild(sep);
+    }
+
+    const stat = document.createElement("span");
+    stat.className = "menu-agent-stat";
+
+    const value = document.createElement("span");
+    value.className = "menu-agent-stat-value";
+    value.textContent = item.value;
+
+    const label = document.createElement("span");
+    label.className = "menu-agent-stat-label";
+    label.textContent = item.label;
+
+    stat.append(value, label);
+    line.appendChild(stat);
+  });
+
+  band.appendChild(line);
+  menuAgentStatsNode.appendChild(band);
 }
 
 function hideMenuAgentStats() {
@@ -83023,25 +83073,48 @@ function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
   bindMenuSystemEnvironmentAccordion();
 
   let hostLine = menuSystemEnvironmentNode.querySelector(":scope > .menu-system-environment-host");
+  if (hostLine && !hostLine.querySelector(".sidebar-accent-band-toggle-main")) {
+    hostLine.remove();
+    hostLine = null;
+  }
   if (!hostLine) {
     hostLine = document.createElement("button");
     hostLine.type = "button";
-    hostLine.className = "menu-system-environment-host";
+    hostLine.className = "menu-system-environment-host sidebar-accent-band-toggle";
+
+    const hostMain = document.createElement("span");
+    hostMain.className = "sidebar-accent-band-toggle-main";
+
+    const hostChevron = document.createElement("span");
+    hostChevron.className = "sidebar-accent-band-chevron";
+    hostChevron.setAttribute("aria-hidden", "true");
+
     const hostText = document.createElement("span");
-    hostText.className = "menu-system-environment-host-text";
-    hostLine.appendChild(hostText);
+    hostText.className = "menu-system-environment-host-text sidebar-accent-band-title";
+
+    hostMain.append(hostChevron, hostText);
+    hostLine.append(hostMain);
     menuSystemEnvironmentNode.prepend(hostLine);
   }
 
-  const hostText =
-    hostLine.querySelector(".menu-system-environment-host-text") || hostLine;
-  hostText.textContent = loading
-    ? "Среда: загрузка…"
-    : payload?.summaryLine || payload?.host?.hostname || "Среда";
-  hostLine.title =
-    !loading && payload?.app?.version ? `Agent CMS ${payload.app.version}` : hostText.textContent;
+  hostLine.querySelector(".menu-system-environment-host-action")?.remove();
+
+  const summaryLine = loading
+    ? "Загрузка…"
+    : payload?.summaryLine || payload?.host?.hostname || "";
+  hostLine.title = [
+    summaryLine,
+    !loading && payload?.app?.version ? `Agent CMS ${payload.app.version}` : ""
+  ]
+    .filter(Boolean)
+    .join(" · ");
   hostLine.setAttribute("aria-expanded", isMenuSystemEnvironmentOpen() ? "true" : "false");
   hostLine.setAttribute("aria-controls", "menu-system-environment-grid");
+
+  const hostText = hostLine.querySelector(".menu-system-environment-host-text");
+  if (hostText) {
+    hostText.textContent = summaryLine || "";
+  }
 
   let grid = menuSystemEnvironmentNode.querySelector(":scope > .menu-system-environment-grid");
   if (!grid) {
@@ -91738,9 +91811,6 @@ function syncMenuStaticFooterAccordionUi() {
   if (menuStaticFooterBodyNode) {
     menuStaticFooterBodyNode.hidden = !expanded;
     menuStaticFooterBodyNode.classList.toggle("is-collapsed", !expanded);
-  }
-  if (menuStaticFooterActionNode) {
-    menuStaticFooterActionNode.textContent = expanded ? "Свернуть" : "Показать";
   }
 }
 
