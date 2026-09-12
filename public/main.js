@@ -1112,6 +1112,7 @@ const agentsPickerPopoverNode = document.getElementById("agents-picker-popover")
 const agentsAgentPickerStageNode = document.getElementById("agents-agent-picker-stage");
 const agentPreviewWrapNode = document.getElementById("agent-preview-wrap");
 const agentPreviewThumbNode = document.getElementById("agent-preview-thumb");
+const agentPreviewSlideCounterNode = document.getElementById("agent-preview-slide-counter");
 const agentPreviewSliderInfoBtn = document.getElementById("agent-preview-slider-info-btn");
 const agentSliderModalNode = document.getElementById("agent-slider-modal");
 const agentSliderModalPathNode = document.getElementById("agent-slider-modal-path");
@@ -5572,19 +5573,27 @@ function openSelectedAgentWorkspaceView() {
 }
 
 function syncAgentPreviewOpenUi() {
-  const canOpen = Boolean(activeAgentId && getActiveAgentMeta()?.path);
+  const agent = getActiveAgentMeta();
+  const canOpen = Boolean(activeAgentId && agent?.path);
   const previewVisible = Boolean(agentPreviewWrapNode && !agentPreviewWrapNode.classList.contains("hidden"));
   const sliderHint = "Слайдер вдохновения";
-  const workspaceViewHint = "Открыть выбранный вид workspace";
+  const hasSlider = Boolean(
+    agent?.id &&
+      agentSliderPlaybackOrder.length > 0 &&
+      agentSliderCatalog.loadedForAgentId === agent.id &&
+      previewVisible
+  );
+  const expandHint = hasSlider ? "Увеличить слайд" : "Увеличить превью";
 
   if (agentPreviewWrapNode) {
     const wrapInteractive = canOpen && previewVisible;
     agentPreviewWrapNode.classList.toggle("agent-preview-openable", wrapInteractive);
+    agentPreviewWrapNode.classList.toggle("agent-preview-has-slider", hasSlider);
     if (wrapInteractive) {
       agentPreviewWrapNode.setAttribute("role", "button");
       agentPreviewWrapNode.tabIndex = 0;
-      agentPreviewWrapNode.setAttribute("aria-label", workspaceViewHint);
-      agentPreviewWrapNode.title = workspaceViewHint;
+      agentPreviewWrapNode.setAttribute("aria-label", expandHint);
+      agentPreviewWrapNode.title = expandHint;
     } else {
       agentPreviewWrapNode.classList.remove("agent-preview-openable");
       agentPreviewWrapNode.removeAttribute("role");
@@ -5663,6 +5672,75 @@ function resolveSidebarAgentPreviewMeta(previewMeta = null, { preferWorkspacePre
   return { hasPreview: false, previewUrl: null };
 }
 
+function syncAgentPreviewSlideCounter() {
+  if (!agentPreviewSlideCounterNode) return;
+  const agent = getActiveAgentMeta();
+  const catalogFiles =
+    agent?.id && agentSliderCatalog.loadedForAgentId === agent.id ? agentSliderCatalog.files || [] : [];
+  const total = catalogFiles.length;
+  const showingSlider = agentSliderPlaybackOrder.length > 0 && total > 0;
+  if (!showingSlider) {
+    agentPreviewSlideCounterNode.classList.add("hidden");
+    agentPreviewSlideCounterNode.textContent = "";
+    return;
+  }
+  const playbackIndex =
+    ((agentSliderIndex % agentSliderPlaybackOrder.length) + agentSliderPlaybackOrder.length) %
+    agentSliderPlaybackOrder.length;
+  const currentSlide = agentSliderPlaybackOrder[playbackIndex];
+  const catalogIndex = catalogFiles.findIndex(
+    (file) => file.mediaFile === currentSlide?.mediaFile || file.name === currentSlide?.name
+  );
+  const currentNum = catalogIndex >= 0 ? catalogIndex + 1 : playbackIndex + 1;
+  agentPreviewSlideCounterNode.textContent = `${currentNum} / ${total}`;
+  agentPreviewSlideCounterNode.classList.remove("hidden");
+}
+
+function buildAgentSliderLightboxGallery() {
+  const agentId = agentSliderCatalog.loadedForAgentId || activeAgentId;
+  const files = agentSliderCatalog.files || [];
+  if (!files.length) return null;
+  const images = files.map((file) => ({
+    src: appendCacheBuster(buildAgentSliderMediaApiUrl(file.mediaFile, agentId)),
+    alt: file.name || "Слайд"
+  }));
+  let index = 0;
+  if (agentSliderPlaybackOrder.length) {
+    const playbackIndex =
+      ((agentSliderIndex % agentSliderPlaybackOrder.length) + agentSliderPlaybackOrder.length) %
+      agentSliderPlaybackOrder.length;
+    const currentSlide = agentSliderPlaybackOrder[playbackIndex];
+    const catalogIndex = files.findIndex(
+      (file) => file.mediaFile === currentSlide?.mediaFile || file.name === currentSlide?.name
+    );
+    if (catalogIndex >= 0) index = catalogIndex;
+  }
+  return { images, index };
+}
+
+function openAgentPreviewLightbox() {
+  const agent = getActiveAgentMeta();
+  const hasSlider = Boolean(
+    agent?.id &&
+      agentSliderPlaybackOrder.length > 0 &&
+      agentSliderCatalog.loadedForAgentId === agent.id
+  );
+  if (hasSlider) {
+    const gallery = buildAgentSliderLightboxGallery();
+    if (!gallery?.images.length) return;
+    ensurePreviewImageLightbox();
+    previewLightboxGallery = gallery;
+    showPreviewLightboxSlide(gallery.index);
+    previewLightboxNode.classList.remove("hidden");
+    return;
+  }
+  const thumb = agentPreviewThumbNode;
+  if (!thumb) return;
+  const fullSrc = thumb.dataset.fullSrc || thumb.currentSrc || thumb.src;
+  if (!fullSrc) return;
+  openPreviewImageLightbox(fullSrc, thumb.alt || "", { trigger: thumb });
+}
+
 function syncAgentPreview(previewMeta = null, options = {}) {
   const targets = [{ wrap: agentPreviewWrapNode, thumb: agentPreviewThumbNode, primary: true }].filter(
     (target) => target.wrap && target.thumb
@@ -5680,10 +5758,8 @@ function syncAgentPreview(previewMeta = null, options = {}) {
 
   if (hasPreview && previewUrl && !isBrokenImageSrc(previewUrl, activePath)) {
     syncAgentPreviewPlaceholder({ broken: false });
-    const nextSrc = appendMediaThumbToApiUrl(
-      appendCacheBuster(appendAgentToApiUrl(previewUrl)),
-      MEDIA_THUMB_MAX_PREVIEW
-    );
+    const fullSrc = appendCacheBuster(appendAgentToApiUrl(previewUrl));
+    const nextSrc = appendMediaThumbToApiUrl(fullSrc, MEDIA_THUMB_MAX_PREVIEW);
 
     for (const target of targets) {
       const currentSrc = target.thumb.getAttribute("src") || "";
@@ -5714,6 +5790,7 @@ function syncAgentPreview(previewMeta = null, options = {}) {
         if (target.primary) syncAgentPreviewPlaceholder({ broken: false });
       };
 
+      target.thumb.dataset.fullSrc = fullSrc;
       if (srcChanged) {
         target.thumb.src = nextSrc;
       } else if (alreadyLoaded && !target.wrap.classList.contains("is-revealed")) {
@@ -5721,6 +5798,7 @@ function syncAgentPreview(previewMeta = null, options = {}) {
       }
     }
 
+    syncAgentPreviewSlideCounter();
     syncAgentPreviewOpenUi();
     return;
   }
@@ -5737,6 +5815,7 @@ function syncAgentPreview(previewMeta = null, options = {}) {
     target.thumb.removeAttribute("src");
   }
   syncAgentPreviewPlaceholder({ broken: Boolean(hasPreview && previewUrl) });
+  syncAgentPreviewSlideCounter();
   syncAgentPreviewOpenUi();
 }
 
@@ -8305,13 +8384,29 @@ function positionAgentsPickerPopover() {
   if (!popover || !anchor || popover.classList.contains("hidden")) return;
 
   const rect = anchor.getBoundingClientRect();
-  const top = Math.round(rect.bottom + 6);
-  const maxHeight = Math.max(160, window.innerHeight - top - 12);
+  const gap = 6;
+  const margin = 12;
+  const viewportH = window.innerHeight;
+  const spaceBelow = Math.max(0, viewportH - rect.bottom - gap - margin);
+  const spaceAbove = Math.max(0, rect.top - gap - margin);
 
-  popover.style.top = `${top}px`;
-  popover.style.left = `${Math.round(rect.left)}px`;
   popover.style.width = `${Math.round(rect.width)}px`;
   popover.style.maxWidth = "none";
+  popover.style.left = `${Math.round(rect.left)}px`;
+  popover.style.maxHeight = "none";
+  const naturalHeight = popover.scrollHeight;
+
+  let top;
+  let maxHeight;
+  if (naturalHeight <= spaceBelow || spaceBelow >= spaceAbove) {
+    top = Math.round(rect.bottom + gap);
+    maxHeight = Math.max(140, spaceBelow);
+  } else {
+    maxHeight = Math.max(140, spaceAbove);
+    top = Math.max(margin, Math.round(rect.top - gap - Math.min(naturalHeight, maxHeight)));
+  }
+
+  popover.style.top = `${top}px`;
   popover.style.maxHeight = `${maxHeight}px`;
 }
 
@@ -8461,6 +8556,7 @@ function openAgentsPickerPopover() {
 function refreshAgentsPickerIfOpen() {
   if (!agentsPickerIsOpen) return;
   renderAgentViewPickerMenu();
+  positionAgentsPickerPopover();
 }
 
 function mountAgentToolbarBtnIcon(btn, icon, iconClass) {
@@ -97380,7 +97476,7 @@ function handleAgentPreviewOpenActivate(event) {
     openAgentSliderModal();
     return;
   }
-  openSelectedAgentWorkspaceView();
+  openAgentPreviewLightbox();
 }
 
 agentPreviewSliderInfoBtn?.addEventListener("click", (event) => {

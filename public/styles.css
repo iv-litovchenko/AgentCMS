@@ -16130,9 +16130,9 @@ a.header-tool-btn {
 }
 
 .header-profile-menu-section-title {
-  padding: 4px 10px 6px;
+  padding: 2px 8px 4px;
   color: #64748b;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -16147,19 +16147,19 @@ a.header-tool-btn {
 .header-profile-menu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   min-width: 0;
-  min-height: 34px;
-  padding: 7px 10px;
+  min-height: 28px;
+  padding: 4px 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: #334155;
   font: inherit;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.3;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -16408,7 +16408,7 @@ a.header-tool-btn {
   z-index: 1100;
   width: auto;
   max-width: none;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--panel);
@@ -16438,7 +16438,7 @@ a.header-tool-btn {
 .agents-view-picker-menu {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .agents-view-picker-menu .header-profile-menu-item.is-active {
@@ -16460,13 +16460,13 @@ a.header-tool-btn {
 }
 
 .agents-picker-popover-section--tools {
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px solid var(--border);
 }
 
 .agents-picker-popover-title {
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   padding-right: 0;
 }
 
@@ -16531,11 +16531,7 @@ a.header-tool-btn {
 .agents-picker-tools-grid {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.agents-picker-tools-grid .header-profile-menu-item {
-  gap: 8px;
+  gap: 1px;
 }
 
 .agents-picker-tools-grid .header-profile-menu-item.is-active {
@@ -17156,6 +17152,28 @@ a.header-tool-btn {
   cursor: pointer;
   backdrop-filter: blur(4px);
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.agent-preview-slide-counter {
+  position: absolute;
+  top: 6px;
+  right: 34px;
+  z-index: 3;
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #f8fafc;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+.agent-preview-slide-counter.hidden {
+  display: none;
 }
 
 .agent-preview-slider-info-btn {
@@ -19648,6 +19666,10 @@ a.header-tool-btn {
 
 .agent-preview-openable {
   cursor: pointer;
+}
+
+.agent-preview-openable .agent-preview-thumb {
+  cursor: zoom-in;
 }
 
 .sidebar-agent-avatar-block .agent-preview-openable:hover .agent-preview-frame,
