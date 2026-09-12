@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>12 · Text tabs</title>
+    <link rel="stylesheet" href="../shared.css" />
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>12 · Text tabs</h1><p>Текстовые вкладки вместо emoji-кластера</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="ctx-agent-fade" aria-hidden="true"></div>
+        <div class="panel-zone" data-panel-zone>
+
+<div class="v12-zone">
+  <div class="v12-tabs" role="tablist" aria-label="Режим меню">
+    <button type="button" class="v12-tab is-active">Дерево</button>
+    <button type="button" class="v12-tab">Список</button>
+    <button type="button" class="v12-tab">Закладки</button>
+    <div class="v12-actions">
+      <button type="button" class="v12-link">↻</button>
+      <button type="button" class="v12-link">📍</button>
+      <button type="button" class="v12-link">⟲</button>
+    </div>
+  </div>
+  <label class="search-bar">
+    <span class="search-icon" aria-hidden="true">⌕</span>
+    <input class="search-input" type="search" placeholder="Поиск тем по дереву…" />
+  </label>
+</div>
+<p class="panel-hint">~44px · редкие действия текстовыми ссылками</p>
+        </div>
+        <nav class="panel-tree" aria-label="Дерево тем">
+  <ul>
+    <li class="panel-tree-branch">
+      <div class="panel-tree-node is-active">
+        <button type="button" class="panel-tree-toggle" data-panel-tree-toggle aria-expanded="true">▾</button>
+        <span>🟢 [Agent CMS] Песочница и тесты</span>
+        <span class="panel-tree-badge">📍</span>
+      </div>
+      <ul>
+        <li class="panel-tree-branch">
+          <div class="panel-tree-node">
+            <button type="button" class="panel-tree-toggle" data-panel-tree-toggle aria-expanded="true">▾</button>
+            <span>🟢 Агентские темы</span>
+          </div>
+          <ul>
+            <li><div class="panel-tree-node"><span class="panel-tree-toggle" aria-hidden="true">·</span><span>🟢 PHP</span></div></li>
+            <li><div class="panel-tree-node"><span class="panel-tree-toggle" aria-hidden="true">·</span><span>🟢 Личная жизнь</span></div></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+      </aside>
+      <p class="size-badge" data-size-badge>Высота панели: —</p>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>16 · Segmented</title>
+    <link rel="stylesheet" href="../shared.css" />
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>16 · Segmented</h1><p>iOS-style сегмент + overflow для редкого</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="ctx-agent-fade" aria-hidden="true"></div>
+        <div class="panel-zone" data-panel-zone>
+
+<div class="v16-zone">
+  <div class="v16-top">
+    <div class="v16-segment" role="tablist" aria-label="Режим">
+      <button type="button" class="v16-seg-btn is-active">Дерево</button>
+      <button type="button" class="v16-seg-btn">Список</button>
+      <button type="button" class="v16-seg-btn">★</button>
+    </div>
+    <button type="button" class="tool-btn" title="Ещё">⋯</button>
+  </div>
+  <label class="search-bar">
+    <span class="search-icon" aria-hidden="true">⌕</span>
+    <input class="search-input" type="search" placeholder="Поиск тем…" />
+  </label>
+</div>
+<p class="panel-hint">~62px · чёткий выбор режима, остальное в ⋯</p>
+        </div>
+        <nav class="panel-tree" aria-label="Дерево тем">
+  <ul>
+    <li class="panel-tree-branch">
+      <div class="panel-tree-node is-active">
+        <button type="button" class="panel-tree-toggle" data-panel-tree-toggle aria-expanded="true">▾</button>
+        <span>🟢 [Agent CMS] Песочница и тесты</span>
+        <span class="panel-tree-badge">📍</span>
+      </div>
+      <ul>
+        <li class="panel-tree-branch">
+          <div class="panel-tree-node">
+            <button type="button" class="panel-tree-toggle" data-panel-tree-toggle aria-expanded="true">▾</button>
+            <span>🟢 Агентские темы</span>
+          </div>
+          <ul>
+            <li><div class="panel-tree-node"><span class="panel-tree-toggle" aria-hidden="true">·</span><span>🟢 PHP</span></div></li>
+            <li><div class="panel-tree-node"><span class="panel-tree-toggle" aria-hidden="true">·</span><span>🟢 Личная жизнь</span></div></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+      </aside>
+      <p class="size-badge" data-size-badge>Высота панели: —</p>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

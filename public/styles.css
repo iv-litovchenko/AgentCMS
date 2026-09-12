@@ -18314,7 +18314,7 @@ a.header-tool-btn {
   opacity: 1;
 }
 
-.sidebar-slab:not(.sidebar-slab-menu) {
+.sidebar-slab:not(.sidebar-slab-menu):not(.sidebar-slab-menu-tools) {
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
@@ -19705,9 +19705,19 @@ a.header-tool-btn {
   }
 }
 
-.sidebar-slab-menu-tools {
-  padding: 8px 12px;
+.sidebar-slab.sidebar-slab-menu-tools {
+  flex-shrink: 0;
+  padding: 8px 12px 0;
+  border-bottom: none;
   box-sizing: border-box;
+}
+
+.sidebar-slab-menu-tools + .sidebar-slab-menu {
+  border-top: none;
+}
+
+.sidebar-slab-menu-tools + .sidebar-slab-menu .sidebar-menu-before-tree {
+  padding-top: 6px;
 }
 
 .sidebar-slab-menu-tools .sidebar-workspace-page-index-row {
@@ -20604,8 +20614,25 @@ a.header-tool-btn {
 }
 
 .menu-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 0;
   width: 100%;
+  min-width: 0;
+}
+
+.menu-search-wrap .menu-search-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.menu-search-refresh-btn {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  color: #64748b;
 }
 
 .menu-search-bar {
@@ -55489,6 +55516,12 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .sidebar-slab-menu .menu-search-wrap .menu-search-icon {
   color: #94a3b8;
+}
+
+.sidebar-slab-menu .menu-search-wrap .menu-search-refresh-btn:hover:not(:disabled) {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1e40af;
 }
 
 .sidebar-slab-menu .menu-agent-stats {
