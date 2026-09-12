@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>08 · Над деревом</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <header class="demo-top">
+    <div><h1>08 · Над деревом</h1><p>Тонкая полоска режимов прямо над #menu</p></div>
+    <a href="../index.html">← Все варианты</a>
+  </header>
+  <div class="demo-stage">
+    <aside class="sidebar-mock">
+      <div class="ctx-agent-fade" aria-hidden="true"></div>
+      <section class="tree-band" data-panel-zone>
+  <div class="tree-band-head">
+    <button type="button" class="tree-band-toggle"><span class="chevron"></span>Дерево и поиск</button>
+    <div class="tree-band-head-actions"><button type="button" class="head-btn" title="Закрепить">📍</button><button type="button" class="head-btn" title="Свернуть">⊟</button><button type="button" class="head-btn" title="Настройки">⚙</button><button type="button" class="head-btn" title="Обновить">↻</button></div>
+  </div>
+  <div class="tree-band-panel"><div class="index-row"><button type="button" class="index-open">Индекс (оглавление) страниц</button><button type="button" class="index-refresh">⟲</button></div><label class="search-bar"><span class="search-icon">⌕</span><input class="search-input" type="search" placeholder="Поиск тем по дереву..." /></label></div>
+</section>
+<div class="panel-tree-wrap">
+  <div class="v-tree-toolbar"><div class="view-cluster view-cluster--compact" role="tablist"><button type="button" class="view-btn is-active">🌳</button><button type="button" class="view-btn">☰</button><button type="button" class="view-btn">⭐</button></div></div>
+  <nav class="panel-tree" aria-label="Дерево тем"><ul><li class="panel-tree-branch"><div class="panel-tree-node is-active"><button type="button" class="panel-tree-toggle" data-panel-tree-toggle aria-expanded="true">▾</button><span>🟢 MedCenter</span><span class="panel-tree-badge">📍</span></div><ul><li><div class="panel-tree-node"><span class="panel-tree-toggle" aria-hidden="true">·</span><span>🟢 Агентские темы</span></div></li><li><div class="panel-tree-node"><span class="panel-tree-toggle" aria-hidden="true">·</span><span>🔴 HR-поиски</span></div></li></ul></li></ul></nav>
+</div>
+      
+    </aside>
+    <p class="size-badge" data-size-badge">Высота зоны: —</p>
+  </div>
+  <script src="../shared.js"></script>
+</body>
+</html>

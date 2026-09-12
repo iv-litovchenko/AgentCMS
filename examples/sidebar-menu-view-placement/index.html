@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Размещение режимов дерева — 10 вариантов</title>
+    <style>
+      :root {
+        --bg: #f1f5f9;
+        --panel: #fff;
+        --border: #dbe3ef;
+        --text: #0f172a;
+        --muted: #64748b;
+        --green: #166534;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 28px 20px 48px;
+      }
+      h1 { margin: 0 0 6px; font-size: 24px; }
+      .lead {
+        margin: 0 0 18px;
+        max-width: 820px;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 14px;
+      }
+      .notice {
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #f0fdf4;
+        border: 1px solid rgba(34, 197, 94, 0.35);
+        max-width: 820px;
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
+      .notice a { color: var(--green); font-weight: 600; text-decoration: none; }
+      ul { margin: 0 0 20px; padding-left: 18px; max-width: 820px; color: #334155; font-size: 13px; line-height: 1.55; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .card h3 { margin: 0; font-size: 15px; }
+      .card p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; flex: 1; }
+      .card .meta { font-size: 11px; font-weight: 600; color: var(--green); }
+      .card a {
+        display: inline-flex;
+        width: fit-content;
+        padding: 7px 12px;
+        border-radius: 8px;
+        background: var(--green);
+        color: #fff;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .card a:hover { background: #15803d; }
+      code { font-size: 11px; background: #f0fdf4; padding: 1px 5px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Размещение 🌳 ☰ ⭐ — 10 вариантов</h1>
+    <p class="lead">
+      Живые макеты под текущий layout: зелёная шапка с 📍 ⊟ ⚙ ↻, панель с индексом и поиском, дерево ниже.
+      Каждый вариант показывает, куда перенести переключатель режимов.
+    </p>
+    <p class="notice">
+      Открыть каталог: <a href="/examples/sidebar-menu-view-placement/">/examples/sidebar-menu-view-placement/</a>
+      · Предыдущие наборы:
+      <a href="/examples/sidebar-menu-tools/">v1</a>,
+      <a href="/examples/sidebar-menu-tools-v2/">v2</a>
+    </p>
+    <ul>
+      <li>Ширина сайдбара: <code>279px</code> — как в проде</li>
+      <li>Pin / settings / refresh уже в шапке — как сейчас</li>
+      <li>Счётчик высоты — только зона tree-band (шапка + панель)</li>
+    </ul>
+    <div class="grid">
+      <article class="card">
+        <h3>01 · В шапке слева от pin</h3>
+        <p class="meta">~+0px к панели</p>
+        <p>Компактный сегмент 22×22 перед 📍. Панель = только индекс + поиск.</p>
+        <a href="01-header-actions/">Открыть</a>
+      </article>
+      <article class="card">
+        <h3>02 · Вместо заголовка</h3>
+        <p class="meta">~−34px панели</p>
+        <p>Режим заменяет текст «Дерево и поиск». Chevron остаётся слева.</p>
+        <a href="02-header-title-replace/">Открыть</a>
+      </article>
+      <article class="card">
+        <h3>03 · Справа от поиска</h3>
+        <p class="meta">~−28px</p>
+        <p>Одна строка: поиск + три иконки. Убирает отдельный ряд кластера.</p>
+        <a href="03-search-trailing/">Открыть</a>
+      </article>
+      <article class="card">
+        <h3>04 · Ghost strip</h3>
+        <p class="meta">~+22px, но легче</p>
+        <p>Текстовые ghost-кнопки под поиском без рамки кластера.</p>
+        <a href="04-ghost-strip/">Открыть</a>
+      </article>
+      <article class="card">
+        <h3>05 · В настройках</h3>
+        <p class="meta">~−28px</p>
+        <p>Chip «Режим: Дерево» + раскрытие в popover. Минимум шума.</p>
+        <a href="05-settings-popover/">Открыть</a>
+      </article>
+      <article class="card">
+        <h3>06 · Dropdown</h3>
+        <p class="meta">~−24px</p>
+        <p>Одна кнопка «Режим: Дерево ▾» над индексом.</p>
+        <a href="06-mode-dropdown/">Открыть</a>
+      </article>
+      <article class="card">
+        <h3>07 · Текстовые табы</h3>
+        <p class="meta">~+6px</p>
+        <p>Дерево | Список | Закладки — понятнее emoji.</p>
+        <a href="07-text-tabs/">Открыть</a>
+      </article>
+      <article class="card">
+        <h3>08 · Над деревом</h3>
+        <p class="meta">~−28px панели</p>
+        <p>Полоска режимов между поиском и первой строкой дерева.</p>
+        <a href="08-tree-inline/">Открыть</a>
+      </article>
+      <article class="card">
+        <h3>09 · Hover reveal</h3>
+        <p class="meta">34px → 68px</p>
+        <p>Режимы скрыты, появляются при hover на панель.</p>
+        <a href="09-hover-reveal/">Открыть</a>
+      </article>
+      <article class="card">
+        <h3>10 · Footer сайдбара</h3>
+        <p class="meta">~−28px панели</p>
+        <p>Режимы внизу сайдбара, отдельно от навигации.</p>
+        <a href="10-sidebar-footer/">Открыть</a>
+      </article>
+    </div>
+  </body>
+</html>

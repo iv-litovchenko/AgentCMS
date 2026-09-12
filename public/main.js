@@ -64139,9 +64139,13 @@ function ensureSidebarWorkspacePageIndexRow() {
   }
 
   const toolsRow = toolsSection.querySelector(".menu-tools-row");
+  const pinnedBanner = document.getElementById("menu-pinned-banner");
+  const insertAfter = pinnedBanner?.parentElement === toolsSection ? pinnedBanner : toolsRow;
   if (row.parentElement !== toolsSection) {
-    if (toolsRow) toolsRow.insertAdjacentElement("afterend", row);
+    if (insertAfter) insertAfter.insertAdjacentElement("afterend", row);
     else toolsSection.appendChild(row);
+  } else if (pinnedBanner && row.previousElementSibling !== pinnedBanner) {
+    pinnedBanner.insertAdjacentElement("afterend", row);
   }
 
   row.classList.toggle("hidden", !activeAgentId);
