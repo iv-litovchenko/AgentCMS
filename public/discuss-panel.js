@@ -11,7 +11,7 @@
   const discussPanelToggleBtnNode = document.getElementById("discuss-panel-toggle-btn");
   const discussPanelShellNode = document.getElementById("discuss-panel-shell");
   const discussShellIframeNode = document.getElementById("discuss-shell-iframe");
-  const workspaceBodyNode = document.querySelector(".workspace-body");
+  const workspacePaneNode = document.querySelector(".workspace-pane");
   const discussAsideHeightMq = window.matchMedia("(max-width: 960px)");
 
   if (!discussAsideNode) return;
@@ -249,30 +249,55 @@
     }
   }
 
+  function isEditorAutoheightMode() {
+    return document.getElementById("app-root")?.classList.contains("editor-autoheight") ?? false;
+  }
+
+  function getDiscussAsideVisibleHeight() {
+    const paneHeight = workspacePaneNode?.clientHeight || 0;
+    if (paneHeight > 0) return paneHeight;
+    const asideParent = discussAsideNode?.parentElement;
+    return asideParent?.clientHeight || 0;
+  }
+
   function syncDiscussAsideHeight() {
     if (!discussAsideNode) return;
     if (panelHidden || discussAsideHeightMq.matches) {
+      discussAsideNode.classList.remove("is-viewport-sized");
       discussAsideNode.style.height = "";
       discussAsideNode.style.maxHeight = "";
       return;
     }
-    const bodyHeight = workspaceBodyNode?.clientHeight || 0;
-    if (bodyHeight <= 0) {
+    if (!isEditorAutoheightMode()) {
+      discussAsideNode.classList.remove("is-viewport-sized");
       discussAsideNode.style.height = "";
       discussAsideNode.style.maxHeight = "";
       return;
     }
-    discussAsideNode.style.height = `${bodyHeight}px`;
-    discussAsideNode.style.maxHeight = `${bodyHeight}px`;
+    const visibleHeight = getDiscussAsideVisibleHeight();
+    if (visibleHeight <= 0) {
+      discussAsideNode.classList.remove("is-viewport-sized");
+      discussAsideNode.style.height = "";
+      discussAsideNode.style.maxHeight = "";
+      return;
+    }
+    discussAsideNode.classList.add("is-viewport-sized");
+    discussAsideNode.style.height = `${visibleHeight}px`;
+    discussAsideNode.style.maxHeight = `${visibleHeight}px`;
   }
 
   function bindDiscussAsideHeightSync() {
     syncDiscussAsideHeight();
     window.addEventListener("resize", syncDiscussAsideHeight);
     discussAsideHeightMq.addEventListener("change", syncDiscussAsideHeight);
-    if (workspaceBodyNode && typeof ResizeObserver !== "undefined") {
+    if (workspacePaneNode && typeof ResizeObserver !== "undefined") {
       const observer = new ResizeObserver(() => syncDiscussAsideHeight());
-      observer.observe(workspaceBodyNode);
+      observer.observe(workspacePaneNode);
+    }
+    const appRootNode = document.getElementById("app-root");
+    if (appRootNode && typeof MutationObserver !== "undefined") {
+      const classObserver = new MutationObserver(() => syncDiscussAsideHeight());
+      classObserver.observe(appRootNode, { attributes: true, attributeFilter: ["class"] });
     }
   }
 

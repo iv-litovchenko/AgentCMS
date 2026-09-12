@@ -47759,6 +47759,12 @@ body.is-discuss-resizing .discuss-aside-resizer {
   display: none;
 }
 
+.app.editor-autoheight .discuss-aside.is-viewport-sized {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+}
+
 .discuss-aside-tabs {
   display: flex;
   align-items: stretch;
