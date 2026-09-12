@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.753" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.754" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -1804,32 +1804,38 @@
                   <span class="app-landing-orbit-sea-shimmer"></span>
                 </div>
               </div>
-              <svg id="app-landing-orbit-links" class="app-landing-orbit-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
-              <svg id="app-landing-orbit-focus-links" class="app-landing-orbit-focus-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
-              <div class="app-landing-orbit-hub" aria-hidden="true">
-                <div class="app-landing-orbit-hub-aura">
-                  <span class="app-landing-orbit-hub-ring app-landing-orbit-hub-ring--outer"></span>
-                  <span class="app-landing-orbit-hub-ring app-landing-orbit-hub-ring--inner"></span>
-                  <span class="app-landing-orbit-hub-glow"></span>
-                </div>
-                <div class="app-landing-orbit-hub-copy">
-                  <div class="app-landing-orbit-hub-mark" aria-hidden="true">
-                    <img
-                      class="app-landing-orbit-hub-mark-icon"
-                      src="/favicon.svg"
-                      width="24"
-                      height="24"
-                      alt=""
-                    />
-                  </div>
-                  <p class="app-landing-orbit-hub-eyebrow">Workspaces / *.md</p>
-                  <h2 class="app-landing-orbit-hub-title">Agent CMS</h2>
-                  <p class="app-landing-orbit-hub-lead">Контекст для LLM-агентов</p>
-                  <p class="app-landing-orbit-hub-tagline">Тема за темой, задача за задачей.</p>
-                </div>
-              </div>
               <div id="app-landing-orbit-bubbles" class="app-landing-orbit-bubbles">
-                <div id="app-landing-orbit-agents" class="app-landing-orbit-agents" role="list"></div>
+                <div id="app-landing-orbit-agents" class="app-landing-orbit-agents">
+                  <div class="app-landing-orbit-stage">
+                    <svg id="app-landing-orbit-links" class="app-landing-orbit-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+                    <svg id="app-landing-orbit-focus-links" class="app-landing-orbit-focus-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+                    <div class="app-landing-orbit-hub" aria-hidden="true">
+                      <div class="app-landing-orbit-hub-aura">
+                        <span class="app-landing-orbit-hub-ring app-landing-orbit-hub-ring--outer"></span>
+                        <span class="app-landing-orbit-hub-ring app-landing-orbit-hub-ring--inner"></span>
+                        <span class="app-landing-orbit-hub-glow"></span>
+                      </div>
+                      <div class="app-landing-orbit-hub-copy">
+                        <div class="app-landing-orbit-hub-mark" aria-hidden="true">
+                          <img
+                            class="app-landing-orbit-hub-mark-icon"
+                            src="/favicon.svg"
+                            width="24"
+                            height="24"
+                            alt=""
+                          />
+                        </div>
+                        <p class="app-landing-orbit-hub-eyebrow">Workspaces / *.md</p>
+                        <h2 class="app-landing-orbit-hub-title">Agent CMS</h2>
+                        <p class="app-landing-orbit-hub-lead">Контекст для LLM-агентов</p>
+                        <p class="app-landing-orbit-hub-tagline">Тема за темой, задача за задачей.</p>
+                      </div>
+                    </div>
+                    <div id="app-landing-orbit-agent-bubbles" class="app-landing-orbit-agent-bubbles" role="list"></div>
+                    <div id="app-landing-orbit-twigs" class="app-landing-orbit-twigs" role="list" aria-label="Темы фокуса"></div>
+                    <div id="app-landing-orbit-attention" class="app-landing-orbit-attention hidden" aria-hidden="true" aria-label="Распределение внимания по агентам"></div>
+                  </div>
+                </div>
                 <section id="app-landing-focus" class="app-landing-main-topics app-landing-orbit-main-dock hidden" aria-label="На главной">
                   <span id="app-landing-focus-title" class="hidden" hidden>На главной</span>
                   <span id="app-landing-focus-count" class="hidden" hidden aria-hidden="true">0</span>
@@ -1838,8 +1844,6 @@
                   </div>
                 </section>
               </div>
-              <div id="app-landing-orbit-twigs" class="app-landing-orbit-twigs" role="list" aria-label="Темы фокуса"></div>
-              <div id="app-landing-orbit-attention" class="app-landing-orbit-attention hidden" aria-hidden="true" aria-label="Распределение внимания по агентам"></div>
             </div>
 
             <div id="app-landing-orbit-dive" class="app-landing-orbit-dive hidden" aria-hidden="true" aria-label="Содержимое агента">
@@ -4613,7 +4617,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.747"></script>
+    <script src="/main.js?v=0.5.748"></script>
     <script src="/discuss-panel.js?v=0.5.257"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>

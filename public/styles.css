@@ -5627,6 +5627,17 @@ body.app-locked {
   z-index: 1;
 }
 
+.app-landing-orbit-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.app-landing-orbit-agent-bubbles {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+}
+
 .app-landing-orbit-item {
   position: absolute;
   left: var(--orbit-x, 50%);

@@ -230,6 +230,7 @@ const appLandingGroupBgCloseBtn = document.getElementById("app-landing-group-bg-
 const appLandingOrbitNode = document.getElementById("app-landing-orbit");
 const appLandingOrbitBubblesNode = document.getElementById("app-landing-orbit-bubbles");
 const appLandingOrbitAgentsNode = document.getElementById("app-landing-orbit-agents");
+const appLandingOrbitAgentBubblesNode = document.getElementById("app-landing-orbit-agent-bubbles");
 const appLandingOrbitAttentionNode = document.getElementById("app-landing-orbit-attention");
 const appLandingOrbitLinksNode = document.getElementById("app-landing-orbit-links");
 const appLandingOrbitFocusLinksNode = document.getElementById("app-landing-orbit-focus-links");
@@ -10038,11 +10039,9 @@ function getOrbitBubbleLayout(index, total, agentId) {
   const angle = t * golden + (hash % 360) * (Math.PI / 180) * 0.08;
   const x = 50 + Math.cos(angle) * radius * (0.92 + (hash % 7) * 0.015);
   const y = 48 + Math.sin(angle) * radius * 0.72;
-  const hasMainDock = globalFocusItemsCache.length > 0 && getLandingAgentsView() === "orbit";
-  const yMax = hasMainDock ? 78 : 88;
   return {
     x: Math.min(90, Math.max(8, x)),
-    y: Math.min(yMax, Math.max(10, y)),
+    y: Math.min(88, Math.max(10, y)),
     size: 58 + (hash % 28),
     duration: 7 + (hash % 6),
     delay: ((hash % 50) / 10).toFixed(1),
@@ -10842,8 +10841,12 @@ function renderAppLandingOrbitLinks(agents) {
   }
 }
 
+function getOrbitAgentBubblesNode() {
+  return appLandingOrbitAgentBubblesNode || appLandingOrbitAgentsNode || appLandingOrbitBubblesNode;
+}
+
 function renderAppLandingOrbit() {
-  const orbitAgentsNode = appLandingOrbitAgentsNode || appLandingOrbitBubblesNode;
+  const orbitAgentsNode = getOrbitAgentBubblesNode();
   if (!orbitAgentsNode) return;
   orbitAgentsNode.replaceChildren();
   clearOrbitAttentionHighlight();
@@ -11661,7 +11664,7 @@ function scheduleOrbitDiveLinksDraw() {
 }
 
 function syncOrbitDiveSelection() {
-  for (const item of (appLandingOrbitAgentsNode || appLandingOrbitBubblesNode)?.querySelectorAll(".app-landing-orbit-item") || []) {
+  for (const item of getOrbitAgentBubblesNode()?.querySelectorAll(".app-landing-orbit-item") || []) {
     const selected = landingOrbitDiveAgentId && item.dataset.agentId === landingOrbitDiveAgentId;
     item.classList.toggle("is-dive-selected", Boolean(selected));
   }
@@ -11785,7 +11788,7 @@ function bindOrbitAttentionHover(node, agentId) {
 function setOrbitAttentionHighlight(agentId) {
   const hasHighlight = Boolean(agentId);
 
-  (appLandingOrbitAgentsNode || appLandingOrbitBubblesNode)
+  getOrbitAgentBubblesNode()
     ?.querySelectorAll(".app-landing-orbit-item[data-agent-id]")
     .forEach((item) => {
       const isMatch = item.dataset.agentId === agentId;
