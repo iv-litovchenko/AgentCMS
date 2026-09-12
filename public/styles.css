@@ -14610,6 +14610,15 @@ a.header-tool-btn {
   gap: 1px;
   min-width: 0;
   flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.header-profile-menu-tile-label,
+.header-profile-menu-tile-meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .header-profile-menu-tile-label {
@@ -14624,9 +14633,6 @@ a.header-tool-btn {
   font-size: 10px;
   font-weight: 600;
   line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .header-profile-menu-tile--web .header-profile-menu-tile-meta {
