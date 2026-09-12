@@ -64138,12 +64138,17 @@ function ensureSidebarWorkspacePageIndexRow() {
     row.className = "sidebar-workspace-page-index-row node-navigation-workspace-counter-topic-index-row";
   }
 
-  const toolsRow = toolsSection.querySelector(".menu-tools-row");
   const pinnedBanner = document.getElementById("menu-pinned-banner");
-  const insertAfter = pinnedBanner?.parentElement === toolsSection ? pinnedBanner : toolsRow;
+  const toolsRow = toolsSection.querySelector(".menu-tools-row");
+  const insertAfter =
+    pinnedBanner?.parentElement === toolsSection
+      ? pinnedBanner
+      : toolsRow?.parentElement === toolsSection
+        ? toolsRow
+        : null;
   if (row.parentElement !== toolsSection) {
     if (insertAfter) insertAfter.insertAdjacentElement("afterend", row);
-    else toolsSection.appendChild(row);
+    else toolsSection.prepend(row);
   } else if (pinnedBanner && row.previousElementSibling !== pinnedBanner) {
     pinnedBanner.insertAdjacentElement("afterend", row);
   }
@@ -81726,13 +81731,25 @@ function createMenuCard(entry, { systemFile = false, exists = true, empty = fals
   return card;
 }
 
+function syncMenuViewModeButtons(mode = menuViewMode) {
+  const buttons = [
+    { btn: menuViewTreeBtn, mode: "tree" },
+    { btn: menuViewFlatBtn, mode: "flat" },
+    { btn: menuViewBookmarksBtn, mode: "bookmarks" }
+  ];
+  for (const { btn, mode: btnMode } of buttons) {
+    if (!btn) continue;
+    const isActive = mode === btnMode;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-selected", isActive ? "true" : "false");
+  }
+}
+
 function setMenuViewMode(mode) {
   if (mode !== "tree" && mode !== "flat" && mode !== "bookmarks") return;
   const previousMode = menuViewMode;
   menuViewMode = mode;
-  menuViewTreeBtn.classList.toggle("active", mode === "tree");
-  menuViewFlatBtn.classList.toggle("active", mode === "flat");
-  menuViewBookmarksBtn.classList.toggle("active", mode === "bookmarks");
+  syncMenuViewModeButtons(mode);
 
   const wasTreeLayout = previousMode === "tree" || previousMode === "flat";
   const isTreeLayout = mode === "tree" || mode === "flat";
@@ -91588,9 +91605,12 @@ function patchSharedMenuAfterCreate(agentId = activeAgentId) {
 
 function withPreservedMenuScroll(run) {
   const scrollContainer = document.querySelector(".sidebar");
+  const menuScrollShell = document.querySelector(".sidebar-slab-menu .menu-scroll-shell");
   const scrollTop = scrollContainer?.scrollTop ?? 0;
+  const menuScrollTop = menuScrollShell?.scrollTop ?? 0;
   const result = run();
   if (scrollContainer) scrollContainer.scrollTop = scrollTop;
+  if (menuScrollShell) menuScrollShell.scrollTop = menuScrollTop;
   return result;
 }
 
@@ -95921,9 +95941,21 @@ function syncHeaderFocusCount() {
   headerFocusToggleBtn?.classList.toggle("has-count", total > 0);
 }
 
+function getSidebarPrimaryScrollElement() {
+  const menuScrollShell = document.querySelector(".sidebar-slab-menu .menu-scroll-shell");
+  if (sidebarNode && sidebarNode.scrollTop > 0) return sidebarNode;
+  if (
+    menuScrollShell &&
+    menuScrollShell.scrollHeight > menuScrollShell.clientHeight + 1
+  ) {
+    return menuScrollShell;
+  }
+  return sidebarNode;
+}
+
 function syncSidebarScrollChrome() {
   syncScrollChrome({
-    scrollElement: sidebarNode,
+    scrollElement: getSidebarPrimaryScrollElement(),
     topButton: sidebarScrollTopBtn,
     progressNode: sidebarScrollProgressNode,
     depthNode: sidebarScrollDepthNode,
@@ -96075,10 +96107,13 @@ function syncMenuScrollTopButton() {
 
 function setupMenuScrollTopButton() {
   if (!sidebarNode) return;
+  const menuScrollShell = document.querySelector(".sidebar-slab-menu .menu-scroll-shell");
   sidebarNode.addEventListener("scroll", syncSidebarScrollChrome, { passive: true });
+  menuScrollShell?.addEventListener("scroll", syncSidebarScrollChrome, { passive: true });
   setupDraggableScrollTopButton(sidebarScrollTopBtn, {
     onActivate: () => {
       sidebarNode.scrollTo({ top: 0, behavior: "smooth" });
+      menuScrollShell?.scrollTo({ top: 0, behavior: "smooth" });
     }
   });
   if (typeof ResizeObserver !== "undefined") {
@@ -96087,6 +96122,7 @@ function setupMenuScrollTopButton() {
       syncWorkspaceScrollChrome();
     });
     observer.observe(sidebarNode);
+    menuScrollShell && observer.observe(menuScrollShell);
     if (workspacePaneNode) observer.observe(workspacePaneNode);
   }
   syncSidebarScrollChrome();

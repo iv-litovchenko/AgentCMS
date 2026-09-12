@@ -20009,12 +20009,12 @@ a.header-tool-btn {
 
 .sidebar-slab-menu {
   position: relative;
-  flex: 0 0 auto;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   border-bottom: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .sidebar-menu-before-tree {
@@ -20030,26 +20030,29 @@ a.header-tool-btn {
   flex: 0 0 auto;
   min-height: auto;
   margin-top: 0;
-  padding: 6px 10px 6px 12px;
+  padding: 0 10px 6px 12px;
   overflow: visible;
 }
 
 .menu-scroll-shell {
   position: relative;
-  flex: 0 0 auto;
-  min-height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .menu-sidebar-bottom {
-  flex-shrink: 0;
-  position: sticky;
-  bottom: 0;
+  flex: 0 0 auto;
+  margin-top: auto;
+  position: relative;
   z-index: 6;
-  background: transparent;
-  border-top: 0;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
   box-sizing: border-box;
 }
 
@@ -21179,6 +21182,46 @@ a.header-tool-btn {
 .menu-collapse-all-btn:hover:not(:disabled) {
   border-color: #93c5fd;
   background: #eff6ff;
+}
+
+.sidebar-slab-menu-tree-band > .menu-view-ghost-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 6px 10px 8px;
+  background: linear-gradient(180deg, rgba(236, 253, 245, 0.35) 0%, rgba(255, 255, 255, 0) 100%);
+  box-sizing: border-box;
+}
+
+.sidebar-slab-menu-tree-band.is-collapsed > .menu-view-ghost-strip {
+  padding-top: 4px;
+}
+
+.sidebar-slab-menu-tree-band > .menu-view-ghost-strip .menu-view-ghost-btn {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 2px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sidebar-slab-menu-tree-band > .menu-view-ghost-strip .menu-view-ghost-btn:hover {
+  color: #166534;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.sidebar-slab-menu-tree-band > .menu-view-ghost-strip .menu-view-ghost-btn.is-active {
+  color: #166534;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 -2px 0 #22c55e;
 }
 
 .sidebar-tree-band-head-actions .menu-settings-wrap {
@@ -51913,13 +51956,9 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .sidebar-slab-menu .menu {
-  padding: 10px var(--menu-sidebar-pad-x) 8px;
+  padding: 0 var(--menu-sidebar-pad-x) 8px;
   background: #ffffff;
   font-family: Tahoma, "Segoe UI", "MS Sans Serif", sans-serif;
-}
-
-.sidebar-slab-menu-tree-band + .sidebar-slab-menu .menu {
-  padding-top: 12px;
 }
 
 .sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) {
