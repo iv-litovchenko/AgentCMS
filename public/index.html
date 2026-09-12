@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.785" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.793" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -826,18 +826,35 @@
         </div>
         <section class="sidebar-slab sidebar-slab-agent" aria-label="Агент">
           <div class="sidebar-agent-select-block">
+            <div class="sidebar-agent-avatar-block">
+              <button
+                id="sidebar-agent-avatar-btn"
+                class="sidebar-agent-toolbar-avatar hidden"
+                type="button"
+                title="Открыть выбранный вид workspace"
+                aria-label="Открыть выбранный вид workspace"
+              >
+                <span id="sidebar-agent-avatar-mount" class="sidebar-agent-toolbar-avatar-mount" aria-hidden="true"></span>
+              </button>
+              <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Слайдер вдохновения">
+                <div class="agent-preview-frame">
+                  <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
+                  <span class="agent-preview-shine" aria-hidden="true"></span>
+                  <button
+                    id="agent-preview-slider-info-btn"
+                    type="button"
+                    class="agent-preview-slider-btn agent-preview-slider-info-btn"
+                    title="Слайдер вдохновения — загрузить изображения"
+                    aria-label="Открыть слайдер вдохновения"
+                  >
+                    <span class="agent-preview-slider-info-icon" aria-hidden="true">&lt;&gt;</span>
+                  </button>
+                </div>
+              </div>
+            </div>
             <div class="sidebar-agent-toolbar">
               <div class="sidebar-agent-row sidebar-agent-row--agent">
                 <div class="sidebar-agent-controls sidebar-agent-controls--compact">
-                  <button
-                    id="sidebar-agent-avatar-btn"
-                    class="sidebar-agent-toolbar-avatar hidden"
-                    type="button"
-                    title="Открыть выбранный вид workspace"
-                    aria-label="Открыть выбранный вид workspace"
-                  >
-                    <span id="sidebar-agent-avatar-mount" class="sidebar-agent-toolbar-avatar-mount" aria-hidden="true"></span>
-                  </button>
                   <div id="agent-select-wrap" class="agent-select-wrap">
                     <select id="agent-select" class="agent-select" aria-label="Хранилище (агент)"></select>
                   </div>
@@ -944,55 +961,41 @@
               </div>
             </div>
             <div class="sidebar-agent-toolbar-divider" role="presentation"></div>
-            <div class="sidebar-agent-avatar-block">
-              <div id="agent-preview-wrap" class="agent-preview-wrap agent-preview-portrait hidden" title="Слайдер вдохновения">
-                <div class="agent-preview-frame">
-                  <img id="agent-preview-thumb" class="agent-preview-thumb" alt="" draggable="false" />
-                  <span class="agent-preview-shine" aria-hidden="true"></span>
-                  <button
-                    id="agent-preview-slider-info-btn"
-                    type="button"
-                    class="agent-preview-slider-btn agent-preview-slider-info-btn"
-                    title="Слайдер вдохновения — загрузить изображения"
-                    aria-label="Открыть слайдер вдохновения"
-                  >
-                    <span class="agent-preview-slider-info-icon" aria-hidden="true">&lt;&gt;</span>
-                  </button>
-                </div>
-              </div>
-              <div id="agent-todo-preview-wrap" class="agent-todo-preview-wrap is-note-collapsed hidden">
+            <div id="agent-todo-preview-wrap" class="agent-todo-preview-wrap is-note-collapsed hidden">
+              <button
+                id="agent-todo-preview-toggle"
+                type="button"
+                class="agent-todo-preview-head sidebar-accent-band-toggle sidebar-accent-band-toggle--note"
+                aria-expanded="false"
+                aria-controls="agent-todo-preview-content"
+                title="NOTE.md — заметки агента"
+              >
+                <span class="sidebar-accent-band-toggle-main">
+                  <span class="agent-todo-preview-chevron sidebar-accent-band-chevron" aria-hidden="true"></span>
+                  <span class="agent-todo-preview-label sidebar-accent-band-title">NOTE.md (заметки)</span>
+                </span>
+              </button>
+              <button
+                id="agent-todo-preview-edit-btn"
+                class="agent-todo-preview-edit-btn"
+                type="button"
+                title="Редактировать NOTE.md"
+                aria-label="Редактировать NOTE.md"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+              </button>
+              <div id="agent-todo-preview-content" class="agent-todo-preview-content">
+                <div id="agent-todo-preview-body" class="agent-todo-preview-body file-content-preview"></div>
                 <button
-                  id="agent-todo-preview-toggle"
+                  id="agent-todo-preview-expand-btn"
+                  class="agent-todo-preview-expand-btn hidden"
                   type="button"
-                  class="agent-todo-preview-head"
-                  aria-expanded="false"
-                  aria-controls="agent-todo-preview-content"
                 >
-                  <span class="agent-todo-preview-chevron" aria-hidden="true"></span>
-                  <span class="agent-todo-preview-label">NOTE.md (заметки)</span>
+                  Развернуть всё
                 </button>
-                <button
-                  id="agent-todo-preview-edit-btn"
-                  class="agent-todo-preview-edit-btn"
-                  type="button"
-                  title="Редактировать NOTE.md"
-                  aria-label="Редактировать NOTE.md"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                </button>
-                <div id="agent-todo-preview-content" class="agent-todo-preview-content">
-                  <div id="agent-todo-preview-body" class="agent-todo-preview-body file-content-preview"></div>
-                  <button
-                    id="agent-todo-preview-expand-btn"
-                    class="agent-todo-preview-expand-btn hidden"
-                    type="button"
-                  >
-                    Развернуть всё
-                  </button>
-                </div>
               </div>
             </div>
           </div>
