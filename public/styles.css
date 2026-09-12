@@ -16406,45 +16406,68 @@ a.header-tool-btn {
 .agents-picker-popover {
   position: fixed;
   z-index: 1100;
-  width: min(240px, calc(100vw - 24px));
+  width: auto;
+  max-width: none;
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--panel);
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.sidebar-agent-controls--compact {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-select-wrap--sr-only,
+.agent-view-select-wrap--sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.agents-view-picker-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agents-view-picker-menu .header-profile-menu-item.is-active {
+  background: #eef2ff;
+  color: #1e3a8a;
+}
+
+.agents-view-picker-menu .header-profile-menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .agents-picker-popover.hidden {
   display: none;
 }
 
-.agents-picker-popover-head {
-  position: relative;
-  margin: 0 0 2px;
+.agents-picker-popover-section {
+  margin-top: 0;
+}
+
+.agents-picker-popover-section--tools {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
 }
 
 .agents-picker-popover-title {
-  margin: 0;
-  padding-right: 28px;
-}
-
-.agents-picker-popover-close {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 6px;
-}
-
-.agents-picker-popover-close:hover {
-  background: #f1f5f9;
-  color: var(--text);
+  margin: 0 0 4px;
+  padding-right: 0;
 }
 
 .agents-picker-variant-tabs {

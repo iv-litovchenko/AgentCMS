@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.781" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.785" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -828,13 +828,13 @@
           <div class="sidebar-agent-select-block">
             <div class="sidebar-agent-toolbar">
               <div class="sidebar-agent-row sidebar-agent-row--agent">
-                <div class="sidebar-agent-controls">
+                <div class="sidebar-agent-controls sidebar-agent-controls--compact">
                   <button
                     id="sidebar-agent-avatar-btn"
                     class="sidebar-agent-toolbar-avatar hidden"
                     type="button"
-                    title="Агент"
-                    aria-label="Открыть тему агента"
+                    title="Открыть выбранный вид workspace"
+                    aria-label="Открыть выбранный вид workspace"
                   >
                     <span id="sidebar-agent-avatar-mount" class="sidebar-agent-toolbar-avatar-mount" aria-hidden="true"></span>
                   </button>
@@ -845,8 +845,8 @@
                     id="agents-picker-btn"
                     class="agents-picker-btn"
                     type="button"
-                    title="Инструменты workspace — Git, типы, реестр и др."
-                    aria-label="Инструменты workspace"
+                    title="Workspace — вид и инструменты"
+                    aria-label="Workspace — вид и инструменты"
                     aria-expanded="false"
                     aria-controls="agents-picker-popover"
                   >
@@ -854,50 +854,45 @@
                   </button>
                 </div>
               </div>
-              <div class="sidebar-agent-row sidebar-agent-row--view">
-                <div class="sidebar-agent-view-controls">
-                  <div id="agent-view-select-wrap" class="agent-view-select-wrap">
-                    <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace агента">
-                    <option value="dashboard" selected>Главная</option>
-                    <option value="dashboard2">Дашборд</option>
-                    <option value="graph">Граф связей</option>
-                    <option value="map2" disabled>Структура</option>
-                    <option value="table">Таблица</option>
-                    <option value="vault">Каталог</option>
-                    <option value="schema">Карта</option>
-                    <option value="timeline">Лента</option>
-                    <option value="map" hidden>Карта</option>
-                    <option value="map3" hidden>Карта 3</option>
-                    <option value="storage" hidden>Хранилище</option>
-                    <option value="timeline-axis" hidden>Timeline</option>
-                    <option value="timeline-vertical" hidden>Timeline ↓</option>
-                  </select>
-                  </div>
-                </div>
+              <div id="agent-view-select-wrap" class="agent-view-select-wrap agent-view-select-wrap--sr-only" aria-hidden="true">
+                <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace агента" tabindex="-1">
+                  <option value="dashboard" selected>Главная</option>
+                  <option value="dashboard2">Дашборд</option>
+                  <option value="graph">Граф связей</option>
+                  <option value="map2" disabled>Структура</option>
+                  <option value="table">Таблица</option>
+                  <option value="vault">Каталог</option>
+                  <option value="schema">Карта</option>
+                  <option value="timeline">Лента</option>
+                  <option value="map" hidden>Карта</option>
+                  <option value="map3" hidden>Карта 3</option>
+                  <option value="storage" hidden>Хранилище</option>
+                  <option value="timeline-axis" hidden>Timeline</option>
+                  <option value="timeline-vertical" hidden>Timeline ↓</option>
+                </select>
               </div>
               <div
                 id="agents-picker-popover"
                 class="agents-picker-popover hidden"
                 role="dialog"
-                aria-label="Инструменты workspace"
+                aria-label="Workspace — вид и инструменты"
               >
-                <div class="agents-picker-popover-head">
+                <section class="agents-picker-popover-section">
+                  <p
+                    id="agents-picker-popover-view-title"
+                    class="agents-picker-popover-title header-profile-menu-section-title"
+                  >
+                    Вид workspace
+                  </p>
+                  <div id="agents-agent-picker-stage" class="agents-view-picker-menu" role="menu" aria-label="Вид workspace"></div>
+                </section>
+                <section class="agents-picker-popover-section agents-picker-popover-section--tools">
                   <p
                     id="agents-picker-popover-title"
                     class="agents-picker-popover-title header-profile-menu-section-title"
                   >
                     Инструменты workspace
                   </p>
-                  <button
-                    id="agents-picker-popover-close"
-                    class="agents-picker-popover-close"
-                    type="button"
-                    aria-label="Закрыть"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div id="agents-picker-stage" class="agents-picker-stage agents-picker-stage--tools">
                   <div class="agents-picker-tools-grid" role="menu" aria-label="Инструменты workspace">
                     <button
                       id="agent-git-btn"
@@ -945,7 +940,7 @@
                       <span class="agents-picker-tool-label">Битые ссылки</span>
                     </button>
                   </div>
-                </div>
+                </section>
               </div>
             </div>
             <div class="sidebar-agent-toolbar-divider" role="presentation"></div>
@@ -4651,7 +4646,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.764"></script>
+    <script src="/main.js?v=0.5.769"></script>
     <script src="/discuss-panel.js?v=0.5.257"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>

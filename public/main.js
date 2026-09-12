@@ -1109,8 +1109,7 @@ let headerProfileMenuOpen = false;
 const agentsManageBtn = document.getElementById("agents-manage-btn");
 const agentsPickerBtn = document.getElementById("agents-picker-btn");
 const agentsPickerPopoverNode = document.getElementById("agents-picker-popover");
-const agentsPickerPopoverCloseBtn = document.getElementById("agents-picker-popover-close");
-const agentsPickerStageNode = document.getElementById("agents-picker-stage");
+const agentsAgentPickerStageNode = document.getElementById("agents-agent-picker-stage");
 const agentPreviewWrapNode = document.getElementById("agent-preview-wrap");
 const agentPreviewThumbNode = document.getElementById("agent-preview-thumb");
 const agentPreviewSliderInfoBtn = document.getElementById("agent-preview-slider-info-btn");
@@ -8241,27 +8240,50 @@ function createAgentPickerFallback(agent, avatarSize) {
   return fallback;
 }
 
-function renderAgentsPickerGrid() {
-  if (!agentsPickerStageNode) return;
+function renderAgentViewPickerMenu() {
+  if (!agentsAgentPickerStageNode || !agentViewSelect) return;
 
-  agentsPickerStageNode.className = "agents-picker-stage agents-picker-stage--grid";
-  agentsPickerStageNode.replaceChildren();
+  agentsAgentPickerStageNode.className = "agents-view-picker-menu";
+  agentsAgentPickerStageNode.replaceChildren();
 
-  const agents = getAgentsInSelectOrder();
-  if (agents.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "agents-picker-empty";
-    empty.textContent = "Нет агентов в реестре";
-    agentsPickerStageNode.appendChild(empty);
-    return;
+  const currentView = String(agentViewSelect.value || agentWorkspaceView || "dashboard").trim();
+  for (const option of agentViewSelect.options) {
+    if (option.hidden) continue;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.role = "menuitem";
+    btn.className = "header-profile-menu-item agents-view-picker-item";
+    btn.dataset.view = option.value;
+    btn.textContent = option.textContent || option.value;
+    btn.disabled = option.disabled;
+    btn.classList.toggle("is-active", option.value === currentView);
+    btn.addEventListener("click", () => {
+      if (option.disabled) return;
+      agentViewSelect.value = option.value;
+      setAgentWorkspaceView(option.value);
+      closeAgentsPickerPopover();
+      syncAgentViewPickerMenuState();
+    });
+    agentsAgentPickerStageNode.appendChild(btn);
   }
+}
 
-  const grid = document.createElement("div");
-  grid.className = "agents-picker-grid";
-  for (const agent of agents) {
-    grid.appendChild(createAgentPickerAgentButton(agent));
+function syncAgentViewPickerMenuState() {
+  if (!agentViewSelect) return;
+  const currentView = String(agentViewSelect.value || agentWorkspaceView || "").trim();
+  if (agentsAgentPickerStageNode) {
+    for (const btn of agentsAgentPickerStageNode.querySelectorAll(".agents-view-picker-item")) {
+      btn.classList.toggle("is-active", btn.dataset.view === currentView);
+    }
   }
-  agentsPickerStageNode.appendChild(grid);
+  if (sidebarAgentAvatarBtn) {
+    const agent = getAgentMeta(activeAgentId);
+    const agentLabel = String(agent?.name || agent?.id || "Агент").trim();
+    const viewLabel = agentViewSelect.selectedOptions[0]?.textContent?.trim() || "Главная";
+    const workspaceViewHint = "Открыть выбранный вид workspace";
+    sidebarAgentAvatarBtn.title = `${agentLabel} · ${viewLabel} — ${workspaceViewHint.toLowerCase()}`;
+    sidebarAgentAvatarBtn.setAttribute("aria-label", workspaceViewHint);
+  }
 }
 
 function syncAgentsPickerButtonState() {
@@ -8272,7 +8294,7 @@ function syncAgentsPickerButtonState() {
 
 function resetAgentsPickerPopoverPosition() {
   if (!agentsPickerPopoverNode) return;
-  for (const prop of ["top", "left", "width", "maxHeight"]) {
+  for (const prop of ["top", "left", "width", "maxWidth", "maxHeight"]) {
     agentsPickerPopoverNode.style.removeProperty(prop);
   }
 }
@@ -8283,14 +8305,13 @@ function positionAgentsPickerPopover() {
   if (!popover || !anchor || popover.classList.contains("hidden")) return;
 
   const rect = anchor.getBoundingClientRect();
-  const width = Math.min(300, Math.max(Math.round(rect.width), 240));
-  const left = Math.max(12, Math.round(rect.left));
   const top = Math.round(rect.bottom + 6);
   const maxHeight = Math.max(160, window.innerHeight - top - 12);
 
   popover.style.top = `${top}px`;
-  popover.style.left = `${left}px`;
-  popover.style.width = `${width}px`;
+  popover.style.left = `${Math.round(rect.left)}px`;
+  popover.style.width = `${Math.round(rect.width)}px`;
+  popover.style.maxWidth = "none";
   popover.style.maxHeight = `${maxHeight}px`;
 }
 
@@ -8431,13 +8452,15 @@ function openAgentsPickerPopover() {
   }
   closeMenuSettingsPopover();
   agentsPickerIsOpen = true;
+  renderAgentViewPickerMenu();
   agentsPickerPopoverNode.classList.remove("hidden");
   syncAgentsPickerButtonState();
   positionAgentsPickerPopover();
 }
 
 function refreshAgentsPickerIfOpen() {
-  // Agent grid removed from popover — tools are static in HTML.
+  if (!agentsPickerIsOpen) return;
+  renderAgentViewPickerMenu();
 }
 
 function mountAgentToolbarBtnIcon(btn, icon, iconClass) {
@@ -12623,14 +12646,15 @@ function resolveSidebarAgentToolbarPreviewUrl(agentId = activeAgentId) {
 function syncIdentityToolbarAvatars(agentId = activeAgentId) {
   const agent = getAgentMeta(agentId);
   const showKitAvatars = Boolean(agentId && !isPlatformAgentId(agentId));
+  const showSidebarAvatar = Boolean(agentId);
 
   if (sidebarAgentAvatarBtn && sidebarAgentAvatarMountNode) {
-    sidebarAgentAvatarBtn.classList.toggle("hidden", !showKitAvatars);
-    if (showKitAvatars) {
-      const agentLabel = String(agent?.name || agent?.id || "Агент").trim();
-      sidebarAgentAvatarBtn.title = agentLabel;
-      sidebarAgentAvatarBtn.setAttribute("aria-label", `Открыть тему агента ${agentLabel}`);
-      const { primaryUrl, secondaryUrl } = resolveSidebarAgentToolbarPreviewUrl(agentId);
+    sidebarAgentAvatarBtn.classList.toggle("hidden", !showSidebarAvatar);
+    if (showSidebarAvatar) {
+      const registryPreviewUrl = agent ? getRegistryAgentPreviewUrl(agent) : "";
+      const { primaryUrl, secondaryUrl } = showKitAvatars
+        ? resolveSidebarAgentToolbarPreviewUrl(agentId)
+        : { primaryUrl: registryPreviewUrl, secondaryUrl: null };
       mountIdentityAvatarWithFallbacks(sidebarAgentAvatarMountNode, {
         primaryUrl,
         secondaryUrl,
@@ -12639,6 +12663,7 @@ function syncIdentityToolbarAvatars(agentId = activeAgentId) {
         emojiClass: "sidebar-agent-toolbar-avatar-emoji",
         initialsClass: "sidebar-agent-toolbar-avatar-initials"
       });
+      syncAgentViewPickerMenuState();
     } else {
       sidebarAgentAvatarMountNode.replaceChildren();
     }
@@ -61493,7 +61518,7 @@ function resolveCatalogTagPresentation(tagId) {
   if (!id) return null;
   const catalog = getAgentCatalogPreset("tags");
   const item = (catalog.items || []).find((entry) => String(entry?.id || "").trim() === id);
-  const label = String(item?.label || "").trim() || id;
+  const label = (String(item?.label || "").trim() || id).replace(/^#+/, "").trim() || id;
   return {
     id,
     label,
@@ -85783,6 +85808,7 @@ function syncAgentWorkspaceViewButtons() {
     agentViewSelect.value = "dashboard";
   }
   syncAgentPreviewOpenUi();
+  syncAgentViewPickerMenuState();
 }
 
 function isAgentWorkspaceCanvasVisible() {
@@ -96539,7 +96565,7 @@ agentsManageBtn?.addEventListener("click", () => {
 });
 agentsPickerBtn?.addEventListener("click", () => openAgentsPickerPopover());
 sidebarAgentAvatarBtn?.addEventListener("click", () => {
-  void openAgentKitTopic("agent");
+  openSelectedAgentWorkspaceView();
 });
 headerUserProfileBtn?.addEventListener("click", (event) => {
   event.stopPropagation();
@@ -96578,7 +96604,6 @@ headerProfileSettingsBtn?.addEventListener("click", () => {
   closeHeaderProfileMenu();
   void openAgentKitTopic("user");
 });
-agentsPickerPopoverCloseBtn?.addEventListener("click", closeAgentsPickerPopover);
 document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
