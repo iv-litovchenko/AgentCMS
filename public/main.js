@@ -183,6 +183,13 @@ const headerWelcomeBtn = document.getElementById("header-welcome-btn");
 const headerWelcomePopoverNode = document.getElementById("header-welcome-popover");
 const headerWelcomeCloseBtn = document.getElementById("header-welcome-close-btn");
 const headerWelcomeCreateBtn = document.getElementById("header-welcome-create-btn");
+const headerConnectWrapNode = document.getElementById("header-connect-wrap");
+const headerConnectBtn = document.getElementById("header-connect-btn");
+const headerConnectPopoverNode = document.getElementById("header-connect-popover");
+const headerConnectCloseBtn = document.getElementById("header-connect-close-btn");
+const headerConnectMcpBtn = document.getElementById("header-connect-mcp-btn");
+const headerConnectCopyBtn = document.getElementById("header-connect-copy-btn");
+const headerConnectPromptTextNode = document.getElementById("header-connect-prompt-text");
 const headerFocusWrapNode = document.getElementById("header-focus-wrap");
 const headerFocusToggleBtn = document.getElementById("header-focus-toggle-btn");
 const headerFocusPopoverNode = document.getElementById("header-focus-popover");
@@ -6717,13 +6724,27 @@ function mountPreviewOrFallback(container, {
     const img = document.createElement("img");
     img.alt = "";
     img.draggable = false;
-    img.onerror = mountFallback;
-    img.src = previewUrl;
+    const clearPreviewLoading = () => {
+      container.classList.remove("is-preview-loading");
+    };
+    const handlePreviewError = () => {
+      clearPreviewLoading();
+      mountFallback();
+    };
+    container.classList.add("is-preview-loading");
+    img.addEventListener("load", clearPreviewLoading, { once: true });
+    img.addEventListener("error", handlePreviewError, { once: true });
     container.replaceChildren();
     container.appendChild(img);
+    img.src = previewUrl;
+    if (img.complete) {
+      if (img.naturalWidth > 0) clearPreviewLoading();
+      else handlePreviewError();
+    }
     return;
   }
 
+  container.classList.remove("is-preview-loading");
   mountFallback();
 }
 
@@ -8180,6 +8201,7 @@ function openHeaderWelcomePopover() {
     closeHeaderWelcomePopover();
     return;
   }
+  closeHeaderConnectPopover();
   closeAgentsPickerPopover();
   closeMenuSettingsPopover();
   closeWorkspaceNotificationsPopover();
@@ -8188,6 +8210,69 @@ function openHeaderWelcomePopover() {
   headerWelcomeOpen = true;
   headerWelcomePopoverNode.classList.remove("hidden");
   syncHeaderWelcomeState();
+}
+
+let headerConnectOpen = false;
+
+function getHeaderConnectStorageLabel() {
+  const agents = getAgentsForLandingGrid();
+  const namedAgent = agents.find((agent) => String(agent?.name || "").trim());
+  if (namedAgent?.name) return String(namedAgent.name).trim();
+  const titleNode =
+    document.querySelector(".app-home-title-display") || document.getElementById("app-home-title");
+  const title = String(titleNode?.textContent || "").trim();
+  return title && title !== "Agent CMS" ? title : "Название";
+}
+
+function syncHeaderConnectPrompt() {
+  if (!headerConnectPromptTextNode) return;
+  const storageLabel = getHeaderConnectStorageLabel();
+  headerConnectPromptTextNode.textContent = `Выбери хранилище ${storageLabel} и загрузи контекст`;
+}
+
+function syncHeaderConnectState() {
+  headerConnectBtn?.classList.toggle("is-open", headerConnectOpen);
+  headerConnectBtn?.setAttribute("aria-expanded", headerConnectOpen ? "true" : "false");
+}
+
+function closeHeaderConnectPopover() {
+  if (!headerConnectOpen) return;
+  headerConnectOpen = false;
+  headerConnectPopoverNode?.classList.add("hidden");
+  syncHeaderConnectState();
+}
+
+function openHeaderConnectPopover() {
+  if (!headerConnectPopoverNode || !headerConnectBtn) return;
+  if (headerConnectOpen) {
+    closeHeaderConnectPopover();
+    return;
+  }
+  closeHeaderWelcomePopover();
+  closeAgentsPickerPopover();
+  closeMenuSettingsPopover();
+  closeWorkspaceNotificationsPopover();
+  closeHeaderFocusPopover();
+  closeHeaderProfileMenu();
+  syncHeaderConnectPrompt();
+  headerConnectOpen = true;
+  headerConnectPopoverNode.classList.remove("hidden");
+  syncHeaderConnectState();
+}
+
+async function copyHeaderConnectPrompt() {
+  const text = String(headerConnectPromptTextNode?.textContent || "").trim();
+  if (!text) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      showToast("Текст скопирован", "success");
+      return;
+    }
+  } catch {
+    // fall through
+  }
+  showToast("Не удалось скопировать", "error");
 }
 
 function syncHeaderProfileMenuState() {
@@ -96141,6 +96226,18 @@ headerWelcomeCreateBtn?.addEventListener("click", () => {
   closeHeaderWelcomePopover();
   openAppLandingCreateModal();
 });
+headerConnectBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  openHeaderConnectPopover();
+});
+headerConnectCloseBtn?.addEventListener("click", closeHeaderConnectPopover);
+headerConnectMcpBtn?.addEventListener("click", () => {
+  closeHeaderConnectPopover();
+  void openMcpDocsModal();
+});
+headerConnectCopyBtn?.addEventListener("click", () => {
+  void copyHeaderConnectPrompt();
+});
 headerProfileWorkspaceBtn?.addEventListener("click", () => {
   closeHeaderProfileMenu();
   void openWorkspaceStorageTopic();
@@ -96177,6 +96274,11 @@ document.addEventListener("click", (event) => {
       closeHeaderWelcomePopover();
     }
   }
+  if (headerConnectOpen && headerConnectPopoverNode) {
+    if (!headerConnectPopoverNode.contains(target) && !target.closest("#header-connect-btn")) {
+      closeHeaderConnectPopover();
+    }
+  }
 });
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
@@ -96184,6 +96286,7 @@ document.addEventListener("keydown", (event) => {
   closeHeaderProfileMenu();
   closeHeaderFocusPopover();
   closeHeaderWelcomePopover();
+  closeHeaderConnectPopover();
 });
 window.addEventListener(
   "resize",

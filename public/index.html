@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.727" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.733" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -499,6 +499,70 @@
                     </span>
                   </button>
                 </div>
+              </div>
+            </div>
+            <div id="header-connect-wrap" class="header-connect-wrap">
+              <button
+                id="header-connect-btn"
+                class="header-tool-btn header-tool-btn--connect"
+                type="button"
+                title="Как подключить — что написать агенту"
+                aria-label="Как подключить"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="header-connect-popover"
+              >
+                <span class="header-connect-btn-icon" aria-hidden="true">🔌</span>
+                <span class="header-connect-btn-label">Как подключить</span>
+              </button>
+              <div
+                id="header-connect-popover"
+                class="header-guide-popover hidden"
+                role="dialog"
+                aria-label="Как подключить Agent CMS"
+              >
+                <div class="header-guide-popover-head">
+                  <div class="header-guide-popover-title-wrap">
+                    <p class="header-guide-popover-title">Как подключить</p>
+                    <p class="header-guide-popover-subtitle">Что написать агенту</p>
+                  </div>
+                  <button
+                    id="header-connect-close-btn"
+                    class="header-guide-popover-close"
+                    type="button"
+                    aria-label="Закрыть"
+                  >
+                    ×
+                  </button>
+                </div>
+                <ol class="header-guide-steps">
+                  <li>
+                    <strong>Шаг 1.</strong> Настройка MCP — попросите агента подключить MCP.
+                    <button
+                      id="header-connect-mcp-btn"
+                      class="header-guide-inline-btn"
+                      type="button"
+                    >
+                      Инструкция MCP
+                    </button>
+                  </li>
+                  <li>
+                    <strong>Шаг 2.</strong> Начните новый чат и напишите агенту:
+                  </li>
+                </ol>
+                <div class="header-guide-prompt">
+                  <pre id="header-connect-prompt-text" class="header-guide-prompt-text">Выбери хранилище &lt;Название&gt; и загрузи контекст</pre>
+                  <button
+                    id="header-connect-copy-btn"
+                    class="header-guide-copy-btn"
+                    type="button"
+                  >
+                    Скопировать
+                  </button>
+                </div>
+                <p class="header-guide-hint">
+                  Замените <code>&lt;Название&gt;</code> на имя вашего хранилища.
+                </p>
               </div>
             </div>
             <div id="header-focus-wrap" class="header-focus-wrap hidden">
@@ -1772,6 +1836,13 @@
             </div>
 
             <div id="app-landing-orbit" class="app-landing-orbit" aria-label="Карта workspace">
+              <div class="app-landing-orbit-sea" aria-hidden="true">
+                <div class="app-landing-orbit-sea-sky"></div>
+                <span class="app-landing-orbit-sea-wave app-landing-orbit-sea-wave--1"></span>
+                <span class="app-landing-orbit-sea-wave app-landing-orbit-sea-wave--2"></span>
+                <span class="app-landing-orbit-sea-wave app-landing-orbit-sea-wave--3"></span>
+                <span class="app-landing-orbit-sea-foam"></span>
+              </div>
               <svg id="app-landing-orbit-links" class="app-landing-orbit-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
               <svg id="app-landing-orbit-focus-links" class="app-landing-orbit-focus-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
               <div class="app-landing-orbit-hub" aria-hidden="true">
@@ -4578,7 +4649,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.736"></script>
+    <script src="/main.js?v=0.5.738"></script>
     <script src="/discuss-panel.js?v=0.5.257"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>
