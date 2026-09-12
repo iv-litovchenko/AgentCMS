@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>03 — Сегменты</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v03-wrap { padding: 8px 10px 0; }
+      .v03-track {
+        display: flex;
+        gap: 4px;
+        padding: 4px;
+        border-radius: 10px;
+        background: #e2e8f0;
+        border: 1px solid #cbd5e1;
+      }
+      .v03-btn {
+        flex: 1;
+        border: 0;
+        border-radius: 7px;
+        padding: 7px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748b;
+        background: transparent;
+        cursor: pointer;
+      }
+      .v03-btn.is-active {
+        background: #fff;
+        color: #1e3a8a;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      }
+      .v03-expand {
+        width: 100%;
+        margin-top: 6px;
+        border: 1px dashed #94a3b8;
+        border-radius: 8px;
+        padding: 6px;
+        font-size: 10px;
+        font-weight: 600;
+        color: #475569;
+        background: #fff;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>03 · Сегменты</h1><p>Два таба + кнопка «все секции»</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <div class="v03-wrap footer-panel">
+            <div class="v03-track" role="tablist">
+              <button type="button" class="v03-btn is-active" role="tab">🗄️ Система</button>
+              <button type="button" class="v03-btn" role="tab">➕ Дополнительно</button>
+            </div>
+            <button type="button" class="v03-expand" data-footer-toggle aria-expanded="true">
+              <span data-footer-action>Свернуть все 3 секции</span>
+            </button>
+            <div class="footer-body">
+              <details class="mock-section mock-section--purple" open><summary>🟢 Накопители</summary><div class="mock-section-body">Domains</div></details>
+              <details class="mock-section mock-section--blue"><summary>💬 Диалоги</summary><div class="mock-section-body">Runtime</div></details>
+              <details class="mock-section mock-section--slate"><summary>🛠 Среда</summary><div class="mock-section-body">Node, npm</div></details>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+    <script>
+      const expand = document.querySelector(".v03-expand");
+      expand?.addEventListener("click", () => {
+        const open = expand.getAttribute("aria-expanded") === "true";
+        expand.querySelector("[data-footer-action]").textContent = open
+          ? "Свернуть все 3 секции"
+          : "Показать все 3 секции";
+      });
+    </script>
+  </body>
+</html>

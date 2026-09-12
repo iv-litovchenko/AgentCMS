@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>09 — Статус-точки</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v09-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        width: 100%;
+        padding: 9px 12px;
+        border: 0;
+        border-top: 1px solid #e2e8f0;
+        background: #fff;
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+      }
+      .v09-toggle:hover { background: #f8fafc; }
+      .v09-left { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .v09-title { font-size: 11px; font-weight: 700; color: #0f172a; }
+      .v09-dots { display: flex; align-items: center; gap: 8px; }
+      .v09-dot-item { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; color: #64748b; }
+      .v09-dot { width: 7px; height: 7px; border-radius: 999px; }
+      .v09-dot--ok { background: #22c55e; }
+      .v09-dot--idle { background: #94a3b8; }
+      .v09-dot--warn { background: #f59e0b; }
+      .v09-action { font-size: 10px; font-weight: 600; color: #4f46e5; flex-shrink: 0; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>09 · Статус-точки</h1><p>Заголовок + индикаторы по секциям</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel">
+            <button type="button" class="v09-toggle" data-footer-toggle aria-expanded="true">
+              <span class="v09-left">
+                <span class="v09-title">Система и дополнения</span>
+                <span class="v09-dots" aria-hidden="true">
+                  <span class="v09-dot-item"><span class="v09-dot v09-dot--ok"></span>Domains</span>
+                  <span class="v09-dot-item"><span class="v09-dot v09-dot--ok"></span>Dialogs</span>
+                  <span class="v09-dot-item"><span class="v09-dot v09-dot--idle"></span>Среда</span>
+                </span>
+              </span>
+              <span class="v09-action" data-footer-action>Свернуть</span>
+            </button>
+            <div class="footer-body">
+              <details class="mock-section mock-section--purple" open><summary>🟢 Накопители</summary><div class="mock-section-body">Domains</div></details>
+              <details class="mock-section mock-section--blue"><summary>💬 Диалоги</summary><div class="mock-section-body">Runtime</div></details>
+              <details class="mock-section mock-section--slate"><summary>🛠 Среда</summary><div class="mock-section-body">Зависимости</div></details>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

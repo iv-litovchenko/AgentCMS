@@ -88964,17 +88964,29 @@ function createAgentVaultCard(entry) {
 
   const foot = card.querySelector(".menu-card-foot");
   if (foot) {
-    const meta = document.createElement("div");
-    meta.className = "agent-vault-card-meta";
-    meta.textContent = entry.displayPath || entry.path;
-    foot.appendChild(meta);
+    const label = String(entry.label || "").trim();
+    const displayPath = String(entry.displayPath || entry.path || "").trim();
+    const footRow = document.createElement("div");
+    footRow.className = "agent-vault-card-foot-row";
+
+    if (displayPath && displayPath !== label) {
+      const meta = document.createElement("span");
+      meta.className = "agent-vault-card-meta";
+      meta.textContent = displayPath;
+      meta.title = displayPath;
+      footRow.appendChild(meta);
+    }
 
     const category = inferVaultCategoryFromEntry(entry);
     if (category) {
       const categoryNode = document.createElement("span");
       categoryNode.className = "agent-vault-card-category";
       categoryNode.textContent = category;
-      foot.appendChild(categoryNode);
+      footRow.appendChild(categoryNode);
+    }
+
+    if (footRow.childElementCount) {
+      foot.appendChild(footRow);
     }
 
     if (Array.isArray(entry.tags) && entry.tags.length) {

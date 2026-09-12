@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>07 — Чипы-превью</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v07-wrap { padding: 8px 10px 0; }
+      .v07-toggle {
+        width: 100%;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px;
+        background: #fff;
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+      }
+      .v07-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+      .v07-chip {
+        padding: 3px 7px;
+        border-radius: 999px;
+        font-size: 9px;
+        font-weight: 600;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #475569;
+      }
+      .v07-chip--p { background: #f5f3ff; border-color: #ddd6fe; color: #5b21b6; }
+      .v07-chip--b { background: #eef2ff; border-color: #c7d2fe; color: #3730a3; }
+      .v07-action { font-size: 10px; font-weight: 700; color: #64748b; }
+      .footer-panel:not(.is-collapsed) .v07-row { display: none; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>07 · Чипы-превью</h1><p>Свёрнуто — мини-чипы; развёрнуто — полный список</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Темы</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel v07-wrap is-collapsed">
+            <button type="button" class="v07-toggle" data-footer-toggle aria-expanded="false">
+              <div class="v07-row">
+                <span class="v07-chip v07-chip--p">🟢 Domains</span>
+                <span class="v07-chip v07-chip--b">💬 Dialogs</span>
+                <span class="v07-chip">🛠 Среда</span>
+              </div>
+              <span class="v07-action" data-footer-action>Показать все секции ▾</span>
+            </button>
+            <div class="footer-body">
+              <details class="mock-section mock-section--purple" open><summary>🟢 Накопители</summary><div class="mock-section-body">Domains</div></details>
+              <details class="mock-section mock-section--blue"><summary>💬 Диалоги</summary><div class="mock-section-body">Runtime</div></details>
+              <details class="mock-section mock-section--slate"><summary>🛠 Среда</summary><div class="mock-section-body">Зависимости</div></details>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+    <script>
+      document.querySelector("[data-footer-toggle]")?.addEventListener("click", function () {
+        const open = this.getAttribute("aria-expanded") === "true";
+        this.querySelector("[data-footer-action]").textContent = open ? "Свернуть секции ▴" : "Показать все секции ▾";
+      });
+    </script>
+  </body>
+</html>

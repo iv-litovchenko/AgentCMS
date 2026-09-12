@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>02 — Короткая pill</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v02-wrap { padding: 8px 10px 0; }
+      .v02-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #c7d2fe;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #fff, #eef2ff);
+        cursor: pointer;
+        font: inherit;
+      }
+      .v02-toggle:hover { border-color: #818cf8; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.12); }
+      .v02-main { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #312e81; }
+      .v02-emoji { font-size: 14px; }
+      .footer-panel.is-collapsed .v02-chevron { transform: rotate(-90deg); }
+      .v02-chevron { font-size: 11px; color: #64748b; transition: transform 0.15s; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>02 · Короткая pill</h1><p>Капсула вместо длинной строки</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong><span>Меню тем</span></div>
+        <div class="sidebar-mock-tree"><div class="tree-item">📁 Проекты</div></div>
+        <div class="sidebar-mock-bottom">
+          <section class="footer-panel v02-wrap">
+            <button type="button" class="v02-toggle" data-footer-toggle>
+              <span class="v02-main"><span class="v02-emoji">⚙️</span> Система и доп.</span>
+              <span class="v02-chevron" data-footer-action>▼</span>
+            </button>
+            <div class="footer-body" style="padding-top:8px">
+              <details class="mock-section mock-section--purple" open><summary>🟢 Накопители</summary><div class="mock-section-body">Domains</div></details>
+              <details class="mock-section mock-section--blue"><summary>💬 Диалоги</summary><div class="mock-section-body">awn-dialogs</div></details>
+              <details class="mock-section mock-section--slate"><summary>🛠 Среда</summary><div class="mock-section-body">Зависимости</div></details>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+    <script>
+      document.querySelector("[data-footer-toggle]")?.addEventListener("click", function () {
+        const open = this.getAttribute("aria-expanded") === "true";
+        this.querySelector("[data-footer-action]").textContent = open ? "▼" : "▲";
+      });
+    </script>
+  </body>
+</html>

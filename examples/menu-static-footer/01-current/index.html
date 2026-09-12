@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>01 — Как сейчас</title>
+    <link rel="stylesheet" href="../shared.css" />
+    <style>
+      .v01-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        width: 100%;
+        min-height: 42px;
+        padding: 8px 12px;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        text-align: left;
+      }
+      .v01-toggle:hover { background: rgba(241, 245, 249, 0.92); }
+      .v01-main { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+      .v01-title {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #312e81;
+        line-height: 1.25;
+      }
+      .v01-action { font-size: 10px; font-weight: 600; color: #64748b; flex-shrink: 0; }
+    </style>
+  </head>
+  <body>
+    <header class="demo-top">
+      <div><h1>01 · Как сейчас</h1><p>Production-стиль из sidebar</p></div>
+      <a href="../index.html">← Все варианты</a>
+    </header>
+    <div class="demo-stage">
+      <aside class="sidebar-mock">
+        <div class="sidebar-mock-head"><strong>Agent workspace</strong><span>Меню тем</span></div>
+        <div class="sidebar-mock-tree">
+          <div class="tree-item">📁 Проекты</div>
+          <div class="tree-item is-muted">└ Быстрая заметка</div>
+          <div class="tree-item is-muted">└ Задачи</div>
+        </div>
+        <div class="sidebar-mock-bottom">
+          <div class="mock-stats">
+            <div class="mock-stat"><b>39</b> тем</div>
+            <div class="mock-stat"><b>625</b> файлов</div>
+            <div class="mock-stat"><b>28 MB</b></div>
+          </div>
+          <section class="footer-panel">
+            <button type="button" class="v01-toggle" data-footer-toggle aria-expanded="true">
+              <span class="v01-main">
+                <span class="chevron" aria-hidden="true"></span>
+                <span class="v01-title">Системные и дополнительные секции</span>
+              </span>
+              <span class="v01-action" data-footer-action>Свернуть</span>
+            </button>
+            <div class="footer-body">
+              <details class="mock-section mock-section--purple" open><summary>🟢 Накопители (Domains)</summary><div class="mock-section-body">Коллекции, группы</div></details>
+              <details class="mock-section mock-section--blue"><summary>💬 Awn-dialogs</summary><div class="mock-section-body">Runtime-папки</div></details>
+              <details class="mock-section mock-section--slate"><summary>🛠 Среда</summary><div class="mock-section-body">Node, npm, Git</div></details>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Меню «Системные секции» — 10 вариантов</title>
+    <style>
+      :root {
+        --bg: #f1f5f9;
+        --panel: #fff;
+        --border: #dbe3ef;
+        --text: #0f172a;
+        --muted: #64748b;
+        --accent: #4f46e5;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 28px 20px 48px;
+      }
+      h1 { margin: 0 0 6px; font-size: 24px; }
+      .lead {
+        margin: 0 0 22px;
+        max-width: 720px;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 14px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .card h2 { margin: 0; font-size: 15px; }
+      .card p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; flex: 1; }
+      .card a {
+        display: inline-flex;
+        width: fit-content;
+        padding: 7px 12px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .card a:hover { background: #4338ca; }
+      code { font-size: 11px; background: #eef2ff; padding: 1px 5px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Системные и дополнительные секции</h1>
+    <p class="lead">
+      10 вариантов оформления нижнего блока сайдбара <code>#menu-static-footer</code>.
+      Каждый файл — отдельный HTML с моком меню. Кликайте переключатель, чтобы свернуть/развернуть.
+    </p>
+    <p class="lead" style="padding:10px 12px;border-radius:10px;background:#eef2ff;border:1px solid #c7d2fe;">
+      <strong>Как открыть:</strong> через CMS-сервер —
+      <a href="http://127.0.0.1:3000/examples/menu-static-footer/index.html">http://127.0.0.1:3000/examples/menu-static-footer/</a>
+      (запустите <code>npm start</code> или ваш обычный порт).
+      Прямой <code>file://</code> в браузере может не работать из‑за ограничений безопасности.
+    </p>
+    <div class="grid">
+      <article class="card">
+        <h2>01 · Как сейчас</h2>
+        <p>Текущий production: chevron, длинный заголовок, «Свернуть» справа.</p>
+        <a href="01-current/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <h2>02 · Короткая pill</h2>
+        <p>Компактная капсула с иконкой — меньше визуального шума.</p>
+        <a href="02-pill/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <h2>03 · Сегменты</h2>
+        <p>Два режима в одной полоске: «Система» и «Дополнительно».</p>
+        <a href="03-segmented/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <h2>04 · Handle-bar</h2>
+        <p>Нижняя «ручка» drawer — как выдвижная панель снизу.</p>
+        <a href="04-handle-bar/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <h2>05 · Иконки секций</h2>
+        <p>В заголовке — превью трёх секций эмодзи вместо длинного текста.</p>
+        <a href="05-icon-row/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <h2>06 · Ghost-link</h2>
+        <p>Минимализм: только текст-ссылка без рамки и фона.</p>
+        <a href="06-ghost-link/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <h2>07 · Чипы-превью</h2>
+        <p>Свёрнуто видны мини-чипы секций; клик раскрывает полный список.</p>
+        <a href="07-chip-preview/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <h2>08 · Accent band</h2>
+        <p>Цветная полоса с белым текстом — сильный акцент на зоне.</p>
+        <a href="08-accent-band/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <h2>09 · Статус-точки</h2>
+        <p>Заголовок + цветные точки статуса по каждой секции.</p>
+        <a href="09-status-dots/index.html">Открыть</a>
+      </article>
+      <article class="card">
+        <h2>10 · Компакт + счётчик</h2>
+        <p>Короткое название и badge «3» — сразу ясно, сколько блоков внутри.</p>
+        <a href="10-compact-badge/index.html">Открыть</a>
+      </article>
+    </div>
+  </body>
+</html>
