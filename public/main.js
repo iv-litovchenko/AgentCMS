@@ -71793,7 +71793,7 @@ function rewriteWorkspaceMarkdownAssetUrls(markdown, folderPath) {
 function buildFolderBrowseStatLine(counts = {}) {
   const parts = [];
   if (counts.images) parts.push(`${counts.images} изображ.`);
-  if (counts.pages) parts.push(`${counts.pages} стр.`);
+  if (counts.pages) parts.push(`${counts.pages} зам.`);
   if (counts.videos) parts.push(`${counts.videos} видео`);
   if (counts.audio) parts.push(`${counts.audio} аудио`);
   if (counts.folders) parts.push(`${counts.folders} папок`);
@@ -73221,7 +73221,7 @@ function renderFolderBrowseFoldersSection(section, items) {
 function renderFolderBrowsePagesSection(section, items, folderPath) {
   const body = getFolderBrowseSectionBody(section);
   if (!items.length) {
-    appendFolderBrowseEmpty(section, section.dataset.emptyMessage || "Нет markdown-страниц");
+    appendFolderBrowseEmpty(section, section.dataset.emptyMessage || "Нет заметок");
     return;
   }
   const grid = document.createElement("div");
@@ -73229,7 +73229,7 @@ function renderFolderBrowsePagesSection(section, items, folderPath) {
   for (const page of items) {
     const card = document.createElement("article");
     card.className = "folder-browse-page-card folder-browse-item-card";
-    card.title = `${page.title || page.name} — клик: выделить, двойной клик: открыть страницу`;
+    card.title = `${page.title || page.name} — клик: выделить, двойной клик: открыть заметку`;
 
     const body = document.createElement("div");
     body.className = "folder-browse-page-open";
@@ -73427,7 +73427,7 @@ function renderFolderBrowseSections(hub, data) {
   }
 
   if (pages.length) {
-    const pagesSection = createFolderBrowseSection("Страницы", "Нет markdown-страниц", pages.length);
+    const pagesSection = createFolderBrowseSection("Заметки", "Нет заметок", pages.length);
     renderFolderBrowsePagesSection(pagesSection, pages, data.folderPath);
     hub.appendChild(pagesSection);
   }
@@ -91821,8 +91821,28 @@ function toggleMenuStaticFooterExpanded() {
   setMenuStaticFooterExpanded(!isMenuStaticFooterExpanded());
 }
 
+function setupMenuStaticFooterExclusiveAccordions() {
+  if (!menuStaticFooterBodyNode || setupMenuStaticFooterExclusiveAccordions.initialized) return;
+  setupMenuStaticFooterExclusiveAccordions.initialized = true;
+
+  const sections = Array.from(
+    menuStaticFooterBodyNode.querySelectorAll(":scope > .menu-static-accordion")
+  );
+  if (!sections.length) return;
+
+  for (const section of sections) {
+    section.addEventListener("toggle", () => {
+      if (!section.open) return;
+      for (const other of sections) {
+        if (other !== section) other.open = false;
+      }
+    });
+  }
+}
+
 function setupMenuStaticFooterGroup() {
   syncMenuStaticFooterAccordionUi();
+  setupMenuStaticFooterExclusiveAccordions();
   menuStaticFooterToggleBtn?.addEventListener("click", () => {
     toggleMenuStaticFooterExpanded();
   });

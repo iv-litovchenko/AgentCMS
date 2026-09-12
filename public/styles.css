@@ -54237,8 +54237,13 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: rgba(255, 255, 255, 0.45);
 }
 
+.menu-static-section--storage-schemes:not([open]) > .menu-static-summary {
+  border-radius: 7px;
+}
+
 .menu-static-section--storage-schemes[open] > .menu-static-summary {
   border-bottom: 1px solid rgba(196, 181, 253, 0.55);
+  border-radius: 7px 7px 0 0;
 }
 
 .menu-static-section--vendor[open] > .menu-static-summary {
@@ -54416,6 +54421,10 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-static-body {
   padding: 6px 8px 8px 11px;
   background: #fff;
+}
+
+.menu-static-section[open] > .menu-static-body {
+  border-radius: 0 0 7px 7px;
 }
 
 .menu-static-path {

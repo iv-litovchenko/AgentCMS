@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.774" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.775" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -1339,109 +1339,6 @@
                   </p>
                 </div>
               </details>
-              <details class="menu-static-section menu-static-section--settings menu-static-accordion">
-                <summary class="menu-static-summary" title="Настройки и параметры workspace, областей и тем">
-                  <span class="menu-static-title menu-static-title--settings">
-                    <span aria-hidden="true">🟢</span>
-                    <span class="menu-static-title-text">
-                      Настройки и параметры
-                      <span class="menu-static-subtitle stub-static-mark">(static)</span>
-                    </span>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <p class="menu-static-description">
-                    Значения настроек по всему проекту: workspace, области и темы.
-                  </p>
-                  <button
-                    id="menu-static-settings-open-btn"
-                    type="button"
-                    class="menu-static-action-btn"
-                    disabled
-                    aria-disabled="true"
-                    title="Скоро"
-                  >
-                    Открыть настройки проекта
-                  </button>
-                </div>
-              </details>
-              <details class="menu-static-section menu-static-section--server-sync menu-static-accordion">
-                <summary class="menu-static-summary" title="Синхронизация workspace с удалённым сервером (скоро)">
-                  <span class="menu-static-title menu-static-title--server-sync">
-                    <span aria-hidden="true">🟢</span>
-                    <span class="menu-static-title-text">
-                      Синхронизация с сервером
-                      <span class="menu-static-subtitle stub-static-mark">(static)</span>
-                    </span>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <p class="menu-static-description">
-                    Выгрузка и подтягивание workspace между локальной копией и сервером Agent CMS.
-                    Правило: не «агент ходит на комп», а «комп отдаёт изменения на сервер, когда онлайн». Пока комп выключен — на сервере остаётся последняя синхронизированная копия, агент продолжает работать.
-                    Google Drive у вас уже как выгрузка файлов; для 24/7 нужен полный двусторонний sync workspace ↔ сервер, не только медиа.
-                  </p>
-                  <button
-                    id="menu-static-server-sync-open-btn"
-                    type="button"
-                    class="menu-static-action-btn"
-                    disabled
-                    aria-disabled="true"
-                    title="Скоро"
-                  >
-                    Настроить синхронизацию
-                  </button>
-                </div>
-              </details>
-              <details class="menu-static-section menu-static-section--google-drive menu-static-accordion">
-                <summary class="menu-static-summary" title="Google Drive (выгрузка файлов) — внешнее хранилище awn-google-drive">
-                  <span class="menu-static-title menu-static-title--google-drive">
-                    <span aria-hidden="true">🟢</span>
-                    <span class="menu-static-title-text">Google Drive (выгрузка файлов)</span>
-                  </span>
-                  <span
-                    id="menu-google-drive-stats"
-                    class="menu-static-google-drive-stats menu-static-google-drive-stats--summary"
-                    aria-live="polite"
-                  >
-                    —
-                  </span>
-                  <span class="menu-static-summary-actions">
-                    <button
-                      id="menu-google-drive-refresh-btn"
-                      type="button"
-                      class="menu-static-summary-refresh-btn"
-                      title="Обновить Google Drive"
-                      aria-label="Обновить Google Drive"
-                    >
-                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
-                          stroke="currentColor"
-                          stroke-width="2.25"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <button
-                    id="menu-google-drive-repair-btn"
-                    type="button"
-                    class="menu-static-action-btn menu-static-action-btn--google-drive"
-                    title="Пересчитать относительные пути symlink в media → awn-google-drive"
-                  >
-                    Синхронизировать ссылки
-                  </button>
-                  <ul
-                    id="menu-google-drive-files"
-                    class="menu-google-drive-files"
-                    aria-label="Файлы awn-google-drive"
-                  ></ul>
-                </div>
-              </details>
               <details class="menu-static-section menu-static-section--indexing menu-static-accordion">
                 <summary class="menu-static-summary" title="Индексирование workspace (смысловая карта заметок): смысл + поля">
                   <span class="menu-static-title menu-static-title--indexing">
@@ -1499,6 +1396,55 @@
                   </div>
                 </div>
               </details>
+              <details class="menu-static-section menu-static-section--google-drive menu-static-accordion">
+                <summary class="menu-static-summary" title="Google Drive (выгрузка файлов) — внешнее хранилище awn-google-drive">
+                  <span class="menu-static-title menu-static-title--google-drive">
+                    <span aria-hidden="true">🟢</span>
+                    <span class="menu-static-title-text">Google Drive (выгрузка файлов)</span>
+                  </span>
+                  <span
+                    id="menu-google-drive-stats"
+                    class="menu-static-google-drive-stats menu-static-google-drive-stats--summary"
+                    aria-live="polite"
+                  >
+                    —
+                  </span>
+                  <span class="menu-static-summary-actions">
+                    <button
+                      id="menu-google-drive-refresh-btn"
+                      type="button"
+                      class="menu-static-summary-refresh-btn"
+                      title="Обновить Google Drive"
+                      aria-label="Обновить Google Drive"
+                    >
+                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                          stroke="currentColor"
+                          stroke-width="2.25"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <button
+                    id="menu-google-drive-repair-btn"
+                    type="button"
+                    class="menu-static-action-btn menu-static-action-btn--google-drive"
+                    title="Пересчитать относительные пути symlink в media → awn-google-drive"
+                  >
+                    Синхронизировать ссылки
+                  </button>
+                  <ul
+                    id="menu-google-drive-files"
+                    class="menu-google-drive-files"
+                    aria-label="Файлы awn-google-drive"
+                  ></ul>
+                </div>
+              </details>
               <details class="menu-static-section menu-static-section--awn-dialogs menu-static-accordion">
                 <summary class="menu-static-summary" title="Диалоги с ИИ — архив переписки Shell / Voice (awn-dialogs)">
                   <span class="menu-static-title menu-static-title--awn-dialogs">
@@ -1551,6 +1497,60 @@
                     class="menu-awn-dialogs-runtimes"
                     aria-label="Runtime-папки awn-dialogs"
                   ></ul>
+                </div>
+              </details>
+              <details class="menu-static-section menu-static-section--server-sync menu-static-accordion">
+                <summary class="menu-static-summary" title="Синхронизация workspace с удалённым сервером (скоро)">
+                  <span class="menu-static-title menu-static-title--server-sync">
+                    <span aria-hidden="true">🟢</span>
+                    <span class="menu-static-title-text">
+                      Синхронизация с сервером
+                      <span class="menu-static-subtitle stub-static-mark">(static)</span>
+                    </span>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <p class="menu-static-description">
+                    Выгрузка и подтягивание workspace между локальной копией и сервером Agent CMS.
+                    Правило: не «агент ходит на комп», а «комп отдаёт изменения на сервер, когда онлайн». Пока комп выключен — на сервере остаётся последняя синхронизированная копия, агент продолжает работать.
+                    Google Drive у вас уже как выгрузка файлов; для 24/7 нужен полный двусторонний sync workspace ↔ сервер, не только медиа.
+                  </p>
+                  <button
+                    id="menu-static-server-sync-open-btn"
+                    type="button"
+                    class="menu-static-action-btn"
+                    disabled
+                    aria-disabled="true"
+                    title="Скоро"
+                  >
+                    Настроить синхронизацию
+                  </button>
+                </div>
+              </details>
+              <details class="menu-static-section menu-static-section--settings menu-static-accordion">
+                <summary class="menu-static-summary" title="Настройки и параметры workspace, областей и тем">
+                  <span class="menu-static-title menu-static-title--settings">
+                    <span aria-hidden="true">🟢</span>
+                    <span class="menu-static-title-text">
+                      Настройки и параметры
+                      <span class="menu-static-subtitle stub-static-mark">(static)</span>
+                    </span>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <p class="menu-static-description">
+                    Значения настроек по всему проекту: workspace, области и темы.
+                  </p>
+                  <button
+                    id="menu-static-settings-open-btn"
+                    type="button"
+                    class="menu-static-action-btn"
+                    disabled
+                    aria-disabled="true"
+                    title="Скоро"
+                  >
+                    Открыть настройки проекта
+                  </button>
                 </div>
               </details>
               </div>
@@ -4633,7 +4633,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.760"></script>
+    <script src="/main.js?v=0.5.762"></script>
     <script src="/discuss-panel.js?v=0.5.257"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>
