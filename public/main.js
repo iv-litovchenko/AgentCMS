@@ -178,6 +178,11 @@ const appLandingFocusSortNode = document.getElementById("app-landing-focus-sort"
 const appLandingFocusSortDirNode = document.getElementById("app-landing-focus-sort-dir");
 const homeFocusNode = document.getElementById("home-focus");
 const homeFocusListNode = document.getElementById("home-focus-list");
+const headerWelcomeWrapNode = document.getElementById("header-welcome-wrap");
+const headerWelcomeBtn = document.getElementById("header-welcome-btn");
+const headerWelcomePopoverNode = document.getElementById("header-welcome-popover");
+const headerWelcomeCloseBtn = document.getElementById("header-welcome-close-btn");
+const headerWelcomeCreateBtn = document.getElementById("header-welcome-create-btn");
 const headerFocusWrapNode = document.getElementById("header-focus-wrap");
 const headerFocusToggleBtn = document.getElementById("header-focus-toggle-btn");
 const headerFocusPopoverNode = document.getElementById("header-focus-popover");
@@ -1087,6 +1092,7 @@ const headerUserProfileBtn = document.getElementById("header-user-profile-btn");
 const headerUserProfileAvatarMountNode = document.getElementById("header-user-profile-avatar-mount");
 const headerProfileWrapNode = document.querySelector(".header-profile-wrap");
 const headerProfileMenuNode = document.getElementById("header-profile-menu");
+const headerProfileWorkspaceBtn = document.getElementById("header-profile-workspace-btn");
 const headerProfileAgentBtn = document.getElementById("header-profile-agent-btn");
 const headerProfileSettingsBtn = document.getElementById("header-profile-settings-btn");
 const webSiteBtn = document.getElementById("web-site-btn");
@@ -5794,6 +5800,7 @@ function closeHeaderFocusPopover() {
 function openHeaderFocusPopover() {
   if (!headerFocusPopoverNode || !headerFocusToggleBtn || headerFocusWrapNode?.classList.contains("hidden")) return;
   closeHeaderProfileMenu();
+  closeHeaderWelcomePopover();
   closeWorkspaceNotificationsPopover();
   closeAgentsPickerPopover();
   closeMenuSettingsPopover();
@@ -6737,11 +6744,26 @@ function getPlatformAgentForLanding() {
   return agentsCache.find(isPlatformAgent) || null;
 }
 
+function resolveCoreCatalogAgentId() {
+  const core = agentsCache.find((agent) => agent.id === DOCUMENTATION_AGENT_ID);
+  return core?.id || DOCUMENTATION_AGENT_ID;
+}
+
+function openCoreCatalogAgentFromLanding() {
+  const agentId = resolveCoreCatalogAgentId();
+  if (!agentsCache.some((agent) => agent.id === agentId)) {
+    showToast("Агент agent-cms-core не найден в реестре", "error");
+    return;
+  }
+  selectAgentOption(agentId);
+}
+
 let globalFocusItemsCache = [];
 let agentFocusItemsCache = [];
 let globalLandingHubTopicItemsCache = [];
 let globalFlowItemsCache = [];
 let landingHubTopicItemsLoadSeq = 0;
+let landingFlowLoadSeq = 0;
 
 const LANDING_HUB_ORBIT_TOPIC_MAX_DEPTH = 2;
 const LANDING_HUB_ORBIT_MENU_MAX_DEPTH = LANDING_HUB_ORBIT_TOPIC_MAX_DEPTH + 1;
@@ -7923,7 +7945,11 @@ async function loadGlobalFocusItems() {
   renderGlobalFocusPanel();
 }
 
-async function loadGlobalFlowItems() {
+async function loadGlobalFlowItems({ showLoading = false } = {}) {
+  const loadSeq = ++landingFlowLoadSeq;
+  if (showLoading && getLandingAgentsView() === "flow") {
+    renderAppLandingFlowLoading();
+  }
   try {
     const response = await fetch(
       `/api/agents/recent-updates?limit=${encodeURIComponent(LANDING_FLOW_RECENT_LIMIT)}`
@@ -7934,7 +7960,9 @@ async function loadGlobalFlowItems() {
   } catch {
     globalFlowItemsCache = [];
   }
+  if (loadSeq !== landingFlowLoadSeq) return;
   if (getLandingAgentsView() === "flow") {
+    setAppLandingFlowLoadingUi(false);
     renderAppLandingFlow(globalFlowItemsCache);
   }
 }
@@ -8128,6 +8156,40 @@ function closeAgentsPickerPopover() {
   resetAgentsPickerPopoverPosition();
 }
 
+let headerWelcomeOpen = false;
+
+function syncHeaderWelcomeState() {
+  headerWelcomeBtn?.classList.toggle("is-open", headerWelcomeOpen);
+  headerWelcomeBtn?.setAttribute("aria-expanded", headerWelcomeOpen ? "true" : "false");
+}
+
+function closeHeaderWelcomePopover() {
+  if (!headerWelcomeOpen) return;
+  headerWelcomeOpen = false;
+  headerWelcomePopoverNode?.classList.add("hidden");
+  syncHeaderWelcomeState();
+}
+
+if (typeof window !== "undefined") {
+  window.agentCmsCloseHeaderWelcomePopover = closeHeaderWelcomePopover;
+}
+
+function openHeaderWelcomePopover() {
+  if (!headerWelcomePopoverNode || !headerWelcomeBtn) return;
+  if (headerWelcomeOpen) {
+    closeHeaderWelcomePopover();
+    return;
+  }
+  closeAgentsPickerPopover();
+  closeMenuSettingsPopover();
+  closeWorkspaceNotificationsPopover();
+  closeHeaderFocusPopover();
+  closeHeaderProfileMenu();
+  headerWelcomeOpen = true;
+  headerWelcomePopoverNode.classList.remove("hidden");
+  syncHeaderWelcomeState();
+}
+
 function syncHeaderProfileMenuState() {
   headerUserProfileBtn?.classList.toggle("is-open", headerProfileMenuOpen);
   headerUserProfileBtn?.setAttribute("aria-expanded", headerProfileMenuOpen ? "true" : "false");
@@ -8154,6 +8216,7 @@ function openHeaderProfileMenu() {
   closeMenuSettingsPopover();
   closeWorkspaceNotificationsPopover();
   closeHeaderFocusPopover();
+  closeHeaderWelcomePopover();
   headerProfileMenuOpen = true;
   headerProfileMenuNode.classList.remove("hidden");
   syncHeaderProfileMenuState();
@@ -8594,7 +8657,8 @@ async function renderAppLandingPlatformSection() {
   openBtn.type = "button";
   openBtn.className = "app-landing-platform-open-btn";
   openBtn.textContent = "Открыть справочники";
-  openBtn.addEventListener("click", () => selectAgentOption(platform.id));
+  openBtn.title = "Открыть хранилище agent-cms-core";
+  openBtn.addEventListener("click", () => openCoreCatalogAgentFromLanding());
   actions.append(openBtn);
   appLandingPlatformNode.append(head, actions, createAppLandingPlatformVisual());
 }
@@ -9792,7 +9856,7 @@ function syncLandingAgentsViewUi() {
   const isSettings = view === "settings";
   const isGrid = view === "grid";
   const isFlow = view === "flow";
-  const isCanvasView = isHub || isOrbit || isFlow || isGrid;
+  const isCanvasView = isHub || isOrbit || isFlow || isGrid || isSettings;
 
   appLandingPaneNode?.classList.toggle("is-screensaver", isCanvasView);
   appLandingPaneNode?.classList.toggle("app-landing-pane--hub", isHub);
@@ -9846,7 +9910,7 @@ function syncLandingAgentsViewUi() {
     renderAppLandingList(getProcessedLandingFocusItems());
   }
   if (isFlow) {
-    void loadGlobalFlowItems();
+    void loadGlobalFlowItems({ showLoading: true });
   }
   if (isHub || isOrbit || isFlow) {
     renderAppLandingAttention(buildMockAgentAttentionShares(getAgentsForLandingGrid()));
@@ -10351,10 +10415,57 @@ function createAppLandingFlowCard(focusItem) {
   return btn;
 }
 
+function setAppLandingFlowLoadingUi(loading) {
+  const isFlowLoading = Boolean(loading) && getLandingAgentsView() === "flow";
+  appLandingFlowNode?.classList.toggle("is-loading", isFlowLoading);
+  appLandingFlowGridNode?.classList.toggle("is-loading", isFlowLoading);
+  appLandingFlowNode?.setAttribute("aria-busy", isFlowLoading ? "true" : "false");
+  appLandingViewFlowBtn?.classList.toggle("is-loading", isFlowLoading);
+  appLandingViewFlowBtn?.setAttribute("aria-busy", isFlowLoading ? "true" : "false");
+}
+
+function createAppLandingFlowSkeletonCard(index) {
+  const card = document.createElement("div");
+  card.className = "app-landing-flow-card app-landing-flow-card--skeleton";
+  card.style.setProperty("--flow-skeleton-delay", `${(index % 4) * 0.14}s`);
+  card.setAttribute("aria-hidden", "true");
+
+  const media = document.createElement("span");
+  media.className = "app-landing-flow-card-media app-landing-flow-skeleton-block";
+
+  const body = document.createElement("span");
+  body.className = "app-landing-flow-card-body";
+
+  const titleLine = document.createElement("span");
+  titleLine.className = "app-landing-flow-skeleton-line app-landing-flow-skeleton-line--title";
+
+  const metaLine = document.createElement("span");
+  metaLine.className = "app-landing-flow-skeleton-line app-landing-flow-skeleton-line--meta";
+
+  const agentLine = document.createElement("span");
+  agentLine.className = "app-landing-flow-skeleton-line app-landing-flow-skeleton-line--agent";
+
+  body.append(titleLine, metaLine, agentLine);
+  card.append(media, body);
+  return card;
+}
+
+function renderAppLandingFlowLoading() {
+  if (!appLandingFlowGridNode) return;
+  if (getLandingAgentsView() !== "flow") return;
+
+  setAppLandingFlowLoadingUi(true);
+  appLandingFlowGridNode.replaceChildren();
+  for (let i = 0; i < 8; i += 1) {
+    appLandingFlowGridNode.appendChild(createAppLandingFlowSkeletonCard(i));
+  }
+}
+
 function renderAppLandingFlow(focusItems = globalFlowItemsCache) {
   if (!appLandingFlowGridNode) return;
   if (getLandingAgentsView() !== "flow") return;
 
+  setAppLandingFlowLoadingUi(false);
   appLandingFlowGridNode.replaceChildren();
   const agents = getAgentsForLandingGrid();
 
@@ -12320,6 +12431,19 @@ async function openAgentKitTopic(kind = "agent") {
   const manifestPath = getAgentKitTopicManifestRel(kind);
   if (!manifestPath) return;
   const label = kind === "user" ? "Пользователь" : "Агент";
+  try {
+    hideAppLandingView();
+    await openNodeFromMenu(label, manifestPath);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(message ? `Не удалось открыть: ${message}` : "Не удалось открыть", "error");
+  }
+}
+
+async function openWorkspaceStorageTopic() {
+  const manifestPath = getAgentWorkspaceRootManifestPath();
+  if (!manifestPath) return;
+  const label = getAgentTreeTitle() || "Хранилище";
   try {
     hideAppLandingView();
     await openNodeFromMenu(label, manifestPath);
@@ -89958,6 +90082,7 @@ function hideAppLandingView() {
   appRootNode?.classList.remove("app-landing-view");
   appLandingPaneNode?.classList.add("hidden");
   setAppLandingHint("");
+  closeHeaderWelcomePopover();
   syncWorkspaceNotificationsAvailability();
 }
 
@@ -96007,6 +96132,19 @@ headerUserProfileBtn?.addEventListener("click", (event) => {
   event.stopPropagation();
   openHeaderProfileMenu();
 });
+headerWelcomeBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  openHeaderWelcomePopover();
+});
+headerWelcomeCloseBtn?.addEventListener("click", closeHeaderWelcomePopover);
+headerWelcomeCreateBtn?.addEventListener("click", () => {
+  closeHeaderWelcomePopover();
+  openAppLandingCreateModal();
+});
+headerProfileWorkspaceBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
+  void openWorkspaceStorageTopic();
+});
 headerProfileAgentBtn?.addEventListener("click", () => {
   closeHeaderProfileMenu();
   void openAgentKitTopic("agent");
@@ -96034,12 +96172,18 @@ document.addEventListener("click", (event) => {
       closeHeaderFocusPopover();
     }
   }
+  if (headerWelcomeOpen && headerWelcomePopoverNode) {
+    if (!headerWelcomePopoverNode.contains(target) && !target.closest("#header-welcome-btn")) {
+      closeHeaderWelcomePopover();
+    }
+  }
 });
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   closeAgentsPickerPopover();
   closeHeaderProfileMenu();
   closeHeaderFocusPopover();
+  closeHeaderWelcomePopover();
 });
 window.addEventListener(
   "resize",

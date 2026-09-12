@@ -2,12 +2,12 @@
  * Agent Shell Companion — модалка установки расширения Chrome.
  */
 (function initCompanionDocs() {
-  const openBtn = document.getElementById("companion-docs-btn");
+  const openBtns = document.querySelectorAll("#companion-docs-btn, #header-welcome-companion-btn");
   const modalNode = document.getElementById("companion-docs-modal");
   const closeBtn = document.getElementById("companion-docs-close-btn");
   const contentNode = document.getElementById("companion-docs-content");
 
-  if (!openBtn || !modalNode || !contentNode) return;
+  if (!openBtns.length || !modalNode || !contentNode) return;
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -114,6 +114,7 @@
 
   function openModal() {
     window.agentCmsCloseHeaderProfileMenu?.();
+    window.agentCmsCloseHeaderWelcomePopover?.();
     renderContent();
     modalNode.classList.remove("hidden");
   }
@@ -122,7 +123,7 @@
     modalNode.classList.add("hidden");
   }
 
-  openBtn.addEventListener("click", openModal);
+  openBtns.forEach((btn) => btn.addEventListener("click", openModal));
   closeBtn?.addEventListener("click", closeModal);
   modalNode.addEventListener("click", (event) => {
     if (event.target === modalNode) closeModal();
