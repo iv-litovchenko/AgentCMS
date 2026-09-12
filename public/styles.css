@@ -55868,11 +55868,126 @@ body.is-cms-page-picker-active #discuss-aside * {
   margin-top: 0;
 }
 
-/* Flat / cards — readable but without tree chrome */
+/* Flat list — compact rows, no tree/zone chrome */
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .tree-children,
+.sidebar-slab-menu .menu.is-menu-view-flat .tree-children {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-workspace-section,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-service-section,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-shared-section,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-agent-system-section,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-container-section,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-workspace-root-section,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-system-files-section,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-nested-container-section,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-section {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-tree-branch {
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-folder-row,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-item-row,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .system-file-row {
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: var(--menu-win-row-h);
+  align-items: center;
+}
+
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-section-row {
+  display: none !important;
+}
+
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .folder-toggle-btn,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-sort-handle,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-tree-toggle-spacer,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-tree-divider,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-tree-type-icon,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-folder-row .menu-pin-branch-btn,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-folder-row .add-node-btn,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-tree-branch > .menu-folder-row::before,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-tree-branch > .menu-folder-row::after,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-tree-branch > .menu-section-row::before,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-tree-branch > .menu-section-row::after,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-item-row.menu-tree-branch::before,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-item-row.menu-tree-branch::after,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .system-file-row.menu-tree-branch::before,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .system-file-row.menu-tree-branch::after {
+  display: none !important;
+}
+
 .sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-folder,
-.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-item {
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-item,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .system-file-item {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--menu-win-row-h);
+  margin: 0;
+  padding: 1px 4px 1px var(--menu-win-label-pad-left);
+  border: none;
+  border-radius: 0;
+  background: transparent;
   font-size: var(--menu-win-font);
   font-family: Tahoma, "Segoe UI", sans-serif;
+  line-height: 1.25;
+  color: var(--menu-win-text);
+}
+
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-item.system-file-item {
+  padding-left: calc(
+    var(--menu-system-file-dot-left) + var(--menu-system-file-dot-size) + var(--menu-system-file-dot-gap)
+  );
+}
+
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-folder:hover,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-item:hover,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .system-file-item:hover {
+  background: var(--menu-win-hover);
+  color: var(--menu-win-text);
+}
+
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-item.active,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-folder.active,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .system-file-item.active {
+  background: var(--menu-win-active-bg);
+  color: var(--menu-win-active-text);
+  font-weight: 400;
+}
+
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-item.has-node-color.active,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-folder.has-node-color.active {
+  background: var(--menu-win-active-bg);
+  color: var(--menu-win-active-text);
+}
+
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .system-file-group-label {
+  margin: 6px 0 2px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--menu-win-muted);
+}
+
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-workspace-head .menu-folder-name,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-service-title,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-shared-title,
+.sidebar-slab-menu .menu-agent-pane.is-menu-view-flat .menu-agent-system-title {
+  font-weight: 600;
 }
 
 .sidebar-slab-menu .menu-agent-pane.is-menu-view-cards .menu-card {
