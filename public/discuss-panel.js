@@ -11,7 +11,7 @@
   const discussPanelToggleBtnNode = document.getElementById("discuss-panel-toggle-btn");
   const discussPanelShellNode = document.getElementById("discuss-panel-shell");
   const discussShellIframeNode = document.getElementById("discuss-shell-iframe");
-  const workspacePaneNode = document.querySelector(".workspace-pane");
+  const workspaceBodyNode = document.querySelector(".workspace-body");
   const discussAsideHeightMq = window.matchMedia("(max-width: 960px)");
 
   if (!discussAsideNode) return;
@@ -119,6 +119,11 @@
     discussPanelToggleBtnNode?.classList.toggle("is-active", !panelHidden);
     discussPanelToggleBtnNode?.setAttribute("aria-expanded", panelHidden ? "false" : "true");
     applyPresenceToChatButton(lastPresence);
+    if (!panelHidden) {
+      requestAnimationFrame(() => syncDiscussAsideHeight());
+    } else {
+      syncDiscussAsideHeight();
+    }
   }
 
   function setPanelHidden(next) {
@@ -129,7 +134,15 @@
     } catch {
       // ignore
     }
-    if (!panelHidden) ensureShellIframeLoaded(getActiveAgentIdFromUrl());
+    if (!panelHidden) {
+      ensureShellIframeLoaded(getActiveAgentIdFromUrl());
+      requestAnimationFrame(() => {
+        syncDiscussAsideHeight();
+        announceShellSurfaceHost();
+      });
+    } else {
+      syncDiscussAsideHeight();
+    }
   }
 
   function bindHeaderToggle() {
@@ -237,25 +250,29 @@
   }
 
   function syncDiscussAsideHeight() {
-    if (!discussAsideNode || panelHidden) return;
-    if (discussAsideHeightMq.matches) {
+    if (!discussAsideNode) return;
+    if (panelHidden || discussAsideHeightMq.matches) {
       discussAsideNode.style.height = "";
       discussAsideNode.style.maxHeight = "";
       return;
     }
-    const paneHeight = workspacePaneNode?.clientHeight || 0;
-    if (paneHeight <= 0) return;
-    discussAsideNode.style.height = `${paneHeight}px`;
-    discussAsideNode.style.maxHeight = `${paneHeight}px`;
+    const bodyHeight = workspaceBodyNode?.clientHeight || 0;
+    if (bodyHeight <= 0) {
+      discussAsideNode.style.height = "";
+      discussAsideNode.style.maxHeight = "";
+      return;
+    }
+    discussAsideNode.style.height = `${bodyHeight}px`;
+    discussAsideNode.style.maxHeight = `${bodyHeight}px`;
   }
 
   function bindDiscussAsideHeightSync() {
     syncDiscussAsideHeight();
     window.addEventListener("resize", syncDiscussAsideHeight);
     discussAsideHeightMq.addEventListener("change", syncDiscussAsideHeight);
-    if (workspacePaneNode && typeof ResizeObserver !== "undefined") {
+    if (workspaceBodyNode && typeof ResizeObserver !== "undefined") {
       const observer = new ResizeObserver(() => syncDiscussAsideHeight());
-      observer.observe(workspacePaneNode);
+      observer.observe(workspaceBodyNode);
     }
   }
 

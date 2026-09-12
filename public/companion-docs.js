@@ -113,6 +113,7 @@
   }
 
   function openModal() {
+    window.agentCmsCloseHeaderProfileMenu?.();
     renderContent();
     modalNode.classList.remove("hidden");
   }

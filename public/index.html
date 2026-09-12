@@ -368,36 +368,46 @@
             <div id="content-search-results" class="content-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
           </div>
           <div class="header-tool-buttons">
-            <button id="api-docs-btn" class="header-tool-btn" type="button" title="Документация HTTP API">API</button>
-            <button id="mcp-docs-btn" class="header-tool-btn" type="button" title="Документация MCP-сервера">MCP</button>
-            <button id="user-docs-btn" class="header-tool-btn" type="button" title="Документация Agent CMS">DOC</button>
-            <button id="best-practices-btn" class="header-tool-btn" type="button" title="Best Practices по организации агента">BP</button>
-            <button id="md-showcase-btn" class="header-tool-btn" type="button" title="Пример Markdown preview">MD</button>
-            <a
-              id="web-site-btn"
-              class="header-tool-btn"
-              href="http://agent-cms.ru/"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Маркетинговый сайт Agent CMS"
-            >WEB</a>
-            <button
-              id="companion-docs-btn"
-              class="header-tool-btn header-tool-btn--companion"
-              type="button"
-              title="Agent Shell Companion — расширение для Chrome"
-              aria-label="Agent Shell Companion — установка расширения для Chrome"
-            >
-              <img src="/assets/companion-brand-icon.svg" alt="" width="20" height="20" class="header-tool-btn-icon" aria-hidden="true" />
-            </button>
-            <button
-              id="components-ideas-btn"
-              class="header-tool-btn header-tool-btn--idea"
-              type="button"
-              title="Идеи и компоненты системы (My Graph ORM)"
-            >
-              💡
-            </button>
+            <div id="header-focus-wrap" class="header-focus-wrap hidden">
+              <button
+                id="header-focus-toggle-btn"
+                class="header-tool-btn header-tool-btn--focus"
+                type="button"
+                title="Фокус — быстрый навигатор"
+                aria-label="Фокус"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="header-focus-popover"
+              >
+                <span class="header-focus-icon" aria-hidden="true">◎</span>
+                <span class="header-focus-label">Фокус</span>
+                <span id="header-focus-count" class="header-focus-badge hidden" aria-hidden="true">0</span>
+              </button>
+              <div
+                id="header-focus-popover"
+                class="header-focus-popover hidden"
+                role="dialog"
+                aria-label="Фокус — быстрый навигатор"
+              >
+                <div class="header-focus-popover-head">
+                  <div class="header-focus-popover-title-wrap">
+                    <p class="header-focus-popover-title">Фокус</p>
+                    <p class="header-focus-popover-subtitle">Быстрый навигатор</p>
+                  </div>
+                  <button
+                    id="header-focus-close-btn"
+                    class="header-focus-popover-close"
+                    type="button"
+                    aria-label="Закрыть"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div id="header-focus-list-shell" class="header-focus-list-shell">
+                  <div id="header-focus-list" class="agent-focus-list agent-focus-list--compact" role="list"></div>
+                </div>
+              </div>
+            </div>
             <button
               id="discuss-panel-toggle-btn"
               class="header-tool-btn header-tool-btn--chat discuss-panel-toggle-btn"
@@ -482,24 +492,109 @@
                 </div>
               </div>
             </div>
-            <button
-              id="header-user-profile-btn"
-              class="header-tool-btn header-user-profile-btn hidden"
-              type="button"
-              title="Профиль пользователя"
-              aria-label="Открыть профиль пользователя"
-            >
-              <span id="header-user-profile-avatar-mount" class="header-user-profile-avatar" aria-hidden="true"></span>
-              <span class="header-user-profile-label">Профиль</span>
-            </button>
-            <button
-              id="app-lock-logout-btn"
-              class="header-tool-btn header-tool-btn--logout hidden"
-              type="button"
-              title="Выйти из Agent CMS"
-            >
-              Выход
-            </button>
+            <div class="header-profile-wrap">
+              <button
+                id="header-user-profile-btn"
+                class="header-tool-btn header-tool-btn--profile header-user-profile-btn"
+                type="button"
+                title="Меню профиля"
+                aria-label="Меню профиля"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="header-profile-menu"
+              >
+                <span id="header-user-profile-avatar-mount" class="header-user-profile-avatar" aria-hidden="true"></span>
+                <svg class="header-user-profile-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                  <path d="M2.5 4.25L6 7.75L9.5 4.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </button>
+              <div
+                id="header-profile-menu"
+                class="header-profile-menu hidden"
+                role="menu"
+                aria-label="Меню профиля"
+              >
+                <div class="header-profile-menu-section" role="group" aria-label="Основное">
+                  <div class="header-profile-menu-section-title">Основное</div>
+                  <button
+                    id="header-profile-agent-btn"
+                    class="header-profile-menu-item"
+                    type="button"
+                    role="menuitem"
+                    title="Профиль агента (agent/)"
+                  >
+                    Профиль агента
+                  </button>
+                  <button
+                    id="header-profile-settings-btn"
+                    class="header-profile-menu-item"
+                    type="button"
+                    role="menuitem"
+                    title="Профиль пользователя (user/)"
+                  >
+                    Профиль пользователя
+                  </button>
+                  <button
+                    id="app-lock-logout-btn"
+                    class="header-profile-menu-item header-profile-menu-item--danger hidden"
+                    type="button"
+                    role="menuitem"
+                    title="Выйти из Agent CMS"
+                  >
+                    Выход
+                  </button>
+                </div>
+                <div class="header-profile-menu-divider" role="separator" aria-hidden="true"></div>
+                <div class="header-profile-menu-section" role="group" aria-label="Документация">
+                  <div class="header-profile-menu-section-title">Документация</div>
+                  <button id="api-docs-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Документация HTTP API">HTTP API</button>
+                  <button id="mcp-docs-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Документация MCP-сервера">MCP Server</button>
+                  <button id="user-docs-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Документация Agent CMS">Руководство</button>
+                  <button id="best-practices-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Best Practices по организации агента">Best Practices</button>
+                  <button id="md-showcase-btn" class="header-profile-menu-item" type="button" role="menuitem" title="Пример Markdown preview">Markdown preview</button>
+                  <button
+                    id="components-ideas-btn"
+                    class="header-profile-menu-item"
+                    type="button"
+                    role="menuitem"
+                    title="Идеи и компоненты системы (My Graph ORM)"
+                  >
+                    Идеи · компоненты
+                  </button>
+                </div>
+                <div class="header-profile-menu-footer" role="group" aria-label="Ссылки">
+                  <a
+                    id="web-site-btn"
+                    class="header-profile-menu-tile header-profile-menu-tile--web"
+                    href="http://agent-cms.ru/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    role="menuitem"
+                    title="Маркетинговый сайт Agent CMS"
+                  >
+                    <span class="header-profile-menu-tile-icon" aria-hidden="true">🌐</span>
+                    <span class="header-profile-menu-tile-copy">
+                      <span class="header-profile-menu-tile-label">Сайт</span>
+                      <span class="header-profile-menu-tile-meta">agent-cms.ru</span>
+                    </span>
+                    <span class="header-profile-menu-tile-arrow" aria-hidden="true">↗</span>
+                  </a>
+                  <button
+                    id="companion-docs-btn"
+                    class="header-profile-menu-tile header-profile-menu-tile--companion"
+                    type="button"
+                    role="menuitem"
+                    title="Agent Shell Companion — расширение для Chrome"
+                  >
+                    <img src="/assets/companion-brand-icon.svg" alt="" width="18" height="18" class="header-profile-menu-tile-icon-img" aria-hidden="true" />
+                    <span class="header-profile-menu-tile-copy">
+                      <span class="header-profile-menu-tile-label">Companion</span>
+                      <span class="header-profile-menu-tile-meta">Chrome</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -670,27 +765,6 @@
                 </div>
               </div>
             </div>
-          </div>
-        </section>
-
-        <section id="sidebar-focus" class="sidebar-slab sidebar-slab-focus agent-focus-panel agent-focus-panel--sidebar sidebar-focus-accordion is-collapsed hidden" aria-label="Фокус">
-          <button
-            id="sidebar-focus-toggle"
-            type="button"
-            class="sidebar-focus-toggle agent-focus-head agent-focus-head--compact"
-            aria-expanded="false"
-            aria-controls="sidebar-focus-list-shell"
-          >
-            <span class="sidebar-focus-toggle-main">
-              <span class="sidebar-focus-chevron" aria-hidden="true"></span>
-              <span id="sidebar-focus-title" class="agent-focus-title">
-                Фокус <span class="agent-focus-sub agent-focus-sub--inline">(быстрый навигатор)</span>
-              </span>
-            </span>
-            <span id="sidebar-focus-count" class="agent-focus-count hidden"></span>
-          </button>
-          <div id="sidebar-focus-list-shell" class="sidebar-focus-list-shell" hidden>
-            <div id="sidebar-focus-list" class="agent-focus-list agent-focus-list--compact" role="list"></div>
           </div>
         </section>
 
@@ -4367,12 +4441,12 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.727"></script>
-    <script src="/discuss-panel.js?v=0.5.254"></script>
+    <script src="/main.js?v=0.5.730"></script>
+    <script src="/discuss-panel.js?v=0.5.256"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>
     <script src="/cms-page-picker.js?v=0.5.7"></script>
-    <script src="/companion-docs.js?v=3"></script>
+    <script src="/companion-docs.js?v=4"></script>
     <script src="/app-home-title-rotator.js?v=13"></script>
   </body>
   </html>

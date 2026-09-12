@@ -178,11 +178,14 @@ const appLandingFocusSortNode = document.getElementById("app-landing-focus-sort"
 const appLandingFocusSortDirNode = document.getElementById("app-landing-focus-sort-dir");
 const homeFocusNode = document.getElementById("home-focus");
 const homeFocusListNode = document.getElementById("home-focus-list");
-const sidebarFocusNode = document.getElementById("sidebar-focus");
-const sidebarFocusToggleBtn = document.getElementById("sidebar-focus-toggle");
-const sidebarFocusListShellNode = document.getElementById("sidebar-focus-list-shell");
-const sidebarFocusListNode = document.getElementById("sidebar-focus-list");
-const sidebarFocusCountNode = document.getElementById("sidebar-focus-count");
+const headerFocusWrapNode = document.getElementById("header-focus-wrap");
+const headerFocusToggleBtn = document.getElementById("header-focus-toggle-btn");
+const headerFocusPopoverNode = document.getElementById("header-focus-popover");
+const headerFocusCloseBtn = document.getElementById("header-focus-close-btn");
+const headerFocusListShellNode = document.getElementById("header-focus-list-shell");
+const headerFocusListNode = document.getElementById("header-focus-list");
+const headerFocusCountNode = document.getElementById("header-focus-count");
+let headerFocusOpen = false;
 const appLandingHintNode = document.getElementById("app-landing-hint");
 const appLandingManageBtn = document.getElementById("app-landing-manage-btn");
 const appLandingSettingsBtn = document.getElementById("app-landing-settings-btn");
@@ -294,7 +297,6 @@ const agentTodoPreviewEditBtn = document.getElementById("agent-todo-preview-edit
 const agentTodoPreviewExpandBtn = document.getElementById("agent-todo-preview-expand-btn");
 const agentTodoPreviewBodyNode = document.getElementById("agent-todo-preview-body");
 const AGENT_TODO_PREVIEW_COLLAPSED_MAX_HEIGHT_PX = 75;
-const SIDEBAR_FOCUS_EXPANDED_KEY = "agentcms.sidebarFocusExpanded.v1";
 const SIDEBAR_NOTE_PREVIEW_EXPANDED_KEY = "agentcms.sidebarNotePreviewExpanded.v1";
 const agentTablePaneNode = document.getElementById("agent-table-pane");
 const agentTableContentNode = document.getElementById("agent-table-content");
@@ -1083,6 +1085,13 @@ const sidebarAgentAvatarBtn = document.getElementById("sidebar-agent-avatar-btn"
 const sidebarAgentAvatarMountNode = document.getElementById("sidebar-agent-avatar-mount");
 const headerUserProfileBtn = document.getElementById("header-user-profile-btn");
 const headerUserProfileAvatarMountNode = document.getElementById("header-user-profile-avatar-mount");
+const headerProfileWrapNode = document.querySelector(".header-profile-wrap");
+const headerProfileMenuNode = document.getElementById("header-profile-menu");
+const headerProfileAgentBtn = document.getElementById("header-profile-agent-btn");
+const headerProfileSettingsBtn = document.getElementById("header-profile-settings-btn");
+const webSiteBtn = document.getElementById("web-site-btn");
+const appLockLogoutBtn = document.getElementById("app-lock-logout-btn");
+let headerProfileMenuOpen = false;
 const agentsManageBtn = document.getElementById("agents-manage-btn");
 const agentsPickerBtn = document.getElementById("agents-picker-btn");
 const agentsPickerPopoverNode = document.getElementById("agents-picker-popover");
@@ -5756,33 +5765,47 @@ function toggleSidebarNotePreviewExpanded() {
   setSidebarNotePreviewExpanded(!isSidebarNotePreviewExpanded());
 }
 
-function isSidebarFocusExpanded() {
-  try {
-    return localStorage.getItem(SIDEBAR_FOCUS_EXPANDED_KEY) === "1";
-  } catch {
-    return false;
-  }
+function syncHeaderFocusButtonState() {
+  headerFocusToggleBtn?.classList.toggle("is-active", headerFocusOpen);
+  headerFocusToggleBtn?.setAttribute("aria-expanded", headerFocusOpen ? "true" : "false");
 }
 
-function syncSidebarFocusAccordionUi() {
-  if (!sidebarFocusNode || sidebarFocusNode.classList.contains("hidden")) return;
-  const expanded = isSidebarFocusExpanded();
-  sidebarFocusNode.classList.toggle("is-collapsed", !expanded);
-  sidebarFocusToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
-  if (sidebarFocusListShellNode) sidebarFocusListShellNode.hidden = !expanded;
+function positionHeaderFocusPopover() {
+  const popover = headerFocusPopoverNode;
+  const anchor = headerFocusToggleBtn;
+  if (!popover || !anchor || popover.classList.contains("hidden")) return;
+  const rect = anchor.getBoundingClientRect();
+  const width = 360;
+  const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12));
+  const top = rect.bottom + 8;
+  const maxHeight = Math.max(200, window.innerHeight - top - 16);
+  popover.style.top = `${top}px`;
+  popover.style.left = `${left}px`;
+  popover.style.maxHeight = `${maxHeight}px`;
 }
 
-function setSidebarFocusExpanded(expanded) {
-  try {
-    localStorage.setItem(SIDEBAR_FOCUS_EXPANDED_KEY, expanded ? "1" : "0");
-  } catch {
-    // ignore
-  }
-  syncSidebarFocusAccordionUi();
+function closeHeaderFocusPopover() {
+  if (!headerFocusOpen) return;
+  headerFocusOpen = false;
+  headerFocusPopoverNode?.classList.add("hidden");
+  syncHeaderFocusButtonState();
 }
 
-function toggleSidebarFocusExpanded() {
-  setSidebarFocusExpanded(!isSidebarFocusExpanded());
+function openHeaderFocusPopover() {
+  if (!headerFocusPopoverNode || !headerFocusToggleBtn || headerFocusWrapNode?.classList.contains("hidden")) return;
+  closeHeaderProfileMenu();
+  closeWorkspaceNotificationsPopover();
+  closeAgentsPickerPopover();
+  closeMenuSettingsPopover();
+  headerFocusOpen = true;
+  headerFocusPopoverNode.classList.remove("hidden");
+  syncHeaderFocusButtonState();
+  positionHeaderFocusPopover();
+}
+
+function toggleHeaderFocusPopover() {
+  if (headerFocusOpen) closeHeaderFocusPopover();
+  else openHeaderFocusPopover();
 }
 
 function isAgentTodoPreviewExpanded() {
@@ -7429,6 +7452,7 @@ function createFocusItem(focusItem, variant = "landing") {
     if (!registryActive) appendDisabledRegistryAgentDot(chip);
     chip.append(nameNode);
     chip.addEventListener("click", () => {
+      closeHeaderFocusPopover();
       void openFocusItem(focusItem);
     });
 
@@ -7834,7 +7858,8 @@ function renderSidebarFocusPanel(panelNode, listNode, items) {
   listNode.replaceChildren();
   if (!activeAgentId) {
     panelNode.classList.add("hidden");
-    syncSidebarFocusCount();
+    syncHeaderFocusCount();
+    closeHeaderFocusPopover();
     return;
   }
   panelNode.classList.remove("hidden");
@@ -7843,15 +7868,13 @@ function renderSidebarFocusPanel(panelNode, listNode, items) {
     empty.className = "agent-focus-empty";
     empty.textContent = "Нет записей с awn-main: true — отметьте тему в свойствах (⭐ Фокус).";
     listNode.appendChild(empty);
-    syncSidebarFocusCount();
-    syncSidebarFocusAccordionUi();
+    syncHeaderFocusCount();
     return;
   }
   for (const focusItem of items) {
     listNode.appendChild(createFocusItem(focusItem, "sidebar"));
   }
-  syncSidebarFocusCount();
-  syncSidebarFocusAccordionUi();
+  syncHeaderFocusCount();
 }
 
 function renderFocusPanel(panelNode, listNode, items, variant) {
@@ -7883,8 +7906,8 @@ function renderFocusPanel(panelNode, listNode, items, variant) {
 
 function renderAgentFocusPanels() {
   renderFocusPanel(homeFocusNode, homeFocusListNode, agentFocusItemsCache, "home");
-  renderFocusPanel(sidebarFocusNode, sidebarFocusListNode, agentFocusItemsCache, "sidebar");
-  syncSidebarFocusCount();
+  renderFocusPanel(headerFocusWrapNode, headerFocusListNode, agentFocusItemsCache, "sidebar");
+  syncHeaderFocusCount();
   updateNodeOverviewHeroActionStates();
 }
 
@@ -8103,6 +8126,37 @@ function closeAgentsPickerPopover() {
   agentsPickerIsOpen = false;
   syncAgentsPickerButtonState();
   resetAgentsPickerPopoverPosition();
+}
+
+function syncHeaderProfileMenuState() {
+  headerUserProfileBtn?.classList.toggle("is-open", headerProfileMenuOpen);
+  headerUserProfileBtn?.setAttribute("aria-expanded", headerProfileMenuOpen ? "true" : "false");
+}
+
+function closeHeaderProfileMenu() {
+  if (!headerProfileMenuOpen) return;
+  headerProfileMenuOpen = false;
+  headerProfileMenuNode?.classList.add("hidden");
+  syncHeaderProfileMenuState();
+}
+
+if (typeof window !== "undefined") {
+  window.agentCmsCloseHeaderProfileMenu = closeHeaderProfileMenu;
+}
+
+function openHeaderProfileMenu() {
+  if (!headerProfileMenuNode || !headerUserProfileBtn) return;
+  if (headerProfileMenuOpen) {
+    closeHeaderProfileMenu();
+    return;
+  }
+  closeAgentsPickerPopover();
+  closeMenuSettingsPopover();
+  closeWorkspaceNotificationsPopover();
+  closeHeaderFocusPopover();
+  headerProfileMenuOpen = true;
+  headerProfileMenuNode.classList.remove("hidden");
+  syncHeaderProfileMenuState();
 }
 
 function openAgentsPickerPopover() {
@@ -12249,18 +12303,16 @@ function syncIdentityToolbarAvatars(agentId = activeAgentId) {
   }
 
   if (headerUserProfileBtn && headerUserProfileAvatarMountNode) {
-    headerUserProfileBtn.classList.toggle("hidden", !showKitAvatars);
-    if (showKitAvatars) {
-      mountPreviewOrFallback(headerUserProfileAvatarMountNode, {
-        previewUrl: getAgentKitTopicPreviewUrl("user", agentId),
-        emoji: "",
-        fallbackText: "П",
-        emojiClass: "header-user-profile-avatar-emoji",
-        initialsClass: "header-user-profile-avatar-initials"
-      });
-    } else {
-      headerUserProfileAvatarMountNode.replaceChildren();
-    }
+    headerUserProfileBtn.classList.remove("hidden");
+    headerProfileWrapNode?.classList.remove("hidden");
+    mountPreviewOrFallback(headerUserProfileAvatarMountNode, {
+      previewUrl: showKitAvatars ? getAgentKitTopicPreviewUrl("user", agentId) : "",
+      emoji: "",
+      fallbackText: "",
+      emptyClass: "header-user-profile-avatar-icon",
+      emojiClass: "header-user-profile-avatar-emoji",
+      initialsClass: "header-user-profile-avatar-initials"
+    });
   }
 }
 
@@ -69857,6 +69909,8 @@ function markWorkspaceNotificationsRead() {
 
 function openWorkspaceNotificationsPopover() {
   if (!workspaceNotificationsPopoverNode || !workspaceNotificationsBtn) return;
+  closeHeaderProfileMenu();
+  closeHeaderFocusPopover();
   workspaceNotificationsOpen = true;
   workspaceNotificationsPopoverNode.classList.remove("hidden");
   workspaceNotificationsBtn.setAttribute("aria-expanded", "true");
@@ -95135,11 +95189,12 @@ function setupAppFooterIdeasPopover() {
   });
 }
 
-function syncSidebarFocusCount() {
-  if (!sidebarFocusCountNode) return;
+function syncHeaderFocusCount() {
+  if (!headerFocusCountNode) return;
   const total = activeAgentId ? agentFocusItemsCache.length : 0;
-  sidebarFocusCountNode.textContent = total ? String(total) : "";
-  sidebarFocusCountNode.classList.toggle("hidden", !total);
+  headerFocusCountNode.textContent = total ? String(total) : "";
+  headerFocusCountNode.classList.toggle("hidden", !total);
+  headerFocusToggleBtn?.classList.toggle("has-count", total > 0);
 }
 
 function syncSidebarScrollChrome() {
@@ -95311,7 +95366,7 @@ function setupMenuScrollTopButton() {
     if (workspacePaneNode) observer.observe(workspacePaneNode);
   }
   syncSidebarScrollChrome();
-  syncSidebarFocusCount();
+  syncHeaderFocusCount();
 }
 
 function setupWorkspaceScrollChrome() {
@@ -95948,21 +96003,43 @@ agentsPickerBtn?.addEventListener("click", () => openAgentsPickerPopover());
 sidebarAgentAvatarBtn?.addEventListener("click", () => {
   void openAgentKitTopic("agent");
 });
-headerUserProfileBtn?.addEventListener("click", () => {
+headerUserProfileBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  openHeaderProfileMenu();
+});
+headerProfileAgentBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
+  void openAgentKitTopic("agent");
+});
+headerProfileSettingsBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
   void openAgentKitTopic("user");
 });
 agentsPickerPopoverCloseBtn?.addEventListener("click", closeAgentsPickerPopover);
 document.addEventListener("click", (event) => {
-  if (!agentsPickerIsOpen || !agentsPickerPopoverNode) return;
   const target = event.target;
   if (!(target instanceof Element)) return;
-  if (agentsPickerPopoverNode.contains(target) || target.closest("#agents-picker-btn")) {
-    return;
+  if (agentsPickerIsOpen && agentsPickerPopoverNode) {
+    if (!agentsPickerPopoverNode.contains(target) && !target.closest("#agents-picker-btn")) {
+      closeAgentsPickerPopover();
+    }
   }
-  closeAgentsPickerPopover();
+  if (headerProfileMenuOpen && headerProfileMenuNode) {
+    if (!headerProfileMenuNode.contains(target) && !target.closest("#header-user-profile-btn")) {
+      closeHeaderProfileMenu();
+    }
+  }
+  if (headerFocusOpen && headerFocusPopoverNode) {
+    if (!headerFocusPopoverNode.contains(target) && !target.closest("#header-focus-toggle-btn")) {
+      closeHeaderFocusPopover();
+    }
+  }
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeAgentsPickerPopover();
+  if (event.key !== "Escape") return;
+  closeAgentsPickerPopover();
+  closeHeaderProfileMenu();
+  closeHeaderFocusPopover();
 });
 window.addEventListener(
   "resize",
@@ -96469,6 +96546,7 @@ function closeBestPracticesModal() {
 }
 
 mdShowcaseBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
   void openMdShowcaseModal();
 });
 mdShowcaseCloseBtn?.addEventListener("click", closeMdShowcaseModal);
@@ -96477,6 +96555,7 @@ mdShowcaseModalNode?.addEventListener("click", (event) => {
 });
 
 componentsIdeasBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
   void openComponentsIdeasModal();
 });
 componentsIdeasCloseBtn?.addEventListener("click", closeComponentsIdeasModal);
@@ -96485,6 +96564,7 @@ componentsIdeasModalNode?.addEventListener("click", (event) => {
 });
 
 userDocsBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
   void openUserDocsModal();
 });
 userDocsVersionSelectNode?.addEventListener("change", () => {
@@ -96509,6 +96589,7 @@ userDocsModalNode?.addEventListener("click", (event) => {
 });
 
 bestPracticesBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
   void openBestPracticesModal();
 });
 bestPracticesCloseBtn?.addEventListener("click", closeBestPracticesModal);
@@ -96517,6 +96598,7 @@ bestPracticesModalNode?.addEventListener("click", (event) => {
 });
 
 apiDocsBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
   void openApiDocsModal();
 });
 
@@ -96541,8 +96623,11 @@ apiDocsModalNode?.addEventListener("click", (event) => {
 });
 
 mcpDocsBtn?.addEventListener("click", () => {
+  closeHeaderProfileMenu();
   void openMcpDocsModal();
 });
+webSiteBtn?.addEventListener("click", closeHeaderProfileMenu);
+appLockLogoutBtn?.addEventListener("click", closeHeaderProfileMenu);
 mcpDocsVersionSelectNode?.addEventListener("change", () => {
   void (async () => {
     try {
@@ -96759,11 +96844,19 @@ agentTodoPreviewExpandBtn?.addEventListener("click", (event) => {
   event.stopPropagation();
   toggleAgentTodoPreviewExpand();
 });
-sidebarFocusToggleBtn?.addEventListener("click", () => {
-  toggleSidebarFocusExpanded();
+headerFocusToggleBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleHeaderFocusPopover();
 });
+headerFocusCloseBtn?.addEventListener("click", closeHeaderFocusPopover);
+window.addEventListener(
+  "resize",
+  () => {
+    if (headerFocusOpen) positionHeaderFocusPopover();
+  },
+  { passive: true }
+);
 
-syncSidebarFocusAccordionUi();
 syncSidebarNotePreviewAccordion();
 
 agentGitBtn?.addEventListener("click", () => {
