@@ -14572,6 +14572,8 @@ body.app-locked {
   right: 0;
   z-index: 1100;
   width: min(360px, calc(100vw - 24px));
+  max-height: min(72vh, 520px);
+  overflow-y: auto;
   padding: 14px;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 14px;
@@ -14634,6 +14636,10 @@ body.app-locked {
 
 .header-guide-steps li + li {
   margin-top: 10px;
+}
+
+.header-guide-steps li .header-guide-prompt {
+  margin-top: 8px;
 }
 
 .header-guide-inline-btn {

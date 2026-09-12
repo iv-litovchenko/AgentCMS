@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.746" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.747" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -553,21 +553,27 @@
                   </li>
                   <li>
                     <strong>Шаг 2.</strong> Начните новый чат и напишите агенту:
+                    <div class="header-guide-prompt">
+                      <pre id="header-connect-prompt-text" class="header-guide-prompt-text">Выбери хранилище &lt;Название хранилища&gt; и загрузи контекст</pre>
+                      <button
+                        id="header-connect-copy-btn"
+                        class="header-guide-copy-btn"
+                        type="button"
+                      >
+                        Скопировать
+                      </button>
+                    </div>
+                    <p class="header-guide-hint">
+                      Замените <code>&lt;Название хранилища&gt;</code> на имя вашего хранилища.
+                    </p>
+                  </li>
+                  <li>
+                    <strong>Шаг 3.</strong> Пообщайтесь с агентом об инструменте — он всё расскажет и объяснит.
+                  </li>
+                  <li>
+                    <strong>Шаг 4.</strong> Не знаете, с чего начать? Спросите нейросеть — она предложит области и темы под ваши запросы и интересы.
                   </li>
                 </ol>
-                <div class="header-guide-prompt">
-                  <pre id="header-connect-prompt-text" class="header-guide-prompt-text">Выбери хранилище &lt;Название хранилища&gt; и загрузи контекст</pre>
-                  <button
-                    id="header-connect-copy-btn"
-                    class="header-guide-copy-btn"
-                    type="button"
-                  >
-                    Скопировать
-                  </button>
-                </div>
-                <p class="header-guide-hint">
-                  Замените <code>&lt;Название хранилища&gt;</code> на имя вашего хранилища.
-                </p>
               </div>
             </div>
             <button
