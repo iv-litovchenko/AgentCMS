@@ -82850,6 +82850,73 @@ let menuAgentStatsSeq = 0;
 let menuSystemEnvironmentSeq = 0;
 let menuSystemEnvironmentCache = null;
 const MENU_SYSTEM_ENVIRONMENT_OPEN_KEY = "agentcms.menuSystemEnvironment.open.v1";
+const MENU_SYSTEM_ENV_ORDER = [
+  "node",
+  "npm",
+  "git",
+  "python",
+  "https",
+  "mkcert",
+  "openssl",
+  "whisper",
+  "claude",
+  "codex",
+  "electron"
+];
+const MENU_SYSTEM_ENV_PRIORITY = new Set(MENU_SYSTEM_ENV_ORDER);
+const MENU_SYSTEM_ENV_DESCRIPTIONS = {
+  node: "среда JavaScript",
+  npm: "менеджер пакетов",
+  git: "контроль версий",
+  python: "скрипты и зависимости",
+  https: "защищённое соединение",
+  mkcert: "локальные TLS-сертификаты",
+  openssl: "криптография и TLS",
+  whisper: "распознавание речи",
+  claude: "CLI Anthropic",
+  codex: "CLI OpenAI Codex",
+  electron: "десктопная оболочка"
+};
+
+function getMenuSystemEnvironmentDescription(item) {
+  const id = String(item?.id || "").trim().toLowerCase();
+  return MENU_SYSTEM_ENV_DESCRIPTIONS[id] || "";
+}
+
+function sortMenuSystemEnvironmentItems(items = []) {
+  const orderIndex = new Map(MENU_SYSTEM_ENV_ORDER.map((id, index) => [id, index]));
+  return [...items].sort((left, right) => {
+    const leftId = String(left?.id || "");
+    const rightId = String(right?.id || "");
+    const leftRank = orderIndex.has(leftId) ? orderIndex.get(leftId) : 1000;
+    const rightRank = orderIndex.has(rightId) ? orderIndex.get(rightId) : 1000;
+    if (leftRank !== rightRank) return leftRank - rightRank;
+    return String(left?.label || leftId).localeCompare(String(right?.label || rightId), "ru");
+  });
+}
+
+function getMenuSystemEnvironmentItems(payload, { loading = false } = {}) {
+  if (loading) {
+    return sortMenuSystemEnvironmentItems([
+      { id: "node", label: "Node.js", value: "…", status: "loading" },
+      { id: "npm", label: "npm", value: "…", status: "loading" },
+      { id: "git", label: "Git", value: "…", status: "loading" },
+      { id: "python", label: "Python", value: "…", status: "loading" },
+      { id: "https", label: "HTTPS", value: "…", status: "loading" },
+      { id: "mkcert", label: "mkcert", value: "…", status: "loading" },
+      { id: "whisper", label: "Whisper STT", value: "…", status: "loading" }
+    ]);
+  }
+
+  const dependencies = Array.isArray(payload?.dependencies) ? payload.dependencies : [];
+  return sortMenuSystemEnvironmentItems(
+    dependencies.filter((item) => {
+      const id = String(item?.id || "");
+      if (MENU_SYSTEM_ENV_PRIORITY.has(id)) return true;
+      return item.status === "ok" || item.status === "warn";
+    })
+  );
+}
 
 function readMenuSystemEnvironmentOpen() {
   try {
@@ -82909,7 +82976,6 @@ function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = 
 
   const items = [
     { value: String(counts?.total ?? 0), label: "тем" },
-    { value: String(counts?.folders ?? 0), label: "контейнеров" },
     {
       value: loading ? "…" : workspace?.fileCount == null ? "—" : String(workspace.fileCount),
       label: "файлов"
@@ -82919,21 +82985,6 @@ function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = 
       label: "размер"
     }
   ];
-
-  if (!loading && intakeTotals) {
-    const inboxPending = Number(intakeTotals.inboxPending) || 0;
-    const threadUnread = Number(intakeTotals.threadUnread) || 0;
-    const mentionUnread = Number(intakeTotals.mentionUnread) || 0;
-    if (inboxPending > 0) {
-      items.push({ value: String(inboxPending), label: "входящ." });
-    }
-    if (threadUnread > 0) {
-      items.push({ value: String(threadUnread), label: "диалог" });
-    }
-    if (mentionUnread > 0) {
-      items.push({ value: String(mentionUnread), label: "@упом." });
-    }
-  }
 
   menuAgentStatsNode.replaceChildren();
   for (const item of items) {
@@ -83001,31 +83052,7 @@ function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
   }
   grid.replaceChildren();
 
-  const items = loading
-    ? [
-        { label: "Node.js", value: "…", status: "loading" },
-        { label: "npm", value: "…", status: "loading" },
-        { label: "Git", value: "…", status: "loading" },
-        { label: "Python", value: "…", status: "loading" },
-        { label: "mkcert", value: "…", status: "loading" },
-        { label: "HTTPS", value: "…", status: "loading" }
-      ]
-    : (Array.isArray(payload?.dependencies) ? payload.dependencies : []).filter((item) => {
-        const id = String(item?.id || "");
-        const priority = new Set([
-          "node",
-          "npm",
-          "git",
-          "python",
-          "mkcert",
-          "https",
-          "whisper",
-          "claude",
-          "codex"
-        ]);
-        if (priority.has(id)) return true;
-        return item.status === "ok" || item.status === "warn";
-      });
+  const items = getMenuSystemEnvironmentItems(payload, { loading });
 
   for (const item of items) {
     const chip = document.createElement("div");
@@ -83041,7 +83068,19 @@ function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
 
     const name = document.createElement("span");
     name.className = "menu-system-env-name";
-    name.textContent = item.label || item.id || "—";
+
+    const label = document.createElement("span");
+    label.className = "menu-system-env-label";
+    label.textContent = item.label || item.id || "—";
+
+    const description = getMenuSystemEnvironmentDescription(item);
+    name.appendChild(label);
+    if (description) {
+      const hint = document.createElement("span");
+      hint.className = "menu-system-env-desc";
+      hint.textContent = `(${description})`;
+      name.appendChild(hint);
+    }
 
     const value = document.createElement("span");
     value.className = "menu-system-env-value";
@@ -86761,7 +86800,7 @@ function handleAgentRegistryClick(event) {
   setAgentWorkspaceView("runtime-registry");
 }
 
-let agentRuntimeRegistryFilterMode = "always";
+let agentRuntimeRegistryFilterMode = "all";
 
 const RUNTIME_REGISTRY_MODES = {
   always: {

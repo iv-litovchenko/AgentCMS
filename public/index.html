@@ -10,7 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css?v=0.5.754" />
+    <link rel="stylesheet" href="/styles.css?v=0.5.758" />
     <link rel="stylesheet" href="/vendor/toastui-editor.css" />
     <link rel="stylesheet" href="/vendor/highlight-github.min.css" />
     <link rel="stylesheet" href="/vendor/fancybox/fancybox.css" />
@@ -2169,28 +2169,41 @@
           </div>
         </div>
         <div class="agent-tool-toolbar agent-runtime-registry-toolbar">
-          <div id="agent-runtime-registry-filter" class="agent-runtime-registry-filter" role="tablist" aria-label="Режим реестра">
-            <button type="button" class="agent-runtime-registry-filter-btn is-active" data-runtime-filter="always" role="tab" aria-selected="true">
-              <span class="agent-runtime-registry-filter-label">Всегда в контексте</span>
+          <p class="agent-runtime-registry-filter-caption">Режим просмотра — нажмите вкладку:</p>
+          <div id="agent-runtime-registry-filter" class="agent-runtime-registry-filter" role="tablist" aria-label="Режим просмотра реестра runtime-флагов">
+            <button type="button" class="agent-runtime-registry-filter-btn is-active" data-runtime-filter="all" role="tab" aria-selected="true" title="Все runtime-флаги в одной таблице">
+              <span class="agent-runtime-registry-filter-row">
+                <span class="agent-runtime-registry-filter-emoji" aria-hidden="true">📋</span>
+                <span class="agent-runtime-registry-filter-label">Все флаги</span>
+              </span>
+              <span class="agent-runtime-registry-filter-hint">обзор awn-runtime-*</span>
+            </button>
+            <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="always" role="tab" aria-selected="false" title="Файлы при команде «загрузи контекст»">
+              <span class="agent-runtime-registry-filter-row">
+                <span class="agent-runtime-registry-filter-emoji" aria-hidden="true">📌</span>
+                <span class="agent-runtime-registry-filter-label">Всегда в контексте</span>
+              </span>
               <span class="agent-runtime-registry-filter-hint">при «загрузи контекст»</span>
             </button>
-            <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="cron" role="tab" aria-selected="false">
-              <span class="agent-runtime-registry-filter-label">По расписанию</span>
+            <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="cron" role="tab" aria-selected="false" title="Задачи по расписанию cron">
+              <span class="agent-runtime-registry-filter-row">
+                <span class="agent-runtime-registry-filter-emoji" aria-hidden="true">⏰</span>
+                <span class="agent-runtime-registry-filter-label">По расписанию</span>
+              </span>
               <span class="agent-runtime-registry-filter-hint">cron-задачи</span>
             </button>
-            <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="heartbeat" role="tab" aria-selected="false">
-              <span class="agent-runtime-registry-filter-label">Сердцебиение</span>
+            <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="heartbeat" role="tab" aria-selected="false" title="Периодический опрос агентом">
+              <span class="agent-runtime-registry-filter-row">
+                <span class="agent-runtime-registry-filter-emoji" aria-hidden="true">💓</span>
+                <span class="agent-runtime-registry-filter-label">Сердцебиение</span>
+              </span>
               <span class="agent-runtime-registry-filter-hint">периодический опрос</span>
-            </button>
-            <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="all" role="tab" aria-selected="false">
-              <span class="agent-runtime-registry-filter-label">Все флаги</span>
-              <span class="agent-runtime-registry-filter-hint">обзор</span>
             </button>
           </div>
         </div>
         <div id="agent-runtime-registry-mode-info" class="agent-tool-info agent-runtime-registry-mode-info" aria-live="polite">
           <div class="agent-tool-info-copy agent-runtime-registry-mode-copy">
-            <h3 id="agent-runtime-registry-mode-title" class="agent-tool-info-title agent-runtime-registry-mode-title">Всегда в контексте</h3>
+            <h3 id="agent-runtime-registry-mode-title" class="agent-tool-info-title agent-runtime-registry-mode-title">Все runtime-флаги</h3>
             <p id="agent-runtime-registry-mode-desc" class="agent-tool-info-desc agent-runtime-registry-mode-desc"></p>
             <p id="agent-runtime-registry-mode-mcp" class="agent-tool-info-mcp agent-runtime-registry-mode-mcp"></p>
           </div>
@@ -4617,7 +4630,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.748"></script>
+    <script src="/main.js?v=0.5.752"></script>
     <script src="/discuss-panel.js?v=0.5.257"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>
