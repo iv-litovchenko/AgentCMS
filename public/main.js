@@ -16378,7 +16378,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
   return namesByKey[key] || [];
 }
 
-const HIDDEN_STORAGE_SLOT_TREE_KEYS = new Set(["quick-notes", "repository"]);
+const HIDDEN_STORAGE_SLOT_TREE_KEYS = new Set(["quick-notes", "repository", "temp"]);
 
 function findScanFolderForSlotKey(slotKey, folders = []) {
   const names = new Set(getStorageFolderNamesForSlotKey(slotKey).map((name) => name.toLowerCase()));
