@@ -17283,9 +17283,14 @@ a.header-tool-btn {
   color: #4338ca;
 }
 
+.sidebar-slab-agent:has(.agents-picker-popover:not(.hidden)) {
+  position: relative;
+  z-index: 25;
+}
+
 .agents-picker-popover {
   position: fixed;
-  z-index: 1100;
+  z-index: 1200;
   width: auto;
   max-width: none;
   padding: 6px;

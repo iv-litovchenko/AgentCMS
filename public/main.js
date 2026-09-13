@@ -88650,7 +88650,7 @@ function renderAgentRunScriptsView() {
 
   if (agentRunScriptsMetaNode) {
     agentRunScriptsMetaNode.textContent =
-      "Заглушка · примеры ниже показывают будущий список · MCP: run_script";
+      "Static · примеры ниже показывают будущий список · MCP: run_script";
   }
 
   const shell = document.createElement("div");
@@ -88659,7 +88659,7 @@ function renderAgentRunScriptsView() {
   const notice = document.createElement("div");
   notice.className = "agent-tool-empty-card agent-run-scripts-notice";
   notice.innerHTML = `
-    <p class="agent-tool-empty-title agent-run-scripts-notice-title">Раздел в разработке</p>
+    <p class="agent-tool-empty-title agent-run-scripts-notice-title">Static · раздел в разработке</p>
     <p class="agent-tool-empty-text agent-run-scripts-notice-text">
       Здесь будет список скриптов workspace с кнопками запуска, аргументами и выводом stdout/stderr.
       Пока показаны примеры для проверки макета.

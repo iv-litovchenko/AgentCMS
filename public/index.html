@@ -1035,9 +1035,9 @@
                       class="header-profile-menu-item agents-picker-tool-btn agent-run-scripts-btn"
                       type="button"
                       role="menuitem"
-                      title="Запуск скриптов — список и выполнение скриптов workspace"
+                      title="Запуск скриптов — пока static, список и выполнение скриптов workspace"
                     >
-                      <span class="agents-picker-tool-label">Запуск скриптов</span>
+                      <span class="agents-picker-tool-label">Запуск скриптов <span class="stub-static-mark">(static)</span></span>
                     </button>
                   </div>
                 </section>
@@ -2457,7 +2457,7 @@
         <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Запуск скриптов</h2>
+            <h2 class="agent-canvas-title">Запуск скриптов <span class="stub-static-mark">(static)</span></h2>
             <p class="agent-canvas-lead">
               Скрипты workspace (<code>.py</code>, <code>.js</code>, <code>.sh</code>) — просмотр списка и запуск из интерфейса.
             </p>
@@ -2469,7 +2469,7 @@
           </div>
         </div>
         <div id="agent-run-scripts-info" class="agent-tool-info">
-          <p id="agent-run-scripts-meta" class="agent-tool-info-desc">Заглушка — скоро здесь появится список скриптов и кнопки запуска</p>
+          <p id="agent-run-scripts-meta" class="agent-tool-info-desc">Static — пока заглушка, скоро здесь появится список скриптов и кнопки запуска</p>
           <div id="agent-run-scripts-stats" class="agent-workspace-stats" aria-live="polite"></div>
         </div>
         <div id="agent-run-scripts-content" class="agent-tool-body agent-run-scripts-content"></div>
