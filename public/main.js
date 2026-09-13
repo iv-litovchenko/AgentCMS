@@ -132,11 +132,14 @@ const APP_SPLASH_MIN_MS = 900;
 const APP_SPLASH_HIDE_MS = 460;
 const homePaneNode = document.getElementById("home-pane");
 const home2PaneNode = document.getElementById("home-pane-2");
+const home3PaneNode = document.getElementById("home-pane-3");
 const notFoundPaneNode = document.getElementById("not-found-pane");
 const notFoundPathNode = document.getElementById("app-not-found-path");
 const notFoundHomeBtn = document.getElementById("app-not-found-home-btn");
 const notFoundBackBtn = document.getElementById("app-not-found-back-btn");
+const home2HeadNode = document.getElementById("home2-head");
 const home2ContentNode = document.getElementById("home2-content");
+const home3ContentNode = document.getElementById("home3-content");
 const agentAwnTypesPaneNode = document.getElementById("agent-awn-types-pane");
 const agentAwnTypesContentNode = document.getElementById("agent-awn-types-content");
 const agentGitPaneNode = document.getElementById("agent-git-pane");
@@ -12480,6 +12483,7 @@ async function switchActiveAgent(nextAgentId) {
     void refreshMenuAwnDialogsStats(activeAgentId);
     void refreshMenuAwnFactsStats(activeAgentId);
     void refreshMenuAwnTempStats(activeAgentId);
+    window.AwnDashboards?.refreshMenuStats?.(activeAgentId);
   } finally {
     setMenuLoading(false);
   }
@@ -22386,6 +22390,33 @@ function createBrokenLinksMarkerSvg() {
   return svg;
 }
 
+function createDashboardMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  for (const [x, y] of [
+    [4, 4],
+    [13, 4],
+    [4, 13],
+    [13, 13]
+  ]) {
+    const tile = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    tile.setAttribute("x", String(x));
+    tile.setAttribute("y", String(y));
+    tile.setAttribute("width", "7");
+    tile.setAttribute("height", "7");
+    tile.setAttribute("rx", "1.8");
+    tile.setAttribute("fill", "none");
+    tile.setAttribute("stroke", "currentColor");
+    tile.setAttribute("stroke-width", "1.8");
+    svg.appendChild(tile);
+  }
+
+  return svg;
+}
+
 function createRegistryMarkerSvg() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
@@ -26638,6 +26669,7 @@ function getHomeBreadcrumbPath() {
 const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   dashboard: "Главная",
   dashboard2: "Дашборд",
+  dashboard3: "Дашборд 2",
   git: "Git-репозиторий",
   "large-files": "Крупные файлы",
   "broken-links": "Битые ссылки",
@@ -86620,6 +86652,7 @@ function loadAgentWorkspaceView() {
     if (
       saved === "dashboard" ||
       saved === "dashboard2" ||
+      saved === "dashboard3" ||
       saved === "map" ||
       saved === "map2" ||
       saved === "map3" ||
@@ -86699,6 +86732,7 @@ function applyAgentWorkspaceCanvasUi() {
   const showCanvas = isAgentWorkspaceCanvasVisible();
   homePaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard");
   home2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard2");
+  home3PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard3");
   agentGitPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "git");
   agentLargeFilesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "large-files");
   agentBrokenLinksPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "broken-links");
@@ -86729,6 +86763,8 @@ function applyAgentWorkspaceCanvasUi() {
     renderAgentDashboardView();
   } else if (agentWorkspaceView === "dashboard2") {
     renderAgentDashboardLiteView();
+  } else if (agentWorkspaceView === "dashboard3") {
+    renderAgentDashboardWidgetsView();
   } else if (agentWorkspaceView === "git") {
     void renderAgentGitView();
   } else if (agentWorkspaceView === "large-files") {
@@ -86766,6 +86802,7 @@ function applyAgentWorkspaceCanvasUi() {
   }
 
   syncAgentGitToolbarUi();
+  syncAwnDashboardsToolbarUi();
   syncAgentLargeFilesToolbarUi();
   syncAgentBrokenLinksToolbarUi();
   syncAgentRunScriptsToolbarUi();
@@ -86778,6 +86815,7 @@ function setAgentWorkspaceView(view) {
   if (
     view !== "dashboard" &&
     view !== "dashboard2" &&
+    view !== "dashboard3" &&
     view !== "git" &&
     view !== "large-files" &&
     view !== "broken-links" &&
@@ -87738,6 +87776,11 @@ function initAgentGitToolbar() {
 
 function syncAgentGitToolbarUi() {
   agentGitBtn?.classList.toggle("is-active", agentWorkspaceView === "git" && isAgentWorkspaceCanvasVisible());
+}
+
+function syncAwnDashboardsToolbarUi() {
+  const btn = document.getElementById("awn-dashboards-toolbar-btn");
+  btn?.classList.toggle("is-active", agentWorkspaceView === "dashboard3" && isAgentWorkspaceCanvasVisible());
 }
 
 function initAgentLargeFilesToolbar() {
@@ -88935,17 +88978,12 @@ function renderAgentDashboardIdeaSection(_counts) {
 }
 
 function renderAgentDashboardWorkspaceSection(counts) {
-  if (!home2ContentNode) return;
+  if (!home2ContentNode || !home2HeadNode) return;
 
   const agent = agentsCache.find((item) => item.id === activeAgentId);
   const agentLabel = agent?.name || getActiveAgentLabel() || activeAgentId || "Агент";
+  home2HeadNode.replaceChildren();
   home2ContentNode.replaceChildren();
-
-  const shell = document.createElement("div");
-  shell.className = "home2-shell";
-
-  const pageHead = document.createElement("div");
-  pageHead.className = "agent-canvas-head home2-page-head";
 
   const pageCopy = document.createElement("div");
   pageCopy.className = "agent-canvas-head-copy";
@@ -88974,8 +89012,10 @@ function renderAgentDashboardWorkspaceSection(counts) {
     pageStats.appendChild(createAgentWorkspaceStatElement(stat.value, stat.label));
   }
 
-  pageHead.append(pageCopy, pageStats);
-  shell.appendChild(pageHead);
+  home2HeadNode.append(pageCopy, pageStats);
+
+  const shell = document.createElement("div");
+  shell.className = "home2-shell";
 
   const header = document.createElement("header");
   header.className = "home2-header";
@@ -89180,6 +89220,19 @@ function renderAgentDashboardView() {
 function renderAgentDashboardLiteView() {
   const counts = countAgentMenuNodes(currentMenuData);
   renderAgentDashboardWorkspaceSection(counts);
+}
+
+function renderAgentDashboardWidgetsView() {
+  if (window.AwnDashboards?.renderActiveDashboard) {
+    void window.AwnDashboards.renderActiveDashboard();
+    return;
+  }
+  if (!home3ContentNode) return;
+  home3ContentNode.replaceChildren();
+  const empty = document.createElement("p");
+  empty.className = "awn-dashboard-loading";
+  empty.textContent = "Дашборд 2 — виджеты из awn-dashboards/";
+  home3ContentNode.appendChild(empty);
 }
 
 function createHome2TopicCard(entry) {
@@ -93039,6 +93092,7 @@ function setupMenuStaticFooterGroup() {
   void refreshMenuAwnDialogsStats();
   void refreshMenuAwnFactsStats();
   void refreshMenuAwnTempStats();
+  window.AwnDashboards?.refreshMenuStats?.();
   loadAwnDataViewRecordsLayout();
   setupAwnDataStoresUi();
   setupRepositoriesUi();
@@ -93046,6 +93100,35 @@ function setupMenuStaticFooterGroup() {
   setupMenuAwnFactsUi();
   setupMenuAwnTempUi();
   setupMenuAwnRecycleUi();
+  setupAwnDashboardsUi();
+}
+
+function setupAwnDashboardsUi() {
+  const toolbarBtn = document.getElementById("awn-dashboards-toolbar-btn");
+  if (toolbarBtn) {
+    mountAgentToolbarBtnIcon(toolbarBtn, createDashboardMarkerSvg(), "awn-dashboards-toolbar-btn-icon");
+  }
+  if (!window.AwnDashboards?.init) return;
+  window.AwnDashboards.init({
+    buildApiUrl,
+    splitFrontmatter,
+    parsePropsYaml,
+    getPropsEntryValueByKey,
+    escapeHtml,
+    getActiveAgentId: () => activeAgentId,
+    getTodoFileName: () => ROOT_SYSTEM_TODO_FILE,
+    setWorkspaceView: (view) => setAgentWorkspaceView(view),
+    openFolderBrowse: (label, folderPath, options = {}) =>
+      openFolderBrowseFromMenu(label, folderPath, options),
+    contentHostNode: home3ContentNode,
+    menuListNode: document.getElementById("menu-awn-dashboards-list"),
+    menuStatsNode: document.getElementById("menu-awn-dashboards-stats"),
+    menuStatusDotNode: document.getElementById("menu-awn-dashboards-status-dot"),
+    menuOpenBtn: document.getElementById("menu-awn-dashboards-open-btn"),
+    menuRefreshBtn: document.getElementById("menu-awn-dashboards-refresh-btn"),
+    toolbarBtn
+  });
+  void window.AwnDashboards.refreshMenuStats(activeAgentId);
 }
 
 let menuGoogleDriveStatsLoadSeq = 0;

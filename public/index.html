@@ -934,6 +934,13 @@
                     <select id="agent-select" class="agent-select" aria-label="Хранилище (агент)"></select>
                   </div>
                   <button
+                    id="awn-dashboards-toolbar-btn"
+                    class="agents-picker-btn awn-dashboards-toolbar-btn"
+                    type="button"
+                    title="Кастомный дашборд (awn-dashboards)"
+                    aria-label="Кастомный дашборд"
+                  ></button>
+                  <button
                     id="agents-picker-btn"
                     class="agents-picker-btn"
                     type="button"
@@ -963,6 +970,7 @@
                     <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace">
                       <option value="dashboard" selected>Главная</option>
                       <option value="dashboard2">Дашборд</option>
+                      <option value="dashboard3">Дашборд 2</option>
                       <option value="graph">Граф связей</option>
                       <option value="map2" disabled>Структура</option>
                       <option value="table">Таблица</option>
@@ -1861,6 +1869,44 @@
                   </button>
                 </div>
               </details>
+              <details class="menu-static-section menu-static-section--awn-dashboards menu-static-accordion">
+                <summary class="menu-static-summary" title="Кастомные дашборды workspace (awn-dashboards)">
+                  <span class="menu-static-title menu-static-title--awn-dashboards">
+                    <span id="menu-awn-dashboards-status-dot" class="menu-static-status-dot" aria-hidden="true">⚪</span>
+                    <span class="menu-static-title-text">
+                      Дашборды
+                      <span class="menu-static-subtitle">awn-dashboards · виджеты</span>
+                    </span>
+                  </span>
+                  <span class="menu-static-summary-actions">
+                    <button
+                      id="menu-awn-dashboards-refresh-btn"
+                      type="button"
+                      class="menu-static-summary-refresh-btn"
+                      title="Обновить awn-dashboards"
+                      aria-label="Обновить awn-dashboards"
+                    >
+                      ↻
+                    </button>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <p class="menu-static-description">
+                    Виджеты и раскладки в <code>awn-dashboards/</code>: <code>widgets/*.md</code> +
+                    <code>home/layout.md</code>. Источники — внутренние (MCP, TODO) и внешние (API).
+                  </p>
+                  <p id="menu-awn-dashboards-stats" class="menu-awn-dashboards-stats is-empty" aria-live="polite"></p>
+                  <div id="menu-awn-dashboards-list" class="menu-awn-dashboards-list" aria-label="Список дашбордов"></div>
+                  <button
+                    id="menu-awn-dashboards-open-btn"
+                    type="button"
+                    class="menu-static-action-btn"
+                    title="Открыть папку awn-dashboards"
+                  >
+                    Открыть awn-dashboards
+                  </button>
+                </div>
+              </details>
               </div>
             </section>
             <div
@@ -2435,7 +2481,12 @@
       </main>
 
       <main id="home-pane-2" class="home-pane-2 agent-canvas-pane hidden" aria-label="Дашборд агента">
+        <div id="home2-head" class="agent-canvas-head home2-page-head"></div>
         <div id="home2-content" class="home2-content"></div>
+      </main>
+
+      <main id="home-pane-3" class="home-pane-3 agent-canvas-pane hidden" aria-label="Дашборд 2 — awn-dashboards">
+        <div id="home3-content" class="home3-content"></div>
       </main>
 
       <main id="not-found-pane" class="not-found-pane agent-canvas-pane hidden" aria-labelledby="app-not-found-title">
@@ -5115,6 +5166,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
+    <script src="/awn-dashboards.js?v=5"></script>
     <script src="/main.js?v=0.5.787"></script>
     <script src="/discuss-panel.js?v=0.5.259"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
