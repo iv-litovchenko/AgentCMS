@@ -5856,13 +5856,11 @@ function syncSidebarNotePreviewAccordion() {
 }
 
 function setSidebarNotePreviewExpanded(expanded) {
-  try {
-    localStorage.setItem(SIDEBAR_NOTE_PREVIEW_EXPANDED_KEY, expanded ? "1" : "0");
-  } catch {
-    // ignore
+  if (expanded && isSidebarBottomPanelActive()) {
+    dismissSidebarBottomPanelForUpperZone();
   }
-  syncSidebarNotePreviewAccordion();
-  if (expanded) scheduleAgentTodoPreviewExpandSync();
+  applySidebarNotePreviewExpanded(expanded);
+  syncSidebarBottomFocusMode();
 }
 
 function toggleSidebarNotePreviewExpanded() {
@@ -83392,12 +83390,14 @@ function setMenuSystemEnvironmentOpen(open, { persist = true } = {}) {
   menuSystemEnvironmentNode.classList.toggle("is-open", next);
   const hostLine = menuSystemEnvironmentNode.querySelector(":scope > .menu-system-environment-host");
   hostLine?.setAttribute("aria-expanded", next ? "true" : "false");
-  if (!persist) return;
-  try {
-    localStorage.setItem(MENU_SYSTEM_ENVIRONMENT_OPEN_KEY, next ? "1" : "0");
-  } catch {
-    // ignore
+  if (persist) {
+    try {
+      localStorage.setItem(MENU_SYSTEM_ENVIRONMENT_OPEN_KEY, next ? "1" : "0");
+    } catch {
+      // ignore
+    }
   }
+  syncSidebarBottomFocusMode();
 }
 
 function bindMenuSystemEnvironmentAccordion() {
@@ -92216,6 +92216,93 @@ function isMenuStaticFooterExpanded() {
   }
 }
 
+let sidebarTreeZoneSnapshot = null;
+
+function isSidebarBottomPanelActive() {
+  if (isMenuSystemEnvironmentOpen()) return true;
+  return (
+    isMenuStaticFooterExpanded() &&
+    Boolean(menuStaticFooterBodyNode && !menuStaticFooterBodyNode.hidden)
+  );
+}
+
+function captureSidebarTreeZoneSnapshot() {
+  if (sidebarTreeZoneSnapshot !== null) return;
+  sidebarTreeZoneSnapshot = {
+    noteExpanded: isSidebarNotePreviewExpanded(),
+    treeBandExpanded: isMenuTreeBandExpanded(),
+  };
+}
+
+function restoreSidebarTreeZoneFromSnapshot() {
+  if (sidebarTreeZoneSnapshot === null) return;
+  const snapshot = sidebarTreeZoneSnapshot;
+  sidebarTreeZoneSnapshot = null;
+  applySidebarNotePreviewExpanded(snapshot.noteExpanded);
+  applyMenuTreeBandExpanded(snapshot.treeBandExpanded);
+}
+
+function dismissSidebarBottomPanelForUpperZone() {
+  sidebarTreeZoneSnapshot = null;
+  sidebarNode?.classList.remove("is-menu-bottom-focus");
+  if (isMenuStaticFooterExpanded()) {
+    try {
+      localStorage.setItem(MENU_STATIC_FOOTER_OPEN_KEY, "0");
+    } catch {
+      // ignore storage errors
+    }
+    syncMenuStaticFooterAccordionUi();
+  }
+  if (isMenuSystemEnvironmentOpen()) {
+    menuSystemEnvironmentNode?.classList.toggle("is-open", false);
+    menuSystemEnvironmentNode
+      ?.querySelector(":scope > .menu-system-environment-host")
+      ?.setAttribute("aria-expanded", "false");
+    try {
+      localStorage.setItem(MENU_SYSTEM_ENVIRONMENT_OPEN_KEY, "0");
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function applySidebarNotePreviewExpanded(expanded, { persist = true } = {}) {
+  if (persist) {
+    try {
+      localStorage.setItem(SIDEBAR_NOTE_PREVIEW_EXPANDED_KEY, expanded ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }
+  syncSidebarNotePreviewAccordion();
+  if (expanded) scheduleAgentTodoPreviewExpandSync();
+}
+
+function applyMenuTreeBandExpanded(expanded, { persist = true } = {}) {
+  if (persist) {
+    try {
+      localStorage.setItem(MENU_TREE_BAND_OPEN_KEY, expanded ? "1" : "0");
+    } catch {
+      // ignore storage errors
+    }
+  }
+  syncMenuTreeBandAccordionUi();
+}
+
+function syncSidebarBottomFocusMode() {
+  if (!sidebarNode) return;
+  const active = isSidebarBottomPanelActive();
+  if (active) {
+    captureSidebarTreeZoneSnapshot();
+    if (isSidebarNotePreviewExpanded()) applySidebarNotePreviewExpanded(false);
+    if (isMenuTreeBandExpanded()) applyMenuTreeBandExpanded(false);
+    sidebarNode.classList.add("is-menu-bottom-focus");
+    return;
+  }
+  sidebarNode.classList.remove("is-menu-bottom-focus");
+  restoreSidebarTreeZoneFromSnapshot();
+}
+
 function syncMenuStaticFooterAccordionUi() {
   if (!menuStaticFooterNode) return;
   const expanded = isMenuStaticFooterExpanded();
@@ -92234,6 +92321,7 @@ function setMenuStaticFooterExpanded(expanded) {
     // ignore storage errors
   }
   syncMenuStaticFooterAccordionUi();
+  syncSidebarBottomFocusMode();
 }
 
 function toggleMenuStaticFooterExpanded() {
@@ -92282,12 +92370,11 @@ function syncMenuTreeBandAccordionUi() {
 }
 
 function setMenuTreeBandExpanded(expanded) {
-  try {
-    localStorage.setItem(MENU_TREE_BAND_OPEN_KEY, expanded ? "1" : "0");
-  } catch {
-    // ignore storage errors
+  if (expanded && isSidebarBottomPanelActive()) {
+    dismissSidebarBottomPanelForUpperZone();
   }
-  syncMenuTreeBandAccordionUi();
+  applyMenuTreeBandExpanded(expanded);
+  syncSidebarBottomFocusMode();
 }
 
 function toggleMenuTreeBandExpanded() {
@@ -92317,6 +92404,7 @@ function setupMenuTreeBandGroup() {
 
 function setupMenuStaticFooterGroup() {
   syncMenuStaticFooterAccordionUi();
+  syncSidebarBottomFocusMode();
   setupMenuStaticFooterExclusiveAccordions();
   menuStaticFooterToggleBtn?.addEventListener("click", () => {
     toggleMenuStaticFooterExpanded();
