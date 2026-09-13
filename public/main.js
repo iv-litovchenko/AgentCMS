@@ -35845,6 +35845,8 @@ const MEDIA_ACTION_ICON_OPEN =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 const MEDIA_ACTION_ICON_FINDER =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7h18"/></svg>';
+const MEDIA_ACTION_ICON_FOCUS =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
 
 let mediaPathPopoverState = null;
 
@@ -36138,12 +36140,43 @@ function appendMediaItemActionButtons(target, item) {
   );
 }
 
-function appendEntryOverviewMediaAssetActionButtons(target, item, context) {
-  target.append(
-    createMediaSidecarEditButton(item, { label: "Редактировать sidecar", entryOverviewContext: context }),
-    createMediaOpenButton(item),
-    createMediaRevealInFinderButton(item)
-  );
+function resolveEntryOverviewMediaSidecarNodePath(context = {}) {
+  const relPath = String(context?.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const relativePath = String(context?.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const memoryKind = context?.memoryKind || "media";
+  const sidecarFromRel = relPath ? getMediaSidecarPath(relPath) : "";
+  if (sidecarFromRel && sidecarFromRel.includes("/")) return sidecarFromRel;
+  const sidecarRel = getMediaSidecarPath(relativePath || relPath);
+  if (!sidecarRel) return "";
+  return getMediaLibraryItemContextPath(sidecarRel, memoryKind);
+}
+
+function createEntryOverviewMediaFocusButton(context = {}, entries = []) {
+  const sidecarPath = resolveEntryOverviewMediaSidecarNodePath(context);
+  if (!sidecarPath || !canShowNodeOverviewPinActions(sidecarPath)) return null;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "media-action-btn media-action-btn-icon-only node-overview-focus-btn";
+  btn.dataset.path = normalizeMenuNodePath(getResolvedNodePath(sidecarPath) || sidecarPath);
+  btn.appendChild(createMediaActionIcon(MEDIA_ACTION_ICON_FOCUS));
+  syncNodeOverviewFocusButton(btn, sidecarPath, entries);
+  btn.addEventListener("click", (event) => {
+    guardMediaActionClick(event, () => {
+      void toggleNodeFocus(sidecarPath, entries);
+    });
+  });
+  return btn;
+}
+
+function appendEntryOverviewMediaAssetActionButtons(target, item, context, entries = []) {
+  const buttons = [
+    createMediaSidecarEditButton(item, { label: "Редактировать sidecar", entryOverviewContext: context })
+  ];
+  const focusBtn = createEntryOverviewMediaFocusButton(context, entries);
+  if (focusBtn) buttons.push(focusBtn);
+  buttons.push(createMediaOpenButton(item), createMediaRevealInFinderButton(item));
+  target.append(...buttons);
 }
 
 function createMediaMoveButton(item) {
@@ -44906,6 +44939,10 @@ function readPropsEntryBoolean(entry) {
   return text === "true" || text === "yes" || text === "1" || text === "да";
 }
 
+function getPropsEntryBooleanValue(entries, key) {
+  return readPropsEntryBoolean(findPropsEntryByKey(entries, key));
+}
+
 function migrateRuntimeLoadPropEntries(entries) {
   const list = normalizePropsEntries(entries);
   const legacyEntry = findPropsEntryByKey(list, "awn-runtime-load");
@@ -45061,7 +45098,33 @@ function parsePropsYaml(text) {
     const key = normalizePropsKey(match[2].trim());
     const rest = match[3];
 
-    if (rest === "" || rest === "|" || rest === ">") {
+    if (rest === "|" || rest === ">") {
+      const folded = rest === ">";
+      const blockLines = [];
+      index += 1;
+      while (index < lines.length) {
+        const nextLine = lines[index];
+        if (!nextLine.trim()) {
+          if (blockLines.length) {
+            blockLines.push("");
+            index += 1;
+            continue;
+          }
+          break;
+        }
+        if (/^[^\s#].*:/.test(nextLine)) break;
+        if (!/^\s/.test(nextLine)) break;
+        blockLines.push(nextLine.replace(/^\s+/, ""));
+        index += 1;
+      }
+      const value = folded
+        ? blockLines.join(" ").replace(/[ \t]+/g, " ").trim()
+        : blockLines.join("\n").replace(/\n+$/, "");
+      entries.push({ key, kind: "string", value });
+      continue;
+    }
+
+    if (rest === "") {
       const items = [];
       index += 1;
       while (index < lines.length && /^\s+-\s?/.test(lines[index])) {
@@ -65864,7 +65927,7 @@ function createEntryOverviewMediaAssetPanel(
 
   const actions = document.createElement("div");
   actions.className = "node-navigation-hero-actions node-entry-overview-media-asset-actions";
-  appendEntryOverviewMediaAssetActionButtons(actions, mediaItem, context);
+  appendEntryOverviewMediaAssetActionButtons(actions, mediaItem, context, entries);
 
   const titleRow = createHeroTitleRow(title, resolveAwnStatusFromPropEntries(entries), {
     propEntries: entries
@@ -92897,10 +92960,8 @@ function resolveEntryOverviewMediaOcrText(entries = [], rawBody = "") {
   const fromBody = String(rawBody || "").trim();
   const text = fromProp || fromBody;
   if (!text || isLikelyOcrGarbage(text)) return "";
-  const extracted = String(getPropsEntryValueByKey(entries, "awn-ocr-extracted") || "")
-    .trim()
-    .toLowerCase();
-  if (extracted !== "true" && !fromProp) return "";
+  const extracted = getPropsEntryBooleanValue(entries, "awn-ocr-extracted");
+  if (!extracted && !fromProp) return "";
   return text;
 }
 
@@ -92917,10 +92978,7 @@ function wasEntryOverviewMediaOcrAttempted(entries = []) {
 }
 
 function isEntryOverviewMediaOcrFailed(entries = []) {
-  const extracted = String(getPropsEntryValueByKey(entries, "awn-ocr-extracted") || "")
-    .trim()
-    .toLowerCase();
-  return wasEntryOverviewMediaOcrAttempted(entries) && extracted !== "true";
+  return wasEntryOverviewMediaOcrAttempted(entries) && !getPropsEntryBooleanValue(entries, "awn-ocr-extracted");
 }
 
 function createEntryOverviewMediaOcrSection(context = {}, entries = [], rawBody = "") {
@@ -93030,9 +93088,7 @@ async function handleEntryOverviewOcrRun(button, config = {}) {
 }
 
 function createEntryOverviewOcrBar(context = {}, entries = []) {
-  const extracted = String(getPropsEntryValueByKey(entries, "awn-ocr-extracted") || "")
-    .trim()
-    .toLowerCase() === "true";
+  const extracted = getPropsEntryBooleanValue(entries, "awn-ocr-extracted");
   const ocrText = String(getPropsEntryValueByKey(entries, "awn-ocr-text") || "").trim();
   const failed = !extracted && Boolean(ocrText) && isLikelyOcrGarbage(ocrText);
 

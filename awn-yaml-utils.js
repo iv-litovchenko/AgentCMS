@@ -287,7 +287,7 @@ function mergeFrontmatterOverrides(baseFrontmatter, overrides = {}) {
       .map((key) => key.toLowerCase())
   );
   const blocks = splitFrontmatterBlocks(baseFrontmatter).filter(
-    (block) => !block.key || !overrideKeys.has(block.key.toLowerCase())
+    (block) => block.key && !overrideKeys.has(block.key.toLowerCase())
   );
   const lines = blocks.flatMap((block) => block.lines);
   for (const [key, value] of Object.entries(overrides)) {

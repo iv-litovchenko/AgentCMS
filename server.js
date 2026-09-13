@@ -282,7 +282,7 @@ const {
   getAgentSystemStatus
 } = require("./agent-system");
 const { getCanonicalModelPayload } = require("./awn-canonical-model");
-const { parseYamlScalar } = require("./awn-yaml-utils");
+const { parseYamlScalar, mergeFrontmatterOverrides } = require("./awn-yaml-utils");
 const { getPageSlotsPayload, resolveStorageSlotsForManifest } = require("./page-slots-api");
 const { createExistsApi } = require("./exists-api");
 const { createContentSchemaApi } = require("./content-schema-api");
@@ -1571,7 +1571,8 @@ function getOcrIndexService() {
       getAgentRoot,
       resolvePathAbsolute: normalizeWorkspacePath,
       manifestRelFromNodeAbsolute,
-      onSidecarWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
+      onSidecarWritten: (relPath) => queueWorkspaceIndexFileSync(relPath),
+      writeSidecar: (payload) => getSidecarService().writeSidecar(payload)
     });
   }
   return ocrIndexService;
@@ -3819,22 +3820,6 @@ function joinNodeFrontmatter(frontmatter, body) {
   if (!fm) return mdBody;
   if (!mdBody) return `---\n${fm}\n---\n`;
   return `---\n${fm}\n---\n\n${mdBody}`;
-}
-
-function mergeFrontmatterOverrides(baseFrontmatter, overrides = {}) {
-  const lines = String(baseFrontmatter || "")
-    .split("\n")
-    .filter((line) => line.trim());
-  const overrideKeys = new Set(Object.keys(overrides).map((key) => key.toLowerCase()));
-  const kept = lines.filter((line) => {
-    const key = line.split(":")[0]?.trim().toLowerCase();
-    return key && !overrideKeys.has(key);
-  });
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value === undefined || value === null) continue;
-    kept.push(`${key}: ${formatYamlScalar(value)}`);
-  }
-  return kept.join("\n");
 }
 
 async function readNodeManifestRaw(nodeAbsolute) {

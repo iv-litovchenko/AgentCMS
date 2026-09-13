@@ -1,6 +1,14 @@
 const fs = require("fs/promises");
 const path = require("path");
-const { mergeFrontmatterOverrides } = require("../awn-yaml-utils");
+const {
+  mergeFrontmatterOverrides,
+  splitFrontmatterBlocks
+} = require("../awn-yaml-utils");
+const {
+  parseStorageLayerRef,
+  pickManifestRelFromStorageLayerRef
+} = require("../manifest-paths");
+const { STORAGE_SLOT_ROUTING } = require("../storage-slot-routing");
 const {
   startWorkspaceIndexProgress,
   tickWorkspaceIndexProgress,
@@ -80,6 +88,36 @@ function splitSidecarFrontmatter(raw = "") {
   };
 }
 
+function guessMimeType(fileName) {
+  const ext = path.extname(String(fileName || "")).toLowerCase();
+  const map = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".bmp": "image/bmp",
+    ".tif": "image/tiff",
+    ".tiff": "image/tiff",
+    ".pdf": "application/pdf"
+  };
+  return map[ext] || "application/octet-stream";
+}
+
+function resolveStorageFolderSlotKey(layerFolder) {
+  const folder = String(layerFolder || "").trim();
+  if (!folder) return "";
+  const spec = STORAGE_SLOT_ROUTING.find((item) => item.storageFolder === folder);
+  return spec?.slotKey || folder;
+}
+
+function stripOrphanFrontmatterLines(frontmatter) {
+  return splitFrontmatterBlocks(frontmatter)
+    .filter((block) => block.key)
+    .flatMap((block) => block.lines)
+    .join("\n");
+}
+
 function buildOcrFrontmatterOverrides({
   sourceRel,
   text,
@@ -87,7 +125,9 @@ function buildOcrFrontmatterOverrides({
   extractedAt,
   preprocessVariant,
   psm,
-  extracted = true
+  extracted = true,
+  mime = "",
+  size = ""
 }) {
   const ocrText = String(text || "").trim();
   const overrides = {
@@ -98,23 +138,37 @@ function buildOcrFrontmatterOverrides({
     "awn-ocr-text": ocrText,
     "awn-type": "awn.content.sidecar"
   };
+  if (mime) overrides["awn-mime"] = mime;
+  if (size) overrides["awn-size"] = size;
   if (preprocessVariant) overrides["awn-ocr-preprocess"] = String(preprocessVariant);
   if (psm) overrides["awn-ocr-psm"] = String(psm);
   return overrides;
 }
 
-function buildSidecarContent({
-  sourceRel,
-  text,
-  engine,
-  extractedAt,
-  preprocessVariant,
-  psm,
-  existingContent = null,
-  extracted = true,
-  clearBody = false
-}) {
+async function buildOcrSidecarFileContent(deps, options) {
+  const {
+    sourceRel,
+    sourceAbsolute,
+    text,
+    engine,
+    extractedAt,
+    preprocessVariant,
+    psm,
+    existingContent = null,
+    extracted = true,
+    clearBody = false
+  } = options;
+
   const ocrText = extracted ? String(text || "").trim() : "";
+  let mime = guessMimeType(sourceRel);
+  let size = "";
+  try {
+    const stat = await fs.stat(sourceAbsolute);
+    size = String(stat.size);
+  } catch {
+    // ignore missing stat
+  }
+
   const overrides = buildOcrFrontmatterOverrides({
     sourceRel,
     text: ocrText,
@@ -122,27 +176,86 @@ function buildSidecarContent({
     extractedAt,
     preprocessVariant,
     psm,
-    extracted
+    extracted,
+    mime,
+    size
   });
-  const existingRaw = String(existingContent || "").trim();
 
-  if (existingRaw) {
-    const { frontmatter, body } = splitSidecarFrontmatter(existingRaw);
-    const nextFrontmatter = mergeFrontmatterOverrides(frontmatter, overrides);
-    const keptBody = clearBody ? "" : body;
-    const bodySuffix = keptBody ? `\n${keptBody}` : "";
-    return `---\n${nextFrontmatter}\n---${bodySuffix}`;
+  const parsed = parseStorageLayerRef(sourceRel);
+  const writeSidecar = deps?.writeSidecar;
+  if (writeSidecar && parsed) {
+    const manifestRel = pickManifestRelFromStorageLayerRef(parsed);
+    const slotKey = resolveStorageFolderSlotKey(parsed.layer);
+    const file = parsed.relativePath;
+    const title = path.basename(file, path.extname(file)).trim() || "Медиа";
+    const payload = {
+      path: manifestRel,
+      slot: slotKey,
+      file,
+      title,
+      frontmatterOverrides: overrides
+    };
+    if (clearBody) {
+      payload.body = "";
+    } else if (extracted && ocrText) {
+      payload.body = ocrText;
+    }
+    const result = await writeSidecar(payload);
+    if (result?.error) {
+      throw new Error(result.error);
+    }
+    return {
+      content: result.content,
+      sidecarPath: result.sidecarPath,
+      sidecarRel: sidecarRelForSource(sourceRel),
+      usedWriteSidecar: true
+    };
   }
 
-  const safeName = path.basename(sourceRel);
+  const existingRaw = String(existingContent || "").trim();
+  if (existingRaw) {
+    const { frontmatter, body } = splitSidecarFrontmatter(existingRaw);
+    const nextFrontmatter = mergeFrontmatterOverrides(stripOrphanFrontmatterLines(frontmatter), overrides);
+    const keptBody = clearBody ? "" : extracted && ocrText ? ocrText : body;
+    const bodySuffix = keptBody ? `\n\n${keptBody}` : "";
+    return {
+      content: `---\n${nextFrontmatter}\n---${bodySuffix}\n`,
+      sidecarRel: sidecarRelForSource(sourceRel),
+      usedWriteSidecar: false
+    };
+  }
+
+  const titleName = path.basename(sourceRel, path.extname(sourceRel)).trim() || path.basename(sourceRel);
   const frontmatter = mergeFrontmatterOverrides("", {
-    "awn-name": `OCR: ${safeName}`,
+    "awn-name": titleName,
     ...overrides
   });
   if (!extracted || !ocrText) {
-    return `---\n${frontmatter}\n---\n`;
+    return {
+      content: `---\n${frontmatter}\n---\n`,
+      sidecarRel: sidecarRelForSource(sourceRel),
+      usedWriteSidecar: false
+    };
   }
-  return `---\n${frontmatter}\n---\n\n${ocrText}\n`;
+  return {
+    content: `---\n${frontmatter}\n---\n\n${ocrText}\n`,
+    sidecarRel: sidecarRelForSource(sourceRel),
+    usedWriteSidecar: false
+  };
+}
+
+async function persistOcrSidecar(deps, options) {
+  const written = await buildOcrSidecarFileContent(deps, options);
+  if (written.usedWriteSidecar) {
+    return written;
+  }
+  const sidecarAbsolute = options.sidecarAbsolute;
+  if (!sidecarAbsolute) {
+    throw new Error("Missing sidecar path");
+  }
+  await fs.mkdir(path.dirname(sidecarAbsolute), { recursive: true });
+  await fs.writeFile(sidecarAbsolute, written.content, "utf-8");
+  return written;
 }
 
 async function extractPdfText(buffer) {
@@ -677,21 +790,19 @@ function createOcrIndexService(deps) {
               } catch {
                 existingContent = null;
               }
-              await fs.writeFile(
+              await persistOcrSidecar(deps, {
+                sourceRel,
+                sourceAbsolute: check.sourceAbsolute,
                 sidecarAbsolute,
-                buildSidecarContent({
-                  sourceRel,
-                  text: "",
-                  engine,
-                  extractedAt,
-                  preprocessVariant,
-                  psm: ocrPsm,
-                  existingContent,
-                  extracted: false,
-                  clearBody: true
-                }),
-                "utf-8"
-              );
+                text: "",
+                engine,
+                extractedAt,
+                preprocessVariant,
+                psm: ocrPsm,
+                existingContent,
+                extracted: false,
+                clearBody: true
+              });
               failed += 1;
               results.push({
                 path: sourceRel,

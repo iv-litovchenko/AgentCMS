@@ -46401,6 +46401,12 @@ button.node-navigation-memory-title:focus-visible {
   color: #991b1b;
 }
 
+.media-action-btn.node-overview-focus-btn.is-active {
+  border-color: #93c5fd;
+  background: rgba(219, 234, 254, 0.88);
+  color: #1e40af;
+}
+
 .media-action-btn-icon {
   display: inline-flex;
   align-items: center;
