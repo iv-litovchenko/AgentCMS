@@ -85,6 +85,13 @@ function mergeAskHits(existing, next) {
   prev.sources = [...new Set([...(prev.sources || []), ...(next.sources || [])])];
 }
 
+function matchesPathPrefix(relPath, pathPrefix) {
+  const prefix = normalizeRelPath(pathPrefix);
+  if (!prefix) return true;
+  const normalized = normalizeRelPath(relPath);
+  return normalized === prefix || normalized.startsWith(`${prefix}/`);
+}
+
 function createWorkspaceBrainService(deps) {
   const {
     resolveAlwaysContextItemRel,
@@ -96,7 +103,8 @@ function createWorkspaceBrainService(deps) {
     getWorkspaceIndexMonitorPayload,
     searchWorkspaceSemantic,
     searchWorkspaceContent,
-    enrichSearchResults
+    enrichSearchResults,
+    queryStorageIndex
   } = deps;
 
   async function statWorkspaceFile(relPath) {
@@ -413,10 +421,151 @@ function createWorkspaceBrainService(deps) {
     };
   }
 
+  async function searchAndGetContext(options = {}) {
+    const payload = await askWorkspace(options);
+    return {
+      ...payload,
+      model: "search-and-get-context",
+      hint:
+        "Retrieval-only context for questions about past workspace data (archives, old notes, messages, documents, decisions). " +
+        "Returns cited snippets — synthesize the answer yourself. Same engine as ask_workspace.",
+      whenToUse:
+        "User refers to earlier data, history, archives, or asks what was said/decided/found — call this before answering."
+    };
+  }
+
+  async function searchWorkspaceHybrid(options = {}) {
+    const query = String(options.query || options.q || "").trim();
+    if (query.length < 2) {
+      throw new Error("query must be at least 2 characters");
+    }
+
+    const limit = Math.max(1, Math.min(50, Number(options.limit) || 20));
+    const scopes = Array.isArray(options.scopes) && options.scopes.length
+      ? options.scopes.map((item) => String(item || "").trim().toLowerCase()).filter(Boolean)
+      : ["semantic", "fulltext"];
+    const includeSnippets = options.includeSnippets !== false;
+    const pathPrefix = normalizeRelPath(options.pathPrefix || "");
+    const where = Array.isArray(options.where) ? options.where : [];
+
+    let allowedPaths = null;
+    let filterPathCount = 0;
+    if (where.length && queryStorageIndex) {
+      const storageResult = await queryStorageIndex({
+        pathPrefix: pathPrefix || undefined,
+        where,
+        limit: 5000
+      });
+      allowedPaths = new Set(
+        (storageResult?.results || [])
+          .map((row) => normalizeRelPath(row.path))
+          .filter(Boolean)
+      );
+      filterPathCount = allowedPaths.size;
+      if (!filterPathCount) {
+        return {
+          version: 1,
+          model: "workspace-search-hybrid",
+          hint:
+            "Hybrid search: semantic + fulltext after storage-index field filters. No files matched the where clause.",
+          query,
+          pathPrefix: pathPrefix || null,
+          where,
+          scopes,
+          filterPathCount: 0,
+          hitCount: 0,
+          hits: []
+        };
+      }
+    }
+
+    const pathAllowed = (relPath) => {
+      const key = normalizeRelPath(relPath);
+      if (!key) return false;
+      if (!matchesPathPrefix(key, pathPrefix)) return false;
+      if (allowedPaths && !allowedPaths.has(key)) return false;
+      return true;
+    };
+
+    const merged = new Map();
+    const tasks = [];
+
+    if (scopes.includes("semantic")) {
+      tasks.push(
+        searchWorkspaceSemantic(query, Math.max(limit, 24), pathPrefix).then((data) => {
+          for (const row of data?.results || []) {
+            const hitPath = row.path || row.filePath;
+            if (!pathAllowed(hitPath)) continue;
+            mergeAskHits(merged, {
+              path: hitPath,
+              score: Number(row.score) || 0,
+              snippet: row.preview || row.snippet || "",
+              title: row.displayName || path.basename(hitPath || ""),
+              locationHint: row.locationHint || null,
+              sources: ["semantic"]
+            });
+          }
+        })
+      );
+    }
+
+    if (scopes.includes("fulltext")) {
+      tasks.push(
+        searchWorkspaceContent(query, Math.max(limit, 24), "content", "all", "relaxed", pathPrefix).then(
+          async (data) => {
+            const enriched = enrichSearchResults ? await enrichSearchResults(data?.results || []) : data?.results || [];
+            for (const row of enriched) {
+              const hitPath = row.filePath || row.canonicalPath || row.path;
+              if (!pathAllowed(hitPath)) continue;
+              mergeAskHits(merged, {
+                path: hitPath,
+                score: Number(row.matchCount) || 1,
+                snippet: row.snippet || "",
+                title: row.displayName || row.topicName || path.basename(hitPath || ""),
+                locationHint: row.locationHint || null,
+                sources: ["fulltext"]
+              });
+            }
+          }
+        )
+      );
+    }
+
+    await Promise.all(tasks);
+
+    const hits = [...merged.values()]
+      .sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.path).localeCompare(String(b.path), "ru"))
+      .slice(0, limit)
+      .map((hit) => ({
+        path: hit.path,
+        title: hit.title || hit.path,
+        score: hit.score || 0,
+        sources: hit.sources || [],
+        locationHint: hit.locationHint || null,
+        snippet: includeSnippets ? hit.snippet || "" : undefined
+      }));
+
+    return {
+      version: 1,
+      model: "workspace-search-hybrid",
+      hint:
+        "Hybrid search: semantic + fulltext in one call, optional storage-index where filters on frontmatter fields (awn-date, tags, author…).",
+      query,
+      pathPrefix: pathPrefix || null,
+      where,
+      scopes,
+      filterPathCount: allowedPaths ? filterPathCount : null,
+      hitCount: hits.length,
+      hits
+    };
+  }
+
   return {
     auditWorkspaceMemory,
     listWorkspaceFeed,
-    askWorkspace
+    askWorkspace,
+    searchAndGetContext,
+    searchWorkspaceHybrid
   };
 }
 

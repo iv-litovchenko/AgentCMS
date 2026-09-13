@@ -35,6 +35,7 @@ const { decodeBase64UploadData } = require("./base64-upload");
 const { createScriptExecService } = require("./script-exec-service");
 const { createWebSearchService } = require("./web-search-service");
 const { createSemanticSearchService } = require("./semantic-search/service");
+const { createFulltextSearchService } = require("./fulltext-index/service");
 const { createStorageIndexService } = require("./storage-index/service");
 const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
 const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
@@ -1535,6 +1536,19 @@ function getSemanticSearchService() {
   return semanticSearchService;
 }
 
+let fulltextSearchService = null;
+function getFulltextSearchService() {
+  if (!fulltextSearchService) {
+    fulltextSearchService = createFulltextSearchService({
+      getAgentRoot,
+      collectSearchableFiles,
+      resolvePathAbsolute: normalizeWorkspacePath,
+      isTextSearchableFileName
+    });
+  }
+  return fulltextSearchService;
+}
+
 let storageIndexService = null;
 function getStorageIndexService() {
   if (!storageIndexService) {
@@ -1550,7 +1564,12 @@ function getStorageIndexService() {
 function queueWorkspaceIndexFileSync(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return;
-  void syncWorkspaceIndexFile(getSemanticSearchService(), getStorageIndexService(), normalized).catch(() => {});
+  void syncWorkspaceIndexFile(
+    getSemanticSearchService(),
+    getStorageIndexService(),
+    getFulltextSearchService(),
+    normalized
+  ).catch(() => {});
 }
 
 async function getWorkspaceIndexMonitorPayload() {
@@ -1624,10 +1643,11 @@ function getWorkspaceBrainService() {
       buildIntakeBatchSummary,
       listWorkspaceActivityEvents,
       getWorkspaceIndexMonitorPayload,
-      searchWorkspaceSemantic: (query, limit) =>
-        getSemanticSearchService().search(query, limit),
+      searchWorkspaceSemantic: (query, limit, pathPrefix = "") =>
+        getSemanticSearchService().search(query, limit, pathPrefix),
       searchWorkspaceContent,
-      enrichSearchResults
+      enrichSearchResults,
+      queryStorageIndex: (payload) => getStorageIndexService().query(payload)
     });
   }
   return workspaceBrainService;
@@ -4952,22 +4972,75 @@ async function readWorkspaceTextFile(fileRelPath, options = {}) {
   try {
     const stat = await fs.stat(fileAbsolute);
     if (!stat.isFile()) return { exists: false, error: "File not found" };
+
     const maxBytes = Math.min(
-      Math.max(Number.parseInt(String(options.maxBytes || WORKSPACE_TEXT_FILE_MAX_BYTES), 10) || WORKSPACE_TEXT_FILE_MAX_BYTES, 1024),
+      Math.max(
+        Number.parseInt(String(options.maxBytes || WORKSPACE_TEXT_FILE_MAX_BYTES), 10) ||
+          WORKSPACE_TEXT_FILE_MAX_BYTES,
+        1024
+      ),
       WORKSPACE_TEXT_FILE_MAX_BYTES
     );
-    const truncated = stat.size > maxBytes;
-    const buffer = truncated
-      ? Buffer.alloc(maxBytes)
-      : await fs.readFile(fileAbsolute);
-    if (truncated) {
+    const startLine = Math.max(0, Number.parseInt(String(options.startLine || 0), 10) || 0);
+    const limitLines = Math.max(
+      0,
+      Math.min(Number.parseInt(String(options.limitLines || 0), 10) || 0, 500)
+    );
+    const offsetBytes = Math.max(0, Number.parseInt(String(options.offsetBytes || 0), 10) || 0);
+
+    if (startLine > 0 || limitLines > 0) {
+      const fullContent = await fs.readFile(fileAbsolute, "utf-8");
+      const lines = fullContent.split(/\r?\n/);
+      const startIdx = Math.min(Math.max(startLine > 0 ? startLine - 1 : 0, 0), lines.length);
+      const endIdx = limitLines > 0 ? Math.min(startIdx + limitLines, lines.length) : lines.length;
+      const slice = lines.slice(startIdx, endIdx);
+      const content = slice.join("\n");
+      const result = {
+        exists: true,
+        path: normalizedRel,
+        name: path.basename(normalizedRel),
+        size: stat.size,
+        readMode: "lines",
+        startLine: startIdx + 1,
+        endLine: startIdx + slice.length,
+        totalLines: lines.length,
+        hasMore: endIdx < lines.length,
+        truncated: endIdx < lines.length,
+        content
+      };
+      const ext = path.extname(normalizedRel).toLowerCase();
+      if (ext === ".md") {
+        const { frontmatter, body } = splitNodeFrontmatter(content);
+        result.frontmatter = frontmatter;
+        result.body = body;
+        result.page = await enrichWorkspaceFolderMarkdownPage(normalizedRel);
+      }
+      return result;
+    }
+
+    const truncated = offsetBytes > 0 ? stat.size > offsetBytes + maxBytes : stat.size > maxBytes;
+    let buffer;
+    if (offsetBytes > 0) {
+      const readable = Math.max(0, Math.min(maxBytes, stat.size - offsetBytes));
+      buffer = Buffer.alloc(readable);
+      const fd = await fs.open(fileAbsolute, "r");
+      try {
+        await fd.read(buffer, 0, readable, offsetBytes);
+      } finally {
+        await fd.close();
+      }
+    } else if (truncated) {
+      buffer = Buffer.alloc(maxBytes);
       const fd = await fs.open(fileAbsolute, "r");
       try {
         await fd.read(buffer, 0, maxBytes, 0);
       } finally {
         await fd.close();
       }
+    } else {
+      buffer = await fs.readFile(fileAbsolute);
     }
+
     const content = buffer.toString("utf-8");
     const ext = path.extname(normalizedRel).toLowerCase();
     const result = {
@@ -4975,7 +5048,10 @@ async function readWorkspaceTextFile(fileRelPath, options = {}) {
       path: normalizedRel,
       name: path.basename(normalizedRel),
       size: stat.size,
+      readMode: offsetBytes > 0 ? "bytes-offset" : "bytes",
+      offsetBytes: offsetBytes > 0 ? offsetBytes : 0,
       truncated,
+      hasMore: truncated,
       content
     };
     if (ext === ".md") {
@@ -16301,8 +16377,73 @@ async function searchByContent(query, limit = 30, fileType = "all", match = "rel
     return { query: trimmed, scope: "content", fileType: normalizedFileType, match: parsed.match, results: [], total: 0 };
   }
 
-  const relFiles = await collectSearchableFiles(getAgentRoot());
   const results = [];
+  let searchMode = "scan";
+
+  try {
+    const fulltextStatus = await getFulltextSearchService().getStatus();
+    if (fulltextStatus.ready) {
+      const indexed = await getFulltextSearchService().search(
+        trimmed,
+        Math.max(limit * 4, 80),
+        pathPrefix
+      );
+      for (const hit of indexed.results || []) {
+        const relPath = String(hit.path || "").replace(/\\/g, "/");
+        if (!relPath || !isTextSearchableFileName(path.basename(relPath))) continue;
+
+        const absolute = normalizeWorkspacePath(relPath);
+        if (!absolute) continue;
+
+        let content = "";
+        try {
+          content = await fs.readFile(absolute, "utf-8");
+        } catch {
+          continue;
+        }
+
+        if (!matchesSearchHaystack(content, parsed)) continue;
+
+        const meta = await resolveSearchResultMeta(relPath);
+        const entry = buildSearchResultEntry(
+          relPath,
+          meta,
+          {
+            snippet: buildSearchSnippet(content, trimmed, 64, parsed),
+            matchCount: countTextMatches(content, trimmed, parsed)
+          },
+          normalizedFileType
+        );
+        if (!entry) continue;
+
+        results.push(entry);
+        if (results.length >= limit) break;
+      }
+
+      if (results.length) {
+        searchMode = "fulltext-index";
+        results.sort((a, b) => {
+          if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount;
+          return a.filePath.localeCompare(b.filePath, "ru");
+        });
+
+        return {
+          query: trimmed,
+          scope: "content",
+          fileType: normalizedFileType,
+          match: parsed.match,
+          pathPrefix: normalizeSearchPathPrefix(pathPrefix) || null,
+          searchMode,
+          results,
+          total: results.length
+        };
+      }
+    }
+  } catch {
+    // fallback to scan
+  }
+
+  const relFiles = await collectSearchableFiles(getAgentRoot());
 
   for (const relPath of relFiles) {
     if (!matchesSearchPathPrefix(relPath, pathPrefix)) continue;
@@ -16347,6 +16488,7 @@ async function searchByContent(query, limit = 30, fileType = "all", match = "rel
     fileType: normalizedFileType,
     match: parsed.match,
     pathPrefix: normalizeSearchPathPrefix(pathPrefix) || null,
+    searchMode,
     results,
     total: results.length
   };
@@ -16785,6 +16927,29 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/search/fulltext/status") {
+    try {
+      return sendJson(res, 200, await getFulltextSearchService().getStatus());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read fulltext index status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/search/fulltext/reindex") {
+    try {
+      const payload = await getFulltextSearchService().rebuildIndex({ agentId: getActiveAgentId() });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rebuild fulltext index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/search/semantic/catalog") {
     const limitRaw = Number(url.searchParams.get("limit") || 40);
     const offsetRaw = Number(url.searchParams.get("offset") || 0);
@@ -16871,6 +17036,7 @@ async function handleApiForAgent(req, res, url) {
       const data = await syncWorkspaceIndexFile(
         getSemanticSearchService(),
         getStorageIndexService(),
+        getFulltextSearchService(),
         relPath
       );
       return sendJson(res, 200, data);
@@ -17723,7 +17889,7 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/agent/workspace-ask") {
+  const handleWorkspaceContextSearchGet = async (req, res, handlerName) => {
     const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
     if (query.length < 2) {
       return sendJson(res, 400, { error: "Missing q query parameter (min 2 chars)" });
@@ -17737,7 +17903,7 @@ async function handleApiForAgent(req, res, url) {
             .map((item) => item.trim().toLowerCase())
             .filter(Boolean)
         : undefined;
-      const payload = await getWorkspaceBrainService().askWorkspace({
+      const payload = await getWorkspaceBrainService()[handlerName]({
         query,
         limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 8,
         scopes,
@@ -17746,7 +17912,39 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to ask workspace",
+        error: `Failed to ${handlerName}`,
+        details: String(error.message || error)
+      });
+    }
+  };
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-ask") {
+    return handleWorkspaceContextSearchGet(req, res, "askWorkspace");
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/search-and-get-context") {
+    return handleWorkspaceContextSearchGet(req, res, "searchAndGetContext");
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/search/hybrid") {
+    try {
+      const payload = await readJsonBody(req);
+      const query = String(payload?.query || payload?.q || "").trim();
+      if (query.length < 2) {
+        return sendJson(res, 400, { error: "query must be at least 2 characters" });
+      }
+      const data = await getWorkspaceBrainService().searchWorkspaceHybrid({
+        query,
+        pathPrefix: payload?.pathPrefix || payload?.path || "",
+        where: payload?.where,
+        scopes: payload?.scopes,
+        limit: payload?.limit,
+        includeSnippets: payload?.includeSnippets
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to run hybrid search",
         details: String(error.message || error)
       });
     }
@@ -22512,7 +22710,10 @@ async function handleApiForAgent(req, res, url) {
     if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     try {
       const data = await readWorkspaceFsFile(relPath, {
-        maxBytes: url.searchParams.get("maxBytes") || undefined
+        maxBytes: url.searchParams.get("maxBytes") || undefined,
+        startLine: url.searchParams.get("startLine") || undefined,
+        limitLines: url.searchParams.get("limitLines") || undefined,
+        offsetBytes: url.searchParams.get("offsetBytes") || undefined
       });
       if (data.error) return sendJson(res, data.status || 400, { error: data.error, ...(data.hint ? { hint: data.hint } : {}) });
       return sendJson(res, 200, data);

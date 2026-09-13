@@ -10,15 +10,37 @@ const workspacePath = z
 export function registerWorkspaceFsTools(reg, client) {
   reg(
     "read_file",
-    "Read a workspace file by path (text returns content; binary returns previewUrl). For typed .md in slots use read_content_body; for manifest use read_page_body.",
+    "Read a workspace file by path (text returns content; binary returns previewUrl). Partial read: startLine+limitLines (lines) or offsetBytes+maxBytes (bytes). For typed .md in slots use read_content_body; for manifest use read_page_body.",
     z.object({
       path: workspacePath,
-      maxBytes: z.number().int().min(1024).max(120000).optional()
+      maxBytes: z.number().int().min(1024).max(120000).optional(),
+      startLine: z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe("1-based start line for partial read (use with limitLines)"),
+      limitLines: z
+        .number()
+        .int()
+        .min(1)
+        .max(500)
+        .optional()
+        .describe("Max lines to return from startLine"),
+      offsetBytes: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe("Byte offset for partial read (alternative to startLine)")
     }),
-    ({ path, maxBytes }) =>
+    ({ path, maxBytes, startLine, limitLines, offsetBytes }) =>
       client.get("/api/workspace/fs/read", {
         path,
-        ...(maxBytes != null ? { maxBytes: String(maxBytes) } : {})
+        ...(maxBytes != null ? { maxBytes: String(maxBytes) } : {}),
+        ...(startLine != null ? { startLine: String(startLine) } : {}),
+        ...(limitLines != null ? { limitLines: String(limitLines) } : {}),
+        ...(offsetBytes != null ? { offsetBytes: String(offsetBytes) } : {})
       })
   );
 

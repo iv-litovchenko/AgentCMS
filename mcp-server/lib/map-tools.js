@@ -68,6 +68,38 @@ function registerSearchWorkspaceTools(reg, client) {
   );
 
   reg(
+    "search_workspace_hybrid",
+    "Hybrid workspace search in one call: semantic + fulltext, optionally narrowed by pathPrefix and storage-index field filters (where on frontmatter: awn-date, tags, author…). Returns merged cited hits — agent synthesizes the answer.",
+    z.object({
+      query: z.string().min(2).describe("Search phrase or question"),
+      pathPrefix: workspaceRelPath
+        .optional()
+        .describe("Limit to workspace subtree, e.g. awn-container/tema-archiv"),
+      where: z
+        .array(
+          z.object({
+            field: z.string().min(1),
+            eq: z.union([z.string(), z.number(), z.boolean()]).optional(),
+            contains: z.string().optional(),
+            gte: z.union([z.string(), z.number()]).optional(),
+            lte: z.union([z.string(), z.number()]).optional(),
+            gt: z.union([z.string(), z.number()]).optional(),
+            lt: z.union([z.string(), z.number()]).optional()
+          })
+        )
+        .optional()
+        .describe("Frontmatter filters via storage-index (applied before text/semantic search)"),
+      scopes: z
+        .array(z.enum(["semantic", "fulltext"]))
+        .optional()
+        .describe("Search layers (default: semantic + fulltext)"),
+      limit: z.number().int().min(1).max(50).optional().describe("Max merged hits (default 20)"),
+      includeSnippets: z.boolean().optional().describe("Include text snippets (default true)")
+    }),
+    (payload) => client.post("/api/search/hybrid", payload)
+  );
+
+  reg(
     "query_workspace_storage",
     "SQL-like filter over entire workspace field catalog (.agent-cms/storage-index). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: rebuild_workspace_storage_index.",
     z.object({
@@ -99,14 +131,15 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "get_workspace_index_status",
-    "Status of both offline workspace indexes: semantic (RAG vectors in .agent-cms/semantic-index) and field catalog (SQL-like in .agent-cms/storage-index).",
+    "Status of offline workspace indexes: semantic, fulltext (inverted token index), and field catalog (SQL-like storage-index).",
     z.object({}),
     async () => {
-      const [semantic, storage] = await Promise.all([
+      const [semantic, fulltext, storage] = await Promise.all([
         client.get("/api/search/semantic/status"),
+        client.get("/api/search/fulltext/status"),
         client.get("/api/storage-index/status")
       ]);
-      return { semantic, storage };
+      return { semantic, fulltext, storage };
     }
   );
 
@@ -132,13 +165,21 @@ function registerSearchWorkspaceTools(reg, client) {
   );
 
   reg(
+    "rebuild_workspace_fulltext_index",
+    "Rebuild offline fulltext index for the whole workspace (inverted token index in .agent-cms/fulltext-index). Run after bulk imports or before search_workspace_content on large archives.",
+    z.object({}),
+    () => client.post("/api/search/fulltext/reindex", {})
+  );
+
+  reg(
     "rebuild_workspace_indexes",
-    "Rebuild both workspace indexes: semantic (RAG) then field catalog (SQL-like). Same as sidebar «Переиндексировать смысл» + «Пересобрать каталог полей».",
+    "Rebuild workspace indexes: semantic, fulltext, then field catalog (SQL-like).",
     z.object({}),
     async () => {
       const semantic = await client.post("/api/search/semantic/reindex", {});
+      const fulltext = await client.post("/api/search/fulltext/reindex", {});
       const storage = await client.post("/api/storage-index/reindex", {});
-      return { semantic, storage };
+      return { semantic, fulltext, storage };
     }
   );
 
