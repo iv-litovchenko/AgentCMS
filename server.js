@@ -10330,8 +10330,8 @@ function formatBundleSlotIndexMarkdown(rows = []) {
   const lines = [
     "### Однофайловая память",
     "",
-    "| Слот | Файл | Статус |",
-    "| --- | --- | --- |"
+    "| Слот | Файл | Статус | Размер | Строк |",
+    "| --- | --- | --- | ---: | ---: |"
   ];
   for (const row of rows) {
     const fileCell = row.linkPath
@@ -10341,7 +10341,7 @@ function formatBundleSlotIndexMarkdown(rows = []) {
         )
       : `\`${escapeContentIndexTableCell(row.fileName)}\``;
     lines.push(
-      `| ${escapeContentIndexTableCell(row.label)} | ${fileCell} | ${escapeContentIndexTableCell(row.status)} |`
+      `| ${escapeContentIndexTableCell(row.label)} | ${fileCell} | ${escapeContentIndexTableCell(row.status)} | ${formatContentIndexFileSize(row.sizeBytes)} | ${formatContentIndexLineCount(row.lineCount)} |`
     );
   }
   return lines.join("\n");
@@ -10434,8 +10434,8 @@ function mapPageMapToWorkspaceIndexEntries(pages = []) {
     .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
 }
 
-function buildWorkspacePageIndexMarkdown({ pages }) {
-  const entries = mapPageMapToWorkspaceIndexEntries(pages);
+async function buildWorkspacePageIndexMarkdown({ pages }) {
+  const entries = await enrichContentIndexEntriesWithFileStats(mapPageMapToWorkspaceIndexEntries(pages));
   const lines = ["# Оглавление workspace", ""];
   lines.push(
     formatContentIndexEntriesMarkdown(entries, {
@@ -10449,14 +10449,16 @@ async function buildAgentWorkspacePageIndex() {
   const pageMap = await buildAgentPageMap({ includeSlots: false });
   const indexPath = getWorkspacePageIndexRelPath();
   const indexExists = await workspaceRelFileExists(indexPath);
-  const entries = mapPageMapToWorkspaceIndexEntries(pageMap.pages);
+  const entries = await enrichContentIndexEntriesWithFileStats(
+    mapPageMapToWorkspaceIndexEntries(pageMap.pages)
+  );
   const manifestPath = await resolveWorkspacePageIndexManifestRel();
 
   return {
     version: 1,
     model: "workspace-page-index",
     hint:
-      "Оглавление страниц workspace (path, type, title, description) без body и properties. " +
+      "Оглавление страниц workspace (path, type, title, description, размер, строки) без body и properties. " +
       "Файл INDEX.md в корне workspace. Для полной карты → get_page_map.",
     whenToUse: {
       get_workspace_page_index:
@@ -10491,7 +10493,7 @@ async function writeAgentWorkspacePageIndex(options = {}) {
   }
   const manifestRel = await resolveWorkspacePageIndexManifestRel();
   const pageMap = await buildAgentPageMap({ includeSlots: false });
-  const markdown = buildWorkspacePageIndexMarkdown({ pages: pageMap.pages });
+  const markdown = await buildWorkspacePageIndexMarkdown({ pages: pageMap.pages });
   await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
   return {
     version: 1,
@@ -10573,12 +10575,123 @@ function formatContentIndexTitleCell(entry, { linkTitle = true } = {}) {
   return `[${linkText}](${encodeContentIndexLinkTarget(linkPath)})`;
 }
 
+const CONTENT_INDEX_TEXT_LINE_EXTENSIONS = new Set([
+  ".md",
+  ".txt",
+  ".csv",
+  ".json",
+  ".jsonl",
+  ".yml",
+  ".yaml",
+  ".js",
+  ".mjs",
+  ".cjs",
+  ".ts",
+  ".tsx",
+  ".py",
+  ".sh",
+  ".bash",
+  ".html",
+  ".htm",
+  ".xml",
+  ".sql",
+  ".log",
+  ".env",
+  ".ini",
+  ".toml"
+]);
+
+function isContentIndexFolderEntry(entry = {}) {
+  const type = String(entry.type || "").trim().toLowerCase();
+  return type === "папка" || type.includes("folder") || type.includes("category");
+}
+
+function countContentIndexTextLines(text) {
+  const normalized = String(text || "").replace(/\r\n/g, "\n");
+  if (!normalized) return 0;
+  return normalized.split("\n").length;
+}
+
+function formatContentIndexFileSize(sizeBytes) {
+  if (sizeBytes == null || !Number.isFinite(sizeBytes) || sizeBytes < 0) return "—";
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) {
+    const kb = sizeBytes / 1024;
+    return kb < 10 ? `${kb.toFixed(1)} KB` : `${Math.round(kb)} KB`;
+  }
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatContentIndexLineCount(lineCount) {
+  if (lineCount == null || !Number.isFinite(lineCount) || lineCount < 0) return "—";
+  return String(lineCount);
+}
+
+async function readContentIndexEntryFileStats(entry = {}) {
+  if (isContentIndexFolderEntry(entry)) {
+    return { sizeBytes: null, lineCount: null };
+  }
+
+  const relPath = String(entry.linkPath || entry.path || "").replace(/\\/g, "/").trim();
+  if (!relPath) return { sizeBytes: null, lineCount: null };
+
+  const absolute = normalizeWorkspacePath(relPath);
+  if (!absolute) return { sizeBytes: null, lineCount: null };
+
+  try {
+    const stat = await fs.stat(absolute);
+    if (!stat.isFile()) return { sizeBytes: null, lineCount: null };
+
+    const sizeBytes = stat.size;
+    const ext = path.extname(relPath).toLowerCase();
+    let lineCount = null;
+
+    if (!ext || CONTENT_INDEX_TEXT_LINE_EXTENSIONS.has(ext)) {
+      const maxReadBytes = 4 * 1024 * 1024;
+      if (sizeBytes <= maxReadBytes) {
+        const content = await fs.readFile(absolute, "utf-8");
+        lineCount = countContentIndexTextLines(content);
+      }
+    }
+
+    return { sizeBytes, lineCount };
+  } catch {
+    return { sizeBytes: null, lineCount: null };
+  }
+}
+
+async function enrichContentIndexEntriesWithFileStats(entries = []) {
+  return Promise.all(
+    (entries || []).map(async (entry) => {
+      const stats = await readContentIndexEntryFileStats(entry);
+      return { ...entry, ...stats };
+    })
+  );
+}
+
+async function enrichBundleSlotIndexRowsWithFileStats(rows = []) {
+  return Promise.all(
+    (rows || []).map(async (row) => {
+      if (!row?.linkPath) return row;
+      const stats = await readContentIndexEntryFileStats({
+        linkPath: row.linkPath,
+        path: row.fileName,
+        type: "файл"
+      });
+      return { ...row, ...stats };
+    })
+  );
+}
+
 function formatContentIndexEntriesMarkdown(entries, { emptyHint = "_Нет записей._", linkTitle = true } = {}) {
   if (!entries?.length) return emptyHint;
-  const lines = ["| Тип | Путь | Название | Описание |", "| --- | --- | --- | --- |"];
+  const lines = [
+    "| Тип | Путь | Название | Описание | Размер | Строк |",
+    "| --- | --- | --- | --- | ---: | ---: |"
+  ];
   for (const entry of entries) {
     lines.push(
-      `| ${escapeContentIndexTableCell(entry.type) || "—"} | \`${escapeContentIndexTableCell(entry.path)}\` | ${formatContentIndexTitleCell(entry, { linkTitle })} | ${escapeContentIndexTableCell(entry.description) || "—"} |`
+      `| ${escapeContentIndexTableCell(entry.type) || "—"} | \`${escapeContentIndexTableCell(entry.path)}\` | ${formatContentIndexTitleCell(entry, { linkTitle })} | ${escapeContentIndexTableCell(entry.description) || "—"} | ${formatContentIndexFileSize(entry.sizeBytes)} | ${formatContentIndexLineCount(entry.lineCount)} |`
     );
   }
   return lines.join("\n");
@@ -10593,12 +10706,13 @@ function formatMultiFileContentIndexMarkdown(entries, { emptyHint = "_Во вн�
   ].join("\n");
 }
 
-function buildSlotContentIndexMarkdown({ slotKey, slotLabel, entries }) {
+async function buildSlotContentIndexMarkdown({ slotKey, slotLabel, entries }) {
   const label = String(slotLabel || slotKey || "Слот").trim();
+  const enrichedEntries = await enrichContentIndexEntriesWithFileStats(entries);
   return [
     `# Оглавление — ${label}`,
     "",
-    formatContentIndexEntriesMarkdown(entries, {
+    formatContentIndexEntriesMarkdown(enrichedEntries, {
       emptyHint: "_В слоте пока нет файлов для оглавления._"
     })
   ].join("\n");
@@ -10634,17 +10748,26 @@ async function buildLiteTopicContainerMapItems(manifestRelPath) {
   return buildExternalSlotMapItems(manifestRelPath, "memory", STORAGE_SUBFOLDER_CONTENT, { liteMode: true });
 }
 
-function buildTopicContentIndexMarkdown({ slots, bundleSlots = [], liteEntries = [], slotsDisabled = false } = {}) {
+async function buildTopicContentIndexMarkdown({
+  slots,
+  bundleSlots = [],
+  liteEntries = [],
+  slotsDisabled = false
+} = {}) {
   const lines = ["# Оглавление темы", ""];
   const mergedExternal = slotsDisabled ? [] : mergeTopicContentIndexEntries(slots);
-  const merged = [...liteEntries, ...mergedExternal].sort((a, b) =>
-    a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true })
+  const merged = await enrichContentIndexEntriesWithFileStats(
+    [...liteEntries, ...mergedExternal].sort((a, b) =>
+      a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true })
+    )
   );
   const liteEmptyHint = "_В каталоге темы пока нет файлов для оглавления._";
   const multiSection = formatMultiFileContentIndexMarkdown(merged, {
     emptyHint: slotsDisabled ? liteEmptyHint : undefined
   });
-  const bundleSection = formatBundleSlotIndexMarkdown(bundleSlots);
+  const bundleSection = formatBundleSlotIndexMarkdown(
+    await enrichBundleSlotIndexRowsWithFileStats(bundleSlots)
+  );
 
   if (multiSection) lines.push(multiSection, "");
   else if (!bundleSection) lines.push(slotsDisabled ? liteEmptyHint : "_Нет записей во внешних слотах._", "");
@@ -10666,7 +10789,9 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
   const liteModeTopicIndex =
     scope === "topic" && !options.slot && slotsDisabled;
   const liteEntries = liteModeTopicIndex
-    ? mapItemsToContentIndexEntries(await buildLiteTopicContainerMapItems(mapPayload.path))
+    ? await enrichContentIndexEntriesWithFileStats(
+        mapItemsToContentIndexEntries(await buildLiteTopicContainerMapItems(mapPayload.path))
+      )
     : [];
 
   const slots = [];
@@ -10674,7 +10799,9 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     for (const slotRow of mapPayload.slots || []) {
       if (CONTENT_MAP_DEDICATED_SLOTS.has(slotRow.slot)) continue;
       if (!options.slot && !isTopicWideContentIndexSlotRow(slotRow)) continue;
-      const entries = mapItemsToContentIndexEntries(slotRow.items);
+      const entries = await enrichContentIndexEntriesWithFileStats(
+        mapItemsToContentIndexEntries(slotRow.items)
+      );
       const storageFolder = slotKeyToStorageFolder(slotRow.slot);
       const slotIndexPath = getSlotStorageIndexRelPath(
         mapPayload.path,
@@ -10704,13 +10831,17 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
   const agentRoot = getAgentRoot();
   const pageSlotKeys = resolveStorageSlotsForManifest(projectRoot, agentRoot, mapPayload.awnType);
   const bundleSlots =
-    scope === "topic" ? await buildTopicBundleSlotIndexRows(mapPayload.path, pageSlotKeys) : [];
+    scope === "topic"
+      ? await enrichBundleSlotIndexRowsWithFileStats(
+          await buildTopicBundleSlotIndexRows(mapPayload.path, pageSlotKeys)
+        )
+      : [];
 
   return {
     version: 1,
     model: "content-index",
     hint:
-      "Быстрое оглавление (path, type, title, description) без body и без properties. " +
+      "Быстрое оглавление (path, type, title, description, размер, строки) без body и без properties. " +
       "При awn-slots-disabled:lite — многофайловая часть из каталога manifest (path-based FS). " +
       "В конце — однофайловые слоты (файл, заполнено/не заполнено). " +
       "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
@@ -10770,7 +10901,7 @@ async function writeAgentContentIndex(manifestRelPath, options = {}) {
         indexFile: { path: indexPath, exists: true }
       };
     }
-    const markdown = buildSlotContentIndexMarkdown({
+    const markdown = await buildSlotContentIndexMarkdown({
       slotKey: slotRow.slot,
       slotLabel: slotRow.slot,
       entries: slotRow.entries
@@ -10794,7 +10925,7 @@ async function writeAgentContentIndex(manifestRelPath, options = {}) {
         indexFile: { path: indexPath, exists: true }
       };
     }
-    const markdown = buildTopicContentIndexMarkdown({
+    const markdown = await buildTopicContentIndexMarkdown({
       slots: indexPayload.slots,
       bundleSlots: indexPayload.bundleSlots || [],
       liteEntries: indexPayload.liteEntries || [],
