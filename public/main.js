@@ -76636,6 +76636,7 @@ function applyModeUi(options = {}) {
     syncSaveButtonLamp();
     return;
   } else if (threadMode) {
+    applyEditorAutoHeightUi();
     void renderNodeThread();
     syncSaveButtonLamp();
     return;
@@ -77968,6 +77969,7 @@ function toggleEditorLineNumbers() {
 }
 
 function shouldUseEditorAutoHeight() {
+  if (activeContentMode === NODE_THREAD_MODE) return false;
   return editorViewMode === "wysiwyg" || editorViewMode === "preview" || editorViewMode === "source";
 }
 
