@@ -230,6 +230,73 @@ function parseTypeYaml(text) {
   return root;
 }
 
+function isTopLevelFrontmatterKeyLine(line) {
+  if (!line || /^[ \t]/.test(line)) return false;
+  const trimmed = String(line).trim();
+  if (!trimmed || trimmed.startsWith("#")) return false;
+  return /^[^\s#-][^:]*:\s*(.*)$/.test(trimmed);
+}
+
+function splitFrontmatterBlocks(frontmatter) {
+  const lines = String(frontmatter || "").split(/\r?\n/);
+  const blocks = [];
+  let current = null;
+
+  for (const line of lines) {
+    if (isTopLevelFrontmatterKeyLine(line)) {
+      if (current) blocks.push(current);
+      const key = line.match(/^([^:]+):/)[1].trim();
+      current = { key, lines: [line] };
+      continue;
+    }
+    if (current) {
+      current.lines.push(line);
+      continue;
+    }
+    if (line.trim()) {
+      blocks.push({ key: null, lines: [line] });
+    }
+  }
+
+  if (current) blocks.push(current);
+  return blocks;
+}
+
+function formatYamlScalarForFrontmatter(value) {
+  const text = String(value ?? "");
+  if (/^[a-zA-Z0-9_\-@.]+$/.test(text)) return text;
+  return JSON.stringify(text);
+}
+
+function formatFrontmatterEntry(key, value) {
+  const text = String(value ?? "");
+  if (!text.includes("\n") && text.length <= 200) {
+    return `${key}: ${formatYamlScalarForFrontmatter(text)}`;
+  }
+  const body = text
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n");
+  return `${key}: |\n${body}`;
+}
+
+function mergeFrontmatterOverrides(baseFrontmatter, overrides = {}) {
+  const overrideKeys = new Set(
+    Object.keys(overrides)
+      .filter((key) => overrides[key] !== undefined && overrides[key] !== null)
+      .map((key) => key.toLowerCase())
+  );
+  const blocks = splitFrontmatterBlocks(baseFrontmatter).filter(
+    (block) => !block.key || !overrideKeys.has(block.key.toLowerCase())
+  );
+  const lines = blocks.flatMap((block) => block.lines);
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined || value === null) continue;
+    lines.push(formatFrontmatterEntry(key, value));
+  }
+  return lines.join("\n").trim();
+}
+
 function listYamlFilesSync(dir, acc = []) {
   if (!fs.existsSync(dir)) return acc;
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -259,6 +326,11 @@ module.exports = {
   parseYamlScalar,
   unescapeYamlDoubleQuotedString,
   normalizeYamlDisplayString,
+  isTopLevelFrontmatterKeyLine,
+  splitFrontmatterBlocks,
+  formatYamlScalarForFrontmatter,
+  formatFrontmatterEntry,
+  mergeFrontmatterOverrides,
   listYamlFilesSync,
   loadYamlFileSync
 };
