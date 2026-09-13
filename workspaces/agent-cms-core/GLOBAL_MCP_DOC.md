@@ -26,7 +26,7 @@ MCP подключается **без** фиксированного храни�
 Селектор «Хранилище (агент)» в Shell UI **не** меняет MCP в Claude Desktop — только tools с явным `agentId`.
 
 Перед работой внутри выбранного workspace: `get_session_context({ agentId })` → `get_user_active_context_now({ agentId })`.  
-Поиск по содержимому workspace: `search_workspace_content` (scope, fileType, **`pathPrefix`** — как шапка UI; использует offline fulltext-index в `.agent-cms/fulltext-index`, иначе scan); по смыслу: `search_workspace_semantic` (тоже **`pathPrefix`**). **Один вызов:** `search_workspace_hybrid` — semantic + fulltext + опц. `where` по полям frontmatter. Большие импорты: `rebuild_workspace_indexes`. Вопросы про прошлые данные/архив: `search_and_get_context` (или `ask_workspace`).  
+Поиск по содержимому workspace: `search_workspace_content` (scope, fileType, **`pathPrefix`** — как шапка UI; использует offline fulltext-index в `.agent-cms/fulltext-index`, иначе scan); по смыслу: `search_workspace_semantic` (тоже **`pathPrefix`**). **Один вопрос:** `search_workspace_hybrid` — semantic + fulltext + опц. `where`. **Несколько вопросов:** `search_workspace_batch` — до 20 queries за один MCP-вызов. Большие импорты: `rebuild_workspace_indexes`. Вопросы про прошлые данные/архив: `search_and_get_context` (или `ask_workspace`).  
 Произвольный путь → тема/область: `resolve_workspace_path({ path })` → `topic.folderPath` для ограничения поиска.  
 Поиск в интернете: `search_web`, `search_web_images`, `read_web_page`, `get_link_preview`, `extract_document_text`.  
 Идентичность: `get_agent_identity`, `get_user_identity`. Активность: `list_recent_activity`.
@@ -490,6 +490,7 @@ razdel-1/
 | Q&A по workspace | `ask_workspace` |
 | Контекст из прошлых данных (архив, история, «что мы решили») | `search_and_get_context` — тот же поиск, что `ask_workspace`, но с подсказкой «сначала найди в workspace» |
 | Гибридный поиск (смысл + слова + фильтры полей) | `search_workspace_hybrid` — один вызов вместо semantic + fulltext + `query_workspace_storage` |
+| Несколько вопросов к архиву за раз | `search_workspace_batch` — массив `queries` (до 20), hybrid на каждый, один round-trip |
 | Запуск скрипта `.py`/`.js`/`.sh` | `run_script` |
 | Команда с args (git, npm, …) | `exec_command` |
 | Shell-строка (pipes, `&&`) | `exec_shell` |

@@ -100,6 +100,48 @@ function registerSearchWorkspaceTools(reg, client) {
   );
 
   reg(
+    "search_workspace_batch",
+    "Batch hybrid search: multiple questions/facts in one MCP call (max 20). Each item runs semantic + fulltext like search_workspace_hybrid. Use when the user asks several archive questions at once — one round-trip instead of N separate searches.",
+    z.object({
+      queries: z
+        .array(z.string().min(2))
+        .min(1)
+        .max(20)
+        .describe("List of questions or fact lookups (2+ chars each, max 20)"),
+      pathPrefix: workspaceRelPath
+        .optional()
+        .describe("Limit all queries to workspace subtree"),
+      where: z
+        .array(
+          z.object({
+            field: z.string().min(1),
+            eq: z.union([z.string(), z.number(), z.boolean()]).optional(),
+            contains: z.string().optional(),
+            gte: z.union([z.string(), z.number()]).optional(),
+            lte: z.union([z.string(), z.number()]).optional(),
+            gt: z.union([z.string(), z.number()]).optional(),
+            lt: z.union([z.string(), z.number()]).optional()
+          })
+        )
+        .optional()
+        .describe("Frontmatter filters via storage-index (shared for all queries)"),
+      scopes: z
+        .array(z.enum(["semantic", "fulltext"]))
+        .optional()
+        .describe("Search layers per query (default: semantic + fulltext)"),
+      limitPerQuery: z
+        .number()
+        .int()
+        .min(1)
+        .max(20)
+        .optional()
+        .describe("Max merged hits per query (default 8)"),
+      includeSnippets: z.boolean().optional().describe("Include text snippets (default true)")
+    }),
+    (payload) => client.post("/api/search/batch", payload)
+  );
+
+  reg(
     "query_workspace_storage",
     "SQL-like filter over entire workspace field catalog (.agent-cms/storage-index). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: rebuild_workspace_storage_index.",
     z.object({

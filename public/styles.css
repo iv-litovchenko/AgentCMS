@@ -27496,7 +27496,7 @@ button.node-navigation-hub-rail-slot-summary {
   width: 7px;
   height: 7px;
   margin-top: -2px;
-  transform: translateX(-2px) rotate(-45deg);
+  transform: translateX(-1px) rotate(-45deg);
 }
 
 .node-navigation-hub-rail-slot-toggle.is-expanded .nav-book-toc-folder-chevron {

@@ -11335,6 +11335,7 @@ const SESSION_CONTEXT_API_MAP = {
   activeContext: "GET /api/agent/active-context — alias active-page",
   search: "GET /api/search?q=&scope=all|content|filename|tags&fileType=all|markdown|...&match=relaxed|strict&pathPrefix=&limit=",
   semanticSearch: "GET /api/search/semantic?q=&pathPrefix=&limit= — локальный поиск по смыслу (offline hash-tfidf)",
+  searchBatch: "POST /api/search/batch — batch hybrid search: { queries[], pathPrefix?, limitPerQuery? } (до 20 вопросов)",
   semanticSearchStatus: "GET /api/search/semantic/status — статус индекса",
   semanticSearchReindex: "POST /api/search/semantic/reindex — пересобрать индекс",
   storageIndexStatus: "GET /api/storage-index/status — каталог полей workspace",
@@ -17946,6 +17947,28 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 500, {
         error: "Failed to run hybrid search",
         details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/search/batch") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getWorkspaceBrainService().searchWorkspaceBatch({
+        queries: payload?.queries || payload?.questions,
+        pathPrefix: payload?.pathPrefix || payload?.path || "",
+        where: payload?.where,
+        scopes: payload?.scopes,
+        limitPerQuery: payload?.limitPerQuery ?? payload?.limit,
+        includeSnippets: payload?.includeSnippets
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("queries must") || message.includes("at most 20") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to run batch search",
+        details: message
       });
     }
   }

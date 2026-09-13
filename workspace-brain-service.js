@@ -560,12 +560,85 @@ function createWorkspaceBrainService(deps) {
     };
   }
 
+  async function searchWorkspaceBatch(options = {}) {
+    const rawQueries = Array.isArray(options.queries)
+      ? options.queries
+      : Array.isArray(options.questions)
+        ? options.questions
+        : [];
+
+    const queries = rawQueries
+      .map((item) => String(item || "").trim())
+      .filter((item) => item.length >= 2);
+
+    if (!queries.length) {
+      throw new Error("queries must be a non-empty array of strings (min 2 characters each)");
+    }
+    if (queries.length > 20) {
+      throw new Error("queries supports at most 20 items per call");
+    }
+
+    const limitPerQuery = Math.max(1, Math.min(20, Number(options.limitPerQuery) || Number(options.limit) || 8));
+    const shared = {
+      pathPrefix: options.pathPrefix || "",
+      where: options.where,
+      scopes: options.scopes,
+      includeSnippets: options.includeSnippets
+    };
+
+    const settled = await Promise.all(
+      queries.map(async (query) => {
+        try {
+          const payload = await searchWorkspaceHybrid({
+            ...shared,
+            query,
+            limit: limitPerQuery
+          });
+          return {
+            query,
+            ok: true,
+            hitCount: payload.hitCount || 0,
+            filterPathCount: payload.filterPathCount ?? null,
+            hits: payload.hits || []
+          };
+        } catch (error) {
+          return {
+            query,
+            ok: false,
+            hitCount: 0,
+            hits: [],
+            error: String(error.message || error)
+          };
+        }
+      })
+    );
+
+    const totalHits = settled.reduce((sum, row) => sum + (row.hitCount || 0), 0);
+    const failedCount = settled.filter((row) => !row.ok).length;
+
+    return {
+      version: 1,
+      model: "workspace-search-batch",
+      hint:
+        "Batch hybrid search: multiple questions in one MCP call. Each query runs semantic + fulltext (same as search_workspace_hybrid). Agent maps answers from per-query hits.",
+      pathPrefix: normalizeRelPath(shared.pathPrefix) || null,
+      where: Array.isArray(shared.where) ? shared.where : [],
+      scopes: Array.isArray(shared.scopes) && shared.scopes.length ? shared.scopes : ["semantic", "fulltext"],
+      limitPerQuery,
+      queryCount: queries.length,
+      totalHits,
+      failedCount,
+      results: settled
+    };
+  }
+
   return {
     auditWorkspaceMemory,
     listWorkspaceFeed,
     askWorkspace,
     searchAndGetContext,
-    searchWorkspaceHybrid
+    searchWorkspaceHybrid,
+    searchWorkspaceBatch
   };
 }
 
