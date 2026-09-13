@@ -46,6 +46,10 @@ const AWN_GOOGLE_DRIVE_ROOT_FOLDER = "awn-google-drive";
 const AWN_REPOSITORIES_ROOT_FOLDER = "awn-repositories";
 /** Зависимости (npm/cargo…) — sidebar vendor, не в дереве тем */
 const AWN_VENDOR_ROOT_FOLDER = "awn-vendor";
+/** Временные файлы workspace — sidebar, не слот темы */
+const AWN_WORKSPACE_TEMP_FOLDER = "awn-temp";
+/** Корзина workspace (будущее) — sidebar, не в дереве тем */
+const AWN_WORKSPACE_RECYCLE_FOLDER = "awn-recycle";
 const PLATFORM_DATA_ROOT_FOLDERS = [
   AWN_DATA_ROOT_FOLDER,
   AWN_GOOGLE_DRIVE_ROOT_FOLDER,
@@ -1412,6 +1416,8 @@ module.exports = {
   AWN_GOOGLE_DRIVE_ROOT_FOLDER,
   AWN_REPOSITORIES_ROOT_FOLDER,
   AWN_VENDOR_ROOT_FOLDER,
+  AWN_WORKSPACE_TEMP_FOLDER,
+  AWN_WORKSPACE_RECYCLE_FOLDER,
   PLATFORM_DATA_ROOT_FOLDERS,
   isAwnDataFolderName,
   isAwnGoogleDriveFolderName,

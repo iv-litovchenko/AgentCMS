@@ -680,10 +680,20 @@ list_comments({ "path": "…/manifest.md", "mode": "external", "file": "memory/r
 |------|-----|-------|
 | `awn-facts/` | корень workspace | «что решили / что запомнить» — 1–2 фразы |
 | `awn-dialogs/` | корень workspace | полный Q/A Shell/Voice (не в semantic index) |
+| `awn-temp/` | корень workspace | любые **временные** файлы (staging, scratch, экспорты) — не слот темы |
+| `awn-recycle/` | корень workspace | **корзина** (мягкое удаление, скоро) |
 | `discussion/` темы | слот discussion | дискуссия **одной** темы CMS |
 | `comments/` | слот comments | комментарий к manifest/записи |
 
 UI: sidebar → **🧠 Банк фактов** (под «Диалоги с ИИ»). Папка индексируется (semantic + fulltext + storage-index).
+
+### Временные файлы (`awn-temp/`) и корзина (`awn-recycle/`)
+
+- **`awn-temp/`** — единая папка workspace для временных файлов агента и человека. Не используй `awn-storage/temp/` в темах.
+- Подпапки по смыслу: `incoming/`, `scratch/`, `exports/` или по дате/задаче.
+- MCP: `write_file` / `upload_file` с путём `awn-temp/…`; просмотр — `list_folder`, `read_file`.
+- UI: sidebar static → **Временные файлы** (после «Настройки»).
+- **`awn-recycle/`** — корзина (static, восстановление позже). Пока — просто папка в корне.
 
 ### Tools
 

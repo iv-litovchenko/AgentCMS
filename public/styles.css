@@ -53760,6 +53760,31 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #f5f3ff;
 }
 
+.menu-static-section--awn-temp {
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+}
+
+.menu-static-section--awn-recycle {
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+}
+
+.menu-awn-temp-stats {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: #374151;
+}
+
+.menu-awn-temp-stats.is-empty {
+  color: #6b7280;
+}
+
+.menu-awn-temp-stats.is-error {
+  color: #b91c1c;
+}
+
 .menu-awn-data-stores {
   list-style: none;
   margin: 0.5rem 0 0;

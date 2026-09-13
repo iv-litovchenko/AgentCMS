@@ -1791,6 +1791,76 @@
                   </button>
                 </div>
               </details>
+              <details class="menu-static-section menu-static-section--awn-temp menu-static-accordion">
+                <summary class="menu-static-summary" title="Временные файлы workspace (awn-temp)">
+                  <span class="menu-static-title menu-static-title--awn-temp">
+                    <span id="menu-awn-temp-status-dot" class="menu-static-status-dot" aria-hidden="true">⚪</span>
+                    <span class="menu-static-title-text">
+                      Временные файлы
+                      <span class="menu-static-subtitle">awn-temp · scratch / staging</span>
+                    </span>
+                  </span>
+                  <span class="menu-static-summary-actions">
+                    <button
+                      id="menu-awn-temp-refresh-btn"
+                      type="button"
+                      class="menu-static-summary-refresh-btn"
+                      title="Обновить awn-temp"
+                      aria-label="Обновить awn-temp"
+                    >
+                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                          stroke="currentColor"
+                          stroke-width="2.25"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <p id="menu-awn-temp-stats" class="menu-awn-temp-stats is-empty" aria-live="polite"></p>
+                  <p class="menu-static-description">
+                    Общая папка для любых временных файлов агента и человека: черновики, staging, экспорты.
+                    Не привязана к теме — можно подпапки по задаче или дате.
+                  </p>
+                  <button
+                    id="menu-awn-temp-open-btn"
+                    type="button"
+                    class="menu-static-action-btn"
+                    title="Открыть папку awn-temp"
+                  >
+                    Открыть awn-temp
+                  </button>
+                </div>
+              </details>
+              <details class="menu-static-section menu-static-section--awn-recycle menu-static-accordion">
+                <summary class="menu-static-summary" title="Корзина workspace (awn-recycle) — скоро">
+                  <span class="menu-static-title menu-static-title--awn-recycle">
+                    <span aria-hidden="true">⚪</span>
+                    <span class="menu-static-title-text">
+                      Корзина
+                      <span class="menu-static-subtitle stub-static-mark">awn-recycle · (static)</span>
+                    </span>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <p class="menu-static-description">
+                    Удалённые файлы workspace (мягкое удаление). Пока заглушка: папка
+                    <code>awn-recycle/</code> для будущего восстановления и автоочистки.
+                  </p>
+                  <button
+                    id="menu-awn-recycle-open-btn"
+                    type="button"
+                    class="menu-static-action-btn"
+                    title="Открыть папку awn-recycle"
+                  >
+                    Открыть корзину
+                  </button>
+                </div>
+              </details>
               </div>
             </section>
             <div

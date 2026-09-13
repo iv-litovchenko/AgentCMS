@@ -36,7 +36,7 @@ const STORAGE_SLOT_ROUTING = [
   { slotKey: "todo", storageFolder: "todo", sectionKind: "bundle" },
   { slotKey: "log-single", storageFolder: "log", sectionKind: "bundle" },
   { slotKey: "discussion", aliases: ["thread", "dialogs"], storageFolder: "discussion", sectionKind: null },
-  { slotKey: "temp", storageFolder: "temp", sectionKind: null },
+  { slotKey: "temp", storageFolder: "temp", sectionKind: null, disabled: true },
   { slotKey: "volume", storageFolder: "volume", sectionKind: null },
   { slotKey: "history", storageFolder: "history", sectionKind: null },
   { slotKey: "comments", storageFolder: "comments", sectionKind: null }

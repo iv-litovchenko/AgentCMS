@@ -44,6 +44,11 @@ const menuAwnFactsStatsNode = document.getElementById("menu-awn-facts-stats");
 const menuAwnFactsStatusDotNode = document.getElementById("menu-awn-facts-status-dot");
 const menuAwnFactsOpenBtn = document.getElementById("menu-awn-facts-open-btn");
 const menuAwnFactsRefreshBtn = document.getElementById("menu-awn-facts-refresh-btn");
+const menuAwnTempStatsNode = document.getElementById("menu-awn-temp-stats");
+const menuAwnTempStatusDotNode = document.getElementById("menu-awn-temp-status-dot");
+const menuAwnTempOpenBtn = document.getElementById("menu-awn-temp-open-btn");
+const menuAwnTempRefreshBtn = document.getElementById("menu-awn-temp-refresh-btn");
+const menuAwnRecycleOpenBtn = document.getElementById("menu-awn-recycle-open-btn");
 const menuGoogleDriveRepairBtn = document.getElementById("menu-google-drive-repair-btn");
 const menuGoogleDriveRefreshBtn = document.getElementById("menu-google-drive-refresh-btn");
 const menuAwnDataStoresNode = document.getElementById("menu-awn-data-stores");
@@ -12474,6 +12479,7 @@ async function switchActiveAgent(nextAgentId) {
     void refreshMenuRepositories(activeAgentId);
     void refreshMenuAwnDialogsStats(activeAgentId);
     void refreshMenuAwnFactsStats(activeAgentId);
+    void refreshMenuAwnTempStats(activeAgentId);
   } finally {
     setMenuLoading(false);
   }
@@ -14006,10 +14012,7 @@ const MODE_GROUPS = [
     id: "files",
     title: "Файлы",
     icon: "📎",
-    modes: [
-      { id: "media", label: "Медиа" },
-      { id: "temp", label: "Временные файлы" }
-    ]
+    modes: [{ id: "media", label: "Медиа" }]
   }
 ];
 
@@ -14047,6 +14050,8 @@ const AWN_DATA_VIEW_MODE = "awn-data-view";
 const FREE_MEMORY_LABEL = "Свободная память";
 const AWN_DIALOGS_FOLDER = "awn-dialogs";
 const AWN_FACTS_FOLDER = "awn-facts";
+const AWN_TEMP_FOLDER = "awn-temp";
+const AWN_RECYCLE_FOLDER = "awn-recycle";
 const FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY = "yamlcms.folderBrowseImagesColumns";
 const FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS = [1, 3, 5];
 const NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY = "yamlcms.navigationMediaImagesLayout";
@@ -14498,8 +14503,8 @@ const STORAGE_SLOT_TREE_GROUP_SEQUENCE = [
   STORAGE_SLOT_TREE_GROUP_META,
   STORAGE_SLOT_TREE_GROUP_COMMUNICATION
 ];
-const STORAGE_SLOT_TREE_META_KEYS = new Set(["history", "temp"]);
-const STORAGE_SLOT_TREE_META_ORDER = ["history", "temp"];
+const STORAGE_SLOT_TREE_META_KEYS = new Set(["history"]);
+const STORAGE_SLOT_TREE_META_ORDER = ["history"];
 const STORAGE_SLOT_TREE_COMMUNICATION_KEYS = new Set(["discussion", "comments", "volume"]);
 const STORAGE_SLOT_TREE_COMMUNICATION_ORDER = ["discussion", "comments", "volume"];
 const STORAGE_SLOT_TREE_SPECIAL_BLOCK_KEYS = new Set([
@@ -14706,7 +14711,8 @@ const DATA_STORAGE_SLOT_SPECS = [
     defaultMode: "temp",
     sectionKind: null,
     treeGroup: STORAGE_SLOT_TREE_GROUP_META,
-    treeDisplay: "count-only"
+    treeDisplay: "count-only",
+    disabled: true
   },
   {
     key: "volume",
@@ -93032,11 +93038,14 @@ function setupMenuStaticFooterGroup() {
   void refreshMenuRepositories();
   void refreshMenuAwnDialogsStats();
   void refreshMenuAwnFactsStats();
+  void refreshMenuAwnTempStats();
   loadAwnDataViewRecordsLayout();
   setupAwnDataStoresUi();
   setupRepositoriesUi();
   setupMenuAwnDialogsUi();
   setupMenuAwnFactsUi();
+  setupMenuAwnTempUi();
+  setupMenuAwnRecycleUi();
 }
 
 let menuGoogleDriveStatsLoadSeq = 0;
@@ -97155,6 +97164,101 @@ function setupMenuAwnFactsUi() {
     void refreshMenuAwnFactsStats(activeAgentId).finally(() => {
       menuAwnFactsRefreshBtn?.classList.remove("is-spinning");
     });
+  });
+}
+
+let menuAwnTempStatsLoadSeq = 0;
+
+function applyMenuAwnTempStatusDot(payload, { loading = false, error = false } = {}) {
+  if (!menuAwnTempStatusDotNode) return;
+  const itemCount = Number(payload?.itemCount) || 0;
+  const hasItems = Boolean(payload?.exists) && itemCount > 0;
+  const isActive = !loading && !error && hasItems;
+  menuAwnTempStatusDotNode.textContent = isActive ? "🟢" : "⚪";
+  menuAwnTempStatusDotNode.classList.toggle("is-active", isActive);
+  menuAwnTempStatusDotNode.classList.toggle("is-empty", !isActive);
+  menuAwnTempStatusDotNode.title = isActive
+    ? `awn-temp: ${itemCount} эл.`
+    : payload?.exists
+      ? "awn-temp: папка пуста"
+      : "awn-temp: папка не создана";
+}
+
+function renderMenuAwnTempStats(payload, { loading = false, error = false } = {}) {
+  applyMenuAwnTempStatusDot(payload, { loading, error });
+  if (!menuAwnTempStatsNode) return;
+  if (loading) {
+    menuAwnTempStatsNode.textContent = "…";
+    menuAwnTempStatsNode.classList.remove("is-empty", "is-error");
+    return;
+  }
+  if (error || !payload) {
+    menuAwnTempStatsNode.textContent = "—";
+    menuAwnTempStatsNode.classList.add("is-error");
+    menuAwnTempStatsNode.classList.remove("is-empty");
+    return;
+  }
+  const itemCount = Number(payload.itemCount) || 0;
+  const folderCount = Number(payload.folderCount) || 0;
+  menuAwnTempStatsNode.textContent =
+    itemCount > 0
+      ? `${itemCount} эл.${folderCount > 0 ? ` · ${folderCount} пап.` : ""}`
+      : payload.exists
+        ? "Папка пуста"
+        : "Папка не создана";
+  menuAwnTempStatsNode.classList.toggle("is-empty", itemCount === 0);
+  menuAwnTempStatsNode.classList.remove("is-error");
+}
+
+async function refreshMenuAwnTempStats(agentId = activeAgentId) {
+  if (!menuAwnTempStatsNode) return;
+  if (!agentId) {
+    renderMenuAwnTempStats({ exists: false, itemCount: 0, folderCount: 0 });
+    return;
+  }
+
+  const seq = ++menuAwnTempStatsLoadSeq;
+  renderMenuAwnTempStats(null, { loading: true });
+
+  try {
+    const response = await fetch(
+      buildApiUrl("/api/workspace/folder/browse", { folderPath: AWN_TEMP_FOLDER }, agentId)
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (seq !== menuAwnTempStatsLoadSeq) return;
+    const folders = Array.isArray(data.folders) ? data.folders : [];
+    const pages = Array.isArray(data.pages) ? data.pages : [];
+    renderMenuAwnTempStats({
+      exists: Boolean(data.exists),
+      itemCount: folders.length + pages.length,
+      folderCount: folders.length
+    });
+  } catch {
+    if (seq !== menuAwnTempStatsLoadSeq) return;
+    renderMenuAwnTempStats(null, { error: true });
+  }
+}
+
+function setupMenuAwnTempUi() {
+  menuAwnTempOpenBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void openFolderBrowseFromMenu("Временные файлы", AWN_TEMP_FOLDER, { agentId: activeAgentId });
+  });
+  menuAwnTempRefreshBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    menuAwnTempRefreshBtn.classList.add("is-spinning");
+    void refreshMenuAwnTempStats(activeAgentId).finally(() => {
+      menuAwnTempRefreshBtn?.classList.remove("is-spinning");
+    });
+  });
+}
+
+function setupMenuAwnRecycleUi() {
+  menuAwnRecycleOpenBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void openFolderBrowseFromMenu("Корзина", AWN_RECYCLE_FOLDER, { agentId: activeAgentId });
   });
 }
 

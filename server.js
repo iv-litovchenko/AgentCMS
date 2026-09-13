@@ -194,6 +194,8 @@ const {
   AWN_GOOGLE_DRIVE_ROOT_FOLDER,
   AWN_REPOSITORIES_ROOT_FOLDER,
   AWN_VENDOR_ROOT_FOLDER,
+  AWN_WORKSPACE_TEMP_FOLDER,
+  AWN_WORKSPACE_RECYCLE_FOLDER,
   isPlatformDataRootFolderName,
   isPlatformDataMenuFolderPath,
   getHistoryRelativeTargetPath,
@@ -9004,6 +9006,8 @@ function shouldSkipMenuDirectory(name) {
   const lower = String(name || "").toLowerCase();
   if (lower === String(SHELL_DIALOGS_DIR || "awn-dialogs").toLowerCase()) return true;
   if (lower === String(WORKSPACE_FACTS_DIR || "awn-facts").toLowerCase()) return true;
+  if (lower === String(AWN_WORKSPACE_TEMP_FOLDER || "awn-temp").toLowerCase()) return true;
+  if (lower === String(AWN_WORKSPACE_RECYCLE_FOLDER || "awn-recycle").toLowerCase()) return true;
   return MENU_SKIP_DIRS.has(lower);
 }
 
