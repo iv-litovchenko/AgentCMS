@@ -5,10 +5,10 @@ domain: content
 status: active
 extends: awn.base
 description: >
-  Запись, категория, sidecar, dialog, comment — без nav-полей страниц дерева.
-  Runtime (always/cron/heartbeat) — на record, category, sidecar через awn.mixin.runtime.
+  Запись, категория, sidecar, dialog, comment. Nav контента — только awn-main
+  (awn-slots-disabled только у manifest темы, не у content). Runtime — через mixin.
 
-# Свои field-groups: не наследуем nav из awn.base (см. resolveTypeFieldGroups).
+# Свои field-groups (см. resolveTypeFieldGroups).
 
 form:
   panel-title: "{A2!} Свойства записи"
@@ -22,6 +22,10 @@ field-groups:
     name: "{A2!} Служебная заметка"
     description: На чём остановились — для вас и агента
     collapsed: false
+  - id: nav
+    name: "{A2!} Дерево и вид"
+    description: Поведение в меню и на главной
+    collapsed: true
   - id: runtime
     name: "{A2!} Runtime агента"
     description: Загрузка в контекст, cron, heartbeat
@@ -45,7 +49,16 @@ field-groups:
 
 fields:
 
-  # --- nav/runtime страниц (наследуются из awn.base, для контента не показываем) ---
+  # --- nav: только awn-main (awn-slots-disabled — не часть content, только manifest темы) ---
+  awn-main:
+    type: awn.field.boolean
+    title: "{A2!} На главной"
+    description: Показывать запись в блоке «Фокус» на главной странице
+    default: false
+    placement: aside-body
+    group: nav
+    sort: 1
+
   awn-sort:
     hidden: true
 
