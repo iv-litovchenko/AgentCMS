@@ -39754,7 +39754,11 @@ function resolveActivePropsSchemaCache(context = activeEntryOverviewContext) {
 
 function resolveOverviewSchemaTargetForContext(context = activeEntryOverviewContext) {
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && context) {
-    const entryKind = normalizeAwnTypeName(context.entryKind || "awn.content.record");
+    const entryKind = normalizeAwnTypeName(
+      context.entryKind === "awn.media.asset"
+        ? "awn.content.sidecar"
+        : context.entryKind || "awn.content.record"
+    );
     const slotKey = getDataStorageSlotKeyForEntryView(NODE_ENTRY_OVERVIEW_MODE);
     return resolveAwnSchemaTargetForType(entryKind, slotKey);
   }
@@ -43054,9 +43058,13 @@ function getPropsContextPath(nodePath = activePath) {
     return `${getNodeStorageSubfolderPath(manifestBase, subfolder)}/${rel}`.replace(/\/+/g, "/");
   }
 
-  if (manifestBase && isMediaLibraryContentMode() && activeMediaSidecarPath) {
-    const rel = String(activeMediaSidecarPath).replace(/\\/g, "/").replace(/^\/+/, "");
-    return `${getNodeStorageSubfolderPath(manifestBase, STORAGE_SUBFOLDER_ASSETS)}/${rel}`.replace(/\/+/g, "/");
+  if (manifestBase && isMediaLibraryContentMode() && (activeMediaSidecarSourcePath || activeMediaSidecarPath)) {
+    const sourceRel = String(activeMediaSidecarSourcePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    const sidecarRel = sourceRel
+      ? getMediaSidecarPath(sourceRel)
+      : String(activeMediaSidecarPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    const subfolder = getMediaLibraryStorageSubfolder();
+    return `${getNodeStorageSubfolderPath(manifestBase, subfolder)}/${sidecarRel}`.replace(/\/+/g, "/");
   }
 
   if (manifestBase && activeContentMode === "internal") {
@@ -43388,7 +43396,10 @@ function getActiveAwnTypeDef(typeName = null) {
   // (path inference returns generic "awn.topic", but frontmatter may say "awn.page.topic.agent")
   if (!typeName) {
     if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.entryKind) {
-      resolvedType = normalizeAwnTypeName(activeEntryOverviewContext.entryKind);
+      resolvedType =
+        activeEntryOverviewContext.entryKind === "awn.media.asset"
+          ? normalizeAwnTypeName("awn.content.sidecar")
+          : normalizeAwnTypeName(activeEntryOverviewContext.entryKind);
     } else {
       const declared = getPropsEntryValueByKey(propsFormEntries, "awn-type");
       if (declared) {
@@ -50522,7 +50533,7 @@ function buildDefaultMediaSidecarContent(sourceFilePath) {
   const quotedName = /[:#\[\]{}&,*?]|^\s|\s$/.test(safeName)
     ? `"${safeName.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
     : safeName;
-  return `---\nawn-type: awn.sidecar\nawn-name: ${quotedName}\n---\n\n`;
+  return `---\nawn-type: awn.content.sidecar\nawn-name: ${quotedName}\n---\n\n`;
 }
 
 async function fetchAttachmentSidecarMeta(path) {
@@ -52169,6 +52180,9 @@ async function applyStorageFileContentUi(rawContent, { mode = "external" } = {})
     absorbPropsYamlEntries(parsePropsYaml(propsInputNode.value || ""));
     syncYamlFromPropsForm();
     renderPropsForm();
+  }
+  if (editorViewMode === "preview") {
+    renderPreviewFromEditor();
   }
 }
 
@@ -61516,7 +61530,11 @@ async function enrichEntryOverviewPropertiesWithSchema(entries, context) {
     if (!getTopicSchemaCache(manifestPath, contentPath || "")) {
       await loadTopicSchemaForManifest(manifestPath, { topicOnly: true, force: false });
     }
-    const typeName = normalizeAwnTypeName(context.entryKind || resolveAwnTypeForContext());
+    const typeName = normalizeAwnTypeName(
+      context.entryKind === "awn.media.asset"
+        ? "awn.content.sidecar"
+        : context.entryKind || resolveAwnTypeForContext()
+    );
     return applyTypeSchemaToEntries(entries, typeName);
   } catch {
     return entries;
@@ -61623,6 +61641,17 @@ async function fetchEntryOverviewBodyResult(context) {
         const data = await response.json();
         return { content: String(data.content || ""), ok: true };
       }
+      const response = await fetch(
+        buildApiUrl("/api/media/sidecar", {
+          ...buildTopicMediaSidecarApiParams(context.relativePath),
+          ...(context.memoryKind === "assets" ? { folder: STORAGE_SUBFOLDER_ASSETS } : {})
+        })
+      );
+      if (!response.ok) return { content: "", ok: false };
+      const data = await response.json();
+      const body = splitFrontmatter(data.content || "").body;
+      const text = String(body || "").trim();
+      return { content: text, ok: Boolean(text) };
     }
     if (isBundleStorageSlotIndexContext(context)) {
       const filePath =
@@ -66365,7 +66394,9 @@ async function renderEntryOverview() {
   entryOverviewBreadcrumbState = { context, navigationIndex, title };
 
   const documentMarkdown =
-    !isCodePreviewFile && !isTabularPreview && context.entryKind !== "awn.media.asset" ? rawBody : "";
+    !isCodePreviewFile && !isTabularPreview && (context.entryKind !== "awn.media.asset" || rawBody.trim())
+      ? rawBody
+      : "";
 
   if (!isArea) {
     const memoryBundle = await fetchNodeNavigationMemoryBundle(topicPath);

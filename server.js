@@ -9296,6 +9296,7 @@ async function countDirectoryFiles(dirAbsolute) {
     }
     if (!(await isListableFileEntry(entry, absolute))) continue;
     if (isAreaManifestFileName(entry.name)) continue;
+    if (entry.name.toLowerCase().endsWith(".sidecar.md")) continue;
     count += 1;
   }
 
