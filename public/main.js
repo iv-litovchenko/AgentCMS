@@ -8161,7 +8161,7 @@ function syncLandingMainTopicsVisibility(hasItems = globalFocusItemsCache.length
   const wasShown = !appLandingFocusNode.classList.contains("hidden");
   appLandingFocusNode.classList.toggle("hidden", !show);
   appLandingFocusNode.setAttribute("aria-hidden", show ? "false" : "true");
-  appLandingOrbitBubblesNode?.classList.toggle("has-main-dock", show);
+  appLandingOrbitNode?.classList.toggle("has-focus-panel", show);
   if (show !== wasShown && getLandingAgentsView() === "orbit") {
     renderAppLandingOrbit();
   }
@@ -56799,6 +56799,17 @@ async function probeTopicStorageIndexExists(topicPath) {
   return Boolean(await resolveExistingTopicStorageIndexRelPath(topicPath));
 }
 
+function isActiveTopicStorageIndexView(topicPath) {
+  if (activeContentMode !== NODE_ENTRY_OVERVIEW_MODE || !activeEntryOverviewContext) return false;
+  const memoryKind = String(activeEntryOverviewContext.memoryKind || "").trim();
+  if (memoryKind !== "topic-index" && memoryKind !== "topic-index-generated") return false;
+  const indexRelPath = getTopicStorageIndexRelPath(topicPath).replace(/\\/g, "/");
+  const ctxPath = String(
+    activeEntryOverviewContext.relativePath || activeEntryOverviewContext.relPath || ""
+  ).replace(/\\/g, "/");
+  return ctxPath === indexRelPath;
+}
+
 function escapeStorageIndexTableCell(value) {
   return String(value || "")
     .replace(/\|/g, "\\|")
@@ -56914,8 +56925,8 @@ function formatBundleSlotIndexMarkdown(rows = []) {
   const lines = [
     "### Однофайловая память",
     "",
-    "| Слот | Файл | Статус |",
-    "| --- | --- | --- |"
+    "| Слот | Файл | Статус | Размер | Строк |",
+    "| --- | --- | --- | ---: | ---: |"
   ];
   for (const row of rows) {
     const fileCell = row.linkPath
@@ -56925,7 +56936,7 @@ function formatBundleSlotIndexMarkdown(rows = []) {
         )
       : `\`${escapeStorageIndexTableCell(row.fileName)}\``;
     lines.push(
-      `| ${escapeStorageIndexTableCell(row.label)} | ${fileCell} | ${escapeStorageIndexTableCell(row.status)} |`
+      `| ${escapeStorageIndexTableCell(row.label)} | ${fileCell} | ${escapeStorageIndexTableCell(row.status)} | ${formatStorageIndexFileSize(row.sizeBytes)} | ${formatStorageIndexLineCount(row.lineCount)} |`
     );
   }
   return lines.join("\n");
@@ -57090,12 +57101,30 @@ function formatStorageIndexTitleCell(entry, { linkTitle = true } = {}) {
   return `[${linkText}](${encodeStorageIndexLinkTarget(linkPath)})`;
 }
 
+function formatStorageIndexFileSize(sizeBytes) {
+  if (sizeBytes == null || !Number.isFinite(sizeBytes) || sizeBytes < 0) return "—";
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) {
+    const kb = sizeBytes / 1024;
+    return kb < 10 ? `${kb.toFixed(1)} KB` : `${Math.round(kb)} KB`;
+  }
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatStorageIndexLineCount(lineCount) {
+  if (lineCount == null || !Number.isFinite(lineCount) || lineCount < 0) return "—";
+  return String(lineCount);
+}
+
 function formatStorageIndexEntriesMarkdown(entries, { emptyHint = "_Нет записей._", linkTitle = true } = {}) {
   if (!entries.length) return emptyHint;
-  const lines = ["| Тип | Путь | Название | Описание |", "| --- | --- | --- | --- |"];
+  const lines = [
+    "| Тип | Путь | Название | Описание | Размер | Строк |",
+    "| --- | --- | --- | --- | ---: | ---: |"
+  ];
   for (const entry of entries) {
     lines.push(
-      `| ${escapeStorageIndexTableCell(entry.type) || "—"} | \`${escapeStorageIndexTableCell(entry.path)}\` | ${formatStorageIndexTitleCell(entry, { linkTitle })} | ${escapeStorageIndexTableCell(entry.description) || "—"} |`
+      `| ${escapeStorageIndexTableCell(entry.type) || "—"} | \`${escapeStorageIndexTableCell(entry.path)}\` | ${formatStorageIndexTitleCell(entry, { linkTitle })} | ${escapeStorageIndexTableCell(entry.description) || "—"} | ${formatStorageIndexFileSize(entry.sizeBytes)} | ${formatStorageIndexLineCount(entry.lineCount)} |`
     );
   }
   return lines.join("\n");
@@ -57218,6 +57247,7 @@ async function openTopicStorageIndexOverview(topicPath, slots = []) {
     return;
   }
 
+  if (manifestPath) topicGeneratedStorageIndexCache.delete(manifestPath);
   const markdown = await buildTopicStorageIndexMarkdownFromApi(topicPath, slots);
   if (manifestPath) topicGeneratedStorageIndexCache.set(manifestPath, markdown);
   void openEntryOverviewFromNavigation({
@@ -57376,6 +57406,8 @@ function renderNodeNavigationWorkspaceCounterStrip(
     wrap.dataset.topicPath = getOverviewNodeApiPath(resolvedTopicPath);
     wrap.dataset.topicNodePath = resolvedTopicPath;
   }
+
+  appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
 
   const list = document.createElement("ul");
   list.className = "node-navigation-workspace-counter-list";
@@ -64483,8 +64515,14 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
   let row = wrap.querySelector(".node-navigation-workspace-counter-topic-index-row");
   if (!row) {
     row = document.createElement("div");
-    row.className = "node-navigation-workspace-counter-topic-index-row";
-    wrap.appendChild(row);
+    row.className =
+      "node-navigation-workspace-counter-topic-index-row is-content-index";
+    wrap.prepend(row);
+  } else {
+    row.classList.add("is-content-index");
+    if (row.parentElement === wrap && row !== wrap.firstElementChild) {
+      wrap.prepend(row);
+    }
   }
 
   let footer = row.querySelector(".node-navigation-workspace-counter-topic-index");
@@ -64501,15 +64539,15 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
     refreshBtn.type = "button";
     refreshBtn.className = "node-navigation-workspace-counter-topic-index-refresh";
     refreshBtn.textContent = "⟲";
-    refreshBtn.setAttribute("aria-label", "Обновить оглавление темы");
-    refreshBtn.title = "Обновить общее оглавление темы";
+    refreshBtn.setAttribute("aria-label", "Обновить оглавление контента");
+    refreshBtn.title = "Обновить оглавление контента темы";
     row.appendChild(refreshBtn);
   }
 
   const syncTopicIndexFooterState = () => {
     const hasTopicReadme = wrap.dataset.topicHasIndex === "1";
     const indexRelPath = getTopicStorageIndexRelPath(topicPath);
-    footer.textContent = "Индекс (оглавление) общий";
+    footer.textContent = "Индекс (оглавление) контента";
     footer.classList.toggle("is-available", hasTopicReadme);
     footer.classList.toggle("is-generated", !hasTopicReadme);
     footer.title = hasTopicReadme
@@ -64556,7 +64594,10 @@ function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
         if (ok) {
           wrap.dataset.topicHasIndex = "1";
           syncTopicIndexFooterState();
-          showToast("Оглавление темы обновлено", "success");
+          if (isActiveTopicStorageIndexView(topicPath)) {
+            void openTopicStorageIndexOverview(topicPath, slots);
+          }
+          showToast("Оглавление контента обновлено", "success");
           return;
         }
         showToast("Не удалось обновить оглавление", "error");
