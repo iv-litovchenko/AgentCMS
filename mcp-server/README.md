@@ -41,7 +41,7 @@ get_session_context({ agentId: "<выбранный-id>" })
 
 Затем при необходимости: `get_user_active_context_now` → `read_*` / `write_*` по задаче.
 
-**Без `agentId`:** только `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview` (+ discuss stubs).
+**Без `agentId`:** только `list_workspaces`, `list_vaults`, `search_web*`, `read_web_page`, `get_link_preview`.
 
 ### Канон (PAGE · SLOT · CONTENT)
 
