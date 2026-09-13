@@ -839,21 +839,20 @@ function createOcrIndexService(deps) {
           } catch {
             existingContent = null;
           }
-          await fs.writeFile(
+          const written = await persistOcrSidecar(deps, {
+            sourceRel,
+            sourceAbsolute: check.sourceAbsolute,
             sidecarAbsolute,
-            buildSidecarContent({
-              sourceRel,
-              text,
-              engine,
-              extractedAt,
-              preprocessVariant,
-              psm: ocrPsm,
-              existingContent
-            }),
-            "utf-8"
-          );
+            text,
+            engine,
+            extractedAt,
+            preprocessVariant,
+            psm: ocrPsm,
+            existingContent
+          });
 
-          const sidecarPath = manifestRelFromNodeAbsolute?.(sidecarAbsolute) || sidecarRel;
+          const sidecarPath =
+            written.sidecarPath || manifestRelFromNodeAbsolute?.(sidecarAbsolute) || sidecarRel;
           if (typeof onSidecarWritten === "function") {
             onSidecarWritten(sidecarPath);
           }
