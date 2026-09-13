@@ -27476,6 +27476,9 @@ button.node-navigation-hub-rail-slot-summary {
 }
 
 .node-navigation-hub-rail-slot-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 24px;
   height: 24px;
   padding: 0;
@@ -27486,11 +27489,19 @@ button.node-navigation-hub-rail-slot-summary {
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
-.node-navigation-hub-rail-slot-toggle.is-expanded {
-  transform: rotate(90deg);
+.node-navigation-hub-rail-slot-toggle .nav-book-toc-folder-chevron {
+  width: 7px;
+  height: 7px;
+  margin-top: -2px;
+  transform: translateX(-2px) rotate(-45deg);
+}
+
+.node-navigation-hub-rail-slot-toggle.is-expanded .nav-book-toc-folder-chevron {
+  transform: rotate(45deg);
+  margin-top: -4px;
 }
 
 .node-navigation-hub-rail-slot-open:hover {

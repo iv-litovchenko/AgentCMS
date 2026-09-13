@@ -66923,7 +66923,10 @@ function appendNavigationHubRailSlotSummaryParts(summary, slot, options = {}) {
     toggleBtn = document.createElement("button");
     toggleBtn.type = "button";
     toggleBtn.className = "node-navigation-hub-rail-slot-open node-navigation-hub-rail-slot-toggle";
-    toggleBtn.textContent = "→";
+    const toggleChevron = document.createElement("span");
+    toggleChevron.className = "nav-book-toc-folder-chevron";
+    toggleChevron.setAttribute("aria-hidden", "true");
+    toggleBtn.appendChild(toggleChevron);
     toggleBtn.classList.toggle("is-expanded", toggleExpanded);
     toggleBtn.title = toggleExpanded ? "Свернуть" : "Развернуть";
     toggleBtn.setAttribute(
