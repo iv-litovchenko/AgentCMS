@@ -15660,6 +15660,12 @@ body.app-locked {
   color: #334155;
 }
 
+.header-author-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .header-author-github-link {
   display: flex;
   align-items: center;
@@ -15689,6 +15695,12 @@ body.app-locked {
   background: #0f172a;
   color: #fff;
   flex-shrink: 0;
+}
+
+.header-author-site-icon {
+  background: #0ea5e9;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .header-author-github-copy {
