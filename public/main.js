@@ -2126,15 +2126,18 @@ async function openEntryOverviewFromResolvedRecord(resolved, contentMode) {
     return;
   }
 
-  if (contentMode === "media") {
-    const relPath = getMediaItemContextPath(storageRelPath || recordPath);
+  if (contentMode === "media" || contentMode === "assets") {
+    const slotRelative = normalizeMediaLibrarySlotRelativePath(relInSlot, contentMode);
+    const relPath = getMediaLibraryItemContextPath(slotRelative, contentMode);
     await openEntryOverviewFromNavigation(
       {
         relPath,
-        memoryKind: "media",
-        relativePath: storageRelPath || recordPath,
-        title,
-        entryKind: /\.md$/i.test(relInSlot) ? "awn.record" : "awn.media.asset"
+        memoryKind: contentMode,
+        relativePath: slotRelative,
+        title: slotRelative.split("/").pop() || title,
+        entryKind: /\.md$/i.test(relInSlot)
+          ? inferAwnTypeFromRelPath(relPath, { contentMode })
+          : "awn.media.asset"
       },
       { skipRouteSync: true }
     );
@@ -3976,6 +3979,13 @@ function resolveMarkdownHrefToWorkspaceRel(href, sourceRel = getCurrentEditorLin
   if (pathPart.startsWith("/")) {
     return normalizeLinkFilePath(pathPart);
   }
+  const normalizedPart = normalizeLinkFilePath(pathPart);
+  if (parseStorageLayerRef(normalizedPart)) {
+    return normalizedPart;
+  }
+  if (/^(?:awn-container|awn-repositories|awn-data|awn-google-drive)\//i.test(normalizedPart)) {
+    return normalizedPart;
+  }
   return normalizeLinkFilePath(joinWorkspaceRelativePath(sourceRel, pathPart));
 }
 
@@ -5324,11 +5334,42 @@ function refreshMenuReadBadges(agentId = activeAgentId) {
   syncMenuReadBadges(agentId);
 }
 
+function refreshEntryOverviewReadBadges() {
+  if (!nodeOverviewContentNode || !activeEntryOverviewContext) return;
+
+  const context = activeEntryOverviewContext;
+  const topicPath = getResolvedNodePath(activePath);
+  const manifestApiPath = getOverviewNodeApiPath(topicPath);
+  const isMemoryTocRoot = isEntryOverviewMemoryTocRoot(context);
+  const showUnread = isMemoryTocRoot
+    ? isNodePageUnread(manifestApiPath)
+    : isNodeContentUnread(
+        manifestApiPath,
+        buildNodeReadContentStoragePath(context.relativePath, context.memoryKind),
+        context.memoryKind
+      );
+
+  const titleRow = nodeOverviewContentNode.querySelector(".node-navigation-hero-unread-badge")?.parentElement
+    || nodeOverviewContentNode.querySelector(".node-navigation-hero-title-row");
+  if (!titleRow) return;
+
+  const existing = titleRow.querySelector(".node-navigation-hero-unread-badge");
+  if (showUnread) {
+    if (!existing) {
+      const unreadBadge = createUnreadBadge({ title: "Страница ещё не просмотрена" });
+      unreadBadge.classList.add("node-navigation-hero-unread-badge");
+      titleRow.appendChild(unreadBadge);
+    }
+  } else if (existing) {
+    existing.remove();
+  }
+}
+
 function refreshNodeReadStateUi(manifestPath) {
   refreshMenuReadBadges(activeAgentId);
   if (normalizeMenuNodePath(getActiveNodeApiPath()) !== normalizeMenuNodePath(manifestPath)) return;
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
-    void renderEntryOverview();
+    refreshEntryOverviewReadBadges();
   } else if (activeContentMode === NODE_NAVIGATION_MODE) {
     void renderNodeNavigation();
   }
@@ -29063,6 +29104,25 @@ function buildMediaThumbUrl(filePath, nodePath = activePath, max = MEDIA_THUMB_M
   return buildMediaAssetUrl(filePath, nodePath, { thumb: true, max });
 }
 
+function resolveMediaAssetCacheBustToken(itemOrPath) {
+  if (itemOrPath && typeof itemOrPath === "object") {
+    const updatedAt = itemOrPath.updatedAt || itemOrPath.mtime || null;
+    if (updatedAt) return String(updatedAt);
+    const path = String(itemOrPath.path || "").trim();
+    if (itemOrPath.size != null && path) return `${path}::${itemOrPath.size}`;
+    if (path) return path;
+  }
+  const path = typeof itemOrPath === "string" ? itemOrPath.trim() : "";
+  return path;
+}
+
+function appendMediaCacheBuster(url, itemOrPath) {
+  if (!url) return url;
+  const token = resolveMediaAssetCacheBustToken(itemOrPath);
+  if (!token) return url;
+  return appendCacheBuster(url, token);
+}
+
 function appendMediaThumbToApiUrl(url, max = MEDIA_THUMB_MAX_DEFAULT) {
   const raw = String(url || "").trim();
   if (!raw) return raw;
@@ -36080,7 +36140,7 @@ function appendMediaItemActionButtons(target, item) {
 
 function appendEntryOverviewMediaAssetActionButtons(target, item, context) {
   target.append(
-    createMediaSidecarEditButton(item, { label: "Редактировать", entryOverviewContext: context }),
+    createMediaSidecarEditButton(item, { label: "Редактировать sidecar", entryOverviewContext: context }),
     createMediaOpenButton(item),
     createMediaRevealInFinderButton(item)
   );
@@ -36287,7 +36347,7 @@ function createMediaSidecarEditButton(item, { label = "Редактироват�
   btn.addEventListener("click", (event) => {
     guardMediaActionClick(event, () => {
       if (entryOverviewContext) {
-        void openEntryOverviewEdit(entryOverviewContext);
+        void openEntryOverviewMediaSidecarEdit(entryOverviewContext);
         return;
       }
       void openMediaSidecar(item.path);
@@ -37864,13 +37924,15 @@ function syncMediaSidecarTitleFields() {
   titleInputNode.value = rawAwnName;
   titleInputNode.readOnly = false;
   titleInputNode.disabled = false;
-  titleInputNode.placeholder = slug ? `Пусто → в меню: ${slug}` : "Название";
+  titleInputNode.placeholder = slug
+    ? `Отображаемое имя (файл: ${slug})`
+    : "Отображаемое имя sidecar";
   if (titleSlugInputNode) {
     titleSlugInputNode.value = slug;
   }
   titleSlugLinked = false;
   applyTitleSlugLinkedUi();
-  showTitleSlugRow(filePath);
+  titleSlugRowNode?.classList.add("hidden");
   syncTitleDescriptionFromNode(filePath);
   syncDisplayNameLengthHint(titleInputNode);
 }
@@ -37973,7 +38035,7 @@ async function refreshExternalFileListView({ reloadFromServer = true } = {}) {
   renderListViewContent();
 }
 
-function enableMediaSidecarEditor(sourceFilePath, sidecarPath, content, options = {}) {
+async function enableMediaSidecarEditor(sourceFilePath, sidecarPath, content, options = {}) {
   if (options.memoryEntryCloseTargetView != null) {
     assignMemoryEntryCloseTargetView(options.memoryEntryCloseTargetView);
   } else if (memoryEntryCloseTargetView == null) {
@@ -37984,7 +38046,7 @@ function enableMediaSidecarEditor(sourceFilePath, sidecarPath, content, options 
   activeMediaSidecarPath = sidecarPath;
   updateBreadcrumbsForActiveMode();
   titleEditorBlockNode.classList.remove("hidden");
-  applyMediaSidecarContentUi(content || "");
+  await applyMediaSidecarContentUi(content || "");
   syncMediaSidecarTitleFields();
   syncPropsInputPlaceholder();
   editorViewMode = "preview";
@@ -38002,7 +38064,13 @@ async function openMediaSidecar(mediaFilePath, options = {}) {
   mediaSidecarOpenInFlight = normalizedPath;
   try {
     const response = await fetch(
-      buildApiUrl("/api/media/sidecar", buildTopicMediaSidecarApiParams(mediaFilePath))
+      buildApiUrl(
+        "/api/media/sidecar",
+        buildTopicMediaSidecarApiParams(mediaFilePath, activePath, {
+          create: options.create !== false,
+          title: options.sidecarTitle
+        })
+      )
     );
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -38013,7 +38081,11 @@ async function openMediaSidecar(mediaFilePath, options = {}) {
       data.exists || String(data.content || "").trim()
         ? data.content || ""
         : buildDefaultMediaSidecarContent(data.sourceFile || mediaFilePath);
-    enableMediaSidecarEditor(data.sourceFile, data.sidecar, content, options);
+    await enableMediaSidecarEditor(data.sourceFile || mediaFilePath, data.sidecar, content, options);
+    if (data.created) {
+      await refreshMediaCache();
+      renderListViewContent();
+    }
   } catch (error) {
     const details = error?.message ? `: ${error.message}` : "";
     showToast(`Ошибка открытия sidecar${details}`, "error");
@@ -38021,6 +38093,34 @@ async function openMediaSidecar(mediaFilePath, options = {}) {
     if (mediaSidecarOpenInFlight === normalizedPath) {
       mediaSidecarOpenInFlight = null;
     }
+  }
+}
+
+async function openEntryOverviewMediaSidecarEdit(context) {
+  if (!context?.relativePath || !activePath) return;
+  const memoryKind = context.memoryKind === "assets" ? "assets" : "media";
+  const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!relativePath || isEntryOverviewMemoryTocRoot(context)) return;
+
+  assignMemoryEntryCloseTargetView(MEMORY_ENTRY_VIEW_OVERVIEW);
+  if (isAreaContentModeBlocked(memoryKind)) return;
+  if (!applyContentModeState(memoryKind)) return;
+
+  try {
+    await refreshMediaCache();
+    const parentFolder = relativePath.includes("/")
+      ? relativePath.split("/").filter(Boolean).slice(0, -1).join("/")
+      : null;
+    if (parentFolder) {
+      activeMediaSectionFolder = parentFolder;
+      pruneActiveMediaSectionFolder();
+    }
+    await openMediaSidecar(relativePath, {
+      memoryEntryCloseTargetView: MEMORY_ENTRY_VIEW_OVERVIEW,
+      sidecarTitle: String(context.title || "").trim() || undefined
+    });
+  } catch (error) {
+    showToast(`Не удалось открыть sidecar: ${error.message}`, "error");
   }
 }
 
@@ -38311,7 +38411,8 @@ function syncPropsPanelTitleFromSchema() {
   if (!titleNode) return;
   const typeDef = getActiveAwnTypeDef();
   const panelTitle = typeDef?.form?.["panel-title"] || typeDef?.form?.panelTitle;
-  titleNode.textContent = String(panelTitle || "").trim() || "Метаданные";
+  titleNode.textContent =
+    formatSchemaDisplayTitle(String(panelTitle || "").trim(), { replaceMarker: false }) || "Метаданные";
 }
 
 function getStandardPropsFieldKeys() {
@@ -43372,21 +43473,47 @@ function resolveAwnTypeForContext(nodePath = activePath) {
 /** Не подниматься к awn.base за группами — у content свой набор секций формы. */
 const DOMAIN_FIELD_GROUP_BOUNDARY_TYPES = new Set(["awn.content.base"]);
 
+function mergeResolvedTypeFieldGroups(groupLists) {
+  const byId = new Map();
+  const order = [];
+  for (const groups of groupLists) {
+    if (!Array.isArray(groups)) continue;
+    for (const group of groups) {
+      if (!group?.id) continue;
+      const id = String(group.id);
+      if (!byId.has(id)) order.push(id);
+      byId.set(id, {
+        id,
+        name: group.name || group.title || byId.get(id)?.name || id,
+        description: group.description || byId.get(id)?.description || "",
+        collapsed:
+          group.collapsed !== undefined ? Boolean(group.collapsed) : Boolean(byId.get(id)?.collapsed)
+      });
+    }
+  }
+  return order.length ? order.map((id) => byId.get(id)) : null;
+}
+
 function resolveTypeFieldGroups(typeName) {
+  const chain = [];
   let current = normalizeAwnTypeName(typeName);
   const visited = new Set();
   while (current && !visited.has(current)) {
     visited.add(current);
+    chain.push(current);
+    if (DOMAIN_FIELD_GROUP_BOUNDARY_TYPES.has(current)) break;
     const def = awnTypesCache?.types?.[current];
-    if (Array.isArray(def?.fieldGroups) && def.fieldGroups.length) {
-      return def.fieldGroups;
-    }
-    if (DOMAIN_FIELD_GROUP_BOUNDARY_TYPES.has(current)) {
-      return null;
-    }
     current = def?.extends ? normalizeAwnTypeName(def.extends) : null;
   }
-  return null;
+
+  const groupLists = [];
+  for (let index = chain.length - 1; index >= 0; index -= 1) {
+    const def = awnTypesCache?.types?.[chain[index]];
+    if (Array.isArray(def?.fieldGroups) && def.fieldGroups.length) {
+      groupLists.push(def.fieldGroups);
+    }
+  }
+  return mergeResolvedTypeFieldGroups(groupLists);
 }
 
 function getActiveAwnTypeDef(typeName = null) {
@@ -43400,6 +43527,8 @@ function getActiveAwnTypeDef(typeName = null) {
         activeEntryOverviewContext.entryKind === "awn.media.asset"
           ? normalizeAwnTypeName("awn.content.sidecar")
           : normalizeAwnTypeName(activeEntryOverviewContext.entryKind);
+    } else if (isMediaSidecarEditing()) {
+      resolvedType = normalizeAwnTypeName("awn.content.sidecar");
     } else {
       const declared = getPropsEntryValueByKey(propsFormEntries, "awn-type");
       if (declared) {
@@ -50516,13 +50645,17 @@ function buildAttachmentSidecarApiParams(mediaRel) {
   };
 }
 
-function buildTopicMediaSidecarApiParams(mediaFilePath, nodePath = activePath) {
+function buildTopicMediaSidecarApiParams(mediaFilePath, nodePath = activePath, options = {}) {
   const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
-  return {
+  const params = {
     path: manifestPath,
     contextPath: manifestPath,
     file: String(mediaFilePath || "").replace(/\\/g, "/")
   };
+  if (options.create) params.create = "1";
+  const title = String(options.title || "").trim();
+  if (title) params.title = title;
+  return params;
 }
 
 function buildDefaultMediaSidecarContent(sourceFilePath) {
@@ -54065,10 +54198,10 @@ async function openEntryOverviewEdit(context) {
       if (mediaViewSelectNode) mediaViewSelectNode.value = mediaViewMode;
       renderListViewContent();
 
-      if (/\.md$/i.test(relativePath) && entryKind !== "awn.media.asset") {
-        await openMediaMarkdownFile(relativePath);
+      if (entryKind === "awn.media.asset" || !/\.md$/i.test(relativePath)) {
+        await openMediaSidecar(relativePath, { memoryEntryCloseTargetView: MEMORY_ENTRY_VIEW_OVERVIEW });
       } else {
-        await openMediaSidecar(relativePath);
+        await openMediaMarkdownFile(relativePath);
       }
     } catch (error) {
       showToast(`Не удалось открыть редактирование: ${error.message}`, "error");
@@ -60465,8 +60598,48 @@ function populateNavBookTocFolderLabel(
   );
 }
 
-function getMediaLibraryItemContextPath(relativePath, memoryKind = "media", nodePath = activePath) {
+function stripNestedStorageLayerPath(resourcePath, slotFolder) {
+  let resource = String(resourcePath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const storageMarker = `/${STORAGE_ROOT_FOLDER}/${slotFolder}/`;
+  for (let guard = 0; guard < 4; guard += 1) {
+    const markerIndex = resource.lastIndexOf(storageMarker);
+    if (markerIndex < 0) break;
+    const next = resource.slice(markerIndex + storageMarker.length);
+    if (!next || next === resource) break;
+    resource = next;
+  }
+  return resource;
+}
+
+function normalizeMediaLibrarySlotRelativePath(relativePath, memoryKind = "media", nodePath = activePath) {
   const rel = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel) return "";
+
+  const subfolder = getMediaLibraryStorageSubfolder(memoryKind);
+  let slotRelative = stripNestedStorageLayerPath(rel, subfolder);
+  if (slotRelative !== rel) return slotRelative;
+
+  const parsed = parseStorageLayerRef(rel);
+  if (parsed?.layer === subfolder && parsed.relativePath) {
+    return stripNestedStorageLayerPath(parsed.relativePath, subfolder);
+  }
+
+  const base = getResolvedNodePath(nodePath);
+  const slotPrefix = `${getNodeStorageSubfolderPath(base, subfolder)}/`;
+  if (slotPrefix.length > 1 && rel.startsWith(slotPrefix)) {
+    return rel.slice(slotPrefix.length);
+  }
+
+  const shortPrefix = `${subfolder}/`;
+  if (rel.startsWith(shortPrefix) && !/\/(?:awn-storage|storage)\//i.test(rel)) {
+    return rel.slice(shortPrefix.length);
+  }
+
+  return rel;
+}
+
+function getMediaLibraryItemContextPath(relativePath, memoryKind = "media", nodePath = activePath) {
+  const rel = normalizeMediaLibrarySlotRelativePath(relativePath, memoryKind, nodePath);
   const subfolder = getMediaLibraryStorageSubfolder(memoryKind);
   const base = getResolvedNodePath(nodePath);
   if (!rel) return getNodeStorageSubfolderPath(base, subfolder);
@@ -65292,6 +65465,7 @@ function buildEntryOverviewMediaAssetItem(context, navigationIndex = null) {
     ext: indexed?.ext || ext,
     group: indexed?.group || groupByKind[kind] || "Other",
     size: indexed?.size ?? null,
+    updatedAt: indexed?.updatedAt || null,
     displayName: indexed?.displayName || context?.title || ""
   };
 }
@@ -65549,7 +65723,8 @@ function createEntryOverviewMediaAssetShowcase(
     return createEntryOverviewMediaAssetCodeShowcase(context, nodePath, sizeHint);
   }
 
-  const assetUrl = appendCacheBuster(buildMediaAssetUrl(relativePath, nodePath));
+  const cacheMeta = indexed || { path: relativePath, size: sizeHint };
+  const assetUrl = appendMediaCacheBuster(buildMediaAssetUrl(relativePath, nodePath), cacheMeta);
   const showcase = document.createElement("div");
   showcase.className = `node-entry-overview-media-asset-showcase is-kind-${assetKind}`;
 
@@ -65721,6 +65896,10 @@ function createEntryOverviewMediaAssetPanel(
 
   main.append(body);
   panel.appendChild(main);
+  appendNavigationHeroProps(panel, entries, {
+    nodePath: context.relPath || activePath,
+    showSettingsProps: false
+  });
   if (assetKind === "code") {
     appendEntryOverviewCodePreviewAfterHeroMain(panel, context, navigationIndex);
   }
@@ -65764,7 +65943,7 @@ function createEntryOverviewMediaFileLink(item, nodePath, onFileClick) {
     img.alt = item.title || item.name || "";
     img.loading = "lazy";
     img.decoding = "async";
-    img.src = appendCacheBuster(buildMediaAssetUrl(item.path, nodePath));
+    img.src = appendMediaCacheBuster(buildMediaAssetUrl(item.path, nodePath), item);
     markMediaAssetImageElement(img, item.path);
     img.addEventListener("error", () => {
       preview.classList.add("is-fallback");
@@ -65818,7 +65997,7 @@ function createEntryOverviewMediaGridCard(item, nodePath, onFileClick) {
   img.alt = item.title || item.name || "";
   img.loading = "lazy";
   img.decoding = "async";
-  img.src = appendCacheBuster(buildMediaAssetUrl(item.path, nodePath));
+  img.src = appendMediaCacheBuster(buildMediaAssetUrl(item.path, nodePath), item);
   markMediaAssetImageElement(img, item.path);
   img.addEventListener("error", () => {
     thumb.classList.add("is-fallback");
@@ -67427,14 +67606,16 @@ const NAVIGATION_MEDIA_IMAGE_THUMB_LIMIT = 12;
 function resolveNavigationMediaGridImageUrl(
   filePath,
   nodePath = getResolvedNodePath(activePath),
-  columns = navigationMediaImagesLayout === "strip" ? 3 : navigationMediaImagesLayout
+  columns = navigationMediaImagesLayout === "strip" ? 3 : navigationMediaImagesLayout,
+  item = null
 ) {
   const path = String(filePath || "").trim();
   if (!path) return "";
+  const cacheMeta = item || { path };
   if (columns === 1 || isSvgMediaAssetPath(path)) {
-    return appendCacheBuster(buildMediaAssetUrl(path, nodePath));
+    return appendMediaCacheBuster(buildMediaAssetUrl(path, nodePath), cacheMeta);
   }
-  return appendCacheBuster(buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_GRID));
+  return appendMediaCacheBuster(buildMediaThumbUrl(path, nodePath, MEDIA_THUMB_MAX_GRID), cacheMeta);
 }
 
 function isNavigationMediaImageItem(item) {
@@ -67464,7 +67645,7 @@ function createNavigationMediaGridCard(item, nodePath, onActivate) {
   img.alt = item.displayName || item.title || item.name || "";
   img.loading = "lazy";
   img.draggable = false;
-  img.src = resolveNavigationMediaGridImageUrl(item.path, nodePath);
+  img.src = resolveNavigationMediaGridImageUrl(item.path, nodePath, gridColumns, item);
   markMediaAssetImageElement(img, item.path);
   attachFolderBrowseImageFallback(img);
   imgWrap.appendChild(img);
@@ -67527,7 +67708,7 @@ function createNavigationMediaImageThumb(item, nodePath) {
   img.alt = item.name || "";
   img.loading = "lazy";
   img.decoding = "async";
-  img.src = appendCacheBuster(buildMediaThumbUrl(item.path, nodePath, MEDIA_THUMB_MAX_SMALL));
+  img.src = appendMediaCacheBuster(buildMediaThumbUrl(item.path, nodePath, MEDIA_THUMB_MAX_SMALL), item);
   img.addEventListener("error", () => {
     btn.classList.add("node-navigation-media-thumb--error");
     img.remove();
@@ -77326,9 +77507,10 @@ function refreshEditorViewContent() {
   applySourceEditorAutoHeightUi();
 }
 
-function appendCacheBuster(url) {
+function appendCacheBuster(url, token) {
   if (!url) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`;
+  const t = token != null && token !== "" ? String(token) : String(Date.now());
+  return `${url}${url.includes("?") ? "&" : "?"}t=${t}`;
 }
 
 function renderPreviewUploadUi(data) {
@@ -78970,7 +79152,7 @@ function isTitleSlugRenameSupported(nodePath = getActiveTitleEditorPath()) {
     return !isSectionReadmePath(nodePath);
   }
   if (isMediaLibraryContentMode() && activeMediaSidecarSourcePath === nodePath) {
-    return Boolean(nodePath);
+    return false;
   }
   return false;
 }
@@ -78987,7 +79169,7 @@ function isTitleSlugRowVisible(nodePath = getActiveTitleEditorPath()) {
     return true;
   }
   if (isMediaLibraryContentMode() && activeMediaMarkdownPath === nodePath) return true;
-  if (isMediaLibraryContentMode() && activeMediaSidecarSourcePath === nodePath) return true;
+  if (isMediaLibraryContentMode() && activeMediaSidecarSourcePath === nodePath) return false;
   return false;
 }
 

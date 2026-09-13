@@ -15,9 +15,8 @@ field-groups:
     collapsed: false
 
 fields:
-  awn-preview:
-    hidden: true
 
+  # --- file metadata (aside-body) ---
   awn-mime:
     type: awn.field.string
     title: "{A2!} MIME-тип"
@@ -34,6 +33,7 @@ fields:
     sort: 11
     locked: true
 
+  # --- ocr (aside-body) ---
   awn-ocr-source:
     type: awn.field.string
     title: "{A2!} Исходный файл"
@@ -81,4 +81,13 @@ fields:
     placement: aside-body
     group: ocr
     sort: 25
+    locked: true
+
+  awn-ocr-text:
+    type: awn.field.text
+    title: "{A2!} OCR-текст"
+    description: Текст, извлечённый из файла (дублируется в body при первом создании)
+    placement: aside-body
+    group: ocr
+    sort: 26
     locked: true

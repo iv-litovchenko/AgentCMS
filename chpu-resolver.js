@@ -333,7 +333,15 @@ async function resolveStorageRecord(agentRoot, topicDir, slotFolder, resourcePat
   const slotMode = SLOT_FOLDER_TO_MODE[slotFolder] || null;
   if (!slotMode) return null;
 
-  const resource = String(resourcePath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  let resource = String(resourcePath || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const storageMarker = `/${STORAGE_ROOT_FOLDER}/${slotFolder}/`;
+  for (let guard = 0; guard < 4; guard += 1) {
+    const markerIndex = resource.lastIndexOf(storageMarker);
+    if (markerIndex < 0) break;
+    const next = resource.slice(markerIndex + storageMarker.length);
+    if (!next || next === resource) break;
+    resource = next;
+  }
   if (!resource) {
     return {
       kind: "slotView",

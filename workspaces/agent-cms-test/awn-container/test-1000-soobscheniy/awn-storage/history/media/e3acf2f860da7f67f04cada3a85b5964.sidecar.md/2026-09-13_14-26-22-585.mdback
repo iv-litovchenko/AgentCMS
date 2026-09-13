@@ -1,0 +1,39 @@
+---
+awn-status: open
+awn-quality: 4
+awn-emoji: ""
+awn-mime: ""
+awn-size: 0
+awn-note-todo-sticker: ""
+awn-runtime-load-always: false
+awn-runtime-heartbeat: false
+awn-runtime-cron: false
+awn-runtime-cron-schedule: "0 9 * * *"
+awn-runtime-commands: false
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-color: ""
+awn-tags: []
+awn-location-label: ""
+awn-location-coordinates: ""
+awn-is-real-world-object: false
+awn-is-real-world-event: false
+awn-type: awn.content.sidecar
+awn-mindmap-enabled: true
+awn-mindmap-type: optional
+awn-mindmap-color: slate
+awn-mindmap-size: auto
+awn-mindmap-layout-independent: false
+awn-mindmap-direction: auto
+awn-description: ""
+awn-main: false
+awn-name: Тест 1000 сообщений
+awn-sort: 
+awn-web-url: ""
+awn-create: 2026-09-13T10:31:35.515Z
+awn-update: 2026-09-13T10:31:35.515Z
+awn-version: 2
+---
+
+1

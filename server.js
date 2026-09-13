@@ -22427,17 +22427,44 @@ async function handleApiForAgent(req, res, url) {
     try {
       const normalizedRelFile = normalizeRelativeFilePath(relFile);
       const slot = normalizedRelFile && /^assets\//i.test(normalizedRelFile) ? "assets" : "media";
-      const result = await getSidecarService().readSidecar({
+      let result = await getSidecarService().readSidecar({
         path: relPath,
         slot,
         file: relFile
       });
       if (result.error) return sendJson(res, result.status || 400, { error: result.error });
+      const shouldCreate =
+        !result.exists &&
+        (url.searchParams.get("create") === "1" || url.searchParams.get("create") === "true");
+      if (shouldCreate) {
+        const title = String(url.searchParams.get("title") || "").trim();
+        const created = await getSidecarService().writeSidecar(
+          {
+            path: relPath,
+            slot,
+            file: relFile,
+            ...(title ? { title } : {})
+          },
+          { createOnly: true }
+        );
+        if (created.error) return sendJson(res, created.status || 400, { error: created.error });
+        result = {
+          ...result,
+          ...created,
+          exists: true,
+          content: created.content || result.content || ""
+        };
+      }
+      const sourceFile =
+        result.sourcePath?.replace(/\\/g, "/") ||
+        result.file ||
+        normalizedRelFile?.replace(/\\/g, "/");
       return sendJson(res, 200, {
-        sourceFile: result.file || normalizedRelFile?.replace(/\\/g, "/"),
+        sourceFile,
         sidecar: result.sidecar,
         content: result.content,
-        exists: result.exists
+        exists: result.exists,
+        created: Boolean(shouldCreate)
       });
     } catch (error) {
       return sendJson(res, 500, {

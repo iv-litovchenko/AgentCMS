@@ -286,6 +286,21 @@ function resolveCanonicalTypeId(typeId, byId) {
   return TYPE_ID_ALIASES[raw] || raw;
 }
 
+function mergeFieldGroupDefinitions(parentGroups, childGroups) {
+  const byId = new Map();
+  const order = [];
+  for (const groups of [parentGroups, childGroups]) {
+    if (!Array.isArray(groups)) continue;
+    for (const group of groups) {
+      if (!group?.id) continue;
+      const id = String(group.id);
+      if (!byId.has(id)) order.push(id);
+      byId.set(id, { ...(byId.get(id) || {}), ...group, id });
+    }
+  }
+  return order.length ? order.map((id) => byId.get(id)) : null;
+}
+
 function mergeTypeSchema(entry, byId, visited = new Set()) {
   if (!entry || visited.has(entry.id)) return {};
   visited.add(entry.id);
@@ -317,6 +332,10 @@ function mergeTypeSchema(entry, byId, visited = new Set()) {
   }
   for (const [key, value] of Object.entries(schema)) {
     if (["fields", "awn-fields", "properties", "mixins", "extends", "status"].includes(key)) continue;
+    if (key === "field-groups") {
+      merged["field-groups"] = mergeFieldGroupDefinitions(merged["field-groups"], value);
+      continue;
+    }
     merged[key] = value;
   }
   return merged;

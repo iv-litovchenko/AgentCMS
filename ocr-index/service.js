@@ -1,5 +1,6 @@
 const fs = require("fs/promises");
 const path = require("path");
+const { mergeFrontmatterOverrides } = require("../awn-yaml-utils");
 const { loadManifest, saveManifest } = require("./store");
 
 const OCR_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff", ".gif"]);
@@ -64,26 +65,64 @@ async function collectOcrCandidateFiles(dirAbsolute, prefix = "", files = []) {
   return files;
 }
 
-function buildSidecarContent({ sourceRel, text, engine, extractedAt, preprocessVariant, psm }) {
-  const safeName = path.basename(sourceRel);
-  const body = String(text || "").trim();
-  const variantLine = preprocessVariant
-    ? `awn-ocr-preprocess: "${String(preprocessVariant).replace(/"/g, '\\"')}"`
-    : "";
-  const psmLine = psm ? `awn-ocr-psm: "${String(psm).replace(/"/g, '\\"')}"` : "";
-  return `---
-awn-name: "OCR: ${safeName.replace(/"/g, '\\"')}"
-awn-ocr-source: "${sourceRel.replace(/"/g, '\\"')}"
-awn-ocr-engine: "${engine}"
-awn-ocr-at: "${extractedAt}"
-awn-ocr-extracted: true
-${variantLine}
-${psmLine}
-awn-type: awn.content.sidecar
----
+function splitSidecarFrontmatter(raw = "") {
+  const text = String(raw).replace(/^\uFEFF/, "");
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/);
+  if (!match) return { frontmatter: "", body: text };
+  return {
+    frontmatter: match[1],
+    body: match[2].replace(/^\r?\n?/, "")
+  };
+}
 
-${body}
-`;
+function buildOcrFrontmatterOverrides({ sourceRel, text, engine, extractedAt, preprocessVariant, psm }) {
+  const ocrText = String(text || "").trim();
+  const overrides = {
+    "awn-ocr-source": sourceRel,
+    "awn-ocr-engine": engine,
+    "awn-ocr-at": extractedAt,
+    "awn-ocr-extracted": "true",
+    "awn-ocr-text": ocrText,
+    "awn-type": "awn.content.sidecar"
+  };
+  if (preprocessVariant) overrides["awn-ocr-preprocess"] = String(preprocessVariant);
+  if (psm) overrides["awn-ocr-psm"] = String(psm);
+  return overrides;
+}
+
+function buildSidecarContent({
+  sourceRel,
+  text,
+  engine,
+  extractedAt,
+  preprocessVariant,
+  psm,
+  existingContent = null
+}) {
+  const ocrText = String(text || "").trim();
+  const overrides = buildOcrFrontmatterOverrides({
+    sourceRel,
+    text: ocrText,
+    engine,
+    extractedAt,
+    preprocessVariant,
+    psm
+  });
+  const existingRaw = String(existingContent || "").trim();
+
+  if (existingRaw) {
+    const { frontmatter, body } = splitSidecarFrontmatter(existingRaw);
+    const nextFrontmatter = mergeFrontmatterOverrides(frontmatter, overrides);
+    const bodySuffix = body ? `\n${body}` : "";
+    return `---\n${nextFrontmatter}\n---${bodySuffix}`;
+  }
+
+  const safeName = path.basename(sourceRel);
+  const frontmatter = mergeFrontmatterOverrides("", {
+    "awn-name": `OCR: ${safeName}`,
+    ...overrides
+  });
+  return `---\n${frontmatter}\n---\n\n${ocrText}\n`;
 }
 
 async function extractPdfText(buffer) {
@@ -128,83 +167,108 @@ function cleanupOcrText(text) {
   return fallback.join("\n").trim() || String(text || "").trim();
 }
 
-async function buildOcrVariants(buffer, sharp) {
+async function createOcrResizePipeline(buffer, sharp) {
   const meta = await sharp(buffer).metadata();
   const width = meta.width || 0;
   const height = meta.height || 0;
   const minSide = Math.min(width, height);
   const scale = minSide > 0 && minSide < 1400 ? Math.min(2.5, 1400 / minSide) : 1.25;
-
   const resized = sharp(buffer).rotate().resize({
     width: width ? Math.round(width * scale) : undefined,
     height: height ? Math.round(height * scale) : undefined,
     fit: "inside",
     withoutEnlargement: false
   });
+  return { resized, width, height, scale };
+}
 
-  const variants = [
-    {
-      name: "gray-normalize",
-      buffer: await resized.clone().grayscale().normalize().sharpen().png().toBuffer()
-    },
-    {
-      name: "inverted-overlay",
-      buffer: await resized.clone().grayscale().normalize().negate({ alpha: false }).sharpen().png().toBuffer()
-    },
-    {
-      name: "high-contrast",
-      buffer: await resized.clone().grayscale().linear(1.5, -48).sharpen().png().toBuffer()
-    },
-    {
-      name: "inverted-contrast",
-      buffer: await resized
-        .clone()
-        .grayscale()
-        .linear(1.5, -48)
-        .negate({ alpha: false })
-        .sharpen()
-        .png()
-        .toBuffer()
+async function buildNamedOcrVariant(resized, width, height, scale, name) {
+  switch (name) {
+    case "gray-normalize":
+      return {
+        name,
+        buffer: await resized.clone().grayscale().normalize().sharpen().png().toBuffer()
+      };
+    case "inverted-overlay":
+      return {
+        name,
+        buffer: await resized.clone().grayscale().normalize().negate({ alpha: false }).sharpen().png().toBuffer()
+      };
+    case "high-contrast":
+      return {
+        name,
+        buffer: await resized.clone().grayscale().linear(1.5, -48).sharpen().png().toBuffer()
+      };
+    case "inverted-contrast":
+      return {
+        name,
+        buffer: await resized
+          .clone()
+          .grayscale()
+          .linear(1.5, -48)
+          .negate({ alpha: false })
+          .sharpen()
+          .png()
+          .toBuffer()
+      };
+    case "caption-inverted": {
+      const cropTop = Math.round(height * scale * 0.72);
+      const cropHeight = Math.max(1, Math.round(height * scale * 0.28));
+      const caption = resized.clone().extract({
+        left: 0,
+        top: cropTop,
+        width: Math.round(width * scale),
+        height: cropHeight
+      });
+      return {
+        name,
+        buffer: await caption.grayscale().normalize().negate({ alpha: false }).sharpen().png().toBuffer()
+      };
     }
-  ];
-
-  // Video/screenshot captions usually sit in the lower band.
-  if (width > 0 && height > 0 && width / height >= 1.2) {
-    const cropTop = Math.round(height * scale * 0.72);
-    const cropHeight = Math.max(1, Math.round(height * scale * 0.28));
-    const caption = resized.clone().extract({
-      left: 0,
-      top: cropTop,
-      width: Math.round(width * scale),
-      height: cropHeight
-    });
-    variants.push({
-      name: "caption-inverted",
-      buffer: await caption.grayscale().normalize().negate({ alpha: false }).sharpen().png().toBuffer()
-    });
-    variants.push({
-      name: "caption-contrast",
-      buffer: await caption.clone().grayscale().linear(1.8, -60).sharpen().png().toBuffer()
-    });
+    case "caption-contrast": {
+      const cropTop = Math.round(height * scale * 0.72);
+      const cropHeight = Math.max(1, Math.round(height * scale * 0.28));
+      const caption = resized.clone().extract({
+        left: 0,
+        top: cropTop,
+        width: Math.round(width * scale),
+        height: cropHeight
+      });
+      return {
+        name,
+        buffer: await caption.clone().grayscale().linear(1.8, -60).sharpen().png().toBuffer()
+      };
+    }
+    default:
+      return null;
   }
+}
 
+async function buildOcrVariants(buffer, sharp, { onlyNames = null } = {}) {
+  const { resized, width, height, scale } = await createOcrResizePipeline(buffer, sharp);
+  const baseNames = ["gray-normalize", "inverted-overlay", "high-contrast", "inverted-contrast"];
+  const captionNames =
+    width > 0 && height > 0 && width / height >= 1.2
+      ? ["caption-inverted", "caption-contrast"]
+      : [];
+  const allNames = [...baseNames, ...captionNames];
+  const names = Array.isArray(onlyNames) && onlyNames.length
+    ? onlyNames.filter((name) => allNames.includes(name))
+    : allNames;
+
+  const variants = [];
+  for (const name of names) {
+    const item = await buildNamedOcrVariant(resized, width, height, scale, name);
+    if (item) variants.push(item);
+  }
   return variants;
 }
 
-async function extractImageText(buffer, langs = "rus+eng") {
-  let sharp;
-  try {
-    sharp = require("sharp");
-  } catch {
-    sharp = null;
-  }
-
-  let createWorker;
-  let PSM;
+async function loadTesseract(langs = "rus+eng") {
   try {
     const tesseract = require("tesseract.js");
-    createWorker = tesseract.createWorker;
-    PSM = tesseract.PSM;
+    const worker = await tesseract.createWorker(langs);
+    return { worker, PSM: tesseract.PSM, langs };
   } catch (error) {
     if (error && error.code === "MODULE_NOT_FOUND") {
       throw Object.assign(new Error("OCR requires tesseract.js package (npm install tesseract.js)"), {
@@ -213,22 +277,67 @@ async function extractImageText(buffer, langs = "rus+eng") {
     }
     throw error;
   }
+}
 
-  const inputs = [{ name: "raw", buffer }];
-  if (sharp) {
+async function buildOcrInputs(buffer, sharp, { variantNames = null } = {}) {
+  const wantAll = !Array.isArray(variantNames) || !variantNames.length;
+  if (!sharp) return [{ name: "raw", buffer }];
+
+  try {
+    if (wantAll) {
+      return [{ name: "raw", buffer }, ...(await buildOcrVariants(buffer, sharp))];
+    }
+    const selected = await buildOcrVariants(buffer, sharp, { onlyNames: variantNames });
+    if (selected.length) return selected;
+  } catch {
+    // fall through
+  }
+
+  return [{ name: "raw", buffer }];
+}
+
+async function extractImageText(buffer, langs = "rus+eng", options = {}) {
+  let sharp;
+  try {
+    sharp = require("sharp");
+  } catch {
+    sharp = null;
+  }
+
+  const {
+    worker: sharedWorker = null,
+    terminateWorker = true,
+    variantNames = null,
+    psmModes: psmModesOverride = null
+  } = options;
+
+  let worker = sharedWorker;
+  let PSM;
+  let createdWorker = false;
+  if (!worker) {
+    const loaded = await loadTesseract(langs);
+    worker = loaded.worker;
+    PSM = loaded.PSM;
+    createdWorker = true;
+  } else {
     try {
-      inputs.push(...(await buildOcrVariants(buffer, sharp)));
+      PSM = require("tesseract.js").PSM;
     } catch {
-      // keep raw only
+      PSM = null;
     }
   }
 
-  const psmModes = [PSM?.SPARSE_TEXT, PSM?.SINGLE_BLOCK, PSM?.AUTO].filter(Boolean);
-  const worker = await createWorker(langs);
+  const inputs = await buildOcrInputs(buffer, sharp, { variantNames });
+  const defaultPsmModes = [PSM?.SPARSE_TEXT, PSM?.SINGLE_BLOCK, PSM?.AUTO].filter(Boolean);
+  const psmModes = Array.isArray(psmModesOverride) && psmModesOverride.length
+    ? psmModesOverride.map((mode) => String(mode))
+    : defaultPsmModes.length
+      ? defaultPsmModes
+      : ["11", "6", "3"];
   let best = { text: "", score: 0, variant: "raw", psm: "auto" };
 
   try {
-    for (const psm of psmModes.length ? psmModes : ["6", "11", "3"]) {
+    for (const psm of psmModes) {
       await worker.setParameters({ tessedit_pageseg_mode: String(psm) });
       for (const item of inputs) {
         const { data } = await worker.recognize(item.buffer);
@@ -240,13 +349,27 @@ async function extractImageText(buffer, langs = "rus+eng") {
       }
     }
   } finally {
-    await worker.terminate();
+    if (createdWorker && terminateWorker) {
+      await worker.terminate();
+    }
   }
 
   return {
     ...best,
     text: cleanupOcrText(best.text)
   };
+}
+
+async function readOcrHintsFromSidecar(sidecarAbsolute) {
+  if (!sidecarAbsolute) return {};
+  try {
+    const raw = await fs.readFile(sidecarAbsolute, "utf-8");
+    const preprocess = raw.match(/^\s*awn-ocr-preprocess:\s*"([^"]+)"/m)?.[1] || null;
+    const psm = raw.match(/^\s*awn-ocr-psm:\s*"([^"]+)"/m)?.[1] || null;
+    return { preprocess, psm };
+  } catch {
+    return {};
+  }
 }
 
 function createOcrIndexService(deps) {
@@ -345,7 +468,10 @@ function createOcrIndexService(deps) {
       let failed = 0;
 
       const prefix = toPosixRel(pathPrefix);
+      let ocrWorker = null;
+      let ocrPsmEnum = null;
 
+      try {
       for (const sourceRel of candidates) {
         if (processed >= Math.max(1, Math.min(500, Number(limit) || 50))) break;
         if (prefix && !toPosixRel(sourceRel).startsWith(prefix)) continue;
@@ -378,7 +504,29 @@ function createOcrIndexService(deps) {
               continue;
             }
           } else if (OCR_IMAGE_EXTENSIONS.has(ext)) {
-            const ocrResult = await extractImageText(buffer, langs);
+            if (!ocrWorker) {
+              const loaded = await loadTesseract(langs);
+              ocrWorker = loaded.worker;
+              ocrPsmEnum = loaded.PSM;
+            }
+            let variantNames = null;
+            let psmModes = null;
+            if (force) {
+              const hints = await readOcrHintsFromSidecar(check.sidecarAbsolute);
+              if (hints.preprocess || hints.psm) {
+                variantNames = hints.preprocess ? [hints.preprocess] : ["gray-normalize"];
+                psmModes = hints.psm ? [hints.psm] : [String(ocrPsmEnum?.SPARSE_TEXT || "11")];
+              } else {
+                variantNames = ["gray-normalize"];
+                psmModes = [String(ocrPsmEnum?.SPARSE_TEXT || "11")];
+              }
+            }
+            const ocrResult = await extractImageText(buffer, langs, {
+              worker: ocrWorker,
+              terminateWorker: false,
+              variantNames,
+              psmModes
+            });
             text = typeof ocrResult === "string" ? ocrResult : ocrResult?.text || "";
             preprocessVariant = typeof ocrResult === "object" ? ocrResult.variant : null;
             ocrPsm = typeof ocrResult === "object" ? ocrResult.psm : null;
@@ -402,6 +550,12 @@ function createOcrIndexService(deps) {
 
           await fs.mkdir(path.dirname(sidecarAbsolute), { recursive: true });
           const extractedAt = new Date().toISOString();
+          let existingContent = null;
+          try {
+            existingContent = await fs.readFile(sidecarAbsolute, "utf-8");
+          } catch {
+            existingContent = null;
+          }
           await fs.writeFile(
             sidecarAbsolute,
             buildSidecarContent({
@@ -410,7 +564,8 @@ function createOcrIndexService(deps) {
               engine,
               extractedAt,
               preprocessVariant,
-              psm: ocrPsm
+              psm: ocrPsm,
+              existingContent
             }),
             "utf-8"
           );
@@ -441,6 +596,11 @@ function createOcrIndexService(deps) {
             status: "failed",
             reason: String(error.message || error)
           });
+        }
+      }
+      } finally {
+        if (ocrWorker) {
+          await ocrWorker.terminate();
         }
       }
 
