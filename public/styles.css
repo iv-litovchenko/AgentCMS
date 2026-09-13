@@ -1392,18 +1392,24 @@ body.app-locked {
 
 .app-landing-orbit-focus-panel {
   position: relative;
-  z-index: 4;
+  z-index: 12;
   flex: 0 0 auto;
   margin: 0;
-  padding: 12px 14px 14px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow:
-    0 14px 34px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
+  padding: 8px 12px 10px;
+  border: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.42);
+  box-shadow: none;
+  backdrop-filter: blur(8px);
   overflow: visible;
+  pointer-events: none;
+}
+
+.app-landing-orbit-focus-panel .app-landing-orbit-focus-panel-head,
+.app-landing-orbit-focus-panel .app-landing-main-topics-head,
+.app-landing-orbit-focus-panel .app-landing-main-topics-carousel {
+  pointer-events: auto;
 }
 
 .app-landing-orbit-focus-panel-head {

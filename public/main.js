@@ -8161,6 +8161,7 @@ function syncLandingMainTopicsVisibility(hasItems = globalFocusItemsCache.length
   const wasShown = !appLandingFocusNode.classList.contains("hidden");
   appLandingFocusNode.classList.toggle("hidden", !show);
   appLandingFocusNode.setAttribute("aria-hidden", show ? "false" : "true");
+  appLandingOrbitBubblesNode?.classList.toggle("has-focus-panel", show);
   appLandingOrbitNode?.classList.toggle("has-focus-panel", show);
   if (show !== wasShown && getLandingAgentsView() === "orbit") {
     renderAppLandingOrbit();
