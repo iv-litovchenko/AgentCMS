@@ -1132,7 +1132,6 @@ let headerProfileMenuOpen = false;
 const agentsManageBtn = document.getElementById("agents-manage-btn");
 const agentsPickerBtn = document.getElementById("agents-picker-btn");
 const agentsPickerPopoverNode = document.getElementById("agents-picker-popover");
-const agentsAgentPickerStageNode = document.getElementById("agents-agent-picker-stage");
 const agentPreviewWrapNode = document.getElementById("agent-preview-wrap");
 const agentPreviewThumbNode = document.getElementById("agent-preview-thumb");
 const agentPreviewSlideCounterNode = document.getElementById("agent-preview-slide-counter");
@@ -8583,42 +8582,8 @@ function createAgentPickerFallback(agent, avatarSize) {
   return fallback;
 }
 
-function renderAgentViewPickerMenu() {
-  if (!agentsAgentPickerStageNode || !agentViewSelect) return;
-
-  agentsAgentPickerStageNode.className = "agents-view-picker-menu";
-  agentsAgentPickerStageNode.replaceChildren();
-
-  const currentView = String(agentViewSelect.value || agentWorkspaceView || "dashboard").trim();
-  for (const option of agentViewSelect.options) {
-    if (option.hidden) continue;
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.role = "menuitem";
-    btn.className = "header-profile-menu-item agents-view-picker-item";
-    btn.dataset.view = option.value;
-    btn.textContent = option.textContent || option.value;
-    btn.disabled = option.disabled;
-    btn.classList.toggle("is-active", option.value === currentView);
-    btn.addEventListener("click", () => {
-      if (option.disabled) return;
-      agentViewSelect.value = option.value;
-      setAgentWorkspaceView(option.value);
-      closeAgentsPickerPopover();
-      syncAgentViewPickerMenuState();
-    });
-    agentsAgentPickerStageNode.appendChild(btn);
-  }
-}
-
 function syncAgentViewPickerMenuState() {
   if (!agentViewSelect) return;
-  const currentView = String(agentViewSelect.value || agentWorkspaceView || "").trim();
-  if (agentsAgentPickerStageNode) {
-    for (const btn of agentsAgentPickerStageNode.querySelectorAll(".agents-view-picker-item")) {
-      btn.classList.toggle("is-active", btn.dataset.view === currentView);
-    }
-  }
   if (sidebarAgentAvatarBtn) {
     const agent = getAgentMeta(activeAgentId);
     const agentLabel = String(agent?.name || agent?.id || "Агент").trim();
@@ -8864,7 +8829,7 @@ function openAgentsPickerPopover() {
   }
   closeMenuSettingsPopover();
   agentsPickerIsOpen = true;
-  renderAgentViewPickerMenu();
+  syncAgentWorkspaceViewButtons();
   agentsPickerPopoverNode.classList.remove("hidden");
   syncAgentsPickerButtonState();
   positionAgentsPickerPopover();
@@ -8872,7 +8837,7 @@ function openAgentsPickerPopover() {
 
 function refreshAgentsPickerIfOpen() {
   if (!agentsPickerIsOpen) return;
-  renderAgentViewPickerMenu();
+  syncAgentWorkspaceViewButtons();
   positionAgentsPickerPopover();
 }
 
@@ -98811,6 +98776,7 @@ agentViewSelect?.addEventListener("change", () => {
     return;
   }
   setAgentWorkspaceView(view);
+  closeAgentsPickerPopover();
 });
 
 function handleAgentPreviewOpenActivate(event) {

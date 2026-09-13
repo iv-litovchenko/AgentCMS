@@ -17315,20 +17315,13 @@ a.header-tool-btn {
   border: 0;
 }
 
-.agents-view-picker-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+.agents-picker-popover .agent-view-select-wrap {
+  padding: 0 2px;
 }
 
-.agents-view-picker-menu .header-profile-menu-item.is-active {
-  background: #eef2ff;
-  color: #1e3a8a;
-}
-
-.agents-view-picker-menu .header-profile-menu-item:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.agents-picker-popover .agent-view-select {
+  width: 100%;
+  max-width: none;
 }
 
 .agents-picker-popover.hidden {

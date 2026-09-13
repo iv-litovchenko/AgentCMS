@@ -946,23 +946,6 @@
                   </button>
                 </div>
               </div>
-              <div id="agent-view-select-wrap" class="agent-view-select-wrap agent-view-select-wrap--sr-only" aria-hidden="true">
-                <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace агента" tabindex="-1">
-                  <option value="dashboard" selected>Главная</option>
-                  <option value="dashboard2">Дашборд</option>
-                  <option value="graph">Граф связей</option>
-                  <option value="map2" disabled>Структура</option>
-                  <option value="table">Таблица</option>
-                  <option value="vault">Каталог</option>
-                  <option value="schema">Карта</option>
-                  <option value="timeline">Лента</option>
-                  <option value="map" hidden>Карта</option>
-                  <option value="map3" hidden>Карта 3</option>
-                  <option value="storage" hidden>Хранилище</option>
-                  <option value="timeline-axis" hidden>Timeline</option>
-                  <option value="timeline-vertical" hidden>Timeline ↓</option>
-                </select>
-              </div>
               <div
                 id="agents-picker-popover"
                 class="agents-picker-popover hidden"
@@ -976,7 +959,23 @@
                   >
                     Вид workspace
                   </p>
-                  <div id="agents-agent-picker-stage" class="agents-view-picker-menu" role="menu" aria-label="Вид workspace"></div>
+                  <div id="agent-view-select-wrap" class="agent-view-select-wrap">
+                    <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace">
+                      <option value="dashboard" selected>Главная</option>
+                      <option value="dashboard2">Дашборд</option>
+                      <option value="graph">Граф связей</option>
+                      <option value="map2" disabled>Структура</option>
+                      <option value="table">Таблица</option>
+                      <option value="vault">Каталог</option>
+                      <option value="schema">Карта</option>
+                      <option value="timeline">Лента</option>
+                      <option value="map" hidden>Карта</option>
+                      <option value="map3" hidden>Карта 3</option>
+                      <option value="storage" hidden>Хранилище</option>
+                      <option value="timeline-axis" hidden>Timeline</option>
+                      <option value="timeline-vertical" hidden>Timeline ↓</option>
+                    </select>
+                  </div>
                 </section>
                 <section class="agents-picker-popover-section agents-picker-popover-section--tools">
                   <p
