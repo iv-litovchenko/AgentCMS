@@ -1,6 +1,11 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { tokenize } = require("../semantic-search/tokenize");
+const {
+  startWorkspaceIndexProgress,
+  tickWorkspaceIndexProgress,
+  finishWorkspaceIndexProgress
+} = require("../workspace-index/progress");
 const { loadIndex, saveIndex } = require("./store");
 
 function normalizeSearchPathPrefix(value) {
@@ -75,13 +80,27 @@ function createFulltextSearchService(deps) {
     }
   }
 
-  async function collectSources(agentRoot) {
+  async function collectSources(agentRoot, { reportProgress = false } = {}) {
     const relFiles = await collectSearchableFiles(agentRoot);
-    const sources = [];
+    const eligible = [];
     for (const relPath of relFiles) {
       const base = path.basename(relPath);
       if (isTextSearchableFileName && !isTextSearchableFileName(base)) continue;
       if (!isTextFile(base)) continue;
+      eligible.push(relPath);
+    }
+
+    if (reportProgress) {
+      startWorkspaceIndexProgress(agentRoot, "fulltext", eligible.length);
+    }
+
+    const sources = [];
+    let index = 0;
+    for (const relPath of eligible) {
+      index += 1;
+      if (reportProgress) {
+        tickWorkspaceIndexProgress(agentRoot, index, eligible.length, relPath);
+      }
       const content = await readFileContent(relPath);
       if (!String(content).trim()) continue;
       sources.push({
@@ -101,7 +120,12 @@ function createFulltextSearchService(deps) {
 
     const job = (async () => {
       const started = Date.now();
-      const sources = await collectSources(agentRoot);
+      let sources = [];
+      try {
+        sources = await collectSources(agentRoot, { reportProgress: true });
+      } finally {
+        finishWorkspaceIndexProgress(agentRoot);
+      }
       const postings = {};
       const fileTerms = {};
 

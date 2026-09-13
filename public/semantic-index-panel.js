@@ -51,6 +51,65 @@
     loading: false
   };
 
+  const buttonDefaultLabels = new Map();
+  const buttonProgressPollers = new Map();
+
+  function rememberButtonLabel(button) {
+    if (!button) return "";
+    if (!buttonDefaultLabels.has(button)) {
+      buttonDefaultLabels.set(button, button.textContent.trim());
+    }
+    return buttonDefaultLabels.get(button);
+  }
+
+  function formatProgressButtonLabel(baseLabel, progress, layer) {
+    if (!progress?.running || progress.layer !== layer) return baseLabel;
+    const current = Number(progress.current) || 0;
+    const total = Number(progress.total) || 0;
+    if (total > 0) return `${baseLabel} · ${current} из ${total}`;
+    if (current > 0) return `${baseLabel} · ${current}…`;
+    return `${baseLabel}…`;
+  }
+
+  function applyButtonProgress(button, layer, progress) {
+    if (!button) return;
+    const baseLabel = rememberButtonLabel(button);
+    button.textContent = formatProgressButtonLabel(baseLabel, progress, layer);
+  }
+
+  function startButtonProgressPolling(button, layer) {
+    if (!button) return;
+    rememberButtonLabel(button);
+    stopButtonProgressPolling(button);
+
+    const poll = async () => {
+      try {
+        const response = await fetch(buildApiUrl("/api/workspace-index/progress"));
+        const progress = await response.json();
+        if (response.ok) {
+          applyButtonProgress(button, layer, progress);
+        }
+      } catch {
+        // ignore transient polling errors
+      }
+    };
+
+    poll();
+    const timer = setInterval(poll, 450);
+    buttonProgressPollers.set(button, timer);
+  }
+
+  function stopButtonProgressPolling(button) {
+    if (!button) return;
+    const timer = buttonProgressPollers.get(button);
+    if (timer) {
+      clearInterval(timer);
+      buttonProgressPollers.delete(button);
+    }
+    const baseLabel = buttonDefaultLabels.get(button);
+    if (baseLabel) button.textContent = baseLabel;
+  }
+
   function getActiveAgentId() {
     const urlAgent = new URLSearchParams(window.location.search).get("agent");
     if (urlAgent) return urlAgent;
@@ -237,17 +296,28 @@
   }
 
   async function runRebuild(url, statusNode, okLabel, options = {}) {
-    statusNode.textContent = options.loadingLabel || "Сборка…";
-    const response = await fetch(buildApiUrl(url), {
-      method: "POST",
-      headers: options.body ? { "Content-Type": "application/json" } : undefined,
-      body: options.body ? JSON.stringify(options.body) : undefined
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || data.details || response.statusText);
-    statusNode.textContent = okLabel(data);
-    await refreshStatus();
-    return data;
+    const progressButton = options.progressButton || null;
+    const progressLayer = options.progressLayer || null;
+    if (progressButton && progressLayer) {
+      startButtonProgressPolling(progressButton, progressLayer);
+    } else {
+      statusNode.textContent = options.loadingLabel || "Сборка…";
+    }
+
+    try {
+      const response = await fetch(buildApiUrl(url), {
+        method: "POST",
+        headers: options.body ? { "Content-Type": "application/json" } : undefined,
+        body: options.body ? JSON.stringify(options.body) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+      statusNode.textContent = okLabel(data);
+      await refreshStatus();
+      return data;
+    } finally {
+      if (progressButton) stopButtonProgressPolling(progressButton);
+    }
   }
 
   function renderVectorItems(items) {
@@ -401,12 +471,20 @@
     });
   }
 
+  [
+    ocrRunBtn,
+    ocrForceBtn,
+    fulltextRebuildBtn,
+    semanticRebuildBtn,
+    storageRebuildBtn
+  ].forEach((button) => rememberButtonLabel(button));
+
   bindActionButton(ocrRunBtn, async () => {
     await runRebuild(
       "/api/ocr-index/run",
       ocrStatusNode,
       (data) => `OCR: обработано ${data.processed}, пропущено ${data.skipped}, ошибок ${data.failed}.`,
-      { body: { force: false, limit: 100 } }
+      { body: { force: false, limit: 100 }, progressButton: ocrRunBtn, progressLayer: "ocr" }
     );
   });
 
@@ -415,25 +493,34 @@
       "/api/ocr-index/run",
       ocrStatusNode,
       (data) => `OCR (всё): обработано ${data.processed}, пропущено ${data.skipped}, ошибок ${data.failed}.`,
-      { body: { force: true, limit: 200 } }
+      { body: { force: true, limit: 200 }, progressButton: ocrForceBtn, progressLayer: "ocr" }
     );
   });
 
   bindActionButton(fulltextRebuildBtn, async () => {
-    await runRebuild("/api/search/fulltext/reindex", fulltextStatusNode, (data) =>
-      `Слова: ${data.fileCount} файлов, ${data.termCount} термов.`
+    await runRebuild(
+      "/api/search/fulltext/reindex",
+      fulltextStatusNode,
+      (data) => `Слова: ${data.fileCount} файлов, ${data.termCount} термов.`,
+      { progressButton: fulltextRebuildBtn, progressLayer: "fulltext" }
     );
   });
 
   bindActionButton(semanticRebuildBtn, async () => {
-    await runRebuild("/api/search/semantic/reindex", semanticStatusNode, (data) =>
-      `Смысл: ${data.fileCount} файлов, ${data.chunkCount} фрагментов.`
+    await runRebuild(
+      "/api/search/semantic/reindex",
+      semanticStatusNode,
+      (data) => `Смысл: ${data.fileCount} файлов, ${data.chunkCount} фрагментов.`,
+      { progressButton: semanticRebuildBtn, progressLayer: "semantic" }
     );
   });
 
   bindActionButton(storageRebuildBtn, async () => {
-    await runRebuild("/api/storage-index/reindex", storageStatusNode, (data) =>
-      `Поля: ${data.recordCount} записей, ${data.fieldCount} уникальных полей.`
+    await runRebuild(
+      "/api/storage-index/reindex",
+      storageStatusNode,
+      (data) => `Поля: ${data.recordCount} записей, ${data.fieldCount} уникальных полей.`,
+      { progressButton: storageRebuildBtn, progressLayer: "storage" }
     );
   });
 

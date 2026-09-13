@@ -1,6 +1,11 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { extractFrontmatter } = require("./frontmatter");
+const {
+  startWorkspaceIndexProgress,
+  tickWorkspaceIndexProgress,
+  finishWorkspaceIndexProgress
+} = require("../workspace-index/progress");
 const { loadIndex, saveIndex } = require("./store");
 
 function isIndexableTextFile(name) {
@@ -45,13 +50,23 @@ function createStorageIndexService(deps) {
   const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute } = deps;
   const rebuildLocks = new Map();
 
-  async function collectRecords(agentRoot) {
+  async function collectRecords(agentRoot, { reportProgress = false } = {}) {
     const relFiles = await collectSearchableFiles(agentRoot);
+    const eligible = relFiles.filter((relPath) => isIndexableTextFile(path.basename(relPath)));
+
+    if (reportProgress) {
+      startWorkspaceIndexProgress(agentRoot, "storage", eligible.length);
+    }
+
     const records = [];
     const fieldSet = new Set();
+    let index = 0;
 
-    for (const relPath of relFiles) {
-      if (!isIndexableTextFile(path.basename(relPath))) continue;
+    for (const relPath of eligible) {
+      index += 1;
+      if (reportProgress) {
+        tickWorkspaceIndexProgress(agentRoot, index, eligible.length, relPath);
+      }
       const absolute = resolvePathAbsolute(relPath);
       if (!absolute) continue;
       let content = "";
@@ -134,7 +149,15 @@ function createStorageIndexService(deps) {
 
     const job = (async () => {
       const started = Date.now();
-      const { records, fieldCatalog } = await collectRecords(agentRoot);
+      let records = [];
+      let fieldCatalog = [];
+      try {
+        const collected = await collectRecords(agentRoot, { reportProgress: true });
+        records = collected.records;
+        fieldCatalog = collected.fieldCatalog;
+      } finally {
+        finishWorkspaceIndexProgress(agentRoot);
+      }
       const index = {
         version: 1,
         model: "workspace-field-index-v1",

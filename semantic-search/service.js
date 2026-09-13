@@ -2,6 +2,11 @@ const fs = require("fs/promises");
 const path = require("path");
 const { chunkMarkdown } = require("./chunker");
 const { MODEL_ID, DIMS, buildIdf, embedText, cosineSimilarity } = require("./embedder");
+const {
+  startWorkspaceIndexProgress,
+  tickWorkspaceIndexProgress,
+  finishWorkspaceIndexProgress
+} = require("../workspace-index/progress");
 const { loadIndex, saveIndex } = require("./store");
 
 function isTextFile(name) {
@@ -33,11 +38,21 @@ function createSemanticSearchService(deps) {
   const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute } = deps;
   const rebuildLocks = new Map();
 
-  async function collectSources(agentRoot) {
+  async function collectSources(agentRoot, { reportProgress = false } = {}) {
     const relFiles = await collectSearchableFiles(agentRoot);
+    const eligible = relFiles.filter((relPath) => isTextFile(path.basename(relPath)));
+
+    if (reportProgress) {
+      startWorkspaceIndexProgress(agentRoot, "semantic", eligible.length);
+    }
+
     const sources = [];
-    for (const relPath of relFiles) {
-      if (!isTextFile(path.basename(relPath))) continue;
+    let index = 0;
+    for (const relPath of eligible) {
+      index += 1;
+      if (reportProgress) {
+        tickWorkspaceIndexProgress(agentRoot, index, eligible.length, relPath);
+      }
       const absolute = resolvePathAbsolute(relPath);
       if (!absolute) continue;
       let content = "";
@@ -119,7 +134,12 @@ function createSemanticSearchService(deps) {
 
     const job = (async () => {
       const started = Date.now();
-      const sources = await collectSources(agentRoot);
+      let sources = [];
+      try {
+        sources = await collectSources(agentRoot, { reportProgress: true });
+      } finally {
+        finishWorkspaceIndexProgress(agentRoot);
+      }
       const allTexts = sources.flatMap((s) => s.chunks);
       const idf = buildIdf(allTexts);
 

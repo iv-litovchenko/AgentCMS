@@ -39,6 +39,7 @@ const { createFulltextSearchService } = require("./fulltext-index/service");
 const { createStorageIndexService } = require("./storage-index/service");
 const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
 const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
+const { getWorkspaceIndexProgress } = require("./workspace-index/progress");
 const { loadIndex: loadSemanticIndexFile } = require("./semantic-search/store");
 const { loadIndex: loadFulltextIndexFile } = require("./fulltext-index/store");
 const { loadIndex: loadStorageIndexFile } = require("./storage-index/store");
@@ -17081,6 +17082,18 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/workspace-index/progress") {
+    try {
+      const agentRoot = getAgentRoot();
+      return sendJson(res, 200, getWorkspaceIndexProgress(agentRoot));
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace index progress",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/menu") {
     try {
       const maxDepthRaw = Number(url.searchParams.get("maxDepth"));
@@ -17990,7 +18003,8 @@ async function handleApiForAgent(req, res, url) {
         force: Boolean(payload?.force),
         limit: payload?.limit,
         langs: payload?.langs,
-        pathPrefix: payload?.pathPrefix || payload?.path || ""
+        pathPrefix: payload?.pathPrefix || payload?.path || "",
+        sourcePath: payload?.sourcePath || payload?.file || ""
       });
       return sendJson(res, 200, data);
     } catch (error) {

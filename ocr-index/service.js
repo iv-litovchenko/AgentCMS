@@ -1,6 +1,11 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { mergeFrontmatterOverrides } = require("../awn-yaml-utils");
+const {
+  startWorkspaceIndexProgress,
+  tickWorkspaceIndexProgress,
+  finishWorkspaceIndexProgress
+} = require("../workspace-index/progress");
 const { loadManifest, saveManifest } = require("./store");
 
 const OCR_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff", ".gif"]);
@@ -75,13 +80,21 @@ function splitSidecarFrontmatter(raw = "") {
   };
 }
 
-function buildOcrFrontmatterOverrides({ sourceRel, text, engine, extractedAt, preprocessVariant, psm }) {
+function buildOcrFrontmatterOverrides({
+  sourceRel,
+  text,
+  engine,
+  extractedAt,
+  preprocessVariant,
+  psm,
+  extracted = true
+}) {
   const ocrText = String(text || "").trim();
   const overrides = {
     "awn-ocr-source": sourceRel,
     "awn-ocr-engine": engine,
     "awn-ocr-at": extractedAt,
-    "awn-ocr-extracted": "true",
+    "awn-ocr-extracted": extracted ? "true" : "false",
     "awn-ocr-text": ocrText,
     "awn-type": "awn.content.sidecar"
   };
@@ -97,23 +110,27 @@ function buildSidecarContent({
   extractedAt,
   preprocessVariant,
   psm,
-  existingContent = null
+  existingContent = null,
+  extracted = true,
+  clearBody = false
 }) {
-  const ocrText = String(text || "").trim();
+  const ocrText = extracted ? String(text || "").trim() : "";
   const overrides = buildOcrFrontmatterOverrides({
     sourceRel,
     text: ocrText,
     engine,
     extractedAt,
     preprocessVariant,
-    psm
+    psm,
+    extracted
   });
   const existingRaw = String(existingContent || "").trim();
 
   if (existingRaw) {
     const { frontmatter, body } = splitSidecarFrontmatter(existingRaw);
     const nextFrontmatter = mergeFrontmatterOverrides(frontmatter, overrides);
-    const bodySuffix = body ? `\n${body}` : "";
+    const keptBody = clearBody ? "" : body;
+    const bodySuffix = keptBody ? `\n${keptBody}` : "";
     return `---\n${nextFrontmatter}\n---${bodySuffix}`;
   }
 
@@ -122,6 +139,9 @@ function buildSidecarContent({
     "awn-name": `OCR: ${safeName}`,
     ...overrides
   });
+  if (!extracted || !ocrText) {
+    return `---\n${frontmatter}\n---\n`;
+  }
   return `---\n${frontmatter}\n---\n\n${ocrText}\n`;
 }
 
@@ -135,16 +155,86 @@ async function extractPdfText(buffer) {
   }
 }
 
+const OCR_CAPTION_MIN_ASPECT = 1.85;
+const OCR_FORCE_VARIANTS = ["gray-normalize", "high-contrast", "inverted-overlay", "otsu-binarize"];
+
+function countRealWords(text) {
+  return String(text || "")
+    .split(/\s+/)
+    .map((word) => word.replace(/[^\p{L}\p{N}]/gu, ""))
+    .filter((word) => word.length >= 3 && /[\p{L}]/u.test(word));
+}
+
 function scoreOcrText(text) {
   const value = String(text || "").trim();
   if (!value) return 0;
   const letters = value.match(/[A-Za-zА-Яа-яЁё]/g) || [];
-  const cyrillicWords = value.match(/[А-Яа-яЁё]{3,}/g) || [];
-  const words = value.split(/\s+/).filter((word) => word.length >= 2 && /[A-Za-zА-Яа-яЁё]/.test(word));
-  const garbage = value.match(/[|\\<>[\]{}]/g) || [];
-  let score = letters.length * 2 + words.length * 6 + cyrillicWords.length * 14 - garbage.length * 10;
-  if (value.length > 180 && cyrillicWords.length < 2) score -= 40;
+  const cyrillicWords = value.match(/[А-Яа-яЁё]{4,}/g) || [];
+  const latinWords = value.match(/[A-Za-z]{4,}/g) || [];
+  const realWords = countRealWords(value);
+  const tokens = value.split(/\s+/).filter(Boolean);
+  const singleCharTokens = tokens.filter((token) => token.replace(/[^\p{L}\p{N}]/gu, "").length <= 1).length;
+  const garbage = value.match(/[|\\<>[\]{}_=~`]/g) || [];
+  const symbolRatio = (value.match(/[=|<>[\]{}_—\-~`'"\\@#%^&*]/g) || []).length / Math.max(value.length, 1);
+
+  let score =
+    letters.length * 2 +
+    realWords.length * 18 +
+    cyrillicWords.length * 16 +
+    latinWords.length * 10 -
+    garbage.length * 12 -
+    singleCharTokens * 8 -
+    Math.round(symbolRatio * 180);
+
+  if (realWords.length < 1) score -= 80;
+  if (value.length > 120 && realWords.length < 2) score -= 50;
+  if (singleCharTokens > Math.max(2, Math.floor(tokens.length * 0.35))) score -= 45;
   return score;
+}
+
+function extractRecognitionStats(data) {
+  const words = Array.isArray(data?.words) ? data.words : [];
+  const avgConfidence =
+    words.length > 0
+      ? words.reduce((sum, word) => sum + (Number(word.confidence) || 0), 0) / words.length
+      : Number(data?.confidence) || 0;
+  return { avgConfidence };
+}
+
+function isOcrGarbage(text) {
+  const value = String(text || "").trim();
+  const realWords = countRealWords(value);
+  const cyrillicWords = value.match(/[А-Яа-яЁё]{4,}/g) || [];
+  const tokens = value.split(/\s+/).filter(Boolean);
+  const singleCharTokens = tokens.filter((token) => token.replace(/[^\p{L}\p{N}]/gu, "").length <= 1).length;
+  const singleCharRatio = singleCharTokens / Math.max(tokens.length, 1);
+  const symbolRatio = (value.match(/[=|<>[\]{}_—\-~`'"\\@#%^&*]/g) || []).length / Math.max(value.length, 1);
+  const score = scoreOcrText(value);
+
+  if (!realWords.length && !cyrillicWords.length) return true;
+  if (singleCharRatio > 0.42 && cyrillicWords.length < 2) return true;
+  if (symbolRatio > 0.11 && realWords.length < 2) return true;
+  if (score < 45 && cyrillicWords.length < 2) return true;
+  return false;
+}
+
+function assessOcrQuality(text, stats = {}) {
+  const value = String(text || "").trim();
+  const score = scoreOcrText(value);
+  const realWords = countRealWords(value);
+  const cyrillicWords = value.match(/[А-Яа-яЁё]{4,}/g) || [];
+  const confidence = Number(stats.avgConfidence ?? stats.confidence) || 0;
+
+  if (!value) return { ok: false, score, reason: "empty", confidence };
+  if (isOcrGarbage(value)) return { ok: false, score, reason: "garbage", confidence };
+  if (score < 50) return { ok: false, score, reason: "low_score", confidence };
+  if (realWords.length < 1 && cyrillicWords.length < 1) {
+    return { ok: false, score, reason: "no_words", confidence };
+  }
+  if (confidence > 0 && confidence < 30 && score < 80) {
+    return { ok: false, score, reason: "low_confidence", confidence };
+  }
+  return { ok: true, score, reason: "ok", confidence };
 }
 
 function cleanupOcrText(text) {
@@ -154,17 +244,14 @@ function cleanupOcrText(text) {
     .filter(Boolean);
 
   const good = lines.filter((line) => {
-    const cyrillic = (line.match(/[А-Яа-яЁё]/g) || []).length;
-    const latin = (line.match(/[A-Za-z]/g) || []).length;
-    const garbage = (line.match(/[|\\<>[\]{}]/g) || []).length;
-    const letters = cyrillic + latin;
-    return letters >= 4 && garbage <= 2 && cyrillic >= Math.max(3, Math.floor(letters * 0.4));
+    const realWords = countRealWords(line);
+    const garbage = (line.match(/[|\\<>[\]{}_=~`]/g) || []).length;
+    const symbolRatio = (line.match(/[=|<>[\]{}_—\-~`'"\\@#%^&*]/g) || []).length / Math.max(line.length, 1);
+    return realWords.length >= 1 && garbage <= 1 && symbolRatio <= 0.14;
   });
 
   if (good.length) return good.join("\n").trim();
-
-  const fallback = lines.filter((line) => (line.match(/[А-Яа-яЁё]/g) || []).length >= 4);
-  return fallback.join("\n").trim() || String(text || "").trim();
+  return "";
 }
 
 async function createOcrResizePipeline(buffer, sharp) {
@@ -198,6 +285,11 @@ async function buildNamedOcrVariant(resized, width, height, scale, name) {
       return {
         name,
         buffer: await resized.clone().grayscale().linear(1.5, -48).sharpen().png().toBuffer()
+      };
+    case "otsu-binarize":
+      return {
+        name,
+        buffer: await resized.clone().grayscale().normalize().threshold(150).png().toBuffer()
       };
     case "inverted-contrast":
       return {
@@ -246,11 +338,10 @@ async function buildNamedOcrVariant(resized, width, height, scale, name) {
 
 async function buildOcrVariants(buffer, sharp, { onlyNames = null } = {}) {
   const { resized, width, height, scale } = await createOcrResizePipeline(buffer, sharp);
-  const baseNames = ["gray-normalize", "inverted-overlay", "high-contrast", "inverted-contrast"];
+  const baseNames = ["gray-normalize", "otsu-binarize", "inverted-overlay", "high-contrast", "inverted-contrast"];
+  const aspect = width > 0 && height > 0 ? width / height : 0;
   const captionNames =
-    width > 0 && height > 0 && width / height >= 1.2
-      ? ["caption-inverted", "caption-contrast"]
-      : [];
+    aspect >= OCR_CAPTION_MIN_ASPECT ? ["caption-inverted", "caption-contrast"] : [];
   const allNames = [...baseNames, ...captionNames];
   const names = Array.isArray(onlyNames) && onlyNames.length
     ? onlyNames.filter((name) => allNames.includes(name))
@@ -334,7 +425,7 @@ async function extractImageText(buffer, langs = "rus+eng", options = {}) {
     : defaultPsmModes.length
       ? defaultPsmModes
       : ["11", "6", "3"];
-  let best = { text: "", score: 0, variant: "raw", psm: "auto" };
+  let best = { text: "", score: 0, confidence: 0, variant: "raw", psm: "auto" };
 
   try {
     for (const psm of psmModes) {
@@ -343,8 +434,9 @@ async function extractImageText(buffer, langs = "rus+eng", options = {}) {
         const { data } = await worker.recognize(item.buffer);
         const text = String(data?.text || "").trim();
         const score = scoreOcrText(text);
-        if (score > best.score) {
-          best = { text, score, variant: item.name, psm: String(psm) };
+        const confidence = extractRecognitionStats(data).avgConfidence;
+        if (score > best.score || (score === best.score && confidence > best.confidence)) {
+          best = { text, score, confidence, variant: item.name, psm: String(psm) };
         }
       }
     }
@@ -354,9 +446,13 @@ async function extractImageText(buffer, langs = "rus+eng", options = {}) {
     }
   }
 
+  const cleaned = cleanupOcrText(best.text);
+  const quality = assessOcrQuality(cleaned, best);
+
   return {
     ...best,
-    text: cleanupOcrText(best.text)
+    text: cleaned,
+    quality
   };
 }
 
@@ -446,7 +542,13 @@ function createOcrIndexService(deps) {
     };
   }
 
-  async function run({ force = false, limit = 50, langs = "rus+eng", pathPrefix = "" } = {}) {
+  async function run({
+    force = false,
+    limit = 50,
+    langs = "rus+eng",
+    pathPrefix = "",
+    sourcePath = ""
+  } = {}) {
     const agentRoot = getAgentRoot();
     if (!agentRoot) throw new Error("Agent not selected");
 
@@ -456,6 +558,20 @@ function createOcrIndexService(deps) {
     const job = (async () => {
       const started = Date.now();
       const candidates = await listCandidates(agentRoot);
+      const exactSource = toPosixRel(sourcePath);
+      if (exactSource && !candidates.some((rel) => toPosixRel(rel) === exactSource)) {
+        return {
+          ok: false,
+          force: Boolean(force),
+          sourcePath: exactSource,
+          candidateCount: candidates.length,
+          processed: 0,
+          skipped: 0,
+          failed: 1,
+          pendingCount: 0,
+          results: [{ path: exactSource, status: "failed", reason: "not_ocr_candidate" }]
+        };
+      }
       const manifest = (await loadManifest(agentRoot)) || {
         version: 1,
         processed: {},
@@ -468,12 +584,28 @@ function createOcrIndexService(deps) {
       let failed = 0;
 
       const prefix = toPosixRel(pathPrefix);
+      const maxItems = exactSource
+        ? 1
+        : Math.max(1, Math.min(500, Number(limit) || 50));
       let ocrWorker = null;
       let ocrPsmEnum = null;
+      let progressTotal = 0;
+      let progressCurrent = 0;
+
+      for (const sourceRel of candidates) {
+        if (progressTotal >= maxItems) break;
+        if (exactSource && toPosixRel(sourceRel) !== exactSource) continue;
+        if (prefix && !toPosixRel(sourceRel).startsWith(prefix)) continue;
+        const check = await needsProcessing(sourceRel, { force });
+        if (check.needed) progressTotal += 1;
+      }
+
+      startWorkspaceIndexProgress(agentRoot, "ocr", progressTotal);
 
       try {
       for (const sourceRel of candidates) {
-        if (processed >= Math.max(1, Math.min(500, Number(limit) || 50))) break;
+        if (processed >= maxItems) break;
+        if (exactSource && toPosixRel(sourceRel) !== exactSource) continue;
         if (prefix && !toPosixRel(sourceRel).startsWith(prefix)) continue;
 
         const check = await needsProcessing(sourceRel, { force });
@@ -482,6 +614,9 @@ function createOcrIndexService(deps) {
           results.push({ path: sourceRel, status: "skipped", reason: check.reason || "up_to_date" });
           continue;
         }
+
+        progressCurrent += 1;
+        tickWorkspaceIndexProgress(agentRoot, progressCurrent, progressTotal, sourceRel);
 
         const ext = path.extname(sourceRel).toLowerCase();
         let text = "";
@@ -512,14 +647,11 @@ function createOcrIndexService(deps) {
             let variantNames = null;
             let psmModes = null;
             if (force) {
-              const hints = await readOcrHintsFromSidecar(check.sidecarAbsolute);
-              if (hints.preprocess || hints.psm) {
-                variantNames = hints.preprocess ? [hints.preprocess] : ["gray-normalize"];
-                psmModes = hints.psm ? [hints.psm] : [String(ocrPsmEnum?.SPARSE_TEXT || "11")];
-              } else {
-                variantNames = ["gray-normalize"];
-                psmModes = [String(ocrPsmEnum?.SPARSE_TEXT || "11")];
-              }
+              variantNames = OCR_FORCE_VARIANTS;
+              psmModes = [
+                String(ocrPsmEnum?.SPARSE_TEXT || "11"),
+                String(ocrPsmEnum?.SINGLE_BLOCK || "6")
+              ];
             }
             const ocrResult = await extractImageText(buffer, langs, {
               worker: ocrWorker,
@@ -530,13 +662,53 @@ function createOcrIndexService(deps) {
             text = typeof ocrResult === "string" ? ocrResult : ocrResult?.text || "";
             preprocessVariant = typeof ocrResult === "object" ? ocrResult.variant : null;
             ocrPsm = typeof ocrResult === "object" ? ocrResult.psm : null;
+            const ocrQuality = typeof ocrResult === "object" ? ocrResult.quality : null;
+            if (!ocrQuality?.ok) {
+              const sidecarRel = check.sidecarRel;
+              const sidecarAbsolute =
+                check.sidecarAbsolute ||
+                resolvePathAbsolute(sidecarRel) ||
+                path.join(agentRoot, sidecarRel.replace(/\\/g, "/"));
+              await fs.mkdir(path.dirname(sidecarAbsolute), { recursive: true });
+              const extractedAt = new Date().toISOString();
+              let existingContent = null;
+              try {
+                existingContent = await fs.readFile(sidecarAbsolute, "utf-8");
+              } catch {
+                existingContent = null;
+              }
+              await fs.writeFile(
+                sidecarAbsolute,
+                buildSidecarContent({
+                  sourceRel,
+                  text: "",
+                  engine,
+                  extractedAt,
+                  preprocessVariant,
+                  psm: ocrPsm,
+                  existingContent,
+                  extracted: false,
+                  clearBody: true
+                }),
+                "utf-8"
+              );
+              failed += 1;
+              results.push({
+                path: sourceRel,
+                status: "failed",
+                reason: ocrQuality?.reason || "poor_quality",
+                score: ocrQuality?.score ?? null,
+                confidence: ocrQuality?.confidence ?? null
+              });
+              continue;
+            }
           } else {
             skipped += 1;
             results.push({ path: sourceRel, status: "skipped", reason: "unsupported_type" });
             continue;
           }
 
-          if (!text.trim()) {
+          if (!String(text || "").trim()) {
             failed += 1;
             results.push({ path: sourceRel, status: "failed", reason: "empty_text" });
             continue;
@@ -602,6 +774,7 @@ function createOcrIndexService(deps) {
         if (ocrWorker) {
           await ocrWorker.terminate();
         }
+        finishWorkspaceIndexProgress(agentRoot);
       }
 
       manifest.lastRunAt = new Date().toISOString();

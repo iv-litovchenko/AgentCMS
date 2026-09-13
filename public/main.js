@@ -55040,6 +55040,18 @@ function resolveNodeOverviewPropsEntries() {
   return mergeOverviewPropsEntrySources(formEntries, getOverviewManifestFrontmatterEntries());
 }
 
+function isLikelyOcrGarbage(text) {
+  const value = String(text || "").trim();
+  if (!value) return false;
+  const tokens = value.split(/\s+/).filter(Boolean);
+  const singleCharRatio = tokens.filter((token) => token.length === 1).length / Math.max(tokens.length, 1);
+  const cyrillicWords = value.match(/[А-Яа-яЁё]{4,}/g) || [];
+  const symbolRatio = (value.match(/[=|<>[\]{}_—\-~`'"\\@#%^&*]/g) || []).length / Math.max(value.length, 1);
+  if (singleCharRatio > 0.42 && cyrillicWords.length < 2) return true;
+  if (symbolRatio > 0.11 && cyrillicWords.length < 2) return true;
+  return false;
+}
+
 function getPropsEntryOverviewDisplayValue(entry, key = entry?.key) {
   if (!entry) return "—";
   if (entry.kind === "null" || entry.value === null) return "—";
@@ -55064,6 +55076,9 @@ function getPropsEntryOverviewDisplayValue(entry, key = entry?.key) {
   if (enumLabel) return enumLabel;
 
   const text = String(entry.value ?? "").trim();
+  if (normalizePropsKey(key) === "awn-ocr-text" && isLikelyOcrGarbage(text)) {
+    return "— (не распознан)";
+  }
   return text || "—";
 }
 
@@ -62144,6 +62159,27 @@ function renderEntryOverviewTabularContentPart(context, nodePath = activePath, n
   return wrap;
 }
 
+function renderEntryOverviewOcrEmptyNotice(context, entries = [], navOptions = null) {
+  if (context?.entryKind !== "awn.media.asset") return null;
+  const extracted = String(getPropsEntryValueByKey(entries, "awn-ocr-extracted") || "").trim().toLowerCase();
+  const hasSidecarType = entries.some(
+    (entry) => normalizePropsKey(entry.key) === "awn-type" && String(entry.value || "").includes("sidecar")
+  );
+  if (!hasSidecarType || extracted === "true") return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-navigation-manifest node-entry-overview-manifest node-entry-overview-ocr-empty";
+
+  const preview = document.createElement("div");
+  preview.className = "node-navigation-preview file-content-preview node-entry-overview-ocr-empty-note";
+  preview.textContent =
+    "OCR не распознал читаемый текст. Для фото со сложным фоном добавьте описание вручную или вставьте скриншот с крупным текстом.";
+  wrap.appendChild(preview);
+
+  if (navOptions) appendEntryOverviewManifestNavActions(wrap, navOptions);
+  return wrap;
+}
+
 function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null, heroTitle = "") {
   const { body } = splitFrontmatter(String(rawContent || ""));
   const content = stripLeadingDuplicateMarkdownHeading(
@@ -65837,14 +65873,7 @@ function createEntryOverviewMediaAssetPanel(
   const main = document.createElement("div");
   main.className = "node-navigation-hero-main node-entry-overview-media-asset-head";
 
-  const manifestPath = getActiveNodeApiPath() || context.relPath || activePath;
-  main.appendChild(
-    createGoogleDriveSyncBar({
-      scope: "file",
-      manifestPath,
-      filePath: context.relativePath
-    })
-  );
+  main.appendChild(createEntryOverviewMediaAssetToolbar(context, entries));
 
   const kindBadge = document.createElement("span");
   kindBadge.className = `node-entry-overview-media-asset-kind node-entry-overview-kind node-entry-overview-kind--${assetKind}`;
@@ -66553,7 +66582,11 @@ async function renderEntryOverview() {
   if (isTabularPreview) {
     contentPanel = renderEntryOverviewTabularContentPart(context, context.relPath, entryOverviewNav);
   } else if (!isCodePreviewFile) {
-    contentPanel = renderEntryOverviewContentPart(rawBody, context.relPath, entryOverviewNav, title);
+    const previewBody =
+      context.entryKind === "awn.media.asset" && isLikelyOcrGarbage(rawBody) ? "" : rawBody;
+    contentPanel =
+      renderEntryOverviewContentPart(previewBody, context.relPath, entryOverviewNav, title) ||
+      renderEntryOverviewOcrEmptyNotice(context, entries, entryOverviewNav);
   }
   if (contentPanel) hubMain.appendChild(contentPanel);
 
@@ -92821,6 +92854,184 @@ async function handleGoogleDriveSyncToggle(button, config = {}) {
   } finally {
     button.classList.remove("is-loading");
   }
+}
+
+function isEntryOverviewOcrCandidate(relativePath) {
+  const ext = getEntryOverviewMediaAssetExt(relativePath);
+  if (!ext) return false;
+  return ENTRY_OVERVIEW_MEDIA_IMAGE_EXTS.has(ext) || ext === ".pdf";
+}
+
+function resolveEntryOverviewOcrSourcePath(context = {}) {
+  const relPath = String(context.relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (relPath) return relPath;
+  const topicPath = getActiveNodeApiPath() || activePath;
+  const memoryKind = context.memoryKind === "assets" ? "assets" : "media";
+  const relativePath = String(context.relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!relativePath) return "";
+  return getMediaLibraryItemContextPath(relativePath, memoryKind, topicPath);
+}
+
+function resolveEntryOverviewOcrBarLabel(extracted = false, failed = false) {
+  if (failed) return "OCR не распознан";
+  if (extracted) return "OCR выполнен";
+  return "Распознать текст (OCR)";
+}
+
+function createOcrIconSvg() {
+  const wrap = document.createElement("span");
+  wrap.className = "node-ocr-sync-btn-icon";
+  wrap.innerHTML =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 4.5A1.5 1.5 0 0 1 4.5 3h4A1.5 1.5 0 0 1 10 4.5V7h4V4.5A1.5 1.5 0 0 1 15.5 3h4A1.5 1.5 0 0 1 21 4.5V9h-2V5h-3v4H8V5H5v14h3v-4h8v4h3v-4h2v4.5A1.5 1.5 0 0 1 19.5 21h-4A1.5 1.5 0 0 1 14 19.5V17h-4v2.5A1.5 1.5 0 0 1 8.5 21h-4A1.5 1.5 0 0 1 3 19.5V4.5Zm2 13.5h1v-2H5v2Zm12 0h1v-2h-1v2ZM7 11h10v2H7v-2Z"/></svg>';
+  return wrap;
+}
+
+function refreshEntryOverviewOcrButton(button, config = {}) {
+  if (!button) return;
+  const extracted = Boolean(config.extracted);
+  const failed = Boolean(config.failed);
+  const label = resolveEntryOverviewOcrBarLabel(extracted, failed);
+  button.dataset.ocrExtracted = extracted ? "1" : "0";
+  button.dataset.ocrFailed = failed ? "1" : "0";
+  button.classList.toggle("is-done", extracted);
+  button.classList.toggle("is-failed", failed && !extracted);
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  const labelNode = button.querySelector(".node-ocr-sync-btn-label");
+  if (labelNode) labelNode.textContent = label;
+}
+
+async function handleEntryOverviewOcrRun(button, config = {}) {
+  if (!button || button.disabled || button.classList.contains("is-loading")) return;
+  const sourcePath = resolveEntryOverviewOcrSourcePath(config.context || {});
+  if (!sourcePath) {
+    showToast("OCR: не удалось определить путь файла", "error");
+    return;
+  }
+
+  button.disabled = true;
+  button.classList.add("is-loading");
+  const labelNode = button.querySelector(".node-ocr-sync-btn-label");
+  const baseLabel = resolveEntryOverviewOcrBarLabel(
+    Boolean(config.extracted),
+    Boolean(config.failed)
+  );
+  if (labelNode) labelNode.textContent = `${baseLabel} · 0 из 1`;
+
+  let pollTimer = null;
+  const poll = async () => {
+    try {
+      const response = await fetch(buildApiUrl("/api/workspace-index/progress"));
+      const progress = await response.json();
+      if (!response.ok || progress.layer !== "ocr" || !progress.running) return;
+      const current = Number(progress.current) || 0;
+      const total = Number(progress.total) || 1;
+      if (labelNode) labelNode.textContent = `${baseLabel} · ${current} из ${total}`;
+    } catch {
+      // ignore polling errors
+    }
+  };
+  pollTimer = setInterval(poll, 450);
+
+  try {
+    const response = await fetch(buildApiUrl("/api/ocr-index/run"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        force: true,
+        limit: 1,
+        sourcePath
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || data.details || `HTTP ${response.status}`);
+    }
+
+    const result = Array.isArray(data.results) ? data.results[0] : null;
+    const processed = Number(data.processed) > 0;
+    const failed =
+      Number(data.failed) > 0 ||
+      result?.status === "failed" ||
+      result?.reason === "poor_quality" ||
+      result?.reason === "empty_text";
+
+    if (processed) {
+      showToast("OCR: текст обновлён", "success");
+    } else if (failed) {
+      showToast("OCR: читаемый текст не найден", "warning");
+    } else {
+      showToast("OCR: изменений нет", "info");
+    }
+
+    window.dispatchEvent(new CustomEvent("workspace-index-file-saved"));
+    if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+      await renderEntryOverview();
+    }
+    refreshEntryOverviewOcrButton(button, {
+      extracted: processed,
+      failed: failed && !processed
+    });
+  } catch (error) {
+    showToast(`OCR: ${error.message}`, "error");
+    refreshEntryOverviewOcrButton(button, config);
+  } finally {
+    clearInterval(pollTimer);
+    button.classList.remove("is-loading");
+    button.disabled = false;
+  }
+}
+
+function createEntryOverviewOcrBar(context = {}, entries = []) {
+  const extracted = String(getPropsEntryValueByKey(entries, "awn-ocr-extracted") || "")
+    .trim()
+    .toLowerCase() === "true";
+  const ocrText = String(getPropsEntryValueByKey(entries, "awn-ocr-text") || "").trim();
+  const failed = !extracted && Boolean(ocrText) && isLikelyOcrGarbage(ocrText);
+
+  const bar = document.createElement("div");
+  bar.className = "node-ocr-sync-bar";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "node-ocr-sync-bar-btn";
+  button.append(createOcrIconSvg());
+
+  const labelNode = document.createElement("span");
+  labelNode.className = "node-ocr-sync-btn-label";
+  button.appendChild(labelNode);
+
+  const config = { context, extracted, failed };
+  refreshEntryOverviewOcrButton(button, config);
+
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void handleEntryOverviewOcrRun(button, config);
+  });
+
+  bar.appendChild(button);
+  return bar;
+}
+
+function createEntryOverviewMediaAssetToolbar(context, entries = []) {
+  const toolbar = document.createElement("div");
+  toolbar.className = "node-entry-overview-media-asset-toolbar";
+
+  const manifestPath = getActiveNodeApiPath() || context.relPath || activePath;
+  toolbar.appendChild(
+    createGoogleDriveSyncBar({
+      scope: "file",
+      manifestPath,
+      filePath: context.relativePath
+    })
+  );
+
+  if (isEntryOverviewOcrCandidate(context.relativePath)) {
+    toolbar.appendChild(createEntryOverviewOcrBar(context, entries));
+  }
+
+  return toolbar;
 }
 
 function createGoogleDriveSyncBar(config = {}) {
