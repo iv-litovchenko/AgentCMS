@@ -40,7 +40,9 @@ const { createStorageIndexService } = require("./storage-index/service");
 const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
 const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
 const { loadIndex: loadSemanticIndexFile } = require("./semantic-search/store");
+const { loadIndex: loadFulltextIndexFile } = require("./fulltext-index/store");
 const { loadIndex: loadStorageIndexFile } = require("./storage-index/store");
+const { createOcrIndexService } = require("./ocr-index/service");
 const { createIdentityService } = require("./identity-service");
 const { createDocumentExtractService } = require("./document-extract-service");
 const { buildWorkspacePathResolvePayload } = require("./workspace-path-resolver");
@@ -1561,6 +1563,19 @@ function getStorageIndexService() {
   return storageIndexService;
 }
 
+let ocrIndexService = null;
+function getOcrIndexService() {
+  if (!ocrIndexService) {
+    ocrIndexService = createOcrIndexService({
+      getAgentRoot,
+      resolvePathAbsolute: normalizeWorkspacePath,
+      manifestRelFromNodeAbsolute,
+      onSidecarWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
+    });
+  }
+  return ocrIndexService;
+}
+
 function queueWorkspaceIndexFileSync(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return;
@@ -1578,7 +1593,9 @@ async function getWorkspaceIndexMonitorPayload() {
     collectSearchableFiles,
     resolvePathAbsolute: normalizeWorkspacePath,
     loadSemanticIndex: loadSemanticIndexFile,
-    loadStorageIndex: loadStorageIndexFile
+    loadFulltextIndex: loadFulltextIndexFile,
+    loadStorageIndex: loadStorageIndexFile,
+    getOcrIndexStatus: () => getOcrIndexService().getStatus()
   });
 }
 
@@ -11344,7 +11361,10 @@ const SESSION_CONTEXT_API_MAP = {
   semanticIndexCatalog: "GET /api/search/semantic/catalog — просмотр фрагментов векторного индекса",
   storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
   workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла",
-  workspaceIndexMonitor: "GET /api/workspace-index/monitor — мониторинг индексов (stale, размер, время сборки)",
+  workspaceIndexMonitor: "GET /api/workspace-index/monitor — мониторинг индексов (OCR, слова, смысл, поля)",
+  ocrIndexStatus: "GET /api/ocr-index/status — статус OCR по вложениям",
+  ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
+  workspaceIndexPipeline: "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
     "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_page_url",
@@ -17946,6 +17966,64 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to run hybrid search",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/ocr-index/status") {
+    try {
+      return sendJson(res, 200, await getOcrIndexService().getStatus());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read OCR index status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/ocr-index/run") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getOcrIndexService().run({
+        force: Boolean(payload?.force),
+        limit: payload?.limit,
+        langs: payload?.langs,
+        pathPrefix: payload?.pathPrefix || payload?.path || ""
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("tesseract.js") ? 503 : 500;
+      return sendJson(res, status, {
+        error: "Failed to run OCR index",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace-index/pipeline") {
+    try {
+      const payload = await readJsonBody(req);
+      const ocr = await getOcrIndexService().run({
+        force: Boolean(payload?.forceOcr),
+        limit: payload?.ocrLimit ?? 200
+      });
+      const fulltext = await getFulltextSearchService().rebuildIndex();
+      const semantic = await getSemanticSearchService().rebuildIndex();
+      const storage = await getStorageIndexService().rebuildIndex();
+      return sendJson(res, 200, {
+        ok: true,
+        model: "workspace-index-pipeline",
+        hint: "OCR (new attachments) → fulltext → semantic → storage fields",
+        ocr,
+        fulltext,
+        semantic,
+        storage
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to run workspace index pipeline",
         details: String(error.message || error)
       });
     }

@@ -1414,12 +1414,12 @@
                 </div>
               </details>
               <details class="menu-static-section menu-static-section--indexing menu-static-accordion">
-                <summary class="menu-static-summary" title="Индексирование workspace (смысловая карта заметок): смысл + поля">
+                <summary class="menu-static-summary" title="Подготовка архива и поиск: OCR → слова → смысл → поля">
                   <span class="menu-static-title menu-static-title--indexing">
                     <span aria-hidden="true">🟢</span>
                     <span class="menu-static-title-text">
                       Индексирование workspace
-                      <span class="menu-static-subtitle">Смысловая карта заметок</span>
+                      <span class="menu-static-subtitle">Подготовка архива и поиск</span>
                     </span>
                   </span>
                   <span
@@ -1430,12 +1430,44 @@
                 </summary>
                 <div class="menu-static-body">
                   <p class="menu-static-description">
-                    Два offline-слоя поверх <strong>всего</strong> хранилища (не только инфоблоки): смысл и поля.
-                    После сохранения файла индексы обновляются автоматически (инкрементально).
+                    Цепочка поверх <strong>всего</strong> workspace: текст из вложений → слова → смысл → поля.
+                    После сохранения .md sidecar индексы обновляются автоматически.
                   </p>
 
+                  <div class="menu-index-block menu-index-block--pipeline">
+                    <button type="button" id="menu-workspace-index-pipeline-btn" class="menu-static-action-btn">
+                      Полная цепочка (OCR → слова → смысл → поля)
+                    </button>
+                    <p id="menu-workspace-index-pipeline-status" class="menu-static-description" aria-live="polite"></p>
+                  </div>
+
                   <div class="menu-index-block">
-                    <div class="menu-index-block-title">1. Смысл (RAG)</div>
+                    <div class="menu-index-block-title">1. OCR (вложения)</div>
+                    <p class="menu-static-description">
+                      Текст из jpg/png/pdf → <code>{имя}.sidecar.md</code> · только новые/изменённые
+                    </p>
+                    <p id="menu-ocr-index-status" class="menu-static-description" aria-live="polite"></p>
+                    <button type="button" id="menu-ocr-index-run-btn" class="menu-static-action-btn">
+                      Обработать новые вложения
+                    </button>
+                    <button type="button" id="menu-ocr-index-force-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                      Переобработать всё
+                    </button>
+                  </div>
+
+                  <div class="menu-index-block">
+                    <div class="menu-index-block-title">2. Слова (fulltext)</div>
+                    <p class="menu-static-description">
+                      Точный поиск по словам · <code>.agent-cms/fulltext-index/</code>
+                    </p>
+                    <p id="menu-fulltext-index-status" class="menu-static-description" aria-live="polite"></p>
+                    <button type="button" id="menu-fulltext-index-rebuild-btn" class="menu-static-action-btn">
+                      Переиндексировать слова
+                    </button>
+                  </div>
+
+                  <div class="menu-index-block">
+                    <div class="menu-index-block-title">3. Смысл (RAG)</div>
                     <p class="menu-static-description">
                       Поиск по смыслу · <code>.agent-cms/semantic-index/</code>
                     </p>
@@ -1449,7 +1481,7 @@
                   </div>
 
                   <div class="menu-index-block">
-                    <div class="menu-index-block-title">2. Поля (SQL-like)</div>
+                    <div class="menu-index-block-title">4. Поля (SQL-like)</div>
                     <p class="menu-static-description">
                       Каталог frontmatter всех .md/.yml · фильтр по дате, сумме, типу ·
                       <code>.agent-cms/storage-index/</code>
@@ -1464,7 +1496,7 @@
                   </div>
 
                   <div class="menu-index-block menu-index-block--monitor">
-                    <div class="menu-index-block-title">3. Мониторинг</div>
+                    <div class="menu-index-block-title">5. Мониторинг</div>
                     <p id="menu-workspace-index-monitor-summary" class="menu-index-monitor-summary" aria-live="polite"></p>
                     <div id="menu-workspace-index-monitor-grid" class="menu-index-monitor-grid"></div>
                   </div>
@@ -4749,7 +4781,7 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=12"></script>
     <script src="/connection-status.js?v=1"></script>
-    <script src="/semantic-index-panel.js?v=8"></script>
+    <script src="/semantic-index-panel.js?v=9"></script>
     <script src="/file-find-bar.js?v=2"></script>
     <script src="/slug-translit.js?v=1"></script>
     <script src="/external-file-mask.js?v=1"></script>
@@ -4757,7 +4789,7 @@
     <script src="/node-config-bundle.js?v=1"></script>
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
-    <script src="/main.js?v=0.5.782"></script>
+    <script src="/main.js?v=0.5.784"></script>
     <script src="/discuss-panel.js?v=0.5.259"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>

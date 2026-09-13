@@ -1,15 +1,26 @@
 (function initWorkspaceIndexPanel() {
   const summaryStatsNode = document.getElementById("menu-workspace-index-stats");
+  const ocrStatusNode = document.getElementById("menu-ocr-index-status");
+  const ocrRunBtn = document.getElementById("menu-ocr-index-run-btn");
+  const ocrForceBtn = document.getElementById("menu-ocr-index-force-btn");
+  const fulltextStatusNode = document.getElementById("menu-fulltext-index-status");
+  const fulltextRebuildBtn = document.getElementById("menu-fulltext-index-rebuild-btn");
   const semanticStatusNode = document.getElementById("menu-semantic-index-status");
   const semanticRebuildBtn = document.getElementById("menu-semantic-index-rebuild-btn");
   const semanticShowBtn = document.getElementById("menu-semantic-index-show-btn");
   const storageStatusNode = document.getElementById("menu-storage-index-status");
   const storageRebuildBtn = document.getElementById("menu-storage-index-rebuild-btn");
   const storageShowBtn = document.getElementById("menu-storage-index-show-btn");
+  const pipelineBtn = document.getElementById("menu-workspace-index-pipeline-btn");
+  const pipelineStatusNode = document.getElementById("menu-workspace-index-pipeline-status");
   const monitorSummaryNode = document.getElementById("menu-workspace-index-monitor-summary");
   const monitorGridNode = document.getElementById("menu-workspace-index-monitor-grid");
   if (
     !summaryStatsNode ||
+    !ocrStatusNode ||
+    !ocrRunBtn ||
+    !fulltextStatusNode ||
+    !fulltextRebuildBtn ||
     !semanticStatusNode ||
     !semanticRebuildBtn ||
     !storageStatusNode ||
@@ -74,19 +85,53 @@
     return "empty";
   }
 
-  function formatLayerStatus(layer, data) {
-    if (!data?.ready) return data?.hint || "Не построен";
+  function formatOcrStatus(layer) {
+    if (!layer) return "—";
     const parts = [];
-    if (layer === "semantic") {
-      parts.push(`${data.fileCount || 0} файлов · ${data.chunkCount || 0} фрагм.`);
+    if ((layer.candidateCount || 0) > 0) {
+      parts.push(`${layer.processedCount || 0}/${layer.candidateCount || 0} вложений`);
     } else {
-      parts.push(`${data.recordCount || 0} записей · ${data.fieldCount || 0} полей`);
+      parts.push(layer.hint || "Нет вложений");
     }
-    parts.push(data.builtAge || "—");
-    if (data.indexSizeLabel) parts.push(data.indexSizeLabel);
-    if (data.lastRebuildLabel) parts.push(`сборка ${data.lastRebuildLabel}`);
-    if ((data.staleCount || 0) > 0) parts.push(`устарело ${data.staleCount}`);
-    if ((data.newFilesCount || 0) > 0) parts.push(`новых ${data.newFilesCount}`);
+    if ((layer.pendingCount || 0) > 0) parts.push(`ожидает ${layer.pendingCount}`);
+    if (layer.builtAge && layer.builtAge !== "—") parts.push(layer.builtAge);
+    if (layer.lastRebuildLabel) parts.push(`прогон ${layer.lastRebuildLabel}`);
+    return parts.join(" · ");
+  }
+
+  function formatFulltextStatus(layer) {
+    if (!layer?.ready) return layer?.hint || "Не построен";
+    const parts = [
+      `${layer.fileCount || 0} файлов · ${layer.termCount || 0} термов`,
+      layer.builtAge || "—"
+    ];
+    if (layer.lastRebuildLabel) parts.push(`сборка ${layer.lastRebuildLabel}`);
+    if ((layer.staleCount || 0) > 0) parts.push(`устарело ${layer.staleCount}`);
+    if ((layer.newFilesCount || 0) > 0) parts.push(`новых ${layer.newFilesCount}`);
+    return parts.join(" · ");
+  }
+
+  function formatSemanticStatus(layer) {
+    if (!layer?.ready) return layer?.hint || "Не построен";
+    const parts = [
+      `${layer.fileCount || 0} файлов · ${layer.chunkCount || 0} фрагм.`,
+      layer.builtAge || "—"
+    ];
+    if (layer.lastRebuildLabel) parts.push(`сборка ${layer.lastRebuildLabel}`);
+    if ((layer.staleCount || 0) > 0) parts.push(`устарело ${layer.staleCount}`);
+    if ((layer.newFilesCount || 0) > 0) parts.push(`новых ${layer.newFilesCount}`);
+    return parts.join(" · ");
+  }
+
+  function formatStorageStatus(layer) {
+    if (!layer?.ready) return layer?.hint || "Не построен";
+    const parts = [
+      `${layer.recordCount || 0} записей · ${layer.fieldCount || 0} полей`,
+      layer.builtAge || "—"
+    ];
+    if (layer.lastRebuildLabel) parts.push(`сборка ${layer.lastRebuildLabel}`);
+    if ((layer.staleCount || 0) > 0) parts.push(`устарело ${layer.staleCount}`);
+    if ((layer.newFilesCount || 0) > 0) parts.push(`новых ${layer.newFilesCount}`);
     return parts.join(" · ");
   }
 
@@ -95,22 +140,24 @@
     const badge = healthLabel(layer.health);
     const lines = [];
     if (!layer.ready) {
-      lines.push(layer.hint || "Индекс не построен");
+      lines.push(layer.hint || "Не построен");
+    } else if (layer.layer === "ocr") {
+      lines.push(`${layer.processedCount || 0}/${layer.candidateCount || 0} вложений`);
+      if ((layer.pendingCount || 0) > 0) lines.push(`ожидает OCR: ${layer.pendingCount}`);
+      if (layer.builtAge && layer.builtAge !== "—") lines.push(`последний прогон: ${layer.builtAge}`);
+    } else if (layer.layer === "fulltext") {
+      lines.push(`${layer.fileCount || 0} файлов · ${layer.termCount || 0} термов`);
+      lines.push(`обновлён ${layer.builtAge || "—"}`);
+    } else if (layer.layer === "semantic") {
+      lines.push(`${layer.fileCount || 0} файлов · ${layer.chunkCount || 0} фрагментов`);
+      lines.push(`обновлён ${layer.builtAge || "—"}`);
     } else {
-      if (title.startsWith("Смысл")) {
-        lines.push(`${layer.fileCount || 0} файлов · ${layer.chunkCount || 0} фрагментов`);
-      } else {
-        lines.push(`${layer.recordCount || 0} записей · ${layer.fieldCount || 0} полей`);
-      }
-      lines.push(`обновлён ${layer.builtAge || "—"} · ${layer.indexSizeLabel || "—"}`);
-      if (layer.lastRebuildLabel) lines.push(`полная сборка: ${layer.lastRebuildLabel}`);
-      if ((layer.staleCount || 0) > 0) lines.push(`устарело: ${layer.staleCount} файл(ов)`);
-      if ((layer.newFilesCount || 0) > 0) lines.push(`не в индексе: ${layer.newFilesCount} новых`);
-      if ((layer.missingCount || 0) > 0) lines.push(`в индексе, но удалены: ${layer.missingCount}`);
-      if (Array.isArray(layer.staleSamples) && layer.staleSamples.length) {
-        lines.push(`пример: ${layer.staleSamples.slice(0, 2).join(", ")}`);
-      }
+      lines.push(`${layer.recordCount || 0} записей · ${layer.fieldCount || 0} полей`);
+      lines.push(`обновлён ${layer.builtAge || "—"}`);
     }
+    if (layer.lastRebuildLabel) lines.push(`длительность: ${layer.lastRebuildLabel}`);
+    if ((layer.staleCount || 0) > 0) lines.push(`устарело: ${layer.staleCount}`);
+    if ((layer.newFilesCount || 0) > 0) lines.push(`новых: ${layer.newFilesCount}`);
     return `<article class="menu-index-monitor-card">
       <div class="menu-index-monitor-card-head">
         <span class="menu-index-monitor-card-title">${escapeHtml(title)}</span>
@@ -128,16 +175,28 @@
     }
     if (monitorGridNode) {
       monitorGridNode.innerHTML = [
-        renderMonitorCard("Смысл (RAG)", monitor?.semantic),
-        renderMonitorCard("Поля (SQL-like)", monitor?.storage)
+        renderMonitorCard("OCR", monitor?.ocr),
+        renderMonitorCard("Слова", monitor?.fulltext),
+        renderMonitorCard("Смысл", monitor?.semantic),
+        renderMonitorCard("Поля", monitor?.storage)
       ].join("");
     }
   }
 
   function updateSummaryFromMonitor(monitor) {
+    const parts = [];
+    const ocr = monitor?.ocr;
+    const fulltext = monitor?.fulltext;
     const semantic = monitor?.semantic;
     const storage = monitor?.storage;
-    const parts = [];
+    if (ocr && (ocr.candidateCount || 0) > 0) {
+      const mark = (ocr.pendingCount || 0) > 0 ? "!" : "";
+      parts.push(`ocr ${ocr.processedCount || 0}/${ocr.candidateCount || 0}${mark}`);
+    }
+    if (fulltext?.ready) {
+      const mark = fulltext.health === "stale" ? "!" : "";
+      parts.push(`слова ${fulltext.fileCount || 0}${mark}`);
+    }
     if (semantic?.ready) {
       const mark = semantic.health === "stale" ? "!" : "";
       parts.push(`смысл ${semantic.chunkCount || 0}${mark}`);
@@ -149,7 +208,7 @@
     summaryStatsNode.textContent = parts.length ? parts.join(" · ") : "нет индексов";
     summaryStatsNode.classList.toggle("is-empty", !parts.length);
     summaryStatsNode.classList.remove("is-error");
-    if (monitor?.summary?.health === "stale") {
+    if (monitor?.summary?.health === "stale" || monitor?.summary?.health === "partial") {
       summaryStatsNode.classList.add("is-error");
     }
   }
@@ -160,8 +219,10 @@
       const monitor = await monitorRes.json();
       if (!monitorRes.ok) throw new Error(monitor.error || monitorRes.statusText);
 
-      semanticStatusNode.textContent = formatLayerStatus("semantic", monitor.semantic);
-      storageStatusNode.textContent = formatLayerStatus("storage", monitor.storage);
+      ocrStatusNode.textContent = formatOcrStatus(monitor.ocr);
+      fulltextStatusNode.textContent = formatFulltextStatus(monitor.fulltext);
+      semanticStatusNode.textContent = formatSemanticStatus(monitor.semantic);
+      storageStatusNode.textContent = formatStorageStatus(monitor.storage);
       renderMonitor(monitor);
       updateSummaryFromMonitor(monitor);
     } catch (error) {
@@ -171,17 +232,22 @@
         monitorSummaryNode.textContent = String(error.message || error);
         monitorSummaryNode.className = "menu-index-monitor-summary is-error";
       }
-      semanticStatusNode.textContent = String(error.message || error);
+      ocrStatusNode.textContent = String(error.message || error);
     }
   }
 
-  async function runRebuild(url, statusNode, okLabel) {
-    statusNode.textContent = "Сборка…";
-    const response = await fetch(buildApiUrl(url), { method: "POST" });
+  async function runRebuild(url, statusNode, okLabel, options = {}) {
+    statusNode.textContent = options.loadingLabel || "Сборка…";
+    const response = await fetch(buildApiUrl(url), {
+      method: "POST",
+      headers: options.body ? { "Content-Type": "application/json" } : undefined,
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || data.details || response.statusText);
     statusNode.textContent = okLabel(data);
     await refreshStatus();
+    return data;
   }
 
   function renderVectorItems(items) {
@@ -321,33 +387,67 @@
     catalogModal?.classList.add("hidden");
   }
 
-  semanticRebuildBtn.addEventListener("click", async () => {
-    semanticRebuildBtn.disabled = true;
-    semanticRebuildBtn.classList.add("is-loading");
-    try {
-      await runRebuild("/api/search/semantic/reindex", semanticStatusNode, (data) =>
-        `Смысл: ${data.fileCount} файлов, ${data.chunkCount} фрагментов.`
-      );
-    } catch (error) {
-      semanticStatusNode.textContent = String(error.message || error);
-    } finally {
-      semanticRebuildBtn.disabled = false;
-      semanticRebuildBtn.classList.remove("is-loading");
-    }
+  async function bindActionButton(button, handler) {
+    if (!button) return;
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      button.classList.add("is-loading");
+      try {
+        await handler();
+      } finally {
+        button.disabled = false;
+        button.classList.remove("is-loading");
+      }
+    });
+  }
+
+  bindActionButton(ocrRunBtn, async () => {
+    await runRebuild(
+      "/api/ocr-index/run",
+      ocrStatusNode,
+      (data) => `OCR: обработано ${data.processed}, пропущено ${data.skipped}, ошибок ${data.failed}.`,
+      { body: { force: false, limit: 100 } }
+    );
   });
 
-  storageRebuildBtn.addEventListener("click", async () => {
-    storageRebuildBtn.disabled = true;
-    storageRebuildBtn.classList.add("is-loading");
-    try {
-      await runRebuild("/api/storage-index/reindex", storageStatusNode, (data) =>
-        `Поля: ${data.recordCount} записей, ${data.fieldCount} уникальных полей.`
-      );
-    } catch (error) {
-      storageStatusNode.textContent = String(error.message || error);
-    } finally {
-      storageRebuildBtn.disabled = false;
-      storageRebuildBtn.classList.remove("is-loading");
+  bindActionButton(ocrForceBtn, async () => {
+    await runRebuild(
+      "/api/ocr-index/run",
+      ocrStatusNode,
+      (data) => `OCR (всё): обработано ${data.processed}, пропущено ${data.skipped}, ошибок ${data.failed}.`,
+      { body: { force: true, limit: 200 } }
+    );
+  });
+
+  bindActionButton(fulltextRebuildBtn, async () => {
+    await runRebuild("/api/search/fulltext/reindex", fulltextStatusNode, (data) =>
+      `Слова: ${data.fileCount} файлов, ${data.termCount} термов.`
+    );
+  });
+
+  bindActionButton(semanticRebuildBtn, async () => {
+    await runRebuild("/api/search/semantic/reindex", semanticStatusNode, (data) =>
+      `Смысл: ${data.fileCount} файлов, ${data.chunkCount} фрагментов.`
+    );
+  });
+
+  bindActionButton(storageRebuildBtn, async () => {
+    await runRebuild("/api/storage-index/reindex", storageStatusNode, (data) =>
+      `Поля: ${data.recordCount} записей, ${data.fieldCount} уникальных полей.`
+    );
+  });
+
+  bindActionButton(pipelineBtn, async () => {
+    if (!pipelineStatusNode) return;
+    pipelineStatusNode.textContent = "Цепочка: OCR → слова → смысл → поля…";
+    const data = await runRebuild(
+      "/api/workspace-index/pipeline",
+      pipelineStatusNode,
+      () => "Готово: OCR → fulltext → semantic → поля.",
+      { body: { ocrLimit: 200 }, loadingLabel: "Цепочка: OCR → слова → смысл → поля…" }
+    );
+    if (data?.ocr) {
+      pipelineStatusNode.textContent = `Готово · OCR ${data.ocr.processed}/${data.ocr.candidateCount || "?"}`;
     }
   });
 

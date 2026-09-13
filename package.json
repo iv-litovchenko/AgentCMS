@@ -39,6 +39,7 @@
     "mermaid": "^11.15.0",
     "pdf-parse": "^2.4.5",
     "sharp": "^0.35.2",
+    "tesseract.js": "^6.0.1",
     "xlsx": "^0.18.5"
   },
   "optionalDependencies": {
@@ -64,6 +65,8 @@
       "*.js",
       "lib/**/*",
       "semantic-search/**/*",
+      "fulltext-index/**/*",
+      "ocr-index/**/*",
       "storage-index/**/*",
       "workspace-index/**/*",
       "docs/**/*",

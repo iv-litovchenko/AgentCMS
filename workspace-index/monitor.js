@@ -1,7 +1,9 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { getIndexPaths: getSemanticIndexPaths } = require("../semantic-search/store");
+const { getIndexPaths: getFulltextIndexPaths } = require("../fulltext-index/store");
 const { getIndexPaths: getStorageIndexPaths } = require("../storage-index/store");
+const { getIndexPaths: getOcrIndexPaths } = require("../ocr-index/store");
 
 function formatBytes(bytes) {
   const n = Number(bytes) || 0;
@@ -29,8 +31,9 @@ function formatAge(builtAt) {
   return `${days} д назад`;
 }
 
-function healthFromCounts({ ready, staleCount, missingCount, newFilesCount }) {
+function healthFromCounts({ ready, staleCount, missingCount, newFilesCount, pendingCount }) {
   if (!ready) return "empty";
+  if ((pendingCount || 0) > 0) return "stale";
   if ((staleCount || 0) + (missingCount || 0) + (newFilesCount || 0) > 0) return "stale";
   return "ok";
 }
@@ -102,6 +105,10 @@ function isSemanticEligible(relPath) {
   );
 }
 
+function isFulltextEligible(relPath) {
+  return isSemanticEligible(relPath);
+}
+
 function isStorageEligible(relPath) {
   const lower = String(relPath || "").toLowerCase();
   return (
@@ -120,12 +127,18 @@ async function buildLayerMonitor({
   allPaths,
   isEligible,
   resolvePathAbsolute,
-  readyCheck
+  readyCheck,
+  extraFields
 }) {
   const fileStat = await statIndexFile(indexFilePath);
   const ready = Boolean(index && readyCheck(index));
 
   if (!ready) {
+    const hints = {
+      semantic: "Индекс смысла не построен",
+      fulltext: "Индекс слов не построен",
+      storage: "Каталог полей не построен"
+    };
     return {
       layer,
       ready: false,
@@ -133,7 +146,7 @@ async function buildLayerMonitor({
       indexPath: path.basename(path.dirname(indexFilePath)) + "/" + path.basename(indexFilePath),
       indexSizeBytes: fileStat.sizeBytes,
       indexSizeLabel: formatBytes(fileStat.sizeBytes),
-      hint: layer === "semantic" ? "Индекс не построен" : "Каталог полей не построен"
+      hint: hints[layer] || "Индекс не построен"
     };
   }
 
@@ -161,9 +174,33 @@ async function buildLayerMonitor({
     missingCount,
     newFilesCount,
     staleSamples,
-    ...(layer === "semantic"
-      ? { fileCount: index.fileCount || 0, chunkCount: index.chunkCount || 0 }
-      : { recordCount: index.recordCount || 0, fieldCount: index.fieldCount || 0 })
+    ...(typeof extraFields === "function" ? extraFields(index) : extraFields || {})
+  };
+}
+
+async function buildOcrMonitor(ocrStatus, manifestPath) {
+  const fileStat = await statIndexFile(manifestPath);
+  const ready = Boolean(ocrStatus?.ready);
+  const pendingCount = ocrStatus?.pendingCount || 0;
+  const candidateCount = ocrStatus?.candidateCount || 0;
+  const processedCount = ocrStatus?.processedCount || 0;
+
+  return {
+    layer: "ocr",
+    ready,
+    health: healthFromCounts({ ready: candidateCount > 0 || ready, pendingCount }),
+    model: ocrStatus?.model || "tesseract.js",
+    builtAt: ocrStatus?.builtAt || null,
+    builtAge: formatAge(ocrStatus?.builtAt),
+    lastRebuildMs: ocrStatus?.lastRunMs ?? null,
+    lastRebuildLabel: ocrStatus?.lastRunMs != null ? formatDuration(ocrStatus.lastRunMs) : null,
+    indexSizeBytes: fileStat.sizeBytes,
+    indexSizeLabel: formatBytes(fileStat.sizeBytes),
+    candidateCount,
+    processedCount,
+    pendingCount,
+    failedCount: ocrStatus?.failedCount || 0,
+    hint: ocrStatus?.hint || "—"
   };
 }
 
@@ -173,7 +210,9 @@ async function getWorkspaceIndexMonitor(deps) {
     collectSearchableFiles,
     resolvePathAbsolute,
     loadSemanticIndex,
-    loadStorageIndex
+    loadFulltextIndex,
+    loadStorageIndex,
+    getOcrIndexStatus
   } = deps;
 
   const agentRoot = getAgentRoot();
@@ -181,16 +220,21 @@ async function getWorkspaceIndexMonitor(deps) {
     return { ready: false, reason: "Agent not selected" };
   }
 
-  const [allPaths, semanticIndex, storageIndex] = await Promise.all([
+  const [allPaths, semanticIndex, fulltextIndex, storageIndex, ocrStatus] = await Promise.all([
     collectSearchableFiles(agentRoot),
     loadSemanticIndex(agentRoot),
-    loadStorageIndex(agentRoot)
+    loadFulltextIndex(agentRoot),
+    loadStorageIndex(agentRoot),
+    getOcrIndexStatus ? getOcrIndexStatus().catch(() => null) : Promise.resolve(null)
   ]);
 
   const semanticPaths = semanticIndex?.chunks
     ? [...new Set(semanticIndex.chunks.map((row) => row.path))]
     : [];
+  const fulltextPaths = fulltextIndex?.fileTerms ? Object.keys(fulltextIndex.fileTerms) : [];
   const storagePaths = storageIndex?.records ? storageIndex.records.map((row) => row.path) : [];
+
+  const ocr = await buildOcrMonitor(ocrStatus, getOcrIndexPaths(agentRoot).file);
 
   const semantic = await buildLayerMonitor({
     layer: "semantic",
@@ -200,7 +244,20 @@ async function getWorkspaceIndexMonitor(deps) {
     allPaths,
     isEligible: isSemanticEligible,
     resolvePathAbsolute,
-    readyCheck: (index) => (index.chunkCount || 0) > 0
+    readyCheck: (index) => (index.chunkCount || 0) > 0,
+    extraFields: (index) => ({ fileCount: index.fileCount || 0, chunkCount: index.chunkCount || 0 })
+  });
+
+  const fulltext = await buildLayerMonitor({
+    layer: "fulltext",
+    index: fulltextIndex,
+    indexFilePath: getFulltextIndexPaths(agentRoot).file,
+    indexedPaths: fulltextPaths,
+    allPaths,
+    isEligible: isFulltextEligible,
+    resolvePathAbsolute,
+    readyCheck: (index) => (index.fileCount || 0) > 0,
+    extraFields: (index) => ({ fileCount: index.fileCount || 0, termCount: index.termCount || 0 })
   });
 
   const storage = await buildLayerMonitor({
@@ -211,24 +268,32 @@ async function getWorkspaceIndexMonitor(deps) {
     allPaths,
     isEligible: isStorageEligible,
     resolvePathAbsolute,
-    readyCheck: (index) => (index.recordCount || 0) > 0
+    readyCheck: (index) => (index.recordCount || 0) > 0,
+    extraFields: (index) => ({ recordCount: index.recordCount || 0, fieldCount: index.fieldCount || 0 })
   });
 
+  const layers = [ocr, fulltext, semantic, storage];
   const summaryHealth = (() => {
-    if (!semantic.ready && !storage.ready) return "empty";
-    if (!semantic.ready || !storage.ready) return "partial";
-    if (semantic.health === "stale" || storage.health === "stale") return "stale";
+    const readyLayers = layers.filter((layer) => layer.ready).length;
+    if (!readyLayers) return "empty";
+    if (readyLayers < layers.length) return "partial";
+    if (layers.some((layer) => layer.health === "stale")) return "stale";
     return "ok";
   })();
 
-  const staleTotal = (semantic.staleCount || 0) + (storage.staleCount || 0);
-  const newTotal = (semantic.newFilesCount || 0) + (storage.newFilesCount || 0);
-  const missingTotal = (semantic.missingCount || 0) + (storage.missingCount || 0);
+  const staleTotal =
+    (semantic.staleCount || 0) +
+    (fulltext.staleCount || 0) +
+    (storage.staleCount || 0) +
+    (ocr.pendingCount || 0);
+  const newTotal = (semantic.newFilesCount || 0) + (fulltext.newFilesCount || 0) + (storage.newFilesCount || 0);
+  const missingTotal = (semantic.missingCount || 0) + (fulltext.missingCount || 0) + (storage.missingCount || 0);
 
   let message = "Индексы актуальны";
   if (summaryHealth === "empty") message = "Индексы не построены";
-  else if (summaryHealth === "partial") message = "Построен только один слой";
-  else if (staleTotal > 0) message = `${staleTotal} файл(ов) изменены после индексации`;
+  else if (summaryHealth === "partial") message = "Построены не все слои";
+  else if ((ocr.pendingCount || 0) > 0) message = `${ocr.pendingCount} вложений без OCR`;
+  else if (staleTotal > 0) message = `${staleTotal} элементов требуют обновления`;
   else if (newTotal > 0) message = `${newTotal} новых файлов не в индексе`;
   else if (missingTotal > 0) message = `${missingTotal} файлов в индексе уже удалены`;
 
@@ -240,8 +305,11 @@ async function getWorkspaceIndexMonitor(deps) {
       message,
       staleTotal,
       newTotal,
-      missingTotal
+      missingTotal,
+      ocrPending: ocr.pendingCount || 0
     },
+    ocr,
+    fulltext,
     semantic,
     storage
   };

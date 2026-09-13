@@ -1,15 +1,14 @@
 ---
-awn-name: Ая тест темы 2049-2
-awn-emoji: ""
-awn-status: open
-awn-description: ""
-awn-tags: []
+awn-name: "OCR: prostaya-kartinka.png"
+awn-ocr-source: "aja-test-oblasti-2049/aja-test-temy-2049-2/awn-storage/media/prostaya-kartinka.png"
+awn-ocr-engine: "tesseract.js"
+awn-ocr-at: "2026-09-13T10:22:32.475Z"
+awn-ocr-extracted: true
 awn-type: awn.content.sidecar
-awn-create: 2026-08-08T23:31:14.625Z
-awn-update: 2026-08-08T23:31:14.625Z
-awn-version: 2
-awn-preview: ""
-awn-web-url: ""
-awn-mime: ""
-awn-size: 0
 ---
+
+{ A te -
+bi 34
+FE =
+El ¥
+wo № ;

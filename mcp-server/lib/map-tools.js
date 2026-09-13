@@ -173,15 +173,16 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "get_workspace_index_status",
-    "Status of offline workspace indexes: semantic, fulltext (inverted token index), and field catalog (SQL-like storage-index).",
+    "Status of offline workspace indexes: OCR attachments, fulltext, semantic, and field catalog (SQL-like storage-index).",
     z.object({}),
     async () => {
-      const [semantic, fulltext, storage] = await Promise.all([
+      const [ocr, semantic, fulltext, storage] = await Promise.all([
+        client.get("/api/ocr-index/status"),
         client.get("/api/search/semantic/status"),
         client.get("/api/search/fulltext/status"),
         client.get("/api/storage-index/status")
       ]);
-      return { semantic, fulltext, storage };
+      return { ocr, semantic, fulltext, storage };
     }
   );
 
@@ -214,15 +215,23 @@ function registerSearchWorkspaceTools(reg, client) {
   );
 
   reg(
+    "run_workspace_ocr_index",
+    "OCR/extract text from new image/PDF attachments into {stem}.sidecar.md (incremental). Requires tesseract.js on server.",
+    z.object({
+      force: z.boolean().optional().describe("Reprocess even if sidecar exists (default false)"),
+      limit: z.number().int().min(1).max(500).optional().describe("Max files per run (default 50)")
+    }),
+    (payload) => client.post("/api/ocr-index/run", payload)
+  );
+
+  reg(
     "rebuild_workspace_indexes",
-    "Rebuild workspace indexes: semantic, fulltext, then field catalog (SQL-like).",
-    z.object({}),
-    async () => {
-      const semantic = await client.post("/api/search/semantic/reindex", {});
-      const fulltext = await client.post("/api/search/fulltext/reindex", {});
-      const storage = await client.post("/api/storage-index/reindex", {});
-      return { semantic, fulltext, storage };
-    }
+    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog.",
+    z.object({
+      forceOcr: z.boolean().optional().describe("Force OCR reprocessing before indexes"),
+      ocrLimit: z.number().int().min(1).max(500).optional()
+    }),
+    (payload) => client.post("/api/workspace-index/pipeline", payload || {})
   );
 
   reg(
