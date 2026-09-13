@@ -40,6 +40,10 @@ const menuAwnDialogsStatsNode = document.getElementById("menu-awn-dialogs-stats"
 const menuAwnDialogsRuntimesNode = document.getElementById("menu-awn-dialogs-runtimes");
 const menuAwnDialogsOpenBtn = document.getElementById("menu-awn-dialogs-open-btn");
 const menuAwnDialogsRefreshBtn = document.getElementById("menu-awn-dialogs-refresh-btn");
+const menuAwnFactsStatsNode = document.getElementById("menu-awn-facts-stats");
+const menuAwnFactsStatusDotNode = document.getElementById("menu-awn-facts-status-dot");
+const menuAwnFactsOpenBtn = document.getElementById("menu-awn-facts-open-btn");
+const menuAwnFactsRefreshBtn = document.getElementById("menu-awn-facts-refresh-btn");
 const menuGoogleDriveRepairBtn = document.getElementById("menu-google-drive-repair-btn");
 const menuGoogleDriveRefreshBtn = document.getElementById("menu-google-drive-refresh-btn");
 const menuAwnDataStoresNode = document.getElementById("menu-awn-data-stores");
@@ -12468,6 +12472,7 @@ async function switchActiveAgent(nextAgentId) {
     void refreshMenuAwnDataStores(activeAgentId);
     void refreshMenuRepositories(activeAgentId);
     void refreshMenuAwnDialogsStats(activeAgentId);
+    void refreshMenuAwnFactsStats(activeAgentId);
   } finally {
     setMenuLoading(false);
   }
@@ -14040,6 +14045,7 @@ const FOLDER_BROWSE_FILE_MODE = "folder-browse-file";
 const AWN_DATA_VIEW_MODE = "awn-data-view";
 const FREE_MEMORY_LABEL = "Свободная память";
 const AWN_DIALOGS_FOLDER = "awn-dialogs";
+const AWN_FACTS_FOLDER = "awn-facts";
 const FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY = "yamlcms.folderBrowseImagesColumns";
 const FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS = [1, 3, 5];
 const NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY = "yamlcms.navigationMediaImagesLayout";
@@ -93040,14 +93046,17 @@ function setupMenuStaticFooterGroup() {
   void refreshMenuAwnDataStores();
   void refreshMenuRepositories();
   void refreshMenuAwnDialogsStats();
+  void refreshMenuAwnFactsStats();
   loadAwnDataViewRecordsLayout();
   setupAwnDataStoresUi();
   setupRepositoriesUi();
   setupMenuAwnDialogsUi();
+  setupMenuAwnFactsUi();
 }
 
 let menuGoogleDriveStatsLoadSeq = 0;
 let menuAwnDialogsStatsLoadSeq = 0;
+let menuAwnFactsStatsLoadSeq = 0;
 let menuAwnDataStoresLoadSeq = 0;
 let menuRepositoriesLoadSeq = 0;
 let menuRepositoriesLastPayload = null;
@@ -97082,6 +97091,84 @@ function setupMenuAwnDialogsUi() {
     menuAwnDialogsRefreshBtn.classList.add("is-spinning");
     void refreshMenuAwnDialogsStats(activeAgentId).finally(() => {
       menuAwnDialogsRefreshBtn?.classList.remove("is-spinning");
+    });
+  });
+}
+
+function applyMenuAwnFactsStatusDot(payload, { loading = false, error = false } = {}) {
+  if (!menuAwnFactsStatusDotNode) return;
+  const total = Number(payload?.totalCount) || 0;
+  const hasFacts = Boolean(payload?.exists) && total > 0;
+  const isActive = !loading && !error && hasFacts;
+  menuAwnFactsStatusDotNode.textContent = isActive ? "🟢" : "⚪";
+  menuAwnFactsStatusDotNode.classList.toggle("is-active", isActive);
+  menuAwnFactsStatusDotNode.classList.toggle("is-empty", !isActive);
+  menuAwnFactsStatusDotNode.title = isActive
+    ? `awn-facts: ${total} факт.`
+    : payload?.exists
+      ? "awn-facts: папка пуста"
+      : "awn-facts: папка не создана";
+}
+
+function renderMenuAwnFactsStats(payload, { loading = false, error = false } = {}) {
+  applyMenuAwnFactsStatusDot(payload, { loading, error });
+  if (!menuAwnFactsStatsNode) return;
+  if (loading) {
+    menuAwnFactsStatsNode.textContent = "…";
+    menuAwnFactsStatsNode.classList.remove("is-empty", "is-error");
+    return;
+  }
+  if (error || !payload) {
+    menuAwnFactsStatsNode.textContent = "—";
+    menuAwnFactsStatsNode.classList.add("is-error");
+    menuAwnFactsStatsNode.classList.remove("is-empty");
+    return;
+  }
+  const total = Number(payload.totalCount) || 0;
+  const kinds = payload.kinds && typeof payload.kinds === "object" ? payload.kinds : {};
+  const kindParts = Object.entries(kinds)
+    .filter(([, count]) => Number(count) > 0)
+    .slice(0, 3)
+    .map(([name, count]) => `${name}:${count}`);
+  menuAwnFactsStatsNode.textContent =
+    total > 0 ? `${total} факт.${kindParts.length ? ` · ${kindParts.join(" ")}` : ""}` : "0 фактов";
+  menuAwnFactsStatsNode.classList.toggle("is-empty", total === 0);
+  menuAwnFactsStatsNode.classList.remove("is-error");
+}
+
+async function refreshMenuAwnFactsStats(agentId = activeAgentId) {
+  if (!menuAwnFactsStatsNode) return;
+  if (!agentId) {
+    renderMenuAwnFactsStats({ totalCount: 0, kinds: {} });
+    return;
+  }
+
+  const seq = ++menuAwnFactsStatsLoadSeq;
+  renderMenuAwnFactsStats(null, { loading: true });
+
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-facts/stats", {}, agentId));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (seq !== menuAwnFactsStatsLoadSeq) return;
+    renderMenuAwnFactsStats(data);
+  } catch {
+    if (seq !== menuAwnFactsStatsLoadSeq) return;
+    renderMenuAwnFactsStats(null, { error: true });
+  }
+}
+
+function setupMenuAwnFactsUi() {
+  menuAwnFactsOpenBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void openFolderBrowseFromMenu("Банк фактов", AWN_FACTS_FOLDER, { agentId: activeAgentId });
+  });
+  menuAwnFactsRefreshBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    menuAwnFactsRefreshBtn.classList.add("is-spinning");
+    void refreshMenuAwnFactsStats(activeAgentId).finally(() => {
+      menuAwnFactsRefreshBtn?.classList.remove("is-spinning");
     });
   });
 }

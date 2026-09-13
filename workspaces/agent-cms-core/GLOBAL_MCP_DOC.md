@@ -9,7 +9,7 @@
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
-Этот файл — шпаргалка (**73 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
+Этот файл — шпаргалка (**76 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 ### Новый чат — выбор хранилища (`agentId`)
 
@@ -26,7 +26,7 @@ MCP подключается **без** фиксированного храни�
 Селектор «Хранилище (агент)» в Shell UI **не** меняет MCP в Claude Desktop — только tools с явным `agentId`.
 
 Перед работой внутри выбранного workspace: `get_session_context({ agentId })` → `get_user_active_context_now({ agentId })`.  
-Поиск по содержимому workspace: `search_workspace_content` (fulltext-index); `search_workspace_semantic` (смысл); **`pathPrefix`** — как шапка UI. **Один вопрос:** `search_workspace_hybrid`. **Несколько вопросов:** `search_workspace_batch`. **Индексы (цепочка):** `run_workspace_ocr_index` → fulltext → semantic → поля; всё разом: `rebuild_workspace_indexes` (= pipeline). UI: sidebar → «Индексирование workspace». Вопросы про архив: `search_and_get_context`.  
+Поиск по содержимому workspace: `search_workspace_content` (fulltext-index); `search_workspace_semantic` (смысл); **`pathPrefix`** — как шапка UI. **Один вопрос:** `search_workspace_hybrid`. **Несколько вопросов:** `search_workspace_batch`. **Индексы (цепочка):** `run_workspace_ocr_index` → fulltext → semantic → поля; всё разом: `rebuild_workspace_indexes` (= pipeline). UI: sidebar → «Индексирование workspace». Вопросы про архив: `search_and_get_context`. **Банк фактов:** `retain_workspace_fact` / `recall_workspace_facts` → `awn-facts/` (см. раздел ниже).  
 Произвольный путь → тема/область: `resolve_workspace_path({ path })` → `topic.folderPath` для ограничения поиска.  
 Поиск в интернете: `search_web`, `search_web_images`, `read_web_page`, `get_link_preview`, `extract_document_text`.  
 Идентичность: `get_agent_identity`, `get_user_identity`. Активность: `list_recent_activity`.
@@ -487,6 +487,8 @@ razdel-1/
 | Лента изменений | `list_recent_activity` |
 | Единая лента workspace | `list_workspace_feed` |
 | Аудит памяти (memory rot) | `audit_workspace_memory` |
+| Записать факт (awn-facts) | `retain_workspace_fact` — выжимка из чата, не полный диалог |
+| Найти факты | `recall_workspace_facts` / `list_workspace_facts` |
 | Q&A по workspace | `ask_workspace` |
 | Контекст из прошлых данных (архив, история, «что мы решили») | `search_and_get_context` — тот же поиск, что `ask_workspace`, но с подсказкой «сначала найди в workspace» |
 | Гибридный поиск (смысл + слова + фильтры полей) | `search_workspace_hybrid` — один вызов вместо semantic + fulltext + `query_workspace_storage` |
@@ -669,6 +671,109 @@ list_comments({ "path": "…/manifest.md", "mode": "external", "file": "memory/r
 
 ---
 
+## Банк фактов (`awn-facts/`)
+
+**Зачем:** короткие **выжимки** — решения, предпочтения, сущности — из любых чатов (Cursor, Claude Desktop, Voice).  
+Не полный архив переписки: для логов — `awn-dialogs/` (Shell/Voice) или `read_dialogs` / `append_dialog` (диалог темы).
+
+| Слой | Где | Когда |
+|------|-----|-------|
+| `awn-facts/` | корень workspace | «что решили / что запомнить» — 1–2 фразы |
+| `awn-dialogs/` | корень workspace | полный Q/A Shell/Voice (не в semantic index) |
+| `thread/` темы | слот dialogs | обсуждение **одной** темы CMS |
+| `comments/` | слот comments | комментарий к manifest/записи |
+
+UI: sidebar → **🧠 Банк фактов** (под «Диалоги с ИИ»). Папка индексируется (semantic + fulltext + storage-index).
+
+### Tools
+
+| Tool | Зачем |
+|------|-------|
+| `retain_workspace_fact` | **Записать** факт |
+| `list_workspace_facts` | Список последних (без semantic) |
+| `recall_workspace_facts` | **Найти** по вопросу (semantic + fulltext только в `awn-facts/`) |
+
+### Когда писать (`retain_workspace_fact`)
+
+- принято **решение** (архитектура, процесс, «делаем так»)
+- выявлено **предпочтение** пользователя
+- зафиксирована **сущность** (URL API, имя проекта, контакт)
+- важный итог чата **во внешнем клиенте** (Claude Desktop без MCP) — единственный способ сохранить в CMS
+
+**Не писать:** каждую реплику, черновики, то что уже в `manifest.md` / `## Current State` темы.
+
+**Норма:** 0 фактов за обычный чат; 1–3 за полезную сессию.
+
+### Параметры `retain_workspace_fact`
+
+| Параметр | Обязательный | Значения |
+|----------|--------------|----------|
+| `body` | да | Текст факта (1–2 предложения) |
+| `kind` | нет | `decision` · `preference` · `entity` · `procedure` · `open-question` · `note` · `fact` (default) |
+| `source` | нет | `claude-desktop` · `cursor` · `voice` · `shell` · `codex` · `manual` · `other` |
+| `tags` | нет | Массив или строка через запятую |
+| `name` | нет | Короткий заголовок (default — из body) |
+| `sourceRef` | нет | Путь к evidence: `awn-dialogs/claude/…/2026-09-09.md` |
+| `supersedes` | нет | Путь старого факта, который этот заменяет |
+
+**Примеры:**
+
+```json
+// решение после обсуждения
+retain_workspace_fact({
+  "agentId": "agent-cms-core",
+  "body": "Cron только через awn-runtime-heartbeat, не в always-context.",
+  "kind": "decision",
+  "source": "cursor",
+  "tags": ["runtime", "cron"]
+})
+
+// итог чата в Claude Desktop (нет полного лога в CMS)
+retain_workspace_fact({
+  "agentId": "agent-cms-core",
+  "body": "API base MedCenter: https://api.example.com/v2",
+  "kind": "entity",
+  "source": "claude-desktop",
+  "tags": ["api", "medcenter"]
+})
+```
+
+Файл: `awn-facts/2026-09-13T18-00-00-cron-only-via-heartbeat.md`, тип `awn.content.fact`.
+
+### Когда читать
+
+| Задача | Tool |
+|--------|------|
+| «Что мы решили про X?» | `recall_workspace_facts({ query: "X" })` |
+| Последние N фактов | `list_workspace_facts({ limit: 20 })` |
+| Факты по типу | `list_workspace_facts({ kind: "decision" })` или `recall` + `kind` |
+| Широкий поиск по всему workspace | `ask_workspace` / `search_workspace_hybrid` (не только facts) |
+
+```json
+recall_workspace_facts({
+  "agentId": "agent-cms-core",
+  "query": "cron heartbeat",
+  "kind": "decision",
+  "limit": 8
+})
+```
+
+Ответ — **cited hits** (path + snippet); ответ пользователю формирует агент.
+
+### Workflow (внешний чат → память CMS)
+
+```
+Чат в Claude Desktop / Cursor
+  → в конце сессии или по просьбе пользователя:
+     retain_workspace_fact × 1–3
+  → позже в новом чате:
+     recall_workspace_facts("что решили про …")
+```
+
+Пользователь может попросить: *«Сохрани это как факт»* или *«Запиши в банк фактов»*.
+
+---
+
 ## Типы (awn-system)
 
 **Канон — два метода:**
@@ -708,6 +813,8 @@ list_comments({ "path": "…/manifest.md", "mode": "external", "file": "memory/r
 8. `read_page_schema` — default `mode=layers`; не `mode=full` без нужды.
 9. `media` ≠ `assets`: медиатека темы vs ресурсы записей (preview / pasted / attachments).
 10. Бинарные файлы → только upload_file, create_content для данных файлов не используется.
+11. Полный диалог → `awn-dialogs` / `append_dialog`; **выжимка** → `retain_workspace_fact`, не `write_file` в `awn-facts/` в обход tool.
+12. Не дублировать факты: при обновлении решения — новый `retain` с `supersedes` на старый path, не плодить почти одинаковые файлы.
 
 ---
 

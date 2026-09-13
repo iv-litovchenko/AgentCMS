@@ -63,6 +63,7 @@ const {
   resolveSidecarAbsoluteFromSourceAbsolute
 } = require("./sidecar-service");
 const { createWorkspaceBrainService } = require("./workspace-brain-service");
+const { createWorkspaceFactsService, FACTS_DIR: WORKSPACE_FACTS_DIR } = require("./workspace-facts-service");
 const { parseCsvText } = require("./awn-data-csv");
 const { buildSystemEnvironment } = require("./lib/system-environment");
 const { getLanIPv4 } = require("./lib/lan-ip");
@@ -1654,6 +1655,18 @@ function getSidecarService() {
 }
 
 let workspaceBrainService = null;
+let workspaceFactsService = null;
+function getWorkspaceFactsService() {
+  if (!workspaceFactsService) {
+    workspaceFactsService = createWorkspaceFactsService({
+      getAgentRoot,
+      searchWorkspaceHybrid: (options) => getWorkspaceBrainService().searchWorkspaceHybrid(options),
+      onFactWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
+    });
+  }
+  return workspaceFactsService;
+}
+
 function getWorkspaceBrainService() {
   if (!workspaceBrainService) {
     workspaceBrainService = createWorkspaceBrainService({
@@ -8968,10 +8981,10 @@ function isHiddenMenuEntry(name) {
 
 function shouldSkipMenuDirectory(name) {
   if (isPlatformDataRootFolderName(name)) return true;
-  if (String(name || "").toLowerCase() === String(SHELL_DIALOGS_DIR || "awn-dialogs").toLowerCase()) {
-    return true;
-  }
-  return MENU_SKIP_DIRS.has(String(name || "").toLowerCase());
+  const lower = String(name || "").toLowerCase();
+  if (lower === String(SHELL_DIALOGS_DIR || "awn-dialogs").toLowerCase()) return true;
+  if (lower === String(WORKSPACE_FACTS_DIR || "awn-facts").toLowerCase()) return true;
+  return MENU_SKIP_DIRS.has(lower);
 }
 
 function shouldSkipDirectoryListing(name) {
@@ -11402,6 +11415,10 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFeed: "GET /api/agent/workspace-feed?activityLimit=&staleDays= — list_workspace_feed MCP",
   workspaceMemoryAudit: "GET /api/agent/workspace-memory-audit?staleDays= — audit_workspace_memory MCP",
   workspaceAsk: "GET /api/agent/workspace-ask?q=&limit=&scopes=semantic,fulltext,always — ask_workspace MCP",
+  workspaceFactsRetain: "POST /api/agent/workspace-facts/retain — retain_workspace_fact MCP",
+  workspaceFactsList: "GET /api/agent/workspace-facts/list?kind=&tags=&limit= — list_workspace_facts MCP",
+  workspaceFactsRecall: "GET /api/agent/workspace-facts/recall?q=&kind=&tags=&limit= — recall_workspace_facts MCP",
+  workspaceFactsStats: "GET /api/agent/workspace-facts/stats — sidebar stats for awn-facts",
   adoptFolders:
     "GET /api/workspace/folder/adopt — [legacy] те же folder-узлы, что kind:folder в GET /api/agent/page-map",
   workspaceFolderUpload:
@@ -14937,6 +14954,8 @@ function isTextSearchableFileName(name) {
 }
 
 function shouldSkipSearchDirectory(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  if (lower === String(WORKSPACE_FACTS_DIR || "awn-facts").toLowerCase()) return false;
   const normalized = normalizeStorageSubfolderName(name);
   return (
     normalized === STORAGE_SUBFOLDER_PREVIEW ||
@@ -17946,6 +17965,73 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/agent/search-and-get-context") {
     return handleWorkspaceContextSearchGet(req, res, "searchAndGetContext");
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-facts/retain") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceFactsService().retainWorkspaceFact(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /required|must be one of/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: status === 400 ? message : "Failed to retain workspace fact",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-facts/list") {
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceFactsService().listWorkspaceFacts({
+        kind: url.searchParams.get("kind") || "",
+        tags: url.searchParams.get("tags") || "",
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list workspace facts",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-facts/recall") {
+    const query = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+    if (query.length < 2) {
+      return sendJson(res, 400, { error: "Missing q query parameter (min 2 chars)" });
+    }
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceFactsService().recallWorkspaceFacts({
+        query,
+        kind: url.searchParams.get("kind") || "",
+        tags: url.searchParams.get("tags") || "",
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
+        includeSnippets: url.searchParams.get("includeSnippets") !== "false"
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to recall workspace facts",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-facts/stats") {
+    try {
+      const payload = await getWorkspaceFactsService().getWorkspaceFactsStats();
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace facts stats",
+        details: String(error.message || error)
+      });
+    }
   }
 
   if (req.method === "POST" && url.pathname === "/api/search/hybrid") {

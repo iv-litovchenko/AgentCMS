@@ -1,6 +1,6 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Per-chat agentId · 99 tools",
+  versionLabel: "Per-chat agentId · 102 tools",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.8",
   packagePath: "mcp-server/",
@@ -16,7 +16,8 @@ module.exports = {
     "path → manifest.md; slot → main|inbox|media|…; ref → путь внутри слота.",
     "Карта tools: workspaces/agent-cms-core/temp2/examples/mcp-optimiz.md",
     "Бинарники: upload_file (base64) или upload_file_from_url; в слот — import_content_from_url.",
-    "notify_user — колокольчик CMS (не Shell)."
+    "notify_user — колокольчик CMS (не Shell).",
+    "awn-facts: retain_workspace_fact (запись), recall_workspace_facts (поиск), list_workspace_facts (список). Выжимки из чатов — не полный диалог. См. GLOBAL_MCP_DOC.md § Банк фактов."
   ],
   cursorConfig: {
     command: "node",
@@ -333,6 +334,30 @@ module.exports = {
           description: "Сообщение в Discuss panel. Stub.",
           parameters: "body, role?, author?, sessionId?, context?",
           http: "POST /api/agent/discuss (planned)"
+        }
+      ]
+    },
+    {
+      id: "facts",
+      title: "Банк фактов (awn-facts)",
+      tools: [
+        {
+          name: "retain_workspace_fact",
+          description: "Записать факт в awn-facts/ (решение, предпочтение, сущность).",
+          parameters: "body, kind?, source?, tags?, name?, sourceRef?, supersedes?",
+          http: "POST /api/agent/workspace-facts/retain"
+        },
+        {
+          name: "list_workspace_facts",
+          description: "Список фактов (новые первые), без semantic.",
+          parameters: "kind?, tags?, limit?",
+          http: "GET /api/agent/workspace-facts/list"
+        },
+        {
+          name: "recall_workspace_facts",
+          description: "Поиск по awn-facts/ (semantic + fulltext).",
+          parameters: "query, kind?, tags?, limit?",
+          http: "GET /api/agent/workspace-facts/recall"
         }
       ]
     },

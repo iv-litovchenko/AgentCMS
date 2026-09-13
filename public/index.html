@@ -1687,6 +1687,56 @@
                   ></ul>
                 </div>
               </details>
+              <details class="menu-static-section menu-static-section--awn-facts menu-static-accordion">
+                <summary class="menu-static-summary" title="Банк фактов — выжимки решений и знаний агента (awn-facts)">
+                  <span class="menu-static-title menu-static-title--awn-facts">
+                    <span id="menu-awn-facts-status-dot" class="menu-static-status-dot" aria-hidden="true">⚪</span>
+                    <span class="menu-static-title-text">
+                      Банк фактов
+                      <span class="menu-static-subtitle">awn-facts · retain / recall</span>
+                    </span>
+                  </span>
+                  <span class="menu-static-summary-actions">
+                    <button
+                      id="menu-awn-facts-refresh-btn"
+                      type="button"
+                      class="menu-static-summary-refresh-btn"
+                      title="Обновить банк фактов"
+                      aria-label="Обновить банк фактов"
+                    >
+                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                          stroke="currentColor"
+                          stroke-width="2.25"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                </summary>
+                <div class="menu-static-body">
+                  <p
+                    id="menu-awn-facts-stats"
+                    class="menu-awn-facts-stats is-empty"
+                    aria-live="polite"
+                  ></p>
+                  <p class="menu-static-description">
+                    Короткие факты и решения из любых чатов (Claude Desktop, Cursor, Voice).
+                    Пишет агент через <code>retain_workspace_fact</code>; поиск —
+                    <code>recall_workspace_facts</code>. Индексируется для semantic/fulltext.
+                  </p>
+                  <button
+                    id="menu-awn-facts-open-btn"
+                    type="button"
+                    class="menu-static-action-btn"
+                    title="Открыть папку awn-facts"
+                  >
+                    Открыть банк
+                  </button>
+                </div>
+              </details>
               <details class="menu-static-section menu-static-section--server-sync menu-static-accordion">
                 <summary class="menu-static-summary" title="Синхронизация workspace с удалённым сервером (скоро)">
                   <span class="menu-static-title menu-static-title--server-sync">

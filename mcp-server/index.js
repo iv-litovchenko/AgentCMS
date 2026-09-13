@@ -24,6 +24,7 @@ import { registerBrainTools } from "./lib/brain-tools.js";
 import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
 import { registerSidecarTools } from "./lib/sidecar-tools.js";
 import { registerDiscussTools } from "./lib/discuss-tools.js";
+import { registerFactsTools } from "./lib/facts-tools.js";
 
 const pagePath = z
   .string()
@@ -139,6 +140,8 @@ function createServer() {
   registerRepositoryTools(reg, client);
 
   registerBrainTools(reg, client);
+
+  registerFactsTools(reg, client);
 
   // ── AWN-DATA runtime (5) ───────────────────────────────────────────────────
 

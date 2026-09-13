@@ -53725,6 +53725,11 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #eef2ff;
 }
 
+.menu-static-section--awn-facts {
+  border: 1px solid #c4b5fd;
+  background: #f5f3ff;
+}
+
 .menu-awn-data-stores {
   list-style: none;
   margin: 0.5rem 0 0;
@@ -56219,6 +56224,31 @@ body.is-cms-page-picker-active #discuss-aside * {
   animation: workspace-refresh-spin 0.75s linear infinite;
 }
 
+.menu-static-status-dot.is-empty {
+  opacity: 0.55;
+  filter: grayscale(1);
+}
+
+.menu-static-status-dot.is-active {
+  opacity: 1;
+  filter: none;
+}
+
+.menu-awn-facts-stats {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #5b21b6;
+}
+
+.menu-awn-facts-stats.is-empty {
+  color: #7c6f9a;
+}
+
+.menu-awn-facts-stats.is-error {
+  color: #b91c1c;
+}
+
 .menu-awn-dialogs-stats {
   margin: 0 0 6px;
   font-size: 10px;
@@ -56395,6 +56425,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-static-title--google-drive,
 .menu-static-title--storage-schemes,
 .menu-static-title--awn-dialogs,
+.menu-static-title--awn-facts,
 .menu-static-title--vendor,
 .menu-static-title--settings,
 .menu-static-title--server-sync,
