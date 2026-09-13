@@ -1031,6 +1031,15 @@
                     >
                       <span class="agents-picker-tool-label">Битые ссылки</span>
                     </button>
+                    <button
+                      id="agent-run-scripts-btn"
+                      class="header-profile-menu-item agents-picker-tool-btn agent-run-scripts-btn"
+                      type="button"
+                      role="menuitem"
+                      title="Запуск скриптов — список и выполнение скриптов workspace"
+                    >
+                      <span class="agents-picker-tool-label">Запуск скриптов</span>
+                    </button>
                   </div>
                 </section>
               </div>
@@ -2443,6 +2452,28 @@
           <div id="agent-runtime-registry-stats" class="agent-workspace-stats agent-runtime-registry-stats"></div>
         </div>
         <div id="agent-runtime-registry-content" class="agent-tool-body agent-runtime-registry-content"></div>
+      </main>
+
+      <main id="agent-run-scripts-pane" class="agent-canvas-pane agent-tool-pane agent-run-scripts-pane hidden" aria-label="Запуск скриптов workspace">
+        <div class="agent-canvas-head agent-tool-head">
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Запуск скриптов</h2>
+            <p class="agent-canvas-lead">
+              Скрипты workspace (<code>.py</code>, <code>.js</code>, <code>.sh</code>) — просмотр списка и запуск из интерфейса.
+            </p>
+          </div>
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-run-scripts-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Обновить список скриптов" disabled>
+              Обновить
+            </button>
+          </div>
+        </div>
+        <div id="agent-run-scripts-info" class="agent-tool-info">
+          <p id="agent-run-scripts-meta" class="agent-tool-info-desc">Заглушка — скоро здесь появится список скриптов и кнопки запуска</p>
+          <div id="agent-run-scripts-stats" class="agent-workspace-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-run-scripts-content" class="agent-tool-body agent-run-scripts-content"></div>
       </main>
 
       <main id="agent-git-pane" class="agent-canvas-pane agent-tool-pane agent-git-pane hidden" aria-label="Git-репозиторий workspace">

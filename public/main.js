@@ -145,6 +145,11 @@ const agentBrokenLinksContentNode = document.getElementById("agent-broken-links-
 const agentBrokenLinksStatsNode = document.getElementById("agent-broken-links-stats");
 const agentBrokenLinksMetaNode = document.getElementById("agent-broken-links-meta");
 const agentBrokenLinksRefreshBtn = document.getElementById("agent-broken-links-refresh-btn");
+const agentRunScriptsPaneNode = document.getElementById("agent-run-scripts-pane");
+const agentRunScriptsContentNode = document.getElementById("agent-run-scripts-content");
+const agentRunScriptsStatsNode = document.getElementById("agent-run-scripts-stats");
+const agentRunScriptsMetaNode = document.getElementById("agent-run-scripts-meta");
+const agentRunScriptsRefreshBtn = document.getElementById("agent-run-scripts-refresh-btn");
 const agentRuntimeRegistryPaneNode = document.getElementById("agent-runtime-registry-pane");
 const agentRuntimeRegistryContentNode = document.getElementById("agent-runtime-registry-content");
 const agentRuntimeRegistryStatsNode = document.getElementById("agent-runtime-registry-stats");
@@ -157,6 +162,7 @@ const agentAwnTypesBtn = document.getElementById("agent-awn-types-btn");
 const agentGitBtn = document.getElementById("agent-git-btn");
 const agentLargeFilesBtn = document.getElementById("agent-large-files-btn");
 const agentBrokenLinksBtn = document.getElementById("agent-broken-links-btn");
+const agentRunScriptsBtn = document.getElementById("agent-run-scripts-btn");
 const agentRegistryBtn = document.getElementById("agent-registry-btn");
 const homeHintNode = document.getElementById("home-hint");
 const homeWorkspaceManifestNode = document.getElementById("home-workspace-manifest");
@@ -8889,7 +8895,8 @@ function wireAgentsPickerToolButtons() {
     agentAwnTypesBtn,
     agentRegistryBtn,
     agentLargeFilesBtn,
-    agentBrokenLinksBtn
+    agentBrokenLinksBtn,
+    agentRunScriptsBtn
   ]) {
     if (!btn || btn.dataset.pickerCloseBound === "1") continue;
     btn.dataset.pickerCloseBound = "1";
@@ -22439,6 +22446,39 @@ function createRegistryMarkerSvg() {
   return svg;
 }
 
+function createRunScriptsMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  const frame = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  frame.setAttribute("x", "3.5");
+  frame.setAttribute("y", "4");
+  frame.setAttribute("width", "17");
+  frame.setAttribute("height", "14");
+  frame.setAttribute("rx", "2");
+  frame.setAttribute("fill", "none");
+  frame.setAttribute("stroke", "currentColor");
+  frame.setAttribute("stroke-width", "1.8");
+  svg.appendChild(frame);
+
+  const prompt = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  prompt.setAttribute("d", "M6.5 8.5h7M6.5 11.5h5");
+  prompt.setAttribute("stroke", "currentColor");
+  prompt.setAttribute("stroke-width", "1.6");
+  prompt.setAttribute("stroke-linecap", "round");
+  prompt.setAttribute("opacity", "0.55");
+  svg.appendChild(prompt);
+
+  const play = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  play.setAttribute("d", "M15.5 10.2l4.2 2.4-4.2 2.4V10.2z");
+  play.setAttribute("fill", "currentColor");
+  svg.appendChild(play);
+
+  return svg;
+}
+
 function createObsidianMarkerSvg() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
@@ -26620,6 +26660,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   git: "Git-репозиторий",
   "large-files": "Крупные файлы",
   "broken-links": "Битые ссылки",
+  "run-scripts": "Запуск скриптов",
   "runtime-registry": "Реестр",
   map: "Карта",
   map2: "Структура",
@@ -86644,6 +86685,7 @@ function saveAgentWorkspaceView(view) {
     view === "awn-types" ||
     view === "large-files" ||
     view === "broken-links" ||
+    view === "run-scripts" ||
     view === "runtime-registry"
   ) {
     return;
@@ -86661,6 +86703,7 @@ function resetGitWorkspaceViewToDefault() {
     agentWorkspaceView !== "awn-types" &&
     agentWorkspaceView !== "large-files" &&
     agentWorkspaceView !== "broken-links" &&
+    agentWorkspaceView !== "run-scripts" &&
     agentWorkspaceView !== "runtime-registry"
   ) {
     return;
@@ -86697,6 +86740,7 @@ function applyAgentWorkspaceCanvasUi() {
   agentGitPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "git");
   agentLargeFilesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "large-files");
   agentBrokenLinksPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "broken-links");
+  agentRunScriptsPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "run-scripts");
   agentRuntimeRegistryPaneNode?.classList.toggle(
     "hidden",
     !showCanvas || agentWorkspaceView !== "runtime-registry"
@@ -86729,6 +86773,8 @@ function applyAgentWorkspaceCanvasUi() {
     void renderAgentLargeFilesView();
   } else if (agentWorkspaceView === "broken-links") {
     void renderAgentBrokenLinksView();
+  } else if (agentWorkspaceView === "run-scripts") {
+    renderAgentRunScriptsView();
   } else if (agentWorkspaceView === "runtime-registry") {
     void renderAgentRuntimeRegistryView();
   } else if (agentWorkspaceView === "awn-types") {
@@ -86760,6 +86806,7 @@ function applyAgentWorkspaceCanvasUi() {
   syncAgentGitToolbarUi();
   syncAgentLargeFilesToolbarUi();
   syncAgentBrokenLinksToolbarUi();
+  syncAgentRunScriptsToolbarUi();
   syncAgentRegistryToolbarUi();
   syncAgentAwnTypesToolbarUi();
   updateDocumentTitle();
@@ -86772,6 +86819,7 @@ function setAgentWorkspaceView(view) {
     view !== "git" &&
     view !== "large-files" &&
     view !== "broken-links" &&
+    view !== "run-scripts" &&
     view !== "runtime-registry" &&
     view !== "awn-types" &&
     view !== "map" &&
@@ -87756,6 +87804,19 @@ function syncAgentBrokenLinksToolbarUi() {
   );
 }
 
+function initAgentRunScriptsToolbar() {
+  if (!agentRunScriptsBtn) return;
+  mountAgentToolbarBtnIcon(agentRunScriptsBtn, createRunScriptsMarkerSvg(), "agent-run-scripts-btn-icon");
+  syncAgentRunScriptsToolbarUi();
+}
+
+function syncAgentRunScriptsToolbarUi() {
+  agentRunScriptsBtn?.classList.toggle(
+    "is-active",
+    agentWorkspaceView === "run-scripts" && isAgentWorkspaceCanvasVisible()
+  );
+}
+
 function initAgentRegistryToolbar() {
   if (!agentRegistryBtn) return;
   mountAgentToolbarBtnIcon(agentRegistryBtn, createRegistryMarkerSvg(), "agent-registry-btn-icon");
@@ -88591,6 +88652,97 @@ async function renderAgentBrokenLinksView() {
     errorNode.textContent = `Не удалось проверить ссылки: ${error.message}`;
     agentBrokenLinksContentNode.appendChild(errorNode);
   }
+}
+
+const RUN_SCRIPTS_STUB_ITEMS = [
+  {
+    path: "scripts/rebuild-index.py",
+    kind: "Python",
+    description: "Пересборка INDEX.md и content-index"
+  },
+  {
+    path: "scripts/sync-storage.js",
+    kind: "Node.js",
+    description: "Синхронизация storage-index с workspace"
+  },
+  {
+    path: "scripts/backup.sh",
+    kind: "Shell",
+    description: "Архивация workspace перед деплоем"
+  }
+];
+
+function renderAgentRunScriptsView() {
+  if (!agentRunScriptsContentNode) return;
+
+  agentRunScriptsContentNode.replaceChildren();
+  if (agentRunScriptsStatsNode) {
+    agentRunScriptsStatsNode.replaceChildren(
+      createAgentWorkspaceStatElement(String(RUN_SCRIPTS_STUB_ITEMS.length), "скриптов", "soft"),
+      createAgentWorkspaceStatElement("0", "запусков", "")
+    );
+  }
+
+  if (agentRunScriptsMetaNode) {
+    agentRunScriptsMetaNode.textContent =
+      "Заглушка · примеры ниже показывают будущий список · MCP: run_script";
+  }
+
+  const shell = document.createElement("div");
+  shell.className = "agent-tool-shell agent-run-scripts-shell";
+
+  const notice = document.createElement("div");
+  notice.className = "agent-tool-empty-card agent-run-scripts-notice";
+  notice.innerHTML = `
+    <p class="agent-tool-empty-title agent-run-scripts-notice-title">Раздел в разработке</p>
+    <p class="agent-tool-empty-text agent-run-scripts-notice-text">
+      Здесь будет список скриптов workspace с кнопками запуска, аргументами и выводом stdout/stderr.
+      Пока показаны примеры для проверки макета.
+    </p>
+  `;
+  shell.appendChild(notice);
+
+  const list = document.createElement("ul");
+  list.className = "agent-tool-list agent-run-scripts-list";
+
+  for (const item of RUN_SCRIPTS_STUB_ITEMS) {
+    const row = document.createElement("li");
+    row.className = "agent-run-scripts-row-wrap";
+
+    const card = document.createElement("div");
+    card.className = "agent-run-scripts-row";
+
+    const main = document.createElement("div");
+    main.className = "agent-run-scripts-main";
+
+    const pathNode = document.createElement("span");
+    pathNode.className = "agent-run-scripts-path";
+    pathNode.textContent = item.path;
+
+    const descNode = document.createElement("span");
+    descNode.className = "agent-run-scripts-desc";
+    descNode.textContent = item.description;
+
+    main.append(pathNode, descNode);
+
+    const kindNode = document.createElement("span");
+    kindNode.className = "agent-run-scripts-kind";
+    kindNode.textContent = item.kind;
+
+    const runBtn = document.createElement("button");
+    runBtn.type = "button";
+    runBtn.className = "agent-run-scripts-run-btn";
+    runBtn.textContent = "Запустить";
+    runBtn.disabled = true;
+    runBtn.title = "Скоро — запуск через run_script";
+
+    card.append(main, kindNode, runBtn);
+    row.appendChild(card);
+    list.appendChild(row);
+  }
+
+  shell.appendChild(list);
+  agentRunScriptsContentNode.appendChild(shell);
 }
 
 async function openWorkspaceInspectorPath(relPath) {
@@ -98760,6 +98912,10 @@ agentBrokenLinksBtn?.addEventListener("click", () => {
   setAgentWorkspaceView("broken-links");
 });
 
+agentRunScriptsBtn?.addEventListener("click", () => {
+  setAgentWorkspaceView("run-scripts");
+});
+
 agentRuntimeRegistryRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "runtime-registry") {
     void renderAgentRuntimeRegistryView();
@@ -99826,6 +99982,7 @@ initAgentAwnTypesToolbar();
 initAgentGitToolbar();
 initAgentLargeFilesToolbar();
 initAgentBrokenLinksToolbar();
+initAgentRunScriptsToolbar();
 bindLandingFocusToolbar();
 bindLandingMainTopicsDock();
 initWorkspaceNotifications();

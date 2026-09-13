@@ -8686,6 +8686,7 @@ body.app-locked {
 .agent-git-pane,
 .agent-large-files-pane,
 .agent-broken-links-pane,
+.agent-run-scripts-pane,
 .agent-runtime-registry-pane,
 .agent-tool-pane,
 .agent-awn-types-pane,
@@ -17461,6 +17462,10 @@ a.header-tool-btn {
   color: #dc2626;
 }
 
+.agents-picker-tools-grid .agent-run-scripts-btn .agents-picker-tool-icon {
+  color: #0891b2;
+}
+
 .agents-picker-stage--stack,
 .agents-picker-stage--radar {
   min-height: 200px;
@@ -19368,6 +19373,7 @@ a.header-tool-btn {
 
 .agent-large-files-pane,
 .agent-broken-links-pane,
+.agent-run-scripts-pane,
 .agent-runtime-registry-pane {
   /* layout via .agent-tool-pane + .agent-canvas-pane */
 }
@@ -20066,6 +20072,86 @@ a.header-tool-btn {
   font-size: 11px;
   color: var(--muted);
   word-break: break-word;
+}
+
+.agent-run-scripts-notice {
+  margin-bottom: 14px;
+}
+
+.agent-run-scripts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-run-scripts-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.agent-run-scripts-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.agent-run-scripts-path {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  word-break: break-word;
+}
+
+.agent-run-scripts-desc {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.agent-run-scripts-kind {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #0e7490;
+  background: #ecfeff;
+  white-space: nowrap;
+}
+
+.agent-run-scripts-run-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(8, 145, 178, 0.35);
+  background: #ecfeff;
+  color: #0e7490;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: not-allowed;
+  opacity: 0.72;
+  white-space: nowrap;
+}
+
+.agent-run-scripts-run-btn:not(:disabled) {
+  cursor: pointer;
+  opacity: 1;
+}
+
+.agent-run-scripts-run-btn:not(:disabled):hover {
+  background: #cffafe;
+  border-color: rgba(8, 145, 178, 0.55);
 }
 
 .agent-broken-links-empty,
