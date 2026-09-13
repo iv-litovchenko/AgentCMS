@@ -15704,6 +15704,34 @@ body.app-locked {
   line-height: 1;
 }
 
+.header-author-telegram-icon {
+  background: #229ed9;
+}
+
+.header-author-youtube-icon {
+  background: #ff0000;
+}
+
+.header-author-github-link.is-stub {
+  cursor: default;
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.header-author-github-link.is-stub:hover {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  transform: none;
+}
+
+.header-author-stub-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  color: #94a3b8;
+}
+
 .header-author-github-copy {
   display: flex;
   flex-direction: column;
