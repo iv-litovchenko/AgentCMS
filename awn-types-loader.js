@@ -271,8 +271,11 @@ function loadAgentTypes(agentRoot, projectRoot) {
   if (types["awn.content.category"] && !types["awn.media.category"]) {
     types["awn.media.category"] = types["awn.content.category"];
   }
-  if (types["awn.content.dialog"] && !types["awn.dialog"]) {
-    types["awn.dialog"] = types["awn.content.dialog"];
+  if (types["awn.content.discussion"] && !types["awn.dialog"]) {
+    types["awn.dialog"] = types["awn.content.discussion"];
+  }
+  if (types["awn.content.discussion"] && !types["awn.content.dialog"]) {
+    types["awn.content.dialog"] = types["awn.content.discussion"];
   }
   if (types["awn.content.comment"] && !types["awn.comment"]) {
     types["awn.comment"] = types["awn.content.comment"];

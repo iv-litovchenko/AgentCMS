@@ -270,18 +270,18 @@ function createWorkspaceBrainService(deps) {
         path: manifestPath,
         pending: Number(summary.inbox.pending) || 0,
         inboxTotal: Number(summary.inbox.total) || 0,
-        threadCount: Number(summary.thread?.count) || 0,
-        lastMessageAt: summary.thread?.lastMessageAt || null
+        discussionCount: Number(summary.discussion?.count || summary.thread?.count) || 0,
+        lastMessageAt: summary.discussion?.lastMessageAt || summary.thread?.lastMessageAt || null
       }))
-      .sort((a, b) => b.pending - a.pending || b.threadCount - a.threadCount);
+      .sort((a, b) => b.pending - a.pending || b.discussionCount - a.discussionCount);
 
     const topicsWithRecentThread = Object.entries(intakeSummaries)
-      .filter(([, summary]) => summary?.thread?.lastMessageAt)
+      .filter(([, summary]) => summary.discussion?.lastMessageAt || summary.thread?.lastMessageAt)
       .map(([manifestPath, summary]) => ({
         path: manifestPath,
-        lastMessageAt: summary.thread.lastMessageAt,
-        lastMessageId: summary.thread.lastMessageId || null,
-        threadCount: Number(summary.thread?.count) || 0
+        lastMessageAt: summary.discussion?.lastMessageAt || summary.thread?.lastMessageAt,
+        lastMessageId: summary.discussion?.lastMessageId || summary.thread?.lastMessageId || null,
+        discussionCount: Number(summary.discussion?.count || summary.thread?.count) || 0
       }))
       .sort((a, b) => String(b.lastMessageAt).localeCompare(String(a.lastMessageAt)))
       .slice(0, 20);

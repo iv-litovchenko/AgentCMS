@@ -18,7 +18,7 @@ const factTags = z
 export function registerFactsTools(reg, client) {
   reg(
     "retain_workspace_fact",
-    "Retain a distilled fact in workspace fact bank (awn-facts/). Use after decisions, preferences, or important conclusions — especially from external chats (Claude Desktop). Not for full dialog logs (use awn-dialogs / thread).",
+    "Retain a distilled fact in workspace fact bank (awn-facts/). Use after decisions, preferences, or important conclusions — especially from external chats (Claude Desktop). Not for full dialog logs (use awn-dialogs / discussion).",
     z.object({
       body: z.string().min(1).describe("Fact text — one or two sentences"),
       kind: factKind,

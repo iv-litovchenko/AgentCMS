@@ -98,6 +98,7 @@ const CHPU_LEGACY_UI_ALIASES = {
   "topic-schema": "schema",
   schema: "schema",
   env: "env",
+  discussion: "chat",
   thread: "chat",
   chat: "chat",
   todo: "todo",
@@ -403,7 +404,7 @@ async function resolveStorageRecord(agentRoot, topicDir, slotFolder, resourcePat
 }
 
 const CHPU_FLAT_SLOT_FOLDER_NAMES = [
-  ...new Set([...Object.keys(SLOT_FOLDER_TO_MODE), "main", "inbox", "thread", "notes", "quick-notes"])
+  ...new Set([...Object.keys(SLOT_FOLDER_TO_MODE), "main", "inbox", "discussion", "thread", "notes", "quick-notes"])
 ];
 
 function normalizeMalformedChpuStoragePath(chpuPath) {

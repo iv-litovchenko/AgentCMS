@@ -119,7 +119,11 @@ const STORAGE_SUBFOLDER_MEMORY = STORAGE_SUBFOLDER_MAIN;
 /** @deprecated use STORAGE_SUBFOLDER_MAIN */
 const STORAGE_SUBFOLDER_CONTENT = STORAGE_SUBFOLDER_MAIN;
 const STORAGE_SUBFOLDER_INBOX = "inbox";
-const STORAGE_SUBFOLDER_THREAD = "thread";
+const STORAGE_SUBFOLDER_DISCUSSION = "discussion";
+/** @deprecated use STORAGE_SUBFOLDER_DISCUSSION */
+const LEGACY_STORAGE_SUBFOLDER_THREAD = "thread";
+/** @deprecated alias — canonical folder is discussion/ */
+const STORAGE_SUBFOLDER_THREAD = STORAGE_SUBFOLDER_DISCUSSION;
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
 const STORAGE_SUBFOLDER_NOTE = "notes";
 const LEGACY_STORAGE_SUBFOLDER_NOTE = "note";
@@ -147,7 +151,7 @@ const COMMENT_FILE_SUFFIX = ".md";
 const STORAGE_SLOT_LAYER_FOLDERS = [
   STORAGE_SUBFOLDER_MAIN,
   STORAGE_SUBFOLDER_INBOX,
-  STORAGE_SUBFOLDER_THREAD,
+  STORAGE_SUBFOLDER_DISCUSSION,
   STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_REFERENCES,
@@ -210,7 +214,9 @@ const STORAGE_ASSETS_INLINE_SUBFOLDERS = [
 const STORAGE_SUBFOLDER_BY_MODE = {
   external: STORAGE_SUBFOLDER_MAIN,
   inbox: STORAGE_SUBFOLDER_INBOX,
-  dialogs: STORAGE_SUBFOLDER_THREAD,
+  discussion: STORAGE_SUBFOLDER_DISCUSSION,
+  thread: STORAGE_SUBFOLDER_DISCUSSION,
+  dialogs: STORAGE_SUBFOLDER_DISCUSSION,
   notes: STORAGE_SUBFOLDER_NOTE,
   "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
   references: STORAGE_SUBFOLDER_REFERENCES,
@@ -385,6 +391,9 @@ function normalizeStorageSubfolderName(name) {
   if (raw === LEGACY_STORAGE_SUBFOLDER_NOTE || raw.toLowerCase() === LEGACY_STORAGE_SUBFOLDER_NOTE) {
     return STORAGE_SUBFOLDER_NOTE;
   }
+  if (raw === LEGACY_STORAGE_SUBFOLDER_THREAD || raw.toLowerCase() === LEGACY_STORAGE_SUBFOLDER_THREAD) {
+    return STORAGE_SUBFOLDER_DISCUSSION;
+  }
   for (const canonical of STORAGE_SLOT_LAYER_FOLDERS) {
     if (raw === canonical || raw.toLowerCase() === canonical.toLowerCase()) return canonical;
   }
@@ -403,6 +412,9 @@ function listStorageSubfolderNameCandidates(folderName) {
   }
   if (canonical === STORAGE_SUBFOLDER_NOTE) {
     return [STORAGE_SUBFOLDER_NOTE, LEGACY_STORAGE_SUBFOLDER_NOTE];
+  }
+  if (canonical === STORAGE_SUBFOLDER_DISCUSSION) {
+    return [STORAGE_SUBFOLDER_DISCUSSION, LEGACY_STORAGE_SUBFOLDER_THREAD];
   }
   return [canonical];
 }
@@ -630,13 +642,18 @@ function getCommentsDirRel(manifestRelPath, targetRelPath) {
   return `${slotDir}/${STORAGE_SUBFOLDER_COMMENTS}/${relativeTarget}`;
 }
 
-function getThreadDirRel(manifestRelPath, targetRelPath = null) {
+function getDiscussionDirRel(manifestRelPath, targetRelPath = null) {
   const slotDir = getNamedStorageSlotDirRel(manifestRelPath);
   if (!slotDir) return "";
-  if (!targetRelPath) return `${slotDir}/${STORAGE_SUBFOLDER_THREAD}`;
+  if (!targetRelPath) return `${slotDir}/${STORAGE_SUBFOLDER_DISCUSSION}`;
   const relativeTarget = getHistoryRelativeTargetPath(manifestRelPath, targetRelPath);
-  if (!relativeTarget) return `${slotDir}/${STORAGE_SUBFOLDER_THREAD}`;
-  return `${slotDir}/${STORAGE_SUBFOLDER_THREAD}/${relativeTarget}`;
+  if (!relativeTarget) return `${slotDir}/${STORAGE_SUBFOLDER_DISCUSSION}`;
+  return `${slotDir}/${STORAGE_SUBFOLDER_DISCUSSION}/${relativeTarget}`;
+}
+
+/** @deprecated use getDiscussionDirRel */
+function getThreadDirRel(manifestRelPath, targetRelPath = null) {
+  return getDiscussionDirRel(manifestRelPath, targetRelPath);
 }
 
 function buildCommentFileName(date = new Date()) {
@@ -1433,7 +1450,9 @@ module.exports = {
   LEGACY_STORAGE_SUBFOLDER_MEMORY,
   LEGACY_STORAGE_SUBFOLDER_CONTENT,
   STORAGE_SUBFOLDER_INBOX,
+  STORAGE_SUBFOLDER_DISCUSSION,
   STORAGE_SUBFOLDER_THREAD,
+  LEGACY_STORAGE_SUBFOLDER_THREAD,
   STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_REFERENCES,
@@ -1532,6 +1551,7 @@ module.exports = {
   getHistoryRelativeTargetPath,
   getHistoryVersionDirRel,
   getCommentsDirRel,
+  getDiscussionDirRel,
   getThreadDirRel,
   buildHistoryVersionFileName,
   buildCommentFileName,

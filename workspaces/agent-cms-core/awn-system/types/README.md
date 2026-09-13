@@ -25,7 +25,7 @@ awn.entity
         └── awn.content.base           ← attachments (materials)
               ├── awn.content.record
               ├── awn.content.category
-              ├── awn.content.dialog
+              ├── awn.content.discussion
               ├── awn.content.comment
               └── awn.content.sidecar
 ```

@@ -1,11 +1,11 @@
-id: awn.content.dialog
-name: Сообщение диалога
+id: awn.content.discussion
+name: Сообщение дискуссии
 kind: type
 domain: content
 status: active
 extends: awn.content.base
-description: Одно сообщение в слоте dialogs/ — диалог с агентом
-slot: dialogs
+description: Одно сообщение в слоте discussion/ — дискуссия по теме (люди и агент)
+slot: discussion
 
 fields:
 

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Example13 — куда деть слоты hub-rail</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --panel: #fff;
+        --border: #d7deeb;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --accent: #dc2626;
+        --good: #16a34a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 32px 24px 48px;
+      }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .lead {
+        color: var(--muted);
+        max-width: 900px;
+        line-height: 1.55;
+        margin: 0 0 20px;
+      }
+      .problem {
+        max-width: 900px;
+        margin: 0 0 28px;
+        padding: 18px 20px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 12px;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+      .problem strong { color: #991b1b; }
+      .ascii {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        background: #fff;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin: 12px 0 0;
+        line-height: 1.45;
+        overflow-x: auto;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 14px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .card h2 { margin: 0; font-size: 15px; }
+      .card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
+      .tag {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #fef2f2;
+        color: #b91c1c;
+        width: fit-content;
+        font-weight: 700;
+      }
+      .tag.rec { background: #ecfdf5; color: #047857; }
+      .scheme {
+        font-size: 11px;
+        font-family: ui-monospace, Menlo, monospace;
+        color: #475569;
+        background: #f8fafc;
+        border-radius: 6px;
+        padding: 6px 8px;
+      }
+      a.demo {
+        display: inline-flex;
+        padding: 8px 14px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+        width: fit-content;
+      }
+      a.demo:hover { background: #b91c1c; }
+      a.demo.good { background: var(--good); }
+      a.demo.good:hover { background: #15803d; }
+      code {
+        font-size: 12px;
+        background: #eef2ff;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .back { color: #2563eb; font-size: 13px; text-decoration: none; display: inline-block; margin-bottom: 16px; }
+    </style>
+  </head>
+  <body>
+    <a class="back" href="../index.html">← Все примеры</a>
+    <h1>Example13 — куда деть слоты hub-rail</h1>
+    <p class="lead">
+      10 способов убрать <code>node-navigation-hub-rail</code> из центральной колонки,
+      когда уже заняты: <strong>дерево слева</strong> · <strong>контент по центру</strong> · <strong>диалог справа</strong>.
+    </p>
+    <section class="problem">
+      <strong>Проблема сейчас</strong> — четвёртая колонка внутри workspace:
+      <div class="ascii">[ Дерево 250px ] | [ Hero + контент ~350px | ⟨ | Rail слотов 300px ] | [ Диалог 350px ]
+      ↑ на экране 1280px контенту остаётся &lt;300px — rail съедает всё</div>
+    </section>
+    <p class="lead" style="font-size:13px;">
+      Запуск: <code>cd documentation/examples && python3 -m http.server 8790</code> →
+      <a href="http://localhost:8790/13/">http://localhost:8790/13/</a>
+    </p>
+    <div class="grid">
+      <article class="card">
+        <span class="tag rec">01 · рекомендуем</span>
+        <h2>Chips под hero-nav</h2>
+        <p>Слоты (📥163 · 📒0 · 🖼3) — горизонтальные chips прямо под «← Предыдущая / Следующая →». Rail убран, центр на всю ширину.</p>
+        <div class="scheme">[дерево] | [hero-nav + chips + контент] | [диалог]</div>
+        <a class="demo good" href="../7/05-mode-pills/index.html">Открыть прототип →</a>
+      </article>
+      <article class="card">
+        <span class="tag">02</span>
+        <h2>Вкладки вместо rail</h2>
+        <p>Один активный слот: Обзор · Входящие · Заметки · Медиа. Список файлов — в основной зоне, не в боковой колонке.</p>
+        <div class="scheme">[дерево] | [tabs + список/контент] | [диалог]</div>
+        <a class="demo" href="../7/04-surface-tabs/index.html">Открыть прототип →</a>
+      </article>
+      <article class="card">
+        <span class="tag rec">03 · рекомендуем</span>
+        <h2>Слоты в дерево</h2>
+        <p>Под нодой «Тест 1000 сообщений» — папки 📥 Входящие, 📒 Заметки, 🖼 Медиа. Левая колонка становится навигатором по слотам.</p>
+        <div class="scheme">[дерево+слоты] | [чистый контент] | [диалог]</div>
+        <a class="demo good" href="../4/11-tree-storage-folders/index.html">Открыть прототип →</a>
+      </article>
+      <article class="card">
+        <span class="tag">04</span>
+        <h2>Слоты в потоке документа</h2>
+        <p>Rail исчезает: каждый слот — секция в scroll (accordion или labeled dividers). Подходит для overview-страницы.</p>
+        <div class="scheme">[дерево] | [hero + 📥секция + 📒секция + 🖼секция] | [диалог]</div>
+        <a class="demo" href="../10/11-accordion-parts/index.html">Открыть прототип →</a>
+      </article>
+      <article class="card">
+        <span class="tag">05</span>
+        <h2>Flyout overlay</h2>
+        <p>Узкая кнопка «Слоты» или иконка 📦 — панель 280px поверх контента, не сжимая его. Закрывается кликом вне.</p>
+        <div class="scheme">[дерево] | [контент full width + flyout поверх] | [диалог]</div>
+        <a class="demo" href="../4/09-wide-flyout-only/index.html">Открыть прототип →</a>
+      </article>
+      <article class="card">
+        <span class="tag">06</span>
+        <h2>Нижний drawer</h2>
+        <p>Слоты в выдвижной панели снизу (как VS Code terminal). Центр всегда широкий, rail не нужен.</p>
+        <div class="scheme">[дерево] | [контент] | [диалог]
+                    └─ drawer слотов ↑</div>
+        <a class="demo" href="../3/10-props-bottom-drawer/index.html">Открыть прототип →</a>
+      </article>
+      <article class="card">
+        <span class="tag">07</span>
+        <h2>Bento-dashboard</h2>
+        <p>Слоты — плитки в сетке внутри main: inbox-card, notes-card, media-grid. Нет отдельной колонки.</p>
+        <div class="scheme">[дерево] | [hero + bento 2×3] | [диалог]</div>
+        <a class="demo" href="../7/07-bento-dashboard/index.html">Открыть прототип →</a>
+      </article>
+      <article class="card">
+        <span class="tag">08</span>
+        <h2>Icon dock (свёрнутый rail)</h2>
+        <p>Rail по умолчанию collapsed: 6 иконок × 40px между контентом и диалогом. Раскрытие — только активного слота.</p>
+        <div class="scheme">[дерево] | [контент] | [📥📒🔗📦🖼] | [диалог]</div>
+        <a class="demo" href="../12/06-icon-dock/index.html">Открыть прототип →</a>
+      </article>
+      <article class="card">
+        <span class="tag">09</span>
+        <h2>Mega-menu / Command palette</h2>
+        <p>Одна кнопка «Слоты ▾» или ⌘K — все слоты и файлы в overlay. Центр чистый, rail не нужен вообще.</p>
+        <div class="scheme">[дерево] | [контент] | [диалог]
+              ⌘K → панель всех слотов</div>
+        <a class="demo" href="../4/06-mega-menu/index.html">Открыть прототип →</a>
+      </article>
+      <article class="card">
+        <span class="tag rec">10 · рекомендуем</span>
+        <h2>Правая колонка = вкладки</h2>
+        <p>Объединить диалог и слоты: [💬 Обсуждение | 📥 Входящие | 🖼 Медиа]. Одна правая панель, два режима — не четыре колонки.</p>
+        <div class="scheme">[дерево] | [контент full] | [tabs: диалог/слоты]</div>
+        <a class="demo good" href="../3/08-workspace-tabs/index.html">Открыть прототип →</a>
+      </article>
+    </div>
+  </body>
+</html>

@@ -152,7 +152,9 @@ const {
   LEGACY_STORAGE_SUBFOLDER_MEMORY,
   LEGACY_STORAGE_SUBFOLDER_CONTENT,
   STORAGE_SUBFOLDER_INBOX,
+  STORAGE_SUBFOLDER_DISCUSSION,
   STORAGE_SUBFOLDER_THREAD,
+  LEGACY_STORAGE_SUBFOLDER_THREAD,
   STORAGE_SUBFOLDER_QUICK_NOTES,
   STORAGE_SUBFOLDER_NOTE,
   STORAGE_SUBFOLDER_REFERENCES,
@@ -198,6 +200,7 @@ const {
   getHistoryVersionDirRel,
   getCommentsDirRel,
   ensureExternalMemoryMdRelPath,
+  getDiscussionDirRel,
   getThreadDirRel,
   buildHistoryVersionFileName,
   buildCommentFileName,
@@ -2592,7 +2595,7 @@ function wrapInboxBodyForThread(body, meta = {}) {
   return `> **Входящее**${sourceNote}\n\n${clean}`.trim();
 }
 
-async function buildTopicChannelSignature(manifestRelPath, watch = "thread,inbox", scope = {}) {
+async function buildTopicChannelSignature(manifestRelPath, watch = "discussion,inbox", scope = {}) {
   const channels = new Set(
     String(watch || "")
       .split(",")
@@ -2610,7 +2613,7 @@ async function buildTopicChannelSignature(manifestRelPath, watch = "thread,inbox
     };
   }
 
-  if (channels.has("thread")) {
+  if (channels.has("discussion") || channels.has("thread")) {
     const thread = await listTopicThread({
       manifestRelPath,
       mode: scope.mode,
@@ -2619,11 +2622,12 @@ async function buildTopicChannelSignature(manifestRelPath, watch = "thread,inbox
     });
     const messages = Array.isArray(thread.messages) ? thread.messages : [];
     const last = messages.length ? messages[messages.length - 1] : null;
-    parts.thread = {
+    parts.discussion = {
       count: messages.length,
       lastId: last?.id || null,
       lastRole: last?.role || null
     };
+    parts.thread = parts.discussion;
   }
 
   return JSON.stringify(parts);
@@ -2704,7 +2708,7 @@ async function buildAgentChannelSignature(agentRoot = getAgentRoot()) {
   for (const [path, summary] of Object.entries(batch.summaries || {})) {
     digest[path] = {
       i: Number(summary?.inbox?.pending) || 0,
-      t: summary?.thread?.lastMessageId || null,
+      t: summary?.discussion?.lastMessageId || summary?.thread?.lastMessageId || null,
       m: Number(summary?.mentions?.unread) || 0
     };
   }
@@ -2779,13 +2783,19 @@ function upsertYamlScalarLine(frontmatter, key, value) {
   return trimmed ? `${trimmed}\n${line}` : line;
 }
 
-async function readThreadMessagesFromDir(threadDirRel) {
-  const threadDirAbsolute = normalizeWorkspacePath(threadDirRel);
-  if (!threadDirAbsolute) return [];
+function legacyDiscussionDirRel(discussionDirRel) {
+  const rel = String(discussionDirRel || "").replace(/\\/g, "/");
+  if (!rel) return "";
+  return rel.replace(/\/discussion(\/|$)/, `/${LEGACY_STORAGE_SUBFOLDER_THREAD}$1`);
+}
+
+async function readDiscussionMessagesFromSingleDir(discussionDirRel) {
+  const discussionDirAbsolute = normalizeWorkspacePath(discussionDirRel);
+  if (!discussionDirAbsolute) return [];
 
   let entries;
   try {
-    entries = await fs.readdir(threadDirAbsolute, { withFileTypes: true });
+    entries = await fs.readdir(discussionDirAbsolute, { withFileTypes: true });
   } catch (error) {
     if (error && error.code === "ENOENT") return [];
     throw error;
@@ -2794,7 +2804,7 @@ async function readThreadMessagesFromDir(threadDirRel) {
   const messages = [];
   for (const entry of entries) {
     if (!entry.isFile() || !isCommentFileName(entry.name)) continue;
-    const messageAbsolute = path.join(threadDirAbsolute, entry.name);
+    const messageAbsolute = path.join(discussionDirAbsolute, entry.name);
     let content = "";
     try {
       content = await fs.readFile(messageAbsolute, "utf-8");
@@ -2805,13 +2815,32 @@ async function readThreadMessagesFromDir(threadDirRel) {
     messages.push({
       id: entry.name,
       label: formatCommentTimestampLabel(entry.name),
-      relPath: `${threadDirRel}/${entry.name}`.replace(/\\/g, "/"),
+      relPath: `${discussionDirRel}/${entry.name}`.replace(/\\/g, "/"),
       role: parsed.role,
       author: parsed.author,
       created: parsed.created,
       linkedFiles: parsed.linkedFiles || null,
       body: parsed.body
     });
+  }
+
+  return messages;
+}
+
+async function readThreadMessagesFromDir(discussionDirRel) {
+  const dirCandidates = [discussionDirRel];
+  const legacyDirRel = legacyDiscussionDirRel(discussionDirRel);
+  if (legacyDirRel && legacyDirRel !== discussionDirRel) dirCandidates.push(legacyDirRel);
+
+  const seen = new Set();
+  const messages = [];
+  for (const dirRel of dirCandidates) {
+    const batch = await readDiscussionMessagesFromSingleDir(dirRel);
+    for (const message of batch) {
+      if (seen.has(message.id)) continue;
+      seen.add(message.id);
+      messages.push(message);
+    }
   }
 
   messages.sort((left, right) => left.id.localeCompare(right.id));
@@ -2824,7 +2853,7 @@ async function resolveThreadTarget({ manifestRelPath, mode, file, systemName }) 
   const hasFileScope = Boolean(String(file || "").trim() || String(systemName || "").trim());
 
   if (!hasFileScope) {
-    const threadDirRel = getThreadDirRel(manifestPath);
+    const threadDirRel = getDiscussionDirRel(manifestPath);
     return {
       manifestPath,
       target: null,
@@ -2835,7 +2864,7 @@ async function resolveThreadTarget({ manifestRelPath, mode, file, systemName }) 
 
   const targetRelPath = await resolveHistoryTargetRelPath({ manifestRelPath, mode, file, systemName });
   if (!targetRelPath) {
-    const threadDirRel = getThreadDirRel(manifestPath);
+    const threadDirRel = getDiscussionDirRel(manifestPath);
     return {
       manifestPath,
       target: null,
@@ -2845,7 +2874,7 @@ async function resolveThreadTarget({ manifestRelPath, mode, file, systemName }) 
   }
 
   const relativeTarget = getHistoryRelativeTargetPath(manifestPath, targetRelPath);
-  const threadDirRel = getThreadDirRel(manifestPath, targetRelPath);
+  const threadDirRel = getDiscussionDirRel(manifestPath, targetRelPath);
   return {
     manifestPath,
     target: relativeTarget || null,
@@ -2870,6 +2899,7 @@ async function listTopicThread({ manifestRelPath, mode, file, systemName } = {})
     manifestPath: resolved.manifestPath,
     target: resolved.target,
     scope: resolved.scope,
+    discussionDir: resolved.threadDirRel,
     threadDir: resolved.threadDirRel,
     messages
   };
@@ -3048,23 +3078,6 @@ async function triageInboxItem({ manifestRelPath, file, action, status }) {
   const parsed = parseInboxItemContent(raw);
   const nextAction = String(action || "").trim().toLowerCase();
 
-  if (nextAction === "to-thread" || nextAction === "to-dialogs") {
-    const threadBody = wrapInboxBodyForThread(String(body || "").trim() || parsed.body, {
-      source: parsed.source
-    });
-    const message = await appendTopicThreadMessage({
-      manifestRelPath,
-      body: threadBody,
-      role: "user",
-      author: parsed.author || "inbox"
-    });
-    let nextFrontmatter = upsertYamlScalarLine(frontmatter, "awn-status", "done");
-    nextFrontmatter = upsertYamlScalarLine(nextFrontmatter, "awn-triaged-at", new Date().toISOString());
-    nextFrontmatter = upsertYamlScalarLine(nextFrontmatter, "awn-thread-ref", message.id);
-    await fs.writeFile(fileAbsolute, joinNodeFrontmatter(nextFrontmatter, body), "utf-8");
-    return { action: nextAction, file: relPath, status: "done", threadMessage: message };
-  }
-
   if (nextAction === "to-content") {
     const contentAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT, {
       create: true
@@ -3129,6 +3142,12 @@ async function buildTopicIntakeSummary(manifestRelPath, options = {}) {
       pending: Number(inbox.pending) || 0,
       total: Number(inbox.fileCount) || 0
     },
+    discussion: {
+      count: messages.length,
+      lastMessageId: lastMessage?.id || null,
+      lastMessageAt: lastMessage?.created || null,
+      lastMessageRole: lastMessage?.role || null
+    },
     thread: {
       count: messages.length,
       lastMessageId: lastMessage?.id || null,
@@ -3150,7 +3169,7 @@ async function buildIntakeBatchSummary(paths, options = {}) {
 
   const summaries = {};
   let inboxPending = 0;
-  let threadMessages = 0;
+  let discussionMessages = 0;
   let mentionUnread = 0;
   const mentionHandle = String(options.mentionHandle || "").trim();
   const mentionAfterIds =
@@ -3168,7 +3187,7 @@ async function buildIntakeBatchSummary(paths, options = {}) {
       });
       summaries[manifestRelPath] = summary;
       inboxPending += Number(summary?.inbox?.pending) || 0;
-      threadMessages += Number(summary?.thread?.count) || 0;
+      discussionMessages += Number(summary?.discussion?.count || summary?.thread?.count) || 0;
       mentionUnread += Number(summary?.mentions?.unread) || 0;
     } catch {
       // skip invalid or unreadable paths
@@ -3180,7 +3199,8 @@ async function buildIntakeBatchSummary(paths, options = {}) {
     totals: {
       topics: Object.keys(summaries).length,
       inboxPending,
-      threadMessages,
+      discussionMessages,
+      threadMessages: discussionMessages,
       mentionUnread
     }
   };
@@ -4092,8 +4112,8 @@ function resolveObsidianTargetAbsolute(nodeAbsolute, mode) {
   if (mode === "inbox") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_INBOX);
   }
-  if (mode === "thread" || mode === "dialogs") {
-    return path.join(storageRoot, STORAGE_SUBFOLDER_THREAD);
+  if (mode === "discussion" || mode === "thread" || mode === "dialogs") {
+    return path.join(storageRoot, STORAGE_SUBFOLDER_DISCUSSION);
   }
   if (mode === "quick-notes") {
     return path.join(storageRoot, STORAGE_SUBFOLDER_QUICK_NOTES);
@@ -5087,7 +5107,7 @@ async function readWorkspaceTextFile(fileRelPath, options = {}) {
 
 const WORKSPACE_FS_BLOCKED_WRITE_PREFIXES = ["awn-system/"];
 const WORKSPACE_FS_TYPED_MD_LAYERS = new Set(["main", "inbox", "notes", "references", "templates", "base", "notebooklm", "agent-queue", "quick-notes"]);
-const WORKSPACE_FS_SYSTEM_LAYERS = new Set(["thread", "comments", "history", "temp", "volume"]);
+const WORKSPACE_FS_SYSTEM_LAYERS = new Set(["discussion", "thread", "comments", "history", "temp", "volume"]);
 const WORKSPACE_FS_TEXT_EXTENSIONS = new Set([
   ".md",
   ".txt",
@@ -5163,8 +5183,8 @@ function assertWorkspaceFsWriteAllowed(relPath) {
 
   if (WORKSPACE_FS_SYSTEM_LAYERS.has(layer)) {
     const hint =
-        layer === "thread"
-        ? "append_dialog"
+        layer === "discussion" || layer === "thread"
+        ? "append_discussion"
         : layer === "comments"
           ? "append_comment"
           : null;
@@ -10322,7 +10342,7 @@ async function buildAgentPageMap(options = {}) {
   };
 }
 
-const CONTENT_MAP_DEDICATED_SLOTS = new Set(["dialogs", "thread", "comments", "history", "temp", "volume"]);
+const CONTENT_MAP_DEDICATED_SLOTS = new Set(["discussion", "dialogs", "thread", "comments", "history", "temp", "volume"]);
 const STORAGE_SLOT_INDEX_FILE = "index.md";
 const WORKSPACE_PAGE_INDEX_FILE = "INDEX.md";
 const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder, isInternalBundleSlot } = require("./storage-slot-routing");
@@ -11315,7 +11335,7 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
         slot: slotKey,
         driver,
         items: [],
-        hint: "Use dedicated thread/comments tools"
+        hint: "Use dedicated discussion/comments tools"
       });
       continue;
     }
@@ -11409,7 +11429,7 @@ const SESSION_CONTEXT_API_MAP = {
   pageCreate: "POST /api/page/create — создать страницу area/topic",
   contentCreate:
     "create_content MCP — typed .md or plain-text via fileExtension; write_content_file — overwrite .py/.html/…; upload_content — base64; import_content_from_url — URL → slot",
-  dialogs: "GET /api/dialogs?path=<manifest.md> (legacy: /api/thread)",
+  discussion: "GET /api/discussion?path=<manifest.md> (legacy: /api/dialogs, /api/thread)",
   inbox: "GET /api/inbox?path=<manifest.md>",
   topicIntake: "GET /api/topic/intake?path=<manifest.md>",
   workspaceFeed: "GET /api/agent/workspace-feed?activityLimit=&staleDays= — list_workspace_feed MCP",
@@ -11473,7 +11493,7 @@ const SESSION_PATH_HINTS = {
   externalSlot: "External-слот: list_content + create_content / upload_content / import_content_from_url { slot: main|inbox|media|… }",
   internalSlot: "Internal-слот: read_content_body без ref (main-single, todo-single, main-single-csv)",
   agentKit: "Служебные темы: awn-agent-kit/agent/manifest.md, awn-agent-kit/user/manifest.md",
-  storageLayers: "awn-storage/main|memory|inbox|thread|references|artefacts|media|scripts|history|…",
+  storageLayers: "awn-storage/main|memory|inbox|discussion|references|artefacts|media|scripts|history|…",
   storageFile: "read_storage_file / write_storage_file — path=<manifest.md>, folder=scripts|artefacts|…, file=<relative path>",
   adoptFolder: "Свободная память (папки без manifest.md): list adopt → browse/scan по folderPath → read page/text для разбора материалов",
   adoptFolderBrowse: "GET /api/workspace/folder/browse?folderPath=awn-container/Материалы",
@@ -13893,13 +13913,14 @@ async function buildAgentStorageSummary() {
     .filter((entry) => entry.kind === "topic")
     .map((entry) => entry.manifestPath);
 
-  let intakeTotals = { inboxPending: 0, threadMessages: 0, mentionUnread: 0 };
+  let intakeTotals = { inboxPending: 0, discussionMessages: 0, threadMessages: 0, mentionUnread: 0 };
   if (topicPaths.length) {
     try {
       const batch = await buildIntakeBatchSummary(topicPaths);
       intakeTotals = {
         inboxPending: Number(batch?.totals?.inboxPending) || 0,
-        threadMessages: Number(batch?.totals?.threadMessages) || 0,
+        discussionMessages: Number(batch?.totals?.discussionMessages || batch?.totals?.threadMessages) || 0,
+        threadMessages: Number(batch?.totals?.discussionMessages || batch?.totals?.threadMessages) || 0,
         mentionUnread: Number(batch?.totals?.mentionUnread) || 0
       };
     } catch {
@@ -19095,7 +19116,10 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && (url.pathname === "/api/dialogs" || url.pathname === "/api/thread")) {
+  if (
+    req.method === "GET" &&
+    (url.pathname === "/api/discussion" || url.pathname === "/api/dialogs" || url.pathname === "/api/thread")
+  ) {
     const manifestRelPath = url.searchParams.get("path") || "";
     if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     try {
@@ -19108,13 +19132,16 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, payload);
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to list dialog messages",
+        error: "Failed to list discussion messages",
         details: String(error && error.message ? error.message : error)
       });
     }
   }
 
-  if (req.method === "POST" && (url.pathname === "/api/dialogs" || url.pathname === "/api/thread")) {
+  if (
+    req.method === "POST" &&
+    (url.pathname === "/api/discussion" || url.pathname === "/api/dialogs" || url.pathname === "/api/thread")
+  ) {
     try {
       const payload = await readJsonBody(req);
       const manifestRelPath = payload.path || "";
@@ -19152,7 +19179,7 @@ async function handleApiForAgent(req, res, url) {
       });
     } catch (error) {
       return sendJson(res, 500, {
-        error: "Failed to append thread message",
+        error: "Failed to append discussion message",
         details: String(error && error.message ? error.message : error)
       });
     }
@@ -19207,7 +19234,7 @@ async function handleApiForAgent(req, res, url) {
     }
 
     const manifestRelPath = url.searchParams.get("path") || "";
-    const watch = url.searchParams.get("watch") || "thread,inbox";
+    const watch = url.searchParams.get("watch") || "discussion,inbox";
     if (!manifestRelPath) return sendJson(res, 400, { error: "Missing path query parameter" });
     try {
       const nodeAbsolute = await resolveApiManifestAbsolute(manifestRelPath);

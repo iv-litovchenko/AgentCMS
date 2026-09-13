@@ -9,8 +9,9 @@ const SLOT_KEY_TYPE_IDS = {
   note: ["awn.slot.note"],
   scripts: ["awn.slot.script"],
   script: ["awn.slot.script"],
-  dialogs: ["awn.slot.dialogs"],
-  thread: ["awn.slot.dialogs"]
+  discussion: ["awn.slot.discussion"],
+  thread: ["awn.slot.discussion"],
+  dialogs: ["awn.slot.discussion"]
 };
 
 function findSlotTypeForKey(slotTypes, slotKey) {

@@ -78,13 +78,9 @@ bindings:
     path: assets/
     content: [awn.content.record, awn.content.category, awn.content.sidecar]
     files: ["*"]
-  thread:
-    path: thread/
-    content: [awn.content.dialog, awn.content.record, awn.content.sidecar]
-    files: [".md"]
-  dialogs:
-    path: thread/
-    content: [awn.content.dialog, awn.content.record, awn.content.sidecar]
+  discussion:
+    path: discussion/
+    content: [awn.content.discussion, awn.content.record, awn.content.sidecar]
     files: [".md"]
   comments:
     path: comments/

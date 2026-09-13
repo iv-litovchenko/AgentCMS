@@ -49,10 +49,10 @@ MCP подключается **без** фиксированного храни�
 | Ключ | Значение | Пример |
 |------|----------|--------|
 | `path` | Путь к **manifest.md** страницы | `awn-container/finansy/manifest.md` |
-| `slot` | MCP-ключ слота | `notes`, `scripts`, `dialogs` — совпадает с именем папки (кроме `dialogs` → папка `thread/`) |
+| `slot` | MCP-ключ слота | `notes`, `scripts`, `discussion` — совпадает с именем папки |
 | `ref` | Путь файла **внутри** слота | `vstrecha.md` или `subdir/vstrecha.md` |
 
-Устаревшие алиасы (ещё работают, но не используй): `note` → `notes`, `script` → `scripts`, `thread` → `dialogs`.
+Устаревшие алиасы (ещё работают, но не используй): `note` → `notes`, `script` → `scripts`, `thread` / `dialogs` → `discussion`.
 
 ### Фокус UI — `get_user_active_context_now`
 
@@ -318,7 +318,7 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 | `repository` | `awn.slot.repository` | `repository/` | Репозитории / код |
 | `scripts` | `awn.slot.script` | `scripts/` | Скрипты |
 | `comments` | `awn.slot.comments` | `comments/` | Discuss-комментарии (`list_comments` / `append_comment`, не `create_content`) |
-| `dialogs` | `awn.slot.dialogs` | `thread/` | Диалог темы (`read_dialogs` / `append_dialog`, не `create_content`) |
+| `discussion` | `awn.slot.discussion` | `discussion/` | Дискуссия темы (`read_discussion` / `append_discussion`, не `create_content`) |
 
 ### Однофайловая память (internal)
 
@@ -471,7 +471,7 @@ razdel-1/
 | `.md` запись в main/inbox/notes | `create_content` / `write_content_body` |
 | Frontmatter записи | `write_content_properties` |
 | `manifest.md` страницы | `write_page_body` |
-| Диалог темы | `read_dialogs` / `append_dialog` | Не писать в `thread/` через `create_content` |
+| Дискуссия темы | `read_discussion` / `append_discussion` | Не писать в `discussion/` через `create_content` |
 | Discuss-комментарий | `list_comments` / `append_comment` | Не писать в `comments/` через `create_content` / `write_file` |
 | Код, HTML, бинарники, media | `read_file` / `write_file` / `upload_file` / `upload_file_from_url` |
 | Файл в слот темы по URL | `import_content_from_url` |
@@ -633,7 +633,7 @@ awn-description: Черновики и ресурсы для разбора
 | Задача | Tools | Не делать |
 |--------|-------|-----------|
 | Intake / входящие | `list_inbox`, `triage_inbox_item`, `create_content` (`slot: inbox`, `status: new`) | Не писать в `inbox/` в обход triage |
-| Диалог темы | `read_dialogs`, `append_dialog` | Не писать в `thread/` через `create_content` |
+| Дискуссия темы | `read_discussion`, `append_discussion` | Не писать в `discussion/` через `create_content` |
 | Discuss-комментарии | `list_comments`, `append_comment`, `toggle_comment_reaction` | Не писать в `comments/` через `create_content` / `write_file` |
 
 Новая intake-заметка — `create_content` в `slot: inbox` с `status: new`.
@@ -674,13 +674,13 @@ list_comments({ "path": "…/manifest.md", "mode": "external", "file": "memory/r
 ## Банк фактов (`awn-facts/`)
 
 **Зачем:** короткие **выжимки** — решения, предпочтения, сущности — из любых чатов (Cursor, Claude Desktop, Voice).  
-Не полный архив переписки: для логов — `awn-dialogs/` (Shell/Voice) или `read_dialogs` / `append_dialog` (диалог темы).
+Не полный архив переписки: для логов — `awn-dialogs/` (Shell/Voice) или `read_discussion` / `append_discussion` (дискуссия темы).
 
 | Слой | Где | Когда |
 |------|-----|-------|
 | `awn-facts/` | корень workspace | «что решили / что запомнить» — 1–2 фразы |
 | `awn-dialogs/` | корень workspace | полный Q/A Shell/Voice (не в semantic index) |
-| `thread/` темы | слот dialogs | обсуждение **одной** темы CMS |
+| `discussion/` темы | слот discussion | дискуссия **одной** темы CMS |
 | `comments/` | слот comments | комментарий к manifest/записи |
 
 UI: sidebar → **🧠 Банк фактов** (под «Диалоги с ИИ»). Папка индексируется (semantic + fulltext + storage-index).
@@ -808,12 +808,12 @@ recall_workspace_facts({
 3. Типы искать по `id`, не угадывать path.
 4. `awn-data` (инфоблок / информационный накопитель) ≠ слот страницы.
 5. Уведомление в 🔔 CMS → `notify_user`.
-6. В `slot` — канонические ключи: `notes`, `scripts`, `dialogs` (не устаревшие `note` / `script` / `thread`).
-7. Комментарии / диалоги — свои tools (`list_comments`, `append_comment`, `read_dialogs`, …); inbox — `create_content` (`slot: inbox`), triage — `triage_inbox_item` (`to-dialogs`).
+6. В `slot` — канонические ключи: `notes`, `scripts`, `discussion` (не устаревшие `note` / `script` / `thread` / `dialogs`).
+7. Комментарии / дискуссия — свои tools (`list_comments`, `append_comment`, `read_discussion`, …); inbox — `create_content` (`slot: inbox`), triage — `triage_inbox_item` (`to-content`, `mark-done`, `set-status`).
 8. `read_page_schema` — default `mode=layers`; не `mode=full` без нужды.
 9. `media` ≠ `assets`: медиатека темы vs ресурсы записей (preview / pasted / attachments).
 10. Бинарные файлы → только upload_file, create_content для данных файлов не используется.
-11. Полный диалог → `awn-dialogs` / `append_dialog`; **выжимка** → `retain_workspace_fact`, не `write_file` в `awn-facts/` в обход tool.
+11. Полный чат → `awn-dialogs` / `append_discussion`; **выжимка** → `retain_workspace_fact`, не `write_file` в `awn-facts/` в обход tool.
 12. Не дублировать факты: при обновлении решения — новый `retain` с `supersedes` на старый path, не плодить почти одинаковые файлы.
 
 ---
@@ -830,7 +830,7 @@ recall_workspace_facts({
    - заметка на сессию → `NOTE.md` (`write_workspace_note`);
    - задача → `TODO.md` (`write_workspace_todo`);
    - материал по теме → `create_content` в подходящий `slot` (`main`, `notes`, `inbox`…);
-   - обсуждение темы → `append_dialog` / `append_comment`, не произвольный файл в дереве.
+   - обсуждение темы → `append_discussion` / `append_comment`, не произвольный файл в дереве.
 3. **Не пиши «куда попало»** только чтобы закрыть задачу — лучше одна короткая реплика с вопросом, чем файл не в том месте.
 
 Карта для выбора: `get_page_map` → тема; `get_content_map(path)` → слоты и записи на странице; `list_workspace_always_context` → что уже в always-context.
@@ -841,7 +841,7 @@ recall_workspace_facts({
 
 1. **Предложи человеку обновить контекст** — коротко и по делу, без паники:
    - *«Контекст чата большой; чтобы не потерять опору по CMS, обнови always-context: `get_session_context` + `list_workspace_always_context`, при необходимости `get_page_map` / `get_content_index` по активной теме. Могу кратко резюмировать, что уже сделали, перед перезагрузкой.»*
-2. **Перед «свежим» контекстом** — по запросу или при риске потери: зафиксируй итог в `NOTE.md`, в нужной записи темы или в `append_dialog`, чтобы факты не остались только в истории чата.
+2. **Перед «свежим» контекстом** — по запросу или при риске потери: зафиксируй итог в `NOTE.md`, в нужной записи темы или в `append_discussion`, чтобы факты не остались только в истории чата.
 3. **Не выдумывай** правила и пути, которые уже не видишь в контексте — снова вызови `get_session_context`, `read_file` по нужному `AGENTS.md` / `manifest.md` или уточни у человека.
 
 Отдельного MCP-tool «перезагрузить всё» нет: **«перезагрузи контекст»** = снова `get_session_context({ agentId })` и при необходимости точечное чтение карт / always-файлов (см. блок «Новый чат» выше).

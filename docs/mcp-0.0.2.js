@@ -302,26 +302,26 @@ module.exports = {
     },
     {
       id: "intake",
-      title: "Inbox и диалоги",
+      title: "Inbox и дискуссия",
       tools: [
         { name: "list_inbox", description: "Inbox темы.", parameters: "path", http: "GET /api/inbox" },
         {
           name: "triage_inbox_item",
-          description: "Triage: to-dialogs, to-content, mark-done, set-status.",
+          description: "Triage: to-content, mark-done, set-status.",
           parameters: "path, file, action, status?",
           http: "POST /api/inbox/triage"
         },
         {
-          name: "read_dialogs",
-          description: "Диалог темы (slot dialogs).",
+          name: "read_discussion",
+          description: "Дискуссия темы (slot discussion).",
           parameters: "path, mode?, file?, name?",
-          http: "GET /api/dialogs"
+          http: "GET /api/discussion"
         },
         {
-          name: "append_dialog",
-          description: "Сообщение в диалог темы.",
+          name: "append_discussion",
+          description: "Сообщение в дискуссию темы.",
           parameters: "path, body, role?, …",
-          http: "POST /api/dialogs"
+          http: "POST /api/discussion"
         }
       ]
     },

@@ -209,31 +209,31 @@ function createServer() {
 
   reg(
     "triage_inbox_item",
-    "Triage inbox: to-dialogs, to-content, mark-done, set-status.",
+    "Triage inbox: to-content, mark-done, set-status.",
     z.object({
       path: pagePath,
       file: z.string().min(1),
-      action: z.enum(["to-dialogs", "to-content", "mark-done", "set-status"]),
+      action: z.enum(["to-content", "mark-done", "set-status"]),
       status: z.enum(["new", "in-progress", "done"]).optional()
     }),
     ({ path, file, action, status }) => client.post("/api/inbox/triage", { path, file, action, status })
   );
 
   reg(
-    "read_dialogs",
-    "Read topic dialog (slot dialogs / folder thread/).",
+    "read_discussion",
+    "Read topic discussion (slot discussion / folder discussion/).",
     z.object({
       path: pagePath,
       mode: z.string().optional(),
       file: z.string().optional(),
       name: z.string().optional()
     }),
-    ({ path, mode, file, name }) => client.get("/api/dialogs", { path, mode, file, name })
+    ({ path, mode, file, name }) => client.get("/api/discussion", { path, mode, file, name })
   );
 
   reg(
-    "append_dialog",
-    "Append message to topic dialog.",
+    "append_discussion",
+    "Append message to topic discussion.",
     z.object({
       path: pagePath,
       body: z.string().min(1),
@@ -245,7 +245,36 @@ function createServer() {
       name: z.string().optional()
     }),
     ({ path, body, role, author, linkedFiles, mode, file, name }) =>
-      client.post("/api/dialogs", { path, body, role, author, linkedFiles, mode, file, name })
+      client.post("/api/discussion", { path, body, role, author, linkedFiles, mode, file, name })
+  );
+
+  reg(
+    "read_dialogs",
+    "Deprecated alias for read_discussion.",
+    z.object({
+      path: pagePath,
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, mode, file, name }) => client.get("/api/discussion", { path, mode, file, name })
+  );
+
+  reg(
+    "append_dialog",
+    "Deprecated alias for append_discussion.",
+    z.object({
+      path: pagePath,
+      body: z.string().min(1),
+      role: z.enum(["user", "agent"]).optional(),
+      author: z.string().optional(),
+      linkedFiles: z.string().optional(),
+      mode: z.string().optional(),
+      file: z.string().optional(),
+      name: z.string().optional()
+    }),
+    ({ path, body, role, author, linkedFiles, mode, file, name }) =>
+      client.post("/api/discussion", { path, body, role, author, linkedFiles, mode, file, name })
   );
 
   reg(

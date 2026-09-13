@@ -55,7 +55,7 @@ fields:
   awn-source-ref:
     type: awn.field.string
     title: "{A2!} Ссылка на источник"
-    description: Путь к диалогу или записи (awn-dialogs/…, thread/…)
+    description: Путь к дискуссии или записи (awn-dialogs/…, discussion/…)
     placement: aside-body
     group: content
     sort: 12

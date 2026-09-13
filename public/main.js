@@ -1429,7 +1429,7 @@ const AGENT_SYSTEM_SECTION_LABEL = "Базовая модель";
 const AGENT_SYSTEM_MENU_DISABLED = false;
 const AGENT_SYSTEM_ROOT = "awn-system";
 const AGENT_SYSTEM_DOMAIN_COLLAPSE_STORAGE_KEY = "agentcms.agentSystemDomains.collapsed.v1";
-const KIT_ROOT_HINT = "Агент, пользователи, taxonomies, thread — не editorial-контент.";
+const KIT_ROOT_HINT = "Агент, пользователи, taxonomies, discussion — не editorial-контент.";
 const CONTAINER_ROOT_HINT = "Области и темы рабочего контента агента.";
 const CONTAINER_ROOT_HINT_GIT =
   "Области и темы контента. В git-репозитории новые узлы из корня создаются здесь.";
@@ -1524,6 +1524,7 @@ const CHPU_LEGACY_UI_ALIASES = {
   "topic-schema": "schema",
   schema: "schema",
   env: "env",
+  discussion: "chat",
   thread: "chat",
   chat: "chat",
   todo: "todo",
@@ -1562,7 +1563,7 @@ const APP_ROUTE_VIEW_IDS = new Set([
   "repository",
   "inbox",
   "note",
-  "thread",
+  "discussion",
   "quick-notes",
   "references",
   "node-preview",
@@ -1708,7 +1709,7 @@ function chpuUiViewToContentMode(uiView) {
     case "env":
       return "env";
     case "chat":
-      return NODE_THREAD_MODE;
+      return NODE_DISCUSSION_MODE;
     case "todo":
       return "todo";
     case "folder":
@@ -1734,7 +1735,7 @@ function contentModeToChpuUiView(mode) {
       return "schema";
     case "env":
       return "env";
-    case NODE_THREAD_MODE:
+    case NODE_DISCUSSION_MODE:
       return "chat";
     case "todo":
       return "todo";
@@ -1919,7 +1920,7 @@ const CHPU_FLAT_STORAGE_SLOT_FOLDER_NAMES = new Set([
   "notebooklm",
   "temp",
   "quick-notes",
-  "thread"
+  "discussion"
 ]);
 
 function normalizeChpuPathBeforeResolve(rawPath) {
@@ -14052,7 +14053,7 @@ const NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY = "yamlcms.navigationMediaImage
 const NAVIGATION_HUB_RAIL_COLLAPSED_STORAGE_KEY = "yamlcms.navigationHubRailCollapsed";
 const NODE_ENTRY_OVERVIEW_MODE = "entry-overview";
 const NODE_MINDMAP_MODE = "mindmap";
-const NODE_THREAD_MODE = "thread";
+const NODE_DISCUSSION_MODE = "discussion";
 
 /** @type {{ relPath: string, memoryKind: string, relativePath: string, title: string, entryKind: string, status?: string } | null} */
 let activeEntryOverviewContext = null;
@@ -14167,7 +14168,8 @@ const NODE_VIEW_SURFACE = {
   inbox: "browser",
   note: "browser",
   notes: "browser",
-  thread: "thread",
+  discussion: "discussion",
+  thread: "discussion",
   "quick-notes": "browser",
   references: "browser",
   media: "browser",
@@ -14453,7 +14455,7 @@ const NODE_MEMORY_CLOSE_MODES = new Set(["external", "internal", "tabular", "tem
 const NODE_WORKSPACE_DOMAIN_OVERVIEW = "overview";
 const NODE_WORKSPACE_DOMAIN_SETTINGS = "settings";
 const NODE_WORKSPACE_DOMAIN_INBOX = "inbox";
-const NODE_WORKSPACE_DOMAIN_THREAD = "thread";
+const NODE_WORKSPACE_DOMAIN_DISCUSSION = "discussion";
 const NODE_WORKSPACE_DOMAIN_QUICK_NOTES = "quick-notes";
 const NODE_WORKSPACE_DOMAIN_MEMORY = "memory";
 const NODE_WORKSPACE_DOMAIN_MEDIA = "media";
@@ -14472,7 +14474,7 @@ const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "settings", label: "Конфигурации" },
   { value: "hooks", label: "Крючки (hooks)", disabled: true },
   { value: "data", label: "Данные" },
-  { value: "thread", label: "Диалог" },
+  { value: "discussion", label: "Дискуссия" },
   { value: "todo", label: "TODO" }
 ];
 
@@ -14498,8 +14500,8 @@ const STORAGE_SLOT_TREE_GROUP_SEQUENCE = [
 ];
 const STORAGE_SLOT_TREE_META_KEYS = new Set(["history", "temp"]);
 const STORAGE_SLOT_TREE_META_ORDER = ["history", "temp"];
-const STORAGE_SLOT_TREE_COMMUNICATION_KEYS = new Set(["thread", "comments", "volume"]);
-const STORAGE_SLOT_TREE_COMMUNICATION_ORDER = ["thread", "comments", "volume"];
+const STORAGE_SLOT_TREE_COMMUNICATION_KEYS = new Set(["discussion", "comments", "volume"]);
+const STORAGE_SLOT_TREE_COMMUNICATION_ORDER = ["discussion", "comments", "volume"];
 const STORAGE_SLOT_TREE_SPECIAL_BLOCK_KEYS = new Set([
   ...STORAGE_SLOT_TREE_META_KEYS,
   ...STORAGE_SLOT_TREE_COMMUNICATION_KEYS
@@ -14687,8 +14689,8 @@ const DATA_STORAGE_SLOT_SPECS = [
     disabled: true
   },
   {
-    key: "thread",
-    label: "Диалог",
+    key: "discussion",
+    label: "Дискуссия",
     icon: "💬",
     modes: new Set([]),
     defaultMode: null,
@@ -14812,7 +14814,7 @@ const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
   "main-single-csv": "CSV (.csv) — main.csv",
   "todo-single": "Markdown (.md) — todo.md",
   "log-single": "Markdown (.md) — log.md",
-  thread: "Markdown (.md)"
+  discussion: "Markdown (.md)"
 };
 
 const DATA_MEMORY_MODE_SPECS = [
@@ -15912,7 +15914,7 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
   }
   if (isNodeSettingsSelectMode(mode)) return NODE_WORKSPACE_DOMAIN_SETTINGS;
   if (mode === "todo") return NODE_WORKSPACE_DOMAIN_TODO;
-  if (mode === NODE_THREAD_MODE) return NODE_WORKSPACE_DOMAIN_THREAD;
+  if (mode === NODE_DISCUSSION_MODE) return NODE_WORKSPACE_DOMAIN_DISCUSSION;
   if (getDataStorageSlotForMode(mode)) return NODE_WORKSPACE_DOMAIN_DATA;
   return NODE_WORKSPACE_DOMAIN_SETTINGS;
 }
@@ -15925,7 +15927,7 @@ function isNodeWorkspaceToolbarDomainActive(mode = activeContentMode) {
   return (
     domain === NODE_WORKSPACE_DOMAIN_SETTINGS ||
     domain === NODE_WORKSPACE_DOMAIN_DATA ||
-    domain === NODE_WORKSPACE_DOMAIN_THREAD ||
+    domain === NODE_WORKSPACE_DOMAIN_DISCUSSION ||
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
     domain === NODE_WORKSPACE_DOMAIN_NAVIGATION
   );
@@ -16361,7 +16363,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
     base: ["base"],
     notebooklm: ["notebooklm"],
     "agent-queue": ["agent-queue"],
-    thread: ["thread"],
+    discussion: ["discussion"],
     temp: ["temp"],
     volume: ["volume"],
     history: ["history"],
@@ -16596,7 +16598,7 @@ function setActiveDataStorageAllItems() {
 
 function shouldUseDataHubListShell(mode = activeContentMode) {
   if (!getDataStorageSlotForMode(mode)) return false;
-  if (mode === NODE_THREAD_MODE) return false;
+  if (mode === NODE_DISCUSSION_MODE) return false;
   if (mode === "internal" || mode === "todo") return true;
   if (mode === "external" && isExternalFileEditing()) return false;
   if (mode === "media" && isMediaAssetEditing()) return false;
@@ -17008,7 +17010,7 @@ function setActiveDataStorageSlot(spec) {
   if (spec.sectionKind === "bundle") {
     dataHubBundleEntryView = MEMORY_ENTRY_VIEW_OVERVIEW;
   }
-  if (spec.key === "thread") clearActiveThreadScope();
+  if (spec.key === "discussion") clearActiveThreadScope();
   const targetMode = spec.modes.has(activeContentMode) ? activeContentMode : spec.defaultMode;
   if (activeContentMode === targetMode) {
     syncStorageSlotTreeActiveState(getStorageSlotTreeNode());
@@ -17143,7 +17145,7 @@ function appendStorageSlotTreeItem(
     !disabled &&
     !isCountOnly &&
     slotKey &&
-    slotKey !== "thread" &&
+    slotKey !== "discussion" &&
     getTopicSchemaTargetForStorageSlot(slotKey)
   ) {
     const row = btn.closest(".media-section-tree-row");
@@ -18077,7 +18079,7 @@ function isValidNodeDefaultLandingMode(mode, nodePath = null) {
     mode === "notebooklm" ||
     mode === "agent-queue" ||
     mode === "todo" ||
-    mode === NODE_THREAD_MODE
+    mode === NODE_DISCUSSION_MODE
   ) {
     return true;
   }
@@ -18224,7 +18226,7 @@ function getContentModeLabel(mode) {
     if (match) return match.label;
   }
   if (mode === "inbox") return "Входящие";
-  if (mode === NODE_THREAD_MODE) return "Диалог";
+  if (mode === NODE_DISCUSSION_MODE) return "Дискуссия";
   if (mode === "note" || mode === "quick-notes") return "Заметки";
   if (mode === "scripts") return "Скрипты";
   if (mode === "templates") return "Шаблоны";
@@ -18258,7 +18260,7 @@ function getNodeDefaultLandingDomainLabel(mode) {
   if (
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
     domain === NODE_WORKSPACE_DOMAIN_SETTINGS ||
-    domain === NODE_WORKSPACE_DOMAIN_THREAD
+    domain === NODE_WORKSPACE_DOMAIN_DISCUSSION
   ) {
     return domainLabel;
   }
@@ -21848,11 +21850,11 @@ async function applyNodeWorkspaceDomainChange(domain) {
     setContentMode("todo");
     return;
   }
-  if (domain === NODE_WORKSPACE_DOMAIN_THREAD) {
+  if (domain === NODE_WORKSPACE_DOMAIN_DISCUSSION) {
     nodeMemoryViewActive = false;
     nodeSettingsViewActive = false;
     clearActiveThreadScope();
-    setContentMode(NODE_THREAD_MODE);
+    setContentMode(NODE_DISCUSSION_MODE);
     return;
   }
   if (domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) {
@@ -21871,7 +21873,7 @@ function applyNodeWorkspaceViewUi() {
   const mediaSlotActive = isDataStorageSlotActive("media");
   const scriptsSlotActive = isDataStorageSlotActive("scripts");
   const todoDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_TODO;
-  const threadDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_THREAD;
+  const threadDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_DISCUSSION;
   const referencesSlotActive = isDataStorageSlotActive("references");
   const artefactsSlotActive = isDataStorageSlotActive("artefacts");
   const assetsSlotActive = isDataStorageSlotActive("assets");
@@ -25849,7 +25851,7 @@ function applyContentModeState(mode) {
     mode === FOLDER_BROWSE_MODE ||
     mode === AWN_DATA_VIEW_MODE ||
     mode === NODE_ENTRY_OVERVIEW_MODE ||
-    mode === NODE_THREAD_MODE
+    mode === NODE_DISCUSSION_MODE
   ) {
     nodeSettingsViewActive = false;
     nodeMemoryViewActive = false;
@@ -25930,7 +25932,7 @@ function isCurrentModeWithoutContentEditor() {
     activeContentMode === FOLDER_BROWSE_MODE ||
     activeContentMode === AWN_DATA_VIEW_MODE ||
     activeContentMode === NODE_ENTRY_OVERVIEW_MODE ||
-    activeContentMode === NODE_THREAD_MODE ||
+    activeContentMode === NODE_DISCUSSION_MODE ||
     activeContentMode === "node-preview" ||
     activeContentMode === "topic-schema" ||
     activeContentMode === "configs" ||
@@ -25965,13 +25967,13 @@ function isCurrentModeReadOnly() {
     (activeContentMode === "external" && !externalEditing) ||
     (activeContentMode === "tabular" && !isTabularSourceEditing()) ||
     (isFlatStorageListMode() && !isFlatStorageFileEditing()) ||
-    activeContentMode === NODE_THREAD_MODE ||
+    activeContentMode === NODE_DISCUSSION_MODE ||
     (isMediaLibraryContentMode() && !mediaSidecarEditing) ||
     activeContentMode === "scripts" ||
     activeContentMode === NODE_OVERVIEW_MODE ||
     activeContentMode === NODE_NAVIGATION_MODE ||
     activeContentMode === FOLDER_BROWSE_MODE ||
-    activeContentMode === NODE_THREAD_MODE ||
+    activeContentMode === NODE_DISCUSSION_MODE ||
     activeContentMode === "node-preview" ||
     activeContentMode === "graph"
   );
@@ -26248,7 +26250,8 @@ function listStorageAssetsRefPathCandidates(workspaceRelPath, contextManifestRel
 const STORAGE_SUBFOLDER_MEMORY = "main";
 const STORAGE_SUBFOLDER_CONTENT = STORAGE_SUBFOLDER_MEMORY;
 const STORAGE_SUBFOLDER_INBOX = "inbox";
-const STORAGE_SUBFOLDER_THREAD = "thread";
+const STORAGE_SUBFOLDER_DISCUSSION = "discussion";
+const STORAGE_SUBFOLDER_THREAD = STORAGE_SUBFOLDER_DISCUSSION;
 const STORAGE_SUBFOLDER_QUICK_NOTES = "quick-notes";
 const STORAGE_SUBFOLDER_NOTE = "notes";
 const STORAGE_SUBFOLDER_REFERENCES = "references";
@@ -26500,7 +26503,8 @@ function buildSlotInlineUploadRef(manifestRelPath, layer, fileName) {
 const STORAGE_SUBFOLDER_BY_MODE = {
   external: STORAGE_SUBFOLDER_CONTENT,
   inbox: STORAGE_SUBFOLDER_INBOX,
-  thread: STORAGE_SUBFOLDER_THREAD,
+  discussion: STORAGE_SUBFOLDER_DISCUSSION,
+  thread: STORAGE_SUBFOLDER_DISCUSSION,
   note: STORAGE_SUBFOLDER_NOTE,
   notes: STORAGE_SUBFOLDER_NOTE,
   "quick-notes": STORAGE_SUBFOLDER_QUICK_NOTES,
@@ -53734,7 +53738,7 @@ function isEditorSaveTrackingActive() {
     activeContentMode === NODE_OVERVIEW_MODE ||
     activeContentMode === NODE_NAVIGATION_MODE ||
     activeContentMode === NODE_ENTRY_OVERVIEW_MODE ||
-    activeContentMode === NODE_THREAD_MODE ||
+    activeContentMode === NODE_DISCUSSION_MODE ||
     activeContentMode === "node-preview" ||
     activeContentMode === "graph" ||
     activeContentMode === "scripts" ||
@@ -57753,8 +57757,8 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
       count = todoLines.length;
       filled = count > 0;
       title = count > 0 ? `${spec.label}: ${count}` : `${spec.label}: пусто`;
-    } else if (spec.id === "thread") {
-      count = Number(intake?.thread?.count) || 0;
+    } else if (spec.id === "discussion") {
+      count = Number(intake?.discussion?.count || intake?.thread?.count) || 0;
       filled = count > 0;
       if (threadUnread > 0) {
         tone = "unread";
@@ -57793,8 +57797,8 @@ async function buildNodeNavigationWorkspaceCounters(nodePath, { isArea = false }
 
 function openWorkspaceModeFromNavigation(modeId) {
   if (!modeId || isAreaContentModeBlocked(modeId)) return;
-  if (modeId === NODE_THREAD_MODE) {
-    setContentMode(NODE_THREAD_MODE);
+  if (modeId === NODE_DISCUSSION_MODE) {
+    setContentMode(NODE_DISCUSSION_MODE);
     return;
   }
   if (modeId === "todo") {
@@ -68421,7 +68425,7 @@ function openElementThreadDialog(filePath, mode = "external") {
   const file = String(filePath || "").trim();
   if (!file || !activePath) return;
   activeThreadScope = { mode, file, name: null };
-  void setContentMode(NODE_THREAD_MODE);
+  void setContentMode(NODE_DISCUSSION_MODE);
 }
 
 function slugifyCommentMentionHandle(text) {
@@ -68786,7 +68790,7 @@ async function fetchTopicThread(context, agentId = activeAgentId) {
     typeof context === "string"
       ? { path: context }
       : buildThreadApiParams(context || getActiveThreadRequestContext());
-  const response = await fetch(buildApiUrl("/api/thread", params, agentId));
+  const response = await fetch(buildApiUrl("/api/discussion", params, agentId));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   return response.json();
 }
@@ -68796,7 +68800,7 @@ async function postTopicThreadMessage(context, body, options = {}, agentId = act
     typeof context === "string"
       ? { path: context }
       : buildThreadApiParams(context || getActiveThreadRequestContext());
-  const response = await fetch(buildApiUrl("/api/thread", {}, agentId), {
+  const response = await fetch(buildApiUrl("/api/discussion", {}, agentId), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -70577,9 +70581,9 @@ function syncChannelAutoPoll() {
   stopChannelAutoPoll();
   if (document.hidden || !activePath) return;
 
-  if (activeContentMode === NODE_THREAD_MODE) {
+  if (activeContentMode === NODE_DISCUSSION_MODE) {
     channelPollTimer = setInterval(() => {
-      if (document.hidden || activeContentMode !== NODE_THREAD_MODE || !activePath) return;
+      if (document.hidden || activeContentMode !== NODE_DISCUSSION_MODE || !activePath) return;
       nodeThreadRefreshOnFocus?.();
     }, CHANNEL_POLL_INTERVAL_MS);
     return;
@@ -71503,7 +71507,7 @@ function syncChannelLiveUpdates() {
     channelPollTimer = setInterval(() => {
       if (document.hidden || !activeAgentId) return;
       void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
-      if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
+      if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
       void refreshWorkspaceNotifications(true);
       void syncLiveFileUpdates();
@@ -71519,7 +71523,7 @@ function syncChannelLiveUpdates() {
     channelEventSource.addEventListener("update", () => {
       if (document.hidden || !activeAgentId) return;
       void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
-      if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
+      if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
       if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
       void refreshWorkspaceNotifications(true);
       void syncLiveFileUpdates();
@@ -71535,7 +71539,7 @@ function syncChannelLiveUpdates() {
       channelPollTimer = setInterval(() => {
         if (document.hidden || !activeAgentId) return;
         void refreshMenuIntakeSummary(currentMenuData, activeAgentId);
-        if (activeContentMode === NODE_THREAD_MODE && activePath) nodeThreadRefreshOnFocus?.();
+        if (activeContentMode === NODE_DISCUSSION_MODE && activePath) nodeThreadRefreshOnFocus?.();
         if (activeContentMode === "inbox" && activePath) nodeInboxRefreshOnPoll?.();
         void refreshWorkspaceNotifications(true);
         void syncLiveFileUpdates();
@@ -71611,11 +71615,12 @@ function markThreadLastSeen(manifestPath, messageId) {
 }
 
 function getThreadUnreadCount(manifestPath, intake) {
-  if (!intake?.thread?.lastMessageId) return 0;
-  if (intake.thread.lastMessageRole !== "agent") return 0;
+  const discussion = intake?.discussion || intake?.thread;
+  if (!discussion?.lastMessageId) return 0;
+  if (discussion.lastMessageRole !== "agent") return 0;
   const lastSeen = getThreadLastSeenId(manifestPath);
   if (!lastSeen) return 1;
-  return intake.thread.lastMessageId !== lastSeen ? 1 : 0;
+  return discussion.lastMessageId !== lastSeen ? 1 : 0;
 }
 
 async function postInboxCreate(manifestPath, payload = {}, agentId = activeAgentId) {
@@ -71793,28 +71798,6 @@ function renderInboxTriageItems(container, items) {
     const actions = document.createElement("div");
     actions.className = "inbox-triage-actions";
 
-    const toThreadBtn = document.createElement("button");
-    toThreadBtn.type = "button";
-    toThreadBtn.className = "inbox-triage-btn";
-    toThreadBtn.textContent = "→ в Диалог";
-    toThreadBtn.disabled = item.status === "done";
-    toThreadBtn.addEventListener("click", () => {
-      void (async () => {
-        toThreadBtn.disabled = true;
-        try {
-          await postInboxTriage(getActiveNodeApiPath(), item.path, "to-thread");
-          showToast("Перенесено в диалог — открываю…", "success");
-          await loadInboxSectionContent(activeFlatStorageSectionFolder.inbox);
-          await refreshTopicIntakeForActivePath();
-          clearActiveThreadScope();
-          setContentMode(NODE_THREAD_MODE);
-        } catch (error) {
-          showToast(`Не удалось перенести: ${error.message}`, "error");
-          toThreadBtn.disabled = item.status === "done";
-        }
-      })();
-    });
-
     const inProgressBtn = document.createElement("button");
     inProgressBtn.type = "button";
     inProgressBtn.className = "inbox-triage-btn";
@@ -71875,7 +71858,7 @@ function renderInboxTriageItems(container, items) {
       })();
     });
 
-    actions.append(toThreadBtn, inProgressBtn, toContentBtn, doneBtn);
+    actions.append(inProgressBtn, toContentBtn, doneBtn);
     li.appendChild(actions);
     list.appendChild(li);
   }
@@ -71907,7 +71890,7 @@ async function renderNodeThread() {
 
   const renderSeq = ++nodeThreadRenderSeq;
   const isStale = () =>
-    renderSeq !== nodeThreadRenderSeq || activeContentMode !== NODE_THREAD_MODE || !nodeThreadContentNode;
+    renderSeq !== nodeThreadRenderSeq || activeContentMode !== NODE_DISCUSSION_MODE || !nodeThreadContentNode;
 
   const manifestPath = getActiveNodeApiPath();
   const threadContext = getActiveThreadRequestContext();
@@ -71924,7 +71907,7 @@ async function renderNodeThread() {
     const backBtn = document.createElement("button");
     backBtn.type = "button";
     backBtn.className = "node-thread-scope-back";
-    backBtn.textContent = "← Диалог по теме";
+    backBtn.textContent = "← Дискуссия по теме";
     backBtn.addEventListener("click", () => {
       clearActiveThreadScope();
       void renderNodeThread();
@@ -71935,7 +71918,7 @@ async function renderNodeThread() {
 
   const section = document.createElement("section");
   section.className = "node-comments node-thread-panel";
-  section.setAttribute("aria-label", "Диалог");
+  section.setAttribute("aria-label", "Дискуссия");
 
   const composer = document.createElement("div");
   composer.className = "node-comments-composer node-thread-composer";
@@ -71952,7 +71935,7 @@ async function renderNodeThread() {
   composerField.className = "node-comments-input";
   composerField.rows = 3;
   composerField.placeholder = "Напишите агенту…";
-  composerField.setAttribute("aria-label", "Новое сообщение в диалоге");
+  composerField.setAttribute("aria-label", "Новое сообщение в дискуссии");
 
   const composerActions = document.createElement("div");
   composerActions.className = "node-comments-composer-actions";
@@ -76358,7 +76341,7 @@ function applyModeUi(options = {}) {
   const mindmapMode = isMindmapModeActive();
   const canvasMode = isNodeCanvasViewMode();
   const listViewWithSourceToggle = isListViewWithSourceToggleMode();
-  const threadMode = activeContentMode === NODE_THREAD_MODE;
+  const threadMode = activeContentMode === NODE_DISCUSSION_MODE;
   const bundleEditorMode = isDataHubBundleEditorMode();
   const showListView =
     listTemplate && !threadMode && !(listViewWithSourceToggle && editorViewMode === "source");
@@ -77969,7 +77952,7 @@ function toggleEditorLineNumbers() {
 }
 
 function shouldUseEditorAutoHeight() {
-  if (activeContentMode === NODE_THREAD_MODE) return false;
+  if (activeContentMode === NODE_DISCUSSION_MODE) return false;
   return editorViewMode === "wysiwyg" || editorViewMode === "preview" || editorViewMode === "source";
 }
 
@@ -80936,7 +80919,7 @@ const NODE_DEFAULT_LANDING_VIEW_OPTIONS = [
   { contentMode: "tabular", name: "Таблица", description: "Табличный вид — строки записей с колонками из полей схемы" },
   { contentMode: "media", name: "Медиа-сетка", description: "Превью-сетка для слота media/" },
   { contentMode: "inbox", name: "Входящие", description: "Записи из inbox/ — непрочитанное / очередь" },
-  { contentMode: "thread", name: "Тред (диалог)", description: "Режим диалога с агентом — thread/" }
+  { contentMode: "discussion", name: "Дискуссия", description: "Режим дискуссии с агентом — discussion/" }
 ];
 
 async function renderNodeOverviewViewSelector(nodePath) {
@@ -84628,7 +84611,7 @@ function deleteTypeFieldFromYaml(fieldKey) {
 }
 
 function buildTypeStorageSlotsEditor(currentSlots) {
-  const KNOWN_SLOTS = ["main", "media", "inbox", "thread", "references", "scripts", "templates", "base", "notebooklm", "agent-queue", "artefacts", "assets", "repository"];
+  const KNOWN_SLOTS = ["main", "media", "inbox", "discussion", "references", "scripts", "templates", "base", "notebooklm", "agent-queue", "artefacts", "assets", "repository"];
   const slots = Array.isArray(currentSlots) ? [...currentSlots] : [];
 
   const wrap = document.createElement("div");
@@ -85465,7 +85448,7 @@ async function loadContentByMode(options = {}) {
     return;
   }
 
-  if (activeContentMode === NODE_THREAD_MODE) {
+  if (activeContentMode === NODE_DISCUSSION_MODE) {
     fileContentInputNode.value = "";
     void renderNodeThread();
     updateBreadcrumbsForActiveMode();
@@ -100019,14 +100002,14 @@ syncNodeSettingsModeSelect();
 if (!window.__agentCmsThreadFocusBound) {
   window.__agentCmsThreadFocusBound = true;
   window.addEventListener("focus", () => {
-    if (activeContentMode !== NODE_THREAD_MODE || !activePath) return;
+    if (activeContentMode !== NODE_DISCUSSION_MODE || !activePath) return;
     nodeThreadRefreshOnFocus?.();
   });
   document.addEventListener("visibilitychange", () => {
     syncChannelLiveUpdates();
     if (document.hidden) return;
     void refreshWorkspaceNotifications(true);
-    if (activeContentMode === NODE_THREAD_MODE && activePath) {
+    if (activeContentMode === NODE_DISCUSSION_MODE && activePath) {
       nodeThreadRefreshOnFocus?.();
     } else if (activeContentMode === "inbox" && activePath) {
       nodeInboxRefreshOnPoll?.();
