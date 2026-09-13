@@ -148,7 +148,20 @@ function focusEntrySlugFromFileName(fileName) {
   return slug;
 }
 
-function walkFocusMdFilesSync(dirAbsolute, prefix, acc) {
+function isAwnFocusEntry(frontmatter) {
+  if (!frontmatter || typeof frontmatter !== "object") return false;
+  if (Object.prototype.hasOwnProperty.call(frontmatter, "awn-focus")) {
+    return getYamlBoolean(frontmatter, "awn-focus");
+  }
+  // Legacy: до разделения awn-focus / awn-main фокус хранился в awn-main.
+  return getYamlBoolean(frontmatter, "awn-main");
+}
+
+function isAwnMainEntry(frontmatter) {
+  return getYamlBoolean(frontmatter, "awn-main");
+}
+
+function walkNavFlagMdFilesSync(dirAbsolute, prefix, acc, isMatch) {
   let entries = [];
   try {
     entries = fs.readdirSync(dirAbsolute, { withFileTypes: true });
@@ -162,7 +175,7 @@ function walkFocusMdFilesSync(dirAbsolute, prefix, acc) {
 
     if (entry.isDirectory()) {
       if (shouldSkipFocusWalkDir(entry.name)) continue;
-      walkFocusMdFilesSync(fullPath, relativePath, acc);
+      walkNavFlagMdFilesSync(fullPath, relativePath, acc, isMatch);
       continue;
     }
 
@@ -171,7 +184,7 @@ function walkFocusMdFilesSync(dirAbsolute, prefix, acc) {
     try {
       const content = fs.readFileSync(fullPath, "utf-8");
       const { frontmatter } = splitFrontmatter(content);
-      if (!getYamlBoolean(frontmatter, "awn-main")) continue;
+      if (!isMatch(frontmatter)) continue;
 
       const slug = focusEntrySlugFromFileName(entry.name);
       let name = getYamlScalar(frontmatter, "awn-name") || "";
@@ -192,7 +205,14 @@ function walkFocusMdFilesSync(dirAbsolute, prefix, acc) {
 function collectAgentFocusEntries(agent) {
   const items = [];
   if (!agent?.rootAbsolute || agent.folderExists === false) return items;
-  walkFocusMdFilesSync(agent.rootAbsolute, "", items);
+  walkNavFlagMdFilesSync(agent.rootAbsolute, "", items, isAwnFocusEntry);
+  return items;
+}
+
+function collectAgentMainEntries(agent) {
+  const items = [];
+  if (!agent?.rootAbsolute || agent.folderExists === false) return items;
+  walkNavFlagMdFilesSync(agent.rootAbsolute, "", items, isAwnMainEntry);
   return items;
 }
 
@@ -201,6 +221,23 @@ function collectAllFocusEntries() {
   for (const agent of agents) {
     if (agent.folderExists === false) continue;
     for (const entry of collectAgentFocusEntries(agent)) {
+      items.push({
+        agentId: agent.id,
+        agentName: agent.name || agent.id,
+        agentPath: agent.path,
+        agentActive: normalizeAgentActive(agent.active),
+        ...entry
+      });
+    }
+  }
+  return items;
+}
+
+function collectAllMainEntries() {
+  const items = [];
+  for (const agent of agents) {
+    if (agent.folderExists === false) continue;
+    for (const entry of collectAgentMainEntries(agent)) {
       items.push({
         agentId: agent.id,
         agentName: agent.name || agent.id,
@@ -1914,6 +1951,8 @@ module.exports = {
   runWithAgent,
   collectAllFocusEntries,
   collectAgentFocusEntries,
+  collectAllMainEntries,
+  collectAgentMainEntries,
   collectAllRecentEntries,
   collectAgentRecentEntries,
   isPlatformAgentId

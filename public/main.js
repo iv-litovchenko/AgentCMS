@@ -6969,9 +6969,9 @@ function openCoreCatalogAgentFromLanding() {
   selectAgentOption(agentId);
 }
 
-let globalFocusItemsCache = [];
-let globalFocusItemsLoadSeq = 0;
-let globalFocusItemsLoading = false;
+let globalMainItemsCache = [];
+let globalMainItemsLoadSeq = 0;
+let globalMainItemsLoading = false;
 let agentFocusItemsCache = [];
 let globalLandingHubTopicItemsCache = [];
 let globalFlowItemsCache = [];
@@ -7145,7 +7145,7 @@ function sortLandingFocusItems(items) {
 }
 
 function getProcessedLandingFocusItems() {
-  return sortLandingFocusItems(filterLandingFocusItems(globalFocusItemsCache));
+  return sortLandingFocusItems(filterLandingFocusItems(globalMainItemsCache));
 }
 
 function setLandingFocusTypeFilterOpen(open) {
@@ -7164,7 +7164,7 @@ function syncLandingFocusFilterTypePanel() {
   if (!appLandingFocusFilterTypePanelNode) return;
 
   const availableTypes = new Set();
-  for (const item of globalFocusItemsCache) {
+  for (const item of globalMainItemsCache) {
     const type = getFocusItemType(item);
     if (type) availableTypes.add(type);
   }
@@ -7249,7 +7249,7 @@ function syncLandingFocusCatalogFilterOptions() {
     const current = String(landingFocusFilter[spec.filterKey] || "").trim();
     const values = new Map();
 
-    for (const item of globalFocusItemsCache) {
+    for (const item of globalMainItemsCache) {
       if (spec.tags) {
         for (const tag of getFocusItemTags(item)) {
           if (!tag) continue;
@@ -7306,7 +7306,7 @@ function setLandingFocusFiltersOpen(open) {
 function syncLandingFocusToolbarUi() {
   if (!appLandingFocusToolbarNode) return;
 
-  const hasItems = globalFocusItemsCache.length > 0;
+  const hasItems = globalMainItemsCache.length > 0;
   appLandingFocusFiltersBtnNode?.classList.toggle("hidden", !hasItems);
   if (!hasItems) {
     setLandingFocusFiltersOpen(false);
@@ -7325,7 +7325,7 @@ function syncLandingFocusToolbarUi() {
   }
 
   const processed = getProcessedLandingFocusItems();
-  const total = globalFocusItemsCache.length;
+  const total = globalMainItemsCache.length;
   const shown = processed.length;
   if (appLandingFocusFilterCountNode) {
     appLandingFocusFilterCountNode.textContent =
@@ -7404,14 +7404,14 @@ function syncLandingMainTopicsSearchClearUi() {
   appLandingFocusSearchClearNode?.toggleAttribute("hidden", !hasQuery);
 }
 
-function syncLandingMainTopicsCountUi(total = globalFocusItemsCache.length, shown = total) {
+function syncLandingMainTopicsCountUi(total = globalMainItemsCache.length, shown = total) {
   const query = String(landingFocusFilter.query || "").trim();
   if (appLandingFocusSearchNode && appLandingFocusSearchNode.value !== query) {
     appLandingFocusSearchNode.value = query;
   }
   syncLandingMainTopicsSearchClearUi();
   if (!appLandingFocusCountNode) return;
-  if (globalFocusItemsLoading || total === 0) {
+  if (globalMainItemsLoading || total === 0) {
     appLandingFocusCountNode.textContent = "";
     appLandingFocusCountNode.classList.add("hidden");
     return;
@@ -8211,9 +8211,9 @@ function renderLandingMainTopicsLoading() {
   syncLandingMainTopicsScrollerNav();
 }
 
-function syncLandingMainTopicsVisibility(hasItems = globalFocusItemsCache.length > 0) {
+function syncLandingMainTopicsVisibility(hasItems = globalMainItemsCache.length > 0) {
   if (!appLandingFocusNode) return;
-  const show = getLandingAgentsView() === "orbit" && (hasItems || globalFocusItemsLoading);
+  const show = getLandingAgentsView() === "orbit" && (hasItems || globalMainItemsLoading);
   appLandingFocusNode.classList.toggle("hidden", !show);
   appLandingFocusNode.setAttribute("aria-hidden", show ? "false" : "true");
   appLandingOrbitStackNode?.classList.toggle("has-focus-panel", show);
@@ -8278,14 +8278,14 @@ function createLandingMainTopicChip(focusItem) {
 
 function renderLandingMainTopics(items) {
   if (!appLandingFocusListNode) return;
-  if (globalFocusItemsLoading) return;
+  if (globalMainItemsLoading) return;
 
   const visibleItems = Array.isArray(items) ? items : [];
-  const hasAnyItems = globalFocusItemsCache.length > 0;
+  const hasAnyItems = globalMainItemsCache.length > 0;
   setLandingMainTopicsLoadingUi(false);
   syncLandingMainTopicsVisibility(hasAnyItems);
   appLandingFocusListNode.replaceChildren();
-  syncLandingMainTopicsCountUi(globalFocusItemsCache.length, visibleItems.length);
+  syncLandingMainTopicsCountUi(globalMainItemsCache.length, visibleItems.length);
 
   if (!hasAnyItems) {
     syncLandingMainTopicsScrollerNav();
@@ -8335,7 +8335,7 @@ function renderGlobalFocusPanel() {
   } else if (getLandingAgentsView() === "flow") {
     renderAppLandingFlow(globalFlowItemsCache);
   }
-  if (!globalFocusItemsLoading) {
+  if (!globalMainItemsLoading) {
     renderLandingMainTopics(processed);
   }
 }
@@ -8353,7 +8353,7 @@ function renderSidebarFocusPanel(panelNode, listNode, items) {
   if (!items.length) {
     const empty = document.createElement("p");
     empty.className = "agent-focus-empty";
-    empty.textContent = "Нет записей с awn-main: true — отметьте тему в свойствах (⭐ Фокус).";
+    empty.textContent = "Нет записей с awn-focus: true — нажмите ⊙ в обзоре или включите «В фокусе» в свойствах.";
     listNode.appendChild(empty);
     syncHeaderFocusCount();
     return;
@@ -8398,24 +8398,24 @@ function renderAgentFocusPanels() {
   updateNodeOverviewHeroActionStates();
 }
 
-async function loadGlobalFocusItems({ showLoading = false } = {}) {
-  const loadSeq = ++globalFocusItemsLoadSeq;
+async function loadGlobalMainItems({ showLoading = false } = {}) {
+  const loadSeq = ++globalMainItemsLoadSeq;
   if (showLoading) {
-    globalFocusItemsLoading = true;
+    globalMainItemsLoading = true;
     if (getLandingAgentsView() === "orbit") {
       renderLandingMainTopicsLoading();
     }
   }
   try {
-    const response = await fetch("/api/agents/focus");
+    const response = await fetch("/api/agents/main");
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
-    globalFocusItemsCache = Array.isArray(data.items) ? data.items : [];
+    globalMainItemsCache = Array.isArray(data.items) ? data.items : [];
   } catch {
-    globalFocusItemsCache = [];
+    globalMainItemsCache = [];
   }
-  if (loadSeq !== globalFocusItemsLoadSeq) return;
-  globalFocusItemsLoading = false;
+  if (loadSeq !== globalMainItemsLoadSeq) return;
+  globalMainItemsLoading = false;
   renderGlobalFocusPanel();
 }
 
@@ -8460,7 +8460,7 @@ async function loadAgentFocusItems(agentId = activeAgentId) {
 
 async function refreshAllFocusPanels() {
   await Promise.all([
-    loadGlobalFocusItems(),
+    loadGlobalMainItems(),
     loadGlobalFlowItems(),
     loadAgentFocusItems(activeAgentId)
   ]);
@@ -10472,7 +10472,7 @@ function syncLandingAgentsViewUi() {
   appLandingFlowNode?.setAttribute("aria-hidden", isFlow ? "false" : "true");
 
   appLandingAgentsNode?.classList.toggle("hidden", !isGrid);
-  syncLandingMainTopicsVisibility(globalFocusItemsCache.length > 0 || globalFocusItemsLoading);
+  syncLandingMainTopicsVisibility(globalMainItemsCache.length > 0 || globalMainItemsLoading);
   appLandingAttentionNode?.classList.toggle("hidden", !(isHub || isOrbit || isFlow));
 
   appLandingGroupsNode?.classList.toggle("hidden", !isSettings);
@@ -10500,7 +10500,7 @@ function syncLandingAgentsViewUi() {
     void loadGlobalLandingHubTopicItems();
   }
   if (isOrbit) {
-    if (globalFocusItemsLoading) {
+    if (globalMainItemsLoading) {
       renderLandingMainTopicsLoading();
     }
     renderAppLandingOrbit();
@@ -10521,7 +10521,7 @@ function syncLandingAgentsViewUi() {
   }
 
   syncLandingBgUi();
-  if (!globalFocusItemsLoading) {
+  if (!globalMainItemsLoading) {
     renderLandingMainTopics(getProcessedLandingFocusItems());
   }
 }
@@ -12333,7 +12333,7 @@ async function renderAppLandingAgents() {
     }
   }
 
-  void loadGlobalFocusItems({ showLoading: true });
+  void loadGlobalMainItems({ showLoading: true });
   renderAppLandingOrbit();
   renderAppLandingHub(getLandingHubOrbitTopicItems());
   void loadGlobalFlowItems();
@@ -19100,33 +19100,49 @@ function upsertAwnNameInPropsYaml(content, nextAwnName) {
   return stringifyPropsYaml(entries);
 }
 
-function upsertAwnMainInPropsYaml(content, nextAwnMain) {
+function upsertAwnFlagInPropsYaml(content, flagKey, enabled) {
   const entries = parsePropsYaml(content || "");
-  const normalizedKey = "awn-main";
+  const normalizedKey = String(flagKey || "").trim();
   const index = entries.findIndex((entry) => normalizePropsKey(entry.key) === normalizedKey);
-  const nextEntry = { key: normalizedKey, kind: "bool", value: Boolean(nextAwnMain) };
+  const nextEntry = { key: normalizedKey, kind: "bool", value: Boolean(enabled) };
   if (index >= 0) entries[index] = { ...entries[index], ...nextEntry };
   else entries.push(nextEntry);
   return stringifyPropsYaml(entries);
 }
 
-async function setNodeFocusState(nodePath, enabled, options = {}) {
-  const { agentId = activeAgentId, confirmRemove = true } = options;
+function upsertAwnFocusInPropsYaml(content, enabled) {
+  return upsertAwnFlagInPropsYaml(content, "awn-focus", enabled);
+}
+
+function upsertAwnMainInPropsYaml(content, enabled) {
+  return upsertAwnFlagInPropsYaml(content, "awn-main", enabled);
+}
+
+async function saveNodeNavFlagState(nodePath, flagKey, enabled, options = {}) {
+  const {
+    agentId = activeAgentId,
+    confirmRemove = true,
+    removeTitle,
+    removeMessage,
+    unavailableMessage,
+    successOn,
+    successOff,
+    errorMessage
+  } = options;
   const nodePathRaw = String(nodePath || "").trim();
   const label = getLabelFromPath(nodePathRaw) || nodePathRaw;
   const agentIdResolved = agentId || activeAgentId;
 
   if (!enabled && confirmRemove) {
-    const confirmed = await askConfirm(
-      `Убрать «${label}» из фокуса? Запись останется в workspace, но пропадёт из списка быстрого навигатора.`,
-      { okLabel: "Убрать" }
-    );
+    const confirmed = await askConfirm(removeMessage || `Убрать «${label}»?`, {
+      okLabel: removeTitle || "Убрать"
+    });
     if (!confirmed) return false;
   }
 
   const apiPath = getResolvedNodePath(nodePathRaw);
   if (!apiPath || !canShowNodeOverviewPinActions(nodePathRaw)) {
-    showToast("Фокус доступен только для markdown-записей", "error");
+    showToast(unavailableMessage || "Доступно только для markdown-записей", "error");
     return false;
   }
 
@@ -19137,7 +19153,7 @@ async function setNodeFocusState(nodePath, enabled, options = {}) {
       throw new Error(errorData.error || `Request failed with ${getResponse.status}`);
     }
     const current = await getResponse.json();
-    const stampedContent = upsertAwnMainInPropsYaml(current.content || "", enabled);
+    const stampedContent = upsertAwnFlagInPropsYaml(current.content || "", flagKey, enabled);
 
     const saveResponse = await fetch(buildApiUrl("/api/file/properties", {}, agentIdResolved), {
       method: "POST",
@@ -19153,20 +19169,48 @@ async function setNodeFocusState(nodePath, enabled, options = {}) {
 
     await refreshAllFocusPanels();
     updateNodeOverviewHeroActionStates();
-    showToast(
-      enabled ? `«${label}» добавлено в фокус` : `«${label}» убрано из фокуса`,
-      "success"
-    );
+    showToast(enabled ? successOn || `«${label}» включено` : successOff || `«${label}» выключено`, "success");
     return true;
   } catch (error) {
-    showToast(error?.message || "Не удалось изменить фокус", "error");
+    showToast(error?.message || errorMessage || "Не удалось сохранить", "error");
     return false;
   }
+}
+
+async function setNodeFocusState(nodePath, enabled, options = {}) {
+  const label = getLabelFromPath(nodePath) || nodePath;
+  return saveNodeNavFlagState(nodePath, "awn-focus", enabled, {
+    ...options,
+    removeTitle: "Убрать",
+    removeMessage: `Убрать «${label}» из фокуса? Запись останется в workspace, но пропадёт из быстрого навигатора.`,
+    unavailableMessage: "Фокус доступен только для markdown-записей",
+    successOn: `«${label}» добавлено в фокус`,
+    successOff: `«${label}» убрано из фокуса`,
+    errorMessage: "Не удалось изменить фокус"
+  });
+}
+
+async function setNodeMainState(nodePath, enabled, options = {}) {
+  const label = getLabelFromPath(nodePath) || nodePath;
+  return saveNodeNavFlagState(nodePath, "awn-main", enabled, {
+    ...options,
+    removeTitle: "Убрать",
+    removeMessage: `Убрать «${label}» с главной? Запись останется в workspace, но пропадёт из карусели на главной.`,
+    unavailableMessage: "«На главной» доступно только для markdown-записей",
+    successOn: `«${label}» добавлено на главную`,
+    successOff: `«${label}» убрано с главной`,
+    errorMessage: "Не удалось изменить «На главной»"
+  });
 }
 
 async function toggleNodeFocus(nodePath, propEntries = null) {
   const inFocus = isNodeInFocus(nodePath, propEntries);
   return setNodeFocusState(nodePath, !inFocus, { confirmRemove: true });
+}
+
+async function toggleNodeMain(nodePath, propEntries = null) {
+  const onMain = isNodeOnMain(nodePath, propEntries);
+  return setNodeMainState(nodePath, !onMain, { confirmRemove: true });
 }
 
 async function removeNodeFromFocus(focusItem) {
@@ -35847,6 +35891,8 @@ const MEDIA_ACTION_ICON_FINDER =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7h18"/></svg>';
 const MEDIA_ACTION_ICON_FOCUS =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+const MEDIA_ACTION_ICON_MAIN =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/></svg>';
 
 let mediaPathPopoverState = null;
 
@@ -36169,12 +36215,32 @@ function createEntryOverviewMediaFocusButton(context = {}, entries = []) {
   return btn;
 }
 
+function createEntryOverviewMediaMainButton(context = {}, entries = []) {
+  const sidecarPath = resolveEntryOverviewMediaSidecarNodePath(context);
+  if (!sidecarPath || !canShowNodeOverviewPinActions(sidecarPath)) return null;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "media-action-btn media-action-btn-icon-only node-overview-main-btn";
+  btn.dataset.path = normalizeMenuNodePath(getResolvedNodePath(sidecarPath) || sidecarPath);
+  btn.appendChild(createMediaActionIcon(MEDIA_ACTION_ICON_MAIN));
+  syncNodeOverviewMainButton(btn, sidecarPath, entries);
+  btn.addEventListener("click", (event) => {
+    guardMediaActionClick(event, () => {
+      void toggleNodeMain(sidecarPath, entries);
+    });
+  });
+  return btn;
+}
+
 function appendEntryOverviewMediaAssetActionButtons(target, item, context, entries = []) {
   const buttons = [
     createMediaSidecarEditButton(item, { label: "Редактировать sidecar", entryOverviewContext: context })
   ];
   const focusBtn = createEntryOverviewMediaFocusButton(context, entries);
   if (focusBtn) buttons.push(focusBtn);
+  const mainBtn = createEntryOverviewMediaMainButton(context, entries);
+  if (mainBtn) buttons.push(mainBtn);
   buttons.push(createMediaOpenButton(item), createMediaRevealInFinderButton(item));
   target.append(...buttons);
 }
@@ -38292,6 +38358,7 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-create",
   "awn-update",
   "awn-description",
+  "awn-focus",
   "awn-main",
   "awn-category",
   "awn-owner",
@@ -38480,9 +38547,13 @@ const PROPS_FIELD_META = {
     label: "Описание",
     hint: "Краткое назначение темы для агента"
   },
+  "awn-focus": {
+    label: "В фокусе",
+    hint: "Показывать в быстром навигаторе (сайдбар, шапка)"
+  },
   "awn-main": {
     label: "На главной",
-    hint: "Показывать workspace в блоке «Фокус» на главной странице"
+    hint: "Показывать в карусели на главной странице"
   },
   "awn-slots-disabled": {
     label: "Общий слот (lite)",
@@ -43800,7 +43871,8 @@ const PROPS_FIELD_ICONS = {
   "awn-create": "📅",
   "awn-update": "🕒",
   "awn-description": "📝",
-  "awn-main": "⭐",
+  "awn-focus": "⊙",
+  "awn-main": "🏠",
   "awn-status": "🟢",
   "awn-category": "📂",
   "awn-owner": "👤",
@@ -47140,6 +47212,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-web-url": "content",
   "awn-attachments": "materials",
   "awn-materials": "materials",
+  "awn-focus": "nav",
   "awn-main": "nav",
   "awn-slots-disabled": "nav",
   "awn-category": "taxonomy",
@@ -47730,6 +47803,7 @@ function shouldIncludePropsFieldKey(key, contextPath = getPropsContextPath()) {
 }
 
 const PROPS_FIELD_WIDGET_FALLBACKS = {
+  "awn-focus": "boolean",
   "awn-main": "boolean",
   "awn-slots-disabled": "boolean",
   "awn-runtime-cron": "runtime-schedule-type",
@@ -54102,6 +54176,12 @@ function createOverviewFocusIcon() {
   );
 }
 
+function createOverviewMainIcon() {
+  return createOverviewActionIcon(
+    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/></svg>'
+  );
+}
+
 function createNodeOverviewEditButton(onClick, label = "Редактировать", { disabled = false } = {}) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -54127,10 +54207,25 @@ function canShowNodeOverviewPinActions(nodePath) {
   return true;
 }
 
+function getPropsBoolEntry(propEntries, key, { legacyKey = "" } = {}) {
+  if (!Array.isArray(propEntries)) return null;
+  const entry = propEntries.find((item) => normalizePropsKey(item.key) === key);
+  if (entry) return entry?.kind === "bool" ? Boolean(entry.value) : false;
+  if (legacyKey) {
+    const legacyEntry = propEntries.find((item) => normalizePropsKey(item.key) === legacyKey);
+    if (legacyEntry) return legacyEntry?.kind === "bool" ? Boolean(legacyEntry.value) : false;
+  }
+  return null;
+}
+
 function isNodeInFocusFromProps(propEntries) {
-  if (!Array.isArray(propEntries)) return false;
-  const entry = propEntries.find((item) => normalizePropsKey(item.key) === "awn-main");
-  return entry?.kind === "bool" ? Boolean(entry.value) : false;
+  const value = getPropsBoolEntry(propEntries, "awn-focus", { legacyKey: "awn-main" });
+  return value === true;
+}
+
+function isNodeOnMainFromProps(propEntries) {
+  const value = getPropsBoolEntry(propEntries, "awn-main");
+  return value === true;
 }
 
 function isNodeInFocusCache(nodePath) {
@@ -54141,8 +54236,20 @@ function isNodeInFocusCache(nodePath) {
   );
 }
 
+function isNodeOnMainCache(nodePath) {
+  const normalized = normalizeMenuNodePath(getResolvedNodePath(nodePath) || nodePath);
+  if (!normalized) return false;
+  return globalMainItemsCache.some(
+    (item) => normalizeMenuNodePath(item.nodePath || "") === normalized
+  );
+}
+
 function isNodeInFocus(nodePath, propEntries = null) {
   return isNodeInFocusCache(nodePath) || isNodeInFocusFromProps(propEntries);
+}
+
+function isNodeOnMain(nodePath, propEntries = null) {
+  return isNodeOnMainCache(nodePath) || isNodeOnMainFromProps(propEntries);
 }
 
 function syncNodeOverviewBookmarkButton(btn, nodePath) {
@@ -54159,6 +54266,13 @@ function syncNodeOverviewFocusButton(btn, nodePath, propEntries = null) {
   btn.setAttribute("aria-label", btn.title);
 }
 
+function syncNodeOverviewMainButton(btn, nodePath, propEntries = null) {
+  const on = isNodeOnMain(nodePath, propEntries);
+  btn.classList.toggle("is-active", on);
+  btn.title = on ? "Убрать с главной" : "Добавить на главную";
+  btn.setAttribute("aria-label", btn.title);
+}
+
 function updateNodeOverviewHeroActionStates() {
   const root = appRootNode || document;
   for (const btn of root.querySelectorAll(".node-overview-bookmark-btn")) {
@@ -54166,6 +54280,9 @@ function updateNodeOverviewHeroActionStates() {
   }
   for (const btn of root.querySelectorAll(".node-overview-focus-btn")) {
     syncNodeOverviewFocusButton(btn, btn.dataset.path || "", null);
+  }
+  for (const btn of root.querySelectorAll(".node-overview-main-btn")) {
+    syncNodeOverviewMainButton(btn, btn.dataset.path || "", null);
   }
 }
 
@@ -54201,12 +54318,29 @@ function createNodeOverviewFocusButton(nodePath, propEntries = null) {
   return btn;
 }
 
+function createNodeOverviewMainButton(nodePath, propEntries = null) {
+  const resolvedPath = normalizeMenuNodePath(getResolvedNodePath(nodePath) || nodePath);
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-overview-action-btn node-overview-action-btn--icon node-overview-main-btn";
+  btn.dataset.path = resolvedPath;
+  btn.appendChild(createOverviewMainIcon());
+  syncNodeOverviewMainButton(btn, nodePath, propEntries);
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void toggleNodeMain(nodePath, propEntries);
+  });
+  return btn;
+}
+
 function createNodeOverviewHeroActions(nodePath, options = {}) {
   const actions = document.createElement("div");
   actions.className = "node-navigation-hero-actions";
   if (!options.editOnly && canShowNodeOverviewPinActions(nodePath)) {
     actions.appendChild(createNodeOverviewBookmarkButton(nodePath));
     actions.appendChild(createNodeOverviewFocusButton(nodePath, options.propEntries || null));
+    actions.appendChild(createNodeOverviewMainButton(nodePath, options.propEntries || null));
   }
   if (options.onEditClick || options.editDisabled) {
     actions.appendChild(
@@ -91229,7 +91363,7 @@ function showAppLandingView(hint = "") {
   updateWorkspaceShareLinkButton();
   agentFocusItemsCache = [];
   renderAgentFocusPanels();
-  void loadGlobalFocusItems();
+  void loadGlobalMainItems();
   void loadGlobalFlowItems();
   void loadGlobalLandingHubTopicItems();
   syncAppRouteToUrl({ replace: true });

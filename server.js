@@ -427,6 +427,8 @@ const {
   runWithAgent,
   collectAllFocusEntries,
   collectAgentFocusEntries,
+  collectAllMainEntries,
+  collectAgentMainEntries,
   collectAllRecentEntries,
   getActiveAgentId,
   isPlatformAgentId,
@@ -24195,6 +24197,34 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to load focus items",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agents/main") {
+    const agentId = String(url.searchParams.get("agent") || "").trim();
+    try {
+      let items = [];
+      if (agentId) {
+        const agent = resolveAgent(agentId);
+        if (!agent || agent.folderExists === false) {
+          return sendJson(res, 200, { items: [] });
+        }
+        items = collectAgentMainEntries(agent).map((entry) => ({
+          agentId: agent.id,
+          agentName: agent.name || agent.id,
+          agentPath: agent.path,
+          agentActive: agent.active !== false,
+          ...entry
+        }));
+      } else {
+        items = collectAllMainEntries();
+      }
+      return sendJson(res, 200, { items: await enrichFocusItems(items) });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load main items",
         details: String(error?.message || error)
       });
     }

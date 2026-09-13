@@ -174,6 +174,7 @@ const FALLBACK_BASE_FIELD_ORDER = [
   "awn-create",
   "awn-update",
   "awn-description",
+  "awn-focus",
   "awn-main",
   "awn-category",
   "awn-owner",
@@ -224,7 +225,7 @@ function getBaseFieldOrderForType(typeName, agentRoot = "", projectRoot = proces
   }
   return FALLBACK_BASE_FIELD_ORDER.filter(
     (key) =>
-      !["awn-main", "awn-category", "awn-owner", "awn-priority", "awn-color", "awn-sort"].includes(key) &&
+      !["awn-focus", "awn-main", "awn-category", "awn-owner", "awn-priority", "awn-color", "awn-sort"].includes(key) &&
       !key.startsWith("awn-runtime")
   );
 }
@@ -348,6 +349,7 @@ function buildDefaultFrontmatter(typeName, options = {}) {
   ];
 
   const pageOnlyFields = new Set([
+    "awn-focus",
     "awn-main",
     "awn-category",
     "awn-owner",

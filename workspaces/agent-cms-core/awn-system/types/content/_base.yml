@@ -5,7 +5,7 @@ domain: content
 status: active
 extends: awn.base
 description: >
-  Запись, категория, sidecar, dialog, comment. Nav контента — только awn-main
+  Запись, категория, sidecar, dialog, comment. Nav контента — awn-focus и awn-main
   (awn-slots-disabled только у manifest темы, не у content). Runtime — через mixin.
 
 # Свои field-groups (см. resolveTypeFieldGroups).
@@ -49,15 +49,24 @@ field-groups:
 
 fields:
 
-  # --- nav: только awn-main (awn-slots-disabled — не часть content, только manifest темы) ---
-  awn-main:
+  # --- nav: awn-focus / awn-main (awn-slots-disabled — не часть content, только manifest темы) ---
+  awn-focus:
     type: awn.field.boolean
-    title: "{A2!} На главной"
-    description: Показывать запись в блоке «Фокус» на главной странице
+    title: "{A2!} В фокусе"
+    description: Показывать в быстром навигаторе (сайдбар, шапка)
     default: false
     placement: aside-body
     group: nav
     sort: 1
+
+  awn-main:
+    type: awn.field.boolean
+    title: "{A2!} На главной"
+    description: Показывать в карусели на главной странице
+    default: false
+    placement: aside-body
+    group: nav
+    sort: 2
 
   awn-sort:
     hidden: true

@@ -10,9 +10,19 @@ form:
   panel-title: "{A2!} Свойства страницы"
 
 fields:
+  awn-focus:
+    type: awn.field.boolean
+    title: "{A2!} В фокусе"
+    description: Показывать в быстром навигаторе workspace
+    default: false
+    placement: aside-body
+    group: nav
+    sort: 1
+
   awn-main:
     type: awn.field.boolean
     title: "{A2!} На главной"
+    description: Показывать в карусели на главной странице
     default: false
     placement: aside-body
     group: nav

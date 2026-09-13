@@ -11,7 +11,8 @@
     {
       "path": "/Users/macbook/Desktop/agent-focus",
       "environment": "local",
-      "default": true
+      "default": true,
+      "orchestrator": true
     },
     {
       "path": "/Users/macbook/Desktop/agent-medcenter",
@@ -22,15 +23,15 @@
       "environment": "local"
     },
     {
+      "path": "/Users/macbook/Desktop/moikomp",
+      "environment": "local"
+    },
+    {
       "path": "workspaces/school-vs",
       "environment": "local"
     },
     {
       "path": "workspaces/test3",
-      "environment": "local"
-    },
-    {
-      "path": "/Users/macbook/Desktop/moikomp",
       "environment": "local"
     }
   ]
