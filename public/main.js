@@ -62159,25 +62159,8 @@ function renderEntryOverviewTabularContentPart(context, nodePath = activePath, n
   return wrap;
 }
 
-function renderEntryOverviewOcrEmptyNotice(context, entries = [], navOptions = null) {
-  if (context?.entryKind !== "awn.media.asset") return null;
-  const extracted = String(getPropsEntryValueByKey(entries, "awn-ocr-extracted") || "").trim().toLowerCase();
-  const hasSidecarType = entries.some(
-    (entry) => normalizePropsKey(entry.key) === "awn-type" && String(entry.value || "").includes("sidecar")
-  );
-  if (!hasSidecarType || extracted === "true") return null;
-
-  const wrap = document.createElement("div");
-  wrap.className = "node-navigation-manifest node-entry-overview-manifest node-entry-overview-ocr-empty";
-
-  const preview = document.createElement("div");
-  preview.className = "node-navigation-preview file-content-preview node-entry-overview-ocr-empty-note";
-  preview.textContent =
-    "OCR не распознал читаемый текст. Для фото со сложным фоном добавьте описание вручную или вставьте скриншот с крупным текстом.";
-  wrap.appendChild(preview);
-
-  if (navOptions) appendEntryOverviewManifestNavActions(wrap, navOptions);
-  return wrap;
+function renderEntryOverviewOcrEmptyNotice() {
+  return null;
 }
 
 function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null, heroTitle = "") {
@@ -66583,7 +66566,15 @@ async function renderEntryOverview() {
     contentPanel = renderEntryOverviewTabularContentPart(context, context.relPath, entryOverviewNav);
   } else if (!isCodePreviewFile) {
     const previewBody =
-      context.entryKind === "awn.media.asset" && isLikelyOcrGarbage(rawBody) ? "" : rawBody;
+      context.entryKind === "awn.media.asset"
+        ? resolveEntryOverviewMediaBodyPreview(entries, rawBody)
+        : isLikelyOcrGarbage(rawBody)
+          ? ""
+          : rawBody;
+    if (context.entryKind === "awn.media.asset") {
+      const ocrSection = createEntryOverviewMediaOcrSection(context, entries, rawBody);
+      if (ocrSection) hubMain.appendChild(ocrSection);
+    }
     contentPanel =
       renderEntryOverviewContentPart(previewBody, context.relPath, entryOverviewNav, title) ||
       renderEntryOverviewOcrEmptyNotice(context, entries, entryOverviewNav);
@@ -92899,6 +92890,62 @@ function refreshEntryOverviewOcrButton(button, config = {}) {
   button.setAttribute("aria-label", label);
   const labelNode = button.querySelector(".node-ocr-sync-btn-label");
   if (labelNode) labelNode.textContent = label;
+}
+
+function resolveEntryOverviewMediaOcrText(entries = [], rawBody = "") {
+  const fromProp = String(getPropsEntryValueByKey(entries, "awn-ocr-text") || "").trim();
+  const fromBody = String(rawBody || "").trim();
+  const text = fromProp || fromBody;
+  if (!text || isLikelyOcrGarbage(text)) return "";
+  const extracted = String(getPropsEntryValueByKey(entries, "awn-ocr-extracted") || "")
+    .trim()
+    .toLowerCase();
+  if (extracted !== "true" && !fromProp) return "";
+  return text;
+}
+
+function resolveEntryOverviewMediaBodyPreview(entries = [], rawBody = "") {
+  const body = String(rawBody || "").trim();
+  if (!body) return "";
+  const ocrText = resolveEntryOverviewMediaOcrText(entries, rawBody);
+  if (ocrText && (body === ocrText || isLikelyOcrGarbage(body))) return "";
+  return body;
+}
+
+function wasEntryOverviewMediaOcrAttempted(entries = []) {
+  return Boolean(String(getPropsEntryValueByKey(entries, "awn-ocr-at") || "").trim());
+}
+
+function isEntryOverviewMediaOcrFailed(entries = []) {
+  const extracted = String(getPropsEntryValueByKey(entries, "awn-ocr-extracted") || "")
+    .trim()
+    .toLowerCase();
+  return wasEntryOverviewMediaOcrAttempted(entries) && extracted !== "true";
+}
+
+function createEntryOverviewMediaOcrSection(context = {}, entries = [], rawBody = "") {
+  const text = resolveEntryOverviewMediaOcrText(entries, rawBody);
+  const showFailed =
+    !text &&
+    isEntryOverviewOcrCandidate(context.relativePath) &&
+    isEntryOverviewMediaOcrFailed(entries);
+  if (!text && !showFailed) return null;
+
+  const section = document.createElement("section");
+  section.className = `node-entry-overview-media-ocr-excerpt${showFailed ? " is-failed" : ""}`;
+
+  const head = document.createElement("div");
+  head.className = "node-entry-overview-media-ocr-excerpt-head";
+  head.textContent = "OCR-текст";
+
+  const body = document.createElement(showFailed ? "p" : "pre");
+  body.className = "node-entry-overview-media-ocr-excerpt-body file-content-preview";
+  body.textContent = showFailed
+    ? "Текст не распознан — на фото нет читаемого текста или фон слишком сложный. Добавьте описание вручную."
+    : text;
+
+  section.append(head, body);
+  return section;
 }
 
 async function handleEntryOverviewOcrRun(button, config = {}) {
