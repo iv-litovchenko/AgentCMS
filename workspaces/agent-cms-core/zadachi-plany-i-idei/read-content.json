@@ -50,6 +50,8 @@
     "main/obedinit-page-content-data.md",
     "main/papka-awn-temp-dlya-lyubyh-vremennyh-faylov.md",
     "main/proaktivnost.md",
+    "main/problemy/manifest.md",
+    "main/problemy/poisk-po-1000-sparsennyh-soobscheniy-iz-tg.md",
     "main/rag-na-vse-tipy-dokumentov-word-pdf-jpg-video-idei-i-perepiska-s-claude.md",
     "main/rag.md",
     "main/reestr-tem-i-avtozagruzka.md",
@@ -61,7 +63,8 @@
     "main/testy.md",
     "main/uvedomleniya.md",
     "main/vizualizatsiya-diagrammy-grafiki.md",
-    "main/vse-v-sisteme-est-zametka-a-ne-raznye-mcp-page-content-data.md"
+    "main/vse-v-sisteme-est-zametka-a-ne-raznye-mcp-page-content-data.md",
+    "topic-index-generated/zadachi-plany-i-idei/index.md"
   ],
-  "updatedAt": "2026-09-11T16:58:09.076Z"
+  "updatedAt": "2026-09-13T08:06:18.609Z"
 }

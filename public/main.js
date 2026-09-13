@@ -179,6 +179,11 @@ const appLandingFocusFilterTypeBtnNode = document.getElementById("app-landing-fo
 const appLandingFocusFilterTypePanelNode = document.getElementById("app-landing-focus-filter-type-panel");
 const appLandingFocusSortNode = document.getElementById("app-landing-focus-sort");
 const appLandingFocusSortDirNode = document.getElementById("app-landing-focus-sort-dir");
+const appLandingFocusSearchNode = document.getElementById("app-landing-focus-search");
+const appLandingFocusSearchCountNode = document.getElementById("app-landing-focus-search-count");
+const appLandingFocusScrollerNode = document.getElementById("app-landing-focus-scroller");
+const appLandingFocusScrollPrevNode = document.getElementById("app-landing-focus-scroll-prev");
+const appLandingFocusScrollNextNode = document.getElementById("app-landing-focus-scroll-next");
 const homeFocusNode = document.getElementById("home-focus");
 const homeFocusListNode = document.getElementById("home-focus-list");
 const headerWelcomeWrapNode = document.getElementById("header-welcome-wrap");
@@ -6925,6 +6930,8 @@ function openCoreCatalogAgentFromLanding() {
 }
 
 let globalFocusItemsCache = [];
+let globalFocusItemsLoadSeq = 0;
+let globalFocusItemsLoading = false;
 let agentFocusItemsCache = [];
 let globalLandingHubTopicItemsCache = [];
 let globalFlowItemsCache = [];
@@ -6938,7 +6945,9 @@ const LANDING_FLOW_RECENT_LIMIT = 30;
 const LANDING_FOCUS_FILTER_STORAGE_KEY = "agentcms.landingFocusFilter.v1";
 const LANDING_FOCUS_SORT_STORAGE_KEY = "agentcms.landingFocusSort.v1";
 
-let landingFocusFilter = { status: "", types: [], category: "", tag: "", owner: "", priority: "" };
+let landingFocusFilter = { query: "", status: "", types: [], category: "", tag: "", owner: "", priority: "" };
+let landingFocusSearchInputTimer = 0;
+let landingMainTopicsScrollerState = { query: "", count: -1 };
 let landingFocusSort = { key: "topic", dir: "asc" };
 
 function normalizeLandingFocusTypeFilter(raw) {
@@ -6966,6 +6975,7 @@ function loadLandingFocusUiState() {
       const parsed = JSON.parse(filterRaw);
       const types = normalizeLandingFocusTypeFilter(parsed?.types ?? parsed?.type);
       landingFocusFilter = {
+        query: String(parsed?.query ?? "").trim(),
         status: String(parsed?.status ?? "").trim(),
         types,
         category: String(parsed?.category ?? "").trim(),
@@ -6975,7 +6985,7 @@ function loadLandingFocusUiState() {
       };
     }
   } catch {
-    landingFocusFilter = { status: "", types: [], category: "", tag: "", owner: "", priority: "" };
+    landingFocusFilter = { query: "", status: "", types: [], category: "", tag: "", owner: "", priority: "" };
   }
 
   try {
@@ -7020,7 +7030,25 @@ function getFocusItemCatalogRaw(item, key) {
   return String(item?.awnProps?.[key] ?? "").trim();
 }
 
+function getLandingFocusSearchHaystack(item) {
+  return [
+    item?.name,
+    item?.agentName,
+    item?.agentId,
+    item?.nodePath,
+    getFocusItemType(item),
+    getFocusItemStatus(item),
+    getFocusItemCatalogRaw(item, "awn-category"),
+    getFocusItemCatalogRaw(item, "awn-owner"),
+    ...getFocusItemTags(item)
+  ]
+    .map((value) => String(value ?? "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(" ");
+}
+
 function filterLandingFocusItems(items) {
+  const queryFilter = String(landingFocusFilter.query || "").trim().toLowerCase();
   const statusFilter = String(landingFocusFilter.status || "").trim();
   const typeFilters = getLandingFocusSelectedTypes();
   const typeFilterSet = typeFilters.length ? new Set(typeFilters) : null;
@@ -7030,6 +7058,7 @@ function filterLandingFocusItems(items) {
   const priorityFilter = String(landingFocusFilter.priority || "").trim();
 
   return items.filter((item) => {
+    if (queryFilter && !getLandingFocusSearchHaystack(item).includes(queryFilter)) return false;
     if (statusFilter && getFocusItemStatus(item) !== statusFilter) return false;
     if (typeFilterSet && !typeFilterSet.has(getFocusItemType(item))) return false;
     if (categoryFilter && getFocusItemCatalogRaw(item, "awn-category") !== categoryFilter) return false;
@@ -7270,6 +7299,7 @@ function syncLandingFocusToolbarUi() {
       : "";
     appLandingFocusCountNode.classList.toggle("hidden", total === 0);
   }
+  syncLandingMainTopicsSearchUi(total, shown);
 }
 
 function bindLandingFocusToolbar() {
@@ -7334,6 +7364,93 @@ function bindLandingFocusToolbar() {
     saveLandingFocusUiState();
     renderGlobalFocusPanel();
   });
+}
+
+function syncLandingMainTopicsSearchUi(total = globalFocusItemsCache.length, shown = total) {
+  const query = String(landingFocusFilter.query || "").trim();
+  if (appLandingFocusSearchNode && appLandingFocusSearchNode.value !== query) {
+    appLandingFocusSearchNode.value = query;
+  }
+  if (!appLandingFocusSearchCountNode) return;
+  if (!query) {
+    appLandingFocusSearchCountNode.textContent = "";
+    appLandingFocusSearchCountNode.classList.add("hidden");
+    return;
+  }
+  appLandingFocusSearchCountNode.textContent =
+    shown === total ? `${shown}` : `${shown} из ${total}`;
+  appLandingFocusSearchCountNode.classList.remove("hidden");
+}
+
+function syncLandingMainTopicsScrollerNav() {
+  const scroller = appLandingFocusScrollerNode;
+  const prevBtn = appLandingFocusScrollPrevNode;
+  const nextBtn = appLandingFocusScrollNextNode;
+  if (!scroller || !prevBtn || !nextBtn) return;
+
+  const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+  const canScroll = maxScroll > 4;
+  const atStart = scroller.scrollLeft <= 4;
+  const atEnd = scroller.scrollLeft >= maxScroll - 4;
+
+  prevBtn.classList.toggle("hidden", !canScroll || atStart);
+  prevBtn.hidden = !canScroll || atStart;
+  prevBtn.disabled = !canScroll || atStart;
+  nextBtn.classList.toggle("hidden", !canScroll || atEnd);
+  nextBtn.hidden = !canScroll || atEnd;
+  nextBtn.disabled = !canScroll || atEnd;
+}
+
+function scrollLandingMainTopics(direction) {
+  const scroller = appLandingFocusScrollerNode;
+  if (!scroller) return;
+  const step = Math.max(220, Math.round(scroller.clientWidth * 0.72));
+  scroller.scrollBy({
+    left: direction < 0 ? -step : step,
+    behavior: "smooth"
+  });
+}
+
+function bindLandingMainTopicsDock() {
+  if (!appLandingFocusNode || appLandingFocusNode.dataset.dockBound === "1") return;
+  appLandingFocusNode.dataset.dockBound = "1";
+
+  appLandingFocusSearchNode?.addEventListener("input", () => {
+    window.clearTimeout(landingFocusSearchInputTimer);
+    landingFocusSearchInputTimer = window.setTimeout(() => {
+      landingFocusFilter.query = String(appLandingFocusSearchNode?.value || "").trim();
+      saveLandingFocusUiState();
+      renderGlobalFocusPanel();
+    }, 160);
+  });
+
+  appLandingFocusSearchNode?.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (!appLandingFocusSearchNode.value) return;
+    event.preventDefault();
+    appLandingFocusSearchNode.value = "";
+    landingFocusFilter.query = "";
+    saveLandingFocusUiState();
+    renderGlobalFocusPanel();
+  });
+
+  appLandingFocusScrollPrevNode?.addEventListener("click", () => {
+    scrollLandingMainTopics(-1);
+  });
+  appLandingFocusScrollNextNode?.addEventListener("click", () => {
+    scrollLandingMainTopics(1);
+  });
+
+  appLandingFocusScrollerNode?.addEventListener("scroll", () => {
+    syncLandingMainTopicsScrollerNav();
+  }, { passive: true });
+
+  if (!window.__landingMainTopicsDockResizeBound) {
+    window.__landingMainTopicsDockResizeBound = true;
+    window.addEventListener("resize", () => {
+      syncLandingMainTopicsScrollerNav();
+    }, { passive: true });
+  }
 }
 
 const FOCUS_AWN_KEYS = [
@@ -7431,7 +7548,7 @@ function syncFocusPanelActiveState() {
   }
 
   for (const item of document.querySelectorAll(
-    ".agent-focus-item[data-focus-path], .home-focus-graph-node[data-focus-path], .app-landing-focus-tile[data-focus-path], .app-landing-orbit-twig[data-focus-path], .app-landing-hub-twig[data-focus-path], .app-landing-flow-card[data-focus-path]"
+    ".agent-focus-item[data-focus-path], .home-focus-graph-node[data-focus-path], .app-landing-focus-tile[data-focus-path], .app-landing-main-topic-card[data-focus-path], .app-landing-orbit-twig[data-focus-path], .app-landing-hub-twig[data-focus-path], .app-landing-flow-card[data-focus-path]"
   )) {
     const isActive =
       !activeSystemFile &&
@@ -7991,9 +8108,56 @@ function createLandingFocusTile(focusItem) {
   return btn;
 }
 
+function setLandingMainTopicsLoadingUi(loading) {
+  const isLoading = Boolean(loading) && getLandingAgentsView() === "orbit";
+  appLandingFocusNode?.classList.toggle("is-loading", isLoading);
+  appLandingFocusNode?.setAttribute("aria-busy", isLoading ? "true" : "false");
+  appLandingFocusSearchNode?.toggleAttribute("disabled", isLoading);
+}
+
+function createLandingMainTopicSkeletonCard(index) {
+  const card = document.createElement("div");
+  card.className = "app-landing-main-topic-card app-landing-main-topic-card--skeleton";
+  card.style.setProperty("--main-topics-skeleton-delay", `${(index % 5) * 0.12}s`);
+  card.setAttribute("aria-hidden", "true");
+
+  const media = document.createElement("span");
+  media.className = "app-landing-main-topic-skeleton-media";
+
+  const copy = document.createElement("span");
+  copy.className = "app-landing-main-topic-card-copy";
+
+  const titleLine = document.createElement("span");
+  titleLine.className = "app-landing-main-topic-skeleton-line app-landing-main-topic-skeleton-line--title";
+
+  const agentLine = document.createElement("span");
+  agentLine.className = "app-landing-main-topic-skeleton-line app-landing-main-topic-skeleton-line--agent";
+
+  copy.append(titleLine, agentLine);
+  card.append(media, copy);
+  return card;
+}
+
+function renderLandingMainTopicsLoading() {
+  if (!appLandingFocusListNode || getLandingAgentsView() !== "orbit") return;
+
+  setLandingMainTopicsLoadingUi(true);
+  syncLandingMainTopicsVisibility(true);
+  appLandingFocusListNode.replaceChildren();
+
+  for (let i = 0; i < 7; i += 1) {
+    appLandingFocusListNode.appendChild(createLandingMainTopicSkeletonCard(i));
+  }
+
+  if (appLandingFocusScrollerNode) {
+    appLandingFocusScrollerNode.scrollLeft = 0;
+  }
+  syncLandingMainTopicsScrollerNav();
+}
+
 function syncLandingMainTopicsVisibility(hasItems = globalFocusItemsCache.length > 0) {
   if (!appLandingFocusNode) return;
-  const show = getLandingAgentsView() === "orbit" && hasItems;
+  const show = getLandingAgentsView() === "orbit" && (hasItems || globalFocusItemsLoading);
   const wasShown = !appLandingFocusNode.classList.contains("hidden");
   appLandingFocusNode.classList.toggle("hidden", !show);
   appLandingFocusNode.setAttribute("aria-hidden", show ? "false" : "true");
@@ -8062,16 +8226,21 @@ function createLandingMainTopicChip(focusItem) {
 
 function renderLandingMainTopics(items) {
   if (!appLandingFocusListNode) return;
+  if (globalFocusItemsLoading) return;
 
   const visibleItems = Array.isArray(items) ? items : [];
-  syncLandingMainTopicsVisibility(visibleItems.length > 0);
+  const hasAnyItems = globalFocusItemsCache.length > 0;
+  setLandingMainTopicsLoadingUi(false);
+  syncLandingMainTopicsVisibility(hasAnyItems);
   appLandingFocusListNode.replaceChildren();
+  syncLandingMainTopicsSearchUi(globalFocusItemsCache.length, visibleItems.length);
 
-  if (!visibleItems.length) {
+  if (!hasAnyItems) {
     if (appLandingFocusCountNode) {
       appLandingFocusCountNode.textContent = "";
       appLandingFocusCountNode.classList.add("hidden");
     }
+    syncLandingMainTopicsScrollerNav();
     return;
   }
 
@@ -8080,10 +8249,34 @@ function renderLandingMainTopics(items) {
     appLandingFocusCountNode.classList.remove("hidden");
   }
 
+  const query = String(landingFocusFilter.query || "").trim();
+  const shouldResetScroll =
+    query !== landingMainTopicsScrollerState.query ||
+    visibleItems.length !== landingMainTopicsScrollerState.count;
+  landingMainTopicsScrollerState = { query, count: visibleItems.length };
+
+  if (!visibleItems.length) {
+    const empty = document.createElement("p");
+    empty.className = "app-landing-main-topics-empty";
+    empty.textContent = query ? "По запросу ничего не найдено." : "Нет заметок на главной.";
+    appLandingFocusListNode.appendChild(empty);
+    if (shouldResetScroll && appLandingFocusScrollerNode) {
+      appLandingFocusScrollerNode.scrollLeft = 0;
+    }
+    syncLandingMainTopicsScrollerNav();
+    return;
+  }
+
   for (const focusItem of visibleItems) {
     appLandingFocusListNode.appendChild(createLandingMainTopicChip(focusItem));
   }
   syncFocusPanelActiveState();
+  if (shouldResetScroll && appLandingFocusScrollerNode) {
+    appLandingFocusScrollerNode.scrollLeft = 0;
+  }
+  requestAnimationFrame(() => {
+    syncLandingMainTopicsScrollerNav();
+  });
 }
 
 function renderGlobalFocusPanel() {
@@ -8099,7 +8292,9 @@ function renderGlobalFocusPanel() {
   } else if (getLandingAgentsView() === "flow") {
     renderAppLandingFlow(globalFlowItemsCache);
   }
-  renderLandingMainTopics(processed);
+  if (!globalFocusItemsLoading) {
+    renderLandingMainTopics(processed);
+  }
 }
 
 function renderSidebarFocusPanel(panelNode, listNode, items) {
@@ -8160,7 +8355,14 @@ function renderAgentFocusPanels() {
   updateNodeOverviewHeroActionStates();
 }
 
-async function loadGlobalFocusItems() {
+async function loadGlobalFocusItems({ showLoading = false } = {}) {
+  const loadSeq = ++globalFocusItemsLoadSeq;
+  if (showLoading) {
+    globalFocusItemsLoading = true;
+    if (getLandingAgentsView() === "orbit") {
+      renderLandingMainTopicsLoading();
+    }
+  }
   try {
     const response = await fetch("/api/agents/focus");
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
@@ -8169,6 +8371,8 @@ async function loadGlobalFocusItems() {
   } catch {
     globalFocusItemsCache = [];
   }
+  if (loadSeq !== globalFocusItemsLoadSeq) return;
+  globalFocusItemsLoading = false;
   renderGlobalFocusPanel();
 }
 
@@ -10223,7 +10427,7 @@ function syncLandingAgentsViewUi() {
   appLandingFlowNode?.setAttribute("aria-hidden", isFlow ? "false" : "true");
 
   appLandingAgentsNode?.classList.toggle("hidden", !isGrid);
-  syncLandingMainTopicsVisibility(globalFocusItemsCache.length > 0);
+  syncLandingMainTopicsVisibility(globalFocusItemsCache.length > 0 || globalFocusItemsLoading);
   appLandingAttentionNode?.classList.toggle("hidden", !(isHub || isOrbit || isFlow));
 
   appLandingGroupsNode?.classList.toggle("hidden", !isSettings);
@@ -10262,6 +10466,9 @@ function syncLandingAgentsViewUi() {
   if (isFlow) {
     void loadGlobalFlowItems({ showLoading: true });
   }
+  if (isOrbit && globalFocusItemsLoading) {
+    renderLandingMainTopicsLoading();
+  }
   if (isHub || isOrbit || isFlow) {
     renderAppLandingAttention(buildMockAgentAttentionShares(getAgentsForLandingGrid()));
   } else {
@@ -10269,7 +10476,9 @@ function syncLandingAgentsViewUi() {
   }
 
   syncLandingBgUi();
-  renderLandingMainTopics(getProcessedLandingFocusItems());
+  if (!globalFocusItemsLoading) {
+    renderLandingMainTopics(getProcessedLandingFocusItems());
+  }
 }
 
 const HUB_FOCUS_TWIG_LIMIT = 8;
@@ -12081,7 +12290,7 @@ async function renderAppLandingAgents() {
 
   renderAppLandingOrbit();
   renderAppLandingHub(getLandingHubOrbitTopicItems());
-  void loadGlobalFocusItems();
+  void loadGlobalFocusItems({ showLoading: true });
   void loadGlobalFlowItems();
   void loadGlobalLandingHubTopicItems();
   syncLandingAgentsViewUi();
@@ -57199,7 +57408,6 @@ function renderNodeNavigationWorkspaceCounterStrip(
     });
   }
   appendWorkspaceOutsideSlotsCounterRow(wrap);
-  appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
   return wrap;
 }
 
@@ -98736,6 +98944,7 @@ initAgentGitToolbar();
 initAgentLargeFilesToolbar();
 initAgentBrokenLinksToolbar();
 bindLandingFocusToolbar();
+bindLandingMainTopicsDock();
 initWorkspaceNotifications();
 
 window.AgentCmsLinkDrag = {
