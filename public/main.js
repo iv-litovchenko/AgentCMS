@@ -12326,7 +12326,7 @@ async function renderAppLandingAgents() {
     appLandingAgentsNode.classList.remove("is-grouped-layout");
     const empty = document.createElement("p");
     empty.className = "app-landing-empty";
-    empty.textContent = "Нет агентов. Нажмите «+ Добавить агента» или «Реестр».";
+    empty.textContent = "Нет агентов. Нажмите «+ Добавить агента» или «Реестр контекста».";
     appLandingAgentsNode.appendChild(empty);
   } else {
     try {
@@ -26674,7 +26674,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   "large-files": "Крупные файлы",
   "broken-links": "Битые ссылки",
   "run-scripts": "Запуск скриптов",
-  "runtime-registry": "Реестр",
+  "runtime-registry": "Реестр контекста",
   map: "Карта",
   map2: "Структура",
   map3: "Карта 3",
@@ -58320,9 +58320,17 @@ function createNavigationSectionSearchInput(options = {}) {
   return wrap;
 }
 
-const DOCUMENT_CONTEXT_METER_SOFT_WORDS = 1200;
-const DOCUMENT_CONTEXT_METER_WARN_WORDS = 2500;
-const DOCUMENT_CONTEXT_METER_MAX_WORDS = 5000;
+const DOCUMENT_CONTEXT_METER_WINDOW_STORAGE_KEY = "yamlcms.documentContextMeterWindowTokens";
+const DOCUMENT_CONTEXT_METER_WINDOW_DEFAULT = 128000;
+const DOCUMENT_CONTEXT_METER_WINDOW_PRESETS = [
+  { tokens: 32000, label: "32K" },
+  { tokens: 128000, label: "128K" },
+  { tokens: 200000, label: "200K" },
+  { tokens: 1000000, label: "1M" },
+];
+const DOCUMENT_CONTEXT_METER_SOFT_RATIO = 0.24;
+const DOCUMENT_CONTEXT_METER_WARN_RATIO = 0.5;
+const DOCUMENT_CONTEXT_METER_OVERFLOW_RATIO = 0.9;
 
 function countDocumentWords(text) {
   const normalized = String(text || "").trim();
@@ -58330,23 +58338,50 @@ function countDocumentWords(text) {
   return normalized.split(/\s+/).filter(Boolean).length;
 }
 
-function analyzeDocumentContextStats(text) {
+function formatDocumentContextWindowLabel(tokens) {
+  const value = Number(tokens) || DOCUMENT_CONTEXT_METER_WINDOW_DEFAULT;
+  if (value >= 1_000_000) return "1M";
+  if (value >= 1000) return `${Math.round(value / 1000)}K`;
+  return String(value);
+}
+
+function getDocumentContextMeterWindowTokens() {
+  try {
+    const raw = localStorage.getItem(DOCUMENT_CONTEXT_METER_WINDOW_STORAGE_KEY);
+    const parsed = Number(raw);
+    if (DOCUMENT_CONTEXT_METER_WINDOW_PRESETS.some((preset) => preset.tokens === parsed)) {
+      return parsed;
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return DOCUMENT_CONTEXT_METER_WINDOW_DEFAULT;
+}
+
+function setDocumentContextMeterWindowTokens(tokens) {
+  try {
+    localStorage.setItem(DOCUMENT_CONTEXT_METER_WINDOW_STORAGE_KEY, String(tokens));
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function analyzeDocumentContextStats(text, windowTokens = getDocumentContextMeterWindowTokens()) {
   const raw = String(text ?? "");
   const trimmed = raw.trim();
   const words = countDocumentWords(trimmed);
   const chars = trimmed.length;
   const bytes = new TextEncoder().encode(raw).length;
   const tokensEstimate = Math.max(0, Math.ceil(chars / 4));
-  const fillRatio = DOCUMENT_CONTEXT_METER_MAX_WORDS
-    ? Math.min(1, words / DOCUMENT_CONTEXT_METER_MAX_WORDS)
-    : 0;
+  const windowSize = Math.max(1, Number(windowTokens) || DOCUMENT_CONTEXT_METER_WINDOW_DEFAULT);
+  const fillRatio = Math.min(1, tokensEstimate / windowSize);
 
   let level = "comfort";
-  if (words >= DOCUMENT_CONTEXT_METER_MAX_WORDS * 0.9) level = "overflow";
-  else if (words >= DOCUMENT_CONTEXT_METER_WARN_WORDS) level = "split";
-  else if (words >= DOCUMENT_CONTEXT_METER_SOFT_WORDS) level = "warn";
+  if (fillRatio >= DOCUMENT_CONTEXT_METER_OVERFLOW_RATIO) level = "overflow";
+  else if (fillRatio >= DOCUMENT_CONTEXT_METER_WARN_RATIO) level = "split";
+  else if (fillRatio >= DOCUMENT_CONTEXT_METER_SOFT_RATIO) level = "warn";
 
-  return { words, chars, bytes, tokensEstimate, fillRatio, level };
+  return { words, chars, bytes, tokensEstimate, fillRatio, level, windowTokens: windowSize };
 }
 
 function formatDocumentContextByteSize(bytes) {
@@ -58375,17 +58410,89 @@ function getDocumentContextMeterStatusLabel(level) {
   }
 }
 
-function getDocumentContextMeterHint(level) {
-  switch (level) {
+function getDocumentContextMeterHint(stats) {
+  const pct = Math.round((stats?.fillRatio ?? 0) * 100);
+  const windowLabel = formatDocumentContextWindowLabel(stats?.windowTokens);
+  switch (stats?.level) {
     case "overflow":
-      return "Документ слишком большой для одного контекста агента — разбейте MD на несколько файлов.";
+      return `~${pct}% окна ${windowLabel}: документ не помещается в один контекст — разбейте MD на несколько файлов.`;
     case "split":
-      return "Близко к переполнению: для MD лучше выделить разделы в отдельные файлы.";
+      return `~${pct}% окна ${windowLabel}: близко к переполнению — лучше вынести разделы в отдельные файлы.`;
     case "warn":
-      return "Контекст растёт: следите за размером, ориентир — до ~1 200 слов на файл.";
+      return `~${pct}% окна ${windowLabel}: контекст растёт, следите за размером файла.`;
     default:
-      return "Размер в комфортном диапазоне для подачи агенту целиком.";
+      return `~${pct}% окна ${windowLabel}: размер в комфортном диапазоне для подачи агенту.`;
   }
+}
+
+function createDocumentContextMeterWindowSelect(selectedTokens) {
+  const select = document.createElement("select");
+  select.className = "document-context-meter-window-select";
+  select.title = "Размер контекстного окна модели";
+  select.setAttribute("aria-label", "Размер контекстного окна");
+  for (const preset of DOCUMENT_CONTEXT_METER_WINDOW_PRESETS) {
+    const option = document.createElement("option");
+    option.value = String(preset.tokens);
+    option.textContent = preset.label;
+    option.selected = preset.tokens === selectedTokens;
+    select.appendChild(option);
+  }
+  select.addEventListener("change", () => {
+    const next = Number(select.value);
+    if (!Number.isFinite(next)) return;
+    setDocumentContextMeterWindowTokens(next);
+    document.querySelectorAll(".document-context-meter").forEach((meterEl) => {
+      syncDocumentContextMeter(meterEl, next);
+    });
+  });
+  select.addEventListener("click", (event) => event.stopPropagation());
+  return select;
+}
+
+function syncDocumentContextMeter(meter, windowTokens = getDocumentContextMeterWindowTokens()) {
+  const text = meter?.__contextMeterText;
+  if (text == null || !meter) return;
+  const stats = analyzeDocumentContextStats(text, windowTokens);
+  const windowLabel = formatDocumentContextWindowLabel(stats.windowTokens);
+  const fillPct = Math.round(stats.fillRatio * 100);
+
+  meter.className = `document-context-meter document-context-meter--${stats.level}`;
+
+  const status = meter.querySelector(".document-context-meter-status");
+  if (status) status.textContent = getDocumentContextMeterStatusLabel(stats.level);
+
+  const windowSelect = meter.querySelector(".document-context-meter-window-select");
+  if (windowSelect && String(windowSelect.value) !== String(stats.windowTokens)) {
+    windowSelect.value = String(stats.windowTokens);
+  }
+
+  const track = meter.querySelector(".document-context-meter-track");
+  if (track) {
+    track.setAttribute("aria-valuemax", String(stats.windowTokens));
+    track.setAttribute("aria-valuenow", String(stats.tokensEstimate));
+    track.title = `Заполнение: ${fillPct}% от окна ${windowLabel} (${stats.windowTokens.toLocaleString("ru-RU")} ток.)`;
+  }
+
+  const fill = meter.querySelector(".document-context-meter-fill");
+  if (fill) {
+    fill.style.width = fillPct > 0 ? `${Math.max(4, fillPct)}%` : "0%";
+  }
+
+  const statsRow = meter.querySelector(".document-context-meter-stats");
+  if (statsRow) {
+    statsRow.replaceChildren(
+      document.createTextNode(`${stats.words.toLocaleString("ru-RU")} слов`),
+      document.createTextNode(" · "),
+      document.createTextNode(formatDocumentContextByteSize(stats.bytes)),
+      document.createTextNode(" · "),
+      document.createTextNode(formatDocumentContextTokenEstimate(stats.tokensEstimate)),
+      document.createTextNode(" · "),
+      document.createTextNode(`${fillPct}% окна ${windowLabel}`)
+    );
+  }
+
+  const hint = meter.querySelector(".document-context-meter-hint");
+  if (hint) hint.textContent = getDocumentContextMeterHint(stats);
 }
 
 function getTabularContextMeterText(tabularData) {
@@ -58404,11 +58511,14 @@ function getTabularContextMeterText(tabularData) {
 }
 
 function createDocumentContextMeter(text) {
-  const stats = analyzeDocumentContextStats(text);
-  if (!stats.words && !stats.chars) return null;
+  const rawText = String(text ?? "");
+  const trimmed = rawText.trim();
+  if (!countDocumentWords(trimmed) && !trimmed.length) return null;
 
+  const windowTokens = getDocumentContextMeterWindowTokens();
   const meter = document.createElement("div");
-  meter.className = `document-context-meter document-context-meter--${stats.level}`;
+  meter.__contextMeterText = rawText;
+  meter.className = "document-context-meter";
   meter.setAttribute("aria-label", "Счётчик контекста документа");
 
   const head = document.createElement("div");
@@ -58418,40 +58528,33 @@ function createDocumentContextMeter(text) {
   title.className = "document-context-meter-title";
   title.textContent = "Контекст документа";
 
+  const actions = document.createElement("div");
+  actions.className = "document-context-meter-actions";
+
   const status = document.createElement("span");
   status.className = "document-context-meter-status";
-  status.textContent = getDocumentContextMeterStatusLabel(stats.level);
 
-  head.append(title, status);
+  actions.append(createDocumentContextMeterWindowSelect(windowTokens), status);
+
+  head.append(title, actions);
 
   const track = document.createElement("div");
   track.className = "document-context-meter-track";
   track.setAttribute("role", "progressbar");
   track.setAttribute("aria-valuemin", "0");
-  track.setAttribute("aria-valuemax", String(DOCUMENT_CONTEXT_METER_MAX_WORDS));
-  track.setAttribute("aria-valuenow", String(stats.words));
-  track.title = `Заполнение: ${Math.round(stats.fillRatio * 100)}% от ориентира ${DOCUMENT_CONTEXT_METER_MAX_WORDS.toLocaleString("ru-RU")} слов`;
 
   const fill = document.createElement("div");
   fill.className = "document-context-meter-fill";
-  fill.style.width = `${Math.max(4, Math.round(stats.fillRatio * 100))}%`;
   track.appendChild(fill);
 
   const statsRow = document.createElement("div");
   statsRow.className = "document-context-meter-stats";
-  statsRow.append(
-    document.createTextNode(`${stats.words.toLocaleString("ru-RU")} слов`),
-    document.createTextNode(" · "),
-    document.createTextNode(formatDocumentContextByteSize(stats.bytes)),
-    document.createTextNode(" · "),
-    document.createTextNode(formatDocumentContextTokenEstimate(stats.tokensEstimate))
-  );
 
   const hint = document.createElement("p");
   hint.className = "document-context-meter-hint";
-  hint.textContent = getDocumentContextMeterHint(stats.level);
 
   meter.append(head, track, statsRow, hint);
+  syncDocumentContextMeter(meter, windowTokens);
   return meter;
 }
 
@@ -87901,6 +88004,20 @@ const RUNTIME_REGISTRY_MODES = {
       "После сохранения элемент появится в соответствующей вкладке реестра."
     ],
     exampleYaml: "awn-runtime-load-always: true\nawn-runtime-cron: true\nawn-runtime-heartbeat: true"
+  },
+  "large-context": {
+    title: "Большой контекст",
+    description:
+      "Темы и записи с оценкой от 10 000 токенов и выше (≈ chars÷4). Такие файлы лучше делить — иначе они съедают окно модели и ухудшают ответы агента.",
+    mcp: "GET /api/agent/large-context?minTokens=10000",
+    emptyTitle: "Нет перегруженных файлов",
+    emptyLead: "Ни одна тема, запись или корневой AGENTS.md не превышает порог 10 000 токенов.",
+    emptySteps: [
+      "Держите один MD в разумном объёме — ориентир до нескольких тысяч токенов на файл.",
+      "Крупные разделы выносите в отдельные записи в main/inbox и связывайте ссылками.",
+      "Если файл всё же разросся — разбейте по заголовкам и обновите index.md темы."
+    ],
+    exampleYaml: "# Вместо одного гигантского файла\nmain/overview.md\nmain/details-part-1.md\nmain/details-part-2.md"
   }
 };
 
@@ -87939,14 +88056,35 @@ function initAgentRuntimeRegistryFilter() {
   syncAgentRuntimeRegistryFilterUi();
 }
 
+const RUNTIME_REGISTRY_LARGE_CONTEXT_MIN_TOKENS = 10000;
+
 function runtimeRegistryEndpointForMode(filterMode = agentRuntimeRegistryFilterMode) {
   if (filterMode === "always") return "/api/agent/always-context";
   if (filterMode === "cron") return "/api/agent/cron-registry";
   if (filterMode === "heartbeat") return "/api/agent/heartbeat-registry";
+  if (filterMode === "large-context") {
+    return `/api/agent/large-context?minTokens=${RUNTIME_REGISTRY_LARGE_CONTEXT_MIN_TOKENS}`;
+  }
   return null;
 }
 
 function normalizeRuntimeRegistryPayload(data, filterMode = agentRuntimeRegistryFilterMode) {
+  if (filterMode === "large-context") {
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+    return {
+      rows,
+      itemCount: data.itemCount ?? rows.length,
+      topicCount: rows.filter((row) => row.entityKind === "topic").length,
+      contentCount: rows.filter((row) => row.entityKind === "content").length,
+      sessionStartCount: 0,
+      cronCount: 0,
+      heartbeatCount: 0,
+      minTokens: data.minTokens ?? RUNTIME_REGISTRY_LARGE_CONTEXT_MIN_TOKENS,
+      totalTokens: data.totalTokens ?? 0,
+      maxTokens: data.maxTokens ?? 0,
+      referenceWindowTokens: data.referenceWindowTokens ?? 128000
+    };
+  }
   if (filterMode === "always" || filterMode === "cron" || filterMode === "heartbeat") {
     const items = Array.isArray(data.items) ? data.items : [];
     return {
@@ -88002,6 +88140,12 @@ function formatRuntimeRegistryContentSize(content) {
   return `${(len / 1024).toFixed(1)} KB`;
 }
 
+function formatRuntimeRegistryTokenCount(tokens) {
+  const value = Number(tokens) || 0;
+  if (value >= 1000) return `~${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
+  return `~${value.toLocaleString("ru-RU")}`;
+}
+
 function formatRuntimeRegistryBoolCell(active, detail = "") {
   if (!active) {
     return { text: "—", tone: "off", title: "" };
@@ -88054,6 +88198,38 @@ function renderRuntimeRegistryStats(data, filterMode, rows) {
   if (filterMode === "heartbeat") {
     agentRuntimeRegistryStatsNode.append(
       createAgentWorkspaceStatElement(count, count === 1 ? "элемент" : "элементов", "ok")
+    );
+    return;
+  }
+
+  if (filterMode === "large-context") {
+    agentRuntimeRegistryStatsNode.append(
+      createAgentWorkspaceStatElement(count, count === 1 ? "файл" : "файлов", count ? "warn" : "ok")
+    );
+    if (data.maxTokens > 0) {
+      agentRuntimeRegistryStatsNode.append(
+        createAgentWorkspaceStatElement(
+          formatRuntimeRegistryTokenCount(data.maxTokens),
+          "макс.",
+          "warn"
+        )
+      );
+    }
+    if (data.totalTokens > 0) {
+      agentRuntimeRegistryStatsNode.append(
+        createAgentWorkspaceStatElement(
+          formatRuntimeRegistryTokenCount(data.totalTokens),
+          "суммарно",
+          "muted"
+        )
+      );
+    }
+    agentRuntimeRegistryStatsNode.append(
+      createAgentWorkspaceStatElement(
+        `≥ ${(data.minTokens ?? RUNTIME_REGISTRY_LARGE_CONTEXT_MIN_TOKENS).toLocaleString("ru-RU")}`,
+        "порог ток.",
+        "muted"
+      )
     );
     return;
   }
@@ -88159,7 +88335,9 @@ async function renderAgentRuntimeRegistryView() {
           ? ["Задача", "Тип", "Расписание"]
           : filterMode === "heartbeat"
             ? ["Элемент", "Тип", "Режим"]
-            : ["Элемент", "Тип", "Always", "Cron", "Heartbeat"];
+            : filterMode === "large-context"
+              ? ["Файл", "Тип", "Токены", "Рекомендация"]
+              : ["Элемент", "Тип", "Always", "Cron", "Heartbeat"];
     for (const label of columns) {
       const th = document.createElement("th");
       th.scope = "col";
@@ -88234,6 +88412,25 @@ async function renderAgentRuntimeRegistryView() {
         heartbeatCell.className = "agent-table-cell";
         heartbeatCell.textContent = "периодически";
         tr.append(titleCell, kindCell, heartbeatCell);
+      } else if (filterMode === "large-context") {
+        const tokensCell = document.createElement("td");
+        tokensCell.className = "agent-table-cell agent-table-cell--mono";
+        tokensCell.textContent = formatRuntimeRegistryTokenCount(row.tokensEstimate);
+        const pct = Number(row.windowPct128k) || 0;
+        tokensCell.title = `${row.tokensEstimate?.toLocaleString("ru-RU") ?? 0} ток. · ~${pct}% окна 128K`;
+
+        const adviceCell = document.createElement("td");
+        adviceCell.className = "agent-table-cell";
+        const adviceBadge = document.createElement("span");
+        adviceBadge.className = "agent-runtime-registry-badge is-bool is-on agent-runtime-registry-badge--split-advice";
+        const adviceText = String(row.advice || "Рекомендуется разбить").trim();
+        adviceBadge.textContent = adviceText;
+        if (row.runtimeLoadAlways) {
+          adviceBadge.title = "Файл ещё и в always-context — особенно важно уменьшить";
+        }
+        adviceCell.appendChild(adviceBadge);
+
+        tr.append(titleCell, kindCell, tokensCell, adviceCell);
       } else {
         const loadCell = document.createElement("td");
         loadCell.className = "agent-table-cell";

@@ -72,7 +72,11 @@ import { createShellDialog } from "@shell/dialog";
 import { createShellCompactQa } from "@shell/compact-qa";
 import { initShellComposeLayout } from "@shell/compose-layout";
 import { initComposeTemplates, expandComposeTemplateMarkers } from "@shell/compose-templates";
-import { initShellComposeContextMeter } from "@shell/compose-context-meter";
+import {
+  initShellComposeContextMeter,
+  isComposeMessageOverLimit,
+  getComposeContextLimitState
+} from "@shell/compose-context-meter";
 import { collectLocalPageSnapshot, createShellComposePageContext } from "@shell/compose-page";
 import { migrateShellStorageFromMobile, SHELL_STORAGE } from "@shell/storage-keys";
 import { initShellHelp } from "@shell/help";
@@ -4834,14 +4838,21 @@ function updateSendButtonLabel() {
   }
   const kbd = nodes.sendBtn.querySelector(".shell-compose-send-kbd");
   if (kbd) kbd.textContent = shortcut;
-  nodes.sendBtn.title = messagingReady
-    ? state.messagePipelineBusy && draft
-      ? label
-      : `${label} (${shortcut})`
-    : shellAgentLockHint();
-  nodes.sendBtn.setAttribute("aria-label", label);
+  const overComposeLimit = Boolean(draft && isComposeMessageOverLimit(draft));
   nodes.sendBtn.dataset.sendMode = state.messagePipelineBusy && draft ? "queue" : "send";
-  nodes.sendBtn.disabled = !messagingReady;
+  nodes.sendBtn.disabled = !messagingReady || overComposeLimit;
+  if (overComposeLimit) {
+    const { windowTokens, tokensEstimate } = getComposeContextLimitState(draft);
+    nodes.sendBtn.title = `Слишком длинно: ~${tokensEstimate.toLocaleString("ru-RU")} ток. при лимите ${windowTokens.toLocaleString("ru-RU")}`;
+    nodes.sendBtn.setAttribute("aria-label", "Отправка недоступна — превышен лимит сообщения");
+  } else {
+    nodes.sendBtn.title = messagingReady
+      ? state.messagePipelineBusy && draft
+        ? label
+        : `${label} (${shortcut})`
+      : shellAgentLockHint();
+    nodes.sendBtn.setAttribute("aria-label", label);
+  }
   const stopActive = Boolean(
     state.messagePipelineBusy ||
       state.processingMessage ||
@@ -8591,6 +8602,11 @@ async function patchShellState(patch) {
 async function sendMessage(body, { fromCompose = true, voice = false } = {}) {
   const text = String(body || "").trim();
   if (!text) return;
+  if (fromCompose && !voice && isComposeMessageOverLimit(text)) {
+    updateSendButtonLabel();
+    hapticTap();
+    return;
+  }
   if (!canUseShellMessaging()) {
     renderPhase("waiting", shellAgentLockHint() || "Выберите хранилище (агента) в шапке");
     return;
@@ -12666,7 +12682,8 @@ function bindShellInteractiveUi() {
     composeContextMeter = initShellComposeContextMeter({
       textarea: nodes.message,
       mountEl: nodes.composeContextMeter,
-      draftStatusEl: nodes.composeDraftStatus
+      draftStatusEl: nodes.composeDraftStatus,
+      onStatsChange: () => updateSendButtonLabel()
     });
     composeTemplates = initComposeTemplates({
       dialog: document.getElementById("shell-compose-templates-dialog"),

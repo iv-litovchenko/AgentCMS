@@ -6553,6 +6553,16 @@ body.shell-agent-locked #shell-message-target:disabled {
 
 .shell-compose-input-wrap {
   position: relative;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.shell-compose-input-wrap.is-compose-over-limit {
+  background: rgba(69, 10, 10, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.5);
+}
+
+.shell-compose-input-wrap.is-compose-over-limit:focus-within {
+  box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.65);
 }
 
 .shell-compose-input-wrap .shell-textarea {
@@ -10866,6 +10876,18 @@ body.shell-desktop .shell-compact-stage .shell-compact-sensor {
   box-shadow: none;
 }
 
+.shell-compose-input-wrap.is-compose-over-limit .shell-textarea.shell-textarea--compose,
+#shell-compose-field .shell-textarea.shell-textarea--compose.is-compose-over-limit {
+  background: rgba(127, 29, 29, 0.28);
+  color: rgba(254, 242, 242, 0.96);
+  caret-color: #fecaca;
+}
+
+.shell-compose-input-wrap.is-compose-over-limit .shell-textarea.shell-textarea--compose::placeholder,
+#shell-compose-field .shell-textarea.shell-textarea--compose.is-compose-over-limit::placeholder {
+  color: rgba(252, 165, 165, 0.55);
+}
+
 #shell-compose-field:focus-within,
 .shell-compose-input-wrap:focus-within,
 .shell-compose-card:focus-within {
@@ -10881,6 +10903,40 @@ body.shell-desktop .shell-compact-stage .shell-compact-sensor {
   gap: 4px;
   pointer-events: none;
   box-sizing: border-box;
+}
+
+.shell-compose-context-meter-head,
+.shell-compose-context-meter-window-select {
+  pointer-events: auto;
+}
+
+.shell-compose-context-meter-window-select {
+  appearance: none;
+  flex: 0 0 auto;
+  max-width: 52px;
+  height: 18px;
+  padding: 0 14px 0 6px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  background-color: rgba(15, 23, 42, 0.55);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  color: rgba(226, 232, 240, 0.92);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.shell-compose-context-meter-window-select:hover {
+  border-color: rgba(148, 163, 184, 0.55);
+  background-color: rgba(30, 41, 59, 0.75);
+}
+
+.shell-compose-context-meter-window-select:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.55);
+  outline-offset: 1px;
 }
 
 .shell-compose-context-meter-head {
@@ -10975,6 +11031,18 @@ body.shell-desktop .shell-compact-stage .shell-compact-sensor {
 
 .shell-compose-context-meter--overflow .shell-compose-context-meter-fill {
   background: linear-gradient(90deg, #f87171, #ef4444);
+}
+
+.shell-compose-context-meter--blocked {
+  outline: none;
+}
+
+.shell-compose-context-meter--blocked .shell-compose-context-meter-track {
+  background: rgba(239, 68, 68, 0.22);
+}
+
+.shell-compose-context-meter--blocked .shell-compose-context-meter-label-stats {
+  color: rgba(252, 165, 165, 0.95);
 }
 
 .shell-compose-voice--compact select.shell-select.shell-compose-voice-select {

@@ -1016,9 +1016,9 @@
                       class="header-profile-menu-item agents-picker-tool-btn agent-registry-btn"
                       type="button"
                       role="menuitem"
-                      title="Реестр — always, cron и heartbeat"
+                      title="Реестр контекста — always, cron, heartbeat и большие файлы"
                     >
-                      <span class="agents-picker-tool-label">Реестр</span>
+                      <span class="agents-picker-tool-label">Реестр контекста</span>
                     </button>
                     <button
                       id="agent-large-files-btn"
@@ -2565,13 +2565,13 @@
         <div id="agent-broken-links-content" class="agent-tool-body agent-broken-links-content"></div>
       </main>
 
-      <main id="agent-runtime-registry-pane" class="agent-canvas-pane agent-tool-pane agent-runtime-registry-pane hidden" aria-label="Реестр">
+      <main id="agent-runtime-registry-pane" class="agent-canvas-pane agent-tool-pane agent-runtime-registry-pane hidden" aria-label="Реестр контекста">
         <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace · Агент</p>
-            <h2 class="agent-canvas-title">Реестр</h2>
+            <h2 class="agent-canvas-title">Реестр контекста</h2>
             <p class="agent-canvas-lead">
-              Темы и записи, которые агент подгружает сам — при старте, по расписанию или периодически.
+              Что агент держит в памяти, что запускает по расписанию и какие файлы слишком большие для одного контекста.
             </p>
           </div>
           <div class="agent-canvas-head-aside agent-tool-head-actions">
@@ -2582,7 +2582,7 @@
         </div>
         <div class="agent-tool-toolbar agent-runtime-registry-toolbar">
           <p class="agent-runtime-registry-filter-caption">Режим просмотра — нажмите вкладку:</p>
-          <div id="agent-runtime-registry-filter" class="agent-runtime-registry-filter" role="tablist" aria-label="Режим просмотра реестра runtime-флагов">
+          <div id="agent-runtime-registry-filter" class="agent-runtime-registry-filter" role="tablist" aria-label="Режим просмотра реестра контекста">
             <button type="button" class="agent-runtime-registry-filter-btn is-active" data-runtime-filter="all" role="tab" aria-selected="true" title="Все runtime-флаги в одной таблице">
               <span class="agent-runtime-registry-filter-row">
                 <span class="agent-runtime-registry-filter-emoji" aria-hidden="true">📋</span>
@@ -2610,6 +2610,13 @@
                 <span class="agent-runtime-registry-filter-label">Сердцебиение</span>
               </span>
               <span class="agent-runtime-registry-filter-hint">периодический опрос</span>
+            </button>
+            <button type="button" class="agent-runtime-registry-filter-btn" data-runtime-filter="large-context" role="tab" aria-selected="false" title="Файлы больше 10 000 токенов — лучше разбить">
+              <span class="agent-runtime-registry-filter-row">
+                <span class="agent-runtime-registry-filter-emoji" aria-hidden="true">📦</span>
+                <span class="agent-runtime-registry-filter-label">Большой контекст</span>
+              </span>
+              <span class="agent-runtime-registry-filter-hint">≥ 10 000 токенов</span>
             </button>
           </div>
         </div>

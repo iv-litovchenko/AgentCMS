@@ -19646,7 +19646,7 @@ a.header-tool-btn {
 
 .agent-runtime-registry-filter {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
   padding: 8px 10px;
   border: 1px solid rgba(148, 163, 184, 0.2);
@@ -19942,6 +19942,12 @@ a.header-tool-btn {
 .agent-runtime-registry-table .agent-table-cell--mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 11px;
+}
+
+@media (max-width: 960px) {
+  .agent-runtime-registry-filter {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -27448,6 +27454,7 @@ a.header-tool-btn {
 .node-navigation-topic-overview-view-select,
 .node-navigation-entry-view-select,
 .node-settings-mode-select,
+.document-context-meter-window-select,
 .agent-select,
 .agent-view-select {
   flex: 0 0 auto;
@@ -27475,7 +27482,8 @@ a.header-tool-btn {
 .node-navigation-elements-nav-slot-select:hover:not(:disabled),
 .node-navigation-topic-overview-view-select:hover,
 .node-navigation-entry-view-select:hover,
-.node-settings-mode-select:hover {
+.node-settings-mode-select:hover,
+.document-context-meter-window-select:hover {
   border-color: #cbd5e1;
   background-color: #f8fafc;
 }
@@ -37331,6 +37339,24 @@ button.node-navigation-memory-title:focus-visible {
   margin-bottom: 8px;
 }
 
+.document-context-meter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.document-context-meter-window-select {
+  max-width: min(88px, 26vw);
+  height: 24px;
+  padding: 2px 22px 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
 .document-context-meter-title {
   font-size: 11px;
   font-weight: 700;
@@ -37550,6 +37576,7 @@ button.node-navigation-memory-title:focus-visible {
 .node-navigation-topic-overview-view-select:focus,
 .node-navigation-entry-view-select:focus,
 .node-settings-mode-select:focus,
+.document-context-meter-window-select:focus,
 .agent-select:focus,
 .agent-view-select:focus {
   outline: none;

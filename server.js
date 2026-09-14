@@ -10188,6 +10188,175 @@ async function buildAgentHeartbeatRegistry() {
   };
 }
 
+const LARGE_CONTEXT_DEFAULT_MIN_TOKENS = 10000;
+const LARGE_CONTEXT_REFERENCE_WINDOW_TOKENS = 128000;
+
+function estimateContextTokensFromText(text) {
+  const trimmed = String(text ?? "").trim();
+  if (!trimmed) return 0;
+  return Math.max(0, Math.ceil(trimmed.length / 4));
+}
+
+async function buildAgentLargeContextRegistry(minTokens = LARGE_CONTEXT_DEFAULT_MIN_TOKENS) {
+  const threshold = Number.isFinite(Number(minTokens))
+    ? Math.max(1, Math.floor(Number(minTokens)))
+    : LARGE_CONTEXT_DEFAULT_MIN_TOKENS;
+  const menu = await buildAgentMenu(getAgentRoot());
+  const topicEntries = collectAllMenuManifestEntries(menu).filter((entry) => entry.kind === "topic");
+  const rows = [];
+  const seenKeys = new Set();
+
+  const pushCandidate = (candidate) => {
+    const rowKey = String(candidate.rowKey || "").trim();
+    if (!rowKey || seenKeys.has(rowKey)) return;
+    const tokensEstimate = Number(candidate.tokensEstimate) || 0;
+    if (tokensEstimate < threshold) return;
+    seenKeys.add(rowKey);
+    const windowPct = Math.round((tokensEstimate / LARGE_CONTEXT_REFERENCE_WINDOW_TOKENS) * 100);
+    rows.push({
+      ...candidate,
+      tokensEstimate,
+      charCount: Number(candidate.charCount) || 0,
+      windowPct128k: windowPct,
+      recommendSplit: true,
+      advice:
+        tokensEstimate >= LARGE_CONTEXT_REFERENCE_WINDOW_TOKENS * 0.5
+          ? "Сильно разбить на несколько MD"
+          : "Рекомендуется разбить файл"
+    });
+  };
+
+  for (const entry of topicEntries) {
+    const manifestPath = String(entry.manifestPath || "").replace(/\\/g, "/");
+    if (!manifestPath) continue;
+
+    let frontmatter = "";
+    try {
+      ({ frontmatter } = await readNodeFrontmatterContent(manifestPath));
+    } catch {
+      frontmatter = "";
+    }
+
+    const awnName = getYamlScalar(frontmatter, "awn-name");
+    const slotKey = getManifestNamedSlotKey(manifestPath);
+    const topicLabel = String(entry.label || awnName || slotKey || "").trim() || slotKey;
+    const runtime = extractRuntimePropsFromFrontmatter(frontmatter);
+
+    const topicFile = await readWorkspaceManifestContent(manifestPath);
+    if (topicFile.exists && topicFile.content) {
+      const content = String(topicFile.content);
+      pushCandidate({
+        rowKey: `topic:${manifestPath}`,
+        entityKind: "topic",
+        manifestPath,
+        slot: null,
+        ref: null,
+        label: topicLabel,
+        displayPath: getManifestDisplayPathForTable(manifestPath, topicLabel, "topic"),
+        runtimeLoadAlways: Boolean(runtime.runtimeLoadAlways),
+        tokensEstimate: estimateContextTokensFromText(content),
+        charCount: content.trim().length
+      });
+    }
+
+    const nodeAbsolute = normalizeWorkspacePath(manifestPath);
+    if (!nodeAbsolute) continue;
+
+    const scannedFolders = new Set();
+    for (const { folder, slot } of RUNTIME_CONTENT_SCAN_SLOTS) {
+      const folderAbsolute = await resolveNodeSubfolderAbsolute(nodeAbsolute, folder);
+      if (!folderAbsolute || scannedFolders.has(folderAbsolute)) continue;
+      scannedFolders.add(folderAbsolute);
+
+      let mdFiles = [];
+      try {
+        const stat = await fs.stat(folderAbsolute);
+        if (!stat.isDirectory()) continue;
+        mdFiles = await collectMarkdownFiles(folderAbsolute);
+      } catch {
+        continue;
+      }
+
+      for (const file of mdFiles) {
+        const ref = String(file.relativePath || "").replace(/\\/g, "/");
+        if (!ref || ref.endsWith(".sidecar.md")) continue;
+
+        const fileAbsolute = path.join(folderAbsolute, ref);
+        const agentRoot = getAgentRoot();
+        if (!fileAbsolute.startsWith(agentRoot)) continue;
+
+        let raw = "";
+        try {
+          raw = await fs.readFile(fileAbsolute, "utf-8");
+        } catch {
+          continue;
+        }
+
+        const split = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        const recordFrontmatter = split ? split[1] : "";
+        const recordRuntime = extractRuntimePropsFromFrontmatter(recordFrontmatter);
+        const recordName = getYamlScalar(recordFrontmatter, "awn-name") || file.name.replace(/\.md$/i, "");
+
+        pushCandidate({
+          rowKey: `content:${manifestPath}:${slot}:${ref}`,
+          entityKind: "content",
+          manifestPath,
+          slot,
+          ref,
+          label: String(recordName || ref).trim(),
+          displayPath: getManifestDisplayPathForTable(manifestPath, topicLabel, "topic"),
+          runtimeLoadAlways: Boolean(recordRuntime.runtimeLoadAlways),
+          tokensEstimate: estimateContextTokensFromText(raw),
+          charCount: raw.trim().length
+        });
+      }
+    }
+  }
+
+  const agentRoot = getAgentRoot();
+  for (const name of ["AGENTS.md", "SKILL.md", "README.md"]) {
+    const absolute = path.join(agentRoot, name);
+    try {
+      const content = await fs.readFile(absolute, "utf-8");
+      pushCandidate({
+        rowKey: `system:${name}`,
+        entityKind: "system",
+        manifestPath: null,
+        slot: null,
+        ref: name,
+        label: name,
+        displayPath: name,
+        runtimeLoadAlways: true,
+        tokensEstimate: estimateContextTokensFromText(content),
+        charCount: content.trim().length
+      });
+    } catch {
+      // skip missing root doc
+    }
+  }
+
+  rows.sort(
+    (left, right) =>
+      right.tokensEstimate - left.tokensEstimate ||
+      String(left.label || "").localeCompare(String(right.label || ""), "ru")
+  );
+
+  const totalTokens = rows.reduce((sum, row) => sum + (row.tokensEstimate || 0), 0);
+
+  return {
+    version: 1,
+    model: "large-context",
+    minTokens: threshold,
+    referenceWindowTokens: LARGE_CONTEXT_REFERENCE_WINDOW_TOKENS,
+    hint:
+      "Файлы workspace с оценкой ≥ порога (chars/4). Такие MD лучше делить на несколько записей или тем.",
+    rows,
+    itemCount: rows.length,
+    totalTokens,
+    maxTokens: rows[0]?.tokensEstimate ?? 0
+  };
+}
+
 function frontmatterPropsToObject(frontmatterOrProps) {
   const props = Array.isArray(frontmatterOrProps)
     ? frontmatterOrProps
@@ -11407,6 +11576,8 @@ const SESSION_CONTEXT_API_MAP = {
   alwaysContext: "GET /api/agent/always-context — всегда в контексте (полное содержимое файлов)",
   cronRegistry: "GET /api/agent/cron-registry — реестр cron (темы + записи)",
   heartbeatRegistry: "GET /api/agent/heartbeat-registry — реестр сердцебиения (темы + записи)",
+  largeContextRegistry:
+    "GET /api/agent/large-context?minTokens=10000 — файлы с большой оценкой токенов (рекомендация разбить)",
   storageLayout: "GET /api/agent/storage-layout — слоты awn-storage",
   workspaceTable: "GET /api/agent/workspace-table — таблица тем",
   canonicalModel: "GET /api/agent/canonical-model — канон: page types, slot content, bindings",
@@ -17824,6 +17995,21 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read heartbeat registry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/large-context") {
+    try {
+      const minTokensRaw = Number(url.searchParams.get("minTokens") || LARGE_CONTEXT_DEFAULT_MIN_TOKENS);
+      const minTokens = Number.isFinite(minTokensRaw)
+        ? Math.max(1, Math.floor(minTokensRaw))
+        : LARGE_CONTEXT_DEFAULT_MIN_TOKENS;
+      return sendJson(res, 200, await buildAgentLargeContextRegistry(minTokens));
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to scan large context files",
         details: String(error.message || error)
       });
     }

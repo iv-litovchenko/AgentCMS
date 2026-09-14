@@ -11,8 +11,8 @@
   "meetingRecording": false,
   "lastTtsClientId": "5e41b5cc-a033-477f-9ce1-cb079bf95dee:8edde48f-becf-43e7-8399-4bb31d2fef43",
   "primaryClientId": "5e41b5cc-a033-477f-9ce1-cb079bf95dee:8edde48f-becf-43e7-8399-4bb31d2fef43",
-  "updatedAt": "2026-09-11T21:47:26.224Z",
-  "shellSurfaceHost": "chrome-panel",
-  "shellSurfaceHint": "Chrome · боковая панель Companion",
+  "updatedAt": "2026-09-14T07:23:53.611Z",
+  "shellSurfaceHost": "browser-tab",
+  "shellSurfaceHint": "Отдельная вкладка браузера",
   "shellSurfaceBackend": "local"
 }
