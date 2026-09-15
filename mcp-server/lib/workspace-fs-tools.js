@@ -7,6 +7,11 @@ const workspacePath = z
     "Workspace-relative path, e.g. awn-container/tema/awn-storage/media/photo.png or AGENTS.md"
   );
 
+const writeMode = z
+  .enum(["append", "replace"])
+  .optional()
+  .describe("replace (default) — overwrite file; append — add after existing content");
+
 export const readFileInputSchema = z.object({
   path: workspacePath,
   format: z
@@ -95,12 +100,35 @@ export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {})
 
   reg(
     "write_file",
-    "Write or overwrite a plain-text workspace file by path. Root system files (AGENTS.md, SKILL.md, …) are saved with history. For shared NOTE.md/TODO.md prefer write_workspace_note / write_workspace_todo.",
+    "Write a plain-text workspace file. mode=replace (default) overwrites; mode=append adds to end. Prefer patch_file for edits. Root system files (AGENTS.md, SKILL.md, …) are saved with history. For shared NOTE.md/TODO.md prefer write_workspace_note / write_workspace_todo.",
     z.object({
       path: workspacePath,
-      content: z.string()
+      content: z.string(),
+      mode: writeMode
     }),
-    ({ path, content }) => client.post("/api/workspace/fs/write", { path, content })
+    ({ path, content, mode }) =>
+      client.post("/api/workspace/fs/write", { path, content, ...(mode ? { mode } : {}) })
+  );
+
+  reg(
+    "patch_file",
+    "Replace a unique text block in a workspace file (safe edit). old_string must match exactly once unless replaceAll=true. Prefer over write_file for existing files.",
+    z.object({
+      path: workspacePath,
+      old_string: z.string().min(1).describe("Exact text to find in the file"),
+      new_string: z.string().describe("Replacement text (empty string deletes the match)"),
+      replaceAll: z
+        .boolean()
+        .optional()
+        .describe("Replace every occurrence; default false (exactly one match required)")
+    }),
+    ({ path, old_string, new_string, replaceAll }) =>
+      client.post("/api/workspace/fs/patch", {
+        path,
+        old_string,
+        new_string,
+        ...(replaceAll ? { replaceAll: true } : {})
+      })
   );
 
   reg(

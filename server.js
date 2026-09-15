@@ -5492,31 +5492,46 @@ async function readWorkspaceFsFile(relPath, options = {}) {
   };
 }
 
-async function writeWorkspaceFsFile(relPath, content) {
-  const normalized = normalizeWorkspaceFsRelPath(relPath);
-  const policy = assertWorkspaceFsWriteAllowed(normalized);
-  if (policy) return policy;
-
-  if (!isWorkspaceFsTextPath(normalized)) {
-    return { error: "write_file supports text files only; use upload_file for binaries", status: 400 };
-  }
-
-  const text = typeof content === "string" ? content : null;
-  if (text === null) return { error: "Missing content", status: 400 };
-  if (Buffer.byteLength(text, "utf-8") > WORKSPACE_FS_WRITE_MAX_BYTES) {
-    return { error: `Content too large (max ${WORKSPACE_FS_WRITE_MAX_BYTES} bytes)`, status: 400 };
-  }
-
+async function readWorkspaceFsTextForWrite(normalized) {
   const systemFile = parseAgentRootSystemFilePath(normalized);
   if (systemFile) {
-    return writeAgentRootSystemFileViaFs(systemFile, text);
+    const data = await readAgentRootSystemFileViaFs(systemFile);
+    return String(data.content || "");
+  }
+
+  const absolute = normalizeWorkspacePath(normalized);
+  if (!absolute) return null;
+  try {
+    const stat = await fs.stat(absolute);
+    if (!stat.isFile()) return null;
+    return await fs.readFile(absolute, "utf-8");
+  } catch (error) {
+    if (error && error.code === "ENOENT") return "";
+    throw error;
+  }
+}
+
+async function persistWorkspaceFsTextWrite(normalized, text, { existedBefore = null } = {}) {
+  const systemFile = parseAgentRootSystemFilePath(normalized);
+  if (systemFile) {
+    const written = await writeAgentRootSystemFileViaFs(systemFile, text);
+    if (written.error) return written;
+    return {
+      path: normalized,
+      exists: true,
+      size: written.size,
+      created: written.created,
+      systemFile: true,
+      history: written.history
+    };
   }
 
   const absolute = normalizeWorkspacePath(normalized);
   if (!absolute) return { error: "Invalid path", status: 400 };
 
   await fs.mkdir(path.dirname(absolute), { recursive: true });
-  const existed = await fs.stat(absolute).catch(() => null);
+  const existed =
+    existedBefore != null ? existedBefore : await fs.stat(absolute).catch(() => null);
   await fs.writeFile(absolute, text, "utf-8");
 
   const parsed = parseStorageLayerRef(normalized);
@@ -5541,6 +5556,90 @@ async function writeWorkspaceFsFile(relPath, content) {
     exists: true,
     size: Buffer.byteLength(text, "utf-8"),
     created: !existed
+  };
+}
+
+async function writeWorkspaceFsFile(relPath, content, options = {}) {
+  const normalized = normalizeWorkspaceFsRelPath(relPath);
+  const policy = assertWorkspaceFsWriteAllowed(normalized);
+  if (policy) return policy;
+
+  if (!isWorkspaceFsTextPath(normalized)) {
+    return { error: "write_file supports text files only; use upload_file for binaries", status: 400 };
+  }
+
+  const incoming = typeof content === "string" ? content : null;
+  if (incoming === null) return { error: "Missing content", status: 400 };
+
+  const mode = options.mode === "append" ? "append" : "replace";
+  let text = incoming;
+  if (mode === "append") {
+    const prev = await readWorkspaceFsTextForWrite(normalized);
+    if (prev === null) return { error: "Invalid path", status: 400 };
+    if (prev.trim()) {
+      text = `${prev.replace(/\s+$/, "")}\n\n${incoming.replace(/^\s+/, "")}`;
+    }
+  }
+
+  if (Buffer.byteLength(text, "utf-8") > WORKSPACE_FS_WRITE_MAX_BYTES) {
+    return { error: `Content too large (max ${WORKSPACE_FS_WRITE_MAX_BYTES} bytes)`, status: 400 };
+  }
+
+  const written = await persistWorkspaceFsTextWrite(normalized, text);
+  if (written.error) return written;
+  return { ...written, mode };
+}
+
+async function patchWorkspaceFsFile(relPath, oldString, newString, options = {}) {
+  const normalized = normalizeWorkspaceFsRelPath(relPath);
+  const policy = assertWorkspaceFsWriteAllowed(normalized);
+  if (policy) return policy;
+
+  if (!isWorkspaceFsTextPath(normalized)) {
+    return { error: "patch_file supports text files only", status: 400 };
+  }
+
+  const needle = typeof oldString === "string" ? oldString : null;
+  const replacement = typeof newString === "string" ? newString : "";
+  if (needle === null || !needle.length) {
+    return { error: "Missing old_string", status: 400 };
+  }
+
+  const prev = await readWorkspaceFsTextForWrite(normalized);
+  if (prev === null) return { error: "Invalid path", status: 400 };
+
+  const absolute = normalizeWorkspacePath(normalized);
+  const existed = absolute ? await fs.stat(absolute).catch(() => null) : null;
+  if (!existed) {
+    return { error: "File not found", status: 404, exists: false };
+  }
+
+  const matches = prev.split(needle).length - 1;
+  if (matches === 0) {
+    return { error: "old_string not found in file", status: 400, matches: 0 };
+  }
+
+  const replaceAll = options.replaceAll === true;
+  if (!replaceAll && matches > 1) {
+    return {
+      error: `old_string matched ${matches} times; include more context or set replaceAll: true`,
+      status: 400,
+      matches
+    };
+  }
+
+  const text = replaceAll ? prev.split(needle).join(replacement) : prev.replace(needle, replacement);
+  if (Buffer.byteLength(text, "utf-8") > WORKSPACE_FS_WRITE_MAX_BYTES) {
+    return { error: `Content too large (max ${WORKSPACE_FS_WRITE_MAX_BYTES} bytes)`, status: 400 };
+  }
+
+  const written = await persistWorkspaceFsTextWrite(normalized, text, { existedBefore: existed });
+  if (written.error) return written;
+  return {
+    ...written,
+    mode: "patch",
+    matches,
+    replaced: replaceAll ? matches : 1
   };
 }
 
@@ -11687,7 +11786,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceFolderPage: "GET /api/workspace/folder/page?file=<path.md> — markdown-страница из свободной памяти",
   workspaceFolderText: "GET /api/workspace/folder/text?file=<path> — текстовый файл из свободной памяти",
   workspaceFsRead: "GET /api/workspace/fs/read?path=<ws-path> — read_file MCP",
-  workspaceFsWrite: "POST /api/workspace/fs/write — write_file MCP { path, content }",
+  workspaceFsWrite: "POST /api/workspace/fs/write — write_file MCP { path, content, mode? }",
+  workspaceFsPatch: "POST /api/workspace/fs/patch — patch_file MCP { path, old_string, new_string, replaceAll? }",
   workspaceFsUpload: "POST /api/workspace/fs/upload — upload_file MCP { path, data base64 }",
   workspaceFsImport: "POST /api/workspace/fs/import — upload_file_from_url MCP { path, url }",
   workspaceFsList: "GET /api/workspace/fs/list?path=<folder>&depth=1|2|all — list_folder MCP",
@@ -23225,14 +23325,42 @@ async function handleApiForAgent(req, res, url) {
       const payload = await readJsonBody(req, 600_000);
       const relPath = String(payload.path || "").trim();
       if (!relPath) return sendJson(res, 400, { error: "Missing path" });
-      const data = await writeWorkspaceFsFile(relPath, payload.content);
+      const data = await writeWorkspaceFsFile(relPath, payload.content, { mode: payload.mode });
       if (data.error) {
-        return sendJson(res, data.status || 400, { error: data.error, ...(data.hint ? { hint: data.hint } : {}) });
+        return sendJson(res, data.status || 400, {
+          error: data.error,
+          ...(data.hint ? { hint: data.hint } : {}),
+          ...(data.matches != null ? { matches: data.matches } : {})
+        });
       }
       return sendJson(res, 200, data);
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to write workspace file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/fs/patch") {
+    try {
+      const payload = await readJsonBody(req, 600_000);
+      const relPath = String(payload.path || "").trim();
+      if (!relPath) return sendJson(res, 400, { error: "Missing path" });
+      const data = await patchWorkspaceFsFile(relPath, payload.old_string, payload.new_string, {
+        replaceAll: payload.replaceAll === true
+      });
+      if (data.error) {
+        return sendJson(res, data.status || 400, {
+          error: data.error,
+          ...(data.hint ? { hint: data.hint } : {}),
+          ...(data.matches != null ? { matches: data.matches } : {})
+        });
+      }
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to patch workspace file",
         details: String(error.message || error)
       });
     }
