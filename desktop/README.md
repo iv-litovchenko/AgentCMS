@@ -10,10 +10,10 @@
 | **Pack** | `npm run cms:pack` | `npm run shell:pack` | `npm run control:pack` |
 | **Открыть .app** | `npm run cms:open` | `npm run shell:open` | `npm run control:open` |
 
-Старт Control: **`welcome.command`** в корне проекта (двойной клик).
+Старт из корня проекта: **`welcome.command`** (скрипт) или **`Agent CMS Control.app`** (с иконкой).
 
 На рабочем столе (кнопка «Ярлыки Desktop» в Control):
-- `welcome.command` — открыть пульт
+- `Agent CMS Control.app` — пульт
 - `Agent CMS.app` — редактор (после сборки)
 - `Agent CMS Voice.app` — Voice (после сборки)
 
