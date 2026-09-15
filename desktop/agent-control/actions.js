@@ -159,8 +159,13 @@ const SERVER_PORTS = {
 };
 
 const SERVER_TEST = {
+  path: "/",
+  hint: "CMS отвечает по HTTPS"
+};
+
+const MCP_TEST = {
   path: "/api/agent/mcp-ping",
-  hint: "Ответ JSON — сервер CMS отвечает"
+  hint: "test_mcp_connection — JSON с ok и mcpVersion"
 };
 
 const CHROME_EXTENSION = {
@@ -178,5 +183,6 @@ module.exports = {
   SETUP_ACTIONS,
   SERVER_PORTS,
   SERVER_TEST,
+  MCP_TEST,
   CHROME_EXTENSION
 };

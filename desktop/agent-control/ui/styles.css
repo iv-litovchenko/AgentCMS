@@ -725,21 +725,30 @@ body.is-booting {
 
 .cmd-box {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   padding: 10px;
   border-radius: 10px;
   border: 1px solid rgba(120, 140, 180, 0.12);
   background: rgba(4, 8, 18, 0.55);
 }
 
-.cmd-box-head {
+.cmd-line {
   display: grid;
-  gap: 2px;
+  gap: 4px;
 }
 
-.cmd-box-hint {
-  font-size: 0.66rem;
+.cmd-line-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: var(--muted);
+}
+
+.cmd-line-hint {
+  font-size: 0.62rem;
+  color: var(--muted);
+  opacity: 0.85;
 }
 
 .cmd-row {

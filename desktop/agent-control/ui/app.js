@@ -276,11 +276,38 @@ function getPorts() {
   );
 }
 
-function getServerTestCommand() {
+function getTestUrl(kind) {
   const ports = getPorts();
-  const testPath = bootstrap?.serverTest?.path || "/api/agent/mcp-ping";
-  const url = `https://localhost:${ports.editorHttps}${testPath}`;
-  return `curl -sk ${url}`;
+  const testPath =
+    kind === "mcp"
+      ? bootstrap?.mcpTest?.path || "/api/agent/mcp-ping"
+      : bootstrap?.serverTest?.path || "/";
+  return `https://localhost:${ports.editorHttps}${testPath}`;
+}
+
+function getCurlCommand(kind) {
+  return `curl -sk ${getTestUrl(kind)}`;
+}
+
+function renderCmdRow(kind, label) {
+  const command = getCurlCommand(kind);
+  const hint =
+    kind === "mcp"
+      ? bootstrap?.mcpTest?.hint || "test_mcp_connection — JSON с ok и mcpVersion"
+      : bootstrap?.serverTest?.hint || "CMS отвечает по HTTPS";
+
+  return `
+    <div class="cmd-line">
+      <span class="cmd-line-label">${label}</span>
+      <div class="cmd-row">
+        <code class="cmd-text">${command}</code>
+        <button type="button" class="ghost-btn cmd-btn" data-copy-cmd="${escapeAttr(command)}">Копировать</button>
+        <button type="button" class="ghost-btn cmd-btn cmd-btn--primary" data-run-test="${kind}" data-test-url="${escapeAttr(getTestUrl(kind))}">Проверить</button>
+      </div>
+      <span class="cmd-line-hint">${hint}</span>
+      <pre class="cmd-result" data-result="${kind}" hidden></pre>
+    </div>
+  `;
 }
 
 function renderGuideStepSetup() {
@@ -321,9 +348,6 @@ function renderGuideStepServer() {
   const voiceUrl = `https://localhost:${ports.voiceHttps}`;
   const linkDisabled = isRunning ? "" : " disabled";
   const modeText = server?.modeLabel || (isRunning ? "работает" : "остановлен");
-  const testCommand = getServerTestCommand();
-  const testHint = bootstrap?.serverTest?.hint || "Ответ JSON — сервер CMS отвечает";
-
   const browserLinks = `
     <div class="server-browser-row" role="group" aria-label="Открыть в браузере">
       <button type="button" class="link-btn browser-link link-btn--cms" data-url="${cmsUrl}"${linkDisabled}>
@@ -368,16 +392,9 @@ function renderGuideStepServer() {
         </div>
         ${controlBlock}
         <div class="cmd-box">
-          <div class="cmd-box-head">
-            <span class="control-zone-label">Проверка в терминале</span>
-            <span class="cmd-box-hint">${testHint}</span>
-          </div>
-          <div class="cmd-row">
-            <code class="cmd-text" id="server-test-cmd">${testCommand}</code>
-            <button type="button" class="ghost-btn cmd-btn" data-copy-cmd="${escapeAttr(testCommand)}">Копировать</button>
-            <button type="button" class="ghost-btn cmd-btn cmd-btn--primary" id="server-test-run">Проверить</button>
-          </div>
-          <pre class="cmd-result" id="server-test-result" hidden></pre>
+          <span class="control-zone-label">Проверка в терминале</span>
+          ${renderCmdRow("server", "Сервер")}
+          ${renderCmdRow("mcp", "MCP")}
         </div>
       </div>
     </article>
@@ -563,11 +580,13 @@ async function copyText(text) {
   }
 }
 
-async function runServerTest() {
-  const button = document.getElementById("server-test-run");
-  const resultNode = document.getElementById("server-test-result");
-  if (!button || !resultNode) return;
+async function runUrlTest(button) {
+  const kind = button.dataset.runTest;
+  const url = button.dataset.testUrl;
+  const resultNode = actionsRoot.querySelector(`[data-result="${kind}"]`);
+  if (!kind || !url || !resultNode) return;
 
+  const prevLabel = button.textContent;
   button.disabled = true;
   button.textContent = "…";
   resultNode.hidden = false;
@@ -575,19 +594,21 @@ async function runServerTest() {
   resultNode.dataset.state = "pending";
 
   try {
-    const result = await window.agentControl.testServer();
-    resultNode.textContent = result.output || "Нет ответа";
+    const result = await window.agentControl.testUrl(url);
+    const output = result.output || "Нет ответа";
+    resultNode.textContent =
+      output.length > 800 && kind === "server" ? `${output.slice(0, 800)}…` : output;
     resultNode.dataset.state = result.ok ? "ok" : "error";
     if (!result.ok) {
-      appendLog(`Сервер не ответил. Команда: ${result.command}\n`, "stderr");
+      appendLog(`Проверка не прошла (${kind}). Команда: ${result.command}\n`, "stderr");
     }
   } catch (error) {
     resultNode.textContent = error.message;
     resultNode.dataset.state = "error";
-    appendLog(`Ошибка проверки: ${error.message}\n`, "stderr");
+    appendLog(`Ошибка проверки (${kind}): ${error.message}\n`, "stderr");
   } finally {
     button.disabled = false;
-    button.textContent = "Проверить";
+    button.textContent = prevLabel;
   }
 }
 
@@ -621,10 +642,9 @@ function bindActionHandlers() {
     });
   });
 
-  const testButton = document.getElementById("server-test-run");
-  if (testButton) {
-    testButton.addEventListener("click", () => runServerTest());
-  }
+  actionsRoot.querySelectorAll("[data-run-test]").forEach((button) => {
+    button.addEventListener("click", () => runUrlTest(button));
+  });
 }
 
 async function runAction(actionId) {

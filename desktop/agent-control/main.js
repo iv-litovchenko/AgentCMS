@@ -17,9 +17,32 @@ const {
   SETUP_ACTIONS,
   SERVER_PORTS,
   SERVER_TEST,
+  MCP_TEST,
   CHROME_EXTENSION
 } = require("./actions");
 const controlPackage = require("./package.json");
+const docsRegistry = require("../../docs-registry");
+const { enrichMcpDocsForClient } = require("../../lib/https-redirect");
+
+function buildMcpConnectInfo(root) {
+  const cmsHost = `localhost:${SERVER_PORTS.editorHttps}`;
+  const docs = enrichMcpDocsForClient(docsRegistry.getMcpDocs("0.0.2"), cmsHost, {
+    projectRoot: root
+  });
+  const cmsBaseUrl = docs.cmsBaseUrl || `https://localhost:${SERVER_PORTS.editorHttps}`;
+  const configJson = docs.cursorConfigExample
+    ? JSON.stringify(docs.cursorConfigExample, null, 2)
+    : "";
+
+  return {
+    cmsBaseUrl,
+    mcpServerPath: path.join(root, "mcp-server", "index.js"),
+    configJson,
+    docsUrl: `${cmsBaseUrl}/api/mcp-docs?version=0.0.2`,
+    cursorConfigHint: ".cursor/mcp.json или Settings → MCP в Cursor",
+    claudeConfigHint: "~/Library/Application Support/Claude/claude_desktop_config.json"
+  };
+}
 const { buildSystemEnvironment } = require("../../lib/system-environment");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
@@ -393,6 +416,8 @@ if (!gotLock) {
         setupActionIds: SETUP_ACTIONS,
         serverPorts: SERVER_PORTS,
         serverTest: SERVER_TEST,
+        mcpTest: MCP_TEST,
+        mcpConnect: buildMcpConnectInfo(root),
         chromeExtension: {
           ...CHROME_EXTENSION,
           folderPath: path.join(root, CHROME_EXTENSION.folderName)
@@ -445,11 +470,10 @@ if (!gotLock) {
       }
     });
 
-    ipcMain.handle("control:test-server", async () => {
+    ipcMain.handle("control:test-url", async (_event, targetUrl) => {
       const root = getProjectRoot();
-      const port = SERVER_PORTS.editorHttps;
-      const pathSuffix = SERVER_TEST.path;
-      const url = `https://localhost:${port}${pathSuffix}`;
+      const url = String(targetUrl || "").trim();
+      if (!url) return { ok: false, command: "", url: "", output: "URL не задан" };
       const command = `curl -sk ${url}`;
       const { execFile } = require("child_process");
 
