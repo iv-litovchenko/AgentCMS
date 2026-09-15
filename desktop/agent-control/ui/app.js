@@ -118,15 +118,39 @@ const SERVER_BTN_HINTS = {
   "server-stop": "Остановить сервер"
 };
 
+const SERVER_PLAY_ICON = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+    <path d="M10.2 8.4v7.2L15.8 12 10.2 8.4Z" fill="currentColor"></path>
+  </svg>
+`;
+
+const SERVER_STOP_ICON = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+    <rect x="9.2" y="9.2" width="5.6" height="5.6" rx="1" fill="currentColor"></rect>
+  </svg>
+`;
+
 function serverButton(actionId, tone, disabled = false) {
   const disabledAttr = disabled ? " disabled" : "";
   const title = SERVER_BTN_TITLES[actionId] || "Запуск";
   const hint = SERVER_BTN_HINTS[actionId] || "";
+  const icon = tone === "stop" ? SERVER_STOP_ICON : SERVER_PLAY_ICON;
+  const iconClass = tone === "stop" ? "server-deck-icon--stop" : "server-deck-icon--play";
+  const badge = tone === "start-bg" ? `<span class="server-deck-badge">фон</span>` : "";
+
   return `
-    <button type="button" class="server-btn" data-tone="${tone}" data-action="${actionId}"${disabledAttr}>
-      <span class="server-btn-spinner" aria-hidden="true"></span>
-      <strong class="server-btn-title">${title}</strong>
-      <span class="server-btn-hint">${hint}</span>
+    <button type="button" class="server-deck-btn" data-tone="${tone}" data-action="${actionId}"${disabledAttr}>
+      <span class="server-deck-icon ${iconClass}">
+        ${icon}
+        ${badge}
+      </span>
+      <span class="server-deck-text">
+        <strong class="server-deck-title">${title}</strong>
+        <span class="server-deck-hint">${hint}</span>
+      </span>
+      <span class="server-deck-spinner" aria-hidden="true"></span>
     </button>
   `;
 }
@@ -212,7 +236,7 @@ function renderGuideStepServer() {
   const testHint = bootstrap?.serverTest?.hint || "Ответ JSON — сервер CMS отвечает";
 
   const controlBlock = `
-    <div class="server-btn-grid" role="group" aria-label="Управление сервером">
+    <div class="server-deck" role="group" aria-label="Управление сервером">
       ${serverButton("server-start-bg", "start-bg", isRunning)}
       ${serverButton("server-start-attached", "start", isRunning)}
       ${serverButton("server-stop", "stop", !isRunning)}
@@ -467,7 +491,7 @@ async function runServerTest() {
 }
 
 function bindActionHandlers() {
-  actionsRoot.querySelectorAll(".run-btn, .action-card, .setup-btn, .server-btn").forEach((button) => {
+  actionsRoot.querySelectorAll(".run-btn, .action-card, .setup-btn, .server-deck-btn").forEach((button) => {
     button.addEventListener("click", () => runAction(button.dataset.action));
   });
 
@@ -561,12 +585,12 @@ function setButtonsDisabled(disabled) {
     title.textContent = isRunning ? ACTION_CARD_BUSY[actionId] || "…" : defaultTitle;
   });
 
-  actionsRoot.querySelectorAll(".server-btn").forEach((button) => {
+  actionsRoot.querySelectorAll(".server-deck-btn").forEach((button) => {
     const actionId = button.dataset.action;
     const isActive = disabled && actionId === runningActionId;
     if (disabled) button.disabled = true;
     button.classList.toggle("is-running", isActive);
-    const title = button.querySelector(".server-btn-title");
+    const title = button.querySelector(".server-deck-title");
     if (!title) return;
     const defaultTitle = SERVER_BTN_TITLES[actionId] || title.textContent;
     title.textContent = isActive ? ACTION_CARD_BUSY[actionId] || "…" : defaultTitle;

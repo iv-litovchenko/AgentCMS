@@ -821,139 +821,193 @@ body.is-booting {
   gap: 8px;
 }
 
-.server-btn-grid {
+.server-deck {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 0;
+  padding: 5px;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(10, 16, 32, 0.92), rgba(6, 10, 20, 0.88));
+  border: 1px solid rgba(120, 140, 180, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.server-btn {
+.server-deck-btn {
   position: relative;
-  display: grid;
-  gap: 3px;
-  padding: 11px 8px 10px;
-  text-align: center;
-  border-radius: 11px;
-  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px 9px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
   font: inherit;
-  border: 1px solid transparent;
+  cursor: pointer;
   transition:
-    transform 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.server-deck-btn:not(:last-child) {
+  border-right: 1px solid rgba(120, 140, 180, 0.08);
+}
+
+.server-deck-btn:hover:not(:disabled):not(.is-running) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.server-deck-btn:active:not(:disabled):not(.is-running) {
+  transform: scale(0.98);
+}
+
+.server-deck-icon {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition:
     box-shadow 0.15s ease,
-    border-color 0.15s ease;
-  overflow: hidden;
+    background 0.15s ease,
+    transform 0.15s ease;
 }
 
-.server-btn[data-tone="start-bg"],
-.server-btn[data-tone="start"] {
-  border-color: rgba(20, 184, 166, 0.45);
-  background: linear-gradient(180deg, rgba(13, 148, 136, 0.45), rgba(8, 12, 24, 0.75));
-  box-shadow: 0 4px 16px rgba(20, 184, 166, 0.15);
+.server-deck-icon svg {
+  width: 24px;
+  height: 24px;
 }
 
-.server-btn[data-tone="start-bg"]::after,
-.server-btn[data-tone="start"]::after {
-  content: "▶";
+.server-deck-icon--play {
+  color: #5eead4;
+  background: rgba(20, 184, 166, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(20, 184, 166, 0.35),
+    0 6px 16px rgba(20, 184, 166, 0.12);
+}
+
+.server-deck-btn[data-tone="start"]:not(:disabled) .server-deck-icon--play {
+  color: #7dd3fc;
+  background: rgba(79, 141, 253, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(79, 141, 253, 0.35),
+    0 6px 16px rgba(79, 141, 253, 0.12);
+}
+
+.server-deck-icon--stop {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(239, 68, 68, 0.32),
+    0 6px 16px rgba(239, 68, 68, 0.1);
+}
+
+.server-deck-btn:hover:not(:disabled):not(.is-running) .server-deck-icon--play {
+  transform: scale(1.05);
+  box-shadow:
+    0 0 0 1px rgba(45, 212, 191, 0.55),
+    0 0 22px rgba(20, 184, 166, 0.22);
+}
+
+.server-deck-btn[data-tone="start"]:hover:not(:disabled):not(.is-running) .server-deck-icon--play {
+  box-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.55),
+    0 0 22px rgba(79, 141, 253, 0.2);
+}
+
+.server-deck-btn:hover:not(:disabled):not(.is-running) .server-deck-icon--stop {
+  transform: scale(1.05);
+  box-shadow:
+    0 0 0 1px rgba(248, 113, 113, 0.55),
+    0 0 22px rgba(239, 68, 68, 0.18);
+}
+
+.server-deck-badge {
   position: absolute;
-  top: 8px;
-  left: 10px;
-  font-size: 0.55rem;
-  color: rgba(94, 234, 212, 0.85);
+  right: -2px;
+  bottom: -2px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #042f2e;
+  background: linear-gradient(135deg, #5eead4, #14b8a6);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
-.server-btn[data-tone="stop"] {
-  border-color: rgba(239, 68, 68, 0.4);
-  background: linear-gradient(180deg, rgba(220, 38, 38, 0.35), rgba(8, 12, 24, 0.75));
-  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.1);
+.server-deck-text {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+  min-width: 0;
 }
 
-.server-btn[data-tone="stop"]::after {
-  content: "■";
-  position: absolute;
-  top: 8px;
-  left: 10px;
-  font-size: 0.5rem;
-  color: rgba(252, 165, 165, 0.9);
-}
-
-.server-btn:hover:not(:disabled):not(.is-running) {
-  transform: translateY(-1px);
-}
-
-.server-btn[data-tone="start-bg"]:hover:not(:disabled):not(.is-running),
-.server-btn[data-tone="start"]:hover:not(:disabled):not(.is-running) {
-  border-color: rgba(45, 212, 191, 0.65);
-  box-shadow: 0 8px 22px rgba(20, 184, 166, 0.25);
-}
-
-.server-btn[data-tone="stop"]:hover:not(:disabled):not(.is-running) {
-  border-color: rgba(248, 113, 113, 0.6);
-  box-shadow: 0 8px 22px rgba(239, 68, 68, 0.2);
-}
-
-.server-btn-title {
-  font-size: 0.76rem;
+.server-deck-title {
+  font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.2;
-  color: #ccfbf1;
+  color: var(--text);
 }
 
-.server-btn[data-tone="stop"] .server-btn-title {
-  color: #fecaca;
-}
-
-.server-btn-hint {
+.server-deck-hint {
   font-size: 0.58rem;
-  line-height: 1.3;
-  color: rgba(191, 219, 254, 0.55);
+  line-height: 1.25;
+  color: var(--muted);
 }
 
-.server-btn[data-tone="stop"] .server-btn-hint {
-  color: rgba(254, 202, 202, 0.6);
-}
-
-.server-btn:disabled:not(.is-running) {
-  opacity: 0.32;
+.server-deck-btn:disabled:not(.is-running) {
+  opacity: 0.28;
   cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
 }
 
-.server-btn.is-running {
+.server-deck-btn:disabled:not(.is-running) .server-deck-icon {
+  transform: none;
+  box-shadow: none;
+}
+
+.server-deck-btn.is-running {
   cursor: wait;
   opacity: 1;
-  animation: setup-btn-pulse 1.4s ease-in-out infinite;
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.server-btn.is-running::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.12) 45%,
-    transparent 90%
-  );
-  animation: setup-btn-shimmer 1.1s linear infinite;
-  pointer-events: none;
+.server-deck-btn.is-running .server-deck-icon {
+  animation: server-deck-pulse 1.2s ease-in-out infinite;
 }
 
-.server-btn-spinner {
+.server-deck-spinner {
   display: none;
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: #fff;
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: rgba(255, 255, 255, 0.85);
   border-radius: 50%;
   animation: setup-btn-spin 0.65s linear infinite;
   position: absolute;
-  top: 9px;
-  right: 9px;
+  top: 8px;
+  right: 8px;
 }
 
-.server-btn.is-running .server-btn-spinner {
+.server-deck-btn.is-running .server-deck-spinner {
   display: block;
+}
+
+@keyframes server-deck-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.06);
+    filter: brightness(1.15);
+  }
 }
 
 .setup-btn {
@@ -1402,7 +1456,7 @@ body.is-booting {
   .launchpad-grid,
   .action-card-grid,
   .setup-btn-grid,
-  .server-btn-grid,
+  .server-deck,
   .link-row,
   .cmd-row {
     grid-template-columns: 1fr;
