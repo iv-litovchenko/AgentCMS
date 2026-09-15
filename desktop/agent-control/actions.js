@@ -19,6 +19,15 @@ const ACTIONS = [
     tone: "default"
   },
   {
+    id: "setup-desktop-shortcuts",
+    category: "setup",
+    title: "Ярлыки на рабочем столе",
+    description: "Control, Editor и Voice — ярлыки на Desktop для быстрого запуска.",
+    command: "node",
+    args: ["scripts/create-desktop-shortcuts.js"],
+    tone: "default"
+  },
+  {
     id: "server-start-bg",
     category: "server",
     title: "Запустить",
@@ -148,7 +157,7 @@ const CONTROL_SELF = {
   npmLauncher: "npm run control:launcher"
 };
 
-const SETUP_ACTIONS = ["install-deps", "setup-certs"];
+const SETUP_ACTIONS = ["install-deps", "setup-certs", "setup-desktop-shortcuts"];
 
 const SERVER_PORTS = {
   controlNote: "Agent CMS Control — desktop-приложение, порта нет",

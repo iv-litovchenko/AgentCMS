@@ -8,7 +8,9 @@ const serverStatus = document.getElementById("server-status");
 let bootstrap = null;
 let runningActionId = null;
 let lastServer = null;
-let uptimeTimer = null;
+let clockTimer = null;
+const flipClockState = { h0: "", h1: "", m0: "", m1: "", s0: "", s1: "" };
+const FLIP_CLOCK_KEYS = ["h0", "h1", "m0", "m1", "s0", "s1"];
 
 function escapeAttr(value) {
   return String(value ?? "")
@@ -28,7 +30,8 @@ const ACTION_LABELS = {
   "server-stop": "Остановить сервер",
   "server-start-attached": "Пока Control открыт",
   "install-deps": "Установить",
-  "setup-certs": "Сертификаты"
+  "setup-certs": "Сертификаты",
+  "setup-desktop-shortcuts": "Ярлыки Desktop"
 };
 
 function appendLog(text, stream = "stdout") {
@@ -39,104 +42,105 @@ function appendLog(text, stream = "stdout") {
   logOutput.scrollTop = logOutput.scrollHeight;
 }
 
-function formatUptime(totalSec) {
-  if (totalSec == null || totalSec < 0) return "";
-  const sec = Math.floor(totalSec);
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  if (h > 0) return `${h}ч ${m}м`;
-  if (m > 0) return `${m}м ${s}с`;
-  return `${s}с`;
+function getClockDigits() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, "0");
+  const m = String(now.getMinutes()).padStart(2, "0");
+  const s = String(now.getSeconds()).padStart(2, "0");
+  return { h0: h[0], h1: h[1], m0: m[0], m1: m[1], s0: s[0], s1: s[1] };
 }
 
-function formatStartedAt(ms) {
-  if (!ms) return "";
-  return new Date(ms).toLocaleTimeString("ru-RU", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+function flipClockMarkup() {
+  const groups = [["h0", "h1"], ["m0", "m1"], ["s0", "s1"]];
+  return groups
+    .map((keys, index) => {
+      const digits = keys
+        .map(
+          (key) =>
+            `<span class="flip-digit" data-flip="${key}"><span class="flip-digit-inner"><span class="flip-digit-val"></span></span></span>`
+        )
+        .join("");
+      const sep = index < groups.length - 1 ? `<span class="flip-sep">:</span>` : "";
+      return `<span class="flip-group">${digits}</span>${sep}`;
+    })
+    .join("");
 }
 
-function getLiveUptimeSec(server) {
-  if (!server?.running || server.uptimeSec == null) return null;
-  const probedAt = server.probedAt || Date.now();
-  return server.uptimeSec + Math.floor((Date.now() - probedAt) / 1000);
+function initFlipClock() {
+  const root = document.getElementById("flip-clock");
+  if (!root || root.dataset.ready) return;
+  root.innerHTML = flipClockMarkup();
+  root.addEventListener(
+    "animationend",
+    (event) => {
+      if (event.target.classList.contains("flip-digit-inner")) {
+        event.target.closest(".flip-digit")?.classList.remove("is-flipping");
+      }
+    },
+    true
+  );
+  root.dataset.ready = "1";
 }
 
-function getServerTimeLabel(server) {
-  const uptimeSec = getLiveUptimeSec(server);
-  if (uptimeSec == null) return "";
-  const startedAt = server.startedAt || Date.now() - uptimeSec * 1000;
-  return `с ${formatStartedAt(startedAt)} · ${formatUptime(uptimeSec)}`;
-}
+function setFlipDigit(key, next, animate) {
+  const slot = document.querySelector(`[data-flip="${key}"]`);
+  if (!slot) return;
 
-function syncUptimeTimer(server) {
-  if (uptimeTimer) {
-    window.clearInterval(uptimeTimer);
-    uptimeTimer = null;
+  const val = slot.querySelector(".flip-digit-val");
+  if (!val) return;
+
+  const prev = flipClockState[key];
+  if (prev === next) return;
+
+  flipClockState[key] = next;
+
+  if (!animate || !prev) {
+    val.textContent = next;
+    return;
   }
-  if (!server?.running) return;
 
-  uptimeTimer = window.setInterval(() => {
-    if (!lastServer?.running) {
-      syncUptimeTimer(null);
-      return;
-    }
-    renderServerStatus(lastServer);
-    updateServerUptimeNodes();
-  }, 1000);
+  slot.classList.remove("is-flipping");
+  void slot.offsetWidth;
+  val.textContent = next;
+  slot.classList.add("is-flipping");
 }
 
-function updateServerUptimeNodes() {
-  const label = getServerTimeLabel(lastServer);
-  const heroUptime = document.getElementById("status-uptime");
-  if (heroUptime) {
-    heroUptime.textContent = label;
-    heroUptime.hidden = !label;
+function updateFlipClock(animate = true) {
+  initFlipClock();
+  const digits = getClockDigits();
+  FLIP_CLOCK_KEYS.forEach((key) => setFlipDigit(key, digits[key], animate));
+
+  const root = document.getElementById("flip-clock");
+  if (root) {
+    root.setAttribute("aria-label", `Текущее время ${new Date().toLocaleTimeString("ru-RU")}`);
   }
-  document.querySelectorAll("[data-server-uptime]").forEach((node) => {
-    node.textContent = label;
-    node.hidden = !label;
-  });
+}
+
+function startFlipClock() {
+  if (clockTimer) window.clearInterval(clockTimer);
+  updateFlipClock(false);
+  clockTimer = window.setInterval(() => updateFlipClock(true), 1000);
 }
 
 function renderServerStatus(server) {
   lastServer = server;
   const dot = serverStatus.querySelector(".status-dot");
   const text = serverStatus.querySelector(".status-text");
-  const uptime = document.getElementById("status-uptime");
 
   if (!server) {
     dot.dataset.state = "unknown";
     text.textContent = "Нет данных";
-    if (uptime) {
-      uptime.textContent = "";
-      uptime.hidden = true;
-    }
-    syncUptimeTimer(null);
     return;
   }
 
   if (server.running) {
     dot.dataset.state = "ok";
     text.textContent = "Сервер работает";
-    const label = getServerTimeLabel(server);
-    if (uptime) {
-      uptime.textContent = label;
-      uptime.hidden = !label;
-    }
-    syncUptimeTimer(server);
     return;
   }
 
   dot.dataset.state = "warn";
   text.textContent = "Сервер остановлен";
-  if (uptime) {
-    uptime.textContent = "";
-    uptime.hidden = true;
-  }
-  syncUptimeTimer(null);
 }
 
 function renderAppFooter() {
@@ -183,7 +187,8 @@ function actionButton(actionId, tone = "default", extraClass = "", disabled = fa
 
 const SETUP_SHORT_TITLES = {
   "install-deps": "Зависимости",
-  "setup-certs": "Сертификаты HTTPS"
+  "setup-certs": "Сертификаты HTTPS",
+  "setup-desktop-shortcuts": "Ярлыки Desktop"
 };
 
 const SERVER_BTN_TITLES = {
@@ -191,6 +196,8 @@ const SERVER_BTN_TITLES = {
   "server-start-attached": "Старт",
   "server-stop": "Стоп"
 };
+
+const AGENT_START_PROMPT = "Выбери хранилище <Название хранилища> и загрузи контекст";
 
 const SERVER_BTN_HINTS = {
   "server-start-bg": "Останется после закрытия",
@@ -289,7 +296,7 @@ function getCurlCommand(kind) {
   return `curl -sk ${getTestUrl(kind)}`;
 }
 
-function renderCmdRow(kind, label) {
+function renderCmdRow(kind, tag) {
   const command = getCurlCommand(kind);
   const hint =
     kind === "mcp"
@@ -297,15 +304,14 @@ function renderCmdRow(kind, label) {
       : bootstrap?.serverTest?.hint || "CMS отвечает по HTTPS";
 
   return `
-    <div class="cmd-line">
-      <span class="cmd-line-label">${label}</span>
-      <div class="cmd-row">
-        <code class="cmd-text">${command}</code>
-        <button type="button" class="ghost-btn cmd-btn" data-copy-cmd="${escapeAttr(command)}">Копировать</button>
-        <button type="button" class="ghost-btn cmd-btn cmd-btn--primary" data-run-test="${kind}" data-test-url="${escapeAttr(getTestUrl(kind))}">Проверить</button>
+    <div class="cmd-check">
+      <span class="cmd-check-tag" title="${escapeAttr(hint)}">${tag}</span>
+      <code class="cmd-check-cmd" title="${escapeAttr(command)}">${command}</code>
+      <div class="cmd-check-actions">
+        <button type="button" class="ghost-btn cmd-mini" data-copy-cmd="${escapeAttr(command)}" title="Копировать" aria-label="Копировать ${tag}">⎘</button>
+        <button type="button" class="ghost-btn cmd-mini cmd-mini--primary" data-run-test="${kind}" data-test-url="${escapeAttr(getTestUrl(kind))}" title="${escapeAttr(hint)}" aria-label="Проверить ${tag}">▶</button>
       </div>
-      <span class="cmd-line-hint">${hint}</span>
-      <pre class="cmd-result" data-result="${kind}" hidden></pre>
+      <pre class="cmd-result cmd-result--check" data-result="${kind}" hidden></pre>
     </div>
   `;
 }
@@ -386,15 +392,105 @@ function renderGuideStepServer() {
           <h3 class="server-step-title">
             Сервер
             <span class="server-state ${isRunning ? "is-on" : "is-off"}">${modeText}</span>
-            <span class="server-uptime" data-server-uptime${isRunning ? "" : " hidden"}>${isRunning ? getServerTimeLabel(server) : ""}</span>
           </h3>
           <p>Запустите CMS и Voice — без сервера не работают Editor, Voice и расширение Chrome</p>
         </div>
         ${controlBlock}
         <div class="cmd-box">
-          <span class="control-zone-label">Проверка в терминале</span>
-          ${renderCmdRow("server", "Сервер")}
-          ${renderCmdRow("mcp", "MCP")}
+          <div class="cmd-checks">
+            ${renderCmdRow("server", "CMS")}
+            ${renderCmdRow("mcp", "MCP")}
+          </div>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderGuideStepMcp() {
+  const mcp = bootstrap?.mcpConnect || {};
+  const cmsBaseUrl = mcp.cmsBaseUrl || `https://localhost:${getPorts().editorHttps}`;
+  const mcpServerPath = mcp.mcpServerPath || `${bootstrap?.projectRoot || ""}/mcp-server/index.js`;
+  const docsUrl = mcp.docsUrl || `${cmsBaseUrl}/api/mcp-docs?version=0.0.2`;
+
+  return `
+    <article class="guide-step">
+      <div class="guide-step-marker" aria-hidden="true">3</div>
+      <div class="guide-step-body">
+        <div class="guide-step-head">
+          <h3>MCP к агенту</h3>
+          <p>Подключите Cursor или Claude Desktop к CMS по MCP</p>
+        </div>
+        <ol class="guide-list">
+          <li>Запустите <strong>сервер</strong> (шаг 2)</li>
+          <li><strong>Cursor:</strong> Settings → MCP или <code>.cursor/mcp.json</code></li>
+          <li><strong>Claude Desktop:</strong> <code>claude_desktop_config.json</code></li>
+          <li>Вставьте JSON ниже; <code>&lt;ABS_PATH&gt;</code> — корень проекта на вашей машине</li>
+          <li>Перезапустите MCP-клиент</li>
+        </ol>
+        <div class="mcp-config-box">
+          <div class="cmd-row">
+            <pre class="mcp-config-json" id="mcp-config-json" aria-label="Пример MCP-конфига"></pre>
+            <button type="button" class="ghost-btn cmd-btn" data-copy-mcp-config title="Скопировать с путём этого проекта">Копировать</button>
+          </div>
+          <p class="mcp-config-note">Копировать подставит реальный путь <code>mcp-server</code> этого проекта.</p>
+        </div>
+        <div class="guide-actions">
+          <button type="button" class="ghost-btn" data-open-url="${escapeAttr(docsUrl)}">Полная документация MCP</button>
+          <button type="button" class="ghost-btn" data-reveal-path="${escapeAttr(mcpServerPath)}">Папка mcp-server</button>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function syncMcpConfigPreview() {
+  const node = document.getElementById("mcp-config-json");
+  if (!node) return;
+
+  const mcp = bootstrap?.mcpConnect || {};
+  const fallback = JSON.stringify(
+    {
+      mcpServers: {
+        "agent-cms": {
+          command: "node",
+          args: ["<ABS_PATH>/mcp-server/index.js"],
+          env: {
+            AGENT_CMS_BASE_URL: mcp.cmsBaseUrl || `https://localhost:${getPorts().editorHttps}`
+          }
+        }
+      }
+    },
+    null,
+    2
+  );
+
+  node.textContent = mcp.configJson || fallback;
+}
+
+function renderGuideStepAgentPrompt() {
+  const prompt = AGENT_START_PROMPT.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  return `
+    <article class="guide-step">
+      <div class="guide-step-marker" aria-hidden="true">4</div>
+      <div class="guide-step-body">
+        <div class="guide-step-head">
+          <h3>Что написать агенту</h3>
+          <p>Первое сообщение в новом чате после подключения MCP</p>
+        </div>
+        <ol class="guide-list">
+          <li>Начните <strong>новый чат</strong> в Cursor или Claude Desktop</li>
+          <li>Отправьте агенту текст ниже — он выберет workspace и загрузит контекст</li>
+          <li>Замените <code>&lt;Название хранилища&gt;</code> на имя вашего workspace</li>
+          <li>Дальше спросите про доступные инструменты — агент подскажет, с чего начать</li>
+        </ol>
+        <div class="agent-prompt-box">
+          <div class="cmd-row">
+            <pre class="agent-prompt-text" id="agent-start-prompt">${prompt}</pre>
+            <button type="button" class="ghost-btn cmd-btn" data-copy-target="agent-start-prompt">Копировать</button>
+          </div>
+          <p class="mcp-config-note">Не знаете название? Напишите «покажи список хранилищ» — агент вызовет <code>list_workspaces</code>.</p>
         </div>
       </div>
     </article>
@@ -409,14 +505,14 @@ function renderGuideStepChrome() {
 
   return `
     <article class="guide-step">
-      <div class="guide-step-marker" aria-hidden="true">3</div>
+      <div class="guide-step-marker" aria-hidden="true">5</div>
       <div class="guide-step-body">
         <div class="guide-step-head">
           <h3>Chrome Companion</h3>
           <p>Расширение Google Chrome: Side Panel с Agent Shell на любой странице в интернете</p>
         </div>
         <ol class="guide-list">
-          <li>Убедитесь, что <strong>сервер запущен</strong> (шаг 2)</li>
+          <li>Убедитесь, что <strong>сервер запущен</strong> (шаг 2), MCP подключён (шаг 3)</li>
           <li>Откройте <code>chrome://extensions</code> → включите <strong>Режим разработчика</strong></li>
           <li><strong>Загрузить распакованное</strong> → выберите папку <code>${folderName}/</code></li>
           <li>В параметрах расширения укажите CMS: <code>${cmsUrl}</code></li>
@@ -453,11 +549,13 @@ function renderGuideSection() {
   section.className = "guide-panel panel section-block";
   section.dataset.section = "guide";
   section.innerHTML = `
-    ${renderSectionCap("Настройка", "Три шага: установка → сервер → расширение Chrome")}
+    ${renderSectionCap("Настройка", "Установка → сервер → MCP → агент → Chrome")}
     <div class="section-body">
       <div class="guide-steps">
         ${renderGuideStepSetup()}
         ${renderGuideStepServer()}
+        ${renderGuideStepMcp()}
+        ${renderGuideStepAgentPrompt()}
         ${renderGuideStepChrome()}
       </div>
     </div>
@@ -536,7 +634,7 @@ function renderControlCard(control) {
 
   return launchTile(
     control,
-    `${actionButton(control.launcherActionId, "primary", "compact-btn")}
+    `${actionButton(control.launcherActionId, "primary", "compact-btn", true)}
      ${actionButton(control.distActionId, "default", "compact-btn")}`
   );
 }
@@ -566,7 +664,7 @@ function renderLayout() {
   actionsRoot.appendChild(renderAppsSection());
   actionsRoot.appendChild(renderGuideSection());
   bindActionHandlers();
-  updateServerUptimeNodes();
+  syncMcpConfigPreview();
 }
 
 async function copyText(text) {
@@ -628,6 +726,20 @@ function bindActionHandlers() {
     button.addEventListener("click", () => copyText(button.dataset.copyCmd));
   });
 
+  actionsRoot.querySelectorAll("[data-copy-target]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const node = document.getElementById(button.dataset.copyTarget);
+      if (node) copyText(node.textContent);
+    });
+  });
+
+  actionsRoot.querySelectorAll("[data-copy-mcp-config]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const mcp = bootstrap?.mcpConnect || {};
+      copyText(mcp.configJsonCopy || mcp.configJson || "");
+    });
+  });
+
   actionsRoot.querySelectorAll("[data-open-url]").forEach((button) => {
     button.addEventListener("click", () => {
       const url = button.dataset.openUrl;
@@ -664,7 +776,8 @@ async function runAction(actionId) {
 
 const ACTION_CARD_TITLES = {
   "install-deps": "Зависимости",
-  "setup-certs": "Сертификаты HTTPS"
+  "setup-certs": "Сертификаты HTTPS",
+  "setup-desktop-shortcuts": "Ярлыки Desktop"
 };
 
 const ACTION_CARD_BUSY = {
@@ -672,7 +785,8 @@ const ACTION_CARD_BUSY = {
   "server-start-attached": "Запуск…",
   "server-stop": "Остановка…",
   "install-deps": "Установка…",
-  "setup-certs": "Настройка…"
+  "setup-certs": "Настройка…",
+  "setup-desktop-shortcuts": "Создание…"
 };
 
 function setButtonsDisabled(disabled) {
@@ -754,6 +868,7 @@ async function init() {
   renderServerStatus(bootstrap.server);
   renderLayout();
   renderAppFooter();
+  startFlipClock();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
   window.agentControl.onActionState(({ running }) => {
@@ -790,6 +905,7 @@ document.getElementById("refresh-status").addEventListener("click", async () => 
     }
     renderServerStatus(data.server);
     lastServer = data.server;
+    if (data.mcpConnect) bootstrap.mcpConnect = data.mcpConnect;
     renderLayout();
     renderAppFooter();
   } catch (error) {

@@ -24,23 +24,69 @@ const controlPackage = require("./package.json");
 const docsRegistry = require("../../docs-registry");
 const { enrichMcpDocsForClient } = require("../../lib/https-redirect");
 
+function buildAnonymizedMcpConfig(cmsBaseUrl, envExtra = {}) {
+  const env = {
+    AGENT_CMS_BASE_URL: cmsBaseUrl,
+    ...envExtra
+  };
+  if (!env.AGENT_CMS_TLS_INSECURE) delete env.AGENT_CMS_TLS_INSECURE;
+
+  return {
+    mcpServers: {
+      "agent-cms": {
+        command: "node",
+        args: ["<ABS_PATH>/mcp-server/index.js"],
+        env
+      }
+    }
+  };
+}
+
 function buildMcpConnectInfo(root) {
-  const cmsHost = `localhost:${SERVER_PORTS.editorHttps}`;
-  const docs = enrichMcpDocsForClient(docsRegistry.getMcpDocs("0.0.2"), cmsHost, {
-    projectRoot: root
-  });
-  const cmsBaseUrl = docs.cmsBaseUrl || `https://localhost:${SERVER_PORTS.editorHttps}`;
-  const configJson = docs.cursorConfigExample
+  const cmsBaseUrl = `https://localhost:${SERVER_PORTS.editorHttps}`;
+  const mcpServerPath = path.join(root, "mcp-server", "index.js");
+
+  let docs = null;
+  try {
+    docs = enrichMcpDocsForClient(docsRegistry.getMcpDocs("0.0.2"), `localhost:${SERVER_PORTS.editorHttps}`, {
+      projectRoot: root
+    });
+  } catch {
+    docs = null;
+  }
+
+  const envExtra = {};
+  if (docs?.cursorConfig?.env?.AGENT_CMS_TLS_INSECURE) {
+    envExtra.AGENT_CMS_TLS_INSECURE = "1";
+  }
+
+  const configJson = JSON.stringify(buildAnonymizedMcpConfig(cmsBaseUrl, envExtra), null, 2);
+
+  const configJsonCopy = docs?.cursorConfigExample
     ? JSON.stringify(docs.cursorConfigExample, null, 2)
-    : "";
+    : JSON.stringify(
+        {
+          mcpServers: {
+            "agent-cms": {
+              command: "node",
+              args: [mcpServerPath],
+              env: {
+                AGENT_CMS_BASE_URL: cmsBaseUrl,
+                ...envExtra
+              }
+            }
+          }
+        },
+        null,
+        2
+      );
 
   return {
     cmsBaseUrl,
-    mcpServerPath: path.join(root, "mcp-server", "index.js"),
+    mcpServerPath,
     configJson,
-    docsUrl: `${cmsBaseUrl}/api/mcp-docs?version=0.0.2`,
-    cursorConfigHint: ".cursor/mcp.json или Settings → MCP в Cursor",
-    claudeConfigHint: "~/Library/Application Support/Claude/claude_desktop_config.json"
+    configJsonCopy,
+    docsUrl: `${cmsBaseUrl}/api/mcp-docs?version=0.0.2`
   };
 }
 const { buildSystemEnvironment } = require("../../lib/system-environment");
@@ -98,6 +144,36 @@ function enrichPath(env = process.env) {
   };
 }
 
+function parsePsElapsedSec(stdout) {
+  const raw = String(stdout || "").trim();
+  if (!raw) return null;
+
+  if (/^\d+$/.test(raw)) {
+    const sec = Number(raw);
+    return Number.isFinite(sec) && sec >= 0 ? sec : null;
+  }
+
+  const dayMatch = raw.match(/^(\d+)-(\d+):(\d{2}):(\d{2})$/);
+  if (dayMatch) {
+    const [, days, hours, minutes, seconds] = dayMatch.map(Number);
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds;
+  }
+
+  const parts = raw.split(":").map(Number);
+  if (parts.some((value) => !Number.isFinite(value))) return null;
+
+  if (parts.length === 3) {
+    const [hours, minutes, seconds] = parts;
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+  if (parts.length === 2) {
+    const [minutes, seconds] = parts;
+    return minutes * 60 + seconds;
+  }
+
+  return null;
+}
+
 async function probeServerStatus() {
   const root = getProjectRoot();
   const pidFile = path.join(root, ".run", "agent-cms-https.pid");
@@ -132,10 +208,20 @@ async function probeServerStatus() {
         resolve(null);
         return;
       }
-      execFile("ps", ["-p", String(pid), "-o", "etimes="], { timeout: 2000 }, (error, stdout) => {
-        const sec = Number(String(stdout || "").trim());
-        resolve(Number.isFinite(sec) && sec >= 0 ? sec : null);
-      });
+
+      const readElapsed = (field, next) => {
+        execFile("ps", ["-p", String(pid), "-o", `${field}=`], { timeout: 2000 }, (error, stdout) => {
+          const sec = parsePsElapsedSec(stdout);
+          if (sec != null) {
+            resolve(sec);
+            return;
+          }
+          if (next) next();
+          else resolve(null);
+        });
+      };
+
+      readElapsed("etimes", () => readElapsed("etime"));
     });
 
   const checkPort = async (port) => Boolean(await getPortPid(port));
@@ -436,7 +522,7 @@ if (!gotLock) {
       const root = getProjectRoot();
       const environment = await buildSystemEnvironment(root).catch(() => null);
       const server = await probeServerStatus();
-      return { environment, server };
+      return { environment, server, mcpConnect: buildMcpConnectInfo(root) };
     });
 
     ipcMain.handle("control:reload-ui", () => {
