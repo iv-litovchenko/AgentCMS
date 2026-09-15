@@ -53807,6 +53807,8 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .menu-awn-data-band-head-actions .menu-refresh-btn {
+  position: relative;
+  z-index: 1;
   width: 22px;
   height: 22px;
   min-height: 22px;
@@ -53818,6 +53820,11 @@ body.is-cms-page-picker-active #discuss-aside * {
   font-size: 11px;
   line-height: 1;
   padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
@@ -53839,11 +53846,17 @@ body.is-cms-page-picker-active #discuss-aside * {
   width: 13px;
   height: 13px;
   display: block;
+  flex-shrink: 0;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transform-origin: 50% 50%;
+}
+
+.menu-awn-data-band-head-actions .menu-refresh-btn.is-spinning {
+  animation: none;
 }
 
 .menu-awn-data-band-head-actions .menu-refresh-btn.is-spinning svg {
@@ -53858,6 +53871,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   box-sizing: border-box;
   background: #f5f3ff;
   border-bottom: 1px solid rgba(196, 181, 253, 0.45);
+  contain: layout style;
 }
 
 .menu-awn-data-band-body[hidden],
@@ -54485,6 +54499,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .menu-awn-data-store {

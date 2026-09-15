@@ -12482,7 +12482,7 @@ async function switchActiveAgent(nextAgentId) {
     updateBreadcrumbsForActiveMode();
     void loadAppFooterIdeasPreview();
     void refreshMenuGoogleDriveStats(activeAgentId);
-    void refreshMenuAwnDataStores(activeAgentId);
+    void refreshMenuAwnDataStores(activeAgentId, { showLoading: true });
     void refreshMenuRepositories(activeAgentId);
     void refreshMenuAwnDialogsStats(activeAgentId);
     void refreshMenuAwnFactsStats(activeAgentId);
@@ -93394,6 +93394,8 @@ let menuGoogleDriveStatsLoadSeq = 0;
 let menuAwnDialogsStatsLoadSeq = 0;
 let menuAwnFactsStatsLoadSeq = 0;
 let menuAwnDataStoresLoadSeq = 0;
+let menuAwnDataRefreshInFlight = false;
+const MENU_AWN_DATA_REFRESH_SPIN_MIN_MS = 320;
 let menuRepositoriesLoadSeq = 0;
 let menuRepositoriesLastPayload = null;
 let menuRepositoriesCachedAgentId = "";
@@ -95932,14 +95934,8 @@ function setMenuStaticSummaryRefreshSpinning(button, spinning) {
 function wireMenuStaticSummaryRefreshButton(button, handler) {
   if (!button || button.dataset.refreshWired === "1") return;
   button.dataset.refreshWired = "1";
-  const stopSummaryToggle = (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-  button.addEventListener("mousedown", stopSummaryToggle);
-  button.addEventListener("pointerdown", stopSummaryToggle);
   button.addEventListener("click", (event) => {
-    stopSummaryToggle(event);
+    event.stopPropagation();
     if (button.classList.contains("is-spinning")) return;
     void handler(event);
   });
@@ -95954,12 +95950,23 @@ async function handleMenuGoogleDriveRefreshClick() {
   }
 }
 
-async function handleMenuAwnDataRefreshClick() {
+async function handleMenuAwnDataRefreshClick(event) {
+  event?.stopPropagation?.();
+  if (menuAwnDataRefreshInFlight || !menuAwnDataRefreshBtn) return;
+
+  menuAwnDataRefreshInFlight = true;
   setMenuStaticSummaryRefreshSpinning(menuAwnDataRefreshBtn, true);
+  const startedAt = performance.now();
+
   try {
-    await refreshMenuAwnDataStores();
+    await refreshMenuAwnDataStores(activeAgentId);
   } finally {
+    const remaining = MENU_AWN_DATA_REFRESH_SPIN_MIN_MS - (performance.now() - startedAt);
+    if (remaining > 0) {
+      await new Promise((resolve) => setTimeout(resolve, remaining));
+    }
     setMenuStaticSummaryRefreshSpinning(menuAwnDataRefreshBtn, false);
+    menuAwnDataRefreshInFlight = false;
   }
 }
 
@@ -96881,7 +96888,10 @@ function setupAwnDataStoresUi() {
   menuAwnDataCreateSingletonBtn?.addEventListener("click", () => openAwnDataCreateModal("singleton"));
   menuAwnDataCreateGroupBtn?.addEventListener("click", () => openAwnDataCreateModal("group"));
   wireMenuStaticSummaryRefreshButton(menuGoogleDriveRefreshBtn, handleMenuGoogleDriveRefreshClick);
-  wireMenuStaticSummaryRefreshButton(menuAwnDataRefreshBtn, handleMenuAwnDataRefreshClick);
+  menuAwnDataRefreshBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void handleMenuAwnDataRefreshClick(event);
+  });
   awnDataCreateCancelBtn?.addEventListener("click", closeAwnDataCreateModal);
   awnDataCreateSubmitBtn?.addEventListener("click", () => void submitAwnDataCreateStore());
 
@@ -97173,11 +97183,14 @@ function isLegacyOnlyAwnDataPayload(payload) {
   return rel === "_base";
 }
 
-async function refreshMenuAwnDataStores(agentId = activeAgentId) {
+async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading = false } = {}) {
   if (!menuAwnDataStoresNode) return;
 
   const seq = ++menuAwnDataStoresLoadSeq;
-  renderMenuAwnDataStores(null, { loading: true });
+  const hasRenderedStores = menuAwnDataStoresNode.childElementCount > 0;
+  if (showLoading || !hasRenderedStores) {
+    renderMenuAwnDataStores(null, { loading: true });
+  }
 
   const resolvedAgent = String(agentId || activeAgentId || "").trim();
   if (!resolvedAgent) {
