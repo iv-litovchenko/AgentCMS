@@ -8,6 +8,7 @@ const serverStatus = document.getElementById("server-status");
 let bootstrap = null;
 let runningActionId = null;
 let lastServer = null;
+let uptimeTimer = null;
 
 function escapeAttr(value) {
   return String(value ?? "")
@@ -38,25 +39,104 @@ function appendLog(text, stream = "stdout") {
   logOutput.scrollTop = logOutput.scrollHeight;
 }
 
+function formatUptime(totalSec) {
+  if (totalSec == null || totalSec < 0) return "";
+  const sec = Math.floor(totalSec);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}ч ${m}м`;
+  if (m > 0) return `${m}м ${s}с`;
+  return `${s}с`;
+}
+
+function formatStartedAt(ms) {
+  if (!ms) return "";
+  return new Date(ms).toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function getLiveUptimeSec(server) {
+  if (!server?.running || server.uptimeSec == null) return null;
+  const probedAt = server.probedAt || Date.now();
+  return server.uptimeSec + Math.floor((Date.now() - probedAt) / 1000);
+}
+
+function getServerTimeLabel(server) {
+  const uptimeSec = getLiveUptimeSec(server);
+  if (uptimeSec == null) return "";
+  const startedAt = server.startedAt || Date.now() - uptimeSec * 1000;
+  return `с ${formatStartedAt(startedAt)} · ${formatUptime(uptimeSec)}`;
+}
+
+function syncUptimeTimer(server) {
+  if (uptimeTimer) {
+    window.clearInterval(uptimeTimer);
+    uptimeTimer = null;
+  }
+  if (!server?.running) return;
+
+  uptimeTimer = window.setInterval(() => {
+    if (!lastServer?.running) {
+      syncUptimeTimer(null);
+      return;
+    }
+    renderServerStatus(lastServer);
+    updateServerUptimeNodes();
+  }, 1000);
+}
+
+function updateServerUptimeNodes() {
+  const label = getServerTimeLabel(lastServer);
+  const heroUptime = document.getElementById("status-uptime");
+  if (heroUptime) {
+    heroUptime.textContent = label;
+    heroUptime.hidden = !label;
+  }
+  document.querySelectorAll("[data-server-uptime]").forEach((node) => {
+    node.textContent = label;
+    node.hidden = !label;
+  });
+}
+
 function renderServerStatus(server) {
   lastServer = server;
   const dot = serverStatus.querySelector(".status-dot");
   const text = serverStatus.querySelector(".status-text");
+  const uptime = document.getElementById("status-uptime");
 
   if (!server) {
     dot.dataset.state = "unknown";
     text.textContent = "Нет данных";
+    if (uptime) {
+      uptime.textContent = "";
+      uptime.hidden = true;
+    }
+    syncUptimeTimer(null);
     return;
   }
 
   if (server.running) {
     dot.dataset.state = "ok";
     text.textContent = "Сервер работает";
+    const label = getServerTimeLabel(server);
+    if (uptime) {
+      uptime.textContent = label;
+      uptime.hidden = !label;
+    }
+    syncUptimeTimer(server);
     return;
   }
 
   dot.dataset.state = "warn";
   text.textContent = "Сервер остановлен";
+  if (uptime) {
+    uptime.textContent = "";
+    uptime.hidden = true;
+  }
+  syncUptimeTimer(null);
 }
 
 function renderAppFooter() {
@@ -122,6 +202,15 @@ const SERVER_PLAY_ICON = `
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
     <path d="M10.2 8.4v7.2L15.8 12 10.2 8.4Z" fill="currentColor"></path>
+  </svg>
+`;
+
+const BROWSER_ICON = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+    <path d="M3.5 8.5h17" stroke="currentColor" stroke-width="1.5"></path>
+    <circle cx="6.5" cy="6.5" r="0.8" fill="currentColor"></circle>
+    <circle cx="9" cy="6.5" r="0.8" fill="currentColor"></circle>
   </svg>
 `;
 
@@ -235,11 +324,33 @@ function renderGuideStepServer() {
   const testCommand = getServerTestCommand();
   const testHint = bootstrap?.serverTest?.hint || "Ответ JSON — сервер CMS отвечает";
 
+  const browserLinks = `
+    <div class="server-browser-row" role="group" aria-label="Открыть в браузере">
+      <button type="button" class="link-btn browser-link link-btn--cms" data-url="${cmsUrl}"${linkDisabled}>
+        <span class="browser-link-icon">${BROWSER_ICON}</span>
+        <span class="browser-link-text">
+          <span>Editor</span>
+          <code>:${ports.editorHttps}</code>
+        </span>
+      </button>
+      <button type="button" class="link-btn browser-link link-btn--voice" data-url="${voiceUrl}"${linkDisabled}>
+        <span class="browser-link-icon">${BROWSER_ICON}</span>
+        <span class="browser-link-text">
+          <span>Voice</span>
+          <code>:${ports.voiceHttps}</code>
+        </span>
+      </button>
+    </div>
+  `;
+
   const controlBlock = `
-    <div class="server-deck" role="group" aria-label="Управление сервером">
-      ${serverButton("server-start-bg", "start-bg", isRunning)}
-      ${serverButton("server-start-attached", "start", isRunning)}
-      ${serverButton("server-stop", "stop", !isRunning)}
+    <div class="server-controls">
+      <div class="server-deck" role="group" aria-label="Управление сервером">
+        ${serverButton("server-start-bg", "start-bg", isRunning)}
+        ${serverButton("server-start-attached", "start", isRunning)}
+        ${serverButton("server-stop", "stop", !isRunning)}
+      </div>
+      ${browserLinks}
     </div>
   `;
 
@@ -248,7 +359,11 @@ function renderGuideStepServer() {
       <div class="guide-step-marker" aria-hidden="true">2</div>
       <div class="guide-step-body">
         <div class="guide-step-head">
-          <h3>Сервер <span class="server-state ${isRunning ? "is-on" : "is-off"}">${modeText}</span></h3>
+          <h3 class="server-step-title">
+            Сервер
+            <span class="server-state ${isRunning ? "is-on" : "is-off"}">${modeText}</span>
+            <span class="server-uptime" data-server-uptime${isRunning ? "" : " hidden"}>${isRunning ? getServerTimeLabel(server) : ""}</span>
+          </h3>
           <p>Запустите CMS и Voice — без сервера не работают Editor, Voice и расширение Chrome</p>
         </div>
         ${controlBlock}
@@ -259,25 +374,10 @@ function renderGuideStepServer() {
           </div>
           <div class="cmd-row">
             <code class="cmd-text" id="server-test-cmd">${testCommand}</code>
-            <div class="cmd-actions">
-              <button type="button" class="ghost-btn cmd-btn" data-copy-cmd="${escapeAttr(testCommand)}">Копировать</button>
-              <button type="button" class="ghost-btn cmd-btn cmd-btn--primary" id="server-test-run">Проверить</button>
-            </div>
+            <button type="button" class="ghost-btn cmd-btn" data-copy-cmd="${escapeAttr(testCommand)}">Копировать</button>
+            <button type="button" class="ghost-btn cmd-btn cmd-btn--primary" id="server-test-run">Проверить</button>
           </div>
           <pre class="cmd-result" id="server-test-result" hidden></pre>
-        </div>
-        <div class="control-zone">
-          <span class="control-zone-label">Открыть в браузере</span>
-          <div class="link-row" role="group" aria-label="Открыть в браузере">
-            <button type="button" class="link-btn link-btn--cms" data-url="${cmsUrl}"${linkDisabled}>
-              <span>Editor</span>
-              <code>:${ports.editorHttps}</code>
-            </button>
-            <button type="button" class="link-btn link-btn--voice" data-url="${voiceUrl}"${linkDisabled}>
-              <span>Voice</span>
-              <code>:${ports.voiceHttps}</code>
-            </button>
-          </div>
         </div>
       </div>
     </article>
@@ -449,6 +549,7 @@ function renderLayout() {
   actionsRoot.appendChild(renderAppsSection());
   actionsRoot.appendChild(renderGuideSection());
   bindActionHandlers();
+  updateServerUptimeNodes();
 }
 
 async function copyText(text) {

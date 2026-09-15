@@ -93,15 +93,33 @@ async function probeServerStatus() {
     }
   }
 
-  const checkPort = (port) =>
+  const { execFile } = require("child_process");
+
+  const getPortPid = (port) =>
     new Promise((resolve) => {
-      const { execFile } = require("child_process");
       execFile("lsof", ["-ti", `:${port}`], { timeout: 2000 }, (error, stdout) => {
-        resolve(Boolean(String(stdout || "").trim()));
+        const pid = Number(String(stdout || "").trim().split("\n")[0]);
+        resolve(Number.isFinite(pid) && pid > 0 ? pid : null);
       });
     });
 
-  const [cms, voice] = await Promise.all([checkPort(3443), checkPort(3488)]);
+  const getProcessUptimeSec = (pid) =>
+    new Promise((resolve) => {
+      if (!pid) {
+        resolve(null);
+        return;
+      }
+      execFile("ps", ["-p", String(pid), "-o", "etimes="], { timeout: 2000 }, (error, stdout) => {
+        const sec = Number(String(stdout || "").trim());
+        resolve(Number.isFinite(sec) && sec >= 0 ? sec : null);
+      });
+    });
+
+  const checkPort = async (port) => Boolean(await getPortPid(port));
+
+  const [cmsPid, voicePid] = await Promise.all([getPortPid(3443), getPortPid(3488)]);
+  const cms = Boolean(cmsPid);
+  const voice = Boolean(voicePid);
   const running = cms || voice;
   let mode = "off";
 
@@ -111,6 +129,20 @@ async function probeServerStatus() {
     else mode = "running";
   }
 
+  let uptimeSec = null;
+  if (running) {
+    const pidCandidates = [cmsPid, voicePid, supervisorAlive ? supervisorPid : null].filter(Boolean);
+    for (const pid of pidCandidates) {
+      const elapsed = await getProcessUptimeSec(pid);
+      if (elapsed != null) {
+        uptimeSec = uptimeSec == null ? elapsed : Math.max(uptimeSec, elapsed);
+      }
+    }
+  }
+
+  const probedAt = Date.now();
+  const startedAt = uptimeSec != null ? probedAt - uptimeSec * 1000 : null;
+
   return {
     running,
     cms,
@@ -118,6 +150,9 @@ async function probeServerStatus() {
     supervisorAlive,
     supervisorPid,
     mode,
+    uptimeSec,
+    startedAt,
+    probedAt,
     modeLabel:
       mode === "attached"
         ? "пока Control открыт"
