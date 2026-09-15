@@ -39506,6 +39506,7 @@ const NODE_CONFIG_VALUE_TYPES = [
 ];
 
 const nodeSettingsCacheByManifest = new Map();
+const projectSettingsScopeStatusByPath = new Map();
 
 function getNodeConfigValueTypeLabel(kind) {
   const match = NODE_CONFIG_VALUE_TYPES.find((item) => item.id === kind);
@@ -39624,6 +39625,46 @@ function getNodeSettingsManifestPath(nodePath = getResolvedNodePath(activePath))
   return normalized;
 }
 
+function getProjectSettingsScopeStatus(manifestPath) {
+  const normalized = normalizeMenuNodePath(manifestPath);
+  if (!normalized) return null;
+  return projectSettingsScopeStatusByPath.get(normalized) || null;
+}
+
+function setProjectSettingsScopeStatusFromCache(manifestPath, cache) {
+  const normalized = normalizeMenuNodePath(manifestPath);
+  if (!normalized || !cache) return;
+  const valueCount = (cache.entries || []).filter((entry) => {
+    if (!entry?.key) return false;
+    if (entry.kind === "bool" || entry.kind === "number") return true;
+    if (entry.kind === "null") return false;
+    return String(entry.value ?? "").trim() !== "";
+  }).length;
+  projectSettingsScopeStatusByPath.set(normalized, {
+    path: normalized,
+    configExists: Boolean(cache.exists),
+    valueCount,
+    hasLocalValues: valueCount > 0
+  });
+}
+
+async function refreshProjectSettingsScopeStatus(scopes = collectProjectSettingsScopes()) {
+  const paths = scopes.map((scope) => scope.path).filter(Boolean);
+  if (!paths.length) return;
+  const response = await fetch(buildApiUrl("/api/project-settings/scope-status"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paths })
+  });
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  const data = await response.json();
+  for (const item of data.items || []) {
+    const normalized = normalizeMenuNodePath(item.path);
+    if (!normalized) continue;
+    projectSettingsScopeStatusByPath.set(normalized, item);
+  }
+}
+
 function collectProjectSettingsScopes() {
   const scopes = [];
   const seen = new Set();
@@ -39684,6 +39725,13 @@ function renderProjectSettingsScopeList() {
     { level: "topic", label: "Темы" }
   ];
 
+  const legend = document.createElement("div");
+  legend.className = "project-settings-scope-legend";
+  legend.innerHTML =
+    '<span class="project-settings-scope-legend-item is-local"><span class="project-settings-scope-marker" aria-hidden="true"></span> свои в config.yml</span>' +
+    '<span class="project-settings-scope-legend-item is-empty"><span class="project-settings-scope-marker" aria-hidden="true"></span> не задано</span>';
+  projectSettingsScopeListNode.appendChild(legend);
+
   for (const group of groups) {
     const items = scopes.filter((scope) => scope.level === group.level);
     if (!items.length) continue;
@@ -39694,6 +39742,10 @@ function renderProjectSettingsScopeList() {
     title.textContent = group.label;
     section.appendChild(title);
     for (const scope of items) {
+      const status = getProjectSettingsScopeStatus(scope.path);
+      const hasLocalValues = Boolean(status?.hasLocalValues);
+      const valueCount = Number(status?.valueCount) || 0;
+
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "project-settings-scope-item";
@@ -39701,7 +39753,29 @@ function renderProjectSettingsScopeList() {
       btn.setAttribute("role", "tab");
       btn.setAttribute("aria-selected", scope.path === activeScopePath ? "true" : "false");
       btn.classList.toggle("is-active", scope.path === activeScopePath);
-      btn.textContent = scope.label;
+      btn.classList.toggle("has-local-values", hasLocalValues);
+      btn.classList.toggle("is-empty-scope", !hasLocalValues);
+      btn.title = hasLocalValues
+        ? `Свои настройки: ${valueCount} в config.yml`
+        : "Локальные настройки не заданы — значения наследуются с уровня выше";
+
+      const marker = document.createElement("span");
+      marker.className = "project-settings-scope-marker";
+      marker.setAttribute("aria-hidden", "true");
+
+      const label = document.createElement("span");
+      label.className = "project-settings-scope-label";
+      label.textContent = scope.label;
+
+      btn.append(marker, label);
+      if (hasLocalValues) {
+        const badge = document.createElement("span");
+        badge.className = "project-settings-scope-badge";
+        badge.textContent = String(valueCount);
+        badge.title = "Количество значений в awn_settings";
+        btn.append(badge);
+      }
+
       btn.addEventListener("click", () => {
         void selectProjectSettingsScope(scope.path);
       });
@@ -39736,9 +39810,12 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
       : "Настройки проекта";
   }
   if (projectSettingsLeadNode) {
+    const activeStatus = getProjectSettingsScopeStatus(getNodeSettingsManifestPath());
+    const localHint = activeStatus?.hasLocalValues
+      ? `На этом уровне задано <strong>${activeStatus.valueCount}</strong> значений в <code>config.yml</code>.`
+      : "На этом уровне <strong>нет своих значений</strong> — пока действуют настройки уровня выше (или defaults).";
     projectSettingsLeadNode.innerHTML =
-      "Значения сохраняются в <code>configuration.yml</code> → <code>awn_settings</code> выбранного узла. " +
-      "Поля задаются в редакторе схемы (вкладка «Настройки») на том же уровне: WS, область или тема.";
+      `${localHint} Поля формы — из <code>schema-mod.yml</code> (вкладка «Настройки») на том же уровне.`;
   }
   renderProjectSettingsScopeList();
   renderNodeSettingsEditor(cache);
@@ -39776,9 +39853,12 @@ async function loadProjectSettingsContent(options = {}) {
     if (!projectSettingsScopePath && manifestPath) {
       projectSettingsScopePath = manifestPath;
     }
+    const scopes = collectProjectSettingsScopes();
+    await refreshProjectSettingsScopeStatus(scopes).catch(() => {});
     const cache = await loadNodeSettingsForManifest(getNodeSettingsManifestPath(), {
       force: Boolean(options.force)
     });
+    setProjectSettingsScopeStatusFromCache(getNodeSettingsManifestPath(), cache);
     applyProjectSettingsPageUi(cache);
     commitEditorSaveBaseline();
     updateBreadcrumbsForActiveMode();
@@ -39871,6 +39951,9 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
     ...state
   };
   nodeSettingsCacheByManifest.set(manifestPath, payload);
+  if (isProjectSettingsMode()) {
+    setProjectSettingsScopeStatusFromCache(manifestPath, payload);
+  }
   return payload;
 }
 
@@ -40037,6 +40120,11 @@ async function saveNodeSettingsContent() {
   modeContentCache.configs = data.content || content;
   syncNodeDefaultLandingBtn();
   renderNodeSettingsEditor(cache);
+  if (isProjectSettingsMode()) {
+    setProjectSettingsScopeStatusFromCache(manifestPath, cache);
+    renderProjectSettingsScopeList();
+    renderProjectSettingsPage(cache);
+  }
   return data;
 }
 

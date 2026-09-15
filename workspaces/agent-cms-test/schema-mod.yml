@@ -2,11 +2,110 @@ version: 1
 layer: workspace
 
 awn_schema:
-  workspace:
-    fields:
-      ws-1:
-        type: awn.field.string
   settings:
     fields:
-      ws-settings-1:
+      agent-language:
+        type: awn.field.choice.one
+        name: Язык агента
+        group: Общие
+        sort: 1
+        enum:
+          - key: ru
+            name: Русский
+          - key: en
+            name: English
+          - key: auto
+            name: Авто
+        default: ru
+      response-style:
+        type: awn.field.choice.one
+        name: Стиль ответов
+        group: Общие
+        sort: 2
+        enum:
+          - key: brief
+            name: Кратко
+          - key: detailed
+            name: Подробно
+          - key: agents-md
+            name: Как в AGENTS.md
+        default: agents-md
+      notify-on-complete:
+        type: awn.field.boolean
+        name: Уведомление по завершении
+        group: Общие
+        sort: 3
+        default: false
+      mcp-mode:
+        type: awn.field.choice.one
+        name: Режим MCP
+        group: MCP
+        sort: 10
+        enum:
+          - key: readonly
+            name: Только чтение
+          - key: standard
+            name: Стандарт
+          - key: full
+            name: Полный
+        default: standard
+      batch-enabled:
+        type: awn.field.boolean
+        name: batch_invoke
+        group: MCP
+        sort: 11
+        default: true
+      batch-read-limit:
+        type: awn.field.number.integer
+        name: Лимит read/list/search
+        group: MCP
+        sort: 12
+        default: 20
+      batch-write-limit:
+        type: awn.field.number.integer
+        name: Лимит write/create/delete
+        group: MCP
+        sort: 13
+        default: 10
+      batch-deny-exec:
+        type: awn.field.boolean
+        name: Запретить exec в batch
+        group: MCP
+        sort: 14
+        default: true
+      confirm-delete:
+        type: awn.field.boolean
+        name: Подтверждение delete
+        group: MCP
+        sort: 15
+        default: true
+      confirm-exec:
+        type: awn.field.boolean
+        name: Подтверждение exec
+        group: MCP
+        sort: 16
+        default: true
+      default-slot:
         type: awn.field.string
+        name: Слот по умолчанию
+        group: Память
+        sort: 20
+        default: main
+      auto-retain-facts:
+        type: awn.field.boolean
+        name: Авто-факты
+        group: Память
+        sort: 21
+        default: false
+      awn-temp-ttl-days:
+        type: awn.field.number.integer
+        name: TTL awn-temp (дни)
+        group: Память
+        sort: 22
+        default: 0
+      always-context-max-files:
+        type: awn.field.number.integer
+        name: Лимит always-context
+        group: Память
+        sort: 23
+        default: 0

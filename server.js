@@ -295,6 +295,10 @@ const { createExistsApi } = require("./exists-api");
 const { createContentSchemaApi } = require("./content-schema-api");
 const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./ui-context-api");
 const NodeConfigBundle = require("./node-config-bundle");
+const {
+  normalizeWorkspaceAgentSettings,
+  parseWorkspaceAgentSettingsFromConfigContent
+} = require("./workspace-agent-settings");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
   AWN_MASK_FILE_KEY,
@@ -1921,6 +1925,62 @@ async function readNodeConfigFile(relNodePath) {
   }
 
   return { path: configRelPath, content: "", exists: false };
+}
+
+async function readWorkspaceAgentSettings() {
+  const configFile = await readNodeConfigFile("manifest.md");
+  const settings = parseWorkspaceAgentSettingsFromConfigContent(configFile.content || "");
+  return {
+    manifestPath: "manifest.md",
+    configPath: configFile.path || "",
+    exists: Boolean(configFile.exists),
+    settings
+  };
+}
+
+async function buildProjectSettingsScopeStatus(manifestPaths = []) {
+  const { flattenAwnSettingsValues } = require("./workspace-agent-settings");
+  const unique = [
+    ...new Set(
+      (Array.isArray(manifestPaths) ? manifestPaths : [])
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+    )
+  ].slice(0, 200);
+  const items = [];
+
+  for (const relPath of unique) {
+    const manifestCtx = await resolveApiManifestContext(relPath);
+    if (!manifestCtx) {
+      items.push({
+        path: relPath,
+        configExists: false,
+        valueCount: 0,
+        hasLocalValues: false
+      });
+      continue;
+    }
+
+    const configFile = await readNodeConfigFile(manifestCtx.rel);
+    const bundle = NodeConfigBundle.parseNodeConfigBundle(configFile.content || "");
+    const flat = flattenAwnSettingsValues(bundle.awn_settings || {});
+    const valueCount = Object.keys(flat).filter((key) => {
+      const value = flat[key];
+      if (value === null || value === undefined) return false;
+      if (typeof value === "string") return value.trim() !== "";
+      return true;
+    }).length;
+
+    items.push({
+      path: manifestCtx.rel,
+      configPath: configFile.path || "",
+      configExists: Boolean(configFile.exists),
+      valueCount,
+      hasLocalValues: valueCount > 0
+    });
+  }
+
+  return { items };
 }
 
 function extractAwnMaskFileFromNodeConfigContent(content) {
@@ -11955,6 +12015,7 @@ async function buildAgentSessionContext() {
   }
 
   const awnSystem = await readAgentSystemContext(agentRoot);
+  const workspaceSettings = await readWorkspaceAgentSettings();
 
   return {
     version: "0.0.4",
@@ -11966,13 +12027,14 @@ async function buildAgentSessionContext() {
     apiMap: SESSION_CONTEXT_API_MAP,
     menuSummary,
     awnSystem,
+    workspaceSettings: workspaceSettings.settings,
     serviceDocs,
     topicRegistry,
     topicCount: topicRegistry.topicCount,
     alwaysContext,
     alwaysContextCount: alwaysContext.itemCount,
     hint:
-      "Старт: topicRegistry (skill-карта) + alwaysContext (полные файлы). Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat."
+      "Старт: topicRegistry (skill-карта) + alwaysContext (полные файлы). Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat. workspaceSettings — политики MCP (mcp-mode, batch_*)."
   };
 }
 
@@ -18201,6 +18263,36 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to build session context",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-settings") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readWorkspaceAgentSettings();
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace settings",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/project-settings/scope-status") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const paths = Array.isArray(payload?.paths) ? payload.paths : [];
+      const status = await buildProjectSettingsScopeStatus(paths);
+      return sendJson(res, 200, status);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read project settings scope status",
         details: String(error.message || error)
       });
     }

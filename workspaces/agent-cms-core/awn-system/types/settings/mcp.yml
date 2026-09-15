@@ -1,0 +1,70 @@
+id: agent.settings.mcp
+name: MCP и агент
+kind: type
+domain: settings
+status: active
+extends: awn.settings.base
+description: >
+  Политики MCP для workspace: режим доступа, batch_invoke, подтверждения.
+  Применяется на сервере — не инструкция агенту в чате.
+scope: agent
+enabled: true
+
+fields:
+
+  mcp-mode:
+    type: awn.field.choice.one
+    title: Режим MCP
+    description: readonly — только read/list/search; standard — + write/create; full — всё кроме exec без confirm
+    default: standard
+    enum: [readonly, standard, full]
+    group: access
+    sort: 1
+
+  batch-enabled:
+    type: awn.field.boolean
+    title: batch_invoke
+    description: Разрешить пакетные вызовы одного MCP-tool
+    default: true
+    group: batch
+    sort: 10
+
+  batch-read-limit:
+    type: awn.field.number.integer
+    title: Лимит read/list/search
+    description: Макс. items в batch_invoke для read, list, search
+    default: 20
+    group: batch
+    sort: 11
+
+  batch-write-limit:
+    type: awn.field.number.integer
+    title: Лимит write/create/move/delete
+    description: Макс. items в batch_invoke для изменяющих операций
+    default: 10
+    group: batch
+    sort: 12
+
+  batch-deny-exec:
+    type: awn.field.boolean
+    title: Запретить exec в batch
+    description: exec_command, exec_shell, run_script — только по одному
+    default: true
+    group: batch
+    sort: 13
+
+  confirm-delete:
+    type: awn.field.boolean
+    title: Подтверждение delete
+    description: Спрашивать пользователя перед delete_* (UI / shell permission)
+    default: true
+    group: confirm
+    sort: 20
+
+  confirm-exec:
+    type: awn.field.boolean
+    title: Подтверждение exec
+    description: Спрашивать перед exec_command / exec_shell / run_script
+    default: true
+    group: confirm
+    sort: 21

@@ -27,6 +27,7 @@ import { registerBrainTools } from "./lib/brain-tools.js";
 import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
 import { registerSidecarTools } from "./lib/sidecar-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
+import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 
 const pagePath = z
   .string()
@@ -77,6 +78,7 @@ function createServer() {
         async (args) => {
           if (!agentScope) return fn(args);
           const agentId = resolveAgentId(args, cfg.defaultAgent);
+          await assertWorkspaceMcpToolAllowed(client, agentId, name);
           return runWithAgentId(agentId, () => fn(args));
         },
         { formatResult }

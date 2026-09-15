@@ -1,0 +1,43 @@
+id: agent.settings.memory
+name: Память
+kind: type
+domain: settings
+status: active
+extends: awn.settings.base
+description: Память workspace — контекст, факты, временные файлы
+scope: agent
+enabled: true
+
+fields:
+
+  default-slot:
+    type: awn.field.string
+    title: Слот по умолчанию
+    description: Куда создавать новые записи, если слот не указан
+    default: main
+    group: content
+    sort: 1
+
+  auto-retain-facts:
+    type: awn.field.boolean
+    title: Авто-факты
+    description: Предлагать retain_workspace_fact в конце сессии (пока только hint агенту)
+    default: false
+    group: facts
+    sort: 10
+
+  awn-temp-ttl-days:
+    type: awn.field.number.integer
+    title: TTL awn-temp (дни)
+    description: 0 — не чистить автоматически
+    default: 0
+    group: temp
+    sort: 20
+
+  always-context-max-files:
+    type: awn.field.number.integer
+    title: Лимит always-context
+    description: Макс. файлов в list_workspace_always_context (0 = без лимита)
+    default: 0
+    group: context
+    sort: 30

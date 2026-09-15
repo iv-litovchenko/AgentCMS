@@ -1,6 +1,17 @@
-# Agent CMS — конфигурация
+# Agent CMS — настройки workspace (awn_settings, плоские ключи)
 
 awn_settings:
-  awn-mask-file: ""
-  ws-setting-1: Настройка 1
-  ws-setting-2: настройка 2
+  agent-language: ru
+  response-style: brief
+  notify-on-complete: false
+  mcp-mode: standard
+  batch-enabled: true
+  batch-read-limit: 20
+  batch-write-limit: 10
+  batch-deny-exec: true
+  confirm-delete: true
+  confirm-exec: true
+  default-slot: main
+  auto-retain-facts: false
+  awn-temp-ttl-days: 30
+  always-context-max-files: 0

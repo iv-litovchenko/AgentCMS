@@ -1837,7 +1837,6 @@
                     <span aria-hidden="true">🟢</span>
                     <span class="menu-static-title-text">
                       Настройки и параметры
-                      <span class="menu-static-subtitle stub-static-mark">(static)</span>
                     </span>
                   </span>
                 </summary>
@@ -1849,9 +1848,7 @@
                     id="menu-static-settings-open-btn"
                     type="button"
                     class="menu-static-action-btn"
-                    disabled
-                    aria-disabled="true"
-                    title="Скоро"
+                    title="Открыть настройки workspace"
                   >
                     Открыть настройки проекта
                   </button>
@@ -3014,27 +3011,6 @@
           </button>
         </div>
         <div class="workspace-body">
-        <section id="project-settings-page" class="project-settings-page hidden" aria-label="Настройки проекта">
-          <div class="project-settings-layout">
-            <aside class="project-settings-sidebar" aria-label="Уровни настроек">
-              <p class="project-settings-sidebar-title">Область</p>
-              <nav id="project-settings-scope-list" class="project-settings-scope-list" role="tablist"></nav>
-            </aside>
-            <div class="project-settings-main">
-              <header class="project-settings-head">
-                <h2 id="project-settings-title" class="project-settings-title">Настройки</h2>
-                <p id="project-settings-lead" class="project-settings-lead">
-                  Значения сохраняются в <code>configuration.yml</code> → <code>awn_settings</code>.
-                  Поля задаются в редакторе схемы (вкладка «Настройки») на том же уровне.
-                </p>
-              </header>
-              <div id="project-settings-fields" class="node-config-fields project-settings-fields"></div>
-              <p id="project-settings-empty" class="project-settings-empty hidden">
-                Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.
-              </p>
-            </div>
-          </div>
-        </section>
         <main class="content doc-stack">
           <section id="workspace-path-header" class="doc-slab doc-slab-path">
             <div class="workspace-path-crumbs-block">
@@ -3606,6 +3582,28 @@
                   <span class="save-btn-lamp" aria-hidden="true"></span>
                   <span class="workspace-toolbar-btn-label">Сохранить</span>
                 </button>
+              </div>
+            </div>
+          </section>
+
+          <section id="project-settings-page" class="project-settings-page hidden" aria-label="Настройки проекта">
+            <div class="project-settings-layout">
+              <aside class="project-settings-sidebar" aria-label="Уровни настроек">
+                <p class="project-settings-sidebar-title">Уровни</p>
+                <nav id="project-settings-scope-list" class="project-settings-scope-list" role="tablist"></nav>
+              </aside>
+              <div class="project-settings-main">
+                <header class="project-settings-head">
+                  <h2 id="project-settings-title" class="project-settings-title">Настройки</h2>
+                  <p id="project-settings-lead" class="project-settings-lead">
+                    Значения сохраняются в <code>config.yml</code> → <code>awn_settings</code>.
+                    Поля задаются в <code>schema-mod.yml</code> (вкладка «Настройки») на том же уровне.
+                  </p>
+                </header>
+                <div id="project-settings-fields" class="node-config-fields project-settings-fields"></div>
+                <p id="project-settings-empty" class="project-settings-empty hidden">
+                  Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.
+                </p>
               </div>
             </div>
           </section>
