@@ -62757,17 +62757,7 @@ function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null,
   const preview = document.createElement("div");
   preview.className = "node-navigation-preview file-content-preview";
   const workspacePath = nodePath;
-  const inlineDiff = filterManifestBodyDiffPayload(
-    getActiveLiveSyncInlineDiffForView(workspacePath)
-  );
-  if (
-    inlineDiff &&
-    renderPreviewWithEmbeddedDiff(preview, content, inlineDiff, nodePath)
-  ) {
-    nodeOverviewBlockNode?.classList.add("is-live-diff-active");
-  } else {
-    setMarkdownPreviewHtml(preview, content, { nodePath, workspacePath });
-  }
+  setMarkdownPreviewHtml(preview, content, { nodePath, workspacePath });
 
   const copyBar = createEntryOverviewCopyActionsBar(rawContent);
   if (copyBar) {
@@ -69936,6 +69926,9 @@ function clearLiveSyncInlineDiffState() {
   document.querySelectorAll(".live-diff-embedded-active").forEach((node) => {
     node.classList.remove("live-diff-embedded-active");
   });
+  document.querySelectorAll(".live-diff-preview-changed").forEach((node) => {
+    node.classList.remove("live-diff-preview-changed");
+  });
   editorWysiwygWrapNode
     ?.querySelectorAll(".live-diff-wysiwyg-add")
     .forEach((node) => node.classList.remove("live-diff-wysiwyg-add"));
@@ -69961,7 +69954,29 @@ function refreshLiveSyncInlineDiffView() {
     return;
   }
 
-  // Diff details live only in the side panel; preview stays clean.
+  const diffPath = liveSyncInlineDiffState.path;
+  const defaultPayload =
+    resolveLiveDiffDisplayPayload(liveSyncInlineDiffState.diffPayload, diffPath) ||
+    liveSyncInlineDiffState.diffPayload;
+
+  document.querySelectorAll(".live-diff-preview-changed").forEach((node) => {
+    node.classList.remove("live-diff-preview-changed");
+  });
+
+  let highlighted = false;
+  for (const preview of document.querySelectorAll(".file-content-preview")) {
+    const workspacePath = preview.dataset.linkBasePath || "";
+    if (!getActiveLiveSyncInlineDiffForView(workspacePath)) continue;
+    const payload =
+      resolveLiveDiffDisplayPayload(liveSyncInlineDiffState.diffPayload, workspacePath) ||
+      defaultPayload;
+    if (applyLiveDiffPreviewHighlights(preview, payload)) highlighted = true;
+  }
+
+  const showActive = highlighted || liveSyncDiffHasVisibleChanges(defaultPayload, diffPath);
+  nodeOverviewBlockNode?.classList.toggle("is-live-diff-active", showActive);
+  editorSurfaceNode?.classList.toggle("is-live-diff-active", showActive);
+
   if (isLiveFileDiffPanelVisible() && editorViewMode === "source") {
     applySourceLiveDiffGutter();
     syncEditorLineNumbers();
@@ -70039,12 +70054,43 @@ function buildLiveDiffAddedLineSet(diffPayload) {
 function blockMatchesLiveDiffAddedLine(blockText, addedLines) {
   const text = String(blockText || "").trim();
   if (!text || !addedLines.size) return false;
-  if (addedLines.has(text)) return true;
+  const normalizedBlock = normalizeLiveDiffLineForMatch(text);
   for (const line of addedLines) {
-    const normalized = String(line || "").trim();
-    if (normalized && normalized === text) return true;
+    const raw = String(line || "").trim();
+    if (!raw) continue;
+    if (raw === text || raw === normalizedBlock) return true;
+    if (normalizeLiveDiffLineForMatch(raw) === normalizedBlock) return true;
   }
   return false;
+}
+
+function normalizeLiveDiffLineForMatch(text) {
+  return String(text || "")
+    .trim()
+    .replace(/^[-*+]\s+/, "")
+    .replace(/^>\s+/, "")
+    .replace(/^\d+\.\s+/, "");
+}
+
+function applyLiveDiffPreviewHighlights(element, diffPayload) {
+  if (!element || !diffPayload) return false;
+  const addedLines = buildLiveDiffAddedLineSet(diffPayload);
+  if (!addedLines.size) return false;
+
+  element.querySelectorAll(".live-diff-preview-changed").forEach((node) => {
+    node.classList.remove("live-diff-preview-changed");
+  });
+
+  let matched = 0;
+  for (const block of element.querySelectorAll(
+    "p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, td, th, dt, dd"
+  )) {
+    if (blockMatchesLiveDiffAddedLine(block.textContent, addedLines)) {
+      block.classList.add("live-diff-preview-changed");
+      matched += 1;
+    }
+  }
+  return matched > 0;
 }
 
 function applyWysiwygLiveDiffHighlights() {
@@ -70737,23 +70783,24 @@ async function presentLiveFileChange(change, diffPayload = null) {
     diffPayload ||
     (change.diff ? { diff: change.diff, oldContent: change.oldContent, newContent: change.newContent } : null);
 
-  if (liveSyncDiffHasVisibleChanges(diffData, change.path)) {
-    setLiveSyncInlineDiffState(diffData, change.path);
-  }
-
   if (!change.dirty) {
     await applyLiveFileReload(change);
     if (diffData?.newContent != null) {
       rememberLiveSyncLoadedSnapshot(change.path, diffData.newContent);
     }
   }
+
+  if (liveSyncDiffHasVisibleChanges(diffData, change.path)) {
+    setLiveSyncInlineDiffState(diffData, change.path);
+  } else {
+    clearLiveSyncInlineDiffState();
+  }
+
   void markLiveSyncOwnSaveForActivePath();
 
   showLiveFileUpdateBanner(change);
   hideLiveFileDiffPanel();
-  if (!liveSyncDiffHasVisibleChanges(diffData, change.path)) {
-    clearLiveSyncInlineDiffState();
-  }
+  refreshLiveSyncInlineDiffView();
 }
 
 async function handleLiveFileChange(event) {
@@ -77753,6 +77800,18 @@ function setMarkdownPreviewHtml(
   element.classList.remove("live-diff-embedded-active");
   element.innerHTML = renderMarkdownToHtml(markdown, { nodePath: resolvedNodePath, hideFrontmatter });
   hydrateMarkdownPreviewElement(element, resolvedNodePath);
+
+  const diffPath = workspacePath || resolvedNodePath;
+  let inlineDiff = getActiveLiveSyncInlineDiffForView(diffPath);
+  if (inlineDiff) {
+    inlineDiff =
+      resolveLiveDiffDisplayPayload(inlineDiff, liveSyncInlineDiffState?.path || diffPath) ||
+      inlineDiff;
+    if (applyLiveDiffPreviewHighlights(element, inlineDiff)) {
+      nodeOverviewBlockNode?.classList.add("is-live-diff-active");
+      editorSurfaceNode?.classList.add("is-live-diff-active");
+    }
+  }
 }
 
 let previewLightboxNode = null;
