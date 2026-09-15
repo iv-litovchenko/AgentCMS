@@ -544,65 +544,6 @@ body.is-booting {
   background: rgba(251, 191, 36, 0.1);
 }
 
-.ports-strip {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-}
-
-.port-chip {
-  padding: 7px 9px;
-  border-radius: 10px;
-  border: 1px solid rgba(120, 140, 180, 0.12);
-  background: rgba(8, 12, 24, 0.45);
-  display: grid;
-  gap: 1px;
-}
-
-.port-chip--cms {
-  border-color: rgba(79, 141, 253, 0.25);
-  background: linear-gradient(135deg, rgba(79, 141, 253, 0.1), rgba(8, 12, 24, 0.5));
-}
-
-.port-chip--voice {
-  border-color: rgba(192, 38, 211, 0.25);
-  background: linear-gradient(135deg, rgba(192, 38, 211, 0.1), rgba(8, 12, 24, 0.5));
-}
-
-.port-chip--control {
-  border-color: rgba(20, 184, 166, 0.25);
-  background: linear-gradient(135deg, rgba(20, 184, 166, 0.1), rgba(8, 12, 24, 0.5));
-}
-
-.port-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.port-chip--cms .port-label {
-  color: var(--cms);
-}
-
-.port-chip--voice .port-label {
-  color: #e879f9;
-}
-
-.port-chip--control .port-label {
-  color: var(--control);
-}
-
-.port-chip code {
-  font: 0.82rem/1.2 ui-monospace, Menlo, monospace;
-  color: var(--text);
-}
-
-.port-sub {
-  font-size: 0.64rem;
-  color: var(--muted);
-}
-
 .server-modes {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -724,16 +665,67 @@ body.is-booting {
 }
 
 .launch-tile-body {
+  position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 0;
   padding: 12px;
+  padding-top: 10px;
   border-radius: 12px;
   background: rgba(8, 12, 24, 0.72);
   border: 1px solid rgba(120, 140, 180, 0.12);
   backdrop-filter: blur(8px);
+}
+
+.launch-tile-port {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: grid;
+  gap: 1px;
+  text-align: right;
+  line-height: 1.1;
+  pointer-events: none;
+}
+
+.launch-tile-port code {
+  font: 0.78rem/1 ui-monospace, Menlo, monospace;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.launch-tile-port-sub {
+  font: 0.62rem/1 ui-monospace, Menlo, monospace;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+.launch-tile-port-sub::before {
+  content: ":";
+}
+
+.launch-tile[data-accent="cms"] .launch-tile-port code {
+  color: var(--cms);
+}
+
+.launch-tile[data-accent="voice"] .launch-tile-port code {
+  color: #e879f9;
+}
+
+.launch-tile-port--app {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.launch-tile[data-accent="control"] .launch-tile-port--app {
+  color: var(--control);
+  opacity: 0.75;
 }
 
 .launch-tile[data-accent="cms"] .launch-tile-body {
@@ -892,8 +884,7 @@ body.is-booting {
 
 @media (max-width: 800px) {
   .launchpad-grid,
-  .server-modes,
-  .ports-strip {
+  .server-modes {
     grid-template-columns: 1fr;
   }
 }

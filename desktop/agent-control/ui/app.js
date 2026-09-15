@@ -115,22 +115,6 @@ function renderServerSection() {
       <h2>Сервер</h2>
       <span class="server-state ${isRunning ? "is-on" : "is-off"}">${modeText}</span>
     </div>
-    <div class="ports-strip">
-      <div class="port-chip port-chip--cms">
-        <span class="port-label">Editor</span>
-        <code>:${ports.editorHttps}</code>
-        <span class="port-sub">http :${ports.editorHttp}</span>
-      </div>
-      <div class="port-chip port-chip--voice">
-        <span class="port-label">Voice</span>
-        <code>:${ports.voiceHttps}</code>
-        <span class="port-sub">http :${ports.voiceHttp}</span>
-      </div>
-      <div class="port-chip port-chip--control">
-        <span class="port-label">Control</span>
-        <span class="port-sub">desktop · без порта</span>
-      </div>
-    </div>
     <div class="server-modes" role="group" aria-label="Запуск сервера">
       ${serverModeButton(
         "server-start-bg",
@@ -160,6 +144,37 @@ function renderServerSection() {
   return section;
 }
 
+function getCardPorts(accent) {
+  const ports = bootstrap?.serverPorts || {
+    editorHttps: 3443,
+    editorHttp: 3000,
+    voiceHttps: 3488,
+    voiceHttp: 3088
+  };
+
+  if (accent === "cms") {
+    return { main: ports.editorHttps, sub: ports.editorHttp };
+  }
+  if (accent === "voice") {
+    return { main: ports.voiceHttps, sub: ports.voiceHttp };
+  }
+  return null;
+}
+
+function renderCardPort(accent) {
+  const portInfo = getCardPorts(accent);
+  if (!portInfo) {
+    return `<div class="launch-tile-port launch-tile-port--app" aria-label="Desktop-приложение">app</div>`;
+  }
+
+  return `
+    <div class="launch-tile-port" aria-label="Порты ${portInfo.main} и ${portInfo.sub}">
+      <code>:${portInfo.main}</code>
+      <span class="launch-tile-port-sub">${portInfo.sub}</span>
+    </div>
+  `;
+}
+
 function launchTile(app, actionsHtml) {
   const serverNote =
     app.needsServer && !lastServer?.running ? `<p class="launch-note">нужен сервер</p>` : "";
@@ -171,6 +186,7 @@ function launchTile(app, actionsHtml) {
   return `
     <article class="launch-tile" data-accent="${app.accent}">
       <div class="launch-tile-body">
+        ${renderCardPort(app.accent)}
         <div class="launch-tile-top">
           ${icon}
           <div class="launch-tile-info">
