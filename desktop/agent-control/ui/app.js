@@ -241,12 +241,12 @@ function renderSetupChecklist() {
 
 function renderEnvRow({ mark, label, detail, value, status, hover }) {
   const hoverText = hover || [label, detail, value].filter(Boolean).join(" · ");
+
   return `
     <div class="env-row" data-status="${status || "neutral"}" title="${escapeAttr(hoverText)}">
       <span class="env-row-mark">${mark}</span>
       <span class="env-row-label">${label}</span>
-      <span class="env-row-detail">${detail || ""}</span>
-      <span class="env-row-sep" aria-hidden="true">…</span>
+      <span class="env-row-mid"><span class="env-row-dots" aria-hidden="true"></span></span>
       <span class="env-row-value">${value || "—"}</span>
     </div>
   `;
