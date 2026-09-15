@@ -5140,6 +5140,7 @@ const WORKSPACE_FS_TEXT_EXTENSIONS = new Set([
 ]);
 const WORKSPACE_FS_WRITE_MAX_BYTES = 512_000;
 const WORKSPACE_FS_UPLOAD_MAX_BYTES = 45 * 1024 * 1024;
+const WORKSPACE_FS_READ_BASE64_MAX_BYTES = 1_500_000;
 
 function normalizeWorkspaceFsRelPath(raw) {
   return String(raw || "")
@@ -5347,6 +5348,39 @@ async function writeWorkspacePad(pad, content, options = {}) {
   };
 }
 
+function resolveWorkspaceFileMimeType(filePath) {
+  const ext = path.extname(String(filePath || "")).toLowerCase();
+  return MIME_TYPES[ext] || "application/octet-stream";
+}
+
+async function readWorkspaceBinaryBase64(absolute, stat, options = {}) {
+  const maxBytes = Math.min(
+    Math.max(
+      Number.parseInt(String(options.maxBytes || WORKSPACE_FS_READ_BASE64_MAX_BYTES), 10) ||
+        WORKSPACE_FS_READ_BASE64_MAX_BYTES,
+      1024
+    ),
+    WORKSPACE_FS_READ_BASE64_MAX_BYTES
+  );
+  const offsetBytes = Math.max(Number.parseInt(String(options.offsetBytes || 0), 10) || 0, 0);
+  if (offsetBytes >= stat.size) {
+    return { error: "offsetBytes is past end of file", status: 400 };
+  }
+
+  const readable = stat.size - offsetBytes;
+  const readBytes = Math.min(readable, maxBytes);
+  const truncated = readable > maxBytes;
+  const buffer = Buffer.alloc(readBytes);
+  const fd = await fs.open(absolute, "r");
+  try {
+    await fd.read(buffer, 0, readBytes, offsetBytes);
+  } finally {
+    await fd.close();
+  }
+
+  return { buffer, offsetBytes, truncated, readBytes };
+}
+
 async function readWorkspaceFsFile(relPath, options = {}) {
   const normalized = normalizeWorkspaceFsRelPath(relPath);
   const systemFile = parseAgentRootSystemFilePath(normalized);
@@ -5421,6 +5455,30 @@ async function readWorkspaceFsFile(relPath, options = {}) {
     }
   }
 
+  const ext = path.extname(normalized).toLowerCase();
+  const mimeType = resolveWorkspaceFileMimeType(normalized);
+  const format = String(options.format || "").trim().toLowerCase();
+  if (format === "base64") {
+    const base64Read = await readWorkspaceBinaryBase64(absolute, stat, options);
+    if (base64Read.error) return base64Read;
+    return {
+      exists: true,
+      path: normalized,
+      name: path.basename(normalized),
+      kind: "binary",
+      binary: true,
+      format: "base64",
+      mimeType,
+      size: stat.size,
+      offsetBytes: base64Read.offsetBytes,
+      readBytes: base64Read.readBytes,
+      truncated: base64Read.truncated,
+      data: base64Read.buffer.toString("base64"),
+      previewUrl,
+      ext
+    };
+  }
+
   return {
     exists: true,
     path: normalized,
@@ -5429,7 +5487,8 @@ async function readWorkspaceFsFile(relPath, options = {}) {
     binary: true,
     size: stat.size,
     previewUrl,
-    ext: path.extname(normalized).toLowerCase()
+    mimeType,
+    ext
   };
 }
 
@@ -23148,7 +23207,8 @@ async function handleApiForAgent(req, res, url) {
         maxBytes: url.searchParams.get("maxBytes") || undefined,
         startLine: url.searchParams.get("startLine") || undefined,
         limitLines: url.searchParams.get("limitLines") || undefined,
-        offsetBytes: url.searchParams.get("offsetBytes") || undefined
+        offsetBytes: url.searchParams.get("offsetBytes") || undefined,
+        format: url.searchParams.get("format") || undefined
       });
       if (data.error) return sendJson(res, data.status || 400, { error: data.error, ...(data.hint ? { hint: data.hint } : {}) });
       return sendJson(res, 200, data);

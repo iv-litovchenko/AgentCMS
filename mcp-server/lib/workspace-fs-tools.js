@@ -7,42 +7,91 @@ const workspacePath = z
     "Workspace-relative path, e.g. awn-container/tema/awn-storage/media/photo.png or AGENTS.md"
   );
 
-export function registerWorkspaceFsTools(reg, client) {
-  reg(
-    "read_file",
-    "Read a workspace file by path (text returns content; binary returns previewUrl). Partial read: startLine+limitLines (lines) or offsetBytes+maxBytes (bytes). For typed .md in slots use read_content_body; for manifest use read_page_body.",
-    z.object({
-      path: workspacePath,
-      maxBytes: z.number().int().min(1024).max(120000).optional(),
-      startLine: z
-        .number()
-        .int()
-        .min(1)
-        .optional()
-        .describe("1-based start line for partial read (use with limitLines)"),
-      limitLines: z
-        .number()
-        .int()
-        .min(1)
-        .max(500)
-        .optional()
-        .describe("Max lines to return from startLine"),
-      offsetBytes: z
-        .number()
-        .int()
-        .min(0)
-        .optional()
-        .describe("Byte offset for partial read (alternative to startLine)")
-    }),
-    ({ path, maxBytes, startLine, limitLines, offsetBytes }) =>
-      client.get("/api/workspace/fs/read", {
-        path,
-        ...(maxBytes != null ? { maxBytes: String(maxBytes) } : {}),
-        ...(startLine != null ? { startLine: String(startLine) } : {}),
-        ...(limitLines != null ? { limitLines: String(limitLines) } : {}),
-        ...(offsetBytes != null ? { offsetBytes: String(offsetBytes) } : {})
-      })
-  );
+export const readFileInputSchema = z.object({
+  path: workspacePath,
+  format: z
+    .enum(["base64"])
+    .optional()
+    .describe("For binary files: return base64 bytes (images are returned as MCP image content)"),
+  maxBytes: z
+    .number()
+    .int()
+    .min(1024)
+    .max(1_500_000)
+    .optional()
+    .describe("Text partial read max bytes (default 120000) or binary base64 max bytes (default 1500000)"),
+  startLine: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe("1-based start line for partial read (use with limitLines)"),
+  limitLines: z
+    .number()
+    .int()
+    .min(1)
+    .max(500)
+    .optional()
+    .describe("Max lines to return from startLine"),
+  offsetBytes: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("Byte offset for partial read (alternative to startLine)")
+});
+
+export function readFileHandler(client, { path, format, maxBytes, startLine, limitLines, offsetBytes }) {
+  return client.get("/api/workspace/fs/read", {
+    path,
+    ...(format ? { format } : {}),
+    ...(maxBytes != null ? { maxBytes: String(maxBytes) } : {}),
+    ...(startLine != null ? { startLine: String(startLine) } : {}),
+    ...(limitLines != null ? { limitLines: String(limitLines) } : {}),
+    ...(offsetBytes != null ? { offsetBytes: String(offsetBytes) } : {})
+  });
+}
+
+export function formatReadFileToolResult(data, jsonText) {
+  if (data?.format === "base64" && typeof data.data === "string" && data.mimeType) {
+    const mimeType = String(data.mimeType).split(";")[0].trim().toLowerCase();
+    const meta = {
+      path: data.path,
+      name: data.name,
+      size: data.size,
+      kind: data.kind,
+      format: data.format,
+      mimeType,
+      truncated: data.truncated,
+      offsetBytes: data.offsetBytes ?? 0,
+      readBytes: data.readBytes,
+      previewUrl: data.previewUrl
+    };
+    if (mimeType.startsWith("image/")) {
+      return {
+        content: [
+          { type: "text", text: jsonText(meta) },
+          { type: "image", data: data.data, mimeType }
+        ]
+      };
+    }
+    return {
+      content: [{ type: "text", text: jsonText({ ...meta, data: data.data }) }]
+    };
+  }
+  return null;
+}
+
+export function registerWorkspaceFsTools(reg, client, { registerReadFile } = {}) {
+  const readFileDescription =
+    "Read a workspace file by path (text returns content; binary returns previewUrl, or format=base64 for bytes). Partial read: startLine+limitLines (lines) or offsetBytes+maxBytes (bytes). For typed .md in slots use read_content_body; for manifest use read_page_body.";
+  const readFileCall = (args) => readFileHandler(client, args);
+
+  if (registerReadFile) {
+    registerReadFile(readFileDescription, readFileInputSchema, readFileCall);
+  } else {
+    reg("read_file", readFileDescription, readFileInputSchema, readFileCall);
+  }
 
   reg(
     "write_file",

@@ -13,7 +13,10 @@ import { registerPageTools } from "./lib/page-tools.js";
 import { registerSlotTools } from "./lib/slot-tools.js";
 import { registerContentTools } from "./lib/content-tools.js";
 import { registerTypeListTools } from "./lib/type-list-tools.js";
-import { registerWorkspaceFsTools } from "./lib/workspace-fs-tools.js";
+import {
+  formatReadFileToolResult,
+  registerWorkspaceFsTools
+} from "./lib/workspace-fs-tools.js";
 import { registerMapTools, registerSearchWorkspaceTools } from "./lib/map-tools.js";
 import { registerRepositoryTools } from "./lib/repository-tools.js";
 import { registerDataPropertyTools } from "./lib/data-property-tools.js";
@@ -40,10 +43,15 @@ function toolError(message) {
   return { content: [{ type: "text", text: message }], isError: true };
 }
 
-function wrap(handler) {
+function wrap(handler, { formatResult } = {}) {
   return async (args) => {
     try {
-      return textResult(await handler(args));
+      const data = await handler(args);
+      if (formatResult) {
+        const formatted = formatResult(data);
+        if (formatted) return formatted;
+      }
+      return textResult(data);
     } catch (e) {
       return toolError(e.message);
     }
@@ -56,7 +64,7 @@ function createServer() {
 
   const server = new McpServer({ name: "agent-cms", version: "0.3.8" });
 
-  const reg = (name, description, schema, fn, { agentScope = true } = {}) => {
+  const reg = (name, description, schema, fn, { agentScope = true, formatResult } = {}) => {
     const inputSchema = agentScope ? withAgentIdSchema(schema) : schema;
     const scopeNote = agentScope
       ? ` Required: agentId (${WORKSPACE_ID_SYNONYMS}).` +
@@ -65,11 +73,14 @@ function createServer() {
     server.registerTool(
       name,
       { description: description + scopeNote, inputSchema },
-      wrap(async (args) => {
-        if (!agentScope) return fn(args);
-        const agentId = resolveAgentId(args, cfg.defaultAgent);
-        return runWithAgentId(agentId, () => fn(args));
-      })
+      wrap(
+        async (args) => {
+          if (!agentScope) return fn(args);
+          const agentId = resolveAgentId(args, cfg.defaultAgent);
+          return runWithAgentId(agentId, () => fn(args));
+        },
+        { formatResult }
+      )
     );
   };
 
@@ -324,7 +335,12 @@ function createServer() {
   // ── Workspace pads + FS + system ───────────────────────────────────────────
 
   registerWorkspacePadTools(reg, client);
-  registerWorkspaceFsTools(reg, client);
+  registerWorkspaceFsTools(reg, client, {
+    registerReadFile: (description, schema, fn) =>
+      reg("read_file", description, schema, fn, {
+        formatResult: (data) => formatReadFileToolResult(data, jsonText)
+      })
+  });
   registerExecTools(reg, client, pagePath);
   registerWebSearchTools(reg, client);
   registerAgentUtilsTools(reg, client);
