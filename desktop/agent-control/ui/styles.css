@@ -50,7 +50,10 @@ body.is-booting {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, #0e1628 0%, #060a14 70%);
+  background:
+    radial-gradient(ellipse 85% 65% at 50% 36%, rgba(79, 141, 253, 0.12) 0%, transparent 58%),
+    radial-gradient(ellipse 55% 45% at 50% 68%, rgba(20, 184, 166, 0.1) 0%, transparent 52%),
+    radial-gradient(ellipse at center, #101a30 0%, #080c18 48%, #050810 100%);
   opacity: 1;
   visibility: visible;
   transition: opacity 0.55s ease, visibility 0.55s ease;
@@ -74,6 +77,10 @@ body.is-booting {
   text-align: center;
   opacity: 0;
   transform: translateY(10px);
+  border: none;
+  background: none;
+  box-shadow: none;
+  padding: 0;
 }
 
 .splash--active .splash-copy {
@@ -82,20 +89,30 @@ body.is-booting {
 
 .splash-brand {
   margin: 0;
-  font-size: 1.05rem;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  font-size: 1.08rem;
   font-weight: 600;
   letter-spacing: -0.02em;
-  color: #e8eef8;
+  color: #eef2ff;
 }
 
 .splash-tagline {
-  margin: 5px 0 0;
-  font-size: 0.78rem;
-  color: rgba(184, 197, 220, 0.85);
+  margin: 6px 0 0;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  font-size: 0.76rem;
+  font-weight: 400;
+  color: rgba(184, 197, 220, 0.7);
 }
 
 .splash-dots {
   display: inline-block;
+  color: rgba(20, 184, 166, 0.75);
   animation: splash-dots 1.4s ease-in-out infinite;
 }
 
@@ -254,7 +271,7 @@ body.is-booting {
 @keyframes splash-dots {
   0%,
   100% {
-    opacity: 0.25;
+    opacity: 0.2;
   }
   50% {
     opacity: 1;
@@ -891,6 +908,9 @@ body.is-booting {
   font-size: 0.6rem;
   color: var(--muted);
   line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .env-grid {

@@ -259,7 +259,7 @@ function renderEnvironmentTools(environment) {
           const ok = dep.status === "ok";
           const hint = ok ? dep.value || "есть" : ENV_TOOL_HINTS[dep.id] || "Установите";
           return `
-            <div class="env-tool-row" data-status="${dep.status}">
+            <div class="env-tool-row" data-status="${dep.status}" title="${escapeAttr(ok ? dep.path || hint : hint)}">
               <span class="env-tool-name">${dep.label}</span>
               <span class="env-tool-value">${ok ? dep.value || "есть" : "нет"}</span>
               <span class="env-tool-hint">${hint}</span>
@@ -316,11 +316,6 @@ function syncServerUi(server) {
     });
   }
 
-  const editorBtn = document.getElementById("open-editor-btn");
-  if (editorBtn) {
-    editorBtn.disabled = !isRunning;
-    editorBtn.title = isRunning ? "Открыть Editor в браузере" : "Сервер не запущен";
-  }
 }
 
 async function handleServerStatusUpdate(server, options = {}) {
@@ -361,16 +356,6 @@ async function pollServerStatus() {
 function startServerPoll() {
   if (serverPollTimer) window.clearInterval(serverPollTimer);
   serverPollTimer = window.setInterval(pollServerStatus, SERVER_POLL_MS);
-}
-
-function bindOpenEditorButton() {
-  const button = document.getElementById("open-editor-btn");
-  if (!button || button.dataset.bound) return;
-  button.dataset.bound = "1";
-  button.addEventListener("click", () => {
-    const ports = getPorts();
-    window.agentControl.openExternal(`https://localhost:${ports.editorHttps}`);
-  });
 }
 
 function actionButton(actionId, tone = "default", extraClass = "", disabled = false, labelOverride = "") {
@@ -1074,7 +1059,6 @@ async function init() {
   renderAppFooter();
   startFlipClock();
   startServerPoll();
-  bindOpenEditorButton();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
   window.agentControl.onActionState(({ running }) => {
