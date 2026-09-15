@@ -10,17 +10,23 @@ const repoRoot = path.join(__dirname, "..");
 
 const SHORTCUTS = [
   {
-    name: "Agent CMS Control.app",
+    name: "ACMS-Control.app",
     target: () => path.join(repoRoot, "dist/agent-control/Agent CMS Control.app")
   },
   {
-    name: "Agent CMS.app",
+    name: "ACMS.app",
     target: () => path.join(repoRoot, "dist/agent-cms/Agent CMS.app")
   },
   {
-    name: "Agent CMS Voice.app",
+    name: "ACMS-Voice.app",
     target: () => path.join(repoRoot, "dist/agent-shell/Agent Shell.app")
   }
+];
+
+const LEGACY_SHORTCUTS = [
+  "Agent CMS Control.app",
+  "Agent CMS.app",
+  "Agent CMS Voice.app"
 ];
 
 function getDesktopDir() {
@@ -62,6 +68,14 @@ async function createDesktopShortcuts() {
   const desktopDir = getDesktopDir();
   console.log(`Рабочий стол: ${desktopDir}\n`);
 
+  for (const legacyName of LEGACY_SHORTCUTS) {
+    const legacyPath = path.join(desktopDir, legacyName);
+    if (fs.existsSync(legacyPath)) {
+      removePath(legacyPath);
+      console.log(`  ✕ убран старый ярлык ${legacyName}`);
+    }
+  }
+
   let created = 0;
 
   for (const entry of SHORTCUTS) {
@@ -70,7 +84,7 @@ async function createDesktopShortcuts() {
     const target = entry.target();
     const result = linkShortcut(desktopDir, entry.name, target);
     if (result.ok) {
-      console.log(`  ✓ ${entry.name}`);
+      console.log(`  ✓ ${entry.name} → ${path.relative(repoRoot, target)}`);
       created += 1;
       continue;
     }
@@ -91,7 +105,7 @@ async function createDesktopShortcuts() {
   return { ok: true, created, desktopDir };
 }
 
-module.exports = { createDesktopShortcuts, getDesktopDir, linkShortcut };
+module.exports = { createDesktopShortcuts, getDesktopDir, linkShortcut, SHORTCUTS };
 
 if (require.main === module) {
   createDesktopShortcuts().catch((error) => {

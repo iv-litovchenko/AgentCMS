@@ -181,7 +181,7 @@ install_stt_python || echo "  Python STT не установлен — повт�
 
 echo ""
 echo "Готово. Дальше:"
-echo "  Agent CMS Control.app   — пульт управления (npm run control:launcher)"
+echo "  acms-welcome.command    — первый запуск пульта управления"
 echo "  commands/              — отдельные ярлыки команд"
 
 pause_on_exit

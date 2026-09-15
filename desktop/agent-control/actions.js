@@ -22,7 +22,7 @@ const ACTIONS = [
     id: "setup-desktop-shortcuts",
     category: "setup",
     title: "Ярлыки на рабочем столе",
-    description: "Ярлыки на Desktop → сборки в dist/ (Control, Editor, Voice). Сначала «Собрать».",
+    description: "Desktop: ACMS-Control, ACMS, ACMS-Voice → dist/. Сначала «Собрать».",
     command: "node",
     args: ["scripts/create-desktop-shortcuts.js"],
     tone: "default"
@@ -102,15 +102,6 @@ const ACTIONS = [
     args: ["run", "control:dist"],
     tone: "default",
     controlRole: "dist"
-  },
-  {
-    id: "control-launcher",
-    category: "control",
-    title: "Ярлык в корне",
-    command: "npm",
-    args: ["run", "control:launcher"],
-    tone: "primary",
-    controlRole: "launcher"
   }
 ];
 
@@ -150,11 +141,8 @@ const CONTROL_SELF = {
   accent: "control",
   icon: "favicon.svg",
   appBundle: "Agent CMS Control.app",
-  rootLauncher: "dist/agent-control/Agent CMS Control.app",
   distActionId: "control-dist",
-  launcherActionId: "control-launcher",
-  npmDist: "npm run control:dist",
-  npmLauncher: "npm run control:launcher"
+  npmDist: "npm run control:dist"
 };
 
 const SETUP_ACTIONS = ["install-deps", "setup-certs", "setup-desktop-shortcuts"];

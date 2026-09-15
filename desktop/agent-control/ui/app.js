@@ -44,7 +44,6 @@ const ACTION_LABELS = {
   "voice-open": "Открыть",
   "voice-rebuild": "Собрать",
   "control-dist": "Собрать",
-  "control-launcher": "Открыть",
   "server-start-bg": "В фоне",
   "server-stop": "Остановить сервер",
   "server-start-attached": "Пока Control открыт",
@@ -990,11 +989,7 @@ function renderAppCard(app) {
 function renderControlCard(control) {
   if (!control) return "";
 
-  return launchTile(
-    control,
-    `${actionButton(control.launcherActionId, "primary", "compact-btn", true)}
-     ${actionButton(control.distActionId, "default", "compact-btn")}`
-  );
+  return launchTile(control, actionButton(control.distActionId, "default", "compact-btn"));
 }
 
 function renderAppsSection() {

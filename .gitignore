@@ -18,6 +18,7 @@ out/
 .dev-certs/
 
 # macOS
+/Agent CMS Control.app
 .DS_Store
 .AppleDouble
 .LSOverride

@@ -46,6 +46,4 @@ const brands = [
   } catch (error) {
     console.warn("patch-dist-icons:", error.message || error);
   }
-
-  await require("./build-control-root-app.js").buildRootApp();
 })();

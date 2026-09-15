@@ -1,5 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-export AGENT_CMS_ROOT="$ROOT"
-exec bash "$ROOT/scripts/launch-agent-control.sh"
