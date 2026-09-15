@@ -135,13 +135,13 @@ const APP_PRODUCTS = [
 ];
 
 const CONTROL_SELF = {
-  title: "Agent Control",
+  title: "Agent CMS Control",
   subtitle: "Этот пульт",
   badge: "Control",
   accent: "control",
   icon: "favicon.svg",
-  appBundle: "Agent Control.app",
-  rootLauncher: "Agent Control.app (в корне проекта)",
+  appBundle: "Agent CMS Control.app",
+  rootLauncher: "Agent CMS Control.app (в корне проекта)",
   distActionId: "control-dist",
   launcherActionId: "control-launcher",
   npmDist: "npm run control:dist",
@@ -151,11 +151,24 @@ const CONTROL_SELF = {
 const SETUP_ACTIONS = ["install-deps", "setup-certs"];
 
 const SERVER_PORTS = {
-  controlNote: "Agent Control — desktop-приложение, порта нет",
+  controlNote: "Agent CMS Control — desktop-приложение, порта нет",
   editorHttps: 3443,
   editorHttp: 3000,
   voiceHttps: 3488,
   voiceHttp: 3088
+};
+
+const SERVER_TEST = {
+  path: "/api/agent/mcp-ping",
+  hint: "Ответ JSON — сервер CMS отвечает"
+};
+
+const CHROME_EXTENSION = {
+  name: "Agent Shell Companion",
+  folderName: "browser-extension",
+  extensionsUrl: "chrome://extensions",
+  cmsUrl: "https://localhost:3443",
+  voiceUrl: "https://localhost:3488"
 };
 
 module.exports = {
@@ -163,5 +176,7 @@ module.exports = {
   APP_PRODUCTS,
   CONTROL_SELF,
   SETUP_ACTIONS,
-  SERVER_PORTS
+  SERVER_PORTS,
+  SERVER_TEST,
+  CHROME_EXTENSION
 };

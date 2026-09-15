@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Создаёт Agent Control.app в корне репозитория — ярлык с иконкой для Finder/Dock.
+ * Создаёт Agent CMS Control.app в корне репозитория — ярлык с иконкой для Finder/Dock.
  */
 const fs = require("fs");
 const path = require("path");
@@ -9,7 +9,7 @@ const { execFileSync } = require("child_process");
 const sharp = require("sharp");
 
 const repoRoot = path.join(__dirname, "..");
-const appName = "Agent Control";
+const appName = "Agent CMS Control";
 const appPath = path.join(repoRoot, `${appName}.app`);
 const svgPath = path.join(repoRoot, "desktop/agent-control/assets/favicon.svg");
 
@@ -61,13 +61,13 @@ function writeInfoPlist(contentsDir) {
 <plist version="1.0">
 <dict>
   <key>CFBundleExecutable</key>
-  <string>Agent Control</string>
+  <string>Agent CMS Control</string>
   <key>CFBundleIconFile</key>
   <string>icon</string>
   <key>CFBundleIdentifier</key>
   <string>com.agentcms.control.launcher</string>
   <key>CFBundleName</key>
-  <string>Agent Control</string>
+  <string>Agent CMS Control</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -100,7 +100,7 @@ async function buildRootApp() {
   fs.mkdirSync(resourcesDir, { recursive: true });
 
   writeInfoPlist(contentsDir);
-  writeLauncher(path.join(macOsDir, "Agent Control"));
+  writeLauncher(path.join(macOsDir, "Agent CMS Control"));
   await buildIcns(path.join(resourcesDir, "icon.icns"));
 
   try {

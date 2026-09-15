@@ -6,7 +6,7 @@ cd "$ROOT"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-CONTROL_APP="$ROOT/dist/agent-control/Agent Control.app"
+CONTROL_APP="$ROOT/dist/agent-control/Agent CMS Control.app"
 
 if [[ -d "$CONTROL_APP" ]]; then
   export AGENT_CMS_ROOT="$ROOT"

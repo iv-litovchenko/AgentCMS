@@ -1,7 +1,7 @@
 const electron = require("electron");
 
 if (!electron.app) {
-  console.error("Agent Control must be started with Electron.");
+  console.error("Agent CMS Control must be started with Electron.");
   process.exit(1);
 }
 
@@ -10,7 +10,16 @@ const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 const { getAppIcon } = require("./icon");
-const { ACTIONS, APP_PRODUCTS, CONTROL_SELF, SETUP_ACTIONS, SERVER_PORTS } = require("./actions");
+const {
+  ACTIONS,
+  APP_PRODUCTS,
+  CONTROL_SELF,
+  SETUP_ACTIONS,
+  SERVER_PORTS,
+  SERVER_TEST,
+  CHROME_EXTENSION
+} = require("./actions");
+const controlPackage = require("./package.json");
 const { buildSystemEnvironment } = require("../../lib/system-environment");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
@@ -188,7 +197,7 @@ async function startAttachedServer() {
     return { ok: false, error: "Сервер не запустился. Смотрите журнал ниже." };
   }
 
-  sendLog("\n■ Сервер работает, пока открыт Agent Control\n");
+  sendLog("\n■ Сервер работает, пока открыт Agent CMS Control\n");
   return { ok: true };
 }
 
@@ -305,7 +314,7 @@ async function createWindow() {
     height: 760,
     minWidth: 720,
     minHeight: 560,
-    title: "Agent Control",
+    title: "Agent CMS Control",
     icon: getAppIcon(),
     backgroundColor: "#0b1020",
     autoHideMenuBar: true,
@@ -348,8 +357,14 @@ if (!gotLock) {
         controlSelf: CONTROL_SELF,
         setupActionIds: SETUP_ACTIONS,
         serverPorts: SERVER_PORTS,
+        serverTest: SERVER_TEST,
+        chromeExtension: {
+          ...CHROME_EXTENSION,
+          folderPath: path.join(root, CHROME_EXTENSION.folderName)
+        },
         environment,
-        server
+        server,
+        controlVersion: controlPackage.version
       };
     });
 
@@ -383,8 +398,37 @@ if (!gotLock) {
     ipcMain.handle("control:reveal-path", async (_event, targetPath) => {
       const target = String(targetPath || "").trim();
       if (!target) return { ok: false };
-      shell.showItemInFolder(target);
-      return { ok: true };
+      try {
+        if (fs.existsSync(target) && fs.statSync(target).isDirectory()) {
+          await shell.openPath(target);
+        } else {
+          shell.showItemInFolder(target);
+        }
+        return { ok: true };
+      } catch {
+        return { ok: false };
+      }
+    });
+
+    ipcMain.handle("control:test-server", async () => {
+      const root = getProjectRoot();
+      const port = SERVER_PORTS.editorHttps;
+      const pathSuffix = SERVER_TEST.path;
+      const url = `https://localhost:${port}${pathSuffix}`;
+      const command = `curl -sk ${url}`;
+      const { execFile } = require("child_process");
+
+      return new Promise((resolve) => {
+        execFile("curl", ["-sk", url], { timeout: 8000, cwd: root }, (error, stdout, stderr) => {
+          const output = String(stdout || stderr || error?.message || "").trim();
+          resolve({
+            ok: !error && Boolean(stdout),
+            command,
+            url,
+            output: output || "Нет ответа"
+          });
+        });
+      });
     });
 
     createWindow().catch((error) => console.error(error));

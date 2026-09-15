@@ -118,7 +118,7 @@ start_agent() {
       echo "https://localhost:3443"
       echo "https://localhost:3488"
       echo "Лог: .run/agent-cms-https.log"
-      echo "Остановка: Agent Control или commands/server-stop.command"
+      echo "Остановка: Agent CMS Control или commands/server-stop.command"
       return 0
     fi
     sleep 0.25

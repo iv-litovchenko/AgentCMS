@@ -25,7 +25,7 @@ const brands = [
     ]
   },
   {
-    name: "Agent Control",
+    name: "Agent CMS Control",
     svgPath: path.join(repoRoot, "desktop/agent-control/assets/favicon.svg"),
     targets: [[1024, path.join(repoRoot, "desktop/agent-control/assets/icon.png")]]
   }

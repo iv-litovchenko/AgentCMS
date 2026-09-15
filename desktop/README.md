@@ -2,7 +2,7 @@
 
 Три Electron-приложения в одном репозитории.
 
-| | Agent CMS | Agent Shell | Agent Control |
+| | Agent CMS | Agent Shell | Agent CMS Control |
 |---|-----------|-------------|---------------|
 | **Назначение** | Редактор CMS | Agent CMS Voice | Пульт: сервер, сборки, зависимости |
 | **Dev** | `npm run cms:desktop` | `npm run shell:desktop` | `npm run control:desktop` |
@@ -10,13 +10,13 @@
 | **Pack** | `npm run cms:pack` | `npm run shell:pack` | `npm run control:pack` |
 | **Открыть .app** | `npm run cms:open` | `npm run shell:open` | `npm run control:open` |
 
-Ярлык в корне: **`Agent Control.app`** (с иконкой).
+Ярлык в корне: **`Agent CMS Control.app`** (с иконкой).
 
 Сборка Control:
 - `npm run control:dist` — полный .app в `dist/agent-control/`
 - `npm run control:launcher` — ярлык с иконкой в корне проекта
 
-Или кнопками внутри Agent Control → карточка **Control**.
+Или кнопками внутри Agent CMS Control → карточка **Control**.
 
 Отдельные команды: [`commands/`](../commands/).
 
@@ -26,7 +26,7 @@
 dist/
   agent-cms/      → Agent CMS.app
   agent-shell/    → Agent Shell.app
-  agent-control/  → Agent Control.app
+  agent-control/  → Agent CMS Control.app
 ```
 
 Код: [`agent-cms/`](agent-cms/), [`agent-shell/`](agent-shell/), [`agent-control/`](agent-control/).

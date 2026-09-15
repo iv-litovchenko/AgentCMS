@@ -26,7 +26,7 @@
     "control:desktop": "electron ./desktop/agent-control",
     "control:pack": "npm run pack --prefix desktop/agent-control && node scripts/flatten-desktop-dist.js agent-control",
     "control:dist": "npm run dist --prefix desktop/agent-control && node scripts/flatten-desktop-dist.js agent-control",
-    "control:open": "open \"dist/agent-control/Agent Control.app\"",
+    "control:open": "open \"dist/agent-control/Agent CMS Control.app\"",
     "control:launcher": "node scripts/build-control-root-app.js",
     "shell:icons": "node scripts/render-app-icons.js",
     "dist:clean": "rm -rf dist",

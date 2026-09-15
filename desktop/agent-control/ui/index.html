@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Agent Control</title>
+    <title>Agent CMS Control</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body class="is-booting">
@@ -36,8 +36,8 @@
         <div class="hero-brand">
           <img class="hero-icon" src="../assets/favicon.svg" alt="" width="44" height="44" />
           <div>
-            <h1>Agent Control</h1>
-            <p class="hero-sub">Пульт управления Agent CMS — сервер, приложения и окружение</p>
+            <h1>Agent CMS Control</h1>
+            <p class="hero-sub">Пульт управления — сервер, приложения и окружение</p>
           </div>
         </div>
         <div class="hero-actions">
@@ -49,23 +49,39 @@
         </div>
       </header>
 
-      <section class="panel env-panel">
-        <div class="panel-head">
-          <h2>Система</h2>
-          <button type="button" class="ghost-btn" id="refresh-status">Обновить</button>
+      <section class="panel section-block" data-section="system">
+        <div class="section-cap">
+          <div class="section-cap-text">
+            <h2>Система</h2>
+            <p>Окружение хоста и зависимости проекта</p>
+          </div>
+          <div class="section-cap-actions">
+            <button type="button" class="ghost-btn" id="refresh-status">Обновить</button>
+          </div>
         </div>
-        <div class="env-grid" id="env-grid"></div>
+        <div class="section-body">
+          <div class="env-grid" id="env-grid"></div>
+        </div>
       </section>
 
       <main class="actions-layout" id="actions-root"></main>
 
-      <section class="panel log-panel">
-        <div class="panel-head">
-          <h2>Журнал</h2>
-          <button type="button" class="ghost-btn" id="clear-log">Очистить</button>
+      <section class="panel section-block" data-section="log">
+        <div class="section-cap">
+          <div class="section-cap-text">
+            <h2>Журнал</h2>
+            <p>Вывод команд и ошибок</p>
+          </div>
+          <div class="section-cap-actions">
+            <button type="button" class="ghost-btn" id="clear-log">Очистить</button>
+          </div>
         </div>
-        <pre class="log-output" id="log-output"></pre>
+        <div class="section-body section-body--flush">
+          <pre class="log-output" id="log-output"></pre>
+        </div>
       </section>
+
+      <footer class="app-footer" id="app-footer" aria-label="Версия"></footer>
     </div>
     <script src="app.js"></script>
   </body>

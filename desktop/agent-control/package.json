@@ -2,7 +2,7 @@
   "name": "agent-control-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Agent Control — пульт управления Agent CMS",
+  "description": "Agent CMS Control — пульт управления Agent CMS",
   "author": "Agent CMS",
   "main": "main.js",
   "scripts": {
@@ -16,7 +16,7 @@
   },
   "build": {
     "appId": "com.agentcms.control",
-    "productName": "Agent Control",
+    "productName": "Agent CMS Control",
     "icon": "assets/icon.png",
     "directories": {
       "output": "../../dist/agent-control"

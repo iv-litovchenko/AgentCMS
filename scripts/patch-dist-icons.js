@@ -27,10 +27,10 @@ const brands = [
     asarIconPaths: ["assets/icon.png"]
   },
   {
-    name: "Agent Control",
+    name: "Agent CMS Control",
     svgPath: path.join(repoRoot, "desktop/agent-control/assets/favicon.svg"),
     pngPath: path.join(repoRoot, "desktop/agent-control/assets/icon.png"),
-    appPath: path.join(repoRoot, "dist/agent-control", "Agent Control.app"),
+    appPath: path.join(repoRoot, "dist/agent-control", "Agent CMS Control.app"),
     asarIconPaths: ["assets/icon.png"]
   }
 ];

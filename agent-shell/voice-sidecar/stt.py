@@ -133,7 +133,7 @@ def transcribe_whisper(pcm: bytes, language: str = "ru-RU", settings: dict[str, 
         from faster_whisper import WhisperModel
     except ImportError:
         return TranscribeResult(
-            error="Whisper: Agent Control → Установить зависимости (Python 3.12 и ffmpeg)",
+            error="Whisper: Agent CMS Control → Установить зависимости (Python 3.12 и ffmpeg)",
             duration_sec=duration_sec,
             peak_rms=peak_rms,
             engine="whisper",
