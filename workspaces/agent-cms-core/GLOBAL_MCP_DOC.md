@@ -9,7 +9,7 @@
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
-Этот файл — шпаргалка (**76 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
+Этот файл — шпаргалка (**77 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 ### Новый чат — выбор хранилища (`agentId`)
 
@@ -458,6 +458,7 @@ razdel-1/
 | `upload_file` | Загрузить файл (base64) по полному пути |
 | `upload_file_from_url` | Скачать http(s) URL → workspace path |
 | `list_folder` | Содержимое папки (`depth=1` или рекурсивно) |
+| `batch_invoke` | Пакетный вызов **одного** tool на массив `items` (read/create/write/delete — см. лимиты) |
 
 **Путь** — относительно корня workspace агента, например:
 - `awn-container/tema/awn-storage/media/photo.png`
@@ -498,6 +499,65 @@ razdel-1/
 | Shell-строка (pipes, `&&`) | `exec_shell` |
 
 Для обхода слотов и media — **path-based** tools (`read_file`, `upload_file`, `list_folder`).
+
+### Пакетные вызовы — `batch_invoke`
+
+Один round-trip вместо N одиночных вызовов **одного и того же** MCP-tool.
+
+**Когда использовать:** нужно прочитать/создать/обновить/удалить несколько однотипных объектов за раз — например 10 файлов, 5 записей, 3 свойства.
+
+**Когда не использовать:**
+- разные tools в одном запросе (сначала `read_file`, потом `write_file` — два отдельных вызова);
+- один объект — вызывай обычный tool;
+- `exec_command` / `exec_shell` / `run_script` — только по одному.
+
+**Схема:**
+
+```json
+{
+  "agentId": "agent-cms-test",
+  "tool": "read_file",
+  "items": [
+    { "path": "awn-container/tema/awn-storage/main/a.md" },
+    { "path": "awn-container/tema/awn-storage/main/b.md" }
+  ],
+  "parallel": true
+}
+```
+
+| Поле | Значение |
+|------|----------|
+| `tool` | Имя MCP-tool (один тип на весь batch) |
+| `items[]` | Массив аргументов — как для одиночного вызова, **без** `agentId` (он общий) |
+| `parallel` | `true` — параллельно (по умолчанию для read/list/search); `false` — строго по порядку (create/write с зависимостями) |
+
+**Ответ:** массив результатов по каждому `item` — `ok`, `result` или `error`. Частичный успех допустим: смотри каждый элемент, не только общий статус.
+
+**Лимиты (policy):**
+
+| Категория | Примеры tools | batch |
+|-----------|---------------|-------|
+| read / list / search | `read_file`, `list_folder`, `read_content_body`, `search_workspace_content` | да, до 20 |
+| write / create | `write_file`, `create_content`, `write_content_body` | да, до 10 |
+| move / rename / delete | `delete_content`, `delete_page`, `move_content` | да, до 10 |
+| exec | `exec_command`, `exec_shell`, `run_script` | **нет** |
+
+Ограничения проверяются **на сервере** (allowlist + `maxBatchSize` на tool). В `mode: readonly` workspace — только read/list/search.
+
+**Примеры:**
+
+```json
+// Прочитать 5 файлов
+{ "tool": "read_file", "items": [{ "path": "a.md" }, { "path": "b.md" }] }
+
+// Создать 3 записи в main (по порядку)
+{ "tool": "create_content", "parallel": false, "items": [
+  { "path": "…/manifest.md", "slot": "main", "ref": "zametka-1.md", "body": "…" },
+  { "path": "…/manifest.md", "slot": "main", "ref": "zametka-2.md", "body": "…" }
+]}
+```
+
+Аналог для поиска уже есть отдельно: `search_workspace_batch` (массив `queries`). `batch_invoke` — универсальная обёртка для любого batchable tool.
 
 ### Выполнение команд
 

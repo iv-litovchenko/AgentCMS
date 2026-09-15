@@ -56,7 +56,7 @@ get_session_context({ agentId: "<выбранный-id>" })
 | awn-data | `zzz_list/get_data_store`, `zzz_create_*`, `zzz_read_data_store_schema`, `zzz_read/write_store_properties`, `zzz_read/write_store_property`, `zzz_read/write_record_properties`, `zzz_read/write_record_property` |
 | Workspace pads | `read_workspace_note`, `write_workspace_note`, `read_workspace_todo`, `write_workspace_todo` |
 | Fact bank | `retain_workspace_fact`, `list_workspace_facts`, `recall_workspace_facts` → `awn-facts/` (см. `GLOBAL_MCP_DOC.md` § Банк фактов) |
-| FS | `list_system_files`, `read_file`, `write_file`, `upload_file`, `upload_file_from_url`, `list_folder` |
+| FS | `list_system_files`, `read_file`, `write_file`, `upload_file`, `upload_file_from_url`, `list_folder`, `batch_invoke` |
 | Exec | `run_script`, `exec_command`, `exec_shell` |
 
 Бинарники и media — **`upload_file`** (base64) или **`upload_file_from_url`** по полному workspace path; в слот темы — **`import_content_from_url`**.
