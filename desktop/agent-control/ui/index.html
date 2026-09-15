@@ -52,6 +52,7 @@
             <span class="status-led" aria-hidden="true"></span>
             <span class="status-value">Проверка…</span>
           </div>
+          <button type="button" class="ghost-btn" id="open-editor-btn" disabled title="Сервер не запущен">Editor</button>
           <button type="button" class="ghost-btn" disabled title="Скоро">Документация</button>
           <button type="button" class="ghost-btn ghost-btn--icon" id="reload-ui" title="Перезагрузить интерфейс (HTML, CSS)" aria-label="Обновить UI">↻</button>
         </div>
@@ -68,6 +69,8 @@
           </div>
         </div>
         <div class="section-body">
+          <div class="setup-checklist" id="setup-checklist" aria-label="Первый запуск"></div>
+          <div class="env-tools" id="env-tools" aria-label="Проверка окружения"></div>
           <div class="env-grid" id="env-grid"></div>
         </div>
       </section>

@@ -9,6 +9,24 @@ let bootstrap = null;
 let runningActionId = null;
 let lastServer = null;
 let clockTimer = null;
+let serverPollTimer = null;
+let mcpOk = null;
+let suppressServerDownNotify = false;
+
+const SERVER_POLL_MS = 8000;
+
+const SETUP_CHECK_LABELS = {
+  deps: "Зависимости",
+  certs: "Сертификаты",
+  server: "Сервер",
+  mcp: "MCP"
+};
+
+const ENV_TOOL_HINTS = {
+  node: "Node.js 18+ — brew install node",
+  python: "Python 3.12 для Whisper — brew install python@3.12",
+  mkcert: "HTTPS без предупреждений — brew install mkcert && mkcert -install"
+};
 const flipClockState = { h0: "", h1: "", m0: "", m1: "", s0: "", s1: "" };
 const FLIP_CLOCK_KEYS = ["h0", "h1", "m0", "m1", "s0", "s1"];
 
@@ -172,8 +190,91 @@ function renderAppFooter() {
   footer.textContent = `Agent CMS Control v${controlVersion}${projectLabel}`;
 }
 
+function getSetupCheckState() {
+  const flags = bootstrap?.setupFlags || {};
+  const server = lastServer || bootstrap?.server;
+  return {
+    deps: Boolean(flags.depsOk),
+    certs: Boolean(flags.certsOk),
+    server: Boolean(server?.running),
+    mcp: mcpOk === true
+  };
+}
+
+function renderSetupChecklist() {
+  const root = document.getElementById("setup-checklist");
+  if (!root) return;
+
+  const state = getSetupCheckState();
+  const hints = {
+    deps: "Шаг 1 → Зависимости",
+    certs: "Шаг 1 → Сертификаты HTTPS",
+    server: "Шаг 2 → Старт",
+    mcp: "Шаг 3 → MCP к агенту"
+  };
+
+  root.innerHTML = `
+    <div class="setup-checklist-head">Первый запуск</div>
+    <div class="setup-checklist-grid">
+      ${Object.keys(SETUP_CHECK_LABELS)
+        .map((id) => {
+          const ok = state[id];
+          const pending = id === "mcp" && state.server && mcpOk === null;
+          const mark = ok ? "✓" : pending ? "…" : "○";
+          const itemState = ok ? "ok" : pending ? "pending" : "todo";
+          const hint = !ok && !pending ? `<span class="setup-check-hint">${hints[id]}</span>` : "";
+
+          return `
+            <div class="setup-check-item" data-state="${itemState}">
+              <span class="setup-check-mark">${mark}</span>
+              <span class="setup-check-copy">
+                <span class="setup-check-label">${SETUP_CHECK_LABELS[id]}</span>
+                ${hint}
+              </span>
+            </div>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function renderEnvironmentTools(environment) {
+  const root = document.getElementById("env-tools");
+  if (!root) return;
+
+  if (!environment) {
+    root.innerHTML = "";
+    return;
+  }
+
+  const wanted = ["node", "python", "mkcert"];
+  const deps = (environment.dependencies || []).filter((dep) => wanted.includes(dep.id));
+
+  root.innerHTML = `
+    <div class="env-tools-head">Окружение</div>
+    <div class="env-tools-list">
+      ${deps
+        .map((dep) => {
+          const ok = dep.status === "ok";
+          const hint = ok ? dep.value || "есть" : ENV_TOOL_HINTS[dep.id] || "Установите";
+          return `
+            <div class="env-tool-row" data-status="${dep.status}">
+              <span class="env-tool-name">${dep.label}</span>
+              <span class="env-tool-value">${ok ? dep.value || "есть" : "нет"}</span>
+              <span class="env-tool-hint">${hint}</span>
+            </div>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
 function renderEnvironment(environment) {
   envGrid.innerHTML = "";
+  renderEnvironmentTools(environment);
+  renderSetupChecklist();
   if (!environment) return;
 
   const chips = [
@@ -183,7 +284,7 @@ function renderEnvironment(environment) {
     ["Проект", environment.app?.version ? `v${environment.app.version}` : "—"]
   ];
 
-  for (const dep of (environment.dependencies || []).slice(0, 6)) {
+  for (const dep of (environment.dependencies || []).filter((dep) => ["npm", "git", "https"].includes(dep.id))) {
     chips.push([dep.label, dep.value || "—", dep.status]);
   }
 
@@ -194,6 +295,82 @@ function renderEnvironment(environment) {
     chip.innerHTML = `<strong>${label}</strong><span>${value}</span>`;
     envGrid.appendChild(chip);
   }
+}
+
+function syncServerUi(server) {
+  const isRunning = Boolean(server?.running);
+  applyServerStatusChip(document.getElementById("server-status-inline"), server);
+
+  document.querySelectorAll(".browser-link").forEach((button) => {
+    button.disabled = !isRunning;
+  });
+
+  if (!runningActionId) {
+    document
+      .querySelectorAll('[data-action="server-start-bg"], [data-action="server-start-attached"]')
+      .forEach((button) => {
+        button.disabled = isRunning;
+      });
+    document.querySelectorAll('[data-action="server-stop"]').forEach((button) => {
+      button.disabled = !isRunning;
+    });
+  }
+
+  const editorBtn = document.getElementById("open-editor-btn");
+  if (editorBtn) {
+    editorBtn.disabled = !isRunning;
+    editorBtn.title = isRunning ? "Открыть Editor в браузере" : "Сервер не запущен";
+  }
+}
+
+async function handleServerStatusUpdate(server, options = {}) {
+  const wasRunning = Boolean(lastServer?.running);
+  lastServer = server;
+  renderServerStatus(server);
+
+  if (wasRunning && !server?.running && !options.skipNotify && !suppressServerDownNotify) {
+    window.agentControl.notify("Сервер остановлен", "CMS и Voice больше не отвечают.");
+    appendLog("Сервер перестал отвечать.\n", "stderr");
+  }
+  suppressServerDownNotify = false;
+
+  if (server?.running) {
+    try {
+      const result = await window.agentControl.testUrl(getTestUrl("mcp"));
+      mcpOk = result.ok;
+    } catch {
+      mcpOk = false;
+    }
+  } else {
+    mcpOk = null;
+  }
+
+  syncServerUi(server);
+  renderSetupChecklist();
+}
+
+async function pollServerStatus() {
+  try {
+    const data = await window.agentControl.refreshStatus();
+    await handleServerStatusUpdate(data.server);
+  } catch {
+    // ignore transient poll errors
+  }
+}
+
+function startServerPoll() {
+  if (serverPollTimer) window.clearInterval(serverPollTimer);
+  serverPollTimer = window.setInterval(pollServerStatus, SERVER_POLL_MS);
+}
+
+function bindOpenEditorButton() {
+  const button = document.getElementById("open-editor-btn");
+  if (!button || button.dataset.bound) return;
+  button.dataset.bound = "1";
+  button.addEventListener("click", () => {
+    const ports = getPorts();
+    window.agentControl.openExternal(`https://localhost:${ports.editorHttps}`);
+  });
 }
 
 function actionButton(actionId, tone = "default", extraClass = "", disabled = false, labelOverride = "") {
@@ -407,7 +584,7 @@ function renderGuideStepServer() {
         <div class="guide-step-head">
           <h3 class="server-step-title">
             Сервер
-            ${renderServerStatusChip(server)}
+            <span id="server-status-inline"></span>
           </h3>
           <p>Запустите CMS и Voice — без сервера не работают Editor, Voice и расширение Chrome</p>
         </div>
@@ -681,6 +858,8 @@ function renderLayout() {
   actionsRoot.appendChild(renderGuideSection());
   bindActionHandlers();
   syncMcpConfigPreview();
+  applyServerStatusChip(document.getElementById("server-status-inline"), lastServer || bootstrap?.server);
+  syncServerUi(lastServer || bootstrap?.server);
 }
 
 async function copyText(text) {
@@ -777,12 +956,21 @@ function bindActionHandlers() {
 
 async function runAction(actionId) {
   if (!actionId || runningActionId) return;
+  if (actionId === "server-stop") suppressServerDownNotify = true;
   runningActionId = actionId;
   setButtonsDisabled(true);
   try {
     await window.agentControl.runAction(actionId);
     const status = await window.agentControl.refreshStatus();
-    renderServerStatus(status.server);
+    await handleServerStatusUpdate(status.server, { skipNotify: actionId === "server-stop" });
+    if (actionId === "install-deps" || actionId === "setup-certs") {
+      const data = await window.agentControl.refreshBootstrap();
+      if (data.setupFlags) bootstrap.setupFlags = data.setupFlags;
+      if (data.environment) {
+        bootstrap.environment = data.environment;
+        renderEnvironment(data.environment);
+      }
+    }
     renderLayout();
   } finally {
     runningActionId = null;
@@ -881,10 +1069,12 @@ async function init() {
 
   bootstrap = await window.agentControl.getBootstrap();
   renderEnvironment(bootstrap.environment);
-  renderServerStatus(bootstrap.server);
+  await handleServerStatusUpdate(bootstrap.server, { skipNotify: true });
   renderLayout();
   renderAppFooter();
   startFlipClock();
+  startServerPoll();
+  bindOpenEditorButton();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
   window.agentControl.onActionState(({ running }) => {
@@ -919,9 +1109,9 @@ document.getElementById("refresh-status").addEventListener("click", async () => 
       bootstrap.environment = data.environment;
       renderEnvironment(data.environment);
     }
-    renderServerStatus(data.server);
-    lastServer = data.server;
+    if (data.setupFlags) bootstrap.setupFlags = data.setupFlags;
     if (data.mcpConnect) bootstrap.mcpConnect = data.mcpConnect;
+    await handleServerStatusUpdate(data.server, { skipNotify: true });
     renderLayout();
     renderAppFooter();
   } catch (error) {

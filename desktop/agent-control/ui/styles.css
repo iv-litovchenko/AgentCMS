@@ -764,6 +764,135 @@ body.is-booting {
   line-height: 1;
 }
 
+.setup-checklist {
+  margin-bottom: 10px;
+}
+
+.setup-checklist-head,
+.env-tools-head {
+  margin-bottom: 6px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.setup-checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.setup-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 140, 180, 0.1);
+  background: rgba(8, 12, 24, 0.45);
+}
+
+.setup-check-item[data-state="ok"] {
+  border-color: rgba(52, 211, 153, 0.22);
+}
+
+.setup-check-item[data-state="pending"] {
+  border-color: rgba(120, 140, 180, 0.18);
+}
+
+.setup-check-mark {
+  flex-shrink: 0;
+  width: 1rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.setup-check-item[data-state="ok"] .setup-check-mark {
+  color: var(--ok);
+}
+
+.setup-check-item[data-state="todo"] .setup-check-mark {
+  color: var(--muted);
+}
+
+.setup-check-item[data-state="pending"] .setup-check-mark {
+  color: #93c5fd;
+}
+
+.setup-check-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.setup-check-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.setup-check-hint {
+  font-size: 0.58rem;
+  color: var(--muted);
+  line-height: 1.25;
+}
+
+.env-tools {
+  margin-bottom: 10px;
+}
+
+.env-tools-list {
+  display: grid;
+  gap: 4px;
+}
+
+.env-tool-row {
+  display: grid;
+  grid-template-columns: 72px 56px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 140, 180, 0.1);
+  background: rgba(8, 12, 24, 0.45);
+}
+
+.env-tool-row[data-status="ok"] {
+  border-color: rgba(52, 211, 153, 0.18);
+}
+
+.env-tool-row[data-status="missing"] {
+  border-color: rgba(251, 191, 36, 0.18);
+}
+
+.env-tool-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.env-tool-value {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.env-tool-row[data-status="ok"] .env-tool-value {
+  color: var(--ok);
+}
+
+.env-tool-row[data-status="missing"] .env-tool-value {
+  color: var(--warn);
+}
+
+.env-tool-hint {
+  font-size: 0.6rem;
+  color: var(--muted);
+  line-height: 1.25;
+}
+
 .env-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -1774,8 +1903,14 @@ body.is-booting {
 @media (max-width: 800px) {
   .launchpad-grid,
   .action-card-grid,
-  .setup-btn-grid {
+  .setup-btn-grid,
+  .setup-checklist-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .env-tool-row {
     grid-template-columns: 1fr;
+    gap: 2px;
   }
 
   .server-deck,

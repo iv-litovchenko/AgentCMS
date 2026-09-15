@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("agentControl", {
   openExternal: (url) => ipcRenderer.invoke("control:open-external", url),
   revealPath: (targetPath) => ipcRenderer.invoke("control:reveal-path", targetPath),
   testUrl: (url) => ipcRenderer.invoke("control:test-url", url),
+  notify: (title, body) => ipcRenderer.invoke("control:notify", { title, body }),
   onLog: (callback) => {
     const handler = (_event, payload) => callback(payload);
     ipcRenderer.on("control:log", handler);

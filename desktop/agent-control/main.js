@@ -5,7 +5,7 @@ if (!electron.app) {
   process.exit(1);
 }
 
-const { app, BrowserWindow, ipcMain, shell } = electron;
+const { app, BrowserWindow, ipcMain, shell, Notification } = electron;
 const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
@@ -39,6 +39,13 @@ function buildAnonymizedMcpConfig(cmsBaseUrl, envExtra = {}) {
         env
       }
     }
+  };
+}
+
+function buildProjectSetupFlags(root) {
+  return {
+    depsOk: fs.existsSync(path.join(root, "node_modules")),
+    certsOk: fs.existsSync(path.join(root, ".dev-certs", "cert.pem"))
   };
 }
 
@@ -510,6 +517,7 @@ if (!gotLock) {
         },
         environment,
         server,
+        setupFlags: buildProjectSetupFlags(root),
         controlVersion: controlPackage.version
       };
     });
@@ -522,7 +530,12 @@ if (!gotLock) {
       const root = getProjectRoot();
       const environment = await buildSystemEnvironment(root).catch(() => null);
       const server = await probeServerStatus();
-      return { environment, server, mcpConnect: buildMcpConnectInfo(root) };
+      return {
+        environment,
+        server,
+        mcpConnect: buildMcpConnectInfo(root),
+        setupFlags: buildProjectSetupFlags(root)
+      };
     });
 
     ipcMain.handle("control:reload-ui", () => {
@@ -554,6 +567,21 @@ if (!gotLock) {
       } catch {
         return { ok: false };
       }
+    });
+
+    ipcMain.handle("control:notify", (_event, payload = {}) => {
+      const title = String(payload.title || "Agent CMS Control").trim();
+      const body = String(payload.body || "").trim();
+      if (!body || !Notification.isSupported()) return { ok: false };
+      const iconPath = path.join(__dirname, "assets", "icon.png");
+      const notification = new Notification({
+        title,
+        body,
+        icon: fs.existsSync(iconPath) ? iconPath : undefined,
+        silent: false
+      });
+      notification.show();
+      return { ok: true };
     });
 
     ipcMain.handle("control:test-url", async (_event, targetUrl) => {
