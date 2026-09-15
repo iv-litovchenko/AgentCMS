@@ -3,7 +3,8 @@ const SPLASH_FADE_MS = 550;
 
 const logOutput = document.getElementById("log-output");
 const actionsRoot = document.getElementById("actions-root");
-const envGrid = document.getElementById("env-grid");
+const envRows = document.getElementById("env-rows");
+let envExpandAll = false;
 const serverStatus = document.getElementById("server-status");
 let bootstrap = null;
 let runningActionId = null;
@@ -214,7 +215,6 @@ function renderSetupChecklist() {
   };
 
   root.innerHTML = `
-    <div class="setup-checklist-head">Первый запуск</div>
     <div class="setup-checklist-grid">
       ${Object.keys(SETUP_CHECK_LABELS)
         .map((id) => {
@@ -239,62 +239,144 @@ function renderSetupChecklist() {
   `;
 }
 
-function renderEnvironmentTools(environment) {
-  const root = document.getElementById("env-tools");
-  if (!root) return;
-
-  if (!environment) {
-    root.innerHTML = "";
-    return;
-  }
-
-  const wanted = ["node", "python", "mkcert"];
-  const deps = (environment.dependencies || []).filter((dep) => wanted.includes(dep.id));
-
-  root.innerHTML = `
-    <div class="env-tools-head">Окружение</div>
-    <div class="env-tools-list">
-      ${deps
-        .map((dep) => {
-          const ok = dep.status === "ok";
-          const hint = ok ? dep.value || "есть" : ENV_TOOL_HINTS[dep.id] || "Установите";
-          return `
-            <div class="env-tool-row" data-status="${dep.status}" title="${escapeAttr(ok ? dep.path || hint : hint)}">
-              <span class="env-tool-name">${dep.label}</span>
-              <span class="env-tool-value">${ok ? dep.value || "есть" : "нет"}</span>
-              <span class="env-tool-hint">${hint}</span>
-            </div>
-          `;
-        })
-        .join("")}
+function renderEnvRow({ mark, label, detail, value, status, hover }) {
+  const hoverText = hover || [label, detail, value].filter(Boolean).join(" · ");
+  return `
+    <div class="env-row" data-status="${status || "neutral"}" title="${escapeAttr(hoverText)}">
+      <span class="env-row-mark">${mark}</span>
+      <span class="env-row-label">${label}</span>
+      <span class="env-row-detail">${detail || ""}</span>
+      <span class="env-row-sep" aria-hidden="true">…</span>
+      <span class="env-row-value">${value || "—"}</span>
     </div>
   `;
 }
 
+function dependencyEnvRow(dep) {
+  const ok = dep.status === "ok";
+  const warn = dep.status === "warn";
+  const value = ok || warn ? dep.value || (ok ? "есть" : "—") : "нет";
+  const detail = ok
+    ? dep.path || dep.note || ""
+    : warn
+      ? dep.path || dep.note || ""
+      : ENV_TOOL_HINTS[dep.id] || dep.note || "Установите";
+  const hover = ok
+    ? `${dep.label}: ${[dep.path, dep.value, dep.note].filter(Boolean).join(" · ")}`
+    : `${dep.label} — ${ENV_TOOL_HINTS[dep.id] || dep.note || "Установите"}`;
+  const mark = ok ? "✓" : warn ? "△" : "○";
+
+  return renderEnvRow({
+    mark,
+    label: dep.label,
+    detail,
+    value,
+    status: dep.status,
+    hover
+  });
+}
+
+function buildCoreEnvironmentRows(environment) {
+  if (!environment) return [];
+
+  const depsById = Object.fromEntries((environment.dependencies || []).map((dep) => [dep.id, dep]));
+  const rows = ["node", "python", "mkcert"]
+    .map((id) => depsById[id])
+    .filter(Boolean)
+    .map(dependencyEnvRow);
+
+  rows.push(
+    renderEnvRow({
+      mark: "·",
+      label: "Хост",
+      value: environment.host?.computerName || environment.host?.hostname || "—",
+      detail:
+        environment.host?.hostname &&
+        environment.host?.computerName &&
+        environment.host.computerName !== environment.host.hostname
+          ? environment.host.hostname
+          : "",
+      status: "neutral",
+      hover: `Хост: ${environment.host?.computerName || environment.host?.hostname || "—"}`
+    }),
+    renderEnvRow({
+      mark: "·",
+      label: "Платформа",
+      value: environment.host?.platformLabel || "—",
+      detail: environment.host?.release ? `kernel ${environment.host.release}` : "",
+      status: "neutral",
+      hover: `Платформа: ${environment.host?.platformLabel || "—"}`
+    }),
+    renderEnvRow({
+      mark: "·",
+      label: "LAN",
+      value: environment.host?.lanIp || "—",
+      detail: environment.host?.lanIp ? "локальная сеть" : "не определён",
+      status: environment.host?.lanIp ? "ok" : "neutral",
+      hover: environment.host?.lanIp ? `LAN: ${environment.host.lanIp}` : "LAN не определён"
+    }),
+    renderEnvRow({
+      mark: "·",
+      label: "Проект",
+      value: environment.app?.version ? `v${environment.app.version}` : "—",
+      detail: environment.app?.name || "agent-cms",
+      status: "neutral",
+      hover: `Проект: ${environment.app?.name || "agent-cms"} v${environment.app?.version || "—"}`
+    })
+  );
+
+  rows.push(
+    ...["npm", "git", "https"]
+      .map((id) => depsById[id])
+      .filter(Boolean)
+      .map(dependencyEnvRow)
+  );
+
+  return rows;
+}
+
+function buildExtraEnvironmentRows(environment) {
+  if (!environment) return [];
+
+  const extraOrder = ["openssl", "whisper", "claude", "codex", "electron"];
+  const depsById = Object.fromEntries((environment.dependencies || []).map((dep) => [dep.id, dep]));
+  return extraOrder.map((id) => depsById[id]).filter(Boolean).map(dependencyEnvRow);
+}
+
+function renderEnvironmentRows(environment) {
+  if (!envRows) return;
+
+  if (!environment) {
+    envRows.innerHTML = "";
+    return;
+  }
+
+  const rows = buildCoreEnvironmentRows(environment);
+  if (envExpandAll) {
+    rows.push(...buildExtraEnvironmentRows(environment));
+  }
+
+  envRows.innerHTML = rows.join("");
+
+  const expandToggle = document.getElementById("env-expand-all");
+  if (expandToggle && expandToggle.checked !== envExpandAll) {
+    expandToggle.checked = envExpandAll;
+  }
+}
+
+function bindEnvExpandToggle() {
+  const toggle = document.getElementById("env-expand-all");
+  if (!toggle || toggle.dataset.bound) return;
+  toggle.dataset.bound = "1";
+  toggle.addEventListener("change", () => {
+    envExpandAll = toggle.checked;
+    renderEnvironmentRows(bootstrap?.environment);
+  });
+}
+
 function renderEnvironment(environment) {
-  envGrid.innerHTML = "";
-  renderEnvironmentTools(environment);
   renderSetupChecklist();
-  if (!environment) return;
-
-  const chips = [
-    ["Хост", environment.host?.computerName || environment.host?.hostname || "—"],
-    ["Платформа", environment.host?.platformLabel || "—"],
-    ["LAN", environment.host?.lanIp || "—"],
-    ["Проект", environment.app?.version ? `v${environment.app.version}` : "—"]
-  ];
-
-  for (const dep of (environment.dependencies || []).filter((dep) => ["npm", "git", "https"].includes(dep.id))) {
-    chips.push([dep.label, dep.value || "—", dep.status]);
-  }
-
-  for (const [label, value, status] of chips) {
-    const chip = document.createElement("div");
-    chip.className = "env-chip";
-    if (status) chip.dataset.status = status;
-    chip.innerHTML = `<strong>${label}</strong><span>${value}</span>`;
-    envGrid.appendChild(chip);
-  }
+  renderEnvironmentRows(environment);
 }
 
 function syncServerUi(server) {
@@ -1059,6 +1141,7 @@ async function init() {
   renderAppFooter();
   startFlipClock();
   startServerPoll();
+  bindEnvExpandToggle();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
   window.agentControl.onActionState(({ running }) => {

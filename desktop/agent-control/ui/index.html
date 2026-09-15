@@ -64,13 +64,18 @@
             <p>Окружение хоста и зависимости проекта</p>
           </div>
           <div class="section-cap-actions">
+            <label class="env-expand-all">
+              <input type="checkbox" id="env-expand-all" />
+              <span>Раскрыть полный список</span>
+            </label>
             <button type="button" class="ghost-btn" id="refresh-status">Обновить</button>
           </div>
         </div>
         <div class="section-body">
           <div class="setup-checklist" id="setup-checklist" aria-label="Первый запуск"></div>
-          <div class="env-tools" id="env-tools" aria-label="Проверка окружения"></div>
-          <div class="env-grid" id="env-grid"></div>
+          <div class="env-rows-wrap" aria-label="Окружение">
+            <div class="env-rows" id="env-rows"></div>
+          </div>
         </div>
       </section>
 

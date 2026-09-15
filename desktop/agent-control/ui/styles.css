@@ -782,17 +782,7 @@ body.is-booting {
 }
 
 .setup-checklist {
-  margin-bottom: 10px;
-}
-
-.setup-checklist-head,
-.env-tools-head {
-  margin-bottom: 6px;
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--muted);
+  margin-bottom: 8px;
 }
 
 .setup-checklist-grid {
@@ -858,92 +848,123 @@ body.is-booting {
   line-height: 1.25;
 }
 
-.env-tools {
-  margin-bottom: 10px;
+.section-block[data-section="system"] .section-body {
+  padding: 10px 14px 12px;
 }
 
-.env-tools-list {
-  display: grid;
-  gap: 4px;
+.env-expand-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
 }
 
-.env-tool-row {
+.env-expand-all input {
+  accent-color: var(--control);
+}
+
+.env-rows-wrap {
+  margin-top: 0;
+}
+
+.env-rows {
   display: grid;
-  grid-template-columns: 72px 56px minmax(0, 1fr);
+  gap: 3px;
+}
+
+.env-row {
+  display: grid;
+  grid-template-columns: 1.1rem 76px minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: center;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(120, 140, 180, 0.1);
-  background: rgba(8, 12, 24, 0.45);
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.env-tool-row[data-status="ok"] {
-  border-color: rgba(52, 211, 153, 0.18);
+.env-row:hover {
+  background: rgba(20, 184, 166, 0.06);
+  border-color: rgba(120, 140, 180, 0.14);
 }
 
-.env-tool-row[data-status="missing"] {
-  border-color: rgba(251, 191, 36, 0.18);
-}
-
-.env-tool-name {
+.env-row-mark {
+  text-align: center;
+  font-weight: 700;
   font-size: 0.72rem;
-  font-weight: 600;
 }
 
-.env-tool-value {
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.env-tool-row[data-status="ok"] .env-tool-value {
+.env-row[data-status="ok"] .env-row-mark {
   color: var(--ok);
 }
 
-.env-tool-row[data-status="missing"] .env-tool-value {
+.env-row[data-status="missing"] .env-row-mark,
+.env-row[data-status="todo"] .env-row-mark {
   color: var(--warn);
 }
 
-.env-tool-hint {
-  font-size: 0.6rem;
-  color: var(--muted);
-  line-height: 1.25;
+.env-row[data-status="warn"] .env-row-mark {
+  color: #fbbf24;
+}
+
+.env-row[data-status="pending"] .env-row-mark {
+  color: #93c5fd;
+}
+
+.env-row-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.env-row-detail {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.env-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 6px;
-}
-
-.env-chip {
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: rgba(8, 12, 24, 0.45);
-  border: 1px solid rgba(120, 140, 180, 0.1);
-}
-
-.env-chip strong {
-  display: block;
-  font-size: 0.66rem;
   color: var(--muted);
-  margin-bottom: 2px;
+  opacity: 0.9;
 }
 
-.env-chip span {
-  font-size: 0.78rem;
+.env-row:hover .env-row-detail {
+  color: #c5d4ef;
 }
 
-.env-chip[data-status="ok"] span {
+.env-row-sep {
+  flex-shrink: 0;
+  color: var(--muted);
+  opacity: 0.45;
+  font-size: 0.68rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.env-row:hover .env-row-sep {
+  opacity: 0.7;
+}
+
+.env-row-value {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.env-row[data-status="ok"] .env-row-value {
   color: var(--ok);
 }
 
-.env-chip[data-status="warn"] span,
-.env-chip[data-status="missing"] span {
+.env-row[data-status="missing"] .env-row-value,
+.env-row[data-status="todo"] .env-row-value {
   color: var(--warn);
+}
+
+.env-row[data-status="warn"] .env-row-value {
+  color: #fbbf24;
 }
 
 .actions-layout {
@@ -1928,9 +1949,9 @@ body.is-booting {
     grid-template-columns: 1fr 1fr;
   }
 
-  .env-tool-row {
-    grid-template-columns: 1fr;
-    gap: 2px;
+  .env-row {
+    grid-template-columns: 1.1rem 64px minmax(0, 1fr) auto auto;
+    gap: 6px;
   }
 
   .server-deck,
