@@ -1,8 +1,5 @@
-const CATEGORIES = [
-  { id: "setup", label: "Установка", hint: "Первый запуск и окружение" },
-  { id: "server", label: "Сервер", hint: "CMS + Voice в браузере" },
-  { id: "apps", label: "Приложения", hint: "Desktop .app" }
-];
+const SPLASH_MS = 1200;
+const SPLASH_FADE_MS = 550;
 
 const logOutput = document.getElementById("log-output");
 const actionsRoot = document.getElementById("actions-root");
@@ -10,6 +7,21 @@ const envGrid = document.getElementById("env-grid");
 const serverStatus = document.getElementById("server-status");
 let bootstrap = null;
 let runningActionId = null;
+let lastServer = null;
+
+const ACTION_LABELS = {
+  "cms-open": "Открыть",
+  "cms-rebuild": "Собрать",
+  "voice-open": "Открыть",
+  "voice-rebuild": "Собрать",
+  "control-dist": "Собрать",
+  "control-launcher": "Открыть",
+  "server-start-bg": "В фоне",
+  "server-stop": "Остановить сервер",
+  "server-start-attached": "Пока Control открыт",
+  "install-deps": "Установить",
+  "setup-certs": "Сертификаты"
+};
 
 function appendLog(text, stream = "stdout") {
   const span = document.createElement("span");
@@ -20,6 +32,7 @@ function appendLog(text, stream = "stdout") {
 }
 
 function renderServerStatus(server) {
+  lastServer = server;
   const dot = serverStatus.querySelector(".status-dot");
   const text = serverStatus.querySelector(".status-text");
 
@@ -31,10 +44,7 @@ function renderServerStatus(server) {
 
   if (server.running) {
     dot.dataset.state = "ok";
-    const parts = [];
-    if (server.urls?.cms) parts.push("CMS");
-    if (server.urls?.voice) parts.push("Voice");
-    text.textContent = `Сервер работает · ${parts.join(" + ")}`;
+    text.textContent = "Сервер работает";
     return;
   }
 
@@ -66,74 +76,271 @@ function renderEnvironment(environment) {
   }
 }
 
-function renderActions(actions) {
+function actionButton(actionId, tone = "default", extraClass = "", disabled = false, labelOverride = "") {
+  const label = labelOverride || ACTION_LABELS[actionId] || "Запустить";
+  const disabledAttr = disabled ? " disabled" : "";
+  return `<button type="button" class="run-btn ${extraClass}" data-tone="${tone}" data-action="${actionId}"${disabledAttr}>${label}</button>`;
+}
+
+function serverModeButton(actionId, title, hint, tone, disabled) {
+  const disabledAttr = disabled ? " disabled" : "";
+  return `
+    <button type="button" class="server-mode" data-tone="${tone}" data-action="${actionId}"${disabledAttr}>
+      <strong>${title}</strong>
+      <span>${hint}</span>
+    </button>
+  `;
+}
+
+function renderServerSection() {
+  const server = lastServer || bootstrap?.server;
+  const isRunning = Boolean(server?.running);
+  const section = document.createElement("section");
+  section.className = "action-section panel server-panel";
+
+  const ports = bootstrap?.serverPorts || {
+    editorHttps: 3443,
+    editorHttp: 3000,
+    voiceHttps: 3488,
+    voiceHttp: 3088
+  };
+  const cmsUrl = `https://localhost:${ports.editorHttps}`;
+  const voiceUrl = `https://localhost:${ports.voiceHttps}`;
+  const linkDisabled = isRunning ? "" : " disabled";
+
+  const modeText = server?.modeLabel || (isRunning ? "работает" : "остановлен");
+
+  section.innerHTML = `
+    <div class="server-head">
+      <h2>Сервер</h2>
+      <span class="server-state ${isRunning ? "is-on" : "is-off"}">${modeText}</span>
+    </div>
+    <div class="ports-strip">
+      <div class="port-chip port-chip--cms">
+        <span class="port-label">Editor</span>
+        <code>:${ports.editorHttps}</code>
+        <span class="port-sub">http :${ports.editorHttp}</span>
+      </div>
+      <div class="port-chip port-chip--voice">
+        <span class="port-label">Voice</span>
+        <code>:${ports.voiceHttps}</code>
+        <span class="port-sub">http :${ports.voiceHttp}</span>
+      </div>
+      <div class="port-chip port-chip--control">
+        <span class="port-label">Control</span>
+        <span class="port-sub">desktop · без порта</span>
+      </div>
+    </div>
+    <div class="server-modes" role="group" aria-label="Запуск сервера">
+      ${serverModeButton(
+        "server-start-bg",
+        "В фоне",
+        "Сервер останется после закрытия Agent Control",
+        "primary",
+        isRunning
+      )}
+      ${serverModeButton(
+        "server-start-attached",
+        "Пока Control открыт",
+        "Сервер остановится, когда закроете это окно",
+        "default",
+        isRunning
+      )}
+    </div>
+    <div class="server-stop-row">
+      ${actionButton("server-stop", "danger", "server-stop-btn", !isRunning)}
+    </div>
+    <div class="server-links">
+      <span class="server-links-label">Открыть в браузере:</span>
+      <button type="button" class="link-btn link-btn--cms" data-url="${cmsUrl}"${linkDisabled}>Editor :3443</button>
+      <button type="button" class="link-btn link-btn--voice" data-url="${voiceUrl}"${linkDisabled}>Voice :3488</button>
+    </div>
+  `;
+
+  return section;
+}
+
+function launchTile(app, actionsHtml) {
+  const serverNote =
+    app.needsServer && !lastServer?.running ? `<p class="launch-note">нужен сервер</p>` : "";
+
+  const icon = app.icon
+    ? `<img class="launch-icon" src="../assets/${app.icon}" alt="" width="44" height="44" />`
+    : "";
+
+  return `
+    <article class="launch-tile" data-accent="${app.accent}">
+      <div class="launch-tile-body">
+        <div class="launch-tile-top">
+          ${icon}
+          <div class="launch-tile-info">
+            <span class="product-badge" data-accent="${app.accent}">${app.badge}</span>
+            <h3>${app.title}</h3>
+            <p class="launch-subtitle">${app.subtitle}</p>
+            ${serverNote}
+          </div>
+        </div>
+        <div class="launch-tile-actions">${actionsHtml}</div>
+      </div>
+    </article>
+  `;
+}
+
+function renderAppCard(app) {
+  return launchTile(
+    app,
+    `${actionButton(app.openActionId, "primary", "compact-btn")}
+     ${actionButton(app.rebuildActionId, "default", "compact-btn")}`
+  );
+}
+
+function renderControlCard(control) {
+  if (!control) return "";
+
+  return launchTile(
+    control,
+    `${actionButton(control.launcherActionId, "primary", "compact-btn")}
+     ${actionButton(control.distActionId, "default", "compact-btn")}`
+  );
+}
+
+function renderAppsSection() {
+  const products = bootstrap?.appProducts || [];
+  const control = bootstrap?.controlSelf;
+  const section = document.createElement("section");
+  section.className = "launchpad";
+
+  section.innerHTML = `
+    <div class="launchpad-grid">
+      ${products.map(renderAppCard).join("")}
+      ${renderControlCard(control)}
+    </div>
+  `;
+
+  return section;
+}
+
+function renderSetupSection() {
+  const ids = bootstrap?.setupActionIds || [];
+  const actions = (bootstrap?.actions || []).filter((entry) => ids.includes(entry.id));
+  const section = document.createElement("section");
+  section.className = "action-section panel";
+
+  section.innerHTML = `
+    <div class="section-title section-title--compact">
+      <h2>Установка</h2>
+    </div>
+    <div class="setup-row">
+      ${actions
+        .map(
+          (action) => `
+        <div class="setup-item">
+          <span class="setup-label">${action.title}</span>
+          ${actionButton(action.id, action.tone || "default", "compact-btn")}
+        </div>
+      `
+        )
+        .join("")}
+    </div>
+  `;
+
+  return section;
+}
+
+function renderLayout() {
   actionsRoot.innerHTML = "";
+  actionsRoot.appendChild(renderSetupSection());
+  actionsRoot.appendChild(renderServerSection());
+  actionsRoot.appendChild(renderAppsSection());
+  bindActionHandlers();
+}
 
-  for (const category of CATEGORIES) {
-    const section = document.createElement("section");
-    section.className = "action-section";
+function bindActionHandlers() {
+  actionsRoot.querySelectorAll(".run-btn, .server-mode").forEach((button) => {
+    button.addEventListener("click", () => runAction(button.dataset.action));
+  });
 
-    const title = document.createElement("div");
-    title.className = "section-title";
-    title.innerHTML = `<h2>${category.label}</h2><p>${category.hint}</p>`;
-    section.appendChild(title);
-
-    const grid = document.createElement("div");
-    grid.className = "action-grid";
-
-    for (const action of actions.filter((entry) => entry.category === category.id)) {
-      const card = document.createElement("article");
-      card.className = "action-card";
-      card.innerHTML = `
-        <h3>${action.title}</h3>
-        <p>${action.description}</p>
-        <footer>
-          <button type="button" class="run-btn" data-tone="${action.tone || "default"}" data-action="${action.id}">
-            Запустить
-          </button>
-        </footer>
-      `;
-      grid.appendChild(card);
-    }
-
-    section.appendChild(grid);
-    actionsRoot.appendChild(section);
-  }
-
-  actionsRoot.querySelectorAll(".run-btn").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const actionId = button.dataset.action;
-      if (runningActionId) return;
-      runningActionId = actionId;
-      setButtonsDisabled(true);
-      try {
-        await window.agentControl.runAction(actionId);
-        const status = await window.agentControl.refreshStatus();
-        renderServerStatus(status.server);
-      } finally {
-        runningActionId = null;
-        setButtonsDisabled(false);
-      }
+  actionsRoot.querySelectorAll(".link-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      const url = button.dataset.url;
+      if (url) window.agentControl.openExternal(url);
     });
   });
 }
 
+async function runAction(actionId) {
+  if (!actionId || runningActionId) return;
+  runningActionId = actionId;
+  setButtonsDisabled(true);
+  try {
+    await window.agentControl.runAction(actionId);
+    const status = await window.agentControl.refreshStatus();
+    renderServerStatus(status.server);
+    renderLayout();
+  } finally {
+    runningActionId = null;
+    setButtonsDisabled(false);
+  }
+}
+
+const SERVER_MODE_TITLES = {
+  "server-start-bg": "В фоне",
+  "server-start-attached": "Пока Control открыт"
+};
+
 function setButtonsDisabled(disabled) {
   actionsRoot.querySelectorAll(".run-btn").forEach((button) => {
+    const actionId = button.dataset.action;
+    const defaultLabel = ACTION_LABELS[actionId] || "Запустить";
     button.disabled = disabled;
-    if (disabled && button.dataset.action === runningActionId) {
-      button.textContent = "Выполняется…";
-    } else {
-      button.textContent = "Запустить";
-    }
+    button.textContent = disabled && actionId === runningActionId ? "…" : defaultLabel;
+  });
+
+  actionsRoot.querySelectorAll(".server-mode").forEach((button) => {
+    const actionId = button.dataset.action;
+    button.disabled = disabled;
+    const title = button.querySelector("strong");
+    if (!title) return;
+    title.textContent =
+      disabled && actionId === runningActionId ? "Запуск…" : SERVER_MODE_TITLES[actionId] || title.textContent;
+  });
+}
+
+function restartSplashAnimations(splash) {
+  splash.classList.remove("splash--active");
+  void splash.offsetWidth;
+  splash.classList.add("splash--active");
+}
+
+function playSplash() {
+  const splash = document.getElementById("splash");
+  const app = document.querySelector(".app");
+  const body = document.body;
+
+  splash.classList.remove("splash--out");
+  restartSplashAnimations(splash);
+  app.classList.remove("app--in");
+  app.classList.add("app--hidden");
+  body.classList.add("is-booting");
+
+  return new Promise((resolve) => {
+    window.setTimeout(() => {
+      splash.classList.add("splash--out");
+      app.classList.remove("app--hidden");
+      app.classList.add("app--in");
+      body.classList.remove("is-booting");
+      window.setTimeout(resolve, SPLASH_FADE_MS);
+    }, SPLASH_MS);
   });
 }
 
 async function init() {
+  await playSplash();
+
   bootstrap = await window.agentControl.getBootstrap();
   renderEnvironment(bootstrap.environment);
   renderServerStatus(bootstrap.server);
-  renderActions(bootstrap.actions || []);
+  renderLayout();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
   window.agentControl.onActionState(({ running }) => {
@@ -144,9 +351,36 @@ async function init() {
   });
 }
 
+document.getElementById("reload-ui").addEventListener("click", () => {
+  const splash = document.getElementById("splash");
+  const app = document.querySelector(".app");
+
+  splash.classList.remove("splash--out");
+  restartSplashAnimations(splash);
+  app.classList.remove("app--in");
+  app.classList.add("app--hidden");
+  document.body.classList.add("is-booting");
+
+  window.setTimeout(() => window.agentControl.reloadUi(), 350);
+});
+
 document.getElementById("refresh-status").addEventListener("click", async () => {
-  const status = await window.agentControl.refreshStatus();
-  renderServerStatus(status.server);
+  const button = document.getElementById("refresh-status");
+  const prev = button.textContent;
+  button.disabled = true;
+  button.textContent = "…";
+  try {
+    const data = await window.agentControl.refreshBootstrap();
+    if (data.environment) renderEnvironment(data.environment);
+    renderServerStatus(data.server);
+    lastServer = data.server;
+    renderLayout();
+  } catch (error) {
+    appendLog(`Ошибка обновления: ${error.message}\n`, "stderr");
+  } finally {
+    button.disabled = false;
+    button.textContent = prev;
+  }
 });
 
 document.getElementById("clear-log").addEventListener("click", () => {

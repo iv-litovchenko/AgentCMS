@@ -181,7 +181,7 @@ install_stt_python || echo "  Python STT не установлен — повт�
 
 echo ""
 echo "Готово. Дальше:"
-echo "  _Agent Control.command — пульт управления (сервер, приложения)"
+echo "  Agent Control.app       — пульт управления (npm run control:launcher)"
 echo "  commands/              — отдельные ярлыки команд"
 
 pause_on_exit

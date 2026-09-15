@@ -6,19 +6,46 @@
     <title>Agent Control</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <div class="app">
-      <header class="hero">
+  <body class="is-booting">
+    <div id="splash" class="splash splash--active" aria-hidden="true">
+      <div class="splash-scene">
+        <div class="splash-stars"></div>
+        <div class="splash-planet-wrap">
+          <div class="splash-planet">
+            <div class="splash-planet-surface"></div>
+            <div class="splash-planet-atmo"></div>
+          </div>
+          <div class="splash-orbit splash-orbit--cms"><span></span></div>
+          <div class="splash-orbit splash-orbit--voice"><span></span></div>
+          <div class="splash-orbit splash-orbit--control"><span></span></div>
+          <div class="splash-ring"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-backdrop" aria-hidden="true">
+      <div class="backdrop-grid"></div>
+      <div class="backdrop-glow backdrop-glow--cms"></div>
+      <div class="backdrop-glow backdrop-glow--voice"></div>
+      <div class="backdrop-glow backdrop-glow--control"></div>
+      <div class="backdrop-ring"></div>
+    </div>
+
+    <div class="app app--hidden">
+      <header class="hero panel">
         <div class="hero-brand">
-          <img class="hero-icon" src="../assets/favicon.svg" alt="" width="48" height="48" />
+          <img class="hero-icon" src="../assets/favicon.svg" alt="" width="44" height="44" />
           <div>
             <h1>Agent Control</h1>
             <p class="hero-sub">Пульт управления Agent CMS — сервер, приложения и окружение</p>
           </div>
         </div>
-        <div class="hero-status" id="server-status">
-          <span class="status-dot" data-state="unknown"></span>
-          <span class="status-text">Проверка…</span>
+        <div class="hero-actions">
+          <div class="hero-status" id="server-status">
+            <span class="status-dot" data-state="unknown"></span>
+            <span class="status-text">Проверка…</span>
+          </div>
+          <button type="button" class="ghost-btn" id="reload-ui" title="Перезагрузить интерфейс (HTML, CSS)">↻ UI</button>
         </div>
       </header>
 

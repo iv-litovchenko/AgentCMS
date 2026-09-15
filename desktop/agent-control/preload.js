@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld("agentControl", {
   getBootstrap: () => ipcRenderer.invoke("control:get-bootstrap"),
   runAction: (actionId) => ipcRenderer.invoke("control:run-action", actionId),
   refreshStatus: () => ipcRenderer.invoke("control:refresh-status"),
+  refreshBootstrap: () => ipcRenderer.invoke("control:refresh-bootstrap"),
+  reloadUi: () => ipcRenderer.invoke("control:reload-ui"),
   openExternal: (url) => ipcRenderer.invoke("control:open-external", url),
   revealPath: (targetPath) => ipcRenderer.invoke("control:reveal-path", targetPath),
   onLog: (callback) => {

@@ -10,12 +10,13 @@ const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
 const { getAppIcon } = require("./icon");
-const { ACTIONS } = require("./actions");
+const { ACTIONS, APP_PRODUCTS, CONTROL_SELF, SETUP_ACTIONS, SERVER_PORTS } = require("./actions");
 const { buildSystemEnvironment } = require("../../lib/system-environment");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
 let mainWindow = null;
 let activeChild = null;
+let attachedServerProcess = null;
 
 function findRepoRoot(startDir) {
   let current = path.resolve(startDir);
@@ -92,18 +93,103 @@ async function probeServerStatus() {
     });
 
   const [cms, voice] = await Promise.all([checkPort(3443), checkPort(3488)]);
+  const running = cms || voice;
+  let mode = "off";
+
+  if (running) {
+    if (attachedServerProcess) mode = "attached";
+    else if (supervisorAlive) mode = "background";
+    else mode = "running";
+  }
 
   return {
-    running: cms || voice,
+    running,
     cms,
     voice,
     supervisorAlive,
     supervisorPid,
+    mode,
+    modeLabel:
+      mode === "attached"
+        ? "пока Control открыт"
+        : mode === "background"
+          ? "в фоне"
+          : running
+            ? "работает"
+            : "остановлен",
     urls: {
       cms: cms ? "https://localhost:3443" : null,
       voice: voice ? "https://localhost:3488" : null
     }
   };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function stopAttachedServer() {
+  if (!attachedServerProcess) return;
+  try {
+    attachedServerProcess.kill("SIGTERM");
+  } catch {
+    // ignore
+  }
+  attachedServerProcess = null;
+}
+
+async function waitForServerReady(maxAttempts = 48) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const status = await probeServerStatus();
+    if (status.running) return status;
+    await sleep(250);
+  }
+  return probeServerStatus();
+}
+
+async function startAttachedServer() {
+  if (attachedServerProcess) {
+    return { ok: true, already: true };
+  }
+
+  const status = await probeServerStatus();
+  if (status.running && status.mode === "background") {
+    return {
+      ok: false,
+      error: "Сервер уже запущен в фоне. Сначала нажмите «Остановить сервер»."
+    };
+  }
+  if (status.running) {
+    return { ok: true, already: true };
+  }
+
+  const child = spawn("npm", ["run", "start:https"], {
+    cwd: getProjectRoot(),
+    env: enrichPath(),
+    shell: false
+  });
+  attachedServerProcess = child;
+
+  child.stdout.on("data", (chunk) => sendLog(String(chunk)));
+  child.stderr.on("data", (chunk) => sendLog(String(chunk), "stderr"));
+
+  child.on("close", () => {
+    if (attachedServerProcess === child) attachedServerProcess = null;
+  });
+
+  child.on("error", (error) => {
+    if (attachedServerProcess === child) attachedServerProcess = null;
+    sendLog(`\n✕ Ошибка сервера: ${error.message}\n`, "stderr");
+  });
+
+  const ready = await waitForServerReady();
+  if (!ready.running) {
+    stopAttachedServer();
+    return { ok: false, error: "Сервер не запустился. Смотрите журнал ниже." };
+  }
+
+  sendLog("\n■ Сервер работает, пока открыт Agent Control\n");
+  return { ok: true };
 }
 
 async function runPreflight(name) {
@@ -164,6 +250,21 @@ async function runAction(actionId) {
     }
   }
 
+  if (action.serverRole === "attached") {
+    try {
+      const result = await startAttachedServer();
+      sendActionState({ actionId, running: false });
+      return result;
+    } catch (error) {
+      sendActionState({ actionId, running: false });
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
+
+  if (action.serverRole === "stop") {
+    stopAttachedServer();
+  }
+
   return new Promise((resolve) => {
     const child = spawn(action.command, action.args, {
       cwd: getProjectRoot(),
@@ -179,10 +280,6 @@ async function runAction(actionId) {
       activeChild = null;
       sendActionState({ actionId, running: false });
       sendLog(`\n■ Завершено (код ${code ?? "?"})\n`);
-
-      if (action.opensUrl && code === 0) {
-        await shell.openExternal(action.opensUrl).catch(() => {});
-      }
 
       resolve({ ok: code === 0, code });
     });
@@ -226,6 +323,7 @@ async function createWindow() {
 
   mainWindow.on("closed", () => {
     stopActiveChild();
+    stopAttachedServer();
     mainWindow = null;
   });
 }
@@ -246,6 +344,10 @@ if (!gotLock) {
       return {
         projectRoot: root,
         actions: ACTIONS,
+        appProducts: APP_PRODUCTS,
+        controlSelf: CONTROL_SELF,
+        setupActionIds: SETUP_ACTIONS,
+        serverPorts: SERVER_PORTS,
         environment,
         server
       };
@@ -254,6 +356,20 @@ if (!gotLock) {
     ipcMain.handle("control:refresh-status", async () => ({
       server: await probeServerStatus()
     }));
+
+    ipcMain.handle("control:refresh-bootstrap", async () => {
+      const root = getProjectRoot();
+      const environment = await buildSystemEnvironment(root).catch(() => null);
+      const server = await probeServerStatus();
+      return { environment, server };
+    });
+
+    ipcMain.handle("control:reload-ui", () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.reload();
+      }
+      return { ok: true };
+    });
 
     ipcMain.handle("control:run-action", (_event, actionId) => runAction(String(actionId || "")));
 
@@ -280,6 +396,7 @@ if (!gotLock) {
 
   app.on("before-quit", () => {
     stopActiveChild();
+    stopAttachedServer();
   });
 
   app.on("window-all-closed", () => {

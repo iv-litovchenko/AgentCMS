@@ -4,13 +4,19 @@
 
 | | Agent CMS | Agent Shell | Agent Control |
 |---|-----------|-------------|---------------|
-| **Назначение** | Редактор CMS | Голосовая оболочка | Пульт: сервер, сборки, зависимости |
+| **Назначение** | Редактор CMS | Agent CMS Voice | Пульт: сервер, сборки, зависимости |
 | **Dev** | `npm run cms:desktop` | `npm run shell:desktop` | `npm run control:desktop` |
 | **Сборка** | `npm run cms:dist` | `npm run shell:dist` | `npm run control:dist` |
 | **Pack** | `npm run cms:pack` | `npm run shell:pack` | `npm run control:pack` |
 | **Открыть .app** | `npm run cms:open` | `npm run shell:open` | `npm run control:open` |
 
-Ярлык в корне: **`_Agent Control.command`**
+Ярлык в корне: **`Agent Control.app`** (с иконкой).
+
+Сборка Control:
+- `npm run control:dist` — полный .app в `dist/agent-control/`
+- `npm run control:launcher` — ярлык с иконкой в корне проекта
+
+Или кнопками внутри Agent Control → карточка **Control**.
 
 Отдельные команды: [`commands/`](../commands/).
 

@@ -24,7 +24,7 @@ case "$APP" in
     DIST_SCRIPT="shell:dist"
     OPEN_SCRIPT="shell:open"
     APP_PATH="$SHELL_APP"
-    LABEL="Agent Shell"
+    LABEL="Agent CMS Voice"
     ;;
   *)
     echo "Неизвестное приложение: $APP"

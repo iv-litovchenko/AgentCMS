@@ -8,10 +8,6 @@ cd "$ROOT"
 echo ""
 bash scripts/agent-https-service.sh start-direct
 
-if command -v open >/dev/null 2>&1; then
-  open "https://localhost:3488/" 2>/dev/null || true
-fi
-
 echo ""
 echo "Окно Terminal можно закрыть — сервер останется в фоне."
 sleep 2
