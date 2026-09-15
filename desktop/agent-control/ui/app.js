@@ -461,14 +461,9 @@ const SERVER_BTN_TITLES = {
 
 const AGENT_START_PROMPT = "Выбери хранилище <Название хранилища> и загрузи контекст";
 
-const AGENT_CONTEXT_REFRESH_PROMPT = `Если контекст чата подходит к концу, ты путаешься в файлах или сменилась задача — обнови контекст Agent CMS:
+const MCP_INSTRUCTIONS_CONTEXT_DRAFT = `Когда контекстное окно чата близко к пределу или ранее загруженный контекст Agent CMS мог выпасть из памяти — предложи пользователю освежить контекст хранилища.
 
-1. list_workspaces — убедись, что работаешь в нужном хранилище
-2. get_session_context и get_content_map — актуальная структура и фокус
-3. при необходимости refresh_content_index или read_page по ключевым страницам
-4. кратко резюмируй, что уже сделано; не продолжай «из памяти» без проверки
-
-Не дублируй правки — перед изменением проверь текущее состояние через MCP.`;
+Не продолжай работу «из памяти»: сначала убедись, что актуальный контекст снова загружен, затем кратко резюмируй, что уже сделано, и только после этого продолжай.`;
 
 const SERVER_BTN_HINTS = {
   "server-start-bg": "Останется после закрытия",
@@ -826,7 +821,7 @@ function escapePromptHtml(text) {
 
 function renderGuideStepAgentPrompt() {
   const startPrompt = escapePromptHtml(AGENT_START_PROMPT);
-  const refreshPrompt = escapePromptHtml(AGENT_CONTEXT_REFRESH_PROMPT);
+  const mcpInstructionsDraft = escapePromptHtml(MCP_INSTRUCTIONS_CONTEXT_DRAFT);
 
   return `
     <article class="guide-step">
@@ -834,29 +829,26 @@ function renderGuideStepAgentPrompt() {
       <div class="guide-step-body">
         <div class="guide-step-head">
           <h3>Что написать агенту</h3>
-          <p>Промпты для старта и обновления контекста MCP</p>
+          <p>Стартовое сообщение в чате и черновик MCP instructions</p>
         </div>
         <ol class="guide-list">
           <li>Начните <strong>новый чат</strong> в Cursor или Claude Desktop</li>
           <li>Отправьте <strong>стартовый</strong> текст — агент выберет workspace и загрузит контекст</li>
           <li>Замените <code>&lt;Название хранилища&gt;</code> на имя вашего workspace</li>
-          <li>Если чат длинный или агент путается — отправьте <strong>обновление контекста</strong></li>
+          <li>Черновик ниже — для поля <strong>instructions</strong> MCP-сервера, не для чата</li>
         </ol>
         <div class="agent-prompt-box">
-          <p class="agent-prompt-label">Старт</p>
+          <p class="agent-prompt-label">Старт · в чат</p>
           <div class="cmd-row">
             <pre class="agent-prompt-text" id="agent-start-prompt">${startPrompt}</pre>
             <button type="button" class="ghost-btn cmd-btn" data-copy-target="agent-start-prompt">Копировать</button>
           </div>
-          <p class="mcp-config-note">Не знаете название? Напишите «покажи список хранилищ» — агент вызовет <code>list_workspaces</code>.</p>
+          <p class="mcp-config-note">Не знаете название? Напишите «покажи список хранилищ».</p>
         </div>
         <div class="agent-prompt-box agent-prompt-box--draft">
-          <p class="agent-prompt-label">Обновление контекста <span class="agent-prompt-badge">черновик</span></p>
-          <div class="cmd-row">
-            <pre class="agent-prompt-text" id="agent-context-refresh-prompt">${refreshPrompt}</pre>
-            <button type="button" class="ghost-btn cmd-btn" data-copy-target="agent-context-refresh-prompt">Копировать</button>
-          </div>
-          <p class="mcp-config-note">Заглушка — позже оформим как правило MCP или skill. Пока можно вставить в чат или в правила Cursor.</p>
+          <p class="agent-prompt-label">MCP instructions <span class="agent-prompt-badge">черновик</span></p>
+          <pre class="agent-prompt-text agent-prompt-text--readonly" id="mcp-instructions-draft">${mcpInstructionsDraft}</pre>
+          <p class="mcp-config-note">Постоянная инструкция MCP-сервера Agent CMS. Позже перенесём в <code>mcp-server</code> — в чат не копируется.</p>
         </div>
       </div>
     </article>

@@ -1435,6 +1435,10 @@ body.is-booting {
   white-space: pre-wrap;
 }
 
+.agent-prompt-text--readonly {
+  width: 100%;
+}
+
 .control-zone {
   display: grid;
   gap: 6px;
