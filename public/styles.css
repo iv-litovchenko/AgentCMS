@@ -14178,14 +14178,25 @@ body.app-locked {
 
 .home-title {
   margin: 0 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32em;
   font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.05;
+}
+
+.home-title-label {
   background: linear-gradient(135deg, #1e3a8a 0%, #4338ca 45%, #2563eb 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+.home-title-clover {
+  font-size: 0.88em;
+  line-height: 1;
 }
 
 .home-lead {

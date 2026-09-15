@@ -61,8 +61,67 @@
       kind: "text",
       text: "Внимание — валюта, которую нельзя напечатать…",
       holdMs: 8000
+    },
+    {
+      kind: "text",
+      text: "Будешь ли ты моим вторым спутником? — Нет: я же модель с цензурой и правилами :)",
+      holdMs: 8000
+    },
+    {
+      kind: "text",
+      text: "Сам выбирай, кто ты есть…",
+      holdMs: 7000
+    },
+    {
+      kind: "text",
+      text: "Мы — то, что едим, думаем и делаем…",
+      holdMs: 8000
+    },
+    {
+      kind: "text",
+      text: "Feel the energy inside…",
+      holdMs: 7000
+    },
+    {
+      kind: "text",
+      text: "Наша цель — всё, что можно вообразить…",
+      holdMs: 8000
+    },
+    {
+      kind: "text",
+      text: "Твой мини-интернет — у тебя в кармане…",
+      holdMs: 8000
+    },
+    {
+      kind: "text",
+      text: "Умная записная книжка — в твоих руках…",
+      holdMs: 8000
+    },
+    {
+      kind: "text",
+      text: "Твоё сомнение — это чей-то товар…",
+      holdMs: 8000
+    },
+    {
+      kind: "text",
+      text: "Каждый раз, когда тебе показывают успех в 25 — тебе продают товар или услугу…",
+      holdMs: 8000
+    },
+    {
+      kind: "text",
+      text: "Разыгрывай свои карты — а не смотри на чужие…",
+      holdMs: 8000
     }
   ];
+
+  function shuffleSlogans(items) {
+    const list = items.slice();
+    for (let i = list.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
+    return list;
+  }
 
   function appendLetters(parent, text, charIndexRef) {
     for (const ch of text) {
@@ -115,20 +174,21 @@
 
     host.dataset.sloganRotator = "on";
 
+    const slogans = shuffleSlogans(SLOGANS);
     let index = 0;
     let fadeTimer = null;
     let stepTimer = null;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const paint = (idx) => {
-      display.replaceChildren(buildSloganNode(SLOGANS[idx]));
+      display.replaceChildren(buildSloganNode(slogans[idx]));
       if (!reducedMotion) {
         void display.offsetWidth;
       }
     };
 
     const step = () => {
-      index = (index + 1) % SLOGANS.length;
+      index = (index + 1) % slogans.length;
       if (reducedMotion) {
         paint(index);
         schedule();
@@ -145,7 +205,7 @@
 
     const schedule = () => {
       if (stepTimer) window.clearTimeout(stepTimer);
-      stepTimer = window.setTimeout(step, SLOGANS[index].holdMs);
+      stepTimer = window.setTimeout(step, slogans[index].holdMs);
     };
 
     paint(index);
