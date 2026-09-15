@@ -5532,6 +5532,18 @@ async function persistWorkspaceFsTextWrite(normalized, text, { existedBefore = n
   await fs.mkdir(path.dirname(absolute), { recursive: true });
   const existed =
     existedBefore != null ? existedBefore : await fs.stat(absolute).catch(() => null);
+
+  const resolvedPath = await resolveExistingWorkspaceRelPath(normalized);
+  const manifestRelPath = resolvedPath ? resolveOwningManifestRelFromNodePath(resolvedPath) : null;
+  const targetRelPath = resolvedPath ? normalizeHistoryTargetRelPath(resolvedPath) : null;
+  if (manifestRelPath && targetRelPath) {
+    await snapshotFileHistoryBeforeWrite({
+      manifestRelPath,
+      targetRelPath,
+      nextContent: text
+    });
+  }
+
   await fs.writeFile(absolute, text, "utf-8");
 
   const parsed = parseStorageLayerRef(normalized);
@@ -5547,6 +5559,14 @@ async function persistWorkspaceFsTextWrite(normalized, text, { existedBefore = n
       parsed.layer,
       parsed.relativePath
     );
+  } else if (resolvedPath) {
+    await recordWorkspaceActivityAsync({
+      action: existed ? "update" : "create",
+      path: resolvedPath,
+      manifestPath: manifestRelPath || resolvedPath,
+      label: path.posix.basename(resolvedPath),
+      fileKind: inferWorkspaceActivityFileKind(resolvedPath)
+    });
   }
 
   queueWorkspaceIndexFileSync(normalized);

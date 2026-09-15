@@ -23874,11 +23874,7 @@ async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
 
   if (
     result &&
-    (result.systemFile ||
-      result.nodePath ||
-      result.externalFile ||
-      result.mode ||
-      result.titleName)
+    (result.systemFile || result.nodePath || result.externalFile || result.mode)
   ) {
     if (await openWorkspaceSearchResultByMeta(result)) return;
   }
@@ -37406,6 +37402,7 @@ async function reloadActiveNodeManifestFromDisk() {
   const data = await response.json();
   modeContentCache.description = data.content || "";
   navigationManifestCachedPath = apiPath;
+  rememberLiveSyncLoadedSnapshot(apiPath, modeContentCache.description);
 
   invalidateNodeConfigCache(activePath);
   try {
@@ -68503,6 +68500,7 @@ async function ensureNavigationManifestCached(options = {}) {
     const data = await response.json();
     modeContentCache.description = data.content || "";
     navigationManifestCachedPath = apiPath;
+    rememberLiveSyncLoadedSnapshot(apiPath, modeContentCache.description);
   } catch {
     // ignore transient manifest read errors in navigation
   }
@@ -69648,7 +69646,18 @@ let liveSyncMtimeByPath = new Map();
 let liveSyncMtimeBaselineReady = false;
 let liveSyncOwnSaveUntilByPath = new Map();
 let liveSyncInlineDiffState = null;
+let liveSyncLoadedSnapshotByPath = new Map();
 const LIVE_SYNC_OWN_SAVE_GRACE_MS = 4000;
+
+function rememberLiveSyncLoadedSnapshot(pathValue, content) {
+  const key = normalizeLiveSyncPath(pathValue);
+  if (!key) return;
+  liveSyncLoadedSnapshotByPath.set(key, String(content ?? ""));
+}
+
+function forgetLiveSyncLoadedSnapshot(pathValue) {
+  liveSyncLoadedSnapshotByPath.delete(normalizeLiveSyncPath(pathValue));
+}
 
 function normalizeLiveSyncPath(value) {
   return String(value || "")
@@ -69881,6 +69890,7 @@ function resetLiveSyncSession(agentId = activeAgentId) {
   liveSyncMtimeBaselineReady = false;
   liveSyncMtimeByPath = new Map();
   liveSyncOwnSaveUntilByPath = new Map();
+  liveSyncLoadedSnapshotByPath = new Map();
   liveSyncPendingChange = null;
   clearLiveSyncInlineDiffState();
   hideLiveFileUpdateBanner();
@@ -69942,7 +69952,6 @@ function setLiveSyncInlineDiffState(diffPayload, pathValue) {
     oldContent: diffPayload?.oldContent ?? "",
     newContent: diffPayload?.newContent ?? ""
   };
-  editorSurfaceNode?.classList.add("is-live-diff-active");
   refreshLiveSyncInlineDiffView();
 }
 
@@ -69952,36 +69961,8 @@ function refreshLiveSyncInlineDiffView() {
     return;
   }
 
-  if (activeContentMode === NODE_NAVIGATION_MODE) {
-    void renderNodeNavigation();
-    return;
-  }
-  if (activeContentMode === NODE_OVERVIEW_MODE) {
-    void renderNodeOverview();
-    return;
-  }
-  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
-    const ctx = activeEntryOverviewContext;
-    const diffPath = liveSyncInlineDiffState?.path;
-    if (ctx && diffPath) {
-      const isTocOrCategory =
-        isEntryOverviewMemoryTocRoot(ctx) || isEntryOverviewCategoryContext(ctx);
-      if (isTocOrCategory) {
-        if (liveSyncPathBelongsToActiveTopic(diffPath)) {
-          void renderEntryOverview();
-        }
-      } else if (liveSyncPathsReferToSameFile(ctx.relPath, diffPath)) {
-        void renderEntryOverview();
-      }
-    }
-    return;
-  }
-
-  if (editorViewMode === "preview") {
-    renderPreviewFromEditor();
-  } else if (editorViewMode === "wysiwyg") {
-    applyWysiwygLiveDiffHighlights();
-  } else if (editorViewMode === "source") {
+  // Diff details live only in the side panel; preview stays clean.
+  if (isLiveFileDiffPanelVisible() && editorViewMode === "source") {
     applySourceLiveDiffGutter();
     syncEditorLineNumbers();
   }
@@ -69995,83 +69976,8 @@ function hydrateMarkdownPreviewElement(element, nodePath) {
 }
 
 function renderPreviewWithEmbeddedDiff(element, markdown, diffPayload, nodePath) {
-  if (!element || !diffPayload) return false;
-  const entries = Array.isArray(diffPayload?.diff?.entries) ? diffPayload.diff.entries : [];
-  if (!getLiveDiffVisibleChangeEntries(entries).length) {
-    return false;
-  }
-
-  const isNavigationPreview = element.classList.contains("node-navigation-preview");
-  const addedLines = buildLiveDiffAddedLineSet(diffPayload);
-
-  if (isNavigationPreview) {
-    const root = document.createElement("div");
-    root.className = "live-diff-embedded-root";
-
-    let sameBuffer = [];
-    const flushSame = () => {
-      if (!sameBuffer.length) return;
-      const chunk = document.createElement("div");
-      chunk.className = "live-diff-embedded-chunk";
-      chunk.innerHTML = renderMarkdownToHtml(sameBuffer.join("\n"), { nodePath });
-      for (const block of chunk.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, pre, blockquote")) {
-        if (blockMatchesLiveDiffAddedLine(block.textContent, addedLines)) {
-          block.classList.add("live-diff-embedded-block-add");
-        }
-      }
-      root.appendChild(chunk);
-      sameBuffer = [];
-    };
-
-    for (const entry of entries) {
-      if (entry.type === "same") {
-        sameBuffer.push(entry.text ?? "");
-        continue;
-      }
-      if (isLiveDiffIgnorableChangeEntry(entry)) continue;
-      flushSame();
-      const row = document.createElement("div");
-      row.className = `live-diff-embedded-row live-diff-embedded-row--${entry.type}`;
-      if (entry.type === "add") {
-        const inner = document.createElement("div");
-        inner.innerHTML = renderMarkdownToHtml(entry.text ?? "", { nodePath });
-        if (!inner.textContent?.trim() && !inner.querySelector("img, pre, code, table, hr, iframe")) {
-          continue;
-        }
-        row.appendChild(inner);
-      } else {
-        row.textContent = formatLiveDiffLineText(entry.text ?? "");
-      }
-      root.appendChild(row);
-    }
-    flushSame();
-    element.replaceChildren(root);
-    element.classList.add("live-diff-embedded-active");
-    hydrateMarkdownPreviewElement(element, nodePath);
-    return true;
-  }
-
-  element.innerHTML = renderMarkdownToHtml(markdown, { nodePath });
-  element.classList.add("live-diff-embedded-active");
-
-  for (const block of element.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, td")) {
-    if (blockMatchesLiveDiffAddedLine(block.textContent, addedLines)) {
-      block.classList.add("live-diff-embedded-block-add");
-    }
-  }
-
-  if (isLiveFileDiffPanelVisible()) {
-    for (const entry of getLiveDiffVisibleChangeEntries(entries)) {
-      if (entry.type !== "remove") continue;
-      const ghost = document.createElement("div");
-      ghost.className = "live-diff-embedded-inline-remove";
-      ghost.textContent = formatLiveDiffLineText(entry.text ?? "");
-      element.prepend(ghost);
-    }
-  }
-
-  hydrateMarkdownPreviewElement(element, nodePath);
-  return true;
+  // Inline embedded diff removed: the live diff panel is the single detailed view.
+  return false;
 }
 
 function renderInlineDiffIntoElement(element, diffPayload, nodePath) {
@@ -70342,7 +70248,9 @@ function isLiveSyncPathWatched(pathValue) {
 
 function getLiveSyncDiffBaselineContent(pathValue) {
   if (!isLiveSyncPathWatched(pathValue)) return null;
-  return getLiveSyncLoadedContentForPath(pathValue);
+  const key = normalizeLiveSyncPath(pathValue);
+  if (!liveSyncLoadedSnapshotByPath.has(key)) return null;
+  return liveSyncLoadedSnapshotByPath.get(key);
 }
 
 function isLiveSyncOwnSaveActive(pathValue) {
@@ -70557,8 +70465,8 @@ function syncLiveFileDiffToggleUi() {
   refreshLiveSyncInlineDiffView();
 }
 
-async function fetchLiveFileDiff(pathValue, oldContent = null) {
-  if (oldContent != null) {
+async function fetchLiveFileDiff(pathValue, oldContent = undefined) {
+  if (typeof oldContent === "string") {
     const response = await fetch(buildApiUrl("/api/file/diff"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -70835,6 +70743,9 @@ async function presentLiveFileChange(change, diffPayload = null) {
 
   if (!change.dirty) {
     await applyLiveFileReload(change);
+    if (diffData?.newContent != null) {
+      rememberLiveSyncLoadedSnapshot(change.path, diffData.newContent);
+    }
   }
   void markLiveSyncOwnSaveForActivePath();
 
@@ -70849,10 +70760,10 @@ async function handleLiveFileChange(event) {
   const pathValue = String(event.path || "").replace(/\\/g, "/").trim();
   if (!pathValue || isLiveSyncEventAcknowledged(pathValue, event.id)) return;
 
-  const baselineContent = getLiveSyncDiffBaselineContent(pathValue);
   let diffPayload = null;
   try {
-    diffPayload = await fetchLiveFileDiff(pathValue, baselineContent);
+    // Agent/MCP writes snapshot server history before save — use that baseline.
+    diffPayload = await fetchLiveFileDiff(pathValue);
   } catch {
     diffPayload = null;
   }
@@ -70887,15 +70798,22 @@ async function handleExternalLiveFileChange(pathValue, revision) {
   const previousMtime = liveSyncMtimeByPath.get(normalizeLiveSyncPath(pathValue));
   if (previousMtime && previousMtime === mtime) return;
 
-  const oldContent = getLiveSyncLoadedContentForPath(pathValue);
+  const baselineContent = getLiveSyncDiffBaselineContent(pathValue);
   let diffPayload = null;
   try {
-    diffPayload = await fetchLiveFileDiff(pathValue, oldContent);
+    diffPayload =
+      typeof baselineContent === "string"
+        ? await fetchLiveFileDiff(pathValue, baselineContent)
+        : await fetchLiveFileDiff(pathValue);
   } catch {
     diffPayload = null;
   }
 
-  if (!diffPayload?.changed && oldContent === (diffPayload?.newContent ?? oldContent)) {
+  if (
+    !diffPayload?.changed &&
+    typeof baselineContent === "string" &&
+    baselineContent === (diffPayload?.newContent ?? baselineContent)
+  ) {
     setLiveSyncMtimeBaseline(pathValue, mtime);
     return;
   }
@@ -71044,11 +70962,13 @@ function initLiveFileSync() {
     }
     void (async () => {
       try {
-        const oldContent =
-          change.kind === "external" ? getLiveSyncLoadedContentForPath(change.path) : null;
+        const baseline =
+          change.kind === "external" ? getLiveSyncDiffBaselineContent(change.path) : null;
         const diffPayload =
           liveSyncInlineDiffState?.diffPayload ||
-          (await fetchLiveFileDiff(change.path, oldContent));
+          (typeof baseline === "string"
+            ? await fetchLiveFileDiff(change.path, baseline)
+            : await fetchLiveFileDiff(change.path));
         renderLiveFileDiffPanel(diffPayload, change.path);
       } catch (error) {
         showToast(`Не удалось загрузить diff: ${error.message}`, "error");
@@ -77829,36 +77749,6 @@ function setMarkdownPreviewHtml(
     getActiveTitleEditorPath() ||
     getActiveNodeApiPath();
   element.dataset.linkBasePath = resolvedNodePath;
-
-  let inlineDiff =
-    element === fileContentPreviewNode
-      ? getActiveLiveSyncInlineDiffForView()
-      : getActiveLiveSyncInlineDiffForView(workspacePath);
-  if (inlineDiff) {
-    const diffPath =
-      liveSyncInlineDiffState?.path || workspacePath || resolvedNodePath || getActiveNodeApiPath();
-    inlineDiff = resolveLiveDiffDisplayPayload(inlineDiff, diffPath) || inlineDiff;
-  }
-
-  if (inlineDiff) {
-    if (element === fileContentPreviewNode && isLiveFileDiffPanelVisible()) {
-      if (renderInlineDiffIntoElement(element, inlineDiff, resolvedNodePath)) {
-        editorSurfaceNode?.classList.add("is-live-diff-active");
-        nodeOverviewBlockNode?.classList.add("is-live-diff-active");
-        return;
-      }
-    }
-    if (renderPreviewWithEmbeddedDiff(element, markdown, inlineDiff, resolvedNodePath)) {
-      editorSurfaceNode?.classList.add("is-live-diff-active");
-      nodeOverviewBlockNode?.classList.add("is-live-diff-active");
-      return;
-    }
-    if (renderInlineDiffIntoElement(element, inlineDiff, resolvedNodePath)) {
-      editorSurfaceNode?.classList.add("is-live-diff-active");
-      nodeOverviewBlockNode?.classList.add("is-live-diff-active");
-      return;
-    }
-  }
 
   element.classList.remove("live-diff-embedded-active");
   element.innerHTML = renderMarkdownToHtml(markdown, { nodePath: resolvedNodePath, hideFrontmatter });
@@ -85898,6 +85788,7 @@ async function loadContentByMode(options = {}) {
       const data = await response.json();
       modeContentCache.description = data.content || "";
       navigationManifestCachedPath = getActiveNodeApiPath();
+      rememberLiveSyncLoadedSnapshot(getActiveNodeApiPath(), modeContentCache.description);
     }
     await loadPropertiesForActivePath();
     applyNodeManifestBody(modeContentCache.description || "");
@@ -85914,6 +85805,7 @@ async function loadContentByMode(options = {}) {
       const data = await response.json();
       modeContentCache.description = data.content || "";
       navigationManifestCachedPath = getActiveNodeApiPath();
+      rememberLiveSyncLoadedSnapshot(getActiveNodeApiPath(), modeContentCache.description);
     }
     fileContentInputNode.value = "";
     applyModeUi();
@@ -85964,6 +85856,7 @@ async function loadContentByMode(options = {}) {
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       const data = await response.json();
       modeContentCache.description = data.content || "";
+      rememberLiveSyncLoadedSnapshot(getActiveNodeApiPath(), modeContentCache.description);
     }
     await loadPropertiesForActivePath();
     applyNodeManifestBody(modeContentCache.description || "");
