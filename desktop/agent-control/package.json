@@ -1,0 +1,47 @@
+{
+  "name": "agent-control-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent Control — пульт управления Agent CMS",
+  "author": "Agent CMS",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.agentcms.control",
+    "productName": "Agent Control",
+    "icon": "assets/icon.png",
+    "directories": {
+      "output": "../../dist/agent-control"
+    },
+    "files": [
+      "main.js",
+      "actions.js",
+      "icon.js",
+      "preload.js",
+      "assets/**/*",
+      "ui/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "icon": "assets/icon.png",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": ["nsis"]
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "target": ["AppImage"]
+    }
+  }
+}

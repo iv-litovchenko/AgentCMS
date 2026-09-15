@@ -42,7 +42,7 @@ async function getCapabilities(settings = {}) {
         label: "Whisper локально",
         hint: whisperInstalled
           ? "faster-whisper на сервере Shell"
-          : "_Install-deps.command (Python 3.12 + ffmpeg)"
+          : "Agent Control → Установить зависимости (Python 3.12 + ffmpeg)"
       },
       elevenlabs: {
         available: Boolean(elevenKey),

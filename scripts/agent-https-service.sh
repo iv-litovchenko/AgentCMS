@@ -66,7 +66,7 @@ start_direct() {
       echo "https://localhost:3443"
       echo "https://localhost:3488"
       echo "Лог: .run/agent-cms-https.log"
-      echo "Остановка: _Server stop.command"
+      echo "Остановка: Agent Control или commands/server-stop.command"
       return 0
     fi
     if ! is_running; then
@@ -110,7 +110,7 @@ start_via_terminal() {
 
   date +%s >"$LOCK_FILE"
   echo "Открываю Terminal для запуска (один раз)..."
-  open "$ROOT/_Server start (background).command"
+  open "$ROOT/commands/server-start-background.command"
 
   for _ in {1..60}; do
     if server_listening; then

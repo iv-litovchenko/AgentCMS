@@ -1,3 +1,4 @@
 #!/bin/bash
-cd "$(dirname "$0")"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
 bash scripts/launch-desktop-app.sh shell open

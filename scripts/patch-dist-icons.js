@@ -25,6 +25,13 @@ const brands = [
     pngPath: path.join(repoRoot, "desktop/agent-shell/assets/icon.png"),
     appPath: path.join(repoRoot, "dist/agent-shell", "Agent Shell.app"),
     asarIconPaths: ["assets/icon.png"]
+  },
+  {
+    name: "Agent Control",
+    svgPath: path.join(repoRoot, "desktop/agent-control/assets/favicon.svg"),
+    pngPath: path.join(repoRoot, "desktop/agent-control/assets/icon.png"),
+    appPath: path.join(repoRoot, "dist/agent-control", "Agent Control.app"),
+    asarIconPaths: ["assets/icon.png"]
   }
 ];
 

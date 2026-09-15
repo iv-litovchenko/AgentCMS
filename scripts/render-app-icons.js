@@ -23,6 +23,11 @@ const brands = [
       [180, path.join(repoRoot, "public/shell/apple-touch-icon.png")],
       [1024, path.join(repoRoot, "desktop/agent-shell/assets/icon.png")]
     ]
+  },
+  {
+    name: "Agent Control",
+    svgPath: path.join(repoRoot, "desktop/agent-control/assets/favicon.svg"),
+    targets: [[1024, path.join(repoRoot, "desktop/agent-control/assets/icon.png")]]
   }
 ];
 

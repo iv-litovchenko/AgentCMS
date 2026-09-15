@@ -181,8 +181,7 @@ install_stt_python || echo "  Python STT не установлен — повт�
 
 echo ""
 echo "Готово. Дальше:"
-echo "  _Server start          — запуск сервера"
-echo "  _App Editor            — десктоп-редактор"
-echo "  _App Voice             — голосовой клиент"
+echo "  _Agent Control.command — пульт управления (сервер, приложения)"
+echo "  commands/              — отдельные ярлыки команд"
 
 pause_on_exit

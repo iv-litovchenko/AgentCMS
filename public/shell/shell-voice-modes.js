@@ -339,7 +339,7 @@ export function formatSttEngineNote({
       parts.push("Запись в браузере → распознавание Google STT на сервере (нужен интернет).");
     } else if (eng === "whisper") {
       if (engineMeta.available === false) {
-        parts.push("Whisper не установлен — _Install-deps.command в корне проекта.");
+        parts.push("Whisper не установлен — Agent Control → Установить зависимости.");
         warn = true;
       } else {
         parts.push("Запись в браузере → Whisper (faster-whisper) на сервере, локально.");
@@ -367,7 +367,7 @@ export function formatSttEngineNote({
 
   parts.push(`${capLabel} → ${engLabel}.`);
   if (eng === "whisper" && engineMeta.available === false) {
-    parts.push("Whisper не установлен — _Install-deps.command в корне проекта.");
+    parts.push("Whisper не установлен — Agent Control → Установить зависимости.");
     warn = true;
   } else if (eng === "elevenlabs" && engineMeta.available === false) {
     parts.push("Укажите API key ElevenLabs (поле ниже или ключ из TTS).");

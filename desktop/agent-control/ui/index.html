@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent Control</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="hero">
+        <div class="hero-brand">
+          <img class="hero-icon" src="../assets/favicon.svg" alt="" width="48" height="48" />
+          <div>
+            <h1>Agent Control</h1>
+            <p class="hero-sub">Пульт управления Agent CMS — сервер, приложения и окружение</p>
+          </div>
+        </div>
+        <div class="hero-status" id="server-status">
+          <span class="status-dot" data-state="unknown"></span>
+          <span class="status-text">Проверка…</span>
+        </div>
+      </header>
+
+      <section class="panel env-panel">
+        <div class="panel-head">
+          <h2>Система</h2>
+          <button type="button" class="ghost-btn" id="refresh-status">Обновить</button>
+        </div>
+        <div class="env-grid" id="env-grid"></div>
+      </section>
+
+      <main class="actions-layout" id="actions-root"></main>
+
+      <section class="panel log-panel">
+        <div class="panel-head">
+          <h2>Журнал</h2>
+          <button type="button" class="ghost-btn" id="clear-log">Очистить</button>
+        </div>
+        <pre class="log-output" id="log-output"></pre>
+      </section>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

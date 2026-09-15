@@ -70,7 +70,7 @@ if (fs.existsSync(path.join(dist, ".icon-icns"))) {
 }
 
 const flatten = path.join(__dirname, "flatten-desktop-dist.js");
-for (const product of ["agent-cms", "agent-shell"]) {
+for (const product of ["agent-cms", "agent-shell", "agent-control"]) {
   execFileSync(process.execPath, [flatten, product], { stdio: "inherit" });
 }
 
