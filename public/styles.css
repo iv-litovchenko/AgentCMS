@@ -13644,16 +13644,35 @@ body.app-locked {
 
 .live-file-update-banner {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin: 0 0 10px;
+  gap: 14px;
+  margin: 0 0 8px;
   padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #bfdbfe;
-  background: linear-gradient(180deg, #eff6ff 0%, #f8fbff 100%);
+  border-radius: 12px;
+  border: 1px solid #dbeafe;
+  border-left: 4px solid #3b82f6;
+  background: #f8fbff;
   color: #0f172a;
   font-size: 13px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.live-file-update-banner.is-external {
+  border-color: #fde68a;
+  border-left-color: #f59e0b;
+  background: #fffdf7;
+}
+
+.live-file-update-banner.is-dirty {
+  border-left-color: #ef4444;
+}
+
+.live-file-update-banner.is-diff-open {
+  margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
 }
 
 .live-file-update-banner.hidden {
@@ -13665,31 +13684,77 @@ body.app-locked {
   align-items: flex-start;
   gap: 10px;
   min-width: 0;
-}
-
-.live-file-update-banner-icon {
-  flex: 0 0 auto;
-  font-size: 16px;
-  line-height: 1.2;
+  flex: 1 1 auto;
 }
 
 .live-file-update-banner-copy {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
+}
+
+.live-file-update-banner-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .live-file-update-banner-title {
   font-size: 13px;
   font-weight: 600;
-  color: #1e3a8a;
+  color: #0f172a;
+}
+
+.live-file-update-banner-path {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.live-file-update-banner-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-file-update-banner-stats.hidden {
+  display: none;
+}
+
+.live-file-update-stat {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+
+.live-file-update-stat--add {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.live-file-update-stat--remove {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .live-file-update-banner-detail {
-  color: #475569;
-  line-height: 1.45;
-  word-break: break-word;
+  color: #64748b;
+  line-height: 1.4;
+  font-size: 12px;
+}
+
+.live-file-update-banner-detail.hidden {
+  display: none;
 }
 
 .live-file-update-banner-actions {
@@ -13697,6 +13762,7 @@ body.app-locked {
   flex-wrap: wrap;
   gap: 6px;
   flex: 0 0 auto;
+  justify-content: flex-end;
 }
 
 .live-file-update-btn {
@@ -13707,10 +13773,17 @@ body.app-locked {
   padding: 6px 10px;
   font-size: 12px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .live-file-update-btn:hover {
   background: #f8fafc;
+}
+
+.live-file-update-btn.is-active {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .live-file-update-btn--primary {
@@ -13723,12 +13796,31 @@ body.app-locked {
   background: #1d4ed8;
 }
 
+.live-file-update-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+  color: #64748b;
+}
+
+.live-file-update-btn--ghost:hover {
+  background: rgba(15, 23, 42, 0.04);
+  color: #334155;
+}
+
 .live-file-diff-panel {
   margin: 0 0 10px;
   border: 1px solid #dbeafe;
-  border-radius: 10px;
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
   background: #fff;
   overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.live-file-update-banner:not(.is-diff-open) + .live-file-diff-panel:not(.hidden) {
+  margin-top: -2px;
+  border-top: 1px solid #dbeafe;
+  border-radius: 12px;
 }
 
 .live-file-diff-panel.hidden {
@@ -13740,15 +13832,32 @@ body.app-locked {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border-bottom: 1px solid #e2e8f0;
   background: #f8fafc;
+}
+
+.live-file-diff-panel-head-copy {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.live-file-diff-panel-kicker {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
 }
 
 .live-file-diff-panel-title {
   font-size: 12px;
   font-weight: 600;
   color: #334155;
+  word-break: break-word;
 }
 
 .live-file-diff-panel-close {
@@ -13761,21 +13870,52 @@ body.app-locked {
   padding: 0 4px;
 }
 
+.live-file-diff-panel-close:hover {
+  color: #334155;
+}
+
 .live-file-diff-panel-body {
   margin: 0;
-  max-height: 220px;
+  max-height: 240px;
   overflow: auto;
   padding: 8px 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   line-height: 1.45;
-  white-space: pre-wrap;
+  white-space: normal;
   word-break: break-word;
 }
 
+.live-file-diff-note {
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+}
+
 .live-file-diff-line {
-  padding: 1px 6px;
-  border-radius: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.live-file-diff-line + .live-file-diff-line {
+  margin-top: 2px;
+}
+
+.live-file-diff-line-prefix {
+  flex: 0 0 auto;
+  width: 1.1em;
+  font-weight: 700;
+}
+
+.live-file-diff-line-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
 }
 
 .live-file-diff-line--add {
@@ -13783,20 +13923,33 @@ body.app-locked {
   color: #047857;
 }
 
+.live-file-diff-line--add .live-file-diff-line-prefix {
+  color: #059669;
+}
+
 .live-file-diff-line--remove {
   background: #fef2f2;
-  color: #b91c1c;
+  color: #991b1b;
+}
+
+.live-file-diff-line--remove .live-file-diff-line-text {
+  text-decoration: line-through;
+  opacity: 0.92;
+}
+
+.live-file-diff-line--remove .live-file-diff-line-prefix {
+  color: #dc2626;
 }
 
 .editor-surface.is-live-diff-active .file-content-preview .live-diff-add {
-  background: rgba(16, 185, 129, 0.18);
-  border-radius: 3px;
+  background: rgba(16, 185, 129, 0.14);
+  border-radius: 4px;
   padding: 0 2px;
 }
 
 .editor-surface.is-live-diff-active .file-content-preview .live-diff-remove {
-  background: rgba(239, 68, 68, 0.14);
-  border-radius: 3px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 4px;
   padding: 0 2px;
   text-decoration: line-through;
 }
@@ -13804,7 +13957,7 @@ body.app-locked {
 .live-diff-inline-root {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .live-diff-md-chunk {
@@ -13812,8 +13965,8 @@ body.app-locked {
 }
 
 .live-diff-inline-row {
-  border-radius: 6px;
-  padding: 4px 8px;
+  border-radius: 8px;
+  padding: 6px 10px;
   font-size: inherit;
   line-height: 1.55;
   white-space: pre-wrap;
@@ -13839,51 +13992,23 @@ body.app-locked {
   border-left: 3px solid #ef4444;
   color: #991b1b;
   text-decoration: line-through;
-  opacity: 0.92;
+  opacity: 0.9;
 }
 
 .live-sync-wysiwyg-diff-removed {
-  margin: 0 0 8px;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  background: #fff5f5;
-  overflow: hidden;
-}
-
-.live-sync-wysiwyg-diff-removed.hidden {
   display: none;
-}
-
-.live-sync-wysiwyg-diff-removed-title {
-  padding: 6px 10px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #991b1b;
-  border-bottom: 1px solid #fecaca;
-  background: #fef2f2;
-}
-
-.live-sync-wysiwyg-diff-removed-line {
-  padding: 4px 10px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-  line-height: 1.45;
-  color: #991b1b;
-  text-decoration: line-through;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.live-sync-wysiwyg-diff-removed-line + .live-sync-wysiwyg-diff-removed-line {
-  border-top: 1px dashed #fecaca;
 }
 
 .editor-surface.is-live-diff-active .toastui-editor-contents .live-diff-wysiwyg-add,
 .editor-surface.is-live-diff-active .ProseMirror .live-diff-wysiwyg-add {
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.16);
   border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.28);
+}
+
+.editor-surface.is-live-diff-panel-open .toastui-editor-contents .live-diff-wysiwyg-add,
+.editor-surface.is-live-diff-panel-open .ProseMirror .live-diff-wysiwyg-add,
+.editor-surface.is-live-diff-panel-open .file-content-preview .live-diff-embedded-block-add {
   box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.35);
 }
 

@@ -3781,17 +3781,20 @@
                 aria-live="polite"
               >
                 <div class="live-file-update-banner-main">
-                  <span class="live-file-update-banner-icon" aria-hidden="true">✨</span>
                   <div class="live-file-update-banner-copy">
-                    <strong id="live-file-update-banner-title" class="live-file-update-banner-title">
-                      Файл изменён агентом
-                    </strong>
-                    <span id="live-file-update-banner-detail" class="live-file-update-banner-detail"></span>
+                    <div class="live-file-update-banner-head">
+                      <strong id="live-file-update-banner-title" class="live-file-update-banner-title">
+                        Файл изменён агентом
+                      </strong>
+                      <div id="live-file-update-banner-stats" class="live-file-update-banner-stats hidden"></div>
+                    </div>
+                    <span id="live-file-update-banner-path" class="live-file-update-banner-path"></span>
+                    <span id="live-file-update-banner-detail" class="live-file-update-banner-detail hidden"></span>
                   </div>
                 </div>
                 <div class="live-file-update-banner-actions">
                   <button id="live-file-update-show-diff-btn" type="button" class="live-file-update-btn">
-                    Показать diff
+                    Показать изменения
                   </button>
                   <button
                     id="live-file-update-reload-btn"
@@ -3800,14 +3803,17 @@
                   >
                     Обновить
                   </button>
-                  <button id="live-file-update-ack-btn" type="button" class="live-file-update-btn">
+                  <button id="live-file-update-ack-btn" type="button" class="live-file-update-btn live-file-update-btn--ghost">
                     Увидел
                   </button>
                 </div>
               </div>
               <div id="live-file-diff-panel" class="live-file-diff-panel hidden" aria-label="Изменения агента">
                 <div class="live-file-diff-panel-head">
-                  <span id="live-file-diff-panel-title" class="live-file-diff-panel-title">Изменения</span>
+                  <div class="live-file-diff-panel-head-copy">
+                    <span class="live-file-diff-panel-kicker">Diff</span>
+                    <span id="live-file-diff-panel-title" class="live-file-diff-panel-title">Изменения</span>
+                  </div>
                   <button
                     id="live-file-diff-panel-close-btn"
                     type="button"
@@ -5236,7 +5242,7 @@
     <script src="/topic-schema-slot-specs.js?v=0.5.239"></script>
     <script src="/vendor/fancybox/fancybox.umd.js"></script>
     <script src="/awn-dashboards.js?v=5"></script>
-    <script src="/main.js?v=0.5.787"></script>
+    <script src="/main.js?v=0.5.788"></script>
     <script src="/discuss-panel.js?v=0.5.259"></script>
     <script src="/page-picker-extract.js?v=0.5.4"></script>
     <script src="/page-snapshot.js?v=0.1.0"></script>

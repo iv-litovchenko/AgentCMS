@@ -427,6 +427,8 @@ const fileContentInputNode = document.getElementById("file-content-input");
 const fileContentPreviewNode = document.getElementById("file-content-preview");
 const liveFileUpdateBannerNode = document.getElementById("live-file-update-banner");
 const liveFileUpdateBannerTitleNode = document.getElementById("live-file-update-banner-title");
+const liveFileUpdateBannerPathNode = document.getElementById("live-file-update-banner-path");
+const liveFileUpdateBannerStatsNode = document.getElementById("live-file-update-banner-stats");
 const liveFileUpdateBannerDetailNode = document.getElementById("live-file-update-banner-detail");
 const liveFileUpdateShowDiffBtn = document.getElementById("live-file-update-show-diff-btn");
 const liveFileUpdateReloadBtn = document.getElementById("live-file-update-reload-btn");
@@ -69833,7 +69835,6 @@ function renderPreviewWithEmbeddedDiff(element, markdown, diffPayload, nodePath)
 
   const isNavigationPreview = element.classList.contains("node-navigation-preview");
   const addedLines = buildLiveDiffAddedLineSet(diffPayload);
-  const removedEntries = entries.filter((entry) => entry.type === "remove");
 
   if (isNavigationPreview) {
     const root = document.createElement("div");
@@ -69867,7 +69868,7 @@ function renderPreviewWithEmbeddedDiff(element, markdown, diffPayload, nodePath)
         inner.innerHTML = renderMarkdownToHtml(entry.text ?? "", { nodePath });
         row.appendChild(inner);
       } else {
-        row.textContent = entry.text ?? "";
+        row.textContent = formatLiveDiffLineText(entry.text ?? "");
       }
       root.appendChild(row);
     }
@@ -69884,20 +69885,6 @@ function renderPreviewWithEmbeddedDiff(element, markdown, diffPayload, nodePath)
   for (const block of element.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, td")) {
     if (blockMatchesLiveDiffAddedLine(block.textContent, addedLines)) {
       block.classList.add("live-diff-embedded-block-add");
-    }
-  }
-
-  if (removedEntries.length) {
-    const anchor = element.querySelector("p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, td");
-    for (const entry of removedEntries) {
-      const ghost = document.createElement("span");
-      ghost.className = "live-diff-embedded-inline-remove";
-      ghost.textContent = entry.text ?? "";
-      if (anchor) {
-        anchor.insertAdjacentElement("beforebegin", ghost);
-      } else {
-        element.prepend(ghost);
-      }
     }
   }
 
@@ -69938,7 +69925,7 @@ function renderInlineDiffIntoElement(element, diffPayload, nodePath) {
       inner.innerHTML = renderMarkdownToHtml(entry.text ?? "", { nodePath });
       row.appendChild(inner);
     } else {
-      row.textContent = entry.text ?? "";
+      row.textContent = formatLiveDiffLineText(entry.text ?? "");
     }
     root.appendChild(row);
   }
@@ -69983,26 +69970,8 @@ function applyWysiwygLiveDiffHighlights() {
     return;
   }
 
-  const removedEntries = diffPayload.diff.entries.filter((entry) => entry.type === "remove");
-  if (host) {
-    if (removedEntries.length) {
-      host.classList.remove("hidden");
-      host.replaceChildren();
-      const title = document.createElement("div");
-      title.className = "live-sync-wysiwyg-diff-removed-title";
-      title.textContent = "Удалено агентом / снаружи";
-      host.appendChild(title);
-      for (const entry of removedEntries) {
-        const line = document.createElement("div");
-        line.className = "live-sync-wysiwyg-diff-removed-line";
-        line.textContent = entry.text ?? "";
-        host.appendChild(line);
-      }
-    } else {
-      host.classList.add("hidden");
-      host.replaceChildren();
-    }
-  }
+  host?.classList.add("hidden");
+  host?.replaceChildren();
 
   if (!proseMirror) return;
 
@@ -70258,8 +70227,52 @@ function formatLiveSyncDiffStats(stats) {
   if (!added && !removed) return "без видимых строковых изменений";
   const chunks = [];
   if (added) chunks.push(`+${added}`);
-  if (removed) chunks.push(`-${removed}`);
-  return chunks.join(" / ");
+  if (removed) chunks.push(`−${removed}`);
+  return chunks.join(" · ");
+}
+
+function formatLiveDiffLineText(text) {
+  const raw = String(text ?? "");
+  const trimmed = raw.trim();
+  if (trimmed === "---") return "— frontmatter —";
+  const colonIdx = trimmed.indexOf(":");
+  if (colonIdx <= 0) return raw;
+  const keyPart = trimmed.slice(0, colonIdx).trim();
+  const valuePart = trimmed.slice(colonIdx + 1).trim();
+  const key = normalizePropsKey(keyPart);
+  const meta = PROPS_FIELD_META[key];
+  if (meta?.label || /^awn-/i.test(key)) {
+    const label = meta?.label || key.replace(/^awn-/, "").replace(/-/g, " ");
+    return `${label}: ${valuePart}`;
+  }
+  return raw;
+}
+
+function renderLiveSyncDiffStatsMarkup(stats) {
+  const added = Number(stats?.added) || 0;
+  const removed = Number(stats?.removed) || 0;
+  const parts = [];
+  if (added) {
+    parts.push(`<span class="live-file-update-stat live-file-update-stat--add">+${added}</span>`);
+  }
+  if (removed) {
+    parts.push(`<span class="live-file-update-stat live-file-update-stat--remove">−${removed}</span>`);
+  }
+  return parts.join("");
+}
+
+function isLiveFileDiffPanelVisible() {
+  return Boolean(liveFileDiffPanelNode && !liveFileDiffPanelNode.classList.contains("hidden"));
+}
+
+function syncLiveFileDiffToggleUi() {
+  const visible = isLiveFileDiffPanelVisible();
+  liveFileUpdateShowDiffBtn?.classList.toggle("is-active", visible);
+  if (liveFileUpdateShowDiffBtn) {
+    liveFileUpdateShowDiffBtn.textContent = visible ? "Скрыть изменения" : "Показать изменения";
+  }
+  liveFileUpdateBannerNode?.classList.toggle("is-diff-open", visible);
+  editorSurfaceNode?.classList.toggle("is-live-diff-panel-open", visible);
 }
 
 async function fetchLiveFileDiff(pathValue, oldContent = null) {
@@ -70282,18 +70295,19 @@ function hideLiveFileDiffPanel() {
   if (!liveSyncInlineDiffState) {
     editorSurfaceNode?.classList.remove("is-live-diff-active");
   }
+  syncLiveFileDiffToggleUi();
 }
 
 function renderLiveFileDiffPanel(diffPayload, pathValue) {
   if (!liveFileDiffPanelNode || !liveFileDiffPanelBodyNode) return;
   const entries = Array.isArray(diffPayload?.diff?.entries) ? diffPayload.diff.entries : [];
-  liveFileDiffPanelTitleNode.textContent = `Изменения: ${formatLiveSyncPathLabel(pathValue)}`;
+  liveFileDiffPanelTitleNode.textContent = formatLiveSyncPathLabel(pathValue);
   liveFileDiffPanelBodyNode.replaceChildren();
 
   if (diffPayload?.diff?.truncated) {
     const note = document.createElement("div");
-    note.className = "live-file-diff-line";
-    note.textContent = "Diff слишком большой — показаны только сводка и обновлённый текст.";
+    note.className = "live-file-diff-note";
+    note.textContent = "Diff слишком большой — показана только сводка и обновлённый текст.";
     liveFileDiffPanelBodyNode.appendChild(note);
   }
 
@@ -70303,19 +70317,25 @@ function renderLiveFileDiffPanel(diffPayload, pathValue) {
     rendered += 1;
     const line = document.createElement("div");
     line.className = `live-file-diff-line live-file-diff-line--${entry.type}`;
-    const prefix = entry.type === "add" ? "+ " : "- ";
-    line.textContent = `${prefix}${entry.text ?? ""}`;
+    const prefix = document.createElement("span");
+    prefix.className = "live-file-diff-line-prefix";
+    prefix.textContent = entry.type === "add" ? "+" : "−";
+    const body = document.createElement("span");
+    body.className = "live-file-diff-line-text";
+    body.textContent = formatLiveDiffLineText(entry.text ?? "");
+    line.append(prefix, body);
     liveFileDiffPanelBodyNode.appendChild(line);
   }
 
   if (!rendered && !diffPayload?.diff?.truncated) {
     const empty = document.createElement("div");
-    empty.className = "live-file-diff-line";
+    empty.className = "live-file-diff-note";
     empty.textContent = "Строковых изменений не найдено.";
     liveFileDiffPanelBodyNode.appendChild(empty);
   }
 
   liveFileDiffPanelNode.classList.remove("hidden");
+  syncLiveFileDiffToggleUi();
 }
 
 function hideLiveFileUpdateBanner() {
@@ -70331,6 +70351,9 @@ function showLiveFileUpdateBanner(change) {
   const dirty = Boolean(change.dirty);
   const external = change.kind === "external" || change.source === "external";
 
+  liveFileUpdateBannerNode.classList.toggle("is-external", external);
+  liveFileUpdateBannerNode.classList.toggle("is-dirty", dirty);
+
   if (liveFileUpdateBannerTitleNode) {
     if (dirty) {
       liveFileUpdateBannerTitleNode.textContent = external
@@ -70342,11 +70365,22 @@ function showLiveFileUpdateBanner(change) {
         : "Файл обновлён агентом";
     }
   }
+  if (liveFileUpdateBannerPathNode) {
+    liveFileUpdateBannerPathNode.textContent = label;
+  }
+  if (liveFileUpdateBannerStatsNode) {
+    liveFileUpdateBannerStatsNode.innerHTML = renderLiveSyncDiffStatsMarkup(change.diff?.stats);
+    liveFileUpdateBannerStatsNode.classList.toggle(
+      "hidden",
+      !change.diff?.stats || (!change.diff.stats.added && !change.diff.stats.removed)
+    );
+  }
   if (liveFileUpdateBannerDetailNode) {
     const sourceHint = external ? "Cursor или другой редактор" : "агент";
     liveFileUpdateBannerDetailNode.textContent = dirty
-      ? `${label}: ${statsText}. Изменение от ${sourceHint}. Обновление перезапишет несохранённые правки.`
-      : `${label}: ${statsText}${external ? " (Cursor / внешний редактор)" : ""}.`;
+      ? `Изменение от ${sourceHint}. Обновление перезапишет несохранённые правки.`
+      : `Изменения уже применены (${statsText}). Откройте «Показать изменения», чтобы посмотреть diff.`;
+    liveFileUpdateBannerDetailNode.classList.toggle("hidden", dirty);
   }
 
   liveFileUpdateReloadBtn?.classList.toggle("hidden", !dirty);
@@ -70356,6 +70390,7 @@ function showLiveFileUpdateBanner(change) {
   );
 
   liveFileUpdateBannerNode.classList.remove("hidden");
+  syncLiveFileDiffToggleUi();
 }
 
 async function applyLiveFileReload(change) {
@@ -70505,10 +70540,8 @@ async function presentLiveFileChange(change, diffPayload = null) {
   void markLiveSyncOwnSaveForActivePath();
 
   showLiveFileUpdateBanner(change);
-  if (liveSyncDiffHasVisibleChanges(diffData)) {
-    renderLiveFileDiffPanel(diffData, change.path);
-  } else {
-    hideLiveFileDiffPanel();
+  hideLiveFileDiffPanel();
+  if (!liveSyncDiffHasVisibleChanges(diffData)) {
     clearLiveSyncInlineDiffState();
   }
 }
@@ -70705,11 +70738,17 @@ function initLiveFileSync() {
   liveFileUpdateShowDiffBtn?.addEventListener("click", () => {
     const change = liveSyncPendingChange;
     if (!change) return;
+    if (isLiveFileDiffPanelVisible()) {
+      hideLiveFileDiffPanel();
+      return;
+    }
     void (async () => {
       try {
         const oldContent =
           change.kind === "external" ? getLiveSyncLoadedContentForPath(change.path) : null;
-        const diffPayload = await fetchLiveFileDiff(change.path, oldContent);
+        const diffPayload =
+          liveSyncInlineDiffState?.diffPayload ||
+          (await fetchLiveFileDiff(change.path, oldContent));
         renderLiveFileDiffPanel(diffPayload, change.path);
       } catch (error) {
         showToast(`Не удалось загрузить diff: ${error.message}`, "error");
