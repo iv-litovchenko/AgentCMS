@@ -69929,6 +69929,7 @@ function clearLiveSyncInlineDiffState() {
   document.querySelectorAll(".live-diff-preview-changed").forEach((node) => {
     node.classList.remove("live-diff-preview-changed");
   });
+  document.querySelectorAll(".live-diff-preview-removed").forEach((node) => node.remove());
   editorWysiwygWrapNode
     ?.querySelectorAll(".live-diff-wysiwyg-add")
     .forEach((node) => node.classList.remove("live-diff-wysiwyg-add"));
@@ -69967,10 +69968,12 @@ function refreshLiveSyncInlineDiffView() {
   for (const preview of document.querySelectorAll(".file-content-preview")) {
     const workspacePath = preview.dataset.linkBasePath || "";
     if (!getActiveLiveSyncInlineDiffForView(workspacePath)) continue;
-    const payload =
+    let payload =
       resolveLiveDiffDisplayPayload(liveSyncInlineDiffState.diffPayload, workspacePath) ||
       defaultPayload;
-    if (applyLiveDiffPreviewHighlights(preview, payload)) highlighted = true;
+    payload = filterDiffEntriesForPreviewMarkup(payload, workspacePath) || payload;
+    const nodePath = preview.dataset.linkBasePath || getActiveNodeApiPath();
+    if (applyLiveDiffPreviewHighlights(preview, payload, nodePath)) highlighted = true;
   }
 
   const showActive = highlighted || liveSyncDiffHasVisibleChanges(defaultPayload, diffPath);
@@ -69980,6 +69983,8 @@ function refreshLiveSyncInlineDiffView() {
   if (isLiveFileDiffPanelVisible() && editorViewMode === "source") {
     applySourceLiveDiffGutter();
     syncEditorLineNumbers();
+  } else if (editorViewMode === "wysiwyg") {
+    applyWysiwygLiveDiffHighlights();
   }
 }
 
@@ -70072,25 +70077,187 @@ function normalizeLiveDiffLineForMatch(text) {
     .replace(/^\d+\.\s+/, "");
 }
 
-function applyLiveDiffPreviewHighlights(element, diffPayload) {
-  if (!element || !diffPayload) return false;
-  const addedLines = buildLiveDiffAddedLineSet(diffPayload);
-  if (!addedLines.size) return false;
+function stripFrontmatterDiffEntries(entries, newContent = "") {
+  if (!Array.isArray(entries) || !entries.length) return entries;
 
-  element.querySelectorAll(".live-diff-preview-changed").forEach((node) => {
-    node.classList.remove("live-diff-preview-changed");
-  });
-
-  let matched = 0;
-  for (const block of element.querySelectorAll(
-    "p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, td, th, dt, dd"
-  )) {
-    if (blockMatchesLiveDiffAddedLine(block.textContent, addedLines)) {
-      block.classList.add("live-diff-preview-changed");
-      matched += 1;
+  let bodyStartIndex = 0;
+  let fenceCount = 0;
+  for (let index = 0; index < entries.length; index += 1) {
+    if (String(entries[index].text ?? "").trim() !== "---") continue;
+    fenceCount += 1;
+    if (fenceCount === 2) {
+      bodyStartIndex = index + 1;
+      break;
     }
   }
-  return matched > 0;
+
+  let result = bodyStartIndex > 0 ? entries.slice(bodyStartIndex) : [...entries];
+
+  if (bodyStartIndex === 0) {
+    const { frontmatter, body } = splitFrontmatter(String(newContent ?? ""));
+    if (frontmatter.trim()) {
+      const firstBodyLine = body.split(/\r?\n/).find((line) => line.trim());
+      if (firstBodyLine) {
+        const idx = result.findIndex(
+          (entry, entryIndex) =>
+            entryIndex > 0 &&
+            entry.type !== "remove" &&
+            String(entry.text ?? "").trim() === firstBodyLine.trim()
+        );
+        if (idx > 0) result = result.slice(idx);
+      }
+    }
+  }
+
+  while (result.length && isManifestFrontmatterDiffLine(result[0].text)) {
+    result = result.slice(1);
+  }
+
+  return result;
+}
+
+function filterDiffEntriesForPreviewMarkup(diffPayload, pathValue) {
+  if (!diffPayload?.diff?.entries?.length) return diffPayload;
+
+  let entries = stripFrontmatterDiffEntries(diffPayload.diff.entries, diffPayload.newContent);
+  entries = entries.filter((entry) => {
+    if (isManifestFrontmatterDiffLine(entry.text)) return false;
+    if (entry.type !== "same" && isLiveDiffIgnorableChangeEntry(entry)) return false;
+    return true;
+  });
+
+  if (!entries.some((entry) => entry.type === "add" || entry.type === "remove")) {
+    return null;
+  }
+  return rebuildLiveDiffPayload(diffPayload, entries);
+}
+
+function isLiveDiffMarkdownListLine(text) {
+  return /^[-*+]\s+/.test(String(text ?? "").trim());
+}
+
+function isLiveDiffMarkdownOrderedListLine(text) {
+  return /^\d+\.\s+/.test(String(text ?? "").trim());
+}
+
+function liveDiffPreviewListItemLabel(text) {
+  const normalized = normalizeLiveDiffLineForMatch(String(text ?? ""));
+  return formatLiveDiffLineText(normalized || String(text ?? "").trim());
+}
+
+function renderLiveDiffSequencePreview(element, diffPayload, nodePath) {
+  if (!element || !diffPayload) return false;
+  const entries = Array.isArray(diffPayload?.diff?.entries) ? diffPayload.diff.entries : [];
+  if (!getLiveDiffVisibleChangeEntries(entries).length) return false;
+
+  const root = document.createElement("div");
+  root.className = "live-diff-preview-root";
+
+  let openList = null;
+  let openListTag = "";
+  let sameBuffer = [];
+
+  const closeList = () => {
+    if (!openList) return;
+    root.appendChild(openList);
+    openList = null;
+    openListTag = "";
+  };
+
+  const flushSameBuffer = () => {
+    if (!sameBuffer.length) return;
+    closeList();
+    const chunk = document.createElement("div");
+    chunk.className = "live-diff-preview-chunk";
+    chunk.innerHTML = renderMarkdownToHtml(sameBuffer.join("\n"), { nodePath });
+    root.appendChild(chunk);
+    sameBuffer = [];
+  };
+
+  const ensureList = (tagName) => {
+    if (openList && openListTag !== tagName) closeList();
+    if (!openList) {
+      openList = document.createElement(tagName);
+      openListTag = tagName;
+    }
+  };
+
+  const appendListItem = (className, text) => {
+    const tagName = isLiveDiffMarkdownOrderedListLine(text) ? "ol" : "ul";
+    ensureList(tagName);
+    const li = document.createElement("li");
+    if (className) li.className = className;
+    li.textContent = liveDiffPreviewListItemLabel(text);
+    openList.appendChild(li);
+  };
+
+  for (const entry of entries) {
+    if (entry.type !== "same" && isLiveDiffIgnorableChangeEntry(entry)) continue;
+
+    const text = String(entry.text ?? "");
+    if (!text.trim() && entry.type === "same") continue;
+
+    const isListLine = isLiveDiffMarkdownListLine(text) || isLiveDiffMarkdownOrderedListLine(text);
+
+    if (entry.type === "same") {
+      if (isListLine) {
+        flushSameBuffer();
+        appendListItem("", text);
+      } else {
+        closeList();
+        sameBuffer.push(text);
+      }
+      continue;
+    }
+
+    if (entry.type === "remove") {
+      if (isListLine) {
+        flushSameBuffer();
+        appendListItem("live-diff-preview-removed", text);
+      } else {
+        flushSameBuffer();
+        closeList();
+        const row = document.createElement("div");
+        row.className = "live-diff-preview-removed";
+        row.textContent = formatLiveDiffLineText(text);
+        root.appendChild(row);
+      }
+      continue;
+    }
+
+    if (entry.type === "add") {
+      if (isListLine) {
+        flushSameBuffer();
+        appendListItem("live-diff-preview-changed", text);
+      } else {
+        flushSameBuffer();
+        closeList();
+        const chunk = document.createElement("div");
+        chunk.className = "live-diff-preview-chunk live-diff-preview-chunk--add";
+        chunk.innerHTML = renderMarkdownToHtml(text, { nodePath });
+        chunk.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, td, th").forEach((node) => {
+          node.classList.add("live-diff-preview-changed");
+        });
+        root.appendChild(chunk);
+      }
+    }
+  }
+
+  flushSameBuffer();
+  closeList();
+
+  element.classList.remove("live-diff-embedded-active");
+  const preserved = [...element.children].filter((node) =>
+    node.classList.contains("node-entry-overview-manifest-copy-actions")
+  );
+  element.replaceChildren(...preserved, root);
+  hydrateMarkdownPreviewElement(element, nodePath);
+  return true;
+}
+
+function applyLiveDiffPreviewHighlights(element, diffPayload, nodePath) {
+  if (!element || !diffPayload) return false;
+  return renderLiveDiffSequencePreview(element, diffPayload, nodePath);
 }
 
 function applyWysiwygLiveDiffHighlights() {
@@ -70111,22 +70278,20 @@ function applyWysiwygLiveDiffHighlights() {
   host?.classList.add("hidden");
   host?.replaceChildren();
 
-  if (isLiveFileDiffPanelVisible()) {
-    const removedEntries = getLiveDiffVisibleChangeEntries(diffPayload.diff.entries || []).filter(
-      (entry) => entry.type === "remove"
-    );
-    if (host && removedEntries.length) {
-      host.classList.remove("hidden");
-      const title = document.createElement("div");
-      title.className = "live-sync-wysiwyg-diff-removed-title";
-      title.textContent = "Удалено";
-      host.appendChild(title);
-      for (const entry of removedEntries) {
-        const line = document.createElement("div");
-        line.className = "live-sync-wysiwyg-diff-removed-line";
-        line.textContent = formatLiveDiffLineText(entry.text ?? "");
-        host.appendChild(line);
-      }
+  const removedEntries = getLiveDiffVisibleChangeEntries(diffPayload.diff.entries || []).filter(
+    (entry) => entry.type === "remove"
+  );
+  if (host && removedEntries.length) {
+    host.classList.remove("hidden");
+    const title = document.createElement("div");
+    title.className = "live-sync-wysiwyg-diff-removed-title";
+    title.textContent = "Удалено";
+    host.appendChild(title);
+    for (const entry of removedEntries) {
+      const line = document.createElement("div");
+      line.className = "live-sync-wysiwyg-diff-removed-line";
+      line.textContent = formatLiveDiffLineText(entry.text ?? "");
+      host.appendChild(line);
     }
   }
 
@@ -77797,21 +77962,23 @@ function setMarkdownPreviewHtml(
     getActiveNodeApiPath();
   element.dataset.linkBasePath = resolvedNodePath;
 
-  element.classList.remove("live-diff-embedded-active");
-  element.innerHTML = renderMarkdownToHtml(markdown, { nodePath: resolvedNodePath, hideFrontmatter });
-  hydrateMarkdownPreviewElement(element, resolvedNodePath);
-
   const diffPath = workspacePath || resolvedNodePath;
   let inlineDiff = getActiveLiveSyncInlineDiffForView(diffPath);
   if (inlineDiff) {
     inlineDiff =
       resolveLiveDiffDisplayPayload(inlineDiff, liveSyncInlineDiffState?.path || diffPath) ||
       inlineDiff;
-    if (applyLiveDiffPreviewHighlights(element, inlineDiff)) {
+    inlineDiff = filterDiffEntriesForPreviewMarkup(inlineDiff, diffPath);
+    if (inlineDiff && renderLiveDiffSequencePreview(element, inlineDiff, resolvedNodePath)) {
       nodeOverviewBlockNode?.classList.add("is-live-diff-active");
       editorSurfaceNode?.classList.add("is-live-diff-active");
+      return;
     }
   }
+
+  element.classList.remove("live-diff-embedded-active");
+  element.innerHTML = renderMarkdownToHtml(markdown, { nodePath: resolvedNodePath, hideFrontmatter });
+  hydrateMarkdownPreviewElement(element, resolvedNodePath);
 }
 
 let previewLightboxNode = null;
