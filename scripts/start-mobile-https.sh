@@ -33,6 +33,7 @@ echo ""
 
 cd "$ROOT"
 export HOST="${HOST:-0.0.0.0}"
+export VOICE_HOST="${VOICE_HOST:-0.0.0.0}"
 export PORT="${PORT:-3000}"
 export TLS_PORT="${TLS_PORT:-3443}"
 export TLS_KEY="$KEY"

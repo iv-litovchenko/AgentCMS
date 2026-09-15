@@ -241,12 +241,13 @@ function renderSetupChecklist() {
 
 function renderEnvRow({ mark, label, detail, value, status, hover }) {
   const hoverText = hover || [label, detail, value].filter(Boolean).join(" · ");
+  const detailText = detail ? `(${detail})` : "";
 
   return `
     <div class="env-row" data-status="${status || "neutral"}" title="${escapeAttr(hoverText)}">
       <span class="env-row-mark">${mark}</span>
       <span class="env-row-label">${label}</span>
-      <span class="env-row-mid"><span class="env-row-dots" aria-hidden="true"></span></span>
+      <span class="env-row-detail">${detailText}</span>
       <span class="env-row-value">${value || "—"}</span>
     </div>
   `;
@@ -607,6 +608,87 @@ function renderGuideStepSetup() {
   `;
 }
 
+function renderMobileVoiceBlock() {
+  const mobile = bootstrap?.mobileConnect || {};
+  const ports = getPorts();
+  const server = lastServer || bootstrap?.server;
+  const isRunning = Boolean(server?.running);
+  const lanIp = mobile.lanIp || bootstrap?.environment?.host?.lanIp || "";
+  const voiceUrl = mobile.voiceUrl || (lanIp ? `https://${lanIp}:${ports.voiceHttps}/` : "");
+  const mkcertUrl =
+    mobile.mkcertCaUrl ||
+    (lanIp ? `http://${lanIp}:${ports.voiceHttp}/dev/mkcert-root-ca.pem` : "");
+
+  let note = "Откройте Voice на iPhone — Mac и телефон в одной сети или Mac на точке доступа iPhone.";
+  if (!lanIp) {
+    note =
+      "IP Mac не определён. Нажмите «Обновить» в блоке Система. После смены сети пересоздайте сертификаты (шаг 1).";
+  } else if (mobile.hotspotHint) {
+    note = `${mobile.hotspotHint} После смены сети — пересоздайте сертификаты.`;
+  } else {
+    note = `IP Mac: ${lanIp}. Не используйте localhost — на телефоне он не откроется.`;
+  }
+
+  const qrHidden = !isRunning || !voiceUrl;
+
+  return `
+    <div class="mobile-voice-block" id="mobile-voice-block">
+      <p class="mobile-voice-note">${note}</p>
+      <div class="mobile-voice-url-row">
+        <code class="mobile-voice-url" id="mobile-voice-url">${voiceUrl || "—"}</code>
+        <button type="button" class="ghost-btn cmd-btn" data-copy-target="mobile-voice-url"${voiceUrl ? "" : " disabled"}>Копировать</button>
+      </div>
+      <div class="mobile-voice-qr-wrap"${qrHidden ? " hidden" : ""} id="mobile-voice-qr-wrap">
+        <img class="mobile-voice-qr" id="mobile-voice-qr" alt="QR для Voice на iPhone" width="220" height="220" />
+        <p class="mobile-voice-qr-hint">Наведите камеру iPhone → Voice в Safari</p>
+      </div>
+      ${
+        mkcertUrl && lanIp
+          ? `
+        <div class="mobile-voice-cert">
+          <p class="mobile-voice-cert-note">На iPhone один раз установите mkcert CA — HTTPS без предупреждений:</p>
+          <div class="mobile-voice-url-row">
+            <code class="mobile-voice-url mobile-voice-url--small" id="mobile-mkcert-url">${mkcertUrl}</code>
+            <button type="button" class="ghost-btn cmd-btn" data-copy-target="mobile-mkcert-url">Копировать</button>
+          </div>
+        </div>
+      `
+          : ""
+      }
+      ${!isRunning ? `<p class="mobile-voice-warn">Сначала запустите сервер.</p>` : ""}
+    </div>
+  `;
+}
+
+async function refreshMobileVoiceQr() {
+  const wrap = document.getElementById("mobile-voice-qr-wrap");
+  const img = document.getElementById("mobile-voice-qr");
+  const urlNode = document.getElementById("mobile-voice-url");
+  if (!wrap || !img || !urlNode) return;
+
+  const mobile = bootstrap?.mobileConnect || {};
+  const server = lastServer || bootstrap?.server;
+  const isRunning = Boolean(server?.running);
+  const url = String(mobile.voiceUrl || urlNode.textContent || "").trim();
+
+  if (!isRunning || !url || url === "—") {
+    wrap.hidden = true;
+    return;
+  }
+
+  try {
+    const result = await window.agentControl.renderQr(url);
+    if (result?.ok && result.dataUrl) {
+      img.src = result.dataUrl;
+      wrap.hidden = false;
+    } else {
+      wrap.hidden = true;
+    }
+  } catch {
+    wrap.hidden = true;
+  }
+}
+
 function renderGuideStepServer() {
   const server = lastServer || bootstrap?.server;
   const isRunning = Boolean(server?.running);
@@ -656,6 +738,7 @@ function renderGuideStepServer() {
           <p>Запустите CMS и Voice — без сервера не работают Editor, Voice и расширение Chrome</p>
         </div>
         ${controlBlock}
+        ${renderMobileVoiceBlock()}
         <div class="cmd-box">
           <div class="cmd-checks">
             ${renderCmdRow("server", "CMS")}
@@ -927,6 +1010,7 @@ function renderLayout() {
   syncMcpConfigPreview();
   applyServerStatusChip(document.getElementById("server-status-inline"), lastServer || bootstrap?.server);
   syncServerUi(lastServer || bootstrap?.server);
+  void refreshMobileVoiceQr();
 }
 
 async function copyText(text) {
@@ -1037,6 +1121,7 @@ async function runAction(actionId) {
         bootstrap.environment = data.environment;
         renderEnvironment(data.environment);
       }
+      if (data.mobileConnect) bootstrap.mobileConnect = data.mobileConnect;
     }
     renderLayout();
   } finally {
@@ -1176,6 +1261,7 @@ document.getElementById("refresh-status").addEventListener("click", async () => 
       bootstrap.environment = data.environment;
       renderEnvironment(data.environment);
     }
+    if (data.mobileConnect) bootstrap.mobileConnect = data.mobileConnect;
     if (data.setupFlags) bootstrap.setupFlags = data.setupFlags;
     if (data.mcpConnect) bootstrap.mcpConnect = data.mcpConnect;
     await handleServerStatusUpdate(data.server, { skipNotify: true });

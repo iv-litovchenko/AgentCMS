@@ -9,7 +9,10 @@ PROVIDER_FILE="$CERT_DIR/provider.txt"
 
 mkdir -p "$CERT_DIR"
 
-IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
+IP="$(node -e "const ip=require('./lib/lan-ip').getLanIPv4(process.argv[1]); console.log(ip || '');" "$ROOT" 2>/dev/null || true)"
+if [[ -z "$IP" ]]; then
+  IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
+fi
 IP="${IP:-127.0.0.1}"
 
 LAST_IP=""

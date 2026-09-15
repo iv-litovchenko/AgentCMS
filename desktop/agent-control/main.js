@@ -96,6 +96,33 @@ function buildMcpConnectInfo(root) {
     docsUrl: `${cmsBaseUrl}/api/mcp-docs?version=0.0.2`
   };
 }
+
+function buildMobileConnectInfo(environment) {
+  const lanIp = String(environment?.host?.lanIp || "").trim();
+  const voiceHttpsPort = SERVER_PORTS.voiceHttps;
+  const voiceHttpPort = SERVER_PORTS.voiceHttp;
+  const voiceUrl = lanIp ? `https://${lanIp}:${voiceHttpsPort}/` : null;
+  const mkcertCaUrl = lanIp ? `http://${lanIp}:${voiceHttpPort}/dev/mkcert-root-ca.pem` : null;
+
+  return {
+    lanIp: lanIp || null,
+    voiceUrl,
+    mkcertCaUrl,
+    usesLoopback: !lanIp,
+    hotspotHint:
+      lanIp && /^172\.20\.10\./.test(lanIp)
+        ? "Mac на точке доступа iPhone — откройте этот адрес на телефоне."
+        : null
+  };
+}
+
+function loadQrCode() {
+  try {
+    return require(path.join(getProjectRoot(), "node_modules", "qrcode"));
+  } catch {
+    return null;
+  }
+}
 const { buildSystemEnvironment } = require("../../lib/system-environment");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
@@ -516,6 +543,7 @@ if (!gotLock) {
           folderPath: path.join(root, CHROME_EXTENSION.folderName)
         },
         environment,
+        mobileConnect: buildMobileConnectInfo(environment),
         server,
         setupFlags: buildProjectSetupFlags(root),
         controlVersion: controlPackage.version
@@ -532,6 +560,7 @@ if (!gotLock) {
       const server = await probeServerStatus();
       return {
         environment,
+        mobileConnect: buildMobileConnectInfo(environment),
         server,
         mcpConnect: buildMcpConnectInfo(root),
         setupFlags: buildProjectSetupFlags(root)
@@ -566,6 +595,23 @@ if (!gotLock) {
         return { ok: true };
       } catch {
         return { ok: false };
+      }
+    });
+
+    ipcMain.handle("control:render-qr", async (_event, text) => {
+      const value = String(text || "").trim();
+      if (!value) return { ok: false };
+      const QRCode = loadQrCode();
+      if (!QRCode) return { ok: false, error: "qrcode module missing" };
+      try {
+        const dataUrl = await QRCode.toDataURL(value, {
+          width: 220,
+          margin: 1,
+          color: { dark: "#0f172a", light: "#ffffff" }
+        });
+        return { ok: true, dataUrl };
+      } catch (error) {
+        return { ok: false, error: error.message };
       }
     });
 

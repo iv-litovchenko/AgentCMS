@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("agentControl", {
   revealPath: (targetPath) => ipcRenderer.invoke("control:reveal-path", targetPath),
   testUrl: (url) => ipcRenderer.invoke("control:test-url", url),
   notify: (title, body) => ipcRenderer.invoke("control:notify", { title, body }),
+  renderQr: (text) => ipcRenderer.invoke("control:render-qr", text),
   onLog: (callback) => {
     const handler = (_event, payload) => callback(payload);
     ipcRenderer.on("control:log", handler);
