@@ -11,8 +11,8 @@
   "meetingRecording": false,
   "lastTtsClientId": "c738810b-3051-4e04-88ab-41ec56985e68:efd78e2a-5e29-4ef1-8940-58b2701d692f",
   "primaryClientId": "b663d6b3-e700-4d72-9366-5aa330441526:b165f8e9-f344-4515-befb-beea43d712d5",
-  "updatedAt": "2026-09-11T20:11:46.549Z",
-  "shellSurfaceHost": "browser-tab",
-  "shellSurfaceHint": "Отдельная вкладка браузера",
+  "updatedAt": "2026-09-14T20:54:17.275Z",
+  "shellSurfaceHost": "cms-dialog",
+  "shellSurfaceHint": "Встроенная панель в Agent CMS",
   "shellSurfaceBackend": "local"
 }

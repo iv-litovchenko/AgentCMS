@@ -29,10 +29,13 @@
     "main/drugie-idei/crdt-conflict-free-replicated-data-type-eto-spetsialnye-struktury-dannyh-kotorye-pozvolyayut-sin.md",
     "main/drugie-idei/crdt-conflict-free-replicated-data-type-sinhronizatsiya-servera.md",
     "main/drugie-idei/edit-vmesto-write-proverit-kak-perezapisyvayutsya-fayly-seychas.md",
+    "main/drugie-idei/esche-idei.md",
     "main/drugie-idei/fluidvoice-ili-fluid-voice-golos-dlya-mac.md",
     "main/drugie-idei/git-lfs-large-file-storage.md",
     "main/drugie-idei/manifest.md",
     "main/drugie-idei/mnogovaylovaya-pamyat-kak-kniga.md",
+    "main/drugie-idei/poisk-idei-isnturmenty",
+    "main/drugie-idei/poisk-idei-isnturmenty.md",
     "main/drugie-idei/webdav-setevoy-protokol-protokol-obscheniya-s-oblachnymi-hranilischami.md",
     "main/git-dlya-md-faylov-i-media-razdelno.md",
     "main/golosovoe-upravlenie-shell-mobilka",
@@ -49,6 +52,7 @@
     "main/mindmap-intellektualnye-karty.md",
     "main/obedinit-page-content-data.md",
     "main/papka-awn-temp-dlya-lyubyh-vremennyh-faylov.md",
+    "main/proaktivnost-varianty.md",
     "main/proaktivnost.md",
     "main/problemy/manifest.md",
     "main/problemy/ogranicheniya-mcp.md",
@@ -66,7 +70,8 @@
     "main/uvedomleniya.md",
     "main/vizualizatsiya-diagrammy-grafiki.md",
     "main/vse-v-sisteme-est-zametka-a-ne-raznye-mcp-page-content-data.md",
+    "media/0aa25c9a-8e2d-4a31-b424-1ee4ca7af3fc.png",
     "topic-index-generated/zadachi-plany-i-idei/index.md"
   ],
-  "updatedAt": "2026-09-13T14:30:06.900Z"
+  "updatedAt": "2026-09-14T21:05:46.236Z"
 }
