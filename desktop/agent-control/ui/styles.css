@@ -1393,6 +1393,35 @@ body.is-booting {
   gap: 4px;
 }
 
+.agent-prompt-box--draft {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(120, 140, 180, 0.14);
+}
+
+.agent-prompt-label {
+  margin: 0;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.agent-prompt-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.22);
+}
+
 .agent-prompt-text {
   flex: 1;
   min-width: 0;

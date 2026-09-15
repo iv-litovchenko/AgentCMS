@@ -10,16 +10,14 @@
 | **Pack** | `npm run cms:pack` | `npm run shell:pack` | `npm run control:pack` |
 | **Открыть .app** | `npm run cms:open` | `npm run shell:open` | `npm run control:open` |
 
-Старт из корня проекта: **`welcome.command`** (скрипт) или **`Agent CMS Control.app`** (с иконкой).
+Старт из корня проекта: **`agent-cms-welcome.command`** (скрипт).
 
-На рабочем столе (кнопка «Ярлыки Desktop» в Control):
-- `Agent CMS Control.app` — пульт
-- `Agent CMS.app` — редактор (после сборки)
-- `Agent CMS Voice.app` — Voice (после сборки)
+На рабочем столе (кнопка «Ярлыки Desktop» в Control) — ссылки на сборки в `dist/`:
+- `Agent CMS Control.app` → `dist/agent-control/`
+- `Agent CMS.app` → `dist/agent-cms/`
+- `Agent CMS Voice.app` → `dist/agent-shell/`
 
-Сборка Control:
-- `npm run control:dist` — полный .app в `dist/agent-control/`
-- `npm run control:launcher` — `Agent CMS Control.app` с иконкой в корне (опционально)
+Сборка Control: `npm run control:dist` → `dist/agent-control/Agent CMS Control.app`
 
 Или кнопками внутри Agent CMS Control → карточка **Control**.
 

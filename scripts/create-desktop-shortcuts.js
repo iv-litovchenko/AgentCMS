@@ -11,11 +11,7 @@ const repoRoot = path.join(__dirname, "..");
 const SHORTCUTS = [
   {
     name: "Agent CMS Control.app",
-    target: () => path.join(repoRoot, "Agent CMS Control.app"),
-    ensure: async () => {
-      const { buildRootApp } = require("./build-control-root-app");
-      await buildRootApp();
-    }
+    target: () => path.join(repoRoot, "dist/agent-control/Agent CMS Control.app")
   },
   {
     name: "Agent CMS.app",
