@@ -100702,7 +100702,16 @@ contentSearchInputNode?.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     hideContentSearchResults();
     contentSearchInputNode.blur();
+    return;
   }
+  if (event.key !== "Enter") return;
+  const firstResult = contentSearchResultsNode?.querySelector(".content-search-item");
+  if (firstResult) {
+    event.preventDefault();
+    firstResult.click();
+    return;
+  }
+  void tryOpenContentSearchQueryDirect(contentSearchInputNode.value.trim());
 });
 
 updateContentSearchFiltersState();
