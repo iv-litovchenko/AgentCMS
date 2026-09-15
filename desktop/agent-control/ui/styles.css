@@ -579,16 +579,31 @@ body.is-booting {
   gap: 8px;
 }
 
-.hero-status {
+.status-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(8, 12, 24, 0.6);
-  border: 1px solid var(--panel-border);
-  font-size: 0.76rem;
+  gap: 7px;
+  padding: 5px 10px 5px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 0.72rem;
   white-space: nowrap;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.status-chip[data-state="on"] {
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.28);
+}
+
+.status-chip[data-state="off"] {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.22);
+}
+
+.status-chip[data-state="unknown"] {
+  background: rgba(8, 12, 24, 0.5);
+  border-color: var(--panel-border);
 }
 
 .flip-clock {
@@ -668,19 +683,54 @@ body.is-booting {
   gap: 8px;
 }
 
-.status-dot {
-  width: 8px;
-  height: 8px;
+.status-led {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--muted);
+  flex-shrink: 0;
 }
 
-.status-dot[data-state="ok"] {
+.status-chip[data-state="on"] .status-led {
   background: var(--ok);
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.65);
+  animation: status-led-pulse 2.2s ease-in-out infinite;
 }
 
-.status-dot[data-state="warn"] {
+.status-chip[data-state="off"] .status-led {
   background: var(--warn);
+}
+
+.status-value {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+}
+
+.status-chip[data-state="on"] .status-value {
+  color: #86efac;
+}
+
+.status-chip[data-state="off"] .status-value {
+  color: #fcd34d;
+}
+
+.status-chip[data-state="unknown"] .status-value {
+  color: var(--muted);
+}
+
+.status-chip--inline {
+  vertical-align: middle;
+}
+
+@keyframes status-led-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 6px rgba(52, 211, 153, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.85);
+  }
 }
 
 .section-title h2,
@@ -1004,23 +1054,6 @@ body.is-booting {
   font: 0.68rem/1.45 ui-sans-serif, system-ui, sans-serif;
   color: #dce6f8;
   white-space: pre-wrap;
-}
-
-.server-state {
-  font-size: 0.68rem;
-  font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 999px;
-}
-
-.server-state.is-on {
-  color: var(--ok);
-  background: rgba(52, 211, 153, 0.12);
-}
-
-.server-state.is-off {
-  color: var(--warn);
-  background: rgba(251, 191, 36, 0.1);
 }
 
 .control-zone {

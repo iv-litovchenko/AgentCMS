@@ -122,25 +122,42 @@ function startFlipClock() {
   clockTimer = window.setInterval(() => updateFlipClock(true), 1000);
 }
 
-function renderServerStatus(server) {
-  lastServer = server;
-  const dot = serverStatus.querySelector(".status-dot");
-  const text = serverStatus.querySelector(".status-text");
-
+function getServerStatusDisplay(server) {
   if (!server) {
-    dot.dataset.state = "unknown";
-    text.textContent = "Нет данных";
-    return;
+    return { state: "unknown", label: "Нет данных" };
   }
 
   if (server.running) {
-    dot.dataset.state = "ok";
-    text.textContent = "Сервер работает";
-    return;
+    return { state: "on", label: "Запущен" };
   }
 
-  dot.dataset.state = "warn";
-  text.textContent = "Сервер остановлен";
+  return { state: "off", label: "Остановлен" };
+}
+
+function applyServerStatusChip(root, server) {
+  if (!root) return;
+
+  const display = getServerStatusDisplay(server);
+  root.dataset.state = display.state;
+
+  const value = root.querySelector(".status-value");
+  if (value) value.textContent = display.label;
+}
+
+function renderServerStatusChip(server, extraClass = "") {
+  const display = getServerStatusDisplay(server);
+
+  return `
+    <span class="status-chip status-chip--inline ${extraClass}" data-state="${display.state}">
+      <span class="status-led" aria-hidden="true"></span>
+      <span class="status-value">${display.label}</span>
+    </span>
+  `;
+}
+
+function renderServerStatus(server) {
+  lastServer = server;
+  applyServerStatusChip(serverStatus, server);
 }
 
 function renderAppFooter() {
@@ -353,7 +370,6 @@ function renderGuideStepServer() {
   const cmsUrl = `https://localhost:${ports.editorHttps}`;
   const voiceUrl = `https://localhost:${ports.voiceHttps}`;
   const linkDisabled = isRunning ? "" : " disabled";
-  const modeText = server?.modeLabel || (isRunning ? "работает" : "остановлен");
   const browserLinks = `
     <div class="server-browser-row" role="group" aria-label="Открыть в браузере">
       <button type="button" class="link-btn browser-link link-btn--cms" data-url="${cmsUrl}"${linkDisabled}>
@@ -391,7 +407,7 @@ function renderGuideStepServer() {
         <div class="guide-step-head">
           <h3 class="server-step-title">
             Сервер
-            <span class="server-state ${isRunning ? "is-on" : "is-off"}">${modeText}</span>
+            ${renderServerStatusChip(server)}
           </h3>
           <p>Запустите CMS и Voice — без сервера не работают Editor, Voice и расширение Chrome</p>
         </div>

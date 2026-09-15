@@ -48,9 +48,9 @@
         </div>
         <div class="hero-actions">
           <div class="flip-clock" id="flip-clock" role="timer" aria-live="off" aria-label="Текущее время"></div>
-          <div class="hero-status" id="server-status">
-            <span class="status-dot" data-state="unknown"></span>
-            <span class="status-text">Проверка…</span>
+          <div class="status-chip hero-status" id="server-status" data-state="unknown">
+            <span class="status-led" aria-hidden="true"></span>
+            <span class="status-value">Проверка…</span>
           </div>
           <button type="button" class="ghost-btn" disabled title="Скоро">Документация</button>
           <button type="button" class="ghost-btn ghost-btn--icon" id="reload-ui" title="Перезагрузить интерфейс (HTML, CSS)" aria-label="Обновить UI">↻</button>
