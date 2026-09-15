@@ -53956,6 +53956,11 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #fdf2f8;
 }
 
+.menu-static-section--languagetool {
+  border: 1px solid #5eead4;
+  background: #f0fdfa;
+}
+
 .menu-static-section--google-drive {
   border: 1px solid #93c5fd;
   background: #eff6ff;
@@ -56904,6 +56909,10 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-bottom: 1px solid rgba(249, 168, 212, 0.55);
 }
 
+.menu-static-section--languagetool[open] > .menu-static-summary {
+  border-bottom: 1px solid rgba(94, 234, 212, 0.55);
+}
+
 .menu-static-section--google-drive[open] > .menu-static-summary {
   border-bottom: 1px solid rgba(147, 197, 253, 0.55);
 }
@@ -57188,8 +57197,28 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-static-title--vendor,
 .menu-static-title--settings,
 .menu-static-title--server-sync,
-.menu-static-title--indexing {
+.menu-static-title--indexing,
+.menu-static-title--languagetool {
   color: #1e293b;
+}
+
+.menu-languagetool-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.menu-languagetool-scope li {
+  padding: 2px 8px;
+  border: 1px solid #99f6e4;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #0f766e;
 }
 
 .menu-index-block {

@@ -1606,6 +1606,50 @@
                   </div>
                 </div>
               </details>
+              <details class="menu-static-section menu-static-section--languagetool menu-static-accordion">
+                <summary
+                  class="menu-static-summary"
+                  title="Проверка русского и английского текста: орфография → грамматика → пунктуация"
+                >
+                  <span class="menu-static-title menu-static-title--languagetool">
+                    <span aria-hidden="true">⚪</span>
+                    <span class="menu-static-title-text">
+                      Проверка текста
+                      <span class="menu-static-subtitle">LanguageTool · локально <span class="stub-static-mark">(static)</span></span>
+                    </span>
+                  </span>
+                  <span
+                    id="menu-languagetool-stats"
+                    class="menu-static-google-drive-stats menu-static-google-drive-stats--summary is-empty"
+                    aria-live="polite"
+                  ></span>
+                </summary>
+                <div class="menu-static-body">
+                  <p class="menu-static-description">
+                    После индексирования — проверка человеческого текста в workspace:
+                    тело <code>.md</code>-страниц, OCR sidecar (<code>.sidecar.md</code>) и записи
+                    <code>awn-facts/</code>. Код, YAML-frontmatter и пути не проверяются.
+                    Выбранный инструмент: <strong>LanguageTool</strong> (локальный сервер) — орфография, грамматика, пунктуация, ru/en.
+                  </p>
+                  <ul class="menu-languagetool-scope">
+                    <li>орфография</li>
+                    <li>грамматика</li>
+                    <li>пунктуация</li>
+                    <li>ru / en</li>
+                  </ul>
+                  <p id="menu-languagetool-status" class="menu-static-description" aria-live="polite"></p>
+                  <button
+                    type="button"
+                    id="menu-languagetool-run-btn"
+                    class="menu-static-action-btn"
+                    disabled
+                    aria-disabled="true"
+                    title="Заглушка — сервер проверки ещё не подключён"
+                  >
+                    Проверить workspace
+                  </button>
+                </div>
+              </details>
               <details class="menu-static-section menu-static-section--google-drive menu-static-accordion">
                 <summary class="menu-static-summary" title="Google Drive (выгрузка файлов) — внешнее хранилище awn-google-drive">
                   <span class="menu-static-title menu-static-title--google-drive">
@@ -5180,6 +5224,7 @@
     <script src="/app-lock.js?v=12"></script>
     <script src="/connection-status.js?v=1"></script>
     <script src="/semantic-index-panel.js?v=9"></script>
+    <script src="/languagetool-panel.js?v=2"></script>
     <script src="/file-find-bar.js?v=2"></script>
     <script src="/slug-translit.js?v=1"></script>
     <script src="/external-file-mask.js?v=1"></script>
