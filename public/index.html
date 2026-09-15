@@ -1305,6 +1305,105 @@
           </div>
           <div class="menu-sidebar-bottom">
             <section
+              id="menu-awn-data-band"
+              class="menu-awn-data-band menu-awn-data-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar"
+              aria-label="Накопители информации"
+            >
+              <div class="menu-awn-data-band-head">
+                <button
+                  id="menu-awn-data-band-toggle"
+                  type="button"
+                  class="menu-awn-data-band-toggle-btn sidebar-accent-band-toggle sidebar-accent-band-toggle--awn-data"
+                  aria-expanded="true"
+                  aria-controls="menu-awn-data-band-body"
+                  title="Накопители информации — свернуть или показать"
+                >
+                  <span class="sidebar-accent-band-toggle-main">
+                    <span class="sidebar-accent-band-chevron" aria-hidden="true"></span>
+                    <span class="menu-awn-data-band-title sidebar-accent-band-title">Накопители информации</span>
+                  </span>
+                </button>
+                <div class="menu-awn-data-band-head-actions" aria-label="Действия накопителей">
+                  <button
+                    id="menu-awn-data-refresh-btn"
+                    type="button"
+                    class="menu-refresh-btn"
+                    title="Обновить накопители"
+                    aria-label="Обновить накопители"
+                  >
+                    <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                        stroke="currentColor"
+                        stroke-width="2.25"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div id="menu-awn-data-band-body" class="menu-awn-data-band-body">
+                <p class="menu-awn-data-band-hint">аналог БД — Domains (модели)</p>
+                <div class="menu-awn-data-toolbar">
+                  <div class="menu-awn-data-toolbar-row">
+                    <button
+                      id="menu-awn-data-create-group-btn"
+                      type="button"
+                      class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--group"
+                      title="Создать группу (manifest.md, без записей)"
+                    >
+                      + Группа
+                    </button>
+                    <button
+                      id="menu-awn-data-create-collection-btn"
+                      type="button"
+                      class="menu-static-action-btn menu-awn-data-create-btn"
+                      title="Создать коллекцию (много записей)"
+                    >
+                      + Коллекция
+                    </button>
+                    <button
+                      id="menu-awn-data-create-singleton-btn"
+                      type="button"
+                      class="menu-static-action-btn menu-awn-data-create-btn"
+                      title="Создать одиночку (main.md)"
+                    >
+                      + Одиночка
+                    </button>
+                  </div>
+                  <div class="menu-awn-data-toolbar-row menu-awn-data-toolbar-row--static">
+                    <button
+                      id="menu-awn-data-create-untyped-btn"
+                      type="button"
+                      class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--static"
+                      disabled
+                      aria-disabled="true"
+                      title="Заготовка — пока не работает"
+                    >
+                      + Без типа <span class="stub-static-mark">(static)</span>
+                    </button>
+                    <button
+                      id="menu-awn-data-create-mixin-btn"
+                      type="button"
+                      class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--static"
+                      disabled
+                      aria-disabled="true"
+                      title="Заготовка — пока не работает"
+                    >
+                      + Миксин <span class="stub-static-mark">(static)</span>
+                    </button>
+                  </div>
+                </div>
+                <ul
+                  id="menu-awn-data-stores"
+                  class="menu-awn-data-stores"
+                  aria-label="Накопители информации"
+                ></ul>
+                <p class="menu-awn-data-footer-caption">Структурированные данные</p>
+              </div>
+            </section>
+            <section
               id="menu-static-footer"
               class="menu-static-footer menu-static-footer-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar"
               aria-label="Системные и дополнительные секции"
@@ -1325,94 +1424,6 @@
                 </span>
               </button>
               <div id="menu-static-footer-body" class="menu-static-footer-body">
-              <details class="menu-static-section menu-static-section--storage-schemes menu-static-accordion">
-                <summary class="menu-static-summary" title="Накопители информации (аналог БД). Domains (модели)">
-                  <span class="menu-static-title menu-static-title--storage-schemes">
-                    <span aria-hidden="true">🟢</span>
-                    <span class="menu-static-title-text">
-                      Накопители информации (аналог БД)
-                      <span class="menu-static-subtitle">Domains (модели)</span>
-                    </span>
-                  </span>
-                  <span class="menu-static-summary-actions">
-                    <button
-                      id="menu-awn-data-refresh-btn"
-                      type="button"
-                      class="menu-static-summary-refresh-btn"
-                      title="Обновить накопители"
-                      aria-label="Обновить накопители"
-                    >
-                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
-                          stroke="currentColor"
-                          stroke-width="2.25"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <div class="menu-awn-data-toolbar">
-                    <div class="menu-awn-data-toolbar-row">
-                      <button
-                        id="menu-awn-data-create-group-btn"
-                        type="button"
-                        class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--group"
-                        title="Создать группу (manifest.md, без записей)"
-                      >
-                        + Группа
-                      </button>
-                      <button
-                        id="menu-awn-data-create-collection-btn"
-                        type="button"
-                        class="menu-static-action-btn menu-awn-data-create-btn"
-                        title="Создать коллекцию (много записей)"
-                      >
-                        + Коллекция
-                      </button>
-                      <button
-                        id="menu-awn-data-create-singleton-btn"
-                        type="button"
-                        class="menu-static-action-btn menu-awn-data-create-btn"
-                        title="Создать одиночку (main.md)"
-                      >
-                        + Одиночка
-                      </button>
-                    </div>
-                    <div class="menu-awn-data-toolbar-row menu-awn-data-toolbar-row--static">
-                      <button
-                        id="menu-awn-data-create-untyped-btn"
-                        type="button"
-                        class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--static"
-                        disabled
-                        aria-disabled="true"
-                        title="Заготовка — пока не работает"
-                      >
-                        + Без типа <span class="stub-static-mark">(static)</span>
-                      </button>
-                      <button
-                        id="menu-awn-data-create-mixin-btn"
-                        type="button"
-                        class="menu-static-action-btn menu-awn-data-create-btn menu-awn-data-create-btn--static"
-                        disabled
-                        aria-disabled="true"
-                        title="Заготовка — пока не работает"
-                      >
-                        + Миксин <span class="stub-static-mark">(static)</span>
-                      </button>
-                    </div>
-                  </div>
-                  <ul
-                    id="menu-awn-data-stores"
-                    class="menu-awn-data-stores"
-                    aria-label="Накопители информации"
-                  ></ul>
-                  <p class="menu-awn-data-footer-caption">Структурированные данные</p>
-                </div>
-              </details>
               <details class="menu-static-section menu-static-section--vendor menu-static-accordion">
                 <summary class="menu-static-summary" title="Каталог исходников workspace (awn-repositories)">
                   <span class="menu-static-title menu-static-title--vendor">

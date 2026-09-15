@@ -28,6 +28,9 @@ const appFooterIdeasCloseBtn = document.getElementById("app-footer-ideas-close-b
 const appFooterIdeasEditBtn = document.getElementById("app-footer-ideas-edit-btn");
 const appFooterIdeasPopoverTitleNode = document.getElementById("app-footer-ideas-popover-title");
 const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
+const menuAwnDataBandNode = document.getElementById("menu-awn-data-band");
+const menuAwnDataBandToggleBtn = document.getElementById("menu-awn-data-band-toggle");
+const menuAwnDataBandBodyNode = document.getElementById("menu-awn-data-band-body");
 const menuStaticFooterNode = document.getElementById("menu-static-footer");
 const menuStaticFooterToggleBtn = document.getElementById("menu-static-footer-toggle");
 const menuStaticFooterBodyNode = document.getElementById("menu-static-footer-body");
@@ -125,6 +128,7 @@ let awnDataViewRecordPanelNode = null;
 let awnDataViewRecordFieldsNode = null;
 let awnDataViewRecordBodyNode = null;
 let awnDataViewLayoutToggleNode = null;
+const MENU_AWN_DATA_BAND_OPEN_KEY = "yamlcms.menuAwnDataBandOpen.v1";
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const MENU_TREE_BAND_OPEN_KEY = "yamlcms.menuTreeBandOpen.v1";
 const appSplashNode = document.getElementById("app-splash");
@@ -93063,6 +93067,17 @@ function toggleAppFooterIdeasPopover() {
   else openAppFooterIdeasPopover();
 }
 
+function isMenuAwnDataBandExpanded() {
+  try {
+    const saved = localStorage.getItem(MENU_AWN_DATA_BAND_OPEN_KEY);
+    if (saved === "0") return false;
+    if (saved === "1") return true;
+    return true;
+  } catch {
+    return true;
+  }
+}
+
 function isMenuStaticFooterExpanded() {
   try {
     const saved = localStorage.getItem(MENU_STATIC_FOOTER_OPEN_KEY);
@@ -93078,6 +93093,12 @@ let sidebarTreeZoneSnapshot = null;
 
 function isSidebarBottomPanelActive() {
   if (isMenuSystemEnvironmentOpen()) return true;
+  if (
+    isMenuAwnDataBandExpanded() &&
+    Boolean(menuAwnDataBandBodyNode && !menuAwnDataBandBodyNode.hidden)
+  ) {
+    return true;
+  }
   return (
     isMenuStaticFooterExpanded() &&
     Boolean(menuStaticFooterBodyNode && !menuStaticFooterBodyNode.hidden)
@@ -93103,6 +93124,14 @@ function restoreSidebarTreeZoneFromSnapshot() {
 function dismissSidebarBottomPanelForUpperZone() {
   sidebarTreeZoneSnapshot = null;
   sidebarNode?.classList.remove("is-menu-bottom-focus");
+  if (isMenuAwnDataBandExpanded()) {
+    try {
+      localStorage.setItem(MENU_AWN_DATA_BAND_OPEN_KEY, "0");
+    } catch {
+      // ignore storage errors
+    }
+    syncMenuAwnDataBandAccordionUi();
+  }
   if (isMenuStaticFooterExpanded()) {
     try {
       localStorage.setItem(MENU_STATIC_FOOTER_OPEN_KEY, "0");
@@ -93159,6 +93188,31 @@ function syncSidebarBottomFocusMode() {
   }
   sidebarNode.classList.remove("is-menu-bottom-focus");
   restoreSidebarTreeZoneFromSnapshot();
+}
+
+function syncMenuAwnDataBandAccordionUi() {
+  if (!menuAwnDataBandNode) return;
+  const expanded = isMenuAwnDataBandExpanded();
+  menuAwnDataBandNode.classList.toggle("is-collapsed", !expanded);
+  menuAwnDataBandToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
+  if (menuAwnDataBandBodyNode) {
+    menuAwnDataBandBodyNode.hidden = !expanded;
+    menuAwnDataBandBodyNode.classList.toggle("is-collapsed", !expanded);
+  }
+}
+
+function setMenuAwnDataBandExpanded(expanded) {
+  try {
+    localStorage.setItem(MENU_AWN_DATA_BAND_OPEN_KEY, expanded ? "1" : "0");
+  } catch {
+    // ignore storage errors
+  }
+  syncMenuAwnDataBandAccordionUi();
+  syncSidebarBottomFocusMode();
+}
+
+function toggleMenuAwnDataBandExpanded() {
+  setMenuAwnDataBandExpanded(!isMenuAwnDataBandExpanded());
 }
 
 function syncMenuStaticFooterAccordionUi() {
@@ -93257,6 +93311,14 @@ function setupMenuTreeBandGroup() {
   });
   menuSettingsBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
+  });
+}
+
+function setupMenuAwnDataBandGroup() {
+  syncMenuAwnDataBandAccordionUi();
+  syncSidebarBottomFocusMode();
+  menuAwnDataBandToggleBtn?.addEventListener("click", () => {
+    toggleMenuAwnDataBandExpanded();
   });
 }
 
@@ -99143,6 +99205,7 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 setupMenuSortDragDrop();
 setupAppFooterToggle();
 setupMenuTreeBandGroup();
+setupMenuAwnDataBandGroup();
 setupMenuStaticFooterGroup();
 setupMenuGoogleDriveRepairButton();
 setupAppFooterIdeasPopover();

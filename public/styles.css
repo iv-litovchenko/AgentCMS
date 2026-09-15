@@ -21400,6 +21400,7 @@ a.header-tool-btn {
 }
 
 .menu-static-footer:not(.is-collapsed) .sidebar-accent-band-chevron,
+.menu-awn-data-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-system-environment.is-open > .sidebar-accent-band-toggle .sidebar-accent-band-chevron {
   transform: rotate(45deg);
   margin-top: -3px;
@@ -53738,6 +53739,134 @@ body.is-cms-page-picker-active #discuss-aside * {
 .sidebar-slab-menu .menu-shared-title {
   color: #166534;
   font-weight: 700;
+}
+
+.menu-awn-data-band {
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.menu-awn-data-band-head {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 52%, #a78bfa 100%);
+}
+
+.menu-awn-data-band-head .sidebar-accent-band-toggle--awn-data {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
+  background: transparent;
+  color: #f5f3ff;
+}
+
+.menu-awn-data-band-head .sidebar-accent-band-toggle--awn-data:hover {
+  filter: brightness(1.04);
+}
+
+.menu-awn-data-band-head .sidebar-accent-band-toggle--awn-data:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.88);
+  outline-offset: -2px;
+}
+
+.menu-awn-data-band-head .sidebar-accent-band-chevron {
+  border-right-color: rgba(255, 255, 255, 0.95);
+  border-bottom-color: rgba(255, 255, 255, 0.95);
+}
+
+.menu-awn-data-band-title.sidebar-accent-band-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-awn-data-band-hint {
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(196, 181, 253, 0.75);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #6d28d9;
+  box-sizing: border-box;
+}
+
+.menu-awn-data-band-head-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 8px 7px 0;
+  pointer-events: auto;
+}
+
+.menu-awn-data-band-head-actions .menu-refresh-btn {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  flex: 0 0 22px;
+  border: 1px solid rgba(91, 33, 182, 0.32);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.42);
+  color: #5b21b6;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.menu-awn-data-band-head-actions .menu-refresh-btn:hover:not(:disabled) {
+  border-color: rgba(91, 33, 182, 0.48);
+  background: rgba(255, 255, 255, 0.72);
+  color: #6d28d9;
+}
+
+.menu-awn-data-band-head-actions .menu-refresh-btn:focus {
+  outline: none;
+}
+
+.menu-awn-data-band-head-actions .menu-refresh-btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.32);
+}
+
+.menu-awn-data-band-head-actions .menu-refresh-btn svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.menu-awn-data-band-head-actions .menu-refresh-btn.is-spinning svg {
+  animation: workspace-refresh-spin 0.75s linear infinite;
+}
+
+.menu-awn-data-band-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px 10px;
+  box-sizing: border-box;
+  background: #f5f3ff;
+  border-bottom: 1px solid rgba(196, 181, 253, 0.45);
+}
+
+.menu-awn-data-band-body[hidden],
+.menu-awn-data-band-accordion.is-collapsed > .menu-awn-data-band-body {
+  display: none !important;
+}
+
+.menu-awn-data-band-accordion.is-collapsed .menu-awn-data-band-head {
+  border-bottom: 0;
 }
 
 .menu-static-footer {
