@@ -158,46 +158,90 @@ body.is-booting {
 }
 
 .splash-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   text-align: center;
+  padding: 18px 32px 16px;
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(12px);
   border: none;
-  background: none;
   box-shadow: none;
-  padding: 0;
+  background:
+    radial-gradient(ellipse 90% 80% at 50% 40%, rgba(79, 141, 253, 0.14) 0%, transparent 58%),
+    radial-gradient(ellipse 70% 60% at 50% 85%, rgba(20, 184, 166, 0.12) 0%, transparent 62%);
 }
 
 .splash--active .splash-copy {
-  animation: splash-copy-in 0.65s 0.45s ease forwards;
+  animation: splash-copy-in 0.75s 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .splash-brand {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.32em;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.splash-brand-agent {
+  color: #f1f5ff;
+  text-shadow: 0 0 24px rgba(255, 255, 255, 0.12);
+}
+
+.splash-brand-cms {
+  background: linear-gradient(135deg, var(--cms) 0%, #6ea8ff 42%, var(--control) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 18px rgba(79, 141, 253, 0.45));
+}
+
+.splash-tagline {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   margin: 0;
   padding: 0;
   border: none;
   background: none;
   box-shadow: none;
-  font-size: 1.08rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: #eef2ff;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.splash-tagline {
-  margin: 6px 0 0;
-  padding: 0;
-  border: none;
-  background: none;
-  box-shadow: none;
-  font-size: 0.76rem;
-  font-weight: 400;
-  color: rgba(184, 197, 220, 0.7);
+.splash-tagline-text {
+  background: linear-gradient(90deg, #8b9ab8 0%, #e8eef8 45%, #8b9ab8 90%);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: splash-tagline-shimmer 3s ease-in-out infinite;
 }
 
 .splash-dots {
   display: inline-block;
-  color: rgba(20, 184, 166, 0.75);
+  color: var(--control);
+  font-size: 0.85em;
+  letter-spacing: 0;
+  text-transform: none;
   animation: splash-dots 1.4s ease-in-out infinite;
+}
+
+@keyframes splash-tagline-shimmer {
+  0% {
+    background-position: 100% center;
+  }
+  100% {
+    background-position: -100% center;
+  }
 }
 
 .splash-scene {
