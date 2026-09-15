@@ -22,7 +22,7 @@ const ACTIONS = [
     id: "setup-desktop-shortcuts",
     category: "setup",
     title: "Ярлыки на рабочем столе",
-    description: "Control, Editor и Voice — ярлыки на Desktop для быстрого запуска.",
+    description: "Control, Editor и Voice — ярлыки .app на Desktop для быстрого запуска.",
     command: "node",
     args: ["scripts/create-desktop-shortcuts.js"],
     tone: "default"
@@ -150,7 +150,7 @@ const CONTROL_SELF = {
   accent: "control",
   icon: "favicon.svg",
   appBundle: "Agent CMS Control.app",
-  rootLauncher: "Agent CMS Control.app (в корне проекта)",
+  rootLauncher: "welcome.command (в корне проекта)",
   distActionId: "control-dist",
   launcherActionId: "control-launcher",
   npmDist: "npm run control:dist",
