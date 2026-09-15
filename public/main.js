@@ -23764,10 +23764,124 @@ function scheduleContentSearch() {
   }, 280);
 }
 
+async function openWorkspaceSearchResultByMeta(result = {}) {
+  if (!result || typeof result !== "object") return false;
+
+  if (result.systemFile) {
+    await selectSystemFile(result.systemFile, { skipRouteSync: true, edit: false });
+    return true;
+  }
+
+  const nodePath = String(result.nodePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  if (!nodePath) return false;
+
+  const label =
+    result.label ||
+    result.titleName ||
+    getSearchResultTitle(result) ||
+    getLabelFromPath(nodePath);
+  const mode = String(result.mode || "").trim();
+  const externalFile = String(result.externalFile || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+
+  if (mode === "external" && externalFile) {
+    await selectNodeManifest(getLabelFromPath(nodePath), nodePath, "external", { skipRouteSync: true });
+    openExternalRecordOverviewFromNavigation({
+      path: externalFile.replace(/\.md$/i, ""),
+      title: externalFile.split("/").pop() || externalFile
+    });
+    return true;
+  }
+
+  if (mode === "media" && externalFile) {
+    await selectNodeManifest(getLabelFromPath(nodePath), nodePath, "media", { skipRouteSync: true });
+    if (/\.md$/i.test(externalFile)) {
+      openMediaEntryOverviewFromNavigation({
+        path: externalFile,
+        title: externalFile.split("/").pop() || externalFile
+      });
+    } else {
+      openMediaAsset(externalFile, nodePath);
+    }
+    return true;
+  }
+
+  if (mode && FLAT_STORAGE_SECTION_MODES.has(mode) && externalFile) {
+    await selectNodeManifest(getLabelFromPath(nodePath), nodePath, mode, { skipRouteSync: true });
+    const rel = externalFile.replace(/\.md$/i, "");
+    openFlatStorageRecordOverviewFromNavigation(
+      { path: rel, title: rel.split("/").pop() || rel },
+      mode
+    );
+    return true;
+  }
+
+  if (mode === "description") {
+    await openNodeFromMenu(label, nodePath, { skipRouteSync: true });
+    return true;
+  }
+
+  const sidecarModes = new Set(["internal", "todo", "tabular", "configs", "env", "log", "node-preview"]);
+  if (mode && sidecarModes.has(mode)) {
+    await selectNodeManifest(label, nodePath, mode, { skipRouteSync: true });
+    return true;
+  }
+
+  if (
+    isNodeManifestPath(nodePath) ||
+    isTopicManifestPath(nodePath) ||
+    isAreaManifestFileName(nodePath.split("/").pop() || "")
+  ) {
+    await openNodeFromMenu(label, nodePath, { skipRouteSync: true });
+    return true;
+  }
+
+  return false;
+}
+
+async function tryOpenContentSearchQueryDirect(query) {
+  const normalized = String(query || "")
+    .replace(/\\/g, "/")
+    .trim()
+    .replace(/^\/+/, "");
+  if (!normalized) return false;
+  const looksLikePath =
+    normalized.includes("/") ||
+    /\.(md|ya?ml|csv|json|txt|env|sidecar\.md)$/i.test(normalized) ||
+    /^\.agent-cms\//i.test(normalized);
+  if (!looksLikePath) return false;
+
+  try {
+    hideContentSearchResults();
+    contentSearchInputNode?.blur();
+    await openWorkspaceFilePreviewByRelPath(normalized, {
+      label: getLabelFromPath(normalized)
+    });
+    syncAppRouteToUrl({ push: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function openWorkspaceFilePreviewByRelPath(filePath, result = {}) {
   hideHomeView();
   const normalizedPath = String(filePath || "").replace(/\\/g, "/");
   if (!normalizedPath) throw new Error("Путь к файлу пустой");
+
+  if (
+    result &&
+    (result.systemFile ||
+      result.nodePath ||
+      result.externalFile ||
+      result.mode ||
+      result.titleName)
+  ) {
+    if (await openWorkspaceSearchResultByMeta(result)) return;
+  }
 
   if (await tryOpenMarkdownLinkByWorkspaceRel(normalizedPath)) return;
 
@@ -23896,7 +24010,10 @@ async function openContentSearchResult(result, { agentId = null } = {}) {
   if (!filePath && !result.systemFile) return;
 
   try {
-    await openWorkspaceFilePreviewByRelPath(filePath, result);
+    await openWorkspaceFilePreviewByRelPath(filePath, {
+      ...result,
+      label: getSearchResultTitle(result)
+    });
     syncAppRouteToUrl({ push: true });
   } catch (error) {
     showToast(`Не удалось открыть файл: ${error.message}`, "error");
@@ -56754,6 +56871,11 @@ function isManifestFrontmatterDiffLine(text) {
   if (!line) return false;
   if (line === "---") return true;
   if (/^awn-[a-z0-9-]+:/i.test(line)) return true;
+  const colonIdx = line.indexOf(":");
+  if (colonIdx > 0) {
+    const key = normalizePropsKey(line.slice(0, colonIdx).trim());
+    if (PROPS_FIELD_META[key] || /^awn-/i.test(key)) return true;
+  }
   if (/^(true|false|null|\[\])$/i.test(line)) return true;
   if (/^-\s*(?:\[\]|""|''|true|false|null|\d+)/i.test(line)) return true;
   if (/^-\s+"[^"]*"/.test(line)) return true;
@@ -56761,19 +56883,16 @@ function isManifestFrontmatterDiffLine(text) {
   return false;
 }
 
-function filterManifestBodyDiffPayload(diffPayload) {
-  if (!diffPayload?.diff?.entries?.length) return diffPayload;
-  const entries = diffPayload.diff.entries.filter(
-    (entry) => !isManifestFrontmatterDiffLine(entry.text)
-  );
-  if (!entries.some((entry) => entry.type === "add" || entry.type === "remove")) {
-    return null;
-  }
+function isManifestUpdateDiffLine(text) {
+  return /^awn-update:/i.test(String(text ?? "").trim());
+}
+
+function rebuildLiveDiffPayload(diffPayload, entries) {
   let added = 0;
   let removed = 0;
   for (const entry of entries) {
     if (entry.type === "add") added += 1;
-    if (entry.type === "remove") removed += 1;
+    else if (entry.type === "remove") removed += 1;
   }
   return {
     ...diffPayload,
@@ -56783,6 +56902,44 @@ function filterManifestBodyDiffPayload(diffPayload) {
       stats: { added, removed }
     }
   };
+}
+
+function filterManifestBodyDiffPayload(diffPayload) {
+  if (!diffPayload?.diff?.entries?.length) return diffPayload;
+  const entries = diffPayload.diff.entries.filter((entry) => {
+    if (entry.type === "same") return true;
+    if (isLiveDiffIgnorableChangeEntry(entry)) return false;
+    return !isManifestFrontmatterDiffLine(entry.text);
+  });
+  if (!entries.some((entry) => entry.type === "add" || entry.type === "remove")) {
+    return null;
+  }
+  return rebuildLiveDiffPayload(diffPayload, entries);
+}
+
+function filterManifestPanelDiffPayload(diffPayload) {
+  if (!diffPayload?.diff?.entries?.length) return diffPayload;
+  const entries = diffPayload.diff.entries.filter((entry) => {
+    if (entry.type === "same") return true;
+    if (isLiveDiffIgnorableChangeEntry(entry)) return false;
+    if (!isManifestFrontmatterDiffLine(entry.text)) return true;
+    return isManifestUpdateDiffLine(entry.text);
+  });
+  if (!entries.some((entry) => entry.type === "add" || entry.type === "remove")) {
+    return null;
+  }
+  return rebuildLiveDiffPayload(diffPayload, entries);
+}
+
+function resolveLiveDiffDisplayPayload(diffPayload, pathValue, { panel = false } = {}) {
+  if (!diffPayload?.diff?.entries?.length || !pathValue) return diffPayload;
+  const manifestPath = normalizeLiveSyncStoragePath(getActiveNodeApiPath());
+  if (!manifestPath || !liveSyncPathsReferToSameFile(pathValue, manifestPath)) {
+    return diffPayload;
+  }
+  return panel
+    ? filterManifestPanelDiffPayload(diffPayload) || diffPayload
+    : filterManifestBodyDiffPayload(diffPayload) || diffPayload;
 }
 
 const NODE_SLOT_SETTINGS_ROW_TITLE = "Настройки:";
@@ -62603,7 +62760,9 @@ function renderEntryOverviewContentPart(rawContent, nodePath, navOptions = null,
   const preview = document.createElement("div");
   preview.className = "node-navigation-preview file-content-preview";
   const workspacePath = nodePath;
-  const inlineDiff = filterManifestBodyDiffPayload(getActiveLiveSyncInlineDiffForView(workspacePath));
+  const inlineDiff = filterManifestBodyDiffPayload(
+    getActiveLiveSyncInlineDiffForView(workspacePath)
+  );
   if (
     inlineDiff &&
     renderPreviewWithEmbeddedDiff(preview, content, inlineDiff, nodePath)
@@ -69728,11 +69887,14 @@ function resetLiveSyncSession(agentId = activeAgentId) {
   hideLiveFileDiffPanel();
 }
 
-function liveSyncDiffHasVisibleChanges(diffPayload) {
-  const stats = diffPayload?.diff?.stats;
-  if (stats && (stats.added || stats.removed)) return true;
-  const entries = diffPayload?.diff?.entries;
-  return Array.isArray(entries) && entries.some((entry) => entry.type === "add" || entry.type === "remove");
+function liveSyncDiffHasVisibleChanges(diffPayload, pathValue = null) {
+  const payload = pathValue
+    ? resolveLiveDiffBannerPayload(diffPayload, pathValue) || diffPayload
+    : diffPayload;
+  const visible = getLiveDiffVisibleChangeEntries(payload?.diff?.entries || []);
+  if (visible.length) return true;
+  const stats = resolveLiveDiffVisibleStats(payload);
+  return Boolean(stats.added || stats.removed);
 }
 
 function getActiveLiveSyncInlineDiffForView(workspacePath = null) {
@@ -69770,7 +69932,7 @@ function clearLiveSyncInlineDiffState() {
 }
 
 function setLiveSyncInlineDiffState(diffPayload, pathValue) {
-  if (!liveSyncDiffHasVisibleChanges(diffPayload)) {
+  if (!liveSyncDiffHasVisibleChanges(diffPayload, pathValue)) {
     clearLiveSyncInlineDiffState();
     return;
   }
@@ -69835,7 +69997,7 @@ function hydrateMarkdownPreviewElement(element, nodePath) {
 function renderPreviewWithEmbeddedDiff(element, markdown, diffPayload, nodePath) {
   if (!element || !diffPayload) return false;
   const entries = Array.isArray(diffPayload?.diff?.entries) ? diffPayload.diff.entries : [];
-  if (!entries.some((entry) => entry.type === "add" || entry.type === "remove")) {
+  if (!getLiveDiffVisibleChangeEntries(entries).length) {
     return false;
   }
 
@@ -69866,12 +70028,16 @@ function renderPreviewWithEmbeddedDiff(element, markdown, diffPayload, nodePath)
         sameBuffer.push(entry.text ?? "");
         continue;
       }
+      if (isLiveDiffIgnorableChangeEntry(entry)) continue;
       flushSame();
       const row = document.createElement("div");
       row.className = `live-diff-embedded-row live-diff-embedded-row--${entry.type}`;
       if (entry.type === "add") {
         const inner = document.createElement("div");
         inner.innerHTML = renderMarkdownToHtml(entry.text ?? "", { nodePath });
+        if (!inner.textContent?.trim() && !inner.querySelector("img, pre, code, table, hr, iframe")) {
+          continue;
+        }
         row.appendChild(inner);
       } else {
         row.textContent = formatLiveDiffLineText(entry.text ?? "");
@@ -69894,6 +70060,16 @@ function renderPreviewWithEmbeddedDiff(element, markdown, diffPayload, nodePath)
     }
   }
 
+  if (isLiveFileDiffPanelVisible()) {
+    for (const entry of getLiveDiffVisibleChangeEntries(entries)) {
+      if (entry.type !== "remove") continue;
+      const ghost = document.createElement("div");
+      ghost.className = "live-diff-embedded-inline-remove";
+      ghost.textContent = formatLiveDiffLineText(entry.text ?? "");
+      element.prepend(ghost);
+    }
+  }
+
   hydrateMarkdownPreviewElement(element, nodePath);
   return true;
 }
@@ -69901,7 +70077,7 @@ function renderPreviewWithEmbeddedDiff(element, markdown, diffPayload, nodePath)
 function renderInlineDiffIntoElement(element, diffPayload, nodePath) {
   if (!element || !diffPayload) return false;
   const entries = Array.isArray(diffPayload?.diff?.entries) ? diffPayload.diff.entries : [];
-  if (!entries.length) return false;
+  if (!getLiveDiffVisibleChangeEntries(entries).length) return false;
 
   const root = document.createElement("div");
   root.className = "live-diff-inline-root";
@@ -69921,6 +70097,7 @@ function renderInlineDiffIntoElement(element, diffPayload, nodePath) {
       buffer.push(entry.text ?? "");
       continue;
     }
+    if (isLiveDiffIgnorableChangeEntry(entry)) continue;
     flushBuffer();
     const row = document.createElement("div");
     row.className = `live-diff-inline-row live-diff-inline-row--${entry.type}`;
@@ -69929,6 +70106,9 @@ function renderInlineDiffIntoElement(element, diffPayload, nodePath) {
       const inner = document.createElement("div");
       inner.className = "live-diff-inline-content";
       inner.innerHTML = renderMarkdownToHtml(entry.text ?? "", { nodePath });
+      if (!inner.textContent?.trim() && !inner.querySelector("img, pre, code, table, hr, iframe")) {
+        continue;
+      }
       row.appendChild(inner);
     } else {
       row.textContent = formatLiveDiffLineText(entry.text ?? "");
@@ -69944,7 +70124,7 @@ function renderInlineDiffIntoElement(element, diffPayload, nodePath) {
 
 function buildLiveDiffAddedLineSet(diffPayload) {
   const set = new Set();
-  for (const entry of diffPayload?.diff?.entries || []) {
+  for (const entry of getLiveDiffVisibleChangeEntries(diffPayload?.diff?.entries || [])) {
     if (entry.type === "add" && entry.text != null) set.add(String(entry.text));
   }
   return set;
@@ -69978,6 +70158,25 @@ function applyWysiwygLiveDiffHighlights() {
 
   host?.classList.add("hidden");
   host?.replaceChildren();
+
+  if (isLiveFileDiffPanelVisible()) {
+    const removedEntries = getLiveDiffVisibleChangeEntries(diffPayload.diff.entries || []).filter(
+      (entry) => entry.type === "remove"
+    );
+    if (host && removedEntries.length) {
+      host.classList.remove("hidden");
+      const title = document.createElement("div");
+      title.className = "live-sync-wysiwyg-diff-removed-title";
+      title.textContent = "Удалено";
+      host.appendChild(title);
+      for (const entry of removedEntries) {
+        const line = document.createElement("div");
+        line.className = "live-sync-wysiwyg-diff-removed-line";
+        line.textContent = formatLiveDiffLineText(entry.text ?? "");
+        host.appendChild(line);
+      }
+    }
+  }
 
   if (!proseMirror) return;
 
@@ -70134,6 +70333,18 @@ function getLiveSyncLoadedContentForPath(pathValue) {
   return fileContentInputNode?.value ?? "";
 }
 
+function isLiveSyncPathWatched(pathValue) {
+  for (const watched of getActiveLiveSyncWatchPaths()) {
+    if (liveSyncPathsReferToSameFile(watched, pathValue)) return true;
+  }
+  return false;
+}
+
+function getLiveSyncDiffBaselineContent(pathValue) {
+  if (!isLiveSyncPathWatched(pathValue)) return null;
+  return getLiveSyncLoadedContentForPath(pathValue);
+}
+
 function isLiveSyncOwnSaveActive(pathValue) {
   const until = Number(liveSyncOwnSaveUntilByPath.get(normalizeLiveSyncPath(pathValue))) || 0;
   return until > Date.now();
@@ -70237,19 +70448,83 @@ function formatLiveSyncDiffStats(stats) {
   return chunks.join(" · ");
 }
 
+function parseLiveDiffYamlPropLine(text) {
+  const trimmed = String(text ?? "").trim();
+  if (!trimmed || trimmed === "---") return null;
+  const colonIdx = trimmed.indexOf(":");
+  if (colonIdx <= 0) return null;
+  return {
+    key: normalizePropsKey(trimmed.slice(0, colonIdx).trim()),
+    rawValue: trimmed.slice(colonIdx + 1).trim()
+  };
+}
+
+function isEmptyYamlScalarValue(rawValue) {
+  const value = String(rawValue ?? "").trim();
+  return value === "" || value === '""' || value === "''" || value === "null" || value === "~";
+}
+
+function isLiveDiffIgnorableChangeEntry(entry) {
+  if (!entry || entry.type === "same") return false;
+  const text = String(entry.text ?? "");
+  if (!text.trim()) return true;
+  const parsed = parseLiveDiffYamlPropLine(text);
+  if (parsed && isEmptyYamlScalarValue(parsed.rawValue)) return true;
+  return false;
+}
+
+function getLiveDiffVisibleChangeEntries(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries.filter((entry) => entry.type === "add" || entry.type === "remove")
+    .filter((entry) => !isLiveDiffIgnorableChangeEntry(entry));
+}
+
+function countLiveDiffVisibleStats(entries) {
+  const visible = getLiveDiffVisibleChangeEntries(entries);
+  let added = 0;
+  let removed = 0;
+  for (const entry of visible) {
+    if (entry.type === "add") added += 1;
+    else if (entry.type === "remove") removed += 1;
+  }
+  return { added, removed };
+}
+
+function resolveLiveDiffVisibleStats(diffPayload) {
+  const entries = diffPayload?.diff?.entries;
+  if (Array.isArray(entries) && entries.length) {
+    return countLiveDiffVisibleStats(entries);
+  }
+  return {
+    added: Number(diffPayload?.diff?.stats?.added) || 0,
+    removed: Number(diffPayload?.diff?.stats?.removed) || 0
+  };
+}
+
+function formatLiveDiffScalarValue(rawValue) {
+  const value = String(rawValue ?? "").trim();
+  if (isEmptyYamlScalarValue(value)) return "";
+  if (
+    (value.startsWith('"') && value.endsWith('"') && value.length >= 2) ||
+    (value.startsWith("'") && value.endsWith("'") && value.length >= 2)
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
 function formatLiveDiffLineText(text) {
   const raw = String(text ?? "");
   const trimmed = raw.trim();
   if (trimmed === "---") return "— frontmatter —";
-  const colonIdx = trimmed.indexOf(":");
-  if (colonIdx <= 0) return raw;
-  const keyPart = trimmed.slice(0, colonIdx).trim();
-  const valuePart = trimmed.slice(colonIdx + 1).trim();
-  const key = normalizePropsKey(keyPart);
-  const meta = PROPS_FIELD_META[key];
-  if (meta?.label || /^awn-/i.test(key)) {
-    const label = meta?.label || key.replace(/^awn-/, "").replace(/-/g, " ");
-    return `${label}: ${valuePart}`;
+  const parsed = parseLiveDiffYamlPropLine(trimmed);
+  if (!parsed) return raw;
+  const meta = PROPS_FIELD_META[parsed.key];
+  if (meta?.label || /^awn-/i.test(parsed.key)) {
+    const label = meta?.label || parsed.key.replace(/^awn-/, "").replace(/-/g, " ");
+    const displayValue = formatLiveDiffScalarValue(parsed.rawValue);
+    if (!displayValue) return `${label}: (пусто)`;
+    return `${label}: ${displayValue}`;
   }
   return raw;
 }
@@ -70279,6 +70554,7 @@ function syncLiveFileDiffToggleUi() {
   }
   liveFileUpdateBannerNode?.classList.toggle("is-diff-open", visible);
   editorSurfaceNode?.classList.toggle("is-live-diff-panel-open", visible);
+  refreshLiveSyncInlineDiffView();
 }
 
 async function fetchLiveFileDiff(pathValue, oldContent = null) {
@@ -70306,7 +70582,8 @@ function hideLiveFileDiffPanel() {
 
 function renderLiveFileDiffPanel(diffPayload, pathValue) {
   if (!liveFileDiffPanelNode || !liveFileDiffPanelBodyNode) return;
-  const entries = Array.isArray(diffPayload?.diff?.entries) ? diffPayload.diff.entries : [];
+  const displayPayload = resolveLiveDiffDisplayPayload(diffPayload, pathValue, { panel: true }) || diffPayload;
+  const entries = Array.isArray(displayPayload?.diff?.entries) ? displayPayload.diff.entries : [];
   liveFileDiffPanelTitleNode.textContent = formatLiveSyncPathLabel(pathValue);
   liveFileDiffPanelBodyNode.replaceChildren();
 
@@ -70319,7 +70596,13 @@ function renderLiveFileDiffPanel(diffPayload, pathValue) {
 
   let rendered = 0;
   for (const entry of entries) {
-    if (entry.type === "same") continue;
+    if (entry.type === "same" || isLiveDiffIgnorableChangeEntry(entry)) continue;
+    if (
+      isManifestFrontmatterDiffLine(entry.text) &&
+      !isManifestUpdateDiffLine(entry.text)
+    ) {
+      continue;
+    }
     rendered += 1;
     const line = document.createElement("div");
     line.className = `live-file-diff-line live-file-diff-line--${entry.type}`;
@@ -70344,6 +70627,11 @@ function renderLiveFileDiffPanel(diffPayload, pathValue) {
   syncLiveFileDiffToggleUi();
 }
 
+function resolveLiveDiffBannerPayload(diffPayload, pathValue) {
+  const filtered = resolveLiveDiffDisplayPayload(diffPayload, pathValue, { panel: false });
+  return filtered || diffPayload;
+}
+
 function hideLiveFileUpdateBanner() {
   liveFileUpdateBannerNode?.classList.add("hidden");
 }
@@ -70353,7 +70641,12 @@ function showLiveFileUpdateBanner(change) {
   liveSyncPendingChange = change;
 
   const label = formatLiveSyncPathLabel(change.path);
-  const statsText = formatLiveSyncDiffStats(change.diff?.stats);
+  const bannerDiffPayload = resolveLiveDiffBannerPayload(
+    change.diff?.entries ? { diff: change.diff } : liveSyncInlineDiffState?.diffPayload,
+    change.path
+  );
+  const visibleStats = resolveLiveDiffVisibleStats(bannerDiffPayload);
+  const statsText = formatLiveSyncDiffStats(visibleStats);
   const dirty = Boolean(change.dirty);
   const external = change.kind === "external" || change.source === "external";
 
@@ -70375,10 +70668,10 @@ function showLiveFileUpdateBanner(change) {
     liveFileUpdateBannerPathNode.textContent = label;
   }
   if (liveFileUpdateBannerStatsNode) {
-    liveFileUpdateBannerStatsNode.innerHTML = renderLiveSyncDiffStatsMarkup(change.diff?.stats);
+    liveFileUpdateBannerStatsNode.innerHTML = renderLiveSyncDiffStatsMarkup(visibleStats);
     liveFileUpdateBannerStatsNode.classList.toggle(
       "hidden",
-      !change.diff?.stats || (!change.diff.stats.added && !change.diff.stats.removed)
+      !visibleStats.added && !visibleStats.removed
     );
   }
   if (liveFileUpdateBannerDetailNode) {
@@ -70392,7 +70685,7 @@ function showLiveFileUpdateBanner(change) {
   liveFileUpdateReloadBtn?.classList.toggle("hidden", !dirty);
   liveFileUpdateShowDiffBtn?.classList.toggle(
     "hidden",
-    !change.diff?.stats || (!change.diff.stats.added && !change.diff.stats.removed)
+    !visibleStats.added && !visibleStats.removed
   );
 
   liveFileUpdateBannerNode.classList.remove("hidden");
@@ -70536,7 +70829,7 @@ async function presentLiveFileChange(change, diffPayload = null) {
     diffPayload ||
     (change.diff ? { diff: change.diff, oldContent: change.oldContent, newContent: change.newContent } : null);
 
-  if (liveSyncDiffHasVisibleChanges(diffData)) {
+  if (liveSyncDiffHasVisibleChanges(diffData, change.path)) {
     setLiveSyncInlineDiffState(diffData, change.path);
   }
 
@@ -70547,7 +70840,7 @@ async function presentLiveFileChange(change, diffPayload = null) {
 
   showLiveFileUpdateBanner(change);
   hideLiveFileDiffPanel();
-  if (!liveSyncDiffHasVisibleChanges(diffData)) {
+  if (!liveSyncDiffHasVisibleChanges(diffData, change.path)) {
     clearLiveSyncInlineDiffState();
   }
 }
@@ -70556,9 +70849,10 @@ async function handleLiveFileChange(event) {
   const pathValue = String(event.path || "").replace(/\\/g, "/").trim();
   if (!pathValue || isLiveSyncEventAcknowledged(pathValue, event.id)) return;
 
+  const baselineContent = getLiveSyncDiffBaselineContent(pathValue);
   let diffPayload = null;
   try {
-    diffPayload = await fetchLiveFileDiff(pathValue);
+    diffPayload = await fetchLiveFileDiff(pathValue, baselineContent);
   } catch {
     diffPayload = null;
   }
@@ -77536,12 +77830,24 @@ function setMarkdownPreviewHtml(
     getActiveNodeApiPath();
   element.dataset.linkBasePath = resolvedNodePath;
 
-  const inlineDiff =
+  let inlineDiff =
     element === fileContentPreviewNode
       ? getActiveLiveSyncInlineDiffForView()
       : getActiveLiveSyncInlineDiffForView(workspacePath);
+  if (inlineDiff) {
+    const diffPath =
+      liveSyncInlineDiffState?.path || workspacePath || resolvedNodePath || getActiveNodeApiPath();
+    inlineDiff = resolveLiveDiffDisplayPayload(inlineDiff, diffPath) || inlineDiff;
+  }
 
   if (inlineDiff) {
+    if (element === fileContentPreviewNode && isLiveFileDiffPanelVisible()) {
+      if (renderInlineDiffIntoElement(element, inlineDiff, resolvedNodePath)) {
+        editorSurfaceNode?.classList.add("is-live-diff-active");
+        nodeOverviewBlockNode?.classList.add("is-live-diff-active");
+        return;
+      }
+    }
     if (renderPreviewWithEmbeddedDiff(element, markdown, inlineDiff, resolvedNodePath)) {
       editorSurfaceNode?.classList.add("is-live-diff-active");
       nodeOverviewBlockNode?.classList.add("is-live-diff-active");

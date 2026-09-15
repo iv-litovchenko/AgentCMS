@@ -2256,6 +2256,22 @@ body.is-booting {
   cursor: not-allowed;
 }
 
+.run-btn.is-running {
+  opacity: 0.85;
+  cursor: wait;
+  animation: run-btn-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes run-btn-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.22);
+  }
+}
+
 .log-output {
   margin: 0;
   min-height: 80px;

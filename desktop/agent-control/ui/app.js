@@ -7,7 +7,7 @@ const envRows = document.getElementById("env-rows");
 let envExpandAll = false;
 const serverStatus = document.getElementById("server-status");
 let bootstrap = null;
-let runningActionId = null;
+const runningActions = new Set();
 let lastServer = null;
 let clockTimer = null;
 let serverPollTimer = null;
@@ -387,16 +387,18 @@ function syncServerUi(server) {
     button.disabled = !isRunning;
   });
 
-  if (!runningActionId) {
-    document
-      .querySelectorAll('[data-action="server-start-bg"], [data-action="server-start-attached"]')
-      .forEach((button) => {
-        button.disabled = isRunning;
-      });
-    document.querySelectorAll('[data-action="server-stop"]').forEach((button) => {
-      button.disabled = !isRunning;
+  const serverStartBusy =
+    runningActions.has("server-start-bg") || runningActions.has("server-start-attached");
+  const serverStopBusy = runningActions.has("server-stop");
+
+  document
+    .querySelectorAll('[data-action="server-start-bg"], [data-action="server-start-attached"]')
+    .forEach((button) => {
+      button.disabled = isRunning || serverStartBusy || runningActions.has(button.dataset.action);
     });
-  }
+  document.querySelectorAll('[data-action="server-stop"]').forEach((button) => {
+    button.disabled = !isRunning || serverStopBusy;
+  });
 
 }
 
@@ -1021,6 +1023,7 @@ function renderLayout() {
   applyServerStatusChip(document.getElementById("server-status-inline"), lastServer || bootstrap?.server);
   syncServerUi(lastServer || bootstrap?.server);
   void refreshMobileVoiceQr();
+  updateRunningButtons();
 }
 
 async function copyText(text) {
@@ -1116,12 +1119,13 @@ function bindActionHandlers() {
 }
 
 async function runAction(actionId) {
-  if (!actionId || runningActionId) return;
+  if (!actionId || runningActions.has(actionId)) return;
   if (actionId === "server-stop") suppressServerDownNotify = true;
-  runningActionId = actionId;
-  setButtonsDisabled(true);
+  runningActions.add(actionId);
+  updateRunningButtons();
   try {
-    await window.agentControl.runAction(actionId);
+    const result = await window.agentControl.runAction(actionId);
+    if (result?.error) appendLog(`${result.error}\n`, "stderr");
     const status = await window.agentControl.refreshStatus();
     await handleServerStatusUpdate(status.server, { skipNotify: actionId === "server-stop" });
     if (actionId === "install-deps" || actionId === "setup-certs") {
@@ -1135,8 +1139,8 @@ async function runAction(actionId) {
     }
     renderLayout();
   } finally {
-    runningActionId = null;
-    setButtonsDisabled(false);
+    runningActions.delete(actionId);
+    updateRunningButtons();
   }
 }
 
@@ -1147,6 +1151,9 @@ const ACTION_CARD_TITLES = {
 };
 
 const ACTION_CARD_BUSY = {
+  "cms-rebuild": "Сборка…",
+  "voice-rebuild": "Сборка…",
+  "control-dist": "Сборка…",
   "server-start-bg": "Запуск…",
   "server-start-attached": "Запуск…",
   "server-stop": "Остановка…",
@@ -1155,30 +1162,34 @@ const ACTION_CARD_BUSY = {
   "setup-desktop-shortcuts": "Создание…"
 };
 
-function setButtonsDisabled(disabled) {
+function isActionRunning(actionId) {
+  return runningActions.has(actionId);
+}
+
+function updateRunningButtons() {
   actionsRoot.querySelectorAll(".run-btn").forEach((button) => {
     const actionId = button.dataset.action;
+    const isRunning = isActionRunning(actionId);
     const defaultLabel = ACTION_LABELS[actionId] || "Запустить";
-    button.disabled = disabled;
-    button.textContent = disabled && actionId === runningActionId ? "…" : defaultLabel;
+    button.disabled = isRunning;
+    button.classList.toggle("is-running", isRunning);
+    button.textContent = isRunning ? ACTION_CARD_BUSY[actionId] || "…" : defaultLabel;
   });
 
   actionsRoot.querySelectorAll(".action-card").forEach((button) => {
     const actionId = button.dataset.action;
-    button.disabled = disabled;
+    const isRunning = isActionRunning(actionId);
+    button.disabled = isRunning;
     const title = button.querySelector("strong");
     if (!title) return;
     const defaultTitle = ACTION_CARD_TITLES[actionId] || title.textContent;
-    title.textContent =
-      disabled && actionId === runningActionId
-        ? ACTION_CARD_BUSY[actionId] || "…"
-        : defaultTitle;
+    title.textContent = isRunning ? ACTION_CARD_BUSY[actionId] || "…" : defaultTitle;
   });
 
   actionsRoot.querySelectorAll(".setup-btn").forEach((button) => {
     const actionId = button.dataset.action;
-    const isRunning = disabled && actionId === runningActionId;
-    button.disabled = disabled;
+    const isRunning = isActionRunning(actionId);
+    button.disabled = isRunning;
     button.classList.toggle("is-running", isRunning);
     const title = button.querySelector(".setup-btn-title");
     if (!title) return;
@@ -1188,14 +1199,18 @@ function setButtonsDisabled(disabled) {
 
   actionsRoot.querySelectorAll(".server-deck-btn").forEach((button) => {
     const actionId = button.dataset.action;
-    const isActive = disabled && actionId === runningActionId;
-    if (disabled) button.disabled = true;
-    button.classList.toggle("is-running", isActive);
+    const isRunning = isActionRunning(actionId);
+    button.classList.toggle("is-running", isRunning);
     const title = button.querySelector(".server-deck-title");
-    if (!title) return;
-    const defaultTitle = SERVER_BTN_TITLES[actionId] || title.textContent;
-    title.textContent = isActive ? ACTION_CARD_BUSY[actionId] || "…" : defaultTitle;
+    if (isRunning) {
+      button.disabled = true;
+      if (title) title.textContent = ACTION_CARD_BUSY[actionId] || "…";
+      return;
+    }
+    if (title) title.textContent = SERVER_BTN_TITLES[actionId] || title.textContent;
   });
+
+  syncServerUi(lastServer || { running: false });
 }
 
 function restartSplashAnimations(splash) {
@@ -1239,11 +1254,11 @@ async function init() {
   bindEnvExpandToggle();
 
   window.agentControl.onLog(({ text, stream }) => appendLog(text, stream));
-  window.agentControl.onActionState(({ running }) => {
-    if (!running) {
-      runningActionId = null;
-      setButtonsDisabled(false);
-    }
+  window.agentControl.onActionState(({ actionId, running }) => {
+    if (!actionId) return;
+    if (running) runningActions.add(actionId);
+    else runningActions.delete(actionId);
+    updateRunningButtons();
   });
 }
 

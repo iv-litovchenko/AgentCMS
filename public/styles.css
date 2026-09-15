@@ -13807,6 +13807,19 @@ body.app-locked {
   color: #334155;
 }
 
+.live-file-update-btn--ack {
+  border-color: #cbd5e1;
+  background: #fff;
+  color: #334155;
+  font-weight: 600;
+}
+
+.live-file-update-btn--ack:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
 .live-file-diff-panel {
   margin: 0 0 10px;
   border: 1px solid #dbeafe;
@@ -13996,7 +14009,38 @@ body.app-locked {
 }
 
 .live-sync-wysiwyg-diff-removed {
+  margin: 0 0 8px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff5f5;
+  overflow: hidden;
+}
+
+.live-sync-wysiwyg-diff-removed.hidden {
   display: none;
+}
+
+.live-sync-wysiwyg-diff-removed-title {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #991b1b;
+  border-bottom: 1px solid #fecaca;
+  background: #fef2f2;
+}
+
+.live-sync-wysiwyg-diff-removed-line {
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #991b1b;
+  text-decoration: line-through;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.live-sync-wysiwyg-diff-removed-line + .live-sync-wysiwyg-diff-removed-line {
+  border-top: 1px dashed #fecaca;
 }
 
 .editor-surface.is-live-diff-active .toastui-editor-contents .live-diff-wysiwyg-add,

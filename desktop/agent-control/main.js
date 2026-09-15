@@ -127,7 +127,8 @@ const { buildSystemEnvironment } = require("../../lib/system-environment");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
 let mainWindow = null;
-let activeChild = null;
+const activeTasks = new Map();
+const BUILD_ACTION_IDS = new Set(["cms-rebuild", "voice-rebuild", "control-dist"]);
 let attachedServerProcess = null;
 
 function findRepoRoot(startDir) {
@@ -407,14 +408,22 @@ async function runPreflight(name) {
   });
 }
 
-function stopActiveChild() {
-  if (!activeChild) return;
-  try {
-    activeChild.kill("SIGTERM");
-  } catch {
-    // ignore
+function hasActiveBuild() {
+  for (const actionId of BUILD_ACTION_IDS) {
+    if (activeTasks.has(actionId)) return true;
   }
-  activeChild = null;
+  return false;
+}
+
+function stopAllActiveTasks() {
+  for (const child of activeTasks.values()) {
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      // ignore
+    }
+  }
+  activeTasks.clear();
 }
 
 async function runAction(actionId) {
@@ -422,12 +431,18 @@ async function runAction(actionId) {
   if (!action) {
     return { ok: false, error: "Неизвестное действие" };
   }
-  if (activeChild) {
-    return { ok: false, error: "Уже выполняется команда. Дождитесь завершения или остановите сервер." };
+  if (activeTasks.has(actionId)) {
+    return { ok: false, error: "Это действие уже выполняется." };
+  }
+  if (BUILD_ACTION_IDS.has(actionId) && hasActiveBuild()) {
+    return { ok: false, error: "Уже идёт сборка. Дождитесь завершения — прогресс в логе внизу." };
   }
 
   sendActionState({ actionId, running: true });
   sendLog(`\n▶ ${action.title}\n`);
+  if (BUILD_ACTION_IDS.has(actionId)) {
+    sendLog("Сборка может занять 1–4 мин. Остальные кнопки остаются доступными.\n");
+  }
 
   if (action.preflight) {
     const pre = await runPreflight(action.preflight);
@@ -458,13 +473,13 @@ async function runAction(actionId) {
       env: enrichPath(),
       shell: false
     });
-    activeChild = child;
+    activeTasks.set(actionId, child);
 
     child.stdout.on("data", (chunk) => sendLog(String(chunk)));
     child.stderr.on("data", (chunk) => sendLog(String(chunk), "stderr"));
 
     child.on("close", async (code) => {
-      activeChild = null;
+      activeTasks.delete(actionId);
       sendActionState({ actionId, running: false });
       sendLog(`\n■ Завершено (код ${code ?? "?"})\n`);
 
@@ -472,7 +487,7 @@ async function runAction(actionId) {
     });
 
     child.on("error", (error) => {
-      activeChild = null;
+      activeTasks.delete(actionId);
       sendActionState({ actionId, running: false });
       sendLog(`\n✕ Ошибка: ${error.message}\n`, "stderr");
       resolve({ ok: false, error: error.message });
@@ -509,7 +524,7 @@ async function createWindow() {
   await mainWindow.loadFile(path.join(__dirname, "ui", "index.html"));
 
   mainWindow.on("closed", () => {
-    stopActiveChild();
+    stopAllActiveTasks();
     stopAttachedServer();
     mainWindow = null;
   });
@@ -658,7 +673,7 @@ if (!gotLock) {
   });
 
   app.on("before-quit", () => {
-    stopActiveChild();
+    stopAllActiveTasks();
     stopAttachedServer();
   });
 
