@@ -28,6 +28,7 @@ import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
 import { registerSidecarTools } from "./lib/sidecar-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
+import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 
 const pagePath = z
   .string()
@@ -63,9 +64,13 @@ function createServer() {
   const cfg = getConfig();
   const client = new AgentCmsClient(cfg);
 
-  const server = new McpServer({ name: "agent-cms", version: "0.3.8" });
+  const server = new McpServer({ name: "agent-cms", version: "0.3.9" });
+  const toolRegistry = createToolRegistry();
 
   const reg = (name, description, schema, fn, { agentScope = true, formatResult } = {}) => {
+    toolRegistry.handlers.set(name, fn);
+    toolRegistry.agentScope.set(name, agentScope);
+    if (formatResult) toolRegistry.formatters.set(name, formatResult);
     const inputSchema = agentScope ? withAgentIdSchema(schema) : schema;
     const scopeNote = agentScope
       ? ` Required: agentId (${WORKSPACE_ID_SYNONYMS}).` +
@@ -368,6 +373,8 @@ function createServer() {
     ({ title, message, path }) =>
       client.post("/api/agent/activity/notify", { title, message, manifestPath: path, path })
   );
+
+  registerBatchInvokeTools({ reg, client, toolRegistry });
 
   return server;
 }

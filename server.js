@@ -299,6 +299,7 @@ const {
   normalizeWorkspaceAgentSettings,
   parseWorkspaceAgentSettingsFromConfigContent
 } = require("./workspace-agent-settings");
+const { loadMcpPolicy, serializeMcpPolicy } = require("./mcp-policy-loader");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
   AWN_MASK_FILE_KEY,
@@ -18277,6 +18278,18 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace settings",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/mcp-policy") {
+    try {
+      const policy = serializeMcpPolicy(loadMcpPolicy());
+      return sendJson(res, 200, policy);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read MCP policy",
         details: String(error.message || error)
       });
     }

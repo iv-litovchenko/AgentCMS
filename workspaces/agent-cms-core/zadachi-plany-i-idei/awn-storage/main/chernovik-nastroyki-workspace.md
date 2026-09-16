@@ -85,10 +85,11 @@ awn_settings:
 - [x] API `GET /api/agent/workspace-settings`
 - [x] `workspaceSettings` в `get_session_context`
 - [x] Enforce `mcp-mode` в MCP server (readonly / exec)
+- [x] MCP tool `batch_invoke` + enforce `batch-*` лимиты
+- [x] Центральный policy: `awn-system/mcp-policy.yml` + `mcp-policy-loader.js`
 
 ## Следующий шаг
 
 1. Merged values ws → area → topic
-2. `batch_invoke` tool + enforce `batch-*` лимиты
 3. Инвалидация кэша настроек при save (сейчас TTL 30с в MCP)
 4. Группы полей в UI (Общие / MCP / Память)

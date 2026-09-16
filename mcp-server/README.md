@@ -1,4 +1,4 @@
-# Agent CMS — MCP Server v0.3.8 (per-chat agentId · 99 tools)
+# Agent CMS — MCP Server v0.3.9 (per-chat agentId · 100 tools)
 
 MCP-сервер для [Agent CMS](..): доступ к workspace через HTTP API для Cursor, Claude Desktop, CoPaw / QwenPaw.
 

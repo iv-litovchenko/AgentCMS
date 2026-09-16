@@ -9,7 +9,7 @@
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
-Этот файл — шпаргалка (**77 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
+Этот файл — шпаргалка (**78 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 ### Новый чат — выбор хранилища (`agentId`)
 
@@ -542,7 +542,7 @@ razdel-1/
 | move / rename / delete | `delete_content`, `delete_page`, `move_content` | да, до 10 |
 | exec | `exec_command`, `exec_shell`, `run_script` | **нет** |
 
-Ограничения проверяются **на сервере** (allowlist + `maxBatchSize` на tool). В `mode: readonly` workspace — только read/list/search.
+Ограничения проверяются **на сервере**: центральный denylist → `awn-system/mcp-policy.yml`; лимиты per-workspace → `config.yml` (`batch-read-limit`, `batch-write-limit`). В `mode: readonly` — только read/list/search. API: `GET /api/agent/mcp-policy`.
 
 **Примеры:**
 

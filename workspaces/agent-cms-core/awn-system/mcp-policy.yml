@@ -1,0 +1,63 @@
+version: 1
+description: >
+  Центральная MCP policy платформы Agent CMS.
+  Значения лимитов per-workspace — в config.yml → awn_settings (batch-read-limit, batch-write-limit).
+  Этот файл — denylist, категории tools, паттерны. Меняется редко, одно на платформу.
+
+mcp:
+  # single-call write tools (blocked in mcp-mode=readonly)
+  write_tool_pattern: "^(write_|create_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|zzz_write_|zzz_create_|notify_user|run_script|exec_)"
+  exec_tools:
+    - exec_command
+    - exec_shell
+    - run_script
+  # exec разрешён только при mcp-mode=full
+  exec_allowed_modes:
+    - full
+
+batch_invoke:
+  absolute_max_items: 50
+  default_parallel:
+    read: true
+    write: false
+
+  denied_tools:
+    - batch_invoke
+    - search_workspace_batch
+    - get_session_context
+    - get_user_active_context_now
+    - list_workspaces
+    - list_vaults
+    - ask_workspace
+    - search_and_get_context
+    - notify_user
+    - test_mcp_connection
+    - toggle_comment_reaction
+    - triage_inbox_item
+    - rebuild_workspace_indexes
+    - rebuild_workspace_semantic_index
+    - rebuild_workspace_storage_index
+    - rebuild_workspace_fulltext_index
+    - run_workspace_ocr_index
+    - sync_workspace_index_file
+
+  exec_tools:
+    - exec_command
+    - exec_shell
+    - run_script
+
+  read_name_patterns:
+    - "^read_"
+    - "^list_"
+    - "^get_"
+    - "^search_"
+    - "^recall_"
+    - "^resolve_"
+    - "^refresh_"
+
+  read_tools:
+    - page_exists
+    - content_exists
+    - zzz_list_data_stores
+    - zzz_get_data_store
+    - zzz_read_data_store_schema
