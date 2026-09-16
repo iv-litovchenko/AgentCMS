@@ -26794,7 +26794,7 @@ function getHomeBreadcrumbPath() {
 const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   dashboard: "Главная",
   dashboard2: "Дашборд",
-  dashboard3: "Дашборд 2",
+  dashboard3: "Мой дашборд",
   git: "Git-репозиторий",
   "large-files": "Крупные файлы",
   "broken-links": "Битые ссылки",
@@ -26806,7 +26806,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   schema: "Карта",
   "awn-types": "Типы YAML",
   vault: "Каталог",
-  graph: "Граф связей",
+  graph: "Граф связей и знаний",
   table: "Таблица",
   storage: "Хранилище",
   timeline: "Лента",
@@ -28337,6 +28337,7 @@ const externalMindmapCollapsedIds = new Set();
 const nodeOverviewEmbeddedMindmapCollapsedIds = new Set();
 const NODE_NAV_TOPIC_OVERVIEW_VIEW_STORAGE_KEY = "agentcms.nodeNavTopicOverviewView.v1";
 const NODE_NAV_TOPIC_OVERVIEW_OPEN_STORAGE_KEY = "agentcms.nodeNavTopicOverviewOpen.v1";
+const NODE_NAV_TOPIC_GRAPH_VIEW_ENABLED = false;
 const MINDMAP_LAYOUT_LEVEL_GAP = 210;
 const MINDMAP_LAYOUT_ROW_GAP = 42;
 const MINDMAP_MAX_DEPTH = 6;
@@ -59659,16 +59660,25 @@ function renderEmbeddedTopicKnowledgeMindmap(container, context, options = {}) {
   appendEmbeddedMindmapControls(host, rerender, () => viewportApi);
 }
 
+function normalizeNodeNavigationTopicOverviewView(view) {
+  const nextView =
+    view === "mindmap-v2" ? "mindmap-v2" : view === "mindmap-v1" || view === "mindmap" ? "mindmap-v1" : "graph";
+  if (!NODE_NAV_TOPIC_GRAPH_VIEW_ENABLED && nextView === "graph") return "mindmap-v1";
+  return nextView;
+}
+
 function readNodeNavigationTopicOverviewView() {
   try {
     const value = sessionStorage.getItem(NODE_NAV_TOPIC_OVERVIEW_VIEW_STORAGE_KEY);
-    if (value === "mindmap-v1" || value === "mindmap-v2" || value === "graph") return value;
-    if (value === "mindmap") return "mindmap-v2";
-    if (value === "elements" || value === "navigation") return "graph";
+    if (value === "mindmap-v1" || value === "mindmap-v2" || value === "graph") {
+      return normalizeNodeNavigationTopicOverviewView(value);
+    }
+    if (value === "mindmap") return normalizeNodeNavigationTopicOverviewView("mindmap-v2");
+    if (value === "elements" || value === "navigation") return normalizeNodeNavigationTopicOverviewView("graph");
   } catch {
     /* ignore */
   }
-  return "graph";
+  return normalizeNodeNavigationTopicOverviewView("graph");
 }
 
 function writeNodeNavigationTopicOverviewView(view) {
@@ -59801,8 +59811,7 @@ function buildNavigationSubsectionsBody(childEntries) {
 }
 
 function openTopicKnowledgeNavigationPopout(context, view = "graph") {
-  const activeView =
-    view === "mindmap-v2" ? "mindmap-v2" : view === "mindmap-v1" || view === "mindmap" ? "mindmap-v1" : "graph";
+  const activeView = normalizeNodeNavigationTopicOverviewView(view);
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay topic-knowledge-nav-popout";
   overlay.setAttribute("role", "dialog");
@@ -59932,14 +59941,15 @@ function renderNodeNavigationElementsNavAccordion({
   const viewSelect = document.createElement("select");
   viewSelect.className = "node-navigation-elements-nav-view-select";
   viewSelect.setAttribute("aria-label", "Вид навигации по теме");
-  for (const { value, label } of [
-    { value: "graph", label: "Граф знаний" },
+  for (const { value, label, disabled } of [
+    { value: "graph", label: "Граф знаний", disabled: !NODE_NAV_TOPIC_GRAPH_VIEW_ENABLED },
     { value: "mindmap-v1", label: "Карта знаний (v1)" },
     { value: "mindmap-v2", label: "Карта знаний (v2)" }
   ]) {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = label;
+    if (disabled) option.disabled = true;
     viewSelect.appendChild(option);
   }
   for (const eventName of ["mousedown", "click"]) {
@@ -60001,6 +60011,7 @@ function renderNodeNavigationElementsNavAccordion({
   let activeView = readNodeNavigationTopicOverviewView();
 
   const ensureGraphRendered = () => {
+    if (!NODE_NAV_TOPIC_GRAPH_VIEW_ENABLED) return;
     if (graphHost.dataset.rendered === "1") return;
     renderEmbeddedTopicKnowledgeGraph(graphHost, knowledgeContext);
     graphHost.dataset.rendered = "1";
@@ -60016,8 +60027,7 @@ function renderNodeNavigationElementsNavAccordion({
   };
 
   const applyView = (view) => {
-    const nextView =
-      view === "mindmap-v2" ? "mindmap-v2" : view === "mindmap-v1" || view === "mindmap" ? "mindmap-v1" : "graph";
+    const nextView = normalizeNodeNavigationTopicOverviewView(view);
     writeNodeNavigationTopicOverviewView(nextView);
     viewSelect.value = nextView;
     count.textContent = String(resolveNavItemCount(nextView));
@@ -89990,7 +90000,7 @@ function renderAgentDashboardWidgetsView() {
   home3ContentNode.replaceChildren();
   const empty = document.createElement("p");
   empty.className = "awn-dashboard-loading";
-  empty.textContent = "Дашборд 2 — виджеты из awn-dashboards/";
+  empty.textContent = "Мой дашборд — виджеты из awn-dashboards/";
   home3ContentNode.appendChild(empty);
 }
 

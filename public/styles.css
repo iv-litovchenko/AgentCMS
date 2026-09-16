@@ -54259,6 +54259,11 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #f0fdfa;
 }
 
+.menu-static-section--images {
+  border: 1px solid #f0abfc;
+  background: #fdf4ff;
+}
+
 .menu-static-section--google-drive {
   border: 1px solid #93c5fd;
   background: #eff6ff;
@@ -57211,6 +57216,10 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-bottom: 1px solid rgba(94, 234, 212, 0.55);
 }
 
+.menu-static-section--images[open] > .menu-static-summary {
+  border-bottom: 1px solid rgba(240, 171, 252, 0.55);
+}
+
 .menu-static-section--google-drive[open] > .menu-static-summary {
   border-bottom: 1px solid rgba(147, 197, 253, 0.55);
 }
@@ -57496,7 +57505,8 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-static-title--settings,
 .menu-static-title--server-sync,
 .menu-static-title--indexing,
-.menu-static-title--languagetool {
+.menu-static-title--languagetool,
+.menu-static-title--images {
   color: #1e293b;
 }
 
@@ -57517,6 +57527,25 @@ body.is-cms-page-picker-active #discuss-aside * {
   font-size: 0.75rem;
   line-height: 1.35;
   color: #0f766e;
+}
+
+.menu-images-tools-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.menu-images-tools-scope li {
+  padding: 2px 8px;
+  border: 1px solid #f0abfc;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #a21caf;
 }
 
 .menu-index-block {

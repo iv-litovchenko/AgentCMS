@@ -970,8 +970,8 @@
                     <select id="agent-view-select" class="agent-view-select" aria-label="Вид workspace">
                       <option value="dashboard" selected>Главная</option>
                       <option value="dashboard2">Дашборд</option>
-                      <option value="dashboard3">Дашборд 2</option>
-                      <option value="graph">Граф связей</option>
+                      <option value="dashboard3">Мой дашборд</option>
+                      <option value="graph">Граф связей и знаний</option>
                       <option value="map2" disabled>Структура</option>
                       <option value="table">Таблица</option>
                       <option value="vault">Каталог</option>
@@ -1647,6 +1647,63 @@
                     title="Заглушка — сервер проверки ещё не подключён"
                   >
                     Проверить workspace
+                  </button>
+                </div>
+              </details>
+              <details class="menu-static-section menu-static-section--images menu-static-accordion">
+                <summary
+                  class="menu-static-summary"
+                  title="Инструменты для изображений: оптимизация, OCR, alt-текст, метаданные"
+                >
+                  <span class="menu-static-title menu-static-title--images">
+                    <span aria-hidden="true">⚪</span>
+                    <span class="menu-static-title-text">
+                      Изображения
+                      <span class="menu-static-subtitle">инструменты и оптимизация <span class="stub-static-mark">(static)</span></span>
+                    </span>
+                  </span>
+                  <span
+                    id="menu-images-tools-stats"
+                    class="menu-static-google-drive-stats menu-static-google-drive-stats--summary is-empty"
+                    aria-live="polite"
+                  >заглушка</span>
+                </summary>
+                <div class="menu-static-body">
+                  <p class="menu-static-description">
+                    После проверки текста — инструменты для вложений и media в workspace:
+                    сжатие, resize, webp/avif, OCR, alt-текст, метаданные EXIF, поиск дубликатов.
+                    Пока только план — кнопки появятся по мере подключения MCP-tools.
+                  </p>
+                  <ul class="menu-images-tools-scope">
+                    <li>оптимизация</li>
+                    <li>resize / webp</li>
+                    <li>OCR</li>
+                    <li>alt-текст</li>
+                    <li>EXIF</li>
+                    <li>дедуп</li>
+                  </ul>
+                  <p id="menu-images-tools-status" class="menu-static-description" aria-live="polite">
+                    Заглушка — инструменты изображений в разработке.
+                  </p>
+                  <button
+                    type="button"
+                    id="menu-images-tools-optimize-btn"
+                    class="menu-static-action-btn"
+                    disabled
+                    aria-disabled="true"
+                    title="Заглушка — process_image ещё не подключён"
+                  >
+                    Оптимизировать вложения
+                  </button>
+                  <button
+                    type="button"
+                    id="menu-images-tools-describe-btn"
+                    class="menu-static-action-btn menu-static-action-btn--secondary"
+                    disabled
+                    aria-disabled="true"
+                    title="Заглушка — describe_image ещё не подключён"
+                  >
+                    Описать / alt-текст
                   </button>
                 </div>
               </details>
@@ -2543,7 +2600,7 @@
         <div id="home2-content" class="home2-content"></div>
       </main>
 
-      <main id="home-pane-3" class="home-pane-3 agent-canvas-pane hidden" aria-label="Дашборд 2 — awn-dashboards">
+      <main id="home-pane-3" class="home-pane-3 agent-canvas-pane hidden" aria-label="Мой дашборд — awn-dashboards">
         <div id="home3-content" class="home3-content"></div>
       </main>
 
@@ -2864,11 +2921,11 @@
         <div id="agent-vault-empty" class="agent-vault-empty hidden">Ничего не найдено. Измените поиск.</div>
       </main>
 
-      <main id="agent-graph-pane" class="agent-canvas-pane agent-graph-pane hidden" aria-label="Граф связей workspace">
+      <main id="agent-graph-pane" class="agent-canvas-pane agent-graph-pane hidden" aria-label="Граф связей и знаний workspace">
         <div class="agent-canvas-head agent-canvas-head--compact agent-graph-head">
           <div class="agent-canvas-head-copy agent-graph-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
-            <h2 class="agent-canvas-title">Граф связей</h2>
+            <h2 class="agent-canvas-title">Граф связей и знаний</h2>
           </div>
           <div class="agent-canvas-head-aside agent-graph-head-actions">
             <label class="agent-graph-setting" for="agent-graph-show-previews">
