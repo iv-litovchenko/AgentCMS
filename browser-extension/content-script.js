@@ -122,10 +122,10 @@
   const brand = document.createElement("button");
   brand.type = "button";
   brand.className = "asc-brand";
-  brand.title = "Развернуть панель";
-  brand.setAttribute("aria-label", "Развернуть панель");
+  brand.title = "Развернуть панель · Agent CMS";
+  brand.setAttribute("aria-label", "Agent CMS · развернуть панель");
   brand.setAttribute("aria-expanded", "false");
-  brand.innerHTML = BRAND_ICON_SVG;
+  brand.innerHTML = `<span class="asc-brand-icon">${BRAND_ICON_SVG}</span><span class="asc-brand-label">Agent CMS</span>`;
 
   const actions = document.createElement("div");
   actions.className = "asc-actions";
@@ -329,9 +329,12 @@
     root.classList.toggle("is-expanded", next);
     brand.setAttribute("aria-expanded", next ? "true" : "false");
     brand.title = next
-      ? "Открыть Agent Shell · можно перетащить"
-      : "Развернуть панель · можно перетащить";
-    brand.setAttribute("aria-label", next ? "Открыть Agent Shell" : "Развернуть панель");
+      ? "Открыть Agent Shell · Agent CMS"
+      : "Развернуть панель · Agent CMS";
+    brand.setAttribute(
+      "aria-label",
+      next ? "Agent CMS · открыть Agent Shell" : "Agent CMS · развернуть панель"
+    );
     window.requestAnimationFrame(() => applyOffset({ x: offsetX, y: offsetY }, false));
     try {
       localStorage.setItem(STORAGE_EXPANDED, next ? "1" : "0");
