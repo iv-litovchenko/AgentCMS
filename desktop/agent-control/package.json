@@ -26,9 +26,23 @@
       "actions.js",
       "icon.js",
       "preload.js",
+      "repo-resolve.js",
       "assets/**/*",
       "ui/**/*",
-      "package.json"
+      "package.json",
+      {
+        "from": "../..",
+        "to": ".",
+        "filter": [
+          "docs-registry.js",
+          "docs/**",
+          "lib/https-redirect.js",
+          "lib/lan-ip.js",
+          "lib/system-environment.js",
+          "lib/voice-sidecar-probe.js",
+          "agent-shell/runtime-cli-env.js"
+        ]
+      }
     ],
     "mac": {
       "category": "public.app-category.utilities",

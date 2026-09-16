@@ -21,8 +21,9 @@ const {
   CHROME_EXTENSION
 } = require("./actions");
 const controlPackage = require("./package.json");
-const docsRegistry = require("../../docs-registry");
-const { enrichMcpDocsForClient } = require("../../lib/https-redirect");
+const { requireRepo } = require("./repo-resolve");
+const docsRegistry = requireRepo("docs-registry");
+const { enrichMcpDocsForClient } = requireRepo("lib/https-redirect");
 
 function buildAnonymizedMcpConfig(cmsBaseUrl, envExtra = {}) {
   const env = {
@@ -123,7 +124,7 @@ function loadQrCode() {
     return null;
   }
 }
-const { buildSystemEnvironment } = require("../../lib/system-environment");
+const { buildSystemEnvironment } = requireRepo("lib/system-environment");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
 let mainWindow = null;

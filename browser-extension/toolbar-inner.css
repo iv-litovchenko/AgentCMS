@@ -37,7 +37,6 @@
   appearance: none;
   -webkit-appearance: none;
   margin: 0;
-  padding: 0;
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -45,7 +44,6 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   position: relative;
   font-family: inherit;
   font-weight: inherit;
@@ -55,7 +53,17 @@
 }
 
 .asc-shell .asc-brand {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  padding: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: transparent;
   cursor: grab;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.45);
+  justify-content: center;
+  align-items: center;
 }
 
 .asc-brand {
@@ -83,6 +91,13 @@
 .asc-shell svg {
   display: block;
   overflow: visible;
+}
+
+.asc-shell .asc-brand svg {
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
 }
 
 .asc-brand svg {
@@ -138,17 +153,18 @@
 }
 
 :host(.is-expanded) .asc-actions {
-  max-width: 300px;
+  max-width: min(640px, calc(100vw - 56px));
   opacity: 1;
   overflow: visible;
-  padding-left: 4px;
-  padding-right: 2px;
+  padding-left: 6px;
+  padding-right: 4px;
+  gap: 2px;
 }
 
 .asc-cluster {
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 3px;
 }
 
 .asc-divider {
@@ -161,16 +177,28 @@
   flex-shrink: 0;
 }
 
-.asc-btn {
+.asc-shell .asc-btn {
   flex: 0 0 auto;
-  width: 30px;
+  width: auto;
+  min-width: 30px;
   height: 30px;
-  gap: 0;
+  gap: 6px;
+  padding: 0 10px 0 9px;
   border-radius: 999px;
   color: #ede9fe;
+  justify-content: flex-start;
 }
 
-.asc-btn svg {
+.asc-shell .asc-btn--icon-only {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+}
+
+.asc-shell .asc-btn svg {
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
   stroke: currentColor;
@@ -180,7 +208,15 @@
   stroke-linejoin: round;
 }
 
-.asc-label {
+.asc-shell .asc-label {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  color: inherit;
+}
+
+.asc-shell .asc-btn--icon-only .asc-label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -188,21 +224,21 @@
   clip: rect(0, 0, 0, 0);
 }
 
-.asc-btn:hover {
+.asc-shell .asc-btn:hover {
   color: #fff;
   background: rgba(124, 58, 237, 0.32);
 }
 
-.asc-btn.is-active {
+.asc-shell .asc-btn.is-active {
   color: #fff;
   background: rgba(99, 102, 241, 0.38);
 }
 
-.asc-btn--menu svg {
+.asc-shell .asc-btn--menu svg {
   transform: translateY(-1px);
 }
 
-.asc-btn--menu::after {
+.asc-shell .asc-btn--menu::after {
   content: "";
   position: absolute;
   left: 50%;
@@ -216,11 +252,11 @@
   transition: width 0.16s ease, opacity 0.16s ease, background 0.16s ease;
 }
 
-.asc-btn--collapse {
+.asc-shell .asc-btn--collapse {
   opacity: 0.62;
 }
 
-.asc-btn--collapse:hover {
+.asc-shell .asc-btn--collapse:hover {
   opacity: 1;
 }
 
@@ -229,12 +265,12 @@
   display: inline-flex;
 }
 
-.asc-menu.is-open .asc-btn--menu {
+.asc-shell .asc-menu.is-open .asc-btn--menu {
   color: #fff;
   background: rgba(124, 58, 237, 0.4);
 }
 
-.asc-menu.is-open .asc-btn--menu::after {
+.asc-shell .asc-menu.is-open .asc-btn--menu::after {
   width: 12px;
   opacity: 1;
 }
@@ -325,7 +361,7 @@
 
 .asc-shot-grid {
   display: grid;
-  grid-template-columns: max-content repeat(3, 28px);
+  grid-template-columns: max-content repeat(3, 44px);
   gap: 2px 4px;
   align-items: center;
   justify-items: center;
@@ -333,11 +369,22 @@
 
 .asc-shot-col {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 18px;
+  gap: 2px;
+  width: 44px;
+  min-height: 28px;
   color: rgba(237, 233, 254, 0.55);
+}
+
+.asc-shot-col-label {
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: rgba(237, 233, 254, 0.62);
 }
 
 .asc-shot-col svg {

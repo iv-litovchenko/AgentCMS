@@ -28,21 +28,16 @@ awn-mindmap-color: slate
 awn-mindmap-size: auto
 awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
-awn-attachments:
-  - awn-storage/assets/attachments/snimok-ekrana-2026-09-15-v-133619-20260916064627.png
-  - awn-storage/assets/attachments/snimok-ekrana-2026-09-15-v-223444-20260916064832.png
+awn-attachments: awn-storage/assets/attachments/snimok-ekrana-2026-09-15-v-125355-20260916064533.png
 awn-description: ""
 awn-name: Влад 1
 awn-preview: ""
-awn-sort: 
 awn-web-url: ""
-awn-update: 2026-09-16T06:50:44.657Z
-awn-version: 8
+awn-update: 2026-09-16T06:45:36.869Z
+awn-version: 5
 ---
-
-# Влад 1
 
 - Банк: Сбербанк
 - Сумма: 30 000 ₽
 - Срок окончания вклада: 12 февраля 2027
-- Процент: 18% годовых
+- Процент: 19% годовых

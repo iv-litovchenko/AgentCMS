@@ -104,9 +104,9 @@
   ];
 
   const SCREENSHOT_COLS = [
-    { id: "compose", icon: "compose", title: "В чат" },
-    { id: "clipboard", icon: "clipboard", title: "В буфер" },
-    { id: "download", icon: "download", title: "Скачать PNG" }
+    { id: "compose", icon: "compose", title: "В чат", label: "Чат" },
+    { id: "clipboard", icon: "clipboard", title: "В буфер", label: "Буфер" },
+    { id: "download", icon: "download", title: "Скачать PNG", label: "Файл" }
   ];
 
   function screenshotActionKey(rowId, colId) {
@@ -206,7 +206,7 @@
   function createScreenshotMenu() {
     const wrap = document.createElement("div");
     wrap.className = "asc-menu asc-menu--screenshot";
-    const btn = createBtn("screenshot", "Скрин", "Скриншот");
+    const btn = createBtn("screenshot", "Скриншот", "Скриншот");
     btn.classList.add("asc-btn--menu");
     btn.setAttribute("aria-haspopup", "menu");
     btn.setAttribute("aria-expanded", "false");
@@ -224,7 +224,7 @@
       const head = document.createElement("div");
       head.className = "asc-shot-col";
       head.title = col.title;
-      head.innerHTML = ICONS[col.icon];
+      head.innerHTML = `${ICONS[col.icon]}<span class="asc-shot-col-label">${col.label}</span>`;
       grid.append(head);
     }
 
@@ -290,7 +290,7 @@
 
   const left = document.createElement("div");
   left.className = "asc-cluster asc-cluster--left";
-  const elementBtn = createBtn("element", "Выбор", "Выбрать блок на странице (Esc — выключить)");
+  const elementBtn = createBtn("element", "Захват", "Выбрать блок на странице (Esc — выключить)");
   left.append(elementBtn, createScreenshotMenu());
 
   const divider = document.createElement("span");
@@ -300,13 +300,13 @@
   const right = document.createElement("div");
   right.className = "asc-cluster asc-cluster--right";
   right.append(
-    createClipboardHistoryMenu(),
     createMenu("page", "Страница", "Вставить страницу", PAGE_MENU),
-    createMenu("selection", "Текст", "Выделение и промпты", TEXT_MENU)
+    createMenu("selection", "Промпт", "Выделение и промпты", TEXT_MENU),
+    createClipboardHistoryMenu()
   );
 
   const collapseBtn = createBtn("collapse", "Свернуть", "Свернуть панель");
-  collapseBtn.classList.add("asc-btn--collapse");
+  collapseBtn.classList.add("asc-btn--collapse", "asc-btn--icon-only");
 
   actions.append(left, divider, right, collapseBtn);
 
