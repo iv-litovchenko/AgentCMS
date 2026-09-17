@@ -2,10 +2,13 @@
 
 ### Многофайловая память
 
-| Тип | Путь | Название | Описание | Размер | Строк |
-| --- | --- | --- | --- | ---: | ---: |
-| файл | `read-content.json` | [read-content.json](awn-container/tema-bez-slotov/read-content.json) | — | 210 B | 10 |
-| файл | `read.json` | [read.json](awn-container/tema-bez-slotov/read.json) | — | 55 B | 5 |
+| Слот | Тип | Путь | Название | Описание | Размер | Строк |
+| --- | --- | --- | --- | --- | ---: | ---: |
+гибкий | папка | `main` | [main](awn-container/tema-bez-slotov/awn-storage/main) | — | — | — |
+гибкий | awn.content.record | `main/009.md` | [9](awn-container/tema-bez-slotov/awn-storage/main/009.md) | — | 499 B | 27 |
+гибкий | awn.content.category | `main/999` | [999](awn-container/tema-bez-slotov/awn-storage/main/999) | — | — | — |
+гибкий | awn.content.category | `main/999/manifest.md` | [999](awn-container/tema-bez-slotov/awn-storage/main/999/manifest.md) | — | — | — |
+гибкий | папка | `main/awn-materials-009` | [Доп. материалы — 009](awn-container/tema-bez-slotov/awn-storage/main/awn-materials-009) | Доп. материалы записи main/009.md | — | — |
 
 ### Однофайловая память
 

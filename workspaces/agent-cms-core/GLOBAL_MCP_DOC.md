@@ -320,6 +320,25 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 | `comments` | `awn.slot.comments` | `comments/` | Discuss-комментарии (`list_comments` / `append_comment`, не `create_content`) |
 | `discussion` | `awn.slot.discussion` | `discussion/` | Дискуссия темы (`read_discussion` / `append_discussion`, не `create_content`) |
 
+### Гибкий слот (`awn-slots-flexible: true`)
+
+Тема **без типовых внешних слотов** (inbox, media, references…). Вся многофайловая память — **произвольная FS-структура** внутри `awn-storage/` (папки и файлы задаёт пользователь и агент).
+
+| Проверка | Где |
+|----------|-----|
+| `slotsFlexible: true` | `get_page_map` → узел темы |
+| то же | `get_content_index` / `get_content_map` → поле `slotsFlexible` (алиас legacy: `slotsDisabled`) |
+
+**Алгоритм записи:**
+
+1. `get_page_map` или `get_content_index(path)` → если `slotsFlexible: true`:
+2. **Только** `create_content({ path: "<manifest темы>", slot: "main", … })` — файлы попадают в `awn-storage/` (опционально `parent: "подпапка"`).
+3. **Не** использовать `slot: inbox|media|references|…` — API вернёт ошибку.
+4. Однофайловые internal-слоты (`main-single`, `todo-single`, …) и bundle-память работают как обычно.
+5. Оглавление: `get_content_index(path)` — колонка **Слот** = `гибкий` для файлов в `awn-storage/`; workspace INDEX — колонка **Слоты** = `гибкий` / `типовые`.
+
+**UI:** переключатель «Гибкий слот» в hero темы; свойство manifest: `awn-slots-flexible: true` (legacy read: `awn-slots-disabled: true`).
+
 ### Однофайловая память (internal)
 
 Один файл на слот (`main.md`, `todo.md`…). Нужны `path` + `slot`; **`ref` не указывай** — `read_content_body` / `write_content_body`.

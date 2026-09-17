@@ -1,0 +1,20 @@
+# Оглавление темы
+
+### Многофайловая память
+
+| Тип | Слот | Путь | Название | Описание | Размер | Строк |
+| --- | --- | --- | --- | --- | ---: | ---: |
+папка | гибкий | `main` | [main](awn-container/tema-bez-slotov/awn-storage/main) | — | — | — |
+awn.content.record | гибкий | `main/009.md` | [9](awn-container/tema-bez-slotov/awn-storage/main/009.md) | — | 499 B | 27 |
+awn.content.category | гибкий | `main/999` | [999](awn-container/tema-bez-slotov/awn-storage/main/999) | — | — | — |
+awn.content.category | гибкий | `main/999/manifest.md` | [999](awn-container/tema-bez-slotov/awn-storage/main/999/manifest.md) | — | — | — |
+папка | гибкий | `main/awn-materials-009` | [Доп. материалы — 009](awn-container/tema-bez-slotov/awn-storage/main/awn-materials-009) | Доп. материалы записи main/009.md | — | — |
+
+### Однофайловая память
+
+| Слот | Файл | Статус | Размер | Строк |
+| --- | --- | --- | ---: | ---: |
+| Память (однофайловая) | [main.md](awn-container/tema-bez-slotov/main.md) | не заполнено | — | — |
+| Память (табличная) | [main.csv](awn-container/tema-bez-slotov/main.csv) | не заполнено | — | — |
+| TODO | [todo.md](awn-container/tema-bez-slotov/todo.md) | не заполнено | — | — |
+| Лог | [log.md](awn-container/tema-bez-slotov/log.md) | не заполнено | — | — |

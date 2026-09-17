@@ -57816,12 +57816,12 @@ function formatBundleSlotIndexMarkdown(rows = []) {
   return lines.join("\n");
 }
 
-function formatMultiFileContentIndexMarkdown(entries, { emptyHint = "_Во внешних слотах пока нет файлов для оглавления._" } = {}) {
+function formatMultiFileContentIndexMarkdown(entries, { emptyHint = "_Во внешних слотах пока нет файлов для оглавления._", tableVariant = "topic-content" } = {}) {
   if (!entries.length) return "";
   return [
     "### Многофайловая память",
     "",
-    formatStorageIndexEntriesMarkdown(entries, { emptyHint })
+    formatStorageIndexEntriesMarkdown(entries, { emptyHint, tableVariant })
   ].join("\n");
 }
 
@@ -57829,19 +57829,20 @@ function formatAgentContentIndexPayloadAsTopicMarkdown(payload, topicPath, slots
   const lines = ["# Оглавление темы", ""];
   const slotRows = Array.isArray(payload?.slots) ? payload.slots : [];
   const liteEntries = Array.isArray(payload?.liteEntries) ? payload.liteEntries : [];
-  const slotsDisabled = Boolean(payload?.slotsDisabled);
-  const slotMerged = slotsDisabled ? [] : mergeTopicContentIndexEntriesFromPayloadSlots(slotRows);
+  const slotsFlexible = Boolean(payload?.slotsFlexible ?? payload?.slotsDisabled);
+  const slotMerged = slotsFlexible ? [] : mergeTopicContentIndexEntriesFromPayloadSlots(slotRows);
   const entries = [...liteEntries, ...slotMerged].sort((a, b) =>
     a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true })
   );
   const liteEmptyHint = "_В awn-storage/ темы пока нет файлов для оглавления._";
   const multiSection = formatMultiFileContentIndexMarkdown(entries, {
-    emptyHint: slotsDisabled ? liteEmptyHint : undefined
+    emptyHint: slotsFlexible ? liteEmptyHint : undefined,
+    tableVariant: "topic-content"
   });
   const bundleSection = formatBundleSlotIndexMarkdown(payload?.bundleSlots || []);
 
   if (multiSection) lines.push(multiSection, "");
-  else if (!bundleSection) lines.push(slotsDisabled ? liteEmptyHint : "_Нет записей во внешних слотах._", "");
+  else if (!bundleSection) lines.push(slotsFlexible ? liteEmptyHint : "_Нет записей во внешних слотах._", "");
 
   if (bundleSection) lines.push(bundleSection);
 
@@ -57879,6 +57880,7 @@ function mergeTopicContentIndexEntriesFromSlots(slots = [], topicPath = activePa
     const spec = resolveStorageSlotSpecFromCounterSlot(slot);
     if (!isExternalStorageSlotSpec(spec)) continue;
     const folder = getStorageFolderForSlotSpec(spec);
+    const slotLabel = resolveContentIndexEntrySlotLabel(spec?.key || slot.id);
     for (const entry of collectStorageSlotIndexEntries(slot.prepared, {
       manifestPath,
       storageFolder: folder
@@ -57886,7 +57888,8 @@ function mergeTopicContentIndexEntriesFromSlots(slots = [], topicPath = activePa
       const relPath = String(entry.path || "").replace(/\\/g, "/").trim();
       merged.push({
         ...entry,
-        path: relPath ? `${folder}/${relPath}` : folder
+        path: relPath ? `${folder}/${relPath}` : folder,
+        slotLabel
       });
     }
   }
@@ -57899,11 +57902,13 @@ function mergeTopicContentIndexEntriesFromPayloadSlots(slotRows = []) {
     if (!isTopicWideContentIndexSlot(slotRow)) continue;
     const spec = resolveStorageSlotSpecByCounterKey(slotRow.slot);
     const folder = getStorageFolderForSlotSpec(spec) || slotRow.slot;
+    const slotLabel = resolveContentIndexEntrySlotLabel(slotRow.slot);
     for (const entry of Array.isArray(slotRow.entries) ? slotRow.entries : []) {
       const relPath = String(entry.path || "").replace(/\\/g, "/").trim();
       merged.push({
         ...entry,
-        path: relPath ? `${folder}/${relPath}` : folder
+        path: relPath ? `${folder}/${relPath}` : folder,
+        slotLabel
       });
     }
   }
@@ -57990,15 +57995,45 @@ function formatStorageIndexLineCount(lineCount) {
   return String(lineCount);
 }
 
-function formatStorageIndexEntriesMarkdown(entries, { emptyHint = "_Нет записей._", linkTitle = true } = {}) {
+function resolveWorkspaceTopicSlotsModeLabel(page) {
+  if (page?.kind !== "topic") return "";
+  return page?.slotsFlexible ? "гибкий" : "типовые";
+}
+
+function resolveContentIndexEntrySlotLabel(slotKey) {
+  const normalized = String(slotKey || "").trim();
+  if (!normalized || normalized === "memory") return "main";
+  return normalized;
+}
+
+function formatStorageIndexEntriesMarkdown(
+  entries,
+  { emptyHint = "_Нет записей._", linkTitle = true, tableVariant = "content" } = {}
+) {
   if (!entries.length) return emptyHint;
-  const lines = [
-    "| Тип | Путь | Название | Описание | Размер | Строк |",
-    "| --- | --- | --- | --- | ---: | ---: |"
-  ];
+  const includeSlotsMode = tableVariant === "workspace";
+  const includeSlotLabel = tableVariant === "topic-content";
+  const header = includeSlotsMode
+    ? "| Тип | Слоты | Путь | Название | Описание | Размер | Строк |"
+    : includeSlotLabel
+      ? "| Слот | Тип | Путь | Название | Описание | Размер | Строк |"
+      : "| Тип | Путь | Название | Описание | Размер | Строк |";
+  const divider = includeSlotsMode
+    ? "| --- | --- | --- | --- | --- | ---: | ---: |"
+    : includeSlotLabel
+      ? "| --- | --- | --- | --- | --- | ---: | ---: |"
+      : "| --- | --- | --- | --- | ---: | ---: |";
+  const lines = [header, divider];
   for (const entry of entries) {
+    const slotModeCell = escapeStorageIndexTableCell(entry.slotsMode) || "—";
+    const slotLabelCell = escapeStorageIndexTableCell(entry.slotLabel) || "—";
+    const rowPrefix = includeSlotsMode
+      ? `${escapeStorageIndexTableCell(entry.type) || "—"} | ${slotModeCell} |`
+      : includeSlotLabel
+        ? `${slotLabelCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} |`
+        : `${escapeStorageIndexTableCell(entry.type) || "—"} |`;
     lines.push(
-      `| ${escapeStorageIndexTableCell(entry.type) || "—"} | \`${escapeStorageIndexTableCell(entry.path)}\` | ${formatStorageIndexTitleCell(entry, { linkTitle })} | ${escapeStorageIndexTableCell(entry.description) || "—"} | ${formatStorageIndexFileSize(entry.sizeBytes)} | ${formatStorageIndexLineCount(entry.lineCount)} |`
+      `${rowPrefix} \`${escapeStorageIndexTableCell(entry.path)}\` | ${formatStorageIndexTitleCell(entry, { linkTitle })} | ${escapeStorageIndexTableCell(entry.description) || "—"} | ${formatStorageIndexFileSize(entry.sizeBytes)} | ${formatStorageIndexLineCount(entry.lineCount)} |`
     );
   }
   return lines.join("\n");
@@ -65392,7 +65427,8 @@ function formatWorkspacePageIndexPayloadAsMarkdown(payload) {
     "# Оглавление workspace",
     "",
     formatStorageIndexEntriesMarkdown(entries, {
-      emptyHint: "_В workspace пока нет страниц для оглавления._"
+      emptyHint: "_В workspace пока нет страниц для оглавления._",
+      tableVariant: "workspace"
     })
   ]
     .join("\n")

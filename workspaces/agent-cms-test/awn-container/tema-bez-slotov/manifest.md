@@ -1,11 +1,12 @@
 ---
+awn-slots-disabled: true
 awn-status: open
 awn-quality: 4
 awn-emoji: ""
 awn-sort: 0
 awn-note-todo-sticker: ""
 awn-focus: false
-awn-slots-disabled: true
+awn-slots-flexible: true
 awn-main: false
 awn-runtime-load-always: true
 awn-runtime-heartbeat: true
@@ -24,6 +25,6 @@ awn-description: ""
 awn-name: Тема без слотов
 awn-preview: ""
 awn-web-url: ""
-awn-update: 2026-09-17T12:52:24.039Z
-awn-version: 12
+awn-update: 2026-09-17T13:41:26.376Z
+awn-version: 13
 ---

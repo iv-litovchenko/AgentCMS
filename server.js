@@ -6789,6 +6789,12 @@ async function createStorageRecordFile({
     canonicalFolder === STORAGE_SUBFOLDER_MAIN ||
     canonicalFolder === STORAGE_SUBFOLDER_CONTENT;
 
+  if ((await readTopicSlotsFlexible(manifestRelPath)) && !isMainSlot) {
+    throw new Error(
+      'Topic uses awn-slots-flexible: external content only via slot "main" into awn-storage/.'
+    );
+  }
+
   let folderAbsolute;
   let parentRaw;
   if (isMainSlot) {
@@ -10952,12 +10958,15 @@ function pageMapRowToWorkspaceIndexEntry(page) {
     page?.kind === "folder"
       ? stripAgentContentPrefixFromRelPath(manifestPath) || manifestPath
       : stripAgentContentPrefixFromRelPath(manifestPath) || manifestPath;
+  const slotsMode = resolveWorkspaceTopicSlotsModeLabel(page);
   return {
     path: String(path || "").trim(),
     linkPath: manifestPath,
     type: resolveWorkspacePageIndexEntryType(page),
     title: String(page?.title || "").trim(),
-    description: String(page?.description || "").trim()
+    description: String(page?.description || "").trim(),
+    slotsMode,
+    slotsFlexible: Boolean(page?.slotsFlexible)
   };
 }
 
@@ -10973,7 +10982,8 @@ async function buildWorkspacePageIndexMarkdown({ pages }) {
   const lines = ["# Оглавление workspace", ""];
   lines.push(
     formatContentIndexEntriesMarkdown(entries, {
-      emptyHint: "_В workspace пока нет страниц для оглавления._"
+      emptyHint: "_В workspace пока нет страниц для оглавления._",
+      tableVariant: "workspace"
     })
   );
   return `${lines.join("\n").trimEnd()}\n`;
@@ -10992,8 +11002,8 @@ async function buildAgentWorkspacePageIndex() {
     version: 1,
     model: "workspace-page-index",
     hint:
-      "Оглавление страниц workspace (path, type, title, description, размер, строки) без body и properties. " +
-      "Файл INDEX.md в корне workspace. Для полной карты → get_page_map.",
+      "Оглавление страниц workspace (path, type, slotsMode, title, description, размер, строки) без body и properties. " +
+      "Для тем slotsMode: гибкий (awn-slots-flexible) или типовые. Для полной карты → get_page_map.",
     whenToUse: {
       get_workspace_page_index:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
@@ -11217,26 +11227,59 @@ async function enrichBundleSlotIndexRowsWithFileStats(rows = []) {
   );
 }
 
-function formatContentIndexEntriesMarkdown(entries, { emptyHint = "_Нет записей._", linkTitle = true } = {}) {
+function resolveWorkspaceTopicSlotsModeLabel(page) {
+  if (page?.kind !== "topic") return "";
+  return page?.slotsFlexible ? "гибкий" : "типовые";
+}
+
+function resolveContentIndexEntrySlotLabel(slotKey) {
+  const normalized = String(slotKey || "").trim();
+  if (!normalized || normalized === "memory") return "main";
+  return normalized;
+}
+
+function formatContentIndexEntriesMarkdown(
+  entries,
+  { emptyHint = "_Нет записей._", linkTitle = true, tableVariant = "content" } = {}
+) {
   if (!entries?.length) return emptyHint;
-  const lines = [
-    "| Тип | Путь | Название | Описание | Размер | Строк |",
-    "| --- | --- | --- | --- | ---: | ---: |"
-  ];
+  const includeSlotsMode = tableVariant === "workspace";
+  const includeSlotLabel = tableVariant === "topic-content";
+  const header = includeSlotsMode
+    ? "| Тип | Слоты | Путь | Название | Описание | Размер | Строк |"
+    : includeSlotLabel
+      ? "| Слот | Тип | Путь | Название | Описание | Размер | Строк |"
+      : "| Тип | Путь | Название | Описание | Размер | Строк |";
+  const divider = includeSlotsMode
+    ? "| --- | --- | --- | --- | --- | ---: | ---: |"
+    : includeSlotLabel
+      ? "| --- | --- | --- | --- | --- | ---: | ---: |"
+      : "| --- | --- | --- | --- | ---: | ---: |";
+  const lines = [header, divider];
   for (const entry of entries) {
+    const slotModeCell = escapeContentIndexTableCell(entry.slotsMode) || "—";
+    const slotLabelCell = escapeContentIndexTableCell(entry.slotLabel) || "—";
+    const rowPrefix = includeSlotsMode
+      ? `${escapeContentIndexTableCell(entry.type) || "—"} | ${slotModeCell} |`
+      : includeSlotLabel
+        ? `${slotLabelCell} | ${escapeContentIndexTableCell(entry.type) || "—"} |`
+        : `${escapeContentIndexTableCell(entry.type) || "—"} |`;
     lines.push(
-      `| ${escapeContentIndexTableCell(entry.type) || "—"} | \`${escapeContentIndexTableCell(entry.path)}\` | ${formatContentIndexTitleCell(entry, { linkTitle })} | ${escapeContentIndexTableCell(entry.description) || "—"} | ${formatContentIndexFileSize(entry.sizeBytes)} | ${formatContentIndexLineCount(entry.lineCount)} |`
+      `${rowPrefix} \`${escapeContentIndexTableCell(entry.path)}\` | ${formatContentIndexTitleCell(entry, { linkTitle })} | ${escapeContentIndexTableCell(entry.description) || "—"} | ${formatContentIndexFileSize(entry.sizeBytes)} | ${formatContentIndexLineCount(entry.lineCount)} |`
     );
   }
   return lines.join("\n");
 }
 
-function formatMultiFileContentIndexMarkdown(entries, { emptyHint = "_Во внешних слотах пока нет файлов для оглавления._" } = {}) {
+function formatMultiFileContentIndexMarkdown(
+  entries,
+  { emptyHint = "_Во внешних слотах пока нет файлов для оглавления._", tableVariant = "topic-content" } = {}
+) {
   if (!entries?.length) return "";
   return [
     "### Многофайловая память",
     "",
-    formatContentIndexEntriesMarkdown(entries, { emptyHint })
+    formatContentIndexEntriesMarkdown(entries, { emptyHint, tableVariant })
   ].join("\n");
 }
 
@@ -11257,11 +11300,13 @@ function mergeTopicContentIndexEntries(slots = []) {
   for (const slotRow of slots) {
     if (!isTopicWideContentIndexSlotRow(slotRow)) continue;
     const folder = slotKeyToStorageFolder(slotRow.slot);
+    const slotLabel = resolveContentIndexEntrySlotLabel(slotRow.slot);
     for (const entry of slotRow.entries || []) {
       const relPath = String(entry.path || "").replace(/\\/g, "/").trim();
       merged.push({
         ...entry,
-        path: relPath ? `${folder}/${relPath}` : folder
+        path: relPath ? `${folder}/${relPath}` : folder,
+        slotLabel
       });
     }
   }
@@ -11297,7 +11342,8 @@ async function buildTopicContentIndexMarkdown({
   );
   const liteEmptyHint = "_В awn-storage/ темы пока нет файлов для оглавления._";
   const multiSection = formatMultiFileContentIndexMarkdown(merged, {
-    emptyHint: slotsDisabled ? liteEmptyHint : undefined
+    emptyHint: slotsDisabled ? liteEmptyHint : undefined,
+    tableVariant: "topic-content"
   });
   const bundleSection = formatBundleSlotIndexMarkdown(
     await enrichBundleSlotIndexRowsWithFileStats(bundleSlots)
@@ -11323,9 +11369,9 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
   const liteModeTopicIndex =
     scope === "topic" && !options.slot && slotsDisabled;
   const liteEntries = liteModeTopicIndex
-    ? await enrichContentIndexEntriesWithFileStats(
+    ? (await enrichContentIndexEntriesWithFileStats(
         mapItemsToContentIndexEntries(await buildLiteTopicContainerMapItems(mapPayload.path))
-      )
+      )).map((entry) => ({ ...entry, slotLabel: "гибкий" }))
     : [];
 
   const slots = [];
@@ -11734,6 +11780,7 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
   const { slotKeyToStorageFolder, normalizeStorageSlotKey } = require("./storage-slot-routing");
   const rawType = getYamlScalar(frontmatter, "awn-type") || "awn.page.topic";
   const awnType = String(rawType).trim();
+  const slotsFlexible = await readTopicSlotsFlexible(canonicalRelPath);
   const slotKeys = resolveStorageSlotsForManifest(projectRoot, agentRoot, awnType);
   const slotsPayload = getPageSlotsPayload(projectRoot, agentRoot, slotKeys);
   const filterSlot = options.slot ? normalizeStorageSlotKey(options.slot) : "";
@@ -11743,6 +11790,16 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
 
   if (filterSlot && !slotsToScan.length) {
     return { error: `Slot "${options.slot}" not found on page`, status: 404 };
+  }
+
+  if (filterSlot && slotsFlexible) {
+    const filtered = slotsToScan[0];
+    if (filtered?.driver === "external" && filtered.slot !== "memory") {
+      return {
+        error: 'Topic uses awn-slots-flexible: external content only via slot "main".',
+        status: 400
+      };
+    }
   }
 
   const slots = [];
@@ -11766,6 +11823,20 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
       continue;
     }
 
+    if (slotsFlexible) {
+      if (slotKey !== "memory") continue;
+      const items = await buildLiteTopicContainerMapItems(canonicalRelPath);
+      slots.push({
+        slot: slotKey,
+        driver,
+        items,
+        itemCount: items.length,
+        flexible: true,
+        hint: "Flexible slot (awn-slots-flexible): path-based FS in awn-storage/"
+      });
+      continue;
+    }
+
     const storageFolder = slotKeyToStorageFolder(slotKey);
     const items = await buildExternalSlotMapItems(canonicalRelPath, slotKey, storageFolder);
     slots.push({ slot: slotKey, driver, items, itemCount: items.length });
@@ -11776,9 +11847,13 @@ async function buildAgentContentMap(manifestRelPath, options = {}) {
   return {
     version: 1,
     model: "content-map",
-    hint: "Карта контента страницы: title, description, properties без body. Тело: read_content_body. Быстрое оглавление: get_content_index. Папки awn-materials-* (доп. материалы записи) включены как record-materials* с parentRecordRef.",
+    hint: slotsFlexible
+      ? "Flexible slot (awn-slots-flexible): внешняя память только в awn-storage/ через slot main. Тело: read_content_body. Оглавление: get_content_index."
+      : "Карта контента страницы: title, description, properties без body. Тело: read_content_body. Быстрое оглавление: get_content_index. Папки awn-materials-* (доп. материалы записи) включены как record-materials* с parentRecordRef.",
     path: canonicalRelPath,
     awnType,
+    slotsFlexible,
+    slotsDisabled: slotsFlexible,
     slots,
     slotCount: slots.length,
     itemCount
