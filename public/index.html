@@ -292,22 +292,25 @@
                 <option value="text" selected>Текст</option>
                 <option value="semantic">Смысл</option>
               </select>
-              <input
-                id="content-search-input"
-                class="content-search-input"
-                type="search"
-                placeholder="Найти файл или текст..."
-                autocomplete="off"
-                aria-label="Поиск по содержимому"
-                aria-controls="content-search-results"
-                aria-expanded="false"
-              />
-              <span
-                id="content-search-spinner"
-                class="content-search-spinner hidden"
-                aria-hidden="true"
-                title="Поиск…"
-              ></span>
+              <div class="content-search-input-zone">
+                <div id="content-search-active-filters" class="content-search-active-filters hidden" aria-live="polite"></div>
+                <input
+                  id="content-search-input"
+                  class="content-search-input"
+                  type="search"
+                  placeholder="Найти файл или текст..."
+                  autocomplete="off"
+                  aria-label="Поиск по содержимому"
+                  aria-controls="content-search-results"
+                  aria-expanded="false"
+                />
+                <span
+                  id="content-search-spinner"
+                  class="content-search-spinner hidden"
+                  aria-hidden="true"
+                  title="Поиск…"
+                ></span>
+              </div>
               <div class="content-search-actions">
                 <div
                   id="content-search-path-scope"
@@ -390,7 +393,7 @@
                 <select id="content-search-type" class="content-search-type content-search-filter-control" aria-label="Формат файлов">
                   <option value="all" selected>Все типы</option>
                   <option value="markdown">Markdown</option>
-                  <option value="sidecar">Sidecar</option>
+                  <option value="sidecar">Markdown (sidecar)</option>
                   <option value="pdf">PDF</option>
                   <option value="office">Word / PowerPoint</option>
                   <option value="spreadsheet">Excel / CSV</option>
@@ -403,10 +406,10 @@
                 </select>
               </label>
               <button type="button" id="content-search-filters-reset-btn" class="content-search-filters-reset-btn">
-                Сбросить фильтры
+                <span class="content-search-filters-reset-icon" aria-hidden="true">↺</span>
+                <span class="content-search-filters-reset-label">Сбросить фильтры</span>
               </button>
             </div>
-            <div id="content-search-active-filters" class="content-search-active-filters hidden" aria-live="polite"></div>
             <div
               id="content-search-help-popover"
               class="content-search-help-popover hidden"

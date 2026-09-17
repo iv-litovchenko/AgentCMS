@@ -23350,7 +23350,7 @@ const CONTENT_SEARCH_MATCH_LABELS = {
 const CONTENT_SEARCH_TYPE_LABELS = {
   all: "Все типы",
   markdown: "Markdown",
-  sidecar: "Sidecar",
+  sidecar: "Markdown (sidecar)",
   pdf: "PDF",
   office: "Word / PowerPoint",
   spreadsheet: "Excel / CSV",
@@ -23429,6 +23429,7 @@ function resetContentSearchFilter(key) {
 function renderContentSearchActiveFilters() {
   if (!contentSearchActiveFiltersNode) return;
   contentSearchActiveFiltersNode.replaceChildren();
+  contentSearchBarNode?.classList.remove("has-active-filters");
   if (isContentSearchSemantic()) {
     contentSearchActiveFiltersNode.classList.add("hidden");
     return;
@@ -23456,14 +23457,23 @@ function renderContentSearchActiveFilters() {
     btn.type = "button";
     btn.className = "content-search-filter-chip";
     btn.dataset.filterKey = chip.key;
-    btn.title = "Сбросить фильтр";
-    btn.textContent = chip.label;
+    btn.title = `Сбросить: ${chip.label}`;
+    btn.setAttribute("aria-label", `Сбросить фильтр «${chip.label}»`);
+    const label = document.createElement("span");
+    label.className = "content-search-filter-chip-label";
+    label.textContent = chip.label;
+    const close = document.createElement("span");
+    close.className = "content-search-filter-chip-x";
+    close.setAttribute("aria-hidden", "true");
+    close.textContent = "×";
+    btn.append(label, close);
     btn.addEventListener("click", (event) => {
       event.stopPropagation();
       resetContentSearchFilter(chip.key);
     });
     contentSearchActiveFiltersNode.appendChild(btn);
   }
+  contentSearchBarNode?.classList.toggle("has-active-filters", chips.length > 0);
 }
 
 function syncContentSearchFiltersUi() {
