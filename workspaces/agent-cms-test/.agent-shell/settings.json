@@ -26,7 +26,6 @@
   },
   "voice": {
     "input": {
-      "enabled": false,
       "mode": "fn_button",
       "capture": "microphone",
       "globalListen": false,
@@ -102,7 +101,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0.5568
+    "dialogScrollRatio": 1
   },
   "compose": {
     "promptTemplates": [

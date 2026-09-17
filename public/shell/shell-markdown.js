@@ -78,7 +78,7 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
-const SHELL_MARKER_INLINE_RE = /(\[(?:tts-break|/?stt)\]|\{\{(?:tpl:[a-z0-9_-]+|shell:voice-end)\}\})/gi;
+const SHELL_MARKER_INLINE_RE = /(\[tts-break\]|\[stt\]|\[\/stt\]|\{\{(?:tpl:[a-z0-9_-]+|shell:voice-end)\}\})/gi;
 
 export function renderUserMessageBody(element, text) {
   if (!element) return;
@@ -89,7 +89,7 @@ export function renderUserMessageBody(element, text) {
   const parts = raw.split(SHELL_MARKER_INLINE_RE);
   for (const part of parts) {
     if (!part) continue;
-    if (/^\{\{(?:tpl:|shell:)/i.test(part) || /^\[(?:tts-break|/?stt)\]$/i.test(part)) {
+    if (/^\{\{(?:tpl:|shell:)/i.test(part) || /^\[(?:tts-break|stt|\/stt)\]$/i.test(part)) {
       const code = document.createElement("code");
       code.className = "shell-compose-templates-marker";
       code.textContent = part;

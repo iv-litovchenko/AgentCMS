@@ -1,0 +1,20 @@
+{
+  "id": "1789637978303-94f928",
+  "body": "Давай попробуем теперь протестируем SSD что у нас будет",
+  "author": "shell",
+  "voice": true,
+  "displayPhrase": "",
+  "shellClientId": "febf1aec-4e4d-431b-9638-201e46d1b075:8103a7e2-b11c-415e-8351-a12c56aeae3c",
+  "surfaceHost": "browser-tab",
+  "surfaceHint": "Отдельная вкладка браузера",
+  "surfaceBackend": "local",
+  "hostUrl": "https://localhost:3488/agent-cms-test/",
+  "ttsEnabled": false,
+  "ttsPrompt": "Сформируй ответ в следующем формате (строго, в таком порядке):\n\n1) Голосовая версия для озвучки — без emoji и markdown, только то, что можно произнести вслух. Не включай секреты, ключи и пароли. Не используй HTML-комментарии <!-- -->.\n\n2) Отдельной строкой маркер:\n\n::: VOICE-END :::\n\n3) Полный текст ответа для экрана (можно markdown, списки, код и любые другие элементы). Без HTML-комментариев <!-- -->.",
+  "deviceContext": null,
+  "status": "processing",
+  "createdAt": "2026-09-17T09:39:38.307Z",
+  "startedAt": "2026-09-17T09:39:38.365Z",
+  "finishedAt": null,
+  "error": ""
+}
