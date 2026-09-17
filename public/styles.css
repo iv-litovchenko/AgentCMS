@@ -54315,6 +54315,11 @@ body.is-cms-page-picker-active #discuss-aside * {
   background: #f9fafb;
 }
 
+.menu-static-section--awn-backup {
+  border: 1px solid #86efac;
+  background: #f0fdf4;
+}
+
 .menu-static-section--awn-dashboards {
   border: 1px solid #bfdbfe;
   background: #eff6ff;

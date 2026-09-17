@@ -52,6 +52,7 @@ const menuAwnTempStatusDotNode = document.getElementById("menu-awn-temp-status-d
 const menuAwnTempOpenBtn = document.getElementById("menu-awn-temp-open-btn");
 const menuAwnTempRefreshBtn = document.getElementById("menu-awn-temp-refresh-btn");
 const menuAwnRecycleOpenBtn = document.getElementById("menu-awn-recycle-open-btn");
+const menuAwnBackupOpenBtn = document.getElementById("menu-awn-backup-open-btn");
 const menuGoogleDriveRepairBtn = document.getElementById("menu-google-drive-repair-btn");
 const menuGoogleDriveRefreshBtn = document.getElementById("menu-google-drive-refresh-btn");
 const menuAwnDataStoresNode = document.getElementById("menu-awn-data-stores");
@@ -14068,6 +14069,7 @@ const AWN_DIALOGS_FOLDER = "awn-dialogs";
 const AWN_FACTS_FOLDER = "awn-facts";
 const AWN_TEMP_FOLDER = "awn-temp";
 const AWN_RECYCLE_FOLDER = "awn-recycle";
+const AWN_BACKUP_FOLDER = "awn-backup";
 const FOLDER_BROWSE_IMAGES_COLUMNS_STORAGE_KEY = "yamlcms.folderBrowseImagesColumns";
 const FOLDER_BROWSE_IMAGES_COLUMN_OPTIONS = [1, 3, 5];
 const NAVIGATION_MEDIA_IMAGES_LAYOUT_STORAGE_KEY = "yamlcms.navigationMediaImagesLayout";
@@ -94025,6 +94027,7 @@ function setupMenuStaticFooterGroup() {
   setupMenuAwnFactsUi();
   setupMenuAwnTempUi();
   setupMenuAwnRecycleUi();
+  setupMenuAwnBackupUi();
   setupAwnDashboardsUi();
 }
 
@@ -98280,6 +98283,13 @@ function setupMenuAwnRecycleUi() {
   menuAwnRecycleOpenBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     void openFolderBrowseFromMenu("Корзина", AWN_RECYCLE_FOLDER, { agentId: activeAgentId });
+  });
+}
+
+function setupMenuAwnBackupUi() {
+  menuAwnBackupOpenBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void openFolderBrowseFromMenu("Резервное копирование", AWN_BACKUP_FOLDER, { agentId: activeAgentId });
   });
 }
 

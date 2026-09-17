@@ -50,6 +50,8 @@ const AWN_VENDOR_ROOT_FOLDER = "awn-vendor";
 const AWN_WORKSPACE_TEMP_FOLDER = "awn-temp";
 /** Корзина workspace (будущее) — sidebar, не в дереве тем */
 const AWN_WORKSPACE_RECYCLE_FOLDER = "awn-recycle";
+/** Резервное копирование workspace (будущее) — sidebar, не в дереве тем */
+const AWN_WORKSPACE_BACKUP_FOLDER = "awn-backup";
 /** Кастомные дашборды и виджеты — sidebar, не в дереве тем */
 const AWN_DASHBOARDS_FOLDER = "awn-dashboards";
 const PLATFORM_DATA_ROOT_FOLDERS = [
@@ -1420,6 +1422,7 @@ module.exports = {
   AWN_VENDOR_ROOT_FOLDER,
   AWN_WORKSPACE_TEMP_FOLDER,
   AWN_WORKSPACE_RECYCLE_FOLDER,
+  AWN_WORKSPACE_BACKUP_FOLDER,
   AWN_DASHBOARDS_FOLDER,
   PLATFORM_DATA_ROOT_FOLDERS,
   isAwnDataFolderName,

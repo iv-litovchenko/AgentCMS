@@ -196,6 +196,7 @@ const {
   AWN_VENDOR_ROOT_FOLDER,
   AWN_WORKSPACE_TEMP_FOLDER,
   AWN_WORKSPACE_RECYCLE_FOLDER,
+  AWN_WORKSPACE_BACKUP_FOLDER,
   AWN_DASHBOARDS_FOLDER,
   isPlatformDataRootFolderName,
   isPlatformDataMenuFolderPath,
@@ -9248,6 +9249,7 @@ function shouldSkipMenuDirectory(name) {
   if (lower === String(WORKSPACE_FACTS_DIR || "awn-facts").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_TEMP_FOLDER || "awn-temp").toLowerCase()) return true;
   if (lower === String(AWN_WORKSPACE_RECYCLE_FOLDER || "awn-recycle").toLowerCase()) return true;
+  if (lower === String(AWN_WORKSPACE_BACKUP_FOLDER || "awn-backup").toLowerCase()) return true;
   if (lower === String(AWN_DASHBOARDS_FOLDER || "awn-dashboards").toLowerCase()) return true;
   return MENU_SKIP_DIRS.has(lower);
 }
