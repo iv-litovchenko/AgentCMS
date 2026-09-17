@@ -33176,9 +33176,27 @@ img.is-svg-media,
   overflow: hidden;
 }
 
-.node-navigation-hero-header .node-navigation-hero-actions {
+.node-navigation-hero-header .node-navigation-hero-actions-column {
   justify-self: end;
   align-self: start;
+}
+
+.node-navigation-hero-actions-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.node-navigation-hero-shared-slot-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.node-navigation-hero-shared-slot-row .node-overview-shared-slot-btn {
+  max-width: 100%;
 }
 
 .node-navigation-hero-head {
@@ -33379,7 +33397,7 @@ img.is-svg-media,
     gap: 10px;
   }
 
-  .node-navigation-hero-header .node-navigation-hero-actions {
+  .node-navigation-hero-header .node-navigation-hero-actions-column {
     justify-self: end;
   }
 
@@ -35826,6 +35844,44 @@ img.is-svg-media,
   line-height: 1.2;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.node-navigation-memory-head-title-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.node-navigation-memory-title--with-comment {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  white-space: normal;
+}
+
+.node-navigation-memory-title-main {
+  display: block;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.node-navigation-memory-title-comment {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 400;
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #0f766e;
+  white-space: normal;
+}
+
+.node-navigation-memory-card[data-slots-flexible="1"] .node-navigation-memory-title-comment {
+  color: #0d9488;
 }
 
 button.node-navigation-memory-title {
@@ -44105,6 +44161,16 @@ button.node-navigation-memory-title:focus-visible {
 .node-overview-main-btn.is-active .node-overview-action-btn-icon svg {
   stroke-width: 2.25;
   fill: currentColor;
+}
+
+.node-overview-shared-slot-btn.is-active {
+  border-color: #86efac;
+  background: rgba(220, 252, 231, 0.92);
+  color: #166534;
+}
+
+.node-overview-shared-slot-btn.is-active .node-overview-action-btn-icon svg {
+  color: #166534;
 }
 
 .node-overview-action-btn-icon {

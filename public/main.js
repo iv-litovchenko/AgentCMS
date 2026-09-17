@@ -19165,8 +19165,13 @@ function upsertAwnNameInPropsYaml(content, nextAwnName) {
 }
 
 function upsertAwnFlagInPropsYaml(content, flagKey, enabled) {
-  const entries = parsePropsYaml(content || "");
   const normalizedKey = String(flagKey || "").trim();
+  let entries = parsePropsYaml(content || "");
+  if (normalizePropsKey(normalizedKey) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY) {
+    entries = entries.filter(
+      (entry) => normalizePropsKey(entry.key) !== AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY
+    );
+  }
   const index = entries.findIndex((entry) => normalizePropsKey(entry.key) === normalizedKey);
   const nextEntry = { key: normalizedKey, kind: "bool", value: Boolean(enabled) };
   if (index >= 0) entries[index] = { ...entries[index], ...nextEntry };
@@ -19205,7 +19210,11 @@ async function saveNodeNavFlagState(nodePath, flagKey, enabled, options = {}) {
   }
 
   const apiPath = getResolvedNodePath(nodePathRaw);
-  if (!apiPath || !canShowNodeOverviewPinActions(nodePathRaw)) {
+  const canToggle =
+    normalizePropsKey(flagKey) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY
+      ? canShowNodeOverviewSharedSlotToggle(nodePathRaw)
+      : canShowNodeOverviewPinActions(nodePathRaw);
+  if (!apiPath || !canToggle) {
     showToast(unavailableMessage || "Доступно только для markdown-записей", "error");
     return false;
   }
@@ -19275,6 +19284,70 @@ async function toggleNodeFocus(nodePath, propEntries = null) {
 async function toggleNodeMain(nodePath, propEntries = null) {
   const onMain = isNodeOnMain(nodePath, propEntries);
   return setNodeMainState(nodePath, !onMain, { confirmRemove: true });
+}
+
+function isTopicSharedSlotFromProps(propEntries) {
+  return isTopicSlotsDisabledFromEntries(propEntries);
+}
+
+function isTopicSharedSlotActiveForNode(nodePath, propEntries = null) {
+  if (Array.isArray(propEntries) && propEntries.length) {
+    return isTopicSharedSlotFromProps(propEntries);
+  }
+  return isTopicSharedSlotActive(nodePath);
+}
+
+function canShowNodeOverviewSharedSlotToggle(nodePath) {
+  const apiPath = String(getResolvedNodePath(nodePath) || nodePath || "")
+    .trim()
+    .replace(/\\/g, "/");
+  if (!apiPath) return false;
+  return isTopicManifestPath(apiPath) && !isPartNodePath(apiPath);
+}
+
+async function setTopicSharedSlotState(nodePath, enabled, options = {}) {
+  const label = getLabelFromPath(nodePath) || nodePath;
+  const changed = await saveNodeNavFlagState(nodePath, AWN_TOPIC_SLOTS_FLEXIBLE_KEY, enabled, {
+    ...options,
+    confirmRemove: !enabled,
+    removeTitle: "Выключить",
+    removeMessage: `Выключить «Гибкий слот» для «${label}»? Снова появятся типовые слоты awn-storage (main, inbox, media…).`,
+    unavailableMessage: "«Гибкий слот» доступен только для manifest темы",
+    successOn: `«Гибкий слот» включён для «${label}»`,
+    successOff: `«Гибкий слот» выключен для «${label}»`,
+    errorMessage: "Не удалось изменить «Гибкий слот»"
+  });
+  if (!changed) return false;
+
+  const manifestPath = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  invalidateTopicSlotsDisabledCache(manifestPath);
+  if (manifestPath) topicSlotsDisabledCache.set(manifestPath, enabled);
+
+  if (
+    activeContentMode === NODE_NAVIGATION_MODE ||
+    activeContentMode === NODE_ENTRY_OVERVIEW_MODE ||
+    activeContentMode === NODE_OVERVIEW_MODE
+  ) {
+    try {
+      await refreshNavigationHubAfterSlotMutation();
+    } catch {
+      // ignore refresh errors
+    }
+    if (activeContentMode === NODE_NAVIGATION_MODE) {
+      await renderNodeNavigation();
+    } else if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+      await renderEntryOverview();
+    } else if (activeContentMode === NODE_OVERVIEW_MODE) {
+      await renderNodeOverview();
+    }
+  }
+
+  return true;
+}
+
+async function toggleTopicSharedSlot(nodePath, propEntries = null) {
+  const active = isTopicSharedSlotActiveForNode(nodePath, propEntries);
+  return setTopicSharedSlotState(nodePath, !active);
 }
 
 async function removeNodeFromFocus(focusItem) {
@@ -21451,16 +21524,35 @@ function usesNavigationHubInlineSubsections(nodePath = getResolvedNodePath(activ
   return isAreaNodePath(nodePath) || isWorkspaceRootNodePath(nodePath);
 }
 
+const AWN_TOPIC_SLOTS_FLEXIBLE_KEY = "awn-slots-flexible";
+const AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY = "awn-slots-disabled";
+
 const topicSlotsDisabledCache = new Map();
-const TOPIC_SHARED_SLOT_EXTERNAL_TITLE = "Многофайловая память (общий слот)";
+const TOPIC_SHARED_SLOT_EXTERNAL_TITLE = "Многофайловая память (общий гибкий слот)";
+const TOPIC_SHARED_SLOT_SUBTITLE =
+  "Структура задаётся и определяется самостоятельно пользователем и ии-агентом (произвольные папки и файлы).";
+
+function isTopicSlotsFlexibleFromEntries(entries) {
+  if (!Array.isArray(entries) || !entries.length) return false;
+  const flexibleEntry = entries.find(
+    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY
+  );
+  if (flexibleEntry) {
+    if (flexibleEntry.kind === "bool") return Boolean(flexibleEntry.value);
+    const raw = String(flexibleEntry.value ?? "").trim().toLowerCase();
+    return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
+  }
+  const legacyEntry = entries.find(
+    (item) => normalizePropsKey(item.key) === AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY
+  );
+  if (!legacyEntry) return false;
+  if (legacyEntry.kind === "bool") return Boolean(legacyEntry.value);
+  const raw = String(legacyEntry.value ?? "").trim().toLowerCase();
+  return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
+}
 
 function isTopicSlotsDisabledFromEntries(entries) {
-  if (!Array.isArray(entries) || !entries.length) return false;
-  const entry = entries.find((item) => normalizePropsKey(item.key) === "awn-slots-disabled");
-  if (!entry) return false;
-  if (entry.kind === "bool") return Boolean(entry.value);
-  const raw = String(entry.value ?? "").trim().toLowerCase();
-  return raw === "true" || raw === "yes" || raw === "1" || raw === "да";
+  return isTopicSlotsFlexibleFromEntries(entries);
 }
 
 function invalidateTopicSlotsDisabledCache(manifestPath = "") {
@@ -21485,8 +21577,7 @@ function isTopicSharedSlotActive(nodePath = activePath) {
 }
 
 function getTopicSharedSlotStorageRootRel(nodePath) {
-  const resolved = getResolvedNodePath(nodePath);
-  return getManifestContainerDirRel(resolved) || resolved;
+  return getNamedStorageSlotDirRel(getResolvedNodePath(nodePath));
 }
 
 function getExternalMemoryRootRel(nodePath = activePath) {
@@ -38614,7 +38705,7 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-runtime-cron",
   "awn-runtime-cron-schedule",
   "awn-runtime-commands",
-  "awn-slots-disabled"
+  "awn-slots-flexible"
 ];
 
 function getSchemaPropsFieldDef(key) {
@@ -38797,9 +38888,9 @@ const PROPS_FIELD_META = {
     label: "На главной",
     hint: "Показывать в карусели на главной странице"
   },
-  "awn-slots-disabled": {
-    label: "Общий слот (lite)",
-    hint: "Скрыть слоты данных; многофайловая память читается из папки темы (рядом с manifest.md), без awn-storage/"
+  "awn-slots-flexible": {
+    label: "Гибкий слот (Flexible)",
+    hint: "Общий гибкий слот: произвольная структура многофайловой памяти в awn-storage/"
   },
   "awn-status": {
     label: "Статус",
@@ -47544,7 +47635,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-materials": "materials",
   "awn-focus": "nav",
   "awn-main": "nav",
-  "awn-slots-disabled": "nav",
+  "awn-slots-flexible": "nav",
   "awn-category": "taxonomy",
   "awn-owner": "taxonomy",
   "awn-priority": "taxonomy",
@@ -48122,7 +48213,7 @@ function renderPropsForm() {
 }
 
 function isTopicOnlyPropsFieldKey(key) {
-  return normalizePropsKey(key) === "awn-slots-disabled";
+  return normalizePropsKey(key) === AWN_TOPIC_SLOTS_FLEXIBLE_KEY;
 }
 
 function shouldIncludePropsFieldKey(key, contextPath = getPropsContextPath()) {
@@ -48135,7 +48226,7 @@ function shouldIncludePropsFieldKey(key, contextPath = getPropsContextPath()) {
 const PROPS_FIELD_WIDGET_FALLBACKS = {
   "awn-focus": "boolean",
   "awn-main": "boolean",
-  "awn-slots-disabled": "boolean",
+  "awn-slots-flexible": "boolean",
   "awn-runtime-cron": "runtime-schedule-type",
   "awn-runtime-heartbeat": "boolean",
   "awn-runtime-commands": "boolean",
@@ -54512,6 +54603,12 @@ function createOverviewMainIcon() {
   );
 }
 
+function createOverviewSharedSlotIcon() {
+  return createOverviewActionIcon(
+    '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.18"/><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.1"/><ellipse cx="8" cy="8" rx="3" ry="7" fill="none" stroke="currentColor" stroke-width="0.9"/><line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="0.9"/></svg>'
+  );
+}
+
 function createNodeOverviewEditButton(onClick, label = "Редактировать", { disabled = false } = {}) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -54603,6 +54700,14 @@ function syncNodeOverviewMainButton(btn, nodePath, propEntries = null) {
   btn.setAttribute("aria-label", btn.title);
 }
 
+function syncNodeOverviewSharedSlotButton(btn, nodePath, propEntries = null) {
+  const on = isTopicSharedSlotActiveForNode(nodePath, propEntries);
+  btn.classList.toggle("is-active", on);
+  btn.title = on ? "Гибкий слот: включён" : "Гибкий слот: выключен";
+  btn.setAttribute("aria-label", btn.title);
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+}
+
 function updateNodeOverviewHeroActionStates() {
   const root = appRootNode || document;
   for (const btn of root.querySelectorAll(".node-overview-bookmark-btn")) {
@@ -54613,6 +54718,9 @@ function updateNodeOverviewHeroActionStates() {
   }
   for (const btn of root.querySelectorAll(".node-overview-main-btn")) {
     syncNodeOverviewMainButton(btn, btn.dataset.path || "", null);
+  }
+  for (const btn of root.querySelectorAll(".node-overview-shared-slot-btn")) {
+    syncNodeOverviewSharedSlotButton(btn, btn.dataset.path || "", null);
   }
 }
 
@@ -54664,6 +54772,22 @@ function createNodeOverviewMainButton(nodePath, propEntries = null) {
   return btn;
 }
 
+function createNodeOverviewSharedSlotButton(nodePath, propEntries = null) {
+  const resolvedPath = normalizeMenuNodePath(getResolvedNodePath(nodePath) || nodePath);
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "node-overview-action-btn node-overview-shared-slot-btn";
+  btn.dataset.path = resolvedPath;
+  btn.append(createOverviewSharedSlotIcon(), document.createTextNode("Гибкий слот"));
+  syncNodeOverviewSharedSlotButton(btn, nodePath, propEntries);
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void toggleTopicSharedSlot(nodePath, propEntries);
+  });
+  return btn;
+}
+
 function createNodeOverviewHeroActions(nodePath, options = {}) {
   const actions = document.createElement("div");
   actions.className = "node-navigation-hero-actions";
@@ -54680,6 +54804,23 @@ function createNodeOverviewHeroActions(nodePath, options = {}) {
     );
   }
   return actions;
+}
+
+function createNodeOverviewHeroActionsColumn(nodePath, options = {}) {
+  const column = document.createElement("div");
+  column.className = "node-navigation-hero-actions-column";
+  column.appendChild(createNodeOverviewHeroActions(nodePath, options));
+
+  if (canShowNodeOverviewSharedSlotToggle(nodePath)) {
+    const sharedRow = document.createElement("div");
+    sharedRow.className = "node-navigation-hero-shared-slot-row";
+    sharedRow.appendChild(
+      createNodeOverviewSharedSlotButton(nodePath, options.propEntries || null)
+    );
+    column.appendChild(sharedRow);
+  }
+
+  return column;
 }
 
 async function openEntryOverviewEdit(context) {
@@ -55344,7 +55485,7 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
           });
   }
 
-  const actions = createNodeOverviewHeroActions(nodePath, {
+  const actions = createNodeOverviewHeroActionsColumn(nodePath, {
     propEntries: options.propEntries || null,
     onEditClick: options.onEditClick,
     editLabel: options.editLabel,
@@ -57693,7 +57834,7 @@ function formatAgentContentIndexPayloadAsTopicMarkdown(payload, topicPath, slots
   const entries = [...liteEntries, ...slotMerged].sort((a, b) =>
     a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true })
   );
-  const liteEmptyHint = "_В каталоге темы пока нет файлов для оглавления._";
+  const liteEmptyHint = "_В awn-storage/ темы пока нет файлов для оглавления._";
   const multiSection = formatMultiFileContentIndexMarkdown(entries, {
     emptyHint: slotsDisabled ? liteEmptyHint : undefined
   });
@@ -58814,9 +58955,29 @@ function createDocumentContextMeter(text) {
   return meter;
 }
 
+function fillNavigationMemoryTitleNode(titleNode, title, titleComment = "") {
+  const comment = String(titleComment || "").trim();
+  titleNode.replaceChildren();
+  if (!comment) {
+    titleNode.textContent = title;
+    titleNode.classList.remove("node-navigation-memory-title--with-comment");
+    return;
+  }
+
+  titleNode.classList.add("node-navigation-memory-title--with-comment");
+  const main = document.createElement("span");
+  main.className = "node-navigation-memory-title-main";
+  main.textContent = title;
+  const note = document.createElement("span");
+  note.className = "node-navigation-memory-title-comment";
+  note.textContent = comment;
+  titleNode.append(main, note);
+}
+
 function createNavigationSectionHead(title, options = {}) {
   const variant = [1, 2, 3].includes(options.titleVariant) ? options.titleVariant : 1;
   const viewModeId = options.viewModeId;
+  const titleComment = options.titleComment || options.subtitle || "";
   const head = document.createElement("div");
   head.className = `node-navigation-memory-head node-navigation-memory-head--title-v${variant}`;
   if (viewModeId) {
@@ -58834,13 +58995,17 @@ function createNavigationSectionHead(title, options = {}) {
       openNavigationHubSlotPreview(viewModeId);
     });
   }
-  titleNode.textContent = title;
+  fillNavigationMemoryTitleNode(titleNode, title, titleComment);
 
   const rule = document.createElement("span");
   rule.className = "node-navigation-memory-rule";
   rule.setAttribute("aria-hidden", "true");
 
-  head.append(titleNode, rule);
+  const titleWrap = document.createElement("div");
+  titleWrap.className = "node-navigation-memory-head-title-wrap";
+  titleWrap.appendChild(titleNode);
+
+  head.append(titleWrap, rule);
 
   if (options.search?.enabled) {
     head.appendChild(
@@ -68214,11 +68379,12 @@ function renderNavigationExternalPart(externalData, { slotsDisabled = false } = 
   const card = document.createElement("section");
   card.className = "node-navigation-memory-card node-navigation-memory-card--external";
   if (sharedSlotMode) {
-    card.dataset.slotsDisabled = "1";
+    card.dataset.slotsFlexible = "1";
   }
   card.append(
     createNavigationSectionHead(externalTitle, {
       viewModeId: sharedSlotMode ? null : "external",
+      titleComment: sharedSlotMode ? TOPIC_SHARED_SLOT_SUBTITLE : null,
       badgeText: getNavigationMemoryBadgeText("external", externalData),
       badgeModeId: "external",
       sort: {
@@ -68247,7 +68413,7 @@ function renderNavigationExternalPart(externalData, { slotsDisabled = false } = 
     const empty = document.createElement("p");
     empty.className = "node-navigation-section-search-empty node-navigation-shared-slot-empty";
     empty.textContent =
-      "Пока нет .md файлов в папке темы. Добавьте файл рядом с manifest.md (например, 1.md).";
+      "Пока нет .md файлов в awn-storage/. Добавьте файл или папку внутри awn-storage/.";
     body.appendChild(empty);
   }
 
@@ -75552,12 +75718,12 @@ function renderNavigationHubRailSubsections(childEntries, activeCtx = null) {
 function renderNavigationHubRailSharedSlotNotice() {
   const block = document.createElement("section");
   block.className = "node-navigation-hub-rail-block node-navigation-hub-rail-block--shared-slot-notice";
-  block.setAttribute("aria-label", "Режим общего слота");
+  block.setAttribute("aria-label", "Режим гибкого слота");
 
   const notice = document.createElement("p");
   notice.className = "node-navigation-hub-rail-shared-slot-notice";
   notice.textContent =
-    "Включён режим «общего слота»: многофайловая память читается из папки темы (рядом с manifest.md). Слоты awn-storage в интерфейсе скрыты.";
+    "Включён гибкий слот: многофайловая память — произвольная структура в awn-storage/. Типовые слоты (main, inbox, media…) в интерфейсе скрыты.";
 
   block.appendChild(notice);
   return block;

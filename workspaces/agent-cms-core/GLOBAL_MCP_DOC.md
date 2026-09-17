@@ -637,7 +637,7 @@ razdel-1/
 |------|----------|
 | `hasManifest: false` | Свободная память — `list_folder` / `read_file` / `upload_file`, не `read_page_*` |
 | `sidecarPath` | Описание папки: `{path}/sidecar.md` с `awn-name`, `awn-description` |
-| `hasManifest: true` + `slotsDisabled: true` | Lite-тема: manifest есть, слотов нет — path-based FS |
+| `hasManifest: true` + `slotsFlexible: true` | Гибкий слот: manifest есть, типовых слотов нет — path-based FS в `awn-storage/` |
 | `adoptable: true` | Можно превратить в тему через `create_page` |
 
 Отдельный HTTP `GET /api/workspace/folder/adopt` — legacy (те же узлы, что `kind:folder` в page-map).
@@ -873,7 +873,7 @@ recall_workspace_facts({
 
 ## Антипаттерны
 
-1. Не писать файлы «в корень темы» — через slot (`create_content`) или `upload_file`, **если нет** `awn-slots-disabled: true`.
+1. Не писать файлы «в корень темы» — через slot (`create_content`) или `upload_file`, **если нет** `awn-slots-flexible: true` (тогда — произвольная структура в `awn-storage/`).
 2. Не путать page tools (`*_page_*`) и content tools (`*_content_*`).
 3. Типы искать по `id`, не угадывать path.
 4. `awn-data` (инфоблок / информационный накопитель) ≠ слот страницы.

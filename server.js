@@ -168,6 +168,8 @@ const {
   STORAGE_SUBFOLDER_BASE,
   STORAGE_SUBFOLDER_NOTEBOOKLM,
   STORAGE_SUBFOLDER_AGENT_QUEUE,
+  STORAGE_SUBFOLDER_CONFIGURATION,
+  STORAGE_SUBFOLDER_TEMP,
   STORAGE_SUBFOLDER_PREVIEW,
   STORAGE_SUBFOLDER_HISTORY,
   STORAGE_SUBFOLDER_COMMENTS,
@@ -10665,8 +10667,9 @@ async function buildAgentPageMap(options = {}) {
       properties: frontmatterPropsToObject(frontmatter)
     };
     if (kind === "topic") {
-      entry.slotsDisabled = await readTopicSlotsDisabled(normalized);
-      if (includeSlots && !entry.slotsDisabled) {
+      entry.slotsFlexible = await readTopicSlotsFlexible(normalized);
+      entry.slotsDisabled = entry.slotsFlexible;
+      if (includeSlots && !entry.slotsFlexible) {
         entry.slots = await buildPageMapSlotSummaries(normalized);
       }
     }
@@ -11292,7 +11295,7 @@ async function buildTopicContentIndexMarkdown({
       a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true })
     )
   );
-  const liteEmptyHint = "_В каталоге темы пока нет файлов для оглавления._";
+  const liteEmptyHint = "_В awn-storage/ темы пока нет файлов для оглавления._";
   const multiSection = formatMultiFileContentIndexMarkdown(merged, {
     emptyHint: slotsDisabled ? liteEmptyHint : undefined
   });
@@ -11373,7 +11376,7 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     model: "content-index",
     hint:
       "Быстрое оглавление (path, type, title, description, размер, строки) без body и без properties. " +
-      "При awn-slots-disabled:lite — многофайловая часть из каталога manifest (path-based FS). " +
+      "При awn-slots-flexible — многофайловая часть из awn-storage/ темы (path-based FS). " +
       "В конце — однофайловые слоты (файл, заполнено/не заполнено). " +
       "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
       "Общий index.md темы — рядом с manifest.md.",
@@ -11388,6 +11391,7 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     },
     path: mapPayload.path,
     awnType: mapPayload.awnType,
+    slotsFlexible: slotsDisabled,
     slotsDisabled,
     scope,
     slot: options.slot || null,
@@ -11542,7 +11546,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
   }
 
   const collectOptions = liteMode
-    ? { includeRecordPartsPackages: true, shouldSkipDirectory: shouldSkipSharedSlotTopicDirectory }
+    ? { includeRecordPartsPackages: true, shouldSkipDirectory: shouldSkipSharedSlotStorageDirectory }
     : { includeRecordPartsPackages: true };
   let [files, folders, nonMarkdownFiles] = await Promise.all([
     collectMarkdownFiles(folderAbsolute, "", collectOptions),
@@ -11557,7 +11561,7 @@ async function buildExternalSlotMapItems(manifestRelPath, slotKey, storageFolder
 
   const entryWorkspacePath = (rel) =>
     liteMode
-      ? resolveManifestContainerEntryRelPath(manifestRelPath, rel)
+      ? resolveSharedSlotStorageEntryRelPath(manifestRelPath, rel)
       : buildStorageLayerRef(manifestRelPath, storageFolder, rel);
 
   const items = [];
@@ -12622,24 +12626,47 @@ async function getOrCreateExternalFolderAbsolute(nodeAbsolute) {
   return getOrCreateNodeStorageSubfolderAbsolute(nodeAbsolute, STORAGE_SUBFOLDER_CONTENT);
 }
 
-async function readTopicSlotsDisabled(manifestRelPath) {
+function readTopicSlotsFlexibleFromFrontmatter(frontmatter) {
+  const flexibleRaw = getYamlScalar(frontmatter, "awn-slots-flexible");
+  if (flexibleRaw !== undefined && flexibleRaw !== null && String(flexibleRaw).trim() !== "") {
+    return getYamlBoolean(frontmatter, "awn-slots-flexible");
+  }
+  return getYamlBoolean(frontmatter, "awn-slots-disabled");
+}
+
+async function readTopicSlotsFlexible(manifestRelPath) {
   const normalized = String(manifestRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return false;
   try {
     const { frontmatter } = await readNodeFrontmatterContent(normalized);
-    return getYamlBoolean(frontmatter, "awn-slots-disabled");
+    return readTopicSlotsFlexibleFromFrontmatter(frontmatter);
   } catch {
     return false;
   }
 }
 
-function shouldSkipSharedSlotTopicDirectory(name) {
+async function readTopicSlotsDisabled(manifestRelPath) {
+  return readTopicSlotsFlexible(manifestRelPath);
+}
+
+const SHARED_SLOT_STORAGE_SKIP_DIR_NAMES = new Set(
+  [
+    STORAGE_SUBFOLDER_HISTORY,
+    STORAGE_SUBFOLDER_COMMENTS,
+    LEGACY_STORAGE_SUBFOLDER_THREAD,
+    STORAGE_SUBFOLDER_DISCUSSION,
+    STORAGE_SUBFOLDER_CONFIGURATION,
+    STORAGE_SUBFOLDER_TEMP,
+    STORAGE_SUBFOLDER_VOLUME,
+    STORAGE_SUBFOLDER_ATTACHMENTS,
+    STORAGE_SUBFOLDER_ASSETS
+  ].map((name) => String(name || "").trim().toLowerCase())
+);
+
+function shouldSkipSharedSlotStorageDirectory(name) {
   const lower = String(name || "").trim().toLowerCase();
   if (!lower) return true;
-  if (isStorageFolderName(name)) return true;
-  if (lower === STORAGE_SUBFOLDER_ASSETS) return true;
-  if (lower === STORAGE_SUBFOLDER_HISTORY) return true;
-  if (isConfigurationFolderName(name)) return true;
+  if (SHARED_SLOT_STORAGE_SKIP_DIR_NAMES.has(lower)) return true;
   return shouldSkipDirectoryListing(name);
 }
 
@@ -12650,16 +12677,24 @@ const SHARED_SLOT_ROOT_SKIP_FILES = new Set([
   "main.csv"
 ]);
 
+function resolveSharedSlotStorageRootRel(manifestRelPath) {
+  const containerDir = getManifestContainerDirRel(manifestRelPath);
+  return getStorageRootDirRel(containerDir);
+}
+
+function resolveSharedSlotStorageEntryRelPath(manifestRelPath, relPath) {
+  const storageRoot = resolveSharedSlotStorageRootRel(manifestRelPath);
+  const rel = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel) return storageRoot || String(manifestRelPath || "").replace(/\\/g, "/");
+  return storageRoot ? `${storageRoot}/${rel}`.replace(/\/+/g, "/") : rel;
+}
+
 function isSharedSlotExcludedRelPath(relPath) {
   const rel = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/$/, "");
   if (!rel) return true;
   const lower = rel.toLowerCase();
   const rootSegment = lower.split("/")[0];
-  if (rootSegment === STORAGE_ROOT_FOLDER.toLowerCase() || rootSegment === LEGACY_STORAGE_ROOT_FOLDER.toLowerCase()) {
-    return true;
-  }
-  if (rootSegment === STORAGE_SUBFOLDER_ASSETS.toLowerCase()) return true;
-  if (rootSegment === STORAGE_SUBFOLDER_HISTORY.toLowerCase()) return true;
+  if (SHARED_SLOT_STORAGE_SKIP_DIR_NAMES.has(rootSegment)) return true;
   if (!rel.includes("/") && SHARED_SLOT_ROOT_SKIP_FILES.has(lower)) return true;
   return false;
 }
@@ -12700,10 +12735,11 @@ async function resolveExternalMemoryFolderAbsolute(manifestRelPath, options = {}
   const topicManifestRel = section?.topicManifestRel || manifestRelPath;
   const slotsDisabled = await readTopicSlotsDisabled(topicManifestRel);
   if (slotsDisabled) {
-    const folderAbsolute = getNodeContainerDir(nodeAbsolute);
+    const storageRootRel = resolveSharedSlotStorageRootRel(topicManifestRel);
+    const folderAbsolute = normalizeWorkspacePath(storageRootRel);
     if (options.create) {
       await fs.mkdir(folderAbsolute, { recursive: true });
-    } else if (!(await isExistingDirectory(folderAbsolute))) {
+    } else if (!folderAbsolute || !(await isExistingDirectory(folderAbsolute))) {
       return null;
     }
     return folderAbsolute;
@@ -21110,7 +21146,7 @@ async function handleApiForAgent(req, res, url) {
       const stat = await fs.stat(folderAbsolute);
       if (!stat.isDirectory()) return sendJson(res, 200, { exists: false, files: [], slotsDisabled });
       const sharedSlotCollectOptions = slotsDisabled
-        ? { shouldSkipDirectory: shouldSkipSharedSlotTopicDirectory }
+        ? { shouldSkipDirectory: shouldSkipSharedSlotStorageDirectory }
         : {};
       let [files, folders, nonMarkdownFiles] = await Promise.all([
         collectMarkdownFiles(folderAbsolute, "", sharedSlotCollectOptions),

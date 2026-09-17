@@ -6,7 +6,7 @@ status: active
 extends: awn.base
 description: >
   Запись, категория, sidecar, dialog, comment. Nav контента — awn-focus и awn-main
-  (awn-slots-disabled только у manifest темы, не у content). Runtime — через mixin.
+  (awn-slots-flexible только у manifest темы, не у content). Runtime — через mixin.
 
 # Свои field-groups (см. resolveTypeFieldGroups).
 
@@ -49,7 +49,7 @@ field-groups:
 
 fields:
 
-  # --- nav: awn-focus / awn-main (awn-slots-disabled — не часть content, только manifest темы) ---
+  # --- nav: awn-focus / awn-main (awn-slots-flexible — не часть content, только manifest темы) ---
   awn-focus:
     type: awn.field.boolean
     title: "{A2!} В фокусе"
