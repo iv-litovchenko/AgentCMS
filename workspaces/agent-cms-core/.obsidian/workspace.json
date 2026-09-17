@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Resources/REZ_COPY.md",
-                "mode": "source",
+                "file": "awn-data/cms-base/manifest.md",
+                "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "REZ_COPY"
+              "title": "manifest"
             }
           }
         ]
@@ -184,31 +184,31 @@
   },
   "active": "1e5317d70ea4f658",
   "lastOpenFiles": [
-    "Resources/MAP.md",
+    "awn-system/manifest.md",
+    "Resources/Формируем вопросы.md",
+    "Resources/_SPEC_2026_itogovaya.md",
+    "Resources/REZ_COPY.md",
+    "zzz/IBLOCK-MODEL.md",
     "zzz/MAP_2.md",
+    "zzz/MAP.md",
+    "zzz/TYPES-GUIDE.md",
+    "Resources/MAP.md",
     "Resources/Images/Снимок экрана 2026-08-03 в 19.21.07.sidecar.md",
     "Resources/Images/Снимок экрана 2026-08-03 в 02.51.55.sidecar.md",
     "Resources/Images/Снимок экрана 2026-08-03 в 01.47.00.sidecar.md",
-    "Resources/REZ_COPY.md",
     "Resources/sidecar.md",
     "Resources/SPEC.md",
-    "Resources/Формируем вопросы.md",
-    "Resources/_SPEC_2026_itogovaya.md",
     "awn-system/TYPES-GUIDE.md",
-    "awn-system/manifest.md",
     "Resources/Images/Снимок экрана 2026-08-03 в 01.44.15.sidecar.md",
     "awn-system/MAP.md",
-    "zzz/awn-system-MAP.md",
     "Resources/Images/Снимок экрана 2026-08-03 в 01.43.11.sidecar.md",
     "Resources/Images/f592444f-61a6-4af5-858b-c54cc24cb67c.sidecar.md",
     "Resources/Images/def1b17e-7790-4d0e-94b2-bef1491dcceb.sidecar.md",
     "Resources/Images/Posters/Без названия (2).sidecar.md",
     "Resources/TYPES-GUIDE.md",
-    "zzz/TYPES-GUIDE.md",
     "Resources/Images/Posters/ChatGPT Image 26 авг. 2026 г., 18_35_07.sidecar.md",
     "Resources/Images/Posters/ChatGPT Image 26 авг. 2026 г., 18_34_45.sidecar.md",
     "AGENTS.md",
-    "zzz/IBLOCK-MODEL.md",
     "Resources/IBLOCK-MODEL.md",
     "zzz",
     "awn-system/schema-mod.yml",
