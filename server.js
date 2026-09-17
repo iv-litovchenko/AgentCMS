@@ -1944,6 +1944,16 @@ async function readWorkspaceAgentSettings() {
   };
 }
 
+function countEnvFileValues(content) {
+  let count = 0;
+  for (const line of String(content || "").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    if (/^[A-Za-z_][A-Za-z0-9_]*\s*=/.test(trimmed)) count += 1;
+  }
+  return count;
+}
+
 async function buildProjectSettingsScopeStatus(manifestPaths = []) {
   const { flattenAwnSettingsValues } = require("./workspace-agent-settings");
   const unique = [
@@ -1962,7 +1972,11 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
         path: relPath,
         configExists: false,
         valueCount: 0,
-        hasLocalValues: false
+        hasLocalValues: false,
+        envPath: "",
+        envExists: false,
+        envValueCount: 0,
+        envHasValues: false
       });
       continue;
     }
@@ -1977,12 +1991,32 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
       return true;
     }).length;
 
+    const envRelPath = toEnvFilePath(manifestCtx.rel);
+    let envExists = false;
+    let envValueCount = 0;
+    try {
+      const envAbsolute = await resolveNodeStorageFileAbsolute(manifestCtx.absolute, ".env");
+      if (envAbsolute) {
+        const envContent = await fs.readFile(envAbsolute, "utf-8");
+        envExists = true;
+        envValueCount = countEnvFileValues(envContent);
+      }
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") {
+        envExists = false;
+      }
+    }
+
     items.push({
       path: manifestCtx.rel,
       configPath: configFile.path || "",
       configExists: Boolean(configFile.exists),
       valueCount,
-      hasLocalValues: valueCount > 0
+      hasLocalValues: valueCount > 0,
+      envPath: envRelPath,
+      envExists,
+      envValueCount,
+      envHasValues: envValueCount > 0
     });
   }
 

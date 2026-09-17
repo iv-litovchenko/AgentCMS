@@ -13,7 +13,9 @@ const workspaceScrollProgressNode = document.getElementById("workspace-scroll-pr
 const workspaceScrollDepthNode = document.getElementById("workspace-scroll-depth");
 const workspaceScrollChromeNode = document.querySelector("#workspace-scroll-chrome-store .workspace-scroll-chrome");
 const menuAgentStatsNode = document.getElementById("menu-agent-stats");
-const menuSystemEnvironmentNode = document.getElementById("menu-system-environment");
+const menuAgentStatsEnvPopoverNode = document.getElementById("menu-agent-stats-env-popover");
+const menuAgentStatsEnvPopoverTitleNode = document.getElementById("menu-agent-stats-env-popover-title");
+const menuAgentStatsEnvPopoverGridNode = document.getElementById("menu-agent-stats-env-popover-grid");
 const menuLoadingNode = document.getElementById("menu-loading");
 const menuLoadingTextNode = document.getElementById("menu-loading-text");
 const appRootNode = document.getElementById("app-root");
@@ -314,6 +316,13 @@ const contentSearchTypeNode = document.getElementById("content-search-type");
 const contentSearchMatchNode = document.getElementById("content-search-match");
 const contentSearchHelpBtnNode = document.getElementById("content-search-help-btn");
 const contentSearchHelpPopoverNode = document.getElementById("content-search-help-popover");
+const contentSearchModeTextBtn = document.getElementById("content-search-mode-text-btn");
+const contentSearchModeSemanticBtn = document.getElementById("content-search-mode-semantic-btn");
+const contentSearchFiltersBtnNode = document.getElementById("content-search-filters-btn");
+const contentSearchFiltersPopoverNode = document.getElementById("content-search-filters-popover");
+const contentSearchFiltersBadgeNode = document.getElementById("content-search-filters-badge");
+const contentSearchFiltersResetBtnNode = document.getElementById("content-search-filters-reset-btn");
+const contentSearchActiveFiltersNode = document.getElementById("content-search-active-filters");
 const contentSearchResultsNode = document.getElementById("content-search-results");
 const contentSearchPathScopeNode = document.getElementById("content-search-path-scope");
 const contentSearchPathScopeLabelNode = document.getElementById("content-search-path-scope-label");
@@ -410,6 +419,8 @@ const projectSettingsScopeListNode = document.getElementById("project-settings-s
 const projectSettingsTitleNode = document.getElementById("project-settings-title");
 const projectSettingsLeadNode = document.getElementById("project-settings-lead");
 const projectSettingsFieldsNode = document.getElementById("project-settings-fields");
+const projectSettingsEnvWrapNode = document.getElementById("project-settings-env-wrap");
+const projectSettingsEnvInputNode = document.getElementById("project-settings-env-input");
 const projectSettingsEmptyNode = document.getElementById("project-settings-empty");
 const docStackNode = document.querySelector(".content.doc-stack");
 const agentVaultPaneNode = document.getElementById("agent-vault-pane");
@@ -16015,6 +16026,8 @@ function isOverviewDomainActive(mode = activeContentMode) {
 let activeContentMode = NODE_OPEN_MEMORY_MODE;
 let nodeSettingsViewActive = false;
 let projectSettingsScopePath = null;
+let projectSettingsScopeKind = "settings";
+const projectSettingsEnvCacheByManifest = new Map();
 let nodeMemoryViewActive = false;
 const WYSIWYG_EDITOR_ENABLED = true;
 let wysiwygEditorInstance = null;
@@ -23316,12 +23329,189 @@ function isContentSearchSemantic() {
   return getContentSearchMode() === "semantic";
 }
 
+const CONTENT_SEARCH_DEFAULT_SCOPE = "all";
+const CONTENT_SEARCH_DEFAULT_MATCH = "relaxed";
+const CONTENT_SEARCH_DEFAULT_TYPE = "all";
+const CONTENT_SEARCH_SCOPE_LABELS = {
+  all: "Везде",
+  filename: "Только имя",
+  content: "Только текст",
+  tags: "Теги"
+};
+const CONTENT_SEARCH_MATCH_LABELS = {
+  relaxed: "Мягкий",
+  strict: "Точный"
+};
+const CONTENT_SEARCH_TYPE_LABELS = {
+  all: "Все типы",
+  markdown: "Markdown",
+  sidecar: "Sidecar",
+  pdf: "PDF",
+  office: "Word / PowerPoint",
+  spreadsheet: "Excel / CSV",
+  video: "Видео",
+  audio: "Аудио",
+  image: "Изображения",
+  archive: "Архивы",
+  config: "YAML / JSON / TXT",
+  other: "Прочее"
+};
+
+function isContentSearchFiltersPopoverOpen() {
+  return Boolean(
+    contentSearchFiltersPopoverNode && !contentSearchFiltersPopoverNode.classList.contains("hidden")
+  );
+}
+
+function syncContentSearchModeToggleUi() {
+  const semantic = isContentSearchSemantic();
+  contentSearchModeTextBtn?.classList.toggle("is-active", !semantic);
+  contentSearchModeSemanticBtn?.classList.toggle("is-active", semantic);
+  contentSearchModeTextBtn?.setAttribute("aria-pressed", !semantic ? "true" : "false");
+  contentSearchModeSemanticBtn?.setAttribute("aria-pressed", semantic ? "true" : "false");
+}
+
+function setContentSearchMode(mode) {
+  if (!contentSearchModeNode) return;
+  const next = mode === "semantic" ? "semantic" : "text";
+  if (contentSearchModeNode.value === next) {
+    syncContentSearchModeToggleUi();
+    return;
+  }
+  contentSearchModeNode.value = next;
+  contentSearchModeNode.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function countActiveContentSearchFilters() {
+  let count = 0;
+  if (getContentSearchScope() !== CONTENT_SEARCH_DEFAULT_SCOPE) count += 1;
+  if (getContentSearchMatch() !== CONTENT_SEARCH_DEFAULT_MATCH) count += 1;
+  if (getContentSearchFileType() !== CONTENT_SEARCH_DEFAULT_TYPE) count += 1;
+  return count;
+}
+
+function syncContentSearchFiltersBadge() {
+  const count = countActiveContentSearchFilters();
+  contentSearchFiltersBadgeNode?.classList.toggle("hidden", count <= 0);
+  contentSearchFiltersBtnNode?.classList.toggle("has-active-filters", count > 0);
+  if (contentSearchFiltersBadgeNode && count > 0) {
+    contentSearchFiltersBadgeNode.textContent = String(count);
+  }
+}
+
+function resetContentSearchFilters() {
+  if (contentSearchScopeNode) contentSearchScopeNode.value = CONTENT_SEARCH_DEFAULT_SCOPE;
+  if (contentSearchMatchNode) contentSearchMatchNode.value = CONTENT_SEARCH_DEFAULT_MATCH;
+  if (contentSearchTypeNode) contentSearchTypeNode.value = CONTENT_SEARCH_DEFAULT_TYPE;
+  updateContentSearchPlaceholder();
+  syncContentSearchFiltersUi();
+  scheduleContentSearch();
+}
+
+function resetContentSearchFilter(key) {
+  if (key === "scope" && contentSearchScopeNode) {
+    contentSearchScopeNode.value = CONTENT_SEARCH_DEFAULT_SCOPE;
+  } else if (key === "match" && contentSearchMatchNode) {
+    contentSearchMatchNode.value = CONTENT_SEARCH_DEFAULT_MATCH;
+  } else if (key === "type" && contentSearchTypeNode) {
+    contentSearchTypeNode.value = CONTENT_SEARCH_DEFAULT_TYPE;
+  }
+  updateContentSearchPlaceholder();
+  syncContentSearchFiltersUi();
+  scheduleContentSearch();
+}
+
+function renderContentSearchActiveFilters() {
+  if (!contentSearchActiveFiltersNode) return;
+  contentSearchActiveFiltersNode.replaceChildren();
+  if (isContentSearchSemantic()) {
+    contentSearchActiveFiltersNode.classList.add("hidden");
+    return;
+  }
+  const chips = [];
+  const scope = getContentSearchScope();
+  const match = getContentSearchMatch();
+  const type = getContentSearchFileType();
+  if (scope !== CONTENT_SEARCH_DEFAULT_SCOPE) {
+    chips.push({ key: "scope", label: CONTENT_SEARCH_SCOPE_LABELS[scope] || scope });
+  }
+  if (match !== CONTENT_SEARCH_DEFAULT_MATCH) {
+    chips.push({ key: "match", label: CONTENT_SEARCH_MATCH_LABELS[match] || match });
+  }
+  if (type !== CONTENT_SEARCH_DEFAULT_TYPE) {
+    chips.push({ key: "type", label: CONTENT_SEARCH_TYPE_LABELS[type] || type });
+  }
+  if (!chips.length) {
+    contentSearchActiveFiltersNode.classList.add("hidden");
+    return;
+  }
+  contentSearchActiveFiltersNode.classList.remove("hidden");
+  for (const chip of chips) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "content-search-filter-chip";
+    btn.dataset.filterKey = chip.key;
+    btn.title = "Сбросить фильтр";
+    btn.textContent = chip.label;
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      resetContentSearchFilter(chip.key);
+    });
+    contentSearchActiveFiltersNode.appendChild(btn);
+  }
+}
+
+function syncContentSearchFiltersUi() {
+  syncContentSearchFiltersBadge();
+  renderContentSearchActiveFilters();
+  contentSearchFiltersPopoverNode?.classList.toggle("is-semantic", isContentSearchSemantic());
+}
+
+function positionContentSearchFiltersPopover() {
+  const popover = contentSearchFiltersPopoverNode;
+  const anchor = contentSearchFiltersBtnNode;
+  if (!popover || !anchor || popover.classList.contains("hidden")) return;
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(280, Math.max(240, Math.round(rect.width + 180)));
+  const left = Math.min(
+    Math.max(12, Math.round(rect.right - width)),
+    Math.max(12, window.innerWidth - width - 12)
+  );
+  const top = Math.round(rect.bottom + 8);
+  const maxHeight = Math.max(160, window.innerHeight - top - 12);
+  popover.style.top = `${top}px`;
+  popover.style.left = `${left}px`;
+  popover.style.width = `${width}px`;
+  popover.style.maxHeight = `${maxHeight}px`;
+  popover.style.overflowY = "auto";
+}
+
+function closeContentSearchFiltersPopover() {
+  contentSearchFiltersPopoverNode?.classList.add("hidden");
+  contentSearchFiltersBtnNode?.setAttribute("aria-expanded", "false");
+}
+
+function toggleContentSearchFiltersPopover() {
+  if (!contentSearchFiltersPopoverNode || !contentSearchFiltersBtnNode) return;
+  const willOpen = contentSearchFiltersPopoverNode.classList.contains("hidden");
+  if (willOpen) {
+    setContentSearchHelpOpen(false);
+    contentSearchFiltersPopoverNode.classList.remove("hidden");
+    contentSearchFiltersBtnNode.setAttribute("aria-expanded", "true");
+    positionContentSearchFiltersPopover();
+    return;
+  }
+  closeContentSearchFiltersPopover();
+}
+
 function updateContentSearchFiltersState() {
   const semantic = isContentSearchSemantic();
   contentSearchBarNode?.classList.toggle("content-search-bar--semantic", semantic);
   for (const node of [contentSearchScopeNode, contentSearchMatchNode, contentSearchTypeNode]) {
     if (node) node.disabled = semantic;
   }
+  syncContentSearchModeToggleUi();
+  syncContentSearchFiltersUi();
 }
 
 function loadContentSearchPathScope() {
@@ -23504,6 +23694,9 @@ function setContentSearchHelpOpen(open) {
 }
 
 function toggleContentSearchHelp() {
+  if (!isContentSearchHelpOpen()) {
+    closeContentSearchFiltersPopover();
+  }
   setContentSearchHelpOpen(!isContentSearchHelpOpen());
 }
 
@@ -39778,6 +39971,33 @@ function getProjectSettingsScopeStatus(manifestPath) {
   return projectSettingsScopeStatusByPath.get(normalized) || null;
 }
 
+function getEnvFilePathForManifest(manifestPath) {
+  const normalized = normalizeMenuNodePath(manifestPath);
+  if (!normalized) return "";
+  const dir = getManifestContainerDirRel(normalized);
+  return dir ? `${dir}/.env` : ".env";
+}
+
+function countEnvFileValues(content) {
+  let count = 0;
+  for (const line of String(content || "").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    if (/^[A-Za-z_][A-Za-z0-9_]*\s*=/.test(trimmed)) count += 1;
+  }
+  return count;
+}
+
+function isProjectSettingsEnvScopeActive() {
+  return isProjectSettingsMode() && projectSettingsScopeKind === "env";
+}
+
+function mergeProjectSettingsScopeStatus(normalized, patch) {
+  if (!normalized) return;
+  const prev = projectSettingsScopeStatusByPath.get(normalized) || { path: normalized };
+  projectSettingsScopeStatusByPath.set(normalized, { ...prev, ...patch, path: normalized });
+}
+
 function setProjectSettingsScopeStatusFromCache(manifestPath, cache) {
   const normalized = normalizeMenuNodePath(manifestPath);
   if (!normalized || !cache) return;
@@ -39787,15 +40007,26 @@ function setProjectSettingsScopeStatusFromCache(manifestPath, cache) {
     if (entry.kind === "null") return false;
     return String(entry.value ?? "").trim() !== "";
   }).length;
-  projectSettingsScopeStatusByPath.set(normalized, {
-    path: normalized,
+  mergeProjectSettingsScopeStatus(normalized, {
     configExists: Boolean(cache.exists),
     valueCount,
     hasLocalValues: valueCount > 0
   });
 }
 
-async function refreshProjectSettingsScopeStatus(scopes = collectProjectSettingsScopes()) {
+function setProjectSettingsEnvStatusFromCache(manifestPath, cache) {
+  const normalized = normalizeMenuNodePath(manifestPath);
+  if (!normalized || !cache) return;
+  const envValueCount = countEnvFileValues(cache.content || "");
+  mergeProjectSettingsScopeStatus(normalized, {
+    envPath: cache.envPath || getEnvFilePathForManifest(normalized),
+    envExists: Boolean(cache.exists),
+    envValueCount,
+    envHasValues: envValueCount > 0
+  });
+}
+
+async function refreshProjectSettingsScopeStatus(scopes = collectProjectSettingsManifestScopes()) {
   const paths = scopes.map((scope) => scope.path).filter(Boolean);
   if (!paths.length) return;
   const response = await fetch(buildApiUrl("/api/project-settings/scope-status"), {
@@ -39808,11 +40039,11 @@ async function refreshProjectSettingsScopeStatus(scopes = collectProjectSettings
   for (const item of data.items || []) {
     const normalized = normalizeMenuNodePath(item.path);
     if (!normalized) continue;
-    projectSettingsScopeStatusByPath.set(normalized, item);
+    mergeProjectSettingsScopeStatus(normalized, item);
   }
 }
 
-function collectProjectSettingsScopes() {
+function collectProjectSettingsManifestScopes() {
   const scopes = [];
   const seen = new Set();
   const pushScope = (path, label) => {
@@ -39861,81 +40092,139 @@ function collectProjectSettingsScopes() {
   return scopes;
 }
 
-function renderProjectSettingsScopeList() {
-  if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
-  projectSettingsScopeListNode.replaceChildren();
-  const scopes = collectProjectSettingsScopes();
-  const activeScopePath = getNodeSettingsManifestPath();
+function collectProjectSettingsScopes() {
+  return collectProjectSettingsManifestScopes();
+}
+
+function renderProjectSettingsScopeSection(manifestScopes, {
+  kind,
+  sectionTitle,
+  activeScopePath,
+  activeScopeKind
+}) {
   const groups = [
     { level: "workspace", label: "Workspace" },
     { level: "area", label: "Области" },
     { level: "topic", label: "Темы" }
   ];
+  const sectionRoot = document.createElement("div");
+  sectionRoot.className = "project-settings-scope-section";
+  sectionRoot.classList.toggle("is-env-section", kind === "env");
 
-  const legend = document.createElement("div");
-  legend.className = "project-settings-scope-legend";
-  legend.innerHTML =
-    '<span class="project-settings-scope-legend-item is-local"><span class="project-settings-scope-marker" aria-hidden="true"></span> свои в config.yml</span>' +
-    '<span class="project-settings-scope-legend-item is-empty"><span class="project-settings-scope-marker" aria-hidden="true"></span> не задано</span>';
-  projectSettingsScopeListNode.appendChild(legend);
+  const sectionHead = document.createElement("div");
+  sectionHead.className = "project-settings-scope-section-title";
+  sectionHead.textContent = sectionTitle;
+  sectionRoot.appendChild(sectionHead);
 
+  let hasItems = false;
   for (const group of groups) {
-    const items = scopes.filter((scope) => scope.level === group.level);
+    const items = manifestScopes.filter((scope) => scope.level === group.level);
     if (!items.length) continue;
-    const section = document.createElement("div");
-    section.className = "project-settings-scope-group";
+    hasItems = true;
+    const groupNode = document.createElement("div");
+    groupNode.className = "project-settings-scope-group";
     const title = document.createElement("div");
     title.className = "project-settings-scope-group-title";
     title.textContent = group.label;
-    section.appendChild(title);
+    groupNode.appendChild(title);
+
     for (const scope of items) {
       const status = getProjectSettingsScopeStatus(scope.path);
-      const hasLocalValues = Boolean(status?.hasLocalValues);
-      const valueCount = Number(status?.valueCount) || 0;
+      const isEnv = kind === "env";
+      const hasLocalValues = isEnv ? Boolean(status?.envHasValues) : Boolean(status?.hasLocalValues);
+      const valueCount = isEnv ? Number(status?.envValueCount) || 0 : Number(status?.valueCount) || 0;
+      const envPath = status?.envPath || getEnvFilePathForManifest(scope.path);
+      const isActive = scope.path === activeScopePath && activeScopeKind === kind;
 
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "project-settings-scope-item";
       btn.dataset.path = scope.path;
+      btn.dataset.kind = kind;
       btn.setAttribute("role", "tab");
-      btn.setAttribute("aria-selected", scope.path === activeScopePath ? "true" : "false");
-      btn.classList.toggle("is-active", scope.path === activeScopePath);
-      btn.classList.toggle("has-local-values", hasLocalValues);
+      btn.setAttribute("aria-selected", isActive ? "true" : "false");
+      btn.classList.toggle("is-active", isActive);
+      btn.classList.toggle("has-local-values", !isEnv && hasLocalValues);
+      btn.classList.toggle("has-env-values", isEnv && hasLocalValues);
       btn.classList.toggle("is-empty-scope", !hasLocalValues);
-      btn.title = hasLocalValues
-        ? `Свои настройки: ${valueCount} в config.yml`
-        : "Локальные настройки не заданы — значения наследуются с уровня выше";
+      btn.classList.toggle("is-env-scope", isEnv);
+      btn.title = isEnv
+        ? hasLocalValues
+          ? `${envPath}: ${valueCount} переменных`
+          : status?.envExists
+            ? `${envPath}: файл есть, переменных пока нет`
+            : `${envPath}: файл не создан`
+        : hasLocalValues
+          ? `Свои настройки: ${valueCount} в config.yml`
+          : "Локальные настройки не заданы — значения наследуются с уровня выше";
 
       const marker = document.createElement("span");
       marker.className = "project-settings-scope-marker";
+      marker.classList.toggle("is-env-kind", isEnv);
       marker.setAttribute("aria-hidden", "true");
 
       const label = document.createElement("span");
       label.className = "project-settings-scope-label";
-      label.textContent = scope.label;
+      label.textContent = isEnv ? `${scope.label} · .env` : scope.label;
 
       btn.append(marker, label);
       if (hasLocalValues) {
         const badge = document.createElement("span");
         badge.className = "project-settings-scope-badge";
+        if (isEnv) badge.classList.add("is-env-badge");
         badge.textContent = String(valueCount);
-        badge.title = "Количество значений в awn_settings";
+        badge.title = isEnv ? "Количество переменных в .env" : "Количество значений в awn_settings";
         btn.append(badge);
       }
 
       btn.addEventListener("click", () => {
-        void selectProjectSettingsScope(scope.path);
+        void selectProjectSettingsScope(scope.path, { kind });
       });
-      section.appendChild(btn);
+      groupNode.appendChild(btn);
     }
-    projectSettingsScopeListNode.appendChild(section);
+    sectionRoot.appendChild(groupNode);
   }
+
+  return hasItems ? sectionRoot : null;
 }
 
-async function selectProjectSettingsScope(scopePath) {
+function renderProjectSettingsScopeList() {
+  if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
+  projectSettingsScopeListNode.replaceChildren();
+  const manifestScopes = collectProjectSettingsManifestScopes();
+  const activeScopePath = getNodeSettingsManifestPath();
+  const activeScopeKind = projectSettingsScopeKind;
+
+  const legend = document.createElement("div");
+  legend.className = "project-settings-scope-legend";
+  legend.innerHTML =
+    '<span class="project-settings-scope-legend-item is-local"><span class="project-settings-scope-marker" aria-hidden="true"></span> свои в config.yml</span>' +
+    '<span class="project-settings-scope-legend-item is-env"><span class="project-settings-scope-marker is-env-kind" aria-hidden="true"></span> переменные в .env</span>' +
+    '<span class="project-settings-scope-legend-item is-empty"><span class="project-settings-scope-marker" aria-hidden="true"></span> не задано</span>';
+  projectSettingsScopeListNode.appendChild(legend);
+
+  const settingsSection = renderProjectSettingsScopeSection(manifestScopes, {
+    kind: "settings",
+    sectionTitle: "Настройки · config.yml",
+    activeScopePath,
+    activeScopeKind
+  });
+  if (settingsSection) projectSettingsScopeListNode.appendChild(settingsSection);
+
+  const envSection = renderProjectSettingsScopeSection(manifestScopes, {
+    kind: "env",
+    sectionTitle: "Переменные · .env",
+    activeScopePath,
+    activeScopeKind
+  });
+  if (envSection) projectSettingsScopeListNode.appendChild(envSection);
+}
+
+async function selectProjectSettingsScope(scopePath, { kind = "settings" } = {}) {
   const normalized = normalizeMenuNodePath(scopePath);
   if (!normalized) return;
   projectSettingsScopePath = normalized;
+  projectSettingsScopeKind = kind === "env" ? "env" : "settings";
   try {
     await loadProjectSettingsContent({ force: true });
     renderProjectSettingsPage();
@@ -39946,25 +40235,117 @@ async function selectProjectSettingsScope(scopePath) {
   }
 }
 
+function getProjectSettingsEnvCache(manifestPath = getNodeSettingsManifestPath()) {
+  if (!manifestPath) return null;
+  return projectSettingsEnvCacheByManifest.get(manifestPath) || null;
+}
+
+async function loadProjectSettingsEnvForManifest(manifestPath, options = {}) {
+  if (!manifestPath) return null;
+  if (!options.force) {
+    const cached = projectSettingsEnvCacheByManifest.get(manifestPath);
+    if (cached) return cached;
+  }
+  const response = await fetch(buildApiUrl("/api/env", { path: manifestPath }));
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  const data = await response.json();
+  const payload = {
+    manifestPath,
+    envPath: data.path || getEnvFilePathForManifest(manifestPath),
+    content: data.content || "",
+    exists: Boolean(data.exists)
+  };
+  projectSettingsEnvCacheByManifest.set(manifestPath, payload);
+  setProjectSettingsEnvStatusFromCache(manifestPath, payload);
+  return payload;
+}
+
+function renderProjectSettingsEnvEditor(cache = getProjectSettingsEnvCache()) {
+  projectSettingsFieldsNode?.classList.add("hidden");
+  projectSettingsEnvWrapNode?.classList.remove("hidden");
+  projectSettingsEmptyNode?.classList.add("hidden");
+  if (projectSettingsEnvInputNode) {
+    projectSettingsEnvInputNode.value = cache?.content || "";
+  }
+}
+
+async function saveProjectSettingsEnvContent() {
+  const manifestPath = getNodeSettingsManifestPath();
+  if (!manifestPath) throw new Error(".env доступен только для тем с bundle");
+  const content = projectSettingsEnvInputNode?.value ?? "";
+  const response = await fetch(buildApiUrl("/api/env"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: manifestPath, content })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
+  }
+  const data = await response.json();
+  const payload = {
+    manifestPath,
+    envPath: data.path || getEnvFilePathForManifest(manifestPath),
+    content: typeof data.content === "string" ? data.content : content,
+    exists: true
+  };
+  projectSettingsEnvCacheByManifest.set(manifestPath, payload);
+  setProjectSettingsEnvStatusFromCache(manifestPath, payload);
+  modeContentCache.env = payload.content;
+  renderProjectSettingsScopeList();
+  renderProjectSettingsPage();
+  return data;
+}
+
 function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   if (!projectSettingsPageNode) return;
-  const scope = collectProjectSettingsScopes().find(
+  const scope = collectProjectSettingsManifestScopes().find(
     (item) => item.path === getNodeSettingsManifestPath()
   );
+  const activeStatus = getProjectSettingsScopeStatus(getNodeSettingsManifestPath());
+  const levelLabel = scope
+    ? scope.level === "workspace"
+      ? "Workspace"
+      : scope.level === "area"
+        ? "Область"
+        : "Тема"
+    : "Уровень";
+  const isEnv = isProjectSettingsEnvScopeActive();
+  const envPath = activeStatus?.envPath || getEnvFilePathForManifest(getNodeSettingsManifestPath());
+
   if (projectSettingsTitleNode) {
     projectSettingsTitleNode.textContent = scope
-      ? `${scope.level === "workspace" ? "Workspace" : scope.level === "area" ? "Область" : "Тема"} · ${scope.label}`
-      : "Настройки проекта";
+      ? `${levelLabel} · ${scope.label}${isEnv ? " · .env" : ""}`
+      : isEnv
+        ? "Переменные окружения"
+        : "Настройки проекта";
   }
   if (projectSettingsLeadNode) {
-    const activeStatus = getProjectSettingsScopeStatus(getNodeSettingsManifestPath());
-    const localHint = activeStatus?.hasLocalValues
-      ? `На этом уровне задано <strong>${activeStatus.valueCount}</strong> значений в <code>config.yml</code>.`
-      : "На этом уровне <strong>нет своих значений</strong> — пока действуют настройки уровня выше (или defaults).";
-    projectSettingsLeadNode.innerHTML =
-      `${localHint} Поля формы — из <code>schema-mod.yml</code> (вкладка «Настройки») на том же уровне.`;
+    if (isEnv) {
+      const envHint = activeStatus?.envHasValues
+        ? `В <code>${escapeHtml(envPath)}</code> задано <strong>${activeStatus.envValueCount}</strong> переменных.`
+        : activeStatus?.envExists
+          ? `Файл <code>${escapeHtml(envPath)}</code> есть, но переменных пока нет.`
+          : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан — сохранение создаст его.`;
+      projectSettingsLeadNode.innerHTML =
+        `${envHint} Формат: <code>KEY=value</code>, по одной паре на строку. Секреты и токены — только здесь или в <code>.env</code> слота темы.`;
+    } else {
+      const localHint = activeStatus?.hasLocalValues
+        ? `На этом уровне задано <strong>${activeStatus.valueCount}</strong> значений в <code>config.yml</code>.`
+        : "На этом уровне <strong>нет своих значений</strong> — пока действуют настройки уровня выше (или defaults).";
+      projectSettingsLeadNode.innerHTML =
+        `${localHint} Поля формы — из <code>schema-mod.yml</code> (вкладка «Настройки») на том же уровне.`;
+    }
   }
   renderProjectSettingsScopeList();
+  if (isEnv) {
+    renderProjectSettingsEnvEditor(getProjectSettingsEnvCache());
+    return;
+  }
+  projectSettingsEnvWrapNode?.classList.add("hidden");
+  projectSettingsFieldsNode?.classList.remove("hidden");
   renderNodeSettingsEditor(cache);
 }
 
@@ -40002,17 +40383,24 @@ async function loadProjectSettingsContent(options = {}) {
     if (!projectSettingsScopePath && manifestPath) {
       projectSettingsScopePath = manifestPath;
     }
-    const scopes = collectProjectSettingsScopes();
-    await refreshProjectSettingsScopeStatus(scopes).catch(() => {});
-    const cache = await loadNodeSettingsForManifest(getNodeSettingsManifestPath(), {
-      force: Boolean(options.force)
-    });
-    setProjectSettingsScopeStatusFromCache(getNodeSettingsManifestPath(), cache);
-    applyProjectSettingsPageUi(cache);
+    await refreshProjectSettingsScopeStatus(collectProjectSettingsManifestScopes()).catch(() => {});
+    if (isProjectSettingsEnvScopeActive()) {
+      await loadProjectSettingsEnvForManifest(getNodeSettingsManifestPath(), {
+        force: Boolean(options.force)
+      });
+      applyProjectSettingsPageUi();
+    } else {
+      const cache = await loadNodeSettingsForManifest(getNodeSettingsManifestPath(), {
+        force: Boolean(options.force)
+      });
+      setProjectSettingsScopeStatusFromCache(getNodeSettingsManifestPath(), cache);
+      applyProjectSettingsPageUi(cache);
+    }
     commitEditorSaveBaseline();
     updateBreadcrumbsForActiveMode();
   } catch (error) {
     if (projectSettingsFieldsNode) projectSettingsFieldsNode.replaceChildren();
+    projectSettingsEnvWrapNode?.classList.add("hidden");
     projectSettingsEmptyNode?.classList.remove("hidden");
     if (projectSettingsEmptyNode) {
       projectSettingsEmptyNode.textContent = `Ошибка чтения настроек: ${error.message}`;
@@ -40036,7 +40424,7 @@ async function openProjectSettingsHub(options = {}) {
   activeFolderBrowseFilePath = null;
   applyContentModeState(PROJECT_SETTINGS_MODE);
 
-  const scopes = collectProjectSettingsScopes();
+  const scopes = collectProjectSettingsManifestScopes();
   const preferred =
     scopes.find((item) => item.path === projectSettingsScopePath) ||
     scopes.find((item) => item.level === "workspace") ||
@@ -40046,6 +40434,9 @@ async function openProjectSettingsHub(options = {}) {
     return;
   }
   projectSettingsScopePath = preferred.path;
+  if (projectSettingsScopeKind !== "env") {
+    projectSettingsScopeKind = "settings";
+  }
   updateActiveButton();
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ replace: !options.push, push: Boolean(options.push) });
@@ -54163,6 +54554,9 @@ function isEditorSaveTrackingActive() {
 function getEditorSavePayload() {
   if (activeContentMode === "topic-schema") {
     return JSON.stringify({ topicSchema: getTopicSchemaSavePayload() });
+  }
+  if (isProjectSettingsMode() && isProjectSettingsEnvScopeActive()) {
+    return JSON.stringify({ projectEnv: projectSettingsEnvInputNode?.value ?? "" });
   }
   if (isNodeConfigEditorMode() || isProjectSettingsMode()) {
     syncNodeSettingsCacheFromDom();
@@ -85030,7 +85424,6 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
 let menuAgentStatsSeq = 0;
 let menuSystemEnvironmentSeq = 0;
 let menuSystemEnvironmentCache = null;
-const MENU_SYSTEM_ENVIRONMENT_OPEN_KEY = "agentcms.menuSystemEnvironment.open.v1";
 const MENU_SYSTEM_ENV_ORDER = [
   "node",
   "npm",
@@ -85099,50 +85492,57 @@ function getMenuSystemEnvironmentItems(payload, { loading = false } = {}) {
   );
 }
 
-function readMenuSystemEnvironmentOpen() {
-  try {
-    return localStorage.getItem(MENU_SYSTEM_ENVIRONMENT_OPEN_KEY) === "1";
-  } catch {
-    return false;
+function isMenuAgentStatsEnvPopoverOpen() {
+  return Boolean(menuAgentStatsEnvPopoverNode && !menuAgentStatsEnvPopoverNode.classList.contains("hidden"));
+}
+
+function resetMenuAgentStatsEnvPopoverPosition() {
+  if (!menuAgentStatsEnvPopoverNode) return;
+  for (const prop of ["top", "left", "width", "maxHeight", "overflowY"]) {
+    menuAgentStatsEnvPopoverNode.style.removeProperty(prop);
   }
 }
 
-function isMenuSystemEnvironmentOpen() {
-  return Boolean(menuSystemEnvironmentNode?.classList.contains("is-open"));
-}
+function positionMenuAgentStatsEnvPopover() {
+  const popover = menuAgentStatsEnvPopoverNode;
+  const anchor = document.getElementById("menu-agent-stats-env-btn");
+  if (!popover || !anchor || popover.classList.contains("hidden")) return;
 
-function setMenuSystemEnvironmentOpen(open, { persist = true } = {}) {
-  if (!menuSystemEnvironmentNode) return;
-  const next = Boolean(open);
-  menuSystemEnvironmentNode.classList.toggle("is-open", next);
-  const hostLine = menuSystemEnvironmentNode.querySelector(":scope > .menu-system-environment-host");
-  hostLine?.setAttribute("aria-expanded", next ? "true" : "false");
-  if (persist) {
-    try {
-      localStorage.setItem(MENU_SYSTEM_ENVIRONMENT_OPEN_KEY, next ? "1" : "0");
-    } catch {
-      // ignore
-    }
-  }
-  syncSidebarBottomFocusMode();
-}
-
-function bindMenuSystemEnvironmentAccordion() {
-  if (!menuSystemEnvironmentNode || menuSystemEnvironmentNode.dataset.accordionBound === "1") return;
-  menuSystemEnvironmentNode.dataset.accordionBound = "1";
-  setMenuSystemEnvironmentOpen(readMenuSystemEnvironmentOpen(), { persist: false });
-  document.addEventListener(
-    "click",
-    (event) => {
-      const hostLine = event.target?.closest?.(".menu-system-environment-host");
-      if (!hostLine || !menuSystemEnvironmentNode.contains(hostLine)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation?.();
-      setMenuSystemEnvironmentOpen(!isMenuSystemEnvironmentOpen());
-    },
-    true
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(320, Math.max(Math.round(rect.width + 220), 260));
+  const left = Math.min(
+    Math.max(12, Math.round(rect.right - width)),
+    Math.max(12, window.innerWidth - width - 12)
   );
+  const top = Math.round(rect.top - popover.offsetHeight - 8);
+  const fallbackTop = Math.round(rect.bottom + 8);
+  const resolvedTop = top >= 12 ? top : fallbackTop;
+  const maxHeight = Math.max(140, window.innerHeight - resolvedTop - 12);
+
+  popover.style.top = `${resolvedTop}px`;
+  popover.style.left = `${left}px`;
+  popover.style.width = `${width}px`;
+  popover.style.maxHeight = `${maxHeight}px`;
+  popover.style.overflowY = "auto";
+}
+
+function closeMenuAgentStatsEnvPopover() {
+  menuAgentStatsEnvPopoverNode?.classList.add("hidden");
+  document.getElementById("menu-agent-stats-env-btn")?.setAttribute("aria-expanded", "false");
+  resetMenuAgentStatsEnvPopoverPosition();
+}
+
+function toggleMenuAgentStatsEnvPopover() {
+  if (!menuAgentStatsEnvPopoverNode) return;
+  const willOpen = menuAgentStatsEnvPopoverNode.classList.contains("hidden");
+  if (willOpen) {
+    void syncMenuSystemEnvironment();
+    menuAgentStatsEnvPopoverNode.classList.remove("hidden");
+    document.getElementById("menu-agent-stats-env-btn")?.setAttribute("aria-expanded", "true");
+    positionMenuAgentStatsEnvPopover();
+    return;
+  }
+  closeMenuAgentStatsEnvPopover();
 }
 
 async function fetchAgentWorkspaceStats() {
@@ -85152,6 +85552,24 @@ async function fetchAgentWorkspaceStats() {
     throw new Error(errorData.error || `HTTP ${response.status}`);
   }
   return response.json();
+}
+
+function createMenuAgentStatsEnvironmentButton() {
+  const button = document.createElement("button");
+  button.id = "menu-agent-stats-env-btn";
+  button.type = "button";
+  button.className = "menu-agent-stats-env-btn";
+  button.title = "Среда и зависимости";
+  button.setAttribute("aria-label", "Среда и зависимости");
+  button.setAttribute("aria-expanded", "false");
+  button.setAttribute("aria-controls", "menu-agent-stats-env-popover");
+  button.innerHTML =
+    '<svg class="menu-agent-stats-env-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>' +
+    '<path d="M9.75 9.75a2.25 2.25 0 1 1 3.55 1.84c-.78.6-1.05 1.05-1.05 1.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<circle cx="12" cy="16.75" r="1.1" fill="currentColor"/>' +
+    "</svg>";
+  return button;
 }
 
 function createMenuAgentStatsSettingsButton() {
@@ -85171,6 +85589,13 @@ function createMenuAgentStatsSettingsButton() {
     '<circle cx="18" cy="11" r="2.25" fill="currentColor"/>' +
     "</svg>";
   return button;
+}
+
+function createMenuAgentStatsActions() {
+  const wrap = document.createElement("div");
+  wrap.className = "menu-agent-stats-actions";
+  wrap.append(createMenuAgentStatsEnvironmentButton(), createMenuAgentStatsSettingsButton());
+  return wrap;
 }
 
 function syncMenuAgentStatsSettingsBtnState() {
@@ -85222,7 +85647,7 @@ function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = 
   });
 
   band.appendChild(line);
-  band.appendChild(createMenuAgentStatsSettingsButton());
+  band.appendChild(createMenuAgentStatsActions());
   menuAgentStatsNode.appendChild(band);
   syncMenuAgentStatsSettingsBtnState();
 }
@@ -85247,60 +85672,19 @@ async function fetchSystemEnvironment(force = false) {
 }
 
 function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
-  if (!menuSystemEnvironmentNode) return;
-
-  bindMenuSystemEnvironmentAccordion();
-
-  let hostLine = menuSystemEnvironmentNode.querySelector(":scope > .menu-system-environment-host");
-  if (hostLine && !hostLine.querySelector(".sidebar-accent-band-toggle-main")) {
-    hostLine.remove();
-    hostLine = null;
-  }
-  if (!hostLine) {
-    hostLine = document.createElement("button");
-    hostLine.type = "button";
-    hostLine.className = "menu-system-environment-host sidebar-accent-band-toggle";
-
-    const hostMain = document.createElement("span");
-    hostMain.className = "sidebar-accent-band-toggle-main";
-
-    const hostChevron = document.createElement("span");
-    hostChevron.className = "sidebar-accent-band-chevron";
-    hostChevron.setAttribute("aria-hidden", "true");
-
-    const hostText = document.createElement("span");
-    hostText.className = "menu-system-environment-host-text sidebar-accent-band-title";
-
-    hostMain.append(hostChevron, hostText);
-    hostLine.append(hostMain);
-    menuSystemEnvironmentNode.prepend(hostLine);
-  }
-
-  hostLine.querySelector(".menu-system-environment-host-action")?.remove();
+  const grid = menuAgentStatsEnvPopoverGridNode;
+  if (!grid) return;
 
   const summaryLine = loading
     ? "Загрузка…"
-    : payload?.summaryLine || payload?.host?.hostname || "";
-  hostLine.title = [
-    summaryLine,
-    !loading && payload?.app?.version ? `Agent CMS ${payload.app.version}` : ""
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  hostLine.setAttribute("aria-expanded", isMenuSystemEnvironmentOpen() ? "true" : "false");
-  hostLine.setAttribute("aria-controls", "menu-system-environment-grid");
-
-  const hostText = hostLine.querySelector(".menu-system-environment-host-text");
-  if (hostText) {
-    hostText.textContent = summaryLine || "";
-  }
-
-  let grid = menuSystemEnvironmentNode.querySelector(":scope > .menu-system-environment-grid");
-  if (!grid) {
-    grid = document.createElement("div");
-    grid.id = "menu-system-environment-grid";
-    grid.className = "menu-system-environment-grid";
-    menuSystemEnvironmentNode.appendChild(grid);
+    : payload?.summaryLine || payload?.host?.hostname || "Среда и зависимости";
+  if (menuAgentStatsEnvPopoverTitleNode) {
+    menuAgentStatsEnvPopoverTitleNode.textContent = [
+      summaryLine,
+      !loading && payload?.app?.version ? `Agent CMS ${payload.app.version}` : ""
+    ]
+      .filter(Boolean)
+      .join(" · ");
   }
   grid.replaceChildren();
 
@@ -85342,11 +85726,13 @@ function renderMenuSystemEnvironment(payload, { loading = false } = {}) {
     grid.appendChild(chip);
   }
 
-  menuSystemEnvironmentNode.classList.remove("hidden");
+  if (isMenuAgentStatsEnvPopoverOpen()) {
+    positionMenuAgentStatsEnvPopover();
+  }
 }
 
 async function syncMenuSystemEnvironment({ force = false } = {}) {
-  if (!menuSystemEnvironmentNode) return;
+  if (!menuAgentStatsEnvPopoverGridNode) return;
 
   const seq = ++menuSystemEnvironmentSeq;
   if (!force && menuSystemEnvironmentCache) {
@@ -87265,10 +87651,16 @@ async function saveContent() {
     setSaveButtonsState(true, "Сохраняю...");
     let saveSucceeded = false;
     try {
-      await saveNodeSettingsContent();
-      saveSucceeded = true;
-      showToast("Настройки сохранены", "success");
-      renderProjectSettingsPage();
+      if (isProjectSettingsEnvScopeActive()) {
+        await saveProjectSettingsEnvContent();
+        saveSucceeded = true;
+        showToast(".env сохранён", "success");
+      } else {
+        await saveNodeSettingsContent();
+        saveSucceeded = true;
+        showToast("Настройки сохранены", "success");
+        renderProjectSettingsPage();
+      }
     } catch (error) {
       showToast(`Ошибка сохранения: ${error.message}`, "error");
     } finally {
@@ -94405,7 +94797,6 @@ function isMenuStaticFooterExpanded() {
 let sidebarTreeZoneSnapshot = null;
 
 function isSidebarBottomPanelActive() {
-  if (isMenuSystemEnvironmentOpen()) return true;
   if (
     isMenuAwnDataBandExpanded() &&
     Boolean(menuAwnDataBandBodyNode && !menuAwnDataBandBodyNode.hidden)
@@ -94453,16 +94844,8 @@ function dismissSidebarBottomPanelForUpperZone() {
     }
     syncMenuStaticFooterAccordionUi();
   }
-  if (isMenuSystemEnvironmentOpen()) {
-    menuSystemEnvironmentNode?.classList.toggle("is-open", false);
-    menuSystemEnvironmentNode
-      ?.querySelector(":scope > .menu-system-environment-host")
-      ?.setAttribute("aria-expanded", "false");
-    try {
-      localStorage.setItem(MENU_SYSTEM_ENVIRONMENT_OPEN_KEY, "0");
-    } catch {
-      // ignore
-    }
+  if (isMenuAgentStatsEnvPopoverOpen()) {
+    closeMenuAgentStatsEnvPopover();
   }
 }
 
@@ -94775,9 +95158,17 @@ function setupMenuStaticFooterGroup() {
     toggleMenuStaticFooterExpanded();
   });
   menuAgentStatsNode?.addEventListener("click", (event) => {
+    const envBtn = event.target.closest("#menu-agent-stats-env-btn");
+    if (envBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleMenuAgentStatsEnvPopover();
+      return;
+    }
     const settingsBtn = event.target.closest("#menu-agent-stats-settings-btn");
     if (!settingsBtn) return;
     event.preventDefault();
+    closeMenuAgentStatsEnvPopover();
     void openProjectSettingsHub();
   });
   void refreshMenuGoogleDriveStats();
@@ -101576,6 +101967,10 @@ nodeConfigFieldsNode?.addEventListener("input", handleNodeConfigFieldsInput);
 nodeConfigFieldsNode?.addEventListener("change", handleNodeConfigFieldsInput);
 projectSettingsFieldsNode?.addEventListener("input", handleNodeConfigFieldsInput);
 projectSettingsFieldsNode?.addEventListener("change", handleNodeConfigFieldsInput);
+projectSettingsEnvInputNode?.addEventListener("input", () => {
+  if (!isProjectSettingsEnvScopeActive()) return;
+  syncSaveButtonLamp();
+});
 topicSchemaTargetTabsNode?.addEventListener("click", (event) => {
   const tab = event.target.closest(".topic-schema-target-tab");
   if (!tab?.dataset.target) return;
@@ -101676,6 +102071,9 @@ menuSettingsBtn?.addEventListener("click", (event) => {
 window.addEventListener("resize", () => {
   if (menuSettingsPopoverNode?.classList.contains("hidden")) return;
   positionMenuSettingsPopover();
+  if (isMenuAgentStatsEnvPopoverOpen()) {
+    positionMenuAgentStatsEnvPopover();
+  }
 });
 
 document.getElementById("menu")?.addEventListener(
@@ -101685,6 +102083,7 @@ document.getElementById("menu")?.addEventListener(
     closeResourceContextMenu();
     if (menuSettingsPopoverNode?.classList.contains("hidden")) return;
     closeMenuSettingsPopover();
+    if (isMenuAgentStatsEnvPopoverOpen()) closeMenuAgentStatsEnvPopover();
   },
   { passive: true }
 );
@@ -101829,6 +102228,13 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  if (!isMenuAgentStatsEnvPopoverOpen()) return;
+  if (event.target.closest("#menu-agent-stats-env-popover")) return;
+  if (event.target.closest("#menu-agent-stats-env-btn")) return;
+  closeMenuAgentStatsEnvPopover();
+});
+
+document.addEventListener("click", (event) => {
   if (workspaceLinksMenuPopover?.classList.contains("hidden")) return;
   if (event.target.closest("#workspace-links-menu-wrap")) return;
   closeWorkspaceLinksMenuPopover();
@@ -101845,6 +102251,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   closeMenuContextMenu();
   closeMenuSettingsPopover();
+  closeMenuAgentStatsEnvPopover();
   closeWorkspaceLinksMenuPopover();
   closeWysiwygHighlightPopover();
 });
@@ -102044,6 +102451,7 @@ document.addEventListener("click", (event) => {
       searchBar?.contains(event.target) ||
       contentSearchResultsNode.contains(event.target) ||
       contentSearchHelpPopoverNode?.contains(event.target) ||
+      contentSearchFiltersPopoverNode?.contains(event.target) ||
       contentSearchPathScopeNode?.contains(event.target);
     if (!insideSearch) hideContentSearchResults();
     if (
@@ -102053,6 +102461,13 @@ document.addEventListener("click", (event) => {
       !contentSearchHelpPopoverNode.contains(event.target)
     ) {
       setContentSearchHelpOpen(false);
+    }
+    if (
+      isContentSearchFiltersPopoverOpen() &&
+      !contentSearchFiltersBtnNode?.contains(event.target) &&
+      !contentSearchFiltersPopoverNode?.contains(event.target)
+    ) {
+      closeContentSearchFiltersPopover();
     }
   }
 
@@ -102074,15 +102489,43 @@ contentSearchModeNode?.addEventListener("change", () => {
   updateContentSearchPlaceholder();
   scheduleContentSearch();
 });
+contentSearchModeTextBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setContentSearchMode("text");
+});
+contentSearchModeSemanticBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setContentSearchMode("semantic");
+});
 contentSearchScopeNode?.addEventListener("change", () => {
   updateContentSearchPlaceholder();
+  syncContentSearchFiltersUi();
   scheduleContentSearch();
 });
-contentSearchTypeNode?.addEventListener("change", scheduleContentSearch);
-contentSearchMatchNode?.addEventListener("change", scheduleContentSearch);
+contentSearchTypeNode?.addEventListener("change", () => {
+  syncContentSearchFiltersUi();
+  scheduleContentSearch();
+});
+contentSearchMatchNode?.addEventListener("change", () => {
+  syncContentSearchFiltersUi();
+  scheduleContentSearch();
+});
+contentSearchFiltersBtnNode?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleContentSearchFiltersPopover();
+});
+contentSearchFiltersResetBtnNode?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  resetContentSearchFilters();
+});
 contentSearchHelpBtnNode?.addEventListener("click", (event) => {
   event.stopPropagation();
   toggleContentSearchHelp();
+});
+window.addEventListener("resize", () => {
+  if (isContentSearchFiltersPopoverOpen()) {
+    positionContentSearchFiltersPopover();
+  }
 });
 contentSearchInputNode?.addEventListener("input", scheduleContentSearch);
 contentSearchInputNode?.addEventListener("focus", () => {

@@ -269,20 +269,28 @@
         </div>
         <div class="app-header-tools">
           <div class="content-search-wrap">
-            <div class="content-search-bar">
-              <select id="content-search-mode" class="content-search-mode" aria-label="Режим поиска">
+            <div class="content-search-bar content-search-bar--compact">
+              <div class="content-search-mode-toggle" role="group" aria-label="Режим поиска">
+                <button
+                  type="button"
+                  id="content-search-mode-text-btn"
+                  class="content-search-mode-btn is-active"
+                  data-mode="text"
+                  title="Текст"
+                  aria-pressed="true"
+                >Т</button>
+                <button
+                  type="button"
+                  id="content-search-mode-semantic-btn"
+                  class="content-search-mode-btn"
+                  data-mode="semantic"
+                  title="Смысл"
+                  aria-pressed="false"
+                >✦</button>
+              </div>
+              <select id="content-search-mode" class="content-search-mode visually-hidden" aria-label="Режим поиска" tabindex="-1">
                 <option value="text" selected>Текст</option>
                 <option value="semantic">Смысл</option>
-              </select>
-              <select id="content-search-scope" class="content-search-scope" aria-label="Область поиска">
-                <option value="all" selected>Везде</option>
-                <option value="filename">Только имя</option>
-                <option value="content">Только текст</option>
-                <option value="tags">Теги</option>
-              </select>
-              <select id="content-search-match" class="content-search-match" aria-label="Режим поиска">
-                <option value="relaxed" selected>Мягкий</option>
-                <option value="strict">Точный</option>
               </select>
               <input
                 id="content-search-input"
@@ -300,7 +308,7 @@
                 aria-hidden="true"
                 title="Поиск…"
               ></span>
-              <div class="content-search-type-wrap">
+              <div class="content-search-actions">
                 <div
                   id="content-search-path-scope"
                   class="content-search-path-scope is-empty"
@@ -323,7 +331,63 @@
                     title="Сбросить ограничение"
                   >×</button>
                 </div>
-                <select id="content-search-type" class="content-search-type" aria-label="Формат файлов">
+                <button
+                  type="button"
+                  id="content-search-filters-btn"
+                  class="content-search-filters-btn"
+                  aria-label="Фильтры поиска"
+                  aria-expanded="false"
+                  aria-controls="content-search-filters-popover"
+                  title="Фильтры"
+                >
+                  <svg class="content-search-filters-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4 7h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M7 12h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M10 17h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="9" cy="7" r="2" fill="currentColor"/>
+                    <circle cx="15" cy="12" r="2" fill="currentColor"/>
+                    <circle cx="12" cy="17" r="2" fill="currentColor"/>
+                  </svg>
+                  <span id="content-search-filters-badge" class="content-search-filters-badge hidden" aria-hidden="true"></span>
+                </button>
+                <button
+                  type="button"
+                  id="content-search-help-btn"
+                  class="content-search-help-btn"
+                  aria-label="Подсказки по поиску"
+                  aria-expanded="false"
+                  aria-controls="content-search-help-popover"
+                  title="Подсказки по поиску"
+                >?</button>
+              </div>
+            </div>
+            <div
+              id="content-search-filters-popover"
+              class="content-search-filters-popover hidden"
+              role="dialog"
+              aria-label="Фильтры поиска"
+            >
+              <div class="content-search-filters-popover-title">Фильтры</div>
+              <p class="content-search-filters-popover-hint">По умолчанию поиск идёт «везде», мягко, по всем типам файлов.</p>
+              <label class="content-search-filter-field">
+                <span class="content-search-filter-label">Область</span>
+                <select id="content-search-scope" class="content-search-scope content-search-filter-control" aria-label="Область поиска">
+                  <option value="all" selected>Везде</option>
+                  <option value="filename">Только имя</option>
+                  <option value="content">Только текст</option>
+                  <option value="tags">Теги</option>
+                </select>
+              </label>
+              <label class="content-search-filter-field">
+                <span class="content-search-filter-label">Точность</span>
+                <select id="content-search-match" class="content-search-match content-search-filter-control" aria-label="Точность поиска">
+                  <option value="relaxed" selected>Мягкий</option>
+                  <option value="strict">Точный</option>
+                </select>
+              </label>
+              <label class="content-search-filter-field">
+                <span class="content-search-filter-label">Тип файла</span>
+                <select id="content-search-type" class="content-search-type content-search-filter-control" aria-label="Формат файлов">
                   <option value="all" selected>Все типы</option>
                   <option value="markdown">Markdown</option>
                   <option value="sidecar">Sidecar</option>
@@ -337,17 +401,12 @@
                   <option value="config">YAML / JSON / TXT</option>
                   <option value="other">Прочее</option>
                 </select>
-                <button
-                  type="button"
-                  id="content-search-help-btn"
-                  class="content-search-help-btn"
-                  aria-label="Подсказки по поиску"
-                  aria-expanded="false"
-                  aria-controls="content-search-help-popover"
-                  title="Подсказки по поиску"
-                >?</button>
-              </div>
+              </label>
+              <button type="button" id="content-search-filters-reset-btn" class="content-search-filters-reset-btn">
+                Сбросить фильтры
+              </button>
             </div>
+            <div id="content-search-active-filters" class="content-search-active-filters hidden" aria-live="polite"></div>
             <div
               id="content-search-help-popover"
               class="content-search-help-popover hidden"
@@ -2067,13 +2126,22 @@
               </details>
               </div>
             </section>
-            <div
-              id="menu-system-environment"
-              class="menu-system-environment hidden"
-              aria-live="polite"
-              aria-label="Среда и зависимости"
-            ></div>
             <div id="menu-agent-stats" class="menu-agent-stats hidden" aria-live="polite"></div>
+            <div
+              id="menu-agent-stats-env-popover"
+              class="menu-agent-stats-env-popover hidden"
+              role="dialog"
+              aria-label="Среда и зависимости"
+              aria-modal="false"
+            >
+              <div class="menu-agent-stats-env-popover-head">
+                <span id="menu-agent-stats-env-popover-title" class="menu-agent-stats-env-popover-title"></span>
+              </div>
+              <div
+                id="menu-agent-stats-env-popover-grid"
+                class="menu-system-environment-grid is-popover"
+              ></div>
+            </div>
           </div>
         </section>
       </aside>
@@ -3704,6 +3772,16 @@
                   </p>
                 </header>
                 <div id="project-settings-fields" class="node-config-fields project-settings-fields"></div>
+                <div id="project-settings-env-wrap" class="project-settings-env-wrap hidden">
+                  <textarea
+                    id="project-settings-env-input"
+                    class="project-settings-env-input"
+                    spellcheck="false"
+                    autocomplete="off"
+                    aria-label="Содержимое .env"
+                    placeholder="KEY=value"
+                  ></textarea>
+                </div>
                 <p id="project-settings-empty" class="project-settings-empty hidden">
                   Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.
                 </p>
