@@ -1,3 +1,5 @@
+> Архив — черновые заметки до SPEC.
+
 Идея
 
 _1) WS -> section -> area -> topic -> slot -> record category comment sidecar

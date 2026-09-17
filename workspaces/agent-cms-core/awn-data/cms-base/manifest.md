@@ -15,4 +15,4 @@ cms-base/
 └── mixins/              ← каталог примесей
 ```
 
-Spec: [SPEC_2026_itogovaya.md](../../zzz/SPEC_2026_itogovaya.md)
+Spec: [SPEC_2026_itogovaya.md](../../arhiv-voprosov/awn-storage/main/SPEC_2026_itogovaya.md)
