@@ -23,6 +23,11 @@ const SETUP_CHECK_LABELS = {
   mcp: "MCP"
 };
 
+const DISK_STAT_LABELS = {
+  diskTotal: "Всего объем диска",
+  diskFree: "Еще свободное место в системе"
+};
+
 const ENV_TOOL_HINTS = {
   node: "Node.js 18+ — brew install node",
   python: "Python 3.12 для Whisper — brew install python@3.12",
@@ -201,11 +206,20 @@ function getSetupCheckState() {
   };
 }
 
+function getDiskStatState() {
+  const disk = bootstrap?.environment?.host?.disk;
+  return {
+    diskTotal: disk?.totalLabel || "—",
+    diskFree: disk?.freeLabel || "—"
+  };
+}
+
 function renderSetupChecklist() {
   const root = document.getElementById("setup-checklist");
   if (!root) return;
 
   const state = getSetupCheckState();
+  const diskState = getDiskStatState();
   const hints = {
     deps: "Шаг 1 → Зависимости",
     certs: "Шаг 1 → Сертификаты HTTPS",
@@ -213,27 +227,37 @@ function renderSetupChecklist() {
     mcp: "Шаг 3 → MCP к агенту"
   };
 
+  const checkItems = Object.keys(SETUP_CHECK_LABELS).map((id) => {
+    const ok = state[id];
+    const pending = id === "mcp" && state.server && mcpOk === null;
+    const mark = ok ? "✓" : pending ? "…" : "○";
+    const itemState = ok ? "ok" : pending ? "pending" : "todo";
+    const hint = !ok && !pending ? `<span class="setup-check-hint">${hints[id]}</span>` : "";
+
+    return `
+      <div class="setup-check-item" data-state="${itemState}">
+        <span class="setup-check-mark">${mark}</span>
+        <span class="setup-check-copy">
+          <span class="setup-check-label">${SETUP_CHECK_LABELS[id]}</span>
+          ${hint}
+        </span>
+      </div>
+    `;
+  });
+
+  const statItems = Object.keys(DISK_STAT_LABELS).map((id) => `
+    <div class="setup-check-item setup-check-item--stat" data-state="stat">
+      <span class="setup-check-copy">
+        <span class="setup-check-label">${DISK_STAT_LABELS[id]}</span>
+        <span class="setup-check-value">${diskState[id]}</span>
+      </span>
+    </div>
+  `);
+
   root.innerHTML = `
     <div class="setup-checklist-grid">
-      ${Object.keys(SETUP_CHECK_LABELS)
-        .map((id) => {
-          const ok = state[id];
-          const pending = id === "mcp" && state.server && mcpOk === null;
-          const mark = ok ? "✓" : pending ? "…" : "○";
-          const itemState = ok ? "ok" : pending ? "pending" : "todo";
-          const hint = !ok && !pending ? `<span class="setup-check-hint">${hints[id]}</span>` : "";
-
-          return `
-            <div class="setup-check-item" data-state="${itemState}">
-              <span class="setup-check-mark">${mark}</span>
-              <span class="setup-check-copy">
-                <span class="setup-check-label">${SETUP_CHECK_LABELS[id]}</span>
-                ${hint}
-              </span>
-            </div>
-          `;
-        })
-        .join("")}
+      ${checkItems.join("")}
+      ${statItems.join("")}
     </div>
   `;
 }

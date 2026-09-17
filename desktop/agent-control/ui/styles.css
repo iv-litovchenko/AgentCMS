@@ -1024,7 +1024,7 @@ body.is-booting {
 
 .setup-checklist-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -1083,6 +1083,22 @@ body.is-booting {
   font-size: 0.58rem;
   color: var(--muted);
   line-height: 1.25;
+}
+
+.setup-check-item--stat {
+  border-color: rgba(120, 140, 180, 0.14);
+}
+
+.setup-check-item--stat .setup-check-copy {
+  width: 100%;
+}
+
+.setup-check-value {
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #dbeafe;
+  font-variant-numeric: tabular-nums;
 }
 
 .section-block[data-section="system"] .section-body {
@@ -2295,7 +2311,7 @@ body.is-booting {
   .action-card-grid,
   .setup-btn-grid,
   .setup-checklist-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .env-row {
