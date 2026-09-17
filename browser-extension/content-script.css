@@ -70,6 +70,7 @@ html.asc-screenshot-element-active #agent-shell-companion-toolbar {
   pointer-events: none;
 }
 
+html.is-cms-page-picker-active,
 body.is-cms-page-picker-active {
   cursor: crosshair;
 }

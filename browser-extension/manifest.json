@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Agent Shell Companion",
   "short_name": "Agent Shell",
-  "version": "0.1.53",
+  "version": "0.1.54",
   "description": "Side panel Agent Shell on any website — connects to local Agent CMS.",
   "permissions": ["storage", "sidePanel", "activeTab", "tabs", "scripting", "clipboardRead", "clipboardWrite"],
   "host_permissions": ["<all_urls>"],
@@ -44,7 +44,8 @@
       "matches": ["http://*/*", "https://*/*"],
       "js": ["page-picker-extract.js", "page-snapshot.js", "page-picker.js"],
       "css": ["content-script.css"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "icons": {

@@ -20,8 +20,14 @@
   let hintNode = null;
   let highlightTagNode = null;
   let hoveredTarget = null;
+  const isTopFrame = window === window.top;
+
+  function getPickerMountNode() {
+    return document.body || document.documentElement;
+  }
 
   function notifyPickerState() {
+    if (!isTopFrame) return;
     try {
       chrome.runtime.sendMessage({ type: MESSAGE_STATE, active }).catch(() => {});
     } catch {
@@ -48,7 +54,8 @@
 
   function syncPickerState(nextActive) {
     active = Boolean(nextActive);
-    document.body.classList.toggle("is-cms-page-picker-active", active);
+    ensureDom();
+    getPickerMountNode()?.classList.toggle("is-cms-page-picker-active", active);
     rootNode?.classList.toggle("is-active", active);
     if (!active) {
       hoveredTarget = null;
@@ -198,13 +205,19 @@
 
   function ensureDom() {
     if (rootNode) return;
+    const mountNode = getPickerMountNode();
+    if (!mountNode) return;
+
     rootNode = document.createElement("div");
     rootNode.className = "cms-page-picker-root";
     rootNode.setAttribute("aria-hidden", "true");
 
     hintNode = document.createElement("div");
     hintNode.className = "cms-page-picker-hint";
-    hintNode.textContent = "Наведите на текст, ссылку или картинку · Esc — выключить";
+    hintNode.textContent = isTopFrame
+      ? "Наведите на текст, ссылку или картинку · Esc — выключить"
+      : "";
+    hintNode.hidden = !isTopFrame;
 
     highlightNode = document.createElement("div");
     highlightNode.className = "cms-page-picker-highlight";
@@ -214,8 +227,9 @@
     highlightTagNode.hidden = true;
     highlightNode.append(highlightTagNode);
 
-    rootNode.append(hintNode, highlightNode);
-    document.body.appendChild(rootNode);
+    rootNode.append(highlightNode);
+    if (isTopFrame) rootNode.prepend(hintNode);
+    mountNode.appendChild(rootNode);
   }
 
   function relayTopLevelVoicePageSnapshotRequest(event) {
@@ -247,6 +261,15 @@
   }
 
   function bindPicker() {
+    if (!getPickerMountNode()) {
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", bindPicker, { once: true });
+      }
+      return;
+    }
+    if (window.__agentShellCompanionPagePickerBound) return;
+    window.__agentShellCompanionPagePickerBound = true;
+
     ensureDom();
     document.addEventListener("mousemove", onPointerMove, true);
     document.addEventListener("pointermove", onPointerMove, true);

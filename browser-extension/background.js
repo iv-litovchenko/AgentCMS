@@ -221,6 +221,8 @@ async function resolvePickerTargetTabId({ tabId = 0, windowId = 0 } = {}) {
   return null;
 }
 
+const PAGE_PICKER_SCRIPT_FILES = ["page-picker-extract.js", "page-snapshot.js", "page-picker.js"];
+
 async function ensurePagePickerScript(tabId) {
   try {
     await chrome.tabs.sendMessage(tabId, { type: "COMPANION_PAGE_PICKER_PING" });
@@ -229,8 +231,40 @@ async function ensurePagePickerScript(tabId) {
     // inject below
   }
   await chrome.scripting.executeScript({
-    target: { tabId, allFrames: false },
-    files: ["page-picker-extract.js", "page-snapshot.js", "page-picker.js"]
+    target: { tabId, allFrames: true },
+    files: PAGE_PICKER_SCRIPT_FILES
+  });
+}
+
+async function broadcastPagePickerSet(tabId, active) {
+  const nextActive = Boolean(active);
+  const activateInFrame = (frameActive) => {
+    if (window.AgentCompanionPagePicker?.setActive) {
+      window.AgentCompanionPagePicker.setActive(frameActive);
+      return true;
+    }
+    return false;
+  };
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: activateInFrame,
+      args: [nextActive]
+    });
+    return;
+  } catch {
+    // inject then retry once
+  }
+
+  await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    files: PAGE_PICKER_SCRIPT_FILES
+  });
+  await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    func: activateInFrame,
+    args: [nextActive]
   });
 }
 
@@ -343,10 +377,11 @@ async function relayPagePickerSet(active, { tabId = 0, windowId = 0, senderTabId
   if (active) {
     await ensurePagePickerScript(targetTabId);
   }
+  await broadcastPagePickerSet(targetTabId, active);
   await chrome.tabs.sendMessage(targetTabId, {
     type: "COMPANION_PAGE_PICKER_SET",
     active: Boolean(active)
-  });
+  }).catch(() => {});
 }
 
 async function relayComposeInsert({ text, join = "newline", tabId = 0, windowId = 0 } = {}) {

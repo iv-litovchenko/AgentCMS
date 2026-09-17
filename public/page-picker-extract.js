@@ -356,15 +356,36 @@
     "FONT"
   ]);
 
-  function deepElementFromPoint(x, y, root) {
+  function deepElementFromPoint(clientX, clientY, root) {
     const scope = root || document;
     if (!scope?.elementFromPoint) return null;
 
-    let el = scope.elementFromPoint(x, y);
+    let localX = clientX;
+    let localY = clientY;
+    const frameElement = scope.defaultView?.frameElement;
+    if (frameElement) {
+      const frameRect = frameElement.getBoundingClientRect();
+      localX = clientX - frameRect.left;
+      localY = clientY - frameRect.top;
+    }
+
+    let el = scope.elementFromPoint(localX, localY);
     if (!el) return null;
 
+    if (el.tagName === "IFRAME") {
+      try {
+        const childDoc = el.contentDocument;
+        if (childDoc) {
+          const inner = deepElementFromPoint(clientX, clientY, childDoc);
+          if (inner) return inner;
+        }
+      } catch {
+        // cross-origin iframe
+      }
+    }
+
     if (el.shadowRoot) {
-      const inner = deepElementFromPoint(x, y, el.shadowRoot);
+      const inner = deepElementFromPoint(clientX, clientY, el.shadowRoot);
       if (inner) return inner;
     }
 
