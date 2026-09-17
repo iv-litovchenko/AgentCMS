@@ -56216,6 +56216,86 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .awn-data-view-iblock-card-head {
   display: block;
+  position: relative;
+  min-height: 4.75rem;
+  box-sizing: border-box;
+}
+
+.awn-data-view-iblock-description-block.is-loading:not(.is-skeleton) .awn-data-view-description-card {
+  opacity: 0.88;
+  transition: opacity 0.15s ease;
+}
+
+.awn-data-view-iblock-description-block.is-loading:not(.is-skeleton) .awn-data-view-iblock-card-head::after {
+  content: "";
+  position: absolute;
+  top: 0.95rem;
+  right: 0.95rem;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #cbd5e1;
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: awn-data-view-iblock-spin 0.7s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes awn-data-view-iblock-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.awn-data-view-iblock-description-block.is-skeleton .awn-data-view-title.is-skeleton-block,
+.awn-data-view-iblock-description-block.is-skeleton .awn-data-view-kind-badge.is-skeleton-badge,
+.awn-data-view-iblock-description-block.is-skeleton .awn-data-view-path.is-skeleton-path {
+  display: inline-block;
+  color: transparent;
+  border-radius: 0.35rem;
+  background: linear-gradient(90deg, #eef2f7 0%, #e2e8f0 45%, #eef2f7 100%);
+  background-size: 200% 100%;
+  animation: awn-data-view-group-skeleton 1.2s ease-in-out infinite;
+}
+
+.awn-data-view-iblock-description-block.is-skeleton .awn-data-view-title.is-skeleton-block {
+  width: min(240px, 58%);
+  height: 1.25rem;
+}
+
+.awn-data-view-iblock-description-block.is-skeleton .awn-data-view-kind-badge.is-skeleton-badge {
+  width: 7.5rem;
+  height: 1.125rem;
+}
+
+.awn-data-view-iblock-description-block.is-skeleton .awn-data-view-path.is-skeleton-path {
+  width: min(300px, 78%);
+  height: 0.875rem;
+}
+
+.awn-data-view-table--skeleton {
+  min-height: 14rem;
+}
+
+.awn-data-view-table--skeleton td.is-skeleton {
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.awn-data-view-table-skeleton-line {
+  display: block;
+  height: 0.75rem;
+  border-radius: 0.3rem;
+  background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 45%, #f1f5f9 100%);
+  background-size: 200% 100%;
+  animation: awn-data-view-group-skeleton 1.2s ease-in-out infinite;
+}
+
+.awn-data-view-table--skeleton tbody tr:nth-child(3n + 2) .awn-data-view-table-skeleton-line {
+  width: 72%;
+}
+
+.awn-data-view-table--skeleton tbody tr:nth-child(3n) .awn-data-view-table-skeleton-line {
+  width: 56%;
 }
 
 .awn-data-view-iblock-card-head-main {

@@ -96193,26 +96193,97 @@ function resolveAwnDataViewCachedStore(storeRel) {
   return awnDataViewStoreCache;
 }
 
+function setAwnDataViewIblockLoading(loading) {
+  awnDataViewIblockDescriptionBlockNode?.classList.toggle("is-loading", Boolean(loading));
+  awnDataViewSchemaWrapNode?.classList.toggle("is-loading", Boolean(loading));
+}
+
+function clearAwnDataViewHeaderSkeleton() {
+  awnDataViewIblockDescriptionBlockNode?.classList.remove("is-skeleton");
+  awnDataViewModalTitleNode?.classList.remove("is-skeleton-block");
+  awnDataViewModalKindNode?.classList.remove("is-skeleton-block", "is-skeleton-badge");
+  awnDataViewModalPathNode?.classList.remove("is-skeleton-block", "is-skeleton-path");
+}
+
+function renderAwnDataViewHeaderSkeleton() {
+  setAwnDataViewIblockCardVisible(true);
+  awnDataViewIblockDescriptionBlockNode?.classList.add("is-skeleton");
+  if (awnDataViewModalTitleNode) {
+    awnDataViewModalTitleNode.textContent = "\u00a0";
+    awnDataViewModalTitleNode.classList.add("is-skeleton-block");
+  }
+  if (awnDataViewModalKindNode) {
+    awnDataViewModalKindNode.textContent = "\u00a0";
+    awnDataViewModalKindNode.classList.remove("hidden");
+    awnDataViewModalKindNode.classList.add("is-skeleton-block", "is-skeleton-badge");
+  }
+  if (awnDataViewModalPathNode) {
+    awnDataViewModalPathNode.textContent = "\u00a0";
+    awnDataViewModalPathNode.classList.remove("hidden");
+    awnDataViewModalPathNode.classList.add("is-skeleton-block", "is-skeleton-path");
+  }
+}
+
+function renderAwnDataViewRecordsTableSkeleton(rowCount = 8) {
+  if (!awnDataViewRecordsNode) return;
+  awnDataViewRecordsNode.replaceChildren();
+  const table = document.createElement("table");
+  table.className = "awn-data-view-table awn-data-view-table--skeleton";
+  table.setAttribute("aria-hidden", "true");
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  for (const label of ["ID", "Название", "…"]) {
+    const th = document.createElement("th");
+    th.scope = "col";
+    th.textContent = label;
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+  const tbody = document.createElement("tbody");
+  for (let index = 0; index < rowCount; index += 1) {
+    const row = document.createElement("tr");
+    row.className = "is-skeleton";
+    for (let cellIndex = 0; cellIndex < 3; cellIndex += 1) {
+      const cell = document.createElement("td");
+      const line = document.createElement("span");
+      line.className = "awn-data-view-table-skeleton-line";
+      cell.appendChild(line);
+      row.appendChild(cell);
+    }
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+  awnDataViewRecordsNode.appendChild(table);
+}
+
 function beginAwnDataViewStoreLoading(storeRel) {
   const cached = resolveAwnDataViewCachedStore(storeRel);
+  setAwnDataViewIblockLoading(true);
   awnDataViewStorePanelNode?.classList.add("is-loading");
 
-  if (cached?.kind === "group") {
+  if (cached) {
+    clearAwnDataViewHeaderSkeleton();
     renderAwnDataViewHeader(cached);
     renderAwnDataViewSchema(cached);
     syncAwnDataViewGroupPresentation(cached);
-    renderAwnDataViewGroupChildren(cached);
+    if (cached.kind === "group") {
+      renderAwnDataViewGroupChildren(cached);
+    } else {
+      renderAwnDataViewRecords(cached);
+    }
     return;
   }
 
   renderAwnDataViewHeader(null, { loading: true });
-  renderAwnDataViewSchema(null, { loading: true });
   syncAwnDataViewGroupPresentation(null);
-  renderAwnDataViewGroupChildrenSkeleton();
+  renderAwnDataViewRecordsTableSkeleton();
 }
 
 function finishAwnDataViewStoreLoading() {
+  setAwnDataViewIblockLoading(false);
   awnDataViewStorePanelNode?.classList.remove("is-loading");
+  clearAwnDataViewHeaderSkeleton();
 }
 
 function syncAwnDataViewGroupPresentation(store) {
@@ -96499,11 +96570,18 @@ async function openAwnDataStoreFile(fileName, labelHint = "") {
 }
 
 function renderAwnDataViewHeader(store, { loading = false, error = false } = {}) {
+  if (loading && !store && !error) {
+    renderAwnDataViewHeaderSkeleton();
+    renderAwnDataViewSchema(null, { loading: true });
+    return;
+  }
+
+  clearAwnDataViewHeaderSkeleton();
   const viewStore = store ? normalizeAwnDataStoreView(store) : store;
-  const title = loading ? "Загрузка…" : error ? "Ошибка" : String(viewStore?.name || viewStore?.relPath || "Накопитель").trim();
+  const title = error ? "Ошибка" : String(viewStore?.name || viewStore?.relPath || "Накопитель").trim();
   if (awnDataViewModalTitleNode) awnDataViewModalTitleNode.textContent = title;
 
-  setAwnDataViewIblockCardVisible(loading || error || Boolean(viewStore));
+  setAwnDataViewIblockCardVisible(error || Boolean(viewStore));
 
   if (awnDataViewModalKindNode) {
     if (!viewStore?.kind || loading || error) {
