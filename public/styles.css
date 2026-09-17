@@ -55330,26 +55330,103 @@ body.is-cms-page-picker-active #discuss-aside * {
 .awn-data-view-group-children {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0.15rem 0;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
 
+.awn-data-view-group-child {
+  margin: 0;
+}
+
 .awn-data-view-group-child-btn {
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   text-align: left;
-  padding: 0.45rem 0.65rem;
+  padding: 0.3rem 0.4rem;
   border-radius: 0.375rem;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border: 1px solid rgba(124, 58, 237, 0.12);
+  background: rgba(255, 255, 255, 0.55);
   cursor: pointer;
-  font-size: 0.875rem;
+  font: inherit;
+  color: inherit;
+  box-sizing: border-box;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
 .awn-data-view-group-child-btn:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: rgba(124, 58, 237, 0.08);
+  border-color: rgba(124, 58, 237, 0.22);
+}
+
+.awn-data-view-group-child-kind {
+  flex-shrink: 0;
+}
+
+.awn-data-view-group-child-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awn-data-view-group-child-meta {
+  flex-shrink: 0;
+}
+
+.awn-data-view-group-children.is-skeleton {
+  min-height: 12.5rem;
+}
+
+.awn-data-view-group-child.is-skeleton {
+  padding: 0.15rem 0.2rem;
+}
+
+.awn-data-view-group-child-skeleton-line {
+  display: block;
+  height: 1.75rem;
+  border-radius: 0.375rem;
+  background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 45%, #f1f5f9 100%);
+  background-size: 200% 100%;
+  animation: awn-data-view-group-skeleton 1.2s ease-in-out infinite;
+}
+
+@keyframes awn-data-view-group-skeleton {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.awn-data-view-elements-main.is-group-mode .awn-data-view-table-wrap {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.awn-data-view-elements-main.is-group-mode .awn-data-view-elements-head {
+  gap: 0.25rem;
+}
+
+.awn-data-view-store-panel.is-loading {
+  opacity: 0.72;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.awn-data-view-store-panel.is-loading .awn-data-view-group-children:not(.is-skeleton) {
+  filter: saturate(0.92);
 }
 
 .menu-awn-data-store:hover .menu-awn-data-store-kind--collection {
