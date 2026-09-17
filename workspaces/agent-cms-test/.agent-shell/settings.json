@@ -26,6 +26,7 @@
   },
   "voice": {
     "input": {
+      "enabled": false,
       "mode": "fn_button",
       "capture": "microphone",
       "globalListen": false,

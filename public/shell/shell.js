@@ -8152,12 +8152,13 @@ function composeBlockSeparator(current, join = "space") {
 function appendVoiceToCompose(text, options = {}) {
   const trimmed = String(text || "").trim();
   if (!trimmed || !nodes.message) return;
-  const voiceBlock = options.wrapStt === false ? trimmed : wrapSttVoiceBlock(trimmed);
+  const wrapStt = options.wrapStt !== false;
+  const voiceBlock = wrapStt ? wrapSttVoiceBlock(trimmed) : trimmed;
   const current = String(nodes.message.value || "").trimEnd();
-  const join = options.join === "newline" ? "newline" : "space";
-  const separator = composeBlockSeparator(current, join);
+  const useNewline = wrapStt || options.join !== "space";
+  const separator = !current ? "" : useNewline ? composeBlockSeparator(current, "newline") : " ";
   let next = current ? `${current}${separator}${voiceBlock}` : voiceBlock;
-  if (join === "newline") next = `${next}\n\n`;
+  if (useNewline) next = `${next}\n\n`;
   setComposeMessageValue(next);
   nodes.message.focus();
   const len = nodes.message.value.length;
