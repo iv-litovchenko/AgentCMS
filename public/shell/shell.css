@@ -8839,6 +8839,8 @@ body.shell-bg-wallpaper .shell-character-viewport {
   cursor: pointer;
   list-style: none;
   user-select: none;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .shell-proactive-accordion-summary::-webkit-details-marker {
@@ -8849,6 +8851,11 @@ body.shell-bg-wallpaper .shell-character-viewport {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
   background: rgba(187, 247, 208, 0.28);
   color: #86efac;
   border-color: rgba(74, 222, 128, 0.42);
@@ -8873,12 +8880,21 @@ body.shell-bg-wallpaper .shell-character-viewport {
 
 .shell-proactive-marker-text {
   line-height: 1.2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shell-proactive-accordion-label {
   font-size: 12px;
   font-weight: 600;
   color: rgba(187, 247, 208, 0.94);
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shell-proactive-accordion-body {
@@ -8896,13 +8912,23 @@ body.shell-bg-wallpaper .shell-character-viewport {
 }
 
 .shell-proactive-empty-reply {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
   padding: 2px 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .shell-proactive-empty-marker {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background: rgba(148, 163, 184, 0.18);
   color: #cbd5e1;
   border-color: rgba(148, 163, 184, 0.32);
@@ -8911,6 +8937,11 @@ body.shell-bg-wallpaper .shell-character-viewport {
 .shell-proactive-empty-label {
   font-size: 12px;
   color: rgba(148, 163, 184, 0.88);
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shell-compose-templates-dialog-section {
