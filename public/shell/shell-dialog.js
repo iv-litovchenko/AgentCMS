@@ -7,6 +7,11 @@ import {
   renderUserMessageBody,
   scheduleShellMermaidTypeset
 } from "@shell/markdown";
+import { isProactiveDialogBody, unwrapProactiveMessage } from "@shell/proactive-format";
+
+function unwrapProactiveForCopy(body) {
+  return isProactiveDialogBody(body) ? unwrapProactiveMessage(body) : body;
+}
 
 const MAX_HISTORY = 50;
 
@@ -1144,6 +1149,10 @@ export function createShellDialog(options = {}) {
   function hasHistoryContent(role, body) {
     const key = messageContentKey({ role, body });
     if (!key) return false;
+    if (role === "agent" || role === "user") {
+      const last = history[history.length - 1];
+      return last?.role === role && messageContentKey(last) === key;
+    }
     return history.some((item) => messageContentKey(item) === key);
   }
 
@@ -1496,14 +1505,15 @@ export function createShellDialog(options = {}) {
     }
     if (item?.role === "error") return renderErrorThreadMessage(item);
     const role = item?.role === "agent" ? "agent" : "user";
+    const proactiveUser = role === "user" && isProactiveDialogBody(item?.body);
     const row = document.createElement("div");
-    row.className = `shell-chat-row shell-chat-row--${role}`;
+    row.className = `shell-chat-row shell-chat-row--${role}${proactiveUser ? " shell-chat-row--proactive" : ""}`;
 
     const bubble = document.createElement("div");
-    bubble.className = "shell-chat-bubble";
+    bubble.className = `shell-chat-bubble${proactiveUser ? " shell-chat-bubble--proactive" : ""}`;
 
     const el = document.createElement("div");
-    el.className = `shell-chat-msg shell-chat-msg--${role}`;
+    el.className = `shell-chat-msg shell-chat-msg--${role}${proactiveUser ? " shell-chat-msg--proactive" : ""}`;
     el.dataset.role = role;
     if (role === "agent") {
       renderShellReplyBody(el, String(item.body || ""));
@@ -1521,6 +1531,7 @@ export function createShellDialog(options = {}) {
     speakBtn.title = "Озвучить сообщение";
     speakBtn.setAttribute("aria-label", "Озвучить сообщение");
     speakBtn.textContent = "🔊";
+    speakBtn.hidden = proactiveUser;
     speakBtn.addEventListener("click", () => {
       void onSpeakMessage?.(item);
     });
@@ -1532,7 +1543,7 @@ export function createShellDialog(options = {}) {
     copyBtn.setAttribute("aria-label", "Копировать сообщение");
     copyBtn.textContent = "⎘";
     copyBtn.addEventListener("click", () => {
-      void copyMessageText(item.body, copyBtn);
+      void copyMessageText(proactiveUser ? unwrapProactiveForCopy(item.body) : item.body, copyBtn);
     });
 
     actions.append(speakBtn, copyBtn);
@@ -1561,19 +1572,23 @@ export function createShellDialog(options = {}) {
     return !raw || raw === "…" || raw === "—";
   }
 
-  function hasAgentReplyInThread(text = lastReplyRaw) {
+  function hasAgentReplyForCurrentTurn(text = lastReplyRaw) {
     const reply = String(text || "").trim();
     if (!reply) return false;
     const key = messageContentKey({ role: "agent", body: reply });
     if (!key) return false;
-    return history.some((item) => item.role === "agent" && messageContentKey(item) === key);
+    const lastUserIdx = findLastUserIndex();
+    if (lastUserIdx < 0) return false;
+    return history
+      .slice(lastUserIdx + 1)
+      .some((item) => item.role === "agent" && messageContentKey(item) === key);
   }
 
   function syncLiveReplySlot() {
     const streaming = nodes.panel?.classList.contains("is-streaming");
     const hasThread = history.length > 0;
     const replyReady = !isLiveReplyStub(lastReplyRaw);
-    const agentArchived = hasAgentReplyInThread();
+    const agentArchived = hasAgentReplyForCurrentTurn();
 
     let hideLiveReply = false;
     if (!streaming) {
@@ -1764,13 +1779,14 @@ export function createShellDialog(options = {}) {
   function onAgentReply(body) {
     const raw = String(body || "").trim();
     if (!raw) return;
-    onReplyRendered(raw);
+    lastReplyRaw = raw;
     if (!hasHistoryContent("agent", raw)) {
       pushHistory("agent", raw);
     } else {
-      syncLiveReplySlot();
-      updateScrollBottomButton();
+      renderHistoryUi();
     }
+    syncLiveReplySlot();
+    updateScrollBottomButton();
   }
 
   function getLastReplyRaw() {

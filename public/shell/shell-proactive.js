@@ -1,3 +1,4 @@
+import { unwrapProactiveMessage, wrapProactiveDialogBody } from "./proactive-format.js";
 import { renderShellVoicePlaceholders } from "./shell-prompt-placeholders.js";
 
 const TICK_MS = 5000;
@@ -10,17 +11,10 @@ export const DEFAULT_PROACTIVE_PROMPT = `Фоновый пинг: пользов
 
 Ответ 1–2 предложения, живо, по-человечески. Не напоминай про таймер и не начинай монолог.`;
 
-function stripLegacyProactiveTags(text) {
-  return String(text || "")
-    .replace(/^\[proactive\]\s*/i, "")
-    .replace(/\s*\[\/proactive\]\s*$/i, "")
-    .trim();
-}
-
 export function renderProactivePrompt(template, { idleSeconds = 0 } = {}) {
   const sec = Math.max(1, Math.round(Number(idleSeconds) || 0));
   const minutes = Math.max(1, Math.round(sec / 60));
-  const raw = stripLegacyProactiveTags(template || DEFAULT_PROACTIVE_PROMPT);
+  const raw = unwrapProactiveMessage(template || DEFAULT_PROACTIVE_PROMPT);
   return renderShellVoicePlaceholders(raw, {
     idle_seconds: sec,
     idle_minutes: minutes
@@ -30,6 +24,12 @@ export function renderProactivePrompt(template, { idleSeconds = 0 } = {}) {
 export function buildProactiveMessage(idleSeconds, template = DEFAULT_PROACTIVE_PROMPT) {
   return renderProactivePrompt(template, { idleSeconds });
 }
+
+export function buildProactiveDialogBody(idleSeconds, template = DEFAULT_PROACTIVE_PROMPT) {
+  return wrapProactiveDialogBody(buildProactiveMessage(idleSeconds, template));
+}
+
+export { isProactiveDialogBody, unwrapProactiveMessage, wrapProactiveDialogBody } from "./proactive-format.js";
 
 export function parseQuietTimeMinutes(value) {
   const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})$/);

@@ -1,3 +1,4 @@
+import { isProactiveDialogBody, unwrapProactiveMessage } from "@shell/proactive-format";
 import { cleanReplyTextSegment, stripHtmlComments } from "@shell/reply";
 import { createVoiceEndMarkerElement, splitVoiceEndReply } from "@shell/voice-end-format";
 
@@ -80,12 +81,57 @@ function escapeHtml(value) {
 
 const SHELL_MARKER_INLINE_RE = /(\[tts-break\]|\[stt\]|\[\/stt\]|\{\{(?:tpl:[a-z0-9_-]+|shell:voice-end)\}\})/gi;
 
+function renderProactiveUserAccordion(element, raw) {
+  const inner = unwrapProactiveMessage(raw);
+  element.replaceChildren();
+  element.classList.add("shell-user-msg-body", "shell-user-msg-body--proactive");
+  if (!inner) return;
+
+  const details = document.createElement("details");
+  details.className = "shell-proactive-accordion";
+
+  const summary = document.createElement("summary");
+  summary.className = "shell-proactive-accordion-summary";
+
+  const marker = document.createElement("code");
+  marker.className = "shell-compose-templates-marker shell-proactive-marker";
+
+  const chevron = document.createElement("span");
+  chevron.className = "shell-proactive-marker-chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  chevron.textContent = "▾";
+
+  const markerText = document.createElement("span");
+  markerText.className = "shell-proactive-marker-text";
+  markerText.textContent = "[proactive]";
+
+  marker.append(chevron, markerText);
+
+  const label = document.createElement("span");
+  label.className = "shell-proactive-accordion-label";
+  label.textContent = "Проактивный пинг";
+
+  summary.append(marker, label);
+
+  const body = document.createElement("div");
+  body.className = "shell-proactive-accordion-body";
+  body.textContent = inner;
+
+  details.append(summary, body);
+  element.append(details);
+}
+
 export function renderUserMessageBody(element, text) {
   if (!element) return;
   const raw = String(text || "");
   element.replaceChildren();
+  element.classList.remove("shell-user-msg-body--proactive");
   element.classList.add("shell-user-msg-body");
   if (!raw) return;
+  if (isProactiveDialogBody(raw)) {
+    renderProactiveUserAccordion(element, raw);
+    return;
+  }
   const parts = raw.split(SHELL_MARKER_INLINE_RE);
   for (const part of parts) {
     if (!part) continue;

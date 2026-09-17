@@ -88,7 +88,14 @@ import {
   readWindowSettingsFromStorage,
   writeWindowSettingsToStorage
 } from "@shell/window-storage";
-import { buildProactiveMessage, createShellProactive, DEFAULT_PROACTIVE_PROMPT, normalizeProactiveIdleRange, normalizeQuietTime } from "@shell/proactive";
+import {
+  buildProactiveDialogBody,
+  buildProactiveMessage,
+  createShellProactive,
+  DEFAULT_PROACTIVE_PROMPT,
+  normalizeProactiveIdleRange,
+  normalizeQuietTime
+} from "@shell/proactive";
 import { shellVoicePlaceholder } from "@shell/prompt-placeholders";
 import { createShellDebugLog } from "@shell/debug";
 import {
@@ -8655,12 +8662,15 @@ async function sendProactiveMessage(idleSeconds) {
   hapticTap();
   shellLog("proactive", `Отправка (idle ${idleSeconds}s)`);
   const template = resolveProactivePromptTemplate();
-  await sendMessageDirect(buildProactiveMessage(idleSeconds, template), {
+  const body = buildProactiveMessage(idleSeconds, template);
+  const dialogBody = buildProactiveDialogBody(idleSeconds, template);
+  await sendMessageDirect(body, {
     fromCompose: false,
     voice: false,
     author: "shell/proactive",
     displayPhrase: "Проактивность…",
-    showInDialog: false
+    showInDialog: true,
+    dialogBody
   });
 }
 
@@ -8719,7 +8729,14 @@ function handleSendMessageResult(result, { streamingQwenPaw = false } = {}) {
 
 async function sendMessageDirect(
   body,
-  { fromCompose = false, voice = false, author = "shell", displayPhrase = "", showInDialog = true } = {}
+  {
+    fromCompose = false,
+    voice = false,
+    author = "shell",
+    displayPhrase = "",
+    showInDialog = true,
+    dialogBody = ""
+  } = {}
 ) {
   const composeRaw = String(body || "").trim();
   const expandedText = expandComposeTemplateMarkers(
@@ -8737,7 +8754,7 @@ async function sendMessageDirect(
   markShellAudioGesture({ extendMs: isIosDevice() ? 8 * 60 * 60 * 1000 : 120_000 });
   void unlockShellAudio({ markGesture: true });
   if (showInDialog && !alreadyBusy) {
-    shellDialog.onUserMessage?.(text);
+    shellDialog.onUserMessage?.(String(dialogBody || text).trim() || text);
   }
   if (!alreadyBusy) {
     beginTurnMetrics();
@@ -8767,6 +8784,7 @@ async function sendMessageDirect(
       method: "POST",
       body: JSON.stringify({
         body: text,
+        dialogBody: String(dialogBody || "").trim() || undefined,
         author,
         displayPhrase: displayPhrase || undefined,
         voice: Boolean(voice),

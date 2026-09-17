@@ -12,6 +12,7 @@ const {
   shouldRequestDualReply
 } = require("./spoken-text");
 const { hasVoiceEndDelimiter } = require("./voice-end-format");
+const { resolveProactiveDialogLogBody } = require("./proactive-format");
 const { createSnapshotRequestService, parseDataUrl } = require("./shell-snapshot");
 const { createToolPermissionService } = require("./shell-tool-permission");
 const { createUserQuestionService } = require("./shell-user-question");
@@ -1894,7 +1895,10 @@ async function processShellQueueItem(deps, agentRoot, agentId, item, scope) {
   const ttsClientId = String(item.shellClientId || "").trim();
   const author = String(item.author || "shell").trim() || "shell";
 
-  if (!/proactive/i.test(author)) {
+  if (/proactive/i.test(author)) {
+    const dialogText = resolveProactiveDialogLogBody(body, item.dialogBody);
+    if (dialogText) void logShellDialogUser(agentRoot, dialogText, runtime);
+  } else {
     void logShellDialogUser(agentRoot, body, runtime);
   }
   emitShellQueueUpdate(agentId, scope);

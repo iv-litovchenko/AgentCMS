@@ -404,6 +404,7 @@ function createShellHandlers(deps) {
 
         const submitted = await shellService.submitShellMessage(deps, agentRoot, agentId, {
           body,
+          dialogBody: String(payload?.dialogBody || "").trim(),
           author,
           voice: voiceInput,
           displayPhrase: String(payload?.displayPhrase || "").trim(),

@@ -152,6 +152,7 @@ async function enqueueShellMessage(scope, payload = {}) {
     const item = {
       id,
       body,
+      dialogBody: String(payload.dialogBody || "").trim(),
       author: String(payload.author || "shell").trim() || "shell",
       voice: Boolean(payload.voice),
       displayPhrase: String(payload.displayPhrase || "").trim(),
