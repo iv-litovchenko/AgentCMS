@@ -4,35 +4,24 @@
     "type": "split",
     "children": [
       {
-        "id": "53424ca89f7d4ec8",
+        "id": "4f3e56ab2b050d38",
         "type": "tabs",
         "children": [
           {
-            "id": "405da914a80a02f6",
+            "id": "1e5317d70ea4f658",
             "type": "leaf",
             "state": {
-              "type": "release-notes",
+              "type": "markdown",
               "state": {
-                "currentVersion": "1.13.4"
+                "file": "Resources/MAP.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "lucide-book-up",
-              "title": "примечания к выпуску 1.13.4"
-            }
-          },
-          {
-            "id": "11325e1cb0def270",
-            "type": "leaf",
-            "state": {
-              "type": "release-notes",
-              "state": {
-                "currentVersion": "1.13.7"
-              },
-              "icon": "lucide-book-up",
-              "title": "примечания к выпуску 1.13.7"
+              "icon": "lucide-file",
+              "title": "MAP"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -193,8 +182,31 @@
       "bases:Создать новую базу": false
     }
   },
-  "active": "11325e1cb0def270",
+  "active": "bc5264b468da3ced",
   "lastOpenFiles": [
+    "Resources/Images/Снимок экрана 2026-08-03 в 01.44.15.sidecar.md",
+    "awn-system/MAP.md",
+    "zzz/awn-system-MAP.md",
+    "Resources/MAP.md",
+    "Resources/Images/Снимок экрана 2026-08-03 в 01.43.11.sidecar.md",
+    "Resources/Images/f592444f-61a6-4af5-858b-c54cc24cb67c.sidecar.md",
+    "Resources/Images/def1b17e-7790-4d0e-94b2-bef1491dcceb.sidecar.md",
+    "Resources/Images/Posters/Без названия (2).sidecar.md",
+    "Resources/_SPEC_2026_itogovaya.md",
+    "Resources/Формируем вопросы.md",
+    "Resources/REZ_COPY.md",
+    "Resources/sidecar.md",
+    "Resources/SPEC.md",
+    "Resources/TYPES-GUIDE.md",
+    "zzz/TYPES-GUIDE.md",
+    "Resources/Images/Posters/ChatGPT Image 26 авг. 2026 г., 18_35_07.sidecar.md",
+    "Resources/Images/Posters/ChatGPT Image 26 авг. 2026 г., 18_34_45.sidecar.md",
+    "AGENTS.md",
+    "zzz/IBLOCK-MODEL.md",
+    "Resources/IBLOCK-MODEL.md",
+    "Resources/Images/Posters/ChatGPT Image 26 авг. 2026 г., 18_34_43.sidecar.md",
+    "zzz",
+    "Resources/Images/Posters/ChatGPT Image 26 авг. 2026 г., 18_34_40.sidecar.md",
     "awn-system/schema-mod.yml",
     "zadachi-plany-i-idei/awn-storage/history/main/git-dlya-md-faylov-i-media-razdelno.md/2026-08-07_16-06-29-466.mdback",
     "zadachi-plany-i-idei/awn-storage/history/main/git-dlya-md-faylov-i-media-razdelno.md",
@@ -206,8 +218,6 @@
     "awn-storage/history/TODO.md/2026-08-07_16-02-30-193.mdback",
     "awn-storage/history/TODO.md/2026-08-07_16-01-50-919.mdback",
     "awn-agent-kit/voice-tts/awn-storage/history/configuration-schema.yml/2026-08-07_15-26-18-687.mdback",
-    "awn-agent-kit/voice-tts/awn-storage/history/configuration-schema.yml/2026-08-07_15-26-14-052.mdback",
-    "awn-agent-kit/voice-tts/awn-storage/history/configuration-schema.yml",
     "tetsoblast/manifest.md",
     "test/manifest.md",
     "Resources/Images/Снимок экрана 2026-08-03 в 22.23.22.png",
@@ -219,27 +229,6 @@
     "Resources/Images/Снимок экрана 2026-08-03 в 22.22.01.png",
     "Resources/Images/Снимок экрана 2026-08-03 в 22.21.54.png",
     "Resources/Images/Снимок экрана 2026-08-03 в 19.21.07.png",
-    "Resources/Images/Снимок экрана 2026-08-03 в 02.51.55.png",
-    "awn-container/tema/awn-storage/main/1/3.md",
-    "awn-container/tema/awn-storage/main/1/2.md",
-    "awn-container/tema/awn-storage/main/1/1.md",
-    "awn-container/tema/awn-storage/main/1/manifest.md",
-    "awn-container/tema/manifest.md",
-    "awn-container/oblast-test/manifest.md",
-    "awn-container/manifest.md",
-    "oblast-test/manifest.md",
-    "awn-system/types/README.md",
-    "awn-system/manifest.md",
-    "awn-system/TYPES-GUIDE.md",
-    "awn-system/MAP.md",
-    "types/slots/manifest.md",
-    "types/pages/manifest.md",
-    "types/manifest.md",
-    "types/content/manifest.md",
-    "zadachi-plany-i-idei/manifest.md",
-    "zadachi-plany-i-idei/main.md",
-    "zadachi-plany-i-idei/awn-storage/main/vizualizatsiya-diagrammy-grafiki.md",
-    "zadachi-plany-i-idei/awn-storage/main/uvedomleniya.md",
-    "zadachi-plany-i-idei/awn-storage/main/testy.md"
+    "Resources/Images/Снимок экрана 2026-08-03 в 02.51.55.png"
   ]
 }

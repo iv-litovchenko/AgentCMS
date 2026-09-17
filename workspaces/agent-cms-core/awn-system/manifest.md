@@ -13,7 +13,7 @@ awn-color: "#6366f1"
 | Файл | Назначение |
 |------|------------|
 | [registry.yml](registry.yml) | реестр доменов, mode: agent-owned |
-| [MAP.md](MAP.md) | карта системы для агента (START HERE) |
+| [MAP.md](../Resources/MAP.md) | карта системы для агента (START HERE) |
 | [slots-bindings.yml](slots-bindings.yml) | слот → content-type |
 | [types/](types/) | все типы (pages, content, slots, fields…) |
 

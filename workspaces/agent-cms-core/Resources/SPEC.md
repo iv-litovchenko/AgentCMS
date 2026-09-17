@@ -2,7 +2,7 @@
 
 > Собрано из `Формируем вопросы.md` и `REZ_COPY.md`.  
 > Канон реализации platform: `awn-data/cms-base/`.  
-> Детали runtime: [IBLOCK-MODEL.md](./IBLOCK-MODEL.md), [TYPES-GUIDE.md](./TYPES-GUIDE.md).
+> Детали runtime: [IBLOCK-MODEL.md](../zzz/IBLOCK-MODEL.md), [TYPES-GUIDE.md](../zzz/TYPES-GUIDE.md). Живая шпаргалка YAML-типов: [awn-system/TYPES-GUIDE.md](../awn-system/TYPES-GUIDE.md).
 
 ---
 
@@ -327,8 +327,6 @@ topic «Поток 1» (topic.md)
 agent-cms-core/
 ├── Resources/                      ← спецификация и карты
 │   ├── SPEC.md
-│   ├── IBLOCK-MODEL.md
-│   ├── TYPES-GUIDE.md
 │   └── MAP.md
 ├── awn-data/                       ← PLATFORM (накопители данных + cms-base)
 │   ├── cms-base/
@@ -452,8 +450,9 @@ awn-schema-fields:
 | [SPEC.md](./SPEC.md)                                    | **этот документ** — итоговая спецификация |
 | [Формируем вопросы.md](./Формируем%20вопросы.md)        | исходные Q&A, примеры Gemini              |
 | [REZ_COPY.md](./REZ_COPY.md)                            | исходные заметки, дерево WS, вопросы      |
-| [IBLOCK-MODEL.md](./IBLOCK-MODEL.md) | краткая карта инфobлок+элемент            |
-| [TYPES-GUIDE.md](./TYPES-GUIDE.md)   | шпаргалка по entities и extends           |
+| [IBLOCK-MODEL.md](../zzz/IBLOCK-MODEL.md) | краткая карта инфobлок+элемент (архив) |
+| [TYPES-GUIDE.md](../zzz/TYPES-GUIDE.md) | шпаргалка по entities и extends (архив) |
+| [awn-system/TYPES-GUIDE.md](../awn-system/TYPES-GUIDE.md) | YAML-типы pages/slots/fields |
 | [MAP.md](./MAP.md)                   | карта awn-data                            |
 
 ---
