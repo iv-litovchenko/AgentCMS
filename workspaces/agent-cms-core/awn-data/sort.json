@@ -1,6 +1,7 @@
 [
   "cms-base",
   "settings",
+  "system-presets",
   "agent-registry",
   "taxonomies",
   "tasks",

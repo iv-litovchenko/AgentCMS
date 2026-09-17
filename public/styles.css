@@ -56401,9 +56401,16 @@ body.is-cms-page-picker-active #discuss-aside * {
 .awn-data-view-accordion-body {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
-  padding: 0.85rem 0.95rem;
+  gap: 0;
+  padding: 0;
   background: #fff;
+}
+
+.awn-data-view-accordion-body .awn-data-view-schema-edit,
+.awn-data-view-accordion-body .awn-data-view-scheme-mod-edit,
+.awn-data-view-accordion-body .awn-data-view-schema-hint,
+.awn-data-view-accordion-body .awn-data-view-schema-fields-hint {
+  padding: 0.75rem 0.9rem;
 }
 
 @media (max-width: 720px) {
@@ -56721,11 +56728,11 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-data-view-schema-table-wrap {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
+  border: none;
+  border-radius: 0;
   background: #fff;
   overflow-x: auto;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow: none;
 }
 
 .awn-data-view-schema-table {

@@ -1,9 +1,0 @@
-id: awn.preset.note
-name: NOTE.md — быстрая заметка
-target-file: NOTE.md
-status: active
-sort: 9
-body: |
-  # NOTE
-  
-  > Быстрая заметка workspace.

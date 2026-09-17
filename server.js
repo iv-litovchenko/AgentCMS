@@ -20839,7 +20839,9 @@ async function handleApiForAgent(req, res, url) {
       const normPath = relPath.replace(/\\/g, "/");
       const isStoreManifest = /\/manifest\.md$/i.test(normPath) || /\/manifest\.store\.md$/i.test(normPath);
       const isPresetFile =
-        /^awn-system\/presets\/.+\.ya?ml$/i.test(normPath) && !/\/sort\.ya?ml$/i.test(normPath);
+        /^awn-data\/system-presets\/.+\.md$/i.test(normPath) &&
+        !/\/manifest\.md$/i.test(normPath) &&
+        !/\/sort\.json$/i.test(normPath);
       const isTypeFile =
         !isStoreManifest &&
         (/^awn-data\/(pages|content|slots|settings|cms-base\/(entities|mixins))\/.+\.md$/i.test(normPath) ||

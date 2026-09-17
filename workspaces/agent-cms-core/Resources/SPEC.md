@@ -299,7 +299,7 @@ core → ws → area → section → local node (итоговая схема)
 |-------|---------|---------|-----------|
 | **Каталог типов** | `table.base.md` | pages, slots, content | описание типа (`topic.md`) |
 | **Данные** | `row.base.md` | tasks, taxonomies | строка данных (`1.md`) |
-| **Presets** | — | `awn-system/presets/` | шаблоны системных файлов (`.env`, `SKILL.md`, …) |
+| **Presets** | — | `awn-data/system-presets/` | пресеты (`.env`, `SKILL.md`, …) |
 | **Mixins** | `base.md` | cms-base/mixins | примесь полей |
 
 ---

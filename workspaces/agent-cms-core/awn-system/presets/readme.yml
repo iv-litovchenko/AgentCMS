@@ -1,9 +1,0 @@
-id: awn.preset.readme
-name: README.md — описание workspace
-target-file: README.md
-status: active
-sort: 8
-body: |
-  # README
-  
-  > Описание workspace.

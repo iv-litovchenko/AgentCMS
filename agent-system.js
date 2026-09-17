@@ -300,10 +300,10 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
   const presetItems = loadPresetsMenuItems(projectRoot, agentRoot);
   if (presetItems.length) {
     sections.push({
-      title: "Presets",
+      title: "Пресеты",
       domain: "presets",
       domainKind: null,
-      folderPath: `${configRel}/presets`,
+      folderPath: `awn-data/system-presets`,
       items: presetItems,
       subGroups: []
     });

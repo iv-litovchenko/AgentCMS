@@ -1,9 +1,0 @@
-id: awn.preset.agents
-name: AGENTS.md — инструкции для LLM
-target-file: AGENTS.md
-status: active
-sort: 4
-body: |
-  # Agent
-  
-  > Инструкции для LLM-агента.
