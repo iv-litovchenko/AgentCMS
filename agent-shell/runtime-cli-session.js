@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { spawn } = require("child_process");
 const { ClaudeToolActivityTracker, CodexToolActivityTracker } = require("./tool-activity");
 const { enrichShellPath } = require("./runtime-cli-env");
@@ -121,6 +122,7 @@ class ClaudePersistentSession {
     this.disposed = false;
     this.toolTracker = null;
     this.sessionAllowedTools = new Set();
+    this.spawnAppliedSystemPrompt = false;
   }
 
   usesInteractivePermissions() {
@@ -311,11 +313,14 @@ class ClaudePersistentSession {
     ];
     if (model) args.push("--model", String(model));
     this.appendClaudePermissionArgs(args);
-    const bootstrapped = sessionId && getCliSessionPool().isBootstrapped("claude", sessionId);
+    const system = String(systemPrompt || "").trim();
+    const bootstrapped =
+      sessionId && getCliSessionPool().isBootstrapped("claude", sessionId, system);
     const useResume = Boolean(resume && sessionId && bootstrapped);
     if (useResume) args.push("--resume", sessionId);
     else if (sessionId) args.push("--session-id", sessionId);
-    if (systemPrompt && !useResume) args.push("--system-prompt", systemPrompt);
+    this.spawnAppliedSystemPrompt = Boolean(system && !useResume);
+    if (this.spawnAppliedSystemPrompt) args.push("--system-prompt", system);
     return args;
   }
 
@@ -432,7 +437,10 @@ class ClaudePersistentSession {
     if (error) turn.reject(error);
     else {
       const sid = String(this.config.sessionId || "").trim();
-      if (sid) getCliSessionPool().markBootstrapped("claude", sid);
+      const system = String(this.config.systemPrompt || "").trim();
+      if (sid && this.spawnAppliedSystemPrompt) {
+        getCliSessionPool().markBootstrapped("claude", sid, system);
+      }
       turn.resolve(result);
     }
     resetIdleTimer(this);
@@ -916,20 +924,25 @@ class CliSessionPool {
     this.bootstrappedSessionIds = new Map();
   }
 
-  bootstrapKey(runtime, sessionId) {
-    return `${String(runtime || "").trim()}\0${String(sessionId || "").trim()}`;
+  bootstrapKey(runtime, sessionId, systemPrompt = "") {
+    const hash = crypto
+      .createHash("sha256")
+      .update(String(systemPrompt || ""))
+      .digest("hex")
+      .slice(0, 12);
+    return `${String(runtime || "").trim()}\0${String(sessionId || "").trim()}\0${hash}`;
   }
 
-  isBootstrapped(runtime, sessionId) {
+  isBootstrapped(runtime, sessionId, systemPrompt = "") {
     const sid = String(sessionId || "").trim();
     if (!sid) return false;
-    return this.bootstrappedSessionIds.has(this.bootstrapKey(runtime, sid));
+    return this.bootstrappedSessionIds.has(this.bootstrapKey(runtime, sid, systemPrompt));
   }
 
-  markBootstrapped(runtime, sessionId) {
+  markBootstrapped(runtime, sessionId, systemPrompt = "") {
     const sid = String(sessionId || "").trim();
     if (!sid) return;
-    this.bootstrappedSessionIds.set(this.bootstrapKey(runtime, sid), true);
+    this.bootstrappedSessionIds.set(this.bootstrapKey(runtime, sid, systemPrompt), true);
   }
 
   getSession(runtime, config) {

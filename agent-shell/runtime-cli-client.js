@@ -154,7 +154,7 @@ function buildPersistentSessionConfig({
   };
 }
 
-async function chatClaudeCliPersistent(options = {}) {
+async function chatClaudeCliPersistent(options = {}, retried = false) {
   const prompt = extractUserPrompt(options.messages);
   if (!prompt) throw new Error("Пустое сообщение");
 
@@ -189,6 +189,12 @@ async function chatClaudeCliPersistent(options = {}) {
     return { text: reply.text, raw: null, persistent: true };
   } catch (error) {
     session.dispose("error");
+    const msg = String(error?.message || error);
+    const sid = normalizeCliSessionId(options.sessionId, "claude");
+    if (!retried && isSessionInUseError(msg) && sid) {
+      pool.markBootstrapped("claude", sid, system);
+      return chatClaudeCliPersistent(options, true);
+    }
     throw error;
   }
 }
@@ -341,9 +347,9 @@ async function chatClaudeCliOnce({
   };
 
   const pool = getCliSessionPool();
-  const bootstrapped = sid && pool.isBootstrapped("claude", sid);
-  const finishSuccess = async (result) => {
-    if (sid) pool.markBootstrapped("claude", sid);
+  const bootstrapped = sid && pool.isBootstrapped("claude", sid, system);
+  const finishSuccess = async (result, { appliedSystemPrompt = false } = {}) => {
+    if (sid && appliedSystemPrompt) pool.markBootstrapped("claude", sid, system);
     return result;
   };
 
@@ -354,12 +360,12 @@ async function chatClaudeCliOnce({
       const msg = String(error?.message || error);
       if (isSessionInUseError(msg)) throw error;
       if (error.resumeFailed || isResumeUnavailableError(msg)) {
-        return await finishSuccess(await runOnce(false));
+        return await finishSuccess(await runOnce(false), { appliedSystemPrompt: Boolean(system) });
       }
       throw error;
     }
   }
-  return finishSuccess(await runOnce(false));
+  return finishSuccess(await runOnce(false), { appliedSystemPrompt: Boolean(system) });
 }
 
 async function chatCodexCliOnce({
@@ -489,8 +495,6 @@ async function chatClaudeCli(options = {}) {
     try {
       return await chatClaudeCliPersistent(options);
     } catch (error) {
-      const msg = String(error?.message || error);
-      if (isSessionInUseError(msg)) throw error;
       return chatClaudeCliOnce(options);
     }
   }

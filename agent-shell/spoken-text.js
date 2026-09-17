@@ -71,19 +71,29 @@ function ruleBasedSpeechText(body, settings = {}) {
   return speech.trim();
 }
 
-function shouldRequestDualReply(_settings = {}) {
-  return false;
+function appendPromptSection(parts, section) {
+  const text = String(section || "").trim();
+  if (text) parts.push(text);
+}
+
+const TTS_MANDATORY_FORMAT_RULE =
+  "Agent CMS Voice (TTS включён): каждый ответ пользователю оформляй строго как «текст для озвучки» → отдельная строка [tts-break] → «текст для экрана». Это обязательно для любых ответов, включая уточняющие вопросы.";
+
+function shouldRequestDualReply(settings = {}) {
+  return settings.ttsEnabled !== false;
+}
+
+function buildTtsReplyInstructions(settings = {}) {
+  const parts = [];
+  appendPromptSection(parts, settings.ttsPrompt);
+  if (settings.ttsEnabled !== false) appendPromptSection(parts, TTS_MANDATORY_FORMAT_RULE);
+  return parts.join("\n\n");
 }
 
 function buildDualReplyInstruction(userText, settings = {}, context = {}) {
   const text = String(userText || "").trim();
-  let instructions = "";
-  if (shouldRequestDualReply(settings)) {
-    instructions = String(settings.ttsPrompt || "").trim();
-    if (instructions && !/\[tts-break\]|voice-end/i.test(instructions)) {
-      instructions += `\n\nФормат ответа (строго, в таком порядке):\n1) Текст для озвучки (plain text, без markdown, только то, что можно произнести вслух; длина не ограничена).\n2) Отдельной строкой маркер: ${VOICE_END_MARKER}\n3) Полный текст ответа для экрана.\n\nБез маркера ${VOICE_END_MARKER} — только экран, без озвучки.`;
-    }
-  }
+  if (!shouldRequestDualReply(settings)) return text;
+  const instructions = buildTtsReplyInstructions(settings);
   if (!instructions) return text;
   return `${text}
 
@@ -151,14 +161,6 @@ function buildSystemPromptContext(settings = {}, context = {}) {
   const language = String(context.language || settings.sttLang || "ru-RU").trim() || "ru-RU";
   return { agent_name: agentName, runtime, language };
 }
-
-function appendPromptSection(parts, section) {
-  const text = String(section || "").trim();
-  if (text) parts.push(text);
-}
-
-const TTS_MANDATORY_FORMAT_RULE =
-  "Agent CMS Voice (TTS включён): каждый ответ пользователю оформляй строго как «текст для озвучки» → отдельная строка [tts-break] → «текст для экрана». Это обязательно для любых ответов, включая уточняющие вопросы.";
 
 function getSystemPrompt(settings = {}, context = {}) {
   const parts = [];

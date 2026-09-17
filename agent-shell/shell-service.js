@@ -706,7 +706,8 @@ function applyOutboundSettings(settings, overrides = {}) {
     merged.ttsEnabled = Boolean(overrides.ttsEnabled);
   }
   if (overrides.ttsPrompt !== undefined) {
-    merged.ttsPrompt = String(overrides.ttsPrompt);
+    const next = String(overrides.ttsPrompt || "").trim();
+    if (next) merged.ttsPrompt = next;
   }
   return merged;
 }
@@ -1555,11 +1556,12 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     clearActiveRun(agentId, runAbort);
   }
 
-  const finalized = finalizeDualReply(reply.text, settings);
+  const rawReply = String(reply.text || "").trim();
+  const finalized = finalizeDualReply(rawReply, settings);
   const assistantMessage = {
     id: streamId,
     streamId,
-    body: finalized.body,
+    body: rawReply,
     spokenText: finalized.spoken || null,
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : undefined,
     ttsClientId: replyTtsClientId || undefined,
@@ -1572,16 +1574,16 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     phase: PHASE_WAITING,
     phrase: "",
     lastAgentMessageId: assistantMessage.id,
-    lastShellReply: finalized.body
+    lastShellReply: rawReply
   });
-  await emitAssistantDelta(finalized.body, {
+  await emitAssistantDelta(rawReply, {
     done: true,
     force: true,
     spokenText: finalized.spoken || null,
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null
   });
   emitShellEvent(agentId, "assistant_message", assistantMessage);
-  void logShellDialogAgent(agentRoot, finalized.body, "qwenpaw");
+  void logShellDialogAgent(agentRoot, rawReply, "qwenpaw");
 
   return {
     channel: "qwenpaw",
@@ -1811,11 +1813,12 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
     clearActiveRun(agentId, runAbort);
   }
 
-  const finalized = finalizeDualReply(reply.text, settings);
+  const rawReply = String(reply.text || "").trim();
+  const finalized = finalizeDualReply(rawReply, settings);
   const assistantMessage = {
     id: streamId,
     streamId,
-    body: finalized.body,
+    body: rawReply,
     spokenText: finalized.spoken || null,
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : undefined,
     ttsClientId: replyTtsClientId || undefined,
@@ -1828,16 +1831,16 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
     phase: PHASE_WAITING,
     phrase: "",
     lastAgentMessageId: assistantMessage.id,
-    lastShellReply: finalized.body
+    lastShellReply: rawReply
   });
-  await emitAssistantDelta(finalized.body, {
+  await emitAssistantDelta(rawReply, {
     done: true,
     force: true,
     spokenText: finalized.spoken || null,
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null
   });
   emitShellEvent(agentId, "assistant_message", assistantMessage);
-  void logShellDialogAgent(agentRoot, finalized.body, runtime);
+  void logShellDialogAgent(agentRoot, rawReply, runtime);
 
   const effectiveSessionId =
     runtime === "codex"
@@ -2260,7 +2263,7 @@ async function buildStatusPayload(
     const finalized = finalizeDualReply(shellReply, settings);
     latestAgent = {
       id: state.lastAgentMessageId || "qwenpaw-reply",
-      body: finalized.body || shellReply,
+      body: shellReply,
       spokenText: finalized.spoken || undefined,
       spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : undefined,
       ttsClientId: state.lastTtsClientId || undefined,
@@ -2272,7 +2275,7 @@ async function buildStatusPayload(
     const finalized = finalizeDualReply(shellReply, settings);
     latestAgent = {
       id: state.lastAgentMessageId || `${getMessageRuntime(settings)}-reply`,
-      body: finalized.body || shellReply,
+      body: shellReply,
       spokenText: finalized.spoken || undefined,
       spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : undefined,
       ttsClientId: state.lastTtsClientId || undefined,

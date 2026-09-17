@@ -4416,12 +4416,12 @@ function finalizeAssistantStream(message) {
   }
   if (!spokenParts.length && spokenText) spokenParts = [spokenText];
 
-  state.assistantStream = { id: streamId, text: body, spokenText, spokenParts, done: true, finalized: true };
+  state.assistantStream = { id: streamId, text: rawBody, spokenText, spokenParts, done: true, finalized: true };
   setReplyPanelStreaming(false);
   shellDialog.finalizeRunningTools?.();
-  shellDialog.onAgentReply(body);
+  shellDialog.onAgentReply(rawBody);
   shellSession?.resetStreamRenderState();
-  renderShellReply({ ...message, body, spokenText, spokenParts });
+  renderShellReply({ ...message, body: rawBody, spokenText, spokenParts });
   finalizeAgentActivitySteps();
   shellSession?.markReplyDisplayed({ ...message, body, streamId });
 
@@ -10476,9 +10476,12 @@ function collectDeviceContextForMessage() {
 function collectOutboundMessageSettings() {
   const ttsEnabled = readTtsEnabledFromDom() !== false;
   const deviceContext = collectDeviceContextForMessage();
+  const ttsPrompt = String(
+    nodes.ttsPrompt?.value ?? state.settings?.ttsPrompt ?? shellPromptTemplates.ttsPrompt ?? ""
+  ).trim();
   return {
     ttsEnabled,
-    ttsPrompt: nodes.ttsPrompt?.value ?? "",
+    ...(ttsPrompt ? { ttsPrompt } : {}),
     hostUrl: window.location.href,
     ...getShellSurfacePayload(),
     ...(deviceContext ? { deviceContext } : {})

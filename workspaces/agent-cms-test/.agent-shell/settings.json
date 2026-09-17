@@ -15,7 +15,7 @@
       },
       "claude": {
         "type": "cli",
-        "sessionId": "e1da384a-8ce0-4138-bf5c-3eb9865540eb"
+        "sessionId": "0c2fd5fb-540d-4d55-beef-d2a73eafcaee"
       },
       "codex": {
         "type": "cli",
@@ -27,6 +27,7 @@
   },
   "voice": {
     "input": {
+      "enabled": false,
       "mode": "fn_button",
       "capture": "microphone",
       "globalListen": false,
@@ -68,7 +69,7 @@
     }
   },
   "proactive": {
-    "enabled": false,
+    "enabled": true,
     "idleSecondsMin": 30,
     "idleSecondsMax": 60,
     "idleSeconds": 30,
@@ -104,7 +105,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0
+    "dialogScrollRatio": 1
   },
   "compose": {
     "promptTemplates": [
