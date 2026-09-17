@@ -55081,6 +55081,16 @@ body.is-cms-page-picker-active #discuss-aside * {
   -webkit-overflow-scrolling: touch;
 }
 
+.sidebar.is-menu-bottom-focus .menu-awn-data-band-body > *,
+.sidebar.is-menu-bottom-focus .menu-static-footer-body > *,
+.sidebar.is-menu-bottom-focus .menu-system-environment.is-open > .menu-system-environment-grid > * {
+  flex-shrink: 0;
+}
+
+.menu-static-footer-body > .menu-static-section {
+  flex-shrink: 0;
+}
+
 .sidebar.is-menu-bottom-focus .menu-static-footer-body .menu-repositories-list {
   max-height: none;
   overflow: visible;
