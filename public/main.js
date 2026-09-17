@@ -130,6 +130,7 @@ let awnDataAddTitleInputNode = null;
 let awnDataAddParentInputNode = null;
 let awnDataAddRecordBtn = null;
 let awnDataViewStorePanelNode = null;
+let awnDataViewLoadingOverlayNode = null;
 let awnDataViewRecordPanelNode = null;
 let awnDataViewRecordFieldsNode = null;
 let awnDataViewRecordBodyNode = null;
@@ -95688,6 +95689,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataAddParentInputNode = null;
   awnDataAddRecordBtn = null;
   awnDataViewStorePanelNode = null;
+  awnDataViewLoadingOverlayNode = null;
   awnDataViewRecordPanelNode = null;
   awnDataViewRecordFieldsNode = null;
   awnDataViewRecordBodyNode = null;
@@ -95695,6 +95697,7 @@ function syncAwnDataViewDomRefs(root) {
   return;
 }
 
+  ensureAwnDataViewLoadingOverlay(root);
   awnDataViewModalTitleNode = root.querySelector(".awn-data-view-title");
   awnDataViewIblockLayoutNode = root.querySelector(".awn-data-view-iblock-layout");
   awnDataViewIblockDescriptionBlockNode = root.querySelector(".awn-data-view-iblock-description-block");
@@ -95729,6 +95732,7 @@ function syncAwnDataViewDomRefs(root) {
   awnDataAddParentInputNode = root.querySelector(".awn-data-add-parent-input");
   awnDataAddRecordBtn = root.querySelector(".awn-data-add-record-btn");
   awnDataViewStorePanelNode = root.querySelector(".awn-data-view-store-panel");
+  awnDataViewLoadingOverlayNode = root.querySelector(".awn-data-view-loading-overlay");
   awnDataViewRecordPanelNode = root.querySelector(".awn-data-view-record-panel");
   awnDataViewRecordFieldsNode = root.querySelector(".awn-data-view-record-fields");
   awnDataViewRecordBodyNode = root.querySelector(".awn-data-view-record-body");
@@ -96202,6 +96206,32 @@ function resolveAwnDataViewCachedStore(storeRel) {
   return awnDataViewStoreCache;
 }
 
+function ensureAwnDataViewLoadingOverlay(root = awnDataViewRoot) {
+  if (!root) return null;
+  let overlay = root.querySelector(".awn-data-view-loading-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "awn-data-view-loading-overlay hidden";
+    overlay.setAttribute("aria-live", "polite");
+    overlay.setAttribute("aria-busy", "false");
+    const spinner = document.createElement("span");
+    spinner.className = "awn-data-view-loading-spinner";
+    spinner.setAttribute("aria-hidden", "true");
+    overlay.appendChild(spinner);
+    root.insertBefore(overlay, root.firstChild);
+  }
+  return overlay;
+}
+
+function setAwnDataViewLoadingOverlay(loading, { initial = false } = {}) {
+  const overlay = ensureAwnDataViewLoadingOverlay();
+  if (!overlay) return;
+  overlay.classList.toggle("hidden", !loading);
+  overlay.setAttribute("aria-busy", loading ? "true" : "false");
+  overlay.classList.toggle("is-initial", Boolean(initial));
+  awnDataViewRoot?.classList.toggle("is-initial-loading", Boolean(loading && initial));
+}
+
 function setAwnDataViewIblockLoading(loading) {
   awnDataViewIblockDescriptionBlockNode?.classList.toggle("is-loading", Boolean(loading));
   awnDataViewSchemaWrapNode?.classList.toggle("is-loading", Boolean(loading));
@@ -96268,10 +96298,12 @@ function renderAwnDataViewRecordsTableSkeleton(rowCount = 8) {
 
 function beginAwnDataViewStoreLoading(storeRel) {
   const cached = resolveAwnDataViewCachedStore(storeRel);
-  setAwnDataViewIblockLoading(true);
-  awnDataViewStorePanelNode?.classList.add("is-loading");
+  const isInitial = !cached;
+
+  setAwnDataViewLoadingOverlay(true, { initial: isInitial });
 
   if (cached) {
+    awnDataViewStorePanelNode?.classList.add("is-loading");
     clearAwnDataViewHeaderSkeleton();
     renderAwnDataViewHeader(cached);
     renderAwnDataViewSchema(cached);
@@ -96284,12 +96316,12 @@ function beginAwnDataViewStoreLoading(storeRel) {
     return;
   }
 
-  renderAwnDataViewHeader(null, { loading: true });
-  syncAwnDataViewGroupPresentation(null);
-  renderAwnDataViewRecordsTableSkeleton();
+  setAwnDataViewIblockLoading(false);
+  awnDataViewStorePanelNode?.classList.remove("is-loading");
 }
 
 function finishAwnDataViewStoreLoading() {
+  setAwnDataViewLoadingOverlay(false);
   setAwnDataViewIblockLoading(false);
   awnDataViewStorePanelNode?.classList.remove("is-loading");
   clearAwnDataViewHeaderSkeleton();

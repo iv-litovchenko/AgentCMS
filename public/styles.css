@@ -56167,9 +56167,48 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .awn-data-view-hub {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.awn-data-view-hub.is-initial-loading {
+  min-height: min(55vh, 420px);
+}
+
+.awn-data-view-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(1px);
+}
+
+.awn-data-view-loading-overlay.is-initial {
+  background: #ffffff;
+  backdrop-filter: none;
+}
+
+.awn-data-view-loading-overlay.hidden {
+  display: none;
+}
+
+.awn-data-view-loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid #e2e8f0;
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: awn-data-view-iblock-spin 0.7s linear infinite;
+}
+
+.awn-data-view-hub.is-initial-loading .awn-data-view-page-body {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .awn-data-view-page-body {
