@@ -180,6 +180,7 @@
   },
   "active": "1e5317d70ea4f658",
   "lastOpenFiles": [
+    "arhiv-voprosov/read-content.json",
     "obsuzhdeniya/awn-storage/realnye-potrebnosti-lyudey.md",
     "obsuzhdeniya/awn-storage/otzyvy-i-obratnaya-svyaz.md",
     "obsuzhdeniya/awn-storage/obsuzhdenie-s-claude-idey.md",
@@ -213,7 +214,6 @@
     "zzz/TYPES-GUIDE.md",
     "Resources/_SPEC_2026_itogovaya.md",
     "Resources/SPEC.md",
-    "Resources/sidecar.md",
     "zzz",
     "awn-system/schema-mod.yml",
     "Resources/Images/Снимок экрана 2026-08-03 в 22.23.22.png",

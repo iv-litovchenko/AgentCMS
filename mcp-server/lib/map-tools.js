@@ -176,13 +176,14 @@ function registerSearchWorkspaceTools(reg, client) {
     "Status of offline workspace indexes: OCR attachments, fulltext, semantic, and field catalog (SQL-like storage-index).",
     z.object({}),
     async () => {
-      const [ocr, semantic, fulltext, storage] = await Promise.all([
+      const [ocr, semantic, fulltext, storage, link] = await Promise.all([
         client.get("/api/ocr-index/status"),
         client.get("/api/search/semantic/status"),
         client.get("/api/search/fulltext/status"),
-        client.get("/api/storage-index/status")
+        client.get("/api/storage-index/status"),
+        client.get("/api/link-index/status")
       ]);
-      return { ocr, semantic, fulltext, storage };
+      return { ocr, semantic, fulltext, storage, link };
     }
   );
 
@@ -215,6 +216,29 @@ function registerSearchWorkspaceTools(reg, client) {
   );
 
   reg(
+    "rebuild_workspace_link_index",
+    "Rebuild workspace link graph (wikilinks, markdown links, relation fields) in .agent-cms/link-index/edges.sqlite. Run before search_workspace_links.",
+    z.object({}),
+    () => client.post("/api/link-index/reindex", {})
+  );
+
+  reg(
+    "search_workspace_links",
+    "Graph search over workspace links: backlinks, outbound, or neighbors around a path. Requires rebuild_workspace_link_index.",
+    z.object({
+      path: z.string().describe("Workspace-relative file path"),
+      mode: z
+        .enum(["backlinks", "outbound", "neighbors", "inbound"])
+        .optional()
+        .describe("backlinks/inbound = who links here; outbound = links from path; neighbors = both directions up to depth"),
+      depth: z.number().int().min(1).max(3).optional().describe("Hop depth for neighbors (default 1)"),
+      limit: z.number().int().min(1).max(200).optional().describe("Max results (default 50)"),
+      pathPrefix: z.string().optional().describe("Restrict results to subtree")
+    }),
+    (payload) => client.post("/api/link-index/query", payload)
+  );
+
+  reg(
     "run_workspace_ocr_index",
     "OCR/extract text from new image/PDF attachments into {stem}.sidecar.md (incremental). Requires tesseract.js on server.",
     z.object({
@@ -226,7 +250,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "rebuild_workspace_indexes",
-    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog.",
+    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph (.agent-cms/link-index/). Same as UI pipeline button.",
     z.object({
       forceOcr: z.boolean().optional().describe("Force OCR reprocessing before indexes"),
       ocrLimit: z.number().int().min(1).max(500).optional()
@@ -236,7 +260,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "sync_workspace_index_file",
-    "Incrementally update both workspace indexes for one saved file (fast; requires an initial full rebuild). Use after editing a single file instead of full reindex.",
+    "Incrementally update fulltext, semantic, storage field catalog, and link graph for one saved file (fast; requires an initial full rebuild). Use after editing a single file instead of full reindex.",
     z.object({
       path: z.string().min(1).describe("Workspace-relative file path, e.g. awn-storage/main/note.md")
     }),

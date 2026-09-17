@@ -38,6 +38,7 @@ batch_invoke:
     - rebuild_workspace_semantic_index
     - rebuild_workspace_storage_index
     - rebuild_workspace_fulltext_index
+    - rebuild_workspace_link_index
     - run_workspace_ocr_index
     - sync_workspace_index_file
 

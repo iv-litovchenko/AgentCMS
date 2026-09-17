@@ -85545,7 +85545,7 @@ function resetMenuAgentStatsEnvPopoverPosition() {
 
 function positionMenuAgentStatsEnvPopover() {
   const popover = menuAgentStatsEnvPopoverNode;
-  const anchor = document.getElementById("menu-agent-stats-env-btn");
+  const anchor = document.getElementById("menu-agent-stats-settings-btn");
   if (!popover || !anchor || popover.classList.contains("hidden")) return;
 
   const rect = anchor.getBoundingClientRect();
@@ -85568,7 +85568,7 @@ function positionMenuAgentStatsEnvPopover() {
 
 function closeMenuAgentStatsEnvPopover() {
   menuAgentStatsEnvPopoverNode?.classList.add("hidden");
-  document.getElementById("menu-agent-stats-env-btn")?.setAttribute("aria-expanded", "false");
+  document.getElementById("menu-agent-stats-settings-btn")?.setAttribute("aria-expanded", "false");
   resetMenuAgentStatsEnvPopoverPosition();
 }
 
@@ -85578,7 +85578,7 @@ function toggleMenuAgentStatsEnvPopover() {
   if (willOpen) {
     void syncMenuSystemEnvironment();
     menuAgentStatsEnvPopoverNode.classList.remove("hidden");
-    document.getElementById("menu-agent-stats-env-btn")?.setAttribute("aria-expanded", "true");
+    document.getElementById("menu-agent-stats-settings-btn")?.setAttribute("aria-expanded", "true");
     positionMenuAgentStatsEnvPopover();
     return;
   }
@@ -85599,18 +85599,13 @@ function createMenuAgentStatsEnvironmentButton() {
   button.id = "menu-agent-stats-env-btn";
   button.type = "button";
   button.className = "menu-agent-stats-env-btn";
-  button.title = "Среда и зависимости";
-  button.setAttribute("aria-label", "Среда и зависимости");
-  button.setAttribute("aria-expanded", "false");
-  button.setAttribute("aria-controls", "menu-agent-stats-env-popover");
+  button.title = "Настройки и параметры";
+  button.setAttribute("aria-label", "Настройки и параметры");
+  button.setAttribute("aria-pressed", "false");
   button.innerHTML =
     '<svg class="menu-agent-stats-env-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
-    '<path d="M6 4v16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-    '<path d="M12 7v13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-    '<path d="M18 5v15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-    '<circle cx="6" cy="9" r="2.25" fill="currentColor"/>' +
-    '<circle cx="12" cy="15" r="2.25" fill="currentColor"/>' +
-    '<circle cx="18" cy="11" r="2.25" fill="currentColor"/>' +
+    '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>' +
+    '<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
     "</svg>";
   return button;
 }
@@ -85620,8 +85615,10 @@ function createMenuAgentStatsSettingsButton() {
   button.id = "menu-agent-stats-settings-btn";
   button.type = "button";
   button.className = "menu-agent-stats-settings-btn";
-  button.title = "Настройки и параметры";
-  button.setAttribute("aria-label", "Настройки и параметры");
+  button.title = "Среда и зависимости";
+  button.setAttribute("aria-label", "Среда и зависимости");
+  button.setAttribute("aria-expanded", "false");
+  button.setAttribute("aria-controls", "menu-agent-stats-env-popover");
   button.innerHTML =
     '<svg class="menu-agent-stats-settings-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
     '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>' +
@@ -85639,7 +85636,7 @@ function createMenuAgentStatsActions() {
 }
 
 function syncMenuAgentStatsSettingsBtnState() {
-  const button = document.getElementById("menu-agent-stats-settings-btn");
+  const button = document.getElementById("menu-agent-stats-env-btn");
   if (!button) return;
   button.classList.toggle("is-active", isProjectSettingsMode());
   button.setAttribute("aria-pressed", isProjectSettingsMode() ? "true" : "false");
@@ -95251,18 +95248,19 @@ function setupMenuStaticFooterGroup() {
     toggleMenuStaticFooterExpanded();
   });
   menuAgentStatsNode?.addEventListener("click", (event) => {
-    const envBtn = event.target.closest("#menu-agent-stats-env-btn");
-    if (envBtn) {
+    const settingsBtn = event.target.closest("#menu-agent-stats-env-btn");
+    if (settingsBtn) {
       event.preventDefault();
       event.stopPropagation();
-      toggleMenuAgentStatsEnvPopover();
+      closeMenuAgentStatsEnvPopover();
+      void openProjectSettingsHub();
       return;
     }
-    const settingsBtn = event.target.closest("#menu-agent-stats-settings-btn");
-    if (!settingsBtn) return;
+    const envBtn = event.target.closest("#menu-agent-stats-settings-btn");
+    if (!envBtn) return;
     event.preventDefault();
-    closeMenuAgentStatsEnvPopover();
-    void openProjectSettingsHub();
+    event.stopPropagation();
+    toggleMenuAgentStatsEnvPopover();
   });
   void refreshMenuGoogleDriveStats();
   void refreshMenuAwnDataStores();
@@ -102343,7 +102341,7 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
   if (!isMenuAgentStatsEnvPopoverOpen()) return;
   if (event.target.closest("#menu-agent-stats-env-popover")) return;
-  if (event.target.closest("#menu-agent-stats-env-btn")) return;
+  if (event.target.closest("#menu-agent-stats-settings-btn")) return;
   closeMenuAgentStatsEnvPopover();
 });
 

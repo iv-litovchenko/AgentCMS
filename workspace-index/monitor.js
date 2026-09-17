@@ -3,6 +3,7 @@ const path = require("path");
 const { getIndexPaths: getSemanticIndexPaths } = require("../semantic-search/store");
 const { getIndexPaths: getFulltextIndexPaths } = require("../fulltext-index/store");
 const { getIndexPaths: getStorageIndexPaths } = require("../storage-index/store");
+const { getIndexPaths: getLinkIndexPaths } = require("../link-index/store");
 const { getIndexPaths: getOcrIndexPaths } = require("../ocr-index/store");
 
 function formatBytes(bytes) {
@@ -137,7 +138,8 @@ async function buildLayerMonitor({
     const hints = {
       semantic: "Индекс смысла не построен",
       fulltext: "Индекс слов не построен",
-      storage: "Каталог полей не построен"
+      storage: "Каталог полей не построен",
+      link: "Граф связей не построен"
     };
     return {
       layer,
@@ -204,6 +206,37 @@ async function buildOcrMonitor(ocrStatus, manifestPath) {
   };
 }
 
+async function buildLinkMonitor(linkStatus, indexFilePath) {
+  const fileStat = await statIndexFile(indexFilePath);
+  const ready = Boolean(linkStatus?.ready);
+  if (!ready) {
+    return {
+      layer: "link",
+      ready: false,
+      health: "empty",
+      indexPath: path.basename(path.dirname(indexFilePath)) + "/" + path.basename(indexFilePath),
+      indexSizeBytes: fileStat.sizeBytes,
+      indexSizeLabel: formatBytes(fileStat.sizeBytes),
+      hint: linkStatus?.hint || "Граф связей не построен"
+    };
+  }
+  return {
+    layer: "link",
+    ready: true,
+    health: "ok",
+    model: linkStatus.model,
+    builtAt: linkStatus.builtAt || null,
+    builtAge: formatAge(linkStatus.builtAt),
+    lastRebuildMs: linkStatus.lastRebuildMs ?? null,
+    lastRebuildLabel: linkStatus.lastRebuildMs != null ? formatDuration(linkStatus.lastRebuildMs) : null,
+    indexSizeBytes: fileStat.sizeBytes,
+    indexSizeLabel: formatBytes(fileStat.sizeBytes),
+    edgeCount: linkStatus.edgeCount || 0,
+    nodeCount: linkStatus.nodeCount || 0,
+    fileCount: linkStatus.fileCount || 0
+  };
+}
+
 async function getWorkspaceIndexMonitor(deps) {
   const {
     getAgentRoot,
@@ -212,6 +245,7 @@ async function getWorkspaceIndexMonitor(deps) {
     loadSemanticIndex,
     loadFulltextIndex,
     loadStorageIndex,
+    getLinkIndexStatus,
     getOcrIndexStatus
   } = deps;
 
@@ -220,11 +254,12 @@ async function getWorkspaceIndexMonitor(deps) {
     return { ready: false, reason: "Agent not selected" };
   }
 
-  const [allPaths, semanticIndex, fulltextIndex, storageIndex, ocrStatus] = await Promise.all([
+  const [allPaths, semanticIndex, fulltextIndex, storageIndex, linkStatus, ocrStatus] = await Promise.all([
     collectSearchableFiles(agentRoot),
     loadSemanticIndex(agentRoot),
     loadFulltextIndex(agentRoot),
     loadStorageIndex(agentRoot),
+    getLinkIndexStatus ? getLinkIndexStatus().catch(() => null) : Promise.resolve(null),
     getOcrIndexStatus ? getOcrIndexStatus().catch(() => null) : Promise.resolve(null)
   ]);
 
@@ -272,7 +307,9 @@ async function getWorkspaceIndexMonitor(deps) {
     extraFields: (index) => ({ recordCount: index.recordCount || 0, fieldCount: index.fieldCount || 0 })
   });
 
-  const layers = [ocr, fulltext, semantic, storage];
+  const link = await buildLinkMonitor(linkStatus, getLinkIndexPaths(agentRoot).file);
+
+  const layers = [ocr, fulltext, semantic, storage, link];
   const summaryHealth = (() => {
     const readyLayers = layers.filter((layer) => layer.ready).length;
     if (!readyLayers) return "empty";
@@ -311,7 +348,8 @@ async function getWorkspaceIndexMonitor(deps) {
     ocr,
     fulltext,
     semantic,
-    storage
+    storage,
+    link
   };
 }
 

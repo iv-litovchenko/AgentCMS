@@ -22271,12 +22271,12 @@ a.header-tool-btn {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.42);
 }
 
-.menu-agent-stats-env-btn[aria-expanded="true"] {
+.menu-agent-stats-settings-btn[aria-expanded="true"] {
   background: rgba(255, 255, 255, 0.92);
   color: #475569;
 }
 
-.menu-agent-stats-settings-btn.is-active {
+.menu-agent-stats-env-btn.is-active {
   background: rgba(255, 255, 255, 0.92);
   color: #475569;
 }
@@ -59135,6 +59135,90 @@ body.is-cms-page-picker-active #discuss-aside * {
   color: #0f172a;
 }
 
+.menu-link-index-probe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.menu-link-index-probe-input {
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.menu-link-index-probe-input:focus {
+  outline: none;
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.18);
+}
+
+.menu-link-index-probe .menu-static-action-btn--secondary {
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+
+.menu-link-index-probe-result {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #475569;
+  word-break: break-word;
+}
+
+.workspace-index-catalog-item--link {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.workspace-index-catalog-link-edge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.35;
+}
+
+.workspace-index-catalog-link-from,
+.workspace-index-catalog-link-to {
+  font-size: 11px;
+  word-break: break-word;
+}
+
+.workspace-index-catalog-link-arrow {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.workspace-index-catalog-link-target {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.workspace-index-catalog-badge--kind.is-wikilink {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.workspace-index-catalog-badge--kind.is-markdown {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.workspace-index-catalog-badge--kind.is-relation {
+  background: #fdf4ff;
+  color: #a21caf;
+}
+
 .workspace-index-catalog-card {
   width: min(920px, calc(100vw - 32px));
   max-height: calc(100vh - 48px);
@@ -59381,7 +59465,14 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-index-monitor-grid {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+@media (max-width: 420px) {
+  .menu-index-monitor-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .menu-index-monitor-card {

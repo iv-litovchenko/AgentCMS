@@ -26,7 +26,7 @@ MCP подключается **без** фиксированного храни�
 Селектор «Хранилище (агент)» в Shell UI **не** меняет MCP в Claude Desktop — только tools с явным `agentId`.
 
 Перед работой внутри выбранного workspace: `get_session_context({ agentId })` → `get_user_active_context_now({ agentId })`.  
-Поиск по содержимому workspace: `search_workspace_content` (fulltext-index); `search_workspace_semantic` (смысл); **`pathPrefix`** — как шапка UI. **Один вопрос:** `search_workspace_hybrid`. **Несколько вопросов:** `search_workspace_batch`. **Индексы (цепочка):** `run_workspace_ocr_index` → fulltext → semantic → поля; всё разом: `rebuild_workspace_indexes` (= pipeline). UI: sidebar → «Индексирование workspace». Вопросы про архив: `search_and_get_context`. **Банк фактов:** `retain_workspace_fact` / `recall_workspace_facts` → `awn-facts/` (см. раздел ниже).  
+Поиск по содержимому workspace: `search_workspace_content` (fulltext-index); `search_workspace_semantic` (смысл); **`pathPrefix`** — как шапка UI. **Один вопрос:** `search_workspace_hybrid`. **Несколько вопросов:** `search_workspace_batch`. **Навигация по связям** (wikilinks, markdown, relation): **`search_workspace_links`** — backlinks / outbound / neighbors; не входит в hybrid. **Индексы (цепочка):** `run_workspace_ocr_index` → fulltext → semantic → поля → связи; всё разом: `rebuild_workspace_indexes` (= pipeline). Пересборка графа отдельно: `rebuild_workspace_link_index`. UI: sidebar → «Индексирование workspace». Вопросы про архив: `search_and_get_context`. **Банк фактов:** `retain_workspace_fact` / `recall_workspace_facts` → `awn-facts/` (см. раздел ниже).  
 Произвольный путь → тема/область: `resolve_workspace_path({ path })` → `topic.folderPath` для ограничения поиска.  
 Поиск в интернете: `search_web`, `search_web_images`, `read_web_page`, `get_link_preview`, `extract_document_text`.  
 Идентичность: `get_agent_identity`, `get_user_identity`. Активность: `list_recent_activity`.
@@ -145,6 +145,26 @@ search_workspace_content({
 
 Сценарий: пользователь назвал тему → `resolve_workspace_path` по manifest или пути → `pathPrefix: topic.folderPath` → поиск.
 
+### Навигация по связям — `search_workspace_links`
+
+Для **графа ссылок** между файлами — отдельный tool, **не** `search_workspace_hybrid` (тот ищет по тексту/смыслу). Сначала индекс: `rebuild_workspace_link_index` или полная цепочка `rebuild_workspace_indexes`.
+
+| mode | Когда |
+|------|-------|
+| `backlinks` / `inbound` | Кто ссылается на этот файл |
+| `outbound` | Куда ведут ссылки из файла |
+| `neighbors` | Соседи в графе (`depth` 1–3) |
+
+```json
+search_workspace_links({
+  "path": "GLOBAL_MCP_DOC.md",
+  "mode": "backlinks",
+  "limit": 20
+})
+```
+
+Опционально `pathPrefix` — ограничить результаты поддеревом темы. Типичный сценарий: нашли файл через hybrid → `search_workspace_links` для backlinks и связанных manifest/записей.
+
 ---
 
 ## Дерево агента
@@ -181,6 +201,7 @@ search_workspace_content({
 | `resolve_workspace_path({ path })` | Произвольный путь → цепочка manifest (topic/area/ws), slot/ref, mcp hints | нет |
 | `search_workspace_content` | Полнотекстовый поиск: пути, frontmatter, тела; опц. **`pathPrefix`** | meta + snippet |
 | `search_workspace_semantic` | Семантический поиск (offline hash-TF-IDF); опц. **`pathPrefix`** | snippet + score |
+| `search_workspace_links` | Граф связей: backlinks / outbound / neighbors вокруг **path**; индекс `.agent-cms/link-index/` | список path + kind |
 | `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
@@ -204,6 +225,7 @@ search_workspace_content({
 | «Обновить оглавление контента в index.md» | `refresh_content_index(path)` (тема → внешние слоты, файл `{topic}/index.md`) или `refresh_content_index(path, slot=…)` |
 | «Найти текст только в одной теме/области» | `resolve_workspace_path` → `search_workspace_content({ pathPrefix: topic.folderPath })` |
 | «Найти по смыслу в теме» | `search_workspace_semantic({ query, pathPrefix })` |
+| «Кто ссылается на этот файл / куда ведут ссылки» | `search_workspace_links({ path, mode: "backlinks" \| "outbound" \| "neighbors" })` |
 | «Нужны properties/tags/status перед правкой» | `get_content_map(path)` |
 | «Читать/писать текст записи» | `read_content_body` / `write_content_body` |
 | «Доп. файлы **конкретной** записи (не раздел темы)» | `get_content_map` → `hasRecordMaterials` / `parentRecordRef` / `recordMaterialsFolderRef`; папка `awn-materials-{slug}` |
@@ -512,6 +534,7 @@ razdel-1/
 | Q&A по workspace | `ask_workspace` |
 | Контекст из прошлых данных (архив, история, «что мы решили») | `search_and_get_context` — тот же поиск, что `ask_workspace`, но с подсказкой «сначала найди в workspace» |
 | Гибридный поиск (смысл + слова + фильтры полей) | `search_workspace_hybrid` — один вызов вместо semantic + fulltext + `query_workspace_storage` |
+| Навигация по графу ссылок workspace | `search_workspace_links` — backlinks / outbound / neighbors; **не** hybrid |
 | Несколько вопросов к архиву за раз | `search_workspace_batch` — массив `queries` (до 20), hybrid на каждый, один round-trip |
 | Запуск скрипта `.py`/`.js`/`.sh` | `run_script` |
 | Команда с args (git, npm, …) | `exec_command` |
@@ -623,7 +646,7 @@ razdel-1/
 `size` / `type` для картинок — только в режиме `api`.  
 Найденную картинку в тему — `import_content_from_url({ path, slot: "media", url })` или `upload_file_from_url`.
 
-**Не путать:** `search_workspace_content` / `search_workspace_semantic` — текст workspace агента (опц. **`pathPrefix`** для темы); `resolve_workspace_path` — один path → topic/area/ws + `folderPath`; `query_workspace_storage` — SQL-like по полям frontmatter; `search_web` — публичный интернет; `read_web_page` — содержимое одного URL (не поиск).
+**Не путать:** `search_workspace_content` / `search_workspace_semantic` — текст workspace агента (опц. **`pathPrefix`** для темы); **`search_workspace_links`** — навигация по **связям** между файлами (граф, не текст); `resolve_workspace_path` — один path → topic/area/ws + `folderPath`; `query_workspace_storage` — SQL-like по полям frontmatter; `search_web` — публичный интернет; `read_web_page` — содержимое одного URL (не поиск).
 
 ---
 

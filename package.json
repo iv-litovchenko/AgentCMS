@@ -73,6 +73,7 @@
       "fulltext-index/**/*",
       "ocr-index/**/*",
       "storage-index/**/*",
+      "link-index/**/*",
       "workspace-index/**/*",
       "docs/**/*",
       "agent-shell/**/*",

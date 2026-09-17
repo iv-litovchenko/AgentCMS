@@ -37,6 +37,7 @@ const { createWebSearchService } = require("./web-search-service");
 const { createSemanticSearchService } = require("./semantic-search/service");
 const { createFulltextSearchService } = require("./fulltext-index/service");
 const { createStorageIndexService } = require("./storage-index/service");
+const { createLinkIndexService } = require("./link-index/service");
 const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
 const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
 const { getWorkspaceIndexProgress } = require("./workspace-index/progress");
@@ -1583,6 +1584,18 @@ function getStorageIndexService() {
   return storageIndexService;
 }
 
+let linkIndexService = null;
+function getLinkIndexService() {
+  if (!linkIndexService) {
+    linkIndexService = createLinkIndexService({
+      getAgentRoot,
+      collectSearchableFiles,
+      resolvePathAbsolute: normalizeWorkspacePath
+    });
+  }
+  return linkIndexService;
+}
+
 let ocrIndexService = null;
 function getOcrIndexService() {
   if (!ocrIndexService) {
@@ -1604,7 +1617,8 @@ function queueWorkspaceIndexFileSync(relPath) {
     getSemanticSearchService(),
     getStorageIndexService(),
     getFulltextSearchService(),
-    normalized
+    normalized,
+    getLinkIndexService()
   ).catch(() => {});
 }
 
@@ -1616,6 +1630,7 @@ async function getWorkspaceIndexMonitorPayload() {
     loadSemanticIndex: loadSemanticIndexFile,
     loadFulltextIndex: loadFulltextIndexFile,
     loadStorageIndex: loadStorageIndexFile,
+    getLinkIndexStatus: () => getLinkIndexService().getStatus(),
     getOcrIndexStatus: () => getOcrIndexService().getStatus()
   });
 }
@@ -12055,11 +12070,12 @@ const SESSION_CONTEXT_API_MAP = {
   storageIndexQuery: "POST /api/storage-index/query — SQL-like фильтр по полям (весь workspace)",
   semanticIndexCatalog: "GET /api/search/semantic/catalog — просмотр фрагментов векторного индекса",
   storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
-  workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла",
-  workspaceIndexMonitor: "GET /api/workspace-index/monitor — мониторинг индексов (OCR, слова, смысл, поля)",
+  linkIndexCatalog: "GET /api/link-index/catalog — просмотр рёбер графа связей (~show-links)",
+  workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла (fulltext, semantic, поля, связи)",
+  workspaceIndexMonitor: "GET /api/workspace-index/monitor — мониторинг индексов (OCR, слова, смысл, поля, связи)",
   ocrIndexStatus: "GET /api/ocr-index/status — статус OCR по вложениям",
   ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
-  workspaceIndexPipeline: "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля",
+  workspaceIndexPipeline: "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
     "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_page_url",
@@ -17910,6 +17926,66 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/link-index/status") {
+    try {
+      return sendJson(res, 200, await getLinkIndexService().getStatus());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read link index status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/link-index/reindex") {
+    try {
+      const payload = await getLinkIndexService().rebuildIndex({ agentId: getActiveAgentId() });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rebuild link index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/link-index/query") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getLinkIndexService().query(payload);
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("path is required") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to query link index",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/link-index/catalog") {
+    const limitRaw = Number(url.searchParams.get("limit") || 40);
+    const offsetRaw = Number(url.searchParams.get("offset") || 0);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 40;
+    const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+    try {
+      const data = await getLinkIndexService().catalog({
+        limit,
+        offset,
+        pathPrefix: url.searchParams.get("pathPrefix") || "",
+        q: url.searchParams.get("q") || "",
+        kind: url.searchParams.get("kind") || ""
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read link index catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/storage-index/query") {
     try {
       const payload = await readJsonBody(req);
@@ -17953,7 +18029,8 @@ async function handleApiForAgent(req, res, url) {
         getSemanticSearchService(),
         getStorageIndexService(),
         getFulltextSearchService(),
-        relPath
+        relPath,
+        getLinkIndexService()
       );
       return sendJson(res, 200, data);
     } catch (error) {
@@ -19093,14 +19170,16 @@ async function handleApiForAgent(req, res, url) {
       const fulltext = await getFulltextSearchService().rebuildIndex();
       const semantic = await getSemanticSearchService().rebuildIndex();
       const storage = await getStorageIndexService().rebuildIndex();
+      const link = await getLinkIndexService().rebuildIndex();
       return sendJson(res, 200, {
         ok: true,
         model: "workspace-index-pipeline",
-        hint: "OCR (new attachments) → fulltext → semantic → storage fields",
+        hint: "OCR (new attachments) → fulltext → semantic → storage fields → link graph",
         ocr,
         fulltext,
         semantic,
-        storage
+        storage,
+        link
       });
     } catch (error) {
       return sendJson(res, 500, {

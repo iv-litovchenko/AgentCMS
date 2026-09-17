@@ -14,6 +14,12 @@
   const storageStatusNode = document.getElementById("menu-storage-index-status");
   const storageRebuildBtn = document.getElementById("menu-storage-index-rebuild-btn");
   const storageShowBtn = document.getElementById("menu-storage-index-show-btn");
+  const linkStatusNode = document.getElementById("menu-link-index-status");
+  const linkRebuildBtn = document.getElementById("menu-link-index-rebuild-btn");
+  const linkShowBtn = document.getElementById("menu-link-index-show-btn");
+  const linkProbePathInput = document.getElementById("menu-link-index-probe-path");
+  const linkProbeBtn = document.getElementById("menu-link-index-probe-btn");
+  const linkProbeResultNode = document.getElementById("menu-link-index-probe-result");
   const pipelineBtn = document.getElementById("menu-workspace-index-pipeline-btn");
   const pipelineStatusNode = document.getElementById("menu-workspace-index-pipeline-status");
   const monitorSummaryNode = document.getElementById("menu-workspace-index-monitor-summary");
@@ -197,29 +203,48 @@
     return parts.join(" · ");
   }
 
+  function formatLinkStatus(layer) {
+    if (!layer?.ready) return layer?.hint || "Не построен";
+    const parts = [
+      `${layer.edgeCount || 0} рёбер · ${layer.nodeCount || 0} узлов · ${layer.fileCount || 0} файлов`,
+      layer.builtAge || "—"
+    ];
+    if (layer.lastRebuildLabel) parts.push(`сборка ${layer.lastRebuildLabel}`);
+    return parts.join(" · ");
+  }
+
+  function emptyMonitorLayer(hint) {
+    return { ready: false, health: "empty", hint: hint || "Не построен" };
+  }
+
   function renderMonitorCard(title, layer) {
-    if (!layer) return "";
-    const badge = healthLabel(layer.health);
+    const card = layer || emptyMonitorLayer();
+    const badge = healthLabel(card.health);
     const lines = [];
-    if (!layer.ready) {
-      lines.push(layer.hint || "Не построен");
-    } else if (layer.layer === "ocr") {
-      lines.push(`${layer.processedCount || 0}/${layer.candidateCount || 0} вложений`);
-      if ((layer.pendingCount || 0) > 0) lines.push(`ожидает OCR: ${layer.pendingCount}`);
-      if (layer.builtAge && layer.builtAge !== "—") lines.push(`последний прогон: ${layer.builtAge}`);
-    } else if (layer.layer === "fulltext") {
-      lines.push(`${layer.fileCount || 0} файлов · ${layer.termCount || 0} термов`);
-      lines.push(`обновлён ${layer.builtAge || "—"}`);
-    } else if (layer.layer === "semantic") {
-      lines.push(`${layer.fileCount || 0} файлов · ${layer.chunkCount || 0} фрагментов`);
-      lines.push(`обновлён ${layer.builtAge || "—"}`);
+    if (!card.ready) {
+      lines.push(card.hint || "Не построен");
+    } else if (card.layer === "ocr") {
+      lines.push(`${card.processedCount || 0}/${card.candidateCount || 0} вложений`);
+      if ((card.pendingCount || 0) > 0) lines.push(`ожидает OCR: ${card.pendingCount}`);
+      if (card.builtAge && card.builtAge !== "—") lines.push(`последний прогон: ${card.builtAge}`);
+    } else if (card.layer === "fulltext") {
+      lines.push(`${card.fileCount || 0} файлов · ${card.termCount || 0} термов`);
+      lines.push(`обновлён ${card.builtAge || "—"}`);
+    } else if (card.layer === "semantic") {
+      lines.push(`${card.fileCount || 0} файлов · ${card.chunkCount || 0} фрагментов`);
+      lines.push(`обновлён ${card.builtAge || "—"}`);
+    } else if (card.layer === "storage") {
+      lines.push(`${card.recordCount || 0} записей · ${card.fieldCount || 0} полей`);
+      lines.push(`обновлён ${card.builtAge || "—"}`);
+    } else if (card.layer === "link") {
+      lines.push(`${card.edgeCount || 0} рёбер · ${card.nodeCount || 0} узлов · ${card.fileCount || 0} файлов`);
+      lines.push(`обновлён ${card.builtAge || "—"}`);
     } else {
-      lines.push(`${layer.recordCount || 0} записей · ${layer.fieldCount || 0} полей`);
-      lines.push(`обновлён ${layer.builtAge || "—"}`);
+      lines.push(card.hint || "—");
     }
-    if (layer.lastRebuildLabel) lines.push(`длительность: ${layer.lastRebuildLabel}`);
-    if ((layer.staleCount || 0) > 0) lines.push(`устарело: ${layer.staleCount}`);
-    if ((layer.newFilesCount || 0) > 0) lines.push(`новых: ${layer.newFilesCount}`);
+    if (card.lastRebuildLabel) lines.push(`длительность: ${card.lastRebuildLabel}`);
+    if ((card.staleCount || 0) > 0) lines.push(`устарело: ${card.staleCount}`);
+    if ((card.newFilesCount || 0) > 0) lines.push(`новых: ${card.newFilesCount}`);
     return `<article class="menu-index-monitor-card">
       <div class="menu-index-monitor-card-head">
         <span class="menu-index-monitor-card-title">${escapeHtml(title)}</span>
@@ -240,7 +265,16 @@
         renderMonitorCard("OCR", monitor?.ocr),
         renderMonitorCard("Слова", monitor?.fulltext),
         renderMonitorCard("Смысл", monitor?.semantic),
-        renderMonitorCard("Поля", monitor?.storage)
+        renderMonitorCard("Поля", monitor?.storage),
+        renderMonitorCard(
+          "Связи",
+          monitor?.link ||
+            emptyMonitorLayer(
+              monitor && !("link" in monitor)
+                ? "Нет данных — перезапустите сервер"
+                : "Граф связей не построен"
+            )
+        )
       ].join("");
     }
   }
@@ -266,6 +300,11 @@
     if (storage?.ready) {
       const mark = storage.health === "stale" ? "!" : "";
       parts.push(`поля ${storage.recordCount || 0}${mark}`);
+    }
+    const link = monitor?.link;
+    if (link?.ready) {
+      const mark = link.health === "stale" ? "!" : "";
+      parts.push(`связи ${link.edgeCount || 0}${mark}`);
     }
     summaryStatsNode.textContent = parts.length ? parts.join(" · ") : "нет индексов";
     summaryStatsNode.classList.toggle("is-empty", !parts.length);
@@ -293,6 +332,7 @@
       fulltextStatusNode.textContent = formatFulltextStatus(monitor.fulltext);
       semanticStatusNode.textContent = formatSemanticStatus(monitor.semantic);
       storageStatusNode.textContent = formatStorageStatus(monitor.storage);
+      if (linkStatusNode) linkStatusNode.textContent = formatLinkStatus(monitor.link);
       renderMonitor(monitor);
       updateSummaryFromMonitor(monitor);
     } catch (error) {
@@ -372,17 +412,49 @@
       .join("");
   }
 
-  function populateFieldSelect(fieldCatalog, selected) {
+  function renderLinkItems(items) {
+    if (!items.length) {
+      return '<p class="workspace-index-catalog-empty">Нет рёбер по текущему фильтру.</p>';
+    }
+    return items
+      .map((item) => {
+        const kind = String(item.kind || "link");
+        const targetNote =
+          item.unresolved && item.toTarget && item.toTarget !== item.to
+            ? `<span class="workspace-index-catalog-link-target" title="Исходная ссылка">«${escapeHtml(item.toTarget)}»</span>`
+            : "";
+        return `<article class="workspace-index-catalog-item workspace-index-catalog-item--link">
+          <div class="workspace-index-catalog-link-edge">
+            <code class="workspace-index-catalog-link-from">${escapeHtml(item.from || "—")}</code>
+            <span class="workspace-index-catalog-link-arrow" aria-hidden="true">→</span>
+            <code class="workspace-index-catalog-link-to">${escapeHtml(item.to || "—")}</code>
+            <span class="workspace-index-catalog-badge workspace-index-catalog-badge--kind is-${escapeHtml(kind)}">${escapeHtml(kind)}</span>
+          </div>
+          ${targetNote}
+        </article>`;
+      })
+      .join("");
+  }
+
+  function populateCatalogFilterSelect(catalog, selected, emptyLabel) {
     if (!catalogField) return;
     const current = selected || catalogField.value || "";
-    catalogField.innerHTML = '<option value="">Все поля</option>';
-    for (const name of fieldCatalog || []) {
+    catalogField.innerHTML = `<option value="">${escapeHtml(emptyLabel)}</option>`;
+    for (const name of catalog || []) {
       const option = document.createElement("option");
       option.value = name;
       option.textContent = name;
       catalogField.appendChild(option);
     }
     catalogField.value = current;
+  }
+
+  function populateFieldSelect(fieldCatalog, selected) {
+    populateCatalogFilterSelect(fieldCatalog, selected, "Все поля");
+  }
+
+  function populateKindSelect(kindCatalog, selected) {
+    populateCatalogFilterSelect(kindCatalog, selected, "Все типы");
   }
 
   async function loadCatalogPage() {
@@ -397,10 +469,20 @@
       pathPrefix: catalogPrefix?.value?.trim() || ""
     };
 
-    const endpoint =
-      catalogState.mode === "vector" ? "/api/search/semantic/catalog" : "/api/storage-index/catalog";
+    let endpoint = "/api/search/semantic/catalog";
+    if (catalogState.mode === "fields") endpoint = "/api/storage-index/catalog";
+    if (catalogState.mode === "links") endpoint = "/api/link-index/catalog";
     if (catalogState.mode === "fields" && catalogField?.value) {
       params.field = catalogField.value;
+    }
+    if (catalogState.mode === "links" && catalogField?.value) {
+      params.kind = catalogField.value;
+    }
+    if (catalogQ) {
+      catalogQ.placeholder =
+        catalogState.mode === "links"
+          ? "Поиск по from / to / kind…"
+          : "Поиск по пути / тексту…";
     }
 
     try {
@@ -420,6 +502,22 @@
           : "";
         catalogList.innerHTML = renderVectorItems(data.items || []);
         catalogField?.classList.add("hidden");
+        catalogField?.setAttribute("aria-label", "Фильтр по полю");
+      } else if (catalogState.mode === "links") {
+        catalogTitle.textContent = "~show-links";
+        catalogSubtitle.textContent = data.ready
+          ? `${data.edgeCount || 0} рёбер · ${data.nodeCount || 0} узлов · ${data.fileCount || 0} файлов`
+          : data.hint || "Граф не построен";
+        populateKindSelect(data.kindCatalog, catalogField?.value);
+        catalogField?.classList.remove("hidden");
+        catalogField?.setAttribute("aria-label", "Фильтр по типу связи");
+        const kindSample = Array.isArray(data.kindCatalog) ? data.kindCatalog.join(", ") : "";
+        catalogMeta.textContent = data.ready
+          ? `Показано ${data.items.length} из ${data.total}${kindSample ? ` · типы: ${kindSample}` : ""}${
+              data.builtAt ? ` · обновлён ${new Date(data.builtAt).toLocaleString("ru-RU")}` : ""
+            }`
+          : "";
+        catalogList.innerHTML = renderLinkItems(data.items || []);
       } else {
         catalogTitle.textContent = "~show-fields";
         catalogSubtitle.textContent = data.ready
@@ -427,6 +525,7 @@
           : data.hint || "Каталог не построен";
         populateFieldSelect(data.fieldCatalog, catalogField?.value);
         catalogField?.classList.remove("hidden");
+        catalogField?.setAttribute("aria-label", "Фильтр по полю");
         const catalogSample = Array.isArray(data.fieldCatalog)
           ? data.fieldCatalog.slice(0, 12).join(", ")
           : "";
@@ -458,7 +557,8 @@
 
   function openCatalog(mode) {
     if (!catalogModal) return;
-    catalogState.mode = mode === "fields" ? "fields" : "vector";
+    catalogState.mode =
+      mode === "fields" ? "fields" : mode === "links" ? "links" : "vector";
     catalogState.offset = 0;
     catalogModal.classList.remove("hidden");
     loadCatalogPage();
@@ -486,10 +586,10 @@
     ocrStatusNode.textContent = OCR_DISABLED_HINT;
     ocrRunBtn?.closest(".menu-index-block")?.classList.add("is-feature-disabled");
     if (pipelineBtn) {
-      pipelineBtn.title = "Слова → смысл → поля (OCR пропускается)";
+      pipelineBtn.title = "Слова → смысл → поля → связи (OCR пропускается)";
     }
     for (const flushBtn of document.querySelectorAll('[data-index-flush="pipeline"]')) {
-      flushBtn.title = "Слова → смысл → поля (OCR пропускается)";
+      flushBtn.title = "Слова → смысл → поля → связи (OCR пропускается)";
     }
   }
 
@@ -513,7 +613,8 @@
     ocrForceBtn,
     fulltextRebuildBtn,
     semanticRebuildBtn,
-    storageRebuildBtn
+    storageRebuildBtn,
+    linkRebuildBtn
   ].forEach((button) => rememberButtonLabel(button));
 
   if (OCR_INDEXING_ENABLED) {
@@ -563,41 +664,88 @@
     );
   });
 
+  bindActionButton(linkRebuildBtn, async () => {
+    await runRebuild(
+      "/api/link-index/reindex",
+      linkStatusNode,
+      (data) => `Связи: ${data.edgeCount} рёбер, ${data.fileCount} файлов.`,
+      { progressButton: linkRebuildBtn, progressLayer: "link" }
+    );
+  });
+
+  bindActionButton(linkProbeBtn, async () => {
+    if (!linkProbeResultNode) return;
+    const pathValue = linkProbePathInput?.value?.trim() || "";
+    if (!pathValue) {
+      linkProbeResultNode.textContent = "Укажите путь к файлу.";
+      return;
+    }
+    linkProbeResultNode.textContent = "Запрос backlinks…";
+    try {
+      const response = await fetch(buildApiUrl("/api/link-index/query"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "backlinks", path: pathValue, limit: 12 })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+      if (!data.ready) {
+        linkProbeResultNode.textContent = data.hint || "Индекс связей не построен.";
+        return;
+      }
+      const items = Array.isArray(data.items) ? data.items : [];
+      if (!items.length) {
+        linkProbeResultNode.textContent = `Backlinks для «${pathValue}»: нет.`;
+        return;
+      }
+      const lines = items.map((item) => `${item.from} (${item.kind || "link"})`);
+      linkProbeResultNode.textContent = `Backlinks (${data.count || items.length}): ${lines.join(" · ")}`;
+    } catch (error) {
+      linkProbeResultNode.textContent = String(error.message || error);
+    }
+  });
+
   bindActionButton(pipelineBtn, async () => {
     if (!pipelineStatusNode) return;
     if (OCR_INDEXING_ENABLED) {
-      pipelineStatusNode.textContent = "Цепочка: OCR → слова → смысл → поля…";
+      pipelineStatusNode.textContent = "Цепочка: OCR → слова → смысл → поля → связи…";
       const data = await runRebuild(
         "/api/workspace-index/pipeline",
         pipelineStatusNode,
-        () => "Готово: OCR → fulltext → semantic → поля.",
-        { body: { ocrLimit: 200 }, loadingLabel: "Цепочка: OCR → слова → смысл → поля…" }
+        () => "Готово: OCR → fulltext → semantic → поля → связи.",
+        { body: { ocrLimit: 200 }, loadingLabel: "Цепочка: OCR → слова → смысл → поля → связи…" }
       );
       if (data?.ocr) {
-        pipelineStatusNode.textContent = `Готово · OCR ${data.ocr.processed}/${data.ocr.candidateCount || "?"}`;
+        pipelineStatusNode.textContent = `Готово · OCR ${data.ocr.processed}/${data.ocr.candidateCount || "?"} · связи ${data.link?.edgeCount || 0}`;
       }
       return;
     }
 
-    pipelineStatusNode.textContent = "Цепочка: слова → смысл → поля…";
+    pipelineStatusNode.textContent = "Цепочка: слова → смысл → поля → связи…";
     const fulltext = await runRebuild(
       "/api/search/fulltext/reindex",
       pipelineStatusNode,
-      () => "Цепочка: смысл → поля…",
+      () => "Цепочка: смысл → поля → связи…",
       { loadingLabel: "Цепочка: слова…" }
     );
     const semantic = await runRebuild(
       "/api/search/semantic/reindex",
       pipelineStatusNode,
-      () => "Цепочка: поля…",
+      () => "Цепочка: поля → связи…",
       { loadingLabel: "Цепочка: смысл…" }
     );
-    await runRebuild(
+    const storage = await runRebuild(
       "/api/storage-index/reindex",
       pipelineStatusNode,
-      (data) =>
-        `Готово · слова ${fulltext.fileCount || 0} · смысл ${semantic.chunkCount || 0} · поля ${data.recordCount || 0}`,
+      () => "Цепочка: связи…",
       { loadingLabel: "Цепочка: поля…" }
+    );
+    await runRebuild(
+      "/api/link-index/reindex",
+      pipelineStatusNode,
+      (data) =>
+        `Готово · слова ${fulltext.fileCount || 0} · смысл ${semantic.chunkCount || 0} · поля ${storage.recordCount || 0} · связи ${data.edgeCount || 0}`,
+      { loadingLabel: "Цепочка: связи…", progressButton: linkRebuildBtn, progressLayer: "link" }
     );
   });
 
@@ -608,7 +756,8 @@
     ocr: ocrRunBtn,
     fulltext: fulltextRebuildBtn,
     semantic: semanticRebuildBtn,
-    storage: storageRebuildBtn
+    storage: storageRebuildBtn,
+    link: linkRebuildBtn
   };
   for (const flushBtn of document.querySelectorAll("[data-index-flush]")) {
     flushBtn.addEventListener("click", (event) => {
@@ -626,6 +775,7 @@
 
   semanticShowBtn?.addEventListener("click", () => openCatalog("vector"));
   storageShowBtn?.addEventListener("click", () => openCatalog("fields"));
+  linkShowBtn?.addEventListener("click", () => openCatalog("links"));
 
   catalogCloseBtn?.addEventListener("click", closeCatalog);
   catalogModal?.addEventListener("click", (event) => {
@@ -665,6 +815,8 @@
     openCatalog("vector");
   } else if (hash === "show-fields" || hash === "~show-fields") {
     openCatalog("fields");
+  } else if (hash === "show-links" || hash === "~show-links") {
+    openCatalog("links");
   }
 
   let refreshTimer = null;
