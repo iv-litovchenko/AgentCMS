@@ -1,10 +1,11 @@
 ---
+awn-slots-disabled: true
 awn-status: open
 awn-quality: 4
 awn-emoji: ""
 awn-sort: 0
 awn-note-todo-sticker: ""
-awn-slots-disabled: true
+awn-slots-flexible: true
 awn-main: false
 awn-runtime-load-always: false
 awn-runtime-heartbeat: false
@@ -22,6 +23,6 @@ awn-description: ""
 awn-name: Обсуждения
 awn-preview: ""
 awn-web-url: ""
-awn-update: 2026-08-26T15:48:18.829Z
-awn-version: 3
+awn-update: 2026-09-17T20:57:14.536Z
+awn-version: 4
 ---
