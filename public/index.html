@@ -1510,6 +1510,109 @@
               </div>
             </section>
             <section
+              id="menu-repositories-band"
+              class="menu-repositories-band menu-repositories-band-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar"
+              aria-label="Зависимости и репозитории"
+            >
+              <div class="menu-repositories-band-head">
+                <button
+                  id="menu-repositories-band-toggle"
+                  type="button"
+                  class="menu-repositories-band-toggle-btn sidebar-accent-band-toggle sidebar-accent-band-toggle--repositories"
+                  aria-expanded="true"
+                  aria-controls="menu-repositories-band-body"
+                  title="Зависимости и репозитории — свернуть или показать"
+                >
+                  <span class="sidebar-accent-band-toggle-main">
+                    <span class="sidebar-accent-band-chevron" aria-hidden="true"></span>
+                    <span class="menu-repositories-band-title sidebar-accent-band-title">Зависимости и репозитории</span>
+                  </span>
+                </button>
+                <div class="menu-repositories-band-head-actions" aria-label="Действия репозиториев">
+                  <button
+                    id="menu-repositories-refresh-btn"
+                    type="button"
+                    class="menu-refresh-btn"
+                    title="Обновить каталог репозиториев"
+                    aria-label="Обновить каталог репозиториев"
+                  >
+                    <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                        stroke="currentColor"
+                        stroke-width="2.25"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div id="menu-repositories-band-body" class="menu-repositories-band-body">
+                <p class="menu-repositories-band-hint">
+                  Каталог исходников workspace — где лежит код проекта (<code>awn-repositories</code>)
+                </p>
+                <div class="menu-repositories-toolbar">
+                  <button
+                    id="menu-repositories-groups-btn"
+                    type="button"
+                    class="menu-static-action-btn menu-repositories-groups-btn"
+                    title="Группы sidebar — awn-repositories/groups.yml"
+                  >
+                    <svg class="menu-repositories-groups-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M4 6h16M4 12h10M4 18h16"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                      />
+                      <circle cx="18" cy="12" r="2.5" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    <span class="menu-repositories-groups-label">Группы</span>
+                  </button>
+                  <button
+                    id="menu-repositories-create-btn"
+                    type="button"
+                    class="menu-static-action-btn menu-repositories-create-btn"
+                    title="Создать awn-repositories/{slug}/ с manifest.md"
+                  >
+                    + Репозиторий
+                  </button>
+                </div>
+                <div
+                  id="menu-repositories-index-row"
+                  class="menu-repositories-index-row node-navigation-workspace-counter-topic-index-row hidden"
+                >
+                  <button
+                    id="menu-repositories-index-open-btn"
+                    type="button"
+                    class="menu-repositories-index-open node-navigation-workspace-counter-topic-index is-generated"
+                    title="Открыть awn-repositories/INDEX.md"
+                  >
+                    Индекс репозиториев
+                  </button>
+                  <button
+                    id="menu-repositories-index-refresh-btn"
+                    type="button"
+                    class="menu-repositories-index-refresh node-navigation-workspace-counter-topic-index-refresh"
+                    aria-label="Обновить INDEX.md репозиториев"
+                    title="Обновить и сохранить awn-repositories/INDEX.md"
+                  >
+                    ⟲
+                  </button>
+                </div>
+                <ul
+                  id="menu-repositories-list"
+                  class="menu-repositories-list"
+                  aria-label="Репозитории workspace"
+                ></ul>
+                <p class="menu-repositories-footer-caption">
+                  Карточки manifest — код не в поиске CMS.
+                  awn-repositories — где код; awn-vendor — из чего собрано.
+                </p>
+              </div>
+            </section>
+            <section
               id="menu-static-footer"
               class="menu-static-footer menu-static-footer-accordion sidebar-focus-accordion agent-focus-panel agent-focus-panel--sidebar"
               aria-label="Системные и дополнительные секции"
@@ -1530,96 +1633,6 @@
                 </span>
               </button>
               <div id="menu-static-footer-body" class="menu-static-footer-body">
-              <details class="menu-static-section menu-static-section--vendor menu-static-accordion">
-                <summary class="menu-static-summary" title="Каталог исходников workspace (awn-repositories)">
-                  <span class="menu-static-title menu-static-title--vendor">
-                    <span aria-hidden="true">🟢</span>
-                    <span class="menu-static-title-text">
-                      Зависимости и репозитории
-                      <span class="menu-static-subtitle">awn-repositories</span>
-                    </span>
-                  </span>
-                  <span class="menu-static-summary-actions">
-                    <button
-                      id="menu-repositories-refresh-btn"
-                      type="button"
-                      class="menu-static-summary-refresh-btn"
-                      title="Обновить каталог репозиториев"
-                      aria-label="Обновить каталог репозиториев"
-                    >
-                      <svg class="menu-static-summary-refresh-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                          d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
-                          stroke="currentColor"
-                          stroke-width="2.25"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </span>
-                </summary>
-                <div class="menu-static-body">
-                  <div class="menu-repositories-toolbar">
-                    <button
-                      id="menu-repositories-groups-btn"
-                      type="button"
-                      class="menu-static-action-btn menu-repositories-groups-btn"
-                      title="Группы sidebar — awn-repositories/groups.yml"
-                    >
-                      <svg class="menu-repositories-groups-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path
-                          d="M4 6h16M4 12h10M4 18h16"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                        />
-                        <circle cx="18" cy="12" r="2.5" stroke="currentColor" stroke-width="2" />
-                      </svg>
-                      <span class="menu-repositories-groups-label">Группы</span>
-                    </button>
-                    <button
-                      id="menu-repositories-create-btn"
-                      type="button"
-                      class="menu-static-action-btn menu-repositories-create-btn"
-                      title="Создать awn-repositories/{slug}/ с manifest.md"
-                    >
-                      + Репозиторий
-                    </button>
-                  </div>
-                  <div
-                    id="menu-repositories-index-row"
-                    class="menu-repositories-index-row node-navigation-workspace-counter-topic-index-row hidden"
-                  >
-                    <button
-                      id="menu-repositories-index-open-btn"
-                      type="button"
-                      class="menu-repositories-index-open node-navigation-workspace-counter-topic-index is-generated"
-                      title="Открыть awn-repositories/INDEX.md"
-                    >
-                      Индекс репозиториев
-                    </button>
-                    <button
-                      id="menu-repositories-index-refresh-btn"
-                      type="button"
-                      class="menu-repositories-index-refresh node-navigation-workspace-counter-topic-index-refresh"
-                      aria-label="Обновить INDEX.md репозиториев"
-                      title="Обновить и сохранить awn-repositories/INDEX.md"
-                    >
-                      ⟲
-                    </button>
-                  </div>
-                  <ul
-                    id="menu-repositories-list"
-                    class="menu-repositories-list"
-                    aria-label="Репозитории workspace"
-                  ></ul>
-                  <p class="menu-repositories-footer-caption">
-                    Карточки manifest — код не в поиске CMS.
-                    awn-repositories — где код; awn-vendor — из чего собрано.
-                  </p>
-                </div>
-              </details>
               <details class="menu-static-section menu-static-section--indexing menu-static-accordion">
                 <summary class="menu-static-summary" title="Подготовка архива и поиск: OCR → слова → смысл → поля">
                   <span class="menu-static-title menu-static-title--indexing">
@@ -3771,20 +3784,30 @@
                     Поля задаются в <code>schema-mod.yml</code> (вкладка «Настройки») на том же уровне.
                   </p>
                 </header>
-                <div id="project-settings-fields" class="node-config-fields project-settings-fields"></div>
-                <div id="project-settings-env-wrap" class="project-settings-env-wrap hidden">
-                  <textarea
-                    id="project-settings-env-input"
-                    class="project-settings-env-input"
-                    spellcheck="false"
-                    autocomplete="off"
-                    aria-label="Содержимое .env"
-                    placeholder="KEY=value"
-                  ></textarea>
+                <div class="project-settings-blocks">
+                  <section class="project-settings-block">
+                    <h3 class="project-settings-block-title">config.yml · awn_settings</h3>
+                    <p id="project-settings-config-lead" class="project-settings-block-lead"></p>
+                    <div id="project-settings-fields" class="node-config-fields project-settings-fields"></div>
+                    <p id="project-settings-empty" class="project-settings-empty hidden">
+                      Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.
+                    </p>
+                  </section>
+                  <section class="project-settings-block project-settings-block--env">
+                    <h3 class="project-settings-block-title">.env</h3>
+                    <p id="project-settings-env-lead" class="project-settings-block-lead"></p>
+                    <div id="project-settings-env-wrap" class="project-settings-env-wrap">
+                      <textarea
+                        id="project-settings-env-input"
+                        class="project-settings-env-input"
+                        spellcheck="false"
+                        autocomplete="off"
+                        aria-label="Содержимое .env"
+                        placeholder="KEY=value"
+                      ></textarea>
+                    </div>
+                  </section>
                 </div>
-                <p id="project-settings-empty" class="project-settings-empty hidden">
-                  Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.
-                </p>
               </div>
             </div>
           </section>

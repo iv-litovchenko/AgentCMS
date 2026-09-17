@@ -33,6 +33,9 @@ const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
 const menuAwnDataBandNode = document.getElementById("menu-awn-data-band");
 const menuAwnDataBandToggleBtn = document.getElementById("menu-awn-data-band-toggle");
 const menuAwnDataBandBodyNode = document.getElementById("menu-awn-data-band-body");
+const menuRepositoriesBandNode = document.getElementById("menu-repositories-band");
+const menuRepositoriesBandToggleBtn = document.getElementById("menu-repositories-band-toggle");
+const menuRepositoriesBandBodyNode = document.getElementById("menu-repositories-band-body");
 const menuStaticFooterNode = document.getElementById("menu-static-footer");
 const menuStaticFooterToggleBtn = document.getElementById("menu-static-footer-toggle");
 const menuStaticFooterBodyNode = document.getElementById("menu-static-footer-body");
@@ -138,6 +141,7 @@ let awnDataViewRecordFieldsNode = null;
 let awnDataViewRecordBodyNode = null;
 let awnDataViewLayoutToggleNode = null;
 const MENU_AWN_DATA_BAND_OPEN_KEY = "yamlcms.menuAwnDataBandOpen.v1";
+const MENU_REPOSITORIES_BAND_OPEN_KEY = "yamlcms.menuRepositoriesBandOpen.v1";
 const MENU_STATIC_FOOTER_OPEN_KEY = "yamlcms.menuStaticFooterOpen";
 const MENU_TREE_BAND_OPEN_KEY = "yamlcms.menuTreeBandOpen.v1";
 const appSplashNode = document.getElementById("app-splash");
@@ -418,6 +422,8 @@ const projectSettingsPageNode = document.getElementById("project-settings-page")
 const projectSettingsScopeListNode = document.getElementById("project-settings-scope-list");
 const projectSettingsTitleNode = document.getElementById("project-settings-title");
 const projectSettingsLeadNode = document.getElementById("project-settings-lead");
+const projectSettingsConfigLeadNode = document.getElementById("project-settings-config-lead");
+const projectSettingsEnvLeadNode = document.getElementById("project-settings-env-lead");
 const projectSettingsFieldsNode = document.getElementById("project-settings-fields");
 const projectSettingsEnvWrapNode = document.getElementById("project-settings-env-wrap");
 const projectSettingsEnvInputNode = document.getElementById("project-settings-env-input");
@@ -16026,7 +16032,6 @@ function isOverviewDomainActive(mode = activeContentMode) {
 let activeContentMode = NODE_OPEN_MEMORY_MODE;
 let nodeSettingsViewActive = false;
 let projectSettingsScopePath = null;
-let projectSettingsScopeKind = "settings";
 const projectSettingsEnvCacheByManifest = new Map();
 let nodeMemoryViewActive = false;
 const WYSIWYG_EDITOR_ENABLED = true;
@@ -39988,10 +39993,6 @@ function countEnvFileValues(content) {
   return count;
 }
 
-function isProjectSettingsEnvScopeActive() {
-  return isProjectSettingsMode() && projectSettingsScopeKind === "env";
-}
-
 function mergeProjectSettingsScopeStatus(normalized, patch) {
   if (!normalized) return;
   const prev = projectSettingsScopeStatusByPath.get(normalized) || { path: normalized };
@@ -40096,31 +40097,47 @@ function collectProjectSettingsScopes() {
   return collectProjectSettingsManifestScopes();
 }
 
-function renderProjectSettingsScopeSection(manifestScopes, {
-  kind,
-  sectionTitle,
-  activeScopePath,
-  activeScopeKind
-}) {
+function createProjectSettingsScopeMarker(kind, hasValue) {
+  const marker = document.createElement("span");
+  marker.className = "project-settings-scope-marker";
+  marker.classList.toggle("is-env-kind", kind === "env");
+  marker.classList.toggle("is-config-kind", kind === "config");
+  marker.classList.toggle("has-value", hasValue);
+  marker.setAttribute("aria-hidden", "true");
+  return marker;
+}
+
+function createProjectSettingsScopeBadge(kind, valueCount) {
+  const badge = document.createElement("span");
+  badge.className = "project-settings-scope-badge";
+  if (kind === "env") badge.classList.add("is-env-badge");
+  badge.textContent = String(valueCount);
+  badge.title = kind === "env" ? "Количество переменных в .env" : "Количество значений в awn_settings";
+  return badge;
+}
+
+function renderProjectSettingsScopeList() {
+  if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
+  projectSettingsScopeListNode.replaceChildren();
+  const manifestScopes = collectProjectSettingsManifestScopes();
+  const activeScopePath = getNodeSettingsManifestPath();
   const groups = [
     { level: "workspace", label: "Workspace" },
     { level: "area", label: "Области" },
     { level: "topic", label: "Темы" }
   ];
-  const sectionRoot = document.createElement("div");
-  sectionRoot.className = "project-settings-scope-section";
-  sectionRoot.classList.toggle("is-env-section", kind === "env");
 
-  const sectionHead = document.createElement("div");
-  sectionHead.className = "project-settings-scope-section-title";
-  sectionHead.textContent = sectionTitle;
-  sectionRoot.appendChild(sectionHead);
+  const legend = document.createElement("div");
+  legend.className = "project-settings-scope-legend";
+  legend.innerHTML =
+    '<span class="project-settings-scope-legend-item is-local"><span class="project-settings-scope-marker is-config-kind has-value" aria-hidden="true"></span> config.yml</span>' +
+    '<span class="project-settings-scope-legend-item is-env"><span class="project-settings-scope-marker is-env-kind has-value" aria-hidden="true"></span> .env</span>' +
+    '<span class="project-settings-scope-legend-item is-empty"><span class="project-settings-scope-marker" aria-hidden="true"></span> не задано</span>';
+  projectSettingsScopeListNode.appendChild(legend);
 
-  let hasItems = false;
   for (const group of groups) {
     const items = manifestScopes.filter((scope) => scope.level === group.level);
     if (!items.length) continue;
-    hasItems = true;
     const groupNode = document.createElement("div");
     groupNode.className = "project-settings-scope-group";
     const title = document.createElement("div");
@@ -40130,101 +40147,67 @@ function renderProjectSettingsScopeSection(manifestScopes, {
 
     for (const scope of items) {
       const status = getProjectSettingsScopeStatus(scope.path);
-      const isEnv = kind === "env";
-      const hasLocalValues = isEnv ? Boolean(status?.envHasValues) : Boolean(status?.hasLocalValues);
-      const valueCount = isEnv ? Number(status?.envValueCount) || 0 : Number(status?.valueCount) || 0;
+      const hasConfigValues = Boolean(status?.hasLocalValues);
+      const configCount = Number(status?.valueCount) || 0;
+      const hasEnvValues = Boolean(status?.envHasValues);
+      const envCount = Number(status?.envValueCount) || 0;
       const envPath = status?.envPath || getEnvFilePathForManifest(scope.path);
-      const isActive = scope.path === activeScopePath && activeScopeKind === kind;
+      const isActive = scope.path === activeScopePath;
+      const isEmptyScope = !hasConfigValues && !hasEnvValues;
 
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "project-settings-scope-item";
       btn.dataset.path = scope.path;
-      btn.dataset.kind = kind;
       btn.setAttribute("role", "tab");
       btn.setAttribute("aria-selected", isActive ? "true" : "false");
       btn.classList.toggle("is-active", isActive);
-      btn.classList.toggle("has-local-values", !isEnv && hasLocalValues);
-      btn.classList.toggle("has-env-values", isEnv && hasLocalValues);
-      btn.classList.toggle("is-empty-scope", !hasLocalValues);
-      btn.classList.toggle("is-env-scope", isEnv);
-      btn.title = isEnv
-        ? hasLocalValues
-          ? `${envPath}: ${valueCount} переменных`
+      btn.classList.toggle("has-local-values", hasConfigValues);
+      btn.classList.toggle("has-env-values", hasEnvValues);
+      btn.classList.toggle("is-empty-scope", isEmptyScope);
+      btn.title = [
+        hasConfigValues ? `config.yml: ${configCount} знач.` : "config.yml: наследуется с уровня выше",
+        hasEnvValues
+          ? `${envPath}: ${envCount} перем.`
           : status?.envExists
-            ? `${envPath}: файл есть, переменных пока нет`
-            : `${envPath}: файл не создан`
-        : hasLocalValues
-          ? `Свои настройки: ${valueCount} в config.yml`
-          : "Локальные настройки не заданы — значения наследуются с уровня выше";
+            ? `${envPath}: файл есть, переменных нет`
+            : `${envPath}: не создан`
+      ].join(" · ");
 
-      const marker = document.createElement("span");
-      marker.className = "project-settings-scope-marker";
-      marker.classList.toggle("is-env-kind", isEnv);
-      marker.setAttribute("aria-hidden", "true");
+      const markers = document.createElement("span");
+      markers.className = "project-settings-scope-markers";
+      markers.append(
+        createProjectSettingsScopeMarker("config", hasConfigValues),
+        createProjectSettingsScopeMarker("env", hasEnvValues)
+      );
 
       const label = document.createElement("span");
       label.className = "project-settings-scope-label";
-      label.textContent = isEnv ? `${scope.label} · .env` : scope.label;
+      label.textContent = scope.label;
 
-      btn.append(marker, label);
-      if (hasLocalValues) {
-        const badge = document.createElement("span");
-        badge.className = "project-settings-scope-badge";
-        if (isEnv) badge.classList.add("is-env-badge");
-        badge.textContent = String(valueCount);
-        badge.title = isEnv ? "Количество переменных в .env" : "Количество значений в awn_settings";
-        btn.append(badge);
+      btn.append(markers, label);
+
+      if (hasConfigValues || hasEnvValues) {
+        const badges = document.createElement("span");
+        badges.className = "project-settings-scope-badges";
+        if (hasConfigValues) badges.append(createProjectSettingsScopeBadge("config", configCount));
+        if (hasEnvValues) badges.append(createProjectSettingsScopeBadge("env", envCount));
+        btn.append(badges);
       }
 
       btn.addEventListener("click", () => {
-        void selectProjectSettingsScope(scope.path, { kind });
+        void selectProjectSettingsScope(scope.path);
       });
       groupNode.appendChild(btn);
     }
-    sectionRoot.appendChild(groupNode);
+    projectSettingsScopeListNode.appendChild(groupNode);
   }
-
-  return hasItems ? sectionRoot : null;
 }
 
-function renderProjectSettingsScopeList() {
-  if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
-  projectSettingsScopeListNode.replaceChildren();
-  const manifestScopes = collectProjectSettingsManifestScopes();
-  const activeScopePath = getNodeSettingsManifestPath();
-  const activeScopeKind = projectSettingsScopeKind;
-
-  const legend = document.createElement("div");
-  legend.className = "project-settings-scope-legend";
-  legend.innerHTML =
-    '<span class="project-settings-scope-legend-item is-local"><span class="project-settings-scope-marker" aria-hidden="true"></span> свои в config.yml</span>' +
-    '<span class="project-settings-scope-legend-item is-env"><span class="project-settings-scope-marker is-env-kind" aria-hidden="true"></span> переменные в .env</span>' +
-    '<span class="project-settings-scope-legend-item is-empty"><span class="project-settings-scope-marker" aria-hidden="true"></span> не задано</span>';
-  projectSettingsScopeListNode.appendChild(legend);
-
-  const settingsSection = renderProjectSettingsScopeSection(manifestScopes, {
-    kind: "settings",
-    sectionTitle: "Настройки · config.yml",
-    activeScopePath,
-    activeScopeKind
-  });
-  if (settingsSection) projectSettingsScopeListNode.appendChild(settingsSection);
-
-  const envSection = renderProjectSettingsScopeSection(manifestScopes, {
-    kind: "env",
-    sectionTitle: "Переменные · .env",
-    activeScopePath,
-    activeScopeKind
-  });
-  if (envSection) projectSettingsScopeListNode.appendChild(envSection);
-}
-
-async function selectProjectSettingsScope(scopePath, { kind = "settings" } = {}) {
+async function selectProjectSettingsScope(scopePath) {
   const normalized = normalizeMenuNodePath(scopePath);
   if (!normalized) return;
   projectSettingsScopePath = normalized;
-  projectSettingsScopeKind = kind === "env" ? "env" : "settings";
   try {
     await loadProjectSettingsContent({ force: true });
     renderProjectSettingsPage();
@@ -40261,9 +40244,7 @@ async function loadProjectSettingsEnvForManifest(manifestPath, options = {}) {
 }
 
 function renderProjectSettingsEnvEditor(cache = getProjectSettingsEnvCache()) {
-  projectSettingsFieldsNode?.classList.add("hidden");
   projectSettingsEnvWrapNode?.classList.remove("hidden");
-  projectSettingsEmptyNode?.classList.add("hidden");
   if (projectSettingsEnvInputNode) {
     projectSettingsEnvInputNode.value = cache?.content || "";
   }
@@ -40312,41 +40293,38 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
         ? "Область"
         : "Тема"
     : "Уровень";
-  const isEnv = isProjectSettingsEnvScopeActive();
   const envPath = activeStatus?.envPath || getEnvFilePathForManifest(getNodeSettingsManifestPath());
 
   if (projectSettingsTitleNode) {
     projectSettingsTitleNode.textContent = scope
-      ? `${levelLabel} · ${scope.label}${isEnv ? " · .env" : ""}`
-      : isEnv
-        ? "Переменные окружения"
-        : "Настройки проекта";
+      ? `${levelLabel} · ${scope.label}`
+      : "Настройки проекта";
   }
   if (projectSettingsLeadNode) {
-    if (isEnv) {
-      const envHint = activeStatus?.envHasValues
-        ? `В <code>${escapeHtml(envPath)}</code> задано <strong>${activeStatus.envValueCount}</strong> переменных.`
-        : activeStatus?.envExists
-          ? `Файл <code>${escapeHtml(envPath)}</code> есть, но переменных пока нет.`
-          : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан — сохранение создаст его.`;
-      projectSettingsLeadNode.innerHTML =
-        `${envHint} Формат: <code>KEY=value</code>, по одной паре на строку. Секреты и токены — только здесь или в <code>.env</code> слота темы.`;
-    } else {
-      const localHint = activeStatus?.hasLocalValues
-        ? `На этом уровне задано <strong>${activeStatus.valueCount}</strong> значений в <code>config.yml</code>.`
-        : "На этом уровне <strong>нет своих значений</strong> — пока действуют настройки уровня выше (или defaults).";
-      projectSettingsLeadNode.innerHTML =
-        `${localHint} Поля формы — из <code>schema-mod.yml</code> (вкладка «Настройки») на том же уровне.`;
-    }
+    projectSettingsLeadNode.innerHTML = scope
+      ? `Параметры уровня «${escapeHtml(scope.label)}»: форма из <code>schema-mod.yml</code> и секреты в <code>.env</code> рядом с manifest.`
+      : "Выберите уровень в списке слева.";
+  }
+  if (projectSettingsConfigLeadNode) {
+    const localHint = activeStatus?.hasLocalValues
+      ? `На этом уровне задано <strong>${activeStatus.valueCount}</strong> значений в <code>config.yml</code>.`
+      : "На этом уровне <strong>нет своих значений</strong> — пока действуют настройки уровня выше (или defaults).";
+    projectSettingsConfigLeadNode.innerHTML =
+      `${localHint} Поля формы — из <code>schema-mod.yml</code> (вкладка «Настройки») на том же уровне.`;
+  }
+  if (projectSettingsEnvLeadNode) {
+    const envHint = activeStatus?.envHasValues
+      ? `В <code>${escapeHtml(envPath)}</code> задано <strong>${activeStatus.envValueCount}</strong> переменных.`
+      : activeStatus?.envExists
+        ? `Файл <code>${escapeHtml(envPath)}</code> есть, но переменных пока нет.`
+        : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан — сохранение создаст его.`;
+    projectSettingsEnvLeadNode.innerHTML =
+      `${envHint} Формат: <code>KEY=value</code>, по одной паре на строку.`;
   }
   renderProjectSettingsScopeList();
-  if (isEnv) {
-    renderProjectSettingsEnvEditor(getProjectSettingsEnvCache());
-    return;
-  }
-  projectSettingsEnvWrapNode?.classList.add("hidden");
   projectSettingsFieldsNode?.classList.remove("hidden");
   renderNodeSettingsEditor(cache);
+  renderProjectSettingsEnvEditor(getProjectSettingsEnvCache());
 }
 
 function hideProjectSettingsPageUi() {
@@ -40384,18 +40362,14 @@ async function loadProjectSettingsContent(options = {}) {
       projectSettingsScopePath = manifestPath;
     }
     await refreshProjectSettingsScopeStatus(collectProjectSettingsManifestScopes()).catch(() => {});
-    if (isProjectSettingsEnvScopeActive()) {
-      await loadProjectSettingsEnvForManifest(getNodeSettingsManifestPath(), {
-        force: Boolean(options.force)
-      });
-      applyProjectSettingsPageUi();
-    } else {
-      const cache = await loadNodeSettingsForManifest(getNodeSettingsManifestPath(), {
-        force: Boolean(options.force)
-      });
-      setProjectSettingsScopeStatusFromCache(getNodeSettingsManifestPath(), cache);
-      applyProjectSettingsPageUi(cache);
-    }
+    const force = Boolean(options.force);
+    const manifestPathForLoad = getNodeSettingsManifestPath();
+    const [cache] = await Promise.all([
+      loadNodeSettingsForManifest(manifestPathForLoad, { force }),
+      loadProjectSettingsEnvForManifest(manifestPathForLoad, { force })
+    ]);
+    setProjectSettingsScopeStatusFromCache(manifestPathForLoad, cache);
+    applyProjectSettingsPageUi(cache);
     commitEditorSaveBaseline();
     updateBreadcrumbsForActiveMode();
   } catch (error) {
@@ -40434,9 +40408,6 @@ async function openProjectSettingsHub(options = {}) {
     return;
   }
   projectSettingsScopePath = preferred.path;
-  if (projectSettingsScopeKind !== "env") {
-    projectSettingsScopeKind = "settings";
-  }
   updateActiveButton();
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ replace: !options.push, push: Boolean(options.push) });
@@ -54555,10 +54526,14 @@ function getEditorSavePayload() {
   if (activeContentMode === "topic-schema") {
     return JSON.stringify({ topicSchema: getTopicSchemaSavePayload() });
   }
-  if (isProjectSettingsMode() && isProjectSettingsEnvScopeActive()) {
-    return JSON.stringify({ projectEnv: projectSettingsEnvInputNode?.value ?? "" });
+  if (isProjectSettingsMode()) {
+    syncNodeSettingsCacheFromDom();
+    return JSON.stringify({
+      nodeSettings: getNodeSettingsSavePayload(),
+      projectEnv: projectSettingsEnvInputNode?.value ?? ""
+    });
   }
-  if (isNodeConfigEditorMode() || isProjectSettingsMode()) {
+  if (isNodeConfigEditorMode()) {
     syncNodeSettingsCacheFromDom();
     return JSON.stringify({ nodeSettings: getNodeSettingsSavePayload() });
   }
@@ -85565,9 +85540,12 @@ function createMenuAgentStatsEnvironmentButton() {
   button.setAttribute("aria-controls", "menu-agent-stats-env-popover");
   button.innerHTML =
     '<svg class="menu-agent-stats-env-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
-    '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>' +
-    '<path d="M9.75 9.75a2.25 2.25 0 1 1 3.55 1.84c-.78.6-1.05 1.05-1.05 1.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-    '<circle cx="12" cy="16.75" r="1.1" fill="currentColor"/>' +
+    '<path d="M6 4v16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M12 7v13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M18 5v15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<circle cx="6" cy="9" r="2.25" fill="currentColor"/>' +
+    '<circle cx="12" cy="15" r="2.25" fill="currentColor"/>' +
+    '<circle cx="18" cy="11" r="2.25" fill="currentColor"/>' +
     "</svg>";
   return button;
 }
@@ -85581,12 +85559,9 @@ function createMenuAgentStatsSettingsButton() {
   button.setAttribute("aria-label", "Настройки и параметры");
   button.innerHTML =
     '<svg class="menu-agent-stats-settings-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
-    '<path d="M6 4v16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-    '<path d="M12 7v13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-    '<path d="M18 5v15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-    '<circle cx="6" cy="9" r="2.25" fill="currentColor"/>' +
-    '<circle cx="12" cy="15" r="2.25" fill="currentColor"/>' +
-    '<circle cx="18" cy="11" r="2.25" fill="currentColor"/>' +
+    '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>' +
+    '<path d="M9.75 9.75a2.25 2.25 0 1 1 3.55 1.84c-.78.6-1.05 1.05-1.05 1.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<circle cx="12" cy="16.75" r="1.1" fill="currentColor"/>' +
     "</svg>";
   return button;
 }
@@ -87651,16 +87626,11 @@ async function saveContent() {
     setSaveButtonsState(true, "Сохраняю...");
     let saveSucceeded = false;
     try {
-      if (isProjectSettingsEnvScopeActive()) {
-        await saveProjectSettingsEnvContent();
-        saveSucceeded = true;
-        showToast(".env сохранён", "success");
-      } else {
-        await saveNodeSettingsContent();
-        saveSucceeded = true;
-        showToast("Настройки сохранены", "success");
-        renderProjectSettingsPage();
-      }
+      await saveNodeSettingsContent();
+      await saveProjectSettingsEnvContent();
+      saveSucceeded = true;
+      showToast("Настройки сохранены", "success");
+      renderProjectSettingsPage();
     } catch (error) {
       showToast(`Ошибка сохранения: ${error.message}`, "error");
     } finally {
@@ -94803,6 +94773,12 @@ function isSidebarBottomPanelActive() {
   ) {
     return true;
   }
+  if (
+    isMenuRepositoriesBandExpanded() &&
+    Boolean(menuRepositoriesBandBodyNode && !menuRepositoriesBandBodyNode.hidden)
+  ) {
+    return true;
+  }
   return (
     isMenuStaticFooterExpanded() &&
     Boolean(menuStaticFooterBodyNode && !menuStaticFooterBodyNode.hidden)
@@ -94835,6 +94811,14 @@ function dismissSidebarBottomPanelForUpperZone() {
       // ignore storage errors
     }
     syncMenuAwnDataBandAccordionUi();
+  }
+  if (isMenuRepositoriesBandExpanded()) {
+    try {
+      localStorage.setItem(MENU_REPOSITORIES_BAND_OPEN_KEY, "0");
+    } catch {
+      // ignore storage errors
+    }
+    syncMenuRepositoriesBandAccordionUi();
   }
   if (isMenuStaticFooterExpanded()) {
     try {
@@ -94909,6 +94893,43 @@ function setMenuAwnDataBandExpanded(expanded) {
 
 function toggleMenuAwnDataBandExpanded() {
   setMenuAwnDataBandExpanded(!isMenuAwnDataBandExpanded());
+}
+
+function isMenuRepositoriesBandExpanded() {
+  try {
+    const saved = localStorage.getItem(MENU_REPOSITORIES_BAND_OPEN_KEY);
+    if (saved === "0") return false;
+    if (saved === "1") return true;
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+function syncMenuRepositoriesBandAccordionUi() {
+  if (!menuRepositoriesBandNode) return;
+  const expanded = isMenuRepositoriesBandExpanded();
+  menuRepositoriesBandNode.classList.toggle("is-collapsed", !expanded);
+  menuRepositoriesBandToggleBtn?.setAttribute("aria-expanded", expanded ? "true" : "false");
+  if (menuRepositoriesBandBodyNode) {
+    menuRepositoriesBandBodyNode.hidden = !expanded;
+    menuRepositoriesBandBodyNode.classList.toggle("is-collapsed", !expanded);
+  }
+}
+
+function setMenuRepositoriesBandExpanded(expanded) {
+  try {
+    localStorage.setItem(MENU_REPOSITORIES_BAND_OPEN_KEY, expanded ? "1" : "0");
+  } catch {
+    // ignore storage errors
+  }
+  syncMenuRepositoriesBandAccordionUi();
+  syncSidebarBottomFocusMode();
+  if (expanded) void refreshMenuRepositories();
+}
+
+function toggleMenuRepositoriesBandExpanded() {
+  setMenuRepositoriesBandExpanded(!isMenuRepositoriesBandExpanded());
 }
 
 function syncMenuStaticFooterAccordionUi() {
@@ -95131,6 +95152,13 @@ function setupMenuAwnDataIndexRow() {
     if (!menuAwnDataIndexRowNode?.isConnected) return;
     menuAwnDataIndexRowNode.dataset.awnDataHasIndex = exists ? "1" : "0";
     syncMenuAwnDataIndexRowState();
+  });
+}
+
+function setupMenuRepositoriesBandGroup() {
+  syncMenuRepositoriesBandAccordionUi();
+  menuRepositoriesBandToggleBtn?.addEventListener("click", () => {
+    toggleMenuRepositoriesBandExpanded();
   });
 }
 
@@ -98919,9 +98947,6 @@ function setupRepositoriesUi() {
   repositoryCreateModalNode?.addEventListener("click", (event) => {
     if (event.target === repositoryCreateModalNode) closeRepositoryCreateModal();
   });
-  document.querySelector(".menu-static-section--vendor")?.addEventListener("toggle", (event) => {
-    if (event.target.open) void refreshMenuRepositories();
-  });
 }
 
 function setupAwnDataStoresUi() {
@@ -101351,6 +101376,7 @@ setupMenuSortDragDrop();
 setupAppFooterToggle();
 setupMenuTreeBandGroup();
 setupMenuAwnDataBandGroup();
+setupMenuRepositoriesBandGroup();
 setupMenuStaticFooterGroup();
 setupMenuGoogleDriveRepairButton();
 setupAppFooterIdeasPopover();
@@ -101968,7 +101994,7 @@ nodeConfigFieldsNode?.addEventListener("change", handleNodeConfigFieldsInput);
 projectSettingsFieldsNode?.addEventListener("input", handleNodeConfigFieldsInput);
 projectSettingsFieldsNode?.addEventListener("change", handleNodeConfigFieldsInput);
 projectSettingsEnvInputNode?.addEventListener("input", () => {
-  if (!isProjectSettingsEnvScopeActive()) return;
+  if (!isProjectSettingsMode()) return;
   syncSaveButtonLamp();
 });
 topicSchemaTargetTabsNode?.addEventListener("click", (event) => {
@@ -102446,9 +102472,8 @@ previewRemoveBtn?.addEventListener("click", (event) => {
 
 document.addEventListener("click", (event) => {
   if (contentSearchInputNode && contentSearchResultsNode) {
-    const searchBar = document.querySelector(".content-search-bar");
     const insideSearch =
-      searchBar?.contains(event.target) ||
+      contentSearchBarNode?.contains(event.target) ||
       contentSearchResultsNode.contains(event.target) ||
       contentSearchHelpPopoverNode?.contains(event.target) ||
       contentSearchFiltersPopoverNode?.contains(event.target) ||
@@ -102533,6 +102558,8 @@ contentSearchInputNode?.addEventListener("focus", () => {
 });
 contentSearchInputNode?.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    closeContentSearchFiltersPopover();
+    setContentSearchHelpOpen(false);
     hideContentSearchResults();
     contentSearchInputNode.blur();
     return;

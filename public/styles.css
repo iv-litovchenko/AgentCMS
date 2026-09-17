@@ -11313,23 +11313,36 @@ body.app-locked {
   gap: 6px;
 }
 
+.project-settings-scope-markers {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
 .project-settings-scope-marker {
   width: 8px;
   height: 8px;
   border-radius: 999px;
   flex: 0 0 auto;
-  background: rgba(148, 163, 184, 0.35);
+  background: transparent;
   border: 1px solid rgba(148, 163, 184, 0.55);
 }
 
-.project-settings-scope-item.has-local-values .project-settings-scope-marker,
-.project-settings-scope-legend-item.is-local .project-settings-scope-marker {
+.project-settings-scope-marker.is-config-kind.has-value,
+.project-settings-scope-legend-item.is-local .project-settings-scope-marker.is-config-kind.has-value {
   background: rgba(34, 197, 94, 0.95);
   border-color: rgba(22, 163, 74, 0.95);
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
 }
 
-.project-settings-scope-item.is-empty-scope .project-settings-scope-marker,
+.project-settings-scope-marker.is-env-kind.has-value,
+.project-settings-scope-legend-item.is-env .project-settings-scope-marker.is-env-kind.has-value {
+  background: rgba(245, 158, 11, 0.95);
+  border-color: rgba(217, 119, 6, 0.95);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.18);
+}
+
 .project-settings-scope-legend-item.is-empty .project-settings-scope-marker {
   background: transparent;
 }
@@ -11358,6 +11371,13 @@ body.app-locked {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.project-settings-scope-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
 }
 
 .project-settings-scope-badge {
@@ -11409,17 +11429,6 @@ body.app-locked {
   text-transform: uppercase;
   color: var(--muted);
   padding: 0 6px;
-}
-
-.project-settings-scope-item.has-env-values .project-settings-scope-marker.is-env-kind,
-.project-settings-scope-legend-item.is-env .project-settings-scope-marker.is-env-kind {
-  background: rgba(245, 158, 11, 0.95);
-  border-color: rgba(217, 119, 6, 0.95);
-  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.18);
-}
-
-.project-settings-scope-item.is-env-scope.is-active {
-  background: rgba(245, 158, 11, 0.12);
 }
 
 .project-settings-scope-badge.is-env-badge {
@@ -11481,8 +11490,50 @@ body.app-locked {
   color: var(--muted);
 }
 
-.project-settings-fields {
+.project-settings-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.project-settings-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   max-width: 760px;
+}
+
+.project-settings-block + .project-settings-block {
+  padding-top: 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.project-settings-block-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.project-settings-block-lead {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.project-settings-block--env .project-settings-env-wrap {
+  min-height: 220px;
+}
+
+.project-settings-block--env .project-settings-env-input {
+  min-height: 220px;
+}
+
+.project-settings-fields {
+  max-width: none;
 }
 
 .project-settings-empty {
@@ -22111,6 +22162,7 @@ a.header-tool-btn {
 
 .menu-static-footer:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-awn-data-band:not(.is-collapsed) .sidebar-accent-band-chevron,
+.menu-repositories-band:not(.is-collapsed) .sidebar-accent-band-chevron,
 .menu-system-environment.is-open > .sidebar-accent-band-toggle .sidebar-accent-band-chevron {
   transform: rotate(45deg);
   margin-top: -3px;
@@ -22130,8 +22182,17 @@ a.header-tool-btn {
   text-overflow: ellipsis;
 }
 
+.menu-static-footer-toggle-btn .sidebar-accent-band-toggle-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .menu-static-footer-title.sidebar-accent-band-title {
-  white-space: normal;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .menu-system-environment-host .sidebar-accent-band-toggle-main {
@@ -54833,6 +54894,135 @@ body.is-cms-page-picker-active #discuss-aside * {
   border-bottom: 0;
 }
 
+.menu-repositories-band {
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.menu-repositories-band-head {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #15803d 0%, #16a34a 52%, #4ade80 100%);
+}
+
+.menu-repositories-band-head .sidebar-accent-band-toggle--repositories {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
+  background: transparent;
+  color: #f0fdf4;
+}
+
+.menu-repositories-band-head .sidebar-accent-band-toggle--repositories:hover {
+  filter: brightness(1.04);
+}
+
+.menu-repositories-band-head .sidebar-accent-band-toggle--repositories:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.88);
+  outline-offset: -2px;
+}
+
+.menu-repositories-band-head .sidebar-accent-band-chevron {
+  border-right-color: rgba(255, 255, 255, 0.95);
+  border-bottom-color: rgba(255, 255, 255, 0.95);
+}
+
+.menu-repositories-band-title.sidebar-accent-band-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-repositories-band-hint {
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(134, 239, 172, 0.75);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #166534;
+  box-sizing: border-box;
+}
+
+.menu-repositories-band-hint code {
+  font-size: 10px;
+}
+
+.menu-repositories-band-head-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 8px 7px 0;
+  pointer-events: auto;
+}
+
+.menu-repositories-band-head-actions .menu-refresh-btn {
+  position: relative;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #f0fdf4;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+}
+
+.menu-repositories-band-head-actions .menu-refresh-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.menu-repositories-band-head-actions .menu-refresh-btn:focus {
+  outline: none;
+}
+
+.menu-repositories-band-head-actions .menu-refresh-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.88);
+  outline-offset: -1px;
+}
+
+.menu-repositories-band-head-actions .menu-refresh-btn svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+
+.menu-repositories-band-head-actions .menu-refresh-btn.is-spinning svg {
+  animation: workspace-refresh-spin 0.75s linear infinite;
+}
+
+.menu-repositories-band-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px 10px;
+  box-sizing: border-box;
+  background: #f0fdf4;
+  border-bottom: 1px solid rgba(134, 239, 172, 0.45);
+}
+
+.menu-repositories-band-body[hidden],
+.menu-repositories-band-accordion.is-collapsed > .menu-repositories-band-body {
+  display: none !important;
+}
+
+.menu-repositories-band-accordion.is-collapsed .menu-repositories-band-head {
+  border-bottom: 0;
+}
+
 .menu-static-footer {
   flex-shrink: 0;
   padding: 0;
@@ -55463,6 +55653,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .sidebar.is-menu-bottom-focus .menu-awn-data-band:not(.is-collapsed),
+.sidebar.is-menu-bottom-focus .menu-repositories-band:not(.is-collapsed),
 .sidebar.is-menu-bottom-focus .menu-static-footer:not(.is-collapsed),
 .sidebar.is-menu-bottom-focus .menu-system-environment:not(.hidden).is-open {
   flex: 1 1 0;
@@ -55473,12 +55664,14 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .sidebar.is-menu-bottom-focus .menu-awn-data-band-head,
+.sidebar.is-menu-bottom-focus .menu-repositories-band-head,
 .sidebar.is-menu-bottom-focus .menu-static-footer-toggle-btn,
 .sidebar.is-menu-bottom-focus .menu-system-environment-host {
   flex-shrink: 0;
 }
 
 .sidebar.is-menu-bottom-focus .menu-awn-data-band-body,
+.sidebar.is-menu-bottom-focus .menu-repositories-band-body,
 .sidebar.is-menu-bottom-focus .menu-static-footer-body,
 .sidebar.is-menu-bottom-focus .menu-system-environment.is-open > .menu-system-environment-grid {
   flex: 1 1 0;
@@ -55490,6 +55683,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 }
 
 .sidebar.is-menu-bottom-focus .menu-awn-data-band-body > *,
+.sidebar.is-menu-bottom-focus .menu-repositories-band-body > *,
 .sidebar.is-menu-bottom-focus .menu-static-footer-body > *,
 .sidebar.is-menu-bottom-focus .menu-system-environment.is-open > .menu-system-environment-grid > * {
   flex-shrink: 0;
@@ -55499,7 +55693,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   flex-shrink: 0;
 }
 
-.sidebar.is-menu-bottom-focus .menu-static-footer-body .menu-repositories-list {
+.sidebar.is-menu-bottom-focus .menu-repositories-band-body .menu-repositories-list {
   max-height: none;
   overflow: visible;
 }
@@ -56079,16 +56273,16 @@ body.is-cms-page-picker-active #discuss-aside * {
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  color: #6d28d9;
-  border-color: rgba(109, 40, 217, 0.28);
-  background: rgba(237, 233, 254, 0.65);
+  color: #15803d;
+  border-color: rgba(21, 128, 61, 0.28);
+  background: rgba(220, 252, 231, 0.65);
 }
 
 .menu-repositories-groups-btn:hover,
 .menu-repositories-groups-btn:focus-visible {
-  color: #5b21b6;
-  border-color: rgba(109, 40, 217, 0.45);
-  background: rgba(237, 233, 254, 0.95);
+  color: #166534;
+  border-color: rgba(21, 128, 61, 0.45);
+  background: rgba(220, 252, 231, 0.95);
 }
 
 .menu-repositories-groups-icon {
@@ -56562,11 +56756,11 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-repositories-footer-caption {
   margin: 0.5rem 0 0;
   padding-top: 0.35rem;
-  border-top: 1px solid rgba(167, 139, 250, 0.35);
+  border-top: 1px solid rgba(134, 239, 172, 0.45);
   font-size: 0.6875rem;
   font-weight: 600;
   line-height: 1.3;
-  color: #7c6f9b;
+  color: #166534;
   text-align: center;
 }
 
