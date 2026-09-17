@@ -22834,7 +22834,6 @@ function createMenuTreeTypeIcon(host) {
 
   if (host.classList.contains("menu-folder-agent-root")) {
     icon.classList.add("menu-tree-type-icon--agent");
-    icon.textContent = "🤖";
     return icon;
   }
   if (host.classList.contains("menu-folder-container-root")) {
