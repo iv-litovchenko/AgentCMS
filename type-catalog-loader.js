@@ -774,7 +774,7 @@ function getTypeUsage(entry, merged, byId) {
     }
     case "data": {
       if (merged["store-kind"]) {
-        consumers.push(`zzz_create_data_store (${merged["store-kind"]})`);
+        consumers.push(`iblock_create (${merged["store-kind"]})`);
         wired = true;
       }
       if (entry.kind === "data-element") {

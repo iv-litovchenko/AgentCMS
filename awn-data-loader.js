@@ -1838,7 +1838,7 @@ function readAwnDataRecordProperty(agentRoot, projectRoot, storeRel, recordRef, 
   if (!isValidAwnPropertyKey(propertyKey)) throw new Error("Invalid property key");
   const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
   if (store.recordStorage === "csv") {
-    throw new Error("CSV store records do not support property API yet; use zzz_get_data_store");
+    throw new Error("CSV store records do not support property API yet; use iblock_get");
   }
   const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
   if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
@@ -1852,7 +1852,7 @@ function readAwnDataRecordProperty(agentRoot, projectRoot, storeRel, recordRef, 
 function readAwnDataRecordProperties(agentRoot, projectRoot, storeRel, recordRef) {
   const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
   if (store.recordStorage === "csv") {
-    throw new Error("CSV store records do not support property API yet; use zzz_get_data_store");
+    throw new Error("CSV store records do not support property API yet; use iblock_get");
   }
   const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
   if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
@@ -1873,7 +1873,7 @@ function writeAwnDataRecordProperties(agentRoot, projectRoot, storeRel, recordRe
   if (patch === null) throw new Error("Missing content");
   const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
   if (store.recordStorage === "csv") {
-    throw new Error("CSV store records do not support property API yet; use zzz_get_data_store");
+    throw new Error("CSV store records do not support property API yet; use iblock_get");
   }
   const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
   if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");
@@ -1893,7 +1893,7 @@ function writeAwnDataRecordProperty(agentRoot, projectRoot, storeRel, recordRef,
   if (value === undefined || value === null) throw new Error("Missing value");
   const { store, storeAbs, storeRel: rel } = resolveAwnDataStoreContext(agentRoot, projectRoot, storeRel);
   if (store.recordStorage === "csv") {
-    throw new Error("CSV store records do not support property API yet; use zzz_get_data_store");
+    throw new Error("CSV store records do not support property API yet; use iblock_get");
   }
   const recordAbs = resolveStoreRecordAbsolute(store, storeAbs, recordRef);
   if (!fs.existsSync(recordAbs)) throw new Error("Record file not found");

@@ -11,7 +11,7 @@ const FALLBACK_POLICY = {
   version: 1,
   mcp: {
     write_tool_pattern:
-      "^(write_|create_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|zzz_write_|zzz_create_|notify_user|run_script|exec_)",
+      "^(write_|create_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|iblock_write_|iblock_create_|iblock_content_write_|iblock_content_create_|notify_user|run_script|exec_)",
     exec_tools: ["exec_command", "exec_shell", "run_script"],
     exec_allowed_modes: ["full"]
   },

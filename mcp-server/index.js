@@ -19,7 +19,7 @@ import {
 } from "./lib/workspace-fs-tools.js";
 import { registerMapTools, registerSearchWorkspaceTools } from "./lib/map-tools.js";
 import { registerRepositoryTools } from "./lib/repository-tools.js";
-import { registerDataPropertyTools } from "./lib/data-property-tools.js";
+import { registerIblockTools } from "./lib/iblock-tools.js";
 import { registerExecTools } from "./lib/exec-tools.js";
 import { registerWebSearchTools } from "./lib/web-search-tools.js";
 import { registerAgentUtilsTools } from "./lib/agent-utils-tools.js";
@@ -64,7 +64,7 @@ function createServer() {
   const cfg = getConfig();
   const client = new AgentCmsClient(cfg);
 
-  const server = new McpServer({ name: "agent-cms", version: "0.3.9" });
+  const server = new McpServer({ name: "agent-cms", version: "0.4.0" });
   const toolRegistry = createToolRegistry();
 
   const reg = (name, description, schema, fn, { agentScope = true, formatResult } = {}) => {
@@ -160,57 +160,9 @@ function createServer() {
 
   registerFactsTools(reg, client);
 
-  // ── AWN-DATA runtime (5) ───────────────────────────────────────────────────
+  // ── Infoblocks (awn-data): iblock_* + iblock_content_* ─────────────────────
 
-  reg("zzz_list_data_stores", "List structured data stores (awn-data): collections, singletons, groups.", z.object({}), () =>
-    client.get("/api/awn-data")
-  );
-
-  reg(
-    "zzz_get_data_store",
-    "One data store with schema, records and tree (MD or CSV).",
-    z.object({
-      store: z.string().min(1).describe("Store relPath, e.g. taxonomies/statuses, agents, tasks")
-    }),
-    ({ store }) => client.get("/api/awn-data", { store })
-  );
-
-  reg(
-    "zzz_create_data_store",
-    "Create awn-data store: group, collection (MD or CSV for taxonomies/), or singleton.",
-    z.object({
-      kind: z.enum(["group", "collection", "singleton"]).optional(),
-      slug: z.string().min(1).describe("Folder slug under awn-data/, e.g. taxonomies/users"),
-      name: z.string().optional(),
-      description: z.string().optional(),
-      hierarchy: z.boolean().optional(),
-      withSampleRecord: z.boolean().optional()
-    }),
-    (payload) => client.post("/api/awn-data/stores", payload)
-  );
-
-  reg(
-    "zzz_read_data_store_schema",
-    "Read record field schema from awn-data store schema-mod.yml (instance override, not type catalog).",
-    z.object({
-      store: z.string().min(1).describe("Store relPath, e.g. tasks, taxonomies/statuses")
-    }),
-    ({ store }) => client.get("/api/awn-data/store-schema", { store })
-  );
-
-  reg(
-    "zzz_create_data_record",
-    "Add record to a data collection (append CSV row or create {id}.md).",
-    z.object({
-      store: z.string().min(1).describe("Store relPath, e.g. taxonomies/tags"),
-      id: z.string().optional(),
-      title: z.string().optional(),
-      parent: z.string().optional()
-    }),
-    (payload) => client.post("/api/awn-data/records", payload)
-  );
-
-  registerDataPropertyTools(reg, client);
+  registerIblockTools(reg, client);
 
   // ── Page / Slot / Content / Types ──────────────────────────────────────────
 

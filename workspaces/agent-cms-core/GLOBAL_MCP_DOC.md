@@ -259,8 +259,8 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 |----------|-------------------|---------------|
 | Страница | `read_page_properties` / `write_page_properties` | `read_page_property` / `write_page_property` |
 | Контент | `read_content_properties` / `write_content_properties` | `read_content_property` / `write_content_property` |
-| Инфоблок (manifest) | `zzz_read_store_properties` / `zzz_write_store_properties` | `zzz_read_store_property` / `zzz_write_store_property` |
-| Элемент инфоблока | `zzz_read_record_properties` / `zzz_write_record_properties` | `zzz_read_record_property` / `zzz_write_record_property` |
+| Инфоблок (manifest) | `iblock_read_properties` / `iblock_write_properties` | `iblock_read_property` / `iblock_write_property` |
+| Элемент инфоблока | `iblock_content_read_properties` / `iblock_content_write_properties` | `iblock_content_read_property` / `iblock_content_write_property` |
 
 `write_*_properties` — **merge**: шли только изменённые ключи. Для записей `awn-updated` дописывается автоматически.
 
@@ -284,7 +284,7 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 |-----|------|-------|-------|
 | Поля страницы / слотов | `schema-mod.yml` (`awn_schema`) | `read_page_schema` / `write_page_schema` | Добавить/менять поля формы |
 | UI/настройки страницы | `config.yml` (`awn_ui`, `awn_settings`) | `read_page_config` / `write_page_config` | UI, mask — **не** поля |
-| Поля записей накопителя | `schema-mod.yml` в awn-data | `zzz_read_data_store_schema` / `write_data_store_schema` | Схема awn-data |
+| Поля записей накопителя | `schema-mod.yml` в awn-data | `iblock_read_schema` / `write_file` на schema-mod | Схема awn-data |
 | Канон типа | awn-system | `get_type(id)` | Смотреть базовые fields |
 
 - свойства (`*_properties`) — **значения** frontmatter; **patch**: шли только изменённые ключи, остальное merge с диском  
@@ -627,22 +627,28 @@ razdel-1/
 
 ---
 
-## Накопители (awn-data)
+## Накопители информации / инфоблоки (awn-data)
 
-**Терминология:** `awn-data` — это **хранилище структурированных данных** платформы (таблицы, коллекции записей со схемой полей). В документации и UI те же сущности могут называться **инфоблоки** или **информационные накопители** — это одно и то же, не путать со слотами темы.
+**Терминология:** `awn-data` — **структурированные данные** (таблицы, коллекции со схемой). В UI: **«Накопители информации (инфоблоки)»**. Не путать со слотами темы.
 
-Папка `awn-data/` в workspace: **структурированные данные** вне дерева Page · Slot · Content — справочники (`taxonomies/`), задачи, агенты, группы полей и т.п. Записи — строки CSV или `{id}.md`, не файлы в `awn-storage/` темы.
+**MCP — два слоя (как page / content):**
 
-Отдельно от страниц/слотов.
+| Слой | Префикс | Про что |
+|------|---------|---------|
+| Контейнер | `iblock_*` | manifest, schema, create store |
+| Содержимое | `iblock_content_*` | записи `{id}.md`, CSV-строки |
+
+Папка `awn-data/` — вне дерева Page · Slot · Content: справочники (`taxonomies/`), задачи, агенты и т.п.
 
 - типы контейнеров: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.data.collection" })`
 - схемы записей store: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.data.record" })`
-- список store: `zzz_list_data_stores` → `zzz_get_data_store`
-- схема полей store (read): `zzz_read_data_store_schema`
-- свойства инфоблока: `zzz_read_store_properties` / `zzz_write_store_properties`, `zzz_read_store_property` / `zzz_write_store_property`
-- свойства элемента: `zzz_read_record_properties` / `zzz_write_record_properties`, `zzz_read_record_property` / `zzz_write_record_property`
-- запись: `zzz_create_data_record`
-- правка schema-mod store: `write_file` на `awn-data/{store}/schema-mod.yml` (полный YAML)
+- список: `iblock_list` → `iblock_get({ store })`
+- схема полей (read): `iblock_read_schema({ store })`
+- свойства инфоблока: `iblock_read_properties` / `iblock_write_properties`, `iblock_read_property` / `iblock_write_property`
+- свойства записи: `iblock_content_read_properties` / `iblock_content_write_properties`, `iblock_content_read_property` / `iblock_content_write_property`
+- новая запись: `iblock_content_create({ store, id?, title? })`
+- create store: `iblock_create({ kind, slug, … })`
+- правка schema-mod: `write_file` на `awn-data/{store}/schema-mod.yml` (полный YAML)
 
 ---
 
@@ -883,7 +889,7 @@ recall_workspace_facts({
 - store → `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.data.collection" })`
 - поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.data.record" })`
 
-**Не типы** (экземпляр / override): `read_page_schema`, `zzz_read_data_store_schema` — локальные schema-mod, не справочник.
+**Не типы** (экземпляр / override): `read_page_schema`, `iblock_read_schema` — локальные schema-mod, не справочник.
 
 - всегда **`id`**, не path: `{ "id": "awn.data.collection" }` ✅
 - алиасы legacy: `awn-data/cms-base/data-containers/collection.md` → `awn.data.collection`

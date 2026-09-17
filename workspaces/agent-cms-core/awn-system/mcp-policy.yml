@@ -6,7 +6,7 @@ description: >
 
 mcp:
   # single-call write tools (blocked in mcp-mode=readonly)
-  write_tool_pattern: "^(write_|create_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|zzz_write_|zzz_create_|notify_user|run_script|exec_)"
+  write_tool_pattern: "^(write_|create_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|iblock_write_|iblock_create_|iblock_content_write_|iblock_content_create_|notify_user|run_script|exec_)"
   exec_tools:
     - exec_command
     - exec_shell
@@ -58,6 +58,10 @@ batch_invoke:
   read_tools:
     - page_exists
     - content_exists
-    - zzz_list_data_stores
-    - zzz_get_data_store
-    - zzz_read_data_store_schema
+    - iblock_list
+    - iblock_get
+    - iblock_read_schema
+    - iblock_read_properties
+    - iblock_read_property
+    - iblock_content_read_properties
+    - iblock_content_read_property
