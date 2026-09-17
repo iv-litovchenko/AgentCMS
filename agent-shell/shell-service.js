@@ -602,12 +602,31 @@ function normalizeSettings(raw) {
   return merged;
 }
 
+function fillShellPromptPresets(agentRoot, settings) {
+  try {
+    const { loadShellPromptTemplates } = require("./shell-prompt-presets");
+    const templates = loadShellPromptTemplates(resolveProjectRootFromPath(agentRoot), agentRoot);
+    if (!String(settings.systemPrompt || "").trim() && templates.systemPrompt) {
+      settings.systemPrompt = templates.systemPrompt;
+    }
+    if (!String(settings.sttPrompt || "").trim() && templates.sttPrompt) {
+      settings.sttPrompt = templates.sttPrompt;
+    }
+    if (!String(settings.ttsPrompt || "").trim() && templates.ttsPrompt) {
+      settings.ttsPrompt = templates.ttsPrompt;
+    }
+  } catch {
+    /* presets optional */
+  }
+  return settings;
+}
+
 async function readSettings(agentRoot) {
   try {
     const raw = await fs.readFile(settingsAbsolute(agentRoot), "utf-8");
-    return normalizeSettings(JSON.parse(raw));
+    return fillShellPromptPresets(agentRoot, normalizeSettings(JSON.parse(raw)));
   } catch {
-    return normalizeSettings({});
+    return fillShellPromptPresets(agentRoot, normalizeSettings({}));
   }
 }
 
@@ -1376,8 +1395,8 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
 
   const sessionId = buildQwenPawSessionId(settings, agentId);
   const streamId = `qwenpaw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const outboundText = buildDualReplyInstruction(text, settings);
   const promptContext = { agentId, runtime: getMessageRuntime(settings) };
+  const outboundText = buildDualReplyInstruction(text, settings, promptContext);
   const qwenInput = buildQwenPawChatInput(text, settings, promptContext);
   let lastEmittedText = "";
   let lastEmitAt = 0;
@@ -1623,8 +1642,8 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
   const endpoint = resolveRuntimeEndpoint(settings, runtime);
   const replyTtsClientId = String(ttsClientId || "").trim();
   const streamId = `${runtime}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const outboundText = buildDualReplyInstruction(text, settings);
   const promptContext = { agentId, runtime };
+  const outboundText = buildDualReplyInstruction(text, settings, promptContext);
   const messages = buildOpenAiMessages(text, settings, promptContext);
   const systemPrompt = getSystemPrompt(settings, promptContext);
   let lastEmittedText = "";

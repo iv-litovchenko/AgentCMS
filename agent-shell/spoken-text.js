@@ -75,19 +75,20 @@ function shouldRequestDualReply(_settings = {}) {
   return false;
 }
 
-function buildDualReplyInstruction(userText, settings = {}) {
+function buildDualReplyInstruction(userText, settings = {}, context = {}) {
   const text = String(userText || "").trim();
-  if (!shouldRequestDualReply(settings)) return text;
-  const prompt = String(settings.ttsPrompt || "").trim();
-  let suffix = "";
-  if (!/\[tts-break\]|voice-end/i.test(prompt)) {
-    suffix =
-      `\n\nФормат ответа (строго, в таком порядке):\n1) Текст для озвучки (plain text, без markdown, только то, что можно произнести вслух; длина не ограничена).\n2) Отдельной строкой маркер: ${VOICE_END_MARKER}\n3) Полный текст ответа для экрана.\n\nБез маркера ${VOICE_END_MARKER} — только экран, без озвучки.`;
+  let instructions = "";
+  if (shouldRequestDualReply(settings)) {
+    instructions = String(settings.ttsPrompt || "").trim();
+    if (instructions && !/\[tts-break\]|voice-end/i.test(instructions)) {
+      instructions += `\n\nФормат ответа (строго, в таком порядке):\n1) Текст для озвучки (plain text, без markdown, только то, что можно произнести вслух; длина не ограничена).\n2) Отдельной строкой маркер: ${VOICE_END_MARKER}\n3) Полный текст ответа для экрана.\n\nБез маркера ${VOICE_END_MARKER} — только экран, без озвучки.`;
+    }
   }
+  if (!instructions) return text;
   return `${text}
 
 ---
-${prompt}${suffix}`;
+${instructions}`;
 }
 
 function parseDualReply(text) {
@@ -156,6 +157,9 @@ function appendPromptSection(parts, section) {
   if (text) parts.push(text);
 }
 
+const TTS_MANDATORY_FORMAT_RULE =
+  "Agent CMS Voice (TTS включён): каждый ответ пользователю оформляй строго как «текст для озвучки» → отдельная строка [tts-break] → «текст для экрана». Это обязательно для любых ответов, включая уточняющие вопросы.";
+
 function getSystemPrompt(settings = {}, context = {}) {
   const parts = [];
   appendPromptSection(parts, settings.systemPrompt);
@@ -164,6 +168,7 @@ function getSystemPrompt(settings = {}, context = {}) {
   }
   if (settings.ttsEnabled !== false) {
     appendPromptSection(parts, settings.ttsPrompt);
+    appendPromptSection(parts, TTS_MANDATORY_FORMAT_RULE);
   }
   if (!parts.length) return "";
   return renderShellVoicePlaceholders(parts.join("\n\n"), buildSystemPromptContext(settings, context));
@@ -171,7 +176,7 @@ function getSystemPrompt(settings = {}, context = {}) {
 
 function buildOpenAiMessages(userText, settings = {}, context = {}) {
   const system = getSystemPrompt(settings, context);
-  const user = buildDualReplyInstruction(userText, settings);
+  const user = buildDualReplyInstruction(userText, settings, context);
   const messages = [];
   if (system) messages.push({ role: "system", content: system });
   messages.push({ role: "user", content: user });
@@ -180,7 +185,7 @@ function buildOpenAiMessages(userText, settings = {}, context = {}) {
 
 function buildQwenPawChatInput(userText, settings = {}, context = {}) {
   const system = getSystemPrompt(settings, context);
-  const user = buildDualReplyInstruction(userText, settings);
+  const user = buildDualReplyInstruction(userText, settings, context);
   const input = [];
   if (system) {
     input.push({
@@ -197,7 +202,7 @@ function buildQwenPawChatInput(userText, settings = {}, context = {}) {
 
 function buildCliUserPrompt(userText, settings = {}, context = {}) {
   const system = getSystemPrompt(settings, context);
-  const user = buildDualReplyInstruction(userText, settings);
+  const user = buildDualReplyInstruction(userText, settings, context);
   if (!system) return user;
   return `${system}\n\n---\n\n${user}`;
 }

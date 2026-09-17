@@ -311,11 +311,11 @@ class ClaudePersistentSession {
     ];
     if (model) args.push("--model", String(model));
     this.appendClaudePermissionArgs(args);
-    if (resume && sessionId) args.push("--resume", sessionId);
+    const bootstrapped = sessionId && getCliSessionPool().isBootstrapped("claude", sessionId);
+    const useResume = Boolean(resume && sessionId && bootstrapped);
+    if (useResume) args.push("--resume", sessionId);
     else if (sessionId) args.push("--session-id", sessionId);
-    if (systemPrompt && !(this.config.resume && this.config.sessionId)) {
-      args.push("--system-prompt", systemPrompt);
-    }
+    if (systemPrompt && !useResume) args.push("--system-prompt", systemPrompt);
     return args;
   }
 
@@ -430,7 +430,11 @@ class ClaudePersistentSession {
     if (turn.signal) turn.signal.removeEventListener("abort", turn.onAbort);
     clearTimeout(turn.timer);
     if (error) turn.reject(error);
-    else turn.resolve(result);
+    else {
+      const sid = String(this.config.sessionId || "").trim();
+      if (sid) getCliSessionPool().markBootstrapped("claude", sid);
+      turn.resolve(result);
+    }
     resetIdleTimer(this);
     this.pumpQueue();
   }
@@ -909,6 +913,23 @@ class CodexAppServerSession {
 class CliSessionPool {
   constructor() {
     this.sessions = new Map();
+    this.bootstrappedSessionIds = new Map();
+  }
+
+  bootstrapKey(runtime, sessionId) {
+    return `${String(runtime || "").trim()}\0${String(sessionId || "").trim()}`;
+  }
+
+  isBootstrapped(runtime, sessionId) {
+    const sid = String(sessionId || "").trim();
+    if (!sid) return false;
+    return this.bootstrappedSessionIds.has(this.bootstrapKey(runtime, sid));
+  }
+
+  markBootstrapped(runtime, sessionId) {
+    const sid = String(sessionId || "").trim();
+    if (!sid) return;
+    this.bootstrappedSessionIds.set(this.bootstrapKey(runtime, sid), true);
   }
 
   getSession(runtime, config) {

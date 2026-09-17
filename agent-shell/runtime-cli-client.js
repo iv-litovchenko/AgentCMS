@@ -340,19 +340,26 @@ async function chatClaudeCliOnce({
     return { text: reply, raw: null };
   };
 
-  if (sid) {
+  const pool = getCliSessionPool();
+  const bootstrapped = sid && pool.isBootstrapped("claude", sid);
+  const finishSuccess = async (result) => {
+    if (sid) pool.markBootstrapped("claude", sid);
+    return result;
+  };
+
+  if (sid && bootstrapped) {
     try {
-      return await runOnce(true);
+      return await finishSuccess(await runOnce(true));
     } catch (error) {
       const msg = String(error?.message || error);
       if (isSessionInUseError(msg)) throw error;
       if (error.resumeFailed || isResumeUnavailableError(msg)) {
-        return await runOnce(false);
+        return await finishSuccess(await runOnce(false));
       }
       throw error;
     }
   }
-  return runOnce(false);
+  return finishSuccess(await runOnce(false));
 }
 
 async function chatCodexCliOnce({
