@@ -98035,6 +98035,15 @@ function syncAwnDataMenuActiveStore(storeRel = awnDataViewStoreRel) {
       .replace(/\/+$/, "");
     row.classList.toggle("is-active", Boolean(normalized) && rel === normalized);
   }
+  for (const openBtn of menuAwnDataStoresNode.querySelectorAll(".menu-awn-data-store-group-open-btn")) {
+    const rel = String(openBtn.dataset.storeRel || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, "");
+    const active = Boolean(normalized) && rel === normalized;
+    openBtn.classList.toggle("is-active", active);
+    openBtn.closest(".menu-awn-data-store-group")?.classList.toggle("is-active", active);
+  }
 }
 
 function wireAwnDataStoreRow(row, store) {
@@ -98053,118 +98062,113 @@ function wireAwnDataStoreRow(row, store) {
   });
 }
 
-function createAwnDataStoreRow(store) {
+function createAwnDataStoreRow(store, { nested = false } = {}) {
   const row = document.createElement("li");
   row.className = "menu-awn-data-store";
+  if (nested) row.classList.add("menu-awn-data-store--nested");
   const displayName = String(store.name || store.id || store.relPath || "").trim();
   const pathHint = store.relPath && store.relPath !== displayName ? store.relPath : "";
   row.title = store.description || (pathHint ? `${displayName} · ${pathHint}` : displayName);
+
+  const rowNodes = [];
 
   const kindNode = document.createElement("span");
   kindNode.className = `menu-awn-data-store-kind ${awnDataStoreKindClass(store.kind)}`;
   kindNode.title = awnDataStoreKindLabel(store.kind);
   kindNode.setAttribute("aria-hidden", "true");
+  rowNodes.push(kindNode);
 
   const nameNode = document.createElement("span");
   nameNode.className = "menu-awn-data-store-name";
   nameNode.textContent = displayName;
+  rowNodes.push(nameNode, createAwnDataStoreMetaNode(store));
 
-  row.append(kindNode, nameNode, createAwnDataStoreMetaNode(store));
+  row.append(...rowNodes);
   wireAwnDataStoreRow(row, store);
   return row;
-}
-
-function buildAwnDataGroupHintText(store) {
-  const parts = [];
-  const description = String(store?.description || "").trim();
-  if (description) parts.push(description);
-
-  const manifest = String(store?.manifestMarkdown || "").trim();
-  if (manifest) {
-    const excerpt = manifest
-      .replace(/^#+\s[^\n]*\n?/gm, "")
-      .replace(/^\|.+\|\n\|[-:| ]+\|\n/gm, "")
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-      .replace(/`/g, "")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith("|"))
-      .slice(0, 4)
-      .join("\n");
-    if (excerpt && excerpt !== description) parts.push(excerpt);
-  }
-
-  if (store?.relPath) parts.push(`awn-data/${store.relPath}/`);
-  return parts.join("\n\n");
 }
 
 function createAwnDataStoreGroupNode(store) {
   const item = document.createElement("li");
   item.className = "menu-awn-data-store-group";
 
-  const details = document.createElement("details");
-  details.className = "menu-awn-data-store-group-details";
-  details.open = true;
+  const children = Array.isArray(store.children) ? store.children : [];
+  const hasContent = children.length > 0;
+  let isCollapsed = false;
 
-  const summary = document.createElement("summary");
-  summary.className = "menu-awn-data-store-group-summary";
+  const headRow = document.createElement("div");
+  headRow.className = "menu-awn-data-store-group-head";
+
+  const body = document.createElement("div");
+  body.className = "menu-awn-data-store-group-body";
+
+  const syncCollapsedUi = () => {
+    item.classList.toggle("is-collapsed", isCollapsed);
+    body.hidden = isCollapsed;
+    toggleBtn.textContent = formatMenuFolderToggleGlyph(isCollapsed, hasContent);
+    toggleBtn.title = hasContent ? (isCollapsed ? "Раскрыть" : "Скрыть") : "Нет вложенных элементов";
+  };
+
+  const toggleBtn = createFolderToggleButton(hasContent, isCollapsed, () => {
+    isCollapsed = !isCollapsed;
+    syncCollapsedUi();
+  });
 
   const kindNode = document.createElement("span");
   kindNode.className = `menu-awn-data-store-kind ${awnDataStoreKindClass(store.kind)}`;
   kindNode.title = awnDataStoreKindLabel(store.kind);
   kindNode.setAttribute("aria-hidden", "true");
 
-  const nameWrap = document.createElement("span");
-  nameWrap.className = "menu-awn-data-store-group-name-wrap";
+  const displayName = String(store.name || store.id || store.relPath || "Группа").trim();
+  const pathHint = store.relPath && store.relPath !== displayName ? store.relPath : "";
+
+  const openBtn = document.createElement("button");
+  openBtn.type = "button";
+  openBtn.className = "menu-awn-data-store-group-open-btn";
+  openBtn.dataset.storeRel = String(store.relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  openBtn.title = pathHint ? `${displayName} · ${pathHint}` : displayName;
 
   const nameNode = document.createElement("span");
   nameNode.className = "menu-awn-data-store-name";
-  nameNode.textContent = String(store.name || store.id || store.relPath || "Группа").trim();
+  nameNode.textContent = displayName;
+  openBtn.appendChild(nameNode);
 
-  const hintNode = document.createElement("span");
-  hintNode.className = "menu-awn-data-store-group-hint";
-  hintNode.textContent = buildAwnDataGroupHintText(store);
-  hintNode.setAttribute("role", "tooltip");
-
-  nameWrap.append(nameNode, hintNode);
+  openBtn.addEventListener("click", () => void openAwnDataViewPage(store.relPath));
+  openBtn.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      void openAwnDataViewPage(store.relPath);
+    }
+  });
 
   const actionsNode = document.createElement("span");
   actionsNode.className = "menu-awn-data-store-group-actions";
-
   actionsNode.append(createAwnDataGroupCreateBtn(store), createAwnDataStoreMetaNode(store));
-  summary.append(kindNode, nameWrap, actionsNode);
 
-  const body = document.createElement("div");
-  body.className = "menu-awn-data-store-group-body";
+  headRow.append(toggleBtn, kindNode, openBtn, actionsNode);
 
   const childList = document.createElement("ul");
   childList.className = "menu-awn-data-store-group-children";
-  const children = Array.isArray(store.children) ? store.children : [];
-  if (!children.length) {
+  if (!hasContent) {
     const empty = document.createElement("li");
     empty.className = "menu-awn-data-store menu-awn-data-store--empty";
     empty.textContent = "Нет справочников";
     childList.appendChild(empty);
   } else {
-    for (const child of children) {
-      childList.appendChild(createAwnDataStoreRow(child));
-    }
+    children.forEach((child, index) => {
+      const childRow = createAwnDataStoreRow(child, { nested: true });
+      childRow.classList.add("menu-tree-branch");
+      if (index === children.length - 1) childRow.classList.add("menu-tree-branch-last");
+      childList.appendChild(childRow);
+    });
   }
 
   body.appendChild(childList);
-  details.append(summary, body);
-  item.appendChild(details);
-
-  summary.addEventListener("click", (event) => {
-    if (event.target.closest(".menu-awn-data-group-create-btn")) return;
-  });
-
-  summary.addEventListener("dblclick", (event) => {
-    if (event.target.closest(".menu-awn-data-group-create-btn")) return;
-    event.preventDefault();
-    void openAwnDataViewPage(store.relPath);
-  });
-
+  item.append(headRow, body);
+  syncCollapsedUi();
   return item;
 }
 
