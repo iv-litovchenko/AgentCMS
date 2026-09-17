@@ -255,8 +255,10 @@ function renderSetupChecklist() {
   `);
 
   root.innerHTML = `
-    <div class="setup-checklist-grid">
+    <div class="setup-checklist-grid setup-checklist-grid--checks">
       ${checkItems.join("")}
+    </div>
+    <div class="setup-checklist-grid setup-checklist-grid--disk">
       ${statItems.join("")}
     </div>
   `;
