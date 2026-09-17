@@ -60,6 +60,11 @@ const menuAwnDataRefreshBtn = document.getElementById("menu-awn-data-refresh-btn
 const menuAwnDataCreateCollectionBtn = document.getElementById("menu-awn-data-create-collection-btn");
 const menuAwnDataCreateSingletonBtn = document.getElementById("menu-awn-data-create-singleton-btn");
 const menuAwnDataCreateGroupBtn = document.getElementById("menu-awn-data-create-group-btn");
+const menuAwnDataSearchInputNode = document.getElementById("menu-awn-data-search-input");
+const menuAwnDataIndexRowNode = document.getElementById("menu-awn-data-index-row");
+const menuAwnDataIndexOpenBtn = document.getElementById("menu-awn-data-index-open-btn");
+const menuAwnDataIndexRefreshBtn = document.getElementById("menu-awn-data-index-refresh-btn");
+const AWN_DATA_INDEX_REL_PATH = "awn-data/INDEX.md";
 const awnDataCreateModalNode = document.getElementById("awn-data-create-modal");
 const awnDataCreateModalTitleNode = document.getElementById("awn-data-create-modal-title");
 const awnDataCreateModalHintNode = document.getElementById("awn-data-create-modal-hint");
@@ -27721,7 +27726,7 @@ function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
     if (!node) continue;
     const labelOffset = nodeState.previewSize
       ? nodeState.previewSize / 2 + 10
-      : nodeState.radius + 11;
+      : nodeState.radius + 11 + (nodeState.labelSub ? 8 : 0);
     nodeState.glow.setAttribute("cx", String(node.x));
     nodeState.glow.setAttribute("cy", String(node.y));
     nodeState.circle.setAttribute("cx", String(node.x));
@@ -27732,8 +27737,14 @@ function updateAllGraphVisuals(nodeById, nodeElements, linkElements) {
         `translate(${node.x - nodeState.previewSize / 2} ${node.y - nodeState.previewSize / 2})`
       );
     }
+    if (nodeState.glyph) {
+      nodeState.glyph.setAttribute("x", String(node.x));
+      nodeState.glyph.setAttribute("y", String(node.y));
+    }
     nodeState.label.setAttribute("x", String(node.x));
     nodeState.label.setAttribute("y", String(node.y + labelOffset));
+    nodeState.labelTitle?.setAttribute("x", String(node.x));
+    nodeState.labelSub?.setAttribute("x", String(node.x));
   }
   for (const line of linkElements) {
     const from = nodeById.get(line.from);
@@ -27750,7 +27761,7 @@ function getGraphNodePreviewSize(node, showPreviews = false) {
   if (!showPreviews || !node.previewUrl) return 0;
   const nodePath = node.nodePath || node.filePath || "";
   if (isBrokenImageSrc(node.previewUrl, nodePath)) return 0;
-  return node.type === "folder" ? 28 : 22;
+  return isGraphFolderLikeType(node.type) ? 28 : 22;
 }
 
 function markGraphNodePreviewMissing(group, nodeState, node, degrees) {
@@ -27766,6 +27777,10 @@ function markGraphNodePreviewMissing(group, nodeState, node, degrees) {
   nodeState.previewSize = 0;
   nodeState.glow.setAttribute("r", String(fallbackRadius + 7));
   nodeState.circle.setAttribute("r", String(fallbackRadius));
+  if (nodeState.glyph) {
+    nodeState.glyph.removeAttribute("visibility");
+    nodeState.glyph.setAttribute("y", String(node.y));
+  }
 }
 
 function getGraphNodeRadius(node, degrees, showPreviews = false) {
@@ -27773,7 +27788,9 @@ function getGraphNodeRadius(node, degrees, showPreviews = false) {
   if (previewSize) return previewSize / 2 + 2;
   const degree = degrees.get(node.id) || 1;
   if (node.id === "root" || node.id === "agent-root") return 5 + Math.min(4, degree * 0.35);
-  if (node.type === "folder") return 4 + Math.min(3, Math.sqrt(degree) * 0.9);
+  if (node.isSatelliteRoot) return 11 + Math.min(3, Math.sqrt(degree) * 0.35);
+  if (resolveGraphNodeGlyph(node)) return 7 + Math.min(2.5, Math.sqrt(degree) * 0.45);
+  if (isGraphFolderLikeType(node.type)) return 4 + Math.min(3, Math.sqrt(degree) * 0.9);
   return 3 + Math.min(2.5, Math.sqrt(degree) * 0.65);
 }
 
@@ -28268,19 +28285,23 @@ function renderGraphCanvas(container, graph, options = {}) {
     const isDisabled = Boolean(node.disabled);
     const clickable = !isDisabled && isNodeClickable(node);
 
+    const graphGlyph = resolveGraphNodeGlyph(node);
     const group = document.createElementNS(ns, "g");
     group.dataset.nodeId = node.id;
     group.setAttribute(
       "class",
-      `external-graph-node${isActive ? " active" : ""}${isDisabled ? " disabled" : ""}${previewSize ? " has-preview" : ""}${showPreviews && !previewSize ? " preview-missing" : ""}`.trim()
+      `external-graph-node${isActive ? " active" : ""}${isDisabled ? " disabled" : ""}${previewSize ? " has-preview" : ""}${showPreviews && !previewSize ? " preview-missing" : ""}${node.isSatelliteRoot ? " is-satellite-root" : ""}${graphGlyph ? " has-glyph" : ""}`.trim()
     );
     group.style.cursor = clickable ? "pointer" : "grab";
 
     const glow = document.createElementNS(ns, "circle");
     glow.setAttribute("cx", String(node.x));
     glow.setAttribute("cy", String(node.y));
-    glow.setAttribute("r", String((previewSize || radius * 2) / 2 + 7));
-    glow.setAttribute("class", `external-graph-glow ${node.type}${isActive ? " active" : ""}`.trim());
+    glow.setAttribute("r", String((previewSize || radius * 2) / 2 + (node.isSatelliteRoot ? 9 : 7)));
+    glow.setAttribute(
+      "class",
+      `external-graph-glow ${node.type}${node.isSatelliteRoot ? " is-satellite-root" : ""}${isActive ? " active" : ""}`.trim()
+    );
     group.appendChild(glow);
 
     let previewFrame = null;
@@ -28290,7 +28311,26 @@ function renderGraphCanvas(container, graph, options = {}) {
     circle.setAttribute("cx", String(node.x));
     circle.setAttribute("cy", String(node.y));
     circle.setAttribute("r", String(radius));
-    circle.setAttribute("class", `external-graph-dot ${node.type}${isActive ? " active" : ""}`.trim());
+    circle.setAttribute(
+      "class",
+      `external-graph-dot ${node.type}${node.isSatelliteRoot ? " is-satellite-root" : ""}${isActive ? " active" : ""}`.trim()
+    );
+
+    let glyph = null;
+    if (graphGlyph) {
+      glyph = document.createElementNS(ns, "text");
+      glyph.setAttribute("x", String(node.x));
+      glyph.setAttribute("y", String(node.y));
+      glyph.setAttribute("text-anchor", "middle");
+      glyph.setAttribute("dominant-baseline", "central");
+      glyph.setAttribute(
+        "class",
+        `external-graph-glyph ${node.type}${node.isSatelliteRoot ? " is-satellite-root" : ""}`.trim()
+      );
+      glyph.textContent = graphGlyph;
+      if (previewSize) glyph.setAttribute("visibility", "hidden");
+      group.appendChild(glyph);
+    }
 
     if (previewSize) {
       circle.setAttribute("visibility", "hidden");
@@ -28300,7 +28340,7 @@ function renderGraphCanvas(container, graph, options = {}) {
       const clipShape = document.createElementNS(ns, "rect");
       clipShape.setAttribute("width", String(previewSize));
       clipShape.setAttribute("height", String(previewSize));
-      clipShape.setAttribute("rx", node.type === "folder" ? "6" : "4");
+      clipShape.setAttribute("rx", isGraphFolderLikeType(node.type) ? "6" : "4");
       clipPath.appendChild(clipShape);
       defs.appendChild(clipPath);
 
@@ -28314,7 +28354,7 @@ function renderGraphCanvas(container, graph, options = {}) {
       previewFrame = document.createElementNS(ns, "rect");
       previewFrame.setAttribute("width", String(previewSize));
       previewFrame.setAttribute("height", String(previewSize));
-      previewFrame.setAttribute("rx", node.type === "folder" ? "6" : "4");
+      previewFrame.setAttribute("rx", isGraphFolderLikeType(node.type) ? "6" : "4");
       previewFrame.setAttribute(
         "class",
         `external-graph-preview-frame ${node.type}${isActive ? " active" : ""}`.trim()
@@ -28334,23 +28374,26 @@ function renderGraphCanvas(container, graph, options = {}) {
 
     group.appendChild(circle);
 
-    const label = document.createElementNS(ns, "text");
-    label.setAttribute("x", String(node.x));
-    label.setAttribute(
-      "y",
-      String(node.y + (previewSize ? previewSize / 2 + 10 : radius + 11))
+    const { label, labelTitle, labelSub, labelOffset } = appendGraphNodeLabel(
+      group,
+      ns,
+      node,
+      node.x,
+      node.y,
+      radius,
+      previewSize
     );
-    label.setAttribute("text-anchor", "middle");
-    label.setAttribute("class", "external-graph-label");
-    label.textContent = node.label;
-    group.appendChild(label);
 
     const lines = linkElements.filter((line) => line.from === node.id || line.to === node.id);
     const nodeState = {
       el: group,
       glow,
       circle,
+      glyph,
       label,
+      labelTitle,
+      labelSub,
+      labelOffset,
       radius,
       previewSize,
       previewGroup,
@@ -91453,6 +91496,187 @@ function stripGraphContainerFolderPrefix(relPath) {
   return stripGraphFolderPrefix(relPath, getActiveAgentContainerFolder());
 }
 
+function isGraphFolderLikeType(type) {
+  return type === "folder" || type === "repositories" || type === "iblock";
+}
+
+const GRAPH_IBLOCK_KIND_GLYPH = {
+  group: "📁",
+  collection: "🗂️",
+  singleton: "📄"
+};
+
+function resolveGraphNodeGlyph(node) {
+  if (node?.graphGlyph) return node.graphGlyph;
+  if (node?.id === "repositories-root") return "📚";
+  if (node?.id === "awn-data-root") return "🧩";
+  if (node?.type === "repositories") return "📚";
+  if (node?.type === "iblock") {
+    return GRAPH_IBLOCK_KIND_GLYPH[node?.storeKind] || "🗂️";
+  }
+  return "";
+}
+
+function appendGraphNodeLabel(group, ns, node, x, y, radius, previewSize) {
+  const baseOffset = previewSize ? previewSize / 2 + 10 : radius + 11;
+  const label = document.createElementNS(ns, "text");
+  label.setAttribute("x", String(x));
+  label.setAttribute("y", String(y + baseOffset + (node.graphSubLabel ? 8 : 0)));
+  label.setAttribute("text-anchor", "middle");
+  label.setAttribute("class", "external-graph-label");
+
+  let labelTitle = null;
+  let labelSub = null;
+  if (node.graphSubLabel) {
+    labelTitle = document.createElementNS(ns, "tspan");
+    labelTitle.setAttribute("class", "external-graph-label-title");
+    labelTitle.setAttribute("x", String(x));
+    labelTitle.setAttribute("dy", "0");
+    labelTitle.textContent = node.label;
+    label.appendChild(labelTitle);
+    labelSub = document.createElementNS(ns, "tspan");
+    labelSub.setAttribute("class", "external-graph-label-sub");
+    labelSub.setAttribute("x", String(x));
+    labelSub.setAttribute("dy", "1.15em");
+    labelSub.textContent = node.graphSubLabel;
+    label.appendChild(labelSub);
+  } else {
+    label.textContent = node.label;
+  }
+
+  group.appendChild(label);
+  return { label, labelTitle, labelSub, labelOffset: baseOffset + (node.graphSubLabel ? 8 : 0) };
+}
+
+function appendAgentGraphRepositoriesBranch({ nodes, edges, nodeIds, rootId, repositoriesPayload }) {
+  const repositoriesRootId = "repositories-root";
+  nodes.push({
+    id: repositoriesRootId,
+    label: "Репозитории",
+    graphSubLabel: "awn-repositories",
+    graphGlyph: "📚",
+    isSatelliteRoot: true,
+    type: "repositories",
+    depth: 1,
+    graphTarget: { kind: "repository-index", path: REPOSITORY_INDEX_REL }
+  });
+  edges.push({ from: rootId, to: repositoriesRootId });
+  nodeIds.add(repositoriesRootId);
+
+  const repositories = Array.isArray(repositoriesPayload?.repositories)
+    ? repositoriesPayload.repositories
+    : [];
+  for (const repo of repositories.slice(0, 32)) {
+    const slug = String(repo?.slug || "").trim();
+    if (!slug) continue;
+    const manifestPath = String(repo?.manifestPath || `awn-repositories/${slug}/manifest.md`)
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
+    const nodeId = `repo:${slug}`;
+    if (nodeIds.has(nodeId)) continue;
+    nodes.push({
+      id: nodeId,
+      label: String(repo?.name || slug).trim(),
+      graphGlyph: repo?.hasGit ? "🌿" : "📚",
+      type: "repositories",
+      depth: 2,
+      graphTarget: { kind: "repository", path: manifestPath }
+    });
+    nodeIds.add(nodeId);
+    edges.push({ from: repositoriesRootId, to: nodeId, weak: true });
+  }
+}
+
+function appendAgentGraphAwnDataBranch({ nodes, edges, nodeIds, rootId, awnDataPayload }) {
+  const awnDataRootId = "awn-data-root";
+  nodes.push({
+    id: awnDataRootId,
+    label: "Инфоблоки",
+    graphSubLabel: "awn-data",
+    graphGlyph: "🧩",
+    isSatelliteRoot: true,
+    type: "iblock",
+    depth: 1,
+    graphTarget: { kind: "iblock-index", path: AWN_DATA_INDEX_REL_PATH }
+  });
+  edges.push({ from: rootId, to: awnDataRootId });
+  nodeIds.add(awnDataRootId);
+
+  const appendStores = (stores, parentId, depth) => {
+    for (const store of stores || []) {
+      const storeRel = String(store?.relPath || store?.id || "")
+        .replace(/\\/g, "/")
+        .replace(/^\/+/, "")
+        .replace(/\/+$/, "");
+      if (!storeRel) continue;
+      const nodeId = `iblock:${storeRel.replace(/[^\w/-]+/g, "-")}`;
+      if (nodeIds.has(nodeId)) continue;
+      nodes.push({
+        id: nodeId,
+        label: String(store?.name || storeRel).trim(),
+        graphGlyph: GRAPH_IBLOCK_KIND_GLYPH[store?.kind] || "🗂️",
+        storeKind: store?.kind || "collection",
+        type: "iblock",
+        depth,
+        graphTarget: { kind: "iblock", storeRel }
+      });
+      nodeIds.add(nodeId);
+      edges.push({ from: parentId, to: nodeId, weak: depth > 2 });
+      if (store?.kind === "group" && Array.isArray(store.children) && store.children.length) {
+        appendStores(store.children, nodeId, depth + 1);
+      }
+    }
+  };
+
+  appendStores(Array.isArray(awnDataPayload?.stores) ? awnDataPayload.stores : [], awnDataRootId, 2);
+}
+
+async function loadAgentGraphRepositoriesPayload() {
+  if (menuRepositoriesLastPayload) return menuRepositoriesLastPayload;
+  const resolvedAgent = String(activeAgentId || "").trim();
+  if (!resolvedAgent) return null;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/repositories", {}, resolvedAgent));
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function loadAgentGraphAwnDataPayload() {
+  if (menuAwnDataStoresLastPayload) return menuAwnDataStoresLastPayload;
+  const resolvedAgent = String(activeAgentId || "").trim();
+  if (!resolvedAgent) return null;
+  try {
+    const response = await fetch(buildApiUrl("/api/awn-data", {}, resolvedAgent));
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function handleAgentGraphNodeClick(node) {
+  if (node?.nodePath) {
+    openNodeFromMenu(getLabelFromPath(node.nodePath), node.nodePath);
+    return;
+  }
+  const target = node?.graphTarget;
+  if (!target) return;
+  if (target.kind === "repository-index" || target.kind === "iblock-index") {
+    void openWorkspaceFilePreviewByRelPath(String(target.path || "").replace(/\\/g, "/"));
+    return;
+  }
+  if (target.kind === "repository") {
+    void openRepositoryWorkspacePath(String(target.path || "").replace(/\\/g, "/"));
+    return;
+  }
+  if (target.kind === "iblock" && target.storeRel) {
+    void openAwnDataViewPage(target.storeRel);
+  }
+}
+
 function isGraphReservedSubtreeEntry(entry, menu) {
   if (!entry?.path) return false;
   const normalized = normalizeMenuNodePath(entry.path);
@@ -91517,7 +91741,7 @@ function resolveGraphIntermediateFolderLabel(entries, relPath, fallback, scopePr
   return fallback;
 }
 
-function buildGraphDataFromAgentMenu(menu) {
+function buildGraphDataFromAgentMenu(menu, { repositoriesPayload = null, awnDataPayload = null } = {}) {
   const baseTree = getWorkspaceRootMenuTreeNode(menu);
   const workspaceEntries = collectFlatMenuEntries(baseTree);
   const serviceEntries = menu?.serviceTree
@@ -91687,6 +91911,9 @@ function buildGraphDataFromAgentMenu(menu) {
   if (containerRootId) {
     appendGraphMenuEntries(containerEntries, { parentRootId: containerRootId, scopePrefix: "container" });
   }
+
+  appendAgentGraphRepositoriesBranch({ nodes, edges, nodeIds, rootId, repositoriesPayload });
+  appendAgentGraphAwnDataBranch({ nodes, edges, nodeIds, rootId, awnDataPayload });
 
   return { nodes, edges };
 }
@@ -92722,7 +92949,7 @@ async function renderAgentTimelineVerticalView() {
   }
 }
 
-function renderAgentGraphView() {
+async function renderAgentGraphView() {
   if (!agentGraphContentNode) return;
   agentGraphContentNode.innerHTML = "";
   applyAgentGraphSettingsUi();
@@ -92732,12 +92959,20 @@ function renderAgentGraphView() {
     return;
   }
 
-  const graph = buildGraphDataFromAgentMenu(currentMenuData);
+  renderListEmptyMessage(agentGraphContentNode, "Загрузка графа…");
+
+  const [repositoriesPayload, awnDataPayload] = await Promise.all([
+    loadAgentGraphRepositoriesPayload(),
+    loadAgentGraphAwnDataPayload()
+  ]);
+
+  const graph = buildGraphDataFromAgentMenu(currentMenuData, { repositoriesPayload, awnDataPayload });
   if (graph.nodes.length <= 1) {
     renderListEmptyMessage(agentGraphContentNode, "В workspace пока нет тем для графа");
     return;
   }
 
+  agentGraphContentNode.innerHTML = "";
   const showPreviews = getAgentGraphSettings().showPreviews;
   const render = () => {
     renderGraphCanvas(agentGraphContentNode, graph, {
@@ -92745,10 +92980,9 @@ function renderAgentGraphView() {
       fullViewport: true,
       showPreviews,
       controlsHost: agentGraphControlsNode,
-      isNodeClickable: (node) => Boolean(node.nodePath),
+      isNodeClickable: (node) => Boolean(node.nodePath || node.graphTarget),
       onNodeClick: (node) => {
-        if (!node.nodePath) return;
-        openNodeFromMenu(getLabelFromPath(node.nodePath), node.nodePath);
+        handleAgentGraphNodeClick(node);
       }
     });
   };
@@ -94353,11 +94587,143 @@ function setupMenuTreeBandGroup() {
   });
 }
 
+function getAwnDataIndexRelPath() {
+  return AWN_DATA_INDEX_REL_PATH;
+}
+
+async function probeAwnDataIndexExists() {
+  const relPath = getAwnDataIndexRelPath();
+  try {
+    const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
+    if (response.ok) return true;
+  } catch {
+    // ignore
+  }
+  return false;
+}
+
+function syncMenuAwnDataIndexRowState() {
+  if (!menuAwnDataIndexRowNode) return;
+  const hasAgent = Boolean(activeAgentId);
+  menuAwnDataIndexRowNode.hidden = !hasAgent;
+  if (!hasAgent) return;
+
+  const hasIndex = menuAwnDataIndexRowNode.dataset.awnDataHasIndex === "1";
+  const indexRelPath = getAwnDataIndexRelPath();
+  menuAwnDataIndexOpenBtn?.classList.toggle("is-available", hasIndex);
+  menuAwnDataIndexOpenBtn?.classList.toggle("is-generated", !hasIndex);
+  if (menuAwnDataIndexOpenBtn) {
+    menuAwnDataIndexOpenBtn.title = hasIndex
+      ? `Открыть ${indexRelPath}`
+      : `Открыть оглавление (файл ещё не создан — нажмите ⟲ для обновления ${indexRelPath})`;
+  }
+  if (menuAwnDataIndexRefreshBtn) {
+    menuAwnDataIndexRefreshBtn.title = `Обновить и сохранить ${indexRelPath}`;
+  }
+}
+
+function setMenuAwnDataIndexRefreshLoading(loading) {
+  if (!menuAwnDataIndexRefreshBtn) return;
+  menuAwnDataIndexRefreshBtn.disabled = loading;
+  menuAwnDataIndexOpenBtn && (menuAwnDataIndexOpenBtn.disabled = loading);
+  menuAwnDataIndexRefreshBtn.classList.toggle("is-loading", loading);
+  menuAwnDataIndexRefreshBtn.textContent = loading ? "" : "⟲";
+  let spinner = menuAwnDataIndexRefreshBtn.querySelector(
+    ".node-navigation-workspace-counter-topic-index-refresh-spinner"
+  );
+  if (loading) {
+    if (!spinner) {
+      spinner = document.createElement("span");
+      spinner.className = "node-navigation-workspace-counter-topic-index-refresh-spinner";
+      spinner.setAttribute("aria-hidden", "true");
+      menuAwnDataIndexRefreshBtn.appendChild(spinner);
+    }
+  } else if (spinner) {
+    spinner.remove();
+  }
+}
+
+async function openAwnDataIndexOverview() {
+  await openWorkspaceFilePreviewByRelPath(getAwnDataIndexRelPath());
+}
+
+async function refreshAwnDataIndexOverview() {
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/awn-data-index"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ overwrite: true })
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function setupMenuAwnDataIndexRow() {
+  syncMenuAwnDataIndexRowState();
+
+  menuAwnDataIndexOpenBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (menuAwnDataIndexOpenBtn.disabled) return;
+    void openAwnDataIndexOverview();
+  });
+
+  menuAwnDataIndexRefreshBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (
+      menuAwnDataIndexRefreshBtn.disabled ||
+      menuAwnDataIndexRefreshBtn.classList.contains("is-loading")
+    ) {
+      return;
+    }
+    setMenuAwnDataIndexRefreshLoading(true);
+    void refreshAwnDataIndexOverview()
+      .then((ok) => {
+        if (!menuAwnDataIndexRowNode?.isConnected) return;
+        if (ok) {
+          menuAwnDataIndexRowNode.dataset.awnDataHasIndex = "1";
+          syncMenuAwnDataIndexRowState();
+          if (activeExternalFilePath === getAwnDataIndexRelPath()) {
+            void openWorkspaceFilePreviewByRelPath(getAwnDataIndexRelPath());
+          }
+          showToast("Оглавление инфоблоков обновлено", "success");
+          return;
+        }
+        showToast("Не удалось обновить оглавление инфоблоков", "error");
+      })
+      .catch(() => {
+        if (menuAwnDataIndexRowNode?.isConnected) {
+          showToast("Не удалось обновить оглавление инфоблоков", "error");
+        }
+      })
+      .finally(() => {
+        if (menuAwnDataIndexRowNode?.isConnected) setMenuAwnDataIndexRefreshLoading(false);
+      });
+  });
+
+  void probeAwnDataIndexExists().then((exists) => {
+    if (!menuAwnDataIndexRowNode?.isConnected) return;
+    menuAwnDataIndexRowNode.dataset.awnDataHasIndex = exists ? "1" : "0";
+    syncMenuAwnDataIndexRowState();
+  });
+}
+
 function setupMenuAwnDataBandGroup() {
   syncMenuAwnDataBandAccordionUi();
   syncSidebarBottomFocusMode();
+  setupMenuAwnDataIndexRow();
   menuAwnDataBandToggleBtn?.addEventListener("click", () => {
     toggleMenuAwnDataBandExpanded();
+  });
+  menuAwnDataSearchInputNode?.addEventListener("input", (event) => {
+    menuAwnDataSearchQuery = String(event.target.value || "");
+    if (menuAwnDataStoresLastPayload) {
+      renderMenuAwnDataStores(menuAwnDataStoresLastPayload);
+      syncAwnDataMenuActiveStore();
+    }
   });
 }
 
@@ -94434,6 +94800,8 @@ let menuGoogleDriveStatsLoadSeq = 0;
 let menuAwnDialogsStatsLoadSeq = 0;
 let menuAwnFactsStatsLoadSeq = 0;
 let menuAwnDataStoresLoadSeq = 0;
+let menuAwnDataStoresLastPayload = null;
+let menuAwnDataSearchQuery = "";
 let menuAwnDataRefreshInFlight = false;
 const MENU_AWN_DATA_REFRESH_SPIN_MIN_MS = 320;
 let menuRepositoriesLoadSeq = 0;
@@ -98088,13 +98456,68 @@ function createAwnDataStoreRow(store, { nested = false } = {}) {
   return row;
 }
 
-function createAwnDataStoreGroupNode(store) {
+function awnDataStoreSearchHaystack(store) {
+  return [
+    store?.name,
+    store?.id,
+    store?.relPath,
+    store?.description,
+    store?.kind,
+    awnDataStoreKindLabel(store?.kind)
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function awnDataStoreMatchesSearchQuery(store, queryLower) {
+  const haystack = awnDataStoreSearchHaystack(store);
+  if (!queryLower) return true;
+  if (!haystack) return false;
+  return haystack.includes(queryLower);
+}
+
+function filterAwnDataStoresPayload(payload, query = menuAwnDataSearchQuery) {
+  const queryLower = String(query || "")
+    .trim()
+    .toLowerCase();
+  if (!queryLower) return payload;
+  const stores = Array.isArray(payload?.stores) ? payload.stores : [];
+  const filteredStores = [];
+  for (const store of stores) {
+    if (store?.kind === "group") {
+      const children = Array.isArray(store.children) ? store.children : [];
+      const groupMatches = awnDataStoreMatchesSearchQuery(store, queryLower);
+      const matchedChildren = children.filter((child) => awnDataStoreMatchesSearchQuery(child, queryLower));
+      if (groupMatches) {
+        filteredStores.push(store);
+        continue;
+      }
+      if (matchedChildren.length) {
+        filteredStores.push({
+          ...store,
+          children: matchedChildren,
+          childCount: matchedChildren.length,
+          _filterExpanded: true
+        });
+      }
+      continue;
+    }
+    if (awnDataStoreMatchesSearchQuery(store, queryLower)) {
+      filteredStores.push(store);
+    }
+  }
+  return { ...payload, stores: filteredStores, _searchActive: true };
+}
+
+function createAwnDataStoreGroupNode(store, { forceExpanded = false } = {}) {
   const item = document.createElement("li");
   item.className = "menu-awn-data-store-group";
 
   const children = Array.isArray(store.children) ? store.children : [];
   const hasContent = children.length > 0;
-  let isCollapsed = false;
+  let isCollapsed = forceExpanded ? false : false;
 
   const headRow = document.createElement("div");
   headRow.className = "menu-awn-data-store-group-head";
@@ -98184,7 +98607,8 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
     return;
   }
 
-  if (error || !payload) {
+  if (error) {
+    menuAwnDataStoresLastPayload = null;
     const item = document.createElement("li");
     item.className = "menu-awn-data-store menu-awn-data-store--empty is-error";
     item.textContent = "Не удалось прочитать";
@@ -98192,26 +98616,41 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
     return;
   }
 
-  const stores = Array.isArray(payload.stores) ? payload.stores : [];
-  if (!stores.length) {
+  if (!payload) {
     const item = document.createElement("li");
-    item.className = "menu-awn-data-store menu-awn-data-store--empty";
-    item.textContent =
-      payload.emptyHint === "select-agent" ? "Выберите агента" : "Нет накопителей";
+    item.className = "menu-awn-data-store menu-awn-data-store--empty is-error";
+    item.textContent = "Не удалось прочитать";
     menuAwnDataStoresNode.appendChild(item);
     return;
   }
 
-  if (payload.source === "platform" && payload.sourceAgentId) {
+  menuAwnDataStoresLastPayload = payload;
+  const viewPayload = filterAwnDataStoresPayload(payload, menuAwnDataSearchQuery);
+  const stores = Array.isArray(viewPayload.stores) ? viewPayload.stores : [];
+  if (!stores.length) {
+    const item = document.createElement("li");
+    item.className = "menu-awn-data-store menu-awn-data-store--empty";
+    item.textContent = viewPayload._searchActive
+      ? "Ничего не найдено"
+      : payload.emptyHint === "select-agent"
+        ? "Выберите агента"
+        : "Нет накопителей";
+    menuAwnDataStoresNode.appendChild(item);
+    return;
+  }
+
+  if (viewPayload.source === "platform" && viewPayload.sourceAgentId) {
     const note = document.createElement("li");
     note.className = "menu-awn-data-store menu-awn-data-store--platform-note";
-    note.textContent = `Модели платформы (${payload.sourceAgentId})`;
+    note.textContent = `Модели платформы (${viewPayload.sourceAgentId})`;
     menuAwnDataStoresNode.appendChild(note);
   }
 
   for (const store of stores) {
     if (store.kind === "group") {
-      menuAwnDataStoresNode.appendChild(createAwnDataStoreGroupNode(store));
+      menuAwnDataStoresNode.appendChild(
+        createAwnDataStoreGroupNode(store, { forceExpanded: Boolean(store._filterExpanded) })
+      );
       continue;
     }
     menuAwnDataStoresNode.appendChild(createAwnDataStoreRow(store));
@@ -98229,6 +98668,7 @@ function isLegacyOnlyAwnDataPayload(payload) {
 
 async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading = false } = {}) {
   if (!menuAwnDataStoresNode) return;
+  syncMenuAwnDataIndexRowState();
 
   const seq = ++menuAwnDataStoresLoadSeq;
   const hasRenderedStores = menuAwnDataStoresNode.childElementCount > 0;
@@ -98250,6 +98690,11 @@ async function refreshMenuAwnDataStores(agentId = activeAgentId, { showLoading =
     if (seq !== menuAwnDataStoresLoadSeq) return;
     awnDataCatalogAgentId = resolveAwnDataCatalogAgentId(data, resolvedAgent);
     renderMenuAwnDataStores(data);
+    void probeAwnDataIndexExists().then((exists) => {
+      if (!menuAwnDataIndexRowNode?.isConnected) return;
+      menuAwnDataIndexRowNode.dataset.awnDataHasIndex = exists ? "1" : "0";
+      syncMenuAwnDataIndexRowState();
+    });
   } catch {
     if (seq !== menuAwnDataStoresLoadSeq) return;
     renderMenuAwnDataStores(null, { error: true });

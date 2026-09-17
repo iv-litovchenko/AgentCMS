@@ -48546,6 +48546,14 @@ button.node-navigation-memory-title:focus-visible {
   fill: rgba(250, 204, 21, 0.28);
 }
 
+.external-graph-glow.repositories {
+  fill: rgba(34, 197, 94, 0.3);
+}
+
+.external-graph-glow.iblock {
+  fill: rgba(167, 139, 250, 0.34);
+}
+
 .external-graph-glow.active,
 .external-graph-node.hovered .external-graph-glow,
 .external-graph-node.highlighted .external-graph-glow {
@@ -48588,6 +48596,18 @@ button.node-navigation-memory-title:focus-visible {
   stroke-width: 1;
 }
 
+.external-graph-dot.repositories {
+  fill: #22c55e;
+  stroke: rgba(34, 197, 94, 0.45);
+  stroke-width: 1;
+}
+
+.external-graph-dot.iblock {
+  fill: #a78bfa;
+  stroke: rgba(167, 139, 250, 0.5);
+  stroke-width: 1;
+}
+
 .external-graph-dot.active,
 .external-graph-node.hovered .external-graph-dot,
 .external-graph-node.highlighted .external-graph-dot {
@@ -48602,6 +48622,16 @@ button.node-navigation-memory-title:focus-visible {
 .external-graph-node.hovered .external-graph-dot.folder,
 .external-graph-node.highlighted .external-graph-dot.folder {
   fill: #fde047;
+}
+
+.external-graph-node.hovered .external-graph-dot.repositories,
+.external-graph-node.highlighted .external-graph-dot.repositories {
+  fill: #4ade80;
+}
+
+.external-graph-node.hovered .external-graph-dot.iblock,
+.external-graph-node.highlighted .external-graph-dot.iblock {
+  fill: #c4b5fd;
 }
 
 .external-graph-preview-frame {
@@ -55024,14 +55054,25 @@ body.is-cms-page-picker-active #discuss-aside * {
   gap: 0.35rem;
 }
 
-.sidebar.is-menu-bottom-focus .menu-awn-data-band:not(.is-collapsed) {
+.sidebar.is-menu-bottom-focus .menu-awn-data-band:not(.is-collapsed),
+.sidebar.is-menu-bottom-focus .menu-static-footer:not(.is-collapsed),
+.sidebar.is-menu-bottom-focus .menu-system-environment:not(.hidden).is-open {
   flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-.sidebar.is-menu-bottom-focus .menu-awn-data-band-body {
+.sidebar.is-menu-bottom-focus .menu-awn-data-band-head,
+.sidebar.is-menu-bottom-focus .menu-static-footer-toggle-btn,
+.sidebar.is-menu-bottom-focus .menu-system-environment-host {
+  flex-shrink: 0;
+}
+
+.sidebar.is-menu-bottom-focus .menu-awn-data-band-body,
+.sidebar.is-menu-bottom-focus .menu-static-footer-body,
+.sidebar.is-menu-bottom-focus .menu-system-environment.is-open > .menu-system-environment-grid {
   flex: 1 1 0;
   min-height: 0;
   overflow-x: hidden;
@@ -55040,8 +55081,9 @@ body.is-cms-page-picker-active #discuss-aside * {
   -webkit-overflow-scrolling: touch;
 }
 
-.sidebar.is-menu-bottom-focus .menu-static-footer {
-  flex-shrink: 0;
+.sidebar.is-menu-bottom-focus .menu-static-footer-body .menu-repositories-list {
+  max-height: none;
+  overflow: visible;
 }
 
 .menu-awn-data-store {
@@ -55384,6 +55426,82 @@ body.is-cms-page-picker-active #discuss-aside * {
   flex-wrap: nowrap;
   align-items: stretch;
   gap: 0.35rem;
+}
+
+.menu-awn-data-index-row {
+  margin: 0.15rem 0 0;
+  width: 100%;
+}
+
+.menu-awn-data-index-row .node-navigation-workspace-counter-topic-index {
+  min-height: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-color: rgba(196, 181, 253, 0.85);
+  background: rgba(255, 255, 255, 0.92);
+  color: #6d28d9;
+  font-size: 11px;
+}
+
+.menu-awn-data-index-row .node-navigation-workspace-counter-topic-index.is-available {
+  border-color: rgba(124, 58, 237, 0.45);
+  background: rgba(245, 243, 255, 0.95);
+  color: #5b21b6;
+}
+
+.menu-awn-data-index-row .node-navigation-workspace-counter-topic-index.is-generated:hover,
+.menu-awn-data-index-row .node-navigation-workspace-counter-topic-index.is-available:hover {
+  border-color: rgba(124, 58, 237, 0.62);
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.menu-awn-data-index-row .node-navigation-workspace-counter-topic-index-refresh {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border-color: rgba(196, 181, 253, 0.85);
+  background: rgba(255, 255, 255, 0.92);
+  color: #7c3aed;
+}
+
+.menu-awn-data-index-row .node-navigation-workspace-counter-topic-index-refresh:hover,
+.menu-awn-data-index-row .node-navigation-workspace-counter-topic-index-refresh:focus-visible {
+  border-color: rgba(124, 58, 237, 0.62);
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.menu-awn-data-toolbar-row--search {
+  margin-top: 0.1rem;
+}
+
+.menu-awn-data-search-wrap {
+  width: 100%;
+  min-width: 0;
+}
+
+.menu-awn-data-search-wrap .menu-search-bar {
+  min-height: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-color: rgba(196, 181, 253, 0.85);
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 6px;
+}
+
+.menu-awn-data-search-wrap .menu-search-bar:focus-within {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.14);
+}
+
+.menu-awn-data-search-wrap .menu-search-input {
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.menu-awn-data-search-wrap .menu-search-icon {
+  color: #8b5cf6;
 }
 
 .menu-awn-data-create-btn {
@@ -59169,3 +59287,16 @@ body.is-cms-page-picker-active #discuss-aside * {
   width: 20px;
   height: 20px;
 }
+.external-graph-glow.repositories.is-satellite-root { fill: rgba(34, 197, 94, 0.42); }
+.external-graph-glow.iblock.is-satellite-root { fill: rgba(167, 139, 250, 0.46); }
+.external-graph-dot.repositories.is-satellite-root { fill: #15803d; stroke: rgba(187, 247, 208, 0.85); stroke-width: 1.6; }
+.external-graph-dot.iblock.is-satellite-root { fill: #6d28d9; stroke: rgba(221, 214, 254, 0.85); stroke-width: 1.6; }
+.external-graph-node.has-glyph .external-graph-dot { fill: rgba(15, 23, 42, 0.72); stroke-width: 1.35; }
+.external-graph-node.has-glyph .external-graph-dot.repositories { stroke: rgba(74, 222, 128, 0.72); }
+.external-graph-node.has-glyph .external-graph-dot.iblock { stroke: rgba(196, 181, 253, 0.78); }
+.external-graph-glyph { fill: #fff; font-size: 11px; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; pointer-events: none; user-select: none; }
+.external-graph-glyph.is-satellite-root { font-size: 15px; }
+.external-graph-label-title { fill: rgba(255, 255, 255, 0.88); font-weight: 650; font-size: 12px; }
+.external-graph-label-sub { fill: rgba(255, 255, 255, 0.48); font-size: 9px; letter-spacing: 0.02em; }
+.external-graph-node.hovered .external-graph-label-title, .external-graph-node.active .external-graph-label-title, .external-graph-node.highlighted .external-graph-label-title { fill: #fff; }
+.external-graph-node.hovered .external-graph-label-sub, .external-graph-node.active .external-graph-label-sub, .external-graph-node.highlighted .external-graph-label-sub { fill: rgba(255, 255, 255, 0.72); }

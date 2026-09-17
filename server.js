@@ -269,6 +269,7 @@ const { getPlatformIndexAbsolute, getPlatformAgentRootAbsolute, getAgentCmsCoreA
 const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload, getTypesListPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const {
+  AWN_DATA_DIR,
   getAwnDataPayload,
   createAwnDataStore,
   createAwnDataRecord,
@@ -11059,6 +11060,148 @@ async function writeAgentWorkspacePageIndex(options = {}) {
   };
 }
 
+const AWN_DATA_INDEX_FILE = "INDEX.md";
+
+function getAwnDataIndexRelPath() {
+  return `${AWN_DATA_DIR}/${AWN_DATA_INDEX_FILE}`.replace(/\\/g, "/");
+}
+
+const AWN_DATA_KIND_INDEX_LABELS = {
+  group: "группа",
+  collection: "коллекция",
+  singleton: "одиночка"
+};
+
+function mapAwnDataStoreToIndexEntry(store, parentGroup = "") {
+  const relPath = String(store?.relPath || store?.id || "").replace(/\\/g, "/").trim();
+  const kind = String(store?.kind || "collection").trim();
+  return {
+    path: relPath,
+    linkPath: store?.manifestRelPath ? `${AWN_DATA_DIR}/${store.manifestRelPath}`.replace(/\\/g, "/") : "",
+    type: AWN_DATA_KIND_INDEX_LABELS[kind] || kind,
+    kind,
+    group: parentGroup || "—",
+    title: String(store?.name || relPath || "").trim(),
+    description: String(store?.description || "").trim(),
+    recordCount: Number.isFinite(Number(store?.recordCount)) ? Number(store.recordCount) : 0
+  };
+}
+
+function flattenAwnDataStoresForIndex(stores, parentGroup = "") {
+  const entries = [];
+  for (const store of stores || []) {
+    if (!store) continue;
+    entries.push(mapAwnDataStoreToIndexEntry(store, parentGroup));
+    if (store.kind === "group" && Array.isArray(store.children) && store.children.length) {
+      const groupPath = String(store.relPath || store.id || "").trim();
+      entries.push(...flattenAwnDataStoresForIndex(store.children, groupPath));
+    }
+  }
+  return entries.sort((a, b) =>
+    String(a.path || "").localeCompare(String(b.path || ""), "ru", { sensitivity: "base", numeric: true })
+  );
+}
+
+function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет накопителей для оглавления._" } = {}) {
+  if (!entries?.length) return emptyHint;
+  const lines = [
+    "| Тип | Группа | Путь | Название | Описание | Записей |",
+    "| --- | --- | --- | --- | --- | ---: |"
+  ];
+  for (const entry of entries) {
+    lines.push(
+      `${escapeContentIndexTableCell(entry.type) || "—"} | ${escapeContentIndexTableCell(entry.group) || "—"} | \`${escapeContentIndexTableCell(entry.path)}\` | ${formatContentIndexTitleCell(entry, { linkTitle: false })} | ${escapeContentIndexTableCell(entry.description) || "—"} | ${Number(entry.recordCount) || 0} |`
+    );
+  }
+  return lines.join("\n");
+}
+
+async function buildAwnDataIndexMarkdown({ stores }) {
+  const entries = flattenAwnDataStoresForIndex(stores);
+  const lines = ["# Оглавление инфоблоков (awn-data)", ""];
+  lines.push(formatAwnDataIndexEntriesMarkdown(entries));
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
+async function buildAgentAwnDataIndex() {
+  const agentRoot = getAgentRoot();
+  if (!agentRoot) {
+    return {
+      version: 1,
+      model: "awn-data-index",
+      entries: [],
+      entryCount: 0,
+      storeCount: 0,
+      indexFile: { path: getAwnDataIndexRelPath(), exists: false, source: "generated" }
+    };
+  }
+  const payload = getAwnDataPayload(agentRoot, getProjectRoot());
+  const indexPath = getAwnDataIndexRelPath();
+  const indexExists = await workspaceRelFileExists(indexPath);
+  const entries = flattenAwnDataStoresForIndex(payload?.stores || []);
+  const manifestPath = await resolveWorkspacePageIndexManifestRel();
+
+  return {
+    version: 1,
+    model: "awn-data-index",
+    hint:
+      "Оглавление накопителей awn-data (kind, group, path, title, description, recordCount) без body и properties. " +
+      "Полный каталог → GET /api/awn-data.",
+    whenToUse: {
+      iblock_read_index: "Быстрый обзор всех инфоблоков workspace без погружения в каждый накопитель.",
+      iblock_refresh_index:
+        "Обновить (пересобрать и сохранить) INDEX.md в корне awn-data (таблица kind/group/path/title/description)."
+    },
+    path: manifestPath,
+    indexFile: {
+      path: indexPath,
+      exists: indexExists,
+      source: indexExists ? "file" : "generated"
+    },
+    entries,
+    entryCount: entries.length,
+    storeCount: Number(payload?.storeCount) || entries.length
+  };
+}
+
+async function writeAgentAwnDataIndex(options = {}) {
+  const overwrite = options.overwrite !== false;
+  const payload = await buildAgentAwnDataIndex();
+  const indexPath = payload.indexFile.path;
+  if (payload.indexFile.exists && !overwrite) {
+    return {
+      error: "Awn-data index file already exists",
+      status: 409,
+      path: payload.path,
+      indexFile: { path: indexPath, exists: true }
+    };
+  }
+  const agentRoot = getAgentRoot();
+  if (!agentRoot) {
+    return { error: "Agent not selected", status: 400 };
+  }
+  const dataPayload = getAwnDataPayload(agentRoot, getProjectRoot());
+  const manifestRel = await resolveWorkspacePageIndexManifestRel();
+  const markdown = await buildAwnDataIndexMarkdown({ stores: dataPayload?.stores || [] });
+  await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
+  return {
+    version: 1,
+    model: "awn-data-index-write",
+    hint: "INDEX.md обновлён в awn-data/. Просмотр без записи → iblock_read_index / GET /api/agent/awn-data-index.",
+    whenToUse: payload.whenToUse,
+    path: payload.path,
+    overwrite,
+    written: {
+      path: indexPath,
+      created: !payload.indexFile.exists,
+      overwritten: Boolean(payload.indexFile.exists),
+      entryCount: payload.entryCount,
+      storeCount: payload.storeCount
+    },
+    indexFile: { path: indexPath, exists: true, source: "file" }
+  };
+}
+
 function getSlotStorageIndexRelPath(manifestRelPath, slotKey, storageFolder, driver) {
   const { slotKeyToStorageFolder, isExternalMemorySlot, isInternalBundleSlot } = require("./storage-slot-routing");
   const slotDir = String(getNamedStorageSlotDirRel(manifestRelPath, getStoragePathOptions()) || "")
@@ -11914,6 +12057,9 @@ const SESSION_CONTEXT_API_MAP = {
     "GET /api/agent/workspace-page-index — оглавление INDEX.md (path, type, title, description; страницы workspace)",
   workspacePageIndexWrite:
     "POST /api/agent/workspace-page-index — обновить INDEX.md в корне workspace (body: overwrite?)",
+  awnDataIndex:
+    "GET /api/agent/awn-data-index — оглавление awn-data/INDEX.md (kind, group, path, title, description; инфоблоки)",
+  awnDataIndexWrite: "POST /api/agent/awn-data-index — обновить awn-data/INDEX.md (body: overwrite?)",
   dataStores: "GET /api/awn-data — накопители awn-data; ?store= для одного",
   dataStoreCreate: "POST /api/awn-data/stores — создать накопитель",
   dataRecordCreate: "POST /api/awn-data/records — добавить запись",
@@ -18306,6 +18452,40 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to write workspace page index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/awn-data-index") {
+    try {
+      const payload = await buildAgentAwnDataIndex();
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read awn-data index",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/awn-data-index") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = await writeAgentAwnDataIndex({
+        overwrite: payload.overwrite !== false
+      });
+      if (result.error) {
+        return sendJson(res, result.status || 400, {
+          error: result.error,
+          path: result.path,
+          indexFile: result.indexFile
+        });
+      }
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to write awn-data index",
         details: String(error.message || error)
       });
     }

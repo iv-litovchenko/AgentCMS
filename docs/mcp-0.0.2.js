@@ -278,6 +278,18 @@ module.exports = {
       tools: [
         { name: "iblock_list", description: "Список инфоблоков.", parameters: "—", http: "GET /api/awn-data" },
         { name: "iblock_get", description: "Один инфоблок: schema, records, tree.", parameters: "store", http: "GET /api/awn-data?store=" },
+        {
+          name: "iblock_read_index",
+          description: "Оглавление инфоблоков (awn-data/INDEX.md): kind, group, path, title, description.",
+          parameters: "—",
+          http: "GET /api/agent/awn-data-index"
+        },
+        {
+          name: "iblock_refresh_index",
+          description: "Обновить awn-data/INDEX.md из iblock_list.",
+          parameters: "overwrite?",
+          http: "POST /api/agent/awn-data-index"
+        },
         { name: "iblock_create", description: "Создать group/collection/singleton.", parameters: "slug, kind?, …", http: "POST /api/awn-data/stores" },
         {
           name: "iblock_read_schema",
