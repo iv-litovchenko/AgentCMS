@@ -39972,6 +39972,7 @@ function hideProjectSettingsPageUi() {
   appRootNode?.classList.remove("project-settings-view");
   projectSettingsPageNode?.classList.add("hidden");
   workspacePathHeaderNode?.classList.remove("is-project-settings");
+  syncMenuAgentStatsSettingsBtnState();
 }
 
 function leaveProjectSettingsMode() {
@@ -39985,6 +39986,7 @@ function applyProjectSettingsPageUi(cache = getNodeSettingsCache()) {
   appRootNode?.classList.add("project-settings-view");
   projectSettingsPageNode?.classList.remove("hidden");
   workspacePathHeaderNode?.classList.add("is-project-settings");
+  syncMenuAgentStatsSettingsBtnState();
   saveContentBtn?.classList.remove("hidden");
   renderProjectSettingsPage(cache);
 }
@@ -85152,6 +85154,32 @@ async function fetchAgentWorkspaceStats() {
   return response.json();
 }
 
+function createMenuAgentStatsSettingsButton() {
+  const button = document.createElement("button");
+  button.id = "menu-agent-stats-settings-btn";
+  button.type = "button";
+  button.className = "menu-agent-stats-settings-btn";
+  button.title = "Настройки и параметры";
+  button.setAttribute("aria-label", "Настройки и параметры");
+  button.innerHTML =
+    '<svg class="menu-agent-stats-settings-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+    '<path d="M6 4v16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M12 7v13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M18 5v15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<circle cx="6" cy="9" r="2.25" fill="currentColor"/>' +
+    '<circle cx="12" cy="15" r="2.25" fill="currentColor"/>' +
+    '<circle cx="18" cy="11" r="2.25" fill="currentColor"/>' +
+    "</svg>";
+  return button;
+}
+
+function syncMenuAgentStatsSettingsBtnState() {
+  const button = document.getElementById("menu-agent-stats-settings-btn");
+  if (!button) return;
+  button.classList.toggle("is-active", isProjectSettingsMode());
+  button.setAttribute("aria-pressed", isProjectSettingsMode() ? "true" : "false");
+}
+
 function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = null, loading = false } = {}) {
   if (!menuAgentStatsNode) return;
 
@@ -85194,7 +85222,9 @@ function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = 
   });
 
   band.appendChild(line);
+  band.appendChild(createMenuAgentStatsSettingsButton());
   menuAgentStatsNode.appendChild(band);
+  syncMenuAgentStatsSettingsBtnState();
 }
 
 function hideMenuAgentStats() {
@@ -94744,22 +94774,12 @@ function setupMenuStaticFooterGroup() {
   menuStaticFooterToggleBtn?.addEventListener("click", () => {
     toggleMenuStaticFooterExpanded();
   });
-  const settingsOpenBtn = document.getElementById("menu-static-settings-open-btn");
-  settingsOpenBtn?.addEventListener("click", (event) => {
+  menuAgentStatsNode?.addEventListener("click", (event) => {
+    const settingsBtn = event.target.closest("#menu-agent-stats-settings-btn");
+    if (!settingsBtn) return;
     event.preventDefault();
     void openProjectSettingsHub();
   });
-  document.querySelector(".menu-static-section--settings .menu-static-summary")?.addEventListener(
-    "click",
-    (event) => {
-      if (event.target.closest("#menu-static-settings-open-btn")) return;
-      if (settingsOpenBtn?.disabled) return;
-      if (event.altKey || event.metaKey || event.ctrlKey) {
-        event.preventDefault();
-        void openProjectSettingsHub();
-      }
-    }
-  );
   void refreshMenuGoogleDriveStats();
   void refreshMenuAwnDataStores();
   void refreshMenuRepositories();
