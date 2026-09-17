@@ -26,6 +26,7 @@
   },
   "voice": {
     "input": {
+      "enabled": false,
       "mode": "fn_button",
       "capture": "microphone",
       "globalListen": false,
@@ -43,7 +44,7 @@
       }
     },
     "tts": {
-      "enabled": true,
+      "enabled": false,
       "playbackMode": "dialog",
       "engine": "browser",
       "prompt": "Сформируй ответ в следующем формате (строго, в таком порядке):\n\n1) Голосовая версия для озвучки — без emoji и markdown, только то, что можно произнести вслух. Не включай секреты, ключи и пароли. Не используй HTML-комментарии <!-- -->.\n\n2) Отдельной строкой маркер:\n\n::: VOICE-END :::\n\n3) Полный текст ответа для экрана (можно markdown, списки, код и любые другие элементы). Без HTML-комментариев <!-- -->.",
@@ -101,7 +102,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0
+    "dialogScrollRatio": 0.5568
   },
   "compose": {
     "promptTemplates": [

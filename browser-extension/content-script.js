@@ -40,7 +40,10 @@
       '<svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
     download:
       '<svg viewBox="0 0 24 24"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>',
-    collapse: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>'
+    collapse: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+    expand: '<svg viewBox="0 0 24 24"><path d="M10 8l4 4-4 4M14 8l4 4-4 4"/></svg>',
+    panel:
+      '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>'
   };
 
   const SELECTION_PROMPTS = [
@@ -119,14 +122,6 @@
   root.setAttribute("role", "toolbar");
   root.setAttribute("aria-label", "Agent Shell Companion");
 
-  const brand = document.createElement("button");
-  brand.type = "button";
-  brand.className = "asc-brand";
-  brand.title = "Развернуть панель · Agent CMS";
-  brand.setAttribute("aria-label", "Agent CMS · развернуть панель");
-  brand.setAttribute("aria-expanded", "false");
-  brand.innerHTML = `<span class="asc-brand-icon">${BRAND_ICON_SVG}</span><span class="asc-brand-label">Agent CMS</span>`;
-
   const actions = document.createElement("div");
   actions.className = "asc-actions";
   const menus = [];
@@ -134,7 +129,8 @@
   let offsetX = 0;
   let offsetY = 0;
   let dragState = null;
-  let skipBrandClick = false;
+  let expandBtn = null;
+  let panelBtn = null;
 
   function createBtn(key, label, title) {
     const btn = document.createElement("button");
@@ -145,6 +141,23 @@
     btn.innerHTML = `${ICONS[key]}<span class="asc-label">${label}</span>`;
     return btn;
   }
+
+  const brandCluster = document.createElement("div");
+  brandCluster.className = "asc-brand-cluster";
+
+  const brand = document.createElement("div");
+  brand.className = "asc-brand";
+  brand.title = "Перетащить панель";
+  brand.setAttribute("aria-label", "Agent CMS · перетащить панель");
+  brand.innerHTML = `<span class="asc-brand-icon">${BRAND_ICON_SVG}</span><span class="asc-brand-label">Agent CMS</span>`;
+
+  expandBtn = createBtn("expand", "Развернуть", "Развернуть панель инструментов");
+  expandBtn.classList.add("asc-btn--expand", "asc-btn--icon-only");
+
+  panelBtn = createBtn("panel", "Панель", "Открыть боковую панель Agent CMS");
+  panelBtn.classList.add("asc-btn--panel", "asc-btn--icon-only");
+
+  brandCluster.append(brand, panelBtn, expandBtn);
 
   function closeMenus(except) {
     for (const menu of menus) {
@@ -316,7 +329,7 @@
 
   const shell = document.createElement("div");
   shell.className = "asc-shell";
-  shell.append(brand, actions, status);
+  shell.append(brandCluster, actions, status);
 
   const shadow = root.attachShadow({ mode: "open" });
   const style = document.createElement("style");
@@ -327,14 +340,8 @@
   function setExpanded(expanded) {
     const next = Boolean(expanded);
     root.classList.toggle("is-expanded", next);
-    brand.setAttribute("aria-expanded", next ? "true" : "false");
-    brand.title = next
-      ? "Открыть Agent Shell · Agent CMS"
-      : "Развернуть панель · Agent CMS";
-    brand.setAttribute(
-      "aria-label",
-      next ? "Agent CMS · открыть Agent Shell" : "Agent CMS · развернуть панель"
-    );
+    expandBtn.hidden = next;
+    expandBtn.setAttribute("aria-hidden", next ? "true" : "false");
     window.requestAnimationFrame(() => applyOffset({ x: offsetX, y: offsetY }, false));
     try {
       localStorage.setItem(STORAGE_EXPANDED, next ? "1" : "0");
@@ -1750,9 +1757,7 @@
 
   function isDragHandle(target) {
     if (!(target instanceof Element)) return false;
-    if (target.closest(".asc-brand")) return true;
-    if (target.closest(".asc-btn, .asc-menu-pop, .asc-menu-item")) return false;
-    return Boolean(target.closest(".asc-shell"));
+    return Boolean(target.closest(".asc-brand"));
   }
 
   function onPointerDown(event) {
@@ -1775,7 +1780,6 @@
     if (!dragState.moved) {
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       dragState.moved = true;
-      skipBrandClick = true;
       root.classList.add("is-dragging");
       closeMenus();
     }
@@ -1788,24 +1792,16 @@
     const moved = dragState.moved;
     dragState = null;
     root.classList.remove("is-dragging");
-    if (moved) {
-      applyOffset({ x: offsetX, y: offsetY }, true);
-      window.setTimeout(() => {
-        skipBrandClick = false;
-      }, 0);
-    }
+    if (moved) applyOffset({ x: offsetX, y: offsetY }, true);
   }
 
-  brand.addEventListener("click", (event) => {
+  expandBtn.addEventListener("click", (event) => {
     event.stopPropagation();
-    if (skipBrandClick) {
-      skipBrandClick = false;
-      return;
-    }
-    if (!root.classList.contains("is-expanded")) {
-      setExpanded(true);
-      return;
-    }
+    setExpanded(true);
+  });
+
+  panelBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
     openPanel();
   });
 

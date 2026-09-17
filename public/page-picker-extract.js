@@ -371,6 +371,40 @@
     return el;
   }
 
+  function describePickerElement(el) {
+    if (!el?.tagName) return "";
+
+    if (el.matches?.(".system-file-item[data-system-file]")) return ".system-file-item";
+    if (el.matches?.(".menu-item[data-path]")) return ".menu-item";
+    if (el.matches?.(".menu-folder[data-path]")) return ".menu-folder";
+    if (el.matches?.(".menu-card-body[data-path]")) return ".menu-card-body";
+    if (el.matches?.(".nav-book-toc-link[data-rail-file-path]")) return ".nav-book-toc-link";
+
+    let label = el.tagName.toLowerCase();
+
+    if (label === "input") {
+      const type = String(el.getAttribute("type") || "text").toLowerCase();
+      label = `input[type=${type}]`;
+    }
+
+    const role = String(el.getAttribute("role") || "").trim().toLowerCase();
+    if (role && role !== "presentation" && role !== "none") {
+      label += `[role=${role}]`;
+    }
+
+    const id = String(el.id || "").trim();
+    if (id && id.length <= 40 && /^[a-zA-Z][\w-]*$/.test(id)) {
+      return `${label}#${id}`;
+    }
+
+    const className = Array.from(el.classList || []).find(
+      (name) => name && !/^(cms-|is-)/.test(name) && name.length <= 32
+    );
+    if (className) label += `.${className}`;
+
+    return label;
+  }
+
   function resolveTextBlockTarget(raw, { isExcluded, extractText, isFormField: isField, blockSelector } = {}) {
     if (!raw || isExcluded?.(raw)) return null;
 
@@ -439,6 +473,7 @@
     extractPickerInsertValue,
     findPickerPriorityElement,
     deepElementFromPoint,
+    describePickerElement,
     resolveTextBlockTarget,
     DEFAULT_PICKER_BLOCK_SELECTOR
   };

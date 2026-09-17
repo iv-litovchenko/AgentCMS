@@ -23,14 +23,18 @@
   max-width: none;
   padding: 4px;
   overflow: visible;
-  cursor: grab;
-  user-select: none;
-  touch-action: none;
   border-radius: 999px;
   background: rgba(17, 12, 32, 0.94);
   border: 1px solid rgba(167, 139, 250, 0.42);
   box-shadow: 0 10px 28px rgba(15, 10, 30, 0.28);
   backdrop-filter: blur(12px);
+}
+
+.asc-brand-cluster {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
 }
 
 .asc-shell button {
@@ -53,6 +57,7 @@
 }
 
 .asc-shell .asc-brand {
+  display: flex;
   width: auto;
   min-width: 32px;
   height: 32px;
@@ -63,6 +68,8 @@
   overflow: visible;
   background: transparent;
   cursor: grab;
+  touch-action: none;
+  user-select: none;
   justify-content: flex-start;
   align-items: center;
 }
@@ -103,13 +110,11 @@
   cursor: grab;
 }
 
-:host(.is-dragging) .asc-shell,
 :host(.is-dragging) .asc-brand,
 :host(.is-dragging) .asc-brand-icon {
   cursor: grabbing;
 }
 
-:host(.is-dragging) .asc-shell,
 :host(.is-dragging) .asc-brand-icon,
 :host(.is-dragging) .asc-brand-icon::after {
   animation: none;
@@ -137,9 +142,8 @@
   filter: brightness(1.08);
 }
 
-.asc-brand:focus-visible {
-  outline: 2px solid #a78bfa;
-  outline-offset: 2px;
+:host(.is-expanded) .asc-btn--expand {
+  display: none;
 }
 
 :host(:not(.is-expanded)) .asc-shell {
@@ -279,6 +283,15 @@
   opacity: 0.45;
   transform: translateX(-50%);
   transition: width 0.16s ease, opacity 0.16s ease, background 0.16s ease;
+}
+
+.asc-shell .asc-btn--expand svg,
+.asc-shell .asc-btn--panel svg {
+  transform: none;
+}
+
+.asc-shell .asc-btn--panel {
+  color: #ddd6fe;
 }
 
 .asc-shell .asc-btn--collapse {

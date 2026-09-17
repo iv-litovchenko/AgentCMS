@@ -121,6 +121,32 @@ body.is-cms-page-picker-active #agent-shell-companion-toolbar {
   transition: top 0.05s ease, left 0.05s ease, width 0.05s ease, height 0.05s ease;
 }
 
+.cms-page-picker-highlight-tag {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  max-width: calc(100% - 8px);
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #c7d2fe;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+  pointer-events: none;
+}
+
+.cms-page-picker-highlight-tag[hidden] {
+  display: none;
+}
+
 .asc-screenshot-element-root {
   position: fixed;
   inset: 0;

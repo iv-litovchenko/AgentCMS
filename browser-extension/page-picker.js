@@ -18,6 +18,7 @@
   let rootNode = null;
   let highlightNode = null;
   let hintNode = null;
+  let highlightTagNode = null;
   let hoveredTarget = null;
 
   function notifyPickerState() {
@@ -121,9 +122,17 @@
     return extractPickerText(el);
   }
 
+  function describePickerElement(el) {
+    return window.PagePickerExtract?.describePickerElement?.(el) || "";
+  }
+
   function hideHighlight() {
     if (!highlightNode) return;
     highlightNode.style.display = "none";
+    if (highlightTagNode) {
+      highlightTagNode.hidden = true;
+      highlightTagNode.textContent = "";
+    }
   }
 
   function showHighlight(target) {
@@ -138,6 +147,17 @@
     highlightNode.style.left = `${Math.max(0, rect.left)}px`;
     highlightNode.style.width = `${Math.max(0, rect.width)}px`;
     highlightNode.style.height = `${Math.max(0, rect.height)}px`;
+
+    const label = describePickerElement(target);
+    if (highlightTagNode) {
+      if (label) {
+        highlightTagNode.textContent = label;
+        highlightTagNode.hidden = false;
+      } else {
+        highlightTagNode.hidden = true;
+        highlightTagNode.textContent = "";
+      }
+    }
   }
 
   function onPointerMove(event) {
@@ -188,6 +208,11 @@
 
     highlightNode = document.createElement("div");
     highlightNode.className = "cms-page-picker-highlight";
+
+    highlightTagNode = document.createElement("span");
+    highlightTagNode.className = "cms-page-picker-highlight-tag";
+    highlightTagNode.hidden = true;
+    highlightNode.append(highlightTagNode);
 
     rootNode.append(hintNode, highlightNode);
     document.body.appendChild(rootNode);
