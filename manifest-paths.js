@@ -38,7 +38,7 @@ function stripStorageRootPrefix(relPath) {
 }
 /** Служебный слой Neos-like: node-types, fields — не в меню контента */
 const CONFIGURATION_ROOT_FOLDER = "configuration";
-/** Накопители информации — sidebar «Накопители», не в дереве тем */
+/** Накопители информации (инфоблоки) — sidebar awn-data, не в дереве тем */
 const AWN_DATA_ROOT_FOLDER = "awn-data";
 /** Google Drive sync — отдельный UI, не в дереве тем */
 const AWN_GOOGLE_DRIVE_ROOT_FOLDER = "awn-google-drive";

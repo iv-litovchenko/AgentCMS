@@ -128,7 +128,7 @@ const BUILTIN_DOMAIN_META = {
   "md-blocks": { label: "Markdown blocks", kind: "block" },
   taxonomies: { label: "Taxonomies", kind: "taxonomy" },
   mixins: { label: "Mixins", kind: "mixin" },
-  data: { label: "Накопители (awn-data)", kind: "data-container" }
+  data: { label: "Накопители информации (инфоблоки)", kind: "data-container" }
 };
 
 function normalizeDomainEntry(raw) {

@@ -92,6 +92,7 @@ const {
   isAreaManifestFileName,
   isTopicManifestFileName,
   isAreaManifestRelPath,
+  isAreaLevelManifestRelPath,
   isManifestMdRelPath,
   isManifestMdAbsolute,
   joinAreaManifestRel,
@@ -12738,6 +12739,171 @@ const SHARED_SLOT_STORAGE_SKIP_DIR_NAMES = new Set(
   ].map((name) => String(name || "").trim().toLowerCase())
 );
 
+const PAGE_CONTAINER_ALLOWED_ROOT_FILE_NAMES = (() => {
+  const set = new Set();
+  const add = (name) => {
+    const lower = String(name || "").trim().toLowerCase();
+    if (lower) set.add(lower);
+  };
+  add(MANIFEST_FILE);
+  add(STORAGE_SLOT_INDEX_FILE);
+  add(READ_STATE_FILE);
+  add(READ_CONTENT_FILE);
+  add(MENU_SORT_FILE);
+  add(BUNDLE_CONFIG_FILE);
+  add(LEGACY_BUNDLE_CONFIG_FILE);
+  add(".env");
+  add(BUNDLE_BODY_FILE);
+  for (const fileName of STORAGE_SLOT_LAYER_FILES) {
+    for (const candidate of listBundleFileNameCandidates(fileName)) add(candidate);
+  }
+  for (const name of PREVIEW_FILE_NAMES) add(name);
+  return set;
+})();
+
+function shouldIgnorePageOutsideScanEntryName(name) {
+  const lower = String(name || "").trim().toLowerCase();
+  if (!lower || lower === ".ds_store") return true;
+  if (lower.startsWith(".") && lower !== ".env") return true;
+  return false;
+}
+
+function isAllowedPageContainerRootFileName(name) {
+  if (shouldIgnorePageOutsideScanEntryName(name)) return true;
+  if (isSchemaModFileName(name)) return true;
+  return PAGE_CONTAINER_ALLOWED_ROOT_FILE_NAMES.has(String(name || "").trim().toLowerCase());
+}
+
+async function isAllowedPageContainerRootDirectory(containerAbsolute, name, isArea) {
+  const lower = String(name || "").trim().toLowerCase();
+  if (lower === String(STORAGE_ROOT_FOLDER || "").toLowerCase()) return true;
+  if (lower === String(LEGACY_STORAGE_ROOT_FOLDER || "").toLowerCase()) return true;
+  if (isArea) return true;
+  return false;
+}
+
+async function buildPageOutsideSlotsReport(manifestRelPath) {
+  const normalized = String(manifestRelPath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized) return { error: "Missing path", status: 400 };
+
+  const nodeAbsolute = await resolveApiManifestAbsolute(normalized);
+  if (!nodeAbsolute) return { error: "Invalid file path", status: 400 };
+
+  const containerDirRel = getManifestContainerDirRel(normalized);
+  const containerAbsolute = containerDirRel ? normalizeWorkspacePath(containerDirRel) : null;
+  if (!containerAbsolute) return { error: "Page container not found", status: 404 };
+
+  let frontmatter = {};
+  try {
+    ({ frontmatter } = await readNodeFrontmatterContent(normalized));
+  } catch {
+    frontmatter = {};
+  }
+  const awnType = String(getYamlScalar(frontmatter, "awn-type") || "").trim();
+  const declaredTreeType =
+    awnType === "awn.page.topic" ? "topic" : awnType === "awn.page.area" ? "area" : "";
+  const isArea =
+    awnType === "awn.page.area" ||
+    isAreaLevelManifestRelPath(normalized, { declaredTreeType });
+  const slotsFlexible = readTopicSlotsFlexibleFromFrontmatter(frontmatter);
+  const displayPrefix = stripAgentContentPrefixFromRelPath(containerDirRel) || containerDirRel;
+  const items = [];
+
+  try {
+    const entries = await fs.readdir(containerAbsolute, { withFileTypes: true });
+    for (const entry of entries) {
+      if (shouldIgnorePageOutsideScanEntryName(entry.name)) continue;
+      if (entry.isFile()) {
+        if (isAllowedPageContainerRootFileName(entry.name)) continue;
+        items.push({
+          scope: "page-root",
+          kind: "file",
+          name: entry.name,
+          relPath: `${displayPrefix}/${entry.name}`.replace(/\\/g, "/")
+        });
+        continue;
+      }
+      if (entry.isDirectory()) {
+        if (await isAllowedPageContainerRootDirectory(containerAbsolute, entry.name, isArea)) continue;
+        items.push({
+          scope: "page-root",
+          kind: "folder",
+          name: entry.name,
+          relPath: `${displayPrefix}/${entry.name}`.replace(/\\/g, "/")
+        });
+      }
+    }
+  } catch {
+    // ignore unreadable container
+  }
+
+  if (!slotsFlexible) {
+    const storageRootRel = getStorageRootDirRel(containerDirRel);
+    const storageRootAbs = storageRootRel ? normalizeWorkspacePath(storageRootRel) : null;
+    if (storageRootAbs && (await isExistingDirectory(storageRootAbs))) {
+      const projectRoot = getProjectRoot();
+      const agentRoot = getAgentRoot();
+      const pageSlotKeys = resolveStorageSlotsForManifest(
+        projectRoot,
+        agentRoot,
+        awnType || "awn.page.topic"
+      );
+      const knownSlotFolders = new Set(
+        pageSlotKeys
+          .map((slotKey) => String(slotKeyToStorageFolder(slotKey) || "").trim().toLowerCase())
+          .filter(Boolean)
+      );
+
+      try {
+        const storageEntries = await fs.readdir(storageRootAbs, { withFileTypes: true });
+        for (const entry of storageEntries) {
+          if (shouldIgnorePageOutsideScanEntryName(entry.name)) continue;
+          if (entry.isFile()) {
+            items.push({
+              scope: "storage-root",
+              kind: "file",
+              name: entry.name,
+              relPath: `${displayPrefix}/${STORAGE_ROOT_FOLDER}/${entry.name}`.replace(/\\/g, "/")
+            });
+            continue;
+          }
+          if (!entry.isDirectory()) continue;
+          const folderLower = entry.name.toLowerCase();
+          if (STORAGE_SLOT_ROOT_FOLDER_NAMES.has(folderLower)) continue;
+          if (knownSlotFolders.has(folderLower)) continue;
+          if (SHARED_SLOT_STORAGE_SKIP_DIR_NAMES.has(folderLower)) continue;
+          items.push({
+            scope: "storage",
+            kind: "folder",
+            name: entry.name,
+            relPath: `${displayPrefix}/${STORAGE_ROOT_FOLDER}/${entry.name}`.replace(/\\/g, "/")
+          });
+        }
+      } catch {
+        // ignore unreadable storage root
+      }
+    }
+  }
+
+  items.sort((a, b) => {
+    const scopeOrder = { "page-root": 0, "storage-root": 1, storage: 2 };
+    const aScope = scopeOrder[a.scope] ?? 9;
+    const bScope = scopeOrder[b.scope] ?? 9;
+    if (aScope !== bScope) return aScope - bScope;
+    return a.relPath.localeCompare(b.relPath, "ru", { sensitivity: "base", numeric: true });
+  });
+
+  return {
+    version: 1,
+    path: normalized,
+    containerDir: containerDirRel,
+    isArea,
+    slotsFlexible,
+    items,
+    count: items.length
+  };
+}
+
 function shouldSkipSharedSlotStorageDirectory(name) {
   const lower = String(name || "").trim().toLowerCase();
   if (!lower) return true;
@@ -18049,6 +18215,21 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read content map",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/page-outside-slots") {
+    const relPath = url.searchParams.get("path") || "";
+    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
+    try {
+      const payload = await buildPageOutsideSlotsReport(relPath);
+      if (payload.error) return sendJson(res, payload.status || 400, { error: payload.error });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to scan page outside slots",
         details: String(error.message || error)
       });
     }

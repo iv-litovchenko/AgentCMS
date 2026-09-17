@@ -34092,7 +34092,7 @@ img.is-svg-media,
   width: 7px;
   height: 7px;
   margin-top: -2px;
-  transform: rotate(-45deg);
+  transform: rotate(-45deg) translateX(-1px);
 }
 
 .node-navigation-elements-nav-accordion[open]
@@ -34387,9 +34387,85 @@ img.is-svg-media,
   min-width: 0;
 }
 
+.node-navigation-page-outside-slots-row {
+  margin: 0 0 12px;
+}
+
+.node-navigation-hub-rail-slots--flexible .node-navigation-hub-rail-slot--flexible > .node-navigation-hub-rail-slot-summary {
+  color: #0f766e;
+}
+
+.node-navigation-hub-rail-slots--flexible .node-navigation-hub-rail-slot--flexible.is-filled > .node-navigation-hub-rail-slot-summary {
+  color: #115e59;
+}
+
 .node-navigation-workspace-outside-slots-row {
   width: 100%;
-  margin-top: 8px;
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.node-navigation-outside-slots-warning {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.node-navigation-outside-slots-warning-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  opacity: 0.92;
+}
+
+.node-navigation-outside-slots-warning-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node-navigation-outside-slots-warning-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.node-navigation-outside-slots-warning-scope {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.node-navigation-outside-slots-warning-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(132, 32, 41, 0.35);
+}
+
+.node-navigation-outside-slots-warning-path:hover {
+  text-decoration-color: currentColor;
+}
+
+.node-navigation-workspace-counters.has-outside-slots-warning .node-navigation-workspace-counter-topic-index-row {
+  margin-top: 0;
 }
 
 .node-navigation-workspace-fullwidth-slot-row {

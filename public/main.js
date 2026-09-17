@@ -14405,7 +14405,7 @@ const TYPE_CATALOG_DOMAIN_LABELS = {
   base: "База",
   taxonomies: "Таксономии",
   mixins: "Миксины",
-  data: "Накопители (awn-data)",
+  data: "Накопители информации (инфоблоки)",
   settings: "Настройки"
 };
 const collapsedFoldersByAgent = loadCollapsedFoldersByAgent();
@@ -21529,6 +21529,7 @@ const AWN_TOPIC_SLOTS_FLEXIBLE_LEGACY_KEY = "awn-slots-disabled";
 
 const topicSlotsDisabledCache = new Map();
 const TOPIC_SHARED_SLOT_EXTERNAL_TITLE = "Многофайловая память (общий гибкий слот)";
+const TOPIC_SHARED_SLOT_RAIL_LABEL = "Гибкий слот";
 const TOPIC_SHARED_SLOT_SUBTITLE =
   "Структура задаётся и определяется самостоятельно пользователем и ии-агентом (произвольные папки и файлы).";
 
@@ -58348,7 +58349,6 @@ function renderNodeNavigationWorkspaceCounterStrip(
       onClick: () => openNodeNavigationCounterSlot(slot)
     });
   }
-  appendWorkspaceOutsideSlotsCounterRow(wrap);
   return wrap;
 }
 
@@ -65170,7 +65170,6 @@ function renderEntryOverviewDataSlotBarContent(wrap, context, slots = [], topicP
       onClick: () => setActiveDataStorageSlotFromOverview(slot.spec)
     });
   }
-  appendWorkspaceOutsideSlotsCounterRow(wrap);
   appendWorkspaceCounterTopicIndexFooter(wrap, resolvedTopicPath, slots);
 }
 
@@ -65354,24 +65353,101 @@ function appendWorkspaceFullWidthCounterRow(
   wrap.classList.add("has-fullwidth-slot-counter");
 }
 
-function createOutsideSlotsStaticCounterItem() {
-  return createStaticWorkspaceCounterStubItem({
-    containerTag: "div",
-    itemClass: "node-navigation-workspace-counter-item--outside-slots",
-    cardClass: "node-navigation-workspace-counter-card--outside-slots",
-    title: "Вне слотов",
-    hint: "Появится здесь и в дереве слева",
-    tooltip: "Вне слотов (static) — появится здесь и в дереве слева"
-  });
+const PAGE_OUTSIDE_SLOTS_SCOPE_LABELS = {
+  "page-root": "Корень страницы",
+  "storage-root": "awn-storage/ (файл в корне)",
+  storage: "awn-storage/ (не слот)"
+};
+
+async function fetchPageOutsideSlotsReport(manifestPath) {
+  const response = await fetch(buildApiUrl("/api/agent/page-outside-slots", { path: manifestPath }));
+  if (!response.ok) {
+    throw new Error(`page-outside-slots ${response.status}`);
+  }
+  return response.json();
 }
 
-function appendWorkspaceOutsideSlotsCounterRow(wrap) {
-  if (!wrap) return;
-  const row = document.createElement("div");
-  row.className = "node-navigation-workspace-outside-slots-row";
-  row.appendChild(createOutsideSlotsStaticCounterItem());
-  wrap.appendChild(row);
-  wrap.classList.add("has-outside-slots-static");
+function renderPageOutsideSlotsWarningPanel(report, topicPath) {
+  const panel = document.createElement("div");
+  panel.className =
+    "workspace-system-notice workspace-system-notice--danger node-navigation-outside-slots-warning";
+  panel.setAttribute("role", "note");
+
+  const title = document.createElement("div");
+  title.className = "workspace-system-notice-title node-navigation-outside-slots-warning-title";
+  title.textContent = "Вне слотов — лишние файлы и папки";
+
+  const hint = document.createElement("div");
+  hint.className = "node-navigation-outside-slots-warning-hint";
+  hint.textContent =
+    "В корне страницы допустимы manifest, однофайловые слоты, config/schema, env и index. В awn-storage/ при типовых слотах — только папки слотов.";
+
+  const list = document.createElement("ul");
+  list.className = "node-navigation-outside-slots-warning-list";
+
+  for (const item of report?.items || []) {
+    const row = document.createElement("li");
+    row.className = "node-navigation-outside-slots-warning-item";
+
+    const scope = document.createElement("span");
+    scope.className = "node-navigation-outside-slots-warning-scope";
+    scope.textContent = PAGE_OUTSIDE_SLOTS_SCOPE_LABELS[item.scope] || item.scope || "—";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "node-navigation-outside-slots-warning-path";
+    btn.textContent = item.relPath || item.name || "—";
+    btn.title = item.kind === "folder" ? "Открыть папку" : "Открыть файл";
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const relPath = String(item.relPath || "").trim();
+      if (!relPath) return;
+      if (item.kind === "folder") {
+        void openFolderBrowseFromMenu(item.name || relPath, relPath);
+        return;
+      }
+      void selectFile(item.name || relPath, relPath);
+    });
+
+    row.append(scope, btn);
+    list.appendChild(row);
+  }
+
+  panel.append(title, hint, list);
+  return panel;
+}
+
+function applyPageOutsideSlotsWarningRow(row, wrap, topicPath, report) {
+  row.replaceChildren();
+  if (!report?.items?.length) {
+    row.hidden = true;
+    wrap.classList.remove("has-outside-slots-warning");
+    return;
+  }
+  row.hidden = false;
+  wrap.classList.add("has-outside-slots-warning");
+  row.appendChild(renderPageOutsideSlotsWarningPanel(report, topicPath));
+}
+
+async function refreshWorkspaceOutsideSlotsRow(row, wrap, topicPath, prefetchedReport = null) {
+  if (!row || !wrap || !topicPath) return;
+  const manifestPath = getOverviewNodeApiPath(topicPath);
+  if (!manifestPath) {
+    row.hidden = true;
+    wrap.classList.remove("has-outside-slots-warning");
+    return;
+  }
+  try {
+    const report = prefetchedReport || (await fetchPageOutsideSlotsReport(manifestPath));
+    if (!row.isConnected) return;
+    applyPageOutsideSlotsWarningRow(row, wrap, topicPath, report);
+  } catch {
+    if (row.isConnected) {
+      row.hidden = true;
+      wrap.classList.remove("has-outside-slots-warning");
+    }
+  }
 }
 
 function createWorkspaceCounterIndexButton(slot, topicPath) {
@@ -65605,6 +65681,30 @@ async function refreshTopicStorageIndexOverview(topicPath) {
   }
 }
 
+function mountPageOutsideSlotsWarningBlock(container, nodePath, prefetchedReport = null) {
+  if (!container || !nodePath || isWorkspaceRootNodePath(nodePath)) return;
+  const manifestPath = getOverviewNodeApiPath(nodePath);
+  if (!manifestPath) return;
+
+  let row = container.querySelector(":scope > .node-navigation-page-outside-slots-row");
+  if (!row) {
+    row = document.createElement("div");
+    row.className =
+      "node-navigation-workspace-outside-slots-row node-navigation-page-outside-slots-row";
+    row.hidden = true;
+    const anchor =
+      container.querySelector(":scope > .node-overview-type-registry-fold") ||
+      container.querySelector(":scope > .node-navigation-hero");
+    if (anchor) anchor.insertAdjacentElement("afterend", row);
+    else container.prepend(row);
+  }
+  if (prefetchedReport) {
+    applyPageOutsideSlotsWarningRow(row, container, nodePath, prefetchedReport);
+    return;
+  }
+  void refreshWorkspaceOutsideSlotsRow(row, container, nodePath);
+}
+
 function appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, slots = []) {
   if (!wrap || !topicPath) return;
   if (isAreaNodePath(topicPath) || isWorkspaceRootNodePath(topicPath)) return;
@@ -65718,9 +65818,7 @@ function appendTopicLiteIndexControlsRow(container, topicPath) {
   if (!container || !topicPath) return;
   if (isAreaNodePath(topicPath) || isWorkspaceRootNodePath(topicPath)) return;
   const wrap = document.createElement("div");
-  wrap.className =
-    "node-navigation-workspace-counters node-navigation-workspace-counters--lite-index has-outside-slots-static";
-  appendWorkspaceOutsideSlotsCounterRow(wrap);
+  wrap.className = "node-navigation-workspace-counters node-navigation-workspace-counters--lite-index";
   appendWorkspaceCounterTopicIndexFooter(wrap, topicPath, []);
   container.appendChild(wrap);
 }
@@ -75751,6 +75849,57 @@ function renderNavigationHubRailSubsections(childEntries, activeCtx = null) {
   return block;
 }
 
+function buildFlexibleSlotRailCounter(externalData = {}) {
+  const mdCount = Array.isArray(externalData.files) ? externalData.files.length : 0;
+  const folderCount = Array.isArray(externalData.folders) ? externalData.folders.length : 0;
+  const nonMdCount = Array.isArray(externalData.nonMarkdownFiles)
+    ? externalData.nonMarkdownFiles.length
+    : 0;
+  const count = mdCount + folderCount + nonMdCount;
+  return {
+    id: "shared-flexible-storage",
+    label: TOPIC_SHARED_SLOT_RAIL_LABEL,
+    title: TOPIC_SHARED_SLOT_RAIL_LABEL,
+    count,
+    filled: true,
+    available: true,
+    spec: {
+      key: "memory",
+      label: TOPIC_SHARED_SLOT_RAIL_LABEL,
+      icon: "🧠",
+      defaultMode: "external",
+      sectionKind: "external"
+    }
+  };
+}
+
+function prepareFlexibleSlotRailIndex(externalData = {}) {
+  return prepareNavigationExternalItems(
+    combineNavigationStorageFileLists(
+      externalData.files || [],
+      externalData.nonMarkdownFiles || []
+    ),
+    externalData.folders || []
+  );
+}
+
+function renderNavigationHubRailFlexibleSlotSection(nodePath, prefetched, activeCtx) {
+  const externalData = prefetched.externalData || {};
+  const slot = buildFlexibleSlotRailCounter(externalData);
+  const slotIndex = {
+    kind: "tree",
+    memoryKind: "external",
+    spec: slot.spec,
+    navigationIndex: prepareFlexibleSlotRailIndex(externalData)
+  };
+  const details = renderNavigationHubRailSlotSection(slot, slotIndex, prefetched, nodePath, activeCtx);
+  if (details) {
+    details.classList.add("node-navigation-hub-rail-slot--flexible");
+    details.dataset.slotsFlexible = "1";
+  }
+  return details;
+}
+
 function renderNavigationHubRailSharedSlotNotice() {
   const block = document.createElement("section");
   block.className = "node-navigation-hub-rail-block node-navigation-hub-rail-block--shared-slot-notice";
@@ -76335,10 +76484,14 @@ function renderNavigationHubRail(topicSlotCounters, childEntries, nodePath, pref
   );
 
   if (options.sharedSlotMode) {
-    rail.appendChild(renderNavigationHubRailSharedSlotNotice());
+    const slotsWrap = document.createElement("div");
+    slotsWrap.className = "node-navigation-hub-rail-slots node-navigation-hub-rail-slots--flexible";
+    const flexSlot = renderNavigationHubRailFlexibleSlotSection(nodePath, prefetched, activeCtx);
+    if (flexSlot) slotsWrap.appendChild(flexSlot);
+    if (slotsWrap.childElementCount) rail.appendChild(slotsWrap);
   }
 
-  if (topicSlotCounters.length) {
+  if (topicSlotCounters.length && !options.sharedSlotMode) {
     const slotsWrap = document.createElement("div");
     slotsWrap.className = "node-navigation-hub-rail-slots";
 
@@ -76602,6 +76755,13 @@ async function renderNodeNavigation() {
     mediaData,
     assetsData
   });
+  if (manifestApiPath && !isWorkspaceRootNodePath(nodePath)) {
+    navigationPrefetch.outsideSlotsReport = await fetchPageOutsideSlotsReport(manifestApiPath).catch(
+      () => null
+    );
+  } else {
+    navigationPrefetch.outsideSlotsReport = null;
+  }
   if (isStale()) return;
 
   const slotStripGroups = buildNodeSlotStripGroups({
@@ -76744,6 +76904,11 @@ async function renderNodeNavigation() {
   }
   nodeOverviewContentNode.replaceChildren(hub);
   finalizeNavigationHubSplitUi(hub);
+  mountPageOutsideSlotsWarningBlock(
+    hubMain,
+    nodePath,
+    navigationPrefetch.outsideSlotsReport
+  );
   hideContentLoading({ force: true });
   scheduleWorkspaceScrollChromeSync();
   syncDataHubSlugWarning(NODE_NAVIGATION_MODE);
@@ -95447,7 +95612,7 @@ function renderAwnDataBreadcrumbs() {
   clearFilePathNode();
   filePathNode.classList.toggle("is-empty", false);
 
-  appendBreadcrumbCrumb("Накопители", {
+  appendBreadcrumbCrumb("Накопители информации (инфоблоки)", {
     onClick: () => showHomeView(),
     className: "is-awn-data-root"
   });
