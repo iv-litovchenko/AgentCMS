@@ -89,7 +89,7 @@ export function renderUserMessageBody(element, text) {
   const parts = raw.split(SHELL_MARKER_INLINE_RE);
   for (const part of parts) {
     if (!part) continue;
-    if (/^\{\{(?:tpl:|shell:)/i.test(part)) {
+    if (/^\{\{(?:tpl:|shell:)/i.test(part) || /^\[(?:tts-break|/?stt)\]$/i.test(part)) {
       const code = document.createElement("code");
       code.className = "shell-compose-templates-marker";
       code.textContent = part;

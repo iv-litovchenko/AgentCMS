@@ -106,6 +106,7 @@ function isKnownAgentId(agentId) {
 function resolveVoiceAppPath(reqPath) {
   const normalized = String(reqPath || "/").replace(/\/+$/, "") || "/";
   if (normalized === "/") return "/shell/index.html";
+  if (normalized === "/shell") return "/shell/index.html";
 
   if (normalized.startsWith("/shell/")) return normalized;
 
