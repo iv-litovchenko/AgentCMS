@@ -28,7 +28,7 @@ domains:
     kind: type
     icon: "⚙"
 docs:
-  map: Resources/MAP.md
+  map: GLOBAL_MCP_DOC.md
   agents: AGENTS.md
 
 canonical-types: migrated

@@ -327,7 +327,6 @@ topic «Поток 1» (topic.md)
 agent-cms-core/
 ├── Resources/                      ← спецификация и карты
 │   ├── SPEC.md
-│   └── MAP.md
 ├── awn-data/                       ← PLATFORM (накопители данных + cms-base)
 │   ├── cms-base/
 │   │   ├── entities/               ← awn.base, table.base, row.base
@@ -453,7 +452,8 @@ awn-schema-fields:
 | [IBLOCK-MODEL.md](../zzz/IBLOCK-MODEL.md) | краткая карта инфobлок+элемент (архив) |
 | [TYPES-GUIDE.md](../zzz/TYPES-GUIDE.md) | шпаргалка по entities и extends (архив) |
 | [awn-system/TYPES-GUIDE.md](../awn-system/TYPES-GUIDE.md) | YAML-типы pages/slots/fields |
-| [MAP.md](./MAP.md)                   | карта awn-data                            |
+| [GLOBAL_MCP_DOC.md](../GLOBAL_MCP_DOC.md) | карта MCP (канон для агента) |
+| [MAP_2.md](../zzz/MAP_2.md) | архивная карта workspace (устарела) |
 
 ---
 
