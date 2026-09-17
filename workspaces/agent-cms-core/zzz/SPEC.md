@@ -2,7 +2,8 @@
 
 > Собрано из `Формируем вопросы.md` и `REZ_COPY.md`.  
 > Канон реализации platform: `awn-data/cms-base/`.  
-> Детали runtime: [IBLOCK-MODEL.md](../zzz/IBLOCK-MODEL.md), [TYPES-GUIDE.md](../zzz/TYPES-GUIDE.md). Живая шпаргалка YAML-типов: [awn-system/TYPES-GUIDE.md](../awn-system/TYPES-GUIDE.md).
+> **Архив.** Канон для агента: [GLOBAL_MCP_DOC.md](../GLOBAL_MCP_DOC.md).  
+> Детали runtime: [IBLOCK-MODEL.md](./IBLOCK-MODEL.md), [TYPES-GUIDE.md](./TYPES-GUIDE.md). Живая шпаргалка YAML-типов: [awn-system/TYPES-GUIDE.md](../awn-system/TYPES-GUIDE.md).
 
 ---
 
@@ -325,8 +326,9 @@ topic «Поток 1» (topic.md)
 
 ```
 agent-cms-core/
-├── Resources/                      ← спецификация и карты
+├── zzz/                            ← архив спецификаций и карт
 │   ├── SPEC.md
+│   └── MAP_2.md
 ├── awn-data/                       ← PLATFORM (накопители данных + cms-base)
 │   ├── cms-base/
 │   │   ├── entities/               ← awn.base, table.base, row.base
@@ -447,13 +449,14 @@ awn-schema-fields:
 | Файл                                                    | Назначение                                |
 | ------------------------------------------------------- | ----------------------------------------- |
 | [SPEC.md](./SPEC.md)                                    | **этот документ** — итоговая спецификация |
-| [Формируем вопросы.md](./Формируем%20вопросы.md)        | исходные Q&A, примеры Gemini              |
-| [REZ_COPY.md](./REZ_COPY.md)                            | исходные заметки, дерево WS, вопросы      |
-| [IBLOCK-MODEL.md](../zzz/IBLOCK-MODEL.md) | краткая карта инфobлок+элемент (архив) |
-| [TYPES-GUIDE.md](../zzz/TYPES-GUIDE.md) | шпаргалка по entities и extends (архив) |
+| [Формируем вопросы.md](../Resources/Формируем%20вопросы.md) | исходные Q&A, примеры Gemini |
+| [REZ_COPY.md](../Resources/REZ_COPY.md) | исходные заметки, дерево WS, вопросы |
+| [IBLOCK-MODEL.md](./IBLOCK-MODEL.md) | краткая карта инфobлок+элемент (архив) |
+| [TYPES-GUIDE.md](./TYPES-GUIDE.md) | шпаргалка по entities и extends (архив) |
 | [awn-system/TYPES-GUIDE.md](../awn-system/TYPES-GUIDE.md) | YAML-типы pages/slots/fields |
 | [GLOBAL_MCP_DOC.md](../GLOBAL_MCP_DOC.md) | карта MCP (канон для агента) |
-| [MAP_2.md](../zzz/MAP_2.md) | архивная карта workspace (устарела) |
+| [MAP_2.md](./MAP_2.md) | архивная карта workspace (устарела) |
+| [SPEC_2026_itogovaya.md](./SPEC_2026_itogovaya.md) | черновик спецификации 2026 |
 
 ---
 

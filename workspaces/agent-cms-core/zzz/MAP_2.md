@@ -3,7 +3,7 @@
 > **Устарело.** Канон для агента: [GLOBAL_MCP_DOC.md](../GLOBAL_MCP_DOC.md).  
 > **Агент = CMS.** Схема типов — в `awn-system/types/`; данные — в `awn-data/` (tasks, taxonomies, … + `cms-base/`).  
 > Контент — в `awn-container/`. Служебное — в `awn-agent-kit/`.  
-> Итоговая спецификация модели: [SPEC.md](../Resources/SPEC.md)
+> Итоговая спецификация модели: [SPEC.md](./SPEC.md)
 
 ---
 
