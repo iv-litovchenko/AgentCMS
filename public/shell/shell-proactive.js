@@ -5,11 +5,14 @@ const TICK_MS = 5000;
 
 export const DEFAULT_PROACTIVE_PROMPT = `Фоновый пинг: пользователь молчит {{agent-cms-voice:idle_minutes}} мин ({{agent-cms-voice:idle_seconds}} сек).
 
-Загляни в хранилище Agent CMS (MCP): заметки, задачи, расписание, недавние темы.
-Если найдёшь повод — коротко поделись: интересный факт, напоминание по расписанию, открытый вопрос из workspace.
-Если повода нет — одна фраза: «Я рядом, если понадоблюсь.»
+Загляни в Agent CMS (MCP): заметки, задачи, расписание, недавние темы диалога.
 
-Ответ 1–2 предложения, живо, по-человечески. Не напоминай про таймер и не начинай монолог.`;
+Приоритет ответа:
+1) Конкретика из workspace — открытая задача, дедлайн, незакрытый вопрос, напоминание по расписанию.
+2) Короткое живое наблюдение по теме последнего разговора или workspace — не общие факты «из воздуха».
+3) Если нечего сказать по делу — только одна строка: [proactive-empty] (без другого текста, без [tts-break]).
+
+Не повторяй формулировки из прошлых проактивных ответов. Не напоминай про таймер. Не начинай монолог. Лучше [proactive-empty], чем вода.`;
 
 export function renderProactivePrompt(template, { idleSeconds = 0 } = {}) {
   const sec = Math.max(1, Math.round(Number(idleSeconds) || 0));
@@ -29,7 +32,14 @@ export function buildProactiveDialogBody(idleSeconds, template = DEFAULT_PROACTI
   return wrapProactiveDialogBody(buildProactiveMessage(idleSeconds, template));
 }
 
-export { isProactiveDialogBody, unwrapProactiveMessage, wrapProactiveDialogBody } from "./proactive-format.js";
+export {
+  isProactiveDialogBody,
+  isProactiveEmptyReply,
+  normalizeProactiveAgentReply,
+  PROACTIVE_EMPTY_MARKER,
+  unwrapProactiveMessage,
+  wrapProactiveDialogBody
+} from "./proactive-format.js";
 
 export function parseQuietTimeMinutes(value) {
   const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})$/);

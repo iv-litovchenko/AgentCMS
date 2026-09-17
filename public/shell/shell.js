@@ -93,6 +93,9 @@ import {
   buildProactiveMessage,
   createShellProactive,
   DEFAULT_PROACTIVE_PROMPT,
+  isProactiveEmptyReply,
+  normalizeProactiveAgentReply,
+  PROACTIVE_EMPTY_MARKER,
   normalizeProactiveIdleRange,
   normalizeQuietTime
 } from "@shell/proactive";
@@ -3778,10 +3781,12 @@ function applyReplyTextPresentation(element, { text, stub }) {
 
 function renderShellReply(message) {
   const rawBody = String(message?.body || message?.message?.body || "").trim();
+  const proactiveEmpty = Boolean(message?.proactiveEmpty) || isProactiveEmptyReply(rawBody);
+  const displayBody = proactiveEmpty ? PROACTIVE_EMPTY_MARKER : rawBody;
   const extraShows = Array.isArray(message?.shows) ? message.shows : [];
-  const spokenParts = Array.isArray(message?.spokenParts) ? message.spokenParts : [];
-  const spokenText = String(message?.spokenText || "").trim();
-  const parsed = parseShellReply(rawBody);
+  const spokenParts = proactiveEmpty ? [] : Array.isArray(message?.spokenParts) ? message.spokenParts : [];
+  const spokenText = proactiveEmpty ? "" : String(message?.spokenText || "").trim();
+  const parsed = parseShellReply(displayBody);
   const shows = extraShows.length ? [...parsed.shows, ...extraShows] : parsed.shows;
   const rawText = parsed.text === "—" ? "" : parsed.text;
   const stub = isStubReplyText(stripAllTtsBlocks(rawText));
@@ -3806,8 +3811,8 @@ function renderShellReply(message) {
   }
 
   renderShellReplyMedia(nodes.lastReplyMedia, shows, state.agentId);
-  if (!stub && rawText) rememberAgentReplyForEchoGuard(rawText);
-  shellDialog.onReplyRendered(stub ? "" : rawText);
+  if (!stub && !proactiveEmpty && rawText) rememberAgentReplyForEchoGuard(rawText);
+  shellDialog.onReplyRendered(stub || proactiveEmpty ? "" : rawText);
   return { ...parsed, shows };
 }
 
@@ -3853,6 +3858,7 @@ function shouldPlayMessageTts(message = {}) {
   if (!shouldPlayReplyTts(message)) return false;
   if (shouldSkipAssistantSpeech(message)) return false;
   const body = String(message?.body || message?.message?.body || "").trim();
+  if (isProactiveEmptyReply(body) || message?.proactiveEmpty) return false;
   if (body && lastStreamHandledBody && body === lastStreamHandledBody) return false;
   const streamId = String(message?.streamId || message?.id || "").trim();
   if (streamId && lastHandledStreamId && streamId === lastHandledStreamId) return false;
@@ -4401,19 +4407,27 @@ async function drainStreamTtsQueue() {
 function finalizeAssistantStream(message) {
   const stream = state.assistantStream;
   const streamId = String(message?.streamId || message?.id || stream?.id || "");
-  const rawBody = String(stream?.text || message?.body || "").trim();
+  let rawBody = String(stream?.text || message?.body || "").trim();
   if (!rawBody) return false;
+  const proactiveReply = normalizeProactiveAgentReply(rawBody);
+  if (proactiveReply.empty) {
+    rawBody = PROACTIVE_EMPTY_MARKER;
+  }
   if (stream?.finalized && stream.id === streamId) return true;
 
-  const spokenFromMessage = String(message?.spokenText || stream?.spokenText || "").trim();
-  let spokenParts = Array.isArray(message?.spokenParts)
-    ? message.spokenParts
-    : Array.isArray(stream?.spokenParts)
-      ? stream.spokenParts
-      : [];
+  const spokenFromMessage = proactiveReply.empty
+    ? ""
+    : String(message?.spokenText || stream?.spokenText || "").trim();
+  let spokenParts = proactiveReply.empty
+    ? []
+    : Array.isArray(message?.spokenParts)
+      ? message.spokenParts
+      : Array.isArray(stream?.spokenParts)
+        ? stream.spokenParts
+        : [];
   let body = rawBody;
   let spokenText = spokenFromMessage;
-  if (usesTtsBreakFormat()) {
+  if (!proactiveReply.empty && usesTtsBreakFormat()) {
     const parsed = parseDualReply(rawBody);
     if (parsed.parsed) {
       body = parsed.body ?? "";
@@ -4428,9 +4442,15 @@ function finalizeAssistantStream(message) {
   shellDialog.finalizeRunningTools?.();
   shellDialog.onAgentReply(rawBody);
   shellSession?.resetStreamRenderState();
-  renderShellReply({ ...message, body: rawBody, spokenText, spokenParts });
+  renderShellReply({
+    ...message,
+    body: rawBody,
+    spokenText,
+    spokenParts,
+    proactiveEmpty: proactiveReply.empty
+  });
   finalizeAgentActivitySteps();
-  shellSession?.markReplyDisplayed({ ...message, body, streamId });
+  shellSession?.markReplyDisplayed({ ...message, body, streamId, proactiveEmpty: proactiveReply.empty });
 
   state.assistantStream = null;
   releaseMessagePipeline();
@@ -4439,7 +4459,8 @@ function finalizeAssistantStream(message) {
     isTtsEnabledSetting() &&
     shouldPlayReplyTts(message) &&
     !state.messageStopped &&
-    !shouldSkipAssistantSpeech(message)
+    !shouldSkipAssistantSpeech(message) &&
+    !proactiveReply.empty
   ) {
     let parts = spokenParts.flatMap((part) => expandTtsSpeechParts(String(part || "").trim()));
     if (!parts.length) {

@@ -1,4 +1,9 @@
-import { isProactiveDialogBody, unwrapProactiveMessage } from "@shell/proactive-format";
+import {
+  isProactiveDialogBody,
+  isProactiveEmptyReply,
+  PROACTIVE_EMPTY_MARKER,
+  unwrapProactiveMessage
+} from "@shell/proactive-format";
 import { cleanReplyTextSegment, stripHtmlComments } from "@shell/reply";
 import { createVoiceEndMarkerElement, splitVoiceEndReply } from "@shell/voice-end-format";
 
@@ -1312,9 +1317,34 @@ function resolveSpokenDisplayText(spokenParts = [], spokenText = "") {
   return parts.length ? parts.join("\n\n") : String(spokenText || "").trim();
 }
 
+function renderProactiveEmptyAgentReply(element) {
+  element.replaceChildren();
+  element.classList.remove("shell-reply-text--stub");
+  element.classList.add("shell-md", "shell-reply-body-formatted", "shell-reply-body-formatted--proactive-empty");
+  element.dataset.replyKind = "proactive-empty";
+
+  const wrap = document.createElement("div");
+  wrap.className = "shell-proactive-empty-reply";
+
+  const marker = document.createElement("code");
+  marker.className = "shell-compose-templates-marker shell-proactive-empty-marker";
+  marker.textContent = PROACTIVE_EMPTY_MARKER;
+
+  const label = document.createElement("span");
+  label.className = "shell-proactive-empty-label";
+  label.textContent = "Пинг без повода";
+
+  wrap.append(marker, label);
+  element.append(wrap);
+}
+
 export function renderShellReplyBody(element, rawBody, { spokenParts = [], spokenText = "" } = {}) {
   if (!element) return;
   const source = String(rawBody || "").trim();
+  if (isProactiveEmptyReply(source)) {
+    renderProactiveEmptyAgentReply(element);
+    return;
+  }
   const externalSpoken = resolveSpokenDisplayText(spokenParts, spokenText);
   const voiceSplit = splitVoiceEndReply(source);
   const displaySpoken = externalSpoken || (voiceSplit?.spoken ? cleanReplyTextSegment(voiceSplit.spoken) : "");

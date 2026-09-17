@@ -12,7 +12,7 @@ const {
   shouldRequestDualReply
 } = require("./spoken-text");
 const { hasVoiceEndDelimiter } = require("./voice-end-format");
-const { resolveProactiveDialogLogBody } = require("./proactive-format");
+const { finalizeProactiveAgentReply, resolveProactiveDialogLogBody } = require("./proactive-format");
 const { createSnapshotRequestService, parseDataUrl } = require("./shell-snapshot");
 const { createToolPermissionService } = require("./shell-tool-permission");
 const { createUserQuestionService } = require("./shell-user-question");
@@ -1558,13 +1558,15 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
   }
 
   const rawReply = String(reply.text || "").trim();
-  const finalized = finalizeDualReply(rawReply, settings);
+  const finalized = finalizeProactiveAgentReply(rawReply, settings, finalizeDualReply);
+  const replyBody = finalized.rawReply || rawReply;
   const assistantMessage = {
     id: streamId,
     streamId,
-    body: rawReply,
+    body: replyBody,
     spokenText: finalized.spoken || null,
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : undefined,
+    proactiveEmpty: Boolean(finalized.proactiveEmpty),
     ttsClientId: replyTtsClientId || undefined,
     role: "agent",
     author: "qwenpaw",
@@ -1575,16 +1577,16 @@ async function sendToQwenPaw(deps, { agentRoot, agentId, settings, body, onProgr
     phase: PHASE_WAITING,
     phrase: "",
     lastAgentMessageId: assistantMessage.id,
-    lastShellReply: rawReply
+    lastShellReply: replyBody
   });
-  await emitAssistantDelta(rawReply, {
+  await emitAssistantDelta(replyBody, {
     done: true,
     force: true,
     spokenText: finalized.spoken || null,
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null
   });
   emitShellEvent(agentId, "assistant_message", assistantMessage);
-  void logShellDialogAgent(agentRoot, rawReply, "qwenpaw");
+  void logShellDialogAgent(agentRoot, replyBody, "qwenpaw");
 
   return {
     channel: "qwenpaw",
@@ -1815,13 +1817,15 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
   }
 
   const rawReply = String(reply.text || "").trim();
-  const finalized = finalizeDualReply(rawReply, settings);
+  const finalized = finalizeProactiveAgentReply(rawReply, settings, finalizeDualReply);
+  const replyBody = finalized.rawReply || rawReply;
   const assistantMessage = {
     id: streamId,
     streamId,
-    body: rawReply,
+    body: replyBody,
     spokenText: finalized.spoken || null,
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : undefined,
+    proactiveEmpty: Boolean(finalized.proactiveEmpty),
     ttsClientId: replyTtsClientId || undefined,
     role: "agent",
     author: runtime,
@@ -1832,16 +1836,16 @@ async function sendToBridgeRuntime(deps, { agentRoot, agentId, settings, body, o
     phase: PHASE_WAITING,
     phrase: "",
     lastAgentMessageId: assistantMessage.id,
-    lastShellReply: rawReply
+    lastShellReply: replyBody
   });
-  await emitAssistantDelta(rawReply, {
+  await emitAssistantDelta(replyBody, {
     done: true,
     force: true,
     spokenText: finalized.spoken || null,
     spokenParts: finalized.spokenParts?.length ? finalized.spokenParts : null
   });
   emitShellEvent(agentId, "assistant_message", assistantMessage);
-  void logShellDialogAgent(agentRoot, rawReply, runtime);
+  void logShellDialogAgent(agentRoot, replyBody, runtime);
 
   const effectiveSessionId =
     runtime === "codex"

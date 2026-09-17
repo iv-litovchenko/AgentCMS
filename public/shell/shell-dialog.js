@@ -7,7 +7,7 @@ import {
   renderUserMessageBody,
   scheduleShellMermaidTypeset
 } from "@shell/markdown";
-import { isProactiveDialogBody, unwrapProactiveMessage } from "@shell/proactive-format";
+import { isProactiveDialogBody, isProactiveEmptyReply, unwrapProactiveMessage } from "@shell/proactive-format";
 
 function unwrapProactiveForCopy(body) {
   return isProactiveDialogBody(body) ? unwrapProactiveMessage(body) : body;
@@ -1506,14 +1506,15 @@ export function createShellDialog(options = {}) {
     if (item?.role === "error") return renderErrorThreadMessage(item);
     const role = item?.role === "agent" ? "agent" : "user";
     const proactiveUser = role === "user" && isProactiveDialogBody(item?.body);
+    const proactiveEmptyAgent = role === "agent" && isProactiveEmptyReply(item?.body);
     const row = document.createElement("div");
-    row.className = `shell-chat-row shell-chat-row--${role}${proactiveUser ? " shell-chat-row--proactive" : ""}`;
+    row.className = `shell-chat-row shell-chat-row--${role}${proactiveUser ? " shell-chat-row--proactive" : ""}${proactiveEmptyAgent ? " shell-chat-row--proactive-empty" : ""}`;
 
     const bubble = document.createElement("div");
-    bubble.className = `shell-chat-bubble${proactiveUser ? " shell-chat-bubble--proactive" : ""}`;
+    bubble.className = `shell-chat-bubble${proactiveUser ? " shell-chat-bubble--proactive" : ""}${proactiveEmptyAgent ? " shell-chat-bubble--proactive-empty" : ""}`;
 
     const el = document.createElement("div");
-    el.className = `shell-chat-msg shell-chat-msg--${role}${proactiveUser ? " shell-chat-msg--proactive" : ""}`;
+    el.className = `shell-chat-msg shell-chat-msg--${role}${proactiveUser ? " shell-chat-msg--proactive" : ""}${proactiveEmptyAgent ? " shell-chat-msg--proactive-empty" : ""}`;
     el.dataset.role = role;
     if (role === "agent") {
       renderShellReplyBody(el, String(item.body || ""));
@@ -1531,7 +1532,7 @@ export function createShellDialog(options = {}) {
     speakBtn.title = "Озвучить сообщение";
     speakBtn.setAttribute("aria-label", "Озвучить сообщение");
     speakBtn.textContent = "🔊";
-    speakBtn.hidden = proactiveUser;
+    speakBtn.hidden = proactiveUser || proactiveEmptyAgent;
     speakBtn.addEventListener("click", () => {
       void onSpeakMessage?.(item);
     });

@@ -8890,6 +8890,29 @@ body.shell-bg-wallpaper .shell-character-viewport {
   border-top: 1px dashed rgba(74, 222, 128, 0.22);
 }
 
+.shell-chat-row--proactive-empty .shell-chat-bubble {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.shell-proactive-empty-reply {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.shell-proactive-empty-marker {
+  background: rgba(148, 163, 184, 0.18);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.32);
+}
+
+.shell-proactive-empty-label {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.88);
+}
+
 .shell-compose-templates-dialog-section {
   display: flex;
   flex-direction: column;

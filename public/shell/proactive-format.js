@@ -1,5 +1,6 @@
 export const PROACTIVE_TAG_OPEN = "[proactive]";
 export const PROACTIVE_TAG_CLOSE = "[/proactive]";
+export const PROACTIVE_EMPTY_MARKER = "[proactive-empty]";
 
 const PROACTIVE_BLOCK_RE = /^\[proactive\]\s*([\s\S]*?)\s*\[\/proactive\]\s*$/i;
 
@@ -21,4 +22,28 @@ export function wrapProactiveDialogBody(text) {
 
 export function isProactiveDialogBody(text) {
   return PROACTIVE_BLOCK_RE.test(String(text || "").trim());
+}
+
+export function stripProactiveEmptyMarkers(text) {
+  return String(text || "")
+    .replace(/^\s*\[proactive-empty\]\s*$/gim, "")
+    .replace(/\[proactive-empty\]/gi, "")
+    .trim();
+}
+
+export function isProactiveEmptyReply(text) {
+  const cleaned = stripProactiveEmptyMarkers(text)
+    .replace(/\[tts-break\]/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return !cleaned;
+}
+
+export function normalizeProactiveAgentReply(text) {
+  const raw = String(text || "").trim();
+  if (!isProactiveEmptyReply(raw)) {
+    return { empty: false, body: raw, raw };
+  }
+  return { empty: true, body: PROACTIVE_EMPTY_MARKER, raw };
 }

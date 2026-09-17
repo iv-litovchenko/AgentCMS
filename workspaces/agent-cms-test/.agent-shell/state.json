@@ -2,7 +2,7 @@
   "phase": "waiting",
   "phrase": "Ожидаю",
   "metrics": "",
-  "lastAgentMessageId": "claude-1789643539403-k0rtvp",
+  "lastAgentMessageId": "claude-1789643952310-tkmbj0",
   "lastShellReply": "Я рядом, если понадоблюсь.\n\n[tts-break]\n\nЯ рядом, если понадоблюсь.",
   "qwenpawChatUpdatedAt": "",
   "stopTtsAt": 1789641999803,
@@ -11,7 +11,7 @@
   "meetingRecording": false,
   "lastTtsClientId": "78fb6e6b-5266-4c1f-ad4e-72e922d0f51b:3333df6e-ed78-4ed0-b879-414e1e9f5196",
   "primaryClientId": "78fb6e6b-5266-4c1f-ad4e-72e922d0f51b:3333df6e-ed78-4ed0-b879-414e1e9f5196",
-  "updatedAt": "2026-09-17T11:12:29.918Z",
+  "updatedAt": "2026-09-17T11:19:24.795Z",
   "shellSurfaceHost": "browser-tab",
   "shellSurfaceHint": "Отдельная вкладка браузера",
   "shellSurfaceBackend": "local"
