@@ -1,4 +1,7 @@
 (function initWorkspaceIndexPanel() {
+  const OCR_INDEXING_ENABLED = false;
+  const OCR_DISABLED_HINT = "OCR временно недоступен";
+
   const summaryStatsNode = document.getElementById("menu-workspace-index-stats");
   const ocrStatusNode = document.getElementById("menu-ocr-index-status");
   const ocrRunBtn = document.getElementById("menu-ocr-index-run-btn");
@@ -267,9 +270,17 @@
     summaryStatsNode.textContent = parts.length ? parts.join(" · ") : "нет индексов";
     summaryStatsNode.classList.toggle("is-empty", !parts.length);
     summaryStatsNode.classList.remove("is-error");
-    if (monitor?.summary?.health === "stale" || monitor?.summary?.health === "partial") {
+    const hasAlert =
+      monitor?.summary?.health === "stale" ||
+      monitor?.summary?.health === "partial" ||
+      (ocr?.pendingCount || 0) > 0;
+    if (hasAlert) {
       summaryStatsNode.classList.add("is-error");
     }
+    const headerIndexToggleBtn = document.getElementById("header-index-toggle-btn");
+    const headerIndexAlertDot = document.getElementById("header-index-alert-dot");
+    headerIndexToggleBtn?.classList.toggle("has-alert", hasAlert);
+    headerIndexAlertDot?.classList.toggle("hidden", !hasAlert);
   }
 
   async function refreshStatus() {
@@ -457,15 +468,41 @@
     catalogModal?.classList.add("hidden");
   }
 
-  async function bindActionButton(button, handler) {
+  function lockIndexingButton(button, hint = OCR_DISABLED_HINT) {
+    if (!button) return;
+    button.disabled = true;
+    button.setAttribute("aria-disabled", "true");
+    button.title = hint;
+    button.classList.add("is-feature-disabled");
+  }
+
+  function applyOcrIndexingFeatureGate() {
+    if (OCR_INDEXING_ENABLED) return;
+    lockIndexingButton(ocrRunBtn);
+    lockIndexingButton(ocrForceBtn);
+    for (const flushBtn of document.querySelectorAll('[data-index-flush="ocr"]')) {
+      lockIndexingButton(flushBtn, OCR_DISABLED_HINT);
+    }
+    ocrStatusNode.textContent = OCR_DISABLED_HINT;
+    ocrRunBtn?.closest(".menu-index-block")?.classList.add("is-feature-disabled");
+    if (pipelineBtn) {
+      pipelineBtn.title = "Слова → смысл → поля (OCR пропускается)";
+    }
+    for (const flushBtn of document.querySelectorAll('[data-index-flush="pipeline"]')) {
+      flushBtn.title = "Слова → смысл → поля (OCR пропускается)";
+    }
+  }
+
+  async function bindActionButton(button, handler, { keepDisabled = false } = {}) {
     if (!button) return;
     button.addEventListener("click", async () => {
+      if (button.disabled) return;
       button.disabled = true;
       button.classList.add("is-loading");
       try {
         await handler();
       } finally {
-        button.disabled = false;
+        button.disabled = keepDisabled;
         button.classList.remove("is-loading");
       }
     });
@@ -479,23 +516,25 @@
     storageRebuildBtn
   ].forEach((button) => rememberButtonLabel(button));
 
-  bindActionButton(ocrRunBtn, async () => {
-    await runRebuild(
-      "/api/ocr-index/run",
-      ocrStatusNode,
-      (data) => `OCR: обработано ${data.processed}, пропущено ${data.skipped}, ошибок ${data.failed}.`,
-      { body: { force: false, limit: 100 }, progressButton: ocrRunBtn, progressLayer: "ocr" }
-    );
-  });
+  if (OCR_INDEXING_ENABLED) {
+    bindActionButton(ocrRunBtn, async () => {
+      await runRebuild(
+        "/api/ocr-index/run",
+        ocrStatusNode,
+        (data) => `OCR: обработано ${data.processed}, пропущено ${data.skipped}, ошибок ${data.failed}.`,
+        { body: { force: false, limit: 100 }, progressButton: ocrRunBtn, progressLayer: "ocr" }
+      );
+    });
 
-  bindActionButton(ocrForceBtn, async () => {
-    await runRebuild(
-      "/api/ocr-index/run",
-      ocrStatusNode,
-      (data) => `OCR (всё): обработано ${data.processed}, пропущено ${data.skipped}, ошибок ${data.failed}.`,
-      { body: { force: true, limit: 200 }, progressButton: ocrForceBtn, progressLayer: "ocr" }
-    );
-  });
+    bindActionButton(ocrForceBtn, async () => {
+      await runRebuild(
+        "/api/ocr-index/run",
+        ocrStatusNode,
+        (data) => `OCR (всё): обработано ${data.processed}, пропущено ${data.skipped}, ошибок ${data.failed}.`,
+        { body: { force: true, limit: 200 }, progressButton: ocrForceBtn, progressLayer: "ocr" }
+      );
+    });
+  }
 
   bindActionButton(fulltextRebuildBtn, async () => {
     await runRebuild(
@@ -526,16 +565,63 @@
 
   bindActionButton(pipelineBtn, async () => {
     if (!pipelineStatusNode) return;
-    pipelineStatusNode.textContent = "Цепочка: OCR → слова → смысл → поля…";
-    const data = await runRebuild(
-      "/api/workspace-index/pipeline",
-      pipelineStatusNode,
-      () => "Готово: OCR → fulltext → semantic → поля.",
-      { body: { ocrLimit: 200 }, loadingLabel: "Цепочка: OCR → слова → смысл → поля…" }
-    );
-    if (data?.ocr) {
-      pipelineStatusNode.textContent = `Готово · OCR ${data.ocr.processed}/${data.ocr.candidateCount || "?"}`;
+    if (OCR_INDEXING_ENABLED) {
+      pipelineStatusNode.textContent = "Цепочка: OCR → слова → смысл → поля…";
+      const data = await runRebuild(
+        "/api/workspace-index/pipeline",
+        pipelineStatusNode,
+        () => "Готово: OCR → fulltext → semantic → поля.",
+        { body: { ocrLimit: 200 }, loadingLabel: "Цепочка: OCR → слова → смысл → поля…" }
+      );
+      if (data?.ocr) {
+        pipelineStatusNode.textContent = `Готово · OCR ${data.ocr.processed}/${data.ocr.candidateCount || "?"}`;
+      }
+      return;
     }
+
+    pipelineStatusNode.textContent = "Цепочка: слова → смысл → поля…";
+    const fulltext = await runRebuild(
+      "/api/search/fulltext/reindex",
+      pipelineStatusNode,
+      () => "Цепочка: смысл → поля…",
+      { loadingLabel: "Цепочка: слова…" }
+    );
+    const semantic = await runRebuild(
+      "/api/search/semantic/reindex",
+      pipelineStatusNode,
+      () => "Цепочка: поля…",
+      { loadingLabel: "Цепочка: смысл…" }
+    );
+    await runRebuild(
+      "/api/storage-index/reindex",
+      pipelineStatusNode,
+      (data) =>
+        `Готово · слова ${fulltext.fileCount || 0} · смысл ${semantic.chunkCount || 0} · поля ${data.recordCount || 0}`,
+      { loadingLabel: "Цепочка: поля…" }
+    );
+  });
+
+  applyOcrIndexingFeatureGate();
+
+  const flushTargets = {
+    pipeline: pipelineBtn,
+    ocr: ocrRunBtn,
+    fulltext: fulltextRebuildBtn,
+    semantic: semanticRebuildBtn,
+    storage: storageRebuildBtn
+  };
+  for (const flushBtn of document.querySelectorAll("[data-index-flush]")) {
+    flushBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const key = flushBtn.getAttribute("data-index-flush");
+      const targetBtn = flushTargets[key];
+      if (!targetBtn || targetBtn.disabled) return;
+      targetBtn.click();
+    });
+  }
+
+  window.addEventListener("header-index-popover-open", () => {
+    void refreshStatus();
   });
 
   semanticShowBtn?.addEventListener("click", () => openCatalog("vector"));

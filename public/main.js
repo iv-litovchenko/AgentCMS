@@ -248,6 +248,12 @@ const headerFocusListShellNode = document.getElementById("header-focus-list-shel
 const headerFocusListNode = document.getElementById("header-focus-list");
 const headerFocusCountNode = document.getElementById("header-focus-count");
 let headerFocusOpen = false;
+const headerIndexWrapNode = document.getElementById("header-index-wrap");
+const headerIndexToggleBtn = document.getElementById("header-index-toggle-btn");
+const headerIndexPopoverNode = document.getElementById("header-index-popover");
+const headerIndexCloseBtn = document.getElementById("header-index-close-btn");
+const headerIndexAlertDotNode = document.getElementById("header-index-alert-dot");
+let headerIndexOpen = false;
 const appLandingHintNode = document.getElementById("app-landing-hint");
 const appLandingManageBtn = document.getElementById("app-landing-manage-btn");
 const appLandingSettingsBtn = document.getElementById("app-landing-settings-btn");
@@ -5991,6 +5997,7 @@ function closeHeaderFocusPopover() {
 
 function openHeaderFocusPopover() {
   if (!headerFocusPopoverNode || !headerFocusToggleBtn || headerFocusWrapNode?.classList.contains("hidden")) return;
+  closeHeaderIndexPopover();
   closeHeaderProfileMenu();
   closeHeaderWelcomePopover();
   closeWorkspaceNotificationsPopover();
@@ -6005,6 +6012,53 @@ function openHeaderFocusPopover() {
 function toggleHeaderFocusPopover() {
   if (headerFocusOpen) closeHeaderFocusPopover();
   else openHeaderFocusPopover();
+}
+
+function syncHeaderIndexButtonState() {
+  headerIndexToggleBtn?.classList.toggle("is-active", headerIndexOpen);
+  headerIndexToggleBtn?.setAttribute("aria-expanded", headerIndexOpen ? "true" : "false");
+}
+
+function positionHeaderIndexPopover() {
+  const popover = headerIndexPopoverNode;
+  const anchor = headerIndexToggleBtn;
+  if (!popover || !anchor || popover.classList.contains("hidden")) return;
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(540, Math.max(320, window.innerWidth - 24));
+  const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12));
+  const top = rect.bottom + 8;
+  const maxHeight = Math.max(240, window.innerHeight - top - 16);
+  popover.style.top = `${top}px`;
+  popover.style.left = `${left}px`;
+  popover.style.width = `${width}px`;
+  popover.style.maxHeight = `${maxHeight}px`;
+}
+
+function closeHeaderIndexPopover() {
+  if (!headerIndexOpen) return;
+  headerIndexOpen = false;
+  headerIndexPopoverNode?.classList.add("hidden");
+  syncHeaderIndexButtonState();
+}
+
+function openHeaderIndexPopover() {
+  if (!headerIndexPopoverNode || !headerIndexToggleBtn) return;
+  closeHeaderFocusPopover();
+  closeHeaderProfileMenu();
+  closeHeaderWelcomePopover();
+  closeWorkspaceNotificationsPopover();
+  closeAgentsPickerPopover();
+  closeMenuSettingsPopover();
+  headerIndexOpen = true;
+  headerIndexPopoverNode.classList.remove("hidden");
+  syncHeaderIndexButtonState();
+  positionHeaderIndexPopover();
+  window.dispatchEvent(new CustomEvent("header-index-popover-open"));
+}
+
+function toggleHeaderIndexPopover() {
+  if (headerIndexOpen) closeHeaderIndexPopover();
+  else openHeaderIndexPopover();
 }
 
 function isAgentTodoPreviewExpanded() {
@@ -14474,6 +14528,7 @@ function syncLandingBgUi() {
 }
 const NODE_OPEN_MEMORY_MODE = "internal";
 const PROJECT_SETTINGS_MODE = "project-settings";
+const ENTRY_OVERVIEW_OCR_ENABLED = false;
 const PROJECT_SETTINGS_CHPU_SEGMENT = "настройки";
 const NODE_SETTINGS_MODE_IDS = new Set(["description", "topic-schema", "configs", "env", PROJECT_SETTINGS_MODE]);
 const NODE_SETTINGS_AUTO_MODE_IDS = new Set(["schedule", "heartbeat"]);
@@ -95467,6 +95522,15 @@ function createOcrIconSvg() {
 
 function refreshEntryOverviewOcrButton(button, config = {}) {
   if (!button) return;
+  if (!ENTRY_OVERVIEW_OCR_ENABLED) {
+    button.disabled = true;
+    button.setAttribute("aria-disabled", "true");
+    button.title = "OCR временно недоступен";
+    button.setAttribute("aria-label", "OCR временно недоступен");
+    const labelNode = button.querySelector(".node-ocr-sync-btn-label");
+    if (labelNode) labelNode.textContent = "OCR временно недоступен";
+    return;
+  }
   const extracted = Boolean(config.extracted);
   const failed = Boolean(config.failed);
   const label = resolveEntryOverviewOcrBarLabel(extracted, failed);
@@ -95532,6 +95596,7 @@ function createEntryOverviewMediaOcrSection(context = {}, entries = [], rawBody 
 }
 
 async function handleEntryOverviewOcrRun(button, config = {}) {
+  if (!ENTRY_OVERVIEW_OCR_ENABLED) return;
   if (!button || button.disabled || button.classList.contains("is-loading")) return;
   const sourcePath = resolveEntryOverviewOcrSourcePath(config.context || {});
   if (!sourcePath) {
@@ -95608,7 +95673,7 @@ async function handleEntryOverviewOcrRun(button, config = {}) {
   } finally {
     clearInterval(pollTimer);
     button.classList.remove("is-loading");
-    button.disabled = false;
+    button.disabled = !ENTRY_OVERVIEW_OCR_ENABLED;
   }
 }
 
@@ -100714,6 +100779,11 @@ document.addEventListener("click", (event) => {
       closeHeaderFocusPopover();
     }
   }
+  if (headerIndexOpen && headerIndexPopoverNode) {
+    if (!headerIndexPopoverNode.contains(target) && !target.closest("#header-index-toggle-btn")) {
+      closeHeaderIndexPopover();
+    }
+  }
   if (headerWelcomeOpen && headerWelcomePopoverNode) {
     if (!headerWelcomePopoverNode.contains(target) && !target.closest("#header-welcome-btn")) {
       closeHeaderWelcomePopover();
@@ -100739,6 +100809,7 @@ document.addEventListener("keydown", (event) => {
   closeAgentsPickerPopover();
   closeHeaderProfileMenu();
   closeHeaderFocusPopover();
+  closeHeaderIndexPopover();
   closeHeaderWelcomePopover();
   closeHeaderConnectPopover();
   closeHeaderCommunityPopover();
@@ -101556,10 +101627,16 @@ headerFocusToggleBtn?.addEventListener("click", (event) => {
   toggleHeaderFocusPopover();
 });
 headerFocusCloseBtn?.addEventListener("click", closeHeaderFocusPopover);
+headerIndexToggleBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleHeaderIndexPopover();
+});
+headerIndexCloseBtn?.addEventListener("click", closeHeaderIndexPopover);
 window.addEventListener(
   "resize",
   () => {
     if (headerFocusOpen) positionHeaderFocusPopover();
+    if (headerIndexOpen) positionHeaderIndexPopover();
   },
   { passive: true }
 );

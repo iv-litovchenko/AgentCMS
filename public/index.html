@@ -764,6 +764,178 @@
                 </div>
               </div>
             </div>
+            <div id="header-index-wrap" class="header-index-wrap">
+              <button
+                id="header-index-toggle-btn"
+                class="header-tool-btn header-tool-btn--index"
+                type="button"
+                title="Индексирование workspace — OCR, слова, смысл, поля"
+                aria-label="Индексирование"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="header-index-popover"
+              >
+                <svg class="header-index-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"
+                    fill="currentColor"
+                    stroke="currentColor"
+                    stroke-width="0.5"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span class="header-index-label">Индекс</span>
+                <span id="header-index-alert-dot" class="header-index-alert-dot hidden" aria-hidden="true"></span>
+              </button>
+              <div
+                id="header-index-popover"
+                class="header-index-popover hidden"
+                role="dialog"
+                aria-label="Индексирование workspace"
+              >
+                <div class="header-index-popover-head">
+                  <div class="header-index-popover-title-wrap">
+                    <p class="header-index-popover-title">Индексирование workspace</p>
+                    <p class="header-index-popover-subtitle">Подготовка архива и поиск · OCR → слова → смысл → поля</p>
+                    <span
+                      id="menu-workspace-index-stats"
+                      class="header-index-stats menu-static-google-drive-stats menu-static-google-drive-stats--summary is-empty"
+                      aria-live="polite"
+                    ></span>
+                  </div>
+                  <button
+                    id="header-index-close-btn"
+                    class="header-index-popover-close"
+                    type="button"
+                    aria-label="Закрыть"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div class="header-index-flush-bar" role="toolbar" aria-label="Быстрый запуск индексирования">
+                  <button
+                    type="button"
+                    class="header-index-flush-btn header-index-flush-btn--all"
+                    data-index-flush="pipeline"
+                    title="Слова → смысл → поля (OCR пропускается)"
+                  >
+                    <span class="header-index-flush-icon" aria-hidden="true">⚡</span>
+                    <span>Вся цепочка</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="header-index-flush-btn"
+                    data-index-flush="ocr"
+                    title="OCR временно недоступен"
+                    disabled
+                    aria-disabled="true"
+                  >
+                    OCR
+                  </button>
+                  <button type="button" class="header-index-flush-btn" data-index-flush="fulltext" title="Переиндексировать слова">
+                    Слова
+                  </button>
+                  <button type="button" class="header-index-flush-btn" data-index-flush="semantic" title="Переиндексировать смысл">
+                    Смысл
+                  </button>
+                  <button type="button" class="header-index-flush-btn" data-index-flush="storage" title="Пересобрать каталог полей">
+                    Поля
+                  </button>
+                </div>
+                <div class="header-index-popover-body menu-static-body menu-index-panel-body">
+                  <p class="menu-static-description">
+                    Цепочка поверх <strong>всего</strong> workspace: текст из вложений → слова → смысл → поля.
+                    После сохранения .md sidecar индексы обновляются автоматически.
+                  </p>
+
+                  <div class="menu-index-block menu-index-block--pipeline">
+                    <button
+                      type="button"
+                      id="menu-workspace-index-pipeline-btn"
+                      class="menu-static-action-btn"
+                      title="Слова → смысл → поля (OCR пропускается)"
+                    >
+                      Полная цепочка (OCR → слова → смысл → поля)
+                    </button>
+                    <p id="menu-workspace-index-pipeline-status" class="menu-static-description" aria-live="polite"></p>
+                  </div>
+
+                  <div class="menu-index-block is-feature-disabled">
+                    <div class="menu-index-block-title">1. OCR (вложения)</div>
+                    <p class="menu-static-description">
+                      Текст из jpg/png/pdf → <code>{имя}.sidecar.md</code> · только новые/изменённые
+                    </p>
+                    <p id="menu-ocr-index-status" class="menu-static-description" aria-live="polite"></p>
+                    <button
+                      type="button"
+                      id="menu-ocr-index-run-btn"
+                      class="menu-static-action-btn"
+                      disabled
+                      aria-disabled="true"
+                      title="OCR временно недоступен"
+                    >
+                      Обработать новые вложения
+                    </button>
+                    <button
+                      type="button"
+                      id="menu-ocr-index-force-btn"
+                      class="menu-static-action-btn menu-static-action-btn--secondary"
+                      disabled
+                      aria-disabled="true"
+                      title="OCR временно недоступен"
+                    >
+                      Переобработать всё
+                    </button>
+                  </div>
+
+                  <div class="menu-index-block">
+                    <div class="menu-index-block-title">2. Слова (fulltext)</div>
+                    <p class="menu-static-description">
+                      Точный поиск по словам · <code>.agent-cms/fulltext-index/</code>
+                    </p>
+                    <p id="menu-fulltext-index-status" class="menu-static-description" aria-live="polite"></p>
+                    <button type="button" id="menu-fulltext-index-rebuild-btn" class="menu-static-action-btn">
+                      Переиндексировать слова
+                    </button>
+                  </div>
+
+                  <div class="menu-index-block">
+                    <div class="menu-index-block-title">3. Смысл (RAG)</div>
+                    <p class="menu-static-description">
+                      Поиск по смыслу · <code>.agent-cms/semantic-index/</code>
+                    </p>
+                    <p id="menu-semantic-index-status" class="menu-static-description" aria-live="polite"></p>
+                    <button type="button" id="menu-semantic-index-rebuild-btn" class="menu-static-action-btn">
+                      Переиндексировать смысл
+                    </button>
+                    <button type="button" id="menu-semantic-index-show-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                      ~show-vector
+                    </button>
+                  </div>
+
+                  <div class="menu-index-block">
+                    <div class="menu-index-block-title">4. Поля (SQL-like)</div>
+                    <p class="menu-static-description">
+                      Каталог frontmatter всех .md/.yml · фильтр по дате, сумме, типу ·
+                      <code>.agent-cms/storage-index/</code>
+                    </p>
+                    <p id="menu-storage-index-status" class="menu-static-description" aria-live="polite"></p>
+                    <button type="button" id="menu-storage-index-rebuild-btn" class="menu-static-action-btn">
+                      Пересобрать каталог полей
+                    </button>
+                    <button type="button" id="menu-storage-index-show-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                      ~show-fields
+                    </button>
+                  </div>
+
+                  <div class="menu-index-block menu-index-block--monitor">
+                    <div class="menu-index-block-title">5. Мониторинг</div>
+                    <p id="menu-workspace-index-monitor-summary" class="menu-index-monitor-summary" aria-live="polite"></p>
+                    <div id="menu-workspace-index-monitor-grid" class="menu-index-monitor-grid"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="header-notifications-wrap">
               <button
                 id="workspace-notifications-btn"
@@ -1636,95 +1808,6 @@
                 </span>
               </button>
               <div id="menu-static-footer-body" class="menu-static-footer-body">
-              <details class="menu-static-section menu-static-section--indexing menu-static-accordion">
-                <summary class="menu-static-summary" title="Подготовка архива и поиск: OCR → слова → смысл → поля">
-                  <span class="menu-static-title menu-static-title--indexing">
-                    <span aria-hidden="true">🟢</span>
-                    <span class="menu-static-title-text">
-                      Индексирование workspace
-                      <span class="menu-static-subtitle">Подготовка архива и поиск</span>
-                    </span>
-                  </span>
-                  <span
-                    id="menu-workspace-index-stats"
-                    class="menu-static-google-drive-stats menu-static-google-drive-stats--summary is-empty"
-                    aria-live="polite"
-                  ></span>
-                </summary>
-                <div class="menu-static-body">
-                  <p class="menu-static-description">
-                    Цепочка поверх <strong>всего</strong> workspace: текст из вложений → слова → смысл → поля.
-                    После сохранения .md sidecar индексы обновляются автоматически.
-                  </p>
-
-                  <div class="menu-index-block menu-index-block--pipeline">
-                    <button type="button" id="menu-workspace-index-pipeline-btn" class="menu-static-action-btn">
-                      Полная цепочка (OCR → слова → смысл → поля)
-                    </button>
-                    <p id="menu-workspace-index-pipeline-status" class="menu-static-description" aria-live="polite"></p>
-                  </div>
-
-                  <div class="menu-index-block">
-                    <div class="menu-index-block-title">1. OCR (вложения)</div>
-                    <p class="menu-static-description">
-                      Текст из jpg/png/pdf → <code>{имя}.sidecar.md</code> · только новые/изменённые
-                    </p>
-                    <p id="menu-ocr-index-status" class="menu-static-description" aria-live="polite"></p>
-                    <button type="button" id="menu-ocr-index-run-btn" class="menu-static-action-btn">
-                      Обработать новые вложения
-                    </button>
-                    <button type="button" id="menu-ocr-index-force-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
-                      Переобработать всё
-                    </button>
-                  </div>
-
-                  <div class="menu-index-block">
-                    <div class="menu-index-block-title">2. Слова (fulltext)</div>
-                    <p class="menu-static-description">
-                      Точный поиск по словам · <code>.agent-cms/fulltext-index/</code>
-                    </p>
-                    <p id="menu-fulltext-index-status" class="menu-static-description" aria-live="polite"></p>
-                    <button type="button" id="menu-fulltext-index-rebuild-btn" class="menu-static-action-btn">
-                      Переиндексировать слова
-                    </button>
-                  </div>
-
-                  <div class="menu-index-block">
-                    <div class="menu-index-block-title">3. Смысл (RAG)</div>
-                    <p class="menu-static-description">
-                      Поиск по смыслу · <code>.agent-cms/semantic-index/</code>
-                    </p>
-                    <p id="menu-semantic-index-status" class="menu-static-description" aria-live="polite"></p>
-                    <button type="button" id="menu-semantic-index-rebuild-btn" class="menu-static-action-btn">
-                      Переиндексировать смысл
-                    </button>
-                    <button type="button" id="menu-semantic-index-show-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
-                      ~show-vector
-                    </button>
-                  </div>
-
-                  <div class="menu-index-block">
-                    <div class="menu-index-block-title">4. Поля (SQL-like)</div>
-                    <p class="menu-static-description">
-                      Каталог frontmatter всех .md/.yml · фильтр по дате, сумме, типу ·
-                      <code>.agent-cms/storage-index/</code>
-                    </p>
-                    <p id="menu-storage-index-status" class="menu-static-description" aria-live="polite"></p>
-                    <button type="button" id="menu-storage-index-rebuild-btn" class="menu-static-action-btn">
-                      Пересобрать каталог полей
-                    </button>
-                    <button type="button" id="menu-storage-index-show-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
-                      ~show-fields
-                    </button>
-                  </div>
-
-                  <div class="menu-index-block menu-index-block--monitor">
-                    <div class="menu-index-block-title">5. Мониторинг</div>
-                    <p id="menu-workspace-index-monitor-summary" class="menu-index-monitor-summary" aria-live="polite"></p>
-                    <div id="menu-workspace-index-monitor-grid" class="menu-index-monitor-grid"></div>
-                  </div>
-                </div>
-              </details>
               <details class="menu-static-section menu-static-section--languagetool menu-static-accordion">
                 <summary
                   class="menu-static-summary"
@@ -5440,7 +5523,7 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=12"></script>
     <script src="/connection-status.js?v=1"></script>
-    <script src="/semantic-index-panel.js?v=9"></script>
+    <script src="/semantic-index-panel.js?v=12"></script>
     <script src="/languagetool-panel.js?v=2"></script>
     <script src="/file-find-bar.js?v=2"></script>
     <script src="/slug-translit.js?v=1"></script>
