@@ -65368,19 +65368,24 @@ async function fetchPageOutsideSlotsReport(manifestPath) {
 }
 
 function renderPageOutsideSlotsWarningPanel(report, topicPath) {
-  const panel = document.createElement("div");
-  panel.className =
-    "workspace-system-notice workspace-system-notice--danger node-navigation-outside-slots-warning";
+  const panel = document.createElement("section");
+  panel.className = "node-navigation-outside-slots-warning";
   panel.setAttribute("role", "note");
+  panel.setAttribute("aria-label", "Вне слотов");
 
-  const title = document.createElement("div");
-  title.className = "workspace-system-notice-title node-navigation-outside-slots-warning-title";
-  title.textContent = "Вне слотов — лишние файлы и папки";
+  const header = document.createElement("div");
+  header.className = "node-navigation-outside-slots-warning-header";
 
-  const hint = document.createElement("div");
+  const title = document.createElement("h3");
+  title.className = "node-navigation-outside-slots-warning-title";
+  title.textContent = "Вне слотов";
+
+  const hint = document.createElement("p");
   hint.className = "node-navigation-outside-slots-warning-hint";
   hint.textContent =
-    "В корне страницы допустимы manifest, однофайловые слоты, config/schema, env и index. В awn-storage/ при типовых слотах — только папки слотов.";
+    "Файлы и папки вне разрешённой структуры страницы. В корне — только manifest, index, config/schema, env и однофайловые слоты; в awn-storage/ при типовых слотах — только папки слотов.";
+
+  header.append(title, hint);
 
   const list = document.createElement("ul");
   list.className = "node-navigation-outside-slots-warning-list";
@@ -65414,7 +65419,7 @@ function renderPageOutsideSlotsWarningPanel(report, topicPath) {
     list.appendChild(row);
   }
 
-  panel.append(title, hint, list);
+  panel.append(header, list);
   return panel;
 }
 
