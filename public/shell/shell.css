@@ -2862,6 +2862,7 @@ body:not(.shell-bg-dark):not(.shell-bg-wallpaper) .shell-path-select option {
 .shell-hero-voice-row--autosend {
   padding-top: 2px;
   border-top: 1px solid rgba(148, 163, 184, 0.14);
+  gap: 8px;
 }
 
 .shell-hero-voice-row--mobile {

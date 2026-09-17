@@ -151,10 +151,22 @@ function buildSystemPromptContext(settings = {}, context = {}) {
   return { agent_name: agentName, runtime, language };
 }
 
+function appendPromptSection(parts, section) {
+  const text = String(section || "").trim();
+  if (text) parts.push(text);
+}
+
 function getSystemPrompt(settings = {}, context = {}) {
-  const raw = String(settings.systemPrompt || "").trim();
-  if (!raw) return "";
-  return renderShellVoicePlaceholders(raw, buildSystemPromptContext(settings, context));
+  const parts = [];
+  appendPromptSection(parts, settings.systemPrompt);
+  if (settings.sttEnabled !== false) {
+    appendPromptSection(parts, settings.sttPrompt);
+  }
+  if (settings.ttsEnabled !== false) {
+    appendPromptSection(parts, settings.ttsPrompt);
+  }
+  if (!parts.length) return "";
+  return renderShellVoicePlaceholders(parts.join("\n\n"), buildSystemPromptContext(settings, context));
 }
 
 function buildOpenAiMessages(userText, settings = {}, context = {}) {

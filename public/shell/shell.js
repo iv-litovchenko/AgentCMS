@@ -3869,7 +3869,7 @@ function trySpeakAssistantReply(message, body) {
 
 function shouldShowTypingActivity(rawText, displayText) {
   if (!String(displayText || "").trim()) return false;
-  if (!hasTtsPrompt()) return true;
+  if (!usesTtsBreakFormat()) return true;
   return hasVoiceEndDelimiter(rawText);
 }
 
@@ -4229,13 +4229,16 @@ function queueStreamSpeech(fullBody, { flush = false } = {}) {
 
   const run = () => {
     queueStreamSpeech._timer = 0;
-    const speech = hasTtsPrompt()
+    const speech = usesTtsBreakFormat()
       ? prepareTtsStreamChunk(extractStreamingTtsBody(fullBody))
       : buildSpeechPayloadSync(fullBody);
     if (!speech) return;
 
-    if (hasTtsPrompt() && hasVoiceEndDelimiter(fullBody)) {
-      state.streamTtsVoiceEnded = true;
+    if (usesTtsBreakFormat() && hasVoiceEndDelimiter(fullBody)) {
+      if (!state.streamTtsVoiceEnded) {
+        state.streamTtsVoiceEnded = true;
+        state.streamTtsQueue = [];
+      }
     }
 
     const { sentences, cursor } = pullSpeechSentences(speech, state.streamTtsCursor);
@@ -4403,7 +4406,7 @@ function finalizeAssistantStream(message) {
       : [];
   let body = rawBody;
   let spokenText = spokenFromMessage;
-  if (hasTtsPrompt()) {
+  if (usesTtsBreakFormat()) {
     const parsed = parseDualReply(rawBody);
     if (parsed.parsed) {
       body = parsed.body ?? "";
@@ -4438,11 +4441,19 @@ function finalizeAssistantStream(message) {
     if (parts.length) {
       lastSpokenBody = parts.join("\0");
       const sourceMessage = { ...message, body, streamId };
+      const streamedDialog =
+        !isReadingTtsMode() &&
+        (streamTtsChunksPlayed > 0 || state.streamTtsVoiceEnded || state.streamTtsActive);
       if (usesStreamingReplyTts()) {
         void finalizeStreamReplyTts({
           sourceMessage,
           spokenText: parts.join("\n\n"),
           parts
+        });
+      } else if (streamedDialog) {
+        void finishStreamTtsWhenIdle({
+          sourceMessage,
+          spokenText: parts.join("\n\n")
         });
       } else {
         void speakTextParts(parts, {
@@ -8855,6 +8866,11 @@ function hasTtsPrompt() {
   return Boolean(String(state.settings?.ttsPrompt || nodes.ttsPrompt?.value || "").trim());
 }
 
+/** TTS включён — ответ может содержать [tts-break], озвучка только до маркера. */
+function usesTtsBreakFormat() {
+  return isTtsEnabledSetting();
+}
+
 function buildSpeechPayloadSync(body) {
   return prepareSpeechText(body, state.settings || {});
 }
@@ -8865,7 +8881,7 @@ function buildSpeechParts(body, message = {}) {
   }
   const spoken = String(message?.spokenText || "").trim();
   if (spoken) return expandTtsSpeechParts(spoken);
-  if (hasTtsPrompt()) {
+  if (usesTtsBreakFormat()) {
     const parsed = parseDualReply(body);
     if (parsed.spokenParts?.length) {
       return parsed.spokenParts.flatMap((part) => expandTtsSpeechParts(part));
