@@ -79234,8 +79234,105 @@ function normalizeMarkdownInlineAssetRefs(markdown) {
 
 function stripWysiwygBreakArtifacts(markdown) {
   return String(markdown || "")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/&lt;br\s*\/?&gt;/gi, "\n");
+    .split("\n")
+    .map((line) => {
+      if (isMarkdownTableRowLine(line) || isMarkdownTableSeparatorLine(line)) {
+        return line;
+      }
+      return line
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/&lt;br\s*\/?&gt;/gi, "\n");
+    })
+    .join("\n");
+}
+
+function isMarkdownTableSeparatorLine(line) {
+  const trimmed = String(line || "").trim();
+  if (!trimmed.startsWith("|")) return false;
+  return trimmed
+    .split("|")
+    .slice(1, -1)
+    .every((cell) => /^[\s:-]+$/.test(cell));
+}
+
+function isMarkdownTableRowLine(line) {
+  const trimmed = String(line || "").trim();
+  return trimmed.startsWith("|") && trimmed.includes("|", 1);
+}
+
+function repairMarkdownTableRowBreaks(markdown) {
+  const lines = String(markdown || "").split("\n");
+  const out = [];
+  let inTable = false;
+  let openRow = null;
+
+  const flushOpenRow = () => {
+    if (openRow == null) return;
+    out.push(openRow);
+    openRow = null;
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (!inTable) {
+      if (isMarkdownTableRowLine(line)) {
+        inTable = true;
+        if (trimmed.endsWith("|")) {
+          out.push(line);
+        } else {
+          openRow = line.trimEnd();
+        }
+      } else {
+        out.push(line);
+      }
+      continue;
+    }
+
+    if (trimmed === "") {
+      if (openRow != null) {
+        openRow += "<br>";
+        continue;
+      }
+      flushOpenRow();
+      inTable = false;
+      out.push(line);
+      continue;
+    }
+
+    if (isMarkdownTableSeparatorLine(line)) {
+      flushOpenRow();
+      out.push(line);
+      continue;
+    }
+
+    if (openRow != null) {
+      const nextPart = trimmed;
+      openRow = openRow.trimEnd() + (openRow.endsWith("<br>") ? "" : "<br>") + nextPart;
+      if (openRow.trim().endsWith("|")) {
+        out.push(openRow);
+        openRow = null;
+      }
+      continue;
+    }
+
+    if (isMarkdownTableRowLine(line) && trimmed.endsWith("|")) {
+      out.push(line);
+      continue;
+    }
+
+    if (isMarkdownTableRowLine(line)) {
+      openRow = line.trimEnd();
+      continue;
+    }
+
+    flushOpenRow();
+    inTable = false;
+    out.push(line);
+  }
+
+  flushOpenRow();
+  return out.join("\n");
 }
 
 function normalizeWysiwygExportedMarkdown(markdown) {
@@ -79246,6 +79343,7 @@ function normalizeWysiwygExportedMarkdown(markdown) {
   normalized = restoreEscapedHighlightMarkdown(normalized);
   normalized = normalized.replace(/\\([#|,.\[\]()!])/g, "$1");
   normalized = normalized.replace(/\\([\\`*_~\-=])/g, "$1");
+  normalized = repairMarkdownTableRowBreaks(normalized);
   return normalizeMarkdownInlineAssetRefs(normalized);
 }
 

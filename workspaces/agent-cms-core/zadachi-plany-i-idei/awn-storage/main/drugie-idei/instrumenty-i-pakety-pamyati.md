@@ -34,8 +34,8 @@ awn-name: Инструменты и пакеты памяти
 awn-preview: ""
 awn-sort: 
 awn-web-url: ""
-awn-update: 2026-09-17T07:09:55.020Z
-awn-version: 4
+awn-update: 2026-09-17T07:30:07.974Z
+awn-version: 6
 ---
 
 ## Сравнение: что взять из каждого проекта и как это ляжет в YamlCMS
@@ -92,24 +92,18 @@ awn-version: 4
 
 ***
 
-
-
-
-
-***
-
 ## Что из этого — отдельные tools, а что — внутренняя логика
 
 | Что добавить | Тип | Пример API |
 | ------------ | --- | ---------- |
-| Упаковка контекста под лимит | новый tool | `pack_workspace_context({ query, max_tokens: 4000 })` |
-| Recall только актуальных фактов | параметр существующего tool | `recall_workspace_facts({ mode: "current" })` |
-| L0/L1/L2 уровни | sidecar-файлы + параметр read | `read_page_body({ level: "L0" })` |
-| Decay | внутренний scoring | без нового tool, меняется ранжирование в recall |
-| Auto-extract из диалога | новый tool / cron | `extract_facts_from_dialog({ path })` |
-| Execution trace | новый kind + tool | `retain_workspace_fact({ kind: "trace" })` |
-| Explore/integrate контекста | workflow tools | `create_context_branch` / `merge_context_branch` |
-| Compression | фоновый процесс | rebuild index / sidecar, не отдельный MCP tool |
+| Упаковка контекста под лимит | **новый tool** | `pack_workspace_context({ query, max_tokens: 4000 })` |
+| Recall только актуальных фактов | **параметр существующего tool** | `recall_workspace_facts({ mode: "current" })` |
+| L0/L1/L2 уровни | **sidecar-файлы + параметр read** | `read_page_body({ level: "L0" })` |
+| Decay | **внутренний scoring** | без нового tool, меняется ранжирование в recall |
+| Auto-extract из диалога | **новый tool / cron** | `extract_facts_from_dialog({ path })` |
+| Execution trace | **новый kind + tool** | `retain_workspace_fact({ kind: "trace" })` |
+| Explore/integrate контекста | **workflow tools** | `create_context_branch` / `merge_context_branch` |
+| Compression | **фоновый процесс** | rebuild index / sidecar, не отдельный MCP tool |
 
 ***
 
@@ -132,10 +126,11 @@ awn-version: 4
 | ------ | -------------- | ---------------- |
 | mem0 | нет | автоизвлечение + entity/temporal |
 | context-llemur | нет | вы уже это делаете |
-| LongMemory | нет, но главный источник идей | decay, modes, token budget |
+| **LongMemory** | нет, но **главный источник идей** | decay, modes, token budget |
 | memori | нет | память из tool calls |
 | SimpleMem | нет | сжатие (позже) |
-| OpenViking | нет, но главный UI-паттерн | L0/L1/L2 loading |
+| **OpenViking** | нет, но **главный UI-паттерн** | L0/L1/L2 loading |
 
-Ни один проект не нужен как отдельный инструмент в стеке. Берёте паттерны и встраиваете в существующие `ask_workspace`, `recall_workspace_facts`, `always-context` и `awn-facts/`.
-Если нужно — могу следующим шагом сделать таблицу только по конкретным MCP tools (имя, параметры, пример ответа) для топ-3 приоритетов.
+**Ни один проект не нужен как отдельный инструмент в стеке.** Берёте **паттерны** и встраиваете в существующие `ask_workspace`, `recall_workspace_facts`, `always-context` и `awn-facts/`.
+
+Если нужно — могу следующим шагом сделать таблицу только по **конкретным MCP tools** (имя, параметры, пример ответа) для топ-3 приоритетов.
