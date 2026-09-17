@@ -80,9 +80,9 @@ function buildDualReplyInstruction(userText, settings = {}) {
   if (!shouldRequestDualReply(settings)) return text;
   const prompt = String(settings.ttsPrompt || "").trim();
   let suffix = "";
-  if (!/voice-end/i.test(prompt)) {
+  if (!/\[tts-break\]|voice-end/i.test(prompt)) {
     suffix =
-      `\n\nФормат ответа (строго, в таком порядке):\n1) Краткий текст для озвучки (1–4 предложения, без markdown).\n2) Отдельной строкой маркер: ${VOICE_END_MARKER}\n3) Полный текст ответа для экрана.\n\nБез маркера ${VOICE_END_MARKER} — только экран, без озвучки.`;
+      `\n\nФормат ответа (строго, в таком порядке):\n1) Текст для озвучки (plain text, без markdown, только то, что можно произнести вслух; длина не ограничена).\n2) Отдельной строкой маркер: ${VOICE_END_MARKER}\n3) Полный текст ответа для экрана.\n\nБез маркера ${VOICE_END_MARKER} — только экран, без озвучки.`;
   }
   return `${text}
 

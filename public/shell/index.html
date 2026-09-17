@@ -62,7 +62,7 @@
           "@shell/voice-modes": "/shell/shell-voice-modes.js?v=423",
           "@shell/live-dialog": "/shell/shell-live-dialog.js?v=24",
           "@shell/audio-pcm": "/shell/shell-audio-pcm.js?v=1",
-          "@shell/voice-end-format": "/shell/voice-end-format.js?v=208",
+          "@shell/voice-end-format": "/shell/voice-end-format.js?v=209",
           "@shell/contract": "/shell/shell-contract.js?v=209",
           "@shell/runtimes": "/shell/shell-runtimes.js?v=363",
           "@shell/tts-engines": "/shell/shell-tts-engines.js?v=420",
@@ -1027,7 +1027,7 @@
             class="shell-textarea shell-textarea--compact"
             rows="3"
             spellcheck="false"
-            placeholder="Как агент формирует ответ: сначала текст для голоса, затем {{shell:voice-end}}, затем полный текст на экран. «Вставить заготовку» — шаблон."
+            placeholder="Голос → [tts-break] → подробный текст на экран («смотри ниже»). «Вставить заготовку» — шаблон."
           ></textarea>
         </label>
 
@@ -1064,7 +1064,7 @@
                 <span class="shell-tts-playback-emoji" aria-hidden="true">📖</span>
                 <span class="shell-tts-playback-option-copy">
                   <span class="shell-tts-playback-option-title">Чтение</span>
-                  <span class="shell-tts-playback-option-desc">(после полного ответа и маркера {{shell:voice-end}})</span>
+                  <span class="shell-tts-playback-option-desc">(после полного ответа и маркера [tts-break])</span>
                 </span>
               </label>
             </span>
@@ -1207,7 +1207,7 @@
               class="shell-textarea shell-textarea--compact"
               rows="4"
               spellcheck="false"
-              placeholder="Исправь пунктуацию, убери «э-э» и «эээ», сохрани смысл. Верни только готовый текст для агента.&#10;&#10;Если поле пустое — сырой STT сразу уходит агенту без LLM-очистки."
+              placeholder="Как агент читает блоки [stt]…[/stt] в сообщении (голос + текст). «Вставить заготовку» — шаблон."
             ></textarea>
           </label>
           <div class="shell-field shell-field--compact shell-tts-panel-enable-field shell-stt-voice-response-field">
@@ -1690,7 +1690,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 </tr>
                 <tr>
                   <td><strong>Метка структуры</strong></td>
-                  <td><code>{{shell:voice-end}}</code></td>
+                  <td><code>[tts-break]</code>, <code>[stt]…[/stt]</code></td>
                   <td>«здесь граница блоков»</td>
                   <td>Не трогать, всегда видна в чате</td>
                 </tr>
@@ -1715,9 +1715,9 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 <tr>
                   <td><strong>A. Сейчас</strong></td>
                   <td><code>{{tpl:brief}}</code></td>
-                  <td><code>{{shell:voice-end}}</code></td>
-                  <td>Один стиль <code>{{…}}</code>, namespace отличает</td>
-                  <td>Визуально похожи — легко перепутать</td>
+                  <td><code>[tts-break]</code>, <code>[stt]…[/stt]</code></td>
+                  <td>BBCode для голоса, <code>{{…}}</code> — параметры и шаблоны</td>
+                  <td>Два семейства синтаксиса</td>
                 </tr>
                 <tr>
                   <td><strong>B. Разные скобки</strong></td>
@@ -1890,7 +1890,7 @@ aya_bar_v2 тоже читает те же файлы</pre>
                 </tr>
                 <tr>
                   <td><strong>Метка (структура)</strong></td>
-                  <td><code>{{shell:voice-end}}</code></td>
+                  <td><code>[tts-break]</code></td>
                   <td>как есть</td>
                   <td><strong>разделитель</strong>, не удалять</td>
                 </tr>

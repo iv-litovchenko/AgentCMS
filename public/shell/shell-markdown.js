@@ -78,7 +78,7 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
-const SHELL_MARKER_INLINE_RE = /(\{\{(?:tpl:[a-z0-9_-]+|shell:voice-end)\}\})/gi;
+const SHELL_MARKER_INLINE_RE = /(\[(?:tts-break|/?stt)\]|\{\{(?:tpl:[a-z0-9_-]+|shell:voice-end)\}\})/gi;
 
 export function renderUserMessageBody(element, text) {
   if (!element) return;
