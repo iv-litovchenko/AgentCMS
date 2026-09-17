@@ -72,6 +72,7 @@ import { createShellDialog } from "@shell/dialog";
 import { createShellCompactQa } from "@shell/compact-qa";
 import { initShellComposeLayout } from "@shell/compose-layout";
 import { initComposeTemplates, expandComposeTemplateMarkers } from "@shell/compose-templates";
+import { wrapSttVoiceBlock } from "@shell/stt-format";
 import {
   initShellComposeContextMeter,
   isComposeMessageOverLimit,
@@ -8140,10 +8141,11 @@ function composeBlockSeparator(current, join = "space") {
 function appendVoiceToCompose(text, options = {}) {
   const trimmed = String(text || "").trim();
   if (!trimmed || !nodes.message) return;
+  const voiceBlock = options.wrapStt === false ? trimmed : wrapSttVoiceBlock(trimmed);
   const current = String(nodes.message.value || "").trimEnd();
   const join = options.join === "newline" ? "newline" : "space";
   const separator = composeBlockSeparator(current, join);
-  let next = current ? `${current}${separator}${trimmed}` : trimmed;
+  let next = current ? `${current}${separator}${voiceBlock}` : voiceBlock;
   if (join === "newline") next = `${next}\n\n`;
   setComposeMessageValue(next);
   nodes.message.focus();
@@ -11383,7 +11385,7 @@ async function sendVoiceMessage(text) {
   if (state.settings?.screenOnSpeech && shellScreen.isActive()) {
     void uploadScreenSnapshot("speech").catch(() => {});
   }
-  await sendMessage(text, { fromCompose: false, voice: true });
+  await sendMessage(wrapSttVoiceBlock(text), { fromCompose: false, voice: true });
 }
 
 async function handleVoiceTranscript(text) {

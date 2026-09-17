@@ -6,6 +6,7 @@ const { loadShellPromptTemplates } = require("./shell-prompt-presets");
 const ttsService = require("./tts-service");
 const sttService = require("./stt-service");
 const sttTranscribe = require("./stt-transcribe");
+const { wrapSttVoiceBlock } = require("./stt-format");
 
 function createShellHandlers(deps) {
   async function tryHandleShellApi(req, res, url, { agentId, agentRoot, projectRoot }) {
@@ -367,6 +368,9 @@ function createShellHandlers(deps) {
         }
 
         body = shellService.applyDeviceContextToBody(body, deviceContext);
+        if (voiceInput && body) {
+          body = wrapSttVoiceBlock(body);
+        }
 
         const runtime = shellService.getMessageRuntime(settings);
         const ttsClientId = String(payload?.shellClientId || payload?.clientId || "").trim();
