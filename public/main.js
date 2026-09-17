@@ -37470,7 +37470,8 @@ function isWorkspaceRefreshAvailable() {
     activePath ||
       activeSystemFile ||
       (activeFolderBrowsePath &&
-        (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE))
+        (activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE)) ||
+      (awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE)
   );
 }
 
@@ -37577,6 +37578,14 @@ async function refreshWorkspaceContent() {
       } else {
         await renderFolderBrowseView();
       }
+      return;
+    }
+
+    if (activeContentMode === AWN_DATA_VIEW_MODE && awnDataViewStoreRel) {
+      awnDataViewStoreCache = null;
+      awnDataViewRecordCache = null;
+      await refreshMenuAwnDataStores(activeAgentId);
+      await loadAwnDataViewStore(activeAgentId);
       return;
     }
 
