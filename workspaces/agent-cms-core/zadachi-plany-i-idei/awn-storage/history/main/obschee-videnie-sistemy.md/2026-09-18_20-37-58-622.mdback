@@ -1,0 +1,48 @@
+---
+awn-id: ""
+awn-materials: ""
+awn-status: open
+awn-quality: 4
+awn-emoji: ""
+awn-note-todo-sticker: ""
+awn-main: false
+awn-focus: false
+awn-runtime-load-always: false
+awn-runtime-heartbeat: false
+awn-runtime-cron: false
+awn-runtime-cron-schedule: "0 9 * * *"
+awn-runtime-commands: false
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-color: ""
+awn-tags: []
+awn-type: awn.content.record
+awn-create: "2026-09-18T20:37"
+awn-location-label: ""
+awn-location-coordinates: ""
+awn-is-real-world-object: false
+awn-is-real-world-event: false
+awn-mindmap-enabled: true
+awn-mindmap-type: optional
+awn-mindmap-color: slate
+awn-mindmap-size: auto
+awn-mindmap-layout-independent: false
+awn-mindmap-direction: auto
+awn-attachments: []
+awn-description: ""
+awn-name: Общее видение системы
+awn-preview: ""
+awn-sort: 
+awn-web-url: ""
+awn-update: 2026-09-18T17:37:24.835Z
+awn-version: 2
+---
+
+Секунду, соберу это в единый текст для промпта.Готово, вот единый текст-промпт, собранный из твоих идей про ожидания от agent-cms.
+Управление контекстом как ядро системы — единое пространство, которое человек и агент читают и пишут совместно. Расширяемость через собственные пакеты и модули, чтобы систему можно было допиливать под себя. Визуальный интерфейс для человека — отдельно от машинного доступа. Коннектор для нейросетей через протокол, чтобы любой агент мог подключиться. Синхронизация с удалённым сервером между устройствами. Индексация и поиск — причём у тебя уже несколько видов: точное совпадение, векторный семантический поиск и поиск по фильтрам как в базе данных.
+Я сюда же добавила пять вещей: версионирование с историей изменений, права доступа и разграничение между агентами, бэкапы и восстановление, уведомления об изменениях, и импорт-экспорт из других систем вроде Обсидиана.
+Для визуализации всего этого — центральный узел-хаб, от которого расходятся орбиты: одна с человеком и визуальным интерфейсом, другая с несколькими агентами-коннекторами, третья с облаком синхронизации и потоками данных между ними.
+Сохранить это как есть в заметки проекта, или что-то поправить перед этим?
+
++ дашборды
