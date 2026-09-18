@@ -69723,10 +69723,31 @@ function markAllCommentMentionsSeen(context, comments) {
   markCommentMentionsSeen(context, items[0].id);
 }
 
-function renderCommentBodyWithMentions(container, text, mentionLookup = new Map()) {
+function appendCommentMarkdownChunk(container, markdown, nodePath) {
+  const chunk = String(markdown || "");
+  if (!chunk.trim()) return;
+  const wrapper = document.createElement("div");
+  wrapper.className = "node-comment-md-chunk";
+  wrapper.innerHTML = renderMarkdownToHtml(chunk, { nodePath, hideFrontmatter: true });
+  container.appendChild(wrapper);
+}
+
+function renderCommentBodyWithMentions(
+  container,
+  text,
+  mentionLookup = new Map(),
+  { nodePath } = {}
+) {
   container.replaceChildren();
+  container.classList.add("file-content-preview");
   const source = String(text || "");
   if (!source) return;
+
+  const resolvedNodePath =
+    nodePath || getPropsContextPath() || getActiveTitleEditorPath() || getActiveNodeApiPath();
+  if (resolvedNodePath) {
+    container.dataset.linkBasePath = resolvedNodePath;
+  }
 
   const re = new RegExp(COMMENT_MENTION_RE.source, "g");
   let lastIndex = 0;
@@ -69734,7 +69755,7 @@ function renderCommentBodyWithMentions(container, text, mentionLookup = new Map(
 
   while ((match = re.exec(source)) !== null) {
     if (match.index > lastIndex) {
-      container.appendChild(document.createTextNode(source.slice(lastIndex, match.index)));
+      appendCommentMarkdownChunk(container, source.slice(lastIndex, match.index), resolvedNodePath);
     }
 
     const handle = match[1];
@@ -69761,8 +69782,10 @@ function renderCommentBodyWithMentions(container, text, mentionLookup = new Map(
   }
 
   if (lastIndex < source.length) {
-    container.appendChild(document.createTextNode(source.slice(lastIndex)));
+    appendCommentMarkdownChunk(container, source.slice(lastIndex), resolvedNodePath);
   }
+
+  hydrateMarkdownPreviewElement(container, resolvedNodePath);
 }
 
 function buildCommentMentionLookup(candidates) {
@@ -73526,7 +73549,9 @@ async function renderNodeThread() {
 
       const body = document.createElement("div");
       body.className = "node-comment-body node-thread-body";
-      body.textContent = message.body || "";
+      renderCommentBodyWithMentions(body, message.body || "", new Map(), {
+        nodePath: activeThreadScope?.file || manifestPath
+      });
 
       main.append(commentHead, body);
 
@@ -73706,7 +73731,9 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
 
   const body = document.createElement("div");
   body.className = "node-comment-body";
-  renderCommentBodyWithMentions(body, comment.body || "", handlers.mentionLookup);
+  renderCommentBodyWithMentions(body, comment.body || "", handlers.mentionLookup, {
+    nodePath: handlers.nodePath
+  });
 
   const foot = document.createElement("footer");
   foot.className = "node-comment-foot";
@@ -73869,6 +73896,7 @@ async function createNodeCommentsBlock(options = {}) {
 
   const commentHandlers = {
     myHandle,
+    nodePath: context.file || context.path,
     mentionLookup: mentionLookup(),
     onReaction(comment, button) {
       void (async () => {
