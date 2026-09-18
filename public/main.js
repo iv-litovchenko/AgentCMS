@@ -15502,44 +15502,10 @@ function shouldUseInlineNavigationHeroSlugWarning(mode = activeContentMode) {
 function createNavigationHeroSlugPathRow({ slug = "", issue = null, pathLabel = "" } = {}) {
   const row = document.createElement("p");
   row.className = "node-navigation-hero-path";
-
-  const slugValue = String(slug || "").trim();
-  const fallbackLabel = pathLabel || (slugValue ? `slug: ${slugValue}` : "slug: —");
-
-  if (!issue) {
-    row.textContent = fallbackLabel;
-    return row;
+  appendNavigationHeroSlugSegment(row, { slug, issue, pathLabel });
+  if (row.classList.contains("node-navigation-hero-path--invalid-slug")) {
+    row.classList.add("node-navigation-hero-path--invalid");
   }
-
-  row.classList.add("node-navigation-hero-path--invalid");
-
-  const prefix = document.createElement("span");
-  prefix.className = "node-navigation-hero-path-prefix";
-  prefix.textContent = "slug:";
-
-  const value = document.createElement("span");
-  value.className = "node-navigation-hero-path-value";
-  value.textContent = issue.current || slugValue;
-  value.title = `Рекомендуется slug «${issue.suggested}»`;
-
-  row.append(prefix, document.createTextNode(" "), value);
-
-  const canFix = canApplyDataHubSlugFix(issue);
-  const fixBtn = document.createElement("button");
-  fixBtn.type = "button";
-  fixBtn.className = "node-navigation-hero-path-fix";
-  fixBtn.textContent = "Преобразовать";
-  fixBtn.title = canFix
-    ? `Переименовать в «${issue.suggested}»`
-    : "Сначала необходимо создать описание раздела";
-  fixBtn.disabled = !canFix;
-  fixBtn.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void applyDataHubSlugFix(issue, fixBtn);
-  });
-  row.appendChild(fixBtn);
-
   return row;
 }
 
@@ -15561,17 +15527,21 @@ function resolveHeroRecordAssignPath(nodePath, options = {}) {
 
 function createNavigationHeroIdPathRow({ awnId = "", assignPath = "", onIdAssigned = null } = {}) {
   const row = document.createElement("p");
-  row.className = "node-navigation-hero-path node-navigation-hero-id-path";
+  row.className = "node-navigation-hero-path";
+  appendNavigationHeroIdSegment(row, { awnId, assignPath, onIdAssigned });
+  return row;
+}
 
+function appendNavigationHeroIdSegment(container, { awnId = "", assignPath = "", onIdAssigned = null } = {}) {
   const idValue = String(awnId || "").trim();
   const hasId = Boolean(idValue && /^\d+$/.test(idValue));
 
   if (hasId) {
-    row.textContent = `id: ${idValue}`;
-    return row;
+    container.append(document.createTextNode(`id: ${idValue}`));
+    return;
   }
 
-  row.classList.add("node-navigation-hero-path--missing-id");
+  container.classList.add("node-navigation-hero-id-path", "node-navigation-hero-path--missing-id");
 
   const prefix = document.createElement("span");
   prefix.className = "node-navigation-hero-path-prefix";
@@ -15581,9 +15551,9 @@ function createNavigationHeroIdPathRow({ awnId = "", assignPath = "", onIdAssign
   value.className = "node-navigation-hero-path-value";
   value.textContent = "—";
 
-  row.append(prefix, document.createTextNode(" "), value);
+  container.append(prefix, document.createTextNode(" "), value);
 
-  if (!assignPath) return row;
+  if (!assignPath) return;
 
   const fixBtn = document.createElement("button");
   fixBtn.type = "button";
@@ -15595,8 +15565,83 @@ function createNavigationHeroIdPathRow({ awnId = "", assignPath = "", onIdAssign
     event.stopPropagation();
     void applyWorkspaceRecordIdAssign(assignPath, fixBtn, onIdAssigned);
   });
-  row.appendChild(fixBtn);
+  container.appendChild(fixBtn);
+}
 
+function appendNavigationHeroSlugSegment(
+  container,
+  { slug = "", issue = null, pathLabel = "" } = {}
+) {
+  const slugValue = String(slug || "").trim();
+  const fallbackLabel = pathLabel || (slugValue ? `slug: ${slugValue}` : "slug: —");
+
+  if (!issue) {
+    container.append(document.createTextNode(fallbackLabel));
+    return;
+  }
+
+  container.classList.add("node-navigation-hero-slug-path", "node-navigation-hero-path--invalid-slug");
+
+  const prefix = document.createElement("span");
+  prefix.className = "node-navigation-hero-path-prefix";
+  prefix.textContent = "slug:";
+
+  const value = document.createElement("span");
+  value.className = "node-navigation-hero-path-value";
+  value.textContent = issue.current || slugValue;
+  value.title = `Рекомендуется slug «${issue.suggested}»`;
+
+  container.append(prefix, document.createTextNode(" "), value);
+
+  const canFix = canApplyDataHubSlugFix(issue);
+  const fixBtn = document.createElement("button");
+  fixBtn.type = "button";
+  fixBtn.className = "node-navigation-hero-path-fix";
+  fixBtn.textContent = "Преобразовать";
+  fixBtn.title = canFix
+    ? `Переименовать в «${issue.suggested}»`
+    : "Сначала необходимо создать описание раздела";
+  fixBtn.disabled = !canFix;
+  fixBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void applyDataHubSlugFix(issue, fixBtn);
+  });
+  container.appendChild(fixBtn);
+}
+
+function createNavigationHeroIdSlugPathRow({
+  awnId = "",
+  assignPath = "",
+  onIdAssigned = null,
+  slug = "",
+  issue = null,
+  pathLabel = ""
+} = {}) {
+  const row = document.createElement("p");
+  row.className = "node-navigation-hero-path node-navigation-hero-meta-path";
+
+  const idSegment = document.createElement("span");
+  idSegment.className = "node-navigation-hero-path-segment";
+  appendNavigationHeroIdSegment(idSegment, { awnId, assignPath, onIdAssigned });
+
+  const sep = document.createElement("span");
+  sep.className = "node-navigation-hero-path-sep";
+  sep.setAttribute("aria-hidden", "true");
+  sep.textContent = "·";
+
+  const slugSegment = document.createElement("span");
+  slugSegment.className = "node-navigation-hero-path-segment";
+  appendNavigationHeroSlugSegment(slugSegment, { slug, issue, pathLabel });
+
+  if (slugSegment.classList.contains("node-navigation-hero-path--invalid-slug")) {
+    row.classList.add("node-navigation-hero-path--invalid");
+  }
+  if (idSegment.classList.contains("node-navigation-hero-path--missing-id")) {
+    row.classList.add("node-navigation-hero-path--missing-id");
+  }
+
+  row.append(idSegment, sep, slugSegment);
   return row;
 }
 
@@ -19491,12 +19536,19 @@ function isTopicSharedSlotActiveForNode(nodePath, propEntries = null) {
   return isTopicSharedSlotActive(nodePath);
 }
 
-function canShowNodeOverviewSharedSlotToggle(nodePath) {
+function isPageNodeManifestPath(nodePath) {
   const apiPath = String(getResolvedNodePath(nodePath) || nodePath || "")
     .trim()
     .replace(/\\/g, "/");
-  if (!apiPath) return false;
-  return isTopicManifestPath(apiPath) && !isPartNodePath(apiPath);
+  if (!apiPath || !isNodeManifestPath(apiPath)) return false;
+  if (isPartNodePath(apiPath)) return false;
+  if (/\/awn-storage\//i.test(apiPath)) return false;
+  if (isAgentRootIndexPath(apiPath)) return false;
+  return isTopicManifestPath(apiPath) || isAreaNodePath(apiPath);
+}
+
+function canShowNodeOverviewSharedSlotToggle(nodePath) {
+  return isPageNodeManifestPath(nodePath);
 }
 
 async function setTopicSharedSlotState(nodePath, enabled, options = {}) {
@@ -39123,8 +39175,8 @@ const STANDARD_PROPS_FIELD_KEYS = [
   "awn-create",
   "awn-update",
   "awn-description",
-  "awn-focus",
   "awn-main",
+  "awn-focus",
   "awn-category",
   "awn-owner",
   "awn-priority",
@@ -55395,12 +55447,18 @@ function createNodeOverviewSharedSlotButton(nodePath, propEntries = null) {
 }
 
 function createNodeOverviewHeroActions(nodePath, options = {}) {
+  const pageManifestPath = options.pageManifestPath || nodePath;
   const actions = document.createElement("div");
   actions.className = "node-navigation-hero-actions";
   if (!options.editOnly && canShowNodeOverviewPinActions(nodePath)) {
     actions.appendChild(createNodeOverviewBookmarkButton(nodePath));
     actions.appendChild(createNodeOverviewFocusButton(nodePath, options.propEntries || null));
     actions.appendChild(createNodeOverviewMainButton(nodePath, options.propEntries || null));
+  }
+  if (canShowNodeOverviewSharedSlotToggle(pageManifestPath)) {
+    actions.appendChild(
+      createNodeOverviewSharedSlotButton(pageManifestPath, options.propEntries || null)
+    );
   }
   if (options.onEditClick || options.editDisabled) {
     actions.appendChild(
@@ -55416,16 +55474,6 @@ function createNodeOverviewHeroActionsColumn(nodePath, options = {}) {
   const column = document.createElement("div");
   column.className = "node-navigation-hero-actions-column";
   column.appendChild(createNodeOverviewHeroActions(nodePath, options));
-
-  if (canShowNodeOverviewSharedSlotToggle(nodePath)) {
-    const sharedRow = document.createElement("div");
-    sharedRow.className = "node-navigation-hero-shared-slot-row";
-    sharedRow.appendChild(
-      createNodeOverviewSharedSlotButton(nodePath, options.propEntries || null)
-    );
-    column.appendChild(sharedRow);
-  }
-
   return column;
 }
 
@@ -56096,7 +56144,8 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
     onEditClick: options.onEditClick,
     editLabel: options.editLabel,
     editOnly: compact,
-    editDisabled: options.editDisabled
+    editDisabled: options.editDisabled,
+    pageManifestPath: options.pageManifestPath || nodePath
   });
 
   const body = document.createElement("div");
@@ -56126,24 +56175,20 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
       showUnread: Boolean(options.showUnread)
     });
 
-    const pathNode = createNavigationHeroSlugPathRow({
+    const metaPathNode = createNavigationHeroIdSlugPathRow({
+      awnId: getPropsEntryValueByKey(options.propEntries || [], "awn-id"),
+      assignPath: resolveHeroRecordAssignPath(nodePath, options),
+      onIdAssigned: options.onIdAssigned || null,
       slug: options.slugIssue?.current,
       issue: options.slugIssue || null,
       pathLabel: options.pathLabel || formatNodeHeroSlugLabel(nodePath)
-    });
-
-    const assignPath = resolveHeroRecordAssignPath(nodePath, options);
-    const idNode = createNavigationHeroIdPathRow({
-      awnId: getPropsEntryValueByKey(options.propEntries || [], "awn-id"),
-      assignPath,
-      onIdAssigned: options.onIdAssigned || null
     });
 
     const headerRow = document.createElement("div");
     headerRow.className = "node-navigation-hero-header";
     headerRow.append(titleRow, actions);
 
-    body.append(headerRow, pathNode, idNode);
+    body.append(headerRow, metaPathNode);
 
     if (options.typeLabel) {
       body.appendChild(createNavigationHeroTypePathRow(options.typeLabel));
@@ -67462,23 +67507,20 @@ function createEntryOverviewMediaAssetPanel(
   headerRow.append(titleRow, actions);
 
   const entrySlugIssue = getEntryOverviewSlugIssue(context);
-  const pathNode = createNavigationHeroSlugPathRow({
+  const metaPathNode = createNavigationHeroIdSlugPathRow({
+    awnId: getPropsEntryValueByKey(entries, "awn-id"),
+    assignPath: context.relPath,
+    onIdAssigned: async () => {
+      await renderEntryOverview();
+    },
     slug: entrySlugIssue?.current,
     issue: entrySlugIssue,
     pathLabel: formatEntryOverviewHeroPathLabel(entries, context.relativePath)
   });
 
-  const idNode = createNavigationHeroIdPathRow({
-    awnId: getPropsEntryValueByKey(entries, "awn-id"),
-    assignPath: context.relPath,
-    onIdAssigned: async () => {
-      await renderEntryOverview();
-    }
-  });
-
   const metaRow = document.createElement("div");
   metaRow.className = "node-entry-overview-media-asset-meta-row node-navigation-hero-meta-row";
-  metaRow.append(kindBadge, pathNode, idNode);
+  metaRow.append(kindBadge, metaPathNode);
 
   const datesPanel = buildNavigationHeroDatesPanel(nodeMeta, context.relPath);
   if (datesPanel.childElementCount > 0) {
@@ -68118,6 +68160,7 @@ async function renderEntryOverview() {
           typeLabel: entryTypeLabel,
           pathLabel: formatEntryOverviewHeroPathLabel(entries, context.relativePath),
           recordPath: context.relPath,
+          pageManifestPath: manifestApiPath,
           slugIssue: getEntryOverviewSlugIssue(context),
           onIdAssigned: async () => {
             await renderEntryOverview();
@@ -77456,6 +77499,7 @@ async function renderNodeNavigation() {
     settingsSlots: slotStripGroups.settings || [],
     slugIssue: getNodeManifestSlugIssue(nodePath),
     recordPath: `${nodePath}/${MANIFEST_FILE}`,
+    pageManifestPath: getOverviewNodeApiPath(nodePath),
     onIdAssigned: async () => {
       await loadContentByMode({ forceReload: true });
       applyModeUi();

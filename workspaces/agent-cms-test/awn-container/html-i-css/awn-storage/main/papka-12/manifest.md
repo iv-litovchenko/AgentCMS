@@ -1,0 +1,42 @@
+---
+awn-description: ""
+awn-preview: ""
+awn-web-url: ""
+awn-attachments: []
+awn-materials: ""
+awn-status: open
+awn-quality: 4
+awn-emoji: ""
+awn-note-todo-sticker: ""
+awn-focus: false
+awn-main: false
+awn-runtime-load-always: false
+awn-runtime-heartbeat: false
+awn-runtime-cron: false
+awn-runtime-cron-schedule: ""
+awn-runtime-commands: false
+awn-category: ""
+awn-owner: ""
+awn-priority: ""
+awn-color: ""
+awn-tags: []
+awn-id: 1
+awn-location-label: ""
+awn-location-coordinates: ""
+awn-is-real-world-object: false
+awn-is-real-world-event: false
+awn-mindmap-enabled: true
+awn-mindmap-type: optional
+awn-mindmap-color: slate
+awn-mindmap-size: auto
+awn-mindmap-layout-independent: false
+awn-mindmap-direction: auto
+awn-type: awn.content.category
+awn-create: 2026-09-18T14:15:30.931Z
+awn-update: 2026-09-18T14:15:30.931Z
+awn-version: 2
+awn-name: "Папка-12"
+---
+
+
+> Описание раздела.

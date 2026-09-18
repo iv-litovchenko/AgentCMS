@@ -5,6 +5,7 @@ const { getIndexPaths: getFulltextIndexPaths } = require("../fulltext-index/stor
 const { getIndexPaths: getStorageIndexPaths } = require("../storage-index/store");
 const { getIndexPaths: getLinkIndexPaths } = require("../link-index/store");
 const { getIndexPaths: getOcrIndexPaths } = require("../ocr-index/store");
+const { COUNTER_FILE } = require("../workspace-id/store");
 
 function formatBytes(bytes) {
   const n = Number(bytes) || 0;
@@ -206,6 +207,56 @@ async function buildOcrMonitor(ocrStatus, manifestPath) {
   };
 }
 
+async function buildWorkspaceIdMonitor(idStatus, counterFilePath) {
+  const fileStat = await statIndexFile(counterFilePath);
+  const ready = Boolean(idStatus?.ready);
+  if (!ready) {
+    return {
+      layer: "workspace-id",
+      ready: false,
+      health: "empty",
+      indexPath: COUNTER_FILE,
+      indexSizeBytes: fileStat.sizeBytes,
+      indexSizeLabel: formatBytes(fileStat.sizeBytes),
+      hint: idStatus?.reason || "Счётчик awn-id недоступен"
+    };
+  }
+
+  const duplicateCount = Number(idStatus.duplicateCount) || 0;
+  const assignedCount = Number(idStatus.assignedCount) || 0;
+  const updatedAt = idStatus.updatedAt || fileStat.mtime || null;
+  const hasCounter = fileStat.sizeBytes > 0;
+  let health = "ok";
+  if (duplicateCount > 0) health = "stale";
+  else if (!hasCounter && assignedCount === 0) health = "empty";
+
+  return {
+    layer: "workspace-id",
+    ready: true,
+    health,
+    model: idStatus.model || "workspace-id-registry-v1",
+    builtAt: updatedAt,
+    builtAge: formatAge(updatedAt),
+    indexPath: COUNTER_FILE,
+    indexSizeBytes: fileStat.sizeBytes,
+    indexSizeLabel: formatBytes(fileStat.sizeBytes),
+    assignedCount,
+    uniqueIdCount: Number(idStatus.uniqueIdCount) || 0,
+    nextId: Number(idStatus.nextId) || 1,
+    issued: Number(idStatus.issued) || 0,
+    duplicateCount,
+    duplicateRecordCount: Number(idStatus.duplicateRecordCount) || 0,
+    allIdsUnique: Boolean(idStatus.allIdsUnique),
+    counterFile: idStatus.counterFile || COUNTER_FILE,
+    hint:
+      duplicateCount > 0
+        ? `Повторяющиеся awn-id: ${duplicateCount}`
+        : assignedCount === 0
+          ? "Записей с awn-id пока нет"
+          : null
+  };
+}
+
 async function buildLinkMonitor(linkStatus, indexFilePath) {
   const fileStat = await statIndexFile(indexFilePath);
   const ready = Boolean(linkStatus?.ready);
@@ -246,7 +297,8 @@ async function getWorkspaceIndexMonitor(deps) {
     loadFulltextIndex,
     loadStorageIndex,
     getLinkIndexStatus,
-    getOcrIndexStatus
+    getOcrIndexStatus,
+    getWorkspaceIdStatus
   } = deps;
 
   const agentRoot = getAgentRoot();
@@ -254,14 +306,16 @@ async function getWorkspaceIndexMonitor(deps) {
     return { ready: false, reason: "Agent not selected" };
   }
 
-  const [allPaths, semanticIndex, fulltextIndex, storageIndex, linkStatus, ocrStatus] = await Promise.all([
-    collectSearchableFiles(agentRoot),
-    loadSemanticIndex(agentRoot),
-    loadFulltextIndex(agentRoot),
-    loadStorageIndex(agentRoot),
-    getLinkIndexStatus ? getLinkIndexStatus().catch(() => null) : Promise.resolve(null),
-    getOcrIndexStatus ? getOcrIndexStatus().catch(() => null) : Promise.resolve(null)
-  ]);
+  const [allPaths, semanticIndex, fulltextIndex, storageIndex, linkStatus, ocrStatus, idStatus] =
+    await Promise.all([
+      collectSearchableFiles(agentRoot),
+      loadSemanticIndex(agentRoot),
+      loadFulltextIndex(agentRoot),
+      loadStorageIndex(agentRoot),
+      getLinkIndexStatus ? getLinkIndexStatus().catch(() => null) : Promise.resolve(null),
+      getOcrIndexStatus ? getOcrIndexStatus().catch(() => null) : Promise.resolve(null),
+      getWorkspaceIdStatus ? getWorkspaceIdStatus().catch(() => null) : Promise.resolve(null)
+    ]);
 
   const semanticPaths = semanticIndex?.chunks
     ? [...new Set(semanticIndex.chunks.map((row) => row.path))]
@@ -308,6 +362,7 @@ async function getWorkspaceIndexMonitor(deps) {
   });
 
   const link = await buildLinkMonitor(linkStatus, getLinkIndexPaths(agentRoot).file);
+  const workspaceId = await buildWorkspaceIdMonitor(idStatus, path.join(agentRoot, COUNTER_FILE));
 
   const layers = [ocr, fulltext, semantic, storage, link];
   const summaryHealth = (() => {
@@ -349,7 +404,8 @@ async function getWorkspaceIndexMonitor(deps) {
     fulltext,
     semantic,
     storage,
-    link
+    link,
+    workspaceId
   };
 }
 

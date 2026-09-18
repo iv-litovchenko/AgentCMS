@@ -34780,7 +34780,7 @@ img.is-svg-media,
   align-self: flex-start;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 6px;
+  gap: 4px 8px;
   margin: 0;
   padding: 3px 8px;
   border-radius: 6px;
@@ -34839,6 +34839,19 @@ img.is-svg-media,
 
 .node-navigation-hero-path--missing-id .node-navigation-hero-path-value {
   color: #64748b;
+}
+
+.node-navigation-hero-meta-path .node-navigation-hero-path-segment {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.node-navigation-hero-meta-path .node-navigation-hero-path-sep {
+  color: #94a3b8;
+  font-weight: 700;
+  user-select: none;
 }
 
 .node-entry-overview-media-asset-meta-row {

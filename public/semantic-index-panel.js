@@ -229,6 +229,16 @@
     return parts.join(" · ");
   }
 
+  function formatWorkspaceIdMonitorStatus(layer) {
+    if (!layer?.ready) return layer?.hint || "—";
+    const parts = [
+      `${layer.assignedCount || 0} записей · уникальных ${layer.uniqueIdCount || 0} · след. ${layer.nextId || 1}`,
+      layer.builtAge || "—"
+    ];
+    if ((layer.duplicateCount || 0) > 0) parts.push(`повторов: ${layer.duplicateCount}`);
+    return parts.join(" · ");
+  }
+
   function renderWorkspaceIdUniqueness(data) {
     if (!workspaceIdUniquenessNode) return;
     if (!data?.ready || !(data.assignedCount > 0)) {
@@ -276,6 +286,11 @@
     } else if (card.layer === "link") {
       lines.push(`${card.edgeCount || 0} рёбер · ${card.nodeCount || 0} узлов · ${card.fileCount || 0} файлов`);
       lines.push(`обновлён ${card.builtAge || "—"}`);
+    } else if (card.layer === "workspace-id") {
+      lines.push(`${card.assignedCount || 0} записей · уникальных ${card.uniqueIdCount || 0}`);
+      lines.push(`след. id ${card.nextId || 1} · ${card.builtAge || "—"}`);
+      if ((card.duplicateCount || 0) > 0) lines.push(`повторов id: ${card.duplicateCount}`);
+      else if (card.allIdsUnique && (card.assignedCount || 0) > 0) lines.push("все id уникальны");
     } else {
       lines.push(card.hint || "—");
     }
@@ -311,6 +326,15 @@
                 ? "Нет данных — перезапустите сервер"
                 : "Граф связей не построен"
             )
+        ),
+        renderMonitorCard(
+          "ID",
+          monitor?.workspaceId ||
+            emptyMonitorLayer(
+              monitor && !("workspaceId" in monitor)
+                ? "Нет данных — перезапустите сервер"
+                : "Счётчик awn-id недоступен"
+            )
         )
       ].join("");
     }
@@ -343,7 +367,12 @@
       const mark = link.health === "stale" ? "!" : "";
       parts.push(`связи ${link.edgeCount || 0}${mark}`);
     }
-    if (window.__workspaceIdStatus?.ready) {
+    const workspaceId = monitor?.workspaceId;
+    if (workspaceId?.ready) {
+      const mark =
+        workspaceId.health === "stale" || (workspaceId.duplicateCount || 0) > 0 ? "!" : "";
+      parts.push(`id ${workspaceId.assignedCount || 0}${mark}`);
+    } else if (window.__workspaceIdStatus?.ready) {
       parts.push(`id ${window.__workspaceIdStatus.assignedCount || 0}`);
     }
     summaryStatsNode.textContent = parts.length ? parts.join(" · ") : "нет индексов";
@@ -395,6 +424,19 @@
       semanticStatusNode.textContent = formatSemanticStatus(monitor.semantic);
       storageStatusNode.textContent = formatStorageStatus(monitor.storage);
       if (linkStatusNode) linkStatusNode.textContent = formatLinkStatus(monitor.link);
+      if (workspaceIdStatusNode && monitor.workspaceId) {
+        workspaceIdStatusNode.textContent = formatWorkspaceIdMonitorStatus(monitor.workspaceId);
+        window.__workspaceIdStatus = {
+          ready: monitor.workspaceId.ready,
+          assignedCount: monitor.workspaceId.assignedCount,
+          uniqueIdCount: monitor.workspaceId.uniqueIdCount,
+          duplicateCount: monitor.workspaceId.duplicateCount,
+          allIdsUnique: monitor.workspaceId.allIdsUnique,
+          nextId: monitor.workspaceId.nextId,
+          updatedAt: monitor.workspaceId.builtAt
+        };
+        renderWorkspaceIdUniqueness(window.__workspaceIdStatus);
+      }
       renderMonitor(monitor);
       updateSummaryFromMonitor(monitor);
     } catch (error) {

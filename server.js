@@ -1649,7 +1649,8 @@ async function getWorkspaceIndexMonitorPayload() {
     loadFulltextIndex: loadFulltextIndexFile,
     loadStorageIndex: loadStorageIndexFile,
     getLinkIndexStatus: () => getLinkIndexService().getStatus(),
-    getOcrIndexStatus: () => getOcrIndexService().getStatus()
+    getOcrIndexStatus: () => getOcrIndexService().getStatus(),
+    getWorkspaceIdStatus: () => getWorkspaceIdService().getStatus()
   });
 }
 
@@ -12103,7 +12104,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspaceIdCatalog: "GET /api/workspace-id/catalog — каталог awn-id (~show-ids)",
   workspaceIdSyncCounter: "POST /api/workspace-id/sync-counter — поднять счётчик до max(assigned)+1",
   workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла (fulltext, semantic, поля, связи)",
-  workspaceIndexMonitor: "GET /api/workspace-index/monitor — мониторинг индексов (OCR, слова, смысл, поля, связи)",
+  workspaceIndexMonitor:
+    "GET /api/workspace-index/monitor — мониторинг индексов (OCR, слова, смысл, поля, связи, awn-id)",
   ocrIndexStatus: "GET /api/ocr-index/status — статус OCR по вложениям",
   ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
   workspaceIndexPipeline: "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи",
