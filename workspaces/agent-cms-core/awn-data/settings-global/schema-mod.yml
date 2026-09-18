@@ -1,0 +1,22 @@
+version: 1
+layer: awn-data-store
+
+awn_schema:
+  record:
+    extends: awn.data.element.default
+    fields:
+      awn-site-name:
+        type: awn.string
+        title: Название сайта
+        default: Agent CMS
+      awn-maintenance-mode:
+        type: awn.boolean
+        title: Режим обслуживания
+        default: false
+      awn-default-locale:
+        type: awn.field.choice.one
+        title: Язык
+        enum:
+          - ru
+          - en
+        default: ru

@@ -7,19 +7,16 @@ awn_schema:
     fields:
       awn-code:
         type: awn.string
-        title: Код
+        title: Код (id)
         required: true
       awn-label:
         type: awn.string
-        title: Подпись
+        title: Название
         required: true
-      awn-emoji:
-        type: awn.string
-        title: Эмодзи
-      awn-color:
-        type: awn.color
-        title: Цвет
       awn-sort:
         type: awn.integer
         title: Порядок
         default: 0
+      awn-description:
+        type: awn.string
+        title: Описание

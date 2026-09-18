@@ -2,10 +2,8 @@
 awn-type: awn.data.collection
 awn-id: settings
 awn-name: Настройки
-awn-extends: awn-data/cms-base/entities/table.base.md
-awn-record:
-  id-mode: slug
-  file: "{id}.md"
+awn-record-id-mode: slug
+awn-record-file: "{id}.md"
 ---
 # Настройки
 

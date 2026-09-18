@@ -2,35 +2,8 @@
 awn-type: awn.data.collection
 awn-id: agent-registry.groups
 awn-name: Группы агентов
-awn-extends: awn-data/cms-base/entities/row.base.md
-awn-record:
-  id-mode: slug
-  file: "{id}.md"
-awn-fields:
-  awn-title:
-    type: awn.string
-    title: Название
-    required: true
-  awn-agentIds:
-    type: awn.string
-    title: Агенты
-    description: id агентов через запятую
-  awn-background:
-    type: awn.string
-    title: Фон (путь к изображению)
-    description: "awn-storage/assets/attachments/{id}.png"
-  awn-appearance:
-    type: awn.field.choice.one
-    title: Тема
-    enum:
-      - light
-      - dark
-    default: light
-  awn-system:
-    type: awn.boolean
-    title: Системная запись
-    description: _ungrouped — настройки агентов без группы
-    default: false
+awn-record-id-mode: slug
+awn-record-file: "{id}.md"
 ---
 # Группы агентов
 

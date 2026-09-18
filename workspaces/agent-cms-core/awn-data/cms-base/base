@@ -1,9 +1,0 @@
----
-awn-super-type: awn-data/cms-base/base
-awn-name: Object
-awn-description: Корень — от него наследуются все типы
----
-
-# object.base
-
-Type id = **`awn-data/cms-base/base`** (путь к файлу).

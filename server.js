@@ -12296,15 +12296,16 @@ async function readWorkspaceManifestContent(relPath) {
 }
 
 async function readAgentSystemContext(agentRoot) {
-  const { CMS_CONFIG_REL } = require("./platform-sources");
-  const systemRoot = path.join(agentRoot, CMS_CONFIG_REL);
+  const { getCmsConfigRel } = require("./platform-sources");
+  const cmsConfigRel = getCmsConfigRel(agentRoot);
+  const systemRoot = path.join(agentRoot, cmsConfigRel);
   const readText = async (rel) => {
     const abs = path.join(systemRoot, rel);
     try {
       const content = await fs.readFile(abs, "utf-8");
-      return { path: `${CMS_CONFIG_REL}/${rel}`.replace(/\\/g, "/"), exists: true, content };
+      return { path: `${cmsConfigRel}/${rel}`.replace(/\\/g, "/"), exists: true, content };
     } catch {
-      return { path: `${CMS_CONFIG_REL}/${rel}`.replace(/\\/g, "/"), exists: false, content: null };
+      return { path: `${cmsConfigRel}/${rel}`.replace(/\\/g, "/"), exists: false, content: null };
     }
   };
   let typeSummary = null;
@@ -12324,7 +12325,7 @@ async function readAgentSystemContext(agentRoot) {
 
   return {
     exists: fsSync.existsSync(systemRoot),
-    root: CMS_CONFIG_REL,
+    root: cmsConfigRel,
     typeSummary,
     docs: {
       registry: await readText("registry.yml")

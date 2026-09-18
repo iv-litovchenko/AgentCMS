@@ -11,10 +11,8 @@ const {
 
 const ACTIVE_STATUS = new Set(["active", "deprecated"]);
 
-/** domain id → awn-data store folder (without /types suffix) */
+/** domain id → awn-data store folder (legacy MD types; YAML in awn-system/types/) */
 const DOMAIN_TYPE_STORES = {
-  base: "cms-base/entities",
-  mixins: "cms-base/mixins",
   settings: "settings"
 };
 

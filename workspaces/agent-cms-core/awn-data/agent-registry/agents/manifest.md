@@ -2,34 +2,8 @@
 awn-type: awn.data.collection
 awn-id: agent-registry.agents
 awn-name: Агенты
-awn-extends: awn-data/cms-base/entities/row.base.md
-awn-record:
-  id-mode: slug
-  file: "{id}.md"
-awn-fields:
-  awn-title:
-    type: awn.string
-    title: Название
-  awn-path:
-    type: awn.string
-    title: Путь workspace
-    required: true
-  awn-environment:
-    type: awn.field.choice.one
-    title: Окружение
-    enum:
-      - local
-      - staging
-      - production
-    default: local
-  awn-default:
-    type: awn.boolean
-    title: Агент по умолчанию
-    default: false
-  awn-orchestrator:
-    type: awn.boolean
-    title: Оркестратор
-    default: false
+awn-record-id-mode: slug
+awn-record-file: "{id}.md"
 ---
 # Агенты
 

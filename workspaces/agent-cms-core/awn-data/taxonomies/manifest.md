@@ -3,7 +3,6 @@ awn-type: awn.data.group
 awn-id: taxonomies
 awn-name: Таксономии (справочники)
 ---
-
 # Таксономии (справочники)
 
 Группировка enum-справочников платформы. Каждый **поднакопитель** — коллекция на `main.csv` в `awn-data/taxonomies/`.
@@ -16,4 +15,3 @@ awn-name: Таксономии (справочники)
 | [priorities/](./priorities/manifest.md) | `awn-priority` |
 | [colors/](./colors/manifest.md) | `awn-color` |
 | [users/](./users/manifest.md) | `awn-owner` |
-

@@ -2,25 +2,10 @@
 awn-type: awn.data.collection
 awn-id: taxonomies.tags
 awn-name: Теги
-awn-extends: awn-data/cms-base/entities/row.base.md
-awn-record:
-  storage: csv
-  file: main.csv
-  id-mode: slug
-  hierarchy: false
-awn-fields:
-  awn-code:
-    type: awn.string
-    title: Код (slug)
-    required: true
-  awn-label:
-    type: awn.string
-    title: Подпись
-    required: true
-  awn-sort:
-    type: awn.integer
-    title: Порядок
-    default: 0
+awn-record-storage: csv
+awn-record-id-mode: slug
+awn-record-file: main.csv
+awn-record-hierarchy: false
 ---
 # Теги
 

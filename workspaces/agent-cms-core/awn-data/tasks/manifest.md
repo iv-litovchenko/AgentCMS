@@ -1,44 +1,12 @@
 ---
-awn-supertype: awn-data/cms-base/data-containers/collection.md
+awn-type: awn.data.collection
 awn-name: Задачи
-
 awn-record-id-mode: numeric
 awn-record-file: "{id}.md"
 awn-record-hierarchy: true
-
-awn-data-elements-schema-extends: awn-data/cms-base/data-elements/default.md
-awn-data-elements-schema-mixins: []
-awn-data-elements-schema:
-  fields:
-    awn-title:
-      type: awn.string
-      title: Название
-      required: true
-      tab: main
-    awn-parent:
-      type: awn.string
-      title: Родитель
-      description: id родительской задачи
-      tab: main
-    awn-status:
-      type: awn.field.choice.one
-      title: Статус
-      enum: [open, in_progress, done, cancelled]
-      default: open
-      tab: main
-    awn-priority:
-      type: awn.field.choice.one
-      title: Приоритет
-      enum: [low, normal, high]
-      default: normal
-      tab: main
-  tabs:
-    main: Задача
 ---
 # Задачи
 
 Store id = **`awn-data/tasks`**.
 
-`awn-supertype` → collection.md (поля manifest).  
-`awn-data-elements-schema-*` → поля записей.  
-Записи: `awn-supertype: awn-data/tasks/manifest.md`.
+Тип: `awn.data.collection`. Поля записей — `schema-mod.yml` (extends `awn.data.element.default`).

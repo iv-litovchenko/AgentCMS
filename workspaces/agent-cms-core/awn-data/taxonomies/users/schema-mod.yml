@@ -13,12 +13,9 @@ awn_schema:
         type: awn.string
         title: Подпись
         required: true
-      awn-emoji:
+      awn-email:
         type: awn.string
-        title: Эмодзи
-      awn-color:
-        type: awn.color
-        title: Цвет
+        title: Email
       awn-sort:
         type: awn.integer
         title: Порядок

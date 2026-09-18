@@ -3,7 +3,6 @@ awn-type: awn.data.group
 awn-id: agent-registry
 awn-name: Реестр агентов
 ---
-
 # Реестр агентов
 
 Группа накопителей landing и multi-agent runtime.
@@ -14,4 +13,3 @@ awn-name: Реестр агентов
 | [agent-groups/](./agent-groups/manifest.md) | UI-группы на landing («Работа», «Хобби», …) |
 
 Legacy fallback: `awn-agents.json`.
-
