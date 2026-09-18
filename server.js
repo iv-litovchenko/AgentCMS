@@ -7901,6 +7901,56 @@ async function resolveApiNodeFrontmatterAbsolute(relPath) {
   return resolveApiStorageContextAbsolute(relPath);
 }
 
+async function resolveApiIndexableRecordContext(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").trim();
+  if (!normalized) return null;
+
+  const manifestAbsolute = await resolveApiManifestAbsolute(normalized);
+  if (manifestAbsolute) {
+    return { absolute: manifestAbsolute, rel: manifestRelFromNodeAbsolute(manifestAbsolute) };
+  }
+
+  const storageAbsolute = await resolveApiStorageContextAbsolute(normalized);
+  if (storageAbsolute) {
+    return { absolute: storageAbsolute, rel: manifestRelFromNodeAbsolute(storageAbsolute) };
+  }
+
+  const resolvedRelPath = await resolveExistingWorkspaceRelPath(normalized);
+  const resolvedAbsolute = normalizeWorkspacePath(resolvedRelPath);
+  if (resolvedAbsolute && (await nodePathExists(resolvedAbsolute))) {
+    const lower = resolvedAbsolute.toLowerCase();
+    if (
+      lower.endsWith(".md") ||
+      lower.endsWith(".sidecar.md") ||
+      lower.endsWith(".yml") ||
+      lower.endsWith(".yaml")
+    ) {
+      return { absolute: resolvedAbsolute, rel: manifestRelFromNodeAbsolute(resolvedAbsolute) };
+    }
+  }
+
+  const folderCandidates = [];
+  const seenFolders = new Set();
+  const pushFolderCandidate = (value) => {
+    const candidate = String(value || "").replace(/\\/g, "/").replace(/\/$/, "").trim();
+    if (!candidate || seenFolders.has(candidate)) return;
+    seenFolders.add(candidate);
+    folderCandidates.push(candidate);
+  };
+  pushFolderCandidate(normalized);
+  pushFolderCandidate(resolvedRelPath);
+
+  for (const folderRel of folderCandidates) {
+    const folderAbsolute = normalizeWorkspacePath(folderRel);
+    if (!folderAbsolute || !(await dirExists(folderAbsolute))) continue;
+    const manifestAbs = path.join(folderAbsolute, MANIFEST_FILE);
+    if (!(await nodePathExists(manifestAbs))) continue;
+    return { absolute: manifestAbs, rel: manifestRelFromNodeAbsolute(manifestAbs) };
+  }
+
+  return null;
+}
+
 async function resolveApiStorageContextAbsolute(relPath) {
   const resolvedRelPath = await resolveExistingWorkspaceRelPath(relPath);
   const absolute = normalizeWorkspacePath(resolvedRelPath);
@@ -12108,7 +12158,8 @@ const SESSION_CONTEXT_API_MAP = {
     "GET /api/workspace-index/monitor — мониторинг индексов (OCR, слова, смысл, поля, связи, awn-id)",
   ocrIndexStatus: "GET /api/ocr-index/status — статус OCR по вложениям",
   ocrIndexRun: "POST /api/ocr-index/run — OCR новых вложений (body: force?, limit?)",
-  workspaceIndexPipeline: "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи",
+  workspaceIndexPipeline:
+    "POST /api/workspace-index/pipeline — цепочка OCR → fulltext → semantic → поля → связи → sync awn-id",
   resolvePath: "GET /api/agent/resolve-path?path=<ws-rel-path> — manifest-цепочка вверх: topic/area/ws, slot/ref, mcp hints",
   pageUrl:
     "GET /api/agent/page-url?path=<ws-rel-path>&view= — web-адрес страницы Agent CMS (CHPU); MCP: get_page_url",
@@ -18048,8 +18099,11 @@ async function handleApiForAgent(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/workspace-id/assign") {
     try {
       const payload = await readJsonBody(req);
-      const data = await getWorkspaceIdService().assignIdToPath(payload.path, {
-        force: Boolean(payload.force)
+      const recordContext = await resolveApiIndexableRecordContext(payload.path);
+      if (!recordContext) throw new Error("Path not found");
+      const data = await getWorkspaceIdService().assignIdToPath(recordContext.rel, {
+        force: Boolean(payload.force),
+        absolutePath: recordContext.absolute
       });
       if (data.assigned && data.path) {
         queueWorkspaceIndexFileSync(data.path);
@@ -19283,15 +19337,17 @@ async function handleApiForAgent(req, res, url) {
       const semantic = await getSemanticSearchService().rebuildIndex();
       const storage = await getStorageIndexService().rebuildIndex();
       const link = await getLinkIndexService().rebuildIndex();
+      const workspaceId = await getWorkspaceIdService().syncCounterWithAssigned();
       return sendJson(res, 200, {
         ok: true,
         model: "workspace-index-pipeline",
-        hint: "OCR (new attachments) → fulltext → semantic → storage fields → link graph",
+        hint: "OCR (new attachments) → fulltext → semantic → storage fields → link graph → awn-id counter",
         ocr,
         fulltext,
         semantic,
         storage,
-        link
+        link,
+        workspaceId
       });
     } catch (error) {
       return sendJson(res, 500, {

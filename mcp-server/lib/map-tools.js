@@ -250,7 +250,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "rebuild_workspace_indexes",
-    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph (.agent-cms/link-index/). Same as UI pipeline button.",
+    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter (id-autoincrement.json). Same as UI pipeline button.",
     z.object({
       forceOcr: z.boolean().optional().describe("Force OCR reprocessing before indexes"),
       ocrLimit: z.number().int().min(1).max(500).optional()

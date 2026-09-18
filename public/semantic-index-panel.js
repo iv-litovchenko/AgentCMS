@@ -725,10 +725,10 @@
     ocrStatusNode.textContent = OCR_DISABLED_HINT;
     ocrRunBtn?.closest(".menu-index-block")?.classList.add("is-feature-disabled");
     if (pipelineBtn) {
-      pipelineBtn.title = "Слова → смысл → поля → связи (OCR пропускается)";
+      pipelineBtn.title = "Слова → смысл → поля → связи → id (OCR пропускается)";
     }
     for (const flushBtn of document.querySelectorAll('[data-index-flush="pipeline"]')) {
-      flushBtn.title = "Слова → смысл → поля → связи (OCR пропускается)";
+      flushBtn.title = "Слова → смысл → поля → связи → id (OCR пропускается)";
     }
   }
 
@@ -885,44 +885,52 @@
   bindActionButton(pipelineBtn, async () => {
     if (!pipelineStatusNode) return;
     if (OCR_INDEXING_ENABLED) {
-      pipelineStatusNode.textContent = "Цепочка: OCR → слова → смысл → поля → связи…";
+      pipelineStatusNode.textContent = "Цепочка: OCR → слова → смысл → поля → связи → id…";
       const data = await runRebuild(
         "/api/workspace-index/pipeline",
         pipelineStatusNode,
-        () => "Готово: OCR → fulltext → semantic → поля → связи.",
-        { body: { ocrLimit: 200 }, loadingLabel: "Цепочка: OCR → слова → смысл → поля → связи…" }
+        () => "Готово: OCR → fulltext → semantic → поля → связи → id.",
+        { body: { ocrLimit: 200 }, loadingLabel: "Цепочка: OCR → слова → смысл → поля → связи → id…" }
       );
       if (data?.ocr) {
-        pipelineStatusNode.textContent = `Готово · OCR ${data.ocr.processed}/${data.ocr.candidateCount || "?"} · связи ${data.link?.edgeCount || 0}`;
+        pipelineStatusNode.textContent = `Готово · OCR ${data.ocr.processed}/${data.ocr.candidateCount || "?"} · связи ${data.link?.edgeCount || 0} · id ${data.workspaceId?.assignedCount || 0}`;
+      } else if (data?.workspaceId) {
+        pipelineStatusNode.textContent = `Готово · слова ${data.fulltext?.fileCount || 0} · смысл ${data.semantic?.chunkCount || 0} · поля ${data.storage?.recordCount || 0} · связи ${data.link?.edgeCount || 0} · id ${data.workspaceId.assignedCount || 0}`;
       }
       return;
     }
 
-    pipelineStatusNode.textContent = "Цепочка: слова → смысл → поля → связи…";
+    pipelineStatusNode.textContent = "Цепочка: слова → смысл → поля → связи → id…";
     const fulltext = await runRebuild(
       "/api/search/fulltext/reindex",
       pipelineStatusNode,
-      () => "Цепочка: смысл → поля → связи…",
+      () => "Цепочка: смысл → поля → связи → id…",
       { loadingLabel: "Цепочка: слова…" }
     );
     const semantic = await runRebuild(
       "/api/search/semantic/reindex",
       pipelineStatusNode,
-      () => "Цепочка: поля → связи…",
+      () => "Цепочка: поля → связи → id…",
       { loadingLabel: "Цепочка: смысл…" }
     );
     const storage = await runRebuild(
       "/api/storage-index/reindex",
       pipelineStatusNode,
-      () => "Цепочка: связи…",
+      () => "Цепочка: связи → id…",
       { loadingLabel: "Цепочка: поля…" }
     );
-    await runRebuild(
+    const link = await runRebuild(
       "/api/link-index/reindex",
       pipelineStatusNode,
-      (data) =>
-        `Готово · слова ${fulltext.fileCount || 0} · смысл ${semantic.chunkCount || 0} · поля ${storage.recordCount || 0} · связи ${data.edgeCount || 0}`,
+      () => "Цепочка: id…",
       { loadingLabel: "Цепочка: связи…", progressButton: linkRebuildBtn, progressLayer: "link" }
+    );
+    await runRebuild(
+      "/api/workspace-id/sync-counter",
+      pipelineStatusNode,
+      (data) =>
+        `Готово · слова ${fulltext.fileCount || 0} · смысл ${semantic.chunkCount || 0} · поля ${storage.recordCount || 0} · связи ${link.edgeCount || 0} · id ${data.assignedCount || 0}`,
+      { loadingLabel: "Цепочка: id…", progressButton: workspaceIdSyncBtn }
     );
   });
 

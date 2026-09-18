@@ -24,4 +24,5 @@ awn-version: 1
 awn-main: false
 awn-slots-disabled: false
 awn-name: "codex test"
+awn-id: 6
 ---

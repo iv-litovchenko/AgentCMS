@@ -328,6 +328,7 @@ const contentSearchHelpBtnNode = document.getElementById("content-search-help-bt
 const contentSearchHelpPopoverNode = document.getElementById("content-search-help-popover");
 const contentSearchModeTextBtn = document.getElementById("content-search-mode-text-btn");
 const contentSearchModeSemanticBtn = document.getElementById("content-search-mode-semantic-btn");
+const contentSearchModeIdBtn = document.getElementById("content-search-mode-id-btn");
 const contentSearchFiltersBtnNode = document.getElementById("content-search-filters-btn");
 const contentSearchFiltersPopoverNode = document.getElementById("content-search-filters-popover");
 const contentSearchFiltersBadgeNode = document.getElementById("content-search-filters-badge");
@@ -15509,13 +15510,8 @@ function createNavigationHeroSlugPathRow({ slug = "", issue = null, pathLabel = 
   return row;
 }
 
-function resolveHeroRecordAssignPath(nodePath, options = {}) {
-  const fromOption = String(options.recordPath || options.idAssignPath || "")
-    .replace(/\\/g, "/")
-    .replace(/^\/+/, "")
-    .trim();
-  if (fromOption) return fromOption;
-  const node = String(nodePath || "")
+function ensureHeroRecordAssignPath(pathValue) {
+  const node = String(pathValue || "")
     .replace(/\\/g, "/")
     .replace(/^\/+/, "")
     .replace(/\/$/, "")
@@ -15523,6 +15519,42 @@ function resolveHeroRecordAssignPath(nodePath, options = {}) {
   if (!node) return "";
   if (/\.(md|yml|yaml)$/i.test(node) || /\.sidecar\.md$/i.test(node)) return node;
   return `${node}/${MANIFEST_FILE}`;
+}
+
+function resolveHeroRecordAssignPath(nodePath, options = {}) {
+  const fromOption = String(options.recordPath || options.idAssignPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (fromOption) return ensureHeroRecordAssignPath(fromOption);
+
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext?.relPath) {
+    return ensureHeroRecordAssignPath(activeEntryOverviewContext.relPath);
+  }
+
+  const overviewPath = getOverviewNodeApiPath(nodePath || activePath);
+  if (overviewPath) return ensureHeroRecordAssignPath(overviewPath);
+
+  return ensureHeroRecordAssignPath(nodePath || activePath || "");
+}
+
+async function refreshUiAfterWorkspaceRecordIdAssign() {
+  if (activeContentMode === NODE_NAVIGATION_MODE) {
+    await loadPropertiesForActivePath();
+    await renderNodeNavigation();
+    return;
+  }
+  if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE) {
+    await renderEntryOverview();
+    return;
+  }
+  if (activeContentMode === NODE_OVERVIEW_MODE) {
+    await loadPropertiesForActivePath();
+    await renderNodeOverview();
+    return;
+  }
+  await loadContentByMode({ forceReload: true });
+  applyModeUi();
 }
 
 function createNavigationHeroIdPathRow({ awnId = "", assignPath = "", onIdAssigned = null } = {}) {
@@ -15674,12 +15706,12 @@ async function applyWorkspaceRecordIdAssign(relPath, triggerBtn = null, onAssign
     if (typeof onAssigned === "function") {
       await onAssigned(data);
     } else {
-      await loadContentByMode({ forceReload: true });
-      applyModeUi();
+      await refreshUiAfterWorkspaceRecordIdAssign();
     }
   } catch (error) {
     showToast(String(error.message || error), "error");
-    if (triggerBtn) {
+  } finally {
+    if (triggerBtn && triggerBtn.isConnected) {
       triggerBtn.disabled = false;
       triggerBtn.textContent = "Присвоить id";
     }
@@ -23549,11 +23581,21 @@ function setLoading(message) {
 }
 
 function getContentSearchMode() {
-  return contentSearchModeNode?.value === "semantic" ? "semantic" : "text";
+  const mode = String(contentSearchModeNode?.value || "text");
+  if (mode === "semantic" || mode === "id") return mode;
+  return "text";
 }
 
 function isContentSearchSemantic() {
   return getContentSearchMode() === "semantic";
+}
+
+function isContentSearchIdMode() {
+  return getContentSearchMode() === "id";
+}
+
+function isContentSearchAlternateMode() {
+  return isContentSearchSemantic() || isContentSearchIdMode();
 }
 
 const CONTENT_SEARCH_DEFAULT_SCOPE = "all";
@@ -23591,16 +23633,18 @@ function isContentSearchFiltersPopoverOpen() {
 }
 
 function syncContentSearchModeToggleUi() {
-  const semantic = isContentSearchSemantic();
-  contentSearchModeTextBtn?.classList.toggle("is-active", !semantic);
-  contentSearchModeSemanticBtn?.classList.toggle("is-active", semantic);
-  contentSearchModeTextBtn?.setAttribute("aria-pressed", !semantic ? "true" : "false");
-  contentSearchModeSemanticBtn?.setAttribute("aria-pressed", semantic ? "true" : "false");
+  const mode = getContentSearchMode();
+  contentSearchModeTextBtn?.classList.toggle("is-active", mode === "text");
+  contentSearchModeSemanticBtn?.classList.toggle("is-active", mode === "semantic");
+  contentSearchModeIdBtn?.classList.toggle("is-active", mode === "id");
+  contentSearchModeTextBtn?.setAttribute("aria-pressed", mode === "text" ? "true" : "false");
+  contentSearchModeSemanticBtn?.setAttribute("aria-pressed", mode === "semantic" ? "true" : "false");
+  contentSearchModeIdBtn?.setAttribute("aria-pressed", mode === "id" ? "true" : "false");
 }
 
 function setContentSearchMode(mode) {
   if (!contentSearchModeNode) return;
-  const next = mode === "semantic" ? "semantic" : "text";
+  const next = mode === "semantic" || mode === "id" ? mode : "text";
   if (contentSearchModeNode.value === next) {
     syncContentSearchModeToggleUi();
     return;
@@ -23652,7 +23696,7 @@ function renderContentSearchActiveFilters() {
   if (!contentSearchActiveFiltersNode) return;
   contentSearchActiveFiltersNode.replaceChildren();
   contentSearchBarNode?.classList.remove("has-active-filters");
-  if (isContentSearchSemantic()) {
+  if (isContentSearchAlternateMode()) {
     contentSearchActiveFiltersNode.classList.add("hidden");
     return;
   }
@@ -23701,7 +23745,7 @@ function renderContentSearchActiveFilters() {
 function syncContentSearchFiltersUi() {
   syncContentSearchFiltersBadge();
   renderContentSearchActiveFilters();
-  contentSearchFiltersPopoverNode?.classList.toggle("is-semantic", isContentSearchSemantic());
+  contentSearchFiltersPopoverNode?.classList.toggle("is-semantic", isContentSearchAlternateMode());
 }
 
 function positionContentSearchFiltersPopover() {
@@ -23742,11 +23786,13 @@ function toggleContentSearchFiltersPopover() {
 }
 
 function updateContentSearchFiltersState() {
-  const semantic = isContentSearchSemantic();
-  contentSearchBarNode?.classList.toggle("content-search-bar--semantic", semantic);
+  const alternate = isContentSearchAlternateMode();
+  contentSearchBarNode?.classList.toggle("content-search-bar--semantic", isContentSearchSemantic());
+  contentSearchBarNode?.classList.toggle("content-search-bar--id", isContentSearchIdMode());
   for (const node of [contentSearchScopeNode, contentSearchMatchNode, contentSearchTypeNode]) {
-    if (node) node.disabled = semantic;
+    if (node) node.disabled = alternate;
   }
+  contentSearchFiltersBtnNode?.toggleAttribute("disabled", isContentSearchIdMode());
   syncContentSearchModeToggleUi();
   syncContentSearchFiltersUi();
 }
@@ -23939,13 +23985,29 @@ function toggleContentSearchHelp() {
 
 function getContentSearchMinLength(scope = getContentSearchScope()) {
   if (isContentSearchSemantic()) return 2;
+  if (isContentSearchIdMode()) return 1;
   return scope === "filename" || scope === "all" ? 1 : 2;
+}
+
+function parseContentSearchIdQuery(query) {
+  const raw = String(query || "").trim();
+  const match = raw.match(/^#?(\d+)$/);
+  if (!match) return null;
+  const id = Number(match[1]);
+  if (!Number.isFinite(id) || id <= 0 || !Number.isInteger(id)) return null;
+  return id;
 }
 
 function updateContentSearchPlaceholder() {
   if (!contentSearchInputNode) return;
   const pathPrefix = getContentSearchPathPrefix();
   const scopeLabel = pathPrefix ? contentSearchPathScope.label || "теме" : "";
+  if (isContentSearchIdMode()) {
+    contentSearchInputNode.placeholder = pathPrefix
+      ? `awn-id в «${scopeLabel}», напр. 1847…`
+      : "awn-id записи: 1847 или #1847…";
+    return;
+  }
   if (isContentSearchSemantic()) {
     contentSearchInputNode.placeholder = pathPrefix
       ? `Поиск по смыслу в «${scopeLabel}»…`
@@ -24171,9 +24233,20 @@ function renderContentSearchResults(data) {
 
   contentSearchResultsNode.innerHTML = "";
 
+  if (data?.invalidId && isContentSearchIdMode()) {
+    contentSearchResultsNode.innerHTML =
+      `<div class="content-search-hint">Введите число awn-id, напр. <code>1847</code> или <code>#1847</code></div>`;
+    contentSearchResultsNode.classList.remove("hidden");
+    contentSearchInputNode?.setAttribute("aria-expanded", "true");
+    return;
+  }
+
   if (query.length < minLength) {
-    const hint =
-      minLength === 1 ? "Введите текст для поиска" : "Введите минимум 2 символа";
+    const hint = isContentSearchIdMode()
+      ? "Введите awn-id (число)"
+      : minLength === 1
+        ? "Введите текст для поиска"
+        : "Введите минимум 2 символа";
     contentSearchResultsNode.innerHTML = `<div class="content-search-hint">${hint}</div>`;
     contentSearchResultsNode.classList.remove("hidden");
     contentSearchInputNode?.setAttribute("aria-expanded", "true");
@@ -24252,6 +24325,54 @@ async function fetchContentSearchSemantic(query, limit = 30, pathPrefix = getCon
   return mapSemanticSearchResults(data);
 }
 
+async function fetchContentSearchById(query, pathPrefix = getContentSearchPathPrefix()) {
+  const id = parseContentSearchIdQuery(query);
+  if (!id) {
+    return { query, mode: "id", scope: "id", results: [], total: 0, invalidId: true };
+  }
+  const response = await fetch(buildApiUrl("/api/workspace-id/resolve", { id: String(id) }));
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || data.details || `Request failed with ${response.status}`);
+  }
+  let paths = Array.isArray(data.paths) && data.paths.length ? data.paths : data.path ? [data.path] : [];
+  if (pathPrefix) {
+    const norm = String(pathPrefix).replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
+    if (norm) {
+      paths = paths.filter((filePath) => {
+        const value = String(filePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+        return value === norm || value.startsWith(`${norm}/`);
+      });
+    }
+  }
+  return {
+    query,
+    mode: "id",
+    scope: "id",
+    id,
+    duplicate: Boolean(data.duplicate) || paths.length > 1,
+    results: paths.map((filePath) => {
+      const normalized = String(filePath || "").replace(/\\/g, "/");
+      const fileName = normalized.split("/").pop() || normalized;
+      return {
+        filePath: normalized,
+        fileName,
+        displayName: fileName.replace(/\.(sidecar\.)?md$/i, "") || `#${id}`,
+        locationHint: normalized,
+        pathBreadcrumb: normalized,
+        snippet:
+          paths.length > 1
+            ? `awn-id ${id} · ${paths.length} записей с этим id`
+            : `awn-id: ${id}`,
+        matchKindLabel: `#${id}`,
+        kindLabel: "ID",
+        awnId: id
+      };
+    }),
+    total: paths.length
+  };
+}
+
 function scheduleContentSearch() {
   if (!contentSearchInputNode) return;
   const query = contentSearchInputNode.value.trim();
@@ -24279,9 +24400,14 @@ function scheduleContentSearch() {
     renderContentSearchLoading();
 
     try {
-      const data = isContentSearchSemantic()
-        ? await fetchContentSearchSemantic(query)
-        : await fetchContentSearch(query, scope, fileType, match);
+      let data;
+      if (isContentSearchIdMode()) {
+        data = await fetchContentSearchById(query);
+      } else if (isContentSearchSemantic()) {
+        data = await fetchContentSearchSemantic(query);
+      } else {
+        data = await fetchContentSearch(query, scope, fileType, match);
+      }
       if (requestId !== contentSearchRequestId) return;
       renderContentSearchResults(data);
     } catch {
@@ -61028,6 +61154,25 @@ function resolveNavigationItemStatus(item) {
   return String(item?.status || "").trim();
 }
 
+function resolveNavigationItemAwnId(item) {
+  const props = Array.isArray(item?.props) ? item.props : [];
+  const raw = String(getPropsEntryValueByKey(props, "awn-id") || item?.awnId || "").trim();
+  if (!raw || !/^\d+$/.test(raw)) return "";
+  return raw;
+}
+
+function createNavBookTocIdBadge(awnId) {
+  const idValue = String(awnId || "").trim();
+  if (!idValue || !/^\d+$/.test(idValue)) return null;
+
+  const badge = document.createElement("span");
+  badge.className = "nav-book-toc-id-badge menu-tree-id-badge";
+  badge.textContent = idValue;
+  badge.title = `awn-id: ${idValue}`;
+  badge.setAttribute("aria-label", `ID ${idValue}`);
+  return badge;
+}
+
 function getNavigationAwnDescription(source) {
   if (!source) return "";
   const props = Array.isArray(source.props) ? source.props : [];
@@ -61418,6 +61563,8 @@ function createNavBookTocLinkLeading(item, nodePath = activePath, options = {}) 
 
 function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {}) {
   const status = createNavBookTocStatusBadge(resolveNavigationItemStatus(item));
+  const awnId = resolveNavigationItemAwnId(item);
+  const idBadge = awnId ? createNavBookTocIdBadge(awnId) : null;
   let icon = null;
   let preview = null;
 
@@ -61473,7 +61620,7 @@ function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {})
       }
     }
 
-    return { icon, status, preview };
+    return { icon, status, idBadge, preview };
   }
 
   const showBranch = handlers.showBranchLeading !== false;
@@ -61507,13 +61654,14 @@ function buildNavBookTocEntryMarkers(item, nodePath = activePath, handlers = {})
     }
   }
 
-  return { icon, status, preview };
+  return { icon, status, idBadge, preview };
 }
 
 function appendNavBookTocEntryMarkers(link, item, nodePath, handlers = {}) {
-  const { icon, status, preview } = buildNavBookTocEntryMarkers(item, nodePath, handlers);
+  const { icon, status, idBadge, preview } = buildNavBookTocEntryMarkers(item, nodePath, handlers);
   if (icon) link.appendChild(icon);
   if (status) link.appendChild(status);
+  if (idBadge) link.appendChild(idBadge);
   if (preview) link.appendChild(preview);
   const gdriveBadge = createGoogleDriveSyncedBadge(item);
   if (gdriveBadge) link.appendChild(gdriveBadge);
@@ -77498,12 +77646,9 @@ async function renderNodeNavigation() {
     onEditClick: openDescriptionFromOverview,
     settingsSlots: slotStripGroups.settings || [],
     slugIssue: getNodeManifestSlugIssue(nodePath),
-    recordPath: `${nodePath}/${MANIFEST_FILE}`,
+    recordPath: getOverviewNodeApiPath(nodePath),
     pageManifestPath: getOverviewNodeApiPath(nodePath),
-    onIdAssigned: async () => {
-      await loadContentByMode({ forceReload: true });
-      applyModeUi();
-    },
+    onIdAssigned: refreshUiAfterWorkspaceRecordIdAssign,
     showUnread: showHeroUnread,
     entryOverviewNav: topicSiblingNav,
   });
@@ -102823,6 +102968,10 @@ contentSearchModeTextBtn?.addEventListener("click", (event) => {
 contentSearchModeSemanticBtn?.addEventListener("click", (event) => {
   event.stopPropagation();
   setContentSearchMode("semantic");
+});
+contentSearchModeIdBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setContentSearchMode("id");
 });
 contentSearchScopeNode?.addEventListener("change", () => {
   updateContentSearchPlaceholder();

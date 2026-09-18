@@ -18962,6 +18962,24 @@ a.header-tool-btn {
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.28);
 }
 
+.content-search-mode-btn--id.is-active {
+  color: #1d4ed8;
+}
+
+.content-search-bar--id .content-search-mode-toggle {
+  background: #eff6ff;
+  border-color: rgba(59, 130, 246, 0.22);
+}
+
+.content-search-bar--id .content-search-mode-btn {
+  color: #1d4ed8;
+}
+
+.content-search-bar--id .content-search-filters-btn {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .content-search-actions {
   flex: 0 0 auto;
   display: inline-flex;
@@ -37764,8 +37782,14 @@ button.node-navigation-memory-title:focus-visible {
 .nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-link-preview,
 .nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-link-icon,
 .nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-link-leading,
-.nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-status {
+.nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-status,
+.nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-id-badge {
   flex: 0 0 auto;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-id-badge {
+  margin-right: 4px;
+  align-self: center;
 }
 
 .nav-book-toc-tree--guide .nav-book-toc-leaders {
@@ -38431,6 +38455,31 @@ button.node-navigation-memory-title:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.nav-book-toc-id-badge,
+.menu-tree-id-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+.nav-book-toc-link:hover .nav-book-toc-id-badge,
+.nav-book-toc-link:focus-visible .nav-book-toc-id-badge {
+  background: #e2e8f0;
+  color: #475569;
 }
 
 .nav-book-toc-description-text {
@@ -60275,6 +60324,11 @@ body.is-cms-page-picker-active #discuss-aside * {
 .node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-folder-label > .nav-book-toc-status {
   flex-shrink: 0;
   margin-right: 2px;
+  align-self: center;
+}
+
+.node-navigation-hub-rail-slot-tree .nav-book-toc-tree--classic .nav-book-toc-id-badge {
+  margin-right: 3px;
   align-self: center;
 }
 

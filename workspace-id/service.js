@@ -140,14 +140,24 @@ function createWorkspaceIdService(deps) {
     };
   }
 
-  async function assignIdToPath(relPath, { force = false } = {}) {
+  async function assignIdToPath(relPath, { force = false, absolutePath = null } = {}) {
     const agentRoot = getAgentRoot();
     if (!agentRoot) throw new Error("Agent not selected");
     const normalized = normalizeRelPath(relPath);
     if (!normalized) throw new Error("path is required");
 
-    const absolute = resolvePathAbsolute(normalized);
+    const absolute = absolutePath || resolvePathAbsolute(normalized);
     if (!absolute) throw new Error("Path not found");
+
+    try {
+      const stat = await fs.stat(absolute);
+      if (!stat.isFile()) throw new Error("Path not found");
+    } catch (error) {
+      if (error?.code === "ENOENT" || error?.message === "Path not found") {
+        throw new Error("Path not found");
+      }
+      throw error;
+    }
 
     let content = await fs.readFile(absolute, "utf-8");
     const { frontmatter, body } = splitFrontmatter(content);

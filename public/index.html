@@ -287,10 +287,19 @@
                   title="Смысл"
                   aria-pressed="false"
                 >✦</button>
+                <button
+                  type="button"
+                  id="content-search-mode-id-btn"
+                  class="content-search-mode-btn content-search-mode-btn--id"
+                  data-mode="id"
+                  title="ID (awn-id)"
+                  aria-pressed="false"
+                >#</button>
               </div>
               <select id="content-search-mode" class="content-search-mode visually-hidden" aria-label="Режим поиска" tabindex="-1">
                 <option value="text" selected>Текст</option>
                 <option value="semantic">Смысл</option>
+                <option value="id">ID</option>
               </select>
               <div class="content-search-input-zone">
                 <div id="content-search-active-filters" class="content-search-active-filters hidden" aria-live="polite"></div>
@@ -425,6 +434,7 @@
                 <li><strong>Лимит</strong> — перетащите пункт меню на иконку ◎ справа от поля, чтобы искать только внутри темы или области.</li>
                 <li><strong>Тип</strong> — фильтр по формату (Markdown, PDF, видео и т.д.).</li>
                 <li><strong>Смысл</strong> — локальный семантический поиск по всему workspace (offline). Индекс: sidebar → «Индексирование workspace…» → Переиндексировать.</li>
+                <li><strong>ID (#)</strong> — число <code>awn-id</code> записи: <code>1847</code> или <code>#1847</code>. Откроет файл(ы) с этим id.</li>
               </ul>
             </div>
             <div id="content-search-results" class="content-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
@@ -822,7 +832,7 @@
                     type="button"
                     class="header-index-flush-btn header-index-flush-btn--all"
                     data-index-flush="pipeline"
-                    title="Слова → смысл → поля (OCR пропускается)"
+                    title="Слова → смысл → поля → связи → id (OCR пропускается)"
                   >
                     <span class="header-index-flush-icon" aria-hidden="true">⚡</span>
                     <span>Вся цепочка</span>
@@ -855,7 +865,7 @@
                 </div>
                 <div class="header-index-popover-body menu-static-body menu-index-panel-body">
                   <p class="menu-static-description">
-                    Цепочка поверх <strong>всего</strong> workspace: текст из вложений → слова → смысл → поля → граф связей.
+                    Цепочка поверх <strong>всего</strong> workspace: текст из вложений → слова → смысл → поля → граф связей → awn-id.
                     После сохранения .md sidecar индексы обновляются автоматически.
                   </p>
 
@@ -864,9 +874,9 @@
                       type="button"
                       id="menu-workspace-index-pipeline-btn"
                       class="menu-static-action-btn"
-                      title="Слова → смысл → поля (OCR пропускается)"
+                      title="Слова → смысл → поля → связи → id (OCR пропускается)"
                     >
-                      Полная цепочка (OCR → слова → смысл → поля → связи)
+                      Полная цепочка (OCR → слова → смысл → поля → связи → id)
                     </button>
                     <p id="menu-workspace-index-pipeline-status" class="menu-static-description" aria-live="polite"></p>
                   </div>
@@ -5593,7 +5603,7 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=12"></script>
     <script src="/connection-status.js?v=1"></script>
-    <script src="/semantic-index-panel.js?v=18"></script>
+    <script src="/semantic-index-panel.js?v=19"></script>
     <script src="/languagetool-panel.js?v=2"></script>
     <script src="/file-find-bar.js?v=2"></script>
     <script src="/slug-translit.js?v=1"></script>
