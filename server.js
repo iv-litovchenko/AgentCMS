@@ -11253,6 +11253,65 @@ async function buildAwnDataIndexMarkdown({ stores }) {
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
+function formatDataStoresSummaryLine({ groupCount = 0, collectionCount = 0, singletonCount = 0, recordCount = 0 } = {}) {
+  const parts = [];
+  const dataStores = Number(collectionCount) + Number(singletonCount);
+  if (dataStores > 0) parts.push(`${dataStores} инфоблок${dataStores === 1 ? "" : dataStores < 5 ? "а" : "ов"}`);
+  if (Number(groupCount) > 0) parts.push(`${groupCount} групп${groupCount === 1 ? "а" : ""}`);
+  if (Number(recordCount) > 0) parts.push(`${recordCount} запис${recordCount === 1 ? "ь" : recordCount < 5 ? "и" : "ей"}`);
+  return parts.length ? parts.join(" · ") : "0 инфоблоков";
+}
+
+async function buildAgentDataStoresSummary() {
+  const agentRoot = getAgentRoot();
+  if (!agentRoot) {
+    return {
+      version: 1,
+      model: "data-stores-summary",
+      storeCount: 0,
+      dataStoreCount: 0,
+      groupCount: 0,
+      collectionCount: 0,
+      singletonCount: 0,
+      recordCount: 0,
+      entries: [],
+      summaryLine: "0 инфоблоков",
+      hint: "Краткий каталог awn-data. Полный → iblock_read_index / iblock_list."
+    };
+  }
+
+  const payload = getAwnDataPayload(agentRoot, getProjectRoot());
+  const entries = flattenAwnDataStoresForIndex(payload?.stores || []);
+  const groups = entries.filter((entry) => entry.kind === "group");
+  const dataStores = entries.filter((entry) => entry.kind !== "group");
+  const collectionCount = dataStores.filter((entry) => entry.kind === "collection").length;
+  const singletonCount = dataStores.filter((entry) => entry.kind === "singleton").length;
+  const recordCount = dataStores.reduce((sum, entry) => sum + (Number(entry.recordCount) || 0), 0);
+
+  return {
+    version: 1,
+    model: "data-stores-summary",
+    hint:
+      "Краткий каталог инфоблоков awn-data (path, kind, title, recordCount). " +
+      "Полный оглавление → iblock_read_index; детали store → iblock_get / iblock_list.",
+    storeCount: entries.length,
+    dataStoreCount: dataStores.length,
+    groupCount: groups.length,
+    collectionCount,
+    singletonCount,
+    recordCount,
+    entries: entries.map((entry) => ({
+      path: entry.path,
+      kind: entry.kind,
+      group: entry.group === "—" ? "" : entry.group,
+      title: entry.title,
+      description: entry.description,
+      recordCount: entry.recordCount
+    })),
+    summaryLine: formatDataStoresSummaryLine({ groupCount: groups.length, collectionCount, singletonCount, recordCount })
+  };
+}
+
 async function buildAgentAwnDataIndex() {
   const agentRoot = getAgentRoot();
   if (!agentRoot) {
@@ -12352,9 +12411,10 @@ async function buildAgentSessionContext() {
     });
   }
 
-  const [topicRegistry, alwaysContext] = await Promise.all([
+  const [topicRegistry, alwaysContext, dataStoresSummary] = await Promise.all([
     buildAgentTopicRegistry(),
-    buildAgentAlwaysContextRegistry()
+    buildAgentAlwaysContextRegistry(),
+    buildAgentDataStoresSummary()
   ]);
 
   let menuSummary = null;
@@ -12387,10 +12447,13 @@ async function buildAgentSessionContext() {
     serviceDocs,
     topicRegistry,
     topicCount: topicRegistry.topicCount,
+    dataStoresSummary,
+    dataStoreCount: dataStoresSummary.dataStoreCount,
+    dataRecordCount: dataStoresSummary.recordCount,
     alwaysContext,
     alwaysContextCount: alwaysContext.itemCount,
     hint:
-      "Старт: topicRegistry (skill-карта) + alwaysContext (полные файлы). Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat. workspaceSettings — политики MCP (mcp-mode, batch_*)."
+      "Старт: topicRegistry (skill-карта) + dataStoresSummary (инфоблоки) + alwaysContext (полные файлы). Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat. workspaceSettings — политики MCP (mcp-mode, batch_*)."
   };
 }
 
