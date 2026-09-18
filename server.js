@@ -38,6 +38,8 @@ const { createSemanticSearchService } = require("./semantic-search/service");
 const { createFulltextSearchService } = require("./fulltext-index/service");
 const { createStorageIndexService } = require("./storage-index/service");
 const { createLinkIndexService } = require("./link-index/service");
+const { createWorkspaceIdService, parseAwnId } = require("./workspace-id/service");
+const { allocateNextId } = require("./workspace-id/store");
 const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
 const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
 const { getWorkspaceIndexProgress } = require("./workspace-index/progress");
@@ -472,6 +474,8 @@ const {
 
 const GLOBAL_MCP_DOC_FILE = "GLOBAL_MCP_DOC.md";
 
+const WORKSPACE_ID_COUNTER_FILE = "id-autoincrement.json";
+
 const SYSTEM_FILE_NAMES = [
   ".env",
   ".gitignore",
@@ -481,6 +485,7 @@ const SYSTEM_FILE_NAMES = [
   "ONBOARDING.md",
   "SKILL.md",
   AWN_DEPENDENCIES_FILE,
+  WORKSPACE_ID_COUNTER_FILE,
   "docker-compose.yml",
   ROOT_SYSTEM_NOTE_FILE,
   "README.md",
@@ -516,6 +521,7 @@ const SYSTEM_FILE_CONFIG_BASENAMES = new Set([
   "makefile",
   "procfile",
   "awn-dependencies.json",
+  WORKSPACE_ID_COUNTER_FILE,
   "docker-compose.yml",
   "docker-compose.yaml"
 ]);
@@ -1594,6 +1600,18 @@ function getLinkIndexService() {
     });
   }
   return linkIndexService;
+}
+
+let workspaceIdService = null;
+function getWorkspaceIdService() {
+  if (!workspaceIdService) {
+    workspaceIdService = createWorkspaceIdService({
+      getAgentRoot,
+      collectSearchableFiles,
+      resolvePathAbsolute: normalizeWorkspacePath
+    });
+  }
+  return workspaceIdService;
 }
 
 let ocrIndexService = null;
@@ -3781,10 +3799,18 @@ function mergePersistedAwnCreateFromDisk(frontmatter, diskFrontmatter) {
 
 function applyAwnTimestampsToFrontmatter(frontmatter, { diskFrontmatter = "" } = {}) {
   const now = new Date().toISOString();
+  const diskCreated = getYamlScalar(diskFrontmatter, "awn-create");
+  const isNewRecord = isEmptyAwnTimestampValue(diskCreated);
   let next = mergePersistedAwnCreateFromDisk(frontmatter, diskFrontmatter);
   const created = getYamlScalar(next, "awn-create");
   if (isEmptyAwnTimestampValue(created)) {
     next = upsertFrontmatterScalar(next, "awn-create", now);
+  }
+  if (isNewRecord && !parseAwnId(getYamlScalar(next, "awn-id"))) {
+    const agentRoot = getAgentRoot();
+    if (agentRoot) {
+      next = upsertFrontmatterScalar(next, "awn-id", String(allocateNextId(agentRoot)));
+    }
   }
   next = upsertFrontmatterScalar(next, "awn-update", now);
   next = applyAwnVersionToFrontmatter(next, { diskFrontmatter });
@@ -12071,6 +12097,11 @@ const SESSION_CONTEXT_API_MAP = {
   semanticIndexCatalog: "GET /api/search/semantic/catalog — просмотр фрагментов векторного индекса",
   storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
   linkIndexCatalog: "GET /api/link-index/catalog — просмотр рёбер графа связей (~show-links)",
+  workspaceIdStatus: "GET /api/workspace-id/status — глобальный счётчик awn-id",
+  workspaceIdResolve: "GET /api/workspace-id/resolve?id= — путь записи по awn-id",
+  workspaceIdAssign: "POST /api/workspace-id/assign — присвоить awn-id записи (body: path, force?)",
+  workspaceIdCatalog: "GET /api/workspace-id/catalog — каталог awn-id (~show-ids)",
+  workspaceIdSyncCounter: "POST /api/workspace-id/sync-counter — поднять счётчик до max(assigned)+1",
   workspaceIndexSyncFile: "POST /api/workspace-index/sync-file — инкрементальное обновление индексов для одного файла (fulltext, semantic, поля, связи)",
   workspaceIndexMonitor: "GET /api/workspace-index/monitor — мониторинг индексов (OCR, слова, смысл, поля, связи)",
   ocrIndexStatus: "GET /api/ocr-index/status — статус OCR по вложениям",
@@ -17981,6 +18012,85 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read link index catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace-id/status") {
+    try {
+      return sendJson(res, 200, await getWorkspaceIdService().getStatus());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace id status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace-id/resolve") {
+    const idRaw = url.searchParams.get("id");
+    try {
+      const data = await getWorkspaceIdService().resolveId(idRaw);
+      return sendJson(res, data.ok ? 200 : 404, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = message.includes("must be a positive integer") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to resolve workspace id",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace-id/assign") {
+    try {
+      const payload = await readJsonBody(req);
+      const data = await getWorkspaceIdService().assignIdToPath(payload.path, {
+        force: Boolean(payload.force)
+      });
+      if (data.assigned && data.path) {
+        queueWorkspaceIndexFileSync(data.path);
+      }
+      return sendJson(res, 200, data);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status =
+        message.includes("path is required") || message.includes("Path not found") ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to assign workspace id",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace-id/catalog") {
+    const limitRaw = Number(url.searchParams.get("limit") || 40);
+    const offsetRaw = Number(url.searchParams.get("offset") || 0);
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 40;
+    const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+    try {
+      const data = await getWorkspaceIdService().catalog({
+        limit,
+        offset,
+        q: url.searchParams.get("q") || ""
+      });
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace id catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace-id/sync-counter") {
+    try {
+      const data = await getWorkspaceIdService().syncCounterWithAssigned();
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to sync workspace id counter",
         details: String(error.message || error)
       });
     }

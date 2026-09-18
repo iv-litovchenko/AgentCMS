@@ -266,6 +266,30 @@ function registerSearchWorkspaceTools(reg, client) {
     }),
     ({ path }) => client.post("/api/workspace-index/sync-file", { path })
   );
+
+  reg(
+    "resolve_workspace_id",
+    "Resolve workspace record path(s) by global awn-id (integer from id-autoincrement.json). Duplicate ids across records are allowed — returns paths[] when several match. Alternative: query_workspace_storage with where: [{ field: 'awn-id', eq: N }].",
+    z.object({
+      id: z
+        .union([z.number().int().positive(), z.string().min(1)])
+        .describe("Global awn-id integer, e.g. 1847")
+    }),
+    ({ id }) => client.get("/api/workspace-id/resolve", { id: String(id) })
+  );
+
+  reg(
+    "assign_workspace_id",
+    "Assign the next global awn-id to an existing record (page manifest, content .md, sidecar). Use for old records without id — same as UI «Присвоить id».",
+    z.object({
+      path: z
+        .string()
+        .min(1)
+        .describe("Workspace-relative path to file with frontmatter, e.g. awn-container/topic/manifest.md"),
+      force: z.boolean().optional().describe("Replace existing awn-id (default false)")
+    }),
+    (payload) => client.post("/api/workspace-id/assign", payload)
+  );
 }
 
 export function registerMapTools(reg, client, pagePath) {

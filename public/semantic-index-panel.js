@@ -3,6 +3,7 @@
   const OCR_DISABLED_HINT = "OCR временно недоступен";
 
   const summaryStatsNode = document.getElementById("menu-workspace-index-stats");
+  const workspaceIdUniquenessNode = document.getElementById("menu-workspace-id-uniqueness");
   const ocrStatusNode = document.getElementById("menu-ocr-index-status");
   const ocrRunBtn = document.getElementById("menu-ocr-index-run-btn");
   const ocrForceBtn = document.getElementById("menu-ocr-index-force-btn");
@@ -20,6 +21,12 @@
   const linkProbePathInput = document.getElementById("menu-link-index-probe-path");
   const linkProbeBtn = document.getElementById("menu-link-index-probe-btn");
   const linkProbeResultNode = document.getElementById("menu-link-index-probe-result");
+  const workspaceIdStatusNode = document.getElementById("menu-workspace-id-status");
+  const workspaceIdSyncBtn = document.getElementById("menu-workspace-id-sync-btn");
+  const workspaceIdShowBtn = document.getElementById("menu-workspace-id-show-btn");
+  const workspaceIdProbeInput = document.getElementById("menu-workspace-id-probe-input");
+  const workspaceIdProbeBtn = document.getElementById("menu-workspace-id-probe-btn");
+  const workspaceIdProbeResultNode = document.getElementById("menu-workspace-id-probe-result");
   const pipelineBtn = document.getElementById("menu-workspace-index-pipeline-btn");
   const pipelineStatusNode = document.getElementById("menu-workspace-index-pipeline-status");
   const monitorSummaryNode = document.getElementById("menu-workspace-index-monitor-summary");
@@ -213,6 +220,36 @@
     return parts.join(" · ");
   }
 
+  function formatWorkspaceIdStatus(data) {
+    if (!data?.ready) return data?.reason || "—";
+    const parts = [
+      `${data.assignedCount || 0} записей с id · уникальных ${data.uniqueIdCount || 0} · след. ${data.nextId || 1}`,
+      data.updatedAt ? new Date(data.updatedAt).toLocaleString("ru-RU") : "—"
+    ];
+    return parts.join(" · ");
+  }
+
+  function renderWorkspaceIdUniqueness(data) {
+    if (!workspaceIdUniquenessNode) return;
+    if (!data?.ready || !(data.assignedCount > 0)) {
+      workspaceIdUniquenessNode.textContent = "";
+      workspaceIdUniquenessNode.className = "header-index-id-uniqueness hidden";
+      return;
+    }
+    if ((data.duplicateCount || 0) > 0) {
+      const samples = (data.duplicates || [])
+        .slice(0, 4)
+        .map((row) => `#${row.id} (${row.count || row.paths?.length || 2})`)
+        .join(", ");
+      const extra = (data.duplicateCount || 0) > 4 ? ` и ещё ${data.duplicateCount - 4}` : "";
+      workspaceIdUniquenessNode.textContent = `Повторяющиеся awn-id: ${data.duplicateCount}${samples ? ` — ${samples}${extra}` : ""}`;
+      workspaceIdUniquenessNode.className = "header-index-id-uniqueness is-warning";
+      return;
+    }
+    workspaceIdUniquenessNode.textContent = "Все id уникальны";
+    workspaceIdUniquenessNode.className = "header-index-id-uniqueness is-ok";
+  }
+
   function emptyMonitorLayer(hint) {
     return { ready: false, health: "empty", hint: hint || "Не построен" };
   }
@@ -306,6 +343,9 @@
       const mark = link.health === "stale" ? "!" : "";
       parts.push(`связи ${link.edgeCount || 0}${mark}`);
     }
+    if (window.__workspaceIdStatus?.ready) {
+      parts.push(`id ${window.__workspaceIdStatus.assignedCount || 0}`);
+    }
     summaryStatsNode.textContent = parts.length ? parts.join(" · ") : "нет индексов";
     summaryStatsNode.classList.toggle("is-empty", !parts.length);
     summaryStatsNode.classList.remove("is-error");
@@ -322,11 +362,33 @@
     headerIndexAlertDot?.classList.toggle("hidden", !hasAlert);
   }
 
+  async function refreshWorkspaceIdStatus() {
+    if (!workspaceIdStatusNode) return null;
+    try {
+      const response = await fetch(buildApiUrl("/api/workspace-id/status"));
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || response.statusText);
+      window.__workspaceIdStatus = data;
+      workspaceIdStatusNode.textContent = formatWorkspaceIdStatus(data);
+      renderWorkspaceIdUniqueness(data);
+      return data;
+    } catch (error) {
+      workspaceIdStatusNode.textContent = String(error.message || error);
+      window.__workspaceIdStatus = null;
+      renderWorkspaceIdUniqueness(null);
+      return null;
+    }
+  }
+
   async function refreshStatus() {
     try {
-      const monitorRes = await fetch(buildApiUrl("/api/workspace-index/monitor"));
+      const [monitorRes, idStatus] = await Promise.all([
+        fetch(buildApiUrl("/api/workspace-index/monitor")),
+        refreshWorkspaceIdStatus()
+      ]);
       const monitor = await monitorRes.json();
       if (!monitorRes.ok) throw new Error(monitor.error || monitorRes.statusText);
+      if (idStatus) window.__workspaceIdStatus = idStatus;
 
       ocrStatusNode.textContent = formatOcrStatus(monitor.ocr);
       fulltextStatusNode.textContent = formatFulltextStatus(monitor.fulltext);
@@ -436,6 +498,22 @@
       .join("");
   }
 
+  function renderWorkspaceIdItems(items) {
+    if (!items.length) {
+      return '<p class="workspace-index-catalog-empty">Нет записей с awn-id по текущему фильтру.</p>';
+    }
+    return items
+      .map(
+        (item) => `<article class="workspace-index-catalog-item workspace-index-catalog-item--id">
+          <div class="workspace-index-catalog-item-head">
+            <span class="workspace-index-catalog-badge">#${escapeHtml(item.id)}</span>
+            <code>${escapeHtml(item.path || "—")}</code>
+          </div>
+        </article>`
+      )
+      .join("");
+  }
+
   function populateCatalogFilterSelect(catalog, selected, emptyLabel) {
     if (!catalogField) return;
     const current = selected || catalogField.value || "";
@@ -472,6 +550,7 @@
     let endpoint = "/api/search/semantic/catalog";
     if (catalogState.mode === "fields") endpoint = "/api/storage-index/catalog";
     if (catalogState.mode === "links") endpoint = "/api/link-index/catalog";
+    if (catalogState.mode === "ids") endpoint = "/api/workspace-id/catalog";
     if (catalogState.mode === "fields" && catalogField?.value) {
       params.field = catalogField.value;
     }
@@ -482,7 +561,9 @@
       catalogQ.placeholder =
         catalogState.mode === "links"
           ? "Поиск по from / to / kind…"
-          : "Поиск по пути / тексту…";
+          : catalogState.mode === "ids"
+            ? "Поиск по id / пути…"
+            : "Поиск по пути / тексту…";
     }
 
     try {
@@ -518,6 +599,16 @@
             }`
           : "";
         catalogList.innerHTML = renderLinkItems(data.items || []);
+      } else if (catalogState.mode === "ids") {
+        catalogTitle.textContent = "~show-ids";
+        catalogSubtitle.textContent = data.ready
+          ? `${data.total || 0} записей с awn-id · след. ${data.nextId || 1} · ${data.counterFile || "id-autoincrement.json"}`
+          : data.hint || "Каталог не готов";
+        catalogField?.classList.add("hidden");
+        catalogMeta.textContent = data.ready
+          ? `Показано ${data.items.length} из ${data.total}`
+          : "";
+        catalogList.innerHTML = renderWorkspaceIdItems(data.items || []);
       } else {
         catalogTitle.textContent = "~show-fields";
         catalogSubtitle.textContent = data.ready
@@ -558,7 +649,13 @@
   function openCatalog(mode) {
     if (!catalogModal) return;
     catalogState.mode =
-      mode === "fields" ? "fields" : mode === "links" ? "links" : "vector";
+      mode === "fields"
+        ? "fields"
+        : mode === "links"
+          ? "links"
+          : mode === "ids"
+            ? "ids"
+            : "vector";
     catalogState.offset = 0;
     catalogModal.classList.remove("hidden");
     loadCatalogPage();
@@ -614,7 +711,8 @@
     fulltextRebuildBtn,
     semanticRebuildBtn,
     storageRebuildBtn,
-    linkRebuildBtn
+    linkRebuildBtn,
+    workspaceIdSyncBtn
   ].forEach((button) => rememberButtonLabel(button));
 
   if (OCR_INDEXING_ENABLED) {
@@ -671,6 +769,43 @@
       (data) => `Связи: ${data.edgeCount} рёбер, ${data.fileCount} файлов.`,
       { progressButton: linkRebuildBtn, progressLayer: "link" }
     );
+  });
+
+  bindActionButton(workspaceIdSyncBtn, async () => {
+    await runRebuild(
+      "/api/workspace-id/sync-counter",
+      workspaceIdStatusNode,
+      (data) =>
+        `ID: ${data.assignedCount || 0} записей · счётчик → ${data.nextId || 1}${
+          data.allIdsUnique ? " · все id уникальны" : ` · повторов ${data.duplicateCount || 0}`
+        }.`
+    );
+  });
+
+  bindActionButton(workspaceIdProbeBtn, async () => {
+    if (!workspaceIdProbeResultNode) return;
+    const idValue = workspaceIdProbeInput?.value?.trim() || "";
+    if (!idValue) {
+      workspaceIdProbeResultNode.textContent = "Укажите awn-id.";
+      return;
+    }
+    workspaceIdProbeResultNode.textContent = "Resolve…";
+    try {
+      const response = await fetch(buildApiUrl("/api/workspace-id/resolve", { id: idValue }));
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+      if (!data.ok || !data.path) {
+        workspaceIdProbeResultNode.textContent = `id ${idValue}: не найден.`;
+        return;
+      }
+      const paths = Array.isArray(data.paths) && data.paths.length ? data.paths : [data.path];
+      workspaceIdProbeResultNode.textContent =
+        paths.length > 1
+          ? `id ${data.id}: ${paths.length} записей — ${paths.join(" · ")}`
+          : `id ${data.id}: ${data.path}`;
+    } catch (error) {
+      workspaceIdProbeResultNode.textContent = String(error.message || error);
+    }
   });
 
   bindActionButton(linkProbeBtn, async () => {
@@ -757,7 +892,8 @@
     fulltext: fulltextRebuildBtn,
     semantic: semanticRebuildBtn,
     storage: storageRebuildBtn,
-    link: linkRebuildBtn
+    link: linkRebuildBtn,
+    "workspace-id": workspaceIdSyncBtn
   };
   for (const flushBtn of document.querySelectorAll("[data-index-flush]")) {
     flushBtn.addEventListener("click", (event) => {
@@ -776,6 +912,7 @@
   semanticShowBtn?.addEventListener("click", () => openCatalog("vector"));
   storageShowBtn?.addEventListener("click", () => openCatalog("fields"));
   linkShowBtn?.addEventListener("click", () => openCatalog("links"));
+  workspaceIdShowBtn?.addEventListener("click", () => openCatalog("ids"));
 
   catalogCloseBtn?.addEventListener("click", closeCatalog);
   catalogModal?.addEventListener("click", (event) => {
@@ -817,6 +954,8 @@
     openCatalog("fields");
   } else if (hash === "show-links" || hash === "~show-links") {
     openCatalog("links");
+  } else if (hash === "show-ids" || hash === "~show-ids") {
+    openCatalog("ids");
   }
 
   let refreshTimer = null;

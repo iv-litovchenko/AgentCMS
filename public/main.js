@@ -1418,6 +1418,14 @@ const SYSTEM_FILE_SCAFFOLD_FALLBACK = [
   { name: "ONBOARDING.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "SKILL.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "awn-dependencies.json", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
+  {
+    name: "id-autoincrement.json",
+    exists: false,
+    empty: true,
+    group: "config",
+    openMode: "system",
+    scaffold: true
+  },
   { name: "docker-compose.yml", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "README.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: ROOT_SYSTEM_NOTE_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
@@ -5551,6 +5559,15 @@ function getSystemFileHintSpec(name) {
         "Секреты, токены и ключи API — только здесь или в <code>.env</code> слота темы. " +
         "Не храните пароли в markdown, frontmatter и памяти агента.",
       example: RECOMMENDED_AGENT_ENV_TEMPLATE
+    };
+  }
+  if (normalized === "id-autoincrement.json") {
+    return {
+      title: "Счётчик awn-id",
+      text:
+        "Глобальный автоинкремент для поля <code>awn-id</code> в frontmatter записей. " +
+        "Создаётся автоматически при первом id; дубликаты id между записями допустимы — при необходимости меняйте в свойствах записи.",
+      example: '{\n  "next": 1,\n  "issued": 0,\n  "updatedAt": null,\n  "model": "workspace-id-autoincrement-v1"\n}'
     };
   }
   if (normalized === "SKILL.md") {
@@ -15524,6 +15541,104 @@ function createNavigationHeroSlugPathRow({ slug = "", issue = null, pathLabel = 
   row.appendChild(fixBtn);
 
   return row;
+}
+
+function resolveHeroRecordAssignPath(nodePath, options = {}) {
+  const fromOption = String(options.recordPath || options.idAssignPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (fromOption) return fromOption;
+  const node = String(nodePath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/$/, "")
+    .trim();
+  if (!node) return "";
+  if (/\.(md|yml|yaml)$/i.test(node) || /\.sidecar\.md$/i.test(node)) return node;
+  return `${node}/${MANIFEST_FILE}`;
+}
+
+function createNavigationHeroIdPathRow({ awnId = "", assignPath = "", onIdAssigned = null } = {}) {
+  const row = document.createElement("p");
+  row.className = "node-navigation-hero-path node-navigation-hero-id-path";
+
+  const idValue = String(awnId || "").trim();
+  const hasId = Boolean(idValue && /^\d+$/.test(idValue));
+
+  if (hasId) {
+    row.textContent = `id: ${idValue}`;
+    return row;
+  }
+
+  row.classList.add("node-navigation-hero-path--missing-id");
+
+  const prefix = document.createElement("span");
+  prefix.className = "node-navigation-hero-path-prefix";
+  prefix.textContent = "id:";
+
+  const value = document.createElement("span");
+  value.className = "node-navigation-hero-path-value";
+  value.textContent = "—";
+
+  row.append(prefix, document.createTextNode(" "), value);
+
+  if (!assignPath) return row;
+
+  const fixBtn = document.createElement("button");
+  fixBtn.type = "button";
+  fixBtn.className = "node-navigation-hero-path-fix node-navigation-hero-path-fix--id";
+  fixBtn.textContent = "Присвоить id";
+  fixBtn.title = "Выдать следующий глобальный awn-id";
+  fixBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void applyWorkspaceRecordIdAssign(assignPath, fixBtn, onIdAssigned);
+  });
+  row.appendChild(fixBtn);
+
+  return row;
+}
+
+async function applyWorkspaceRecordIdAssign(relPath, triggerBtn = null, onAssigned = null) {
+  const pathValue = String(relPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim();
+  if (!pathValue) {
+    showToast("Не указан путь к записи", "error");
+    return;
+  }
+
+  if (triggerBtn) {
+    triggerBtn.disabled = true;
+    triggerBtn.textContent = "Присвоение…";
+  }
+
+  try {
+    const response = await fetch(buildApiUrl("/api/workspace-id/assign"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: pathValue })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.details || `Request failed with ${response.status}`);
+    }
+    showToast(data.assigned ? `Присвоен id ${data.id}` : `У записи уже есть id ${data.id}`, "success");
+    if (typeof onAssigned === "function") {
+      await onAssigned(data);
+    } else {
+      await loadContentByMode({ forceReload: true });
+      applyModeUi();
+    }
+  } catch (error) {
+    showToast(String(error.message || error), "error");
+    if (triggerBtn) {
+      triggerBtn.disabled = false;
+      triggerBtn.textContent = "Присвоить id";
+    }
+  }
 }
 
 const WORKSPACE_SYSTEM_NOTICE_ICON_SVG = {
@@ -48129,6 +48244,7 @@ const PROPS_FIELD_GROUP_FALLBACK = {
   "awn-runtime-cron-schedule": "runtime",
   "awn-runtime-heartbeat": "runtime",
   "awn-runtime-commands": "runtime",
+  "awn-id": "system",
   "awn-type": "system",
   "awn-create": "system",
   "awn-update": "system",
@@ -56016,11 +56132,18 @@ function createNavigationHero(preview, title, nodePath = activePath, options = {
       pathLabel: options.pathLabel || formatNodeHeroSlugLabel(nodePath)
     });
 
+    const assignPath = resolveHeroRecordAssignPath(nodePath, options);
+    const idNode = createNavigationHeroIdPathRow({
+      awnId: getPropsEntryValueByKey(options.propEntries || [], "awn-id"),
+      assignPath,
+      onIdAssigned: options.onIdAssigned || null
+    });
+
     const headerRow = document.createElement("div");
     headerRow.className = "node-navigation-hero-header";
     headerRow.append(titleRow, actions);
 
-    body.append(headerRow, pathNode);
+    body.append(headerRow, pathNode, idNode);
 
     if (options.typeLabel) {
       body.appendChild(createNavigationHeroTypePathRow(options.typeLabel));
@@ -67345,9 +67468,17 @@ function createEntryOverviewMediaAssetPanel(
     pathLabel: formatEntryOverviewHeroPathLabel(entries, context.relativePath)
   });
 
+  const idNode = createNavigationHeroIdPathRow({
+    awnId: getPropsEntryValueByKey(entries, "awn-id"),
+    assignPath: context.relPath,
+    onIdAssigned: async () => {
+      await renderEntryOverview();
+    }
+  });
+
   const metaRow = document.createElement("div");
   metaRow.className = "node-entry-overview-media-asset-meta-row node-navigation-hero-meta-row";
-  metaRow.append(kindBadge, pathNode);
+  metaRow.append(kindBadge, pathNode, idNode);
 
   const datesPanel = buildNavigationHeroDatesPanel(nodeMeta, context.relPath);
   if (datesPanel.childElementCount > 0) {
@@ -67986,7 +68117,11 @@ async function renderEntryOverview() {
           descriptionRaw: rawBody,
           typeLabel: entryTypeLabel,
           pathLabel: formatEntryOverviewHeroPathLabel(entries, context.relativePath),
+          recordPath: context.relPath,
           slugIssue: getEntryOverviewSlugIssue(context),
+          onIdAssigned: async () => {
+            await renderEntryOverview();
+          },
           compact: isBundleEntryOverview,
           thumbWrap: isBundleEntryOverview
             ? null
@@ -77320,6 +77455,11 @@ async function renderNodeNavigation() {
     onEditClick: openDescriptionFromOverview,
     settingsSlots: slotStripGroups.settings || [],
     slugIssue: getNodeManifestSlugIssue(nodePath),
+    recordPath: `${nodePath}/${MANIFEST_FILE}`,
+    onIdAssigned: async () => {
+      await loadContentByMode({ forceReload: true });
+      applyModeUi();
+    },
     showUnread: showHeroUnread,
     entryOverviewNav: topicSiblingNav,
   });
@@ -82323,6 +82463,7 @@ function classifySystemFileGroup(name) {
     "makefile",
     "procfile",
     "awn-dependencies.json",
+    "id-autoincrement.json",
     "docker-compose.yml",
     "docker-compose.yaml"
   ]);

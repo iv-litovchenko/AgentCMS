@@ -165,6 +165,21 @@ search_workspace_links({
 
 Опционально `pathPrefix` — ограничить результаты поддеревом темы. Типичный сценарий: нашли файл через hybrid → `search_workspace_links` для backlinks и связанных manifest/записей.
 
+### Глобальный ID записи — `awn-id`
+
+У каждой **новой** записи (manifest, content, sidecar…) в frontmatter появляется **`awn-id`** — целое число из глобального счётчика **`id-autoincrement.json`** в корне workspace (файл в sidebar → **Конфиги**). Старые записи без id: UI «Присвоить id» или MCP **`assign_workspace_id({ path })`**. **Один id у нескольких записей допустим** — при необходимости меняют вручную в свойствах.
+
+| Tool | Когда |
+|------|-------|
+| `resolve_workspace_id({ id })` | Путь файла по числу, напр. `1847` |
+| `assign_workspace_id({ path })` | Выдать id существующей записи без `awn-id` |
+| `query_workspace_storage` | Фильтр `where: [{ field: "awn-id", eq: 1847 }]` (каталог полей) |
+
+```json
+resolve_workspace_id({ "id": 1847 })
+assign_workspace_id({ "path": "awn-container/tema-x/manifest.md" })
+```
+
 ---
 
 ## Дерево агента
@@ -202,6 +217,8 @@ search_workspace_links({
 | `search_workspace_content` | Полнотекстовый поиск: пути, frontmatter, тела; опц. **`pathPrefix`** | meta + snippet |
 | `search_workspace_semantic` | Семантический поиск (offline hash-TF-IDF); опц. **`pathPrefix`** | snippet + score |
 | `search_workspace_links` | Граф связей: backlinks / outbound / neighbors вокруг **path**; индекс `.agent-cms/link-index/` | список path + kind |
+| `resolve_workspace_id` | Путь записи по глобальному **awn-id** (счётчик `id-autoincrement.json`) | path |
+| `assign_workspace_id` | Присвоить **awn-id** старой записи без id | id + path |
 | `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
@@ -226,6 +243,8 @@ search_workspace_links({
 | «Найти текст только в одной теме/области» | `resolve_workspace_path` → `search_workspace_content({ pathPrefix: topic.folderPath })` |
 | «Найти по смыслу в теме» | `search_workspace_semantic({ query, pathPrefix })` |
 | «Кто ссылается на этот файл / куда ведут ссылки» | `search_workspace_links({ path, mode: "backlinks" \| "outbound" \| "neighbors" })` |
+| «Найти запись по числовому id» | `resolve_workspace_id({ id })` или `query_workspace_storage({ where: [{ field: "awn-id", eq: N }] })` |
+| «Выдать id старой записи» | `assign_workspace_id({ path })` — как кнопка «Присвоить id» в hero |
 | «Нужны properties/tags/status перед правкой» | `get_content_map(path)` |
 | «Читать/писать текст записи» | `read_content_body` / `write_content_body` |
 | «Доп. файлы **конкретной** записи (не раздел темы)» | `get_content_map` → `hasRecordMaterials` / `parentRecordRef` / `recordMaterialsFolderRef`; папка `awn-materials-{slug}` |
@@ -646,7 +665,7 @@ razdel-1/
 `size` / `type` для картинок — только в режиме `api`.  
 Найденную картинку в тему — `import_content_from_url({ path, slot: "media", url })` или `upload_file_from_url`.
 
-**Не путать:** `search_workspace_content` / `search_workspace_semantic` — текст workspace агента (опц. **`pathPrefix`** для темы); **`search_workspace_links`** — навигация по **связям** между файлами (граф, не текст); `resolve_workspace_path` — один path → topic/area/ws + `folderPath`; `query_workspace_storage` — SQL-like по полям frontmatter; `search_web` — публичный интернет; `read_web_page` — содержимое одного URL (не поиск).
+**Не путать:** `search_workspace_content` / `search_workspace_semantic` — текст workspace агента (опц. **`pathPrefix`** для темы); **`search_workspace_links`** — навигация по **связям** между файлами (граф, не текст); `resolve_workspace_path` — один path → topic/area/ws + `folderPath`; **`resolve_workspace_id`** — число **awn-id** → path записи; `query_workspace_storage` — SQL-like по полям frontmatter (в т.ч. `awn-id`); `search_web` — публичный интернет; `read_web_page` — содержимое одного URL (не поиск).
 
 ---
 

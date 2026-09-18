@@ -796,10 +796,15 @@
                 <div class="header-index-popover-head">
                   <div class="header-index-popover-title-wrap">
                     <p class="header-index-popover-title">Индексирование workspace</p>
-                    <p class="header-index-popover-subtitle">Подготовка архива и поиск · OCR → слова → смысл → поля → связи</p>
+                    <p class="header-index-popover-subtitle">Подготовка архива и поиск · OCR → слова → смысл → поля → связи → ID</p>
                     <span
                       id="menu-workspace-index-stats"
                       class="header-index-stats menu-static-google-drive-stats menu-static-google-drive-stats--summary is-empty"
+                      aria-live="polite"
+                    ></span>
+                    <span
+                      id="menu-workspace-id-uniqueness"
+                      class="header-index-id-uniqueness hidden"
                       aria-live="polite"
                     ></span>
                   </div>
@@ -843,6 +848,9 @@
                   </button>
                   <button type="button" class="header-index-flush-btn" data-index-flush="link" title="Пересобрать граф связей">
                     Связи
+                  </button>
+                  <button type="button" class="header-index-flush-btn" data-index-flush="workspace-id" title="Синхронизировать счётчик awn-id">
+                    ID
                   </button>
                 </div>
                 <div class="header-index-popover-body menu-static-body menu-index-panel-body">
@@ -959,8 +967,39 @@
                     <p id="menu-link-index-probe-result" class="menu-static-description menu-link-index-probe-result" aria-live="polite"></p>
                   </div>
 
+                  <div class="menu-index-block">
+                    <div class="menu-index-block-title">6. ID (awn-id)</div>
+                    <p class="menu-static-description">
+                      Глобальный автоинкремент для всех записей ·
+                      <code>id-autoincrement.json</code> · MCP:
+                      <code>resolve_workspace_id</code>,
+                      <code>assign_workspace_id</code>
+                    </p>
+                    <p id="menu-workspace-id-status" class="menu-static-description" aria-live="polite"></p>
+                    <button type="button" id="menu-workspace-id-sync-btn" class="menu-static-action-btn">
+                      Синхронизировать счётчик
+                    </button>
+                    <button type="button" id="menu-workspace-id-show-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                      ~show-ids
+                    </button>
+                    <div class="menu-link-index-probe">
+                      <input
+                        type="text"
+                        id="menu-workspace-id-probe-input"
+                        class="menu-link-index-probe-input"
+                        placeholder="awn-id, напр. 1847"
+                        spellcheck="false"
+                        inputmode="numeric"
+                      />
+                      <button type="button" id="menu-workspace-id-probe-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                        Resolve
+                      </button>
+                    </div>
+                    <p id="menu-workspace-id-probe-result" class="menu-static-description menu-link-index-probe-result" aria-live="polite"></p>
+                  </div>
+
                   <div class="menu-index-block menu-index-block--monitor">
-                    <div class="menu-index-block-title">6. Мониторинг</div>
+                    <div class="menu-index-block-title">7. Мониторинг</div>
                     <p id="menu-workspace-index-monitor-summary" class="menu-index-monitor-summary" aria-live="polite"></p>
                     <div id="menu-workspace-index-monitor-grid" class="menu-index-monitor-grid"></div>
                   </div>
@@ -5554,7 +5593,7 @@
     <script src="/document-viewer.js?v=1"></script>
     <script src="/app-lock.js?v=12"></script>
     <script src="/connection-status.js?v=1"></script>
-    <script src="/semantic-index-panel.js?v=15"></script>
+    <script src="/semantic-index-panel.js?v=17"></script>
     <script src="/languagetool-panel.js?v=2"></script>
     <script src="/file-find-bar.js?v=2"></script>
     <script src="/slug-translit.js?v=1"></script>
