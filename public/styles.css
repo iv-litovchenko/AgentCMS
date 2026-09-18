@@ -37757,7 +37757,7 @@ button.node-navigation-memory-title:focus-visible {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
   min-width: 0;
   padding: 3px 6px;
@@ -37788,8 +37788,15 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-id-badge {
-  margin-right: 4px;
+  margin: 0;
+  padding: 0 3px;
+  min-width: 15px;
+  height: 15px;
   align-self: center;
+}
+
+.nav-book-toc-tree--guide .nav-book-toc-link > .nav-book-toc-status:has(+ .nav-book-toc-id-badge) {
+  margin-right: 0;
 }
 
 .nav-book-toc-tree--guide .nav-book-toc-leaders {
