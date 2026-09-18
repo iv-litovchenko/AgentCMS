@@ -293,8 +293,15 @@
                   class="content-search-mode-btn content-search-mode-btn--id"
                   data-mode="id"
                   title="ID (awn-id)"
+                  aria-label="ID (awn-id)"
                   aria-pressed="false"
-                >#</button>
+                >
+                  <svg class="content-search-mode-id-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                    <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"></rect>
+                    <circle cx="9" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                    <path d="M15 10h4M15 14h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                  </svg>
+                </button>
               </div>
               <select id="content-search-mode" class="content-search-mode visually-hidden" aria-label="Режим поиска" tabindex="-1">
                 <option value="text" selected>Текст</option>

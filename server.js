@@ -3807,7 +3807,10 @@ function applyAwnTimestampsToFrontmatter(frontmatter, { diskFrontmatter = "" } =
   if (isEmptyAwnTimestampValue(created)) {
     next = upsertFrontmatterScalar(next, "awn-create", now);
   }
-  if (isNewRecord && !parseAwnId(getYamlScalar(next, "awn-id"))) {
+  const rawAwnId = String(getYamlScalar(next, "awn-id") || "").trim();
+  const shouldAssignAwnId =
+    !parseAwnId(rawAwnId) && (isNewRecord || rawAwnId === "0");
+  if (shouldAssignAwnId) {
     const agentRoot = getAgentRoot();
     if (agentRoot) {
       next = upsertFrontmatterScalar(next, "awn-id", String(allocateNextId(agentRoot)));
@@ -6698,6 +6701,7 @@ async function buildSlotContentFileContentForManifest(
   if (options.frontmatterOverrides && Object.keys(options.frontmatterOverrides).length) {
     frontmatter = mergeFrontmatterOverrides(frontmatter, options.frontmatterOverrides);
   }
+  frontmatter = applyAwnTimestampsToFrontmatter(frontmatter, { diskFrontmatter: "" });
 
   let body = options.body;
   if (body === undefined) {

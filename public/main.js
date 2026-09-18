@@ -15564,9 +15564,17 @@ function createNavigationHeroIdPathRow({ awnId = "", assignPath = "", onIdAssign
   return row;
 }
 
+function normalizeAwnIdDisplayValue(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const num = Number(raw);
+  if (!Number.isFinite(num) || num <= 0 || !Number.isInteger(num)) return "";
+  return String(num);
+}
+
 function appendNavigationHeroIdSegment(container, { awnId = "", assignPath = "", onIdAssigned = null } = {}) {
-  const idValue = String(awnId || "").trim();
-  const hasId = Boolean(idValue && /^\d+$/.test(idValue));
+  const idValue = normalizeAwnIdDisplayValue(awnId);
+  const hasId = Boolean(idValue);
 
   if (hasId) {
     container.append(document.createTextNode(`id: ${idValue}`));
@@ -46472,6 +46480,11 @@ function stringifyPropsYaml(entries) {
       continue;
     }
     if (entry.kind === "number") {
+      if (normalizePropsKey(entry.key) === "awn-id") {
+        const idValue = normalizeAwnIdDisplayValue(entry.value);
+        if (idValue) lines.push(`${entry.key}: ${idValue}`);
+        continue;
+      }
       lines.push(`${entry.key}: ${entry.value}`);
       continue;
     }
@@ -46527,6 +46540,9 @@ function applyFormValueToEntry(entry, rawValue) {
     return { ...entry, value: trimmed === "true" };
   }
   if (entry.kind === "number") {
+    if (normalizePropsKey(entry.key) === "awn-id" && trimmed === "") {
+      return { ...entry, value: "" };
+    }
     return { ...entry, value: trimmed === "" ? 0 : Number(trimmed) };
   }
   if (entry.kind === "null") {
@@ -61162,14 +61178,13 @@ function resolveNavigationItemStatus(item) {
 
 function resolveNavigationItemAwnId(item) {
   const props = Array.isArray(item?.props) ? item.props : [];
-  const raw = String(getPropsEntryValueByKey(props, "awn-id") || item?.awnId || "").trim();
-  if (!raw || !/^\d+$/.test(raw)) return "";
-  return raw;
+  const raw = getPropsEntryValueByKey(props, "awn-id") || item?.awnId || "";
+  return normalizeAwnIdDisplayValue(raw);
 }
 
 function createNavBookTocIdBadge(awnId) {
-  const idValue = String(awnId || "").trim();
-  if (!idValue || !/^\d+$/.test(idValue)) return null;
+  const idValue = normalizeAwnIdDisplayValue(awnId);
+  if (!idValue) return null;
 
   const badge = document.createElement("span");
   badge.className = "nav-book-toc-id-badge menu-tree-id-badge";

@@ -392,6 +392,9 @@ function buildDefaultFrontmatter(typeName, options = {}) {
       lines.push(`awn-update: ${now}`);
       continue;
     }
+    if (key === "awn-id") {
+      continue;
+    }
     const fieldDef = fields[key];
     if (!fieldDef) continue;
     if (key === "awn-status" && isContentType) {

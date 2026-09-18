@@ -14,7 +14,7 @@ awn-color: "#6366f1"
 |------|------------|
 | [registry.yml](registry.yml) | реестр доменов, mode: agent-owned |
 | [GLOBAL_MCP_DOC.md](../GLOBAL_MCP_DOC.md) | карта MCP для агента (START HERE) |
-| [slots-bindings.yml](slots-bindings.yml) | слот → content-type |
+| [types/slots/](types/slots/) | слоты: path, allowed-content, accept-files |
 | [types/](types/) | все типы (pages, content, slots, fields…) |
 
 Контент пользователя — в `awn-container/`, не здесь.
