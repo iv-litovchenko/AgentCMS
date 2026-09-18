@@ -23301,6 +23301,12 @@ function setMenuLabelWithMarkers(host, labelText, source, nameClass = "menu-fold
     host.classList.add("has-menu-tree-status");
     labelWrap.appendChild(statusBadge);
   }
+  const awnId = resolveNavigationItemAwnId(source);
+  const idBadge = awnId ? createNavBookTocIdBadge(awnId) : null;
+  if (idBadge) {
+    host.classList.add("has-menu-tree-status");
+    labelWrap.appendChild(idBadge);
+  }
   if (previewNode) labelWrap.appendChild(previewNode);
   if (markers) labelWrap.appendChild(markers);
 

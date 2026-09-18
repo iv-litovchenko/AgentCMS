@@ -14424,11 +14424,13 @@ async function enrichMenuNodeItem(nodeRelPath, options = {}) {
     ? await resolveAwnPreviewFieldMeta(normalizedPath, previewRaw)
     : { hasPreview: false, previewUrl: null, previewFile: null };
   const hasCustomSchema = await readNodeHasOwnSchemaLayerForMenu(normalizedPath);
+  const awnId = parseAwnId(getYamlScalar(frontmatter, "awn-id"));
   const result = {
     color: meta.color,
     tags: meta.tags,
     category: meta.category,
     status: meta.status || null,
+    awnId: awnId || null,
     awnEmoji: meta.awnEmoji || null,
     awnTreeType: menuMeta.type || null,
     runtimeCron: Boolean(meta.runtimeCron),

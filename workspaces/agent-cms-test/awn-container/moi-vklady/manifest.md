@@ -25,4 +25,5 @@ awn-focus: false
 awn-main: false
 awn-slots-disabled: false
 awn-name: "Мои вклады"
+awn-id: 7
 ---

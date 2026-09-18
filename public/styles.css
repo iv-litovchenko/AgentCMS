@@ -38466,20 +38466,24 @@ button.node-navigation-memory-title:focus-visible {
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
-  border-radius: 4px;
-  background: #f1f5f9;
-  color: #64748b;
+  border-radius: 999px;
+  background: #334155;
+  color: #ffffff;
   font-size: 10px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   box-sizing: border-box;
+  cursor: help;
 }
 
 .nav-book-toc-link:hover .nav-book-toc-id-badge,
-.nav-book-toc-link:focus-visible .nav-book-toc-id-badge {
-  background: #e2e8f0;
-  color: #475569;
+.nav-book-toc-link:focus-visible .nav-book-toc-id-badge,
+.menu-folder:hover .menu-tree-id-badge,
+.menu-item:hover .menu-tree-id-badge,
+.menu-flat-item:hover .menu-tree-id-badge {
+  background: #1e293b;
+  color: #ffffff;
 }
 
 .nav-book-toc-description-text {
@@ -55039,6 +55043,13 @@ body.is-cms-page-picker-active #discuss-aside * {
   width: 14px;
   height: 16px;
   font-size: 10px;
+  align-self: center;
+}
+
+.sidebar-slab-menu .menu-agent-pane:not(.is-menu-view-flat) .menu-tree-id-badge {
+  min-width: 16px;
+  height: 16px;
+  margin-right: 1px;
   align-self: center;
 }
 
