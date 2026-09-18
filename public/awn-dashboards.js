@@ -3,6 +3,8 @@
 
   const FOLDER = "awn-dashboards";
   const DEFAULT_SLUG = "home";
+  const VISION_CHAT_ID = "2a685a24-b310-4030-8c38-5e5d2faf7f19";
+  const VISION_CHAT_TITLE = "awn-dashboards · линзы и виджеты";
   const presenters = new Map();
 
   let ctx = {
@@ -492,6 +494,84 @@
     host.appendChild(box);
   }
 
+  function renderDashboardTodoPlaque() {
+    const plaque = document.createElement("section");
+    plaque.className = "awn-dashboard-todo-plaque";
+    plaque.innerHTML = `
+      <div class="awn-dashboard-todo-plaque-head">
+        <div>
+          <p class="awn-dashboard-eyebrow">TODO · vision</p>
+          <h3 class="awn-dashboard-todo-plaque-title">Идеи awn-dashboards</h3>
+          <p class="awn-dashboard-lead">Кратко — что обсуждали и к чему идём. Не конструктор, а линзы на данные CMS.</p>
+        </div>
+        <span class="awn-dashboard-todo-plaque-badge">draft</span>
+      </div>
+      <div class="awn-dashboard-todo-plaque-grid">
+        <div class="awn-dashboard-todo-plaque-block">
+          <h4>Принципы</h4>
+          <ul>
+            <li><strong>Линзы, не гирлянда</strong> — виджет смотрит на уже существующие данные, не хранит их.</li>
+            <li><strong>Декларативный конфиг</strong> — <code>layout.md</code> + <code>widgets/*.md</code>, не drag-and-drop.</li>
+            <li><strong>Открытый <code>present</code></strong> — любая строка; рендеры в реестре, не enum.</li>
+            <li><strong>Источники</strong> — internal (TODO, MCP, CSV) и external (API).</li>
+          </ul>
+        </div>
+        <div class="awn-dashboard-todo-plaque-block">
+          <h4>Структура</h4>
+          <ul>
+            <li><code>awn-dashboards/home/layout.md</code> — сетка и список виджетов.</li>
+            <li><code>awn-dashboards/widgets/*.md</code> — present, source, x/y/w/h.</li>
+            <li>Данные живут отдельно: <code>TODO.md</code>, API, store — виджет только привязка.</li>
+            <li>«Дашборд» = карточки тем; «Дашборд 2» = кастомные виджеты.</li>
+          </ul>
+        </div>
+        <div class="awn-dashboard-todo-plaque-block">
+          <h4>Presenters (MVP)</h4>
+          <ul>
+            <li>Готово: clock, calendar, stat, list, markdown, chart, activity.</li>
+            <li>Заглушки: kanban.</li>
+            <li>Расширение: <code>AwnDashboards.registerPresenter(id, fn)</code>.</li>
+          </ul>
+        </div>
+        <div class="awn-dashboard-todo-plaque-block">
+          <h4>Дальше</h4>
+          <ul>
+            <li>Каталог виджетов в UI (выбор из набора, не только файлы).</li>
+            <li>Chart из CSV/MCP, не только JSON в body.</li>
+            <li>Лимит плотности / anti-garland правила.</li>
+            <li>Example14 → production-паттерны.</li>
+          </ul>
+        </div>
+      </div>
+      <footer class="awn-dashboard-todo-plaque-foot">
+        <span class="awn-dashboard-todo-plaque-chat-label">Чат:</span>
+        <a
+          class="awn-dashboard-todo-plaque-chat-link"
+          href="#"
+          data-chat-id="${ctx.escapeHtml(VISION_CHAT_ID)}"
+          title="${ctx.escapeHtml(VISION_CHAT_TITLE)}"
+        >${ctx.escapeHtml(VISION_CHAT_TITLE)}</a>
+        <code class="awn-dashboard-todo-plaque-chat-id">${ctx.escapeHtml(VISION_CHAT_ID)}</code>
+        <button type="button" class="awn-dashboard-todo-plaque-copy-btn">Скопировать ID</button>
+      </footer>
+    `;
+
+    plaque.querySelector(".awn-dashboard-todo-plaque-copy-btn")?.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(VISION_CHAT_ID);
+      } catch {
+        // ignore clipboard errors
+      }
+    });
+
+    plaque.querySelector(".awn-dashboard-todo-plaque-chat-link")?.addEventListener("click", (event) => {
+      event.preventDefault();
+      void navigator.clipboard.writeText(VISION_CHAT_ID);
+    });
+
+    return plaque;
+  }
+
   async function renderActiveDashboard() {
     const host = ctx.contentHostNode;
     if (!host) return;
@@ -535,7 +615,7 @@
     grid.className = "awn-dashboard-grid";
     grid.style.setProperty("--awn-dashboard-cols", String(payload.layout.grid));
 
-    shell.append(head, grid);
+    shell.append(head, renderDashboardTodoPlaque(), grid);
     host.appendChild(shell);
 
     for (const meta of payload.widgets) {

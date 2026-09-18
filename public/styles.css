@@ -55745,6 +55745,136 @@ body.is-cms-page-picker-active #discuss-aside * {
   cursor: pointer;
 }
 
+.awn-dashboard-todo-plaque {
+  padding: 16px 18px;
+  border: 1px dashed rgba(99, 102, 241, 0.35);
+  border-radius: 16px;
+  background: rgba(238, 242, 255, 0.55);
+}
+
+.awn-dashboard-todo-plaque-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.awn-dashboard-todo-plaque-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #1e3a8a;
+}
+
+.awn-dashboard-todo-plaque-badge {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px dashed rgba(99, 102, 241, 0.35);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #4338ca;
+}
+
+.awn-dashboard-todo-plaque-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.awn-dashboard-todo-plaque-block {
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.awn-dashboard-todo-plaque-block h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #4338ca;
+}
+
+.awn-dashboard-todo-plaque-block ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.awn-dashboard-todo-plaque-block li + li {
+  margin-top: 6px;
+}
+
+.awn-dashboard-todo-plaque-block code {
+  font-size: 11px;
+}
+
+.awn-dashboard-todo-plaque-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(99, 102, 241, 0.15);
+  font-size: 12px;
+  color: #64748b;
+}
+
+.awn-dashboard-todo-plaque-chat-label {
+  font-weight: 700;
+  color: #4338ca;
+}
+
+.awn-dashboard-todo-plaque-chat-link {
+  color: #1d4ed8;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.awn-dashboard-todo-plaque-chat-link:hover {
+  text-decoration: underline;
+}
+
+.awn-dashboard-todo-plaque-chat-id {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  color: #334155;
+}
+
+.awn-dashboard-todo-plaque-copy-btn {
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .awn-dashboard-todo-plaque-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .awn-dashboard-todo-plaque-copy-btn {
+    margin-left: 0;
+  }
+}
+
 .awn-dashboard-grid {
   display: grid;
   grid-template-columns: repeat(var(--awn-dashboard-cols, 12), minmax(0, 1fr));
