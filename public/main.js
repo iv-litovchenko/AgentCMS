@@ -12589,39 +12589,51 @@ async function switchActiveAgent(nextAgentId) {
     closeMenuSettingsPopover();
     setMenuLoading(true, `Загрузка: ${getActiveAgentLabel() || nextAgentId}`);
 
+    const switchedAgentId = activeAgentId;
     if (hasCachedView) {
-      activateMenuAgentPane(activeAgentId);
+      activateMenuAgentPane(switchedAgentId);
       updateActiveButton();
-      await refreshAgentSliderCatalog(true);
-      syncAgentPreview();
-      ensureSidebarWorkspacePageIndexRow();
+      setMenuLoading(false);
+      void refreshMenu({ agentId: switchedAgentId });
+    } else {
+      await refreshMenu({ agentId: switchedAgentId });
+      setMenuLoading(false);
     }
 
-    await Promise.all([
-      loadSystemFiles(),
-      loadAwnTypes(activeAgentId),
-      loadAgentCatalogs(activeAgentId),
-      hasCachedView ? Promise.resolve() : refreshMenu({ agentId: activeAgentId })
-    ]);
-
-    if (hasCachedView) {
-      renderSystemFiles(systemFilesCache);
-    }
-
-    if (isAgentWorkspaceCanvasVisible()) {
-      applyAgentWorkspaceCanvasUi();
-    }
-    await loadAgentFocusItems(activeAgentId);
-    updateDocumentTitle();
-    updateBreadcrumbsForActiveMode();
-    void loadAppFooterIdeasPreview();
-    void refreshMenuGoogleDriveStats(activeAgentId);
-    void refreshMenuAwnDataStores(activeAgentId, { showLoading: true });
-    void refreshMenuRepositories(activeAgentId);
-    void refreshMenuAwnDialogsStats(activeAgentId);
-    void refreshMenuAwnFactsStats(activeAgentId);
-    void refreshMenuAwnTempStats(activeAgentId);
-    window.AwnDashboards?.refreshMenuStats?.(activeAgentId);
+    void (async () => {
+      try {
+        await Promise.all([
+          loadSystemFiles(),
+          loadAwnTypes(switchedAgentId),
+          loadAgentCatalogs(switchedAgentId)
+        ]);
+        if (switchedAgentId !== activeAgentId) return;
+        if (hasCachedView) {
+          renderSystemFiles(systemFilesCache);
+        }
+        await refreshAgentSliderCatalog(true);
+        if (switchedAgentId !== activeAgentId) return;
+        syncAgentPreview();
+        ensureSidebarWorkspacePageIndexRow();
+        if (isAgentWorkspaceCanvasVisible()) {
+          applyAgentWorkspaceCanvasUi();
+        }
+        await loadAgentFocusItems(switchedAgentId);
+        if (switchedAgentId !== activeAgentId) return;
+        updateDocumentTitle();
+        updateBreadcrumbsForActiveMode();
+        void loadAppFooterIdeasPreview();
+        void refreshMenuGoogleDriveStats(switchedAgentId);
+        void refreshMenuAwnDataStores(switchedAgentId, { showLoading: true });
+        void refreshMenuRepositories(switchedAgentId);
+        void refreshMenuAwnDialogsStats(switchedAgentId);
+        void refreshMenuAwnFactsStats(switchedAgentId);
+        void refreshMenuAwnTempStats(switchedAgentId);
+        window.AwnDashboards?.refreshMenuStats?.(switchedAgentId);
+      } catch (error) {
+        console.warn("switchActiveAgent background load failed", error);
+      }
+    })();
   } finally {
     setMenuLoading(false);
   }
@@ -59537,13 +59549,7 @@ function createNavigationSubsectionsBlock(bodyNode) {
 
 function openSharedFlexibleSlotExternalNavigation() {
   if (!activePath) return;
-  if (supportsDataEntryOverview("memory")) {
-    openEntryOverviewMemoryTocFromNavigation("external");
-    return;
-  }
-  const storageRel = getExternalMemoryRootRel(activePath);
-  if (!storageRel) return;
-  void openFolderBrowseFromMenu(TOPIC_SHARED_SLOT_EXTERNAL_TITLE, storageRel);
+  openEntryOverviewMemoryTocFromNavigation("external");
 }
 
 function openNavigationHubSlotList(modeId, externalFile = null) {
@@ -64079,6 +64085,7 @@ function resolveEntryOverviewStorageSlotFolderWorkspacePath(context, topicPath) 
 function shouldOfferEntryOverviewStorageSlotCreate(context) {
   if (!context?.memoryKind || !activePath) return false;
   if (!isEntryOverviewMemoryTocRoot(context)) return false;
+  if (context.memoryKind === "external" && isTopicSharedSlotActive()) return false;
   return Boolean(getEntryOverviewStorageSlotFolderApiName(context));
 }
 
@@ -68255,7 +68262,19 @@ function renderEntryOverviewFullMemoryToc(context, navigationIndex, { topicPrevi
     navigationIndex;
   const mdItems = [...(contentFiles || [])].sort((a, b) => compareNavigationPathsNatural(a.path, b.path));
 
-  if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) return null;
+  if (!mdItems.length && (!folderPaths || folderPaths.size === 0)) {
+    if (context.memoryKind === "external" && isTopicSharedSlotActive()) {
+      const section = document.createElement("section");
+      section.className = "node-entry-overview-memory-toc";
+      const empty = document.createElement("p");
+      empty.className = "node-navigation-section-search-empty node-navigation-shared-slot-empty";
+      empty.textContent =
+        "Пока нет .md файлов в awn-storage/. Добавьте файл или папку внутри awn-storage/.";
+      section.appendChild(empty);
+      return section;
+    }
+    return null;
+  }
 
   const section = document.createElement("section");
   section.className = "node-entry-overview-memory-toc";
@@ -101393,8 +101412,13 @@ async function init() {
     const bootRoute = parseAppRoute(location.pathname);
     if (bootRoute.type !== "root" && bootRoute.type !== "legacy" && activeAgentId) {
       setMenuLoading(true, "Загрузка дерева…");
-      await Promise.all([loadSystemFiles(), loadAwnTypes(activeAgentId), loadAgentCatalogs(activeAgentId)]);
       await refreshMenu();
+      setMenuLoading(false);
+      void Promise.all([
+        loadSystemFiles(),
+        loadAwnTypes(activeAgentId),
+        loadAgentCatalogs(activeAgentId)
+      ]);
     }
 
     suspendAppRouteSync();
