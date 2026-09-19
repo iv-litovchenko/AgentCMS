@@ -129,29 +129,78 @@ start_via_terminal() {
   return 1
 }
 
-stop_by_port() {
-  local stopped=0
-  local port
-
+collect_port_pids() {
+  local port pids seen="" pid
   for port in 3488 3088 3443 3000; do
-    local pids
-    pids="$(lsof -ti :"$port" 2>/dev/null || true)"
-    if [[ -n "$pids" ]]; then
-      kill $pids 2>/dev/null || true
-      stopped=1
+    while IFS= read -r pid; do
+      [[ -n "$pid" ]] || continue
+      case " $seen " in
+        *" $pid "*) ;;
+        *)
+          seen+="$pid "
+          printf '%s\n' "$pid"
+          ;;
+      esac
+    done < <(lsof -ti :"$port" 2>/dev/null || true)
+  done
+}
+
+kill_pids() {
+  local signal="$1"
+  shift
+  local pid flag="-TERM"
+  if [[ "$signal" == "KILL" ]]; then
+    flag="-KILL"
+  fi
+  for pid in "$@"; do
+    [[ -n "$pid" ]] || continue
+    kill "$flag" "$pid" 2>/dev/null || true
+  done
+}
+
+stop_related_processes() {
+  local pid
+
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] || continue
+    kill_pids TERM "$pid"
+  done < <(pgrep -f "$ROOT/scripts/start-mobile-https\\.sh" 2>/dev/null || true)
+
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] || continue
+    kill_pids TERM "$pid"
+  done < <(pgrep -f "npm run start:https" 2>/dev/null || true)
+}
+
+stop_by_port() {
+  local pass pids
+
+  stop_related_processes
+
+  for pass in 1 2; do
+    pids="$(collect_port_pids | tr '\n' ' ')"
+    [[ -z "${pids// }" ]] && return 0
+
+    if [[ "$pass" -eq 1 ]]; then
+      kill_pids TERM $pids
+    else
+      kill_pids KILL $pids
     fi
+
+    sleep 0.5
   done
 
-  if [[ "$stopped" -eq 1 ]]; then
-    sleep 0.5
-  fi
+  pids="$(collect_port_pids | tr '\n' ' ')"
+  [[ -z "${pids// }" ]]
 }
 
 stop_server() {
+  local still_listening=0
+
   if is_running; then
     local pid
     pid="$(cat "$PID_FILE")"
-    kill "$pid" 2>/dev/null || true
+    kill_pids TERM "$pid"
 
     for _ in {1..20}; do
       if ! kill -0 "$pid" 2>/dev/null; then
@@ -160,12 +209,21 @@ stop_server() {
       sleep 0.25
     done
 
-    kill -9 "$pid" 2>/dev/null || true
+    kill_pids KILL "$pid"
     rm -f "$PID_FILE"
   fi
 
-  stop_by_port
+  if ! stop_by_port; then
+    still_listening=1
+  fi
+
   rm -f "$LOCK_FILE"
+
+  if [[ "$still_listening" -eq 1 ]]; then
+    echo "Не удалось полностью остановить сервер — порты 3443/3488 всё ещё заняты."
+    return 1
+  fi
+
   echo "Остановлено."
 }
 

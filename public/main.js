@@ -1559,6 +1559,32 @@ const MEDIA_FILTER_CHPU_VIEWS = new Set([
   "other"
 ]);
 
+/** Встроенные модули workspace — /{agent}/~module-git */
+const CHPU_WORKSPACE_MODULE_VIEW_IDS = new Set([
+  "module-git",
+  "module-settings",
+  "module-awn-types",
+  "module-registry",
+  "module-large-files",
+  "module-broken-links",
+  "module-run-scripts"
+]);
+
+const AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU = {
+  git: "module-git",
+  "awn-types": "module-awn-types",
+  "runtime-registry": "module-registry",
+  "large-files": "module-large-files",
+  "broken-links": "module-broken-links",
+  "run-scripts": "module-run-scripts"
+};
+
+const MODULE_CHPU_TO_AGENT_WORKSPACE_VIEW = Object.fromEntries(
+  Object.entries(AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU).map(([view, chpu]) => [chpu, view])
+);
+
+const PROJECT_SETTINGS_MODULE_CHPU = "module-settings";
+
 const MEDIA_VIEW_MODE_STORAGE_KEY = "yamlcms.mediaViewMode";
 
 /**
@@ -1605,7 +1631,14 @@ const CHPU_LEGACY_UI_ALIASES = {
   card: "preview",
   toc: "preview",
   "show-preview": "preview",
-  "entry-overview": "preview"
+  "entry-overview": "preview",
+  "m-git": "module-git",
+  "m-settings": "module-settings",
+  "m-awn-types": "module-awn-types",
+  "m-registry": "module-registry",
+  "m-large-files": "module-large-files",
+  "m-broken-links": "module-broken-links",
+  "m-run-scripts": "module-run-scripts"
 };
 
 /** @deprecated legacy /a/…/v/{mode} */
@@ -1683,9 +1716,26 @@ const CHPU_SLOT_FOLDER_TO_MODE = {
 function normalizeChpuUiView(raw) {
   const key = String(raw || "").trim();
   if (!key) return null;
+  if (CHPU_WORKSPACE_MODULE_VIEW_IDS.has(key)) return key;
   if (MEDIA_FILTER_CHPU_VIEWS.has(key)) return key;
   const aliased = CHPU_LEGACY_UI_ALIASES[key] || key;
+  if (CHPU_WORKSPACE_MODULE_VIEW_IDS.has(aliased)) return aliased;
   return CHPU_UI_VIEW_IDS.has(aliased) ? aliased : null;
+}
+
+function getWorkspaceModuleChpuFromViews(views) {
+  for (const raw of views || []) {
+    const normalized = normalizeChpuUiView(raw);
+    if (normalized && CHPU_WORKSPACE_MODULE_VIEW_IDS.has(normalized)) return normalized;
+  }
+  return null;
+}
+
+function buildAgentModuleChpuPath(agentId, moduleChpu) {
+  const id = String(agentId || "").trim();
+  const module = String(moduleChpu || "").trim();
+  if (!id || !module) return `/${encodeURIComponent(id)}`;
+  return `/${encodeURIComponent(id)}/~${module}`;
 }
 
 function extractMediaFilterFromChpuViews(uiViews) {
@@ -1744,13 +1794,15 @@ function partitionChpuViews(rawViews) {
   const uiViews = [];
   let legacySlotFolder = null;
   for (const raw of rawViews || []) {
-    const slotFolder = CHPU_LEGACY_SLOT_VIEW_TO_FOLDER[String(raw || "").trim()];
+    const key = String(raw || "").trim();
+    if (CHPU_WORKSPACE_MODULE_VIEW_IDS.has(key)) continue;
+    const slotFolder = CHPU_LEGACY_SLOT_VIEW_TO_FOLDER[key];
     if (slotFolder) {
       legacySlotFolder = slotFolder;
       continue;
     }
     const uiView = normalizeChpuUiView(raw);
-    if (uiView) uiViews.push(uiView);
+    if (uiView && !CHPU_WORKSPACE_MODULE_VIEW_IDS.has(uiView)) uiViews.push(uiView);
   }
   return { uiViews, legacySlotFolder };
 }
@@ -2245,12 +2297,25 @@ async function applyChpuResolvedRoute(resolved) {
   const manifestUiMode = uiViews.map(chpuUiViewToContentMode).find(Boolean);
 
   if (resolved?.kind === "agentHome") {
-    showHomeView();
+    const moduleChpu = getWorkspaceModuleChpuFromViews(getResolvedChpuViews(resolved));
+    if (moduleChpu === PROJECT_SETTINGS_MODULE_CHPU) {
+      await openProjectSettingsHub({ skipRouteSync: true });
+      return;
+    }
+    const workspaceView = MODULE_CHPU_TO_AGENT_WORKSPACE_VIEW[moduleChpu];
+    if (workspaceView) {
+      agentWorkspaceView = workspaceView;
+      saveAgentWorkspaceView(workspaceView);
+      showAgentHomeView();
+      return;
+    }
+    agentWorkspaceView = normalizeVisibleAgentWorkspaceView("dashboard");
+    saveAgentWorkspaceView(agentWorkspaceView);
+    showAgentHomeView();
     return;
   }
 
   if (resolved?.kind === "projectSettings") {
-    hideHomeView();
     await openProjectSettingsHub({ skipRouteSync: true });
     return;
   }
@@ -2730,12 +2795,14 @@ function buildAppPathFromState() {
     return "/";
   }
 
-  if (appRootNode?.classList.contains("home-view") && !activePath && !activeSystemFile && !activeFolderBrowsePath && !awnDataViewStoreRel) {
-    return `/${encodeURIComponent(agentId)}`;
+  if (isProjectSettingsMode() && !activePath && !activeSystemFile && !activeFolderBrowsePath) {
+    return buildAgentModuleChpuPath(agentId, PROJECT_SETTINGS_MODULE_CHPU);
   }
 
-  if (isProjectSettingsMode() && !activePath && !activeSystemFile && !activeFolderBrowsePath) {
-    return `/${encodeURIComponent(agentId)}/${encodeURIComponent(PROJECT_SETTINGS_CHPU_SEGMENT)}`;
+  if (appRootNode?.classList.contains("home-view") && !activePath && !activeSystemFile && !activeFolderBrowsePath && !awnDataViewStoreRel) {
+    const moduleChpu = AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU[agentWorkspaceView];
+    if (moduleChpu) return buildAgentModuleChpuPath(agentId, moduleChpu);
+    return `/${encodeURIComponent(agentId)}`;
   }
 
   if (!activePath && !activeSystemFile && !activeFolderBrowsePath && !(awnDataViewStoreRel && activeContentMode === AWN_DATA_VIEW_MODE)) {
@@ -28421,7 +28488,7 @@ function getBreadcrumbPathForActiveMode(overrides = {}) {
     return normalizeCreateParentPath(activeFolderBrowsePath);
   }
   if (isProjectSettingsMode()) {
-    return PROJECT_SETTINGS_CHPU_SEGMENT;
+    return `~${PROJECT_SETTINGS_MODULE_CHPU}`;
   }
   if (appRootNode.classList.contains("home-view") || !activePath) {
     return getHomeBreadcrumbPath();
@@ -41310,10 +41377,9 @@ function renderProjectSettingsScopeList() {
   const legend = document.createElement("div");
   legend.className = "project-settings-scope-legend";
   legend.innerHTML =
-    '<span class="project-settings-scope-legend-item is-local"><span class="project-settings-scope-marker is-config-kind has-value" aria-hidden="true"></span> config.yml</span>' +
     '<span class="project-settings-scope-legend-item is-schema"><span class="project-settings-scope-marker is-schema-kind has-value" aria-hidden="true"></span> schema.yml</span>' +
-    '<span class="project-settings-scope-legend-item is-env"><span class="project-settings-scope-marker is-env-kind has-value" aria-hidden="true"></span> .env</span>' +
-    '<span class="project-settings-scope-legend-item is-empty"><span class="project-settings-scope-marker" aria-hidden="true"></span> не задано</span>';
+    '<span class="project-settings-scope-legend-item is-local"><span class="project-settings-scope-marker is-config-kind has-value" aria-hidden="true"></span> config.yml</span>' +
+    '<span class="project-settings-scope-legend-item is-env"><span class="project-settings-scope-marker is-env-kind has-value" aria-hidden="true"></span> .env</span>';
   projectSettingsScopeListNode.appendChild(legend);
 
   if (searchActive && !visibleScopes.length) {
@@ -41359,12 +41425,12 @@ function renderProjectSettingsScopeList() {
       btn.classList.toggle("has-env-values", hasEnvValues);
       btn.classList.toggle("is-empty-scope", isEmptyScope);
       btn.title = [
-        hasConfigValues ? `config.yml: ${configCount} знач.` : "config.yml: наследуется с уровня выше",
         hasSchemaFields
           ? `${schemaPath || "schema.yml"}: ${schemaCount} полей`
           : status?.schemaExists
             ? `${schemaPath || "schema.yml"}: файл есть, полей нет`
             : `${schemaPath || "schema.yml"}: не создан`,
+        hasConfigValues ? `config.yml: ${configCount} знач.` : "config.yml: наследуется с уровня выше",
         hasEnvValues
           ? `${envPath}: ${envCount} перем.`
           : status?.envExists
@@ -41375,8 +41441,8 @@ function renderProjectSettingsScopeList() {
       const markers = document.createElement("span");
       markers.className = "project-settings-scope-markers";
       markers.append(
-        createProjectSettingsScopeMarker("config", hasConfigValues),
         createProjectSettingsScopeMarker("schema", hasSchemaFields),
+        createProjectSettingsScopeMarker("config", hasConfigValues),
         createProjectSettingsScopeMarker("env", hasEnvValues)
       );
 
@@ -41389,8 +41455,8 @@ function renderProjectSettingsScopeList() {
       if (hasConfigValues || hasSchemaFields || hasEnvValues) {
         const badges = document.createElement("span");
         badges.className = "project-settings-scope-badges";
-        if (hasConfigValues) badges.append(createProjectSettingsScopeBadge("config", configCount));
         if (hasSchemaFields) badges.append(createProjectSettingsScopeBadge("schema", schemaCount));
+        if (hasConfigValues) badges.append(createProjectSettingsScopeBadge("config", configCount));
         if (hasEnvValues) badges.append(createProjectSettingsScopeBadge("env", envCount));
         btn.append(badges);
       }
@@ -89818,7 +89884,7 @@ function applyAgentWorkspaceCanvasUi() {
   updateDocumentTitle();
 }
 
-function setAgentWorkspaceView(view) {
+function setAgentWorkspaceView(view, { skipRouteSync = false } = {}) {
   if (
     view !== "dashboard" &&
     view !== "dashboard2" &&
@@ -89857,6 +89923,9 @@ function setAgentWorkspaceView(view) {
   }
 
   applyAgentWorkspaceCanvasUi();
+  if (!skipRouteSync) {
+    syncAppRouteToUrl({ replace: true });
+  }
 }
 
 function countAgentMenuNodes(menu) {

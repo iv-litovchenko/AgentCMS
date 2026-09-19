@@ -11255,16 +11255,18 @@ body.app-locked {
 
 .project-settings-sidebar {
   position: sticky;
-  top: 8px;
+  top: 0;
+  align-self: start;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: calc(100vh - 160px);
-  overflow: auto;
-  padding: 10px 10px 12px;
+  gap: 6px;
+  max-height: calc(100dvh - 228px);
+  overflow: hidden;
+  padding: 8px 10px;
   border: 1px solid rgba(148, 163, 184, 0.32);
   border-radius: 10px;
   background: rgba(248, 250, 252, 0.92);
+  box-sizing: border-box;
 }
 
 .project-settings-sidebar-title {
@@ -11274,6 +11276,7 @@ body.app-locked {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
+  flex: 0 0 auto;
 }
 
 .project-settings-search-wrap {
@@ -11315,7 +11318,11 @@ body.app-locked {
 .project-settings-scope-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .project-settings-scope-group {
@@ -11333,20 +11340,24 @@ body.app-locked {
 
 .project-settings-scope-legend {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 4px;
-  padding: 0 2px 8px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-bottom: 2px;
+  padding: 0 2px 6px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.22);
   font-size: 10px;
   line-height: 1.35;
   color: var(--muted);
+  flex: 0 0 auto;
 }
 
 .project-settings-scope-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .project-settings-scope-markers {

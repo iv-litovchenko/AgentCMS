@@ -84,6 +84,17 @@ const CHPU_UI_VIEW_IDS = new Set([
   "folder"
 ]);
 
+/** Встроенные модули workspace: /{agent}/~module-git и т.д. */
+const CHPU_WORKSPACE_MODULE_VIEW_IDS = new Set([
+  "module-git",
+  "module-settings",
+  "module-awn-types",
+  "module-registry",
+  "module-large-files",
+  "module-broken-links",
+  "module-run-scripts"
+]);
+
 const CHPU_LEGACY_UI_ALIASES = {
   description: "edit",
   edit: "edit",
@@ -111,6 +122,13 @@ const CHPU_LEGACY_UI_ALIASES = {
   toc: "preview",
   "show-preview": "preview",
   "entry-overview": "preview",
+  "m-git": "module-git",
+  "m-settings": "module-settings",
+  "m-awn-types": "module-awn-types",
+  "m-registry": "module-registry",
+  "m-large-files": "module-large-files",
+  "m-broken-links": "module-broken-links",
+  "m-run-scripts": "module-run-scripts",
   external: null,
   internal: null,
   inbox: null,
@@ -142,6 +160,7 @@ function normalizeChpuViewCandidate(candidate) {
   const raw = candidate === "quick-notes" ? "notes" : candidate;
   if (CHPU_LEGACY_UI_ALIASES[raw] === null) return raw;
   const aliased = CHPU_LEGACY_UI_ALIASES[raw] ?? raw;
+  if (CHPU_WORKSPACE_MODULE_VIEW_IDS.has(aliased)) return aliased;
   if (CHPU_UI_VIEW_IDS.has(aliased)) return aliased;
   if (APP_ROUTE_VIEW_IDS.has(raw)) return raw;
   return null;
@@ -657,6 +676,7 @@ function isChpuReservedRootSegment(segment) {
 
 module.exports = {
   APP_ROUTE_VIEW_IDS,
+  CHPU_WORKSPACE_MODULE_VIEW_IDS,
   PROJECT_SETTINGS_CHPU_SEGMENTS,
   SYSTEM_FILE_CHPU_ALIASES,
   SYSTEM_FILE_TO_CHPU_PATH,

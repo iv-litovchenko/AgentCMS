@@ -317,14 +317,81 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function stopAttachedServer() {
-  if (!attachedServerProcess) return;
+function killProcessTree(pid, signal = "SIGTERM") {
+  if (!pid || pid <= 0) return;
+  const { execFileSync } = require("child_process");
   try {
-    attachedServerProcess.kill("SIGTERM");
+    const children = execFileSync("pgrep", ["-P", String(pid)], { encoding: "utf8", timeout: 2000 })
+      .trim()
+      .split("\n")
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    for (const childPid of children) {
+      killProcessTree(childPid, signal);
+    }
+  } catch {
+    // no children
+  }
+  try {
+    process.kill(pid, signal);
   } catch {
     // ignore
   }
+}
+
+async function forceStopServerPorts() {
+  const { execFileSync } = require("child_process");
+  const ports = [3488, 3088, 3443, 3000];
+  const pids = new Set();
+
+  for (const port of ports) {
+    try {
+      const stdout = execFileSync("lsof", ["-ti", `:${port}`], { encoding: "utf8", timeout: 2000 }).trim();
+      for (const pid of stdout.split("\n")) {
+        const numeric = Number(pid.trim());
+        if (Number.isFinite(numeric) && numeric > 0) pids.add(numeric);
+      }
+    } catch {
+      // port free
+    }
+  }
+
+  if (!pids.size) return true;
+
+  for (const pid of pids) killProcessTree(pid, "SIGTERM");
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    let alive = false;
+    for (const pid of pids) {
+      try {
+        process.kill(pid, 0);
+        alive = true;
+      } catch {
+        // dead
+      }
+    }
+    if (!alive) return true;
+    if (attempt === 2) {
+      for (const pid of pids) killProcessTree(pid, "SIGKILL");
+    }
+    await sleep(250);
+  }
+
+  return false;
+}
+
+function stopAttachedServer() {
+  if (!attachedServerProcess) return;
+  const child = attachedServerProcess;
   attachedServerProcess = null;
+  killProcessTree(child.pid, "SIGTERM");
+  setTimeout(() => {
+    try {
+      process.kill(child.pid, 0);
+      killProcessTree(child.pid, "SIGKILL");
+    } catch {
+      // already stopped
+    }
+  }, 500);
 }
 
 async function waitForServerReady(maxAttempts = 48) {
@@ -482,9 +549,28 @@ async function runAction(actionId) {
     child.on("close", async (code) => {
       activeTasks.delete(actionId);
       sendActionState({ actionId, running: false });
-      sendLog(`\n■ Завершено (код ${code ?? "?"})\n`);
 
-      resolve({ ok: code === 0, code });
+      let ok = code === 0;
+      if (action.serverRole === "stop") {
+        let status = await probeServerStatus();
+        if (status.running) {
+          sendLog("\n⚠ Порты всё ещё заняты — принудительная остановка…\n", "stderr");
+          await forceStopServerPorts();
+          await sleep(400);
+          status = await probeServerStatus();
+        }
+        if (status.running) {
+          ok = false;
+          const message =
+            "Сервер не остановился. Закройте окно Terminal с npm run start:https или выполните: bash scripts/agent-https-service.sh stop";
+          sendLog(`\n✕ ${message}\n`, "stderr");
+          resolve({ ok: false, code, error: message });
+          return;
+        }
+      }
+
+      sendLog(`\n■ Завершено (код ${ok ? 0 : code ?? "?"})\n`);
+      resolve({ ok, code: ok ? 0 : code });
     });
 
     child.on("error", (error) => {
