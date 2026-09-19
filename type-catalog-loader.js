@@ -778,7 +778,7 @@ function getTypeUsage(entry, merged, byId) {
         wired = true;
       }
       if (entry.kind === "data-element") {
-        consumers.push("схема записей store (schema-mod)");
+        consumers.push("схема записей store (schema.yml)");
         wired = true;
       }
       if (!consumers.length) note = "data-тип без store-kind / fields";

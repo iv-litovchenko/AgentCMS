@@ -1,6 +1,6 @@
 # All Field Types — внутренняя память
 
-Демонстрационная тема: **все типы полей** в `schema-mod.yml` → `awn_schema`.
+Демонстрационная тема: **все типы полей** в `schema.yml` → `awn_schema`.
 
 - **topic** (`manifest.md`) — `demo_*`, полный набор типов
 - **record** (`Content/All-Field-Types.md`) — `rec_*`

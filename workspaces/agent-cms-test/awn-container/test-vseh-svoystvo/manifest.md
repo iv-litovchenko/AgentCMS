@@ -103,7 +103,7 @@ field-1: ""
 | **record** | `Content/All-Field-Types.md` (`rec_*`) |
 | **sidecar** | любой `.sidecar.md` в `Assets/` (`sidecar_*`) |
 
-Схема полей: **`schema-mod.yml`** → `awn_schema`.
+Схема полей: **`schema.yml`** → `awn_schema`.
 
 **Медиа (5 типов файлов):**
 

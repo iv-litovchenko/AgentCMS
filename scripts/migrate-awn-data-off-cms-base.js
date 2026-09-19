@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Migrate awn-data stores off cms-base MD supertypes → awn-type + schema-mod.yml
+ * Migrate awn-data stores off cms-base MD supertypes → awn-type + schema.yml
  */
 const fs = require("fs");
 const path = require("path");
@@ -114,7 +114,7 @@ function migrateManifest(manifestPath) {
   };
 
   const storeDir = path.dirname(manifestPath);
-  const schemeModPath = path.join(storeDir, "schema-mod.yml");
+  const schemeModPath = path.join(storeDir, "schema.yml");
 
   if (kind !== "group" && (hasInlineFields || !fs.existsSync(schemeModPath))) {
     fs.writeFileSync(

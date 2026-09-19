@@ -230,7 +230,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "read_content_schema",
-    "Read slot content field schema (schema-mod.yml for sections): inherits topic slot_* fields + parent section chain. Use ref inside a category (e.g. razdel-1/manifest.md). mode=effective|layers|local.",
+    "Read slot content field schema (schema.yml for sections): inherits topic slot_* fields + parent section chain. Use ref inside a category (e.g. razdel-1/manifest.md). mode=effective|layers|local.",
     z.object({
       path: pagePath,
       slot: contentSlot,
@@ -246,7 +246,7 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "write_content_schema",
-    "Save section schema-mod.yml override for slot content (category/record/sidecar x-field-*). Pass YAML with awn_schema slot_* blocks only. Inherits topic schema at runtime; writes local section layer only.",
+    "Save section schema.yml override for slot content (category/record/sidecar x-field-*). Pass YAML with awn_schema slot_* blocks only. Inherits topic schema at runtime; writes local section layer only.",
     z.object({
       path: pagePath,
       slot: contentSlot,

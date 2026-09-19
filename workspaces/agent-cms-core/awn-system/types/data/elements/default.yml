@@ -4,7 +4,7 @@ kind: data-element
 domain: data
 status: active
 extends: awn.data.element.base
-description: Базовая схема полей для записей store (schema-mod extends)
+description: Базовая схема полей для записей store (schema.yml extends)
 fields:
   awn-created:
     type: awn.field.date.datetime

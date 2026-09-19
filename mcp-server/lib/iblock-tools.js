@@ -67,7 +67,7 @@ export function registerIblockTools(reg, client) {
 
   reg(
     "iblock_read_schema",
-    "Read record field schema from infoblock schema-mod.yml (instance override, not type catalog).",
+    "Read record field schema from infoblock schema.yml (instance override, not type catalog).",
     z.object({
       store: z.string().min(1).describe("Store relPath, e.g. tasks, taxonomies/statuses")
     }),

@@ -87,7 +87,7 @@ export function registerPageTools({ reg, client, pagePath }) {
 
   reg(
     "read_page_schema",
-    "Read schema-mod.yml layers (workspace / area / topic — non-empty blocks only). Base type fields: get_type.",
+    "Read schema.yml layers (workspace / area / topic — non-empty blocks only). Base type fields: get_type.",
     z.object({
       path: pagePath,
       target: z
@@ -97,7 +97,7 @@ export function registerPageTools({ reg, client, pagePath }) {
       mode: z
         .enum(["layers", "overlay", "full"])
         .optional()
-        .describe("layers (default) = schema-mod layers only; full = legacy dump with baseTypes/merged")
+        .describe("layers (default) = schema layers only; full = legacy dump with baseTypes/merged")
     }),
     ({ path, target, mode }) =>
       client.get("/api/file/page-schema", {
@@ -109,14 +109,14 @@ export function registerPageTools({ reg, client, pagePath }) {
 
   reg(
     "write_page_schema",
-    "Save schema-mod.yml override. Pass YAML with awn_schema: { topic: { fields: … } } — only blocks you change. Response is slim (written blocks only).",
+    "Save schema.yml override. Pass YAML with awn_schema: { topic: { fields: … } } — only blocks you change. Response is slim (written blocks only).",
     z.object({ path: pagePath, content: z.string() }),
     ({ path, content }) => client.post("/api/file/page-schema", { path, content, responseMode: "layers" })
   );
 
   reg(
     "read_page_config",
-    "Read page config.yml (awn_settings, awn_ui). Field definitions live in schema-mod — use read_page_schema.",
+    "Read page config.yml (awn_settings, awn_ui). Field definitions live in schema.yml — use read_page_schema.",
     z.object({ path: pagePath }),
     ({ path }) => client.get("/api/file/page-config", { path })
   );

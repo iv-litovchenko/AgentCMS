@@ -12,6 +12,7 @@ const {
 } = require("./awn-data-csv");
 const {
   SCHEMA_MOD_FILE,
+  LEGACY_SCHEMA_MOD_FILE,
   LEGACY_SCHEME_MOD_FILE,
   LEGACY_SHEMAMOD_FILE,
   LEGACY_CONFIGURATION_SCHEMA_FILE
@@ -670,6 +671,7 @@ function readRawStoreSchemaAt(storeAbs, explicitPath = "") {
 function resolveStoreSchemeModPath(storeAbs) {
   const candidates = [
     path.join(storeAbs, SCHEMA_MOD_FILE),
+    path.join(storeAbs, LEGACY_SCHEMA_MOD_FILE),
     path.join(storeAbs, LEGACY_SCHEME_MOD_FILE),
     path.join(storeAbs, LEGACY_SHEMAMOD_FILE),
     path.join(storeAbs, LEGACY_CONFIGURATION_SCHEMA_FILE)

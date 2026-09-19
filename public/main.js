@@ -1371,7 +1371,7 @@ function findStorageRootMarkerIndex(relPath) {
 }
 const TOPIC_MANIFEST_RE = /^manifest\.md$/i;
 const MANIFEST_MD_RE = TOPIC_MANIFEST_RE;
-const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "main.md", "main.csv", "config.yml", "configuration.yml", "schema-mod.yml", "scheme-mod.yml", "STRUCTURE.md"]);
+const MENU_EXCLUDED_TOPIC_MD = new Set(["manifest.md", "agents.md", "todo.md", "main.md", "main.csv", "config.yml", "configuration.yml", "schema.yml", "schema.yml", "scheme-mod.yml", "STRUCTURE.md"]);
 const STORAGE_FOLDER_NAME = STORAGE_ROOT_FOLDER;
 const STORAGE_FOLDER_REGEX = "(?:awn-storage|storage)/[^/]+";
 const STORAGE_SLOT_REGEX = "(?:awn-storage|storage)/([^/]+)";
@@ -1379,7 +1379,7 @@ const BUNDLE_CONTENT_FILE = "main.md";
 const BUNDLE_TABULAR_FILE = "main.csv";
 const BUNDLE_CONFIG_FILE = "config.yml";
 const LEGACY_BUNDLE_CONFIG_FILE = "configuration.yml";
-const SCHEMA_MOD_FILE = "schema-mod.yml";
+const SCHEMA_MOD_FILE = "schema.yml";
 const BUNDLE_TODO_FILE = "todo.md";
 const BUNDLE_LOG_FILE = "log.md";
 const BROKEN_IMAGE_PLACEHOLDER_SRC = "/image-missing.svg";
@@ -19671,6 +19671,15 @@ async function setTopicSharedSlotState(nodePath, enabled, options = {}) {
     } else if (activeContentMode === NODE_OVERVIEW_MODE) {
       await renderNodeOverview();
     }
+  }
+
+  const toggledManifest = resolveManifestPathForNodeApi(getResolvedNodePath(nodePath));
+  if (
+    activeContentMode === "topic-schema" &&
+    toggledManifest &&
+    toggledManifest === getTopicSchemaManifestPath(activePath)
+  ) {
+    renderTopicSchemaEditor();
   }
 
   return true;
@@ -40535,7 +40544,7 @@ function createProjectSettingsScopeBadge(kind, valueCount) {
     kind === "env"
       ? "Количество переменных в .env"
       : kind === "schema"
-        ? "Количество полей в schema-mod.yml"
+        ? "Количество полей в schema.yml"
         : "Количество значений в awn_settings";
   return badge;
 }
@@ -40590,7 +40599,7 @@ function renderProjectSettingsScopeList() {
   legend.className = "project-settings-scope-legend";
   legend.innerHTML =
     '<span class="project-settings-scope-legend-item is-local"><span class="project-settings-scope-marker is-config-kind has-value" aria-hidden="true"></span> config.yml</span>' +
-    '<span class="project-settings-scope-legend-item is-schema"><span class="project-settings-scope-marker is-schema-kind has-value" aria-hidden="true"></span> schema-mod.yml</span>' +
+    '<span class="project-settings-scope-legend-item is-schema"><span class="project-settings-scope-marker is-schema-kind has-value" aria-hidden="true"></span> schema.yml</span>' +
     '<span class="project-settings-scope-legend-item is-env"><span class="project-settings-scope-marker is-env-kind has-value" aria-hidden="true"></span> .env</span>' +
     '<span class="project-settings-scope-legend-item is-empty"><span class="project-settings-scope-marker" aria-hidden="true"></span> не задано</span>';
   projectSettingsScopeListNode.appendChild(legend);
@@ -40640,10 +40649,10 @@ function renderProjectSettingsScopeList() {
       btn.title = [
         hasConfigValues ? `config.yml: ${configCount} знач.` : "config.yml: наследуется с уровня выше",
         hasSchemaFields
-          ? `${schemaPath || "schema-mod.yml"}: ${schemaCount} полей`
+          ? `${schemaPath || "schema.yml"}: ${schemaCount} полей`
           : status?.schemaExists
-            ? `${schemaPath || "schema-mod.yml"}: файл есть, полей нет`
-            : `${schemaPath || "schema-mod.yml"}: не создан`,
+            ? `${schemaPath || "schema.yml"}: файл есть, полей нет`
+            : `${schemaPath || "schema.yml"}: не создан`,
         hasEnvValues
           ? `${envPath}: ${envCount} перем.`
           : status?.envExists
@@ -40781,7 +40790,7 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   }
   if (projectSettingsLeadNode) {
     projectSettingsLeadNode.innerHTML = scope
-      ? `Параметры уровня «${escapeHtml(scope.label)}»: форма из <code>schema-mod.yml</code> и секреты в <code>.env</code> рядом с manifest.`
+      ? `Параметры уровня «${escapeHtml(scope.label)}»: форма из <code>schema.yml</code> и секреты в <code>.env</code> рядом с manifest.`
       : "Выберите уровень в списке слева.";
   }
   if (projectSettingsConfigLeadNode) {
@@ -40789,7 +40798,7 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
       ? `На этом уровне задано <strong>${activeStatus.valueCount}</strong> значений в <code>config.yml</code>.`
       : "На этом уровне <strong>нет своих значений</strong> — пока действуют настройки уровня выше (или defaults).";
     projectSettingsConfigLeadNode.innerHTML =
-      `${localHint} Поля формы — из <code>schema-mod.yml</code> (вкладка «Настройки») на том же уровне.`;
+      `${localHint} Поля формы — из <code>schema.yml</code> (вкладка «Настройки») на том же уровне.`;
   }
   if (projectSettingsEnvLeadNode) {
     const envHint = activeStatus?.envHasValues
@@ -42371,9 +42380,14 @@ function renderTopicSchemaTargetTabs(cache = getTopicSchemaCache()) {
     return;
   }
 
+  const manifestPath = getTopicSchemaManifestPath(activePath);
+  const sharedSlotMode = isTopicSharedSlotActiveForNode(manifestPath || activePath);
   const groups =
     typeof TopicSchemaSlotSpecs !== "undefined" && TopicSchemaSlotSpecs.buildTopicSchemaTargetTabGroups
-      ? TopicSchemaSlotSpecs.buildTopicSchemaTargetTabGroups()
+      ? TopicSchemaSlotSpecs.buildTopicSchemaTargetTabGroups({
+          sharedSlotMode,
+          flexibleSlotLabel: TOPIC_SHARED_SLOT_RAIL_LABEL
+        })
       : null;
 
   if (!groups) {
@@ -42763,6 +42777,21 @@ function renderTopicSchemaCustomFields(cache = getTopicSchemaCache()) {
   syncTopicSchemaPendingGroupHint();
 }
 
+function buildTopicSchemaTopicLeadHtml(sharedSlotMode = false) {
+  return (
+    `Дополнительные поля сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest темы. ` +
+    "Ключи произвольные — каждая вкладка (Тема, слот, Настройки) хранит только свои поля. " +
+    (sharedSlotMode
+      ? `При включённом «${TOPIC_SHARED_SLOT_RAIL_LABEL}» настраивайте поля для разделов, записей и sidecar в <code>awn-storage/</code> — как у многофайловой памяти. Типовые слоты (inbox, media…) здесь скрыты. `
+      : "") +
+    "Зона UI (<code>placement</code>): <code>editor-body</code> (над текстом), <code>aside-body</code> (панель свойств), <code>aside-hero</code> (медиа). " +
+    "Разделы: «+ Раздел» задаёт group для новых полей; у заголовка раздела — ✎ переименовать, ↑↓ переместить весь блок. " +
+    "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
+    "Поля WS и области здесь не смешиваются — только схема этой темы. " +
+    '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>'
+  );
+}
+
 function renderTopicSchemaEditor() {
   topicSchemaActiveTarget = normalizeTopicSchemaActiveTarget(topicSchemaActiveTarget);
   closeTopicSchemaSectionEditor(topicSchemaPanelNode);
@@ -42782,14 +42811,9 @@ function renderTopicSchemaEditor() {
         "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа. " +
         '<span class="topic-schema-lead-hint">Ключи произвольные — поля привязаны к вкладке (Область / Настройки).</span>';
     } else {
-      leadNode.innerHTML =
-        `Дополнительные поля сохраняются в <code>${SCHEMA_MOD_FILE}</code> рядом с manifest темы. ` +
-        "Ключи произвольные — каждая вкладка (Тема, слот, Настройки) хранит только свои поля. " +
-        "Зона UI (<code>placement</code>): <code>editor-body</code> (над текстом), <code>aside-body</code> (панель свойств), <code>aside-hero</code> (медиа). " +
-        "Разделы: «+ Раздел» задаёт group для новых полей; у заголовка раздела — ✎ переименовать, ↑↓ переместить весь блок. " +
-        "Базовые поля (<code>awn-type</code>, <code>awn-name</code>…) наследуются от системного типа и не редактируются здесь. " +
-        "Поля WS и области здесь не смешиваются — только схема этой темы. " +
-        '<span class="topic-schema-lead-hint">Зелёная подсветка — у цели или поля уже есть свои настройки.</span>';
+      const manifestPath = getTopicSchemaManifestPath(activePath);
+      const sharedSlotMode = isTopicSharedSlotActiveForNode(manifestPath || activePath);
+      leadNode.innerHTML = buildTopicSchemaTopicLeadHtml(sharedSlotMode);
     }
   }
   if (!cache) {
@@ -42802,6 +42826,23 @@ function renderTopicSchemaEditor() {
   renderTopicSchemaBaseFields(cache);
   renderTopicSchemaCustomFields(cache);
   syncTopicSchemaPendingGroupHint();
+  scheduleTopicSchemaFlexibleSlotTabsRefresh();
+}
+
+function scheduleTopicSchemaFlexibleSlotTabsRefresh() {
+  const manifestPath = getTopicSchemaManifestPath(activePath);
+  if (!manifestPath || isWorkspaceSchemaContext() || isAreaSchemaContext()) return;
+  if (topicSlotsDisabledCache.has(manifestPath)) return;
+  void readTopicSlotsDisabledForPath(manifestPath).then((flexible) => {
+    if (activeContentMode !== "topic-schema") return;
+    if (getTopicSchemaManifestPath(activePath) !== manifestPath) return;
+    if (!flexible) return;
+    renderTopicSchemaTargetTabs(getTopicSchemaCache());
+    const leadNode = topicSchemaPanelNode?.querySelector(".topic-schema-lead");
+    if (leadNode && !isWorkspaceSchemaContext() && !isAreaSchemaContext()) {
+      leadNode.innerHTML = buildTopicSchemaTopicLeadHtml(true);
+    }
+  });
 }
 
 function preserveTopicSchemaFieldOrder(previousFields, nextFields) {
@@ -45080,7 +45121,7 @@ const AWN_TYPE_USAGE_HINTS = {
   "awn.workspace": "Корневой манифест workspace — manifest.md в корне агента",
   "awn.area": "Область (категория) — папка с manifest.md",
   "awn.topic": "Тема — standalone *.md манифест",
-  "awn.record": "Запись в awn-storage/*/main/ (расширяется в schema-mod.yml темы)",
+  "awn.record": "Запись в awn-storage/*/main/ (расширяется в schema.yml темы)",
   "awn.record.category": "Категория записей — справочник для awn-category в content",
   "awn.media.category": "Категория медиа — справочник для группировки файлов в media",
   "awn.sidecar": "Метаданные медиа — *.sidecar.md рядом с файлом"
@@ -96540,8 +96581,8 @@ function openAwnDataCreateModal(kind = "collection", options = {}) {
     } else {
       awnDataCreateModalHintNode.innerHTML =
         awnDataCreateKind === "singleton"
-          ? "Папка в <code>awn-data/</code> с <code>manifest.md</code>, <code>schema-mod.yml</code> и одним <code>main.md</code>."
-          : "Папка в <code>awn-data/</code> с <code>manifest.md</code>, <code>schema-mod.yml</code> и записями <code>{id}.md</code>.";
+          ? "Папка в <code>awn-data/</code> с <code>manifest.md</code>, <code>schema.yml</code> и одним <code>main.md</code>."
+          : "Папка в <code>awn-data/</code> с <code>manifest.md</code>, <code>schema.yml</code> и записями <code>{id}.md</code>.";
     }
   }
   awnDataCreateSampleWrapNode?.classList.toggle(

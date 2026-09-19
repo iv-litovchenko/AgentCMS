@@ -196,14 +196,14 @@ module.exports = {
         { name: "write_page_property", description: "Set one manifest property.", parameters: "path, key, value", http: "POST /api/file/properties" },
         {
           name: "read_page_schema",
-          description: "schema-mod.yml layers (mode=layers default). База типа: get_type.",
+          description: "schema.yml layers (mode=layers default). База типа: get_type.",
           parameters: "path, mode?, target?",
           http: "GET /api/file/page-schema"
         },
-        { name: "write_page_schema", description: "Записать schema-mod override.", parameters: "path, content", http: "POST /api/file/page-schema" },
+        { name: "write_page_schema", description: "Записать schema override.", parameters: "path, content", http: "POST /api/file/page-schema" },
         {
           name: "read_page_config",
-          description: "config.yml: awn_settings, awn_ui (не schema-mod).",
+          description: "config.yml: awn_settings, awn_ui (не schema.yml).",
           parameters: "path",
           http: "GET /api/file/page-config"
         },
@@ -293,7 +293,7 @@ module.exports = {
         { name: "iblock_create", description: "Создать group/collection/singleton.", parameters: "slug, kind?, …", http: "POST /api/awn-data/stores" },
         {
           name: "iblock_read_schema",
-          description: "schema-mod.yml инфоблока (экземпляр, не каталог типов).",
+          description: "schema.yml инфоблока (экземпляр, не каталог типов).",
           parameters: "store",
           http: "GET /api/awn-data/store-schema"
         },

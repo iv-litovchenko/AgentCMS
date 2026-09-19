@@ -9,4 +9,4 @@ awn-record-hierarchy: true
 
 Store id = **`awn-data/tasks`**.
 
-Тип: `awn.data.collection`. Поля записей — `schema-mod.yml` (extends `awn.data.element.default`).
+Тип: `awn.data.collection`. Поля записей — `schema.yml` (extends `awn.data.element.default`).

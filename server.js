@@ -11166,7 +11166,7 @@ async function buildAgentWorkspacePageIndex() {
     model: "workspace-page-index",
     hint:
       "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, конфигурации, размер, строки) без body. " +
-      "Конфигурации: Схемы (schema-mod.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Для полной карты → get_page_map.",
+      "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Для полной карты → get_page_map.",
     whenToUse: {
       get_workspace_page_index:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
@@ -12445,8 +12445,8 @@ const SESSION_CONTEXT_API_MAP = {
   dataStores: "GET /api/awn-data — накопители awn-data; ?store= для одного",
   dataStoreCreate: "POST /api/awn-data/stores — создать накопитель",
   dataRecordCreate: "POST /api/awn-data/records — добавить запись",
-  dataStoreSchemaRead: "GET /api/awn-data/store-schema?store= — schema-mod.yml полей записей",
-  dataStoreSchemaWrite: "POST /api/awn-data/store-schema — сохранить schema-mod.yml",
+  dataStoreSchemaRead: "GET /api/awn-data/store-schema?store= — schema.yml полей записей",
+  dataStoreSchemaWrite: "POST /api/awn-data/store-schema — сохранить schema.yml",
   platformCatalogs: "GET /api/platform/catalogs — legacy справочники",
   agentCatalogs: "GET /api/agent/catalogs — legacy справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
@@ -22042,7 +22042,7 @@ async function handleApiForAgent(req, res, url) {
       }
 
       const normalizedContent = trimmed.endsWith("\n") ? trimmed : `${trimmed}\n`;
-      // Field schema lives in schema-mod.yml — never persist awn_schema inside config.yml.
+      // Field schema lives in schema.yml — never persist awn_schema inside config.yml.
       const bundleWithoutSchema = NodeConfigBundle.parseNodeConfigBundle(normalizedContent);
       bundleWithoutSchema.awn_schema = null;
       bundleWithoutSchema.awn_schemaYaml = "";

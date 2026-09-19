@@ -13,7 +13,7 @@ const {
 } = require("./configuration-schema");
 const { normalizeAwnSchema, extractAwnSchemaFromConfig } = require("./awn-types-loader");
 
-/** Folder path inside slot for section schema-mod.yml (empty = slot root → topic schema only). */
+/** Folder path inside slot for section schema.yml (empty = slot root → topic schema only). */
 function deriveSectionPathFromContentRef(ref) {
   const normalized = String(ref || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
   if (!normalized) return "";

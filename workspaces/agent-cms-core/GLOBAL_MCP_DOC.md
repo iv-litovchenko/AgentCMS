@@ -325,14 +325,14 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 
 | Что | Файл | Tools | Когда |
 |-----|------|-------|-------|
-| Поля страницы / слотов | `schema-mod.yml` (`awn_schema`) | `read_page_schema` / `write_page_schema` | Добавить/менять поля формы |
+| Поля страницы / слотов | `schema.yml` (`awn_schema`) | `read_page_schema` / `write_page_schema` | Добавить/менять поля формы |
 | UI/настройки страницы | `config.yml` (`awn_ui`, `awn_settings`) | `read_page_config` / `write_page_config` | UI, mask — **не** поля |
-| Поля записей накопителя | `schema-mod.yml` в awn-data | `iblock_read_schema` / `write_file` на schema-mod | Схема awn-data |
+| Поля записей накопителя | `schema.yml` в awn-data | `iblock_read_schema` / `write_file` на schema.yml | Схема awn-data |
 | Канон типа | awn-system | `get_type(id)` | Смотреть базовые fields |
 
 - свойства (`*_properties`) — **значения** frontmatter; **patch**: шли только изменённые ключи, остальное merge с диском  
 - схема (`*_schema`) — **описание** полей формы  
-- тип (`get_type`) — база из awn-system; `schema-mod.yml` — локальный override поверх типа  
+- тип (`get_type`) — база из awn-system; `schema.yml` — локальный override поверх типа  
 
 **Схема для агента:** базовые поля типа — один раз `get_type(id)`. Локальные дополнения — `read_page_schema` (**`mode=layers`**, default): три слоя `workspace` / `area` / `topic`, только непустые блоки (нет 44× пустых, нет baseTypes/merged/fieldRegistry). **Запись:** YAML только с нужным блоком; ответ — те же layers. Legacy UI dump: `mode=full`. `write_data_store_schema` — полный актуальный YAML/`fields`.
 
@@ -679,7 +679,7 @@ razdel-1/
 |---|---------------------------|---------------------------|
 | **Тип информации** | Неструктурированная и полуструктурированная | Структурированная |
 | **Где живёт** | Дерево меню WS → Area → Topic; файлы в слотах (`main`, `inbox`, `media`…) или path-based FS в `awn-storage/` | Папка `awn-data/` **вне** дерева Page · Slot · Content |
-| **Форма** | Markdown, медиа, код, произвольные папки; frontmatter по желанию | Коллекции `{id}.md`, CSV-таблицы, **единая схема** (`schema-mod.yml`) на все записи |
+| **Форма** | Markdown, медиа, код, произвольные папки; frontmatter по желанию | Коллекции `{id}.md`, CSV-таблицы, **единая схема** (`schema.yml`) на все записи |
 | **Когда выбирать** | Документы, заметки, планы, обсуждения, статьи, черновики, контекст темы, wikilinks | Справочники, реестры, задачи с полями, enum/taxonomies, финансы по строкам, любые **однотипные сущности** с фильтрацией и CRUD |
 | **MCP (обзор)** | `get_page_map`, `create_content`, `read_content_body`, `get_content_index` | `iblock_list`, `iblock_get`, `iblock_content_create`, `iblock_read_schema` |
 | **UI** | Темы, слоты, overview темы | «Накопители информации (инфоблоки)» |
@@ -714,7 +714,7 @@ razdel-1/
 - свойства записи: `iblock_content_read_properties` / `iblock_content_write_properties`, `iblock_content_read_property` / `iblock_content_write_property`
 - новая запись: `iblock_content_create({ store, id?, title? })`
 - create store: `iblock_create({ kind, slug, … })`
-- правка schema-mod: `write_file` на `awn-data/{store}/schema-mod.yml` (полный YAML)
+- правка schema: `write_file` на `awn-data/{store}/schema.yml` (полный YAML)
 
 ---
 
@@ -955,7 +955,7 @@ recall_workspace_facts({
 - store → `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.data.collection" })`
 - поля записи store → `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.data.record" })`
 
-**Не типы** (экземпляр / override): `read_page_schema`, `iblock_read_schema` — локальные schema-mod, не справочник.
+**Не типы** (экземпляр / override): `read_page_schema`, `iblock_read_schema` — локальные schema.yml, не справочник.
 
 - всегда **`id`**, не path: `{ "id": "awn.data.collection" }` ✅
 - алиасы legacy: `awn-data/cms-base/data-containers/collection.md` → `awn.data.collection`

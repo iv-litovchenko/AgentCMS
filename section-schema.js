@@ -8,7 +8,7 @@ const {
   pickManifestRelFromStorageLayerRef,
   MANIFEST_FILE
 } = require("./manifest-paths");
-const { SCHEMA_MOD_FILE } = require("./schema-mod-paths");
+const { SCHEMA_MOD_FILE, isSchemaModFileName, listSchemaModFileNames } = require("./schema-mod-paths");
 const {
   extractAwnSchemaFromConfigurationSchemaContent,
   mergeAwnSchemaLayers
@@ -44,7 +44,7 @@ function toSectionSchemaRelPath(manifestRel, layer, sectionPrefix) {
   return buildStorageLayerRef(manifestRel, layer, `${prefix}/${SCHEMA_MOD_FILE}`);
 }
 
-/** @deprecated alias — schema is stored in schema-mod.yml */
+/** @deprecated alias — schema is stored in schema.yml */
 function toSectionConfigRelPath(manifestRel, layer, sectionPrefix) {
   return toSectionSchemaRelPath(manifestRel, layer, sectionPrefix);
 }
@@ -63,12 +63,8 @@ function sectionSchemaHasFields(awnSchema) {
 }
 
 function readSectionSchemaFromRelPaths(item, agentRootAbs) {
-  const schemaCandidates = [
-    item.configRelPath,
-    item.configRelPath.replace(/schema-mod\.yml$/i, "scheme-mod.yml"),
-    item.configRelPath.replace(/schema-mod\.yml$/i, "shemamod.yml"),
-    item.configRelPath.replace(/schema-mod\.yml$/i, "configuration-schema.yml")
-  ];
+  const dir = String(item.configRelPath || "").replace(/[^/]+$/i, "");
+  const schemaCandidates = listSchemaModFileNames().map((name) => `${dir}${name}`);
   for (const relPath of schemaCandidates) {
     const schemaContent = readSectionConfigContentSync(relPath, agentRootAbs);
     if (!schemaContent.trim()) continue;
@@ -149,8 +145,8 @@ function getEffectiveSchemaPayload(configContent, agentRoot, projectRoot, sectio
 
   const sectionAwnSchema =
     sectionAwnSchemas.length > 0 ? sectionAwnSchemas[sectionAwnSchemas.length - 1] : null;
-  // Slot content (category / record / sidecar): inherit topic schema-mod + section chain only.
-  // ws/area schema-mod apply to their own node levels, not to storage slot fields.
+  // Slot content (category / record / sidecar): inherit topic schema.yml + section chain only.
+  // ws/area schema.yml apply to their own node levels, not to storage slot fields.
   const contextSchema = mergeAwnSchemaLayers(base.topicAwnSchema, ...sectionAwnSchemas);
   const { baseTypes, merged } = recomputeMergedTypes(contextSchema, agentRoot, projectRoot);
   return {
@@ -207,8 +203,8 @@ function isSectionConfigRelPath(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized || normalized.includes("..")) return false;
   const base = normalized.split("/").pop() || "";
-  if (base.toLowerCase() === SCHEMA_MOD_FILE.toLowerCase()) {
-    return /\/awn-storage\/[^/]+\/.+\/(schema-mod|scheme-mod)\.yml$/i.test(normalized);
+  if (isSchemaModFileName(base)) {
+    return /\/awn-storage\/[^/]+\/.+\/(schema|schema-mod|scheme-mod)\.yml$/i.test(normalized);
   }
   return (
     (base.toLowerCase() === BUNDLE_CONFIG_FILE.toLowerCase() ||

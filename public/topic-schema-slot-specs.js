@@ -267,7 +267,23 @@
       return specs;
     }
 
-    function buildTopicSchemaTargetTabGroups() {
+    function resolveTopicSchemaSlotPresentation(slot, options = {}) {
+      const sharedSlotMode = Boolean(options.sharedSlotMode);
+      const flexibleSlotLabel = String(options.flexibleSlotLabel || "Гибкий слот").trim() || "Гибкий слот";
+      if (sharedSlotMode && slot.slotKey === "memory") {
+        return { rowLabel: flexibleSlotLabel, schemaLabel: flexibleSlotLabel };
+      }
+      return {
+        rowLabel: slot.label,
+        schemaLabel: getTopicSchemaSlotSchemaLabel(slot)
+      };
+    }
+
+    function buildTopicSchemaTargetTabGroups(options = {}) {
+      const sharedSlotMode = Boolean(options.sharedSlotMode);
+      const flexibleSlotLabel = String(options.flexibleSlotLabel || "Гибкий слот").trim() || "Гибкий слот";
+      const groupOrder = sharedSlotMode ? ["memory"] : TOPIC_SCHEMA_TAB_GROUP_ORDER;
+
       const groups = [
         {
           id: "core",
@@ -279,20 +295,27 @@
         }
       ];
 
-      for (const groupId of TOPIC_SCHEMA_TAB_GROUP_ORDER) {
-        const slots = TOPIC_SCHEMA_SLOT_DEFINITIONS.filter((item) => item.tabGroup === groupId);
+      for (const groupId of groupOrder) {
+        let slots = TOPIC_SCHEMA_SLOT_DEFINITIONS.filter((item) => item.tabGroup === groupId);
+        if (sharedSlotMode && groupId === "memory") {
+          slots = slots.filter((item) => item.slotKey === "memory");
+        }
         if (!slots.length) continue;
         groups.push({
           id: groupId,
-          label: TOPIC_SCHEMA_TAB_GROUP_LABELS[groupId] || groupId,
-          slots: slots.map((slot) => ({
-            slotKey: slot.slotKey,
-            label: slot.label,
-            tabs: TOPIC_SCHEMA_SLOT_CONTENT_KIND_ORDER
-              .map((kind) => {
+          label:
+            sharedSlotMode && groupId === "memory"
+              ? flexibleSlotLabel
+              : TOPIC_SCHEMA_TAB_GROUP_LABELS[groupId] || groupId,
+          slots: slots.map((slot) => {
+            const presentation = resolveTopicSchemaSlotPresentation(slot, options);
+            return {
+              slotKey: slot.slotKey,
+              label: presentation.rowLabel,
+              tabs: TOPIC_SCHEMA_SLOT_CONTENT_KIND_ORDER.map((kind) => {
                 const target = slot.targets?.[kind];
                 if (!target?.id) return null;
-                const baseLabel = getTopicSchemaSlotSchemaLabel(slot);
+                const baseLabel = presentation.schemaLabel;
                 return {
                   id: target.id,
                   label: CONTENT_KIND_TAB_LABELS[kind],
@@ -315,9 +338,9 @@
                         ? "slot-sidecar"
                         : "slot"
                 };
-              })
-              .filter(Boolean)
-          }))
+              }).filter(Boolean)
+            };
+          })
         });
       }
 
@@ -397,6 +420,7 @@
       TOPIC_SCHEMA_TAB_GROUP_ORDER,
       TOPIC_SCHEMA_SLOT_DEFINITIONS,
       buildTopicSchemaStorageSlotTargetSpecs,
+      resolveTopicSchemaSlotPresentation,
       buildTopicSchemaTargetTabGroups,
       buildTopicSchemaLegacyTargetMigrations,
       getTopicSchemaSlotDefinition,

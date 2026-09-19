@@ -17,6 +17,7 @@ const {
 
 const {
   SCHEMA_MOD_FILE,
+  LEGACY_SCHEMA_MOD_FILE,
   LEGACY_SCHEME_MOD_FILE,
   LEGACY_SHEMAMOD_FILE,
   LEGACY_CONFIGURATION_SCHEMA_FILE,
@@ -77,6 +78,7 @@ function listSchemaModRelCandidates(containerDirRel) {
   if (!dir) {
     return [
       WORKSPACE_CONFIGURATION_SCHEMA_REL,
+      LEGACY_SCHEMA_MOD_FILE,
       LEGACY_SCHEME_MOD_FILE,
       LEGACY_SHEMAMOD_FILE,
       LEGACY_CONFIGURATION_SCHEMA_FILE
@@ -84,6 +86,7 @@ function listSchemaModRelCandidates(containerDirRel) {
   }
   return [
     `${dir}/${SCHEMA_MOD_FILE}`,
+    `${dir}/${LEGACY_SCHEMA_MOD_FILE}`,
     `${dir}/${LEGACY_SCHEME_MOD_FILE}`,
     `${dir}/${LEGACY_SHEMAMOD_FILE}`,
     `${dir}/${LEGACY_CONFIGURATION_SCHEMA_FILE}`
@@ -285,7 +288,7 @@ function collectLayeredCustomFields(layers, target) {
   return {};
 }
 
-/** Per-page response: schema-mod layers only. Base types live in awn-system / get_type. */
+/** Per-page response: schema.yml layers only. Base types live in awn-system / get_type. */
 function buildLayeredTopicSchemaResponse(meta, payload) {
   const layers = {
     workspace: compactAwnSchema(payload?.workspaceAwnSchema),
