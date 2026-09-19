@@ -5491,7 +5491,7 @@ function assertWorkspaceFsWriteAllowed(relPath) {
   const bundleMatch = normalized.match(/^(.*)\/awn-storage\/(main|todo|log|content)\.(md|csv)$/i);
   if (bundleMatch) {
     return {
-      error: "Use write_content_body for internal single-file slots (main-single, todo-single, log-single, main-single-csv)",
+      error: "Use write_content_body for internal single-file slots (main-single, todo-single, main-single-csv)",
       status: 400
     };
   }
@@ -10003,8 +10003,7 @@ async function scanStorageRootBundleSlots(storageRootAbs) {
   const specs = [
     { slotKey: "main-single", fileName: BUNDLE_CONTENT_FILE },
     { slotKey: "main-single-csv", fileName: BUNDLE_TABULAR_FILE },
-    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE },
-    { slotKey: "log-single", fileName: BUNDLE_LOG_FILE }
+    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE }
   ];
   const bundleSlots = {};
   if (!storageRootAbs) {
@@ -11079,15 +11078,13 @@ const { isTopicWideContentIndexSlotRow, slotKeyToStorageFolder, isInternalBundle
 const BUNDLE_SLOT_INDEX_LABELS = {
   "main-single": "Память (однофайловая)",
   "main-single-csv": "Память (табличная)",
-  "todo-single": "TODO",
-  "log-single": "Лог"
+  "todo-single": "TODO"
 };
 
 const BUNDLE_SLOT_INDEX_FILES = {
   "main-single": BUNDLE_CONTENT_FILE,
   "main-single-csv": BUNDLE_TABULAR_FILE,
-  "todo-single": BUNDLE_TODO_FILE,
-  "log-single": BUNDLE_LOG_FILE
+  "todo-single": BUNDLE_TODO_FILE
 };
 
 function isMarkdownBundleBodyFilled(content) {
@@ -11137,20 +11134,6 @@ async function resolveBundleSlotIndexRow(manifestRelPath, slotKey) {
       label,
       fileName,
       linkPath: hit.path || toTodoFilePath(manifestRelPath),
-      filled,
-      status: filled ? "заполнено" : "не заполнено"
-    };
-  }
-
-  if (normalizedSlot === "log-single") {
-    const hit = await readLogContent(manifestRelPath);
-    const fileName = path.basename(String(hit.path || defaultFileName).replace(/\\/g, "/")) || defaultFileName;
-    const filled = hit.exists && Boolean(String(hit.content || "").trim());
-    return {
-      slot: normalizedSlot,
-      label,
-      fileName,
-      linkPath: hit.path || toLogFilePath(manifestRelPath),
       filled,
       status: filled ? "заполнено" : "не заполнено"
     };
@@ -12218,8 +12201,7 @@ async function buildInternalSlotMapItems(manifestRelPath, slotKey) {
   const specs = [
     { slotKey: "main-single", fileName: BUNDLE_CONTENT_FILE },
     { slotKey: "main-single-csv", fileName: BUNDLE_TABULAR_FILE },
-    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE },
-    { slotKey: "log-single", fileName: BUNDLE_LOG_FILE }
+    { slotKey: "todo-single", fileName: BUNDLE_TODO_FILE }
   ];
   const spec = specs.find((row) => row.slotKey === slotKey);
   if (!spec) return [];
@@ -23910,51 +23892,6 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 200, { path: todoRelPath, content, exists: true });
     } catch (error) {
       return sendJson(res, 500, { error: "Failed to save TODO", details: String(error.message || error) });
-    }
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/log") {
-    const relPath = url.searchParams.get("path");
-    if (!relPath) return sendJson(res, 400, { error: "Missing path query parameter" });
-
-    const manifestRel = resolveNodeManifestRelForScopedApi(relPath);
-    if (!manifestRel) {
-      return sendJson(res, 400, {
-        error: "Invalid file path",
-        details: "Нужен манифест (*.md, _registration.md) или файл log (*/log.md)"
-      });
-    }
-
-    try {
-      const log = await readLogContent(manifestRel);
-      return sendJson(res, 200, log);
-    } catch (error) {
-      return sendJson(res, 500, { error: "Failed to read log", details: String(error.message || error) });
-    }
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/log") {
-    try {
-      const payload = await readJsonBody(req);
-      const relPath = payload.path;
-      const content = typeof payload.content === "string" ? payload.content : null;
-      if (!relPath) return sendJson(res, 400, { error: "Missing file path" });
-      if (content === null) return sendJson(res, 400, { error: "Missing content" });
-
-      const manifestRel = resolveNodeManifestRelForScopedApi(relPath);
-      if (!manifestRel) {
-        return sendJson(res, 400, {
-          error: "Invalid file path",
-          details: "Нужен манифест (*.md, _registration.md) или файл log (*/log.md)"
-        });
-      }
-
-      const resolvedManifest = await resolveExistingWorkspaceRelPath(manifestRel);
-      const logRelPath = await writeLogFiles(resolvedManifest, content);
-
-      return sendJson(res, 200, { path: logRelPath, content, exists: true });
-    } catch (error) {
-      return sendJson(res, 500, { error: "Failed to save log", details: String(error.message || error) });
     }
   }
 

@@ -73,7 +73,6 @@ const TYPE_ID_ALIASES = {
   "awn.slot.notes": "awn.slot.note",
   "awn.slot.scripts": "awn.slot.script",
   "awn.slot.todo": "awn.slot.todo-single",
-  "awn.slot.log": "awn.slot.log-single",
   "awn.slot.thread": "awn.slot.discussion",
   "awn.slot.dialogs": "awn.slot.discussion",
   "awn.slot.quick-notes": "awn.slot.note",

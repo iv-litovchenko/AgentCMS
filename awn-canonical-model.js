@@ -34,8 +34,7 @@ const CANONICAL_PRIMARY_SLOT_TYPES = [
   "awn.slot.base",
   "awn.slot.notebooklm",
   "awn.slot.agent-queue",
-  "awn.slot.todo-single",
-  "awn.slot.log-single"
+  "awn.slot.todo-single"
 ];
 
 const PRIMARY_SLOT_ORDER = new Map(CANONICAL_PRIMARY_SLOT_TYPES.map((id, index) => [id, index + 1]));

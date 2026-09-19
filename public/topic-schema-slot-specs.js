@@ -221,21 +221,10 @@
           category: { id: "slot_todo_single_category" },
           sidecar: { id: "slot_todo_single_sidecar" }
         }
-      },
-      {
-        slotKey: "log-single",
-        label: "Журнал",
-        tabGroup: "journal",
-        defaultKind: "record",
-        targets: {
-          record: { id: "slot_log_single" },
-          category: { id: "slot_log_single_category" },
-          sidecar: { id: "slot_log_single_sidecar" }
-        }
       }
     ];
 
-    const TOPIC_SCHEMA_TAB_GROUP_ORDER = ["memory", "workspace", "files", "todo", "journal"];
+    const TOPIC_SCHEMA_TAB_GROUP_ORDER = ["memory", "workspace", "files", "todo"];
 
     function getTopicSchemaSlotSchemaLabel(slot) {
       return slot.schemaLabel || slot.label;

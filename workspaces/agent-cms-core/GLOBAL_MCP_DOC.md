@@ -391,9 +391,8 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 | `main-single` | `awn.slot.main-single` | `main.md` | Одна страница памяти |
 | `main-single-csv` | `awn.slot.main-single-csv` | `main.csv` | Табличная память |
 | `todo-single` | `awn.slot.todo-single` | `todo.md` | TODO |
-| `log-single` | `awn.slot.log-single` | `log.md` | Журнал |
 
-Системные (обычно не трогать вручную): `history`, `temp`, `volume`.
+Системные (обычно не трогать вручную): `history`. Временные файлы workspace — `awn-temp/`; журнал — `.agent-cms/journal/`.
 
 - список слотов страницы: `list_page_slots` (+ `get_type` для allowedContent типов)
 

@@ -14281,8 +14281,7 @@ const MODE_GROUPS = [
       { id: "tabular", label: "Табличная" },
       { id: "inbox", label: "Входящие" },
       { id: "external-db", label: "Реляционная БД", disabled: true },
-      { id: "references", label: "Источники" },
-      { id: "volume", label: "Итоги", disabled: true }
+      { id: "references", label: "Источники" }
     ]
   },
   {
@@ -14815,8 +14814,8 @@ const STORAGE_SLOT_TREE_GROUP_SEQUENCE = [
 ];
 const STORAGE_SLOT_TREE_META_KEYS = new Set(["history"]);
 const STORAGE_SLOT_TREE_META_ORDER = ["history"];
-const STORAGE_SLOT_TREE_COMMUNICATION_KEYS = new Set(["discussion", "comments", "volume"]);
-const STORAGE_SLOT_TREE_COMMUNICATION_ORDER = ["discussion", "comments", "volume"];
+const STORAGE_SLOT_TREE_COMMUNICATION_KEYS = new Set(["discussion", "comments"]);
+const STORAGE_SLOT_TREE_COMMUNICATION_ORDER = ["discussion", "comments"];
 const STORAGE_SLOT_TREE_SPECIAL_BLOCK_KEYS = new Set([
   ...STORAGE_SLOT_TREE_META_KEYS,
   ...STORAGE_SLOT_TREE_COMMUNICATION_KEYS
@@ -14983,18 +14982,6 @@ const DATA_STORAGE_SLOT_SPECS = [
     bundleFile: BUNDLE_TODO_FILE
   },
   {
-    key: "log-single",
-    label: "Лог",
-    icon: "📜",
-    modes: new Set([]),
-    defaultMode: null,
-    sectionKind: "bundle",
-    treeGroup: STORAGE_SLOT_TREE_GROUP_SINGLE_FILE,
-    bundleFile: BUNDLE_LOG_FILE,
-    disabled: true,
-    treeInline: true
-  },
-  {
     key: "quick-notes",
     label: "Quick notes",
     icon: "📝",
@@ -15012,28 +14999,6 @@ const DATA_STORAGE_SLOT_SPECS = [
     sectionKind: null,
     treeGroup: STORAGE_SLOT_TREE_GROUP_COMMUNICATION,
     treeDisplay: "count-only"
-  },
-  {
-    key: "temp",
-    label: "Временные файлы",
-    icon: "🗂️",
-    modes: new Set(["temp"]),
-    defaultMode: "temp",
-    sectionKind: null,
-    treeGroup: STORAGE_SLOT_TREE_GROUP_META,
-    treeDisplay: "count-only",
-    disabled: true
-  },
-  {
-    key: "volume",
-    label: "Итоги",
-    icon: "📋",
-    modes: new Set(["volume"]),
-    defaultMode: "volume",
-    sectionKind: null,
-    treeGroup: STORAGE_SLOT_TREE_GROUP_COMMUNICATION,
-    treeDisplay: "count-only",
-    disabled: true
   },
   {
     key: "history",
@@ -15130,7 +15095,6 @@ const DATA_STORAGE_SLOT_FILE_TYPE_LABELS = {
   "main-single": "Markdown (.md) — main.md",
   "main-single-csv": "CSV (.csv) — main.csv",
   "todo-single": "Markdown (.md) — todo.md",
-  "log-single": "Markdown (.md) — log.md",
   discussion: "Markdown (.md)"
 };
 
@@ -16883,7 +16847,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
   return namesByKey[key] || [];
 }
 
-const HIDDEN_STORAGE_SLOT_TREE_KEYS = new Set(["quick-notes", "repository", "temp", "log-single", "volume"]);
+const HIDDEN_STORAGE_SLOT_TREE_KEYS = new Set(["quick-notes", "repository"]);
 
 function findScanFolderForSlotKey(slotKey, folders = []) {
   const names = new Set(getStorageFolderNamesForSlotKey(slotKey).map((name) => name.toLowerCase()));
@@ -74991,7 +74955,16 @@ const WORKSPACE_JOURNAL_PERIOD_OPTIONS_HTML =
   '<option value="yesterday">За вчера</option>' +
   '<option value="week">За 7 дней</option>' +
   '<option value="month">За 30 дней</option>' +
+  '<option value="quarter">За 3 месяца</option>' +
+  '<option value="halfyear">За полгода</option>' +
+  '<option value="year">За год</option>' +
   '<option value="all">Всё время</option>';
+
+function shiftJournalPeriodStartMonths(baseDate, months) {
+  const start = new Date(baseDate);
+  start.setMonth(start.getMonth() - months);
+  return start;
+}
 
 function getJournalPeriodRange(period) {
   const key = String(period || "all").toLowerCase();
@@ -75017,6 +74990,9 @@ function getJournalPeriodRange(period) {
     monthStart.setDate(monthStart.getDate() - 29);
     return { from: monthStart, to: tomorrowStart };
   }
+  if (key === "quarter") return { from: shiftJournalPeriodStartMonths(todayStart, 3), to: tomorrowStart };
+  if (key === "halfyear") return { from: shiftJournalPeriodStartMonths(todayStart, 6), to: tomorrowStart };
+  if (key === "year") return { from: shiftJournalPeriodStartMonths(todayStart, 12), to: tomorrowStart };
   return null;
 }
 
@@ -75037,6 +75013,30 @@ function formatJournalTypeLabel(type) {
 
 function formatJournalEntryClock(iso) {
   return formatWorkspaceNotificationClock(iso);
+}
+
+function formatJournalEntryDateParts(iso) {
+  if (!iso) return { time: "—", date: "" };
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return { time: "—", date: "" };
+    const dayStart = getWorkspaceNotificationDayStart(iso);
+    const todayStart = getWorkspaceNotificationDayStart(new Date().toISOString());
+    const diffDays =
+      dayStart == null || todayStart == null ? null : Math.floor((todayStart - dayStart) / 86400000);
+    const time = d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+    let date = "";
+    if (diffDays === 0) date = "сегодня";
+    else if (diffDays === 1) date = "вчера";
+    else if (diffDays != null && diffDays < 7) {
+      date = d.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" });
+    } else {
+      date = d.toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" });
+    }
+    return { time, date };
+  } catch {
+    return { time: "—", date: "" };
+  }
 }
 
 const WORKSPACE_JOURNAL_TYPE_ICONS = {
@@ -75087,25 +75087,40 @@ function createWorkspaceJournalEntryRow(entry, options = {}) {
   const head = document.createElement("div");
   head.className = "workspace-journal-item-head";
 
-  const time = document.createElement("time");
-  time.className = "workspace-journal-item-time";
-  time.dateTime = entry.at || "";
-  time.textContent = formatJournalEntryClock(entry.at);
-
-  const meta = document.createElement("span");
+  const meta = document.createElement("div");
   meta.className = "workspace-journal-item-meta";
   const typeBadge = document.createElement("span");
   typeBadge.className = `workspace-journal-type-badge workspace-journal-type-badge--${String(entry.type || "action").toLowerCase()}`;
   typeBadge.textContent = formatJournalTypeLabel(entry.type);
-  meta.append(typeBadge, document.createTextNode(` · ${entry.author || "agent"}`));
+  const author = document.createElement("span");
+  author.className = "workspace-journal-item-author";
+  author.textContent = entry.author || "agent";
+  meta.append(typeBadge, author);
   if (entry.notify) {
     const bell = document.createElement("span");
     bell.className = "workspace-journal-item-notify";
-    bell.textContent = " 🔔";
+    bell.textContent = "🔔";
     bell.title = "Показано в колокольчике";
     meta.appendChild(bell);
   }
-  head.append(time, meta);
+
+  const timeCol = document.createElement("div");
+  timeCol.className = "workspace-journal-item-time-col";
+  const { time: clockLabel, date: dateLabel } = formatJournalEntryDateParts(entry.at);
+  const time = document.createElement("time");
+  time.className = "workspace-journal-item-time";
+  time.dateTime = entry.at || "";
+  time.textContent = clockLabel;
+  time.title = formatJournalEntryClock(entry.at);
+  timeCol.appendChild(time);
+  if (dateLabel) {
+    const dateNode = document.createElement("span");
+    dateNode.className = "workspace-journal-item-date";
+    dateNode.textContent = dateLabel;
+    timeCol.appendChild(dateNode);
+  }
+
+  head.append(meta, timeCol);
 
   const body = document.createElement("div");
   body.className = "workspace-journal-item-body";
@@ -75114,28 +75129,30 @@ function createWorkspaceJournalEntryRow(entry, options = {}) {
   main.append(head, body);
 
   const pathValue = String(entry.path || entry.topic || "").trim();
-  if (pathValue) {
-    const pathRow = document.createElement("div");
-    pathRow.className = "workspace-journal-item-path-row";
-    const pathBtn = document.createElement("button");
-    pathBtn.type = "button";
-    pathBtn.className = "workspace-journal-item-path";
-    pathBtn.textContent = pathValue;
-    pathBtn.title = "Открыть путь";
-    pathBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-      void openWorkspaceInspectorPath(pathValue);
-    });
-    pathRow.appendChild(pathBtn);
-    main.appendChild(pathRow);
-  }
-
-  if (options.showWeekFile && entry.file) {
-    const fileNote = document.createElement("div");
-    fileNote.className = "workspace-journal-item-file";
-    fileNote.textContent = entry.file;
-    main.appendChild(fileNote);
+  const showWeekFile = options.showWeekFile && entry.file;
+  if (pathValue || showWeekFile) {
+    const footer = document.createElement("div");
+    footer.className = "workspace-journal-item-footer";
+    if (pathValue) {
+      const pathBtn = document.createElement("button");
+      pathBtn.type = "button";
+      pathBtn.className = "workspace-journal-item-path";
+      pathBtn.textContent = pathValue;
+      pathBtn.title = "Открыть путь";
+      pathBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        void openWorkspaceInspectorPath(pathValue);
+      });
+      footer.appendChild(pathBtn);
+    }
+    if (showWeekFile) {
+      const fileNote = document.createElement("span");
+      fileNote.className = "workspace-journal-item-file";
+      fileNote.textContent = entry.file;
+      footer.appendChild(fileNote);
+    }
+    main.appendChild(footer);
   }
 
   item.append(icon, main);
@@ -102574,11 +102591,29 @@ function syncAppFooterJournalAvailability() {
   if (!available) closeAppFooterJournalPopover();
 }
 
+function normalizeWorkspaceJournalContext(context = {}) {
+  const path = String(context.path || "").trim();
+  const topic = String(context.topic || "").trim();
+  const rawUrl = String(context.url || "").trim();
+  const url =
+    rawUrl && rawUrl !== "undefined"
+      ? rawUrl
+      : typeof location !== "undefined"
+        ? String(location.href || "").trim()
+        : "";
+  const label =
+    String(context.label || "").trim() || path || topic || url || WORKSPACE_JOURNAL_FOLDER;
+  return { path, topic, url, label };
+}
+
 function syncAppFooterJournalFormState(contextOverride = null) {
-  const context = contextOverride || appFooterJournalContextCache || resolveWorkspaceJournalEntryContext();
+  const context = normalizeWorkspaceJournalContext(
+    contextOverride || appFooterJournalContextCache || resolveWorkspaceJournalEntryContext()
+  );
   if (appFooterJournalContextInputNode) {
     appFooterJournalContextInputNode.value = context.label;
-    appFooterJournalContextInputNode.title = context.url || context.label;
+    appFooterJournalContextInputNode.title =
+      context.url && context.url !== context.label ? context.url : context.label;
   }
   if (appFooterJournalLinkContextNode) {
     const canLink = Boolean(context.path || context.topic);
