@@ -8693,12 +8693,18 @@ async function loadAgentFocusItems(agentId = activeAgentId) {
   renderAgentFocusPanels();
 }
 
+function isAppLandingViewActive() {
+  return Boolean(appRootNode?.classList.contains("app-landing-view"));
+}
+
 async function refreshAllFocusPanels() {
-  await Promise.all([
-    loadGlobalMainItems(),
-    loadGlobalFlowItems(),
-    loadAgentFocusItems(activeAgentId)
-  ]);
+  const tasks = [];
+  if (isAppLandingViewActive()) {
+    tasks.push(loadGlobalMainItems(), loadGlobalFlowItems());
+  } else if (activeAgentId) {
+    tasks.push(loadAgentFocusItems(activeAgentId));
+  }
+  if (tasks.length) await Promise.all(tasks);
 }
 
 function getAgentsInSelectOrder() {
