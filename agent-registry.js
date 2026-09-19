@@ -148,9 +148,12 @@ function focusEntrySlugFromFileName(fileName) {
   return slug;
 }
 
+function hasYamlKey(frontmatter, key) {
+  return new RegExp(`^${String(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`, "m").test(String(frontmatter || ""));
+}
+
 function isAwnFocusEntry(frontmatter) {
-  if (!frontmatter || typeof frontmatter !== "object") return false;
-  if (Object.prototype.hasOwnProperty.call(frontmatter, "awn-focus")) {
+  if (hasYamlKey(frontmatter, "awn-focus")) {
     return getYamlBoolean(frontmatter, "awn-focus");
   }
   // Legacy: до разделения awn-focus / awn-main фокус хранился в awn-main.
@@ -159,6 +162,19 @@ function isAwnFocusEntry(frontmatter) {
 
 function isAwnMainEntry(frontmatter) {
   return getYamlBoolean(frontmatter, "awn-main");
+}
+
+function buildNavFlagEntry(relativePath, frontmatterYaml) {
+  const nodePath = String(relativePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const slug = focusEntrySlugFromFileName(path.basename(nodePath));
+  let name = getYamlScalar(frontmatterYaml, "awn-name") || "";
+  if (!String(name).trim()) name = slug;
+  return {
+    nodePath,
+    name: String(name).trim() || slug,
+    awnType: getYamlScalar(frontmatterYaml, "awn-type") || "",
+    awnProps: extractWorkspaceAwnProps(frontmatterYaml)
+  };
 }
 
 function walkNavFlagMdFilesSync(dirAbsolute, prefix, acc, isMatch) {
@@ -1955,5 +1971,8 @@ module.exports = {
   collectAgentMainEntries,
   collectAllRecentEntries,
   collectAgentRecentEntries,
+  buildNavFlagEntry,
+  isAwnFocusEntry,
+  isAwnMainEntry,
   isPlatformAgentId
 };

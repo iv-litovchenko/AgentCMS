@@ -39,6 +39,7 @@ const { createFulltextSearchService } = require("./fulltext-index/service");
 const { createStorageIndexService } = require("./storage-index/service");
 const { createLinkIndexService } = require("./link-index/service");
 const { createWorkspaceIdService, parseAwnId } = require("./workspace-id/service");
+const { createNavFlagsRegistryService } = require("./nav-flags-registry/service");
 const { allocateNextId } = require("./workspace-id/store");
 const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
 const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
@@ -451,6 +452,9 @@ const {
   collectAllMainEntries,
   collectAgentMainEntries,
   collectAllRecentEntries,
+  buildNavFlagEntry,
+  isAwnFocusEntry,
+  isAwnMainEntry,
   getActiveAgentId,
   isPlatformAgentId,
   getAgentKitFolder,
@@ -1614,6 +1618,77 @@ function getWorkspaceIdService() {
     });
   }
   return workspaceIdService;
+}
+
+let navFlagsRegistryService = null;
+function getNavFlagsRegistryService() {
+  if (!navFlagsRegistryService) {
+    navFlagsRegistryService = createNavFlagsRegistryService({
+      getAgentRoot,
+      resolveAgent,
+      getAgentsPublicList,
+      collectAgentFocusEntries,
+      collectAgentMainEntries,
+      buildNavFlagEntry,
+      isNavFocusActive: isAwnFocusEntry,
+      isNavMainActive: isAwnMainEntry
+    });
+  }
+  return navFlagsRegistryService;
+}
+
+function wrapNavFlagEntriesForAgent(agent, entries) {
+  return (Array.isArray(entries) ? entries : []).map((entry) => ({
+    agentId: agent.id,
+    agentName: agent.name || agent.id,
+    agentPath: agent.path,
+    agentActive: agent.active !== false,
+    ...entry
+  }));
+}
+
+async function listNavFocusItems(agentId = "") {
+  const scopedAgentId = String(agentId || "").trim();
+  if (scopedAgentId) {
+    const agent = resolveAgent(scopedAgentId);
+    if (!agent || agent.folderExists === false) return [];
+    const registryEntries = await getNavFlagsRegistryService().getAgentEntries(agent, "focus");
+    const entries = registryEntries || collectAgentFocusEntries(agent);
+    return wrapNavFlagEntriesForAgent(agent, entries);
+  }
+
+  const items = [];
+  for (const entry of getAgentsPublicList()) {
+    if (entry.folderExists === false) continue;
+    const agent = resolveAgent(entry.id);
+    if (!agent) continue;
+    const registryEntries = await getNavFlagsRegistryService().getAgentEntries(agent, "focus");
+    const rows = registryEntries || collectAgentFocusEntries(agent);
+    items.push(...wrapNavFlagEntriesForAgent(agent, rows));
+  }
+  return items;
+}
+
+async function listNavMainItems(agentId = "") {
+  const scopedAgentId = String(agentId || "").trim();
+  if (scopedAgentId) {
+    const agent = resolveAgent(scopedAgentId);
+    if (!agent || agent.folderExists === false) return [];
+    const registryEntries = await getNavFlagsRegistryService().getAgentEntries(agent, "main");
+    const entries = registryEntries || collectAgentMainEntries(agent);
+    return wrapNavFlagEntriesForAgent(agent, entries);
+  }
+
+  const items = [];
+  for (const entry of getAgentsPublicList()) {
+    if (entry.folderExists === false) continue;
+    const agent = resolveAgent(entry.id);
+    if (!agent) continue;
+    const registryEntries = await getNavFlagsRegistryService().getAgentEntries(agent, "main");
+    const rows = registryEntries || collectAgentMainEntries(agent);
+    items.push(...wrapNavFlagEntriesForAgent(agent, rows));
+  }
+  return items;
 }
 
 let ocrIndexService = null;
@@ -18443,6 +18518,29 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/nav-flags-registry/status") {
+    try {
+      return sendJson(res, 200, await getNavFlagsRegistryService().getStatus());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read nav flags registry status",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/nav-flags-registry/rebuild") {
+    try {
+      const data = await getNavFlagsRegistryService().rebuild();
+      return sendJson(res, 200, data);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to rebuild nav flags registry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/storage-index/query") {
     try {
       const payload = await readJsonBody(req);
@@ -21631,6 +21729,15 @@ async function handleApiForAgent(req, res, url) {
         label: path.posix.basename(normalizedRelPath) || normalizedRelPath,
         fileKind: inferWorkspaceActivityFileKind(normalizedRelPath)
       });
+      if (
+        hasSingleKey
+          ? propertyKey === "awn-focus" || propertyKey === "awn-main"
+          : /(^|\n)awn-(focus|main):/m.test(stampedFrontmatter)
+      ) {
+        void getNavFlagsRegistryService()
+          .syncFromFrontmatter(getAgentRoot(), normalizedRelPath, stampedFrontmatter)
+          .catch(() => {});
+      }
       if (normalizedRelPath === AREA_MANIFEST_FILE || normalizedRelPath === "_reg-info.md") {
         refreshAgentsFromDisk();
       }
@@ -25831,22 +25938,7 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/agents/focus") {
     const agentId = String(url.searchParams.get("agent") || "").trim();
     try {
-      let items = [];
-      if (agentId) {
-        const agent = resolveAgent(agentId);
-        if (!agent || agent.folderExists === false) {
-          return sendJson(res, 200, { items: [] });
-        }
-        items = collectAgentFocusEntries(agent).map((entry) => ({
-          agentId: agent.id,
-          agentName: agent.name || agent.id,
-          agentPath: agent.path,
-          agentActive: agent.active !== false,
-          ...entry
-        }));
-      } else {
-        items = collectAllFocusEntries();
-      }
+      const items = await listNavFocusItems(agentId);
       return sendJson(res, 200, { items: await enrichFocusItems(items) });
     } catch (error) {
       return sendJson(res, 500, {
@@ -25859,22 +25951,7 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/agents/main") {
     const agentId = String(url.searchParams.get("agent") || "").trim();
     try {
-      let items = [];
-      if (agentId) {
-        const agent = resolveAgent(agentId);
-        if (!agent || agent.folderExists === false) {
-          return sendJson(res, 200, { items: [] });
-        }
-        items = collectAgentMainEntries(agent).map((entry) => ({
-          agentId: agent.id,
-          agentName: agent.name || agent.id,
-          agentPath: agent.path,
-          agentActive: agent.active !== false,
-          ...entry
-        }));
-      } else {
-        items = collectAllMainEntries();
-      }
+      const items = await listNavMainItems(agentId);
       return sendJson(res, 200, { items: await enrichFocusItems(items) });
     } catch (error) {
       return sendJson(res, 500, {

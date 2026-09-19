@@ -30,6 +30,8 @@
   const workspaceIdProbeResultNode = document.getElementById("menu-workspace-id-probe-result");
   const pipelineBtn = document.getElementById("menu-workspace-index-pipeline-btn");
   const pipelineStatusNode = document.getElementById("menu-workspace-index-pipeline-status");
+  const navFlagsStatusNode = document.getElementById("menu-nav-flags-registry-status");
+  const navFlagsRebuildBtn = document.getElementById("menu-nav-flags-registry-rebuild-btn");
   const monitorSummaryNode = document.getElementById("menu-workspace-index-monitor-summary");
   const monitorGridNode = document.getElementById("menu-workspace-index-monitor-grid");
   if (
@@ -233,6 +235,16 @@
     return parts.join(" · ");
   }
 
+  function formatNavFlagsRegistryStatus(data) {
+    if (!data?.ready) return data?.reason || "Реестр не построен";
+    const parts = [
+      `фокус ${data.focusCount || 0} · главная ${data.mainCount || 0}`,
+      data.builtAt ? new Date(data.builtAt).toLocaleString("ru-RU") : "—"
+    ];
+    if (data.rebuildMs != null) parts.push(`${data.rebuildMs} ms`);
+    return parts.join(" · ");
+  }
+
   function formatWorkspaceIdMonitorStatus(layer) {
     if (!layer?.ready) return layer?.hint || "—";
     const parts = [
@@ -413,11 +425,26 @@
     }
   }
 
+  async function refreshNavFlagsRegistryStatus() {
+    if (!navFlagsStatusNode) return null;
+    try {
+      const response = await fetch(buildApiUrl("/api/nav-flags-registry/status"));
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || response.statusText);
+      navFlagsStatusNode.textContent = formatNavFlagsRegistryStatus(data);
+      return data;
+    } catch (error) {
+      navFlagsStatusNode.textContent = String(error.message || error);
+      return null;
+    }
+  }
+
   async function refreshStatus() {
     try {
       const [monitorRes, idStatus] = await Promise.all([
         fetch(buildApiUrl("/api/workspace-index/monitor")),
-        refreshWorkspaceIdStatus()
+        refreshWorkspaceIdStatus(),
+        refreshNavFlagsRegistryStatus()
       ]);
       const monitor = await monitorRes.json();
       if (!monitorRes.ok) throw new Error(monitor.error || monitorRes.statusText);
@@ -824,7 +851,8 @@
     storageRebuildQuickBtn,
     storageRebuildFullBtn,
     linkRebuildBtn,
-    workspaceIdSyncBtn
+    workspaceIdSyncBtn,
+    navFlagsRebuildBtn
   ].forEach((button) => rememberButtonLabel(button));
 
   if (OCR_INDEXING_ENABLED) {
@@ -961,6 +989,16 @@
     } catch (error) {
       linkProbeResultNode.textContent = String(error.message || error);
     }
+  });
+
+  bindActionButton(navFlagsRebuildBtn, async () => {
+    await runRebuild(
+      "/api/nav-flags-registry/rebuild",
+      navFlagsStatusNode,
+      (data) =>
+        `Реестр: фокус ${data.focusCount || 0} · главная ${data.mainCount || 0} · ${data.rebuildMs || 0} ms`,
+      { loadingLabel: "Сборка реестра awn-main / awn-focus…" }
+    );
   });
 
   bindActionButton(pipelineBtn, async () => {

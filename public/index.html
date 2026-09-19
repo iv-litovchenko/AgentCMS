@@ -900,6 +900,23 @@
                     <p id="menu-workspace-index-pipeline-status" class="menu-static-description" aria-live="polite"></p>
                   </div>
 
+                  <div class="menu-index-block menu-index-block--nav-flags">
+                    <div class="menu-index-block-title">Реестр awn-main / awn-focus</div>
+                    <p class="menu-static-description">
+                      Быстрый список «На главной» и «В фокусе» в <code>.agent-cms/nav-flags-registry.json</code>.
+                      Обновляется при переключении флагов в UI; при ручном правке YAML — пересоберите реестр.
+                    </p>
+                    <p id="menu-nav-flags-registry-status" class="menu-static-description" aria-live="polite"></p>
+                    <button
+                      type="button"
+                      id="menu-nav-flags-registry-rebuild-btn"
+                      class="menu-static-action-btn menu-static-action-btn--secondary"
+                      title="Полный обход workspace и запись реестра main/focus"
+                    >
+                      Пересобрать реестр
+                    </button>
+                  </div>
+
                   <div class="menu-index-block is-feature-disabled">
                     <div class="menu-index-block-title">1. OCR (вложения)</div>
                     <p class="menu-static-description">
