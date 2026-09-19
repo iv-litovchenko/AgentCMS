@@ -69,7 +69,9 @@ const menuAwnDataSearchInputNode = document.getElementById("menu-awn-data-search
 const menuAwnDataIndexRowNode = document.getElementById("menu-awn-data-index-row");
 const menuAwnDataIndexOpenBtn = document.getElementById("menu-awn-data-index-open-btn");
 const menuAwnDataIndexRefreshBtn = document.getElementById("menu-awn-data-index-refresh-btn");
-const AWN_DATA_INDEX_REL_PATH = "awn-data/INDEX.md";
+const AWN_DATA_INDEX_REL_PATH = "awn-data/index.md";
+/** false = форма видна, но disabled (без отправки/ответов/реакций) */
+const AWN_DATA_COMMENTS_ENABLED = false;
 const awnDataCreateModalNode = document.getElementById("awn-data-create-modal");
 const awnDataCreateModalTitleNode = document.getElementById("awn-data-create-modal-title");
 const awnDataCreateModalHintNode = document.getElementById("awn-data-create-modal-hint");
@@ -97,7 +99,7 @@ const menuRepositoriesGroupsBtn = document.getElementById("menu-repositories-gro
 const menuRepositoriesIndexRow = document.getElementById("menu-repositories-index-row");
 const menuRepositoriesIndexOpenBtn = document.getElementById("menu-repositories-index-open-btn");
 const menuRepositoriesIndexRefreshBtn = document.getElementById("menu-repositories-index-refresh-btn");
-const REPOSITORY_INDEX_REL = "awn-repositories/INDEX.md";
+const REPOSITORY_INDEX_REL = "awn-repositories/index.md";
 const repositoryGroupsModalNode = document.getElementById("repository-groups-modal");
 const repositoryGroupsListNode = document.getElementById("repository-groups-list");
 const repositoryGroupsAddBtn = document.getElementById("repository-groups-add-btn");
@@ -137,6 +139,8 @@ let awnDataAddRecordBtn = null;
 let awnDataViewStorePanelNode = null;
 let awnDataViewLoadingOverlayNode = null;
 let awnDataViewRecordPanelNode = null;
+let awnDataViewIblockCommentsMountNode = null;
+let awnDataViewRecordCommentsMountNode = null;
 let awnDataViewRecordFieldsNode = null;
 let awnDataViewRecordBodyNode = null;
 let awnDataViewLayoutToggleNode = null;
@@ -517,7 +521,7 @@ node_modules/
 
 # Workspace-каталог исходников — в git только INDEX + manifest (код клонируйте отдельно)
 awn-repositories/**/*
-!awn-repositories/INDEX.md
+!awn-repositories/index.md
 !awn-repositories/*/manifest.md
 `;
 
@@ -2363,6 +2367,10 @@ async function applyChpuResolvedRoute(resolved) {
       await openRepositoryWorkspacePath(fileRel, { skipRouteSync: true });
       return;
     }
+    if (isAwnDataIndexRelPath(fileRel)) {
+      await openAwnDataIndexOverview();
+      return;
+    }
     if (/^awn-data\//i.test(fileRel)) {
       const opened = await openAwnDataRouteFromWorkspacePath(
         fileRel.replace(/\.md$/i, ""),
@@ -4024,8 +4032,21 @@ function getLinkTargetFileRelPath(nodePath) {
 }
 
 function getCurrentEditorLinkBasePath() {
-  if (activeSystemFile) return normalizeSystemFileName(activeSystemFile);
+  if (activeSystemFile) {
+    const normalized = normalizeSystemFileName(activeSystemFile);
+    if (normalized === WORKSPACE_PAGE_INDEX_FILE) return "";
+    return normalized;
+  }
   return getPropsContextPath(activePath) || getResolvedNodePath(activePath) || "";
+}
+
+function resolveMarkdownPreviewNodePath() {
+  if (activeSystemFile) {
+    const normalized = normalizeSystemFileName(activeSystemFile);
+    if (normalized === WORKSPACE_PAGE_INDEX_FILE) return "";
+    return normalized;
+  }
+  return getPropsContextPath() || getActiveTitleEditorPath() || getActiveNodeApiPath();
 }
 
 function joinWorkspaceRelativePath(baseRel, hrefRel) {
@@ -58874,9 +58895,12 @@ function resolveWorkspaceTopicSlotsModeLabel(page) {
 }
 
 function resolveContentIndexEntrySlotLabel(slotKey) {
-  const normalized = String(slotKey || "").trim();
-  if (!normalized || normalized === "memory") return "main";
-  return normalized;
+  const raw = String(slotKey || "").trim();
+  if (raw === "гибкий") return "гибкий";
+  const spec = resolveStorageSlotSpecByCounterKey(raw);
+  if (spec?.label) return spec.label;
+  if (raw === "main" || raw === "external") return "Память (многофайловая)";
+  return raw || "—";
 }
 
 function formatStorageIndexAwnIdCell(awnId) {
@@ -58897,10 +58921,10 @@ function formatStorageIndexEntriesMarkdown(
   const includeSlotsMode = tableVariant === "workspace";
   const includeSlotLabel = tableVariant === "topic-content";
   const header = includeSlotsMode
-    ? "| awn-id | Тип | Слоты | Путь | Название | Описание | Комментарии | Конфигурации | Размер | Строк |"
+    ? "| ID | Тип | Слоты | Путь | Название | Описание | Комментарии | Конфигурации | Размер | Строк |"
     : includeSlotLabel
-      ? "| id | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |"
-      : "| id | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |";
+      ? "| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |"
+      : "| ID | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |";
   const divider = includeSlotsMode
     ? "| ---: | --- | --- | --- | --- | --- | ---: | --- | ---: | ---: |"
     : includeSlotLabel
@@ -59045,18 +59069,6 @@ function openStorageSlotIndexOverview(topicPath, spec, slot = null) {
 
 async function openTopicStorageIndexOverview(topicPath, slots = []) {
   const manifestPath = getOverviewNodeApiPath(topicPath);
-  const existingRelPath = await resolveExistingTopicStorageIndexRelPath(topicPath);
-  if (existingRelPath) {
-    void openEntryOverviewFromNavigation({
-      relPath: existingRelPath,
-      memoryKind: "topic-index",
-      relativePath: existingRelPath,
-      title: "Оглавление темы",
-      entryKind: "awn.topic.storage-index"
-    });
-    return;
-  }
-
   if (manifestPath) topicGeneratedStorageIndexCache.delete(manifestPath);
   const markdown = await buildTopicStorageIndexMarkdownFromApi(topicPath, slots);
   if (manifestPath) topicGeneratedStorageIndexCache.set(manifestPath, markdown);
@@ -63555,15 +63567,7 @@ async function fetchEntryOverviewBodyResult(context) {
       workspaceGeneratedPageIndexCache.set(cacheKey, markdown);
       return { content: markdown, ok: true };
     }
-    if (context.memoryKind === "topic-index") {
-      const response = await fetch(
-        buildApiUrl("/api/file", { path: context.relativePath || context.relPath })
-      );
-      if (!response.ok) return { content: "", ok: false };
-      const data = await response.json();
-      return { content: String(data.content || ""), ok: true };
-    }
-    if (context.memoryKind === "topic-index-generated") {
+    if (context.memoryKind === "topic-index" || context.memoryKind === "topic-index-generated") {
       const manifestPath = getActiveNodeApiPath();
       const cached = topicGeneratedStorageIndexCache.get(manifestPath);
       if (cached) return { content: cached, ok: true };
@@ -74230,6 +74234,7 @@ function renderNodeCommentThreadItem(comment, handlers = {}) {
 async function createNodeCommentsBlock(options = {}) {
   const nodeTitle = String(options.nodeTitle || "этой теме").trim() || "этой теме";
   const agentId = options.agentId || activeAgentId;
+  const commentsDisabled = options.disabled === true;
   const context = {
     mode: options.mode || "description",
     path: options.manifestPath || options.path || "",
@@ -74239,6 +74244,7 @@ async function createNodeCommentsBlock(options = {}) {
 
   const section = document.createElement("section");
   section.className = "node-comments";
+  if (commentsDisabled) section.classList.add("is-disabled");
   section.setAttribute("aria-label", "Комментарии");
 
   const head = createNavigationSectionHead("Комментарии");
@@ -74294,13 +74300,18 @@ async function createNodeCommentsBlock(options = {}) {
 
   const composerHint = document.createElement("span");
   composerHint.className = "node-comments-composer-hint";
-  composerHint.textContent = "Markdown · @упоминания · ↑↓ Enter";
+  composerHint.textContent = commentsDisabled
+    ? "Комментарии временно недоступны"
+    : "Markdown · @упоминания · ↑↓ Enter";
 
   const composerSubmit = document.createElement("button");
   composerSubmit.type = "button";
   composerSubmit.className = "node-comments-submit";
   composerSubmit.disabled = true;
   composerSubmit.textContent = "Комментировать";
+  if (commentsDisabled) {
+    composerSubmit.title = "Комментарии временно недоступны";
+  }
 
   composerActions.append(composerHint, composerSubmit);
   composerBox.append(composerField, composerActions);
@@ -74312,15 +74323,29 @@ async function createNodeCommentsBlock(options = {}) {
 
   section.append(head, composer, thread);
 
+  if (commentsDisabled) {
+    composer.setAttribute("aria-disabled", "true");
+    composerField.disabled = true;
+    composerField.placeholder = `Комментарии к «${nodeTitle}» временно недоступны`;
+  }
+
   let mentionCandidates = collectCommentMentionCandidates({ agentId });
   const mentionLookup = () => buildCommentMentionLookup(mentionCandidates);
-  attachCommentMentionAutocomplete(composerField, () => mentionCandidates);
+  if (!commentsDisabled) {
+    attachCommentMentionAutocomplete(composerField, () => mentionCandidates);
+  }
 
   const syncSubmitState = () => {
+    if (commentsDisabled) {
+      composerSubmit.disabled = true;
+      return;
+    }
     composerSubmit.disabled = !String(composerField.value || "").trim();
   };
 
-  composerField.addEventListener("input", syncSubmitState);
+  if (!commentsDisabled) {
+    composerField.addEventListener("input", syncSubmitState);
+  }
 
   let activeReplyComposer = null;
 
@@ -74340,6 +74365,9 @@ async function createNodeCommentsBlock(options = {}) {
     myHandle,
     nodePath: context.file || context.path,
     mentionLookup: mentionLookup(),
+    ...(commentsDisabled
+      ? {}
+      : {
     onReaction(comment, button) {
       void (async () => {
         button.disabled = true;
@@ -74387,6 +74415,7 @@ async function createNodeCommentsBlock(options = {}) {
         attachCommentMentionAutocomplete(replyField, () => mentionCandidates);
       }
     }
+      })
   };
 
   const renderComments = (comments) => {
@@ -74418,34 +74447,36 @@ async function createNodeCommentsBlock(options = {}) {
     }
   };
 
-  composerSubmit.addEventListener("click", () => {
-    void (async () => {
-      const body = String(composerField.value || "").trim();
-      if (!body) return;
-      closeActiveReplyComposer();
-      composerSubmit.disabled = true;
-      composerField.disabled = true;
-      try {
-        const saved = await submitComment(body);
-        if (!saved) return;
-        composerField.value = "";
-        await refreshComments();
-        showToast("Комментарий сохранён", "success");
-      } catch (error) {
-        showToast(`Не удалось сохранить комментарий: ${error.message}`, "error");
-      } finally {
-        composerField.disabled = false;
-        syncSubmitState();
-      }
-    })();
-  });
+  if (!commentsDisabled) {
+    composerSubmit.addEventListener("click", () => {
+      void (async () => {
+        const body = String(composerField.value || "").trim();
+        if (!body) return;
+        closeActiveReplyComposer();
+        composerSubmit.disabled = true;
+        composerField.disabled = true;
+        try {
+          const saved = await submitComment(body);
+          if (!saved) return;
+          composerField.value = "";
+          await refreshComments();
+          showToast("Комментарий сохранён", "success");
+        } catch (error) {
+          showToast(`Не удалось сохранить комментарий: ${error.message}`, "error");
+        } finally {
+          composerField.disabled = false;
+          syncSubmitState();
+        }
+      })();
+    });
 
-  composerField.addEventListener("keydown", (event) => {
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-      event.preventDefault();
-      if (!composerSubmit.disabled) composerSubmit.click();
-    }
-  });
+    composerField.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        if (!composerSubmit.disabled) composerSubmit.click();
+      }
+    });
+  }
 
   await refreshComments();
   return section;
@@ -76452,13 +76483,32 @@ async function renderFolderBrowseFileView() {
       nodeOverviewContentNode.replaceChildren(hub);
       hideContentLoading({ force: true });
       try {
-        const data = await fetchWorkspaceFolderPage(filePath);
-        if (isStale()) return;
-        const markdown = rewriteWorkspaceMarkdownAssetUrls(data.body || data.content || "", folderPath);
-        body.innerHTML = renderMarkdownToHtml(markdown, { nodePath: filePath });
+        let markdown = "";
+        if (isAwnDataIndexRelPath(filePath) && awnDataIndexPreviewOverride) {
+          markdown = awnDataIndexPreviewOverride;
+          awnDataIndexPreviewOverride = null;
+        } else {
+          const data = await fetchWorkspaceFolderPage(filePath);
+          if (isStale()) return;
+          markdown = rewriteWorkspaceMarkdownAssetUrls(data.body || data.content || "", folderPath);
+        }
+        body.innerHTML = renderMarkdownToHtml(markdown, { nodePath: filePath, linkBasePath: filePath });
+        hydrateMarkdownPreviewElement(body, filePath);
         void typesetMarkdownDiagrams(body);
       } catch (error) {
-        body.textContent = `Ошибка загрузки: ${error.message || error}`;
+        if (isAwnDataIndexRelPath(filePath)) {
+          try {
+            const markdown = await fetchAwnDataIndexMarkdownFromApi();
+            if (isStale()) return;
+            body.innerHTML = renderMarkdownToHtml(markdown, { nodePath: filePath, linkBasePath: filePath });
+            hydrateMarkdownPreviewElement(body, filePath);
+            void typesetMarkdownDiagrams(body);
+          } catch (fallbackError) {
+            body.textContent = `Ошибка загрузки: ${fallbackError.message || fallbackError}`;
+          }
+        } else {
+          body.textContent = `Ошибка загрузки: ${error.message || error}`;
+        }
       }
       scheduleWorkspaceScrollChromeSync();
       return;
@@ -78655,6 +78705,10 @@ function applyModeUi(options = {}) {
     if (nodeOverviewContentNode?.querySelector(".awn-data-view-hub") && cacheOk) {
       ensureAwnDataViewHubMounted();
       syncAwnDataViewScreenMode();
+      void mountAwnDataViewComments(
+        awnDataViewStoreCache,
+        awnDataViewRecordId ? awnDataViewRecordCache : null
+      );
       hideContentLoading({ force: true });
     } else {
       void loadAwnDataViewStore();
@@ -79800,8 +79854,7 @@ function enhanceMarkdownPreviewImages(root) {
 }
 
 function renderPreviewFromEditor() {
-  const nodePath =
-    activeSystemFile || getPropsContextPath() || getActiveTitleEditorPath() || getActiveNodeApiPath();
+  const nodePath = resolveMarkdownPreviewNodePath();
   setMarkdownPreviewHtml(fileContentPreviewNode, fileContentInputNode.value, { nodePath });
   syncAgentTodoPreviewFromEditor();
   syncAppFooterIdeasFromEditor();
@@ -95576,12 +95629,13 @@ function getAwnDataIndexRelPath() {
 }
 
 async function probeAwnDataIndexExists() {
-  const relPath = getAwnDataIndexRelPath();
-  try {
-    const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
-    if (response.ok) return true;
-  } catch {
-    // ignore
+  for (const relPath of [getAwnDataIndexRelPath(), "awn-data/INDEX.md"]) {
+    try {
+      const response = await fetch(buildApiUrl("/api/file", { path: relPath }));
+      if (response.ok) return true;
+    } catch {
+      // ignore
+    }
   }
   return false;
 }
@@ -95627,21 +95681,86 @@ function setMenuAwnDataIndexRefreshLoading(loading) {
   }
 }
 
+function isAwnDataIndexRelPath(relPath) {
+  return (
+    normalizeLinkFilePath(relPath).toLowerCase() === getAwnDataIndexRelPath().toLowerCase()
+  );
+}
+
+function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет накопителей для оглавления._" } = {}) {
+  if (!entries?.length) return emptyHint;
+  const lines = [
+    "| Тип | Группа | Путь | Название | Описание | Записей |",
+    "| --- | --- | --- | --- | --- | ---: |"
+  ];
+  for (const entry of entries) {
+    const pathCell = `\`${escapeStorageIndexTableCell(entry.path)}\``;
+    const titleCell = formatStorageIndexTitleCell(entry, { linkTitle: true });
+    lines.push(
+      `| ${escapeStorageIndexTableCell(entry.type) || "—"} | ${escapeStorageIndexTableCell(entry.group) || "—"} | ${pathCell} | ${titleCell} | ${escapeStorageIndexTableCell(entry.description) || "—"} | ${Number(entry.recordCount) || 0} |`
+    );
+  }
+  return lines.join("\n");
+}
+
+function formatAwnDataIndexPayloadAsMarkdown(payload) {
+  const entries = (payload?.entries || []).map((entry) => ({
+    ...entry,
+    type:
+      entry.type ||
+      ({ group: "группа", collection: "коллекция", singleton: "одиночка" }[entry.kind] || entry.kind),
+    group: entry.group || "—",
+    linkPath: entry.linkPath || (entry.path ? `awn-data/${entry.path}/manifest.md`.replace(/\/+/g, "/") : "")
+  }));
+  return [
+    "# Оглавление инфоблоков (awn-data)",
+    "",
+    formatAwnDataIndexEntriesMarkdown(entries)
+  ]
+    .join("\n")
+    .trimEnd();
+}
+
+async function fetchAwnDataIndexMarkdownFromApi() {
+  const response = await fetch(buildApiUrl("/api/agent/awn-data-index"));
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.details || `awn-data-index ${response.status}`);
+  }
+  const payload = await response.json();
+  return `${formatAwnDataIndexPayloadAsMarkdown(payload)}\n`;
+}
+
+let awnDataIndexPreviewOverride = null;
+
 async function openAwnDataIndexOverview() {
-  await openWorkspaceFilePreviewByRelPath(getAwnDataIndexRelPath());
+  const relPath = getAwnDataIndexRelPath();
+  awnDataIndexPreviewOverride = null;
+  if (!(await probeAwnDataIndexExists())) {
+    try {
+      awnDataIndexPreviewOverride = await fetchAwnDataIndexMarkdownFromApi();
+    } catch (error) {
+      showToast(`Не удалось сформировать оглавление: ${error.message}`, "error");
+      return;
+    }
+  }
+  hideHomeView();
+  await openFolderBrowseFile("Оглавление инфоблоков", relPath, { folderPath: "awn-data" });
+  void renderFolderBrowseFileView();
 }
 
 async function refreshAwnDataIndexOverview() {
-  try {
-    const response = await fetch(buildApiUrl("/api/agent/awn-data-index"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ overwrite: true })
-    });
-    return response.ok;
-  } catch {
-    return false;
+  const response = await fetch(buildApiUrl("/api/agent/awn-data-index"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ overwrite: true })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.details || `awn-data-index ${response.status}`);
   }
+  awnDataIndexPreviewOverride = null;
+  return true;
 }
 
 function setupMenuAwnDataIndexRow() {
@@ -95665,22 +95784,22 @@ function setupMenuAwnDataIndexRow() {
     }
     setMenuAwnDataIndexRefreshLoading(true);
     void refreshAwnDataIndexOverview()
-      .then((ok) => {
+      .then(async () => {
         if (!menuAwnDataIndexRowNode?.isConnected) return;
-        if (ok) {
-          menuAwnDataIndexRowNode.dataset.awnDataHasIndex = "1";
-          syncMenuAwnDataIndexRowState();
-          if (activeExternalFilePath === getAwnDataIndexRelPath()) {
-            void openWorkspaceFilePreviewByRelPath(getAwnDataIndexRelPath());
-          }
-          showToast("Оглавление инфоблоков обновлено", "success");
-          return;
+        menuAwnDataIndexRowNode.dataset.awnDataHasIndex = "1";
+        syncMenuAwnDataIndexRowState();
+        if (
+          activeFolderBrowseFilePath === getAwnDataIndexRelPath() &&
+          activeContentMode === FOLDER_BROWSE_FILE_MODE
+        ) {
+          awnDataIndexPreviewOverride = null;
+          void renderFolderBrowseFileView();
         }
-        showToast("Не удалось обновить оглавление инфоблоков", "error");
+        showToast("Оглавление инфоблоков обновлено", "success");
       })
-      .catch(() => {
+      .catch((error) => {
         if (menuAwnDataIndexRowNode?.isConnected) {
-          showToast("Не удалось обновить оглавление инфоблоков", "error");
+          showToast(`Не удалось обновить оглавление инфоблоков: ${error.message}`, "error");
         }
       })
       .finally(() => {
@@ -96690,6 +96809,8 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewRecordPanelNode = null;
   awnDataViewRecordFieldsNode = null;
   awnDataViewRecordBodyNode = null;
+  awnDataViewIblockCommentsMountNode = null;
+  awnDataViewRecordCommentsMountNode = null;
   awnDataViewLayoutToggleNode = null;
   return;
 }
@@ -96733,6 +96854,8 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewRecordPanelNode = root.querySelector(".awn-data-view-record-panel");
   awnDataViewRecordFieldsNode = root.querySelector(".awn-data-view-record-fields");
   awnDataViewRecordBodyNode = root.querySelector(".awn-data-view-record-body");
+  awnDataViewIblockCommentsMountNode = root.querySelector(".awn-data-view-iblock-comments-mount");
+  awnDataViewRecordCommentsMountNode = root.querySelector(".awn-data-view-record-comments-mount");
   awnDataViewLayoutToggleNode = root.querySelector(".awn-data-view-layout-toggle");
   syncAwnDataViewLayoutToggleUi();
 }
@@ -96878,35 +97001,28 @@ function resolveAwnDataCommentsContext(store, record = null) {
 }
 
 function clearAwnDataViewCommentsMount() {
-  awnDataViewRoot?.querySelectorAll(".awn-data-view-comments-mount .node-comments").forEach((node) => {
-    node.remove();
-  });
+  for (const mount of [awnDataViewIblockCommentsMountNode, awnDataViewRecordCommentsMountNode]) {
+    mount?.replaceChildren();
+  }
 }
 
 async function mountAwnDataViewComments(store, record = null) {
   ensureAwnDataViewHubMounted();
   clearAwnDataViewCommentsMount();
-  const context = resolveAwnDataCommentsContext(store, record);
-  if (!context) return;
 
   const isRecord = Boolean(record);
-  const mount = isRecord
-    ? awnDataViewRecordPanelNode
-    : awnDataViewRoot?.querySelector(".awn-data-view-page-body");
-  if (!mount) return;
+  const wrapper = isRecord ? awnDataViewRecordCommentsMountNode : awnDataViewIblockCommentsMountNode;
+  if (!wrapper) return;
 
-  let wrapper = mount.querySelector(":scope > .awn-data-view-comments-mount");
-  if (!wrapper) {
-    wrapper = document.createElement("div");
-    wrapper.className = "awn-data-view-comments-mount";
-    mount.appendChild(wrapper);
-  }
+  const context = resolveAwnDataCommentsContext(store, record);
+  if (!context) return;
 
   await appendNodeCommentsBlockToContainer(wrapper, {
     manifestPath: context.manifestPath,
     nodeTitle: context.nodeTitle,
     mode: context.mode,
-    file: context.file
+    file: context.file,
+    disabled: !AWN_DATA_COMMENTS_ENABLED
   });
   scheduleWorkspaceScrollChromeSync();
 }
@@ -96946,6 +97062,10 @@ function rootQueryAwnDataToolbar() {
 async function openAwnDataRouteFromWorkspacePath(workspacePath, agentId = activeAgentId, options = {}) {
   const normalized = String(workspacePath || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
   if (!/^awn-data(?:\/|$)/i.test(normalized)) return false;
+  if (isAwnDataIndexRelPath(`${normalized}.md`) || isAwnDataIndexRelPath(normalized)) {
+    await openAwnDataIndexOverview();
+    return true;
+  }
   const tail = normalized.replace(/^awn-data\/?/i, "");
   if (!tail) {
     showHomeView();
@@ -98126,13 +98246,27 @@ async function renderAwnDataRecordView(record, store, agentId = activeAgentId) {
   try {
     if (isCsvStore) {
       const data = await fetchWorkspaceFolderText(fileRel, catalogAgentId);
-      awnDataViewRecordBodyNode.textContent = data.content || "";
+      const csvContent = String(data.content || "").trim();
+      if (!csvContent) {
+        awnDataViewRecordBodyNode.replaceChildren();
+        awnDataViewRecordBodyNode.classList.add("hidden");
+        return;
+      }
+      awnDataViewRecordBodyNode.classList.remove("hidden");
+      awnDataViewRecordBodyNode.textContent = csvContent;
       return;
     }
     const data = await fetchWorkspaceFolderPage(fileRel, catalogAgentId);
-    const markdown = rewriteWorkspaceMarkdownAssetUrls(data.body || data.content || "", storeRel);
+    const markdown = rewriteWorkspaceMarkdownAssetUrls(data.body || data.content || "", storeRel).trim();
+    if (!markdown) {
+      awnDataViewRecordBodyNode.replaceChildren();
+      awnDataViewRecordBodyNode.classList.add("hidden");
+      return;
+    }
+    awnDataViewRecordBodyNode.classList.remove("hidden");
     if (typeof renderMarkdownToHtml === "function") {
       awnDataViewRecordBodyNode.innerHTML = renderMarkdownToHtml(markdown, { nodePath: fileRel });
+      hydrateMarkdownPreviewElement(awnDataViewRecordBodyNode, fileRel);
       void typesetMarkdownDiagrams(awnDataViewRecordBodyNode);
     } else {
       awnDataViewRecordBodyNode.textContent = markdown;

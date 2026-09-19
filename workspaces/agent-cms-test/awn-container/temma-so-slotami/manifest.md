@@ -25,4 +25,5 @@ awn-focus: false
 awn-main: false
 awn-slots-flexible: false
 awn-name: "Темма со слотами"
+awn-id: 9
 ---

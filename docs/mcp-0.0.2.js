@@ -166,7 +166,7 @@ module.exports = {
         },
         {
           name: "refresh_repository_index",
-          description: "Пересобрать awn-repositories/INDEX.md из manifest-ов.",
+          description: "Пересобрать awn-repositories/index.md из manifest-ов.",
           parameters: "overwrite?",
           http: "POST /api/agent/repository-index"
         },
@@ -280,13 +280,13 @@ module.exports = {
         { name: "iblock_get", description: "Один инфоблок: schema, records, tree.", parameters: "store", http: "GET /api/awn-data?store=" },
         {
           name: "iblock_read_index",
-          description: "Оглавление инфоблоков (awn-data/INDEX.md): kind, group, path, title, description.",
+          description: "Оглавление инфоблоков (awn-data/index.md): kind, group, path, title, description.",
           parameters: "—",
           http: "GET /api/agent/awn-data-index"
         },
         {
           name: "iblock_refresh_index",
-          description: "Обновить awn-data/INDEX.md из iblock_list.",
+          description: "Обновить awn-data/index.md из iblock_list.",
           parameters: "overwrite?",
           http: "POST /api/agent/awn-data-index"
         },

@@ -3,7 +3,8 @@ const path = require("path");
 const { parseTypeYaml } = require("./awn-yaml-utils");
 
 const AWN_REPOSITORIES_DIR = "awn-repositories";
-const AWN_REPOSITORIES_INDEX_FILE = "INDEX.md";
+const AWN_REPOSITORIES_INDEX_FILE = "index.md";
+const AWN_REPOSITORIES_INDEX_LEGACY_FILE = "INDEX.md";
 const AWN_REPOSITORIES_GROUPS_FILE = "groups.yml";
 const REPOSITORY_MANIFEST_FILE = "manifest.md";
 const REPOSITORY_TYPE_ID = "awn.repository";
@@ -46,6 +47,22 @@ function getRepositoriesRootRel() {
 
 function getRepositoryIndexRelPath() {
   return `${AWN_REPOSITORIES_DIR}/${AWN_REPOSITORIES_INDEX_FILE}`;
+}
+
+function getRepositoryIndexLegacyRelPath() {
+  return `${AWN_REPOSITORIES_DIR}/${AWN_REPOSITORIES_INDEX_LEGACY_FILE}`;
+}
+
+async function resolveRepositoryIndexFileOnDisk(agentRoot) {
+  const canonical = getRepositoryIndexRelPath();
+  if (await pathExists(path.join(agentRoot, canonical))) {
+    return { path: canonical, exists: true };
+  }
+  const legacy = getRepositoryIndexLegacyRelPath();
+  if (await pathExists(path.join(agentRoot, legacy))) {
+    return { path: legacy, exists: true, legacy: true };
+  }
+  return { path: canonical, exists: false };
 }
 
 function getRepositoryGroupsRelPath() {
@@ -224,7 +241,7 @@ function applyGroupsCatalogToRepositories(repositories, groupsCatalog) {
 
 function isRepositoryCatalogPath(relPath) {
   const normalized = normalizeRelPath(relPath);
-  if (normalized === getRepositoryIndexRelPath()) return true;
+  if (normalized === getRepositoryIndexRelPath() || normalized === getRepositoryIndexLegacyRelPath()) return true;
   if (normalized === getRepositoryGroupsRelPath()) return true;
   if (/^awn-repositories\/[^/]+\/manifest\.md$/i.test(normalized)) return true;
   return false;
@@ -407,8 +424,8 @@ async function readRepositoryEntry(agentRoot, manifestRel) {
 }
 
 async function listRepositories(agentRoot) {
+  const indexOnDisk = await resolveRepositoryIndexFileOnDisk(agentRoot);
   const indexRel = getRepositoryIndexRelPath();
-  const indexAbs = path.join(agentRoot, indexRel);
   const groupsCatalog = await readRepositoryGroups(agentRoot);
   const slugs = await listRepositoryFolderSlugs(agentRoot);
   const repositories = [];
@@ -428,14 +445,14 @@ async function listRepositories(agentRoot) {
     version: 1,
     model: "awn-repositories-catalog",
     hint:
-      "Каталог исходников workspace: только manifest.md, INDEX.md и groups.yml в поиске. " +
+      "Каталог исходников workspace: только manifest.md, index.md и groups.yml в поиске. " +
       "Содержимое клонов не индексируется — агент знает где код, читает по явному path. " +
       "unregistered — папки в awn-repositories/ без manifest (подхватить через register_repository). " +
       "groups.yml — логические группы sidebar без физических подпапок.",
     root: getRepositoriesRootRel(),
     indexFile: {
       path: indexRel,
-      exists: await pathExists(indexAbs)
+      exists: indexOnDisk.exists
     },
     groupsCatalog,
     repositories,
@@ -445,7 +462,7 @@ async function listRepositories(agentRoot) {
     whenToUse: {
       list_repositories: "Список репозиториев workspace с описаниями из manifest.md.",
       get_repository: "Одна карточка репозитория + body manifest.",
-      refresh_repository_index: "Пересобрать awn-repositories/INDEX.md из manifest-ов.",
+      refresh_repository_index: "Пересобрать awn-repositories/index.md из manifest-ов.",
       register_repository: "Создать manifest.md — в т.ч. для уже существующей папки (подхват)."
     }
   };
@@ -554,8 +571,8 @@ async function writeRepositoryIndex(agentRoot, options = {}) {
   const overwrite = options.overwrite !== false;
   const payload = await listRepositories(agentRoot);
   const indexRel = getRepositoryIndexRelPath();
-  const indexAbs = path.join(agentRoot, indexRel);
-  const exists = await pathExists(indexAbs);
+  const indexOnDisk = await resolveRepositoryIndexFileOnDisk(agentRoot);
+  const exists = indexOnDisk.exists;
   if (exists && !overwrite) {
     return {
       error: "Repository index file already exists",
@@ -566,12 +583,17 @@ async function writeRepositoryIndex(agentRoot, options = {}) {
 
   await ensureRepositoriesRoot(agentRoot);
   const markdown = formatRepositoryIndexMarkdown(payload.repositories);
+  const indexAbs = path.join(agentRoot, indexRel);
   await fs.writeFile(indexAbs, markdown, "utf-8");
+  const legacyRel = getRepositoryIndexLegacyRelPath();
+  if (legacyRel !== indexRel && (await pathExists(path.join(agentRoot, legacyRel)))) {
+    await fs.rm(path.join(agentRoot, legacyRel), { force: true }).catch(() => {});
+  }
 
   return {
     version: 1,
     model: "awn-repositories-index-write",
-    hint: "INDEX.md обновлён в awn-repositories/. Просмотр → GET /api/agent/repositories.",
+    hint: "index.md обновлён в awn-repositories/. Просмотр → GET /api/agent/repositories.",
     overwrite,
     written: {
       path: indexRel,
@@ -715,7 +737,7 @@ async function updateRepository(agentRoot, inputPath, options = {}) {
     updated: true,
     path: manifestRel,
     repository,
-    hint: "Manifest обновлён. refresh_repository_index — если нужна новая строка в INDEX.md."
+    hint: "Manifest обновлён. refresh_repository_index — если нужна новая строка в index.md."
   };
 }
 

@@ -708,7 +708,7 @@ razdel-1/
 - типы контейнеров: `list_types({ filter: "data-containers" })` → `get_type({ id: "awn.data.collection" })`
 - схемы записей store: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.data.record" })`
 - список: `iblock_list` → `iblock_get({ store })`
-- оглавление всех инфоблоков: `iblock_read_index` / `iblock_refresh_index` → `awn-data/INDEX.md`
+- оглавление всех инфоблоков: `iblock_read_index` / `iblock_refresh_index` → `awn-data/index.md`
 - схема полей (read): `iblock_read_schema({ store })`
 - свойства инфоблока: `iblock_read_properties` / `iblock_write_properties`, `iblock_read_property` / `iblock_write_property`
 - свойства записи: `iblock_content_read_properties` / `iblock_content_write_properties`, `iblock_content_read_property` / `iblock_content_write_property`

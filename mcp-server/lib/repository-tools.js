@@ -24,12 +24,12 @@ export function registerRepositoryTools(reg, client) {
 
   reg(
     "refresh_repository_index",
-    "Rebuild awn-repositories/INDEX.md table from repository manifests (overwrite=false skips if exists).",
+    "Rebuild awn-repositories/index.md table from repository manifests (overwrite=false skips if exists).",
     z.object({
       overwrite: z
         .boolean()
         .optional()
-        .describe("Replace existing INDEX.md if present (default true). false → 409 when file exists.")
+        .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
     }),
     ({ overwrite }) =>
       client.post("/api/agent/repository-index", {

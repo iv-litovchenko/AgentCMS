@@ -11221,10 +11221,27 @@ async function writeAgentWorkspacePageIndex(options = {}) {
   };
 }
 
-const AWN_DATA_INDEX_FILE = "INDEX.md";
+const AWN_DATA_INDEX_FILE = "index.md";
+const AWN_DATA_INDEX_LEGACY_FILE = "INDEX.md";
 
 function getAwnDataIndexRelPath() {
   return `${AWN_DATA_DIR}/${AWN_DATA_INDEX_FILE}`.replace(/\\/g, "/");
+}
+
+function getAwnDataIndexLegacyRelPath() {
+  return `${AWN_DATA_DIR}/${AWN_DATA_INDEX_LEGACY_FILE}`.replace(/\\/g, "/");
+}
+
+async function resolveAwnDataIndexFileOnDisk() {
+  const canonical = getAwnDataIndexRelPath();
+  if (await workspaceRelFileExists(canonical)) {
+    return { path: canonical, exists: true };
+  }
+  const legacy = getAwnDataIndexLegacyRelPath();
+  if (await workspaceRelFileExists(legacy)) {
+    return { path: legacy, exists: true, legacy: true };
+  }
+  return { path: canonical, exists: false };
 }
 
 const AWN_DATA_KIND_INDEX_LABELS = {
@@ -11271,7 +11288,7 @@ function formatAwnDataIndexEntriesMarkdown(entries, { emptyHint = "_Нет на�
   ];
   for (const entry of entries) {
     lines.push(
-      `${escapeContentIndexTableCell(entry.type) || "—"} | ${escapeContentIndexTableCell(entry.group) || "—"} | \`${escapeContentIndexTableCell(entry.path)}\` | ${formatContentIndexTitleCell(entry, { linkTitle: false })} | ${escapeContentIndexTableCell(entry.description) || "—"} | ${Number(entry.recordCount) || 0} |`
+      `| ${escapeContentIndexTableCell(entry.type) || "—"} | ${escapeContentIndexTableCell(entry.group) || "—"} | \`${escapeContentIndexTableCell(entry.path)}\` | ${formatContentIndexTitleCell(entry, { linkTitle: true })} | ${escapeContentIndexTableCell(entry.description) || "—"} | ${Number(entry.recordCount) || 0} |`
     );
   }
   return lines.join("\n");
@@ -11357,7 +11374,8 @@ async function buildAgentAwnDataIndex() {
   }
   const payload = getAwnDataPayload(agentRoot, getProjectRoot());
   const indexPath = getAwnDataIndexRelPath();
-  const indexExists = await workspaceRelFileExists(indexPath);
+  const indexOnDisk = await resolveAwnDataIndexFileOnDisk();
+  const indexExists = indexOnDisk.exists;
   const entries = flattenAwnDataStoresForIndex(payload?.stores || []);
   const manifestPath = await resolveWorkspacePageIndexManifestRel();
 
@@ -11370,7 +11388,7 @@ async function buildAgentAwnDataIndex() {
     whenToUse: {
       iblock_read_index: "Быстрый обзор всех инфоблоков workspace без погружения в каждый накопитель.",
       iblock_refresh_index:
-        "Обновить (пересобрать и сохранить) INDEX.md в корне awn-data (таблица kind/group/path/title/description)."
+        "Обновить (пересобрать и сохранить) index.md в корне awn-data (таблица kind/group/path/title/description)."
     },
     path: manifestPath,
     indexFile: {
@@ -11387,7 +11405,7 @@ async function buildAgentAwnDataIndex() {
 async function writeAgentAwnDataIndex(options = {}) {
   const overwrite = options.overwrite !== false;
   const payload = await buildAgentAwnDataIndex();
-  const indexPath = payload.indexFile.path;
+  const indexPath = getAwnDataIndexRelPath();
   if (payload.indexFile.exists && !overwrite) {
     return {
       error: "Awn-data index file already exists",
@@ -11404,10 +11422,15 @@ async function writeAgentAwnDataIndex(options = {}) {
   const manifestRel = await resolveWorkspacePageIndexManifestRel();
   const markdown = await buildAwnDataIndexMarkdown({ stores: dataPayload?.stores || [] });
   await writeWorkspaceTextFileWithHistory(manifestRel, indexPath, markdown);
+  const legacyPath = getAwnDataIndexLegacyRelPath();
+  if (legacyPath !== indexPath && (await workspaceRelFileExists(legacyPath))) {
+    const legacyAbsolute = normalizeWorkspacePath(legacyPath);
+    if (legacyAbsolute) await fs.rm(legacyAbsolute, { force: true }).catch(() => {});
+  }
   return {
     version: 1,
     model: "awn-data-index-write",
-    hint: "INDEX.md обновлён в awn-data/. Просмотр без записи → iblock_read_index / GET /api/agent/awn-data-index.",
+    hint: "index.md обновлён в awn-data/. Просмотр без записи → iblock_read_index / GET /api/agent/awn-data-index.",
     whenToUse: payload.whenToUse,
     path: payload.path,
     overwrite,
@@ -11682,10 +11705,31 @@ function resolveWorkspaceTopicSlotsModeLabel(page) {
   return page?.slotsFlexible ? "гибкий" : "типовые";
 }
 
+const CONTENT_INDEX_SLOT_LABELS = {
+  memory: "Память (многофайловая)",
+  main: "Память (многофайловая)",
+  external: "Память (многофайловая)",
+  assets: "Активы",
+  "agent-queue": "Очередь задач для агента",
+  templates: "Шаблоны",
+  base: "База",
+  notebooklm: "NotebookLM",
+  repository: "Репозитории",
+  гибкий: "гибкий"
+};
+
 function resolveContentIndexEntrySlotLabel(slotKey) {
-  const normalized = String(slotKey || "").trim();
-  if (!normalized || normalized === "memory") return "main";
-  return normalized;
+  const { normalizeStorageSlotKey } = require("./storage-slot-routing");
+  const raw = String(slotKey || "").trim();
+  const normalized = normalizeStorageSlotKey(raw) || raw;
+  return (
+    CONTENT_INDEX_SLOT_LABELS[normalized] ||
+    CONTENT_INDEX_SLOT_LABELS[raw] ||
+    SHARED_MOUNT_SPECS_BY_SLOT.get(normalized)?.label ||
+    SHARED_MOUNT_SPECS_BY_SLOT.get(raw)?.label ||
+    raw ||
+    "—"
+  );
 }
 
 function formatContentIndexEntriesMarkdown(
@@ -11696,10 +11740,10 @@ function formatContentIndexEntriesMarkdown(
   const includeSlotsMode = tableVariant === "workspace";
   const includeSlotLabel = tableVariant === "topic-content";
   const header = includeSlotsMode
-    ? "| awn-id | Тип | Слоты | Путь | Название | Описание | Комментарии | Конфигурации | Размер | Строк |"
+    ? "| ID | Тип | Слоты | Путь | Название | Описание | Комментарии | Конфигурации | Размер | Строк |"
     : includeSlotLabel
-      ? "| id | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |"
-      : "| id | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |";
+      ? "| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |"
+      : "| ID | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |";
   const divider = includeSlotsMode
     ? "| ---: | --- | --- | --- | --- | --- | ---: | --- | ---: | ---: |"
     : includeSlotLabel
@@ -12371,7 +12415,7 @@ const SESSION_CONTEXT_API_MAP = {
   repository:
     "GET /api/agent/repository?path= — одна карточка репозитория; MCP: get_repository",
   repositoryIndex:
-    "POST /api/agent/repository-index — обновить awn-repositories/INDEX.md; MCP: refresh_repository_index",
+    "POST /api/agent/repository-index — обновить awn-repositories/index.md; MCP: refresh_repository_index",
   repositoryRegister:
     "POST /api/agent/repositories — создать awn-repositories/{slug}/manifest.md; MCP: register_repository",
   topicRegistry: "GET /api/agent/topic-registry — краткий реестр всех тем (skill/оглавление)",
@@ -12396,8 +12440,8 @@ const SESSION_CONTEXT_API_MAP = {
   workspacePageIndexWrite:
     "POST /api/agent/workspace-page-index — обновить INDEX.md в корне workspace (body: overwrite?)",
   awnDataIndex:
-    "GET /api/agent/awn-data-index — оглавление awn-data/INDEX.md (kind, group, path, title, description; инфоблоки)",
-  awnDataIndexWrite: "POST /api/agent/awn-data-index — обновить awn-data/INDEX.md (body: overwrite?)",
+    "GET /api/agent/awn-data-index — оглавление awn-data/index.md (kind, group, path, title, description; инфоблоки)",
+  awnDataIndexWrite: "POST /api/agent/awn-data-index — обновить awn-data/index.md (body: overwrite?)",
   dataStores: "GET /api/awn-data — накопители awn-data; ?store= для одного",
   dataStoreCreate: "POST /api/awn-data/stores — создать накопитель",
   dataRecordCreate: "POST /api/awn-data/records — добавить запись",

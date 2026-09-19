@@ -1,9 +1,11 @@
 {
   "paths": [
+    "main/vlad-1",
     "main/vlad-1.md",
     "main/vlad-2.md",
     "main/vlad-3.md",
-    "main/vlad-4.md"
+    "main/vlad-4.md",
+    "topic-index-generated/awn-container/moi-vklady/index.md"
   ],
-  "updatedAt": "2026-09-18T14:46:16.635Z"
+  "updatedAt": "2026-09-19T07:44:31.036Z"
 }

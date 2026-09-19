@@ -30,7 +30,7 @@
 | 7 | awn.page.topic | типовые | `awn-container/moi-vklady/manifest.md` | [Мои вклады](awn-container/moi-vklady/manifest.md) | — | 0 | Схемы | 571 B | 30 |
 | — | awn.page.topic | типовые | `awn-container/php/manifest.md` | [PHP](awn-container/php/manifest.md) | Описание | 0 | Настройки | 2.3 KB | 63 |
 | — | awn.page.topic | гибкий | `awn-container/tema-bez-slotov/manifest.md` | [Тема без слотов](awn-container/tema-bez-slotov/manifest.md) | — | 0 | Схемы | 617 B | 31 |
-| 9 | awn.page.topic | типовые | `awn-container/temma-so-slotami/manifest.md` | [Темма со слотами](awn-container/temma-so-slotami/manifest.md) | — | 0 | — | 582 B | 30 |
+| — | awn.page.topic | типовые | `awn-container/temma-so-slotami/manifest.md` | [Темма со слотами](awn-container/temma-so-slotami/manifest.md) | — | 0 | — | 572 B | 29 |
 | — | awn.page.topic | типовые | `awn-container/test-1000-soobscheniy/manifest.md` | [Тест 1000 сообщений](awn-container/test-1000-soobscheniy/manifest.md) | — | 2 | Настройки | 557 B | 28 |
 | — | awn.page.topic | типовые | `awn-container/test-vseh-svoystvo/manifest.md` | [Тест всех свойство](awn-container/test-vseh-svoystvo/manifest.md) | — | 0 | Схемы, Настройки | 3.9 KB | 132 |
 | — | awn.page.area | — | `awn-shared/manifest.md` | [Общие темы и ресурсы](awn-shared/manifest.md) | — | 0 | — | 515 B | 26 |

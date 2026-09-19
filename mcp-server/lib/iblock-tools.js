@@ -45,19 +45,19 @@ export function registerIblockTools(reg, client) {
 
   reg(
     "iblock_read_index",
-    "Quick TOC for all infoblocks: kind, group, path, title, description, recordCount (awn-data/INDEX.md). No body. indexFile.exists shows on-disk INDEX.md.",
+    "Quick TOC for all infoblocks: kind, group, path, title, description, recordCount (awn-data/index.md). No body. indexFile.exists shows on-disk index.md.",
     z.object({}),
     () => client.get("/api/agent/awn-data-index")
   );
 
   reg(
     "iblock_refresh_index",
-    "Refresh (rebuild and save) awn-data/INDEX.md from iblock_list (kind/group/path/title/description table). overwrite=false skips if file exists.",
+    "Refresh (rebuild and save) awn-data/index.md from iblock_list (kind/group/path/title/description table). overwrite=false skips if file exists.",
     z.object({
       overwrite: z
         .boolean()
         .optional()
-        .describe("Replace existing INDEX.md if present (default true). false → 409 when file exists.")
+        .describe("Replace existing index.md if present (default true). false → 409 when file exists.")
     }),
     ({ overwrite }) =>
       client.post("/api/agent/awn-data-index", {
