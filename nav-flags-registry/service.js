@@ -2,24 +2,35 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const AGENT_CMS_DIR = ".agent-cms";
-const REGISTRY_FILE = "nav-flags-registry.json";
-const MODEL = "nav-flags-registry-v1";
+const REGISTRY_DIR = ".agent-cms/nav-registry";
+const FOCUS_REGISTRY_FILE = "focus.json";
+const MAIN_REGISTRY_FILE = "main.json";
+const LEGACY_COMBINED_REGISTRY_FILE = "nav-flags-registry.json";
+const LEGACY_FOCUS_REGISTRY_FILE = "nav-focus-registry.json";
+const LEGACY_MAIN_REGISTRY_FILE = "nav-main-registry.json";
+const FOCUS_MODEL = "nav-focus-registry-v1";
+const MAIN_MODEL = "nav-main-registry-v1";
 
 function normalizeRelPath(relPath) {
   return String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
 }
 
-function registryAbsolute(agentRoot) {
-  return path.join(agentRoot, AGENT_CMS_DIR, REGISTRY_FILE);
+function registryDirAbsolute(agentRoot) {
+  return path.join(agentRoot, REGISTRY_DIR);
 }
 
-function emptyRegistry() {
+function registryAbsolute(agentRoot, kind) {
+  const fileName = kind === "main" ? MAIN_REGISTRY_FILE : FOCUS_REGISTRY_FILE;
+  return path.join(registryDirAbsolute(agentRoot), fileName);
+}
+
+function emptyRegistry(kind) {
   return {
-    model: MODEL,
+    model: kind === "main" ? MAIN_MODEL : FOCUS_MODEL,
     builtAt: null,
     rebuildMs: null,
-    focus: [],
-    main: []
+    syncedAt: null,
+    items: []
   };
 }
 
@@ -34,26 +45,93 @@ function createNavFlagsRegistryService(deps) {
     isNavMainActive
   } = deps;
 
-  async function readRegistry(agentRoot) {
+  async function readRegistryFile(agentRoot, kind) {
     if (!agentRoot) return null;
+    const model = kind === "main" ? MAIN_MODEL : FOCUS_MODEL;
     try {
-      const raw = await fs.readFile(registryAbsolute(agentRoot), "utf-8");
+      const raw = await fs.readFile(registryAbsolute(agentRoot, kind), "utf-8");
       const parsed = JSON.parse(raw);
-      if (!parsed || parsed.model !== MODEL) return null;
+      if (!parsed || parsed.model !== model) return null;
       return {
-        ...emptyRegistry(),
+        ...emptyRegistry(kind),
         ...parsed,
-        focus: Array.isArray(parsed.focus) ? parsed.focus : [],
-        main: Array.isArray(parsed.main) ? parsed.main : []
+        items: Array.isArray(parsed.items) ? parsed.items : []
       };
     } catch {
       return null;
     }
   }
 
-  async function writeRegistry(agentRoot, payload) {
-    await fs.mkdir(path.join(agentRoot, AGENT_CMS_DIR), { recursive: true });
-    await fs.writeFile(registryAbsolute(agentRoot), `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
+  async function readJsonFileSafe(fileAbsolute) {
+    try {
+      const raw = await fs.readFile(fileAbsolute, "utf-8");
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  async function readLegacySplitRegistry(agentRoot, kind) {
+    const fileName = kind === "main" ? LEGACY_MAIN_REGISTRY_FILE : LEGACY_FOCUS_REGISTRY_FILE;
+    const parsed = await readJsonFileSafe(path.join(agentRoot, AGENT_CMS_DIR, fileName));
+    if (!parsed) return null;
+    const model = kind === "main" ? MAIN_MODEL : FOCUS_MODEL;
+    if (parsed.model !== model) return null;
+    return {
+      items: Array.isArray(parsed.items) ? parsed.items : [],
+      builtAt: parsed.builtAt || null,
+      rebuildMs: parsed.rebuildMs ?? null,
+      syncedAt: parsed.syncedAt || null
+    };
+  }
+
+  async function readLegacyRegistry(agentRoot) {
+    const combined = await readJsonFileSafe(
+      path.join(agentRoot, AGENT_CMS_DIR, LEGACY_COMBINED_REGISTRY_FILE)
+    );
+    if (combined?.model === "nav-flags-registry-v1") {
+      return {
+        focus: Array.isArray(combined.focus) ? combined.focus : [],
+        main: Array.isArray(combined.main) ? combined.main : [],
+        builtAt: combined.builtAt || null,
+        rebuildMs: combined.rebuildMs ?? null,
+        syncedAt: combined.syncedAt || null
+      };
+    }
+
+    const focus = await readLegacySplitRegistry(agentRoot, "focus");
+    const main = await readLegacySplitRegistry(agentRoot, "main");
+    if (!focus && !main) return null;
+    return {
+      focus: focus?.items || [],
+      main: main?.items || [],
+      builtAt: focus?.builtAt || main?.builtAt || null,
+      rebuildMs: focus?.rebuildMs ?? main?.rebuildMs ?? null,
+      syncedAt: focus?.syncedAt || main?.syncedAt || null
+    };
+  }
+
+  async function readRegistry(agentRoot) {
+    const focus = await readRegistryFile(agentRoot, "focus");
+    const main = await readRegistryFile(agentRoot, "main");
+    if (focus || main) {
+      return {
+        focus: focus?.items || [],
+        main: main?.items || [],
+        builtAt: focus?.builtAt || main?.builtAt || null,
+        rebuildMs: focus?.rebuildMs ?? main?.rebuildMs ?? null,
+        syncedAt: focus?.syncedAt || main?.syncedAt || null
+      };
+    }
+
+    const legacy = await readLegacyRegistry(agentRoot);
+    if (!legacy) return null;
+    return legacy;
+  }
+
+  async function writeRegistryFile(agentRoot, kind, payload) {
+    await fs.mkdir(registryDirAbsolute(agentRoot), { recursive: true });
+    await fs.writeFile(registryAbsolute(agentRoot, kind), `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
   }
 
   function upsertEntry(list, entry) {
@@ -107,41 +185,65 @@ function createNavFlagsRegistryService(deps) {
       };
     }
 
-    const payload = {
-      model: MODEL,
-      builtAt: new Date().toISOString(),
-      rebuildMs: 0,
-      focus: collectAgentFocusEntries(agent),
-      main: collectAgentMainEntries(agent)
-    };
-    payload.rebuildMs = Date.now() - started;
-    await writeRegistry(root, payload);
+    const builtAt = new Date().toISOString();
+    const rebuildMs = Date.now() - started;
+    const focusItems = collectAgentFocusEntries(agent);
+    const mainItems = collectAgentMainEntries(agent);
+
+    await Promise.all([
+      writeRegistryFile(root, "focus", {
+        model: FOCUS_MODEL,
+        builtAt,
+        rebuildMs,
+        items: focusItems
+      }),
+      writeRegistryFile(root, "main", {
+        model: MAIN_MODEL,
+        builtAt,
+        rebuildMs,
+        items: mainItems
+      })
+    ]);
+
     return {
       ready: true,
-      ...payload,
-      focusCount: payload.focus.length,
-      mainCount: payload.main.length
+      builtAt,
+      rebuildMs,
+      focus: focusItems,
+      main: mainItems,
+      focusCount: focusItems.length,
+      mainCount: mainItems.length
     };
+  }
+
+  async function syncRegistryKind(agentRoot, kind, nodeRelPath, frontmatterYaml) {
+    const nodePath = normalizeRelPath(nodeRelPath);
+    if (!nodePath) return null;
+
+    const isActive = kind === "main" ? isNavMainActive(frontmatterYaml) : isNavFocusActive(frontmatterYaml);
+    const registry = (await readRegistryFile(agentRoot, kind)) || emptyRegistry(kind);
+    const entry = buildNavFlagEntry(nodePath, frontmatterYaml);
+    registry.items = isActive ? upsertEntry(registry.items, entry) : removeEntry(registry.items, nodePath);
+    registry.syncedAt = new Date().toISOString();
+    if (!registry.builtAt) registry.builtAt = registry.syncedAt;
+    await writeRegistryFile(agentRoot, kind, registry);
+    return registry;
   }
 
   async function syncFromFrontmatter(agentRoot, nodeRelPath, frontmatterYaml) {
     const root = agentRoot || getAgentRoot();
-    const nodePath = normalizeRelPath(nodeRelPath);
-    if (!root || !nodePath) return null;
+    if (!root) return null;
 
-    const registry = (await readRegistry(root)) || emptyRegistry();
-    const entry = buildNavFlagEntry(nodePath, frontmatterYaml);
-    registry.focus = isNavFocusActive(frontmatterYaml)
-      ? upsertEntry(registry.focus, entry)
-      : removeEntry(registry.focus, nodePath);
-    registry.main = isNavMainActive(frontmatterYaml)
-      ? upsertEntry(registry.main, entry)
-      : removeEntry(registry.main, nodePath);
-    registry.model = MODEL;
-    registry.builtAt = registry.builtAt || new Date().toISOString();
-    registry.syncedAt = new Date().toISOString();
-    await writeRegistry(root, registry);
-    return registry;
+    const [focus, main] = await Promise.all([
+      syncRegistryKind(root, "focus", nodeRelPath, frontmatterYaml),
+      syncRegistryKind(root, "main", nodeRelPath, frontmatterYaml)
+    ]);
+
+    return {
+      focus: focus?.items || [],
+      main: main?.items || [],
+      syncedAt: focus?.syncedAt || main?.syncedAt || null
+    };
   }
 
   async function getStatus({ agentRoot, agentId } = {}) {
@@ -153,8 +255,11 @@ function createNavFlagsRegistryService(deps) {
     if (!root) root = getAgentRoot();
     if (!root) return { ready: false, reason: "Agent workspace root is not available" };
 
-    const registry = await readRegistry(root);
-    if (!registry) {
+    const focusRegistry = await readRegistryFile(root, "focus");
+    const mainRegistry = await readRegistryFile(root, "main");
+    const legacy = !focusRegistry && !mainRegistry ? await readLegacyRegistry(root) : null;
+
+    if (!focusRegistry && !mainRegistry && !legacy) {
       return {
         ready: false,
         reason: "Реестр не построен — нажмите «Пересобрать реестр»",
@@ -163,22 +268,34 @@ function createNavFlagsRegistryService(deps) {
       };
     }
 
+    const focusCount = focusRegistry?.items?.length ?? legacy?.focus?.length ?? 0;
+    const mainCount = mainRegistry?.items?.length ?? legacy?.main?.length ?? 0;
+
     return {
       ready: true,
-      model: registry.model,
-      builtAt: registry.builtAt,
-      syncedAt: registry.syncedAt || null,
-      rebuildMs: registry.rebuildMs ?? null,
-      focusCount: registry.focus.length,
-      mainCount: registry.main.length
+      focusModel: FOCUS_MODEL,
+      mainModel: MAIN_MODEL,
+      registryDir: REGISTRY_DIR,
+      focusFile: `${REGISTRY_DIR}/${FOCUS_REGISTRY_FILE}`,
+      mainFile: `${REGISTRY_DIR}/${MAIN_REGISTRY_FILE}`,
+      builtAt: focusRegistry?.builtAt || mainRegistry?.builtAt || legacy?.builtAt || null,
+      syncedAt: focusRegistry?.syncedAt || mainRegistry?.syncedAt || legacy?.syncedAt || null,
+      rebuildMs: focusRegistry?.rebuildMs ?? mainRegistry?.rebuildMs ?? legacy?.rebuildMs ?? null,
+      focusCount,
+      mainCount,
+      legacy: Boolean(legacy && !focusRegistry && !mainRegistry)
     };
   }
 
   async function getAgentEntries(agent, kind) {
     if (!agent?.rootAbsolute || agent.folderExists === false) return null;
-    const registry = await readRegistry(agent.rootAbsolute);
-    if (!registry) return null;
-    return kind === "main" ? registry.main : registry.focus;
+
+    const registry = await readRegistryFile(agent.rootAbsolute, kind);
+    if (registry) return registry.items;
+
+    const legacy = await readLegacyRegistry(agent.rootAbsolute);
+    if (!legacy) return null;
+    return kind === "main" ? legacy.main : legacy.focus;
   }
 
   return {
@@ -192,7 +309,10 @@ function createNavFlagsRegistryService(deps) {
 
 module.exports = {
   createNavFlagsRegistryService,
-  REGISTRY_FILE,
+  REGISTRY_DIR,
+  FOCUS_REGISTRY_FILE,
+  MAIN_REGISTRY_FILE,
   AGENT_CMS_DIR,
-  MODEL
+  FOCUS_MODEL,
+  MAIN_MODEL
 };
