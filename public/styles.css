@@ -8702,6 +8702,8 @@ body.app-locked {
 .agent-large-files-pane,
 .agent-broken-links-pane,
 .agent-run-scripts-pane,
+.agent-todo-list-pane,
+.agent-mcp-methods-pane,
 .agent-runtime-registry-pane,
 .agent-tool-pane,
 .agent-awn-types-pane,
@@ -18422,6 +18424,14 @@ a.header-tool-btn {
   color: #0891b2;
 }
 
+.agents-picker-tools-grid .agent-todo-list-btn .agents-picker-tool-icon {
+  color: #16a34a;
+}
+
+.agents-picker-tools-grid .agent-mcp-methods-btn .agents-picker-tool-icon {
+  color: #9333ea;
+}
+
 .agents-picker-stage--stack,
 .agents-picker-stage--radar {
   min-height: 200px;
@@ -21166,8 +21176,110 @@ a.header-tool-btn {
 .agent-large-files-pane,
 .agent-broken-links-pane,
 .agent-run-scripts-pane,
+.agent-todo-list-pane,
+.agent-mcp-methods-pane,
 .agent-runtime-registry-pane {
   /* layout via .agent-tool-pane + .agent-canvas-pane */
+}
+
+.agent-todo-list-sources,
+.agent-mcp-methods-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-todo-list-source-row,
+.agent-mcp-methods-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.agent-todo-list-source-main,
+.agent-mcp-methods-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.agent-todo-list-source-label,
+.agent-mcp-methods-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.agent-todo-list-source-path,
+.agent-mcp-methods-id,
+.agent-mcp-methods-mcp {
+  font-size: 12px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-todo-list-source-kind,
+.agent-mcp-methods-status {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.agent-todo-list-source-kind.is-root,
+.agent-mcp-methods-status.is-active {
+  color: #15803d;
+}
+
+.agent-mcp-methods-status.is-stub {
+  color: #b45309;
+}
+
+.agent-todo-list-source-open-btn,
+.agent-mcp-methods-open-btn {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #fff;
+  color: #1e293b;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.agent-todo-list-root-card {
+  margin: 0 0 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.agent-todo-list-section-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agent-todo-list-root-preview {
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: #334155;
 }
 
 .agent-large-files-head {

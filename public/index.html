@@ -1410,6 +1410,24 @@
                     >
                       <span class="agents-picker-tool-label">Запуск скриптов <span class="stub-static-mark">(static)</span></span>
                     </button>
+                    <button
+                      id="agent-todo-list-btn"
+                      class="header-profile-menu-item agents-picker-tool-btn agent-todo-list-btn"
+                      type="button"
+                      role="menuitem"
+                      title="Список задач — TODO.md корня и todo.md тем"
+                    >
+                      <span class="agents-picker-tool-label">Список задач <span class="stub-static-mark">(static)</span></span>
+                    </button>
+                    <button
+                      id="agent-mcp-methods-btn"
+                      class="header-profile-menu-item agents-picker-tool-btn agent-mcp-methods-btn"
+                      type="button"
+                      role="menuitem"
+                      title="MCP · методы — каталог модулей и связанных tools"
+                    >
+                      <span class="agents-picker-tool-label">MCP · методы <span class="stub-static-mark">(static)</span></span>
+                    </button>
                   </div>
                 </section>
               </div>
@@ -3086,6 +3104,50 @@
           <div id="agent-runtime-registry-stats" class="agent-workspace-stats agent-runtime-registry-stats"></div>
         </div>
         <div id="agent-runtime-registry-content" class="agent-tool-body agent-runtime-registry-content"></div>
+      </main>
+
+      <main id="agent-todo-list-pane" class="agent-canvas-pane agent-tool-pane agent-todo-list-pane hidden" aria-label="Список задач workspace">
+        <div class="agent-canvas-head agent-tool-head">
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Список задач <span class="stub-static-mark">(static)</span></h2>
+            <p class="agent-canvas-lead">
+              Сводка задач из <code>TODO.md</code> корня workspace и <code>todo.md</code> тем.
+            </p>
+          </div>
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-todo-list-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Обновить список задач">
+              Обновить
+            </button>
+          </div>
+        </div>
+        <div id="agent-todo-list-info" class="agent-tool-info">
+          <p id="agent-todo-list-meta" class="agent-tool-info-desc">Static — заглушка агрегатора задач</p>
+          <div id="agent-todo-list-stats" class="agent-workspace-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-todo-list-content" class="agent-tool-body agent-todo-list-content"></div>
+      </main>
+
+      <main id="agent-mcp-methods-pane" class="agent-canvas-pane agent-tool-pane agent-mcp-methods-pane hidden" aria-label="MCP методы workspace">
+        <div class="agent-canvas-head agent-tool-head">
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">MCP · методы <span class="stub-static-mark">(static)</span></h2>
+            <p class="agent-canvas-lead">
+              Каталог встроенных модулей workspace и связанных MCP-инструментов.
+            </p>
+          </div>
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-mcp-methods-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Обновить каталог">
+              Обновить
+            </button>
+          </div>
+        </div>
+        <div id="agent-mcp-methods-info" class="agent-tool-info">
+          <p id="agent-mcp-methods-meta" class="agent-tool-info-desc">Static — справочник модулей, без вызова MCP</p>
+          <div id="agent-mcp-methods-stats" class="agent-workspace-stats" aria-live="polite"></div>
+        </div>
+        <div id="agent-mcp-methods-content" class="agent-tool-body agent-mcp-methods-content"></div>
       </main>
 
       <main id="agent-run-scripts-pane" class="agent-canvas-pane agent-tool-pane agent-run-scripts-pane hidden" aria-label="Запуск скриптов workspace">

@@ -198,6 +198,16 @@ const agentBrokenLinksContentNode = document.getElementById("agent-broken-links-
 const agentBrokenLinksStatsNode = document.getElementById("agent-broken-links-stats");
 const agentBrokenLinksMetaNode = document.getElementById("agent-broken-links-meta");
 const agentBrokenLinksRefreshBtn = document.getElementById("agent-broken-links-refresh-btn");
+const agentTodoListPaneNode = document.getElementById("agent-todo-list-pane");
+const agentTodoListContentNode = document.getElementById("agent-todo-list-content");
+const agentTodoListStatsNode = document.getElementById("agent-todo-list-stats");
+const agentTodoListMetaNode = document.getElementById("agent-todo-list-meta");
+const agentTodoListRefreshBtn = document.getElementById("agent-todo-list-refresh-btn");
+const agentMcpMethodsPaneNode = document.getElementById("agent-mcp-methods-pane");
+const agentMcpMethodsContentNode = document.getElementById("agent-mcp-methods-content");
+const agentMcpMethodsStatsNode = document.getElementById("agent-mcp-methods-stats");
+const agentMcpMethodsMetaNode = document.getElementById("agent-mcp-methods-meta");
+const agentMcpMethodsRefreshBtn = document.getElementById("agent-mcp-methods-refresh-btn");
 const agentRunScriptsPaneNode = document.getElementById("agent-run-scripts-pane");
 const agentRunScriptsContentNode = document.getElementById("agent-run-scripts-content");
 const agentRunScriptsStatsNode = document.getElementById("agent-run-scripts-stats");
@@ -216,6 +226,8 @@ const agentGitBtn = document.getElementById("agent-git-btn");
 const agentLargeFilesBtn = document.getElementById("agent-large-files-btn");
 const agentBrokenLinksBtn = document.getElementById("agent-broken-links-btn");
 const agentRunScriptsBtn = document.getElementById("agent-run-scripts-btn");
+const agentTodoListBtn = document.getElementById("agent-todo-list-btn");
+const agentMcpMethodsBtn = document.getElementById("agent-mcp-methods-btn");
 const agentRegistryBtn = document.getElementById("agent-registry-btn");
 const homeHintNode = document.getElementById("home-hint");
 const homeWorkspaceManifestNode = document.getElementById("home-workspace-manifest");
@@ -1591,7 +1603,9 @@ const CHPU_WORKSPACE_MODULE_VIEW_IDS = new Set([
   "module-registry",
   "module-large-files",
   "module-broken-links",
-  "module-run-scripts"
+  "module-run-scripts",
+  "module-todo-list",
+  "module-mcp-methods"
 ]);
 
 const AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU = {
@@ -1602,7 +1616,9 @@ const AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU = {
   "runtime-registry": "module-registry",
   "large-files": "module-large-files",
   "broken-links": "module-broken-links",
-  "run-scripts": "module-run-scripts"
+  "run-scripts": "module-run-scripts",
+  "todo-list": "module-todo-list",
+  "mcp-methods": "module-mcp-methods"
 };
 
 const MODULE_CHPU_TO_AGENT_WORKSPACE_VIEW = Object.fromEntries(
@@ -1664,7 +1680,9 @@ const CHPU_LEGACY_UI_ALIASES = {
   "m-registry": "module-registry",
   "m-large-files": "module-large-files",
   "m-broken-links": "module-broken-links",
-  "m-run-scripts": "module-run-scripts"
+  "m-run-scripts": "module-run-scripts",
+  "m-todo-list": "module-todo-list",
+  "m-mcp-methods": "module-mcp-methods"
 };
 
 /** @deprecated legacy /a/…/v/{mode} */
@@ -9128,7 +9146,9 @@ function wireAgentsPickerToolButtons() {
     agentRegistryBtn,
     agentLargeFilesBtn,
     agentBrokenLinksBtn,
-    agentRunScriptsBtn
+    agentRunScriptsBtn,
+    agentTodoListBtn,
+    agentMcpMethodsBtn
   ]) {
     if (!btn || btn.dataset.pickerCloseBound === "1") continue;
     btn.dataset.pickerCloseBound = "1";
@@ -23076,6 +23096,69 @@ function createRunScriptsMarkerSvg() {
   return svg;
 }
 
+function createTodoListMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  for (const [cx, cy] of [[7, 8], [7, 12], [7, 16]]) {
+    const box = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    box.setAttribute("x", String(cx - 2));
+    box.setAttribute("y", String(cy - 2));
+    box.setAttribute("width", "4");
+    box.setAttribute("height", "4");
+    box.setAttribute("rx", "0.8");
+    box.setAttribute("fill", "none");
+    box.setAttribute("stroke", "currentColor");
+    box.setAttribute("stroke-width", "1.6");
+    svg.appendChild(box);
+  }
+
+  for (const y of [8, 12, 16]) {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", "11");
+    line.setAttribute("y1", String(y));
+    line.setAttribute("x2", "18");
+    line.setAttribute("y2", String(y));
+    line.setAttribute("stroke", "currentColor");
+    line.setAttribute("stroke-width", "1.8");
+    line.setAttribute("stroke-linecap", "round");
+    svg.appendChild(line);
+  }
+
+  return svg;
+}
+
+function createMcpMethodsMarkerSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "menu-marker-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  const socket = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  socket.setAttribute("x", "4");
+  socket.setAttribute("y", "7");
+  socket.setAttribute("width", "16");
+  socket.setAttribute("height", "10");
+  socket.setAttribute("rx", "2");
+  socket.setAttribute("fill", "none");
+  socket.setAttribute("stroke", "currentColor");
+  socket.setAttribute("stroke-width", "1.8");
+  svg.appendChild(socket);
+
+  for (const x of [8, 12, 16]) {
+    const pin = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    pin.setAttribute("cx", String(x));
+    pin.setAttribute("cy", "12");
+    pin.setAttribute("r", "1.2");
+    pin.setAttribute("fill", "currentColor");
+    svg.appendChild(pin);
+  }
+
+  return svg;
+}
+
 function createObsidianMarkerSvg() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
@@ -28367,6 +28450,8 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   "large-files": "Крупные файлы",
   "broken-links": "Битые ссылки",
   "run-scripts": "Запуск скриптов",
+  "todo-list": "Список задач",
+  "mcp-methods": "MCP · методы",
   "runtime-registry": "Реестр контекста",
   map: "Карта",
   map2: "Структура",
@@ -90698,6 +90783,8 @@ function saveAgentWorkspaceView(view) {
     view === "large-files" ||
     view === "broken-links" ||
     view === "run-scripts" ||
+    view === "todo-list" ||
+    view === "mcp-methods" ||
     view === "runtime-registry"
   ) {
     return;
@@ -90716,6 +90803,8 @@ function resetGitWorkspaceViewToDefault() {
     agentWorkspaceView !== "large-files" &&
     agentWorkspaceView !== "broken-links" &&
     agentWorkspaceView !== "run-scripts" &&
+    agentWorkspaceView !== "todo-list" &&
+    agentWorkspaceView !== "mcp-methods" &&
     agentWorkspaceView !== "runtime-registry"
   ) {
     return;
@@ -90759,6 +90848,8 @@ function applyAgentWorkspaceCanvasUi() {
   agentLargeFilesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "large-files");
   agentBrokenLinksPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "broken-links");
   agentRunScriptsPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "run-scripts");
+  agentTodoListPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "todo-list");
+  agentMcpMethodsPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "mcp-methods");
   agentRuntimeRegistryPaneNode?.classList.toggle(
     "hidden",
     !showCanvas || agentWorkspaceView !== "runtime-registry"
@@ -90801,6 +90892,10 @@ function applyAgentWorkspaceCanvasUi() {
     void renderAgentBrokenLinksView();
   } else if (agentWorkspaceView === "run-scripts") {
     renderAgentRunScriptsView();
+  } else if (agentWorkspaceView === "todo-list") {
+    void renderAgentTodoListView();
+  } else if (agentWorkspaceView === "mcp-methods") {
+    renderAgentMcpMethodsView();
   } else if (agentWorkspaceView === "runtime-registry") {
     void renderAgentRuntimeRegistryView();
   } else if (agentWorkspaceView === "awn-types") {
@@ -90834,6 +90929,8 @@ function applyAgentWorkspaceCanvasUi() {
   syncAgentLargeFilesToolbarUi();
   syncAgentBrokenLinksToolbarUi();
   syncAgentRunScriptsToolbarUi();
+  syncAgentTodoListToolbarUi();
+  syncAgentMcpMethodsToolbarUi();
   syncAgentRegistryToolbarUi();
   syncAgentAwnTypesToolbarUi();
   syncMenuAgentStatsModuleBtnState();
@@ -90851,6 +90948,8 @@ function setAgentWorkspaceView(view, { skipRouteSync = false } = {}) {
     view !== "large-files" &&
     view !== "broken-links" &&
     view !== "run-scripts" &&
+    view !== "todo-list" &&
+    view !== "mcp-methods" &&
     view !== "runtime-registry" &&
     view !== "awn-types" &&
     view !== "map" &&
@@ -91856,6 +91955,32 @@ function syncAgentRunScriptsToolbarUi() {
   );
 }
 
+function initAgentTodoListToolbar() {
+  if (!agentTodoListBtn) return;
+  mountAgentToolbarBtnIcon(agentTodoListBtn, createTodoListMarkerSvg(), "agent-todo-list-btn-icon");
+  syncAgentTodoListToolbarUi();
+}
+
+function syncAgentTodoListToolbarUi() {
+  agentTodoListBtn?.classList.toggle(
+    "is-active",
+    agentWorkspaceView === "todo-list" && isAgentWorkspaceCanvasVisible()
+  );
+}
+
+function initAgentMcpMethodsToolbar() {
+  if (!agentMcpMethodsBtn) return;
+  mountAgentToolbarBtnIcon(agentMcpMethodsBtn, createMcpMethodsMarkerSvg(), "agent-mcp-methods-btn-icon");
+  syncAgentMcpMethodsToolbarUi();
+}
+
+function syncAgentMcpMethodsToolbarUi() {
+  agentMcpMethodsBtn?.classList.toggle(
+    "is-active",
+    agentWorkspaceView === "mcp-methods" && isAgentWorkspaceCanvasVisible()
+  );
+}
+
 function initAgentRegistryToolbar() {
   if (!agentRegistryBtn) return;
   mountAgentToolbarBtnIcon(agentRegistryBtn, createRegistryMarkerSvg(), "agent-registry-btn-icon");
@@ -92840,6 +92965,245 @@ async function renderAgentBrokenLinksView() {
     errorNode.textContent = `Не удалось проверить ссылки: ${error.message}`;
     agentBrokenLinksContentNode.appendChild(errorNode);
   }
+}
+
+const WORKSPACE_MODULES_CATALOG = [
+  { id: "module-git", label: "Git-репозиторий", view: "git", mcp: "—", status: "active" },
+  { id: "module-journal", label: "Журнал", view: "journal", mcp: "append_journal_entry, list_journal_entries", status: "active" },
+  { id: "module-settings", label: "Настройки проекта", view: "project-settings", mcp: "—", status: "active" },
+  { id: "module-awn-types", label: "Типы YAML", view: "awn-types", mcp: "list_types, get_type", status: "active" },
+  {
+    id: "module-registry",
+    label: "Реестр контекста",
+    view: "runtime-registry",
+    mcp: "list_workspace_always_context, list_workspace_cron, list_workspace_heartbeat",
+    status: "active"
+  },
+  { id: "module-large-files", label: "Крупные файлы", view: "large-files", mcp: "—", status: "active" },
+  { id: "module-broken-links", label: "Битые ссылки", view: "broken-links", mcp: "search_workspace_links", status: "active" },
+  { id: "module-run-scripts", label: "Запуск скриптов", view: "run-scripts", mcp: "run_script", status: "stub" },
+  {
+    id: "module-todo-list",
+    label: "Список задач",
+    view: "todo-list",
+    mcp: "read_workspace_todo, write_workspace_todo",
+    status: "stub"
+  },
+  { id: "module-mcp-methods", label: "MCP · методы", view: "mcp-methods", mcp: "list_tools", status: "stub" }
+];
+
+function collectWorkspaceTodoSources() {
+  const sources = [
+    {
+      path: ROOT_SYSTEM_TODO_FILE,
+      label: "Корень workspace",
+      kind: "root"
+    }
+  ];
+  const menu = currentMenuData;
+  if (!menu) return sources;
+
+  const seen = new Set([ROOT_SYSTEM_TODO_FILE.toLowerCase()]);
+  for (const entry of collectAgentMenuFlatEntries(menu, activeAgentId, { includeHiddenSections: true })) {
+    if (entry.isFolder) continue;
+    const manifestPath = normalizeMenuNodePath(resolveManifestPathForNodeApi(entry.path) || entry.path || "");
+    if (!manifestPath || !isNodeManifestPath(manifestPath)) continue;
+    const todoPath = normalizeMenuNodePath(getNamedStorageBundleRel(manifestPath, BUNDLE_TODO_FILE));
+    if (!todoPath || seen.has(todoPath.toLowerCase())) continue;
+    seen.add(todoPath.toLowerCase());
+    sources.push({
+      path: todoPath,
+      label: entry.label || getLabelFromPath(entry.path),
+      kind: "topic"
+    });
+  }
+  return sources;
+}
+
+function countTodoLines(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^[-*]\s+\S/.test(line) || /^\[[ xX]\]\s+\S/.test(line)).length;
+}
+
+async function renderAgentTodoListView() {
+  if (!agentTodoListContentNode) return;
+
+  agentTodoListContentNode.replaceChildren();
+  const sources = collectWorkspaceTodoSources();
+  let rootPreview = "";
+  let rootTaskCount = 0;
+
+  try {
+    const response = await fetch(buildApiUrl("/api/workspace/todo", {}, activeAgentId));
+    if (response.ok) {
+      const payload = await response.json();
+      rootPreview = String(payload?.content || payload?.body || "").trim();
+      rootTaskCount = countTodoLines(rootPreview);
+    }
+  } catch {
+    // ignore root todo fetch errors in stub
+  }
+
+  if (agentTodoListStatsNode) {
+    agentTodoListStatsNode.replaceChildren(
+      createAgentWorkspaceStatElement(String(sources.length), "источников", "soft"),
+      createAgentWorkspaceStatElement(String(rootTaskCount), "задач в корне", rootTaskCount ? "ok" : "")
+    );
+  }
+
+  if (agentTodoListMetaNode) {
+    agentTodoListMetaNode.textContent =
+      "Static · агрегатор TODO.md и todo.md тем · MCP: read_workspace_todo";
+  }
+
+  const shell = document.createElement("div");
+  shell.className = "agent-tool-shell agent-todo-list-shell";
+
+  const notice = document.createElement("div");
+  notice.className = "agent-tool-empty-card agent-todo-list-notice";
+  notice.innerHTML = `
+    <p class="agent-tool-empty-title agent-todo-list-notice-title">Static · раздел в разработке</p>
+    <p class="agent-tool-empty-text agent-todo-list-notice-text">
+      Здесь будет единый список задач из <code>TODO.md</code> корня и <code>todo.md</code> всех тем.
+      Пока показаны найденные источники и превью корневого TODO.
+    </p>
+  `;
+  shell.appendChild(notice);
+
+  if (rootPreview) {
+    const rootCard = document.createElement("section");
+    rootCard.className = "agent-todo-list-root-card";
+    const rootTitle = document.createElement("h3");
+    rootTitle.className = "agent-todo-list-section-title";
+    rootTitle.textContent = ROOT_SYSTEM_TODO_FILE;
+    const rootBody = document.createElement("pre");
+    rootBody.className = "agent-todo-list-root-preview";
+    rootBody.textContent = rootPreview.slice(0, 1200);
+    rootCard.append(rootTitle, rootBody);
+    shell.appendChild(rootCard);
+  }
+
+  const list = document.createElement("ul");
+  list.className = "agent-tool-list agent-todo-list-sources";
+
+  for (const source of sources) {
+    const row = document.createElement("li");
+    row.className = "agent-todo-list-source-row";
+
+    const main = document.createElement("div");
+    main.className = "agent-todo-list-source-main";
+
+    const labelNode = document.createElement("span");
+    labelNode.className = "agent-todo-list-source-label";
+    labelNode.textContent = source.label;
+
+    const pathNode = document.createElement("span");
+    pathNode.className = "agent-todo-list-source-path";
+    pathNode.textContent = source.path;
+
+    main.append(labelNode, pathNode);
+
+    const kindNode = document.createElement("span");
+    kindNode.className = `agent-todo-list-source-kind is-${source.kind}`;
+    kindNode.textContent = source.kind === "root" ? "корень" : "тема";
+
+    const openBtn = document.createElement("button");
+    openBtn.type = "button";
+    openBtn.className = "agent-todo-list-source-open-btn";
+    openBtn.textContent = "Открыть";
+    openBtn.addEventListener("click", () => {
+      if (source.kind === "root") {
+        void selectSystemFile(ROOT_SYSTEM_TODO_FILE);
+        return;
+      }
+      void openWorkspaceInspectorPath(source.path);
+    });
+
+    row.append(main, kindNode, openBtn);
+    list.appendChild(row);
+  }
+
+  shell.appendChild(list);
+  agentTodoListContentNode.appendChild(shell);
+}
+
+function renderAgentMcpMethodsView() {
+  if (!agentMcpMethodsContentNode) return;
+
+  agentMcpMethodsContentNode.replaceChildren();
+  const activeCount = WORKSPACE_MODULES_CATALOG.filter((item) => item.status === "active").length;
+  const stubCount = WORKSPACE_MODULES_CATALOG.length - activeCount;
+
+  if (agentMcpMethodsStatsNode) {
+    agentMcpMethodsStatsNode.replaceChildren(
+      createAgentWorkspaceStatElement(String(WORKSPACE_MODULES_CATALOG.length), "модулей", "soft"),
+      createAgentWorkspaceStatElement(String(activeCount), "активных", "ok"),
+      createAgentWorkspaceStatElement(String(stubCount), "заглушек", stubCount ? "warn" : "")
+    );
+  }
+
+  if (agentMcpMethodsMetaNode) {
+    agentMcpMethodsMetaNode.textContent =
+      "Static · каталог модулей workspace и связанных MCP tools · без вызова сервера";
+  }
+
+  const shell = document.createElement("div");
+  shell.className = "agent-tool-shell agent-mcp-methods-shell";
+
+  const notice = document.createElement("div");
+  notice.className = "agent-tool-empty-card agent-mcp-methods-notice";
+  notice.innerHTML = `
+    <p class="agent-tool-empty-title agent-mcp-methods-notice-title">Static · справочник модулей</p>
+    <p class="agent-tool-empty-text agent-mcp-methods-notice-text">
+      Здесь будет живой список MCP namespaces и tools. Пока — каталог встроенных модулей workspace.
+    </p>
+  `;
+  shell.appendChild(notice);
+
+  const list = document.createElement("ul");
+  list.className = "agent-tool-list agent-mcp-methods-list";
+
+  for (const item of WORKSPACE_MODULES_CATALOG) {
+    const row = document.createElement("li");
+    row.className = "agent-mcp-methods-row";
+
+    const main = document.createElement("div");
+    main.className = "agent-mcp-methods-main";
+
+    const labelNode = document.createElement("span");
+    labelNode.className = "agent-mcp-methods-label";
+    labelNode.textContent = item.label;
+
+    const idNode = document.createElement("span");
+    idNode.className = "agent-mcp-methods-id";
+    idNode.textContent = item.id;
+
+    const mcpNode = document.createElement("span");
+    mcpNode.className = "agent-mcp-methods-mcp";
+    mcpNode.textContent = item.mcp;
+
+    main.append(labelNode, idNode, mcpNode);
+
+    const statusNode = document.createElement("span");
+    statusNode.className = `agent-mcp-methods-status is-${item.status}`;
+    statusNode.textContent = item.status === "active" ? "active" : "stub";
+
+    const openBtn = document.createElement("button");
+    openBtn.type = "button";
+    openBtn.className = "agent-mcp-methods-open-btn";
+    openBtn.textContent = "Открыть";
+    openBtn.addEventListener("click", () => {
+      if (item.view) setAgentWorkspaceView(item.view);
+    });
+
+    row.append(main, statusNode, openBtn);
+    list.appendChild(row);
+  }
+
+  shell.appendChild(list);
+  agentMcpMethodsContentNode.appendChild(shell);
 }
 
 const RUN_SCRIPTS_STUB_ITEMS = [
@@ -104654,6 +105018,26 @@ agentRunScriptsBtn?.addEventListener("click", () => {
   setAgentWorkspaceView("run-scripts");
 });
 
+agentTodoListBtn?.addEventListener("click", () => {
+  setAgentWorkspaceView("todo-list");
+});
+
+agentMcpMethodsBtn?.addEventListener("click", () => {
+  setAgentWorkspaceView("mcp-methods");
+});
+
+agentTodoListRefreshBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView === "todo-list") {
+    void renderAgentTodoListView();
+  }
+});
+
+agentMcpMethodsRefreshBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView === "mcp-methods") {
+    renderAgentMcpMethodsView();
+  }
+});
+
 agentRuntimeRegistryRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "runtime-registry") {
     void renderAgentRuntimeRegistryView();
@@ -105819,6 +106203,8 @@ initAgentGitToolbar();
 initAgentLargeFilesToolbar();
 initAgentBrokenLinksToolbar();
 initAgentRunScriptsToolbar();
+initAgentTodoListToolbar();
+initAgentMcpMethodsToolbar();
 bindLandingFocusToolbar();
 bindLandingMainTopicsDock();
 initWorkspaceNotifications();
