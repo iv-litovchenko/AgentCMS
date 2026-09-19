@@ -660,7 +660,7 @@ razdel-1/
 |------|-------|
 | `get_agent_identity` | Персона и права агента из `awn-agent-kit/agent/` — manifest.md + main.md |
 | `get_user_identity` | Профиль пользователя из `awn-agent-kit/user/` — manifest.md + main.md |
-| `list_recent_activity` | Лента изменений workspace: `{ since?, limit? }` — MCP + UI, колокольчик |
+| `list_recent_activity` | Лента изменений workspace: `{ since?, limit? }` — MCP + live-sync (activity.jsonl). Колокольчик 🔔 — журнал |
 
 Ответ identity: `profile` (awn-name, role, …), `main.body`, `text` (сводка для контекста).
 
@@ -837,6 +837,20 @@ list_comments({ "path": "…/manifest.md", "mode": "external", "file": "memory/r
 | `comments/` | слот comments | комментарий к manifest/записи |
 
 UI: sidebar → **🧠 Банк фактов** (под «Диалоги с ИИ»). Папка индексируется (semantic + fulltext + storage-index).
+
+### Журнал workspace (`.agent-cms/journal/`)
+
+Единый журнал событий workspace — жизнь, действия, UI, системные изменения. **Не** `log.md` в теме (слот отключён).
+
+| Tool | Зачем |
+|------|-------|
+| `append_journal_entry` | **Добавить** запись (type: life/action/ui/system) |
+| `list_journal_entries` | Список по теме (`topic=manifest.md`) |
+
+Хранение: один файл на ISO-неделю (`2026-W38.md`). Индексируется (fulltext + semantic).  
+`notify: true` → запись попадает в 🔔 (колокольчик читает тот же журнал).  
+UI: раздел **Журнал** в теме; иконка 📓 в sidebar stats.  
+API колокольчика: `GET /api/agent/workspace-notifications` (не `activity.jsonl`).
 
 ### Временные файлы (`awn-temp/`) и корзина (`awn-recycle/`)
 

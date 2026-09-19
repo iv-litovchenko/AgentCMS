@@ -68,6 +68,7 @@ const {
 } = require("./sidecar-service");
 const { createWorkspaceBrainService } = require("./workspace-brain-service");
 const { createWorkspaceFactsService, FACTS_DIR: WORKSPACE_FACTS_DIR } = require("./workspace-facts-service");
+const { createWorkspaceJournalService, JOURNAL_DIR: WORKSPACE_JOURNAL_DIR } = require("./workspace-journal-service");
 const { parseCsvText } = require("./awn-data-csv");
 const { buildSystemEnvironment } = require("./lib/system-environment");
 const { getLanIPv4 } = require("./lib/lan-ip");
@@ -1346,6 +1347,7 @@ async function recordWorkspaceActivityAsync({
       }
       queueWorkspaceActivityFileAppend(agentRoot, event);
       markWorkspaceActivityApiWrite(agentRoot, pathValue);
+      bridgeWorkspaceActivityToJournal(event);
       return event;
     })
     .catch((error) => {
@@ -1783,6 +1785,7 @@ function getSidecarService() {
 
 let workspaceBrainService = null;
 let workspaceFactsService = null;
+let workspaceJournalService = null;
 function getWorkspaceFactsService() {
   if (!workspaceFactsService) {
     workspaceFactsService = createWorkspaceFactsService({
@@ -1792,6 +1795,78 @@ function getWorkspaceFactsService() {
     });
   }
   return workspaceFactsService;
+}
+
+function bridgeWorkspaceActivityToJournal(event) {
+  if (!event) return;
+  const source = String(event.source || "").toLowerCase();
+  if (source === "journal") return;
+
+  const actionLabels = {
+    create: "Создано",
+    update: "Обновлено",
+    delete: "Удалено",
+    move: "Перемещено",
+    notify: "Уведомление"
+  };
+  const actionName = String(event.action || "").toLowerCase();
+  const isNotify = actionName === "notify";
+  const body =
+    event.message ||
+    `${actionLabels[actionName] || actionName}: ${event.recordName || event.label || event.path || "—"}`;
+
+  void getWorkspaceJournalService()
+    .appendJournalEntry({
+      body,
+      type: isNotify ? "action" : source === "ui" ? "ui" : "system",
+      author: source === "ui" ? "user" : "agent",
+      path: event.path || "",
+      topic: event.manifestPath || "",
+      notify: isNotify,
+      emitActivityNotify: false
+    })
+    .catch(() => {});
+}
+
+function getWorkspaceJournalService() {
+  if (!workspaceJournalService) {
+    workspaceJournalService = createWorkspaceJournalService({
+      getAgentRoot,
+      resolveTopicFromPath: (relPath) => resolveOwningManifestRelFromNodePath(relPath),
+      onJournalWritten: (relPath) => queueWorkspaceIndexFileSync(relPath)
+    });
+  }
+  return workspaceJournalService;
+}
+
+async function listWorkspaceNotificationEvents({ since = 0, limit = 50, notifyOnly = false } = {}) {
+  const cappedLimit = Math.max(1, Math.min(100, Number(limit) || 50));
+  const sinceId = Number(since) || 0;
+  const result = await getWorkspaceJournalService().listNotificationEvents({
+    since: sinceId,
+    limit: cappedLimit,
+    notifyOnly: notifyOnly === true || notifyOnly === "true"
+  });
+
+  const enriched = [];
+  for (const event of result.events || []) {
+    const names = await resolveWorkspaceActivityDisplayNames({
+      pathValue: event.path,
+      manifestPath: event.manifestPath,
+      label: event.label
+    });
+    enriched.push({
+      ...event,
+      label: names.displayName || event.label,
+      topicName: names.topicName,
+      recordName: names.recordName
+    });
+  }
+
+  return {
+    ...result,
+    events: enriched
+  };
 }
 
 function getWorkspaceBrainService() {
@@ -16276,6 +16351,8 @@ function isTextSearchableFileName(name) {
 function shouldSkipSearchDirectory(name) {
   const lower = String(name || "").trim().toLowerCase();
   if (lower === String(WORKSPACE_FACTS_DIR || "awn-facts").toLowerCase()) return false;
+  if (lower === ".agent-cms") return false;
+  if (lower === "journal") return false;
   const normalized = normalizeStorageSubfolderName(name);
   return (
     normalized === STORAGE_SUBFOLDER_PREVIEW ||
@@ -16288,7 +16365,11 @@ function shouldSkipSearchEntry(name, isDirectory) {
   if (name === MENU_SORT_FILE) return true;
   if (isReadStateServiceFileName(name)) return true;
   if (shouldSkipSearchDirectory(name)) return true;
-  if (isDirectory) return isHiddenMenuEntry(name);
+  if (isDirectory) {
+    const lower = String(name || "").trim().toLowerCase();
+    if (lower === ".agent-cms" || lower === "journal") return false;
+    return isHiddenMenuEntry(name);
+  }
   if (name === ".env" || name === ".gitignore") return false;
   return isHiddenMenuEntry(name);
 }
@@ -16308,7 +16389,16 @@ async function collectSearchableFiles(dirAbsolute, prefix = "", files = []) {
     const absolute = path.join(dirAbsolute, entry.name);
 
     if (entry.isDirectory()) {
-      await collectSearchableFiles(absolute, relative.replace(/\\/g, "/"), files);
+      const rel = relative.replace(/\\/g, "/");
+      if (rel === ".agent-cms") {
+        const journalAbsolute = path.join(absolute, "journal");
+        await collectSearchableFiles(journalAbsolute, `${rel}/journal`, files);
+        continue;
+      }
+      if (rel.startsWith(".agent-cms/") && rel !== ".agent-cms/journal") {
+        continue;
+      }
+      await collectSearchableFiles(absolute, rel, files);
       continue;
     }
 
@@ -19654,6 +19744,68 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace facts stats",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/workspace-journal/append") {
+    try {
+      const body = await readJsonBody(req);
+      const payload = await getWorkspaceJournalService().appendJournalEntry(body || {});
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to append journal entry",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-journal/list") {
+    try {
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await getWorkspaceJournalService().listJournalEntries({
+        topic: url.searchParams.get("topic") || "",
+        notifyOnly: url.searchParams.get("notifyOnly") === "true",
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to list journal entries",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-journal/stats") {
+    try {
+      const payload = await getWorkspaceJournalService().getJournalStats({
+        topic: url.searchParams.get("topic") || ""
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace journal stats",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/workspace-notifications") {
+    try {
+      const sinceRaw = Number(url.searchParams.get("since"));
+      const limitRaw = Number(url.searchParams.get("limit"));
+      const payload = await listWorkspaceNotificationEvents({
+        since: Number.isFinite(sinceRaw) && sinceRaw > 0 ? sinceRaw : 0,
+        limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 50,
+        notifyOnly: url.searchParams.get("notifyOnly") === "true"
+      });
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace notifications",
         details: String(error.message || error)
       });
     }

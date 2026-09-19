@@ -340,6 +340,30 @@ module.exports = {
       ]
     },
     {
+      id: "journal",
+      title: "Журнал workspace (.agent-cms/journal)",
+      tools: [
+        {
+          name: "append_journal_entry",
+          description: "Добавить событие в журнал (файл на ISO-неделю).",
+          parameters: "body, type?, author?, path?, topic?, notify?, at?",
+          http: "POST /api/agent/workspace-journal/append"
+        },
+        {
+          name: "list_journal_entries",
+          description: "Список записей журнала (фильтр topic).",
+          parameters: "topic?, limit?",
+          http: "GET /api/agent/workspace-journal/list"
+        },
+        {
+          name: "list_workspace_notifications",
+          description: "Лента колокольчика 🔔 — те же записи журнала в формате уведомлений.",
+          parameters: "since?, limit?, notifyOnly?",
+          http: "GET /api/agent/workspace-notifications"
+        }
+      ]
+    },
+    {
       id: "facts",
       title: "Банк фактов (awn-facts)",
       tools: [

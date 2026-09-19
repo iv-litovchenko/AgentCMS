@@ -11236,13 +11236,148 @@ body.app-locked {
   display: none !important;
 }
 
-.app.project-settings-view #project-settings-page:not(.hidden) {
+.app.workspace-tool-module-view #workspace-path-header.is-workspace-tool-module {
+  display: none;
+}
+
+.agent-project-settings-pane .project-settings-page:not(.hidden) {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
-  overflow: auto;
+  width: 100%;
+}
+
+.agent-project-settings-pane .project-settings-head {
+  display: none;
+}
+
+.agent-project-settings-mount {
+  padding-top: 0;
+}
+
+.agent-journal-pane {
+  min-height: 0;
+}
+
+.agent-journal-pane.agent-tool-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-journal-pane .agent-journal-content {
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 12px;
+  overflow: visible;
+}
+
+.agent-journal-pane .workspace-journal-host--canvas {
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-journal-pane .workspace-journal-panel {
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+.agent-journal-pane .workspace-journal-list {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.agent-journal-info {
+  align-items: center;
+}
+
+.agent-journal-info-main {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.agent-journal-summary {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--muted, #94a3b8);
+}
+
+.agent-journal-controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agent-journal-filter-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.agent-journal-filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.agent-journal-controls .workspace-journal-filter {
+  min-width: 148px;
+}
+
+.agent-journal-controls #agent-journal-period-filter {
+  min-width: 132px;
+}
+
+.workspace-tool-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace-tool-pane-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 4px;
+}
+
+.workspace-tool-toolbar {
+  padding: 0 4px 10px;
+}
+
+.folder-browse-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-overview.is-workspace-tool-module .node-overview-content,
+.node-overview.is-folder-browse .node-overview-content:has(.workspace-tool-pane) {
+  padding: 8px var(--doc-content-gutter, 16px) 0;
+}
+
+.workspace-tool-pane .folder-browse-tool-body {
+  padding-top: 0;
+}
+
+#project-settings-page .project-settings-head {
+  display: none;
 }
 
 .project-settings-layout {
@@ -11260,23 +11395,11 @@ body.app-locked {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: calc(100dvh - 228px);
-  overflow: hidden;
   padding: 8px 10px;
   border: 1px solid rgba(148, 163, 184, 0.32);
   border-radius: 10px;
   background: rgba(248, 250, 252, 0.92);
   box-sizing: border-box;
-}
-
-.project-settings-sidebar-title {
-  margin: 0;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-  flex: 0 0 auto;
 }
 
 .project-settings-search-wrap {
@@ -11319,9 +11442,8 @@ body.app-locked {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
+  flex: 0 0 auto;
+  overflow: visible;
   padding-right: 2px;
 }
 
@@ -11338,26 +11460,53 @@ body.app-locked {
   padding: 0 6px;
 }
 
-.project-settings-scope-legend {
+.project-settings-scope-filters {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
+  gap: 6px;
   margin-bottom: 2px;
-  padding: 0 2px 6px;
+  padding: 0 2px 8px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-  font-size: 10px;
-  line-height: 1.35;
-  color: var(--muted);
   flex: 0 0 auto;
 }
 
-.project-settings-scope-legend-item {
+.project-settings-scope-filter {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  padding: 4px 8px 4px 6px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
   white-space: nowrap;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.project-settings-scope-filter:hover {
+  border-color: rgba(99, 102, 241, 0.45);
+  color: var(--text);
+}
+
+.project-settings-scope-filter-input {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
+.project-settings-scope-filter:has(.project-settings-scope-filter-input:checked) {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--text);
 }
 
 .project-settings-scope-markers {
@@ -11365,6 +11514,7 @@ body.app-locked {
   align-items: center;
   gap: 3px;
   flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
 .project-settings-scope-marker {
@@ -11377,28 +11527,24 @@ body.app-locked {
 }
 
 .project-settings-scope-marker.is-config-kind.has-value,
-.project-settings-scope-legend-item.is-local .project-settings-scope-marker.is-config-kind.has-value {
+.project-settings-scope-filter.is-local .project-settings-scope-marker.is-config-kind.has-value {
   background: rgba(34, 197, 94, 0.95);
   border-color: rgba(22, 163, 74, 0.95);
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
 }
 
 .project-settings-scope-marker.is-schema-kind.has-value,
-.project-settings-scope-legend-item.is-schema .project-settings-scope-marker.is-schema-kind.has-value {
+.project-settings-scope-filter.is-schema .project-settings-scope-marker.is-schema-kind.has-value {
   background: rgba(139, 92, 246, 0.95);
   border-color: rgba(124, 58, 237, 0.95);
   box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.18);
 }
 
 .project-settings-scope-marker.is-env-kind.has-value,
-.project-settings-scope-legend-item.is-env .project-settings-scope-marker.is-env-kind.has-value {
+.project-settings-scope-filter.is-env .project-settings-scope-marker.is-env-kind.has-value {
   background: rgba(245, 158, 11, 0.95);
   border-color: rgba(217, 119, 6, 0.95);
   box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.18);
-}
-
-.project-settings-scope-legend-item.is-empty .project-settings-scope-marker {
-  background: transparent;
 }
 
 .project-settings-scope-item {
@@ -11456,12 +11602,33 @@ body.app-locked {
 }
 
 .project-settings-scope-item.is-active {
-  background: rgba(34, 197, 94, 0.14);
+  background: rgba(59, 130, 246, 0.12);
   font-weight: 600;
+  box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.82);
 }
 
 .project-settings-scope-item.is-active.is-empty-scope {
   background: rgba(148, 163, 184, 0.16);
+  box-shadow: inset 3px 0 0 rgba(100, 116, 139, 0.65);
+}
+
+.project-settings-scope-item.is-active .project-settings-scope-marker.has-value {
+  box-shadow: 0 0 0 1.5px #fff;
+}
+
+.project-settings-scope-item.is-active .project-settings-scope-marker.is-config-kind.has-value {
+  background: rgb(22, 163, 74);
+  border-color: rgb(21, 128, 61);
+}
+
+.project-settings-scope-item.is-active .project-settings-scope-marker.is-schema-kind.has-value {
+  background: rgb(124, 58, 237);
+  border-color: rgb(109, 40, 217);
+}
+
+.project-settings-scope-item.is-active .project-settings-scope-marker.is-env-kind.has-value {
+  background: rgb(217, 119, 6);
+  border-color: rgb(180, 83, 9);
 }
 
 .project-settings-scope-section {
@@ -17368,6 +17535,7 @@ a.header-tool-btn {
   border-top: 1px solid rgba(148, 163, 184, 0.22);
 }
 
+.workspace-notifications-journal-btn,
 .workspace-notifications-mute-btn {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -17497,6 +17665,26 @@ a.header-tool-btn {
 
 .workspace-notification-icon.is-notify {
   background: #fce7f3;
+}
+
+.workspace-notification-icon.is-life,
+.workspace-journal-item-icon.is-life {
+  background: #fce7f3;
+}
+
+.workspace-notification-icon.is-action,
+.workspace-journal-item-icon.is-action {
+  background: #dbeafe;
+}
+
+.workspace-notification-icon.is-ui,
+.workspace-journal-item-icon.is-ui {
+  background: #dcfce7;
+}
+
+.workspace-notification-icon.is-system,
+.workspace-journal-item-icon.is-system {
+  background: #e2e8f0;
 }
 
 .workspace-notification-message {
@@ -20179,7 +20367,15 @@ a.header-tool-btn {
   min-width: 0;
 }
 
-.app-footer-toggle-btn {
+.app-footer-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-footer-toggle-btn,
+.app-footer-journal-btn {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -20213,6 +20409,189 @@ a.header-tool-btn {
   border-color: #93c5fd;
   background: #eff6ff;
   color: #1e40af;
+}
+
+.app-footer-journal-btn {
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 999px;
+  background: rgba(240, 253, 244, 0.95);
+  color: #166534;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.app-footer-journal-btn:hover {
+  border-color: rgba(34, 197, 94, 0.55);
+  background: #ecfdf5;
+  color: #14532d;
+}
+
+.app-footer-journal-btn:focus-visible {
+  outline: 2px solid rgba(34, 197, 94, 0.45);
+  outline-offset: 2px;
+}
+
+.app-footer-journal-btn[aria-expanded="true"] {
+  border-color: rgba(34, 197, 94, 0.55);
+  background: #dcfce7;
+  color: #14532d;
+}
+
+.app-footer-journal-wrap {
+  position: relative;
+}
+
+.app-footer-journal-popover {
+  position: fixed;
+  z-index: 1100;
+  width: min(420px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 12px;
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(22, 101, 52, 0.14);
+  overflow: hidden;
+}
+
+.app-footer-journal-popover.hidden {
+  display: none;
+}
+
+.app-footer-journal-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -10px -12px 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(187, 247, 208, 0.8);
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%);
+}
+
+.app-footer-journal-popover-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.app-footer-journal-popover-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: #dcfce7;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  font-size: 12px;
+}
+
+.app-footer-journal-popover-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #14532d;
+}
+
+.app-footer-journal-popover-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.app-footer-journal-popover-close:hover {
+  background: rgba(148, 163, 184, 0.12);
+  color: #0f172a;
+}
+
+.app-footer-journal-popover-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+}
+
+.app-footer-journal-field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.app-footer-journal-context-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+}
+
+.app-footer-journal-link-field,
+.app-footer-journal-notify-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.app-footer-journal-type-field .workspace-journal-type {
+  width: 100%;
+}
+
+.app-footer-journal-body-input {
+  min-height: 5.5rem;
+  max-height: 12rem;
+}
+
+.app-footer-journal-popover-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.app-footer-journal-hint {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.app-footer-journal-submit {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.14);
+  color: #166534;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-footer-journal-submit:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .app-footer-toggle-btn:focus-visible {
@@ -22648,6 +23027,7 @@ a.header-tool-btn {
   gap: 2px;
 }
 
+.menu-agent-stats-journal-btn,
 .menu-agent-stats-env-btn,
 .menu-agent-stats-settings-btn {
   flex: 0 0 auto;
@@ -22668,6 +23048,7 @@ a.header-tool-btn {
     color 0.15s ease;
 }
 
+.menu-agent-stats-journal-btn:hover:not(:disabled),
 .menu-agent-stats-env-btn:hover:not(:disabled),
 .menu-agent-stats-settings-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.16);
@@ -22689,11 +23070,21 @@ a.header-tool-btn {
   color: #475569;
 }
 
-.menu-agent-stats-env-btn.is-active {
+.menu-agent-stats-env-btn.is-active,
+.menu-agent-stats-journal-btn.is-active {
   background: rgba(255, 255, 255, 0.92);
   color: #475569;
 }
 
+.menu-agent-stats-journal-btn:focus {
+  outline: none;
+}
+
+.menu-agent-stats-journal-btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.42);
+}
+
+.menu-agent-stats-journal-icon,
 .menu-agent-stats-env-icon,
 .menu-agent-stats-settings-icon {
   display: block;
@@ -41318,26 +41709,34 @@ button.node-navigation-memory-title:focus-visible {
   box-sizing: border-box;
 }
 
-.doc-slab-content:has(> .doc-slab-main > .node-thread:not(.hidden)) {
+.doc-slab-content:has(> .doc-slab-main > .node-thread:not(.hidden)),
+.doc-slab-content:has(> .doc-slab-main > .node-journal:not(.hidden)) {
   padding: 8px 14px 0;
 }
 
-/* Диалог: заполняет высоту области документа, поле ввода — внизу */
-.app.editor-autoheight .doc-stack:has(.node-thread:not(.hidden)),
-.app.editor-autoheight .doc-body-grid:has(.node-thread:not(.hidden)),
-.app.editor-autoheight .doc-body-main:has(.node-thread:not(.hidden)),
-.app.editor-autoheight .doc-slab-content:has(> .doc-slab-main > .node-thread:not(.hidden)),
-.app.editor-autoheight .doc-slab-main:has(> .node-thread:not(.hidden)) {
+/* Дискуссия / журнал: заполняют высоту области документа */
+.doc-stack:has(.node-thread:not(.hidden)),
+.doc-stack:has(.node-journal:not(.hidden)),
+.doc-body-grid:has(.node-thread:not(.hidden)),
+.doc-body-grid:has(.node-journal:not(.hidden)),
+.doc-body-main:has(.node-thread:not(.hidden)),
+.doc-body-main:has(.node-journal:not(.hidden)),
+.doc-slab-content:has(> .doc-slab-main > .node-thread:not(.hidden)),
+.doc-slab-content:has(> .doc-slab-main > .node-journal:not(.hidden)),
+.doc-slab-main:has(> .node-thread:not(.hidden)),
+.doc-slab-main:has(> .node-journal:not(.hidden)) {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
 
-.app.editor-autoheight .doc-stack:has(.node-thread:not(.hidden)) {
+.doc-stack:has(.node-thread:not(.hidden)),
+.doc-stack:has(.node-journal:not(.hidden)) {
   height: 100%;
 }
 
-.app.editor-autoheight .doc-slab-main > .node-thread:not(.hidden) {
+.doc-slab-main > .node-thread:not(.hidden),
+.doc-slab-main > .node-journal:not(.hidden) {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -56630,6 +57029,363 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-awn-temp-stats.is-error {
   color: #b91c1c;
+}
+
+.node-journal {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.node-journal-content,
+.workspace-journal-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.node-journal .workspace-journal-host,
+.node-journal .workspace-journal-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.node-journal .workspace-journal-list {
+  min-height: 0;
+  padding: 14px 18px 20px;
+  gap: 12px;
+}
+
+.node-journal .workspace-journal-item {
+  padding: 14px 16px;
+}
+
+.node-journal .workspace-journal-item-path-row {
+  margin-top: 10px;
+  padding-left: 1px;
+}
+
+.workspace-journal-panel {
+  flex: 1 1 auto;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  overflow: clip;
+  background: linear-gradient(165deg, #ffffff 0%, #f8fafc 48%, #f0fdf4 100%);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 10px 28px rgba(34, 197, 94, 0.05);
+}
+
+.workspace-journal-intro {
+  margin: 0;
+  padding: 14px 16px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.workspace-journal-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 16px 12px;
+}
+
+.workspace-journal-filter {
+  min-width: 132px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.92);
+  font: inherit;
+  font-size: 13px;
+}
+
+.workspace-journal-count {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.workspace-journal-list {
+  list-style: none;
+  margin: 0;
+  padding: 12px 14px 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  background:
+    radial-gradient(ellipse 90% 70% at 12% 0%, rgba(34, 197, 94, 0.08), transparent 58%),
+    radial-gradient(ellipse 80% 55% at 100% 100%, rgba(59, 130, 246, 0.06), transparent 52%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(241, 245, 249, 0.35) 100%);
+}
+
+.workspace-journal-item {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.workspace-journal-item-icon {
+  margin-top: 1px;
+}
+
+.workspace-journal-item-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.workspace-journal-item.is-notify {
+  border-color: rgba(59, 130, 246, 0.35);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.95) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.workspace-journal-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-bottom: 8px;
+}
+
+.workspace-journal-item-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.workspace-journal-item-meta {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.workspace-journal-type-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  background: rgba(148, 163, 184, 0.16);
+  color: #475569;
+}
+
+.workspace-journal-type-badge--life {
+  background: rgba(244, 114, 182, 0.16);
+  color: #be185d;
+}
+
+.workspace-journal-type-badge--action {
+  background: rgba(59, 130, 246, 0.14);
+  color: #1d4ed8;
+}
+
+.workspace-journal-type-badge--ui {
+  background: rgba(34, 197, 94, 0.14);
+  color: #15803d;
+}
+
+.workspace-journal-type-badge--system {
+  background: rgba(100, 116, 139, 0.16);
+  color: #334155;
+}
+
+.workspace-journal-item-body {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #0f172a;
+}
+
+.workspace-journal-item-path-row {
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+.workspace-journal-item-path {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: #2563eb;
+  text-align: left;
+  word-break: break-all;
+  cursor: pointer;
+}
+
+.workspace-journal-item-path:hover {
+  text-decoration: underline;
+}
+
+.workspace-journal-item-file {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.workspace-journal-composer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(10px);
+}
+
+.workspace-journal-composer-toolbar {
+  display: grid;
+  grid-template-columns: minmax(148px, auto) 1fr auto;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.workspace-journal-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workspace-journal-field-label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.workspace-journal-input {
+  width: 100%;
+  min-height: 3.25rem;
+  max-height: 9rem;
+  resize: vertical;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  box-sizing: border-box;
+}
+
+.workspace-journal-type,
+.workspace-journal-submit {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.workspace-journal-type {
+  min-width: 132px;
+  max-width: 100%;
+  flex: 1 1 auto;
+  cursor: pointer;
+  appearance: auto;
+  -webkit-appearance: menulist;
+}
+
+.workspace-journal-submit {
+  justify-self: end;
+  border-color: rgba(34, 197, 94, 0.45);
+  background: rgba(34, 197, 94, 0.12);
+  color: #166534;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.workspace-journal-submit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.workspace-journal-notify {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 13px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.workspace-journal-composer-hint {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+@media (max-width: 640px) {
+  .workspace-journal-composer-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-journal-notify {
+    justify-content: flex-start;
+  }
+
+  .workspace-journal-submit {
+    justify-self: stretch;
+    width: 100%;
+  }
+}
+
+.workspace-journal-empty,
+.workspace-journal-loading,
+.workspace-journal-error {
+  padding: 36px 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.workspace-journal-error {
+  color: #dc2626;
+}
+
+.workspace-path-header.is-node-journal .node-workspace-domain-select {
+  min-width: 124px;
 }
 
 .menu-awn-data-stores {

@@ -1,13 +1,13 @@
 ---
-awn-attachments: []
+awn-slots-disabled: true
 awn-status: open
 awn-quality: 4
 awn-emoji: ""
 awn-sort: 0
 awn-note-todo-sticker: ""
-awn-main: false
 awn-focus: false
 awn-slots-flexible: true
+awn-main: false
 awn-runtime-load-always: true
 awn-runtime-heartbeat: true
 awn-runtime-cron: true
@@ -20,11 +20,11 @@ awn-color: ""
 awn-tags: []
 awn-type: awn.page.topic
 awn-create: "2026-08-02T21:33"
-awn-description: 888
+awn-attachments: []
+awn-description: ""
 awn-name: Тема без слотов
 awn-preview: ""
-awn-slots-disabled: true
 awn-web-url: ""
-awn-update: 2026-09-19T18:51:56.899Z
-awn-version: 15
+awn-update: 2026-09-17T13:41:26.376Z
+awn-version: 13
 ---

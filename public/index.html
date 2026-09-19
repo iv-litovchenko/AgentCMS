@@ -1107,11 +1107,18 @@
                     <button type="button" class="workspace-notifications-filter is-active" data-filter="all">Все</button>
                     <button type="button" class="workspace-notifications-filter" data-filter="mcp">MCP</button>
                     <button type="button" class="workspace-notifications-filter" data-filter="ui">UI</button>
-                    <button type="button" class="workspace-notifications-filter" data-filter="notify">Только 💬</button>
+                    <button type="button" class="workspace-notifications-filter" data-filter="notify">Уведомление</button>
                   </div>
                 </div>
                 <div id="workspace-notifications-list" class="workspace-notifications-list" role="list"></div>
                 <div class="workspace-notifications-footer">
+                  <button
+                    id="workspace-notifications-journal-btn"
+                    class="workspace-notifications-journal-btn"
+                    type="button"
+                  >
+                    📓 Журнал
+                  </button>
                   <button
                     id="workspace-notifications-mute-btn"
                     class="workspace-notifications-mute-btn"
@@ -3125,6 +3132,123 @@
         <div id="agent-git-content" class="agent-tool-body agent-git-content"></div>
       </main>
 
+      <main id="agent-journal-pane" class="agent-canvas-pane agent-tool-pane agent-journal-pane hidden" aria-label="Бортовой журнал">
+        <div class="agent-canvas-head agent-tool-head">
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Бортовой журнал</h2>
+            <p class="agent-canvas-lead">
+              События, действия и заметки workspace. Один файл на ISO-неделю в <code>.agent-cms/journal/</code>.
+            </p>
+          </div>
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-journal-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Обновить бортовой журнал">
+              Обновить
+            </button>
+          </div>
+        </div>
+        <div id="agent-journal-info" class="agent-tool-info agent-journal-info">
+          <div class="agent-journal-info-main">
+            <p id="agent-journal-meta" class="agent-tool-info-desc">Файлы бортового журнала</p>
+            <p id="agent-journal-summary" class="agent-journal-summary" aria-live="polite"></p>
+          </div>
+          <div id="agent-journal-controls" class="agent-journal-controls">
+            <label class="agent-journal-filter-field" for="agent-journal-period-filter">
+              <span class="agent-journal-filter-label">Период</span>
+              <select id="agent-journal-period-filter" class="workspace-journal-filter" aria-label="Период записей журнала">
+                <option value="today" selected>За сегодня</option>
+                <option value="yesterday">За вчера</option>
+                <option value="week">За 7 дней</option>
+                <option value="month">За 30 дней</option>
+                <option value="all">Всё время</option>
+              </select>
+            </label>
+            <label class="agent-journal-filter-field" for="agent-journal-type-filter">
+              <span class="agent-journal-filter-label">Тип</span>
+              <select id="agent-journal-type-filter" class="workspace-journal-filter" aria-label="Фильтр типа записей журнала">
+                <option value="all">Все типы</option>
+                <option value="life">Жизнь</option>
+                <option value="action">Действие</option>
+                <option value="ui">UI</option>
+                <option value="system">Система</option>
+                <option value="notify">Уведомление</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div id="agent-journal-content" class="agent-tool-body agent-journal-content"></div>
+      </main>
+
+      <main id="agent-project-settings-pane" class="agent-canvas-pane agent-tool-pane agent-project-settings-pane hidden" aria-label="Настройки и параметры проекта">
+        <div class="agent-canvas-head agent-tool-head">
+          <div class="agent-canvas-head-copy">
+            <p class="agent-canvas-eyebrow">Workspace</p>
+            <h2 class="agent-canvas-title">Настройки и параметры проекта</h2>
+          </div>
+        </div>
+        <div id="agent-project-settings-mount" class="agent-project-settings-mount agent-tool-body">
+          <section id="project-settings-page" class="project-settings-page hidden" aria-label="Настройки и параметры проекта">
+            <div class="project-settings-layout">
+              <aside class="project-settings-sidebar" aria-label="Настройки и параметры">
+                <div class="menu-search-wrap project-settings-search-wrap">
+                  <label class="menu-search-bar" for="project-settings-scope-search-input">
+                    <span class="menu-search-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <path d="M20 20l-3.5-3.5"></path>
+                      </svg>
+                    </span>
+                    <input
+                      id="project-settings-scope-search-input"
+                      class="menu-search-input"
+                      type="search"
+                      placeholder="Поиск workspace, областей и тем..."
+                      autocomplete="off"
+                      spellcheck="false"
+                      aria-label="Поиск workspace, областей и тем"
+                    />
+                  </label>
+                </div>
+                <nav id="project-settings-scope-list" class="project-settings-scope-list" role="tablist"></nav>
+              </aside>
+              <div class="project-settings-main">
+                <header class="project-settings-head">
+                  <h2 id="project-settings-title" class="project-settings-title">Настройки</h2>
+                  <p id="project-settings-lead" class="project-settings-lead">
+                    Значения сохраняются в <code>config.yml</code> → <code>awn_settings</code>.
+                    Поля задаются в <code>schema.yml</code> (вкладка «Настройки») на том же уровне.
+                  </p>
+                </header>
+                <div class="project-settings-blocks">
+                  <section class="project-settings-block">
+                    <h3 class="project-settings-block-title">config.yml · awn_settings</h3>
+                    <p id="project-settings-config-lead" class="project-settings-block-lead"></p>
+                    <div id="project-settings-fields" class="node-config-fields project-settings-fields"></div>
+                    <p id="project-settings-empty" class="project-settings-empty hidden">
+                      Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.
+                    </p>
+                  </section>
+                  <section class="project-settings-block project-settings-block--env">
+                    <h3 class="project-settings-block-title">.env</h3>
+                    <p id="project-settings-env-lead" class="project-settings-block-lead"></p>
+                    <div id="project-settings-env-wrap" class="project-settings-env-wrap">
+                      <textarea
+                        id="project-settings-env-input"
+                        class="project-settings-env-input"
+                        spellcheck="false"
+                        autocomplete="off"
+                        aria-label="Содержимое .env"
+                        placeholder="KEY=value"
+                      ></textarea>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
       <main id="agent-awn-types-pane" class="agent-canvas-pane agent-tool-pane agent-awn-types-pane hidden" aria-label="Типы YAML свойств">
         <div class="agent-canvas-head">
           <div class="agent-canvas-head-copy">
@@ -3978,66 +4102,6 @@
             </div>
           </section>
 
-          <section id="project-settings-page" class="project-settings-page hidden" aria-label="Настройки проекта">
-            <div class="project-settings-layout">
-              <aside class="project-settings-sidebar" aria-label="Настройки и параметры">
-                <p class="project-settings-sidebar-title">Настройки и параметры</p>
-                <div class="menu-search-wrap project-settings-search-wrap">
-                  <label class="menu-search-bar" for="project-settings-scope-search-input">
-                    <span class="menu-search-icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="7"></circle>
-                        <path d="M20 20l-3.5-3.5"></path>
-                      </svg>
-                    </span>
-                    <input
-                      id="project-settings-scope-search-input"
-                      class="menu-search-input"
-                      type="search"
-                      placeholder="Поиск workspace, областей и тем..."
-                      autocomplete="off"
-                      spellcheck="false"
-                      aria-label="Поиск workspace, областей и тем"
-                    />
-                  </label>
-                </div>
-                <nav id="project-settings-scope-list" class="project-settings-scope-list" role="tablist"></nav>
-              </aside>
-              <div class="project-settings-main">
-                <header class="project-settings-head">
-                  <h2 id="project-settings-title" class="project-settings-title">Настройки</h2>
-                  <p id="project-settings-lead" class="project-settings-lead">
-                    Значения сохраняются в <code>config.yml</code> → <code>awn_settings</code>.
-                    Поля задаются в <code>schema.yml</code> (вкладка «Настройки») на том же уровне.
-                  </p>
-                </header>
-                <div class="project-settings-blocks">
-                  <section class="project-settings-block">
-                    <h3 class="project-settings-block-title">config.yml · awn_settings</h3>
-                    <p id="project-settings-config-lead" class="project-settings-block-lead"></p>
-                    <div id="project-settings-fields" class="node-config-fields project-settings-fields"></div>
-                    <p id="project-settings-empty" class="project-settings-empty hidden">
-                      Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.
-                    </p>
-                  </section>
-                  <section class="project-settings-block project-settings-block--env">
-                    <h3 class="project-settings-block-title">.env</h3>
-                    <p id="project-settings-env-lead" class="project-settings-block-lead"></p>
-                    <div id="project-settings-env-wrap" class="project-settings-env-wrap">
-                      <textarea
-                        id="project-settings-env-input"
-                        class="project-settings-env-input"
-                        spellcheck="false"
-                        autocomplete="off"
-                        aria-label="Содержимое .env"
-                        placeholder="KEY=value"
-                      ></textarea>
-                    </div>
-                  </section>
-                </div>
-              </div>
-            </div>
-          </section>
 
           <section id="doc-body-grid" class="doc-body-grid">
             <div class="doc-body-main">
@@ -4359,6 +4423,9 @@
               <section id="node-thread-block" class="node-thread hidden" aria-label="Дискуссия">
                 <div id="node-thread-content" class="node-thread-content"></div>
               </section>
+              <section id="node-journal-block" class="node-journal hidden" aria-label="Журнал">
+                <div id="node-journal-content" class="node-journal-content"></div>
+              </section>
             </div>
               </section>
             </div>
@@ -4581,18 +4648,100 @@
             <span class="app-footer-title">🧩 Agent CMS — система управления контекстом для LLM.</span>
             <span class="app-footer-rule">Одна тема = 1 задача = 1 таблица</span>
           </div>
-          <button
-            id="app-footer-toggle-btn"
-            class="app-footer-toggle-btn"
-            type="button"
-            aria-expanded="false"
-            aria-controls="app-footer-details"
-          >
-            <span id="app-footer-toggle-label" class="app-footer-toggle-label">Подробнее</span>
-            <svg class="app-footer-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
+          <div class="app-footer-actions">
+            <button
+              id="app-footer-toggle-btn"
+              class="app-footer-toggle-btn"
+              type="button"
+              aria-expanded="false"
+              aria-controls="app-footer-details"
+            >
+              <span id="app-footer-toggle-label" class="app-footer-toggle-label">Подробнее</span>
+              <svg class="app-footer-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="app-footer-journal-wrap">
+              <button
+                id="app-footer-journal-btn"
+                class="app-footer-journal-btn"
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="app-footer-journal-popover"
+                hidden
+              >
+                Записать в журнал
+              </button>
+              <div
+                id="app-footer-journal-popover"
+                class="app-footer-journal-popover hidden"
+                role="dialog"
+                aria-label="Запись в журнал"
+              >
+                <div class="app-footer-journal-popover-head">
+                  <div class="app-footer-journal-popover-brand">
+                    <span class="app-footer-journal-popover-icon" aria-hidden="true">📓</span>
+                    <span class="app-footer-journal-popover-title">Запись в журнал</span>
+                  </div>
+                  <button
+                    id="app-footer-journal-close-btn"
+                    class="app-footer-journal-popover-close"
+                    type="button"
+                    aria-label="Закрыть"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div class="app-footer-journal-popover-body">
+                  <label class="app-footer-journal-context-field">
+                    <span class="app-footer-journal-field-label">Контекст</span>
+                    <input
+                      id="app-footer-journal-context-input"
+                      class="app-footer-journal-context-input"
+                      type="text"
+                      readonly
+                      tabindex="-1"
+                      aria-label="Текущий путь или URL"
+                    />
+                  </label>
+                  <label class="app-footer-journal-link-field">
+                    <input id="app-footer-journal-link-context" class="app-footer-journal-link-checkbox" type="checkbox" checked />
+                    <span>Привязать к текущей странице</span>
+                  </label>
+                  <label class="app-footer-journal-type-field" for="app-footer-journal-type-select">
+                    <span class="app-footer-journal-field-label">Тип события</span>
+                    <select id="app-footer-journal-type-select" class="workspace-journal-type" aria-label="Тип записи">
+                      <option value="life">Жизнь</option>
+                      <option value="action" selected>Действие</option>
+                      <option value="ui">UI</option>
+                      <option value="system">Система</option>
+                    </select>
+                  </label>
+                  <label class="app-footer-journal-notify-field">
+                    <input id="app-footer-journal-notify-input" class="workspace-journal-notify-input" type="checkbox" />
+                    <span>Уведомление</span>
+                  </label>
+                  <label class="app-footer-journal-body-field" for="app-footer-journal-body-input">
+                    <span class="app-footer-journal-field-label">Запись</span>
+                    <textarea
+                      id="app-footer-journal-body-input"
+                      class="workspace-journal-input app-footer-journal-body-input"
+                      rows="4"
+                      placeholder="Что произошло?"
+                      aria-label="Текст записи в журнале"
+                    ></textarea>
+                  </label>
+                </div>
+                <div class="app-footer-journal-popover-foot">
+                  <span class="app-footer-journal-hint">Ctrl/Cmd+Enter</span>
+                  <button id="app-footer-journal-submit-btn" class="app-footer-journal-submit" type="button" disabled>
+                    Добавить
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div id="app-footer-details" class="app-footer-details hidden">
           <p class="app-footer-text">

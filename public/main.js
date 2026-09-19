@@ -30,6 +30,15 @@ const appFooterIdeasCloseBtn = document.getElementById("app-footer-ideas-close-b
 const appFooterIdeasEditBtn = document.getElementById("app-footer-ideas-edit-btn");
 const appFooterIdeasPopoverTitleNode = document.getElementById("app-footer-ideas-popover-title");
 const appFooterIdeasBodyNode = document.getElementById("app-footer-ideas-body");
+const appFooterJournalBtn = document.getElementById("app-footer-journal-btn");
+const appFooterJournalPopoverNode = document.getElementById("app-footer-journal-popover");
+const appFooterJournalCloseBtn = document.getElementById("app-footer-journal-close-btn");
+const appFooterJournalContextInputNode = document.getElementById("app-footer-journal-context-input");
+const appFooterJournalLinkContextNode = document.getElementById("app-footer-journal-link-context");
+const appFooterJournalTypeSelectNode = document.getElementById("app-footer-journal-type-select");
+const appFooterJournalNotifyInputNode = document.getElementById("app-footer-journal-notify-input");
+const appFooterJournalBodyInputNode = document.getElementById("app-footer-journal-body-input");
+const appFooterJournalSubmitBtn = document.getElementById("app-footer-journal-submit-btn");
 const menuAwnDataBandNode = document.getElementById("menu-awn-data-band");
 const menuAwnDataBandToggleBtn = document.getElementById("menu-awn-data-band-toggle");
 const menuAwnDataBandBodyNode = document.getElementById("menu-awn-data-band-body");
@@ -168,6 +177,15 @@ const agentGitContentNode = document.getElementById("agent-git-content");
 const agentGitStatsNode = document.getElementById("agent-git-stats");
 const agentGitMetaNode = document.getElementById("agent-git-meta");
 const agentGitRefreshBtn = document.getElementById("agent-git-refresh-btn");
+const agentJournalPaneNode = document.getElementById("agent-journal-pane");
+const agentJournalContentNode = document.getElementById("agent-journal-content");
+const agentJournalMetaNode = document.getElementById("agent-journal-meta");
+const agentJournalSummaryNode = document.getElementById("agent-journal-summary");
+const agentJournalTypeFilterNode = document.getElementById("agent-journal-type-filter");
+const agentJournalPeriodFilterNode = document.getElementById("agent-journal-period-filter");
+const agentJournalRefreshBtn = document.getElementById("agent-journal-refresh-btn");
+const agentProjectSettingsPaneNode = document.getElementById("agent-project-settings-pane");
+const agentProjectSettingsMountNode = document.getElementById("agent-project-settings-mount");
 const agentLargeFilesPaneNode = document.getElementById("agent-large-files-pane");
 const agentLargeFilesContentNode = document.getElementById("agent-large-files-content");
 const agentLargeFilesStatsNode = document.getElementById("agent-large-files-stats");
@@ -599,6 +617,8 @@ const nodeOverviewBlockNode = document.getElementById("node-overview-block");
 const nodeOverviewContentNode = document.getElementById("node-overview-content");
 const nodeThreadBlockNode = document.getElementById("node-thread-block");
 const nodeThreadContentNode = document.getElementById("node-thread-content");
+const nodeJournalBlockNode = document.getElementById("node-journal-block");
+const nodeJournalContentNode = document.getElementById("node-journal-content");
 const docSlabMainNode = document.querySelector(".doc-slab-main");
 const workspaceBodyNode = document.querySelector(".workspace-body");
 const contentLoadingNode = document.getElementById("content-loading");
@@ -1250,6 +1270,7 @@ const workspaceNotificationsNoteNode = document.getElementById("workspace-notifi
 const workspaceNotificationsFiltersNode = document.getElementById("workspace-notifications-filters");
 const workspaceNotificationsMuteBtn = document.getElementById("workspace-notifications-mute-btn");
 const workspaceNotificationsClearBtn = document.getElementById("workspace-notifications-clear-btn");
+const workspaceNotificationsJournalBtn = document.getElementById("workspace-notifications-journal-btn");
 const WORKSPACE_NOTIFICATIONS_SEEN_KEY_PREFIX = "yamlcms.workspaceNotificationsSeenId";
 const WORKSPACE_NOTIFICATIONS_FILTER_COOKIE = "yamlcms.notificationsFilter";
 const WORKSPACE_NOTIFICATIONS_MUTED_COOKIE = "yamlcms.notificationsMuted";
@@ -1563,6 +1584,7 @@ const MEDIA_FILTER_CHPU_VIEWS = new Set([
 const CHPU_WORKSPACE_MODULE_VIEW_IDS = new Set([
   "module-git",
   "module-settings",
+  "module-journal",
   "module-awn-types",
   "module-registry",
   "module-large-files",
@@ -1572,6 +1594,8 @@ const CHPU_WORKSPACE_MODULE_VIEW_IDS = new Set([
 
 const AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU = {
   git: "module-git",
+  journal: "module-journal",
+  "project-settings": "module-settings",
   "awn-types": "module-awn-types",
   "runtime-registry": "module-registry",
   "large-files": "module-large-files",
@@ -2302,6 +2326,10 @@ async function applyChpuResolvedRoute(resolved) {
       await openProjectSettingsHub({ skipRouteSync: true });
       return;
     }
+    if (moduleChpu === "module-journal") {
+      await openWorkspaceJournalModule({ skipRouteSync: true });
+      return;
+    }
     const workspaceView = MODULE_CHPU_TO_AGENT_WORKSPACE_VIEW[moduleChpu];
     if (workspaceView) {
       agentWorkspaceView = workspaceView;
@@ -2340,8 +2368,12 @@ async function applyChpuResolvedRoute(resolved) {
   }
 
   if (resolved?.kind === "adoptFolder") {
-    hideHomeView();
     const folderPath = String(resolved.folderPath || resolved.workspacePath || "").replace(/\\/g, "/");
+    if (normalizeBreadcrumbPath(folderPath) === WORKSPACE_JOURNAL_FOLDER) {
+      await openWorkspaceJournalModule({ skipRouteSync: true });
+      return;
+    }
+    hideHomeView();
     if (isRepositoryWorkspaceRel(folderPath)) {
       await openRepositoryWorkspacePath(folderPath, { skipRouteSync: true });
       return;
@@ -2795,7 +2827,12 @@ function buildAppPathFromState() {
     return "/";
   }
 
-  if (isProjectSettingsMode() && !activePath && !activeSystemFile && !activeFolderBrowsePath) {
+  if (
+    (isProjectSettingsMode() || agentWorkspaceView === "project-settings") &&
+    !activePath &&
+    !activeSystemFile &&
+    !activeFolderBrowsePath
+  ) {
     return buildAgentModuleChpuPath(agentId, PROJECT_SETTINGS_MODULE_CHPU);
   }
 
@@ -12650,6 +12687,7 @@ async function switchActiveAgent(nextAgentId) {
     invalidateContentSearchFieldCatalog();
     hideAppLandingView();
     syncWorkspaceNotificationsAvailability();
+    syncAppFooterJournalAvailability();
     hideMenuNoAgentPlaceholder();
     activateMenuAgentPane(activeAgentId);
     activePath = null;
@@ -14299,6 +14337,7 @@ const NAVIGATION_HUB_RAIL_COLLAPSED_STORAGE_KEY = "yamlcms.navigationHubRailColl
 const NODE_ENTRY_OVERVIEW_MODE = "entry-overview";
 const NODE_MINDMAP_MODE = "mindmap";
 const NODE_DISCUSSION_MODE = "discussion";
+const NODE_JOURNAL_MODE = "journal";
 
 /** @type {{ relPath: string, memoryKind: string, relativePath: string, title: string, entryKind: string, status?: string } | null} */
 let activeEntryOverviewContext = null;
@@ -14712,7 +14751,36 @@ const NODE_WORKSPACE_DOMAIN_ARTEFACTS = "artefacts";
 const NODE_WORKSPACE_DOMAIN_REPOSITORY = "repository";
 const NODE_WORKSPACE_DOMAIN_NAVIGATION = "navigation";
 const NODE_WORKSPACE_DOMAIN_DATA = "data";
+const NODE_WORKSPACE_DOMAIN_JOURNAL = "journal";
 const NODE_WORKSPACE_DOMAIN_HOOKS = "hooks";
+const WORKSPACE_JOURNAL_FOLDER = ".agent-cms/journal";
+
+const WORKSPACE_TOOL_MODULE_META = {
+  [WORKSPACE_JOURNAL_FOLDER]: {
+    title: "Бортовой журнал",
+    lead: "События, действия и заметки workspace. Один файл на ISO-неделю."
+  },
+  [AWN_TEMP_FOLDER]: {
+    title: "Временные файлы",
+    lead: "Единая папка для временных файлов агента и человека."
+  },
+  [AWN_RECYCLE_FOLDER]: {
+    title: "Корзина",
+    lead: "Удалённые файлы workspace (восстановление — позже)."
+  },
+  [AWN_FACTS_FOLDER]: {
+    title: "Банк фактов",
+    lead: "Выжимки решений и предпочтений для агента."
+  },
+  [AWN_DIALOGS_FOLDER]: {
+    title: "Диалоги с ИИ",
+    lead: "Архив чатов Shell/Voice по провайдерам."
+  },
+  [PROJECT_SETTINGS_MODULE_CHPU]: {
+    title: "Настройки и параметры проекта",
+    lead: "Параметры workspace, областей и тем: config.yml, schema.yml, .env."
+  }
+};
 
 const NODE_WORKSPACE_DOMAIN_BRANCH_PREFIX = "|- ";
 const NODE_WORKSPACE_DOMAIN_SPECS = [
@@ -14721,6 +14789,7 @@ const NODE_WORKSPACE_DOMAIN_SPECS = [
   { value: "hooks", label: "Крючки (hooks)", disabled: true },
   { value: "data", label: "Данные" },
   { value: "discussion", label: "Дискуссия" },
+  { value: "journal", label: "Журнал" },
   { value: "todo", label: "TODO" }
 ];
 
@@ -14963,7 +15032,8 @@ const DATA_STORAGE_SLOT_SPECS = [
     defaultMode: "volume",
     sectionKind: null,
     treeGroup: STORAGE_SLOT_TREE_GROUP_COMMUNICATION,
-    treeDisplay: "count-only"
+    treeDisplay: "count-only",
+    disabled: true
   },
   {
     key: "history",
@@ -16344,6 +16414,7 @@ function getNodeWorkspaceDomain(mode = activeContentMode) {
   if (isNodeSettingsSelectMode(mode)) return NODE_WORKSPACE_DOMAIN_SETTINGS;
   if (mode === "todo") return NODE_WORKSPACE_DOMAIN_TODO;
   if (mode === NODE_DISCUSSION_MODE) return NODE_WORKSPACE_DOMAIN_DISCUSSION;
+  if (mode === NODE_JOURNAL_MODE) return NODE_WORKSPACE_DOMAIN_JOURNAL;
   if (getDataStorageSlotForMode(mode)) return NODE_WORKSPACE_DOMAIN_DATA;
   return NODE_WORKSPACE_DOMAIN_SETTINGS;
 }
@@ -16357,6 +16428,7 @@ function isNodeWorkspaceToolbarDomainActive(mode = activeContentMode) {
     domain === NODE_WORKSPACE_DOMAIN_SETTINGS ||
     domain === NODE_WORKSPACE_DOMAIN_DATA ||
     domain === NODE_WORKSPACE_DOMAIN_DISCUSSION ||
+    domain === NODE_WORKSPACE_DOMAIN_JOURNAL ||
     domain === NODE_WORKSPACE_DOMAIN_TODO ||
     domain === NODE_WORKSPACE_DOMAIN_NAVIGATION
   );
@@ -16375,7 +16447,10 @@ function isNodeMemorySelectMode(mode) {
 }
 
 function isProjectSettingsMode(mode = activeContentMode) {
-  return mode === PROJECT_SETTINGS_MODE;
+  return (
+    mode === PROJECT_SETTINGS_MODE ||
+    (isAgentWorkspaceCanvasVisible() && agentWorkspaceView === "project-settings")
+  );
 }
 
 function isNodeConfigEditorMode(mode = activeContentMode) {
@@ -16415,6 +16490,11 @@ let activeContentMode = NODE_OPEN_MEMORY_MODE;
 let nodeSettingsViewActive = false;
 let projectSettingsScopePath = null;
 let projectSettingsScopeSearchQuery = "";
+let projectSettingsScopeFileFilters = {
+  schema: true,
+  config: true,
+  env: true
+};
 const projectSettingsEnvCacheByManifest = new Map();
 let nodeMemoryViewActive = false;
 const WYSIWYG_EDITOR_ENABLED = true;
@@ -16803,7 +16883,7 @@ function getStorageFolderNamesForSlotKey(slotKey) {
   return namesByKey[key] || [];
 }
 
-const HIDDEN_STORAGE_SLOT_TREE_KEYS = new Set(["quick-notes", "repository", "temp"]);
+const HIDDEN_STORAGE_SLOT_TREE_KEYS = new Set(["quick-notes", "repository", "temp", "log-single", "volume"]);
 
 function findScanFolderForSlotKey(slotKey, folders = []) {
   const names = new Set(getStorageFolderNamesForSlotKey(slotKey).map((name) => name.toLowerCase()));
@@ -18658,6 +18738,7 @@ function getContentModeLabel(mode) {
   }
   if (mode === "inbox") return "Входящие";
   if (mode === NODE_DISCUSSION_MODE) return "Дискуссия";
+  if (mode === NODE_JOURNAL_MODE) return "Журнал";
   if (mode === "note" || mode === "quick-notes") return "Заметки";
   if (mode === "scripts") return "Скрипты";
   if (mode === "templates") return "Шаблоны";
@@ -22396,6 +22477,12 @@ async function applyNodeWorkspaceDomainChange(domain) {
     setContentMode(NODE_DISCUSSION_MODE);
     return;
   }
+  if (domain === NODE_WORKSPACE_DOMAIN_JOURNAL) {
+    nodeMemoryViewActive = false;
+    nodeSettingsViewActive = false;
+    setContentMode(NODE_JOURNAL_MODE);
+    return;
+  }
   if (domain === NODE_WORKSPACE_DOMAIN_NAVIGATION) {
     nodeSettingsViewActive = false;
     nodeMemoryViewActive = false;
@@ -22413,6 +22500,7 @@ function applyNodeWorkspaceViewUi() {
   const scriptsSlotActive = isDataStorageSlotActive("scripts");
   const todoDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_TODO;
   const threadDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_DISCUSSION;
+  const journalDomain = workspaceDomain === NODE_WORKSPACE_DOMAIN_JOURNAL;
   const referencesSlotActive = isDataStorageSlotActive("references");
   const artefactsSlotActive = isDataStorageSlotActive("artefacts");
   const assetsSlotActive = isDataStorageSlotActive("assets");
@@ -22460,6 +22548,7 @@ function applyNodeWorkspaceViewUi() {
   workspacePathHeaderNode?.classList.toggle("is-node-repository", repositorySlotActive);
   workspacePathHeaderNode?.classList.toggle("is-node-navigation", navigationDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-thread", threadDomain);
+  workspacePathHeaderNode?.classList.toggle("is-node-journal", journalDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-data", dataDomain);
   workspacePathHeaderNode?.classList.toggle("is-node-overview", overviewDomain);
   nodeWorkspaceNavControlsNode?.classList.toggle("hidden", !showWorkspaceDomainControls);
@@ -27603,6 +27692,7 @@ function isCurrentModeWithoutContentEditor() {
     activeContentMode === AWN_DATA_VIEW_MODE ||
     activeContentMode === NODE_ENTRY_OVERVIEW_MODE ||
     activeContentMode === NODE_DISCUSSION_MODE ||
+    activeContentMode === NODE_JOURNAL_MODE ||
     activeContentMode === "node-preview" ||
     activeContentMode === "topic-schema" ||
     activeContentMode === "configs" ||
@@ -27644,6 +27734,7 @@ function isCurrentModeReadOnly() {
     activeContentMode === NODE_NAVIGATION_MODE ||
     activeContentMode === FOLDER_BROWSE_MODE ||
     activeContentMode === NODE_DISCUSSION_MODE ||
+    activeContentMode === NODE_JOURNAL_MODE ||
     activeContentMode === "node-preview" ||
     activeContentMode === "graph"
   );
@@ -41368,11 +41459,75 @@ function filterProjectSettingsManifestScopes(scopes, query = projectSettingsScop
   return { scopes: filtered, searchActive: true };
 }
 
+function isProjectSettingsFileFilterDefault(filters = projectSettingsScopeFileFilters) {
+  return Boolean(filters.schema && filters.config && filters.env);
+}
+
+function projectSettingsScopeMatchesFileFilters(scope) {
+  if (isProjectSettingsFileFilterDefault()) return true;
+  const { schema, config, env } = projectSettingsScopeFileFilters;
+  if (!schema && !config && !env) return true;
+
+  const status = getProjectSettingsScopeStatus(scope.path);
+  if (schema && status?.hasLocalSchema) return true;
+  if (config && status?.hasLocalValues) return true;
+  if (env && status?.envHasValues) return true;
+  return false;
+}
+
+function createProjectSettingsScopeFilterMarker(kind) {
+  const marker = document.createElement("span");
+  marker.className = "project-settings-scope-marker";
+  marker.setAttribute("aria-hidden", "true");
+  if (kind === "schema") {
+    marker.classList.add("is-schema-kind", "has-value");
+  } else if (kind === "config") {
+    marker.classList.add("is-config-kind", "has-value");
+  } else if (kind === "env") {
+    marker.classList.add("is-env-kind", "has-value");
+  }
+  return marker;
+}
+
+function renderProjectSettingsScopeFilters() {
+  const wrap = document.createElement("div");
+  wrap.className = "project-settings-scope-filters";
+  wrap.setAttribute("role", "group");
+  wrap.setAttribute("aria-label", "Фильтр по файлам");
+
+  const specs = [
+    { key: "schema", label: "schema.yml", className: "is-schema" },
+    { key: "config", label: "config.yml", className: "is-local" },
+    { key: "env", label: ".env", className: "is-env" }
+  ];
+
+  for (const spec of specs) {
+    const label = document.createElement("label");
+    label.className = `project-settings-scope-filter ${spec.className}`;
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.className = "project-settings-scope-filter-input";
+    input.checked = Boolean(projectSettingsScopeFileFilters[spec.key]);
+    input.addEventListener("change", () => {
+      projectSettingsScopeFileFilters[spec.key] = input.checked;
+      renderProjectSettingsScopeList();
+    });
+
+    label.append(input, createProjectSettingsScopeFilterMarker(spec.key), document.createTextNode(spec.label));
+    wrap.appendChild(label);
+  }
+
+  return wrap;
+}
+
 function renderProjectSettingsScopeList() {
   if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
   projectSettingsScopeListNode.replaceChildren();
   const manifestScopes = collectProjectSettingsManifestScopes();
-  const { scopes: visibleScopes, searchActive } = filterProjectSettingsManifestScopes(manifestScopes);
+  const { scopes: searchedScopes, searchActive } = filterProjectSettingsManifestScopes(manifestScopes);
+  const fileFilterActive = !isProjectSettingsFileFilterDefault();
+  const visibleScopes = searchedScopes.filter(projectSettingsScopeMatchesFileFilters);
   const activeScopePath = getNodeSettingsManifestPath();
   const groups = [
     { level: "workspace", label: "Workspace" },
@@ -41380,18 +41535,12 @@ function renderProjectSettingsScopeList() {
     { level: "topic", label: "Темы" }
   ];
 
-  const legend = document.createElement("div");
-  legend.className = "project-settings-scope-legend";
-  legend.innerHTML =
-    '<span class="project-settings-scope-legend-item is-schema"><span class="project-settings-scope-marker is-schema-kind has-value" aria-hidden="true"></span> schema.yml</span>' +
-    '<span class="project-settings-scope-legend-item is-local"><span class="project-settings-scope-marker is-config-kind has-value" aria-hidden="true"></span> config.yml</span>' +
-    '<span class="project-settings-scope-legend-item is-env"><span class="project-settings-scope-marker is-env-kind has-value" aria-hidden="true"></span> .env</span>';
-  projectSettingsScopeListNode.appendChild(legend);
+  projectSettingsScopeListNode.appendChild(renderProjectSettingsScopeFilters());
 
-  if (searchActive && !visibleScopes.length) {
+  if ((searchActive || fileFilterActive) && !visibleScopes.length) {
     const empty = document.createElement("p");
     empty.className = "project-settings-scope-search-empty";
-    empty.textContent = "Ничего не найдено";
+    empty.textContent = searchActive ? "Ничего не найдено" : "Нет узлов с выбранными фильтрами";
     projectSettingsScopeListNode.appendChild(empty);
     return;
   }
@@ -41570,7 +41719,7 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   if (projectSettingsTitleNode) {
     projectSettingsTitleNode.textContent = scope
       ? `${levelLabel} · ${scope.label}`
-      : "Настройки проекта";
+      : "Настройки и параметры проекта";
   }
   if (projectSettingsLeadNode) {
     projectSettingsLeadNode.innerHTML = scope
@@ -41599,24 +41748,37 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   renderProjectSettingsEnvEditor(getProjectSettingsEnvCache());
 }
 
+function mountProjectSettingsToCanvasPane() {
+  if (!agentProjectSettingsMountNode || !projectSettingsPageNode) return;
+  if (projectSettingsPageNode.parentElement !== agentProjectSettingsMountNode) {
+    agentProjectSettingsMountNode.appendChild(projectSettingsPageNode);
+  }
+}
+
 function hideProjectSettingsPageUi() {
   appRootNode?.classList.remove("project-settings-view");
   projectSettingsPageNode?.classList.add("hidden");
-  workspacePathHeaderNode?.classList.remove("is-project-settings");
+  workspacePathHeaderNode?.classList.remove("is-project-settings", "is-workspace-tool-module");
   syncMenuAgentStatsSettingsBtnState();
 }
 
 function leaveProjectSettingsMode() {
-  if (!isProjectSettingsMode()) return;
-  activeContentMode = NODE_OPEN_MEMORY_MODE;
+  if (activeContentMode === PROJECT_SETTINGS_MODE) {
+    activeContentMode = NODE_OPEN_MEMORY_MODE;
+  }
+  if (agentWorkspaceView === "project-settings") {
+    agentWorkspaceView = "dashboard";
+    saveAgentWorkspaceView("dashboard");
+    if (isAgentWorkspaceCanvasVisible()) {
+      applyAgentWorkspaceCanvasUi();
+    }
+  }
   hideProjectSettingsPageUi();
 }
 
 function applyProjectSettingsPageUi(cache = getNodeSettingsCache()) {
-  hideHomeView();
-  appRootNode?.classList.add("project-settings-view");
+  mountProjectSettingsToCanvasPane();
   projectSettingsPageNode?.classList.remove("hidden");
-  workspacePathHeaderNode?.classList.add("is-project-settings");
   syncMenuAgentStatsSettingsBtnState();
   saveContentBtn?.classList.remove("hidden");
   renderProjectSettingsPage(cache);
@@ -41662,13 +41824,14 @@ async function openProjectSettingsHub(options = {}) {
     showToast("Сначала выберите агента", "info");
     return;
   }
-  hideHomeView();
   clearActiveSystemFile();
   activePath = null;
   activeLabel = null;
   activeFolderBrowsePath = null;
   activeFolderBrowseFilePath = null;
-  applyContentModeState(PROJECT_SETTINGS_MODE);
+  if (activeContentMode === PROJECT_SETTINGS_MODE) {
+    activeContentMode = NODE_OPEN_MEMORY_MODE;
+  }
 
   const scopes = collectProjectSettingsManifestScopes();
   const preferred =
@@ -41680,11 +41843,43 @@ async function openProjectSettingsHub(options = {}) {
     return;
   }
   projectSettingsScopePath = preferred.path;
+
+  showAgentHomeView();
+  agentWorkspaceView = "project-settings";
+  saveAgentWorkspaceView("project-settings");
+  applyAgentWorkspaceCanvasUi();
+
   updateActiveButton();
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ replace: !options.push, push: Boolean(options.push) });
   }
   await loadProjectSettingsContent({ force: true });
+}
+
+async function openWorkspaceJournalModule(options = {}) {
+  if (!activeAgentId) {
+    showToast("Сначала выберите агента", "info");
+    return;
+  }
+  clearActiveSystemFile();
+  activePath = null;
+  activeLabel = "Бортовой журнал";
+  activeFolderBrowsePath = null;
+  activeFolderBrowseFilePath = null;
+  if (activeContentMode === PROJECT_SETTINGS_MODE) {
+    activeContentMode = NODE_OPEN_MEMORY_MODE;
+  }
+
+  showAgentHomeView();
+  agentWorkspaceView = "journal";
+  saveAgentWorkspaceView("journal");
+  applyAgentWorkspaceCanvasUi();
+
+  updateActiveButton();
+  if (!options.skipRouteSync) {
+    syncAppRouteToUrl({ replace: !options.push, push: Boolean(options.push) });
+  }
+  await renderAgentJournalView();
 }
 
 function isNodeSettingsModeAvailable(nodePath = getResolvedNodePath(activePath)) {
@@ -47505,6 +47700,7 @@ function getDocAsideTab() {
 
 function isDocAsideAvailable() {
   if (!activePath || isPlainServiceStyleOpen()) return false;
+  if (activeContentMode === NODE_DISCUSSION_MODE || activeContentMode === NODE_JOURNAL_MODE) return false;
   if (!isEditorSaveTrackingActive()) return false;
   if (isCurrentModeWithoutContentEditor()) return false;
   if (isCurrentModeListTemplate()) return false;
@@ -55816,6 +56012,7 @@ function isEditorSaveTrackingActive() {
     activeContentMode === NODE_NAVIGATION_MODE ||
     activeContentMode === NODE_ENTRY_OVERVIEW_MODE ||
     activeContentMode === NODE_DISCUSSION_MODE ||
+    activeContentMode === NODE_JOURNAL_MODE ||
     activeContentMode === "node-preview" ||
     activeContentMode === "graph" ||
     activeContentMode === "scripts" ||
@@ -73472,7 +73669,8 @@ const WORKSPACE_NOTIFICATION_SOURCE_LABELS = {
   mcp: "MCP",
   ui: "UI",
   api: "API",
-  system: "система"
+  system: "система",
+  journal: "журнал"
 };
 
 function getWorkspaceNotificationsSeenStorageKey(agentId = activeAgentId) {
@@ -73588,7 +73786,9 @@ function toggleWorkspaceNotificationsMuted() {
 
 function matchesWorkspaceNotificationFilter(event, filter = workspaceNotificationsFilter) {
   if (!filter || filter === "all") return true;
-  if (filter === "notify") return String(event.action || "").toLowerCase() === "notify";
+  if (filter === "notify") {
+    return Boolean(event.notify) || String(event.action || "").toLowerCase() === "notify";
+  }
   return String(event.source || "").toLowerCase() === filter;
 }
 
@@ -73616,14 +73816,14 @@ function reconcileWorkspaceNotificationsSeenId() {
 
 function syncWorkspaceNotificationsFooter() {
   if (workspaceNotificationsClearBtn) {
-    workspaceNotificationsClearBtn.disabled = !workspaceNotificationsEvents.length;
+    workspaceNotificationsClearBtn.disabled = getWorkspaceNotificationUnreadCount() <= 0;
   }
 }
 
 function getWorkspaceNotificationFilterLabel(filter = workspaceNotificationsFilter) {
   if (filter === "mcp") return "MCP";
   if (filter === "ui") return "UI";
-  if (filter === "notify") return "💬";
+  if (filter === "notify") return "Уведомление";
   return "Все";
 }
 
@@ -73653,9 +73853,9 @@ function syncWorkspaceNotificationsHint() {
   }
 
   if (workspaceNotificationsNoteNode) {
-    let note = "";
+    let note = "Источник: .agent-cms/journal";
     if (workspaceNotificationsTruncated) {
-      note = `В файле ${workspaceNotificationsFileLines || "много"} строк — архив activity-archive.jsonl`;
+      note += ` · показаны последние ${WORKSPACE_NOTIFICATIONS_FETCH_LIMIT} записей`;
     }
     workspaceNotificationsNoteNode.textContent = note;
     workspaceNotificationsNoteNode.classList.toggle("hidden", !note);
@@ -73946,7 +74146,7 @@ function renderWorkspaceNotificationsList() {
     empty.className = "workspace-notifications-empty";
     empty.textContent = workspaceNotificationsEvents.length
       ? "Нет уведомлений для выбранного фильтра."
-      : "Пока нет изменений. Действия агента через MCP появятся здесь.";
+      : "Пока пусто. Записи с notify попадают сюда из журнала workspace.";
     workspaceNotificationsListNode.appendChild(empty);
     return;
   }
@@ -73969,11 +74169,11 @@ async function clearWorkspaceNotifications() {
   if (!activeAgentId) return;
   if (workspaceNotificationsEvents.length) {
     const confirmed = await askConfirm(
-      "Список в колокольчике станет пустым — все текущие записи исчезнут из активного журнала.",
+      "Все текущие уведомления будут помечены как прочитанные и скрыты из колокольчика.",
       {
         title: "Очистить уведомления?",
         hint:
-          "Записи не удаляются навсегда. Они дописываются в архивный файл .agent-cms/activity-archive.jsonl в папке агента — туда же попадают старые события при автоматической ротации журнала. Из колокольчика они просто пропадут.",
+          "Записи остаются в бортовом журнале (.agent-cms/journal). Очистка только сбрасывает список в колокольчике и отмечает всё прочитанным.",
         okLabel: "Очистить",
         cancelLabel: "Отмена",
         icon: "🔔",
@@ -73983,19 +74183,13 @@ async function clearWorkspaceNotifications() {
     if (!confirmed) return;
   }
   try {
-    const response = await fetch(buildApiUrl("/api/agent/activity/clear"), { method: "POST" });
-    if (!response.ok) throw new Error(`activity-clear:${response.status}`);
-    workspaceNotificationsEvents = [];
-    workspaceNotificationsLatestId = 0;
-    workspaceNotificationsTruncated = false;
-    workspaceNotificationsFileLines = 0;
-    workspaceNotificationsSeenId = 0;
-    workspaceNotificationsAnnouncedUpToId = 0;
+    workspaceNotificationsSeenId = workspaceNotificationsLatestId;
+    workspaceNotificationsAnnouncedUpToId = workspaceNotificationsLatestId;
     saveWorkspaceNotificationsSeenId();
     syncWorkspaceNotificationsBadge();
     syncWorkspaceNotificationsHint();
     renderWorkspaceNotificationsList();
-    showToast("Журнал уведомлений очищен", "info");
+    showToast("Уведомления отмечены прочитанными", "info");
   } catch (error) {
     showToast(`Не удалось очистить: ${error.message}`, "error");
   }
@@ -74039,6 +74233,28 @@ function buildWorkspaceNotificationOpenContext(event) {
 
 async function openWorkspaceNotification(event) {
   closeWorkspaceNotificationsPopover();
+
+  const source = String(event?.source || "").toLowerCase();
+  const isJournalEvent =
+    source === "journal" ||
+    String(event?.path || "").includes(`${WORKSPACE_JOURNAL_FOLDER}/`) ||
+    String(event?.path || "") === WORKSPACE_JOURNAL_FOLDER;
+
+  if (isJournalEvent) {
+    const manifestPath = resolveWorkspaceNotificationManifestPath(event);
+    if (manifestPath) {
+      try {
+        await openNodeFromMenu(getLabelFromPath(manifestPath), manifestPath, { skipRouteSync: true });
+        await applyNodeWorkspaceDomainChange(NODE_WORKSPACE_DOMAIN_JOURNAL);
+        syncAppRouteToUrl({ push: true });
+        return;
+      } catch {
+        // fall through to folder browse
+      }
+    }
+    await openWorkspaceJournalModule();
+    return;
+  }
 
   const { openPath, label, nodePath, mode, externalFile } = buildWorkspaceNotificationOpenContext(event);
 
@@ -74206,6 +74422,17 @@ async function fetchWorkspaceActivityEvents({ since = 0, limit = WORKSPACE_NOTIF
   return response.json();
 }
 
+async function fetchWorkspaceNotificationEvents({ since = 0, limit = WORKSPACE_NOTIFICATIONS_FETCH_LIMIT } = {}) {
+  const response = await fetch(
+    buildApiUrl("/api/agent/workspace-notifications", {
+      since: since > 0 ? since : undefined,
+      limit
+    })
+  );
+  if (!response.ok) throw new Error(`workspace-notifications:${response.status}`);
+  return response.json();
+}
+
 function maybeAnnounceWorkspaceNotifications() {
   if (!isWorkspaceNotificationsContextActive()) return;
   if (workspaceNotificationsMuted || workspaceNotificationsOpen || !workspaceNotificationsInitialLoadDone) {
@@ -74242,18 +74469,16 @@ async function refreshWorkspaceNotifications(mergeOnly = false) {
   const previousLatestId = workspaceNotificationsLatestId;
   const wasInitialLoadDone = workspaceNotificationsInitialLoadDone;
   try {
-    let payload = await fetchWorkspaceActivityEvents({
+    let payload = await fetchWorkspaceNotificationEvents({
       since: mergeOnly && previousLatestId > 0 ? previousLatestId : 0,
       limit: WORKSPACE_NOTIFICATIONS_FETCH_LIMIT
     });
     let incoming = Array.isArray(payload?.events) ? payload.events : [];
     let serverLatestId = Number(payload?.latestId) || 0;
-    let journalReset = false;
 
     if (mergeOnly && serverLatestId < previousLatestId) {
-      journalReset = true;
       mergeOnly = false;
-      payload = await fetchWorkspaceActivityEvents({
+      payload = await fetchWorkspaceNotificationEvents({
         since: 0,
         limit: WORKSPACE_NOTIFICATIONS_FETCH_LIMIT
       });
@@ -74266,7 +74491,7 @@ async function refreshWorkspaceNotifications(mergeOnly = false) {
 
     workspaceNotificationsLatestId = serverLatestId || workspaceNotificationsLatestId;
     workspaceNotificationsTruncated = Boolean(payload?.truncated);
-    workspaceNotificationsFileLines = Number(payload?.fileLines) || incoming.length;
+    workspaceNotificationsFileLines = Number(payload?.total) || incoming.length;
 
     if (mergeOnly && incoming.length) {
       const known = new Set(workspaceNotificationsEvents.map((event) => event.id));
@@ -74330,6 +74555,11 @@ function initWorkspaceNotifications() {
   workspaceNotificationsClearBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     void clearWorkspaceNotifications();
+  });
+  workspaceNotificationsJournalBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeWorkspaceNotificationsPopover();
+    void openWorkspaceJournalModule();
   });
   workspaceNotificationsFiltersNode?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-filter]");
@@ -74738,6 +74968,517 @@ async function openExternalMemoryFileFromThread(filePath) {
   if (!relFile || !activePath) return;
   setContentMode("external");
   await openExternalFile(relFile);
+}
+
+let nodeJournalRenderSeq = 0;
+let workspaceJournalPanelRenderSeq = 0;
+let agentJournalRenderSeq = 0;
+let agentJournalCanvasStats = null;
+let agentJournalPanelRenderFiltered = null;
+let appFooterJournalOpen = false;
+let appFooterJournalContextCache = null;
+
+const WORKSPACE_JOURNAL_FILTER_OPTIONS_HTML =
+  '<option value="all">Все типы</option>' +
+  '<option value="life">Жизнь</option>' +
+  '<option value="action">Действие</option>' +
+  '<option value="ui">UI</option>' +
+  '<option value="system">Система</option>' +
+  '<option value="notify">Уведомление</option>';
+
+const WORKSPACE_JOURNAL_PERIOD_OPTIONS_HTML =
+  '<option value="today">За сегодня</option>' +
+  '<option value="yesterday">За вчера</option>' +
+  '<option value="week">За 7 дней</option>' +
+  '<option value="month">За 30 дней</option>' +
+  '<option value="all">Всё время</option>';
+
+function getJournalPeriodRange(period) {
+  const key = String(period || "all").toLowerCase();
+  if (key === "all") return null;
+  const now = new Date();
+  const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const todayStart = startOfDay(now);
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+  if (key === "today") return { from: todayStart, to: tomorrowStart };
+  if (key === "yesterday") {
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    return { from: yesterdayStart, to: todayStart };
+  }
+  if (key === "week") {
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - 6);
+    return { from: weekStart, to: tomorrowStart };
+  }
+  if (key === "month") {
+    const monthStart = new Date(todayStart);
+    monthStart.setDate(monthStart.getDate() - 29);
+    return { from: monthStart, to: tomorrowStart };
+  }
+  return null;
+}
+
+function matchesJournalPeriod(entry, period) {
+  const range = getJournalPeriodRange(period);
+  if (!range) return true;
+  const rawAt = entry?.at;
+  if (!rawAt) return false;
+  const at = new Date(rawAt);
+  if (Number.isNaN(at.getTime())) return false;
+  return at >= range.from && at < range.to;
+}
+
+function formatJournalTypeLabel(type) {
+  const map = { life: "жизнь", action: "действие", ui: "UI", system: "система" };
+  return map[String(type || "").toLowerCase()] || String(type || "запись");
+}
+
+function formatJournalEntryClock(iso) {
+  return formatWorkspaceNotificationClock(iso);
+}
+
+const WORKSPACE_JOURNAL_TYPE_ICONS = {
+  life: "🌿",
+  action: "⚡",
+  ui: "🖱️",
+  system: "⚙️"
+};
+
+function resolveJournalEntryVisual(entry) {
+  if (entry?.notify) {
+    return { actionKey: "notify", glyph: WORKSPACE_NOTIFICATION_ACTION_ICONS.notify };
+  }
+  const firstLine = String(entry?.body || "").split("\n")[0] || "";
+  if (/^создано/i.test(firstLine)) {
+    return { actionKey: "create", glyph: WORKSPACE_NOTIFICATION_ACTION_ICONS.create };
+  }
+  if (/^удалено/i.test(firstLine)) {
+    return { actionKey: "delete", glyph: WORKSPACE_NOTIFICATION_ACTION_ICONS.delete };
+  }
+  if (/^перемещено/i.test(firstLine)) {
+    return { actionKey: "move", glyph: WORKSPACE_NOTIFICATION_ACTION_ICONS.move };
+  }
+  if (/^обновлено/i.test(firstLine)) {
+    return { actionKey: "update", glyph: WORKSPACE_NOTIFICATION_ACTION_ICONS.update };
+  }
+  const type = String(entry?.type || "action").toLowerCase();
+  const glyph = WORKSPACE_JOURNAL_TYPE_ICONS[type] || WORKSPACE_NOTIFICATION_ACTION_ICONS.update;
+  const actionKey = WORKSPACE_JOURNAL_TYPE_ICONS[type] ? type : "update";
+  return { actionKey, glyph };
+}
+
+function createWorkspaceJournalEntryRow(entry, options = {}) {
+  const item = document.createElement("li");
+  item.className = "workspace-journal-item";
+  if (entry.notify) item.classList.add("is-notify");
+
+  const visual = resolveJournalEntryVisual(entry);
+  const icon = document.createElement("span");
+  icon.className = `workspace-journal-item-icon workspace-notification-icon is-${visual.actionKey}`;
+  icon.textContent = visual.glyph;
+  icon.setAttribute("aria-hidden", "true");
+  icon.title = formatJournalTypeLabel(entry.type);
+
+  const main = document.createElement("div");
+  main.className = "workspace-journal-item-main";
+
+  const head = document.createElement("div");
+  head.className = "workspace-journal-item-head";
+
+  const time = document.createElement("time");
+  time.className = "workspace-journal-item-time";
+  time.dateTime = entry.at || "";
+  time.textContent = formatJournalEntryClock(entry.at);
+
+  const meta = document.createElement("span");
+  meta.className = "workspace-journal-item-meta";
+  const typeBadge = document.createElement("span");
+  typeBadge.className = `workspace-journal-type-badge workspace-journal-type-badge--${String(entry.type || "action").toLowerCase()}`;
+  typeBadge.textContent = formatJournalTypeLabel(entry.type);
+  meta.append(typeBadge, document.createTextNode(` · ${entry.author || "agent"}`));
+  if (entry.notify) {
+    const bell = document.createElement("span");
+    bell.className = "workspace-journal-item-notify";
+    bell.textContent = " 🔔";
+    bell.title = "Показано в колокольчике";
+    meta.appendChild(bell);
+  }
+  head.append(time, meta);
+
+  const body = document.createElement("div");
+  body.className = "workspace-journal-item-body";
+  body.textContent = entry.body || "";
+
+  main.append(head, body);
+
+  const pathValue = String(entry.path || entry.topic || "").trim();
+  if (pathValue) {
+    const pathRow = document.createElement("div");
+    pathRow.className = "workspace-journal-item-path-row";
+    const pathBtn = document.createElement("button");
+    pathBtn.type = "button";
+    pathBtn.className = "workspace-journal-item-path";
+    pathBtn.textContent = pathValue;
+    pathBtn.title = "Открыть путь";
+    pathBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+      void openWorkspaceInspectorPath(pathValue);
+    });
+    pathRow.appendChild(pathBtn);
+    main.appendChild(pathRow);
+  }
+
+  if (options.showWeekFile && entry.file) {
+    const fileNote = document.createElement("div");
+    fileNote.className = "workspace-journal-item-file";
+    fileNote.textContent = entry.file;
+    main.appendChild(fileNote);
+  }
+
+  item.append(icon, main);
+  return item;
+}
+
+function formatAgentJournalSummaryLine(stats, filtered, total) {
+  const parts = [];
+  if (stats?.currentWeek) parts.push(`неделя ${stats.currentWeek}`);
+  if (typeof total === "number") {
+    const noun = total === 1 ? "запись" : total >= 2 && total <= 4 ? "записи" : "записей";
+    parts.push(typeof filtered === "number" && filtered !== total ? `${filtered} из ${total}` : `${total} ${noun}`);
+  } else if (stats?.totalCount != null) {
+    const count = Number(stats.totalCount) || 0;
+    const noun = count === 1 ? "запись" : count >= 2 && count <= 4 ? "записи" : "записей";
+    parts.push(`${count} ${noun}`);
+  }
+  if (stats?.weekCount != null && typeof total !== "number") {
+    parts.push(`${stats.weekCount} на неделе`);
+  }
+  if (stats?.latestType) {
+    parts.push(`последняя: ${formatJournalTypeLabel(stats.latestType)}`);
+  }
+  return parts.join(" · ");
+}
+
+function syncAgentJournalInfoBar({ stats = agentJournalCanvasStats, filtered = null, total = null, loading = false } = {}) {
+  if (loading) {
+    if (agentJournalMetaNode) agentJournalMetaNode.textContent = WORKSPACE_JOURNAL_FOLDER;
+    if (agentJournalSummaryNode) agentJournalSummaryNode.textContent = "Загрузка…";
+    return;
+  }
+  if (stats) agentJournalCanvasStats = stats;
+  if (agentJournalMetaNode) {
+    const parts = [WORKSPACE_JOURNAL_FOLDER];
+    if (stats?.latestAt) {
+      try {
+        parts.push(
+          `обновлён ${new Date(stats.latestAt).toLocaleString("ru-RU", {
+            day: "numeric",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit"
+          })}`
+        );
+      } catch {
+        parts.push(`обновлён ${stats.latestAt}`);
+      }
+    }
+    agentJournalMetaNode.textContent = parts.join(" · ");
+  }
+  if (agentJournalSummaryNode) {
+    agentJournalSummaryNode.textContent = formatAgentJournalSummaryLine(stats, filtered, total);
+  }
+}
+
+async function mountWorkspaceJournalPanel(container, options = {}) {
+  if (!container) return null;
+
+  const renderSeq = ++workspaceJournalPanelRenderSeq;
+  const isStale = () => renderSeq !== workspaceJournalPanelRenderSeq || !container.isConnected;
+  const topic = String(options.topic || "").trim();
+  const limit = Math.max(1, Number(options.limit) || 100);
+  const showComposer = options.showComposer === true;
+  const showIntro = options.showIntro !== false;
+  const showTypeFilter = options.showTypeFilter !== false;
+  const showPeriodFilter = options.showPeriodFilter !== false;
+  const showPanelToolbar = options.showPanelToolbar !== false;
+  const externalTypeFilterSelect = options.typeFilterSelect || null;
+  const externalPeriodFilterSelect = options.periodFilterSelect || null;
+  const defaultPeriod = String(options.defaultPeriod || "today");
+  const showWeekFile = options.showWeekFile === true;
+  const introText =
+    options.introText ||
+    (topic
+      ? "Записи по этой теме. Общие события workspace тоже видны, если привязаны к manifest."
+      : "События, действия и заметки workspace. Один markdown-файл на ISO-неделю в .agent-cms/journal/.");
+
+  container.replaceChildren();
+
+  const panel = document.createElement("section");
+  panel.className = "workspace-journal-panel";
+  panel.setAttribute("aria-label", "Журнал workspace");
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "workspace-journal-toolbar";
+
+  const intro = document.createElement("p");
+  intro.className = "workspace-journal-intro";
+  intro.textContent = introText;
+
+  let typeFilter = externalTypeFilterSelect ? String(externalTypeFilterSelect.value || "all") : "all";
+  let periodFilter = externalPeriodFilterSelect
+    ? String(externalPeriodFilterSelect.value || defaultPeriod)
+    : defaultPeriod;
+  let typeSelect = externalTypeFilterSelect;
+  let periodSelect = externalPeriodFilterSelect;
+  let countNote = null;
+
+  if (showPanelToolbar) {
+    if (!periodSelect && showPeriodFilter) {
+      periodSelect = document.createElement("select");
+      periodSelect.className = "workspace-journal-filter workspace-journal-period-filter";
+      periodSelect.setAttribute("aria-label", "Период записей журнала");
+      periodSelect.innerHTML = WORKSPACE_JOURNAL_PERIOD_OPTIONS_HTML;
+      periodSelect.value = defaultPeriod;
+    }
+    if (!typeSelect && showTypeFilter) {
+      typeSelect = document.createElement("select");
+      typeSelect.className = "workspace-journal-filter";
+      typeSelect.setAttribute("aria-label", "Фильтр типа записей");
+      typeSelect.innerHTML = WORKSPACE_JOURNAL_FILTER_OPTIONS_HTML;
+    }
+    countNote = document.createElement("span");
+    countNote.className = "workspace-journal-count";
+    countNote.textContent = "Загрузка…";
+    if (periodSelect) toolbar.appendChild(periodSelect);
+    if (typeSelect) toolbar.appendChild(typeSelect);
+    toolbar.appendChild(countNote);
+  } else {
+    if (externalTypeFilterSelect) typeSelect = externalTypeFilterSelect;
+    if (externalPeriodFilterSelect) periodSelect = externalPeriodFilterSelect;
+  }
+
+  const list = document.createElement("ol");
+  list.className = "workspace-journal-list";
+  list.setAttribute("role", "list");
+
+  let composerTypeSelect = null;
+  let composerField = null;
+  let composerSubmit = null;
+  let notifyInput = null;
+  let composer = null;
+
+  if (showComposer) {
+    composer = document.createElement("div");
+    composer.className = "workspace-journal-composer";
+
+    const composerToolbar = document.createElement("div");
+    composerToolbar.className = "workspace-journal-composer-toolbar";
+
+    const typeField = document.createElement("label");
+    typeField.className = "workspace-journal-field workspace-journal-field--type";
+    const typeLabel = document.createElement("span");
+    typeLabel.className = "workspace-journal-field-label";
+    typeLabel.textContent = "Тип события";
+    composerTypeSelect = document.createElement("select");
+    composerTypeSelect.className = "workspace-journal-type";
+    composerTypeSelect.innerHTML =
+      '<option value="life">Жизнь</option>' +
+      '<option value="action" selected>Действие</option>' +
+      '<option value="ui">UI</option>' +
+      '<option value="system">Система</option>';
+    composerTypeSelect.setAttribute("aria-label", "Тип записи");
+    typeField.append(typeLabel, composerTypeSelect);
+
+    const notifyWrap = document.createElement("label");
+    notifyWrap.className = "workspace-journal-notify";
+    notifyInput = document.createElement("input");
+    notifyInput.type = "checkbox";
+    notifyInput.className = "workspace-journal-notify-input";
+    notifyWrap.append(notifyInput, document.createTextNode("Уведомление"));
+
+    composerSubmit = document.createElement("button");
+    composerSubmit.type = "button";
+    composerSubmit.className = "workspace-journal-submit";
+    composerSubmit.disabled = true;
+    composerSubmit.textContent = "Добавить";
+
+    composerToolbar.append(typeField, notifyWrap, composerSubmit);
+
+    composerField = document.createElement("textarea");
+    composerField.className = "workspace-journal-input";
+    composerField.rows = 2;
+    composerField.placeholder = topic
+      ? "Заметка по теме…"
+      : "Что произошло? Например: остановился на фильме на 20-й минуте…";
+    composerField.setAttribute("aria-label", "Новая запись в журнале");
+
+    const composerHint = document.createElement("span");
+    composerHint.className = "workspace-journal-composer-hint";
+    composerHint.textContent = "Ctrl/Cmd+Enter — добавить";
+
+    composer.append(composerToolbar, composerField, composerHint);
+  }
+
+  if (showIntro) panel.appendChild(intro);
+  if (showPanelToolbar) panel.appendChild(toolbar);
+  panel.appendChild(list);
+  if (composer) panel.appendChild(composer);
+  container.appendChild(panel);
+
+  const filterEntries = (entries) => {
+    let items = Array.isArray(entries) ? entries : [];
+    const activePeriod = periodSelect ? String(periodSelect.value || defaultPeriod) : periodFilter;
+    items = items.filter((entry) => matchesJournalPeriod(entry, activePeriod));
+    const activeType = typeSelect ? String(typeSelect.value || "all") : typeFilter;
+    if (activeType === "all") return items;
+    if (activeType === "notify") return items.filter((entry) => entry.notify);
+    return items.filter((entry) => String(entry.type || "").toLowerCase() === activeType);
+  };
+
+  const renderEntries = (entries) => {
+    const filtered = filterEntries(entries);
+    list.replaceChildren();
+    if (countNote) {
+      countNote.textContent =
+        filtered.length === entries.length
+          ? `${filtered.length} записей`
+          : `${filtered.length} из ${entries.length}`;
+    }
+    if (!filtered.length) {
+      const empty = document.createElement("li");
+      empty.className = "workspace-journal-empty";
+      const activeType = typeSelect ? String(typeSelect.value || "all") : typeFilter;
+      const activePeriod = periodSelect ? String(periodSelect.value || defaultPeriod) : periodFilter;
+      const hasFilters = activeType !== "all" || activePeriod !== "all";
+      empty.textContent = hasFilters ? "Нет записей для выбранного фильтра." : "Пока нет записей.";
+      list.appendChild(empty);
+      return;
+    }
+    for (const entry of filtered) {
+      list.appendChild(createWorkspaceJournalEntryRow(entry, { showWeekFile }));
+    }
+    if (typeof options.onEntriesRendered === "function") {
+      options.onEntriesRendered(filtered, entries);
+    }
+  };
+
+  const loadEntries = async () => {
+    list.replaceChildren();
+    const loading = document.createElement("li");
+    loading.className = "workspace-journal-loading";
+    loading.textContent = "Загрузка журнала…";
+    list.appendChild(loading);
+    if (countNote) countNote.textContent = "Загрузка…";
+    try {
+      const params = { limit };
+      if (topic) params.topic = topic;
+      const response = await fetch(buildApiUrl("/api/agent/workspace-journal/list", params, activeAgentId));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (isStale()) return;
+      panel._entries = Array.isArray(data.entries) ? data.entries : [];
+      renderEntries(panel._entries);
+      if (typeof options.onLoaded === "function") {
+        options.onLoaded(data, panel._entries);
+      }
+    } catch (error) {
+      if (isStale()) return;
+      list.replaceChildren();
+      const err = document.createElement("li");
+      err.className = "workspace-journal-error";
+      err.textContent = `Не удалось загрузить журнал: ${error.message}`;
+      list.appendChild(err);
+      if (countNote) countNote.textContent = "ошибка";
+    }
+  };
+
+  const applyFilters = () => {
+    if (typeSelect) typeFilter = typeSelect.value;
+    if (periodSelect) periodFilter = periodSelect.value;
+    renderEntries(panel._entries || []);
+  };
+
+  if (typeSelect && typeSelect !== externalTypeFilterSelect) {
+    typeSelect.addEventListener("change", applyFilters);
+  }
+  if (periodSelect && periodSelect !== externalPeriodFilterSelect) {
+    periodSelect.addEventListener("change", applyFilters);
+  }
+
+  if (showComposer && composerField && composerSubmit && composerTypeSelect && notifyInput) {
+    const syncSubmit = () => {
+      composerSubmit.disabled = !String(composerField.value || "").trim();
+    };
+    composerField.addEventListener("input", syncSubmit);
+    composerSubmit.addEventListener("click", () => {
+      const body = String(composerField.value || "").trim();
+      if (!body) return;
+      composerSubmit.disabled = true;
+      void (async () => {
+        try {
+          const response = await fetch(buildApiUrl("/api/agent/workspace-journal/append", {}, activeAgentId), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              body,
+              type: composerTypeSelect.value || "action",
+              author: "user",
+              topic,
+              path: topic,
+              notify: notifyInput.checked
+            })
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          composerField.value = "";
+          syncSubmit();
+          await loadEntries();
+          showToast("Запись добавлена в журнал", "success");
+        } catch (error) {
+          showToast(`Не удалось добавить: ${error.message}`, "error");
+          syncSubmit();
+        }
+      })();
+    });
+    composerField.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        composerSubmit.click();
+      }
+    });
+  }
+
+  await loadEntries();
+  return { refresh: loadEntries, renderFiltered: applyFilters, panel };
+}
+
+async function renderNodeJournal() {
+  if (!nodeJournalContentNode) return;
+
+  const renderSeq = ++nodeJournalRenderSeq;
+  const isStale = () =>
+    renderSeq !== nodeJournalRenderSeq || activeContentMode !== NODE_JOURNAL_MODE || !nodeJournalContentNode;
+
+  const manifestPath = getActiveNodeApiPath();
+  nodeJournalContentNode.replaceChildren();
+
+  const host = document.createElement("div");
+  host.className = "workspace-journal-host";
+  nodeJournalContentNode.appendChild(host);
+
+  await mountWorkspaceJournalPanel(host, {
+    topic: manifestPath || "",
+    limit: 120,
+    showTypeFilter: true,
+    showWeekFile: false,
+    showComposer: false,
+    isStale,
+    introText: manifestPath
+      ? "Журнал по этой теме — записи с привязкой к manifest и события UI."
+      : "Журнал workspace — события, действия, заметки."
+  });
 }
 
 async function renderNodeThread() {
@@ -75861,6 +76602,11 @@ function getFolderBrowseSectionBody(section) {
 async function openFolderBrowseFromMenu(label, folderPath, options = {}) {
   const normalizedFolder = normalizeCreateParentPath(folderPath || ".");
   if (!normalizedFolder || normalizedFolder === ".") return;
+
+  if (normalizeBreadcrumbPath(normalizedFolder) === WORKSPACE_JOURNAL_FOLDER) {
+    await openWorkspaceJournalModule(options);
+    return;
+  }
 
   hideHomeView();
   nodeOverviewRenderSeq += 1;
@@ -77157,41 +77903,139 @@ function renderFolderBrowseOtherFilesSection(section, items, folderPath) {
   body.appendChild(list);
 }
 
-function renderFolderBrowseHeader(hub, data) {
+function getWorkspaceToolModuleMeta(folderPath = activeFolderBrowsePath) {
+  const normalized = normalizeBreadcrumbPath(folderPath || "");
+  return WORKSPACE_TOOL_MODULE_META[normalized] || null;
+}
+
+function isWorkspaceToolModuleView() {
+  if (isProjectSettingsMode()) return true;
+  return activeContentMode === FOLDER_BROWSE_MODE || activeContentMode === FOLDER_BROWSE_FILE_MODE;
+}
+
+function createWorkspaceToolHead({ eyebrow = "Workspace", title, lead = "", aside = null } = {}) {
+  const head = document.createElement("div");
+  head.className = "agent-canvas-head agent-tool-head workspace-tool-head";
+
+  const copy = document.createElement("div");
+  copy.className = "agent-canvas-head-copy";
+
+  const eyebrowNode = document.createElement("p");
+  eyebrowNode.className = "agent-canvas-eyebrow";
+  eyebrowNode.textContent = eyebrow;
+
+  const titleNode = document.createElement("h2");
+  titleNode.className = "agent-canvas-title";
+  titleNode.textContent = title || "";
+
+  copy.append(eyebrowNode, titleNode);
+
+  if (lead) {
+    const leadNode = document.createElement("p");
+    leadNode.className = "agent-canvas-lead";
+    leadNode.textContent = lead;
+    copy.appendChild(leadNode);
+  }
+
+  head.appendChild(copy);
+
+  if (aside) {
+    const asideWrap = document.createElement("div");
+    asideWrap.className = "agent-canvas-head-aside agent-tool-head-actions";
+    if (typeof aside === "function") aside(asideWrap);
+    else asideWrap.appendChild(aside);
+    head.appendChild(asideWrap);
+  }
+
+  return head;
+}
+
+function createWorkspaceToolInfo({ desc = "", stats = [] } = {}) {
+  const info = document.createElement("div");
+  info.className = "agent-tool-info workspace-tool-info";
+
+  const copy = document.createElement("div");
+  copy.className = "agent-tool-info-copy";
+  if (desc) {
+    const descNode = document.createElement("p");
+    descNode.className = "agent-tool-info-desc";
+    descNode.textContent = desc;
+    copy.appendChild(descNode);
+  }
+  info.appendChild(copy);
+
+  if (stats.length) {
+    const statsNode = document.createElement("div");
+    statsNode.className = "agent-workspace-stats";
+    for (const stat of stats) {
+      statsNode.appendChild(createAgentWorkspaceStatElement(stat.value, stat.label, stat.tone || ""));
+    }
+    info.appendChild(statsNode);
+  }
+
+  return info;
+}
+
+function countFolderBrowseItems(data) {
+  if (!data) return 0;
+  return (
+    (data.folders?.length || 0) +
+    (data.images?.length || 0) +
+    (data.pages?.length || 0) +
+    (data.videos?.length || 0) +
+    (data.audio?.length || 0) +
+    (data.other?.length || 0)
+  );
+}
+
+function renderFolderBrowseHeader(pane, data, body) {
   const folderPath = data.folderPath;
-  const label = activeLabel || data.title || folderPath.split("/").filter(Boolean).pop() || folderPath;
+  const moduleMeta = getWorkspaceToolModuleMeta(folderPath);
+  const label = activeLabel || moduleMeta?.title || data.title || folderPath.split("/").filter(Boolean).pop() || folderPath;
+  const lead = moduleMeta?.lead || `${FREE_MEMORY_LABEL} · просмотр файлов и папок workspace.`;
 
-  const card = document.createElement("header");
-  card.className = "folder-browse-hero-card";
-  const main = document.createElement("div");
-  main.className = "folder-browse-hero-main";
-  const body = document.createElement("div");
-  body.className = "folder-browse-hero-body";
-  const titleRow = document.createElement("div");
-  titleRow.className = "folder-browse-hero-title-row";
+  const refreshBtn = document.createElement("button");
+  refreshBtn.type = "button";
+  refreshBtn.className = "agent-workspace-refresh-btn";
+  refreshBtn.textContent = "Обновить";
+  refreshBtn.addEventListener("click", () => {
+    void renderFolderBrowseView();
+  });
 
-  const title = document.createElement("h1");
-  title.className = "folder-browse-hero-title";
-  title.textContent = label;
+  pane.appendChild(
+    createWorkspaceToolHead({
+      title: label,
+      lead,
+      aside: refreshBtn
+    })
+  );
 
-  const badge = document.createElement("span");
-  badge.className = "folder-browse-hero-badge";
-  badge.textContent = FREE_MEMORY_LABEL;
+  const itemCount = countFolderBrowseItems(data);
+  pane.appendChild(
+    createWorkspaceToolInfo({
+      desc: folderPath,
+      stats: [
+        { label: "элементов", value: String(itemCount) },
+        { label: "папок", value: String(data.folders?.length || 0) }
+      ]
+    })
+  );
 
-  titleRow.append(title, badge);
-  body.append(
-    titleRow,
+  const toolbarRow = document.createElement("div");
+  toolbarRow.className = "workspace-tool-toolbar folder-browse-toolbar-row";
+  toolbarRow.appendChild(
     createNavigationListSortSelect("folder-browse", {
       onChange: () => {
-        if (hub._folderBrowseData) renderFolderBrowseSections(hub, hub._folderBrowseData);
+        if (pane._folderBrowseData && body) {
+          renderFolderBrowseSections(body, pane._folderBrowseData);
+        }
       }
     })
   );
-  main.appendChild(body);
-  card.appendChild(main);
-  hub.appendChild(card);
-  mountFolderBrowseUploadArea(hub);
+  pane.appendChild(toolbarRow);
+  mountFolderBrowseUploadArea(pane);
 }
+
 
 function renderFolderBrowseSections(hub, data) {
   hub.querySelectorAll(".folder-browse-section, .folder-browse-empty").forEach((node) => node.remove());
@@ -77466,18 +78310,23 @@ async function renderFolderBrowseView() {
       return;
     }
 
-    const hub = document.createElement("div");
-    hub.className = "folder-browse-hub";
-    hub._folderBrowseData = data;
+    const pane = document.createElement("div");
+    pane.className = "workspace-tool-pane folder-browse-hub";
+    pane._folderBrowseData = data;
 
-    renderFolderBrowseHeader(hub, data);
-    renderFolderBrowseSections(hub, data);
-    renderFolderBrowseToolbar(hub);
-    bindFolderBrowsePasteContextMenu(hub);
+    const body = document.createElement("div");
+    body.className = "agent-tool-body folder-browse-tool-body";
+
+    renderFolderBrowseHeader(pane, data, body);
+    pane.appendChild(body);
+
+    renderFolderBrowseSections(body, data);
+    renderFolderBrowseToolbar(body);
+    bindFolderBrowsePasteContextMenu(body);
     syncFolderBrowseSelectionUi();
 
     if (isStale()) return;
-    nodeOverviewContentNode.replaceChildren(hub);
+    nodeOverviewContentNode.replaceChildren(pane);
     hideContentLoading({ force: true });
     scheduleWorkspaceScrollChromeSync();
   } catch (error) {
@@ -79318,9 +80167,10 @@ function applyModeUi(options = {}) {
   const canvasMode = isNodeCanvasViewMode();
   const listViewWithSourceToggle = isListViewWithSourceToggleMode();
   const threadMode = activeContentMode === NODE_DISCUSSION_MODE;
+  const journalMode = activeContentMode === NODE_JOURNAL_MODE;
   const bundleEditorMode = isDataHubBundleEditorMode();
   const showListView =
-    listTemplate && !threadMode && !(listViewWithSourceToggle && editorViewMode === "source");
+    listTemplate && !threadMode && !journalMode && !(listViewWithSourceToggle && editorViewMode === "source");
   const previewMode = activeContentMode === "node-preview";
   const topicSchemaMode = activeContentMode === "topic-schema";
   const configsMode = isNodeConfigEditorMode();
@@ -79364,6 +80214,7 @@ function applyModeUi(options = {}) {
     canvasMode ||
     (overviewLikeMode && !attachmentSidecarEditing) ||
     threadMode ||
+    journalMode ||
     showExternalControls ||
     showMediaControls ||
     showTabularControls ||
@@ -79379,6 +80230,7 @@ function applyModeUi(options = {}) {
     (!activePath && !activeSystemFile && !activeFolderBrowsePath && !awnDataViewStoreRel) ||
     (overviewLikeMode && !folderBrowseMode && !awnDataViewMode && !attachmentSidecarEditing) ||
     (threadMode && !showWorkspaceRefresh) ||
+    (journalMode && !showWorkspaceRefresh) ||
     (hideSaveDeleteInToolbar &&
       !showExternalControls &&
       !showMediaControls &&
@@ -79403,6 +80255,7 @@ function applyModeUi(options = {}) {
     (!overviewLikeMode || attachmentSidecarEditing) &&
     !canvasMode &&
     !threadMode &&
+    !journalMode &&
     !showListView &&
     !topicSchemaMode &&
     !configsMode;
@@ -79421,6 +80274,7 @@ function applyModeUi(options = {}) {
     previewMode ||
     (overviewLikeMode && !attachmentSidecarEditing) ||
     threadMode ||
+    journalMode ||
     canvasMode ||
     (hideContentEditor && !canvasMode && !listViewWithSourceToggle && !bundleEditorMode);
   const showTabularSourceEditor =
@@ -79446,6 +80300,7 @@ function applyModeUi(options = {}) {
       canvasMode ||
       (overviewLikeMode && !attachmentSidecarEditing) ||
       threadMode ||
+      journalMode ||
       showListView && !bundleEditorMode ||
       topicSchemaMode ||
       configsMode
@@ -79458,10 +80313,14 @@ function applyModeUi(options = {}) {
   if (mindmapMode) syncMindmapLayoutUi(mindmapViewBarNode || document);
   nodeOverviewBlockNode?.classList.toggle("hidden", !overviewLikeMode || attachmentSidecarEditing);
   nodeOverviewBlockNode?.classList.toggle("is-node-navigation", navigationMode || entryOverviewExternalMode || folderBrowseMode || awnDataViewMode);
+  const workspaceToolModule = isWorkspaceToolModuleView();
   nodeOverviewBlockNode?.classList.toggle("is-folder-browse", folderBrowseMode);
   nodeOverviewBlockNode?.classList.toggle("is-awn-data-view", awnDataViewMode);
+  nodeOverviewBlockNode?.classList.toggle("is-workspace-tool-module", workspaceToolModule);
   workspacePathHeaderNode?.classList.toggle("is-folder-browse", folderBrowseMode);
   workspacePathHeaderNode?.classList.toggle("is-awn-data-view", awnDataViewMode);
+  workspacePathHeaderNode?.classList.toggle("is-workspace-tool-module", workspaceToolModule);
+  appRootNode?.classList.toggle("workspace-tool-module-view", workspaceToolModule || isProjectSettingsMode());
   nodeOverviewBlockNode?.classList.toggle("is-node-media", entryOverviewMediaMode);
   nodeOverviewBlockNode?.classList.toggle("is-entry-overview", entryOverviewMode);
   if (!entryOverviewMode) {
@@ -79472,6 +80331,7 @@ function applyModeUi(options = {}) {
     syncNodeOverviewNavigationSplitClass(false);
   }
   nodeThreadBlockNode?.classList.toggle("hidden", !threadMode);
+  nodeJournalBlockNode?.classList.toggle("hidden", !journalMode);
   const containerOverview =
     overviewMode && isContainerNodePath(getResolvedNodePath(activePath));
   applyNodeWorkspaceViewUi();
@@ -79601,6 +80461,11 @@ function applyModeUi(options = {}) {
   } else if (threadMode) {
     applyEditorAutoHeightUi();
     void renderNodeThread();
+    syncSaveButtonLamp();
+    return;
+  } else if (journalMode) {
+    applyEditorAutoHeightUi();
+    void renderNodeJournal();
     syncSaveButtonLamp();
     return;
   } else if (listTemplate) {
@@ -80927,7 +81792,7 @@ function toggleEditorLineNumbers() {
 }
 
 function shouldUseEditorAutoHeight() {
-  if (activeContentMode === NODE_DISCUSSION_MODE) return false;
+  if (activeContentMode === NODE_DISCUSSION_MODE || activeContentMode === NODE_JOURNAL_MODE) return false;
   return editorViewMode === "wysiwyg" || editorViewMode === "preview" || editorViewMode === "source";
 }
 
@@ -87054,18 +87919,59 @@ function createMenuAgentStatsSettingsButton() {
   return button;
 }
 
+function createMenuAgentStatsJournalButton() {
+  const button = document.createElement("button");
+  button.id = "menu-agent-stats-journal-btn";
+  button.type = "button";
+  button.className = "menu-agent-stats-journal-btn";
+  button.title = "Бортовой журнал";
+  button.setAttribute("aria-label", "Бортовой журнал");
+  button.innerHTML =
+    '<svg class="menu-agent-stats-journal-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+    '<path d="M6 4h12v16H6z" stroke="currentColor" stroke-width="2"/>' +
+    '<path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    "</svg>";
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void openWorkspaceJournalModule();
+  });
+  return button;
+}
+
 function createMenuAgentStatsActions() {
   const wrap = document.createElement("div");
   wrap.className = "menu-agent-stats-actions";
-  wrap.append(createMenuAgentStatsEnvironmentButton(), createMenuAgentStatsSettingsButton());
+  wrap.append(
+    createMenuAgentStatsJournalButton(),
+    createMenuAgentStatsEnvironmentButton(),
+    createMenuAgentStatsSettingsButton()
+  );
   return wrap;
 }
 
+function isWorkspaceJournalModuleActive() {
+  return isAgentWorkspaceCanvasVisible() && agentWorkspaceView === "journal";
+}
+
+function syncMenuAgentStatsModuleBtnState() {
+  const settingsBtn = document.getElementById("menu-agent-stats-env-btn");
+  const journalBtn = document.getElementById("menu-agent-stats-journal-btn");
+  const settingsActive = isProjectSettingsMode();
+  const journalActive = isWorkspaceJournalModuleActive();
+
+  if (settingsBtn) {
+    settingsBtn.classList.toggle("is-active", settingsActive);
+    settingsBtn.setAttribute("aria-pressed", settingsActive ? "true" : "false");
+  }
+  if (journalBtn) {
+    journalBtn.classList.toggle("is-active", journalActive);
+    journalBtn.setAttribute("aria-pressed", journalActive ? "true" : "false");
+  }
+}
+
 function syncMenuAgentStatsSettingsBtnState() {
-  const button = document.getElementById("menu-agent-stats-env-btn");
-  if (!button) return;
-  button.classList.toggle("is-active", isProjectSettingsMode());
-  button.setAttribute("aria-pressed", isProjectSettingsMode() ? "true" : "false");
+  syncMenuAgentStatsModuleBtnState();
 }
 
 function renderMenuAgentStatsContent({ counts, workspace = null, intakeTotals = null, loading = false } = {}) {
@@ -88570,6 +89476,13 @@ async function loadContentByMode(options = {}) {
     return;
   }
 
+  if (activeContentMode === NODE_JOURNAL_MODE) {
+    fileContentInputNode.value = "";
+    void renderNodeJournal();
+    updateBreadcrumbsForActiveMode();
+    return;
+  }
+
   if (activeContentMode === NODE_MINDMAP_MODE) {
     fileContentInputNode.value = "";
     applyModeUi();
@@ -89813,6 +90726,11 @@ function applyAgentWorkspaceCanvasUi() {
   home2PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard2");
   home3PaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "dashboard3");
   agentGitPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "git");
+  agentJournalPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "journal");
+  agentProjectSettingsPaneNode?.classList.toggle(
+    "hidden",
+    !showCanvas || agentWorkspaceView !== "project-settings"
+  );
   agentLargeFilesPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "large-files");
   agentBrokenLinksPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "broken-links");
   agentRunScriptsPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "run-scripts");
@@ -89846,6 +90764,12 @@ function applyAgentWorkspaceCanvasUi() {
     renderAgentDashboardWidgetsView();
   } else if (agentWorkspaceView === "git") {
     void renderAgentGitView();
+  } else if (agentWorkspaceView === "journal") {
+    void renderAgentJournalView();
+  } else if (agentWorkspaceView === "project-settings") {
+    mountProjectSettingsToCanvasPane();
+    projectSettingsPageNode?.classList.remove("hidden");
+    void loadProjectSettingsContent();
   } else if (agentWorkspaceView === "large-files") {
     void renderAgentLargeFilesView();
   } else if (agentWorkspaceView === "broken-links") {
@@ -89887,6 +90811,7 @@ function applyAgentWorkspaceCanvasUi() {
   syncAgentRunScriptsToolbarUi();
   syncAgentRegistryToolbarUi();
   syncAgentAwnTypesToolbarUi();
+  syncMenuAgentStatsModuleBtnState();
   updateDocumentTitle();
 }
 
@@ -89896,6 +90821,8 @@ function setAgentWorkspaceView(view, { skipRouteSync = false } = {}) {
     view !== "dashboard2" &&
     view !== "dashboard3" &&
     view !== "git" &&
+    view !== "journal" &&
+    view !== "project-settings" &&
     view !== "large-files" &&
     view !== "broken-links" &&
     view !== "run-scripts" &&
@@ -91517,6 +92444,61 @@ function appendAgentGitChangeGroup(container, title, items) {
   container.appendChild(section);
 }
 
+async function renderAgentJournalView() {
+  if (!agentJournalContentNode) return;
+
+  const renderSeq = ++agentJournalRenderSeq;
+  const isStale = () => renderSeq !== agentJournalRenderSeq;
+
+  agentJournalContentNode.replaceChildren();
+  if (agentJournalPeriodFilterNode) agentJournalPeriodFilterNode.value = "today";
+  if (agentJournalTypeFilterNode) agentJournalTypeFilterNode.value = "all";
+  syncAgentJournalInfoBar({ loading: true });
+
+  const host = document.createElement("div");
+  host.className = "workspace-journal-host workspace-journal-host--canvas";
+  agentJournalContentNode.appendChild(host);
+
+  try {
+    const statsResponse = await fetch(buildApiUrl("/api/agent/workspace-journal/stats", {}, activeAgentId));
+    const stats = statsResponse.ok ? await statsResponse.json() : null;
+    if (isStale()) return;
+
+    syncAgentJournalInfoBar({ stats });
+
+    const panelApi = await mountWorkspaceJournalPanel(host, {
+      limit: 200,
+      showIntro: false,
+      showPanelToolbar: false,
+      showComposer: false,
+      typeFilterSelect: agentJournalTypeFilterNode,
+      periodFilterSelect: agentJournalPeriodFilterNode,
+      defaultPeriod: "today",
+      showPeriodFilter: false,
+      showWeekFile: true,
+      onEntriesRendered: (filtered, allEntries) => {
+        if (isStale()) return;
+        syncAgentJournalInfoBar({
+          stats,
+          filtered: filtered.length,
+          total: allEntries.length
+        });
+      }
+    });
+    if (!isStale()) {
+      agentJournalPanelRenderFiltered = panelApi?.renderFiltered || null;
+    }
+  } catch (error) {
+    if (isStale()) return;
+    host.replaceChildren();
+    const errorNode = document.createElement("p");
+    errorNode.className = "agent-tool-empty is-alert";
+    errorNode.textContent = error?.message || "Не удалось загрузить журнал";
+    host.appendChild(errorNode);
+    syncAgentJournalInfoBar({ stats: agentJournalCanvasStats });
+  }
+}
+
 async function renderAgentGitView() {
   if (!agentGitContentNode) return;
 
@@ -91933,6 +92915,22 @@ async function openWorkspaceInspectorPath(relPath) {
   const label = getLabelFromPath(normalized);
 
   try {
+    try {
+      const resolved = await fetchChpuResolve(workspaceRelToChpuPath(normalized));
+      if (resolved && resolved.kind && resolved.kind !== "unknown") {
+        hideHomeView();
+        await applyChpuResolvedRoute(resolved);
+        syncAppRouteToUrl({ push: true });
+        return;
+      }
+    } catch {
+      // fall through to legacy openers
+    }
+
+    if (await tryOpenAdoptWorkspaceRel(normalized)) {
+      return;
+    }
+
     if (isGitRepoLooseFilePath(normalized)) {
       await selectRepoLooseFile(label, normalized);
       return;
@@ -94891,6 +95889,8 @@ function hideAllAgentCanvasPanes() {
   home2PaneNode?.classList.add("hidden");
   notFoundPaneNode?.classList.add("hidden");
   agentGitPaneNode?.classList.add("hidden");
+  agentJournalPaneNode?.classList.add("hidden");
+  agentProjectSettingsPaneNode?.classList.add("hidden");
   agentLargeFilesPaneNode?.classList.add("hidden");
   agentBrokenLinksPaneNode?.classList.add("hidden");
   agentRuntimeRegistryPaneNode?.classList.add("hidden");
@@ -95060,6 +96060,7 @@ function hideHomeView() {
   appRootNode.classList.remove("home-view", "not-found-view");
   hideAllAgentCanvasPanes();
   syncAppHomeButton();
+  syncMenuAgentStatsModuleBtnState();
 }
 
 function clearEditorState(message = "") {
@@ -96750,6 +97751,13 @@ function setupMenuStaticFooterGroup() {
     toggleMenuStaticFooterExpanded();
   });
   menuAgentStatsNode?.addEventListener("click", (event) => {
+    const journalBtn = event.target.closest("#menu-agent-stats-journal-btn");
+    if (journalBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      void openWorkspaceJournalModule();
+      return;
+    }
     const settingsBtn = event.target.closest("#menu-agent-stats-env-btn");
     if (settingsBtn) {
       event.preventDefault();
@@ -101457,6 +102465,263 @@ function setupMenuAwnBackupUi() {
   });
 }
 
+function resolveWorkspaceJournalEntryContext() {
+  const manifestPath = normalizeMenuNodePath(getActiveNodeApiPath() || "");
+  const resolvedPath = normalizeMenuNodePath(getResolvedNodePath(activePath) || "");
+  const path =
+    normalizeMenuNodePath(activeSystemFile || "") ||
+    normalizeMenuNodePath(activeExternalFilePath || "") ||
+    normalizeMenuNodePath(activeFolderBrowsePath || "") ||
+    resolvedPath ||
+    manifestPath ||
+    "";
+  let topic = manifestPath;
+  if (!topic && path) {
+    const owned = resolveOwningManifestRelFromNodePath(path);
+    topic = owned ? normalizeMenuNodePath(owned) : "";
+  }
+  const url = typeof location !== "undefined" ? String(location.href || "") : "";
+  const label = path || topic || url || WORKSPACE_JOURNAL_FOLDER;
+  return { path, topic, url, label };
+}
+
+function journalContextFromChpuResolved(resolved) {
+  if (!resolved || resolved.kind === "unknown") return null;
+  const url = typeof location !== "undefined" ? String(location.href || "") : "";
+
+  if (resolved.kind === "record" || resolved.kind === "section" || resolved.kind === "slotView") {
+    const topic = normalizeMenuNodePath(resolved.topicManifestPath || "");
+    let path = normalizeMenuNodePath(resolved.workspacePath || "");
+    if (resolved.kind === "record" && resolved.resourceRelPathInSlot && topic) {
+      const topicDir = topic.replace(/\/manifest\.md$/i, "");
+      const slotFolder = String(resolved.slotFolder || "main").replace(/\\/g, "/");
+      path = normalizeMenuNodePath(
+        `${topicDir}/${STORAGE_ROOT_FOLDER}/${slotFolder}/${resolved.resourceRelPathInSlot}`
+      );
+    }
+    if (!path) path = topic;
+    const label = path || topic || url;
+    return { path, topic, url, label };
+  }
+
+  if (resolved.kind === "manifest" || resolved.kind === "file") {
+    const path = normalizeMenuNodePath(
+      resolved.fileRelPath || resolved.workspacePath || resolved.topicManifestPath || ""
+    );
+    let topic = normalizeMenuNodePath(resolved.topicManifestPath || "");
+    if (!topic && path) {
+      const owned = resolveOwningManifestRelFromNodePath(path);
+      topic = owned ? normalizeMenuNodePath(owned) : "";
+    }
+    const label = path || topic || url;
+    return { path, topic, url, label };
+  }
+
+  if (resolved.kind === "adoptFile") {
+    const path = normalizeMenuNodePath(resolved.filePath || resolved.workspacePath || "");
+    const owned = resolveOwningManifestRelFromNodePath(path);
+    const topic = owned ? normalizeMenuNodePath(owned) : "";
+    return { path, topic, url, label: path || topic || url };
+  }
+
+  if (resolved.workspacePath) {
+    const path = normalizeMenuNodePath(resolved.workspacePath);
+    const owned = resolveOwningManifestRelFromNodePath(path);
+    const topic = owned ? normalizeMenuNodePath(owned) : "";
+    return { path, topic, url, label: path || topic || url };
+  }
+
+  return null;
+}
+
+async function resolveWorkspaceJournalEntryContextResolved() {
+  const syncContext = resolveWorkspaceJournalEntryContext();
+  if (syncContext.path || syncContext.topic) {
+    appFooterJournalContextCache = syncContext;
+    return syncContext;
+  }
+
+  const route = parseAppRoute(location.pathname);
+  try {
+    if (route.type === "chpu" && route.chpuPath) {
+      const resolved = await fetchChpuResolve(route.chpuPath, route.agentId || activeAgentId);
+      const fromChpu = journalContextFromChpuResolved(resolved);
+      if (fromChpu && (fromChpu.path || fromChpu.topic)) {
+        appFooterJournalContextCache = fromChpu;
+        return fromChpu;
+      }
+    }
+    if (route.type === "node" && route.displayPath) {
+      const entry = resolveMenuEntryByDisplayPath(route.displayPath);
+      if (entry?.path) {
+        const path = normalizeMenuNodePath(entry.path);
+        const topic = normalizeMenuNodePath(resolveManifestPathForNodeApi(path) || path);
+        const context = { path, topic, url: location.href, label: path };
+        appFooterJournalContextCache = context;
+        return context;
+      }
+    }
+  } catch {
+    // ignore route resolve errors
+  }
+
+  return syncContext;
+}
+
+function syncAppFooterJournalAvailability() {
+  const available = Boolean(activeAgentId);
+  if (appFooterJournalBtn) appFooterJournalBtn.hidden = !available;
+  if (!available) closeAppFooterJournalPopover();
+}
+
+function syncAppFooterJournalFormState(contextOverride = null) {
+  const context = contextOverride || appFooterJournalContextCache || resolveWorkspaceJournalEntryContext();
+  if (appFooterJournalContextInputNode) {
+    appFooterJournalContextInputNode.value = context.label;
+    appFooterJournalContextInputNode.title = context.url || context.label;
+  }
+  if (appFooterJournalLinkContextNode) {
+    const canLink = Boolean(context.path || context.topic);
+    appFooterJournalLinkContextNode.disabled = !canLink;
+    if (!canLink) appFooterJournalLinkContextNode.checked = false;
+  }
+  const body = String(appFooterJournalBodyInputNode?.value || "").trim();
+  if (appFooterJournalSubmitBtn) appFooterJournalSubmitBtn.disabled = !body || !activeAgentId;
+}
+
+function positionAppFooterJournalPopover() {
+  const popover = appFooterJournalPopoverNode;
+  const anchor = appFooterJournalBtn;
+  if (!popover || !anchor || popover.classList.contains("hidden")) return;
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(420, window.innerWidth - 24);
+  const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12));
+  popover.style.width = `${width}px`;
+  popover.style.left = `${left}px`;
+  const popoverHeight = popover.getBoundingClientRect().height || 360;
+  const top = Math.max(12, rect.top - popoverHeight - 8);
+  popover.style.top = `${top}px`;
+  popover.style.bottom = "auto";
+  popover.style.maxHeight = `${Math.max(220, rect.top - 20)}px`;
+}
+
+function openAppFooterJournalPopover() {
+  if (!appFooterJournalPopoverNode || !appFooterJournalBtn || !activeAgentId) return;
+  closeAppFooterIdeasPopover();
+  appFooterJournalOpen = true;
+  appFooterJournalContextCache = null;
+  appFooterJournalPopoverNode.classList.remove("hidden");
+  appFooterJournalBtn.setAttribute("aria-expanded", "true");
+  syncAppFooterJournalFormState();
+  positionAppFooterJournalPopover();
+  void resolveWorkspaceJournalEntryContextResolved().then((context) => {
+    if (!appFooterJournalOpen) return;
+    syncAppFooterJournalFormState(context);
+    if (appFooterJournalLinkContextNode && (context.path || context.topic)) {
+      appFooterJournalLinkContextNode.checked = true;
+    }
+    positionAppFooterJournalPopover();
+  });
+  window.setTimeout(() => appFooterJournalBodyInputNode?.focus(), 0);
+}
+
+function closeAppFooterJournalPopover() {
+  if (!appFooterJournalPopoverNode || !appFooterJournalBtn) return;
+  appFooterJournalOpen = false;
+  appFooterJournalContextCache = null;
+  appFooterJournalPopoverNode.classList.add("hidden");
+  appFooterJournalBtn.setAttribute("aria-expanded", "false");
+}
+
+function toggleAppFooterJournalPopover() {
+  if (appFooterJournalOpen) closeAppFooterJournalPopover();
+  else openAppFooterJournalPopover();
+}
+
+async function refreshWorkspaceJournalSurfaces() {
+  if (agentWorkspaceView === "journal") void renderAgentJournalView();
+  if (activeContentMode === NODE_JOURNAL_MODE) void renderNodeJournal();
+  void refreshWorkspaceNotifications(true);
+}
+
+async function submitAppFooterJournalEntry() {
+  if (!activeAgentId || !appFooterJournalBodyInputNode) return;
+  const body = String(appFooterJournalBodyInputNode.value || "").trim();
+  if (!body) return;
+
+  const context =
+    appFooterJournalContextCache || (await resolveWorkspaceJournalEntryContextResolved());
+  const linkContext = Boolean(appFooterJournalLinkContextNode?.checked);
+  const path = linkContext ? context.path || context.topic || "" : "";
+  const topic = linkContext ? context.topic || context.path || "" : "";
+  const type = appFooterJournalTypeSelectNode?.value || "action";
+  const notify = Boolean(appFooterJournalNotifyInputNode?.checked);
+
+  if (appFooterJournalSubmitBtn) appFooterJournalSubmitBtn.disabled = true;
+  try {
+    const response = await fetch(buildApiUrl("/api/agent/workspace-journal/append", {}, activeAgentId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        body,
+        type,
+        author: "user",
+        topic,
+        path,
+        notify
+      })
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    appFooterJournalBodyInputNode.value = "";
+    if (appFooterJournalNotifyInputNode) appFooterJournalNotifyInputNode.checked = false;
+    if (appFooterJournalTypeSelectNode) appFooterJournalTypeSelectNode.value = "action";
+    syncAppFooterJournalFormState();
+    closeAppFooterJournalPopover();
+    showToast("Запись добавлена в журнал", "success");
+    await refreshWorkspaceJournalSurfaces();
+  } catch (error) {
+    showToast(`Не удалось добавить: ${error.message}`, "error");
+    syncAppFooterJournalFormState();
+  }
+}
+
+function setupAppFooterJournalPopover() {
+  if (!appFooterJournalBtn || !appFooterJournalPopoverNode) return;
+
+  syncAppFooterJournalAvailability();
+  syncAppFooterJournalFormState();
+
+  appFooterJournalBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleAppFooterJournalPopover();
+  });
+  appFooterJournalCloseBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeAppFooterJournalPopover();
+  });
+  appFooterJournalBodyInputNode?.addEventListener("input", syncAppFooterJournalFormState);
+  appFooterJournalSubmitBtn?.addEventListener("click", () => {
+    void submitAppFooterJournalEntry();
+  });
+  appFooterJournalBodyInputNode?.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      void submitAppFooterJournalEntry();
+    }
+  });
+  window.addEventListener("resize", positionAppFooterJournalPopover);
+  document.addEventListener("click", (event) => {
+    if (!appFooterJournalOpen) return;
+    const target = event.target;
+    if (target instanceof Node && appFooterJournalPopoverNode.contains(target)) return;
+    if (target instanceof Node && appFooterJournalBtn.contains(target)) return;
+    closeAppFooterJournalPopover();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && appFooterJournalOpen) closeAppFooterJournalPopover();
+  });
+}
+
 function setupAppFooterIdeasPopover() {
   if (!appFooterIdeasBtn || !appFooterIdeasPopoverNode) return;
 
@@ -103068,6 +104333,7 @@ agentsRegistrySaveBtn?.addEventListener("click", () => {
 
 setupMenuSortDragDrop();
 setupAppFooterToggle();
+setupAppFooterJournalPopover();
 setupMenuTreeBandGroup();
 setupMenuAwnDataBandGroup();
 setupProjectSettingsScopeSearch();
@@ -103287,6 +104553,20 @@ agentGitRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "git") {
     void renderAgentGitView();
   }
+});
+
+agentJournalRefreshBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView === "journal") {
+    void renderAgentJournalView();
+  }
+});
+
+agentJournalTypeFilterNode?.addEventListener("change", () => {
+  agentJournalPanelRenderFiltered?.();
+});
+
+agentJournalPeriodFilterNode?.addEventListener("change", () => {
+  agentJournalPanelRenderFiltered?.();
 });
 
 agentLargeFilesRefreshBtn?.addEventListener("click", () => {
