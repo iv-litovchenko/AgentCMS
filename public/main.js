@@ -1816,6 +1816,14 @@ function getChpuSlotFolderForMemoryKind(kind) {
   return getStorageSubfolderForMode(kind) || kind;
 }
 
+function resolveChpuAwnStorageSlotPath(topicRoute, memoryKind, topicPath = activePath) {
+  if (memoryKind === "external" && isTopicSharedSlotActive(topicPath)) {
+    return `${topicRoute}/awn-storage`;
+  }
+  const slotFolder = getChpuSlotFolderForMemoryKind(memoryKind || "external");
+  return slotFolder ? `${topicRoute}/awn-storage/${slotFolder}` : `${topicRoute}/awn-storage`;
+}
+
 function getChpuMemoryKindForSlotFolder(folder) {
   return CHPU_SLOT_FOLDER_TO_MODE[String(folder || "").trim()] || "external";
 }
@@ -2619,7 +2627,8 @@ function getChpuWorkspacePathFromState() {
 
   if (activeContentMode === "external" && activeExternalFilePath) {
     const filePath = String(activeExternalFilePath).replace(/\\/g, "/").replace(/\.md$/i, "");
-    return appendChpuViewToWorkspacePath(`${topicRoute}/awn-storage/main/${filePath}`, "edit", {
+    const storageBase = resolveChpuAwnStorageSlotPath(topicRoute, "external");
+    return appendChpuViewToWorkspacePath(`${storageBase}/${filePath}`, "edit", {
       force: true
     });
   }
@@ -2635,8 +2644,7 @@ function getChpuWorkspacePathFromState() {
   if (activeContentMode === NODE_ENTRY_OVERVIEW_MODE && activeEntryOverviewContext) {
     const ctx = activeEntryOverviewContext;
     if (isEntryOverviewMemoryTocRoot(ctx)) {
-      const slotFolder = getChpuSlotFolderForMemoryKind(ctx.memoryKind || "external");
-      return `${topicRoute}/awn-storage/${slotFolder}`;
+      return resolveChpuAwnStorageSlotPath(topicRoute, ctx.memoryKind || "external");
     }
     return workspaceRelToChpuPath(ctx.relPath);
   }
@@ -59527,12 +59535,33 @@ function createNavigationSubsectionsBlock(bodyNode) {
   return block;
 }
 
+function openSharedFlexibleSlotExternalNavigation() {
+  if (!activePath) return;
+  if (supportsDataEntryOverview("memory")) {
+    openEntryOverviewMemoryTocFromNavigation("external");
+    return;
+  }
+  const storageRel = getExternalMemoryRootRel(activePath);
+  if (!storageRel) return;
+  void openFolderBrowseFromMenu(TOPIC_SHARED_SLOT_EXTERNAL_TITLE, storageRel);
+}
+
 function openNavigationHubSlotList(modeId, externalFile = null) {
+  if (modeId === "external" && isTopicSharedSlotActive()) {
+    openSharedFlexibleSlotExternalNavigation();
+    syncAppRouteToUrl({ replace: true });
+    return;
+  }
   openNavigationPanelMode(modeId, externalFile);
   syncAppRouteToUrl({ replace: true });
 }
 
 function openNavigationHubSlotPreview(modeId) {
+  if (modeId === "external" && isTopicSharedSlotActive()) {
+    openSharedFlexibleSlotExternalNavigation();
+    syncAppRouteToUrl({ replace: true });
+    return;
+  }
   if (modeId === "media" && supportsDataEntryOverview("media")) {
     openEntryOverviewMemoryTocFromNavigation("media");
     syncAppRouteToUrl({ replace: true });
@@ -59936,7 +59965,7 @@ function createNavigationSectionHead(title, options = {}) {
   if (viewModeId) {
     titleNode.type = "button";
     titleNode.dataset.navigationViewModeId = viewModeId;
-    titleNode.title = `Открыть: ${title}`;
+    titleNode.title = String(options.openTitle || `Открыть: ${title}`).trim();
     titleNode.addEventListener("click", (event) => {
       event.stopPropagation();
       openNavigationHubSlotPreview(viewModeId);
@@ -69457,7 +69486,8 @@ function renderNavigationExternalPart(externalData, { slotsDisabled = false } = 
   }
   card.append(
     createNavigationSectionHead(externalTitle, {
-      viewModeId: sharedSlotMode ? null : "external",
+      viewModeId: "external",
+      openTitle: sharedSlotMode ? "Открыть awn-storage/ — общий гибкий слот" : null,
       titleComment: sharedSlotMode ? TOPIC_SHARED_SLOT_SUBTITLE : null,
       badgeText: getNavigationMemoryBadgeText("external", externalData),
       badgeModeId: "external",

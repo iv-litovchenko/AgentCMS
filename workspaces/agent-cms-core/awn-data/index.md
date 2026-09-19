@@ -1,0 +1,19 @@
+# Оглавление инфоблоков (awn-data)
+
+| Тип | Группа | Путь | Название | Описание | Записей |
+| --- | --- | --- | --- | --- | ---: |
+| группа | — | `agent-registry` | [Реестр агентов](awn-data/agent-registry/manifest.md) | Реестр агентов | 14 |
+| коллекция | agent-registry | `agent-registry/agent-groups` | [Группы агентов](awn-data/agent-registry/agent-groups/manifest.md) | Группы агентов | 6 |
+| коллекция | agent-registry | `agent-registry/agents` | [Агенты](awn-data/agent-registry/agents/manifest.md) | Агенты | 8 |
+| коллекция | — | `settings` | [Настройки](awn-data/settings/manifest.md) | Настройки | 3 |
+| одиночка | — | `settings-global` | [Глобальные настройки](awn-data/settings-global/manifest.md) | Глобальные настройки | 1 |
+| коллекция | — | `system-presets` | [Пресеты](awn-data/system-presets/manifest.md) | Пресеты | 14 |
+| коллекция | — | `tasks` | [Задачи](awn-data/tasks/manifest.md) | Задачи | 6 |
+| группа | — | `taxonomies` | [Таксономии (справочники)](awn-data/taxonomies/manifest.md) | Таксономии (справочники) | 283 |
+| коллекция | taxonomies | `taxonomies/categories` | [Категории](awn-data/taxonomies/categories/manifest.md) | Категории | 34 |
+| коллекция | taxonomies | `taxonomies/colors` | [Палитра](awn-data/taxonomies/colors/manifest.md) | Палитра | 6 |
+| коллекция | taxonomies | `taxonomies/priorities` | [Приоритеты](awn-data/taxonomies/priorities/manifest.md) | Приоритеты | 16 |
+| коллекция | taxonomies | `taxonomies/slot-categories` | [Категории слотов](awn-data/taxonomies/slot-categories/manifest.md) | Категории слотов | 5 |
+| коллекция | taxonomies | `taxonomies/statuses` | [Статусы](awn-data/taxonomies/statuses/manifest.md) | Статусы | 12 |
+| коллекция | taxonomies | `taxonomies/tags` | [Теги](awn-data/taxonomies/tags/manifest.md) | Теги | 205 |
+| коллекция | taxonomies | `taxonomies/users` | [Пользователи](awn-data/taxonomies/users/manifest.md) | Пользователи | 5 |
