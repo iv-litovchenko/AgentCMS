@@ -13,7 +13,8 @@
   const semanticRebuildBtn = document.getElementById("menu-semantic-index-rebuild-btn");
   const semanticShowBtn = document.getElementById("menu-semantic-index-show-btn");
   const storageStatusNode = document.getElementById("menu-storage-index-status");
-  const storageRebuildBtn = document.getElementById("menu-storage-index-rebuild-btn");
+  const storageRebuildQuickBtn = document.getElementById("menu-storage-index-rebuild-quick-btn");
+  const storageRebuildFullBtn = document.getElementById("menu-storage-index-rebuild-full-btn");
   const storageShowBtn = document.getElementById("menu-storage-index-show-btn");
   const linkStatusNode = document.getElementById("menu-link-index-status");
   const linkRebuildBtn = document.getElementById("menu-link-index-rebuild-btn");
@@ -40,7 +41,8 @@
     !semanticStatusNode ||
     !semanticRebuildBtn ||
     !storageStatusNode ||
-    !storageRebuildBtn
+    !storageRebuildQuickBtn ||
+    !storageRebuildFullBtn
   ) {
     return;
   }
@@ -200,8 +202,10 @@
 
   function formatStorageStatus(layer) {
     if (!layer?.ready) return layer?.hint || "Не построен";
+    const modeLabel =
+      layer.enrichmentMode === "quick" ? "быстрый" : layer.enrichmentMode === "full" ? "полный" : "";
     const parts = [
-      `${layer.recordCount || 0} записей · ${layer.fieldCount || 0} полей`,
+      `${layer.recordCount || 0} записей · ${layer.fieldCount || 0} полей${modeLabel ? ` · ${modeLabel}` : ""}`,
       layer.builtAge || "—"
     ];
     if (layer.lastRebuildLabel) parts.push(`сборка ${layer.lastRebuildLabel}`);
@@ -468,6 +472,9 @@
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || data.details || response.statusText);
       statusNode.textContent = okLabel(data);
+      if (url.includes("/api/storage-index/") && typeof window.invalidateContentSearchFieldCatalog === "function") {
+        window.invalidateContentSearchFieldCatalog();
+      }
       await refreshStatus();
       return data;
     } finally {
@@ -814,7 +821,8 @@
     ocrForceBtn,
     fulltextRebuildBtn,
     semanticRebuildBtn,
-    storageRebuildBtn,
+    storageRebuildQuickBtn,
+    storageRebuildFullBtn,
     linkRebuildBtn,
     workspaceIdSyncBtn
   ].forEach((button) => rememberButtonLabel(button));
@@ -857,12 +865,23 @@
     );
   });
 
-  bindActionButton(storageRebuildBtn, async () => {
+  bindActionButton(storageRebuildQuickBtn, async () => {
     await runRebuild(
       "/api/storage-index/reindex",
       storageStatusNode,
-      (data) => `Поля: ${data.recordCount} записей, ${data.fieldCount} уникальных полей.`,
-      { progressButton: storageRebuildBtn, progressLayer: "storage" }
+      (data) =>
+        `Поля (быстро): ${data.recordCount} записей, ${data.fieldCount} полей · без schema-enrich.`,
+      { body: { mode: "quick" }, progressButton: storageRebuildQuickBtn, progressLayer: "storage" }
+    );
+  });
+
+  bindActionButton(storageRebuildFullBtn, async () => {
+    await runRebuild(
+      "/api/storage-index/reindex",
+      storageStatusNode,
+      (data) =>
+        `Поля (полный): ${data.recordCount} записей, ${data.fieldCount} полей · schema + типы.`,
+      { body: { mode: "full" }, progressButton: storageRebuildFullBtn, progressLayer: "storage" }
     );
   });
 
@@ -979,7 +998,7 @@
       "/api/storage-index/reindex",
       pipelineStatusNode,
       () => "Цепочка: связи → id…",
-      { loadingLabel: "Цепочка: поля…" }
+      { body: { mode: "full" }, loadingLabel: "Цепочка: поля (полный)…" }
     );
     const link = await runRebuild(
       "/api/link-index/reindex",
@@ -1003,7 +1022,7 @@
     ocr: ocrRunBtn,
     fulltext: fulltextRebuildBtn,
     semantic: semanticRebuildBtn,
-    storage: storageRebuildBtn,
+    storage: storageRebuildQuickBtn,
     link: linkRebuildBtn,
     "workspace-id": workspaceIdSyncBtn
   };

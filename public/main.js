@@ -337,9 +337,15 @@ const contentSearchFiltersBtnNode = document.getElementById("content-search-filt
 const contentSearchFiltersPopoverNode = document.getElementById("content-search-filters-popover");
 const contentSearchFiltersBadgeNode = document.getElementById("content-search-filters-badge");
 const contentSearchFiltersResetBtnNode = document.getElementById("content-search-filters-reset-btn");
-const contentSearchFieldKeyNode = document.getElementById("content-search-field-key");
-const contentSearchFieldOpNode = document.getElementById("content-search-field-op");
-const contentSearchFieldValueNode = document.getElementById("content-search-field-value");
+const contentSearchAdvancedSummaryNode = document.getElementById("content-search-advanced-summary");
+const contentSearchAdvancedOpenBtnNode = document.getElementById("content-search-advanced-open-btn");
+const contentSearchAdvancedModalNode = document.getElementById("content-search-advanced-modal");
+const contentSearchAdvancedRowsNode = document.getElementById("content-search-advanced-rows");
+const contentSearchAdvancedAddBtnNode = document.getElementById("content-search-advanced-add-btn");
+const contentSearchAdvancedApplyBtnNode = document.getElementById("content-search-advanced-apply-btn");
+const contentSearchAdvancedCancelBtnNode = document.getElementById("content-search-advanced-cancel-btn");
+const contentSearchAdvancedResetBtnNode = document.getElementById("content-search-advanced-reset-btn");
+const contentSearchAdvancedCloseBtnNode = document.getElementById("content-search-advanced-close-btn");
 const contentSearchActiveFiltersNode = document.getElementById("content-search-active-filters");
 const contentSearchResultsNode = document.getElementById("content-search-results");
 const contentSearchPathScopeNode = document.getElementById("content-search-path-scope");
@@ -12568,7 +12574,7 @@ async function switchActiveAgent(nextAgentId) {
     resetLiveSyncSession(nextAgentId);
     invalidateMarkdownLinkIndexCache();
     invalidateTypeCatalogCache(nextAgentId);
-    contentSearchFieldCatalogCache = null;
+    invalidateContentSearchFieldCatalog();
     hideAppLandingView();
     syncWorkspaceNotificationsAvailability();
     hideMenuNoAgentPlaceholder();
@@ -23705,6 +23711,11 @@ const CONTENT_SEARCH_FIELD_OP_LABELS = {
 };
 let contentSearchFieldCatalogCache = null;
 let contentSearchFieldCatalogLoading = null;
+let contentSearchAdvancedFieldFilters = [];
+let contentSearchAdvancedFilterDraft = [];
+let contentSearchAdvancedFilterRowSeq = 0;
+let contentSearchFieldValuesCache = new Map();
+let contentSearchFieldValuesLoading = new Map();
 
 function isContentSearchFiltersPopoverOpen() {
   return Boolean(
@@ -23733,10 +23744,297 @@ function setContentSearchMode(mode) {
   contentSearchModeNode.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function getContentSearchFieldFilter() {
-  const field = String(contentSearchFieldKeyNode?.value || "").trim();
-  const op = String(contentSearchFieldOpNode?.value || "").trim();
-  const value = String(contentSearchFieldValueNode?.value ?? "").trim();
+function getContentSearchFieldCatalogMeta(key, catalog = contentSearchFieldCatalogCache) {
+  return (catalog?.fieldCatalogMeta || []).find((item) => item.key === key) || null;
+}
+
+function getContentSearchFieldPrimaryVariant(key, catalog = contentSearchFieldCatalogCache) {
+  const meta = getContentSearchFieldCatalogMeta(key, catalog);
+  return meta?.variants?.[0] || null;
+}
+
+function formatContentSearchFieldOptionLabel(key, catalog = contentSearchFieldCatalogCache) {
+  const meta = getContentSearchFieldCatalogMeta(key, catalog);
+  const variants = meta?.variants || [];
+  const title = variants.find((variant) => variant.title)?.title || variants[0]?.title || "";
+  if (title) return `${title} · ${key}`;
+  if (variants.length > 1) return `${key} · ${variants.length} контекста`;
+  return key;
+}
+
+function buildContentSearchFieldPickerEntries(catalog = contentSearchFieldCatalogCache) {
+  const fields = catalog?.fieldCatalog || [];
+  return fields.map((key) => {
+    const meta = getContentSearchFieldCatalogMeta(key, catalog);
+    const variants = meta?.variants || [];
+    const title = variants.find((variant) => variant.title)?.title || variants[0]?.title || "";
+    const type = variants[0]?.type || "";
+    const label = title ? `${title} · ${key}` : key;
+    const haystack = [key, title, type, ...variants.map((variant) => variant.title).filter(Boolean)]
+      .join(" ")
+      .toLowerCase();
+    return { key, title, type, label, haystack };
+  });
+}
+
+function resolveContentSearchFieldPickerEntry(inputValue, catalog = contentSearchFieldCatalogCache) {
+  const raw = String(inputValue || "").trim();
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  const entries = buildContentSearchFieldPickerEntries(catalog);
+  return (
+    entries.find((entry) => entry.key === raw) ||
+    entries.find((entry) => entry.label === raw) ||
+    entries.find((entry) => entry.title && entry.title.toLowerCase() === lower) ||
+    entries.find((entry) => entry.key.toLowerCase() === lower) ||
+    entries.find((entry) => entry.haystack.includes(lower)) ||
+    null
+  );
+}
+
+function mountContentSearchFieldPicker(parent, { catalog, selectedKey = "", onChange = null } = {}) {
+  const wrap = document.createElement("div");
+  wrap.className = "content-search-field-picker";
+
+  const input = document.createElement("input");
+  input.type = "search";
+  input.className = "content-search-field-picker-input";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.setAttribute("aria-label", "Поле frontmatter");
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-expanded", "false");
+  input.setAttribute("aria-autocomplete", "list");
+
+  const hidden = document.createElement("input");
+  hidden.type = "hidden";
+  hidden.className = "content-search-advanced-field-key";
+  hidden.value = selectedKey || "";
+
+  const menu = document.createElement("div");
+  menu.className = "content-search-field-picker-menu hidden";
+  menu.setAttribute("role", "listbox");
+
+  const entries = buildContentSearchFieldPickerEntries(catalog);
+  const hasFields = entries.length > 0;
+  input.placeholder = hasFields
+    ? "название или ключ…"
+    : catalog?.ready
+      ? "нет полей в индексе"
+      : "пересоберите «Поля»";
+  input.disabled = !hasFields || isContentSearchIdMode();
+
+  if (selectedKey) {
+    const selected = entries.find((entry) => entry.key === selectedKey);
+    input.value = selected?.label || selectedKey;
+  }
+
+  function setMenuOpen(open) {
+    menu.classList.toggle("hidden", !open);
+    input.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function selectEntry(entry) {
+    if (!entry) return;
+    hidden.value = entry.key;
+    input.value = entry.label;
+    setMenuOpen(false);
+    onChange?.(entry.key);
+  }
+
+  function renderMenu(filter = "") {
+    if (!hasFields) {
+      setMenuOpen(false);
+      return;
+    }
+    const needle = String(filter || "").trim().toLowerCase();
+    const items = needle
+      ? entries.filter(
+          (entry) =>
+            entry.haystack.includes(needle) ||
+            entry.key.toLowerCase().includes(needle) ||
+            entry.title.toLowerCase().includes(needle)
+        )
+      : entries;
+    menu.replaceChildren();
+    for (const entry of items.slice(0, 60)) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "content-search-field-picker-option";
+      btn.setAttribute("role", "option");
+      btn.dataset.key = entry.key;
+      if (entry.title) {
+        const titleNode = document.createElement("span");
+        titleNode.className = "content-search-field-picker-option-title";
+        titleNode.textContent = entry.title;
+        const keyNode = document.createElement("span");
+        keyNode.className = "content-search-field-picker-option-key";
+        keyNode.textContent = entry.key;
+        btn.append(titleNode, keyNode);
+        if (entry.type) btn.title = entry.type;
+      } else {
+        const keyNode = document.createElement("span");
+        keyNode.className = "content-search-field-picker-option-key";
+        keyNode.textContent = entry.key;
+        btn.appendChild(keyNode);
+      }
+      btn.addEventListener("mousedown", (event) => event.preventDefault());
+      btn.addEventListener("click", () => selectEntry(entry));
+      menu.appendChild(btn);
+    }
+    setMenuOpen(items.length > 0);
+  }
+
+  input.addEventListener("focus", () => renderMenu(input.value));
+  input.addEventListener("input", () => {
+    hidden.value = "";
+    const exact = resolveContentSearchFieldPickerEntry(input.value, catalog);
+    if (exact) hidden.value = exact.key;
+    renderMenu(input.value);
+    if (exact) onChange?.(exact.key);
+  });
+  input.addEventListener("blur", () => {
+    window.setTimeout(() => {
+      setMenuOpen(false);
+      if (!hidden.value && input.value.trim()) {
+        const match = resolveContentSearchFieldPickerEntry(input.value, catalog);
+        if (match) selectEntry(match);
+      }
+    }, 120);
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      setMenuOpen(false);
+      return;
+    }
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    const match = resolveContentSearchFieldPickerEntry(input.value, catalog);
+    if (match) selectEntry(match);
+  });
+
+  wrap.append(input, hidden, menu);
+  parent.appendChild(wrap);
+  return { input, hidden, refreshSelected(key) {
+    hidden.value = key || "";
+    const selected = entries.find((entry) => entry.key === key);
+    input.value = selected?.label || key || "";
+  } };
+}
+
+function invalidateContentSearchFieldValuesCache(field = "") {
+  if (!field) {
+    contentSearchFieldValuesCache.clear();
+    contentSearchFieldValuesLoading.clear();
+    return;
+  }
+  for (const key of [...contentSearchFieldValuesCache.keys()]) {
+    if (key.startsWith(`${field}|`)) contentSearchFieldValuesCache.delete(key);
+  }
+}
+
+async function ensureContentSearchFieldValues(field, q = "") {
+  const fieldKey = String(field || "").trim();
+  if (!fieldKey) return [];
+  const pathPrefix = getContentSearchPathPrefix();
+  const cacheKey = `${fieldKey}|${pathPrefix}|${String(q || "").trim().toLowerCase()}`;
+  if (contentSearchFieldValuesCache.has(cacheKey)) {
+    return contentSearchFieldValuesCache.get(cacheKey);
+  }
+  if (contentSearchFieldValuesLoading.has(cacheKey)) {
+    return contentSearchFieldValuesLoading.get(cacheKey);
+  }
+  const job = (async () => {
+    try {
+      const response = await fetch(
+        buildApiUrl("/api/storage-index/field-values", {
+          field: fieldKey,
+          q: String(q || "").trim(),
+          pathPrefix: pathPrefix || undefined,
+          limit: "80"
+        })
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || data.details || response.statusText);
+      const values = Array.isArray(data.values) ? data.values : [];
+      contentSearchFieldValuesCache.set(cacheKey, values);
+      return values;
+    } catch (error) {
+      console.warn("content search field values load failed", error);
+      return [];
+    } finally {
+      contentSearchFieldValuesLoading.delete(cacheKey);
+    }
+  })();
+  contentSearchFieldValuesLoading.set(cacheKey, job);
+  return job;
+}
+
+function mountContentSearchValueInput(parent, { rowId, field = "", value = "", onInput = null } = {}) {
+  const wrap = document.createElement("div");
+  wrap.className = "content-search-value-picker";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "content-search-advanced-value content-search-advanced-value-input";
+  input.placeholder = field ? "значение или выберите…" : "сначала поле";
+  input.setAttribute("aria-label", "Значение поля");
+  input.value = value || "";
+  input.disabled = !field;
+
+  const datalistId = `content-search-field-values-${rowId}`;
+  input.setAttribute("list", datalistId);
+  const datalist = document.createElement("datalist");
+  datalist.id = datalistId;
+
+  let valuesRequestId = 0;
+  async function refreshValues(nextField = field, needle = "") {
+    const requestId = ++valuesRequestId;
+    if (!nextField) {
+      datalist.replaceChildren();
+      input.disabled = true;
+      input.placeholder = "сначала поле";
+      return;
+    }
+    input.disabled = false;
+    input.placeholder = "значение или выберите…";
+    const values = await ensureContentSearchFieldValues(nextField, needle);
+    if (requestId !== valuesRequestId) return;
+    datalist.replaceChildren();
+    for (const item of values) {
+      const option = document.createElement("option");
+      option.value = String(item);
+      datalist.appendChild(option);
+    }
+  }
+
+  input.addEventListener("input", () => {
+    onInput?.();
+    if (field) void refreshValues(field, input.value.trim());
+  });
+  input.addEventListener("focus", () => {
+    if (field) void refreshValues(field, input.value.trim());
+  });
+
+  wrap.append(input, datalist);
+  parent.appendChild(wrap);
+  void refreshValues(field);
+  return { input, refreshValues };
+}
+
+function createContentSearchAdvancedFilterRow() {
+  return {
+    id: `csf-${++contentSearchAdvancedFilterRowSeq}`,
+    field: "",
+    op: "eq",
+    value: ""
+  };
+}
+
+function contentSearchAdvancedRowToClause(row) {
+  const field = String(row?.field || "").trim();
+  const op = String(row?.op || "").trim();
+  const value = String(row?.value ?? "").trim();
   if (!field || !op || value === "") return null;
   const clause = { field };
   if (op === "eq") clause.eq = value;
@@ -23744,11 +24042,38 @@ function getContentSearchFieldFilter() {
   else if (op === "gte") clause.gte = value;
   else if (op === "lte") clause.lte = value;
   else return null;
-  return [clause];
+  return clause;
+}
+
+function getContentSearchFieldFilterOp(clause) {
+  if (clause?.contains != null) return "contains";
+  if (clause?.gte != null) return "gte";
+  if (clause?.lte != null) return "lte";
+  return "eq";
+}
+
+function getContentSearchFieldFilterValue(clause) {
+  return clause?.eq ?? clause?.contains ?? clause?.gte ?? clause?.lte ?? "";
+}
+
+function getContentSearchFieldFilterLabel(clause, catalog = contentSearchFieldCatalogCache) {
+  const op = getContentSearchFieldFilterOp(clause);
+  const opLabel = CONTENT_SEARCH_FIELD_OP_LABELS[op] || op;
+  const value = getContentSearchFieldFilterValue(clause);
+  const title = getContentSearchFieldPrimaryVariant(clause.field, catalog)?.title || "";
+  const fieldLabel = title ? `${title} (${clause.field})` : clause.field;
+  return `${fieldLabel} ${opLabel} ${value}`;
+}
+
+function getContentSearchFieldFilter() {
+  const clauses = contentSearchAdvancedFieldFilters
+    .map((row) => contentSearchAdvancedRowToClause(row))
+    .filter(Boolean);
+  return clauses.length ? clauses : null;
 }
 
 function hasActiveContentSearchFieldFilter() {
-  return Boolean(getContentSearchFieldFilter());
+  return Boolean(getContentSearchFieldFilter()?.length);
 }
 
 function countActiveContentSearchFilters() {
@@ -23756,7 +24081,8 @@ function countActiveContentSearchFilters() {
   if (getContentSearchScope() !== CONTENT_SEARCH_DEFAULT_SCOPE) count += 1;
   if (getContentSearchMatch() !== CONTENT_SEARCH_DEFAULT_MATCH) count += 1;
   if (getContentSearchFileType() !== CONTENT_SEARCH_DEFAULT_TYPE) count += 1;
-  if (hasActiveContentSearchFieldFilter()) count += 1;
+  const fieldClauses = getContentSearchFieldFilter();
+  if (fieldClauses?.length) count += fieldClauses.length;
   return count;
 }
 
@@ -23770,9 +24096,8 @@ function syncContentSearchFiltersBadge() {
 }
 
 function resetContentSearchFieldFilter() {
-  if (contentSearchFieldKeyNode) contentSearchFieldKeyNode.value = "";
-  if (contentSearchFieldOpNode) contentSearchFieldOpNode.value = "";
-  if (contentSearchFieldValueNode) contentSearchFieldValueNode.value = "";
+  contentSearchAdvancedFieldFilters = [];
+  contentSearchAdvancedFilterDraft = [];
 }
 
 function resetContentSearchFilters() {
@@ -23792,8 +24117,13 @@ function resetContentSearchFilter(key) {
     contentSearchMatchNode.value = CONTENT_SEARCH_DEFAULT_MATCH;
   } else if (key === "type" && contentSearchTypeNode) {
     contentSearchTypeNode.value = CONTENT_SEARCH_DEFAULT_TYPE;
-  } else if (key === "field") {
+  } else if (key === "fields") {
     resetContentSearchFieldFilter();
+  } else if (key.startsWith("field:")) {
+    const index = Number(key.slice(6));
+    if (Number.isFinite(index) && index >= 0) {
+      contentSearchAdvancedFieldFilters.splice(index, 1);
+    }
   }
   updateContentSearchPlaceholder();
   syncContentSearchFiltersUi();
@@ -23819,16 +24149,12 @@ function renderContentSearchActiveFilters() {
     chips.push({ key: "type", label: CONTENT_SEARCH_TYPE_LABELS[type] || type });
   }
   const fieldFilter = getContentSearchFieldFilter();
-  if (fieldFilter?.length) {
-    const clause = fieldFilter[0];
-    const opLabel = CONTENT_SEARCH_FIELD_OP_LABELS[
-      clause.contains != null ? "contains" : clause.gte != null ? "gte" : clause.lte != null ? "lte" : "eq"
-    ] || "равно";
-    const title =
-      contentSearchFieldKeyNode?.selectedOptions?.[0]?.textContent?.trim() || clause.field;
-    const value = clause.eq ?? clause.contains ?? clause.gte ?? clause.lte ?? "";
-    chips.push({ key: "field", label: `${title} ${opLabel} ${value}` });
-  }
+  fieldFilter?.forEach((clause, index) => {
+    chips.push({
+      key: `field:${index}`,
+      label: getContentSearchFieldFilterLabel(clause)
+    });
+  });
   if (!chips.length) {
     contentSearchActiveFiltersNode.classList.add("hidden");
     return;
@@ -23858,10 +24184,32 @@ function renderContentSearchActiveFilters() {
   contentSearchBarNode?.classList.toggle("has-active-filters", chips.length > 0);
 }
 
+function syncContentSearchAdvancedSummary() {
+  if (!contentSearchAdvancedSummaryNode) return;
+  const clauses = getContentSearchFieldFilter();
+  if (!clauses?.length) {
+    contentSearchAdvancedSummaryNode.textContent = "Нет условий по полям";
+    return;
+  }
+  if (clauses.length <= 2) {
+    contentSearchAdvancedSummaryNode.textContent = clauses
+      .map((clause) => getContentSearchFieldFilterLabel(clause))
+      .join("; ");
+    return;
+  }
+  contentSearchAdvancedSummaryNode.textContent = `${clauses.length} условий по полям`;
+}
+
 function syncContentSearchFiltersUi() {
   syncContentSearchFiltersBadge();
+  syncContentSearchAdvancedSummary();
   renderContentSearchActiveFilters();
-  contentSearchFiltersPopoverNode?.classList.toggle("is-semantic", isContentSearchAlternateMode());
+  contentSearchFiltersPopoverNode?.classList.toggle("is-semantic", isContentSearchSemantic());
+  contentSearchAdvancedOpenBtnNode?.toggleAttribute("disabled", isContentSearchIdMode());
+}
+
+if (typeof window !== "undefined") {
+  window.invalidateContentSearchFieldCatalog = invalidateContentSearchFieldCatalog;
 }
 
 function positionContentSearchFiltersPopover() {
@@ -23888,51 +24236,201 @@ function closeContentSearchFiltersPopover() {
   contentSearchFiltersBtnNode?.setAttribute("aria-expanded", "false");
 }
 
-function populateContentSearchFieldSelect(catalog = contentSearchFieldCatalogCache) {
-  if (!contentSearchFieldKeyNode) return;
-  const current = contentSearchFieldKeyNode.value || "";
-  const metaByKey = new Map((catalog?.fieldCatalogMeta || []).map((item) => [item.key, item]));
-  contentSearchFieldKeyNode.innerHTML = '<option value="">— не выбрано —</option>';
-  for (const name of catalog?.fieldCatalog || []) {
-    const option = document.createElement("option");
-    option.value = name;
-    const meta = metaByKey.get(name);
-    const variants = meta?.variants || [];
-    if (variants.length > 1) {
-      option.textContent = `${name} · ${variants.length} контекста`;
-      option.title = variants
-        .map((variant) => `${variant.title || "—"} (${variant.type || "?"})`)
-        .join("\n");
-    } else if (variants.length === 1 && variants[0].title) {
-      option.textContent = `${name} · ${variants[0].title}`;
-      option.title = variants[0].type || "";
-    } else {
-      option.textContent = name;
+function isContentSearchAdvancedFilterModalOpen() {
+  return Boolean(contentSearchAdvancedModalNode && !contentSearchAdvancedModalNode.classList.contains("hidden"));
+}
+
+function syncContentSearchAdvancedFilterDraftFromDom() {
+  if (!contentSearchAdvancedRowsNode) return;
+  const next = [];
+  for (const rowNode of contentSearchAdvancedRowsNode.querySelectorAll(".content-search-advanced-row")) {
+    const fieldInput = rowNode.querySelector(".content-search-field-picker-input");
+    const hiddenField = rowNode.querySelector(".content-search-advanced-field-key");
+    let field = hiddenField?.value || "";
+    if (!field && fieldInput?.value) {
+      const match = resolveContentSearchFieldPickerEntry(fieldInput.value);
+      field = match?.key || "";
+      if (match && hiddenField) hiddenField.value = match.key;
     }
-    contentSearchFieldKeyNode.appendChild(option);
+    const op = rowNode.querySelector(".content-search-advanced-op")?.value || "eq";
+    const value = rowNode.querySelector(".content-search-advanced-value")?.value ?? "";
+    next.push({
+      id: rowNode.dataset.rowId || createContentSearchAdvancedFilterRow().id,
+      field,
+      op,
+      value
+    });
   }
-  contentSearchFieldKeyNode.value = current;
+  contentSearchAdvancedFilterDraft = next;
+}
+
+function renderContentSearchAdvancedFilterRows(catalog = contentSearchFieldCatalogCache) {
+  if (!contentSearchAdvancedRowsNode) return;
+  contentSearchAdvancedRowsNode.replaceChildren();
+  const rows = contentSearchAdvancedFilterDraft.length
+    ? contentSearchAdvancedFilterDraft
+    : [createContentSearchAdvancedFilterRow()];
+  contentSearchAdvancedFilterDraft = rows;
+
+  for (const row of rows) {
+    const rowNode = document.createElement("div");
+    rowNode.className = "content-search-advanced-row";
+    rowNode.dataset.rowId = row.id;
+    rowNode.setAttribute("role", "listitem");
+
+    const fieldLabel = document.createElement("label");
+    fieldLabel.className = "content-search-advanced-cell content-search-advanced-cell--field";
+    const fieldCaption = document.createElement("span");
+    fieldCaption.className = "content-search-advanced-cell-label";
+    fieldCaption.textContent = "Поле";
+    fieldLabel.appendChild(fieldCaption);
+    let valueControl = null;
+    const fieldPicker = mountContentSearchFieldPicker(fieldLabel, {
+      catalog,
+      selectedKey: row.field,
+      onChange: (fieldKey) => {
+        syncContentSearchAdvancedFilterDraftFromDom();
+        valueControl?.refreshValues(fieldKey, "");
+      }
+    });
+
+    const opLabel = document.createElement("label");
+    opLabel.className = "content-search-advanced-cell content-search-advanced-cell--op";
+    const opCaption = document.createElement("span");
+    opCaption.className = "content-search-advanced-cell-label";
+    opCaption.textContent = "Условие";
+    const opSelect = document.createElement("select");
+    opSelect.className = "content-search-advanced-op content-search-filter-control";
+    opSelect.setAttribute("aria-label", "Условие фильтра");
+    opSelect.innerHTML = `
+      <option value="eq">равно</option>
+      <option value="contains">содержит</option>
+      <option value="gte">≥ (число/дата)</option>
+      <option value="lte">≤ (число/дата)</option>
+    `;
+    opSelect.value = row.op || "eq";
+    opLabel.append(opCaption, opSelect);
+
+    const valueLabel = document.createElement("label");
+    valueLabel.className = "content-search-advanced-cell content-search-advanced-cell--value";
+    const valueCaption = document.createElement("span");
+    valueCaption.className = "content-search-advanced-cell-label";
+    valueCaption.textContent = "Значение";
+    valueLabel.appendChild(valueCaption);
+    valueControl = mountContentSearchValueInput(valueLabel, {
+      rowId: row.id,
+      field: row.field,
+      value: row.value,
+      onInput: () => syncContentSearchAdvancedFilterDraftFromDom()
+    });
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "content-search-advanced-remove-btn";
+    removeBtn.setAttribute("aria-label", "Удалить условие");
+    removeBtn.textContent = "×";
+    removeBtn.disabled = rows.length <= 1;
+    removeBtn.addEventListener("click", () => {
+      syncContentSearchAdvancedFilterDraftFromDom();
+      if (contentSearchAdvancedFilterDraft.length <= 1) {
+        contentSearchAdvancedFilterDraft = [createContentSearchAdvancedFilterRow()];
+      } else {
+        contentSearchAdvancedFilterDraft = contentSearchAdvancedFilterDraft.filter((item) => item.id !== row.id);
+      }
+      renderContentSearchAdvancedFilterRows(catalog);
+    });
+
+    opSelect.addEventListener("change", () => syncContentSearchAdvancedFilterDraftFromDom());
+    fieldPicker.input.addEventListener("input", () => syncContentSearchAdvancedFilterDraftFromDom());
+
+    rowNode.append(fieldLabel, opLabel, valueLabel, removeBtn);
+    contentSearchAdvancedRowsNode.appendChild(rowNode);
+  }
+}
+
+function openContentSearchAdvancedFilterModal() {
+  if (!contentSearchAdvancedModalNode || isContentSearchIdMode()) return;
+  closeContentSearchFiltersPopover();
+  contentSearchAdvancedFilterDraft = contentSearchAdvancedFieldFilters.length
+    ? contentSearchAdvancedFieldFilters.map((row) => ({
+        id: row.id || createContentSearchAdvancedFilterRow().id,
+        field: row.field || "",
+        op: row.op || "eq",
+        value: row.value || ""
+      }))
+    : [createContentSearchAdvancedFilterRow()];
+  contentSearchAdvancedModalNode.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  void ensureContentSearchFieldCatalog(!contentSearchFieldCatalogCache?.fieldCatalog?.length).then((catalog) => {
+    renderContentSearchAdvancedFilterRows(catalog || contentSearchFieldCatalogCache);
+  });
+  contentSearchAdvancedApplyBtnNode?.focus();
+}
+
+function closeContentSearchAdvancedFilterModal() {
+  contentSearchAdvancedModalNode?.classList.add("hidden");
+  if (!document.querySelector(".modal-overlay:not(.hidden)")) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function applyContentSearchAdvancedFilters() {
+  syncContentSearchAdvancedFilterDraftFromDom();
+  contentSearchAdvancedFieldFilters = contentSearchAdvancedFilterDraft
+    .map((row) => ({
+      id: row.id,
+      field: String(row.field || "").trim(),
+      op: String(row.op || "eq").trim(),
+      value: String(row.value ?? "").trim()
+    }))
+    .filter((row) => row.field && row.op && row.value !== "");
+  closeContentSearchAdvancedFilterModal();
+  syncContentSearchFiltersUi();
+  scheduleContentSearch();
+}
+
+function resetContentSearchAdvancedFilterDraft() {
+  contentSearchAdvancedFilterDraft = [createContentSearchAdvancedFilterRow()];
+  renderContentSearchAdvancedFilterRows(contentSearchFieldCatalogCache);
+}
+
+function addContentSearchAdvancedFilterRow() {
+  syncContentSearchAdvancedFilterDraftFromDom();
+  contentSearchAdvancedFilterDraft.push(createContentSearchAdvancedFilterRow());
+  renderContentSearchAdvancedFilterRows(contentSearchFieldCatalogCache);
+}
+
+function invalidateContentSearchFieldCatalog() {
+  contentSearchFieldCatalogCache = null;
+  contentSearchFieldCatalogLoading = null;
+  invalidateContentSearchFieldValuesCache();
 }
 
 async function ensureContentSearchFieldCatalog(force = false) {
-  if (!force && contentSearchFieldCatalogCache) return contentSearchFieldCatalogCache;
+  const cached = contentSearchFieldCatalogCache;
+  if (!force && cached?.fieldCatalog?.length) return cached;
   if (contentSearchFieldCatalogLoading) return contentSearchFieldCatalogLoading;
   contentSearchFieldCatalogLoading = (async () => {
     try {
-      const response = await fetch(buildApiUrl("/api/storage-index/status"));
+      const response = await fetch(buildApiUrl("/api/storage-index/field-catalog"));
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || response.statusText);
+      if (!response.ok) throw new Error(data.error || data.details || response.statusText);
       contentSearchFieldCatalogCache = {
         ready: Boolean(data.ready),
+        builtAt: data.builtAt || null,
         fieldCatalog: Array.isArray(data.fieldCatalog) ? data.fieldCatalog : [],
         fieldCatalogMeta: Array.isArray(data.fieldCatalogMeta) ? data.fieldCatalogMeta : []
       };
-      populateContentSearchFieldSelect(contentSearchFieldCatalogCache);
+      if (isContentSearchAdvancedFilterModalOpen()) {
+        renderContentSearchAdvancedFilterRows(contentSearchFieldCatalogCache);
+      }
       return contentSearchFieldCatalogCache;
-    } catch {
-      contentSearchFieldCatalogCache = { ready: false, fieldCatalog: [], fieldCatalogMeta: [] };
-      populateContentSearchFieldSelect(contentSearchFieldCatalogCache);
-      return contentSearchFieldCatalogCache;
+    } catch (error) {
+      console.warn("content search field catalog load failed", error);
+      if (isContentSearchAdvancedFilterModalOpen()) {
+        renderContentSearchAdvancedFilterRows({ ready: false, fieldCatalog: [], fieldCatalogMeta: [] });
+      }
+      return null;
     } finally {
       contentSearchFieldCatalogLoading = null;
     }
@@ -23948,7 +24446,7 @@ function toggleContentSearchFiltersPopover() {
     contentSearchFiltersPopoverNode.classList.remove("hidden");
     contentSearchFiltersBtnNode.setAttribute("aria-expanded", "true");
     positionContentSearchFiltersPopover();
-    void ensureContentSearchFieldCatalog();
+    syncContentSearchAdvancedSummary();
     return;
   }
   closeContentSearchFiltersPopover();
@@ -23962,10 +24460,8 @@ function updateContentSearchFiltersState() {
   for (const node of [contentSearchScopeNode, contentSearchMatchNode, contentSearchTypeNode]) {
     if (node) node.disabled = semanticMode || idMode;
   }
-  for (const node of [contentSearchFieldKeyNode, contentSearchFieldOpNode, contentSearchFieldValueNode]) {
-    if (node) node.disabled = idMode;
-  }
   contentSearchFiltersBtnNode?.toggleAttribute("disabled", idMode);
+  contentSearchAdvancedOpenBtnNode?.toggleAttribute("disabled", idMode);
   syncContentSearchModeToggleUi();
   syncContentSearchFiltersUi();
 }
@@ -24525,7 +25021,7 @@ function mapHybridSearchResults(data, query = "") {
 }
 
 function mapStorageFieldSearchResults(data, where, query = "") {
-  const field = where?.[0]?.field || "";
+  const clauses = Array.isArray(where) ? where : where ? [where] : [];
   const results = Array.isArray(data?.results) ? data.results : [];
   return {
     query,
@@ -24534,14 +25030,19 @@ function mapStorageFieldSearchResults(data, where, query = "") {
     results: results.map((row) => {
       const filePath = String(row.path || "").replace(/\\/g, "/");
       const fileName = filePath.split("/").pop() || filePath;
-      const entry = field ? row.fields?.[field] : null;
-      const value =
-        entry != null && typeof entry === "object" && "value" in entry ? entry.value : entry;
-      const title = entry != null && typeof entry === "object" ? entry.title : "";
-      const type = entry != null && typeof entry === "object" ? entry.type : "";
-      const snippet = title
-        ? `${title}: ${value ?? "—"}${type ? ` · ${type}` : ""}`
-        : `${field}: ${value ?? "—"}`;
+      const parts = clauses.map((clause) => {
+        const field = clause?.field || "";
+        const entry = field ? row.fields?.[field] : null;
+        const value =
+          entry != null && typeof entry === "object" && "value" in entry ? entry.value : entry;
+        const title = entry != null && typeof entry === "object" ? entry.title : "";
+        const type = entry != null && typeof entry === "object" ? entry.type : "";
+        const label = title || field;
+        return title
+          ? `${label}: ${value ?? "—"}${type ? ` · ${type}` : ""}`
+          : `${field}: ${value ?? "—"}`;
+      });
+      const snippet = parts.filter(Boolean).join(" · ") || "совпадение по полям";
       return {
         filePath,
         fileName,
@@ -103665,15 +104166,22 @@ contentSearchMatchNode?.addEventListener("change", () => {
   syncContentSearchFiltersUi();
   scheduleContentSearch();
 });
-for (const node of [contentSearchFieldKeyNode, contentSearchFieldOpNode]) {
-  node?.addEventListener("change", () => {
-    syncContentSearchFiltersUi();
-    scheduleContentSearch();
-  });
-}
-contentSearchFieldValueNode?.addEventListener("input", () => {
-  syncContentSearchFiltersUi();
-  scheduleContentSearch();
+contentSearchAdvancedOpenBtnNode?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  openContentSearchAdvancedFilterModal();
+});
+contentSearchAdvancedAddBtnNode?.addEventListener("click", () => addContentSearchAdvancedFilterRow());
+contentSearchAdvancedApplyBtnNode?.addEventListener("click", () => applyContentSearchAdvancedFilters());
+contentSearchAdvancedCancelBtnNode?.addEventListener("click", () => closeContentSearchAdvancedFilterModal());
+contentSearchAdvancedResetBtnNode?.addEventListener("click", () => resetContentSearchAdvancedFilterDraft());
+contentSearchAdvancedCloseBtnNode?.addEventListener("click", () => closeContentSearchAdvancedFilterModal());
+contentSearchAdvancedModalNode?.addEventListener("click", (event) => {
+  if (event.target === contentSearchAdvancedModalNode) closeContentSearchAdvancedFilterModal();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !isContentSearchAdvancedFilterModalOpen()) return;
+  event.preventDefault();
+  closeContentSearchAdvancedFilterModal();
 });
 contentSearchFiltersBtnNode?.addEventListener("click", (event) => {
   event.stopPropagation();

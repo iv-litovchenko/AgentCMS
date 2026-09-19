@@ -12392,7 +12392,9 @@ const SESSION_CONTEXT_API_MAP = {
   semanticSearchStatus: "GET /api/search/semantic/status — статус индекса",
   semanticSearchReindex: "POST /api/search/semantic/reindex — пересобрать индекс",
   storageIndexStatus: "GET /api/storage-index/status — каталог полей workspace",
-  storageIndexReindex: "POST /api/storage-index/reindex — пересобрать каталог полей",
+  storageIndexFieldCatalog: "GET /api/storage-index/field-catalog — полный список полей для UI-фильтров",
+  storageIndexFieldValues: "GET /api/storage-index/field-values?field= — уникальные значения поля для подсказок",
+  storageIndexReindex: "POST /api/storage-index/reindex — пересобрать каталог полей { mode: quick|full }",
   storageIndexQuery: "POST /api/storage-index/query — SQL-like фильтр по полям (весь workspace)",
   semanticIndexCatalog: "GET /api/search/semantic/catalog — просмотр фрагментов векторного индекса",
   storageIndexCatalog: "GET /api/storage-index/catalog — просмотр каталога полей workspace",
@@ -18254,10 +18256,43 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/storage-index/field-catalog") {
+    try {
+      return sendJson(res, 200, await getStorageIndexService().getFieldCatalog());
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read storage field catalog",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/storage-index/field-values") {
+    const field = String(url.searchParams.get("field") || "").trim();
+    const q = String(url.searchParams.get("q") || "").trim();
+    const pathPrefix = String(url.searchParams.get("pathPrefix") || url.searchParams.get("path") || "").trim();
+    const limitRaw = Number(url.searchParams.get("limit") || 60);
+    const limit = Number.isFinite(limitRaw) ? limitRaw : 60;
+    try {
+      return sendJson(
+        res,
+        200,
+        await getStorageIndexService().getFieldValues({ field, q, limit, pathPrefix })
+      );
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read storage field values",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "POST" && url.pathname === "/api/storage-index/reindex") {
     try {
-      const payload = await getStorageIndexService().rebuildIndex({ agentId: getActiveAgentId() });
-      return sendJson(res, 200, payload);
+      const payload = await readJsonBody(req).catch(() => ({}));
+      const mode = String(payload?.mode || "full").trim().toLowerCase() === "quick" ? "quick" : "full";
+      const data = await getStorageIndexService().rebuildIndex({ agentId: getActiveAgentId(), mode });
+      return sendJson(res, 200, data);
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to rebuild storage index",
@@ -19591,7 +19626,7 @@ async function handleApiForAgent(req, res, url) {
       });
       const fulltext = await getFulltextSearchService().rebuildIndex();
       const semantic = await getSemanticSearchService().rebuildIndex();
-      const storage = await getStorageIndexService().rebuildIndex();
+      const storage = await getStorageIndexService().rebuildIndex({ mode: "full" });
       const link = await getLinkIndexService().rebuildIndex();
       const workspaceId = await getWorkspaceIdService().syncCounterWithAssigned();
       return sendJson(res, 200, {

@@ -422,29 +422,16 @@
                 </select>
               </label>
               <div class="content-search-filters-divider" role="separator">Поля frontmatter</div>
-              <p class="content-search-filters-popover-hint content-search-filters-popover-hint--fields">
-                Фильтр по свойствам YAML (storage-index). Ограничьте область темой — drag в круг слева от поиска.
-              </p>
-              <label class="content-search-filter-field content-search-filter-field--fields">
-                <span class="content-search-filter-label">Поле</span>
-                <select id="content-search-field-key" class="content-search-field-key content-search-filter-control" aria-label="Поле frontmatter">
-                  <option value="">— не выбрано —</option>
-                </select>
-              </label>
-              <label class="content-search-filter-field content-search-filter-field--fields">
-                <span class="content-search-filter-label">Условие</span>
-                <select id="content-search-field-op" class="content-search-field-op content-search-filter-control" aria-label="Условие фильтра поля">
-                  <option value="">—</option>
-                  <option value="eq">равно</option>
-                  <option value="contains">содержит</option>
-                  <option value="gte">≥ (число/дата)</option>
-                  <option value="lte">≤ (число/дата)</option>
-                </select>
-              </label>
-              <label class="content-search-filter-field content-search-filter-field--fields">
-                <span class="content-search-filter-label">Значение</span>
-                <input id="content-search-field-value" class="content-search-field-value content-search-filter-control" type="text" placeholder="значение поля…" aria-label="Значение поля" />
-              </label>
+              <p id="content-search-advanced-summary" class="content-search-advanced-summary">Нет условий по полям</p>
+              <button
+                type="button"
+                id="content-search-advanced-open-btn"
+                class="content-search-advanced-open-btn"
+                aria-haspopup="dialog"
+                aria-controls="content-search-advanced-modal"
+              >
+                Расширенный фильтр по полям…
+              </button>
               <button type="button" id="content-search-filters-reset-btn" class="content-search-filters-reset-btn">
                 <span class="content-search-filters-reset-icon" aria-hidden="true">↺</span>
                 <span class="content-search-filters-reset-label">Сбросить фильтры</span>
@@ -466,6 +453,7 @@
                 <li><strong>Тип</strong> — фильтр по формату (Markdown, PDF, видео и т.д.).</li>
                 <li><strong>Смысл</strong> — локальный семантический поиск по всему workspace (offline). Индекс: sidebar → «Индексирование workspace…» → Переиндексировать.</li>
                 <li><strong>ID (#)</strong> — число <code>awn-id</code> записи: <code>1847</code> или <code>#1847</code>. Откроет файл(ы) с этим id.</li>
+                <li><strong>Поля</strong> — «Расширенный фильтр по полям…»: несколько условий по frontmatter (название + ключ поля из schema).</li>
               </ul>
             </div>
             <div id="content-search-results" class="content-search-results hidden" role="listbox" aria-label="Результаты поиска"></div>
@@ -884,7 +872,7 @@
                   <button type="button" class="header-index-flush-btn" data-index-flush="semantic" title="Переиндексировать смысл">
                     Смысл
                   </button>
-                  <button type="button" class="header-index-flush-btn" data-index-flush="storage" title="Пересобрать каталог полей">
+                  <button type="button" class="header-index-flush-btn" data-index-flush="storage" title="Быстро: только frontmatter (без schema)">
                     Поля
                   </button>
                   <button type="button" class="header-index-flush-btn" data-index-flush="link" title="Пересобрать граф связей">
@@ -968,12 +956,16 @@
                   <div class="menu-index-block">
                     <div class="menu-index-block-title">4. Поля (SQL-like)</div>
                     <p class="menu-static-description">
-                      Каталог frontmatter всех .md/.yml · фильтр по дате, сумме, типу ·
+                      Каталог frontmatter всех .md/.yml · <strong>быстрый</strong> — только значения;
+                      <strong>полный</strong> — schema + типы/описания ·
                       <code>.agent-cms/storage-index/</code>
                     </p>
                     <p id="menu-storage-index-status" class="menu-static-description" aria-live="polite"></p>
-                    <button type="button" id="menu-storage-index-rebuild-btn" class="menu-static-action-btn">
-                      Пересобрать каталог полей
+                    <button type="button" id="menu-storage-index-rebuild-quick-btn" class="menu-static-action-btn">
+                      Быстрый — только frontmatter
+                    </button>
+                    <button type="button" id="menu-storage-index-rebuild-full-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
+                      Полный — schema + типы полей
                     </button>
                     <button type="button" id="menu-storage-index-show-btn" class="menu-static-action-btn menu-static-action-btn--secondary">
                       ~show-fields
@@ -5392,6 +5384,37 @@
           <iframe id="document-viewer-iframe" class="document-viewer-iframe hidden" title="Просмотр документа"></iframe>
           <div id="document-viewer-content" class="document-viewer-content hidden"></div>
           <div id="document-viewer-fallback" class="document-viewer-fallback hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="content-search-advanced-modal"
+      class="modal-overlay hidden content-search-advanced-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="content-search-advanced-title"
+    >
+      <div class="modal-card content-search-advanced-modal-card">
+        <div class="content-search-advanced-modal-header">
+          <div>
+            <div class="modal-message" id="content-search-advanced-title">Расширенный фильтр по полям</div>
+            <p class="content-search-advanced-modal-subtitle">
+              Условия объединяются через «и». Поля — из storage-index (после пересборки «Поля»).
+            </p>
+          </div>
+          <button id="content-search-advanced-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div id="content-search-advanced-rows" class="content-search-advanced-rows" role="list"></div>
+        <div class="content-search-advanced-modal-toolbar">
+          <button id="content-search-advanced-add-btn" class="content-search-advanced-btn content-search-advanced-btn--add" type="button">+ Условие</button>
+        </div>
+        <div class="content-search-advanced-modal-footer">
+          <button id="content-search-advanced-reset-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button">Сбросить</button>
+          <div class="content-search-advanced-modal-footer-actions">
+            <button id="content-search-advanced-cancel-btn" class="content-search-advanced-btn content-search-advanced-btn--ghost" type="button">Отмена</button>
+            <button id="content-search-advanced-apply-btn" class="content-search-advanced-btn content-search-advanced-btn--primary" type="button">Применить</button>
+          </div>
         </div>
       </div>
     </div>

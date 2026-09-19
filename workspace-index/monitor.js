@@ -358,7 +358,12 @@ async function getWorkspaceIndexMonitor(deps) {
     isEligible: isStorageEligible,
     resolvePathAbsolute,
     readyCheck: (index) => (index.recordCount || 0) > 0,
-    extraFields: (index) => ({ recordCount: index.recordCount || 0, fieldCount: index.fieldCount || 0 })
+    extraFields: (index) => ({
+      recordCount: index.recordCount || 0,
+      fieldCount: index.fieldCount || 0,
+      enrichmentMode:
+        index.enrichmentMode || (String(index.model || "").includes("quick") ? "quick" : "full")
+    })
   });
 
   const link = await buildLinkMonitor(linkStatus, getLinkIndexPaths(agentRoot).file);

@@ -52,6 +52,59 @@ function createStorageIndexService(deps) {
   const { getAgentRoot, getProjectRoot, collectSearchableFiles, resolvePathAbsolute } = deps;
   const rebuildLocks = new Map();
 
+  function flatFieldsToQuickRecordFields(flatFields) {
+    const fields = {};
+    for (const [key, value] of Object.entries(flatFields || {})) {
+      fields[key] = { value };
+    }
+    return fields;
+  }
+
+  async function collectRecordsQuick(agentRoot, { reportProgress = false, preserveFieldCatalogMeta = [] } = {}) {
+    const relFiles = await collectSearchableFiles(agentRoot);
+    const eligible = relFiles.filter((relPath) => isIndexableTextFile(path.basename(relPath)));
+
+    if (reportProgress) {
+      startWorkspaceIndexProgress(agentRoot, "storage", eligible.length);
+    }
+
+    const records = [];
+    const fieldSet = new Set();
+    let index = 0;
+
+    for (const relPath of eligible) {
+      index += 1;
+      if (reportProgress) {
+        tickWorkspaceIndexProgress(agentRoot, index, eligible.length, relPath);
+      }
+      const absolute = resolvePathAbsolute(relPath);
+      if (!absolute) continue;
+      let content = "";
+      try {
+        content = await fs.readFile(absolute, "utf-8");
+      } catch {
+        continue;
+      }
+      const flatFields = extractFrontmatter(content);
+      if (!Object.keys(flatFields).length) continue;
+      const fields = flatFieldsToQuickRecordFields(flatFields);
+      for (const key of Object.keys(fields)) fieldSet.add(key);
+      records.push({
+        path: relPath.replace(/\\/g, "/"),
+        schemaContext: null,
+        schemaTarget: null,
+        manifestRel: null,
+        fields
+      });
+    }
+
+    return {
+      records,
+      fieldCatalog: Array.from(fieldSet).sort((a, b) => a.localeCompare(b, "ru")),
+      fieldCatalogMeta: Array.isArray(preserveFieldCatalogMeta) ? preserveFieldCatalogMeta : []
+    };
+  }
+
   async function collectRecords(agentRoot, projectRoot, { reportProgress = false } = {}) {
     const relFiles = await collectSearchableFiles(agentRoot);
     const eligible = relFiles.filter((relPath) => isIndexableTextFile(path.basename(relPath)));
@@ -181,10 +234,11 @@ function createStorageIndexService(deps) {
     };
   }
 
-  async function rebuildIndex({ agentId = "" } = {}) {
+  async function rebuildIndex({ agentId = "", mode = "full" } = {}) {
     const agentRoot = getAgentRoot();
     const projectRoot = typeof getProjectRoot === "function" ? getProjectRoot() : "";
     if (!agentRoot) throw new Error("Agent not selected");
+    const rebuildMode = String(mode || "full").trim().toLowerCase() === "quick" ? "quick" : "full";
 
     const lockKey = agentRoot;
     if (rebuildLocks.get(lockKey)) return rebuildLocks.get(lockKey);
@@ -194,17 +248,29 @@ function createStorageIndexService(deps) {
       let records = [];
       let fieldCatalog = [];
       let fieldCatalogMeta = [];
+      const existingIndex = await loadIndex(agentRoot);
       try {
-        const collected = await collectRecords(agentRoot, projectRoot, { reportProgress: true });
-        records = collected.records;
-        fieldCatalog = collected.fieldCatalog;
-        fieldCatalogMeta = collected.fieldCatalogMeta;
+        if (rebuildMode === "quick") {
+          const collected = await collectRecordsQuick(agentRoot, {
+            reportProgress: true,
+            preserveFieldCatalogMeta: existingIndex?.fieldCatalogMeta || []
+          });
+          records = collected.records;
+          fieldCatalog = collected.fieldCatalog;
+          fieldCatalogMeta = collected.fieldCatalogMeta;
+        } else {
+          const collected = await collectRecords(agentRoot, projectRoot, { reportProgress: true });
+          records = collected.records;
+          fieldCatalog = collected.fieldCatalog;
+          fieldCatalogMeta = collected.fieldCatalogMeta;
+        }
       } finally {
         finishWorkspaceIndexProgress(agentRoot);
       }
       const index = {
         version: 2,
-        model: "workspace-field-index-v2",
+        model: rebuildMode === "quick" ? "workspace-field-index-v2-quick" : "workspace-field-index-v2",
+        enrichmentMode: rebuildMode,
         offline: true,
         scope: "workspace",
         builtAt: new Date().toISOString(),
@@ -219,6 +285,7 @@ function createStorageIndexService(deps) {
       await saveIndex(agentRoot, index);
       return {
         ok: true,
+        mode: rebuildMode,
         builtAt: index.builtAt,
         recordCount: index.recordCount,
         fieldCount: index.fieldCount,
@@ -235,7 +302,7 @@ function createStorageIndexService(deps) {
     }
   }
 
-  async function getStatus() {
+  async function getFieldCatalog() {
     const agentRoot = getAgentRoot();
     if (!agentRoot) return { ready: false, reason: "Agent not selected" };
 
@@ -243,26 +310,44 @@ function createStorageIndexService(deps) {
     if (!index) {
       return {
         ready: false,
-        model: "workspace-field-index-v2",
         scope: "workspace",
-        offline: true,
         recordCount: 0,
         fieldCount: 0,
+        fieldCatalog: [],
+        fieldCatalogMeta: [],
         hint: "Каталог полей не построен"
       };
     }
 
     return {
-      ready: index.recordCount > 0,
+      ready: (index.recordCount || 0) > 0,
       model: index.model,
+      enrichmentMode: index.enrichmentMode || (String(index.model || "").includes("quick") ? "quick" : "full"),
       scope: index.scope,
-      offline: true,
       builtAt: index.builtAt,
       lastRebuildMs: index.lastRebuildMs ?? null,
-      recordCount: index.recordCount,
-      fieldCount: index.fieldCount,
-      fieldCatalog: index.fieldCatalog?.slice(0, 40) || [],
-      fieldCatalogMeta: index.fieldCatalogMeta?.slice(0, 20) || []
+      recordCount: index.recordCount || 0,
+      fieldCount: index.fieldCount || 0,
+      fieldCatalog: index.fieldCatalog || [],
+      fieldCatalogMeta: index.fieldCatalogMeta || []
+    };
+  }
+
+  async function getStatus() {
+    const payload = await getFieldCatalog();
+    if (!payload.ready && !payload.builtAt) {
+      return {
+        ...payload,
+        model: "workspace-field-index-v2",
+        offline: true,
+        hint: payload.hint || "Каталог полей не построен"
+      };
+    }
+    return {
+      ...payload,
+      offline: true,
+      fieldCatalog: payload.fieldCatalog?.slice(0, 40) || [],
+      fieldCatalogMeta: payload.fieldCatalogMeta?.slice(0, 20) || []
     };
   }
 
@@ -406,7 +491,57 @@ function createStorageIndexService(deps) {
     };
   }
 
-  return { rebuildIndex, getStatus, query, catalog, updateFile };
+  async function getFieldValues({ field = "", q = "", limit = 60, pathPrefix = "" } = {}) {
+    const agentRoot = getAgentRoot();
+    if (!agentRoot) throw new Error("Agent not selected");
+
+    const fieldKey = String(field || "").trim();
+    if (!fieldKey) {
+      return { ready: false, field: null, values: [], total: 0, hint: "field is required" };
+    }
+
+    const index = await loadIndex(agentRoot);
+    if (!index?.records?.length) {
+      return {
+        ready: false,
+        field: fieldKey,
+        values: [],
+        total: 0,
+        hint: "Каталог полей не построен"
+      };
+    }
+
+    const prefix = String(pathPrefix || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    const needle = String(q || "").trim().toLowerCase();
+    const take = Math.min(Math.max(Number(limit) || 60, 1), 200);
+    const counts = new Map();
+
+    for (const record of index.records) {
+      if (prefix && !record.path.startsWith(prefix)) continue;
+      if (!Object.prototype.hasOwnProperty.call(record.fields || {}, fieldKey)) continue;
+      const value = getRecordFieldValue(record, fieldKey);
+      if (value == null || value === "") continue;
+      const text =
+        typeof value === "object" ? JSON.stringify(value) : Array.isArray(value) ? value.join(", ") : String(value);
+      if (needle && !text.toLowerCase().includes(needle)) continue;
+      counts.set(text, (counts.get(text) || 0) + 1);
+    }
+
+    const values = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))
+      .map(([value]) => value);
+
+    return {
+      ready: true,
+      field: fieldKey,
+      pathPrefix: prefix || null,
+      query: needle || null,
+      values: values.slice(0, take),
+      total: values.length
+    };
+  }
+
+  return { rebuildIndex, getStatus, getFieldCatalog, getFieldValues, query, catalog, updateFile };
 }
 
 module.exports = { createStorageIndexService };

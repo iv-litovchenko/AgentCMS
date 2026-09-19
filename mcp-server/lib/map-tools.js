@@ -203,9 +203,14 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "rebuild_workspace_storage_index",
-    "Rebuild workspace field catalog from frontmatter of all .md/.yml (.agent-cms/storage-index). Run after bulk metadata changes or before query_workspace_storage.",
-    z.object({}),
-    () => client.post("/api/storage-index/reindex", {})
+    "Rebuild workspace field catalog from frontmatter of all .md/.yml (.agent-cms/storage-index). mode: quick = frontmatter only; full = schema registry + field types/titles (default full).",
+    z.object({
+      mode: z
+        .enum(["quick", "full"])
+        .optional()
+        .describe("quick = frontmatter only; full = schema enrichment (default full)")
+    }),
+    (payload) => client.post("/api/storage-index/reindex", { mode: payload?.mode || "full" })
   );
 
   reg(
