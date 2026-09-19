@@ -39571,10 +39571,19 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .editor-title-bar .title-slug-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
+}
+
+.editor-title-bar .title-id-row .slug-input--readonly {
+  cursor: default;
+  color: #475569;
+  background: #f1f5f9;
 }
 
 .editor-title-field--description {

@@ -1017,6 +1017,8 @@ const tabularTableBackBtn = document.getElementById("tabular-table-back-btn");
 const dataHubBundleEditBtn = document.getElementById("data-hub-bundle-edit-btn");
 const titleInputNode = document.getElementById("title-input");
 const titleSlugRowNode = document.getElementById("title-slug-row");
+const titleIdRowNode = document.getElementById("title-id-row");
+const titleIdInputNode = document.getElementById("title-id-input");
 const titleSlugInputNode = document.getElementById("title-slug-input");
 const titleSlugUnlinkBtn = document.getElementById("title-slug-unlink-btn");
 const titleDescriptionRowNode = document.getElementById("title-description-row");
@@ -16124,7 +16126,7 @@ function insertDataHubSlugWarningElement(warn, mount) {
       ? titleSlugRowNode
       : null;
   if (titleSlugValueHost) {
-    const slugInputRow = titleSlugValueHost.querySelector(".slug-input-row");
+    const slugInputRow = titleSlugValueHost.querySelector(".title-slug-input-row");
     if (slugInputRow) {
       slugInputRow.insertAdjacentElement("afterend", warn);
       return;
@@ -53495,6 +53497,7 @@ function setPropsYamlContent(content, { preserveRawMode = false } = {}) {
     }
   }
   syncTitleDescriptionFromNode(getActiveTitleEditorPath());
+  syncTitleIdFromNode(getActiveTitleEditorPath());
 }
 
 function isPropsFormDomMounted() {
@@ -81696,10 +81699,28 @@ function isTitleSlugRowVisible(nodePath = getActiveTitleEditorPath()) {
   return false;
 }
 
+function getAwnIdRawForNode(nodePath = activePath) {
+  if (!nodePath) return "";
+  const visibleEntry = propsFormEntries.find((item) => normalizePropsKey(item?.key) === "awn-id");
+  if (visibleEntry) return String(visibleEntry.value ?? "");
+  const hiddenEntry = propsFormHiddenEntries.find((item) => normalizePropsKey(item?.key) === "awn-id");
+  if (hiddenEntry) return String(hiddenEntry.value ?? "");
+  return getYamlScalarFromFrontmatter(propsInputNode?.value || "", "awn-id");
+}
+
+function syncTitleIdFromNode(nodePath = getActiveTitleEditorPath()) {
+  if (!titleIdRowNode || !titleIdInputNode) return;
+  const slugRowVisible = isTitleSlugRowVisible(nodePath);
+  const idValue = slugRowVisible ? normalizeAwnIdDisplayValue(getAwnIdRawForNode(nodePath)) : "";
+  titleIdInputNode.value = idValue;
+  titleIdRowNode.classList.toggle("hidden", !idValue);
+}
+
 function showTitleSlugRow(nodePath = getActiveTitleEditorPath()) {
   if (!titleSlugRowNode) return;
   const visible = isTitleSlugRowVisible(nodePath);
   titleSlugRowNode.classList.toggle("hidden", !visible);
+  syncTitleIdFromNode(nodePath);
   if (!visible || !titleSlugInputNode) {
     syncDataHubSlugWarning(activeContentMode);
     return;
@@ -102586,6 +102607,7 @@ function handlePropsFormFieldsInput(event) {
   scheduleEditorDirtyCheck();
   syncDocAsideTodoStickerPreview();
   syncActiveNavigationHeroTodoSticker();
+  syncTitleIdFromNode(getActiveTitleEditorPath());
 }
 propsFormFieldsNode?.addEventListener("input", handlePropsFormFieldsInput);
 propsFormFieldsNode?.addEventListener("change", handlePropsFormFieldsInput);

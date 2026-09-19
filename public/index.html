@@ -4128,7 +4128,20 @@
                         <span id="title-media-ext" class="title-media-ext hidden" aria-hidden="true"></span>
                       </div>
                       <div id="title-slug-row" class="title-slug-row slug-field-row hidden">
-                        <div class="slug-input-row slug-input-row--badged">
+                        <div id="title-id-row" class="title-id-row slug-input-row slug-input-row--badged hidden">
+                          <span class="slug-input-badge" aria-hidden="true">id:</span>
+                          <input
+                            id="title-id-input"
+                            class="slug-input slug-input--badged slug-input--readonly"
+                            type="text"
+                            readonly
+                            tabindex="-1"
+                            aria-label="awn-id записи"
+                            spellcheck="false"
+                            autocomplete="off"
+                          />
+                        </div>
+                        <div class="slug-input-row slug-input-row--badged title-slug-input-row">
                           <span class="slug-input-badge" aria-hidden="true">slug:</span>
                           <input
                             id="title-slug-input"
