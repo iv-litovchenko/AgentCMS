@@ -251,6 +251,7 @@ const {
   readWorkspaceLayerAwnSchema,
   readNodeHasOwnSchemaLayer,
   topicSchemaHasFields,
+  resolveSchemaModStatusForManifest,
   composeSectionConfigurationSchemaYaml,
   extractAwnSchemaFromConfigurationSchemaContent,
   SCHEMA_MOD_FILE,
@@ -1990,6 +1991,7 @@ function countEnvFileValues(content) {
 
 async function buildProjectSettingsScopeStatus(manifestPaths = []) {
   const { flattenAwnSettingsValues } = require("./workspace-agent-settings");
+  const agentRoot = getAgentRoot();
   const unique = [
     ...new Set(
       (Array.isArray(manifestPaths) ? manifestPaths : [])
@@ -2010,7 +2012,11 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
         envPath: "",
         envExists: false,
         envValueCount: 0,
-        envHasValues: false
+        envHasValues: false,
+        schemaPath: "",
+        schemaExists: false,
+        schemaFieldCount: 0,
+        hasLocalSchema: false
       });
       continue;
     }
@@ -2041,6 +2047,8 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
       }
     }
 
+    const schemaStatus = resolveSchemaModStatusForManifest(manifestCtx.rel, agentRoot);
+
     items.push({
       path: manifestCtx.rel,
       configPath: configFile.path || "",
@@ -2050,7 +2058,11 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
       envPath: envRelPath,
       envExists,
       envValueCount,
-      envHasValues: envValueCount > 0
+      envHasValues: envValueCount > 0,
+      schemaPath: schemaStatus.schemaPath,
+      schemaExists: schemaStatus.schemaExists,
+      schemaFieldCount: schemaStatus.schemaFieldCount,
+      hasLocalSchema: schemaStatus.hasLocalSchema
     });
   }
 
@@ -2271,6 +2283,15 @@ async function resolveHistoryTargetRelPath({ manifestRelPath, mode, file, system
     return normalizeHistoryTargetRelPath(
       await resolveExternalFileWorkspaceRel(resolvedManifest, normalizedFile)
     );
+  }
+  if (mode === "container" && file) {
+    const containerDir = getManifestContainerDirRel(resolvedManifest);
+    const relFile = String(file || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
+    if (!relFile) return null;
+    if (!containerDir) return normalizeHistoryTargetRelPath(relFile);
+    return normalizeHistoryTargetRelPath(`${containerDir}/${relFile}`);
   }
   if (mode === "media" && file) {
     return normalizeHistoryTargetRelPath(await resolveMediaSidecarWorkspaceRel(resolvedManifest, file));
@@ -11058,12 +11079,15 @@ function mapItemsToContentIndexEntries(items = []) {
         String(item.description || "").trim() ||
         (item.parentRecordRef ? `Доп. материалы записи ${item.parentRecordRef}` : "");
       const workspacePath = String(item.workspacePath || "").replace(/\\/g, "/").trim();
+      const properties = item?.properties && typeof item.properties === "object" ? item.properties : {};
+      const awnId = parseAwnId(properties["awn-id"]) || null;
       return {
         path: ref,
         linkPath: workspacePath || ref,
         type: resolveContentIndexEntryType(item),
         title,
-        description
+        description,
+        awnId
       };
     })
     .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
@@ -11091,6 +11115,8 @@ function pageMapRowToWorkspaceIndexEntry(page) {
       ? stripAgentContentPrefixFromRelPath(manifestPath) || manifestPath
       : stripAgentContentPrefixFromRelPath(manifestPath) || manifestPath;
   const slotsMode = resolveWorkspaceTopicSlotsModeLabel(page);
+  const properties = page?.properties && typeof page.properties === "object" ? page.properties : {};
+  const awnId = parseAwnId(properties["awn-id"]) || null;
   return {
     path: String(path || "").trim(),
     linkPath: manifestPath,
@@ -11098,7 +11124,8 @@ function pageMapRowToWorkspaceIndexEntry(page) {
     title: String(page?.title || "").trim(),
     description: String(page?.description || "").trim(),
     slotsMode,
-    slotsFlexible: Boolean(page?.slotsFlexible)
+    slotsFlexible: Boolean(page?.slotsFlexible),
+    awnId
   };
 }
 
@@ -11110,7 +11137,10 @@ function mapPageMapToWorkspaceIndexEntries(pages = []) {
 }
 
 async function buildWorkspacePageIndexMarkdown({ pages }) {
-  const entries = await enrichContentIndexEntriesWithFileStats(mapPageMapToWorkspaceIndexEntries(pages));
+  const entries = await enrichWorkspaceIndexEntries(
+    await enrichContentIndexEntriesWithFileStats(mapPageMapToWorkspaceIndexEntries(pages)),
+    pages
+  );
   const lines = ["# Оглавление workspace", ""];
   lines.push(
     formatContentIndexEntriesMarkdown(entries, {
@@ -11125,8 +11155,9 @@ async function buildAgentWorkspacePageIndex() {
   const pageMap = await buildAgentPageMap({ includeSlots: false });
   const indexPath = getWorkspacePageIndexRelPath();
   const indexExists = await workspaceRelFileExists(indexPath);
-  const entries = await enrichContentIndexEntriesWithFileStats(
-    mapPageMapToWorkspaceIndexEntries(pageMap.pages)
+  const entries = await enrichWorkspaceIndexEntries(
+    await enrichContentIndexEntriesWithFileStats(mapPageMapToWorkspaceIndexEntries(pageMap.pages)),
+    pageMap.pages
   );
   const manifestPath = await resolveWorkspacePageIndexManifestRel();
 
@@ -11134,13 +11165,13 @@ async function buildAgentWorkspacePageIndex() {
     version: 1,
     model: "workspace-page-index",
     hint:
-      "Оглавление страниц workspace (path, type, slotsMode, title, description, размер, строки) без body и properties. " +
-      "Для тем slotsMode: гибкий (awn-slots-flexible) или типовые. Для полной карты → get_page_map.",
+      "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, конфигурации, размер, строки) без body. " +
+      "Конфигурации: Схемы (schema-mod.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Для полной карты → get_page_map.",
     whenToUse: {
       get_workspace_page_index:
         "Быстрый обзор всех страниц workspace без погружения в каждую тему.",
       refresh_workspace_page_index:
-        "Обновить (пересобрать и сохранить) INDEX.md в корне workspace (таблица path/type/title/description)."
+        "Обновить (пересобрать и сохранить) INDEX.md в корне workspace (таблица awn-id/type/path/title/комментарии/конфигурации)."
     },
     path: manifestPath,
     indexFile: {
@@ -11546,6 +11577,92 @@ async function enrichContentIndexEntriesWithFileStats(entries = []) {
   );
 }
 
+function formatIndexConfigurationsLabel(scope = {}) {
+  const parts = [];
+  if (scope.hasLocalSchema) parts.push("Схемы");
+  if (scope.hasLocalValues) parts.push("Настройки");
+  if (scope.envHasValues) parts.push(".env");
+  return parts.join(", ");
+}
+
+function formatContentIndexAwnIdCell(awnId) {
+  const parsed = parseAwnId(awnId);
+  return parsed ? String(parsed) : "—";
+}
+
+function formatContentIndexCommentCountCell(count) {
+  if (count === null || count === undefined) return "—";
+  return String(Math.max(0, Number(count) || 0));
+}
+
+async function countCommentsForContentIndexEntry(manifestRelPath, entry) {
+  const path = String(entry?.path || "").replace(/\\/g, "/").trim();
+  if (!path || !manifestRelPath) return 0;
+  const slash = path.indexOf("/");
+  const file = slash >= 0 ? path.slice(slash + 1) : path;
+  if (!file) return 0;
+  try {
+    const { comments } = await listFileComments({ manifestRelPath, mode: "external", file });
+    return comments.length;
+  } catch {
+    return 0;
+  }
+}
+
+async function enrichContentIndexEntriesWithMeta(entries = [], manifestRelPath = "") {
+  if (!manifestRelPath) return entries;
+  return Promise.all(
+    (entries || []).map(async (entry) => {
+      const awnId = entry.awnId ?? null;
+      const commentCount =
+        entry.commentCount ?? (await countCommentsForContentIndexEntry(manifestRelPath, entry));
+      return { ...entry, awnId, commentCount };
+    })
+  );
+}
+
+async function enrichWorkspaceIndexEntries(entries = [], pages = []) {
+  const pageByLink = new Map();
+  for (const page of pages || []) {
+    const manifestPath = String(page?.path || "").replace(/\\/g, "/");
+    if (manifestPath) pageByLink.set(manifestPath, page);
+  }
+
+  const manifestPaths = (entries || [])
+    .map((entry) => String(entry.linkPath || "").replace(/\\/g, "/"))
+    .filter((linkPath) => {
+      const page = pageByLink.get(linkPath);
+      return page && page.hasManifest !== false && page.kind !== "folder";
+    });
+
+  const scopeStatus = await buildProjectSettingsScopeStatus(manifestPaths);
+  const scopeByPath = new Map(scopeStatus.items.map((item) => [item.path, item]));
+
+  return Promise.all(
+    (entries || []).map(async (entry) => {
+      const linkPath = String(entry.linkPath || "").replace(/\\/g, "/");
+      const page = pageByLink.get(linkPath);
+      const props = page?.properties && typeof page.properties === "object" ? page.properties : {};
+      const awnId = entry.awnId ?? parseAwnId(props["awn-id"]) ?? null;
+
+      let commentCount = 0;
+      if (page?.hasManifest !== false && page?.kind !== "folder" && linkPath) {
+        try {
+          const { comments } = await listFileComments({ manifestRelPath: linkPath, mode: "description" });
+          commentCount = comments.length;
+        } catch {
+          commentCount = 0;
+        }
+      }
+
+      const scope = scopeByPath.get(linkPath);
+      const configurations = scope ? formatIndexConfigurationsLabel(scope) : "";
+
+      return { ...entry, awnId, commentCount, configurations };
+    })
+  );
+}
+
 async function enrichBundleSlotIndexRowsWithFileStats(rows = []) {
   return Promise.all(
     (rows || []).map(async (row) => {
@@ -11579,26 +11696,44 @@ function formatContentIndexEntriesMarkdown(
   const includeSlotsMode = tableVariant === "workspace";
   const includeSlotLabel = tableVariant === "topic-content";
   const header = includeSlotsMode
-    ? "| Тип | Слоты | Путь | Название | Описание | Размер | Строк |"
+    ? "| awn-id | Тип | Слоты | Путь | Название | Описание | Комментарии | Конфигурации | Размер | Строк |"
     : includeSlotLabel
-      ? "| Слот | Тип | Путь | Название | Описание | Размер | Строк |"
-      : "| Тип | Путь | Название | Описание | Размер | Строк |";
+      ? "| id | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |"
+      : "| id | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |";
   const divider = includeSlotsMode
-    ? "| --- | --- | --- | --- | --- | ---: | ---: |"
+    ? "| ---: | --- | --- | --- | --- | --- | ---: | --- | ---: | ---: |"
     : includeSlotLabel
-      ? "| --- | --- | --- | --- | --- | ---: | ---: |"
-      : "| --- | --- | --- | --- | ---: | ---: |";
+      ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: |"
+      : "| ---: | --- | --- | --- | --- | ---: | ---: | ---: |";
   const lines = [header, divider];
   for (const entry of entries) {
     const slotModeCell = escapeContentIndexTableCell(entry.slotsMode) || "—";
     const slotLabelCell = escapeContentIndexTableCell(entry.slotLabel) || "—";
-    const rowPrefix = includeSlotsMode
-      ? `${escapeContentIndexTableCell(entry.type) || "—"} | ${slotModeCell} |`
-      : includeSlotLabel
-        ? `${slotLabelCell} | ${escapeContentIndexTableCell(entry.type) || "—"} |`
-        : `${escapeContentIndexTableCell(entry.type) || "—"} |`;
+    const pathCell = `\`${escapeContentIndexTableCell(entry.path)}\``;
+    const titleCell = formatContentIndexTitleCell(entry, { linkTitle });
+    const descriptionCell = escapeContentIndexTableCell(entry.description) || "—";
+    const sizeCell = formatContentIndexFileSize(entry.sizeBytes);
+    const linesCell = formatContentIndexLineCount(entry.lineCount);
+    const idCell = formatContentIndexAwnIdCell(entry.awnId);
+    const commentsCell = formatContentIndexCommentCountCell(entry.commentCount);
+
+    if (includeSlotsMode) {
+      const configurationsCell = escapeContentIndexTableCell(entry.configurations) || "—";
+      lines.push(
+        `| ${idCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${slotModeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${commentsCell} | ${configurationsCell} | ${sizeCell} | ${linesCell} |`
+      );
+      continue;
+    }
+
+    if (includeSlotLabel) {
+      lines.push(
+        `| ${idCell} | ${slotLabelCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} |`
+      );
+      continue;
+    }
+
     lines.push(
-      `${rowPrefix} \`${escapeContentIndexTableCell(entry.path)}\` | ${formatContentIndexTitleCell(entry, { linkTitle })} | ${escapeContentIndexTableCell(entry.description) || "—"} | ${formatContentIndexFileSize(entry.sizeBytes)} | ${formatContentIndexLineCount(entry.lineCount)} |`
+      `| ${idCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} |`
     );
   }
   return lines.join("\n");
@@ -11702,9 +11837,14 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
   const liteModeTopicIndex =
     scope === "topic" && !options.slot && slotsDisabled;
   const liteEntries = liteModeTopicIndex
-    ? (await enrichContentIndexEntriesWithFileStats(
-        mapItemsToContentIndexEntries(await buildLiteTopicContainerMapItems(mapPayload.path))
-      )).map((entry) => ({ ...entry, slotLabel: "гибкий" }))
+    ? (
+        await enrichContentIndexEntriesWithMeta(
+          await enrichContentIndexEntriesWithFileStats(
+            mapItemsToContentIndexEntries(await buildLiteTopicContainerMapItems(mapPayload.path))
+          ),
+          mapPayload.path
+        )
+      ).map((entry) => ({ ...entry, slotLabel: "гибкий" }))
     : [];
 
   const slots = [];
@@ -11712,8 +11852,9 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     for (const slotRow of mapPayload.slots || []) {
       if (CONTENT_MAP_DEDICATED_SLOTS.has(slotRow.slot)) continue;
       if (!options.slot && !isTopicWideContentIndexSlotRow(slotRow)) continue;
-      const entries = await enrichContentIndexEntriesWithFileStats(
-        mapItemsToContentIndexEntries(slotRow.items)
+      const entries = await enrichContentIndexEntriesWithMeta(
+        await enrichContentIndexEntriesWithFileStats(mapItemsToContentIndexEntries(slotRow.items)),
+        mapPayload.path
       );
       const storageFolder = slotKeyToStorageFolder(slotRow.slot);
       const slotIndexPath = getSlotStorageIndexRelPath(
@@ -11754,16 +11895,16 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     version: 1,
     model: "content-index",
     hint:
-      "Быстрое оглавление (path, type, title, description, размер, строки) без body и без properties. " +
+      "Быстрое оглавление (id, path, type, title, description, размер, строки, комментарии) без body. " +
       "При awn-slots-flexible — многофайловая часть из awn-storage/ темы (path-based FS). " +
       "В конце — однофайловые слоты (файл, заполнено/не заполнено). " +
       "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
       "Общий index.md темы — рядом с manifest.md.",
     whenToUse: {
       get_content_index:
-        "Быстрый обзор темы/слота без погружения: оглавление как index.md (путь, тип, название, описание).",
+        "Быстрый обзор темы/слота без погружения: оглавление как index.md (id, путь, тип, название, комментарии).",
       refresh_content_index:
-        "Обновить index.md на диске (таблица path/type/title/description). Сначала get_content_index для preview.",
+        "Обновить index.md на диске (таблица id/path/type/title/комментарии). Сначала get_content_index для preview.",
       get_content_map:
         "Планирование правок: все meta по слотам (properties, tags, status), но без body.",
       read_content_body: "Когда нужен полный текст одной записи."
@@ -12247,11 +12388,11 @@ const SESSION_CONTEXT_API_MAP = {
     "GET /api/agent/page-map?includeSlots=true — карта workspace: manifest-узлы + папки без manifest (kind:folder)",
   contentMap: "GET /api/agent/content-map?path=<manifest.md>&slot= — карта контента страницы (meta, без body)",
   contentIndex:
-    "GET /api/agent/content-index?path=<manifest.md>&slot= — оглавление index.md (path, type, title, description; без body/properties)",
+    "GET /api/agent/content-index?path=<manifest.md>&slot= — оглавление index.md (id, path, type, title, комментарии; без body)",
   contentIndexWrite:
     "POST /api/agent/content-index — обновить index.md (body: path, slot?, overwrite?)",
   workspacePageIndex:
-    "GET /api/agent/workspace-page-index — оглавление INDEX.md (path, type, title, description; страницы workspace)",
+    "GET /api/agent/workspace-page-index — оглавление INDEX.md (awn-id, path, type, комментарии, конфигурации; страницы workspace)",
   workspacePageIndexWrite:
     "POST /api/agent/workspace-page-index — обновить INDEX.md в корне workspace (body: overwrite?)",
   awnDataIndex:

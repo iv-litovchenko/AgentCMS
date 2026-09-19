@@ -30,13 +30,13 @@ awn-mindmap-size: auto
 awn-mindmap-layout-independent: false
 awn-mindmap-direction: auto
 awn-attachments: []
-awn-description: "Объект без awn-*-свойств = просто документ, не инфobлок и не запись."
+awn-description: ""
 awn-name: MCP-инструмент и кнопка - регистрация md-файла
 awn-preview: ""
 awn-sort: 
 awn-web-url: ""
-awn-update: 2026-09-19T07:07:30.857Z
-awn-version: 3
+awn-update: 2026-09-18T16:04:08.362Z
+awn-version: 2
 ---
 
 

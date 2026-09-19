@@ -397,6 +397,50 @@ function readNodeHasOwnSchemaLayer(manifestRel, agentRoot, configContent = "") {
   return topicSchemaHasFields(readNodeOnlyAwnSchema(manifestRel, agentRoot, configContent));
 }
 
+function countAwnSchemaFields(awnSchema) {
+  const normalized = normalizeAwnSchema(awnSchema);
+  let count = 0;
+  for (const target of AWN_SCHEMA_TARGETS) {
+    count += Object.keys(normalized[target]?.fields || {}).length;
+  }
+  return count;
+}
+
+function resolveSchemaModStatusForManifest(manifestRel, agentRoot) {
+  const normalized = String(manifestRel || "").replace(/\\/g, "/").trim();
+  const agentRootAbs = resolveAgentRootAbsolute(agentRoot);
+  if (!agentRootAbs || !normalized) {
+    return {
+      schemaPath: "",
+      schemaExists: false,
+      schemaFieldCount: 0,
+      hasLocalSchema: false
+    };
+  }
+
+  const containerDir = getManifestContainerDirRel(normalized);
+  for (const rel of listSchemaModRelCandidates(containerDir || "")) {
+    const absolute = resolveConfigurationSchemaAbsolute(agentRootAbs, rel);
+    if (!absolute || !fs.existsSync(absolute)) continue;
+    const schema = extractAwnSchemaFromConfigurationSchemaContent(readTextFile(absolute));
+    const schemaFieldCount = countAwnSchemaFields(schema);
+    return {
+      schemaPath: rel.replace(/\\/g, "/"),
+      schemaExists: true,
+      schemaFieldCount,
+      hasLocalSchema: schemaFieldCount > 0
+    };
+  }
+
+  const fallbackPath = toTopicConfigurationSchemaRel(normalized) || WORKSPACE_CONFIGURATION_SCHEMA_REL;
+  return {
+    schemaPath: fallbackPath,
+    schemaExists: false,
+    schemaFieldCount: 0,
+    hasLocalSchema: false
+  };
+}
+
 module.exports = {
   SCHEMA_MOD_FILE,
   LEGACY_SCHEME_MOD_FILE,
@@ -422,6 +466,8 @@ module.exports = {
   readNodeOnlyAwnSchema,
   resolveAreaManifestRelForNode,
   topicSchemaHasFields,
+  countAwnSchemaFields,
+  resolveSchemaModStatusForManifest,
   getEffectiveTopicSchemaPayload,
   getWorkspaceSchemaPayloadFull,
   compactAwnSchema,

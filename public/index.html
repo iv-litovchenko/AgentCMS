@@ -3947,6 +3947,25 @@
             <div class="project-settings-layout">
               <aside class="project-settings-sidebar" aria-label="Настройки и параметры">
                 <p class="project-settings-sidebar-title">Настройки и параметры</p>
+                <div class="menu-search-wrap project-settings-search-wrap">
+                  <label class="menu-search-bar" for="project-settings-scope-search-input">
+                    <span class="menu-search-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <path d="M20 20l-3.5-3.5"></path>
+                      </svg>
+                    </span>
+                    <input
+                      id="project-settings-scope-search-input"
+                      class="menu-search-input"
+                      type="search"
+                      placeholder="Поиск workspace, областей и тем..."
+                      autocomplete="off"
+                      spellcheck="false"
+                      aria-label="Поиск workspace, областей и тем"
+                    />
+                  </label>
+                </div>
                 <nav id="project-settings-scope-list" class="project-settings-scope-list" role="tablist"></nav>
               </aside>
               <div class="project-settings-main">
