@@ -92969,7 +92969,13 @@ async function renderAgentBrokenLinksView() {
 
 const WORKSPACE_MODULES_CATALOG = [
   { id: "module-git", label: "Git-репозиторий", view: "git", mcp: "—", status: "active" },
-  { id: "module-journal", label: "Журнал", view: "journal", mcp: "append_journal_entry, list_journal_entries", status: "active" },
+  {
+    id: "module-journal",
+    label: "Журнал",
+    view: "journal",
+    mcp: "append_journal_entry, list_journal_entries, list_workspace_notifications",
+    status: "active"
+  },
   { id: "module-settings", label: "Настройки проекта", view: "project-settings", mcp: "—", status: "active" },
   { id: "module-awn-types", label: "Типы YAML", view: "awn-types", mcp: "list_types, get_type", status: "active" },
   {

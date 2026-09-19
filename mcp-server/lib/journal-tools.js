@@ -45,4 +45,20 @@ export function registerJournalTools(reg, client) {
         ...(limit ? { limit } : {})
       })
   );
+
+  reg(
+    "list_workspace_notifications",
+    "Notification bell feed — journal entries in UI notification format (same as GET /api/agent/workspace-notifications). Use since for incremental poll.",
+    z.object({
+      since: z.number().int().min(0).optional().describe("Return events with id greater than since (0 = latest batch)"),
+      limit: z.number().int().min(1).max(100).optional().describe("Max events (default 50, max 100)"),
+      notifyOnly: z.boolean().optional().describe("Only entries with notify: true (default false)")
+    }),
+    ({ since, limit, notifyOnly }) =>
+      client.get("/api/agent/workspace-notifications", {
+        ...(since != null ? { since } : {}),
+        ...(limit != null ? { limit } : {}),
+        ...(notifyOnly ? { notifyOnly: "true" } : {})
+      })
+  );
 }

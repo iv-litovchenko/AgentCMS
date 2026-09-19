@@ -848,11 +848,12 @@ UI: sidebar → **🧠 Банк фактов** (под «Диалоги с ИИ�
 |------|-------|
 | `append_journal_entry` | **Добавить** запись (type: life/action/ui/system) |
 | `list_journal_entries` | Список по теме (`topic=manifest.md`) |
+| `list_workspace_notifications` | Лента 🔔 — те же записи журнала в формате уведомлений (`since`, `limit`, `notifyOnly`) |
 
 Хранение: один файл на ISO-неделю (`2026-W38.md`). Индексируется (fulltext + semantic).  
-`notify: true` → запись попадает в 🔔 (колокольчик читает тот же журнал).  
+`notify: true` → запись попадает в 🔔 (колокольчик и `list_workspace_notifications` читают тот же журнал).  
 UI: раздел **Журнал** в теме; иконка 📓 в sidebar stats.  
-API колокольчика: `GET /api/agent/workspace-notifications` (не `activity.jsonl`).
+HTTP: `GET /api/agent/workspace-notifications` (не `activity.jsonl`).
 
 ### Временные файлы (`awn-temp/`) и корзина (`awn-recycle/`)
 
