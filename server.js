@@ -1584,6 +1584,7 @@ function getStorageIndexService() {
   if (!storageIndexService) {
     storageIndexService = createStorageIndexService({
       getAgentRoot,
+      getProjectRoot,
       collectSearchableFiles,
       resolvePathAbsolute: normalizeWorkspacePath
     });

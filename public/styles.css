@@ -59713,10 +59713,36 @@ body.is-cms-page-picker-active #discuss-aside * {
   vertical-align: top;
 }
 
-.workspace-index-catalog-fields th {
-  width: 28%;
+.workspace-index-catalog-fields thead th {
+  color: #475569;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.workspace-index-catalog-fields tbody th {
+  width: 18%;
   color: #64748b;
   font-weight: 600;
+}
+
+.workspace-index-catalog-field-type {
+  width: 12%;
+  color: #0f766e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.workspace-index-catalog-field-title {
+  width: 28%;
+  color: #334155;
+}
+
+.workspace-index-catalog-context {
+  margin-left: 8px;
+  font-size: 11px;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .workspace-index-catalog-empty {

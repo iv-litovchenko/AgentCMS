@@ -1,6 +1,8 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { extractFrontmatter } = require("./frontmatter");
+const { getRecordFieldValue } = require("./field-utils");
+const { buildSchemaRegistry, createSchemaResolver, fieldCatalogMetaToArray } = require("./schema-enrichment");
 const {
   startWorkspaceIndexProgress,
   tickWorkspaceIndexProgress,
@@ -29,7 +31,7 @@ function recordMatchesFilters(record, filters = []) {
   for (const filter of filters) {
     const field = String(filter.field || "").trim();
     if (!field) continue;
-    const value = record.fields?.[field];
+    const value = getRecordFieldValue(record, field);
     if (value == null || value === "") {
       if (filter.exists === false) continue;
       return false;
@@ -47,16 +49,19 @@ function recordMatchesFilters(record, filters = []) {
 }
 
 function createStorageIndexService(deps) {
-  const { getAgentRoot, collectSearchableFiles, resolvePathAbsolute } = deps;
+  const { getAgentRoot, getProjectRoot, collectSearchableFiles, resolvePathAbsolute } = deps;
   const rebuildLocks = new Map();
 
-  async function collectRecords(agentRoot, { reportProgress = false } = {}) {
+  async function collectRecords(agentRoot, projectRoot, { reportProgress = false } = {}) {
     const relFiles = await collectSearchableFiles(agentRoot);
     const eligible = relFiles.filter((relPath) => isIndexableTextFile(path.basename(relPath)));
 
     if (reportProgress) {
       startWorkspaceIndexProgress(agentRoot, "storage", eligible.length);
     }
+
+    const registry = await buildSchemaRegistry({ agentRoot, projectRoot, relFiles });
+    const resolver = createSchemaResolver({ agentRoot, projectRoot, registry });
 
     const records = [];
     const fieldSet = new Set();
@@ -75,16 +80,28 @@ function createStorageIndexService(deps) {
       } catch {
         continue;
       }
-      const fields = extractFrontmatter(content);
-      if (!Object.keys(fields).length) continue;
+      const flatFields = extractFrontmatter(content);
+      if (!Object.keys(flatFields).length) continue;
+
+      const schemaCtx = await resolver.resolveMergedFieldsForPath(relPath);
+      if (schemaCtx) schemaCtx.samplePath = relPath.replace(/\\/g, "/");
+      const fields = resolver.enrichFlatFields(flatFields, schemaCtx);
+
       for (const key of Object.keys(fields)) fieldSet.add(key);
       records.push({
         path: relPath.replace(/\\/g, "/"),
+        schemaContext: schemaCtx?.schemaContext || null,
+        schemaTarget: schemaCtx?.schemaTarget || null,
+        manifestRel: schemaCtx?.manifestRel || null,
         fields
       });
     }
 
-    return { records, fieldCatalog: Array.from(fieldSet).sort((a, b) => a.localeCompare(b, "ru")) };
+    return {
+      records,
+      fieldCatalog: Array.from(fieldSet).sort((a, b) => a.localeCompare(b, "ru")),
+      fieldCatalogMeta: fieldCatalogMetaToArray(registry.fieldCatalogMeta)
+    };
   }
 
   function rebuildFieldCatalog(records) {
@@ -95,9 +112,26 @@ function createStorageIndexService(deps) {
     return Array.from(fieldSet).sort((a, b) => a.localeCompare(b, "ru"));
   }
 
+  async function enrichSingleRecord(agentRoot, projectRoot, relPath, flatFields) {
+    const resolver = createSchemaResolver({
+      agentRoot,
+      projectRoot,
+      registry: { fieldCatalogMeta: new Map() }
+    });
+    const schemaCtx = await resolver.resolveMergedFieldsForPath(relPath);
+    if (schemaCtx) schemaCtx.samplePath = relPath.replace(/\\/g, "/");
+    return {
+      fields: resolver.enrichFlatFields(flatFields, schemaCtx),
+      schemaContext: schemaCtx?.schemaContext || null,
+      schemaTarget: schemaCtx?.schemaTarget || null,
+      manifestRel: schemaCtx?.manifestRel || null
+    };
+  }
+
   async function updateFile(relPath) {
     const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
     const agentRoot = getAgentRoot();
+    const projectRoot = typeof getProjectRoot === "function" ? getProjectRoot() : "";
     if (!agentRoot) throw new Error("Agent not selected");
     if (!normalized) throw new Error("Path is required");
 
@@ -117,9 +151,16 @@ function createStorageIndexService(deps) {
         } catch {
           content = "";
         }
-        const fields = extractFrontmatter(content);
-        if (Object.keys(fields).length) {
-          index.records.push({ path: normalized, fields });
+        const flatFields = extractFrontmatter(content);
+        if (Object.keys(flatFields).length) {
+          const enriched = await enrichSingleRecord(agentRoot, projectRoot, normalized, flatFields);
+          index.records.push({
+            path: normalized,
+            schemaContext: enriched.schemaContext,
+            schemaTarget: enriched.schemaTarget,
+            manifestRel: enriched.manifestRel,
+            fields: enriched.fields
+          });
         }
       }
     }
@@ -142,6 +183,7 @@ function createStorageIndexService(deps) {
 
   async function rebuildIndex({ agentId = "" } = {}) {
     const agentRoot = getAgentRoot();
+    const projectRoot = typeof getProjectRoot === "function" ? getProjectRoot() : "";
     if (!agentRoot) throw new Error("Agent not selected");
 
     const lockKey = agentRoot;
@@ -151,16 +193,18 @@ function createStorageIndexService(deps) {
       const started = Date.now();
       let records = [];
       let fieldCatalog = [];
+      let fieldCatalogMeta = [];
       try {
-        const collected = await collectRecords(agentRoot, { reportProgress: true });
+        const collected = await collectRecords(agentRoot, projectRoot, { reportProgress: true });
         records = collected.records;
         fieldCatalog = collected.fieldCatalog;
+        fieldCatalogMeta = collected.fieldCatalogMeta;
       } finally {
         finishWorkspaceIndexProgress(agentRoot);
       }
       const index = {
-        version: 1,
-        model: "workspace-field-index-v1",
+        version: 2,
+        model: "workspace-field-index-v2",
         offline: true,
         scope: "workspace",
         builtAt: new Date().toISOString(),
@@ -169,6 +213,7 @@ function createStorageIndexService(deps) {
         recordCount: records.length,
         fieldCount: fieldCatalog.length,
         fieldCatalog,
+        fieldCatalogMeta,
         records
       };
       await saveIndex(agentRoot, index);
@@ -198,7 +243,7 @@ function createStorageIndexService(deps) {
     if (!index) {
       return {
         ready: false,
-        model: "workspace-field-index-v1",
+        model: "workspace-field-index-v2",
         scope: "workspace",
         offline: true,
         recordCount: 0,
@@ -216,7 +261,8 @@ function createStorageIndexService(deps) {
       lastRebuildMs: index.lastRebuildMs ?? null,
       recordCount: index.recordCount,
       fieldCount: index.fieldCount,
-      fieldCatalog: index.fieldCatalog?.slice(0, 40) || []
+      fieldCatalog: index.fieldCatalog?.slice(0, 40) || [],
+      fieldCatalogMeta: index.fieldCatalogMeta?.slice(0, 20) || []
     };
   }
 
@@ -247,7 +293,9 @@ function createStorageIndexService(deps) {
 
     if (sort?.field) {
       const dir = sort.dir === "asc" ? 1 : -1;
-      rows = rows.slice().sort((a, b) => dir * compareValues(a.fields?.[sort.field], b.fields?.[sort.field]));
+      rows = rows.slice().sort(
+        (a, b) => dir * compareValues(getRecordFieldValue(a, sort.field), getRecordFieldValue(b, sort.field))
+      );
     }
 
     const total = rows.length;
@@ -256,9 +304,16 @@ function createStorageIndexService(deps) {
       const fields = {};
       for (const key of select) {
         if (key === "path") continue;
-        if (record.fields?.[key] != null) fields[key] = record.fields[key];
+        const value = getRecordFieldValue(record, key);
+        if (value != null) {
+          const entry = record.fields?.[key];
+          fields[key] =
+            entry != null && typeof entry === "object" && "value" in entry
+              ? { ...entry, value }
+              : value;
+        }
       }
-      return { path: record.path, fields };
+      return { path: record.path, schemaContext: record.schemaContext || null, fields };
     });
 
     return {
@@ -268,6 +323,7 @@ function createStorageIndexService(deps) {
       builtAt: index.builtAt,
       pathPrefix: pathPrefix || null,
       fieldCatalog: index.fieldCatalog,
+      fieldCatalogMeta: index.fieldCatalogMeta || [],
       results: rows,
       total
     };
@@ -288,6 +344,7 @@ function createStorageIndexService(deps) {
         limit,
         items: [],
         fieldCatalog: [],
+        fieldCatalogMeta: [],
         hint: "Каталог полей не построен"
       };
     }
@@ -304,10 +361,17 @@ function createStorageIndexService(deps) {
     if (needle) {
       rows = rows.filter((row) => {
         if (row.path.toLowerCase().includes(needle)) return true;
-        return Object.entries(row.fields || {}).some(
-          ([key, value]) =>
-            key.toLowerCase().includes(needle) || String(value).toLowerCase().includes(needle)
-        );
+        return Object.entries(row.fields || {}).some(([key, entry]) => {
+          const value = getRecordFieldValue({ fields: { [key]: entry } }, key);
+          const title = entry && typeof entry === "object" ? entry.title : "";
+          const type = entry && typeof entry === "object" ? entry.type : "";
+          return (
+            key.toLowerCase().includes(needle) ||
+            String(value).toLowerCase().includes(needle) ||
+            String(title || "").toLowerCase().includes(needle) ||
+            String(type || "").toLowerCase().includes(needle)
+          );
+        });
       });
     }
 
@@ -316,6 +380,9 @@ function createStorageIndexService(deps) {
     const take = Math.min(Math.max(Number(limit) || 40, 1), 200);
     const items = rows.slice(start, start + take).map((row) => ({
       path: row.path,
+      schemaContext: row.schemaContext || null,
+      schemaTarget: row.schemaTarget || null,
+      manifestRel: row.manifestRel || null,
       fields: row.fields
     }));
 
@@ -328,6 +395,7 @@ function createStorageIndexService(deps) {
       recordCount: index.recordCount,
       fieldCount: index.fieldCount,
       fieldCatalog: index.fieldCatalog || [],
+      fieldCatalogMeta: index.fieldCatalogMeta || [],
       total,
       offset: start,
       limit: take,

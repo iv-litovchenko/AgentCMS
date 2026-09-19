@@ -496,21 +496,61 @@
       .join("");
   }
 
+  function formatCatalogFieldEntry(entry) {
+    if (entry != null && typeof entry === "object" && !Array.isArray(entry) && "value" in entry) {
+      return {
+        value: entry.value,
+        type: entry.type || "—",
+        title: entry.title || "—"
+      };
+    }
+    return {
+      value: entry,
+      type: "—",
+      title: "—"
+    };
+  }
+
   function renderFieldItems(items) {
     if (!items.length) {
       return '<p class="workspace-index-catalog-empty">Нет записей по текущему фильтру.</p>';
     }
     return items
       .map((item) => {
+        const contextHint = item.schemaContext
+          ? `<span class="workspace-index-catalog-context" title="Контекст схемы">${escapeHtml(item.schemaContext)}</span>`
+          : "";
         const fields = Object.entries(item.fields || {})
-          .map(
-            ([key, value]) =>
-              `<tr><th>${escapeHtml(key)}</th><td>${escapeHtml(typeof value === "object" ? JSON.stringify(value) : value)}</td></tr>`
-          )
+          .map(([key, rawEntry]) => {
+            const entry = formatCatalogFieldEntry(rawEntry);
+            const displayValue =
+              entry.value != null && typeof entry.value === "object"
+                ? JSON.stringify(entry.value)
+                : String(entry.value ?? "");
+            return `<tr>
+              <th>${escapeHtml(key)}</th>
+              <td class="workspace-index-catalog-field-type">${escapeHtml(entry.type)}</td>
+              <td class="workspace-index-catalog-field-title">${escapeHtml(entry.title)}</td>
+              <td>${escapeHtml(displayValue)}</td>
+            </tr>`;
+          })
           .join("");
         return `<article class="workspace-index-catalog-item">
-          <div class="workspace-index-catalog-item-head"><code>${escapeHtml(item.path)}</code></div>
-          <table class="workspace-index-catalog-fields"><tbody>${fields || "<tr><td>—</td></tr>"}</tbody></table>
+          <div class="workspace-index-catalog-item-head">
+            <code>${escapeHtml(item.path)}</code>
+            ${contextHint}
+          </div>
+          <table class="workspace-index-catalog-fields">
+            <thead>
+              <tr>
+                <th>Ключ</th>
+                <th>Тип</th>
+                <th>Описание</th>
+                <th>Значение</th>
+              </tr>
+            </thead>
+            <tbody>${fields || "<tr><td colspan=\"4\">—</td></tr>"}</tbody>
+          </table>
         </article>`;
       })
       .join("");
@@ -569,8 +609,30 @@
     catalogField.value = current;
   }
 
-  function populateFieldSelect(fieldCatalog, selected) {
-    populateCatalogFilterSelect(fieldCatalog, selected, "Все поля");
+  function populateFieldSelect(fieldCatalog, selected, fieldCatalogMeta = []) {
+    if (!catalogField) return;
+    const current = selected || catalogField.value || "";
+    const metaByKey = new Map((fieldCatalogMeta || []).map((item) => [item.key, item]));
+    catalogField.innerHTML = `<option value="">Все поля</option>`;
+    for (const name of fieldCatalog || []) {
+      const option = document.createElement("option");
+      option.value = name;
+      const meta = metaByKey.get(name);
+      const variants = meta?.variants || [];
+      if (variants.length > 1) {
+        option.textContent = `${name} · ${variants.length} контекста`;
+        option.title = variants
+          .map((variant) => `${variant.title || "—"} (${variant.type || "?"}) · ${variant.pathPrefix || variant.manifestRel || ""}`)
+          .join("\n");
+      } else if (variants.length === 1) {
+        option.textContent = variants[0].title ? `${name} · ${variants[0].title}` : name;
+        option.title = `${variants[0].type || "?"} · ${variants[0].pathPrefix || variants[0].manifestRel || ""}`;
+      } else {
+        option.textContent = name;
+      }
+      catalogField.appendChild(option);
+    }
+    catalogField.value = current;
   }
 
   function populateKindSelect(kindCatalog, selected) {
@@ -654,9 +716,9 @@
       } else {
         catalogTitle.textContent = "~show-fields";
         catalogSubtitle.textContent = data.ready
-          ? `${data.recordCount || 0} записей · ${data.fieldCount || 0} полей · SQL-like каталог`
+          ? `${data.recordCount || 0} записей · ${data.fieldCount || 0} полей · schema-aware SQL-like`
           : data.hint || "Каталог не построен";
-        populateFieldSelect(data.fieldCatalog, catalogField?.value);
+        populateFieldSelect(data.fieldCatalog, catalogField?.value, data.fieldCatalogMeta);
         catalogField?.classList.remove("hidden");
         catalogField?.setAttribute("aria-label", "Фильтр по полю");
         const catalogSample = Array.isArray(data.fieldCatalog)
