@@ -4,7 +4,7 @@ kind: type
 domain: pages
 status: active
 extends: awn.page.base
-description: Тема — manifest.md + слоты памяти
+description: Тема — manifest.md (бриф, контекст, инструкция) + слоты памяти
 manifest-pattern: "{slug}/manifest.md"
 
 storage-slots:

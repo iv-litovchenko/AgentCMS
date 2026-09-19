@@ -118,8 +118,10 @@ const repositoryGroupsCloseBtn = document.getElementById("repository-groups-clos
 let awnDataViewRoot = null;
 let awnDataViewIblockLayoutNode = null;
 let awnDataViewIblockDescriptionBlockNode = null;
+let awnDataViewIblockBriefFoldNode = null;
 let awnDataViewIblockDescriptionBodyNode = null;
 let awnDataViewIblockDescriptionNode = null;
+let awnDataViewIblockDescriptionEmptyNode = null;
 let awnDataViewModalTitleNode = null;
 let awnDataViewModalKindNode = null;
 let awnDataViewModalPathNode = null;
@@ -5831,9 +5833,8 @@ function syncNodeDescriptionHintUi() {
     return;
   }
 
-  titleNode.textContent = "Назначение, описание, инструкции, правила, документация, промт, роль";
-  textNode.innerHTML =
-    "Основной текст для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева.";
+  titleNode.textContent = PAGE_BRIEF_HINT_TITLE;
+  textNode.innerHTML = PAGE_BRIEF_HINT_TEXT;
 }
 
 function openSelectedAgentWorkspaceView() {
@@ -14253,7 +14254,7 @@ const NODE_SETTINGS_GROUP = {
   title: "Настройки",
   icon: "⚙️",
   modes: [
-    { id: "description", label: "Инструкция для агента" },
+    { id: "description", label: "Бриф, контекст и инструкция" },
     { id: "topic-schema", label: getTopicSchemaModeDisplayLabel() },
     { id: "configs", label: "Настройки" },
     { id: "env", label: ".env" }
@@ -14654,7 +14655,11 @@ const OVERVIEW_SETTINGS_PROPS_ACCORDION_GROUP_ID = "settings-props";
 const OVERVIEW_AGENT_INSTRUCTION_ACCORDION_GROUP_ID = "agent-instruction";
 const OVERVIEW_TYPES_ACCORDION_GROUP_ID = "types-registry";
 const OVERVIEW_FOUNDATION_ACCORDION_GROUP_ID = "foundation-types";
-const AGENT_INSTRUCTION_ACCORDION_TITLE = "Контекст и инструкция для агента";
+const AGENT_INSTRUCTION_ACCORDION_TITLE = "Бриф, контекст, инструкция и договоренности с агентом";
+const IBLOCK_INSTRUCTION_ACCORDION_TITLE = AGENT_INSTRUCTION_ACCORDION_TITLE;
+const PAGE_BRIEF_HINT_TITLE = "Бриф, контекст, инструкция и договорённости";
+const PAGE_BRIEF_HINT_TEXT =
+  "Назначение, описание, инструкции, правила, документация, промпт, роль — как работать с этой темой. Основной текст для агента в теле <code>manifest.md</code>.";
 const TYPE_CATALOG_OVERVIEW_AGENT_IDS = new Set(["agent-cms-core"]);
 const TYPE_CATALOG_DOMAIN_LABELS = {
   fields: "Поля",
@@ -48725,7 +48730,7 @@ function getDocAsideMiniDocSpec() {
   switch (activeContentMode) {
     case "description":
       return {
-        title: "Инструкция для агента · markdown",
+        title: "Бриф, контекст и инструкция · markdown",
         items: [
           "Картинки в тексте: <code>![alt](awn-storage/assets/pasted/…)</code>",
           "Без пробела между <code>]</code> и <code>(</code>",
@@ -58980,7 +58985,8 @@ function pickLatestIso(...values) {
   return latest;
 }
 
-const AGENT_INSTRUCTION_EMPTY_TEXT = "Контекст и инструкция для агента не определены.";
+const AGENT_INSTRUCTION_EMPTY_TEXT = "Бриф, контекст и инструкция для агента не определены.";
+const IBLOCK_INSTRUCTION_EMPTY_TEXT = AGENT_INSTRUCTION_EMPTY_TEXT;
 
 function extractManifestDisplayBody(raw = "", heroTitle = "") {
   const { body } = splitFrontmatter(raw);
@@ -59095,7 +59101,7 @@ function buildNodeSettingsSlotStatuses({
   const hasTopicSchemaFilled = configHasTopicSchemaFields();
 
   const slots = [
-    { id: "description", label: "Инструкция для агента", filled: hasDescription, modeId: "description" }
+    { id: "description", label: "Бриф, контекст и инструкция", filled: hasDescription, modeId: "description" }
   ];
   if (isTopicSchemaModeAvailable(nodePath)) {
     slots.push({
@@ -74941,6 +74947,8 @@ let agentJournalCanvasStats = null;
 let agentJournalPanelRenderFiltered = null;
 let appFooterJournalOpen = false;
 let appFooterJournalContextCache = null;
+let appFooterJournalContextResolving = false;
+let appFooterJournalLinkUserTouched = false;
 
 const WORKSPACE_JOURNAL_FILTER_OPTIONS_HTML =
   '<option value="all">Все типы</option>' +
@@ -98700,8 +98708,10 @@ function syncAwnDataViewDomRefs(root) {
   if (!root) {
     awnDataViewIblockLayoutNode = null;
     awnDataViewIblockDescriptionBlockNode = null;
+    awnDataViewIblockBriefFoldNode = null;
     awnDataViewIblockDescriptionBodyNode = null;
     awnDataViewIblockDescriptionNode = null;
+    awnDataViewIblockDescriptionEmptyNode = null;
     awnDataViewModalTitleNode = null;
     awnDataViewModalKindNode = null;
     awnDataViewModalPathNode = null;
@@ -98742,8 +98752,12 @@ function syncAwnDataViewDomRefs(root) {
   awnDataViewModalTitleNode = root.querySelector(".awn-data-view-title");
   awnDataViewIblockLayoutNode = root.querySelector(".awn-data-view-iblock-layout");
   awnDataViewIblockDescriptionBlockNode = root.querySelector(".awn-data-view-iblock-description-block");
+  awnDataViewIblockBriefFoldNode = root.querySelector(".awn-data-view-iblock-brief-fold");
   awnDataViewIblockDescriptionBodyNode = root.querySelector(".awn-data-view-iblock-description-body");
   awnDataViewIblockDescriptionNode = root.querySelector(".awn-data-view-iblock-description");
+  awnDataViewIblockDescriptionEmptyNode = root.querySelector(".awn-data-view-iblock-description-empty");
+  const iblockBriefTitleNode = root.querySelector(".awn-data-view-iblock-brief-title");
+  if (iblockBriefTitleNode) iblockBriefTitleNode.textContent = IBLOCK_INSTRUCTION_ACCORDION_TITLE;
   awnDataViewModalKindNode = root.querySelector(".awn-data-view-kind-badge");
   awnDataViewModalPathNode = root.querySelector(".awn-data-view-path");
   awnDataViewManifestNode = root.querySelector(".awn-data-view-manifest");
@@ -98953,22 +98967,35 @@ async function mountAwnDataViewComments(store, record = null) {
 function renderAwnDataIblockDescription(store) {
   const bodyNode = awnDataViewIblockDescriptionBodyNode;
   const descNode = awnDataViewIblockDescriptionNode;
+  const emptyNode = awnDataViewIblockDescriptionEmptyNode;
+  const briefFold = awnDataViewIblockBriefFoldNode;
   if (!descNode) return;
 
   if (awnDataViewRecordId) {
+    briefFold?.classList.add("hidden");
     bodyNode?.classList.add("hidden");
     descNode.replaceChildren();
+    emptyNode?.classList.add("hidden");
     return;
   }
+
+  briefFold?.classList.remove("hidden");
+  bodyNode?.classList.remove("hidden");
 
   const markdown = store ? resolveAwnDataIblockDescriptionMarkdown(store) : "";
   if (!markdown) {
-    bodyNode?.classList.add("hidden");
     descNode.replaceChildren();
+    descNode.classList.add("hidden");
+    emptyNode?.classList.remove("hidden");
+    if (emptyNode) emptyNode.textContent = IBLOCK_INSTRUCTION_EMPTY_TEXT;
+    briefFold?.classList.toggle("is-empty", true);
+    if (briefFold && !briefFold.open) briefFold.open = true;
     return;
   }
 
-  bodyNode?.classList.remove("hidden");
+  descNode.classList.remove("hidden");
+  emptyNode?.classList.add("hidden");
+  briefFold?.classList.toggle("is-empty", false);
   const manifestPath =
     store?.manifestRelPath || (store?.relPath ? `awn-data/${store.relPath}/manifest.md` : "");
   if (typeof renderMarkdownToHtml === "function") {
@@ -102482,6 +102509,31 @@ function setupMenuAwnBackupUi() {
   });
 }
 
+function resolveWorkspaceJournalChpuLabel() {
+  const fromState = String(getChpuWorkspacePathFromState() || "").trim();
+  if (fromState) return fromState;
+  const route = parseAppRoute(location.pathname);
+  if (route.type === "chpu" && route.chpuPath) return String(route.chpuPath).trim();
+  if (route.type === "node" && route.displayPath) return String(route.displayPath).trim();
+  return "";
+}
+
+function enrichWorkspaceJournalContext(context = {}) {
+  const path = normalizeMenuNodePath(String(context.path || "").trim());
+  let topic = normalizeMenuNodePath(String(context.topic || "").trim());
+  if (!topic && path) {
+    const owned = resolveOwningManifestRelFromNodePath(path);
+    topic = owned ? normalizeMenuNodePath(owned) : "";
+  }
+  const chpu =
+    String(context.chpu || "").trim() ||
+    resolveWorkspaceJournalChpuLabel() ||
+    (path || topic ? workspaceRelToChpuPath(path || topic) : "");
+  const url = typeof location !== "undefined" ? String(location.href || "") : "";
+  const label = path || topic || chpu || WORKSPACE_JOURNAL_FOLDER;
+  return { path, topic, chpu, url, label };
+}
+
 function resolveWorkspaceJournalEntryContext() {
   const manifestPath = normalizeMenuNodePath(getActiveNodeApiPath() || "");
   const resolvedPath = normalizeMenuNodePath(getResolvedNodePath(activePath) || "");
@@ -102497,14 +102549,12 @@ function resolveWorkspaceJournalEntryContext() {
     const owned = resolveOwningManifestRelFromNodePath(path);
     topic = owned ? normalizeMenuNodePath(owned) : "";
   }
-  const url = typeof location !== "undefined" ? String(location.href || "") : "";
-  const label = path || topic || url || WORKSPACE_JOURNAL_FOLDER;
-  return { path, topic, url, label };
+  return enrichWorkspaceJournalContext({ path, topic });
 }
 
-function journalContextFromChpuResolved(resolved) {
+function journalContextFromChpuResolved(resolved, chpuHint = "") {
   if (!resolved || resolved.kind === "unknown") return null;
-  const url = typeof location !== "undefined" ? String(location.href || "") : "";
+  const chpu = String(chpuHint || "").trim();
 
   if (resolved.kind === "record" || resolved.kind === "section" || resolved.kind === "slotView") {
     const topic = normalizeMenuNodePath(resolved.topicManifestPath || "");
@@ -102517,8 +102567,7 @@ function journalContextFromChpuResolved(resolved) {
       );
     }
     if (!path) path = topic;
-    const label = path || topic || url;
-    return { path, topic, url, label };
+    return enrichWorkspaceJournalContext({ path, topic, chpu });
   }
 
   if (resolved.kind === "manifest" || resolved.kind === "file") {
@@ -102530,39 +102579,39 @@ function journalContextFromChpuResolved(resolved) {
       const owned = resolveOwningManifestRelFromNodePath(path);
       topic = owned ? normalizeMenuNodePath(owned) : "";
     }
-    const label = path || topic || url;
-    return { path, topic, url, label };
+    return enrichWorkspaceJournalContext({ path, topic, chpu });
   }
 
   if (resolved.kind === "adoptFile") {
     const path = normalizeMenuNodePath(resolved.filePath || resolved.workspacePath || "");
     const owned = resolveOwningManifestRelFromNodePath(path);
     const topic = owned ? normalizeMenuNodePath(owned) : "";
-    return { path, topic, url, label: path || topic || url };
+    return enrichWorkspaceJournalContext({ path, topic, chpu });
   }
 
   if (resolved.workspacePath) {
     const path = normalizeMenuNodePath(resolved.workspacePath);
     const owned = resolveOwningManifestRelFromNodePath(path);
     const topic = owned ? normalizeMenuNodePath(owned) : "";
-    return { path, topic, url, label: path || topic || url };
+    return enrichWorkspaceJournalContext({ path, topic, chpu });
   }
 
   return null;
 }
 
 async function resolveWorkspaceJournalEntryContextResolved() {
-  const syncContext = resolveWorkspaceJournalEntryContext();
+  const syncContext = enrichWorkspaceJournalContext(resolveWorkspaceJournalEntryContext());
   if (syncContext.path || syncContext.topic) {
     appFooterJournalContextCache = syncContext;
     return syncContext;
   }
 
   const route = parseAppRoute(location.pathname);
+  const chpuHint = syncContext.chpu || resolveWorkspaceJournalChpuLabel();
   try {
     if (route.type === "chpu" && route.chpuPath) {
       const resolved = await fetchChpuResolve(route.chpuPath, route.agentId || activeAgentId);
-      const fromChpu = journalContextFromChpuResolved(resolved);
+      const fromChpu = journalContextFromChpuResolved(resolved, route.chpuPath || chpuHint);
       if (fromChpu && (fromChpu.path || fromChpu.topic)) {
         appFooterJournalContextCache = fromChpu;
         return fromChpu;
@@ -102573,7 +102622,11 @@ async function resolveWorkspaceJournalEntryContextResolved() {
       if (entry?.path) {
         const path = normalizeMenuNodePath(entry.path);
         const topic = normalizeMenuNodePath(resolveManifestPathForNodeApi(path) || path);
-        const context = { path, topic, url: location.href, label: path };
+        const context = enrichWorkspaceJournalContext({
+          path,
+          topic,
+          chpu: route.displayPath || chpuHint
+        });
         appFooterJournalContextCache = context;
         return context;
       }
@@ -102582,6 +102635,13 @@ async function resolveWorkspaceJournalEntryContextResolved() {
     // ignore route resolve errors
   }
 
+  if (chpuHint) {
+    const context = enrichWorkspaceJournalContext({ chpu: chpuHint });
+    appFooterJournalContextCache = context;
+    return context;
+  }
+
+  appFooterJournalContextCache = syncContext;
   return syncContext;
 }
 
@@ -102592,18 +102652,12 @@ function syncAppFooterJournalAvailability() {
 }
 
 function normalizeWorkspaceJournalContext(context = {}) {
-  const path = String(context.path || "").trim();
-  const topic = String(context.topic || "").trim();
-  const rawUrl = String(context.url || "").trim();
-  const url =
-    rawUrl && rawUrl !== "undefined"
-      ? rawUrl
-      : typeof location !== "undefined"
-        ? String(location.href || "").trim()
-        : "";
-  const label =
-    String(context.label || "").trim() || path || topic || url || WORKSPACE_JOURNAL_FOLDER;
-  return { path, topic, url, label };
+  return enrichWorkspaceJournalContext(context);
+}
+
+function syncAppFooterJournalSubmitState() {
+  const body = String(appFooterJournalBodyInputNode?.value || "").trim();
+  if (appFooterJournalSubmitBtn) appFooterJournalSubmitBtn.disabled = !body || !activeAgentId;
 }
 
 function syncAppFooterJournalFormState(contextOverride = null) {
@@ -102611,17 +102665,22 @@ function syncAppFooterJournalFormState(contextOverride = null) {
     contextOverride || appFooterJournalContextCache || resolveWorkspaceJournalEntryContext()
   );
   if (appFooterJournalContextInputNode) {
-    appFooterJournalContextInputNode.value = context.label;
-    appFooterJournalContextInputNode.title =
-      context.url && context.url !== context.label ? context.url : context.label;
+    const displayLabel = context.path || context.topic || context.chpu || WORKSPACE_JOURNAL_FOLDER;
+    appFooterJournalContextInputNode.value = appFooterJournalContextResolving && !context.path && !context.topic
+      ? `${displayLabel}…`
+      : displayLabel;
+    appFooterJournalContextInputNode.title = context.path || context.topic || context.chpu || displayLabel;
   }
   if (appFooterJournalLinkContextNode) {
-    const canLink = Boolean(context.path || context.topic);
-    appFooterJournalLinkContextNode.disabled = !canLink;
-    if (!canLink) appFooterJournalLinkContextNode.checked = false;
+    const canLink = Boolean(context.path || context.topic || context.chpu);
+    appFooterJournalLinkContextNode.disabled = !canLink && !appFooterJournalContextResolving;
+    if (!canLink && !appFooterJournalContextResolving) {
+      appFooterJournalLinkContextNode.checked = false;
+    } else if (canLink && !appFooterJournalLinkUserTouched) {
+      appFooterJournalLinkContextNode.checked = true;
+    }
   }
-  const body = String(appFooterJournalBodyInputNode?.value || "").trim();
-  if (appFooterJournalSubmitBtn) appFooterJournalSubmitBtn.disabled = !body || !activeAgentId;
+  syncAppFooterJournalSubmitState();
 }
 
 function positionAppFooterJournalPopover() {
@@ -102645,18 +102704,25 @@ function openAppFooterJournalPopover() {
   closeAppFooterIdeasPopover();
   appFooterJournalOpen = true;
   appFooterJournalContextCache = null;
+  appFooterJournalContextResolving = true;
+  appFooterJournalLinkUserTouched = false;
   appFooterJournalPopoverNode.classList.remove("hidden");
   appFooterJournalBtn.setAttribute("aria-expanded", "true");
   syncAppFooterJournalFormState();
   positionAppFooterJournalPopover();
-  void resolveWorkspaceJournalEntryContextResolved().then((context) => {
-    if (!appFooterJournalOpen) return;
-    syncAppFooterJournalFormState(context);
-    if (appFooterJournalLinkContextNode && (context.path || context.topic)) {
-      appFooterJournalLinkContextNode.checked = true;
-    }
-    positionAppFooterJournalPopover();
-  });
+  void resolveWorkspaceJournalEntryContextResolved()
+    .then((context) => {
+      if (!appFooterJournalOpen) return;
+      appFooterJournalContextResolving = false;
+      syncAppFooterJournalFormState(context);
+      positionAppFooterJournalPopover();
+    })
+    .catch(() => {
+      if (!appFooterJournalOpen) return;
+      appFooterJournalContextResolving = false;
+      syncAppFooterJournalFormState();
+      positionAppFooterJournalPopover();
+    });
   window.setTimeout(() => appFooterJournalBodyInputNode?.focus(), 0);
 }
 
@@ -102664,6 +102730,8 @@ function closeAppFooterJournalPopover() {
   if (!appFooterJournalPopoverNode || !appFooterJournalBtn) return;
   appFooterJournalOpen = false;
   appFooterJournalContextCache = null;
+  appFooterJournalContextResolving = false;
+  appFooterJournalLinkUserTouched = false;
   appFooterJournalPopoverNode.classList.add("hidden");
   appFooterJournalBtn.setAttribute("aria-expanded", "false");
 }
@@ -102684,9 +102752,18 @@ async function submitAppFooterJournalEntry() {
   const body = String(appFooterJournalBodyInputNode.value || "").trim();
   if (!body) return;
 
-  const context =
+  let context =
     appFooterJournalContextCache || (await resolveWorkspaceJournalEntryContextResolved());
   const linkContext = Boolean(appFooterJournalLinkContextNode?.checked);
+  if (linkContext && !context.path && !context.topic && context.chpu) {
+    try {
+      const resolved = await fetchChpuResolve(context.chpu, activeAgentId);
+      const fromChpu = journalContextFromChpuResolved(resolved, context.chpu);
+      if (fromChpu?.path || fromChpu?.topic) context = fromChpu;
+    } catch {
+      // keep best-effort context
+    }
+  }
   const path = linkContext ? context.path || context.topic || "" : "";
   const topic = linkContext ? context.topic || context.path || "" : "";
   const type = appFooterJournalTypeSelectNode?.value || "action";
@@ -102734,7 +102811,10 @@ function setupAppFooterJournalPopover() {
     event.stopPropagation();
     closeAppFooterJournalPopover();
   });
-  appFooterJournalBodyInputNode?.addEventListener("input", syncAppFooterJournalFormState);
+  appFooterJournalLinkContextNode?.addEventListener("change", () => {
+    appFooterJournalLinkUserTouched = true;
+  });
+  appFooterJournalBodyInputNode?.addEventListener("input", syncAppFooterJournalSubmitState);
   appFooterJournalSubmitBtn?.addEventListener("click", () => {
     void submitAppFooterJournalEntry();
   });

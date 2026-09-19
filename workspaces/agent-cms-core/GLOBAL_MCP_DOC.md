@@ -42,7 +42,7 @@ MCP подключается **без** фиксированного храни�
 | **Slot** | Место хранения на странице | `slot` → `main`, `inbox`, `media`… |
 | **Content** | Файл внутри слота | `path` + `slot` + `ref` |
 
-**Page ≠ Content.** Слот — не файл; контент живёт *в* слоте. У **темы** тело `manifest.md` — инструкция для человека и агента (см. раздел «Страницы»).
+**Page ≠ Content.** Слот — не файл; контент живёт *в* слоте. У **темы** тело `manifest.md` — бриф, контекст, инструкция и договорённости с агентом (см. раздел «Страницы»).
 
 **Page · Slot · Content ≠ awn-data.** Дерево страниц — для **неструктурированной** и **полуструктурированной** памяти (текст, заметки, медиа). Инфоблоки — для **структурированных** данных со схемой. Выбор — см. раздел «Страницы и контент vs awn-data».
 
@@ -275,15 +275,17 @@ assign_workspace_id({ "path": "awn-container/tema-x/manifest.md" })
 | `awn.page.topic` | Тема | Рабочая страница со слотами (main, inbox, media…) |
 | `awn.page.section.*` | Секция | Служебные разделы: `agent-kit`, `shared`, `container` |
 
-### Тема — инструкция в `manifest.md`
+### Тема — бриф в `manifest.md`
 
-Тело темы (`read_page_body` → markdown **после** frontmatter в `{topic}/manifest.md`) — по задумке **инструкция для человека и агента**:
+Тело страницы (`read_page_body` → markdown **после** frontmatter в `{topic}/manifest.md`) — **бриф, контекст, инструкция и договорённости** с агентом. Сюда относится всё, что задаёт *как работать с этой темой*:
 
-- **о чём** эта тема — если она определена (назначение, контекст, границы);
-- **как с ней работать** — правила, соглашения, workflow, что класть в какие слоты.
+- **назначение, описание**, границы темы;
+- **инструкции, правила, документация**, промпт, роль;
+- **договорённости** и соглашения по workflow;
+- **как работать с темой** — что класть в слоты, приоритеты, ограничения.
 
-Это **не** контент памяти: записи и материалы живут в слотах (`main/`, `inbox/`, `media/`…), а manifest — «шапка» темы и on-boarding.  
-Frontmatter (`awn-name`, `awn-description`, …) — краткие метаданные для меню и реестров; развёрнутая инструкция — в **теле** manifest. Пустое тело допустимо (тема работает только через слоты), но для «живых» тем его стоит заполнять.
+Это **не** контент памяти: записи и материалы — в слотах (`main/`, `inbox/`, `media/`…), события — в workspace-журнале (`.agent-cms/journal/`), разговор — в `discussion/`. Manifest — «шапка» темы и on-boarding для человека и агента.  
+Frontmatter (`awn-name`, `awn-description`, …) — краткие метаданные для меню и реестров; развёрнутый бриф — в **теле** manifest. Пустое тело допустимо (тема работает только через слоты), но для «живых» тем его стоит заполнять.
 
 - карта страниц: `get_page_map` → оглавление страниц: `get_workspace_page_index` / `refresh_workspace_page_index`
 - оглавление контента: `get_content_index(path)` → обновить: `refresh_content_index(path)` → полная meta-карта: `get_content_map(path)`
@@ -708,6 +710,7 @@ razdel-1/
 - схемы записей store: `list_types({ filter: "data-elements" })` → `get_type({ id: "awn.data.record" })`
 - список: `iblock_list` → `iblock_get({ store })`
 - оглавление всех инфоблоков: `iblock_read_index` / `iblock_refresh_index` → `awn-data/index.md`
+- **бриф инфоблока** — тело `awn-data/{store}/manifest.md` (markdown после frontmatter): назначение, контекст, инструкции, правила, договорённости, как работать с накопителем; в `iblock_get` → поле `manifestMarkdown`
 - схема полей (read): `iblock_read_schema({ store })`
 - свойства инфоблока: `iblock_read_properties` / `iblock_write_properties`, `iblock_read_property` / `iblock_write_property`
 - свойства записи: `iblock_content_read_properties` / `iblock_content_write_properties`, `iblock_content_read_property` / `iblock_content_write_property`

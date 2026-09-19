@@ -3829,7 +3829,7 @@
                     class="node-settings-mode-select"
                     aria-label="Настройки"
                   >
-                    <option value="description">Инструкция для агента</option>
+                    <option value="description">Бриф, контекст и инструкция</option>
                     <option value="topic-schema">Схема полей</option>
                     <option value="configs">Настройки</option>
                     <option value="env">.env</option>
@@ -4110,9 +4110,9 @@
             <div class="doc-body-main">
               <div class="doc-head-block">
                 <section id="node-description-hint" class="doc-slab doc-slab-hint hidden" aria-label="Пояснение к назначению">
-                  <p class="doc-slab-hint-title">Назначение, описание, инструкции, правила, документация, промт, роль</p>
+                  <p class="doc-slab-hint-title">Бриф, контекст, инструкция и договорённости</p>
                   <p class="doc-slab-hint-text">
-                    Основной текст для агента: контекст и роль, пошаговые инструкции и правила работы в этой части дерева.
+                    Назначение, описание, инструкции, правила, документация, промпт, роль — как работать с этой темой. Основной текст для агента в теле <code>manifest.md</code>.
                   </p>
                 </section>
                 <section id="system-file-hint" class="doc-slab doc-slab-hint hidden" aria-label="Подсказка к системному файлу">
@@ -4705,7 +4705,7 @@
                       type="text"
                       readonly
                       tabindex="-1"
-                      aria-label="Текущий путь или URL"
+                      aria-label="Текущий путь"
                     />
                   </label>
                   <label class="app-footer-journal-link-field">
@@ -5324,9 +5324,20 @@
                     <div class="awn-data-view-path hidden"></div>
                   </div>
                 </div>
-                <div class="awn-data-view-iblock-description-body hidden">
-                  <div class="awn-data-view-iblock-description"></div>
-                </div>
+                <details class="awn-data-view-iblock-brief-fold awn-data-view-accordion" open>
+                  <summary class="awn-data-view-accordion-summary awn-data-view-iblock-brief-summary">
+                    <span class="awn-data-view-accordion-toggle" aria-hidden="true">
+                      <span class="nav-book-toc-folder-chevron"></span>
+                    </span>
+                    <span class="awn-data-view-accordion-summary-main">
+                      <span class="awn-data-view-accordion-title awn-data-view-iblock-brief-title">Бриф, контекст, инструкция и договоренности с агентом</span>
+                    </span>
+                  </summary>
+                  <div class="awn-data-view-accordion-body awn-data-view-iblock-description-body">
+                    <div class="awn-data-view-iblock-description"></div>
+                    <p class="awn-data-view-iblock-description-empty hidden">Бриф, контекст и инструкция для агента не определены.</p>
+                  </div>
+                </details>
               </article>
             </div>
             <section class="awn-data-view-schema-panel hidden" aria-label="Инфоблок">

@@ -5,7 +5,7 @@ domain: data
 status: active
 extends: awn.entity
 description: >
-  Общие правила awn-data store: manifest.md + структура записей.
+  Общие правила awn-data store: manifest.md (бриф, контекст, инструкция) + структура записей.
   Не узел меню — контейнер в папке awn-data/.
 
 properties:

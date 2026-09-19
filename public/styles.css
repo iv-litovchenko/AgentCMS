@@ -58823,8 +58823,28 @@ body.is-cms-page-picker-active #discuss-aside * {
   display: none;
 }
 
-.awn-data-view-iblock-description-body {
+.awn-data-view-iblock-brief-fold {
   border-top: 1px solid #e2e8f0;
+}
+
+.awn-data-view-iblock-brief-fold.is-empty .awn-data-view-iblock-brief-title {
+  color: #64748b;
+}
+
+.awn-data-view-iblock-description-body {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.awn-data-view-iblock-description-empty {
+  margin: 0 0.95rem 0.95rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px dashed rgba(148, 163, 184, 0.42);
+  font-size: 13px;
+  line-height: 1.45;
+  color: #64748b;
 }
 
 .awn-data-view-iblock-description-body.hidden {
