@@ -19168,9 +19168,30 @@ a.header-tool-btn {
   background-size: 14px;
 }
 
-.content-search-filters-popover.is-semantic .content-search-filter-field {
+.content-search-filters-popover.is-semantic .content-search-filter-field--meta {
   opacity: 0.45;
   pointer-events: none;
+}
+
+.content-search-filters-divider {
+  margin: 8px 0 4px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.content-search-filters-popover-hint--fields {
+  margin-top: 0;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.content-search-filter-field--fields .content-search-field-value {
+  min-height: 32px;
 }
 
 .content-search-filters-reset-btn {

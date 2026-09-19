@@ -388,7 +388,7 @@
             >
               <div class="content-search-filters-popover-title">Фильтры</div>
               <p class="content-search-filters-popover-hint">По умолчанию поиск идёт «везде», мягко, по всем типам файлов.</p>
-              <label class="content-search-filter-field">
+              <label class="content-search-filter-field content-search-filter-field--meta">
                 <span class="content-search-filter-label">Область</span>
                 <select id="content-search-scope" class="content-search-scope content-search-filter-control" aria-label="Область поиска">
                   <option value="all" selected>Везде</option>
@@ -397,14 +397,14 @@
                   <option value="tags">Теги</option>
                 </select>
               </label>
-              <label class="content-search-filter-field">
+              <label class="content-search-filter-field content-search-filter-field--meta">
                 <span class="content-search-filter-label">Точность</span>
                 <select id="content-search-match" class="content-search-match content-search-filter-control" aria-label="Точность поиска">
                   <option value="relaxed" selected>Мягкий</option>
                   <option value="strict">Точный</option>
                 </select>
               </label>
-              <label class="content-search-filter-field">
+              <label class="content-search-filter-field content-search-filter-field--meta">
                 <span class="content-search-filter-label">Тип файла</span>
                 <select id="content-search-type" class="content-search-type content-search-filter-control" aria-label="Формат файлов">
                   <option value="all" selected>Все типы</option>
@@ -420,6 +420,30 @@
                   <option value="config">YAML / JSON / TXT</option>
                   <option value="other">Прочее</option>
                 </select>
+              </label>
+              <div class="content-search-filters-divider" role="separator">Поля frontmatter</div>
+              <p class="content-search-filters-popover-hint content-search-filters-popover-hint--fields">
+                Фильтр по свойствам YAML (storage-index). Ограничьте область темой — drag в круг слева от поиска.
+              </p>
+              <label class="content-search-filter-field content-search-filter-field--fields">
+                <span class="content-search-filter-label">Поле</span>
+                <select id="content-search-field-key" class="content-search-field-key content-search-filter-control" aria-label="Поле frontmatter">
+                  <option value="">— не выбрано —</option>
+                </select>
+              </label>
+              <label class="content-search-filter-field content-search-filter-field--fields">
+                <span class="content-search-filter-label">Условие</span>
+                <select id="content-search-field-op" class="content-search-field-op content-search-filter-control" aria-label="Условие фильтра поля">
+                  <option value="">—</option>
+                  <option value="eq">равно</option>
+                  <option value="contains">содержит</option>
+                  <option value="gte">≥ (число/дата)</option>
+                  <option value="lte">≤ (число/дата)</option>
+                </select>
+              </label>
+              <label class="content-search-filter-field content-search-filter-field--fields">
+                <span class="content-search-filter-label">Значение</span>
+                <input id="content-search-field-value" class="content-search-field-value content-search-filter-control" type="text" placeholder="значение поля…" aria-label="Значение поля" />
               </label>
               <button type="button" id="content-search-filters-reset-btn" class="content-search-filters-reset-btn">
                 <span class="content-search-filters-reset-icon" aria-hidden="true">↺</span>

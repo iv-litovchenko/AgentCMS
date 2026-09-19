@@ -337,6 +337,9 @@ const contentSearchFiltersBtnNode = document.getElementById("content-search-filt
 const contentSearchFiltersPopoverNode = document.getElementById("content-search-filters-popover");
 const contentSearchFiltersBadgeNode = document.getElementById("content-search-filters-badge");
 const contentSearchFiltersResetBtnNode = document.getElementById("content-search-filters-reset-btn");
+const contentSearchFieldKeyNode = document.getElementById("content-search-field-key");
+const contentSearchFieldOpNode = document.getElementById("content-search-field-op");
+const contentSearchFieldValueNode = document.getElementById("content-search-field-value");
 const contentSearchActiveFiltersNode = document.getElementById("content-search-active-filters");
 const contentSearchResultsNode = document.getElementById("content-search-results");
 const contentSearchPathScopeNode = document.getElementById("content-search-path-scope");
@@ -12565,6 +12568,7 @@ async function switchActiveAgent(nextAgentId) {
     resetLiveSyncSession(nextAgentId);
     invalidateMarkdownLinkIndexCache();
     invalidateTypeCatalogCache(nextAgentId);
+    contentSearchFieldCatalogCache = null;
     hideAppLandingView();
     syncWorkspaceNotificationsAvailability();
     hideMenuNoAgentPlaceholder();
@@ -23693,6 +23697,14 @@ const CONTENT_SEARCH_TYPE_LABELS = {
   config: "YAML / JSON / TXT",
   other: "Прочее"
 };
+const CONTENT_SEARCH_FIELD_OP_LABELS = {
+  eq: "равно",
+  contains: "содержит",
+  gte: "≥",
+  lte: "≤"
+};
+let contentSearchFieldCatalogCache = null;
+let contentSearchFieldCatalogLoading = null;
 
 function isContentSearchFiltersPopoverOpen() {
   return Boolean(
@@ -23721,11 +23733,30 @@ function setContentSearchMode(mode) {
   contentSearchModeNode.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+function getContentSearchFieldFilter() {
+  const field = String(contentSearchFieldKeyNode?.value || "").trim();
+  const op = String(contentSearchFieldOpNode?.value || "").trim();
+  const value = String(contentSearchFieldValueNode?.value ?? "").trim();
+  if (!field || !op || value === "") return null;
+  const clause = { field };
+  if (op === "eq") clause.eq = value;
+  else if (op === "contains") clause.contains = value;
+  else if (op === "gte") clause.gte = value;
+  else if (op === "lte") clause.lte = value;
+  else return null;
+  return [clause];
+}
+
+function hasActiveContentSearchFieldFilter() {
+  return Boolean(getContentSearchFieldFilter());
+}
+
 function countActiveContentSearchFilters() {
   let count = 0;
   if (getContentSearchScope() !== CONTENT_SEARCH_DEFAULT_SCOPE) count += 1;
   if (getContentSearchMatch() !== CONTENT_SEARCH_DEFAULT_MATCH) count += 1;
   if (getContentSearchFileType() !== CONTENT_SEARCH_DEFAULT_TYPE) count += 1;
+  if (hasActiveContentSearchFieldFilter()) count += 1;
   return count;
 }
 
@@ -23738,10 +23769,17 @@ function syncContentSearchFiltersBadge() {
   }
 }
 
+function resetContentSearchFieldFilter() {
+  if (contentSearchFieldKeyNode) contentSearchFieldKeyNode.value = "";
+  if (contentSearchFieldOpNode) contentSearchFieldOpNode.value = "";
+  if (contentSearchFieldValueNode) contentSearchFieldValueNode.value = "";
+}
+
 function resetContentSearchFilters() {
   if (contentSearchScopeNode) contentSearchScopeNode.value = CONTENT_SEARCH_DEFAULT_SCOPE;
   if (contentSearchMatchNode) contentSearchMatchNode.value = CONTENT_SEARCH_DEFAULT_MATCH;
   if (contentSearchTypeNode) contentSearchTypeNode.value = CONTENT_SEARCH_DEFAULT_TYPE;
+  resetContentSearchFieldFilter();
   updateContentSearchPlaceholder();
   syncContentSearchFiltersUi();
   scheduleContentSearch();
@@ -23754,6 +23792,8 @@ function resetContentSearchFilter(key) {
     contentSearchMatchNode.value = CONTENT_SEARCH_DEFAULT_MATCH;
   } else if (key === "type" && contentSearchTypeNode) {
     contentSearchTypeNode.value = CONTENT_SEARCH_DEFAULT_TYPE;
+  } else if (key === "field") {
+    resetContentSearchFieldFilter();
   }
   updateContentSearchPlaceholder();
   syncContentSearchFiltersUi();
@@ -23764,22 +23804,30 @@ function renderContentSearchActiveFilters() {
   if (!contentSearchActiveFiltersNode) return;
   contentSearchActiveFiltersNode.replaceChildren();
   contentSearchBarNode?.classList.remove("has-active-filters");
-  if (isContentSearchAlternateMode()) {
-    contentSearchActiveFiltersNode.classList.add("hidden");
-    return;
-  }
   const chips = [];
   const scope = getContentSearchScope();
   const match = getContentSearchMatch();
   const type = getContentSearchFileType();
-  if (scope !== CONTENT_SEARCH_DEFAULT_SCOPE) {
+  const metaFiltersDisabled = isContentSearchAlternateMode();
+  if (!metaFiltersDisabled && scope !== CONTENT_SEARCH_DEFAULT_SCOPE) {
     chips.push({ key: "scope", label: CONTENT_SEARCH_SCOPE_LABELS[scope] || scope });
   }
-  if (match !== CONTENT_SEARCH_DEFAULT_MATCH) {
+  if (!metaFiltersDisabled && match !== CONTENT_SEARCH_DEFAULT_MATCH) {
     chips.push({ key: "match", label: CONTENT_SEARCH_MATCH_LABELS[match] || match });
   }
-  if (type !== CONTENT_SEARCH_DEFAULT_TYPE) {
+  if (!metaFiltersDisabled && type !== CONTENT_SEARCH_DEFAULT_TYPE) {
     chips.push({ key: "type", label: CONTENT_SEARCH_TYPE_LABELS[type] || type });
+  }
+  const fieldFilter = getContentSearchFieldFilter();
+  if (fieldFilter?.length) {
+    const clause = fieldFilter[0];
+    const opLabel = CONTENT_SEARCH_FIELD_OP_LABELS[
+      clause.contains != null ? "contains" : clause.gte != null ? "gte" : clause.lte != null ? "lte" : "eq"
+    ] || "равно";
+    const title =
+      contentSearchFieldKeyNode?.selectedOptions?.[0]?.textContent?.trim() || clause.field;
+    const value = clause.eq ?? clause.contains ?? clause.gte ?? clause.lte ?? "";
+    chips.push({ key: "field", label: `${title} ${opLabel} ${value}` });
   }
   if (!chips.length) {
     contentSearchActiveFiltersNode.classList.add("hidden");
@@ -23821,7 +23869,7 @@ function positionContentSearchFiltersPopover() {
   const anchor = contentSearchFiltersBtnNode;
   if (!popover || !anchor || popover.classList.contains("hidden")) return;
   const rect = anchor.getBoundingClientRect();
-  const width = Math.min(280, Math.max(240, Math.round(rect.width + 180)));
+  const width = Math.min(320, Math.max(260, Math.round(rect.width + 200)));
   const left = Math.min(
     Math.max(12, Math.round(rect.right - width)),
     Math.max(12, window.innerWidth - width - 12)
@@ -23840,6 +23888,58 @@ function closeContentSearchFiltersPopover() {
   contentSearchFiltersBtnNode?.setAttribute("aria-expanded", "false");
 }
 
+function populateContentSearchFieldSelect(catalog = contentSearchFieldCatalogCache) {
+  if (!contentSearchFieldKeyNode) return;
+  const current = contentSearchFieldKeyNode.value || "";
+  const metaByKey = new Map((catalog?.fieldCatalogMeta || []).map((item) => [item.key, item]));
+  contentSearchFieldKeyNode.innerHTML = '<option value="">— не выбрано —</option>';
+  for (const name of catalog?.fieldCatalog || []) {
+    const option = document.createElement("option");
+    option.value = name;
+    const meta = metaByKey.get(name);
+    const variants = meta?.variants || [];
+    if (variants.length > 1) {
+      option.textContent = `${name} · ${variants.length} контекста`;
+      option.title = variants
+        .map((variant) => `${variant.title || "—"} (${variant.type || "?"})`)
+        .join("\n");
+    } else if (variants.length === 1 && variants[0].title) {
+      option.textContent = `${name} · ${variants[0].title}`;
+      option.title = variants[0].type || "";
+    } else {
+      option.textContent = name;
+    }
+    contentSearchFieldKeyNode.appendChild(option);
+  }
+  contentSearchFieldKeyNode.value = current;
+}
+
+async function ensureContentSearchFieldCatalog(force = false) {
+  if (!force && contentSearchFieldCatalogCache) return contentSearchFieldCatalogCache;
+  if (contentSearchFieldCatalogLoading) return contentSearchFieldCatalogLoading;
+  contentSearchFieldCatalogLoading = (async () => {
+    try {
+      const response = await fetch(buildApiUrl("/api/storage-index/status"));
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || response.statusText);
+      contentSearchFieldCatalogCache = {
+        ready: Boolean(data.ready),
+        fieldCatalog: Array.isArray(data.fieldCatalog) ? data.fieldCatalog : [],
+        fieldCatalogMeta: Array.isArray(data.fieldCatalogMeta) ? data.fieldCatalogMeta : []
+      };
+      populateContentSearchFieldSelect(contentSearchFieldCatalogCache);
+      return contentSearchFieldCatalogCache;
+    } catch {
+      contentSearchFieldCatalogCache = { ready: false, fieldCatalog: [], fieldCatalogMeta: [] };
+      populateContentSearchFieldSelect(contentSearchFieldCatalogCache);
+      return contentSearchFieldCatalogCache;
+    } finally {
+      contentSearchFieldCatalogLoading = null;
+    }
+  })();
+  return contentSearchFieldCatalogLoading;
+}
+
 function toggleContentSearchFiltersPopover() {
   if (!contentSearchFiltersPopoverNode || !contentSearchFiltersBtnNode) return;
   const willOpen = contentSearchFiltersPopoverNode.classList.contains("hidden");
@@ -23848,19 +23948,24 @@ function toggleContentSearchFiltersPopover() {
     contentSearchFiltersPopoverNode.classList.remove("hidden");
     contentSearchFiltersBtnNode.setAttribute("aria-expanded", "true");
     positionContentSearchFiltersPopover();
+    void ensureContentSearchFieldCatalog();
     return;
   }
   closeContentSearchFiltersPopover();
 }
 
 function updateContentSearchFiltersState() {
-  const alternate = isContentSearchAlternateMode();
-  contentSearchBarNode?.classList.toggle("content-search-bar--semantic", isContentSearchSemantic());
-  contentSearchBarNode?.classList.toggle("content-search-bar--id", isContentSearchIdMode());
+  const idMode = isContentSearchIdMode();
+  const semanticMode = isContentSearchSemantic();
+  contentSearchBarNode?.classList.toggle("content-search-bar--semantic", semanticMode);
+  contentSearchBarNode?.classList.toggle("content-search-bar--id", idMode);
   for (const node of [contentSearchScopeNode, contentSearchMatchNode, contentSearchTypeNode]) {
-    if (node) node.disabled = alternate;
+    if (node) node.disabled = semanticMode || idMode;
   }
-  contentSearchFiltersBtnNode?.toggleAttribute("disabled", isContentSearchIdMode());
+  for (const node of [contentSearchFieldKeyNode, contentSearchFieldOpNode, contentSearchFieldValueNode]) {
+    if (node) node.disabled = idMode;
+  }
+  contentSearchFiltersBtnNode?.toggleAttribute("disabled", idMode);
   syncContentSearchModeToggleUi();
   syncContentSearchFiltersUi();
 }
@@ -24393,6 +24498,105 @@ async function fetchContentSearchSemantic(query, limit = 30, pathPrefix = getCon
   return mapSemanticSearchResults(data);
 }
 
+function mapHybridSearchResults(data, query = "") {
+  const hits = Array.isArray(data?.hits) ? data.hits : [];
+  return {
+    query: data?.query || query,
+    mode: "hybrid",
+    scope: Array.isArray(data?.scopes) ? data.scopes.join("+") : "hybrid",
+    results: hits.map((row) => {
+      const filePath = String(row.path || "").replace(/\\/g, "/");
+      const fileName = filePath.split("/").pop() || filePath;
+      const sources = Array.isArray(row.sources) ? row.sources.join(" + ") : "";
+      return {
+        filePath,
+        fileName,
+        displayName: row.title || fileName,
+        locationHint: row.locationHint || filePath,
+        pathBreadcrumb: filePath,
+        snippet: row.snippet || "",
+        matchKindLabel: row.score != null ? `≈ ${row.score}` : sources || "hybrid",
+        kindLabel: sources.includes("semantic") ? "Смысл" : "Текст"
+      };
+    }),
+    total: data?.hitCount ?? hits.length,
+    filterPathCount: data?.filterPathCount ?? null
+  };
+}
+
+function mapStorageFieldSearchResults(data, where, query = "") {
+  const field = where?.[0]?.field || "";
+  const results = Array.isArray(data?.results) ? data.results : [];
+  return {
+    query,
+    mode: "fields",
+    scope: "fields",
+    results: results.map((row) => {
+      const filePath = String(row.path || "").replace(/\\/g, "/");
+      const fileName = filePath.split("/").pop() || filePath;
+      const entry = field ? row.fields?.[field] : null;
+      const value =
+        entry != null && typeof entry === "object" && "value" in entry ? entry.value : entry;
+      const title = entry != null && typeof entry === "object" ? entry.title : "";
+      const type = entry != null && typeof entry === "object" ? entry.type : "";
+      const snippet = title
+        ? `${title}: ${value ?? "—"}${type ? ` · ${type}` : ""}`
+        : `${field}: ${value ?? "—"}`;
+      return {
+        filePath,
+        fileName,
+        displayName: fileName.replace(/\.(sidecar\.)?md$/i, "") || fileName,
+        locationHint: filePath,
+        pathBreadcrumb: filePath,
+        snippet,
+        matchKindLabel: "поле",
+        kindLabel: "Поле"
+      };
+    }),
+    total: data?.total ?? results.length
+  };
+}
+
+async function fetchContentSearchHybrid(
+  query,
+  { where = null, scopes = ["fulltext"], pathPrefix = getContentSearchPathPrefix(), limit = 30 } = {}
+) {
+  const response = await fetch(buildApiUrl("/api/search/hybrid"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query,
+      where: where || undefined,
+      scopes,
+      pathPrefix: pathPrefix || undefined,
+      limit,
+      includeSnippets: true
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || data.details || `Request failed with ${response.status}`);
+  return mapHybridSearchResults(data, query);
+}
+
+async function fetchContentSearchByFields(
+  where,
+  pathPrefix = getContentSearchPathPrefix(),
+  limit = 30
+) {
+  const response = await fetch(buildApiUrl("/api/storage-index/query"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      where,
+      pathPrefix: pathPrefix || undefined,
+      limit
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || data.details || `Request failed with ${response.status}`);
+  return mapStorageFieldSearchResults(data, where);
+}
+
 async function fetchContentSearchById(query, pathPrefix = getContentSearchPathPrefix()) {
   const id = parseContentSearchIdQuery(query);
   if (!id) {
@@ -24447,11 +24651,13 @@ function scheduleContentSearch() {
   const scope = getContentSearchScope();
   const fileType = getContentSearchFileType();
   const match = getContentSearchMatch();
+  const fieldWhere = getContentSearchFieldFilter();
+  const hasFieldFilter = Boolean(fieldWhere);
   const minLength = getContentSearchMinLength(scope);
   clearTimeout(contentSearchTimer);
   const requestId = ++contentSearchRequestId;
 
-  if (!query) {
+  if (!query && !hasFieldFilter) {
     setContentSearchLoading(false);
     hideContentSearchResults();
     return;
@@ -24459,7 +24665,7 @@ function scheduleContentSearch() {
 
   setContentSearchLoading(false);
   contentSearchTimer = setTimeout(async () => {
-    if (query.length < minLength) {
+    if (!hasFieldFilter && query.length < minLength) {
       renderContentSearchResults({ query, scope, fileType, match, results: [] });
       return;
     }
@@ -24471,6 +24677,11 @@ function scheduleContentSearch() {
       let data;
       if (isContentSearchIdMode()) {
         data = await fetchContentSearchById(query);
+      } else if (hasFieldFilter && query.length >= 2) {
+        const scopes = isContentSearchSemantic() ? ["semantic"] : ["fulltext"];
+        data = await fetchContentSearchHybrid(query, { where: fieldWhere, scopes });
+      } else if (hasFieldFilter) {
+        data = await fetchContentSearchByFields(fieldWhere);
       } else if (isContentSearchSemantic()) {
         data = await fetchContentSearchSemantic(query);
       } else {
@@ -103451,6 +103662,16 @@ contentSearchTypeNode?.addEventListener("change", () => {
   scheduleContentSearch();
 });
 contentSearchMatchNode?.addEventListener("change", () => {
+  syncContentSearchFiltersUi();
+  scheduleContentSearch();
+});
+for (const node of [contentSearchFieldKeyNode, contentSearchFieldOpNode]) {
+  node?.addEventListener("change", () => {
+    syncContentSearchFiltersUi();
+    scheduleContentSearch();
+  });
+}
+contentSearchFieldValueNode?.addEventListener("input", () => {
   syncContentSearchFiltersUi();
   scheduleContentSearch();
 });
