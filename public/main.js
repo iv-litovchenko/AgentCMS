@@ -10971,24 +10971,25 @@ function getLandingHubOrbitTopicItems() {
 async function loadGlobalLandingHubTopicItems() {
   const loadSeq = ++landingHubTopicItemsLoadSeq;
   const agents = getAgentsForLandingGrid().filter((agent) => agent.folderExists !== false);
-  const results = await Promise.all(
-    agents.map(async (agent) => {
-      try {
-        const response = await fetch(
-          buildApiUrl("/api/menu", { maxDepth: String(LANDING_HUB_ORBIT_MENU_MAX_DEPTH) }, agent.id)
-        );
-        if (!response.ok) return [];
-        const menu = await response.json();
-        if (loadSeq !== landingHubTopicItemsLoadSeq) return [];
-        menuCacheByAgent.set(agent.id, menu);
-        return collectLandingHubOrbitTopicsFromMenu(menu, agent);
-      } catch {
-        return [];
-      }
-    })
-  );
+  try {
+    const response = await fetch(
+      `/api/agents/menus?maxDepth=${encodeURIComponent(String(LANDING_HUB_ORBIT_MENU_MAX_DEPTH))}`
+    );
+    if (!response.ok) throw new Error(`menus:${response.status}`);
+    const data = await response.json();
+    if (loadSeq !== landingHubTopicItemsLoadSeq) return;
+    const menus = data?.menus && typeof data.menus === "object" ? data.menus : {};
+    globalLandingHubTopicItemsCache = agents.flatMap((agent) => {
+      const menu = menus[agent.id];
+      if (!menu) return [];
+      menuCacheByAgent.set(agent.id, menu);
+      return collectLandingHubOrbitTopicsFromMenu(menu, agent);
+    });
+  } catch {
+    if (loadSeq !== landingHubTopicItemsLoadSeq) return;
+    globalLandingHubTopicItemsCache = [];
+  }
   if (loadSeq !== landingHubTopicItemsLoadSeq) return;
-  globalLandingHubTopicItemsCache = results.flat();
   if (getLandingAgentsView() === "hub") {
     renderAppLandingHub(getLandingHubOrbitTopicItems());
   } else if (getLandingAgentsView() === "orbit") {

@@ -68,7 +68,13 @@ const {
 } = require("./sidecar-service");
 const { createWorkspaceBrainService } = require("./workspace-brain-service");
 const { createWorkspaceFactsService, FACTS_DIR: WORKSPACE_FACTS_DIR } = require("./workspace-facts-service");
-const { createWorkspaceJournalService, JOURNAL_DIR: WORKSPACE_JOURNAL_DIR } = require("./workspace-journal-service");
+const {
+  createWorkspaceJournalService,
+  JOURNAL_DIR: WORKSPACE_JOURNAL_DIR,
+  collectEntriesFromRoot,
+  mapJournalEntryToFlowItem
+} = require("./workspace-journal-service");
+const { loadMenuCache, saveMenuCache, invalidateMenuCacheSync } = require("./menu-cache/store");
 const { parseCsvText } = require("./awn-data-csv");
 const { buildSystemEnvironment } = require("./lib/system-environment");
 const { getLanIPv4 } = require("./lib/lan-ip");
@@ -925,6 +931,7 @@ function invalidateAgentMenuCache(agentRoot) {
     agentMenuBuildInFlight.clear();
     return;
   }
+  invalidateMenuCacheSync(agentRoot);
   const prefix = `${agentRoot}\0`;
   for (const key of agentMenuResponseCache.keys()) {
     if (key.startsWith(prefix)) agentMenuResponseCache.delete(key);
@@ -1669,6 +1676,48 @@ async function listNavFocusItems(agentId = "") {
     items.push(...wrapNavFlagEntriesForAgent(agent, rows));
   }
   return items;
+}
+
+const FLOW_JOURNAL_WEEKS = 4;
+
+async function collectAllRecentJournalEntries(limit = 30) {
+  const cappedLimit = Math.max(1, Math.min(100, Number(limit) || 30));
+  const perAgentLimit = Math.min(cappedLimit * 2, 80);
+  const batches = await Promise.all(
+    getAgentsPublicList()
+      .filter((entry) => entry.folderExists !== false)
+      .map(async (entry) => {
+        const agent = resolveAgent(entry.id);
+        if (!agent?.rootAbsolute) return [];
+        const journalEntries = await collectEntriesFromRoot(agent.rootAbsolute, {
+          weeks: FLOW_JOURNAL_WEEKS,
+          limit: perAgentLimit
+        });
+        return journalEntries
+          .filter((journalEntry) => normalizeRelPath(journalEntry.path || journalEntry.topic))
+          .map((journalEntry) => mapJournalEntryToFlowItem(agent, journalEntry));
+      })
+  );
+
+  const sorted = batches
+    .flat()
+    .sort((a, b) => Date.parse(b.updatedAt || 0) - Date.parse(a.updatedAt || 0));
+
+  const deduped = [];
+  const seen = new Set();
+  for (const item of sorted) {
+    const key = `${item.agentId}\0${item.nodePath}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+    if (deduped.length >= cappedLimit) break;
+  }
+
+  return deduped;
+}
+
+function normalizeRelPath(value) {
+  return String(value || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
 }
 
 async function listNavMainItems(agentId = "") {
@@ -8255,6 +8304,11 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
     }
     const inFlight = agentMenuBuildInFlight.get(cacheKey);
     if (inFlight) return inFlight;
+    const diskCached = await loadMenuCache(agentRootAbsolute, maxDepth);
+    if (diskCached?.menu) {
+      agentMenuResponseCache.set(cacheKey, { menu: diskCached.menu, builtAt: Date.now() });
+      return diskCached.menu;
+    }
   }
   const buildBody = async () => {
     if (!(await dirExists(agentRootAbsolute))) {
@@ -8340,8 +8394,9 @@ async function buildAgentMenu(agentRootAbsolute, options = {}) {
   if (useCache && agentRootAbsolute) {
     const cacheKey = agentMenuCacheKey(agentRootAbsolute, maxDepth);
     const buildPromise = buildBody()
-      .then((menu) => {
+      .then(async (menu) => {
         agentMenuResponseCache.set(cacheKey, { menu, builtAt: Date.now() });
+        await saveMenuCache(agentRootAbsolute, maxDepth, menu).catch(() => {});
         return menu;
       })
       .finally(() => {
@@ -18691,6 +18746,33 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agents/menus") {
+    const maxDepthRaw = Number(url.searchParams.get("maxDepth"));
+    const maxDepth = Number.isFinite(maxDepthRaw)
+      ? Math.min(20, Math.max(1, Math.floor(maxDepthRaw)))
+      : 7;
+    const refresh = url.searchParams.get("refresh") === "1";
+    try {
+      refreshAgentsFromDisk();
+      const menus = {};
+      await Promise.all(
+        getAgentsPublicList()
+          .filter((entry) => entry.folderExists !== false)
+          .map(async (entry) => {
+            await runWithAgent(entry.id, async () => {
+              menus[entry.id] = await buildAgentMenu(getAgentRoot(), { maxDepth, refresh });
+            });
+          })
+      );
+      return sendJson(res, 200, { menus, maxDepth, cache: "memory+disk" });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read landing menus",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/menu") {
     try {
       const maxDepthRaw = Number(url.searchParams.get("maxDepth"));
@@ -26055,8 +26137,13 @@ async function handleApi(req, res, url) {
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 30;
     try {
       refreshAgentsFromDisk();
-      const items = collectAllRecentEntries(limit);
-      return sendJson(res, 200, { items: await enrichFocusItems(items), limit });
+      const items = await collectAllRecentJournalEntries(limit);
+      return sendJson(res, 200, {
+        items: await enrichFocusItems(items),
+        limit,
+        source: "journal",
+        weeks: FLOW_JOURNAL_WEEKS
+      });
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to load recent updates",

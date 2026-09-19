@@ -151,6 +151,55 @@ function buildEntryMarkdown({
   return lines.join("\n");
 }
 
+function weekFileRel(weekId) {
+  return `${JOURNAL_DIR}/${weekId}.md`;
+}
+
+async function listWeekFilesFromRoot(agentRoot, limitWeeks = 8) {
+  const dir = path.join(agentRoot, JOURNAL_DIR);
+  let entries = [];
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch (error) {
+    if (error && error.code === "ENOENT") return [];
+    throw error;
+  }
+  return entries
+    .filter((entry) => entry.isFile() && /^\d{4}-W\d{2}\.md$/i.test(entry.name))
+    .map((entry) => entry.name.replace(/\.md$/i, ""))
+    .sort((a, b) => b.localeCompare(a))
+    .slice(0, limitWeeks);
+}
+
+async function collectEntriesFromRoot(agentRoot, options = {}) {
+  if (!agentRoot) return [];
+  const topic = normalizeRelPath(options.topic || "");
+  const notifyOnly =
+    options.notifyOnly === true || String(options.notifyOnly || "").toLowerCase() === "true";
+  const limit = Math.max(1, Math.min(500, Number(options.limit) || 100));
+  const weeks = await listWeekFilesFromRoot(agentRoot, options.weeks || 12);
+  const items = [];
+
+  for (const weekId of weeks) {
+    const absolute = path.join(agentRoot, JOURNAL_DIR, `${weekId}.md`);
+    let content = "";
+    try {
+      content = await fs.readFile(absolute, "utf-8");
+    } catch {
+      continue;
+    }
+    const fileRel = weekFileRel(weekId);
+    for (const entry of parseJournalFileContent(content, fileRel)) {
+      if (topic && normalizeRelPath(entry.topic) !== topic) continue;
+      if (notifyOnly && !entry.notify) continue;
+      items.push({ ...entry, weekId });
+    }
+  }
+
+  items.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  return items.slice(0, limit);
+}
+
 function createWorkspaceJournalService(deps) {
   const { getAgentRoot, resolveTopicFromPath, onJournalWritten, onNotify } = deps;
 
@@ -158,10 +207,6 @@ function createWorkspaceJournalService(deps) {
     const root = getAgentRoot();
     if (!root) throw new Error("Agent not selected");
     return path.join(root, JOURNAL_DIR);
-  }
-
-  function weekFileRel(weekId) {
-    return `${JOURNAL_DIR}/${weekId}.md`;
   }
 
   async function ensureWeekFile(weekId, createdAt = new Date()) {
@@ -179,47 +224,11 @@ function createWorkspaceJournalService(deps) {
   }
 
   async function listWeekFiles(limitWeeks = 8) {
-    const dir = journalDirAbsolute();
-    let entries = [];
-    try {
-      entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch (error) {
-      if (error && error.code === "ENOENT") return [];
-      throw error;
-    }
-    return entries
-      .filter((entry) => entry.isFile() && /^\d{4}-W\d{2}\.md$/i.test(entry.name))
-      .map((entry) => entry.name.replace(/\.md$/i, ""))
-      .sort((a, b) => b.localeCompare(a))
-      .slice(0, limitWeeks);
+    return listWeekFilesFromRoot(journalDirAbsolute(), limitWeeks);
   }
 
   async function collectEntries(options = {}) {
-    const topic = normalizeRelPath(options.topic || "");
-    const notifyOnly =
-      options.notifyOnly === true || String(options.notifyOnly || "").toLowerCase() === "true";
-    const limit = Math.max(1, Math.min(500, Number(options.limit) || 100));
-    const weeks = await listWeekFiles(options.weeks || 12);
-    const items = [];
-
-    for (const weekId of weeks) {
-      const absolute = path.join(journalDirAbsolute(), `${weekId}.md`);
-      let content = "";
-      try {
-        content = await fs.readFile(absolute, "utf-8");
-      } catch {
-        continue;
-      }
-      const fileRel = weekFileRel(weekId);
-      for (const entry of parseJournalFileContent(content, fileRel)) {
-        if (topic && normalizeRelPath(entry.topic) !== topic) continue;
-        if (notifyOnly && !entry.notify) continue;
-        items.push({ ...entry, weekId });
-      }
-    }
-
-    items.sort((a, b) => String(b.at).localeCompare(String(a.at)));
-    return items.slice(0, limit);
+    return collectEntriesFromRoot(journalDirAbsolute(), options);
   }
 
   async function appendJournalEntry(options = {}) {
@@ -368,11 +377,41 @@ function createWorkspaceJournalService(deps) {
   };
 }
 
+function resolveJournalFlowItemName(entry) {
+  const body = String(entry?.body || "").trim();
+  const colonMatch = body.match(/^[^:]+:\s*(.+)$/);
+  if (colonMatch) return colonMatch[1].trim();
+  const firstLine = body.split("\n").find((line) => line.trim());
+  return firstLine || "";
+}
+
+function mapJournalEntryToFlowItem(agent, entry) {
+  const nodePath = normalizeRelPath(entry?.path || entry?.topic || "");
+  const parsedName = resolveJournalFlowItemName(entry);
+  const fallbackName = nodePath ? path.basename(nodePath).replace(/\.md$/i, "") : "";
+  return {
+    agentId: agent.id,
+    agentName: agent.name || agent.id,
+    agentPath: agent.path,
+    agentActive: agent.active !== false,
+    nodePath,
+    name: parsedName || fallbackName || agent.name || agent.id,
+    awnType: "",
+    awnProps: {},
+    updatedAt: entry?.at || "",
+    journalId: entry?.id || null,
+    journalType: entry?.type || null
+  };
+}
+
 module.exports = {
   JOURNAL_DIR,
   createWorkspaceJournalService,
   getIsoWeekId,
   parseJournalFileContent,
   journalEntryToNotificationId,
-  mapJournalEntryToNotificationEvent
+  mapJournalEntryToNotificationEvent,
+  mapJournalEntryToFlowItem,
+  resolveJournalFlowItemName,
+  collectEntriesFromRoot
 };
