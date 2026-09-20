@@ -1619,7 +1619,7 @@ const CHPU_WORKSPACE_MODULE_VIEW_IDS = new Set([
   "module-broken-links",
   "module-run-scripts",
   "module-todo-list",
-  "module-mcp-methods"
+  "module-catalog"
 ]);
 
 const AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU = {
@@ -1632,12 +1632,13 @@ const AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU = {
   "broken-links": "module-broken-links",
   "run-scripts": "module-run-scripts",
   "todo-list": "module-todo-list",
-  "mcp-methods": "module-mcp-methods"
+  "module-catalog": "module-catalog"
 };
 
 const MODULE_CHPU_TO_AGENT_WORKSPACE_VIEW = Object.fromEntries(
   Object.entries(AGENT_WORKSPACE_VIEW_TO_MODULE_CHPU).map(([view, chpu]) => [chpu, view])
 );
+MODULE_CHPU_TO_AGENT_WORKSPACE_VIEW["module-mcp-methods"] = "module-catalog";
 
 const PROJECT_SETTINGS_MODULE_CHPU = "module-settings";
 
@@ -1696,7 +1697,8 @@ const CHPU_LEGACY_UI_ALIASES = {
   "m-broken-links": "module-broken-links",
   "m-run-scripts": "module-run-scripts",
   "m-todo-list": "module-todo-list",
-  "m-mcp-methods": "module-mcp-methods"
+  "m-mcp-methods": "module-catalog",
+  "module-mcp-methods": "module-catalog"
 };
 
 /** @deprecated legacy /a/…/v/{mode} */
@@ -29098,7 +29100,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   "broken-links": "Битые ссылки",
   "run-scripts": "Запуск скриптов",
   "todo-list": "Список задач",
-  "mcp-methods": "MCP · методы",
+  "module-catalog": "Каталог модулей и инструментов",
   "runtime-registry": "Реестр контекста",
   map: "Карта",
   map2: "Структура",
@@ -29121,7 +29123,8 @@ const HIDDEN_AGENT_WORKSPACE_VIEWS = new Set(["storage", "map", "map3", "timelin
 const DISABLED_AGENT_WORKSPACE_VIEWS = new Set(["map2"]);
 
 function normalizeVisibleAgentWorkspaceView(view) {
-  const normalized = String(view || "").trim();
+  let normalized = String(view || "").trim();
+  if (normalized === "mcp-methods") normalized = "module-catalog";
   if (normalized === "timeline-horizontal") return "timeline";
   if (normalized === "timeline-axis" || normalized === "timeline-vertical") return "timeline";
   if (DISABLED_AGENT_WORKSPACE_VIEWS.has(normalized)) return "dashboard";
@@ -92487,7 +92490,7 @@ function saveAgentWorkspaceView(view) {
     view === "broken-links" ||
     view === "run-scripts" ||
     view === "todo-list" ||
-    view === "mcp-methods" ||
+    view === "module-catalog" ||
     view === "runtime-registry"
   ) {
     return;
@@ -92507,7 +92510,7 @@ function resetGitWorkspaceViewToDefault() {
     agentWorkspaceView !== "broken-links" &&
     agentWorkspaceView !== "run-scripts" &&
     agentWorkspaceView !== "todo-list" &&
-    agentWorkspaceView !== "mcp-methods" &&
+    agentWorkspaceView !== "module-catalog" &&
     agentWorkspaceView !== "runtime-registry"
   ) {
     return;
@@ -92552,7 +92555,7 @@ function applyAgentWorkspaceCanvasUi() {
   agentBrokenLinksPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "broken-links");
   agentRunScriptsPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "run-scripts");
   agentTodoListPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "todo-list");
-  agentMcpMethodsPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "mcp-methods");
+  agentMcpMethodsPaneNode?.classList.toggle("hidden", !showCanvas || agentWorkspaceView !== "module-catalog");
   agentRuntimeRegistryPaneNode?.classList.toggle(
     "hidden",
     !showCanvas || agentWorkspaceView !== "runtime-registry"
@@ -92597,7 +92600,7 @@ function applyAgentWorkspaceCanvasUi() {
     renderAgentRunScriptsView();
   } else if (agentWorkspaceView === "todo-list") {
     void renderAgentTodoListView();
-  } else if (agentWorkspaceView === "mcp-methods") {
+  } else if (agentWorkspaceView === "module-catalog") {
     renderAgentMcpMethodsView();
   } else if (agentWorkspaceView === "runtime-registry") {
     void renderAgentRuntimeRegistryView();
@@ -92652,7 +92655,7 @@ function setAgentWorkspaceView(view, { skipRouteSync = false } = {}) {
     view !== "broken-links" &&
     view !== "run-scripts" &&
     view !== "todo-list" &&
-    view !== "mcp-methods" &&
+    view !== "module-catalog" &&
     view !== "runtime-registry" &&
     view !== "awn-types" &&
     view !== "map" &&
@@ -93680,7 +93683,7 @@ function initAgentMcpMethodsToolbar() {
 function syncAgentMcpMethodsToolbarUi() {
   agentMcpMethodsBtn?.classList.toggle(
     "is-active",
-    agentWorkspaceView === "mcp-methods" && isAgentWorkspaceCanvasVisible()
+    agentWorkspaceView === "module-catalog" && isAgentWorkspaceCanvasVisible()
   );
 }
 
@@ -94698,7 +94701,7 @@ const WORKSPACE_MODULES_CATALOG = [
     mcp: "read_workspace_todo, write_workspace_todo",
     status: "stub"
   },
-  { id: "module-mcp-methods", label: "MCP · методы", view: "mcp-methods", mcp: "list_tools", status: "stub" }
+  { id: "module-catalog", label: "Каталог модулей и инструментов", view: "module-catalog", mcp: "list_tools", status: "stub" }
 ];
 
 function collectWorkspaceTodoSources() {
@@ -106809,7 +106812,7 @@ agentTodoListBtn?.addEventListener("click", () => {
 });
 
 agentMcpMethodsBtn?.addEventListener("click", () => {
-  setAgentWorkspaceView("mcp-methods");
+  setAgentWorkspaceView("module-catalog");
 });
 
 agentTodoListRefreshBtn?.addEventListener("click", () => {
@@ -106819,7 +106822,7 @@ agentTodoListRefreshBtn?.addEventListener("click", () => {
 });
 
 agentMcpMethodsRefreshBtn?.addEventListener("click", () => {
-  if (agentWorkspaceView === "mcp-methods") {
+  if (agentWorkspaceView === "module-catalog") {
     renderAgentMcpMethodsView();
   }
 });

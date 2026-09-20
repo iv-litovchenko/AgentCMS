@@ -88,11 +88,14 @@ const CHPU_UI_VIEW_IDS = new Set([
 const CHPU_WORKSPACE_MODULE_VIEW_IDS = new Set([
   "module-git",
   "module-settings",
+  "module-journal",
   "module-awn-types",
   "module-registry",
   "module-large-files",
   "module-broken-links",
-  "module-run-scripts"
+  "module-run-scripts",
+  "module-todo-list",
+  "module-catalog"
 ]);
 
 const CHPU_LEGACY_UI_ALIASES = {
@@ -129,6 +132,9 @@ const CHPU_LEGACY_UI_ALIASES = {
   "m-large-files": "module-large-files",
   "m-broken-links": "module-broken-links",
   "m-run-scripts": "module-run-scripts",
+  "m-todo-list": "module-todo-list",
+  "m-mcp-methods": "module-catalog",
+  "module-mcp-methods": "module-catalog",
   external: null,
   internal: null,
   inbox: null,
