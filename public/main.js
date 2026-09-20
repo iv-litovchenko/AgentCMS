@@ -22262,27 +22262,32 @@ function parseProjectSettingsIblockScopeRel(scopePath = getNodeSettingsManifestP
 function flattenAwnDataStoresForProjectSettings(stores = []) {
   const scopes = [];
   const seen = new Set();
+  const pushStore = (store, level) => {
+    const storeRel = String(store?.relPath || store?.id || "")
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, "");
+    if (!storeRel || storeRel === "_base" || seen.has(storeRel)) return;
+    seen.add(storeRel);
+    scopes.push({
+      path: buildProjectSettingsIblockScopePath(storeRel),
+      label: String(store.name || store.id || storeRel).trim(),
+      level,
+      storeRel,
+      storeKind: store.kind || "collection",
+      recordCount: resolveAwnDataRecordCount(store),
+      stub: true
+    });
+  };
   const walk = (list) => {
     for (const store of list || []) {
-      if (!store || store.kind === "group") {
-        walk(store?.children);
+      if (!store) continue;
+      if (store.kind === "group") {
+        pushStore(store, "iblock-group");
+        walk(store.children);
         continue;
       }
-      const storeRel = String(store.relPath || store.id || "")
-        .replace(/\\/g, "/")
-        .replace(/^\/+/, "")
-        .replace(/\/+$/, "");
-      if (!storeRel || storeRel === "_base" || seen.has(storeRel)) continue;
-      seen.add(storeRel);
-      scopes.push({
-        path: buildProjectSettingsIblockScopePath(storeRel),
-        label: String(store.name || store.id || storeRel).trim(),
-        level: "iblock",
-        storeRel,
-        storeKind: store.kind || "collection",
-        recordCount: resolveAwnDataRecordCount(store),
-        stub: true
-      });
+      pushStore(store, store.kind === "singleton" ? "iblock-singleton" : "iblock-collection");
     }
   };
   walk(stores);
@@ -22333,6 +22338,29 @@ function getProjectSettingsAgentGroupOrder(scopeKey = "global") {
   const cached = agentSettingsSchemaCacheByScope.get(scopeKey);
   const fields = cached?.settingsFields || {};
   return getSchemaEditorGroupOrder(fields, Object.keys(fields));
+}
+
+function countProjectSettingsAgentGroupSettings(scopePath, groupId) {
+  const scopeKey = getProjectSettingsAgentSchemaScopeKey(scopePath);
+  const schemaFields = agentSettingsSchemaCacheByScope.get(scopeKey)?.settingsFields || {};
+  const keysInGroup = Object.keys(schemaFields).filter(
+    (key) => resolvePropsFieldGroupId(key, schemaFields[key]) === groupId
+  );
+  if (!keysInGroup.length) return 0;
+  const settingsCache = nodeSettingsCacheByManifest.get(scopePath);
+  if (!settingsCache) return keysInGroup.length;
+  let filled = 0;
+  for (const key of keysInGroup) {
+    const entry = (settingsCache.entries || []).find((item) => item.key === key);
+    if (!entry) continue;
+    if (entry.kind === "bool" || entry.kind === "number") {
+      filled += 1;
+      continue;
+    }
+    if (entry.kind === "null") continue;
+    if (String(entry.value ?? "").trim() !== "") filled += 1;
+  }
+  return filled;
 }
 
 async function selectNodeManifest(label, filePath, contentMode, options = {}) {
@@ -41727,17 +41755,6 @@ function collectProjectSettingsScopes() {
   return collectProjectSettingsManifestScopes();
 }
 
-function createProjectSettingsScopeMarker(kind, hasValue) {
-  const marker = document.createElement("span");
-  marker.className = "project-settings-scope-marker";
-  marker.classList.toggle("is-env-kind", kind === "env");
-  marker.classList.toggle("is-config-kind", kind === "config");
-  marker.classList.toggle("is-schema-kind", kind === "schema");
-  marker.classList.toggle("has-value", hasValue);
-  marker.setAttribute("aria-hidden", "true");
-  return marker;
-}
-
 function createProjectSettingsScopeBadge(kind, valueCount) {
   const badge = document.createElement("span");
   badge.className = "project-settings-scope-badge";
@@ -41767,9 +41784,13 @@ function projectSettingsScopeSearchHaystack(scope) {
             ? "область области"
             : scope?.level === "topic"
               ? "тема темы"
-              : scope?.level === "iblock"
-                ? "инфоблок iblock awn-data"
-                : "";
+              : scope?.level === "iblock-group"
+                ? "инфоблок группа awn-data"
+                : scope?.level === "iblock-collection"
+                  ? "инфоблок коллекция awn-data"
+                  : scope?.level === "iblock-singleton"
+                    ? "инфоблок одиночка awn-data"
+                    : "";
   return [scope?.label, path, pathTail, levelLabel]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
@@ -41798,7 +41819,7 @@ function isProjectSettingsFileFilterDefault(filters = projectSettingsScopeFileFi
 }
 
 function projectSettingsScopeMatchesFileFilters(scope) {
-  if (scope?.level === "iblock") return isProjectSettingsFileFilterDefault();
+  if (String(scope?.level || "").startsWith("iblock-")) return isProjectSettingsFileFilterDefault();
   if (isProjectSettingsFileFilterDefault()) return true;
   const { schema, config, env } = projectSettingsScopeFileFilters;
   if (!schema && !config && !env) return true;
@@ -41880,35 +41901,26 @@ function renderProjectSettingsIblockScopeItem(scope, activeScopePath) {
     .filter(Boolean)
     .join(" · ");
 
-  const markers = document.createElement("span");
-  markers.className = "project-settings-scope-markers";
-  const marker = document.createElement("span");
-  marker.className = "project-settings-scope-marker is-iblock-kind";
-  marker.classList.toggle("has-value", recordCount > 0);
-  marker.setAttribute("aria-hidden", "true");
-  markers.append(marker);
-
   const label = document.createElement("span");
   label.className = "project-settings-scope-label";
   label.textContent = scope.label;
+  btn.append(label);
 
-  btn.append(markers, label);
-
-  if (recordCount > 0) {
-    const badges = document.createElement("span");
-    badges.className = "project-settings-scope-badges";
-    const badge = document.createElement("span");
-    badge.className = "project-settings-scope-badge is-iblock-badge";
-    badge.textContent = String(recordCount);
-    badge.title = scope.storeKind === "singleton" ? "main.md" : `${recordCount} записей`;
-    badges.append(badge);
-    btn.append(badges);
-  }
-
-  const hint = document.createElement("span");
-  hint.className = "project-settings-scope-hint";
-  hint.textContent = kindLabel;
-  btn.append(hint);
+  const badges = document.createElement("span");
+  badges.className = "project-settings-scope-badges";
+  const badge = document.createElement("span");
+  badge.className = "project-settings-scope-badge is-iblock-badge";
+  badge.textContent = String(recordCount);
+  badge.title =
+    scope.storeKind === "group"
+      ? `${recordCount} справочников`
+      : scope.storeKind === "singleton"
+        ? recordCount > 0
+          ? "main.md заполнен"
+          : "main.md пуст"
+        : `${recordCount} записей`;
+  badges.append(badge);
+  btn.append(badges);
 
   btn.addEventListener("click", () => {
     void selectProjectSettingsScope(scope.path);
@@ -41937,7 +41949,13 @@ function renderProjectSettingsAgentSettingsTabItem(scopePath, groupId, groupLabe
   const label = document.createElement("span");
   label.className = "project-settings-scope-label";
   label.textContent = groupLabel;
-  btn.append(label);
+
+  const count = countProjectSettingsAgentGroupSettings(scopePath, groupId);
+  const badge = document.createElement("span");
+  badge.className = "project-settings-scope-badge is-group-tab-badge";
+  badge.textContent = String(count);
+  badge.title = `${count} настроек в группе`;
+  btn.append(label, badge);
 
   btn.addEventListener("click", () => {
     void selectProjectSettingsAgentSettingsTab(scopePath, groupId);
@@ -41982,11 +42000,13 @@ function renderProjectSettingsScopeList() {
   const activeScopePath = getNodeSettingsManifestPath();
   const groups = [
     { level: "global", label: "Глобальные настройки платформы", agentTabs: true },
-    { level: "settings-local", label: "Локальные настройки платформы", agentTabs: true },
+    { level: "settings-local", label: "Настройки хранилища", agentTabs: true },
     { level: "workspace", label: "Workspace" },
     { level: "area", label: "Области" },
     { level: "topic", label: "Темы" },
-    { level: "iblock", label: "Инфоблоки" }
+    { level: "iblock-group", label: "Инфоблоки · группы" },
+    { level: "iblock-collection", label: "Инфоблоки · коллекции" },
+    { level: "iblock-singleton", label: "Инфоблоки · одиночки" }
   ];
 
   projectSettingsScopeListNode.appendChild(renderProjectSettingsScopeFilters());
@@ -42004,6 +42024,11 @@ function renderProjectSettingsScopeList() {
     if (!group.agentTabs && !items.length) continue;
     const groupNode = document.createElement("div");
     groupNode.className = "project-settings-scope-group";
+    if (group.level === "global") groupNode.classList.add("is-scope-platform-global");
+    if (group.level === "settings-local") groupNode.classList.add("is-scope-platform-local");
+    if (group.level === "workspace") groupNode.classList.add("is-scope-workspace");
+    if (group.level === "area" || group.level === "topic") groupNode.classList.add("is-scope-tree");
+    if (String(group.level || "").startsWith("iblock-")) groupNode.classList.add("is-scope-iblock");
     const title = document.createElement("div");
     title.className = "project-settings-scope-group-title";
     title.textContent = group.label;
@@ -42035,7 +42060,7 @@ function renderProjectSettingsScopeList() {
     }
 
     for (const scope of items) {
-      if (scope.level === "iblock") {
+      if (String(scope.level || "").startsWith("iblock-")) {
         groupNode.appendChild(renderProjectSettingsIblockScopeItem(scope, activeScopePath));
         continue;
       }
@@ -42093,25 +42118,12 @@ function renderProjectSettingsScopeList() {
         .filter(Boolean)
         .join(" · ");
 
-      const markers = document.createElement("span");
-      markers.className = "project-settings-scope-markers";
-      const showNodeMarkers = !["global", "settings-local"].includes(scope.level);
-      if (showNodeMarkers) {
-        markers.append(
-          createProjectSettingsScopeMarker("schema", hasSchemaFields),
-          createProjectSettingsScopeMarker("config", hasConfigValues),
-          createProjectSettingsScopeMarker("env", hasEnvValues)
-        );
-      } else {
-        markers.append(createProjectSettingsScopeMarker("config", hasConfigValues));
-      }
-
       const label = document.createElement("span");
       label.className = "project-settings-scope-label";
       label.textContent = scope.label;
+      btn.append(label);
 
-      btn.append(markers, label);
-
+      const showNodeMarkers = !["global", "settings-local"].includes(scope.level);
       if (hasConfigValues || hasSchemaFields || hasEnvValues) {
         const badges = document.createElement("span");
         badges.className = "project-settings-scope-badges";
@@ -42123,13 +42135,6 @@ function renderProjectSettingsScopeList() {
           badges.append(createProjectSettingsScopeBadge("env", envCount));
         }
         btn.append(badges);
-      }
-
-      if (scope.level === "workspace") {
-        const hint = document.createElement("span");
-        hint.className = "project-settings-scope-hint";
-        hint.textContent = "корень";
-        btn.append(hint);
       }
 
       btn.addEventListener("click", () => {
@@ -42224,7 +42229,7 @@ function renderProjectSettingsEnvEditor(cache = getProjectSettingsEnvCache()) {
 function syncProjectSettingsEnvEditorUi() {
   const isEditing = Boolean(projectSettingsEnvEditingOpen);
   projectSettingsEnvWrapNode?.classList.toggle("is-editing", isEditing);
-  projectSettingsEnvInputNode?.toggleAttribute("hidden", !isEditing);
+  projectSettingsEnvInputNode?.classList.toggle("hidden", !isEditing);
   projectSettingsEnvOpenBtnNode?.classList.toggle("is-active", isEditing);
   if (projectSettingsEnvOpenBtnNode) {
     projectSettingsEnvOpenBtnNode.textContent = isEditing
@@ -42409,8 +42414,7 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
       : activeStatus?.envExists
         ? `Файл <code>${escapeHtml(envPath)}</code> есть, но переменных пока нет.`
         : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан.`;
-    projectSettingsEnvLeadNode.innerHTML =
-      `${envHint} Нажмите «Открыть для редактирования», затем сохраните изменения.`;
+    projectSettingsEnvLeadNode.innerHTML = `${envHint} Редактируйте ниже и нажмите «Сохранить».`;
   }
   renderProjectSettingsScopeList();
   projectSettingsFieldsNode?.classList.remove("hidden");
@@ -42423,10 +42427,9 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
     projectSettingsEnvWrapNode?.classList.remove("hidden");
     projectSettingsEnvOpenBtnNode?.classList.remove("hidden");
     projectSettingsEnvSaveBtnNode?.classList.remove("hidden");
+    projectSettingsEnvEditingOpen = true;
     renderProjectSettingsEnvEditor(getProjectSettingsEnvCache());
-    if (!projectSettingsEnvEditingOpen) {
-      projectSettingsEnvSnapshot = getProjectSettingsEnvCache()?.content ?? "";
-    }
+    projectSettingsEnvSnapshot = getProjectSettingsEnvCache()?.content ?? "";
     syncProjectSettingsEnvEditorUi();
   }
   syncProjectSettingsSaveButtonState();

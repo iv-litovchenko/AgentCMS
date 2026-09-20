@@ -5,48 +5,20 @@ domain: settings
 status: active
 extends: awn.settings.base
 description: >
-  Параметры и поведение всей платформы Agent CMS (agent-cms-core).
-  Значения — settings.global.yml. Workspace переопределяет точечно через awn.settings.workspace.
+  Политика всей платформы Agent CMS (agent-cms-core): MCP, лимиты, системная память.
+  Значения — settings.global.yml. Не перекрываются настройками workspace.
 scope: platform
 enabled: true
 consumer: [mcp-server, server, ui, context]
 valuesFile: settings.global.yml
 
 fieldGroups:
-  - id: general
-    name: Общие
   - id: mcp
     name: MCP
   - id: memory
     name: Память
 
 fields:
-
-  agent-language:
-    type: awn.field.choice.one
-    title: Язык агента
-    description: Предпочтительный язык ответов по умолчанию
-    default: ru
-    enum: [ru, en, auto]
-    group: general
-    sort: 1
-
-  response-style:
-    type: awn.field.choice.one
-    title: Стиль ответов
-    description: Кратко / подробно / как в AGENTS.md
-    default: agents-md
-    enum: [brief, detailed, agents-md]
-    group: general
-    sort: 2
-
-  notify-on-complete:
-    type: awn.field.boolean
-    title: Уведомление по завершении
-    description: notify_user после длинных задач
-    default: false
-    group: general
-    sort: 3
 
   mcp-mode:
     type: awn.field.choice.one
@@ -81,49 +53,35 @@ fields:
 
   batch-deny-exec:
     type: awn.field.boolean
-    title: Запретить exec в batch
+    title: "{NOT WORK} Запретить exec в batch"
     default: true
     group: mcp
     sort: 14
 
   confirm-delete:
     type: awn.field.boolean
-    title: Подтверждение delete
+    title: "{NOT WORK} Подтверждение delete"
     default: true
     group: mcp
     sort: 15
 
   confirm-exec:
     type: awn.field.boolean
-    title: Подтверждение exec
+    title: "{NOT WORK} Подтверждение exec"
     default: true
     group: mcp
     sort: 16
 
-  default-slot:
-    type: awn.field.string
-    title: Слот по умолчанию
-    default: main
-    group: memory
-    sort: 20
-
   auto-retain-facts:
     type: awn.field.boolean
-    title: Авто-факты
+    title: "{NOT WORK} Авто-факты"
     default: false
     group: memory
     sort: 21
 
-  awn-temp-ttl-days:
-    type: awn.field.number.integer
-    title: TTL awn-temp (дни)
-    default: 0
-    group: memory
-    sort: 22
-
   always-context-max-files:
     type: awn.field.number.integer
-    title: Лимит always-context
+    title: "{NOT WORK} Лимит always-context"
     default: 0
     group: memory
     sort: 23

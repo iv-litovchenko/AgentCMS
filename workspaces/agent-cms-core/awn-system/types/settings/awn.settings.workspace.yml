@@ -3,10 +3,10 @@ name: Настройки workspace
 kind: type
 domain: settings
 status: active
-extends: awn.settings.platform
+extends: awn.settings.base
 description: >
-  Точечные переопределения только для текущего хранилища (workspace).
-  Значения — settings.yml. Эффективные = platform + workspace.
+  Параметры конкретного хранилища (workspace): язык, стиль, слот по умолчанию, TTL awn-temp.
+  Значения — settings.yml. Отдельная область, не сливается с platform.
 scope: workspace
 enabled: true
 consumer: [mcp-server, server, ui, context]
@@ -15,7 +15,47 @@ valuesFile: settings.yml
 fieldGroups:
   - id: general
     name: Общие
-  - id: mcp
-    name: MCP
   - id: memory
     name: Память
+
+fields:
+
+  agent-language:
+    type: awn.field.choice.one
+    title: "{NOT WORK} Язык агента"
+    description: Предпочтительный язык ответов для этого хранилища
+    default: ru
+    enum: [ru, en, auto]
+    group: general
+    sort: 1
+
+  response-style:
+    type: awn.field.choice.one
+    title: "{NOT WORK} Стиль ответов"
+    description: Кратко / подробно / как в AGENTS.md
+    default: agents-md
+    enum: [brief, detailed, agents-md]
+    group: general
+    sort: 2
+
+  notify-on-complete:
+    type: awn.field.boolean
+    title: "{NOT WORK} Уведомление по завершении"
+    description: notify_user после длинных задач в этом workspace
+    default: false
+    group: general
+    sort: 3
+
+  default-slot:
+    type: awn.field.string
+    title: "{NOT WORK} Слот по умолчанию"
+    default: main
+    group: memory
+    sort: 20
+
+  awn-temp-ttl-days:
+    type: awn.field.number.integer
+    title: "{NOT WORK} TTL awn-temp (дни)"
+    default: 0
+    group: memory
+    sort: 22

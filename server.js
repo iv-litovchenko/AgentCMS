@@ -315,6 +315,7 @@ const { createContentSchemaApi } = require("./content-schema-api");
 const { readAgentUiContext, writeAgentUiContext, UI_CONTEXT_MAX_AGE_MS } = require("./ui-context-api");
 const NodeConfigBundle = require("./node-config-bundle");
 const {
+  normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
   parseWorkspaceAgentSettingsFromConfigContent
 } = require("./workspace-agent-settings");
@@ -2208,9 +2209,14 @@ async function readWorkspaceAgentSettings() {
     settingsPath: workspaceFile.exists ? WORKSPACE_SETTINGS_FILE : workspaceFile.legacyConfigPath || WORKSPACE_SETTINGS_FILE,
     configPath: workspaceFile.exists ? WORKSPACE_SETTINGS_FILE : workspaceFile.legacyConfigPath || "",
     exists: Boolean(workspaceFile.exists || effective.sources.workspace),
-    settings: effective.settings,
-    local: effective.local,
-    global: effective.global,
+    platform: effective.platform,
+    workspace: effective.workspace,
+    /** @deprecated MCP policy — use platform */
+    settings: effective.platform,
+    /** @deprecated use workspace */
+    local: effective.workspace,
+    /** @deprecated use platform */
+    global: effective.platform,
     sources: effective.sources
   };
 }
@@ -13001,7 +13007,8 @@ async function buildAgentSessionContext() {
     apiMap: SESSION_CONTEXT_API_MAP,
     menuSummary,
     awnSystem,
-    workspaceSettings: workspaceSettings.settings,
+    platformSettings: workspaceSettings.platform,
+    workspaceSettings: workspaceSettings.workspace,
     serviceDocs,
     topicRegistry,
     topicCount: topicRegistry.topicCount,
@@ -13011,7 +13018,7 @@ async function buildAgentSessionContext() {
     alwaysContext,
     alwaysContextCount: alwaysContext.itemCount,
     hint:
-      "Старт: topicRegistry (skill-карта) + dataStoresSummary (инфоблоки) + alwaysContext (полные файлы). Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat. workspaceSettings — политики MCP (mcp-mode, batch_*)."
+      "Старт: topicRegistry (skill-карта) + dataStoresSummary (инфоблоки) + alwaysContext (полные файлы). Cron: list_workspace_cron. Heartbeat: list_workspace_heartbeat. platformSettings — MCP policy; workspaceSettings — параметры хранилища."
   };
 }
 
@@ -19793,7 +19800,8 @@ async function handleApiForAgent(req, res, url) {
         content,
         exists: Boolean(file.exists),
         legacySource: file.legacyConfigPath || null,
-        settings: normalizeWorkspaceAgentSettings(parsed.awn_settings)
+        settings: normalizeWorkspaceAgentSettings(parsed.awn_settings),
+        scope: "workspace"
       });
     } catch (error) {
       return sendJson(res, 500, {
@@ -19817,7 +19825,8 @@ async function handleApiForAgent(req, res, url) {
         path: saved.path,
         content: saved.content,
         exists: true,
-        settings: normalizeWorkspaceAgentSettings(parseSettingsFileContent(saved.content).awn_settings)
+        settings: normalizeWorkspaceAgentSettings(parseSettingsFileContent(saved.content).awn_settings),
+        scope: "workspace"
       });
     } catch (error) {
       return sendJson(res, 500, {
@@ -19835,7 +19844,8 @@ async function handleApiForAgent(req, res, url) {
         path: file.path,
         content: file.content,
         exists: Boolean(file.exists),
-        settings: normalizeWorkspaceAgentSettings(parsed.awn_settings),
+        settings: normalizePlatformAgentSettings(parsed.awn_settings),
+        scope: "platform",
         hasPolicy: Boolean(parsed.awn_policy)
       });
     } catch (error) {
@@ -19862,7 +19872,8 @@ async function handleApiForAgent(req, res, url) {
         path: saved.path,
         content: saved.content,
         exists: true,
-        settings: normalizeWorkspaceAgentSettings(parseSettingsFileContent(saved.content).awn_settings)
+        settings: normalizePlatformAgentSettings(parseSettingsFileContent(saved.content).awn_settings),
+        scope: "platform"
       });
     } catch (error) {
       return sendJson(res, 500, {

@@ -1,10 +1,7 @@
 const NodeConfigBundle = require("./node-config-bundle");
 const { loadMcpPolicy } = require("./mcp-policy-loader");
 
-const WORKSPACE_AGENT_SETTINGS_DEFAULTS = {
-  "agent-language": "ru",
-  "response-style": "agents-md",
-  "notify-on-complete": false,
+const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "mcp-mode": "standard",
   "batch-enabled": true,
   "batch-read-limit": 20,
@@ -12,10 +9,22 @@ const WORKSPACE_AGENT_SETTINGS_DEFAULTS = {
   "batch-deny-exec": true,
   "confirm-delete": true,
   "confirm-exec": true,
-  "default-slot": "main",
   "auto-retain-facts": false,
-  "awn-temp-ttl-days": 0,
   "always-context-max-files": 0
+};
+
+const WORKSPACE_AGENT_SETTINGS_DEFAULTS = {
+  "agent-language": "ru",
+  "response-style": "agents-md",
+  "notify-on-complete": false,
+  "default-slot": "main",
+  "awn-temp-ttl-days": 0
+};
+
+/** @deprecated merged defaults kept for compatibility checks only */
+const WORKSPACE_AGENT_SETTINGS_DEFAULTS_LEGACY = {
+  ...PLATFORM_AGENT_SETTINGS_DEFAULTS,
+  ...WORKSPACE_AGENT_SETTINGS_DEFAULTS
 };
 
 function getPolicy() {
@@ -40,20 +49,30 @@ function flattenAwnSettingsValues(raw) {
   return flat;
 }
 
-function normalizeWorkspaceAgentSettings(raw = {}) {
+function normalizeSettingsWithDefaults(raw = {}, defaults = {}) {
   const flat = flattenAwnSettingsValues(raw);
-  const normalized = { ...WORKSPACE_AGENT_SETTINGS_DEFAULTS };
+  const normalized = { ...defaults };
   for (const [key, value] of Object.entries(flat)) {
-    if (!(key in WORKSPACE_AGENT_SETTINGS_DEFAULTS)) {
-      normalized[key] = value;
-      continue;
-    }
-    const defaults = WORKSPACE_AGENT_SETTINGS_DEFAULTS[key];
-    if (typeof defaults === "boolean") normalized[key] = Boolean(value);
-    else if (typeof defaults === "number") normalized[key] = Number(value) || 0;
-    else normalized[key] = String(value ?? defaults);
+    if (!(key in defaults)) continue;
+    const defaultValue = defaults[key];
+    if (typeof defaultValue === "boolean") normalized[key] = Boolean(value);
+    else if (typeof defaultValue === "number") normalized[key] = Number(value) || 0;
+    else normalized[key] = String(value ?? defaultValue);
   }
   return normalized;
+}
+
+function normalizePlatformAgentSettings(raw = {}) {
+  return normalizeSettingsWithDefaults(raw, PLATFORM_AGENT_SETTINGS_DEFAULTS);
+}
+
+function normalizeWorkspaceAgentSettings(raw = {}) {
+  return normalizeSettingsWithDefaults(raw, WORKSPACE_AGENT_SETTINGS_DEFAULTS);
+}
+
+function parsePlatformAgentSettingsFromConfigContent(content) {
+  const bundle = NodeConfigBundle.parseNodeConfigBundle(content || "");
+  return normalizePlatformAgentSettings(bundle.awn_settings || {});
 }
 
 function parseWorkspaceAgentSettingsFromConfigContent(content) {
@@ -74,17 +93,17 @@ function isMcpExecTool(toolName) {
 
 function assertMcpToolAllowed(toolName, settings = {}) {
   const policy = getPolicy();
-  const normalized = normalizeWorkspaceAgentSettings(settings);
+  const normalized = normalizePlatformAgentSettings(settings);
   const mode = normalized["mcp-mode"];
   const name = String(toolName || "").trim();
 
   if (mode === "readonly" && isMcpWriteTool(name)) {
     throw new Error(
-      `MCP tool "${name}" blocked: workspace mcp-mode=readonly (change in settings.yml)`
+      `MCP tool "${name}" blocked: platform mcp-mode=readonly (change in settings.global.yml)`
     );
   }
   if (isMcpExecTool(name) && !policy.mcp.execAllowedModes.has(mode)) {
-    throw new Error(`MCP tool "${name}" blocked: workspace mcp-mode=${mode} (exec only in full mode)`);
+    throw new Error(`MCP tool "${name}" blocked: platform mcp-mode=${mode} (exec only in full mode)`);
   }
   return normalized;
 }
@@ -101,7 +120,7 @@ function getBatchToolCategory(toolName) {
 }
 
 function getBatchLimitForTool(toolName, settings = {}) {
-  const normalized = normalizeWorkspaceAgentSettings(settings);
+  const normalized = normalizePlatformAgentSettings(settings);
   const category = getBatchToolCategory(toolName);
   if (category === "read") return normalized["batch-read-limit"];
   if (category === "write") return normalized["batch-write-limit"];
@@ -121,12 +140,12 @@ function getBatchDefaultParallel(category) {
 
 function assertBatchInvokeAllowed(toolName, itemCount, settings = {}) {
   const policy = getPolicy();
-  const normalized = normalizeWorkspaceAgentSettings(settings);
+  const normalized = normalizePlatformAgentSettings(settings);
   const name = String(toolName || "").trim();
   const count = Number(itemCount) || 0;
 
   if (!normalized["batch-enabled"]) {
-    throw new Error("batch_invoke disabled in workspace settings (batch-enabled=false)");
+    throw new Error("batch_invoke disabled in platform settings (batch-enabled=false)");
   }
 
   const category = getBatchToolCategory(name);
@@ -155,9 +174,13 @@ function assertBatchInvokeAllowed(toolName, itemCount, settings = {}) {
 }
 
 module.exports = {
+  PLATFORM_AGENT_SETTINGS_DEFAULTS,
   WORKSPACE_AGENT_SETTINGS_DEFAULTS,
+  WORKSPACE_AGENT_SETTINGS_DEFAULTS_LEGACY,
   flattenAwnSettingsValues,
+  normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
+  parsePlatformAgentSettingsFromConfigContent,
   parseWorkspaceAgentSettingsFromConfigContent,
   isMcpWriteTool,
   isMcpExecTool,

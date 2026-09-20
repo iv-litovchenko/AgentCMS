@@ -4,6 +4,7 @@ const NodeConfigBundle = require("./node-config-bundle");
 const { parseTypeYaml } = require("./awn-yaml-utils");
 const { AGENT_CMS_CORE_REL, getAgentCmsCoreAbsolute } = require("./platform-sources");
 const {
+  normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
   flattenAwnSettingsValues,
   parseWorkspaceAgentSettingsFromConfigContent
@@ -16,7 +17,7 @@ const PROJECT_SETTINGS_GLOBAL_SCOPE = "__global__";
 const PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE = "__workspace-settings__";
 
 const WORKSPACE_SETTINGS_HEADER =
-  "# Agent CMS — локальные настройки workspace (переопределяют глобальные)\n";
+  "# Agent CMS — настройки workspace (только это хранилище)\n";
 const GLOBAL_SETTINGS_HEADER =
   "# Agent CMS — глобальные настройки платформы (agent-cms-core)\n";
 
@@ -203,18 +204,22 @@ async function getEffectiveWorkspaceSettings(agentRoot, projectRoot) {
     }
   }
 
-  const merged = {
-    ...globalParsed.awn_settings,
-    ...localSettings
-  };
+  const platform = normalizePlatformAgentSettings(globalParsed.awn_settings);
+  const workspace = normalizeWorkspaceAgentSettings(localSettings);
 
   return {
-    settings: normalizeWorkspaceAgentSettings(merged),
-    local: normalizeWorkspaceAgentSettings(localSettings),
-    global: normalizeWorkspaceAgentSettings(globalParsed.awn_settings),
+    platform,
+    workspace,
+    /** @deprecated use platform — MCP policy reads platform settings only */
+    settings: platform,
+    /** @deprecated use workspace */
+    local: workspace,
+    /** @deprecated use platform */
+    global: platform,
     sources: {
-      global: globalFile.exists ? globalFile.path : null,
-      workspace: workspaceFile.exists ? workspaceFile.path : workspaceFile.legacyConfigPath || null
+      platform: globalFile.exists ? globalFile.path : null,
+      workspace: workspaceFile.exists ? workspaceFile.path : workspaceFile.legacyConfigPath || null,
+      global: globalFile.exists ? globalFile.path : null
     },
     files: {
       global: globalFile,
@@ -327,7 +332,7 @@ function buildAgentSettingsSchemaPayloadFromType(typeId, byId, projectRoot = pro
   );
   const fieldKeys = ownFieldKeys.length
     ? ownFieldKeys
-    : platformFieldKeys.length
+    : isPlatform && platformFieldKeys.length
       ? platformFieldKeys
       : Object.keys(mergedFields).filter((key) => !["scope", "value", "enabled"].includes(key));
   const fields = {};

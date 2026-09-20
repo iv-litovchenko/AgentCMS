@@ -28,13 +28,12 @@ domains:
     kind: type
     icon: "⚙"
 
-# Две модели: platform (settings.global.yml) + workspace (settings.yml).
+# Две независимые области: platform (settings.global.yml) + workspace (settings.yml).
 # Схемы полей — types/settings/awn.settings.{platform,workspace}.yml
 settings:
   description: >
-    Платформа (agent-cms-core) задаёт defaults и поведение всей системы.
-    Workspace переопределяет точечно только для текущего хранилища.
-    Эффективные настройки = platform + workspace. MCP policy — settings.global.yml → awn_policy.
+    Platform — политика всей CMS (MCP, лимиты, системная память). Workspace — параметры конкретного хранилища.
+    Области не сливаются и не перекрывают друг друга. MCP policy — settings.global.yml → awn_policy.
   schema:
     platform:
       type: awn.settings.platform

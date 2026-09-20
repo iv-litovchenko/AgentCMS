@@ -26,9 +26,21 @@ export async function loadWorkspaceAgentSettings(client, agentId) {
   if (cached && cached.expiresAt > Date.now()) return cached.settings;
 
   const payload = await client.get("/api/agent/workspace-settings", {}, { agentId });
-  const settings = payload?.settings && typeof payload.settings === "object" ? payload.settings : {};
+  const settings =
+    payload?.platform && typeof payload.platform === "object"
+      ? payload.platform
+      : payload?.settings && typeof payload.settings === "object"
+        ? payload.settings
+        : {};
   settingsCache.set(key, { settings, expiresAt: Date.now() + CACHE_TTL_MS });
   return settings;
+}
+
+export async function loadWorkspaceStorageSettings(client, agentId) {
+  const key = cacheKey(agentId);
+  if (!key) return {};
+  const payload = await client.get("/api/agent/workspace-settings", {}, { agentId });
+  return payload?.workspace && typeof payload.workspace === "object" ? payload.workspace : {};
 }
 
 export async function assertWorkspaceMcpToolAllowed(client, agentId, toolName) {
