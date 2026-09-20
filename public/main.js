@@ -9211,20 +9211,41 @@ function renderHeaderGlobalSettingsModal(cache = headerGlobalSettingsCache) {
   }
 }
 
-async function loadHeaderGlobalSettingsCache(options = {}) {
+async function loadPlatformSettingsSchemaBundle(options = {}) {
   const force = Boolean(options.force);
-  if (!force && headerGlobalSettingsCache) return headerGlobalSettingsCache;
+  if (!force && agentSettingsSchemaCacheByScope.has("global")) {
+    return agentSettingsSchemaCacheByScope.get("global");
+  }
+
+  const response = await fetch("/api/platform/settings-schema");
+  if (response.ok) {
+    const data = await response.json();
+    const payload = {
+      scope: "global",
+      typeId: data.type || "awn.settings.platform",
+      settingsFields: mergeAgentSettingsSchemaFields(data.fields || {}),
+      settingsFieldGroups: Array.isArray(data.fieldGroups) ? data.fieldGroups : []
+    };
+    agentSettingsSchemaCacheByScope.set("global", payload);
+    return payload;
+  }
 
   if (activeAgentId) {
     await loadAwnTypes(activeAgentId).catch(() => {});
   }
+  return loadAgentSettingsSchemaBundle({ scope: "global", force });
+}
+
+async function loadHeaderGlobalSettingsCache(options = {}) {
+  const force = Boolean(options.force);
+  if (!force && headerGlobalSettingsCache) return headerGlobalSettingsCache;
 
   const [data, schemaBundle] = await Promise.all([
-    fetch(buildApiUrl("/api/platform/settings-global")).then(async (response) => {
+    fetch("/api/platform/settings-global").then(async (response) => {
       if (!response.ok) throw new Error(`Request failed with ${response.status}`);
       return response.json();
     }),
-    loadAgentSettingsSchemaBundle({ scope: "global", force })
+    loadPlatformSettingsSchemaBundle({ force })
   ]);
 
   const state = parseNodeSettingsState(data.content || "");
@@ -9259,7 +9280,7 @@ async function saveHeaderGlobalSettings() {
   if (!cache) throw new Error("Настройки не загружены");
 
   const content = buildSettingsYamlFromState(cache, cache.settingsFields || {});
-  const response = await fetch(buildApiUrl("/api/platform/settings-global"), {
+  const response = await fetch("/api/platform/settings-global", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content })
@@ -19300,7 +19321,7 @@ function syncPlatformMaintenanceUi() {
 
 async function loadPlatformUiSettings() {
   try {
-    const response = await fetch(buildApiUrl("/api/platform/settings-global"));
+    const response = await fetch("/api/platform/settings-global");
     if (!response.ok) return;
     const data = await response.json();
     platformUiSettings = {

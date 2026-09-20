@@ -5326,6 +5326,7 @@ const WORKSPACE_FS_READ_BASE64_MAX_BYTES_FALLBACK = 1_500_000;
 
 const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
   "/api/platform/settings-global",
+  "/api/platform/settings-schema",
   "/api/agent/settings-schema"
 ]);
 
@@ -20061,30 +20062,6 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
-  if (req.method === "GET" && url.pathname === "/api/platform/settings-global") {
-    try {
-      const projectRoot = getProjectRoot();
-      const agentRoot = getAgentRoot();
-      const file = await readGlobalSettingsFile(projectRoot);
-      const parsed = parseSettingsFileContent(file.content || "");
-      const meta = await buildPlatformSettingsMeta(projectRoot, agentRoot || "");
-      return sendJson(res, 200, {
-        path: file.path,
-        content: file.content,
-        exists: Boolean(file.exists),
-        settings: normalizePlatformAgentSettings(parsed.awn_settings),
-        scope: "platform",
-        hasPolicy: Boolean(parsed.awn_policy),
-        meta
-      });
-    } catch (error) {
-      return sendJson(res, 500, {
-        error: "Failed to read global settings file",
-        details: String(error.message || error)
-      });
-    }
-  }
-
   if (req.method === "GET" && url.pathname === "/api/user/settings") {
     try {
       const agentRoot = getAgentRoot();
@@ -20135,34 +20112,6 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to save user settings file",
-        details: String(error.message || error)
-      });
-    }
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/platform/settings-global") {
-    try {
-      const payload = await readJsonBody(req);
-      const content = String(payload?.content ?? "").replace(/^\uFEFF/, "");
-      if (!content.trim()) {
-        return sendJson(res, 400, { error: "content is required" });
-      }
-      const saved = await writeGlobalSettingsFile(
-        getProjectRoot(),
-        content.endsWith("\n") ? content : `${content}\n`
-      );
-      invalidatePlatformSettingsCache();
-      reloadMcpPolicy({ projectRoot: getProjectRoot() });
-      return sendJson(res, 200, {
-        path: saved.path,
-        content: saved.content,
-        exists: true,
-        settings: normalizePlatformAgentSettings(parseSettingsFileContent(saved.content).awn_settings),
-        scope: "platform"
-      });
-    } catch (error) {
-      return sendJson(res, 500, {
-        error: "Failed to save global settings file",
         details: String(error.message || error)
       });
     }
@@ -26644,6 +26593,69 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to load platform UI rotators",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/settings-schema") {
+    try {
+      const payload = getAgentSettingsSchemaPayload(null, getProjectRoot(), "platform");
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read platform settings schema",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/settings-global") {
+    try {
+      const projectRoot = getProjectRoot();
+      const file = await readGlobalSettingsFile(projectRoot);
+      const parsed = parseSettingsFileContent(file.content || "");
+      const meta = await buildPlatformSettingsMeta(projectRoot, "");
+      return sendJson(res, 200, {
+        path: file.path,
+        content: file.content,
+        exists: Boolean(file.exists),
+        settings: normalizePlatformAgentSettings(parsed.awn_settings),
+        scope: "platform",
+        hasPolicy: Boolean(parsed.awn_policy),
+        meta
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read global settings file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/platform/settings-global") {
+    try {
+      const payload = await readJsonBody(req);
+      const content = String(payload?.content ?? "").replace(/^\uFEFF/, "");
+      if (!content.trim()) {
+        return sendJson(res, 400, { error: "content is required" });
+      }
+      const saved = await writeGlobalSettingsFile(
+        getProjectRoot(),
+        content.endsWith("\n") ? content : `${content}\n`
+      );
+      invalidatePlatformSettingsCache();
+      reloadMcpPolicy({ projectRoot: getProjectRoot() });
+      return sendJson(res, 200, {
+        path: saved.path,
+        content: saved.content,
+        exists: true,
+        settings: normalizePlatformAgentSettings(parseSettingsFileContent(saved.content).awn_settings),
+        scope: "platform"
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save global settings file",
         details: String(error?.message || error)
       });
     }
