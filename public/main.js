@@ -59862,7 +59862,8 @@ function collectStorageSlotIndexEntries(
       type: rawType || (isFolder ? "папка" : "файл"),
       title: normalizeYamlDisplayString(String(item.title || item.name || path).trim()) || path,
       description: normalizeYamlDisplayString(String(item.description || "").trim()),
-      awnId: normalizeAwnIdDisplayValue(getPropsEntryValueByKey(props, "awn-id")) || null
+      awnId: normalizeAwnIdDisplayValue(getPropsEntryValueByKey(props, "awn-id")) || null,
+      importance: parseAwnImportanceValue(getPropsEntryValueByKey(props, AWN_IMPORTANCE_FIELD_KEY))
     });
   }
 
@@ -59894,7 +59895,8 @@ function collectStorageSlotIndexEntries(
       type: rawType || "папка",
       title: normalizeYamlDisplayString(String(folderLabels.get(path) || baseName).trim()) || baseName,
       description: normalizeYamlDisplayString(String(folderDescriptions.get(path) || "").trim()),
-      awnId: normalizeAwnIdDisplayValue(getPropsEntryValueByKey(props, "awn-id")) || null
+      awnId: normalizeAwnIdDisplayValue(getPropsEntryValueByKey(props, "awn-id")) || null,
+      importance: parseAwnImportanceValue(getPropsEntryValueByKey(props, AWN_IMPORTANCE_FIELD_KEY))
     });
   }
 
@@ -59982,6 +59984,7 @@ function formatAgentContentIndexPayloadAsTopicMarkdown(payload, topicPath, slots
 
   if (bundleSection) lines.push(bundleSection);
 
+  appendContentIndexImportanceLegend(lines);
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
@@ -60059,13 +60062,15 @@ function formatAgentContentIndexPayloadAsSlotMarkdown(payload, topicPath, spec, 
     payload?.slots?.find((row) => row.slot === slotKey) || payload?.slots?.[0] || null;
   const entries = Array.isArray(slotRow?.entries) ? slotRow.entries : [];
 
-  return [
+  const lines = [
     `# Оглавление — ${icon}${label}`,
     "",
     formatStorageIndexEntriesMarkdown(entries, {
       emptyHint: "_В слоте пока нет файлов для оглавления._"
     })
-  ].join("\n");
+  ];
+  appendContentIndexImportanceLegend(lines);
+  return lines.join("\n");
 }
 
 async function buildTopicStorageIndexMarkdownFromApi(topicPath, slots = []) {
@@ -60155,6 +60160,27 @@ function formatStorageIndexCommentCountCell(count) {
   return String(Math.max(0, Number(count) || 0));
 }
 
+const CONTENT_INDEX_IMPORTANCE_LEGEND =
+  "* **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.";
+
+const CONTENT_INDEX_LINES_LEGEND =
+  "* **Строк** — число строк в теле документа (manifest.md). Если больше 0 — есть инструкция/промпт для агента: как работать с этой темой, что важно знать, договорённости. Пустое тело — 0.";
+
+function formatStorageIndexImportanceCell(importance) {
+  return String(parseAwnImportanceValue(importance, AWN_IMPORTANCE_DEFAULT));
+}
+
+function appendContentIndexLegends(lines, { includeLinesLegend = false } = {}) {
+  lines.push("", CONTENT_INDEX_IMPORTANCE_LEGEND);
+  if (includeLinesLegend) {
+    lines.push(CONTENT_INDEX_LINES_LEGEND);
+  }
+}
+
+function appendContentIndexImportanceLegend(lines) {
+  appendContentIndexLegends(lines);
+}
+
 function formatStorageIndexEntriesMarkdown(
   entries,
   { emptyHint = "_Нет записей._", linkTitle = true, tableVariant = "content" } = {}
@@ -60163,15 +60189,15 @@ function formatStorageIndexEntriesMarkdown(
   const includeSlotsMode = tableVariant === "workspace";
   const includeSlotLabel = tableVariant === "topic-content";
   const header = includeSlotsMode
-    ? "| ID | Тип | Слоты | Путь | Название | Описание | Комментарии | Конфигурации | Размер | Строк |"
+    ? "| ID | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |"
     : includeSlotLabel
-      ? "| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |"
-      : "| ID | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |";
+      ? "| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |"
+      : "| ID | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |";
   const divider = includeSlotsMode
-    ? "| ---: | --- | --- | --- | --- | --- | ---: | --- | ---: | ---: |"
+    ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
     : includeSlotLabel
-      ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: |"
-      : "| ---: | --- | --- | --- | --- | ---: | ---: | ---: |";
+      ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
+      : "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: |";
   const lines = [header, divider];
   for (const entry of entries) {
     const slotModeCell = escapeStorageIndexTableCell(entry.slotsMode) || "—";
@@ -60183,24 +60209,25 @@ function formatStorageIndexEntriesMarkdown(
     const linesCell = formatStorageIndexLineCount(entry.lineCount);
     const idCell = formatStorageIndexAwnIdCell(entry.awnId);
     const commentsCell = formatStorageIndexCommentCountCell(entry.commentCount);
+    const importanceCell = formatStorageIndexImportanceCell(entry.importance);
 
     if (includeSlotsMode) {
       const configurationsCell = escapeStorageIndexTableCell(entry.configurations) || "—";
       lines.push(
-        `| ${idCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${slotModeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${commentsCell} | ${configurationsCell} | ${sizeCell} | ${linesCell} |`
+        `| ${idCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${slotModeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} | ${configurationsCell} |`
       );
       continue;
     }
 
     if (includeSlotLabel) {
       lines.push(
-        `| ${idCell} | ${slotLabelCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} |`
+        `| ${idCell} | ${slotLabelCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
       );
       continue;
     }
 
     lines.push(
-      `| ${idCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} |`
+      `| ${idCell} | ${escapeStorageIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
     );
   }
   return lines.join("\n");
@@ -60213,11 +60240,13 @@ function buildStorageSlotIndexMarkdown(topicPath, slot = {}) {
   const manifestPath = getOverviewNodeApiPath(topicPath);
   const storageFolder = getStorageFolderForSlotSpec(spec);
   const entries = collectStorageSlotIndexEntries(slot.prepared, { manifestPath, storageFolder });
-  return [
+  const lines = [
     `# Оглавление — ${icon}${label}`,
     "",
     formatStorageIndexEntriesMarkdown(entries, { emptyHint: "_В слоте пока нет файлов для оглавления._" })
-  ].join("\n");
+  ];
+  appendContentIndexImportanceLegend(lines);
+  return lines.join("\n");
 }
 
 function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
@@ -60235,6 +60264,7 @@ function buildTopicStorageIndexMarkdown(topicPath, slots = []) {
   }
 
   lines.push("_Нет записей во внешних слотах._");
+  appendContentIndexImportanceLegend(lines);
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
@@ -67687,16 +67717,16 @@ async function resolveExistingWorkspacePageIndexRelPath() {
 
 function formatWorkspacePageIndexPayloadAsMarkdown(payload) {
   const entries = Array.isArray(payload?.entries) ? payload.entries : [];
-  return [
+  const lines = [
     "# Оглавление workspace",
     "",
     formatStorageIndexEntriesMarkdown(entries, {
       emptyHint: "_В workspace пока нет страниц для оглавления._",
       tableVariant: "workspace"
     })
-  ]
-    .join("\n")
-    .trimEnd();
+  ];
+  appendContentIndexLegends(lines, { includeLinesLegend: true });
+  return lines.join("\n").trimEnd();
 }
 
 async function buildWorkspacePageIndexMarkdownFromApi() {

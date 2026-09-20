@@ -21,6 +21,7 @@
     "main/awn-container/php/awn-storage/manifest.md",
     "main/awn-container/php/manifest.md",
     "main/baza-dannyh/manifest.md",
+    "main/baza-dannyh/migratsii.md",
     "main/baza-dannyh/PDO.md",
     "main/oop/%D0%98%D0%BD%D1%82%D0%B5%D1%80%D1%84%D0%B5%D0%B9%D1%81%D1%8B",
     "main/oop/Интерфейсы.md",
@@ -35,5 +36,5 @@
     "topic-index-generated/awn-container/php/awn-storage/index.md",
     "topic-index-generated/awn-container/php/index.md"
   ],
-  "updatedAt": "2026-09-19T07:45:31.720Z"
+  "updatedAt": "2026-09-20T11:32:09.154Z"
 }

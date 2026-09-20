@@ -67,6 +67,7 @@ const {
   resolveSidecarAbsoluteFromSourceAbsolute
 } = require("./sidecar-service");
 const { createWorkspaceBrainService } = require("./workspace-brain-service");
+const { parseImportanceValue, createWorkspaceImportanceResolver } = require("./workspace-importance");
 const { createWorkspaceFactsService, FACTS_DIR: WORKSPACE_FACTS_DIR } = require("./workspace-facts-service");
 const {
   createWorkspaceJournalService,
@@ -11291,7 +11292,9 @@ function mapItemsToContentIndexEntries(items = []) {
         type: resolveContentIndexEntryType(item),
         title,
         description,
-        awnId
+        awnId,
+        properties,
+        importance: parseImportanceFromProperties(properties)
       };
     })
     .sort((a, b) => a.path.localeCompare(b.path, "ru", { sensitivity: "base", numeric: true }));
@@ -11329,7 +11332,9 @@ function pageMapRowToWorkspaceIndexEntry(page) {
     description: String(page?.description || "").trim(),
     slotsMode,
     slotsFlexible: Boolean(page?.slotsFlexible),
-    awnId
+    awnId,
+    properties,
+    importance: parseImportanceFromProperties(properties)
   };
 }
 
@@ -11352,6 +11357,7 @@ async function buildWorkspacePageIndexMarkdown({ pages }) {
       tableVariant: "workspace"
     })
   );
+  appendContentIndexLegends(lines, { includeLinesLegend: true });
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
@@ -11369,7 +11375,7 @@ async function buildAgentWorkspacePageIndex() {
     version: 1,
     model: "workspace-page-index",
     hint:
-      "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, конфигурации, размер, строки) без body. " +
+      "Оглавление страниц workspace (awn-id, type, slotsMode, path, title, description, комментарии, важность, конфигурации, размер, строки) без body. " +
       "Конфигурации: Схемы (schema.yml), Настройки (config.yml), .env. Для тем slotsMode: гибкий или типовые. Для полной карты → get_page_map.",
     whenToUse: {
       get_workspace_page_index:
@@ -11843,7 +11849,8 @@ async function enrichContentIndexEntriesWithMeta(entries = [], manifestRelPath =
       const awnId = entry.awnId ?? null;
       const commentCount =
         entry.commentCount ?? (await countCommentsForContentIndexEntry(manifestRelPath, entry));
-      return { ...entry, awnId, commentCount };
+      const importance = await resolveContentIndexEntryImportance(manifestRelPath, entry);
+      return { ...entry, awnId, commentCount, importance };
     })
   );
 }
@@ -11885,7 +11892,11 @@ async function enrichWorkspaceIndexEntries(entries = [], pages = []) {
       const scope = scopeByPath.get(linkPath);
       const configurations = scope ? formatIndexConfigurationsLabel(scope) : "";
 
-      return { ...entry, awnId, commentCount, configurations };
+      const importance = linkPath
+        ? await getWorkspaceImportanceResolver().resolveEffectiveImportance(linkPath)
+        : parseImportanceFromProperties(props);
+
+      return { ...entry, awnId, commentCount, configurations, importance };
     })
   );
 }
@@ -11907,6 +11918,56 @@ async function enrichBundleSlotIndexRowsWithFileStats(rows = []) {
 function resolveWorkspaceTopicSlotsModeLabel(page) {
   if (page?.kind !== "topic") return "";
   return page?.slotsFlexible ? "гибкий" : "типовые";
+}
+
+const CONTENT_INDEX_IMPORTANCE_LEGEND =
+  "* **Важность** — личная важность для пользователя по шкале 0–10. При абстрактных вопросах агент начинает с более приоритетных тем (финансы, здоровье, напоминания, образование, спорт). 0 — не отмечено или низкий приоритет (например, коллекция фильмов); 10 — критично важно.";
+
+const CONTENT_INDEX_LINES_LEGEND =
+  "* **Строк** — число строк в теле документа (manifest.md). Если больше 0 — есть инструкция/промпт для агента: как работать с этой темой, что важно знать, договорённости. Пустое тело — 0.";
+
+let workspaceImportanceResolver = null;
+
+function getWorkspaceImportanceResolver() {
+  if (!workspaceImportanceResolver) {
+    workspaceImportanceResolver = createWorkspaceImportanceResolver({
+      resolvePathAbsolute: (relPath) => normalizeWorkspacePath(relPath)
+    });
+  }
+  return workspaceImportanceResolver;
+}
+
+function parseImportanceFromProperties(props) {
+  if (!props || typeof props !== "object") return 0;
+  return parseImportanceValue(props["awn-importance"] ?? props.awnImportance);
+}
+
+function formatContentIndexImportanceCell(importance) {
+  return String(parseImportanceValue(importance));
+}
+
+function appendContentIndexLegends(lines, { includeLinesLegend = false } = {}) {
+  lines.push("", CONTENT_INDEX_IMPORTANCE_LEGEND);
+  if (includeLinesLegend) {
+    lines.push(CONTENT_INDEX_LINES_LEGEND);
+  }
+}
+
+function appendContentIndexImportanceLegend(lines) {
+  appendContentIndexLegends(lines);
+}
+
+async function resolveContentIndexEntryImportance(manifestRelPath, entry) {
+  const linkPath = String(entry?.linkPath || "").replace(/\\/g, "/").trim();
+  const resolver = getWorkspaceImportanceResolver();
+  if (linkPath) {
+    return await resolver.resolveEffectiveImportance(linkPath);
+  }
+  const resolved = resolveManifestContainerEntryRelPath(manifestRelPath, entry?.path);
+  if (resolved) {
+    return await resolver.resolveEffectiveImportance(resolved);
+  }
+  return parseImportanceFromProperties(entry?.properties);
 }
 
 const CONTENT_INDEX_SLOT_LABELS = {
@@ -11944,15 +12005,15 @@ function formatContentIndexEntriesMarkdown(
   const includeSlotsMode = tableVariant === "workspace";
   const includeSlotLabel = tableVariant === "topic-content";
   const header = includeSlotsMode
-    ? "| ID | Тип | Слоты | Путь | Название | Описание | Комментарии | Конфигурации | Размер | Строк |"
+    ? "| ID | Тип | Слоты | Путь | Название | Описание | Размер | Строк* | Комментарии | Важность* | Конфигурации |"
     : includeSlotLabel
-      ? "| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |"
-      : "| ID | Тип | Путь | Название | Описание | Размер | Строк | Комментарии |";
+      ? "| ID | Слот | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |"
+      : "| ID | Тип | Путь | Название | Описание | Размер | Строк | Комментарии | Важность* |";
   const divider = includeSlotsMode
-    ? "| ---: | --- | --- | --- | --- | --- | ---: | --- | ---: | ---: |"
+    ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |"
     : includeSlotLabel
-      ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: |"
-      : "| ---: | --- | --- | --- | --- | ---: | ---: | ---: |";
+      ? "| ---: | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
+      : "| ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: |";
   const lines = [header, divider];
   for (const entry of entries) {
     const slotModeCell = escapeContentIndexTableCell(entry.slotsMode) || "—";
@@ -11964,24 +12025,25 @@ function formatContentIndexEntriesMarkdown(
     const linesCell = formatContentIndexLineCount(entry.lineCount);
     const idCell = formatContentIndexAwnIdCell(entry.awnId);
     const commentsCell = formatContentIndexCommentCountCell(entry.commentCount);
+    const importanceCell = formatContentIndexImportanceCell(entry.importance);
 
     if (includeSlotsMode) {
       const configurationsCell = escapeContentIndexTableCell(entry.configurations) || "—";
       lines.push(
-        `| ${idCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${slotModeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${commentsCell} | ${configurationsCell} | ${sizeCell} | ${linesCell} |`
+        `| ${idCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${slotModeCell} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} | ${configurationsCell} |`
       );
       continue;
     }
 
     if (includeSlotLabel) {
       lines.push(
-        `| ${idCell} | ${slotLabelCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} |`
+        `| ${idCell} | ${slotLabelCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
       );
       continue;
     }
 
     lines.push(
-      `| ${idCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} |`
+      `| ${idCell} | ${escapeContentIndexTableCell(entry.type) || "—"} | ${pathCell} | ${titleCell} | ${descriptionCell} | ${sizeCell} | ${linesCell} | ${commentsCell} | ${importanceCell} |`
     );
   }
   return lines.join("\n");
@@ -12002,13 +12064,15 @@ function formatMultiFileContentIndexMarkdown(
 async function buildSlotContentIndexMarkdown({ slotKey, slotLabel, entries }) {
   const label = String(slotLabel || slotKey || "Слот").trim();
   const enrichedEntries = await enrichContentIndexEntriesWithFileStats(entries);
-  return [
+  const lines = [
     `# Оглавление — ${label}`,
     "",
     formatContentIndexEntriesMarkdown(enrichedEntries, {
       emptyHint: "_В слоте пока нет файлов для оглавления._"
     })
-  ].join("\n");
+  ];
+  appendContentIndexImportanceLegend(lines);
+  return lines.join("\n");
 }
 
 function mergeTopicContentIndexEntries(slots = []) {
@@ -12070,6 +12134,7 @@ async function buildTopicContentIndexMarkdown({
 
   if (bundleSection) lines.push(bundleSection);
 
+  appendContentIndexImportanceLegend(lines);
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
@@ -12143,7 +12208,7 @@ async function buildAgentContentIndex(manifestRelPath, options = {}) {
     version: 1,
     model: "content-index",
     hint:
-      "Быстрое оглавление (id, path, type, title, description, размер, строки, комментарии) без body. " +
+      "Быстрое оглавление (id, path, type, title, description, размер, строки, комментарии, важность) без body. " +
       "При awn-slots-flexible — многофайловая часть из awn-storage/ темы (path-based FS). " +
       "В конце — однофайловые слоты (файл, заполнено/не заполнено). " +
       "Для полной карты с meta → get_content_map. Для текста записи → read_content_body. " +
