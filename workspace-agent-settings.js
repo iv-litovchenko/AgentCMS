@@ -11,13 +11,17 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "batch-deny-exec": true,
   "confirm-delete": true,
   "confirm-exec": true,
-  "read-text-max-bytes": 120_000,
-  "read-binary-max-bytes": 1_500_000,
+  "read-text-max-bytes": "120000",
+  "read-binary-max-bytes": "1500000",
   "index-semantic-enabled": true,
   "index-fulltext-enabled": true,
   "index-storage-enabled": true,
   "index-links-enabled": true,
   "auto-retain-facts": false,
+  "always-context-global-mcp-doc": true,
+  "always-context-global-response-style": true,
+  "always-context-agents-md": true,
+  "always-context-ws-folder": "awn-shared/context/awn-storage/",
   "always-context-max-files": 0
 };
 
@@ -45,6 +49,10 @@ const WORKSPACE_AGENT_SETTINGS_DEFAULTS = {
   [WORKSPACE_AWN_ID_COUNTER_KEYS.issued]: 0,
   [WORKSPACE_AWN_ID_COUNTER_KEYS.updatedAt]: "",
   [WORKSPACE_AWN_ID_COUNTER_KEYS.model]: WORKSPACE_AWN_ID_COUNTER_MODEL,
+  "ws-static-plugin-example": "",
+  "ws-static-example-1": "значение 1",
+  "ws-static-example-2": "значение 2",
+  "ws-static-example-3": "значение 3",
   "default-slot": "main",
   "awn-temp-ttl-days": 0
 };
@@ -55,7 +63,11 @@ const USER_AGENT_SETTINGS_DEFAULTS = {
   "tree-pad-sort-indexes": false,
   "tree-max-depth": 7,
   "sidebar-width": 280,
-  "pinned-branch-path": ""
+  "pinned-branch-path": "",
+  "user-static-plugin-example": "",
+  "user-static-example-1": "значение 1",
+  "user-static-example-2": "значение 2",
+  "user-static-example-3": "значение 3"
 };
 
 /** @deprecated merged defaults kept for compatibility checks only */
@@ -114,14 +126,16 @@ function normalizeUserAgentSettings(raw = {}) {
 function getPlatformReadTextMaxBytes(settings = {}) {
   const normalized = normalizePlatformAgentSettings(settings);
   const value = Number(normalized["read-text-max-bytes"]);
-  const bytes = Number.isFinite(value) && value > 0 ? value : PLATFORM_AGENT_SETTINGS_DEFAULTS["read-text-max-bytes"];
+  const fallback = Number(PLATFORM_AGENT_SETTINGS_DEFAULTS["read-text-max-bytes"]) || 120_000;
+  const bytes = Number.isFinite(value) && value > 0 ? value : fallback;
   return Math.min(Math.max(bytes, PLATFORM_FS_LIMITS.textMin), PLATFORM_FS_LIMITS.textMax);
 }
 
 function getPlatformReadBinaryMaxBytes(settings = {}) {
   const normalized = normalizePlatformAgentSettings(settings);
   const value = Number(normalized["read-binary-max-bytes"]);
-  const bytes = Number.isFinite(value) && value > 0 ? value : PLATFORM_AGENT_SETTINGS_DEFAULTS["read-binary-max-bytes"];
+  const fallback = Number(PLATFORM_AGENT_SETTINGS_DEFAULTS["read-binary-max-bytes"]) || 1_500_000;
+  const bytes = Number.isFinite(value) && value > 0 ? value : fallback;
   return Math.min(Math.max(bytes, PLATFORM_FS_LIMITS.binaryMin), PLATFORM_FS_LIMITS.binaryMax);
 }
 
@@ -146,6 +160,22 @@ function getPlatformDefaultLocale(settings = {}) {
     .trim()
     .toLowerCase();
   return locale === "en" ? "en" : "ru";
+}
+
+function isPlatformAlwaysContextEnabled(settings = {}, key = "") {
+  const normalized = normalizePlatformAgentSettings(settings);
+  const settingKey = String(key || "").trim();
+  if (!settingKey || !(settingKey in normalized)) return true;
+  return Boolean(normalized[settingKey]);
+}
+
+function getPlatformAlwaysContextWsFolder(settings = {}) {
+  return String(normalizePlatformAgentSettings(settings)["always-context-ws-folder"] || "").trim();
+}
+
+function getPlatformAlwaysContextWsMaxFiles(settings = {}) {
+  const value = Number(normalizePlatformAgentSettings(settings)["always-context-max-files"]);
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
 function parsePlatformAgentSettingsFromConfigContent(content) {
@@ -289,5 +319,8 @@ module.exports = {
   getPlatformReadBinaryMaxBytes,
   isPlatformIndexEnabled,
   isPlatformMaintenanceMode,
-  getPlatformDefaultLocale
+  getPlatformDefaultLocale,
+  isPlatformAlwaysContextEnabled,
+  getPlatformAlwaysContextWsFolder,
+  getPlatformAlwaysContextWsMaxFiles
 };

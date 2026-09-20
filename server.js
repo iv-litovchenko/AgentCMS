@@ -324,7 +324,10 @@ const {
   getPlatformReadBinaryMaxBytes,
   isPlatformIndexEnabled,
   isPlatformMaintenanceMode,
-  getPlatformDefaultLocale
+  getPlatformDefaultLocale,
+  isPlatformAlwaysContextEnabled,
+  getPlatformAlwaysContextWsFolder,
+  getPlatformAlwaysContextWsMaxFiles
 } = require("./workspace-agent-settings");
 const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
 const {
@@ -520,18 +523,22 @@ const {
 } = agentRegistry;
 
 const GLOBAL_MCP_DOC_FILE = "GLOBAL_MCP_DOC.md";
-const AGENT_RESPONSE_STYLE_FILE = "AGENT_RESPONSE_STYLE.md";
+const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL_RESPONSE_STYLE.md";
 
 const PLATFORM_ALWAYS_CONTEXT_FILES = [
   {
     file: GLOBAL_MCP_DOC_FILE,
+    settingKey: "always-context-global-mcp-doc",
     description: "Глобальная карта MCP (agent-cms-core, все агенты)"
   },
   {
-    file: AGENT_RESPONSE_STYLE_FILE,
+    file: GLOBAL_RESPONSE_STYLE_FILE,
+    settingKey: "always-context-global-response-style",
     description: "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)"
   }
 ];
+
+const ALWAYS_CONTEXT_WS_EXTENSIONS = new Set([".md", ".yml", ".yaml", ".txt"]);
 
 const SYSTEM_FILE_NAMES = [
   ".env",
@@ -8740,7 +8747,8 @@ const SHARED_DEFAULT_THEMES = [
   { slug: "references", title: "Источники" },
   { slug: "artefacts", title: "Артефакты" },
   { slug: "scripts", title: "Скрипты" },
-  { slug: "media", title: "Медиа" }
+  { slug: "media", title: "Медиа" },
+  { slug: "context", title: "Автозагружаемый контекст", storageSubdir: "awn-storage" }
 ];
 
 async function normalizeContainerMenuTree(tree, containerAbsolute) {
@@ -8830,6 +8838,10 @@ async function bootstrapSharedTheme(sharedAbsolute, sharedFolder, theme) {
   }
   const themeManifestRel = `${sharedFolder}/${theme.slug}/${AREA_MANIFEST_FILE}`.replace(/\\/g, "/");
   await ensureManifestStorageSlotDir(themeManifestRel);
+  const storageSubdir = String(theme.storageSubdir || "").trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (storageSubdir) {
+    await fs.mkdir(path.join(themeDir, storageSubdir), { recursive: true });
+  }
   await appendMenuSortOrderEntry(themeDir, theme.slug);
   return themeManifestRel;
 }
@@ -10873,7 +10885,74 @@ async function buildAgentTopicRegistry() {
   };
 }
 
+async function collectAlwaysContextWsFolderItems(agentRoot, folderRel, maxFiles = 0) {
+  const normalized = String(folderRel || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!normalized || !agentRoot) return [];
+  const workspaceRoot = path.resolve(agentRoot);
+  const folderAbs = path.resolve(workspaceRoot, normalized);
+  if (!folderAbs.startsWith(workspaceRoot)) return [];
+
+  const results = [];
+  async function walk(dirAbs, dirRel) {
+    if (maxFiles > 0 && results.length >= maxFiles) return;
+    let entries = [];
+    try {
+      entries = await fs.readdir(dirAbs, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) continue;
+      const abs = path.join(dirAbs, entry.name);
+      const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        await walk(abs, rel);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      const ext = path.extname(entry.name).toLowerCase();
+      if (!ALWAYS_CONTEXT_WS_EXTENSIONS.has(ext)) continue;
+      try {
+        const content = await fs.readFile(abs, "utf-8");
+        results.push({
+          entityKind: "ws-folder",
+          manifestPath: null,
+          slot: null,
+          ref: rel,
+          label: entry.name,
+          displayPath: `${normalized}/${rel}`,
+          description: `always-context: каталог ${normalized}/`,
+          runtimeLoadAlways: true,
+          exists: true,
+          content
+        });
+      } catch {
+        // skip unreadable file
+      }
+      if (maxFiles > 0 && results.length >= maxFiles) return;
+    }
+  }
+
+  try {
+    const stat = await fs.stat(folderAbs);
+    if (!stat.isDirectory()) return [];
+  } catch {
+    return [];
+  }
+
+  await walk(folderAbs, "");
+  return results;
+}
+
 async function buildAgentAlwaysContextRegistry() {
+  let platformSettings = {};
+  try {
+    platformSettings = await getPlatformSettings(getProjectRoot());
+  } catch {
+    platformSettings = {};
+  }
+  const agentRoot = getAgentRoot();
   const entities = await collectAllRuntimeEntities();
   const items = [];
 
@@ -10895,6 +10974,9 @@ async function buildAgentAlwaysContextRegistry() {
   }
 
   for (const name of ["AGENTS.md", "SKILL.md", "README.md"]) {
+    if (name === "AGENTS.md" && !isPlatformAlwaysContextEnabled(platformSettings, "always-context-agents-md")) {
+      continue;
+    }
     const meta = await getSystemFileMeta(name);
     if (!meta.exists) continue;
     const absolute = await resolveExistingSystemFileAbsolute(name);
@@ -10919,6 +11001,9 @@ async function buildAgentAlwaysContextRegistry() {
 
   // Platform-global docs — agent-cms-core root, injected for every agent.
   for (const entry of PLATFORM_ALWAYS_CONTEXT_FILES) {
+    if (entry.settingKey && !isPlatformAlwaysContextEnabled(platformSettings, entry.settingKey)) {
+      continue;
+    }
     try {
       const docAbsolute = path.join(getPlatformAgentRootAbsolute(getProjectRoot()), entry.file);
       if (!(await fileExists(docAbsolute))) continue;
@@ -10940,12 +11025,19 @@ async function buildAgentAlwaysContextRegistry() {
     }
   }
 
+  const wsFolder = getPlatformAlwaysContextWsFolder(platformSettings);
+  if (wsFolder && agentRoot) {
+    const wsMaxFiles = getPlatformAlwaysContextWsMaxFiles(platformSettings);
+    const wsItems = await collectAlwaysContextWsFolderItems(agentRoot, wsFolder, wsMaxFiles);
+    items.push(...wsItems);
+  }
+
   return {
     version: 1,
     model: "always-context",
     hint:
       "Всегда в контексте: awn-runtime-load-always на темах/записях + AGENTS.md/SKILL.md/README.md + " +
-      "GLOBAL_MCP_DOC.md + AGENT_RESPONSE_STYLE.md (платформа). Полное содержимое каждого файла.",
+      "документы платформы (настройки → Автоконтекст) + файлы из ws/. Полное содержимое каждого файла.",
     items,
     itemCount: items.length
   };

@@ -2,7 +2,7 @@
 
 Глобальный документ платформы (`workspaces/agent-cms-core/GLOBAL_MCP_DOC.md`): попадает в always-context **всех** агентов.
 
-Стиль ответов (префиксы 🗄️ / 🌐 / 💭) — отдельно: **`AGENT_RESPONSE_STYLE.md`** (тоже always-context).
+Стиль ответов (префиксы 🗄️ / 🌐 / 💭) — отдельно: **`GLOBAL_RESPONSE_STYLE.md`** (тоже always-context).
 
 ## Зачем это
 
@@ -223,7 +223,7 @@ assign_workspace_id({ "path": "awn-container/tema-x/manifest.md" })
 | `search_workspace_links` | Граф связей: backlinks / outbound / neighbors вокруг **path**; индекс `.agent-cms/link-index/` | список path + kind |
 | `resolve_workspace_id` | Путь записи по глобальному **awn-id** (счётчик в `settings.yml`) | path |
 | `assign_workspace_id` | Присвоить **awn-id** старой записи без id | id + path |
-| `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC + AGENT_RESPONSE_STYLE | **да** |
+| `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC + GLOBAL_RESPONSE_STYLE | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
 
@@ -344,11 +344,15 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 - `mcp-mode`, `batch-enabled`, `batch-read-limit`, `batch-write-limit` + `awn_policy`  
 - `read-text-max-bytes`, `read-binary-max-bytes` — лимиты `read_file` / FS read  
 - `index-*-enabled` — вкл/выкл semantic, fulltext, storage, link индексы  
+- **Автоконтекст** (`always-context-*`): `GLOBAL_MCP_DOC.md`, `GLOBAL_RESPONSE_STYLE.md`, `AGENTS.md` (галочки); `always-context-ws-folder` — рекурсивно `.md/.yml/.txt` (по умолчанию `awn-shared/context/awn-storage/`)
+
+**Workspace** (`settings.yml`): группы «Автоинкремент» (счётчик `awn-id`), «Статичные параметры» (заглушка интеграций).
 
 **User** (`.agent-cms/user-settings.yml`):
 
 - `tree-*` — дерево меню  
 - `sidebar-width`, `pinned-branch-path` — UI панели и закреплённая ветка  
+- группа «Статичные параметры» — заглушка для внешних плагинов/skills (пока не в runtime)
 
 Поля с `{NOT WORK}` в заголовке — только схема/UI, runtime ещё не подключён.
 

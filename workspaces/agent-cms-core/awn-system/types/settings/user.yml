@@ -19,6 +19,10 @@ fieldGroups:
   - id: ui
     name: Интерфейс
     description: Персональные параметры UI — ширина сайдбара и закреплённая ветка меню.
+  - id: static
+    name: Статичные параметры
+    description: >
+      Заглушка для персональных интеграций — внешние плагины, skills и сервисы (.agent-cms/user-settings.yml).
 
 fields:
 
@@ -28,7 +32,7 @@ fields:
     description: Пустые папки и «свободная память» в дереве меню
     default: true
     group: tree
-    sort: 1
+    sort: 10
 
   tree-active-topics-only:
     type: awn.field.boolean
@@ -36,7 +40,7 @@ fields:
     description: Скрывать темы со статусом не «активна»
     default: false
     group: tree
-    sort: 2
+    sort: 11
 
   tree-pad-sort-indexes:
     type: awn.field.boolean
@@ -44,7 +48,7 @@ fields:
     description: При сортировке sort.json — префиксы 001, 002…
     default: false
     group: tree
-    sort: 3
+    sort: 12
 
   tree-max-depth:
     type: awn.field.number.integer
@@ -52,7 +56,7 @@ fields:
     description: Глубина раскрытия дерева меню (1–12)
     default: 7
     group: tree
-    sort: 4
+    sort: 13
 
   sidebar-width:
     type: awn.field.number.integer
@@ -60,7 +64,7 @@ fields:
     description: Пиксели (200–520). Синхронизируется с кнопками +/- в меню.
     default: 280
     group: ui
-    sort: 10
+    sort: 20
 
   pinned-branch-path:
     type: awn.field.string
@@ -68,4 +72,33 @@ fields:
     description: Путь папки в дереве (folderPath), как при pin в меню
     default: ""
     group: ui
-    sort: 11
+    sort: 21
+
+  user-static-plugin-example:
+    type: awn.field.string
+    title: "{NOT WORK} Пример персонального ключа"
+    description: Заглушка статического параметра пользователя для внешних плагинов и skills.
+    default: ""
+    group: static
+    sort: 90
+
+  user-static-example-1:
+    type: awn.field.string
+    title: "{NOT WORK} Ключ 1"
+    default: значение 1
+    group: static
+    sort: 91
+
+  user-static-example-2:
+    type: awn.field.string
+    title: "{NOT WORK} Ключ 2"
+    default: значение 2
+    group: static
+    sort: 92
+
+  user-static-example-3:
+    type: awn.field.string
+    title: "{NOT WORK} Ключ 3"
+    default: значение 3
+    group: static
+    sort: 93
