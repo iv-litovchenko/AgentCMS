@@ -12694,7 +12694,6 @@ async function switchActiveAgent(nextAgentId) {
   if (!nextAgentId || nextAgentId === activeAgentId) return;
   if (!agentsCache.some((agent) => agent.id === nextAgentId)) return;
 
-  setMenuLoading(true);
   try {
     saveCollapsedFoldersByAgent();
     closeCreateNodeModal();
@@ -12740,14 +12739,16 @@ async function switchActiveAgent(nextAgentId) {
     setMenuLoading(true, `Загрузка: ${getActiveAgentLabel() || nextAgentId}`);
 
     const switchedAgentId = activeAgentId;
-    if (hasCachedView) {
-      activateMenuAgentPane(switchedAgentId);
-      updateActiveButton();
-      setMenuLoading(false);
-      void refreshMenu({ agentId: switchedAgentId });
-    } else {
+    try {
+      if (hasCachedView) {
+        activateMenuAgentPane(switchedAgentId);
+        updateActiveButton();
+      }
       await refreshMenu({ agentId: switchedAgentId });
-      setMenuLoading(false);
+    } finally {
+      if (switchedAgentId === activeAgentId) {
+        setMenuLoading(false);
+      }
     }
 
     void (async () => {
@@ -12784,8 +12785,9 @@ async function switchActiveAgent(nextAgentId) {
         console.warn("switchActiveAgent background load failed", error);
       }
     })();
-  } finally {
+  } catch (error) {
     setMenuLoading(false);
+    throw error;
   }
 }
 
@@ -88022,7 +88024,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
   }
 
   if (agentId === activeAgentId) {
-    void syncMenuAgentStats(menu);
+    scheduleMenuAgentStatsSync(menu);
     requestAnimationFrame(syncMenuScrollTopButton);
     updateActiveButton();
     syncWorkspaceTreeCutMarkers();
@@ -88031,6 +88033,7 @@ function renderMenu(menu, agentId = activeAgentId, options = {}) {
 }
 
 let menuAgentStatsSeq = 0;
+let menuAgentStatsDeferTimer = 0;
 let menuSystemEnvironmentSeq = 0;
 let menuSystemEnvironmentCache = null;
 const MENU_SYSTEM_ENV_ORDER = [
@@ -88415,6 +88418,16 @@ async function syncMenuSystemEnvironment({ force = false } = {}) {
       ]
     });
   }
+}
+
+function scheduleMenuAgentStatsSync(menu = currentMenuData) {
+  if (menuAgentStatsDeferTimer) {
+    window.clearTimeout(menuAgentStatsDeferTimer);
+  }
+  menuAgentStatsDeferTimer = window.setTimeout(() => {
+    menuAgentStatsDeferTimer = 0;
+    void syncMenuAgentStats(menu);
+  }, 120);
 }
 
 async function syncMenuAgentStats(menu = currentMenuData) {

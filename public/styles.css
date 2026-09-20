@@ -24997,12 +24997,18 @@ a.header-tool-btn {
 
 .menu.is-loading {
   overflow: hidden;
+  min-height: 120px;
+}
+
+.sidebar-slab-menu .menu-scroll-shell:has(.menu.is-loading) {
+  min-height: 120px;
 }
 
 .menu-loading {
   position: absolute;
   inset: 0;
   z-index: 6;
+  min-height: 120px;
   display: flex;
   flex-direction: column;
   align-items: center;

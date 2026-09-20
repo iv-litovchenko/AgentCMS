@@ -8246,6 +8246,7 @@ function withMenuBuildOptions(options = {}) {
   return {
     ...options,
     menuMetaCache: options.menuMetaCache || new Map(),
+    menuSchemaCache: options.menuSchemaCache || new Map(),
     frontmatterCache: options.frontmatterCache || new Map(),
     folderMarkersCache: options.folderMarkersCache || new Map(),
     manifestTreeCache: options.manifestTreeCache || new Map()
@@ -14891,17 +14892,27 @@ async function readNodePropsColorForNodeRel(nodeRelPath) {
   return meta.color;
 }
 
-async function readNodeHasOwnSchemaLayerForMenu(nodeRelPath) {
+async function readNodeHasOwnSchemaLayerForMenu(nodeRelPath, options = {}) {
   const normalized = String(nodeRelPath || "").replace(/\\/g, "/");
+  const cache = options.menuSchemaCache;
+  if (cache?.has(normalized)) {
+    return cache.get(normalized);
+  }
+
+  let hasCustomSchema = false;
   if (await isWorkspaceRootManifestRel(normalized)) {
-    return topicSchemaHasFields(readWorkspaceLayerAwnSchema(getAgentRoot()));
+    hasCustomSchema = topicSchemaHasFields(readWorkspaceLayerAwnSchema(getAgentRoot()));
+  } else {
+    try {
+      const configFile = await readNodeConfigFile(normalized);
+      hasCustomSchema = readNodeHasOwnSchemaLayer(normalized, getAgentRoot(), configFile.content || "");
+    } catch {
+      hasCustomSchema = false;
+    }
   }
-  try {
-    const configFile = await readNodeConfigFile(normalized);
-    return readNodeHasOwnSchemaLayer(normalized, getAgentRoot(), configFile.content || "");
-  } catch {
-    return false;
-  }
+
+  cache?.set(normalized, hasCustomSchema);
+  return hasCustomSchema;
 }
 
 function enrichMenuTreeSchemaRollup(node) {
@@ -14946,7 +14957,7 @@ async function enrichMenuNodeItem(nodeRelPath, options = {}) {
   const previewMeta = previewRaw
     ? await resolveAwnPreviewFieldMeta(normalizedPath, previewRaw)
     : { hasPreview: false, previewUrl: null, previewFile: null };
-  const hasCustomSchema = await readNodeHasOwnSchemaLayerForMenu(normalizedPath);
+  const hasCustomSchema = await readNodeHasOwnSchemaLayerForMenu(normalizedPath, options);
   const awnId = parseAwnId(getYamlScalar(frontmatter, "awn-id"));
   const result = {
     color: meta.color,
