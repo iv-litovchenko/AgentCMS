@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const SLOGANS = [
+  const DEFAULT_SLOGANS = [
     {
       kind: "arc",
       parts: ["Мысль", "действие", "результат"],
@@ -124,6 +124,37 @@
     }
   ];
 
+  function normalizeSlogan(item) {
+    if (!item || typeof item !== "object") return null;
+    const holdMs = Number(item.holdMs || 8000) || 8000;
+    const kind = String(item.kind || "text").trim().toLowerCase();
+    if (kind === "arc") {
+      const parts = Array.isArray(item.parts)
+        ? item.parts.map((part) => String(part || "").trim()).filter(Boolean)
+        : [];
+      if (parts.length < 2) return null;
+      return { kind: "arc", parts, holdMs };
+    }
+    const text = String(item.text || "").trim();
+    if (!text) return null;
+    return { kind: "text", text, holdMs };
+  }
+
+  async function loadSlogans() {
+    try {
+      const response = await fetch("/api/platform/ui-rotators", { cache: "no-store" });
+      if (!response.ok) throw new Error("bad status");
+      const payload = await response.json();
+      const items = Array.isArray(payload?.slogans)
+        ? payload.slogans.map(normalizeSlogan).filter(Boolean)
+        : [];
+      if (items.length) return items;
+    } catch (_error) {
+      // fallback to embedded defaults
+    }
+    return DEFAULT_SLOGANS;
+  }
+
   function shuffleSlogans(items) {
     const list = items.slice();
     for (let i = list.length - 1; i > 0; i -= 1) {
@@ -177,14 +208,14 @@
     return root;
   }
 
-  function boot() {
+  async function boot() {
     const host = document.getElementById("header-slogan-rotator");
     const display = document.getElementById("header-slogan-display");
     if (!host || !display || host.dataset.sloganRotator === "on") return;
 
     host.dataset.sloganRotator = "on";
 
-    const slogans = shuffleSlogans(SLOGANS);
+    const slogans = shuffleSlogans(await loadSlogans());
     let index = 0;
     let fadeTimer = null;
     let stepTimer = null;
@@ -223,8 +254,10 @@
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot, { once: true });
+    document.addEventListener("DOMContentLoaded", () => {
+      void boot();
+    }, { once: true });
   } else {
-    boot();
+    void boot();
   }
 })();

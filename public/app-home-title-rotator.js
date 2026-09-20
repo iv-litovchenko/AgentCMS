@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const TITLES = [
+  const DEFAULT_TITLES = [
     { text: "Agent CMS", holdMs: 9000 },
     { text: "My Graph ORM", holdMs: 9000 },
     { text: "My Planet", holdMs: 6500 },
@@ -16,16 +16,39 @@
     { text: "My Box", holdMs: 6500 }
   ];
 
-  function pickRandomIndex(excludeIndex) {
-    if (TITLES.length <= 1) return 0;
+  function normalizeTitle(item) {
+    if (!item || typeof item !== "object") return null;
+    const text = String(item.text || "").trim();
+    if (!text) return null;
+    const holdMs = Number(item.holdMs || 6500) || 6500;
+    return { text, holdMs };
+  }
+
+  async function loadTitles() {
+    try {
+      const response = await fetch("/api/platform/ui-rotators", { cache: "no-store" });
+      if (!response.ok) throw new Error("bad status");
+      const payload = await response.json();
+      const items = Array.isArray(payload?.homeTitles)
+        ? payload.homeTitles.map(normalizeTitle).filter(Boolean)
+        : [];
+      if (items.length) return items;
+    } catch (_error) {
+      // fallback to embedded defaults
+    }
+    return DEFAULT_TITLES;
+  }
+
+  function pickRandomIndex(items, excludeIndex) {
+    if (items.length <= 1) return 0;
     let next = excludeIndex;
     while (next === excludeIndex) {
-      next = Math.floor(Math.random() * TITLES.length);
+      next = Math.floor(Math.random() * items.length);
     }
     return next;
   }
 
-  function boot() {
+  async function boot() {
     const link = document.querySelector("#app-home-link");
     if (!link || link.dataset.titleRotator === "on") return;
 
@@ -36,6 +59,7 @@
 
     link.dataset.titleRotator = "on";
 
+    const titles = await loadTitles();
     const display = document.createElement("span");
     display.className = "app-home-title-display";
     display.setAttribute("aria-live", "polite");
@@ -48,14 +72,14 @@
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const render = (idx) => {
-      const item = TITLES[idx];
+      const item = titles[idx];
       display.textContent = item.text;
       link.title = `Главная — ${item.text}`;
       link.setAttribute("aria-label", `Главная — ${item.text}`);
     };
 
     const step = () => {
-      index = pickRandomIndex(index);
+      index = pickRandomIndex(titles, index);
       if (reducedMotion) {
         render(index);
         schedule();
@@ -72,17 +96,19 @@
 
     const schedule = () => {
       if (stepTimer) window.clearTimeout(stepTimer);
-      stepTimer = window.setTimeout(step, TITLES[index].holdMs);
+      stepTimer = window.setTimeout(step, titles[index].holdMs);
     };
 
-    index = pickRandomIndex(-1);
+    index = pickRandomIndex(titles, -1);
     render(index);
     schedule();
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
+    document.addEventListener("DOMContentLoaded", () => {
+      void boot();
+    });
   } else {
-    boot();
+    void boot();
   }
 })();

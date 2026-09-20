@@ -9,6 +9,9 @@
 | одиночка | — | `settings-global` | [Глобальные настройки](awn-data/settings-global/manifest.md) | Глобальные настройки | 1 |
 | коллекция | — | `system-presets` | [Пресеты](awn-data/system-presets/manifest.md) | Пресеты | 14 |
 | коллекция | — | `tasks` | [Задачи](awn-data/tasks/manifest.md) | Задачи | 6 |
+| группа | — | `ui` | [UI (интерфейс)](awn-data/ui/manifest.md) | UI (интерфейс) | 36 |
+| коллекция | ui | `ui/slogans` | [Слоганы шапки](awn-data/ui/slogans/manifest.md) | Слоганы шапки | 24 |
+| коллекция | ui | `ui/home-titles` | [Заголовки «Главная»](awn-data/ui/home-titles/manifest.md) | Заголовки «Главная» | 12 |
 | группа | — | `taxonomies` | [Таксономии (справочники)](awn-data/taxonomies/manifest.md) | Таксономии (справочники) | 283 |
 | коллекция | taxonomies | `taxonomies/categories` | [Категории](awn-data/taxonomies/categories/manifest.md) | Категории | 34 |
 | коллекция | taxonomies | `taxonomies/colors` | [Палитра](awn-data/taxonomies/colors/manifest.md) | Палитра | 6 |

@@ -279,6 +279,7 @@ const {
 } = require("./catalog-migration");
 const { addCatalogItemForAgentContext } = require("./catalog-items");
 const { getPlatformIndexAbsolute, getPlatformAgentRootAbsolute, getAgentCmsCoreAbsolute, readPlatformTodoFooterMarkdown } = require("./platform-sources");
+const { loadPlatformUiRotators } = require("./platform-ui-rotators");
 const { getComponentsPayload } = require("./components-loader");
 const { getTypeCatalogPayload, getTypesListPayload, getTypeDetailByCatalogPath, getTypeDetailByTypeId, getTypeHealth, resolveCanonicalTypeId, loadTypeCatalog } = require("./type-catalog-loader");
 const {
@@ -12719,6 +12720,7 @@ const SESSION_CONTEXT_API_MAP = {
   dataStoreSchemaRead: "GET /api/awn-data/store-schema?store= — schema.yml полей записей",
   dataStoreSchemaWrite: "POST /api/awn-data/store-schema — сохранить schema.yml",
   platformCatalogs: "GET /api/platform/catalogs — legacy справочники",
+  platformUiRotators: "GET /api/platform/ui-rotators — слоганы шапки и заголовки «Главная» (awn-data/ui/*)",
   agentCatalogs: "GET /api/agent/catalogs — legacy справочники агента",
   manifest: "GET /api/file?path=<manifest.md>",
   pageMeta: "GET /api/page/meta?path=<manifest.md> — метаданные страницы",
@@ -26101,6 +26103,18 @@ async function handleApi(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to load platform catalogs",
+        details: String(error?.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/ui-rotators") {
+    try {
+      const payload = loadPlatformUiRotators(getProjectRoot());
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to load platform UI rotators",
         details: String(error?.message || error)
       });
     }
