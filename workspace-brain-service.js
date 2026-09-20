@@ -1,6 +1,8 @@
 const fs = require("fs/promises");
 const path = require("path");
 
+const { createWorkspaceImportanceResolver } = require("./workspace-importance");
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function normalizeRelPath(value) {
@@ -106,6 +108,32 @@ function createWorkspaceBrainService(deps) {
     enrichSearchResults,
     queryStorageIndex
   } = deps;
+
+  const importanceResolver = createWorkspaceImportanceResolver({
+    resolvePathAbsolute: resolvePathAbsolute
+  });
+
+  async function finalizeSearchHits(merged, { limit, includeSnippets }) {
+    const ranked = [...merged.values()].sort(
+      (a, b) => (b.score || 0) - (a.score || 0) || String(a.path).localeCompare(String(b.path), "ru")
+    );
+    const boosted = await importanceResolver.applyImportanceBoostToHits(ranked);
+    return boosted
+      .sort(
+        (a, b) => (b.score || 0) - (a.score || 0) || String(a.path).localeCompare(String(b.path), "ru")
+      )
+      .slice(0, limit)
+      .map((hit) => ({
+        path: hit.path,
+        title: hit.title || hit.path,
+        score: hit.score || 0,
+        baseScore: hit.baseScore ?? hit.score ?? 0,
+        importance: hit.importance || 0,
+        sources: hit.sources || [],
+        locationHint: hit.locationHint || null,
+        snippet: includeSnippets ? hit.snippet || "" : undefined
+      }));
+  }
 
   async function statWorkspaceFile(relPath) {
     const normalized = normalizeRelPath(relPath);
@@ -398,22 +426,15 @@ function createWorkspaceBrainService(deps) {
 
     await Promise.all(tasks);
 
-    const hits = [...merged.values()]
-      .sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.path).localeCompare(String(b.path), "ru"))
-      .slice(0, limit)
-      .map((hit) => ({
-        path: hit.path,
-        title: hit.title || hit.path,
-        score: hit.score || 0,
-        sources: hit.sources || [],
-        locationHint: hit.locationHint || null,
-        snippet: includeSnippets ? hit.snippet || "" : undefined
-      }));
+    const hits = await finalizeSearchHits(merged, { limit, includeSnippets });
 
     return {
       version: 1,
       model: "workspace-ask",
-      hint: "Composite Q&A retrieval across semantic index, full-text search, and always-context. Returns cited hits — agent synthesizes the answer.",
+      hint:
+        "Composite Q&A retrieval across semantic index, full-text search, and always-context. " +
+        "Hits are re-ranked by awn-importance (topic/record, inherited from ancestor manifests). " +
+        "Returns cited hits — agent synthesizes the answer.",
       query,
       scopes,
       hitCount: hits.length,
@@ -533,23 +554,14 @@ function createWorkspaceBrainService(deps) {
 
     await Promise.all(tasks);
 
-    const hits = [...merged.values()]
-      .sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.path).localeCompare(String(b.path), "ru"))
-      .slice(0, limit)
-      .map((hit) => ({
-        path: hit.path,
-        title: hit.title || hit.path,
-        score: hit.score || 0,
-        sources: hit.sources || [],
-        locationHint: hit.locationHint || null,
-        snippet: includeSnippets ? hit.snippet || "" : undefined
-      }));
+    const hits = await finalizeSearchHits(merged, { limit, includeSnippets });
 
     return {
       version: 1,
       model: "workspace-search-hybrid",
       hint:
-        "Hybrid search: semantic + fulltext in one call, optional storage-index where filters on frontmatter fields (awn-date, tags, author…).",
+        "Hybrid search: semantic + fulltext in one call, optional storage-index where filters on frontmatter fields (awn-date, tags, author…). " +
+        "Hits are re-ranked by awn-importance (topic/record, inherited from ancestor manifests).",
       query,
       pathPrefix: pathPrefix || null,
       where,

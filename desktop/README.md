@@ -10,7 +10,7 @@
 | **Pack** | `npm run cms:pack` | `npm run shell:pack` | `npm run control:pack` |
 | **Открыть .app** | `npm run cms:open` | `npm run shell:open` | `npm run control:open` |
 
-Старт из корня проекта: **`acms-welcome.command`** (скрипт).
+Старт из корня проекта: **`welcome.command`** (скрипт).
 
 На рабочем столе (кнопка «Ярлыки Desktop» в Control) — ссылки на сборки в `dist/`:
 - `ACMS-Control.app` → `dist/agent-control/`

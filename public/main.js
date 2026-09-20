@@ -7801,6 +7801,7 @@ function bindLandingMainTopicsDock() {
 const FOCUS_AWN_KEYS = [
   "awn-status",
   "awn-quality",
+  "awn-importance",
   "awn-description",
   "awn-category",
   "awn-owner",
@@ -7827,6 +7828,10 @@ function formatFocusPropValue(key, value) {
   }
   if (key === AWN_QUALITY_FIELD_KEY) {
     return `${parseAwnQualityValue(text)}/10`;
+  }
+  if (key === AWN_IMPORTANCE_FIELD_KEY) {
+    const value = parseAwnImportanceValue(text);
+    return value > 0 ? `${value}/10` : "";
   }
   return text;
 }
@@ -15054,6 +15059,10 @@ const AWN_QUALITY_FIELD_KEY = "awn-quality";
 const AWN_QUALITY_DEFAULT = 4;
 const AWN_QUALITY_REVIEW_THRESHOLD = 4;
 
+const AWN_IMPORTANCE_FIELD_KEY = "awn-importance";
+const AWN_IMPORTANCE_DEFAULT = 0;
+const AWN_IMPORTANCE_HIGH_THRESHOLD = 8;
+
 const AWN_NOTE_TODO_STICKER_FIELD_KEY = "awn-note-todo-sticker";
 const AWN_NOTE_TODO_STICKER_LABEL = "Заметка остановки";
 const DOC_ASIDE_TODO_STICKER_OPEN_KEY = "agentcms.docAside.todoStickerOpen.v1";
@@ -15091,6 +15100,35 @@ function getAwnQualityTooltip(value) {
 
 function awnQualityNeedsReview(value) {
   return parseAwnQualityValue(value) < AWN_QUALITY_REVIEW_THRESHOLD;
+}
+
+function parseAwnImportanceValue(raw, fallback = AWN_IMPORTANCE_DEFAULT) {
+  const text = String(raw ?? "").trim();
+  if (!text) return fallback;
+  const parsed = Number(text);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.min(10, Math.round(parsed)));
+}
+
+function getAwnImportanceTooltip(value) {
+  const normalized = parseAwnImportanceValue(value);
+  if (normalized <= 0) {
+    return "0 — не отмечено, обычный приоритет в поиске";
+  }
+  if (normalized <= 3) {
+    return `${normalized} — немного важнее обычного`;
+  }
+  if (normalized <= 6) {
+    return `${normalized} — заметно важно, агент будет поднимать выше`;
+  }
+  if (normalized < AWN_IMPORTANCE_HIGH_THRESHOLD) {
+    return `${normalized} — очень важно для вас`;
+  }
+  return `${normalized} — критично важно, максимальный приоритет в поиске`;
+}
+
+function awnImportanceIsHigh(value) {
+  return parseAwnImportanceValue(value) >= AWN_IMPORTANCE_HIGH_THRESHOLD;
 }
 
 function getAwnNoteTodoStickerValue(entries = propsFormEntries) {
@@ -42530,7 +42568,10 @@ const FIELD_TYPE_SELECT_GROUPS = [
     label: "Текст (многострочный)",
     types: ["awn.field.text", "awn.field.text.markdown", "awn.field.text.code"]
   },
-  { label: "Числа", types: ["awn.field.number", "awn.field.number.integer", "awn.field.number.stars"] },
+  {
+    label: "Числа",
+    types: ["awn.field.number", "awn.field.number.integer", "awn.field.number.stars", "awn.field.number.importance"]
+  },
   {
     label: "Дата и время",
     types: [
@@ -46255,7 +46296,9 @@ const FIELD_TYPE_ICONS = {
   "awn.field.coordinates": "📍",
   "awn.coordinates": "📍",
   "awn.field.number.stars": "⭐",
-  "awn.number.stars": "⭐"
+  "awn.number.stars": "⭐",
+  "awn.field.number.importance": "❗",
+  "awn.number.importance": "❗"
 };
 
 const PROPS_FIELD_ICONS = {
@@ -46279,6 +46322,7 @@ const PROPS_FIELD_ICONS = {
   "awn-color": "🎨",
   "awn-emoji": "😀",
   "awn-quality": "⭐",
+  "awn-importance": "❗",
   "awn-runtime-load-always": "",
   "awn-runtime-cron-schedule": "🕐"
 };
@@ -50222,7 +50266,8 @@ const DEDICATED_FIELD_TYPE_WIDGETS = new Set([
   "cron-schedule",
   "lookup-one",
   "lookup-many",
-  "stars"
+  "stars",
+  "importance"
 ]);
 
 const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
@@ -50240,7 +50285,8 @@ const DEDICATED_FIELD_TYPE_SUFFIX_WIDGETS = {
   "lookup.many": "lookup-many",
   "materials": "materials",
   "array": "array",
-  "number.stars": "stars"
+  "number.stars": "stars",
+  "number.importance": "importance"
 };
 
 const LEGACY_LOOKUP_TYPE_SOURCES = {
@@ -50374,6 +50420,7 @@ function resolvePropsFieldWidget(key, fieldDef = getPropsFieldDef(key)) {
   if (fieldTypeIs(typeId, "repeater")) return "repeater";
   if (fieldTypeIs(typeId, "coordinates")) return "coordinates";
   if (fieldTypeIs(typeId, "number.stars")) return "stars";
+  if (fieldTypeIs(typeId, "number.importance")) return "importance";
   if (fieldTypeIs(typeId, "number")) return "number";
   if (fieldTypeIs(typeId, "array") || widget === "tags") return "array";
   if (isChoiceManyFieldTypeId(typeId)) {
@@ -50980,6 +51027,93 @@ function createPropsFormStarsControl(entry, meta, { locked = false } = {}) {
   }
 
   ui.append(zeroBtn, scale, display, hint);
+  wrap.append(ui, hidden);
+  setValue(initial);
+  return wrap;
+}
+
+function createPropsFormImportanceControl(entry, meta, { locked = false } = {}) {
+  const wrap = createPropsFormValueWrap("importance");
+  wrap.classList.add("props-form-value-wrap--importance");
+  const fieldDef = meta.fieldDef || getPropsFieldDef(entry.key);
+  const initial = parseAwnImportanceValue(
+    entry.value ?? entry.rawValue ?? fieldDefDefaultValue(fieldDef),
+    fieldDefDefaultValue(fieldDef)
+  );
+
+  const hidden = document.createElement("input");
+  hidden.type = "hidden";
+  hidden.className = "props-form-value props-form-importance-value";
+  hidden.value = String(initial);
+  if (locked) hidden.disabled = true;
+
+  const ui = document.createElement("div");
+  ui.className = "props-form-importance";
+
+  const zeroBtn = document.createElement("button");
+  zeroBtn.type = "button";
+  zeroBtn.className = "props-form-importance-zero";
+  zeroBtn.textContent = "0";
+  zeroBtn.title = getAwnImportanceTooltip(0);
+  zeroBtn.setAttribute("aria-label", "0 — не отмечено");
+  zeroBtn.disabled = locked;
+
+  const scale = document.createElement("div");
+  scale.className = "props-form-importance-scale";
+  scale.setAttribute("role", "radiogroup");
+  scale.setAttribute("aria-label", "Важность для меня");
+
+  const display = document.createElement("span");
+  display.className = "props-form-importance-display";
+  display.textContent = String(initial);
+
+  const segments = [];
+
+  function syncDisplay(value) {
+    display.title = getAwnImportanceTooltip(value);
+    display.classList.toggle("is-high", awnImportanceIsHigh(value));
+    display.classList.toggle("is-active", value > 0);
+    zeroBtn.classList.toggle("is-active", value === 0);
+  }
+
+  function setValue(next) {
+    const value = parseAwnImportanceValue(next, AWN_IMPORTANCE_DEFAULT);
+    hidden.value = String(value);
+    display.textContent = String(value);
+    segments.forEach((btn) => {
+      const segmentValue = Number(btn.dataset.value);
+      btn.classList.toggle("is-filled", value > 0 && segmentValue <= value);
+      btn.setAttribute("aria-checked", value === segmentValue ? "true" : "false");
+    });
+    syncDisplay(value);
+    hidden.dispatchEvent(new Event("input", { bubbles: true }));
+    hidden.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  zeroBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    setValue(0);
+  });
+
+  for (let segmentValue = 1; segmentValue <= 10; segmentValue += 1) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "props-form-importance-segment";
+    btn.dataset.value = String(segmentValue);
+    btn.setAttribute("role", "radio");
+    btn.setAttribute("aria-checked", initial === segmentValue ? "true" : "false");
+    btn.title = getAwnImportanceTooltip(segmentValue);
+    btn.setAttribute("aria-label", `${segmentValue} из 10`);
+    btn.disabled = locked;
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      setValue(segmentValue);
+    });
+    scale.appendChild(btn);
+    segments.push(btn);
+  }
+
+  ui.append(zeroBtn, scale, display);
   wrap.append(ui, hidden);
   setValue(initial);
   return wrap;
@@ -54359,6 +54493,9 @@ function createPropsFormValueControl(entry, meta, { editorCompact = false } = {}
   if (widget === "stars") {
     return createPropsFormStarsControl(entry, meta, { locked });
   }
+  if (widget === "importance") {
+    return createPropsFormImportanceControl(entry, meta, { locked });
+  }
   if (widget === "number") {
     return createPropsFormTypedInputControl(entry, meta, "number", { locked });
   }
@@ -54471,6 +54608,10 @@ function readPropsFormValueFromControl(valueWrap) {
   }
   if (widget === "stars") {
     const hidden = valueWrap.querySelector(".props-form-stars-value");
+    return String(hidden?.value ?? "").trim();
+  }
+  if (widget === "importance") {
+    const hidden = valueWrap.querySelector(".props-form-importance-value");
     return String(hidden?.value ?? "").trim();
   }
   if (widget === "select" || widget === "lookup-one" || isLookupOneWidget(widget)) {

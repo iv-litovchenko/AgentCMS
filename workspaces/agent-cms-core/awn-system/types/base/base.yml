@@ -113,6 +113,19 @@ fields:
     sort: 3
     default: 4
 
+  awn-importance:
+    type: awn.field.number.importance
+    title: "{A2!} Важность для меня"
+    description: >
+      Насколько тема или запись важны лично для вас. Влияет на приоритет
+      в поиске агента: важные темы поднимаются выше при абстрактных вопросах.
+      Наследуется от темы к записям внутри.
+    hint: "0 — не отмечено · 5 — заметно · 10 — критично важно"
+    placement: aside-body
+    group: content
+    sort: 3.5
+    default: 0
+
   awn-note-todo-sticker:
     type: awn.field.text
     title: "{A2!} Заметка остановки"

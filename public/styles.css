@@ -34036,6 +34036,114 @@ img.is-svg-media,
   justify-content: flex-end;
 }
 
+.props-form-value-wrap--importance {
+  width: 100%;
+}
+
+.props-form-importance {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  width: 100%;
+  min-height: 24px;
+}
+
+.props-form-importance-zero,
+.props-form-importance-segment {
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 4px;
+  background: #fff;
+  color: #94a3b8;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.props-form-importance-zero {
+  flex: 0 0 auto;
+  min-width: 20px;
+  height: 20px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.props-form-importance-scale {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: stretch;
+  gap: 1px;
+  min-width: 0;
+  height: 14px;
+}
+
+.props-form-importance-segment {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  border-radius: 2px;
+  border: 0;
+  background: #e2e8f0;
+}
+
+.props-form-importance-zero:hover,
+.props-form-importance-segment:hover {
+  border-color: #fb7185;
+  color: #e11d48;
+}
+
+.props-form-importance-segment:hover {
+  background: #fecdd3;
+}
+
+.props-form-importance-zero.is-active {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.props-form-importance-segment.is-filled {
+  background: linear-gradient(180deg, #fda4af 0%, #e11d48 100%);
+  box-shadow: inset 0 -1px 0 rgba(190, 18, 60, 0.18);
+}
+
+.props-form-importance-segment.is-filled:hover {
+  background: linear-gradient(180deg, #fecdd3 0%, #fb7185 100%);
+}
+
+.props-form-importance-display {
+  flex: 0 0 auto;
+  min-width: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #94a3b8;
+  text-align: right;
+}
+
+.props-form-importance-display.is-active {
+  color: #be123c;
+}
+
+.props-form-importance-display.is-high {
+  color: #9f1239;
+}
+
+.doc-props-aside .props-form-field--compact .props-form-value-wrap--importance {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.doc-props-aside .props-form-importance {
+  justify-content: flex-end;
+}
+
 .node-entry-overview-section-list-title {
   margin: 0;
   font-size: 11px;
