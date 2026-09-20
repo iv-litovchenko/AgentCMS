@@ -73277,12 +73277,11 @@ function buildCommentThreadTree(comments) {
     }
   }
 
-  const sortDesc = (left, right) => right.id.localeCompare(left.id);
   const sortAsc = (left, right) => left.id.localeCompare(right.id);
   for (const root of roots) {
     root.replies.sort(sortAsc);
   }
-  roots.sort(sortDesc);
+  roots.sort(sortAsc);
   return roots;
 }
 
@@ -77759,7 +77758,7 @@ async function createNodeCommentsBlock(options = {}) {
   const thread = document.createElement("ol");
   thread.className = "node-comments-thread";
 
-  section.append(head, composer, thread);
+  section.append(head, thread, composer);
 
   if (commentsDisabled) {
     composer.setAttribute("aria-disabled", "true");
@@ -77898,6 +77897,10 @@ async function createNodeCommentsBlock(options = {}) {
           if (!saved) return;
           composerField.value = "";
           await refreshComments();
+          requestAnimationFrame(() => {
+            composer.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            composerField.focus({ preventScroll: true });
+          });
           showToast("Комментарий сохранён", "success");
         } catch (error) {
           showToast(`Не удалось сохранить комментарий: ${error.message}`, "error");
@@ -78064,7 +78067,7 @@ function renderNodeCommentsPlaceholderBlock(options = {}) {
     thread.appendChild(item);
   }
 
-  section.append(head, composer, thread);
+  section.append(head, thread, composer);
   return section;
 }
 

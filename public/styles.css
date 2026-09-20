@@ -37533,7 +37533,8 @@ img.is-svg-media,
 }
 
 .node-comments-composer {
-  margin-bottom: 18px;
+  margin-top: 18px;
+  margin-bottom: 0;
 }
 
 .node-comments-composer-main,
@@ -37690,8 +37691,10 @@ img.is-svg-media,
 }
 
 .node-comment-body.file-content-preview .node-comment-md-chunk {
-  padding: 14px 18px 16px;
+  padding: 10px 14px 12px;
+  min-height: 0;
   box-sizing: border-box;
+  overflow-x: auto;
 }
 
 .node-comment-body.file-content-preview .node-comment-md-chunk > :first-child {
@@ -37700,6 +37703,20 @@ img.is-svg-media,
 
 .node-comment-body.file-content-preview .node-comment-md-chunk > :last-child {
   margin-bottom: 0;
+}
+
+.node-comment-body.file-content-preview .node-comment-md-chunk p,
+.node-comment-body.file-content-preview .node-comment-md-chunk ul,
+.node-comment-body.file-content-preview .node-comment-md-chunk ol,
+.node-comment-body.file-content-preview .node-comment-md-chunk blockquote,
+.node-comment-body.file-content-preview .node-comment-md-chunk pre,
+.node-comment-body.file-content-preview .node-comment-md-chunk table {
+  margin: 0 0 0.5em;
+}
+
+.node-comment-body.file-content-preview .node-comment-md-chunk table {
+  width: max-content;
+  max-width: 100%;
 }
 
 .node-comment-body.file-content-preview .node-comment-mention {
