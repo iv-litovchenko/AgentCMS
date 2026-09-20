@@ -2,6 +2,8 @@
 
 Глобальный документ платформы (`workspaces/agent-cms-core/GLOBAL_MCP_DOC.md`): попадает в always-context **всех** агентов.
 
+Стиль ответов (префиксы 🗄️ / 🌐 / 💭) — отдельно: **`AGENT_RESPONSE_STYLE.md`** (тоже always-context).
+
 ## Зачем это
 
 Это **общее хранилище** человека и агента: одно дерево страниц, слотов и записей, один язык модели (Page · Slot · Content · типы · MCP).  
@@ -221,7 +223,7 @@ assign_workspace_id({ "path": "awn-container/tema-x/manifest.md" })
 | `search_workspace_links` | Граф связей: backlinks / outbound / neighbors вокруг **path**; индекс `.agent-cms/link-index/` | список path + kind |
 | `resolve_workspace_id` | Путь записи по глобальному **awn-id** (счётчик `id-autoincrement.json`) | path |
 | `assign_workspace_id` | Присвоить **awn-id** старой записи без id | id + path |
-| `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC | **да** |
+| `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC + AGENT_RESPONSE_STYLE | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
 | `list_workspace_heartbeat` | Темы/записи с `awn-runtime-heartbeat` | нет |
 

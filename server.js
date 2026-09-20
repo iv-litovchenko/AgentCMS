@@ -485,6 +485,18 @@ const {
 } = agentRegistry;
 
 const GLOBAL_MCP_DOC_FILE = "GLOBAL_MCP_DOC.md";
+const AGENT_RESPONSE_STYLE_FILE = "AGENT_RESPONSE_STYLE.md";
+
+const PLATFORM_ALWAYS_CONTEXT_FILES = [
+  {
+    file: GLOBAL_MCP_DOC_FILE,
+    description: "Глобальная карта MCP (agent-cms-core, все агенты)"
+  },
+  {
+    file: AGENT_RESPONSE_STYLE_FILE,
+    description: "Стиль ответов агента: префиксы-источники (хранилище / веб / рассуждение)"
+  }
+];
 
 const WORKSPACE_ID_COUNTER_FILE = "id-autoincrement.json";
 
@@ -10714,32 +10726,35 @@ async function buildAgentAlwaysContextRegistry() {
     }
   }
 
-  // Platform-global MCP map — lives in agent-cms-core root, injected for every agent.
-  try {
-    const globalDocAbsolute = path.join(getPlatformAgentRootAbsolute(getProjectRoot()), GLOBAL_MCP_DOC_FILE);
-    if (await fileExists(globalDocAbsolute)) {
-      const content = await fs.readFile(globalDocAbsolute, "utf-8");
+  // Platform-global docs — agent-cms-core root, injected for every agent.
+  for (const entry of PLATFORM_ALWAYS_CONTEXT_FILES) {
+    try {
+      const docAbsolute = path.join(getPlatformAgentRootAbsolute(getProjectRoot()), entry.file);
+      if (!(await fileExists(docAbsolute))) continue;
+      const content = await fs.readFile(docAbsolute, "utf-8");
       items.push({
         entityKind: "system",
         manifestPath: null,
         slot: null,
-        ref: GLOBAL_MCP_DOC_FILE,
-        label: GLOBAL_MCP_DOC_FILE,
-        displayPath: `workspaces/agent-cms-core/${GLOBAL_MCP_DOC_FILE}`,
-        description: "Глобальная карта MCP (agent-cms-core, все агенты)",
+        ref: entry.file,
+        label: entry.file,
+        displayPath: `workspaces/agent-cms-core/${entry.file}`,
+        description: entry.description,
         runtimeLoadAlways: true,
         exists: true,
         content
       });
+    } catch {
+      // skip unreadable platform doc
     }
-  } catch {
-    // skip unreadable global doc
   }
 
   return {
     version: 1,
     model: "always-context",
-    hint: "Всегда в контексте: awn-runtime-load-always на темах/записях + AGENTS.md/SKILL.md/README.md + GLOBAL_MCP_DOC.md (платформа). Полное содержимое каждого файла.",
+    hint:
+      "Всегда в контексте: awn-runtime-load-always на темах/записях + AGENTS.md/SKILL.md/README.md + " +
+      "GLOBAL_MCP_DOC.md + AGENT_RESPONSE_STYLE.md (платформа). Полное содержимое каждого файла.",
     items,
     itemCount: items.length
   };

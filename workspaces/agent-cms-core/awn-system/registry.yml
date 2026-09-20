@@ -29,6 +29,7 @@ domains:
     icon: "⚙"
 docs:
   map: GLOBAL_MCP_DOC.md
+  response-style: AGENT_RESPONSE_STYLE.md
   agents: AGENTS.md
 
 canonical-types: migrated
