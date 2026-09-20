@@ -23793,8 +23793,16 @@ a.header-tool-btn {
 .sidebar-accent-band-toggle-main {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+}
+
+.sidebar-accent-band-icon {
+  flex-shrink: 0;
+  display: block;
+  width: 14px;
+  height: 14px;
+  opacity: 0.92;
 }
 
 .sidebar-accent-band-chevron {
