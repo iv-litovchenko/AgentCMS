@@ -682,6 +682,23 @@
                 <span class="header-community-btn-label">Экосистема</span>
               </button>
               <button
+                id="header-global-settings-btn"
+                class="header-tool-btn header-tool-btn--settings"
+                type="button"
+                title="Глобальные настройки платформы"
+                aria-label="Глобальные настройки платформы"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-controls="header-global-settings-modal"
+              >
+                <svg class="header-settings-btn-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                  <path
+                    fill="currentColor"
+                    d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.02 7.02 0 0 0-1.63-.94l-.36-2.54A.49.49 0 0 0 14 2h-4a.49.49 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.57-1.63.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.05.3.27.49.49.49h4c.22 0 .44-.19.49-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"
+                  />
+                </svg>
+              </button>
+              <button
                 id="header-author-btn"
                 class="header-tool-btn header-tool-btn--author"
                 type="button"
@@ -5979,6 +5996,58 @@
           </a>
         </div>
         <p class="header-author-note">⭐ Звезда на GitHub — лучшая поддержка open-source проекта.</p>
+      </div>
+    </div>
+
+    <div
+      id="header-global-settings-modal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="header-global-settings-modal-title"
+    >
+      <div class="modal-card header-global-settings-modal-card">
+        <div class="header-global-settings-modal-head docs-modal-header">
+          <div>
+            <div class="modal-message" id="header-global-settings-modal-title">Глобальные настройки платформы</div>
+            <p class="header-global-settings-modal-subtitle">
+              <code>settings.global.yml</code> · <code>agent-cms-core</code>
+            </p>
+          </div>
+          <button id="header-global-settings-modal-close-btn" class="modal-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <p id="header-global-settings-lead" class="header-global-settings-lead">
+          Политика MCP, индексы, автоконтекст и режим обслуживания. Не сливается с workspace/user.
+        </p>
+        <nav
+          id="header-global-settings-group-tabs"
+          class="project-settings-group-tabs header-global-settings-group-tabs"
+          role="tablist"
+          aria-label="Группы глобальных настроек"
+        ></nav>
+        <p id="header-global-settings-group-lead" class="project-settings-block-lead header-global-settings-group-lead hidden"></p>
+        <div id="header-global-settings-loading" class="header-global-settings-loading hidden" aria-live="polite">
+          Загрузка настроек…
+        </div>
+        <div id="header-global-settings-fields" class="node-config-fields project-settings-fields header-global-settings-fields"></div>
+        <p id="header-global-settings-empty" class="project-settings-empty hidden">Схема настроек не найдена.</p>
+        <div class="header-global-settings-actions">
+          <button
+            id="header-global-settings-refresh-btn"
+            class="project-settings-btn"
+            type="button"
+            title="Перечитать с сервера"
+          >
+            Обновить
+          </button>
+          <button
+            id="header-global-settings-save-btn"
+            class="project-settings-btn project-settings-btn--primary"
+            type="button"
+          >
+            Сохранить
+          </button>
+        </div>
       </div>
     </div>
 

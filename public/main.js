@@ -278,6 +278,17 @@ const headerCommunityCloseBtn = document.getElementById("header-community-close-
 const headerAuthorBtn = document.getElementById("header-author-btn");
 const headerAuthorModalNode = document.getElementById("header-author-modal");
 const headerAuthorModalCloseBtn = document.getElementById("header-author-modal-close-btn");
+const headerGlobalSettingsBtn = document.getElementById("header-global-settings-btn");
+const headerGlobalSettingsModalNode = document.getElementById("header-global-settings-modal");
+const headerGlobalSettingsModalCloseBtn = document.getElementById("header-global-settings-modal-close-btn");
+const headerGlobalSettingsLeadNode = document.getElementById("header-global-settings-lead");
+const headerGlobalSettingsGroupTabsNode = document.getElementById("header-global-settings-group-tabs");
+const headerGlobalSettingsGroupLeadNode = document.getElementById("header-global-settings-group-lead");
+const headerGlobalSettingsLoadingNode = document.getElementById("header-global-settings-loading");
+const headerGlobalSettingsFieldsNode = document.getElementById("header-global-settings-fields");
+const headerGlobalSettingsEmptyNode = document.getElementById("header-global-settings-empty");
+const headerGlobalSettingsSaveBtnNode = document.getElementById("header-global-settings-save-btn");
+const headerGlobalSettingsRefreshBtnNode = document.getElementById("header-global-settings-refresh-btn");
 const headerFocusWrapNode = document.getElementById("header-focus-wrap");
 const headerFocusToggleBtn = document.getElementById("header-focus-toggle-btn");
 const headerFocusPopoverNode = document.getElementById("header-focus-popover");
@@ -9068,6 +9079,7 @@ function openHeaderCommunityPopover() {
 
 function openHeaderAuthorModal() {
   if (!headerAuthorModalNode) return;
+  closeHeaderGlobalSettingsModal();
   closeHeaderWelcomePopover();
   closeAgentsPickerPopover();
   closeMenuSettingsPopover();
@@ -9081,6 +9093,249 @@ function openHeaderAuthorModal() {
 
 function closeHeaderAuthorModal() {
   headerAuthorModalNode?.classList.add("hidden");
+}
+
+let headerGlobalSettingsOpen = false;
+let headerGlobalSettingsActiveGroupId = null;
+let headerGlobalSettingsCache = null;
+let headerGlobalSettingsDirty = false;
+
+function syncHeaderGlobalSettingsBtnState() {
+  headerGlobalSettingsBtn?.classList.toggle("is-open", headerGlobalSettingsOpen);
+  headerGlobalSettingsBtn?.setAttribute("aria-expanded", headerGlobalSettingsOpen ? "true" : "false");
+}
+
+function setHeaderGlobalSettingsLoading(isLoading) {
+  headerGlobalSettingsLoadingNode?.classList.toggle("hidden", !isLoading);
+  headerGlobalSettingsFieldsNode?.classList.toggle("hidden", isLoading);
+  headerGlobalSettingsGroupTabsNode?.classList.toggle("hidden", isLoading);
+  if (headerGlobalSettingsSaveBtnNode) headerGlobalSettingsSaveBtnNode.disabled = isLoading;
+  if (headerGlobalSettingsRefreshBtnNode) headerGlobalSettingsRefreshBtnNode.disabled = isLoading;
+}
+
+function syncHeaderGlobalSettingsGroupLead(cache = headerGlobalSettingsCache) {
+  if (!headerGlobalSettingsGroupLeadNode) return;
+  const fieldGroups =
+    Array.isArray(cache?.settingsFieldGroups) && cache.settingsFieldGroups.length
+      ? cache.settingsFieldGroups
+      : getProjectSettingsAgentFieldGroups("global");
+  const description = resolveProjectSettingsGroupDescription(
+    headerGlobalSettingsActiveGroupId,
+    fieldGroups
+  );
+  if (description) {
+    headerGlobalSettingsGroupLeadNode.textContent = description;
+    headerGlobalSettingsGroupLeadNode.classList.remove("hidden");
+    headerGlobalSettingsGroupLeadNode.classList.add("project-settings-group-description-lead");
+  } else {
+    headerGlobalSettingsGroupLeadNode.textContent = "";
+    headerGlobalSettingsGroupLeadNode.classList.add("hidden");
+    headerGlobalSettingsGroupLeadNode.classList.remove("project-settings-group-description-lead");
+  }
+}
+
+function syncHeaderGlobalSettingsCacheFromDom(cache = headerGlobalSettingsCache) {
+  if (!cache || !headerGlobalSettingsFieldsNode) return cache;
+  const schemaFields = cache.settingsFields || {};
+  const entries = [];
+  headerGlobalSettingsFieldsNode.querySelectorAll(".node-config-field-row").forEach((row) => {
+    const entry = readNodeSettingsEntryFromRow(row, cache);
+    if (!entry.key || !schemaFields[entry.key]) return;
+    if (isProjectSettingsReadonlyField(schemaFields[entry.key])) return;
+    entries.push(entry);
+  });
+  cache.entries = buildNodeSettingsEntriesFromSchema(entries, schemaFields);
+  headerGlobalSettingsDirty = true;
+  return cache;
+}
+
+function renderHeaderGlobalSettingsModal(cache = headerGlobalSettingsCache) {
+  if (!headerGlobalSettingsFieldsNode || !headerGlobalSettingsEmptyNode) return;
+  headerGlobalSettingsFieldsNode.replaceChildren();
+  headerGlobalSettingsGroupTabsNode?.replaceChildren();
+
+  const schemaFields = cache?.settingsFields || {};
+  const schemaKeys = Object.keys(schemaFields);
+  if (!schemaKeys.length) {
+    headerGlobalSettingsEmptyNode.classList.remove("hidden");
+    headerGlobalSettingsEmptyNode.textContent =
+      "Схема настроек не найдена — проверьте platform.yml в awn-system/types/settings/.";
+    headerGlobalSettingsGroupTabsNode?.classList.add("hidden");
+    return;
+  }
+
+  let entries = buildNodeSettingsEntriesFromSchema(cache?.entries || [], schemaFields);
+  if (cache?.platformMeta) {
+    entries = applyPlatformMetaToReadonlyEntries(entries, schemaFields, cache.platformMeta);
+  }
+  cache.entries = entries;
+  headerGlobalSettingsEmptyNode.classList.add("hidden");
+
+  const groupOrder = getSchemaEditorGroupOrder(schemaFields, entries.map((entry) => entry.key));
+  const fieldGroups =
+    Array.isArray(cache?.settingsFieldGroups) && cache.settingsFieldGroups.length
+      ? cache.settingsFieldGroups
+      : buildSettingsFieldGroupsFromFields(schemaFields);
+
+  if (!headerGlobalSettingsActiveGroupId || !groupOrder.includes(headerGlobalSettingsActiveGroupId)) {
+    headerGlobalSettingsActiveGroupId = groupOrder[0] || "main";
+  }
+
+  if (headerGlobalSettingsGroupTabsNode && groupOrder.length > 1) {
+    headerGlobalSettingsGroupTabsNode.classList.remove("hidden");
+    for (const groupId of groupOrder) {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.className = "project-settings-group-tab";
+      tab.dataset.groupId = groupId;
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", groupId === headerGlobalSettingsActiveGroupId ? "true" : "false");
+      tab.classList.toggle("is-active", groupId === headerGlobalSettingsActiveGroupId);
+      tab.textContent = resolveNodeSettingsGroupLabel(groupId, fieldGroups);
+      tab.addEventListener("click", () => {
+        headerGlobalSettingsActiveGroupId = groupId;
+        renderHeaderGlobalSettingsModal(cache);
+      });
+      headerGlobalSettingsGroupTabsNode.append(tab);
+    }
+  } else {
+    headerGlobalSettingsGroupTabsNode?.classList.add("hidden");
+  }
+
+  syncHeaderGlobalSettingsGroupLead(cache);
+
+  for (const entry of entries) {
+    const groupId = resolvePropsFieldGroupId(entry.key, schemaFields[entry.key]);
+    if (groupOrder.length > 1 && groupId !== headerGlobalSettingsActiveGroupId) continue;
+    headerGlobalSettingsFieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
+  }
+}
+
+async function loadHeaderGlobalSettingsCache(options = {}) {
+  const force = Boolean(options.force);
+  if (!force && headerGlobalSettingsCache) return headerGlobalSettingsCache;
+
+  if (activeAgentId) {
+    await loadAwnTypes(activeAgentId).catch(() => {});
+  }
+
+  const [data, schemaBundle] = await Promise.all([
+    fetch(buildApiUrl("/api/platform/settings-global")).then(async (response) => {
+      if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+      return response.json();
+    }),
+    loadAgentSettingsSchemaBundle({ scope: "global", force })
+  ]);
+
+  const state = parseNodeSettingsState(data.content || "");
+  const settingsFields = schemaBundle.settingsFields || {};
+  state.entries = buildNodeSettingsEntriesFromSchema(state.entries, settingsFields);
+  if (data.meta) {
+    state.entries = applyPlatformMetaToReadonlyEntries(state.entries, settingsFields, data.meta);
+  }
+
+  const groupOrder = getSchemaEditorGroupOrder(settingsFields, Object.keys(settingsFields));
+  if (!headerGlobalSettingsActiveGroupId || !groupOrder.includes(headerGlobalSettingsActiveGroupId)) {
+    headerGlobalSettingsActiveGroupId = groupOrder[0] || "main";
+  }
+
+  headerGlobalSettingsCache = {
+    manifestPath: PROJECT_SETTINGS_GLOBAL_SCOPE,
+    configPath: data.path || "",
+    settingsPath: data.path || "",
+    exists: Boolean(data.exists),
+    settingsScope: "global",
+    platformMeta: data.meta || null,
+    settingsFields,
+    settingsFieldGroups: schemaBundle.settingsFieldGroups || [],
+    ...state
+  };
+  headerGlobalSettingsDirty = false;
+  return headerGlobalSettingsCache;
+}
+
+async function saveHeaderGlobalSettings() {
+  const cache = syncHeaderGlobalSettingsCacheFromDom();
+  if (!cache) throw new Error("Настройки не загружены");
+
+  const content = buildSettingsYamlFromState(cache, cache.settingsFields || {});
+  const response = await fetch(buildApiUrl("/api/platform/settings-global"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const reason = errorData.error || `Request failed with ${response.status}`;
+    const details = errorData.details ? `: ${errorData.details}` : "";
+    throw new Error(`${reason}${details}`);
+  }
+
+  const data = await response.json();
+  cache.exists = Boolean(data.exists);
+  cache.configPath = data.path || cache.configPath;
+  cache.settingsPath = data.path || cache.settingsPath;
+  const nextState = parseNodeSettingsState(data.content || content);
+  cache.headerComment = nextState.headerComment;
+  cache.entries = buildNodeSettingsEntriesFromSchema(nextState.entries, cache.settingsFields || {});
+  cache.defaultLandingMode = nextState.defaultLandingMode;
+  cache.awnSchemaYaml = nextState.awnSchemaYaml;
+  headerGlobalSettingsDirty = false;
+  renderHeaderGlobalSettingsModal(cache);
+  void loadPlatformUiSettings();
+}
+
+async function openHeaderGlobalSettingsModal() {
+  if (!headerGlobalSettingsModalNode) return;
+  closeHeaderAuthorModal();
+  closeHeaderWelcomePopover();
+  closeAgentsPickerPopover();
+  closeMenuSettingsPopover();
+  closeWorkspaceNotificationsPopover();
+  closeHeaderFocusPopover();
+  closeHeaderProfileMenu();
+  closeHeaderConnectPopover();
+  closeHeaderCommunityPopover();
+
+  headerGlobalSettingsOpen = true;
+  syncHeaderGlobalSettingsBtnState();
+  headerGlobalSettingsModalNode.classList.remove("hidden");
+  setHeaderGlobalSettingsLoading(true);
+
+  try {
+    const cache = await loadHeaderGlobalSettingsCache({ force: true });
+    renderHeaderGlobalSettingsModal(cache);
+  } catch (error) {
+    headerGlobalSettingsFieldsNode?.replaceChildren();
+    headerGlobalSettingsGroupTabsNode?.replaceChildren();
+    headerGlobalSettingsEmptyNode?.classList.remove("hidden");
+    if (headerGlobalSettingsEmptyNode) {
+      headerGlobalSettingsEmptyNode.textContent = `Ошибка чтения настроек: ${error.message}`;
+    }
+  } finally {
+    setHeaderGlobalSettingsLoading(false);
+  }
+}
+
+function closeHeaderGlobalSettingsModal() {
+  if (!headerGlobalSettingsOpen) return;
+  headerGlobalSettingsOpen = false;
+  syncHeaderGlobalSettingsBtnState();
+  headerGlobalSettingsModalNode?.classList.add("hidden");
+}
+
+async function refreshHeaderGlobalSettingsModal() {
+  setHeaderGlobalSettingsLoading(true);
+  try {
+    headerGlobalSettingsCache = null;
+    const cache = await loadHeaderGlobalSettingsCache({ force: true });
+    renderHeaderGlobalSettingsModal(cache);
+    showToast("Глобальные настройки обновлены", "success");
+  } catch (error) {
+    showToast(`Ошибка обновления: ${error.message}`, "error");
+  } finally {
+    setHeaderGlobalSettingsLoading(false);
+  }
 }
 
 function syncHeaderProfileMenuState() {
@@ -43253,9 +43508,9 @@ function createNodeSettingsFieldRow(entry, fieldDef) {
   return row;
 }
 
-function readNodeSettingsEntryFromRow(row) {
+function readNodeSettingsEntryFromRow(row, cacheOverride = null) {
   const key = row?.dataset?.configRowKey || "";
-  const cache = getNodeSettingsCache();
+  const cache = cacheOverride || getNodeSettingsCache();
   const fieldDef = cache?.settingsFields?.[key];
   const base =
     (cache?.entries || []).find((entry) => entry.key === key) ||
@@ -105584,6 +105839,36 @@ headerAuthorModalCloseBtn?.addEventListener("click", closeHeaderAuthorModal);
 headerAuthorModalNode?.addEventListener("click", (event) => {
   if (event.target === headerAuthorModalNode) closeHeaderAuthorModal();
 });
+headerGlobalSettingsBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  if (headerGlobalSettingsOpen) {
+    closeHeaderGlobalSettingsModal();
+    return;
+  }
+  void openHeaderGlobalSettingsModal();
+});
+headerGlobalSettingsModalCloseBtn?.addEventListener("click", closeHeaderGlobalSettingsModal);
+headerGlobalSettingsModalNode?.addEventListener("click", (event) => {
+  if (event.target === headerGlobalSettingsModalNode) closeHeaderGlobalSettingsModal();
+});
+headerGlobalSettingsFieldsNode?.addEventListener("input", () => {
+  syncHeaderGlobalSettingsCacheFromDom();
+});
+headerGlobalSettingsFieldsNode?.addEventListener("change", () => {
+  syncHeaderGlobalSettingsCacheFromDom();
+});
+headerGlobalSettingsSaveBtnNode?.addEventListener("click", () => {
+  headerGlobalSettingsSaveBtnNode.disabled = true;
+  saveHeaderGlobalSettings()
+    .then(() => showToast("Глобальные настройки сохранены", "success"))
+    .catch((error) => showToast(`Ошибка сохранения: ${error.message}`, "error"))
+    .finally(() => {
+      if (headerGlobalSettingsSaveBtnNode) headerGlobalSettingsSaveBtnNode.disabled = false;
+    });
+});
+headerGlobalSettingsRefreshBtnNode?.addEventListener("click", () => {
+  void refreshHeaderGlobalSettingsModal();
+});
 headerProfileWorkspaceBtn?.addEventListener("click", () => {
   closeHeaderProfileMenu();
   void openWorkspaceStorageTopic();
@@ -105633,7 +105918,8 @@ document.addEventListener("click", (event) => {
     if (
       !headerCommunityPopoverNode.contains(target) &&
       !target.closest("#header-community-btn") &&
-      !target.closest("#header-author-btn")
+      !target.closest("#header-author-btn") &&
+      !target.closest("#header-global-settings-btn")
     ) {
       closeHeaderCommunityPopover();
     }
@@ -105649,6 +105935,7 @@ document.addEventListener("keydown", (event) => {
   closeHeaderConnectPopover();
   closeHeaderCommunityPopover();
   closeHeaderAuthorModal();
+  closeHeaderGlobalSettingsModal();
 });
 window.addEventListener(
   "resize",
