@@ -11265,6 +11265,33 @@ body.app-locked {
   display: none;
 }
 
+.agent-project-settings-pane .project-settings-head-legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-bottom: 6px;
+}
+
+.agent-project-settings-pane .project-settings-head-legend-row .agent-canvas-eyebrow {
+  margin: 0;
+}
+
+.agent-project-settings-pane .project-settings-scope-legend-mount {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agent-project-settings-pane .project-settings-scope-legend-mount .project-settings-scope-filters.is-legend {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+.agent-project-settings-pane.agent-canvas-pane {
+  scroll-behavior: smooth;
+}
+
 .agent-project-settings-pane .agent-project-settings-mount {
   flex: 0 0 auto;
   overflow: visible;
@@ -56648,6 +56675,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-awn-data-band-head {
   display: flex;
   align-items: center;
+  overflow: visible;
   background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 52%, #a78bfa 100%);
 }
 
@@ -56687,6 +56715,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   align-items: center;
   gap: 4px;
   padding: 7px 8px 7px 0;
+  overflow: visible;
   pointer-events: auto;
 }
 
@@ -56785,6 +56814,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 .menu-repositories-band-head {
   display: flex;
   align-items: center;
+  overflow: visible;
   background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 52%, #60a5fa 100%);
 }
 
@@ -56824,6 +56854,7 @@ body.is-cms-page-picker-active #discuss-aside * {
   align-items: center;
   gap: 4px;
   padding: 7px 8px 7px 0;
+  overflow: visible;
   pointer-events: auto;
 }
 
@@ -56891,6 +56922,32 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .menu-repositories-band-head-actions .menu-refresh-btn.is-spinning svg {
   animation: workspace-refresh-spin 0.75s linear infinite;
+}
+
+.menu-band-help-btn.ui-tooltip-host[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  max-width: 260px;
+  white-space: normal;
+  text-align: left;
+  z-index: 220;
+  transform: translateY(-2px);
+}
+
+.menu-band-help-btn.ui-tooltip-host[data-tooltip-pos="top"]::after {
+  bottom: calc(100% + 8px);
+}
+
+.menu-band-help-btn.ui-tooltip-host[data-tooltip-pos="top"]:hover::after,
+.menu-band-help-btn.ui-tooltip-host[data-tooltip-pos="top"]:focus-visible::after {
+  transform: translateY(0);
+}
+
+.menu-band-help-btn.ui-tooltip-host[data-tooltip-pos="top"]::before {
+  left: auto;
+  right: 8px;
+  transform: none;
+  z-index: 220;
 }
 
 .menu-repositories-band-body {

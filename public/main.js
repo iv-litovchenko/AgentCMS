@@ -71,6 +71,7 @@ const menuGoogleDriveRepairBtn = document.getElementById("menu-google-drive-repa
 const menuGoogleDriveRefreshBtn = document.getElementById("menu-google-drive-refresh-btn");
 const menuAwnDataStoresNode = document.getElementById("menu-awn-data-stores");
 const menuAwnDataRefreshBtn = document.getElementById("menu-awn-data-refresh-btn");
+const menuAwnDataHelpBtn = document.getElementById("menu-awn-data-help-btn");
 const menuAwnDataCreateCollectionBtn = document.getElementById("menu-awn-data-create-collection-btn");
 const menuAwnDataCreateSingletonBtn = document.getElementById("menu-awn-data-create-singleton-btn");
 const menuAwnDataCreateGroupBtn = document.getElementById("menu-awn-data-create-group-btn");
@@ -93,6 +94,7 @@ const awnDataCreateCancelBtn = document.getElementById("awn-data-create-cancel-b
 const awnDataCreateSubmitBtn = document.getElementById("awn-data-create-submit-btn");
 const menuRepositoriesListNode = document.getElementById("menu-repositories-list");
 const menuRepositoriesRefreshBtn = document.getElementById("menu-repositories-refresh-btn");
+const menuRepositoriesHelpBtn = document.getElementById("menu-repositories-help-btn");
 const menuRepositoriesCreateBtn = document.getElementById("menu-repositories-create-btn");
 const repositoryCreateModalNode = document.getElementById("repository-create-modal");
 const repositoryCreateNameInputNode = document.getElementById("repository-create-name-input");
@@ -472,6 +474,7 @@ const nodeConfigEmptyNode = document.getElementById("node-config-empty");
 const nodeConfigAddBtn = document.getElementById("node-config-add-btn");
 const projectSettingsPageNode = document.getElementById("project-settings-page");
 const projectSettingsScopeListNode = document.getElementById("project-settings-scope-list");
+const projectSettingsScopeLegendMountNode = document.getElementById("project-settings-scope-legend-mount");
 const projectSettingsScopeSearchInputNode = document.getElementById("project-settings-scope-search-input");
 const projectSettingsTitleNode = document.getElementById("project-settings-title");
 const projectSettingsLeadNode = document.getElementById("project-settings-lead");
@@ -26279,7 +26282,7 @@ function scheduleLandingSearch() {
   }, 280);
 }
 
-function showToast(message, type = "") {
+function showToast(message, type = "", duration = 1600) {
   toastNode.textContent = message;
   toastNode.classList.remove("success", "error", "show");
   if (type) toastNode.classList.add(type);
@@ -26287,7 +26290,7 @@ function showToast(message, type = "") {
   toastNode.classList.add("show");
   toastTimer = setTimeout(() => {
     toastNode.classList.remove("show");
-  }, 1600);
+  }, Math.max(1200, Number(duration) || 1600));
 }
 
 function askConfirm(message, { okLabel = "Удалить", cancelLabel = "Отмена", title = "", hint = "", icon = "⚠️", variant = "danger" } = {}) {
@@ -42155,6 +42158,13 @@ function renderProjectSettingsScopeFilters() {
   return wrap;
 }
 
+function syncProjectSettingsScopeLegend() {
+  if (!projectSettingsScopeLegendMountNode) return;
+  projectSettingsScopeLegendMountNode.replaceChildren();
+  if (!isProjectSettingsMode()) return;
+  projectSettingsScopeLegendMountNode.appendChild(renderProjectSettingsScopeFilters());
+}
+
 function renderProjectSettingsIblockScopeItem(scope, activeScopePath) {
   const isActive = scope.path === activeScopePath;
   const recordCount = Number(scope.recordCount) || 0;
@@ -42200,8 +42210,8 @@ function renderProjectSettingsIblockScopeItem(scope, activeScopePath) {
   badges.append(badge);
   btn.append(badges);
 
-  btn.addEventListener("click", () => {
-    void selectProjectSettingsScope(scope.path);
+  btn.addEventListener("click", (event) => {
+    void selectProjectSettingsScope(scope.path, { originButton: event.currentTarget });
   });
   return btn;
 }
@@ -42241,8 +42251,8 @@ function renderProjectSettingsAgentSettingsTabItem(scopePath, groupId, groupLabe
   badge.title = `${count} настроек в группе`;
   btn.append(label, badge);
 
-  btn.addEventListener("click", () => {
-    void selectProjectSettingsAgentSettingsTab(scopePath, groupId);
+  btn.addEventListener("click", (event) => {
+    void selectProjectSettingsAgentSettingsTab(scopePath, groupId, event.currentTarget);
   });
   return btn;
 }
@@ -42281,6 +42291,51 @@ function getProjectSettingsScrollContainer() {
   return agentProjectSettingsPaneNode || null;
 }
 
+function scrollProjectSettingsPaneToTop({ smooth = true } = {}) {
+  const container = getProjectSettingsScrollContainer();
+  if (!container) return;
+  try {
+    container.scrollTo({ top: 0, left: 0, behavior: smooth ? "smooth" : "auto" });
+  } catch {
+    container.scrollTop = 0;
+  }
+}
+
+let projectSettingsPaneScrollSeq = 0;
+
+function scheduleProjectSettingsPaneScrollTop({ smooth = true } = {}) {
+  const seq = ++projectSettingsPaneScrollSeq;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (seq !== projectSettingsPaneScrollSeq) return;
+      scrollProjectSettingsPaneToTop({ smooth });
+    });
+  });
+}
+
+function releaseProjectSettingsScopeNavigationFocus(originButton = null) {
+  if (originButton instanceof HTMLElement) {
+    originButton.blur();
+    return;
+  }
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && projectSettingsScopeListNode?.contains(active)) {
+    active.blur();
+  }
+}
+
+function applyProjectSettingsAgentGroupTabUi(cache = getNodeSettingsCache()) {
+  const manifestPath = getNodeSettingsManifestPath();
+  patchProjectSettingsScopeListActiveState(manifestPath);
+  if (isProjectSettingsAgentSettingsScope(manifestPath)) {
+    syncProjectSettingsConfigGroupLead(cache);
+  }
+  projectSettingsFieldsNode?.classList.remove("hidden");
+  renderNodeSettingsEditor(cache);
+  projectSettingsSaveBtnNode?.classList.remove("hidden");
+  syncProjectSettingsSaveButtonState();
+}
+
 function patchProjectSettingsScopeListActiveState(activeScopePath = getNodeSettingsManifestPath()) {
   if (!projectSettingsScopeListNode || !projectSettingsScopeListNode.childElementCount) return false;
   const buttons = projectSettingsScopeListNode.querySelectorAll(
@@ -42311,8 +42366,6 @@ function syncProjectSettingsScopeListUi(options = {}) {
 
 function renderProjectSettingsScopeList() {
   if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
-  const scrollContainer = getProjectSettingsScrollContainer();
-  const preservedScrollTop = scrollContainer?.scrollTop ?? 0;
   const focusedInList =
     document.activeElement instanceof HTMLElement &&
     projectSettingsScopeListNode.contains(document.activeElement);
@@ -42333,8 +42386,6 @@ function renderProjectSettingsScopeList() {
     { level: "iblock-collection", label: "Инфоблоки · коллекции" },
     { level: "iblock-singleton", label: "Инфоблоки · одиночки" }
   ];
-
-  projectSettingsScopeListNode.appendChild(renderProjectSettingsScopeFilters());
 
   if (searchActive && !visibleScopes.length) {
     const empty = document.createElement("p");
@@ -42462,21 +42513,16 @@ function renderProjectSettingsScopeList() {
         btn.append(status);
       }
 
-      btn.addEventListener("click", () => {
-        void selectProjectSettingsScope(scope.path);
+      btn.addEventListener("click", (event) => {
+        void selectProjectSettingsScope(scope.path, { originButton: event.currentTarget });
       });
       groupNode.appendChild(btn);
     }
     projectSettingsScopeListNode.appendChild(groupNode);
   }
-  if (scrollContainer) {
-    requestAnimationFrame(() => {
-      scrollContainer.scrollTop = preservedScrollTop;
-    });
-  }
 }
 
-async function selectProjectSettingsAgentSettingsTab(scopePath, groupId) {
+async function selectProjectSettingsAgentSettingsTab(scopePath, groupId, originButton = null) {
   const normalized = normalizeMenuNodePath(scopePath);
   if (!normalized || !groupId) return;
   projectSettingsScopePath = normalized;
@@ -42486,10 +42532,12 @@ async function selectProjectSettingsAgentSettingsTab(scopePath, groupId) {
     if (!getNodeSettingsCache(normalized)) {
       await loadProjectSettingsContent({ force: false });
     } else {
-      applyProjectSettingsPageUi(getNodeSettingsCache(normalized));
+      applyProjectSettingsAgentGroupTabUi(getNodeSettingsCache(normalized));
     }
     commitEditorSaveBaseline();
     updateBreadcrumbsForActiveMode();
+    releaseProjectSettingsScopeNavigationFocus(originButton);
+    scheduleProjectSettingsPaneScrollTop({ smooth: true });
   } catch (error) {
     showToast(`Не удалось загрузить настройки: ${error.message}`, "error");
   }
@@ -42512,6 +42560,8 @@ async function selectProjectSettingsScope(scopePath, options = {}) {
   }
   try {
     await loadProjectSettingsContent({ force: Boolean(options.force) });
+    releaseProjectSettingsScopeNavigationFocus(options.originButton);
+    scheduleProjectSettingsPaneScrollTop({ smooth: true });
   } catch (error) {
     showToast(`Не удалось загрузить настройки: ${error.message}`, "error");
   }
@@ -42793,6 +42843,7 @@ function mountProjectSettingsToCanvasPane() {
 
 function hideProjectSettingsPageUi() {
   hideProjectSettingsLoading({ force: true });
+  projectSettingsScopeLegendMountNode?.replaceChildren();
   appRootNode?.classList.remove("project-settings-view");
   projectSettingsPageNode?.classList.add("hidden");
   workspacePathHeaderNode?.classList.remove("is-project-settings", "is-workspace-tool-module");
@@ -42818,6 +42869,7 @@ function leaveProjectSettingsMode() {
 function applyProjectSettingsPageUi(cache = getNodeSettingsCache()) {
   mountProjectSettingsToCanvasPane();
   projectSettingsPageNode?.classList.remove("hidden");
+  syncProjectSettingsScopeLegend();
   syncMenuAgentStatsSettingsBtnState();
   saveContentBtn?.classList.add("hidden");
   renderProjectSettingsPage(cache);
@@ -87187,7 +87239,7 @@ function renderServiceSection(serviceTree, parentEl, agentId = activeAgentId) {
   if (collapsed) body.hidden = true;
   section.appendChild(body);
 
-  parentEl.insertBefore(section, parentEl.firstChild);
+  insertMenuReservedNode(parentEl, section, "kit");
   normalizeMenuReservedSectionsOrder(parentEl);
   refreshMenuSortDecorations(agentId);
   refreshClassicMenuTreeLines(agentId);
@@ -87542,7 +87594,7 @@ function normalizeMenuReservedSectionsOrder(parentEl) {
     insertRef = insertRef.nextSibling;
   }
 
-  [system, kit, shared, container, configuration].filter(Boolean).forEach((node) => {
+  [system, shared, kit, container, configuration].filter(Boolean).forEach((node) => {
     parentEl.insertBefore(node, insertRef);
   });
 
@@ -87586,10 +87638,10 @@ function syncMenuWorkspaceTreeDivider(parentEl, agentId = activeAgentId) {
     ? configuration
     : showContainer
       ? container
-      : showShared
-        ? shared
-        : showKit
-          ? kit
+      : showKit
+        ? kit
+        : showShared
+          ? shared
           : showSystem
             ? system
             : null;
@@ -87625,8 +87677,11 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
     parentEl.insertBefore(node, parentEl.firstChild);
     return;
   }
-  if (slot === "kit") {
-    const systemSection = parentEl.querySelector(":scope > .menu-agent-system-section");
+  const kitSection = parentEl.querySelector(":scope > .menu-service-section");
+  const sharedSection = parentEl.querySelector(":scope > .menu-shared-section");
+  const containerSection = parentEl.querySelector(":scope > .menu-container-section");
+  const systemSection = parentEl.querySelector(":scope > .menu-agent-system-section");
+  if (slot === "shared") {
     if (systemSection) {
       systemSection.insertAdjacentElement("afterend", node);
     } else {
@@ -87634,13 +87689,9 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
     }
     return;
   }
-  const kitSection = parentEl.querySelector(":scope > .menu-service-section");
-  const sharedSection = parentEl.querySelector(":scope > .menu-shared-section");
-  const containerSection = parentEl.querySelector(":scope > .menu-container-section");
-  const systemSection = parentEl.querySelector(":scope > .menu-agent-system-section");
-  if (slot === "shared") {
-    if (kitSection) {
-      kitSection.insertAdjacentElement("afterend", node);
+  if (slot === "kit") {
+    if (sharedSection) {
+      sharedSection.insertAdjacentElement("afterend", node);
     } else if (systemSection) {
       systemSection.insertAdjacentElement("afterend", node);
     } else {
@@ -87649,10 +87700,10 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
     return;
   }
   if (slot === "container") {
-    if (sharedSection) {
-      sharedSection.insertAdjacentElement("afterend", node);
-    } else if (kitSection) {
+    if (kitSection) {
       kitSection.insertAdjacentElement("afterend", node);
+    } else if (sharedSection) {
+      sharedSection.insertAdjacentElement("afterend", node);
     } else if (systemSection) {
       systemSection.insertAdjacentElement("afterend", node);
     } else {
@@ -87664,10 +87715,10 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
   if (slot === "configuration") {
     if (containerSection) {
       containerSection.insertAdjacentElement("afterend", node);
-    } else if (sharedSection) {
-      sharedSection.insertAdjacentElement("afterend", node);
     } else if (kitSection) {
       kitSection.insertAdjacentElement("afterend", node);
+    } else if (sharedSection) {
+      sharedSection.insertAdjacentElement("afterend", node);
     } else if (systemSection) {
       systemSection.insertAdjacentElement("afterend", node);
     } else {
@@ -87676,7 +87727,7 @@ function insertMenuReservedNode(parentEl, node, slot = "kit") {
     return;
   }
   if (slot === "divider") {
-    const anchor = configurationSection || containerSection || sharedSection || kitSection || systemSection;
+    const anchor = configurationSection || containerSection || kitSection || sharedSection || systemSection;
     if (anchor) {
       anchor.insertAdjacentElement("afterend", node);
     } else {
@@ -87744,16 +87795,16 @@ function renderRootMenuReservedSections(menu, parentEl, agentId = activeAgentId)
     clearMenuAgentSystemSection(parentEl);
   }
 
-  if (menu?.serviceTree && shouldShowServiceSectionInMenu(agentId)) {
-    renderServiceSection(menu.serviceTree, parentEl, agentId);
-  } else {
-    clearMenuServiceSection(parentEl);
-  }
-
   if (menu?.sharedTree && shouldShowSharedSectionInMenu(agentId)) {
     renderSharedSection(menu.sharedTree, parentEl, agentId);
   } else {
     clearMenuSharedSection(parentEl);
+  }
+
+  if (menu?.serviceTree && shouldShowServiceSectionInMenu(agentId)) {
+    renderServiceSection(menu.serviceTree, parentEl, agentId);
+  } else {
+    clearMenuServiceSection(parentEl);
   }
 
   if (menu?.containerTree && shouldShowContainerSectionInMenu(agentId)) {
@@ -99489,6 +99540,20 @@ function setupMenuRepositoriesBandGroup() {
   menuRepositoriesBandToggleBtn?.addEventListener("click", () => {
     toggleMenuRepositoriesBandExpanded();
   });
+  wireMenuBandHelpButton(menuRepositoriesHelpBtn);
+}
+
+function wireMenuBandHelpButton(button) {
+  if (!button || button.dataset.helpWired === "1") return;
+  button.dataset.helpWired = "1";
+  const text = String(button.getAttribute("aria-label") || button.getAttribute("title") || "").trim();
+  if (!text) return;
+  button.removeAttribute("title");
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    showToast(text, "info", 5200);
+  });
 }
 
 function setupMenuAwnDataBandGroup() {
@@ -99505,6 +99570,7 @@ function setupMenuAwnDataBandGroup() {
       syncAwnDataMenuActiveStore();
     }
   });
+  wireMenuBandHelpButton(menuAwnDataHelpBtn);
 }
 
 function setupProjectSettingsScopeSearch() {
