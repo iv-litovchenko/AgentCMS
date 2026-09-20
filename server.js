@@ -318,7 +318,23 @@ const {
   normalizeWorkspaceAgentSettings,
   parseWorkspaceAgentSettingsFromConfigContent
 } = require("./workspace-agent-settings");
-const { loadMcpPolicy, serializeMcpPolicy } = require("./mcp-policy-loader");
+const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
+const {
+  PROJECT_SETTINGS_GLOBAL_SCOPE,
+  PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE,
+  WORKSPACE_SETTINGS_FILE,
+  composeSettingsFileContent,
+  readGlobalSettingsFile,
+  readWorkspaceSettingsFile,
+  readWorkspaceSettingsWithLegacyFallback,
+  getEffectiveWorkspaceSettings,
+  writeWorkspaceSettingsFile,
+  writeGlobalSettingsFile,
+  parseSettingsFileContent,
+  countSettingsValues,
+  isProjectSettingsGlobalScope,
+  getAgentSettingsSchemaPayload
+} = require("./settings-store");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
   AWN_MASK_FILE_KEY,
@@ -2183,13 +2199,19 @@ async function readNodeConfigFile(relNodePath) {
 }
 
 async function readWorkspaceAgentSettings() {
-  const configFile = await readNodeConfigFile("manifest.md");
-  const settings = parseWorkspaceAgentSettingsFromConfigContent(configFile.content || "");
+  const agentRoot = getAgentRoot();
+  const projectRoot = getProjectRoot();
+  const effective = await getEffectiveWorkspaceSettings(agentRoot, projectRoot);
+  const workspaceFile = effective.files.workspace;
   return {
     manifestPath: "manifest.md",
-    configPath: configFile.path || "",
-    exists: Boolean(configFile.exists),
-    settings
+    settingsPath: workspaceFile.exists ? WORKSPACE_SETTINGS_FILE : workspaceFile.legacyConfigPath || WORKSPACE_SETTINGS_FILE,
+    configPath: workspaceFile.exists ? WORKSPACE_SETTINGS_FILE : workspaceFile.legacyConfigPath || "",
+    exists: Boolean(workspaceFile.exists || effective.sources.workspace),
+    settings: effective.settings,
+    local: effective.local,
+    global: effective.global,
+    sources: effective.sources
   };
 }
 
@@ -2203,9 +2225,14 @@ function countEnvFileValues(content) {
   return count;
 }
 
+function isWorkspaceRootManifestRel(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").trim();
+  return normalized === "manifest.md";
+}
+
 async function buildProjectSettingsScopeStatus(manifestPaths = []) {
-  const { flattenAwnSettingsValues } = require("./workspace-agent-settings");
   const agentRoot = getAgentRoot();
+  const projectRoot = getProjectRoot();
   const unique = [
     ...new Set(
       (Array.isArray(manifestPaths) ? manifestPaths : [])
@@ -2216,10 +2243,63 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
   const items = [];
 
   for (const relPath of unique) {
+    if (isProjectSettingsGlobalScope(relPath)) {
+      const globalFile = await readGlobalSettingsFile(projectRoot);
+      const parsed = parseSettingsFileContent(globalFile.content || "");
+      const valueCount = countSettingsValues(parsed.awn_settings);
+      items.push({
+        path: PROJECT_SETTINGS_GLOBAL_SCOPE,
+        settingsPath: globalFile.path,
+        configPath: globalFile.path,
+        configExists: Boolean(globalFile.exists),
+        valueCount,
+        hasLocalValues: valueCount > 0,
+        envPath: "",
+        envExists: false,
+        envValueCount: 0,
+        envHasValues: false,
+        schemaPath: "",
+        schemaExists: false,
+        schemaFieldCount: 0,
+        hasLocalSchema: false,
+        level: "global"
+      });
+      continue;
+    }
+
+    if (relPath === PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE) {
+      const workspaceFile = await readWorkspaceSettingsWithLegacyFallback(agentRoot, projectRoot);
+      let valueCount = 0;
+      if (workspaceFile.exists) {
+        valueCount = countSettingsValues(parseSettingsFileContent(workspaceFile.content || "").awn_settings);
+      } else if (workspaceFile.awn_settings) {
+        valueCount = countSettingsValues(workspaceFile.awn_settings);
+      }
+      items.push({
+        path: PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE,
+        settingsPath: WORKSPACE_SETTINGS_FILE,
+        configPath: workspaceFile.exists ? WORKSPACE_SETTINGS_FILE : workspaceFile.legacyConfigPath || WORKSPACE_SETTINGS_FILE,
+        configExists: Boolean(workspaceFile.exists || workspaceFile.legacyConfigPath),
+        valueCount,
+        hasLocalValues: valueCount > 0,
+        envPath: "",
+        envExists: false,
+        envValueCount: 0,
+        envHasValues: false,
+        schemaPath: "",
+        schemaExists: false,
+        schemaFieldCount: 0,
+        hasLocalSchema: false,
+        level: "settings-local"
+      });
+      continue;
+    }
+
     const manifestCtx = await resolveApiManifestContext(relPath);
     if (!manifestCtx) {
       items.push({
         path: relPath,
+        settingsPath: WORKSPACE_SETTINGS_FILE,
         configExists: false,
         valueCount: 0,
         hasLocalValues: false,
@@ -2235,16 +2315,7 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
       continue;
     }
 
-    const configFile = await readNodeConfigFile(manifestCtx.rel);
-    const bundle = NodeConfigBundle.parseNodeConfigBundle(configFile.content || "");
-    const flat = flattenAwnSettingsValues(bundle.awn_settings || {});
-    const valueCount = Object.keys(flat).filter((key) => {
-      const value = flat[key];
-      if (value === null || value === undefined) return false;
-      if (typeof value === "string") return value.trim() !== "";
-      return true;
-    }).length;
-
+    const schemaStatus = resolveSchemaModStatusForManifest(manifestCtx.rel, agentRoot);
     const envRelPath = toEnvFilePath(manifestCtx.rel);
     let envExists = false;
     let envValueCount = 0;
@@ -2261,10 +2332,38 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
       }
     }
 
-    const schemaStatus = resolveSchemaModStatusForManifest(manifestCtx.rel, agentRoot);
+    if (isWorkspaceRootManifestRel(manifestCtx.rel)) {
+      const configFile = await readNodeConfigFile(manifestCtx.rel);
+      const bundle = NodeConfigBundle.parseNodeConfigBundle(configFile.content || "");
+      const valueCount = countSettingsValues(bundle.awn_settings || {});
+
+      items.push({
+        path: manifestCtx.rel,
+        settingsPath: "",
+        configPath: configFile.path || "",
+        configExists: Boolean(configFile.exists),
+        valueCount,
+        hasLocalValues: valueCount > 0,
+        envPath: envRelPath,
+        envExists,
+        envValueCount,
+        envHasValues: envValueCount > 0,
+        schemaPath: schemaStatus.schemaPath,
+        schemaExists: schemaStatus.schemaExists,
+        schemaFieldCount: schemaStatus.schemaFieldCount,
+        hasLocalSchema: schemaStatus.hasLocalSchema,
+        level: "workspace"
+      });
+      continue;
+    }
+
+    const configFile = await readNodeConfigFile(manifestCtx.rel);
+    const bundle = NodeConfigBundle.parseNodeConfigBundle(configFile.content || "");
+    const valueCount = countSettingsValues(bundle.awn_settings || {});
 
     items.push({
       path: manifestCtx.rel,
+      settingsPath: "",
       configPath: configFile.path || "",
       configExists: Boolean(configFile.exists),
       valueCount,
@@ -2276,7 +2375,8 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
       schemaPath: schemaStatus.schemaPath,
       schemaExists: schemaStatus.schemaExists,
       schemaFieldCount: schemaStatus.schemaFieldCount,
-      hasLocalSchema: schemaStatus.hasLocalSchema
+      hasLocalSchema: schemaStatus.hasLocalSchema,
+      level: manifestCtx.rel.split("/").length <= 2 ? "area" : "topic"
     });
   }
 
@@ -19644,6 +19744,21 @@ async function handleApiForAgent(req, res, url) {
     }
   }
 
+  if (req.method === "GET" && url.pathname === "/api/agent/settings-schema") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const scope = String(url.searchParams.get("scope") || "local").trim().toLowerCase();
+      const payload = getAgentSettingsSchemaPayload(agentRoot, getProjectRoot(), scope);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read agent settings schema",
+        details: String(error.message || error)
+      });
+    }
+  }
+
   if (req.method === "GET" && url.pathname === "/api/agent/workspace-settings") {
     try {
       const agentRoot = getAgentRoot();
@@ -19653,6 +19768,105 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read workspace settings",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/workspace/settings") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const file = await readWorkspaceSettingsWithLegacyFallback(agentRoot, getProjectRoot());
+      const parsed = file.exists
+        ? parseSettingsFileContent(file.content || "")
+        : { headerComment: "", awn_settings: file.awn_settings || {} };
+      const content =
+        file.exists
+          ? file.content
+          : composeSettingsFileContent({
+              headerComment: parsed.headerComment,
+              awn_settings: parsed.awn_settings
+            });
+      return sendJson(res, 200, {
+        path: WORKSPACE_SETTINGS_FILE,
+        content,
+        exists: Boolean(file.exists),
+        legacySource: file.legacyConfigPath || null,
+        settings: normalizeWorkspaceAgentSettings(parsed.awn_settings)
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read workspace settings file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/workspace/settings") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const content = String(payload?.content ?? "").replace(/^\uFEFF/, "");
+      if (!content.trim()) {
+        return sendJson(res, 400, { error: "content is required" });
+      }
+      const saved = await writeWorkspaceSettingsFile(agentRoot, content.endsWith("\n") ? content : `${content}\n`);
+      return sendJson(res, 200, {
+        path: saved.path,
+        content: saved.content,
+        exists: true,
+        settings: normalizeWorkspaceAgentSettings(parseSettingsFileContent(saved.content).awn_settings)
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save workspace settings file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/settings-global") {
+    try {
+      const file = await readGlobalSettingsFile(getProjectRoot());
+      const parsed = parseSettingsFileContent(file.content || "");
+      return sendJson(res, 200, {
+        path: file.path,
+        content: file.content,
+        exists: Boolean(file.exists),
+        settings: normalizeWorkspaceAgentSettings(parsed.awn_settings),
+        hasPolicy: Boolean(parsed.awn_policy)
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read global settings file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/platform/settings-global") {
+    try {
+      const payload = await readJsonBody(req);
+      const content = String(payload?.content ?? "").replace(/^\uFEFF/, "");
+      if (!content.trim()) {
+        return sendJson(res, 400, { error: "content is required" });
+      }
+      const saved = await writeGlobalSettingsFile(
+        getProjectRoot(),
+        content.endsWith("\n") ? content : `${content}\n`
+      );
+      reloadMcpPolicy({ projectRoot: getProjectRoot() });
+      return sendJson(res, 200, {
+        path: saved.path,
+        content: saved.content,
+        exists: true,
+        settings: normalizeWorkspaceAgentSettings(parseSettingsFileContent(saved.content).awn_settings)
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save global settings file",
         details: String(error.message || error)
       });
     }

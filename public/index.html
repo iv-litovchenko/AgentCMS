@@ -3249,6 +3249,18 @@
           <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Настройки и параметры проекта</h2>
+            <div
+              id="project-settings-loading"
+              class="project-settings-loading hidden"
+              aria-hidden="true"
+              aria-busy="false"
+              aria-label="Загрузка"
+            >
+              <div class="content-loading-orbit" aria-hidden="true">
+                <span class="content-loading-orbit-ring"></span>
+                <span class="content-loading-orbit-core"></span>
+              </div>
+            </div>
           </div>
         </div>
         <div id="agent-project-settings-mount" class="agent-project-settings-mount agent-tool-body">
@@ -3267,10 +3279,10 @@
                       id="project-settings-scope-search-input"
                       class="menu-search-input"
                       type="search"
-                      placeholder="Поиск workspace, областей и тем..."
+                      placeholder="Поиск workspace, областей, тем и инфоблоков..."
                       autocomplete="off"
                       spellcheck="false"
-                      aria-label="Поиск workspace, областей и тем"
+                      aria-label="Поиск workspace, областей, тем и инфоблоков"
                     />
                   </label>
                 </div>
@@ -3280,23 +3292,55 @@
                 <header class="project-settings-head">
                   <h2 id="project-settings-title" class="project-settings-title">Настройки</h2>
                   <p id="project-settings-lead" class="project-settings-lead">
-                    Значения сохраняются в <code>config.yml</code> → <code>awn_settings</code>.
-                    Поля задаются в <code>schema.yml</code> (вкладка «Настройки») на том же уровне.
+                    Глобальные значения — <code>settings.global.yml</code>, локальные workspace — <code>settings.yml</code>.
+                    Эффективные настройки = global + local.
                   </p>
                 </header>
                 <div class="project-settings-blocks">
                   <section class="project-settings-block">
-                    <h3 class="project-settings-block-title">config.yml · awn_settings</h3>
+                    <h3 class="project-settings-block-title">settings.yml</h3>
                     <p id="project-settings-config-lead" class="project-settings-block-lead"></p>
+                    <nav
+                      id="project-settings-group-tabs"
+                      class="project-settings-group-tabs hidden"
+                      role="tablist"
+                      aria-label="Группы настроек"
+                    ></nav>
                     <div id="project-settings-fields" class="node-config-fields project-settings-fields"></div>
                     <p id="project-settings-empty" class="project-settings-empty hidden">
                       Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.
                     </p>
+                    <div class="project-settings-actions">
+                      <button
+                        type="button"
+                        id="project-settings-save-btn"
+                        class="project-settings-btn project-settings-btn--primary"
+                      >
+                        Сохранить
+                      </button>
+                    </div>
                   </section>
                   <section class="project-settings-block project-settings-block--env">
                     <h3 class="project-settings-block-title">.env</h3>
                     <p id="project-settings-env-lead" class="project-settings-block-lead"></p>
                     <div id="project-settings-env-wrap" class="project-settings-env-wrap">
+                      <div class="project-settings-actions project-settings-actions--env">
+                        <button
+                          type="button"
+                          id="project-settings-env-open-btn"
+                          class="project-settings-btn project-settings-btn--secondary"
+                        >
+                          Открыть для редактирования
+                        </button>
+                        <button
+                          type="button"
+                          id="project-settings-env-save-btn"
+                          class="project-settings-btn project-settings-btn--primary"
+                          disabled
+                        >
+                          Сохранить
+                        </button>
+                      </div>
                       <textarea
                         id="project-settings-env-input"
                         class="project-settings-env-input"
@@ -3304,6 +3348,7 @@
                         autocomplete="off"
                         aria-label="Содержимое .env"
                         placeholder="KEY=value"
+                        hidden
                       ></textarea>
                     </div>
                   </section>
@@ -4239,7 +4284,7 @@
                   <div>
                     <h3 class="node-config-title">Конфигурация темы</h3>
                     <p class="node-config-lead">
-                      Значения сохраняются в <code>configuration.yml</code> → <code>awn_settings</code>.
+                      Значения сохраняются в <code>config.yml</code> → <code>awn_settings</code>.
                       Поля задаются во вкладке «Настройки» редактора схемы полей.
                     </p>
                   </div>

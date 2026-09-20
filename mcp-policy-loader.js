@@ -1,11 +1,13 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { parseTypeYaml } = require("./awn-yaml-utils");
+const { getAgentCmsCoreAbsolute } = require("./platform-sources");
 
 const DEFAULT_POLICY_PATH = path.join(
   __dirname,
   "workspaces/agent-cms-core/awn-system/mcp-policy.yml"
 );
+const GLOBAL_SETTINGS_FILE = "settings.global.yml";
 
 const FALLBACK_POLICY = {
   version: 1,
@@ -110,19 +112,67 @@ function resolvePolicyPath(customPath = "") {
   return String(customPath || process.env.AGENT_CMS_MCP_POLICY_PATH || DEFAULT_POLICY_PATH).trim();
 }
 
+function loadGlobalPolicyFromSettingsFile(projectRoot) {
+  try {
+    const absolutePath = path.join(getAgentCmsCoreAbsolute(projectRoot), GLOBAL_SETTINGS_FILE);
+    const parsed = parseTypeYaml(fs.readFileSync(absolutePath, "utf-8")) || {};
+    const policyRoot =
+      parsed.awn_policy && typeof parsed.awn_policy === "object" ? parsed.awn_policy : parsed;
+    const mcp = policyRoot.mcp && typeof policyRoot.mcp === "object" ? policyRoot.mcp : {};
+    const batch =
+      policyRoot.batch_invoke && typeof policyRoot.batch_invoke === "object" ? policyRoot.batch_invoke : {};
+    if (!Object.keys(mcp).length && !Object.keys(batch).length) return null;
+    return {
+      policy: {
+        version: Number(parsed.version) || 1,
+        mcp,
+        batch_invoke: batch
+      },
+      path: absolutePath
+    };
+  } catch {
+    return null;
+  }
+}
+
+function loadMcpPolicyFromFile(policyPath) {
+  const stat = fs.statSync(policyPath);
+  if (cachedPolicy && cachedPath === policyPath && stat.mtimeMs === cachedMtime) {
+    return cachedPolicy;
+  }
+  cachedPath = policyPath;
+  cachedMtime = stat.mtimeMs;
+  const parsed = parseTypeYaml(fs.readFileSync(policyPath, "utf8")) || {};
+  cachedPolicy = normalizePolicy(parsed);
+  cachedPolicy.path = policyPath;
+  return cachedPolicy;
+}
+
 function loadMcpPolicy(options = {}) {
+  if (!options.path && !process.env.AGENT_CMS_MCP_POLICY_PATH) {
+    const fromSettings = loadGlobalPolicyFromSettingsFile(options.projectRoot || process.cwd());
+    if (fromSettings?.policy) {
+      const policyPath = fromSettings.path;
+      try {
+        const stat = fs.statSync(policyPath);
+        if (cachedPolicy && cachedPath === policyPath && stat.mtimeMs === cachedMtime) {
+          return cachedPolicy;
+        }
+        cachedPath = policyPath;
+        cachedMtime = stat.mtimeMs;
+        cachedPolicy = normalizePolicy(fromSettings.policy);
+        cachedPolicy.path = policyPath;
+        cachedPolicy.source = "settings.global.yml";
+        return cachedPolicy;
+      } catch {
+        // fall through to legacy file
+      }
+    }
+  }
+
   const policyPath = resolvePolicyPath(options.path);
   try {
-    const stat = fs.statSync(policyPath);
-    if (cachedPolicy && cachedPath === policyPath && stat.mtimeMs === cachedMtime) {
-      return cachedPolicy;
-    }
-    cachedPath = policyPath;
-    cachedMtime = stat.mtimeMs;
-    const parsed = parseTypeYaml(fs.readFileSync(policyPath, "utf8")) || {};
-    cachedPolicy = normalizePolicy(parsed);
-    cachedPolicy.path = policyPath;
-    return cachedPolicy;
+    return loadMcpPolicyFromFile(policyPath);
   } catch {
     cachedPath = policyPath;
     cachedMtime = 0;

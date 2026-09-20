@@ -1,0 +1,21 @@
+id: awn.settings.workspace
+name: Настройки workspace
+kind: type
+domain: settings
+status: active
+extends: awn.settings.platform
+description: >
+  Точечные переопределения только для текущего хранилища (workspace).
+  Значения — settings.yml. Эффективные = platform + workspace.
+scope: workspace
+enabled: true
+consumer: [mcp-server, server, ui, context]
+valuesFile: settings.yml
+
+fieldGroups:
+  - id: general
+    name: Общие
+  - id: mcp
+    name: MCP
+  - id: memory
+    name: Память

@@ -11234,6 +11234,16 @@ body.app-locked {
   box-sizing: border-box;
 }
 
+.agent-project-settings-pane .project-settings-loading {
+  display: flex;
+  justify-content: flex-start;
+  padding: 10px 0 4px;
+}
+
+.agent-project-settings-pane .project-settings-loading.hidden {
+  display: none;
+}
+
 .app.project-settings-view .content.doc-stack > :not(#workspace-path-header):not(#project-settings-page) {
   display: none !important;
 }
@@ -11559,6 +11569,34 @@ body.app-locked {
   box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.18);
 }
 
+.project-settings-scope-marker.is-iblock-kind.has-value {
+  background: rgba(14, 165, 233, 0.95);
+  border-color: rgba(2, 132, 199, 0.95);
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.18);
+}
+
+.project-settings-scope-badge.is-iblock-badge {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+}
+
+.project-settings-scope-item.is-iblock-stub {
+  color: color-mix(in srgb, var(--text) 88%, var(--muted));
+}
+
+.project-settings-scope-item.is-iblock-stub.is-active {
+  color: var(--text);
+}
+
+.project-settings-scope-item.is-settings-group-tab {
+  padding-left: 14px;
+  font-size: 11px;
+}
+
+.project-settings-scope-item.is-settings-group-tab.is-active {
+  font-weight: 600;
+}
+
 .project-settings-scope-item {
   appearance: none;
   border: 0;
@@ -11583,6 +11621,179 @@ body.app-locked {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.project-settings-scope-hint {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: color-mix(in srgb, var(--text) 58%, var(--muted));
+  white-space: nowrap;
+}
+
+.project-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.project-settings-actions--env {
+  margin-top: 0;
+}
+
+.project-settings-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.project-settings-btn--primary {
+  border: 1px solid #93c5fd;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1e3a8a;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+}
+
+.project-settings-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #60a5fa;
+}
+
+.project-settings-btn--primary.is-dirty:not(:disabled) {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+}
+
+.project-settings-btn--secondary {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #fff;
+  color: #475569;
+}
+
+.project-settings-btn--secondary:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: rgba(100, 116, 139, 0.55);
+  color: #334155;
+}
+
+.project-settings-btn--secondary.is-active {
+  background: #f1f5f9;
+  border-color: rgba(59, 130, 246, 0.45);
+  color: #1d4ed8;
+}
+
+.project-settings-btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.project-settings-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.agent-project-settings-pane .project-settings-btn {
+  min-height: 34px;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 9px;
+}
+
+.agent-project-settings-pane .project-settings-actions {
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.agent-project-settings-pane .project-settings-actions--env {
+  margin-top: 0;
+  margin-bottom: 2px;
+}
+
+.project-settings-group-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+
+.project-settings-group-tab {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 999px;
+  background: #fff;
+  color: #475569;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.project-settings-group-tab:hover {
+  background: #f8fafc;
+  border-color: rgba(100, 116, 139, 0.55);
+  color: #334155;
+}
+
+.project-settings-group-tab.is-active {
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #93c5fd;
+  color: #1e3a8a;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+}
+
+.project-settings-group-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+}
+
+.node-config-settings-group {
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.node-config-settings-group-title {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text) 72%, var(--muted));
+  background: color-mix(in srgb, var(--surface-2, var(--bg)) 88%, var(--muted));
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.node-config-settings-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
 }
 
 .project-settings-scope-badges {
@@ -11677,7 +11888,11 @@ body.app-locked {
 .project-settings-env-wrap {
   display: flex;
   flex-direction: column;
-  min-height: 280px;
+  gap: 10px;
+}
+
+.project-settings-env-wrap.is-editing {
+  gap: 12px;
 }
 
 .project-settings-env-input {
@@ -11762,11 +11977,7 @@ body.app-locked {
   color: var(--muted);
 }
 
-.project-settings-block--env .project-settings-env-wrap {
-  min-height: 220px;
-}
-
-.project-settings-block--env .project-settings-env-input {
+.project-settings-block--env .project-settings-env-wrap.is-editing .project-settings-env-input {
   min-height: 220px;
 }
 

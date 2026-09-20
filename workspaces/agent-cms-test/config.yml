@@ -1,17 +1,3 @@
-# Agent CMS — настройки workspace (awn_settings, плоские ключи)
+# Agent CMS — page bundle (awn_ui, landing). Настройки агента → settings.yml
 
-awn_settings:
-  agent-language: ru
-  response-style: brief
-  notify-on-complete: false
-  mcp-mode: standard
-  batch-enabled: true
-  batch-read-limit: 20
-  batch-write-limit: 10
-  batch-deny-exec: true
-  confirm-delete: true
-  confirm-exec: true
-  default-slot: main
-  auto-retain-facts: false
-  awn-temp-ttl-days: 30
-  always-context-max-files: 0
+awn_ui: {}

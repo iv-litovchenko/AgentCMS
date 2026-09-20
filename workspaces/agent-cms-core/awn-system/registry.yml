@@ -22,11 +22,30 @@ domains:
   - mixins
   - data
   - md-blocks
-  # Пример пользовательского домена-«пакета». Папка awn-system/types/settings/.
+  # Домен схем awn.settings.{platform,workspace} — awn-system/types/settings/
   - id: settings
-    label: Настройки (todo)
+    label: Настройки
     kind: type
     icon: "⚙"
+
+# Две модели: platform (settings.global.yml) + workspace (settings.yml).
+# Схемы полей — types/settings/awn.settings.{platform,workspace}.yml
+settings:
+  description: >
+    Платформа (agent-cms-core) задаёт defaults и поведение всей системы.
+    Workspace переопределяет точечно только для текущего хранилища.
+    Эффективные настройки = platform + workspace. MCP policy — settings.global.yml → awn_policy.
+  schema:
+    platform:
+      type: awn.settings.platform
+      path: awn-system/types/settings/awn.settings.platform.yml
+    workspace:
+      type: awn.settings.workspace
+      path: awn-system/types/settings/awn.settings.workspace.yml
+  values:
+    platform: settings.global.yml
+    workspace: settings.yml
+
 docs:
   map: GLOBAL_MCP_DOC.md
   response-style: AGENT_RESPONSE_STYLE.md

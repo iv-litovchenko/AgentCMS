@@ -80,7 +80,7 @@ function assertMcpToolAllowed(toolName, settings = {}) {
 
   if (mode === "readonly" && isMcpWriteTool(name)) {
     throw new Error(
-      `MCP tool "${name}" blocked: workspace mcp-mode=readonly (change in config.yml → awn_settings)`
+      `MCP tool "${name}" blocked: workspace mcp-mode=readonly (change in settings.yml)`
     );
   }
   if (isMcpExecTool(name) && !policy.mcp.execAllowedModes.has(mode)) {
@@ -131,7 +131,7 @@ function assertBatchInvokeAllowed(toolName, itemCount, settings = {}) {
 
   const category = getBatchToolCategory(name);
   if (category === "denied") {
-    throw new Error(`Tool "${name}" cannot be used in batch_invoke (see mcp-policy.yml)`);
+    throw new Error(`Tool "${name}" cannot be used in batch_invoke (see settings.global.yml → awn_policy)`);
   }
   if (category === "exec") {
     throw new Error(`Tool "${name}" cannot be batched (exec tools are single-call only)`);

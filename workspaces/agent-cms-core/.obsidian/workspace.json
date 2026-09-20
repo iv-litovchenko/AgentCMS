@@ -11,14 +11,10 @@
             "id": "1e5317d70ea4f658",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "awn-system/TYPES-GUIDE.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "TYPES-GUIDE"
+              "title": "Новая вкладка"
             }
           }
         ]
@@ -184,6 +180,10 @@
   },
   "active": "1e5317d70ea4f658",
   "lastOpenFiles": [
+    "awn-system/types/settings/awn.settings.workspace.yml",
+    "awn-system/types/settings/awn.settings.platform.yml",
+    "awn-system/types/settings/agent.settings.local.yml",
+    "awn-system/types/settings/agent.settings.global.yml",
     "zadachi-plany-i-idei/awn-storage/history/main/obschee-videnie-sistemy.md/2026-09-18_20-37-58-622.mdback",
     "zadachi-plany-i-idei/awn-storage/history/main/obschee-videnie-sistemy.md/2026-09-18_20-37-24-837.mdback",
     "zadachi-plany-i-idei/awn-storage/history/main/obschee-videnie-sistemy.md",
@@ -203,14 +203,10 @@
     "zadachi-plany-i-idei/awn-storage/history/main/drugie-idei/poisk-esche-idei.md/2026-09-18_01-32-46-235.mdback",
     "zadachi-plany-i-idei/awn-storage/history/main/drugie-idei/poisk-esche-idei.md",
     "zadachi-plany-i-idei/awn-storage/main/drugie-idei/poisk-esche-idei.md",
-    "arhiv-voprosov/read-content.json",
     "obsuzhdeniya/awn-storage/realnye-potrebnosti-lyudey.md",
     "obsuzhdeniya/awn-storage/otzyvy-i-obratnaya-svyaz.md",
     "obsuzhdeniya/awn-storage/obsuzhdenie-s-claude-idey.md",
     "obsuzhdeniya/awn-storage/obsuzhdenie-idei-agent-cms.md",
-    "arhiv-voprosov/awn-storage/history/config.yml/2026-09-17_23-53-15-803.mdback",
-    "arhiv-voprosov/awn-storage/history/config.yml",
-    "arhiv-voprosov/awn-storage/history",
     "arhiv-voprosov/awn-storage/main/Формируем вопросы.md",
     "arhiv-voprosov/awn-storage/main/TYPES-GUIDE.md",
     "arhiv-voprosov/awn-storage/main/SPEC_2026_itogovaya.md",

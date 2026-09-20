@@ -46,6 +46,8 @@ const TYPE_ID_ALIASES = {
   "awn.page.topic.agent-kit.rules": "awn.page.topic",
   "awn.page.topic.agent-kit.voice-tts": "awn.page.topic",
   "awn.page.topic.agent-kit.voice-sst": "awn.page.topic",
+  "agent.settings.global": "awn.settings.platform",
+  "agent.settings.local": "awn.settings.workspace",
   "awn.page.topic.shared.inbox": "awn.page.topic",
   "awn.page.topic.shared.notes": "awn.page.topic",
   "awn.page.topic.shared.references": "awn.page.topic",
@@ -195,6 +197,74 @@ function resolveAgentDomainManifest(cmsConfigRoot) {
 function ingestLegacyPlatformYamlTypes(coreRoot, domain, byId, byDomain) {
   const legacyDir = path.join(coreRoot, "types", domain, "awn-storage", "configuration", "types");
   return ingestYamlDomainTypes(legacyDir, domain, "platform", byId, byDomain);
+}
+
+const DEFAULT_AGENT_SETTINGS_REGISTRY = {
+  description: "",
+  schema: {
+    platform: {
+      type: "awn.settings.platform",
+      path: "awn-system/types/settings/awn.settings.platform.yml"
+    },
+    workspace: {
+      type: "awn.settings.workspace",
+      path: "awn-system/types/settings/awn.settings.workspace.yml"
+    }
+  },
+  values: {
+    platform: "settings.global.yml",
+    workspace: "settings.yml"
+  }
+};
+
+function normalizeAgentSettingsRegistry(raw = {}) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  const schema = source.schema && typeof source.schema === "object" ? source.schema : {};
+  const values = source.values && typeof source.values === "object" ? source.values : {};
+  const platformSchema =
+    schema.platform && typeof schema.platform === "object"
+      ? schema.platform
+      : schema.global && typeof schema.global === "object"
+        ? schema.global
+        : {};
+  const workspaceSchema =
+    schema.workspace && typeof schema.workspace === "object"
+      ? schema.workspace
+      : schema.local && typeof schema.local === "object"
+        ? schema.local
+        : {};
+  return {
+    description: String(source.description || "").trim(),
+    schema: {
+      platform: {
+        ...DEFAULT_AGENT_SETTINGS_REGISTRY.schema.platform,
+        ...platformSchema
+      },
+      workspace: {
+        ...DEFAULT_AGENT_SETTINGS_REGISTRY.schema.workspace,
+        ...workspaceSchema
+      }
+    },
+    values: {
+      platform:
+        values.platform || values.global || DEFAULT_AGENT_SETTINGS_REGISTRY.values.platform,
+      workspace:
+        values.workspace || values.local || DEFAULT_AGENT_SETTINGS_REGISTRY.values.workspace
+    }
+  };
+}
+
+/**
+ * Реестр двух моделей настроек (global/local) из awn-system/registry.yml → settings:
+ */
+function resolveAgentSettingsRegistry(cmsConfigRoot) {
+  if (!cmsConfigRoot) return normalizeAgentSettingsRegistry();
+  try {
+    const registry = loadYamlFileSync(path.join(cmsConfigRoot, "registry.yml"), {});
+    return normalizeAgentSettingsRegistry(registry?.settings);
+  } catch {
+    return normalizeAgentSettingsRegistry();
+  }
 }
 
 function resolveAgentDomainIds(cmsConfigRoot) {
@@ -870,7 +940,11 @@ function toRecordTypeDef(entry, byId) {
     extends: entry.extends || merged.extends || null,
     mixins: Array.isArray(merged.mixins) ? [...merged.mixins] : [],
     description: merged.description || "",
-    fieldGroups: Array.isArray(merged["field-groups"]) ? [...merged["field-groups"]] : null,
+    fieldGroups: Array.isArray(merged.fieldGroups)
+      ? [...merged.fieldGroups]
+      : Array.isArray(merged["field-groups"])
+        ? [...merged["field-groups"]]
+        : null,
     form: merged.form && typeof merged.form === "object" ? { ...merged.form } : null,
     fields: merged.fields && typeof merged.fields === "object" ? { ...merged.fields } : {}
   };
@@ -908,6 +982,14 @@ function loadPageTypesFromCatalog(projectRoot, agentRoot = "") {
   const mixinEntries = [...byId.values()].filter((e) => e.kind === "mixin" && isTypeActive(e));
   for (const entry of mixinEntries) {
     types[entry.id] = toRecordTypeDef(entry, byId);
+  }
+
+  for (const domain of ["settings"]) {
+    for (const entry of byDomain[domain] || []) {
+      if (!isTypeActive(entry)) continue;
+      const def = toRecordTypeDef(entry, byId);
+      if (def.id) types[def.id] = def;
+    }
   }
 
   return types;
@@ -1154,6 +1236,7 @@ module.exports = {
   TYPE_ID_ALIASES,
   loadTypeCatalog,
   resolveAgentDomainManifest,
+  resolveAgentSettingsRegistry,
   resolveAgentDomainIds,
   mergeTypeSchema,
   isTypeActive,
@@ -1169,6 +1252,7 @@ module.exports = {
   getCreateNodeTypesPayload,
   getTypeHealth,
   isFoundationType,
+  toRecordTypeDef,
   loadPageTypesFromCatalog,
   loadFieldTypesFromCatalog,
   loadFieldDefFromCatalog,

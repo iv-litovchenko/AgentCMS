@@ -1,0 +1,77 @@
+# Agent CMS — глобальные настройки платформы (agent-cms-core)
+
+version: 1
+
+awn_settings:
+  agent-language: ru
+  response-style: agents-md
+  notify-on-complete: false
+  mcp-mode: standard
+  batch-enabled: true
+  batch-read-limit: 20
+  batch-write-limit: 10
+  batch-deny-exec: true
+  confirm-delete: true
+  confirm-exec: true
+  default-slot: main
+  auto-retain-facts: false
+  awn-temp-ttl-days: 0
+  always-context-max-files: 0
+
+awn_policy:
+  mcp:
+    write_tool_pattern: "^(write_|create_|delete_|move_|rename_|append_|upload_|import_|triage_|retain_|iblock_write_|iblock_create_|iblock_refresh_|iblock_content_write_|iblock_content_create_|notify_user|run_script|exec_)"
+    exec_tools:
+      - exec_command
+      - exec_shell
+      - run_script
+    exec_allowed_modes:
+      - full
+  batch_invoke:
+    absolute_max_items: 50
+    default_parallel:
+      read: true
+      write: false
+    denied_tools:
+      - batch_invoke
+      - search_workspace_batch
+      - get_session_context
+      - get_user_active_context_now
+      - list_workspaces
+      - list_vaults
+      - ask_workspace
+      - search_and_get_context
+      - notify_user
+      - test_mcp_connection
+      - toggle_comment_reaction
+      - triage_inbox_item
+      - rebuild_workspace_indexes
+      - rebuild_workspace_semantic_index
+      - rebuild_workspace_storage_index
+      - rebuild_workspace_fulltext_index
+      - rebuild_workspace_link_index
+      - run_workspace_ocr_index
+      - sync_workspace_index_file
+    exec_tools:
+      - exec_command
+      - exec_shell
+      - run_script
+    read_name_patterns:
+      - "^read_"
+      - "^list_"
+      - "^get_"
+      - "^search_"
+      - "^recall_"
+      - "^resolve_"
+      - "^refresh_"
+    read_tools:
+      - page_exists
+      - content_exists
+      - iblock_list
+      - iblock_get
+      - iblock_read_index
+      - iblock_read_schema
+      - iblock_read_properties
+      - iblock_read_property
+      - iblock_content_read_properties
+      - iblock_content_read_property

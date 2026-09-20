@@ -477,10 +477,16 @@ const projectSettingsTitleNode = document.getElementById("project-settings-title
 const projectSettingsLeadNode = document.getElementById("project-settings-lead");
 const projectSettingsConfigLeadNode = document.getElementById("project-settings-config-lead");
 const projectSettingsEnvLeadNode = document.getElementById("project-settings-env-lead");
+const projectSettingsGroupTabsNode = document.getElementById("project-settings-group-tabs");
 const projectSettingsFieldsNode = document.getElementById("project-settings-fields");
 const projectSettingsEnvWrapNode = document.getElementById("project-settings-env-wrap");
 const projectSettingsEnvInputNode = document.getElementById("project-settings-env-input");
+const projectSettingsEnvOpenBtnNode = document.getElementById("project-settings-env-open-btn");
+const projectSettingsEnvSaveBtnNode = document.getElementById("project-settings-env-save-btn");
+const projectSettingsSaveBtnNode = document.getElementById("project-settings-save-btn");
 const projectSettingsEmptyNode = document.getElementById("project-settings-empty");
+const projectSettingsLoadingNode = document.getElementById("project-settings-loading");
+let projectSettingsLoadingSeq = 0;
 const docStackNode = document.querySelector(".content.doc-stack");
 const agentVaultPaneNode = document.getElementById("agent-vault-pane");
 const agentVaultSearchNode = document.getElementById("agent-vault-search");
@@ -14744,6 +14750,9 @@ function syncLandingBgUi() {
 }
 const NODE_OPEN_MEMORY_MODE = "internal";
 const PROJECT_SETTINGS_MODE = "project-settings";
+const PROJECT_SETTINGS_GLOBAL_SCOPE = "__global__";
+const PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE = "__workspace-settings__";
+const PROJECT_SETTINGS_IBLOCK_SCOPE_PREFIX = "__iblock__:";
 const ENTRY_OVERVIEW_OCR_ENABLED = false;
 const PROJECT_SETTINGS_CHPU_SEGMENT = "настройки";
 const NODE_SETTINGS_MODE_IDS = new Set(["description", "topic-schema", "configs", "env", PROJECT_SETTINGS_MODE]);
@@ -16519,6 +16528,9 @@ function isOverviewDomainActive(mode = activeContentMode) {
 let activeContentMode = NODE_OPEN_MEMORY_MODE;
 let nodeSettingsViewActive = false;
 let projectSettingsScopePath = null;
+let projectSettingsEnvEditingOpen = false;
+let projectSettingsEnvSnapshot = null;
+let projectSettingsActiveGroupId = null;
 let projectSettingsScopeSearchQuery = "";
 let projectSettingsScopeFileFilters = {
   schema: true,
@@ -22197,7 +22209,130 @@ function isMemoryDriverModeBlockedForActivePath(mode) {
 }
 
 function isNodeSettingsTargetPath(nodePath) {
-  return isNodeMdPath(nodePath);
+  const normalized = String(nodePath || "").trim();
+  return (
+    isNodeMdPath(normalized) ||
+    normalized === PROJECT_SETTINGS_GLOBAL_SCOPE ||
+    normalized === PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE
+  );
+}
+
+function isProjectSettingsGlobalScope(scopePath = getNodeSettingsManifestPath()) {
+  return String(scopePath || "").trim() === PROJECT_SETTINGS_GLOBAL_SCOPE;
+}
+
+function isProjectSettingsWorkspaceSettingsScope(scopePath = getNodeSettingsManifestPath()) {
+  return String(scopePath || "").trim() === PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
+}
+
+function isProjectSettingsLocalScope(scopePath = getNodeSettingsManifestPath()) {
+  return isProjectSettingsWorkspaceSettingsScope(scopePath);
+}
+
+function isProjectSettingsWorkspaceRootScope(scopePath = getNodeSettingsManifestPath()) {
+  return isWorkspaceRootNodePath(scopePath);
+}
+
+function isProjectSettingsAgentSettingsScope(scopePath = getNodeSettingsManifestPath()) {
+  if (!isProjectSettingsMode()) return false;
+  return isProjectSettingsGlobalScope(scopePath) || isProjectSettingsLocalScope(scopePath);
+}
+
+function buildProjectSettingsIblockScopePath(storeRel) {
+  const rel = String(storeRel || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+  return rel ? `${PROJECT_SETTINGS_IBLOCK_SCOPE_PREFIX}${rel}` : "";
+}
+
+function isProjectSettingsIblockScope(scopePath = getNodeSettingsManifestPath()) {
+  return String(scopePath || "").startsWith(PROJECT_SETTINGS_IBLOCK_SCOPE_PREFIX);
+}
+
+function parseProjectSettingsIblockScopeRel(scopePath = getNodeSettingsManifestPath()) {
+  if (!isProjectSettingsIblockScope(scopePath)) return "";
+  return String(scopePath || "")
+    .slice(PROJECT_SETTINGS_IBLOCK_SCOPE_PREFIX.length)
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+}
+
+function flattenAwnDataStoresForProjectSettings(stores = []) {
+  const scopes = [];
+  const seen = new Set();
+  const walk = (list) => {
+    for (const store of list || []) {
+      if (!store || store.kind === "group") {
+        walk(store?.children);
+        continue;
+      }
+      const storeRel = String(store.relPath || store.id || "")
+        .replace(/\\/g, "/")
+        .replace(/^\/+/, "")
+        .replace(/\/+$/, "");
+      if (!storeRel || storeRel === "_base" || seen.has(storeRel)) continue;
+      seen.add(storeRel);
+      scopes.push({
+        path: buildProjectSettingsIblockScopePath(storeRel),
+        label: String(store.name || store.id || storeRel).trim(),
+        level: "iblock",
+        storeRel,
+        storeKind: store.kind || "collection",
+        recordCount: resolveAwnDataRecordCount(store),
+        stub: true
+      });
+    }
+  };
+  walk(stores);
+  scopes.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+  return scopes;
+}
+
+function collectProjectSettingsIblockScopes() {
+  const payload = menuAwnDataStoresLastPayload;
+  const stores = Array.isArray(payload?.stores) ? payload.stores : [];
+  return flattenAwnDataStoresForProjectSettings(stores);
+}
+
+function collectProjectSettingsSidebarScopes() {
+  return [...collectProjectSettingsManifestScopes(), ...collectProjectSettingsIblockScopes()];
+}
+
+function getProjectSettingsValuesFileLabel(scope = null) {
+  const activeScope =
+    scope ||
+    collectProjectSettingsSidebarScopes().find((item) => item.path === getNodeSettingsManifestPath());
+  if (activeScope?.level === "global" || isProjectSettingsGlobalScope(getNodeSettingsManifestPath())) {
+    return "settings.global.yml";
+  }
+  if (
+    activeScope?.level === "settings-local" ||
+    isProjectSettingsWorkspaceSettingsScope(getNodeSettingsManifestPath())
+  ) {
+    return "settings.yml";
+  }
+  return "config.yml";
+}
+
+function getProjectSettingsAgentSchemaScopeKey(scopePath = getNodeSettingsManifestPath()) {
+  return isProjectSettingsGlobalScope(scopePath) ? "global" : "local";
+}
+
+function getProjectSettingsAgentFieldGroups(scopeKey = "global") {
+  const cached = agentSettingsSchemaCacheByScope.get(scopeKey);
+  if (Array.isArray(cached?.settingsFieldGroups) && cached.settingsFieldGroups.length) {
+    return cached.settingsFieldGroups;
+  }
+  const fields = cached?.settingsFields || {};
+  return buildSettingsFieldGroupsFromFields(fields);
+}
+
+function getProjectSettingsAgentGroupOrder(scopeKey = "global") {
+  const cached = agentSettingsSchemaCacheByScope.get(scopeKey);
+  const fields = cached?.settingsFields || {};
+  return getSchemaEditorGroupOrder(fields, Object.keys(fields));
 }
 
 async function selectNodeManifest(label, filePath, contentMode, options = {}) {
@@ -41205,6 +41340,76 @@ function mergeTopicSchemaSettingsFields(fields = {}) {
   return ExternalFileMask.mergeBuiltinSettingsSchemaFields(fields);
 }
 
+function mergeAgentSettingsSchemaFields(fields = {}) {
+  return fields && typeof fields === "object" ? { ...fields } : {};
+}
+
+const agentSettingsSchemaCacheByScope = new Map();
+const agentSettingsSchemaLoadPromises = new Map();
+
+function resolveAgentSettingsSchemaScope(manifestPath = getNodeSettingsManifestPath()) {
+  return isProjectSettingsGlobalScope(manifestPath) ? "global" : "local";
+}
+
+async function loadAgentSettingsSchemaBundle(options = {}) {
+  const scope = options.scope || resolveAgentSettingsSchemaScope(options.manifestPath);
+  if (!options.force && agentSettingsSchemaCacheByScope.has(scope)) {
+    return agentSettingsSchemaCacheByScope.get(scope);
+  }
+  if (!options.force && agentSettingsSchemaLoadPromises.has(scope)) {
+    return agentSettingsSchemaLoadPromises.get(scope);
+  }
+
+  const loadPromise = (async () => {
+    const response = await fetch(buildApiUrl("/api/agent/settings-schema", { scope }));
+    if (response.ok) {
+      const data = await response.json();
+      const payload = {
+        scope,
+        typeId: data.type || (scope === "global" ? "awn.settings.platform" : "awn.settings.workspace"),
+        settingsFields: mergeAgentSettingsSchemaFields(data.fields || {}),
+        settingsFieldGroups: Array.isArray(data.fieldGroups) ? data.fieldGroups : []
+      };
+      agentSettingsSchemaCacheByScope.set(scope, payload);
+      return payload;
+    }
+    if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
+    const typeId = scope === "global" ? "awn.settings.platform" : "awn.settings.workspace";
+    const typeDef = mergeClientTypeDefinition(typeId);
+    const payload = {
+      scope,
+      typeId: typeDef?.id || typeId,
+      settingsFields: mergeAgentSettingsSchemaFields(typeDef?.fields || {}),
+      settingsFieldGroups: Array.isArray(typeDef?.fieldGroups) ? typeDef.fieldGroups : []
+    };
+    agentSettingsSchemaCacheByScope.set(scope, payload);
+    return payload;
+  })();
+
+  agentSettingsSchemaLoadPromises.set(scope, loadPromise);
+  try {
+    return await loadPromise;
+  } finally {
+    agentSettingsSchemaLoadPromises.delete(scope);
+  }
+}
+
+function buildSettingsFieldGroupsFromFields(schemaFields = {}) {
+  const keys = Object.keys(schemaFields);
+  const order = getSchemaEditorGroupOrder(schemaFields, keys);
+  return order.map((groupId) => ({
+    id: groupId,
+    name: groupId
+  }));
+}
+
+function resolveNodeSettingsGroupLabel(groupId, fieldGroups = []) {
+  const hit = (fieldGroups || []).find((group) => group && group.id === groupId);
+  if (hit?.name) return hit.name;
+  if (hit?.title) return hit.title;
+  return groupId;
+}
+
 function getAwnMaskFileValueFromSettingsCache(cache = getNodeSettingsCache()) {
   const entry = (cache?.entries || []).find((item) => item.key === ExternalFileMask.AWN_MASK_FILE_KEY);
   return ExternalFileMask.normalizeMaskValue(entry?.value ?? "");
@@ -41358,6 +41563,15 @@ function buildNodeConfigYamlFromState(state) {
   });
 }
 
+function buildSettingsYamlFromState(state) {
+  return NodeConfigBundle.composeNodeConfigBundle({
+    headerComment: state?.headerComment,
+    awn_ui: {},
+    awn_settings: NodeConfigBundle.settingsEntriesToObject(state?.entries || []),
+    awn_schemaYaml: ""
+  });
+}
+
 function getNodeSettingsManifestPath(nodePath = getResolvedNodePath(activePath)) {
   if (isProjectSettingsMode() && projectSettingsScopePath) {
     return normalizeMenuNodePath(projectSettingsScopePath);
@@ -41399,6 +41613,12 @@ function mergeProjectSettingsScopeStatus(normalized, patch) {
 function setProjectSettingsScopeStatusFromCache(manifestPath, cache) {
   const normalized = normalizeMenuNodePath(manifestPath);
   if (!normalized || !cache) return;
+  if (
+    !isProjectSettingsGlobalScope(normalized) &&
+    !isProjectSettingsWorkspaceSettingsScope(normalized)
+  ) {
+    return;
+  }
   const valueCount = (cache.entries || []).filter((entry) => {
     if (!entry?.key) return false;
     if (entry.kind === "bool" || entry.kind === "number") return true;
@@ -41444,13 +41664,11 @@ async function refreshProjectSettingsScopeStatus(scopes = collectProjectSettings
 function collectProjectSettingsManifestScopes() {
   const scopes = [];
   const seen = new Set();
-  const pushScope = (path, label) => {
-    const normalized = normalizeMenuNodePath(path);
-    if (!normalized || seen.has(normalized) || !isNodeSettingsTargetPath(normalized)) return;
+  const pushScope = (path, label, level) => {
+    const normalized = String(path || "").trim();
+    if (!normalized || seen.has(normalized)) return;
+    if (normalized !== PROJECT_SETTINGS_GLOBAL_SCOPE && !isNodeSettingsTargetPath(normalized)) return;
     seen.add(normalized);
-    let level = "topic";
-    if (isWorkspaceRootNodePath(normalized)) level = "workspace";
-    else if (isAreaNodePath(normalized)) level = "area";
     scopes.push({
       path: normalized,
       label: String(label || getLabelFromPath(normalized) || normalized).trim(),
@@ -41458,18 +41676,33 @@ function collectProjectSettingsManifestScopes() {
     });
   };
 
-  const rootPath = getAgentWorkspaceRootManifestPath();
-  if (rootPath) pushScope(rootPath, "Workspace");
+  pushScope(PROJECT_SETTINGS_GLOBAL_SCOPE, "Глобальные настройки платформы", "global");
+  pushScope(
+    PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE,
+    "Локальные настройки workspace",
+    "settings-local"
+  );
+
+  const rootPath = normalizeMenuNodePath(getAgentWorkspaceRootManifestPath());
+  if (rootPath) {
+    pushScope(rootPath, getAgentTreeTitle() || "Workspace", "workspace");
+  }
 
   const walk = (node) => {
     if (!node) return;
     const path = node.indexPath || node.path;
     const label = node.title || node.label || node.name;
     if (path && isNodeMdPath(String(path)) && !isWorkspaceRootNodePath(path)) {
-      pushScope(path, label);
+      let level = "topic";
+      if (isAreaNodePath(path)) level = "area";
+      pushScope(path, label, level);
     }
     for (const item of node.items || []) {
-      if (item?.path) pushScope(item.path, item.title || item.label || item.name);
+      if (item?.path) {
+        let level = "topic";
+        if (isAreaNodePath(item.path)) level = "area";
+        pushScope(item.path, item.title || item.label || item.name, level);
+      }
     }
     for (const section of node.sections || []) walk(section);
     if (node.containerTree) walk(node.containerTree);
@@ -41481,9 +41714,9 @@ function collectProjectSettingsManifestScopes() {
   }
 
   scopes.sort((a, b) => {
-    const rank = { workspace: 0, area: 1, topic: 2 };
-    const ra = rank[a.level] ?? 3;
-    const rb = rank[b.level] ?? 3;
+    const rank = { global: 0, "settings-local": 1, workspace: 2, area: 3, topic: 4 };
+    const ra = rank[a.level] ?? 5;
+    const rb = rank[b.level] ?? 5;
     if (ra !== rb) return ra - rb;
     return a.label.localeCompare(b.label, "ru");
   });
@@ -41516,7 +41749,7 @@ function createProjectSettingsScopeBadge(kind, valueCount) {
       ? "Количество переменных в .env"
       : kind === "schema"
         ? "Количество полей в schema.yml"
-        : "Количество значений в awn_settings";
+        : "Количество значений в config.yml";
   return badge;
 }
 
@@ -41524,13 +41757,19 @@ function projectSettingsScopeSearchHaystack(scope) {
   const path = String(scope?.path || "").replace(/\\/g, "/");
   const pathTail = path.replace(/\/manifest\.md$/i, "").split("/").pop() || path;
   const levelLabel =
-    scope?.level === "workspace"
-      ? "workspace"
-      : scope?.level === "area"
-        ? "область области"
-        : scope?.level === "topic"
-          ? "тема темы"
-          : "";
+    scope?.level === "global"
+      ? "платформа глобальные agent-cms-core"
+      : scope?.level === "settings-local"
+        ? "локальные workspace settings.yml"
+        : scope?.level === "workspace"
+          ? "workspace корень manifest"
+          : scope?.level === "area"
+            ? "область области"
+            : scope?.level === "topic"
+              ? "тема темы"
+              : scope?.level === "iblock"
+                ? "инфоблок iblock awn-data"
+                : "";
   return [scope?.label, path, pathTail, levelLabel]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
@@ -41559,6 +41798,7 @@ function isProjectSettingsFileFilterDefault(filters = projectSettingsScopeFileFi
 }
 
 function projectSettingsScopeMatchesFileFilters(scope) {
+  if (scope?.level === "iblock") return isProjectSettingsFileFilterDefault();
   if (isProjectSettingsFileFilterDefault()) return true;
   const { schema, config, env } = projectSettingsScopeFileFilters;
   if (!schema && !config && !env) return true;
@@ -41616,18 +41856,137 @@ function renderProjectSettingsScopeFilters() {
   return wrap;
 }
 
+function renderProjectSettingsIblockScopeItem(scope, activeScopePath) {
+  const isActive = scope.path === activeScopePath;
+  const recordCount = Number(scope.recordCount) || 0;
+  const storeRel = String(scope.storeRel || parseProjectSettingsIblockScopeRel(scope.path) || "").trim();
+  const kindLabel = awnDataStoreKindLabel(scope.storeKind);
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "project-settings-scope-item is-iblock-stub";
+  btn.dataset.path = scope.path;
+  btn.setAttribute("role", "tab");
+  btn.setAttribute("aria-selected", isActive ? "true" : "false");
+  btn.classList.toggle("is-active", isActive);
+  btn.classList.toggle("has-iblock-records", recordCount > 0);
+  btn.title = [
+    scope.label,
+    storeRel ? `awn-data/${storeRel}` : "",
+    kindLabel,
+    recordCount > 0 ? `${recordCount} записей` : "записей нет",
+    "заглушка — редактор в разработке"
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const markers = document.createElement("span");
+  markers.className = "project-settings-scope-markers";
+  const marker = document.createElement("span");
+  marker.className = "project-settings-scope-marker is-iblock-kind";
+  marker.classList.toggle("has-value", recordCount > 0);
+  marker.setAttribute("aria-hidden", "true");
+  markers.append(marker);
+
+  const label = document.createElement("span");
+  label.className = "project-settings-scope-label";
+  label.textContent = scope.label;
+
+  btn.append(markers, label);
+
+  if (recordCount > 0) {
+    const badges = document.createElement("span");
+    badges.className = "project-settings-scope-badges";
+    const badge = document.createElement("span");
+    badge.className = "project-settings-scope-badge is-iblock-badge";
+    badge.textContent = String(recordCount);
+    badge.title = scope.storeKind === "singleton" ? "main.md" : `${recordCount} записей`;
+    badges.append(badge);
+    btn.append(badges);
+  }
+
+  const hint = document.createElement("span");
+  hint.className = "project-settings-scope-hint";
+  hint.textContent = kindLabel;
+  btn.append(hint);
+
+  btn.addEventListener("click", () => {
+    void selectProjectSettingsScope(scope.path);
+  });
+  return btn;
+}
+
+function renderProjectSettingsAgentSettingsTabItem(scopePath, groupId, groupLabel, activeScopePath) {
+  const scopeKey = getProjectSettingsAgentSchemaScopeKey(scopePath);
+  const activeGroupId =
+    activeScopePath === scopePath
+      ? projectSettingsActiveGroupId || getProjectSettingsAgentGroupOrder(scopeKey)[0]
+      : null;
+  const isActive = activeScopePath === scopePath && activeGroupId === groupId;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "project-settings-scope-item is-settings-group-tab";
+  btn.dataset.path = scopePath;
+  btn.dataset.groupId = groupId;
+  btn.setAttribute("role", "tab");
+  btn.setAttribute("aria-selected", isActive ? "true" : "false");
+  btn.classList.toggle("is-active", isActive);
+  btn.title = `${groupLabel} · ${getProjectSettingsValuesFileLabel({ level: isProjectSettingsGlobalScope(scopePath) ? "global" : "settings-local" })}`;
+
+  const label = document.createElement("span");
+  label.className = "project-settings-scope-label";
+  label.textContent = groupLabel;
+  btn.append(label);
+
+  btn.addEventListener("click", () => {
+    void selectProjectSettingsAgentSettingsTab(scopePath, groupId);
+  });
+  return btn;
+}
+
+function renderProjectSettingsAgentSettingsTabs(groupNode, groupSpec, activeScopePath) {
+  const scopePath =
+    groupSpec.level === "global"
+      ? PROJECT_SETTINGS_GLOBAL_SCOPE
+      : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
+  const scopeKey = groupSpec.level === "global" ? "global" : "local";
+  const groupOrder = getProjectSettingsAgentGroupOrder(scopeKey);
+  const fieldGroups = getProjectSettingsAgentFieldGroups(scopeKey);
+  if (!groupOrder.length) {
+    const empty = document.createElement("p");
+    empty.className = "project-settings-scope-search-empty";
+    empty.textContent = "Группы настроек не найдены";
+    groupNode.appendChild(empty);
+    return;
+  }
+  for (const groupId of groupOrder) {
+    groupNode.appendChild(
+      renderProjectSettingsAgentSettingsTabItem(
+        scopePath,
+        groupId,
+        resolveNodeSettingsGroupLabel(groupId, fieldGroups),
+        activeScopePath
+      )
+    );
+  }
+}
+
 function renderProjectSettingsScopeList() {
   if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
   projectSettingsScopeListNode.replaceChildren();
-  const manifestScopes = collectProjectSettingsManifestScopes();
-  const { scopes: searchedScopes, searchActive } = filterProjectSettingsManifestScopes(manifestScopes);
+  const sidebarScopes = collectProjectSettingsSidebarScopes();
+  const { scopes: searchedScopes, searchActive } = filterProjectSettingsManifestScopes(sidebarScopes);
   const fileFilterActive = !isProjectSettingsFileFilterDefault();
   const visibleScopes = searchedScopes.filter(projectSettingsScopeMatchesFileFilters);
   const activeScopePath = getNodeSettingsManifestPath();
   const groups = [
+    { level: "global", label: "Глобальные настройки платформы", agentTabs: true },
+    { level: "settings-local", label: "Локальные настройки платформы", agentTabs: true },
     { level: "workspace", label: "Workspace" },
     { level: "area", label: "Области" },
-    { level: "topic", label: "Темы" }
+    { level: "topic", label: "Темы" },
+    { level: "iblock", label: "Инфоблоки" }
   ];
 
   projectSettingsScopeListNode.appendChild(renderProjectSettingsScopeFilters());
@@ -41642,7 +42001,7 @@ function renderProjectSettingsScopeList() {
 
   for (const group of groups) {
     const items = visibleScopes.filter((scope) => scope.level === group.level);
-    if (!items.length) continue;
+    if (!group.agentTabs && !items.length) continue;
     const groupNode = document.createElement("div");
     groupNode.className = "project-settings-scope-group";
     const title = document.createElement("div");
@@ -41650,7 +42009,36 @@ function renderProjectSettingsScopeList() {
     title.textContent = group.label;
     groupNode.appendChild(title);
 
+    if (group.agentTabs) {
+      const scopePath =
+        group.level === "global"
+          ? PROJECT_SETTINGS_GLOBAL_SCOPE
+          : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
+      const scopeKey = group.level === "global" ? "global" : "local";
+      const tabLabels = getProjectSettingsAgentGroupOrder(scopeKey).map((groupId) =>
+        resolveNodeSettingsGroupLabel(groupId, getProjectSettingsAgentFieldGroups(scopeKey))
+      );
+      const groupHaystack = [group.label, ...tabLabels].join(" ").toLowerCase();
+      const queryLower = String(projectSettingsScopeSearchQuery || "").trim().toLowerCase();
+      const matchesSearch = !queryLower || groupHaystack.includes(queryLower);
+      const status = getProjectSettingsScopeStatus(scopePath);
+      const matchesFileFilter =
+        isProjectSettingsFileFilterDefault() ||
+        (projectSettingsScopeFileFilters.config && status?.hasLocalValues) ||
+        (projectSettingsScopeFileFilters.schema && status?.hasLocalSchema) ||
+        (projectSettingsScopeFileFilters.env && status?.envHasValues);
+      if (matchesSearch && matchesFileFilter) {
+        renderProjectSettingsAgentSettingsTabs(groupNode, group, activeScopePath);
+        projectSettingsScopeListNode.appendChild(groupNode);
+      }
+      continue;
+    }
+
     for (const scope of items) {
+      if (scope.level === "iblock") {
+        groupNode.appendChild(renderProjectSettingsIblockScopeItem(scope, activeScopePath));
+        continue;
+      }
       const status = getProjectSettingsScopeStatus(scope.path);
       const hasConfigValues = Boolean(status?.hasLocalValues);
       const configCount = Number(status?.valueCount) || 0;
@@ -41662,6 +42050,7 @@ function renderProjectSettingsScopeList() {
       const envPath = status?.envPath || getEnvFilePathForManifest(scope.path);
       const isActive = scope.path === activeScopePath;
       const isEmptyScope = !hasConfigValues && !hasSchemaFields && !hasEnvValues;
+      const valuesFileLabel = getProjectSettingsValuesFileLabel(scope);
 
       const btn = document.createElement("button");
       btn.type = "button";
@@ -41675,26 +42064,47 @@ function renderProjectSettingsScopeList() {
       btn.classList.toggle("has-env-values", hasEnvValues);
       btn.classList.toggle("is-empty-scope", isEmptyScope);
       btn.title = [
-        hasSchemaFields
-          ? `${schemaPath || "schema.yml"}: ${schemaCount} полей`
-          : status?.schemaExists
-            ? `${schemaPath || "schema.yml"}: файл есть, полей нет`
-            : `${schemaPath || "schema.yml"}: не создан`,
-        hasConfigValues ? `config.yml: ${configCount} знач.` : "config.yml: наследуется с уровня выше",
-        hasEnvValues
-          ? `${envPath}: ${envCount} перем.`
-          : status?.envExists
-            ? `${envPath}: файл есть, переменных нет`
-            : `${envPath}: не создан`
-      ].join(" · ");
+        scope.level === "global" ? "agent-cms-core" : scope.label,
+        scope.level === "global"
+          ? hasConfigValues
+            ? `${valuesFileLabel}: ${configCount} знач.`
+            : `${valuesFileLabel}: без значений`
+          : null,
+        scope.level !== "global"
+          ? hasSchemaFields
+            ? `${schemaPath || "schema.yml"}: ${schemaCount} полей`
+            : status?.schemaExists
+              ? `${schemaPath || "schema.yml"}: файл есть, полей нет`
+              : `${schemaPath || "schema.yml"}: не создан`
+          : null,
+        scope.level !== "global"
+          ? hasConfigValues
+            ? `${valuesFileLabel}: ${configCount} знач.`
+            : `${valuesFileLabel}: без локальных значений`
+          : null,
+        scope.level !== "global"
+          ? hasEnvValues
+            ? `${envPath}: ${envCount} перем.`
+            : status?.envExists
+              ? `${envPath}: файл есть, переменных нет`
+              : `${envPath}: не создан`
+          : null
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
       const markers = document.createElement("span");
       markers.className = "project-settings-scope-markers";
-      markers.append(
-        createProjectSettingsScopeMarker("schema", hasSchemaFields),
-        createProjectSettingsScopeMarker("config", hasConfigValues),
-        createProjectSettingsScopeMarker("env", hasEnvValues)
-      );
+      const showNodeMarkers = !["global", "settings-local"].includes(scope.level);
+      if (showNodeMarkers) {
+        markers.append(
+          createProjectSettingsScopeMarker("schema", hasSchemaFields),
+          createProjectSettingsScopeMarker("config", hasConfigValues),
+          createProjectSettingsScopeMarker("env", hasEnvValues)
+        );
+      } else {
+        markers.append(createProjectSettingsScopeMarker("config", hasConfigValues));
+      }
 
       const label = document.createElement("span");
       label.className = "project-settings-scope-label";
@@ -41705,10 +42115,21 @@ function renderProjectSettingsScopeList() {
       if (hasConfigValues || hasSchemaFields || hasEnvValues) {
         const badges = document.createElement("span");
         badges.className = "project-settings-scope-badges";
-        if (hasSchemaFields) badges.append(createProjectSettingsScopeBadge("schema", schemaCount));
+        if (showNodeMarkers && hasSchemaFields) {
+          badges.append(createProjectSettingsScopeBadge("schema", schemaCount));
+        }
         if (hasConfigValues) badges.append(createProjectSettingsScopeBadge("config", configCount));
-        if (hasEnvValues) badges.append(createProjectSettingsScopeBadge("env", envCount));
+        if (showNodeMarkers && hasEnvValues) {
+          badges.append(createProjectSettingsScopeBadge("env", envCount));
+        }
         btn.append(badges);
+      }
+
+      if (scope.level === "workspace") {
+        const hint = document.createElement("span");
+        hint.className = "project-settings-scope-hint";
+        hint.textContent = "корень";
+        btn.append(hint);
       }
 
       btn.addEventListener("click", () => {
@@ -41720,10 +42141,43 @@ function renderProjectSettingsScopeList() {
   }
 }
 
-async function selectProjectSettingsScope(scopePath) {
+async function selectProjectSettingsAgentSettingsTab(scopePath, groupId) {
+  const normalized = normalizeMenuNodePath(scopePath);
+  if (!normalized || !groupId) return;
+  const sameScope = projectSettingsScopePath === normalized;
+  projectSettingsScopePath = normalized;
+  projectSettingsActiveGroupId = groupId;
+  projectSettingsEnvEditingOpen = false;
+  projectSettingsEnvSnapshot = null;
+  try {
+    if (!sameScope || !getNodeSettingsCache()) {
+      await loadProjectSettingsContent({ force: !sameScope });
+    } else {
+      renderProjectSettingsPage();
+      renderProjectSettingsScopeList();
+    }
+    commitEditorSaveBaseline();
+    updateBreadcrumbsForActiveMode();
+  } catch (error) {
+    showToast(`Не удалось загрузить настройки: ${error.message}`, "error");
+  }
+}
+
+async function selectProjectSettingsScope(scopePath, options = {}) {
   const normalized = normalizeMenuNodePath(scopePath);
   if (!normalized) return;
   projectSettingsScopePath = normalized;
+  projectSettingsEnvEditingOpen = false;
+  projectSettingsEnvSnapshot = null;
+  if (options.groupId) {
+    projectSettingsActiveGroupId = options.groupId;
+  } else if (isProjectSettingsAgentSettingsScope(normalized)) {
+    const scopeKey = getProjectSettingsAgentSchemaScopeKey(normalized);
+    const order = getProjectSettingsAgentGroupOrder(scopeKey);
+    projectSettingsActiveGroupId = order[0] || "general";
+  } else {
+    projectSettingsActiveGroupId = null;
+  }
   try {
     await loadProjectSettingsContent({ force: true });
     renderProjectSettingsPage();
@@ -41740,7 +42194,7 @@ function getProjectSettingsEnvCache(manifestPath = getNodeSettingsManifestPath()
 }
 
 async function loadProjectSettingsEnvForManifest(manifestPath, options = {}) {
-  if (!manifestPath) return null;
+  if (!manifestPath || isProjectSettingsGlobalScope(manifestPath)) return null;
   if (!options.force) {
     const cached = projectSettingsEnvCacheByManifest.get(manifestPath);
     if (cached) return cached;
@@ -41764,6 +42218,38 @@ function renderProjectSettingsEnvEditor(cache = getProjectSettingsEnvCache()) {
   if (projectSettingsEnvInputNode) {
     projectSettingsEnvInputNode.value = cache?.content || "";
   }
+  syncProjectSettingsEnvEditorUi();
+}
+
+function syncProjectSettingsEnvEditorUi() {
+  const isEditing = Boolean(projectSettingsEnvEditingOpen);
+  projectSettingsEnvWrapNode?.classList.toggle("is-editing", isEditing);
+  projectSettingsEnvInputNode?.toggleAttribute("hidden", !isEditing);
+  projectSettingsEnvOpenBtnNode?.classList.toggle("is-active", isEditing);
+  if (projectSettingsEnvOpenBtnNode) {
+    projectSettingsEnvOpenBtnNode.textContent = isEditing
+      ? "Редактирование открыто"
+      : "Открыть для редактирования";
+  }
+  syncProjectSettingsEnvSaveButtonState();
+}
+
+function commitProjectSettingsEnvBaseline() {
+  projectSettingsEnvSnapshot = projectSettingsEnvInputNode?.value ?? "";
+  syncProjectSettingsEnvSaveButtonState();
+}
+
+function syncProjectSettingsEnvSaveButtonState() {
+  if (!projectSettingsEnvSaveBtnNode || !isProjectSettingsMode()) return;
+  const baseline =
+    projectSettingsEnvSnapshot ??
+    getProjectSettingsEnvCache()?.content ??
+    projectSettingsEnvInputNode?.value ??
+    "";
+  const current = projectSettingsEnvInputNode?.value ?? "";
+  const dirty = projectSettingsEnvEditingOpen && current !== baseline;
+  projectSettingsEnvSaveBtnNode.disabled = !dirty;
+  projectSettingsEnvSaveBtnNode.classList.toggle("is-dirty", dirty);
 }
 
 async function saveProjectSettingsEnvContent() {
@@ -41793,54 +42279,179 @@ async function saveProjectSettingsEnvContent() {
   modeContentCache.env = payload.content;
   renderProjectSettingsScopeList();
   renderProjectSettingsPage();
+  commitProjectSettingsEnvBaseline();
   return data;
+}
+
+function renderProjectSettingsIblockStubPage(scopePath = getNodeSettingsManifestPath()) {
+  const scope =
+    collectProjectSettingsIblockScopes().find((item) => item.path === scopePath) ||
+    collectProjectSettingsSidebarScopes().find((item) => item.path === scopePath);
+  const storeRel = parseProjectSettingsIblockScopeRel(scopePath);
+  const kindLabel = awnDataStoreKindLabel(scope?.storeKind);
+  const recordCount = Number(scope?.recordCount) || 0;
+  const settingsBlock = projectSettingsPageNode?.querySelector(".project-settings-block:not(.project-settings-block--env)");
+
+  if (projectSettingsTitleNode) {
+    projectSettingsTitleNode.textContent = scope ? `Инфоблок · ${scope.label}` : "Инфоблок";
+  }
+  if (projectSettingsLeadNode) {
+    projectSettingsLeadNode.innerHTML = storeRel
+      ? `Заглушка для <code>awn-data/${escapeHtml(storeRel)}</code> (${escapeHtml(kindLabel)}). Настройки <code>schema.yml</code> и <code>config.yml</code> инфоблока появятся здесь позже.`
+      : "Заглушка: настройки инфоблока в разработке.";
+  }
+
+  settingsBlock?.classList.remove("hidden");
+  projectSettingsPageNode?.querySelector(".project-settings-block--env")?.classList.add("hidden");
+  const settingsBlockTitleNode = settingsBlock?.querySelector(".project-settings-block-title");
+  if (settingsBlockTitleNode) {
+    settingsBlockTitleNode.textContent = "schema.yml · config.yml";
+  }
+  if (projectSettingsConfigLeadNode) {
+    projectSettingsConfigLeadNode.innerHTML = recordCount > 0
+      ? `В инфоблоке сейчас <strong>${recordCount}</strong> ${scope?.storeKind === "singleton" ? "запись" : "записей"}. Редактор параметров пока недоступен — откройте инфоблок в разделе «Накопители информации».`
+      : "Редактор параметров инфоблока пока недоступен — откройте инфоблок в разделе «Накопители информации».";
+  }
+
+  projectSettingsGroupTabsNode?.classList.add("hidden");
+  projectSettingsGroupTabsNode?.replaceChildren();
+  projectSettingsFieldsNode?.replaceChildren();
+  projectSettingsFieldsNode?.classList.add("hidden");
+  projectSettingsEmptyNode?.classList.remove("hidden");
+  if (projectSettingsEmptyNode) {
+    projectSettingsEmptyNode.textContent =
+      "Редактор настроек инфоблока в разработке. Пока используйте «Накопители информации» в боковом меню.";
+  }
+  projectSettingsSaveBtnNode?.classList.add("hidden");
+  renderProjectSettingsScopeList();
 }
 
 function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   if (!projectSettingsPageNode) return;
-  const scope = collectProjectSettingsManifestScopes().find(
-    (item) => item.path === getNodeSettingsManifestPath()
+  const manifestPath = getNodeSettingsManifestPath();
+  if (isProjectSettingsIblockScope(manifestPath)) {
+    renderProjectSettingsIblockStubPage(manifestPath);
+    return;
+  }
+
+  projectSettingsFieldsNode?.classList.remove("hidden");
+  projectSettingsSaveBtnNode?.classList.remove("hidden");
+  projectSettingsPageNode?.querySelector(".project-settings-block:not(.project-settings-block--env)")?.classList.remove(
+    "hidden"
   );
+
+  const scope = collectProjectSettingsSidebarScopes().find((item) => item.path === manifestPath);
   const activeStatus = getProjectSettingsScopeStatus(getNodeSettingsManifestPath());
   const levelLabel = scope
-    ? scope.level === "workspace"
-      ? "Workspace"
-      : scope.level === "area"
-        ? "Область"
-        : "Тема"
-    : "Уровень";
+    ? scope.level === "global"
+      ? "Глобальные настройки платформы"
+      : scope.level === "settings-local"
+        ? "Локальные настройки платформы"
+        : scope.level === "workspace"
+          ? "Workspace"
+          : scope.level === "area"
+            ? "Область"
+            : "Тема"
+    : isProjectSettingsGlobalScope(getNodeSettingsManifestPath())
+      ? "Глобальные настройки платформы"
+      : isProjectSettingsWorkspaceSettingsScope(getNodeSettingsManifestPath())
+        ? "Локальные настройки платформы"
+        : "Уровень";
+  const isGlobalScope = isProjectSettingsGlobalScope(getNodeSettingsManifestPath());
+  const isLocalScope = isProjectSettingsLocalScope(getNodeSettingsManifestPath());
+  const valuesFileLabel = getProjectSettingsValuesFileLabel(scope);
   const envPath = activeStatus?.envPath || getEnvFilePathForManifest(getNodeSettingsManifestPath());
 
   if (projectSettingsTitleNode) {
-    projectSettingsTitleNode.textContent = scope
-      ? `${levelLabel} · ${scope.label}`
+    let titleSuffix = scope?.label || "";
+    if (isProjectSettingsAgentSettingsScope(getNodeSettingsManifestPath()) && projectSettingsActiveGroupId) {
+      const scopeKey = getProjectSettingsAgentSchemaScopeKey();
+      const fieldGroups = getProjectSettingsAgentFieldGroups(scopeKey);
+      titleSuffix = resolveNodeSettingsGroupLabel(projectSettingsActiveGroupId, fieldGroups);
+    }
+    projectSettingsTitleNode.textContent = titleSuffix
+      ? `${levelLabel} · ${titleSuffix}`
       : "Настройки и параметры проекта";
   }
   if (projectSettingsLeadNode) {
-    projectSettingsLeadNode.innerHTML = scope
-      ? `Параметры уровня «${escapeHtml(scope.label)}»: форма из <code>schema.yml</code> и секреты в <code>.env</code> рядом с manifest.`
-      : "Выберите уровень в списке слева.";
+    projectSettingsLeadNode.innerHTML = isGlobalScope
+      ? `Глобальные defaults платформы в <code>settings.global.yml</code> (<code>agent-cms-core</code>).`
+      : isLocalScope
+        ? `Локальные параметры workspace в <code>settings.yml</code>. Эффективные значения = global + local.`
+        : scope
+          ? `Параметры узла в <code>config.yml</code> и секреты в <code>.env</code> рядом с manifest.`
+          : "Выберите уровень в списке слева.";
+  }
+  const settingsBlockTitleNode = projectSettingsPageNode?.querySelector(
+    ".project-settings-block:not(.project-settings-block--env) .project-settings-block-title"
+  );
+  if (settingsBlockTitleNode) {
+    settingsBlockTitleNode.textContent = valuesFileLabel;
   }
   if (projectSettingsConfigLeadNode) {
     const localHint = activeStatus?.hasLocalValues
-      ? `На этом уровне задано <strong>${activeStatus.valueCount}</strong> значений в <code>config.yml</code>.`
-      : "На этом уровне <strong>нет своих значений</strong> — пока действуют настройки уровня выше (или defaults).";
-    projectSettingsConfigLeadNode.innerHTML =
-      `${localHint} Поля формы — из <code>schema.yml</code> (вкладка «Настройки») на том же уровне.`;
+      ? `Задано <strong>${activeStatus.valueCount}</strong> значений в <code>${valuesFileLabel}</code>.`
+      : isGlobalScope
+        ? `В <code>${valuesFileLabel}</code> пока нет значений — действуют встроенные defaults.`
+        : isLocalScope
+          ? `Локальный <code>${valuesFileLabel}</code> пуст — действуют только глобальные настройки.`
+          : `На этом уровне <strong>нет своих значений</strong> в <code>config.yml</code>.`;
+    const schemaHint = isProjectSettingsGlobalScope()
+      ? `Схема — <code>awn.settings.platform</code> (<code>awn-system/types/settings/</code>).`
+      : isProjectSettingsLocalScope()
+        ? `Схема — <code>awn.settings.workspace</code> (<code>awn-system/types/settings/</code>).`
+        : `Поля формы — из <code>schema.yml</code> на этом уровне.`;
+    projectSettingsConfigLeadNode.innerHTML = `${localHint} ${schemaHint}`;
   }
   if (projectSettingsEnvLeadNode) {
     const envHint = activeStatus?.envHasValues
       ? `В <code>${escapeHtml(envPath)}</code> задано <strong>${activeStatus.envValueCount}</strong> переменных.`
       : activeStatus?.envExists
         ? `Файл <code>${escapeHtml(envPath)}</code> есть, но переменных пока нет.`
-        : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан — сохранение создаст его.`;
+        : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан.`;
     projectSettingsEnvLeadNode.innerHTML =
-      `${envHint} Формат: <code>KEY=value</code>, по одной паре на строку.`;
+      `${envHint} Нажмите «Открыть для редактирования», затем сохраните изменения.`;
   }
   renderProjectSettingsScopeList();
   projectSettingsFieldsNode?.classList.remove("hidden");
   renderNodeSettingsEditor(cache);
-  renderProjectSettingsEnvEditor(getProjectSettingsEnvCache());
+  projectSettingsSaveBtnNode?.classList.remove("hidden");
+  if (isGlobalScope) {
+    projectSettingsPageNode?.querySelector(".project-settings-block--env")?.classList.add("hidden");
+  } else {
+    projectSettingsPageNode?.querySelector(".project-settings-block--env")?.classList.remove("hidden");
+    projectSettingsEnvWrapNode?.classList.remove("hidden");
+    projectSettingsEnvOpenBtnNode?.classList.remove("hidden");
+    projectSettingsEnvSaveBtnNode?.classList.remove("hidden");
+    renderProjectSettingsEnvEditor(getProjectSettingsEnvCache());
+    if (!projectSettingsEnvEditingOpen) {
+      projectSettingsEnvSnapshot = getProjectSettingsEnvCache()?.content ?? "";
+    }
+    syncProjectSettingsEnvEditorUi();
+  }
+  syncProjectSettingsSaveButtonState();
+}
+
+function showProjectSettingsLoading() {
+  projectSettingsLoadingSeq += 1;
+  mountProjectSettingsToCanvasPane();
+  appRootNode?.classList.add("project-settings-view");
+  agentProjectSettingsMountNode?.classList.add("hidden");
+  projectSettingsLoadingNode?.classList.remove("hidden");
+  projectSettingsLoadingNode?.setAttribute("aria-hidden", "false");
+  projectSettingsLoadingNode?.setAttribute("aria-busy", "true");
+}
+
+function hideProjectSettingsLoading(options = {}) {
+  if (!options.force && projectSettingsLoadingSeq > 1) {
+    projectSettingsLoadingSeq = Math.max(0, projectSettingsLoadingSeq - 1);
+    return;
+  }
+  projectSettingsLoadingSeq = 0;
+  projectSettingsLoadingNode?.classList.add("hidden");
+  projectSettingsLoadingNode?.setAttribute("aria-hidden", "true");
+  projectSettingsLoadingNode?.setAttribute("aria-busy", "false");
+  agentProjectSettingsMountNode?.classList.remove("hidden");
 }
 
 function mountProjectSettingsToCanvasPane() {
@@ -41851,9 +42462,11 @@ function mountProjectSettingsToCanvasPane() {
 }
 
 function hideProjectSettingsPageUi() {
+  hideProjectSettingsLoading({ force: true });
   appRootNode?.classList.remove("project-settings-view");
   projectSettingsPageNode?.classList.add("hidden");
   workspacePathHeaderNode?.classList.remove("is-project-settings", "is-workspace-tool-module");
+  saveContentBtn?.classList.remove("hidden");
   syncMenuAgentStatsSettingsBtnState();
 }
 
@@ -41875,24 +42488,81 @@ function applyProjectSettingsPageUi(cache = getNodeSettingsCache()) {
   mountProjectSettingsToCanvasPane();
   projectSettingsPageNode?.classList.remove("hidden");
   syncMenuAgentStatsSettingsBtnState();
-  saveContentBtn?.classList.remove("hidden");
+  saveContentBtn?.classList.add("hidden");
   renderProjectSettingsPage(cache);
 }
 
+function syncProjectSettingsSaveButtonState() {
+  syncSaveButtonLamp();
+}
+
+async function saveProjectSettingsFormContent() {
+  setSaveButtonsState(true, "Сохраняю...");
+  let saveSucceeded = false;
+  try {
+    await saveNodeSettingsContent();
+    saveSucceeded = true;
+    showToast("Настройки сохранены", "success");
+    renderProjectSettingsPage();
+  } catch (error) {
+    showToast(`Ошибка сохранения: ${error.message}`, "error");
+  } finally {
+    setSaveButtonsState(false);
+    if (saveSucceeded) commitEditorSaveBaseline();
+    syncProjectSettingsSaveButtonState();
+  }
+}
+
+function openProjectSettingsEnvForEditing() {
+  const manifestPath = getNodeSettingsManifestPath();
+  if (!manifestPath || isProjectSettingsGlobalScope(manifestPath)) return;
+  projectSettingsEnvEditingOpen = true;
+  const cache = getProjectSettingsEnvCache();
+  if (projectSettingsEnvInputNode) {
+    projectSettingsEnvInputNode.value = cache?.content || "";
+  }
+  syncProjectSettingsEnvEditorUi();
+  projectSettingsEnvInputNode?.focus();
+}
+
+async function saveProjectSettingsEnvFormContent() {
+  setSaveButtonsState(true, "Сохраняю...");
+  let saveSucceeded = false;
+  try {
+    await saveProjectSettingsEnvContent();
+    saveSucceeded = true;
+    showToast(".env сохранён", "success");
+  } catch (error) {
+    showToast(`Ошибка сохранения .env: ${error.message}`, "error");
+  } finally {
+    setSaveButtonsState(false);
+    if (saveSucceeded) commitProjectSettingsEnvBaseline();
+    syncProjectSettingsEnvSaveButtonState();
+  }
+}
+
 async function loadProjectSettingsContent(options = {}) {
-  showContentLoading({
-    variant: "document",
-    message: "Загрузка…"
-  });
+  showProjectSettingsLoading();
   try {
     await loadAwnTypes(activeAgentId);
     const manifestPath = getNodeSettingsManifestPath();
     if (!projectSettingsScopePath && manifestPath) {
       projectSettingsScopePath = manifestPath;
     }
-    await refreshProjectSettingsScopeStatus(collectProjectSettingsManifestScopes()).catch(() => {});
+    await refreshMenuAwnDataStores(activeAgentId, { showLoading: false }).catch(() => {});
     const force = Boolean(options.force);
+    await Promise.all([
+      loadAgentSettingsSchemaBundle({ scope: "global", force }),
+      loadAgentSettingsSchemaBundle({ scope: "local", force })
+    ]).catch(() => {});
+    await refreshProjectSettingsScopeStatus(collectProjectSettingsManifestScopes()).catch(() => {});
     const manifestPathForLoad = getNodeSettingsManifestPath();
+    if (isProjectSettingsIblockScope(manifestPathForLoad)) {
+      applyProjectSettingsPageUi();
+      commitEditorSaveBaseline();
+      updateBreadcrumbsForActiveMode();
+      return;
+    }
     const [cache] = await Promise.all([
       loadNodeSettingsForManifest(manifestPathForLoad, { force }),
       loadProjectSettingsEnvForManifest(manifestPathForLoad, { force })
@@ -41910,7 +42580,7 @@ async function loadProjectSettingsContent(options = {}) {
     }
     updateBreadcrumbsForActiveMode();
   } finally {
-    hideContentLoading({ force: true });
+    hideProjectSettingsLoading({ force: true });
   }
 }
 
@@ -41931,17 +42601,24 @@ async function openProjectSettingsHub(options = {}) {
   const scopes = collectProjectSettingsManifestScopes();
   const preferred =
     scopes.find((item) => item.path === projectSettingsScopePath) ||
-    scopes.find((item) => item.level === "workspace") ||
+    scopes.find((item) => item.level === "global") ||
+    scopes.find((item) => item.level === "settings-local") ||
     scopes[0];
   if (!preferred?.path) {
     showToast("Нет узлов с настройками в этом агенте", "info");
     return;
   }
   projectSettingsScopePath = preferred.path;
+  if (isProjectSettingsAgentSettingsScope(preferred.path)) {
+    const scopeKey = getProjectSettingsAgentSchemaScopeKey(preferred.path);
+    const order = getProjectSettingsAgentGroupOrder(scopeKey);
+    projectSettingsActiveGroupId = order[0] || "general";
+  }
 
   showAgentHomeView();
   agentWorkspaceView = "project-settings";
   saveAgentWorkspaceView("project-settings");
+  showProjectSettingsLoading();
   applyAgentWorkspaceCanvasUi();
 
   updateActiveButton();
@@ -42006,21 +42683,56 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
     if (cached) return cached;
   }
 
-  const data = await loadNodeConfig(manifestPath, { force: true });
+  const schemaManifestPath = isProjectSettingsAgentSettingsScope(manifestPath)
+    ? getAgentWorkspaceRootManifestPath()
+    : manifestPath;
+  let data;
+  let settingsFieldGroups = null;
+  if (isProjectSettingsMode() && isProjectSettingsGlobalScope(manifestPath)) {
+    const response = await fetch(buildApiUrl("/api/platform/settings-global"));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    data = await response.json();
+  } else if (isProjectSettingsMode() && isProjectSettingsLocalScope(manifestPath)) {
+    const response = await fetch(buildApiUrl("/api/workspace/settings"));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    data = await response.json();
+  } else {
+    data = await loadNodeConfig(manifestPath, { force: true });
+  }
+
   const state = parseNodeSettingsState(data.content || "");
   let settingsFields = {};
-  try {
-    const schemaCache = await loadTopicSchemaForManifest(manifestPath, { force: options.force });
-    settingsFields = mergeTopicSchemaSettingsFields(schemaCache?.awnSchema?.settings?.fields || {});
+  if (isProjectSettingsAgentSettingsScope(manifestPath)) {
+    const schemaBundle = await loadAgentSettingsSchemaBundle({
+      force: options.force,
+      manifestPath,
+      scope: isProjectSettingsGlobalScope(manifestPath) ? "global" : "local"
+    });
+    settingsFields = schemaBundle.settingsFields;
+    settingsFieldGroups = schemaBundle.settingsFieldGroups;
     state.entries = buildNodeSettingsEntriesFromSchema(state.entries, settingsFields);
-  } catch {
-    state.entries = buildNodeSettingsEntriesFromSchema(state.entries, {});
+  } else {
+    const mergeSettingsFields = mergeTopicSchemaSettingsFields;
+    try {
+      const schemaCache = await loadTopicSchemaForManifest(schemaManifestPath, { force: options.force });
+      settingsFields = mergeSettingsFields(schemaCache?.awnSchema?.settings?.fields || {});
+      state.entries = buildNodeSettingsEntriesFromSchema(state.entries, settingsFields);
+    } catch {
+      state.entries = buildNodeSettingsEntriesFromSchema(state.entries, {});
+    }
   }
   const payload = {
     manifestPath,
     configPath: data.path || "",
+    settingsPath: data.path || "",
     exists: Boolean(data.exists),
+    settingsScope: isProjectSettingsGlobalScope(manifestPath)
+      ? "global"
+      : isProjectSettingsLocalScope(manifestPath)
+        ? "local"
+        : "node",
     settingsFields,
+    settingsFieldGroups,
     ...state
   };
   nodeSettingsCacheByManifest.set(manifestPath, payload);
@@ -42129,8 +42841,9 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
   const schemaKeys = Object.keys(schemaFields);
   if (!schemaKeys.length) {
     emptyNode.classList.remove("hidden");
-    emptyNode.textContent =
-      "Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.";
+    emptyNode.textContent = isProjectSettingsAgentSettingsScope(cache?.manifestPath)
+      ? "Схема настроек не найдена — проверьте awn.settings.platform/workspace в awn-system/types/settings/."
+      : "Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.";
     return;
   }
 
@@ -42143,6 +42856,63 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
   }
   emptyNode.classList.add("hidden");
 
+  const groupOrder = getSchemaEditorGroupOrder(schemaFields, entries.map((entry) => entry.key));
+  const fieldGroups =
+    Array.isArray(cache?.settingsFieldGroups) && cache.settingsFieldGroups.length
+      ? cache.settingsFieldGroups
+      : buildSettingsFieldGroupsFromFields(schemaFields);
+  const useSidebarAgentTabs =
+    isProjectSettingsMode() && isProjectSettingsAgentSettingsScope(cache?.manifestPath);
+  const useTabbedGroups = isProjectSettingsMode() && groupOrder.length > 1 && !useSidebarAgentTabs;
+
+  if (useSidebarAgentTabs) {
+    projectSettingsGroupTabsNode?.classList.add("hidden");
+    projectSettingsGroupTabsNode?.replaceChildren();
+    if (!projectSettingsActiveGroupId || !groupOrder.includes(projectSettingsActiveGroupId)) {
+      projectSettingsActiveGroupId = groupOrder[0];
+    }
+    for (const entry of entries) {
+      const groupId = resolvePropsFieldGroupId(entry.key, schemaFields[entry.key]);
+      if (groupId !== projectSettingsActiveGroupId) continue;
+      fieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
+    }
+    return;
+  }
+
+  if (useTabbedGroups) {
+    if (!projectSettingsActiveGroupId || !groupOrder.includes(projectSettingsActiveGroupId)) {
+      projectSettingsActiveGroupId = groupOrder[0];
+    }
+    if (projectSettingsGroupTabsNode) {
+      projectSettingsGroupTabsNode.replaceChildren();
+      projectSettingsGroupTabsNode.classList.remove("hidden");
+      for (const groupId of groupOrder) {
+        const tab = document.createElement("button");
+        tab.type = "button";
+        tab.className = "project-settings-group-tab";
+        tab.dataset.groupId = groupId;
+        tab.setAttribute("role", "tab");
+        tab.setAttribute("aria-selected", groupId === projectSettingsActiveGroupId ? "true" : "false");
+        tab.classList.toggle("is-active", groupId === projectSettingsActiveGroupId);
+        tab.textContent = resolveNodeSettingsGroupLabel(groupId, fieldGroups);
+        tab.addEventListener("click", () => {
+          projectSettingsActiveGroupId = groupId;
+          renderNodeSettingsEditor(cache);
+        });
+        projectSettingsGroupTabsNode.append(tab);
+      }
+    }
+    for (const entry of entries) {
+      const groupId = resolvePropsFieldGroupId(entry.key, schemaFields[entry.key]);
+      if (groupId !== projectSettingsActiveGroupId) continue;
+      fieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
+    }
+    return;
+  }
+
+  projectSettingsGroupTabsNode?.classList.add("hidden");
+  projectSettingsGroupTabsNode?.replaceChildren();
+
   for (const entry of entries) {
     fieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
   }
@@ -42152,6 +42922,7 @@ function handleNodeConfigFieldsInput() {
   if (!isNodeConfigEditorMode() && !isProjectSettingsMode()) return;
   syncNodeSettingsCacheFromDom();
   syncSaveButtonLamp();
+  syncProjectSettingsSaveButtonState();
 }
 
 async function saveNodeSettingsContent() {
@@ -42160,11 +42931,21 @@ async function saveNodeSettingsContent() {
   const cache = syncNodeSettingsCacheFromDom();
   if (!cache) throw new Error("Конфигурация не загружена");
 
-  const content = buildNodeConfigYamlFromState(cache);
-  const response = await fetch(buildApiUrl("/api/file/node-config"), {
+  const useProjectSettingsApi =
+    isProjectSettingsMode() && isProjectSettingsAgentSettingsScope(manifestPath);
+  const content = useProjectSettingsApi ? buildSettingsYamlFromState(cache) : buildNodeConfigYamlFromState(cache);
+  const saveUrl = useProjectSettingsApi
+    ? isProjectSettingsGlobalScope(manifestPath)
+      ? buildApiUrl("/api/platform/settings-global")
+      : buildApiUrl("/api/workspace/settings")
+    : buildApiUrl("/api/file/node-config");
+  const saveBody = useProjectSettingsApi
+    ? JSON.stringify({ content })
+    : JSON.stringify({ path: manifestPath, content });
+  const response = await fetch(saveUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: manifestPath, content })
+    body: saveBody
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -42176,6 +42957,7 @@ async function saveNodeSettingsContent() {
   const data = await response.json();
   cache.exists = Boolean(data.exists);
   cache.configPath = data.path || cache.configPath;
+  cache.settingsPath = data.path || cache.settingsPath;
   const nextState = parseNodeSettingsState(data.content || content);
   cache.headerComment = nextState.headerComment;
   cache.entries = buildNodeSettingsEntriesFromSchema(
@@ -42184,14 +42966,16 @@ async function saveNodeSettingsContent() {
   );
   cache.defaultLandingMode = nextState.defaultLandingMode;
   cache.awnSchemaYaml = nextState.awnSchemaYaml;
-  setCachedNodeConfig(manifestPath, {
-    path: data.path || cache.configPath,
-    content: data.content || content,
-    exists: Boolean(data.exists),
-    defaultLandingMode: nextState.defaultLandingMode
-  });
-  modeContentCache.configs = data.content || content;
-  syncNodeDefaultLandingBtn();
+  if (!useProjectSettingsApi) {
+    setCachedNodeConfig(manifestPath, {
+      path: data.path || cache.configPath,
+      content: data.content || content,
+      exists: Boolean(data.exists),
+      defaultLandingMode: nextState.defaultLandingMode
+    });
+    modeContentCache.configs = data.content || content;
+    syncNodeDefaultLandingBtn();
+  }
   renderNodeSettingsEditor(cache);
   if (isProjectSettingsMode()) {
     setProjectSettingsScopeStatusFromCache(manifestPath, cache);
@@ -56238,8 +57022,7 @@ function getEditorSavePayload() {
   if (isProjectSettingsMode()) {
     syncNodeSettingsCacheFromDom();
     return JSON.stringify({
-      nodeSettings: getNodeSettingsSavePayload(),
-      projectEnv: projectSettingsEnvInputNode?.value ?? ""
+      nodeSettings: getNodeSettingsSavePayload()
     });
   }
   if (isNodeConfigEditorMode()) {
@@ -56260,14 +57043,22 @@ function getEditorSavePayload() {
 }
 
 function syncSaveButtonLamp() {
-  const buttons = [saveContentBtn, saveSystemFileBtn].filter(Boolean);
+  const buttons = [saveContentBtn, saveSystemFileBtn, projectSettingsSaveBtnNode].filter(Boolean);
   const trackingActive = isEditorSaveTrackingActive();
   const dirty =
     trackingActive && savedEditorSnapshot !== null && getEditorSavePayload() !== savedEditorSnapshot;
 
   for (const btn of buttons) {
     btn.classList.remove("is-dirty", "is-saved");
-    if (!trackingActive || btn.classList.contains("hidden")) continue;
+    if (!trackingActive) continue;
+    if (btn === projectSettingsSaveBtnNode) {
+      if (!isProjectSettingsMode()) continue;
+      btn.disabled = !dirty;
+      btn.classList.toggle("is-dirty", dirty);
+      syncProjectSettingsEnvSaveButtonState();
+      continue;
+    }
+    if (btn.classList.contains("hidden")) continue;
     if (savedEditorSnapshot === null) continue;
     btn.classList.toggle("is-dirty", dirty);
     btn.classList.toggle("is-saved", !dirty);
@@ -90319,20 +91110,7 @@ async function saveContent() {
   }
 
   if (activeContentMode === PROJECT_SETTINGS_MODE) {
-    setSaveButtonsState(true, "Сохраняю...");
-    let saveSucceeded = false;
-    try {
-      await saveNodeSettingsContent();
-      await saveProjectSettingsEnvContent();
-      saveSucceeded = true;
-      showToast("Настройки сохранены", "success");
-      renderProjectSettingsPage();
-    } catch (error) {
-      showToast(`Ошибка сохранения: ${error.message}`, "error");
-    } finally {
-      setSaveButtonsState(false);
-      if (saveSucceeded) commitEditorSaveBaseline();
-    }
+    await saveProjectSettingsFormContent();
     return;
   }
 
@@ -98321,6 +99099,18 @@ function setupProjectSettingsScopeSearch() {
     projectSettingsScopeSearchQuery = String(event.target.value || "");
     renderProjectSettingsScopeList();
   });
+  projectSettingsSaveBtnNode?.addEventListener("click", () => {
+    void saveProjectSettingsFormContent();
+  });
+  projectSettingsEnvOpenBtnNode?.addEventListener("click", () => {
+    openProjectSettingsEnvForEditing();
+  });
+  projectSettingsEnvSaveBtnNode?.addEventListener("click", () => {
+    void saveProjectSettingsEnvFormContent();
+  });
+  projectSettingsEnvInputNode?.addEventListener("input", () => {
+    syncProjectSettingsEnvSaveButtonState();
+  });
 }
 
 function setupMenuStaticFooterGroup() {
@@ -102605,6 +103395,12 @@ function renderMenuAwnDataStores(payload = null, { loading = false, error = fals
       continue;
     }
     menuAwnDataStoresNode.appendChild(createAwnDataStoreRow(store));
+  }
+  if (isProjectSettingsMode()) {
+    renderProjectSettingsScopeList();
+    if (isProjectSettingsIblockScope(getNodeSettingsManifestPath())) {
+      renderProjectSettingsIblockStubPage();
+    }
   }
 }
 
