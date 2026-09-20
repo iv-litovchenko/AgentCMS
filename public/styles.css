@@ -53882,9 +53882,20 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .create-node-shared-themes-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.create-node-shared-themes-actions .create-node-shared-theme-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-left: 8px;
+  padding-right: 8px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .create-node-shared-theme-btn--created,
@@ -54010,10 +54021,18 @@ button.node-navigation-memory-title:focus-visible {
 @media (max-width: 520px) {
   .create-node-catalog-actions,
   .create-node-service-docs-actions--cols-3,
-  .create-node-shared-themes-actions,
   .create-node-actions.has-free-memory-option,
   .create-node-actions.has-manifest-option {
     grid-template-columns: 1fr;
+  }
+
+  .create-node-shared-themes-actions {
+    flex-wrap: wrap;
+  }
+
+  .create-node-shared-themes-actions .create-node-shared-theme-btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 120px;
   }
 }
 

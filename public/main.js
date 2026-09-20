@@ -1518,7 +1518,8 @@ const SHARED_THEME_PRESETS = [
   { slug: "references", label: "Источники" },
   { slug: "artefacts", label: "Артефакты" },
   { slug: "scripts", label: "Скрипты" },
-  { slug: "media", label: "Медиа" }
+  { slug: "media", label: "Медиа" },
+  { slug: "context", label: "Автозагружаемый контекст" }
 ];
 const SHARED_THEME_PRESET_LABELS = Object.fromEntries(
   SHARED_THEME_PRESETS.map((item) => [item.slug, item.label])
@@ -42707,7 +42708,8 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   projectSettingsFieldsNode?.classList.remove("hidden");
   renderNodeSettingsEditor(cache);
   projectSettingsSaveBtnNode?.classList.remove("hidden");
-  if (isGlobalScope || isUserScope) {
+  const isWorkspaceSettingsScope = isProjectSettingsWorkspaceSettingsScope(getNodeSettingsManifestPath());
+  if (isGlobalScope || isUserScope || isWorkspaceSettingsScope) {
     projectSettingsPageNode?.querySelector(".project-settings-block--env")?.classList.add("hidden");
   } else {
     projectSettingsPageNode?.querySelector(".project-settings-block--env")?.classList.remove("hidden");
@@ -43127,14 +43129,22 @@ function createNodeSettingsFieldRow(entry, fieldDef) {
         : entry.key
   });
 
-  const keyCode = document.createElement("code");
-  keyCode.className = "node-config-field-key";
-  keyCode.textContent = entry.key;
-  keyCode.title = "Ключ в awn_settings";
+  const hideFieldKey =
+    readonly ||
+    locked ||
+    String(entry.key || "").startsWith("awn-id-") ||
+    String(entry.key || "").startsWith("sys-");
 
   const labelWrap = document.createElement("div");
   labelWrap.className = "node-config-field-label-wrap";
-  labelWrap.append(label, keyCode);
+  labelWrap.append(label);
+  if (!hideFieldKey) {
+    const keyCode = document.createElement("code");
+    keyCode.className = "node-config-field-key";
+    keyCode.textContent = entry.key;
+    keyCode.title = "Ключ в awn_settings";
+    labelWrap.append(keyCode);
+  }
   head.append(labelWrap);
 
   const valueControl = createPropsFormValueControl(entry, meta);
