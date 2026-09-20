@@ -65,11 +65,7 @@ function isAwnDataStoreManifestPath(normalized) {
 function isAwnDataTypeRecordPath(normalized) {
   if (!normalized.startsWith(`${AWN_DATA_REL}/`) || !/\.md$/i.test(normalized)) return false;
   if (/\/manifest\.md$/i.test(normalized)) return false;
-  const prefixes = [
-    "awn-data/settings/",
-    "awn-data/cms-base/mixins/"
-  ];
-  return prefixes.some((prefix) => normalized.startsWith(prefix));
+  return normalized.startsWith("awn-data/cms-base/mixins/");
 }
 
 function isAgentSystemRelPath(relPath) {

@@ -481,12 +481,12 @@ const projectSettingsGroupTabsNode = document.getElementById("project-settings-g
 const projectSettingsFieldsNode = document.getElementById("project-settings-fields");
 const projectSettingsEnvWrapNode = document.getElementById("project-settings-env-wrap");
 const projectSettingsEnvInputNode = document.getElementById("project-settings-env-input");
-const projectSettingsEnvOpenBtnNode = document.getElementById("project-settings-env-open-btn");
 const projectSettingsEnvSaveBtnNode = document.getElementById("project-settings-env-save-btn");
 const projectSettingsSaveBtnNode = document.getElementById("project-settings-save-btn");
 const projectSettingsEmptyNode = document.getElementById("project-settings-empty");
 const projectSettingsLoadingNode = document.getElementById("project-settings-loading");
 let projectSettingsLoadingSeq = 0;
+let projectSettingsBootstrapped = false;
 const docStackNode = document.querySelector(".content.doc-stack");
 const agentVaultPaneNode = document.getElementById("agent-vault-pane");
 const agentVaultSearchNode = document.getElementById("agent-vault-search");
@@ -16528,7 +16528,6 @@ function isOverviewDomainActive(mode = activeContentMode) {
 let activeContentMode = NODE_OPEN_MEMORY_MODE;
 let nodeSettingsViewActive = false;
 let projectSettingsScopePath = null;
-let projectSettingsEnvEditingOpen = false;
 let projectSettingsEnvSnapshot = null;
 let projectSettingsActiveGroupId = null;
 let projectSettingsScopeSearchQuery = "";
@@ -41755,6 +41754,29 @@ function collectProjectSettingsScopes() {
   return collectProjectSettingsManifestScopes();
 }
 
+function createProjectSettingsScopeMarker(kind, hasValue) {
+  const marker = document.createElement("span");
+  marker.className = "project-settings-scope-marker";
+  marker.classList.toggle("is-schema-kind", kind === "schema");
+  marker.classList.toggle("is-config-kind", kind === "config");
+  marker.classList.toggle("is-env-kind", kind === "env");
+  marker.classList.toggle("has-value", hasValue);
+  marker.title =
+    kind === "env"
+      ? hasValue
+        ? ".env — есть переменные"
+        : ".env — нет"
+      : kind === "schema"
+        ? hasValue
+          ? "schema.yml — есть поля"
+          : "schema.yml — нет"
+        : hasValue
+          ? "config.yml — есть значения"
+          : "config.yml — нет";
+  marker.setAttribute("aria-hidden", "true");
+  return marker;
+}
+
 function createProjectSettingsScopeBadge(kind, valueCount) {
   const badge = document.createElement("span");
   badge.className = "project-settings-scope-badge";
@@ -42000,7 +42022,7 @@ function renderProjectSettingsScopeList() {
   const activeScopePath = getNodeSettingsManifestPath();
   const groups = [
     { level: "global", label: "Глобальные настройки платформы", agentTabs: true },
-    { level: "settings-local", label: "Настройки хранилища", agentTabs: true },
+    { level: "settings-local", label: "Локальные настройки хранилища", agentTabs: true },
     { level: "workspace", label: "Workspace" },
     { level: "area", label: "Области" },
     { level: "topic", label: "Темы" },
@@ -42124,17 +42146,29 @@ function renderProjectSettingsScopeList() {
       btn.append(label);
 
       const showNodeMarkers = !["global", "settings-local"].includes(scope.level);
-      if (hasConfigValues || hasSchemaFields || hasEnvValues) {
-        const badges = document.createElement("span");
-        badges.className = "project-settings-scope-badges";
-        if (showNodeMarkers && hasSchemaFields) {
-          badges.append(createProjectSettingsScopeBadge("schema", schemaCount));
+      if (showNodeMarkers) {
+        const status = document.createElement("span");
+        status.className = "project-settings-scope-status";
+
+        const markers = document.createElement("span");
+        markers.className = "project-settings-scope-markers";
+        markers.append(
+          createProjectSettingsScopeMarker("schema", hasSchemaFields),
+          createProjectSettingsScopeMarker("config", hasConfigValues),
+          createProjectSettingsScopeMarker("env", hasEnvValues)
+        );
+        status.append(markers);
+
+        if (hasSchemaFields || hasConfigValues || hasEnvValues) {
+          const badges = document.createElement("span");
+          badges.className = "project-settings-scope-badges";
+          if (hasSchemaFields) badges.append(createProjectSettingsScopeBadge("schema", schemaCount));
+          if (hasConfigValues) badges.append(createProjectSettingsScopeBadge("config", configCount));
+          if (hasEnvValues) badges.append(createProjectSettingsScopeBadge("env", envCount));
+          status.append(badges);
         }
-        if (hasConfigValues) badges.append(createProjectSettingsScopeBadge("config", configCount));
-        if (showNodeMarkers && hasEnvValues) {
-          badges.append(createProjectSettingsScopeBadge("env", envCount));
-        }
-        btn.append(badges);
+
+        btn.append(status);
       }
 
       btn.addEventListener("click", () => {
@@ -42152,7 +42186,6 @@ async function selectProjectSettingsAgentSettingsTab(scopePath, groupId) {
   const sameScope = projectSettingsScopePath === normalized;
   projectSettingsScopePath = normalized;
   projectSettingsActiveGroupId = groupId;
-  projectSettingsEnvEditingOpen = false;
   projectSettingsEnvSnapshot = null;
   try {
     if (!sameScope || !getNodeSettingsCache()) {
@@ -42172,7 +42205,6 @@ async function selectProjectSettingsScope(scopePath, options = {}) {
   const normalized = normalizeMenuNodePath(scopePath);
   if (!normalized) return;
   projectSettingsScopePath = normalized;
-  projectSettingsEnvEditingOpen = false;
   projectSettingsEnvSnapshot = null;
   if (options.groupId) {
     projectSettingsActiveGroupId = options.groupId;
@@ -42184,10 +42216,7 @@ async function selectProjectSettingsScope(scopePath, options = {}) {
     projectSettingsActiveGroupId = null;
   }
   try {
-    await loadProjectSettingsContent({ force: true });
-    renderProjectSettingsPage();
-    commitEditorSaveBaseline();
-    updateBreadcrumbsForActiveMode();
+    await loadProjectSettingsContent({ force: Boolean(options.force) });
   } catch (error) {
     showToast(`Не удалось загрузить настройки: ${error.message}`, "error");
   }
@@ -42227,15 +42256,8 @@ function renderProjectSettingsEnvEditor(cache = getProjectSettingsEnvCache()) {
 }
 
 function syncProjectSettingsEnvEditorUi() {
-  const isEditing = Boolean(projectSettingsEnvEditingOpen);
-  projectSettingsEnvWrapNode?.classList.toggle("is-editing", isEditing);
-  projectSettingsEnvInputNode?.classList.toggle("hidden", !isEditing);
-  projectSettingsEnvOpenBtnNode?.classList.toggle("is-active", isEditing);
-  if (projectSettingsEnvOpenBtnNode) {
-    projectSettingsEnvOpenBtnNode.textContent = isEditing
-      ? "Редактирование открыто"
-      : "Открыть для редактирования";
-  }
+  projectSettingsEnvWrapNode?.classList.add("is-editing");
+  projectSettingsEnvInputNode?.classList.remove("hidden");
   syncProjectSettingsEnvSaveButtonState();
 }
 
@@ -42252,7 +42274,7 @@ function syncProjectSettingsEnvSaveButtonState() {
     projectSettingsEnvInputNode?.value ??
     "";
   const current = projectSettingsEnvInputNode?.value ?? "";
-  const dirty = projectSettingsEnvEditingOpen && current !== baseline;
+  const dirty = current !== baseline;
   projectSettingsEnvSaveBtnNode.disabled = !dirty;
   projectSettingsEnvSaveBtnNode.classList.toggle("is-dirty", dirty);
 }
@@ -42425,9 +42447,7 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   } else {
     projectSettingsPageNode?.querySelector(".project-settings-block--env")?.classList.remove("hidden");
     projectSettingsEnvWrapNode?.classList.remove("hidden");
-    projectSettingsEnvOpenBtnNode?.classList.remove("hidden");
     projectSettingsEnvSaveBtnNode?.classList.remove("hidden");
-    projectSettingsEnvEditingOpen = true;
     renderProjectSettingsEnvEditor(getProjectSettingsEnvCache());
     projectSettingsEnvSnapshot = getProjectSettingsEnvCache()?.content ?? "";
     syncProjectSettingsEnvEditorUi();
@@ -42474,6 +42494,7 @@ function hideProjectSettingsPageUi() {
 }
 
 function leaveProjectSettingsMode() {
+  projectSettingsBootstrapped = false;
   if (activeContentMode === PROJECT_SETTINGS_MODE) {
     activeContentMode = NODE_OPEN_MEMORY_MODE;
   }
@@ -42516,18 +42537,6 @@ async function saveProjectSettingsFormContent() {
   }
 }
 
-function openProjectSettingsEnvForEditing() {
-  const manifestPath = getNodeSettingsManifestPath();
-  if (!manifestPath || isProjectSettingsGlobalScope(manifestPath)) return;
-  projectSettingsEnvEditingOpen = true;
-  const cache = getProjectSettingsEnvCache();
-  if (projectSettingsEnvInputNode) {
-    projectSettingsEnvInputNode.value = cache?.content || "";
-  }
-  syncProjectSettingsEnvEditorUi();
-  projectSettingsEnvInputNode?.focus();
-}
-
 async function saveProjectSettingsEnvFormContent() {
   setSaveButtonsState(true, "Сохраняю...");
   let saveSucceeded = false;
@@ -42544,33 +42553,45 @@ async function saveProjectSettingsEnvFormContent() {
   }
 }
 
+async function bootstrapProjectSettingsData(options = {}) {
+  const force = Boolean(options.force);
+  await loadAwnTypes(activeAgentId);
+  await refreshMenuAwnDataStores(activeAgentId, { showLoading: false }).catch(() => {});
+  await Promise.all([
+    loadAgentSettingsSchemaBundle({ scope: "global", force }),
+    loadAgentSettingsSchemaBundle({ scope: "local", force })
+  ]).catch(() => {});
+  await refreshProjectSettingsScopeStatus(collectProjectSettingsManifestScopes()).catch(() => {});
+  projectSettingsBootstrapped = true;
+}
+
+async function loadProjectSettingsScopeData(options = {}) {
+  const force = Boolean(options.force);
+  const manifestPathForLoad = getNodeSettingsManifestPath();
+  if (!projectSettingsScopePath && manifestPathForLoad) {
+    projectSettingsScopePath = manifestPathForLoad;
+  }
+  if (isProjectSettingsIblockScope(manifestPathForLoad)) {
+    return null;
+  }
+  const [cache] = await Promise.all([
+    loadNodeSettingsForManifest(manifestPathForLoad, { force }),
+    loadProjectSettingsEnvForManifest(manifestPathForLoad, { force })
+  ]);
+  setProjectSettingsScopeStatusFromCache(manifestPathForLoad, cache);
+  return cache;
+}
+
 async function loadProjectSettingsContent(options = {}) {
-  showProjectSettingsLoading();
+  const showLoading = Boolean(options.showLoading);
+  const bootstrap = Boolean(options.bootstrap);
+  const force = Boolean(options.force);
+  if (showLoading) showProjectSettingsLoading();
   try {
-    await loadAwnTypes(activeAgentId);
-    const manifestPath = getNodeSettingsManifestPath();
-    if (!projectSettingsScopePath && manifestPath) {
-      projectSettingsScopePath = manifestPath;
+    if (bootstrap || !projectSettingsBootstrapped) {
+      await bootstrapProjectSettingsData({ force: bootstrap || force });
     }
-    await refreshMenuAwnDataStores(activeAgentId, { showLoading: false }).catch(() => {});
-    const force = Boolean(options.force);
-    await Promise.all([
-      loadAgentSettingsSchemaBundle({ scope: "global", force }),
-      loadAgentSettingsSchemaBundle({ scope: "local", force })
-    ]).catch(() => {});
-    await refreshProjectSettingsScopeStatus(collectProjectSettingsManifestScopes()).catch(() => {});
-    const manifestPathForLoad = getNodeSettingsManifestPath();
-    if (isProjectSettingsIblockScope(manifestPathForLoad)) {
-      applyProjectSettingsPageUi();
-      commitEditorSaveBaseline();
-      updateBreadcrumbsForActiveMode();
-      return;
-    }
-    const [cache] = await Promise.all([
-      loadNodeSettingsForManifest(manifestPathForLoad, { force }),
-      loadProjectSettingsEnvForManifest(manifestPathForLoad, { force })
-    ]);
-    setProjectSettingsScopeStatusFromCache(manifestPathForLoad, cache);
+    const cache = await loadProjectSettingsScopeData({ force });
     applyProjectSettingsPageUi(cache);
     commitEditorSaveBaseline();
     updateBreadcrumbsForActiveMode();
@@ -42583,7 +42604,7 @@ async function loadProjectSettingsContent(options = {}) {
     }
     updateBreadcrumbsForActiveMode();
   } finally {
-    hideProjectSettingsLoading({ force: true });
+    if (showLoading) hideProjectSettingsLoading({ force: true });
   }
 }
 
@@ -42621,14 +42642,13 @@ async function openProjectSettingsHub(options = {}) {
   showAgentHomeView();
   agentWorkspaceView = "project-settings";
   saveAgentWorkspaceView("project-settings");
-  showProjectSettingsLoading();
   applyAgentWorkspaceCanvasUi();
 
   updateActiveButton();
   if (!options.skipRouteSync) {
     syncAppRouteToUrl({ replace: !options.push, push: Boolean(options.push) });
   }
-  await loadProjectSettingsContent({ force: true });
+  await loadProjectSettingsContent({ force: true, bootstrap: true, showLoading: true });
 }
 
 async function openWorkspaceJournalModule(options = {}) {
@@ -42756,6 +42776,24 @@ function formatNodeSettingsFieldLabel(key, fieldDef) {
   return displayName || key || "Поле";
 }
 
+function resolveNodeSettingsFieldDescription(fieldDef) {
+  return String(fieldDef?.description || "").trim();
+}
+
+function createNodeSettingsFieldDescriptionNode(fieldDef) {
+  const text = resolveNodeSettingsFieldDescription(fieldDef);
+  if (!text) return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "node-config-field-description";
+
+  const paragraph = document.createElement("p");
+  paragraph.className = "node-config-field-description-text";
+  paragraph.textContent = text;
+  wrap.append(paragraph);
+  return wrap;
+}
+
 function createNodeSettingsFieldRow(entry, fieldDef) {
   const meta = getNodeSettingsFieldMeta(entry.key, fieldDef);
   const typeId = resolveFieldTypeId(fieldDef?.type || "awn.field.string");
@@ -42799,6 +42837,13 @@ function createNodeSettingsFieldRow(entry, fieldDef) {
   valueControl.classList.add("node-config-field-value");
 
   row.append(head, valueControl);
+
+  const descriptionNode = createNodeSettingsFieldDescriptionNode(fieldDef);
+  if (descriptionNode) {
+    row.classList.add("has-field-description");
+    row.append(descriptionNode);
+  }
+
   return row;
 }
 
@@ -99104,9 +99149,6 @@ function setupProjectSettingsScopeSearch() {
   });
   projectSettingsSaveBtnNode?.addEventListener("click", () => {
     void saveProjectSettingsFormContent();
-  });
-  projectSettingsEnvOpenBtnNode?.addEventListener("click", () => {
-    openProjectSettingsEnvForEditing();
   });
   projectSettingsEnvSaveBtnNode?.addEventListener("click", () => {
     void saveProjectSettingsEnvFormContent();

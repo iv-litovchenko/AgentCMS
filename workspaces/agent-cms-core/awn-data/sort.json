@@ -1,9 +1,7 @@
 [
-  "settings",
   "system-presets",
   "agent-registry",
   "taxonomies",
   "tasks",
-  "ui",
-  "settings-global"
+  "ui"
 ]

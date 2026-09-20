@@ -3323,15 +3323,16 @@
                   <section class="project-settings-block project-settings-block--env">
                     <h3 class="project-settings-block-title">.env</h3>
                     <p id="project-settings-env-lead" class="project-settings-block-lead"></p>
-                    <div id="project-settings-env-wrap" class="project-settings-env-wrap">
+                    <div id="project-settings-env-wrap" class="project-settings-env-wrap is-editing">
+                      <textarea
+                        id="project-settings-env-input"
+                        class="project-settings-env-input"
+                        spellcheck="false"
+                        autocomplete="off"
+                        aria-label="Содержимое .env"
+                        placeholder="KEY=value"
+                      ></textarea>
                       <div class="project-settings-actions project-settings-actions--env">
-                        <button
-                          type="button"
-                          id="project-settings-env-open-btn"
-                          class="project-settings-btn project-settings-btn--secondary"
-                        >
-                          Открыть для редактирования
-                        </button>
                         <button
                           type="button"
                           id="project-settings-env-save-btn"
@@ -3341,14 +3342,6 @@
                           Сохранить
                         </button>
                       </div>
-                      <textarea
-                        id="project-settings-env-input"
-                        class="project-settings-env-input hidden"
-                        spellcheck="false"
-                        autocomplete="off"
-                        aria-label="Содержимое .env"
-                        placeholder="KEY=value"
-                      ></textarea>
                     </div>
                   </section>
                 </div>
