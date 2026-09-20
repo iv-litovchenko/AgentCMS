@@ -11255,62 +11255,19 @@ body.app-locked {
 .agent-project-settings-pane .project-settings-page:not(.hidden) {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
   min-width: 0;
   width: 100%;
+  overflow: visible;
 }
 
 .agent-project-settings-pane .project-settings-head {
   display: none;
 }
 
-.agent-project-settings-pane.agent-canvas-pane {
-  overflow: hidden;
-}
-
 .agent-project-settings-pane .agent-project-settings-mount {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding-bottom: 12px;
-}
-
-.agent-project-settings-pane .project-settings-page:not(.hidden) {
-  overflow: hidden;
-}
-
-.agent-project-settings-pane .project-settings-layout {
-  flex: 1;
-  min-height: 0;
-  align-items: stretch;
-}
-
-.agent-project-settings-pane .project-settings-sidebar {
-  position: static;
-  align-self: stretch;
-  min-height: 0;
-  max-height: none;
-  overflow: hidden;
-}
-
-.agent-project-settings-pane .project-settings-search-wrap {
   flex: 0 0 auto;
-}
-
-.agent-project-settings-pane .project-settings-scope-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.agent-project-settings-pane .project-settings-main {
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: visible;
 }
 
 .agent-project-settings-mount {
@@ -25600,9 +25557,9 @@ a.header-tool-btn {
 .menu-workspace-section {
   margin: 0 0 10px;
   padding: 8px 8px 4px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #86efac;
   border-radius: 10px;
-  background: #eff6ff;
+  background: #f0fdf4;
 }
 
 .menu-workspace-head {
@@ -25613,7 +25570,7 @@ a.header-tool-btn {
 }
 
 .menu-workspace-head .menu-folder.menu-folder-agent-root {
-  color: #1e40af;
+  color: #166534;
   font-weight: 700;
 }
 
@@ -25628,9 +25585,9 @@ a.header-tool-btn {
 .menu-shared-section {
   margin: 0 0 10px;
   padding: 8px 8px 4px;
-  border: 1px solid #86efac;
+  border: 1px solid #bfdbfe;
   border-radius: 10px;
-  background: #f0fdf4;
+  background: #eff6ff;
 }
 
 .menu-shared-head {
@@ -25641,7 +25598,7 @@ a.header-tool-btn {
 }
 
 .menu-shared-head .menu-folder.menu-folder-shared-root {
-  color: #166534;
+  color: #1e40af;
   font-weight: 700;
 }
 
@@ -25649,7 +25606,7 @@ a.header-tool-btn {
   margin: 0;
   font-size: 13px;
   font-weight: 700;
-  color: #166534;
+  color: #1e40af;
 }
 
 .menu-shared-body,
@@ -56633,15 +56590,15 @@ body.is-cms-page-picker-active #discuss-aside * {
 .sidebar-slab-menu .menu-workspace-section {
   margin: 0 0 6px;
   padding: 2px 4px 2px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #86efac;
   border-radius: 8px;
-  background: #eff6ff;
+  background: #f0fdf4;
   box-sizing: border-box;
 }
 
 .sidebar-slab-menu .menu-workspace-head .menu-folder.menu-folder-agent-root,
 .sidebar-slab-menu .menu-workspace-head .menu-folder-name {
-  color: #1e40af;
+  color: #166534;
   font-weight: 700;
 }
 
@@ -56669,15 +56626,15 @@ body.is-cms-page-picker-active #discuss-aside * {
 .sidebar-slab-menu .menu-shared-section {
   margin: 0 0 6px;
   padding: 2px 4px 2px;
-  border: 1px solid #86efac;
+  border: 1px solid #bfdbfe;
   border-radius: 8px;
-  background: #f0fdf4;
+  background: #eff6ff;
   box-sizing: border-box;
 }
 
 .sidebar-slab-menu .menu-shared-head .menu-folder.menu-folder-shared-root,
 .sidebar-slab-menu .menu-shared-title {
-  color: #166534;
+  color: #1e40af;
   font-weight: 700;
 }
 
@@ -56724,19 +56681,6 @@ body.is-cms-page-picker-active #discuss-aside * {
   text-overflow: ellipsis;
 }
 
-.menu-awn-data-band-hint {
-  margin: 0;
-  padding: 5px 8px;
-  border: 1px solid rgba(196, 181, 253, 0.75);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.72);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.35;
-  color: #6d28d9;
-  box-sizing: border-box;
-}
-
 .menu-awn-data-band-head-actions {
   flex: 0 0 auto;
   display: inline-flex;
@@ -56746,7 +56690,8 @@ body.is-cms-page-picker-active #discuss-aside * {
   pointer-events: auto;
 }
 
-.menu-awn-data-band-head-actions .menu-refresh-btn {
+.menu-awn-data-band-head-actions .menu-refresh-btn,
+.menu-awn-data-band-head-actions .menu-band-help-btn {
   position: relative;
   z-index: 1;
   width: 22px;
@@ -56768,17 +56713,25 @@ body.is-cms-page-picker-active #discuss-aside * {
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.menu-awn-data-band-head-actions .menu-refresh-btn:hover:not(:disabled) {
+.menu-awn-data-band-head-actions .menu-band-help-btn {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.menu-awn-data-band-head-actions .menu-refresh-btn:hover:not(:disabled),
+.menu-awn-data-band-head-actions .menu-band-help-btn:hover:not(:disabled) {
   border-color: rgba(91, 33, 182, 0.48);
   background: rgba(255, 255, 255, 0.72);
   color: #6d28d9;
 }
 
-.menu-awn-data-band-head-actions .menu-refresh-btn:focus {
+.menu-awn-data-band-head-actions .menu-refresh-btn:focus,
+.menu-awn-data-band-head-actions .menu-band-help-btn:focus {
   outline: none;
 }
 
-.menu-awn-data-band-head-actions .menu-refresh-btn:focus-visible {
+.menu-awn-data-band-head-actions .menu-refresh-btn:focus-visible,
+.menu-awn-data-band-head-actions .menu-band-help-btn:focus-visible {
   box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.32);
 }
 
@@ -56865,23 +56818,6 @@ body.is-cms-page-picker-active #discuss-aside * {
   text-overflow: ellipsis;
 }
 
-.menu-repositories-band-hint {
-  margin: 0;
-  padding: 5px 8px;
-  border: 1px solid rgba(147, 197, 253, 0.75);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.72);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.35;
-  color: #1e40af;
-  box-sizing: border-box;
-}
-
-.menu-repositories-band-hint code {
-  font-size: 10px;
-}
-
 .menu-repositories-band-head-actions {
   flex: 0 0 auto;
   display: inline-flex;
@@ -56891,7 +56827,8 @@ body.is-cms-page-picker-active #discuss-aside * {
   pointer-events: auto;
 }
 
-.menu-repositories-band-head-actions .menu-refresh-btn {
+.menu-repositories-band-head-actions .menu-refresh-btn,
+.menu-repositories-band-head-actions .menu-band-help-btn {
   position: relative;
   z-index: 1;
   width: 22px;
@@ -56913,17 +56850,25 @@ body.is-cms-page-picker-active #discuss-aside * {
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.menu-repositories-band-head-actions .menu-refresh-btn:hover:not(:disabled) {
+.menu-repositories-band-head-actions .menu-band-help-btn {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.menu-repositories-band-head-actions .menu-refresh-btn:hover:not(:disabled),
+.menu-repositories-band-head-actions .menu-band-help-btn:hover:not(:disabled) {
   border-color: rgba(37, 99, 235, 0.48);
   background: rgba(255, 255, 255, 0.72);
   color: #2563eb;
 }
 
-.menu-repositories-band-head-actions .menu-refresh-btn:focus {
+.menu-repositories-band-head-actions .menu-refresh-btn:focus,
+.menu-repositories-band-head-actions .menu-band-help-btn:focus {
   outline: none;
 }
 
-.menu-repositories-band-head-actions .menu-refresh-btn:focus-visible {
+.menu-repositories-band-head-actions .menu-refresh-btn:focus-visible,
+.menu-repositories-band-head-actions .menu-band-help-btn:focus-visible {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.32);
 }
 
@@ -61969,7 +61914,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 .sidebar-slab-menu .menu-workspace-root-section {
   margin: 0 0 4px;
   padding: 0;
-  border-left: 2px solid #bfdbfe;
+  border-left: 2px solid #86efac;
   border-radius: 0;
   background: transparent;
   box-sizing: border-box;

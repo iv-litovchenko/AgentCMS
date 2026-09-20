@@ -16534,7 +16534,6 @@ let projectSettingsScopeFileFilters = {
   env: true
 };
 const projectSettingsEnvCacheByManifest = new Map();
-let projectSettingsLastRenderedManifestPath = null;
 let nodeMemoryViewActive = false;
 const WYSIWYG_EDITOR_ENABLED = true;
 let wysiwygEditorInstance = null;
@@ -23868,9 +23867,6 @@ function createMenuTreeTypeIcon(host) {
     icon.classList.add("menu-tree-type-icon--container");
     icon.textContent = "📦";
     return icon;
-  }
-  if (host.classList.contains("menu-folder-service-root")) {
-    return null;
   }
   if (host.classList.contains("menu-folder--adopt")) {
     icon.classList.add("menu-tree-type-icon--folder", "menu-tree-type-icon--folder-adopt");
@@ -42281,21 +42277,8 @@ function renderProjectSettingsAgentSettingsTabs(groupNode, groupSpec, activeScop
   }
 }
 
-function getProjectSettingsMainScrollNode() {
-  return projectSettingsPageNode?.querySelector(".project-settings-main") || null;
-}
-
-function resetProjectSettingsMainScroll() {
-  const main = getProjectSettingsMainScrollNode();
-  if (main) main.scrollTop = 0;
-}
-
-function resetProjectSettingsMainScrollIfScopeChanged() {
-  const manifestPath = getNodeSettingsManifestPath();
-  if (manifestPath !== projectSettingsLastRenderedManifestPath) {
-    resetProjectSettingsMainScroll();
-    projectSettingsLastRenderedManifestPath = manifestPath;
-  }
+function getProjectSettingsScrollContainer() {
+  return agentProjectSettingsPaneNode || null;
 }
 
 function patchProjectSettingsScopeListActiveState(activeScopePath = getNodeSettingsManifestPath()) {
@@ -42328,7 +42311,8 @@ function syncProjectSettingsScopeListUi(options = {}) {
 
 function renderProjectSettingsScopeList() {
   if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
-  const preservedScrollTop = projectSettingsScopeListNode.scrollTop;
+  const scrollContainer = getProjectSettingsScrollContainer();
+  const preservedScrollTop = scrollContainer?.scrollTop ?? 0;
   const focusedInList =
     document.activeElement instanceof HTMLElement &&
     projectSettingsScopeListNode.contains(document.activeElement);
@@ -42485,7 +42469,11 @@ function renderProjectSettingsScopeList() {
     }
     projectSettingsScopeListNode.appendChild(groupNode);
   }
-  projectSettingsScopeListNode.scrollTop = preservedScrollTop;
+  if (scrollContainer) {
+    requestAnimationFrame(() => {
+      scrollContainer.scrollTop = preservedScrollTop;
+    });
+  }
 }
 
 async function selectProjectSettingsAgentSettingsTab(scopePath, groupId) {
@@ -42756,7 +42744,6 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
         : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан.`;
     projectSettingsEnvLeadNode.innerHTML = `${envHint} Редактируйте ниже и нажмите «Сохранить».`;
   }
-  resetProjectSettingsMainScrollIfScopeChanged();
   syncProjectSettingsScopeListUi();
   projectSettingsFieldsNode?.classList.remove("hidden");
   renderNodeSettingsEditor(cache);
@@ -42815,7 +42802,6 @@ function hideProjectSettingsPageUi() {
 
 function leaveProjectSettingsMode() {
   projectSettingsBootstrapped = false;
-  projectSettingsLastRenderedManifestPath = null;
   if (activeContentMode === PROJECT_SETTINGS_MODE) {
     activeContentMode = NODE_OPEN_MEMORY_MODE;
   }
@@ -87247,7 +87233,7 @@ function renderSharedSection(sharedTree, parentEl, agentId = activeAgentId) {
     folderButton.className = "menu-folder menu-folder-shared-root";
     folderButton.dataset.path = normalizeMenuNodePath(sharedManifestPath);
     folderButton.title = SHARED_ROOT_HINT;
-    applyNodeColorVars(folderButton, treeToRender.color || "green", { isFolder: true });
+    applyNodeColorVars(folderButton, treeToRender.color || "blue", { isFolder: true });
     setMenuLabelWithMarkers(
       folderButton,
       sharedLabel,
