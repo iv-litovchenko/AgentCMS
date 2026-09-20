@@ -255,7 +255,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "rebuild_workspace_indexes",
-    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter (id-autoincrement.json). Same as UI pipeline button.",
+    "Rebuild workspace indexes: OCR (new attachments) → fulltext → semantic → field catalog → link graph → sync awn-id counter (settings.yml). Same as UI pipeline button.",
     z.object({
       forceOcr: z.boolean().optional().describe("Force OCR reprocessing before indexes"),
       ocrLimit: z.number().int().min(1).max(500).optional()
@@ -274,7 +274,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "resolve_workspace_id",
-    "Resolve workspace record path(s) by global awn-id (integer from id-autoincrement.json). Duplicate ids across records are allowed — returns paths[] when several match. Alternative: query_workspace_storage with where: [{ field: 'awn-id', eq: N }].",
+    "Resolve workspace record path(s) by global awn-id (integer from settings.yml counter). Duplicate ids across records are allowed — returns paths[] when several match. Alternative: query_workspace_storage with where: [{ field: 'awn-id', eq: N }].",
     z.object({
       id: z
         .union([z.number().int().positive(), z.string().min(1)])

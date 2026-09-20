@@ -6,6 +6,7 @@ const { AGENT_CMS_CORE_REL, getAgentCmsCoreAbsolute } = require("./platform-sour
 const {
   normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
+  normalizeUserAgentSettings,
   flattenAwnSettingsValues,
   parseWorkspaceAgentSettingsFromConfigContent
 } = require("./workspace-agent-settings");
@@ -13,13 +14,17 @@ const { loadTypeCatalog, toRecordTypeDef, resolveAgentSettingsRegistry } = requi
 
 const WORKSPACE_SETTINGS_FILE = "settings.yml";
 const GLOBAL_SETTINGS_FILE = "settings.global.yml";
+const USER_SETTINGS_REL_PATH = ".agent-cms/user-settings.yml";
 const PROJECT_SETTINGS_GLOBAL_SCOPE = "__global__";
 const PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE = "__workspace-settings__";
+const PROJECT_SETTINGS_USER_SETTINGS_SCOPE = "__user-settings__";
 
 const WORKSPACE_SETTINGS_HEADER =
   "# Agent CMS — настройки workspace (только это хранилище)\n";
 const GLOBAL_SETTINGS_HEADER =
   "# Agent CMS — глобальные настройки платформы (agent-cms-core)\n";
+const USER_SETTINGS_HEADER =
+  "# Agent CMS — пользовательские настройки (UI, дерево меню)\n";
 
 function getGlobalSettingsAbsolute(projectRoot) {
   return path.join(getAgentCmsCoreAbsolute(projectRoot), GLOBAL_SETTINGS_FILE);
@@ -29,6 +34,12 @@ function getWorkspaceSettingsAbsolute(agentRoot) {
   const root = String(agentRoot || "").trim();
   if (!root) return "";
   return path.join(root, WORKSPACE_SETTINGS_FILE);
+}
+
+function getUserSettingsAbsolute(agentRoot) {
+  const root = String(agentRoot || "").trim();
+  if (!root) return "";
+  return path.join(root, USER_SETTINGS_REL_PATH);
 }
 
 function parseSettingsFileContent(content) {
@@ -153,6 +164,12 @@ async function readWorkspaceSettingsFile(agentRoot) {
   return readFilePayload(absolutePath, relPath);
 }
 
+async function readUserSettingsFile(agentRoot) {
+  const absolutePath = getUserSettingsAbsolute(agentRoot);
+  const relPath = USER_SETTINGS_REL_PATH;
+  return readFilePayload(absolutePath, relPath);
+}
+
 async function readWorkspaceSettingsWithLegacyFallback(agentRoot, projectRoot) {
   const primary = await readWorkspaceSettingsFile(agentRoot);
   if (primary.exists) {
@@ -180,6 +197,35 @@ async function readWorkspaceSettingsWithLegacyFallback(agentRoot, projectRoot) {
   }
 
   return { ...primary, source: "none", manifestPath };
+}
+
+let platformSettingsPayloadCache = null;
+
+async function loadPlatformSettingsPayload(projectRoot = process.cwd()) {
+  const globalFile = await readGlobalSettingsFile(projectRoot);
+  const parsed = parseSettingsFileContent(globalFile.content || "");
+  return {
+    settings: normalizePlatformAgentSettings(parsed.awn_settings),
+    awn_policy: parsed.awn_policy,
+    exists: Boolean(globalFile.exists),
+    path: globalFile.path
+  };
+}
+
+async function getPlatformSettingsPayload(projectRoot = process.cwd()) {
+  if (!platformSettingsPayloadCache) {
+    platformSettingsPayloadCache = await loadPlatformSettingsPayload(projectRoot);
+  }
+  return platformSettingsPayloadCache;
+}
+
+async function getPlatformSettings(projectRoot = process.cwd()) {
+  const payload = await getPlatformSettingsPayload(projectRoot);
+  return payload.settings;
+}
+
+function invalidatePlatformSettingsCache() {
+  platformSettingsPayloadCache = null;
 }
 
 async function getEffectiveWorkspaceSettings(agentRoot, projectRoot) {
@@ -253,6 +299,19 @@ async function writeGlobalSettingsFile(projectRoot, content) {
   };
 }
 
+async function writeUserSettingsFile(agentRoot, content) {
+  const absolutePath = getUserSettingsAbsolute(agentRoot);
+  if (!absolutePath) throw new Error("Agent root not set");
+  await fs.promises.mkdir(path.dirname(absolutePath), { recursive: true });
+  await fs.promises.writeFile(absolutePath, content, "utf-8");
+  return {
+    path: USER_SETTINGS_REL_PATH,
+    absolutePath,
+    exists: true,
+    content
+  };
+}
+
 function countSettingsValues(awnSettings = {}) {
   const flat = flattenAwnSettingsValues(awnSettings);
   return Object.keys(flat).filter((key) => {
@@ -267,8 +326,13 @@ function isProjectSettingsGlobalScope(scopePath) {
   return String(scopePath || "").trim() === PROJECT_SETTINGS_GLOBAL_SCOPE;
 }
 
+function isProjectSettingsUserSettingsScope(scopePath) {
+  return String(scopePath || "").trim() === PROJECT_SETTINGS_USER_SETTINGS_SCOPE;
+}
+
 const PLATFORM_SETTINGS_TYPE_ID = "awn.settings.platform";
 const WORKSPACE_SETTINGS_TYPE_ID = "awn.settings.workspace";
+const USER_SETTINGS_TYPE_ID = "awn.settings.user";
 /** @deprecated use PLATFORM_SETTINGS_TYPE_ID */
 const AGENT_SETTINGS_GLOBAL_TYPE_ID = PLATFORM_SETTINGS_TYPE_ID;
 /** @deprecated use WORKSPACE_SETTINGS_TYPE_ID */
@@ -277,12 +341,18 @@ const AGENT_SETTINGS_LOCAL_TYPE_ID = WORKSPACE_SETTINGS_TYPE_ID;
 function resolveSettingsScopeKey(scope = "workspace") {
   const normalized = String(scope || "").trim().toLowerCase();
   if (normalized === "global" || normalized === "platform") return "platform";
+  if (normalized === "user") return "user";
   return "workspace";
 }
 
 function isPlatformSettingsTypeId(typeId) {
   const id = String(typeId || "").trim();
   return id === PLATFORM_SETTINGS_TYPE_ID || id === "agent.settings.global";
+}
+
+function isUserSettingsTypeId(typeId) {
+  const id = String(typeId || "").trim();
+  return id === USER_SETTINGS_TYPE_ID || id === "agent.settings.user";
 }
 
 function getAgentSettingsRegistry(projectRoot) {
@@ -294,7 +364,8 @@ function normalizeAgentSettingsFieldGroups(fieldGroups = []) {
     .filter((group) => group && group.id)
     .map((group) => ({
       id: String(group.id),
-      name: group.name || group.title || group.id
+      name: group.name || group.title || group.id,
+      description: String(group.description || "").trim()
     }));
 }
 
@@ -304,17 +375,20 @@ function resolveAgentSettingsTypeId(scope = "workspace", projectRoot = process.c
   const entry = registry.schema[scopeKey];
   const typeId = String(entry?.type || "").trim();
   if (typeId) return typeId;
-  return scopeKey === "platform" ? PLATFORM_SETTINGS_TYPE_ID : WORKSPACE_SETTINGS_TYPE_ID;
+  if (scopeKey === "platform") return PLATFORM_SETTINGS_TYPE_ID;
+  if (scopeKey === "user") return USER_SETTINGS_TYPE_ID;
+  return WORKSPACE_SETTINGS_TYPE_ID;
 }
 
 function buildAgentSettingsSchemaPayloadFromType(typeId, byId, projectRoot = process.cwd()) {
   const isPlatform = isPlatformSettingsTypeId(typeId);
+  const isUser = isUserSettingsTypeId(typeId);
   const entry = byId.get(typeId);
   if (!entry) {
     return {
       type: typeId,
-      scope: isPlatform ? "global" : "local",
-      name: isPlatform ? "Настройки платформы" : "Настройки workspace",
+      scope: isPlatform ? "global" : isUser ? "user" : "local",
+      name: isPlatform ? "Настройки платформы" : isUser ? "Пользовательские настройки" : "Настройки workspace",
       fieldGroups: [],
       fields: {}
     };
@@ -341,10 +415,12 @@ function buildAgentSettingsSchemaPayloadFromType(typeId, byId, projectRoot = pro
   }
   return {
     type: typeId,
-    scope: isPlatform ? "global" : "local",
+    scope: isPlatform ? "global" : isUser ? "user" : "local",
     name: typeDef.name || typeId,
     description: schema.description || typeDef.description || "",
-    valuesFile: schema.valuesFile || (isPlatform ? GLOBAL_SETTINGS_FILE : WORKSPACE_SETTINGS_FILE),
+    valuesFile:
+      schema.valuesFile ||
+      (isPlatform ? GLOBAL_SETTINGS_FILE : isUser ? USER_SETTINGS_REL_PATH : WORKSPACE_SETTINGS_FILE),
     consumer: Array.isArray(schema.consumer) ? schema.consumer : [],
     fieldGroups: normalizeAgentSettingsFieldGroups(typeDef.fieldGroups || schema.fieldGroups),
     fields
@@ -363,33 +439,134 @@ function getAgentSettingsSchemaPayload(agentRoot, projectRoot, scope = "workspac
   return payload;
 }
 
+async function buildPlatformSettingsMeta(projectRoot = process.cwd(), agentRoot = "") {
+  const coreRoot = getAgentCmsCoreAbsolute(projectRoot);
+  const settingsRegistry = getAgentSettingsRegistry(coreRoot);
+  const { byId } = loadTypeCatalog(projectRoot, agentRoot);
+  let registryDoc = {};
+  try {
+    const registryPath = path.join(coreRoot, "awn-system", "registry.yml");
+    const content = await fs.promises.readFile(registryPath, "utf-8");
+    registryDoc = parseTypeYaml(content) || {};
+  } catch {
+    registryDoc = {};
+  }
+  let cmsVersion = "";
+  try {
+    cmsVersion = String(require(path.join(projectRoot, "package.json")).version || "").trim();
+  } catch {
+    cmsVersion = "";
+  }
+  const settingsTypes = Object.fromEntries(
+    Object.entries(settingsRegistry.schema || {}).map(([key, entry]) => [
+      key,
+      { type: entry?.type || "", path: entry?.path || "" }
+    ])
+  );
+  return {
+    cmsVersion,
+    registryVersion: Number(registryDoc.version) || 1,
+    registryMode: String(registryDoc.mode || "").trim(),
+    registryAgent: String(registryDoc.agent || "").trim(),
+    registryMigrationDate: String(registryDoc["migration-date"] || registryDoc.migrationDate || "").trim(),
+    canonicalTypes: String(registryDoc["canonical-types"] || "").trim(),
+    nodeVersion: process.version,
+    platformOs: process.platform,
+    corePath: AGENT_CMS_CORE_REL.replace(/\\/g, "/"),
+    settingsPath: path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), GLOBAL_SETTINGS_FILE),
+    registryPath: path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), "awn-system/registry.yml"),
+    docsMap: String(registryDoc.docs?.map || "GLOBAL_MCP_DOC.md").trim(),
+    typeCatalogCount: byId.size,
+    settingsScopes: settingsTypes,
+    systemInfo: [
+      { key: "cms-version", label: "Версия CMS", value: cmsVersion || "—" },
+      { key: "registry-version", label: "Версия registry.yml", value: String(Number(registryDoc.version) || 1) },
+      {
+        key: "registry-mode",
+        label: "Режим registry",
+        value: String(registryDoc.mode || "—").trim() || "—"
+      },
+      {
+        key: "registry-migration-date",
+        label: "Дата миграции типов",
+        value: String(registryDoc["migration-date"] || registryDoc.migrationDate || "—").trim() || "—"
+      },
+      { key: "node-version", label: "Node.js", value: process.version },
+      { key: "platform-os", label: "ОС сервера", value: process.platform },
+      {
+        key: "core-path",
+        label: "Каталог ядра",
+        value: AGENT_CMS_CORE_REL.replace(/\\/g, "/")
+      },
+      {
+        key: "type-catalog-count",
+        label: "Типов в каталоге",
+        value: String(byId.size)
+      },
+      {
+        key: "settings-global-path",
+        label: "Файл platform values",
+        value: path.posix.join(AGENT_CMS_CORE_REL.replace(/\\/g, "/"), GLOBAL_SETTINGS_FILE)
+      }
+    ],
+    enforcedFields: [
+      "maintenance-mode",
+      "default-locale",
+      "mcp-mode",
+      "batch-enabled",
+      "batch-read-limit",
+      "batch-write-limit",
+      "read-text-max-bytes",
+      "read-binary-max-bytes",
+      "index-semantic-enabled",
+      "index-fulltext-enabled",
+      "index-storage-enabled",
+      "index-links-enabled"
+    ],
+    registryNote:
+      "Типы в awn-system/types/ — справочник схем. Редактируются в коде платформы, не через форму настроек."
+  };
+}
+
 module.exports = {
   WORKSPACE_SETTINGS_FILE,
   GLOBAL_SETTINGS_FILE,
+  USER_SETTINGS_REL_PATH,
   PROJECT_SETTINGS_GLOBAL_SCOPE,
   PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE,
+  PROJECT_SETTINGS_USER_SETTINGS_SCOPE,
   WORKSPACE_SETTINGS_HEADER,
   GLOBAL_SETTINGS_HEADER,
+  USER_SETTINGS_HEADER,
   getGlobalSettingsAbsolute,
   getWorkspaceSettingsAbsolute,
+  getUserSettingsAbsolute,
   parseSettingsFileContent,
   extractAwnPolicyFromParsed,
   composeSettingsFileContent,
   composeGlobalSettingsFileContent,
   readGlobalSettingsFile,
   readWorkspaceSettingsFile,
+  readUserSettingsFile,
   readWorkspaceSettingsWithLegacyFallback,
   getEffectiveWorkspaceSettings,
   writeWorkspaceSettingsFile,
   writeGlobalSettingsFile,
+  writeUserSettingsFile,
   countSettingsValues,
   isProjectSettingsGlobalScope,
+  isProjectSettingsUserSettingsScope,
   PLATFORM_SETTINGS_TYPE_ID,
   WORKSPACE_SETTINGS_TYPE_ID,
+  USER_SETTINGS_TYPE_ID,
   AGENT_SETTINGS_GLOBAL_TYPE_ID,
   AGENT_SETTINGS_LOCAL_TYPE_ID,
   resolveSettingsScopeKey,
   resolveAgentSettingsTypeId,
   getAgentSettingsRegistry,
-  getAgentSettingsSchemaPayload
+  getAgentSettingsSchemaPayload,
+  getPlatformSettings,
+  getPlatformSettingsPayload,
+  invalidatePlatformSettingsCache,
+  buildPlatformSettingsMeta
 };

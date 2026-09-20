@@ -1,0 +1,71 @@
+id: awn.settings.user
+name: Пользовательские настройки
+kind: type
+domain: settings
+status: active
+extends: awn.settings.base
+description: >
+  UI и дерево меню для текущего пользователя в этом workspace (аналог uc в TYPO3).
+  Значения — .agent-cms/user-settings.yml. Не влияют на MCP-политику.
+scope: user
+enabled: true
+consumer: [ui]
+valuesFile: .agent-cms/user-settings.yml
+
+fieldGroups:
+  - id: tree
+    name: Настройки дерева
+    description: Отображение дерева меню — пустые папки, активные темы, глубина раскрытия (.agent-cms/user-settings.yml).
+  - id: ui
+    name: Интерфейс
+    description: Персональные параметры UI — ширина сайдбара и закреплённая ветка меню.
+
+fields:
+
+  tree-show-empty-folders:
+    type: awn.field.boolean
+    title: Показывать свободную память
+    description: Пустые папки и «свободная память» в дереве меню
+    default: true
+    group: tree
+    sort: 1
+
+  tree-active-topics-only:
+    type: awn.field.boolean
+    title: Выводить только активные темы
+    description: Скрывать темы со статусом не «активна»
+    default: false
+    group: tree
+    sort: 2
+
+  tree-pad-sort-indexes:
+    type: awn.field.boolean
+    title: Добавлять ведущие нули к названиям
+    description: При сортировке sort.json — префиксы 001, 002…
+    default: false
+    group: tree
+    sort: 3
+
+  tree-max-depth:
+    type: awn.field.number.integer
+    title: Макс. уровень загрузки
+    description: Глубина раскрытия дерева меню (1–12)
+    default: 7
+    group: tree
+    sort: 4
+
+  sidebar-width:
+    type: awn.field.number.integer
+    title: Ширина боковой панели
+    description: Пиксели (200–520). Синхронизируется с кнопками +/- в меню.
+    default: 280
+    group: ui
+    sort: 10
+
+  pinned-branch-path:
+    type: awn.field.string
+    title: Закреплённая ветка
+    description: Путь папки в дереве (folderPath), как при pin в меню
+    default: ""
+    group: ui
+    sort: 11

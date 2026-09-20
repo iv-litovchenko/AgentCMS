@@ -483,6 +483,7 @@ const projectSettingsEnvWrapNode = document.getElementById("project-settings-env
 const projectSettingsEnvInputNode = document.getElementById("project-settings-env-input");
 const projectSettingsEnvSaveBtnNode = document.getElementById("project-settings-env-save-btn");
 const projectSettingsSaveBtnNode = document.getElementById("project-settings-save-btn");
+const projectSettingsRefreshBtnNode = document.getElementById("project-settings-refresh-btn");
 const projectSettingsEmptyNode = document.getElementById("project-settings-empty");
 const projectSettingsLoadingNode = document.getElementById("project-settings-loading");
 let projectSettingsLoadingSeq = 0;
@@ -1476,14 +1477,6 @@ const SYSTEM_FILE_SCAFFOLD_FALLBACK = [
   { name: "ONBOARDING.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "SKILL.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: "awn-dependencies.json", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
-  {
-    name: "id-autoincrement.json",
-    exists: false,
-    empty: true,
-    group: "config",
-    openMode: "system",
-    scaffold: true
-  },
   { name: "docker-compose.yml", exists: false, empty: true, group: "config", openMode: "system", scaffold: true },
   { name: "README.md", exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
   { name: ROOT_SYSTEM_NOTE_FILE, exists: false, empty: true, group: "md", openMode: "system", scaffold: true },
@@ -5733,13 +5726,14 @@ function getSystemFileHintSpec(name) {
       example: RECOMMENDED_AGENT_ENV_TEMPLATE
     };
   }
-  if (normalized === "id-autoincrement.json") {
+  if (normalized === "settings.yml") {
     return {
-      title: "Счётчик awn-id",
+      title: "Настройки workspace",
       text:
-        "Глобальный автоинкремент для поля <code>awn-id</code> в frontmatter записей. " +
-        "Создаётся автоматически при первом id; дубликаты id между записями допустимы — при необходимости меняйте в свойствах записи.",
-      example: '{\n  "next": 1,\n  "issued": 0,\n  "updatedAt": null,\n  "model": "workspace-id-autoincrement-v1"\n}'
+        "Параметры хранилища, в том числе счётчик <code>awn-id</code> (группа «Автоинкремент» в настройках проекта). " +
+        "Дубликаты id между записями допустимы — при необходимости меняйте в свойствах записи.",
+      example:
+        "awn_settings:\n  awn-id-next: 1\n  awn-id-issued: 0\n  awn-id-updated-at: \"2026-01-01T00:00:00.000Z\"\n  awn-id-model: workspace-id-autoincrement-v1"
     };
   }
   if (normalized === "SKILL.md") {
@@ -12739,6 +12733,7 @@ async function switchActiveAgent(nextAgentId) {
     showHomeView();
     renderAgentSelect();
     syncIdentityToolbarAvatars(activeAgentId);
+    await loadUserSettingsForAgent(nextAgentId).catch(() => {});
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
     closeMenuSettingsPopover();
@@ -14752,6 +14747,7 @@ const NODE_OPEN_MEMORY_MODE = "internal";
 const PROJECT_SETTINGS_MODE = "project-settings";
 const PROJECT_SETTINGS_GLOBAL_SCOPE = "__global__";
 const PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE = "__workspace-settings__";
+const PROJECT_SETTINGS_USER_SETTINGS_SCOPE = "__user-settings__";
 const PROJECT_SETTINGS_IBLOCK_SCOPE_PREFIX = "__iblock__:";
 const ENTRY_OVERVIEW_OCR_ENABLED = false;
 const PROJECT_SETTINGS_CHPU_SEGMENT = "настройки";
@@ -18155,6 +18151,7 @@ function saveSidebarWidth() {
   } catch {
     // Ignore storage write issues (private mode, quota, etc.)
   }
+  scheduleUserSettingsPersist(activeAgentId);
 }
 
 function syncSidebarWidthControls() {
@@ -18354,11 +18351,12 @@ function getPinnedMenuFolder(agentId = activeAgentId) {
   return pinnedMenuFolderByAgent[agentId] || null;
 }
 
-function setPinnedMenuFolder(folderPath, agentId = activeAgentId) {
+function setPinnedMenuFolder(folderPath, agentId = activeAgentId, options = {}) {
   const normalized = folderPath ? normalizeFolderPath(folderPath) : null;
   if (normalized) pinnedMenuFolderByAgent[agentId] = normalized;
   else delete pinnedMenuFolderByAgent[agentId];
   savePinnedMenuFoldersByAgent();
+  if (!options.skipPersist) scheduleUserSettingsPersist(agentId);
 }
 
 function isFolderInPinnedBranch(folderPath, pinnedPath) {
@@ -18898,6 +18896,33 @@ function normalizeMenuTreeMaxDepth(value) {
   return Math.min(MENU_TREE_MAX_DEPTH_MAX, Math.max(MENU_TREE_MAX_DEPTH_MIN, Math.floor(parsed)));
 }
 
+function menuTreeSettingsFromUserAwnSettings(awnSettings = {}) {
+  const flat = awnSettings && typeof awnSettings === "object" ? awnSettings : {};
+  return {
+    showEmptyFolders: flat["tree-show-empty-folders"] !== false,
+    showActiveTopicsOnly: Boolean(flat["tree-active-topics-only"]),
+    padSortIndexes: Boolean(flat["tree-pad-sort-indexes"]),
+    maxDepth: normalizeMenuTreeMaxDepth(flat["tree-max-depth"] ?? MENU_TREE_MAX_DEPTH_DEFAULT)
+  };
+}
+
+function userAwnSettingsFromMenuTreeSettings(settings = {}) {
+  return {
+    "tree-show-empty-folders": settings.showEmptyFolders !== false,
+    "tree-active-topics-only": Boolean(settings.showActiveTopicsOnly),
+    "tree-pad-sort-indexes": Boolean(settings.padSortIndexes),
+    "tree-max-depth": normalizeMenuTreeMaxDepth(settings.maxDepth ?? MENU_TREE_MAX_DEPTH_DEFAULT)
+  };
+}
+
+function getUserAwnSettingsSnapshot(agentId = activeAgentId) {
+  return {
+    ...userAwnSettingsFromMenuTreeSettings(getMenuTreeSettings(agentId)),
+    "sidebar-width": sidebarWidth,
+    "pinned-branch-path": getPinnedMenuFolder(agentId) || ""
+  };
+}
+
 function getMenuTreeSettings(agentId = activeAgentId) {
   const stored = menuTreeSettingsByAgent[agentId] || {};
   return {
@@ -18908,6 +18933,75 @@ function getMenuTreeSettings(agentId = activeAgentId) {
   };
 }
 
+let userSettingsPersistTimer = null;
+
+async function loadUserSettingsForAgent(agentId = activeAgentId) {
+  if (!agentId) return null;
+  try {
+    const response = await fetch(buildApiUrl("/api/user/settings"));
+    if (!response.ok) return null;
+    const data = await response.json();
+    applyUserSettingsFromNormalized(data.settings || {}, agentId);
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function persistUserSettingsToFile(agentId = activeAgentId) {
+  if (!agentId) return;
+  const snapshot = getUserAwnSettingsSnapshot(agentId);
+  const content = buildSettingsYamlFromState({
+    headerComment: "# Agent CMS — пользовательские настройки (UI, дерево меню)",
+    entries: Object.entries(snapshot).map(([key, value]) => ({
+      key,
+      kind: typeof value === "boolean" ? "boolean" : typeof value === "number" ? "number" : "string",
+      value
+    }))
+  });
+  await fetch(buildApiUrl("/api/user/settings"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content })
+  });
+}
+
+function scheduleUserSettingsPersist(agentId = activeAgentId) {
+  clearTimeout(userSettingsPersistTimer);
+  userSettingsPersistTimer = setTimeout(() => {
+    void persistUserSettingsToFile(agentId).catch(() => {});
+  }, 500);
+}
+
+function applyUserSettingsFromNormalized(settings = {}, agentId = activeAgentId) {
+  menuTreeSettingsByAgent[agentId] = menuTreeSettingsFromUserAwnSettings(settings);
+  const width = Number(settings["sidebar-width"]);
+  if (Number.isFinite(width) && width > 0) {
+    applySidebarWidth(width);
+    try {
+      localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clampSidebarWidth(width)));
+    } catch {
+      // ignore storage errors
+    }
+  }
+  const pinned = String(settings["pinned-branch-path"] || "").trim();
+  setPinnedMenuFolder(pinned || null, agentId, { skipPersist: true });
+  try {
+    localStorage.setItem(MENU_TREE_SETTINGS_STORAGE_KEY, JSON.stringify(menuTreeSettingsByAgent));
+    localStorage.setItem(PINNED_MENU_FOLDER_STORAGE_KEY, JSON.stringify(pinnedMenuFolderByAgent));
+  } catch {
+    // ignore storage errors
+  }
+  applyMenuTreeSettingsUi(agentId);
+  if (agentId === activeAgentId) {
+    const menu = menuCacheByAgent.get(agentId) || currentMenuData;
+    if (menu) {
+      withPreservedMenuScroll(() => renderMenu(menu, agentId, { menuOnly: true }));
+      updateActiveButton();
+    }
+  }
+}
+
 function saveMenuTreeSettings(agentId, patch) {
   const current = getMenuTreeSettings(agentId);
   menuTreeSettingsByAgent[agentId] = { ...current, ...patch };
@@ -18916,6 +19010,60 @@ function saveMenuTreeSettings(agentId, patch) {
   } catch {
     // ignore storage errors
   }
+  scheduleUserSettingsPersist(agentId);
+}
+
+let platformUiSettings = { maintenanceMode: false, defaultLocale: "ru" };
+
+function applyPlatformDefaultLocale(locale = "ru") {
+  const normalized = String(locale || "ru").trim().toLowerCase() === "en" ? "en" : "ru";
+  document.documentElement.lang = normalized;
+  platformUiSettings.defaultLocale = normalized;
+}
+
+function syncPlatformMaintenanceUi() {
+  const existing = document.getElementById("platform-maintenance-overlay");
+  if (!platformUiSettings.maintenanceMode) {
+    existing?.remove();
+    return;
+  }
+  if (existing) return;
+  const overlay = document.createElement("div");
+  overlay.id = "platform-maintenance-overlay";
+  overlay.className = "platform-maintenance-overlay";
+  overlay.innerHTML = `
+    <div class="platform-maintenance-card">
+      <h2>Режим обслуживания</h2>
+      <p>Платформа временно недоступна. Откройте <strong>Глобальные настройки платформы</strong> и снимите <code>maintenance-mode</code>.</p>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function loadPlatformUiSettings() {
+  try {
+    const response = await fetch(buildApiUrl("/api/platform/settings-global"));
+    if (!response.ok) return;
+    const data = await response.json();
+    platformUiSettings = {
+      maintenanceMode: Boolean(data.settings?.["maintenance-mode"]),
+      defaultLocale: data.settings?.["default-locale"] === "en" ? "en" : "ru"
+    };
+    applyPlatformDefaultLocale(platformUiSettings.defaultLocale);
+    syncPlatformMaintenanceUi();
+  } catch {
+    // ignore
+  }
+}
+
+function applyUserSettingsFromCache(cache = getNodeSettingsCache()) {
+  if (!cache || cache.settingsScope !== "user") return;
+  const entries = cache.entries || [];
+  const awnSettings = {};
+  for (const entry of entries) {
+    if (!entry?.key) continue;
+    awnSettings[entry.key] = entry.value;
+  }
+  applyUserSettingsFromNormalized(awnSettings, activeAgentId);
 }
 
 function loadAgentGraphSettingsByAgent() {
@@ -22212,7 +22360,8 @@ function isNodeSettingsTargetPath(nodePath) {
   return (
     isNodeMdPath(normalized) ||
     normalized === PROJECT_SETTINGS_GLOBAL_SCOPE ||
-    normalized === PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE
+    normalized === PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE ||
+    normalized === PROJECT_SETTINGS_USER_SETTINGS_SCOPE
   );
 }
 
@@ -22222,6 +22371,10 @@ function isProjectSettingsGlobalScope(scopePath = getNodeSettingsManifestPath())
 
 function isProjectSettingsWorkspaceSettingsScope(scopePath = getNodeSettingsManifestPath()) {
   return String(scopePath || "").trim() === PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
+}
+
+function isProjectSettingsUserSettingsScope(scopePath = getNodeSettingsManifestPath()) {
+  return String(scopePath || "").trim() === PROJECT_SETTINGS_USER_SETTINGS_SCOPE;
 }
 
 function isProjectSettingsLocalScope(scopePath = getNodeSettingsManifestPath()) {
@@ -22234,7 +22387,11 @@ function isProjectSettingsWorkspaceRootScope(scopePath = getNodeSettingsManifest
 
 function isProjectSettingsAgentSettingsScope(scopePath = getNodeSettingsManifestPath()) {
   if (!isProjectSettingsMode()) return false;
-  return isProjectSettingsGlobalScope(scopePath) || isProjectSettingsLocalScope(scopePath);
+  return (
+    isProjectSettingsGlobalScope(scopePath) ||
+    isProjectSettingsLocalScope(scopePath) ||
+    isProjectSettingsUserSettingsScope(scopePath)
+  );
 }
 
 function buildProjectSettingsIblockScopePath(storeRel) {
@@ -22317,11 +22474,19 @@ function getProjectSettingsValuesFileLabel(scope = null) {
   ) {
     return "settings.yml";
   }
+  if (
+    activeScope?.level === "settings-user" ||
+    isProjectSettingsUserSettingsScope(getNodeSettingsManifestPath())
+  ) {
+    return ".agent-cms/user-settings.yml";
+  }
   return "config.yml";
 }
 
 function getProjectSettingsAgentSchemaScopeKey(scopePath = getNodeSettingsManifestPath()) {
-  return isProjectSettingsGlobalScope(scopePath) ? "global" : "local";
+  if (isProjectSettingsGlobalScope(scopePath)) return "global";
+  if (isProjectSettingsUserSettingsScope(scopePath)) return "user";
+  return "local";
 }
 
 function getProjectSettingsAgentFieldGroups(scopeKey = "global") {
@@ -22343,7 +22508,9 @@ function countProjectSettingsAgentGroupSettings(scopePath, groupId) {
   const scopeKey = getProjectSettingsAgentSchemaScopeKey(scopePath);
   const schemaFields = agentSettingsSchemaCacheByScope.get(scopeKey)?.settingsFields || {};
   const keysInGroup = Object.keys(schemaFields).filter(
-    (key) => resolvePropsFieldGroupId(key, schemaFields[key]) === groupId
+    (key) =>
+      resolvePropsFieldGroupId(key, schemaFields[key]) === groupId &&
+      !isProjectSettingsReadonlyField(schemaFields[key])
   );
   if (!keysInGroup.length) return 0;
   const settingsCache = nodeSettingsCacheByManifest.get(scopePath);
@@ -41375,7 +41542,9 @@ const agentSettingsSchemaCacheByScope = new Map();
 const agentSettingsSchemaLoadPromises = new Map();
 
 function resolveAgentSettingsSchemaScope(manifestPath = getNodeSettingsManifestPath()) {
-  return isProjectSettingsGlobalScope(manifestPath) ? "global" : "local";
+  if (isProjectSettingsGlobalScope(manifestPath)) return "global";
+  if (isProjectSettingsUserSettingsScope(manifestPath)) return "user";
+  return "local";
 }
 
 async function loadAgentSettingsSchemaBundle(options = {}) {
@@ -41393,7 +41562,13 @@ async function loadAgentSettingsSchemaBundle(options = {}) {
       const data = await response.json();
       const payload = {
         scope,
-        typeId: data.type || (scope === "global" ? "awn.settings.platform" : "awn.settings.workspace"),
+        typeId:
+          data.type ||
+          (scope === "global"
+            ? "awn.settings.platform"
+            : scope === "user"
+              ? "awn.settings.user"
+              : "awn.settings.workspace"),
         settingsFields: mergeAgentSettingsSchemaFields(data.fields || {}),
         settingsFieldGroups: Array.isArray(data.fieldGroups) ? data.fieldGroups : []
       };
@@ -41401,7 +41576,12 @@ async function loadAgentSettingsSchemaBundle(options = {}) {
       return payload;
     }
     if (!awnTypesCache?.types) await loadAwnTypes(activeAgentId);
-    const typeId = scope === "global" ? "awn.settings.platform" : "awn.settings.workspace";
+    const typeId =
+      scope === "global"
+        ? "awn.settings.platform"
+        : scope === "user"
+          ? "awn.settings.user"
+          : "awn.settings.workspace";
     const typeDef = mergeClientTypeDefinition(typeId);
     const payload = {
       scope,
@@ -41435,6 +41615,42 @@ function resolveNodeSettingsGroupLabel(groupId, fieldGroups = []) {
   if (hit?.name) return hit.name;
   if (hit?.title) return hit.title;
   return groupId;
+}
+
+function resolveProjectSettingsGroupDescription(groupId, fieldGroups = []) {
+  const hit = (fieldGroups || []).find((group) => group && group.id === groupId);
+  return String(hit?.description || "").trim();
+}
+
+function createProjectSettingsGroupDescriptionLead(text) {
+  const normalized = String(text || "").trim();
+  if (!normalized) return null;
+  const node = document.createElement("p");
+  node.className = "project-settings-group-description-lead";
+  node.textContent = normalized;
+  return node;
+}
+
+function syncProjectSettingsConfigGroupLead(cache = getNodeSettingsCache()) {
+  if (!projectSettingsConfigLeadNode) return;
+  const manifestPath = cache?.manifestPath || getNodeSettingsManifestPath();
+  if (!isProjectSettingsAgentSettingsScope(manifestPath)) return;
+  const scopeKey = getProjectSettingsAgentSchemaScopeKey(manifestPath);
+  const fieldGroups =
+    Array.isArray(cache?.settingsFieldGroups) && cache.settingsFieldGroups.length
+      ? cache.settingsFieldGroups
+      : getProjectSettingsAgentFieldGroups(scopeKey);
+  const description = resolveProjectSettingsGroupDescription(projectSettingsActiveGroupId, fieldGroups);
+  if (description) {
+    projectSettingsConfigLeadNode.className =
+      "project-settings-block-lead project-settings-group-description-lead";
+    projectSettingsConfigLeadNode.textContent = description;
+    projectSettingsConfigLeadNode.classList.remove("hidden");
+  } else {
+    projectSettingsConfigLeadNode.className = "project-settings-block-lead";
+    projectSettingsConfigLeadNode.textContent = "";
+    projectSettingsConfigLeadNode.classList.add("hidden");
+  }
 }
 
 function getAwnMaskFileValueFromSettingsCache(cache = getNodeSettingsCache()) {
@@ -41590,11 +41806,56 @@ function buildNodeConfigYamlFromState(state) {
   });
 }
 
-function buildSettingsYamlFromState(state) {
+function isProjectSettingsReadonlyField(fieldDef) {
+  return Boolean(fieldDef && fieldDef.readonly === true);
+}
+
+function isProjectSettingsLockedField(fieldDef) {
+  return Boolean(fieldDef && fieldDef.locked === true);
+}
+
+function filterWritableSettingsEntries(entries, schemaFields = {}) {
+  return (entries || []).filter((entry) => !isProjectSettingsReadonlyField(schemaFields[entry.key]));
+}
+
+function resolvePlatformMetaFieldValue(key, meta = {}) {
+  const map = {
+    "sys-cms-version": meta.cmsVersion,
+    "sys-registry-version": meta.registryVersion,
+    "sys-registry-mode": meta.registryMode,
+    "sys-registry-migration-date": meta.registryMigrationDate,
+    "sys-node-version": meta.nodeVersion,
+    "sys-platform-os": meta.platformOs,
+    "sys-core-path": meta.corePath,
+    "sys-type-catalog-count": meta.typeCatalogCount
+  };
+  const value = map[key];
+  if (value === undefined || value === null) return "";
+  return String(value);
+}
+
+function applyPlatformMetaToReadonlyEntries(entries, schemaFields = {}, meta = {}) {
+  if (!meta || !Object.keys(meta).length) return entries || [];
+  return (entries || []).map((entry) => {
+    const fieldDef = schemaFields[entry.key];
+    if (!isProjectSettingsReadonlyField(fieldDef)) return entry;
+    return {
+      ...entry,
+      kind: "string",
+      value: resolvePlatformMetaFieldValue(entry.key, meta),
+      fieldDef
+    };
+  });
+}
+
+function buildSettingsYamlFromState(state, schemaFields = null) {
+  const entries = schemaFields
+    ? filterWritableSettingsEntries(state?.entries, schemaFields)
+    : state?.entries || [];
   return NodeConfigBundle.composeNodeConfigBundle({
     headerComment: state?.headerComment,
     awn_ui: {},
-    awn_settings: NodeConfigBundle.settingsEntriesToObject(state?.entries || []),
+    awn_settings: NodeConfigBundle.settingsEntriesToObject(entries),
     awn_schemaYaml: ""
   });
 }
@@ -41709,6 +41970,11 @@ function collectProjectSettingsManifestScopes() {
     "Локальные настройки workspace",
     "settings-local"
   );
+  pushScope(
+    PROJECT_SETTINGS_USER_SETTINGS_SCOPE,
+    "Пользовательские настройки",
+    "settings-user"
+  );
 
   const rootPath = normalizeMenuNodePath(getAgentWorkspaceRootManifestPath());
   if (rootPath) {
@@ -41741,7 +42007,7 @@ function collectProjectSettingsManifestScopes() {
   }
 
   scopes.sort((a, b) => {
-    const rank = { global: 0, "settings-local": 1, workspace: 2, area: 3, topic: 4 };
+    const rank = { global: 0, "settings-local": 1, "settings-user": 2, workspace: 3, area: 4, topic: 5 };
     const ra = rank[a.level] ?? 5;
     const rb = rank[b.level] ?? 5;
     if (ra !== rb) return ra - rb;
@@ -41800,7 +42066,9 @@ function projectSettingsScopeSearchHaystack(scope) {
       ? "платформа глобальные agent-cms-core"
       : scope?.level === "settings-local"
         ? "локальные workspace settings.yml"
-        : scope?.level === "workspace"
+        : scope?.level === "settings-user"
+          ? "пользовательские user-settings.yml agent-cms"
+          : scope?.level === "workspace"
           ? "workspace корень manifest"
           : scope?.level === "area"
             ? "область области"
@@ -41869,9 +42137,9 @@ function createProjectSettingsScopeFilterMarker(kind) {
 
 function renderProjectSettingsScopeFilters() {
   const wrap = document.createElement("div");
-  wrap.className = "project-settings-scope-filters";
-  wrap.setAttribute("role", "group");
-  wrap.setAttribute("aria-label", "Фильтр по файлам");
+  wrap.className = "project-settings-scope-filters is-legend";
+  wrap.setAttribute("role", "note");
+  wrap.setAttribute("aria-label", "Легенда файлов настроек");
 
   const specs = [
     { key: "schema", label: "schema.yml", className: "is-schema" },
@@ -41880,20 +42148,10 @@ function renderProjectSettingsScopeFilters() {
   ];
 
   for (const spec of specs) {
-    const label = document.createElement("label");
-    label.className = `project-settings-scope-filter ${spec.className}`;
-
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.className = "project-settings-scope-filter-input";
-    input.checked = Boolean(projectSettingsScopeFileFilters[spec.key]);
-    input.addEventListener("change", () => {
-      projectSettingsScopeFileFilters[spec.key] = input.checked;
-      renderProjectSettingsScopeList();
-    });
-
-    label.append(input, createProjectSettingsScopeFilterMarker(spec.key), document.createTextNode(spec.label));
-    wrap.appendChild(label);
+    const item = document.createElement("span");
+    item.className = `project-settings-scope-filter ${spec.className}`;
+    item.append(createProjectSettingsScopeFilterMarker(spec.key), document.createTextNode(spec.label));
+    wrap.appendChild(item);
   }
 
   return wrap;
@@ -41966,7 +42224,13 @@ function renderProjectSettingsAgentSettingsTabItem(scopePath, groupId, groupLabe
   btn.setAttribute("role", "tab");
   btn.setAttribute("aria-selected", isActive ? "true" : "false");
   btn.classList.toggle("is-active", isActive);
-  btn.title = `${groupLabel} · ${getProjectSettingsValuesFileLabel({ level: isProjectSettingsGlobalScope(scopePath) ? "global" : "settings-local" })}`;
+  btn.title = `${groupLabel} · ${getProjectSettingsValuesFileLabel({
+    level: isProjectSettingsGlobalScope(scopePath)
+      ? "global"
+      : isProjectSettingsUserSettingsScope(scopePath)
+        ? "settings-user"
+        : "settings-local"
+  })}`;
 
   const label = document.createElement("span");
   label.className = "project-settings-scope-label";
@@ -41989,8 +42253,11 @@ function renderProjectSettingsAgentSettingsTabs(groupNode, groupSpec, activeScop
   const scopePath =
     groupSpec.level === "global"
       ? PROJECT_SETTINGS_GLOBAL_SCOPE
-      : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
-  const scopeKey = groupSpec.level === "global" ? "global" : "local";
+      : groupSpec.level === "settings-user"
+        ? PROJECT_SETTINGS_USER_SETTINGS_SCOPE
+        : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
+  const scopeKey =
+    groupSpec.level === "global" ? "global" : groupSpec.level === "settings-user" ? "user" : "local";
   const groupOrder = getProjectSettingsAgentGroupOrder(scopeKey);
   const fieldGroups = getProjectSettingsAgentFieldGroups(scopeKey);
   if (!groupOrder.length) {
@@ -42017,12 +42284,12 @@ function renderProjectSettingsScopeList() {
   projectSettingsScopeListNode.replaceChildren();
   const sidebarScopes = collectProjectSettingsSidebarScopes();
   const { scopes: searchedScopes, searchActive } = filterProjectSettingsManifestScopes(sidebarScopes);
-  const fileFilterActive = !isProjectSettingsFileFilterDefault();
-  const visibleScopes = searchedScopes.filter(projectSettingsScopeMatchesFileFilters);
+  const visibleScopes = searchedScopes;
   const activeScopePath = getNodeSettingsManifestPath();
   const groups = [
     { level: "global", label: "Глобальные настройки платформы", agentTabs: true },
     { level: "settings-local", label: "Локальные настройки хранилища", agentTabs: true },
+    { level: "settings-user", label: "Пользовательские настройки", agentTabs: true },
     { level: "workspace", label: "Workspace" },
     { level: "area", label: "Области" },
     { level: "topic", label: "Темы" },
@@ -42033,10 +42300,10 @@ function renderProjectSettingsScopeList() {
 
   projectSettingsScopeListNode.appendChild(renderProjectSettingsScopeFilters());
 
-  if ((searchActive || fileFilterActive) && !visibleScopes.length) {
+  if (searchActive && !visibleScopes.length) {
     const empty = document.createElement("p");
     empty.className = "project-settings-scope-search-empty";
-    empty.textContent = searchActive ? "Ничего не найдено" : "Нет узлов с выбранными фильтрами";
+    empty.textContent = "Ничего не найдено";
     projectSettingsScopeListNode.appendChild(empty);
     return;
   }
@@ -42048,6 +42315,7 @@ function renderProjectSettingsScopeList() {
     groupNode.className = "project-settings-scope-group";
     if (group.level === "global") groupNode.classList.add("is-scope-platform-global");
     if (group.level === "settings-local") groupNode.classList.add("is-scope-platform-local");
+    if (group.level === "settings-user") groupNode.classList.add("is-scope-user-settings");
     if (group.level === "workspace") groupNode.classList.add("is-scope-workspace");
     if (group.level === "area" || group.level === "topic") groupNode.classList.add("is-scope-tree");
     if (String(group.level || "").startsWith("iblock-")) groupNode.classList.add("is-scope-iblock");
@@ -42060,21 +42328,18 @@ function renderProjectSettingsScopeList() {
       const scopePath =
         group.level === "global"
           ? PROJECT_SETTINGS_GLOBAL_SCOPE
-          : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
-      const scopeKey = group.level === "global" ? "global" : "local";
+          : group.level === "settings-user"
+            ? PROJECT_SETTINGS_USER_SETTINGS_SCOPE
+            : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
+      const scopeKey =
+        group.level === "global" ? "global" : group.level === "settings-user" ? "user" : "local";
       const tabLabels = getProjectSettingsAgentGroupOrder(scopeKey).map((groupId) =>
         resolveNodeSettingsGroupLabel(groupId, getProjectSettingsAgentFieldGroups(scopeKey))
       );
       const groupHaystack = [group.label, ...tabLabels].join(" ").toLowerCase();
       const queryLower = String(projectSettingsScopeSearchQuery || "").trim().toLowerCase();
       const matchesSearch = !queryLower || groupHaystack.includes(queryLower);
-      const status = getProjectSettingsScopeStatus(scopePath);
-      const matchesFileFilter =
-        isProjectSettingsFileFilterDefault() ||
-        (projectSettingsScopeFileFilters.config && status?.hasLocalValues) ||
-        (projectSettingsScopeFileFilters.schema && status?.hasLocalSchema) ||
-        (projectSettingsScopeFileFilters.env && status?.envHasValues);
-      if (matchesSearch && matchesFileFilter) {
+      if (matchesSearch) {
         renderProjectSettingsAgentSettingsTabs(groupNode, group, activeScopePath);
         projectSettingsScopeListNode.appendChild(groupNode);
       }
@@ -42145,7 +42410,7 @@ function renderProjectSettingsScopeList() {
       label.textContent = scope.label;
       btn.append(label);
 
-      const showNodeMarkers = !["global", "settings-local"].includes(scope.level);
+      const showNodeMarkers = !["global", "settings-local", "settings-user"].includes(scope.level);
       if (showNodeMarkers) {
         const status = document.createElement("span");
         status.className = "project-settings-scope-status";
@@ -42158,16 +42423,6 @@ function renderProjectSettingsScopeList() {
           createProjectSettingsScopeMarker("env", hasEnvValues)
         );
         status.append(markers);
-
-        if (hasSchemaFields || hasConfigValues || hasEnvValues) {
-          const badges = document.createElement("span");
-          badges.className = "project-settings-scope-badges";
-          if (hasSchemaFields) badges.append(createProjectSettingsScopeBadge("schema", schemaCount));
-          if (hasConfigValues) badges.append(createProjectSettingsScopeBadge("config", configCount));
-          if (hasEnvValues) badges.append(createProjectSettingsScopeBadge("env", envCount));
-          status.append(badges);
-        }
-
         btn.append(status);
       }
 
@@ -42183,16 +42438,14 @@ function renderProjectSettingsScopeList() {
 async function selectProjectSettingsAgentSettingsTab(scopePath, groupId) {
   const normalized = normalizeMenuNodePath(scopePath);
   if (!normalized || !groupId) return;
-  const sameScope = projectSettingsScopePath === normalized;
   projectSettingsScopePath = normalized;
   projectSettingsActiveGroupId = groupId;
   projectSettingsEnvSnapshot = null;
   try {
-    if (!sameScope || !getNodeSettingsCache()) {
-      await loadProjectSettingsContent({ force: !sameScope });
+    if (!getNodeSettingsCache(normalized)) {
+      await loadProjectSettingsContent({ force: false });
     } else {
-      renderProjectSettingsPage();
-      renderProjectSettingsScopeList();
+      applyProjectSettingsPageUi(getNodeSettingsCache(normalized));
     }
     commitEditorSaveBaseline();
     updateBreadcrumbsForActiveMode();
@@ -42211,7 +42464,8 @@ async function selectProjectSettingsScope(scopePath, options = {}) {
   } else if (isProjectSettingsAgentSettingsScope(normalized)) {
     const scopeKey = getProjectSettingsAgentSchemaScopeKey(normalized);
     const order = getProjectSettingsAgentGroupOrder(scopeKey);
-    projectSettingsActiveGroupId = order[0] || "general";
+    projectSettingsActiveGroupId =
+      order[0] || (isProjectSettingsGlobalScope(normalized) ? "main" : "general");
   } else {
     projectSettingsActiveGroupId = null;
   }
@@ -42228,7 +42482,14 @@ function getProjectSettingsEnvCache(manifestPath = getNodeSettingsManifestPath()
 }
 
 async function loadProjectSettingsEnvForManifest(manifestPath, options = {}) {
-  if (!manifestPath || isProjectSettingsGlobalScope(manifestPath)) return null;
+  if (
+    !manifestPath ||
+    isProjectSettingsGlobalScope(manifestPath) ||
+    isProjectSettingsWorkspaceSettingsScope(manifestPath) ||
+    isProjectSettingsUserSettingsScope(manifestPath)
+  ) {
+    return null;
+  }
   if (!options.force) {
     const cached = projectSettingsEnvCacheByManifest.get(manifestPath);
     if (cached) return cached;
@@ -42374,18 +42635,23 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
       ? "Глобальные настройки платформы"
       : scope.level === "settings-local"
         ? "Локальные настройки платформы"
-        : scope.level === "workspace"
-          ? "Workspace"
-          : scope.level === "area"
-            ? "Область"
-            : "Тема"
+        : scope.level === "settings-user"
+          ? "Пользовательские настройки"
+          : scope.level === "workspace"
+            ? "Workspace"
+            : scope.level === "area"
+              ? "Область"
+              : "Тема"
     : isProjectSettingsGlobalScope(getNodeSettingsManifestPath())
       ? "Глобальные настройки платформы"
       : isProjectSettingsWorkspaceSettingsScope(getNodeSettingsManifestPath())
         ? "Локальные настройки платформы"
-        : "Уровень";
+        : isProjectSettingsUserSettingsScope(getNodeSettingsManifestPath())
+          ? "Пользовательские настройки"
+          : "Уровень";
   const isGlobalScope = isProjectSettingsGlobalScope(getNodeSettingsManifestPath());
   const isLocalScope = isProjectSettingsLocalScope(getNodeSettingsManifestPath());
+  const isUserScope = isProjectSettingsUserSettingsScope(getNodeSettingsManifestPath());
   const valuesFileLabel = getProjectSettingsValuesFileLabel(scope);
   const envPath = activeStatus?.envPath || getEnvFilePathForManifest(getNodeSettingsManifestPath());
 
@@ -42402,12 +42668,14 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   }
   if (projectSettingsLeadNode) {
     projectSettingsLeadNode.innerHTML = isGlobalScope
-      ? `Глобальные defaults платформы в <code>settings.global.yml</code> (<code>agent-cms-core</code>).`
+      ? `Глобальная политика платформы в <code>settings.global.yml</code> (<code>agent-cms-core</code>). Не сливается с workspace/user.`
       : isLocalScope
-        ? `Локальные параметры workspace в <code>settings.yml</code>. Эффективные значения = global + local.`
-        : scope
-          ? `Параметры узла в <code>config.yml</code> и секреты в <code>.env</code> рядом с manifest.`
-          : "Выберите уровень в списке слева.";
+        ? `Параметры хранилища в <code>settings.yml</code>. Отдельная область, не перекрывает platform/user.`
+        : isUserScope
+          ? `UI и дерево меню для текущего пользователя в <code>.agent-cms/user-settings.yml</code> (аналог <code>uc</code> в TYPO3).`
+          : scope
+            ? `Параметры узла в <code>config.yml</code> и секреты в <code>.env</code> рядом с manifest.`
+            : "Выберите уровень в списке слева.";
   }
   const settingsBlockTitleNode = projectSettingsPageNode?.querySelector(
     ".project-settings-block:not(.project-settings-block--env) .project-settings-block-title"
@@ -42416,19 +42684,16 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
     settingsBlockTitleNode.textContent = valuesFileLabel;
   }
   if (projectSettingsConfigLeadNode) {
-    const localHint = activeStatus?.hasLocalValues
-      ? `Задано <strong>${activeStatus.valueCount}</strong> значений в <code>${valuesFileLabel}</code>.`
-      : isGlobalScope
-        ? `В <code>${valuesFileLabel}</code> пока нет значений — действуют встроенные defaults.`
-        : isLocalScope
-          ? `Локальный <code>${valuesFileLabel}</code> пуст — действуют только глобальные настройки.`
-          : `На этом уровне <strong>нет своих значений</strong> в <code>config.yml</code>.`;
-    const schemaHint = isProjectSettingsGlobalScope()
-      ? `Схема — <code>awn.settings.platform</code> (<code>awn-system/types/settings/</code>).`
-      : isProjectSettingsLocalScope()
-        ? `Схема — <code>awn.settings.workspace</code> (<code>awn-system/types/settings/</code>).`
-        : `Поля формы — из <code>schema.yml</code> на этом уровне.`;
-    projectSettingsConfigLeadNode.innerHTML = `${localHint} ${schemaHint}`;
+    if (isProjectSettingsAgentSettingsScope(getNodeSettingsManifestPath())) {
+      syncProjectSettingsConfigGroupLead(cache);
+    } else {
+      projectSettingsConfigLeadNode.className = "project-settings-block-lead";
+      projectSettingsConfigLeadNode.classList.remove("hidden");
+      const localHint = activeStatus?.hasLocalValues
+        ? `Задано <strong>${activeStatus.valueCount}</strong> значений в <code>${valuesFileLabel}</code>.`
+        : `На этом уровне <strong>нет своих значений</strong> в <code>config.yml</code>.`;
+      projectSettingsConfigLeadNode.innerHTML = `${localHint} Поля формы — из <code>schema.yml</code> на этом уровне.`;
+    }
   }
   if (projectSettingsEnvLeadNode) {
     const envHint = activeStatus?.envHasValues
@@ -42442,7 +42707,7 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   projectSettingsFieldsNode?.classList.remove("hidden");
   renderNodeSettingsEditor(cache);
   projectSettingsSaveBtnNode?.classList.remove("hidden");
-  if (isGlobalScope) {
+  if (isGlobalScope || isUserScope) {
     projectSettingsPageNode?.querySelector(".project-settings-block--env")?.classList.add("hidden");
   } else {
     projectSettingsPageNode?.querySelector(".project-settings-block--env")?.classList.remove("hidden");
@@ -42532,7 +42797,12 @@ async function saveProjectSettingsFormContent() {
     showToast(`Ошибка сохранения: ${error.message}`, "error");
   } finally {
     setSaveButtonsState(false);
-    if (saveSucceeded) commitEditorSaveBaseline();
+    if (saveSucceeded) {
+      commitEditorSaveBaseline();
+      if (isProjectSettingsGlobalScope(getNodeSettingsManifestPath())) {
+        void loadPlatformUiSettings();
+      }
+    }
     syncProjectSettingsSaveButtonState();
   }
 }
@@ -42559,7 +42829,9 @@ async function bootstrapProjectSettingsData(options = {}) {
   await refreshMenuAwnDataStores(activeAgentId, { showLoading: false }).catch(() => {});
   await Promise.all([
     loadAgentSettingsSchemaBundle({ scope: "global", force }),
-    loadAgentSettingsSchemaBundle({ scope: "local", force })
+    loadAgentSettingsSchemaBundle({ scope: "local", force }),
+    loadAgentSettingsSchemaBundle({ scope: "user", force }),
+    loadUserSettingsForAgent(activeAgentId)
   ]).catch(() => {});
   await refreshProjectSettingsScopeStatus(collectProjectSettingsManifestScopes()).catch(() => {});
   projectSettingsBootstrapped = true;
@@ -42580,6 +42852,23 @@ async function loadProjectSettingsScopeData(options = {}) {
   ]);
   setProjectSettingsScopeStatusFromCache(manifestPathForLoad, cache);
   return cache;
+}
+
+async function refreshProjectSettingsPane() {
+  const manifestPath = getNodeSettingsManifestPath();
+  if (manifestPath) {
+    nodeSettingsCacheByManifest.delete(manifestPath);
+    projectSettingsEnvCacheByManifest.delete(manifestPath);
+  }
+  if (manifestPath && isProjectSettingsAgentSettingsScope(manifestPath)) {
+    await loadAgentSettingsSchemaBundle({
+      force: true,
+      manifestPath,
+      scope: resolveAgentSettingsSchemaScope(manifestPath)
+    });
+  }
+  await refreshProjectSettingsScopeStatus(collectProjectSettingsManifestScopes()).catch(() => {});
+  await loadProjectSettingsContent({ force: true });
 }
 
 async function loadProjectSettingsContent(options = {}) {
@@ -42636,7 +42925,8 @@ async function openProjectSettingsHub(options = {}) {
   if (isProjectSettingsAgentSettingsScope(preferred.path)) {
     const scopeKey = getProjectSettingsAgentSchemaScopeKey(preferred.path);
     const order = getProjectSettingsAgentGroupOrder(scopeKey);
-    projectSettingsActiveGroupId = order[0] || "general";
+    projectSettingsActiveGroupId =
+      order[0] || (isProjectSettingsGlobalScope(preferred.path) ? "main" : "general");
   }
 
   showAgentHomeView();
@@ -42719,6 +43009,10 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
     const response = await fetch(buildApiUrl("/api/workspace/settings"));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     data = await response.json();
+  } else if (isProjectSettingsMode() && isProjectSettingsUserSettingsScope(manifestPath)) {
+    const response = await fetch(buildApiUrl("/api/user/settings"));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    data = await response.json();
   } else {
     data = await loadNodeConfig(manifestPath, { force: true });
   }
@@ -42729,11 +43023,14 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
     const schemaBundle = await loadAgentSettingsSchemaBundle({
       force: options.force,
       manifestPath,
-      scope: isProjectSettingsGlobalScope(manifestPath) ? "global" : "local"
+      scope: resolveAgentSettingsSchemaScope(manifestPath)
     });
     settingsFields = schemaBundle.settingsFields;
     settingsFieldGroups = schemaBundle.settingsFieldGroups;
     state.entries = buildNodeSettingsEntriesFromSchema(state.entries, settingsFields);
+    if (isProjectSettingsGlobalScope(manifestPath) && data.meta) {
+      state.entries = applyPlatformMetaToReadonlyEntries(state.entries, settingsFields, data.meta);
+    }
   } else {
     const mergeSettingsFields = mergeTopicSchemaSettingsFields;
     try {
@@ -42753,7 +43050,10 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
       ? "global"
       : isProjectSettingsLocalScope(manifestPath)
         ? "local"
-        : "node",
+        : isProjectSettingsUserSettingsScope(manifestPath)
+          ? "user"
+          : "node",
+    platformMeta: data.meta || null,
     settingsFields,
     settingsFieldGroups,
     ...state
@@ -42795,13 +43095,17 @@ function createNodeSettingsFieldDescriptionNode(fieldDef) {
 }
 
 function createNodeSettingsFieldRow(entry, fieldDef) {
-  const meta = getNodeSettingsFieldMeta(entry.key, fieldDef);
+  const readonly = isProjectSettingsReadonlyField(fieldDef);
+  const locked = readonly || isProjectSettingsLockedField(fieldDef);
+  const meta = { ...getNodeSettingsFieldMeta(entry.key, fieldDef), locked };
   const typeId = resolveFieldTypeId(fieldDef?.type || "awn.field.string");
   const displayLabel = formatNodeSettingsFieldLabel(entry.key, fieldDef);
   const entryKind = fieldDefToEntryKind(fieldDef);
 
   const row = document.createElement("div");
   row.className = "node-config-field-row node-config-field-row--compact";
+  if (readonly) row.classList.add("is-readonly");
+  else if (locked) row.classList.add("is-readonly");
   if (entryKind === "array" || isFileFieldTypeId(fieldDef?.type) || fieldTypeIs(typeId, "text")) {
     row.classList.add("is-tall");
   }
@@ -42836,12 +43140,12 @@ function createNodeSettingsFieldRow(entry, fieldDef) {
   const valueControl = createPropsFormValueControl(entry, meta);
   valueControl.classList.add("node-config-field-value");
 
-  row.append(head, valueControl);
-
   const descriptionNode = createNodeSettingsFieldDescriptionNode(fieldDef);
   if (descriptionNode) {
     row.classList.add("has-field-description");
-    row.append(descriptionNode);
+    row.append(descriptionNode, head, valueControl);
+  } else {
+    row.append(head, valueControl);
   }
 
   return row;
@@ -42872,6 +43176,7 @@ function syncNodeSettingsCacheFromDom(cache = getNodeSettingsCache()) {
   fieldsNode.querySelectorAll(".node-config-field-row").forEach((row) => {
     const entry = readNodeSettingsEntryFromRow(row);
     if (!entry.key || !schemaFields[entry.key]) return;
+    if (isProjectSettingsReadonlyField(schemaFields[entry.key])) return;
     entries.push(entry);
   });
   cache.entries = buildNodeSettingsEntriesFromSchema(entries, schemaFields);
@@ -42890,12 +43195,15 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
   if (!schemaKeys.length) {
     emptyNode.classList.remove("hidden");
     emptyNode.textContent = isProjectSettingsAgentSettingsScope(cache?.manifestPath)
-      ? "Схема настроек не найдена — проверьте awn.settings.platform/workspace в awn-system/types/settings/."
+      ? "Схема настроек не найдена — проверьте platform.yml / workspace.yml / user.yml в awn-system/types/settings/."
       : "Полей пока нет — добавьте их во вкладке «Настройки» в редакторе схемы полей.";
     return;
   }
 
-  const entries = buildNodeSettingsEntriesFromSchema(cache?.entries || [], schemaFields);
+  let entries = buildNodeSettingsEntriesFromSchema(cache?.entries || [], schemaFields);
+  if (isProjectSettingsGlobalScope(cache?.manifestPath) && cache?.platformMeta) {
+    entries = applyPlatformMetaToReadonlyEntries(entries, schemaFields, cache.platformMeta);
+  }
   cache.entries = entries;
 
   if (!entries.length) {
@@ -42919,6 +43227,7 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
     if (!projectSettingsActiveGroupId || !groupOrder.includes(projectSettingsActiveGroupId)) {
       projectSettingsActiveGroupId = groupOrder[0];
     }
+    syncProjectSettingsConfigGroupLead(cache);
     for (const entry of entries) {
       const groupId = resolvePropsFieldGroupId(entry.key, schemaFields[entry.key]);
       if (groupId !== projectSettingsActiveGroupId) continue;
@@ -42981,11 +43290,15 @@ async function saveNodeSettingsContent() {
 
   const useProjectSettingsApi =
     isProjectSettingsMode() && isProjectSettingsAgentSettingsScope(manifestPath);
-  const content = useProjectSettingsApi ? buildSettingsYamlFromState(cache) : buildNodeConfigYamlFromState(cache);
+  const content = useProjectSettingsApi
+    ? buildSettingsYamlFromState(cache, cache?.settingsFields || {})
+    : buildNodeConfigYamlFromState(cache);
   const saveUrl = useProjectSettingsApi
     ? isProjectSettingsGlobalScope(manifestPath)
       ? buildApiUrl("/api/platform/settings-global")
-      : buildApiUrl("/api/workspace/settings")
+      : isProjectSettingsUserSettingsScope(manifestPath)
+        ? buildApiUrl("/api/user/settings")
+        : buildApiUrl("/api/workspace/settings")
     : buildApiUrl("/api/file/node-config");
   const saveBody = useProjectSettingsApi
     ? JSON.stringify({ content })
@@ -43026,6 +43339,9 @@ async function saveNodeSettingsContent() {
   }
   renderNodeSettingsEditor(cache);
   if (isProjectSettingsMode()) {
+    if (cache.settingsScope === "user") {
+      applyUserSettingsFromCache(cache);
+    }
     setProjectSettingsScopeStatusFromCache(manifestPath, cache);
     renderProjectSettingsScopeList();
     renderProjectSettingsPage(cache);
@@ -85704,7 +86020,6 @@ function classifySystemFileGroup(name) {
     "makefile",
     "procfile",
     "awn-dependencies.json",
-    "id-autoincrement.json",
     "docker-compose.yml",
     "docker-compose.yaml"
   ]);
@@ -99150,6 +99465,19 @@ function setupProjectSettingsScopeSearch() {
   projectSettingsSaveBtnNode?.addEventListener("click", () => {
     void saveProjectSettingsFormContent();
   });
+  projectSettingsRefreshBtnNode?.addEventListener("click", () => {
+    void (async () => {
+      if (projectSettingsRefreshBtnNode) projectSettingsRefreshBtnNode.disabled = true;
+      try {
+        await refreshProjectSettingsPane();
+        showToast("Настройки обновлены", "success");
+      } catch (error) {
+        showToast(`Не удалось обновить: ${error.message}`, "error");
+      } finally {
+        if (projectSettingsRefreshBtnNode) projectSettingsRefreshBtnNode.disabled = false;
+      }
+    })();
+  });
   projectSettingsEnvSaveBtnNode?.addEventListener("click", () => {
     void saveProjectSettingsEnvFormContent();
   });
@@ -105031,6 +105359,8 @@ async function init() {
     }
 
     await loadAgents();
+    await loadPlatformUiSettings().catch(() => {});
+    if (activeAgentId) await loadUserSettingsForAgent(activeAgentId).catch(() => {});
     applyMenuTreeSettingsUi();
     applyAgentGraphSettingsUi();
 

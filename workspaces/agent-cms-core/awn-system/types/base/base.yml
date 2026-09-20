@@ -242,7 +242,7 @@ fields:
   awn-id:
     type: awn.field.number.integer
     title: "{A2!} ID"
-    description: Глобальный номер workspace (id-autoincrement.json). Дубликаты допустимы — можно изменить вручную.
+    description: Глобальный номер workspace (счётчик в settings.yml → Автоинкремент). Дубликаты допустимы — можно изменить вручную.
     placement: aside-body
     group: system
     sort: 0

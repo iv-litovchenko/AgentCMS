@@ -40,7 +40,7 @@ const { createStorageIndexService } = require("./storage-index/service");
 const { createLinkIndexService } = require("./link-index/service");
 const { createWorkspaceIdService, parseAwnId } = require("./workspace-id/service");
 const { createNavFlagsRegistryService } = require("./nav-flags-registry/service");
-const { allocateNextId } = require("./workspace-id/store");
+const { allocateNextId, readCounter } = require("./workspace-id/store");
 const { syncWorkspaceIndexFile } = require("./workspace-index/sync");
 const { getWorkspaceIndexMonitor } = require("./workspace-index/monitor");
 const { getWorkspaceIndexProgress } = require("./workspace-index/progress");
@@ -317,24 +317,40 @@ const NodeConfigBundle = require("./node-config-bundle");
 const {
   normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
-  parseWorkspaceAgentSettingsFromConfigContent
+  normalizeUserAgentSettings,
+  parseWorkspaceAgentSettingsFromConfigContent,
+  touchWorkspaceAwnIdCounterOnSave,
+  getPlatformReadTextMaxBytes,
+  getPlatformReadBinaryMaxBytes,
+  isPlatformIndexEnabled,
+  isPlatformMaintenanceMode,
+  getPlatformDefaultLocale
 } = require("./workspace-agent-settings");
 const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
 const {
   PROJECT_SETTINGS_GLOBAL_SCOPE,
   PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE,
+  PROJECT_SETTINGS_USER_SETTINGS_SCOPE,
   WORKSPACE_SETTINGS_FILE,
+  USER_SETTINGS_REL_PATH,
+  USER_SETTINGS_HEADER,
   composeSettingsFileContent,
   readGlobalSettingsFile,
   readWorkspaceSettingsFile,
+  readUserSettingsFile,
   readWorkspaceSettingsWithLegacyFallback,
   getEffectiveWorkspaceSettings,
   writeWorkspaceSettingsFile,
   writeGlobalSettingsFile,
+  writeUserSettingsFile,
   parseSettingsFileContent,
   countSettingsValues,
   isProjectSettingsGlobalScope,
-  getAgentSettingsSchemaPayload
+  getAgentSettingsSchemaPayload,
+  getAgentSettingsRegistry,
+  getPlatformSettings,
+  invalidatePlatformSettingsCache,
+  buildPlatformSettingsMeta
 } = require("./settings-store");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
@@ -517,8 +533,6 @@ const PLATFORM_ALWAYS_CONTEXT_FILES = [
   }
 ];
 
-const WORKSPACE_ID_COUNTER_FILE = "id-autoincrement.json";
-
 const SYSTEM_FILE_NAMES = [
   ".env",
   ".gitignore",
@@ -528,7 +542,6 @@ const SYSTEM_FILE_NAMES = [
   "ONBOARDING.md",
   "SKILL.md",
   AWN_DEPENDENCIES_FILE,
-  WORKSPACE_ID_COUNTER_FILE,
   "docker-compose.yml",
   ROOT_SYSTEM_NOTE_FILE,
   "README.md",
@@ -564,7 +577,6 @@ const SYSTEM_FILE_CONFIG_BASENAMES = new Set([
   "makefile",
   "procfile",
   "awn-dependencies.json",
-  WORKSPACE_ID_COUNTER_FILE,
   "docker-compose.yml",
   "docker-compose.yaml"
 ]);
@@ -2297,6 +2309,30 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
         schemaFieldCount: 0,
         hasLocalSchema: false,
         level: "settings-local"
+      });
+      continue;
+    }
+
+    if (relPath === PROJECT_SETTINGS_USER_SETTINGS_SCOPE) {
+      const userFile = await readUserSettingsFile(agentRoot);
+      const parsed = parseSettingsFileContent(userFile.content || "");
+      const valueCount = countSettingsValues(parsed.awn_settings);
+      items.push({
+        path: PROJECT_SETTINGS_USER_SETTINGS_SCOPE,
+        settingsPath: USER_SETTINGS_REL_PATH,
+        configPath: USER_SETTINGS_REL_PATH,
+        configExists: Boolean(userFile.exists),
+        valueCount,
+        hasLocalValues: valueCount > 0,
+        envPath: "",
+        envExists: false,
+        envValueCount: 0,
+        envHasValues: false,
+        schemaPath: "",
+        schemaExists: false,
+        schemaFieldCount: 0,
+        hasLocalSchema: false,
+        level: "settings-user"
       });
       continue;
     }
@@ -5278,7 +5314,72 @@ const WORKSPACE_TEXT_FILE_EXTENSIONS = new Set([
   ".pine"
 ]);
 const WORKSPACE_FOLDER_SCAN_MAX_ITEMS = 500;
-const WORKSPACE_TEXT_FILE_MAX_BYTES = 120_000;
+const WORKSPACE_TEXT_FILE_MAX_BYTES_FALLBACK = 120_000;
+const WORKSPACE_FS_READ_BASE64_MAX_BYTES_FALLBACK = 1_500_000;
+
+const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
+  "/api/platform/settings-global",
+  "/api/agent/settings-schema"
+]);
+
+async function resolveWorkspaceTextFileMaxBytes(options = {}) {
+  if (options.maxBytes != null) {
+    const explicit = Number.parseInt(String(options.maxBytes), 10);
+    if (Number.isFinite(explicit) && explicit > 0) {
+      return Math.min(Math.max(explicit, 1024), 10_000_000);
+    }
+  }
+  try {
+    const settings = await getPlatformSettings(getProjectRoot());
+    return getPlatformReadTextMaxBytes(settings);
+  } catch {
+    return WORKSPACE_TEXT_FILE_MAX_BYTES_FALLBACK;
+  }
+}
+
+async function resolveWorkspaceBinaryMaxBytes(options = {}) {
+  if (options.maxBytes != null) {
+    const explicit = Number.parseInt(String(options.maxBytes), 10);
+    if (Number.isFinite(explicit) && explicit > 0) {
+      return Math.min(Math.max(explicit, 1024), 10_000_000);
+    }
+  }
+  try {
+    const settings = await getPlatformSettings(getProjectRoot());
+    return getPlatformReadBinaryMaxBytes(settings);
+  } catch {
+    return WORKSPACE_FS_READ_BASE64_MAX_BYTES_FALLBACK;
+  }
+}
+
+async function getMaintenanceModeResponse(url) {
+  try {
+    const settings = await getPlatformSettings(getProjectRoot());
+    if (!isPlatformMaintenanceMode(settings)) return null;
+    if (PLATFORM_MAINTENANCE_ALLOWLIST.has(url.pathname)) return null;
+    return {
+      status: 503,
+      body: {
+        error: "maintenance",
+        message: "Платформа в режиме обслуживания. Доступны только настройки platform."
+      }
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getIndexLayerDisabledResponse(settings, layer) {
+  if (isPlatformIndexEnabled(settings, layer)) return null;
+  return {
+    status: 403,
+    body: {
+      error: "index_disabled",
+      layer,
+      message: `Индекс «${layer}» отключён в settings.global.yml`
+    }
+  };
+}
 
 function resolveWorkspaceFolderScanDepth(raw) {
   const value = String(raw ?? "1").trim().toLowerCase();
@@ -5455,6 +5556,7 @@ async function scanWorkspaceFolder(folderRelPath, options = {}) {
 
   await walk(normalizedFolder, 1);
 
+  const textFileMaxBytes = await resolveWorkspaceTextFileMaxBytes();
   if (includeBody) {
     for (const item of items) {
       if (item.kind !== "page" && item.kind !== "file") continue;
@@ -5463,7 +5565,7 @@ async function scanWorkspaceFolder(folderRelPath, options = {}) {
       if (!fileAbsolute) continue;
       try {
         const stat = await fs.stat(fileAbsolute);
-        if (!stat.isFile() || stat.size > WORKSPACE_TEXT_FILE_MAX_BYTES) {
+        if (!stat.isFile() || stat.size > textFileMaxBytes) {
           item.bodyTruncated = true;
           continue;
         }
@@ -5500,14 +5602,8 @@ async function readWorkspaceTextFile(fileRelPath, options = {}) {
     const stat = await fs.stat(fileAbsolute);
     if (!stat.isFile()) return { exists: false, error: "File not found" };
 
-    const maxBytes = Math.min(
-      Math.max(
-        Number.parseInt(String(options.maxBytes || WORKSPACE_TEXT_FILE_MAX_BYTES), 10) ||
-          WORKSPACE_TEXT_FILE_MAX_BYTES,
-        1024
-      ),
-      WORKSPACE_TEXT_FILE_MAX_BYTES
-    );
+    const platformMax = await resolveWorkspaceTextFileMaxBytes(options);
+    const maxBytes = Math.min(Math.max(platformMax, 1024), platformMax);
     const startLine = Math.max(0, Number.parseInt(String(options.startLine || 0), 10) || 0);
     const limitLines = Math.max(
       0,
@@ -5626,8 +5722,6 @@ const WORKSPACE_FS_TEXT_EXTENSIONS = new Set([
 ]);
 const WORKSPACE_FS_WRITE_MAX_BYTES = 512_000;
 const WORKSPACE_FS_UPLOAD_MAX_BYTES = 45 * 1024 * 1024;
-const WORKSPACE_FS_READ_BASE64_MAX_BYTES = 1_500_000;
-
 function normalizeWorkspaceFsRelPath(raw) {
   return String(raw || "")
     .replace(/\\/g, "/")
@@ -5840,14 +5934,8 @@ function resolveWorkspaceFileMimeType(filePath) {
 }
 
 async function readWorkspaceBinaryBase64(absolute, stat, options = {}) {
-  const maxBytes = Math.min(
-    Math.max(
-      Number.parseInt(String(options.maxBytes || WORKSPACE_FS_READ_BASE64_MAX_BYTES), 10) ||
-        WORKSPACE_FS_READ_BASE64_MAX_BYTES,
-      1024
-    ),
-    WORKSPACE_FS_READ_BASE64_MAX_BYTES
-  );
+  const platformMax = await resolveWorkspaceBinaryMaxBytes(options);
+  const maxBytes = Math.min(Math.max(platformMax, 1024), platformMax);
   const offsetBytes = Math.max(Number.parseInt(String(options.offsetBytes || 0), 10) || 0, 0);
   if (offsetBytes >= stat.size) {
     return { error: "offsetBytes is past end of file", status: 400 };
@@ -5898,14 +5986,8 @@ async function readWorkspaceFsFile(relPath, options = {}) {
 
     try {
       const stat = await fs.stat(absolute);
-      const maxBytes = Math.min(
-        Math.max(
-          Number.parseInt(String(options.maxBytes || WORKSPACE_TEXT_FILE_MAX_BYTES), 10) ||
-            WORKSPACE_TEXT_FILE_MAX_BYTES,
-          1024
-        ),
-        WORKSPACE_TEXT_FILE_MAX_BYTES
-      );
+      const platformMax = await resolveWorkspaceTextFileMaxBytes(options);
+      const maxBytes = Math.min(Math.max(platformMax, 1024), platformMax);
       const truncated = stat.size > maxBytes;
       const buffer = truncated ? Buffer.alloc(maxBytes) : await fs.readFile(absolute);
       if (truncated) {
@@ -18529,6 +18611,11 @@ function getContentSchemaApi() {
 async function handleApiForAgent(req, res, url) {
   applyApiPathAliases(url);
 
+  const maintenanceResponse = await getMaintenanceModeResponse(url);
+  if (maintenanceResponse) {
+    return sendJson(res, maintenanceResponse.status, maintenanceResponse.body);
+  }
+
   if (await shellHandlers.tryHandleShellApi(req, res, url, {
     agentId: getActiveAgentId(),
     agentRoot: getAgentRoot(),
@@ -18567,6 +18654,9 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/search/semantic/reindex") {
     try {
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const disabled = getIndexLayerDisabledResponse(platformSettings, "semantic");
+      if (disabled) return sendJson(res, disabled.status, disabled.body);
       const payload = await getSemanticSearchService().rebuildIndex({ agentId: getActiveAgentId() });
       return sendJson(res, 200, payload);
     } catch (error) {
@@ -18583,6 +18673,9 @@ async function handleApiForAgent(req, res, url) {
     const limitRaw = Number(url.searchParams.get("limit") || 20);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 20;
     try {
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const disabled = getIndexLayerDisabledResponse(platformSettings, "semantic");
+      if (disabled) return sendJson(res, disabled.status, disabled.body);
       const data = await getSemanticSearchService().search(query, limit, pathPrefix);
       const enriched = [];
       for (const row of data.results || []) {
@@ -18616,6 +18709,9 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/search/fulltext/reindex") {
     try {
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const disabled = getIndexLayerDisabledResponse(platformSettings, "fulltext");
+      if (disabled) return sendJson(res, disabled.status, disabled.body);
       const payload = await getFulltextSearchService().rebuildIndex({ agentId: getActiveAgentId() });
       return sendJson(res, 200, payload);
     } catch (error) {
@@ -18691,6 +18787,9 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/storage-index/reindex") {
     try {
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const disabled = getIndexLayerDisabledResponse(platformSettings, "storage");
+      if (disabled) return sendJson(res, disabled.status, disabled.body);
       const payload = await readJsonBody(req).catch(() => ({}));
       const mode = String(payload?.mode || "full").trim().toLowerCase() === "quick" ? "quick" : "full";
       const data = await getStorageIndexService().rebuildIndex({ agentId: getActiveAgentId(), mode });
@@ -18716,6 +18815,9 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/link-index/reindex") {
     try {
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const disabled = getIndexLayerDisabledResponse(platformSettings, "link");
+      if (disabled) return sendJson(res, disabled.status, disabled.body);
       const payload = await getLinkIndexService().rebuildIndex({ agentId: getActiveAgentId() });
       return sendJson(res, 200, payload);
     } catch (error) {
@@ -18728,6 +18830,9 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/link-index/query") {
     try {
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const disabled = getIndexLayerDisabledResponse(platformSettings, "link");
+      if (disabled) return sendJson(res, disabled.status, disabled.body);
       const payload = await readJsonBody(req);
       const data = await getLinkIndexService().query(payload);
       return sendJson(res, 200, data);
@@ -18870,6 +18975,9 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/storage-index/query") {
     try {
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const disabled = getIndexLayerDisabledResponse(platformSettings, "storage");
+      if (disabled) return sendJson(res, disabled.status, disabled.body);
       const payload = await readJsonBody(req);
       const data = await getStorageIndexService().query(payload);
       return sendJson(res, 200, data);
@@ -18907,13 +19015,29 @@ async function handleApiForAgent(req, res, url) {
     try {
       const payload = await readJsonBody(req);
       const relPath = payload?.path || payload?.filePath || "";
-      const data = await syncWorkspaceIndexFile(
-        getSemanticSearchService(),
-        getStorageIndexService(),
-        getFulltextSearchService(),
-        relPath,
-        getLinkIndexService()
-      );
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const normalizedPath = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+      const semantic = isPlatformIndexEnabled(platformSettings, "semantic")
+        ? await getSemanticSearchService()
+            .updateFile(normalizedPath)
+            .catch((error) => ({ ok: false, error: String(error.message || error) }))
+        : { ok: false, skipped: true, reason: "index_disabled" };
+      const storage = isPlatformIndexEnabled(platformSettings, "storage")
+        ? await getStorageIndexService()
+            .updateFile(normalizedPath)
+            .catch((error) => ({ ok: false, error: String(error.message || error) }))
+        : { ok: false, skipped: true, reason: "index_disabled" };
+      const fulltext = isPlatformIndexEnabled(platformSettings, "fulltext")
+        ? await getFulltextSearchService()
+            .updateFile(normalizedPath)
+            .catch((error) => ({ ok: false, error: String(error.message || error) }))
+        : { ok: false, skipped: true, reason: "index_disabled" };
+      const link = isPlatformIndexEnabled(platformSettings, "link")
+        ? await getLinkIndexService()
+            .updateFile(normalizedPath)
+            .catch((error) => ({ ok: false, error: String(error.message || error) }))
+        : { ok: false, skipped: true, reason: "index_disabled" };
+      const data = { ok: true, path: normalizedPath, semantic, storage, fulltext, link };
       return sendJson(res, 200, data);
     } catch (error) {
       return sendJson(res, 500, {
@@ -19784,6 +19908,7 @@ async function handleApiForAgent(req, res, url) {
     try {
       const agentRoot = getAgentRoot();
       if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      readCounter(agentRoot);
       const file = await readWorkspaceSettingsWithLegacyFallback(agentRoot, getProjectRoot());
       const parsed = file.exists
         ? parseSettingsFileContent(file.content || "")
@@ -19820,7 +19945,15 @@ async function handleApiForAgent(req, res, url) {
       if (!content.trim()) {
         return sendJson(res, 400, { error: "content is required" });
       }
-      const saved = await writeWorkspaceSettingsFile(agentRoot, content.endsWith("\n") ? content : `${content}\n`);
+      const parsed = parseSettingsFileContent(content);
+      const nextContent = composeSettingsFileContent({
+        headerComment: parsed.headerComment,
+        awn_settings: touchWorkspaceAwnIdCounterOnSave(parsed.awn_settings || {})
+      });
+      const saved = await writeWorkspaceSettingsFile(
+        agentRoot,
+        nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
+      );
       return sendJson(res, 200, {
         path: saved.path,
         content: saved.content,
@@ -19838,19 +19971,78 @@ async function handleApiForAgent(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/platform/settings-global") {
     try {
-      const file = await readGlobalSettingsFile(getProjectRoot());
+      const projectRoot = getProjectRoot();
+      const agentRoot = getAgentRoot();
+      const file = await readGlobalSettingsFile(projectRoot);
       const parsed = parseSettingsFileContent(file.content || "");
+      const meta = await buildPlatformSettingsMeta(projectRoot, agentRoot || "");
       return sendJson(res, 200, {
         path: file.path,
         content: file.content,
         exists: Boolean(file.exists),
         settings: normalizePlatformAgentSettings(parsed.awn_settings),
         scope: "platform",
-        hasPolicy: Boolean(parsed.awn_policy)
+        hasPolicy: Boolean(parsed.awn_policy),
+        meta
       });
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to read global settings file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/user/settings") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const file = await readUserSettingsFile(agentRoot);
+      const parsed = file.exists
+        ? parseSettingsFileContent(file.content || "")
+        : { headerComment: "", awn_settings: {} };
+      const content =
+        file.exists
+          ? file.content
+          : composeSettingsFileContent({
+              headerComment: USER_SETTINGS_HEADER.trim(),
+              awn_settings: parsed.awn_settings
+            });
+      return sendJson(res, 200, {
+        path: USER_SETTINGS_REL_PATH,
+        content,
+        exists: Boolean(file.exists),
+        settings: normalizeUserAgentSettings(parsed.awn_settings),
+        scope: "user"
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read user settings file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/user/settings") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const content = String(payload?.content ?? "").replace(/^\uFEFF/, "");
+      if (!content.trim()) {
+        return sendJson(res, 400, { error: "content is required" });
+      }
+      const saved = await writeUserSettingsFile(agentRoot, content.endsWith("\n") ? content : `${content}\n`);
+      return sendJson(res, 200, {
+        path: saved.path,
+        content: saved.content,
+        exists: true,
+        settings: normalizeUserAgentSettings(parseSettingsFileContent(saved.content).awn_settings),
+        scope: "user"
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save user settings file",
         details: String(error.message || error)
       });
     }
@@ -19867,6 +20059,7 @@ async function handleApiForAgent(req, res, url) {
         getProjectRoot(),
         content.endsWith("\n") ? content : `${content}\n`
       );
+      invalidatePlatformSettingsCache();
       reloadMcpPolicy({ projectRoot: getProjectRoot() });
       return sendJson(res, 200, {
         path: saved.path,
@@ -20200,6 +20393,16 @@ async function handleApiForAgent(req, res, url) {
       if (query.length < 2) {
         return sendJson(res, 400, { error: "query must be at least 2 characters" });
       }
+      const platformSettings = await getPlatformSettings(getProjectRoot());
+      const scopes = Array.isArray(payload?.scopes) ? payload.scopes : ["semantic", "fulltext"];
+      const wantsSemantic = scopes.includes("semantic");
+      const wantsFulltext = scopes.includes("fulltext");
+      if (wantsSemantic && !isPlatformIndexEnabled(platformSettings, "semantic")) {
+        return sendJson(res, 403, getIndexLayerDisabledResponse(platformSettings, "semantic").body);
+      }
+      if (wantsFulltext && !isPlatformIndexEnabled(platformSettings, "fulltext")) {
+        return sendJson(res, 403, getIndexLayerDisabledResponse(platformSettings, "fulltext").body);
+      }
       const data = await getWorkspaceBrainService().searchWorkspaceHybrid({
         query,
         pathPrefix: payload?.pathPrefix || payload?.path || "",
@@ -20252,14 +20455,23 @@ async function handleApiForAgent(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/workspace-index/pipeline") {
     try {
       const payload = await readJsonBody(req);
+      const platformSettings = await getPlatformSettings(getProjectRoot());
       const ocr = await getOcrIndexService().run({
         force: Boolean(payload?.forceOcr),
         limit: payload?.ocrLimit ?? 200
       });
-      const fulltext = await getFulltextSearchService().rebuildIndex();
-      const semantic = await getSemanticSearchService().rebuildIndex();
-      const storage = await getStorageIndexService().rebuildIndex({ mode: "full" });
-      const link = await getLinkIndexService().rebuildIndex();
+      const fulltext = isPlatformIndexEnabled(platformSettings, "fulltext")
+        ? await getFulltextSearchService().rebuildIndex()
+        : { ok: false, skipped: true, reason: "index_disabled" };
+      const semantic = isPlatformIndexEnabled(platformSettings, "semantic")
+        ? await getSemanticSearchService().rebuildIndex()
+        : { ok: false, skipped: true, reason: "index_disabled" };
+      const storage = isPlatformIndexEnabled(platformSettings, "storage")
+        ? await getStorageIndexService().rebuildIndex({ mode: "full" })
+        : { ok: false, skipped: true, reason: "index_disabled" };
+      const link = isPlatformIndexEnabled(platformSettings, "link")
+        ? await getLinkIndexService().rebuildIndex()
+        : { ok: false, skipped: true, reason: "index_disabled" };
       const workspaceId = await getWorkspaceIdService().syncCounterWithAssigned();
       return sendJson(res, 200, {
         ok: true,

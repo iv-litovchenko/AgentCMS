@@ -4,15 +4,6 @@ agent: agent-cms-test
 description: CMS-модель агента — типы, слоты, поля. Runtime читает awn-system/types/
 
 # domains — источник правды по доменам («какие бывают компоненты»).
-# Встроенные домены известны рантайму по умолчанию. Здесь можно:
-#   • переопределить их label/kind;
-#   • ДОБАВИТЬ новый домен-«пакет» — заведи папку awn-system/types/<id>/ и запись ниже,
-#     и новый домен появится в дереве (с ярлыком и кнопкой «+») и в каталоге типов.
-# Формат записи: строка "id" ИЛИ объект:
-#   - id: settings          # = имя папки awn-system/types/settings/
-#     label: Настройки       # подпись в дереве
-#     kind: type             # kind для новых типов этого домена (type|slot|field|block|view|taxonomy|mixin)
-#     icon: "⚙"             # необязательно
 domains:
   - base
   - content
@@ -22,28 +13,33 @@ domains:
   - mixins
   - data
   - md-blocks
-  # Домен схем awn.settings.{platform,workspace} — awn-system/types/settings/
   - id: settings
     label: Настройки
     kind: type
     icon: "⚙"
 
-# Две независимые области: platform (settings.global.yml) + workspace (settings.yml).
-# Схемы полей — types/settings/awn.settings.{platform,workspace}.yml
+# Три независимые области настроек (не merge):
+#   platform — settings.global.yml (agent-cms-core)
+#   workspace — settings.yml (хранилище)
+#   user — .agent-cms/user-settings.yml (UI пользователя)
 settings:
   description: >
-    Platform — политика всей CMS (MCP, лимиты, системная память). Workspace — параметры конкретного хранилища.
-    Области не сливаются и не перекрывают друг друга. MCP policy — settings.global.yml → awn_policy.
+    Platform — политика CMS (MCP, лимиты, индексы). Workspace — параметры хранилища.
+    User — UI/дерево для пользователя. Области не сливаются. MCP policy — settings.global.yml → awn_policy.
   schema:
     platform:
       type: awn.settings.platform
-      path: awn-system/types/settings/awn.settings.platform.yml
+      path: awn-system/types/settings/platform.yml
     workspace:
       type: awn.settings.workspace
-      path: awn-system/types/settings/awn.settings.workspace.yml
+      path: awn-system/types/settings/workspace.yml
+    user:
+      type: awn.settings.user
+      path: awn-system/types/settings/user.yml
   values:
     platform: settings.global.yml
     workspace: settings.yml
+    user: .agent-cms/user-settings.yml
 
 docs:
   map: GLOBAL_MCP_DOC.md

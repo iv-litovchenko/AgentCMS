@@ -171,7 +171,7 @@ search_workspace_links({
 
 ### Глобальный ID записи — `awn-id`
 
-У каждой **новой** записи (manifest, content, sidecar…) в frontmatter появляется **`awn-id`** — целое число из глобального счётчика **`id-autoincrement.json`** в корне workspace (файл в sidebar → **Конфиги**). Старые записи без id: UI «Присвоить id» или MCP **`assign_workspace_id({ path })`**. **Один id у нескольких записей допустим** — при необходимости меняют вручную в свойствах.
+У каждой **новой** записи (manifest, content, sidecar…) в frontmatter появляется **`awn-id`** — целое число из глобального счётчика в **`settings.yml`** (группа **«Автоинкремент»** в настройках workspace: `awn-id-next`, `awn-id-issued`, …). Старые записи без id: UI «Присвоить id» или MCP **`assign_workspace_id({ path })`**. **Один id у нескольких записей допустим** — при необходимости меняют вручную в свойствах.
 
 | Tool | Когда |
 |------|-------|
@@ -221,7 +221,7 @@ assign_workspace_id({ "path": "awn-container/tema-x/manifest.md" })
 | `search_workspace_content` | Полнотекстовый поиск: пути, frontmatter, тела; опц. **`pathPrefix`** | meta + snippet |
 | `search_workspace_semantic` | Семантический поиск (offline hash-TF-IDF); опц. **`pathPrefix`** | snippet + score |
 | `search_workspace_links` | Граф связей: backlinks / outbound / neighbors вокруг **path**; индекс `.agent-cms/link-index/` | список path + kind |
-| `resolve_workspace_id` | Путь записи по глобальному **awn-id** (счётчик `id-autoincrement.json`) | path |
+| `resolve_workspace_id` | Путь записи по глобальному **awn-id** (счётчик в `settings.yml`) | path |
 | `assign_workspace_id` | Присвоить **awn-id** старой записи без id | id + path |
 | `list_workspace_always_context` | `awn-runtime-load-always` + system MD + GLOBAL_MCP_DOC + AGENT_RESPONSE_STYLE | **да** |
 | `list_workspace_cron` | Темы/записи с `awn-runtime-cron` (+ schedule) | нет |
@@ -320,6 +320,63 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 | `write_data_store_schema` | **полный** YAML/`fields` накопителя | без полного read потеряешь поля |
 
 Тело (`write_page_body` / `write_content_body`) frontmatter **не трогает**.
+
+---
+
+## Настройки проекта (platform / workspace / user)
+
+Три **независимые** области — **не merge**, каждая со своим файлом значений и типом в `awn-system/types/settings/`.
+
+| Область | Тип (id) | Файл схемы | Файл значений | Кто потребляет |
+|---------|----------|------------|---------------|----------------|
+| **Platform** | `awn.settings.platform` | `platform.yml` | `agent-cms-core/settings.global.yml` | MCP policy, сервер, лимиты |
+| **Workspace** | `awn.settings.workspace` | `workspace.yml` | `settings.yml` в корне хранилища | Счётчик **awn-id** (группа «Автоинкремент»), агент, слоты, TTL |
+| **User** | `awn.settings.user` | `user.yml` | `.agent-cms/user-settings.yml` | UI (дерево меню, ширина панели…) |
+
+**UI:** раздел «Настройки проекта» — три группы в сайдбаре (глобальные → локальные хранилища → пользовательские). У узлов тем/областей — `schema.yml` / `config.yml` / `.env` (это **не** agent settings).
+
+### Что реально работает в коде сейчас
+
+**Platform** (`settings.global.yml`):
+
+- `maintenance-mode` — API 503 (кроме `/api/platform/settings-global`), UI-оверлей  
+- `default-locale` — `document.lang` (ru/en)  
+- `mcp-mode`, `batch-enabled`, `batch-read-limit`, `batch-write-limit` + `awn_policy`  
+- `read-text-max-bytes`, `read-binary-max-bytes` — лимиты `read_file` / FS read  
+- `index-*-enabled` — вкл/выкл semantic, fulltext, storage, link индексы  
+
+**User** (`.agent-cms/user-settings.yml`):
+
+- `tree-*` — дерево меню  
+- `sidebar-width`, `pinned-branch-path` — UI панели и закреплённая ветка  
+
+Поля с `{NOT WORK}` в заголовке — только схема/UI, runtime ещё не подключён.
+
+### User settings (аналог TYPO3 `BE_USER → uc`)
+
+Персональные prefs UI для текущего пользователя в workspace:
+
+- `tree-show-empty-folders`, `tree-active-topics-only`, `tree-pad-sort-indexes`, `tree-max-depth` — дерево меню  
+- `sidebar-width`, `pinned-branch-path` — ширина сайдбара и закреплённая ветка меню
+
+Файл `.agent-cms/user-settings.yml` лежит в корне workspace, в git обычно не коммитится (локальный UX).
+
+### API (Shell UI)
+
+| Метод | Путь | Scope |
+|-------|------|-------|
+| GET/POST | `/api/platform/settings-global` | platform |
+| GET/POST | `/api/workspace/settings` | workspace |
+| GET/POST | `/api/user/settings` | user |
+| GET | `/api/agent/settings-schema?scope=platform\|workspace\|user` | схема полей |
+
+Подсказки на вкладках настроек — `description` у `fieldGroups` в `platform.yml` / `workspace.yml` / `user.yml`. Системная информация платформы — поля `sys-*` с `readonly: true` в `platform.yml` (группа «Основные»); значения подставляются из `meta` ответа `GET /api/platform/settings-global` и не сохраняются в `settings.global.yml`. Массив `meta.systemInfo` — тот же набор для интеграций/MCP.
+
+### MCP и настройки
+
+MCP читает **только platform** (`settings.global.yml`). Workspace/user на политику tools не влияют. Менять MCP-режим — правка `settings.global.yml` или UI «Глобальные настройки платформы».
+
+Типы в `awn-system/types/` и `registry.yml` — **справочник схем**, не редактируются через форму настроек.
 
 ---
 

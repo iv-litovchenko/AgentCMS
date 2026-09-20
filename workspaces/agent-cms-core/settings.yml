@@ -1,0 +1,7 @@
+# Agent CMS — настройки workspace (только это хранилище)
+
+awn_settings:
+  awn-id-next: 6
+  awn-id-issued: 5
+  awn-id-updated-at: "2026-09-19T21:05:44.330Z"
+  awn-id-model: workspace-id-autoincrement-v1

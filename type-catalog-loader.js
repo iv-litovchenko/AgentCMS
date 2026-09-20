@@ -48,6 +48,7 @@ const TYPE_ID_ALIASES = {
   "awn.page.topic.agent-kit.voice-sst": "awn.page.topic",
   "agent.settings.global": "awn.settings.platform",
   "agent.settings.local": "awn.settings.workspace",
+  "agent.settings.user": "awn.settings.user",
   "awn.page.topic.shared.inbox": "awn.page.topic",
   "awn.page.topic.shared.notes": "awn.page.topic",
   "awn.page.topic.shared.references": "awn.page.topic",
@@ -204,16 +205,21 @@ const DEFAULT_AGENT_SETTINGS_REGISTRY = {
   schema: {
     platform: {
       type: "awn.settings.platform",
-      path: "awn-system/types/settings/awn.settings.platform.yml"
+      path: "awn-system/types/settings/platform.yml"
     },
     workspace: {
       type: "awn.settings.workspace",
-      path: "awn-system/types/settings/awn.settings.workspace.yml"
+      path: "awn-system/types/settings/workspace.yml"
+    },
+    user: {
+      type: "awn.settings.user",
+      path: "awn-system/types/settings/user.yml"
     }
   },
   values: {
     platform: "settings.global.yml",
-    workspace: "settings.yml"
+    workspace: "settings.yml",
+    user: ".agent-cms/user-settings.yml"
   }
 };
 
@@ -233,6 +239,8 @@ function normalizeAgentSettingsRegistry(raw = {}) {
       : schema.local && typeof schema.local === "object"
         ? schema.local
         : {};
+  const userSchema =
+    schema.user && typeof schema.user === "object" ? schema.user : {};
   return {
     description: String(source.description || "").trim(),
     schema: {
@@ -243,13 +251,18 @@ function normalizeAgentSettingsRegistry(raw = {}) {
       workspace: {
         ...DEFAULT_AGENT_SETTINGS_REGISTRY.schema.workspace,
         ...workspaceSchema
+      },
+      user: {
+        ...DEFAULT_AGENT_SETTINGS_REGISTRY.schema.user,
+        ...userSchema
       }
     },
     values: {
       platform:
         values.platform || values.global || DEFAULT_AGENT_SETTINGS_REGISTRY.values.platform,
       workspace:
-        values.workspace || values.local || DEFAULT_AGENT_SETTINGS_REGISTRY.values.workspace
+        values.workspace || values.local || DEFAULT_AGENT_SETTINGS_REGISTRY.values.workspace,
+      user: values.user || DEFAULT_AGENT_SETTINGS_REGISTRY.values.user
     }
   };
 }

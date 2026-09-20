@@ -11490,6 +11490,7 @@ body.app-locked {
 
 .project-settings-scope-group.is-scope-platform-global .project-settings-scope-group-title,
 .project-settings-scope-group.is-scope-platform-local .project-settings-scope-group-title,
+.project-settings-scope-group.is-scope-user-settings .project-settings-scope-group-title,
 .project-settings-scope-group.is-scope-workspace .project-settings-scope-group-title {
   font-size: 10px;
   font-weight: 700;
@@ -11507,6 +11508,11 @@ body.app-locked {
 .project-settings-scope-group.is-scope-platform-local .project-settings-scope-group-title {
   background: rgba(34, 197, 94, 0.12);
   color: rgb(22, 101, 52);
+}
+
+.project-settings-scope-group.is-scope-user-settings .project-settings-scope-group-title {
+  background: rgba(245, 158, 11, 0.14);
+  color: rgb(180, 83, 9);
 }
 
 .project-settings-scope-group.is-scope-workspace .project-settings-scope-group-title {
@@ -11535,6 +11541,11 @@ body.app-locked {
   flex: 0 0 auto;
 }
 
+.project-settings-scope-filters.is-legend .project-settings-scope-filter {
+  cursor: default;
+  pointer-events: none;
+}
+
 .project-settings-scope-filter {
   display: inline-flex;
   align-items: center;
@@ -11555,6 +11566,11 @@ body.app-locked {
 .project-settings-scope-filter:hover {
   border-color: rgba(99, 102, 241, 0.45);
   color: var(--text);
+}
+
+.project-settings-scope-filters.is-legend .project-settings-scope-filter:hover {
+  border-color: rgba(148, 163, 184, 0.35);
+  color: var(--muted);
 }
 
 .project-settings-scope-filter-input {
@@ -12046,6 +12062,64 @@ body.app-locked {
   color: var(--muted);
 }
 
+.project-settings-group-description-lead {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  font-size: 12px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--text) 82%, #92400e);
+}
+
+.project-settings-block-lead.project-settings-group-description-lead {
+  margin: 8px 0 14px;
+}
+
+.node-config-field-row.is-readonly .node-config-field-label {
+  color: var(--muted);
+}
+
+.node-config-field-row.is-readonly .props-form-value-wrap input,
+.node-config-field-row.is-readonly .props-form-value-wrap textarea,
+.node-config-field-row.is-readonly .props-form-value-wrap select {
+  cursor: default;
+  opacity: 0.88;
+}
+
+.platform-maintenance-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+.platform-maintenance-card {
+  max-width: 420px;
+  padding: 20px 22px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+
+.platform-maintenance-card h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.platform-maintenance-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .project-settings-block--env .project-settings-env-wrap.is-editing .project-settings-env-input {
   min-height: 220px;
 }
@@ -12113,12 +12187,13 @@ body.app-locked {
 
 .node-config-field-row--compact.has-field-description {
   align-items: start;
-  padding-bottom: 10px;
+  padding-top: 8px;
+  padding-bottom: 6px;
 }
 
 .node-config-field-description {
   grid-column: 1 / -1;
-  margin: 2px 0 0;
+  margin: 0 0 4px;
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid rgba(148, 163, 184, 0.22);

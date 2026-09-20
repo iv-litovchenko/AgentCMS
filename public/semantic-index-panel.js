@@ -740,7 +740,7 @@
       } else if (catalogState.mode === "ids") {
         catalogTitle.textContent = "~show-ids";
         catalogSubtitle.textContent = data.ready
-          ? `${data.total || 0} записей с awn-id · след. ${data.nextId || 1} · ${data.counterFile || "id-autoincrement.json"}`
+          ? `${data.total || 0} записей с awn-id · след. ${data.nextId || 1} · ${data.counterFile || "settings.yml"}`
           : data.hint || "Каталог не готов";
         catalogField?.classList.add("hidden");
         catalogMeta.textContent = data.ready

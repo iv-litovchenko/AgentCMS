@@ -1,0 +1,250 @@
+id: awn.settings.platform
+name: Настройки платформы
+kind: type
+domain: settings
+status: active
+extends: awn.settings.base
+description: >
+  Политика всей платформы Agent CMS (agent-cms-core): MCP, лимиты, индексы, память.
+  Значения — settings.global.yml. Не перекрываются workspace/user.
+scope: platform
+enabled: true
+consumer: [mcp-server, server, ui, context]
+valuesFile: settings.global.yml
+
+fieldGroups:
+  - id: main
+    name: Основные
+    description: Режим обслуживания и язык UI по умолчанию для всей платформы (settings.global.yml).
+  - id: ui
+    name: Интерфейс
+    description: Глобальные настройки интерфейса — заглушка. Персональные параметры (дерево, сайдбар) — в «Пользовательские настройки».
+  - id: mcp
+    name: MCP
+    description: Политика MCP-tools — режим доступа, batch_invoke и лимиты чтения/записи файлов.
+  - id: indexing
+    name: Индексирование
+    description: Включение и отключение слоёв индексов workspace (semantic, fulltext, storage, links).
+  - id: memory
+    name: Память
+    description: Параметры долговременной памяти агента (пока не подключены в runtime).
+
+fields:
+
+  sys-cms-version:
+    type: awn.field.string
+    title: Версия CMS
+    description: Версия пакета agent-cms (package.json)
+    readonly: true
+    group: main
+    sort: 1
+
+  sys-registry-version:
+    type: awn.field.string
+    title: Версия registry.yml
+    readonly: true
+    group: main
+    sort: 2
+
+  sys-registry-mode:
+    type: awn.field.string
+    title: Режим registry
+    readonly: true
+    group: main
+    sort: 3
+
+  sys-registry-migration-date:
+    type: awn.field.string
+    title: Дата миграции типов
+    readonly: true
+    group: main
+    sort: 4
+
+  sys-node-version:
+    type: awn.field.string
+    title: Node.js
+    readonly: true
+    group: main
+    sort: 5
+
+  sys-platform-os:
+    type: awn.field.string
+    title: ОС сервера
+    readonly: true
+    group: main
+    sort: 6
+
+  sys-core-path:
+    type: awn.field.string
+    title: Каталог ядра
+    readonly: true
+    group: main
+    sort: 7
+
+  sys-type-catalog-count:
+    type: awn.field.string
+    title: Типов в каталоге
+    readonly: true
+    group: main
+    sort: 8
+
+  maintenance-mode:
+    type: awn.field.boolean
+    title: Режим обслуживания
+    description: Закрывает API (кроме settings.global.yml). В UI — оверлей.
+    default: false
+    group: main
+    sort: 20
+
+  default-locale:
+    type: awn.field.choice.one
+    title: Язык UI по умолчанию
+    description: Атрибут lang у document (ru/en)
+    default: ru
+    enum: [ru, en]
+    group: main
+    sort: 21
+
+  ui-theme:
+    type: awn.field.choice.one
+    title: "{NOT WORK} Тема оформления"
+    description: Глобальная тема UI для всех workspace (пока заглушка)
+    default: system
+    enum: [system, light, dark]
+    group: ui
+    sort: 1
+
+  ui-density:
+    type: awn.field.choice.one
+    title: "{NOT WORK} Плотность интерфейса"
+    description: Отступы и высота строк в UI
+    default: comfortable
+    enum: [compact, comfortable]
+    group: ui
+    sort: 2
+
+  ui-show-breadcrumbs:
+    type: awn.field.boolean
+    title: "{NOT WORK} Хлебные крошки"
+    description: Показывать breadcrumbs по умолчанию
+    default: true
+    group: ui
+    sort: 3
+
+  ui-default-sidebar-width:
+    type: awn.field.number.integer
+    title: "{NOT WORK} Ширина сайдбара по умолчанию"
+    description: Глобальный default (px). Персонально — user settings.
+    default: 280
+    group: ui
+    sort: 4
+
+  mcp-mode:
+    type: awn.field.choice.one
+    title: Режим MCP
+    description: readonly — только read/list/search; standard — + write/create; full — exec
+    default: standard
+    enum: [readonly, standard, full]
+    group: mcp
+    sort: 10
+
+  batch-enabled:
+    type: awn.field.boolean
+    title: batch_invoke
+    description: Разрешить пакетные вызовы одного MCP-tool
+    default: true
+    group: mcp
+    sort: 11
+
+  batch-read-limit:
+    type: awn.field.number.integer
+    title: Лимит read/list/search
+    default: 20
+    group: mcp
+    sort: 12
+
+  batch-write-limit:
+    type: awn.field.number.integer
+    title: Лимит write/create/delete
+    default: 10
+    group: mcp
+    sort: 13
+
+  batch-deny-exec:
+    type: awn.field.boolean
+    title: "{NOT WORK} Запретить exec в batch"
+    default: true
+    group: mcp
+    sort: 14
+
+  confirm-delete:
+    type: awn.field.boolean
+    title: "{NOT WORK} Подтверждение delete"
+    default: true
+    group: mcp
+    sort: 15
+
+  confirm-exec:
+    type: awn.field.boolean
+    title: "{NOT WORK} Подтверждение exec"
+    default: true
+    group: mcp
+    sort: 16
+
+  read-text-max-bytes:
+    type: awn.field.number.integer
+    title: Лимит read_file (текст), байт
+    description: read_workspace / scan folder / partial text read
+    default: 120000
+    group: mcp
+    sort: 17
+
+  read-binary-max-bytes:
+    type: awn.field.number.integer
+    title: Лимит read_file (base64), байт
+    description: Бинарные файлы через read_file format=base64
+    default: 1500000
+    group: mcp
+    sort: 18
+
+  index-semantic-enabled:
+    type: awn.field.boolean
+    title: Семантический индекс
+    default: true
+    group: indexing
+    sort: 20
+
+  index-fulltext-enabled:
+    type: awn.field.boolean
+    title: Полнотекстовый индекс
+    default: true
+    group: indexing
+    sort: 21
+
+  index-storage-enabled:
+    type: awn.field.boolean
+    title: Storage-индекс
+    default: true
+    group: indexing
+    sort: 22
+
+  index-links-enabled:
+    type: awn.field.boolean
+    title: Индекс связей
+    default: true
+    group: indexing
+    sort: 23
+
+  auto-retain-facts:
+    type: awn.field.boolean
+    title: "{NOT WORK} Авто-факты"
+    default: false
+    group: memory
+    sort: 30
+
+  always-context-max-files:
+    type: awn.field.number.integer
+    title: "{NOT WORK} Лимит always-context"
+    default: 0
+    group: memory
+    sort: 31

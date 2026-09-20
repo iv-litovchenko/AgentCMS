@@ -2,6 +2,8 @@ const NodeConfigBundle = require("./node-config-bundle");
 const { loadMcpPolicy } = require("./mcp-policy-loader");
 
 const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
+  "maintenance-mode": false,
+  "default-locale": "ru",
   "mcp-mode": "standard",
   "batch-enabled": true,
   "batch-read-limit": 20,
@@ -9,16 +11,51 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "batch-deny-exec": true,
   "confirm-delete": true,
   "confirm-exec": true,
+  "read-text-max-bytes": 120_000,
+  "read-binary-max-bytes": 1_500_000,
+  "index-semantic-enabled": true,
+  "index-fulltext-enabled": true,
+  "index-storage-enabled": true,
+  "index-links-enabled": true,
   "auto-retain-facts": false,
   "always-context-max-files": 0
+};
+
+const PLATFORM_FS_LIMITS = {
+  textMin: 1024,
+  textMax: 10_000_000,
+  binaryMin: 1024,
+  binaryMax: 10_000_000
+};
+
+const WORKSPACE_AWN_ID_COUNTER_MODEL = "workspace-id-autoincrement-v1";
+
+const WORKSPACE_AWN_ID_COUNTER_KEYS = {
+  next: "awn-id-next",
+  issued: "awn-id-issued",
+  updatedAt: "awn-id-updated-at",
+  model: "awn-id-model"
 };
 
 const WORKSPACE_AGENT_SETTINGS_DEFAULTS = {
   "agent-language": "ru",
   "response-style": "agents-md",
   "notify-on-complete": false,
+  [WORKSPACE_AWN_ID_COUNTER_KEYS.next]: 1,
+  [WORKSPACE_AWN_ID_COUNTER_KEYS.issued]: 0,
+  [WORKSPACE_AWN_ID_COUNTER_KEYS.updatedAt]: "",
+  [WORKSPACE_AWN_ID_COUNTER_KEYS.model]: WORKSPACE_AWN_ID_COUNTER_MODEL,
   "default-slot": "main",
   "awn-temp-ttl-days": 0
+};
+
+const USER_AGENT_SETTINGS_DEFAULTS = {
+  "tree-show-empty-folders": true,
+  "tree-active-topics-only": false,
+  "tree-pad-sort-indexes": false,
+  "tree-max-depth": 7,
+  "sidebar-width": 280,
+  "pinned-branch-path": ""
 };
 
 /** @deprecated merged defaults kept for compatibility checks only */
@@ -70,6 +107,47 @@ function normalizeWorkspaceAgentSettings(raw = {}) {
   return normalizeSettingsWithDefaults(raw, WORKSPACE_AGENT_SETTINGS_DEFAULTS);
 }
 
+function normalizeUserAgentSettings(raw = {}) {
+  return normalizeSettingsWithDefaults(raw, USER_AGENT_SETTINGS_DEFAULTS);
+}
+
+function getPlatformReadTextMaxBytes(settings = {}) {
+  const normalized = normalizePlatformAgentSettings(settings);
+  const value = Number(normalized["read-text-max-bytes"]);
+  const bytes = Number.isFinite(value) && value > 0 ? value : PLATFORM_AGENT_SETTINGS_DEFAULTS["read-text-max-bytes"];
+  return Math.min(Math.max(bytes, PLATFORM_FS_LIMITS.textMin), PLATFORM_FS_LIMITS.textMax);
+}
+
+function getPlatformReadBinaryMaxBytes(settings = {}) {
+  const normalized = normalizePlatformAgentSettings(settings);
+  const value = Number(normalized["read-binary-max-bytes"]);
+  const bytes = Number.isFinite(value) && value > 0 ? value : PLATFORM_AGENT_SETTINGS_DEFAULTS["read-binary-max-bytes"];
+  return Math.min(Math.max(bytes, PLATFORM_FS_LIMITS.binaryMin), PLATFORM_FS_LIMITS.binaryMax);
+}
+
+function isPlatformIndexEnabled(settings = {}, layer = "") {
+  const normalized = normalizePlatformAgentSettings(settings);
+  const map = {
+    semantic: "index-semantic-enabled",
+    fulltext: "index-fulltext-enabled",
+    storage: "index-storage-enabled",
+    link: "index-links-enabled"
+  };
+  const key = map[String(layer || "").trim()];
+  return key ? Boolean(normalized[key]) : true;
+}
+
+function isPlatformMaintenanceMode(settings = {}) {
+  return Boolean(normalizePlatformAgentSettings(settings)["maintenance-mode"]);
+}
+
+function getPlatformDefaultLocale(settings = {}) {
+  const locale = String(normalizePlatformAgentSettings(settings)["default-locale"] || "ru")
+    .trim()
+    .toLowerCase();
+  return locale === "en" ? "en" : "ru";
+}
+
 function parsePlatformAgentSettingsFromConfigContent(content) {
   const bundle = NodeConfigBundle.parseNodeConfigBundle(content || "");
   return normalizePlatformAgentSettings(bundle.awn_settings || {});
@@ -78,6 +156,17 @@ function parsePlatformAgentSettingsFromConfigContent(content) {
 function parseWorkspaceAgentSettingsFromConfigContent(content) {
   const bundle = NodeConfigBundle.parseNodeConfigBundle(content || "");
   return normalizeWorkspaceAgentSettings(bundle.awn_settings || {});
+}
+
+function touchWorkspaceAwnIdCounterOnSave(settings = {}) {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) return settings;
+  const touched = { ...settings };
+  const hasCounterField =
+    WORKSPACE_AWN_ID_COUNTER_KEYS.next in touched || WORKSPACE_AWN_ID_COUNTER_KEYS.issued in touched;
+  if (!hasCounterField) return touched;
+  touched[WORKSPACE_AWN_ID_COUNTER_KEYS.updatedAt] = new Date().toISOString();
+  touched[WORKSPACE_AWN_ID_COUNTER_KEYS.model] = WORKSPACE_AWN_ID_COUNTER_MODEL;
+  return touched;
 }
 
 function isMcpWriteTool(toolName) {
@@ -175,13 +264,18 @@ function assertBatchInvokeAllowed(toolName, itemCount, settings = {}) {
 
 module.exports = {
   PLATFORM_AGENT_SETTINGS_DEFAULTS,
+  WORKSPACE_AWN_ID_COUNTER_MODEL,
+  WORKSPACE_AWN_ID_COUNTER_KEYS,
   WORKSPACE_AGENT_SETTINGS_DEFAULTS,
+  USER_AGENT_SETTINGS_DEFAULTS,
   WORKSPACE_AGENT_SETTINGS_DEFAULTS_LEGACY,
   flattenAwnSettingsValues,
   normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
+  normalizeUserAgentSettings,
   parsePlatformAgentSettingsFromConfigContent,
   parseWorkspaceAgentSettingsFromConfigContent,
+  touchWorkspaceAwnIdCounterOnSave,
   isMcpWriteTool,
   isMcpExecTool,
   assertMcpToolAllowed,
@@ -190,5 +284,10 @@ module.exports = {
   getBatchAbsoluteMaxItems,
   getBatchDefaultParallel,
   assertBatchInvokeAllowed,
-  getMcpPolicy: getPolicy
+  getMcpPolicy: getPolicy,
+  getPlatformReadTextMaxBytes,
+  getPlatformReadBinaryMaxBytes,
+  isPlatformIndexEnabled,
+  isPlatformMaintenanceMode,
+  getPlatformDefaultLocale
 };
