@@ -11265,6 +11265,54 @@ body.app-locked {
   display: none;
 }
 
+.agent-project-settings-pane.agent-canvas-pane {
+  overflow: hidden;
+}
+
+.agent-project-settings-pane .agent-project-settings-mount {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 12px;
+}
+
+.agent-project-settings-pane .project-settings-page:not(.hidden) {
+  overflow: hidden;
+}
+
+.agent-project-settings-pane .project-settings-layout {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.agent-project-settings-pane .project-settings-sidebar {
+  position: static;
+  align-self: stretch;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+}
+
+.agent-project-settings-pane .project-settings-search-wrap {
+  flex: 0 0 auto;
+}
+
+.agent-project-settings-pane .project-settings-scope-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.agent-project-settings-pane .project-settings-main {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .agent-project-settings-mount {
   padding-top: 0;
 }
@@ -11417,6 +11465,7 @@ body.app-locked {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-height: 0;
   padding: 8px 10px;
   border: 1px solid rgba(148, 163, 184, 0.32);
   border-radius: 10px;
@@ -53881,21 +53930,29 @@ button.node-navigation-memory-title:focus-visible {
   color: #64748b;
 }
 
-.create-node-shared-themes-actions {
+.create-node-shared-themes-actions-wrap {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 2px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.create-node-shared-themes-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.create-node-shared-themes-actions--cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .create-node-shared-themes-actions .create-node-shared-theme-btn {
-  flex: 1 1 0;
-  min-width: 0;
-  padding-left: 8px;
-  padding-right: 8px;
-  font-size: 11px;
-  white-space: nowrap;
+  font-size: 13px;
+  text-align: center;
+  white-space: normal;
+}
+
+.create-node-shared-theme-btn--full {
+  grid-column: 1 / -1;
 }
 
 .create-node-shared-theme-btn--created,
@@ -54021,18 +54078,10 @@ button.node-navigation-memory-title:focus-visible {
 @media (max-width: 520px) {
   .create-node-catalog-actions,
   .create-node-service-docs-actions--cols-3,
+  .create-node-shared-themes-actions--cols-3,
   .create-node-actions.has-free-memory-option,
   .create-node-actions.has-manifest-option {
     grid-template-columns: 1fr;
-  }
-
-  .create-node-shared-themes-actions {
-    flex-wrap: wrap;
-  }
-
-  .create-node-shared-themes-actions .create-node-shared-theme-btn {
-    flex: 1 1 calc(50% - 4px);
-    min-width: 120px;
   }
 }
 

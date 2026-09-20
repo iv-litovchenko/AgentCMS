@@ -16534,6 +16534,7 @@ let projectSettingsScopeFileFilters = {
   env: true
 };
 const projectSettingsEnvCacheByManifest = new Map();
+let projectSettingsLastRenderedManifestPath = null;
 let nodeMemoryViewActive = false;
 const WYSIWYG_EDITOR_ENABLED = true;
 let wysiwygEditorInstance = null;
@@ -42280,8 +42281,58 @@ function renderProjectSettingsAgentSettingsTabs(groupNode, groupSpec, activeScop
   }
 }
 
+function getProjectSettingsMainScrollNode() {
+  return projectSettingsPageNode?.querySelector(".project-settings-main") || null;
+}
+
+function resetProjectSettingsMainScroll() {
+  const main = getProjectSettingsMainScrollNode();
+  if (main) main.scrollTop = 0;
+}
+
+function resetProjectSettingsMainScrollIfScopeChanged() {
+  const manifestPath = getNodeSettingsManifestPath();
+  if (manifestPath !== projectSettingsLastRenderedManifestPath) {
+    resetProjectSettingsMainScroll();
+    projectSettingsLastRenderedManifestPath = manifestPath;
+  }
+}
+
+function patchProjectSettingsScopeListActiveState(activeScopePath = getNodeSettingsManifestPath()) {
+  if (!projectSettingsScopeListNode || !projectSettingsScopeListNode.childElementCount) return false;
+  const buttons = projectSettingsScopeListNode.querySelectorAll(
+    ".project-settings-scope-item[data-path], .project-settings-scope-item[data-group-id]"
+  );
+  if (!buttons.length) return false;
+
+  let matchedScope = false;
+  for (const btn of buttons) {
+    const path = btn.dataset.path;
+    const groupId = btn.dataset.groupId;
+    const isAgentTab = Boolean(groupId);
+    const isActive = isAgentTab
+      ? path === activeScopePath && groupId === projectSettingsActiveGroupId
+      : path === activeScopePath;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    if (isActive) matchedScope = true;
+  }
+  return matchedScope;
+}
+
+function syncProjectSettingsScopeListUi(options = {}) {
+  if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
+  if (!options.force && patchProjectSettingsScopeListActiveState()) return;
+  renderProjectSettingsScopeList();
+}
+
 function renderProjectSettingsScopeList() {
   if (!projectSettingsScopeListNode || !isProjectSettingsMode()) return;
+  const preservedScrollTop = projectSettingsScopeListNode.scrollTop;
+  const focusedInList =
+    document.activeElement instanceof HTMLElement &&
+    projectSettingsScopeListNode.contains(document.activeElement);
+  if (focusedInList) document.activeElement.blur();
   projectSettingsScopeListNode.replaceChildren();
   const sidebarScopes = collectProjectSettingsSidebarScopes();
   const { scopes: searchedScopes, searchActive } = filterProjectSettingsManifestScopes(sidebarScopes);
@@ -42434,6 +42485,7 @@ function renderProjectSettingsScopeList() {
     }
     projectSettingsScopeListNode.appendChild(groupNode);
   }
+  projectSettingsScopeListNode.scrollTop = preservedScrollTop;
 }
 
 async function selectProjectSettingsAgentSettingsTab(scopePath, groupId) {
@@ -42612,7 +42664,7 @@ function renderProjectSettingsIblockStubPage(scopePath = getNodeSettingsManifest
       "Редактор настроек инфоблока в разработке. Пока используйте «Накопители информации» в боковом меню.";
   }
   projectSettingsSaveBtnNode?.classList.add("hidden");
-  renderProjectSettingsScopeList();
+  syncProjectSettingsScopeListUi();
 }
 
 function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
@@ -42704,7 +42756,8 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
         : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан.`;
     projectSettingsEnvLeadNode.innerHTML = `${envHint} Редактируйте ниже и нажмите «Сохранить».`;
   }
-  renderProjectSettingsScopeList();
+  resetProjectSettingsMainScrollIfScopeChanged();
+  syncProjectSettingsScopeListUi();
   projectSettingsFieldsNode?.classList.remove("hidden");
   renderNodeSettingsEditor(cache);
   projectSettingsSaveBtnNode?.classList.remove("hidden");
@@ -42762,6 +42815,7 @@ function hideProjectSettingsPageUi() {
 
 function leaveProjectSettingsMode() {
   projectSettingsBootstrapped = false;
+  projectSettingsLastRenderedManifestPath = null;
   if (activeContentMode === PROJECT_SETTINGS_MODE) {
     activeContentMode = NODE_OPEN_MEMORY_MODE;
   }
