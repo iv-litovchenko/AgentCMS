@@ -4,11 +4,15 @@ const NodeConfigBundle = require("./node-config-bundle");
 const { parseTypeYaml } = require("./awn-yaml-utils");
 const { AGENT_CMS_CORE_REL, getAgentCmsCoreAbsolute } = require("./platform-sources");
 const {
+  PLATFORM_AGENT_SETTINGS_DEFAULTS,
+  WORKSPACE_AGENT_SETTINGS_DEFAULTS,
+  USER_AGENT_SETTINGS_DEFAULTS,
   normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
   normalizeUserAgentSettings,
   flattenAwnSettingsValues,
-  parseWorkspaceAgentSettingsFromConfigContent
+  parseWorkspaceAgentSettingsFromConfigContent,
+  touchWorkspaceAwnIdCounterOnSave
 } = require("./workspace-agent-settings");
 const { loadTypeCatalog, toRecordTypeDef, resolveAgentSettingsRegistry } = require("./type-catalog-loader");
 
@@ -539,6 +543,309 @@ async function buildPlatformSettingsMeta(projectRoot = process.cwd(), agentRoot 
   };
 }
 
+const PLATFORM_SYS_KEY_MAP = {
+  "cms-version": "sys-cms-version",
+  "registry-version": "sys-registry-version",
+  "registry-mode": "sys-registry-mode",
+  "registry-migration-date": "sys-registry-migration-date",
+  "node-version": "sys-node-version",
+  "platform-os": "sys-platform-os",
+  "core-path": "sys-core-path",
+  "type-catalog-count": "sys-type-catalog-count"
+};
+
+const SETTINGS_SCOPE_ALIASES = {
+  all: "all",
+  platform: "platform",
+  global: "platform",
+  workspace: "workspace",
+  local: "workspace",
+  user: "user"
+};
+
+function resolveAgentSettingsListScopes(scope = "all") {
+  const normalized = SETTINGS_SCOPE_ALIASES[String(scope || "all").trim().toLowerCase()];
+  if (!normalized) {
+    throw new Error('scope must be "all", "platform", "workspace", or "user"');
+  }
+  if (normalized === "all") return ["platform", "workspace", "user"];
+  return [normalized];
+}
+
+function getDefaultsForScope(scopeKey) {
+  if (scopeKey === "platform") return PLATFORM_AGENT_SETTINGS_DEFAULTS;
+  if (scopeKey === "user") return USER_AGENT_SETTINGS_DEFAULTS;
+  return WORKSPACE_AGENT_SETTINGS_DEFAULTS;
+}
+
+function normalizeSettingsForScope(scopeKey, raw = {}) {
+  if (scopeKey === "platform") return normalizePlatformAgentSettings(raw);
+  if (scopeKey === "user") return normalizeUserAgentSettings(raw);
+  return normalizeWorkspaceAgentSettings(raw);
+}
+
+function isSettingFieldReadonly(fieldDef = {}) {
+  return Boolean(fieldDef.locked || fieldDef.readonly);
+}
+
+function isSettingFieldRuntimeEffect(fieldDef = {}) {
+  const title = String(fieldDef.title || fieldDef.name || "").trim();
+  return !title.includes("{NOT WORK}");
+}
+
+function buildSettingFieldMeta(scopeKey, key, fieldDef = {}, value = null) {
+  return {
+    scope: scopeKey,
+    key,
+    value,
+    title: String(fieldDef.title || key).trim(),
+    description: String(fieldDef.description || "").trim(),
+    group: fieldDef.group ? String(fieldDef.group) : null,
+    type: fieldDef.type ? String(fieldDef.type) : null,
+    readonly: isSettingFieldReadonly(fieldDef),
+    runtimeEffect: isSettingFieldRuntimeEffect(fieldDef),
+    default: fieldDef.default ?? null
+  };
+}
+
+async function getPlatformSystemSettingValues(projectRoot, agentRoot = "") {
+  const meta = await buildPlatformSettingsMeta(projectRoot, agentRoot);
+  const values = {};
+  for (const item of meta.systemInfo || []) {
+    const schemaKey = PLATFORM_SYS_KEY_MAP[String(item.key || "").trim()] || String(item.key || "").trim();
+    if (!schemaKey) continue;
+    values[schemaKey] = item.value;
+  }
+  return values;
+}
+
+async function readSettingsRawForScope(agentRoot, projectRoot, scopeKey) {
+  if (scopeKey === "platform") {
+    const file = await readGlobalSettingsFile(projectRoot);
+    const parsed = parseSettingsFileContent(file.content || "");
+    const systemValues = await getPlatformSystemSettingValues(projectRoot, agentRoot);
+    const mergedRaw = { ...parsed.awn_settings, ...systemValues };
+    return {
+      scope: scopeKey,
+      path: file.path,
+      exists: Boolean(file.exists),
+      raw: mergedRaw,
+      parsed,
+      file,
+      awn_policy: parsed.awn_policy || null
+    };
+  }
+
+  if (scopeKey === "user") {
+    const file = await readUserSettingsFile(agentRoot);
+    const parsed = parseSettingsFileContent(file.content || "");
+    return {
+      scope: scopeKey,
+      path: file.path,
+      exists: Boolean(file.exists),
+      raw: parsed.awn_settings,
+      parsed,
+      file
+    };
+  }
+
+  const file = await readWorkspaceSettingsWithLegacyFallback(agentRoot, projectRoot);
+  let localSettings = {};
+  if (file.exists) {
+    localSettings = parseSettingsFileContent(file.content || "").awn_settings;
+  } else if (file.awn_settings) {
+    localSettings = file.awn_settings;
+  } else {
+    try {
+      const configContent = await fs.promises.readFile(path.join(agentRoot, "config.yml"), "utf-8");
+      localSettings = flattenAwnSettingsValues(parseWorkspaceAgentSettingsFromConfigContent(configContent));
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") throw error;
+    }
+  }
+
+  return {
+    scope: scopeKey,
+    path: WORKSPACE_SETTINGS_FILE,
+    exists: Boolean(file.exists),
+    raw: localSettings,
+    parsed: { headerComment: "", awn_settings: localSettings },
+    file,
+    legacySource: file.legacyConfigPath || null
+  };
+}
+
+function resolveSettingFieldDef(schemaPayload, key) {
+  const fieldKey = String(key || "").trim();
+  if (!fieldKey) throw new Error("key is required");
+  const fieldDef = schemaPayload?.fields?.[fieldKey];
+  if (!fieldDef) {
+    throw new Error(`Unknown setting key "${fieldKey}" for scope "${schemaPayload.scope || "workspace"}"`);
+  }
+  return fieldDef;
+}
+
+function coerceSettingInputValue(rawValue, fieldDef, defaults, key) {
+  if (!(key in defaults)) {
+    throw new Error(`Setting "${key}" is not writable in this scope`);
+  }
+  const defaultValue = defaults[key];
+
+  if (typeof defaultValue === "boolean") {
+    if (typeof rawValue === "boolean") return rawValue;
+    const text = String(rawValue ?? "")
+      .trim()
+      .toLowerCase();
+    if (["true", "1", "yes", "on"].includes(text)) return true;
+    if (["false", "0", "no", "off", ""].includes(text)) return false;
+    throw new Error(`Invalid boolean for "${key}"`);
+  }
+
+  if (typeof defaultValue === "number") {
+    const numeric = Number(rawValue);
+    if (!Number.isFinite(numeric)) throw new Error(`Invalid number for "${key}"`);
+    return numeric;
+  }
+
+  if (Array.isArray(defaultValue)) {
+    if (Array.isArray(rawValue)) {
+      return rawValue.map((item) => String(item ?? "").trim()).filter(Boolean);
+    }
+    const text = String(rawValue ?? "").trim();
+    if (!text) return [];
+    return text
+      .split(/[\n,;]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return String(rawValue ?? "");
+}
+
+async function listAgentSettings(agentRoot, projectRoot, scope = "all") {
+  const scopes = resolveAgentSettingsListScopes(scope);
+  const items = [];
+
+  for (const scopeKey of scopes) {
+    const schema = getAgentSettingsSchemaPayload(agentRoot, projectRoot, scopeKey);
+    const payload = await readSettingsRawForScope(agentRoot, projectRoot, scopeKey);
+    const normalized = normalizeSettingsForScope(scopeKey, payload.raw);
+
+    for (const [key, fieldDef] of Object.entries(schema.fields || {})) {
+      items.push(
+        buildSettingFieldMeta(scopeKey, key, fieldDef, Object.prototype.hasOwnProperty.call(normalized, key) ? normalized[key] : null)
+      );
+    }
+  }
+
+  items.sort((a, b) => {
+    const scopeOrder = { platform: 0, workspace: 1, user: 2 };
+    const scopeDiff = (scopeOrder[a.scope] ?? 9) - (scopeOrder[b.scope] ?? 9);
+    if (scopeDiff !== 0) return scopeDiff;
+    return String(a.key).localeCompare(String(b.key), "ru");
+  });
+
+  return {
+    scope: scope === "all" ? "all" : scopes[0],
+    count: items.length,
+    items
+  };
+}
+
+async function readAgentSetting(agentRoot, projectRoot, scope, key) {
+  const scopeKey = resolveSettingsScopeKey(scope);
+  const schema = getAgentSettingsSchemaPayload(agentRoot, projectRoot, scopeKey);
+  const fieldDef = resolveSettingFieldDef(schema, key);
+  const payload = await readSettingsRawForScope(agentRoot, projectRoot, scopeKey);
+  const normalized = normalizeSettingsForScope(scopeKey, payload.raw);
+  const fieldKey = String(key).trim();
+
+  return {
+    ...buildSettingFieldMeta(scopeKey, fieldKey, fieldDef, normalized[fieldKey]),
+    path: payload.path,
+    valuesFile: schema.valuesFile || payload.path,
+    exists: payload.exists
+  };
+}
+
+async function writeAgentSetting(agentRoot, projectRoot, scope, key, rawValue) {
+  const scopeKey = resolveSettingsScopeKey(scope);
+  const schema = getAgentSettingsSchemaPayload(agentRoot, projectRoot, scopeKey);
+  const fieldKey = String(key || "").trim();
+  const fieldDef = resolveSettingFieldDef(schema, fieldKey);
+
+  if (isSettingFieldReadonly(fieldDef)) {
+    throw new Error(`Setting "${fieldKey}" is readonly`);
+  }
+
+  const defaults = getDefaultsForScope(scopeKey);
+  const coerced = coerceSettingInputValue(rawValue, fieldDef, defaults, fieldKey);
+  const payload = await readSettingsRawForScope(agentRoot, projectRoot, scopeKey);
+  const sourceSettings =
+    scopeKey === "platform"
+      ? payload.parsed?.awn_settings || {}
+      : payload.parsed?.awn_settings || payload.raw || {};
+  const nextFlat = {
+    ...flattenAwnSettingsValues(sourceSettings),
+    [fieldKey]: coerced
+  };
+
+  if (scopeKey === "platform") {
+    const nextContent = composeGlobalSettingsFileContent({
+      headerComment: payload.parsed?.headerComment || GLOBAL_SETTINGS_HEADER.trim(),
+      awn_settings: nextFlat,
+      awn_policy: payload.awn_policy
+    });
+    const saved = await writeGlobalSettingsFile(
+      projectRoot,
+      nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
+    );
+    invalidatePlatformSettingsCache();
+    const normalized = normalizePlatformAgentSettings(parseSettingsFileContent(saved.content).awn_settings);
+    return {
+      ok: true,
+      ...buildSettingFieldMeta(scopeKey, fieldKey, fieldDef, normalized[fieldKey]),
+      path: saved.path,
+      valuesFile: schema.valuesFile || saved.path,
+      policyReloadRequired: true
+    };
+  }
+
+  if (scopeKey === "user") {
+    const nextContent = composeSettingsFileContent({
+      headerComment: payload.parsed?.headerComment || USER_SETTINGS_HEADER.trim(),
+      awn_settings: nextFlat
+    });
+    const saved = await writeUserSettingsFile(
+      agentRoot,
+      nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
+    );
+    const normalized = normalizeUserAgentSettings(parseSettingsFileContent(saved.content).awn_settings);
+    return {
+      ok: true,
+      ...buildSettingFieldMeta(scopeKey, fieldKey, fieldDef, normalized[fieldKey]),
+      path: saved.path,
+      valuesFile: schema.valuesFile || saved.path
+    };
+  }
+
+  const nextContent = composeSettingsFileContent({
+    headerComment: payload.parsed?.headerComment || WORKSPACE_SETTINGS_HEADER.trim(),
+    awn_settings: touchWorkspaceAwnIdCounterOnSave(nextFlat)
+  });
+  const saved = await writeWorkspaceSettingsFile(
+    agentRoot,
+    nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
+  );
+  const normalized = normalizeWorkspaceAgentSettings(parseSettingsFileContent(saved.content).awn_settings);
+  return {
+    ok: true,
+    ...buildSettingFieldMeta(scopeKey, fieldKey, fieldDef, normalized[fieldKey]),
+    path: saved.path,
+    valuesFile: schema.valuesFile || saved.path
+  };
+}
+
 module.exports = {
   WORKSPACE_SETTINGS_FILE,
   GLOBAL_SETTINGS_FILE,
@@ -579,5 +886,8 @@ module.exports = {
   getPlatformSettings,
   getPlatformSettingsPayload,
   invalidatePlatformSettingsCache,
-  buildPlatformSettingsMeta
+  buildPlatformSettingsMeta,
+  listAgentSettings,
+  readAgentSetting,
+  writeAgentSetting
 };

@@ -11,7 +11,7 @@
 **1 + 1 = синергия** — не два разных «файловых мира», а одна CMS-память на общем словаре.
 
 **Правило:** работать с CMS **только через MCP tools**. Запрещены сторонние tools, прямой `curl` к API, прямое чтение/запись файлов workspace и любые вызовы в обход MCP. Shell и команды — через `run_script` / `exec_command` / `exec_shell`.  
-Этот файл — шпаргалка (**78 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
+Этот файл — шпаргалка (**81 tools**, slim). Карта: `temp2/examples/mcp-optimiz.md`.
 
 ### Новый чат — выбор хранилища (`agentId`)
 
@@ -327,13 +327,15 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 
 Три **независимые** области — **не merge**, каждая со своим файлом значений и типом в `awn-system/types/settings/`.
 
-| Область | Тип (id) | Файл схемы | Файл значений | Кто потребляет |
-|---------|----------|------------|---------------|----------------|
-| **Platform** | `awn.settings.platform` | `platform.yml` | `agent-cms-core/settings.global.yml` | MCP policy, сервер, лимиты |
-| **Workspace** | `awn.settings.workspace` | `workspace.yml` | `settings.yml` в корне хранилища | Счётчик **awn-id** (группа «Автоинкремент»), агент, слоты, TTL |
-| **User** | `awn.settings.user` | `user.yml` | `.agent-cms/user-settings.yml` | UI (дерево меню, ширина панели…) |
+| Область | В UI / разговоре | MCP `scope` | Тип (id) | Файл значений | Кто потребляет |
+|---------|------------------|-------------|----------|---------------|----------------|
+| **Platform** | **Глобальные** (платформа) | `platform` (alias `global`) | `awn.settings.platform` | `agent-cms-core/settings.global.yml` | MCP policy, сервер, лимиты, индексы |
+| **Workspace** | **Локальные** (хранилище) | `workspace` (alias `local`) | `awn.settings.workspace` | `settings.yml` в корне хранилища | Счётчик **awn-id**, параметры workspace |
+| **User** | **Пользовательские** (UI) | `user` | `awn.settings.user` | `.agent-cms/user-settings.yml` | Дерево меню, сайдбар, pin ветки |
 
-**UI:** раздел «Настройки проекта» — три группы в сайдбаре (глобальные → локальные хранилища → пользовательские). У узлов тем/областей — `schema.yml` / `config.yml` / `.env` (это **не** agent settings).
+**UI:** раздел «Настройки проекта» — три группы в сайдбаре (**глобальные → локальные → пользовательские**). У узлов тем/областей — `schema.yml` / `config.yml` / `.env` (это **не** agent settings — см. `read_page_config`).
+
+**Не путать:** «локальные» = настройки **workspace** (`settings.yml`), не `config.yml` темы.
 
 ### Что реально работает в коде сейчас
 
@@ -369,16 +371,43 @@ Frontmatter (`awn-name`, `awn-description`, …) — краткие метада
 
 | Метод | Путь | Scope |
 |-------|------|-------|
-| GET/POST | `/api/platform/settings-global` | platform |
-| GET/POST | `/api/workspace/settings` | workspace |
-| GET/POST | `/api/user/settings` | user |
+| GET/POST | `/api/platform/settings-global` | platform (глобальные) |
+| GET/POST | `/api/workspace/settings` | workspace (локальные) |
+| GET/POST | `/api/user/settings` | user (пользовательские) |
 | GET | `/api/agent/settings-schema?scope=platform\|workspace\|user` | схема полей |
+| GET | `/api/agent/settings/list?scope=` | list (MCP) |
+| GET | `/api/agent/settings/read?scope=&key=` | read one (MCP) |
+| POST | `/api/agent/settings/write` | write one (MCP) |
 
-Подсказки на вкладках настроек — `description` у `fieldGroups` в `platform.yml` / `workspace.yml` / `user.yml`. Системная информация платформы — поля `sys-*` с `readonly: true` в `platform.yml` (группа «Основные»); значения подставляются из `meta` ответа `GET /api/platform/settings-global` и не сохраняются в `settings.global.yml`. Массив `meta.systemInfo` — тот же набор для интеграций/MCP.
+Подсказки на вкладках настроек — `description` у `fieldGroups` в `platform.yml` / `workspace.yml` / `user.yml`. Системная информация платформы — поля `sys-*` с `readonly: true` в `platform.yml` (группа «Основные»); значения подставляются из `meta` / runtime, **не** сохраняются в `settings.global.yml`.
 
-### MCP и настройки
+### MCP — три tool для настроек
 
-MCP читает **только platform** (`settings.global.yml`). Workspace/user на политику tools не влияют. Менять MCP-режим — правка `settings.global.yml` или UI «Глобальные настройки платформы».
+| Tool | Зачем |
+|------|-------|
+| **`list_settings`** | Все ключи + значения + meta (`title`, `group`, `readonly`, `runtimeEffect`). Параметр `scope`: `all` (default), `platform`, `workspace`, `user` |
+| **`read_setting`** | Одна настройка: `scope` + `key` |
+| **`write_setting`** | Запись одной настройки: `scope` + `key` + `value`. Заблокировано при `mcp-mode=readonly` |
+
+**Примеры:**
+
+```json
+list_settings({ "agentId": "…", "scope": "all" })
+
+read_setting({ "agentId": "…", "scope": "user", "key": "tree-max-depth" })
+
+write_setting({ "agentId": "…", "scope": "platform", "key": "mcp-mode", "value": "standard" })
+```
+
+**Правила:**
+
+- **Политика MCP** (какие tools доступны, batch-лимиты) — только **глобальные** (`platform` / `settings.global.yml`). Workspace/user на denylist не влияют.
+- **`readonly`** (`sys-*`, `awn-id-*`) — `read_setting` ✅, `write_setting` ❌.
+- Поля **`{NOT WORK}`** — сохраняются через `write_setting`, но `runtimeEffect: false` (заглушки, группа «Статичные параметры»).
+- При старте чата снимок platform+workspace ещё в **`get_session_context`** → `platformSettings`, `workspaceSettings` (без user).
+- Альтернатива — правка целого yaml через UI или `write_file` (если policy разрешает); предпочтительно **`write_setting`** для одного ключа.
+
+Полный реестр полей и статус runtime: **`SETTINGS_CHECK.md`** в корне репозитория.
 
 Типы в `awn-system/types/` и `registry.yml` — **справочник схем**, не редактируются через форму настроек.
 

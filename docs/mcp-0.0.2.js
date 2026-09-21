@@ -1,6 +1,6 @@
 module.exports = {
   version: "0.0.2",
-  versionLabel: "Per-chat agentId · 100 tools",
+  versionLabel: "Per-chat agentId · 103 tools",
   title: "Agent CMS MCP Server",
   subtitle: "Model Context Protocol · stdio · mcp-server/ v0.3.8",
   packagePath: "mcp-server/",
@@ -97,6 +97,32 @@ module.exports = {
           description: "Сводка хранилища (как #menu-agent-stats): темы, контейнеры, файлы, размер, входящие.",
           parameters: "—",
           http: "GET /api/agent/storage-summary"
+        }
+      ]
+    },
+    {
+      id: "settings",
+      title: "Настройки (глобальные / локальные / пользовательские)",
+      tools: [
+        {
+          name: "list_settings",
+          description:
+            "Все настройки: platform (глобальные settings.global.yml), workspace (локальные settings.yml), user (.agent-cms/user-settings.yml).",
+          parameters: "scope? (all|platform|workspace|user)",
+          http: "GET /api/agent/settings/list?scope="
+        },
+        {
+          name: "read_setting",
+          description: "Одна настройка: scope + key (meta: readonly, runtimeEffect).",
+          parameters: "scope (platform|workspace|user), key",
+          http: "GET /api/agent/settings/read?scope=&key="
+        },
+        {
+          name: "write_setting",
+          description:
+            "Запись одной настройки. readonly (sys-*, awn-id-*) — ошибка. Блок при mcp-mode=readonly.",
+          parameters: "scope, key, value",
+          http: "POST /api/agent/settings/write"
         }
       ]
     },

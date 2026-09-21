@@ -361,7 +361,10 @@ const {
   getAgentSettingsRegistry,
   getPlatformSettings,
   invalidatePlatformSettingsCache,
-  buildPlatformSettingsMeta
+  buildPlatformSettingsMeta,
+  listAgentSettings,
+  readAgentSetting,
+  writeAgentSetting
 } = require("./settings-store");
 const { transliterateToSlug, sanitizeSlugInput } = require(path.join(__dirname, "public", "slug-translit.js"));
 const {
@@ -5351,7 +5354,10 @@ const WORKSPACE_FS_READ_BASE64_MAX_BYTES_FALLBACK = 1_500_000;
 const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
   "/api/platform/settings-global",
   "/api/platform/settings-schema",
-  "/api/agent/settings-schema"
+  "/api/agent/settings-schema",
+  "/api/agent/settings/list",
+  "/api/agent/settings/read",
+  "/api/agent/settings/write"
 ]);
 
 async function resolveWorkspaceTextFileMaxBytes(options = {}) {
@@ -20030,6 +20036,72 @@ async function handleApiForAgent(req, res, url) {
       return sendJson(res, 500, {
         error: "Failed to read workspace settings",
         details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/settings/list") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const scope = String(url.searchParams.get("scope") || "all").trim();
+      const payload = await listAgentSettings(agentRoot, getProjectRoot(), scope);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /scope must be/i.test(message) ? 400 : 500;
+      return sendJson(res, status, {
+        error: "Failed to list settings",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/agent/settings/read") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const scope = String(url.searchParams.get("scope") || "").trim();
+      const key = String(url.searchParams.get("key") || "").trim();
+      if (!scope) return sendJson(res, 400, { error: "scope is required" });
+      if (!key) return sendJson(res, 400, { error: "key is required" });
+      const payload = await readAgentSetting(agentRoot, getProjectRoot(), scope, key);
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      const status = /Unknown setting key|key is required/i.test(message) ? 404 : 500;
+      return sendJson(res, status, {
+        error: "Failed to read setting",
+        details: message
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/settings/write") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const body = await readJsonBody(req);
+      const scope = String(body?.scope || "").trim();
+      const key = String(body?.key || "").trim();
+      if (!scope) return sendJson(res, 400, { error: "scope is required" });
+      if (!key) return sendJson(res, 400, { error: "key is required" });
+      if (!Object.prototype.hasOwnProperty.call(body || {}, "value")) {
+        return sendJson(res, 400, { error: "value is required" });
+      }
+      const payload = await writeAgentSetting(agentRoot, getProjectRoot(), scope, key, body.value);
+      if (payload.policyReloadRequired) {
+        reloadMcpPolicy({ projectRoot: getProjectRoot() });
+      }
+      return sendJson(res, 200, payload);
+    } catch (error) {
+      const message = String(error.message || error);
+      let status = 500;
+      if (/Unknown setting key/i.test(message)) status = 404;
+      else if (/readonly|Invalid |scope must be|is required|not writable/i.test(message)) status = 400;
+      return sendJson(res, status, {
+        error: "Failed to write setting",
+        details: message
       });
     }
   }

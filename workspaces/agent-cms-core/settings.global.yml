@@ -66,6 +66,8 @@ awn_policy:
     read_tools:
       - page_exists
       - content_exists
+      - list_settings
+      - read_setting
       - iblock_list
       - iblock_get
       - iblock_read_index

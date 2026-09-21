@@ -28,6 +28,7 @@ import { registerWorkspacePadTools } from "./lib/workspace-pad-tools.js";
 import { registerSidecarTools } from "./lib/sidecar-tools.js";
 import { registerFactsTools } from "./lib/facts-tools.js";
 import { registerJournalTools } from "./lib/journal-tools.js";
+import { registerSettingsTools } from "./lib/settings-tools.js";
 import { assertWorkspaceMcpToolAllowed } from "./lib/workspace-settings-guard.js";
 import { createToolRegistry, registerBatchInvokeTools } from "./lib/batch-invoke-tools.js";
 
@@ -148,6 +149,8 @@ function createServer() {
     z.object({}),
     () => client.get("/api/agent/heartbeat-registry")
   );
+
+  registerSettingsTools(reg, client);
 
   // ── Навигация (3) ──────────────────────────────────────────────────────────
 
