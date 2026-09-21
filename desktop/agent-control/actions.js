@@ -22,7 +22,7 @@ const ACTIONS = [
     id: "setup-desktop-shortcuts",
     category: "setup",
     title: "Ярлыки на рабочем столе",
-    description: "Desktop: ACMS-Control, ACMS, ACMS-Voice → dist/. Сначала «Собрать».",
+    description: "Desktop: ACMS-Control, ACMS-Editor, ACMS-Voice, ACMS-Browser-Extension. Для .app — сначала «Собрать».",
     command: "node",
     args: ["scripts/create-desktop-shortcuts.js"],
     tone: "default"
@@ -118,7 +118,7 @@ const ACTIONS = [
 const APP_PRODUCTS = [
   {
     id: "cms",
-    title: "Agent CMS",
+    title: "Agent CMS Editor",
     subtitle: "Редактор контента",
     badge: "Editor",
     accent: "cms",

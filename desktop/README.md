@@ -12,10 +12,11 @@
 
 Старт из корня проекта: **`welcome.command`** (скрипт).
 
-На рабочем столе (кнопка «Ярлыки Desktop» в Control) — ссылки на сборки в `dist/`:
+На рабочем столе (кнопка «Ярлыки Desktop» в Control):
 - `ACMS-Control.app` → `dist/agent-control/`
-- `ACMS.app` → `dist/agent-cms/`
+- `ACMS-Editor.app` → `dist/agent-cms/`
 - `ACMS-Voice.app` → `dist/agent-shell/`
+- `ACMS-Browser-Extension` → `browser-extension/` (папка расширения)
 
 Сборка Control: `npm run control:dist` → `dist/agent-control/Agent CMS Control.app`
 

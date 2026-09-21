@@ -14,19 +14,25 @@ const SHORTCUTS = [
     target: () => path.join(repoRoot, "dist/agent-control/Agent CMS Control.app")
   },
   {
-    name: "ACMS.app",
+    name: "ACMS-Editor.app",
     target: () => path.join(repoRoot, "dist/agent-cms/Agent CMS.app")
   },
   {
     name: "ACMS-Voice.app",
     target: () => path.join(repoRoot, "dist/agent-shell/Agent Shell.app")
+  },
+  {
+    name: "ACMS-Browser-Extension",
+    target: () => path.join(repoRoot, "browser-extension"),
+    isFolder: true
   }
 ];
 
 const LEGACY_SHORTCUTS = [
   "Agent CMS Control.app",
   "Agent CMS.app",
-  "Agent CMS Voice.app"
+  "Agent CMS Voice.app",
+  "ACMS.app"
 ];
 
 function getDesktopDir() {
@@ -77,6 +83,7 @@ async function createDesktopShortcuts() {
   }
 
   let created = 0;
+  let appShortcuts = 0;
 
   for (const entry of SHORTCUTS) {
     if (entry.ensure) await entry.ensure();
@@ -86,6 +93,7 @@ async function createDesktopShortcuts() {
     if (result.ok) {
       console.log(`  ✓ ${entry.name} → ${path.relative(repoRoot, target)}`);
       created += 1;
+      if (!entry.isFolder) appShortcuts += 1;
       continue;
     }
 
@@ -98,8 +106,8 @@ async function createDesktopShortcuts() {
   }
 
   console.log(`Готово: ${created} ярлык(ов) на рабочем столе.`);
-  if (created < SHORTCUTS.length) {
-    console.log("Остальные появятся после «Собрать» в разделе Приложения.");
+  if (appShortcuts < SHORTCUTS.filter((entry) => !entry.isFolder).length) {
+    console.log("Остальные .app появятся после «Собрать» в разделе Приложения.");
   }
 
   return { ok: true, created, desktopDir };
