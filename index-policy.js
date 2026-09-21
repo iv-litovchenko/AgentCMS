@@ -3,13 +3,12 @@ const { normalizePlatformAgentSettings } = require("./workspace-agent-settings")
 
 const DEFAULT_INDEX_FILE_EXTENSIONS = [".md", ".sidecar.md"];
 
-const DEFAULT_INDEX_EXCLUDE_PATTERNS = [
-  ".agent-cms/semantic-index/",
-  ".agent-cms/fulltext-index/",
-  ".agent-cms/storage-index/",
-  ".agent-cms/link-index/",
+const DEFAULT_INDEX_EXCLUDE_LINES = [
+  ".git",
+  ".agent-cms",
+  ".agent-shell",
   "node_modules/",
-  ".git/"
+  "awn-repository/ !manifest.md !README.md"
 ];
 
 const INDEX_FILE_EXTENSION_OPTIONS = [
@@ -26,15 +25,6 @@ const INDEX_PATH_PREFIX_OPTIONS = [
   { key: "awn-container/", name: "awn-container/" },
   { key: "awn-shared/", name: "awn-shared/" },
   { key: "codex-test/", name: "codex-test/" }
-];
-
-const INDEX_EXCLUDE_PATTERN_OPTIONS = [
-  { key: ".agent-cms/semantic-index/", name: "Кэш semantic-index" },
-  { key: ".agent-cms/fulltext-index/", name: "Кэш fulltext-index" },
-  { key: ".agent-cms/storage-index/", name: "Кэш storage-index" },
-  { key: ".agent-cms/link-index/", name: "Кэш link-index" },
-  { key: "node_modules/", name: "node_modules/" },
-  { key: ".git/", name: ".git/" }
 ];
 
 const SEARCH_SCOPE_OPTIONS = [
@@ -136,31 +126,57 @@ function parseIndexPathPrefixes(settings = {}) {
   );
 }
 
-function parseIndexExcludePatterns(settings = {}) {
+function parseExcludeRuleLine(raw) {
+  const parts = String(raw || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return null;
+  const pattern = normalizeExcludePattern(parts[0]);
+  if (!pattern) return null;
+  const allow = parts
+    .filter((part) => part.startsWith("!"))
+    .map((part) => part.slice(1).toLowerCase())
+    .filter(Boolean);
+  return { pattern, allow, raw: String(raw || "").trim() };
+}
+
+function parseIndexExcludeRules(settings = {}) {
   return parseListSetting(
     normalizePlatformAgentSettings(settings)["index-exclude-patterns"],
-    DEFAULT_INDEX_EXCLUDE_PATTERNS
+    DEFAULT_INDEX_EXCLUDE_LINES
   )
-    .map(normalizeExcludePattern)
+    .map(parseExcludeRuleLine)
     .filter(Boolean);
 }
 
-function isPathExcluded(relPath, patterns = DEFAULT_INDEX_EXCLUDE_PATTERNS) {
+function parseIndexExcludePatterns(settings = {}) {
+  return parseIndexExcludeRules(settings).map((rule) => rule.raw);
+}
+
+function matchesExcludeRule(relPath, rule) {
+  const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  const raw = String(rule?.pattern || "").trim();
+  if (!raw) return false;
+
+  let matched = false;
+  if (raw.includes("*")) {
+    const escaped = raw.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+    matched = new RegExp(`^${escaped}$`).test(normalized);
+  } else {
+    const prefix = raw.replace(/\/$/, "");
+    matched = normalized === prefix || normalized.startsWith(`${prefix}/`);
+  }
+  if (!matched) return false;
+
+  const allow = Array.isArray(rule.allow) ? rule.allow : [];
+  if (!allow.length) return true;
+  const base = path.basename(normalized).toLowerCase();
+  return !allow.includes(base);
+}
+
+function isPathExcluded(relPath, rules = parseIndexExcludeRules()) {
   const normalized = String(relPath || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalized) return false;
-  if (normalized.startsWith(".agent-cms/journal/") || normalized === ".agent-cms/journal") {
-    return false;
-  }
-  for (const pattern of patterns) {
-    const raw = String(pattern || "").trim();
-    if (!raw) continue;
-    if (raw.includes("*")) {
-      const escaped = raw.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-      if (new RegExp(`^${escaped}$`).test(normalized)) return true;
-      continue;
-    }
-    const prefix = normalizeExcludePattern(raw).replace(/\/$/, "");
-    if (normalized === prefix || normalized.startsWith(`${prefix}/`)) return true;
+  for (const rule of rules) {
+    if (matchesExcludeRule(normalized, rule)) return true;
   }
   return false;
 }
@@ -232,7 +248,8 @@ function isPlatformPipelineStepEnabled(settings = {}, step = "") {
 function buildIndexPolicy(settings = {}) {
   const extensions = parseIndexFileExtensions(settings);
   const prefixes = parseIndexPathPrefixes(settings);
-  const excludePatterns = parseIndexExcludePatterns(settings);
+  const excludeRules = parseIndexExcludeRules(settings);
+  const excludePatterns = excludeRules.map((rule) => rule.raw);
   const storageMode = getPlatformIndexStorageMode(settings);
   const searchTuning = getPlatformSearchTuning(settings);
   const steps = {};
@@ -243,11 +260,12 @@ function buildIndexPolicy(settings = {}) {
     extensions,
     prefixes,
     excludePatterns,
+    excludeRules,
     storageMode,
     searchTuning,
     steps,
     isIndexable(relPath) {
-      if (isPathExcluded(relPath, excludePatterns)) return false;
+      if (isPathExcluded(relPath, excludeRules)) return false;
       if (!matchesIndexPathPrefix(relPath, prefixes)) return false;
       return matchesIndexFileExtension(relPath, extensions);
     }
@@ -290,7 +308,6 @@ function getIndexPolicyPayload(settings = {}) {
     extensions: policy.extensions,
     extensionOptions: INDEX_FILE_EXTENSION_OPTIONS,
     pathPrefixOptions: INDEX_PATH_PREFIX_OPTIONS,
-    excludePatternOptions: INDEX_EXCLUDE_PATTERN_OPTIONS,
     prefixes: policy.prefixes,
     excludePatterns: policy.excludePatterns,
     storageMode: policy.storageMode,
@@ -321,10 +338,9 @@ function getIndexPolicyPayload(settings = {}) {
 
 module.exports = {
   DEFAULT_INDEX_FILE_EXTENSIONS,
-  DEFAULT_INDEX_EXCLUDE_PATTERNS,
+  DEFAULT_INDEX_EXCLUDE_LINES,
   INDEX_FILE_EXTENSION_OPTIONS,
   INDEX_PATH_PREFIX_OPTIONS,
-  INDEX_EXCLUDE_PATTERN_OPTIONS,
   SEARCH_SCOPE_OPTIONS,
   INDEXING_POLICY_SETTING_KEYS,
   PIPELINE_STEP_KEYS,
@@ -336,6 +352,8 @@ module.exports = {
   parseIndexFileExtensions,
   parseIndexPathPrefixes,
   parseIndexExcludePatterns,
+  parseIndexExcludeRules,
+  matchesExcludeRule,
   isPathExcluded,
   matchesIndexFileExtension,
   matchesIndexPathPrefix,

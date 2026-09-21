@@ -9259,11 +9259,14 @@ function renderHeaderGlobalSettingsModal(cache = headerGlobalSettingsCache) {
   cache.entries = entries;
   headerGlobalSettingsEmptyNode.classList.add("hidden");
 
-  const groupOrder = getSchemaEditorGroupOrder(schemaFields, entries.map((entry) => entry.key));
   const fieldGroups =
     Array.isArray(cache?.settingsFieldGroups) && cache.settingsFieldGroups.length
       ? cache.settingsFieldGroups
       : buildSettingsFieldGroupsFromFields(schemaFields);
+  const groupOrder = mergeSettingsGroupOrder(
+    getSchemaEditorGroupOrder(schemaFields, entries.map((entry) => entry.key)),
+    fieldGroups
+  );
 
   if (!headerGlobalSettingsActiveGroupId || !groupOrder.includes(headerGlobalSettingsActiveGroupId)) {
     headerGlobalSettingsActiveGroupId = groupOrder[0] || "main";
@@ -22876,10 +22879,27 @@ function getProjectSettingsAgentFieldGroups(scopeKey = "global") {
   return buildSettingsFieldGroupsFromFields(fields);
 }
 
+function mergeSettingsGroupOrder(derivedGroups = [], fieldGroups = []) {
+  if (!Array.isArray(fieldGroups) || !fieldGroups.length) return derivedGroups;
+  const order = [];
+  const seen = new Set();
+  for (const group of fieldGroups) {
+    const id = String(group?.id || "").trim();
+    if (!id || !derivedGroups.includes(id) || seen.has(id)) continue;
+    order.push(id);
+    seen.add(id);
+  }
+  for (const id of derivedGroups) {
+    if (!seen.has(id)) order.push(id);
+  }
+  return order;
+}
+
 function getProjectSettingsAgentGroupOrder(scopeKey = "global") {
   const cached = agentSettingsSchemaCacheByScope.get(scopeKey);
   const fields = cached?.settingsFields || {};
-  return getSchemaEditorGroupOrder(fields, Object.keys(fields));
+  const derived = getSchemaEditorGroupOrder(fields, Object.keys(fields));
+  return mergeSettingsGroupOrder(derived, cached?.settingsFieldGroups || []);
 }
 
 function countProjectSettingsAgentGroupSettings(scopePath, groupId) {
@@ -43805,11 +43825,14 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
   }
   emptyNode.classList.add("hidden");
 
-  const groupOrder = getSchemaEditorGroupOrder(schemaFields, entries.map((entry) => entry.key));
   const fieldGroups =
     Array.isArray(cache?.settingsFieldGroups) && cache.settingsFieldGroups.length
       ? cache.settingsFieldGroups
       : buildSettingsFieldGroupsFromFields(schemaFields);
+  const groupOrder = mergeSettingsGroupOrder(
+    getSchemaEditorGroupOrder(schemaFields, entries.map((entry) => entry.key)),
+    fieldGroups
+  );
   const useSidebarAgentTabs =
     isProjectSettingsMode() && isProjectSettingsAgentSettingsScope(cache?.manifestPath);
   const useTabbedGroups = isProjectSettingsMode() && groupOrder.length > 1 && !useSidebarAgentTabs;

@@ -29,7 +29,12 @@ fieldGroups:
     description: Политика MCP-tools — режим доступа, batch_invoke и лимиты чтения/записи файлов.
   - id: indexing
     name: Индексирование
-    description: Включение и отключение слоёв индексов workspace (semantic, fulltext, storage, links).
+    description: >
+      Pipeline и политика индексации — те же шаги, что в меню «Индексирование»
+      (OCR → слова → смысл → поля → связи → id).
+  - id: indexing-search
+    name: Поиск (RAG)
+    description: Параметры семантического чанкинга и весов hybrid-поиска (из runtime, настраиваются здесь).
   - id: memory
     name: Память
     description: Параметры долговременной памяти агента (пока не подключены в runtime).
@@ -280,46 +285,50 @@ fields:
     group: mcp
     sort: 18
 
-  index-semantic-enabled:
+  index-ocr-enabled:
     type: awn.field.boolean
-    title: Семантический индекс
-    default: true
+    title: OCR (вложения)
+    description: Шаг 1 pipeline — текст из jpg/png/pdf в sidecar.md
+    default: false
     group: indexing
     sort: 20
 
   index-fulltext-enabled:
     type: awn.field.boolean
-    title: Полнотекстовый индекс
+    title: Слова (fulltext)
+    description: Шаг 2 pipeline — точный поиск по словам
     default: true
     group: indexing
     sort: 21
 
-  index-storage-enabled:
+  index-semantic-enabled:
     type: awn.field.boolean
-    title: Storage-индекс
+    title: Смысл (RAG)
+    description: Шаг 3 pipeline — семантический индекс
     default: true
     group: indexing
     sort: 22
 
-  index-links-enabled:
+  index-storage-enabled:
     type: awn.field.boolean
-    title: Индекс связей
+    title: Поля (storage)
+    description: Шаг 4 pipeline — каталог frontmatter / schema
     default: true
     group: indexing
     sort: 23
 
-  index-ocr-enabled:
+  index-links-enabled:
     type: awn.field.boolean
-    title: OCR в pipeline
-    description: Включать OCR (вложения) в полную цепочку индексирования
-    default: false
+    title: Связи (links)
+    description: Шаг 5 pipeline — граф wikilinks и relation-полей
+    default: true
     group: indexing
     sort: 24
 
   index-workspace-id-enabled:
     type: awn.field.boolean
-    title: Sync awn-id в pipeline
-    description: Синхронизировать счётчик awn-id в конце цепочки
+    title: ID (awn-id)
+    description: Шаг 6 pipeline — синхронизация счётчика awn-id
     default: true
     group: indexing
     sort: 25
@@ -376,29 +385,17 @@ fields:
     sort: 28
 
   index-exclude-patterns:
-    type: awn.field.choice.many
-    title: Исключения из индекса
-    description: Каталоги и префиксы, которые не индексируются
-    default:
-      - .agent-cms/semantic-index/
-      - .agent-cms/fulltext-index/
-      - .agent-cms/storage-index/
-      - .agent-cms/link-index/
-      - node_modules/
-      - .git/
-    enum:
-      - key: .agent-cms/semantic-index/
-        name: Кэш semantic-index
-      - key: .agent-cms/fulltext-index/
-        name: Кэш fulltext-index
-      - key: .agent-cms/storage-index/
-        name: Кэш storage-index
-      - key: .agent-cms/link-index/
-        name: Кэш link-index
-      - key: node_modules/
-        name: node_modules/
-      - key: .git/
-        name: .git/
+    type: awn.field.text
+    title: Исключить из индекса
+    description: >
+      Одна строка — правило. Префикс пути; исключения файлов через !имя
+      (например awn-repository/ !manifest.md !README.md).
+    default: |
+      .git
+      .agent-cms
+      .agent-shell
+      node_modules/
+      awn-repository/ !manifest.md !README.md
     group: indexing
     sort: 29
 
@@ -417,35 +414,35 @@ fields:
 
   search-semantic-chunk-size:
     type: awn.field.number.integer
-    title: Размер чанка RAG
-    description: Максимальная длина фрагмента при семантической индексации (символы)
+    title: Чанк RAG
+    description: Макс. длина фрагмента, символы
     default: 900
-    group: indexing
-    sort: 31
+    group: indexing-search
+    sort: 1
 
   search-semantic-chunk-overlap:
     type: awn.field.number.integer
-    title: Перекрытие чанков RAG
-    description: Overlap между соседними фрагментами (символы)
+    title: Overlap чанков
+    description: Перекрытие соседних фрагментов, символы
     default: 100
-    group: indexing
-    sort: 32
+    group: indexing-search
+    sort: 2
 
   search-hybrid-semantic-weight:
     type: awn.field.number.integer
-    title: Вес semantic в hybrid
-    description: Доля семантического скора при объединении результатов (0–100)
+    title: Hybrid — semantic
+    description: Вес семантики, 0–100
     default: 60
-    group: indexing
-    sort: 33
+    group: indexing-search
+    sort: 3
 
   search-hybrid-fulltext-weight:
     type: awn.field.number.integer
-    title: Вес fulltext в hybrid
-    description: Доля полнотекстового скора при объединении результатов (0–100)
+    title: Hybrid — fulltext
+    description: Вес полнотекста, 0–100
     default: 40
-    group: indexing
-    sort: 34
+    group: indexing-search
+    sort: 4
 
   auto-retain-facts:
     type: awn.field.boolean

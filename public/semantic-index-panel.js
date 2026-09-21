@@ -487,10 +487,25 @@
 
   function applyLayerButtonState(button, enabled, disabledHint = "Слой отключён в settings.global.yml") {
     if (!button) return;
-    const disabled = !enabled;
+    const disabled = enabled === false;
     button.disabled = disabled;
     button.classList.toggle("is-feature-disabled", disabled);
     button.title = disabled ? disabledHint : rememberButtonLabel(button);
+  }
+
+  function restoreIndexButtonPolicyState(button) {
+    if (!button || !indexPolicyCache?.layers) return;
+    const layerByButton = new Map([
+      [fulltextRebuildBtn, "fulltext"],
+      [semanticRebuildBtn, "semantic"],
+      [storageRebuildQuickBtn, "storage"],
+      [storageRebuildFullBtn, "storage"],
+      [linkRebuildBtn, "link"],
+      [workspaceIdSyncBtn, "workspaceId"]
+    ]);
+    const layerKey = layerByButton.get(button);
+    if (!layerKey) return;
+    applyLayerButtonState(button, indexPolicyCache.layers[layerKey]);
   }
 
   function syncLayerBlockBadges(policy) {
@@ -946,17 +961,17 @@
     syncPipelineButtonChrome();
   }
 
-  async function bindActionButton(button, handler, { keepDisabled = false } = {}) {
+  async function bindActionButton(button, handler) {
     if (!button) return;
     button.addEventListener("click", async () => {
-      if (button.disabled) return;
+      if (button.disabled || button.classList.contains("is-feature-disabled")) return;
       button.disabled = true;
       button.classList.add("is-loading");
       try {
         await handler();
       } finally {
-        button.disabled = keepDisabled;
         button.classList.remove("is-loading");
+        restoreIndexButtonPolicyState(button);
       }
     });
   }
