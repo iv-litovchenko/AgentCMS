@@ -340,6 +340,8 @@ fields:
   voice-input-global-listen:
     type: awn.field.boolean
     title: Глобальное прослушивание
+    description: Устарело — для voice sidecar; в браузерном Shell не используется
+    readonly: true
     default: false
     group: voice-client
     subgroup: voice-input
@@ -348,6 +350,8 @@ fields:
   voice-input-to-compose:
     type: awn.field.boolean
     title: Вставлять в compose
+    description: Устарело — заменено на «Автоотправка» (voice-input-response-enabled)
+    readonly: true
     default: false
     group: voice-client
     subgroup: voice-input
