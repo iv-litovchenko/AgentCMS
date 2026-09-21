@@ -1,4 +1,5 @@
 const shellService = require("./shell-service");
+const { rel } = require("../paths/agent-cms");
 const shellPresence = require("./shell-presence");
 const windowSettings = require("./window-settings");
 const { loadShellPromptTemplates } = require("./shell-prompt-presets");
@@ -38,7 +39,7 @@ function createShellHandlers(deps) {
         deps.sendJson(res, 200, {
           agentId,
           projectRoot,
-          settingsFile: ".agent-shell/settings.json",
+          settingsFile: rel.settings.shell,
           globalSettingsFile: windowSettings.AWN_SHELL_FILE,
           settings
         });
@@ -64,7 +65,7 @@ function createShellHandlers(deps) {
         deps.sendJson(res, 200, {
           agentId,
           projectRoot,
-          settingsFile: ".agent-shell/settings.json",
+          settingsFile: rel.settings.shell,
           globalSettingsFile: windowSettings.AWN_SHELL_FILE,
           settings
         });

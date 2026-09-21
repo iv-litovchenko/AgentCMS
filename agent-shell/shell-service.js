@@ -58,10 +58,11 @@ function settingsFormatModule() {
   return require("./shell-settings-format");
 }
 
-const SETTINGS_DIR = ".agent-shell";
-const SETTINGS_FILE = "settings.json";
-const STATE_FILE = "state.json";
-const COMPOSE_DRAFT_FILE = "compose-draft.md";
+const { rel, abs: agentCmsAbs } = require("../paths/agent-cms");
+
+const SHELL_SETTINGS_REL = rel.settings.shell;
+const SHELL_STATE_REL = rel.state.shell;
+const COMPOSE_DRAFT_REL = rel.state.composeDraft;
 
 /** Serializes atomic writes per target path — avoids rename races on shared `.tmp`. */
 const atomicWriteQueues = new Map();
@@ -326,19 +327,19 @@ const bus = new EventEmitter();
 bus.setMaxListeners(100);
 
 function settingsAbsolute(agentRoot) {
-  return path.join(agentRoot, SETTINGS_DIR, SETTINGS_FILE);
+  return agentCmsAbs(agentRoot, SHELL_SETTINGS_REL);
 }
 
 function stateAbsolute(agentRoot) {
-  return path.join(agentRoot, SETTINGS_DIR, STATE_FILE);
+  return agentCmsAbs(agentRoot, SHELL_STATE_REL);
 }
 
 function composeDraftAbsolute(agentRoot) {
-  return path.join(agentRoot, SETTINGS_DIR, COMPOSE_DRAFT_FILE);
+  return agentCmsAbs(agentRoot, COMPOSE_DRAFT_REL);
 }
 
 function composeDraftRelativePath() {
-  return path.join(SETTINGS_DIR, COMPOSE_DRAFT_FILE);
+  return COMPOSE_DRAFT_REL;
 }
 
 function parseProactiveQuietTimeMinutes(value) {
@@ -680,7 +681,7 @@ async function writeComposeDraft(agentRoot, body, agentId) {
   const text = String(body ?? "");
   const relativePath = composeDraftRelativePath();
   const target = composeDraftAbsolute(agentRoot);
-  await fs.mkdir(path.join(agentRoot, SETTINGS_DIR), { recursive: true });
+  await fs.mkdir(agentCmsAbs(agentRoot, rel.settings.dir), { recursive: true });
 
   if (!text) {
     await fs.unlink(target).catch(() => {});

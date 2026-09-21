@@ -388,7 +388,6 @@ fields:
     default: |
       .git
       .agent-cms
-      .agent-shell
       node_modules/
       awn-repository/ !manifest.md !README.md
     group: indexing

@@ -7777,7 +7777,7 @@ function formatSettingsFileLabel(settingsFile, agentId) {
     return settingsFile.replace(/^.*\/workspaces\//, "workspaces/").replace(/^\/Users\/macbook\//, "~/");
   }
   const id = String(agentId || "").trim();
-  return id ? `workspaces/${id}/.agent-shell/settings.json` : ".agent-shell/settings.json";
+  return id ? `workspaces/${id}/.agent-cms/settings/shell.json` : ".agent-cms/settings/shell.json";
 }
 
 function updateSettingsSaveHints(extra = {}) {
@@ -8047,7 +8047,7 @@ function renderComposeDraftStatus(kind = "idle") {
   const el = nodes.composeDraftStatus;
   if (!el) return;
   el.classList.remove("is-saving", "is-saved", "is-error", "is-dirty");
-  const pathTitle = ".agent-shell/compose-draft.md";
+  const pathTitle = ".agent-cms/state/compose-draft.md";
   if (kind === "idle") {
     el.textContent = "";
     el.classList.add("hidden");

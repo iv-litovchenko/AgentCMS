@@ -1,5 +1,10 @@
 const fs = require("fs/promises");
 const path = require("path");
+const {
+  shellSnapshotCacheDir,
+  shellSnapshotCacheRel,
+  rewriteShellSnapshotRelPath
+} = require("../paths/agent-cms");
 
 function parseDataUrl(dataUrl) {
   const raw = String(dataUrl || "").trim();
@@ -9,7 +14,7 @@ function parseDataUrl(dataUrl) {
 }
 
 function snapshotDir(agentRoot, domain) {
-  return path.join(agentRoot, ".agent-shell", domain);
+  return shellSnapshotCacheDir(agentRoot, domain);
 }
 
 async function saveSnapshotFile(agentRoot, domain, kind, snapshot) {
@@ -31,7 +36,7 @@ async function saveSnapshotFile(agentRoot, domain, kind, snapshot) {
     width: Number(snapshot.width) || 0,
     height: Number(snapshot.height) || 0,
     capturedAt: new Date().toISOString(),
-    path: path.join(".agent-shell", domain, fileName)
+    path: path.join(shellSnapshotCacheRel(domain), fileName).replace(/\\/g, "/")
   };
 
   const metaPath = path.join(dir, `${kind}-latest.json`);
@@ -42,7 +47,11 @@ async function saveSnapshotFile(agentRoot, domain, kind, snapshot) {
 async function readLatestMeta(agentRoot, domain, kind) {
   try {
     const raw = await fs.readFile(path.join(snapshotDir(agentRoot, domain), `${kind}-latest.json`), "utf-8");
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (parsed?.path) {
+      parsed.path = rewriteShellSnapshotRelPath(parsed.path);
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -110,4 +119,11 @@ function createSnapshotRequestService({
   return { requestSnapshot, completeSnapshot, saveSnapshotFile, readLatestMeta, readLatestSnapshot };
 }
 
-module.exports = { createSnapshotRequestService, parseDataUrl, saveSnapshotFile, readLatestMeta, readLatestSnapshot, snapshotDir };
+module.exports = {
+  createSnapshotRequestService,
+  parseDataUrl,
+  saveSnapshotFile,
+  readLatestMeta,
+  readLatestSnapshot,
+  snapshotDir
+};

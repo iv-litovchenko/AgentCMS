@@ -21,7 +21,7 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "index-workspace-id-enabled": true,
   "index-storage-mode": "quick",
   "index-path-prefixes": [],
-  "index-exclude-patterns": ".git\n.agent-cms\n.agent-shell\nnode_modules/\nawn-repository/ !manifest.md !README.md",
+  "index-exclude-patterns": ".git\n.agent-cms\nnode_modules/\nawn-repository/ !manifest.md !README.md",
   "index-file-extensions": [".md", ".sidecar.md"],
   "search-default-scopes": ["semantic", "fulltext"],
   "search-semantic-chunk-size": "900",

@@ -8,7 +8,8 @@ const rel = {
     dir: `${ROOT}/settings`,
     userSettings: `${ROOT}/settings/user-settings.yml`,
     integrations: `${ROOT}/settings/integrations.yml`,
-    integrationsDir: `${ROOT}/settings/integrations`
+    integrationsDir: `${ROOT}/settings/integrations`,
+    shell: `${ROOT}/settings/shell.json`
   },
   indexes: {
     dir: `${ROOT}/indexes`,
@@ -21,7 +22,9 @@ const rel = {
   cache: {
     dir: `${ROOT}/cache`,
     mediaThumbs: `${ROOT}/cache/media-thumbs`,
-    menu: `${ROOT}/cache/menu`
+    menu: `${ROOT}/cache/menu`,
+    shellCamera: `${ROOT}/cache/shell-camera`,
+    shellScreen: `${ROOT}/cache/shell-screen`
   },
   journal: {
     dir: `${ROOT}/journal`
@@ -31,12 +34,23 @@ const rel = {
     uiContext: `${ROOT}/state/ui-context.json`,
     activity: `${ROOT}/state/activity.jsonl`,
     activityArchive: `${ROOT}/state/activity-archive.jsonl`,
-    navRegistry: `${ROOT}/state/nav-registry`
+    navRegistry: `${ROOT}/state/nav-registry`,
+    shell: `${ROOT}/state/shell.json`,
+    composeDraft: `${ROOT}/state/compose-draft.md`
   },
   digest: {
     dir: `${ROOT}/digest`,
     workspaceDigest: `${ROOT}/digest/workspace-digest.md`
   }
+};
+
+const shellLegacy = {
+  root: ".agent-shell",
+  settings: ".agent-shell/settings.json",
+  state: ".agent-shell/state.json",
+  composeDraft: ".agent-shell/compose-draft.md",
+  camera: ".agent-shell/camera",
+  screen: ".agent-shell/screen"
 };
 
 const legacy = {
@@ -99,10 +113,37 @@ function navRegistryDir(agentRoot) {
   return abs(agentRoot, rel.state.navRegistry);
 }
 
+const SHELL_SNAPSHOT_DOMAINS = {
+  camera: "shellCamera",
+  screen: "shellScreen"
+};
+
+function shellSnapshotCacheRel(domain) {
+  const key = SHELL_SNAPSHOT_DOMAINS[String(domain || "").trim()];
+  if (!key) throw new Error(`Unknown shell snapshot domain: ${domain}`);
+  return rel.cache[key];
+}
+
+function shellSnapshotCacheDir(agentRoot, domain) {
+  return abs(agentRoot, shellSnapshotCacheRel(domain));
+}
+
+function rewriteShellSnapshotRelPath(relPath) {
+  const normalized = String(relPath || "").replace(/\\/g, "/");
+  if (normalized.startsWith(shellLegacy.camera + "/")) {
+    return normalized.replace(shellLegacy.camera, rel.cache.shellCamera);
+  }
+  if (normalized.startsWith(shellLegacy.screen + "/")) {
+    return normalized.replace(shellLegacy.screen, rel.cache.shellScreen);
+  }
+  return normalized;
+}
+
 module.exports = {
   ROOT,
   rel,
   legacy,
+  shellLegacy,
   abs,
   settingsDir,
   userSettingsAbs,
@@ -111,5 +152,8 @@ module.exports = {
   cacheDir,
   journalDir,
   stateDir,
-  navRegistryDir
+  navRegistryDir,
+  shellSnapshotCacheRel,
+  shellSnapshotCacheDir,
+  rewriteShellSnapshotRelPath
 };

@@ -114,7 +114,7 @@ export async function captureOneShotCameraFrame(shellCamera, videoEl, {
 
 export function buildComposeCameraMessage(userText, snapshotPath) {
   const text = String(userText || "").trim();
-  const path = String(snapshotPath || "").trim() || ".agent-shell/camera/manual-latest.json";
+  const path = String(snapshotPath || "").trim() || ".agent-cms/cache/shell-camera/manual-latest.json";
   const body = text || "Что на этом фото?";
   return `${body}\n\n[Снимок камеры: ${path}]`;
 }

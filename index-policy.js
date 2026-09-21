@@ -6,7 +6,6 @@ const DEFAULT_INDEX_FILE_EXTENSIONS = [".md", ".sidecar.md"];
 const DEFAULT_INDEX_EXCLUDE_LINES = [
   ".git",
   ".agent-cms",
-  ".agent-shell",
   "node_modules/",
   "awn-repository/ !manifest.md !README.md"
 ];
