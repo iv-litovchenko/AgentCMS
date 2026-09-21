@@ -42271,6 +42271,151 @@ function resolveProjectSettingsGroupDescription(groupId, fieldGroups = []) {
   return String(hit?.description || "").trim();
 }
 
+const NODE_SETTINGS_SUBGROUP_OPEN_STORAGE_KEY = "agent-cms:project-settings-subgroup-open.v1";
+
+function resolvePropsFieldSubgroupId(key, fieldDef = getPropsFieldDef(key)) {
+  const explicit = fieldDef?.subgroup;
+  return explicit ? String(explicit) : "";
+}
+
+function getNodeSettingsFieldSubgroups(fieldGroups = [], groupId = "") {
+  const hit = (fieldGroups || []).find((group) => group && group.id === groupId);
+  return Array.isArray(hit?.subgroups) ? hit.subgroups : [];
+}
+
+function resolveNodeSettingsSubgroupLabel(subgroupId, fieldGroups = [], groupId = "") {
+  const hit = getNodeSettingsFieldSubgroups(fieldGroups, groupId).find((item) => item.id === subgroupId);
+  return hit?.name || hit?.title || subgroupId;
+}
+
+function resolveNodeSettingsSubgroupDescription(subgroupId, fieldGroups = [], groupId = "") {
+  const hit = getNodeSettingsFieldSubgroups(fieldGroups, groupId).find((item) => item.id === subgroupId);
+  return String(hit?.description || "").trim();
+}
+
+function buildNodeSettingsSubgroupStorageKey(groupId, subgroupId) {
+  const scope = getNodeSettingsManifestPath() || "unknown";
+  return `${scope}:${groupId}:${subgroupId}`;
+}
+
+function loadNodeSettingsSubgroupOpenState() {
+  try {
+    const raw = readStorageItem(NODE_SETTINGS_SUBGROUP_OPEN_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveNodeSettingsSubgroupOpenState(storageKey, isOpen) {
+  if (!storageKey) return;
+  const state = loadNodeSettingsSubgroupOpenState();
+  state[storageKey] = Boolean(isOpen);
+  try {
+    localStorage.setItem(NODE_SETTINGS_SUBGROUP_OPEN_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function resolveNodeSettingsSubgroupOpen(groupId, subgroupDef = {}) {
+  const storageKey = buildNodeSettingsSubgroupStorageKey(groupId, subgroupDef.id);
+  const state = loadNodeSettingsSubgroupOpenState();
+  if (storageKey in state) return Boolean(state[storageKey]);
+  return Boolean(subgroupDef.defaultOpen);
+}
+
+function createNodeSettingsSubgroupAccordion(subgroupDef, entries, schemaFields, groupId, fieldGroups = []) {
+  const section = document.createElement("details");
+  section.className = "node-settings-subgroup-accordion";
+  section.dataset.subgroupId = subgroupDef.id;
+  section.dataset.groupId = groupId;
+  section.open = resolveNodeSettingsSubgroupOpen(groupId, subgroupDef);
+  section.addEventListener("toggle", () => {
+    saveNodeSettingsSubgroupOpenState(
+      buildNodeSettingsSubgroupStorageKey(groupId, subgroupDef.id),
+      section.open
+    );
+  });
+
+  const summary = document.createElement("summary");
+  summary.className = "node-settings-subgroup-accordion-summary";
+
+  const summaryMain = document.createElement("span");
+  summaryMain.className = "node-settings-subgroup-accordion-summary-main";
+
+  const title = document.createElement("span");
+  title.className = "node-settings-subgroup-accordion-title";
+  title.textContent = resolveNodeSettingsSubgroupLabel(subgroupDef.id, fieldGroups, groupId);
+  summaryMain.appendChild(title);
+
+  const hint = resolveNodeSettingsSubgroupDescription(subgroupDef.id, fieldGroups, groupId);
+  if (hint) {
+    const hintNode = document.createElement("span");
+    hintNode.className = "node-settings-subgroup-accordion-hint";
+    hintNode.textContent = hint;
+    summaryMain.appendChild(hintNode);
+  }
+
+  summary.appendChild(summaryMain);
+
+  const count = document.createElement("span");
+  count.className = "node-settings-subgroup-accordion-count";
+  count.textContent = String(entries.length);
+  summary.appendChild(count);
+  section.appendChild(summary);
+
+  const body = document.createElement("div");
+  body.className = "node-settings-subgroup-accordion-body";
+  for (const entry of entries) {
+    body.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
+  }
+  section.appendChild(body);
+  return section;
+}
+
+function appendNodeSettingsGroupFields(fieldsNode, entries, schemaFields, { groupId, fieldGroups = [] }) {
+  const subgroupDefs = getNodeSettingsFieldSubgroups(fieldGroups, groupId);
+  const entriesInGroup = entries.filter(
+    (entry) => resolvePropsFieldGroupId(entry.key, schemaFields[entry.key]) === groupId
+  );
+  if (!subgroupDefs.length) {
+    for (const entry of entriesInGroup) {
+      fieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
+    }
+    return entriesInGroup.length;
+  }
+
+  const subgroupIds = new Set(subgroupDefs.map((item) => item.id));
+  const bySubgroup = new Map(subgroupDefs.map((item) => [item.id, []]));
+  const ungrouped = [];
+  for (const entry of entriesInGroup) {
+    const subgroupId = resolvePropsFieldSubgroupId(entry.key, schemaFields[entry.key]);
+    if (!subgroupId || !subgroupIds.has(subgroupId)) {
+      ungrouped.push(entry);
+      continue;
+    }
+    bySubgroup.get(subgroupId).push(entry);
+  }
+
+  let rendered = 0;
+  for (const entry of ungrouped) {
+    fieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
+    rendered += 1;
+  }
+  for (const subgroupDef of subgroupDefs) {
+    const subgroupEntries = bySubgroup.get(subgroupDef.id) || [];
+    if (!subgroupEntries.length) continue;
+    fieldsNode.append(
+      createNodeSettingsSubgroupAccordion(subgroupDef, subgroupEntries, schemaFields, groupId, fieldGroups)
+    );
+    rendered += subgroupEntries.length;
+  }
+  return rendered;
+}
+
 function createProjectSettingsGroupDescriptionLead(text) {
   const normalized = String(text || "").trim();
   if (!normalized) return null;
@@ -44237,13 +44382,10 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
       projectSettingsActiveGroupId = groupOrder[0];
     }
     syncProjectSettingsConfigGroupLead(cache);
-    let rendered = 0;
-    for (const entry of entries) {
-      const groupId = resolvePropsFieldGroupId(entry.key, schemaFields[entry.key]);
-      if (groupId !== projectSettingsActiveGroupId) continue;
-      fieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
-      rendered += 1;
-    }
+    const rendered = appendNodeSettingsGroupFields(fieldsNode, entries, schemaFields, {
+      groupId: projectSettingsActiveGroupId,
+      fieldGroups
+    });
     if (!rendered) {
       emptyNode.textContent = "В этой группе пока нет полей.";
       emptyNode.classList.remove("hidden");
@@ -44274,10 +44416,13 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
         projectSettingsGroupTabsNode.append(tab);
       }
     }
-    for (const entry of entries) {
-      const groupId = resolvePropsFieldGroupId(entry.key, schemaFields[entry.key]);
-      if (groupId !== projectSettingsActiveGroupId) continue;
-      fieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
+    const rendered = appendNodeSettingsGroupFields(fieldsNode, entries, schemaFields, {
+      groupId: projectSettingsActiveGroupId,
+      fieldGroups
+    });
+    if (!rendered) {
+      emptyNode.textContent = "В этой группе пока нет полей.";
+      emptyNode.classList.remove("hidden");
     }
     return;
   }

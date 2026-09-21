@@ -406,13 +406,27 @@ function getAgentSettingsRegistry(projectRoot) {
   return resolveAgentSettingsRegistry(getAgentCmsCoreAbsolute(projectRoot));
 }
 
+function normalizeAgentSettingsFieldSubgroups(subgroups = []) {
+  return (Array.isArray(subgroups) ? subgroups : [])
+    .filter((item) => item && item.id)
+    .map((item) => ({
+      id: String(item.id),
+      name: item.name || item.title || item.id,
+      description: String(item.description || "").trim(),
+      sort: Number(item.sort) || 0,
+      defaultOpen: Boolean(item.defaultOpen)
+    }))
+    .sort((a, b) => a.sort - b.sort || a.id.localeCompare(b.id, "ru"));
+}
+
 function normalizeAgentSettingsFieldGroups(fieldGroups = []) {
   return (Array.isArray(fieldGroups) ? fieldGroups : [])
     .filter((group) => group && group.id)
     .map((group) => ({
       id: String(group.id),
       name: group.name || group.title || group.id,
-      description: String(group.description || "").trim()
+      description: String(group.description || "").trim(),
+      subgroups: normalizeAgentSettingsFieldSubgroups(group.subgroups)
     }));
 }
 

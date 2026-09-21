@@ -37,6 +37,16 @@ fieldGroups:
     name: Статичные параметры
     description: >
       Заглушка для интеграций — внешние плагины, Cursor skills и сторонние сервисы (settings.yml).
+    subgroups:
+      - id: demo-plugin
+        name: demo-plugin
+        description: Заглушка внешнего плагина
+        sort: 1
+        defaultOpen: true
+      - id: examples
+        name: Примеры
+        description: Тестовые ключи для схемы
+        sort: 2
 
 fields:
 
@@ -145,6 +155,7 @@ fields:
       Заглушка статического параметра workspace для внешних плагинов, skills и сервисов.
     default: ""
     group: static
+    subgroup: demo-plugin
     sort: 90
 
   ws-static-example-1:
@@ -152,6 +163,7 @@ fields:
     title: "{NOT WORK} Ключ 1"
     default: значение 1
     group: static
+    subgroup: examples
     sort: 91
 
   ws-static-example-2:
@@ -159,6 +171,7 @@ fields:
     title: "{NOT WORK} Ключ 2"
     default: значение 2
     group: static
+    subgroup: examples
     sort: 92
 
   ws-static-example-3:
@@ -166,4 +179,5 @@ fields:
     title: "{NOT WORK} Ключ 3"
     default: значение 3
     group: static
+    subgroup: examples
     sort: 93
