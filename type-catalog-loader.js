@@ -1118,6 +1118,7 @@ function loadFieldTypesFromCatalog(projectRoot, agentRoot = "") {
           ? merged.dayModes
           : undefined,
       items: merged.items,
+      properties: merged.properties || merged.fields || undefined,
       accept: merged.accept,
       catalogDomain: "fields",
       catalogPath: entry.relPath

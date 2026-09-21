@@ -143,7 +143,7 @@ fieldGroups:
         sort: 23
       - id: voice-compose
         name: Шаблоны compose
-        description: Список шаблонов — repeater позже; пока заглушка
+        description: Команды для поля сообщения — синхронизируется с shell.json
         sort: 24
   - id: static
     name: Статичные параметры
@@ -963,20 +963,17 @@ fields:
     subgroup: voice-ui
     sort: 98
 
-  voice-compose-templates-stub:
-    type: awn.field.text
-    title: "{DRAFT} Шаблоны compose"
+  voice-compose-templates:
+    type: awn.field.repeater
+    title: Шаблоны compose
     description: >
-      shell.json → compose.promptTemplates[] — repeater позже.
-      Пока список в shell.json; сюда перенесём id/label/text/group.
-    readonly: true
+      shell.json → compose.promptTemplates[].
+      Ключ — маркер {{tpl:key}}; текст команды подставляется в сообщение.
+    items: awn.field.compose.template
     group: voice-client
     subgroup: voice-compose
     sort: 99
-    default: |
-      very-brief · Ответ очень кратко
-      brief · Ответ кратко
-      detailed · Ответ развёрнуто
+    default: []
 
   ws-static-plugin-example:
     type: awn.field.string

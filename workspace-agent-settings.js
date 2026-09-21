@@ -133,8 +133,15 @@ function normalizeSettingsWithDefaults(raw = {}, defaults = {}) {
     if (typeof defaultValue === "boolean") normalized[key] = Boolean(value);
     else if (typeof defaultValue === "number") normalized[key] = Number(value) || 0;
     else if (Array.isArray(defaultValue)) {
-      if (Array.isArray(value)) normalized[key] = value.map((item) => String(item ?? "").trim()).filter(Boolean);
-      else {
+      const defaultHasObjects = defaultValue.some((item) => item && typeof item === "object");
+      if (Array.isArray(value)) {
+        const valueHasObjects = value.some((item) => item && typeof item === "object");
+        if (valueHasObjects || defaultHasObjects) {
+          normalized[key] = value.filter((item) => item && typeof item === "object");
+        } else {
+          normalized[key] = value.map((item) => String(item ?? "").trim()).filter(Boolean);
+        }
+      } else {
         const raw = String(value ?? "").trim();
         normalized[key] = raw
           ? raw.split(/[\n,;]+/).map((item) => item.trim()).filter(Boolean)

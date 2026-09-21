@@ -44399,7 +44399,12 @@ function readNodeSettingsEntryFromRow(row, cacheOverride = null) {
   const entry = fieldDef
     ? { ...base, kind: fieldDefToEntryKind(fieldDef), fieldDef }
     : { ...base };
-  return applyFormValueToEntry(entry, readPropsFormValueFromControl(valueWrap));
+  const widget = valueWrap.dataset.widget || resolvePropsFieldWidget(key, fieldDef);
+  return applyPropsFormWidgetValue(
+    { ...entry, key },
+    readPropsFormValueFromControl(valueWrap),
+    widget
+  );
 }
 
 function syncNodeSettingsCacheFromDom(cache = getNodeSettingsCache()) {
@@ -52123,6 +52128,45 @@ function savePropsGroupCollapseState(groupId, isCollapsed) {
   }
 }
 
+function createPropsFormGroupCaretElement() {
+  const caret = document.createElement("span");
+  caret.className = "props-form-group-caret";
+  caret.setAttribute("aria-hidden", "true");
+  const chevron = document.createElement("span");
+  chevron.className = "nav-book-toc-folder-chevron";
+  caret.appendChild(chevron);
+  return caret;
+}
+
+function setEditorCustomPropsGroupsCollapsed(collapsed) {
+  if (!editorCustomPropsFieldsNode) return;
+  editorCustomPropsFieldsNode.querySelectorAll(".editor-custom-props-group").forEach((group) => {
+    const groupId = group.dataset.group || "";
+    group.classList.toggle("is-collapsed", collapsed);
+    const groupToggle = group.querySelector(".editor-custom-props-group-toggle");
+    groupToggle?.setAttribute("aria-expanded", String(!collapsed));
+    if (groupId) saveEditorCustomPropsCollapseState({ groupId, isCollapsed: collapsed });
+  });
+  updateEditorCustomPropsBulkToggleLabel();
+}
+
+function updateEditorCustomPropsBulkToggleLabel() {
+  const bulkBtn = editorCustomPropsBarNode?.querySelector(".editor-custom-props-bulk-toggle");
+  if (!bulkBtn) return;
+  const groups = editorCustomPropsFieldsNode?.querySelectorAll(".editor-custom-props-group") || [];
+  if (!groups.length) {
+    bulkBtn.classList.add("hidden");
+    return;
+  }
+  bulkBtn.classList.remove("hidden");
+  const allCollapsed = [...groups].every((group) => group.classList.contains("is-collapsed"));
+  bulkBtn.textContent = allCollapsed ? "Развернуть все" : "Свернуть все";
+  bulkBtn.setAttribute(
+    "aria-label",
+    allCollapsed ? "Развернуть все группы свойств" : "Свернуть все группы свойств"
+  );
+}
+
 function loadEditorCustomPropsCollapseState() {
   try {
     const raw = readStorageItem(EDITOR_CUSTOM_PROPS_COLLAPSE_STORAGE_KEY);
@@ -52190,16 +52234,17 @@ function ensureEditorCustomPropsRootToggle() {
   return toggle;
 }
 
-function syncEditorCustomPropsRootToggle({ fieldCount = 0, rootCollapsed = false } = {}) {
+function syncEditorCustomPropsRootToggle({
+  fieldCount = 0,
+  rootCollapsed = false,
+  showBulkToggle = false
+} = {}) {
   const toggle = ensureEditorCustomPropsRootToggle();
   if (!toggle || !editorCustomPropsBarNode) return;
   editorCustomPropsBarNode.classList.toggle("is-root-collapsed", rootCollapsed);
   toggle.setAttribute("aria-expanded", String(!rootCollapsed));
   toggle.replaceChildren();
-  const caret = document.createElement("span");
-  caret.className = "props-form-group-caret";
-  caret.textContent = "▸";
-  caret.setAttribute("aria-hidden", "true");
+  const caret = createPropsFormGroupCaretElement();
   const label = document.createElement("span");
   label.className = "editor-custom-props-root-toggle-label";
   label.textContent = "Свойства над текстом";
@@ -52207,6 +52252,24 @@ function syncEditorCustomPropsRootToggle({ fieldCount = 0, rootCollapsed = false
   count.className = "props-form-group-count";
   count.textContent = String(fieldCount);
   toggle.append(caret, label, count);
+
+  if (showBulkToggle) {
+    let bulkBtn = toggle.querySelector(".editor-custom-props-bulk-toggle");
+    if (!bulkBtn) {
+      bulkBtn = document.createElement("button");
+      bulkBtn.type = "button";
+      bulkBtn.className = "editor-custom-props-bulk-toggle";
+      bulkBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const groups = editorCustomPropsFieldsNode?.querySelectorAll(".editor-custom-props-group") || [];
+        const allCollapsed = [...groups].every((group) => group.classList.contains("is-collapsed"));
+        setEditorCustomPropsGroupsCollapsed(!allCollapsed);
+      });
+    }
+    toggle.appendChild(bulkBtn);
+    updateEditorCustomPropsBulkToggleLabel();
+  }
 }
 
 function appendEditorCustomPropsFieldRow(container, entry, index, { readOnly = false } = {}) {
@@ -52259,10 +52322,7 @@ function appendEditorCustomPropsGroupSection(
   toggle.className = "editor-custom-props-group-toggle props-form-group-toggle";
   toggle.setAttribute("aria-expanded", String(!collapsed));
 
-  const caret = document.createElement("span");
-  caret.className = "props-form-group-caret";
-  caret.textContent = "▸";
-  caret.setAttribute("aria-hidden", "true");
+  const caret = createPropsFormGroupCaretElement();
   const title = document.createElement("span");
   title.className = "editor-custom-props-group-header-label props-form-group-title";
   title.textContent = label;
@@ -52282,6 +52342,7 @@ function appendEditorCustomPropsGroupSection(
     group.classList.toggle("is-collapsed", nowCollapsed);
     toggle.setAttribute("aria-expanded", String(!nowCollapsed));
     saveEditorCustomPropsCollapseState({ groupId: id, isCollapsed: nowCollapsed });
+    updateEditorCustomPropsBulkToggleLabel();
   });
 
   group.append(toggle, body);
@@ -52345,13 +52406,13 @@ function renderEditorCustomPropsBar() {
   const readOnly = isPropsFormReadOnly();
   editorCustomPropsFieldsNode.classList.toggle("is-readonly", readOnly);
   const collapseState = loadEditorCustomPropsCollapseState();
-  syncEditorCustomPropsRootToggle({
-    fieldCount: userItems.length,
-    rootCollapsed: collapseState.root
-  });
-
   const groupedItems = groupEditorCustomPropsItems(userItems);
   const hasMultipleGroups = groupedItems.length > 1;
+  syncEditorCustomPropsRootToggle({
+    fieldCount: userItems.length,
+    rootCollapsed: collapseState.root,
+    showBulkToggle: hasMultipleGroups
+  });
 
   if (readOnly) {
     const list = document.createElement("div");
@@ -52364,6 +52425,7 @@ function renderEditorCustomPropsBar() {
       });
     }
     editorCustomPropsFieldsNode.appendChild(list);
+    updateEditorCustomPropsBulkToggleLabel();
     return;
   }
 
@@ -52384,6 +52446,7 @@ function renderEditorCustomPropsBar() {
       collapsed: Boolean(collapseState.groups[group.id])
     });
   }
+  updateEditorCustomPropsBulkToggleLabel();
 }
 
 function renderPropsForm() {
@@ -52435,10 +52498,7 @@ function renderPropsForm() {
     header.className = "props-form-group-toggle";
     header.setAttribute("aria-expanded", String(!collapsed));
 
-    const caret = document.createElement("span");
-    caret.className = "props-form-group-caret";
-    caret.textContent = "▸";
-    caret.setAttribute("aria-hidden", "true");
+    const caret = createPropsFormGroupCaretElement();
     const title = document.createElement("span");
     title.className = "props-form-group-title";
     title.textContent = "Вне схемы";
@@ -52554,9 +52614,7 @@ function renderPropsForm() {
       header.className = "props-form-group-toggle";
       header.setAttribute("aria-expanded", String(!collapsed));
 
-      const caret = document.createElement("span");
-      caret.className = "props-form-group-caret";
-      caret.textContent = "▸";
+      const caret = createPropsFormGroupCaretElement();
       const titleEl = document.createElement("span");
       titleEl.className = "props-form-group-title";
       titleEl.textContent = formatSchemaDisplayTitle(title, { replaceMarker: false });
@@ -53094,10 +53152,218 @@ function formatStructuredFieldDisplayValue(entry, widget = "") {
   return getPropsEntryDisplayValue(entry);
 }
 
+function resolveRepeaterItemsTypeId(fieldDef) {
+  const direct = String(fieldDef?.items || "").trim();
+  if (direct) return resolveFieldTypeId(direct);
+  const typeId = resolveFieldTypeId(fieldDef?.type || "");
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const entry =
+    registry[typeId] ||
+    registry[normalizeCanonicalFieldTypeId(typeId)] ||
+    registry[`awn.field.${String(typeId).replace(/^awn\./, "")}`];
+  return entry?.items ? resolveFieldTypeId(entry.items) : "";
+}
+
+function resolveRepeaterItemPropertyDefs(fieldDef) {
+  const itemsTypeId = resolveRepeaterItemsTypeId(fieldDef);
+  if (!itemsTypeId) return [];
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const entry =
+    registry[itemsTypeId] ||
+    registry[normalizeCanonicalFieldTypeId(itemsTypeId)] ||
+    registry[`awn.field.${String(itemsTypeId).replace(/^awn\./, "")}`];
+  const properties =
+    entry?.properties && typeof entry.properties === "object" ? entry.properties : {};
+  const preferredOrder = ["key", "label", "text", "group"];
+  const metaKeys = new Set([
+    "type",
+    "name",
+    "description",
+    "hint",
+    "required",
+    "locked",
+    "format",
+    "default",
+    "widget",
+    "enum",
+    "items",
+    "placement",
+    "sort",
+    "title"
+  ]);
+  const keys = [...new Set([...preferredOrder, ...Object.keys(properties)])].filter((key) => {
+    const propDef = properties[key];
+    if (!propDef || metaKeys.has(key)) return false;
+    return Boolean(propDef.type);
+  });
+  return keys.map((key) => ({
+    key,
+    fieldDef: {
+      ...properties[key],
+      type: properties[key]?.type || "awn.field.string"
+    }
+  }));
+}
+
+function createRepeaterItemDefault(propertyDefs, index = 0, existing = []) {
+  const item = {};
+  for (const { key, fieldDef: propDef } of propertyDefs) {
+    if (propDef?.default !== undefined) {
+      item[key] = propDef.default;
+      continue;
+    }
+    if (key === "id") item[key] = `tpl-${existing.length + index + 1}`;
+    else if (key === "group") item[key] = "Стиль ответа";
+    else item[key] = "";
+  }
+  return item;
+}
+
+function readPropsFormRepeaterValue(valueWrap) {
+  const items = [];
+  valueWrap?.querySelectorAll(".props-form-repeater-item")?.forEach((row) => {
+    const item = {};
+    const storedId = String(row.dataset.repeaterItemId || "").trim();
+    if (storedId) item.id = storedId;
+    row.querySelectorAll('.props-form-repeater-subfield [data-field="value"]').forEach((fieldWrap) => {
+      const propKey = fieldWrap.closest(".props-form-repeater-subfield")?.dataset?.repeaterField || "";
+      if (!propKey) return;
+      item[propKey] = readPropsFormValueFromControl(fieldWrap);
+    });
+    if (Object.keys(item).length) items.push(item);
+  });
+  return items;
+}
+
+function updateRepeaterItemMarker(row) {
+  const marker = row?.querySelector(".props-form-repeater-marker");
+  const keyInput = row?.querySelector('[data-repeater-field="key"] .props-form-value');
+  if (!marker || !keyInput) return;
+  const key = String(keyInput.value || "").trim();
+  marker.textContent = key ? `{{tpl:${key}}}` : "{{tpl:…}}";
+}
+
+function createPropsFormRepeaterSubfield(propKey, propDef, value, { locked = false } = {}) {
+  const subfield = document.createElement("div");
+  subfield.className = "props-form-repeater-subfield";
+  subfield.dataset.repeaterField = propKey;
+
+  const label = document.createElement("label");
+  label.className = "props-form-repeater-subfield-label";
+  label.textContent = propDef?.title || propKey;
+
+  const entry = {
+    key: propKey,
+    kind: fieldDefToEntryKind(propDef),
+    value: value ?? fieldDefDefaultValue(propDef),
+    fieldDef: propDef
+  };
+  const control = createPropsFormValueControl(entry, {
+    ...getNodeSettingsFieldMeta(propKey, propDef),
+    fieldDef: propDef,
+    locked
+  });
+  control.classList.add("props-form-repeater-subfield-value");
+  if (propKey === "key") {
+    control.querySelector(".props-form-value")?.addEventListener("input", () => {
+      updateRepeaterItemMarker(subfield.closest(".props-form-repeater-item"));
+    });
+  }
+  subfield.append(label, control);
+  return subfield;
+}
+
+function createPropsFormRepeaterItemRow(item, propertyDefs, { locked = false, onChange } = {}) {
+  const row = document.createElement("div");
+  row.className = "props-form-repeater-item";
+  if (item?.id) row.dataset.repeaterItemId = String(item.id);
+
+  const head = document.createElement("div");
+  head.className = "props-form-repeater-item-head";
+  const marker = document.createElement("code");
+  marker.className = "props-form-repeater-marker";
+  marker.textContent = item?.key ? `{{tpl:${item.key}}}` : "{{tpl:…}}";
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "props-form-repeater-remove";
+  removeBtn.textContent = "×";
+  removeBtn.title = "Удалить";
+  removeBtn.setAttribute("aria-label", "Удалить");
+  removeBtn.disabled = locked;
+  removeBtn.addEventListener("click", () => {
+    row.remove();
+    onChange?.();
+  });
+  head.append(marker, removeBtn);
+
+  const fields = document.createElement("div");
+  fields.className = "props-form-repeater-item-fields";
+  for (const { key, fieldDef: propDef } of propertyDefs) {
+    fields.appendChild(createPropsFormRepeaterSubfield(key, propDef, item?.[key], { locked }));
+  }
+
+  row.append(head, fields);
+  return row;
+}
+
+function createPropsFormRepeaterControl(entry, meta, { locked = false } = {}) {
+  const fieldDef = meta.fieldDef || entry.fieldDef;
+  const propertyDefs = resolveRepeaterItemPropertyDefs(fieldDef);
+  if (!propertyDefs.length) {
+    return createPropsFormCodeControl(entry, meta, "repeater", { locked });
+  }
+
+  const wrap = createPropsFormValueWrap("repeater");
+  wrap.classList.add("props-form-value-wrap--repeater");
+  const shell = document.createElement("div");
+  shell.className = "props-form-repeater";
+  const list = document.createElement("div");
+  list.className = "props-form-repeater-items";
+
+  const items = Array.isArray(entry?.value) ? entry.value : [];
+  const syncMarkers = () => {
+    list.querySelectorAll(".props-form-repeater-item").forEach((row) => updateRepeaterItemMarker(row));
+  };
+  const renderItems = (nextItems) => {
+    list.replaceChildren();
+    for (const item of nextItems) {
+      list.appendChild(
+        createPropsFormRepeaterItemRow(item, propertyDefs, {
+          locked,
+          onChange: syncMarkers
+        })
+      );
+    }
+    syncMarkers();
+  };
+  renderItems(items.length ? items : []);
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "props-form-repeater-add";
+  addBtn.textContent = "+ Шаблон";
+  addBtn.disabled = locked;
+  addBtn.addEventListener("click", () => {
+    const next = createRepeaterItemDefault(propertyDefs, list.children.length, readPropsFormRepeaterValue(wrap));
+    list.appendChild(
+      createPropsFormRepeaterItemRow(next, propertyDefs, {
+        locked,
+        onChange: syncMarkers
+      })
+    );
+    updateRepeaterItemMarker(list.lastElementChild);
+  });
+
+  shell.append(list, addBtn);
+  wrap.appendChild(shell);
+  return wrap;
+}
+
 function applyPropsFormWidgetValue(entry, rawValue, widget = "") {
   const trimmed = String(rawValue ?? "").trim();
   const kind = String(widget || "").trim();
   if (kind === "repeater") {
+    if (Array.isArray(rawValue)) return { ...entry, kind: "array", value: rawValue };
     if (!trimmed) return { ...entry, kind: "array", value: [] };
     try {
       const parsed = JSON.parse(trimmed);
@@ -56885,7 +57151,10 @@ function createPropsFormValueControl(entry, meta, { editorCompact = false } = {}
   if (widget === "coordinates") {
     return createPropsFormCoordinatesControl(entry, meta, { locked });
   }
-  if (widget === "code" || widget === "json" || widget === "object" || widget === "repeater") {
+  if (widget === "repeater") {
+    return createPropsFormRepeaterControl(entry, meta, { locked });
+  }
+  if (widget === "code" || widget === "json" || widget === "object") {
     return createPropsFormCodeControl(entry, meta, widget, { locked });
   }
   if (widget === "secret") {
@@ -57014,6 +57283,9 @@ function readPropsFormValueFromControl(valueWrap) {
   if (widget === "importance") {
     const hidden = valueWrap.querySelector(".props-form-importance-value");
     return String(hidden?.value ?? "").trim();
+  }
+  if (widget === "repeater" && valueWrap.querySelector(".props-form-repeater-items")) {
+    return readPropsFormRepeaterValue(valueWrap);
   }
   if (widget === "select" || widget === "lookup-one" || isLookupOneWidget(widget)) {
     const select = valueWrap.querySelector("select");

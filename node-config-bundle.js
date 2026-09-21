@@ -15,6 +15,96 @@ function formatYamlScalar(value) {
   return text;
 }
 
+function stringifyYamlInlineValue(value) {
+  if (value === null) return "null";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "0";
+  if (typeof value === "string") return formatYamlScalar(value);
+  if (Array.isArray(value)) {
+    if (!value.length) return "[]";
+    return `[${value.map((item) => stringifyYamlInlineValue(item)).join(", ")}]`;
+  }
+  if (typeof value === "object") {
+    const parts = Object.entries(value)
+      .filter(([, item]) => item !== undefined)
+      .map(([key, item]) => `${key}: ${stringifyYamlInlineValue(item)}`);
+    return `{ ${parts.join(", ")} }`;
+  }
+  return formatYamlScalar(value);
+}
+
+function stringifyYamlBlockValue(value, indent = 2) {
+  if (value === null) return "null";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "0";
+  if (typeof value === "string") return formatYamlScalar(value);
+  if (Array.isArray(value)) {
+    if (!value.length) return "[]";
+    const itemPad = " ".repeat(indent + 2);
+    const lines = [];
+    for (const item of value) {
+      if (item !== null && typeof item === "object" && !Array.isArray(item)) {
+        const entries = Object.entries(item).filter(([, nested]) => nested !== undefined);
+        if (!entries.length) {
+          lines.push(`${itemPad}- {}`);
+          continue;
+        }
+        const [firstKey, firstValue] = entries[0];
+        const firstText = stringifyYamlBlockValue(firstValue, indent + 4);
+        if (firstText.includes("\n")) {
+          lines.push(`${itemPad}- ${firstKey}:`);
+          lines.push(
+            firstText
+              .split("\n")
+              .map((line) => `${itemPad}  ${line}`)
+              .join("\n")
+          );
+        } else {
+          lines.push(`${itemPad}- ${firstKey}: ${firstText}`);
+        }
+        for (const [key, nested] of entries.slice(1)) {
+          const nestedText = stringifyYamlBlockValue(nested, indent + 4);
+          if (nestedText.includes("\n")) {
+            lines.push(`${itemPad}  ${key}:`);
+            lines.push(
+              nestedText
+                .split("\n")
+                .map((line) => `${itemPad}    ${line}`)
+                .join("\n")
+            );
+          } else {
+            lines.push(`${itemPad}  ${key}: ${nestedText}`);
+          }
+        }
+      } else {
+        lines.push(`${itemPad}- ${stringifyYamlInlineValue(item)}`);
+      }
+    }
+    return `\n${lines.join("\n")}`;
+  }
+  if (typeof value === "object") {
+    const pad = " ".repeat(indent);
+    const lines = [];
+    for (const [key, nested] of Object.entries(value)) {
+      if (nested === undefined) continue;
+      const nestedText = stringifyYamlBlockValue(nested, indent + 2);
+      if (nestedText.includes("\n")) {
+        lines.push(`${pad}${key}:`);
+        lines.push(
+          nestedText
+            .split("\n")
+            .map((line) => `${pad}  ${line}`)
+            .join("\n")
+        );
+      } else {
+        lines.push(`${pad}${key}: ${nestedText}`);
+      }
+    }
+    return lines.length ? `\n${lines.join("\n")}` : "{}";
+  }
+  return formatYamlScalar(value);
+}
+
 function extractConfigHeaderComment(content) {
   const lines = String(content || "").replace(/^\uFEFF/, "").split(/\r?\n/);
   const comments = [];
@@ -136,9 +226,15 @@ function stringifyIndentedPropsYaml(obj, indent = 2) {
     if (!entry.key) continue;
     if (entry.kind === "array") {
       const items = Array.isArray(entry.value) ? entry.value : [];
+      const hasStructuredItems = items.some(
+        (item) => item !== null && typeof item === "object"
+      );
       if (!items.length) lines.push(`${pad}${entry.key}: []`);
-      else if (items.length === 1) lines.push(`${pad}${entry.key}: ${formatYamlScalar(items[0])}`);
-      else {
+      else if (hasStructuredItems) {
+        lines.push(`${pad}${entry.key}:${stringifyYamlBlockValue(items, indent)}`);
+      } else if (items.length === 1) {
+        lines.push(`${pad}${entry.key}: ${formatYamlScalar(items[0])}`);
+      } else {
         lines.push(`${pad}${entry.key}:`);
         for (const item of items) lines.push(`${pad}  - ${formatYamlScalar(item)}`);
       }

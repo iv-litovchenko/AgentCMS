@@ -41857,7 +41857,7 @@ button.node-navigation-memory-title:focus-visible {
   margin: 0;
   padding: 0;
   border-bottom: 1px solid rgba(226, 232, 240, 0.95);
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(255, 255, 255, 0.94));
+  background: #fff;
   box-sizing: border-box;
 }
 
@@ -41869,25 +41869,26 @@ button.node-navigation-memory-title:focus-visible {
   margin: 0;
   padding: 10px 14px;
   border: 0;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
-  background: linear-gradient(180deg, rgba(224, 231, 255, 0.92), rgba(248, 250, 252, 0.88));
-  box-shadow: inset 4px 0 0 #4f46e5;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.95);
+  background: #fff;
   cursor: pointer;
   text-align: left;
   font: inherit;
-  color: #312e81;
+  color: #334155;
 }
 
 .editor-custom-props-root-toggle:hover {
-  background: linear-gradient(180deg, rgba(199, 210, 254, 0.95), rgba(241, 245, 249, 0.95));
+  background: rgba(248, 250, 252, 0.9);
 }
 
 .editor-custom-props-root-toggle-label {
   flex: 1 1 auto;
+  min-width: 0;
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  color: #475569;
 }
 
 .editor-custom-props-root-toggle .props-form-group-count {
@@ -41902,10 +41903,35 @@ button.node-navigation-memory-title:focus-visible {
   font-size: 9px;
   font-weight: 700;
   line-height: 1;
-  color: #4f46e5;
-  background: rgba(99, 102, 241, 0.14);
-  border: 1px solid rgba(99, 102, 241, 0.24);
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.14);
+  border: 0;
   box-sizing: border-box;
+}
+
+.editor-custom-props-bulk-toggle {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 4px 9px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #64748b;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.editor-custom-props-bulk-toggle:hover {
+  color: #334155;
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(248, 250, 252, 0.95);
+}
+
+.editor-custom-props-bulk-toggle.hidden {
+  display: none;
 }
 
 .editor-custom-props-bar.is-root-collapsed > .editor-custom-props-fields {
@@ -41914,18 +41940,6 @@ button.node-navigation-memory-title:focus-visible {
 
 .editor-custom-props-bar.is-root-collapsed > .editor-custom-props-root-toggle {
   border-bottom: 0;
-}
-
-.editor-custom-props-bar > .editor-custom-props-root-toggle .props-form-group-caret {
-  font-size: 10px;
-  line-height: 1;
-  color: #6366f1;
-  transform: rotate(90deg);
-  transition: transform 0.15s ease;
-}
-
-.editor-custom-props-bar.is-root-collapsed > .editor-custom-props-root-toggle .props-form-group-caret {
-  transform: rotate(0deg);
 }
 
 .editor-custom-props-group {
@@ -41942,30 +41956,16 @@ button.node-navigation-memory-title:focus-visible {
   margin: 0;
   padding: 8px 14px;
   border: 0;
-  border-top: 1px solid rgba(148, 163, 184, 0.28);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-  background: linear-gradient(180deg, rgba(238, 242, 255, 0.88), rgba(248, 250, 252, 0.72));
-  box-shadow: inset 3px 0 0 #6366f1;
+  border-top: 1px solid rgba(226, 232, 240, 0.95);
+  background: #fff;
   cursor: pointer;
   text-align: left;
   font: inherit;
-  color: #4338ca;
+  color: #475569;
 }
 
 .editor-custom-props-group-toggle:hover {
-  background: linear-gradient(180deg, rgba(224, 231, 255, 0.95), rgba(241, 245, 249, 0.92));
-}
-
-.editor-custom-props-group-toggle .props-form-group-caret {
-  font-size: 9px;
-  line-height: 1;
-  color: #6366f1;
-  transform: rotate(90deg);
-  transition: transform 0.15s ease;
-}
-
-.editor-custom-props-group.is-collapsed .props-form-group-caret {
-  transform: rotate(0deg);
+  background: rgba(248, 250, 252, 0.9);
 }
 
 .editor-custom-props-group.is-collapsed > .editor-custom-props-group-body {
@@ -41980,15 +41980,16 @@ button.node-navigation-memory-title:focus-visible {
 
 .editor-custom-props-group-toggle .editor-custom-props-group-header-label {
   flex: 1 1 auto;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(99, 102, 241, 0.22);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   line-height: 1.2;
+  color: #475569;
 }
 
 .editor-custom-props-group-toggle .props-form-group-count {
@@ -42003,9 +42004,9 @@ button.node-navigation-memory-title:focus-visible {
   font-size: 9px;
   font-weight: 700;
   line-height: 1;
-  color: #6366f1;
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.14);
+  border: 0;
   box-sizing: border-box;
 }
 
@@ -42304,17 +42305,28 @@ button.node-navigation-memory-title:focus-visible {
   font-weight: 400;
 }
 
-/* --- Центральная панель: визуальные акценты по типу поля --- */
+/* --- Центральная панель: без цветных подложек --- */
 .editor-custom-props-fields .props-form-row.editor-custom-props-field,
 .editor-custom-props-fields .editor-custom-props-preview-field {
   position: relative;
-  border-left: 3px solid transparent;
-  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .editor-custom-props-fields .props-form-row.editor-custom-props-field:hover,
 .editor-custom-props-fields .editor-custom-props-preview-field:hover {
-  background: rgba(248, 250, 252, 0.72);
+  background: rgba(248, 250, 252, 0.45);
+}
+
+.editor-custom-props-fields .editor-custom-props-field[class*="editor-custom-props-field--widget-"],
+.editor-custom-props-fields .editor-custom-props-preview-field[class*="editor-custom-props-field--widget-"] {
+  border-left-color: transparent !important;
+  background: transparent !important;
+}
+
+.editor-custom-props-fields .editor-custom-props-field[class*="editor-custom-props-field--widget-"] .props-form-value,
+.editor-custom-props-fields .editor-custom-props-field[class*="editor-custom-props-field--widget-"] textarea.props-form-value,
+.editor-custom-props-fields .editor-custom-props-field[class*="editor-custom-props-field--widget-"] select.props-form-value {
+  background: #fff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
 }
 
 .editor-custom-props-fields .props-form-value-wrap[data-widget]::before {
@@ -42429,6 +42441,100 @@ button.node-navigation-memory-title:focus-visible {
   tab-size: 2;
   border-color: rgba(59, 130, 246, 0.28);
   background: #f8fafc;
+}
+
+.props-form-value-wrap--repeater .props-form-repeater {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.props-form-repeater-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.props-form-repeater-item {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0.55rem 0.65rem 0.7rem;
+}
+
+.props-form-repeater-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.props-form-repeater-marker {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  color: #475569;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 6px;
+  padding: 0.1rem 0.4rem;
+}
+
+.props-form-repeater-remove {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+
+.props-form-repeater-remove:hover:not(:disabled) {
+  color: #ef4444;
+}
+
+.props-form-repeater-item-fields {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.props-form-repeater-subfield {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.props-form-repeater-subfield-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.props-form-repeater-subfield-value .props-form-value,
+.props-form-repeater-subfield-value textarea.props-form-value {
+  width: 100%;
+}
+
+.props-form-repeater-add {
+  align-self: flex-start;
+  border: 1px dashed rgba(59, 130, 246, 0.45);
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.props-form-repeater-add:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.node-config-field-row.is-tall .props-form-value-wrap--repeater {
+  min-width: 0;
 }
 
 .props-form-value--duration {
@@ -43370,8 +43476,8 @@ button.node-navigation-memory-title:focus-visible {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #94a3b8;
-  background: rgba(248, 250, 252, 0.72);
+  color: #64748b;
+  background: none;
 }
 
 .doc-props-aside .props-form-group-body {
@@ -43387,15 +43493,15 @@ button.node-navigation-memory-title:focus-visible {
   margin: 0;
   padding: 6px 10px 7px;
   border: 0;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.38);
-  background: rgba(248, 250, 252, 0.72);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.95);
+  background: #fff;
   cursor: pointer;
   text-align: left;
   font: inherit;
 }
 
 .doc-props-aside .props-form-group-toggle:hover {
-  background: rgba(241, 245, 249, 0.95);
+  background: rgba(248, 250, 252, 0.9);
 }
 
 .doc-props-aside .props-form-group-toggle .props-form-group-title {
@@ -43405,16 +43511,40 @@ button.node-navigation-memory-title:focus-visible {
   flex: 1 1 auto;
 }
 
-.doc-props-aside .props-form-group-caret {
-  font-size: 9px;
-  line-height: 1;
-  color: #94a3b8;
-  transform: rotate(90deg);
+.props-form-group-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #64748b;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.props-form-group-toggle:hover .props-form-group-caret,
+.editor-custom-props-root-toggle:hover .props-form-group-caret,
+.editor-custom-props-group-toggle:hover .props-form-group-caret {
+  color: #334155;
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.props-form-group-caret .nav-book-toc-folder-chevron {
+  width: 6px;
+  height: 6px;
+  margin-top: -2px;
+  transform: rotate(-45deg);
   transition: transform 0.15s ease;
 }
 
-.doc-props-aside .props-form-group.is-collapsed .props-form-group-caret {
-  transform: rotate(0deg);
+.editor-custom-props-bar:not(.is-root-collapsed) > .editor-custom-props-root-toggle .props-form-group-caret .nav-book-toc-folder-chevron,
+.editor-custom-props-group:not(.is-collapsed) > .editor-custom-props-group-toggle .props-form-group-caret .nav-book-toc-folder-chevron,
+.doc-props-aside .props-form-group:not(.is-collapsed) > .props-form-group-toggle .props-form-group-caret .nav-book-toc-folder-chevron {
+  transform: rotate(45deg);
+  margin-top: -4px;
 }
 
 .doc-props-aside .props-form-group-count {

@@ -1,0 +1,32 @@
+id: awn.field.compose.template
+name: Шаблон compose
+kind: field
+domain: fields
+extends: awn.field.object
+widget: object
+storage: object
+mdbase: object
+description: Шаблон команды для поля сообщения Voice Shell ({{tpl:key}})
+settings: [hint, required, locked]
+group: voice
+sort: 1
+status: active
+properties:
+  id:
+    type: awn.field.string.slug
+    title: ID
+    description: Внутренний идентификатор записи
+  key:
+    type: awn.field.string.slug
+    title: Ключ
+    description: Маркер {{tpl:key}} в тексте сообщения
+  group:
+    type: awn.field.string
+    title: Группа
+    default: Стиль ответа
+  label:
+    type: awn.field.string
+    title: Название
+  text:
+    type: awn.field.text
+    title: Текст команды

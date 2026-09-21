@@ -33,6 +33,10 @@ const TTS_RATE_VOICE_KEYS = {
   elevenlabs: "voice-tts-elevenlabs-rate"
 };
 
+const COMPOSE_VOICE_TO_SHELL = {
+  "voice-compose-templates": "composePromptTemplates"
+};
+
 const TTS_VOICE_TO_SHELL = {
   "voice-tts-enabled": "ttsEnabled",
   "voice-tts-engine": "ttsEngine",
@@ -77,6 +81,10 @@ const PROACTIVE_SHELL_DEFAULTS = {
   "voice-proactive-quiet-hours-start": "23:00",
   "voice-proactive-quiet-hours-end": "07:00",
   "voice-proactive-prompt": ""
+};
+
+const COMPOSE_SHELL_DEFAULTS = {
+  "voice-compose-templates": []
 };
 
 const TTS_SHELL_DEFAULTS = {
@@ -159,11 +167,16 @@ function hydrateWorkspaceVoiceTtsFromShell(awnSettings = {}, shellFlat = {}) {
   return out;
 }
 
+function hydrateWorkspaceComposeFromShell(awnSettings = {}, shellFlat = {}) {
+  return hydrateVoiceKeysFromShell(awnSettings, shellFlat, COMPOSE_VOICE_TO_SHELL);
+}
+
 function hydrateWorkspaceVoiceFromShell(awnSettings = {}, shellFlat = {}) {
   let out = hydrateWorkspaceVoiceProactiveFromShell(awnSettings, shellFlat);
   out = hydrateWorkspaceVoiceInputFromShell(out, shellFlat);
   out = hydrateWorkspaceVoiceSttFromShell(out, shellFlat);
   out = hydrateWorkspaceVoiceTtsFromShell(out, shellFlat);
+  out = hydrateWorkspaceComposeFromShell(out, shellFlat);
   return out;
 }
 
@@ -186,12 +199,17 @@ function buildShellSttPatchFromWorkspace(awnSettings = {}) {
   return buildShellPatchFromWorkspace(awnSettings, STT_VOICE_TO_SHELL);
 }
 
+function buildShellComposePatchFromWorkspace(awnSettings = {}) {
+  return buildShellPatchFromWorkspace(awnSettings, COMPOSE_VOICE_TO_SHELL);
+}
+
 function buildShellVoicePatchFromWorkspace(awnSettings = {}) {
   return {
     ...buildShellProactivePatchFromWorkspace(awnSettings),
     ...buildShellVoiceInputPatchFromWorkspace(awnSettings),
     ...buildShellSttPatchFromWorkspace(awnSettings),
-    ...buildShellTtsPatchFromWorkspace(awnSettings)
+    ...buildShellTtsPatchFromWorkspace(awnSettings),
+    ...buildShellComposePatchFromWorkspace(awnSettings)
   };
 }
 
@@ -211,12 +229,17 @@ function getSttVoiceSettingsDefaults() {
   return { ...STT_SHELL_DEFAULTS };
 }
 
+function getComposeSettingsDefaults() {
+  return { ...COMPOSE_SHELL_DEFAULTS };
+}
+
 function getVoiceSettingsDefaults() {
   return {
     ...getProactiveVoiceSettingsDefaults(),
     ...getVoiceInputSettingsDefaults(),
     ...getSttVoiceSettingsDefaults(),
-    ...getTtsVoiceSettingsDefaults()
+    ...getTtsVoiceSettingsDefaults(),
+    ...getComposeSettingsDefaults()
   };
 }
 
@@ -224,21 +247,25 @@ module.exports = {
   VOICE_INPUT_TO_SHELL,
   STT_VOICE_TO_SHELL,
   PROACTIVE_VOICE_TO_SHELL,
+  COMPOSE_VOICE_TO_SHELL,
   TTS_RATE_VOICE_KEYS,
   TTS_VOICE_TO_SHELL,
   hydrateWorkspaceVoiceInputFromShell,
   hydrateWorkspaceVoiceSttFromShell,
   hydrateWorkspaceVoiceProactiveFromShell,
   hydrateWorkspaceVoiceTtsFromShell,
+  hydrateWorkspaceComposeFromShell,
   hydrateWorkspaceVoiceFromShell,
   buildShellVoiceInputPatchFromWorkspace,
   buildShellSttPatchFromWorkspace,
   buildShellProactivePatchFromWorkspace,
   buildShellTtsPatchFromWorkspace,
+  buildShellComposePatchFromWorkspace,
   buildShellVoicePatchFromWorkspace,
   getVoiceInputSettingsDefaults,
   getSttVoiceSettingsDefaults,
   getProactiveVoiceSettingsDefaults,
   getTtsVoiceSettingsDefaults,
+  getComposeSettingsDefaults,
   getVoiceSettingsDefaults
 };
