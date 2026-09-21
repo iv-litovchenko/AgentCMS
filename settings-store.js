@@ -10,6 +10,7 @@ const {
   normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
   normalizeUserAgentSettings,
+  normalizeIntegrationsAgentSettings,
   flattenAwnSettingsValues,
   parseWorkspaceAgentSettingsFromConfigContent,
   touchWorkspaceAwnIdCounterOnSave
@@ -19,8 +20,10 @@ const { loadTypeCatalog, toRecordTypeDef, resolveAgentSettingsRegistry } = requi
 const WORKSPACE_SETTINGS_FILE = "settings.yml";
 const GLOBAL_SETTINGS_FILE = "settings.global.yml";
 const USER_SETTINGS_REL_PATH = ".agent-cms/user-settings.yml";
+const INTEGRATIONS_SETTINGS_REL_PATH = ".agent-cms/integrations.yml";
 const PROJECT_SETTINGS_GLOBAL_SCOPE = "__global__";
 const PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE = "__workspace-settings__";
+const PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE = "__integrations-settings__";
 const PROJECT_SETTINGS_USER_SETTINGS_SCOPE = "__user-settings__";
 
 const WORKSPACE_SETTINGS_HEADER =
@@ -29,6 +32,8 @@ const GLOBAL_SETTINGS_HEADER =
   "# Agent CMS — глобальные настройки платформы (agent-cms-core)\n";
 const USER_SETTINGS_HEADER =
   "# Agent CMS — пользовательские настройки (UI, дерево меню)\n";
+const INTEGRATIONS_SETTINGS_HEADER =
+  "# Agent CMS — интеграции и плагины (контейнеры внешних сервисов)\n";
 
 function getGlobalSettingsAbsolute(projectRoot) {
   return path.join(getAgentCmsCoreAbsolute(projectRoot), GLOBAL_SETTINGS_FILE);
@@ -44,6 +49,12 @@ function getUserSettingsAbsolute(agentRoot) {
   const root = String(agentRoot || "").trim();
   if (!root) return "";
   return path.join(root, USER_SETTINGS_REL_PATH);
+}
+
+function getIntegrationsSettingsAbsolute(agentRoot) {
+  const root = String(agentRoot || "").trim();
+  if (!root) return "";
+  return path.join(root, INTEGRATIONS_SETTINGS_REL_PATH);
 }
 
 function parseSettingsFileContent(content) {
@@ -171,6 +182,12 @@ async function readWorkspaceSettingsFile(agentRoot) {
 async function readUserSettingsFile(agentRoot) {
   const absolutePath = getUserSettingsAbsolute(agentRoot);
   const relPath = USER_SETTINGS_REL_PATH;
+  return readFilePayload(absolutePath, relPath);
+}
+
+async function readIntegrationsSettingsFile(agentRoot) {
+  const absolutePath = getIntegrationsSettingsAbsolute(agentRoot);
+  const relPath = INTEGRATIONS_SETTINGS_REL_PATH;
   return readFilePayload(absolutePath, relPath);
 }
 
@@ -316,6 +333,19 @@ async function writeUserSettingsFile(agentRoot, content) {
   };
 }
 
+async function writeIntegrationsSettingsFile(agentRoot, content) {
+  const absolutePath = getIntegrationsSettingsAbsolute(agentRoot);
+  if (!absolutePath) throw new Error("Agent root not set");
+  await fs.promises.mkdir(path.dirname(absolutePath), { recursive: true });
+  await fs.promises.writeFile(absolutePath, content, "utf-8");
+  return {
+    path: INTEGRATIONS_SETTINGS_REL_PATH,
+    absolutePath,
+    exists: true,
+    content
+  };
+}
+
 function countSettingsValues(awnSettings = {}) {
   const flat = flattenAwnSettingsValues(awnSettings);
   return Object.keys(flat).filter((key) => {
@@ -334,9 +364,14 @@ function isProjectSettingsUserSettingsScope(scopePath) {
   return String(scopePath || "").trim() === PROJECT_SETTINGS_USER_SETTINGS_SCOPE;
 }
 
+function isProjectSettingsIntegrationsSettingsScope(scopePath) {
+  return String(scopePath || "").trim() === PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE;
+}
+
 const PLATFORM_SETTINGS_TYPE_ID = "awn.settings.platform";
 const WORKSPACE_SETTINGS_TYPE_ID = "awn.settings.workspace";
 const USER_SETTINGS_TYPE_ID = "awn.settings.user";
+const INTEGRATIONS_SETTINGS_TYPE_ID = "awn.settings.integrations";
 /** @deprecated use PLATFORM_SETTINGS_TYPE_ID */
 const AGENT_SETTINGS_GLOBAL_TYPE_ID = PLATFORM_SETTINGS_TYPE_ID;
 /** @deprecated use WORKSPACE_SETTINGS_TYPE_ID */
@@ -346,6 +381,7 @@ function resolveSettingsScopeKey(scope = "workspace") {
   const normalized = String(scope || "").trim().toLowerCase();
   if (normalized === "global" || normalized === "platform") return "platform";
   if (normalized === "user") return "user";
+  if (normalized === "integrations" || normalized === "plugins") return "integrations";
   return "workspace";
 }
 
@@ -357,6 +393,11 @@ function isPlatformSettingsTypeId(typeId) {
 function isUserSettingsTypeId(typeId) {
   const id = String(typeId || "").trim();
   return id === USER_SETTINGS_TYPE_ID || id === "agent.settings.user";
+}
+
+function isIntegrationsSettingsTypeId(typeId) {
+  const id = String(typeId || "").trim();
+  return id === INTEGRATIONS_SETTINGS_TYPE_ID || id === "agent.settings.integrations";
 }
 
 function getAgentSettingsRegistry(projectRoot) {
@@ -381,18 +422,26 @@ function resolveAgentSettingsTypeId(scope = "workspace", projectRoot = process.c
   if (typeId) return typeId;
   if (scopeKey === "platform") return PLATFORM_SETTINGS_TYPE_ID;
   if (scopeKey === "user") return USER_SETTINGS_TYPE_ID;
+  if (scopeKey === "integrations") return INTEGRATIONS_SETTINGS_TYPE_ID;
   return WORKSPACE_SETTINGS_TYPE_ID;
 }
 
 function buildAgentSettingsSchemaPayloadFromType(typeId, byId, projectRoot = process.cwd()) {
   const isPlatform = isPlatformSettingsTypeId(typeId);
   const isUser = isUserSettingsTypeId(typeId);
+  const isIntegrations = isIntegrationsSettingsTypeId(typeId);
   const entry = byId.get(typeId);
   if (!entry) {
     return {
       type: typeId,
-      scope: isPlatform ? "global" : isUser ? "user" : "local",
-      name: isPlatform ? "Настройки платформы" : isUser ? "Пользовательские настройки" : "Настройки workspace",
+      scope: isPlatform ? "global" : isUser ? "user" : isIntegrations ? "integrations" : "local",
+      name: isPlatform
+        ? "Настройки платформы"
+        : isUser
+          ? "Пользовательские настройки"
+          : isIntegrations
+            ? "Интеграции и плагины"
+            : "Настройки workspace",
       fieldGroups: [],
       fields: {}
     };
@@ -419,12 +468,18 @@ function buildAgentSettingsSchemaPayloadFromType(typeId, byId, projectRoot = pro
   }
   return {
     type: typeId,
-    scope: isPlatform ? "global" : isUser ? "user" : "local",
+    scope: isPlatform ? "global" : isUser ? "user" : isIntegrations ? "integrations" : "local",
     name: typeDef.name || typeId,
     description: schema.description || typeDef.description || "",
     valuesFile:
       schema.valuesFile ||
-      (isPlatform ? GLOBAL_SETTINGS_FILE : isUser ? USER_SETTINGS_REL_PATH : WORKSPACE_SETTINGS_FILE),
+      (isPlatform
+        ? GLOBAL_SETTINGS_FILE
+        : isUser
+          ? USER_SETTINGS_REL_PATH
+          : isIntegrations
+            ? INTEGRATIONS_SETTINGS_REL_PATH
+            : WORKSPACE_SETTINGS_FILE),
     consumer: Array.isArray(schema.consumer) ? schema.consumer : [],
     fieldGroups: normalizeAgentSettingsFieldGroups(typeDef.fieldGroups || schema.fieldGroups),
     fields
@@ -560,27 +615,31 @@ const SETTINGS_SCOPE_ALIASES = {
   global: "platform",
   workspace: "workspace",
   local: "workspace",
-  user: "user"
+  user: "user",
+  integrations: "integrations",
+  plugins: "integrations"
 };
 
 function resolveAgentSettingsListScopes(scope = "all") {
   const normalized = SETTINGS_SCOPE_ALIASES[String(scope || "all").trim().toLowerCase()];
   if (!normalized) {
-    throw new Error('scope must be "all", "platform", "workspace", or "user"');
+    throw new Error('scope must be "all", "platform", "workspace", "integrations", or "user"');
   }
-  if (normalized === "all") return ["platform", "workspace", "user"];
+  if (normalized === "all") return ["platform", "workspace", "integrations", "user"];
   return [normalized];
 }
 
 function getDefaultsForScope(scopeKey) {
   if (scopeKey === "platform") return PLATFORM_AGENT_SETTINGS_DEFAULTS;
   if (scopeKey === "user") return USER_AGENT_SETTINGS_DEFAULTS;
+  if (scopeKey === "integrations") return INTEGRATIONS_AGENT_SETTINGS_DEFAULTS;
   return WORKSPACE_AGENT_SETTINGS_DEFAULTS;
 }
 
 function normalizeSettingsForScope(scopeKey, raw = {}) {
   if (scopeKey === "platform") return normalizePlatformAgentSettings(raw);
   if (scopeKey === "user") return normalizeUserAgentSettings(raw);
+  if (scopeKey === "integrations") return normalizeIntegrationsAgentSettings(raw);
   return normalizeWorkspaceAgentSettings(raw);
 }
 
@@ -638,6 +697,19 @@ async function readSettingsRawForScope(agentRoot, projectRoot, scopeKey) {
 
   if (scopeKey === "user") {
     const file = await readUserSettingsFile(agentRoot);
+    const parsed = parseSettingsFileContent(file.content || "");
+    return {
+      scope: scopeKey,
+      path: file.path,
+      exists: Boolean(file.exists),
+      raw: parsed.awn_settings,
+      parsed,
+      file
+    };
+  }
+
+  if (scopeKey === "integrations") {
+    const file = await readIntegrationsSettingsFile(agentRoot);
     const parsed = parseSettingsFileContent(file.content || "");
     return {
       scope: scopeKey,
@@ -739,7 +811,7 @@ async function listAgentSettings(agentRoot, projectRoot, scope = "all") {
   }
 
   items.sort((a, b) => {
-    const scopeOrder = { platform: 0, workspace: 1, user: 2 };
+    const scopeOrder = { platform: 0, workspace: 1, integrations: 2, user: 3 };
     const scopeDiff = (scopeOrder[a.scope] ?? 9) - (scopeOrder[b.scope] ?? 9);
     if (scopeDiff !== 0) return scopeDiff;
     return String(a.key).localeCompare(String(b.key), "ru");
@@ -829,6 +901,24 @@ async function writeAgentSetting(agentRoot, projectRoot, scope, key, rawValue) {
     };
   }
 
+  if (scopeKey === "integrations") {
+    const nextContent = composeSettingsFileContent({
+      headerComment: payload.parsed?.headerComment || INTEGRATIONS_SETTINGS_HEADER.trim(),
+      awn_settings: nextFlat
+    });
+    const saved = await writeIntegrationsSettingsFile(
+      agentRoot,
+      nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
+    );
+    const normalized = normalizeIntegrationsAgentSettings(parseSettingsFileContent(saved.content).awn_settings);
+    return {
+      ok: true,
+      ...buildSettingFieldMeta(scopeKey, fieldKey, fieldDef, normalized[fieldKey]),
+      path: saved.path,
+      valuesFile: schema.valuesFile || saved.path
+    };
+  }
+
   const nextContent = composeSettingsFileContent({
     headerComment: payload.parsed?.headerComment || WORKSPACE_SETTINGS_HEADER.trim(),
     awn_settings: touchWorkspaceAwnIdCounterOnSave(nextFlat)
@@ -850,15 +940,19 @@ module.exports = {
   WORKSPACE_SETTINGS_FILE,
   GLOBAL_SETTINGS_FILE,
   USER_SETTINGS_REL_PATH,
+  INTEGRATIONS_SETTINGS_REL_PATH,
   PROJECT_SETTINGS_GLOBAL_SCOPE,
   PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE,
+  PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE,
   PROJECT_SETTINGS_USER_SETTINGS_SCOPE,
   WORKSPACE_SETTINGS_HEADER,
   GLOBAL_SETTINGS_HEADER,
   USER_SETTINGS_HEADER,
+  INTEGRATIONS_SETTINGS_HEADER,
   getGlobalSettingsAbsolute,
   getWorkspaceSettingsAbsolute,
   getUserSettingsAbsolute,
+  getIntegrationsSettingsAbsolute,
   parseSettingsFileContent,
   extractAwnPolicyFromParsed,
   composeSettingsFileContent,
@@ -866,17 +960,21 @@ module.exports = {
   readGlobalSettingsFile,
   readWorkspaceSettingsFile,
   readUserSettingsFile,
+  readIntegrationsSettingsFile,
   readWorkspaceSettingsWithLegacyFallback,
   getEffectiveWorkspaceSettings,
   writeWorkspaceSettingsFile,
   writeGlobalSettingsFile,
   writeUserSettingsFile,
+  writeIntegrationsSettingsFile,
   countSettingsValues,
   isProjectSettingsGlobalScope,
   isProjectSettingsUserSettingsScope,
+  isProjectSettingsIntegrationsSettingsScope,
   PLATFORM_SETTINGS_TYPE_ID,
   WORKSPACE_SETTINGS_TYPE_ID,
   USER_SETTINGS_TYPE_ID,
+  INTEGRATIONS_SETTINGS_TYPE_ID,
   AGENT_SETTINGS_GLOBAL_TYPE_ID,
   AGENT_SETTINGS_LOCAL_TYPE_ID,
   resolveSettingsScopeKey,

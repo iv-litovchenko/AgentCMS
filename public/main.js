@@ -15129,6 +15129,7 @@ const NODE_OPEN_MEMORY_MODE = "internal";
 const PROJECT_SETTINGS_MODE = "project-settings";
 const PROJECT_SETTINGS_GLOBAL_SCOPE = "__global__";
 const PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE = "__workspace-settings__";
+const PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE = "__integrations-settings__";
 const PROJECT_SETTINGS_USER_SETTINGS_SCOPE = "__user-settings__";
 const PROJECT_SETTINGS_IBLOCK_SCOPE_PREFIX = "__iblock__:";
 const ENTRY_OVERVIEW_OCR_ENABLED = false;
@@ -22743,6 +22744,7 @@ function isNodeSettingsTargetPath(nodePath) {
     isNodeMdPath(normalized) ||
     normalized === PROJECT_SETTINGS_GLOBAL_SCOPE ||
     normalized === PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE ||
+    normalized === PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE ||
     normalized === PROJECT_SETTINGS_USER_SETTINGS_SCOPE
   );
 }
@@ -22759,6 +22761,10 @@ function isProjectSettingsUserSettingsScope(scopePath = getNodeSettingsManifestP
   return String(scopePath || "").trim() === PROJECT_SETTINGS_USER_SETTINGS_SCOPE;
 }
 
+function isProjectSettingsIntegrationsSettingsScope(scopePath = getNodeSettingsManifestPath()) {
+  return String(scopePath || "").trim() === PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE;
+}
+
 function isProjectSettingsLocalScope(scopePath = getNodeSettingsManifestPath()) {
   return isProjectSettingsWorkspaceSettingsScope(scopePath);
 }
@@ -22772,6 +22778,7 @@ function isProjectSettingsAgentSettingsScope(scopePath = getNodeSettingsManifest
   return (
     isProjectSettingsGlobalScope(scopePath) ||
     isProjectSettingsLocalScope(scopePath) ||
+    isProjectSettingsIntegrationsSettingsScope(scopePath) ||
     isProjectSettingsUserSettingsScope(scopePath)
   );
 }
@@ -22857,6 +22864,12 @@ function getProjectSettingsValuesFileLabel(scope = null) {
     return "settings.yml";
   }
   if (
+    activeScope?.level === "settings-integrations" ||
+    isProjectSettingsIntegrationsSettingsScope(getNodeSettingsManifestPath())
+  ) {
+    return ".agent-cms/integrations.yml";
+  }
+  if (
     activeScope?.level === "settings-user" ||
     isProjectSettingsUserSettingsScope(getNodeSettingsManifestPath())
   ) {
@@ -22867,6 +22880,7 @@ function getProjectSettingsValuesFileLabel(scope = null) {
 
 function getProjectSettingsAgentSchemaScopeKey(scopePath = getNodeSettingsManifestPath()) {
   if (isProjectSettingsGlobalScope(scopePath)) return "global";
+  if (isProjectSettingsIntegrationsSettingsScope(scopePath)) return "integrations";
   if (isProjectSettingsUserSettingsScope(scopePath)) return "user";
   return "local";
 }
@@ -42056,6 +42070,7 @@ const agentSettingsSchemaLoadPromises = new Map();
 
 function resolveAgentSettingsSchemaScope(manifestPath = getNodeSettingsManifestPath()) {
   if (isProjectSettingsGlobalScope(manifestPath)) return "global";
+  if (isProjectSettingsIntegrationsSettingsScope(manifestPath)) return "integrations";
   if (isProjectSettingsUserSettingsScope(manifestPath)) return "user";
   return "local";
 }
@@ -42081,7 +42096,9 @@ async function loadAgentSettingsSchemaBundle(options = {}) {
             ? "awn.settings.platform"
             : scope === "user"
               ? "awn.settings.user"
-              : "awn.settings.workspace"),
+              : scope === "integrations"
+                ? "awn.settings.integrations"
+                : "awn.settings.workspace"),
         settingsFields: mergeAgentSettingsSchemaFields(data.fields || {}),
         settingsFieldGroups: Array.isArray(data.fieldGroups) ? data.fieldGroups : []
       };
@@ -42094,7 +42111,9 @@ async function loadAgentSettingsSchemaBundle(options = {}) {
         ? "awn.settings.platform"
         : scope === "user"
           ? "awn.settings.user"
-          : "awn.settings.workspace";
+          : scope === "integrations"
+            ? "awn.settings.integrations"
+            : "awn.settings.workspace";
     const typeDef = mergeClientTypeDefinition(typeId);
     const payload = {
       scope,
@@ -42416,7 +42435,8 @@ function setProjectSettingsScopeStatusFromCache(manifestPath, cache) {
   if (!normalized || !cache) return;
   if (
     !isProjectSettingsGlobalScope(normalized) &&
-    !isProjectSettingsWorkspaceSettingsScope(normalized)
+    !isProjectSettingsWorkspaceSettingsScope(normalized) &&
+    !isProjectSettingsIntegrationsSettingsScope(normalized)
   ) {
     return;
   }
@@ -42484,6 +42504,11 @@ function collectProjectSettingsManifestScopes() {
     "settings-local"
   );
   pushScope(
+    PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE,
+    "Интеграции и плагины",
+    "settings-integrations"
+  );
+  pushScope(
     PROJECT_SETTINGS_USER_SETTINGS_SCOPE,
     "Пользовательские настройки",
     "settings-user"
@@ -42520,7 +42545,15 @@ function collectProjectSettingsManifestScopes() {
   }
 
   scopes.sort((a, b) => {
-    const rank = { global: 0, "settings-local": 1, "settings-user": 2, workspace: 3, area: 4, topic: 5 };
+    const rank = {
+      global: 0,
+      "settings-local": 1,
+      "settings-integrations": 2,
+      "settings-user": 3,
+      workspace: 4,
+      area: 5,
+      topic: 6
+    };
     const ra = rank[a.level] ?? 5;
     const rb = rank[b.level] ?? 5;
     if (ra !== rb) return ra - rb;
@@ -42579,8 +42612,10 @@ function projectSettingsScopeSearchHaystack(scope) {
       ? "платформа глобальные agent-cms-core"
       : scope?.level === "settings-local"
         ? "локальные workspace settings.yml"
-        : scope?.level === "settings-user"
-          ? "пользовательские user-settings.yml agent-cms"
+        : scope?.level === "settings-integrations"
+          ? "интеграции плагины skills mcp integrations.yml agent-cms"
+          : scope?.level === "settings-user"
+            ? "пользовательские user-settings.yml agent-cms"
           : scope?.level === "workspace"
           ? "workspace корень manifest"
           : scope?.level === "area"
@@ -42747,9 +42782,11 @@ function renderProjectSettingsAgentSettingsTabItem(scopePath, groupId, groupLabe
   btn.title = `${groupLabel} · ${getProjectSettingsValuesFileLabel({
     level: isProjectSettingsGlobalScope(scopePath)
       ? "global"
-      : isProjectSettingsUserSettingsScope(scopePath)
-        ? "settings-user"
-        : "settings-local"
+      : isProjectSettingsIntegrationsSettingsScope(scopePath)
+        ? "settings-integrations"
+        : isProjectSettingsUserSettingsScope(scopePath)
+          ? "settings-user"
+          : "settings-local"
   })}`;
 
   const label = document.createElement("span");
@@ -42775,9 +42812,17 @@ function renderProjectSettingsAgentSettingsTabs(groupNode, groupSpec, activeScop
       ? PROJECT_SETTINGS_GLOBAL_SCOPE
       : groupSpec.level === "settings-user"
         ? PROJECT_SETTINGS_USER_SETTINGS_SCOPE
-        : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
+        : groupSpec.level === "settings-integrations"
+          ? PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE
+          : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
   const scopeKey =
-    groupSpec.level === "global" ? "global" : groupSpec.level === "settings-user" ? "user" : "local";
+    groupSpec.level === "global"
+      ? "global"
+      : groupSpec.level === "settings-user"
+        ? "user"
+        : groupSpec.level === "settings-integrations"
+          ? "integrations"
+          : "local";
   const groupOrder = getProjectSettingsAgentGroupOrder(scopeKey);
   const fieldGroups = getProjectSettingsAgentFieldGroups(scopeKey);
   if (!groupOrder.length) {
@@ -42890,6 +42935,7 @@ function renderProjectSettingsScopeList() {
   const groups = [
     { level: "global", label: "Глобальные настройки платформы", agentTabs: true },
     { level: "settings-local", label: "Локальные настройки хранилища", agentTabs: true },
+    { level: "settings-integrations", label: "Интеграции и плагины", agentTabs: true },
     { level: "settings-user", label: "Пользовательские настройки", agentTabs: true },
     { level: "workspace", label: "Workspace" },
     { level: "area", label: "Области" },
@@ -42914,6 +42960,7 @@ function renderProjectSettingsScopeList() {
     groupNode.className = "project-settings-scope-group";
     if (group.level === "global") groupNode.classList.add("is-scope-platform-global");
     if (group.level === "settings-local") groupNode.classList.add("is-scope-platform-local");
+    if (group.level === "settings-integrations") groupNode.classList.add("is-scope-integrations-settings");
     if (group.level === "settings-user") groupNode.classList.add("is-scope-user-settings");
     if (group.level === "workspace") groupNode.classList.add("is-scope-workspace");
     if (group.level === "area" || group.level === "topic") groupNode.classList.add("is-scope-tree");
@@ -42929,9 +42976,17 @@ function renderProjectSettingsScopeList() {
           ? PROJECT_SETTINGS_GLOBAL_SCOPE
           : group.level === "settings-user"
             ? PROJECT_SETTINGS_USER_SETTINGS_SCOPE
-            : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
+            : group.level === "settings-integrations"
+              ? PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE
+              : PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
       const scopeKey =
-        group.level === "global" ? "global" : group.level === "settings-user" ? "user" : "local";
+        group.level === "global"
+          ? "global"
+          : group.level === "settings-user"
+            ? "user"
+            : group.level === "settings-integrations"
+              ? "integrations"
+              : "local";
       const tabLabels = getProjectSettingsAgentGroupOrder(scopeKey).map((groupId) =>
         resolveNodeSettingsGroupLabel(groupId, getProjectSettingsAgentFieldGroups(scopeKey))
       );
@@ -43009,7 +43064,9 @@ function renderProjectSettingsScopeList() {
       label.textContent = scope.label;
       btn.append(label);
 
-      const showNodeMarkers = !["global", "settings-local", "settings-user"].includes(scope.level);
+      const showNodeMarkers = !["global", "settings-local", "settings-integrations", "settings-user"].includes(
+        scope.level
+      );
       if (showNodeMarkers) {
         const status = document.createElement("span");
         status.className = "project-settings-scope-status";
@@ -43089,6 +43146,7 @@ async function loadProjectSettingsEnvForManifest(manifestPath, options = {}) {
     !manifestPath ||
     isProjectSettingsGlobalScope(manifestPath) ||
     isProjectSettingsWorkspaceSettingsScope(manifestPath) ||
+    isProjectSettingsIntegrationsSettingsScope(manifestPath) ||
     isProjectSettingsUserSettingsScope(manifestPath)
   ) {
     return null;
@@ -43238,8 +43296,10 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
       ? "Глобальные настройки платформы"
       : scope.level === "settings-local"
         ? "Локальные настройки платформы"
-        : scope.level === "settings-user"
-          ? "Пользовательские настройки"
+        : scope.level === "settings-integrations"
+          ? "Интеграции и плагины"
+          : scope.level === "settings-user"
+            ? "Пользовательские настройки"
           : scope.level === "workspace"
             ? "Workspace"
             : scope.level === "area"
@@ -43249,11 +43309,14 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
       ? "Глобальные настройки платформы"
       : isProjectSettingsWorkspaceSettingsScope(getNodeSettingsManifestPath())
         ? "Локальные настройки платформы"
-        : isProjectSettingsUserSettingsScope(getNodeSettingsManifestPath())
-          ? "Пользовательские настройки"
-          : "Уровень";
+        : isProjectSettingsIntegrationsSettingsScope(getNodeSettingsManifestPath())
+          ? "Интеграции и плагины"
+          : isProjectSettingsUserSettingsScope(getNodeSettingsManifestPath())
+            ? "Пользовательские настройки"
+            : "Уровень";
   const isGlobalScope = isProjectSettingsGlobalScope(getNodeSettingsManifestPath());
   const isLocalScope = isProjectSettingsLocalScope(getNodeSettingsManifestPath());
+  const isIntegrationsScope = isProjectSettingsIntegrationsSettingsScope(getNodeSettingsManifestPath());
   const isUserScope = isProjectSettingsUserSettingsScope(getNodeSettingsManifestPath());
   const valuesFileLabel = getProjectSettingsValuesFileLabel(scope);
   const envPath = activeStatus?.envPath || getEnvFilePathForManifest(getNodeSettingsManifestPath());
@@ -43273,8 +43336,10 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
     projectSettingsLeadNode.innerHTML = isGlobalScope
       ? `Глобальная политика платформы в <code>settings.global.yml</code> (<code>agent-cms-core</code>). Не сливается с workspace/user.`
       : isLocalScope
-        ? `Параметры хранилища в <code>settings.yml</code>. Отдельная область, не перекрывает platform/user.`
-        : isUserScope
+        ? `Параметры хранилища в <code>settings.yml</code>. Отдельная область, не перекрывает platform/integrations/user.`
+        : isIntegrationsScope
+          ? `Контейнеры skills, MCP tools и плагинов в <code>.agent-cms/integrations.yml</code>. Заглушка — runtime пока не подключён.`
+          : isUserScope
           ? `UI и дерево меню для текущего пользователя в <code>.agent-cms/user-settings.yml</code> (аналог <code>uc</code> в TYPO3).`
           : scope
             ? `Параметры узла в <code>config.yml</code> и секреты в <code>.env</code> рядом с manifest.`
@@ -43436,6 +43501,7 @@ async function bootstrapProjectSettingsData(options = {}) {
   await Promise.all([
     loadAgentSettingsSchemaBundle({ scope: "global", force }),
     loadAgentSettingsSchemaBundle({ scope: "local", force }),
+    loadAgentSettingsSchemaBundle({ scope: "integrations", force }),
     loadAgentSettingsSchemaBundle({ scope: "user", force }),
     loadUserSettingsForAgent(activeAgentId)
   ]).catch(() => {});
@@ -43615,6 +43681,10 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
     const response = await fetch(buildApiUrl("/api/workspace/settings"));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     data = await response.json();
+  } else if (isProjectSettingsMode() && isProjectSettingsIntegrationsSettingsScope(manifestPath)) {
+    const response = await fetch(buildApiUrl("/api/integrations/settings"));
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    data = await response.json();
   } else if (isProjectSettingsMode() && isProjectSettingsUserSettingsScope(manifestPath)) {
     const response = await fetch(buildApiUrl("/api/user/settings"));
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
@@ -43656,9 +43726,11 @@ async function loadNodeSettingsForManifest(nodePath, options = {}) {
       ? "global"
       : isProjectSettingsLocalScope(manifestPath)
         ? "local"
-        : isProjectSettingsUserSettingsScope(manifestPath)
-          ? "user"
-          : "node",
+        : isProjectSettingsIntegrationsSettingsScope(manifestPath)
+          ? "integrations"
+          : isProjectSettingsUserSettingsScope(manifestPath)
+            ? "user"
+            : "node",
     platformMeta: data.meta || null,
     settingsFields,
     settingsFieldGroups,
@@ -43921,7 +43993,9 @@ async function saveNodeSettingsContent() {
       ? buildApiUrl("/api/platform/settings-global")
       : isProjectSettingsUserSettingsScope(manifestPath)
         ? buildApiUrl("/api/user/settings")
-        : buildApiUrl("/api/workspace/settings")
+        : isProjectSettingsIntegrationsSettingsScope(manifestPath)
+          ? buildApiUrl("/api/integrations/settings")
+          : buildApiUrl("/api/workspace/settings")
     : buildApiUrl("/api/file/node-config");
   const saveBody = useProjectSettingsApi
     ? JSON.stringify({ content })

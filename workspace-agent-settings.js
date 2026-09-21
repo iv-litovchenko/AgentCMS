@@ -80,6 +80,19 @@ const USER_AGENT_SETTINGS_DEFAULTS = {
   "user-static-example-3": "значение 3"
 };
 
+const INTEGRATIONS_AGENT_SETTINGS_DEFAULTS = {
+  "integrations-model-version": "stub-v1",
+  "integrations-containers-note": "static-groups-stub",
+  "container-cursor-skill-enabled": false,
+  "container-cursor-skill-kind": "skill",
+  "container-cursor-skill-source": "~/.cursor/skills/automate",
+  "container-cursor-skill-namespace": "cursor-skill",
+  "container-mcp-bridge-enabled": false,
+  "container-mcp-bridge-endpoint": "http://127.0.0.1:7337/mcp",
+  "container-mcp-bridge-tools": "list_workspaces, read_page_body, search_workspace_content",
+  "container-mcp-bridge-auth-token": ""
+};
+
 /** @deprecated merged defaults kept for compatibility checks only */
 const WORKSPACE_AGENT_SETTINGS_DEFAULTS_LEGACY = {
   ...PLATFORM_AGENT_SETTINGS_DEFAULTS,
@@ -139,6 +152,10 @@ function normalizeWorkspaceAgentSettings(raw = {}) {
 
 function normalizeUserAgentSettings(raw = {}) {
   return normalizeSettingsWithDefaults(raw, USER_AGENT_SETTINGS_DEFAULTS);
+}
+
+function normalizeIntegrationsAgentSettings(raw = {}) {
+  return normalizeSettingsWithDefaults(raw, INTEGRATIONS_AGENT_SETTINGS_DEFAULTS);
 }
 
 function getPlatformReadTextMaxBytes(settings = {}) {
@@ -358,11 +375,13 @@ module.exports = {
   WORKSPACE_AWN_ID_COUNTER_KEYS,
   WORKSPACE_AGENT_SETTINGS_DEFAULTS,
   USER_AGENT_SETTINGS_DEFAULTS,
+  INTEGRATIONS_AGENT_SETTINGS_DEFAULTS,
   WORKSPACE_AGENT_SETTINGS_DEFAULTS_LEGACY,
   flattenAwnSettingsValues,
   normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
   normalizeUserAgentSettings,
+  normalizeIntegrationsAgentSettings,
   parsePlatformAgentSettingsFromConfigContent,
   parseWorkspaceAgentSettingsFromConfigContent,
   touchWorkspaceAwnIdCounterOnSave,

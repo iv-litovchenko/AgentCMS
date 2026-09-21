@@ -285,12 +285,17 @@ const DEFAULT_AGENT_SETTINGS_REGISTRY = {
     user: {
       type: "awn.settings.user",
       path: "awn-system/types/settings/user.yml"
+    },
+    integrations: {
+      type: "awn.settings.integrations",
+      path: "awn-system/types/settings/integrations.yml"
     }
   },
   values: {
     platform: "settings.global.yml",
     workspace: "settings.yml",
-    user: ".agent-cms/user-settings.yml"
+    user: ".agent-cms/user-settings.yml",
+    integrations: ".agent-cms/integrations.yml"
   }
 };
 
@@ -312,6 +317,8 @@ function normalizeAgentSettingsRegistry(raw = {}) {
         : {};
   const userSchema =
     schema.user && typeof schema.user === "object" ? schema.user : {};
+  const integrationsSchema =
+    schema.integrations && typeof schema.integrations === "object" ? schema.integrations : {};
   return {
     description: String(source.description || "").trim(),
     schema: {
@@ -326,6 +333,10 @@ function normalizeAgentSettingsRegistry(raw = {}) {
       user: {
         ...DEFAULT_AGENT_SETTINGS_REGISTRY.schema.user,
         ...userSchema
+      },
+      integrations: {
+        ...DEFAULT_AGENT_SETTINGS_REGISTRY.schema.integrations,
+        ...integrationsSchema
       }
     },
     values: {
@@ -333,7 +344,8 @@ function normalizeAgentSettingsRegistry(raw = {}) {
         values.platform || values.global || DEFAULT_AGENT_SETTINGS_REGISTRY.values.platform,
       workspace:
         values.workspace || values.local || DEFAULT_AGENT_SETTINGS_REGISTRY.values.workspace,
-      user: values.user || DEFAULT_AGENT_SETTINGS_REGISTRY.values.user
+      user: values.user || DEFAULT_AGENT_SETTINGS_REGISTRY.values.user,
+      integrations: values.integrations || DEFAULT_AGENT_SETTINGS_REGISTRY.values.integrations
     }
   };
 }

@@ -1,0 +1,120 @@
+id: awn.settings.integrations
+name: Интеграции и плагины
+kind: type
+domain: settings
+status: active
+extends: awn.settings.base
+description: >
+  Контейнеры настроек внешних сервисов для workspace: Cursor skills, MCP tools,
+  hooks и другие плагины. Значения — .agent-cms/integrations.yml. Область не
+  сливается с platform/workspace/user. Пока схема статическая; позже контейнеры
+  можно создавать из реестра без правки ядра CMS.
+scope: integrations
+enabled: true
+consumer: [ui, mcp-server]
+valuesFile: .agent-cms/integrations.yml
+
+fieldGroups:
+  - id: concept
+    name: Концепция
+    description: >
+      Как устроены контейнеры интеграций — один плагин = группа полей с общим
+      префиксом id (.agent-cms/integrations.yml).
+  - id: example-cursor-skill
+    name: Пример · Cursor Skill
+    description: >
+      Заглушка контейнера skill — локальные skills, automations, agent hooks.
+  - id: example-mcp-bridge
+    name: Пример · MCP bridge
+    description: >
+      Заглушка контейнера MCP tool / server, подключаемого к workspace.
+
+fields:
+
+  integrations-model-version:
+    type: awn.field.string
+    title: Версия модели контейнеров
+    description: >
+      Маркер схемы stub-v1. В будущем — migrations при смене формата контейнеров.
+    default: stub-v1
+    group: concept
+    locked: true
+    sort: 1
+
+  integrations-containers-note:
+    type: awn.field.string
+    title: Как это будет работать
+    description: >
+      План: реестр типов контейнеров (skill / mcp-tool / plugin / hook), UI для
+      добавления экземпляров, опционально отдельный YAML на контейнер в
+      .agent-cms/integrations/.
+    default: static-groups-stub
+    group: concept
+    locked: true
+    sort: 2
+
+  container-cursor-skill-enabled:
+    type: awn.field.boolean
+    title: "{NOT WORK} Включено"
+    description: Подключать skill при старте агента в этом workspace
+    default: false
+    group: example-cursor-skill
+    sort: 10
+
+  container-cursor-skill-kind:
+    type: awn.field.choice.one
+    title: "{NOT WORK} Тип контейнера"
+    description: Класс интеграции — skill, MCP tool, plugin или hook
+    default: skill
+    enum: [skill, mcp-tool, plugin, hook]
+    group: example-cursor-skill
+    sort: 11
+
+  container-cursor-skill-source:
+    type: awn.field.string
+    title: "{NOT WORK} Путь или пакет"
+    description: >
+      Например ~/.cursor/skills/automate или npm-пакет с skill-манифестом
+    default: ~/.cursor/skills/automate
+    group: example-cursor-skill
+    sort: 12
+
+  container-cursor-skill-namespace:
+    type: awn.field.string
+    title: "{NOT WORK} Namespace MCP"
+    description: Имя namespace для динамических tools из skill (если применимо)
+    default: cursor-skill
+    group: example-cursor-skill
+    sort: 13
+
+  container-mcp-bridge-enabled:
+    type: awn.field.boolean
+    title: "{NOT WORK} Включено"
+    description: Поднимать локальный MCP bridge для этого хранилища
+    default: false
+    group: example-mcp-bridge
+    sort: 20
+
+  container-mcp-bridge-endpoint:
+    type: awn.field.string
+    title: "{NOT WORK} Endpoint"
+    description: URL или stdio-команда для MCP server (заглушка)
+    default: http://127.0.0.1:7337/mcp
+    group: example-mcp-bridge
+    sort: 21
+
+  container-mcp-bridge-tools:
+    type: awn.field.string
+    title: "{NOT WORK} Разрешённые tools"
+    description: Список через запятую; пусто = все tools сервера
+    default: list_workspaces, read_page_body, search_workspace_content
+    group: example-mcp-bridge
+    sort: 22
+
+  container-mcp-bridge-auth-token:
+    type: awn.field.string
+    title: "{NOT WORK} Auth token"
+    description: Секрет для bridge; в runtime — из .env рядом с integrations.yml
+    default: ""
+    group: example-mcp-bridge
+    sort: 23

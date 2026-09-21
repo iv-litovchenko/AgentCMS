@@ -326,6 +326,7 @@ const {
   normalizePlatformAgentSettings,
   normalizeWorkspaceAgentSettings,
   normalizeUserAgentSettings,
+  normalizeIntegrationsAgentSettings,
   parseWorkspaceAgentSettingsFromConfigContent,
   touchWorkspaceAwnIdCounterOnSave,
   getPlatformReadTextMaxBytes,
@@ -340,19 +341,24 @@ const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-po
 const {
   PROJECT_SETTINGS_GLOBAL_SCOPE,
   PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE,
+  PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE,
   PROJECT_SETTINGS_USER_SETTINGS_SCOPE,
   WORKSPACE_SETTINGS_FILE,
   USER_SETTINGS_REL_PATH,
+  INTEGRATIONS_SETTINGS_REL_PATH,
   USER_SETTINGS_HEADER,
+  INTEGRATIONS_SETTINGS_HEADER,
   composeSettingsFileContent,
   readGlobalSettingsFile,
   readWorkspaceSettingsFile,
   readUserSettingsFile,
+  readIntegrationsSettingsFile,
   readWorkspaceSettingsWithLegacyFallback,
   getEffectiveWorkspaceSettings,
   writeWorkspaceSettingsFile,
   writeGlobalSettingsFile,
   writeUserSettingsFile,
+  writeIntegrationsSettingsFile,
   parseSettingsFileContent,
   countSettingsValues,
   isProjectSettingsGlobalScope,
@@ -2366,6 +2372,30 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
         schemaFieldCount: 0,
         hasLocalSchema: false,
         level: "settings-user"
+      });
+      continue;
+    }
+
+    if (relPath === PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE) {
+      const integrationsFile = await readIntegrationsSettingsFile(agentRoot);
+      const parsed = parseSettingsFileContent(integrationsFile.content || "");
+      const valueCount = countSettingsValues(parsed.awn_settings);
+      items.push({
+        path: PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE,
+        settingsPath: INTEGRATIONS_SETTINGS_REL_PATH,
+        configPath: INTEGRATIONS_SETTINGS_REL_PATH,
+        configExists: Boolean(integrationsFile.exists),
+        valueCount,
+        hasLocalValues: valueCount > 0,
+        envPath: "",
+        envExists: false,
+        envValueCount: 0,
+        envHasValues: false,
+        schemaPath: "",
+        schemaExists: false,
+        schemaFieldCount: 0,
+        hasLocalSchema: false,
+        level: "settings-integrations"
       });
       continue;
     }
@@ -20217,6 +20247,64 @@ async function handleApiForAgent(req, res, url) {
     } catch (error) {
       return sendJson(res, 500, {
         error: "Failed to save user settings file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/integrations/settings") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const file = await readIntegrationsSettingsFile(agentRoot);
+      const parsed = file.exists
+        ? parseSettingsFileContent(file.content || "")
+        : { headerComment: "", awn_settings: {} };
+      const content =
+        file.exists
+          ? file.content
+          : composeSettingsFileContent({
+              headerComment: INTEGRATIONS_SETTINGS_HEADER.trim(),
+              awn_settings: parsed.awn_settings
+            });
+      return sendJson(res, 200, {
+        path: INTEGRATIONS_SETTINGS_REL_PATH,
+        content,
+        exists: Boolean(file.exists),
+        settings: normalizeIntegrationsAgentSettings(parsed.awn_settings),
+        scope: "integrations"
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to read integrations settings file",
+        details: String(error.message || error)
+      });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/integrations/settings") {
+    try {
+      const agentRoot = getAgentRoot();
+      if (!agentRoot) return sendJson(res, 400, { error: "Agent not selected" });
+      const payload = await readJsonBody(req);
+      const content = String(payload?.content ?? "").replace(/^\uFEFF/, "");
+      if (!content.trim()) {
+        return sendJson(res, 400, { error: "content is required" });
+      }
+      const saved = await writeIntegrationsSettingsFile(
+        agentRoot,
+        content.endsWith("\n") ? content : `${content}\n`
+      );
+      return sendJson(res, 200, {
+        path: saved.path,
+        content: saved.content,
+        exists: true,
+        settings: normalizeIntegrationsAgentSettings(parseSettingsFileContent(saved.content).awn_settings),
+        scope: "integrations"
+      });
+    } catch (error) {
+      return sendJson(res, 500, {
+        error: "Failed to save integrations settings file",
         details: String(error.message || error)
       });
     }

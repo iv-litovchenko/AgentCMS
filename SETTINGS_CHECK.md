@@ -9,6 +9,7 @@
 |--------|----------|
 | 🌐 | Platform — `agent-cms-core/settings.global.yml` |
 | 📦 | Workspace — `settings.yml` в корне хранилища |
+| 🔌 | Integrations — `.agent-cms/integrations.yml` (skills, MCP, плагины) |
 | 👤 | User — `.agent-cms/user-settings.yml` |
 | 👁️✅ / 👁️❌ | Читается / не читается в runtime (MCP/сервер) |
 | ✏️✅ / ✏️❌ | Редактируется в UI и влияет / только просмотр или нет эффекта |
@@ -16,7 +17,7 @@
 | ⚠️ | Частично / косвенно |
 | ❌ | `{NOT WORK}` — только схема и форма |
 
-**Колонка MCP tools:** через какие MCP-tool получить/изменить ключ (`scope` — см. секцию: `platform` / `workspace` / `user`).  
+**Колонка MCP tools:** через какие MCP-tool получить/изменить ключ (`scope` — см. секцию: `platform` / `workspace` / `integrations` / `user`).  
 Сокращения: **L** = `list_settings` · **R** = `read_setting` · **W** = `write_setting` · **—** = tool недоступен для ключа.
 
 **UI:** раздел «Настройки проекта» + модал «Глобальные настройки платформы» в шапке.
@@ -180,20 +181,40 @@ _Пока без полей — заготовка группы._
 
 ---
 
+## 🔌 Integrations (плагины) — `.agent-cms/integrations.yml`
+
+Файл схемы: `awn-system/types/settings/integrations.yml` · MCP `scope=integrations` · **заглушка, runtime не подключён**
+
+| Принадлежность | Группа | Название | Ключ | MCP 👁️/✏️ | UI 👁️/✏️ | Описание / эффект | MCP tools |
+|----------------|--------|----------|------|------------|-----------|-------------------|-----------|
+| 🔌 | 📋 Концепция | Версия модели | `integrations-model-version` | 👁️✅ ✏️❌ | 👁️✅ ✏️❌ | locked stub-v1 | L · R |
+| 🔌 | 📋 Концепция | Как будет работать | `integrations-containers-note` | 👁️✅ ✏️❌ | 👁️✅ ✏️❌ | locked | L · R |
+| 🔌 | 🧩 Cursor Skill | Включено | `container-cursor-skill-enabled` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W |
+| 🔌 | 🧩 Cursor Skill | Тип | `container-cursor-skill-kind` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W |
+| 🔌 | 🧩 Cursor Skill | Путь / пакет | `container-cursor-skill-source` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W |
+| 🔌 | 🧩 Cursor Skill | Namespace MCP | `container-cursor-skill-namespace` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W |
+| 🔌 | 🔗 MCP bridge | Включено | `container-mcp-bridge-enabled` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W |
+| 🔌 | 🔗 MCP bridge | Endpoint | `container-mcp-bridge-endpoint` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W |
+| 🔌 | 🔗 MCP bridge | Tools | `container-mcp-bridge-tools` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W |
+| 🔌 | 🔗 MCP bridge | Auth token | `container-mcp-bridge-auth-token` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W |
+
+---
+
 ## Сводка для проверки
 
 | Область | Всего полей | ✅ runtime | ❌ NOT WORK |
 |---------|-------------|-----------|-------------|
 | 🌐 Platform | 47 | 32 | 15 |
 | 📦 Workspace | 13 | 4 | 9 |
+| 🔌 Integrations | 10 | 0 | 10 |
 | 👤 User | 11 | 6 | 5 |
-| **Итого** | **71** | **42** | **29** |
+| **Итого** | **81** | **42** | **39** |
 
 ### MCP tools (общие)
 
 | Tool | Когда |
 |------|-------|
-| `list_settings` | Все ключи секции; `scope=all\|platform\|workspace\|user` |
+| `list_settings` | Все ключи секции; `scope=all\|platform\|workspace\|integrations\|user` |
 | `read_setting` | Один ключ: `scope` + `key` |
 | `write_setting` | Запись одного ключа; W❌ = readonly; блок при `mcp-mode=readonly` |
 | `get_session_context` | Bulk-read platform+workspace при старте чата (не user) |
@@ -205,6 +226,7 @@ _Пока без полей — заготовка группы._
 | GET/POST | `/api/platform/settings-global` | 🌐 |
 | GET | `/api/platform/settings-schema` | 🌐 |
 | GET/POST | `/api/workspace/settings` | 📦 |
+| GET/POST | `/api/integrations/settings` | 🔌 |
 | GET/POST | `/api/user/settings` | 👤 |
 
 ### Примечания
