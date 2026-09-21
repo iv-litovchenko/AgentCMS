@@ -16447,7 +16447,7 @@ ol .live-diff-preview-removed {
 .app.app-landing-view .header-tool-buttons > .header-index-wrap,
 .app.app-landing-view .header-tool-buttons > .header-notifications-wrap,
 .app.app-landing-view .header-tool-buttons > .header-profile-wrap,
-.app.app-landing-view .header-tool-buttons > #discuss-panel-toggle-btn {
+.app.app-landing-view .header-tool-buttons > .header-chat-wrap {
   display: none;
 }
 
@@ -17368,6 +17368,54 @@ a.header-tool-btn {
   border-color: #fbbf24;
   background: #fef3c7;
   color: #78350f;
+}
+
+.header-chat-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.header-tool-btn--privacy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.header-tool-btn--privacy:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.header-tool-btn--privacy.is-active {
+  border-color: #94a3b8;
+  background: #fff;
+  color: #334155;
+  box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.14);
+}
+
+.header-privacy-icon {
+  display: block;
+  flex: none;
+  pointer-events: none;
+}
+
+.header-tool-btn--privacy .header-privacy-icon--hide,
+.header-tool-btn--privacy.is-active .header-privacy-icon--show {
+  display: none;
+}
+
+.header-tool-btn--privacy.is-active .header-privacy-icon--hide {
+  display: block;
 }
 
 .header-tool-btn--chat {
@@ -63049,4 +63097,42 @@ body.is-cms-page-picker-active #discuss-aside * {
   gap: 14px;
   padding: 18px 20px 16px;
   box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+}
+
+.app-floating-hint {
+  position: fixed;
+  z-index: 10050;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: #f8fafc;
+  font-size: 12px;
+  line-height: 1.45;
+  pointer-events: none;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.28);
+}
+
+.app-floating-hint.hidden {
+  display: none;
+}
+
+/* Privacy mode — заглушка маскировки чувствительных данных */
+.is-privacy-mode [data-sensitive],
+.is-privacy-mode input[type="password"],
+.is-privacy-mode .props-form-value--secret,
+.is-privacy-mode .props-form-value--password,
+.is-privacy-mode .app-lock-input[type="password"] {
+  filter: blur(6px);
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.is-privacy-mode [data-sensitive]::selection,
+.is-privacy-mode input[type="password"]::selection,
+.is-privacy-mode .props-form-value--secret::selection,
+.is-privacy-mode .props-form-value--password::selection {
+  background: transparent;
 }

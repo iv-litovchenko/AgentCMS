@@ -8239,6 +8239,10 @@ function bindCmsComposeInsertBridge() {
             event.origin || "*"
           );
         });
+      return;
+    }
+    if (data.type === "agent-cms-voice:privacy-mode") {
+      document.documentElement.classList.toggle("is-privacy-mode", Boolean(data.enabled));
     }
   });
 }

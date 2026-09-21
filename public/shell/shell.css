@@ -13504,3 +13504,13 @@ body.shell-pet-electron .shell-pet-stage .shell-character-viewport.is-dragging {
     right: 8px;
   }
 }
+
+/* Privacy mode from CMS host */
+.is-privacy-mode [data-sensitive],
+.is-privacy-mode input[type="password"],
+.is-privacy-mode .shell-secret-input .shell-input {
+  filter: blur(6px);
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
