@@ -3975,6 +3975,11 @@ body.shell-desktop .shell-agent-gate select {
   color: #c4b5fd;
 }
 
+.shell-runtime-route-note-intro[hidden],
+.shell-runtime-route-note-body[hidden] {
+  display: none !important;
+}
+
 .shell-runtime-route-note-body {
   margin: 0;
   padding: 0;
@@ -5900,6 +5905,14 @@ body.shell-surface-extension #shell-dialog-refresh {
   color: rgba(226, 232, 240, 0.58);
 }
 
+.shell-route-panel > .shell-runtime-route-note {
+  margin: 0 0 var(--shell-route-field-gap, 10px);
+}
+
+.shell-route-panel > .shell-runtime-route-note[hidden] {
+  display: none !important;
+}
+
 .shell-stt-engine-note--warn {
   color: #e8a045;
 }
@@ -7467,18 +7480,6 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
   margin: 0;
 }
 
-.shell-runtime-bridge-permission-field .shell-select {
-  width: 100%;
-}
-
-.shell-runtime-bridge-permission-field .shell-field-hint {
-  display: block;
-  margin-top: 0.35rem;
-  color: var(--shell-muted, #8b949e);
-  font-size: 0.82rem;
-  line-height: 1.35;
-}
-
 .shell-runtime-bridge-permission-field .shell-tts-panel-playback {
   display: flex;
   flex-direction: column;
@@ -7487,46 +7488,52 @@ body.shell-compose-fullscreen.shell-keyboard-open.shell-layout-mobile #shell-com
   width: 100%;
 }
 
-.shell-runtime-bridge-permission-field .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel input {
-  position: static;
-  opacity: 1;
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  pointer-events: auto;
-  flex-shrink: 0;
-  accent-color: #7c6cff;
+.shell-runtime-bridge-permission-panel {
+  align-items: flex-start;
+  cursor: default;
 }
 
-.shell-runtime-bridge-permission-field[data-runtime="claude"]
-  .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel:has(input:checked) {
+.shell-runtime-bridge-permission-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.shell-runtime-bridge-permission-copy .shell-tts-playback-option-title,
+.shell-runtime-bridge-permission-copy .shell-tts-playback-option-desc {
+  white-space: normal;
+}
+
+.shell-runtime-bridge-permission-select {
+  margin-top: 2px;
+}
+
+.shell-runtime-bridge-permission-field[data-runtime="claude"][data-permissive="1"] .shell-runtime-bridge-permission-panel {
   border-color: rgba(251, 146, 60, 0.52);
   background: rgba(251, 146, 60, 0.12);
   box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.1);
 }
 
-.shell-runtime-bridge-permission-field[data-runtime="claude"]
-  .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel:has(input:checked)
-  .shell-tts-playback-emoji {
+.shell-runtime-bridge-permission-field[data-runtime="claude"][data-permissive="1"] .shell-tts-playback-emoji {
   border-color: rgba(251, 146, 60, 0.45);
   background: rgba(251, 146, 60, 0.16);
 }
 
-.shell-runtime-bridge-permission-field[data-runtime="codex"]
-  .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel:has(input:checked) {
+.shell-runtime-bridge-permission-field[data-runtime="codex"][data-permissive="1"] .shell-runtime-bridge-permission-panel {
   border-color: rgba(74, 222, 128, 0.42);
   background: rgba(74, 222, 128, 0.1);
   box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.18);
 }
 
-.shell-runtime-bridge-permission-field[data-runtime="codex"]
-  .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel:has(input:checked)
-  .shell-tts-playback-emoji {
+.shell-runtime-bridge-permission-field[data-runtime="codex"][data-permissive="1"] .shell-tts-playback-emoji {
   border-color: rgba(74, 222, 128, 0.42);
   background: rgba(74, 222, 128, 0.14);
 }
 
-.shell-runtime-bridge-permission-field .shell-runtime-bridge-permission.shell-tts-playback-radio-option--panel:has(input:focus-visible) {
+.shell-runtime-bridge-permission-select:focus-visible {
   outline: 2px solid rgba(124, 108, 255, 0.55);
   outline-offset: 2px;
 }

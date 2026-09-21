@@ -413,18 +413,16 @@
           <span class="shell-label">Runtime</span>
           <select id="shell-route-runtime" class="shell-select" aria-label="Runtime"></select>
         </label>
-        <div class="shell-runtime-route-notes hidden" id="shell-route-runtime-notes" hidden>
-          <section
-            class="shell-runtime-route-note shell-runtime-route-note--cli"
-            id="shell-route-runtime-note"
-            data-runtime=""
-            aria-live="polite"
-            aria-labelledby="shell-route-runtime-note-title"
-          >
-            <p class="shell-runtime-route-note-intro" id="shell-route-runtime-note-intro"></p>
-            <h3 class="shell-runtime-route-note-title" id="shell-route-runtime-note-title"></h3>
-            <p class="shell-runtime-route-note-body" id="shell-route-runtime-note-body" role="status"></p>
-          </section>
+        <div
+          class="shell-runtime-route-note shell-runtime-route-note--cli"
+          id="shell-route-runtime-hint"
+          aria-live="polite"
+          role="status"
+          data-active="0"
+          hidden
+        >
+          <p class="shell-runtime-route-note-intro" id="shell-route-runtime-hint-intro"></p>
+          <p class="shell-runtime-route-note-body" id="shell-route-runtime-hint-body"></p>
         </div>
 
         <div class="shell-qwenpaw-panel" id="shell-qwenpaw-panel" data-visible="1">
@@ -581,17 +579,28 @@
               id="shell-runtime-bridge-permission-field"
               hidden
               data-runtime=""
+              data-permissive="0"
             >
-              <label class="shell-label" id="shell-runtime-bridge-permission-label" for="shell-runtime-bridge-permission-mode">
-                Подтверждение инструментов
-              </label>
-              <select
-                id="shell-runtime-bridge-permission-mode"
-                class="shell-select shell-select--compact"
-                aria-label="Режим подтверждения инструментов CLI"
-              ></select>
-              <span class="shell-field-hint" id="shell-runtime-bridge-permission-desc">
-                Спрашивать перед Bash, правками файлов и MCP.
+              <span class="shell-tts-panel-playback" role="presentation">
+                <div
+                  class="shell-runtime-bridge-permission shell-tts-playback-radio-option shell-tts-playback-radio-option--panel shell-runtime-bridge-permission-panel"
+                  id="shell-runtime-bridge-permission-panel"
+                >
+                  <span class="shell-tts-playback-emoji" id="shell-runtime-bridge-permission-emoji" aria-hidden="true">🔒</span>
+                  <span class="shell-tts-playback-option-copy shell-runtime-bridge-permission-copy">
+                    <span class="shell-tts-playback-option-title" id="shell-runtime-bridge-permission-title">
+                      Подтверждение инструментов
+                    </span>
+                    <span class="shell-tts-playback-option-desc" id="shell-runtime-bridge-permission-desc">
+                      Спрашивать перед Bash, правками файлов и MCP.
+                    </span>
+                    <select
+                      id="shell-runtime-bridge-permission-mode"
+                      class="shell-select shell-select--full shell-runtime-bridge-permission-select"
+                      aria-label="Режим подтверждения инструментов CLI"
+                    ></select>
+                  </span>
+                </div>
               </span>
             </div>
           </div>

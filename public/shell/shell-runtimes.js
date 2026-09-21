@@ -152,6 +152,20 @@ export function formatRuntimeRouteNote(
   return "";
 }
 
+/** Подсказка под полем Runtime (intro + детали, в т.ч. cwd и статус). */
+export function buildRuntimeRouteHintText(
+  runtime,
+  status = null,
+  { cliSandboxPath = "", agentId = "" } = {}
+) {
+  const id = normalizeMessageRuntime(runtime);
+  if (!runtimeShowsRouteNote(id)) return "";
+  const intro = String(SHELL_RUNTIME_ROUTE_INTROS[id] || "").trim();
+  const body = formatRuntimeRouteNote(id, status, { cliSandboxPath, agentId });
+  if (intro && body) return `${intro}\n\n${body}`;
+  return intro || body;
+}
+
 export function formatCliRuntimeRouteNote(
   runtime,
   status = null,

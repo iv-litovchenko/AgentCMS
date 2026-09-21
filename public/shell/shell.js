@@ -1867,11 +1867,9 @@ async function toggleTtsPlayback() {
 const nodes = {
   messageTarget: document.getElementById("shell-message-target"),
   routeRuntime: document.getElementById("shell-route-runtime"),
-  routeRuntimeNotes: document.getElementById("shell-route-runtime-notes"),
-  routeRuntimeNote: document.getElementById("shell-route-runtime-note"),
-  routeRuntimeNoteIntro: document.getElementById("shell-route-runtime-note-intro"),
-  routeRuntimeNoteTitle: document.getElementById("shell-route-runtime-note-title"),
-  routeRuntimeNoteBody: document.getElementById("shell-route-runtime-note-body"),
+  routeRuntimeHint: document.getElementById("shell-route-runtime-hint"),
+  routeRuntimeHintIntro: document.getElementById("shell-route-runtime-hint-intro"),
+  routeRuntimeHintBody: document.getElementById("shell-route-runtime-hint-body"),
   qwenpawPanel: document.getElementById("shell-qwenpaw-panel"),
   qwenpawUrl: document.getElementById("shell-qwenpaw-url"),
   qwenpawOpenUrl: document.getElementById("shell-qwenpaw-open-url"),
@@ -1901,7 +1899,9 @@ const nodes = {
   bridgeSessionId: document.getElementById("shell-runtime-bridge-session-id"),
   bridgeSessionGenerate: document.getElementById("shell-runtime-bridge-session-generate"),
   bridgePermissionField: document.getElementById("shell-runtime-bridge-permission-field"),
-  bridgePermissionLabel: document.getElementById("shell-runtime-bridge-permission-label"),
+  bridgePermissionPanel: document.getElementById("shell-runtime-bridge-permission-panel"),
+  bridgePermissionTitle: document.getElementById("shell-runtime-bridge-permission-title"),
+  bridgePermissionEmoji: document.getElementById("shell-runtime-bridge-permission-emoji"),
   bridgePermissionMode: document.getElementById("shell-runtime-bridge-permission-mode"),
   bridgePermissionDesc: document.getElementById("shell-runtime-bridge-permission-desc"),
   systemPrompt: document.getElementById("shell-system-prompt"),
@@ -6699,6 +6699,25 @@ async function persistRoutePermissionMode() {
   });
 }
 
+function isRuntimePermissionModePermissive(runtime, mode) {
+  const id = normalizeMessageRuntime(runtime);
+  const value = String(mode ?? "").trim();
+  if (id === "codex") return value === "bypassPermissions";
+  if (id === "claude") return value === "bypassPermissions" || value === "dontAsk";
+  return false;
+}
+
+function syncBridgePermissionEmojiUi(runtime, mode) {
+  const id = normalizeMessageRuntime(runtime);
+  const permissive = isRuntimePermissionModePermissive(id, mode);
+  if (nodes.bridgePermissionField) {
+    nodes.bridgePermissionField.dataset.permissive = permissive ? "1" : "0";
+  }
+  if (nodes.bridgePermissionEmoji) {
+    nodes.bridgePermissionEmoji.textContent = permissive ? "🔓" : id === "codex" ? "⚡" : "🔒";
+  }
+}
+
 function syncBridgePermissionModeSelect(runtime, value = "") {
   const select = nodes.bridgePermissionMode;
   if (!select) return;
@@ -6716,6 +6735,7 @@ function syncBridgePermissionModeSelect(runtime, value = "") {
     select.dataset.runtimeOptionsFor = id;
   }
   select.value = normalized;
+  syncBridgePermissionEmojiUi(id, normalized);
 }
 
 async function saveSettingsSection(section) {
@@ -7363,13 +7383,21 @@ function updateBridgePermissionFieldUi(runtime) {
   if (!show || !nodes.bridgePermissionField) return;
   nodes.bridgePermissionField.dataset.runtime = id;
   const copy = runtimePermissionModeCopy(id);
-  if (nodes.bridgePermissionLabel) {
-    nodes.bridgePermissionLabel.textContent = id === "codex" ? "Подтверждение команд" : "Подтверждение инструментов";
-    nodes.bridgePermissionLabel.title = copy.titleAttr;
+  if (nodes.bridgePermissionTitle) {
+    nodes.bridgePermissionTitle.textContent = id === "codex" ? "Подтверждение команд" : "Подтверждение инструментов";
   }
-  if (nodes.bridgePermissionDesc) nodes.bridgePermissionDesc.textContent = copy.desc;
+  if (nodes.bridgePermissionPanel) nodes.bridgePermissionPanel.title = copy.titleAttr;
+  if (nodes.bridgePermissionDesc) {
+    nodes.bridgePermissionDesc.textContent =
+      id === "codex"
+        ? "Режим sandbox и подтверждения shell-команд Codex."
+        : "Режим подтверждения WebSearch, Bash и других инструментов Claude.";
+  }
   if (nodes.bridgePermissionMode) {
-    nodes.bridgePermissionMode.setAttribute("aria-label", copy.ariaLabel);
+    nodes.bridgePermissionMode.setAttribute(
+      "aria-label",
+      id === "codex" ? "Режим подтверждения команд Codex" : "Режим подтверждения инструментов Claude"
+    );
     const settings = state.settings || {};
     const mode = String(settings[bridgeRuntimeField(id, "permissionMode")] ?? "").trim();
     syncBridgePermissionModeSelect(id, mode);
@@ -7378,20 +7406,21 @@ function updateBridgePermissionFieldUi(runtime) {
 
 function refreshRoutePanelNodes() {
   nodes.routeRuntime = document.getElementById("shell-route-runtime") || nodes.routeRuntime;
-  nodes.routeRuntimeNotes = document.getElementById("shell-route-runtime-notes") || nodes.routeRuntimeNotes;
-  nodes.routeRuntimeNote = document.getElementById("shell-route-runtime-note") || nodes.routeRuntimeNote;
-  nodes.routeRuntimeNoteIntro =
-    document.getElementById("shell-route-runtime-note-intro") || nodes.routeRuntimeNoteIntro;
-  nodes.routeRuntimeNoteTitle =
-    document.getElementById("shell-route-runtime-note-title") || nodes.routeRuntimeNoteTitle;
-  nodes.routeRuntimeNoteBody =
-    document.getElementById("shell-route-runtime-note-body") || nodes.routeRuntimeNoteBody;
+  nodes.routeRuntimeHint = document.getElementById("shell-route-runtime-hint") || nodes.routeRuntimeHint;
+  nodes.routeRuntimeHintIntro =
+    document.getElementById("shell-route-runtime-hint-intro") || nodes.routeRuntimeHintIntro;
+  nodes.routeRuntimeHintBody =
+    document.getElementById("shell-route-runtime-hint-body") || nodes.routeRuntimeHintBody;
   nodes.bridgePermissionMode =
     document.getElementById("shell-runtime-bridge-permission-mode") || nodes.bridgePermissionMode;
   nodes.bridgePermissionField =
     document.getElementById("shell-runtime-bridge-permission-field") || nodes.bridgePermissionField;
-  nodes.bridgePermissionLabel =
-    document.getElementById("shell-runtime-bridge-permission-label") || nodes.bridgePermissionLabel;
+  nodes.bridgePermissionPanel =
+    document.getElementById("shell-runtime-bridge-permission-panel") || nodes.bridgePermissionPanel;
+  nodes.bridgePermissionTitle =
+    document.getElementById("shell-runtime-bridge-permission-title") || nodes.bridgePermissionTitle;
+  nodes.bridgePermissionEmoji =
+    document.getElementById("shell-runtime-bridge-permission-emoji") || nodes.bridgePermissionEmoji;
   nodes.bridgePermissionDesc =
     document.getElementById("shell-runtime-bridge-permission-desc") || nodes.bridgePermissionDesc;
   nodes.bridgeSessionId =
@@ -7428,40 +7457,30 @@ function resolveCliSandboxPathForRuntime(runtime) {
 
 function updateRuntimeRouteNotes(runtime = readRouteRuntimeSelectValue() || getSelectedRuntime()) {
   refreshRoutePanelNodes();
-  const container = nodes.routeRuntimeNotes;
-  const block = nodes.routeRuntimeNote;
-  const introEl = nodes.routeRuntimeNoteIntro;
-  const titleEl = nodes.routeRuntimeNoteTitle;
-  const bodyEl = nodes.routeRuntimeNoteBody;
-  if (!container || !block || !introEl || !titleEl || !bodyEl) return;
+  const hintEl = nodes.routeRuntimeHint;
+  const introEl = nodes.routeRuntimeHintIntro;
+  const bodyEl = nodes.routeRuntimeHintBody;
+  if (!hintEl || !introEl || !bodyEl) return;
 
   const selected = normalizeMessageRuntime(runtime);
   const show = runtimeShowsRouteNote(selected);
-  if (!show) {
-    container.hidden = true;
-    container.classList.add("hidden");
-    container.dataset.runtime = "";
-    block.dataset.runtime = "";
-    block.dataset.active = "0";
-    return;
-  }
+  const intro = show ? String(SHELL_RUNTIME_ROUTE_INTROS[selected] || "").trim() : "";
+  const body = show
+    ? formatRuntimeRouteNote(selected, getRuntimeStatus(selected), {
+        cliSandboxPath: resolveCliSandboxPathForRuntime(selected),
+        agentId: state.agentId || ""
+      })
+    : "";
 
-  const intro = String(SHELL_RUNTIME_ROUTE_INTROS[selected] || "").trim();
-  const body = formatRuntimeRouteNote(selected, getRuntimeStatus(selected), {
-    cliSandboxPath: resolveCliSandboxPathForRuntime(selected),
-    agentId: state.agentId || ""
-  });
   introEl.textContent = intro;
-  titleEl.textContent = SHELL_RUNTIME_LABELS[selected] || selected;
   bodyEl.textContent = body;
-  block.dataset.runtime = selected;
-  block.dataset.active = body ? "1" : "0";
-  block.classList.toggle("shell-runtime-route-note--cli", runtimeUsesCli(selected));
-  block.classList.toggle("shell-runtime-route-note--agent", runtimeUsesQwenPaw(selected));
-
-  container.hidden = false;
-  container.classList.remove("hidden");
-  container.dataset.runtime = selected;
+  introEl.hidden = !intro;
+  const hasContent = Boolean(intro || body);
+  hintEl.hidden = !hasContent;
+  hintEl.dataset.runtime = hasContent ? selected : "";
+  hintEl.dataset.active = body ? "1" : "0";
+  hintEl.classList.toggle("shell-runtime-route-note--cli", runtimeUsesCli(selected));
+  hintEl.classList.toggle("shell-runtime-route-note--agent", runtimeUsesQwenPaw(selected));
 }
 
 function bindRoutePanelUi() {
@@ -12351,6 +12370,7 @@ function bindUi() {
     input?.addEventListener("change", markRouteDirty);
   }
   nodes.bridgePermissionMode?.addEventListener("change", () => {
+    syncBridgePermissionEmojiUi(getSelectedRuntime(), nodes.bridgePermissionMode?.value ?? "");
     markSettingsDirty("route");
     void persistRoutePermissionMode().catch((error) => renderPhase("waiting", error.message));
   });

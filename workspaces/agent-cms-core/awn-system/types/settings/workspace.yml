@@ -45,61 +45,96 @@ fieldGroups:
         description: Привязка Voice к теме workspace
         sort: 1
         defaultOpen: true
-      - id: voice-route
-        name: Маршрут и агент
-        description: Runtime по умолчанию и system prompt
-        sort: 2
       - id: voice-input
         name: Ввод (микрофон)
         description: Режим 🎤 у поля ввода и доп. опции
+        sort: 2
+      - id: voice-route
+        name: Маршрут и агент
+        description: Runtime по умолчанию и system prompt
         sort: 3
+        defaultOpen: true
+      - id: voice-route-claude
+        name: Маршрут · Claude CLI
+        description: |
+          Локальный CLI Claude. Shell запускает claude в workspaces/cli-sandbox/claude/<agent-id>/ — не в корне workspace. К CMS — через MCP.
+          Установка npm i -g @anthropic-ai/claude-code · claude login · claude auth status.
+        sort: 4
+      - id: voice-route-codex
+        name: Маршрут · Codex CLI
+        description: |
+          Локальный CLI Codex. Shell запускает codex exec в workspaces/cli-sandbox/codex/<agent-id>/ — хранилище CMS не монтируется.
+          Установка npm i -g @openai/codex · codex login · codex --version.
+        sort: 5
+      - id: voice-route-qwenpaw
+        name: Маршрут · QwenPaw
+        description: |
+          HTTP-агент QwenPaw. Shell отправляет сообщения на сервер и стримит ответ через SSE.
+          URL, agentId и session — в полях ниже.
+        sort: 6
+      - id: voice-route-cursor
+        name: Маршрут · Cursor
+        description: Cursor Agent — OpenAI-compatible endpoint (скоро)
+        sort: 7
+      - id: voice-route-openclaw
+        name: Маршрут · OpenClaw
+        description: OpenClaw Gateway — локальный агент :18789 (скоро)
+        sort: 8
+      - id: voice-route-hermes
+        name: Маршрут · Hermes Agent
+        description: Hermes Agent (Nous Research) — API :8642/v1 (скоро)
+        sort: 9
+      - id: voice-route-agent-zero
+        name: Маршрут · Agent Zero
+        description: Agent Zero gateway — :42617 (скоро)
+        sort: 10
       - id: voice-stt
         name: Распознавание (STT)
         description: Включение, захват, промпт и движок
-        sort: 4
+        sort: 11
         defaultOpen: true
       - id: voice-stt-browser
         name: Распознавание (STT) · Web Speech
-        sort: 5
+        sort: 12
       - id: voice-stt-whisper
         name: Распознавание (STT) · Whisper
-        sort: 6
+        sort: 13
       - id: voice-stt-elevenlabs
         name: Распознавание (STT) · ElevenLabs Scribe
-        sort: 7
+        sort: 14
       - id: voice-tts
         name: Озвучка (TTS)
         description: Включение, способ озвучки, промпт и активный движок
-        sort: 8
+        sort: 15
         defaultOpen: true
       - id: voice-tts-browser
         name: Озвучка (TTS) · Web Speech
-        sort: 9
+        sort: 16
       - id: voice-tts-edge
         name: Озвучка (TTS) · Edge TTS
-        sort: 10
+        sort: 17
       - id: voice-tts-piper
         name: Озвучка (TTS) · Piper
-        sort: 11
+        sort: 18
       - id: voice-tts-elevenlabs
         name: Озвучка (TTS) · ElevenLabs
-        sort: 12
+        sort: 19
       - id: voice-proactive
         name: Проактивные пинги
-        sort: 13
+        sort: 20
       - id: voice-media
         name: Камера и экран
-        sort: 14
+        sort: 21
       - id: voice-window
         name: Окно Voice
-        sort: 15
+        sort: 22
       - id: voice-ui
         name: Интерфейс диалога
-        sort: 16
+        sort: 23
       - id: voice-compose
         name: Шаблоны compose
         description: Список шаблонов — repeater позже; пока заглушка
-        sort: 17
+        sort: 24
   - id: static
     name: Статичные параметры
     description: >
@@ -217,8 +252,9 @@ fields:
 
   voice-cms-topic-path:
     type: awn.field.string
-    title: "{DRAFT} Тема агента (manifest)"
-    description: shell.json → cms.topicPath
+    title: Тема агента (manifest)
+    description: shell.json → cms.topicPath · устарело, sync из настроек проекта пока не подключён
+    readonly: true
     default: awn-agent-kit/agent/manifest.md
     group: voice-client
     subgroup: voice-cms
@@ -226,8 +262,9 @@ fields:
 
   voice-cms-channel:
     type: awn.field.choice.one
-    title: "{DRAFT} Канал диалога"
-    description: shell.json → cms.channel
+    title: Канал диалога
+    description: shell.json → cms.channel · устарело, sync из настроек проекта пока не подключён
+    readonly: true
     default: thread
     enum:
       - key: thread
@@ -240,27 +277,189 @@ fields:
 
   voice-route-runtime:
     type: awn.field.choice.one
-    title: "{DRAFT} Runtime по умолчанию"
-    description: shell.json → route.runtime (ключ из route.runtimes)
+    title: Runtime по умолчанию
+    description: shell.json → route.runtime. Параметры выбранного runtime — в аккордеоне ниже.
     default: codex
     enum:
-      - key: codex
-        name: Codex CLI
       - key: claude
-        name: Claude CLI
+        name: Claude CLI (Anthropic)
+      - key: codex
+        name: Codex CLI (OpenAI)
       - key: qwenpaw
-        name: QwenPaw agent
+        name: QwenPaw (Agent CMS)
+      - key: cursor
+        name: Cursor (Anysphere) — скоро
+      - key: openclaw
+        name: OpenClaw — скоро
+      - key: hermes
+        name: Hermes Agent — скоро
+      - key: agent-zero
+        name: Agent Zero — скоро
     group: voice-client
     subgroup: voice-route
     sort: 52
 
   voice-route-system-prompt:
     type: awn.field.text
-    title: "{DRAFT} System prompt Voice"
-    description: shell.json → route.systemPrompt
+    title: System prompt Voice
+    description: shell.json → route.systemPrompt — доп. инструкции агенту для Voice Shell
     group: voice-client
     subgroup: voice-route
     sort: 53
+
+  voice-route-claude-cli-path:
+    type: awn.field.string
+    title: "{DRAFT} Путь к claude"
+    description: shell.json → route.runtimes.claude.cliPath
+    default: claude
+    group: voice-client
+    subgroup: voice-route-claude
+    sort: 60
+
+  voice-route-claude-model:
+    type: awn.field.string
+    title: "{DRAFT} Модель Claude"
+    description: shell.json → route.runtimes.claude.model · пусто = по умолчанию из CLI
+    group: voice-client
+    subgroup: voice-route-claude
+    sort: 61
+
+  voice-route-claude-session-id:
+    type: awn.field.string
+    title: "{DRAFT} Session ID"
+    description: shell.json → route.runtimes.claude.sessionId
+    group: voice-client
+    subgroup: voice-route-claude
+    sort: 62
+
+  voice-route-claude-permission-mode:
+    type: awn.field.choice.one
+    title: "{DRAFT} Подтверждение инструментов"
+    description: shell.json → route.runtimes.claude.permissionMode
+    default: ""
+    enum:
+      - key: ""
+        name: Спрашивать (модалка)
+      - key: manual
+        name: Manual
+      - key: plan
+        name: Plan
+      - key: auto
+        name: Auto
+      - key: dontAsk
+        name: Don't ask
+      - key: bypassPermissions
+        name: Bypass
+    group: voice-client
+    subgroup: voice-route-claude
+    sort: 63
+
+  voice-route-codex-cli-path:
+    type: awn.field.string
+    title: "{DRAFT} Путь к codex"
+    description: shell.json → route.runtimes.codex.cliPath
+    default: codex
+    group: voice-client
+    subgroup: voice-route-codex
+    sort: 70
+
+  voice-route-codex-model:
+    type: awn.field.string
+    title: "{DRAFT} Модель Codex"
+    description: shell.json → route.runtimes.codex.model
+    group: voice-client
+    subgroup: voice-route-codex
+    sort: 71
+
+  voice-route-codex-session-id:
+    type: awn.field.string
+    title: "{DRAFT} Session ID"
+    description: shell.json → route.runtimes.codex.sessionId
+    group: voice-client
+    subgroup: voice-route-codex
+    sort: 72
+
+  voice-route-codex-permission-mode:
+    type: awn.field.choice.one
+    title: "{DRAFT} Подтверждение команд"
+    description: shell.json → route.runtimes.codex.permissionMode
+    default: ""
+    enum:
+      - key: ""
+        name: Спрашивать (on-request)
+      - key: untrusted
+        name: Untrusted
+      - key: bypassPermissions
+        name: Never
+    group: voice-client
+    subgroup: voice-route-codex
+    sort: 73
+
+  voice-route-qwenpaw-url:
+    type: awn.field.string
+    title: "{DRAFT} URL QwenPaw"
+    description: shell.json → route.runtimes.qwenpaw.baseUrl
+    default: http://127.0.0.1:8088
+    group: voice-client
+    subgroup: voice-route-qwenpaw
+    sort: 80
+
+  voice-route-qwenpaw-agent-id:
+    type: awn.field.string
+    title: "{DRAFT} Agent ID"
+    description: shell.json → qwenpawAgentId
+    default: default
+    group: voice-client
+    subgroup: voice-route-qwenpaw
+    sort: 81
+
+  voice-route-qwenpaw-session-id:
+    type: awn.field.string
+    title: "{DRAFT} Session ID"
+    description: shell.json → route.runtimes.qwenpaw.sessionId
+    group: voice-client
+    subgroup: voice-route-qwenpaw
+    sort: 82
+
+  voice-route-cursor-stub:
+    type: awn.field.text
+    title: Статус
+    description: Подключение в Voice Shell — скоро
+    readonly: true
+    default: Cursor Agent — OpenAI-compatible endpoint. Настройки Base URL, model и session появятся после подключения runtime.
+    group: voice-client
+    subgroup: voice-route-cursor
+    sort: 90
+
+  voice-route-openclaw-stub:
+    type: awn.field.text
+    title: Статус
+    description: Подключение в Voice Shell — скоро
+    readonly: true
+    default: OpenClaw Gateway — :18789, token и agent id. Настройки появятся после подключения runtime.
+    group: voice-client
+    subgroup: voice-route-openclaw
+    sort: 91
+
+  voice-route-hermes-stub:
+    type: awn.field.text
+    title: Статус
+    description: Подключение в Voice Shell — скоро
+    readonly: true
+    default: Hermes Agent — API :8642/v1, Bearer API_SERVER_KEY, профиль и session.
+    group: voice-client
+    subgroup: voice-route-hermes
+    sort: 92
+
+  voice-route-agent-zero-stub:
+    type: awn.field.text
+    title: Статус
+    description: Подключение в Voice Shell — скоро
+    readonly: true
+    default: Agent Zero — gateway :42617, bearer после /pair.
+    group: voice-client
+    subgroup: voice-route-agent-zero
+    sort: 93
 
   voice-input-enabled:
     type: awn.field.boolean
