@@ -83,7 +83,7 @@
   },
   "media": {
     "camera": {
-      "enabled": true,
+      "enabled": false,
       "onSpeech": true,
       "facing": "environment"
     },
@@ -104,7 +104,7 @@
     "processingSound": "off"
   },
   "ui": {
-    "dialogScrollRatio": 0.9533
+    "dialogScrollRatio": 0
   },
   "compose": {
     "promptTemplates": [

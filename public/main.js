@@ -29338,7 +29338,7 @@ const AGENT_WORKSPACE_VIEW_TITLE_LABELS = {
   map2: "Структура",
   map3: "Карта 3",
   schema: "Карта",
-  "awn-types": "Типы YAML",
+  "awn-types": "Реестр типов, модулей, компонентов и расширений",
   vault: "Каталог",
   graph: "Граф связей и знаний",
   table: "Таблица",
@@ -94942,7 +94942,7 @@ const WORKSPACE_MODULES_CATALOG = [
     status: "active"
   },
   { id: "module-settings", label: "Настройки проекта", view: "project-settings", mcp: "—", status: "active" },
-  { id: "module-awn-types", label: "Типы YAML", view: "awn-types", mcp: "list_types, get_type", status: "active" },
+  { id: "module-awn-types", label: "Реестр типов, модулей, компонентов и расширений", view: "awn-types", mcp: "list_types, get_type", status: "active" },
   {
     id: "module-registry",
     label: "Реестр контекста",
@@ -95957,15 +95957,28 @@ function createAwnTypeKindBadge(kind) {
   return badge;
 }
 
-// Группы навигации: base/entity → все конкретные типы → mixins
+// Группы навигации реестра (domain/kind). Порядок = порядок в сайдбаре.
 const AWN_TYPE_NAV_GROUPS = [
-  { kinds: ["base", "entity"], label: "Базовые" },
-  {
-    kinds: ["type", "slot", "field", "view", "taxonomy", "block", "meta", "data-container", "data-element"],
-    label: "Типы"
-  },
-  { kinds: ["mixin"], label: "Миксины" }
+  { label: "Страницы и контент", domains: ["pages", "content"] },
+  { label: "Слоты", domains: ["slots"] },
+  { label: "Типы полей", domains: ["fields"] },
+  { label: "Блоки редактора", domains: ["md-blocks"] },
+  { label: "Настройки", domains: ["settings"] },
+  { label: "Пресеты", domains: ["presets"] },
+  { label: "Данные (awn-data)", domains: ["data"] },
+  { label: "Миксины", domains: ["mixins"] },
+  { label: "Базовые", kinds: ["base", "entity", "meta"] }
 ];
+
+function entryMatchesAwnTypeNavGroup(entry, group) {
+  const kind = entry?.typeDef?.kind || "type";
+  const domain = String(entry?.typeDef?.domain || "").trim();
+  const kinds = Array.isArray(group?.kinds) ? group.kinds : group?.kind ? [group.kind] : null;
+  const domains = Array.isArray(group?.domains) ? group.domains : null;
+  if (domains?.length && !domains.includes(domain)) return false;
+  if (kinds?.length && !kinds.includes(kind)) return false;
+  return Boolean(domains?.length || kinds?.length);
+}
 
 const AWN_KIND_BADGE_LABELS = {
   base:     "База",
@@ -95976,6 +95989,7 @@ const AWN_KIND_BADGE_LABELS = {
   view:     "Вид",
   taxonomy: "Таксономия",
   block:    "Блок",
+  preset:   "Пресет",
   mixin:    "Миксин",
   meta:     "Мета",
   "data-container": "Store",
@@ -96044,6 +96058,17 @@ function createAwnTypeFieldFlags(fieldDef) {
   return flags;
 }
 
+function appendAwnTypeDetailMetaLine(meta, label, value, { asCode = true } = {}) {
+  if (value == null || value === "" || (Array.isArray(value) && !value.length)) return;
+  const node = document.createElement("p");
+  node.className = "agent-awn-type-detail-line";
+  const rendered = asCode
+    ? `<code>${Array.isArray(value) ? value.join(", ") : value}</code>`
+    : String(value);
+  node.innerHTML = `${label}: ${rendered}`;
+  meta.appendChild(node);
+}
+
 function renderAwnTypeDetailPanel(typeDef) {
   const panel = document.createElement("div");
   panel.className = "agent-awn-type-detail";
@@ -96101,6 +96126,11 @@ function renderAwnTypeDetailPanel(typeDef) {
     meta.appendChild(mixinsNode);
   }
 
+  appendAwnTypeDetailMetaLine(meta, "Виджет", typeDef?.widget);
+  appendAwnTypeDetailMetaLine(meta, "Хранение", typeDef?.storage);
+  appendAwnTypeDetailMetaLine(meta, "mdbase", typeDef?.mdbase);
+  appendAwnTypeDetailMetaLine(meta, "Настройки", typeDef?.settings);
+
   if (meta.childNodes.length) panel.appendChild(meta);
 
   const fields = typeDef?.fields && typeof typeDef.fields === "object" ? typeDef.fields : {};
@@ -96144,12 +96174,7 @@ function renderAwnTypeDetailPanel(typeDef) {
 
 function createAwnTypesBrowserSection(typeEntries) {
   const section = document.createElement("section");
-  section.className = "agent-awn-types-section";
-  section.innerHTML =
-    '<header class="agent-awn-types-section-head">' +
-    '<h3 class="agent-awn-types-section-title">Типы записей</h3>' +
-    '<p class="agent-awn-types-section-sub">Выберите тип — поля frontmatter для <code>awn-type</code></p>' +
-    "</header>";
+  section.className = "agent-awn-types-section agent-awn-types-section--browser";
 
   if (!typeEntries.length) {
     const empty = document.createElement("p");
@@ -96172,7 +96197,7 @@ function createAwnTypesBrowserSection(typeEntries) {
   const nav = document.createElement("nav");
   nav.className = "agent-awn-types-nav";
   nav.setAttribute("role", "tablist");
-  nav.setAttribute("aria-label", "Типы записей");
+  nav.setAttribute("aria-label", "Реестр типов, модулей и компонентов");
 
   // Search input
   const searchWrap = document.createElement("div");
@@ -96180,8 +96205,8 @@ function createAwnTypesBrowserSection(typeEntries) {
   const searchInput = document.createElement("input");
   searchInput.type = "search";
   searchInput.className = "agent-awn-types-search";
-  searchInput.placeholder = "Поиск типа…";
-  searchInput.setAttribute("aria-label", "Поиск типа");
+  searchInput.placeholder = "Поиск в реестре…";
+  searchInput.setAttribute("aria-label", "Поиск в реестре");
   searchWrap.appendChild(searchInput);
   nav.appendChild(searchWrap);
 
@@ -96193,38 +96218,53 @@ function createAwnTypesBrowserSection(typeEntries) {
     nav.querySelectorAll(".agent-awn-types-nav-group").forEach((n) => n.remove());
     const q = query.trim().toLowerCase();
     let totalVisible = 0;
+    const assigned = new Set();
 
-    for (const group of AWN_TYPE_NAV_GROUPS) {
-      const kindsSet = new Set(group.kinds || [group.kind]);
-      const groupEntries = typeEntries.filter((entry) => {
-        if (!kindsSet.has(entry.typeDef?.kind || "type")) return false;
-        if (!q) return true;
-        const id = String(entry.typeDef?.id || entry.typeKey || "").toLowerCase();
-        const name = String(entry.typeDef?.name || "").toLowerCase();
-        return id.includes(q) || name.includes(q);
-      });
-      if (!groupEntries.length) continue;
-      totalVisible += groupEntries.length;
+    function matchesQuery(entry) {
+      if (!q) return true;
+      const id = String(entry.typeDef?.id || entry.typeKey || "").toLowerCase();
+      const name = String(entry.typeDef?.name || "").toLowerCase();
+      return id.includes(q) || name.includes(q);
+    }
+
+    function appendNavGroup(label, groupEntries) {
+      const visibleEntries = groupEntries.filter(matchesQuery);
+      if (!visibleEntries.length) return;
+      totalVisible += visibleEntries.length;
 
       const groupNode = document.createElement("div");
       groupNode.className = "agent-awn-types-nav-group";
 
       const groupLabel = document.createElement("div");
       groupLabel.className = "agent-awn-types-nav-group-label";
-      groupLabel.textContent = group.label;
+      groupLabel.textContent = label;
       groupNode.appendChild(groupLabel);
 
       const list = document.createElement("div");
       list.className = "agent-awn-types-nav-list";
-      for (const { typeKey, typeDef } of groupEntries) {
+      for (const { typeKey, typeDef } of visibleEntries) {
         list.appendChild(createAwnTypeNavItem(typeKey, typeDef, typeKey === selectedKey));
       }
       groupNode.appendChild(list);
       nav.appendChild(groupNode);
     }
 
+    for (const group of AWN_TYPE_NAV_GROUPS) {
+      const groupEntries = [];
+      for (const entry of typeEntries) {
+        if (assigned.has(entry.typeKey)) continue;
+        if (!entryMatchesAwnTypeNavGroup(entry, group)) continue;
+        assigned.add(entry.typeKey);
+        groupEntries.push(entry);
+      }
+      appendNavGroup(group.label, groupEntries);
+    }
+
+    const rest = typeEntries.filter((entry) => !assigned.has(entry.typeKey));
+    if (rest.length) appendNavGroup("Прочее", rest);
+
     countBadge.textContent = String(totalVisible);
-    countBadge.title = `${totalVisible} типов`;
+    countBadge.title = `${totalVisible} в реестре`;
   }
 
   renderNavGroups("");
@@ -96257,6 +96297,7 @@ function createAwnTypesBrowserSection(typeEntries) {
 
 async function renderAgentAwnTypesView() {
   if (!agentAwnTypesContentNode) return;
+  await loadAwnTypes(activeAgentId);
   await renderAwnTypesContent(agentAwnTypesContentNode);
 }
 
@@ -96287,10 +96328,10 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
         description: t.schema?.description || t.description || "",
         source: t.source || "platform",
         fields: t.schema?.fields || null,
-        widget: t.schema?.widget || null,
-        storage: t.schema?.storage || null,
-        mdbase: t.schema?.mdbase || null,
-        settings: t.schema?.settings || null
+        widget: t.schema?.widget || t.widget || null,
+        storage: t.schema?.storage || t.storage || null,
+        mdbase: t.schema?.mdbase || t.mdbase || null,
+        settings: t.schema?.settings || t.settings || null
       }));
       allTypesData = { types, total: types.length };
     }
@@ -96309,47 +96350,8 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
 
   containerNode.appendChild(createAwnTypesBrowserSection(typeEntries));
 
-  const registry = awnTypesCache.fieldRegistry || {};
-  const registryKeys = Object.keys(registry).filter((id) => id.startsWith("awn.")).sort();
-  if (registryKeys.length) {
-    const registrySection = document.createElement("section");
-    registrySection.className = "agent-awn-types-section";
-    registrySection.innerHTML =
-      '<header class="agent-awn-types-section-head">' +
-      '<h3 class="agent-awn-types-section-title">Реестр типов полей</h3>' +
-      '<p class="agent-awn-types-section-sub">Базовые типы данных для свойств (по спецификации mdbase)</p>' +
-      "</header>";
-
-    const tableWrap = document.createElement("div");
-    tableWrap.style.overflowX = "auto";
-    const table = document.createElement("table");
-    table.className = "agent-awn-field-registry-table";
-    table.innerHTML =
-      "<thead><tr>" +
-      "<th>ID</th><th>Название</th><th>kind</th><th>Хранение</th><th>Виджет</th><th>Настройки</th><th>Описание</th>" +
-      "</tr></thead>";
-    const tbody = document.createElement("tbody");
-    for (const key of registryKeys) {
-      const entry = registry[key];
-      const settings = Array.isArray(entry.settings) ? entry.settings.join(", ") : "—";
-      const row = document.createElement("tr");
-      row.innerHTML =
-        `<td><code>${entry.id}</code></td>` +
-        `<td>${entry.name || entry.label || "—"}</td>` +
-        `<td><code>${entry.kind || "field"}</code></td>` +
-        `<td><code>${entry.storage || entry.kind || "—"}</code></td>` +
-        `<td><code>${entry.widget || "—"}</code></td>` +
-        `<td><code>${settings}</code></td>` +
-        `<td>${entry.description || "—"}</td>`;
-      tbody.appendChild(row);
-    }
-    table.appendChild(tbody);
-    tableWrap.appendChild(table);
-    registrySection.appendChild(tableWrap);
-    containerNode.appendChild(registrySection);
-  }
-
-  const fieldDefSchema = awnTypesCache.fieldDefSchema;
+  const registry = awnTypesCache?.fieldRegistry || {};
+  const fieldDefSchema = awnTypesCache?.fieldDefSchema;
   const defProps = fieldDefSchema?.properties;
   if (defProps && typeof defProps === "object") {
     const defSection = document.createElement("section");
@@ -96357,7 +96359,7 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
     defSection.innerHTML =
       '<header class="agent-awn-types-section-head">' +
       '<h3 class="agent-awn-types-section-title">Мета-свойства поля</h3>' +
-      '<p class="agent-awn-types-section-sub">Что можно указать у поля и <strong>к каким типам полей</strong> это применимо. Применимость выведена из колонки «Настройки» реестра выше: не каждое поле может быть обязательным, иметь варианты (<code>enum</code>) или загрузку файлов.</p>' +
+      '<p class="agent-awn-types-section-sub">Что можно указать у поля и <strong>к каким типам полей</strong> это применимо. Применимость выведена из <code>settings</code> типов полей в реестре слева.</p>' +
       "</header>";
 
     // Инвертируем реестр: настройка → набор виджетов, которые её принимают.
@@ -96408,49 +96410,6 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
     tableWrap.appendChild(table);
     defSection.appendChild(tableWrap);
     containerNode.appendChild(defSection);
-  }
-
-  const blockGroups = awnTypesCache.blockGroups || [];
-  if (blockGroups.length) {
-    const blocksSection = document.createElement("section");
-    blocksSection.className = "agent-awn-types-section";
-    blocksSection.innerHTML =
-      '<header class="agent-awn-types-section-head">' +
-      '<h3 class="agent-awn-types-section-title">Блоки редактора</h3>' +
-      '<p class="agent-awn-types-section-sub">Шаблоны Markdown для вкладки «Блоки» (<code>kind: block</code>)</p>' +
-      "</header>";
-
-    for (const group of blockGroups) {
-      const groupWrap = document.createElement("div");
-      groupWrap.className = "agent-awn-blocks-group";
-      const groupTitle = document.createElement("h4");
-      groupTitle.className = "agent-awn-blocks-group-title";
-      groupTitle.textContent = group.title || group.id;
-      groupWrap.appendChild(groupTitle);
-
-      const tableWrap = document.createElement("div");
-      tableWrap.style.overflowX = "auto";
-      const table = document.createElement("table");
-      table.className = "agent-awn-field-registry-table";
-      table.innerHTML =
-        "<thead><tr><th>ID</th><th>Название</th><th>kind</th><th>Описание</th></tr></thead>";
-      const tbody = document.createElement("tbody");
-      for (const block of group.blocks || []) {
-        const row = document.createElement("tr");
-        row.innerHTML =
-          `<td><code>${block.id}</code></td>` +
-          `<td>${block.name || block.label || "—"}</td>` +
-          `<td><code>${block.kind || "block"}</code></td>` +
-          `<td>${block.description || "—"}</td>`;
-        tbody.appendChild(row);
-      }
-      table.appendChild(tbody);
-      tableWrap.appendChild(table);
-      groupWrap.appendChild(tableWrap);
-      blocksSection.appendChild(groupWrap);
-    }
-
-    containerNode.appendChild(blocksSection);
   }
 }
 

@@ -10821,6 +10821,10 @@ body.app-locked {
   overflow: hidden;
 }
 
+.agent-awn-types-section--browser {
+  margin-top: 0;
+}
+
 .agent-awn-types-section-head {
   padding: 14px 16px 10px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
@@ -54188,6 +54192,18 @@ button.node-navigation-memory-title:focus-visible {
 
 .create-node-service-doc-btn--full {
   grid-column: 1 / -1;
+}
+
+.create-node-service-docs-footnote {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.create-node-service-docs-footnote .stub-static-mark {
+  font-size: 12px;
+  margin-right: 0.15em;
 }
 
 .create-node-service-doc-btn:disabled {

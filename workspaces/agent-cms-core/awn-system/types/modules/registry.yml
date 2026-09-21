@@ -25,7 +25,7 @@ entries:
     implementation: active
     ui-surfaces: [picker]
   - module-id: module-awn-types
-    label: Типы YAML
+    label: Реестр типов, модулей, компонентов и расширений
     view: awn-types
     implementation: active
     ui-surfaces: [picker]
