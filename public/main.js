@@ -433,6 +433,7 @@ const agentTodoPreviewToggleBtn = document.getElementById("agent-todo-preview-to
 const agentTodoPreviewEditBtn = document.getElementById("agent-todo-preview-edit-btn");
 const agentTodoPreviewExpandBtn = document.getElementById("agent-todo-preview-expand-btn");
 const agentTodoPreviewBodyNode = document.getElementById("agent-todo-preview-body");
+const agentTodoPreviewStatusNode = document.getElementById("agent-todo-preview-status");
 const AGENT_TODO_PREVIEW_COLLAPSED_MAX_HEIGHT_PX = 75;
 const SIDEBAR_NOTE_PREVIEW_EXPANDED_KEY = "agentcms.sidebarNotePreviewExpanded.v1";
 const agentTablePaneNode = document.getElementById("agent-table-pane");
@@ -6131,11 +6132,76 @@ function syncAgentPreview(previewMeta = null, options = {}) {
 }
 
 let agentTodoPreviewSeq = 0;
+let agentNotePreviewLastMarkdown = "";
+
+function syncAgentNotePreviewActiveState() {
+  agentTodoPreviewWrapNode?.classList.toggle(
+    "is-note-active",
+    activeSystemFile === ROOT_SYSTEM_NOTE_FILE
+  );
+}
+
+function syncAgentNotePreviewStatusIndicator(hasContent = false) {
+  const filled = Boolean(hasContent);
+  const title = filled ? "NOTE.md — в заметке есть содержимое" : "NOTE.md — заметка пуста";
+  if (agentTodoPreviewToggleBtn) {
+    agentTodoPreviewToggleBtn.classList.toggle("is-filled", filled);
+    agentTodoPreviewToggleBtn.classList.toggle("is-empty", !filled);
+    agentTodoPreviewToggleBtn.title = title;
+    agentTodoPreviewToggleBtn.setAttribute("aria-label", title);
+  }
+  if (agentTodoPreviewStatusNode) {
+    agentTodoPreviewStatusNode.classList.toggle("is-filled", filled);
+    agentTodoPreviewStatusNode.classList.toggle("is-empty", !filled);
+  }
+}
+
+function showAgentNotePreviewShell() {
+  if (!agentTodoPreviewWrapNode || !activeAgentId) {
+    hideAgentTodoPreview();
+    return false;
+  }
+  agentTodoPreviewWrapNode.classList.remove("hidden");
+  syncAgentNotePreviewActiveState();
+  syncSidebarNotePreviewAccordion();
+  return true;
+}
+
+function clearAgentNotePreviewBody() {
+  agentNotePreviewLastMarkdown = "";
+  agentTodoPreviewWrapNode?.classList.remove("has-note-content", "is-expanded");
+  agentTodoPreviewExpandBtn?.classList.add("hidden");
+  syncAgentNotePreviewStatusIndicator(false);
+  if (agentTodoPreviewBodyNode) {
+    agentTodoPreviewBodyNode.innerHTML = "";
+  }
+}
+
+function applyAgentNotePreviewMarkdown(rawContent, { fileName = ROOT_SYSTEM_NOTE_FILE } = {}) {
+  if (!showAgentNotePreviewShell() || !agentTodoPreviewBodyNode) return;
+
+  const previewMarkdown = getAgentTodoSidebarPreviewMarkdown(rawContent);
+  if (!previewMarkdown) {
+    clearAgentNotePreviewBody();
+    return;
+  }
+
+  agentTodoPreviewWrapNode.classList.add("has-note-content");
+  syncAgentNotePreviewStatusIndicator(true);
+
+  if (previewMarkdown !== agentNotePreviewLastMarkdown) {
+    setMarkdownPreviewHtml(agentTodoPreviewBodyNode, previewMarkdown, { nodePath: fileName });
+    agentNotePreviewLastMarkdown = previewMarkdown;
+    scheduleAgentTodoPreviewExpandSync();
+  }
+}
 
 function hideAgentTodoPreview() {
+  agentNotePreviewLastMarkdown = "";
   agentTodoPreviewWrapNode?.classList.add("hidden");
-  agentTodoPreviewWrapNode?.classList.remove("is-expanded");
+  agentTodoPreviewWrapNode?.classList.remove("has-note-content", "is-note-active", "is-expanded");
   agentTodoPreviewExpandBtn?.classList.add("hidden");
+  syncAgentNotePreviewStatusIndicator(false);
   if (agentTodoPreviewBodyNode) {
     agentTodoPreviewBodyNode.innerHTML = "";
   }
@@ -6331,19 +6397,7 @@ async function fetchAgentSidebarNoteMarkdown() {
 function syncAgentTodoPreviewFromEditor() {
   if (!agentTodoPreviewWrapNode || !agentTodoPreviewBodyNode || !activeAgentId) return;
   if (activeSystemFile !== ROOT_SYSTEM_NOTE_FILE) return;
-
-  const content = String(fileContentInputNode?.value || "").trim();
-  if (!content) {
-    hideAgentTodoPreview();
-    return;
-  }
-
-  setMarkdownPreviewHtml(agentTodoPreviewBodyNode, getAgentTodoSidebarPreviewMarkdown(content), {
-    nodePath: ROOT_SYSTEM_NOTE_FILE
-  });
-  agentTodoPreviewWrapNode.classList.remove("hidden", "is-expanded");
-  syncSidebarNotePreviewAccordion();
-  scheduleAgentTodoPreviewExpandSync();
+  applyAgentNotePreviewMarkdown(fileContentInputNode?.value || "", { fileName: ROOT_SYSTEM_NOTE_FILE });
 }
 
 async function syncAgentTodoPreview() {
@@ -6353,26 +6407,20 @@ async function syncAgentTodoPreview() {
   }
 
   const seq = ++agentTodoPreviewSeq;
+  clearAgentNotePreviewBody();
+  showAgentNotePreviewShell();
 
   try {
     const fetchedNoteData = await fetchAgentSidebarNoteMarkdown();
     if (seq !== agentTodoPreviewSeq) return;
 
     const noteData = resolveAgentSidebarNotePreviewData(fetchedNoteData);
-    if (!noteData?.content) {
-      hideAgentTodoPreview();
-      return;
-    }
-
-    setMarkdownPreviewHtml(agentTodoPreviewBodyNode, getAgentTodoSidebarPreviewMarkdown(noteData.content), {
-      nodePath: noteData.fileName
+    applyAgentNotePreviewMarkdown(noteData?.content || "", {
+      fileName: noteData?.fileName || ROOT_SYSTEM_NOTE_FILE
     });
-    agentTodoPreviewWrapNode.classList.remove("hidden", "is-expanded");
-    syncSidebarNotePreviewAccordion();
-    scheduleAgentTodoPreviewExpandSync();
   } catch {
     if (seq !== agentTodoPreviewSeq) return;
-    hideAgentTodoPreview();
+    clearAgentNotePreviewBody();
   }
 }
 
@@ -90271,6 +90319,7 @@ function updateActiveButton() {
       normalizeCreateParentPath(activeFolderBrowseFilePath) === name;
     item.classList.toggle("active", asSystem || asAdopt);
   }
+  syncAgentNotePreviewActiveState();
   for (const card of (appRootNode || document).querySelectorAll(".menu-card-body[data-path]")) {
     const itemPath = normalizeMenuNodePath(card.dataset.path || "");
     const isActive = !activeSystemFile && Boolean(resolvedActive) && itemPath === resolvedActive;
@@ -90290,6 +90339,20 @@ async function selectSystemFile(name, options = {}) {
   if (!normalizedName) return;
   if (isReadOnlyWorkspacePageIndexSystemFile(normalizedName)) {
     options = { ...options, edit: false };
+  }
+  if (
+    !options.force &&
+    normalizedName === activeSystemFile &&
+    normalizedName === ROOT_SYSTEM_NOTE_FILE &&
+    options.edit === undefined
+  ) {
+    updateActiveButton();
+    syncAgentNotePreviewActiveState();
+    syncAgentTodoPreviewFromEditor();
+    if (!options.skipRouteSync) {
+      syncAppRouteToUrl({ replace: true });
+    }
+    return;
   }
   hideHomeView();
   nodeOverviewRenderSeq += 1;
@@ -98104,6 +98167,7 @@ function showAgentHomeView(hint = AGENT_HOME_HINT_DEFAULT) {
   updateBreadcrumbsForActiveMode();
   applyAgentWorkspaceCanvasUi();
   void loadAgentFocusItems();
+  void syncAgentTodoPreview();
   syncAppRouteToUrl({ replace: true });
   syncWorkspaceNotificationsAvailability();
 }

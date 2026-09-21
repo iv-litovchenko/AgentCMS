@@ -1454,10 +1454,11 @@
               <button
                 id="agent-todo-preview-toggle"
                 type="button"
-                class="agent-todo-preview-head sidebar-accent-band-toggle sidebar-accent-band-toggle--note"
+                class="agent-todo-preview-head sidebar-accent-band-toggle sidebar-accent-band-toggle--note is-empty"
                 aria-expanded="false"
                 aria-controls="agent-todo-preview-content"
-                title="NOTE.md — заметки агента"
+                title="NOTE.md — заметка пуста"
+                aria-label="NOTE.md — заметка пуста"
               >
                 <span class="sidebar-accent-band-toggle-main">
                   <span class="agent-todo-preview-chevron sidebar-accent-band-chevron" aria-hidden="true"></span>
@@ -1465,8 +1466,13 @@
                     <path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z" />
                     <path d="M15 3v4h4" />
                   </svg>
-                  <span class="agent-todo-preview-label sidebar-accent-band-title">NOTE.md (заметки)</span>
+                  <span class="agent-todo-preview-label sidebar-accent-band-title">NOTE.md (заметка)</span>
                 </span>
+                <span
+                  id="agent-todo-preview-status"
+                  class="agent-todo-preview-lamp node-slot-lamp is-empty"
+                  aria-hidden="true"
+                ></span>
               </button>
               <button
                 id="agent-todo-preview-edit-btn"

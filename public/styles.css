@@ -22873,6 +22873,17 @@ a.header-tool-btn {
 
 .agent-todo-preview-head.sidebar-accent-band-toggle {
   padding-right: 36px;
+  gap: 6px;
+}
+
+.agent-todo-preview-lamp {
+  flex: 0 0 auto;
+  margin-left: auto;
+  margin-right: 2px;
+}
+
+.agent-todo-preview-wrap.is-note-active .agent-todo-preview-head.sidebar-accent-band-toggle--note {
+  box-shadow: inset 0 0 0 1px rgba(120, 53, 15, 0.28);
 }
 
 .agent-todo-preview-wrap.is-note-collapsed .agent-todo-preview-content {
