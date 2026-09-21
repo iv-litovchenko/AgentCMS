@@ -593,15 +593,6 @@ awn-repositories/**/*
 !awn-repositories/**/README.md
 `;
 
-const PROJECT_SETTINGS_WORKSPACE_ROOT_FILES = [
-  ".env",
-  ".gitignore",
-  "AGENTS.md",
-  "README.md",
-  "docker-compose.yml",
-  "awn-dependencies.json"
-];
-let projectSettingsWorkspaceFileName = ".gitignore";
 let projectSettingsEnvFocusPending = false;
 
 const RECOMMENDED_AGENT_ENV_TEMPLATE = `# KEY=value — без кавычек, по одной переменной на строку
@@ -42517,7 +42508,7 @@ function getEnvFilePathForManifest(manifestPath) {
   if (!normalized) return "";
   if (isProjectSettingsGlobalScope(normalized)) return ".env";
   if (isProjectSettingsWorkspaceSettingsScope(normalized)) {
-    return projectSettingsWorkspaceFileName || ".gitignore";
+    return ".env";
   }
   const dir = getManifestContainerDirRel(normalized);
   return dir ? `${dir}/.env` : ".env";
@@ -42824,9 +42815,6 @@ async function openProjectSettingsEnvEditor(scopePath, options = {}) {
   if (!normalized) return;
   if (isProjectSettingsIntegrationsSettingsScope(normalized) || isProjectSettingsUserSettingsScope(normalized)) {
     return;
-  }
-  if (isProjectSettingsWorkspaceSettingsScope(normalized)) {
-    projectSettingsWorkspaceFileName = ".env";
   }
   projectSettingsEnvFocusPending = true;
   const current = getNodeSettingsManifestPath();
@@ -43354,7 +43342,7 @@ async function selectProjectSettingsScope(scopePath, options = {}) {
 function getProjectSettingsEnvCache(manifestPath = getNodeSettingsManifestPath()) {
   if (!manifestPath) return null;
   const cacheKey = isProjectSettingsWorkspaceSettingsScope(manifestPath)
-    ? `${manifestPath}:${projectSettingsWorkspaceFileName}`
+    ? `${manifestPath}:.env`
     : manifestPath;
   return projectSettingsEnvCacheByManifest.get(cacheKey) || null;
 }
@@ -43368,7 +43356,7 @@ async function loadProjectSettingsEnvForManifest(manifestPath, options = {}) {
     return null;
   }
   const cacheKey = isProjectSettingsWorkspaceSettingsScope(manifestPath)
-    ? `${manifestPath}:${projectSettingsWorkspaceFileName}`
+    ? `${manifestPath}:.env`
     : manifestPath;
   if (!options.force) {
     const cached = projectSettingsEnvCacheByManifest.get(cacheKey);
@@ -43378,9 +43366,7 @@ async function loadProjectSettingsEnvForManifest(manifestPath, options = {}) {
   if (isProjectSettingsGlobalScope(manifestPath)) {
     response = await fetch(buildApiUrl("/api/platform/env"));
   } else if (isProjectSettingsWorkspaceSettingsScope(manifestPath)) {
-    response = await fetch(
-      buildApiUrl("/api/system-file", { name: projectSettingsWorkspaceFileName || ".gitignore" })
-    );
+    response = await fetch(buildApiUrl("/api/system-file", { name: ".env" }));
   } else {
     response = await fetch(buildApiUrl("/api/env", { path: manifestPath }));
   }
@@ -43450,7 +43436,7 @@ async function saveProjectSettingsEnvContent() {
     response = await fetch(buildApiUrl("/api/system-file"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: projectSettingsWorkspaceFileName || ".gitignore", content })
+      body: JSON.stringify({ name: ".env", content })
     });
   } else {
     response = await fetch(buildApiUrl("/api/env"), {
@@ -43467,7 +43453,7 @@ async function saveProjectSettingsEnvContent() {
   }
   const data = await response.json();
   const cacheKey = isProjectSettingsWorkspaceSettingsScope(manifestPath)
-    ? `${manifestPath}:${projectSettingsWorkspaceFileName}`
+    ? `${manifestPath}:.env`
     : manifestPath;
   const payload = {
     manifestPath,
@@ -43490,42 +43476,6 @@ async function saveProjectSettingsEnvContent() {
   renderProjectSettingsPage();
   commitProjectSettingsEnvBaseline();
   return data;
-}
-
-function ensureProjectSettingsWorkspaceFileSelect() {
-  const envBlock = projectSettingsPageNode?.querySelector(".project-settings-block--env");
-  if (!envBlock) return null;
-  let selectNode = envBlock.querySelector("#project-settings-workspace-file-select");
-  if (!selectNode) {
-    selectNode = document.createElement("select");
-    selectNode.id = "project-settings-workspace-file-select";
-    selectNode.className = "project-settings-workspace-file-select";
-    selectNode.setAttribute("aria-label", "Корневой файл workspace");
-    for (const fileName of PROJECT_SETTINGS_WORKSPACE_ROOT_FILES) {
-      const option = document.createElement("option");
-      option.value = fileName;
-      option.textContent = fileName;
-      selectNode.appendChild(option);
-    }
-    selectNode.addEventListener("change", async () => {
-      projectSettingsWorkspaceFileName = selectNode.value || ".gitignore";
-      projectSettingsEnvSnapshot = null;
-      try {
-        await loadProjectSettingsEnvForManifest(getNodeSettingsManifestPath(), { force: true });
-        renderProjectSettingsPage();
-      } catch (error) {
-        showToast(`Не удалось загрузить файл: ${error.message}`, "error");
-      }
-    });
-    const leadNode = projectSettingsEnvLeadNode;
-    if (leadNode?.parentNode) {
-      leadNode.parentNode.insertBefore(selectNode, leadNode.nextSibling);
-    } else {
-      envBlock.insertBefore(selectNode, projectSettingsEnvWrapNode || null);
-    }
-  }
-  selectNode.value = projectSettingsWorkspaceFileName || ".gitignore";
-  return selectNode;
 }
 
 function renderProjectSettingsIblockStubPage(scopePath = getNodeSettingsManifestPath()) {
@@ -43662,14 +43612,11 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   if (projectSettingsEnvLeadNode) {
     if (isLocalScope) {
       projectSettingsEnvLeadNode.innerHTML =
-        projectSettingsWorkspaceFileName === ".env"
-          ? (activeStatus?.envHasValues
-              ? `В корневом <code>.env</code> workspace задано <strong>${activeStatus.envValueCount}</strong> переменных.`
-              : activeStatus?.envExists
-                ? `Корневой <code>.env</code> workspace есть, но переменных пока нет.`
-                : `Корневой <code>.env</code> workspace ещё не создан.`) +
-            ` Секреты API — здесь, не в yaml.`
-          : `Корневые файлы workspace (не <code>settings.yml</code>). Выберите файл и отредактируйте ниже.`;
+        (activeStatus?.envHasValues
+          ? `В корневом <code>.env</code> workspace задано <strong>${activeStatus.envValueCount}</strong> переменных.`
+          : activeStatus?.envExists
+            ? `Корневой <code>.env</code> workspace есть, но переменных пока нет.`
+            : `Корневой <code>.env</code> workspace ещё не создан.`) + ` Секреты API — здесь, не в yaml.`;
     } else if (isGlobalScope) {
       const envHint = activeStatus?.envHasValues
         ? `В корневом <code>.env</code> платформы задано <strong>${activeStatus.envValueCount}</strong> переменных.`
@@ -43692,21 +43639,16 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   projectSettingsSaveBtnNode?.classList.remove("hidden");
   const envBlockNode = projectSettingsPageNode?.querySelector(".project-settings-block--env");
   const envBlockTitleNode = envBlockNode?.querySelector(".project-settings-block-title");
-  const workspaceFileSelectNode = envBlockNode?.querySelector("#project-settings-workspace-file-select");
+  envBlockNode?.querySelector("#project-settings-workspace-file-select")?.remove();
   const hideEnvBlock = isIntegrationsScope || isUserScope;
   if (hideEnvBlock) {
     envBlockNode?.classList.add("hidden");
-    workspaceFileSelectNode?.classList.add("hidden");
   } else {
     envBlockNode?.classList.remove("hidden");
     projectSettingsEnvWrapNode?.classList.remove("hidden");
     projectSettingsEnvSaveBtnNode?.classList.remove("hidden");
-    if (isLocalScope) {
-      ensureProjectSettingsWorkspaceFileSelect()?.classList.remove("hidden");
-      if (envBlockTitleNode) envBlockTitleNode.textContent = projectSettingsWorkspaceFileName || ".gitignore";
-    } else {
-      workspaceFileSelectNode?.classList.add("hidden");
-      if (envBlockTitleNode) envBlockTitleNode.textContent = isGlobalScope ? ".env" : envPath || ".env";
+    if (envBlockTitleNode) {
+      envBlockTitleNode.textContent = isLocalScope || isGlobalScope ? ".env" : envPath || ".env";
     }
     renderProjectSettingsEnvEditor(getProjectSettingsEnvCache());
     projectSettingsEnvSnapshot = getProjectSettingsEnvCache()?.content ?? "";
