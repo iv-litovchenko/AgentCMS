@@ -42623,7 +42623,7 @@ button.node-navigation-memory-title:focus-visible {
 
 .doc-slab-content:has(> .doc-slab-main > .node-thread:not(.hidden)),
 .doc-slab-content:has(> .doc-slab-main > .node-journal:not(.hidden)) {
-  padding: 8px 14px 0;
+  padding: 8px 14px 16px;
 }
 
 /* Дискуссия / журнал: заполняют высоту области документа */
@@ -58033,7 +58033,7 @@ body.is-cms-page-picker-active #discuss-aside * {
 
 .node-journal .workspace-journal-list {
   min-height: 0;
-  padding: 14px 18px 20px;
+  padding: 14px 18px 24px;
   gap: 12px;
 }
 

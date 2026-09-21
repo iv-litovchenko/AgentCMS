@@ -77609,6 +77609,7 @@ async function renderNodeJournal() {
     showTypeFilter: true,
     showWeekFile: false,
     showComposer: false,
+    defaultPeriod: "week",
     isStale,
     introText: manifestPath
       ? "Журнал по этой теме — записи с привязкой к manifest и события UI."
@@ -94641,7 +94642,7 @@ async function renderAgentJournalView() {
   const isStale = () => renderSeq !== agentJournalRenderSeq;
 
   agentJournalContentNode.replaceChildren();
-  if (agentJournalPeriodFilterNode) agentJournalPeriodFilterNode.value = "today";
+  if (agentJournalPeriodFilterNode) agentJournalPeriodFilterNode.value = "week";
   if (agentJournalTypeFilterNode) agentJournalTypeFilterNode.value = "all";
   syncAgentJournalInfoBar({ loading: true });
 
@@ -94663,7 +94664,7 @@ async function renderAgentJournalView() {
       showComposer: false,
       typeFilterSelect: agentJournalTypeFilterNode,
       periodFilterSelect: agentJournalPeriodFilterNode,
-      defaultPeriod: "today",
+      defaultPeriod: "week",
       showPeriodFilter: false,
       showWeekFile: true,
       onEntriesRendered: (filtered, allEntries) => {

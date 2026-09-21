@@ -224,11 +224,15 @@ function createWorkspaceJournalService(deps) {
   }
 
   async function listWeekFiles(limitWeeks = 8) {
-    return listWeekFilesFromRoot(journalDirAbsolute(), limitWeeks);
+    const root = getAgentRoot();
+    if (!root) return [];
+    return listWeekFilesFromRoot(root, limitWeeks);
   }
 
   async function collectEntries(options = {}) {
-    return collectEntriesFromRoot(journalDirAbsolute(), options);
+    const root = getAgentRoot();
+    if (!root) return [];
+    return collectEntriesFromRoot(root, options);
   }
 
   async function appendJournalEntry(options = {}) {
