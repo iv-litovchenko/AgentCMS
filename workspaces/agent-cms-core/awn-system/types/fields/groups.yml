@@ -2,6 +2,9 @@ id: awn.field.groups
 kind: meta
 status: active
 domain: fields
+kind-ui:
+  label: Мета
+  badge: { background: "#f0fdf4", border: "#86efac", text: "#15803d" }
 groupOrder: [text-single, text-multiline, numbers, choice, datetime, media, structure, lookup, cms]
 groupNames:
   text-single: Текст (однострочный)

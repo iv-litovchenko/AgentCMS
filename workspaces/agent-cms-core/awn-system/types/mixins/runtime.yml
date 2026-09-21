@@ -4,6 +4,9 @@ kind: mixin
 domain: mixins
 status: active
 description: Загрузка в контекст агента, cron, heartbeat, команды
+kind-ui:
+  label: Миксин
+  badge: { background: "#f8fafc", border: "#cbd5e1", text: "#475569" }
 fields:
   awn-runtime-load-always:
     type: awn.field.boolean

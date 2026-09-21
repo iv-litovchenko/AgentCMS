@@ -3433,7 +3433,7 @@
       </main>
 
       <main id="agent-awn-types-pane" class="agent-canvas-pane agent-tool-pane agent-awn-types-pane hidden" aria-label="Реестр типов, модулей, компонентов и расширений">
-        <div class="agent-canvas-head">
+        <div class="agent-canvas-head agent-tool-head">
           <div class="agent-canvas-head-copy">
             <p class="agent-canvas-eyebrow">Workspace</p>
             <h2 class="agent-canvas-title">Реестр типов, модулей, компонентов и расширений</h2>
@@ -3441,6 +3441,11 @@
               Единый реестр: типы страниц и контента, слоты, поля, блоки редактора, настройки, пресеты и awn-data.
               Выберите элемент слева — справа схема и поля. Системные YAML — в <code>awn-system/types/</code>.
             </p>
+          </div>
+          <div class="agent-canvas-head-aside agent-tool-head-actions">
+            <button id="agent-awn-types-refresh-btn" class="agent-workspace-refresh-btn" type="button" title="Обновить реестр типов">
+              Обновить
+            </button>
           </div>
         </div>
         <div id="agent-awn-types-content" class="agent-awn-types-content"></div>
@@ -5050,15 +5055,27 @@
               <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent-voice-tts" title="agent.voice.tts.md">Голос TTS</button>
               <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="agent-voice-stt" title="agent.voice.stt.md">Голос STT</button>
             </div>
+            <p class="popover-label create-node-service-docs-subsection-label">Темы</p>
             <div class="create-node-service-docs-actions create-node-service-docs-actions--cols-3 create-node-service-docs-actions--topics">
-              <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="devices" title="devices/manifest.md — awn.page.topic">Управление ПК, устройствами, различный софт</button>
-              <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="robot-exoskeleton-and-body" title="robot-exoskeleton-and-body/manifest.md — awn.page.topic">Экзоскелет робота (сенсоры, датчики, механизмы, руки, ноги, колеса и другое)</button>
-              <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="real-world-and-space" title="real-world-and-space/manifest.md — awn.page.topic">Объекты реального мира, места и пространства</button>
+              <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="devices" title="devices/manifest.md — awn.page.topic">Устройства</button>
+              <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="robot-exoskeleton-and-body" title="robot-exoskeleton-and-body/manifest.md — awn.page.topic">Экзоскелет</button>
+              <button type="button" class="create-node-action-btn create-node-service-doc-btn" data-service-doc-preset="real-world-and-space" title="real-world-and-space/manifest.md — awn.page.topic">Объекты мира</button>
               <button type="button" class="create-node-action-btn create-node-service-doc-btn create-node-service-doc-btn--full" data-service-doc-preset="random-joke" title="random-joke/manifest.md — awn.page.topic">Случайный анекдот — для экспериментов</button>
             </div>
-            <p class="create-node-service-docs-footnote">
-              <span class="stub-static-mark">*</span> Также подходит для описания формата ответов агента
-            </p>
+            <div class="create-node-service-docs-footnotes">
+              <p class="create-node-service-docs-footnote">
+                <span class="stub-static-mark">*</span> Правила — также подходит для описания формата ответов агента
+              </p>
+              <p class="create-node-service-docs-footnote">
+                <span class="stub-static-mark">*</span> Устройства — ПК, периферия, ОС, софт и сценарии управления
+              </p>
+              <p class="create-node-service-docs-footnote">
+                <span class="stub-static-mark">*</span> Экзоскелет — сенсоры, датчики, механизмы, руки, ноги, колёса робота
+              </p>
+              <p class="create-node-service-docs-footnote">
+                <span class="stub-static-mark">*</span> Объекты мира — физические объекты, места, помещения и пространства
+              </p>
+            </div>
           </div>
         </div>
         <hr id="create-node-divider" class="create-node-divider hidden" />

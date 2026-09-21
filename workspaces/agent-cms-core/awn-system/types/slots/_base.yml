@@ -5,6 +5,9 @@ domain: slots
 status: active
 extends: awn.entity
 description: Базовый тип слоя памяти у топика
+kind-ui:
+  label: Слот
+  badge: { background: "#f0fdfa", border: "#5eead4", text: "#0f766e" }
 
 slot-categories:
   - id: memory

@@ -7,6 +7,9 @@ extends: awn.entity
 description: >
   Общие правила awn-data store: manifest.md (бриф, контекст, инструкция) + структура записей.
   Не узел меню — контейнер в папке awn-data/.
+kind-ui:
+  label: Store
+  badge: { background: "#e0f2fe", border: "#7dd3fc", text: "#0369a1" }
 
 properties:
   store-kind:

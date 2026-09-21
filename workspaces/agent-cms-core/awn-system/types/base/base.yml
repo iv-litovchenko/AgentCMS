@@ -7,6 +7,9 @@ extends: awn.entity
 description: >
   Общие поля любой сущности CMS. UI формы свойств строится только из этой схемы
   (form / field-groups / fields.placement / type).
+kind-ui:
+  label: База
+  badge: { background: "#eef2ff", border: "#a5b4fc", text: "#3730a3" }
 
 form:
   panel-title: "{A2!} Метаданные"

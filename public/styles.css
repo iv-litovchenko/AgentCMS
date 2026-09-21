@@ -10937,6 +10937,9 @@ body.app-locked {
   display: inline-block;
   padding: 1px 5px;
   border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background: #f1f5f9;
+  color: #475569;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -10944,16 +10947,19 @@ body.app-locked {
   line-height: 1.4;
 }
 
-.agent-awn-type-nav-kind--base     { background: #e0e7ff; color: #3730a3; }
-.agent-awn-type-nav-kind--entity   { background: #ede9fe; color: #5b21b6; }
-.agent-awn-type-nav-kind--type     { background: #dcfce7; color: #166534; }
-.agent-awn-type-nav-kind--slot     { background: #ccfbf1; color: #0f766e; }
-.agent-awn-type-nav-kind--field    { background: #fef9c3; color: #854d0e; }
-.agent-awn-type-nav-kind--view     { background: #dbeafe; color: #1e40af; }
-.agent-awn-type-nav-kind--taxonomy { background: #ffe4e6; color: #9f1239; }
-.agent-awn-type-nav-kind--block    { background: #fce7f3; color: #9d174d; }
-.agent-awn-type-nav-kind--mixin    { background: #f1f5f9; color: #475569; }
-.agent-awn-type-nav-kind--meta     { background: #f0fdf4; color: #15803d; }
+.agent-awn-type-nav-kind--base     { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
+.agent-awn-type-nav-kind--entity   { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+.agent-awn-type-nav-kind--type     { background: #dcfce7; color: #166534; border-color: #86efac; }
+.agent-awn-type-nav-kind--slot     { background: #ccfbf1; color: #0f766e; border-color: #5eead4; }
+.agent-awn-type-nav-kind--field    { background: #fef9c3; color: #854d0e; border-color: #fde047; }
+.agent-awn-type-nav-kind--view     { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+.agent-awn-type-nav-kind--taxonomy { background: #ffe4e6; color: #9f1239; border-color: #fda4af; }
+.agent-awn-type-nav-kind--block    { background: #fce7f3; color: #9d174d; border-color: #f9a8d4; }
+.agent-awn-type-nav-kind--mixin    { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.agent-awn-type-nav-kind--meta     { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+.agent-awn-type-nav-kind--preset   { background: #fff7ed; color: #c2410c; border-color: #fb923c; }
+.agent-awn-type-nav-kind--data-container { background: #e0f2fe; color: #0369a1; border-color: #7dd3fc; }
+.agent-awn-type-nav-kind--data-element   { background: #f0f9ff; color: #0c4a6e; border-color: #bae6fd; }
 
 .agent-awn-types-nav-list {
   display: flex;
@@ -54178,6 +54184,21 @@ button.node-navigation-memory-title:focus-visible {
 
 .create-node-service-docs-actions--topics {
   margin-top: 2px;
+}
+
+.create-node-service-docs-subsection-label {
+  margin: 10px 0 6px;
+}
+
+.create-node-service-docs-footnotes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.create-node-service-docs-footnotes .create-node-service-docs-footnote {
+  margin: 0;
 }
 
 .create-node-service-doc-btn {

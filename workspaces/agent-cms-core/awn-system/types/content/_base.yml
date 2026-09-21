@@ -7,6 +7,10 @@ extends: awn.base
 description: >
   Запись, категория, sidecar, dialog, comment. Nav контента — awn-focus и awn-main
   (awn-slots-flexible только у manifest темы, не у content). Runtime — через mixin.
+kind-ui:
+  for: type
+  label: Тип
+  badge: { background: "#ecfdf5", border: "#86efac", text: "#166534" }
 
 # Свои field-groups (см. resolveTypeFieldGroups).
 

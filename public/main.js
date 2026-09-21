@@ -224,6 +224,7 @@ const agentRuntimeRegistryModeMcpNode = document.getElementById("agent-runtime-r
 const agentRuntimeRegistryRefreshBtn = document.getElementById("agent-runtime-registry-refresh-btn");
 const agentRuntimeRegistryFilterNode = document.getElementById("agent-runtime-registry-filter");
 const agentAwnTypesBtn = document.getElementById("agent-awn-types-btn");
+const agentAwnTypesRefreshBtn = document.getElementById("agent-awn-types-refresh-btn");
 const agentGitBtn = document.getElementById("agent-git-btn");
 const agentLargeFilesBtn = document.getElementById("agent-large-files-btn");
 const agentBrokenLinksBtn = document.getElementById("agent-broken-links-btn");
@@ -27406,11 +27407,10 @@ const SERVICE_DOC_PRESET_LABELS = {
   "agent-rules": "Правила агента",
   "agent-voice-tts": "Голос · TTS",
   "agent-voice-stt": "Голос · STT",
-  devices: "Управление ПК, устройствами, различный софт",
+  devices: "Устройства",
   "random-joke": "Случайный анекдот — для экспериментов",
-  "robot-exoskeleton-and-body":
-    "Экзоскелет робота (сенсоры, датчики, механизмы, руки, ноги, колеса и другое)",
-  "real-world-and-space": "Объекты реального мира, места и пространства"
+  "robot-exoskeleton-and-body": "Экзоскелет",
+  "real-world-and-space": "Объекты мира"
 };
 
 function getCreateModalMenuData(agentId = getCreateModalAgentId()) {
@@ -41136,6 +41136,7 @@ let propsFormHiddenEntries = [];
 let propsRawYamlVisible = false;
 let awnTypesCache = null;
 let awnTypesLoadPromise = null;
+let awnTypeKindManifestById = null;
 let typeCatalogCacheByAgent = new Map();
 let typeCatalogLoadPromiseByAgent = new Map();
 let agentCatalogsCache = null;
@@ -95951,9 +95952,34 @@ function getSortedAwnTypesList(typesMap) {
 }
 
 function createAwnTypeKindBadge(kind) {
+  return createAwnTypeKindBadgeElement(kind, { className: "agent-awn-type-badge" });
+}
+
+function setAwnTypeKindManifest(kinds) {
+  awnTypeKindManifestById = kinds && typeof kinds === "object" ? kinds : null;
+}
+
+function getAwnTypeKindMeta(kind) {
+  const key = String(kind || "type").trim() || "type";
+  const hit = awnTypeKindManifestById?.[key];
+  if (hit) return hit;
+  return { id: key, label: AWN_KIND_BADGE_LABELS[key] || key, badge: null };
+}
+
+function applyAwnTypeKindBadgeStyle(el, badge) {
+  if (!el || !badge || typeof badge !== "object") return;
+  if (badge.background) el.style.backgroundColor = badge.background;
+  if (badge.border) el.style.borderColor = badge.border;
+  if (badge.text) el.style.color = badge.text;
+}
+
+function createAwnTypeKindBadgeElement(kind, { className = "agent-awn-type-nav-kind" } = {}) {
+  const normalizedKind = String(kind || "type").trim() || "type";
+  const meta = getAwnTypeKindMeta(normalizedKind);
   const badge = document.createElement("span");
-  badge.className = `agent-awn-type-badge agent-awn-type-badge--${kind || "type"}`;
-  badge.textContent = AWN_TYPE_KIND_LABELS[kind] || kind || "тип";
+  badge.className = `${className} agent-awn-type-nav-kind--${normalizedKind.replace(/[^a-z0-9_-]/gi, "-")}`;
+  badge.textContent = meta.label || AWN_KIND_BADGE_LABELS[normalizedKind] || normalizedKind;
+  applyAwnTypeKindBadgeStyle(badge, meta.badge);
   return badge;
 }
 
@@ -96009,13 +96035,7 @@ function createAwnTypeNavItem(typeKey, typeDef, isActive) {
   firstRow.className = "agent-awn-type-nav-row";
 
   const kind = typeDef?.kind || "type";
-  const kindLabel = AWN_KIND_BADGE_LABELS[kind];
-  if (kindLabel) {
-    const badge = document.createElement("span");
-    badge.className = `agent-awn-type-nav-kind agent-awn-type-nav-kind--${kind}`;
-    badge.textContent = kindLabel;
-    firstRow.appendChild(badge);
-  }
+  firstRow.appendChild(createAwnTypeKindBadgeElement(kind));
 
   const id = document.createElement("span");
   id.className = "agent-awn-type-nav-id";
@@ -96295,8 +96315,12 @@ function createAwnTypesBrowserSection(typeEntries) {
   return section;
 }
 
-async function renderAgentAwnTypesView() {
+async function renderAgentAwnTypesView({ forceReload = false } = {}) {
   if (!agentAwnTypesContentNode) return;
+  if (forceReload) {
+    awnTypesCache = null;
+    awnTypesLoadPromise = null;
+  }
   await loadAwnTypes(activeAgentId);
   await renderAwnTypesContent(agentAwnTypesContentNode);
 }
@@ -96318,6 +96342,7 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
     const res = await fetch(buildApiUrl("/api/type-catalog", {}, agentId));
     if (res.ok) {
       const catalog = await res.json();
+      setAwnTypeKindManifest(catalog.kinds);
       const types = (catalog.types || []).map((t) => ({
         id: t.id,
         name: t.name || t.id,
@@ -96349,68 +96374,6 @@ async function renderAwnTypesContent(containerNode, { agentId = activeAgentId } 
   }));
 
   containerNode.appendChild(createAwnTypesBrowserSection(typeEntries));
-
-  const registry = awnTypesCache?.fieldRegistry || {};
-  const fieldDefSchema = awnTypesCache?.fieldDefSchema;
-  const defProps = fieldDefSchema?.properties;
-  if (defProps && typeof defProps === "object") {
-    const defSection = document.createElement("section");
-    defSection.className = "agent-awn-types-section";
-    defSection.innerHTML =
-      '<header class="agent-awn-types-section-head">' +
-      '<h3 class="agent-awn-types-section-title">Мета-свойства поля</h3>' +
-      '<p class="agent-awn-types-section-sub">Что можно указать у поля и <strong>к каким типам полей</strong> это применимо. Применимость выведена из <code>settings</code> типов полей в реестре слева.</p>' +
-      "</header>";
-
-    // Инвертируем реестр: настройка → набор виджетов, которые её принимают.
-    const regEntries = Object.entries(registry).filter(([id]) => id.startsWith("awn."));
-    const allWidgets = new Set(regEntries.map(([, e]) => e.widget).filter(Boolean));
-    const settingToWidgets = {};
-    for (const [, e] of regEntries) {
-      if (!e.widget) continue;
-      for (const s of Array.isArray(e.settings) ? e.settings : []) {
-        (settingToWidgets[s] ||= new Set()).add(e.widget);
-      }
-    }
-    // Ключи, которые есть у любого поля как часть структуры типа (не «настройка»).
-    const STRUCTURAL_META = new Set([
-      "id", "name", "description", "extends", "status", "kind", "type", "title"
-    ]);
-    const describeApplicability = (propKey) => {
-      if (STRUCTURAL_META.has(propKey)) return "все поля (структура типа)";
-      const ws = settingToWidgets[propKey];
-      if (!ws || ws.size === 0) return "—";
-      if (ws.size >= allWidgets.size) return "все поля";
-      if (ws.size > allWidgets.size / 2) {
-        const missing = [...allWidgets].filter((w) => !ws.has(w)).sort();
-        return "все, кроме: " + missing.join(", ");
-      }
-      return [...ws].sort().join(", ");
-    };
-
-    const tableWrap = document.createElement("div");
-    tableWrap.style.overflowX = "auto";
-    const table = document.createElement("table");
-    table.className = "agent-awn-field-registry-table";
-    table.innerHTML =
-      "<thead><tr><th>Ключ</th><th>Название</th><th>Применимо к</th><th>Описание</th></tr></thead>";
-    const tbody = document.createElement("tbody");
-    for (const [propKey, propDef] of Object.entries(defProps)) {
-      const appliesTo = describeApplicability(propKey);
-      const isUniversal = appliesTo.startsWith("все");
-      const row = document.createElement("tr");
-      row.innerHTML =
-        `<td><code>${propKey}</code></td>` +
-        `<td>${propDef?.title || "—"}</td>` +
-        `<td class="${isUniversal ? "meta-applies-universal" : "meta-applies-scoped"}">${appliesTo}</td>` +
-        `<td>${propDef?.description || "—"}</td>`;
-      tbody.appendChild(row);
-    }
-    table.appendChild(tbody);
-    tableWrap.appendChild(table);
-    defSection.appendChild(tableWrap);
-    containerNode.appendChild(defSection);
-  }
 }
 
 let agentSchemaSizeSeq = 0;
@@ -107058,6 +107021,12 @@ agentMcpMethodsRefreshBtn?.addEventListener("click", () => {
 agentRuntimeRegistryRefreshBtn?.addEventListener("click", () => {
   if (agentWorkspaceView === "runtime-registry") {
     void renderAgentRuntimeRegistryView();
+  }
+});
+
+agentAwnTypesRefreshBtn?.addEventListener("click", () => {
+  if (agentWorkspaceView === "awn-types") {
+    void renderAgentAwnTypesView({ forceReload: true });
   }
 });
 

@@ -195,6 +195,77 @@ function resolveAgentDomainManifest(cmsConfigRoot) {
   return [...map.values()];
 }
 
+const BUILTIN_KIND_META = {
+  base: { label: "База", badge: { background: "#eef2ff", border: "#a5b4fc", text: "#3730a3" } },
+  entity: { label: "Сущность", badge: { background: "#f5f3ff", border: "#c4b5fd", text: "#5b21b6" } },
+  type: { label: "Тип", badge: { background: "#ecfdf5", border: "#86efac", text: "#166534" } },
+  slot: { label: "Слот", badge: { background: "#f0fdfa", border: "#5eead4", text: "#0f766e" } },
+  field: { label: "Поле", badge: { background: "#fefce8", border: "#fde047", text: "#854d0e" } },
+  view: { label: "Вид", badge: { background: "#dbeafe", border: "#93c5fd", text: "#1e40af" } },
+  taxonomy: { label: "Таксономия", badge: { background: "#ffe4e6", border: "#fda4af", text: "#9f1239" } },
+  block: { label: "Блок", badge: { background: "#fdf2f8", border: "#f9a8d4", text: "#9d174d" } },
+  mixin: { label: "Миксин", badge: { background: "#f8fafc", border: "#cbd5e1", text: "#475569" } },
+  meta: { label: "Мета", badge: { background: "#f0fdf4", border: "#86efac", text: "#15803d" } },
+  preset: { label: "Пресет", badge: { background: "#fff7ed", border: "#fb923c", text: "#c2410c" } },
+  "data-container": { label: "Store", badge: { background: "#e0f2fe", border: "#7dd3fc", text: "#0369a1" } },
+  "data-element": { label: "Запись", badge: { background: "#f0f9ff", border: "#bae6fd", text: "#0c4a6e" } }
+};
+
+function normalizeKindBadge(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const background = String(raw.background || raw.bg || "").trim();
+  const border = String(raw.border || "").trim();
+  const text = String(raw.text || raw.color || "").trim();
+  if (!background && !border && !text) return null;
+  return {
+    ...(background ? { background } : {}),
+    ...(border ? { border } : {}),
+    ...(text ? { text } : {})
+  };
+}
+
+function extractKindUiFromSchema(schema, entryKind = "") {
+  const raw = schema?.["kind-ui"] || schema?.kindUi;
+  if (!raw || typeof raw !== "object") return null;
+  const label = String(raw.label || raw.name || "").trim();
+  const badge = normalizeKindBadge(raw.badge);
+  const forKind = String(raw.for || raw.kind || entryKind || "").trim();
+  if (!forKind && !label && !badge) return null;
+  return { forKind: forKind || String(entryKind || "").trim(), label, badge };
+}
+
+/** Метаданные kind (label + badge) — kind-ui на базовых типах YAML, fallback BUILTIN_KIND_META. */
+function resolveKindManifestFromCatalog(byId) {
+  const map = new Map();
+  for (const [id, meta] of Object.entries(BUILTIN_KIND_META)) {
+    map.set(id, { id, label: meta.label, badge: { ...meta.badge }, builtin: true, source: null });
+  }
+  if (byId && typeof byId.values === "function") {
+    for (const entry of byId.values()) {
+      if (!entry || entry.aliasOf) continue;
+      const schema = entry.schema || {};
+      const extracted = extractKindUiFromSchema(schema, entry.kind || schema.kind);
+      if (!extracted?.forKind) continue;
+      const targetKind = extracted.forKind;
+      const existing = map.get(targetKind) || { id: targetKind, builtin: false };
+      if (extracted.label) existing.label = extracted.label;
+      if (extracted.badge) existing.badge = { ...(existing.badge || {}), ...extracted.badge };
+      existing.source = entry.id;
+      existing.builtin = false;
+      map.set(targetKind, existing);
+    }
+  }
+  const out = {};
+  for (const [id, meta] of map.entries()) out[id] = meta;
+  return out;
+}
+
+/** @deprecated use resolveKindManifestFromCatalog */
+function resolveAgentKindManifest(cmsConfigRoot) {
+  void cmsConfigRoot;
+  return resolveKindManifestFromCatalog(loadTypeCatalog(process.cwd(), "").byId);
+}
+
 function ingestLegacyPlatformYamlTypes(coreRoot, domain, byId, byDomain) {
   const legacyDir = path.join(coreRoot, "types", domain, "awn-storage", "configuration", "types");
   return ingestYamlDomainTypes(legacyDir, domain, "platform", byId, byDomain);
@@ -679,6 +750,7 @@ function getTypeCatalogPayload(projectRoot = process.cwd(), agentRoot = "", opti
     sources,
     pageTreeRoot: pageRoot,
     domains,
+    kinds: resolveKindManifestFromCatalog(byId),
     types,
     browseTypes,
     foundationTypes: collectFoundationTypes(byId, pageRoot),
@@ -1249,6 +1321,8 @@ module.exports = {
   TYPE_ID_ALIASES,
   loadTypeCatalog,
   resolveAgentDomainManifest,
+  resolveAgentKindManifest,
+  resolveKindManifestFromCatalog,
   resolveAgentSettingsRegistry,
   resolveAgentDomainIds,
   mergeTypeSchema,

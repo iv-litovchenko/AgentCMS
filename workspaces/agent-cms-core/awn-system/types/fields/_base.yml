@@ -5,6 +5,10 @@ domain: fields
 status: active
 extends: awn.entity
 description: Базовые мета-свойства любого поля
+kind-ui:
+  for: field
+  label: Поле
+  badge: { background: "#fefce8", border: "#fde047", text: "#854d0e" }
 properties:
   type:
     title: Тип данных
