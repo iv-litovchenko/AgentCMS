@@ -22885,7 +22885,7 @@ function mergeSettingsGroupOrder(derivedGroups = [], fieldGroups = []) {
   const seen = new Set();
   for (const group of fieldGroups) {
     const id = String(group?.id || "").trim();
-    if (!id || !derivedGroups.includes(id) || seen.has(id)) continue;
+    if (!id || seen.has(id)) continue;
     order.push(id);
     seen.add(id);
   }
@@ -43844,10 +43844,16 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
       projectSettingsActiveGroupId = groupOrder[0];
     }
     syncProjectSettingsConfigGroupLead(cache);
+    let rendered = 0;
     for (const entry of entries) {
       const groupId = resolvePropsFieldGroupId(entry.key, schemaFields[entry.key]);
       if (groupId !== projectSettingsActiveGroupId) continue;
       fieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
+      rendered += 1;
+    }
+    if (!rendered) {
+      emptyNode.textContent = "В этой группе пока нет полей.";
+      emptyNode.classList.remove("hidden");
     }
     return;
   }

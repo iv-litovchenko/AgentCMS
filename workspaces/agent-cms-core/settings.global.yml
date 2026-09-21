@@ -15,7 +15,6 @@ awn_settings:
   always-context-global-response-style: true
   always-context-agents-md: true
   always-context-ws-folder: awn-shared/context/awn-storage/
-  always-context-max-files: 0
 
 awn_policy:
   mcp:

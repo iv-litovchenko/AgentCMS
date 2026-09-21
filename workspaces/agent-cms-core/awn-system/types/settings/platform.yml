@@ -183,14 +183,6 @@ fields:
     group: auto-context
     sort: 27
 
-  always-context-max-files:
-    type: awn.field.number.integer
-    title: "{NOT WORK} Лимит файлов автоконтекста"
-    description: Максимум файлов из папки автоконтекста (0 — без лимита)
-    default: 0
-    group: auto-context
-    sort: 28
-
   mcp-mode:
     type: awn.field.choice.one
     title: Режим MCP
@@ -224,21 +216,24 @@ fields:
 
   batch-deny-exec:
     type: awn.field.boolean
-    title: "{NOT WORK} Запретить exec в batch"
+    title: Запретить exec в batch
+    description: true — exec_command / exec_shell / run_script нельзя в batch_invoke (рекомендуется)
     default: true
     group: mcp
     sort: 14
 
-  confirm-delete:
+  confirm-exec:
     type: awn.field.boolean
-    title: "{NOT WORK} Подтверждение delete"
+    title: Подтверждение exec
+    description: true — exec_* и run_script требуют confirm=true в вызове MCP
     default: true
     group: mcp
     sort: 15
 
-  confirm-exec:
+  confirm-delete:
     type: awn.field.boolean
-    title: "{NOT WORK} Подтверждение exec"
+    title: Подтверждение delete
+    description: true — delete_* требуют confirm=true в вызове MCP
     default: true
     group: mcp
     sort: 16

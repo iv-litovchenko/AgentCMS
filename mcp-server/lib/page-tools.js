@@ -191,8 +191,8 @@ export function registerPageTools({ reg, client, pagePath }) {
 
   reg(
     "delete_page",
-    "Delete area, topic, or part folder.",
-    z.object({ path: pagePath }),
+    "Delete area, topic, or part folder. When platform confirm-delete is enabled, pass confirm=true.",
+    z.object({ path: pagePath, confirm: z.boolean().optional().describe("Required true when platform confirm-delete is enabled") }),
     ({ path }) => client.delete("/api/file", { path })
   );
 

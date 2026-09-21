@@ -26,7 +26,7 @@ async function invokeBatchItem({
   formatResult
 }) {
   try {
-    await assertWorkspaceMcpToolAllowed(client, agentId, toolName);
+    await assertWorkspaceMcpToolAllowed(client, agentId, toolName, item);
     const args = { agentId, ...item };
     const data = await runWithAgentId(agentId, () => handler(args));
     if (formatResult) {

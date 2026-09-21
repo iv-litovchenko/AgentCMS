@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>03 · Include / Exclude</title><link rel="stylesheet" href="../shared.css"/></head>
+<body><div class="wrap"><div class="topbar"><span class="badge">03 · split</span><a href="../index.html">← все варианты</a></div>
+<h1>Include / Exclude — раздельно</h1>
+<p class="lead">Два понятных блока. Никакого <code>!file</code> в одной строке с папкой.</p>
+<div class="grid2">
+<div class="panel"><h2>✅ Include (scope)</h2>
+<div class="row"><span class="chip is-on">awn-storage/**</span><span class="chip is-on">awn-container/**</span></div>
+<p class="note">Пусто = весь workspace.</p></div>
+<div class="panel"><h2>⛔ Exclude (always skip)</h2>
+<div class="row"><span class="chip is-on">.git</span><span class="chip is-on">.agent-cms</span><span class="chip is-on">node_modules</span></div></div>
+</div>
+<div class="panel"><h2>⚠️ Exceptions (allow inside excluded folder)</h2>
+<table><tr><th>Папка</th><th>Разрешить файлы</th></tr>
+<tr><td><code>awn-repository/</code></td><td><span class="chip is-on">manifest.md</span> <span class="chip is-on">README.md</span></td></tr></table></div>
+<div class="preview">index-include: [awn-storage/**, awn-container/**]
+index-exclude: [.git, .agent-cms, node_modules/**]
+index-exceptions:
+  - path: awn-repository/**
+    allow: [manifest.md, README.md]</div></div></body></html>

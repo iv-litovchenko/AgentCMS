@@ -33,7 +33,6 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "always-context-global-response-style": true,
   "always-context-agents-md": true,
   "always-context-ws-folder": "awn-shared/context/awn-storage/",
-  "always-context-max-files": 0
 };
 
 const PLATFORM_FS_LIMITS = {
@@ -194,11 +193,6 @@ function getPlatformAlwaysContextWsFolder(settings = {}) {
   return String(normalizePlatformAgentSettings(settings)["always-context-ws-folder"] || "").trim();
 }
 
-function getPlatformAlwaysContextWsMaxFiles(settings = {}) {
-  const value = Number(normalizePlatformAgentSettings(settings)["always-context-max-files"]);
-  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
-}
-
 function parsePlatformAgentSettingsFromConfigContent(content) {
   const bundle = NodeConfigBundle.parseNodeConfigBundle(content || "");
   return normalizePlatformAgentSettings(bundle.awn_settings || {});
@@ -231,7 +225,47 @@ function isMcpExecTool(toolName) {
   return policy.mcp.execTools.has(name) || /^exec_/.test(name) || name === "run_script";
 }
 
-function assertMcpToolAllowed(toolName, settings = {}) {
+function isPlatformBatchDenyExec(settings = {}) {
+  return Boolean(normalizePlatformAgentSettings(settings)["batch-deny-exec"]);
+}
+
+function isPlatformConfirmDelete(settings = {}) {
+  return Boolean(normalizePlatformAgentSettings(settings)["confirm-delete"]);
+}
+
+function isPlatformConfirmExec(settings = {}) {
+  return Boolean(normalizePlatformAgentSettings(settings)["confirm-exec"]);
+}
+
+function isMcpDeleteTool(toolName) {
+  const name = String(toolName || "").trim();
+  return /^delete_/.test(name);
+}
+
+function isMcpOperationConfirmed(args = {}) {
+  return args?.confirm === true || args?.confirmed === true;
+}
+
+function assertMcpOperationConfirm(toolName, args = {}, settings = {}) {
+  const normalized = normalizePlatformAgentSettings(settings);
+  const name = String(toolName || "").trim();
+  if (!name) return normalized;
+  if (isMcpOperationConfirmed(args)) return normalized;
+
+  if (isMcpExecTool(name) && isPlatformConfirmExec(normalized)) {
+    throw new Error(
+      `MCP tool "${name}" requires confirm=true (platform confirm-exec enabled in settings.global.yml)`
+    );
+  }
+  if (isMcpDeleteTool(name) && isPlatformConfirmDelete(normalized)) {
+    throw new Error(
+      `MCP tool "${name}" requires confirm=true (platform confirm-delete enabled in settings.global.yml)`
+    );
+  }
+  return normalized;
+}
+
+function assertMcpToolAllowed(toolName, settings = {}, args = {}) {
   const policy = getPolicy();
   const normalized = normalizePlatformAgentSettings(settings);
   const mode = normalized["mcp-mode"];
@@ -245,6 +279,7 @@ function assertMcpToolAllowed(toolName, settings = {}) {
   if (isMcpExecTool(name) && !policy.mcp.execAllowedModes.has(mode)) {
     throw new Error(`MCP tool "${name}" blocked: platform mcp-mode=${mode} (exec only in full mode)`);
   }
+  assertMcpOperationConfirm(name, args, normalized);
   return normalized;
 }
 
@@ -293,7 +328,11 @@ function assertBatchInvokeAllowed(toolName, itemCount, settings = {}) {
     throw new Error(`Tool "${name}" cannot be used in batch_invoke (see settings.global.yml → awn_policy)`);
   }
   if (category === "exec") {
-    throw new Error(`Tool "${name}" cannot be batched (exec tools are single-call only)`);
+    if (isPlatformBatchDenyExec(normalized)) {
+      throw new Error(
+        `Tool "${name}" cannot be batched (platform batch-deny-exec=true; disable in settings.global.yml to allow)`
+      );
+    }
   }
   if (normalized["mcp-mode"] === "readonly" && category === "write") {
     throw new Error(`batch_invoke write tool "${name}" blocked: mcp-mode=readonly`);
@@ -330,6 +369,11 @@ module.exports = {
   isMcpWriteTool,
   isMcpExecTool,
   assertMcpToolAllowed,
+  assertMcpOperationConfirm,
+  isPlatformBatchDenyExec,
+  isPlatformConfirmDelete,
+  isPlatformConfirmExec,
+  isMcpDeleteTool,
   getBatchToolCategory,
   getBatchLimitForTool,
   getBatchAbsoluteMaxItems,
@@ -342,6 +386,5 @@ module.exports = {
   isPlatformMaintenanceMode,
   getPlatformDefaultLocale,
   isPlatformAlwaysContextEnabled,
-  getPlatformAlwaysContextWsFolder,
-  getPlatformAlwaysContextWsMaxFiles
+  getPlatformAlwaysContextWsFolder
 };

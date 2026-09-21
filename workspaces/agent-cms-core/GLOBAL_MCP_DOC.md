@@ -696,7 +696,15 @@ razdel-1/
 | read / list / search | `read_file`, `list_folder`, `read_content_body`, `search_workspace_content` | да, до 20 |
 | write / create | `write_file`, `create_content`, `write_content_body` | да, до 10 |
 | move / rename / delete | `delete_content`, `delete_page`, `move_content` | да, до 10 |
-| exec | `exec_command`, `exec_shell`, `run_script` | **нет** |
+| exec | `exec_command`, `exec_shell`, `run_script` | **нет** (если `batch-deny-exec: true` в `settings.global.yml`) |
+
+**Platform settings** (`settings.global.yml` → группа MCP):
+
+| Ключ | Эффект |
+|------|--------|
+| `batch-deny-exec: true` | exec-tools нельзя в `batch_invoke` (по умолчанию) |
+| `confirm-exec: true` | `exec_command`, `exec_shell`, `run_script` требуют `confirm: true` в args |
+| `confirm-delete: true` | `delete_page`, `delete_content`, … требуют `confirm: true` в args |
 
 Ограничения проверяются **на сервере**: центральный denylist → `awn-system/mcp-policy.yml`; лимиты per-workspace → `config.yml` (`batch-read-limit`, `batch-write-limit`). В `mode: readonly` — только read/list/search. API: `GET /api/agent/mcp-policy`.
 
@@ -724,6 +732,8 @@ razdel-1/
 | `exec_shell` | Произвольная shell-строка |
 
 `cwd` по умолчанию — папка темы из `topicPath` (dirname manifest) или корень workspace. Ответ: `exitCode`, `stdout`, `stderr`, `durationMs` (лимит вывода ~256KB, timeout до 10 мин).
+
+При `confirm-exec: true` в platform settings передай **`confirm: true`** после явного одобрения пользователя.
 
 ### Поиск в интернете и чтение страниц
 

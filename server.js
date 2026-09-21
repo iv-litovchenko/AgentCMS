@@ -334,8 +334,7 @@ const {
   isPlatformMaintenanceMode,
   getPlatformDefaultLocale,
   isPlatformAlwaysContextEnabled,
-  getPlatformAlwaysContextWsFolder,
-  getPlatformAlwaysContextWsMaxFiles
+  getPlatformAlwaysContextWsFolder
 } = require("./workspace-agent-settings");
 const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
 const {
@@ -10916,7 +10915,7 @@ async function buildAgentTopicRegistry() {
   };
 }
 
-async function collectAlwaysContextWsFolderItems(agentRoot, folderRel, maxFiles = 0) {
+async function collectAlwaysContextWsFolderItems(agentRoot, folderRel) {
   const normalized = String(folderRel || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
   if (!normalized || !agentRoot) return [];
   const workspaceRoot = path.resolve(agentRoot);
@@ -10925,7 +10924,6 @@ async function collectAlwaysContextWsFolderItems(agentRoot, folderRel, maxFiles 
 
   const results = [];
   async function walk(dirAbs, dirRel) {
-    if (maxFiles > 0 && results.length >= maxFiles) return;
     let entries = [];
     try {
       entries = await fs.readdir(dirAbs, { withFileTypes: true });
@@ -10961,7 +10959,6 @@ async function collectAlwaysContextWsFolderItems(agentRoot, folderRel, maxFiles 
       } catch {
         // skip unreadable file
       }
-      if (maxFiles > 0 && results.length >= maxFiles) return;
     }
   }
 
@@ -11058,8 +11055,7 @@ async function buildAgentAlwaysContextRegistry() {
 
   const wsFolder = getPlatformAlwaysContextWsFolder(platformSettings);
   if (wsFolder && agentRoot) {
-    const wsMaxFiles = getPlatformAlwaysContextWsMaxFiles(platformSettings);
-    const wsItems = await collectAlwaysContextWsFolderItems(agentRoot, wsFolder, wsMaxFiles);
+    const wsItems = await collectAlwaysContextWsFolderItems(agentRoot, wsFolder);
     items.push(...wsItems);
   }
 

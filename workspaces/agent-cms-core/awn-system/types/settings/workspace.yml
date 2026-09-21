@@ -16,6 +16,9 @@ fieldGroups:
   - id: general
     name: Общие
     description: Язык агента, стиль ответов и уведомления для этого хранилища (settings.yml).
+  - id: agent
+    name: Агент
+    description: Параметры агента для этого хранилища (settings.yml).
   - id: autoincrement
     name: Автоинкремент
     description: >

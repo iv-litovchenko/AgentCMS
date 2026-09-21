@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Индекс: scope + exclude — 10 вариантов UI</title>
+    <style>
+      :root { --bg:#f1f5f9; --panel:#fff; --border:#dbe3ef; --text:#0f172a; --muted:#64748b; --accent:#4f46e5; }
+      * { box-sizing:border-box; }
+      body { margin:0; font-family:Inter,system-ui,sans-serif; background:var(--bg); color:var(--text); padding:28px 20px 48px; }
+      h1 { margin:0 0 6px; font-size:24px; }
+      .lead { margin:0 0 18px; max-width:760px; color:var(--muted); line-height:1.5; font-size:14px; }
+      .notice { padding:10px 12px; border-radius:10px; background:#eef2ff; border:1px solid #c7d2fe; max-width:760px; margin-bottom:20px; font-size:13px; }
+      .notice a { color:#4338ca; font-weight:600; }
+      .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+      .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px; }
+      .card h3 { margin:0; font-size:15px; }
+      .card p { margin:0; font-size:12px; color:var(--muted); line-height:1.45; flex:1; }
+      .card a { display:inline-flex; width:fit-content; padding:7px 12px; border-radius:8px; background:var(--accent); color:#fff; text-decoration:none; font-size:12px; font-weight:600; }
+      code { font-size:11px; background:#eef2ff; padding:1px 5px; border-radius:4px; }
+    </style>
+  </head>
+  <body>
+    <h1>📇 Индексирование — scope и exclude</h1>
+    <p class="lead">
+      10 моков переработки полей <code>index-path-prefixes</code> и <code>index-exclude-patterns</code>.
+      Проблема сейчас: жёсткий enum разделов + непонятный синтаксис <code>!файл</code> в textarea.
+    </p>
+    <p class="notice">
+      <strong>Открыть:</strong>
+      <a href="/examples/index-scope-settings/">/examples/index-scope-settings/</a>
+      (нужен запущенный CMS: <code>npm start</code> → обычно <code>https://127.0.0.1:3443</code> или <code>http://127.0.0.1:3000</code>).
+    </p>
+    <div class="grid">
+      <article class="card"><h3>01 · Как сейчас</h3><p>Жёсткий enum + textarea с <code>!manifest.md</code>.</p><a href="01-current/index.html">Открыть</a></article>
+      <article class="card"><h3>02 · Дерево workspace</h3><p>Разделы из дерева тем, не из enum в yml.</p><a href="02-workspace-tree/index.html">Открыть</a></article>
+      <article class="card"><h3>03 · Include / Exclude</h3><p>Два блока вместо смешанного синтаксиса.</p><a href="03-include-exclude-split/index.html">Открыть</a></article>
+      <article class="card"><h3>04 · Карточки правил</h3><p>Каждое правило — карточка + chips исключений.</p><a href="04-rule-cards/index.html">Открыть</a></article>
+      <article class="card"><h3>05 · Визуальный glob</h3><p>Toggle include/exclude на узлах дерева.</p><a href="05-visual-glob/index.html">Открыть</a></article>
+      <article class="card"><h3>06 · Пресеты</h3><p>«Весь WS» / «Только контент» / «Без системы».</p><a href="06-presets/index.html">Открыть</a></article>
+      <article class="card"><h3>07 · Таблица правил</h3><p>Pattern · тип · действие · исключения.</p><a href="07-rules-table/index.html">Открыть</a></article>
+      <article class="card"><h3>08 · Выбор тем</h3><p>Чеклист тем из <code>get_page_map</code>.</p><a href="08-topic-picker/index.html">Открыть</a></article>
+      <article class="card"><h3>09 · Мастер 2 шага</h3><p>Шаг 1 что индексировать → шаг 2 что пропустить.</p><a href="09-wizard/index.html">Открыть</a></article>
+      <article class="card"><h3>10 · Простой + Advanced</h3><p>Один переключатель + раскрывающийся блок.</p><a href="10-simple-advanced/index.html">Открыть</a></article>
+    </div>
+  </body>
+</html>

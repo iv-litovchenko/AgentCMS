@@ -13,6 +13,11 @@ const pagePath = z
 
 const execEnv = z.record(z.string()).optional();
 
+const mcpConfirm = z
+  .boolean()
+  .optional()
+  .describe("Required true when platform confirm-exec is enabled (explicit user approval)");
+
 export function registerExecTools(reg, client, pagePathSchema) {
   reg(
     "run_script",
@@ -24,7 +29,8 @@ export function registerExecTools(reg, client, pagePathSchema) {
       topicPath: pagePathSchema.optional(),
       interpreter: z.string().optional().describe("Override interpreter, e.g. python3, node, bash"),
       timeoutMs: z.number().int().min(1000).max(600000).optional(),
-      env: execEnv
+      env: execEnv,
+      confirm: mcpConfirm
     }),
     ({ script, args, cwd, topicPath, interpreter, timeoutMs, env }) =>
       client.post("/api/exec/run-script", {
@@ -48,7 +54,8 @@ export function registerExecTools(reg, client, pagePathSchema) {
       cwd: workspacePath.optional(),
       topicPath: pagePathSchema.optional(),
       timeoutMs: z.number().int().min(1000).max(600000).optional(),
-      env: execEnv
+      env: execEnv,
+      confirm: mcpConfirm
     }),
     ({ command, args, cwd, topicPath, timeoutMs, env }) =>
       client.post("/api/exec/command", { command, args, cwd, topicPath, timeoutMs, env })
@@ -62,7 +69,8 @@ export function registerExecTools(reg, client, pagePathSchema) {
       cwd: workspacePath.optional(),
       topicPath: pagePathSchema.optional(),
       timeoutMs: z.number().int().min(1000).max(600000).optional(),
-      env: execEnv
+      env: execEnv,
+      confirm: mcpConfirm
     }),
     ({ command, cwd, topicPath, timeoutMs, env }) =>
       client.post("/api/exec/shell", { command, shell: command, cwd, topicPath, timeoutMs, env })

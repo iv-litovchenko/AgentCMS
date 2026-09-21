@@ -85,7 +85,7 @@ function createServer() {
         async (args) => {
           if (!agentScope) return fn(args);
           const agentId = resolveAgentId(args, cfg.defaultAgent);
-          await assertWorkspaceMcpToolAllowed(client, agentId, name);
+          await assertWorkspaceMcpToolAllowed(client, agentId, name, args);
           return runWithAgentId(agentId, () => fn(args));
         },
         { formatResult }

@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>04 · Карточки правил</title><link rel="stylesheet" href="../shared.css"/></head>
+<body><div class="wrap"><div class="topbar"><span class="badge">04 · cards</span><a href="../index.html">← все варианты</a></div>
+<h1>Карточки правил</h1>
+<p class="lead">Каждое правило редактируется отдельно. Исключения — chips, не текст.</p>
+<div class="rule-card exclude"><strong>Исключить папку</strong><br/><code>.agent-cms/</code></div>
+<div class="rule-card exclude"><strong>Исключить папку</strong><br/><code>node_modules/</code></div>
+<div class="rule-card exclude"><strong>Исключить папку, кроме файлов</strong><br/><code>awn-repository/</code>
+<div class="row" style="margin-top:8px"><span class="chip is-on">manifest.md ×</span><span class="chip is-on">README.md ×</span><button class="btn">+ файл</button></div></div>
+<button class="btn primary">+ правило</button>
+<div class="preview">[{ "action":"exclude", "path":".agent-cms/**" },
+ { "action":"exclude", "path":"awn-repository/**", "except":["manifest.md","README.md"] }]</div></div></body></html>

@@ -59,8 +59,6 @@
 | 🌐 | 🧠 Автоконтекст | GLOBAL_RESPONSE_STYLE.md | `always-context-global-response-style` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ Стиль ответов в always-context | L · R · W · `list_workspace_always_context` |
 | 🌐 | 🧠 Автоконтекст | AGENTS.md | `always-context-agents-md` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ AGENTS.md workspace в always-context | L · R · W · `list_workspace_always_context` |
 | 🌐 | 🧠 Автоконтекст | Папка автоконтекста (shared) | `always-context-ws-folder` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ Рекурсивно .md/.yml/.txt из каталога | L · R · W · `list_workspace_always_context` |
-| 🌐 | 🧠 Автоконтекст | Лимит файлов автоконтекста | `always-context-max-files` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK (0 = без лимита в схеме) | L · R · W (без runtime) |
-
 ### 🔌 MCP (`mcp`)
 
 | Принадлежность | Группа | Название | Ключ | MCP 👁️/✏️ | UI 👁️/✏️ | Описание / эффект | MCP tools |
@@ -69,9 +67,9 @@
 | 🌐 | 🔌 MCP | batch_invoke | `batch-enabled` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ Пакетные вызовы одного tool | L · R · W · `batch_invoke` |
 | 🌐 | 🔌 MCP | Лимит read/list/search | `batch-read-limit` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ Лимит batch read | L · R · W · `batch_invoke` |
 | 🌐 | 🔌 MCP | Лимит write/create/delete | `batch-write-limit` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ Лимит batch write | L · R · W · `batch_invoke` |
-| 🌐 | 🔌 MCP | Запретить exec в batch | `batch-deny-exec` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W (без runtime) |
-| 🌐 | 🔌 MCP | Подтверждение delete | `confirm-delete` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W (без runtime) |
-| 🌐 | 🔌 MCP | Подтверждение exec | `confirm-exec` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W (без runtime) |
+| 🌐 | 🔌 MCP | Запретить exec в batch | `batch-deny-exec` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ✅ exec_* / run_script блок в batch_invoke | L · R · W · `batch_invoke` |
+| 🌐 | 🔌 MCP | Подтверждение exec | `confirm-exec` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ✅ exec_* / run_script требуют `confirm: true` | L · R · W · exec/delete tools |
+| 🌐 | 🔌 MCP | Подтверждение delete | `confirm-delete` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ✅ delete_* требуют `confirm: true` | L · R · W · exec/delete tools |
 | 🌐 | 🔌 MCP | Лимит read_file (текст) | `read-text-max-bytes` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ Лимит FS read текста | L · R · W · `read_file` |
 | 🌐 | 🔌 MCP | Лимит read_file (base64) | `read-binary-max-bytes` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ Лимит FS read бинарника | L · R · W · `read_file` |
 
@@ -119,6 +117,10 @@
 | 📦 | 📋 Общие | Язык агента | `agent-language` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W (без runtime) |
 | 📦 | 📋 Общие | Стиль ответов | `response-style` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W (без runtime) |
 | 📦 | 📋 Общие | Уведомление по завершении | `notify-on-complete` | 👁️✅ ✏️✅ | 👁️✅ ✏️✅ | ❌ NOT WORK | L · R · W (без runtime) |
+
+### 🤖 Агент (`agent`)
+
+_Пока без полей — заготовка группы._
 
 ### 🔢 Автоинкремент (`autoincrement`)
 

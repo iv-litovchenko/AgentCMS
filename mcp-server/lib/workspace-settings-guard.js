@@ -43,7 +43,7 @@ export async function loadWorkspaceStorageSettings(client, agentId) {
   return payload?.workspace && typeof payload.workspace === "object" ? payload.workspace : {};
 }
 
-export async function assertWorkspaceMcpToolAllowed(client, agentId, toolName) {
+export async function assertWorkspaceMcpToolAllowed(client, agentId, toolName, args = {}) {
   const settings = await loadWorkspaceAgentSettings(client, agentId);
-  return assertMcpToolAllowed(toolName, settings);
+  return assertMcpToolAllowed(toolName, settings, args);
 }

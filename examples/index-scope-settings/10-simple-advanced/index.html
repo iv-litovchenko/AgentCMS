@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>10 · Simple + Advanced</title><link rel="stylesheet" href="../shared.css"/></head>
+<body><div class="wrap"><div class="topbar"><span class="badge">10 · progressive</span><a href="../index.html">← все варианты</a></div>
+<h1>Простой режим + Advanced</h1>
+<p class="lead">По умолчанию — один селект. Power-user раскрывает правила.</p>
+<div class="panel"><h2>Простой</h2>
+<select><option>Индексировать весь workspace</option><option selected>Только контент (рекомендуется)</option><option>Только выбранные темы…</option></select></div>
+<details class="panel"><summary style="cursor:pointer;font-weight:600">Advanced — правила exclude</summary>
+<div style="margin-top:12px"><textarea>.agent-cms
+node_modules
+awn-repository/ → except manifest.md, README.md</textarea>
+<p class="note">Человекочитаемый синтаксис <code>→ except</code> вместо <code>!</code>.</p></div></details>
+<div class="preview">simple: content-only
+advanced-rules: [...]  // optional override</div></div></body></html>

@@ -431,8 +431,13 @@ export function registerContentTools({ reg, client, pagePath }) {
 
   reg(
     "delete_content",
-    "Delete content from an external slot (main, inbox, media, repository, scripts, …). Internal single-file slots are not supported.",
-    z.object({ path: pagePath, slot: contentSlot, ref: z.string().min(1) }),
+    "Delete content from an external slot (main, inbox, media, repository, scripts, …). Internal single-file slots are not supported. When platform confirm-delete is enabled, pass confirm=true.",
+    z.object({
+      path: pagePath,
+      slot: contentSlot,
+      ref: z.string().min(1),
+      confirm: z.boolean().optional().describe("Required true when platform confirm-delete is enabled")
+    }),
     async ({ path, slot, ref }) => {
       if (isInternalBundleSlot(slot)) throw new Error("delete_content is not supported for internal slots.");
       if (isExternalMemorySlot(slot)) return client.delete("/api/external/file", { path, file: ref });
