@@ -11,6 +11,7 @@ awn_settings:
   confirm-delete: true
   confirm-exec: true
   auto-retain-facts: false
+  always-context-platform-readme: true
   always-context-global-mcp-doc: true
   always-context-global-response-style: true
   always-context-agents-md: true

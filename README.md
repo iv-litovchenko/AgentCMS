@@ -1,64 +1,52 @@
-# Agent CMS
+# AGENT CMS
 
-File-based CMS для LLM-агентов без базы данных. Контент на диске: области (`_registration.md`), темы (`*.md`), память, медиа, системные файлы (`AGENTS.md`).
+**Agent CMS** — file-based CMS для совместной работы человека и LLM-агента. Без базы данных: контент, структура и память лежат на диске в markdown и YAML.
 
-## Быстрый старт
+## Три приложения
 
-```bash
-npm install
-npm run start:https
-```
+| | Назначение |
+|---|------------|
+| **Agent CMS** | Редактор: дерево страниц, настройки, память, MCP |
+| **Agent CMS Voice** | Голосовой клиент к тому же хранилищу |
+| **Agent CMS Control** | Пульт: сервер, сборки, зависимости, desktop-приложения |
 
-Откройте https://localhost:3443
+Один workspace — три входа. Человек в UI, агент через MCP, голос через Voice.
 
-### HTTPS без предупреждений браузера
+## Идеи
 
-Самоподписанный сертификат (по умолчанию) браузер спрашивает каждый раз. Для **доверенного локального HTTPS**:
+1. **Одно хранилище** — у человека и агента не два разных «мира файлов», а одно дерево Page · Slot · Content.
+2. **Файлы вместо БД** — всё на диске; индексы и кэш пересобираются из файлов.
+3. **Агент как полноценный пользователь** — те же страницы, те же tools; секреты в `.env`, runtime в `.agent-cms/`.
 
-```bash
-brew install mkcert
-mkcert -install
-npm run setup:certs
-npm run start:https
-```
+## Как устроено
 
-`mkcert` один раз добавляет локальный CA в систему — Safari/Chrome доверяют CMS (`:3443`) и Voice (`:3488`) без окошек.
+- **Workspace** — корневая папка агента: темы, области, медиа, `AGENTS.md`, `settings.yml`.
+- **Платформа** — ядро в `agent-cms-core`: типы, MCP-tools, глобальные настройки. Одна платформа — много workspace.
+- **Page · Slot · Content** — страница, слот внутри неё, запись в слоте.
 
+Секреты — в `.env`. Временное и пересобираемое — в `.agent-cms/`.
 
-## Desktop
+## Первый старт
 
-**Agent CMS** (редактор):
+Этот файл показывается на главной Agent CMS. Его же можно вставить в чат с агентом — «объясни Agent CMS по README.md» — чтобы обсудить систему с нуля.
 
-```bash
-npm run cms:desktop
-```
+Дальше: запустите сервер, откройте workspace, прочитайте `AGENTS.md` в корне хранилища.
 
-**Agent Shell** (голосовой клиент):
+## Ссылки
 
-```bash
-npm run shell:desktop
-```
+- Сайт: [agent-cms.ru](https://agent-cms.ru/)
+- GitHub: [iv-litovchenko/AgentCMS](https://github.com/iv-litovchenko/AgentCMS)
 
-Сборка и запуск `.app`: см. [desktop/README.md](desktop/README.md).
-
-## MCP (Cursor)
+## Запуск
 
 ```bash
-npm start
-cd mcp-server && npm install
+npm install && npm run start:https
 ```
 
-См. [mcp-server/README.md](mcp-server/README.md) и кнопку **MCP** в шапке UI.
+→ https://localhost:3443
 
-## Документация
+Desktop: [desktop/README.md](desktop/README.md) · MCP: [mcp-server/README.md](mcp-server/README.md)
 
-- Пользовательская: `workspaces/agent-cms-core/dokumentatsii/awn-storage/main/user-docs*.md` (тема **Документации** в меню)
-- Примеры UI: `documentation/examples/`
-- Типы свойств темы: `documentation/examples/6/`
+## Для агента
 
-## Пакеты
-
-| Имя | Описание |
-|-----|----------|
-| `agent-cms` | Корневое приложение (этот репозиторий) |
-| `@agent-cms/mcp-server` | MCP-сервер (`mcp-server/`) |
+Операционная карта — [`GLOBAL_MCP_DOC.md`](workspaces/agent-cms-core/GLOBAL_MCP_DOC.md). Работа с хранилищем — только через MCP tools.

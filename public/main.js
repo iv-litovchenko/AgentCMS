@@ -568,9 +568,14 @@ Desktop.ini
 .idea/
 .vscode/
 
-# Кэш и временные файлы
+# Runtime CMS / Shell
+.agent-cms/
+
+# Временные файлы workspace
+awn-temp/
+
+# Прочий кэш и временные файлы
 .cache/
-.agent-cms/cache
 tmp/
 temp/
 *.tmp
@@ -579,15 +584,25 @@ temp/
 # Зависимости (если есть npm-скрипты)
 node_modules/
 
-# Слоты awn-storage — media и repository (крупные файлы, внешние накопители)
+# Слоты awn-storage — media (крупные файлы)
 **/awn-storage/**/media/
-**/awn-storage/**/repository/
 
-# Workspace-каталог исходников — в git только INDEX + manifest (код клонируйте отдельно)
+# Каталог исходников — в git только manifest + README карточки
 awn-repositories/**/*
-!awn-repositories/index.md
-!awn-repositories/*/manifest.md
+!awn-repositories/**/manifest.md
+!awn-repositories/**/README.md
 `;
+
+const PROJECT_SETTINGS_WORKSPACE_ROOT_FILES = [
+  ".env",
+  ".gitignore",
+  "AGENTS.md",
+  "README.md",
+  "docker-compose.yml",
+  "awn-dependencies.json"
+];
+let projectSettingsWorkspaceFileName = ".gitignore";
+let projectSettingsEnvFocusPending = false;
 
 const RECOMMENDED_AGENT_ENV_TEMPLATE = `# KEY=value — без кавычек, по одной переменной на строку
 # Секреты храните здесь, не в markdown и frontmatter тем.
@@ -5730,9 +5745,8 @@ function getSystemFileHintSpec(name) {
     return {
       title: "Git — что не попадает в репозиторий",
       text:
-        "Корневой <code>.gitignore</code> workspace агента: секреты, кэш превью <code>.agent-cms/cache</code>, OS-мусор, слоты <code>media</code> и <code>repository</code>. " +
-        "Контент тем (<code>awn-container/</code>, остальные слои <code>awn-storage/</code>) обычно коммитится — " +
-        "игнорируйте только то, что не должно уйти в git.",
+        "Корневой <code>.gitignore</code> workspace: runtime <code>.agent-cms/</code>, временные <code>awn-temp/</code>, OS-мусор, слоты <code>media</code>. " +
+        "В <code>awn-repositories/</code> коммитим только <code>manifest.md</code> и <code>README.md</code>.",
       example: RECOMMENDED_AGENT_GITIGNORE
     };
   }
@@ -9938,6 +9952,46 @@ function createAppLandingPlatformVisual() {
   return visual;
 }
 
+let appLandingPlatformReadmeCache = null;
+
+async function loadAppLandingPlatformReadme(options = {}) {
+  if (!options.force && appLandingPlatformReadmeCache) return appLandingPlatformReadmeCache;
+  const response = await fetch("/api/platform/readme");
+  if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  const data = await response.json();
+  appLandingPlatformReadmeCache = {
+    path: data.path || "README.md",
+    content: typeof data.content === "string" ? data.content : "",
+    exists: Boolean(data.exists)
+  };
+  return appLandingPlatformReadmeCache;
+}
+
+function createAppLandingPlatformReadmePanel(readme) {
+  const panel = document.createElement("article");
+  panel.className = "app-landing-platform-readme markdown-preview";
+  panel.setAttribute("aria-label", "О проекте Agent CMS");
+
+  const body = document.createElement("div");
+  body.className = "app-landing-platform-readme-body markdown-body";
+  if (readme?.content && typeof renderMarkdownToHtml === "function") {
+    body.innerHTML = renderMarkdownToHtml(readme.content, { hideFrontmatter: true });
+    for (const link of body.querySelectorAll("a[href]")) {
+      const href = String(link.getAttribute("href") || "").trim();
+      if (/^https?:\/\//i.test(href)) {
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+      }
+    }
+  } else if (readme?.content) {
+    body.textContent = readme.content;
+  } else {
+    body.innerHTML = "<p>README.md не найден в корне репозитория.</p>";
+  }
+  panel.append(body);
+  return panel;
+}
+
 async function renderAppLandingPlatformSection() {
   if (!appLandingPlatformNode) return;
   appLandingPlatformNode.replaceChildren();
@@ -9968,7 +10022,21 @@ async function renderAppLandingPlatformSection() {
   openBtn.title = "Открыть хранилище agent-cms-core";
   openBtn.addEventListener("click", () => openCoreCatalogAgentFromLanding());
   actions.append(openBtn);
-  appLandingPlatformNode.append(head, actions, createAppLandingPlatformVisual());
+
+  let readmePanel = null;
+  try {
+    const readme = await loadAppLandingPlatformReadme();
+    readmePanel = createAppLandingPlatformReadmePanel(readme);
+  } catch {
+    readmePanel = createAppLandingPlatformReadmePanel(null);
+  }
+
+  appLandingPlatformNode.append(
+    head,
+    actions,
+    readmePanel,
+    createAppLandingPlatformVisual()
+  );
 }
 
 function createAppLandingAgentTile(agent) {
@@ -22894,8 +22962,24 @@ function getProjectSettingsAgentFieldGroups(scopeKey = "global") {
   return buildSettingsFieldGroupsFromFields(fields);
 }
 
+const PROJECT_SETTINGS_UNGROUPED_GROUP_ID = "content";
+const PROJECT_SETTINGS_UNGROUPED_GROUP_LABEL = "Без группы";
+
+function normalizeProjectSettingsGroupOrder(order = []) {
+  const normalized = (Array.isArray(order) ? order : [])
+    .map((id) => String(id || "").trim())
+    .filter(Boolean);
+  if (!normalized.includes(PROJECT_SETTINGS_UNGROUPED_GROUP_ID)) return normalized;
+  return [
+    PROJECT_SETTINGS_UNGROUPED_GROUP_ID,
+    ...normalized.filter((id) => id !== PROJECT_SETTINGS_UNGROUPED_GROUP_ID)
+  ];
+}
+
 function mergeSettingsGroupOrder(derivedGroups = [], fieldGroups = []) {
-  if (!Array.isArray(fieldGroups) || !fieldGroups.length) return derivedGroups;
+  if (!Array.isArray(fieldGroups) || !fieldGroups.length) {
+    return normalizeProjectSettingsGroupOrder(derivedGroups);
+  }
   const order = [];
   const seen = new Set();
   for (const group of fieldGroups) {
@@ -22907,14 +22991,25 @@ function mergeSettingsGroupOrder(derivedGroups = [], fieldGroups = []) {
   for (const id of derivedGroups) {
     if (!seen.has(id)) order.push(id);
   }
-  return order;
+  return normalizeProjectSettingsGroupOrder(order);
+}
+
+function projectSettingsAgentGroupHasVisibleFields(scopeKey, groupId) {
+  if (groupId !== PROJECT_SETTINGS_UNGROUPED_GROUP_ID) return true;
+  const schemaFields = agentSettingsSchemaCacheByScope.get(scopeKey)?.settingsFields || {};
+  return Object.keys(schemaFields).some(
+    (key) =>
+      resolvePropsFieldGroupId(key, schemaFields[key]) === groupId &&
+      !isProjectSettingsReadonlyField(schemaFields[key])
+  );
 }
 
 function getProjectSettingsAgentGroupOrder(scopeKey = "global") {
   const cached = agentSettingsSchemaCacheByScope.get(scopeKey);
   const fields = cached?.settingsFields || {};
   const derived = getSchemaEditorGroupOrder(fields, Object.keys(fields));
-  return mergeSettingsGroupOrder(derived, cached?.settingsFieldGroups || []);
+  const order = mergeSettingsGroupOrder(derived, cached?.settingsFieldGroups || []);
+  return order.filter((groupId) => projectSettingsAgentGroupHasVisibleFields(scopeKey, groupId));
 }
 
 function countProjectSettingsAgentGroupSettings(scopePath, groupId) {
@@ -42138,11 +42233,15 @@ function buildSettingsFieldGroupsFromFields(schemaFields = {}) {
   const order = getSchemaEditorGroupOrder(schemaFields, keys);
   return order.map((groupId) => ({
     id: groupId,
-    name: groupId
+    name:
+      groupId === PROJECT_SETTINGS_UNGROUPED_GROUP_ID
+        ? PROJECT_SETTINGS_UNGROUPED_GROUP_LABEL
+        : groupId
   }));
 }
 
 function resolveNodeSettingsGroupLabel(groupId, fieldGroups = []) {
+  if (groupId === PROJECT_SETTINGS_UNGROUPED_GROUP_ID) return PROJECT_SETTINGS_UNGROUPED_GROUP_LABEL;
   const hit = (fieldGroups || []).find((group) => group && group.id === groupId);
   if (hit?.name) return hit.name;
   if (hit?.title) return hit.title;
@@ -42410,6 +42509,10 @@ function getProjectSettingsScopeStatus(manifestPath) {
 function getEnvFilePathForManifest(manifestPath) {
   const normalized = normalizeMenuNodePath(manifestPath);
   if (!normalized) return "";
+  if (isProjectSettingsGlobalScope(normalized)) return ".env";
+  if (isProjectSettingsWorkspaceSettingsScope(normalized)) {
+    return projectSettingsWorkspaceFileName || ".gitignore";
+  }
   const dir = getManifestContainerDirRel(normalized);
   return dir ? `${dir}/.env` : ".env";
 }
@@ -42683,6 +42786,98 @@ function createProjectSettingsScopeFilterMarker(kind) {
   return marker;
 }
 
+function getProjectSettingsEnvScopePathForGroupLevel(level) {
+  if (level === "global") return PROJECT_SETTINGS_GLOBAL_SCOPE;
+  if (level === "settings-local") return PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE;
+  return "";
+}
+
+function resolveProjectSettingsEnvEditorScope(scopePath = getNodeSettingsManifestPath()) {
+  const normalized = normalizeMenuNodePath(scopePath);
+  if (!normalized) return "";
+  if (isProjectSettingsIntegrationsSettingsScope(normalized) || isProjectSettingsUserSettingsScope(normalized)) {
+    return PROJECT_SETTINGS_GLOBAL_SCOPE;
+  }
+  return normalized;
+}
+
+function finishProjectSettingsEnvFocus() {
+  if (!projectSettingsEnvFocusPending) return;
+  projectSettingsEnvFocusPending = false;
+  const envBlock = projectSettingsPageNode?.querySelector(".project-settings-block--env");
+  envBlock?.classList.add("is-env-focused");
+  requestAnimationFrame(() => {
+    envBlock?.scrollIntoView({ behavior: "smooth", block: "start" });
+    projectSettingsEnvInputNode?.focus();
+    window.setTimeout(() => envBlock?.classList.remove("is-env-focused"), 1400);
+  });
+}
+
+async function openProjectSettingsEnvEditor(scopePath, options = {}) {
+  const normalized = normalizeMenuNodePath(scopePath);
+  if (!normalized) return;
+  if (isProjectSettingsIntegrationsSettingsScope(normalized) || isProjectSettingsUserSettingsScope(normalized)) {
+    return;
+  }
+  if (isProjectSettingsWorkspaceSettingsScope(normalized)) {
+    projectSettingsWorkspaceFileName = ".env";
+  }
+  projectSettingsEnvFocusPending = true;
+  const current = getNodeSettingsManifestPath();
+  if (current !== normalized) {
+    await selectProjectSettingsScope(normalized, { originButton: options.originButton });
+    return;
+  }
+  projectSettingsEnvSnapshot = null;
+  try {
+    await loadProjectSettingsEnvForManifest(normalized, { force: true });
+    renderProjectSettingsPage();
+  } catch (error) {
+    projectSettingsEnvFocusPending = false;
+    showToast(`Не удалось открыть .env: ${error.message}`, "error");
+  }
+}
+
+function createProjectSettingsScopeGroupTitle(group, scopePath) {
+  const titleWrap = document.createElement("div");
+  titleWrap.className = "project-settings-scope-group-title";
+  const label = document.createElement("span");
+  label.className = "project-settings-scope-group-title-label";
+  label.textContent = group.label;
+  titleWrap.appendChild(label);
+
+  const envScopePath = getProjectSettingsEnvScopePathForGroupLevel(group.level);
+  if (envScopePath) {
+    const status = getProjectSettingsScopeStatus(envScopePath);
+    const envBtn = document.createElement("button");
+    envBtn.type = "button";
+    envBtn.className = "project-settings-scope-group-env-btn";
+    envBtn.title =
+      status?.envHasValues
+        ? `.env — ${status.envValueCount} переменных`
+        : status?.envExists
+          ? ".env — файл есть, переменных нет"
+          : ".env — открыть редактор";
+    envBtn.setAttribute("aria-label", "Открыть .env");
+    envBtn.append(
+      createProjectSettingsScopeMarker("env", Boolean(status?.envHasValues)),
+      Object.assign(document.createElement("span"), {
+        className: "project-settings-scope-group-env-label",
+        textContent: ".env"
+      })
+    );
+    envBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void openProjectSettingsEnvEditor(envScopePath, { originButton: event.currentTarget });
+    });
+    titleWrap.classList.add("has-env-action");
+    titleWrap.appendChild(envBtn);
+  }
+
+  return titleWrap;
+}
+
 function renderProjectSettingsScopeFilters() {
   const wrap = document.createElement("div");
   wrap.className = "project-settings-scope-filters is-legend";
@@ -42692,12 +42887,23 @@ function renderProjectSettingsScopeFilters() {
   const specs = [
     { key: "schema", label: "schema.yml", className: "is-schema" },
     { key: "config", label: "config.yml", className: "is-local" },
-    { key: "env", label: ".env", className: "is-env" }
+    { key: "env", label: ".env", className: "is-env is-clickable" }
   ];
 
   for (const spec of specs) {
-    const item = document.createElement("span");
+    const item =
+      spec.key === "env"
+        ? document.createElement("button")
+        : document.createElement("span");
     item.className = `project-settings-scope-filter ${spec.className}`;
+    if (spec.key === "env") {
+      item.type = "button";
+      item.title = "Открыть редактор .env";
+      item.setAttribute("aria-label", "Открыть .env");
+      item.addEventListener("click", () => {
+        void openProjectSettingsEnvEditor(resolveProjectSettingsEnvEditorScope());
+      });
+    }
     item.append(createProjectSettingsScopeFilterMarker(spec.key), document.createTextNode(spec.label));
     wrap.appendChild(item);
   }
@@ -42965,10 +43171,13 @@ function renderProjectSettingsScopeList() {
     if (group.level === "workspace") groupNode.classList.add("is-scope-workspace");
     if (group.level === "area" || group.level === "topic") groupNode.classList.add("is-scope-tree");
     if (String(group.level || "").startsWith("iblock-")) groupNode.classList.add("is-scope-iblock");
-    const title = document.createElement("div");
-    title.className = "project-settings-scope-group-title";
-    title.textContent = group.label;
-    groupNode.appendChild(title);
+    const scopePathForGroup =
+      group.level === "global"
+        ? PROJECT_SETTINGS_GLOBAL_SCOPE
+        : group.level === "settings-local"
+          ? PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE
+          : "";
+    groupNode.appendChild(createProjectSettingsScopeGroupTitle(group, scopePathForGroup));
 
     if (group.agentTabs) {
       const scopePath =
@@ -43138,33 +43347,52 @@ async function selectProjectSettingsScope(scopePath, options = {}) {
 
 function getProjectSettingsEnvCache(manifestPath = getNodeSettingsManifestPath()) {
   if (!manifestPath) return null;
-  return projectSettingsEnvCacheByManifest.get(manifestPath) || null;
+  const cacheKey = isProjectSettingsWorkspaceSettingsScope(manifestPath)
+    ? `${manifestPath}:${projectSettingsWorkspaceFileName}`
+    : manifestPath;
+  return projectSettingsEnvCacheByManifest.get(cacheKey) || null;
 }
 
 async function loadProjectSettingsEnvForManifest(manifestPath, options = {}) {
   if (
     !manifestPath ||
-    isProjectSettingsGlobalScope(manifestPath) ||
-    isProjectSettingsWorkspaceSettingsScope(manifestPath) ||
     isProjectSettingsIntegrationsSettingsScope(manifestPath) ||
     isProjectSettingsUserSettingsScope(manifestPath)
   ) {
     return null;
   }
+  const cacheKey = isProjectSettingsWorkspaceSettingsScope(manifestPath)
+    ? `${manifestPath}:${projectSettingsWorkspaceFileName}`
+    : manifestPath;
   if (!options.force) {
-    const cached = projectSettingsEnvCacheByManifest.get(manifestPath);
+    const cached = projectSettingsEnvCacheByManifest.get(cacheKey);
     if (cached) return cached;
   }
-  const response = await fetch(buildApiUrl("/api/env", { path: manifestPath }));
+  let response;
+  if (isProjectSettingsGlobalScope(manifestPath)) {
+    response = await fetch(buildApiUrl("/api/platform/env"));
+  } else if (isProjectSettingsWorkspaceSettingsScope(manifestPath)) {
+    response = await fetch(
+      buildApiUrl("/api/system-file", { name: projectSettingsWorkspaceFileName || ".gitignore" })
+    );
+  } else {
+    response = await fetch(buildApiUrl("/api/env", { path: manifestPath }));
+  }
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
   const payload = {
     manifestPath,
-    envPath: data.path || getEnvFilePathForManifest(manifestPath),
+    cacheKey,
+    envPath: data.path || data.name || getEnvFilePathForManifest(manifestPath),
     content: data.content || "",
-    exists: Boolean(data.exists)
+    exists: Boolean(data.exists),
+    mode: isProjectSettingsGlobalScope(manifestPath)
+      ? "platform-env"
+      : isProjectSettingsWorkspaceSettingsScope(manifestPath)
+        ? "workspace-file"
+        : "topic-env"
   };
-  projectSettingsEnvCacheByManifest.set(manifestPath, payload);
+  projectSettingsEnvCacheByManifest.set(cacheKey, payload);
   setProjectSettingsEnvStatusFromCache(manifestPath, payload);
   return payload;
 }
@@ -43203,13 +43431,28 @@ function syncProjectSettingsEnvSaveButtonState() {
 
 async function saveProjectSettingsEnvContent() {
   const manifestPath = getNodeSettingsManifestPath();
-  if (!manifestPath) throw new Error(".env доступен только для тем с bundle");
+  if (!manifestPath) throw new Error("Нет активного scope для сохранения");
   const content = projectSettingsEnvInputNode?.value ?? "";
-  const response = await fetch(buildApiUrl("/api/env"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: manifestPath, content })
-  });
+  let response;
+  if (isProjectSettingsGlobalScope(manifestPath)) {
+    response = await fetch(buildApiUrl("/api/platform/env"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content })
+    });
+  } else if (isProjectSettingsWorkspaceSettingsScope(manifestPath)) {
+    response = await fetch(buildApiUrl("/api/system-file"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: projectSettingsWorkspaceFileName || ".gitignore", content })
+    });
+  } else {
+    response = await fetch(buildApiUrl("/api/env"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: manifestPath, content })
+    });
+  }
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     const reason = errorData.error || `Request failed with ${response.status}`;
@@ -43217,19 +43460,66 @@ async function saveProjectSettingsEnvContent() {
     throw new Error(`${reason}${details}`);
   }
   const data = await response.json();
+  const cacheKey = isProjectSettingsWorkspaceSettingsScope(manifestPath)
+    ? `${manifestPath}:${projectSettingsWorkspaceFileName}`
+    : manifestPath;
   const payload = {
     manifestPath,
-    envPath: data.path || getEnvFilePathForManifest(manifestPath),
+    cacheKey,
+    envPath: data.path || data.name || getEnvFilePathForManifest(manifestPath),
     content: typeof data.content === "string" ? data.content : content,
-    exists: true
+    exists: true,
+    mode: isProjectSettingsGlobalScope(manifestPath)
+      ? "platform-env"
+      : isProjectSettingsWorkspaceSettingsScope(manifestPath)
+        ? "workspace-file"
+        : "topic-env"
   };
-  projectSettingsEnvCacheByManifest.set(manifestPath, payload);
+  projectSettingsEnvCacheByManifest.set(cacheKey, payload);
   setProjectSettingsEnvStatusFromCache(manifestPath, payload);
-  modeContentCache.env = payload.content;
+  if (isProjectSettingsGlobalScope(manifestPath)) {
+    modeContentCache.env = payload.content;
+  }
   renderProjectSettingsScopeList();
   renderProjectSettingsPage();
   commitProjectSettingsEnvBaseline();
   return data;
+}
+
+function ensureProjectSettingsWorkspaceFileSelect() {
+  const envBlock = projectSettingsPageNode?.querySelector(".project-settings-block--env");
+  if (!envBlock) return null;
+  let selectNode = envBlock.querySelector("#project-settings-workspace-file-select");
+  if (!selectNode) {
+    selectNode = document.createElement("select");
+    selectNode.id = "project-settings-workspace-file-select";
+    selectNode.className = "project-settings-workspace-file-select";
+    selectNode.setAttribute("aria-label", "Корневой файл workspace");
+    for (const fileName of PROJECT_SETTINGS_WORKSPACE_ROOT_FILES) {
+      const option = document.createElement("option");
+      option.value = fileName;
+      option.textContent = fileName;
+      selectNode.appendChild(option);
+    }
+    selectNode.addEventListener("change", async () => {
+      projectSettingsWorkspaceFileName = selectNode.value || ".gitignore";
+      projectSettingsEnvSnapshot = null;
+      try {
+        await loadProjectSettingsEnvForManifest(getNodeSettingsManifestPath(), { force: true });
+        renderProjectSettingsPage();
+      } catch (error) {
+        showToast(`Не удалось загрузить файл: ${error.message}`, "error");
+      }
+    });
+    const leadNode = projectSettingsEnvLeadNode;
+    if (leadNode?.parentNode) {
+      leadNode.parentNode.insertBefore(selectNode, leadNode.nextSibling);
+    } else {
+      envBlock.insertBefore(selectNode, projectSettingsEnvWrapNode || null);
+    }
+  }
+  selectNode.value = projectSettingsWorkspaceFileName || ".gitignore";
+  return selectNode;
 }
 
 function renderProjectSettingsIblockStubPage(scopePath = getNodeSettingsManifestPath()) {
@@ -43338,9 +43628,9 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
       : isLocalScope
         ? `Параметры хранилища в <code>settings.yml</code>. Отдельная область, не перекрывает platform/integrations/user.`
         : isIntegrationsScope
-          ? `Контейнеры skills, MCP tools и плагинов в <code>.agent-cms/integrations.yml</code>. Заглушка — runtime пока не подключён.`
+          ? `Контейнеры skills, MCP tools и плагинов в <code>.agent-cms/settings/integrations.yml</code>.`
           : isUserScope
-          ? `UI и дерево меню для текущего пользователя в <code>.agent-cms/user-settings.yml</code> (аналог <code>uc</code> в TYPO3).`
+          ? `UI и дерево меню для текущего пользователя в <code>.agent-cms/settings/user-settings.yml</code>.`
           : scope
             ? `Параметры узла в <code>config.yml</code> и секреты в <code>.env</code> рядом с manifest.`
             : "Выберите уровень в списке слева.";
@@ -43364,27 +43654,58 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
     }
   }
   if (projectSettingsEnvLeadNode) {
-    const envHint = activeStatus?.envHasValues
-      ? `В <code>${escapeHtml(envPath)}</code> задано <strong>${activeStatus.envValueCount}</strong> переменных.`
-      : activeStatus?.envExists
-        ? `Файл <code>${escapeHtml(envPath)}</code> есть, но переменных пока нет.`
-        : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан.`;
-    projectSettingsEnvLeadNode.innerHTML = `${envHint} Редактируйте ниже и нажмите «Сохранить».`;
+    if (isLocalScope) {
+      projectSettingsEnvLeadNode.innerHTML =
+        projectSettingsWorkspaceFileName === ".env"
+          ? (activeStatus?.envHasValues
+              ? `В корневом <code>.env</code> workspace задано <strong>${activeStatus.envValueCount}</strong> переменных.`
+              : activeStatus?.envExists
+                ? `Корневой <code>.env</code> workspace есть, но переменных пока нет.`
+                : `Корневой <code>.env</code> workspace ещё не создан.`) +
+            ` Секреты API — здесь, не в yaml.`
+          : `Корневые файлы workspace (не <code>settings.yml</code>). Выберите файл и отредактируйте ниже.`;
+    } else if (isGlobalScope) {
+      const envHint = activeStatus?.envHasValues
+        ? `В корневом <code>.env</code> платформы задано <strong>${activeStatus.envValueCount}</strong> переменных.`
+        : activeStatus?.envExists
+          ? `Корневой <code>.env</code> платформы есть, но переменных пока нет.`
+          : `Корневой <code>.env</code> платформы ещё не создан.`;
+      projectSettingsEnvLeadNode.innerHTML = `${envHint} Секреты API — здесь, не в yaml.`;
+    } else {
+      const envHint = activeStatus?.envHasValues
+        ? `В <code>${escapeHtml(envPath)}</code> задано <strong>${activeStatus.envValueCount}</strong> переменных.`
+        : activeStatus?.envExists
+          ? `Файл <code>${escapeHtml(envPath)}</code> есть, но переменных пока нет.`
+          : `Файл <code>${escapeHtml(envPath)}</code> ещё не создан.`;
+      projectSettingsEnvLeadNode.innerHTML = `${envHint} Редактируйте ниже и нажмите «Сохранить».`;
+    }
   }
   syncProjectSettingsScopeListUi();
   projectSettingsFieldsNode?.classList.remove("hidden");
   renderNodeSettingsEditor(cache);
   projectSettingsSaveBtnNode?.classList.remove("hidden");
-  const isWorkspaceSettingsScope = isProjectSettingsWorkspaceSettingsScope(getNodeSettingsManifestPath());
-  if (isGlobalScope || isUserScope || isWorkspaceSettingsScope) {
-    projectSettingsPageNode?.querySelector(".project-settings-block--env")?.classList.add("hidden");
+  const envBlockNode = projectSettingsPageNode?.querySelector(".project-settings-block--env");
+  const envBlockTitleNode = envBlockNode?.querySelector(".project-settings-block-title");
+  const workspaceFileSelectNode = envBlockNode?.querySelector("#project-settings-workspace-file-select");
+  const hideEnvBlock = isIntegrationsScope || isUserScope;
+  if (hideEnvBlock) {
+    envBlockNode?.classList.add("hidden");
+    workspaceFileSelectNode?.classList.add("hidden");
   } else {
-    projectSettingsPageNode?.querySelector(".project-settings-block--env")?.classList.remove("hidden");
+    envBlockNode?.classList.remove("hidden");
     projectSettingsEnvWrapNode?.classList.remove("hidden");
     projectSettingsEnvSaveBtnNode?.classList.remove("hidden");
+    if (isLocalScope) {
+      ensureProjectSettingsWorkspaceFileSelect()?.classList.remove("hidden");
+      if (envBlockTitleNode) envBlockTitleNode.textContent = projectSettingsWorkspaceFileName || ".gitignore";
+    } else {
+      workspaceFileSelectNode?.classList.add("hidden");
+      if (envBlockTitleNode) envBlockTitleNode.textContent = isGlobalScope ? ".env" : envPath || ".env";
+    }
     renderProjectSettingsEnvEditor(getProjectSettingsEnvCache());
     projectSettingsEnvSnapshot = getProjectSettingsEnvCache()?.content ?? "";
     syncProjectSettingsEnvEditorUi();
+    finishProjectSettingsEnvFocus();
   }
   syncProjectSettingsSaveButtonState();
 }

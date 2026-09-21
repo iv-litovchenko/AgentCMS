@@ -7,7 +7,7 @@ const DEFAULT_INDEX_EXCLUDE_LINES = [
   ".git",
   ".agent-cms",
   "node_modules/",
-  "awn-repository/ !manifest.md !README.md"
+  "awn-repositories/ !manifest.md !README.md"
 ];
 
 const INDEX_FILE_EXTENSION_OPTIONS = [

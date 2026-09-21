@@ -12,15 +12,16 @@ const rel = {
     shell: `${ROOT}/settings/shell.json`
   },
   indexes: {
-    dir: `${ROOT}/indexes`,
-    semantic: `${ROOT}/indexes/semantic`,
-    storage: `${ROOT}/indexes/storage`,
-    fulltext: `${ROOT}/indexes/fulltext`,
-    link: `${ROOT}/indexes/link`,
-    ocr: `${ROOT}/indexes/ocr`
+    dir: `${ROOT}/cache/indexes`,
+    semantic: `${ROOT}/cache/indexes/semantic`,
+    storage: `${ROOT}/cache/indexes/storage`,
+    fulltext: `${ROOT}/cache/indexes/fulltext`,
+    link: `${ROOT}/cache/indexes/link`,
+    ocr: `${ROOT}/cache/indexes/ocr`
   },
   cache: {
     dir: `${ROOT}/cache`,
+    indexes: `${ROOT}/cache/indexes`,
     mediaThumbs: `${ROOT}/cache/media-thumbs`,
     menu: `${ROOT}/cache/menu`,
     shellCamera: `${ROOT}/cache/shell-camera`,
@@ -69,7 +70,13 @@ const legacy = {
   navRegistry: `${ROOT}/nav-registry`,
   navFlagsRegistry: `${ROOT}/nav-flags-registry.json`,
   navFocusRegistry: `${ROOT}/nav-focus-registry.json`,
-  navMainRegistry: `${ROOT}/nav-main-registry.json`
+  navMainRegistry: `${ROOT}/nav-main-registry.json`,
+  indexesSemantic: `${ROOT}/indexes/semantic`,
+  indexesStorage: `${ROOT}/indexes/storage`,
+  indexesFulltext: `${ROOT}/indexes/fulltext`,
+  indexesLink: `${ROOT}/indexes/link`,
+  indexesOcr: `${ROOT}/indexes/ocr`,
+  indexesDir: `${ROOT}/indexes`
 };
 
 function abs(agentRoot, relPath) {

@@ -51,7 +51,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "search_workspace_semantic",
-    "Offline semantic search across the workspace (local hash-TF-IDF index in .agent-cms/indexes/semantic). pathPrefix limits to subtree. Reindex: rebuild_workspace_semantic_index.",
+    "Offline semantic search across the workspace (local hash-TF-IDF index in .agent-cms/cache/indexes/semantic). pathPrefix limits to subtree. Reindex: rebuild_workspace_semantic_index.",
     z.object({
       query: z.string().min(2),
       pathPrefix: workspaceRelPath
@@ -143,7 +143,7 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "query_workspace_storage",
-    "SQL-like filter over entire workspace field catalog (.agent-cms/indexes/storage). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: rebuild_workspace_storage_index.",
+    "SQL-like filter over entire workspace field catalog (.agent-cms/cache/indexes/storage). Not tied to infoblocks — any .md/.yml with frontmatter. Reindex: rebuild_workspace_storage_index.",
     z.object({
       pathPrefix: z.string().optional().describe("Limit to path prefix, e.g. awn-container/finansy"),
       where: z
@@ -196,14 +196,14 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "rebuild_workspace_semantic_index",
-    "Rebuild offline semantic index for the whole workspace (hash-TF-IDF chunks in .agent-cms/indexes/semantic). Run after bulk file changes or before semantic search.",
+    "Rebuild offline semantic index for the whole workspace (hash-TF-IDF chunks in .agent-cms/cache/indexes/semantic). Run after bulk file changes or before semantic search.",
     z.object({}),
     () => client.post("/api/search/semantic/reindex", {})
   );
 
   reg(
     "rebuild_workspace_storage_index",
-    "Rebuild workspace field catalog from frontmatter of all .md/.yml (.agent-cms/indexes/storage). mode: quick = frontmatter only; full = schema registry + field types/titles (default full).",
+    "Rebuild workspace field catalog from frontmatter of all .md/.yml (.agent-cms/cache/indexes/storage). mode: quick = frontmatter only; full = schema registry + field types/titles (default full).",
     z.object({
       mode: z
         .enum(["quick", "full"])
@@ -215,14 +215,14 @@ function registerSearchWorkspaceTools(reg, client) {
 
   reg(
     "rebuild_workspace_fulltext_index",
-    "Rebuild offline fulltext index for the whole workspace (inverted token index in .agent-cms/indexes/fulltext). Run after bulk imports or before search_workspace_content on large archives.",
+    "Rebuild offline fulltext index for the whole workspace (inverted token index in .agent-cms/cache/indexes/fulltext). Run after bulk imports or before search_workspace_content on large archives.",
     z.object({}),
     () => client.post("/api/search/fulltext/reindex", {})
   );
 
   reg(
     "rebuild_workspace_link_index",
-    "Rebuild workspace link graph (wikilinks, markdown links, relation fields) in .agent-cms/indexes/link/edges.sqlite. Run before search_workspace_links.",
+    "Rebuild workspace link graph (wikilinks, markdown links, relation fields) in .agent-cms/cache/indexes/link/edges.sqlite. Run before search_workspace_links.",
     z.object({}),
     () => client.post("/api/link-index/reindex", {})
   );

@@ -9,8 +9,8 @@
 |--------|----------|
 | 🌐 | Platform — `agent-cms-core/settings.global.yml` |
 | 📦 | Workspace — `settings.yml` в корне хранилища |
-| 🔌 | Integrations — `.agent-cms/integrations.yml` (skills, MCP, плагины) |
-| 👤 | User — `.agent-cms/user-settings.yml` |
+| 🔌 | Integrations — `.agent-cms/settings/integrations.yml` (skills, MCP, плагины) |
+| 👤 | User — `.agent-cms/settings/user-settings.yml` |
 | 👁️✅ / 👁️❌ | Читается / не читается в runtime (MCP/сервер) |
 | ✏️✅ / ✏️❌ | Редактируется в UI и влияет / только просмотр или нет эффекта |
 | ✅ | Подключено в runtime |
@@ -56,6 +56,7 @@
 
 | Принадлежность | Группа | Название | Ключ | MCP 👁️/✏️ | UI 👁️/✏️ | Описание / эффект | MCP tools |
 |----------------|--------|----------|------|------------|-----------|-------------------|-----------|
+| 🌐 | 🧠 Автоконтекст | README.md | `always-context-platform-readme` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ Описание Agent CMS (корень репо) в always-context | L · R · W · `list_workspace_always_context` |
 | 🌐 | 🧠 Автоконтекст | GLOBAL_MCP_DOC.md | `always-context-global-mcp-doc` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ Вкл/выкл в always-context registry | L · R · W · `list_workspace_always_context` |
 | 🌐 | 🧠 Автоконтекст | GLOBAL_RESPONSE_STYLE.md | `always-context-global-response-style` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ Стиль ответов в always-context | L · R · W · `list_workspace_always_context` |
 | 🌐 | 🧠 Автоконтекст | AGENTS.md | `always-context-agents-md` | 👁️✅ ✏️⚠️ | 👁️✅ ✏️✅ | ✅ AGENTS.md workspace в always-context | L · R · W · `list_workspace_always_context` |
@@ -233,4 +234,4 @@ _Пока без полей — заготовка группы._
 
 - **L/R/W** — см. легенду; `key` передаётся в `read_setting` / `write_setting`.
 - **Индекс** — после смены политики в UI toast: «пересоберите индексы».
-- **Маска исключений** — пример: `awn-repository/ !manifest.md !README.md` (`index-policy.js` → `parseExcludeRuleLine`).
+- **Маска исключений** — пример: `awn-repositories/ !manifest.md !README.md` (`index-policy.js` → `parseExcludeRuleLine`).

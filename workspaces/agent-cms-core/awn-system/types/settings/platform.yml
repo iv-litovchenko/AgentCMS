@@ -149,13 +149,21 @@ fields:
     group: ui
     sort: 4
 
+  always-context-platform-readme:
+    type: awn.field.boolean
+    title: README.md
+    description: Описание Agent CMS — краткий обзор платформы (корень репозитория) в always-context всех агентов
+    default: true
+    group: auto-context
+    sort: 1
+
   always-context-global-mcp-doc:
     type: awn.field.boolean
     title: GLOBAL_MCP_DOC.md
     description: Глобальная карта MCP (agent-cms-core) — полный текст в always-context всех агентов
     default: true
     group: auto-context
-    sort: 24
+    sort: 2
 
   always-context-global-response-style:
     type: awn.field.boolean
@@ -163,7 +171,7 @@ fields:
     description: Глобальный стиль ответов (префиксы 🗄️ / 🌐 / 💭) — always-context
     default: true
     group: auto-context
-    sort: 25
+    sort: 3
 
   always-context-agents-md:
     type: awn.field.boolean
@@ -171,7 +179,7 @@ fields:
     description: Инструкции агента из корня workspace — always-context
     default: true
     group: auto-context
-    sort: 26
+    sort: 4
 
   always-context-ws-folder:
     type: awn.field.string
@@ -181,7 +189,7 @@ fields:
       (по умолчанию awn-shared/context/awn-storage/). Рекурсивно .md/.yml/.txt. Пусто — отключить.
     default: awn-shared/context/awn-storage/
     group: auto-context
-    sort: 27
+    sort: 5
 
   mcp-mode:
     type: awn.field.choice.one
@@ -384,12 +392,12 @@ fields:
     title: Исключить из индекса
     description: >
       Одна строка — правило. Префикс пути; исключения файлов через !имя
-      (например awn-repository/ !manifest.md !README.md).
+      (например awn-repositories/ !manifest.md !README.md).
     default: |
       .git
       .agent-cms
       node_modules/
-      awn-repository/ !manifest.md !README.md
+      awn-repositories/ !manifest.md !README.md
     group: indexing
     sort: 29
 

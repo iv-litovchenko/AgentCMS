@@ -540,8 +540,15 @@ const {
 
 const GLOBAL_MCP_DOC_FILE = "GLOBAL_MCP_DOC.md";
 const GLOBAL_RESPONSE_STYLE_FILE = "GLOBAL_RESPONSE_STYLE.md";
+const PLATFORM_README_FILE = "README.md";
 
 const PLATFORM_ALWAYS_CONTEXT_FILES = [
+  {
+    file: PLATFORM_README_FILE,
+    settingKey: "always-context-platform-readme",
+    description: "Описание Agent CMS — краткий обзор платформы для всех агентов",
+    root: "project"
+  },
   {
     file: GLOBAL_MCP_DOC_FILE,
     settingKey: "always-context-global-mcp-doc",
@@ -2285,6 +2292,24 @@ function countEnvFileValues(content) {
   return count;
 }
 
+async function readEnvFileStatus(absolutePath, displayPath = ".env") {
+  let exists = false;
+  let content = "";
+  try {
+    content = await fs.readFile(absolutePath, "utf-8");
+    exists = true;
+  } catch (error) {
+    if (error && error.code !== "ENOENT") throw error;
+  }
+  const envValueCount = countEnvFileValues(content);
+  return {
+    envPath: displayPath,
+    envExists: exists,
+    envValueCount,
+    envHasValues: envValueCount > 0
+  };
+}
+
 function isWorkspaceRootManifestRel(relPath) {
   const normalized = String(relPath || "").replace(/\\/g, "/").trim();
   return normalized === "manifest.md";
@@ -2307,6 +2332,7 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
       const globalFile = await readGlobalSettingsFile(projectRoot);
       const parsed = parseSettingsFileContent(globalFile.content || "");
       const valueCount = countSettingsValues(parsed.awn_settings);
+      const envStatus = await readEnvFileStatus(path.join(projectRoot, ".env"), ".env");
       items.push({
         path: PROJECT_SETTINGS_GLOBAL_SCOPE,
         settingsPath: globalFile.path,
@@ -2314,10 +2340,7 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
         configExists: Boolean(globalFile.exists),
         valueCount,
         hasLocalValues: valueCount > 0,
-        envPath: "",
-        envExists: false,
-        envValueCount: 0,
-        envHasValues: false,
+        ...envStatus,
         schemaPath: "",
         schemaExists: false,
         schemaFieldCount: 0,
@@ -2335,6 +2358,7 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
       } else if (workspaceFile.awn_settings) {
         valueCount = countSettingsValues(workspaceFile.awn_settings);
       }
+      const envStatus = await readEnvFileStatus(path.join(agentRoot, ".env"), ".env");
       items.push({
         path: PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE,
         settingsPath: WORKSPACE_SETTINGS_FILE,
@@ -2342,10 +2366,7 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
         configExists: Boolean(workspaceFile.exists || workspaceFile.legacyConfigPath),
         valueCount,
         hasLocalValues: valueCount > 0,
-        envPath: "",
-        envExists: false,
-        envValueCount: 0,
-        envHasValues: false,
+        ...envStatus,
         schemaPath: "",
         schemaExists: false,
         schemaFieldCount: 0,
@@ -11060,13 +11081,15 @@ async function buildAgentAlwaysContextRegistry() {
     }
   }
 
-  // Platform-global docs — agent-cms-core root, injected for every agent.
+  // Platform-global docs — repo root or agent-cms-core, injected for every agent.
   for (const entry of PLATFORM_ALWAYS_CONTEXT_FILES) {
     if (entry.settingKey && !isPlatformAlwaysContextEnabled(platformSettings, entry.settingKey)) {
       continue;
     }
     try {
-      const docAbsolute = path.join(getPlatformAgentRootAbsolute(getProjectRoot()), entry.file);
+      const docRoot =
+        entry.root === "project" ? getProjectRoot() : getPlatformAgentRootAbsolute(getProjectRoot());
+      const docAbsolute = path.join(docRoot, entry.file);
       if (!(await fileExists(docAbsolute))) continue;
       const content = await fs.readFile(docAbsolute, "utf-8");
       items.push({
@@ -11075,7 +11098,8 @@ async function buildAgentAlwaysContextRegistry() {
         slot: null,
         ref: entry.file,
         label: entry.file,
-        displayPath: `workspaces/agent-cms-core/${entry.file}`,
+        displayPath:
+          entry.root === "project" ? entry.file : `workspaces/agent-cms-core/${entry.file}`,
         description: entry.description,
         runtimeLoadAlways: true,
         exists: true,
@@ -26827,6 +26851,46 @@ async function handleApi(req, res, url) {
         error: "Failed to read global settings file",
         details: String(error.message || error)
       });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/readme") {
+    const readmeAbsolute = path.join(getProjectRoot(), "README.md");
+    try {
+      const content = await fs.readFile(readmeAbsolute, "utf-8");
+      return sendJson(res, 200, { path: "README.md", content, exists: true });
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        return sendJson(res, 200, { path: "README.md", content: "", exists: false });
+      }
+      return sendJson(res, 500, { error: "Failed to read platform README", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/platform/env") {
+    const envAbsolute = path.join(getProjectRoot(), ".env");
+    try {
+      const content = await fs.readFile(envAbsolute, "utf-8");
+      return sendJson(res, 200, { path: ".env", content, exists: true });
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        return sendJson(res, 200, { path: ".env", content: "", exists: false });
+      }
+      return sendJson(res, 500, { error: "Failed to read platform .env", details: String(error.message || error) });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/platform/env") {
+    try {
+      const payload = await readJsonBody(req);
+      const content = typeof payload.content === "string" ? payload.content : null;
+      if (content === null) return sendJson(res, 400, { error: "Missing content" });
+      const envAbsolute = path.join(getProjectRoot(), ".env");
+      await fs.mkdir(path.dirname(envAbsolute), { recursive: true });
+      await fs.writeFile(envAbsolute, content, "utf-8");
+      return sendJson(res, 200, { path: ".env", content, exists: true });
+    } catch (error) {
+      return sendJson(res, 500, { error: "Failed to save platform .env", details: String(error.message || error) });
     }
   }
 
