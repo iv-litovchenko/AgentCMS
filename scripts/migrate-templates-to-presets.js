@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
  * Deprecated: awn-data/templates/ removed.
- * Source of truth: awn-data/system-presets/ (infoblock collection).
+ * Source of truth: awn-system/types/presets/*.yml
  */
-console.log("migrate-templates-to-presets: deprecated — edit awn-data/system-presets/ directly");
+console.log("migrate-templates-to-presets: deprecated — edit awn-system/types/presets/ directly");

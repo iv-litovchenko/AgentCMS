@@ -22283,15 +22283,10 @@ async function handleApiForAgent(req, res, url) {
       // Validate YAML types before saving
       const normPath = relPath.replace(/\\/g, "/");
       const isStoreManifest = /\/manifest\.md$/i.test(normPath) || /\/manifest\.store\.md$/i.test(normPath);
-      const isPresetFile =
-        /^awn-data\/system-presets\/.+\.md$/i.test(normPath) &&
-        !/\/manifest\.md$/i.test(normPath) &&
-        !/\/sort\.json$/i.test(normPath);
       const isTypeFile =
         !isStoreManifest &&
         (/^awn-data\/(pages|content|slots|settings|cms-base\/(entities|mixins))\/.+\.md$/i.test(normPath) ||
-          /^awn-system\/types\/.+\.ya?ml$/i.test(normPath) ||
-          isPresetFile);
+          /^awn-system\/types\/.+\.ya?ml$/i.test(normPath));
       if (isTypeFile && content.trim()) {
         const { parseTypeYaml } = require("./awn-yaml-utils");
         let parsed;

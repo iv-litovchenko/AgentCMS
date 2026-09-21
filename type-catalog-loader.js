@@ -295,7 +295,7 @@ function loadTypeCatalog(projectRoot = process.cwd(), agentRoot = "") {
   const sources = coreUsesYaml
     ? ["platform:agent-cms-core/awn-system/types"]
     : ["platform:agent-cms-core/awn-data"];
-  const platformExtraDomains = ["mixins", "settings", "md-blocks", "data"];
+  const platformExtraDomains = ["mixins", "settings", "md-blocks", "data", "presets"];
 
   if (coreUsesYaml) {
     for (const domain of TYPE_DOMAINS) {

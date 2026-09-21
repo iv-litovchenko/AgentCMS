@@ -299,7 +299,7 @@ async function buildAgentSystemMenuTree(agentRootAbsolute, projectRoot = process
       title: "Пресеты",
       domain: "presets",
       domainKind: null,
-      folderPath: `awn-data/system-presets`,
+      folderPath: `awn-system/types/presets`,
       items: presetItems,
       subGroups: []
     });

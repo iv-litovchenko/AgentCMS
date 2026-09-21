@@ -5,7 +5,6 @@
 | группа | — | `agent-registry` | [Реестр агентов](awn-data/agent-registry/manifest.md) | Реестр агентов | 14 |
 | коллекция | agent-registry | `agent-registry/agent-groups` | [Группы агентов](awn-data/agent-registry/agent-groups/manifest.md) | Группы агентов | 6 |
 | коллекция | agent-registry | `agent-registry/agents` | [Агенты](awn-data/agent-registry/agents/manifest.md) | Агенты | 8 |
-| коллекция | — | `system-presets` | [Пресеты](awn-data/system-presets/manifest.md) | Пресеты | 14 |
 | коллекция | — | `tasks` | [Задачи](awn-data/tasks/manifest.md) | Задачи | 6 |
 | группа | — | `ui` | [UI (интерфейс)](awn-data/ui/manifest.md) | UI (интерфейс) | 36 |
 | коллекция | ui | `ui/slogans` | [Слоганы шапки](awn-data/ui/slogans/manifest.md) | Слоганы шапки | 24 |

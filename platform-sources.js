@@ -14,7 +14,7 @@ const CMS_CONFIG_REL = CMS_BASE_REL;
 const AGENT_SYSTEM_FOLDER = "awn-system";
 
 const TYPE_DOMAINS = ["base", "pages", "content", "slots", "fields"];
-const AGENT_TYPE_DOMAINS = [...TYPE_DOMAINS, "mixins", "settings", "md-blocks", "data"];
+const AGENT_TYPE_DOMAINS = [...TYPE_DOMAINS, "mixins", "settings", "md-blocks", "data", "presets"];
 
 function resolveAgentRootAbsolute(agentRoot, projectRoot = process.cwd()) {
   const raw = String(agentRoot || "").trim();

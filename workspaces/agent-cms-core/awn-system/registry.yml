@@ -13,6 +13,7 @@ domains:
   - mixins
   - data
   - md-blocks
+  - presets
   - id: settings
     label: Настройки
     kind: type
