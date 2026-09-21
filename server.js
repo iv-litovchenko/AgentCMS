@@ -11088,8 +11088,9 @@ async function buildAgentAlwaysContextRegistry() {
       continue;
     }
     try {
+      const platformRoot = getAppRoot();
       const docRoot =
-        entry.root === "project" ? getProjectRoot() : getPlatformAgentRootAbsolute(getProjectRoot());
+        entry.root === "project" ? platformRoot : getPlatformAgentRootAbsolute(platformRoot);
       const docAbsolute = path.join(docRoot, entry.file);
       if (!(await fileExists(docAbsolute))) continue;
       const content = await fs.readFile(docAbsolute, "utf-8");
