@@ -51,6 +51,7 @@ const ACTION_LABELS = {
   "control-dist": "Собрать",
   "server-start-bg": "В фоне",
   "server-stop": "Остановить сервер",
+  "server-restart": "Перезапустить сервер",
   "server-start-attached": "Пока Control открыт",
   "install-deps": "Установить",
   "setup-certs": "Сертификаты",
@@ -413,17 +414,22 @@ function syncServerUi(server) {
     button.disabled = !isRunning;
   });
 
-  const serverStartBusy =
-    runningActions.has("server-start-bg") || runningActions.has("server-start-attached");
-  const serverStopBusy = runningActions.has("server-stop");
+  const serverActionBusy =
+    runningActions.has("server-start-bg") ||
+    runningActions.has("server-start-attached") ||
+    runningActions.has("server-stop") ||
+    runningActions.has("server-restart");
 
   document
     .querySelectorAll('[data-action="server-start-bg"], [data-action="server-start-attached"]')
     .forEach((button) => {
-      button.disabled = isRunning || serverStartBusy || runningActions.has(button.dataset.action);
+      button.disabled = isRunning || serverActionBusy || runningActions.has(button.dataset.action);
     });
   document.querySelectorAll('[data-action="server-stop"]').forEach((button) => {
-    button.disabled = !isRunning || serverStopBusy;
+    button.disabled = !isRunning || serverActionBusy;
+  });
+  document.querySelectorAll('[data-action="server-restart"]').forEach((button) => {
+    button.disabled = !isRunning || serverActionBusy;
   });
 
 }
@@ -483,7 +489,8 @@ const SETUP_SHORT_TITLES = {
 const SERVER_BTN_TITLES = {
   "server-start-bg": "Старт в фоне",
   "server-start-attached": "Старт",
-  "server-stop": "Стоп"
+  "server-stop": "Стоп",
+  "server-restart": "Рестарт"
 };
 
 const AGENT_START_PROMPT = "Выбери хранилище <Название хранилища> и загрузи контекст";
@@ -495,7 +502,8 @@ const MCP_INSTRUCTIONS_CONTEXT_DRAFT = `Когда контекстное окн
 const SERVER_BTN_HINTS = {
   "server-start-bg": "Останется после закрытия",
   "server-start-attached": "Пока окно открыто",
-  "server-stop": "Остановить сервер"
+  "server-stop": "Остановить сервер",
+  "server-restart": "Тот же режим запуска"
 };
 
 const SERVER_PLAY_ICON = `
@@ -521,12 +529,26 @@ const SERVER_STOP_ICON = `
   </svg>
 `;
 
+const SERVER_RESTART_ICON = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+    <path d="M15.5 8.5A4 4 0 0 0 9.2 9.8L8 8.5V12h3.5l-1.2-1.2A2.5 2.5 0 0 1 14.8 11.5c.7 0 1.3-.3 1.8-.7l1.4 1.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M8.5 15.5A4 4 0 0 0 14.8 14.2L16 15.5V12h-3.5l1.2 1.2A2.5 2.5 0 0 1 9.2 12.5c-.7 0-1.3.3-1.8.7L6 11.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  </svg>
+`;
+
 function serverButton(actionId, tone, disabled = false) {
   const disabledAttr = disabled ? " disabled" : "";
   const title = SERVER_BTN_TITLES[actionId] || "Запуск";
   const hint = SERVER_BTN_HINTS[actionId] || "";
-  const icon = tone === "stop" ? SERVER_STOP_ICON : SERVER_PLAY_ICON;
-  const iconClass = tone === "stop" ? "server-deck-icon--stop" : "server-deck-icon--play";
+  const icon =
+    tone === "stop" ? SERVER_STOP_ICON : tone === "restart" ? SERVER_RESTART_ICON : SERVER_PLAY_ICON;
+  const iconClass =
+    tone === "stop"
+      ? "server-deck-icon--stop"
+      : tone === "restart"
+        ? "server-deck-icon--restart"
+        : "server-deck-icon--play";
   const badge = tone === "start-bg" ? `<span class="server-deck-badge">фон</span>` : "";
 
   return `
@@ -752,6 +774,7 @@ function renderGuideStepServer() {
         ${serverButton("server-start-bg", "start-bg", isRunning)}
         ${serverButton("server-start-attached", "start", isRunning)}
         ${serverButton("server-stop", "stop", !isRunning)}
+        ${serverButton("server-restart", "restart", !isRunning)}
       </div>
       ${browserLinks}
     </div>
@@ -1146,14 +1169,16 @@ function bindActionHandlers() {
 
 async function runAction(actionId) {
   if (!actionId || runningActions.has(actionId)) return;
-  if (actionId === "server-stop") suppressServerDownNotify = true;
+  if (actionId === "server-stop" || actionId === "server-restart") suppressServerDownNotify = true;
   runningActions.add(actionId);
   updateRunningButtons();
   try {
     const result = await window.agentControl.runAction(actionId);
     if (result?.error) appendLog(`${result.error}\n`, "stderr");
     const status = await window.agentControl.refreshStatus();
-    await handleServerStatusUpdate(status.server, { skipNotify: actionId === "server-stop" });
+    await handleServerStatusUpdate(status.server, {
+      skipNotify: actionId === "server-stop" || actionId === "server-restart"
+    });
     if (actionId === "install-deps" || actionId === "setup-certs") {
       const data = await window.agentControl.refreshBootstrap();
       if (data.setupFlags) bootstrap.setupFlags = data.setupFlags;
@@ -1183,6 +1208,7 @@ const ACTION_CARD_BUSY = {
   "server-start-bg": "Запуск…",
   "server-start-attached": "Запуск…",
   "server-stop": "Остановка…",
+  "server-restart": "Перезапуск…",
   "install-deps": "Установка…",
   "setup-certs": "Настройка…",
   "setup-desktop-shortcuts": "Создание…"

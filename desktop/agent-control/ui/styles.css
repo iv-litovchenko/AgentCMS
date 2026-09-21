@@ -1544,7 +1544,7 @@ body.is-booting {
 
 .server-deck {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0;
   padding: 5px;
   border-radius: 14px;
@@ -1709,6 +1709,14 @@ body.is-booting {
     0 6px 16px rgba(239, 68, 68, 0.1);
 }
 
+.server-deck-icon--restart {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(245, 158, 11, 0.32),
+    0 6px 16px rgba(245, 158, 11, 0.1);
+}
+
 .server-deck-btn:hover:not(:disabled):not(.is-running) .server-deck-icon--play {
   transform: scale(1.05);
   box-shadow:
@@ -1727,6 +1735,13 @@ body.is-booting {
   box-shadow:
     0 0 0 1px rgba(248, 113, 113, 0.55),
     0 0 22px rgba(239, 68, 68, 0.18);
+}
+
+.server-deck-btn:hover:not(:disabled):not(.is-running) .server-deck-icon--restart {
+  transform: scale(1.05);
+  box-shadow:
+    0 0 0 1px rgba(251, 191, 36, 0.55),
+    0 0 22px rgba(245, 158, 11, 0.18);
 }
 
 .server-deck-badge {

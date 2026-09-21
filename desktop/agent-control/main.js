@@ -131,6 +131,7 @@ let mainWindow = null;
 const activeTasks = new Map();
 const BUILD_ACTION_IDS = new Set(["cms-rebuild", "voice-rebuild", "control-dist"]);
 let attachedServerProcess = null;
+let lastServerStartMode = null;
 
 function findRepoRoot(startDir) {
   let current = path.resolve(startDir);
@@ -394,6 +395,88 @@ function stopAttachedServer() {
   }, 500);
 }
 
+function resolveRestartMode(status) {
+  if (attachedServerProcess) return "attached";
+  if (status?.supervisorAlive) return "background";
+  if (lastServerStartMode) return lastServerStartMode;
+  return "background";
+}
+
+function runShellCommand(command, args) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
+      cwd: getProjectRoot(),
+      env: enrichPath(),
+      shell: false
+    });
+
+    child.stdout.on("data", (chunk) => sendLog(String(chunk)));
+    child.stderr.on("data", (chunk) => sendLog(String(chunk), "stderr"));
+    child.on("close", (code) => resolve({ ok: code === 0, code }));
+    child.on("error", (error) => resolve({ ok: false, error: error.message }));
+  });
+}
+
+async function stopServerCompletely() {
+  stopAttachedServer();
+  await runShellCommand("bash", ["scripts/agent-https-service.sh", "stop"]);
+
+  let status = await probeServerStatus();
+  if (status.running) {
+    sendLog("\n⚠ Порты всё ещё заняты — принудительная остановка…\n", "stderr");
+    await forceStopServerPorts();
+    await sleep(400);
+    status = await probeServerStatus();
+  }
+
+  return status;
+}
+
+async function startBackgroundServer() {
+  const result = await runShellCommand("bash", ["scripts/agent-https-service.sh", "start-direct"]);
+  if (!result.ok) {
+    return { ok: false, error: "Не удалось запустить сервер в фоне." };
+  }
+
+  const ready = await waitForServerReady();
+  if (!ready.running) {
+    return { ok: false, error: "Сервер не запустился. Смотрите журнал ниже." };
+  }
+
+  lastServerStartMode = "background";
+  return { ok: true };
+}
+
+async function restartServer() {
+  const status = await probeServerStatus();
+  if (!status.running) {
+    return { ok: false, error: "Сервер не запущен." };
+  }
+
+  const mode = resolveRestartMode(status);
+  const modeLabel = mode === "attached" ? "пока Control открыт" : "в фоне";
+  sendLog(`\n↻ Перезапуск (${modeLabel})…\n`);
+
+  const afterStop = await stopServerCompletely();
+  if (afterStop.running) {
+    return {
+      ok: false,
+      error:
+        "Не удалось остановить сервер перед перезапуском. Закройте Terminal с npm run start:https или выполните: bash scripts/agent-https-service.sh stop"
+    };
+  }
+
+  await sleep(400);
+
+  if (mode === "attached") {
+    const result = await startAttachedServer();
+    if (result.ok) lastServerStartMode = "attached";
+    return result;
+  }
+
+  return startBackgroundServer();
+}
+
 async function waitForServerReady(maxAttempts = 48) {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const status = await probeServerStatus();
@@ -445,6 +528,7 @@ async function startAttachedServer() {
   }
 
   sendLog("\n■ Сервер работает, пока открыт Agent CMS Control\n");
+  lastServerStartMode = "attached";
   return { ok: true };
 }
 
@@ -531,6 +615,20 @@ async function runAction(actionId) {
     }
   }
 
+  if (action.serverRole === "restart") {
+    try {
+      const result = await restartServer();
+      sendActionState({ actionId, running: false });
+      if (result.ok) {
+        sendLog("\n■ Сервер перезапущен\n");
+      }
+      return result;
+    } catch (error) {
+      sendActionState({ actionId, running: false });
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
+
   if (action.serverRole === "stop") {
     stopAttachedServer();
   }
@@ -567,6 +665,16 @@ async function runAction(actionId) {
           resolve({ ok: false, code, error: message });
           return;
         }
+      }
+
+      if (ok && action.serverRole === "start") {
+        const ready = await waitForServerReady();
+        if (!ready.running) {
+          ok = false;
+          resolve({ ok: false, code, error: "Сервер не запустился. Смотрите журнал ниже." });
+          return;
+        }
+        lastServerStartMode = "background";
       }
 
       sendLog(`\n■ Завершено (код ${ok ? 0 : code ?? "?"})\n`);

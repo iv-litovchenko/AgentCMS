@@ -47,6 +47,14 @@ const ACTIONS = [
     serverRole: "stop"
   },
   {
+    id: "server-restart",
+    category: "server",
+    title: "Перезапустить",
+    tone: "default",
+    preflight: "certs",
+    serverRole: "restart"
+  },
+  {
     id: "server-start-attached",
     category: "server",
     title: "Пока Control открыт",
