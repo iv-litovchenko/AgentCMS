@@ -11,8 +11,8 @@ export const SHELL_RUNTIME_GROUPS = [
   {
     id: "agents",
     label: "Агентские системы",
-    hint: "Серверы и gateway — QwenPaw, OpenClaw, Hermes и др.; HTTP/API или свой runtime.",
-    runtimes: ["qwenpaw", "cursor", "openclaw", "hermes", "agent-zero"]
+    hint: "Серверы и gateway — Cursor, OpenClaw, Hermes, QwenPaw и др.; HTTP/API или свой runtime.",
+    runtimes: ["cursor", "openclaw", "hermes", "agent-zero", "qwenpaw"]
   }
 ];
 
@@ -52,7 +52,6 @@ export const SHELL_RUNTIME_VENDORS = {
   openclaw: "Steinberger",
   hermes: "Nous Research",
   "agent-zero": "frdel",
-  qwenpaw: "Agent CMS"
 };
 
 export function formatRuntimeBaseLabel(runtime) {
@@ -277,7 +276,7 @@ export const SHELL_RUNTIME_HINTS = {
   openclaw: "OpenClaw Gateway — локальный агент, :18789, heartbeat и каналы.",
   hermes: "Hermes Agent — Nous Research, профили, API :8642/v1.",
   "agent-zero": "Agent Zero — автономный агент, gateway :42617, bearer token.",
-  qwenpaw: "QwenPaw — qwen CLI в PATH (qwen --version), сервер :8088, чаты и MCP к Agent CMS."
+  qwenpaw: "QwenPaw — qwen CLI в PATH (qwen --version), сервер :8088, чаты; к CMS — через MCP."
 };
 
 /** Развёрнутое описание runtime для панели маршрута. */
@@ -306,8 +305,8 @@ Shell не запускает Cursor — только шлёт сообщени�
 Подключение: \`agentzero gateway\` → :42617, POST /v1/chat/completions, bearer после /pair.
 Agent CMS подключается к Agent Zero по MCP отдельно; здесь только голосовой маршрут.`,
 
-  qwenpaw: `QwenPaw — локальный агент Agent CMS (:8088): чаты, streaming, инструменты.
-Подключение: URL, agent id, session — в панели ниже. MCP к workspace Agent CMS настраивается в QwenPaw.
+  qwenpaw: `QwenPaw — локальный агент (:8088): чаты, streaming, инструменты.
+Подключение: URL, agent id, session — в панели ниже. К workspace Agent CMS — через MCP (настраивается в QwenPaw).
 Рекомендуется, если нужны чаты Shell и связка с CMS из коробки.`
 };
 

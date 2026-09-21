@@ -414,7 +414,8 @@ function normalizeAgentSettingsFieldSubgroups(subgroups = []) {
       name: item.name || item.title || item.id,
       description: String(item.description || "").trim(),
       sort: Number(item.sort) || 0,
-      defaultOpen: Boolean(item.defaultOpen)
+      defaultOpen: Boolean(item.defaultOpen),
+      disabled: Boolean(item.disabled)
     }))
     .sort((a, b) => a.sort - b.sort || a.id.localeCompare(b.id, "ru"));
 }

@@ -42192,7 +42192,8 @@ function normalizeAgentSettingsFieldGroupsClient(fieldGroups = []) {
           name: item.name || item.title || item.id,
           description: String(item.description || "").trim(),
           sort: Number(item.sort) || 0,
-          defaultOpen: Boolean(item.defaultOpen)
+          defaultOpen: Boolean(item.defaultOpen),
+          disabled: Boolean(item.disabled)
         }))
         .sort((a, b) => a.sort - b.sort || a.id.localeCompare(b.id, "ru"))
     }));
@@ -42377,7 +42378,12 @@ function saveNodeSettingsSubgroupOpenState(storageKey, isOpen) {
   }
 }
 
+function isNodeSettingsSubgroupDisabled(subgroupDef = {}) {
+  return Boolean(subgroupDef?.disabled);
+}
+
 function resolveNodeSettingsSubgroupOpen(groupId, subgroupDef = {}) {
+  if (isNodeSettingsSubgroupDisabled(subgroupDef)) return false;
   const storageKey = buildNodeSettingsSubgroupStorageKey(groupId, subgroupDef.id);
   const state = loadNodeSettingsSubgroupOpenState();
   if (storageKey in state) return Boolean(state[storageKey]);
@@ -42385,12 +42391,18 @@ function resolveNodeSettingsSubgroupOpen(groupId, subgroupDef = {}) {
 }
 
 function createNodeSettingsSubgroupAccordion(subgroupDef, entries, schemaFields, groupId, subgroupDefs = []) {
+  const disabled = isNodeSettingsSubgroupDisabled(subgroupDef);
   const section = document.createElement("details");
   section.className = "node-settings-subgroup-accordion";
+  if (disabled) section.classList.add("is-disabled");
   section.dataset.subgroupId = subgroupDef.id;
   section.dataset.groupId = groupId;
   section.open = resolveNodeSettingsSubgroupOpen(groupId, subgroupDef);
   section.addEventListener("toggle", () => {
+    if (disabled) {
+      section.open = false;
+      return;
+    }
     saveNodeSettingsSubgroupOpenState(
       buildNodeSettingsSubgroupStorageKey(groupId, subgroupDef.id),
       section.open
@@ -42399,6 +42411,10 @@ function createNodeSettingsSubgroupAccordion(subgroupDef, entries, schemaFields,
 
   const summary = document.createElement("summary");
   summary.className = "node-settings-subgroup-accordion-summary";
+  if (disabled) {
+    summary.setAttribute("aria-disabled", "true");
+    summary.title = "Пока недоступно в Voice Shell";
+  }
 
   const summaryMain = document.createElement("span");
   summaryMain.className = "node-settings-subgroup-accordion-summary-main";

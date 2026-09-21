@@ -66,27 +66,31 @@ fieldGroups:
           Локальный CLI Codex. Shell запускает codex exec в workspaces/cli-sandbox/codex/<agent-id>/ — хранилище CMS не монтируется.
           Установка npm i -g @openai/codex · codex login · codex --version.
         sort: 5
+      - id: voice-route-cursor
+        name: Маршрут · Cursor
+        description: Cursor Agent — OpenAI-compatible endpoint (скоро)
+        disabled: true
+        sort: 6
+      - id: voice-route-openclaw
+        name: Маршрут · OpenClaw
+        description: OpenClaw Gateway — локальный агент :18789 (скоро)
+        disabled: true
+        sort: 7
+      - id: voice-route-hermes
+        name: Маршрут · Hermes Agent
+        description: Hermes Agent (Nous Research) — API :8642/v1 (скоро)
+        disabled: true
+        sort: 8
+      - id: voice-route-agent-zero
+        name: Маршрут · Agent Zero
+        description: Agent Zero gateway — :42617 (скоро)
+        disabled: true
+        sort: 9
       - id: voice-route-qwenpaw
         name: Маршрут · QwenPaw
         description: |
           HTTP-агент QwenPaw. Shell отправляет сообщения на сервер и стримит ответ через SSE.
           URL, agentId и session — в полях ниже.
-        sort: 6
-      - id: voice-route-cursor
-        name: Маршрут · Cursor
-        description: Cursor Agent — OpenAI-compatible endpoint (скоро)
-        sort: 7
-      - id: voice-route-openclaw
-        name: Маршрут · OpenClaw
-        description: OpenClaw Gateway — локальный агент :18789 (скоро)
-        sort: 8
-      - id: voice-route-hermes
-        name: Маршрут · Hermes Agent
-        description: Hermes Agent (Nous Research) — API :8642/v1 (скоро)
-        sort: 9
-      - id: voice-route-agent-zero
-        name: Маршрут · Agent Zero
-        description: Agent Zero gateway — :42617 (скоро)
         sort: 10
       - id: voice-stt
         name: Распознавание (STT)
@@ -98,9 +102,13 @@ fieldGroups:
         sort: 12
       - id: voice-stt-whisper
         name: Распознавание (STT) · Whisper
+        description: Локальный Whisper на сервере (скоро в Voice Shell)
+        disabled: true
         sort: 13
       - id: voice-stt-elevenlabs
         name: Распознавание (STT) · ElevenLabs Scribe
+        description: Облачный Scribe (скоро в Voice Shell)
+        disabled: true
         sort: 14
       - id: voice-tts
         name: Озвучка (TTS)
@@ -115,6 +123,8 @@ fieldGroups:
         sort: 17
       - id: voice-tts-piper
         name: Озвучка (TTS) · Piper
+        description: Локальный Piper на сервере (скоро в Voice Shell)
+        disabled: true
         sort: 18
       - id: voice-tts-elevenlabs
         name: Озвучка (TTS) · ElevenLabs
@@ -285,8 +295,6 @@ fields:
         name: Claude CLI (Anthropic)
       - key: codex
         name: Codex CLI (OpenAI)
-      - key: qwenpaw
-        name: QwenPaw (Agent CMS)
       - key: cursor
         name: Cursor (Anysphere) — скоро
       - key: openclaw
@@ -295,6 +303,8 @@ fields:
         name: Hermes Agent — скоро
       - key: agent-zero
         name: Agent Zero — скоро
+      - key: qwenpaw
+        name: QwenPaw
     group: voice-client
     subgroup: voice-route
     sort: 52
