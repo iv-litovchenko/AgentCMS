@@ -20316,63 +20316,6 @@ a.header-tool-btn {
   overflow: hidden;
 }
 
-.content-search-layer-status {
-  display: flex;
-  flex: 1 0 100%;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 6px;
-  order: -1;
-  min-width: 0;
-  padding: 1px 0 0;
-  font-size: 10px;
-  line-height: 1.35;
-  color: #64748b;
-}
-
-.content-search-layer-status.hidden {
-  display: none;
-}
-
-.content-search-layer-status.is-error {
-  color: #b91c1c;
-}
-
-.content-search-layer-status.has-warning {
-  color: #92400e;
-}
-
-.content-search-layer-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 6px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
-.content-search-layer-chip.is-on {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.content-search-layer-chip.is-off {
-  background: #f1f5f9;
-  color: #94a3b8;
-  text-decoration: line-through;
-}
-
-.content-search-layer-meta {
-  color: #94a3b8;
-  white-space: nowrap;
-}
-
-.content-search-layer-warning {
-  color: #b45309;
-}
-
 .content-search-mode-btn.is-disabled,
 .content-search-mode-btn:disabled {
   opacity: 0.45;
