@@ -28801,9 +28801,9 @@ a.header-tool-btn {
 
 .doc-props-aside .doc-aside-fields-card-head {
   padding: 8px 11px 8px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.95);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.32);
   border-top: 1px solid rgba(148, 163, 184, 0.28);
-  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
 }
 
 .doc-props-aside
@@ -28822,7 +28822,7 @@ a.header-tool-btn {
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #475569;
+  color: #4338ca;
 }
 
 .doc-props-aside .doc-aside-fields-card-sub {
@@ -41869,8 +41869,8 @@ button.node-navigation-memory-title:focus-visible {
   margin: 0;
   padding: 10px 14px;
   border: 0;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.95);
-  background: #fff;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+  background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -41878,7 +41878,7 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .editor-custom-props-root-toggle:hover {
-  background: rgba(248, 250, 252, 0.9);
+  background: linear-gradient(180deg, #e0e7ff 0%, #f1f5f9 100%);
 }
 
 .editor-custom-props-root-toggle-label {
@@ -41888,7 +41888,7 @@ button.node-navigation-memory-title:focus-visible {
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #475569;
+  color: #4338ca;
 }
 
 .editor-custom-props-root-toggle .props-form-group-count {
@@ -41956,8 +41956,9 @@ button.node-navigation-memory-title:focus-visible {
   margin: 0;
   padding: 8px 14px;
   border: 0;
-  border-top: 1px solid rgba(226, 232, 240, 0.95);
-  background: #fff;
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.95);
+  background: #f8fafc;
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -41965,7 +41966,7 @@ button.node-navigation-memory-title:focus-visible {
 }
 
 .editor-custom-props-group-toggle:hover {
-  background: rgba(248, 250, 252, 0.9);
+  background: #f1f5f9;
 }
 
 .editor-custom-props-group.is-collapsed > .editor-custom-props-group-body {
@@ -41976,6 +41977,7 @@ button.node-navigation-memory-title:focus-visible {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  background: #fff;
 }
 
 .editor-custom-props-group-toggle .editor-custom-props-group-header-label {
@@ -41989,7 +41991,7 @@ button.node-navigation-memory-title:focus-visible {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   line-height: 1.2;
-  color: #475569;
+  color: #64748b;
 }
 
 .editor-custom-props-group-toggle .props-form-group-count {
@@ -43483,6 +43485,11 @@ button.node-navigation-memory-title:focus-visible {
 .doc-props-aside .props-form-group-body {
   display: flex;
   flex-direction: column;
+  background: #fff;
+}
+
+.doc-props-aside .props-form-fields > .props-form-group:first-child > .props-form-group-toggle {
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
 }
 
 .doc-props-aside .props-form-group-toggle {
@@ -43491,17 +43498,18 @@ button.node-navigation-memory-title:focus-visible {
   gap: 6px;
   width: 100%;
   margin: 0;
-  padding: 6px 10px 7px;
+  padding: 7px 10px 8px;
   border: 0;
+  border-top: 1px solid rgba(226, 232, 240, 0.95);
   border-bottom: 1px solid rgba(226, 232, 240, 0.95);
-  background: #fff;
+  background: #f8fafc;
   cursor: pointer;
   text-align: left;
   font: inherit;
 }
 
 .doc-props-aside .props-form-group-toggle:hover {
-  background: rgba(248, 250, 252, 0.9);
+  background: #f1f5f9;
 }
 
 .doc-props-aside .props-form-group-toggle .props-form-group-title {
@@ -43509,6 +43517,10 @@ button.node-navigation-memory-title:focus-visible {
   border: 0;
   background: none;
   flex: 1 1 auto;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
 }
 
 .props-form-group-caret {
