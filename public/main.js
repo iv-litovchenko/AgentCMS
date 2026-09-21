@@ -42422,6 +42422,15 @@ function createNodeSettingsSubgroupAccordion(subgroupDef, entries, schemaFields,
   count.className = "node-settings-subgroup-accordion-count";
   count.textContent = String(entries.length);
   summary.appendChild(count);
+
+  const chevronWrap = document.createElement("span");
+  chevronWrap.className = "node-settings-subgroup-accordion-chevron";
+  chevronWrap.setAttribute("aria-hidden", "true");
+  const chevron = document.createElement("span");
+  chevron.className = "nav-book-toc-folder-chevron";
+  chevronWrap.appendChild(chevron);
+  summary.appendChild(chevronWrap);
+
   section.appendChild(summary);
 
   const body = document.createElement("div");

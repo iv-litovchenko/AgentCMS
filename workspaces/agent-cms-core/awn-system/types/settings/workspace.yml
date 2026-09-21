@@ -33,6 +33,47 @@ fieldGroups:
       Правила «когда в хранилище происходит событие — выполнить действие»: webhook,
       уведомление, скрипт или вызов MCP. Список правил будет здесь; исполнитель в runtime — позже.
       Сейчас раздел-заглушка.
+  - id: voice-client
+    name: Голосовой клиент
+    description: >
+      Политика Agent CMS Voice для этого workspace (settings.yml).
+      Секреты API — в .env; сессии и sessionId — в shell.json.
+      Черновик схемы: UI и синхронизация с Voice — позже.
+    subgroups:
+      - id: voice-cms
+        name: CMS и канал
+        description: Привязка Voice к теме workspace
+        sort: 1
+        defaultOpen: true
+      - id: voice-route
+        name: Маршрут и агент
+        description: Runtime по умолчанию и system prompt
+        sort: 2
+      - id: voice-input
+        name: Ввод (микрофон)
+        sort: 3
+      - id: voice-stt
+        name: Распознавание (STT)
+        sort: 4
+      - id: voice-tts
+        name: Озвучка (TTS)
+        sort: 5
+      - id: voice-proactive
+        name: Проактивные пинги
+        sort: 6
+      - id: voice-media
+        name: Камера и экран
+        sort: 7
+      - id: voice-window
+        name: Окно Voice
+        sort: 8
+      - id: voice-ui
+        name: Интерфейс диалога
+        sort: 9
+      - id: voice-compose
+        name: Шаблоны compose
+        description: Список шаблонов — repeater позже; пока заглушка
+        sort: 10
   - id: static
     name: Статичные параметры
     description: >
@@ -147,6 +188,490 @@ fields:
     group: hooks
     sort: 41
     items: awn.field.trigger.rule
+
+  voice-cms-topic-path:
+    type: awn.field.string
+    title: "{DRAFT} Тема агента (manifest)"
+    description: shell.json → cms.topicPath
+    default: awn-agent-kit/agent/manifest.md
+    group: voice-client
+    subgroup: voice-cms
+    sort: 50
+
+  voice-cms-channel:
+    type: awn.field.choice.one
+    title: "{DRAFT} Канал диалога"
+    description: shell.json → cms.channel
+    default: thread
+    enum:
+      - key: thread
+        name: thread
+      - key: session
+        name: session
+    group: voice-client
+    subgroup: voice-cms
+    sort: 51
+
+  voice-route-runtime:
+    type: awn.field.choice.one
+    title: "{DRAFT} Runtime по умолчанию"
+    description: shell.json → route.runtime (ключ из route.runtimes)
+    default: codex
+    enum:
+      - key: codex
+        name: Codex CLI
+      - key: claude
+        name: Claude CLI
+      - key: qwenpaw
+        name: QwenPaw agent
+    group: voice-client
+    subgroup: voice-route
+    sort: 52
+
+  voice-route-system-prompt:
+    type: awn.field.text
+    title: "{DRAFT} System prompt Voice"
+    description: shell.json → route.systemPrompt
+    group: voice-client
+    subgroup: voice-route
+    sort: 53
+
+  voice-input-enabled:
+    type: awn.field.boolean
+    title: "{DRAFT} Голосовой ввод"
+    default: false
+    group: voice-client
+    subgroup: voice-input
+    sort: 54
+
+  voice-input-mode:
+    type: awn.field.choice.one
+    title: "{DRAFT} Режим ввода"
+    default: fn_button
+    enum:
+      - key: fn_button
+        name: Кнопка Fn
+      - key: push_to_talk
+        name: Push-to-talk
+    group: voice-client
+    subgroup: voice-input
+    sort: 55
+
+  voice-input-capture:
+    type: awn.field.choice.one
+    title: "{DRAFT} Источник захвата"
+    default: microphone
+    enum:
+      - key: microphone
+        name: Микрофон
+      - key: system
+        name: Системный звук
+    group: voice-client
+    subgroup: voice-input
+    sort: 56
+
+  voice-input-global-listen:
+    type: awn.field.boolean
+    title: "{DRAFT} Глобальное прослушивание"
+    default: false
+    group: voice-client
+    subgroup: voice-input
+    sort: 57
+
+  voice-input-to-compose:
+    type: awn.field.boolean
+    title: "{DRAFT} Вставлять в compose"
+    default: false
+    group: voice-client
+    subgroup: voice-input
+    sort: 58
+
+  voice-input-response-enabled:
+    type: awn.field.boolean
+    title: "{DRAFT} Ответ на голосовой ввод"
+    default: false
+    group: voice-client
+    subgroup: voice-input
+    sort: 59
+
+  voice-stt-engine:
+    type: awn.field.choice.one
+    title: "{DRAFT} Движок STT"
+    default: browser
+    enum:
+      - key: browser
+        name: Browser
+      - key: whisper
+        name: Whisper
+      - key: elevenlabs
+        name: ElevenLabs
+    group: voice-client
+    subgroup: voice-stt
+    sort: 60
+
+  voice-stt-lang:
+    type: awn.field.string
+    title: "{DRAFT} Язык STT"
+    default: ru-RU
+    group: voice-client
+    subgroup: voice-stt
+    sort: 61
+
+  voice-stt-prompt:
+    type: awn.field.text
+    title: "{DRAFT} Промпт STT"
+    group: voice-client
+    subgroup: voice-stt
+    sort: 62
+
+  voice-stt-whisper-model:
+    type: awn.field.choice.one
+    title: "{DRAFT} Whisper model"
+    default: base
+    enum: [tiny, base, small, medium, large]
+    group: voice-client
+    subgroup: voice-stt
+    sort: 63
+
+  voice-stt-elevenlabs-api-key:
+    type: awn.field.string.secret
+    title: "{DRAFT} ElevenLabs API key (STT)"
+    description: Маскируется в форме; для агента позже — зашифрованная выдача
+    group: voice-client
+    subgroup: voice-stt
+    sort: 64
+
+  voice-stt-elevenlabs-model:
+    type: awn.field.string
+    title: "{DRAFT} ElevenLabs STT model"
+    default: scribe_v2
+    group: voice-client
+    subgroup: voice-stt
+    sort: 65
+
+  voice-tts-enabled:
+    type: awn.field.boolean
+    title: "{DRAFT} Озвучка ответов"
+    default: true
+    group: voice-client
+    subgroup: voice-tts
+    sort: 66
+
+  voice-tts-engine:
+    type: awn.field.choice.one
+    title: "{DRAFT} Движок TTS"
+    default: browser
+    enum:
+      - key: browser
+        name: Browser
+      - key: edge
+        name: Edge
+      - key: elevenlabs
+        name: ElevenLabs
+    group: voice-client
+    subgroup: voice-tts
+    sort: 67
+
+  voice-tts-playback-mode:
+    type: awn.field.choice.one
+    title: "{DRAFT} Режим воспроизведения"
+    default: reading
+    enum:
+      - key: reading
+        name: Reading
+      - key: streaming
+        name: Streaming
+    group: voice-client
+    subgroup: voice-tts
+    sort: 67
+
+  voice-tts-prompt:
+    type: awn.field.text
+    title: "{DRAFT} Промпт TTS"
+    description: Формат с маркером [tts-break]
+    group: voice-client
+    subgroup: voice-tts
+    sort: 68
+
+  voice-tts-rate:
+    type: awn.field.string
+    title: "{DRAFT} Скорость"
+    default: "1"
+    group: voice-client
+    subgroup: voice-tts
+    sort: 69
+
+  voice-tts-pitch:
+    type: awn.field.string
+    title: "{DRAFT} Тон"
+    default: "1"
+    group: voice-client
+    subgroup: voice-tts
+    sort: 70
+
+  voice-tts-include-captions:
+    type: awn.field.boolean
+    title: "{DRAFT} Субтитры при озвучке"
+    default: true
+    group: voice-client
+    subgroup: voice-tts
+    sort: 71
+
+  voice-tts-browser-lang:
+    type: awn.field.string
+    title: "{DRAFT} Browser TTS lang"
+    default: ru-RU
+    group: voice-client
+    subgroup: voice-tts
+    sort: 72
+
+  voice-tts-edge-voice:
+    type: awn.field.string
+    title: "{DRAFT} Edge voice"
+    default: ru-RU-SvetlanaNeural
+    group: voice-client
+    subgroup: voice-tts
+    sort: 73
+
+  voice-tts-elevenlabs-api-key:
+    type: awn.field.string.secret
+    title: "{DRAFT} ElevenLabs API key (TTS)"
+    description: Маскируется в форме; для агента позже — зашифрованная выдача
+    group: voice-client
+    subgroup: voice-tts
+    sort: 74
+
+  voice-tts-elevenlabs-voice-id:
+    type: awn.field.string
+    title: "{DRAFT} ElevenLabs voice ID"
+    group: voice-client
+    subgroup: voice-tts
+    sort: 75
+
+  voice-tts-elevenlabs-model:
+    type: awn.field.string
+    title: "{DRAFT} ElevenLabs TTS model"
+    default: eleven_multilingual_v2
+    group: voice-client
+    subgroup: voice-tts
+    sort: 76
+
+  voice-proactive-enabled:
+    type: awn.field.boolean
+    title: Включить проактивность
+    default: false
+    group: voice-client
+    subgroup: voice-proactive
+    sort: 100
+
+  voice-proactive-idle-seconds-min:
+    type: awn.field.number.integer
+    title: Бездействие, от (сек)
+    default: 30
+    group: voice-client
+    subgroup: voice-proactive
+    sort: 101
+
+  voice-proactive-idle-seconds-max:
+    type: awn.field.number.integer
+    title: До (сек)
+    default: 60
+    group: voice-client
+    subgroup: voice-proactive
+    sort: 102
+
+  voice-proactive-cooldown-seconds:
+    type: awn.field.number.integer
+    title: Пауза между пингами, сек
+    default: 180
+    group: voice-client
+    subgroup: voice-proactive
+    sort: 103
+
+  voice-proactive-quiet-hours-enabled:
+    type: awn.field.boolean
+    title: Не беспокоить по расписанию
+    default: true
+    group: voice-client
+    subgroup: voice-proactive
+    sort: 104
+
+  voice-proactive-quiet-hours-start:
+    type: awn.field.string
+    title: С
+    default: "23:00"
+    group: voice-client
+    subgroup: voice-proactive
+    sort: 105
+
+  voice-proactive-quiet-hours-end:
+    type: awn.field.string
+    title: До
+    default: "07:00"
+    group: voice-client
+    subgroup: voice-proactive
+    sort: 106
+
+  voice-proactive-prompt:
+    type: awn.field.text
+    title: Промпт проактивности
+    group: voice-client
+    subgroup: voice-proactive
+    sort: 107
+
+  voice-media-camera-enabled:
+    type: awn.field.boolean
+    title: "{DRAFT} Камера"
+    default: false
+    group: voice-client
+    subgroup: voice-media
+    sort: 84
+
+  voice-media-camera-on-speech:
+    type: awn.field.boolean
+    title: "{DRAFT} Камера при речи"
+    default: true
+    group: voice-client
+    subgroup: voice-media
+    sort: 85
+
+  voice-media-camera-facing:
+    type: awn.field.choice.one
+    title: "{DRAFT} Камера — сторона"
+    default: environment
+    enum:
+      - key: user
+        name: Фронтальная
+      - key: environment
+        name: Задняя
+    group: voice-client
+    subgroup: voice-media
+    sort: 86
+
+  voice-media-screen-enabled:
+    type: awn.field.boolean
+    title: "{DRAFT} Захват экрана"
+    default: false
+    group: voice-client
+    subgroup: voice-media
+    sort: 87
+
+  voice-media-screen-on-speech:
+    type: awn.field.boolean
+    title: "{DRAFT} Экран при речи"
+    default: false
+    group: voice-client
+    subgroup: voice-media
+    sort: 88
+
+  voice-window-topmost:
+    type: awn.field.boolean
+    title: "{DRAFT} Поверх всех окон"
+    default: false
+    group: voice-client
+    subgroup: voice-window
+    sort: 89
+
+  voice-window-transparent:
+    type: awn.field.boolean
+    title: "{DRAFT} Прозрачное окно"
+    default: false
+    group: voice-client
+    subgroup: voice-window
+    sort: 90
+
+  voice-window-background:
+    type: awn.field.choice.one
+    title: "{DRAFT} Фон окна"
+    default: wallpaper
+    enum:
+      - key: wallpaper
+        name: Обои
+      - key: solid
+        name: Сплошной
+      - key: transparent
+        name: Прозрачный
+    group: voice-client
+    subgroup: voice-window
+    sort: 91
+
+  voice-window-pet-overlay:
+    type: awn.field.boolean
+    title: "{DRAFT} Pet overlay"
+    default: false
+    group: voice-client
+    subgroup: voice-window
+    sort: 92
+
+  voice-window-compact-dialog-qa:
+    type: awn.field.boolean
+    title: "{DRAFT} Компактный Q&A"
+    default: true
+    group: voice-client
+    subgroup: voice-window
+    sort: 93
+
+  voice-window-dialog-auto-scroll:
+    type: awn.field.boolean
+    title: "{DRAFT} Автопрокрутка диалога"
+    default: true
+    group: voice-client
+    subgroup: voice-window
+    sort: 94
+
+  voice-window-character-model:
+    type: awn.field.string
+    title: "{DRAFT} Модель персонажа"
+    default: kimono
+    group: voice-client
+    subgroup: voice-window
+    sort: 95
+
+  voice-window-keep-awake:
+    type: awn.field.boolean
+    title: "{DRAFT} Не гасить экран"
+    default: false
+    group: voice-client
+    subgroup: voice-window
+    sort: 96
+
+  voice-window-processing-sound:
+    type: awn.field.choice.one
+    title: "{DRAFT} Звук обработки"
+    default: off
+    enum:
+      - key: off
+        name: Выкл
+      - key: subtle
+        name: Тихий
+      - key: on
+        name: Вкл
+    group: voice-client
+    subgroup: voice-window
+    sort: 97
+
+  voice-ui-dialog-scroll-ratio:
+    type: awn.field.string
+    title: "{DRAFT} Соотношение скролла диалога"
+    default: "1"
+    group: voice-client
+    subgroup: voice-ui
+    sort: 98
+
+  voice-compose-templates-stub:
+    type: awn.field.text
+    title: "{DRAFT} Шаблоны compose"
+    description: >
+      shell.json → compose.promptTemplates[] — repeater позже.
+      Пока список в shell.json; сюда перенесём id/label/text/group.
+    readonly: true
+    group: voice-client
+    subgroup: voice-compose
+    sort: 99
+    default: |
+      very-brief · Ответ очень кратко
+      brief · Ответ кратко
+      detailed · Ответ развёрнуто
 
   ws-static-plugin-example:
     type: awn.field.string

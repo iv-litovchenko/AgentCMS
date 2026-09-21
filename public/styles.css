@@ -12448,8 +12448,8 @@ body.app-locked {
 }
 
 .node-config-fields.has-settings-subgroups {
-  gap: 10px;
-  padding: 10px;
+  gap: 8px;
+  padding: 0;
   border: 0;
   background: transparent;
   overflow: visible;
@@ -12481,17 +12481,42 @@ body.app-locked {
   display: none;
 }
 
-.node-settings-subgroup-accordion-summary::after {
-  content: "▸";
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1;
-  transition: transform 0.15s ease;
+.node-settings-subgroup-accordion-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-left: 2px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #64748b;
 }
 
-.node-settings-subgroup-accordion[open] > .node-settings-subgroup-accordion-summary::after {
-  transform: rotate(90deg);
+.node-settings-subgroup-accordion-summary:hover .node-settings-subgroup-accordion-chevron {
+  color: #334155;
+  border-color: rgba(99, 102, 241, 0.35);
+  background: #fff;
+}
+
+.node-settings-subgroup-accordion-chevron .nav-book-toc-folder-chevron {
+  width: 6px;
+  height: 6px;
+  margin-top: -2px;
+  transform: rotate(-45deg);
+}
+
+.node-settings-subgroup-accordion[open] > .node-settings-subgroup-accordion-summary .nav-book-toc-folder-chevron {
+  transform: rotate(45deg);
+  margin-top: -4px;
+}
+
+.node-settings-subgroup-accordion[open] > .node-settings-subgroup-accordion-summary .node-settings-subgroup-accordion-chevron {
+  color: #4f46e5;
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(238, 242, 255, 0.95);
 }
 
 .node-settings-subgroup-accordion-summary:hover {
@@ -12503,6 +12528,7 @@ body.app-locked {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .node-settings-subgroup-accordion-title {

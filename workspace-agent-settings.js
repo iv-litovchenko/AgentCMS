@@ -1,5 +1,6 @@
 const NodeConfigBundle = require("./node-config-bundle");
 const { loadMcpPolicy } = require("./mcp-policy-loader");
+const { getProactiveVoiceSettingsDefaults } = require("./workspace-voice-settings-bridge");
 
 const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "maintenance-mode": false,
@@ -65,7 +66,8 @@ const WORKSPACE_AGENT_SETTINGS_DEFAULTS = {
   "ws-static-example-2": "значение 2",
   "ws-static-example-3": "значение 3",
   "default-slot": "main",
-  "awn-temp-ttl-days": 0
+  "awn-temp-ttl-days": 0,
+  ...getProactiveVoiceSettingsDefaults()
 };
 
 const USER_AGENT_SETTINGS_DEFAULTS = {

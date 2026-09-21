@@ -338,6 +338,11 @@ const {
   getPlatformAlwaysContextMdFiles,
   getPlatformAlwaysContextWsFolder
 } = require("./workspace-agent-settings");
+const {
+  hydrateWorkspaceVoiceProactiveFromShell,
+  buildShellProactivePatchFromWorkspace
+} = require("./workspace-voice-settings-bridge");
+const shellService = require("./agent-shell/shell-service");
 const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
 const {
   PROJECT_SETTINGS_GLOBAL_SCOPE,
@@ -20168,19 +20173,23 @@ async function handleApiForAgent(req, res, url) {
       const parsed = file.exists
         ? parseSettingsFileContent(file.content || "")
         : { headerComment: "", awn_settings: file.awn_settings || {} };
-      const content =
-        file.exists
-          ? file.content
-          : composeSettingsFileContent({
-              headerComment: parsed.headerComment,
-              awn_settings: parsed.awn_settings
-            });
+      let awnSettings = { ...(parsed.awn_settings || {}) };
+      try {
+        const shellFlat = await shellService.readSettings(agentRoot);
+        awnSettings = hydrateWorkspaceVoiceProactiveFromShell(awnSettings, shellFlat);
+      } catch {
+        // shell.json optional
+      }
+      const content = composeSettingsFileContent({
+        headerComment: parsed.headerComment || file.headerComment || "",
+        awn_settings: awnSettings
+      });
       return sendJson(res, 200, {
         path: WORKSPACE_SETTINGS_FILE,
         content,
         exists: Boolean(file.exists),
         legacySource: file.legacyConfigPath || null,
-        settings: normalizeWorkspaceAgentSettings(parsed.awn_settings),
+        settings: normalizeWorkspaceAgentSettings(awnSettings),
         scope: "workspace"
       });
     } catch (error) {
@@ -20209,6 +20218,14 @@ async function handleApiForAgent(req, res, url) {
         agentRoot,
         nextContent.endsWith("\n") ? nextContent : `${nextContent}\n`
       );
+      try {
+        const proactivePatch = buildShellProactivePatchFromWorkspace(parsed.awn_settings || {});
+        if (Object.keys(proactivePatch).length) {
+          await shellService.writeSettings(agentRoot, proactivePatch);
+        }
+      } catch (syncError) {
+        console.warn("[workspace-settings] voice proactive sync to shell.json failed:", syncError);
+      }
       return sendJson(res, 200, {
         path: saved.path,
         content: saved.content,
