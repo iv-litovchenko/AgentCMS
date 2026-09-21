@@ -12314,7 +12314,7 @@ const CONTENT_INDEX_SLOT_LABELS = {
   main: "Память (многофайловая)",
   external: "Память (многофайловая)",
   assets: "Активы",
-  "agent-queue": "Очередь задач для агента",
+  "agent-queue": "Чекпоинты и очередь задач для агента",
   templates: "Шаблоны",
   base: "База",
   notebooklm: "NotebookLM",

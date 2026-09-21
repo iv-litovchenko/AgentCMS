@@ -202,7 +202,7 @@
       },
       {
         slotKey: "agent-queue",
-        label: "Очередь задач для агента",
+        label: "Чекпоинты и очередь задач для агента",
         tabGroup: "workspace",
         defaultKind: "record",
         targets: {
