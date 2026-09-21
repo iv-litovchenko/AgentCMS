@@ -1,12 +1,12 @@
 const fs = require("fs/promises");
-const path = require("path");
+const { rel, indexDir } = require("../paths/agent-cms");
 
-const INDEX_DIR = ".agent-cms/storage-index";
+const INDEX_DIR = rel.indexes.storage;
 const INDEX_FILE = "index.json";
 
 function getIndexPaths(agentRoot) {
-  const dir = path.join(agentRoot, INDEX_DIR);
-  return { dir, file: path.join(dir, INDEX_FILE) };
+  const dir = indexDir(agentRoot, "storage");
+  return { dir, file: `${dir}/${INDEX_FILE}` };
 }
 
 async function loadIndex(agentRoot) {

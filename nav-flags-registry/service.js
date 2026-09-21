@@ -1,8 +1,9 @@
 const fs = require("fs/promises");
 const path = require("path");
+const { rel, legacy, abs } = require("../paths/agent-cms");
 
-const AGENT_CMS_DIR = ".agent-cms";
-const REGISTRY_DIR = ".agent-cms/nav-registry";
+const AGENT_CMS_DIR = rel.root;
+const REGISTRY_DIR = rel.state.navRegistry;
 const FOCUS_REGISTRY_FILE = "focus.json";
 const MAIN_REGISTRY_FILE = "main.json";
 const LEGACY_COMBINED_REGISTRY_FILE = "nav-flags-registry.json";
@@ -73,7 +74,16 @@ function createNavFlagsRegistryService(deps) {
 
   async function readLegacySplitRegistry(agentRoot, kind) {
     const fileName = kind === "main" ? LEGACY_MAIN_REGISTRY_FILE : LEGACY_FOCUS_REGISTRY_FILE;
-    const parsed = await readJsonFileSafe(path.join(agentRoot, AGENT_CMS_DIR, fileName));
+    const candidates = [
+      path.join(agentRoot, AGENT_CMS_DIR, fileName),
+      abs(agentRoot, path.join(rel.state.dir, fileName)),
+      abs(agentRoot, legacy.navFocusRegistry.replace(/[^/]+$/, fileName))
+    ];
+    let parsed = null;
+    for (const candidate of candidates) {
+      parsed = await readJsonFileSafe(candidate);
+      if (parsed) break;
+    }
     if (!parsed) return null;
     const model = kind === "main" ? MAIN_MODEL : FOCUS_MODEL;
     if (parsed.model !== model) return null;
@@ -86,9 +96,16 @@ function createNavFlagsRegistryService(deps) {
   }
 
   async function readLegacyRegistry(agentRoot) {
-    const combined = await readJsonFileSafe(
-      path.join(agentRoot, AGENT_CMS_DIR, LEGACY_COMBINED_REGISTRY_FILE)
-    );
+    const combinedCandidates = [
+      path.join(agentRoot, AGENT_CMS_DIR, LEGACY_COMBINED_REGISTRY_FILE),
+      abs(agentRoot, path.join(rel.state.dir, LEGACY_COMBINED_REGISTRY_FILE)),
+      abs(agentRoot, legacy.navFlagsRegistry)
+    ];
+    let combined = null;
+    for (const candidate of combinedCandidates) {
+      combined = await readJsonFileSafe(candidate);
+      if (combined) break;
+    }
     if (combined?.model === "nav-flags-registry-v1") {
       return {
         focus: Array.isArray(combined.focus) ? combined.focus : [],

@@ -36,7 +36,15 @@ Desktop.ini
 
 # Cache & temp
 .cache/
-.agent-cms/
+# Platform app lock (repo root only)
+/.agent-cms/
+# Workspace runtime
+**/.agent-cms/cache/
+**/.agent-cms/indexes/
+**/.agent-cms/state/
+**/.agent-cms/journal/
+**/.agent-cms/digest/
+**/.agent-cms/settings/
 .run/
 tmp/
 temp/

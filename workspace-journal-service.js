@@ -2,7 +2,9 @@ const fs = require("fs/promises");
 const path = require("path");
 const crypto = require("crypto");
 
-const JOURNAL_DIR = ".agent-cms/journal";
+const { rel } = require("./paths/agent-cms");
+
+const JOURNAL_DIR = rel.journal.dir;
 const JOURNAL_TYPES = new Set(["life", "action", "ui", "system"]);
 const JOURNAL_AUTHORS = new Set(["user", "agent", "system"]);
 

@@ -40,7 +40,9 @@ function isThumbCandidateExt(ext) {
   return THUMB_IMAGE_EXTENSIONS.has(String(ext || "").toLowerCase());
 }
 
-const AGENT_MEDIA_THUMBS_CACHE_REL = path.join(".agent-cms", "cache", "media-thumbs");
+const { rel } = require("./paths/agent-cms");
+
+const AGENT_MEDIA_THUMBS_CACHE_REL = rel.cache.mediaThumbs;
 
 function getThumbCacheDir(agentRoot) {
   return path.join(agentRoot, AGENT_MEDIA_THUMBS_CACHE_REL);

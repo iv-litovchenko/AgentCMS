@@ -1,8 +1,9 @@
 const fs = require("fs/promises");
 const fsSync = require("fs");
 const path = require("path");
+const { rel, cacheDir } = require("../paths/agent-cms");
 
-const CACHE_DIR = ".agent-cms/menu-cache";
+const CACHE_DIR = rel.cache.menu;
 const MODEL = "workspace-menu-cache-v1";
 
 function cacheFileName(maxDepth) {
@@ -11,7 +12,7 @@ function cacheFileName(maxDepth) {
 }
 
 function cacheAbsolute(agentRoot, maxDepth) {
-  return path.join(agentRoot, CACHE_DIR, cacheFileName(maxDepth));
+  return path.join(cacheDir(agentRoot, "menu"), cacheFileName(maxDepth));
 }
 
 async function loadMenuCache(agentRoot, maxDepth) {
@@ -28,12 +29,12 @@ async function loadMenuCache(agentRoot, maxDepth) {
 
 async function saveMenuCache(agentRoot, maxDepth, menu) {
   if (!agentRoot || !menu) return;
-  const dir = path.join(agentRoot, CACHE_DIR);
+  const dir = cacheDir(agentRoot, "menu");
   await fs.mkdir(dir, { recursive: true });
   const payload = {
     model: MODEL,
-    maxDepth: Number.isFinite(maxDepth) ? Math.floor(maxDepth) : null,
     builtAt: new Date().toISOString(),
+    maxDepth: Number.isFinite(maxDepth) ? Math.floor(maxDepth) : null,
     menu
   };
   await fs.writeFile(cacheAbsolute(agentRoot, maxDepth), `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
@@ -41,15 +42,16 @@ async function saveMenuCache(agentRoot, maxDepth, menu) {
 
 function invalidateMenuCacheSync(agentRoot) {
   if (!agentRoot) return;
-  const dir = path.join(agentRoot, CACHE_DIR);
+  const dir = cacheDir(agentRoot, "menu");
   try {
-    for (const name of fsSync.readdirSync(dir)) {
-      if (name.startsWith("menu-d") && name.endsWith(".json")) {
-        fsSync.unlinkSync(path.join(dir, name));
+    if (!fsSync.existsSync(dir)) return;
+    for (const entry of fsSync.readdirSync(dir)) {
+      if (entry.startsWith("menu-d") && entry.endsWith(".json")) {
+        fsSync.unlinkSync(path.join(dir, entry));
       }
     }
   } catch {
-    // no cache yet
+    // ignore
   }
 }
 

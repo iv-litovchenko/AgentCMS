@@ -22,8 +22,8 @@ domains:
 # Четыре независимые области настроек (не merge):
 #   platform — settings.global.yml (agent-cms-core)
 #   workspace — settings.yml (хранилище)
-#   integrations — .agent-cms/integrations.yml (skills, MCP, плагины)
-#   user — .agent-cms/user-settings.yml (UI пользователя)
+#   integrations — .agent-cms/settings/integrations.yml (skills, MCP, плагины)
+#   user — .agent-cms/settings/user-settings.yml (UI пользователя)
 settings:
   description: >
     Platform — политика CMS (MCP, лимиты, индексы). Workspace — параметры хранилища.
@@ -45,8 +45,8 @@ settings:
   values:
     platform: settings.global.yml
     workspace: settings.yml
-    integrations: .agent-cms/integrations.yml
-    user: .agent-cms/user-settings.yml
+    integrations: .agent-cms/settings/integrations.yml
+    user: .agent-cms/settings/user-settings.yml
 
 docs:
   map: GLOBAL_MCP_DOC.md

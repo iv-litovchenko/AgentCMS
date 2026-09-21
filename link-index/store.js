@@ -1,14 +1,14 @@
 const fs = require("fs");
-const path = require("path");
 const Database = require("better-sqlite3");
+const { rel, indexDir } = require("../paths/agent-cms");
 
-const INDEX_DIR = ".agent-cms/link-index";
+const INDEX_DIR = rel.indexes.link;
 const INDEX_FILE = "edges.sqlite";
 const MODEL = "workspace-link-graph-v1";
 
 function getIndexPaths(agentRoot) {
-  const dir = path.join(agentRoot, INDEX_DIR);
-  return { dir, file: path.join(dir, INDEX_FILE) };
+  const dir = indexDir(agentRoot, "link");
+  return { dir, file: `${dir}/${INDEX_FILE}` };
 }
 
 function openDatabase(agentRoot) {

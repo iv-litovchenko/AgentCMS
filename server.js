@@ -966,7 +966,10 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload, null, 2));
 }
 
-const WORKSPACE_ACTIVITY_DIR = ".agent-cms";
+const { rel: agentCmsRel } = require("./paths/agent-cms");
+const { migrateAllAgentCmsLayouts } = require("./lib/agent-cms-migrate");
+
+const WORKSPACE_ACTIVITY_DIR = agentCmsRel.state.dir;
 const WORKSPACE_ACTIVITY_FILE = "activity.jsonl";
 const WORKSPACE_ACTIVITY_ARCHIVE_FILE = "activity-archive.jsonl";
 const WORKSPACE_ACTIVITY_MEMORY_LIMIT = 250;
@@ -27589,6 +27592,19 @@ async function startServer(options = {}) {
   initProjectRoot(options.root || __dirname, {
     appRoot: options.appRoot || __dirname
   });
+
+  try {
+    const migrated = await migrateAllAgentCmsLayouts(projectRoot, getAgentsPublicList);
+    if (migrated.length > 0) {
+      console.log(
+        `Migrated .agent-cms layout for ${migrated.length} workspace(s): ${migrated
+          .map((entry) => path.basename(entry.agentRoot))
+          .join(", ")}`
+      );
+    }
+  } catch (error) {
+    console.warn("Agent CMS layout migration skipped:", error?.message || error);
+  }
 
   const host = options.host ?? process.env.HOST ?? undefined;
   const port = Number(options.port ?? process.env.PORT ?? 3000);

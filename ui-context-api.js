@@ -1,14 +1,13 @@
-const path = require("path");
 const fs = require("fs/promises");
 const { enrichUiContext } = require("./ui-context-focus");
+const { rel, abs } = require("./paths/agent-cms");
 
-const UI_CONTEXT_DIR = ".agent-cms";
 const UI_CONTEXT_FILE = "ui-context.json";
-const UI_CONTEXT_REL_PATH = `${UI_CONTEXT_DIR}/${UI_CONTEXT_FILE}`;
+const UI_CONTEXT_REL_PATH = rel.state.uiContext;
 const UI_CONTEXT_MAX_AGE_MS = 5 * 60 * 1000;
 
 function getUiContextAbsolute(agentRoot) {
-  return path.join(agentRoot, UI_CONTEXT_DIR, UI_CONTEXT_FILE);
+  return abs(agentRoot, UI_CONTEXT_REL_PATH);
 }
 
 async function readAgentUiContext(agentRoot) {
@@ -39,7 +38,7 @@ async function readAgentUiContext(agentRoot) {
 async function writeAgentUiContext(agentRoot, payload) {
   if (!agentRoot) throw new Error("Agent root is required");
   const absolute = getUiContextAbsolute(agentRoot);
-  await fs.mkdir(path.dirname(absolute), { recursive: true });
+  await fs.mkdir(abs(agentRoot, rel.state.dir), { recursive: true });
   const context = enrichUiContext({
     ...payload,
     updatedAt: new Date().toISOString()
@@ -49,7 +48,7 @@ async function writeAgentUiContext(agentRoot, payload) {
 }
 
 module.exports = {
-  UI_CONTEXT_DIR,
+  UI_CONTEXT_DIR: rel.state.dir,
   UI_CONTEXT_FILE,
   UI_CONTEXT_REL_PATH,
   UI_CONTEXT_MAX_AGE_MS,

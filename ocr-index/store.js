@@ -1,12 +1,12 @@
 const fs = require("fs/promises");
-const path = require("path");
+const { rel, indexDir } = require("../paths/agent-cms");
 
-const INDEX_DIR = ".agent-cms/ocr-index";
+const INDEX_DIR = rel.indexes.ocr;
 const MANIFEST_FILE = "manifest.json";
 
 function getIndexPaths(agentRoot) {
-  const dir = path.join(agentRoot, INDEX_DIR);
-  return { dir, file: path.join(dir, MANIFEST_FILE) };
+  const dir = indexDir(agentRoot, "ocr");
+  return { dir, file: `${dir}/${MANIFEST_FILE}` };
 }
 
 async function loadManifest(agentRoot) {

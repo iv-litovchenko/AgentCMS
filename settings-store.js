@@ -19,8 +19,10 @@ const { loadTypeCatalog, toRecordTypeDef, resolveAgentSettingsRegistry } = requi
 
 const WORKSPACE_SETTINGS_FILE = "settings.yml";
 const GLOBAL_SETTINGS_FILE = "settings.global.yml";
-const USER_SETTINGS_REL_PATH = ".agent-cms/user-settings.yml";
-const INTEGRATIONS_SETTINGS_REL_PATH = ".agent-cms/integrations.yml";
+const { rel } = require("./paths/agent-cms");
+
+const USER_SETTINGS_REL_PATH = rel.settings.userSettings;
+const INTEGRATIONS_SETTINGS_REL_PATH = rel.settings.integrations;
 const PROJECT_SETTINGS_GLOBAL_SCOPE = "__global__";
 const PROJECT_SETTINGS_WORKSPACE_SETTINGS_SCOPE = "__workspace-settings__";
 const PROJECT_SETTINGS_INTEGRATIONS_SETTINGS_SCOPE = "__integrations-settings__";
