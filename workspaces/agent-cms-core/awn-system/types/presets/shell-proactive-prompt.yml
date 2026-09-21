@@ -4,7 +4,7 @@ kind: preset
 domain: presets
 status: active
 extends: awn.preset
-target-file: ".agent-shell/settings.json"
+target-file: ".agent-cms/settings/shell.json"
 hint-title: "Agent Shell — проактивный диалог"
 hint-text: "Только для фонового пинга при бездействии (<code>proactivePrompt</code>). Отдельно от системного промпта. Плейсхолдеры: <code>{{agent-cms-voice:idle_seconds}}</code>, <code>{{agent-cms-voice:idle_minutes}}</code>. Пустой ответ — только если совсем нечего: <code>[proactive-empty]</code>."
 sort: 22

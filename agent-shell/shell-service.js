@@ -681,7 +681,7 @@ async function writeComposeDraft(agentRoot, body, agentId) {
   const text = String(body ?? "");
   const relativePath = composeDraftRelativePath();
   const target = composeDraftAbsolute(agentRoot);
-  await fs.mkdir(agentCmsAbs(agentRoot, rel.settings.dir), { recursive: true });
+  await fs.mkdir(agentCmsAbs(agentRoot, rel.state.dir), { recursive: true });
 
   if (!text) {
     await fs.unlink(target).catch(() => {});

@@ -4,7 +4,7 @@ kind: preset
 domain: presets
 status: active
 extends: awn.preset
-target-file: ".agent-shell/settings.json"
+target-file: ".agent-cms/settings/shell.json"
 hint-title: "Agent Shell — системный промпт агента"
 hint-text: "Системный промпт (<code>systemPrompt</code>) — только для обычных сообщений, отдельно от проактивности. Передаётся runtime как system."
 sort: 20
