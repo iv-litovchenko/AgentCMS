@@ -12447,12 +12447,23 @@ body.app-locked {
   overflow: hidden;
 }
 
-.node-settings-subgroup-accordion {
-  border-top: 1px solid rgba(148, 163, 184, 0.18);
+.node-config-fields.has-settings-subgroups {
+  gap: 10px;
+  padding: 10px;
+  border: 0;
+  background: transparent;
+  overflow: visible;
 }
 
-.node-settings-subgroup-accordion:first-child {
-  border-top: 0;
+.node-settings-subgroup-accordion {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.node-config-fields.has-settings-subgroups > .node-settings-subgroup-accordion + .node-settings-subgroup-accordion {
+  margin-top: 0;
 }
 
 .node-settings-subgroup-accordion-summary {

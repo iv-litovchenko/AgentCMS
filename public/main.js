@@ -42178,6 +42178,26 @@ function mergeAgentSettingsSchemaFields(fields = {}) {
   return fields && typeof fields === "object" ? { ...fields } : {};
 }
 
+function normalizeAgentSettingsFieldGroupsClient(fieldGroups = []) {
+  return (Array.isArray(fieldGroups) ? fieldGroups : [])
+    .filter((group) => group && group.id)
+    .map((group) => ({
+      id: String(group.id),
+      name: group.name || group.title || group.id,
+      description: String(group.description || "").trim(),
+      subgroups: (Array.isArray(group.subgroups) ? group.subgroups : [])
+        .filter((item) => item && item.id)
+        .map((item) => ({
+          id: String(item.id),
+          name: item.name || item.title || item.id,
+          description: String(item.description || "").trim(),
+          sort: Number(item.sort) || 0,
+          defaultOpen: Boolean(item.defaultOpen)
+        }))
+        .sort((a, b) => a.sort - b.sort || a.id.localeCompare(b.id, "ru"))
+    }));
+}
+
 const agentSettingsSchemaCacheByScope = new Map();
 const agentSettingsSchemaLoadPromises = new Map();
 
@@ -42213,7 +42233,7 @@ async function loadAgentSettingsSchemaBundle(options = {}) {
                 ? "awn.settings.integrations"
                 : "awn.settings.workspace"),
         settingsFields: mergeAgentSettingsSchemaFields(data.fields || {}),
-        settingsFieldGroups: Array.isArray(data.fieldGroups) ? data.fieldGroups : []
+        settingsFieldGroups: normalizeAgentSettingsFieldGroupsClient(data.fieldGroups || [])
       };
       agentSettingsSchemaCacheByScope.set(scope, payload);
       return payload;
@@ -42232,7 +42252,7 @@ async function loadAgentSettingsSchemaBundle(options = {}) {
       scope,
       typeId: typeDef?.id || typeId,
       settingsFields: mergeAgentSettingsSchemaFields(typeDef?.fields || {}),
-      settingsFieldGroups: Array.isArray(typeDef?.fieldGroups) ? typeDef.fieldGroups : []
+      settingsFieldGroups: normalizeAgentSettingsFieldGroupsClient(typeDef?.fieldGroups || [])
     };
     agentSettingsSchemaCacheByScope.set(scope, payload);
     return payload;
@@ -42283,13 +42303,50 @@ function getNodeSettingsFieldSubgroups(fieldGroups = [], groupId = "") {
   return Array.isArray(hit?.subgroups) ? hit.subgroups : [];
 }
 
-function resolveNodeSettingsSubgroupLabel(subgroupId, fieldGroups = [], groupId = "") {
-  const hit = getNodeSettingsFieldSubgroups(fieldGroups, groupId).find((item) => item.id === subgroupId);
+function buildNodeSettingsFieldSubgroupsFromFields(schemaFields = {}, groupId = "", entries = []) {
+  const order = [];
+  const byId = new Map();
+  for (const entry of entries) {
+    const fieldDef = schemaFields[entry.key];
+    if (resolvePropsFieldGroupId(entry.key, fieldDef) !== groupId) continue;
+    const subgroupId = resolvePropsFieldSubgroupId(entry.key, fieldDef);
+    if (!subgroupId) continue;
+    if (!byId.has(subgroupId)) {
+      byId.set(subgroupId, {
+        id: subgroupId,
+        name: subgroupId,
+        description: "",
+        defaultOpen: order.length === 0,
+        sort: order.length
+      });
+      order.push(subgroupId);
+    }
+  }
+  return order.map((id) => byId.get(id));
+}
+
+function resolveNodeSettingsFieldSubgroups(
+  fieldGroups = [],
+  groupId = "",
+  schemaFields = {},
+  entries = []
+) {
+  const fromSchema = getNodeSettingsFieldSubgroups(fieldGroups, groupId);
+  if (fromSchema.length) return fromSchema;
+  return buildNodeSettingsFieldSubgroupsFromFields(schemaFields, groupId, entries);
+}
+
+function findNodeSettingsSubgroupDef(subgroupId, subgroupDefs = []) {
+  return (subgroupDefs || []).find((item) => item && item.id === subgroupId) || null;
+}
+
+function resolveNodeSettingsSubgroupLabel(subgroupId, subgroupDefs = []) {
+  const hit = findNodeSettingsSubgroupDef(subgroupId, subgroupDefs);
   return hit?.name || hit?.title || subgroupId;
 }
 
-function resolveNodeSettingsSubgroupDescription(subgroupId, fieldGroups = [], groupId = "") {
-  const hit = getNodeSettingsFieldSubgroups(fieldGroups, groupId).find((item) => item.id === subgroupId);
+function resolveNodeSettingsSubgroupDescription(subgroupId, subgroupDefs = []) {
+  const hit = findNodeSettingsSubgroupDef(subgroupId, subgroupDefs);
   return String(hit?.description || "").trim();
 }
 
@@ -42327,7 +42384,7 @@ function resolveNodeSettingsSubgroupOpen(groupId, subgroupDef = {}) {
   return Boolean(subgroupDef.defaultOpen);
 }
 
-function createNodeSettingsSubgroupAccordion(subgroupDef, entries, schemaFields, groupId, fieldGroups = []) {
+function createNodeSettingsSubgroupAccordion(subgroupDef, entries, schemaFields, groupId, subgroupDefs = []) {
   const section = document.createElement("details");
   section.className = "node-settings-subgroup-accordion";
   section.dataset.subgroupId = subgroupDef.id;
@@ -42348,10 +42405,10 @@ function createNodeSettingsSubgroupAccordion(subgroupDef, entries, schemaFields,
 
   const title = document.createElement("span");
   title.className = "node-settings-subgroup-accordion-title";
-  title.textContent = resolveNodeSettingsSubgroupLabel(subgroupDef.id, fieldGroups, groupId);
+  title.textContent = resolveNodeSettingsSubgroupLabel(subgroupDef.id, subgroupDefs);
   summaryMain.appendChild(title);
 
-  const hint = resolveNodeSettingsSubgroupDescription(subgroupDef.id, fieldGroups, groupId);
+  const hint = resolveNodeSettingsSubgroupDescription(subgroupDef.id, subgroupDefs);
   if (hint) {
     const hintNode = document.createElement("span");
     hintNode.className = "node-settings-subgroup-accordion-hint";
@@ -42377,10 +42434,11 @@ function createNodeSettingsSubgroupAccordion(subgroupDef, entries, schemaFields,
 }
 
 function appendNodeSettingsGroupFields(fieldsNode, entries, schemaFields, { groupId, fieldGroups = [] }) {
-  const subgroupDefs = getNodeSettingsFieldSubgroups(fieldGroups, groupId);
   const entriesInGroup = entries.filter(
     (entry) => resolvePropsFieldGroupId(entry.key, schemaFields[entry.key]) === groupId
   );
+  const subgroupDefs = resolveNodeSettingsFieldSubgroups(fieldGroups, groupId, schemaFields, entriesInGroup);
+  fieldsNode.classList.toggle("has-settings-subgroups", Boolean(subgroupDefs.length));
   if (!subgroupDefs.length) {
     for (const entry of entriesInGroup) {
       fieldsNode.append(createNodeSettingsFieldRow(entry, schemaFields[entry.key]));
@@ -42409,7 +42467,7 @@ function appendNodeSettingsGroupFields(fieldsNode, entries, schemaFields, { grou
     const subgroupEntries = bySubgroup.get(subgroupDef.id) || [];
     if (!subgroupEntries.length) continue;
     fieldsNode.append(
-      createNodeSettingsSubgroupAccordion(subgroupDef, subgroupEntries, schemaFields, groupId, fieldGroups)
+      createNodeSettingsSubgroupAccordion(subgroupDef, subgroupEntries, schemaFields, groupId, subgroupDefs)
     );
     rendered += subgroupEntries.length;
   }
@@ -44340,6 +44398,7 @@ function renderNodeSettingsEditor(cache = getNodeSettingsCache()) {
   if (!fieldsNode || !emptyNode) return;
 
   fieldsNode.replaceChildren();
+  fieldsNode.classList.remove("has-settings-subgroups");
 
   const schemaFields = cache?.settingsFields || {};
   const schemaKeys = Object.keys(schemaFields);
@@ -48337,7 +48396,12 @@ function mergeResolvedTypeFieldGroups(groupLists) {
         name: group.name || group.title || byId.get(id)?.name || id,
         description: group.description || byId.get(id)?.description || "",
         collapsed:
-          group.collapsed !== undefined ? Boolean(group.collapsed) : Boolean(byId.get(id)?.collapsed)
+          group.collapsed !== undefined ? Boolean(group.collapsed) : Boolean(byId.get(id)?.collapsed),
+        subgroups: Array.isArray(group.subgroups)
+          ? group.subgroups
+          : Array.isArray(byId.get(id)?.subgroups)
+            ? byId.get(id).subgroups
+            : []
       });
     }
   }
