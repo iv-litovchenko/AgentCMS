@@ -32,7 +32,7 @@ const PLATFORM_AGENT_SETTINGS_DEFAULTS = {
   "always-context-platform-readme": true,
   "always-context-global-mcp-doc": true,
   "always-context-global-response-style": true,
-  "always-context-agents-md": true,
+  "always-context-md-files": ["AGENTS.md"],
   "always-context-ws-folder": "awn-shared/context/awn-storage/",
 };
 
@@ -143,8 +143,53 @@ function normalizeSettingsWithDefaults(raw = {}, defaults = {}) {
   return normalized;
 }
 
+const ALWAYS_CONTEXT_MD_FILE_KEYS = [
+  "AGENTS.md",
+  "AUTH.md",
+  "BOOTSTRAP.md",
+  "ONBOARDING.md",
+  "SKILL.md",
+  "README.md",
+  "NOTE.md",
+  "TODO.md"
+];
+
+const ALWAYS_CONTEXT_MD_LEGACY_SETTING_KEYS = [
+  { file: "AGENTS.md", keys: ["always-context-md-agents-md", "always-context-agents-md"] },
+  { file: "AUTH.md", keys: ["always-context-md-auth-md"] },
+  { file: "BOOTSTRAP.md", keys: ["always-context-md-bootstrap-md"] },
+  { file: "ONBOARDING.md", keys: ["always-context-md-onboarding-md"] },
+  { file: "SKILL.md", keys: ["always-context-md-skill-md"] },
+  { file: "README.md", keys: ["always-context-md-readme-md"] },
+  { file: "NOTE.md", keys: ["always-context-md-note-md"] },
+  { file: "TODO.md", keys: ["always-context-md-todo-md"] }
+];
+
+function migrateAlwaysContextMdFiles(flat = {}) {
+  if ("always-context-md-files" in flat) return flat;
+  let hasLegacy = false;
+  const selected = [];
+  for (const { file, keys } of ALWAYS_CONTEXT_MD_LEGACY_SETTING_KEYS) {
+    for (const key of keys) {
+      if (!(key in flat)) continue;
+      hasLegacy = true;
+      if (Boolean(flat[key])) selected.push(file);
+      break;
+    }
+  }
+  if (!hasLegacy) return flat;
+  return { ...flat, "always-context-md-files": selected };
+}
+
 function normalizePlatformAgentSettings(raw = {}) {
-  return normalizeSettingsWithDefaults(raw, PLATFORM_AGENT_SETTINGS_DEFAULTS);
+  const migrated = migrateAlwaysContextMdFiles(flattenAwnSettingsValues(raw));
+  const normalized = normalizeSettingsWithDefaults(migrated, PLATFORM_AGENT_SETTINGS_DEFAULTS);
+  if (Array.isArray(normalized["always-context-md-files"])) {
+    normalized["always-context-md-files"] = normalized["always-context-md-files"]
+      .map((item) => String(item ?? "").trim())
+      .filter((item) => ALWAYS_CONTEXT_MD_FILE_KEYS.includes(item));
+  }
+  return normalized;
 }
 
 function normalizeWorkspaceAgentSettings(raw = {}) {
@@ -203,8 +248,14 @@ function getPlatformDefaultLocale(settings = {}) {
 function isPlatformAlwaysContextEnabled(settings = {}, key = "") {
   const normalized = normalizePlatformAgentSettings(settings);
   const settingKey = String(key || "").trim();
-  if (!settingKey || !(settingKey in normalized)) return true;
-  return Boolean(normalized[settingKey]);
+  if (!settingKey) return true;
+  if (settingKey in normalized) return Boolean(normalized[settingKey]);
+  return true;
+}
+
+function getPlatformAlwaysContextMdFiles(settings = {}) {
+  const files = normalizePlatformAgentSettings(settings)["always-context-md-files"];
+  return Array.isArray(files) ? files : PLATFORM_AGENT_SETTINGS_DEFAULTS["always-context-md-files"];
 }
 
 function getPlatformAlwaysContextWsFolder(settings = {}) {
@@ -406,5 +457,6 @@ module.exports = {
   isPlatformMaintenanceMode,
   getPlatformDefaultLocale,
   isPlatformAlwaysContextEnabled,
+  getPlatformAlwaysContextMdFiles,
   getPlatformAlwaysContextWsFolder
 };

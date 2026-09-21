@@ -14,7 +14,8 @@ awn_settings:
   always-context-platform-readme: true
   always-context-global-mcp-doc: true
   always-context-global-response-style: true
-  always-context-agents-md: true
+  always-context-md-files:
+    - AGENTS.md
   always-context-ws-folder: awn-shared/context/awn-storage/
 
 awn_policy:

@@ -354,6 +354,7 @@ const appLandingAttentionNode = document.getElementById("app-landing-attention")
 const appLandingHubNode = document.getElementById("app-landing-hub");
 const appLandingFlowNode = document.getElementById("app-landing-flow");
 const appLandingFlowGridNode = document.getElementById("app-landing-flow-grid");
+const LANDING_SEARCH_ENABLED = false;
 const appLandingSearchInputNode = document.getElementById("app-landing-search-input");
 const appLandingSearchSpinnerNode = document.getElementById("app-landing-search-spinner");
 const appLandingSearchBarNode = document.querySelector(".app-landing-search-bar");
@@ -594,6 +595,7 @@ awn-repositories/**/*
 `;
 
 let projectSettingsEnvFocusPending = false;
+let projectSettingsEnvOnlyMode = false;
 
 const RECOMMENDED_AGENT_ENV_TEMPLATE = `# KEY=value — без кавычек, по одной переменной на строку
 # Секреты храните здесь, не в markdown и frontmatter тем.
@@ -22848,6 +22850,21 @@ function isProjectSettingsAgentSettingsScope(scopePath = getNodeSettingsManifest
   );
 }
 
+function projectSettingsScopeSupportsEnvEditor(scopePath = getNodeSettingsManifestPath()) {
+  const normalized = normalizeMenuNodePath(scopePath);
+  if (!normalized) return false;
+  if (isProjectSettingsIntegrationsSettingsScope(normalized)) return false;
+  if (isProjectSettingsUserSettingsScope(normalized)) return false;
+  if (isProjectSettingsIblockScope(normalized)) return false;
+  return true;
+}
+
+function shouldShowProjectSettingsEnvBlock(scopePath = getNodeSettingsManifestPath()) {
+  if (!projectSettingsScopeSupportsEnvEditor(scopePath)) return false;
+  if (projectSettingsEnvOnlyMode) return true;
+  return !isProjectSettingsAgentSettingsScope(scopePath);
+}
+
 function buildProjectSettingsIblockScopePath(storeRel) {
   const rel = String(storeRel || "")
     .replace(/\\/g, "/")
@@ -26862,8 +26879,12 @@ async function fetchLandingGlobalSearch(query, scope = getLandingSearchScope()) 
   return response.json();
 }
 
+function isLandingSearchEnabled() {
+  return LANDING_SEARCH_ENABLED && !appLandingSearchInputNode?.disabled;
+}
+
 function scheduleLandingSearch() {
-  if (!appLandingSearchInputNode) return;
+  if (!isLandingSearchEnabled() || !appLandingSearchInputNode) return;
   const query = appLandingSearchInputNode.value.trim();
   const scope = getLandingSearchScope();
   const minLength = getLandingSearchMinLength(scope);
@@ -42791,10 +42812,7 @@ function getProjectSettingsEnvScopePathForGroupLevel(level) {
 
 function resolveProjectSettingsEnvEditorScope(scopePath = getNodeSettingsManifestPath()) {
   const normalized = normalizeMenuNodePath(scopePath);
-  if (!normalized) return "";
-  if (isProjectSettingsIntegrationsSettingsScope(normalized) || isProjectSettingsUserSettingsScope(normalized)) {
-    return PROJECT_SETTINGS_GLOBAL_SCOPE;
-  }
+  if (!projectSettingsScopeSupportsEnvEditor(normalized)) return "";
   return normalized;
 }
 
@@ -42804,7 +42822,6 @@ function finishProjectSettingsEnvFocus() {
   const envBlock = projectSettingsPageNode?.querySelector(".project-settings-block--env");
   envBlock?.classList.add("is-env-focused");
   requestAnimationFrame(() => {
-    envBlock?.scrollIntoView({ behavior: "smooth", block: "start" });
     projectSettingsEnvInputNode?.focus();
     window.setTimeout(() => envBlock?.classList.remove("is-env-focused"), 1400);
   });
@@ -42812,14 +42829,12 @@ function finishProjectSettingsEnvFocus() {
 
 async function openProjectSettingsEnvEditor(scopePath, options = {}) {
   const normalized = normalizeMenuNodePath(scopePath);
-  if (!normalized) return;
-  if (isProjectSettingsIntegrationsSettingsScope(normalized) || isProjectSettingsUserSettingsScope(normalized)) {
-    return;
-  }
+  if (!projectSettingsScopeSupportsEnvEditor(normalized)) return;
+  projectSettingsEnvOnlyMode = true;
   projectSettingsEnvFocusPending = true;
   const current = getNodeSettingsManifestPath();
   if (current !== normalized) {
-    await selectProjectSettingsScope(normalized, { originButton: options.originButton });
+    await selectProjectSettingsScope(normalized, { originButton: options.originButton, envOnly: true });
     return;
   }
   projectSettingsEnvSnapshot = null;
@@ -42872,7 +42887,7 @@ function createProjectSettingsScopeGroupTitle(group, scopePath) {
   return titleWrap;
 }
 
-function renderProjectSettingsScopeFilters() {
+function renderProjectSettingsScopeFilters(scopePath = getNodeSettingsManifestPath()) {
   const wrap = document.createElement("div");
   wrap.className = "project-settings-scope-filters is-legend";
   wrap.setAttribute("role", "note");
@@ -42880,9 +42895,11 @@ function renderProjectSettingsScopeFilters() {
 
   const specs = [
     { key: "schema", label: "schema.yml", className: "is-schema" },
-    { key: "config", label: "config.yml", className: "is-local" },
-    { key: "env", label: ".env", className: "is-env is-clickable" }
+    { key: "config", label: "config.yml", className: "is-local" }
   ];
+  if (projectSettingsScopeSupportsEnvEditor(scopePath)) {
+    specs.push({ key: "env", label: ".env", className: "is-env is-clickable" });
+  }
 
   for (const spec of specs) {
     const item =
@@ -42905,11 +42922,11 @@ function renderProjectSettingsScopeFilters() {
   return wrap;
 }
 
-function syncProjectSettingsScopeLegend() {
+function syncProjectSettingsScopeLegend(scopePath = getNodeSettingsManifestPath()) {
   if (!projectSettingsScopeLegendMountNode) return;
   projectSettingsScopeLegendMountNode.replaceChildren();
   if (!isProjectSettingsMode()) return;
-  projectSettingsScopeLegendMountNode.appendChild(renderProjectSettingsScopeFilters());
+  projectSettingsScopeLegendMountNode.appendChild(renderProjectSettingsScopeFilters(scopePath));
 }
 
 function renderProjectSettingsIblockScopeItem(scope, activeScopePath) {
@@ -43299,12 +43316,13 @@ async function selectProjectSettingsAgentSettingsTab(scopePath, groupId, originB
   if (!normalized || !groupId) return;
   projectSettingsScopePath = normalized;
   projectSettingsActiveGroupId = groupId;
+  projectSettingsEnvOnlyMode = false;
   projectSettingsEnvSnapshot = null;
   try {
     if (!getNodeSettingsCache(normalized)) {
       await loadProjectSettingsContent({ force: false });
     } else {
-      applyProjectSettingsAgentGroupTabUi(getNodeSettingsCache(normalized));
+      renderProjectSettingsPage(getNodeSettingsCache(normalized));
     }
     commitEditorSaveBaseline();
     updateBreadcrumbsForActiveMode();
@@ -43320,6 +43338,9 @@ async function selectProjectSettingsScope(scopePath, options = {}) {
   if (!normalized) return;
   projectSettingsScopePath = normalized;
   projectSettingsEnvSnapshot = null;
+  if (!options.envOnly) {
+    projectSettingsEnvOnlyMode = false;
+  }
   if (options.groupId) {
     projectSettingsActiveGroupId = options.groupId;
   } else if (isProjectSettingsAgentSettingsScope(normalized)) {
@@ -43333,7 +43354,9 @@ async function selectProjectSettingsScope(scopePath, options = {}) {
   try {
     await loadProjectSettingsContent({ force: Boolean(options.force) });
     releaseProjectSettingsScopeNavigationFocus(options.originButton);
-    scheduleProjectSettingsPaneScrollTop({ smooth: true });
+    if (!options.envOnly && !projectSettingsEnvOnlyMode) {
+      scheduleProjectSettingsPaneScrollTop({ smooth: true });
+    }
   } catch (error) {
     showToast(`Не удалось загрузить настройки: ${error.message}`, "error");
   }
@@ -43524,8 +43547,12 @@ function renderProjectSettingsIblockStubPage(scopePath = getNodeSettingsManifest
 function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   if (!projectSettingsPageNode) return;
   const manifestPath = getNodeSettingsManifestPath();
+  if (!projectSettingsScopeSupportsEnvEditor(manifestPath) && projectSettingsEnvOnlyMode) {
+    projectSettingsEnvOnlyMode = false;
+  }
   if (isProjectSettingsIblockScope(manifestPath)) {
     renderProjectSettingsIblockStubPage(manifestPath);
+    syncProjectSettingsScopeLegend(manifestPath);
     return;
   }
 
@@ -43568,15 +43595,23 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
   const envPath = activeStatus?.envPath || getEnvFilePathForManifest(getNodeSettingsManifestPath());
 
   if (projectSettingsTitleNode) {
-    let titleSuffix = scope?.label || "";
-    if (isProjectSettingsAgentSettingsScope(getNodeSettingsManifestPath()) && projectSettingsActiveGroupId) {
-      const scopeKey = getProjectSettingsAgentSchemaScopeKey();
-      const fieldGroups = getProjectSettingsAgentFieldGroups(scopeKey);
-      titleSuffix = resolveNodeSettingsGroupLabel(projectSettingsActiveGroupId, fieldGroups);
+    if (projectSettingsEnvOnlyMode) {
+      projectSettingsTitleNode.textContent = isGlobalScope
+        ? "Платформа · .env"
+        : isLocalScope
+          ? "Хранилище · .env"
+          : ".env";
+    } else {
+      let titleSuffix = scope?.label || "";
+      if (isProjectSettingsAgentSettingsScope(getNodeSettingsManifestPath()) && projectSettingsActiveGroupId) {
+        const scopeKey = getProjectSettingsAgentSchemaScopeKey();
+        const fieldGroups = getProjectSettingsAgentFieldGroups(scopeKey);
+        titleSuffix = resolveNodeSettingsGroupLabel(projectSettingsActiveGroupId, fieldGroups);
+      }
+      projectSettingsTitleNode.textContent = titleSuffix
+        ? `${levelLabel} · ${titleSuffix}`
+        : "Настройки и параметры проекта";
     }
-    projectSettingsTitleNode.textContent = titleSuffix
-      ? `${levelLabel} · ${titleSuffix}`
-      : "Настройки и параметры проекта";
   }
   if (projectSettingsLeadNode) {
     projectSettingsLeadNode.innerHTML = isGlobalScope
@@ -43634,14 +43669,29 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
     }
   }
   syncProjectSettingsScopeListUi();
-  projectSettingsFieldsNode?.classList.remove("hidden");
-  renderNodeSettingsEditor(cache);
-  projectSettingsSaveBtnNode?.classList.remove("hidden");
+  const settingsBlockNode = projectSettingsPageNode?.querySelector(
+    ".project-settings-block:not(.project-settings-block--env)"
+  );
+  const settingsHeadNode = projectSettingsPageNode?.querySelector(".project-settings-head");
+  const showSettingsForm = !projectSettingsEnvOnlyMode;
+  projectSettingsPageNode?.classList.toggle("project-settings-page--env-only", projectSettingsEnvOnlyMode);
+  settingsBlockNode?.classList.toggle("hidden", !showSettingsForm);
+  settingsHeadNode?.classList.toggle("hidden", projectSettingsEnvOnlyMode);
+  if (showSettingsForm) {
+    projectSettingsFieldsNode?.classList.remove("hidden");
+    renderNodeSettingsEditor(cache);
+    projectSettingsSaveBtnNode?.classList.remove("hidden");
+  } else {
+    projectSettingsFieldsNode?.classList.add("hidden");
+    projectSettingsSaveBtnNode?.classList.add("hidden");
+    projectSettingsEmptyNode?.classList.add("hidden");
+    projectSettingsGroupTabsNode?.classList.add("hidden");
+  }
   const envBlockNode = projectSettingsPageNode?.querySelector(".project-settings-block--env");
   const envBlockTitleNode = envBlockNode?.querySelector(".project-settings-block-title");
   envBlockNode?.querySelector("#project-settings-workspace-file-select")?.remove();
-  const hideEnvBlock = isIntegrationsScope || isUserScope;
-  if (hideEnvBlock) {
+  const showEnvBlock = shouldShowProjectSettingsEnvBlock(manifestPath);
+  if (!showEnvBlock) {
     envBlockNode?.classList.add("hidden");
   } else {
     envBlockNode?.classList.remove("hidden");
@@ -43655,6 +43705,7 @@ function renderProjectSettingsPage(cache = getNodeSettingsCache()) {
     syncProjectSettingsEnvEditorUi();
     finishProjectSettingsEnvFocus();
   }
+  syncProjectSettingsScopeLegend(manifestPath);
   syncProjectSettingsSaveButtonState();
 }
 

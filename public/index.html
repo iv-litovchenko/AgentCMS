@@ -2569,10 +2569,16 @@
         <section class="app-landing-body" aria-label="Главная Agent CMS">
           <div class="app-landing-inner">
             <div class="app-landing-dock">
-              <section class="app-landing-search" aria-label="Поиск по агентам">
+              <section class="app-landing-search" aria-label="Поиск по workspace (скоро)">
                 <div class="app-landing-search-bar-wrap">
-                  <div class="app-landing-search-bar content-search-bar">
-                    <select id="app-landing-search-scope" class="content-search-scope" aria-label="Область поиска">
+                  <div class="app-landing-search-bar content-search-bar app-landing-search-bar--disabled">
+                    <select
+                      id="app-landing-search-scope"
+                      class="content-search-scope"
+                      aria-label="Область поиска"
+                      disabled
+                      aria-disabled="true"
+                    >
                       <option value="all" selected>Везде</option>
                       <option value="filename">Только имя</option>
                       <option value="content">Только текст</option>
@@ -2582,10 +2588,12 @@
                       id="app-landing-search-input"
                       class="content-search-input"
                       type="search"
-                      placeholder="Найти файл или текст..."
+                      placeholder="Поиск по workspace (скоро)"
                       autocomplete="off"
                       aria-expanded="false"
                       aria-controls="app-landing-search-results"
+                      disabled
+                      aria-disabled="true"
                     />
                     <span
                       id="app-landing-search-spinner"
@@ -2601,6 +2609,9 @@
                         aria-expanded="false"
                         aria-controls="app-landing-search-agents-panel"
                         aria-haspopup="listbox"
+                        disabled
+                        aria-disabled="true"
+                        title="Поиск по workspace (скоро)"
                       >
                         <span id="app-landing-search-agents-summary">Все агенты</span>
                       </button>

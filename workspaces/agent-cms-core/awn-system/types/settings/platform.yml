@@ -22,8 +22,8 @@ fieldGroups:
   - id: auto-context
     name: Автоконтекст
     description: >
-      Что всегда попадает в контекст агента (always-context): документы платформы, AGENTS.md workspace
-      и текстовые файлы из каталога ws/ (settings.global.yml).
+      Что всегда попадает в контекст агента (always-context): документы платформы, корневые .md workspace
+      (галочки ниже) и текстовые файлы из каталога ws/ (settings.global.yml).
   - id: mcp
     name: MCP
     description: Политика MCP-tools — режим доступа, batch_invoke и лимиты чтения/записи файлов.
@@ -173,11 +173,28 @@ fields:
     group: auto-context
     sort: 3
 
-  always-context-agents-md:
-    type: awn.field.boolean
-    title: AGENTS.md
-    description: Инструкции агента из корня workspace — always-context
-    default: true
+  always-context-md-files:
+    type: awn.field.choice.many
+    title: Корневые .md workspace
+    description: Какие системные .md из корня workspace добавлять в always-context всех агентов
+    default: [AGENTS.md]
+    enum:
+      - key: AGENTS.md
+        name: AGENTS.md
+      - key: AUTH.md
+        name: AUTH.md
+      - key: BOOTSTRAP.md
+        name: BOOTSTRAP.md
+      - key: ONBOARDING.md
+        name: ONBOARDING.md
+      - key: SKILL.md
+        name: SKILL.md
+      - key: README.md
+        name: README.md
+      - key: NOTE.md
+        name: NOTE.md
+      - key: TODO.md
+        name: TODO.md
     group: auto-context
     sort: 4
 
@@ -189,7 +206,7 @@ fields:
       (по умолчанию awn-shared/context/awn-storage/). Рекурсивно .md/.yml/.txt. Пусто — отключить.
     default: awn-shared/context/awn-storage/
     group: auto-context
-    sort: 5
+    sort: 12
 
   mcp-mode:
     type: awn.field.choice.one

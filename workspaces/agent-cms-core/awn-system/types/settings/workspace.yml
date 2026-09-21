@@ -27,6 +27,12 @@ fieldGroups:
   - id: memory
     name: Память
     description: Слоты и TTL временных данных workspace (пока не подключены в runtime).
+  - id: hooks
+    name: Крючки и триггеры
+    description: >
+      Правила «когда в хранилище происходит событие — выполнить действие»: webhook,
+      уведомление, скрипт или вызов MCP. Список правил будет здесь; исполнитель в runtime — позже.
+      Сейчас раздел-заглушка.
   - id: static
     name: Статичные параметры
     description: >
@@ -108,6 +114,29 @@ fields:
     default: 0
     group: memory
     sort: 31
+
+  hooks-stub-plan:
+    type: awn.field.text
+    title: Как это будет работать
+    description: Концепция раздела (только просмотр, пока не исполняется)
+    readonly: true
+    group: hooks
+    sort: 40
+    default: |
+      1. Событие — file.saved, index.pipeline.done, cron, конец сессии агента…
+      2. Условие — путь, тип записи, тег (опционально).
+      3. Действие — POST на URL, notify_user, run_script, mcp.tool.
+
+      Правила хранятся в settings.yml (или отдельном awn-data). Подписка — в server/MCP.
+
+  hooks-rules:
+    type: awn.field.repeater
+    title: "{NOT WORK} Правила"
+    description: Список крючков workspace — редактор и runtime позже
+    locked: true
+    group: hooks
+    sort: 41
+    items: awn.field.trigger.rule
 
   ws-static-plugin-example:
     type: awn.field.string

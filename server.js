@@ -335,6 +335,7 @@ const {
   isPlatformMaintenanceMode,
   getPlatformDefaultLocale,
   isPlatformAlwaysContextEnabled,
+  getPlatformAlwaysContextMdFiles,
   getPlatformAlwaysContextWsFolder
 } = require("./workspace-agent-settings");
 const { loadMcpPolicy, serializeMcpPolicy, reloadMcpPolicy } = require("./mcp-policy-loader");
@@ -11056,10 +11057,7 @@ async function buildAgentAlwaysContextRegistry() {
     });
   }
 
-  for (const name of ["AGENTS.md", "SKILL.md", "README.md"]) {
-    if (name === "AGENTS.md" && !isPlatformAlwaysContextEnabled(platformSettings, "always-context-agents-md")) {
-      continue;
-    }
+  for (const name of getPlatformAlwaysContextMdFiles(platformSettings)) {
     const meta = await getSystemFileMeta(name);
     if (!meta.exists) continue;
     const absolute = await resolveExistingSystemFileAbsolute(name);

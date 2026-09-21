@@ -4089,10 +4089,67 @@ body.app-locked {
 
 .app-landing-search-bar {
   width: 100%;
+  min-height: 36px;
+  align-items: stretch;
+}
+
+.app-landing-search-bar .content-search-scope,
+.app-landing-search-bar .content-search-input,
+.app-landing-search-bar .app-landing-search-agents-btn {
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.app-landing-search-bar .content-search-scope {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 112px;
+  max-width: 132px;
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: 36px;
 }
 
 .app-landing-search-bar .content-search-input {
   flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 12px;
+  line-height: 36px;
+  font-size: 13px;
+}
+
+.app-landing-search-bar .app-landing-search-agents-btn {
+  height: auto;
+  min-height: 36px;
+  border-left: 1px solid var(--border);
+}
+
+.app-landing-search-bar--disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
+}
+
+.app-landing-search-bar--disabled:focus-within {
+  border-color: var(--border);
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.app-landing-search-bar--disabled .content-search-scope,
+.app-landing-search-bar--disabled .content-search-input,
+.app-landing-search-bar--disabled .app-landing-search-agents-btn {
+  cursor: not-allowed;
+}
+
+.app-landing-search-bar--disabled .content-search-scope:disabled,
+.app-landing-search-bar--disabled .content-search-input:disabled,
+.app-landing-search-bar--disabled .app-landing-search-agents-btn:disabled {
+  opacity: 1;
+  color: #94a3b8;
+}
+
+.app-landing-search-bar--disabled .content-search-input:disabled::placeholder {
+  color: #94a3b8;
 }
 
 .app-landing-search-agents-wrap {
@@ -8246,6 +8303,22 @@ body.app-locked {
   color: rgba(148, 163, 184, 0.72);
 }
 
+.app-landing-pane.is-landing-bg-sky .app-landing-search-bar--disabled:focus-within,
+.app-landing-pane.is-landing-bg-light .app-landing-search-bar--disabled:focus-within {
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: none;
+}
+
+.app-landing-pane.is-landing-bg-sky .app-landing-search-bar--disabled .content-search-scope:disabled,
+.app-landing-pane.is-landing-bg-sky .app-landing-search-bar--disabled .content-search-input:disabled,
+.app-landing-pane.is-landing-bg-sky .app-landing-search-bar--disabled .app-landing-search-agents-btn:disabled {
+  color: rgba(148, 163, 184, 0.78);
+}
+
+.app-landing-pane.is-landing-bg-sky .app-landing-search-bar--disabled .content-search-input:disabled::placeholder {
+  color: rgba(148, 163, 184, 0.62);
+}
+
 .app-landing-pane.is-landing-bg-sky .app-landing-manage-btn {
   border-color: rgba(148, 163, 184, 0.35);
   background: rgba(15, 23, 42, 0.55);
@@ -11704,13 +11777,6 @@ body.app-locked {
   pointer-events: none;
 }
 
-.project-settings-scope-filters.is-legend .project-settings-scope-filter.is-clickable {
-  cursor: pointer;
-  pointer-events: auto;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(255, 255, 255, 0.96);
-}
-
 .project-settings-scope-filters.is-legend .project-settings-scope-filter.is-clickable:hover {
   border-color: rgba(245, 158, 11, 0.55);
   color: var(--text);
@@ -12216,6 +12282,16 @@ body.app-locked {
   border-top: 1px solid rgba(148, 163, 184, 0.22);
 }
 
+.project-settings-page--env-only {
+  overflow: visible;
+}
+
+.project-settings-page--env-only .project-settings-block--env {
+  padding-top: 0;
+  border-top: 0;
+  max-width: none;
+}
+
 .project-settings-block-title {
   margin: 0;
   font-size: 12px;
@@ -12299,8 +12375,31 @@ body.app-locked {
 
 .project-settings-scope-filter.is-clickable {
   margin: 0;
-  font: inherit;
   appearance: none;
+  -webkit-appearance: none;
+}
+
+.project-settings-scope-filters.is-legend .project-settings-scope-filter.is-clickable {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 4px 8px 4px 6px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .project-settings-block--env .project-settings-env-wrap.is-editing .project-settings-env-input {
