@@ -52,6 +52,7 @@ export const SHELL_RUNTIME_VENDORS = {
   openclaw: "Steinberger",
   hermes: "Nous Research",
   "agent-zero": "frdel",
+  qwenpaw: "AgentScope"
 };
 
 export function formatRuntimeBaseLabel(runtime) {

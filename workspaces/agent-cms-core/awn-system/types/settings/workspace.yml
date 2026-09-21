@@ -304,7 +304,7 @@ fields:
       - key: agent-zero
         name: Agent Zero — скоро
       - key: qwenpaw
-        name: QwenPaw
+        name: QwenPaw (AgentScope)
     group: voice-client
     subgroup: voice-route
     sort: 52
