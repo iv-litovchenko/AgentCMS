@@ -54182,33 +54182,35 @@ button.node-navigation-memory-title:focus-visible {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.create-node-service-docs-actions--topics {
-  margin-top: 2px;
-}
-
-.create-node-service-docs-subsection-label {
-  margin: 10px 0 6px;
-}
-
 .create-node-service-docs-footnotes {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   margin-top: 8px;
+  text-align: left;
 }
 
 .create-node-service-docs-footnotes .create-node-service-docs-footnote {
   margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #64748b;
+  text-align: left;
+}
+
+.create-node-service-doc-ref {
+  font-size: 0.78em;
+  font-weight: 600;
+  line-height: 0;
+  color: #dc2626;
+  letter-spacing: 0;
 }
 
 .create-node-service-doc-btn {
-  font-size: 13px;
+  padding: 8px 5px;
+  font-size: 12px;
   text-align: center;
   white-space: normal;
-}
-
-.create-node-service-docs-actions--topics .create-node-service-doc-btn {
-  text-align: left;
 }
 
 .create-node-service-doc-btn--full {
@@ -54217,14 +54219,9 @@ button.node-navigation-memory-title:focus-visible {
 
 .create-node-service-docs-footnote {
   margin: 2px 0 0;
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 11px;
+  line-height: 1.4;
   color: #64748b;
-}
-
-.create-node-service-docs-footnote .stub-static-mark {
-  font-size: 12px;
-  margin-right: 0.15em;
 }
 
 .create-node-service-doc-btn:disabled {
