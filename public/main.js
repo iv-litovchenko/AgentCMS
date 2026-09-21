@@ -392,7 +392,6 @@ const contentSearchAdvancedCancelBtnNode = document.getElementById("content-sear
 const contentSearchAdvancedResetBtnNode = document.getElementById("content-search-advanced-reset-btn");
 const contentSearchAdvancedCloseBtnNode = document.getElementById("content-search-advanced-close-btn");
 const contentSearchActiveFiltersNode = document.getElementById("content-search-active-filters");
-const contentSearchLayerStatusNode = document.getElementById("content-search-layer-status");
 const contentSearchResultsNode = document.getElementById("content-search-results");
 const contentSearchPathScopeNode = document.getElementById("content-search-path-scope");
 const contentSearchPathScopeLabelNode = document.getElementById("content-search-path-scope-label");
@@ -24730,72 +24729,25 @@ function formatContentSearchPolicyError(error) {
 }
 
 async function loadContentSearchPolicy() {
-  if (!contentSearchLayerStatusNode) return contentSearchPolicyCache;
   if (contentSearchPolicyLoadPromise) return contentSearchPolicyLoadPromise;
   contentSearchPolicyLoadPromise = fetch("/api/workspace-index/policy")
     .then(async (response) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || response.statusText);
       contentSearchPolicyCache = data;
-      syncContentSearchLayerStatusUi();
+      syncContentSearchPolicyUi();
       return data;
     })
-    .catch((error) => {
-      if (contentSearchLayerStatusNode) {
-        contentSearchLayerStatusNode.textContent = formatContentSearchPolicyError(error);
-        contentSearchLayerStatusNode.className = "content-search-layer-status is-error";
-        contentSearchLayerStatusNode.classList.remove("hidden");
-      }
-      return null;
-    })
+    .catch(() => null)
     .finally(() => {
       contentSearchPolicyLoadPromise = null;
     });
   return contentSearchPolicyLoadPromise;
 }
 
-function syncContentSearchLayerStatusUi() {
-  if (!contentSearchLayerStatusNode) return;
-  const search = contentSearchPolicyCache?.search;
-  if (!search?.layers) {
-    contentSearchLayerStatusNode.classList.add("hidden");
-    contentSearchLayerStatusNode.textContent = "";
-    return;
-  }
-
-  const chips = [];
-  const layers = search.layers;
-  if (layers.fulltext) {
-    chips.push(
-      `<span class="content-search-layer-chip${layers.fulltext.enabled ? " is-on" : " is-off"}">Слова</span>`
-    );
-  }
-  if (layers.semantic) {
-    chips.push(
-      `<span class="content-search-layer-chip${layers.semantic.enabled ? " is-on" : " is-off"}">Смысл</span>`
-    );
-  }
-  if (layers.storage) {
-    chips.push(
-      `<span class="content-search-layer-chip${layers.storage.enabled ? " is-on" : " is-off"}">Поля</span>`
-    );
-  }
-
-  const warnings = [];
-  if (isContentSearchSemantic() && !layers.semantic?.enabled) {
-    warnings.push("Семантический поиск отключён в настройках");
-  }
-  if (!isContentSearchAlternateMode() && !layers.fulltext?.enabled) {
-    warnings.push("Полнотекстовый индекс отключён — будет медленный обход файлов");
-  }
-  if (getContentSearchFieldFilter() && !layers.storage?.enabled) {
-    warnings.push("Индекс полей отключён — фильтр по frontmatter недоступен");
-  }
-
-  const scopeLabel = (search.enabledScopes || search.defaultScopes || []).join(" + ") || "—";
-  contentSearchLayerStatusNode.innerHTML = `${chips.join("")}<span class="content-search-layer-meta">hybrid: ${escapeHtml(scopeLabel)}</span>${warnings.length ? `<span class="content-search-layer-warning">${escapeHtml(warnings.join(" · "))}</span>` : ""}`;
-  contentSearchLayerStatusNode.className = `content-search-layer-status${warnings.length ? " has-warning" : ""}`;
-  contentSearchLayerStatusNode.classList.remove("hidden");
+function syncContentSearchPolicyUi() {
+  const layers = contentSearchPolicyCache?.search?.layers;
+  if (!layers) return;
 
   if (contentSearchModeSemanticBtn) {
     const semanticDisabled = !layers.semantic?.enabled;
@@ -24807,10 +24759,10 @@ function syncContentSearchLayerStatusUi() {
   }
   if (contentSearchAdvancedOpenBtnNode) {
     const storageDisabled = !layers.storage?.enabled;
-    if (storageDisabled) {
-      contentSearchAdvancedOpenBtnNode.setAttribute("disabled", "disabled");
-      contentSearchAdvancedOpenBtnNode.title = "Индекс полей отключён в settings.global.yml";
-    }
+    contentSearchAdvancedOpenBtnNode.toggleAttribute("disabled", storageDisabled);
+    contentSearchAdvancedOpenBtnNode.title = storageDisabled
+      ? "Индекс полей отключён в settings.global.yml"
+      : "";
   }
 }
 
@@ -24822,7 +24774,7 @@ function setContentSearchMode(mode) {
   }
   if (contentSearchModeNode.value === next) {
     syncContentSearchModeToggleUi();
-    syncContentSearchLayerStatusUi();
+    syncContentSearchPolicyUi();
     return;
   }
   contentSearchModeNode.value = next;
@@ -25552,7 +25504,7 @@ function updateContentSearchFiltersState() {
   );
   syncContentSearchModeToggleUi();
   syncContentSearchFiltersUi();
-  syncContentSearchLayerStatusUi();
+  syncContentSearchPolicyUi();
 }
 
 function loadContentSearchPathScope() {
