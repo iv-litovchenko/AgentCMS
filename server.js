@@ -2332,7 +2332,7 @@ async function buildProjectSettingsScopeStatus(manifestPaths = []) {
       const globalFile = await readGlobalSettingsFile(projectRoot);
       const parsed = parseSettingsFileContent(globalFile.content || "");
       const valueCount = countSettingsValues(parsed.awn_settings);
-      const envStatus = await readEnvFileStatus(path.join(projectRoot, ".env"), ".env");
+      const envStatus = await readEnvFileStatus(path.join(getAppRoot(), ".env"), ".env");
       items.push({
         path: PROJECT_SETTINGS_GLOBAL_SCOPE,
         settingsPath: globalFile.path,
@@ -5405,6 +5405,7 @@ const WORKSPACE_TEXT_FILE_MAX_BYTES_FALLBACK = 120_000;
 const WORKSPACE_FS_READ_BASE64_MAX_BYTES_FALLBACK = 1_500_000;
 
 const PLATFORM_MAINTENANCE_ALLOWLIST = new Set([
+  "/api/platform/readme",
   "/api/platform/settings-global",
   "/api/platform/settings-schema",
   "/api/agent/settings-schema",
@@ -26855,7 +26856,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/platform/readme") {
-    const readmeAbsolute = path.join(getProjectRoot(), "README.md");
+    const readmeAbsolute = path.join(getAppRoot(), "README.md");
     try {
       const content = await fs.readFile(readmeAbsolute, "utf-8");
       return sendJson(res, 200, { path: "README.md", content, exists: true });
@@ -26868,7 +26869,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/platform/env") {
-    const envAbsolute = path.join(getProjectRoot(), ".env");
+    const envAbsolute = path.join(getAppRoot(), ".env");
     try {
       const content = await fs.readFile(envAbsolute, "utf-8");
       return sendJson(res, 200, { path: ".env", content, exists: true });
@@ -26885,7 +26886,7 @@ async function handleApi(req, res, url) {
       const payload = await readJsonBody(req);
       const content = typeof payload.content === "string" ? payload.content : null;
       if (content === null) return sendJson(res, 400, { error: "Missing content" });
-      const envAbsolute = path.join(getProjectRoot(), ".env");
+      const envAbsolute = path.join(getAppRoot(), ".env");
       await fs.mkdir(path.dirname(envAbsolute), { recursive: true });
       await fs.writeFile(envAbsolute, content, "utf-8");
       return sendJson(res, 200, { path: ".env", content, exists: true });

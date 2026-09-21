@@ -9956,7 +9956,7 @@ let appLandingPlatformReadmeCache = null;
 
 async function loadAppLandingPlatformReadme(options = {}) {
   if (!options.force && appLandingPlatformReadmeCache) return appLandingPlatformReadmeCache;
-  const response = await fetch("/api/platform/readme");
+  const response = await fetch(buildApiUrl("/api/platform/readme"));
   if (!response.ok) throw new Error(`Request failed with ${response.status}`);
   const data = await response.json();
   appLandingPlatformReadmeCache = {
@@ -9967,14 +9967,14 @@ async function loadAppLandingPlatformReadme(options = {}) {
   return appLandingPlatformReadmeCache;
 }
 
-function createAppLandingPlatformReadmePanel(readme) {
+function createAppLandingPlatformReadmePanel(readme, options = {}) {
   const panel = document.createElement("article");
   panel.className = "app-landing-platform-readme markdown-preview";
   panel.setAttribute("aria-label", "О проекте Agent CMS");
 
   const body = document.createElement("div");
   body.className = "app-landing-platform-readme-body markdown-body";
-  if (readme?.content && typeof renderMarkdownToHtml === "function") {
+  if (readme?.exists && readme.content && typeof renderMarkdownToHtml === "function") {
     body.innerHTML = renderMarkdownToHtml(readme.content, { hideFrontmatter: true });
     for (const link of body.querySelectorAll("a[href]")) {
       const href = String(link.getAttribute("href") || "").trim();
@@ -9983,10 +9983,14 @@ function createAppLandingPlatformReadmePanel(readme) {
         link.rel = "noopener noreferrer";
       }
     }
-  } else if (readme?.content) {
+  } else if (readme?.exists && readme.content) {
     body.textContent = readme.content;
-  } else {
+  } else if (readme && readme.exists === false) {
     body.innerHTML = "<p>README.md не найден в корне репозитория.</p>";
+  } else {
+    body.innerHTML = `<p>Не удалось загрузить README.md${
+      options.error ? `: ${escapeHtml(options.error)}` : ""
+    }.</p>`;
   }
   panel.append(body);
   return panel;
@@ -10025,10 +10029,12 @@ async function renderAppLandingPlatformSection() {
 
   let readmePanel = null;
   try {
-    const readme = await loadAppLandingPlatformReadme();
+    const readme = await loadAppLandingPlatformReadme({ force: true });
     readmePanel = createAppLandingPlatformReadmePanel(readme);
-  } catch {
-    readmePanel = createAppLandingPlatformReadmePanel(null);
+  } catch (error) {
+    readmePanel = createAppLandingPlatformReadmePanel(null, {
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 
   appLandingPlatformNode.append(
